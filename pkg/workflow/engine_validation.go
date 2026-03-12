@@ -191,57 +191,6 @@ func (c *Compiler) validateEngineAuthDefinition(config *EngineConfig) error {
 	return nil
 }
 
-// validateEngine validates that the given engine ID is supported
-func (c *Compiler) validateEngine(engineID string) error {
-	if engineID == "" {
-		engineValidationLog.Print("No engine ID specified, will use default")
-		return nil // Empty engine is valid (will use default)
-	}
-
-	engineValidationLog.Printf("Validating engine ID: %s", engineID)
-
-	// First try exact match
-	if c.engineRegistry.IsValidEngine(engineID) {
-		engineValidationLog.Printf("Engine ID %s is valid (exact match)", engineID)
-		return nil
-	}
-
-	// Try prefix match for backward compatibility (e.g., "codex-experimental")
-	engine, err := c.engineRegistry.GetEngineByPrefix(engineID)
-	if err == nil {
-		engineValidationLog.Printf("Engine ID %s matched by prefix to: %s", engineID, engine.GetID())
-		return nil
-	}
-
-	engineValidationLog.Printf("Engine ID %s not found: %v", engineID, err)
-
-	// Get list of valid engine IDs from the engine registry
-	validEngines := c.engineRegistry.GetSupportedEngines()
-
-	// Try to find close matches for "did you mean" suggestion
-	suggestions := parser.FindClosestMatches(engineID, validEngines, 1)
-
-	// Build comma-separated list of valid engines for error message
-	enginesStr := strings.Join(validEngines, ", ")
-
-	// Build error message with helpful context
-	errMsg := fmt.Sprintf("invalid engine: %s. Valid engines are: %s.\n\nExample:\nengine: copilot\n\nSee: %s",
-		engineID,
-		enginesStr,
-		constants.DocsEnginesURL)
-
-	// Add "did you mean" suggestion if we found a close match
-	if len(suggestions) > 0 {
-		errMsg = fmt.Sprintf("invalid engine: %s. Valid engines are: %s.\n\nDid you mean: %s?\n\nExample:\nengine: copilot\n\nSee: %s",
-			engineID,
-			enginesStr,
-			suggestions[0],
-			constants.DocsEnginesURL)
-	}
-
-	return fmt.Errorf("%s", errMsg)
-}
-
 // validateSingleEngineSpecification validates that only one engine field exists across all files
 func (c *Compiler) validateSingleEngineSpecification(mainEngineSetting string, includedEnginesJSON []string) (string, error) {
 	var allEngines []string

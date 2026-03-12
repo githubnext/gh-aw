@@ -60,57 +60,6 @@ func TestVersionField(t *testing.T) {
 		}
 	})
 
-	// Test Playwright tool version extraction
-	t.Run("Playwright version field extraction", func(t *testing.T) {
-		// Test "version" field
-		playwrightTool := map[string]any{
-			"version": "v1.41.0",
-		}
-		playwrightConfig := parsePlaywrightTool(playwrightTool)
-		result := getPlaywrightDockerImageVersion(playwrightConfig)
-		if result != "v1.41.0" {
-			t.Errorf("Expected v1.41.0, got %s", result)
-		}
-
-		// Test default value when version field is not present
-		playwrightToolDefault := map[string]any{}
-		playwrightConfigDefault := parsePlaywrightTool(playwrightToolDefault)
-		result = getPlaywrightDockerImageVersion(playwrightConfigDefault)
-		if result != string(constants.DefaultPlaywrightBrowserVersion) {
-			t.Errorf("Expected default %s, got %s", string(constants.DefaultPlaywrightBrowserVersion), result)
-		}
-
-		// Test integer version
-		playwrightToolInt := map[string]any{
-			"version": 20,
-		}
-		playwrightConfigInt := parsePlaywrightTool(playwrightToolInt)
-		result = getPlaywrightDockerImageVersion(playwrightConfigInt)
-		if result != "20" {
-			t.Errorf("Expected 20, got %s", result)
-		}
-
-		// Test float version
-		playwrightToolFloat := map[string]any{
-			"version": 1.41,
-		}
-		playwrightConfigFloat := parsePlaywrightTool(playwrightToolFloat)
-		result = getPlaywrightDockerImageVersion(playwrightConfigFloat)
-		if result != "1.41" {
-			t.Errorf("Expected 1.41, got %s", result)
-		}
-
-		// Test int64 version
-		playwrightToolInt64 := map[string]any{
-			"version": int64(142),
-		}
-		playwrightConfigInt64 := parsePlaywrightTool(playwrightToolInt64)
-		result = getPlaywrightDockerImageVersion(playwrightConfigInt64)
-		if result != "142" {
-			t.Errorf("Expected 142, got %s", result)
-		}
-	})
-
 	// Test MCP parser integration
 	t.Run("MCP parser version field integration", func(t *testing.T) {
 		// Test GitHub tool with "version" field

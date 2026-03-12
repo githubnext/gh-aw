@@ -321,14 +321,6 @@ func (c *Compiler) GetSharedActionCache() *ActionCache {
 	return cache
 }
 
-// GetArtifactManager returns the artifact manager for tracking uploads/downloads
-func (c *Compiler) GetArtifactManager() *ArtifactManager {
-	if c.artifactManager == nil {
-		c.artifactManager = NewArtifactManager()
-	}
-	return c.artifactManager
-}
-
 // SkipIfMatchConfig holds the configuration for skip-if-match conditions
 type SkipIfMatchConfig struct {
 	Query string // GitHub search query to check before running workflow
