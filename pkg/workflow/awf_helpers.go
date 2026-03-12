@@ -190,6 +190,21 @@ func BuildAWFArgs(config AWFCommandConfig) []string {
 	awfArgs = append(awfArgs, "--enable-api-proxy")
 	awfHelpersLog.Print("Added --enable-api-proxy for LLM API proxying")
 
+	// Add custom API targets if configured in engine.env
+	// This allows AWF's credential isolation and firewall to work with custom endpoints
+	// (e.g., corporate LLM routers, Azure OpenAI, self-hosted APIs)
+	openaiTarget := extractAPITargetHost(config.WorkflowData, "OPENAI_BASE_URL")
+	if openaiTarget != "" {
+		awfArgs = append(awfArgs, "--openai-api-target", openaiTarget)
+		awfHelpersLog.Printf("Added --openai-api-target=%s", openaiTarget)
+	}
+
+	anthropicTarget := extractAPITargetHost(config.WorkflowData, "ANTHROPIC_BASE_URL")
+	if anthropicTarget != "" {
+		awfArgs = append(awfArgs, "--anthropic-api-target", anthropicTarget)
+		awfHelpersLog.Printf("Added --anthropic-api-target=%s", anthropicTarget)
+	}
+
 	// Add SSL Bump support for HTTPS content inspection (v0.9.0+)
 	sslBumpArgs := getSSLBumpArgs(firewallConfig)
 	awfArgs = append(awfArgs, sslBumpArgs...)
@@ -244,4 +259,69 @@ func WrapCommandInShell(command string) string {
 
 	// Wrap in shell invocation
 	return fmt.Sprintf("/bin/bash -c '%s'", escapedCommand)
+}
+
+// extractAPITargetHost extracts the hostname from a custom API base URL in engine.env.
+// This supports custom OpenAI-compatible or Anthropic-compatible endpoints (e.g., internal
+// LLM routers, Azure OpenAI) while preserving AWF's credential isolation and firewall features.
+//
+// The function:
+// 1. Checks if the specified env var (e.g., "OPENAI_BASE_URL") exists in engine.env
+// 2. Extracts the hostname from the URL (e.g., "https://llm-router.internal.example.com/v1" → "llm-router.internal.example.com")
+// 3. Returns empty string if no custom URL is configured or if the URL is invalid
+//
+// Parameters:
+//   - workflowData: The workflow data containing engine configuration
+//   - envVar: The environment variable name (e.g., "OPENAI_BASE_URL", "ANTHROPIC_BASE_URL")
+//
+// Returns:
+//   - string: The hostname to use as --openai-api-target or --anthropic-api-target, or empty string if not configured
+//
+// Example:
+//
+//	engine:
+//	  id: codex
+//	  env:
+//	    OPENAI_BASE_URL: "https://llm-router.internal.example.com/v1"
+//	    OPENAI_API_KEY: ${{ secrets.LLM_ROUTER_KEY }}
+//
+//	extractAPITargetHost(workflowData, "OPENAI_BASE_URL")
+//	// Returns: "llm-router.internal.example.com"
+func extractAPITargetHost(workflowData *WorkflowData, envVar string) string {
+	// Check if engine config and env are available
+	if workflowData == nil || workflowData.EngineConfig == nil || workflowData.EngineConfig.Env == nil {
+		return ""
+	}
+
+	// Get the custom base URL from engine.env
+	baseURL, exists := workflowData.EngineConfig.Env[envVar]
+	if !exists || baseURL == "" {
+		return ""
+	}
+
+	// Extract hostname from URL
+	// URLs can be:
+	// - "https://llm-router.internal.example.com/v1" → "llm-router.internal.example.com"
+	// - "http://localhost:8080/v1" → "localhost:8080"
+	// - "api.openai.com" → "api.openai.com" (treated as hostname)
+
+	// Remove protocol prefix if present
+	host := baseURL
+	if idx := strings.Index(host, "://"); idx != -1 {
+		host = host[idx+3:]
+	}
+
+	// Remove path suffix if present (everything after first /)
+	if idx := strings.Index(host, "/"); idx != -1 {
+		host = host[:idx]
+	}
+
+	// Validate that we have a non-empty hostname
+	if host == "" {
+		awfHelpersLog.Printf("Invalid %s URL (no hostname): %s", envVar, baseURL)
+		return ""
+	}
+
+	awfHelpersLog.Printf("Extracted API target host from %s: %s", envVar, host)
+	return host
 }
