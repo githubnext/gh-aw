@@ -24,9 +24,9 @@ type EngineConfig struct {
 	Env              map[string]string
 	Config           string
 	Args             []string
-	Firewall         *FirewallConfig    // AWF firewall configuration
-	Agent            string             // Agent identifier for copilot --agent flag (copilot engine only)
-	Enterprise       *EnterpriseConfig  // Enterprise/GHE configuration (copilot engine only)
+	Firewall         *FirewallConfig   // AWF firewall configuration
+	Agent            string            // Agent identifier for copilot --agent flag (copilot engine only)
+	Enterprise       *EnterpriseConfig // Enterprise/GHE configuration (copilot engine only)
 
 	// Inline definition fields (populated when engine.runtime is specified in frontmatter)
 	IsInlineDefinition bool   // true when the engine is defined inline via engine.runtime + optional engine.provider
@@ -49,23 +49,23 @@ type EngineConfig struct {
 //
 //  1. GHEC - Automatic detection (recommended):
 //     enterprise:
-//       server-url: "https://acme.ghe.com"
+//     server-url: "https://acme.ghe.com"
 //     Result: AWF automatically routes to api.acme.ghe.com
 //
 //  2. GHES - Automatic detection (recommended):
 //     enterprise:
-//       server-url: "https://github.company.com"
+//     server-url: "https://github.company.com"
 //     Result: AWF automatically routes to api.enterprise.githubcopilot.com
 //
 //  3. Manual override (for custom configurations):
 //     enterprise:
-//       copilot-api-target: "api.custom.endpoint.com"
+//     copilot-api-target: "api.custom.endpoint.com"
 //     Result: AWF uses specified endpoint directly
 //
 // Priority: copilot-api-target > server-url detection > GitHub Actions GITHUB_SERVER_URL > default (api.githubcopilot.com)
 type EnterpriseConfig struct {
-	ServerURL         string `yaml:"server-url,omitempty"`          // GitHub Enterprise Server URL (e.g., "https://acme.ghe.com" or "https://github.company.com")
-	CopilotAPITarget  string `yaml:"copilot-api-target,omitempty"`  // Manual override for Copilot API endpoint (e.g., "api.acme.ghe.com" or "api.enterprise.githubcopilot.com")
+	ServerURL        string `yaml:"server-url,omitempty"`         // GitHub Enterprise Server URL (e.g., "https://acme.ghe.com" or "https://github.company.com")
+	CopilotAPITarget string `yaml:"copilot-api-target,omitempty"` // Manual override for Copilot API endpoint (e.g., "api.acme.ghe.com" or "api.enterprise.githubcopilot.com")
 }
 
 // NetworkPermissions represents network access permissions for workflow execution

@@ -338,10 +338,10 @@ func extractAPITargetHost(workflowData *WorkflowData, envVar string) string {
 // This supports GitHub Enterprise Cloud (GHEC) and GitHub Enterprise Server (GHES) deployments.
 //
 // The function checks enterprise configuration in the following priority order:
-// 1. engine.enterprise.copilot-api-target - Manual override (highest priority)
-// 2. engine.enterprise.server-url - Exported as COPILOT_SERVER_URL environment variable,
-//    AWF automatically detects GHEC (*.ghe.com) or GHES (custom domains) and routes appropriately
-// 3. No enterprise config - AWF uses GitHub Actions GITHUB_SERVER_URL or defaults to api.githubcopilot.com
+//  1. engine.enterprise.copilot-api-target - Manual override (highest priority)
+//  2. engine.enterprise.server-url - Exported as COPILOT_SERVER_URL environment variable,
+//     AWF automatically detects GHEC (*.ghe.com) or GHES (custom domains) and routes appropriately
+//  3. No enterprise config - AWF uses GitHub Actions GITHUB_SERVER_URL or defaults to api.githubcopilot.com
 //
 // Parameters:
 //   - workflowData: The workflow data containing engine configuration
@@ -351,26 +351,26 @@ func extractAPITargetHost(workflowData *WorkflowData, envVar string) string {
 //
 // Example frontmatter configurations:
 //
-//  # GHEC with automatic detection (recommended)
-//  engine:
-//    id: copilot
-//    enterprise:
-//      server-url: "https://acme.ghe.com"
-//  # AWF automatically routes to api.acme.ghe.com
+//	# GHEC with automatic detection (recommended)
+//	engine:
+//	  id: copilot
+//	  enterprise:
+//	    server-url: "https://acme.ghe.com"
+//	# AWF automatically routes to api.acme.ghe.com
 //
-//  # GHES with automatic detection (recommended)
-//  engine:
-//    id: copilot
-//    enterprise:
-//      server-url: "https://github.company.com"
-//  # AWF automatically routes to api.enterprise.githubcopilot.com
+//	# GHES with automatic detection (recommended)
+//	engine:
+//	  id: copilot
+//	  enterprise:
+//	    server-url: "https://github.company.com"
+//	# AWF automatically routes to api.enterprise.githubcopilot.com
 //
-//  # Manual override (for custom configurations)
-//  engine:
-//    id: copilot
-//    enterprise:
-//      copilot-api-target: "api.custom.endpoint.com"
-//  # AWF uses specified endpoint directly
+//	# Manual override (for custom configurations)
+//	engine:
+//	  id: copilot
+//	  enterprise:
+//	    copilot-api-target: "api.custom.endpoint.com"
+//	# AWF uses specified endpoint directly
 func extractCopilotAPITarget(workflowData *WorkflowData) string {
 	// Check if engine config is available
 	if workflowData == nil || workflowData.EngineConfig == nil {

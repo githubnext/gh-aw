@@ -250,3 +250,126 @@ func TestEngineCommandField(t *testing.T) {
 		})
 	}
 }
+
+// TestEnterpriseConfigExtraction tests that enterprise configuration is correctly
+// extracted from frontmatter for GitHub Enterprise Cloud (GHEC) and Server (GHES).
+func TestEnterpriseConfigExtraction(t *testing.T) {
+	tests := []struct {
+		name                       string
+		frontmatter                map[string]any
+		expectedServerURL          string
+		expectedCopilotAPITarget   string
+		shouldHaveEnterpriseConfig bool
+	}{
+		{
+			name: "GHEC with server-url",
+			frontmatter: map[string]any{
+				"engine": map[string]any{
+					"id": "copilot",
+					"enterprise": map[string]any{
+						"server-url": "https://acme.ghe.com",
+					},
+				},
+			},
+			expectedServerURL:          "https://acme.ghe.com",
+			expectedCopilotAPITarget:   "",
+			shouldHaveEnterpriseConfig: true,
+		},
+		{
+			name: "GHES with server-url",
+			frontmatter: map[string]any{
+				"engine": map[string]any{
+					"id": "copilot",
+					"enterprise": map[string]any{
+						"server-url": "https://github.company.com",
+					},
+				},
+			},
+			expectedServerURL:          "https://github.company.com",
+			expectedCopilotAPITarget:   "",
+			shouldHaveEnterpriseConfig: true,
+		},
+		{
+			name: "manual copilot-api-target override",
+			frontmatter: map[string]any{
+				"engine": map[string]any{
+					"id": "copilot",
+					"enterprise": map[string]any{
+						"copilot-api-target": "api.custom.endpoint.com",
+					},
+				},
+			},
+			expectedServerURL:          "",
+			expectedCopilotAPITarget:   "api.custom.endpoint.com",
+			shouldHaveEnterpriseConfig: true,
+		},
+		{
+			name: "both server-url and copilot-api-target",
+			frontmatter: map[string]any{
+				"engine": map[string]any{
+					"id": "copilot",
+					"enterprise": map[string]any{
+						"server-url":         "https://acme.ghe.com",
+						"copilot-api-target": "api.acme.ghe.com",
+					},
+				},
+			},
+			expectedServerURL:          "https://acme.ghe.com",
+			expectedCopilotAPITarget:   "api.acme.ghe.com",
+			shouldHaveEnterpriseConfig: true,
+		},
+		{
+			name: "no enterprise config",
+			frontmatter: map[string]any{
+				"engine": map[string]any{
+					"id": "copilot",
+				},
+			},
+			expectedServerURL:          "",
+			expectedCopilotAPITarget:   "",
+			shouldHaveEnterpriseConfig: false,
+		},
+		{
+			name: "empty enterprise config",
+			frontmatter: map[string]any{
+				"engine": map[string]any{
+					"id":         "copilot",
+					"enterprise": map[string]any{},
+				},
+			},
+			expectedServerURL:          "",
+			expectedCopilotAPITarget:   "",
+			shouldHaveEnterpriseConfig: true,
+		},
+	}
+
+	compiler := NewCompiler()
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, config := compiler.ExtractEngineConfig(tt.frontmatter)
+
+			if config == nil {
+				t.Fatal("Expected config to be non-nil")
+			}
+
+			if tt.shouldHaveEnterpriseConfig {
+				if config.Enterprise == nil {
+					t.Fatal("Expected Enterprise config to be non-nil")
+				}
+
+				if config.Enterprise.ServerURL != tt.expectedServerURL {
+					t.Errorf("Expected server-url %q, got %q", tt.expectedServerURL, config.Enterprise.ServerURL)
+				}
+
+				if config.Enterprise.CopilotAPITarget != tt.expectedCopilotAPITarget {
+					t.Errorf("Expected copilot-api-target %q, got %q", tt.expectedCopilotAPITarget, config.Enterprise.CopilotAPITarget)
+				}
+			} else {
+				if config.Enterprise != nil {
+					t.Errorf("Expected Enterprise config to be nil, got %+v", config.Enterprise)
+				}
+			}
+		})
+	}
+}
