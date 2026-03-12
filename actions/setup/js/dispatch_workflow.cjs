@@ -10,6 +10,7 @@ const HANDLER_TYPE = "dispatch_workflow";
 
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { createAuthenticatedGitHubClient } = require("./handler_auth.cjs");
+const { resolveTargetRepoConfig, parseRepoSlug } = require("./repo_helpers.cjs");
 
 /**
  * Main handler factory for dispatch_workflow
@@ -22,6 +23,12 @@ async function main(config = {}) {
   const maxCount = config.max || 1;
   const workflowFiles = config.workflow_files || {}; // Map of workflow name to file extension
   const githubClient = await createAuthenticatedGitHubClient(config);
+  const { defaultTargetRepo } = resolveTargetRepoConfig(config);
+
+  // Resolve the dispatch destination repository from target-repo config, falling back to context.repo
+  const resolvedRepoSlug = defaultTargetRepo || `${context.repo.owner}/${context.repo.repo}`;
+  const repo = parseRepoSlug(resolvedRepoSlug) || context.repo;
+  const isCrossRepoDispatch = resolvedRepoSlug !== `${context.repo.owner}/${context.repo.repo}`;
 
   core.info(`Dispatch workflow configuration: max=${maxCount}`);
   if (allowedWorkflows.length > 0) {
@@ -30,22 +37,22 @@ async function main(config = {}) {
   if (Object.keys(workflowFiles).length > 0) {
     core.info(`Workflow files: ${JSON.stringify(workflowFiles)}`);
   }
+  if (isCrossRepoDispatch) {
+    core.info(`Dispatching to target repo: ${resolvedRepoSlug}`);
+  }
 
   // Track how many items we've processed for max limit
   let processedCount = 0;
   let lastDispatchTime = 0;
 
-  // Get the current repository context and ref
-  const repo = context.repo;
-
-  // Helper function to get the default branch
+  // Helper function to get the default branch of the dispatch target repository
   const getDefaultBranchRef = async () => {
-    // Try to get from context payload first
-    if (context.payload.repository?.default_branch) {
+    // Only use the context payload's default_branch when dispatching to the caller's own repo
+    if (!isCrossRepoDispatch && context.payload.repository?.default_branch) {
       return `refs/heads/${context.payload.repository.default_branch}`;
     }
 
-    // Fall back to querying the repository
+    // Fall back to querying the target repository
     try {
       const { data: repoData } = await githubClient.rest.repos.get({
         owner: repo.owner,
