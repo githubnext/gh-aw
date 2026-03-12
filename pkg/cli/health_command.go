@@ -12,6 +12,7 @@ import (
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/workflow"
 	"github.com/spf13/cobra"
 )
 
@@ -97,6 +98,16 @@ func RunHealth(config HealthConfig) error {
 	// Validate days parameter
 	if config.Days != 7 && config.Days != 30 && config.Days != 90 {
 		return fmt.Errorf("invalid days value: %d. Must be 7, 30, or 90", config.Days)
+	}
+
+	// Resolve workflow name from workflow ID to GitHub Actions display name
+	if config.WorkflowName != "" {
+		resolvedName, err := workflow.FindWorkflowName(config.WorkflowName)
+		if err != nil {
+			return fmt.Errorf("workflow '%s' not found: %w", config.WorkflowName, err)
+		}
+		healthLog.Printf("Resolved workflow name: %s -> %s", config.WorkflowName, resolvedName)
+		config.WorkflowName = resolvedName
 	}
 
 	// Calculate start date
