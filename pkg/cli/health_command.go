@@ -7,7 +7,6 @@ import (
 	"os"
 	"slices"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/github/gh-aw/pkg/console"
@@ -156,15 +155,13 @@ func fetchWorkflowRuns(workflowName, startDate, repoOverride string, verbose boo
 			break
 		}
 
-		// Filter to only agentic workflow runs (those ending in .lock.yml)
+		// Accumulate runs; duration calculation is done here since the GitHub API
+		// does not return a pre-computed duration field.
 		for _, run := range runs {
-			if strings.HasSuffix(run.WorkflowPath, ".lock.yml") {
-				// Calculate duration if not set
-				if run.Duration == 0 && !run.StartedAt.IsZero() && !run.UpdatedAt.IsZero() {
-					run.Duration = run.UpdatedAt.Sub(run.StartedAt)
-				}
-				allRuns = append(allRuns, run)
+			if run.Duration == 0 && !run.StartedAt.IsZero() && !run.UpdatedAt.IsZero() {
+				run.Duration = run.UpdatedAt.Sub(run.StartedAt)
 			}
+			allRuns = append(allRuns, run)
 		}
 
 		healthLog.Printf("Fetched batch %d: got %d runs, total agentic runs so far: %d", i+1, len(runs), len(allRuns))
