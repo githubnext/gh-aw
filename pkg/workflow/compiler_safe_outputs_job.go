@@ -244,7 +244,13 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 
 	// Add GitHub App token minting step at the beginning if app is configured
 	if data.SafeOutputs.GitHubApp != nil {
-		appTokenSteps := c.buildGitHubAppTokenMintStep(data.SafeOutputs.GitHubApp, permissions)
+		// For workflow_call relay workflows, scope the token to the platform repo so that
+		// API calls targeting the host repo (e.g. dispatch_workflow) are authorized.
+		var appTokenFallbackRepo string
+		if hasWorkflowCallTrigger(data.On) {
+			appTokenFallbackRepo = "${{ needs.activation.outputs.target_repo }}"
+		}
+		appTokenSteps := c.buildGitHubAppTokenMintStep(data.SafeOutputs.GitHubApp, permissions, appTokenFallbackRepo)
 		// Calculate insertion index: after setup action (if present) and artifact downloads, but before checkout and safe output steps
 		insertIndex := 0
 
@@ -314,8 +320,11 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 
 	// Build dependencies — detection is now inline in the agent job, no separate dependency needed
 	needs := []string{mainJobName}
-	// Add activation job dependency for jobs that need it (create_pull_request, push_to_pull_request_branch, lock-for-agent)
-	if usesPatchesAndCheckouts(data.SafeOutputs) || data.LockForAgent {
+	// Add activation job dependency when:
+	// - create_pull_request or push_to_pull_request_branch (need the activation artifact)
+	// - lock-for-agent (need the activation lock)
+	// - workflow_call trigger (need needs.activation.outputs.target_repo for cross-repo token/dispatch)
+	if usesPatchesAndCheckouts(data.SafeOutputs) || data.LockForAgent || hasWorkflowCallTrigger(data.On) {
 		needs = append(needs, string(constants.ActivationJobName))
 	}
 	// Add unlock job dependency if lock-for-agent is enabled

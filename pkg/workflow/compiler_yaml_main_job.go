@@ -20,6 +20,14 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 	// Build a CheckoutManager with any user-configured checkouts
 	checkoutMgr := NewCheckoutManager(data.CheckoutConfigs)
 
+	// Propagate the platform (host) repo resolved by the activation job so that
+	// checkout steps in this job and in safe_outputs can use the correct repository
+	// for .github/.agents sparse checkouts when called cross-repo.
+	// The activation job exposes this as needs.activation.outputs.target_repo.
+	if hasWorkflowCallTrigger(data.On) && !data.InlinedImports {
+		checkoutMgr.SetCrossRepoTargetRepo("${{ needs.activation.outputs.target_repo }}")
+	}
+
 	// Generate GitHub App token minting steps for checkouts with app auth
 	// These must be emitted BEFORE the checkout steps that reference them
 	if checkoutMgr.HasAppAuth() {

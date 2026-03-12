@@ -56,6 +56,7 @@ jobs:
       comment_repo: ""
       model: ${{ steps.generate_aw_info.outputs.model }}
       secret_verification_result: ${{ steps.validate-secret.outputs.verification_result }}
+      target_repo: ${{ steps.resolve-host-repo.outputs.target_repo }}
     steps:
       - name: Checkout actions folder
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
@@ -67,6 +68,15 @@ jobs:
         uses: ./actions/setup
         with:
           destination: /opt/gh-aw/actions
+      - name: Resolve host repo for activation checkout
+        id: resolve-host-repo
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        with:
+          script: |
+            const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
+            setupGlobals(core, github, context, exec, io);
+            const { main } = require('/opt/gh-aw/actions/resolve_host_repo.cjs');
+            await main();
       - name: Generate agentic run info
         id: generate_aw_info
         env:
@@ -85,6 +95,7 @@ jobs:
           GH_AW_INFO_AWMG_VERSION: ""
           GH_AW_INFO_FIREWALL_TYPE: "squid"
           GH_AW_COMPILED_STRICT: "true"
+          GH_AW_INFO_TARGET_REPO: ${{ steps.resolve-host-repo.outputs.target_repo }}
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         with:
           script: |
@@ -96,7 +107,7 @@ jobs:
         env:
           COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
       - name: Cross-repo setup guidance
-        if: failure() && github.event_name == 'workflow_call'
+        if: failure() && steps.resolve-host-repo.outputs.target_repo != github.repository
         run: |
           echo "::error::COPILOT_GITHUB_TOKEN must be configured in the CALLER repository's secrets."
           echo "::error::For cross-repo workflow_call, secrets must be set in the repository that triggers the workflow."
@@ -105,7 +116,7 @@ jobs:
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           persist-credentials: false
-          repository: ${{ github.event_name == 'workflow_call' && github.action_repository || github.repository }}
+          repository: ${{ steps.resolve-host-repo.outputs.target_repo }}
           sparse-checkout: |
             .github
             .agents
@@ -1105,7 +1116,9 @@ jobs:
             await main();
 
   safe_outputs:
-    needs: agent
+    needs:
+      - activation
+      - agent
     if: ((!cancelled()) && (needs.agent.result != 'skipped')) && (needs.agent.outputs.detection_success == 'true')
     runs-on: ubuntu-slim
     permissions:

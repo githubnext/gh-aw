@@ -434,7 +434,7 @@ func (c *Compiler) generateGitHubMCPAppTokenMintingStep(yaml *strings.Builder, d
 	}
 
 	// Generate the token minting step using the existing helper from safe_outputs_app.go
-	steps := c.buildGitHubAppTokenMintStep(app, permissions)
+	steps := c.buildGitHubAppTokenMintStep(app, permissions, "")
 
 	// Modify the step ID to differentiate from safe-outputs app token
 	// Replace "safe-outputs-app-token" with "github-mcp-app-token"

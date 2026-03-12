@@ -131,6 +131,13 @@ type CheckoutManager struct {
 	ordered []*resolvedCheckout
 	// index maps checkoutKey to the position in ordered
 	index map[checkoutKey]int
+	// crossRepoTargetRepo holds the platform (host) repository to use when performing
+	// .github/.agents sparse checkout steps for cross-repo workflow_call invocations.
+	//
+	// In the activation job this is set to "${{ steps.resolve-host-repo.outputs.target_repo }}".
+	// In the agent and safe_outputs jobs it is set to "${{ needs.activation.outputs.target_repo }}".
+	// An empty string means the checkout targets the current repository (github.repository).
+	crossRepoTargetRepo string
 }
 
 // NewCheckoutManager creates a new CheckoutManager pre-loaded with user-supplied
@@ -144,6 +151,24 @@ func NewCheckoutManager(userCheckouts []*CheckoutConfig) *CheckoutManager {
 		cm.add(cfg)
 	}
 	return cm
+}
+
+// SetCrossRepoTargetRepo stores the platform (host) repository expression used for
+// .github/.agents sparse checkout steps. Call this when the workflow has a workflow_call
+// trigger and the checkout should target the platform repo rather than github.repository.
+//
+// In the activation job pass "${{ steps.resolve-host-repo.outputs.target_repo }}".
+// In downstream jobs (agent, safe_outputs) pass "${{ needs.activation.outputs.target_repo }}".
+func (cm *CheckoutManager) SetCrossRepoTargetRepo(repo string) {
+	checkoutManagerLog.Printf("Setting cross-repo target: %q", repo)
+	cm.crossRepoTargetRepo = repo
+}
+
+// GetCrossRepoTargetRepo returns the platform repo expression previously set by
+// SetCrossRepoTargetRepo, or an empty string if no cross-repo target was set
+// (same-repo invocation or inlined imports).
+func (cm *CheckoutManager) GetCrossRepoTargetRepo() string {
+	return cm.crossRepoTargetRepo
 }
 
 // add processes a single CheckoutConfig and either creates a new entry or merges
@@ -249,7 +274,9 @@ func (cm *CheckoutManager) GenerateCheckoutAppTokenSteps(c *Compiler, permission
 			continue
 		}
 		checkoutManagerLog.Printf("Generating app token minting step for checkout index=%d repo=%q", i, entry.key.repository)
-		appSteps := c.buildGitHubAppTokenMintStep(entry.githubApp, permissions)
+		// Pass empty fallback so the app token defaults to github.event.repository.name.
+		// Checkout-specific cross-repo scoping is handled via the explicit repository field.
+		appSteps := c.buildGitHubAppTokenMintStep(entry.githubApp, permissions, "")
 		stepID := fmt.Sprintf("checkout-app-token-%d", i)
 		for _, step := range appSteps {
 			modified := strings.ReplaceAll(step, "id: safe-outputs-app-token", "id: "+stepID)
