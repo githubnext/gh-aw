@@ -1,10 +1,13 @@
 package workflow
 
 import (
+	"encoding/json"
 	"fmt"
+	"sort"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/stringutil"
 )
 
 var consolidatedSafeOutputsStepsLog = logger.New("workflow:compiler_safe_outputs_steps")
@@ -331,6 +334,14 @@ func (c *Compiler) buildHandlerManagerStep(data *WorkflowData) []string {
 	// Note: The project handler manager has been removed.
 	// All project-related operations are now handled by the unified handler.
 
+	// Add GH_AW_SAFE_OUTPUT_JOBS so the handler manager knows which message types are
+	// handled by custom safe-output job steps and should be silently skipped rather than
+	// reported as "No handler loaded for message type '...'".
+	if customJobsJSON := buildCustomSafeOutputJobsJSON(data); customJobsJSON != "" {
+		steps = append(steps, fmt.Sprintf("          GH_AW_SAFE_OUTPUT_JOBS: %q\n", customJobsJSON))
+		consolidatedSafeOutputsStepsLog.Print("Added GH_AW_SAFE_OUTPUT_JOBS env var for custom safe job types")
+	}
+
 	// Add custom safe output env vars
 	c.addCustomSafeOutputEnvVars(&steps, data)
 
@@ -432,4 +443,40 @@ func (c *Compiler) buildHandlerManagerStep(data *WorkflowData) []string {
 	steps = append(steps, "            await main();\n")
 
 	return steps
+}
+
+// buildCustomSafeOutputJobsJSON builds a JSON mapping of custom safe output job names to empty
+// strings, for use in the GH_AW_SAFE_OUTPUT_JOBS env var of the handler manager step.
+// This allows the handler manager to silently skip messages handled by custom safe-output job
+// steps rather than reporting them as "No handler loaded for message type '...'".
+func buildCustomSafeOutputJobsJSON(data *WorkflowData) string {
+	if data.SafeOutputs == nil || len(data.SafeOutputs.Jobs) == 0 {
+		return ""
+	}
+
+	// Build mapping of normalized job names to empty strings (no URL output for custom jobs)
+	jobMapping := make(map[string]string, len(data.SafeOutputs.Jobs))
+	for jobName := range data.SafeOutputs.Jobs {
+		normalizedName := stringutil.NormalizeSafeOutputIdentifier(jobName)
+		jobMapping[normalizedName] = ""
+	}
+
+	// Sort keys for deterministic output
+	keys := make([]string, 0, len(jobMapping))
+	for k := range jobMapping {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+
+	ordered := make(map[string]string, len(keys))
+	for _, k := range keys {
+		ordered[k] = jobMapping[k]
+	}
+
+	jsonBytes, err := json.Marshal(ordered)
+	if err != nil {
+		consolidatedSafeOutputsStepsLog.Printf("Warning: failed to marshal custom safe output jobs: %v", err)
+		return ""
+	}
+	return string(jsonBytes)
 }

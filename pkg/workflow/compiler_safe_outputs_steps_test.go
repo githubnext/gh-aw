@@ -525,6 +525,29 @@ func TestBuildHandlerManagerStep(t *testing.T) {
 		},
 		// Note: create_project is now handled by the unified handler manager,
 		// not the separate project handler manager
+		{
+			name: "handler manager with custom safe jobs includes GH_AW_SAFE_OUTPUT_JOBS",
+			safeOutputs: &SafeOutputsConfig{
+				CreateIssues: &CreateIssuesConfig{},
+				Jobs: map[string]*SafeJobConfig{
+					"send-slack-message": {
+						Description: "Send a Slack message",
+					},
+				},
+			},
+			checkContains: []string{
+				"GH_AW_SAFE_OUTPUT_JOBS: \"{\\\"send_slack_message\\\":\\\"\\\"}\"",
+			},
+		},
+		{
+			name: "handler manager without custom safe jobs does not include GH_AW_SAFE_OUTPUT_JOBS",
+			safeOutputs: &SafeOutputsConfig{
+				CreateIssues: &CreateIssuesConfig{},
+			},
+			checkNotContains: []string{
+				"GH_AW_SAFE_OUTPUT_JOBS",
+			},
+		},
 	}
 
 	for _, tt := range tests {
