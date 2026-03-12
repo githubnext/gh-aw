@@ -21,7 +21,7 @@ safe-outputs:
     title-prefix: "[ai] "         # prefix for titles
     labels: [automation]          # labels to attach
     reviewers: [user1, copilot]   # reviewers (use 'copilot' for bot)
-    draft: true                   # create as draft (default: true)
+    draft: true                   # create as draft — enforced as policy (default: true)
     max: 3                        # max PRs per run (default: 1)
     expires: 14                   # auto-close after 14 days (same-repo only)
     if-no-changes: "warn"         # "warn" (default), "error", or "ignore"
@@ -46,6 +46,8 @@ safe-outputs:
     draft: true
     github-token: ${{ secrets.SOME_CUSTOM_TOKEN }} # optional custom token for permissions
 ```
+
+The `draft` field is a **configuration policy**, not a default. Whatever value is set in the workflow frontmatter is always used — the agent cannot override it at runtime.
 
 PR creation may fail if "Allow GitHub Actions to create and approve pull requests" is disabled in Organization Settings. By default (`fallback-as-issue: true`), fallback creates an issue with branch link and requires `issues: write` permission. Set `fallback-as-issue: false` to disable fallback and only require `contents: write` + `pull-requests: write`.
 
@@ -77,6 +79,25 @@ safe-outputs:
 When `push-to-pull-request-branch` is configured, git commands (`checkout`, `branch`, `switch`, `add`, `rm`, `commit`, `merge`) are automatically enabled.
 
 Like `create-pull-request`, pushes with GitHub Agentic Workflows do not trigger CI. See [Triggering CI](/gh-aw/reference/triggering-ci/) for how to enable automatic CI triggers.
+
+### Compile-Time Warnings for `target: "*"`
+
+When `target: "*"` is used, `gh aw compile` emits warnings for two common misconfigurations:
+
+- **Missing wildcard fetch** — no `checkout` block with a wildcard `fetch` pattern (e.g., `fetch: ["*"]`). Without this, the agent cannot access arbitrary PR branches at runtime and will fail with permission-like errors.
+- **No constraints** — neither `title-prefix` nor `labels` is set, which allows pushing to any PR in the repository with no additional gating.
+
+Both warnings are suppressed when the recommended configuration is in place:
+
+```yaml wrap
+safe-outputs:
+  push-to-pull-request-branch:
+    target: "*"
+    title-prefix: "[bot] "
+checkout:
+  fetch: ["*"]
+  fetch-depth: 0
+```
 
 ### Fail-Fast on Code Push Failure
 
