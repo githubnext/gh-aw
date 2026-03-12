@@ -323,8 +323,8 @@ func TestSubmitPRReviewFooterInHandlerConfig(t *testing.T) {
 			Name: "Test",
 			SafeOutputs: &SafeOutputsConfig{
 				SubmitPullRequestReview: &SubmitPullRequestReviewConfig{
-					BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("1")},
-					Target:               targetValue,
+					BaseSafeOutputConfig:   BaseSafeOutputConfig{Max: strPtr("1")},
+					SafeOutputTargetConfig: SafeOutputTargetConfig{Target: targetValue},
 				},
 			},
 		}
@@ -361,8 +361,8 @@ func TestSubmitPRReviewFooterInHandlerConfig(t *testing.T) {
 			Name: "Test",
 			SafeOutputs: &SafeOutputsConfig{
 				SubmitPullRequestReview: &SubmitPullRequestReviewConfig{
-					BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("1")},
-					TargetRepoSlug:       "consumer-org/consumer-repo",
+					BaseSafeOutputConfig:   BaseSafeOutputConfig{Max: strPtr("1")},
+					SafeOutputTargetConfig: SafeOutputTargetConfig{TargetRepoSlug: "consumer-org/consumer-repo"},
 				},
 			},
 		}
