@@ -632,6 +632,26 @@ func (c *Compiler) buildCustomJobs(data *WorkflowData, activationJobCreated bool
 				}
 			}
 
+			// Extract environment for custom jobs
+			if environment, hasEnvironment := configMap["environment"]; hasEnvironment {
+				switch v := environment.(type) {
+				case string:
+					job.Environment = "environment: " + v
+				case map[string]any:
+					yamlBytes, err := yaml.Marshal(v)
+					if err != nil {
+						return fmt.Errorf("failed to convert environment to YAML for job '%s': %w", jobName, err)
+					}
+					lines := strings.Split(strings.TrimSpace(string(yamlBytes)), "\n")
+					var formattedEnvironment strings.Builder
+					formattedEnvironment.WriteString("environment:\n")
+					for _, line := range lines {
+						formattedEnvironment.WriteString("      " + line + "\n")
+					}
+					job.Environment = strings.TrimSuffix(formattedEnvironment.String(), "\n")
+				}
+			}
+
 			// Extract outputs for custom jobs
 			if outputs, hasOutputs := configMap["outputs"]; hasOutputs {
 				if outputsMap, ok := outputs.(map[string]any); ok {

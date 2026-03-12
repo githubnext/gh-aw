@@ -23,7 +23,7 @@
 #
 # Build, test, and release gh-aw extension, then generate and prepend release highlights
 #
-# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"2cb0f21ae34ffe6602495148ee30ff8a2a3da4803213b7d294805b71dfa02051"}
+# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"7f3dfef841acab2ac082e6d01ea563a16d639f9d37dd4de15164cc9ed61c13ce"}
 
 name: "Release"
 "on":
@@ -1469,12 +1469,24 @@ jobs:
       - config
       - pre_activation
       - push_tag
-    permissions:
-      contents: write
-      pull-requests: write
+    runs-on: ubuntu-latest
+    environment: gh-aw-actions-release
+    steps:
+      - name: "Notify - run sync actions and merge PR"
+        run: |
+          echo "## Manual Sync Actions Required" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "The following manual steps must be completed in **github/gh-aw-actions** before this release continues:" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "1. Trigger the **sync-actions** workflow in github/gh-aw-actions:" >> "$GITHUB_STEP_SUMMARY"
+          echo "   https://github.com/github/gh-aw-actions/actions/workflows/sync-actions.yml" >> "$GITHUB_STEP_SUMMARY"
+          echo "2. Merge the PR created by the sync-actions workflow in **github/gh-aw-actions**" >> "$GITHUB_STEP_SUMMARY"
+          echo "3. Verify that tag **\`${RELEASE_TAG}\`** exists in github/gh-aw-actions" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "Once the above steps are complete, approve the **gh-aw-actions-release** environment gate to continue the release." >> "$GITHUB_STEP_SUMMARY"
 
-    uses: github/gh-aw-actions/.github/workflows/sync-actions.yml@main
-    with:
-      ref: ${{ needs.config.outputs.release_tag }}
-    secrets: inherit
+          echo "Sync actions instructions written for release: $RELEASE_TAG"
+          echo "Ensure the sync-actions job has been run and the PR merged in github/gh-aw-actions before approving."
+        env:
+          RELEASE_TAG: ${{ needs.config.outputs.release_tag }}
 
