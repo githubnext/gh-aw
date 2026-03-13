@@ -254,18 +254,16 @@ func (c *Compiler) extractSkipIfMatchFromOn(frontmatter map[string]any, workflow
 					}
 				}
 
-				// Extract scope, github-token, and github-app (optional auth/scope overrides)
-				scope, githubToken, githubApp, err := extractSkipIfAuthConfig(skip, "skip-if-match")
+				// Extract scope (auth is now configured via top-level on.github-app / on.github-token)
+				scope, err := extractSkipIfScope(skip, "skip-if-match")
 				if err != nil {
 					return nil, err
 				}
 
 				return &SkipIfMatchConfig{
-					Query:       queryStr,
-					Max:         maxVal,
-					Scope:       scope,
-					GitHubToken: githubToken,
-					GitHubApp:   githubApp,
+					Query: queryStr,
+					Max:   maxVal,
+					Scope: scope,
 				}, nil
 			default:
 				return nil, fmt.Errorf("skip-if-match value must be a string or object, got %T. Examples:\n  skip-if-match: \"is:issue is:open\"\n  skip-if-match:\n    query: \"is:pr is:open\"\n    max: 3", skipIfMatch)
@@ -342,18 +340,16 @@ func (c *Compiler) extractSkipIfNoMatchFromOn(frontmatter map[string]any, workfl
 					}
 				}
 
-				// Extract scope, github-token, and github-app (optional auth/scope overrides)
-				scope, githubToken, githubApp, err := extractSkipIfAuthConfig(skip, "skip-if-no-match")
+				// Extract scope (auth is now configured via top-level on.github-app / on.github-token)
+				scope, err := extractSkipIfScope(skip, "skip-if-no-match")
 				if err != nil {
 					return nil, err
 				}
 
 				return &SkipIfNoMatchConfig{
-					Query:       queryStr,
-					Min:         minVal,
-					Scope:       scope,
-					GitHubToken: githubToken,
-					GitHubApp:   githubApp,
+					Query: queryStr,
+					Min:   minVal,
+					Scope: scope,
 				}, nil
 			default:
 				return nil, fmt.Errorf("skip-if-no-match value must be a string or object, got %T. Examples:\n  skip-if-no-match: \"is:pr is:open\"\n  skip-if-no-match:\n    query: \"is:pr is:open\"\n    min: 3", skipIfNoMatch)
@@ -405,46 +401,20 @@ func (c *Compiler) processSkipIfNoMatchConfiguration(frontmatter map[string]any,
 	return nil
 }
 
-// extractSkipIfAuthConfig extracts the optional scope, github-token, and github-app fields
-// shared by both skip-if-match and skip-if-no-match object configurations.
+// extractSkipIfScope extracts the optional scope field from a skip-if-match or skip-if-no-match
+// object configuration. Auth fields (github-token, github-app) are configured at the top-level
+// on: section and are no longer accepted inside skip-if blocks.
 // conditionName is used only for error messages (e.g. "skip-if-match").
-func extractSkipIfAuthConfig(skip map[string]any, conditionName string) (scope string, githubToken string, githubApp *GitHubAppConfig, err error) {
-	// Extract scope value (optional)
+func extractSkipIfScope(skip map[string]any, conditionName string) (string, error) {
 	if scopeRaw, hasScope := skip["scope"]; hasScope {
 		scopeStr, ok := scopeRaw.(string)
 		if !ok {
-			return "", "", nil, fmt.Errorf("%s 'scope' field must be a string, got %T. Example: scope: none", conditionName, scopeRaw)
+			return "", fmt.Errorf("%s 'scope' field must be a string, got %T. Example: scope: none", conditionName, scopeRaw)
 		}
 		if scopeStr != "none" {
-			return "", "", nil, fmt.Errorf("%s 'scope' field must be \"none\" or omitted, got %q", conditionName, scopeStr)
+			return "", fmt.Errorf("%s 'scope' field must be \"none\" or omitted, got %q", conditionName, scopeStr)
 		}
-		scope = scopeStr
+		return scopeStr, nil
 	}
-
-	// Extract github-token value (optional)
-	if tokenRaw, hasToken := skip["github-token"]; hasToken {
-		tokenStr, ok := tokenRaw.(string)
-		if !ok {
-			return "", "", nil, fmt.Errorf("%s 'github-token' field must be a string, got %T", conditionName, tokenRaw)
-		}
-		githubToken = tokenStr
-	}
-
-	// Extract github-app value (optional)
-	if appRaw, hasApp := skip["github-app"]; hasApp {
-		appMap, ok := appRaw.(map[string]any)
-		if !ok {
-			return "", "", nil, fmt.Errorf("%s 'github-app' field must be an object, got %T", conditionName, appRaw)
-		}
-		githubApp = parseAppConfig(appMap)
-		if githubApp.AppID == "" || githubApp.PrivateKey == "" {
-			return "", "", nil, fmt.Errorf("%s 'github-app' requires both 'app-id' and 'private-key' fields", conditionName)
-		}
-	}
-
-	if githubToken != "" && githubApp != nil {
-		return "", "", nil, fmt.Errorf("%s 'github-token' and 'github-app' cannot both be set. Use one authentication method", conditionName)
-	}
-
-	return scope, githubToken, githubApp, nil
+	return "", nil
 }

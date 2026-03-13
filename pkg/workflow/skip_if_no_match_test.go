@@ -402,7 +402,7 @@ on:
   skip-if-no-match:
     query: "org:myorg label:agent-fix is:issue is:open"
     scope: none
-    github-token: ${{ secrets.CROSS_ORG_TOKEN }}
+  github-token: ${{ secrets.CROSS_ORG_TOKEN }}
 engine: claude
 ---
 
@@ -433,7 +433,7 @@ This workflow uses a custom token for org-wide search.
 			t.Error("Expected skip-if-no-match check to be present")
 		}
 
-		// Verify the custom github-token is passed via with.github-token
+		// Verify the custom github-token is passed via with.github-token to the skip-if step
 		if !strings.Contains(lockContentStr, "github-token: ${{ secrets.CROSS_ORG_TOKEN }}") {
 			t.Error("Expected github-token to be set in with section for skip-if-no-match step")
 		}
@@ -452,10 +452,10 @@ on:
   skip-if-no-match:
     query: "org:myorg label:agent-fix is:issue is:open"
     scope: none
-    github-app:
-      app-id: ${{ secrets.WORKFLOW_APP_ID }}
-      private-key: ${{ secrets.WORKFLOW_APP_PRIVATE_KEY }}
-      owner: myorg
+  github-app:
+    app-id: ${{ secrets.WORKFLOW_APP_ID }}
+    private-key: ${{ secrets.WORKFLOW_APP_PRIVATE_KEY }}
+    owner: myorg
 engine: claude
 ---
 
@@ -481,9 +481,9 @@ This workflow uses a GitHub App token for org-wide search.
 
 		lockContentStr := string(lockContent)
 
-		// Verify the GitHub App token mint step is generated before the skip check
-		if !strings.Contains(lockContentStr, "Generate GitHub App token for skip-if check") {
-			t.Error("Expected GitHub App token mint step to be present")
+		// Verify the unified GitHub App token mint step is generated before the skip check
+		if !strings.Contains(lockContentStr, "Generate GitHub App token for skip-if checks") {
+			t.Error("Expected unified GitHub App token mint step to be present")
 		}
 
 		// Verify app-id and private-key are in the mint step
@@ -499,14 +499,73 @@ This workflow uses a GitHub App token for org-wide search.
 			t.Error("Expected owner to be set in GitHub App token mint step")
 		}
 
-		// Verify the minted token is used in the skip-if step
-		if !strings.Contains(lockContentStr, "github-token: ${{ steps.check_skip_if_no_match-app-token.outputs.token }}") {
-			t.Error("Expected minted app token to be used in skip-if-no-match step")
+		// Verify the minted token is used in the skip-if step via the unified step ID
+		if !strings.Contains(lockContentStr, "github-token: ${{ steps.pre-activation-app-token.outputs.token }}") {
+			t.Error("Expected minted app token (pre-activation-app-token) to be used in skip-if-no-match step")
 		}
 
 		// Verify GH_AW_SKIP_SCOPE is set to "none"
 		if !strings.Contains(lockContentStr, `GH_AW_SKIP_SCOPE: "none"`) {
 			t.Error("Expected GH_AW_SKIP_SCOPE environment variable set to none")
+		}
+	})
+
+	t.Run("unified_app_token_step_for_both_skip_checks", func(t *testing.T) {
+		workflowContent := `---
+on:
+  schedule:
+    - cron: "*/15 * * * *"
+  skip-if-match:
+    query: "org:myorg label:blocked is:issue is:open"
+    scope: none
+  skip-if-no-match:
+    query: "org:myorg label:agent-fix is:issue is:open"
+    scope: none
+  github-app:
+    app-id: ${{ secrets.WORKFLOW_APP_ID }}
+    private-key: ${{ secrets.WORKFLOW_APP_PRIVATE_KEY }}
+    owner: myorg
+engine: claude
+---
+
+# Unified App Token For Both Skip Checks
+
+Both skip-if-match and skip-if-no-match share one mint step.
+`
+		workflowFile := filepath.Join(tmpDir, "unified-app-token-workflow.md")
+		if err := os.WriteFile(workflowFile, []byte(workflowContent), 0644); err != nil {
+			t.Fatal(err)
+		}
+
+		err := compiler.CompileWorkflow(workflowFile)
+		if err != nil {
+			t.Fatalf("Compilation failed: %v", err)
+		}
+
+		lockFile := stringutil.MarkdownToLockFile(workflowFile)
+		lockContent, err := os.ReadFile(lockFile)
+		if err != nil {
+			t.Fatalf("Failed to read lock file: %v", err)
+		}
+
+		lockContentStr := string(lockContent)
+
+		// Exactly ONE unified mint step should be present
+		mintStepCount := strings.Count(lockContentStr, "Generate GitHub App token for skip-if checks")
+		if mintStepCount != 1 {
+			t.Errorf("Expected exactly 1 unified mint step, got %d", mintStepCount)
+		}
+
+		// Both skip-if checks should reference the same unified token step
+		if !strings.Contains(lockContentStr, "Check skip-if-match query") {
+			t.Error("Expected skip-if-match check to be present")
+		}
+		if !strings.Contains(lockContentStr, "Check skip-if-no-match query") {
+			t.Error("Expected skip-if-no-match check to be present")
+		}
+		// Both reference the same pre-activation-app-token step
+		if strings.Count(lockContentStr, "github-token: ${{ steps.pre-activation-app-token.outputs.token }}") != 2 {
+			t.Error("Expected both skip-if steps to reference the unified pre-activation-app-token step")
 		}
 	})
 }

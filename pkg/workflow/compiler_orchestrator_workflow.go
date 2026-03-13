@@ -590,8 +590,8 @@ func (c *Compiler) extractAdditionalConfigurations(
 	workflowData.RateLimit = c.extractRateLimitConfig(frontmatter)
 	workflowData.SkipRoles = c.mergeSkipRoles(c.extractSkipRoles(frontmatter), importsResult.MergedSkipRoles)
 	workflowData.SkipBots = c.mergeSkipBots(c.extractSkipBots(frontmatter), importsResult.MergedSkipBots)
-	workflowData.ActivationGitHubToken = c.extractActivationGitHubToken(frontmatter)
-	workflowData.ActivationGitHubApp = c.extractActivationGitHubApp(frontmatter)
+	workflowData.ActivationGitHubToken = c.resolveActivationGitHubToken(frontmatter, importsResult)
+	workflowData.ActivationGitHubApp = c.resolveActivationGitHubApp(frontmatter, importsResult)
 
 	// Use the already extracted output configuration
 	workflowData.SafeOutputs = safeOutputs

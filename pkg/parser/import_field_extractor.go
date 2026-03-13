@@ -47,6 +47,9 @@ type importAccumulator struct {
 	agentImportSpec          string
 	repositoryImports        []string
 	importInputs             map[string]any
+	// First on.github-token / on.github-app found across all imported files (first-wins strategy)
+	activationGitHubToken string
+	activationGitHubApp   string // JSON-encoded GitHubAppConfig
 }
 
 // newImportAccumulator creates and initializes a new importAccumulator.
@@ -209,6 +212,22 @@ func (acc *importAccumulator) extractAllImportFields(content []byte, item import
 		}
 	}
 
+	// Extract on.github-token from imported file (first-wins: only set if not yet populated)
+	if acc.activationGitHubToken == "" {
+		if token := extractOnGitHubToken(string(content)); token != "" {
+			acc.activationGitHubToken = token
+			log.Printf("Extracted on.github-token from import: %s", item.fullPath)
+		}
+	}
+
+	// Extract on.github-app from imported file (first-wins: only set if not yet populated)
+	if acc.activationGitHubApp == "" {
+		if appJSON := extractOnGitHubApp(string(content)); appJSON != "" {
+			acc.activationGitHubApp = appJSON
+			log.Printf("Extracted on.github-app from import: %s", item.fullPath)
+		}
+	}
+
 	// Extract and merge plugins from imported file (merge into set to avoid duplicates).
 	// Handles both simple string format and object format with MCP configs.
 	pluginsContent, err := extractFrontmatterField(string(content), "plugins", "[]")
@@ -282,34 +301,36 @@ func (acc *importAccumulator) toImportsResult(topologicalOrder []string) *Import
 	log.Printf("Building ImportsResult: importedFiles=%d, importPaths=%d, engines=%d, bots=%d, plugins=%d, labels=%d",
 		len(topologicalOrder), len(acc.importPaths), len(acc.engines), len(acc.bots), len(acc.plugins), len(acc.labels))
 	return &ImportsResult{
-		MergedTools:         acc.toolsBuilder.String(),
-		MergedMCPServers:    acc.mcpServersBuilder.String(),
-		MergedEngines:       acc.engines,
-		MergedSafeOutputs:   acc.safeOutputs,
-		MergedMCPScripts:    acc.mcpScripts,
-		MergedMarkdown:      acc.markdownBuilder.String(),
-		ImportPaths:         acc.importPaths,
-		MergedSteps:         acc.stepsBuilder.String(),
-		CopilotSetupSteps:   acc.copilotSetupStepsBuilder.String(),
-		MergedRuntimes:      acc.runtimesBuilder.String(),
-		MergedServices:      acc.servicesBuilder.String(),
-		MergedNetwork:       acc.networkBuilder.String(),
-		MergedPermissions:   acc.permissionsBuilder.String(),
-		MergedSecretMasking: acc.secretMaskingBuilder.String(),
-		MergedBots:          acc.bots,
-		MergedPlugins:       acc.plugins,
-		MergedSkipRoles:     acc.skipRoles,
-		MergedSkipBots:      acc.skipBots,
-		MergedPostSteps:     acc.postStepsBuilder.String(),
-		MergedLabels:        acc.labels,
-		MergedCaches:        acc.caches,
-		MergedJobs:          acc.jobsBuilder.String(),
-		MergedFeatures:      acc.features,
-		ImportedFiles:       topologicalOrder,
-		AgentFile:           acc.agentFile,
-		AgentImportSpec:     acc.agentImportSpec,
-		RepositoryImports:   acc.repositoryImports,
-		ImportInputs:        acc.importInputs,
+		MergedTools:                 acc.toolsBuilder.String(),
+		MergedMCPServers:            acc.mcpServersBuilder.String(),
+		MergedEngines:               acc.engines,
+		MergedSafeOutputs:           acc.safeOutputs,
+		MergedMCPScripts:            acc.mcpScripts,
+		MergedMarkdown:              acc.markdownBuilder.String(),
+		ImportPaths:                 acc.importPaths,
+		MergedSteps:                 acc.stepsBuilder.String(),
+		CopilotSetupSteps:           acc.copilotSetupStepsBuilder.String(),
+		MergedRuntimes:              acc.runtimesBuilder.String(),
+		MergedServices:              acc.servicesBuilder.String(),
+		MergedNetwork:               acc.networkBuilder.String(),
+		MergedPermissions:           acc.permissionsBuilder.String(),
+		MergedSecretMasking:         acc.secretMaskingBuilder.String(),
+		MergedBots:                  acc.bots,
+		MergedPlugins:               acc.plugins,
+		MergedSkipRoles:             acc.skipRoles,
+		MergedSkipBots:              acc.skipBots,
+		MergedPostSteps:             acc.postStepsBuilder.String(),
+		MergedLabels:                acc.labels,
+		MergedCaches:                acc.caches,
+		MergedJobs:                  acc.jobsBuilder.String(),
+		MergedFeatures:              acc.features,
+		ImportedFiles:               topologicalOrder,
+		AgentFile:                   acc.agentFile,
+		AgentImportSpec:             acc.agentImportSpec,
+		RepositoryImports:           acc.repositoryImports,
+		ImportInputs:                acc.importInputs,
+		MergedActivationGitHubToken: acc.activationGitHubToken,
+		MergedActivationGitHubApp:   acc.activationGitHubApp,
 	}
 }
 
@@ -333,4 +354,38 @@ func computeImportRelPath(fullPath, importPath string) string {
 		return normalizedFullPath
 	}
 	return importPath
+}
+
+// extractOnGitHubToken returns the on.github-token string value from workflow content.
+// Returns "" if the field is absent or not a non-empty string.
+func extractOnGitHubToken(content string) string {
+	tokenJSON, err := extractOnSectionAnyField(content, "github-token")
+	if err != nil || tokenJSON == "" || tokenJSON == "null" {
+		return ""
+	}
+	var token string
+	if err := json.Unmarshal([]byte(tokenJSON), &token); err != nil {
+		return ""
+	}
+	return token
+}
+
+// extractOnGitHubApp returns the JSON-encoded on.github-app object from workflow content.
+// Returns "" if the field is absent, not a valid object, or missing required fields.
+func extractOnGitHubApp(content string) string {
+	appJSON, err := extractOnSectionAnyField(content, "github-app")
+	if err != nil || appJSON == "" || appJSON == "null" {
+		return ""
+	}
+	var appMap map[string]any
+	if err := json.Unmarshal([]byte(appJSON), &appMap); err != nil {
+		return ""
+	}
+	if _, hasID := appMap["app-id"]; !hasID {
+		return ""
+	}
+	if _, hasKey := appMap["private-key"]; !hasKey {
+		return ""
+	}
+	return appJSON
 }
