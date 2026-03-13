@@ -2981,6 +2981,14 @@ safe-outputs:
     allowed-files: []
       # Array of strings
 
+    # When true, the random salt suffix is not appended to the agent-specified branch
+    # name. Invalid characters are still replaced for security, and casing is always
+    # preserved regardless of this setting. Useful when the target repository enforces
+    # branch naming conventions (e.g. Jira keys in uppercase such as
+    # 'bugfix/BR-329-red'). Defaults to false.
+    # (optional)
+    preserve-branch-name: true
+
   # Option 2: Enable pull request creation with default configuration
   create-pull-request: null
 
