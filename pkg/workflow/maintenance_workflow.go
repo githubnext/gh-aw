@@ -223,16 +223,9 @@ jobs:
 
 	// Add checkout step only in dev/script mode (for local action paths)
 	if actionMode == ActionModeDev || actionMode == ActionModeScript {
-		ref := versionToGitRef(version)
-		refLine := ""
-		if ref != "" {
-			refLine = "          ref: " + ref + "\n"
-		}
 		yaml.WriteString("      - name: Checkout actions folder\n")
 		yaml.WriteString("        uses: " + GetActionPin("actions/checkout") + "\n")
 		yaml.WriteString("        with:\n")
-		yaml.WriteString("          repository: github/gh-aw\n")
-		yaml.WriteString(refLine)
 		yaml.WriteString("          sparse-checkout: |\n")
 		yaml.WriteString("            actions\n")
 		yaml.WriteString("          persist-credentials: false\n\n")

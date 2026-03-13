@@ -341,28 +341,23 @@ func TestCheckoutActionsFolderDevModeHasRepository(t *testing.T) {
 	if !strings.Contains(combined, "repository: github/gh-aw") {
 		t.Error("Dev mode Checkout actions folder should include 'repository: github/gh-aw' (fix for #20658)")
 	}
-
-	// When version is "dev", no ref: should be emitted
-	if strings.Contains(combined, "ref:") {
-		t.Error("Dev mode with 'dev' version should not include ref: field")
-	}
 }
 
-// TestCheckoutActionsFolderDevModeWithVersionHasRef verifies that when a real version
-// SHA is set, the Checkout actions folder step in dev mode includes both
-// repository: and ref: fields.
-func TestCheckoutActionsFolderDevModeWithVersionHasRef(t *testing.T) {
-	compiler := NewCompilerWithVersion("e284d1e")
-	compiler.SetActionMode(ActionModeDev)
+// TestCheckoutActionsFolderDevModeAlwaysEmitsCheckout verifies that dev mode always
+// emits the checkout step regardless of the compiler version, using a runtime macro
+// for the ref instead of a compile-time SHA.
+func TestCheckoutActionsFolderDevModeAlwaysEmitsCheckout(t *testing.T) {
+	versions := []string{"dev", "e284d1e", "v0.57.2-60-ge284d1e", "v1.2.3"}
+	for _, version := range versions {
+		t.Run(version, func(t *testing.T) {
+			compiler := NewCompilerWithVersion(version)
+			compiler.SetActionMode(ActionModeDev)
 
-	lines := compiler.generateCheckoutActionsFolder(nil)
-	combined := strings.Join(lines, "")
-
-	if !strings.Contains(combined, "repository: github/gh-aw") {
-		t.Error("Dev mode Checkout actions folder should include 'repository: github/gh-aw'")
-	}
-	if !strings.Contains(combined, "ref: e284d1e") {
-		t.Error("Dev mode Checkout actions folder should include 'ref: e284d1e' when version is set")
+			lines := compiler.generateCheckoutActionsFolder(nil)
+			if lines == nil {
+				t.Errorf("Dev mode should always emit checkout step (version=%q)", version)
+			}
+		})
 	}
 }
 

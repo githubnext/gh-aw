@@ -273,7 +273,9 @@ const existingItemResponse = (contentId, itemId = "existing-item") => ({
   },
 });
 
-const fieldsResponse = nodes => ({ node: { fields: { nodes } } });
+const fieldsResponse = (nodes, hasNextPage = false, endCursor = null) => ({
+  node: { fields: { nodes, pageInfo: { hasNextPage, endCursor } } },
+});
 
 const updateFieldValueResponse = () => ({
   updateProjectV2ItemFieldValue: {
@@ -1098,6 +1100,61 @@ describe("updateProject", () => {
     ]);
 
     await updateProject(output);
+
+    const updateCall = mockGithub.graphql.mock.calls.find(([query]) => query.includes("updateProjectV2ItemFieldValue"));
+    expect(updateCall).toBeDefined();
+  });
+
+  it("fetches fields across multiple pages when project has more than 100 fields (pagination)", async () => {
+    const projectUrl = "https://github.com/orgs/testowner/projects/60";
+    // Simulate a field that lives on the second page (e.g., field #101)
+    const output = {
+      type: "update_project",
+      project: projectUrl,
+      content_type: "issue",
+      content_number: 15,
+      fields: { "Customer Impact": "High" },
+    };
+
+    // First page of fields – does NOT contain "Customer Impact"
+    const firstPageFields = Array.from({ length: 100 }, (_, i) => ({
+      id: `field-${i}`,
+      name: `Field ${i}`,
+      dataType: "TEXT",
+    }));
+
+    queueResponses([
+      repoResponse(),
+      viewerResponse(),
+      orgProjectV2Response(projectUrl, 60, "project-pagination"),
+      issueResponse("issue-id-15"),
+      existingItemResponse("issue-id-15", "item-pagination"),
+      // First page of fields (hasNextPage: true)
+      fieldsResponse(firstPageFields, true, "cursor-page-1"),
+      // Second page contains the field we want to update
+      fieldsResponse(
+        [
+          {
+            id: "field-customer-impact",
+            name: "Customer Impact",
+            options: [{ id: "opt-high", name: "High", color: "RED" }],
+          },
+        ],
+        false,
+        null
+      ),
+      updateFieldValueResponse(),
+    ]);
+
+    await updateProject(output);
+
+    // Should have used all fields pages (two calls with fields query)
+    const fieldsCalls = mockGithub.graphql.mock.calls.filter(([query]) => query.includes("fields(first: 100"));
+    expect(fieldsCalls).toHaveLength(2);
+
+    // Should have updated the field found on page 2 (not tried to create it)
+    const createFieldCall = mockGithub.graphql.mock.calls.find(([query]) => query.includes("createProjectV2Field"));
+    expect(createFieldCall).toBeUndefined();
 
     const updateCall = mockGithub.graphql.mock.calls.find(([query]) => query.includes("updateProjectV2ItemFieldValue"));
     expect(updateCall).toBeDefined();
