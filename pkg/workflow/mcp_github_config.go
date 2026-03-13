@@ -259,9 +259,12 @@ func getGitHubGuardPolicies(githubTool any) map[string]any {
 // deriveSafeOutputsGuardPolicyFromGitHub generates a safeoutputs guard-policy from GitHub guard-policy.
 // When the GitHub MCP server has a guard-policy with repos, the safeoutputs MCP must also have
 // a linked guard-policy. Each entry in the GitHub MCP server's "repos" must have a corresponding
-// entry in safeoutputs "accept" with the prefix "private:".
+// entry in safeoutputs "accept" with a secrecy prefix that reflects the data sensitivity:
+//   - repos="public": only public data flows through, so prefix is "public:"
+//   - repos="all" or specific patterns: private data may flow through, so prefix is "private:"
 //
-// This allows the gateway to read private data from the GitHub MCP server and still write to safeoutputs.
+// This enforces the principle of least privilege: if the agent can only read public repositories,
+// it should only be permitted to write data tagged with "public" secrecy to safe outputs.
 // Returns nil if no GitHub guard policies are configured.
 func deriveSafeOutputsGuardPolicyFromGitHub(githubTool any) map[string]any {
 	githubPolicies := getGitHubGuardPolicies(githubTool)
@@ -281,21 +284,30 @@ func deriveSafeOutputsGuardPolicyFromGitHub(githubTool any) map[string]any {
 		return nil
 	}
 
-	// Convert repos to accept list with "private:" prefix
+	// Convert repos to accept list with appropriate secrecy prefix.
+	// repos="public" restricts the agent to public repositories only, so the write-sink
+	// accept list uses the "public:" secrecy prefix to enforce that only public-level data
+	// is written to safe outputs.
+	// All other cases (repos="all" or specific patterns) may involve private repositories,
+	// so the "private:" prefix is used to allow writing data of any secrecy level.
 	var acceptList []string
 
 	switch r := repos.(type) {
 	case string:
 		// Single string value (e.g., "all", "public", or a pattern)
-		if r == "all" || r == "public" {
-			// For "all" or "public", add "private:*" to accept all private repos
+		switch r {
+		case "public":
+			// Public repos only: enforce public secrecy level for safe output writes
+			acceptList = []string{"public:*"}
+		case "all":
+			// All repos including private: allow private secrecy level writes
 			acceptList = []string{"private:*"}
-		} else {
-			// Single pattern - add with private: prefix
+		default:
+			// Single specific pattern (e.g., "owner/repo"): may be private, use private prefix
 			acceptList = []string{"private:" + r}
 		}
 	case []any:
-		// Array of patterns
+		// Array of patterns: may include private repos, use private prefix
 		acceptList = make([]string, 0, len(r))
 		for _, item := range r {
 			if pattern, ok := item.(string); ok {
@@ -303,7 +315,7 @@ func deriveSafeOutputsGuardPolicyFromGitHub(githubTool any) map[string]any {
 			}
 		}
 	case []string:
-		// Array of patterns (already strings)
+		// Array of patterns (already strings): may include private repos, use private prefix
 		acceptList = make([]string, 0, len(r))
 		for _, pattern := range r {
 			acceptList = append(acceptList, "private:"+pattern)
