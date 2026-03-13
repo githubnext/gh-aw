@@ -7977,6 +7977,8 @@
               "properties": {
                 "server-url": {
                   "type": "string",
+                  "minLength": 9,
+                  "pattern": "^https://.*",
                   "description": "GitHub Enterprise Server URL (e.g., 'https://acme.ghe.com' for GHEC or 'https://github.company.com' for GHES). AWF automatically detects GHEC (*.ghe.com) and GHES (custom domains) and routes to the appropriate Copilot API endpoint.",
                   "examples": ["https://acme.ghe.com", "https://github.company.com"]
                 },
