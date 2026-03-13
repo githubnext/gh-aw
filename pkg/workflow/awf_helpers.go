@@ -205,6 +205,13 @@ func BuildAWFArgs(config AWFCommandConfig) []string {
 		awfHelpersLog.Printf("Added --anthropic-api-target=%s", anthropicTarget)
 	}
 
+	// Add Copilot API target for custom Copilot endpoints (GHEC, GHES, or custom)
+	// This uses the engine.api-target field if configured
+	if config.WorkflowData.EngineConfig != nil && config.WorkflowData.EngineConfig.APITarget != "" {
+		awfArgs = append(awfArgs, "--copilot-api-target", config.WorkflowData.EngineConfig.APITarget)
+		awfHelpersLog.Printf("Added --copilot-api-target=%s", config.WorkflowData.EngineConfig.APITarget)
+	}
+
 	// Add SSL Bump support for HTTPS content inspection (v0.9.0+)
 	sslBumpArgs := getSSLBumpArgs(firewallConfig)
 	awfArgs = append(awfArgs, sslBumpArgs...)
