@@ -36,6 +36,8 @@ tools:
   bash:
     - "*"
   github:
+    repos: public
+    min-integrity: approved
   playwright:
   serena:
     languages:

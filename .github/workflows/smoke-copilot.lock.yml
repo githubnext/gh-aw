@@ -29,7 +29,7 @@
 #     - shared/github-queries-mcp-script.md
 #     - shared/reporting.md
 #
-# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"b7ace3a0bae816ff9001b09294262e8a7367f7232f18b3b9918abf9d9d27253d","strict":true}
+# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"3542ab7695605246be9d78e721d6bedbcc1b3b0c9531254643458ddf40f90c29","strict":true}
 
 name: "Smoke Copilot"
 "on":
@@ -1813,6 +1813,12 @@ jobs:
                   "GITHUB_PERSONAL_ACCESS_TOKEN": "\${GITHUB_MCP_SERVER_TOKEN}",
                   "GITHUB_READ_ONLY": "1",
                   "GITHUB_TOOLSETS": "context,repos,issues,pull_requests"
+                },
+                "guard-policies": {
+                  "allow-only": {
+                    "min-integrity": "approved",
+                    "repos": "public"
+                  }
                 }
               },
               "mcpscripts": {
@@ -1834,6 +1840,13 @@ jobs:
                 "url": "http://host.docker.internal:$GH_AW_SAFE_OUTPUTS_PORT",
                 "headers": {
                   "Authorization": "\${GH_AW_SAFE_OUTPUTS_API_KEY}"
+                },
+                "guard-policies": {
+                  "write-sink": {
+                    "accept": [
+                      "public:*"
+                    ]
+                  }
                 }
               },
               "serena": {
