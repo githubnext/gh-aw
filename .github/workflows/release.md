@@ -11,6 +11,7 @@ on:
         description: 'Release type (patch, minor, or major)'
         required: true
         type: choice
+        default: patch
         options:
           - patch
           - minor
@@ -21,19 +22,12 @@ permissions:
   actions: read
   issues: read
 engine: copilot
-strict: false
 timeout-minutes: 20
 network:
   allowed:
     - defaults
     - node
     - "github.github.com"
-sandbox:
-  agent: awf  # Firewall enabled (migrated from network.firewall)
-tools:
-  bash:
-    - "*"
-  edit:
 safe-outputs:
   update-release:
 jobs:
@@ -48,7 +42,6 @@ jobs:
         with:
           fetch-depth: 0
           persist-credentials: false
-      
       - name: Compute release configuration
         id: compute_config
         uses: actions/github-script@v8
@@ -203,13 +196,26 @@ jobs:
 
   sync_actions:
     needs: ["pre_activation", "activation", "config", "push_tag"]
-    uses: github/gh-aw-actions/.github/workflows/sync-actions.yml@main
-    with:
-      ref: ${{ needs.config.outputs.release_tag }}
-    secrets: inherit
-    permissions:
-      contents: write
-      pull-requests: write
+    runs-on: ubuntu-latest
+    environment: gh-aw-actions-release
+    steps:
+      - name: Notify - run sync actions and merge PR
+        env:
+          RELEASE_TAG: ${{ needs.config.outputs.release_tag }}
+        run: |
+          echo "## Manual Sync Actions Required" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "The following manual steps must be completed in **github/gh-aw-actions** before this release continues:" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "1. Trigger the **sync-actions** workflow in github/gh-aw-actions:" >> "$GITHUB_STEP_SUMMARY"
+          echo "   https://github.com/github/gh-aw-actions/actions/workflows/sync-actions.yml" >> "$GITHUB_STEP_SUMMARY"
+          echo "2. Merge the PR created by the sync-actions workflow in **github/gh-aw-actions**" >> "$GITHUB_STEP_SUMMARY"
+          echo "3. Verify that tag **\`${RELEASE_TAG}\`** exists in github/gh-aw-actions" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "Once the above steps are complete, approve the **gh-aw-actions-release** environment gate to continue the release." >> "$GITHUB_STEP_SUMMARY"
+
+          echo "Sync actions instructions written for release: $RELEASE_TAG"
+          echo "Ensure the sync-actions job has been run and the PR merged in github/gh-aw-actions before approving."
 
   release:
     needs: ["pre_activation", "activation", "config", "sync_actions"]

@@ -1857,6 +1857,31 @@
             "$ref": "#/properties/concurrency",
             "description": "Concurrency control configuration for this job. Prevents parallel execution of jobs with the same concurrency group."
           },
+          "environment": {
+            "oneOf": [
+              {
+                "type": "string",
+                "description": "The name of the GitHub Actions environment this job references. Environments can have protection rules (required reviewers, wait timers) that must be satisfied before the job runs."
+              },
+              {
+                "type": "object",
+                "description": "Environment configuration with name and optional URL.",
+                "additionalProperties": false,
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "description": "The name of the GitHub Actions environment."
+                  },
+                  "url": {
+                    "type": "string",
+                    "description": "The URL to set as the environment URL in the deployment."
+                  }
+                },
+                "required": ["name"]
+              }
+            ],
+            "description": "The GitHub Actions environment this job references. When set, any protection rules for the environment must pass before the job runs. Use this to gate jobs on manual approval workflows."
+          },
           "uses": {
             "type": "string",
             "description": "Path to a reusable workflow file to call (e.g., ./.github/workflows/reusable-workflow.yml)"
