@@ -45,7 +45,7 @@ steps:
 - env:
     GH_AW_CAMPAIGN_ID: security-alert-burndown
     GH_AW_CURSOR_PATH: /tmp/gh-aw/repo-memory/campaigns/security-alert-burndown/cursor.json
-    GH_AW_DISCOVERY_REPOS: githubnext/gh-aw
+    GH_AW_DISCOVERY_REPOS: github/gh-aw
     GH_AW_MAX_DISCOVERY_ITEMS: "50"
     GH_AW_MAX_DISCOVERY_PAGES: "3"
     GH_AW_PROJECT_URL: https://github.com/orgs/githubnext/projects/122

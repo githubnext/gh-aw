@@ -23,7 +23,7 @@
 #
 # Orchestrator workflow for campaign 'security-alert-burndown'
 #
-# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"4cabee9e7e0a3b1a2f3c07dce2b2a763a9e8aeadbb3e8228389b45f8255ac805","strict":true}
+# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"b86eef08186cbd578cec6ef9166227a187a1d951d243f31b9fc9573b33cbf012","strict":true}
 
 name: "Security Alert Burndown"
 "on":
@@ -286,7 +286,7 @@ jobs:
       - env:
           GH_AW_CAMPAIGN_ID: security-alert-burndown
           GH_AW_CURSOR_PATH: /tmp/gh-aw/repo-memory/campaigns/security-alert-burndown/cursor.json
-          GH_AW_DISCOVERY_REPOS: githubnext/gh-aw
+          GH_AW_DISCOVERY_REPOS: github/gh-aw
           GH_AW_MAX_DISCOVERY_ITEMS: "50"
           GH_AW_MAX_DISCOVERY_PAGES: "3"
           GH_AW_PROJECT_URL: https://github.com/orgs/githubnext/projects/122

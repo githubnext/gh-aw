@@ -18,7 +18,7 @@ safe-outputs:
     title-prefix: "🧩 Constraint Solving POTD:"
     labels: [constraint-solving, problem-of-the-day]
     close-older-discussions: true
-    expires: 7
+    expires: 7d
 ---
 
 # Constraint Solving — Problem of the Day
