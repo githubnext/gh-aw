@@ -23,7 +23,11 @@
 #
 # Automatically fixes code scanning alerts by creating pull requests with remediation
 #
-# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"356d127ca6b12cd898b6897498aa23822d2a75188b7e7564bc8b833190056a4b","strict":true}
+# Resolved workflow manifest:
+#   Imports:
+#     - shared/activation-app.md
+#
+# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"c86a8c8936d098ce2da4bf71678186f60eb9aaed93086ab0692137208bd21398","strict":true}
 
 name: "Code Scanning Fixer"
 "on":
@@ -164,6 +168,9 @@ jobs:
           GH_AW_PROMPT_EOF
           cat << 'GH_AW_PROMPT_EOF'
           </system>
+          GH_AW_PROMPT_EOF
+          cat << 'GH_AW_PROMPT_EOF'
+          {{#runtime-import .github/workflows/shared/activation-app.md}}
           GH_AW_PROMPT_EOF
           cat << 'GH_AW_PROMPT_EOF'
           {{#runtime-import .github/workflows/code-scanning-fixer.md}}

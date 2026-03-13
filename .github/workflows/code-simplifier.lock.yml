@@ -25,9 +25,10 @@
 #
 # Resolved workflow manifest:
 #   Imports:
+#     - shared/activation-app.md
 #     - shared/reporting.md
 #
-# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"6ba60c66818393095f34e20338d7b05c7e2cf5f3cc398105e210b2d12622b7fa","strict":true}
+# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"46fcb0db5d0eb563835594c8aa08fa38761aa25be0bc7d3dae4293d504a5754e","strict":true}
 
 name: "Code Simplifier"
 "on":
@@ -175,6 +176,9 @@ jobs:
           GH_AW_PROMPT_EOF
           cat << 'GH_AW_PROMPT_EOF'
           </system>
+          GH_AW_PROMPT_EOF
+          cat << 'GH_AW_PROMPT_EOF'
+          {{#runtime-import .github/workflows/shared/activation-app.md}}
           GH_AW_PROMPT_EOF
           cat << 'GH_AW_PROMPT_EOF'
           {{#runtime-import .github/workflows/shared/reporting.md}}

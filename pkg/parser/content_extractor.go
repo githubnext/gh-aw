@@ -213,3 +213,37 @@ func extractOnSectionField(content, fieldName string) (string, error) {
 	contentExtractorLog.Printf("Successfully extracted field %s from on: section: %d bytes", fieldName, len(jsonData))
 	return string(jsonData), nil
 }
+
+// extractOnSectionAnyField extracts a specific field from the on: section in frontmatter as
+// a JSON string, handling any value type (string, object, array, etc.).
+// Returns "" when the field is absent or an error occurs.
+func extractOnSectionAnyField(content, fieldName string) (string, error) {
+	contentExtractorLog.Printf("Extracting on: section field (any): %s", fieldName)
+	result, err := ExtractFrontmatterFromContent(content)
+	if err != nil {
+		return "", nil
+	}
+
+	onValue, exists := result.Frontmatter["on"]
+	if !exists {
+		return "", nil
+	}
+
+	onMap, ok := onValue.(map[string]any)
+	if !ok {
+		return "", nil
+	}
+
+	fieldValue, exists := onMap[fieldName]
+	if !exists {
+		return "", nil
+	}
+
+	jsonData, err := json.Marshal(fieldValue)
+	if err != nil {
+		return "", nil
+	}
+
+	contentExtractorLog.Printf("Successfully extracted on.%s: %d bytes", fieldName, len(jsonData))
+	return string(jsonData), nil
+}
