@@ -26,6 +26,7 @@ network:
 imports:
   - ../skills/documentation/SKILL.md
   - ../agents/technical-doc-writer.agent.md
+  - shared/mcp/qmd.md
 
 safe-outputs:
   add-comment:

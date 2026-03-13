@@ -17,6 +17,7 @@ network: defaults
 
 imports:
   - shared/reporting.md
+  - shared/mcp/qmd.md
 
 tools:
   edit:
