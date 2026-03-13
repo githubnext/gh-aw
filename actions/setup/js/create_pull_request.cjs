@@ -544,7 +544,7 @@ async function main(config = {}) {
       }
 
       if (preserveBranchName) {
-        core.info(`Using branch name from JSONL as-is (preserve-branch-name enabled): ${branchName}`);
+        core.info(`Using branch name from JSONL without salt suffix (preserve-branch-name enabled): ${branchName}`);
       } else {
         core.info(`Using branch name from JSONL with added salt: ${branchName}`);
       }

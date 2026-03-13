@@ -5345,7 +5345,7 @@
                 },
                 "preserve-branch-name": {
                   "type": "boolean",
-                  "description": "When true, the agent-specified branch name is used as-is: the random salt suffix is not appended and the name is not lowercased. Invalid characters are still replaced for security. Useful when the target repository enforces branch naming conventions (e.g. Jira keys in uppercase such as 'bugfix/BR-329-red'). Defaults to false.",
+                  "description": "When true, the random salt suffix is not appended to the agent-specified branch name. Invalid characters are still replaced for security, and casing is always preserved regardless of this setting. Useful when the target repository enforces branch naming conventions (e.g. Jira keys in uppercase such as 'bugfix/BR-329-red'). Defaults to false.",
                   "default": false
                 }
               },
