@@ -19,15 +19,12 @@ imports:
   - shared/mcp/serena-go.md
 
 safe-outputs:
-  close-issue:
-    required-title-prefix: "[function-namer] "
-    target: "*"
-    max: 5
   create-issue:
     expires: 7d
     title-prefix: "[function-namer] "
     labels: [refactoring, code-quality, automated-analysis, cookie]
     max: 1
+    close-older-issues: true
 
 tools:
   cache-memory: true
@@ -60,25 +57,7 @@ Each day, analyze up to **3 Go source files** using round-robin rotation across 
 - **Workspace**: ${{ github.workspace }}
 - **Cache**: `/tmp/gh-aw/cache-memory/`
 
-## Step 1: Close Existing Function-Namer Issues
-
-**CRITICAL FIRST STEP**: Before performing any analysis, close all open issues with the `[function-namer]` title prefix to prevent duplicates.
-
-1. Use GitHub tools to search for open issues with `[function-namer]` in the title in repository ${{ github.repository }}
-2. For each found issue, close it using the `close_issue` MCP tool (part of the safe-outputs server):
-
-```
-close_issue(issue_number=<N>, body="Closing: a new daily function-namer analysis run is starting.")
-```
-
-The `close-issue` safe output is configured with:
-- `required-title-prefix: "[function-namer] "` — only closes issues matching this prefix
-- `target: "*"` — can close any issue by number
-- `max: 5` — up to 5 issues per run
-
-**Do not proceed to Step 2 until all existing `[function-namer]` issues are closed.**
-
-## Step 2: Load Round-Robin State from Cache
+## Step 1: Load Round-Robin State from Cache
 
 Read the current rotation position from cache:
 
@@ -103,7 +82,7 @@ matching the output of the `find pkg` command in Step 3.
 If the cache file does not exist or is empty, start fresh with `last_index = 0` and an
 empty `analyzed_files` list.
 
-## Step 3: Get All Go Files
+## Step 2: Get All Go Files
 
 Enumerate all non-test Go source files in sorted order:
 
@@ -113,7 +92,7 @@ find pkg -name '*.go' ! -name '*_test.go' -type f | sort
 
 Record the total file count for wrap-around calculations.
 
-## Step 4: Select the Next 3 Files
+## Step 3: Select the Next 3 Files
 
 Using `last_index` from the cache:
 
@@ -123,7 +102,7 @@ Using `last_index` from the cache:
 
 The new `last_index` for the next run is `(last_index + 3) % total_files`.
 
-## Step 5: Activate Serena
+## Step 4: Activate Serena
 
 Activate the Serena project to enable Go semantic analysis:
 
@@ -132,11 +111,11 @@ Tool: activate_project
 Args: { "path": "${{ github.workspace }}" }
 ```
 
-## Step 6: Analyze Each File with Serena
+## Step 5: Analyze Each File with Serena
 
 For each of the 3 selected files, perform a full function name analysis.
 
-### 6.1 Get All Symbols
+### 5.1 Get All Symbols
 
 ```
 Tool: get_symbols_overview
@@ -145,7 +124,7 @@ Args: { "file_path": "<relative/path/to/file.go>" }
 
 This returns all functions, methods, and types defined in the file.
 
-### 6.2 Read Function Implementations
+### 5.2 Read Function Implementations
 
 For each function identified in 6.1, read enough of the implementation to understand its behavior:
 
@@ -160,7 +139,7 @@ For small files you may read the entire file:
 cat <path/to/file.go>
 ```
 
-### 6.3 Evaluate Function Names
+### 5.3 Evaluate Function Names
 
 For each function, assess its name against these criteria:
 
@@ -177,7 +156,7 @@ For each function, assess its name against these criteria:
 - Constructors following Go convention: `NewCompiler()`, `NewMCPConfig()`
 - Short unexported names used as closures or immediately-invoked helpers
 
-### 6.4 Propose Renames
+### 5.4 Propose Renames
 
 For each function that would benefit from a clearer name:
 
@@ -201,7 +180,7 @@ Args: { "symbol_name": "<currentName>", "file_path": "pkg/..." }
 
 **Only suggest renames where the improvement is clear and meaningful.** Quality over quantity — two well-justified suggestions are better than ten marginal ones.
 
-## Step 7: Update Cache State
+## Step 6: Update Cache State
 
 After completing the analysis, save the updated round-robin position. Use a filesystem-safe timestamp format (`YYYY-MM-DD` is fine for daily granularity):
 
@@ -223,7 +202,7 @@ Use relative paths (e.g., `pkg/workflow/compiler.go`) matching the output of the
 
 Prune `analyzed_files` to the most recent 90 entries to prevent unbounded growth.
 
-## Step 8: Create Issue with Agentic Plan
+## Step 7: Create Issue with Agentic Plan
 
 If any rename suggestions were found across the 3 files, create a GitHub issue.
 
