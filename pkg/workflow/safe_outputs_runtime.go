@@ -20,16 +20,6 @@ func (c *Compiler) formatSafeOutputsRunsOn(safeOutputs *SafeOutputsConfig) strin
 	return "runs-on: " + safeOutputs.RunsOn
 }
 
-// formatDetectionRunsOn resolves the runner for the detection job using the following priority:
-// 1. safe-outputs.detection.runs-on (detection-specific override)
-// 2. agentRunsOn (the agent job's runner, passed by the caller)
-func (c *Compiler) formatDetectionRunsOn(safeOutputs *SafeOutputsConfig, agentRunsOn string) string {
-	if safeOutputs != nil && safeOutputs.ThreatDetection != nil && safeOutputs.ThreatDetection.RunsOn != "" {
-		return "runs-on: " + safeOutputs.ThreatDetection.RunsOn
-	}
-	return agentRunsOn
-}
-
 // usesPatchesAndCheckouts checks if the workflow uses safe outputs that require
 // git patches and checkouts (create-pull-request or push-to-pull-request-branch)
 func usesPatchesAndCheckouts(safeOutputs *SafeOutputsConfig) bool {

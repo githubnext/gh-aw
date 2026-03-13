@@ -368,14 +368,14 @@ func (c *Compiler) commentOutProcessedFieldsInOnSection(yamlStr string, frontmat
 			} else if strings.HasPrefix(trimmedLine, "skip-if-match:") {
 				shouldComment = true
 				commentReason = " # Skip-if-match processed as search check in pre-activation job"
-			} else if inSkipIfMatch && (strings.HasPrefix(trimmedLine, "query:") || strings.HasPrefix(trimmedLine, "max:")) {
+			} else if inSkipIfMatch && (strings.HasPrefix(trimmedLine, "query:") || strings.HasPrefix(trimmedLine, "max:") || strings.HasPrefix(trimmedLine, "scope:")) {
 				// Comment out nested fields in skip-if-match object
 				shouldComment = true
 				commentReason = ""
 			} else if strings.HasPrefix(trimmedLine, "skip-if-no-match:") {
 				shouldComment = true
 				commentReason = " # Skip-if-no-match processed as search check in pre-activation job"
-			} else if inSkipIfNoMatch && (strings.HasPrefix(trimmedLine, "query:") || strings.HasPrefix(trimmedLine, "min:")) {
+			} else if inSkipIfNoMatch && (strings.HasPrefix(trimmedLine, "query:") || strings.HasPrefix(trimmedLine, "min:") || strings.HasPrefix(trimmedLine, "scope:")) {
 				// Comment out nested fields in skip-if-no-match object
 				shouldComment = true
 				commentReason = ""

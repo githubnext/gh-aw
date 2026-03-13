@@ -63,6 +63,7 @@ The agent requests issue creation; a separate job with `issues: write` creates i
 ### Security & Agent Tasks
 
 - [**Dispatch Workflow**](#workflow-dispatch-dispatch-workflow) (`dispatch-workflow`) - Trigger other workflows with inputs (max: 3, same-repo only)
+- [**Call Workflow**](#workflow-call-call-workflow) (`call-workflow`) - Call reusable workflows via compile-time fan-out (max: 1, same-repo only)
 - [**Code Scanning Alerts**](#code-scanning-alerts-create-code-scanning-alert) (`create-code-scanning-alert`) - Generate SARIF security advisories (max: unlimited, same-repo only)
 - [**Autofix Code Scanning Alerts**](#autofix-code-scanning-alerts-autofix-code-scanning-alert) (`autofix-code-scanning-alert`) - Create automated fixes for code scanning alerts (max: 10, same-repo only)
 - [**Create Agent Session**](#agent-session-creation-create-agent-session) (`create-agent-session`) - Create Copilot coding agent sessions (max: 1)
@@ -945,14 +946,11 @@ Creates discussions with optional `category` (slug, name, or ID; defaults to fir
 
 **Category Naming Standard**: Use lowercase, plural category names (e.g., `audits`, `general`, `reports`) for consistency and better searchability. GitHub Discussion category IDs (starting with `DIC_`) are also supported.
 
-> [!WARNING]
-> Only announcement-capable category succeeds; all non-announcement categories fail with integration-forbidden.
-
 ```yaml wrap
 safe-outputs:
   create-discussion:
     title-prefix: "[ai] "        # prefix for titles
-    category: "announcements"    # category slug, name, or ID (use lowercase, prefer announcement-capable)
+    category: "announcements"    # category slug, name, or ID (use lowercase)
     expires: 3                   # auto-close after 3 days (or false to disable)
     max: 3                       # max discussions (default: 1)
     target-repo: "owner/repo"    # cross-repository
@@ -1115,6 +1113,116 @@ To respect GitHub API rate limits, the handler automatically enforces a 5-second
 - **Same-repository only** - Cannot dispatch workflows in other repositories. This prevents cross-repository workflow triggering which could be a security risk.
 - **Allowlist enforcement** - Only workflows explicitly listed in the `workflows` configuration can be dispatched. Requests for unlisted workflows are rejected.
 - **Compile-time validation** - Workflows are validated at compile time to catch configuration errors early.
+
+### Workflow Call (`call-workflow:`)
+
+Calls reusable workflows (`workflow_call`) via compile-time fan-out—no GitHub API call at runtime. The compiler reads each worker's `workflow_call.inputs`, generates a typed MCP tool per worker, and emits a conditional `uses:` job for each. At runtime, only the worker whose name the agent selected runs.
+
+Unlike `dispatch-workflow` (which fires a `workflow_dispatch` event and loses the original actor context), `call-workflow` preserves `github.actor` and billing attribution because the worker job is part of the same workflow run.
+
+> [!NOTE]
+> When installing a workflow with `gh aw add`, workflows listed in `call-workflow` are automatically fetched and added to the target repository alongside the main workflow.
+
+**Shorthand Syntax:**
+
+```yaml wrap
+safe-outputs:
+  call-workflow: [spring-boot-bugfix, frontend-dep-upgrade]
+```
+
+**Full Syntax:**
+
+```yaml wrap
+safe-outputs:
+  call-workflow:
+    workflows:
+      - spring-boot-bugfix
+      - frontend-dep-upgrade
+    max: 1
+```
+
+#### Configuration
+
+- **`workflows`** (required) - List of workflow names (without `.md` extension) that the agent is allowed to call. Each workflow must exist in the same repository and declare `workflow_call` as a trigger.
+- **`max`** (optional) - Maximum number of times the agent may invoke the tool per run (default: 1, maximum: 50). Since a single `call_workflow_name` step output is produced, only the last selected worker executes regardless of `max`; in practice, leave this at 1.
+
+#### Worker Inputs
+
+Worker inputs are forwarded as a single JSON-encoded `payload` string, avoiding GitHub's per-`workflow_call` limit. Define the input in the worker:
+
+```yaml title="spring-boot-bugfix.md (worker)"
+on:
+  workflow_call:
+    inputs:
+      payload:
+        type: string
+        required: false
+```
+
+The compiler also reads typed inputs declared on the worker and exposes them as parameters on the generated MCP tool, so the agent can provide structured values:
+
+```yaml title="deploy.md (worker)"
+on:
+  workflow_call:
+    inputs:
+      environment:
+        description: Target environment
+        type: choice
+        options: [dev, staging, production]
+        required: true
+      dry_run:
+        type: boolean
+        required: false
+```
+
+Supported input types: `string`, `number`, `boolean`, `choice` (rendered as an enum).
+
+#### Compiled Output
+
+For each worker the compiler emits a conditional `uses:` job in the lock file:
+
+```yaml title="gateway.lock.yml (simplified)"
+safe_outputs:
+  outputs:
+    call_workflow_name: ${{ steps.process_safe_outputs.outputs.call_workflow_name }}
+    call_workflow_payload: ${{ steps.process_safe_outputs.outputs.call_workflow_payload }}
+
+call-spring-boot-bugfix:
+  needs: [safe_outputs]
+  if: needs.safe_outputs.outputs.call_workflow_name == 'spring-boot-bugfix'
+  uses: ./.github/workflows/spring-boot-bugfix.lock.yml
+  secrets: inherit
+  with:
+    payload: ${{ needs.safe_outputs.outputs.call_workflow_payload }}
+```
+
+#### Validation Rules
+
+At compile time, the compiler validates:
+
+1. **Workflow existence** - Each workflow must exist as a `.lock.yml`, `.yml`, or `.md` file.
+2. **`workflow_call` trigger** - Each worker must declare `workflow_call` in its `on:` section.
+3. **No self-reference** - A gateway cannot call itself.
+4. **File resolution** - The compiler resolves the correct extension and embeds it in the generated job.
+
+#### Comparing `call-workflow` and `dispatch-workflow`
+
+| | `call-workflow` | `dispatch-workflow` |
+|---|---|---|
+| Mechanism | Compile-time `uses:` job | Runtime `workflow_dispatch` API |
+| API calls | None | One per dispatch |
+| `github.actor` | Preserved | Replaced by triggering actor |
+| Billing | Attributed to triggering run | Attributed to dispatched run |
+| Cross-repository | No | No |
+| Worker trigger | `workflow_call` | `workflow_dispatch` |
+
+Use `call-workflow` for deterministic fan-out where actor attribution and zero API overhead matter. Use `dispatch-workflow` when workers need to run asynchronously or outlive the parent run.
+
+#### Security Considerations
+
+- **Same-repository only** - Workers must live in the same repository as the gateway.
+- **Allowlist enforcement** - Only workflows listed in `workflows` can be called; unlisted names are rejected at runtime.
+- **Compile-time validation** - Misconfiguration is caught before the workflow runs.
 
 ### Agent Session Creation (`create-agent-session:`)
 

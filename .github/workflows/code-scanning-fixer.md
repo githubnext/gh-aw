@@ -9,6 +9,8 @@ permissions:
   pull-requests: read
   security-events: read
 engine: copilot
+imports:
+  - shared/activation-app.md
 tools:
   github:
     github-token: "${{ secrets.GITHUB_TOKEN }}"

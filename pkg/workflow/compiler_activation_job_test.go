@@ -415,6 +415,78 @@ func TestActivationJobTargetRefOutput(t *testing.T) {
 	}
 }
 
+// TestActivationJobTargetRepoNameOutput verifies that the activation job exposes target_repo_name
+// as an output when a workflow_call trigger is present (without inlined imports). This repo-name-only
+// output is required for actions/create-github-app-token which expects repo names without the
+// owner prefix when `owner` is also set.
+func TestActivationJobTargetRepoNameOutput(t *testing.T) {
+	tests := []struct {
+		name                 string
+		onSection            string
+		inlinedImports       bool
+		expectTargetRepoName bool
+	}{
+		{
+			name: "workflow_call trigger - target_repo_name output added",
+			onSection: `"on":
+  workflow_call:`,
+			expectTargetRepoName: true,
+		},
+		{
+			name: "mixed triggers with workflow_call - target_repo_name output added",
+			onSection: `"on":
+  issue_comment:
+    types: [created]
+  workflow_call:`,
+			expectTargetRepoName: true,
+		},
+		{
+			name: "workflow_call with inlined-imports - no target_repo_name output",
+			onSection: `"on":
+  workflow_call:`,
+			inlinedImports:       true,
+			expectTargetRepoName: false,
+		},
+		{
+			name: "no workflow_call - no target_repo_name output",
+			onSection: `"on":
+  issues:
+    types: [opened]`,
+			expectTargetRepoName: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			compiler := NewCompilerWithVersion("dev")
+			compiler.SetActionMode(ActionModeDev)
+
+			data := &WorkflowData{
+				Name:           "test-workflow",
+				On:             tt.onSection,
+				InlinedImports: tt.inlinedImports,
+				AI:             "copilot",
+			}
+
+			job, err := compiler.buildActivationJob(data, false, "", "test.lock.yml")
+			require.NoError(t, err, "buildActivationJob should succeed")
+			require.NotNil(t, job, "activation job should not be nil")
+
+			if tt.expectTargetRepoName {
+				assert.Contains(t, job.Outputs, "target_repo_name",
+					"activation job should expose target_repo_name output for GitHub App token minting")
+				assert.Equal(t,
+					"${{ steps.resolve-host-repo.outputs.target_repo_name }}",
+					job.Outputs["target_repo_name"],
+					"target_repo_name output should reference resolve-host-repo step")
+			} else {
+				assert.NotContains(t, job.Outputs, "target_repo_name",
+					"activation job should not expose target_repo_name when workflow_call is absent or inlined-imports enabled")
+			}
+		})
+	}
+}
+
 // TestCheckoutGitHubFolderIncludesRef verifies that the activation checkout emits a ref: field
 // when a workflow_call trigger is present. This ensures caller-hosted relays pinned to a
 // feature branch check out the correct platform branch during activation.

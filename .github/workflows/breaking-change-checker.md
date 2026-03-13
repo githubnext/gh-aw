@@ -34,6 +34,7 @@ safe-outputs:
     run-failure: "🔬 Analysis interrupted! [{workflow_name}]({run_url}) {status}. Compatibility status unknown..."
 timeout-minutes: 10
 imports:
+  - shared/activation-app.md
   - shared/reporting.md
 features:
   copilot-requests: true
