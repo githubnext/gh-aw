@@ -286,6 +286,69 @@ func generateFilteredToolsJSON(data *WorkflowData, markdownPath string) (string,
 		}
 	}
 
+	// Add dynamic call_workflow tools
+	if data.SafeOutputs.CallWorkflow != nil && len(data.SafeOutputs.CallWorkflow.Workflows) > 0 {
+		safeOutputsConfigLog.Printf("Adding %d call_workflow tools", len(data.SafeOutputs.CallWorkflow.Workflows))
+
+		// Initialize WorkflowFiles map if not already initialized
+		if data.SafeOutputs.CallWorkflow.WorkflowFiles == nil {
+			data.SafeOutputs.CallWorkflow.WorkflowFiles = make(map[string]string)
+		}
+
+		for _, workflowName := range data.SafeOutputs.CallWorkflow.Workflows {
+			// Find the workflow file in multiple locations
+			fileResult, err := findWorkflowFile(workflowName, markdownPath)
+			if err != nil {
+				safeOutputsConfigLog.Printf("Warning: error finding workflow %s: %v", workflowName, err)
+				tool := generateCallWorkflowTool(workflowName, make(map[string]any))
+				filteredTools = append(filteredTools, tool)
+				continue
+			}
+
+			// Determine which file to use - priority: .lock.yml > .yml > .md (batch target)
+			var workflowPath string
+			var extension string
+			var useMD bool
+			if fileResult.lockExists {
+				workflowPath = fileResult.lockPath
+				extension = ".lock.yml"
+			} else if fileResult.ymlExists {
+				workflowPath = fileResult.ymlPath
+				extension = ".yml"
+			} else if fileResult.mdExists {
+				workflowPath = fileResult.mdPath
+				extension = ".lock.yml"
+				useMD = true
+			} else {
+				safeOutputsConfigLog.Printf("Warning: no workflow file found for %s (checked .lock.yml, .yml, .md)", workflowName)
+				tool := generateCallWorkflowTool(workflowName, make(map[string]any))
+				filteredTools = append(filteredTools, tool)
+				continue
+			}
+
+			// Store the relative path for compile-time use
+			relativePath := fmt.Sprintf("./.github/workflows/%s%s", workflowName, extension)
+			data.SafeOutputs.CallWorkflow.WorkflowFiles[workflowName] = relativePath
+
+			// Extract workflow_call inputs
+			var workflowInputs map[string]any
+			var inputsErr error
+			if useMD {
+				workflowInputs, inputsErr = extractMDWorkflowCallInputs(workflowPath)
+			} else {
+				workflowInputs, inputsErr = extractWorkflowCallInputs(workflowPath)
+			}
+			if inputsErr != nil {
+				safeOutputsConfigLog.Printf("Warning: failed to extract inputs for workflow %s from %s: %v", workflowName, workflowPath, inputsErr)
+				workflowInputs = make(map[string]any)
+			}
+
+			// Generate tool schema
+			tool := generateCallWorkflowTool(workflowName, workflowInputs)
+			filteredTools = append(filteredTools, tool)
+		}
+	}
+
 	// Marshal the filtered tools back to JSON with indentation for better readability
 	// and to reduce merge conflicts in generated lockfiles
 	filteredJSON, err := json.MarshalIndent(filteredTools, "", "  ")

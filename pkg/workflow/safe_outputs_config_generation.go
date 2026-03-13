@@ -470,6 +470,29 @@ func generateSafeOutputsConfig(data *WorkflowData) string {
 		}
 	}
 
+	// Add call-workflow configuration
+	if data.SafeOutputs.CallWorkflow != nil {
+		callWorkflowConfig := map[string]any{}
+
+		// Include workflows list
+		if len(data.SafeOutputs.CallWorkflow.Workflows) > 0 {
+			callWorkflowConfig["workflows"] = data.SafeOutputs.CallWorkflow.Workflows
+		}
+
+		// Include workflow files mapping (relative path for each workflow)
+		if len(data.SafeOutputs.CallWorkflow.WorkflowFiles) > 0 {
+			callWorkflowConfig["workflow_files"] = data.SafeOutputs.CallWorkflow.WorkflowFiles
+		}
+
+		// Include max count
+		callWorkflowConfig["max"] = resolveMaxForConfig(data.SafeOutputs.CallWorkflow.Max, 1)
+
+		// Only add if it has fields
+		if len(callWorkflowConfig) > 0 {
+			safeOutputsConfig["call_workflow"] = callWorkflowConfig
+		}
+	}
+
 	// Add max-bot-mentions if set (templatable integer)
 	if data.SafeOutputs.MaxBotMentions != nil {
 		v := *data.SafeOutputs.MaxBotMentions
