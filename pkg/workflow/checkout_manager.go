@@ -138,6 +138,14 @@ type CheckoutManager struct {
 	// In the agent and safe_outputs jobs it is set to "${{ needs.activation.outputs.target_repo }}".
 	// An empty string means the checkout targets the current repository (github.repository).
 	crossRepoTargetRepo string
+	// crossRepoTargetRef holds the platform (host) ref (branch/tag/SHA) to use when
+	// performing .github/.agents sparse checkout steps for cross-repo workflow_call
+	// invocations pinned to a non-default branch.
+	//
+	// In the activation job this is set to "${{ steps.resolve-host-repo.outputs.target_ref }}".
+	// In the agent and safe_outputs jobs it is set to "${{ needs.activation.outputs.target_ref }}".
+	// An empty string means the checkout uses the repository's default branch.
+	crossRepoTargetRef string
 }
 
 // NewCheckoutManager creates a new CheckoutManager pre-loaded with user-supplied
@@ -160,7 +168,7 @@ func NewCheckoutManager(userCheckouts []*CheckoutConfig) *CheckoutManager {
 // In the activation job pass "${{ steps.resolve-host-repo.outputs.target_repo }}".
 // In downstream jobs (agent, safe_outputs) pass "${{ needs.activation.outputs.target_repo }}".
 func (cm *CheckoutManager) SetCrossRepoTargetRepo(repo string) {
-	checkoutManagerLog.Printf("Setting cross-repo target: %q", repo)
+	checkoutManagerLog.Printf("Setting cross-repo target repo: %q", repo)
 	cm.crossRepoTargetRepo = repo
 }
 
@@ -169,6 +177,23 @@ func (cm *CheckoutManager) SetCrossRepoTargetRepo(repo string) {
 // (same-repo invocation or inlined imports).
 func (cm *CheckoutManager) GetCrossRepoTargetRepo() string {
 	return cm.crossRepoTargetRepo
+}
+
+// SetCrossRepoTargetRef stores the platform (host) ref expression used for
+// .github/.agents sparse checkout steps. Call this when the workflow has a workflow_call
+// trigger and the checkout should target a specific branch rather than the default branch.
+//
+// In the activation job pass "${{ steps.resolve-host-repo.outputs.target_ref }}".
+// In downstream jobs (agent, safe_outputs) pass "${{ needs.activation.outputs.target_ref }}".
+func (cm *CheckoutManager) SetCrossRepoTargetRef(ref string) {
+	checkoutManagerLog.Printf("Setting cross-repo target ref: %q", ref)
+	cm.crossRepoTargetRef = ref
+}
+
+// GetCrossRepoTargetRef returns the platform ref expression previously set by
+// SetCrossRepoTargetRef, or an empty string if no cross-repo ref was set.
+func (cm *CheckoutManager) GetCrossRepoTargetRef() string {
+	return cm.crossRepoTargetRef
 }
 
 // add processes a single CheckoutConfig and either creates a new entry or merges
@@ -330,14 +355,16 @@ func (cm *CheckoutManager) GenerateAdditionalCheckoutSteps(getActionPin func(str
 //
 // Parameters:
 //   - repository: the repository to checkout. May be a literal "owner/repo" value or a
-//     GitHub Actions expression such as
-//     "${{ github.event_name == 'workflow_call' && github.action_repository || github.repository }}".
+//     GitHub Actions expression such as "${{ steps.resolve-host-repo.outputs.target_repo }}".
 //     Pass an empty string to omit the repository field and check out the current repository.
+//   - ref: the branch, tag, or SHA to checkout. May be a literal value or a GitHub Actions
+//     expression such as "${{ steps.resolve-host-repo.outputs.target_ref }}".
+//     Pass an empty string to omit the ref field and use the repository's default branch.
 //   - getActionPin: resolves an action reference to a pinned SHA form.
 //
 // Returns a slice of YAML lines (each ending with \n).
-func (cm *CheckoutManager) GenerateGitHubFolderCheckoutStep(repository string, getActionPin func(string) string) []string {
-	checkoutManagerLog.Printf("Generating .github/.agents folder checkout: repository=%q", repository)
+func (cm *CheckoutManager) GenerateGitHubFolderCheckoutStep(repository, ref string, getActionPin func(string) string) []string {
+	checkoutManagerLog.Printf("Generating .github/.agents folder checkout: repository=%q ref=%q", repository, ref)
 	var sb strings.Builder
 
 	sb.WriteString("      - name: Checkout .github and .agents folders\n")
@@ -346,6 +373,9 @@ func (cm *CheckoutManager) GenerateGitHubFolderCheckoutStep(repository string, g
 	sb.WriteString("          persist-credentials: false\n")
 	if repository != "" {
 		fmt.Fprintf(&sb, "          repository: %s\n", repository)
+	}
+	if ref != "" {
+		fmt.Fprintf(&sb, "          ref: %s\n", ref)
 	}
 	sb.WriteString("          sparse-checkout: |\n")
 	sb.WriteString("            .github\n")

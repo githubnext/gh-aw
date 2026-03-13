@@ -51,12 +51,18 @@ func FormatError(err CompilerError) string {
 	}
 
 	// IDE-parseable format: file:line:column: type: message
+	// Only include line:column when a meaningful position is known (line > 0)
 	if err.Position.File != "" {
 		relativePath := ToRelativePath(err.Position.File)
-		location := fmt.Sprintf("%s:%d:%d:",
-			relativePath,
-			err.Position.Line,
-			err.Position.Column)
+		var location string
+		if err.Position.Line > 0 {
+			location = fmt.Sprintf("%s:%d:%d:",
+				relativePath,
+				err.Position.Line,
+				err.Position.Column)
+		} else {
+			location = relativePath + ":"
+		}
 		output.WriteString(applyStyle(styles.FilePath, location))
 		output.WriteString(" ")
 	}
@@ -70,6 +76,16 @@ func FormatError(err CompilerError) string {
 	// Context lines (Rust-like error rendering)
 	if len(err.Context) > 0 && err.Position.Line > 0 {
 		output.WriteString(renderContext(err))
+	}
+
+	// Hint for fixing the error
+	// Note: we intentionally use styles.Info (cyan) for hints since there is no
+	// dedicated Hint style; Info is visually distinct and non-alarming, which is
+	// appropriate for actionable guidance.
+	if err.Hint != "" {
+		output.WriteString(applyStyle(styles.Info, "hint: "))
+		output.WriteString(err.Hint)
+		output.WriteString("\n")
 	}
 
 	return output.String()

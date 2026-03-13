@@ -133,7 +133,7 @@ require (
 	}
 }
 
-func TestParseGoModWithIndirect(t *testing.T) {
+func TestParseGoModFile_WithIndirect(t *testing.T) {
 	goModContent := `module github.com/example/test
 
 go 1.25.0
@@ -148,14 +148,14 @@ require (
 	tmpFile := createTempFile(t, goModContent)
 	defer removeTempFile(t, tmpFile)
 
-	deps, err := parseGoModWithIndirect(tmpFile)
+	deps, err := parseGoModFile(tmpFile)
 	if err != nil {
-		t.Fatalf("parseGoModWithIndirect() error = %v", err)
+		t.Fatalf("parseGoModFile() error = %v", err)
 	}
 
 	// Should parse all dependencies including indirect
 	if len(deps) != 3 {
-		t.Errorf("parseGoModWithIndirect() found %d dependencies, want 3", len(deps))
+		t.Errorf("parseGoModFile() found %d dependencies, want 3", len(deps))
 	}
 
 	// Check indirect flag
@@ -166,7 +166,7 @@ require (
 		}
 	}
 	if indirectCount != 1 {
-		t.Errorf("parseGoModWithIndirect() found %d indirect dependencies, want 1", indirectCount)
+		t.Errorf("parseGoModFile() found %d indirect dependencies, want 1", indirectCount)
 	}
 }
 

@@ -227,4 +227,112 @@ Test workflow with script mode.
 	if strings.Contains(lockStr, setupActionPattern) {
 		t.Error("Expected script mode to NOT use 'uses: ./actions/setup' but instead run bash script directly")
 	}
+
+	// 7. Checkout should include ref: for the version
+	if !strings.Contains(lockStr, "ref: 1.0.0") {
+		t.Error("Expected 'ref: 1.0.0' in checkout step for script mode when version is set")
+	}
+}
+
+// TestVersionToGitRef tests the versionToGitRef helper function used to derive
+// a clean git ref from `git describe` output for use in actions/checkout ref: fields.
+func TestVersionToGitRef(t *testing.T) {
+	tests := []struct {
+		name    string
+		version string
+		want    string
+	}{
+		{
+			name:    "empty version returns empty ref",
+			version: "",
+			want:    "",
+		},
+		{
+			name:    "dev version returns empty ref",
+			version: "dev",
+			want:    "",
+		},
+		{
+			name:    "plain short SHA used as-is",
+			version: "e284d1e",
+			want:    "e284d1e",
+		},
+		{
+			name:    "short SHA with -dirty suffix stripped",
+			version: "e284d1e-dirty",
+			want:    "e284d1e",
+		},
+		{
+			name:    "simple version tag used as-is",
+			version: "v1.2.3",
+			want:    "v1.2.3",
+		},
+		{
+			name:    "version tag with -dirty stripped",
+			version: "v1.2.3-dirty",
+			want:    "v1.2.3",
+		},
+		{
+			name:    "git describe output with N commits extracts SHA",
+			version: "v0.57.2-60-ge284d1e",
+			want:    "e284d1e",
+		},
+		{
+			name:    "git describe output with -dirty extracts SHA",
+			version: "v0.57.2-60-ge284d1e-dirty",
+			want:    "e284d1e",
+		},
+		{
+			name:    "numeric version tag used as-is",
+			version: "1.0.0",
+			want:    "1.0.0",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := versionToGitRef(tt.version); got != tt.want {
+				t.Errorf("versionToGitRef(%q) = %q, want %q", tt.version, got, tt.want)
+			}
+		})
+	}
+}
+
+// TestCheckoutActionsFolderDevModeHasRepository verifies that the Checkout actions folder
+// step in dev mode includes repository: github/gh-aw so that cross-repo callers (e.g.
+// event-driven relays) can find the actions/ directory instead of defaulting to the
+// caller's repo which has no actions/ directory.
+func TestCheckoutActionsFolderDevModeHasRepository(t *testing.T) {
+	compiler := NewCompilerWithVersion("dev")
+	compiler.SetActionMode(ActionModeDev)
+
+	lines := compiler.generateCheckoutActionsFolder(nil)
+	combined := strings.Join(lines, "")
+
+	if !strings.Contains(combined, "repository: github/gh-aw") {
+		t.Error("Dev mode Checkout actions folder should include 'repository: github/gh-aw' (fix for #20658)")
+	}
+
+	// When version is "dev", no ref: should be emitted
+	if strings.Contains(combined, "ref:") {
+		t.Error("Dev mode with 'dev' version should not include ref: field")
+	}
+}
+
+// TestCheckoutActionsFolderDevModeWithVersionHasRef verifies that when a real version
+// SHA is set, the Checkout actions folder step in dev mode includes both
+// repository: and ref: fields.
+func TestCheckoutActionsFolderDevModeWithVersionHasRef(t *testing.T) {
+	compiler := NewCompilerWithVersion("e284d1e")
+	compiler.SetActionMode(ActionModeDev)
+
+	lines := compiler.generateCheckoutActionsFolder(nil)
+	combined := strings.Join(lines, "")
+
+	if !strings.Contains(combined, "repository: github/gh-aw") {
+		t.Error("Dev mode Checkout actions folder should include 'repository: github/gh-aw'")
+	}
+	if !strings.Contains(combined, "ref: e284d1e") {
+		t.Error("Dev mode Checkout actions folder should include 'ref: e284d1e' when version is set")
+	}
 }

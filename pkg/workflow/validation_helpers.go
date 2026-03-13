@@ -26,6 +26,7 @@ package workflow
 import (
 	"errors"
 	"fmt"
+	"slices"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/logger"
@@ -113,4 +114,39 @@ func validateTargetRepoSlug(targetRepoSlug string, log *logger.Logger) bool {
 		return true // Return true to indicate validation error
 	}
 	return false
+}
+
+// validateStringEnumField checks that a config field, if present, contains one
+// of the allowed string values. Non-string values and unrecognised strings are
+// removed from the map (treated as absent) and a warning is logged. Use this
+// for fields that are pure string enums with no boolean shorthand.
+func validateStringEnumField(configData map[string]any, fieldName string, allowed []string, log *logger.Logger) {
+	if configData == nil {
+		return
+	}
+	val, exists := configData[fieldName]
+	if !exists || val == nil {
+		return
+	}
+	strVal, ok := val.(string)
+	if !ok || !slices.Contains(allowed, strVal) {
+		if log != nil {
+			log.Printf("Invalid %s value %v (must be one of %v), ignoring", fieldName, val, allowed)
+		}
+		delete(configData, fieldName)
+	}
+}
+
+// validateNoDuplicateIDs checks that all items have unique IDs extracted by idFunc.
+// The onDuplicate callback creates the error to return when a duplicate is found.
+func validateNoDuplicateIDs[T any](items []T, idFunc func(T) string, onDuplicate func(string) error) error {
+	seen := make(map[string]bool)
+	for _, item := range items {
+		id := idFunc(item)
+		if seen[id] {
+			return onDuplicate(id)
+		}
+		seen[id] = true
+	}
+	return nil
 }

@@ -35,10 +35,12 @@ func GenerateDependencyReport(verbose bool) (*DependencyReport, error) {
 	}
 
 	// Parse go.mod to get all dependencies
-	allDeps, err := parseGoModWithIndirect(goModPath)
+	depsReportLog.Printf("Parsing go.mod file: %s", goModPath)
+	allDeps, err := parseGoModFile(goModPath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse go.mod: %w", err)
 	}
+	depsReportLog.Printf("Parsed go.mod: %d total dependencies", len(allDeps))
 
 	// Count direct vs indirect dependencies
 	directCount := 0
@@ -268,18 +270,6 @@ func DisplayDependencyReportJSON(report *DependencyReport) error {
 type DependencyInfoWithIndirect struct {
 	DependencyInfo
 	Indirect bool
-}
-
-// parseGoModWithIndirect parses go.mod including indirect dependencies.
-// This is a thin wrapper around parseGoModFile for backward compatibility.
-func parseGoModWithIndirect(path string) ([]DependencyInfoWithIndirect, error) {
-	depsReportLog.Printf("Parsing go.mod file: %s", path)
-	deps, err := parseGoModFile(path)
-	if err != nil {
-		return nil, err
-	}
-	depsReportLog.Printf("Parsed go.mod: %d total dependencies", len(deps))
-	return deps, nil
 }
 
 // pluralize returns the singular or plural form of a word based on count

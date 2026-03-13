@@ -34,6 +34,18 @@ var yamlErrorTranslations = []struct {
 		"did not find expected",
 		"Invalid YAML syntax: check indentation or missing key",
 	},
+	{
+		"mapping value is not allowed in this context",
+		"Invalid YAML syntax: unexpected value — did you forget a ':' after a key?",
+	},
+	{
+		"could not find expected ':'",
+		"Invalid YAML syntax: missing ':' between key and value",
+	},
+	{
+		"found character that cannot start any token",
+		"Invalid YAML syntax: invalid character — check indentation uses spaces, not tabs",
+	},
 }
 
 // translateYAMLMessage converts raw YAML parser messages to user-friendly plain English.

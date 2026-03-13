@@ -17,6 +17,10 @@ import (
 // relays and event-driven relays (e.g. on: issue_comment) where event_name != 'workflow_call'.
 const workflowCallRepo = "${{ steps.resolve-host-repo.outputs.target_repo }}"
 
+// workflowCallRef is the expression injected into the ref: field of the activation-job
+// checkout step when a workflow_call trigger is detected without inlined imports.
+const workflowCallRef = "${{ steps.resolve-host-repo.outputs.target_ref }}"
+
 func TestGenerateCheckoutGitHubFolderForActivation_WorkflowCall(t *testing.T) {
 	tests := []struct {
 		name             string
@@ -24,16 +28,18 @@ func TestGenerateCheckoutGitHubFolderForActivation_WorkflowCall(t *testing.T) {
 		features         map[string]any
 		inlinedImports   bool   // whether InlinedImports is enabled in WorkflowData
 		wantRepository   string // expected repository: value ("" means field absent)
+		wantRef          string // expected ref: value ("" means field absent)
 		wantNil          bool   // whether nil is expected (action-tag skip)
 		wantGitHubSparse bool   // whether .github / .agents should be in sparse-checkout
 		wantPersistFalse bool   // whether persist-credentials: false should be present
 		wantFetchDepth1  bool   // whether fetch-depth: 1 should be present
 	}{
 		{
-			name: "workflow_call trigger - cross-repo checkout with conditional repository",
+			name: "workflow_call trigger - cross-repo checkout with conditional repository and ref",
 			onSection: `"on":
   workflow_call:`,
 			wantRepository:   workflowCallRepo,
+			wantRef:          workflowCallRef,
 			wantGitHubSparse: true,
 			wantPersistFalse: true,
 			wantFetchDepth1:  true,
@@ -49,6 +55,7 @@ func TestGenerateCheckoutGitHubFolderForActivation_WorkflowCall(t *testing.T) {
         required: true
         type: number`,
 			wantRepository:   workflowCallRepo,
+			wantRef:          workflowCallRef,
 			wantGitHubSparse: true,
 			wantPersistFalse: true,
 			wantFetchDepth1:  true,
@@ -59,6 +66,7 @@ func TestGenerateCheckoutGitHubFolderForActivation_WorkflowCall(t *testing.T) {
   workflow_call:`,
 			inlinedImports:   true,
 			wantRepository:   "",
+			wantRef:          "",
 			wantGitHubSparse: true,
 			wantPersistFalse: true,
 			wantFetchDepth1:  true,
@@ -69,6 +77,7 @@ func TestGenerateCheckoutGitHubFolderForActivation_WorkflowCall(t *testing.T) {
   issues:
     types: [opened]`,
 			wantRepository:   "",
+			wantRef:          "",
 			wantGitHubSparse: true,
 			wantPersistFalse: true,
 			wantFetchDepth1:  true,
@@ -79,6 +88,7 @@ func TestGenerateCheckoutGitHubFolderForActivation_WorkflowCall(t *testing.T) {
   issue_comment:
     types: [created]`,
 			wantRepository:   "",
+			wantRef:          "",
 			wantGitHubSparse: true,
 			wantPersistFalse: true,
 			wantFetchDepth1:  true,
@@ -145,6 +155,15 @@ func TestGenerateCheckoutGitHubFolderForActivation_WorkflowCall(t *testing.T) {
 				assert.NotContains(t, combined, "repository:",
 					"standard checkout should not include repository field")
 			}
+
+			// Verify ref field
+			if tt.wantRef != "" {
+				assert.Contains(t, combined, "ref: "+tt.wantRef,
+					"cross-repo checkout should include ref expression to preserve callee branch")
+			} else {
+				assert.NotContains(t, combined, "ref:",
+					"standard checkout should not include ref field")
+			}
 		})
 	}
 }
@@ -177,7 +196,7 @@ func TestGenerateGitHubFolderCheckoutStep(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := NewCheckoutManager(nil).GenerateGitHubFolderCheckoutStep(tt.repository, GetActionPin)
+			result := NewCheckoutManager(nil).GenerateGitHubFolderCheckoutStep(tt.repository, "", GetActionPin)
 
 			require.NotEmpty(t, result, "should return at least one YAML line")
 
@@ -320,6 +339,141 @@ func TestActivationJobTargetRepoOutput(t *testing.T) {
 			} else {
 				assert.NotContains(t, job.Outputs, "target_repo",
 					"activation job should not expose target_repo when workflow_call is absent or inlined-imports enabled")
+			}
+		})
+	}
+}
+
+// TestActivationJobTargetRefOutput verifies that the activation job exposes target_ref as an
+// output when a workflow_call trigger is present (without inlined imports), alongside target_repo.
+// This enables callee-branch-pinned relays to check out the correct branch.
+func TestActivationJobTargetRefOutput(t *testing.T) {
+	tests := []struct {
+		name            string
+		onSection       string
+		inlinedImports  bool
+		expectTargetRef bool
+	}{
+		{
+			name: "workflow_call trigger - target_ref output added",
+			onSection: `"on":
+  workflow_call:`,
+			expectTargetRef: true,
+		},
+		{
+			name: "mixed triggers with workflow_call - target_ref output added",
+			onSection: `"on":
+  issue_comment:
+    types: [created]
+  workflow_call:`,
+			expectTargetRef: true,
+		},
+		{
+			name: "workflow_call with inlined-imports - no target_ref output",
+			onSection: `"on":
+  workflow_call:`,
+			inlinedImports:  true,
+			expectTargetRef: false,
+		},
+		{
+			name: "no workflow_call - no target_ref output",
+			onSection: `"on":
+  issues:
+    types: [opened]`,
+			expectTargetRef: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			compiler := NewCompilerWithVersion("dev")
+			compiler.SetActionMode(ActionModeDev)
+
+			data := &WorkflowData{
+				Name:           "test-workflow",
+				On:             tt.onSection,
+				InlinedImports: tt.inlinedImports,
+				AI:             "copilot",
+			}
+
+			job, err := compiler.buildActivationJob(data, false, "", "test.lock.yml")
+			require.NoError(t, err, "buildActivationJob should succeed")
+			require.NotNil(t, job, "activation job should not be nil")
+
+			if tt.expectTargetRef {
+				assert.Contains(t, job.Outputs, "target_ref",
+					"activation job should expose target_ref output for downstream jobs")
+				assert.Equal(t,
+					"${{ steps.resolve-host-repo.outputs.target_ref }}",
+					job.Outputs["target_ref"],
+					"target_ref output should reference resolve-host-repo step")
+			} else {
+				assert.NotContains(t, job.Outputs, "target_ref",
+					"activation job should not expose target_ref when workflow_call is absent or inlined-imports enabled")
+			}
+		})
+	}
+}
+
+// TestCheckoutGitHubFolderIncludesRef verifies that the activation checkout emits a ref: field
+// when a workflow_call trigger is present. This ensures caller-hosted relays pinned to a
+// feature branch check out the correct platform branch during activation.
+func TestCheckoutGitHubFolderIncludesRef(t *testing.T) {
+	tests := []struct {
+		name           string
+		onSection      string
+		inlinedImports bool
+		wantRef        bool
+	}{
+		{
+			name: "workflow_call trigger - ref field emitted",
+			onSection: `"on":
+  workflow_call:`,
+			wantRef: true,
+		},
+		{
+			name: "mixed triggers with workflow_call - ref field emitted",
+			onSection: `"on":
+  issue_comment:
+    types: [created]
+  workflow_call:`,
+			wantRef: true,
+		},
+		{
+			name: "workflow_call with inlined-imports - no ref field",
+			onSection: `"on":
+  workflow_call:`,
+			inlinedImports: true,
+			wantRef:        false,
+		},
+		{
+			name: "no workflow_call - no ref field",
+			onSection: `"on":
+  issues:
+    types: [opened]`,
+			wantRef: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			c := NewCompilerWithVersion("dev")
+			c.SetActionMode(ActionModeDev)
+
+			data := &WorkflowData{
+				On:             tt.onSection,
+				InlinedImports: tt.inlinedImports,
+			}
+
+			result := c.generateCheckoutGitHubFolderForActivation(data)
+			combined := strings.Join(result, "")
+
+			if tt.wantRef {
+				assert.Contains(t, combined, "ref: "+workflowCallRef,
+					"cross-repo checkout should include ref: expression")
+			} else {
+				assert.NotContains(t, combined, "ref:",
+					"non-cross-repo checkout should not include ref: field")
 			}
 		})
 	}

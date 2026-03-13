@@ -258,11 +258,16 @@ func getGitHubGuardPolicies(githubTool any) map[string]any {
 
 // deriveSafeOutputsGuardPolicyFromGitHub generates a safeoutputs guard-policy from GitHub guard-policy.
 // When the GitHub MCP server has a guard-policy with repos, the safeoutputs MCP must also have
-// a linked guard-policy. Each entry in the GitHub MCP server's "repos" must have a corresponding
-// entry in safeoutputs "accept" with the prefix "private:".
+// a linked guard-policy with accept field derived from repos according to these rules:
+//
+// Rules by repos value:
+//   - repos="all" or repos="public": returns nil (write-sink not required, agent secrecy is empty)
+//   - repos=["O/*"]: accept=["private:O"] (owner wildcard → strip wildcard)
+//   - repos=["O/P*"]: accept=["private:O/P*"] (prefix wildcard → keep as-is)
+//   - repos=["O/R"]: accept=["private:O/R"] (specific repo → keep as-is)
 //
 // This allows the gateway to read private data from the GitHub MCP server and still write to safeoutputs.
-// Returns nil if no GitHub guard policies are configured.
+// Returns nil if no GitHub guard policies are configured or if repos="all" or repos="public".
 func deriveSafeOutputsGuardPolicyFromGitHub(githubTool any) map[string]any {
 	githubPolicies := getGitHubGuardPolicies(githubTool)
 	if githubPolicies == nil {
@@ -281,32 +286,33 @@ func deriveSafeOutputsGuardPolicyFromGitHub(githubTool any) map[string]any {
 		return nil
 	}
 
-	// Convert repos to accept list with "private:" prefix
+	// Convert repos to accept list according to the specification
 	var acceptList []string
 
 	switch r := repos.(type) {
 	case string:
 		// Single string value (e.g., "all", "public", or a pattern)
-		if r == "all" || r == "public" {
-			// For "all" or "public", add "private:*" to accept all private repos
-			acceptList = []string{"private:*"}
-		} else {
-			// Single pattern - add with private: prefix
-			acceptList = []string{"private:" + r}
+		switch r {
+		case "all", "public":
+			// For "all" or "public", agent secrecy is empty, so write-sink not required
+			return nil
+		default:
+			// Single pattern - transform according to rules
+			acceptList = []string{transformRepoPattern(r)}
 		}
 	case []any:
 		// Array of patterns
 		acceptList = make([]string, 0, len(r))
 		for _, item := range r {
 			if pattern, ok := item.(string); ok {
-				acceptList = append(acceptList, "private:"+pattern)
+				acceptList = append(acceptList, transformRepoPattern(pattern))
 			}
 		}
 	case []string:
 		// Array of patterns (already strings)
 		acceptList = make([]string, 0, len(r))
 		for _, pattern := range r {
-			acceptList = append(acceptList, "private:"+pattern)
+			acceptList = append(acceptList, transformRepoPattern(pattern))
 		}
 	default:
 		// Unknown type, return nil
@@ -320,6 +326,21 @@ func deriveSafeOutputsGuardPolicyFromGitHub(githubTool any) map[string]any {
 			"accept": acceptList,
 		},
 	}
+}
+
+// transformRepoPattern transforms a repos pattern to the corresponding accept pattern.
+// Rules:
+//   - "O/*"  → "private:O" (owner wildcard → strip wildcard)
+//   - "O/P*" → "private:O/P*" (prefix wildcard → keep as-is)
+//   - "O/R"  → "private:O/R" (specific repo → keep as-is)
+func transformRepoPattern(pattern string) string {
+	// Check if pattern ends with "/*" (owner wildcard)
+	if owner, found := strings.CutSuffix(pattern, "/*"); found {
+		// Strip the wildcard: "owner/*" → "private:owner"
+		return "private:" + owner
+	}
+	// All other patterns (including "O/P*" prefix wildcards): add "private:" prefix
+	return "private:" + pattern
 }
 
 func getGitHubDockerImageVersion(githubTool any) string {

@@ -4,6 +4,8 @@ package cli
 
 import (
 	"testing"
+
+	"github.com/github/gh-aw/pkg/parser"
 )
 
 func TestParsePRURL(t *testing.T) {
@@ -81,30 +83,30 @@ func TestParsePRURL(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			owner, repo, prNumber, err := parsePRURL(tt.url)
+			owner, repo, prNumber, err := parser.ParsePRURL(tt.url)
 
 			if tt.wantErr {
 				if err == nil {
-					t.Errorf("parsePRURL() expected error but got none")
+					t.Errorf("ParsePRURL() expected error but got none")
 				}
 				return
 			}
 
 			if err != nil {
-				t.Errorf("parsePRURL() unexpected error: %v", err)
+				t.Errorf("ParsePRURL() unexpected error: %v", err)
 				return
 			}
 
 			if owner != tt.wantOwner {
-				t.Errorf("parsePRURL() owner = %v, want %v", owner, tt.wantOwner)
+				t.Errorf("ParsePRURL() owner = %v, want %v", owner, tt.wantOwner)
 			}
 
 			if repo != tt.wantRepo {
-				t.Errorf("parsePRURL() repo = %v, want %v", repo, tt.wantRepo)
+				t.Errorf("ParsePRURL() repo = %v, want %v", repo, tt.wantRepo)
 			}
 
 			if prNumber != tt.wantPR {
-				t.Errorf("parsePRURL() prNumber = %v, want %v", prNumber, tt.wantPR)
+				t.Errorf("ParsePRURL() prNumber = %v, want %v", prNumber, tt.wantPR)
 			}
 		})
 	}

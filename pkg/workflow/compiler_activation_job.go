@@ -69,11 +69,13 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 	// Expose the model output from the activation job so downstream jobs can reference it
 	outputs["model"] = "${{ steps.generate_aw_info.outputs.model }}"
 
-	// Expose the resolved platform (host) repository so agent and safe_outputs jobs can use
-	// needs.activation.outputs.target_repo for any checkout that must target the platform repo
-	// rather than github.repository (the caller's repo in cross-repo workflow_call scenarios).
+	// Expose the resolved platform (host) repository and ref so agent and safe_outputs jobs
+	// can use needs.activation.outputs.target_repo / target_ref for any checkout that must
+	// target the platform repo and branch rather than github.repository (the caller's repo in
+	// cross-repo workflow_call scenarios, especially when pinned to a non-default branch).
 	if hasWorkflowCallTrigger(data.On) && !data.InlinedImports {
 		outputs["target_repo"] = "${{ steps.resolve-host-repo.outputs.target_repo }}"
+		outputs["target_ref"] = "${{ steps.resolve-host-repo.outputs.target_ref }}"
 	}
 
 	// Add secret validation step before context variable validation.
@@ -531,8 +533,10 @@ func (c *Compiler) generateCheckoutGitHubFolderForActivation(data *WorkflowData)
 	if data != nil && hasWorkflowCallTrigger(data.On) && !data.InlinedImports {
 		compilerActivationJobLog.Print("Adding cross-repo-aware .github checkout for workflow_call trigger")
 		cm.SetCrossRepoTargetRepo("${{ steps.resolve-host-repo.outputs.target_repo }}")
+		cm.SetCrossRepoTargetRef("${{ steps.resolve-host-repo.outputs.target_ref }}")
 		return cm.GenerateGitHubFolderCheckoutStep(
 			cm.GetCrossRepoTargetRepo(),
+			cm.GetCrossRepoTargetRef(),
 			GetActionPin,
 		)
 	}
@@ -541,5 +545,5 @@ func (c *Compiler) generateCheckoutGitHubFolderForActivation(data *WorkflowData)
 	// This is needed for runtime imports during prompt generation
 	// sparse-checkout-cone-mode: true ensures subdirectories under .github/ are recursively included
 	compilerActivationJobLog.Print("Adding .github and .agents sparse checkout in activation job")
-	return cm.GenerateGitHubFolderCheckoutStep("", GetActionPin)
+	return cm.GenerateGitHubFolderCheckoutStep("", "", GetActionPin)
 }

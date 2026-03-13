@@ -66,7 +66,7 @@ strict: false
 Invalid YAML with bad mapping.`,
 			expectedErrorLine:   7, // Line 7 in file (line 6 in YAML content after opening ---)
 			expectedErrorColumn: 10,
-			expectedMessagePart: "mapping value is not allowed in this context",
+			expectedMessagePart: "Invalid YAML syntax: unexpected value",
 			description:         "invalid mapping context should be detected",
 		},
 		{
@@ -85,7 +85,7 @@ strict: false
 Invalid YAML with bad indentation.`,
 			expectedErrorLine:   4, // Line 4 in file (line 3 in YAML content after opening ---)
 			expectedErrorColumn: 11,
-			expectedMessagePart: "mapping value is not allowed in this context",
+			expectedMessagePart: "Invalid YAML syntax: unexpected value",
 			description:         "bad indentation should be detected",
 		},
 		{
@@ -365,7 +365,7 @@ engine: copilot
 
 Test content.`,
 			expectedLineCol: "[3:10]", // Line 3 in file (line 2 in YAML content)
-			expectedInError: []string{"mapping value is not allowed"},
+			expectedInError: []string{"Invalid YAML syntax: unexpected value"},
 			expectPointer:   true,
 			description:     "simple syntax error shows formatted output",
 		},
