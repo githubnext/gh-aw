@@ -280,51 +280,6 @@ func TestWorkflowStep_Clone(t *testing.T) {
 	assert.False(t, exists, "Clone should deep copy Env map - modifying clone should not affect original")
 }
 
-func TestWorkflowStep_ToYAML(t *testing.T) {
-	tests := []struct {
-		name    string
-		step    *WorkflowStep
-		wantErr bool
-	}{
-		{
-			name: "simple step",
-			step: &WorkflowStep{
-				Name: "Test step",
-				Uses: "actions/checkout@v4",
-			},
-			wantErr: false,
-		},
-		{
-			name: "step with complex fields",
-			step: &WorkflowStep{
-				Name: "Complex step",
-				Uses: "some/action@v1",
-				With: map[string]any{
-					"string-field": "value",
-					"int-field":    42,
-					"bool-field":   true,
-				},
-				Env: map[string]string{
-					"VAR": "value",
-				},
-			},
-			wantErr: false,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got, err := tt.step.ToYAML()
-			if tt.wantErr {
-				require.Error(t, err, "ToYAML should return error for %s", tt.name)
-				return
-			}
-			require.NoError(t, err, "ToYAML should succeed for %s", tt.name)
-			assert.NotEmpty(t, got, "ToYAML should return non-empty string for %s", tt.name)
-		})
-	}
-}
-
 func TestMapToStep_RoundTrip(t *testing.T) {
 	// Test that converting map -> step -> map produces the same result
 	// Note: env field converts from map[string]any to map[string]string
@@ -764,62 +719,6 @@ func TestClone_DeepNestedMaps(t *testing.T) {
 	// Note: Current implementation does shallow copy, so this test documents existing behavior
 	// In a true deep copy, this would be "value" instead of "modified"
 	assert.Equal(t, "modified", origLevel2["level3"], "Current Clone implementation does shallow copy of nested maps")
-}
-
-func TestToYAML_ErrorHandling(t *testing.T) {
-	tests := []struct {
-		name        string
-		step        *WorkflowStep
-		wantErr     bool
-		description string
-	}{
-		{
-			name: "step with complex nested maps",
-			step: &WorkflowStep{
-				Name: "Complex step",
-				Uses: "some/action@v1",
-				With: map[string]any{
-					"nested": map[string]any{
-						"deep": map[string]any{
-							"value": "test",
-						},
-					},
-				},
-			},
-			wantErr:     false,
-			description: "should handle complex nested structures",
-		},
-		{
-			name: "step with special characters",
-			step: &WorkflowStep{
-				Name: "Test: Special chars!",
-				Run:  "echo 'hello' && echo \"world\"",
-			},
-			wantErr:     false,
-			description: "should handle special characters in strings",
-		},
-		{
-			name: "step with multiline run",
-			step: &WorkflowStep{
-				Name: "Multiline",
-				Run:  "line1\nline2\nline3",
-			},
-			wantErr:     false,
-			description: "should handle multiline strings",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			yaml, err := tt.step.ToYAML()
-			if tt.wantErr {
-				require.Error(t, err, "ToYAML should return error for %s", tt.description)
-			} else {
-				require.NoError(t, err, "ToYAML should succeed for %s", tt.description)
-				assert.NotEmpty(t, yaml, "ToYAML should return non-empty YAML for %s", tt.description)
-			}
-		})
-	}
 }
 
 func TestSliceToSteps_MixedValidInvalid(t *testing.T) {

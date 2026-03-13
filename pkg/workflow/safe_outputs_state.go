@@ -91,42 +91,6 @@ func hasAnySafeOutputEnabled(safeOutputs *SafeOutputsConfig) bool {
 	return false
 }
 
-// getEnabledSafeOutputToolNamesReflection uses reflection to get enabled tool names.
-// Results are sorted for deterministic compilation output.
-//
-// NOTE: Reflection is used here to avoid a large switch statement that would need
-// updating every time a new safe-output type is added. The cost is acceptable
-// because this function is called infrequently (once per compilation).
-func getEnabledSafeOutputToolNamesReflection(safeOutputs *SafeOutputsConfig) []string {
-	if safeOutputs == nil {
-		return nil
-	}
-
-	safeOutputReflectionLog.Print("Getting enabled safe output tool names using reflection")
-	var tools []string
-
-	// Use reflection to check all pointer fields
-	val := reflect.ValueOf(safeOutputs).Elem()
-	for fieldName, toolName := range safeOutputFieldMapping {
-		field := val.FieldByName(fieldName)
-		if field.IsValid() && !field.IsNil() {
-			tools = append(tools, toolName)
-		}
-	}
-
-	// Add custom job tools
-	for jobName := range safeOutputs.Jobs {
-		tools = append(tools, jobName)
-		safeOutputReflectionLog.Printf("Added custom job tool: %s", jobName)
-	}
-
-	// Sort tools to ensure deterministic compilation
-	sort.Strings(tools)
-
-	safeOutputReflectionLog.Printf("Found %d enabled safe output tools", len(tools))
-	return tools
-}
-
 // builtinSafeOutputFields contains the struct field names for the built-in safe output types
 // that are excluded from the "non-builtin" check. These are: noop, missing-data, missing-tool.
 var builtinSafeOutputFields = map[string]bool{
@@ -181,20 +145,6 @@ func HasSafeOutputsEnabled(safeOutputs *SafeOutputsConfig) bool {
 	}
 
 	return enabled
-}
-
-// GetEnabledSafeOutputToolNames returns a list of enabled safe output tool names.
-// NOTE: Tool names should NOT be included in agent prompts. The agent should query
-// the MCP server to discover available tools. This function is used for generating
-// the tools.json file that the MCP server provides, and for diagnostic logging.
-func GetEnabledSafeOutputToolNames(safeOutputs *SafeOutputsConfig) []string {
-	tools := getEnabledSafeOutputToolNamesReflection(safeOutputs)
-
-	if safeOutputsConfigLog.Enabled() {
-		safeOutputsConfigLog.Printf("Enabled safe output tools: %v", tools)
-	}
-
-	return tools
 }
 
 // checkAllEnabledToolsPresent verifies that every tool in enabledTools has a matching entry
