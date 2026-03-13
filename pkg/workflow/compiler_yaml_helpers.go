@@ -233,15 +233,16 @@ func (c *Compiler) generateCheckoutActionsFolder(data *WorkflowData) []string {
 	// callers (e.g. event-driven relays) can find the actions/ directory.
 	// Without repository: the runner defaults to the caller's repo, which has
 	// no actions/ directory, causing Setup Scripts to fail immediately.
-	// Use ${{ github.action_ref }} so the checkout always resolves to the ref
-	// of the action being executed at runtime, rather than a compile-time SHA.
+	// Use ${{ github.action_ref || github.ref }} so the checkout resolves to
+	// the action ref in workflow_call context, falling back to the triggering
+	// ref for schedule/workflow_dispatch/push contexts.
 	if c.actionMode.IsDev() {
 		lines := []string{
 			"      - name: Checkout actions folder\n",
 			fmt.Sprintf("        uses: %s\n", GetActionPin("actions/checkout")),
 			"        with:\n",
 			"          repository: github/gh-aw\n",
-			"          ref: ${{ github.action_ref }}\n",
+			"          ref: ${{ github.action_ref || github.ref }}\n",
 			"          sparse-checkout: |\n",
 			"            actions\n",
 			"          persist-credentials: false\n",

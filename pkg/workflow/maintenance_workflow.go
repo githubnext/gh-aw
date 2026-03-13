@@ -215,7 +215,7 @@ jobs:
 		yaml.WriteString("        uses: " + GetActionPin("actions/checkout") + "\n")
 		yaml.WriteString("        with:\n")
 		yaml.WriteString("          repository: github/gh-aw\n")
-		yaml.WriteString("          ref: ${{ github.action_ref }}\n")
+		yaml.WriteString("          ref: ${{ github.action_ref || github.ref }}\n")
 		yaml.WriteString("          sparse-checkout: |\n")
 		yaml.WriteString("            actions\n")
 		yaml.WriteString("          persist-credentials: false\n\n")
