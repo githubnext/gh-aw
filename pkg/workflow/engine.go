@@ -345,25 +345,30 @@ func (c *Compiler) ExtractEngineConfig(frontmatter map[string]any) (string, *Eng
 			if enterprise, hasEnterprise := engineObj["enterprise"]; hasEnterprise {
 				if enterpriseObj, ok := enterprise.(map[string]any); ok {
 					enterpriseConfig := &EnterpriseConfig{}
+					hasEnterpriseConfig := false
 
 					// Extract server-url field
 					if serverURL, hasServerURL := enterpriseObj["server-url"]; hasServerURL {
-						if serverURLStr, ok := serverURL.(string); ok {
+						if serverURLStr, ok := serverURL.(string); ok && serverURLStr != "" {
 							enterpriseConfig.ServerURL = serverURLStr
+							hasEnterpriseConfig = true
 							engineLog.Printf("Extracted enterprise server-url: %s", serverURLStr)
 						}
 					}
 
 					// Extract copilot-api-target field (manual override)
 					if copilotAPITarget, hasCopilotAPITarget := enterpriseObj["copilot-api-target"]; hasCopilotAPITarget {
-						if copilotAPITargetStr, ok := copilotAPITarget.(string); ok {
+						if copilotAPITargetStr, ok := copilotAPITarget.(string); ok && copilotAPITargetStr != "" {
 							enterpriseConfig.CopilotAPITarget = copilotAPITargetStr
+							hasEnterpriseConfig = true
 							engineLog.Printf("Extracted enterprise copilot-api-target: %s", copilotAPITargetStr)
 						}
 					}
 
-					config.Enterprise = enterpriseConfig
-					engineLog.Print("Extracted enterprise configuration")
+					if hasEnterpriseConfig {
+						config.Enterprise = enterpriseConfig
+						engineLog.Print("Extracted enterprise configuration")
+					}
 				}
 			}
 
