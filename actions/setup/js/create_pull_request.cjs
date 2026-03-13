@@ -17,7 +17,7 @@ const { generateWorkflowIdMarker } = require("./generate_footer.cjs");
 const { parseBoolTemplatable } = require("./templatable.cjs");
 const { generateFooterWithMessages } = require("./messages_footer.cjs");
 const { generateHistoryUrl } = require("./generate_history_link.cjs");
-const { normalizeBranchName } = require("./normalize_branch_name.cjs");
+const { normalizeBranchName, sanitizeBranchNamePreserveCase } = require("./normalize_branch_name.cjs");
 const { pushExtraEmptyCommit } = require("./extra_empty_commit.cjs");
 const { createCheckoutManager } = require("./dynamic_checkout.cjs");
 const { getBaseBranch } = require("./get_base_branch.cjs");
@@ -121,6 +121,7 @@ async function main(config = {}) {
   const ifNoChanges = config.if_no_changes || "warn";
   const allowEmpty = parseBoolTemplatable(config.allow_empty, false);
   const autoMerge = parseBoolTemplatable(config.auto_merge, false);
+  const preserveBranchName = config.preserve_branch_name === true;
   const expiresHours = config.expires ? parseInt(String(config.expires), 10) : 0;
   const maxCount = config.max || 1; // PRs are typically limited to 1
   const maxSizeKb = config.max_patch_size ? parseInt(String(config.max_patch_size), 10) : 1024;
@@ -529,10 +530,12 @@ async function main(config = {}) {
     let branchName = pullRequestItem.branch ? pullRequestItem.branch.trim() : null;
 
     // SECURITY: Sanitize branch name to prevent shell injection (CWE-78)
-    // Branch names from user input must be normalized before use in git commands
+    // Branch names from user input must be normalized before use in git commands.
+    // When preserve-branch-name is enabled, original casing is kept but invalid
+    // characters are still replaced to prevent injection attacks.
     if (branchName) {
       const originalBranchName = branchName;
-      branchName = normalizeBranchName(branchName);
+      branchName = preserveBranchName ? sanitizeBranchNamePreserveCase(branchName) : normalizeBranchName(branchName);
 
       // Validate it's not empty after normalization
       if (!branchName) {
@@ -624,11 +627,15 @@ async function main(config = {}) {
     core.info(`Body length: ${body.length}`);
 
     const randomHex = crypto.randomBytes(8).toString("hex");
-    // Use branch name from JSONL if provided, otherwise generate unique branch name
+    // Use branch name from JSONL if provided, otherwise generate unique branch name.
+    // When preserve-branch-name is enabled, the agent-specified branch name is used as-is
+    // (no salt suffix appended) so CI branch naming conventions are respected.
     if (!branchName) {
       core.info("No branch name provided in JSONL, generating unique branch name");
       // Generate unique branch name using cryptographic random hex
       branchName = `${workflowId}-${randomHex}`;
+    } else if (preserveBranchName) {
+      core.info(`Using branch name from JSONL as-is (preserve-branch-name enabled): ${branchName}`);
     } else {
       branchName = `${branchName}-${randomHex}`;
       core.info(`Using branch name from JSONL with added salt: ${branchName}`);

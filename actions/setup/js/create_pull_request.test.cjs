@@ -365,6 +365,43 @@ describe("create_pull_request - security: branch name sanitization", () => {
 });
 
 // ──────────────────────────────────────────────────────
+// preserve-branch-name: sanitizeBranchNamePreserveCase
+// ──────────────────────────────────────────────────────
+
+describe("create_pull_request - preserve-branch-name: sanitizeBranchNamePreserveCase", () => {
+  it("should preserve original casing while still sanitizing invalid characters", () => {
+    const { sanitizeBranchNamePreserveCase } = require("./normalize_branch_name.cjs");
+
+    // The motivating use-case: Jira keys in uppercase branch names
+    expect(sanitizeBranchNamePreserveCase("bugfix/BR-329-red")).toBe("bugfix/BR-329-red");
+    expect(sanitizeBranchNamePreserveCase("feature/JIRA-123-MyFeature")).toBe("feature/JIRA-123-MyFeature");
+    expect(sanitizeBranchNamePreserveCase("hotfix/UPPERCASE")).toBe("hotfix/UPPERCASE");
+  });
+
+  it("should still replace shell metacharacters for security (CWE-78)", () => {
+    const { sanitizeBranchNamePreserveCase } = require("./normalize_branch_name.cjs");
+
+    const dangerousNames = [
+      { input: "Feature; rm -rf /", expected: "Feature-rm-rf-/" },
+      { input: "Branch$(malicious)", expected: "Branch-malicious" },
+      { input: "BRANCH`backdoor`", expected: "BRANCH-backdoor" },
+      { input: "Branch| curl EVIL.COM", expected: "Branch-curl-EVIL.COM" },
+      { input: "Branch && echo HACKED", expected: "Branch-echo-HACKED" },
+    ];
+
+    for (const { input, expected } of dangerousNames) {
+      const result = sanitizeBranchNamePreserveCase(input);
+      expect(result).toBe(expected);
+      expect(result).not.toContain(";");
+      expect(result).not.toContain("$");
+      expect(result).not.toContain("`");
+      expect(result).not.toContain("|");
+      expect(result).not.toContain("&");
+    }
+  });
+});
+
+// ──────────────────────────────────────────────────────
 // allowed-files strict allowlist
 // ──────────────────────────────────────────────────────
 

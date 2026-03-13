@@ -80,3 +80,61 @@ describe("normalizeBranchName", () => {
     expect(result).not.toMatch(/-$/);
   });
 });
+
+describe("sanitizeBranchNamePreserveCase", () => {
+  it("should preserve valid branch names with original casing", async () => {
+    const { sanitizeBranchNamePreserveCase } = await import("./normalize_branch_name.cjs");
+
+    expect(sanitizeBranchNamePreserveCase("bugfix/BR-329-red")).toBe("bugfix/BR-329-red");
+    expect(sanitizeBranchNamePreserveCase("feature/JIRA-123-MyFeature")).toBe("feature/JIRA-123-MyFeature");
+    expect(sanitizeBranchNamePreserveCase("hotfix/UPPERCASE")).toBe("hotfix/UPPERCASE");
+  });
+
+  it("should replace invalid characters with dashes", async () => {
+    const { sanitizeBranchNamePreserveCase } = await import("./normalize_branch_name.cjs");
+
+    expect(sanitizeBranchNamePreserveCase("Feature@Test")).toBe("Feature-Test");
+    expect(sanitizeBranchNamePreserveCase("branch; rm -rf /")).toBe("branch-rm-rf-/");
+    expect(sanitizeBranchNamePreserveCase("branch$(malicious)")).toBe("branch-malicious");
+  });
+
+  it("should NOT convert to lowercase", async () => {
+    const { sanitizeBranchNamePreserveCase } = await import("./normalize_branch_name.cjs");
+
+    expect(sanitizeBranchNamePreserveCase("Feature/Add-Login")).toBe("Feature/Add-Login");
+    expect(sanitizeBranchNamePreserveCase("MY-BRANCH")).toBe("MY-BRANCH");
+    expect(sanitizeBranchNamePreserveCase("bugfix/BR-329-red")).toBe("bugfix/BR-329-red");
+  });
+
+  it("should collapse multiple dashes", async () => {
+    const { sanitizeBranchNamePreserveCase } = await import("./normalize_branch_name.cjs");
+
+    expect(sanitizeBranchNamePreserveCase("Test---Branch")).toBe("Test-Branch");
+    expect(sanitizeBranchNamePreserveCase("A--B--C")).toBe("A-B-C");
+  });
+
+  it("should remove leading and trailing dashes", async () => {
+    const { sanitizeBranchNamePreserveCase } = await import("./normalize_branch_name.cjs");
+
+    expect(sanitizeBranchNamePreserveCase("-Test-Branch-")).toBe("Test-Branch");
+    expect(sanitizeBranchNamePreserveCase("---Test---")).toBe("Test");
+  });
+
+  it("should truncate to 128 characters", async () => {
+    const { sanitizeBranchNamePreserveCase } = await import("./normalize_branch_name.cjs");
+
+    const longName = "A".repeat(150);
+    const result = sanitizeBranchNamePreserveCase(longName);
+    expect(result.length).toBe(128);
+    expect(result).toBe("A".repeat(128));
+  });
+
+  it("should handle empty and invalid inputs", async () => {
+    const { sanitizeBranchNamePreserveCase } = await import("./normalize_branch_name.cjs");
+
+    expect(sanitizeBranchNamePreserveCase("")).toBe("");
+    expect(sanitizeBranchNamePreserveCase("   ")).toBe("   ");
+    expect(sanitizeBranchNamePreserveCase(null)).toBe(null);
+    expect(sanitizeBranchNamePreserveCase(undefined)).toBe(undefined);
+  });
+});

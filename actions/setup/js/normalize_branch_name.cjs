@@ -49,6 +49,51 @@ function normalizeBranchName(branchName) {
   return normalized;
 }
 
+/**
+ * Sanitizes a branch name by replacing invalid characters while preserving the original case.
+ *
+ * This is a security-safe alternative to normalizeBranchName for use when
+ * preserve-branch-name is enabled. It still prevents shell injection by replacing
+ * invalid characters, but skips the lowercase conversion.
+ *
+ * The sanitization process:
+ * 1. Replaces invalid characters with a single dash
+ * 2. Collapses multiple consecutive dashes to a single dash
+ * 3. Removes leading and trailing dashes
+ * 4. Truncates to 128 characters
+ * 5. Removes trailing dashes after truncation
+ * (No lowercase conversion)
+ *
+ * @param {string} branchName - The branch name to sanitize
+ * @returns {string} The sanitized branch name with original casing preserved
+ */
+function sanitizeBranchNamePreserveCase(branchName) {
+  if (!branchName || typeof branchName !== "string" || branchName.trim() === "") {
+    return branchName;
+  }
+
+  // Replace any sequence of invalid characters with a single dash
+  // Valid characters are: a-z, A-Z, 0-9, -, _, /, .
+  let sanitized = branchName.replace(/[^a-zA-Z0-9\-_/.]+/g, "-");
+
+  // Collapse multiple consecutive dashes to a single dash
+  sanitized = sanitized.replace(/-+/g, "-");
+
+  // Remove leading and trailing dashes
+  sanitized = sanitized.replace(/^-+|-+$/g, "");
+
+  // Truncate to max 128 characters
+  if (sanitized.length > 128) {
+    sanitized = sanitized.substring(0, 128);
+  }
+
+  // Ensure it doesn't end with a dash after truncation
+  sanitized = sanitized.replace(/-+$/, "");
+
+  return sanitized;
+}
+
 module.exports = {
   normalizeBranchName,
+  sanitizeBranchNamePreserveCase,
 };
