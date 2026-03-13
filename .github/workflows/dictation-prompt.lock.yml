@@ -28,7 +28,7 @@
 #     - shared/mcp/qmd-docs.md
 #     - shared/reporting.md
 #
-# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"95efc73940ca0c7c170dca71f137ad47e80873445b33c95090f52d713b79f591","strict":true}
+# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"06d87876523bb7d9b4f99d72c34ff0965474e7b4ca8f7e657a276596b119b594","strict":true}
 
 name: "Dictation Prompt Generator"
 "on":
@@ -296,10 +296,10 @@ jobs:
         uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         with:
           key: qmd-docs-${{ hashFiles('docs/src/content/docs/**', '.github/agents/**', '.github/aw/**') }}
-          path: /tmp/gh-aw/cache/qmd-docs
+          path: ~/.cache/qmd
           restore-keys: qmd-docs-
       - name: Start QMD MCP server
-        run: "set -e\nmkdir -p /tmp/gh-aw/mcp-logs/qmd/ /tmp/gh-aw/cache/qmd-docs ~/.cache\nln -sfn /tmp/gh-aw/cache/qmd-docs ~/.cache/qmd\n\n# Start QMD MCP server in HTTP daemon mode (default port 8181)\nqmd mcp --http --daemon > /tmp/gh-aw/mcp-logs/qmd/server.log 2>&1\n\n# Poll until the server is healthy (up to 15 seconds)\nfor i in $(seq 1 30); do\n  if curl -sf http://localhost:8181/health > /dev/null 2>&1; then\n    echo \"QMD MCP server started successfully\"\n    echo \"Status: $(curl -s http://localhost:8181/health)\"\n    exit 0\n  fi\n  sleep 0.5\ndone\n\necho \"QMD MCP server health check timed out after 15 seconds\"\necho \"Server logs:\"\ncat /tmp/gh-aw/mcp-logs/qmd/server.log || true\nexit 1"
+        run: "set -e\nmkdir -p /tmp/gh-aw/mcp-logs/qmd/\n\n# Start QMD MCP server in HTTP daemon mode (default port 8181)\nqmd mcp --http --daemon > /tmp/gh-aw/mcp-logs/qmd/server.log 2>&1\n\n# Poll until the server is healthy (up to 15 seconds)\nfor i in $(seq 1 30); do\n  if curl -sf http://localhost:8181/health > /dev/null 2>&1; then\n    echo \"QMD MCP server started successfully\"\n    echo \"Status: $(curl -s http://localhost:8181/health)\"\n    exit 0\n  fi\n  sleep 0.5\ndone\n\necho \"QMD MCP server health check timed out after 15 seconds\"\necho \"Server logs:\"\ncat /tmp/gh-aw/mcp-logs/qmd/server.log || true\nexit 1"
 
       - name: Configure Git credentials
         env:
