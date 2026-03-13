@@ -149,6 +149,50 @@ func TestDeriveSafeOutputsGuardPolicyFromGitHub(t *testing.T) {
 			description: "Owner wildcard (github/*) should transform to private:github, specific repo should keep pattern",
 		},
 		{
+			name: "array with all three pattern types",
+			githubTool: map[string]any{
+				"repos": []string{
+					"github/*",           // owner wildcard
+					"microsoft/copilot*", // prefix wildcard
+					"google/gemini",      // specific repo
+				},
+				"min-integrity": "approved",
+			},
+			expectedPolicies: map[string]any{
+				"write-sink": map[string]any{
+					"accept": []string{
+						"private:github",
+						"private:microsoft/copilot*",
+						"private:google/gemini",
+					},
+				},
+			},
+			expectNil:   false,
+			description: "Array with owner wildcard, prefix wildcard, and specific repo should all transform correctly",
+		},
+		{
+			name: "array with multiple owner wildcards",
+			githubTool: map[string]any{
+				"repos": []any{
+					"github/*",
+					"microsoft/*",
+					"google/*",
+				},
+				"min-integrity": "approved",
+			},
+			expectedPolicies: map[string]any{
+				"write-sink": map[string]any{
+					"accept": []string{
+						"private:github",
+						"private:microsoft",
+						"private:google",
+					},
+				},
+			},
+			expectNil:   false,
+			description: "Multiple owner wildcards should all strip the wildcard suffix",
+		},
+		{
 			name: "no repos configured",
 			githubTool: map[string]any{
 				"min-integrity": "approved",
