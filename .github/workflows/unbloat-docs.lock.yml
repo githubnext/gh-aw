@@ -29,7 +29,7 @@
 #     - shared/mcp/qmd-docs.md
 #     - shared/reporting.md
 #
-# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"57bffd8053452fabe6a65343d7834a66cf10cac9f701b5156f4b2ca14e8fe982","strict":true}
+# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"75496981c670a0ada0dac7da7eb08d85289ca8cf26ad5661e41113eabb38b60f","strict":true}
 
 name: "Documentation Unbloat"
 "on":
@@ -352,13 +352,7 @@ jobs:
           restore-keys: qmd-docs-
       - name: Register QMD collections
         run: |
-          DOCS_DIR="${GITHUB_WORKSPACE}/docs/src/content/docs"
-          AGENTS_DIR="${GITHUB_WORKSPACE}/.github/agents"
-          AW_DIR="${GITHUB_WORKSPACE}/.github/aw"
-
-          [ -d "$DOCS_DIR" ]   && qmd collection add "$DOCS_DIR"   --name docs   2>/dev/null || true
-          [ -d "$AGENTS_DIR" ] && qmd collection add "$AGENTS_DIR" --name agents 2>/dev/null || true
-          [ -d "$AW_DIR" ]     && qmd collection add "$AW_DIR"     --name aw     2>/dev/null || true
+          qmd collection add "${GITHUB_WORKSPACE}" --name gh-aw --glob "docs/src/content/docs/**,.github/agents/**,.github/aw/**" 2>/dev/null || true
       - name: Checkout repository
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
@@ -830,10 +824,6 @@ jobs:
                 "description": "Find relevant file paths in project documentation. Returns file paths and scores.",
                 "inputSchema": {
                   "properties": {
-                    "collection": {
-                      "description": "Limit search to a collection: docs, agents, or aw",
-                      "type": "string"
-                    },
                     "min_score": {
                       "default": 0.4,
                       "description": "Minimum relevance score threshold (0–1)",
@@ -854,13 +844,9 @@ jobs:
               },
               {
                 "name": "qmd-search",
-                "description": "Search project documentation and return ranked excerpts. Use for reading matching passages. Collections: docs, agents, aw.",
+                "description": "Search project documentation and return ranked excerpts.",
                 "inputSchema": {
                   "properties": {
-                    "collection": {
-                      "description": "Limit search to a collection: docs, agents, or aw",
-                      "type": "string"
-                    },
                     "limit": {
                       "default": 10,
                       "description": "Maximum number of results to return",
@@ -909,9 +895,7 @@ jobs:
           set -euo pipefail
           
           set -e
-          ARGS=(query "$INPUT_QUERY" --files --min-score "${INPUT_MIN_SCORE:-0.4}")
-          [[ -n "${INPUT_COLLECTION:-}" ]] && ARGS+=(--collection "$INPUT_COLLECTION")
-          qmd "${ARGS[@]}"
+          qmd query "$INPUT_QUERY" --files --min-score "${INPUT_MIN_SCORE:-0.4}"
           
           
           GH_AW_MCP_SCRIPTS_SH_QMD-QUERY_EOF
@@ -919,14 +903,12 @@ jobs:
           cat > /opt/gh-aw/mcp-scripts/qmd-search.sh << 'GH_AW_MCP_SCRIPTS_SH_QMD-SEARCH_EOF'
           #!/bin/bash
           # Auto-generated mcp-script tool: qmd-search
-          # Search project documentation and return ranked excerpts. Use for reading matching passages. Collections: docs, agents, aw.
+          # Search project documentation and return ranked excerpts.
           
           set -euo pipefail
           
           set -e
-          ARGS=(search "$INPUT_QUERY" --json -n "${INPUT_LIMIT:-10}")
-          [[ -n "${INPUT_COLLECTION:-}" ]] && ARGS+=(--collection "$INPUT_COLLECTION")
-          qmd "${ARGS[@]}"
+          qmd search "$INPUT_QUERY" --json -n "${INPUT_LIMIT:-10}"
           
           
           GH_AW_MCP_SCRIPTS_SH_QMD-SEARCH_EOF

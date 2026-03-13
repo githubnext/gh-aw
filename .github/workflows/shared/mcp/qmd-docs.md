@@ -26,26 +26,16 @@ steps:
       restore-keys: qmd-docs-
   - name: Register QMD collections
     run: |
-      DOCS_DIR="${GITHUB_WORKSPACE}/docs/src/content/docs"
-      AGENTS_DIR="${GITHUB_WORKSPACE}/.github/agents"
-      AW_DIR="${GITHUB_WORKSPACE}/.github/aw"
-
-      [ -d "$DOCS_DIR" ]   && qmd collection add "$DOCS_DIR"   --name docs   2>/dev/null || true
-      [ -d "$AGENTS_DIR" ] && qmd collection add "$AGENTS_DIR" --name agents 2>/dev/null || true
-      [ -d "$AW_DIR" ]     && qmd collection add "$AW_DIR"     --name aw     2>/dev/null || true
+      qmd collection add "${GITHUB_WORKSPACE}" --name gh-aw --glob "docs/src/content/docs/**,.github/agents/**,.github/aw/**" 2>/dev/null || true
 
 mcp-scripts:
   qmd-search:
-    description: "Search project documentation and return ranked excerpts. Use for reading matching passages. Collections: docs, agents, aw."
+    description: "Search project documentation and return ranked excerpts."
     inputs:
       query:
         type: string
         required: true
         description: "Search query"
-      collection:
-        type: string
-        required: false
-        description: "Limit search to a collection: docs, agents, or aw"
       limit:
         type: number
         required: false
@@ -53,9 +43,7 @@ mcp-scripts:
         description: "Maximum number of results to return"
     run: |
       set -e
-      ARGS=(search "$INPUT_QUERY" --json -n "${INPUT_LIMIT:-10}")
-      [[ -n "${INPUT_COLLECTION:-}" ]] && ARGS+=(--collection "$INPUT_COLLECTION")
-      qmd "${ARGS[@]}"
+      qmd search "$INPUT_QUERY" --json -n "${INPUT_LIMIT:-10}"
 
   qmd-query:
     description: "Find relevant file paths in project documentation. Returns file paths and scores."
@@ -64,10 +52,6 @@ mcp-scripts:
         type: string
         required: true
         description: "Search query"
-      collection:
-        type: string
-        required: false
-        description: "Limit search to a collection: docs, agents, or aw"
       min_score:
         type: number
         required: false
@@ -75,8 +59,6 @@ mcp-scripts:
         description: "Minimum relevance score threshold (0–1)"
     run: |
       set -e
-      ARGS=(query "$INPUT_QUERY" --files --min-score "${INPUT_MIN_SCORE:-0.4}")
-      [[ -n "${INPUT_COLLECTION:-}" ]] && ARGS+=(--collection "$INPUT_COLLECTION")
-      qmd "${ARGS[@]}"
+      qmd query "$INPUT_QUERY" --files --min-score "${INPUT_MIN_SCORE:-0.4}"
 
 ---

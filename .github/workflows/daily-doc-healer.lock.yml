@@ -28,7 +28,7 @@
 #     - shared/mcp/qmd-docs.md
 #     - shared/reporting.md
 #
-# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"429730acaf5571f75258fdc4a1292d06bd1d9524319b41a01a41a36cd0e70b73","strict":true}
+# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"00a96f4b006c41f8bf4af0ae062fd5d77d6419252bdfea99939692f84c6a9c56","strict":true}
 
 name: "Daily Documentation Healer"
 "on":
@@ -313,13 +313,7 @@ jobs:
           restore-keys: qmd-docs-
       - name: Register QMD collections
         run: |
-          DOCS_DIR="${GITHUB_WORKSPACE}/docs/src/content/docs"
-          AGENTS_DIR="${GITHUB_WORKSPACE}/.github/agents"
-          AW_DIR="${GITHUB_WORKSPACE}/.github/aw"
-
-          [ -d "$DOCS_DIR" ]   && qmd collection add "$DOCS_DIR"   --name docs   2>/dev/null || true
-          [ -d "$AGENTS_DIR" ] && qmd collection add "$AGENTS_DIR" --name agents 2>/dev/null || true
-          [ -d "$AW_DIR" ]     && qmd collection add "$AW_DIR"     --name aw     2>/dev/null || true
+          qmd collection add "${GITHUB_WORKSPACE}" --name gh-aw --glob "docs/src/content/docs/**,.github/agents/**,.github/aw/**" 2>/dev/null || true
 
       # Cache memory file share configuration from frontmatter processed below
       - name: Create cache-memory directory
@@ -765,10 +759,6 @@ jobs:
                 "description": "Find relevant file paths in project documentation. Returns file paths and scores.",
                 "inputSchema": {
                   "properties": {
-                    "collection": {
-                      "description": "Limit search to a collection: docs, agents, or aw",
-                      "type": "string"
-                    },
                     "min_score": {
                       "default": 0.4,
                       "description": "Minimum relevance score threshold (0–1)",
@@ -789,13 +779,9 @@ jobs:
               },
               {
                 "name": "qmd-search",
-                "description": "Search project documentation and return ranked excerpts. Use for reading matching passages. Collections: docs, agents, aw.",
+                "description": "Search project documentation and return ranked excerpts.",
                 "inputSchema": {
                   "properties": {
-                    "collection": {
-                      "description": "Limit search to a collection: docs, agents, or aw",
-                      "type": "string"
-                    },
                     "limit": {
                       "default": 10,
                       "description": "Maximum number of results to return",
@@ -844,9 +830,7 @@ jobs:
           set -euo pipefail
           
           set -e
-          ARGS=(query "$INPUT_QUERY" --files --min-score "${INPUT_MIN_SCORE:-0.4}")
-          [[ -n "${INPUT_COLLECTION:-}" ]] && ARGS+=(--collection "$INPUT_COLLECTION")
-          qmd "${ARGS[@]}"
+          qmd query "$INPUT_QUERY" --files --min-score "${INPUT_MIN_SCORE:-0.4}"
           
           
           GH_AW_MCP_SCRIPTS_SH_QMD-QUERY_EOF
@@ -854,14 +838,12 @@ jobs:
           cat > /opt/gh-aw/mcp-scripts/qmd-search.sh << 'GH_AW_MCP_SCRIPTS_SH_QMD-SEARCH_EOF'
           #!/bin/bash
           # Auto-generated mcp-script tool: qmd-search
-          # Search project documentation and return ranked excerpts. Use for reading matching passages. Collections: docs, agents, aw.
+          # Search project documentation and return ranked excerpts.
           
           set -euo pipefail
           
           set -e
-          ARGS=(search "$INPUT_QUERY" --json -n "${INPUT_LIMIT:-10}")
-          [[ -n "${INPUT_COLLECTION:-}" ]] && ARGS+=(--collection "$INPUT_COLLECTION")
-          qmd "${ARGS[@]}"
+          qmd search "$INPUT_QUERY" --json -n "${INPUT_LIMIT:-10}"
           
           
           GH_AW_MCP_SCRIPTS_SH_QMD-SEARCH_EOF
