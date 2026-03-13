@@ -28,10 +28,18 @@ steps:
   - name: Setup Node.js
     uses: actions/setup-node@v4
     with:
-      node-version: "22"
+      node-version: "24"
   - name: Install QMD
     run: npm install -g @tobilu/qmd
+  - name: Restore QMD index cache
+    id: qmd-cache
+    uses: actions/cache/restore@v4
+    with:
+      path: ~/.cache/qmd
+      key: qmd-docs-${{ hashFiles('docs/src/content/docs/**') }}
+      restore-keys: qmd-docs-
   - name: Index docs with QMD
+    if: steps.qmd-cache.outputs.cache-hit != 'true'
     run: |
       set -e
 
@@ -47,6 +55,12 @@ steps:
 
       # Add context to improve search relevance and results
       qmd context add qmd://docs "GitHub Agentic Workflows (gh-aw) documentation - guides, reference, examples, and patterns for building agentic workflows"
+  - name: Save QMD index cache
+    if: steps.qmd-cache.outputs.cache-hit != 'true'
+    uses: actions/cache/save@v4
+    with:
+      path: ~/.cache/qmd
+      key: ${{ steps.qmd-cache.outputs.cache-primary-key }}
   - name: Start QMD MCP server
     run: |
       set -e
@@ -131,10 +145,10 @@ Use the qmd tool to search the project documentation and answer questions.
 
 ### How It Works
 
-1. Node.js 22 is installed
+1. Node.js 24 is installed
 2. QMD is installed globally from npm (`@tobilu/qmd`)
-3. The `docs/src/content/docs/` directory is indexed as the `docs` collection
-4. A context description is added to improve search relevance
+3. The qmd index is restored from `actions/cache` using a key derived from a hash of the docs content
+4. If the cache is missed, `docs/src/content/docs/` is indexed as the `docs` collection with a context description, and the resulting index is saved to cache
 5. The HTTP MCP server starts on `localhost:8181`
 
 The `query` tool supports BM25 full-text search (`lex` type) out of the box.
