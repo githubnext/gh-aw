@@ -417,7 +417,7 @@ jobs:
           mkdir -p /tmp/gh-aw/safeoutputs
           mkdir -p /tmp/gh-aw/mcp-logs/safeoutputs
           cat > /opt/gh-aw/safeoutputs/config.json << 'GH_AW_SAFE_OUTPUTS_CONFIG_EOF'
-          {"add_comment":{"max":3,"target":"*"},"add_labels":{"allowed":["poetry","creative","automation","ai-generated","epic","haiku","sonnet","limerick"],"max":5},"create_agent_session":{"max":1},"create_discussion":{"expires":24,"max":2},"create_issue":{"expires":48,"group":true,"max":2},"create_missing_tool_issue":{"max":1,"title_prefix":"[missing tool]"},"create_pull_request":{"expires":48,"max":1,"reviewers":["copilot"],"title_prefix":"[🎨 POETRY] "},"create_pull_request_review_comment":{"max":2},"link_sub_issue":{"max":3},"missing_data":{},"missing_tool":{},"noop":{"max":1},"push_to_pull_request_branch":{"max":1},"update_issue":{"max":2},"upload_asset":{"max":0}}
+          {"add_comment":{"max":3,"target":"*"},"add_labels":{"allowed":["poetry","creative","automation","ai-generated","epic","haiku","sonnet","limerick"],"max":5},"close_pull_request":{"max":2,"required_labels":["poetry","automation"],"required_title_prefix":"[🎨 POETRY]","target":"*"},"create_agent_session":{"max":1},"create_discussion":{"expires":24,"max":2},"create_issue":{"expires":48,"group":true,"max":2},"create_missing_tool_issue":{"max":1,"title_prefix":"[missing tool]"},"create_pull_request":{"expires":48,"max":1,"reviewers":["copilot"],"title_prefix":"[🎨 POETRY] "},"create_pull_request_review_comment":{"max":2},"link_sub_issue":{"max":3},"missing_data":{},"missing_tool":{},"noop":{"max":1},"push_to_pull_request_branch":{"max":1},"update_issue":{"max":2},"upload_asset":{"max":0}}
           GH_AW_SAFE_OUTPUTS_CONFIG_EOF
       - name: Write Safe Outputs Tools
         run: |
@@ -1027,6 +1027,24 @@ jobs:
                   "itemType": "string",
                   "itemSanitize": true,
                   "itemMaxLength": 128
+                },
+                "repo": {
+                  "type": "string",
+                  "maxLength": 256
+                }
+              }
+            },
+            "close_pull_request": {
+              "defaultMax": 1,
+              "fields": {
+                "body": {
+                  "required": true,
+                  "type": "string",
+                  "sanitize": true,
+                  "maxLength": 65000
+                },
+                "pull_request_number": {
+                  "optionalPositiveInteger": true
                 },
                 "repo": {
                   "type": "string",

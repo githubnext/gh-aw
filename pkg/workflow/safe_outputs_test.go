@@ -639,6 +639,21 @@ func TestGenerateSafeOutputsConfig(t *testing.T) {
 			expectedKeys: []string{"close_discussion"},
 		},
 		{
+			name: "close-pull-request with required fields",
+			workflowData: &WorkflowData{
+				SafeOutputs: &SafeOutputsConfig{
+					ClosePullRequests: &ClosePullRequestsConfig{
+						BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("3")},
+						SafeOutputFilterConfig: SafeOutputFilterConfig{
+							RequiredLabels:      []string{"ready-to-close"},
+							RequiredTitlePrefix: "[my-prefix]",
+						},
+					},
+				},
+			},
+			expectedKeys: []string{"close_pull_request"},
+		},
+		{
 			name: "noop config",
 			workflowData: &WorkflowData{
 				SafeOutputs: &SafeOutputsConfig{
