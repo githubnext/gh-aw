@@ -1,25 +1,26 @@
-# Enterprise Configuration for Copilot Agents
+# Custom API Endpoint Configuration
 
-This guide explains how to configure GitHub Agentic Workflows for GitHub Enterprise Cloud (GHEC) and GitHub Enterprise Server (GHES) customers.
+This guide explains how to configure GitHub Agentic Workflows to use custom API endpoints for GitHub Enterprise Cloud (GHEC), GitHub Enterprise Server (GHES), or custom AI endpoints.
 
 ## Overview
 
-GitHub Agentic Workflows automatically detects your GitHub environment and configures the appropriate Copilot API endpoints through AWF (Agentic Workflow Firewall). The system intelligently routes GitHub Copilot API traffic based on your enterprise configuration.
+GitHub Agentic Workflows supports custom API endpoints through the `engine.api-target` configuration field. This allows you to specify custom endpoints for:
 
-## Automatic Detection (Recommended)
+- **GitHub Enterprise Cloud (GHEC)** - Tenant-specific Copilot API endpoints
+- **GitHub Enterprise Server (GHES)** - Enterprise Copilot API endpoints
+- **Custom AI Endpoints** - Custom OpenAI-compatible or Anthropic-compatible endpoints
 
-AWF automatically detects GitHub Enterprise environments based on the `GITHUB_SERVER_URL` environment variable, which is set by GitHub Actions in enterprise environments, unless you explicitly override detection with `engine.enterprise.server-url` in your workflow frontmatter.
+## Configuration
 
-### GitHub Enterprise Cloud (GHEC)
+To configure a custom API endpoint, add the `api-target` field to your engine configuration:
 
-For GHEC tenants (domains ending with `.ghe.com`), AWF automatically extracts the subdomain and routes to the tenant-specific API endpoint.
-
-**Workflow Configuration (automatic detection):**
+**Basic Configuration:**
 
 ```yaml
 ---
 engine:
   id: copilot
+  api-target: api.acme.ghe.com
 network:
   allowed:
     - defaults
@@ -28,19 +29,27 @@ network:
 ---
 ```
 
-**How it works:**
-1. AWF reads `GITHUB_SERVER_URL` from the environment
-2. Detects that the hostname ends with `.ghe.com`
-3. Extracts the subdomain (e.g., `acme` from `acme.ghe.com`)
-4. Routes Copilot API traffic to `api.acme.ghe.com`
+The `api-target` field accepts a hostname (without protocol or path) and works with any agentic engine.
 
-If `GITHUB_SERVER_URL` is not set (for example, when running outside of GitHub Actions) or you need to force a specific tenant, you can override automatic detection by adding an explicit server URL:
+## Examples
+
+### GitHub Enterprise Cloud (GHEC)
+
+For GHEC tenants (domains ending with `.ghe.com`), specify your tenant-specific API endpoint:
+
+**Workflow Configuration:**
 
 ```yaml
+---
 engine:
   id: copilot
-  enterprise:
-    server-url: "https://acme.ghe.com"
+  api-target: api.acme.ghe.com
+network:
+  allowed:
+    - defaults
+    - acme.ghe.com
+    - api.acme.ghe.com
+---
 ```
 
 **Required domains in network allowlist:**
@@ -50,14 +59,15 @@ engine:
 
 ### GitHub Enterprise Server (GHES)
 
-For GHES instances (custom domains), AWF automatically routes to the enterprise Copilot endpoint based on `GITHUB_SERVER_URL`.
+For GHES instances (custom domains), specify the enterprise Copilot endpoint:
 
-**Workflow Configuration (automatic detection):**
+**Workflow Configuration:**
 
 ```yaml
 ---
 engine:
   id: copilot
+  api-target: api.enterprise.githubcopilot.com
 network:
   allowed:
     - defaults
@@ -66,55 +76,27 @@ network:
 ---
 ```
 
-If `GITHUB_SERVER_URL` is not available or you need to force a specific GHES URL, you can override automatic detection with:
-
-```yaml
-engine:
-  id: copilot
-  enterprise:
-    server-url: "https://github.company.com"
-```
-
-**How it works:**
-1. AWF reads `GITHUB_SERVER_URL` from the environment
-2. Detects that the hostname is not `github.com` or `*.ghe.com`
-3. Routes Copilot API traffic to `api.enterprise.githubcopilot.com`
-
 **Required domains in network allowlist:**
 - `github.company.com` - Your GHES instance (git operations, web UI)
 - `api.enterprise.githubcopilot.com` - Enterprise Copilot API endpoint (used for all GHES instances)
 
-## Manual Override
+### Custom AI Endpoints
 
-If automatic detection doesn't work for your setup, you can manually specify the Copilot API endpoint.
+The `api-target` field works with any agentic engine, allowing you to use custom AI endpoints:
 
 **Workflow Configuration:**
 
 ```yaml
 ---
 engine:
-  id: copilot
-  enterprise:
-    copilot-api-target: "api.custom.endpoint.com"
+  id: codex
+  api-target: api.custom.ai-provider.com
 network:
   allowed:
     - defaults
-    - custom.endpoint.com
-    - api.custom.endpoint.com
+    - api.custom.ai-provider.com
 ---
 ```
-
-The `copilot-api-target` field takes precedence over automatic detection.
-
-## Priority Order
-
-AWF determines the Copilot API endpoint in this order:
-
-1. **`engine.enterprise.copilot-api-target`** (highest priority) - Manual override
-2. **`engine.enterprise.server-url`** with `*.ghe.com` - Automatic GHEC detection → `api.<subdomain>.ghe.com`
-3. **`engine.enterprise.server-url`** with custom domain - Automatic GHES detection → `api.enterprise.githubcopilot.com`
-4. **GitHub Actions `GITHUB_SERVER_URL`** - Uses the environment variable set by GitHub Actions
-5. **Default** - Public GitHub → `api.githubcopilot.com`
 
 ## Complete Examples
 
@@ -131,8 +113,7 @@ permissions:
   pull-requests: write
 engine:
   id: copilot
-  enterprise:
-    server-url: "https://acme.ghe.com"
+  api-target: api.acme.ghe.com
 tools:
   github:
     mode: remote
@@ -161,8 +142,7 @@ permissions:
   issues: write
 engine:
   id: copilot
-  enterprise:
-    server-url: "https://github.company.com"
+  api-target: api.enterprise.githubcopilot.com
 network:
   allowed:
     - defaults
@@ -173,24 +153,22 @@ network:
 # Your workflow prompt here
 ```
 
-### Manual Override Example
+### Custom AI Provider
 
 ```yaml
 ---
-description: Workflow with manual API endpoint override
+description: Workflow with custom AI endpoint
 on:
   workflow_dispatch:
 permissions:
   contents: read
 engine:
-  id: copilot
-  enterprise:
-    copilot-api-target: "api.custom.endpoint.com"
+  id: codex
+  api-target: api.custom.ai-provider.com
 network:
   allowed:
     - defaults
-    - custom.endpoint.com
-    - api.custom.endpoint.com
+    - api.custom.ai-provider.com
 ---
 
 # Your workflow prompt here
@@ -209,28 +187,28 @@ gh aw compile your-workflow.md
 ```
 
 Look for:
-- `GITHUB_SERVER_URL` environment variable in the agent job
-- `--copilot-api-target` flag in AWF command (if using manual override)
+- `--copilot-api-target` flag in AWF command (if using Copilot engine)
+- Correct API endpoint hostname in the flag value
 
 ### 2. Check Workflow Runs
 
 In GitHub Actions workflow runs:
 1. Go to the agent job
-2. Check the "Run Copilot Agent" step
+2. Check the "Run Copilot Agent" (or equivalent) step
 3. Verify the AWF command includes the correct API target
-4. Check AWF logs for "Copilot proxy listening" messages
+4. Check AWF logs for API connection messages
 
 ## Troubleshooting
 
 ### Wrong API Endpoint
 
-**Problem:** Traffic is going to the wrong Copilot API endpoint
+**Problem:** Traffic is going to the wrong API endpoint
 
 **Solutions:**
-1. Verify `engine.enterprise.server-url` is set correctly in your workflow frontmatter
+1. Verify `engine.api-target` is set correctly in your workflow frontmatter
 2. Check that the domain is in your `network.allowed` list
-3. Use `copilot-api-target` to manually override if automatic detection fails
-4. Review AWF logs in the workflow run for endpoint detection messages
+3. Review AWF logs in the workflow run for endpoint configuration messages
+4. Ensure you're not using a full URL (use hostname only: `api.acme.ghe.com` not `https://api.acme.ghe.com`)
 
 ### Domain Not Whitelisted
 
@@ -239,6 +217,7 @@ In GitHub Actions workflow runs:
 **Solution:** Add the missing domain to your `network.allowed` list:
 - For GHEC: `[acme.ghe.com, api.acme.ghe.com]`
 - For GHES: `[github.company.com, api.enterprise.githubcopilot.com]`
+- For custom AI: `[api.custom.ai-provider.com]`
 
 ### GitHub MCP Server Issues
 
@@ -251,11 +230,7 @@ In GitHub Actions workflow runs:
 
 ## Related Documentation
 
-- [AWF Enterprise Configuration](https://github.com/github/gh-aw-firewall/blob/main/docs/enterprise-configuration.md) - Detailed AWF documentation
+- [AWF Firewall Configuration](https://github.com/github/gh-aw-firewall) - Detailed AWF documentation
 - [GitHub Actions Environment Variables](https://docs.github.com/en/actions/learn-github-actions/variables#default-environment-variables) - Default GitHub Actions variables
 - [Network Permissions](network.md) - Network access configuration
 - [Tools Configuration](tools.md) - MCP server and tool setup
-
-## See Also
-
-For more information about the underlying AWF firewall configuration that enables enterprise support, see the [gh-aw-firewall PR #1264](https://github.com/github/gh-aw-firewall/pull/1264) which adds automatic endpoint detection.

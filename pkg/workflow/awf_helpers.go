@@ -205,12 +205,11 @@ func BuildAWFArgs(config AWFCommandConfig) []string {
 		awfHelpersLog.Printf("Added --anthropic-api-target=%s", anthropicTarget)
 	}
 
-	// Add Copilot API target for GitHub Enterprise Cloud/Server
-	// Priority: engine.enterprise.copilot-api-target > engine.enterprise.server-url (via env var)
-	copilotAPITarget := extractCopilotAPITarget(config.WorkflowData)
-	if copilotAPITarget != "" {
-		awfArgs = append(awfArgs, "--copilot-api-target", copilotAPITarget)
-		awfHelpersLog.Printf("Added --copilot-api-target=%s", copilotAPITarget)
+	// Add Copilot API target for custom Copilot endpoints (GHEC, GHES, or custom)
+	// This uses the engine.api-target field if configured
+	if config.WorkflowData.EngineConfig != nil && config.WorkflowData.EngineConfig.APITarget != "" {
+		awfArgs = append(awfArgs, "--copilot-api-target", config.WorkflowData.EngineConfig.APITarget)
+		awfHelpersLog.Printf("Added --copilot-api-target=%s", config.WorkflowData.EngineConfig.APITarget)
 	}
 
 	// Add SSL Bump support for HTTPS content inspection (v0.9.0+)
@@ -332,75 +331,4 @@ func extractAPITargetHost(workflowData *WorkflowData, envVar string) string {
 
 	awfHelpersLog.Printf("Extracted API target host from %s: %s", envVar, host)
 	return host
-}
-
-// extractCopilotAPITarget extracts the Copilot API target from enterprise configuration.
-// This supports GitHub Enterprise Cloud (GHEC) and GitHub Enterprise Server (GHES) deployments.
-//
-// The function checks enterprise configuration in the following priority order:
-//  1. engine.enterprise.copilot-api-target - Manual override (highest priority)
-//  2. engine.enterprise.server-url - Exported as COPILOT_SERVER_URL environment variable,
-//     AWF automatically detects GHEC (*.ghe.com) or GHES (custom domains) and routes appropriately
-//  3. No enterprise config - AWF uses GitHub Actions GITHUB_SERVER_URL or defaults to api.githubcopilot.com
-//
-// Parameters:
-//   - workflowData: The workflow data containing engine configuration
-//
-// Returns:
-//   - string: The Copilot API target hostname, or empty string if not configured
-//
-// Example frontmatter configurations:
-//
-//	# GHEC with automatic detection (recommended)
-//	engine:
-//	  id: copilot
-//	  enterprise:
-//	    server-url: "https://acme.ghe.com"
-//	# AWF automatically routes to api.acme.ghe.com
-//
-//	# GHES with automatic detection (recommended)
-//	engine:
-//	  id: copilot
-//	  enterprise:
-//	    server-url: "https://github.company.com"
-//	# AWF automatically routes to api.enterprise.githubcopilot.com
-//
-//	# Manual override (for custom configurations)
-//	engine:
-//	  id: copilot
-//	  enterprise:
-//	    copilot-api-target: "api.custom.endpoint.com"
-//	# AWF uses specified endpoint directly
-func extractCopilotAPITarget(workflowData *WorkflowData) string {
-	// Check if engine config is available
-	if workflowData == nil || workflowData.EngineConfig == nil {
-		return ""
-	}
-
-	// Check if enterprise config is present
-	enterpriseConfig := workflowData.EngineConfig.Enterprise
-	if enterpriseConfig == nil {
-		return ""
-	}
-
-	// Priority 1: Manual override via copilot-api-target (highest priority)
-	if enterpriseConfig.CopilotAPITarget != "" {
-		awfHelpersLog.Printf("Using manual Copilot API target override: %s", enterpriseConfig.CopilotAPITarget)
-		return enterpriseConfig.CopilotAPITarget
-	}
-
-	// Priority 2: server-url will be exported as GITHUB_SERVER_URL environment variable
-	// AWF's api-proxy will automatically detect GHEC (*.ghe.com) or GHES (custom domains)
-	// and route to the appropriate endpoint. We don't return the server-url directly here
-	// because AWF needs the full URL for detection, not just the hostname.
-	// The server-url is handled by exporting GITHUB_SERVER_URL in the engine execution steps.
-	if enterpriseConfig.ServerURL != "" {
-		awfHelpersLog.Printf("Enterprise server-url configured: %s (will be exported as GITHUB_SERVER_URL)", enterpriseConfig.ServerURL)
-		// Return empty string - the server-url will be passed via environment variable
-		// and AWF will automatically derive the correct Copilot API endpoint
-		return ""
-	}
-
-	// No enterprise configuration
-	return ""
 }
