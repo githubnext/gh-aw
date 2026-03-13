@@ -209,18 +209,6 @@ jobs:
 	}
 	setupActionRef := ResolveSetupActionReference(actionMode, version, actionTag, resolver)
 
-	// Add checkout step only in dev/script mode (for local action paths)
-	if actionMode == ActionModeDev || actionMode == ActionModeScript {
-		yaml.WriteString("      - name: Checkout actions folder\n")
-		yaml.WriteString("        uses: " + GetActionPin("actions/checkout") + "\n")
-		yaml.WriteString("        with:\n")
-		yaml.WriteString("          repository: github/gh-aw\n")
-		yaml.WriteString("          ref: ${{ github.action_ref || github.ref }}\n")
-		yaml.WriteString("          sparse-checkout: |\n")
-		yaml.WriteString("            actions\n")
-		yaml.WriteString("          persist-credentials: false\n\n")
-	}
-
 	// Add setup step with the resolved action reference
 	yaml.WriteString(`      - name: Setup Scripts
         uses: ` + setupActionRef + `
