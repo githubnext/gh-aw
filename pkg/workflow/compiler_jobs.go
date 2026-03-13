@@ -746,9 +746,16 @@ func (c *Compiler) buildCustomJobs(data *WorkflowData, activationJobCreated bool
 //
 // The checkout step is only skipped when:
 //   - Custom steps already contain a checkout action
+//   - checkout: false is set in the workflow frontmatter
 //
 // Otherwise, checkout is always added to ensure the agent has access to the repository.
 func (c *Compiler) shouldAddCheckoutStep(data *WorkflowData) bool {
+	// If checkout was explicitly disabled via checkout: false, skip it
+	if data.CheckoutDisabled {
+		log.Print("Skipping checkout step: checkout disabled via checkout: false")
+		return false
+	}
+
 	// If custom steps already contain checkout, don't add another one
 	if data.CustomSteps != "" && ContainsCheckout(data.CustomSteps) {
 		log.Print("Skipping checkout step: custom steps already contain checkout")

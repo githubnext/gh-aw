@@ -7665,7 +7665,7 @@
       "additionalProperties": false
     },
     "checkout": {
-      "description": "Checkout configuration for the agent job. Controls how actions/checkout is invoked. Can be a single checkout configuration or an array for multiple checkouts.",
+      "description": "Checkout configuration for the agent job. Controls how actions/checkout is invoked. Can be a single checkout configuration, an array for multiple checkouts, or false to disable the default checkout step entirely (dev-mode checkouts are unaffected).",
       "oneOf": [
         {
           "$ref": "#/$defs/checkoutConfig",
@@ -7677,6 +7677,11 @@
           "items": {
             "$ref": "#/$defs/checkoutConfig"
           }
+        },
+        {
+          "type": "boolean",
+          "enum": [false],
+          "description": "Set to false to disable the default checkout step. The agent job will not check out any repository (dev-mode checkouts are unaffected)."
         }
       ]
     },
