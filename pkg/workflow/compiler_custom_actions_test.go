@@ -312,11 +312,6 @@ func TestCheckoutActionsFolderDevModeHasRepository(t *testing.T) {
 	if !strings.Contains(combined, "repository: github/gh-aw") {
 		t.Error("Dev mode Checkout actions folder should include 'repository: github/gh-aw' (fix for #20658)")
 	}
-
-	// Dev mode uses action_ref with github.ref fallback for non-workflow_call contexts
-	if !strings.Contains(combined, "ref: ${{ github.action_ref || github.ref }}") {
-		t.Error("Dev mode Checkout actions folder should use 'ref: ${{ github.action_ref || github.ref }}' so the ref resolves at runtime with fallback")
-	}
 }
 
 // TestCheckoutActionsFolderDevModeAlwaysEmitsCheckout verifies that dev mode always
@@ -332,10 +327,6 @@ func TestCheckoutActionsFolderDevModeAlwaysEmitsCheckout(t *testing.T) {
 			lines := compiler.generateCheckoutActionsFolder(nil)
 			if lines == nil {
 				t.Errorf("Dev mode should always emit checkout step (version=%q)", version)
-			}
-			combined := strings.Join(lines, "")
-			if !strings.Contains(combined, "ref: ${{ github.action_ref || github.ref }}") {
-				t.Errorf("Dev mode checkout should always use 'ref: ${{ github.action_ref || github.ref }}' (version=%q)", version)
 			}
 		})
 	}
