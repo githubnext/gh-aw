@@ -26,6 +26,7 @@ type EngineConfig struct {
 	Args             []string
 	Firewall         *FirewallConfig // AWF firewall configuration
 	Agent            string          // Agent identifier for copilot --agent flag (copilot engine only)
+	APITarget        string          // Custom API endpoint hostname (e.g., "api.acme.ghe.com" or "api.enterprise.githubcopilot.com")
 
 	// Inline definition fields (populated when engine.runtime is specified in frontmatter)
 	IsInlineDefinition bool   // true when the engine is defined inline via engine.runtime + optional engine.provider
@@ -311,6 +312,14 @@ func (c *Compiler) ExtractEngineConfig(frontmatter map[string]any) (string, *Eng
 
 					config.Firewall = firewallConfig
 					engineLog.Print("Extracted firewall configuration")
+				}
+			}
+
+			// Extract optional 'api-target' field (custom API endpoint for any engine)
+			if apiTarget, hasAPITarget := engineObj["api-target"]; hasAPITarget {
+				if apiTargetStr, ok := apiTarget.(string); ok && apiTargetStr != "" {
+					config.APITarget = apiTargetStr
+					engineLog.Printf("Extracted api-target: %s", apiTargetStr)
 				}
 			}
 

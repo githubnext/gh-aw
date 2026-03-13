@@ -250,3 +250,79 @@ func TestEngineCommandField(t *testing.T) {
 		})
 	}
 }
+
+// TestAPITargetExtraction tests that the api-target configuration is correctly
+// extracted from frontmatter for custom API endpoints (GHEC, GHES, or custom AI endpoints).
+func TestAPITargetExtraction(t *testing.T) {
+	tests := []struct {
+		name              string
+		frontmatter       map[string]any
+		expectedAPITarget string
+	}{
+		{
+			name: "GHEC api-target",
+			frontmatter: map[string]any{
+				"engine": map[string]any{
+					"id":         "copilot",
+					"api-target": "api.acme.ghe.com",
+				},
+			},
+			expectedAPITarget: "api.acme.ghe.com",
+		},
+		{
+			name: "GHES api-target",
+			frontmatter: map[string]any{
+				"engine": map[string]any{
+					"id":         "copilot",
+					"api-target": "api.enterprise.githubcopilot.com",
+				},
+			},
+			expectedAPITarget: "api.enterprise.githubcopilot.com",
+		},
+		{
+			name: "custom api-target",
+			frontmatter: map[string]any{
+				"engine": map[string]any{
+					"id":         "codex",
+					"api-target": "api.custom.endpoint.com",
+				},
+			},
+			expectedAPITarget: "api.custom.endpoint.com",
+		},
+		{
+			name: "no api-target",
+			frontmatter: map[string]any{
+				"engine": map[string]any{
+					"id": "copilot",
+				},
+			},
+			expectedAPITarget: "",
+		},
+		{
+			name: "empty api-target",
+			frontmatter: map[string]any{
+				"engine": map[string]any{
+					"id":         "copilot",
+					"api-target": "",
+				},
+			},
+			expectedAPITarget: "",
+		},
+	}
+
+	compiler := NewCompiler()
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, config := compiler.ExtractEngineConfig(tt.frontmatter)
+
+			if config == nil {
+				t.Fatal("Expected config to be non-nil")
+			}
+
+			if config.APITarget != tt.expectedAPITarget {
+				t.Errorf("Expected api-target %q, got %q", tt.expectedAPITarget, config.APITarget)
+			}
+		})
+	}
+}

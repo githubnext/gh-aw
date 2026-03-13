@@ -80,10 +80,8 @@ async function main(config = {}) {
 
     processedCount++;
 
-    const item = message;
-
     try {
-      const commentId = item.comment_id;
+      const commentId = message.comment_id;
       if (!commentId || typeof commentId !== "string") {
         core.warning("comment_id is required and must be a string (GraphQL node ID)");
         return {
@@ -92,19 +90,17 @@ async function main(config = {}) {
         };
       }
 
-      const reason = item.reason || "SPAM";
-
       // Normalize reason to uppercase for GitHub API
-      const normalizedReason = reason.toUpperCase();
+      const normalizedReason = (message.reason || "SPAM").toUpperCase();
 
       // Validate reason against allowed reasons if specified (case-insensitive)
       if (allowedReasons.length > 0) {
         const normalizedAllowedReasons = allowedReasons.map(r => r.toUpperCase());
         if (!normalizedAllowedReasons.includes(normalizedReason)) {
-          core.warning(`Reason "${reason}" is not in allowed-reasons list [${allowedReasons.join(", ")}]. Skipping comment ${commentId}.`);
+          core.warning(`Reason "${message.reason}" is not in allowed-reasons list [${allowedReasons.join(", ")}]. Skipping comment ${commentId}.`);
           return {
             success: false,
-            error: `Reason "${reason}" is not in allowed-reasons list`,
+            error: `Reason "${message.reason}" is not in allowed-reasons list`,
           };
         }
       }

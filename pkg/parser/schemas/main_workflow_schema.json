@@ -7971,6 +7971,11 @@
               "type": "string",
               "description": "Agent identifier to pass to copilot --agent flag (copilot engine only). Specifies which custom agent to use for the workflow."
             },
+            "api-target": {
+              "type": "string",
+              "description": "Custom API endpoint hostname for the agentic engine. Used for GitHub Enterprise Cloud (GHEC), GitHub Enterprise Server (GHES), or custom AI endpoints. Example: 'api.acme.ghe.com' for GHEC, 'api.enterprise.githubcopilot.com' for GHES, or custom endpoint hostnames.",
+              "examples": ["api.acme.ghe.com", "api.enterprise.githubcopilot.com", "api.custom.endpoint.com"]
+            },
             "args": {
               "type": "array",
               "items": {
