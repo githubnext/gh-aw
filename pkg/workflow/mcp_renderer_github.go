@@ -1,6 +1,7 @@
 package workflow
 
 import (
+	"encoding/json"
 	"fmt"
 	"strconv"
 	"strings"
@@ -228,7 +229,8 @@ func RenderGitHubMCPDockerConfig(yaml *strings.Builder, options GitHubMCPDockerO
 	if len(options.CustomArgs) > 0 {
 		yaml.WriteString("                \"args\": [\n")
 		for _, arg := range options.CustomArgs {
-			yaml.WriteString("                  \"" + arg + "\",\n")
+			quotedArg, _ := json.Marshal(arg)
+			yaml.WriteString("                  " + string(quotedArg) + ",\n")
 		}
 		yaml.WriteString("                ],\n")
 	}
@@ -237,7 +239,8 @@ func RenderGitHubMCPDockerConfig(yaml *strings.Builder, options GitHubMCPDockerO
 	if len(options.Mounts) > 0 {
 		yaml.WriteString("                \"mounts\": [\n")
 		for i, mount := range options.Mounts {
-			yaml.WriteString("                  \"" + mount + "\"")
+			quotedMount, _ := json.Marshal(mount)
+			yaml.WriteString("                  " + string(quotedMount))
 			if i < len(options.Mounts)-1 {
 				yaml.WriteString(",")
 			}

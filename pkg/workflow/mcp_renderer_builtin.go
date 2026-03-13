@@ -1,7 +1,7 @@
 package workflow
 
 import (
-	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/constants"
@@ -113,7 +113,7 @@ func (r *MCPConfigRendererUnified) renderSerenaTOML(yaml *strings.Builder, seren
 	// Append custom args if present
 	for _, arg := range customArgs {
 		yaml.WriteString(",\n")
-		fmt.Fprintf(yaml, "            \"%s\"", arg)
+		yaml.WriteString("            " + strconv.Quote(arg))
 	}
 
 	yaml.WriteString("\n")
