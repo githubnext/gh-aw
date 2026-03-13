@@ -295,95 +295,6 @@ func TestApplySafeOutputEnvToMap(t *testing.T) {
 }
 
 // TestApplySafeOutputEnvToSlice verifies the helper function for YAML string slices
-func TestApplySafeOutputEnvToSlice(t *testing.T) {
-	tests := []struct {
-		name         string
-		workflowData *WorkflowData
-		expected     []string
-	}{
-		{
-			name: "nil SafeOutputs",
-			workflowData: &WorkflowData{
-				SafeOutputs: nil,
-			},
-			expected: []string{},
-		},
-		{
-			name: "basic safe outputs",
-			workflowData: &WorkflowData{
-				SafeOutputs: &SafeOutputsConfig{},
-			},
-			expected: []string{
-				"          GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}",
-			},
-		},
-		{
-			name: "safe outputs with staged flag",
-			workflowData: &WorkflowData{
-				SafeOutputs: &SafeOutputsConfig{
-					Staged: true,
-				},
-			},
-			expected: []string{
-				"          GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}",
-				"          GH_AW_SAFE_OUTPUTS_STAGED: \"true\"",
-			},
-		},
-		{
-			name: "trial mode",
-			workflowData: &WorkflowData{
-				TrialMode:        true,
-				TrialLogicalRepo: "owner/repo",
-				SafeOutputs:      &SafeOutputsConfig{},
-			},
-			expected: []string{
-				"          GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}",
-				"          GH_AW_SAFE_OUTPUTS_STAGED: \"true\"",
-				"          GH_AW_TARGET_REPO_SLUG: \"owner/repo\"",
-			},
-		},
-		{
-			name: "upload assets config",
-			workflowData: &WorkflowData{
-				SafeOutputs: &SafeOutputsConfig{
-					UploadAssets: &UploadAssetsConfig{
-						BranchName:  "gh-aw-assets",
-						MaxSizeKB:   10240,
-						AllowedExts: []string{".png", ".jpg", ".jpeg"},
-					},
-				},
-			},
-			expected: []string{
-				"          GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}",
-				"          GH_AW_ASSETS_BRANCH: \"gh-aw-assets\"",
-				"          GH_AW_ASSETS_MAX_SIZE_KB: 10240",
-				"          GH_AW_ASSETS_ALLOWED_EXTS: \".png,.jpg,.jpeg\"",
-			},
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			var stepLines []string
-			applySafeOutputEnvToSlice(&stepLines, tt.workflowData)
-
-			if len(stepLines) != len(tt.expected) {
-				t.Errorf("Expected %d lines, got %d", len(tt.expected), len(stepLines))
-			}
-
-			for i, expectedLine := range tt.expected {
-				if i >= len(stepLines) {
-					t.Errorf("Missing expected line %d: %q", i, expectedLine)
-					continue
-				}
-				if stepLines[i] != expectedLine {
-					t.Errorf("Line %d: expected %q, got %q", i, expectedLine, stepLines[i])
-				}
-			}
-		})
-	}
-}
-
 // TestBuildWorkflowMetadataEnvVars verifies the helper function for workflow metadata env vars
 func TestBuildWorkflowMetadataEnvVars(t *testing.T) {
 	tests := []struct {
@@ -663,11 +574,6 @@ func TestEnginesUseSameHelperLogic(t *testing.T) {
 	envMap := make(map[string]string)
 	applySafeOutputEnvToMap(envMap, workflowData)
 
-	// Test slice-based helper (used by claude)
-	var stepLines []string
-	applySafeOutputEnvToSlice(&stepLines, workflowData)
-
-	// Verify both approaches produce the same env vars
 	expectedKeys := []string{
 		"GH_AW_SAFE_OUTPUTS",
 		"GH_AW_SAFE_OUTPUTS_STAGED",
@@ -681,14 +587,6 @@ func TestEnginesUseSameHelperLogic(t *testing.T) {
 	for _, key := range expectedKeys {
 		if _, exists := envMap[key]; !exists {
 			t.Errorf("envMap missing expected key: %s", key)
-		}
-	}
-
-	// Check slice (should contain all keys)
-	sliceContent := strings.Join(stepLines, "\n")
-	for _, key := range expectedKeys {
-		if !strings.Contains(sliceContent, key) {
-			t.Errorf("stepLines missing expected key: %s", key)
 		}
 	}
 }
