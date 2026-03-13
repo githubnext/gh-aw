@@ -54,13 +54,19 @@ Three collections are indexed:
 
 ### Querying the Docs
 
-Use the `qmd` CLI directly in workflow steps to search documentation:
+Use the `qmd` CLI directly in workflow steps to search documentation.
+
+**`qmd search`** — Returns a ranked list of matching document excerpts. Use this for
+content-level search when you want to read the matching passages.
+
+**`qmd query`** — Returns file paths and scores without full content. Use this to
+discover which files are relevant before deciding which ones to retrieve with `qmd get`.
 
 ```bash
-# Search across all collections and return structured JSON results
+# Get structured JSON results for an LLM (document excerpts)
 qmd search "authentication" --json -n 10
 
-# List all relevant files above a relevance threshold
+# List all relevant files above a relevance threshold (paths + scores only)
 qmd query "error handling" --all --files --min-score 0.4
 
 # Search a specific collection
@@ -99,9 +105,26 @@ imports:
 
 Search the project documentation and answer questions.
 
-1. Run `qmd search "your topic" --json -n 10` to find relevant documents
-2. Run `qmd get <path>` to retrieve specific documentation pages
-3. Use `--collection docs`, `--collection agents`, or `--collection aw` to narrow results
+1. Run `qmd search "your topic" --json -n 10` to find relevant documents and read their content
+2. Run `qmd query "your topic" --files --min-score 0.4` to list relevant file paths
+3. Run `qmd get <path>` to retrieve the full content of a specific page
+4. Use `--collection docs`, `--collection agents`, or `--collection aw` to narrow results
+```
+
+### Using CLI Output in Workflow Steps
+
+Capture `qmd` output in a step and pass it to subsequent processing:
+
+```bash
+# Capture JSON search results and parse with jq
+RESULTS=$(qmd search "authentication" --json -n 5)
+echo "$RESULTS" | jq '.[].path'
+
+# Save relevant file list to a variable for later retrieval
+FILES=$(qmd query "error handling" --files --min-score 0.4)
+for f in $FILES; do
+  qmd get "$f"
+done
 ```
 
 ### How It Works
