@@ -23,7 +23,7 @@
 #
 # Build, test, and release gh-aw extension, then generate and prepend release highlights
 #
-# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"1ccf2823ac9575a51b506e9740499861d2c0506df37325368f5ef93408b4e946","strict":true}
+# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"b918f755e5c3b4dc485791181f519e9049725493a23f4fda44af27dadb5982d1","strict":true}
 
 name: "Release"
 "on":
