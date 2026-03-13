@@ -320,19 +320,45 @@ func TestCheckoutActionsFolderDevModeHasRepository(t *testing.T) {
 }
 
 // TestCheckoutActionsFolderDevModeWithVersionHasRef verifies that when a real version
-// SHA is set, the Checkout actions folder step in dev mode includes both
-// repository: and ref: fields.
+// SHA is set, the Checkout actions folder step is NOT generated in dev mode.
+// Dev mode should only emit the checkout when no SHA ref is involved.
 func TestCheckoutActionsFolderDevModeWithVersionHasRef(t *testing.T) {
 	compiler := NewCompilerWithVersion("e284d1e")
+	compiler.SetActionMode(ActionModeDev)
+
+	lines := compiler.generateCheckoutActionsFolder(nil)
+
+	if lines != nil {
+		t.Error("Dev mode Checkout actions folder should be nil (skipped) when version resolves to a SHA")
+	}
+}
+
+// TestCheckoutActionsFolderDevModeWithGitDescribeSHAIsSkipped verifies that when the version
+// is a git-describe string that resolves to a SHA, dev mode skips the checkout.
+func TestCheckoutActionsFolderDevModeWithGitDescribeSHAIsSkipped(t *testing.T) {
+	compiler := NewCompilerWithVersion("v0.57.2-60-ge284d1e")
+	compiler.SetActionMode(ActionModeDev)
+
+	lines := compiler.generateCheckoutActionsFolder(nil)
+
+	if lines != nil {
+		t.Error("Dev mode Checkout actions folder should be nil (skipped) when git-describe version resolves to a SHA")
+	}
+}
+
+// TestCheckoutActionsFolderDevModeWithTagVersionGeneratesCheckout verifies that
+// when the version is a clean tag (e.g. "v1.2.3"), dev mode still generates the checkout step.
+func TestCheckoutActionsFolderDevModeWithTagVersionGeneratesCheckout(t *testing.T) {
+	compiler := NewCompilerWithVersion("v1.2.3")
 	compiler.SetActionMode(ActionModeDev)
 
 	lines := compiler.generateCheckoutActionsFolder(nil)
 	combined := strings.Join(lines, "")
 
 	if !strings.Contains(combined, "repository: github/gh-aw") {
-		t.Error("Dev mode Checkout actions folder should include 'repository: github/gh-aw'")
+		t.Error("Dev mode Checkout actions folder with tag version should include 'repository: github/gh-aw'")
 	}
-	if !strings.Contains(combined, "ref: e284d1e") {
-		t.Error("Dev mode Checkout actions folder should include 'ref: e284d1e' when version is set")
+	if !strings.Contains(combined, "ref: v1.2.3") {
+		t.Error("Dev mode Checkout actions folder with tag version should include 'ref: v1.2.3'")
 	}
 }
