@@ -672,7 +672,7 @@ func (c *Compiler) generateCreateAwInfo(yaml *strings.Builder, data *WorkflowDat
 func (c *Compiler) generateOutputCollectionStep(yaml *strings.Builder, data *WorkflowData) {
 	// Copy the raw safe-output NDJSON to a /tmp/gh-aw/ path so it can be included in the
 	// unified agent artifact together with all other /tmp/gh-aw/ outputs.
-	yaml.WriteString("      - name: Copy safe outputs\n")
+	yaml.WriteString("      - name: Copy Safe Outputs\n")
 	yaml.WriteString("        if: always()\n")
 	yaml.WriteString("        run: |\n")
 	fmt.Fprintf(yaml, "          mkdir -p /tmp/gh-aw\n")
