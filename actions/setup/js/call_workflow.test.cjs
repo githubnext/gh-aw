@@ -121,6 +121,9 @@ describe("call_workflow handler factory", () => {
   });
 
   it("should allow any workflow when allowed list is empty", async () => {
+    // An empty workflows array is treated as permissive (no restriction).
+    // In practice, the compiler always populates this list from frontmatter,
+    // so this case should not occur during normal usage.
     const config = {
       workflows: [],
       max: 5,

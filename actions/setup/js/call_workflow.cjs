@@ -62,7 +62,11 @@ async function main(config = {}) {
       };
     }
 
-    // Validate workflow is in allowed list
+    // Validate workflow is in allowed list.
+    // An empty allowedWorkflows array is treated as permissive (no restriction),
+    // matching the behavior of dispatch_workflow. In practice, the compiler always
+    // populates this list from the frontmatter configuration, so an empty list
+    // should not occur in normal usage.
     if (allowedWorkflows.length > 0 && !allowedWorkflows.includes(workflowName)) {
       const error = `Workflow "${workflowName}" is not in the allowed workflows list: ${allowedWorkflows.join(", ")}`;
       core.warning(error);

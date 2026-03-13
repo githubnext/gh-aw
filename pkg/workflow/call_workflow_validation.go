@@ -75,7 +75,7 @@ func (c *Compiler) validateCallWorkflow(data *WorkflowData, workflowPath string)
 		// Validate that the workflow supports workflow_call.
 		// Priority: .lock.yml > .yml > .md (same-batch compilation target)
 		if fileResult.lockExists {
-			workflowContent, readErr := os.ReadFile(fileResult.lockPath) // #nosec G304 -- Path is validated via isPathWithinDir in findWorkflowFile
+			workflowContent, readErr := os.ReadFile(fileResult.lockPath) // #nosec G304 -- lockPath is validated via isPathWithinDir() in findWorkflowFile() before being returned
 			if readErr != nil {
 				fileReadErr := fmt.Errorf("call-workflow: failed to read workflow file %s: %w", fileResult.lockPath, readErr)
 				if returnErr := collector.Add(fileReadErr); returnErr != nil {
@@ -107,7 +107,7 @@ func (c *Compiler) validateCallWorkflow(data *WorkflowData, workflowPath string)
 				continue
 			}
 		} else if fileResult.ymlExists {
-			workflowContent, readErr := os.ReadFile(fileResult.ymlPath) // #nosec G304 -- Path is validated via isPathWithinDir in findWorkflowFile
+			workflowContent, readErr := os.ReadFile(fileResult.ymlPath) // #nosec G304 -- ymlPath is validated via isPathWithinDir() in findWorkflowFile() before being returned
 			if readErr != nil {
 				fileReadErr := fmt.Errorf("call-workflow: failed to read workflow file %s: %w", fileResult.ymlPath, readErr)
 				if returnErr := collector.Add(fileReadErr); returnErr != nil {

@@ -151,6 +151,7 @@ func (c *Compiler) buildCallWorkflowJobs(data *WorkflowData) ([]string, error) {
 
 	for _, workflowName := range config.Workflows {
 		// Build the job name: "call-{sanitized-workflow-name}"
+		// sanitizeJobName normalizes underscores to hyphens (NormalizeSafeOutputIdentifier + dash conversion)
 		sanitizedName := sanitizeJobName(workflowName)
 		jobName := "call-" + sanitizedName
 
@@ -184,8 +185,9 @@ func (c *Compiler) buildCallWorkflowJobs(data *WorkflowData) ([]string, error) {
 }
 
 // sanitizeJobName converts a workflow name to a valid GitHub Actions job name.
-// It replaces non-alphanumeric characters (except hyphens) with hyphens and
-// normalizes to lowercase, mirroring NormalizeSafeOutputIdentifier but keeping hyphens.
+// It delegates normalization to NormalizeSafeOutputIdentifier (which converts
+// hyphens to underscores), then converts underscores back to hyphens for
+// GitHub Actions job name conventions.
 func sanitizeJobName(workflowName string) string {
 	normalized := stringutil.NormalizeSafeOutputIdentifier(workflowName)
 	// NormalizeSafeOutputIdentifier uses underscores; convert to hyphens for job names
