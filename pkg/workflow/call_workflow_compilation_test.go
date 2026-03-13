@@ -542,6 +542,41 @@ safe-outputs:
 	assert.Contains(t, err.Error(), "nonexistent-worker", "Error should name the missing workflow")
 }
 
+// TestCallWorkflowCompile_ValidationFails_DuplicateWorkflow verifies that compilation
+// fails with a clear error when a workflow name appears more than once in the list
+func TestCallWorkflowCompile_ValidationFails_DuplicateWorkflow(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "call-workflow-duplicate")
+	workflowsDir := filepath.Join(tmpDir, ".github", "workflows")
+	require.NoError(t, os.MkdirAll(workflowsDir, 0755))
+
+	// Write a valid worker so the only failure is the duplicate, not "not found"
+	require.NoError(t, os.WriteFile(filepath.Join(workflowsDir, "worker-a.lock.yml"),
+		[]byte(workerLockYML("")), 0644))
+
+	gatewayMD := `---
+on: workflow_dispatch
+engine: copilot
+permissions:
+  contents: read
+safe-outputs:
+  call-workflow:
+    workflows:
+      - worker-a
+      - worker-a
+---
+
+# Gateway with duplicate worker name
+`
+	gatewayFile := filepath.Join(workflowsDir, "gateway.md")
+	require.NoError(t, os.WriteFile(gatewayFile, []byte(gatewayMD), 0644))
+
+	compiler := NewCompilerWithVersion("1.0.0")
+	err := compiler.CompileWorkflow(gatewayFile)
+	require.Error(t, err, "Should fail for duplicate workflow name")
+	assert.Contains(t, err.Error(), "duplicate", "Error should mention duplicate")
+	assert.Contains(t, err.Error(), "worker-a", "Error should name the duplicate workflow")
+}
+
 // TestCallWorkflowCompile_MDSourceWorker tests that compilation succeeds when the
 // worker only exists as a .md source (same-batch compilation target)
 func TestCallWorkflowCompile_MDSourceWorker(t *testing.T) {

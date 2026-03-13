@@ -29,6 +29,15 @@ func (c *Compiler) validateCallWorkflow(data *WorkflowData, workflowPath string)
 		return errors.New("call-workflow: must specify at least one workflow in the list\n\nExample configuration in workflow frontmatter:\nsafe-outputs:\n  call-workflow:\n    workflows: [workflow-name-1, workflow-name-2]\n\nWorkflow names should match the filename without the .md extension")
 	}
 
+	// Check for duplicate workflow names — each name must appear exactly once
+	seen := make(map[string]int, len(config.Workflows))
+	for i, name := range config.Workflows {
+		if prev, exists := seen[name]; exists {
+			return fmt.Errorf("call-workflow: duplicate workflow name '%s' at index %d (first seen at index %d)\n\nEach workflow may appear only once in the list", name, i, prev)
+		}
+		seen[name] = i
+	}
+
 	// Get the current workflow name for self-reference check
 	currentWorkflowName := getCurrentWorkflowName(workflowPath)
 	callWorkflowValidationLog.Printf("Current workflow name: %s", currentWorkflowName)
