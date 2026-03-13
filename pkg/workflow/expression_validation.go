@@ -574,7 +574,7 @@ func validateExpressionSyntax(group string) error {
 			return NewValidationError(
 				"expression",
 				"empty expression content",
-				"found empty expression '${{ }}' in concurrency group: "+group,
+				"found empty expression '${{ }}' in: "+group,
 				"Provide a valid GitHub Actions expression inside '${{ }}'. Example: '${{ github.ref }}'",
 			)
 		}
@@ -603,7 +603,7 @@ func validateExpressionContent(expr string, fullGroup string) error {
 					"expression",
 					"unbalanced parentheses in expression",
 					fmt.Sprintf("found closing ')' without matching opening '(' at position %d in expression: %s", i, expr),
-					"Ensure all parentheses are properly balanced in your concurrency group expression.",
+					"Ensure all parentheses are properly balanced in your expression.",
 				)
 			}
 		}
@@ -631,8 +631,8 @@ func validateExpressionContent(expr string, fullGroup string) error {
 			return NewValidationError(
 				"expression",
 				"invalid expression syntax",
-				"failed to parse expression in concurrency group: "+err.Error(),
-				"Fix the syntax error in your concurrency group expression. Full expression: "+fullGroup,
+				"failed to parse expression: "+err.Error(),
+				"Fix the syntax error in your expression. Full expression: "+fullGroup,
 			)
 		}
 	}

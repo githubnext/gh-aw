@@ -328,11 +328,11 @@ func formatMissingPermissionsMessage(result *PermissionsValidationResult) string
 // GitHub MCP toolsets. Use ValidateIncludedPermissions (this function) when validating permissions
 // from included/imported workflow files.
 func (c *Compiler) ValidateIncludedPermissions(topPermissionsYAML string, importedPermissionsJSON string) error {
-	permissionsValidationLog.Print("Validating permissions from imports")
+	permissionsValidationLog.Print("Validating included workflow permissions")
 
 	// If no imported permissions, no validation needed
 	if importedPermissionsJSON == "" || importedPermissionsJSON == "{}" {
-		permissionsValidationLog.Print("No imported permissions to validate")
+		permissionsValidationLog.Print("No included workflow permissions to validate")
 		return nil
 	}
 
@@ -459,7 +459,7 @@ func (c *Compiler) ValidateIncludedPermissions(topPermissionsYAML string, import
 		return fmt.Errorf("%s", errorMsg.String())
 	}
 
-	permissionsValidationLog.Print("All imported permissions are satisfied by main workflow")
+	permissionsValidationLog.Print("All included workflow permissions are satisfied by main workflow")
 	return nil
 }
 
