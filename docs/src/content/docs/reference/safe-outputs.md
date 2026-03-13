@@ -945,14 +945,11 @@ Creates discussions with optional `category` (slug, name, or ID; defaults to fir
 
 **Category Naming Standard**: Use lowercase, plural category names (e.g., `audits`, `general`, `reports`) for consistency and better searchability. GitHub Discussion category IDs (starting with `DIC_`) are also supported.
 
-> [!WARNING]
-> Only announcement-capable category succeeds; all non-announcement categories fail with integration-forbidden.
-
 ```yaml wrap
 safe-outputs:
   create-discussion:
     title-prefix: "[ai] "        # prefix for titles
-    category: "announcements"    # category slug, name, or ID (use lowercase, prefer announcement-capable)
+    category: "general"          # category slug, name, or ID (use lowercase)
     expires: 3                   # auto-close after 3 days (or false to disable)
     max: 3                       # max discussions (default: 1)
     target-repo: "owner/repo"    # cross-repository
