@@ -389,13 +389,13 @@ func extractCopilotAPITarget(workflowData *WorkflowData) string {
 		return enterpriseConfig.CopilotAPITarget
 	}
 
-	// Priority 2: server-url will be exported as COPILOT_SERVER_URL environment variable
+	// Priority 2: server-url will be exported as GITHUB_SERVER_URL environment variable
 	// AWF's api-proxy will automatically detect GHEC (*.ghe.com) or GHES (custom domains)
 	// and route to the appropriate endpoint. We don't return the server-url directly here
 	// because AWF needs the full URL for detection, not just the hostname.
-	// The server-url is handled by exporting COPILOT_SERVER_URL in the engine execution steps.
+	// The server-url is handled by exporting GITHUB_SERVER_URL in the engine execution steps.
 	if enterpriseConfig.ServerURL != "" {
-		awfHelpersLog.Printf("Enterprise server-url configured: %s (will be exported as COPILOT_SERVER_URL)", enterpriseConfig.ServerURL)
+		awfHelpersLog.Printf("Enterprise server-url configured: %s (will be exported as GITHUB_SERVER_URL)", enterpriseConfig.ServerURL)
 		// Return empty string - the server-url will be passed via environment variable
 		// and AWF will automatically derive the correct Copilot API endpoint
 		return ""
