@@ -1,8 +1,8 @@
 {
   "compilerOptions": {
-    "target": "es2020",
+    "target": "es2022",
     "module": "commonjs",
-    "lib": ["es2020"],
+    "lib": ["es2022"],
     "types": ["node"],
     "allowJs": true,
     "checkJs": true,
