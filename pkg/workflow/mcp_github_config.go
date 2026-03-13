@@ -261,13 +261,13 @@ func getGitHubGuardPolicies(githubTool any) map[string]any {
 // a linked guard-policy with accept field derived from repos according to these rules:
 //
 // Rules by repos value:
-//   - repos="all" or repos="public": returns nil (write-sink not required, agent secrecy is empty)
+//   - repos="all" or repos="public": accept=["*"] (allow all safe output operations)
 //   - repos=["O/*"]: accept=["private:O"] (owner wildcard → strip wildcard)
 //   - repos=["O/P*"]: accept=["private:O/P*"] (prefix wildcard → keep as-is)
 //   - repos=["O/R"]: accept=["private:O/R"] (specific repo → keep as-is)
 //
-// This allows the gateway to read private data from the GitHub MCP server and still write to safeoutputs.
-// Returns nil if no GitHub guard policies are configured or if repos="all" or repos="public".
+// This allows the gateway to read data from the GitHub MCP server and still write to safeoutputs.
+// Returns nil if no GitHub guard policies are configured.
 func deriveSafeOutputsGuardPolicyFromGitHub(githubTool any) map[string]any {
 	githubPolicies := getGitHubGuardPolicies(githubTool)
 	if githubPolicies == nil {
@@ -294,8 +294,8 @@ func deriveSafeOutputsGuardPolicyFromGitHub(githubTool any) map[string]any {
 		// Single string value (e.g., "all", "public", or a pattern)
 		switch r {
 		case "all", "public":
-			// For "all" or "public", agent secrecy is empty, so write-sink not required
-			return nil
+			// For "all" or "public", accept all safe output operations
+			acceptList = []string{"*"}
 		default:
 			// Single pattern - transform according to rules
 			acceptList = []string{transformRepoPattern(r)}

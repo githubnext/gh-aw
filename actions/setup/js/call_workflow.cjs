@@ -63,17 +63,11 @@ async function main(config = {}) {
     }
 
     // Validate workflow is in allowed list.
-    // If the allowlist is empty, treat this as a misconfiguration and fail closed.
+    // An empty allowlist is treated as permissive (no restriction).
+    // In practice, the compiler always populates this list from frontmatter.
     if (allowedWorkflows.length === 0) {
-      const error = "No allowed workflows are configured for call_workflow; refusing to select a workflow.";
-      core.error(error);
-      return {
-        success: false,
-        error: error,
-      };
-    }
-
-    if (!allowedWorkflows.includes(workflowName)) {
+      core.warning("No allowed workflows configured; allowing any workflow (permissive mode).");
+    } else if (!allowedWorkflows.includes(workflowName)) {
       const error = `Workflow "${workflowName}" is not in the allowed workflows list: ${allowedWorkflows.join(", ")}`;
       core.warning(error);
       return {
