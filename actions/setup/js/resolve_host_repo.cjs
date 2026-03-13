@@ -69,7 +69,13 @@ async function main() {
     core.info(`Same-repo invocation: checking out ${targetRepo} @ ${targetRef}`);
   }
 
+  // Compute the repository name (without owner prefix) for use cases that require
+  // only the repo name, such as actions/create-github-app-token which expects
+  // `repositories` to contain repo names only when `owner` is also provided.
+  const targetRepoName = targetRepo.includes("/") ? targetRepo.substring(targetRepo.indexOf("/") + 1) : targetRepo;
+
   core.setOutput("target_repo", targetRepo);
+  core.setOutput("target_repo_name", targetRepoName);
   core.setOutput("target_ref", targetRef);
 }
 
