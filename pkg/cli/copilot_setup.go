@@ -172,9 +172,9 @@ func upgradeCopilotSetupSteps(verbose bool, actionMode workflow.ActionMode, vers
 func ensureCopilotSetupStepsWithUpgrade(verbose bool, actionMode workflow.ActionMode, version string, upgradeVersion bool) error {
 	copilotSetupLog.Printf("Creating copilot-setup-steps.yml with action mode: %s, version: %s, upgradeVersion: %v", actionMode, version, upgradeVersion)
 
-	// Create a SHA resolver for release mode to enable SHA-pinned action references
+	// Create a SHA resolver for release/action mode to enable SHA-pinned action references
 	var resolver workflow.ActionSHAResolver
-	if actionMode.IsRelease() {
+	if actionMode.IsRelease() || actionMode.IsAction() {
 		cache := workflow.NewActionCache(".")
 		_ = cache.Load() // Ignore errors if cache doesn't exist yet
 		resolver = workflow.NewActionResolver(cache)
@@ -292,11 +292,12 @@ func renderCopilotSetupUpdateInstructions(filePath string, actionMode workflow.A
 	fmt.Fprintln(os.Stderr)
 }
 
-// setupCliUsesPattern matches the uses: line for github/gh-aw/actions/setup-cli.
+// setupCliUsesPattern matches the uses: line for either github/gh-aw/actions/setup-cli
+// or github/gh-aw-actions/setup-cli.
 // It handles unquoted version-tag refs, unquoted SHA-pinned refs (with trailing comment),
 // and quoted refs produced by some YAML marshalers (e.g. "...@sha # vX.Y.Z").
 var setupCliUsesPattern = regexp.MustCompile(
-	`(?m)^(\s+uses:[ \t]*)"?(github/gh-aw/actions/setup-cli@[^"\n]*)"?([ \t]*)$`)
+	`(?m)^(\s+uses:[ \t]*)"?(github/gh-aw(?:-actions)?/(?:actions/)?setup-cli@[^"\n]*)"?([ \t]*)$`)
 
 // upgradeSetupCliVersionInContent replaces the setup-cli action reference and the
 // associated version: parameter in the raw YAML content using targeted regex
@@ -305,7 +306,7 @@ var setupCliUsesPattern = regexp.MustCompile(
 // Returns (upgraded, updatedContent, error).  upgraded is false when no change
 // was required (e.g. already at the target version, or file has no setup-cli step).
 func upgradeSetupCliVersionInContent(content []byte, actionMode workflow.ActionMode, version string, resolver workflow.ActionSHAResolver) (bool, []byte, error) {
-	if !actionMode.IsRelease() {
+	if !actionMode.IsRelease() && !actionMode.IsAction() {
 		return false, content, nil
 	}
 
@@ -314,7 +315,11 @@ func upgradeSetupCliVersionInContent(content []byte, actionMode workflow.ActionM
 	}
 
 	actionRef := getActionRef(actionMode, version, resolver)
-	newUses := "github/gh-aw/actions/setup-cli" + actionRef
+	actionRepo := "github/gh-aw/actions/setup-cli"
+	if actionMode.IsAction() {
+		actionRepo = "github/gh-aw-actions/setup-cli"
+	}
+	newUses := actionRepo + actionRef
 
 	// Replace the uses: line, stripping any surrounding quotes in the process.
 	updated := setupCliUsesPattern.ReplaceAll(content, []byte("${1}"+newUses+"${3}"))
