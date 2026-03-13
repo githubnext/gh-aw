@@ -194,11 +194,6 @@ jobs:
           path: dist/
           retention-days: 1
 
-  sync_actions:
-    needs: ["pre_activation", "activation", "config", "push_tag"]
-    runs-on: ubuntu-latest
-    environment: gh-aw-actions-release
-    steps:
       - name: Notify - run sync actions and merge PR
         env:
           RELEASE_TAG: ${{ needs.config.outputs.release_tag }}
@@ -216,6 +211,14 @@ jobs:
 
           echo "Sync actions instructions written for release: $RELEASE_TAG"
           echo "Ensure the sync-actions job has been run and the PR merged in github/gh-aw-actions before approving."
+
+  sync_actions:
+    needs: ["pre_activation", "activation", "config", "push_tag"]
+    runs-on: ubuntu-latest
+    environment: gh-aw-actions-release
+    steps:
+      - name: Await manual approval
+        run: echo "Manual approval received. Continuing release."
 
   release:
     needs: ["pre_activation", "activation", "config", "sync_actions"]
