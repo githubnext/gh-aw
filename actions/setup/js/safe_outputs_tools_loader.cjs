@@ -38,6 +38,15 @@ function loadTools(server) {
       });
     }
 
+    // Log details about call_workflow tools for debugging
+    const callWorkflowTools = tools.filter(t => t._call_workflow_name);
+    if (callWorkflowTools.length > 0) {
+      server.debug(`  Found ${callWorkflowTools.length} call_workflow tools:`);
+      callWorkflowTools.forEach(t => {
+        server.debug(`    - ${t.name} (workflow: ${t._call_workflow_name})`);
+      });
+    }
+
     return tools;
   } catch (error) {
     server.debug(`Error reading tools file: ${getErrorMessage(error)}`);
@@ -75,6 +84,19 @@ function attachHandlers(tools, handlers) {
       tool.handler = args => {
         // Wrap args in inputs property to match dispatch_workflow schema
         return handlers.defaultHandler("dispatch_workflow")({
+          inputs: args,
+          workflow_name: workflowName,
+        });
+      };
+    }
+
+    // Check if this is a call_workflow tool (dynamic tool with call workflow metadata)
+    if (tool._call_workflow_name) {
+      // Create a custom handler that wraps args in inputs and adds workflow_name
+      const workflowName = tool._call_workflow_name;
+      tool.handler = args => {
+        // Wrap args in inputs property to match call_workflow schema
+        return handlers.defaultHandler("call_workflow")({
           inputs: args,
           workflow_name: workflowName,
         });
@@ -136,6 +158,21 @@ function registerPredefinedTools(server, tools, config, registerTool, normalizeT
         server.debug(`  WARNING: dispatch_workflow config is missing or falsy - tool will NOT be registered`);
         server.debug(`  Config keys: ${Object.keys(config).join(", ")}`);
         server.debug(`  config.dispatch_workflow value: ${JSON.stringify(config.dispatch_workflow)}`);
+      }
+    }
+
+    // Check if this is a call_workflow tool (has _call_workflow_name metadata)
+    // These tools are dynamically generated with workflow-specific names
+    if (tool._call_workflow_name) {
+      server.debug(`Found call_workflow tool: ${tool.name} (_call_workflow_name: ${tool._call_workflow_name})`);
+      if (config.call_workflow) {
+        server.debug(`  call_workflow config exists, registering tool`);
+        registerTool(server, tool);
+        return;
+      } else {
+        server.debug(`  WARNING: call_workflow config is missing or falsy - tool will NOT be registered`);
+        server.debug(`  Config keys: ${Object.keys(config).join(", ")}`);
+        server.debug(`  config.call_workflow value: ${JSON.stringify(config.call_workflow)}`);
       }
     }
   });

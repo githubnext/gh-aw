@@ -6582,6 +6582,59 @@
           ],
           "description": "Dispatch workflow_dispatch events to other workflows. Used by orchestrators to delegate work to worker workflows with controlled maximum dispatch count."
         },
+        "call-workflow": {
+          "oneOf": [
+            {
+              "type": "object",
+              "description": "Configuration for calling reusable workflows via workflow_call fan-out. The compiler generates conditional `uses:` jobs at compile time; the agent selects which worker to activate at runtime.",
+              "properties": {
+                "workflows": {
+                  "type": "array",
+                  "description": "List of workflow names (without .md extension) to allow calling. Each workflow must exist in .github/workflows/ and declare a workflow_call trigger.",
+                  "items": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "minItems": 1,
+                  "maxItems": 50
+                },
+                "max": {
+                  "description": "Maximum number of workflow_call fan-out operations per run (default: 1, max: 50). Supports integer or GitHub Actions expression (e.g. '${{ inputs.max }}').",
+                  "oneOf": [
+                    {
+                      "type": "integer",
+                      "minimum": 1,
+                      "maximum": 50,
+                      "default": 1
+                    },
+                    {
+                      "type": "string",
+                      "pattern": "^\\$\\{\\{.*\\}\\}$",
+                      "description": "GitHub Actions expression that resolves to an integer at runtime"
+                    }
+                  ]
+                },
+                "github-token": {
+                  "$ref": "#/$defs/github_token",
+                  "description": "GitHub token passed to called workflows. Overrides global github-token if specified."
+                }
+              },
+              "required": ["workflows"],
+              "additionalProperties": false
+            },
+            {
+              "type": "array",
+              "description": "Shorthand array format: list of workflow names (without .md extension) to allow calling",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              },
+              "minItems": 1,
+              "maxItems": 50
+            }
+          ],
+          "description": "Call reusable workflows via workflow_call fan-out. The compiler generates static conditional jobs; the agent selects which worker to activate. Use this for orchestrator/dispatcher patterns within the same repository."
+        },
         "missing-tool": {
           "oneOf": [
             {
