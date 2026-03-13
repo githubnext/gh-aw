@@ -1421,6 +1421,13 @@ engine:
   # (optional)
   agent: "example-value"
 
+  # Custom API endpoint hostname for the agentic engine. Used for GitHub Enterprise
+  # Cloud (GHEC), GitHub Enterprise Server (GHES), or custom AI endpoints.
+  # Accepts a hostname only (no protocol or path).
+  # Examples: "api.acme.ghe.com" (GHEC), "api.enterprise.githubcopilot.com" (GHES)
+  # (optional)
+  api-target: "example-value"
+
   # Optional array of command-line arguments to pass to the AI engine CLI. These
   # arguments are injected after all other args but before the prompt.
   # (optional)

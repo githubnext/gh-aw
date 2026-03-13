@@ -32,6 +32,7 @@ engine:
   command: /usr/local/bin/copilot       # custom executable path
   args: ["--add-dir", "/workspace"]     # custom CLI arguments
   agent: agent-id                       # custom agent file identifier
+  api-target: api.acme.ghe.com          # custom API endpoint hostname (GHEC/GHES)
 ```
 
 ### Pinning a Specific Engine Version
@@ -91,7 +92,52 @@ engine:
 
 Environment variables can also be defined at workflow, job, step, and other scopes. See [Environment Variables](/gh-aw/reference/environment-variables/) for complete documentation on precedence and all 13 env scopes.
 
-#### Custom API Endpoints
+### Enterprise API Endpoint (`api-target`)
+
+The `api-target` field specifies a custom API endpoint hostname for the agentic engine. Use this when running workflows against GitHub Enterprise Cloud (GHEC), GitHub Enterprise Server (GHES), or any custom AI endpoint.
+
+```yaml wrap
+engine:
+  id: copilot
+  api-target: api.acme.ghe.com
+network:
+  allowed:
+    - defaults
+    - acme.ghe.com
+    - api.acme.ghe.com
+```
+
+The value must be a hostname only — no protocol or path (e.g., `api.acme.ghe.com`, not `https://api.acme.ghe.com/v1`). The field works with any engine.
+
+**GHEC example** — specify your tenant-specific Copilot endpoint:
+
+```yaml wrap
+engine:
+  id: copilot
+  api-target: api.acme.ghe.com
+network:
+  allowed:
+    - defaults
+    - acme.ghe.com
+    - api.acme.ghe.com
+```
+
+**GHES example** — use the enterprise Copilot endpoint:
+
+```yaml wrap
+engine:
+  id: copilot
+  api-target: api.enterprise.githubcopilot.com
+network:
+  allowed:
+    - defaults
+    - github.company.com
+    - api.enterprise.githubcopilot.com
+```
+
+The specified hostname must also be listed in `network.allowed` for the firewall to permit outbound requests.
+
+#### Custom API Endpoints via Environment Variables
 
 Two environment variables receive special treatment when set in `engine.env`: `OPENAI_BASE_URL` (for `codex`) and `ANTHROPIC_BASE_URL` (for `claude`). When either is present, the AWF sandbox proxy automatically routes API calls to the specified host instead of the default `api.openai.com` or `api.anthropic.com`. Credential isolation and firewall enforcement remain active.
 
