@@ -862,3 +862,147 @@ This workflow tests the create-pull-request with default fallback-as-issue behav
 		t.Error("Did not expect fallback_as_issue:false in handler config JSON when using default")
 	}
 }
+
+func TestOutputPullRequestPreserveBranchName(t *testing.T) {
+	// Create temporary directory for test files
+	tmpDir := testutil.TempDir(t, "output-pr-preserve-branch-test")
+
+	// Test case with create-pull-request configuration with preserve-branch-name: true
+	testContent := `---
+on: push
+permissions:
+  contents: read
+  pull-requests: read
+engine: claude
+strict: false
+safe-outputs:
+  create-pull-request:
+    title-prefix: "[test] "
+    preserve-branch-name: true
+---
+
+# Test Output Pull Request Preserve Branch Name
+
+This workflow tests the create-pull-request with preserve-branch-name enabled.
+`
+
+	testFile := filepath.Join(tmpDir, "test-output-pr-preserve-branch.md")
+	if err := os.WriteFile(testFile, []byte(testContent), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	compiler := NewCompiler()
+
+	// Parse the workflow data
+	workflowData, err := compiler.ParseWorkflowFile(testFile)
+	if err != nil {
+		t.Fatalf("Unexpected error parsing workflow with preserve-branch-name: true: %v", err)
+	}
+
+	// Verify that preserve-branch-name is parsed correctly
+	if workflowData.SafeOutputs == nil {
+		t.Fatal("Expected output configuration to be parsed")
+	}
+
+	if workflowData.SafeOutputs.CreatePullRequests == nil {
+		t.Fatal("Expected pull-request configuration to be parsed")
+	}
+
+	if !workflowData.SafeOutputs.CreatePullRequests.PreserveBranchName {
+		t.Error("Expected preserve-branch-name to be true")
+	}
+
+	// Compile the workflow
+	if err := compiler.CompileWorkflow(testFile); err != nil {
+		t.Fatalf("Unexpected error compiling workflow with preserve-branch-name: true: %v", err)
+	}
+
+	// Read the generated lock file
+	lockFile := stringutil.MarkdownToLockFile(testFile)
+	lockContent, err := os.ReadFile(lockFile)
+	if err != nil {
+		t.Fatalf("Failed to read generated lock file: %v", err)
+	}
+
+	// Convert to string for easier testing
+	lockContentStr := string(lockContent)
+
+	// Verify GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG is present
+	if !strings.Contains(lockContentStr, "GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG") {
+		t.Error("Expected GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG environment variable")
+	}
+
+	// Verify preserve_branch_name is present in the handler config JSON
+	if !strings.Contains(lockContentStr, `preserve_branch_name\":true`) {
+		t.Error("Expected preserve_branch_name:true in handler config JSON")
+	}
+}
+
+func TestOutputPullRequestPreserveBranchNameDefault(t *testing.T) {
+	// Create temporary directory for test files
+	tmpDir := testutil.TempDir(t, "output-pr-preserve-branch-default-test")
+
+	// Test case with create-pull-request configuration without preserve-branch-name (default)
+	testContent := `---
+on: push
+permissions:
+  contents: read
+  pull-requests: read
+engine: claude
+strict: false
+safe-outputs:
+  create-pull-request:
+    title-prefix: "[test] "
+---
+
+# Test Output Pull Request Preserve Branch Name Default
+
+This workflow tests the create-pull-request without preserve-branch-name (default behavior).
+`
+
+	testFile := filepath.Join(tmpDir, "test-output-pr-preserve-branch-default.md")
+	if err := os.WriteFile(testFile, []byte(testContent), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	compiler := NewCompiler()
+
+	// Parse the workflow data
+	workflowData, err := compiler.ParseWorkflowFile(testFile)
+	if err != nil {
+		t.Fatalf("Unexpected error parsing workflow without preserve-branch-name: %v", err)
+	}
+
+	// Verify that preserve-branch-name defaults to false
+	if workflowData.SafeOutputs == nil {
+		t.Fatal("Expected output configuration to be parsed")
+	}
+
+	if workflowData.SafeOutputs.CreatePullRequests == nil {
+		t.Fatal("Expected pull-request configuration to be parsed")
+	}
+
+	if workflowData.SafeOutputs.CreatePullRequests.PreserveBranchName {
+		t.Error("Expected preserve-branch-name to default to false")
+	}
+
+	// Compile the workflow
+	if err := compiler.CompileWorkflow(testFile); err != nil {
+		t.Fatalf("Unexpected error compiling workflow without preserve-branch-name: %v", err)
+	}
+
+	// Read the generated lock file
+	lockFile := stringutil.MarkdownToLockFile(testFile)
+	lockContent, err := os.ReadFile(lockFile)
+	if err != nil {
+		t.Fatalf("Failed to read generated lock file: %v", err)
+	}
+
+	// Convert to string for easier testing
+	lockContentStr := string(lockContent)
+
+	// When not explicitly set, preserve_branch_name should NOT be in the config
+	if strings.Contains(lockContentStr, `preserve_branch_name`) {
+		t.Error("Did not expect preserve_branch_name in handler config JSON when using default")
+	}
+}

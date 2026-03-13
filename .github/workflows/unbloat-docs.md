@@ -30,6 +30,7 @@ engine:
 imports:
   - shared/reporting.md
   - shared/docs-server-lifecycle.md
+  - shared/mcp/qmd-docs.md
 
 # Network access for documentation best practices research
 network:

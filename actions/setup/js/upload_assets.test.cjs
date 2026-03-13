@@ -59,7 +59,7 @@ const mockCore = { debug: vi.fn(), info: vi.fn(), notice: vi.fn(), warning: vi.f
         it("should normalize branch names correctly", async () => {
           ((process.env.GH_AW_ASSETS_BRANCH = "assets/My Branch!@#$%"), (process.env.GH_AW_SAFE_OUTPUTS_STAGED = "false"), setAgentOutput({ items: [] }), await executeScript());
           const branchNameCall = mockCore.setOutput.mock.calls.find(call => "branch_name" === call[0]);
-          (expect(branchNameCall).toBeDefined(), expect(branchNameCall[1]).toBe("assets/my-branch"));
+          (expect(branchNameCall).toBeDefined(), expect(branchNameCall[1]).toBe("assets/My-Branch"));
         });
       }),
       describe("branch prefix validation", () => {

@@ -121,6 +121,7 @@ async function main(config = {}) {
   const ifNoChanges = config.if_no_changes || "warn";
   const allowEmpty = parseBoolTemplatable(config.allow_empty, false);
   const autoMerge = parseBoolTemplatable(config.auto_merge, false);
+  const preserveBranchName = config.preserve_branch_name === true;
   const expiresHours = config.expires ? parseInt(String(config.expires), 10) : 0;
   const maxCount = config.max || 1; // PRs are typically limited to 1
   const maxSizeKb = config.max_patch_size ? parseInt(String(config.max_patch_size), 10) : 1024;
@@ -527,18 +528,26 @@ async function main(config = {}) {
 
     let bodyLines = processedBody.split("\n");
     let branchName = pullRequestItem.branch ? pullRequestItem.branch.trim() : null;
+    const randomHex = crypto.randomBytes(8).toString("hex");
 
     // SECURITY: Sanitize branch name to prevent shell injection (CWE-78)
-    // Branch names from user input must be normalized before use in git commands
+    // Branch names from user input must be normalized before use in git commands.
+    // When preserve-branch-name is disabled (default), a random salt suffix is
+    // appended to avoid collisions.
     if (branchName) {
       const originalBranchName = branchName;
-      branchName = normalizeBranchName(branchName);
+      branchName = normalizeBranchName(branchName, preserveBranchName ? null : randomHex);
 
       // Validate it's not empty after normalization
       if (!branchName) {
         throw new Error(`Invalid branch name: sanitization resulted in empty string (original: "${originalBranchName}")`);
       }
 
+      if (preserveBranchName) {
+        core.info(`Using branch name from JSONL without salt suffix (preserve-branch-name enabled): ${branchName}`);
+      } else {
+        core.info(`Using branch name from JSONL with added salt: ${branchName}`);
+      }
       if (originalBranchName !== branchName) {
         core.info(`Branch name sanitized: "${originalBranchName}" -> "${branchName}"`);
       }
@@ -623,15 +632,10 @@ async function main(config = {}) {
     core.info(`Draft: ${draft}`);
     core.info(`Body length: ${body.length}`);
 
-    const randomHex = crypto.randomBytes(8).toString("hex");
-    // Use branch name from JSONL if provided, otherwise generate unique branch name
+    // When no branch name was provided by the agent, generate a unique one.
     if (!branchName) {
       core.info("No branch name provided in JSONL, generating unique branch name");
-      // Generate unique branch name using cryptographic random hex
       branchName = `${workflowId}-${randomHex}`;
-    } else {
-      branchName = `${branchName}-${randomHex}`;
-      core.info(`Using branch name from JSONL with added salt: ${branchName}`);
     }
 
     core.info(`Generated branch name: ${branchName}`);

@@ -46,6 +46,9 @@ tools:
 
 timeout-minutes: 45
 
+imports:
+  - shared/mcp/qmd-docs.md
+
 ---
 
 {{#runtime-import? .github/shared-instructions.md}}
