@@ -172,12 +172,14 @@ func (e *CodexEngine) GetExecutionSteps(workflowData *WorkflowData, logFile stri
 	modelParam := fmt.Sprintf(`${%s:+-c model="$%s" }`, modelEnvVar, modelEnvVar)
 
 	// Build search parameter: disable web search by default, enable only if web-search tool is present.
-	// Codex enables web search by default, so we must explicitly pass --no-search to disable it.
-	// See https://developers.openai.com/codex/cli/features/#web-search
+	// Codex enables web search by default, so we must explicitly set web_search="disabled" to disable it.
+	// The --no-search flag does not exist; use the -c web_search="disabled" config option instead.
+	// See https://developers.openai.com/codex/cli/features#web-search
 	// Leading space is intentional: the format string concatenates this directly after "exec" with no space separator.
-	webSearchParam := " --no-search"
+	webSearchParam := ` -c web_search="disabled"`
 	if workflowData.ParsedTools != nil && workflowData.ParsedTools.WebSearch != nil {
-		webSearchParam = " --search"
+		// Web search is enabled by default in Codex; no extra flag needed.
+		webSearchParam = ""
 	}
 
 	// See https://github.com/github/gh-aw/issues/892
