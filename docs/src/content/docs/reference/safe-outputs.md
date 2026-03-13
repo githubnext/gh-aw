@@ -949,7 +949,7 @@ Creates discussions with optional `category` (slug, name, or ID; defaults to fir
 safe-outputs:
   create-discussion:
     title-prefix: "[ai] "        # prefix for titles
-    category: "general"          # category slug, name, or ID (use lowercase)
+    category: "announcements"    # category slug, name, or ID (use lowercase)
     expires: 3                   # auto-close after 3 days (or false to disable)
     max: 3                       # max discussions (default: 1)
     target-repo: "owner/repo"    # cross-repository

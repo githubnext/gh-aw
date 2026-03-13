@@ -277,8 +277,8 @@ describe("create_discussion category normalization", () => {
     expect(createMutationCall[1].categoryId).toBe("DIC_kwDOGFsHUM4BsUn1"); // General (first)
   });
 
-  it("should fallback to first category when no category specified and Announcements available", async () => {
-    // Mock categories with Announcements available - but it should NOT be preferred
+  it("should prefer Announcements category when no category specified", async () => {
+    // Mock categories with Announcements available
     mockGithub.graphql = vi.fn().mockImplementation((query, variables) => {
       if (query.includes("discussionCategories")) {
         return Promise.resolve({
@@ -340,14 +340,14 @@ describe("create_discussion category normalization", () => {
     expect(result.success).toBe(true);
     expect(result.number).toBe(42);
 
-    // Verify first category (General) was used, not Announcements
+    // Verify Announcements category was used (not General which is first)
     const createMutationCall = mockGithub.graphql.mock.calls.find(call => call[0].includes("createDiscussion"));
     expect(createMutationCall).toBeDefined();
-    expect(createMutationCall[1].categoryId).toBe("DIC_kwDOGFsHUM4BsUn1"); // General (first)
+    expect(createMutationCall[1].categoryId).toBe("DIC_kwDOGFsHUM4BsUn4"); // Announcements
   });
 
-  it("should fallback to first category when non-existent category specified", async () => {
-    // Mock categories with Announcements available - but first category should be used as fallback
+  it("should prefer Announcements category when non-existent category specified", async () => {
+    // Mock categories with Announcements available
     mockGithub.graphql = vi.fn().mockImplementation((query, variables) => {
       if (query.includes("discussionCategories")) {
         return Promise.resolve({
@@ -403,9 +403,9 @@ describe("create_discussion category normalization", () => {
     expect(result.success).toBe(true);
     expect(result.number).toBe(42);
 
-    // Verify first category (General) was used as fallback, not Announcements
+    // Verify Announcements category was used (not General which is first)
     const createMutationCall = mockGithub.graphql.mock.calls.find(call => call[0].includes("createDiscussion"));
     expect(createMutationCall).toBeDefined();
-    expect(createMutationCall[1].categoryId).toBe("DIC_kwDOGFsHUM4BsUn1"); // General (first)
+    expect(createMutationCall[1].categoryId).toBe("DIC_kwDOGFsHUM4BsUn4"); // Announcements
   });
 });
