@@ -8,20 +8,18 @@ GitHub Agentic Workflows automatically detects your GitHub environment and confi
 
 ## Automatic Detection (Recommended)
 
-AWF automatically detects GitHub Enterprise environments based on the `GITHUB_SERVER_URL` environment variable, which is set by GitHub Actions in enterprise environments.
+AWF automatically detects GitHub Enterprise environments based on the `GITHUB_SERVER_URL` environment variable, which is set by GitHub Actions in enterprise environments, unless you explicitly override detection with `engine.enterprise.server-url` in your workflow frontmatter.
 
 ### GitHub Enterprise Cloud (GHEC)
 
 For GHEC tenants (domains ending with `.ghe.com`), AWF automatically extracts the subdomain and routes to the tenant-specific API endpoint.
 
-**Workflow Configuration:**
+**Workflow Configuration (automatic detection):**
 
 ```yaml
 ---
 engine:
   id: copilot
-  enterprise:
-    server-url: "https://acme.ghe.com"
 network:
   allowed:
     - defaults
@@ -36,6 +34,15 @@ network:
 3. Extracts the subdomain (e.g., `acme` from `acme.ghe.com`)
 4. Routes Copilot API traffic to `api.acme.ghe.com`
 
+If `GITHUB_SERVER_URL` is not set (for example, when running outside of GitHub Actions) or you need to force a specific tenant, you can override automatic detection by adding an explicit server URL:
+
+```yaml
+engine:
+  id: copilot
+  enterprise:
+    server-url: "https://acme.ghe.com"
+```
+
 **Required domains in network allowlist:**
 - `acme.ghe.com` - Your GHEC tenant domain (git operations, web UI)
 - `api.acme.ghe.com` - Your tenant-specific Copilot API endpoint
@@ -43,22 +50,29 @@ network:
 
 ### GitHub Enterprise Server (GHES)
 
-For GHES instances (custom domains), AWF automatically routes to the enterprise Copilot endpoint.
+For GHES instances (custom domains), AWF automatically routes to the enterprise Copilot endpoint based on `GITHUB_SERVER_URL`.
 
-**Workflow Configuration:**
+**Workflow Configuration (automatic detection):**
 
 ```yaml
 ---
 engine:
   id: copilot
-  enterprise:
-    server-url: "https://github.company.com"
 network:
   allowed:
     - defaults
     - github.company.com
     - api.enterprise.githubcopilot.com
 ---
+```
+
+If `GITHUB_SERVER_URL` is not available or you need to force a specific GHES URL, you can override automatic detection with:
+
+```yaml
+engine:
+  id: copilot
+  enterprise:
+    server-url: "https://github.company.com"
 ```
 
 **How it works:**
