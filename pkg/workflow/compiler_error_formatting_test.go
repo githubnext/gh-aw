@@ -4,6 +4,7 @@ package workflow
 
 import (
 	"errors"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -28,6 +29,7 @@ func TestFormatCompilerError(t *testing.T) {
 			cause:    nil,
 			wantContain: []string{
 				"/path/to/workflow.md",
+				"1:1",
 				"error",
 				"validation failed",
 			},
@@ -40,6 +42,7 @@ func TestFormatCompilerError(t *testing.T) {
 			cause:    nil,
 			wantContain: []string{
 				"/path/to/workflow.md",
+				"1:1",
 				"warning",
 				"missing required permission",
 			},
@@ -52,6 +55,7 @@ func TestFormatCompilerError(t *testing.T) {
 			cause:    errors.New("syntax error at line 42"),
 			wantContain: []string{
 				"/path/to/workflow.md",
+				"1:1",
 				"error",
 				"failed to parse YAML",
 			},
@@ -64,6 +68,7 @@ func TestFormatCompilerError(t *testing.T) {
 			cause:    nil,
 			wantContain: []string{
 				"/path/to/workflow.lock.yml",
+				"1:1",
 				"error",
 				"failed to write lock file",
 			},
@@ -76,6 +81,7 @@ func TestFormatCompilerError(t *testing.T) {
 			cause:    errors.New("underlying error"),
 			wantContain: []string{
 				"test.md",
+				"1:1",
 				"error",
 				"failed to generate YAML: syntax error",
 			},
@@ -109,8 +115,8 @@ func TestFormatCompilerError_OutputFormat(t *testing.T) {
 
 	// Verify the error format contains the standard compiler error structure
 	assert.Contains(t, errStr, "/test/workflow.md", "Should contain file path")
-	// When no position is known, line:col is suppressed (no misleading 1:1)
-	assert.NotContains(t, errStr, "1:1", "Should not contain misleading 1:1 position")
+	// formatCompilerError always uses 1:1 so IDE tooling can navigate to the file
+	assert.Contains(t, errStr, "1:1", "Should contain line:column for IDE integration")
 	assert.Contains(t, errStr, "error", "Should contain error type")
 	assert.Contains(t, errStr, "test message", "Should contain message")
 }
@@ -190,6 +196,29 @@ func TestFormatCompilerError_ErrorWrapping(t *testing.T) {
 	// Verify formatted message is in the error string
 	assert.Contains(t, wrappedErr.Error(), "test.md")
 	assert.Contains(t, wrappedErr.Error(), "validation failed")
+	// Verify the formatted string does NOT include the cause text (no duplication)
+	assert.NotContains(t, wrappedErr.Error(), "underlying validation error", "Error() should not duplicate cause text")
+}
+
+// TestFormatCompilerError_SameMessageAndCause verifies the common pattern where err.Error()
+// is passed as both message and cause: the displayed string stays clean and errors.Is still works.
+func TestFormatCompilerError_SameMessageAndCause(t *testing.T) {
+	underlying := errors.New("yaml syntax error")
+
+	// This is the most common call pattern in compiler.go:
+	//   return formatCompilerError(path, "error", err.Error(), err)
+	wrappedErr := formatCompilerError("test.md", "error", underlying.Error(), underlying)
+
+	require.Error(t, wrappedErr)
+
+	// errors.Is must still work even though message == cause.Error()
+	require.ErrorIs(t, wrappedErr, underlying, "Should preserve error chain even when message == cause.Error()")
+
+	// The Error() string should contain the message exactly once
+	errStr := wrappedErr.Error()
+	assert.Contains(t, errStr, "yaml syntax error", "Should contain message")
+	count := strings.Count(errStr, "yaml syntax error")
+	assert.Equal(t, 1, count, "Message should appear exactly once in error string (no duplication)")
 }
 
 // TestFormatCompilerError_NilCause verifies that nil cause creates a new error
