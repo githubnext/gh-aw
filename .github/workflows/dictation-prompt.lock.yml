@@ -28,7 +28,7 @@
 #     - shared/mcp/qmd-docs.md
 #     - shared/reporting.md
 #
-# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"06d87876523bb7d9b4f99d72c34ff0965474e7b4ca8f7e657a276596b119b594","strict":true}
+# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"72d1d25bc156ccebfac8eee35d8c93d54f73566cf905ede4ad9ef2839d7e9d7c","strict":true}
 
 name: "Dictation Prompt Generator"
 "on":
@@ -293,7 +293,7 @@ jobs:
       - name: Install QMD
         run: npm install -g @tobilu/qmd
       - name: Restore QMD index cache
-        uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        uses: actions/cache/restore@cdf6c1fa76f9f475f3d7449005a359c84ca0f306 # v5.0.3
         with:
           key: qmd-docs-${{ hashFiles('docs/src/content/docs/**', '.github/agents/**', '.github/aw/**') }}
           path: ~/.cache/qmd

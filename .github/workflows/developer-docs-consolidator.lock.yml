@@ -29,7 +29,7 @@
 #     - shared/mcp/serena-go.md
 #     - shared/reporting.md
 #
-# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"04ab9b346523011c327645a8bfdd1d836c37666cd30bb4509fc9a1973c797275","strict":true}
+# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"732634914b81e13a23826ef3a151b3fe6c07421c3dd0a1f8f3f4d9b399062031","strict":true}
 
 name: "Developer Documentation Consolidator"
 "on":
@@ -325,7 +325,7 @@ jobs:
       - name: Install QMD
         run: npm install -g @tobilu/qmd
       - name: Restore QMD index cache
-        uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        uses: actions/cache/restore@cdf6c1fa76f9f475f3d7449005a359c84ca0f306 # v5.0.3
         with:
           key: qmd-docs-${{ hashFiles('docs/src/content/docs/**', '.github/agents/**', '.github/aw/**') }}
           path: ~/.cache/qmd

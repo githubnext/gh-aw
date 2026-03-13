@@ -35,10 +35,10 @@ The `on:` section uses standard GitHub Actions syntax to define workflow trigger
 - `forks:` - Configure fork filtering for pull_request triggers
 - `skip-roles:` - Skip workflow execution for specific repository roles
 - `skip-bots:` - Skip workflow execution for specific GitHub actors
-- `skip-if-match:` - Skip execution when a search query has matches (supports `scope`, `github-token`, `github-app`)
-- `skip-if-no-match:` - Skip execution when a search query has no matches (supports `scope`, `github-token`, `github-app`)
-- `github-token:` - Custom token for activation job reactions and status comments
-- `github-app:` - GitHub App for minting a short-lived token used by the activation job
+- `skip-if-match:` - Skip execution when a search query has matches (supports `scope: none`; use top-level `on.github-token` / `on.github-app` for custom auth)
+- `skip-if-no-match:` - Skip execution when a search query has no matches (supports `scope: none`; use top-level `on.github-token` / `on.github-app` for custom auth)
+- `github-token:` - Custom token for activation job reactions, status comments, and skip-if search queries
+- `github-app:` - GitHub App for minting a short-lived token used by the activation job and all skip-if search steps
 
 See [Trigger Events](/gh-aw/reference/triggers/) for complete documentation.
 
@@ -419,7 +419,7 @@ features:
 
 #### Action Mode (`features.action-mode`)
 
-Controls how the workflow compiler generates custom action references in compiled workflows. Can be set to `"dev"`, `"release"`, or `"script"`.
+Controls how the workflow compiler generates custom action references in compiled workflows. Can be set to `"dev"`, `"release"`, `"action"`, or `"script"`.
 
 ```yaml wrap
 features:
@@ -430,7 +430,9 @@ features:
 
 - **`dev`** (default): References custom actions using local paths (e.g., `uses: ./actions/setup`). Best for development and testing workflows in the gh-aw repository.
 
-- **`release`**: References custom actions using SHA-pinned remote paths (e.g., `uses: github/gh-aw/actions/setup@sha`). Used for production workflows with version pinning.
+- **`release`**: References custom actions using SHA-pinned remote paths within `github/gh-aw` (e.g., `uses: github/gh-aw/actions/setup@sha`). Used for production workflows with version pinning.
+
+- **`action`**: References custom actions from the `github/gh-aw-actions` external repository at the same release version (e.g., `uses: github/gh-aw-actions/setup@sha`). Uses SHA pinning when available, with a version-tag fallback. Use this when deploying workflows from the `github/gh-aw-actions` distribution repository.
 
 - **`script`**: Generates direct shell script calls instead of using GitHub Actions `uses:` syntax. The compiler:
   1. Checks out the `github/gh-aw` repository's `actions` folder to `/tmp/gh-aw/actions-source`

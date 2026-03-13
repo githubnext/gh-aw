@@ -24,15 +24,18 @@ mcp-servers:
       - multi_get
       - status
 
+resources:
+  - .github/workflows/qmd-docs-indexer.yml
+
 steps:
   - name: Setup Node.js
-    uses: actions/setup-node@v4
+    uses: actions/setup-node@v6.3.0
     with:
       node-version: "24"
   - name: Install QMD
     run: npm install -g @tobilu/qmd
   - name: Restore QMD index cache
-    uses: actions/cache/restore@v4
+    uses: actions/cache/restore@v5.0.3
     with:
       path: ~/.cache/qmd
       key: qmd-docs-${{ hashFiles('docs/src/content/docs/**', '.github/agents/**', '.github/aw/**') }}

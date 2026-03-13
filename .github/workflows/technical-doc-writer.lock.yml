@@ -29,7 +29,7 @@
 #     - ../skills/documentation/SKILL.md
 #     - shared/mcp/qmd-docs.md
 #
-# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"ff83f6edccccc4e75b6305b5374e23aba06ee6be27e5dd9fd6cb4cc33839f052","strict":true}
+# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"0ac7791428d6c94f2d22b6c851aafc12a712559a3b70350b0832fce5c56805b8","strict":true}
 
 name: "Rebuild the documentation after making changes"
 "on":
@@ -343,7 +343,7 @@ jobs:
       - name: Install QMD
         run: npm install -g @tobilu/qmd
       - name: Restore QMD index cache
-        uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        uses: actions/cache/restore@cdf6c1fa76f9f475f3d7449005a359c84ca0f306 # v5.0.3
         with:
           key: qmd-docs-${{ hashFiles('docs/src/content/docs/**', '.github/agents/**', '.github/aw/**') }}
           path: ~/.cache/qmd

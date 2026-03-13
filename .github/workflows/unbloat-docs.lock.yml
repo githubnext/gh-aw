@@ -29,7 +29,7 @@
 #     - shared/mcp/qmd-docs.md
 #     - shared/reporting.md
 #
-# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"f80a0d009fbcd00205e16fe0c698bd48fd56c0dfbf5a0130608b7e7e99b7adc3","strict":true}
+# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"ed026f4f498e95b8d244af2d6ad2feb3a1d2c4d00f2aa3ab3eb2f92d5249605d","strict":true}
 
 name: "Documentation Unbloat"
 "on":
@@ -345,7 +345,7 @@ jobs:
       - name: Install QMD
         run: npm install -g @tobilu/qmd
       - name: Restore QMD index cache
-        uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        uses: actions/cache/restore@cdf6c1fa76f9f475f3d7449005a359c84ca0f306 # v5.0.3
         with:
           key: qmd-docs-${{ hashFiles('docs/src/content/docs/**', '.github/agents/**', '.github/aw/**') }}
           path: ~/.cache/qmd

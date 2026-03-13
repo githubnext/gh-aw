@@ -558,7 +558,8 @@ on:
 
   # Conditionally skip workflow execution when a GitHub search query has matches.
   # Can be a string (query only, implies max=1) or an object with 'query', optional
-  # 'max', 'scope', 'github-token', and 'github-app' fields.
+  # 'max', and 'scope' fields. Use top-level on.github-token or on.github-app for
+  # custom authentication.
   # (optional)
   # This field supports multiple formats (oneOf):
 
@@ -569,7 +570,8 @@ on:
   skip-if-match: "example-value"
 
   # Option 2: Skip-if-match configuration object with query, maximum match count,
-  # and optional scope/auth settings
+  # and optional scope. For custom authentication use the top-level on.github-token
+  # or on.github-app fields.
   skip-if-match:
     # GitHub search query string to check before running workflow. Query is
     # automatically scoped to the current repository.
@@ -592,34 +594,10 @@ on:
     # (optional)
     scope: "none"
 
-    # Custom GitHub token to use for the search API call. Useful for cross-repo or
-    # org-wide searches that require additional permissions.
-    # (optional)
-    github-token: "${{ secrets.GITHUB_TOKEN }}"
-
-    # GitHub App configuration for minting a token used for the search API call.
-    # (optional)
-    github-app:
-      # GitHub App ID (e.g., '${{ secrets.APP_ID }}'). Required.
-      app-id: "example-value"
-
-      # GitHub App private key (e.g., '${{ secrets.APP_PRIVATE_KEY }}'). Required.
-      private-key: "example-value"
-
-      # Optional owner of the GitHub App installation (defaults to current repository
-      # owner).
-      # (optional)
-      owner: "example-value"
-
-      # Optional list of repositories to grant access to. Use ['*'] for org-wide access.
-      # (optional)
-      repositories: []
-        # Array of strings
-
   # Conditionally skip workflow execution when a GitHub search query has no matches
   # (or fewer than minimum). Can be a string (query only, implies min=1) or an
-  # object with 'query', optional 'min', 'scope', 'github-token', and 'github-app'
-  # fields.
+  # object with 'query', optional 'min', and 'scope' fields. Use top-level
+  # on.github-token or on.github-app for custom authentication.
   # (optional)
   # This field supports multiple formats (oneOf):
 
@@ -630,7 +608,8 @@ on:
   skip-if-no-match: "example-value"
 
   # Option 2: Skip-if-no-match configuration object with query, minimum match count,
-  # and optional scope/auth settings
+  # and optional scope. For custom authentication use the top-level on.github-token
+  # or on.github-app fields.
   skip-if-no-match:
     # GitHub search query string to check before running workflow. Query is
     # automatically scoped to the current repository.
@@ -645,30 +624,6 @@ on:
     # 'repo:owner/repo' scoping, enabling org-wide or cross-repo queries.
     # (optional)
     scope: "none"
-
-    # Custom GitHub token to use for the search API call. Useful for cross-repo or
-    # org-wide searches that require additional permissions.
-    # (optional)
-    github-token: "${{ secrets.GITHUB_TOKEN }}"
-
-    # GitHub App configuration for minting a token used for the search API call.
-    # (optional)
-    github-app:
-      # GitHub App ID (e.g., '${{ secrets.APP_ID }}'). Required.
-      app-id: "example-value"
-
-      # GitHub App private key (e.g., '${{ secrets.APP_PRIVATE_KEY }}'). Required.
-      private-key: "example-value"
-
-      # Optional owner of the GitHub App installation (defaults to current repository
-      # owner).
-      # (optional)
-      owner: "example-value"
-
-      # Optional list of repositories to grant access to. Use ['*'] for org-wide access.
-      # (optional)
-      repositories: []
-        # Array of strings
 
   # Skip workflow execution for users with specific repository roles. Useful for
   # workflows that should only run for external contributors or specific permission
@@ -752,15 +707,17 @@ on:
   # (optional)
   status-comment: true
 
-  # Custom GitHub token to use for pre-activation reactions and activation status
-  # comments. When specified, overrides the default GITHUB_TOKEN for these
-  # operations.
+  # Custom GitHub token for pre-activation reactions, activation status comments,
+  # and skip-if search queries. When specified, overrides the default GITHUB_TOKEN
+  # for these operations.
   # (optional)
   github-token: "${{ secrets.GITHUB_TOKEN }}"
 
-  # GitHub App configuration for minting a token used in pre-activation reactions
-  # and activation status comments. When configured, a GitHub App installation
-  # access token is minted and used instead of the default GITHUB_TOKEN.
+  # GitHub App configuration for minting a token used in pre-activation reactions,
+  # activation status comments, and skip-if search queries. When configured, a
+  # single GitHub App installation access token is minted and shared across all
+  # these operations instead of using the default GITHUB_TOKEN. Can be defined in a
+  # shared agentic workflow and inherited by importing workflows.
   # (optional)
   github-app:
     # GitHub App ID (e.g., '${{ vars.APP_ID }}'). Required to mint a GitHub App token.
@@ -3245,6 +3202,14 @@ safe-outputs:
     # (optional)
     allowed-files: []
       # Array of strings
+
+    # When true, the random salt suffix is not appended to the agent-specified branch
+    # name. Invalid characters are still replaced for security, and casing is always
+    # preserved regardless of this setting. Useful when the target repository enforces
+    # branch naming conventions (e.g. Jira keys in uppercase such as
+    # 'bugfix/BR-329-red'). Defaults to false.
+    # (optional)
+    preserve-branch-name: true
 
   # Option 2: Enable pull request creation with default configuration
   create-pull-request: null

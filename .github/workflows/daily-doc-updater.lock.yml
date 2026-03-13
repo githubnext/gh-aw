@@ -27,7 +27,7 @@
 #   Imports:
 #     - shared/mcp/qmd-docs.md
 #
-# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"029b4f22798fe4cdef702904b87b929499b2e7faab3fbd4c75fc2d2aa6905d03","strict":true}
+# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"95f0990cf098c3e39dd22cddc710f93b333bacb0505d40a87f6d27a501e0360f","strict":true}
 
 name: "Daily Documentation Updater"
 "on":
@@ -302,7 +302,7 @@ jobs:
       - name: Install QMD
         run: npm install -g @tobilu/qmd
       - name: Restore QMD index cache
-        uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        uses: actions/cache/restore@cdf6c1fa76f9f475f3d7449005a359c84ca0f306 # v5.0.3
         with:
           key: qmd-docs-${{ hashFiles('docs/src/content/docs/**', '.github/agents/**', '.github/aw/**') }}
           path: ~/.cache/qmd
