@@ -3,6 +3,7 @@
 
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { ERR_API, ERR_CONFIG } = require("./error_codes.cjs");
+const { buildSearchQuery } = require("./check_skip_if_helpers.cjs");
 
 async function main() {
   const skipQuery = process.env.GH_AW_SKIP_QUERY;
@@ -29,16 +30,7 @@ async function main() {
   core.info(`Checking skip-if-match query: ${skipQuery}`);
   core.info(`Maximum matches threshold: ${maxMatches}`);
 
-  let searchQuery;
-  if (skipScope === "none") {
-    // Use query as-is without appending repo:owner/repo scoping
-    searchQuery = skipQuery;
-    core.info(`Using raw query (scope: none): ${searchQuery}`);
-  } else {
-    const { owner, repo } = context.repo;
-    searchQuery = `${skipQuery} repo:${owner}/${repo}`;
-    core.info(`Scoped query: ${searchQuery}`);
-  }
+  const searchQuery = buildSearchQuery(skipQuery, skipScope);
 
   try {
     const response = await github.rest.search.issuesAndPullRequests({
