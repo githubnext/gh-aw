@@ -47,7 +47,7 @@ tools:
 timeout-minutes: 45
 
 imports:
-  - shared/mcp/qmd.md
+  - shared/mcp/qmd-docs.md
 
 ---
 
