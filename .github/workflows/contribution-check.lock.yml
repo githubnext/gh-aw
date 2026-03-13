@@ -322,6 +322,8 @@ jobs:
           cat > /opt/gh-aw/safeoutputs/config.json << 'GH_AW_SAFE_OUTPUTS_CONFIG_EOF'
           {"add_comment":{"max":10,"target":"*","target-repo":"${{ vars.TARGET_REPOSITORY }}"},"add_labels":{"allowed":["spam","needs-work","outdated","lgtm"],"max":4,"target":"*","target-repo":"${{ vars.TARGET_REPOSITORY }}"},"create_issue":{"expires":24,"max":1},"missing_data":{},"missing_tool":{},"noop":{"max":1}}
           GH_AW_SAFE_OUTPUTS_CONFIG_EOF
+      - name: Write Safe Outputs Tools
+        run: |
           cat > /opt/gh-aw/safeoutputs/tools.json << 'GH_AW_SAFE_OUTPUTS_TOOLS_EOF'
           [
             {
