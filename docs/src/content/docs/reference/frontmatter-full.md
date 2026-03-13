@@ -64,6 +64,16 @@ metadata:
 # (optional)
 imports: []
 
+# Optional list of additional workflow or action files that should be fetched
+# alongside this workflow when running 'gh aw add'. Entries are relative paths
+# (from the same directory as this workflow in the source repository) to agentic
+# workflow .md files or GitHub Actions .yml/.yaml files. GitHub Actions expression
+# syntax (${{) is not allowed in resource paths.
+# (optional)
+resources: []
+  # Array of Relative path to a workflow .md file or action .yml/.yaml file. Must be
+  # a static path; GitHub Actions expression syntax (${{) is not allowed.
+
 # If true, inline all imports (including those without inputs) at compilation time
 # in the generated lock.yml instead of using runtime-import macros. When enabled,
 # the frontmatter hash covers the entire markdown body so any change to the
@@ -547,8 +557,9 @@ on:
   stop-after: "example-value"
 
   # Conditionally skip workflow execution when a GitHub search query has matches.
-  # Can be a string (query only, implies max=1) or an object with 'query' and
-  # optional 'max' fields.
+  # Can be a string (query only, implies max=1) or an object with 'query', optional
+  # 'max', and 'scope' fields. Use top-level on.github-token or on.github-app for
+  # custom authentication.
   # (optional)
   # This field supports multiple formats (oneOf):
 
@@ -558,7 +569,9 @@ on:
   # label:bug'
   skip-if-match: "example-value"
 
-  # Option 2: Skip-if-match configuration object with query and maximum match count
+  # Option 2: Skip-if-match configuration object with query, maximum match count,
+  # and optional scope. For custom authentication use the top-level on.github-token
+  # or on.github-app fields.
   skip-if-match:
     # GitHub search query string to check before running workflow. Query is
     # automatically scoped to the current repository.
@@ -576,9 +589,15 @@ on:
     # Option 2: GitHub Actions expression that resolves to an integer at runtime
     max: "example-value"
 
+    # Scope for the search query. Set to 'none' to disable the automatic
+    # 'repo:owner/repo' scoping, enabling org-wide or cross-repo queries.
+    # (optional)
+    scope: "none"
+
   # Conditionally skip workflow execution when a GitHub search query has no matches
   # (or fewer than minimum). Can be a string (query only, implies min=1) or an
-  # object with 'query' and optional 'min' fields.
+  # object with 'query', optional 'min', and 'scope' fields. Use top-level
+  # on.github-token or on.github-app for custom authentication.
   # (optional)
   # This field supports multiple formats (oneOf):
 
@@ -588,8 +607,9 @@ on:
   # label:ready-to-deploy'
   skip-if-no-match: "example-value"
 
-  # Option 2: Skip-if-no-match configuration object with query and minimum match
-  # count
+  # Option 2: Skip-if-no-match configuration object with query, minimum match count,
+  # and optional scope. For custom authentication use the top-level on.github-token
+  # or on.github-app fields.
   skip-if-no-match:
     # GitHub search query string to check before running workflow. Query is
     # automatically scoped to the current repository.
@@ -599,6 +619,11 @@ on:
     # Defaults to 1 if not specified.
     # (optional)
     min: 1
+
+    # Scope for the search query. Set to 'none' to disable the automatic
+    # 'repo:owner/repo' scoping, enabling org-wide or cross-repo queries.
+    # (optional)
+    scope: "none"
 
   # Skip workflow execution for users with specific repository roles. Useful for
   # workflows that should only run for external contributors or specific permission
@@ -682,15 +707,17 @@ on:
   # (optional)
   status-comment: true
 
-  # Custom GitHub token to use for pre-activation reactions and activation status
-  # comments. When specified, overrides the default GITHUB_TOKEN for these
-  # operations.
+  # Custom GitHub token for pre-activation reactions, activation status comments,
+  # and skip-if search queries. When specified, overrides the default GITHUB_TOKEN
+  # for these operations.
   # (optional)
   github-token: "${{ secrets.GITHUB_TOKEN }}"
 
-  # GitHub App configuration for minting a token used in pre-activation reactions
-  # and activation status comments. When configured, a GitHub App installation
-  # access token is minted and used instead of the default GITHUB_TOKEN.
+  # GitHub App configuration for minting a token used in pre-activation reactions,
+  # activation status comments, and skip-if search queries. When configured, a
+  # single GitHub App installation access token is minted and shared across all
+  # these operations instead of using the default GITHUB_TOKEN. Can be defined in a
+  # shared agentic workflow and inherited by importing workflows.
   # (optional)
   github-app:
     # GitHub App ID (e.g., '${{ vars.APP_ID }}'). Required to mint a GitHub App token.
@@ -895,6 +922,7 @@ concurrency:
   # Concurrency group name. Workflows in the same group cannot run simultaneously.
   # Supports GitHub Actions expressions for dynamic group names based on branch,
   # workflow, or other context.
+  # (optional)
   group: "example-value"
 
   # Whether to cancel in-progress workflows in the same concurrency group when a new
@@ -905,13 +933,14 @@ concurrency:
   cancel-in-progress: true
 
   # Additional discriminator expression appended to compiler-generated job-level
-  # concurrency groups (agent, output jobs). Use this in fan-out patterns where
-  # multiple workflow instances are dispatched concurrently with different inputs,
-  # to prevent job-level concurrency groups from colliding and causing cancellations.
-  # Supports GitHub Actions expressions. Stripped from the compiled lock file
-  # (gh-aw extension, not a GitHub Actions field).
+  # concurrency groups (agent, output jobs). Use this when multiple workflow
+  # instances are dispatched concurrently with different inputs (fan-out pattern) to
+  # prevent job-level concurrency groups from colliding. For example, '${{
+  # inputs.finding_id }}' ensures each dispatched run gets a unique job-level group.
+  # Supports GitHub Actions expressions. This field is stripped from the compiled
+  # lock file (it is a gh-aw extension, not a GitHub Actions field).
   # (optional)
-  job-discriminator: "${{ inputs.finding_id }}"
+  job-discriminator: "example-value"
 
 # Environment variables for the workflow
 # (optional)
@@ -1306,16 +1335,16 @@ post-steps: []
 # (optional)
 # This field supports multiple formats (oneOf):
 
-# Option 1: Simple engine name: 'claude' (default, Claude Code), 'copilot' (GitHub
-# Copilot CLI), 'codex' (OpenAI Codex CLI), or 'gemini' (Google Gemini CLI)
-engine: "claude"
+# Option 1: Engine name: built-in ('claude', 'codex', 'copilot', 'gemini') or a
+# named catalog entry
+engine: "example-value"
 
 # Option 2: Extended engine configuration object with advanced options for model
 # selection, turn limiting, environment variables, and custom steps
 engine:
-  # AI engine identifier: 'claude' (Claude Code), 'codex' (OpenAI Codex CLI),
-  # 'copilot' (GitHub Copilot CLI), or 'gemini' (Google Gemini CLI)
-  id: "claude"
+  # AI engine identifier: built-in ('claude', 'codex', 'copilot', 'gemini') or a
+  # named catalog entry
+  id: "example-value"
 
   # Optional version of the AI engine action (e.g., 'beta', 'stable', 20). Has
   # sensible defaults and can typically be omitted. Numeric values are automatically
@@ -1422,9 +1451,9 @@ engine:
   agent: "example-value"
 
   # Custom API endpoint hostname for the agentic engine. Used for GitHub Enterprise
-  # Cloud (GHEC), GitHub Enterprise Server (GHES), or custom AI endpoints.
-  # Accepts a hostname only (no protocol or path).
-  # Examples: "api.acme.ghe.com" (GHEC), "api.enterprise.githubcopilot.com" (GHES)
+  # Cloud (GHEC), GitHub Enterprise Server (GHES), or custom AI endpoints. Example:
+  # 'api.acme.ghe.com' for GHEC, 'api.enterprise.githubcopilot.com' for GHES, or
+  # custom endpoint hostnames.
   # (optional)
   api-target: "example-value"
 
@@ -1433,6 +1462,186 @@ engine:
   # (optional)
   args: []
     # Array of strings
+
+# Option 3: Inline engine definition: specifies a runtime adapter and optional
+# provider settings directly in the workflow frontmatter, without requiring a
+# named catalog entry
+engine:
+  # Runtime adapter reference for the inline engine definition
+  runtime:
+    # Runtime adapter identifier (e.g. 'codex', 'claude', 'copilot', 'gemini')
+    id: "example-value"
+
+    # Optional version of the runtime adapter (e.g. '0.105.0', 'beta')
+    # (optional)
+    version: null
+
+  # Optional provider configuration for the inline engine definition
+  # (optional)
+  provider:
+    # Provider identifier (e.g. 'openai', 'anthropic', 'github', 'google')
+    # (optional)
+    id: "example-value"
+
+    # Optional specific LLM model to use (e.g. 'gpt-5', 'claude-3-5-sonnet-20241022')
+    # (optional)
+    model: "example-value"
+
+    # Authentication configuration for the provider
+    # (optional)
+    auth:
+      # Name of the GitHub Actions secret that contains the API key for this provider
+      # (optional)
+      secret: "example-value"
+
+      # Authentication strategy for the provider (default: api-key when secret is set)
+      # (optional)
+      strategy: "api-key"
+
+      # OAuth 2.0 token endpoint URL. Required when strategy is
+      # 'oauth-client-credentials'.
+      # (optional)
+      token-url: "example-value"
+
+      # GitHub Actions secret name that holds the OAuth client ID. Required when
+      # strategy is 'oauth-client-credentials'.
+      # (optional)
+      client-id: "example-value"
+
+      # GitHub Actions secret name that holds the OAuth client secret. Required when
+      # strategy is 'oauth-client-credentials'.
+      # (optional)
+      client-secret: "example-value"
+
+      # JSON field name in the token response that contains the access token. Defaults
+      # to 'access_token'.
+      # (optional)
+      token-field: "example-value"
+
+      # HTTP header name to inject the API key or token into (e.g. 'api-key',
+      # 'x-api-key'). Required when strategy is not 'bearer'.
+      # (optional)
+      header-name: "example-value"
+
+    # Request shaping configuration for non-standard provider URL and body
+    # transformations
+    # (optional)
+    request:
+      # URL path template with {model} and other variable placeholders (e.g.
+      # '/openai/deployments/{model}/chat/completions')
+      # (optional)
+      path-template: "example-value"
+
+      # Static or template query-parameter values appended to every request
+      # (optional)
+      query:
+        {}
+
+      # Key/value pairs injected into the JSON request body before sending
+      # (optional)
+      body-inject:
+        {}
+
+# Option 4: Engine definition: full declarative metadata for a named engine entry
+# (used in builtin engine shared workflow files such as @builtin:engines/*.md)
+engine:
+  # Unique engine identifier (e.g. 'copilot', 'claude', 'codex', 'gemini')
+  id: "example-value"
+
+  # Human-readable display name for the engine
+  display-name: "example-value"
+
+  # Human-readable description of the engine
+  # (optional)
+  description: "Description of the workflow"
+
+  # Runtime adapter identifier. Maps to the CodingAgentEngine registered in the
+  # engine registry. Defaults to id when omitted.
+  # (optional)
+  runtime-id: "example-value"
+
+  # Provider metadata for the engine
+  # (optional)
+  provider:
+    # Provider name (e.g. 'anthropic', 'github', 'google', 'openai')
+    # (optional)
+    name: "My Workflow"
+
+    # Default authentication configuration for the provider
+    # (optional)
+    auth:
+      # Name of the GitHub Actions secret that contains the API key
+      # (optional)
+      secret: "example-value"
+
+      # Authentication strategy
+      # (optional)
+      strategy: "api-key"
+
+      # OAuth 2.0 token endpoint URL
+      # (optional)
+      token-url: "example-value"
+
+      # GitHub Actions secret name for the OAuth client ID
+      # (optional)
+      client-id: "example-value"
+
+      # GitHub Actions secret name for the OAuth client secret
+      # (optional)
+      client-secret: "example-value"
+
+      # JSON field name in the token response containing the access token
+      # (optional)
+      token-field: "example-value"
+
+      # HTTP header name to inject the API key or token into
+      # (optional)
+      header-name: "example-value"
+
+    # Request shaping configuration
+    # (optional)
+    request:
+      # URL path template with variable placeholders
+      # (optional)
+      path-template: "example-value"
+
+      # Static query parameters
+      # (optional)
+      query:
+        {}
+
+      # Key/value pairs injected into the JSON request body
+      # (optional)
+      body-inject:
+        {}
+
+  # Model selection configuration for the engine
+  # (optional)
+  models:
+    # Default model identifier
+    # (optional)
+    default: "example-value"
+
+    # List of supported model identifiers
+    # (optional)
+    supported: []
+      # Array of strings
+
+  # Authentication bindings — maps logical roles (e.g. 'api-key') to GitHub Actions
+  # secret names
+  # (optional)
+  auth: []
+    # Array items:
+      # Logical authentication role (e.g. 'api-key', 'token')
+      role: "example-value"
+
+      # Name of the GitHub Actions secret that provides credentials for this role
+      secret: "example-value"
+
+  # Additional engine-specific options
+  # (optional)
+  options:
+    {}
 
 # MCP server definitions
 # (optional)
@@ -1512,22 +1721,26 @@ tools:
       # Array of Mount specification in format 'host:container:mode'
 
     # Guard policy: repository access configuration. Restricts which repositories the
-    # agent can access. Use 'all' to allow all repos or an array of 'owner/repo'
-    # strings.
+    # agent can access. Use 'all' to allow all repos, 'public' for public repositories
+    # only, or an array of repository patterns (e.g., 'owner/repo', 'owner/*',
+    # 'owner/prefix*').
     # (optional)
     # This field supports multiple formats (oneOf):
 
-    # Option 1: Allow access to all repositories
+    # Option 1: Allow access to all repositories ('all') or only public repositories
+    # ('public')
     repos: "all"
 
-    # Option 2: Allow access to specific repositories
+    # Option 2: Allow access to specific repositories using patterns (e.g.,
+    # 'owner/repo', 'owner/*', 'owner/prefix*')
     repos: []
-      # Array items: Repository slug in the format 'owner/repo'
+      # Array items: Repository pattern in the format 'owner/repo', 'owner/*' (all repos
+      # under owner), or 'owner/prefix*' (repos with name prefix)
 
     # Guard policy: minimum required integrity level for repository access. Restricts
     # the agent to users with at least the specified permission level.
     # (optional)
-    min-integrity: "unapproved"
+    min-integrity: "none"
 
     # GitHub App configuration for token minting. When configured, a GitHub App
     # installation access token is minted at workflow start and used instead of the
@@ -1873,6 +2086,11 @@ tools:
     # (optional)
     max-file-count: 1
 
+    # Maximum total patch size in bytes (default: 10240 = 10KB, max: 102400 = 100KB).
+    # The total size of the git diff must not exceed this value.
+    # (optional)
+    max-patch-size: 1
+
     # Optional description for the memory that will be shown in the agent prompt
     # (optional)
     description: "Description of the workflow"
@@ -1881,11 +2099,11 @@ tools:
     # (optional)
     create-orphan: true
 
-    # Use the GitHub Wiki git repository instead of the regular repository. When enabled,
-    # files are stored in and read from the wiki, and the agent will be instructed to
-    # follow GitHub Wiki markdown syntax (default: false)
+    # Use the GitHub Wiki git repository instead of the regular repository. When
+    # enabled, files are stored in and read from the wiki, and the agent will be
+    # instructed to follow GitHub Wiki markdown syntax (default: false)
     # (optional)
-    wiki: false
+    wiki: true
 
     # List of allowed file extensions (e.g., [".json", ".txt"]). Default: [".json",
     # ".jsonl", ".txt", ".md", ".csv"]
@@ -2964,19 +3182,23 @@ safe-outputs:
     # (optional)
     github-token-for-extra-empty-commit: "example-value"
 
-    # Controls protected-file protection policy for this safe output. blocked
-    # (default): hard-block any patch that modifies package manifests (e.g.
-    # package.json, go.mod), engine instruction files (e.g. AGENTS.md, CLAUDE.md) or
-    # .github/ files. allowed: allow all changes. fallback-to-issue: push the branch
-    # but create a review issue instead of a PR so a human can review before merging.
+    # Controls protected-file protection. blocked (default): hard-block any patch that
+    # modifies package manifests (e.g. package.json, go.mod), engine instruction files
+    # (e.g. AGENTS.md, CLAUDE.md) or .github/ files. allowed: allow all changes.
+    # fallback-to-issue: push the branch but create a review issue instead of a PR, so
+    # a human can review the manifest changes before merging.
     # (optional)
     protected-files: "blocked"
 
-    # List of glob patterns for files the workflow is allowed to modify. Acts as a
-    # strict allowlist: every file in the patch must match at least one pattern. Runs
-    # independently of protected-files; both checks must pass. To modify a protected
-    # file it must both match allowed-files and have protected-files set to 'allowed'.
-    # Supports * (any characters except /) and ** (any characters including /).
+    # Exclusive allowlist of glob patterns. When set, every file in the patch must
+    # match at least one pattern — files outside the list are always refused,
+    # including normal source files. This is a restriction, not an exception: setting
+    # allowed-files: [".github/workflows/*"] blocks all other files. To allow multiple
+    # sets of files, list all patterns explicitly. Acts independently of the
+    # protected-files policy; both checks must pass. To modify a protected file, it
+    # must both match allowed-files and be permitted by protected-files (e.g.
+    # protected-files: allowed). Supports * (any characters except /) and ** (any
+    # characters including /).
     # (optional)
     allowed-files: []
       # Array of strings
@@ -3084,6 +3306,19 @@ safe-outputs:
     # pull request (e.g. workflow_dispatch).
     # (optional)
     target: "example-value"
+
+    # Target repository in format 'owner/repo' for cross-repository PR review
+    # submission. Takes precedence over trial target repo settings.
+    # (optional)
+    target-repo: "example-value"
+
+    # List of additional repositories in format 'owner/repo' that PR reviews can be
+    # submitted in. When specified, the agent can use a 'repo' field in the output to
+    # specify which repository to submit the review in. The target repository (current
+    # or target-repo) is always implicitly allowed.
+    # (optional)
+    allowed-repos: []
+      # Array of strings
 
     # GitHub token to use for this specific output type. Overrides global github-token
     # if specified.
@@ -3906,19 +4141,23 @@ safe-outputs:
     allowed-repos: []
       # Array of strings
 
-    # Controls protected-file protection policy for this safe output. blocked
-    # (default): hard-block any patch that modifies package manifests (e.g.
-    # package.json, go.mod), engine instruction files (e.g. AGENTS.md, CLAUDE.md) or
-    # .github/ files. allowed: allow all changes. fallback-to-issue: create a review
-    # issue instead of pushing so a human can review before applying the changes.
+    # Controls protected-file protection. blocked (default): hard-block any patch that
+    # modifies package manifests (e.g. package.json, go.mod), engine instruction files
+    # (e.g. AGENTS.md, CLAUDE.md) or .github/ files. allowed: allow all changes.
+    # fallback-to-issue: create a review issue instead of pushing to the PR branch, so
+    # a human can review the changes before applying.
     # (optional)
     protected-files: "blocked"
 
-    # List of glob patterns for files the workflow is allowed to modify. Acts as a
-    # strict allowlist: every file in the patch must match at least one pattern. Runs
-    # independently of protected-files; both checks must pass. To modify a protected
-    # file it must both match allowed-files and have protected-files set to 'allowed'.
-    # Supports * (any characters except /) and ** (any characters including /).
+    # Exclusive allowlist of glob patterns. When set, every file in the patch must
+    # match at least one pattern — files outside the list are always refused,
+    # including normal source files. This is a restriction, not an exception: setting
+    # allowed-files: [".github/workflows/*"] blocks all other files. To allow multiple
+    # sets of files, list all patterns explicitly. Acts independently of the
+    # protected-files policy; both checks must pass. To modify a protected file, it
+    # must both match allowed-files and be permitted by protected-files (e.g.
+    # protected-files: allowed). Supports * (any characters except /) and ** (any
+    # characters including /).
     # (optional)
     allowed-files: []
       # Array of strings
@@ -4042,6 +4281,18 @@ safe-outputs:
     # specified.
     # (optional)
     github-token: "${{ secrets.GITHUB_TOKEN }}"
+
+    # Target repository in format 'owner/repo' for cross-repository workflow dispatch.
+    # When specified, the workflow will be dispatched to the target repository instead
+    # of the current one.
+    # (optional)
+    target-repo: "example-value"
+
+    # Git ref (branch, tag, or SHA) to use when dispatching the workflow. For
+    # workflow_call relay scenarios this is auto-injected by the compiler from
+    # needs.activation.outputs.target_ref. Overrides the caller's GITHUB_REF.
+    # (optional)
+    target-ref: "example-value"
 
   # Option 2: Shorthand array format: list of workflow names (without .md extension)
   # to allow dispatching
@@ -4497,6 +4748,18 @@ safe-outputs:
   # (optional)
   group-reports: true
 
+  # When false, disables creating failure tracking issues when workflows fail.
+  # Useful for workflows where failures are expected or handled elsewhere. Defaults
+  # to true.
+  # (optional)
+  report-failure-as-issue: true
+
+  # Repository to create failure tracking issues in, in the format 'owner/repo'.
+  # Useful when the current repository has issues disabled. Defaults to the current
+  # repository.
+  # (optional)
+  failure-issue-repo: "example-value"
+
   # Maximum number of bot trigger references (e.g. 'fixes #123', 'closes #456')
   # allowed in output before all of them are neutralized. Default: 10. Supports
   # integer or GitHub Actions expression (e.g. '${{ inputs.max-bot-mentions }}').
@@ -4525,6 +4788,25 @@ safe-outputs:
   # Actions expressions.
   # (optional)
   concurrency-group: "example-value"
+
+  # Override the GitHub deployment environment for the safe-outputs job. When set,
+  # this environment is used instead of the top-level environment: field. When not
+  # set, the top-level environment: field is propagated automatically so that
+  # environment-scoped secrets are accessible in the safe-outputs job.
+  # (optional)
+  # This field supports multiple formats (oneOf):
+
+  # Option 1: Environment name as a string
+  environment: "example-value"
+
+  # Option 2: Environment object with name and optional URL
+  environment:
+    # The name of the environment configured in the repo
+    name: "My Workflow"
+
+    # A deployment URL
+    # (optional)
+    url: "example-value"
 
   # Runner specification for all safe-outputs jobs (activation, create-issue,
   # add-comment, etc.). Single runner label (e.g., 'ubuntu-slim', 'ubuntu-latest',
@@ -4638,6 +4920,27 @@ runtimes:
 # Option 2: Multiple checkout configurations
 checkout: []
   # Array items: undefined
+
+# APM package references to install. Supports array format (list of package slugs)
+# or object format with packages and isolated fields.
+# (optional)
+# This field supports multiple formats (oneOf):
+
+# Option 1: Simple array of APM package references.
+dependencies: []
+  # Array items: APM package reference in the format 'org/repo' or
+  # 'org/repo/path/to/skill'
+
+# Option 2: Object format with packages and optional isolated flag.
+dependencies:
+  # List of APM package references to install.
+  packages: []
+    # Array of APM package reference in the format 'org/repo' or
+    # 'org/repo/path/to/skill'
+
+  # If true, agent restore step clears primitive dirs before unpacking.
+  # (optional)
+  isolated: true
 ---
 ```
 

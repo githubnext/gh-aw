@@ -45,6 +45,7 @@ safe-outputs:
 timeout-minutes: 30
 
 imports:
+  - shared/activation-app.md
   - shared/reporting.md
 ---
 

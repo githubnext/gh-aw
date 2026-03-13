@@ -339,4 +339,233 @@ This workflow uses both skip-if-match and skip-if-no-match.
 			t.Error("Expected activated output to include skip_no_match_check_ok condition")
 		}
 	})
+
+	t.Run("skip_if_no_match_with_scope_none", func(t *testing.T) {
+		workflowContent := `---
+on:
+  schedule:
+    - cron: "*/15 * * * *"
+  skip-if-no-match:
+    query: "org:myorg label:agent-fix is:issue is:open"
+    scope: none
+engine: claude
+---
+
+# Skip If No Match With Scope None
+
+This workflow uses scope:none for org-wide search.
+`
+		workflowFile := filepath.Join(tmpDir, "skip-no-match-scope-none-workflow.md")
+		if err := os.WriteFile(workflowFile, []byte(workflowContent), 0644); err != nil {
+			t.Fatal(err)
+		}
+
+		err := compiler.CompileWorkflow(workflowFile)
+		if err != nil {
+			t.Fatalf("Compilation failed: %v", err)
+		}
+
+		lockFile := stringutil.MarkdownToLockFile(workflowFile)
+		lockContent, err := os.ReadFile(lockFile)
+		if err != nil {
+			t.Fatalf("Failed to read lock file: %v", err)
+		}
+
+		lockContentStr := string(lockContent)
+
+		// Verify skip-if-no-match check is present
+		if !strings.Contains(lockContentStr, "Check skip-if-no-match query") {
+			t.Error("Expected skip-if-no-match check to be present")
+		}
+
+		// Verify the skip query environment variable is set correctly
+		if !strings.Contains(lockContentStr, `GH_AW_SKIP_QUERY: "org:myorg label:agent-fix is:issue is:open"`) {
+			t.Error("Expected GH_AW_SKIP_QUERY environment variable with correct value")
+		}
+
+		// Verify GH_AW_SKIP_SCOPE is set to "none"
+		if !strings.Contains(lockContentStr, `GH_AW_SKIP_SCOPE: "none"`) {
+			t.Error("Expected GH_AW_SKIP_SCOPE environment variable set to none")
+		}
+
+		// Verify scope is commented out in frontmatter
+		if !strings.Contains(lockContentStr, "# scope:") {
+			t.Error("Expected scope to be commented out in lock file")
+		}
+	})
+
+	t.Run("skip_if_no_match_with_github_token", func(t *testing.T) {
+		workflowContent := `---
+on:
+  schedule:
+    - cron: "*/15 * * * *"
+  skip-if-no-match:
+    query: "org:myorg label:agent-fix is:issue is:open"
+    scope: none
+  github-token: ${{ secrets.CROSS_ORG_TOKEN }}
+engine: claude
+---
+
+# Skip If No Match With Custom Token
+
+This workflow uses a custom token for org-wide search.
+`
+		workflowFile := filepath.Join(tmpDir, "skip-no-match-github-token-workflow.md")
+		if err := os.WriteFile(workflowFile, []byte(workflowContent), 0644); err != nil {
+			t.Fatal(err)
+		}
+
+		err := compiler.CompileWorkflow(workflowFile)
+		if err != nil {
+			t.Fatalf("Compilation failed: %v", err)
+		}
+
+		lockFile := stringutil.MarkdownToLockFile(workflowFile)
+		lockContent, err := os.ReadFile(lockFile)
+		if err != nil {
+			t.Fatalf("Failed to read lock file: %v", err)
+		}
+
+		lockContentStr := string(lockContent)
+
+		// Verify skip-if-no-match check is present
+		if !strings.Contains(lockContentStr, "Check skip-if-no-match query") {
+			t.Error("Expected skip-if-no-match check to be present")
+		}
+
+		// Verify the custom github-token is passed via with.github-token to the skip-if step
+		if !strings.Contains(lockContentStr, "github-token: ${{ secrets.CROSS_ORG_TOKEN }}") {
+			t.Error("Expected github-token to be set in with section for skip-if-no-match step")
+		}
+
+		// Verify GH_AW_SKIP_SCOPE is set to "none"
+		if !strings.Contains(lockContentStr, `GH_AW_SKIP_SCOPE: "none"`) {
+			t.Error("Expected GH_AW_SKIP_SCOPE environment variable set to none")
+		}
+	})
+
+	t.Run("skip_if_no_match_with_github_app", func(t *testing.T) {
+		workflowContent := `---
+on:
+  schedule:
+    - cron: "*/15 * * * *"
+  skip-if-no-match:
+    query: "org:myorg label:agent-fix is:issue is:open"
+    scope: none
+  github-app:
+    app-id: ${{ secrets.WORKFLOW_APP_ID }}
+    private-key: ${{ secrets.WORKFLOW_APP_PRIVATE_KEY }}
+    owner: myorg
+engine: claude
+---
+
+# Skip If No Match With GitHub App
+
+This workflow uses a GitHub App token for org-wide search.
+`
+		workflowFile := filepath.Join(tmpDir, "skip-no-match-github-app-workflow.md")
+		if err := os.WriteFile(workflowFile, []byte(workflowContent), 0644); err != nil {
+			t.Fatal(err)
+		}
+
+		err := compiler.CompileWorkflow(workflowFile)
+		if err != nil {
+			t.Fatalf("Compilation failed: %v", err)
+		}
+
+		lockFile := stringutil.MarkdownToLockFile(workflowFile)
+		lockContent, err := os.ReadFile(lockFile)
+		if err != nil {
+			t.Fatalf("Failed to read lock file: %v", err)
+		}
+
+		lockContentStr := string(lockContent)
+
+		// Verify the unified GitHub App token mint step is generated before the skip check
+		if !strings.Contains(lockContentStr, "Generate GitHub App token for skip-if checks") {
+			t.Error("Expected unified GitHub App token mint step to be present")
+		}
+
+		// Verify app-id and private-key are in the mint step
+		if !strings.Contains(lockContentStr, "app-id: ${{ secrets.WORKFLOW_APP_ID }}") {
+			t.Error("Expected app-id in the GitHub App token mint step")
+		}
+		if !strings.Contains(lockContentStr, "private-key: ${{ secrets.WORKFLOW_APP_PRIVATE_KEY }}") {
+			t.Error("Expected private-key in the GitHub App token mint step")
+		}
+
+		// Verify owner is passed
+		if !strings.Contains(lockContentStr, "owner: myorg") {
+			t.Error("Expected owner to be set in GitHub App token mint step")
+		}
+
+		// Verify the minted token is used in the skip-if step via the unified step ID
+		if !strings.Contains(lockContentStr, "github-token: ${{ steps.pre-activation-app-token.outputs.token }}") {
+			t.Error("Expected minted app token (pre-activation-app-token) to be used in skip-if-no-match step")
+		}
+
+		// Verify GH_AW_SKIP_SCOPE is set to "none"
+		if !strings.Contains(lockContentStr, `GH_AW_SKIP_SCOPE: "none"`) {
+			t.Error("Expected GH_AW_SKIP_SCOPE environment variable set to none")
+		}
+	})
+
+	t.Run("unified_app_token_step_for_both_skip_checks", func(t *testing.T) {
+		workflowContent := `---
+on:
+  schedule:
+    - cron: "*/15 * * * *"
+  skip-if-match:
+    query: "org:myorg label:blocked is:issue is:open"
+    scope: none
+  skip-if-no-match:
+    query: "org:myorg label:agent-fix is:issue is:open"
+    scope: none
+  github-app:
+    app-id: ${{ secrets.WORKFLOW_APP_ID }}
+    private-key: ${{ secrets.WORKFLOW_APP_PRIVATE_KEY }}
+    owner: myorg
+engine: claude
+---
+
+# Unified App Token For Both Skip Checks
+
+Both skip-if-match and skip-if-no-match share one mint step.
+`
+		workflowFile := filepath.Join(tmpDir, "unified-app-token-workflow.md")
+		if err := os.WriteFile(workflowFile, []byte(workflowContent), 0644); err != nil {
+			t.Fatal(err)
+		}
+
+		err := compiler.CompileWorkflow(workflowFile)
+		if err != nil {
+			t.Fatalf("Compilation failed: %v", err)
+		}
+
+		lockFile := stringutil.MarkdownToLockFile(workflowFile)
+		lockContent, err := os.ReadFile(lockFile)
+		if err != nil {
+			t.Fatalf("Failed to read lock file: %v", err)
+		}
+
+		lockContentStr := string(lockContent)
+
+		// Exactly ONE unified mint step should be present
+		mintStepCount := strings.Count(lockContentStr, "Generate GitHub App token for skip-if checks")
+		if mintStepCount != 1 {
+			t.Errorf("Expected exactly 1 unified mint step, got %d", mintStepCount)
+		}
+
+		// Both skip-if checks should reference the same unified token step
+		if !strings.Contains(lockContentStr, "Check skip-if-match query") {
+			t.Error("Expected skip-if-match check to be present")
+		}
+		if !strings.Contains(lockContentStr, "Check skip-if-no-match query") {
+			t.Error("Expected skip-if-no-match check to be present")
+		}
+		// Both reference the same pre-activation-app-token step
+		if strings.Count(lockContentStr, "github-token: ${{ steps.pre-activation-app-token.outputs.token }}") != 2 {
+			t.Error("Expected both skip-if steps to reference the unified pre-activation-app-token step")
+		}
+	})
 }

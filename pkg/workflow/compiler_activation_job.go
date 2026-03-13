@@ -75,6 +75,7 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 	// cross-repo workflow_call scenarios, especially when pinned to a non-default branch).
 	if hasWorkflowCallTrigger(data.On) && !data.InlinedImports {
 		outputs["target_repo"] = "${{ steps.resolve-host-repo.outputs.target_repo }}"
+		outputs["target_repo_name"] = "${{ steps.resolve-host-repo.outputs.target_repo_name }}"
 		outputs["target_ref"] = "${{ steps.resolve-host-repo.outputs.target_ref }}"
 	}
 

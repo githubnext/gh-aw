@@ -35,6 +35,7 @@ timeout-minutes: 30
 strict: true
 
 imports:
+  - shared/activation-app.md
   - shared/jqschema.md
   - shared/reporting.md
 ---

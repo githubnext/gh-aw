@@ -13,6 +13,7 @@ permissions:
 tracker-id: code-simplifier
 
 imports:
+  - shared/activation-app.md
   - shared/reporting.md
 
 safe-outputs:

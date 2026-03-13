@@ -45,20 +45,57 @@ steps:
       set -e
       mkdir -p /tmp/gh-aw/mcp-logs/qmd/
 
-      # Start QMD MCP server in HTTP daemon mode (default port 8181)
-      qmd mcp --http --daemon > /tmp/gh-aw/mcp-logs/qmd/server.log 2>&1
+      # Re-register collections so qmd MCP tools are available.
+      # The cache restore only restores the index data; qmd requires collections
+      # to be registered in the current session for MCP tools to be served.
+      DOCS_DIR="${GITHUB_WORKSPACE}/docs/src/content/docs"
+      AGENTS_DIR="${GITHUB_WORKSPACE}/.github/agents"
+      AW_DIR="${GITHUB_WORKSPACE}/.github/aw"
+
+      [ -d "$DOCS_DIR" ]   && qmd collection add "$DOCS_DIR"   --name docs   2>/dev/null || true
+      [ -d "$AGENTS_DIR" ] && qmd collection add "$AGENTS_DIR" --name agents 2>/dev/null || true
+      [ -d "$AW_DIR" ]     && qmd collection add "$AW_DIR"     --name aw     2>/dev/null || true
+
+      # Start QMD MCP server in the background (explicit nohup rather than
+      # --daemon to ensure the process survives the step and stays running)
+      nohup qmd mcp --http > /tmp/gh-aw/mcp-logs/qmd/server.log 2>&1 &
+      echo $! > /tmp/gh-aw/mcp-logs/qmd/server.pid
+      echo "QMD MCP server started (PID $(cat /tmp/gh-aw/mcp-logs/qmd/server.pid))"
 
       # Poll until the server is healthy (up to 15 seconds)
       for i in $(seq 1 30); do
         if curl -sf http://localhost:8181/health > /dev/null 2>&1; then
-          echo "QMD MCP server started successfully"
+          echo "QMD MCP server is healthy"
           echo "Status: $(curl -s http://localhost:8181/health)"
-          exit 0
+          break
         fi
         sleep 0.5
       done
 
-      echo "QMD MCP server health check timed out after 15 seconds"
+      if ! curl -sf http://localhost:8181/health > /dev/null 2>&1; then
+        echo "QMD MCP server health check timed out after 15 seconds"
+        echo "Server logs:"
+        cat /tmp/gh-aw/mcp-logs/qmd/server.log || true
+        exit 1
+      fi
+
+      # Verify the MCP tools endpoint is responding with actual tools.
+      # Without this check, a server with no registered collections will pass
+      # the health check but return an empty tools list to the MCP Gateway.
+      for i in $(seq 1 20); do
+        TOOLS=$(curl -sf -X POST http://localhost:8181/mcp \
+          -H "Content-Type: application/json" \
+          -H "Accept: application/json, text/event-stream" \
+          -d '{"jsonrpc":"2.0","id":1,"method":"tools/list"}' 2>/dev/null \
+          | grep -o '"name":"[^"]*"' | wc -l || echo "0")
+        if [ "$TOOLS" -gt "0" ]; then
+          echo "QMD MCP server started successfully with $TOOLS tools available"
+          exit 0
+        fi
+        sleep 1
+      done
+
+      echo "QMD MCP server started but no tools available after 20 seconds"
       echo "Server logs:"
       cat /tmp/gh-aw/mcp-logs/qmd/server.log || true
       exit 1
@@ -138,7 +175,8 @@ At runtime (when this shared module is imported):
 1. Node.js 24 is installed
 2. QMD is installed globally from npm (`@tobilu/qmd`)
 3. The pre-built qmd index is restored from `actions/cache` using a key derived from a hash of the docs, agents, and aw content
-4. The HTTP MCP server starts on `localhost:8181`
+4. Collections are re-registered in the current session (`docs`, `agents`, `aw`) — required even after cache restore for qmd MCP tools to be served
+5. The HTTP MCP server starts on `localhost:8181` (via `nohup`) and is verified to have tools available before the step completes
 
 The `query` tool supports BM25 full-text search (`lex` type) out of the box.
 For semantic vector search (`vec`/`hyde` types), run `qmd embed` before starting

@@ -662,3 +662,78 @@ func TestGitHubAppWithPushToPRBranch(t *testing.T) {
 	// Verify step ID is set correctly
 	assert.Contains(t, stepsContent, "id: safe-outputs-app-token")
 }
+
+// TestJobWithGitHubAppWorkflowCallUsesTargetRepoNameFallback is a regression test verifying that
+// a safe-output job compiled for a workflow_call trigger uses
+// needs.activation.outputs.target_repo_name (repo name only, no owner prefix) as the repositories
+// fallback for the GitHub App token mint step, instead of the full target_repo slug.
+// This prevents actions/create-github-app-token from receiving an invalid owner/repo slug
+// in the repositories field when owner is also set.
+func TestJobWithGitHubAppWorkflowCallUsesTargetRepoNameFallback(t *testing.T) {
+	compiler := NewCompiler()
+	compiler.jobManager = NewJobManager()
+
+	workflowData := &WorkflowData{
+		Name: "Test Workflow",
+		On: `"on":
+  workflow_call:`,
+		SafeOutputs: &SafeOutputsConfig{
+			GitHubApp: &GitHubAppConfig{
+				AppID:      "${{ vars.APP_ID }}",
+				PrivateKey: "${{ secrets.APP_PRIVATE_KEY }}",
+			},
+			CreateIssues: &CreateIssuesConfig{
+				TitlePrefix: "[Test] ",
+			},
+		},
+	}
+
+	job, _, err := compiler.buildConsolidatedSafeOutputsJob(workflowData, string(constants.AgentJobName), "test.md")
+
+	require.NoError(t, err, "Should successfully build job")
+	require.NotNil(t, job, "Job should not be nil")
+
+	stepsContent := strings.Join(job.Steps, "")
+
+	// Must use the repo-name-only output, NOT the full slug
+	assert.Contains(t, stepsContent, "repositories: ${{ needs.activation.outputs.target_repo_name }}",
+		"GitHub App token step must use target_repo_name (repo name only) for workflow_call workflows")
+	assert.NotContains(t, stepsContent, "repositories: ${{ needs.activation.outputs.target_repo }}",
+		"GitHub App token step must not use target_repo (full slug) for workflow_call workflows")
+}
+
+// TestConclusionJobWithGitHubAppWorkflowCallUsesTargetRepoNameFallback is a regression test
+// verifying that the conclusion job compiled for a workflow_call trigger uses
+// needs.activation.outputs.target_repo_name (repo name only) as the repositories fallback
+// for the GitHub App token mint step.
+func TestConclusionJobWithGitHubAppWorkflowCallUsesTargetRepoNameFallback(t *testing.T) {
+	compiler := NewCompiler()
+	compiler.jobManager = NewJobManager()
+	compiler.SetActionMode(ActionModeDev)
+
+	workflowData := &WorkflowData{
+		Name: "Test Workflow",
+		On: `"on":
+  workflow_call:`,
+		SafeOutputs: &SafeOutputsConfig{
+			GitHubApp: &GitHubAppConfig{
+				AppID:      "${{ vars.APP_ID }}",
+				PrivateKey: "${{ secrets.APP_PRIVATE_KEY }}",
+			},
+			AddComments: &AddCommentsConfig{},
+		},
+	}
+
+	job, err := compiler.buildConclusionJob(workflowData, string(constants.AgentJobName), nil)
+
+	require.NoError(t, err, "Should successfully build conclusion job")
+	require.NotNil(t, job, "Conclusion job should not be nil")
+
+	stepsContent := strings.Join(job.Steps, "")
+
+	// Must use the repo-name-only output, NOT the full slug
+	assert.Contains(t, stepsContent, "repositories: ${{ needs.activation.outputs.target_repo_name }}",
+		"Conclusion job GitHub App token step must use target_repo_name (repo name only) for workflow_call workflows")
+	assert.NotContains(t, stepsContent, "repositories: ${{ needs.activation.outputs.target_repo }}",
+		"Conclusion job GitHub App token step must not use target_repo (full slug) for workflow_call workflows")
+}

@@ -320,7 +320,7 @@ The reaction is added to the triggering item. For issues/PRs, a comment with the
 
 ### Activation Token (`on.github-token:`, `on.github-app:`)
 
-Configure a custom GitHub token or GitHub App for the activation job. The activation job posts the initial reaction and status comment on the triggering item. By default it uses the workflow's `GITHUB_TOKEN`.
+Configure a custom GitHub token or GitHub App for the activation job **and all skip-if search checks**. The activation job posts the initial reaction and status comment on the triggering item, and skip-if checks use the same token to query the GitHub Search API. By default all of these operations use the workflow's `GITHUB_TOKEN`.
 
 Use `github-token:` to supply a PAT or custom token:
 
@@ -344,10 +344,34 @@ on:
     private-key: ${{ secrets.APP_KEY }}
 ```
 
-The `github-app` object accepts the same fields as the GitHub App configuration used elsewhere in the framework (`app-id`, `private-key`, and optionally `owner` and `repositories`). The token is minted once for the activation job and covers both the reaction step and the status comment step.
+The `github-app` object accepts the same fields as the GitHub App configuration used elsewhere in the framework (`app-id`, `private-key`, and optionally `owner` and `repositories`). The token is minted once in the pre-activation job and is shared across the reaction step, the status comment step, and any skip-if search steps.
+
+Both `github-token` and `github-app` can be defined in a **shared agentic workflow** and will be automatically inherited by any workflow that imports it (first-wins strategy). This means a central CentralRepoOps shared workflow can define the app config once and all importing workflows benefit automatically:
+
+```yaml wrap
+# shared-ops.md - define app config once
+on:
+  workflow_call:
+  github-app:
+    app-id: ${{ secrets.ORG_APP_ID }}
+    private-key: ${{ secrets.ORG_APP_PRIVATE_KEY }}
+    owner: myorg
+```
+
+```yaml wrap
+# any-workflow.md - inherits github-app from the import
+imports:
+  - .github/workflows/shared/shared-ops.md
+on:
+  schedule:
+    - cron: "*/30 * * * *"
+  skip-if-no-match:
+    query: "org:myorg label:agent-fix is:issue is:open"
+    scope: none
+```
 
 > [!NOTE]
-> `github-token` and `github-app` affect only the activation job. For the agent job, configure tokens via `tools.github.github-token`/`tools.github.github-app` or `safe-outputs.github-token`/`safe-outputs.github-app`. See [Authentication](/gh-aw/reference/auth/) for a full overview.
+> `github-token` and `github-app` affect only the activation job (reactions, status comments, and skip-if searches). For the agent job, configure tokens via `tools.github.github-token`/`tools.github.github-app` or `safe-outputs.github-token`/`safe-outputs.github-app`. See [Authentication](/gh-aw/reference/auth/) for a full overview.
 
 ### Stop After Configuration (`stop-after:`)
 
@@ -390,6 +414,31 @@ on: weekly on monday
 
 A pre-activation check runs the search query against the current repository. If matches reach or exceed the threshold (default `max: 1`), the workflow is skipped. The query is automatically scoped to the current repository and supports all standard GitHub search qualifiers (`is:`, `label:`, `in:title`, `author:`, etc.).
 
+#### Cross-Repo and Org-Wide Queries
+
+By default the query is scoped to the current repository. Use `scope: none` to disable this and search across an entire org. For cross-repo or org-wide searches that require elevated permissions, configure `github-token` or `github-app` at the top-level `on:` section — the same token is shared across all skip-if checks and the activation job:
+
+```yaml wrap
+on:
+  schedule:
+    - cron: "*/15 * * * *"
+  skip-if-match:
+    query: "org:myorg label:ops:in-progress is:issue is:open"
+    scope: none
+  github-app:
+    app-id: ${{ secrets.WORKFLOW_APP_ID }}
+    private-key: ${{ secrets.WORKFLOW_APP_PRIVATE_KEY }}
+    owner: myorg
+```
+
+| Field | Location | Description |
+|-------|----------|-------------|
+| `scope: none` | inside `skip-if-match` | Disables the automatic `repo:owner/repo` qualifier |
+| `github-token` | top-level `on:` | Custom PAT or token for all skip-if searches (e.g. `${{ secrets.CROSS_ORG_TOKEN }}`) |
+| `github-app` | top-level `on:` | Mints a short-lived installation token shared across all skip-if steps; requires `app-id` and `private-key` |
+
+`github-token` and `github-app` are mutually exclusive. String shorthand always uses the default `GITHUB_TOKEN` scoped to the current repository.
+
 ### Skip-If-No-Match Condition (`skip-if-no-match:`)
 
 Conditionally skip workflow execution when a GitHub search query has **no matches** (or fewer than the minimum required). This is the opposite of `skip-if-match`.
@@ -408,6 +457,21 @@ on:
 ```
 
 A pre-activation check runs the search query against the current repository. If matches are below the threshold (default `min: 1`), the workflow is skipped. Can be combined with `skip-if-match` for complex conditions.
+
+The same `scope: none` field available on `skip-if-match` works identically here. Authentication (`github-token` / `github-app`) is configured at the top-level `on:` section and is shared across all skip-if checks — a single mint step is emitted for both:
+
+```yaml wrap
+on:
+  schedule:
+    - cron: "*/15 * * * *"
+  skip-if-no-match:
+    query: "org:myorg label:agent-fix -label:ops:agentic is:issue is:open"
+    scope: none
+  github-app:
+    app-id: ${{ secrets.WORKFLOW_APP_ID }}
+    private-key: ${{ secrets.WORKFLOW_APP_PRIVATE_KEY }}
+    owner: myorg
+```
 
 ## Trigger Shorthands
 

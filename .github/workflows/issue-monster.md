@@ -18,6 +18,9 @@ engine:
   id: copilot
   model: gpt-5.1-codex-mini
 
+imports:
+  - shared/activation-app.md
+
 timeout-minutes: 30
 
 tools:

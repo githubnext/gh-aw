@@ -1339,13 +1339,18 @@
                           "description": "GitHub Actions expression that resolves to an integer at runtime"
                         }
                       ]
+                    },
+                    "scope": {
+                      "type": "string",
+                      "enum": ["none"],
+                      "description": "Scope for the search query. Set to 'none' to disable the automatic 'repo:owner/repo' scoping, enabling org-wide or cross-repo queries."
                     }
                   },
                   "additionalProperties": false,
-                  "description": "Skip-if-match configuration object with query and maximum match count"
+                  "description": "Skip-if-match configuration object with query, maximum match count, and optional scope. For custom authentication use the top-level on.github-token or on.github-app fields."
                 }
               ],
-              "description": "Conditionally skip workflow execution when a GitHub search query has matches. Can be a string (query only, implies max=1) or an object with 'query' and optional 'max' fields."
+              "description": "Conditionally skip workflow execution when a GitHub search query has matches. Can be a string (query only, implies max=1) or an object with 'query', optional 'max', and 'scope' fields. Use top-level on.github-token or on.github-app for custom authentication."
             },
             "skip-if-no-match": {
               "oneOf": [
@@ -1365,13 +1370,18 @@
                       "type": "integer",
                       "minimum": 1,
                       "description": "Minimum number of items that must be matched for the workflow to proceed. Defaults to 1 if not specified."
+                    },
+                    "scope": {
+                      "type": "string",
+                      "enum": ["none"],
+                      "description": "Scope for the search query. Set to 'none' to disable the automatic 'repo:owner/repo' scoping, enabling org-wide or cross-repo queries."
                     }
                   },
                   "additionalProperties": false,
-                  "description": "Skip-if-no-match configuration object with query and minimum match count"
+                  "description": "Skip-if-no-match configuration object with query, minimum match count, and optional scope. For custom authentication use the top-level on.github-token or on.github-app fields."
                 }
               ],
-              "description": "Conditionally skip workflow execution when a GitHub search query has no matches (or fewer than minimum). Can be a string (query only, implies min=1) or an object with 'query' and optional 'min' fields."
+              "description": "Conditionally skip workflow execution when a GitHub search query has no matches (or fewer than minimum). Can be a string (query only, implies min=1) or an object with 'query', optional 'min', and 'scope' fields. Use top-level on.github-token or on.github-app for custom authentication."
             },
             "skip-roles": {
               "oneOf": [
@@ -1464,12 +1474,12 @@
             },
             "github-token": {
               "type": "string",
-              "description": "Custom GitHub token to use for pre-activation reactions and activation status comments. When specified, overrides the default GITHUB_TOKEN for these operations.",
+              "description": "Custom GitHub token for pre-activation reactions, activation status comments, and skip-if search queries. When specified, overrides the default GITHUB_TOKEN for these operations.",
               "examples": ["${{ secrets.MY_GITHUB_TOKEN }}"]
             },
             "github-app": {
               "type": "object",
-              "description": "GitHub App configuration for minting a token used in pre-activation reactions and activation status comments. When configured, a GitHub App installation access token is minted and used instead of the default GITHUB_TOKEN.",
+              "description": "GitHub App configuration for minting a token used in pre-activation reactions, activation status comments, and skip-if search queries. When configured, a single GitHub App installation access token is minted and shared across all these operations instead of using the default GITHUB_TOKEN. Can be defined in a shared agentic workflow and inherited by importing workflows.",
               "properties": {
                 "app-id": {
                   "type": "string",
