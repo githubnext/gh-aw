@@ -43,11 +43,15 @@ func getActionRef(actionMode workflow.ActionMode, version string, resolver workf
 
 // generateCopilotSetupStepsYAML generates the copilot-setup-steps.yml content based on action mode
 func generateCopilotSetupStepsYAML(actionMode workflow.ActionMode, version string, resolver workflow.ActionSHAResolver) string {
-	// Determine the action reference - use SHA-pinned or version tag in release mode, @main in dev mode
+	// Determine the action reference - use SHA-pinned or version tag in release/action mode, @main in dev mode
 	actionRef := getActionRef(actionMode, version, resolver)
 
-	if actionMode.IsAction() {
-		// Action mode: use setup-cli action from external gh-aw-actions repository
+	if actionMode.IsRelease() || actionMode.IsAction() {
+		// Determine the action repo based on mode
+		actionRepo := "github/gh-aw/actions/setup-cli"
+		if actionMode.IsAction() {
+			actionRepo = "github/gh-aw-actions/setup-cli"
+		}
 		return fmt.Sprintf(`name: "Copilot Setup Steps"
 
 # This workflow configures the environment for GitHub Copilot Agent with gh-aw MCP server
@@ -71,41 +75,10 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v6
       - name: Install gh-aw extension
-        uses: github/gh-aw-actions/setup-cli%s
+        uses: %s%s
         with:
           version: %s
-`, actionRef, version)
-	}
-
-	if actionMode.IsRelease() {
-		// Use the actions/setup-cli action in release mode
-		return fmt.Sprintf(`name: "Copilot Setup Steps"
-
-# This workflow configures the environment for GitHub Copilot Agent with gh-aw MCP server
-on:
-  workflow_dispatch:
-  push:
-    paths:
-      - .github/workflows/copilot-setup-steps.yml
-
-jobs:
-  # The job MUST be called 'copilot-setup-steps' to be recognized by GitHub Copilot Agent
-  copilot-setup-steps:
-    runs-on: ubuntu-latest
-
-    # Set minimal permissions for setup steps
-    # Copilot Agent receives its own token with appropriate permissions
-    permissions:
-      contents: read
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v6
-      - name: Install gh-aw extension
-        uses: github/gh-aw/actions/setup-cli%s
-        with:
-          version: %s
-`, actionRef, version)
+`, actionRepo, actionRef, version)
 	}
 
 	// Default (dev/script mode): use curl to download install script
@@ -300,11 +273,15 @@ func renderCopilotSetupUpdateInstructions(filePath string, actionMode workflow.A
 	// Determine the action reference
 	actionRef := getActionRef(actionMode, version, resolver)
 
-	if actionMode.IsRelease() {
+	if actionMode.IsRelease() || actionMode.IsAction() {
+		actionRepo := "github/gh-aw/actions/setup-cli"
+		if actionMode.IsAction() {
+			actionRepo = "github/gh-aw-actions/setup-cli"
+		}
 		fmt.Fprintln(os.Stderr, "      - name: Checkout repository")
 		fmt.Fprintln(os.Stderr, "        uses: actions/checkout@v6")
 		fmt.Fprintf(os.Stderr, "      - name: Install gh-aw extension\n")
-		fmt.Fprintf(os.Stderr, "        uses: github/gh-aw/actions/setup-cli%s\n", actionRef)
+		fmt.Fprintf(os.Stderr, "        uses: %s%s\n", actionRepo, actionRef)
 		fmt.Fprintln(os.Stderr, "        with:")
 		fmt.Fprintf(os.Stderr, "          version: %s\n", version)
 	} else {
