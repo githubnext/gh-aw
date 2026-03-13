@@ -52,13 +52,8 @@ func TestDeriveSafeOutputsGuardPolicyFromGitHub(t *testing.T) {
 				"repos":         "all",
 				"min-integrity": "approved",
 			},
-			expectedPolicies: map[string]any{
-				"write-sink": map[string]any{
-					"accept": []string{"private:*"},
-				},
-			},
-			expectNil:   false,
-			description: "repos='all' should map to private:*",
+			expectNil:   true,
+			description: "repos='all' is a global keyword — no owner-scoped pattern possible, no write-sink derived",
 		},
 		{
 			name: "repos set to public",
@@ -66,13 +61,8 @@ func TestDeriveSafeOutputsGuardPolicyFromGitHub(t *testing.T) {
 				"repos":         "public",
 				"min-integrity": "none",
 			},
-			expectedPolicies: map[string]any{
-				"write-sink": map[string]any{
-					"accept": []string{"public:*"},
-				},
-			},
-			expectNil:   false,
-			description: "repos='public' should map to public:* (public repos only → public secrecy level)",
+			expectNil:   true,
+			description: "repos='public' is a global keyword — no owner-scoped pattern possible, no write-sink derived",
 		},
 		{
 			name: "multiple repo patterns as []any",

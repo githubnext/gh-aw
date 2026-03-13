@@ -257,15 +257,16 @@ func getGitHubGuardPolicies(githubTool any) map[string]any {
 }
 
 // deriveSafeOutputsGuardPolicyFromGitHub generates a safeoutputs guard-policy from GitHub guard-policy.
-// When the GitHub MCP server has a guard-policy with repos, the safeoutputs MCP must also have
-// a linked guard-policy. Each entry in the GitHub MCP server's "repos" must have a corresponding
-// entry in safeoutputs "accept" with a secrecy prefix that reflects the data sensitivity:
-//   - repos="public": only public data flows through, so prefix is "public:"
-//   - repos="all" or specific patterns: private data may flow through, so prefix is "private:"
+// When the GitHub MCP server has a guard-policy with an array of specific repo patterns, the
+// safeoutputs MCP must also have a linked guard-policy. Each entry in the "repos" array gets a
+// corresponding "private:" accept entry in the safeoutputs write-sink policy.
 //
-// This enforces the principle of least privilege: if the agent can only read public repositories,
-// it should only be permitted to write data tagged with "public" secrecy to safe outputs.
-// Returns nil if no GitHub guard policies are configured.
+// The safeoutputs server requires owner-scoped patterns (e.g., "private:owner/repo",
+// "private:owner/*"). Bare wildcards like "private:*" are not valid because they lack an owner
+// scope. For this reason, the global string keywords "all" and "public" do not produce a
+// write-sink guard-policy — only array patterns with explicit owner/repo components do.
+//
+// Returns nil if no repos array guard policies are configured.
 func deriveSafeOutputsGuardPolicyFromGitHub(githubTool any) map[string]any {
 	githubPolicies := getGitHubGuardPolicies(githubTool)
 	if githubPolicies == nil {
@@ -284,30 +285,24 @@ func deriveSafeOutputsGuardPolicyFromGitHub(githubTool any) map[string]any {
 		return nil
 	}
 
-	// Convert repos to accept list with appropriate secrecy prefix.
-	// repos="public" restricts the agent to public repositories only, so the write-sink
-	// accept list uses the "public:" secrecy prefix to enforce that only public-level data
-	// is written to safe outputs.
-	// All other cases (repos="all" or specific patterns) may involve private repositories,
-	// so the "private:" prefix is used to allow writing data of any secrecy level.
+	// Convert repos to accept list with "private:" prefix.
+	// Only array patterns produce a write-sink policy; string keywords ("all", "public") do not,
+	// because the safeoutputs server requires owner-scoped patterns (e.g., "private:owner/repo").
 	var acceptList []string
 
 	switch r := repos.(type) {
 	case string:
-		// Single string value (e.g., "all", "public", or a pattern)
-		switch r {
-		case "public":
-			// Public repos only: enforce public secrecy level for safe output writes
-			acceptList = []string{"public:*"}
-		case "all":
-			// All repos including private: allow private secrecy level writes
-			acceptList = []string{"private:*"}
-		default:
-			// Single specific pattern (e.g., "owner/repo"): may be private, use private prefix
-			acceptList = []string{"private:" + r}
+		// Global string keywords cannot be expressed as owner-scoped patterns.
+		// The safeoutputs server requires "prefix:owner/repo" format; bare wildcards
+		// like "private:*" (no owner) are not valid scopes.
+		if r == "all" || r == "public" {
+			githubConfigLog.Printf("repos=%q is a global keyword — no owner-scoped pattern possible, no safeoutputs write-sink guard-policy derived", r)
+			return nil
 		}
+		// Single owner-scoped pattern (e.g., "owner/repo"): use private: prefix
+		acceptList = []string{"private:" + r}
 	case []any:
-		// Array of patterns: may include private repos, use private prefix
+		// Array of owner-scoped patterns: generate private: accept entries
 		acceptList = make([]string, 0, len(r))
 		for _, item := range r {
 			if pattern, ok := item.(string); ok {
@@ -315,7 +310,7 @@ func deriveSafeOutputsGuardPolicyFromGitHub(githubTool any) map[string]any {
 			}
 		}
 	case []string:
-		// Array of patterns (already strings): may include private repos, use private prefix
+		// Array of owner-scoped patterns (already strings): generate private: accept entries
 		acceptList = make([]string, 0, len(r))
 		for _, pattern := range r {
 			acceptList = append(acceptList, "private:"+pattern)
@@ -323,6 +318,10 @@ func deriveSafeOutputsGuardPolicyFromGitHub(githubTool any) map[string]any {
 	default:
 		// Unknown type, return nil
 		githubConfigLog.Printf("Unknown repos type in guard-policy: %T", repos)
+		return nil
+	}
+
+	if len(acceptList) == 0 {
 		return nil
 	}
 
