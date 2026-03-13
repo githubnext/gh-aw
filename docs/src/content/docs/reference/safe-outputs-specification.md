@@ -3071,6 +3071,7 @@ safe-outputs:
 - `max`: Operation limit (default: 3)
 - `workflows`: Allowlist of workflow names that may be dispatched
 - `target-repo`: Cross-repository target (owner/repo)
+- `target-ref`: Git ref (branch, tag, or SHA) to use when dispatching the workflow. In `workflow_call` relay scenarios this is auto-injected by the compiler from `needs.activation.outputs.target_ref`, ensuring the correct platform branch is used instead of the caller's `GITHUB_REF`.
 - `allowed-repos`: Cross-repo allowlist (supports wildcards, e.g. `org/*`)
 
 **Notes**:
@@ -3078,6 +3079,7 @@ safe-outputs:
 - Target workflow must support `workflow_dispatch` trigger
 - Workflow inputs are validated against target workflow's input schema
 - Cross-repository dispatch requires appropriate `actions: write` permissions in the target repository
+- In `workflow_call` relay (CentralRepoOps) scenarios, the compiler automatically injects both `target-repo` and `target-ref` from `needs.activation.outputs.*` so the dispatch targets the correct platform repository and branch
 
 ---
 
