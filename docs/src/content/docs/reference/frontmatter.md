@@ -610,7 +610,13 @@ if: github.event_name == 'push'
 
 Configure how `actions/checkout` is invoked in the agent job. Override default checkout settings or check out multiple repositories for cross-repository workflows.
 
-See [Cross-Repository Operations](/gh-aw/reference/cross-repository/) for complete documentation on checkout configuration options (including `fetch:`), merging behavior, and cross-repo examples.
+Set `checkout: false` to disable the default repository checkout entirely — useful for workflows that access repositories through MCP servers or other mechanisms that do not require a local clone:
+
+```yaml wrap
+checkout: false
+```
+
+See [Cross-Repository Operations](/gh-aw/reference/cross-repository/) for complete documentation on checkout configuration options (including `fetch:`, `checkout: false`), merging behavior, and cross-repo examples.
 
 ## Custom Steps (`steps:`)
 

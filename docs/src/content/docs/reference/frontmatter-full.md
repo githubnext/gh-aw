@@ -4915,9 +4915,14 @@ runtimes:
 # (optional)
 # This field supports multiple formats (oneOf):
 
-# Option 1: Single checkout configuration for the default workspace
+# Option 1: Disable checkout entirely (no actions/checkout step is injected).
+# Useful for workflows that access repositories via MCP servers or other
+# mechanisms that do not require a local clone.
+# checkout: false
 
-# Option 2: Multiple checkout configurations
+# Option 2: Single checkout configuration for the default workspace
+
+# Option 3: Multiple checkout configurations
 checkout: []
   # Array items: undefined
 

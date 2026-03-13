@@ -19,9 +19,21 @@ All require authentication beyond the default `GITHUB_TOKEN`, which is scoped to
 
 ## Cross-repository Checkout (`checkout:`)
 
-The `checkout:` frontmatter field controls how `actions/checkout` is invoked in the agent job. Configure custom checkout settings or check out multiple repositories.
+The `checkout:` frontmatter field controls how `actions/checkout` is invoked in the agent job. Configure custom checkout settings, check out multiple repositories, or disable checkout entirely.
 
-If only a the current repository, you can use `checkout:` to override default checkout settings (e.g., fetch depth, sparse checkout) without needing to define a custom job:
+### Disabling Checkout (`checkout: false`)
+
+Set `checkout: false` to suppress the default `actions/checkout` step entirely. Use this for workflows that access repositories through MCP servers or other mechanisms that do not require a local clone:
+
+```yaml wrap
+checkout: false
+```
+
+This is equivalent to omitting the checkout step from the agent job. Custom dev-mode steps (such as "Checkout actions folder") are unaffected.
+
+### Custom Checkout Settings
+
+If only using the current repository, you can use `checkout:` to override default checkout settings (e.g., fetch depth, sparse checkout) without needing to define a custom job:
 
 ```yaml wrap
 checkout:
