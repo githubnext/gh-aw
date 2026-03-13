@@ -29,7 +29,7 @@
 #     - ../skills/documentation/SKILL.md
 #     - shared/mcp/qmd-docs.md
 #
-# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"6bfbae28e605cee1bda90beea0fc1a949f9bf24de09611ad3e2d8c4446f15f02","strict":true}
+# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"0ac7791428d6c94f2d22b6c851aafc12a712559a3b70350b0832fce5c56805b8","strict":true}
 
 name: "Rebuild the documentation after making changes"
 "on":
@@ -343,13 +343,13 @@ jobs:
       - name: Install QMD
         run: npm install -g @tobilu/qmd
       - name: Restore QMD index cache
-        uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        uses: actions/cache/restore@cdf6c1fa76f9f475f3d7449005a359c84ca0f306 # v5.0.3
         with:
           key: qmd-docs-${{ hashFiles('docs/src/content/docs/**', '.github/agents/**', '.github/aw/**') }}
-          path: /tmp/gh-aw/cache/qmd-docs
+          path: ~/.cache/qmd
           restore-keys: qmd-docs-
       - name: Start QMD MCP server
-        run: "set -e\nmkdir -p /tmp/gh-aw/mcp-logs/qmd/ /tmp/gh-aw/cache/qmd-docs ~/.cache\nln -sfn /tmp/gh-aw/cache/qmd-docs ~/.cache/qmd\n\n# Start QMD MCP server in HTTP daemon mode (default port 8181)\nqmd mcp --http --daemon > /tmp/gh-aw/mcp-logs/qmd/server.log 2>&1\n\n# Poll until the server is healthy (up to 15 seconds)\nfor i in $(seq 1 30); do\n  if curl -sf http://localhost:8181/health > /dev/null 2>&1; then\n    echo \"QMD MCP server started successfully\"\n    echo \"Status: $(curl -s http://localhost:8181/health)\"\n    exit 0\n  fi\n  sleep 0.5\ndone\n\necho \"QMD MCP server health check timed out after 15 seconds\"\necho \"Server logs:\"\ncat /tmp/gh-aw/mcp-logs/qmd/server.log || true\nexit 1"
+        run: "set -e\nmkdir -p /tmp/gh-aw/mcp-logs/qmd/\n\n# Start QMD MCP server in HTTP daemon mode (default port 8181)\nqmd mcp --http --daemon > /tmp/gh-aw/mcp-logs/qmd/server.log 2>&1\n\n# Poll until the server is healthy (up to 15 seconds)\nfor i in $(seq 1 30); do\n  if curl -sf http://localhost:8181/health > /dev/null 2>&1; then\n    echo \"QMD MCP server started successfully\"\n    echo \"Status: $(curl -s http://localhost:8181/health)\"\n    exit 0\n  fi\n  sleep 0.5\ndone\n\necho \"QMD MCP server health check timed out after 15 seconds\"\necho \"Server logs:\"\ncat /tmp/gh-aw/mcp-logs/qmd/server.log || true\nexit 1"
       - name: Install dependencies
         run: npm ci
         working-directory: ./docs
