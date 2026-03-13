@@ -79,6 +79,9 @@ func FormatError(err CompilerError) string {
 	}
 
 	// Hint for fixing the error
+	// Note: we intentionally use styles.Info (cyan) for hints since there is no
+	// dedicated Hint style; Info is visually distinct and non-alarming, which is
+	// appropriate for actionable guidance.
 	if err.Hint != "" {
 		output.WriteString(applyStyle(styles.Info, "hint: "))
 		output.WriteString(err.Hint)

@@ -208,6 +208,9 @@ func findFrontmatterBounds(lines []string) (startIdx int, endIdx int, frontmatte
 // knownFieldValidValues maps well-known JSON schema paths to a human-readable description
 // of the valid values / children for that field. Used to append helpful hints when an
 // additionalProperties error occurs on these fields so users quickly know what is allowed.
+//
+// The permissions scope list mirrors the properties defined in main_workflow_schema.json
+// under permissions.oneOf[1].properties. Update this list when the schema changes.
 var knownFieldValidValues = map[string]string{
 	"/permissions": "Valid permission scopes: actions, attestations, checks, contents, deployments, discussions, id-token, issues, packages, pages, pull-requests, repository-projects, security-events, statuses, workflows",
 }
@@ -216,6 +219,8 @@ var knownFieldValidValues = map[string]string{
 // jsonPath matches a well-known field and the message is an unknown-property error.
 // It returns the message unchanged for unknown paths or non-additional-properties messages.
 func appendKnownFieldValidValuesHint(message string, jsonPath string) string {
+	// Use truncated prefix "unknown propert" to match both singular ("Unknown property")
+	// and plural ("Unknown properties") forms produced by rewriteAdditionalPropertiesError.
 	if !strings.Contains(strings.ToLower(message), "unknown propert") {
 		return message
 	}
