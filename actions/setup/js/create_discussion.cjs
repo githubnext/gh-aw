@@ -261,7 +261,7 @@ function isPermissionsError(errorMessage) {
 async function handleFallbackToIssue(createIssueHandler, item, qualifiedItemRepo, resolvedTemporaryIds, contextMessage) {
   try {
     // Prepare issue message with a note about the fallback
-    const fallbackNote = `\n\n---\n\n> [!WARNING]\n> This was intended to be a discussion, but discussions could not be created due to permissions issues. This issue was created as a fallback.\n`;
+    const fallbackNote = `\n\n---\n\n> [!WARNING]\n> This was intended to be a discussion, but discussions could not be created due to permissions issues. This issue was created as a fallback.\n> To enable discussions, ensure the repository has an Announcements category (announcement-capable) configured.\n`;
     const issueMessage = {
       ...item,
       body: (item.body || "") + fallbackNote,

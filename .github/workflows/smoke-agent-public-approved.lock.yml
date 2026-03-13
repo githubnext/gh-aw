@@ -23,9 +23,9 @@
 #
 # Smoke test that validates assign-to-agent with the agentic-workflows custom agent
 #
-# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"53b841f3533e56fd2307fdc9ead2cc276bcb4fa7ff3e547aec2f1c2244f47833","strict":true}
+# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"a514762e8c13a14a62eff67464b1cab218d77175454520cde9738f6e6ccf97b7","strict":true}
 
-name: "Smoke Agent"
+name: "Smoke Agent: public/approved"
 "on":
   pull_request:
     # names: # Label filtering applied via job conditions
@@ -40,7 +40,7 @@ concurrency:
   group: "gh-aw-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref || github.run_id }}"
   cancel-in-progress: true
 
-run-name: "Smoke Agent"
+run-name: "Smoke Agent: public/approved"
 
 jobs:
   activation:
@@ -83,7 +83,7 @@ jobs:
           GH_AW_INFO_MODEL: ${{ vars.GH_AW_MODEL_AGENT_CODEX || '' }}
           GH_AW_INFO_VERSION: ""
           GH_AW_INFO_AGENT_VERSION: "latest"
-          GH_AW_INFO_WORKFLOW_NAME: "Smoke Agent"
+          GH_AW_INFO_WORKFLOW_NAME: "Smoke Agent: public/approved"
           GH_AW_INFO_EXPERIMENTAL: "false"
           GH_AW_INFO_SUPPORTS_TOOLS_ALLOWLIST: "true"
           GH_AW_INFO_STAGED: "false"
@@ -116,7 +116,7 @@ jobs:
       - name: Check workflow file timestamps
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
-          GH_AW_WORKFLOW_FILE: "smoke-agent.lock.yml"
+          GH_AW_WORKFLOW_FILE: "smoke-agent-public-approved.lock.yml"
         with:
           script: |
             const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
@@ -137,7 +137,7 @@ jobs:
         if: github.event_name == 'issues' || github.event_name == 'issue_comment' || github.event_name == 'pull_request_review_comment' || github.event_name == 'discussion' || github.event_name == 'discussion_comment' || (github.event_name == 'pull_request') && (github.event.pull_request.head.repo.id == github.repository_id)
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
-          GH_AW_WORKFLOW_NAME: "Smoke Agent"
+          GH_AW_WORKFLOW_NAME: "Smoke Agent: public/approved"
           GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 🤖 *Smoke test by [{workflow_name}]({run_url})*{history_link}\",\"runStarted\":\"🤖 [{workflow_name}]({run_url}) is looking for a Smoke issue to assign...\",\"runSuccess\":\"✅ [{workflow_name}]({run_url}) completed. Issue assigned to the agentic-workflows agent.\",\"runFailure\":\"❌ [{workflow_name}]({run_url}) {status}. Check the logs for details.\"}"
         with:
           script: |
@@ -204,7 +204,7 @@ jobs:
           </system>
           GH_AW_PROMPT_EOF
           cat << 'GH_AW_PROMPT_EOF'
-          {{#runtime-import .github/workflows/smoke-agent.md}}
+          {{#runtime-import .github/workflows/smoke-agent-public-approved.md}}
           GH_AW_PROMPT_EOF
           } > "$GH_AW_PROMPT"
       - name: Interpolate variables and render templates
@@ -287,7 +287,7 @@ jobs:
       GH_AW_SAFE_OUTPUTS: /opt/gh-aw/safeoutputs/outputs.jsonl
       GH_AW_SAFE_OUTPUTS_CONFIG_PATH: /opt/gh-aw/safeoutputs/config.json
       GH_AW_SAFE_OUTPUTS_TOOLS_PATH: /opt/gh-aw/safeoutputs/tools.json
-      GH_AW_WORKFLOW_ID_SANITIZED: smokeagent
+      GH_AW_WORKFLOW_ID_SANITIZED: smokeagentpublicapproved
     outputs:
       checkout_pr_success: ${{ steps.checkout-pr.outputs.checkout_pr_success || 'true' }}
       detection_conclusion: ${{ steps.detection_conclusion.outputs.conclusion }}
@@ -722,7 +722,7 @@ jobs:
           include_only = ["CODEX_API_KEY", "GH_AW_ASSETS_ALLOWED_EXTS", "GH_AW_ASSETS_BRANCH", "GH_AW_ASSETS_MAX_SIZE_KB", "GH_AW_SAFE_OUTPUTS", "GITHUB_PERSONAL_ACCESS_TOKEN", "GITHUB_REPOSITORY", "GITHUB_SERVER_URL", "HOME", "OPENAI_API_KEY", "PATH"]
           
           [mcp_servers.github]
-          user_agent = "smoke-agent"
+          user_agent = "smoke-agent-public-approved"
           startup_timeout_sec = 120
           tool_timeout_sec = 60
           container = "ghcr.io/github/github-mcp-server:v0.32.0"
@@ -735,6 +735,11 @@ jobs:
           
           [mcp_servers.safeoutputs.headers]
           Authorization = "$GH_AW_SAFE_OUTPUTS_API_KEY"
+          
+          [mcp_servers.safeoutputs."guard-policies"]
+          
+          [mcp_servers.safeoutputs."guard-policies".write-sink]
+          accept = ["*"]
           GH_AW_MCP_CONFIG_EOF
           
           # Generate JSON config for MCP gateway
@@ -748,6 +753,12 @@ jobs:
                   "GITHUB_PERSONAL_ACCESS_TOKEN": "$GITHUB_MCP_SERVER_TOKEN",
                   "GITHUB_READ_ONLY": "1",
                   "GITHUB_TOOLSETS": "context,repos,issues,pull_requests"
+                },
+                "guard-policies": {
+                  "allow-only": {
+                    "min-integrity": "approved",
+                    "repos": "public"
+                  }
                 }
               },
               "safeoutputs": {
@@ -755,6 +766,13 @@ jobs:
                 "url": "http://host.docker.internal:$GH_AW_SAFE_OUTPUTS_PORT",
                 "headers": {
                   "Authorization": "$GH_AW_SAFE_OUTPUTS_API_KEY"
+                },
+                "guard-policies": {
+                  "write-sink": {
+                    "accept": [
+                      "*"
+                    ]
+                  }
                 }
               }
             },
@@ -945,7 +963,7 @@ jobs:
         if: always() && steps.detection_guard.outputs.run_detection == 'true'
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
-          WORKFLOW_NAME: "Smoke Agent"
+          WORKFLOW_NAME: "Smoke Agent: public/approved"
           WORKFLOW_DESCRIPTION: "Smoke test that validates assign-to-agent with the agentic-workflows custom agent"
           HAS_PATCH: ${{ steps.collect_output.outputs.has_patch }}
         with:
@@ -1034,7 +1052,7 @@ jobs:
       issues: write
       pull-requests: write
     concurrency:
-      group: "gh-aw-conclusion-smoke-agent"
+      group: "gh-aw-conclusion-smoke-agent-public-approved"
       cancel-in-progress: false
     outputs:
       noop_message: ${{ steps.noop.outputs.noop_message }}
@@ -1071,7 +1089,7 @@ jobs:
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
           GH_AW_NOOP_MAX: "1"
-          GH_AW_WORKFLOW_NAME: "Smoke Agent"
+          GH_AW_WORKFLOW_NAME: "Smoke Agent: public/approved"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -1084,7 +1102,7 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
-          GH_AW_WORKFLOW_NAME: "Smoke Agent"
+          GH_AW_WORKFLOW_NAME: "Smoke Agent: public/approved"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -1097,10 +1115,10 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
-          GH_AW_WORKFLOW_NAME: "Smoke Agent"
+          GH_AW_WORKFLOW_NAME: "Smoke Agent: public/approved"
           GH_AW_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           GH_AW_AGENT_CONCLUSION: ${{ needs.agent.result }}
-          GH_AW_WORKFLOW_ID: "smoke-agent"
+          GH_AW_WORKFLOW_ID: "smoke-agent-public-approved"
           GH_AW_SECRET_VERIFICATION_RESULT: ${{ needs.activation.outputs.secret_verification_result }}
           GH_AW_CHECKOUT_PR_SUCCESS: ${{ needs.agent.outputs.checkout_pr_success }}
           GH_AW_ASSIGNMENT_ERRORS: ${{ needs.safe_outputs.outputs.assign_to_agent_assignment_errors }}
@@ -1121,7 +1139,7 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
-          GH_AW_WORKFLOW_NAME: "Smoke Agent"
+          GH_AW_WORKFLOW_NAME: "Smoke Agent: public/approved"
           GH_AW_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           GH_AW_AGENT_CONCLUSION: ${{ needs.agent.result }}
           GH_AW_NOOP_MESSAGE: ${{ steps.noop.outputs.noop_message }}
@@ -1141,7 +1159,7 @@ jobs:
           GH_AW_COMMENT_ID: ${{ needs.activation.outputs.comment_id }}
           GH_AW_COMMENT_REPO: ${{ needs.activation.outputs.comment_repo }}
           GH_AW_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-          GH_AW_WORKFLOW_NAME: "Smoke Agent"
+          GH_AW_WORKFLOW_NAME: "Smoke Agent: public/approved"
           GH_AW_AGENT_CONCLUSION: ${{ needs.agent.result }}
           GH_AW_DETECTION_CONCLUSION: ${{ needs.agent.outputs.detection_conclusion }}
           GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 🤖 *Smoke test by [{workflow_name}]({run_url})*{history_link}\",\"runStarted\":\"🤖 [{workflow_name}]({run_url}) is looking for a Smoke issue to assign...\",\"runSuccess\":\"✅ [{workflow_name}]({run_url}) completed. Issue assigned to the agentic-workflows agent.\",\"runFailure\":\"❌ [{workflow_name}]({run_url}) {status}. Check the logs for details.\"}"
@@ -1199,11 +1217,11 @@ jobs:
       pull-requests: write
     timeout-minutes: 15
     env:
-      GH_AW_CALLER_WORKFLOW_ID: "${{ github.repository }}/smoke-agent"
+      GH_AW_CALLER_WORKFLOW_ID: "${{ github.repository }}/smoke-agent-public-approved"
       GH_AW_ENGINE_ID: "codex"
       GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 🤖 *Smoke test by [{workflow_name}]({run_url})*{history_link}\",\"runStarted\":\"🤖 [{workflow_name}]({run_url}) is looking for a Smoke issue to assign...\",\"runSuccess\":\"✅ [{workflow_name}]({run_url}) completed. Issue assigned to the agentic-workflows agent.\",\"runFailure\":\"❌ [{workflow_name}]({run_url}) {status}. Check the logs for details.\"}"
-      GH_AW_WORKFLOW_ID: "smoke-agent"
-      GH_AW_WORKFLOW_NAME: "Smoke Agent"
+      GH_AW_WORKFLOW_ID: "smoke-agent-public-approved"
+      GH_AW_WORKFLOW_NAME: "Smoke Agent: public/approved"
     outputs:
       assign_to_agent_assigned: ${{ steps.assign_to_agent.outputs.assigned }}
       assign_to_agent_assignment_error_count: ${{ steps.assign_to_agent.outputs.assignment_error_count }}

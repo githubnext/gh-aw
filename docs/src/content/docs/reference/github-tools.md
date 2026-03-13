@@ -146,9 +146,26 @@ tools:
 
 ### Safe Outputs Integration
 
-When you configure `repos` as an array of specific repository patterns, the compiler automatically derives a linked guard-policy for the [safe outputs](/gh-aw/reference/safe-outputs/) MCP server. Each entry in the `repos` list is added as a `private` accept entry in the safeoutputs policy, allowing the MCP gateway to read private repository data through the GitHub tools and still write outputs via safeoutputs.
+When you configure `repos` in the GitHub guard policy, the compiler automatically derives a linked guard-policy for the [safe outputs](/gh-aw/reference/safe-outputs/) MCP server:
 
-This derivation happens at compile time and requires no additional configuration. If you use `repos: "all"` or `repos: "public"`, no safeoutputs guard-policy is derived.
+- **`repos: "all"` or `repos: "public"`**: Creates a write-sink policy with `accept: ["*"]` to allow all safe output operations
+- **`repos: [patterns]`**: Each entry in the `repos` list is transformed and added as an accept entry in the safeoutputs policy:
+  - `"owner/*"` → `"private:owner"` (owner wildcard → strip wildcard)
+  - `"owner/prefix*"` → `"private:owner/prefix*"` (prefix wildcard → keep as-is)
+  - `"owner/repo"` → `"private:owner/repo"` (specific repo → keep as-is)
+
+This derivation happens at compile time and requires no additional configuration, allowing the MCP gateway to read repository data through the GitHub tools and still write outputs via safeoutputs.
+
+```yaml wrap
+tools:
+  github:
+    mode: remote
+    toolsets: [default]
+    repos: "public"          # Creates write-sink with accept: ["*"]
+    min-integrity: approved
+safe-outputs:
+  create-issue:              # safe outputs can write with accept: ["*"]
+```
 
 ```yaml wrap
 tools:
@@ -156,8 +173,8 @@ tools:
     mode: remote
     toolsets: [default]
     repos:
-      - "myorg/private-repo"   # automatically added to safeoutputs guard-policy
-      - "myorg/another-repo"   # automatically added to safeoutputs guard-policy
+      - "myorg/private-repo"   # → accept: ["private:myorg/private-repo"]
+      - "myorg/another-repo"   # → accept: ["private:myorg/another-repo"]
     min-integrity: approved
 safe-outputs:
   create-issue:                # safe outputs can write to the guard-policy repos
