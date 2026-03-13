@@ -25,9 +25,10 @@
 #
 # Resolved workflow manifest:
 #   Imports:
+#     - shared/activation-app.md
 #     - shared/reporting.md
 #
-# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"298055babdc6d453ead986983230edf4cbb2c74f82c5a110850af9b8a64e89c2","strict":true}
+# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"d30dc29a4e3303a626094750fe8c3efecfbbe25ab6b39a475ab3217871047ed4","strict":true}
 
 name: "Breaking Change Checker"
 "on":
@@ -165,6 +166,9 @@ jobs:
           GH_AW_PROMPT_EOF
           cat << 'GH_AW_PROMPT_EOF'
           </system>
+          GH_AW_PROMPT_EOF
+          cat << 'GH_AW_PROMPT_EOF'
+          {{#runtime-import .github/workflows/shared/activation-app.md}}
           GH_AW_PROMPT_EOF
           cat << 'GH_AW_PROMPT_EOF'
           {{#runtime-import .github/workflows/shared/reporting.md}}

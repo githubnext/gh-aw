@@ -23,7 +23,11 @@
 #
 # Daily dead code assessment and removal — identifies unreachable Go functions using static analysis and creates a PR to remove a batch each day
 #
-# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"fa086fa48d23515e37fdf92ef825e11e376fcedf5ffe99f7e5d9ce5164deb071","strict":true}
+# Resolved workflow manifest:
+#   Imports:
+#     - shared/activation-app.md
+#
+# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"00f650dd3f0d6abf021fc2e0e683c25aa13ee283334637072f1d6def43026a6a","strict":true}
 
 name: "Dead Code Removal Agent"
 "on":
@@ -167,6 +171,9 @@ jobs:
           GH_AW_PROMPT_EOF
           cat << 'GH_AW_PROMPT_EOF'
           </system>
+          GH_AW_PROMPT_EOF
+          cat << 'GH_AW_PROMPT_EOF'
+          {{#runtime-import .github/workflows/shared/activation-app.md}}
           GH_AW_PROMPT_EOF
           cat << 'GH_AW_PROMPT_EOF'
           {{#runtime-import .github/workflows/dead-code-remover.md}}

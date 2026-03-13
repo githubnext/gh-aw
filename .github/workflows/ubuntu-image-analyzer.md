@@ -14,6 +14,8 @@ permissions:
 
 tracker-id: ubuntu-image-analyzer
 engine: copilot
+imports:
+  - shared/activation-app.md
 strict: true
 
 network:

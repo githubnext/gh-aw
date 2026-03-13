@@ -9,6 +9,8 @@ permissions:
   pull-requests: read
   issues: read
 engine: copilot
+imports:
+  - shared/activation-app.md
 network:
   allowed:
     - defaults

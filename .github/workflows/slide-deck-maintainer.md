@@ -19,6 +19,8 @@ concurrency:
   job-discriminator: ${{ inputs.focus || github.run_id }}
 tracker-id: slide-deck-maintainer
 engine: copilot
+imports:
+  - shared/activation-app.md
 timeout-minutes: 45
 tools:
   cache-memory: true
