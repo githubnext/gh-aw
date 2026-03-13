@@ -58,6 +58,8 @@ jobs:
       - name: Checkout actions folder
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
+          repository: github/gh-aw
+          ref: 45b92cc
           sparse-checkout: |
             actions
           persist-credentials: false
@@ -282,6 +284,8 @@ jobs:
       - name: Checkout actions folder
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
+          repository: github/gh-aw
+          ref: 45b92cc
           sparse-checkout: |
             actions
           persist-credentials: false
@@ -869,7 +873,7 @@ jobs:
       - name: Append agent step summary
         if: always()
         run: bash /opt/gh-aw/actions/append_agent_step_summary.sh
-      - name: Copy safe outputs
+      - name: Copy Safe Outputs
         if: always()
         run: |
           mkdir -p /tmp/gh-aw
@@ -1103,6 +1107,8 @@ jobs:
       - name: Checkout actions folder
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
+          repository: github/gh-aw
+          ref: 45b92cc
           sparse-checkout: |
             actions
           persist-credentials: false
@@ -1220,6 +1226,8 @@ jobs:
       - name: Checkout actions folder
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
+          repository: github/gh-aw
+          ref: 45b92cc
           sparse-checkout: |
             actions
           persist-credentials: false
@@ -1276,6 +1284,8 @@ jobs:
       - name: Checkout actions folder
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
+          repository: github/gh-aw
+          ref: 45b92cc
           sparse-checkout: |
             actions
           persist-credentials: false
