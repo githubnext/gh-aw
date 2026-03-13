@@ -15,16 +15,13 @@
  * 3. Removes leading and trailing dashes
  * 4. Truncates to 128 characters
  * 5. Removes trailing dashes after truncation
- * 6. Optionally converts to lowercase (opt-in via `options.lowercase`)
- * 7. Optionally appends a salt suffix (opt-in via `options.salt`)
+ * 6. Appends `-<salt>` suffix when a salt value is provided
  *
  * @param {string} branchName - The branch name to normalize
- * @param {{ lowercase?: boolean, salt?: string | null }} [options] - Normalization options
- * @param {boolean} [options.lowercase=false] - When true, converts the branch name to lowercase
- * @param {string | null} [options.salt=null] - When set, appends `-<salt>` to the branch name
+ * @param {string | null} [salt=null] - When set, appends `-<salt>` to the branch name
  * @returns {string} The normalized branch name
  */
-function normalizeBranchName(branchName, { lowercase = false, salt = null } = {}) {
+function normalizeBranchName(branchName, salt = null) {
   if (!branchName || typeof branchName !== "string" || branchName.trim() === "") {
     return branchName;
   }
@@ -47,12 +44,7 @@ function normalizeBranchName(branchName, { lowercase = false, salt = null } = {}
   // Ensure it doesn't end with a dash after truncation
   normalized = normalized.replace(/-+$/, "");
 
-  // Optionally convert to lowercase
-  if (lowercase) {
-    normalized = normalized.toLowerCase();
-  }
-
-  // Optionally append a salt suffix
+  // Append a salt suffix when provided
   if (salt) {
     normalized = `${normalized}-${salt}`;
   }

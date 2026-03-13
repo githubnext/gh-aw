@@ -134,7 +134,7 @@ async function main(config = {}) {
 
   // SECURITY: If base branch is explicitly configured, validate it at factory level
   if (configBaseBranch) {
-    const normalizedConfigBase = normalizeBranchName(configBaseBranch, { lowercase: true });
+    const normalizedConfigBase = normalizeBranchName(configBaseBranch);
     if (!normalizedConfigBase) {
       throw new Error(`Invalid baseBranch: sanitization resulted in empty string (original: "${configBaseBranch}")`);
     }
@@ -283,7 +283,7 @@ async function main(config = {}) {
 
     // SECURITY: Sanitize dynamically resolved base branch to prevent shell injection
     const originalBaseBranch = baseBranch;
-    baseBranch = normalizeBranchName(baseBranch, { lowercase: true });
+    baseBranch = normalizeBranchName(baseBranch);
     if (!baseBranch) {
       return {
         success: false,
@@ -532,14 +532,11 @@ async function main(config = {}) {
 
     // SECURITY: Sanitize branch name to prevent shell injection (CWE-78)
     // Branch names from user input must be normalized before use in git commands.
-    // When preserve-branch-name is disabled (default), also lowercase the name and
-    // append a random salt suffix to avoid collisions.
+    // When preserve-branch-name is disabled (default), a random salt suffix is
+    // appended to avoid collisions.
     if (branchName) {
       const originalBranchName = branchName;
-      branchName = normalizeBranchName(branchName, {
-        lowercase: !preserveBranchName,
-        salt: preserveBranchName ? undefined : randomHex,
-      });
+      branchName = normalizeBranchName(branchName, preserveBranchName ? null : randomHex);
 
       // Validate it's not empty after normalization
       if (!branchName) {
