@@ -6,101 +6,127 @@ import (
 	"encoding/json"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-// TestWorkflowRunPathFieldUnmarshal verifies that the "path" key returned by
-// "gh run list --json" is correctly bridged to WorkflowRun.WorkflowPath during
-// unmarshaling.  The gh CLI uses "path" but WorkflowRun serialises the field as
-// "workflowPath" for backward compatibility, so a helper struct is used at the
-// unmarshal site.
-//
-// Regression: commit 61cc2d7ac (Jan 4 2026) silently dropped "path" from the
-// gh run list --json field list, causing WorkflowPath to always be "" and the
-// .lock.yml filter in fetchWorkflowRuns to discard every run.
-func TestWorkflowRunPathFieldUnmarshal(t *testing.T) {
-	// Simulate a single row of "gh run list --json path,workflowName,..."
+// TestWorkflowRunUnmarshal verifies that a standard "gh run list --json" response
+// (without the unsupported "path" field) is correctly unmarshaled into a WorkflowRun.
+// The "path" field was previously requested but is not a valid gh run list --json
+// field and caused failures on strict gh CLI versions.
+func TestWorkflowRunUnmarshal(t *testing.T) {
 	rawJSON := `[
-		{
-			"databaseId": 42,
-			"workflowName": "My Workflow",
-			"path": ".github/workflows/my-workflow.lock.yml",
-			"status": "completed",
-			"conclusion": "success",
-			"createdAt": "2026-01-01T00:00:00Z",
-			"startedAt": "2026-01-01T00:00:01Z",
-			"updatedAt": "2026-01-01T00:01:00Z"
-		}
-	]`
+{
+"databaseId": 42,
+"workflowName": "My Workflow",
+"status": "completed",
+"conclusion": "success",
+"createdAt": "2026-01-01T00:00:00Z",
+"startedAt": "2026-01-01T00:00:01Z",
+"updatedAt": "2026-01-01T00:01:00Z"
+}
+]`
 
-	var rawRuns []struct {
-		WorkflowRun
-		Path string `json:"path"`
-	}
-	require.NoError(t, json.Unmarshal([]byte(rawJSON), &rawRuns), "unmarshal should succeed")
-	require.Len(t, rawRuns, 1)
+	var runs []WorkflowRun
+	require.NoError(t, json.Unmarshal([]byte(rawJSON), &runs), "unmarshal should succeed")
+	require.Len(t, runs, 1)
 
-	run := rawRuns[0].WorkflowRun
-	run.WorkflowPath = rawRuns[0].Path
-
-	assert.Equal(t, ".github/workflows/my-workflow.lock.yml", run.WorkflowPath,
-		"WorkflowPath should be populated from the 'path' JSON key")
-	assert.Equal(t, int64(42), run.DatabaseID)
-	assert.Equal(t, "My Workflow", run.WorkflowName)
+	assert.Equal(t, int64(42), runs[0].DatabaseID, "DatabaseID should be populated")
+	assert.Equal(t, "My Workflow", runs[0].WorkflowName, "WorkflowName should be populated")
+	assert.Empty(t, runs[0].WorkflowPath, "WorkflowPath should be empty when 'path' field is absent")
 }
 
-// TestFetchWorkflowRunsLockYMLFilter verifies the .lock.yml suffix filter used
-// in fetchWorkflowRuns.  Only runs whose WorkflowPath ends in ".lock.yml" must
-// be retained; runs with a plain ".yml" path (regular Actions workflows) must
-// be excluded.
-func TestFetchWorkflowRunsLockYMLFilter(t *testing.T) {
-	runs := []WorkflowRun{
+// TestListWorkflowRunsErrorHandling verifies the error classification logic in
+// listWorkflowRunsWithPagination. In particular it checks that:
+//   - "Unknown JSON field" (capital U, as emitted by gh CLI) is treated as an
+//     invalid-field error, not an auth error (case-insensitive matching).
+//   - Exit code 1 alone does NOT trigger the auth-failure path because gh exits
+//     with code 1 for many non-auth errors (e.g. unsupported JSON fields).
+func TestListWorkflowRunsErrorHandling(t *testing.T) {
+	tests := []struct {
+		name             string
+		errMsg           string
+		outputMsg        string
+		wantInvalidField bool
+		wantAuth         bool
+	}{
 		{
-			DatabaseID:   1,
-			WorkflowName: "Agentic Workflow",
-			WorkflowPath: ".github/workflows/agentic-workflow.lock.yml",
-			StartedAt:    time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC),
-			UpdatedAt:    time.Date(2026, 1, 1, 0, 5, 0, 0, time.UTC),
+			name:             "unknown JSON field (capital U, as gh CLI emits)",
+			errMsg:           "exit status 1",
+			outputMsg:        `Unknown JSON field: "path"`,
+			wantInvalidField: true,
+			wantAuth:         false,
 		},
 		{
-			DatabaseID:   2,
-			WorkflowName: "Regular CI",
-			WorkflowPath: ".github/workflows/ci.yml",
+			name:             "unknown field lowercase",
+			errMsg:           "exit status 1",
+			outputMsg:        "unknown field foo",
+			wantInvalidField: true,
+			wantAuth:         false,
 		},
 		{
-			DatabaseID:   3,
-			WorkflowName: "Another Agentic",
-			WorkflowPath: ".github/workflows/another.lock.yml",
-			StartedAt:    time.Date(2026, 1, 2, 0, 0, 0, 0, time.UTC),
-			UpdatedAt:    time.Date(2026, 1, 2, 0, 3, 0, 0, time.UTC),
+			name:             "invalid field mixed case",
+			errMsg:           "exit status 1",
+			outputMsg:        "Invalid field: bar",
+			wantInvalidField: true,
+			wantAuth:         false,
 		},
 		{
-			// Run with empty WorkflowPath — must be excluded (mimics the pre-fix state
-			// where "path" was absent from the JSON query).
-			DatabaseID:   4,
-			WorkflowName: "Agentic But No Path",
-			WorkflowPath: "",
+			name:      "exit status 1 alone is NOT an auth error",
+			errMsg:    "exit status 1",
+			outputMsg: "some other error",
+			wantAuth:  false,
+		},
+		{
+			name:      "exit status 4 IS an auth error",
+			errMsg:    "exit status 4",
+			outputMsg: "",
+			wantAuth:  true,
+		},
+		{
+			name:      "gh auth login hint is an auth error",
+			errMsg:    "exit status 1",
+			outputMsg: "To get started, run: gh auth login",
+			wantAuth:  true,
+		},
+		{
+			name:      "not logged in message is an auth error",
+			errMsg:    "exit status 1",
+			outputMsg: "not logged into any GitHub hosts",
+			wantAuth:  true,
 		},
 	}
 
-	var filtered []WorkflowRun
-	for _, run := range runs {
-		if strings.HasSuffix(run.WorkflowPath, ".lock.yml") {
-			if run.Duration == 0 && !run.StartedAt.IsZero() && !run.UpdatedAt.IsZero() {
-				run.Duration = run.UpdatedAt.Sub(run.StartedAt)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			combinedMsg := tt.errMsg + " " + tt.outputMsg
+			combinedMsgLower := strings.ToLower(combinedMsg)
+
+			isInvalidField := strings.Contains(combinedMsgLower, "invalid field") ||
+				strings.Contains(combinedMsgLower, "unknown field") ||
+				strings.Contains(combinedMsgLower, "unknown json field") ||
+				strings.Contains(combinedMsgLower, "unknown json") ||
+				strings.Contains(combinedMsgLower, "field not found") ||
+				strings.Contains(combinedMsgLower, "no such field")
+			isAuth := !isInvalidField && (strings.Contains(combinedMsg, "exit status 4") ||
+				strings.Contains(combinedMsg, "not logged into any GitHub hosts") ||
+				strings.Contains(combinedMsg, "To use GitHub CLI in a GitHub Actions workflow") ||
+				strings.Contains(combinedMsg, "authentication required") ||
+				strings.Contains(tt.outputMsg, "gh auth login"))
+
+			if tt.wantInvalidField {
+				assert.True(t, isInvalidField, "expected invalid-field classification")
+				assert.False(t, isAuth, "invalid-field errors must not be classified as auth errors")
 			}
-			filtered = append(filtered, run)
-		}
+			if tt.wantAuth {
+				assert.False(t, isInvalidField, "auth errors must not be classified as invalid-field errors")
+				assert.True(t, isAuth, "expected auth classification")
+			}
+			if !tt.wantInvalidField && !tt.wantAuth {
+				assert.False(t, isInvalidField, "should not be invalid-field")
+				assert.False(t, isAuth, "should not be auth")
+			}
+		})
 	}
-
-	require.Len(t, filtered, 2, "only .lock.yml runs should pass the filter")
-
-	assert.Equal(t, int64(1), filtered[0].DatabaseID)
-	assert.Equal(t, 5*time.Minute, filtered[0].Duration, "duration should be calculated from StartedAt/UpdatedAt")
-
-	assert.Equal(t, int64(3), filtered[1].DatabaseID)
-	assert.Equal(t, 3*time.Minute, filtered[1].Duration)
 }

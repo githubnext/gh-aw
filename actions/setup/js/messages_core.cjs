@@ -21,6 +21,8 @@
  * Both camelCase and snake_case placeholder formats are supported.
  */
 
+const { getErrorMessage } = require("./error_helpers.cjs");
+
 /**
  * @typedef {Object} SafeOutputMessages
  * @property {string} [footer] - Custom footer message template
@@ -53,8 +55,6 @@ function getMessages() {
     return null;
   }
 
-  const { getErrorMessage } = require("./error_helpers.cjs");
-
   try {
     // Parse JSON with camelCase keys from Go struct (using json struct tags)
     return JSON.parse(messagesEnv);
@@ -79,21 +79,23 @@ function renderTemplate(template, context) {
 }
 
 /**
- * Convert context object keys to snake_case for template rendering
+ * Convert context object keys to snake_case for template rendering.
+ * Also keeps original camelCase keys for backwards compatibility.
  * @param {Record<string, any>} obj - Object with camelCase keys
- * @returns {Record<string, any>} Object with snake_case keys
+ * @returns {Record<string, any>} Object with both snake_case and original keys
  */
 function toSnakeCase(obj) {
-  /** @type {Record<string, any>} */
-  const result = {};
-  for (const [key, value] of Object.entries(obj)) {
-    // Convert camelCase to snake_case
-    const snakeKey = key.replace(/([A-Z])/g, "_$1").toLowerCase();
-    result[snakeKey] = value;
-    // Also keep original key for backwards compatibility
-    result[key] = value;
-  }
-  return result;
+  return Object.fromEntries(
+    Object.entries(obj).flatMap(([key, value]) => {
+      const snakeKey = key.replace(/([A-Z])/g, "_$1").toLowerCase();
+      return snakeKey === key
+        ? [[key, value]]
+        : [
+            [snakeKey, value],
+            [key, value],
+          ];
+    })
+  );
 }
 
 module.exports = {

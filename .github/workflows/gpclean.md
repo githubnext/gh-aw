@@ -36,6 +36,9 @@ tools:
 
 strict: false
 
+imports:
+  - shared/reporting.md
+
 # Pre-download SBOM to get accurate dependency information
 steps:
   - name: Download SBOM from GitHub Dependency Graph API

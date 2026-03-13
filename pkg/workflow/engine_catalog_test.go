@@ -31,20 +31,6 @@ func TestEngineCatalog_IDs(t *testing.T) {
 	assert.Equal(t, sorted, ids, "IDs() should return IDs in sorted order")
 }
 
-// TestEngineCatalog_DisplayNames verifies that DisplayNames() returns names in sorted ID order.
-func TestEngineCatalog_DisplayNames(t *testing.T) {
-	registry := NewEngineRegistry()
-	catalog := NewEngineCatalog(registry)
-
-	names := catalog.DisplayNames()
-	require.NotEmpty(t, names, "DisplayNames() should return a non-empty list")
-	assert.Len(t, names, len(catalog.IDs()), "DisplayNames() should have same length as IDs()")
-
-	// Verify display names match expected values in sorted ID order (claude, codex, copilot, gemini)
-	expectedNames := []string{"Claude Code", "Codex", "GitHub Copilot CLI", "Google Gemini CLI"}
-	assert.Equal(t, expectedNames, names, "DisplayNames() should return display names in sorted ID order")
-}
-
 // TestEngineCatalog_All verifies that All() returns all definitions in sorted ID order.
 func TestEngineCatalog_All(t *testing.T) {
 	registry := NewEngineRegistry()

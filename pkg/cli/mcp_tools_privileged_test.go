@@ -74,6 +74,18 @@ cli:audit Using output directory: /tmp/gh-aw/aw-mcp/logs/run-99999999999 +14µs
 workflow:foo Cleanup +50ms`,
 			expected: "✗ some error",
 		},
+		{
+			name: "authentication error from logs command (GitHub Actions context)",
+			stderr: `cli:logs_orchestrator Starting workflow log download: workflow=, count=100
+ℹ Fetching workflow runs from GitHub Actions...
+✗ GitHub CLI authentication required. Run 'gh auth login' first`,
+			expected: "✗ GitHub CLI authentication required. Run 'gh auth login' first",
+		},
+		{
+			name:     "cobra error format without console symbols",
+			stderr:   "Error: GitHub CLI authentication required. Run 'gh auth login' first",
+			expected: "Error: GitHub CLI authentication required. Run 'gh auth login' first",
+		},
 	}
 
 	for _, tt := range tests {

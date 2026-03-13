@@ -187,7 +187,7 @@ func (c *Compiler) buildCustomActionStep(data *WorkflowData, config GitHubScript
 	}
 
 	// Add artifact download steps before the custom action step
-	steps = append(steps, buildAgentOutputDownloadSteps()...)
+	steps = append(steps, buildAgentOutputDownloadSteps("")...)
 
 	// Step name and metadata
 	steps = append(steps, fmt.Sprintf("      - name: %s\n", config.StepName))
@@ -286,7 +286,7 @@ func (c *Compiler) buildGitHubScriptStep(data *WorkflowData, config GitHubScript
 	var steps []string
 
 	// Add artifact download steps before the GitHub Script step
-	steps = append(steps, buildAgentOutputDownloadSteps()...)
+	steps = append(steps, buildAgentOutputDownloadSteps("")...)
 
 	// Step name and metadata
 	steps = append(steps, fmt.Sprintf("      - name: %s\n", config.StepName))
@@ -389,10 +389,11 @@ func (c *Compiler) buildGitHubScriptStepWithoutDownload(data *WorkflowData, conf
 // buildAgentOutputDownloadSteps creates steps to download the agent output artifact
 // and set the GH_AW_AGENT_OUTPUT environment variable for safe-output jobs.
 // GH_AW_AGENT_OUTPUT is only set when the artifact was actually downloaded successfully.
-func buildAgentOutputDownloadSteps() []string {
+// prefix is prepended to the artifact name; use empty string for non-workflow_call workflows.
+func buildAgentOutputDownloadSteps(prefix string) []string {
 	return buildArtifactDownloadSteps(ArtifactDownloadConfig{
-		ArtifactName:     constants.AgentArtifactName,   // Unified agent artifact
-		ArtifactFilename: constants.AgentOutputFilename, // Filename inside the artifact directory
+		ArtifactName:     prefix + constants.AgentArtifactName, // Unified agent artifact (prefixed in workflow_call)
+		ArtifactFilename: constants.AgentOutputFilename,        // Filename inside the artifact directory
 		DownloadPath:     "/tmp/gh-aw/",
 		SetupEnvStep:     true,
 		EnvVarName:       "GH_AW_AGENT_OUTPUT",
@@ -696,37 +697,6 @@ func (c *Compiler) addSafeOutputAgentGitHubTokenForConfig(steps *[]string, data 
 	// Copilot assignment API rejects them.
 	effectiveToken := getEffectiveCopilotCodingAgentGitHubToken(effectiveCustomToken)
 	*steps = append(*steps, fmt.Sprintf("          github-token: %s\n", effectiveToken))
-}
-
-// buildTitlePrefixEnvVar builds a title-prefix environment variable line for safe-output jobs.
-// envVarName should be the full env var name like "GH_AW_ISSUE_TITLE_PREFIX" or "GH_AW_DISCUSSION_TITLE_PREFIX".
-// Returns an empty slice if titlePrefix is empty.
-func buildTitlePrefixEnvVar(envVarName string, titlePrefix string) []string {
-	if titlePrefix == "" {
-		return nil
-	}
-	return []string{fmt.Sprintf("          %s: %q\n", envVarName, titlePrefix)}
-}
-
-// buildLabelsEnvVar builds a labels environment variable line for safe-output jobs.
-// envVarName should be the full env var name like "GH_AW_ISSUE_LABELS" or "GH_AW_PR_LABELS".
-// Returns an empty slice if labels is empty.
-func buildLabelsEnvVar(envVarName string, labels []string) []string {
-	if len(labels) == 0 {
-		return nil
-	}
-	labelsStr := strings.Join(labels, ",")
-	return []string{fmt.Sprintf("          %s: %q\n", envVarName, labelsStr)}
-}
-
-// buildCategoryEnvVar builds a category environment variable line for discussion safe-output jobs.
-// envVarName should be the full env var name like "GH_AW_DISCUSSION_CATEGORY".
-// Returns an empty slice if category is empty.
-func buildCategoryEnvVar(envVarName string, category string) []string {
-	if category == "" {
-		return nil
-	}
-	return []string{fmt.Sprintf("          %s: %q\n", envVarName, category)}
 }
 
 // buildAllowedReposEnvVar builds an allowed-repos environment variable line for safe-output jobs.

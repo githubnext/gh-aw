@@ -22,6 +22,65 @@ func hasWorkflowCallTrigger(onSection string) bool {
 	return strings.Contains(onSection, "workflow_call")
 }
 
+// generateArtifactPrefixStep creates a step that computes a stable, unique artifact name
+// prefix from a hash of the workflow_call inputs and the run attempt. This ensures artifact
+// names do not clash when the same reusable workflow is called multiple times within a
+// single workflow run (e.g. two jobs in the calling workflow each invoking the same lock.yml).
+//
+// The computation is delegated to actions/setup/sh/compute_artifact_prefix.sh (copied to
+// /opt/gh-aw/actions/ at runtime by the Setup Scripts step) which:
+//   - Hashes INPUTS_JSON + GITHUB_RUN_ATTEMPT using sha256, taking the first 8 hex chars.
+//   - Logs what it is hashing so the prefix is traceable in workflow logs.
+//   - Yields a value like "a1b2c3d4-".
+//
+// Uniqueness guarantee:
+//   - Two calls with different inputs → different prefixes.
+//   - Two calls with the same inputs on different run attempts → different prefixes.
+//   - Two calls with identical inputs on the same run attempt → same prefix (conflict).
+//     Callers MUST provide different inputs to avoid this edge case.
+//
+// Security note: inputs are passed through an environment variable rather than being
+// interpolated directly into the shell script to prevent template injection.
+func generateArtifactPrefixStep() []string {
+	return []string{
+		"      - name: Compute artifact prefix\n",
+		"        id: artifact-prefix\n",
+		"        env:\n",
+		"          INPUTS_JSON: ${{ toJSON(inputs) }}\n",
+		"        run: bash /opt/gh-aw/actions/compute_artifact_prefix.sh\n",
+	}
+}
+
+// artifactPrefixExprForActivationJob returns the GitHub Actions expression for the artifact
+// prefix used within the activation job itself (references a step output).
+// Returns empty string for non-workflow_call workflows.
+func artifactPrefixExprForActivationJob(data *WorkflowData) string {
+	if !hasWorkflowCallTrigger(data.On) {
+		return ""
+	}
+	return "${{ steps.artifact-prefix.outputs.prefix }}"
+}
+
+// artifactPrefixExprForDownstreamJob returns the GitHub Actions expression for the artifact
+// prefix used in jobs that depend on the activation job (references an activation job output).
+// Returns empty string for non-workflow_call workflows.
+func artifactPrefixExprForDownstreamJob(data *WorkflowData) string {
+	if !hasWorkflowCallTrigger(data.On) {
+		return ""
+	}
+	return "${{ needs.activation.outputs.artifact_prefix }}"
+}
+
+// artifactPrefixExprForAgentDownstreamJob returns the expression for the artifact prefix in
+// jobs that only directly depend on the agent job (not the activation job).
+// Returns empty string for non-workflow_call workflows.
+func artifactPrefixExprForAgentDownstreamJob(data *WorkflowData) string {
+	if !hasWorkflowCallTrigger(data.On) {
+		return ""
+	}
+	return "${{ needs.agent.outputs.artifact_prefix }}"
+}
+
 // injectWorkflowCallOutputs adds on.workflow_call.outputs declarations for safe-output results
 // when the workflow uses workflow_call as a trigger.
 //

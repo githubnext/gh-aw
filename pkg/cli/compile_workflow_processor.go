@@ -72,9 +72,6 @@ func compileWorkflowFile(
 	// Generate lock file name
 	lockFile := stringutil.MarkdownToLockFile(resolvedFile)
 	result.lockFile = lockFile
-	if !noEmit {
-		result.validationResult.CompiledFile = lockFile
-	}
 
 	// Parse workflow file to get data
 	compileWorkflowProcessorLog.Printf("Parsing workflow file: %s", resolvedFile)
@@ -142,6 +139,9 @@ func compileWorkflowFile(
 	}
 
 	result.success = true
+	if !noEmit {
+		result.validationResult.CompiledFile = lockFile
+	}
 	compileWorkflowProcessorLog.Printf("Successfully processed workflow file: %s", resolvedFile)
 	return result
 }

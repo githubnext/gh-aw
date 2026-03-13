@@ -29,6 +29,7 @@ network:
 
 imports:
   - shared/docs-server-lifecycle.md
+  - shared/reporting.md
 features:
   copilot-requests: true
 ---

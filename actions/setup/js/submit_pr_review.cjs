@@ -6,15 +6,12 @@
  */
 
 const { resolveTarget } = require("./safe_output_helpers.cjs");
+const { resolveTargetRepoConfig, resolveAndValidateRepo } = require("./repo_helpers.cjs");
 const { createAuthenticatedGitHubClient } = require("./handler_auth.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 
 /** @type {string} Safe output type handled by this module */
 const HANDLER_TYPE = "submit_pull_request_review";
-
-// allowedRepos: this handler operates exclusively on the triggering repository.
-// Cross-repository PR review submission is not supported; no target-repo allowlist
-// check is required.
 
 /** @type {Set<string>} Valid review event types */
 const VALID_EVENTS = new Set(["APPROVE", "REQUEST_CHANGES", "COMMENT"]);
@@ -33,6 +30,7 @@ async function main(config = {}) {
   const maxCount = config.max || 1;
   const targetConfig = config.target || "triggering";
   const buffer = config._prReviewBuffer;
+  const { defaultTargetRepo, allowedRepos } = resolveTargetRepoConfig(config);
   const githubClient = await createAuthenticatedGitHubClient(config);
 
   if (!buffer) {
@@ -43,6 +41,10 @@ async function main(config = {}) {
   }
 
   core.info(`Submit PR review handler initialized: max=${maxCount}, target=${targetConfig}`);
+  core.info(`Default target repo: ${defaultTargetRepo}`);
+  if (allowedRepos.size > 0) {
+    core.info(`Allowed repos: ${Array.from(allowedRepos).join(", ")}`);
+  }
 
   let processedCount = 0;
 
@@ -109,39 +111,47 @@ async function main(config = {}) {
         }
       } else if (targetResult.number) {
         const prNum = targetResult.number;
-        const repo = `${context.repo.owner}/${context.repo.repo}`;
-        const repoParts = { owner: context.repo.owner, repo: context.repo.repo };
-        const payloadPR = context.payload?.pull_request;
-        const usePayloadPR = payloadPR && payloadPR.number === prNum && payloadPR.head?.sha;
 
-        if (usePayloadPR) {
-          buffer.setReviewContext({
-            repo,
-            repoParts,
-            pullRequestNumber: payloadPR.number,
-            pullRequest: payloadPR,
-          });
-          core.info(`Set review context from triggering PR: ${repo}#${payloadPR.number}`);
+        // Resolve and validate the target repository (supports cross-repo via target-repo config)
+        const repoResult = resolveAndValidateRepo(message, defaultTargetRepo, allowedRepos, "PR review");
+        if (!repoResult.success) {
+          // Warn and leave context unset; submitReview() will subsequently fail
+          // with "No review context available" — this is not a silent failure.
+          core.warning(`Could not resolve repository for PR review context: ${repoResult.error}`);
         } else {
-          try {
-            const { data: fetchedPR } = await githubClient.rest.pulls.get({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              pull_number: prNum,
+          const { repo, repoParts } = repoResult;
+          const payloadPR = context.payload?.pull_request;
+          const usePayloadPR = payloadPR && payloadPR.number === prNum && payloadPR.head?.sha && repo === `${context.repo.owner}/${context.repo.repo}`;
+
+          if (usePayloadPR) {
+            buffer.setReviewContext({
+              repo,
+              repoParts,
+              pullRequestNumber: payloadPR.number,
+              pullRequest: payloadPR,
             });
-            if (fetchedPR?.head?.sha) {
-              buffer.setReviewContext({
-                repo,
-                repoParts,
-                pullRequestNumber: fetchedPR.number,
-                pullRequest: fetchedPR,
+            core.info(`Set review context from triggering PR: ${repo}#${payloadPR.number}`);
+          } else {
+            try {
+              const { data: fetchedPR } = await githubClient.rest.pulls.get({
+                owner: repoParts.owner,
+                repo: repoParts.repo,
+                pull_number: prNum,
               });
-              core.info(`Set review context from target: ${repo}#${fetchedPR.number}`);
-            } else {
-              core.warning("Fetched PR missing head.sha - cannot set review context");
+              if (fetchedPR?.head?.sha) {
+                buffer.setReviewContext({
+                  repo,
+                  repoParts,
+                  pullRequestNumber: fetchedPR.number,
+                  pullRequest: fetchedPR,
+                });
+                core.info(`Set review context from target: ${repo}#${fetchedPR.number}`);
+              } else {
+                core.warning("Fetched PR missing head.sha - cannot set review context");
+              }
+            } catch (fetchErr) {
+              core.warning(`Could not fetch PR #${prNum} for review context: ${getErrorMessage(fetchErr)}`);
             }
-          } catch (fetchErr) {
-            core.warning(`Could not fetch PR #${prNum} for review context: ${getErrorMessage(fetchErr)}`);
           }
         }
       }

@@ -23,7 +23,11 @@
 #
 # Checks for Go module and NPM dependency updates and analyzes Dependabot PRs for compatibility and breaking changes
 #
-# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"25006728692ed67f0a5eff4aa4ad386e376932f4bc29965fa0689ccf517cdc4d","strict":true}
+# Resolved workflow manifest:
+#   Imports:
+#     - shared/reporting.md
+#
+# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"d5cfbfec6f95ccf30cbb45edc2cfd763005fc520faea690657451dfc50489028","strict":true}
 
 name: "Dependabot Dependency Checker"
 "on":
@@ -163,6 +167,9 @@ jobs:
           GH_AW_PROMPT_EOF
           cat << 'GH_AW_PROMPT_EOF'
           </system>
+          GH_AW_PROMPT_EOF
+          cat << 'GH_AW_PROMPT_EOF'
+          {{#runtime-import .github/workflows/shared/reporting.md}}
           GH_AW_PROMPT_EOF
           cat << 'GH_AW_PROMPT_EOF'
           {{#runtime-import .github/workflows/dependabot-go-checker.md}}
@@ -327,6 +334,8 @@ jobs:
           cat > /opt/gh-aw/safeoutputs/config.json << 'GH_AW_SAFE_OUTPUTS_CONFIG_EOF'
           {"close_issue":{"max":20,"required_title_prefix":"[deps]","target":"*"},"create_issue":{"expires":48,"group":true,"max":10},"missing_data":{},"missing_tool":{},"noop":{"max":1}}
           GH_AW_SAFE_OUTPUTS_CONFIG_EOF
+      - name: Write Safe Outputs Tools
+        run: |
           cat > /opt/gh-aw/safeoutputs/tools.json << 'GH_AW_SAFE_OUTPUTS_TOOLS_EOF'
           [
             {
@@ -811,7 +820,7 @@ jobs:
       - name: Append agent step summary
         if: always()
         run: bash /opt/gh-aw/actions/append_agent_step_summary.sh
-      - name: Copy safe outputs
+      - name: Copy Safe Outputs
         if: always()
         run: |
           mkdir -p /tmp/gh-aw

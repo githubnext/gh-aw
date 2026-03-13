@@ -2,23 +2,12 @@ package workflow
 
 import (
 	"strings"
-
-	"github.com/github/gh-aw/pkg/constants"
 )
 
 // PlaywrightDockerArgs represents the common Docker arguments for Playwright container
 type PlaywrightDockerArgs struct {
 	ImageVersion      string // Version for Docker image (mcr.microsoft.com/playwright:version)
 	MCPPackageVersion string // Version for NPM package (@playwright/mcp@version)
-}
-
-func getPlaywrightDockerImageVersion(playwrightConfig *PlaywrightToolConfig) string {
-	playwrightDockerImageVersion := string(constants.DefaultPlaywrightBrowserVersion) // Default Playwright browser Docker image version
-	// Extract version setting from tool properties
-	if playwrightConfig != nil && playwrightConfig.Version != "" {
-		playwrightDockerImageVersion = playwrightConfig.Version
-	}
-	return playwrightDockerImageVersion
 }
 
 // extractExpressionsFromPlaywrightArgs extracts all GitHub Actions expressions from playwright arguments

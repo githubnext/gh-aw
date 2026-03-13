@@ -11,6 +11,7 @@ on:
         description: 'Release type (patch, minor, or major)'
         required: true
         type: choice
+        default: patch
         options:
           - patch
           - minor
@@ -21,19 +22,12 @@ permissions:
   actions: read
   issues: read
 engine: copilot
-strict: false
 timeout-minutes: 20
 network:
   allowed:
     - defaults
     - node
     - "github.github.com"
-sandbox:
-  agent: awf  # Firewall enabled (migrated from network.firewall)
-tools:
-  bash:
-    - "*"
-  edit:
 safe-outputs:
   update-release:
 jobs:
@@ -48,7 +42,6 @@ jobs:
         with:
           fetch-depth: 0
           persist-credentials: false
-      
       - name: Compute release configuration
         id: compute_config
         uses: actions/github-script@v8
@@ -225,7 +218,7 @@ jobs:
           echo "Ensure the sync-actions job has been run and the PR merged in github/gh-aw-actions before approving."
 
   release:
-    needs: ["pre_activation", "activation", "config", "sync_actions"]
+    needs: ["pre_activation", "activation", "config"]
     runs-on: ubuntu-latest
     permissions:
       contents: write

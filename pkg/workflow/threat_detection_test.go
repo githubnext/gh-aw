@@ -619,7 +619,7 @@ func TestBuildUploadDetectionLogStep(t *testing.T) {
 	compiler := NewCompiler()
 
 	// Test that upload detection log step is created with correct properties
-	steps := compiler.buildUploadDetectionLogStep()
+	steps := compiler.buildUploadDetectionLogStep(&WorkflowData{})
 
 	if len(steps) == 0 {
 		t.Fatal("Expected non-empty steps for upload detection log")

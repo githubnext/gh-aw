@@ -52,6 +52,7 @@ jobs:
     permissions:
       contents: read
     outputs:
+      artifact_prefix: ${{ steps.artifact-prefix.outputs.prefix }}
       comment_id: ""
       comment_repo: ""
       model: ${{ steps.generate_aw_info.outputs.model }}
@@ -77,6 +78,11 @@ jobs:
             setupGlobals(core, github, context, exec, io);
             const { main } = require('/opt/gh-aw/actions/resolve_host_repo.cjs');
             await main();
+      - name: Compute artifact prefix
+        id: artifact-prefix
+        env:
+          INPUTS_JSON: ${{ toJSON(inputs) }}
+        run: bash /opt/gh-aw/actions/compute_artifact_prefix.sh
       - name: Generate agentic run info
         id: generate_aw_info
         env:
@@ -251,7 +257,7 @@ jobs:
         if: success()
         uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
         with:
-          name: activation
+          name: ${{ steps.artifact-prefix.outputs.prefix }}activation
           path: |
             /tmp/gh-aw/aw_info.json
             /tmp/gh-aw/aw-prompts/prompt.txt
@@ -274,6 +280,7 @@ jobs:
       GH_AW_SAFE_OUTPUTS_TOOLS_PATH: /opt/gh-aw/safeoutputs/tools.json
       GH_AW_WORKFLOW_ID_SANITIZED: smokeworkflowcall
     outputs:
+      artifact_prefix: ${{ needs.activation.outputs.artifact_prefix }}
       checkout_pr_success: ${{ steps.checkout-pr.outputs.checkout_pr_success || 'true' }}
       detection_conclusion: ${{ steps.detection_conclusion.outputs.conclusion }}
       detection_success: ${{ steps.detection_conclusion.outputs.success }}
@@ -349,6 +356,8 @@ jobs:
           cat > /opt/gh-aw/safeoutputs/config.json << 'GH_AW_SAFE_OUTPUTS_CONFIG_EOF'
           {"add_comment":{"max":1},"missing_data":{},"missing_tool":{},"noop":{"max":1}}
           GH_AW_SAFE_OUTPUTS_CONFIG_EOF
+      - name: Write Safe Outputs Tools
+        run: |
           cat > /opt/gh-aw/safeoutputs/tools.json << 'GH_AW_SAFE_OUTPUTS_TOOLS_EOF'
           [
             {
@@ -659,7 +668,7 @@ jobs:
       - name: Download activation artifact
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
-          name: activation
+          name: ${{ needs.activation.outputs.artifact_prefix }}activation
           path: /tmp/gh-aw
       - name: Clean git credentials
         run: bash /opt/gh-aw/actions/clean_git_credentials.sh
@@ -776,7 +785,7 @@ jobs:
       - name: Append agent step summary
         if: always()
         run: bash /opt/gh-aw/actions/append_agent_step_summary.sh
-      - name: Copy safe outputs
+      - name: Copy Safe Outputs
         if: always()
         run: |
           mkdir -p /tmp/gh-aw
@@ -836,7 +845,7 @@ jobs:
         continue-on-error: true
         uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
         with:
-          name: agent
+          name: ${{ needs.activation.outputs.artifact_prefix }}agent
           path: |
             /tmp/gh-aw/aw-prompts/prompt.txt
             /tmp/gh-aw/sandbox/agent/logs/
@@ -949,7 +958,7 @@ jobs:
         if: always() && steps.detection_guard.outputs.run_detection == 'true'
         uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
         with:
-          name: detection
+          name: ${{ needs.activation.outputs.artifact_prefix }}detection
           path: /tmp/gh-aw/threat-detection/detection.log
           if-no-files-found: ignore
       - name: Set detection conclusion
@@ -1158,7 +1167,7 @@ jobs:
         continue-on-error: true
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
-          name: agent
+          name: ${{ needs.activation.outputs.artifact_prefix }}agent
           path: /tmp/gh-aw/
       - name: Setup agent output environment variable
         if: steps.download-agent-output.outcome == 'success'
@@ -1186,7 +1195,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
         with:
-          name: safe-output-items
+          name: ${{ needs.activation.outputs.artifact_prefix }}safe-output-items
           path: /tmp/safe-output-items.jsonl
           if-no-files-found: warn
 

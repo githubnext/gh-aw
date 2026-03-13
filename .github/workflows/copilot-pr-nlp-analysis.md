@@ -34,6 +34,7 @@ safe-outputs:
 imports:
   - shared/copilot-pr-analysis-base.md
   - shared/python-dataviz.md
+  - shared/reporting.md
 
 tools:
   repo-memory:

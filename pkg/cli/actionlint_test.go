@@ -130,9 +130,10 @@ func TestGetActionlintVersion(t *testing.T) {
 
 func TestDisplayActionlintSummary(t *testing.T) {
 	tests := []struct {
-		name             string
-		stats            *ActionlintStats
-		expectedContains []string
+		name                string
+		stats               *ActionlintStats
+		expectedContains    []string
+		notExpectedContains []string
 	}{
 		{
 			name: "summary with errors and warnings",
@@ -193,6 +194,42 @@ func TestDisplayActionlintSummary(t *testing.T) {
 			stats:            nil,
 			expectedContains: []string{},
 		},
+		// Regression tests: integration failures must never produce "No issues found"
+		{
+			name: "integration errors only - no lint issues",
+			stats: &ActionlintStats{
+				TotalWorkflows:    3,
+				TotalErrors:       0,
+				TotalWarnings:     0,
+				IntegrationErrors: 2,
+				ErrorsByKind:      map[string]int{},
+			},
+			expectedContains: []string{
+				"Actionlint Summary",
+				"Checked 3 workflow(s)",
+				"2 actionlint invocation(s) failed",
+				"tooling or integration error",
+			},
+			notExpectedContains: []string{
+				"No issues found",
+			},
+		},
+		{
+			name: "integration errors alongside lint issues",
+			stats: &ActionlintStats{
+				TotalWorkflows:    4,
+				TotalErrors:       5,
+				TotalWarnings:     0,
+				IntegrationErrors: 1,
+				ErrorsByKind:      map[string]int{"syntax": 5},
+			},
+			expectedContains: []string{
+				"Actionlint Summary",
+				"Checked 4 workflow(s)",
+				"Found 5 issue(s)",
+				"1 actionlint invocation(s) also failed with tooling errors",
+			},
+		},
 	}
 
 	for _, tt := range tests {
@@ -206,6 +243,10 @@ func TestDisplayActionlintSummary(t *testing.T) {
 			for _, expected := range tt.expectedContains {
 				assert.Contains(t, output, expected,
 					"output should contain %q", expected)
+			}
+			for _, notExpected := range tt.notExpectedContains {
+				assert.NotContains(t, output, notExpected,
+					"output must not contain %q", notExpected)
 			}
 		})
 	}
@@ -221,6 +262,7 @@ func TestInitActionlintStats(t *testing.T) {
 	assert.Zero(t, actionlintStats.TotalWorkflows, "TotalWorkflows should start at 0")
 	assert.Zero(t, actionlintStats.TotalErrors, "TotalErrors should start at 0")
 	assert.Zero(t, actionlintStats.TotalWarnings, "TotalWarnings should start at 0")
+	assert.Zero(t, actionlintStats.IntegrationErrors, "IntegrationErrors should start at 0")
 	assert.NotNil(t, actionlintStats.ErrorsByKind, "ErrorsByKind map should be initialized")
 	assert.Empty(t, actionlintStats.ErrorsByKind, "ErrorsByKind should start empty")
 }

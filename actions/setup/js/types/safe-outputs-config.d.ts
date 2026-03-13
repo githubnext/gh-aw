@@ -103,6 +103,9 @@ interface CreatePullRequestReviewCommentConfig extends SafeOutputConfig {
  * Boolean values are also supported: true maps to "always", false maps to "none".
  */
 interface SubmitPullRequestReviewConfig extends SafeOutputConfig {
+  target?: string;
+  "target-repo"?: string;
+  "allowed-repos"?: string[];
   footer?: boolean | "always" | "none" | "if-body";
 }
 

@@ -12,7 +12,8 @@ The `gh aw` CLI extension enables developers to create, manage, and execute AI-p
 | Command | Description |
 |---------|-------------|
 | [`gh aw init`](#init) | Set up your repository for agentic workflows |
-| [`gh aw add`](#add) | Add workflows from other repositories |
+| [`gh aw add-wizard`](#add-wizard) | Add workflows with interactive guided setup |
+| [`gh aw add`](#add) | Add workflows from other repositories (non-interactive) |
 | [`gh aw compile`](#compile) | Convert markdown to GitHub Actions YAML |
 | [`gh aw list`](#list) | Quick listing of all workflows |
 | [`gh aw run`](#run) | Execute workflows immediately in GitHub Actions |
@@ -107,6 +108,18 @@ gh aw init --create-pull-request        # Initialize and open a pull request
 ```
 
 **Options:** `--no-mcp`, `--codespaces`, `--completions`, `--create-pull-request`
+
+#### `add-wizard`
+
+Add a workflow with interactive guided setup. Checks requirements, adds the markdown file, and generates the compiled YAML. Prompts for missing API keys and secrets.
+
+```bash wrap
+gh aw add-wizard githubnext/agentics/ci-doctor           # Interactive setup
+gh aw add-wizard https://github.com/org/repo/blob/main/workflows/my-workflow.md
+gh aw add-wizard githubnext/agentics/ci-doctor --skip-secret  # Skip secret prompt
+```
+
+**Options:** `--skip-secret` (bypass the API key prompt when the secret is already configured at org or repo level)
 
 #### `add`
 

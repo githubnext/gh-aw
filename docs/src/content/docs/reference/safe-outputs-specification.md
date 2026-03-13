@@ -3055,7 +3055,7 @@ safe-outputs:
 **Purpose**: Trigger workflow_dispatch events to invoke other workflows.
 
 **Default Max**: 3  
-**Cross-Repository Support**: No (same repository only)  
+**Cross-Repository Support**: Yes (via `target-repo`)  
 **Mandatory**: No
 
 **Required Permissions**:
@@ -3067,10 +3067,17 @@ safe-outputs:
 - `actions: write` - Workflow dispatch operations
 - `metadata: read` - Repository metadata (automatically granted)
 
+**Configuration Parameters**:
+- `max`: Operation limit (default: 3)
+- `workflows`: Allowlist of workflow names that may be dispatched
+- `target-repo`: Cross-repository target (owner/repo)
+- `allowed-repos`: Cross-repo allowlist (supports wildcards, e.g. `org/*`)
+
 **Notes**:
 - Requires ONLY `actions: write` permission (no `contents: read` needed)
 - Target workflow must support `workflow_dispatch` trigger
 - Workflow inputs are validated against target workflow's input schema
+- Cross-repository dispatch requires appropriate `actions: write` permissions in the target repository
 
 ---
 

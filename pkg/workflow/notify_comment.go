@@ -59,7 +59,7 @@ func (c *Compiler) buildConclusionJob(data *WorkflowData, mainJobName string, sa
 	}
 
 	// Add artifact download steps once (shared by noop and conclusion steps)
-	steps = append(steps, buildAgentOutputDownloadSteps()...)
+	steps = append(steps, buildAgentOutputDownloadSteps("")...)
 
 	// Add noop processing step if noop is configured
 	if data.SafeOutputs.NoOp != nil {

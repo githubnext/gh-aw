@@ -11,6 +11,7 @@ permissions:
 engine: codex
 imports:
   - shared/mcp/serena-go.md
+  - shared/reporting.md
 safe-outputs:
   create-issue:
     expires: 2d

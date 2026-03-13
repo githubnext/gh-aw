@@ -17,6 +17,11 @@
  * When the platform workflow runs cross-repo (called via uses:), GITHUB_WORKFLOW_REF
  * starts with the platform repo slug, while GITHUB_REPOSITORY is the caller repo.
  * Comparing the two lets us detect cross-repo invocations without relying on event_name.
+ *
+ * SEC-005: The targetRepo value is resolved solely from trusted system environment
+ * variables (GITHUB_WORKFLOW_REF, GITHUB_REPOSITORY) set by the GitHub Actions
+ * runtime. It is not derived from user-supplied input, so no validateTargetRepo
+ * allowlist check is required in this handler.
  */
 
 /**

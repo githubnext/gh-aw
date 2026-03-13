@@ -30,7 +30,7 @@
 #     - shared/reporting.md
 #     - shared/copilot-pr-analysis-base.md
 #
-# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"56f6338bcbf866f2e3bfb38458b14a063fc5cbf78c88e3980396609a23234e26","strict":true}
+# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"d2adad35b52f026f410211a01c25a088c742c6aa9ac08d9f892a3edea90ab43e","strict":true}
 
 name: "Copilot PR Prompt Pattern Analysis"
 "on":
@@ -173,10 +173,10 @@ jobs:
           {{#runtime-import .github/workflows/shared/copilot-pr-analysis-base.md}}
           GH_AW_PROMPT_EOF
           cat << 'GH_AW_PROMPT_EOF'
-          {{#runtime-import .github/workflows/shared/jqschema.md}}
+          {{#runtime-import .github/workflows/shared/reporting.md}}
           GH_AW_PROMPT_EOF
           cat << 'GH_AW_PROMPT_EOF'
-          {{#runtime-import .github/workflows/shared/reporting.md}}
+          {{#runtime-import .github/workflows/shared/jqschema.md}}
           GH_AW_PROMPT_EOF
           cat << 'GH_AW_PROMPT_EOF'
           {{#runtime-import .github/workflows/shared/copilot-pr-data-fetch.md}}
@@ -391,6 +391,8 @@ jobs:
           cat > /opt/gh-aw/safeoutputs/config.json << 'GH_AW_SAFE_OUTPUTS_CONFIG_EOF'
           {"create_discussion":{"expires":24,"max":1},"missing_data":{},"missing_tool":{},"noop":{"max":1},"push_repo_memory":{"memories":[{"dir":"/tmp/gh-aw/repo-memory/default","id":"default","max_file_count":100,"max_file_size":102400,"max_patch_size":10240}]}}
           GH_AW_SAFE_OUTPUTS_CONFIG_EOF
+      - name: Write Safe Outputs Tools
+        run: |
           cat > /opt/gh-aw/safeoutputs/tools.json << 'GH_AW_SAFE_OUTPUTS_TOOLS_EOF'
           [
             {
@@ -818,7 +820,7 @@ jobs:
       - name: Append agent step summary
         if: always()
         run: bash /opt/gh-aw/actions/append_agent_step_summary.sh
-      - name: Copy safe outputs
+      - name: Copy Safe Outputs
         if: always()
         run: |
           mkdir -p /tmp/gh-aw

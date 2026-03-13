@@ -7,12 +7,12 @@ import (
 	"os"
 	"slices"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/workflow"
 	"github.com/spf13/cobra"
 )
 
@@ -100,6 +100,16 @@ func RunHealth(config HealthConfig) error {
 		return fmt.Errorf("invalid days value: %d. Must be 7, 30, or 90", config.Days)
 	}
 
+	// Resolve workflow name from workflow ID to GitHub Actions display name
+	if config.WorkflowName != "" {
+		resolvedName, err := workflow.FindWorkflowName(config.WorkflowName)
+		if err != nil {
+			return fmt.Errorf("workflow '%s' not found: %w", config.WorkflowName, err)
+		}
+		healthLog.Printf("Resolved workflow name: %s -> %s", config.WorkflowName, resolvedName)
+		config.WorkflowName = resolvedName
+	}
+
 	// Calculate start date
 	startDate := time.Now().AddDate(0, 0, -config.Days).Format("2006-01-02")
 
@@ -156,15 +166,13 @@ func fetchWorkflowRuns(workflowName, startDate, repoOverride string, verbose boo
 			break
 		}
 
-		// Filter to only agentic workflow runs (those ending in .lock.yml)
+		// Accumulate runs; duration calculation is done here since the GitHub API
+		// does not return a pre-computed duration field.
 		for _, run := range runs {
-			if strings.HasSuffix(run.WorkflowPath, ".lock.yml") {
-				// Calculate duration if not set
-				if run.Duration == 0 && !run.StartedAt.IsZero() && !run.UpdatedAt.IsZero() {
-					run.Duration = run.UpdatedAt.Sub(run.StartedAt)
-				}
-				allRuns = append(allRuns, run)
+			if run.Duration == 0 && !run.StartedAt.IsZero() && !run.UpdatedAt.IsZero() {
+				run.Duration = run.UpdatedAt.Sub(run.StartedAt)
 			}
+			allRuns = append(allRuns, run)
 		}
 
 		healthLog.Printf("Fetched batch %d: got %d runs, total agentic runs so far: %d", i+1, len(runs), len(allRuns))

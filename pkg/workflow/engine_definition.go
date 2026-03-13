@@ -213,16 +213,6 @@ func (c *EngineCatalog) IDs() []string {
 	return ids
 }
 
-// DisplayNames returns a list of engine display names in sorted ID order.
-func (c *EngineCatalog) DisplayNames() []string {
-	ids := c.IDs()
-	names := make([]string, 0, len(ids))
-	for _, id := range ids {
-		names = append(names, c.definitions[id].DisplayName)
-	}
-	return names
-}
-
 // All returns all engine definitions in sorted ID order.
 func (c *EngineCatalog) All() []*EngineDefinition {
 	ids := c.IDs()

@@ -1,0 +1,185 @@
+// @ts-check
+import { describe, it, expect, beforeEach, vi } from "vitest";
+
+const mockCore = {
+  info: vi.fn(),
+  warning: vi.fn(),
+  error: vi.fn(),
+  setFailed: vi.fn(),
+  setOutput: vi.fn(),
+};
+
+const mockGithub = {
+  graphql: vi.fn(),
+};
+
+const mockContext = {
+  eventName: "issue_comment",
+  repo: { owner: "testowner", repo: "testrepo" },
+  payload: { issue: { number: 42 } },
+};
+
+global.core = mockCore;
+global.github = mockGithub;
+global.context = mockContext;
+
+async function loadModule() {
+  const { main } = await import("./hide_comment.cjs?" + Date.now());
+  return { main };
+}
+
+describe("hide_comment.cjs", () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+    delete process.env.GH_AW_SAFE_OUTPUTS_STAGED;
+
+    // Default successful graphql mock
+    mockGithub.graphql.mockResolvedValue({
+      minimizeComment: { minimizedComment: { isMinimized: true } },
+    });
+  });
+
+  describe("main factory", () => {
+    it("should return a handler function", async () => {
+      const { main } = await loadModule();
+      const handler = await main();
+      expect(typeof handler).toBe("function");
+    });
+
+    it("should log configuration on initialization", async () => {
+      const { main } = await loadModule();
+      await main({ max: 3 });
+      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("max=3"));
+    });
+
+    it("should log allowed reasons when configured", async () => {
+      const { main } = await loadModule();
+      await main({ allowed_reasons: ["SPAM", "ABUSE"] });
+      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("SPAM, ABUSE"));
+    });
+  });
+
+  describe("handleHideComment", () => {
+    it("should hide a comment successfully", async () => {
+      const { main } = await loadModule();
+      const handler = await main();
+
+      const result = await handler({ comment_id: "IC_kwDOABCD123456", reason: "SPAM" }, {});
+
+      expect(result.success).toBe(true);
+      expect(result.comment_id).toBe("IC_kwDOABCD123456");
+      expect(result.is_hidden).toBe(true);
+    });
+
+    it("should use SPAM as default reason when not provided", async () => {
+      const { main } = await loadModule();
+      const handler = await main();
+
+      await handler({ comment_id: "IC_kwDOABCD123456" }, {});
+
+      expect(mockGithub.graphql).toHaveBeenCalledWith(expect.any(String), expect.objectContaining({ classifier: "SPAM" }));
+    });
+
+    it("should normalize reason to uppercase", async () => {
+      const { main } = await loadModule();
+      const handler = await main();
+
+      await handler({ comment_id: "IC_kwDOABCD123456", reason: "abuse" }, {});
+
+      expect(mockGithub.graphql).toHaveBeenCalledWith(expect.any(String), expect.objectContaining({ classifier: "ABUSE" }));
+    });
+
+    it("should fail when comment_id is missing", async () => {
+      const { main } = await loadModule();
+      const handler = await main();
+
+      const result = await handler({ reason: "SPAM" }, {});
+
+      expect(result.success).toBe(false);
+      expect(result.error).toContain("comment_id is required");
+      expect(mockGithub.graphql).not.toHaveBeenCalled();
+    });
+
+    it("should fail when comment_id is not a string", async () => {
+      const { main } = await loadModule();
+      const handler = await main();
+
+      const result = await handler({ comment_id: 12345, reason: "SPAM" }, {});
+
+      expect(result.success).toBe(false);
+      expect(result.error).toContain("comment_id is required and must be a string");
+    });
+
+    it("should enforce max count limit", async () => {
+      const { main } = await loadModule();
+      const handler = await main({ max: 2 });
+
+      await handler({ comment_id: "IC_1" }, {});
+      await handler({ comment_id: "IC_2" }, {});
+      const result = await handler({ comment_id: "IC_3" }, {});
+
+      expect(result.success).toBe(false);
+      expect(result.error).toContain("Max count");
+      expect(mockGithub.graphql).toHaveBeenCalledTimes(2);
+    });
+
+    it("should reject reason not in allowed-reasons list", async () => {
+      const { main } = await loadModule();
+      const handler = await main({ allowed_reasons: ["SPAM", "ABUSE"] });
+
+      const result = await handler({ comment_id: "IC_kwDOABCD123456", reason: "OFF_TOPIC" }, {});
+
+      expect(result.success).toBe(false);
+      expect(result.error).toContain("not in allowed-reasons list");
+      expect(mockGithub.graphql).not.toHaveBeenCalled();
+    });
+
+    it("should accept allowed reason case-insensitively", async () => {
+      const { main } = await loadModule();
+      const handler = await main({ allowed_reasons: ["spam", "abuse"] });
+
+      const result = await handler({ comment_id: "IC_kwDOABCD123456", reason: "SPAM" }, {});
+
+      expect(result.success).toBe(true);
+    });
+
+    it("should handle GraphQL API errors gracefully", async () => {
+      const { main } = await loadModule();
+      mockGithub.graphql.mockRejectedValue(new Error("GraphQL error: Forbidden"));
+      const handler = await main();
+
+      const result = await handler({ comment_id: "IC_kwDOABCD123456" }, {});
+
+      expect(result.success).toBe(false);
+      expect(result.error).toContain("GraphQL error");
+      expect(mockCore.error).toHaveBeenCalled();
+    });
+
+    it("should return failure when comment is not minimized", async () => {
+      const { main } = await loadModule();
+      mockGithub.graphql.mockResolvedValue({
+        minimizeComment: { minimizedComment: { isMinimized: false } },
+      });
+      const handler = await main();
+
+      const result = await handler({ comment_id: "IC_kwDOABCD123456" }, {});
+
+      expect(result.success).toBe(false);
+      expect(result.error).toContain("Failed to hide comment");
+    });
+
+    it("should return staged preview in staged mode", async () => {
+      process.env.GH_AW_SAFE_OUTPUTS_STAGED = "true";
+      const { main } = await loadModule();
+      const handler = await main();
+
+      const result = await handler({ comment_id: "IC_kwDOABCD123456", reason: "ABUSE" }, {});
+
+      expect(result.success).toBe(true);
+      expect(result.staged).toBe(true);
+      expect(result.previewInfo?.commentId).toBe("IC_kwDOABCD123456");
+      expect(result.previewInfo?.reason).toBe("ABUSE");
+      expect(mockGithub.graphql).not.toHaveBeenCalled();
+    });
+  });
+});

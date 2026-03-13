@@ -8,6 +8,20 @@ Thank you for your interest in contributing to GitHub Agentic Workflows! We welc
 
 This document deals with the contribution process for non-Core team members.
 
+## Prerequisites
+
+> ⚠️ **Generic dev environments (e.g. manually installed Node.js, Go, or other tools) are not supported.**
+> This project is designed to be developed inside a **Dev Container** or **GitHub Codespace**, which automatically configures all required tools and runtimes.
+
+The recommended way to set up a development environment is to use the provided [Dev Container](.devcontainer/devcontainer.json):
+
+- **GitHub Codespaces** (recommended): Open this repository in a Codespace — everything is pre-configured automatically, including Go, Node.js 24, Docker, and the GitHub CLI.
+- **VS Code Dev Container**: Install the [Dev Containers extension](https://marketplace.visualstudio.com/items?itemName=ms-vscode-remote.remote-containers), then open the repository folder and choose **Reopen in Container**.
+
+The Dev Container installs all required dependencies and runs `make deps` automatically on creation. No manual setup is needed.
+
+If you encounter errors about Node.js or Go versions when running `make deps` or other build commands, this is a sign that you are not using the Dev Container. Please switch to a Dev Container or Codespace environment.
+
 ## 🤖 How Development Works
 
 GitHub Agentic Workflows is developed by a core team using agentic development — primarily GitHub Copilot coding agent and local coding agents. This means:

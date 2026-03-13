@@ -527,6 +527,9 @@ func generateRepoMemoryArtifactUpload(builder *strings.Builder, data *WorkflowDa
 
 	repoMemoryLog.Printf("Generating repo-memory artifact upload steps for %d memories", len(data.RepoMemoryConfig.Memories))
 
+	// In workflow_call context, apply the per-invocation prefix to avoid artifact name clashes.
+	prefix := artifactPrefixExprForDownstreamJob(data)
+
 	builder.WriteString("      # Upload repo memory as artifacts for push job\n")
 
 	for _, memory := range data.RepoMemoryConfig.Memories {
@@ -545,7 +548,7 @@ func generateRepoMemoryArtifactUpload(builder *strings.Builder, data *WorkflowDa
 		builder.WriteString("        if: always()\n")
 		fmt.Fprintf(builder, "        uses: %s\n", GetActionPin("actions/upload-artifact"))
 		builder.WriteString("        with:\n")
-		fmt.Fprintf(builder, "          name: repo-memory-%s\n", sanitizedID)
+		fmt.Fprintf(builder, "          name: %srepo-memory-%s\n", prefix, sanitizedID)
 		fmt.Fprintf(builder, "          path: %s\n", memoryDir)
 		builder.WriteString("          retention-days: 1\n")
 		builder.WriteString("          if-no-files-found: ignore\n")
@@ -629,7 +632,10 @@ func (c *Compiler) buildPushRepoMemoryJob(data *WorkflowData, threatDetectionEna
 	gitConfigSteps := c.generateGitConfigurationSteps()
 	steps = append(steps, gitConfigSteps...)
 
-	// Build steps as complete YAML strings
+	// Build steps as complete YAML strings.
+	// In workflow_call context, use the per-invocation prefix from the agent job.
+	repoMemoryPrefix := artifactPrefixExprForAgentDownstreamJob(data)
+
 	for _, memory := range data.RepoMemoryConfig.Memories {
 		// Sanitize memory ID for artifact naming (remove hyphens, lowercase)
 		sanitizedID := SanitizeWorkflowIDForCacheKey(memory.ID)
@@ -644,7 +650,7 @@ func (c *Compiler) buildPushRepoMemoryJob(data *WorkflowData, threatDetectionEna
 		fmt.Fprintf(&step, "        uses: %s\n", GetActionPin("actions/download-artifact"))
 		step.WriteString("        continue-on-error: true\n")
 		step.WriteString("        with:\n")
-		fmt.Fprintf(&step, "          name: repo-memory-%s\n", sanitizedID)
+		fmt.Fprintf(&step, "          name: %srepo-memory-%s\n", repoMemoryPrefix, sanitizedID)
 		fmt.Fprintf(&step, "          path: /tmp/gh-aw/repo-memory/%s\n", memory.ID)
 		steps = append(steps, step.String())
 	}

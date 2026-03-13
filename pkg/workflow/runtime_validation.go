@@ -40,7 +40,6 @@
 package workflow
 
 import (
-	"errors"
 	"fmt"
 	"os"
 	"strings"
@@ -50,7 +49,17 @@ import (
 
 var runtimeValidationLog = newValidationLogger("runtime")
 
-// validateExpressionSizes validates that no expression values in the generated YAML exceed GitHub Actions limits
+// validateExpressionSizes validates that no expression values in the generated YAML exceed GitHub Actions limits.
+//
+// GitHub Actions enforces a 21,000-character limit on YAML string values that contain
+// template expressions (${{ }}). This check covers two cases:
+//
+//  1. Single-line values: each YAML line is checked individually.
+//
+//  2. Multi-line block scalars: YAML literal-block (|) and folded-block (>) scalars span
+//     many lines but are parsed by GitHub Actions as a single string value.  When such a
+//     block contains at least one ${{ }} expression AND its total length exceeds 21,000
+//     characters, GitHub Actions rejects the workflow with "Exceeded max expression length".
 func (c *Compiler) validateExpressionSizes(yamlContent string) error {
 	lines := strings.Split(yamlContent, "\n")
 	runtimeValidationLog.Printf("Validating expression sizes: yaml_lines=%d, max_size=%d", len(lines), MaxExpressionSize)
@@ -79,11 +88,93 @@ func (c *Compiler) validateExpressionSizes(yamlContent string) error {
 					lineNum+1, actualSize, maxSizeFormatted)
 			}
 
-			return errors.New(errorMsg)
+			return fmt.Errorf("%s", errorMsg)
 		}
 	}
 
+	// Check multi-line YAML block scalars that contain template expressions.
+	// A run: | or any other block-scalar value is a single string from GitHub Actions'
+	// perspective; if it contains ${{ }} AND is longer than 21,000 characters the
+	// runner rejects it with "Exceeded max expression length".
+	if err := validateBlockScalarExpressionSizes(lines, maxSize); err != nil {
+		return err
+	}
+
 	return nil
+}
+
+// validateBlockScalarExpressionSizes scans the YAML lines for multi-line block scalars
+// (literal | or folded >) and returns an error when any such block both contains a
+// GitHub Actions template expression (${{ }}) and exceeds maxSize bytes in total.
+func validateBlockScalarExpressionSizes(lines []string, maxSize int) error {
+	// Track whether we are inside a block scalar and its metadata.
+	inBlock := false
+	blockKey := ""
+	blockStartLine := 0
+	blockIndent := -1
+	blockSize := 0
+	blockHasExpression := false
+
+	checkBlock := func() error {
+		if inBlock && blockHasExpression && blockSize > maxSize {
+			actualSize := console.FormatFileSize(int64(blockSize))
+			maxSizeFormatted := console.FormatFileSize(int64(maxSize))
+			return fmt.Errorf("expression value for %q (%s) exceeds maximum allowed size (%s) starting at line %d. "+
+				"GitHub Actions has a 21KB limit for YAML values that contain template expressions (${{ }}). "+
+				"Split the step into separate run: blocks so that no single block containing ${{ }} expressions exceeds the limit",
+				blockKey, actualSize, maxSizeFormatted, blockStartLine+1)
+		}
+		return nil
+	}
+
+	for i, line := range lines {
+		// Count leading spaces to determine indentation level.
+		trimmed := strings.TrimLeft(line, " \t")
+		indent := len(line) - len(trimmed)
+
+		if inBlock {
+			// An empty line is part of the block (blank lines are allowed inside block scalars).
+			if len(strings.TrimSpace(line)) == 0 {
+				blockSize += len(line) + 1 // +1 for the newline
+				continue
+			}
+			// A line whose indentation is greater than the block header's indentation
+			// is still inside the block scalar.
+			if indent > blockIndent {
+				blockSize += len(line) + 1
+				if strings.Contains(line, "${{") {
+					blockHasExpression = true
+				}
+				continue
+			}
+			// Indentation dropped back – the block has ended.
+			if err := checkBlock(); err != nil {
+				return err
+			}
+			inBlock = false
+			blockKey = ""
+			blockSize = 0
+			blockHasExpression = false
+			blockIndent = -1
+		}
+
+		// Detect the start of a block scalar: a YAML key whose value is | or >
+		// e.g. "        run: |" or "    script: >"
+		if colonIdx := strings.Index(trimmed, ":"); colonIdx > 0 {
+			afterColon := strings.TrimSpace(trimmed[colonIdx+1:])
+			if afterColon == "|" || afterColon == ">" || strings.HasPrefix(afterColon, "|-") || strings.HasPrefix(afterColon, ">-") {
+				inBlock = true
+				blockKey = strings.TrimSpace(trimmed[:colonIdx])
+				blockStartLine = i
+				blockIndent = indent
+				blockSize = 0
+				blockHasExpression = false
+			}
+		}
+	}
+
+	// Check any block that was still open when the file ended.
+	return checkBlock()
 }
 
 // validateContainerImages validates that container images specified in MCP configs exist and are accessible

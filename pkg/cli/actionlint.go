@@ -59,10 +59,11 @@ var actionlintStats *ActionlintStats
 
 // ActionlintStats tracks actionlint validation statistics across all files
 type ActionlintStats struct {
-	TotalWorkflows int
-	TotalErrors    int
-	TotalWarnings  int
-	ErrorsByKind   map[string]int
+	TotalWorkflows    int
+	TotalErrors       int
+	TotalWarnings     int
+	IntegrationErrors int // counts tooling/subprocess failures, not lint findings
+	ErrorsByKind      map[string]int
 }
 
 // actionlintError represents a single error from actionlint JSON output
@@ -120,9 +121,23 @@ func displayActionlintSummary() {
 				fmt.Fprintf(os.Stderr, "  • %s: %d\n", kind, count)
 			}
 		}
+	} else if actionlintStats.IntegrationErrors > 0 {
+		// Integration failures occurred but no lint issues were parsed.
+		// Explicitly distinguish this from a clean run so users are not misled.
+		msg := fmt.Sprintf("No lint issues found, but %d actionlint invocation(s) failed. "+
+			"This likely indicates a tooling or integration error, not a workflow problem.",
+			actionlintStats.IntegrationErrors)
+		fmt.Fprintf(os.Stderr, "%s\n", console.FormatWarningMessage(msg))
 	} else {
 		fmt.Fprintf(os.Stderr, "%s\n",
 			console.FormatSuccessMessage("No issues found"))
+	}
+
+	// Report any integration failures alongside lint findings
+	if totalIssues > 0 && actionlintStats.IntegrationErrors > 0 {
+		msg := fmt.Sprintf("%d actionlint invocation(s) also failed with tooling errors (not workflow validation failures)",
+			actionlintStats.IntegrationErrors)
+		fmt.Fprintf(os.Stderr, "\n%s\n", console.FormatWarningMessage(msg))
 	}
 
 	fmt.Fprintf(os.Stderr, "\n%s\n", separator)
@@ -252,6 +267,9 @@ func runActionlintOnFile(lockFiles []string, verbose bool, strict bool) error {
 		if len(lockFiles) == 1 {
 			fileList = filepath.Base(lockFiles[0])
 		}
+		if actionlintStats != nil {
+			actionlintStats.IntegrationErrors++
+		}
 		return fmt.Errorf("actionlint timed out after %d minutes on %s - this may indicate a Docker or network issue", int(timeoutDuration.Minutes()), fileList)
 	}
 
@@ -264,6 +282,12 @@ func runActionlintOnFile(lockFiles []string, verbose bool, strict bool) error {
 	totalErrors, errorsByKind, parseErr := parseAndDisplayActionlintOutput(stdout.String(), verbose)
 	if parseErr != nil {
 		actionlintLog.Printf("Failed to parse actionlint output: %v", parseErr)
+		// Track this as an integration error: output was produced but could not be parsed
+		if actionlintStats != nil {
+			actionlintStats.IntegrationErrors++
+		}
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(
+			"actionlint output could not be parsed — this is a tooling error, not a workflow validation failure: "+parseErr.Error()))
 		// Fall back to showing raw output
 		if stdout.Len() > 0 {
 			fmt.Fprint(os.Stderr, stdout.String())
@@ -299,19 +323,35 @@ func runActionlintOnFile(lockFiles []string, verbose bool, strict bool) error {
 					if len(lockFiles) == 1 {
 						fileDescription = filepath.Base(lockFiles[0])
 					}
+					// When the output could not be parsed (parseErr != nil), totalErrors will be
+					// 0 even though actionlint signalled failures via exit code 1.  Produce an
+					// unambiguous message so the caller understands this is a tooling issue.
+					if parseErr != nil {
+						return fmt.Errorf("strict mode: actionlint exited with errors on %s but output could not be parsed — this is likely a tooling or integration error", fileDescription)
+					}
 					return fmt.Errorf("strict mode: actionlint found %d errors in %s - workflows must have no actionlint errors in strict mode", totalErrors, fileDescription)
 				}
 				// In non-strict mode, errors are logged but not treated as failures
 				return nil
 			}
-			// Other exit codes are actual errors
+			// Other exit codes indicate actual tooling/subprocess failures, not lint findings.
 			fileDescription := "workflows"
 			if len(lockFiles) == 1 {
 				fileDescription = filepath.Base(lockFiles[0])
 			}
+			if actionlintStats != nil {
+				actionlintStats.IntegrationErrors++
+			}
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(
+				fmt.Sprintf("actionlint failed with exit code %d on %s — this is a tooling error, not a workflow validation failure", exitCode, fileDescription)))
 			return fmt.Errorf("actionlint failed with exit code %d on %s", exitCode, fileDescription)
 		}
-		// Non-ExitError errors (e.g., command not found)
+		// Non-ExitError errors (e.g., command not found) are integration/tooling failures.
+		if actionlintStats != nil {
+			actionlintStats.IntegrationErrors++
+		}
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(
+			"actionlint could not be invoked — this is a tooling error, not a workflow validation failure: "+err.Error()))
 		return fmt.Errorf("actionlint failed: %w", err)
 	}
 

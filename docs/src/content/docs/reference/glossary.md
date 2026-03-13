@@ -322,9 +322,21 @@ The `gh aw` extension for GitHub CLI providing commands for managing agentic wor
 
 An interactive web-based editor for authoring, compiling, and previewing agentic workflows without local installation. The Playground runs the gh-aw compiler in the browser using [WebAssembly](#webassembly-wasm) and auto-saves editor content to `localStorage` so work is preserved across sessions. Available at `/gh-aw/editor/`.
 
+### actionlint
+
+A static analysis tool for GitHub Actions workflow files that detects syntax errors, type mismatches, and other issues. Integrated into `gh aw compile` via the `--actionlint` flag. Runs in a Docker container and reports lint findings separately from tooling/integration errors (such as Docker failures or timeouts) that prevent the linter from running. See `--actionlint --zizmor --poutine` in the [Compilation Reference](/gh-aw/reference/compilation-process/).
+
+### poutine
+
+A security linter for GitHub Actions workflows that detects supply-chain vulnerabilities such as unpinned actions and dangerous use of pull request events. Integrated into `gh aw compile` via the `--poutine` flag. Typically used alongside [actionlint](#actionlint) and [zizmor](#zizmor).
+
 ### Validation
 
 Checking workflow files for errors, security issues, and best practices. Occurs during compilation and can be enhanced with strict mode and security scanners.
+
+### zizmor
+
+A security auditing tool for GitHub Actions workflows that identifies vulnerabilities including script injections, excessive permissions, and unsafe use of GitHub context expressions. Integrated into `gh aw compile` via the `--zizmor` flag. Typically used alongside [actionlint](#actionlint) and [poutine](#poutine).
 
 ### WebAssembly (Wasm)
 

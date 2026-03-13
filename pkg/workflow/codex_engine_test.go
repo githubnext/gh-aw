@@ -729,11 +729,14 @@ func TestCodexEngineWebSearch(t *testing.T) {
 			t.Fatalf("Expected 1 step, got %d", len(steps))
 		}
 		stepContent := strings.Join([]string(steps[0]), "\n")
-		if !strings.Contains(stepContent, "--no-search") {
-			t.Errorf("Expected --no-search flag when web-search tool is not specified, got:\n%s", stepContent)
+		if !strings.Contains(stepContent, `-c web_search="disabled"`) {
+			t.Errorf(`Expected -c web_search="disabled" config when web-search tool is not specified, got:\n%s`, stepContent)
 		}
-		if strings.Contains(stepContent, " --search") {
-			t.Errorf("Expected no --search flag when web-search tool is not specified, got:\n%s", stepContent)
+		if strings.Contains(stepContent, "--no-search") {
+			t.Errorf("Expected no --no-search flag (it does not exist), got:\n%s", stepContent)
+		}
+		if strings.Contains(stepContent, "--search") {
+			t.Errorf("Expected no --search flag (it does not exist), got:\n%s", stepContent)
 		}
 	})
 
@@ -749,11 +752,14 @@ func TestCodexEngineWebSearch(t *testing.T) {
 			t.Fatalf("Expected 1 step, got %d", len(steps))
 		}
 		stepContent := strings.Join([]string(steps[0]), "\n")
-		if !strings.Contains(stepContent, "--search") {
-			t.Errorf("Expected --search flag when web-search tool is specified, got:\n%s", stepContent)
+		if strings.Contains(stepContent, `-c web_search="disabled"`) {
+			t.Errorf(`Expected no -c web_search="disabled" config when web-search tool is specified, got:\n%s`, stepContent)
 		}
 		if strings.Contains(stepContent, "--no-search") {
-			t.Errorf("Expected no --no-search flag when web-search tool is specified, got:\n%s", stepContent)
+			t.Errorf("Expected no --no-search flag (it does not exist), got:\n%s", stepContent)
+		}
+		if strings.Contains(stepContent, "--search") {
+			t.Errorf("Expected no --search flag (it does not exist), got:\n%s", stepContent)
 		}
 	})
 }

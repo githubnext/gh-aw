@@ -23,7 +23,7 @@
 #
 # Build, test, and release gh-aw extension, then generate and prepend release highlights
 #
-# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"7f3dfef841acab2ac082e6d01ea563a16d639f9d37dd4de15164cc9ed61c13ce"}
+# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"6348d0076a2481a1e8e4d7761038c81f0cd54728f68ffa291a2f818b5c030c7f","strict":true}
 
 name: "Release"
 "on":
@@ -33,6 +33,7 @@ name: "Release"
   workflow_dispatch:
     inputs:
       release_type:
+        default: patch
         description: Release type (patch, minor, or major)
         options:
         - patch
@@ -88,7 +89,7 @@ jobs:
           GH_AW_INFO_AWF_VERSION: "v0.23.0"
           GH_AW_INFO_AWMG_VERSION: ""
           GH_AW_INFO_FIREWALL_TYPE: "squid"
-          GH_AW_COMPILED_STRICT: "false"
+          GH_AW_COMPILED_STRICT: "true"
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         with:
           script: |
@@ -348,6 +349,8 @@ jobs:
           cat > /opt/gh-aw/safeoutputs/config.json << 'GH_AW_SAFE_OUTPUTS_CONFIG_EOF'
           {"missing_data":{},"missing_tool":{},"noop":{"max":1},"update_release":{"max":1}}
           GH_AW_SAFE_OUTPUTS_CONFIG_EOF
+      - name: Write Safe Outputs Tools
+        run: |
           cat > /opt/gh-aw/safeoutputs/tools.json << 'GH_AW_SAFE_OUTPUTS_TOOLS_EOF'
           [
             {
@@ -765,7 +768,7 @@ jobs:
       - name: Append agent step summary
         if: always()
         run: bash /opt/gh-aw/actions/append_agent_step_summary.sh
-      - name: Copy safe outputs
+      - name: Copy Safe Outputs
         if: always()
         run: |
           mkdir -p /tmp/gh-aw
@@ -1269,7 +1272,6 @@ jobs:
       - activation
       - config
       - pre_activation
-      - sync_actions
     runs-on: ubuntu-latest
     permissions:
       attestations: write

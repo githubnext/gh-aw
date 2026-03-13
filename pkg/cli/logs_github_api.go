@@ -154,7 +154,7 @@ type ListWorkflowRunsOptions struct {
 // The processedCount and targetCount parameters are used to display progress in the spinner message.
 func listWorkflowRunsWithPagination(opts ListWorkflowRunsOptions) ([]WorkflowRun, int, error) {
 	logsGitHubAPILog.Printf("Listing workflow runs: workflow=%s, limit=%d, startDate=%s, endDate=%s, ref=%s", opts.WorkflowName, opts.Limit, opts.StartDate, opts.EndDate, opts.Ref)
-	args := []string{"run", "list", "--json", "databaseId,number,url,status,conclusion,workflowName,path,createdAt,startedAt,updatedAt,event,headBranch,headSha,displayTitle"}
+	args := []string{"run", "list", "--json", "databaseId,number,url,status,conclusion,workflowName,createdAt,startedAt,updatedAt,event,headBranch,headSha,displayTitle"}
 
 	// Add filters
 	if opts.WorkflowName != "" {
@@ -221,18 +221,26 @@ func listWorkflowRunsWithPagination(opts ListWorkflowRunsOptions) ([]WorkflowRun
 			fmt.Fprintln(os.Stderr, console.FormatVerboseMessage(outputMsg))
 		}
 
-		// Check for invalid field errors first (before auth errors)
-		// GitHub CLI returns these when JSON fields don't exist or are misspelled
-		if strings.Contains(combinedMsg, "invalid field") ||
-			strings.Contains(combinedMsg, "unknown field") ||
-			strings.Contains(combinedMsg, "field not found") ||
-			strings.Contains(combinedMsg, "no such field") {
+		// Check for invalid field errors first (before auth errors).
+		// GitHub CLI may capitalise the message differently across versions, so
+		// use a case-insensitive comparison. Note that some gh versions emit
+		// "Unknown JSON field: ..." (with "JSON" between "Unknown" and "field"),
+		// so we also check for "unknown json field" and "unknown json" explicitly.
+		combinedMsgLower := strings.ToLower(combinedMsg)
+		if strings.Contains(combinedMsgLower, "invalid field") ||
+			strings.Contains(combinedMsgLower, "unknown field") ||
+			strings.Contains(combinedMsgLower, "unknown json field") ||
+			strings.Contains(combinedMsgLower, "unknown json") ||
+			strings.Contains(combinedMsgLower, "field not found") ||
+			strings.Contains(combinedMsgLower, "no such field") {
 			return nil, 0, fmt.Errorf("invalid field in JSON query (exit code %d): %s", exitCode, string(output))
 		}
 
-		// Check for authentication errors
+		// Check for authentication errors.
+		// "exit status 1" is intentionally omitted: gh exits 1 for many non-auth
+		// errors (e.g. unsupported JSON fields), so matching it caused misleading
+		// "authentication required" messages for unrelated failures.
 		if strings.Contains(combinedMsg, "exit status 4") ||
-			strings.Contains(combinedMsg, "exit status 1") ||
 			strings.Contains(combinedMsg, "not logged into any GitHub hosts") ||
 			strings.Contains(combinedMsg, "To use GitHub CLI in a GitHub Actions workflow") ||
 			strings.Contains(combinedMsg, "authentication required") ||
@@ -246,25 +254,13 @@ func listWorkflowRunsWithPagination(opts ListWorkflowRunsOptions) ([]WorkflowRun
 		return nil, 0, fmt.Errorf("failed to list workflow runs (exit code %d): %w", exitCode, err)
 	}
 
-	// gh run list outputs "path" for the workflow file path, but WorkflowRun uses "workflowPath".
-	// Unmarshal via a helper struct so both fields are captured correctly.
-	var rawRuns []struct {
-		WorkflowRun
-		Path string `json:"path"`
-	}
-	if err := json.Unmarshal(output, &rawRuns); err != nil {
+	var runs []WorkflowRun
+	if err := json.Unmarshal(output, &runs); err != nil {
 		// Stop spinner on parse error
 		if !opts.Verbose {
 			spinner.Stop()
 		}
 		return nil, 0, fmt.Errorf("failed to parse workflow runs: %w", err)
-	}
-
-	runs := make([]WorkflowRun, len(rawRuns))
-	for i, raw := range rawRuns {
-		run := raw.WorkflowRun
-		run.WorkflowPath = raw.Path
-		runs[i] = run
 	}
 
 	// Stop spinner silently - don't show per-iteration messages

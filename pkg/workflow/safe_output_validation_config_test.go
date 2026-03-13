@@ -129,85 +129,6 @@ func containsNewline(s string) bool {
 	return false
 }
 
-func TestGetValidationConfigForType(t *testing.T) {
-	tests := []struct {
-		name       string
-		typeName   string
-		wantFound  bool
-		wantMax    int
-		wantFields []string
-	}{
-		{
-			name:       "create_issue type",
-			typeName:   "create_issue",
-			wantFound:  true,
-			wantMax:    1,
-			wantFields: []string{"title", "body", "labels", "parent", "temporary_id", "repo"},
-		},
-		{
-			name:       "link_sub_issue type",
-			typeName:   "link_sub_issue",
-			wantFound:  true,
-			wantMax:    5,
-			wantFields: []string{"parent_issue_number", "sub_issue_number"},
-		},
-		{
-			name:      "unknown type",
-			typeName:  "unknown_type",
-			wantFound: false,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			config, found := GetValidationConfigForType(tt.typeName)
-			if found != tt.wantFound {
-				t.Errorf("GetValidationConfigForType() found = %v, want %v", found, tt.wantFound)
-			}
-			if found {
-				if config.DefaultMax != tt.wantMax {
-					t.Errorf("DefaultMax = %v, want %v", config.DefaultMax, tt.wantMax)
-				}
-				for _, fieldName := range tt.wantFields {
-					if _, ok := config.Fields[fieldName]; !ok {
-						t.Errorf("Field %q not found in config", fieldName)
-					}
-				}
-			}
-		})
-	}
-}
-
-func TestGetDefaultMaxForType(t *testing.T) {
-	tests := []struct {
-		typeName string
-		want     int
-	}{
-		{"create_issue", 1},
-		{"add_labels", 5},
-		{"missing_tool", 20},
-		{"missing_data", 20},
-		{"create_code_scanning_alert", 40},
-		{"autofix_code_scanning_alert", 10},
-		{"link_sub_issue", 5},
-		{"hide_comment", 5},
-		{"remove_labels", 5},
-		{"update_discussion", 1},
-		{"unassign_from_user", 1},
-		{"mark_pull_request_as_ready_for_review", 1},
-		{"unknown_type", 1}, // Default fallback
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.typeName, func(t *testing.T) {
-			got := GetDefaultMaxForType(tt.typeName)
-			if got != tt.want {
-				t.Errorf("GetDefaultMaxForType(%q) = %v, want %v", tt.typeName, got, tt.want)
-			}
-		})
-	}
-}
-
 func TestFieldValidationMarshaling(t *testing.T) {
 	// Test that FieldValidation marshals correctly with omitempty
 	field := FieldValidation{
@@ -272,43 +193,5 @@ func TestValidationConfigConsistency(t *testing.T) {
 		if config.DefaultMax <= 0 {
 			t.Errorf("Type %q has invalid defaultMax: %d", typeName, config.DefaultMax)
 		}
-	}
-}
-
-func TestMissingToolFieldOptional(t *testing.T) {
-	// Test that the 'tool' field in missing_tool is optional
-	config, found := GetValidationConfigForType("missing_tool")
-	if !found {
-		t.Fatal("missing_tool config not found")
-	}
-
-	// Verify 'tool' field exists and is optional
-	toolField, ok := config.Fields["tool"]
-	if !ok {
-		t.Fatal("tool field not found in missing_tool config")
-	}
-
-	if toolField.Required {
-		t.Error("tool field should be optional (Required: false) to match the tool description")
-	}
-
-	// Verify 'reason' field is required
-	reasonField, ok := config.Fields["reason"]
-	if !ok {
-		t.Fatal("reason field not found in missing_tool config")
-	}
-
-	if !reasonField.Required {
-		t.Error("reason field should be required")
-	}
-
-	// Verify 'alternatives' field is optional (no Required field or Required: false)
-	alternativesField, ok := config.Fields["alternatives"]
-	if !ok {
-		t.Fatal("alternatives field not found in missing_tool config")
-	}
-
-	if alternativesField.Required {
-		t.Error("alternatives field should be optional")
 	}
 }

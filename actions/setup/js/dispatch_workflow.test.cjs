@@ -42,6 +42,9 @@ describe("dispatch_workflow handler factory", () => {
     vi.clearAllMocks();
     process.env.GITHUB_REF = "refs/heads/main";
     delete process.env.GITHUB_HEAD_REF; // Clean up PR environment variable
+    // Reset shared context to a known baseline so tests are order-independent
+    global.context.ref = "refs/heads/main";
+    global.context.payload = { repository: { default_branch: "main" } };
   });
 
   it("should create a handler function", async () => {
@@ -544,5 +547,116 @@ describe("dispatch_workflow handler factory", () => {
 
     expect(result.success).toBe(false);
     expect(github.rest.actions.createWorkflowDispatch).toHaveBeenCalledTimes(1);
+  });
+
+  it("dispatches to target-repo when configured", async () => {
+    process.env.GITHUB_REF = "refs/heads/main";
+
+    const config = {
+      "target-repo": "platform-org/platform-repo",
+      workflows: ["platform-worker"],
+      workflow_files: { "platform-worker": ".lock.yml" },
+    };
+    const handler = await main(config);
+
+    const result = await handler({ type: "dispatch_workflow", workflow_name: "platform-worker", inputs: {} }, {});
+
+    expect(result.success).toBe(true);
+    // Must dispatch to the configured target-repo, NOT context.repo
+    expect(github.rest.actions.createWorkflowDispatch).toHaveBeenCalledWith(
+      expect.objectContaining({
+        owner: "platform-org",
+        repo: "platform-repo",
+        workflow_id: "platform-worker.lock.yml",
+      })
+    );
+  });
+
+  it("default-branch lookup uses target-repo when configured", async () => {
+    const originalRef = global.context.ref;
+    const originalPayload = global.context.payload;
+
+    try {
+      delete process.env.GITHUB_REF;
+      delete process.env.GITHUB_HEAD_REF;
+      global.context.ref = undefined;
+      // context.payload has a default_branch for the caller repo – must be ignored for cross-repo dispatch
+      global.context.payload = { repository: { default_branch: "caller-main" } };
+
+      github.rest.repos.get.mockResolvedValueOnce({
+        data: { default_branch: "platform-main" },
+      });
+
+      const config = {
+        "target-repo": "platform-org/platform-repo",
+        workflows: ["platform-worker"],
+        workflow_files: { "platform-worker": ".lock.yml" },
+      };
+      const handler = await main(config);
+
+      const result = await handler({ type: "dispatch_workflow", workflow_name: "platform-worker", inputs: {} }, {});
+
+      expect(result.success).toBe(true);
+      // Default-branch API lookup must target the configured target-repo
+      expect(github.rest.repos.get).toHaveBeenCalledWith({
+        owner: "platform-org",
+        repo: "platform-repo",
+      });
+      // Dispatch must use the target repo's default branch
+      expect(github.rest.actions.createWorkflowDispatch).toHaveBeenCalledWith(
+        expect.objectContaining({
+          owner: "platform-org",
+          repo: "platform-repo",
+          ref: "refs/heads/platform-main",
+        })
+      );
+    } finally {
+      global.context.ref = originalRef;
+      global.context.payload = originalPayload;
+    }
+  });
+
+  it("falls back to context.repo when no target-repo is configured", async () => {
+    process.env.GITHUB_REF = "refs/heads/main";
+
+    const config = {
+      workflows: ["test-workflow"],
+      workflow_files: { "test-workflow": ".lock.yml" },
+    };
+    const handler = await main(config);
+
+    const result = await handler({ type: "dispatch_workflow", workflow_name: "test-workflow", inputs: {} }, {});
+
+    expect(result.success).toBe(true);
+    expect(github.rest.actions.createWorkflowDispatch).toHaveBeenCalledWith(
+      expect.objectContaining({
+        owner: "test-owner",
+        repo: "test-repo",
+      })
+    );
+  });
+
+  it("falls back to context.repo and warns when target-repo is an invalid slug", async () => {
+    process.env.GITHUB_REF = "refs/heads/main";
+
+    const config = {
+      "target-repo": "not-a-valid-slug",
+      workflows: ["test-workflow"],
+      workflow_files: { "test-workflow": ".lock.yml" },
+    };
+    const handler = await main(config);
+
+    const result = await handler({ type: "dispatch_workflow", workflow_name: "test-workflow", inputs: {} }, {});
+
+    expect(result.success).toBe(true);
+    // Must emit a warning about the invalid slug including the bad value and the fallback
+    expect(core.warning).toHaveBeenCalledWith(expect.stringMatching(/Invalid 'target-repo' configuration value 'not-a-valid-slug'.*falling back.*test-owner\/test-repo/));
+    // Must fall back to context.repo
+    expect(github.rest.actions.createWorkflowDispatch).toHaveBeenCalledWith(
+      expect.objectContaining({
+        owner: "test-owner",
+        repo: "test-repo",
+      })
+    );
   });
 });

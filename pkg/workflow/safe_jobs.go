@@ -219,9 +219,12 @@ func (c *Compiler) buildSafeJobs(data *WorkflowData, threatDetectionEnabled bool
 		// Build job steps
 		var steps []string
 
-		// Add step to download agent output artifact using shared helper
+		// Add step to download agent output artifact using shared helper.
+		// In workflow_call context, use the per-invocation prefix to avoid artifact name clashes.
+		// Safe-jobs depend on the agent job, so the prefix comes from needs.agent.outputs.
+		agentArtifactPrefix := artifactPrefixExprForAgentDownstreamJob(data)
 		downloadSteps := buildArtifactDownloadSteps(ArtifactDownloadConfig{
-			ArtifactName: constants.AgentArtifactName,
+			ArtifactName: agentArtifactPrefix + constants.AgentArtifactName,
 			DownloadPath: "/opt/gh-aw/safe-jobs/",
 			SetupEnvStep: false, // We'll handle env vars separately to add job-specific ones
 			StepName:     "Download agent output artifact",

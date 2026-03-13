@@ -10,6 +10,7 @@ import (
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/parser"
+	"github.com/github/gh-aw/pkg/sliceutil"
 )
 
 var resolutionLog = logger.New("cli:add_workflow_resolution")
@@ -59,7 +60,7 @@ func ResolveWorkflows(workflows []string, verbose bool) (*ResolvedWorkflows, err
 	}
 
 	// Parse workflow specifications
-	parsedSpecs := []*WorkflowSpec{}
+	parsedSpecs := make([]*WorkflowSpec, 0, len(workflows))
 
 	for _, workflow := range workflows {
 		spec, err := parseWorkflowSpec(workflow)
@@ -97,13 +98,9 @@ func ResolveWorkflows(workflows []string, verbose bool) (*ResolvedWorkflows, err
 	// If we can't determine the current repository, proceed without the check
 
 	// Check if any workflow specs contain wildcards (local only)
-	hasWildcard := false
-	for _, spec := range parsedSpecs {
-		if spec.IsWildcard {
-			hasWildcard = true
-			break
-		}
-	}
+	hasWildcard := sliceutil.Any(parsedSpecs, func(spec *WorkflowSpec) bool {
+		return spec.IsWildcard
+	})
 
 	// Expand wildcards for local workflows only
 	if hasWildcard {

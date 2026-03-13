@@ -23,9 +23,14 @@ gh aw add-wizard https://github.com/githubnext/agentics/blob/main/workflows/dail
 
 # Short form (for workflows in top-level workflows/ directory)
 gh aw add-wizard githubnext/agentics/daily-repo-status
+
+# Skip the API key prompt when a secret is already configured
+gh aw add-wizard githubnext/agentics/daily-repo-status --skip-secret
 ```
 
 This checks requirements, adds the workflow markdown file to your repository, and generates the corresponding YAML workflow. After adding, commit and push the changes to your repository.
+
+The `--skip-secret` flag bypasses the interactive API key prompt. Use it when the required secret (e.g., `COPILOT_GITHUB_TOKEN`) is already configured at the organisation or repository level.
 
 For non-interactive installation, use `gh aw add` with optional versioning. By default this looks in the `workflows/` directory, but you can specify an explicit path if needed:
 

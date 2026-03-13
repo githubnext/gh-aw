@@ -1,0 +1,310 @@
+//go:build !integration
+
+package workflow
+
+import (
+	"strings"
+	"testing"
+
+	"github.com/stretchr/testify/assert"
+)
+
+// TestExtractAPITargetHost tests the extractAPITargetHost function that extracts
+// hostnames from custom API base URLs in engine.env
+func TestExtractAPITargetHost(t *testing.T) {
+	tests := []struct {
+		name         string
+		workflowData *WorkflowData
+		envVar       string
+		expected     string
+	}{
+		{
+			name: "extracts hostname from HTTPS URL with path",
+			workflowData: &WorkflowData{
+				EngineConfig: &EngineConfig{
+					Env: map[string]string{
+						"OPENAI_BASE_URL": "https://llm-router.internal.example.com/v1",
+					},
+				},
+			},
+			envVar:   "OPENAI_BASE_URL",
+			expected: "llm-router.internal.example.com",
+		},
+		{
+			name: "extracts hostname from HTTP URL with port and path",
+			workflowData: &WorkflowData{
+				EngineConfig: &EngineConfig{
+					Env: map[string]string{
+						"ANTHROPIC_BASE_URL": "http://localhost:8080/v1",
+					},
+				},
+			},
+			envVar:   "ANTHROPIC_BASE_URL",
+			expected: "localhost:8080",
+		},
+		{
+			name: "handles hostname without protocol or path",
+			workflowData: &WorkflowData{
+				EngineConfig: &EngineConfig{
+					Env: map[string]string{
+						"OPENAI_BASE_URL": "api.openai.com",
+					},
+				},
+			},
+			envVar:   "OPENAI_BASE_URL",
+			expected: "api.openai.com",
+		},
+		{
+			name: "handles hostname with port but no protocol",
+			workflowData: &WorkflowData{
+				EngineConfig: &EngineConfig{
+					Env: map[string]string{
+						"OPENAI_BASE_URL": "localhost:8000",
+					},
+				},
+			},
+			envVar:   "OPENAI_BASE_URL",
+			expected: "localhost:8000",
+		},
+		{
+			name: "returns empty string when env var not set",
+			workflowData: &WorkflowData{
+				EngineConfig: &EngineConfig{
+					Env: map[string]string{
+						"OTHER_VAR": "value",
+					},
+				},
+			},
+			envVar:   "OPENAI_BASE_URL",
+			expected: "",
+		},
+		{
+			name: "returns empty string when engine config is nil",
+			workflowData: &WorkflowData{
+				EngineConfig: nil,
+			},
+			envVar:   "OPENAI_BASE_URL",
+			expected: "",
+		},
+		{
+			name:         "returns empty string when workflow data is nil",
+			workflowData: nil,
+			envVar:       "OPENAI_BASE_URL",
+			expected:     "",
+		},
+		{
+			name: "returns empty string for empty URL",
+			workflowData: &WorkflowData{
+				EngineConfig: &EngineConfig{
+					Env: map[string]string{
+						"OPENAI_BASE_URL": "",
+					},
+				},
+			},
+			envVar:   "OPENAI_BASE_URL",
+			expected: "",
+		},
+		{
+			name: "extracts Azure OpenAI endpoint hostname",
+			workflowData: &WorkflowData{
+				EngineConfig: &EngineConfig{
+					Env: map[string]string{
+						"OPENAI_BASE_URL": "https://my-resource.openai.azure.com/openai/deployments/gpt-4",
+					},
+				},
+			},
+			envVar:   "OPENAI_BASE_URL",
+			expected: "my-resource.openai.azure.com",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := extractAPITargetHost(tt.workflowData, tt.envVar)
+			assert.Equal(t, tt.expected, result, "Extracted hostname should match expected value")
+		})
+	}
+}
+
+// TestAWFCustomAPITargetFlags tests that BuildAWFArgs includes custom API target flags
+// when OPENAI_BASE_URL or ANTHROPIC_BASE_URL are configured in engine.env
+func TestAWFCustomAPITargetFlags(t *testing.T) {
+	t.Run("includes openai-api-target flag when OPENAI_BASE_URL is configured", func(t *testing.T) {
+		workflowData := &WorkflowData{
+			Name: "test-workflow",
+			EngineConfig: &EngineConfig{
+				ID: "codex",
+				Env: map[string]string{
+					"OPENAI_BASE_URL": "https://llm-router.internal.example.com/v1",
+					"OPENAI_API_KEY":  "${{ secrets.LLM_ROUTER_KEY }}",
+				},
+			},
+			NetworkPermissions: &NetworkPermissions{
+				Firewall: &FirewallConfig{
+					Enabled: true,
+				},
+			},
+		}
+
+		config := AWFCommandConfig{
+			EngineName:     "codex",
+			WorkflowData:   workflowData,
+			AllowedDomains: "github.com",
+		}
+
+		args := BuildAWFArgs(config)
+		argsStr := strings.Join(args, " ")
+
+		assert.Contains(t, argsStr, "--openai-api-target", "Should include --openai-api-target flag")
+		assert.Contains(t, argsStr, "llm-router.internal.example.com", "Should include custom hostname")
+	})
+
+	t.Run("includes anthropic-api-target flag when ANTHROPIC_BASE_URL is configured", func(t *testing.T) {
+		workflowData := &WorkflowData{
+			Name: "test-workflow",
+			EngineConfig: &EngineConfig{
+				ID: "claude",
+				Env: map[string]string{
+					"ANTHROPIC_BASE_URL": "https://claude-proxy.internal.company.com",
+					"ANTHROPIC_API_KEY":  "${{ secrets.CLAUDE_PROXY_KEY }}",
+				},
+			},
+			NetworkPermissions: &NetworkPermissions{
+				Firewall: &FirewallConfig{
+					Enabled: true,
+				},
+			},
+		}
+
+		config := AWFCommandConfig{
+			EngineName:     "claude",
+			WorkflowData:   workflowData,
+			AllowedDomains: "github.com",
+		}
+
+		args := BuildAWFArgs(config)
+		argsStr := strings.Join(args, " ")
+
+		assert.Contains(t, argsStr, "--anthropic-api-target", "Should include --anthropic-api-target flag")
+		assert.Contains(t, argsStr, "claude-proxy.internal.company.com", "Should include custom hostname")
+	})
+
+	t.Run("does not include api-target flags when using default URLs", func(t *testing.T) {
+		workflowData := &WorkflowData{
+			Name: "test-workflow",
+			EngineConfig: &EngineConfig{
+				ID: "codex",
+				// No custom OPENAI_BASE_URL
+			},
+			NetworkPermissions: &NetworkPermissions{
+				Firewall: &FirewallConfig{
+					Enabled: true,
+				},
+			},
+		}
+
+		config := AWFCommandConfig{
+			EngineName:     "codex",
+			WorkflowData:   workflowData,
+			AllowedDomains: "github.com",
+		}
+
+		args := BuildAWFArgs(config)
+		argsStr := strings.Join(args, " ")
+
+		assert.NotContains(t, argsStr, "--openai-api-target", "Should not include --openai-api-target when not configured")
+		assert.NotContains(t, argsStr, "--anthropic-api-target", "Should not include --anthropic-api-target when not configured")
+	})
+
+	t.Run("includes both api-target flags when both are configured", func(t *testing.T) {
+		workflowData := &WorkflowData{
+			Name: "test-workflow",
+			EngineConfig: &EngineConfig{
+				ID: "custom",
+				Env: map[string]string{
+					"OPENAI_BASE_URL":    "https://openai-proxy.company.com/v1",
+					"ANTHROPIC_BASE_URL": "https://anthropic-proxy.company.com",
+				},
+			},
+			NetworkPermissions: &NetworkPermissions{
+				Firewall: &FirewallConfig{
+					Enabled: true,
+				},
+			},
+		}
+
+		config := AWFCommandConfig{
+			EngineName:     "custom",
+			WorkflowData:   workflowData,
+			AllowedDomains: "github.com",
+		}
+
+		args := BuildAWFArgs(config)
+		argsStr := strings.Join(args, " ")
+
+		assert.Contains(t, argsStr, "--openai-api-target", "Should include --openai-api-target flag")
+		assert.Contains(t, argsStr, "openai-proxy.company.com", "Should include OpenAI custom hostname")
+		assert.Contains(t, argsStr, "--anthropic-api-target", "Should include --anthropic-api-target flag")
+		assert.Contains(t, argsStr, "anthropic-proxy.company.com", "Should include Anthropic custom hostname")
+	})
+}
+
+// TestEngineExecutionWithCustomAPITarget tests that engine execution steps include
+// custom API target flags when configured in engine.env
+func TestEngineExecutionWithCustomAPITarget(t *testing.T) {
+	t.Run("Codex engine includes openai-api-target flag when OPENAI_BASE_URL is configured", func(t *testing.T) {
+		workflowData := &WorkflowData{
+			Name: "test-workflow",
+			EngineConfig: &EngineConfig{
+				ID: "codex",
+				Env: map[string]string{
+					"OPENAI_BASE_URL": "https://llm-router.internal.example.com/v1",
+					"OPENAI_API_KEY":  "${{ secrets.LLM_ROUTER_KEY }}",
+				},
+			},
+			NetworkPermissions: &NetworkPermissions{
+				Firewall: &FirewallConfig{
+					Enabled: true,
+				},
+			},
+		}
+
+		engine := NewCodexEngine()
+		steps := engine.GetExecutionSteps(workflowData, "test.log")
+
+		assert.NotEmpty(t, steps, "Should generate execution steps")
+
+		stepContent := strings.Join(steps[0], "\n")
+
+		assert.Contains(t, stepContent, "--openai-api-target", "Should include --openai-api-target flag")
+		assert.Contains(t, stepContent, "llm-router.internal.example.com", "Should include custom hostname")
+	})
+
+	t.Run("Claude engine includes anthropic-api-target flag when ANTHROPIC_BASE_URL is configured", func(t *testing.T) {
+		workflowData := &WorkflowData{
+			Name: "test-workflow",
+			EngineConfig: &EngineConfig{
+				ID: "claude",
+				Env: map[string]string{
+					"ANTHROPIC_BASE_URL": "https://claude-proxy.internal.company.com",
+					"ANTHROPIC_API_KEY":  "${{ secrets.CLAUDE_PROXY_KEY }}",
+				},
+			},
+			NetworkPermissions: &NetworkPermissions{
+				Firewall: &FirewallConfig{
+					Enabled: true,
+				},
+			},
+		}
+
+		engine := NewClaudeEngine()
+		steps := engine.GetExecutionSteps(workflowData, "test.log")
+
+		assert.NotEmpty(t, steps, "Should generate execution steps")
+
+		stepContent := strings.Join(steps[0], "\n")
+
+		assert.Contains(t, stepContent, "--anthropic-api-target", "Should include --anthropic-api-target flag")
+		assert.Contains(t, stepContent, "claude-proxy.internal.company.com", "Should include custom hostname")
+	})
+}

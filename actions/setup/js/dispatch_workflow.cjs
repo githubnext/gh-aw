@@ -10,6 +10,7 @@ const HANDLER_TYPE = "dispatch_workflow";
 
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { createAuthenticatedGitHubClient } = require("./handler_auth.cjs");
+const { resolveTargetRepoConfig, parseRepoSlug } = require("./repo_helpers.cjs");
 
 /**
  * Main handler factory for dispatch_workflow
@@ -22,6 +23,26 @@ async function main(config = {}) {
   const maxCount = config.max || 1;
   const workflowFiles = config.workflow_files || {}; // Map of workflow name to file extension
   const githubClient = await createAuthenticatedGitHubClient(config);
+  const { defaultTargetRepo } = resolveTargetRepoConfig(config);
+
+  // Resolve the dispatch destination repository from target-repo config, falling back to context.repo
+  const contextRepoSlug = `${context.repo.owner}/${context.repo.repo}`;
+  const normalizedTargetRepo = (defaultTargetRepo ?? "").toString().trim();
+
+  let resolvedRepoSlug = contextRepoSlug;
+  let repo = context.repo;
+
+  if (normalizedTargetRepo) {
+    const parsedRepo = parseRepoSlug(normalizedTargetRepo);
+    if (!parsedRepo) {
+      core.warning(`Invalid 'target-repo' configuration value '${normalizedTargetRepo}'; falling back to workflow context repository ${contextRepoSlug}.`);
+    } else {
+      resolvedRepoSlug = normalizedTargetRepo;
+      repo = parsedRepo;
+    }
+  }
+
+  const isCrossRepoDispatch = resolvedRepoSlug !== contextRepoSlug;
 
   core.info(`Dispatch workflow configuration: max=${maxCount}`);
   if (allowedWorkflows.length > 0) {
@@ -30,22 +51,22 @@ async function main(config = {}) {
   if (Object.keys(workflowFiles).length > 0) {
     core.info(`Workflow files: ${JSON.stringify(workflowFiles)}`);
   }
+  if (isCrossRepoDispatch) {
+    core.info(`Dispatching to target repo: ${resolvedRepoSlug}`);
+  }
 
   // Track how many items we've processed for max limit
   let processedCount = 0;
   let lastDispatchTime = 0;
 
-  // Get the current repository context and ref
-  const repo = context.repo;
-
-  // Helper function to get the default branch
+  // Helper function to get the default branch of the dispatch target repository
   const getDefaultBranchRef = async () => {
-    // Try to get from context payload first
-    if (context.payload.repository?.default_branch) {
+    // Only use the context payload's default_branch when dispatching to the caller's own repo
+    if (!isCrossRepoDispatch && context.payload.repository?.default_branch) {
       return `refs/heads/${context.payload.repository.default_branch}`;
     }
 
-    // Fall back to querying the repository
+    // Fall back to querying the target repository
     try {
       const { data: repoData } = await githubClient.rest.repos.get({
         owner: repo.owner,
@@ -93,8 +114,7 @@ async function main(config = {}) {
 
     processedCount++;
 
-    const item = message;
-    const workflowName = item.workflow_name;
+    const workflowName = message.workflow_name;
 
     if (!workflowName || workflowName.trim() === "") {
       core.warning("Workflow name is empty, skipping");
@@ -130,8 +150,8 @@ async function main(config = {}) {
       // Prepare inputs - convert all values to strings as required by workflow_dispatch
       /** @type {Record<string, string>} */
       const inputs = {};
-      if (item.inputs && typeof item.inputs === "object") {
-        for (const [key, value] of Object.entries(item.inputs)) {
+      if (message.inputs && typeof message.inputs === "object") {
+        for (const [key, value] of Object.entries(message.inputs)) {
           // Convert value to string
           if (value === null || value === undefined) {
             inputs[key] = "";
@@ -173,10 +193,10 @@ async function main(config = {}) {
         /** @type {any} */
         const err = dispatchError;
         const status = err && typeof err === "object" ? err.status : undefined;
-        const message = err && typeof err === "object" && err.response && err.response.data && typeof err.response.data.message === "string" ? err.response.data.message : String(dispatchError);
+        const dispatchErrMessage = typeof err?.response?.data?.message === "string" ? err.response.data.message : String(dispatchError);
 
         const isValidationStatus = status === 400 || status === 422;
-        const mentionsReturnRunDetails = typeof message === "string" && message.toLowerCase().includes("return_run_details");
+        const mentionsReturnRunDetails = typeof dispatchErrMessage === "string" && dispatchErrMessage.toLowerCase().includes("return_run_details");
 
         if (isValidationStatus && mentionsReturnRunDetails) {
           core.info("Workflow dispatch failed due to unsupported 'return_run_details' parameter; retrying without it for GitHub Enterprise compatibility.");

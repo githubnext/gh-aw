@@ -146,7 +146,7 @@ func (c *Compiler) buildInlineDetectionSteps(data *WorkflowData) []string {
 	steps = append(steps, c.buildParsingStep()...)
 
 	// Step 8: Upload detection log artifact
-	steps = append(steps, c.buildUploadDetectionLogStep()...)
+	steps = append(steps, c.buildUploadDetectionLogStep(data)...)
 
 	// Step 9: Detection conclusion - sets final detection_success and detection_conclusion outputs
 	steps = append(steps, c.buildDetectionConclusionStep()...)
@@ -442,7 +442,7 @@ await main();`
 	return script
 }
 
-// buildUploadDetectionLogStep creates the step to upload the detection log
+// buildCustomThreatDetectionSteps builds YAML steps from user-configured threat detection steps.
 func (c *Compiler) buildCustomThreatDetectionSteps(steps []any) []string {
 	var result []string
 	for _, step := range steps {
@@ -455,14 +455,17 @@ func (c *Compiler) buildCustomThreatDetectionSteps(steps []any) []string {
 	return result
 }
 
-// buildUploadDetectionLogStep creates the step to upload the detection log
-func (c *Compiler) buildUploadDetectionLogStep() []string {
+// buildUploadDetectionLogStep creates the step to upload the detection log.
+// In workflow_call context, the artifact name is prefixed to avoid name clashes when the
+// same reusable workflow is called multiple times within a single workflow run.
+func (c *Compiler) buildUploadDetectionLogStep(data *WorkflowData) []string {
+	detectionArtifactName := artifactPrefixExprForDownstreamJob(data) + constants.DetectionArtifactName
 	return []string{
 		"      - name: Upload threat detection log\n",
 		fmt.Sprintf("        if: %s\n", detectionStepCondition),
 		fmt.Sprintf("        uses: %s\n", GetActionPin("actions/upload-artifact")),
 		"        with:\n",
-		"          name: " + constants.DetectionArtifactName + "\n",
+		"          name: " + detectionArtifactName + "\n",
 		"          path: /tmp/gh-aw/threat-detection/detection.log\n",
 		"          if-no-files-found: ignore\n",
 	}

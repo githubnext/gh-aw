@@ -16,6 +16,7 @@ strict: true
 
 imports:
   - shared/mcp/serena-go.md
+  - shared/reporting.md
 
 tools:
   github:

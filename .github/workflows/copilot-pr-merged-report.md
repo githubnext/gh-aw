@@ -36,6 +36,7 @@ network:
 imports:
   - shared/gh.md
   - shared/copilot-pr-analysis-base.md
+  - shared/reporting.md
 
 timeout-minutes: 10
 features:

@@ -1,6 +1,11 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
 
+// SEC-005: This module generates git patches via git CLI commands and does not make
+// GitHub API calls using a user-supplied target repository. The "target repo" references
+// in documentation describe cross-repo checkout scenarios only; no validateTargetRepo
+// allowlist check is required in this handler.
+
 const fs = require("fs");
 const path = require("path");
 
