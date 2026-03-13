@@ -19,6 +19,7 @@ func TestActionModeValidation(t *testing.T) {
 		{ActionModeDev, true},
 		{ActionModeRelease, true},
 		{ActionModeScript, true},
+		{ActionModeAction, true},
 		{ActionMode("invalid"), false},
 		{ActionMode(""), false},
 	}
@@ -41,6 +42,7 @@ func TestActionModeString(t *testing.T) {
 		{ActionModeDev, "dev"},
 		{ActionModeRelease, "release"},
 		{ActionModeScript, "script"},
+		{ActionModeAction, "action"},
 	}
 
 	for _, tt := range tests {
@@ -78,6 +80,11 @@ func TestCompilerSetActionMode(t *testing.T) {
 	if compiler.GetActionMode() != ActionModeScript {
 		t.Errorf("Expected action mode script, got %s", compiler.GetActionMode())
 	}
+
+	compiler.SetActionMode(ActionModeAction)
+	if compiler.GetActionMode() != ActionModeAction {
+		t.Errorf("Expected action mode action, got %s", compiler.GetActionMode())
+	}
 }
 
 // TestActionModeIsScript tests the IsScript() method
@@ -89,12 +96,34 @@ func TestActionModeIsScript(t *testing.T) {
 		{ActionModeDev, false},
 		{ActionModeRelease, false},
 		{ActionModeScript, true},
+		{ActionModeAction, false},
 	}
 
 	for _, tt := range tests {
 		t.Run(string(tt.mode), func(t *testing.T) {
 			if got := tt.mode.IsScript(); got != tt.isScript {
 				t.Errorf("ActionMode(%q).IsScript() = %v, want %v", tt.mode, got, tt.isScript)
+			}
+		})
+	}
+}
+
+// TestActionModeIsAction tests the IsAction() method
+func TestActionModeIsAction(t *testing.T) {
+	tests := []struct {
+		mode     ActionMode
+		isAction bool
+	}{
+		{ActionModeDev, false},
+		{ActionModeRelease, false},
+		{ActionModeScript, false},
+		{ActionModeAction, true},
+	}
+
+	for _, tt := range tests {
+		t.Run(string(tt.mode), func(t *testing.T) {
+			if got := tt.mode.IsAction(); got != tt.isAction {
+				t.Errorf("ActionMode(%q).IsAction() = %v, want %v", tt.mode, got, tt.isAction)
 			}
 		})
 	}
@@ -330,4 +359,116 @@ func TestCheckoutActionsFolderDevModeAlwaysEmitsCheckout(t *testing.T) {
 			}
 		})
 	}
+}
+
+// TestResolveSetupActionReferenceActionMode tests that action mode resolves to the external gh-aw-actions repo
+func TestResolveSetupActionReferenceActionMode(t *testing.T) {
+	ref := ResolveSetupActionReference(ActionModeAction, "v1.2.3", "", nil)
+	if ref != "github/gh-aw-actions/setup@v1.2.3" {
+		t.Errorf("Action mode should resolve to 'github/gh-aw-actions/setup@v1.2.3', got %q", ref)
+	}
+}
+
+// TestResolveSetupActionReferenceActionModeWithTag tests action mode with an explicit action tag
+func TestResolveSetupActionReferenceActionModeWithTag(t *testing.T) {
+	ref := ResolveSetupActionReference(ActionModeAction, "v1.0.0", "v2.0.0", nil)
+	if ref != "github/gh-aw-actions/setup@v2.0.0" {
+		t.Errorf("Action mode with tag should resolve to 'github/gh-aw-actions/setup@v2.0.0', got %q", ref)
+	}
+}
+
+// TestResolveSetupActionReferenceActionModeDevVersion tests action mode falls back to local path for dev version
+func TestResolveSetupActionReferenceActionModeDevVersion(t *testing.T) {
+	ref := ResolveSetupActionReference(ActionModeAction, "dev", "", nil)
+	if ref != "./actions/setup" {
+		t.Errorf("Action mode with dev version should fall back to './actions/setup', got %q", ref)
+	}
+}
+
+// TestCheckoutActionsFolderActionModeNoCheckout verifies that action mode does not generate a checkout step
+func TestCheckoutActionsFolderActionModeNoCheckout(t *testing.T) {
+	compiler := NewCompilerWithVersion("v1.2.3")
+	compiler.SetActionMode(ActionModeAction)
+
+	lines := compiler.generateCheckoutActionsFolder(nil)
+	if len(lines) > 0 {
+		t.Error("Action mode should not generate a checkout step for actions folder")
+	}
+}
+
+// TestActionModeCompilation tests workflow compilation with action mode
+func TestActionModeCompilation(t *testing.T) {
+	tempDir := t.TempDir()
+
+	workflowContent := `---
+name: Test Action Mode
+on: issues
+safe-outputs:
+  create-issue:
+    max: 1
+---
+
+Test workflow with action mode.
+`
+
+	workflowPath := tempDir + "/test-workflow.md"
+	if err := os.WriteFile(workflowPath, []byte(workflowContent), 0644); err != nil {
+		t.Fatalf("Failed to write test workflow: %v", err)
+	}
+
+	compiler := NewCompilerWithVersion("v1.2.3")
+	compiler.SetActionMode(ActionModeAction)
+	compiler.SetNoEmit(false)
+
+	if err := compiler.CompileWorkflow(workflowPath); err != nil {
+		t.Fatalf("Compilation failed: %v", err)
+	}
+
+	lockPath := stringutil.MarkdownToLockFile(workflowPath)
+	lockContent, err := os.ReadFile(lockPath)
+	if err != nil {
+		t.Fatalf("Failed to read lock file: %v", err)
+	}
+
+	lockStr := string(lockContent)
+
+	// Verify it uses the external gh-aw-actions/setup action
+	if !strings.Contains(lockStr, "github/gh-aw-actions/setup@v1.2.3") {
+		t.Errorf("Action mode should use 'github/gh-aw-actions/setup@v1.2.3', lock file:\n%s", lockStr)
+	}
+
+	// Verify it does NOT use the internal gh-aw/actions/setup path
+	if strings.Contains(lockStr, "github/gh-aw/actions/setup@") {
+		t.Error("Action mode should NOT use 'github/gh-aw/actions/setup@', use external repo instead")
+	}
+
+	// Verify no local checkout step for actions folder
+	if strings.Contains(lockStr, "Checkout actions folder") {
+		t.Error("Action mode should NOT include a 'Checkout actions folder' step")
+	}
+}
+
+// TestResolveSetupActionReferenceActionModeWithResolver tests that action mode uses SHA resolver when available
+func TestResolveSetupActionReferenceActionModeWithResolver(t *testing.T) {
+	t.Run("action mode with resolver attempts SHA resolution", func(t *testing.T) {
+		// Create mock action resolver and cache
+		cache := NewActionCache("")
+		resolver := NewActionResolver(cache)
+
+		// The resolver will fail to resolve github/gh-aw-actions/setup@v1.0.0
+		// since it's not a real tag, but it should fall back gracefully to tag-based reference
+		ref := ResolveSetupActionReference(ActionModeAction, "v1.0.0", "", resolver)
+
+		// Without a valid pin or successful resolution, should return tag-based reference
+		if ref != "github/gh-aw-actions/setup@v1.0.0" {
+			t.Errorf("expected 'github/gh-aw-actions/setup@v1.0.0', got %q", ref)
+		}
+	})
+
+	t.Run("action mode with nil resolver returns tag-based reference", func(t *testing.T) {
+		ref := ResolveSetupActionReference(ActionModeAction, "v1.0.0", "", nil)
+		if ref != "github/gh-aw-actions/setup@v1.0.0" {
+			t.Errorf("expected 'github/gh-aw-actions/setup@v1.0.0', got %q", ref)
+		}
+	})
 }

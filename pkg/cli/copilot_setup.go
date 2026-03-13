@@ -15,7 +15,7 @@ import (
 var copilotSetupLog = logger.New("cli:copilot_setup")
 
 // getActionRef returns the action reference string based on action mode and version.
-// If a resolver is provided and mode is release, attempts to resolve the SHA for a SHA-pinned reference.
+// If a resolver is provided and mode is release or action, attempts to resolve the SHA for a SHA-pinned reference.
 // Falls back to a version tag reference if SHA resolution fails or resolver is nil.
 func getActionRef(actionMode workflow.ActionMode, version string, resolver workflow.ActionSHAResolver) string {
 	if actionMode.IsRelease() && version != "" && version != "dev" {
@@ -28,16 +28,30 @@ func getActionRef(actionMode workflow.ActionMode, version string, resolver workf
 		}
 		return "@" + version
 	}
+	if actionMode.IsAction() && version != "" && version != "dev" {
+		if resolver != nil {
+			sha, err := resolver.ResolveSHA("github/gh-aw-actions/setup-cli", version)
+			if err == nil && sha != "" {
+				return fmt.Sprintf("@%s # %s", sha, version)
+			}
+			copilotSetupLog.Printf("Failed to resolve SHA for gh-aw-actions/setup-cli@%s: %v, falling back to version tag", version, err)
+		}
+		return "@" + version
+	}
 	return "@main"
 }
 
 // generateCopilotSetupStepsYAML generates the copilot-setup-steps.yml content based on action mode
 func generateCopilotSetupStepsYAML(actionMode workflow.ActionMode, version string, resolver workflow.ActionSHAResolver) string {
-	// Determine the action reference - use SHA-pinned or version tag in release mode, @main in dev mode
+	// Determine the action reference - use SHA-pinned or version tag in release/action mode, @main in dev mode
 	actionRef := getActionRef(actionMode, version, resolver)
 
-	if actionMode.IsRelease() {
-		// Use the actions/setup-cli action in release mode
+	if actionMode.IsRelease() || actionMode.IsAction() {
+		// Determine the action repo based on mode
+		actionRepo := "github/gh-aw/actions/setup-cli"
+		if actionMode.IsAction() {
+			actionRepo = "github/gh-aw-actions/setup-cli"
+		}
 		return fmt.Sprintf(`name: "Copilot Setup Steps"
 
 # This workflow configures the environment for GitHub Copilot Agent with gh-aw MCP server
@@ -61,10 +75,10 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v6
       - name: Install gh-aw extension
-        uses: github/gh-aw/actions/setup-cli%s
+        uses: %s%s
         with:
           version: %s
-`, actionRef, version)
+`, actionRepo, actionRef, version)
 	}
 
 	// Default (dev/script mode): use curl to download install script
@@ -158,9 +172,9 @@ func upgradeCopilotSetupSteps(verbose bool, actionMode workflow.ActionMode, vers
 func ensureCopilotSetupStepsWithUpgrade(verbose bool, actionMode workflow.ActionMode, version string, upgradeVersion bool) error {
 	copilotSetupLog.Printf("Creating copilot-setup-steps.yml with action mode: %s, version: %s, upgradeVersion: %v", actionMode, version, upgradeVersion)
 
-	// Create a SHA resolver for release mode to enable SHA-pinned action references
+	// Create a SHA resolver for release/action mode to enable SHA-pinned action references
 	var resolver workflow.ActionSHAResolver
-	if actionMode.IsRelease() {
+	if actionMode.IsRelease() || actionMode.IsAction() {
 		cache := workflow.NewActionCache(".")
 		_ = cache.Load() // Ignore errors if cache doesn't exist yet
 		resolver = workflow.NewActionResolver(cache)
@@ -259,11 +273,15 @@ func renderCopilotSetupUpdateInstructions(filePath string, actionMode workflow.A
 	// Determine the action reference
 	actionRef := getActionRef(actionMode, version, resolver)
 
-	if actionMode.IsRelease() {
+	if actionMode.IsRelease() || actionMode.IsAction() {
+		actionRepo := "github/gh-aw/actions/setup-cli"
+		if actionMode.IsAction() {
+			actionRepo = "github/gh-aw-actions/setup-cli"
+		}
 		fmt.Fprintln(os.Stderr, "      - name: Checkout repository")
 		fmt.Fprintln(os.Stderr, "        uses: actions/checkout@v6")
 		fmt.Fprintf(os.Stderr, "      - name: Install gh-aw extension\n")
-		fmt.Fprintf(os.Stderr, "        uses: github/gh-aw/actions/setup-cli%s\n", actionRef)
+		fmt.Fprintf(os.Stderr, "        uses: %s%s\n", actionRepo, actionRef)
 		fmt.Fprintln(os.Stderr, "        with:")
 		fmt.Fprintf(os.Stderr, "          version: %s\n", version)
 	} else {
@@ -274,11 +292,12 @@ func renderCopilotSetupUpdateInstructions(filePath string, actionMode workflow.A
 	fmt.Fprintln(os.Stderr)
 }
 
-// setupCliUsesPattern matches the uses: line for github/gh-aw/actions/setup-cli.
+// setupCliUsesPattern matches the uses: line for either github/gh-aw/actions/setup-cli
+// or github/gh-aw-actions/setup-cli.
 // It handles unquoted version-tag refs, unquoted SHA-pinned refs (with trailing comment),
 // and quoted refs produced by some YAML marshalers (e.g. "...@sha # vX.Y.Z").
 var setupCliUsesPattern = regexp.MustCompile(
-	`(?m)^(\s+uses:[ \t]*)"?(github/gh-aw/actions/setup-cli@[^"\n]*)"?([ \t]*)$`)
+	`(?m)^(\s+uses:[ \t]*)"?(github/gh-aw(?:-actions)?/(?:actions/)?setup-cli@[^"\n]*)"?([ \t]*)$`)
 
 // upgradeSetupCliVersionInContent replaces the setup-cli action reference and the
 // associated version: parameter in the raw YAML content using targeted regex
@@ -287,7 +306,7 @@ var setupCliUsesPattern = regexp.MustCompile(
 // Returns (upgraded, updatedContent, error).  upgraded is false when no change
 // was required (e.g. already at the target version, or file has no setup-cli step).
 func upgradeSetupCliVersionInContent(content []byte, actionMode workflow.ActionMode, version string, resolver workflow.ActionSHAResolver) (bool, []byte, error) {
-	if !actionMode.IsRelease() {
+	if !actionMode.IsRelease() && !actionMode.IsAction() {
 		return false, content, nil
 	}
 
@@ -296,7 +315,11 @@ func upgradeSetupCliVersionInContent(content []byte, actionMode workflow.ActionM
 	}
 
 	actionRef := getActionRef(actionMode, version, resolver)
-	newUses := "github/gh-aw/actions/setup-cli" + actionRef
+	actionRepo := "github/gh-aw/actions/setup-cli"
+	if actionMode.IsAction() {
+		actionRepo = "github/gh-aw-actions/setup-cli"
+	}
+	newUses := actionRepo + actionRef
 
 	// Replace the uses: line, stripping any surrounding quotes in the process.
 	updated := setupCliUsesPattern.ReplaceAll(content, []byte("${1}"+newUses+"${3}"))

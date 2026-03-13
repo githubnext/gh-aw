@@ -5465,6 +5465,17 @@
                   "type": "string",
                   "description": "Target PR for the review: 'triggering' (default, current PR), '*' (any PR, requires pull_request_number in agent output), or explicit PR number (e.g. ${{ github.event.inputs.pr_number }}). Required when workflow is not triggered by a pull request (e.g. workflow_dispatch)."
                 },
+                "target-repo": {
+                  "type": "string",
+                  "description": "Target repository in format 'owner/repo' for cross-repository PR review submission. Takes precedence over trial target repo settings."
+                },
+                "allowed-repos": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "description": "List of additional repositories in format 'owner/repo' that PR reviews can be submitted in. When specified, the agent can use a 'repo' field in the output to specify which repository to submit the review in. The target repository (current or target-repo) is always implicitly allowed."
+                },
                 "github-token": {
                   "$ref": "#/$defs/github_token",
                   "description": "GitHub token to use for this specific output type. Overrides global github-token if specified."
@@ -6387,7 +6398,7 @@
                   "items": {
                     "type": "string"
                   },
-                  "description": "Exclusive allowlist of glob patterns. When set, every file in the patch must match at least one pattern — files outside the list are always refused, including normal source files. This is a restriction, not an exception: setting allowed-files: [\".github/workflows/*\"] blocks all other files. To allow multiple sets of files, list all patterns explicitly. Acts independently of the protected-files policy; both checks must pass. To modify a protected file, it must both match allowed-files and be permitted by protected-files (e.g. protected-files: allowed). Supports * (any characters except /) and ** (any characters including /)."
+                  "description": "Exclusive allowlist of glob patterns. When set, every file in the patch must match at least one pattern \u2014 files outside the list are always refused, including normal source files. This is a restriction, not an exception: setting allowed-files: [\".github/workflows/*\"] blocks all other files. To allow multiple sets of files, list all patterns explicitly. Acts independently of the protected-files policy; both checks must pass. To modify a protected file, it must both match allowed-files and be permitted by protected-files (e.g. protected-files: allowed). Supports * (any characters except /) and ** (any characters including /)."
                 }
               },
               "additionalProperties": false
@@ -6535,6 +6546,14 @@
                 "github-token": {
                   "$ref": "#/$defs/github_token",
                   "description": "GitHub token to use for dispatching workflows. Overrides global github-token if specified."
+                },
+                "target-repo": {
+                  "type": "string",
+                  "description": "Target repository in format 'owner/repo' for cross-repository workflow dispatch. When specified, the workflow will be dispatched to the target repository instead of the current one."
+                },
+                "target-ref": {
+                  "type": "string",
+                  "description": "Git ref (branch, tag, or SHA) to use when dispatching the workflow. For workflow_call relay scenarios this is auto-injected by the compiler from needs.activation.outputs.target_ref. Overrides the caller's GITHUB_REF."
                 }
               },
               "required": ["workflows"],
@@ -7653,7 +7672,13 @@
     },
     "dependencies": {
       "description": "APM package references to install. Supports array format (list of package slugs) or object format with packages and isolated fields.",
-      "examples": [["microsoft/apm-sample-package", "acme/custom-tools"], { "packages": ["microsoft/apm-sample-package"], "isolated": true }],
+      "examples": [
+        ["microsoft/apm-sample-package", "acme/custom-tools"],
+        {
+          "packages": ["microsoft/apm-sample-package"],
+          "isolated": true
+        }
+      ],
       "oneOf": [
         {
           "type": "array",
@@ -8213,12 +8238,16 @@
                     "query": {
                       "type": "object",
                       "description": "Static query parameters",
-                      "additionalProperties": { "type": "string" }
+                      "additionalProperties": {
+                        "type": "string"
+                      }
                     },
                     "body-inject": {
                       "type": "object",
                       "description": "Key/value pairs injected into the JSON request body",
-                      "additionalProperties": { "type": "string" }
+                      "additionalProperties": {
+                        "type": "string"
+                      }
                     }
                   },
                   "additionalProperties": false
@@ -8236,7 +8265,9 @@
                 },
                 "supported": {
                   "type": "array",
-                  "items": { "type": "string" },
+                  "items": {
+                    "type": "string"
+                  },
                   "description": "List of supported model identifiers"
                 }
               },
@@ -8244,7 +8275,7 @@
             },
             "auth": {
               "type": "array",
-              "description": "Authentication bindings — maps logical roles (e.g. 'api-key') to GitHub Actions secret names",
+              "description": "Authentication bindings \u2014 maps logical roles (e.g. 'api-key') to GitHub Actions secret names",
               "items": {
                 "type": "object",
                 "properties": {
