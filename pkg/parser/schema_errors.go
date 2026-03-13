@@ -205,6 +205,37 @@ func findFrontmatterBounds(lines []string) (startIdx int, endIdx int, frontmatte
 	return startIdx, endIdx, frontmatterContent
 }
 
+// knownFieldValidValues maps well-known JSON schema paths to a human-readable description
+// of the valid values / children for that field. Used to append helpful hints when an
+// additionalProperties error occurs on these fields so users quickly know what is allowed.
+var knownFieldValidValues = map[string]string{
+	"/permissions": "Valid permission scopes: actions, attestations, checks, contents, deployments, discussions, id-token, issues, packages, pages, pull-requests, repository-projects, security-events, statuses, workflows",
+}
+
+// appendKnownFieldValidValuesHint appends a "Valid values: …" hint to message when the
+// jsonPath matches a well-known field and the message is an unknown-property error.
+// It returns the message unchanged for unknown paths or non-additional-properties messages.
+func appendKnownFieldValidValuesHint(message string, jsonPath string) string {
+	if !strings.Contains(strings.ToLower(message), "unknown propert") {
+		return message
+	}
+	hint, ok := knownFieldValidValues[jsonPath]
+	if !ok {
+		// Check if the path is nested under a known parent (e.g. /permissions/contents)
+		for path, h := range knownFieldValidValues {
+			if strings.HasPrefix(jsonPath, path+"/") {
+				hint = h
+				ok = true
+				break
+			}
+		}
+	}
+	if !ok {
+		return message
+	}
+	return message + " (" + hint + ")"
+}
+
 // rewriteAdditionalPropertiesError rewrites "additional properties not allowed" errors to be more user-friendly
 func rewriteAdditionalPropertiesError(message string) string {
 	// Check if this is an "additional properties not allowed" error

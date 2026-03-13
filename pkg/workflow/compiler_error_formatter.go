@@ -20,19 +20,21 @@ func formatCompilerError(filePath string, errType string, message string, cause 
 	formattedErr := console.FormatError(console.CompilerError{
 		Position: console.ErrorPosition{
 			File:   filePath,
-			Line:   1,
-			Column: 1,
+			Line:   0,
+			Column: 0,
 		},
 		Type:    errType,
 		Message: message,
 	})
 
-	// Wrap the underlying error if provided (preserves error chain)
-	if cause != nil {
+	// Only wrap the underlying error when it adds new information beyond the message.
+	// When message == cause.Error(), chaining produces duplicated text in the error string
+	// (e.g. "file:1:1: error: msg: msg"). Skip chaining in that case to keep output clean.
+	if cause != nil && cause.Error() != message {
 		return fmt.Errorf("%s: %w", formattedErr, cause)
 	}
 
-	// Create new error for validation errors (no underlying cause)
+	// Create new error for validation errors (no underlying cause) or when cause is redundant
 	return errors.New(formattedErr)
 }
 
@@ -55,11 +57,13 @@ func formatCompilerErrorWithPosition(filePath string, line int, column int, errT
 		Message: message,
 	})
 
-	// Wrap the underlying error if provided (preserves error chain)
-	if cause != nil {
+	// Only wrap the underlying error when it adds new information beyond the message.
+	// When message == cause.Error(), chaining produces duplicated text in the error string.
+	// Skip chaining in that case to keep output clean.
+	if cause != nil && cause.Error() != message {
 		return fmt.Errorf("%s: %w", formattedErr, cause)
 	}
 
-	// Create new error for validation errors (no underlying cause)
+	// Create new error for validation errors (no underlying cause) or when cause is redundant
 	return errors.New(formattedErr)
 }

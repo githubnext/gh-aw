@@ -28,7 +28,6 @@ func TestFormatCompilerError(t *testing.T) {
 			cause:    nil,
 			wantContain: []string{
 				"/path/to/workflow.md",
-				"1:1",
 				"error",
 				"validation failed",
 			},
@@ -41,7 +40,6 @@ func TestFormatCompilerError(t *testing.T) {
 			cause:    nil,
 			wantContain: []string{
 				"/path/to/workflow.md",
-				"1:1",
 				"warning",
 				"missing required permission",
 			},
@@ -54,7 +52,6 @@ func TestFormatCompilerError(t *testing.T) {
 			cause:    errors.New("syntax error at line 42"),
 			wantContain: []string{
 				"/path/to/workflow.md",
-				"1:1",
 				"error",
 				"failed to parse YAML",
 			},
@@ -67,7 +64,6 @@ func TestFormatCompilerError(t *testing.T) {
 			cause:    nil,
 			wantContain: []string{
 				"/path/to/workflow.lock.yml",
-				"1:1",
 				"error",
 				"failed to write lock file",
 			},
@@ -80,7 +76,6 @@ func TestFormatCompilerError(t *testing.T) {
 			cause:    errors.New("underlying error"),
 			wantContain: []string{
 				"test.md",
-				"1:1",
 				"error",
 				"failed to generate YAML: syntax error",
 			},
@@ -114,7 +109,8 @@ func TestFormatCompilerError_OutputFormat(t *testing.T) {
 
 	// Verify the error format contains the standard compiler error structure
 	assert.Contains(t, errStr, "/test/workflow.md", "Should contain file path")
-	assert.Contains(t, errStr, "1:1", "Should contain line:column")
+	// When no position is known, line:col is suppressed (no misleading 1:1)
+	assert.NotContains(t, errStr, "1:1", "Should not contain misleading 1:1 position")
 	assert.Contains(t, errStr, "error", "Should contain error type")
 	assert.Contains(t, errStr, "test message", "Should contain message")
 }
@@ -150,7 +146,6 @@ func TestFormatCompilerMessage(t *testing.T) {
 			message:  "container image validation failed",
 			wantContain: []string{
 				"/path/to/workflow.md",
-				"1:1",
 				"warning",
 				"container image validation failed",
 			},
@@ -162,7 +157,6 @@ func TestFormatCompilerMessage(t *testing.T) {
 			message:  "validation error",
 			wantContain: []string{
 				"test.md",
-				"1:1",
 				"error",
 				"validation error",
 			},

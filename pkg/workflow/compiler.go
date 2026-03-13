@@ -46,8 +46,8 @@ func formatCompilerMessage(filePath string, msgType string, message string) stri
 	return console.FormatError(console.CompilerError{
 		Position: console.ErrorPosition{
 			File:   filePath,
-			Line:   1,
-			Column: 1,
+			Line:   0,
+			Column: 0,
 		},
 		Type:    msgType,
 		Message: message,
