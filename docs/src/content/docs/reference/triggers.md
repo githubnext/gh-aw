@@ -390,6 +390,31 @@ on: weekly on monday
 
 A pre-activation check runs the search query against the current repository. If matches reach or exceed the threshold (default `max: 1`), the workflow is skipped. The query is automatically scoped to the current repository and supports all standard GitHub search qualifiers (`is:`, `label:`, `in:title`, `author:`, etc.).
 
+#### Cross-Repo and Org-Wide Queries
+
+By default the query is scoped to the current repository. Use `scope: none` to disable this and search across an entire org. Combine with `github-token` or `github-app` to provide a token with the required permissions:
+
+```yaml wrap
+on:
+  schedule:
+    - cron: "*/15 * * * *"
+  skip-if-match:
+    query: "org:myorg label:ops:in-progress is:issue is:open"
+    scope: none
+    github-app:
+      app-id: ${{ secrets.WORKFLOW_APP_ID }}
+      private-key: ${{ secrets.WORKFLOW_APP_PRIVATE_KEY }}
+      owner: myorg
+```
+
+| Field | Description |
+|-------|-------------|
+| `scope: none` | Disables the automatic `repo:owner/repo` qualifier |
+| `github-token` | Custom PAT or token for the search step (e.g. `${{ secrets.CROSS_ORG_TOKEN }}`) |
+| `github-app` | Mints a short-lived installation token; requires `app-id` and `private-key` |
+
+`github-token` and `github-app` are mutually exclusive. String shorthand always uses the default `GITHUB_TOKEN` scoped to the current repository.
+
 ### Skip-If-No-Match Condition (`skip-if-no-match:`)
 
 Conditionally skip workflow execution when a GitHub search query has **no matches** (or fewer than the minimum required). This is the opposite of `skip-if-match`.
@@ -408,6 +433,21 @@ on:
 ```
 
 A pre-activation check runs the search query against the current repository. If matches are below the threshold (default `min: 1`), the workflow is skipped. Can be combined with `skip-if-match` for complex conditions.
+
+The same `scope`, `github-token`, and `github-app` fields available on `skip-if-match` work identically here:
+
+```yaml wrap
+on:
+  schedule:
+    - cron: "*/15 * * * *"
+  skip-if-no-match:
+    query: "org:myorg label:agent-fix -label:ops:agentic is:issue is:open"
+    scope: none
+    github-app:
+      app-id: ${{ secrets.WORKFLOW_APP_ID }}
+      private-key: ${{ secrets.WORKFLOW_APP_PRIVATE_KEY }}
+      owner: myorg
+```
 
 ## Trigger Shorthands
 

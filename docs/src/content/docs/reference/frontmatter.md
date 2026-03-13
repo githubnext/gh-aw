@@ -35,6 +35,8 @@ The `on:` section uses standard GitHub Actions syntax to define workflow trigger
 - `forks:` - Configure fork filtering for pull_request triggers
 - `skip-roles:` - Skip workflow execution for specific repository roles
 - `skip-bots:` - Skip workflow execution for specific GitHub actors
+- `skip-if-match:` - Skip execution when a search query has matches (supports `scope`, `github-token`, `github-app`)
+- `skip-if-no-match:` - Skip execution when a search query has no matches (supports `scope`, `github-token`, `github-app`)
 - `github-token:` - Custom token for activation job reactions and status comments
 - `github-app:` - GitHub App for minting a short-lived token used by the activation job
 
