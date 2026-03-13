@@ -50,10 +50,12 @@ func (c *Compiler) buildConclusionJob(data *WorkflowData, mainJobName string, sa
 	if data.SafeOutputs.GitHubApp != nil {
 		// Compute permissions based on configured safe outputs (principle of least privilege)
 		permissions := ComputePermissionsForSafeOutputs(data.SafeOutputs)
-		// For workflow_call relay workflows, scope the token to the platform repo.
+		// For workflow_call relay workflows, scope the token to the platform repo name only
+		// (not the full slug) because actions/create-github-app-token expects repo names
+		// without the owner prefix when `owner` is also set.
 		var appTokenFallbackRepo string
 		if hasWorkflowCallTrigger(data.On) {
-			appTokenFallbackRepo = "${{ needs.activation.outputs.target_repo }}"
+			appTokenFallbackRepo = "${{ needs.activation.outputs.target_repo_name }}"
 		}
 		steps = append(steps, c.buildGitHubAppTokenMintStep(data.SafeOutputs.GitHubApp, permissions, appTokenFallbackRepo)...)
 	}

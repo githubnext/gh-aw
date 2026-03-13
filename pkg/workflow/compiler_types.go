@@ -325,12 +325,16 @@ func (c *Compiler) GetSharedActionCache() *ActionCache {
 type SkipIfMatchConfig struct {
 	Query string // GitHub search query to check before running workflow
 	Max   int    // Maximum number of matches before skipping (defaults to 1)
+	Scope string // Scope for the query: "none" disables auto repo:owner/repo scoping
+	// Auth (github-token / github-app) is taken from on.github-token / on.github-app at the top level.
 }
 
 // SkipIfNoMatchConfig holds the configuration for skip-if-no-match conditions
 type SkipIfNoMatchConfig struct {
 	Query string // GitHub search query to check before running workflow
 	Min   int    // Minimum number of matches required to proceed (defaults to 1)
+	Scope string // Scope for the query: "none" disables auto repo:owner/repo scoping
+	// Auth (github-token / github-app) is taken from on.github-token / on.github-app at the top level.
 }
 
 // WorkflowData holds all the data needed to generate a GitHub Actions workflow
@@ -465,6 +469,7 @@ type SafeOutputsConfig struct {
 	HideComment                     *HideCommentConfig                     `yaml:"hide-comment,omitempty"`                 // Hide comments
 	SetIssueType                    *SetIssueTypeConfig                    `yaml:"set-issue-type,omitempty"`               // Set the type of an issue (empty string clears the type)
 	DispatchWorkflow                *DispatchWorkflowConfig                `yaml:"dispatch-workflow,omitempty"`            // Dispatch workflow_dispatch events to other workflows
+	CallWorkflow                    *CallWorkflowConfig                    `yaml:"call-workflow,omitempty"`                // Call reusable workflows via workflow_call fan-out
 	MissingTool                     *MissingToolConfig                     `yaml:"missing-tool,omitempty"`                 // Optional for reporting missing functionality
 	MissingData                     *MissingDataConfig                     `yaml:"missing-data,omitempty"`                 // Optional for reporting missing data required to achieve goals
 	NoOp                            *NoOpConfig                            `yaml:"noop,omitempty"`                         // No-op output for logging only (always available as fallback)

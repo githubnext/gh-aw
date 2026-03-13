@@ -120,8 +120,9 @@ func (c *Compiler) mergeAppFromIncludedConfigs(topSafeOutputs *SafeOutputsConfig
 // buildGitHubAppTokenMintStep generates the step to mint a GitHub App installation access token
 // Permissions are automatically computed from the safe output job requirements.
 // fallbackRepoExpr overrides the default ${{ github.event.repository.name }} fallback when
-// no explicit repositories are configured (e.g. pass needs.activation.outputs.target_repo for
-// workflow_call relay workflows so the token is scoped to the platform repo, not the caller's).
+// no explicit repositories are configured (e.g. pass needs.activation.outputs.target_repo_name for
+// workflow_call relay workflows so the token is scoped to the platform repo's NAME, not the full
+// owner/repo slug — actions/create-github-app-token expects repo names only when owner is also set).
 func (c *Compiler) buildGitHubAppTokenMintStep(app *GitHubAppConfig, permissions *Permissions, fallbackRepoExpr string) []string {
 	safeOutputsAppLog.Printf("Building GitHub App token mint step: owner=%s, repos=%d", app.Owner, len(app.Repositories))
 	var steps []string
@@ -161,8 +162,8 @@ func (c *Compiler) buildGitHubAppTokenMintStep(app *GitHubAppConfig, permissions
 		}
 	} else {
 		// No explicit repositories: use fallback expression, or default to the triggering repo's name.
-		// For workflow_call relay scenarios the caller passes needs.activation.outputs.target_repo so
-		// the token is scoped to the platform (host) repo rather than the caller repo.
+		// For workflow_call relay scenarios the caller passes needs.activation.outputs.target_repo_name so
+		// the token is scoped to the platform (host) repo name rather than the full owner/repo slug.
 		repoExpr := fallbackRepoExpr
 		if repoExpr == "" {
 			repoExpr = "${{ github.event.repository.name }}"

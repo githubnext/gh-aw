@@ -254,9 +254,16 @@ func (c *Compiler) extractSkipIfMatchFromOn(frontmatter map[string]any, workflow
 					}
 				}
 
+				// Extract scope (auth is now configured via top-level on.github-app / on.github-token)
+				scope, err := extractSkipIfScope(skip, "skip-if-match")
+				if err != nil {
+					return nil, err
+				}
+
 				return &SkipIfMatchConfig{
 					Query: queryStr,
 					Max:   maxVal,
+					Scope: scope,
 				}, nil
 			default:
 				return nil, fmt.Errorf("skip-if-match value must be a string or object, got %T. Examples:\n  skip-if-match: \"is:issue is:open\"\n  skip-if-match:\n    query: \"is:pr is:open\"\n    max: 3", skipIfMatch)
@@ -333,9 +340,16 @@ func (c *Compiler) extractSkipIfNoMatchFromOn(frontmatter map[string]any, workfl
 					}
 				}
 
+				// Extract scope (auth is now configured via top-level on.github-app / on.github-token)
+				scope, err := extractSkipIfScope(skip, "skip-if-no-match")
+				if err != nil {
+					return nil, err
+				}
+
 				return &SkipIfNoMatchConfig{
 					Query: queryStr,
 					Min:   minVal,
+					Scope: scope,
 				}, nil
 			default:
 				return nil, fmt.Errorf("skip-if-no-match value must be a string or object, got %T. Examples:\n  skip-if-no-match: \"is:pr is:open\"\n  skip-if-no-match:\n    query: \"is:pr is:open\"\n    min: 3", skipIfNoMatch)
@@ -385,4 +399,22 @@ func (c *Compiler) processSkipIfNoMatchConfiguration(frontmatter map[string]any,
 	}
 
 	return nil
+}
+
+// extractSkipIfScope extracts the optional scope field from a skip-if-match or skip-if-no-match
+// object configuration. Auth fields (github-token, github-app) are configured at the top-level
+// on: section and are no longer accepted inside skip-if blocks.
+// conditionName is used only for error messages (e.g. "skip-if-match").
+func extractSkipIfScope(skip map[string]any, conditionName string) (string, error) {
+	if scopeRaw, hasScope := skip["scope"]; hasScope {
+		scopeStr, ok := scopeRaw.(string)
+		if !ok {
+			return "", fmt.Errorf("%s 'scope' field must be a string, got %T. Example: scope: none", conditionName, scopeRaw)
+		}
+		if scopeStr != "none" {
+			return "", fmt.Errorf("%s 'scope' field must be \"none\" or omitted, got %q", conditionName, scopeStr)
+		}
+		return scopeStr, nil
+	}
+	return "", nil
 }

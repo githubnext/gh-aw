@@ -676,6 +676,10 @@ const CheckRateLimitStepID StepID = "check_rate_limit"
 const CheckSkipRolesStepID StepID = "check_skip_roles"
 const CheckSkipBotsStepID StepID = "check_skip_bots"
 
+// PreActivationAppTokenStepID is the step ID for the unified GitHub App token mint step
+// emitted in the pre-activation job when on.github-app is configured alongside skip-if checks.
+const PreActivationAppTokenStepID StepID = "pre-activation-app-token"
+
 // Output names for pre-activation job steps
 const IsTeamMemberOutput = "is_team_member"
 const StopTimeOkOutput = "stop_time_ok"

@@ -174,3 +174,68 @@ const mockCore = {
           }));
       }));
   }));
+
+describe("check_skip_if_match.cjs - scope support", () => {
+  const { main } = require("./check_skip_if_match.cjs");
+  const { ERR_CONFIG } = require("./error_codes.cjs");
+
+  let mockCoreScope;
+  let mockGithubScope;
+  let mockContextScope;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockCoreScope = {
+      info: vi.fn(),
+      warning: vi.fn(),
+      setFailed: vi.fn(),
+      setOutput: vi.fn(),
+    };
+    mockGithubScope = { rest: { search: { issuesAndPullRequests: vi.fn() } } };
+    mockContextScope = { repo: { owner: "testowner", repo: "testrepo" } };
+    global.core = mockCoreScope;
+    global.github = mockGithubScope;
+    global.context = mockContextScope;
+  });
+
+  afterEach(() => {
+    delete process.env.GH_AW_SKIP_QUERY;
+    delete process.env.GH_AW_WORKFLOW_NAME;
+    delete process.env.GH_AW_SKIP_MAX_MATCHES;
+    delete process.env.GH_AW_SKIP_SCOPE;
+  });
+
+  it("should use raw query when GH_AW_SKIP_SCOPE is 'none'", async () => {
+    process.env.GH_AW_SKIP_QUERY = "org:myorg label:blocked is:issue is:open";
+    process.env.GH_AW_WORKFLOW_NAME = "test-workflow";
+    process.env.GH_AW_SKIP_SCOPE = "none";
+
+    let capturedQuery;
+    mockGithubScope.rest.search.issuesAndPullRequests.mockImplementation(async ({ q }) => {
+      capturedQuery = q;
+      return { data: { total_count: 0 } };
+    });
+
+    await main();
+
+    expect(capturedQuery).toBe("org:myorg label:blocked is:issue is:open");
+    expect(mockCoreScope.info).toHaveBeenCalledWith("Using raw query (scope: none): org:myorg label:blocked is:issue is:open");
+    expect(mockCoreScope.setOutput).toHaveBeenCalledWith("skip_check_ok", "true");
+  });
+
+  it("should scope query to repo when GH_AW_SKIP_SCOPE is not set", async () => {
+    process.env.GH_AW_SKIP_QUERY = "is:issue is:open label:bug";
+    process.env.GH_AW_WORKFLOW_NAME = "test-workflow";
+
+    let capturedQuery;
+    mockGithubScope.rest.search.issuesAndPullRequests.mockImplementation(async ({ q }) => {
+      capturedQuery = q;
+      return { data: { total_count: 0 } };
+    });
+
+    await main();
+
+    expect(capturedQuery).toBe("is:issue is:open label:bug repo:testowner/testrepo");
+    expect(mockCoreScope.info).toHaveBeenCalledWith("Scoped query: is:issue is:open label:bug repo:testowner/testrepo");
+  });
+});

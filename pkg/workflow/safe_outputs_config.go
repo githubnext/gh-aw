@@ -299,6 +299,12 @@ func (c *Compiler) extractSafeOutputsConfig(frontmatter map[string]any) *SafeOut
 				config.DispatchWorkflow = dispatchWorkflowConfig
 			}
 
+			// Handle call-workflow
+			callWorkflowConfig := c.parseCallWorkflowConfig(outputMap)
+			if callWorkflowConfig != nil {
+				config.CallWorkflow = callWorkflowConfig
+			}
+
 			// Handle missing-tool (parse configuration if present, or enable by default)
 			missingToolConfig := c.parseMissingToolConfig(outputMap)
 			if missingToolConfig != nil {

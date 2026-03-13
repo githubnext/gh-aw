@@ -151,6 +151,9 @@ func (c *Compiler) collectBaseSafeOutputConfigs(so *SafeOutputsConfig) []*BaseSa
 	if so.DispatchWorkflow != nil {
 		configs = append(configs, &so.DispatchWorkflow.BaseSafeOutputConfig)
 	}
+	if so.CallWorkflow != nil {
+		configs = append(configs, &so.CallWorkflow.BaseSafeOutputConfig)
+	}
 	if so.MissingTool != nil {
 		configs = append(configs, &so.MissingTool.BaseSafeOutputConfig)
 	}

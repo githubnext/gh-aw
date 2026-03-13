@@ -23,7 +23,11 @@
 #
 # Weekly analysis of the default Ubuntu Actions runner image and guidance for creating Docker mimics
 #
-# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"c193dd6ba034f16860806d18b40a9d2afbe981db46a99a273e4b1f0ab4c7e182","strict":true}
+# Resolved workflow manifest:
+#   Imports:
+#     - shared/activation-app.md
+#
+# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"262aa2c38c59cd857d3031db4ff424e381cd83850ea0b9170f07e52e5fa75e70","strict":true}
 
 name: "Ubuntu Actions Image Analyzer"
 "on":
@@ -171,6 +175,9 @@ jobs:
           GH_AW_PROMPT_EOF
           cat << 'GH_AW_PROMPT_EOF'
           </system>
+          GH_AW_PROMPT_EOF
+          cat << 'GH_AW_PROMPT_EOF'
+          {{#runtime-import .github/workflows/shared/activation-app.md}}
           GH_AW_PROMPT_EOF
           cat << 'GH_AW_PROMPT_EOF'
           {{#runtime-import .github/workflows/ubuntu-image-analyzer.md}}

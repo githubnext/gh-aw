@@ -25,9 +25,10 @@
 #
 # Resolved workflow manifest:
 #   Imports:
+#     - shared/activation-app.md
 #     - shared/reporting.md
 #
-# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"381a6c01f344b342056507311653cad014f3159ed676431b41d1357e1c9fd3be","strict":true}
+# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"a7011f09224b79475d25a6867214db655a751d141f5c99b9344f89befa74976a","strict":true}
 
 name: "Daily Rendering Scripts Verifier"
 "on":
@@ -176,6 +177,9 @@ jobs:
           GH_AW_PROMPT_EOF
           cat << 'GH_AW_PROMPT_EOF'
           </system>
+          GH_AW_PROMPT_EOF
+          cat << 'GH_AW_PROMPT_EOF'
+          {{#runtime-import .github/workflows/shared/activation-app.md}}
           GH_AW_PROMPT_EOF
           cat << 'GH_AW_PROMPT_EOF'
           {{#runtime-import .github/workflows/shared/reporting.md}}
