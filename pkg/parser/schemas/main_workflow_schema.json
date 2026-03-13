@@ -1339,13 +1339,50 @@
                           "description": "GitHub Actions expression that resolves to an integer at runtime"
                         }
                       ]
+                    },
+                    "scope": {
+                      "type": "string",
+                      "enum": ["none"],
+                      "description": "Scope for the search query. Set to 'none' to disable the automatic 'repo:owner/repo' scoping, enabling org-wide or cross-repo queries."
+                    },
+                    "github-token": {
+                      "type": "string",
+                      "description": "Custom GitHub token to use for the search API call. Useful for cross-repo or org-wide searches that require additional permissions.",
+                      "examples": ["${{ secrets.CROSS_ORG_TOKEN }}"]
+                    },
+                    "github-app": {
+                      "type": "object",
+                      "description": "GitHub App configuration for minting a token used for the search API call.",
+                      "properties": {
+                        "app-id": {
+                          "type": "string",
+                          "description": "GitHub App ID (e.g., '${{ secrets.APP_ID }}'). Required."
+                        },
+                        "private-key": {
+                          "type": "string",
+                          "description": "GitHub App private key (e.g., '${{ secrets.APP_PRIVATE_KEY }}'). Required."
+                        },
+                        "owner": {
+                          "type": "string",
+                          "description": "Optional owner of the GitHub App installation (defaults to current repository owner)."
+                        },
+                        "repositories": {
+                          "type": "array",
+                          "description": "Optional list of repositories to grant access to. Use ['*'] for org-wide access.",
+                          "items": {
+                            "type": "string"
+                          }
+                        }
+                      },
+                      "required": ["app-id", "private-key"],
+                      "additionalProperties": false
                     }
                   },
                   "additionalProperties": false,
-                  "description": "Skip-if-match configuration object with query and maximum match count"
+                  "description": "Skip-if-match configuration object with query, maximum match count, and optional scope/auth settings"
                 }
               ],
-              "description": "Conditionally skip workflow execution when a GitHub search query has matches. Can be a string (query only, implies max=1) or an object with 'query' and optional 'max' fields."
+              "description": "Conditionally skip workflow execution when a GitHub search query has matches. Can be a string (query only, implies max=1) or an object with 'query', optional 'max', 'scope', 'github-token', and 'github-app' fields."
             },
             "skip-if-no-match": {
               "oneOf": [
@@ -1365,13 +1402,50 @@
                       "type": "integer",
                       "minimum": 1,
                       "description": "Minimum number of items that must be matched for the workflow to proceed. Defaults to 1 if not specified."
+                    },
+                    "scope": {
+                      "type": "string",
+                      "enum": ["none"],
+                      "description": "Scope for the search query. Set to 'none' to disable the automatic 'repo:owner/repo' scoping, enabling org-wide or cross-repo queries."
+                    },
+                    "github-token": {
+                      "type": "string",
+                      "description": "Custom GitHub token to use for the search API call. Useful for cross-repo or org-wide searches that require additional permissions.",
+                      "examples": ["${{ secrets.CROSS_ORG_TOKEN }}"]
+                    },
+                    "github-app": {
+                      "type": "object",
+                      "description": "GitHub App configuration for minting a token used for the search API call.",
+                      "properties": {
+                        "app-id": {
+                          "type": "string",
+                          "description": "GitHub App ID (e.g., '${{ secrets.APP_ID }}'). Required."
+                        },
+                        "private-key": {
+                          "type": "string",
+                          "description": "GitHub App private key (e.g., '${{ secrets.APP_PRIVATE_KEY }}'). Required."
+                        },
+                        "owner": {
+                          "type": "string",
+                          "description": "Optional owner of the GitHub App installation (defaults to current repository owner)."
+                        },
+                        "repositories": {
+                          "type": "array",
+                          "description": "Optional list of repositories to grant access to. Use ['*'] for org-wide access.",
+                          "items": {
+                            "type": "string"
+                          }
+                        }
+                      },
+                      "required": ["app-id", "private-key"],
+                      "additionalProperties": false
                     }
                   },
                   "additionalProperties": false,
-                  "description": "Skip-if-no-match configuration object with query and minimum match count"
+                  "description": "Skip-if-no-match configuration object with query, minimum match count, and optional scope/auth settings"
                 }
               ],
-              "description": "Conditionally skip workflow execution when a GitHub search query has no matches (or fewer than minimum). Can be a string (query only, implies min=1) or an object with 'query' and optional 'min' fields."
+              "description": "Conditionally skip workflow execution when a GitHub search query has no matches (or fewer than minimum). Can be a string (query only, implies min=1) or an object with 'query', optional 'min', 'scope', 'github-token', and 'github-app' fields."
             },
             "skip-roles": {
               "oneOf": [

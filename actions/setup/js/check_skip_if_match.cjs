@@ -8,6 +8,7 @@ async function main() {
   const skipQuery = process.env.GH_AW_SKIP_QUERY;
   const workflowName = process.env.GH_AW_WORKFLOW_NAME;
   const maxMatchesStr = process.env.GH_AW_SKIP_MAX_MATCHES ?? "1";
+  const skipScope = process.env.GH_AW_SKIP_SCOPE;
 
   if (!skipQuery) {
     core.setFailed(`${ERR_CONFIG}: Configuration error: GH_AW_SKIP_QUERY not specified.`);
@@ -28,14 +29,20 @@ async function main() {
   core.info(`Checking skip-if-match query: ${skipQuery}`);
   core.info(`Maximum matches threshold: ${maxMatches}`);
 
-  const { owner, repo } = context.repo;
-  const scopedQuery = `${skipQuery} repo:${owner}/${repo}`;
-
-  core.info(`Scoped query: ${scopedQuery}`);
+  let searchQuery;
+  if (skipScope === "none") {
+    // Use query as-is without appending repo:owner/repo scoping
+    searchQuery = skipQuery;
+    core.info(`Using raw query (scope: none): ${searchQuery}`);
+  } else {
+    const { owner, repo } = context.repo;
+    searchQuery = `${skipQuery} repo:${owner}/${repo}`;
+    core.info(`Scoped query: ${searchQuery}`);
+  }
 
   try {
     const response = await github.rest.search.issuesAndPullRequests({
-      q: scopedQuery,
+      q: searchQuery,
       per_page: 1,
     });
 

@@ -215,4 +215,41 @@ describe("check_skip_if_no_match", () => {
     expect(mockCore.infos).toContain("Scoped query: is:open is:issue label:enhancement repo:test-owner/test-repo");
     expect(mockCore.infos).toContain("Search found 8 matching items");
   });
+
+  it("should use raw query when GH_AW_SKIP_SCOPE is 'none'", async () => {
+    process.env.GH_AW_SKIP_QUERY = "org:myorg label:agent-fix is:issue is:open";
+    process.env.GH_AW_WORKFLOW_NAME = "test-workflow";
+    process.env.GH_AW_SKIP_SCOPE = "none";
+    delete process.env.GH_AW_SKIP_MIN_MATCHES;
+
+    let capturedQuery;
+    mockGithub.rest.search.issuesAndPullRequests = async ({ q }) => {
+      capturedQuery = q;
+      return { data: { total_count: 3 } };
+    };
+
+    await main();
+
+    expect(capturedQuery).toBe("org:myorg label:agent-fix is:issue is:open");
+    expect(mockCore.infos).toContain("Using raw query (scope: none): org:myorg label:agent-fix is:issue is:open");
+    expect(mockCore.outputs["skip_no_match_check_ok"]).toBe("true");
+  });
+
+  it("should scope query to repo when GH_AW_SKIP_SCOPE is not set", async () => {
+    process.env.GH_AW_SKIP_QUERY = "is:issue is:open label:bug";
+    process.env.GH_AW_WORKFLOW_NAME = "test-workflow";
+    delete process.env.GH_AW_SKIP_SCOPE;
+    delete process.env.GH_AW_SKIP_MIN_MATCHES;
+
+    let capturedQuery;
+    mockGithub.rest.search.issuesAndPullRequests = async ({ q }) => {
+      capturedQuery = q;
+      return { data: { total_count: 1 } };
+    };
+
+    await main();
+
+    expect(capturedQuery).toBe("is:issue is:open label:bug repo:test-owner/test-repo");
+    expect(mockCore.infos).toContain("Scoped query: is:issue is:open label:bug repo:test-owner/test-repo");
+  });
 });

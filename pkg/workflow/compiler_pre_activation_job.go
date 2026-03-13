@@ -93,6 +93,11 @@ func (c *Compiler) buildPreActivationJob(data *WorkflowData, needsPermissionChec
 		// Extract workflow name for the skip-if-match check
 		workflowName := data.Name
 
+		// Mint a GitHub App token for the skip-if-match check if a GitHub App is configured
+		if data.SkipIfMatch.GitHubApp != nil {
+			steps = append(steps, c.buildSkipIfAppTokenMintStep(data.SkipIfMatch.GitHubApp, constants.CheckSkipIfMatchStepID)...)
+		}
+
 		steps = append(steps, "      - name: Check skip-if-match query\n")
 		steps = append(steps, fmt.Sprintf("        id: %s\n", constants.CheckSkipIfMatchStepID))
 		steps = append(steps, fmt.Sprintf("        uses: %s\n", GetActionPin("actions/github-script")))
@@ -100,7 +105,15 @@ func (c *Compiler) buildPreActivationJob(data *WorkflowData, needsPermissionChec
 		steps = append(steps, fmt.Sprintf("          GH_AW_SKIP_QUERY: %q\n", data.SkipIfMatch.Query))
 		steps = append(steps, fmt.Sprintf("          GH_AW_WORKFLOW_NAME: %q\n", workflowName))
 		steps = append(steps, fmt.Sprintf("          GH_AW_SKIP_MAX_MATCHES: \"%d\"\n", data.SkipIfMatch.Max))
+		if data.SkipIfMatch.Scope != "" {
+			steps = append(steps, fmt.Sprintf("          GH_AW_SKIP_SCOPE: %q\n", data.SkipIfMatch.Scope))
+		}
 		steps = append(steps, "        with:\n")
+		// Use custom token or minted app token if configured
+		skipIfMatchToken := c.resolveSkipIfToken(data.SkipIfMatch.GitHubToken, data.SkipIfMatch.GitHubApp, constants.CheckSkipIfMatchStepID)
+		if skipIfMatchToken != "" {
+			steps = append(steps, fmt.Sprintf("          github-token: %s\n", skipIfMatchToken))
+		}
 		steps = append(steps, "          script: |\n")
 		steps = append(steps, generateGitHubScriptWithRequire("check_skip_if_match.cjs"))
 	}
@@ -110,6 +123,11 @@ func (c *Compiler) buildPreActivationJob(data *WorkflowData, needsPermissionChec
 		// Extract workflow name for the skip-if-no-match check
 		workflowName := data.Name
 
+		// Mint a GitHub App token for the skip-if-no-match check if a GitHub App is configured
+		if data.SkipIfNoMatch.GitHubApp != nil {
+			steps = append(steps, c.buildSkipIfAppTokenMintStep(data.SkipIfNoMatch.GitHubApp, constants.CheckSkipIfNoMatchStepID)...)
+		}
+
 		steps = append(steps, "      - name: Check skip-if-no-match query\n")
 		steps = append(steps, fmt.Sprintf("        id: %s\n", constants.CheckSkipIfNoMatchStepID))
 		steps = append(steps, fmt.Sprintf("        uses: %s\n", GetActionPin("actions/github-script")))
@@ -117,7 +135,15 @@ func (c *Compiler) buildPreActivationJob(data *WorkflowData, needsPermissionChec
 		steps = append(steps, fmt.Sprintf("          GH_AW_SKIP_QUERY: %q\n", data.SkipIfNoMatch.Query))
 		steps = append(steps, fmt.Sprintf("          GH_AW_WORKFLOW_NAME: %q\n", workflowName))
 		steps = append(steps, fmt.Sprintf("          GH_AW_SKIP_MIN_MATCHES: \"%d\"\n", data.SkipIfNoMatch.Min))
+		if data.SkipIfNoMatch.Scope != "" {
+			steps = append(steps, fmt.Sprintf("          GH_AW_SKIP_SCOPE: %q\n", data.SkipIfNoMatch.Scope))
+		}
 		steps = append(steps, "        with:\n")
+		// Use custom token or minted app token if configured
+		skipIfNoMatchToken := c.resolveSkipIfToken(data.SkipIfNoMatch.GitHubToken, data.SkipIfNoMatch.GitHubApp, constants.CheckSkipIfNoMatchStepID)
+		if skipIfNoMatchToken != "" {
+			steps = append(steps, fmt.Sprintf("          github-token: %s\n", skipIfNoMatchToken))
+		}
 		steps = append(steps, "          script: |\n")
 		steps = append(steps, generateGitHubScriptWithRequire("check_skip_if_no_match.cjs"))
 	}
@@ -406,4 +432,56 @@ func (c *Compiler) extractPreActivationCustomFields(jobs map[string]any) ([]stri
 	}
 
 	return customSteps, customOutputs, nil
+}
+
+// buildSkipIfAppTokenMintStep generates a GitHub App token mint step for use in skip-if-match or skip-if-no-match checks.
+// The stepIDPrefix is used to derive a unique step id for the minted token.
+func (c *Compiler) buildSkipIfAppTokenMintStep(app *GitHubAppConfig, checkStepID constants.StepID) []string {
+	var steps []string
+	tokenStepID := string(checkStepID) + "-app-token"
+
+	steps = append(steps, "      - name: Generate GitHub App token for skip-if check\n")
+	steps = append(steps, fmt.Sprintf("        id: %s\n", tokenStepID))
+	steps = append(steps, fmt.Sprintf("        uses: %s\n", GetActionPin("actions/create-github-app-token")))
+	steps = append(steps, "        with:\n")
+	steps = append(steps, fmt.Sprintf("          app-id: %s\n", app.AppID))
+	steps = append(steps, fmt.Sprintf("          private-key: %s\n", app.PrivateKey))
+
+	owner := app.Owner
+	if owner == "" {
+		owner = "${{ github.repository_owner }}"
+	}
+	steps = append(steps, fmt.Sprintf("          owner: %s\n", owner))
+
+	// Repositories field: use configured list, or default to current repo
+	if len(app.Repositories) == 1 && app.Repositories[0] == "*" {
+		// Org-wide access: omit repositories field entirely
+	} else if len(app.Repositories) == 1 {
+		steps = append(steps, fmt.Sprintf("          repositories: %s\n", app.Repositories[0]))
+	} else if len(app.Repositories) > 1 {
+		steps = append(steps, "          repositories: |-\n")
+		for _, repo := range app.Repositories {
+			steps = append(steps, fmt.Sprintf("            %s\n", repo))
+		}
+	} else {
+		steps = append(steps, "          repositories: ${{ github.event.repository.name }}\n")
+	}
+
+	steps = append(steps, "          github-api-url: ${{ github.api_url }}\n")
+
+	return steps
+}
+
+// resolveSkipIfToken returns the GitHub token expression to use for a skip-if check step.
+// Priority: GitHub App minted token > custom github-token > empty (use default GITHUB_TOKEN).
+// When a non-empty value is returned, callers should emit `with.github-token: <value>` in the step.
+func (c *Compiler) resolveSkipIfToken(githubToken string, githubApp *GitHubAppConfig, checkStepID constants.StepID) string {
+	if githubApp != nil {
+		tokenStepID := string(checkStepID) + "-app-token"
+		return fmt.Sprintf("${{ steps.%s.outputs.token }}", tokenStepID)
+	}
+	if githubToken != "" {
+		return githubToken
+	}
+	return ""
 }

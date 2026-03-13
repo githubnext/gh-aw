@@ -323,14 +323,20 @@ func (c *Compiler) GetSharedActionCache() *ActionCache {
 
 // SkipIfMatchConfig holds the configuration for skip-if-match conditions
 type SkipIfMatchConfig struct {
-	Query string // GitHub search query to check before running workflow
-	Max   int    // Maximum number of matches before skipping (defaults to 1)
+	Query       string           // GitHub search query to check before running workflow
+	Max         int              // Maximum number of matches before skipping (defaults to 1)
+	Scope       string           // Scope for the query: "none" disables auto repo:owner/repo scoping
+	GitHubToken string           // Custom GitHub token to use for the search API call
+	GitHubApp   *GitHubAppConfig // GitHub App config for minting a token for the search API call
 }
 
 // SkipIfNoMatchConfig holds the configuration for skip-if-no-match conditions
 type SkipIfNoMatchConfig struct {
-	Query string // GitHub search query to check before running workflow
-	Min   int    // Minimum number of matches required to proceed (defaults to 1)
+	Query       string           // GitHub search query to check before running workflow
+	Min         int              // Minimum number of matches required to proceed (defaults to 1)
+	Scope       string           // Scope for the query: "none" disables auto repo:owner/repo scoping
+	GitHubToken string           // Custom GitHub token to use for the search API call
+	GitHubApp   *GitHubAppConfig // GitHub App config for minting a token for the search API call
 }
 
 // WorkflowData holds all the data needed to generate a GitHub Actions workflow
