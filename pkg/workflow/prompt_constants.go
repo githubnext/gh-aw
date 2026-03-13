@@ -4,7 +4,7 @@ import _ "embed"
 
 // Prompt file paths at runtime (copied by setup action to /opt/gh-aw/prompts)
 const (
-	promptsDir                     = "/opt/gh-aw/prompts"
+	promptsDir                     = GhAwHome + "/prompts"
 	prContextPromptFile            = "pr_context_prompt.md"
 	tempFolderPromptFile           = "temp_folder_prompt.md"
 	playwrightPromptFile           = "playwright_prompt.md"

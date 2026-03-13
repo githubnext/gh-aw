@@ -47,10 +47,10 @@ func (c *Compiler) generateLogParsing(yaml *strings.Builder, engine CodingAgentE
 	yaml.WriteString("          script: |\n")
 
 	// Use the setup_globals helper to store GitHub Actions objects in global scope
-	yaml.WriteString("            const { setupGlobals } = require('" + SetupActionDestination + "/setup_globals.cjs');\n")
+	yaml.WriteString("            const { setupGlobals } = require(" + JsRequireGhAw("actions/setup_globals.cjs") + ");\n")
 	yaml.WriteString("            setupGlobals(core, github, context, exec, io);\n")
 	// Load log parser script from external file using require()
-	yaml.WriteString("            const { main } = require('/opt/gh-aw/actions/" + parserScriptName + ".cjs');\n")
+	yaml.WriteString("            const { main } = require(" + GhAwHomeJS + " + '/actions/" + parserScriptName + ".cjs');\n")
 	yaml.WriteString("            await main();\n")
 }
 
@@ -65,10 +65,10 @@ func (c *Compiler) generateMCPScriptsLogParsing(yaml *strings.Builder) {
 	yaml.WriteString("          script: |\n")
 
 	// Use the setup_globals helper to store GitHub Actions objects in global scope
-	yaml.WriteString("            const { setupGlobals } = require('" + SetupActionDestination + "/setup_globals.cjs');\n")
+	yaml.WriteString("            const { setupGlobals } = require(" + JsRequireGhAw("actions/setup_globals.cjs") + ");\n")
 	yaml.WriteString("            setupGlobals(core, github, context, exec, io);\n")
 	// Load mcp-scripts log parser script from external file using require()
-	yaml.WriteString("            const { main } = require('/opt/gh-aw/actions/parse_mcp_scripts_logs.cjs');\n")
+	yaml.WriteString("            const { main } = require(" + JsRequireGhAw("actions/parse_mcp_scripts_logs.cjs") + ");\n")
 	yaml.WriteString("            await main();\n")
 }
 
@@ -83,10 +83,10 @@ func (c *Compiler) generateMCPGatewayLogParsing(yaml *strings.Builder) {
 	yaml.WriteString("          script: |\n")
 
 	// Use the setup_globals helper to store GitHub Actions objects in global scope
-	yaml.WriteString("            const { setupGlobals } = require('" + SetupActionDestination + "/setup_globals.cjs');\n")
+	yaml.WriteString("            const { setupGlobals } = require(" + JsRequireGhAw("actions/setup_globals.cjs") + ");\n")
 	yaml.WriteString("            setupGlobals(core, github, context, exec, io);\n")
 	// Load MCP gateway log parser script from external file using require()
-	yaml.WriteString("            const { main } = require('/opt/gh-aw/actions/parse_mcp_gateway_log.cjs');\n")
+	yaml.WriteString("            const { main } = require(" + JsRequireGhAw("actions/parse_mcp_gateway_log.cjs") + ");\n")
 	yaml.WriteString("            await main();\n")
 }
 
@@ -108,7 +108,7 @@ func (c *Compiler) generateStopMCPGateway(yaml *strings.Builder, data *WorkflowD
 	yaml.WriteString("          GATEWAY_PID: ${{ steps.start-mcp-gateway.outputs.gateway-pid }}\n")
 
 	yaml.WriteString("        run: |\n")
-	yaml.WriteString("          bash /opt/gh-aw/actions/stop_mcp_gateway.sh \"$GATEWAY_PID\"\n")
+	yaml.WriteString("          bash " + GhAwHome + "/actions/stop_mcp_gateway.sh \"$GATEWAY_PID\"\n")
 }
 
 // generateAgentStepSummaryAppend generates a step that appends the agent's GITHUB_STEP_SUMMARY
@@ -120,5 +120,5 @@ func (c *Compiler) generateAgentStepSummaryAppend(yaml *strings.Builder) {
 
 	yaml.WriteString("      - name: Append agent step summary\n")
 	yaml.WriteString("        if: always()\n")
-	yaml.WriteString("        run: bash /opt/gh-aw/actions/append_agent_step_summary.sh\n")
+	yaml.WriteString("        run: bash " + GhAwHome + "/actions/append_agent_step_summary.sh\n")
 }

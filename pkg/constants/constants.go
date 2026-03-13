@@ -435,9 +435,12 @@ const DefaultAlpineImage = "alpine:latest"
 // This image is built during workflow execution and includes the gh-aw binary and dependencies
 const DevModeGhAwImage = "localhost/gh-aw:dev"
 
+// GhAwHomeDefault is the default value for GH_AW_HOME when the env var is not set
+const GhAwHomeDefault = "/opt/gh-aw"
+
 // DefaultGhAwMount is the mount path for the gh-aw directory in containerized MCP servers
-// The gh-aw binary and supporting files are mounted read-only from /opt/gh-aw
-const DefaultGhAwMount = "/opt/gh-aw:/opt/gh-aw:ro"
+// Uses shell expansion so docker gets the resolved path at runtime
+const DefaultGhAwMount = "\\${GH_AW_HOME:-/opt/gh-aw}:\\${GH_AW_HOME:-/opt/gh-aw}:ro"
 
 // DefaultGhBinaryMount is the mount path for the gh CLI binary in containerized MCP servers
 // The gh CLI is required for agentic-workflows MCP server to run gh commands

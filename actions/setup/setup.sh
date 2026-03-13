@@ -14,18 +14,27 @@
 
 set -e
 
-# Helper: create directories with sudo on macOS where /opt is root-owned
+# Helper: create directories, falling back to sudo when /opt (or similar) is root-owned
 create_dir() {
-  if [[ "$(uname -s)" == "Darwin" ]]; then
-    sudo mkdir -p "$1"
-    sudo chown -R "$(whoami)" "$1"
-  else
-    mkdir -p "$1"
+  if mkdir -p "$1" 2>/dev/null; then
+    return
   fi
+  # Fall back to sudo if regular mkdir fails (e.g., /opt is root-owned on Linux and macOS)
+  sudo mkdir -p "$1"
+  sudo chown -R "$(whoami)" "$1"
 }
 
 # Get destination from input or use default
 DESTINATION="${INPUT_DESTINATION:-/opt/gh-aw/actions}"
+
+# Derive GH_AW_HOME from DESTINATION (strip /actions suffix)
+# This allows setup.sh to be used with custom base directories
+GH_AW_HOME="${DESTINATION%/actions}"
+
+# Export GH_AW_HOME to $GITHUB_ENV so all subsequent steps can use it
+if [ -n "${GITHUB_ENV}" ]; then
+  echo "GH_AW_HOME=${GH_AW_HOME}" >> "${GITHUB_ENV}"
+fi
 
 # Get safe-output-custom-tokens flag from input (default: false)
 SAFE_OUTPUT_CUSTOM_TOKENS_ENABLED="${INPUT_SAFE_OUTPUT_CUSTOM_TOKENS:-false}"
@@ -118,7 +127,7 @@ fi
 echo "Successfully copied ${FILE_COUNT} files to ${DESTINATION}"
 
 # Copy prompt markdown files to their expected directory
-PROMPTS_DEST="/opt/gh-aw/prompts"
+PROMPTS_DEST="${GH_AW_HOME}/prompts"
 echo "Copying prompt markdown files to ${PROMPTS_DEST}"
 create_dir "${PROMPTS_DEST}"
 
@@ -140,7 +149,7 @@ else
 fi
 
 # Copy mcp-scripts files to their expected directory
-MCP_SCRIPTS_DEST="/opt/gh-aw/mcp-scripts"
+MCP_SCRIPTS_DEST="${GH_AW_HOME}/mcp-scripts"
 echo "Copying mcp-scripts files to ${MCP_SCRIPTS_DEST}"
 create_dir "${MCP_SCRIPTS_DEST}"
 
@@ -194,7 +203,7 @@ fi
 echo "Successfully copied ${MCP_SCRIPTS_COUNT} mcp-scripts files to ${MCP_SCRIPTS_DEST}"
 
 # Copy safe-outputs files to their expected directory
-SAFE_OUTPUTS_DEST="/opt/gh-aw/safeoutputs"
+SAFE_OUTPUTS_DEST="${GH_AW_HOME}/safeoutputs"
 echo "Copying safe-outputs files to ${SAFE_OUTPUTS_DEST}"
 create_dir "${SAFE_OUTPUTS_DEST}"
 

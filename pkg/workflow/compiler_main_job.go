@@ -174,23 +174,16 @@ func (c *Compiler) buildMainJob(data *WorkflowData, activationJobCreated bool) (
 		}
 	}
 
-	// Build job-level environment variables for safe outputs
-	var env map[string]string
+	// Build job-level environment variables
+	// Always initialize env with GH_AW_HOME so steps don't need the :-fallback syntax
+	env := map[string]string{
+		"GH_AW_HOME": constants.GhAwHomeDefault,
+	}
+
 	if data.SafeOutputs != nil {
-		env = make(map[string]string)
-
-		// Set GH_AW_SAFE_OUTPUTS to path in /opt (read-only mount for agent container)
-		// The MCP server writes agent outputs to this file during execution
-		// This file is in /opt to prevent the agent container from having write access
-		env["GH_AW_SAFE_OUTPUTS"] = "/opt/gh-aw/safeoutputs/outputs.jsonl"
-
 		// Set GH_AW_MCP_LOG_DIR for safe outputs MCP server logging
 		// Store in mcp-logs directory so it's included in mcp-logs artifact
 		env["GH_AW_MCP_LOG_DIR"] = "/tmp/gh-aw/mcp-logs/safeoutputs"
-
-		// Set config and tools paths (readonly files in /opt/gh-aw)
-		env["GH_AW_SAFE_OUTPUTS_CONFIG_PATH"] = "/opt/gh-aw/safeoutputs/config.json"
-		env["GH_AW_SAFE_OUTPUTS_TOOLS_PATH"] = "/opt/gh-aw/safeoutputs/tools.json"
 
 		// Add asset-related environment variables
 		// These must always be set (even to empty) because awmg v0.0.12+ validates ${VAR} references
@@ -214,9 +207,6 @@ func (c *Compiler) buildMainJob(data *WorkflowData, activationJobCreated bool) (
 	// This contains the workflow ID with all hyphens removed and lowercased
 	// Used in cache keys to avoid spaces and special characters
 	if data.WorkflowID != "" {
-		if env == nil {
-			env = make(map[string]string)
-		}
 		sanitizedID := SanitizeWorkflowIDForCacheKey(data.WorkflowID)
 		env["GH_AW_WORKFLOW_ID_SANITIZED"] = sanitizedID
 	}
