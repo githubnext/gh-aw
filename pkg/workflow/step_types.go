@@ -6,7 +6,6 @@ import (
 	"maps"
 
 	"github.com/github/gh-aw/pkg/logger"
-	"github.com/goccy/go-yaml"
 )
 
 var stepTypesLog = logger.New("workflow:step_types")
@@ -160,19 +159,6 @@ func (s *WorkflowStep) Clone() *WorkflowStep {
 	}
 
 	return clone
-}
-
-// ToYAML converts the WorkflowStep to YAML string
-func (s *WorkflowStep) ToYAML() (string, error) {
-	stepTypesLog.Printf("Converting step to YAML: name=%s", s.Name)
-	stepMap := s.ToMap()
-	yamlBytes, err := yaml.Marshal(stepMap)
-	if err != nil {
-		stepTypesLog.Printf("Failed to marshal step to YAML: %v", err)
-		return "", fmt.Errorf("failed to marshal step to YAML: %w", err)
-	}
-	stepTypesLog.Printf("Successfully converted step to YAML: size=%d bytes", len(yamlBytes))
-	return string(yamlBytes), nil
 }
 
 // SliceToSteps converts a slice of any (typically []map[string]any from YAML parsing)
