@@ -4,6 +4,7 @@ package workflow
 
 import (
 	"bytes"
+	"encoding/json"
 	"os"
 	"regexp"
 	"strings"
@@ -297,9 +298,18 @@ func TestApplyActionPinToStep(t *testing.T) {
 func TestGetActionPinsSorting(t *testing.T) {
 	pins := getActionPins()
 
-	// Verify we got all the pins (34 as of March 2026)
-	if len(pins) != 34 {
-		t.Errorf("getActionPins() returned %d pins, expected 34", len(pins))
+	// Dynamically derive the expected count from the JSON file to avoid
+	// hardcoding a number that breaks when new pins are added or when
+	// the Go test cache contains a stale binary.
+	var jsonData ActionPinsData
+	if err := json.Unmarshal(actionPinsJSON, &jsonData); err != nil {
+		t.Fatalf("Failed to parse action_pins.json: %v", err)
+	}
+	expectedCount := len(jsonData.Entries)
+
+	// Verify we got all the pins from the JSON (catches parsing bugs)
+	if len(pins) != expectedCount {
+		t.Errorf("getActionPins() returned %d pins, expected %d (from action_pins.json)", len(pins), expectedCount)
 	}
 
 	// Verify they are sorted by version (descending) then by repository name (ascending)
