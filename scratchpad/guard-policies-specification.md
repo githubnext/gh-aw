@@ -105,7 +105,65 @@ tools:
    - Enforces policies on all tool invocations
    - Blocks unauthorized repository access
 
-### 5. Extensibility for Future Servers
+### 5. Safe Outputs Integration
+
+When GitHub guard policies are configured, the compiler automatically derives a linked guard-policy for the safe-outputs MCP server. This ensures that safe output operations work correctly with guard policies by creating a write-sink configuration.
+
+**Derivation Rules:**
+
+- **`repos: "all"` or `repos: "public"`**: Creates `accept: ["*"]` to allow all safe output operations
+- **`repos: [patterns]`**: Each pattern is transformed and added to the accept list:
+  - `"owner/*"` → `"private:owner"` (owner wildcard → strip wildcard)
+  - `"owner/prefix*"` → `"private:owner/prefix*"` (prefix wildcard → keep as-is)
+  - `"owner/repo"` → `"private:owner/repo"` (specific repo → keep as-is)
+
+**Example - Public Repositories:**
+
+```yaml
+tools:
+  github:
+    repos: "public"
+    min-integrity: approved
+```
+
+Generates safeoutputs guard-policy:
+```json
+{
+  "write-sink": {
+    "accept": ["*"]
+  }
+}
+```
+
+**Example - Specific Repositories:**
+
+```yaml
+tools:
+  github:
+    repos:
+      - "github/*"
+      - "microsoft/copilot"
+    min-integrity: approved
+```
+
+Generates safeoutputs guard-policy:
+```json
+{
+  "write-sink": {
+    "accept": [
+      "private:github",
+      "private:microsoft/copilot"
+    ]
+  }
+}
+```
+
+**Implementation:**
+- Function: `deriveSafeOutputsGuardPolicyFromGitHub()` in `pkg/workflow/mcp_github_config.go`
+- Called during MCP renderer setup for safeoutputs server
+- Tests: `pkg/workflow/safeoutputs_guard_policy_test.go`
+
+### 6. Extensibility for Future Servers
 
 The design supports future MCP servers (Jira, WorkIQ) through:
 
