@@ -33,18 +33,60 @@ steps:
       [ -d "$DOCS_DIR" ]   && qmd collection add "$DOCS_DIR"   --name docs   2>/dev/null || true
       [ -d "$AGENTS_DIR" ] && qmd collection add "$AGENTS_DIR" --name agents 2>/dev/null || true
       [ -d "$AW_DIR" ]     && qmd collection add "$AW_DIR"     --name aw     2>/dev/null || true
+
+mcp-scripts:
+  qmd-search:
+    description: "Search project documentation and return ranked excerpts. Use for reading matching passages. Collections: docs, agents, aw."
+    inputs:
+      query:
+        type: string
+        required: true
+        description: "Search query"
+      collection:
+        type: string
+        required: false
+        description: "Limit search to a collection: docs, agents, or aw"
+      limit:
+        type: number
+        required: false
+        default: 10
+        description: "Maximum number of results to return"
+    run: |
+      set -e
+      ARGS=(search "$INPUT_QUERY" --json -n "${INPUT_LIMIT:-10}")
+      [[ -n "${INPUT_COLLECTION:-}" ]] && ARGS+=(--collection "$INPUT_COLLECTION")
+      qmd "${ARGS[@]}"
+
+  qmd-query:
+    description: "Find relevant file paths in project documentation. Returns file paths and scores. Use to discover files before fetching with qmd-get."
+    inputs:
+      query:
+        type: string
+        required: true
+        description: "Search query"
+      collection:
+        type: string
+        required: false
+        description: "Limit search to a collection: docs, agents, or aw"
+      min_score:
+        type: number
+        required: false
+        default: 0.4
+        description: "Minimum relevance score threshold (0–1)"
+    run: |
+      set -e
+      ARGS=(query "$INPUT_QUERY" --files --min-score "${INPUT_MIN_SCORE:-0.4}")
+      [[ -n "${INPUT_COLLECTION:-}" ]] && ARGS+=(--collection "$INPUT_COLLECTION")
+      qmd "${ARGS[@]}"
+
+  qmd-get:
+    description: "Retrieve the full content of a documentation file by path."
+    inputs:
+      path:
+        type: string
+        required: true
+        description: "File path returned by qmd-query"
+    run: |
+      set -e
+      qmd get "$INPUT_PATH"
 ---
-
-<qmd>
-Use the `qmd` CLI to search project documentation. Three collections are available: `docs`, `agents`, `aw`.
-
-Commands:
-- `qmd search "<query>" --json -n 10` — ranked excerpts (read content)
-- `qmd query "<query>" --files --min-score 0.4` — matching file paths only
-- `qmd search "<query>" --collection docs --json` — search a specific collection
-- `qmd get <path>` — retrieve a full document
-- `qmd multi-get "docs/reference/*.md"` — batch retrieve by glob
-- `qmd status` — index health and collection info
-
-Use `search` to read matching passages; use `query` to discover relevant files before fetching them with `get`.
-</qmd>
