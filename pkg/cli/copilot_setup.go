@@ -299,6 +299,14 @@ func renderCopilotSetupUpdateInstructions(filePath string, actionMode workflow.A
 var setupCliUsesPattern = regexp.MustCompile(
 	`(?m)^(\s+uses:[ \t]*)"?(github/gh-aw(?:-actions)?/(?:actions/)?setup-cli@[^"\n]*)"?([ \t]*)$`)
 
+// setupCliVersionInWithPattern matches the version: parameter in the with: block that
+// follows any setup-cli uses: line, regardless of the exact ref format (SHA, version tag,
+// or comment).  Using this pre-compiled form (rather than anchoring to the exact new uses:
+// value) ensures that pre-existing drift between the uses: comment version and the
+// with: version: value is always corrected by upgrade.
+var setupCliVersionInWithPattern = regexp.MustCompile(
+	`(?s)(uses:[ \t]*(?:"?github/gh-aw(?:-actions)?/(?:actions/)?setup-cli@[^"\n]*"?)[^\n]*\n(?:[^\n]*\n)*?[ \t]+with:[ \t]*\n(?:[^\n]*\n)*?[ \t]+version:[ \t]*)(\S+)([ \t]*(?:\n|$))`)
+
 // upgradeSetupCliVersionInContent replaces the setup-cli action reference and the
 // associated version: parameter in the raw YAML content using targeted regex
 // substitutions, preserving all other formatting in the file.
@@ -325,14 +333,10 @@ func upgradeSetupCliVersionInContent(content []byte, actionMode workflow.ActionM
 	updated := setupCliUsesPattern.ReplaceAll(content, []byte("${1}"+newUses+"${3}"))
 
 	// Replace the version: value in the with: block immediately following the
-	// setup-cli uses: line.  A combined multiline match is used so that only the
-	// version: parameter belonging to this specific step is updated.
-	// This pattern cannot be pre-compiled at package level because it embeds
-	// the runtime value newUses (which varies with version and resolver output).
-	escapedNewUses := regexp.QuoteMeta(newUses)
-	versionInWithPattern := regexp.MustCompile(
-		`(?s)(uses:[ \t]*` + escapedNewUses + `[^\n]*\n(?:[^\n]*\n)*?[ \t]+with:[ \t]*\n(?:[^\n]*\n)*?[ \t]+version:[ \t]*)(\S+)([ \t]*(?:\n|$))`)
-	updated = versionInWithPattern.ReplaceAll(updated, []byte("${1}"+version+"${3}"))
+	// setup-cli uses: line.  The pattern is anchored to the generic setup-cli
+	// uses: shape (not the exact new ref) so that pre-existing drift between the
+	// uses: comment version and the with: version: value is always corrected.
+	updated = setupCliVersionInWithPattern.ReplaceAll(updated, []byte("${1}"+version+"${3}"))
 
 	if bytes.Equal(content, updated) {
 		return false, content, nil

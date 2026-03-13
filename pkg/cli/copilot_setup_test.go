@@ -1141,6 +1141,67 @@ jobs:
 			resolver:      nil,
 			expectUpgrade: false,
 		},
+		{
+			// Regression: drift between uses: comment and with: version: — the upgrade must
+			// correct with: version: even when it was already stale before this run.
+			name: "corrects drift: SHA-pinned uses comment ahead of with version",
+			content: `name: "Copilot Setup Steps"
+on: workflow_dispatch
+jobs:
+  copilot-setup-steps:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install gh-aw extension
+        uses: github/gh-aw/actions/setup-cli@cb7966564184443e601bd6135d5fbb534300070e # v0.58.0
+        with:
+          version: v0.53.6
+`,
+			actionMode:    workflow.ActionModeRelease,
+			version:       "v0.60.0",
+			resolver:      &mockSHAResolver{sha: "newsha60abcdef1234567890abcdef1234567890ab"},
+			expectUpgrade: true,
+			validate: func(t *testing.T, got string) {
+				if strings.Contains(got, "v0.53.6") {
+					t.Errorf("Stale with: version: v0.53.6 must be updated, got:\n%s", got)
+				}
+				if !strings.Contains(got, "version: v0.60.0") {
+					t.Errorf("Expected version: v0.60.0 in with: block, got:\n%s", got)
+				}
+				if !strings.Contains(got, "# v0.60.0") {
+					t.Errorf("Expected updated uses: comment # v0.60.0, got:\n%s", got)
+				}
+			},
+		},
+		{
+			// Regression: drift when uses: is a version tag (no SHA) but version: is stale.
+			name: "corrects drift: version-tag uses ahead of with version",
+			content: `name: "Copilot Setup Steps"
+on: workflow_dispatch
+jobs:
+  copilot-setup-steps:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install gh-aw extension
+        uses: github/gh-aw/actions/setup-cli@v0.58.0
+        with:
+          version: v0.53.6
+`,
+			actionMode:    workflow.ActionModeRelease,
+			version:       "v0.60.0",
+			resolver:      nil,
+			expectUpgrade: true,
+			validate: func(t *testing.T, got string) {
+				if strings.Contains(got, "v0.53.6") {
+					t.Errorf("Stale with: version: v0.53.6 must be updated, got:\n%s", got)
+				}
+				if !strings.Contains(got, "version: v0.60.0") {
+					t.Errorf("Expected version: v0.60.0 in with: block, got:\n%s", got)
+				}
+				if !strings.Contains(got, "uses: github/gh-aw/actions/setup-cli@v0.60.0") {
+					t.Errorf("Expected updated uses: line, got:\n%s", got)
+				}
+			},
+		},
 	}
 
 	for _, tt := range tests {
