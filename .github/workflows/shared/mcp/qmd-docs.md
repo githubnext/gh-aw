@@ -58,7 +58,7 @@ mcp-scripts:
       qmd "${ARGS[@]}"
 
   qmd-query:
-    description: "Find relevant file paths in project documentation. Returns file paths and scores. Use to discover files before fetching with qmd-get."
+    description: "Find relevant file paths in project documentation. Returns file paths and scores."
     inputs:
       query:
         type: string
@@ -79,14 +79,4 @@ mcp-scripts:
       [[ -n "${INPUT_COLLECTION:-}" ]] && ARGS+=(--collection "$INPUT_COLLECTION")
       qmd "${ARGS[@]}"
 
-  qmd-get:
-    description: "Retrieve the full content of a documentation file by path."
-    inputs:
-      path:
-        type: string
-        required: true
-        description: "File path returned by qmd-query"
-    run: |
-      set -e
-      qmd get "$INPUT_PATH"
 ---

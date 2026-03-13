@@ -27,7 +27,7 @@
 #   Imports:
 #     - shared/mcp/qmd-docs.md
 #
-# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"e8f54b9aae3bfb646f25f88ed1296b1c029a774cd5003b0601b366ac2da79fee","strict":true}
+# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"a6b9a98d78f163396d57e0ec701c603a9aa153992ae51e6268329940d1200f9c","strict":true}
 
 name: "Daily Documentation Updater"
 "on":
@@ -675,26 +675,8 @@ jobs:
             "logDir": "/opt/gh-aw/mcp-scripts/logs",
             "tools": [
               {
-                "name": "qmd-get",
-                "description": "Retrieve the full content of a documentation file by path.",
-                "inputSchema": {
-                  "properties": {
-                    "path": {
-                      "description": "File path returned by qmd-query",
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "path"
-                  ],
-                  "type": "object"
-                },
-                "handler": "qmd-get.sh",
-                "timeout": 60
-              },
-              {
                 "name": "qmd-query",
-                "description": "Find relevant file paths in project documentation. Returns file paths and scores. Use to discover files before fetching with qmd-get.",
+                "description": "Find relevant file paths in project documentation. Returns file paths and scores.",
                 "inputSchema": {
                   "properties": {
                     "collection": {
@@ -768,22 +750,10 @@ jobs:
           
       - name: Setup MCP Scripts Tool Files
         run: |
-          cat > /opt/gh-aw/mcp-scripts/qmd-get.sh << 'GH_AW_MCP_SCRIPTS_SH_QMD-GET_EOF'
-          #!/bin/bash
-          # Auto-generated mcp-script tool: qmd-get
-          # Retrieve the full content of a documentation file by path.
-          
-          set -euo pipefail
-          
-          set -e
-          qmd get "$INPUT_PATH"
-          
-          GH_AW_MCP_SCRIPTS_SH_QMD-GET_EOF
-          chmod +x /opt/gh-aw/mcp-scripts/qmd-get.sh
           cat > /opt/gh-aw/mcp-scripts/qmd-query.sh << 'GH_AW_MCP_SCRIPTS_SH_QMD-QUERY_EOF'
           #!/bin/bash
           # Auto-generated mcp-script tool: qmd-query
-          # Find relevant file paths in project documentation. Returns file paths and scores. Use to discover files before fetching with qmd-get.
+          # Find relevant file paths in project documentation. Returns file paths and scores.
           
           set -euo pipefail
           
