@@ -1121,7 +1121,7 @@ To respect GitHub API rate limits, the handler automatically enforces a 5-second
 
 Calls reusable workflows (`workflow_call`) via compile-time fan-out—no GitHub API call at runtime. The compiler reads each worker's `workflow_call.inputs`, generates a typed MCP tool per worker, and emits a conditional `uses:` job for each. At runtime, only the worker whose name the agent selected runs.
 
-Unlike `dispatch-workflow` (which fires a `repository_dispatch` event and loses the original actor context), `call-workflow` preserves `github.actor` and billing attribution because the worker job is part of the same workflow run.
+Unlike `dispatch-workflow` (which fires a `workflow_dispatch` event and loses the original actor context), `call-workflow` preserves `github.actor` and billing attribution because the worker job is part of the same workflow run.
 
 > [!NOTE]
 > When installing a workflow with `gh aw add`, workflows listed in `call-workflow` are automatically fetched and added to the target repository alongside the main workflow.
