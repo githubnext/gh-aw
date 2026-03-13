@@ -55,14 +55,6 @@ jobs:
       model: ${{ steps.generate_aw_info.outputs.model }}
       secret_verification_result: ${{ steps.validate-secret.outputs.verification_result }}
     steps:
-      - name: Checkout actions folder
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-        with:
-          repository: github/gh-aw
-          ref: df02d7f
-          sparse-checkout: |
-            actions
-          persist-credentials: false
       - name: Setup Scripts
         uses: ./actions/setup
         with:
@@ -297,14 +289,6 @@ jobs:
       output: ${{ steps.collect_output.outputs.output }}
       output_types: ${{ steps.collect_output.outputs.output_types }}
     steps:
-      - name: Checkout actions folder
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-        with:
-          repository: github/gh-aw
-          ref: df02d7f
-          sparse-checkout: |
-            actions
-          persist-credentials: false
       - name: Setup Scripts
         uses: ./actions/setup
         with:
@@ -1236,14 +1220,6 @@ jobs:
       tools_reported: ${{ steps.missing_tool.outputs.tools_reported }}
       total_count: ${{ steps.missing_tool.outputs.total_count }}
     steps:
-      - name: Checkout actions folder
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-        with:
-          repository: github/gh-aw
-          ref: df02d7f
-          sparse-checkout: |
-            actions
-          persist-credentials: false
       - name: Setup Scripts
         uses: ./actions/setup
         with:
@@ -1363,14 +1339,6 @@ jobs:
       validation_error_default: ${{ steps.push_repo_memory_default.outputs.validation_error }}
       validation_failed_default: ${{ steps.push_repo_memory_default.outputs.validation_failed }}
     steps:
-      - name: Checkout actions folder
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-        with:
-          repository: github/gh-aw
-          ref: df02d7f
-          sparse-checkout: |
-            actions
-          persist-credentials: false
       - name: Setup Scripts
         uses: ./actions/setup
         with:
@@ -1449,14 +1417,6 @@ jobs:
       process_safe_outputs_processed_count: ${{ steps.process_safe_outputs.outputs.processed_count }}
       process_safe_outputs_temporary_id_map: ${{ steps.process_safe_outputs.outputs.temporary_id_map }}
     steps:
-      - name: Checkout actions folder
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-        with:
-          repository: github/gh-aw
-          ref: df02d7f
-          sparse-checkout: |
-            actions
-          persist-credentials: false
       - name: Setup Scripts
         uses: ./actions/setup
         with:
@@ -1531,19 +1491,10 @@ jobs:
     needs: agent
     if: always() && needs.agent.outputs.detection_success == 'true'
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
+    permissions: {}
     env:
       GH_AW_WORKFLOW_ID_SANITIZED: developerdocsconsolidator
     steps:
-      - name: Checkout actions folder
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-        with:
-          repository: github/gh-aw
-          ref: df02d7f
-          sparse-checkout: |
-            actions
-          persist-credentials: false
       - name: Setup Scripts
         uses: ./actions/setup
         with:

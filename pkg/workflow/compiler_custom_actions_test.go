@@ -313,52 +313,30 @@ func TestCheckoutActionsFolderDevModeHasRepository(t *testing.T) {
 		t.Error("Dev mode Checkout actions folder should include 'repository: github/gh-aw' (fix for #20658)")
 	}
 
-	// When version is "dev", no ref: should be emitted
-	if strings.Contains(combined, "ref:") {
-		t.Error("Dev mode with 'dev' version should not include ref: field")
+	// Dev mode always uses the runtime action_ref macro, not a baked-in ref
+	if !strings.Contains(combined, "ref: ${{ github.action_ref }}") {
+		t.Error("Dev mode Checkout actions folder should use 'ref: ${{ github.action_ref }}' so the ref resolves at runtime")
 	}
 }
 
-// TestCheckoutActionsFolderDevModeWithVersionHasRef verifies that when a real version
-// SHA is set, the Checkout actions folder step is NOT generated in dev mode.
-// Dev mode should only emit the checkout when no SHA ref is involved.
-func TestCheckoutActionsFolderDevModeWithVersionHasRef(t *testing.T) {
-	compiler := NewCompilerWithVersion("e284d1e")
-	compiler.SetActionMode(ActionModeDev)
+// TestCheckoutActionsFolderDevModeAlwaysEmitsCheckout verifies that dev mode always
+// emits the checkout step regardless of the compiler version, using a runtime macro
+// for the ref instead of a compile-time SHA.
+func TestCheckoutActionsFolderDevModeAlwaysEmitsCheckout(t *testing.T) {
+	versions := []string{"dev", "e284d1e", "v0.57.2-60-ge284d1e", "v1.2.3"}
+	for _, version := range versions {
+		t.Run(version, func(t *testing.T) {
+			compiler := NewCompilerWithVersion(version)
+			compiler.SetActionMode(ActionModeDev)
 
-	lines := compiler.generateCheckoutActionsFolder(nil)
-
-	if lines != nil {
-		t.Error("Dev mode Checkout actions folder should be nil (skipped) when version resolves to a SHA")
-	}
-}
-
-// TestCheckoutActionsFolderDevModeWithGitDescribeSHAIsSkipped verifies that when the version
-// is a git-describe string that resolves to a SHA, dev mode skips the checkout.
-func TestCheckoutActionsFolderDevModeWithGitDescribeSHAIsSkipped(t *testing.T) {
-	compiler := NewCompilerWithVersion("v0.57.2-60-ge284d1e")
-	compiler.SetActionMode(ActionModeDev)
-
-	lines := compiler.generateCheckoutActionsFolder(nil)
-
-	if lines != nil {
-		t.Error("Dev mode Checkout actions folder should be nil (skipped) when git-describe version resolves to a SHA")
-	}
-}
-
-// TestCheckoutActionsFolderDevModeWithTagVersionGeneratesCheckout verifies that
-// when the version is a clean tag (e.g. "v1.2.3"), dev mode still generates the checkout step.
-func TestCheckoutActionsFolderDevModeWithTagVersionGeneratesCheckout(t *testing.T) {
-	compiler := NewCompilerWithVersion("v1.2.3")
-	compiler.SetActionMode(ActionModeDev)
-
-	lines := compiler.generateCheckoutActionsFolder(nil)
-	combined := strings.Join(lines, "")
-
-	if !strings.Contains(combined, "repository: github/gh-aw") {
-		t.Error("Dev mode Checkout actions folder with tag version should include 'repository: github/gh-aw'")
-	}
-	if !strings.Contains(combined, "ref: v1.2.3") {
-		t.Error("Dev mode Checkout actions folder with tag version should include 'ref: v1.2.3'")
+			lines := compiler.generateCheckoutActionsFolder(nil)
+			if lines == nil {
+				t.Errorf("Dev mode should always emit checkout step (version=%q)", version)
+			}
+			combined := strings.Join(lines, "")
+			if !strings.Contains(combined, "ref: ${{ github.action_ref }}") {
+				t.Errorf("Dev mode checkout should always use 'ref: ${{ github.action_ref }}' (version=%q)", version)
+			}
+		})
 	}
 }

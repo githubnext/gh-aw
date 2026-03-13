@@ -183,14 +183,6 @@ func versionToGitRef(version string) string {
 	return clean
 }
 
-// isSHA returns true if ref is a git commit SHA (short or full hex string).
-// Tags such as "v1.2.3" and empty strings are not considered SHAs.
-var gitSHAPattern = regexp.MustCompile(`^[0-9a-f]{4,40}$`)
-
-func isSHA(ref string) bool {
-	return gitSHAPattern.MatchString(ref)
-}
-
 // generateCheckoutActionsFolder generates the checkout step for the actions folder
 // when running in dev mode and not using the action-tag feature. This is used to
 // checkout the local actions before running the setup action.
@@ -199,7 +191,6 @@ func isSHA(ref string) bool {
 // string represents a line of YAML for the checkout step. Returns nil if:
 // - Not in dev or script mode
 // - action-tag feature is specified (uses remote actions instead)
-// - In dev mode and ref resolves to a commit SHA (sha pins are skipped in dev)
 func (c *Compiler) generateCheckoutActionsFolder(data *WorkflowData) []string {
 	// Check if action-tag is specified - if so, we're using remote actions
 	if data != nil && data.Features != nil {
@@ -242,23 +233,19 @@ func (c *Compiler) generateCheckoutActionsFolder(data *WorkflowData) []string {
 	// callers (e.g. event-driven relays) can find the actions/ directory.
 	// Without repository: the runner defaults to the caller's repo, which has
 	// no actions/ directory, causing Setup Scripts to fail immediately.
-	// Skip the checkout when ref resolves to a commit SHA – pinning to an
-	// intermediate SHA is not meaningful in a dev workflow.
-	if c.actionMode.IsDev() && !isSHA(ref) {
+	// Use ${{ github.action_ref }} so the checkout always resolves to the ref
+	// of the action being executed at runtime, rather than a compile-time SHA.
+	if c.actionMode.IsDev() {
 		lines := []string{
 			"      - name: Checkout actions folder\n",
 			fmt.Sprintf("        uses: %s\n", GetActionPin("actions/checkout")),
 			"        with:\n",
 			"          repository: github/gh-aw\n",
-		}
-		if ref != "" {
-			lines = append(lines, fmt.Sprintf("          ref: %s\n", ref))
-		}
-		lines = append(lines,
+			"          ref: ${{ github.action_ref }}\n",
 			"          sparse-checkout: |\n",
 			"            actions\n",
 			"          persist-credentials: false\n",
-		)
+		}
 		return lines
 	}
 
