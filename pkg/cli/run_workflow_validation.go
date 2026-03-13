@@ -186,10 +186,10 @@ func validateWorkflowInputs(markdownPath string, providedInputs []string) error 
 		}
 	}
 
-	// Check for required inputs that are missing
+	// Check for required inputs that are missing (ignore inputs with a default value)
 	var missingInputs []string
 	for inputName, inputDef := range workflowInputs {
-		if inputDef.Required {
+		if inputDef.Required && inputDef.Default == nil {
 			if _, exists := providedInputsMap[inputName]; !exists {
 				missingInputs = append(missingInputs, inputName)
 			}
@@ -231,18 +231,39 @@ func validateWorkflowInputs(markdownPath string, providedInputs []string) error 
 		// Add helpful information about valid inputs
 		if len(workflowInputs) > 0 {
 			var inputDescriptions []string
-			for name, def := range workflowInputs {
+			sortedNames := slices.Sorted(maps.Keys(workflowInputs))
+			for _, name := range sortedNames {
+				def := workflowInputs[name]
 				required := ""
-				if def.Required {
+				if def.Required && def.Default == nil {
 					required = " (required)"
 				}
 				desc := ""
 				if def.Description != "" {
 					desc = ": " + def.Description
 				}
-				inputDescriptions = append(inputDescriptions, fmt.Sprintf("  %s%s%s", name, required, desc))
+				defaultStr := ""
+				if def.Default != nil {
+					defaultStr = fmt.Sprintf(" [default: %s]", def.GetDefaultAsString())
+				}
+				inputDescriptions = append(inputDescriptions, fmt.Sprintf("  %s%s%s%s", name, required, desc, defaultStr))
 			}
-			errorParts = append(errorParts, "\nValid inputs:\n"+strings.Join(inputDescriptions, "\n"))
+
+			// Derive the workflow name for the syntax hint
+			workflowName := strings.TrimSuffix(filepath.Base(markdownPath), ".md")
+			var syntaxExamples []string
+			for _, name := range sortedNames {
+				def := workflowInputs[name]
+				if def.Required && def.Default == nil {
+					syntaxExamples = append(syntaxExamples, fmt.Sprintf("  gh aw run %s -F %s=<value>", workflowName, name))
+				}
+			}
+
+			validInputsMsg := "\nValid inputs:\n" + strings.Join(inputDescriptions, "\n")
+			if len(syntaxExamples) > 0 {
+				validInputsMsg += "\n\nTo set required inputs, use:\n" + strings.Join(syntaxExamples, "\n")
+			}
+			errorParts = append(errorParts, validInputsMsg)
 		}
 
 		return fmt.Errorf("%s", strings.Join(errorParts, "\n\n"))
