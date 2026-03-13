@@ -2,6 +2,7 @@ package workflow
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 	"time"
 
@@ -151,7 +152,7 @@ func (r *MCPConfigRendererUnified) renderGitHubTOML(yaml *strings.Builder, githu
 		if len(customArgs) > 0 {
 			yaml.WriteString("          args = [\n")
 			for _, arg := range customArgs {
-				yaml.WriteString("            \"" + arg + "\",\n")
+				yaml.WriteString("            " + strconv.Quote(arg) + ",\n")
 			}
 			yaml.WriteString("          ]\n")
 		}
@@ -163,7 +164,7 @@ func (r *MCPConfigRendererUnified) renderGitHubTOML(yaml *strings.Builder, githu
 				if i > 0 {
 					yaml.WriteString(", ")
 				}
-				yaml.WriteString("\"" + mount + "\"")
+				yaml.WriteString(strconv.Quote(mount))
 			}
 			yaml.WriteString("]\n")
 		}
