@@ -238,6 +238,11 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 		outputs["push_commit_url"] = "${{ steps.process_safe_outputs.outputs.push_commit_url }}"
 	}
 
+	if data.SafeOutputs.CallWorkflow != nil {
+		outputs["call_workflow_name"] = "${{ steps.process_safe_outputs.outputs.call_workflow_name }}"
+		outputs["call_workflow_payload"] = "${{ steps.process_safe_outputs.outputs.call_workflow_payload }}"
+	}
+
 	// If no steps were added, return nil
 	if len(safeOutputStepNames) == 0 {
 		consolidatedSafeOutputsJobLog.Print("No safe output steps were added")

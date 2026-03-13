@@ -246,16 +246,16 @@ Yes! Use [TrialOps](/gh-aw/patterns/trial-ops/) to test workflows in isolated tr
 
 See [Common Issues](/gh-aw/troubleshooting/common-issues/) for detailed troubleshooting guidance including workflow failures, debugging strategies, permission issues, and network problems.
 
-### Why is my create-discussion workflow failing with integration-forbidden?
-
-Discussion creation requires announcement-capable categories. If your workflow fails with an `integration-forbidden` error, ensure the `category` field in your configuration specifies a category that has announcement capabilities enabled in your repository's discussion settings.
+### Why is my create-discussion workflow failing?
 
 Common issues:
-- **Non-announcement categories**: Only categories configured to support announcements can be used for automated discussion creation. Check your repository's discussion settings to verify which categories have announcement capabilities.
-- **Category name typos**: Verify the category name spelling in your workflow configuration matches exactly with your repository's discussion categories. Category names are case-sensitive.
-- **Category slugs**: Use lowercase category slugs (e.g., `general`, `announcements`) rather than display names for better reliability.
 
-If discussions are not enabled or the category lacks announcement capabilities, consider using `fallback-to-issue: true` (the default) to automatically create an issue instead. See [Discussion Creation](/gh-aw/reference/safe-outputs/#discussion-creation-create-discussion) for configuration details.
+- **Category name typos**: Verify the category name spelling in your workflow configuration matches your repository's discussion categories. Category names are matched case-insensitively, but check for typos.
+- **Category slugs**: Use lowercase category slugs (e.g., `general`, `announcements`) rather than display names for better reliability.
+- **Discussions not enabled**: Ensure discussions are enabled for your repository in **Settings → Features → Discussions**.
+- **Insufficient permissions**: The workflow requires `discussions: write` permission.
+
+If discussions are not enabled or the workflow lacks permissions, consider using `fallback-to-issue: true` (the default) to automatically create an issue instead. See [Discussion Creation](/gh-aw/reference/safe-outputs/#discussion-creation-create-discussion) for configuration details.
 
 ### Why is my create-pull-request workflow failing with "GitHub Actions is not permitted to create or approve pull requests"?
 

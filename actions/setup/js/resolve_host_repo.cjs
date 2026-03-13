@@ -72,7 +72,7 @@ async function main() {
   // Compute the repository name (without owner prefix) for use cases that require
   // only the repo name, such as actions/create-github-app-token which expects
   // `repositories` to contain repo names only when `owner` is also provided.
-  const targetRepoName = targetRepo.includes("/") ? targetRepo.substring(targetRepo.indexOf("/") + 1) : targetRepo;
+  const targetRepoName = targetRepo.split("/").at(-1);
 
   core.setOutput("target_repo", targetRepo);
   core.setOutput("target_repo_name", targetRepoName);

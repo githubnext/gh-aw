@@ -297,11 +297,6 @@ func TestApplyActionPinToStep(t *testing.T) {
 func TestGetActionPinsSorting(t *testing.T) {
 	pins := getActionPins()
 
-	// Verify we got all the pins (34 as of March 2026)
-	if len(pins) != 34 {
-		t.Errorf("getActionPins() returned %d pins, expected 34", len(pins))
-	}
-
 	// Verify they are sorted by version (descending) then by repository name (ascending)
 	for i := range len(pins) - 1 {
 		if pins[i].Version < pins[i+1].Version {

@@ -340,6 +340,8 @@ func hasSafeOutputType(config *SafeOutputsConfig, key string) bool {
 		return config.SetIssueType != nil
 	case "dispatch-workflow":
 		return config.DispatchWorkflow != nil
+	case "call-workflow":
+		return config.CallWorkflow != nil
 	case "missing-data":
 		return config.MissingData != nil
 	case "missing-tool":
@@ -468,6 +470,9 @@ func mergeSafeOutputConfig(result *SafeOutputsConfig, config map[string]any, c *
 	}
 	if result.DispatchWorkflow == nil && importedConfig.DispatchWorkflow != nil {
 		result.DispatchWorkflow = importedConfig.DispatchWorkflow
+	}
+	if result.CallWorkflow == nil && importedConfig.CallWorkflow != nil {
+		result.CallWorkflow = importedConfig.CallWorkflow
 	}
 	if result.MissingTool == nil && importedConfig.MissingTool != nil {
 		result.MissingTool = importedConfig.MissingTool
