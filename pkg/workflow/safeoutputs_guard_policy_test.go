@@ -66,8 +66,13 @@ func TestDeriveSafeOutputsGuardPolicyFromGitHub(t *testing.T) {
 				"repos":         "all",
 				"min-integrity": "approved",
 			},
-			expectNil:   true,
-			description: "repos='all' should return nil (write-sink not required, agent secrecy is empty)",
+			expectedPolicies: map[string]any{
+				"write-sink": map[string]any{
+					"accept": []string{"*"},
+				},
+			},
+			expectNil:   false,
+			description: "repos='all' should return accept=['*'] to allow all safe output operations",
 		},
 		{
 			name: "repos set to public",
@@ -75,8 +80,13 @@ func TestDeriveSafeOutputsGuardPolicyFromGitHub(t *testing.T) {
 				"repos":         "public",
 				"min-integrity": "none",
 			},
-			expectNil:   true,
-			description: "repos='public' should return nil (write-sink not required, agent secrecy is empty)",
+			expectedPolicies: map[string]any{
+				"write-sink": map[string]any{
+					"accept": []string{"*"},
+				},
+			},
+			expectNil:   false,
+			description: "repos='public' should return accept=['*'] to allow all safe output operations",
 		},
 		{
 			name: "multiple repo patterns as []any",
