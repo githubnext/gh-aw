@@ -199,6 +199,33 @@ describe("resolve_host_repo.cjs", () => {
     expect(mockCore.setOutput).toHaveBeenCalledWith("target_ref", "abc123def456");
   });
 
+  it("should output target_repo_name when invoked cross-repo", async () => {
+    process.env.GITHUB_WORKFLOW_REF = "my-org/platform-repo/.github/workflows/gateway.lock.yml@refs/heads/main";
+    process.env.GITHUB_REPOSITORY = "my-org/app-repo";
+
+    await main();
+
+    expect(mockCore.setOutput).toHaveBeenCalledWith("target_repo_name", "platform-repo");
+  });
+
+  it("should output target_repo_name when same-repo invocation", async () => {
+    process.env.GITHUB_WORKFLOW_REF = "my-org/platform-repo/.github/workflows/gateway.lock.yml@refs/heads/main";
+    process.env.GITHUB_REPOSITORY = "my-org/platform-repo";
+
+    await main();
+
+    expect(mockCore.setOutput).toHaveBeenCalledWith("target_repo_name", "platform-repo");
+  });
+
+  it("should output target_repo_name without owner prefix when falling back to GITHUB_REPOSITORY", async () => {
+    process.env.GITHUB_WORKFLOW_REF = "";
+    process.env.GITHUB_REPOSITORY = "my-org/fallback-repo";
+
+    await main();
+
+    expect(mockCore.setOutput).toHaveBeenCalledWith("target_repo_name", "fallback-repo");
+  });
+
   it("should include target_ref in step summary for cross-repo invocations", async () => {
     process.env.GITHUB_WORKFLOW_REF = "my-org/platform-repo/.github/workflows/gateway.lock.yml@refs/heads/feature-branch";
     process.env.GITHUB_REPOSITORY = "my-org/app-repo";
