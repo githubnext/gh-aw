@@ -192,7 +192,7 @@ var enableCmd = &cobra.Command{
 ` + cli.WorkflowIDExplanation + `
 
 Examples:
-  ` + string(constants.CLIExtensionPrefix) + ` enable                    # Enable all workflows
+  ` + string(constants.CLIExtensionPrefix) + ` enable                   # Enable all workflows
   ` + string(constants.CLIExtensionPrefix) + ` enable ci-doctor         # Enable specific workflow
   ` + string(constants.CLIExtensionPrefix) + ` enable ci-doctor.md      # Enable specific workflow (alternative format)
   ` + string(constants.CLIExtensionPrefix) + ` enable ci-doctor daily   # Enable multiple workflows
@@ -211,7 +211,7 @@ Any in-progress runs will be cancelled before disabling.
 ` + cli.WorkflowIDExplanation + `
 
 Examples:
-  ` + string(constants.CLIExtensionPrefix) + ` disable                    # Disable all workflows
+  ` + string(constants.CLIExtensionPrefix) + ` disable                   # Disable all workflows
   ` + string(constants.CLIExtensionPrefix) + ` disable ci-doctor         # Disable specific workflow
   ` + string(constants.CLIExtensionPrefix) + ` disable ci-doctor.md      # Disable specific workflow (alternative format)
   ` + string(constants.CLIExtensionPrefix) + ` disable ci-doctor daily   # Disable multiple workflows
@@ -364,8 +364,8 @@ Examples:
   gh aw run daily-perf-improver.md   # Alternative format
   gh aw run daily-perf-improver --ref main  # Run on specific branch
   gh aw run daily-perf-improver --repeat 3  # Run 4 times total (1 initial + 3 repeats)
-  gh aw run daily-perf-improver --enable-if-needed # Enable if disabled, run, then restore state
-  gh aw run daily-perf-improver --auto-merge-prs # Auto-merge any PRs created during execution
+  gh aw run daily-perf-improver --enable-if-needed  # Enable if disabled, run, then restore state
+  gh aw run daily-perf-improver --auto-merge-prs  # Auto-merge any PRs created during execution
   gh aw run daily-perf-improver -F name=value -F env=prod  # Pass workflow inputs
   gh aw run daily-perf-improver --push  # Commit and push workflow files before running
   gh aw run daily-perf-improver --dry-run  # Validate without actually running
