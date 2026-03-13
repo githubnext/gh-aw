@@ -28,6 +28,9 @@ func getActionRef(actionMode workflow.ActionMode, version string, resolver workf
 		}
 		return "@" + version
 	}
+	if actionMode.IsAction() && version != "" && version != "dev" {
+		return "@" + version
+	}
 	return "@main"
 }
 
@@ -35,6 +38,37 @@ func getActionRef(actionMode workflow.ActionMode, version string, resolver workf
 func generateCopilotSetupStepsYAML(actionMode workflow.ActionMode, version string, resolver workflow.ActionSHAResolver) string {
 	// Determine the action reference - use SHA-pinned or version tag in release mode, @main in dev mode
 	actionRef := getActionRef(actionMode, version, resolver)
+
+	if actionMode.IsAction() {
+		// Action mode: use setup-cli action from external gh-aw-actions repository
+		return fmt.Sprintf(`name: "Copilot Setup Steps"
+
+# This workflow configures the environment for GitHub Copilot Agent with gh-aw MCP server
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - .github/workflows/copilot-setup-steps.yml
+
+jobs:
+  # The job MUST be called 'copilot-setup-steps' to be recognized by GitHub Copilot Agent
+  copilot-setup-steps:
+    runs-on: ubuntu-latest
+
+    # Set minimal permissions for setup steps
+    # Copilot Agent receives its own token with appropriate permissions
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+      - name: Install gh-aw extension
+        uses: github/gh-aw-actions/setup-cli%s
+        with:
+          version: %s
+`, actionRef, version)
+	}
 
 	if actionMode.IsRelease() {
 		// Use the actions/setup-cli action in release mode
