@@ -34,14 +34,13 @@ steps:
   - name: Restore QMD index cache
     uses: actions/cache/restore@v4
     with:
-      path: /tmp/gh-aw/cache/qmd-docs
+      path: ~/.cache/qmd
       key: qmd-docs-${{ hashFiles('docs/src/content/docs/**', '.github/agents/**', '.github/aw/**') }}
       restore-keys: qmd-docs-
   - name: Start QMD MCP server
     run: |
       set -e
-      mkdir -p /tmp/gh-aw/mcp-logs/qmd/ /tmp/gh-aw/cache/qmd-docs ~/.cache
-      ln -sfn /tmp/gh-aw/cache/qmd-docs ~/.cache/qmd
+      mkdir -p /tmp/gh-aw/mcp-logs/qmd/
 
       # Start QMD MCP server in HTTP daemon mode (default port 8181)
       qmd mcp --http --daemon > /tmp/gh-aw/mcp-logs/qmd/server.log 2>&1
