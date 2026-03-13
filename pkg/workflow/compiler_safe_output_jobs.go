@@ -2,8 +2,10 @@ package workflow
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/stringutil"
 )
 
 var compilerSafeOutputJobsLog = logger.New("workflow:compiler_safe_output_jobs")
@@ -11,6 +13,8 @@ var compilerSafeOutputJobsLog = logger.New("workflow:compiler_safe_output_jobs")
 // buildSafeOutputsJobs builds all safe output jobs based on the configuration in data.SafeOutputs.
 // It creates a consolidated safe_outputs job containing all safe output operations as steps,
 // plus the threat detection job (if enabled), custom safe-jobs, and conclusion job.
+// When call-workflow is configured, it also generates conditional `uses:` fan-out jobs
+// (one per allowed worker workflow) that run after safe_outputs.
 func (c *Compiler) buildSafeOutputsJobs(data *WorkflowData, jobName, markdownPath string) error {
 	if data.SafeOutputs == nil {
 		compilerSafeOutputJobsLog.Print("No safe outputs configured, skipping safe outputs jobs")
@@ -70,6 +74,16 @@ func (c *Compiler) buildSafeOutputsJobs(data *WorkflowData, jobName, markdownPat
 		compilerSafeOutputJobsLog.Printf("Added separate upload_assets job")
 	}
 
+	// Build conditional call-workflow fan-out jobs if configured.
+	// Each allowed worker gets its own `uses:` job with an `if:` condition that
+	// checks whether safe_outputs selected it. Only one runs per execution.
+	callWorkflowJobNames, err := c.buildCallWorkflowJobs(data)
+	if err != nil {
+		return fmt.Errorf("failed to build call-workflow fan-out jobs: %w", err)
+	}
+	safeOutputJobNames = append(safeOutputJobNames, callWorkflowJobNames...)
+	compilerSafeOutputJobsLog.Printf("Added %d call-workflow fan-out jobs", len(callWorkflowJobNames))
+
 	// Build dedicated unlock job if lock-for-agent is enabled
 	// This job is separate from conclusion to ensure it always runs, even if other jobs fail
 	// It depends on agent and detection (if enabled) to run after workflow execution completes
@@ -109,4 +123,73 @@ func (c *Compiler) buildSafeOutputsJobs(data *WorkflowData, jobName, markdownPat
 	}
 
 	return nil
+}
+
+// buildCallWorkflowJobs generates one conditional `uses:` job per workflow in the
+// call-workflow allowlist. Each job:
+//   - depends on safe_outputs
+//   - has an `if:` that checks needs.safe_outputs.outputs.call_workflow_name
+//   - uses: the relative path to the worker's .lock.yml (or .yml)
+//   - passes payload as a `with:` input
+//   - inherits all caller secrets via `secrets: inherit`
+//
+// Returns the names of all generated jobs so they can be added to the conclusion
+// job's `needs` list.
+func (c *Compiler) buildCallWorkflowJobs(data *WorkflowData) ([]string, error) {
+	if data.SafeOutputs == nil || data.SafeOutputs.CallWorkflow == nil {
+		return nil, nil
+	}
+
+	config := data.SafeOutputs.CallWorkflow
+	if len(config.Workflows) == 0 {
+		return nil, nil
+	}
+
+	compilerSafeOutputJobsLog.Printf("Building %d call-workflow fan-out jobs", len(config.Workflows))
+
+	var jobNames []string
+
+	for _, workflowName := range config.Workflows {
+		// Build the job name: "call-{sanitized-workflow-name}"
+		// sanitizeJobName normalizes underscores to hyphens (NormalizeSafeOutputIdentifier + dash conversion)
+		sanitizedName := sanitizeJobName(workflowName)
+		jobName := "call-" + sanitizedName
+
+		// Determine the relative path to the worker workflow file
+		workflowPath, ok := config.WorkflowFiles[workflowName]
+		if !ok || workflowPath == "" {
+			// Fallback: construct path from name
+			workflowPath = fmt.Sprintf("./.github/workflows/%s.lock.yml", workflowName)
+		}
+
+		callJob := &Job{
+			Name:           jobName,
+			Needs:          []string{"safe_outputs"},
+			If:             fmt.Sprintf("needs.safe_outputs.outputs.call_workflow_name == '%s'", workflowName),
+			Uses:           workflowPath,
+			SecretsInherit: true,
+			With: map[string]any{
+				"payload": "${{ needs.safe_outputs.outputs.call_workflow_payload }}",
+			},
+		}
+
+		if err := c.jobManager.AddJob(callJob); err != nil {
+			return nil, fmt.Errorf("failed to add call-workflow job '%s': %w", jobName, err)
+		}
+
+		jobNames = append(jobNames, jobName)
+		compilerSafeOutputJobsLog.Printf("Added call-workflow job: %s (uses: %s)", jobName, workflowPath)
+	}
+
+	return jobNames, nil
+}
+
+// sanitizeJobName converts a workflow name to a valid GitHub Actions job name.
+// It delegates normalization to NormalizeSafeOutputIdentifier (which converts
+// hyphens to underscores), then converts underscores back to hyphens for
+// GitHub Actions job name conventions.
+func sanitizeJobName(workflowName string) string {
+	normalized := stringutil.NormalizeSafeOutputIdentifier(workflowName)
+	// NormalizeSafeOutputIdentifier uses underscores; convert to hyphens for job names
+	return strings.ReplaceAll(normalized, "_", "-")
 }

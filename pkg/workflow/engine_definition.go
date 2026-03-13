@@ -33,8 +33,11 @@ import (
 	"strings"
 
 	"github.com/github/gh-aw/pkg/constants"
+	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/parser"
 )
+
+var engineCatalogLog = logger.New("workflow:engine_definition")
 
 // AuthStrategy identifies how an engine authenticates with its provider.
 type AuthStrategy string
@@ -190,6 +193,7 @@ func NewEngineCatalog(registry *EngineRegistry) *EngineCatalog {
 		catalog.Register(def)
 	}
 
+	engineCatalogLog.Printf("Engine catalog initialized with %d built-in definitions", len(catalog.definitions))
 	return catalog
 }
 
@@ -229,8 +233,11 @@ func (c *EngineCatalog) All() []*EngineDefinition {
 //  2. Prefix match in the underlying EngineRegistry (backward compat, e.g. "codex-experimental")
 //  3. Returns a formatted validation error when no match is found
 func (c *EngineCatalog) Resolve(id string, config *EngineConfig) (*ResolvedEngineTarget, error) {
+	engineCatalogLog.Printf("Resolving engine: %s", id)
+
 	// Exact catalog lookup
 	if def, ok := c.definitions[id]; ok {
+		engineCatalogLog.Printf("Exact catalog match found for engine: %s (runtimeID=%s)", id, def.RuntimeID)
 		runtime, err := c.registry.GetEngine(def.RuntimeID)
 		if err != nil {
 			return nil, fmt.Errorf("engine %q definition references unknown runtime %q: %w", id, def.RuntimeID, err)
@@ -241,6 +248,7 @@ func (c *EngineCatalog) Resolve(id string, config *EngineConfig) (*ResolvedEngin
 	// Fall back to runtime-ID prefix lookup for backward compat (e.g. "codex-experimental")
 	runtime, err := c.registry.GetEngineByPrefix(id)
 	if err == nil {
+		engineCatalogLog.Printf("Engine %q resolved via runtime-ID prefix fallback to %q", id, runtime.GetID())
 		def := &EngineDefinition{
 			ID:          id,
 			DisplayName: runtime.GetDisplayName(),
@@ -251,6 +259,7 @@ func (c *EngineCatalog) Resolve(id string, config *EngineConfig) (*ResolvedEngin
 	}
 
 	// Engine not found — produce a helpful validation error matching the existing format
+	engineCatalogLog.Printf("Engine not found: %s", id)
 	validEngines := c.registry.GetSupportedEngines()
 	suggestions := parser.FindClosestMatches(id, validEngines, 1)
 	enginesStr := strings.Join(validEngines, ", ")

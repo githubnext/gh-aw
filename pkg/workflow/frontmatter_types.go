@@ -177,8 +177,10 @@ type FrontmatterConfig struct {
 	// Checkout configuration for the agent job.
 	// Controls how actions/checkout is invoked.
 	// Can be a single CheckoutConfig object or an array of CheckoutConfig objects.
-	Checkout        any               `json:"checkout,omitempty"` // Raw value (object or array)
-	CheckoutConfigs []*CheckoutConfig `json:"-"`                  // Parsed checkout configs (not in JSON)
+	// Set to false to disable the default checkout step entirely.
+	Checkout         any               `json:"checkout,omitempty"` // Raw value (object, array, or false)
+	CheckoutConfigs  []*CheckoutConfig `json:"-"`                  // Parsed checkout configs (not in JSON)
+	CheckoutDisabled bool              `json:"-"`                  // true when checkout: false is set in frontmatter
 }
 
 // ParseFrontmatterConfig creates a FrontmatterConfig from a raw frontmatter map
@@ -231,12 +233,17 @@ func ParseFrontmatterConfig(frontmatter map[string]any) (*FrontmatterConfig, err
 		}
 	}
 
-	// Parse checkout field - supports single object or array of objects
+	// Parse checkout field - supports single object, array of objects, or false to disable
 	if config.Checkout != nil {
-		checkoutConfigs, err := ParseCheckoutConfigs(config.Checkout)
-		if err == nil {
-			config.CheckoutConfigs = checkoutConfigs
-			frontmatterTypesLog.Printf("Parsed checkout config: %d entries", len(checkoutConfigs))
+		if checkoutValue, ok := config.Checkout.(bool); ok && !checkoutValue {
+			config.CheckoutDisabled = true
+			frontmatterTypesLog.Print("Checkout disabled via checkout: false")
+		} else {
+			checkoutConfigs, err := ParseCheckoutConfigs(config.Checkout)
+			if err == nil {
+				config.CheckoutConfigs = checkoutConfigs
+				frontmatterTypesLog.Printf("Parsed checkout config: %d entries", len(checkoutConfigs))
+			}
 		}
 	}
 

@@ -1390,3 +1390,62 @@ func TestRuntimesConfigToMapWithIfCondition(t *testing.T) {
 		t.Error("node should not have if condition in map")
 	}
 }
+
+func TestParseFrontmatterConfigCheckoutDisabled(t *testing.T) {
+	t.Run("checkout: false sets CheckoutDisabled", func(t *testing.T) {
+		frontmatter := map[string]any{
+			"name":     "test-workflow",
+			"engine":   "claude",
+			"checkout": false,
+		}
+
+		config, err := ParseFrontmatterConfig(frontmatter)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if !config.CheckoutDisabled {
+			t.Error("CheckoutDisabled should be true when checkout: false is set")
+		}
+		if len(config.CheckoutConfigs) != 0 {
+			t.Errorf("CheckoutConfigs should be empty when checkout: false is set, got %d entries", len(config.CheckoutConfigs))
+		}
+	})
+
+	t.Run("checkout: true is not a valid value (treated as object)", func(t *testing.T) {
+		frontmatter := map[string]any{
+			"name":     "test-workflow",
+			"engine":   "claude",
+			"checkout": true,
+		}
+
+		config, err := ParseFrontmatterConfig(frontmatter)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		// checkout: true is not recognized as a disable flag; CheckoutDisabled stays false
+		if config.CheckoutDisabled {
+			t.Error("CheckoutDisabled should be false when checkout: true is set")
+		}
+	})
+
+	t.Run("checkout object leaves CheckoutDisabled false", func(t *testing.T) {
+		frontmatter := map[string]any{
+			"name":   "test-workflow",
+			"engine": "claude",
+			"checkout": map[string]any{
+				"fetch-depth": 0,
+			},
+		}
+
+		config, err := ParseFrontmatterConfig(frontmatter)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if config.CheckoutDisabled {
+			t.Error("CheckoutDisabled should be false when checkout is an object")
+		}
+		if len(config.CheckoutConfigs) == 0 {
+			t.Error("CheckoutConfigs should be populated when checkout is an object")
+		}
+	})
+}

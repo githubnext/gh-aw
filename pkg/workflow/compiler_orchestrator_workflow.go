@@ -201,8 +201,11 @@ func (c *Compiler) buildInitialWorkflowData(
 	// (e.g. due to unrecognised tool config shapes like bash: ["*"]).
 	if toolsResult.parsedFrontmatter != nil {
 		workflowData.CheckoutConfigs = toolsResult.parsedFrontmatter.CheckoutConfigs
+		workflowData.CheckoutDisabled = toolsResult.parsedFrontmatter.CheckoutDisabled
 	} else if rawCheckout, ok := result.Frontmatter["checkout"]; ok {
-		if configs, err := ParseCheckoutConfigs(rawCheckout); err == nil {
+		if checkoutValue, ok := rawCheckout.(bool); ok && !checkoutValue {
+			workflowData.CheckoutDisabled = true
+		} else if configs, err := ParseCheckoutConfigs(rawCheckout); err == nil {
 			workflowData.CheckoutConfigs = configs
 		}
 	}
