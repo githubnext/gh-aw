@@ -114,8 +114,7 @@ async function main(config = {}) {
 
     processedCount++;
 
-    const item = message;
-    const workflowName = item.workflow_name;
+    const workflowName = message.workflow_name;
 
     if (!workflowName || workflowName.trim() === "") {
       core.warning("Workflow name is empty, skipping");
@@ -151,8 +150,8 @@ async function main(config = {}) {
       // Prepare inputs - convert all values to strings as required by workflow_dispatch
       /** @type {Record<string, string>} */
       const inputs = {};
-      if (item.inputs && typeof item.inputs === "object") {
-        for (const [key, value] of Object.entries(item.inputs)) {
+      if (message.inputs && typeof message.inputs === "object") {
+        for (const [key, value] of Object.entries(message.inputs)) {
           // Convert value to string
           if (value === null || value === undefined) {
             inputs[key] = "";
@@ -194,10 +193,10 @@ async function main(config = {}) {
         /** @type {any} */
         const err = dispatchError;
         const status = err && typeof err === "object" ? err.status : undefined;
-        const message = err && typeof err === "object" && err.response && err.response.data && typeof err.response.data.message === "string" ? err.response.data.message : String(dispatchError);
+        const dispatchErrMessage = typeof err?.response?.data?.message === "string" ? err.response.data.message : String(dispatchError);
 
         const isValidationStatus = status === 400 || status === 422;
-        const mentionsReturnRunDetails = typeof message === "string" && message.toLowerCase().includes("return_run_details");
+        const mentionsReturnRunDetails = typeof dispatchErrMessage === "string" && dispatchErrMessage.toLowerCase().includes("return_run_details");
 
         if (isValidationStatus && mentionsReturnRunDetails) {
           core.info("Workflow dispatch failed due to unsupported 'return_run_details' parameter; retrying without it for GitHub Enterprise compatibility.");

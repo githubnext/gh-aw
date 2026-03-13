@@ -91,6 +91,43 @@ engine:
 
 Environment variables can also be defined at workflow, job, step, and other scopes. See [Environment Variables](/gh-aw/reference/environment-variables/) for complete documentation on precedence and all 13 env scopes.
 
+#### Custom API Endpoints
+
+Two environment variables receive special treatment when set in `engine.env`: `OPENAI_BASE_URL` (for `codex`) and `ANTHROPIC_BASE_URL` (for `claude`). When either is present, the AWF sandbox proxy automatically routes API calls to the specified host instead of the default `api.openai.com` or `api.anthropic.com`. Credential isolation and firewall enforcement remain active.
+
+This enables workflows to use internal LLM routers, Azure OpenAI deployments, or other OpenAI-compatible endpoints without bypassing AWF's security model.
+
+```yaml wrap
+engine:
+  id: codex
+  model: gpt-4o
+  env:
+    OPENAI_BASE_URL: "https://llm-router.internal.example.com/v1"
+    OPENAI_API_KEY: ${{ secrets.LLM_ROUTER_KEY }}
+
+network:
+  allowed:
+    - github.com
+    - llm-router.internal.example.com   # must be listed here for the firewall to permit outbound requests
+```
+
+For Claude workflows routed through a custom Anthropic-compatible endpoint:
+
+```yaml wrap
+engine:
+  id: claude
+  env:
+    ANTHROPIC_BASE_URL: "https://anthropic-proxy.internal.example.com"
+    ANTHROPIC_API_KEY: ${{ secrets.PROXY_API_KEY }}
+
+network:
+  allowed:
+    - github.com
+    - anthropic-proxy.internal.example.com
+```
+
+The custom hostname is extracted from the URL and passed to the AWF `--openai-api-target` or `--anthropic-api-target` flag automatically at compile time. No additional configuration is required.
+
 ### Engine Command-Line Arguments
 
 All engines support custom command-line arguments through the `args` field, injected before the prompt:

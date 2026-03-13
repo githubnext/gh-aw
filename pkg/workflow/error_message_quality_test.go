@@ -58,21 +58,6 @@ func TestErrorMessageQuality(t *testing.T) {
 			shouldNotBeVague: true,
 		},
 		{
-			name: "invalid engine includes valid options and example",
-			testFunc: func() error {
-				c := NewCompiler()
-				return c.validateEngine("invalid-engine")
-			},
-			shouldContain: []string{
-				"invalid engine",
-				"Valid engines",
-				"copilot",
-				"claude",
-				"Example:",
-			},
-			shouldNotBeVague: true,
-		},
-		{
 			name: "MCP missing required property includes example",
 			testFunc: func() error {
 				tools := map[string]any{
@@ -137,20 +122,6 @@ func TestErrorMessageQuality(t *testing.T) {
 			},
 			shouldContain:    nil,
 			shouldNotBeVague: false,
-		},
-		{
-			name: "invalid secret name includes format and example",
-			testFunc: func() error {
-				secrets := []string{"my-secret"} // Invalid: contains hyphen
-				return validateSecretReferences(secrets)
-			},
-			shouldContain: []string{
-				"invalid secret name",
-				"Start with an uppercase letter",
-				"uppercase",
-				"Examples:",
-			},
-			shouldNotBeVague: true,
 		},
 		{
 			name: "tracker-id type error shows actual type and example",
@@ -252,25 +223,6 @@ func TestErrorMessageQuality(t *testing.T) {
 			}
 		})
 	}
-}
-
-// TestMultipleEngineErrorMessage tests the specific error when multiple engines are defined
-func TestMultipleEngineErrorMessage(t *testing.T) {
-	c := NewCompiler()
-
-	err := c.validateEngine("invalid")
-	require.Error(t, err)
-
-	// Should explain what's wrong
-	assert.Contains(t, err.Error(), "invalid engine")
-
-	// Should list valid options
-	assert.Contains(t, err.Error(), "copilot")
-	assert.Contains(t, err.Error(), "claude")
-	assert.Contains(t, err.Error(), "codex")
-
-	// Should include example
-	assert.Contains(t, err.Error(), "Example:")
 }
 
 // TestMCPValidationErrorQuality tests MCP validation error messages

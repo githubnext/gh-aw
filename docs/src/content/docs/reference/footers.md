@@ -20,10 +20,7 @@ safe-outputs:
     title-prefix: "[ai] "
 ```
 
-When `footer: false` is set:
-- **Visible footer content is omitted** - No AI-generated attribution text appears in the item body
-- **XML markers are preserved** - Hidden workflow-id and tracker-id markers remain for searchability
-- **All safe output types affected** - Applies to create-issue, create-pull-request, create-discussion, update-issue, update-pull-request, update-discussion, and update-release
+When `footer: false` is set, visible attribution text is omitted from item bodies but hidden XML markers (workflow-id, tracker-id) remain for searchability. Applies to all output types: create-issue, create-pull-request, create-discussion, update-issue, update-pull-request, update-discussion, and update-release.
 
 ## Per-Handler Footer Control
 
@@ -53,44 +50,15 @@ safe-outputs:
     footer: "if-body"         # conditional footer based on review body
 ```
 
-The `footer` field accepts three string values:
-
-- `"always"` (default) - Always include footer on the review body
-- `"none"` - Never include footer on the review body
-- `"if-body"` - Only include footer when the review has body text
-
-Boolean values are also supported and automatically converted:
-- `true` → `"always"`
-- `false` → `"none"`
-
-This is particularly useful for clean approval reviews without body text. With `footer: "if-body"`, approval reviews appear clean without the AI-generated footer, while reviews with explanatory text still include the footer for attribution.
-
-**Example use case - Clean approvals:**
-
-```yaml wrap
-safe-outputs:
-  create-pull-request-review-comment:
-  submit-pull-request-review:
-    footer: "if-body"         # Show footer only when review has body
-```
-
-When the agent submits an approval without a body (just "APPROVE" event), no footer appears. When the agent includes explanatory comments in the review body, the footer is included.
+The `footer` field accepts `"always"` (default), `"none"`, or `"if-body"` (footer only when the review has body text). Booleans are accepted: `true` → `"always"`, `false` → `"none"`. Use `"if-body"` for clean approval reviews — approvals without body text appear without a footer, while reviews with comments include it.
 
 ## What's Preserved When Footer is Hidden
 
-Even with `footer: false`, the following are still included:
+Even with `footer: false`, hidden HTML markers remain:
+- `<!-- gh-aw-workflow-id: WORKFLOW_NAME -->` — for search and tracking
+- `<!-- gh-aw-tracker-id: unique-id -->` — for issue/discussion tracking (when applicable)
 
-1. **Workflow-id marker** - Hidden HTML comment for search and tracking:
-   ```html
-   <!-- gh-aw-workflow-id: WORKFLOW_NAME -->
-   ```
-
-2. **Tracker-id marker** - For issue/discussion tracking (when applicable):
-   ```html
-   <!-- gh-aw-tracker-id: unique-id -->
-   ```
-
-These markers enable you to search for workflow-created items using GitHub's search, even when footers are hidden.
+These markers enable searching for workflow-created items even when footers are hidden.
 
 ### Searching for Workflow-Created Items
 
@@ -119,13 +87,7 @@ repo:owner/repo "gh-aw-workflow-id: bot-responder" in:comments
 ```
 
 > [!TIP]
-> **Search Tips for Workflow Markers**
->
-> - Use quotes around the marker text to search for the exact phrase
-> - Add `in:body` to search issue/PR descriptions, or `in:comments` for comments
-> - Combine with other filters like `is:open`, `is:closed`, `created:>2024-01-01`
-> - The workflow name in the marker is the workflow filename without the `.md` extension
-> - Use GitHub's advanced search to refine results: [Advanced search documentation](https://docs.github.com/en/search-github/searching-on-github/searching-issues-and-pull-requests)
+> The workflow name in the marker is the filename without `.md`. Combine with filters like `is:open` or `created:>2024-01-01`, and use `in:body` or `in:comments` as appropriate. See [GitHub advanced search](https://docs.github.com/en/search-github/searching-on-github/searching-issues-and-pull-requests).
 
 ## Use Cases
 
@@ -174,10 +136,6 @@ safe-outputs:
 ```
 
 The `messages.footer` template supports variables like `{workflow_name}`, `{run_url}`, `{triggering_number}`, and more. See [Custom Messages](/gh-aw/reference/safe-outputs/#custom-messages-messages) for complete documentation on message templates and available variables.
-
-**When to use each approach:**
-- **`footer: false`** - Completely hide attribution footers for cleaner content
-- **`messages.footer`** - Keep attribution but customize the text and branding
 
 ## Related Documentation
 

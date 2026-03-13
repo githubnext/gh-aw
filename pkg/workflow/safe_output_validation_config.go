@@ -404,17 +404,3 @@ func GetValidationConfigJSON(enabledTypes []string) (string, error) {
 	safeOutputValidationLog.Printf("Generated validation config JSON with %d bytes", len(data))
 	return string(data), nil
 }
-
-// GetValidationConfigForType returns the validation config for a specific type
-func GetValidationConfigForType(typeName string) (TypeValidationConfig, bool) {
-	config, ok := ValidationConfig[typeName]
-	return config, ok
-}
-
-// GetDefaultMaxForType returns the default max for a type
-func GetDefaultMaxForType(typeName string) int {
-	if config, ok := ValidationConfig[typeName]; ok {
-		return config.DefaultMax
-	}
-	return 1
-}

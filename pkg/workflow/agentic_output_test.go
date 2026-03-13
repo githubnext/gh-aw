@@ -80,9 +80,9 @@ This workflow tests the agentic output collection functionality.
 		t.Error("Upload sanitized agent output should be removed (merged into unified agent artifact)")
 	}
 
-	// Instead, verify that the Copy safe outputs step is present
-	if !strings.Contains(lockContent, "- name: Copy safe outputs") {
-		t.Error("Expected 'Copy safe outputs' step to be in generated workflow")
+	// Instead, verify that the Copy Safe Outputs step is present
+	if !strings.Contains(lockContent, "- name: Copy Safe Outputs") {
+		t.Error("Expected 'Copy Safe Outputs' step to be in generated workflow")
 	}
 
 	// Verify job output declaration for GH_AW_SAFE_OUTPUTS
@@ -189,9 +189,9 @@ This workflow tests that Codex engine gets GH_AW_SAFE_OUTPUTS but not engine out
 		t.Error("Upload sanitized agent output should be removed (merged into unified agent artifact)")
 	}
 
-	// The Copy safe outputs step should be present instead
-	if !strings.Contains(lockContent, "- name: Copy safe outputs") {
-		t.Error("Codex workflow should have 'Copy safe outputs' step (GH_AW_SAFE_OUTPUTS functionality)")
+	// The Copy Safe Outputs step should be present instead
+	if !strings.Contains(lockContent, "- name: Copy Safe Outputs") {
+		t.Error("Codex workflow should have 'Copy Safe Outputs' step (GH_AW_SAFE_OUTPUTS functionality)")
 	}
 
 	if !strings.Contains(lockContent, "GH_AW_SAFE_OUTPUTS") {
