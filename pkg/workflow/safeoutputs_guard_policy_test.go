@@ -68,11 +68,11 @@ func TestDeriveSafeOutputsGuardPolicyFromGitHub(t *testing.T) {
 			},
 			expectedPolicies: map[string]any{
 				"write-sink": map[string]any{
-					"accept": []string{"private:*"},
+					"accept": []string{"public"},
 				},
 			},
 			expectNil:   false,
-			description: "repos='public' should map to private:*",
+			description: "repos='public' should map to public (without :* suffix)",
 		},
 		{
 			name: "multiple repo patterns as []any",

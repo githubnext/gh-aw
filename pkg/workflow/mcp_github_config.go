@@ -287,10 +287,14 @@ func deriveSafeOutputsGuardPolicyFromGitHub(githubTool any) map[string]any {
 	switch r := repos.(type) {
 	case string:
 		// Single string value (e.g., "all", "public", or a pattern)
-		if r == "all" || r == "public" {
-			// For "all" or "public", add "private:*" to accept all private repos
+		switch r {
+		case "all":
+			// For "all", add "private:*" to accept all private repos
 			acceptList = []string{"private:*"}
-		} else {
+		case "public":
+			// For "public", add "public" without wildcard suffix
+			acceptList = []string{"public"}
+		default:
 			// Single pattern - add with private: prefix
 			acceptList = []string{"private:" + r}
 		}
