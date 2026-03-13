@@ -27,7 +27,7 @@
 #   Imports:
 #     - shared/mcp/qmd-docs.md
 #
-# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"9cf6a0ce949fff6f7a7330ad6aef749a2a3844b6cc0f28b748f9457c3de08eb5","strict":true}
+# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"2ca3fcce34841266fda43b23a1d89c0d4cbc91dc4915afeeec869e552dbe0718","strict":true}
 
 name: "Daily Documentation Updater"
 "on":
@@ -670,7 +670,7 @@ jobs:
             "tools": [
               {
                 "name": "qmd-query",
-                "description": "Find relevant file paths in project documentation. Returns file paths and scores.",
+                "description": "Find relevant file paths in project documentation using vector similarity search. Returns file paths and scores.",
                 "inputSchema": {
                   "properties": {
                     "min_score": {
@@ -679,7 +679,7 @@ jobs:
                       "type": "number"
                     },
                     "query": {
-                      "description": "Search query",
+                      "description": "Natural language search query",
                       "type": "string"
                     }
                   },
@@ -689,29 +689,6 @@ jobs:
                   "type": "object"
                 },
                 "handler": "qmd-query.sh",
-                "timeout": 60
-              },
-              {
-                "name": "qmd-search",
-                "description": "Search project documentation and return ranked excerpts.",
-                "inputSchema": {
-                  "properties": {
-                    "limit": {
-                      "default": 10,
-                      "description": "Maximum number of results to return",
-                      "type": "number"
-                    },
-                    "query": {
-                      "description": "Search query",
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "query"
-                  ],
-                  "type": "object"
-                },
-                "handler": "qmd-search.sh",
                 "timeout": 60
               }
             ]
@@ -739,7 +716,7 @@ jobs:
           cat > /opt/gh-aw/mcp-scripts/qmd-query.sh << 'GH_AW_MCP_SCRIPTS_SH_QMD-QUERY_EOF'
           #!/bin/bash
           # Auto-generated mcp-script tool: qmd-query
-          # Find relevant file paths in project documentation. Returns file paths and scores.
+          # Find relevant file paths in project documentation using vector similarity search. Returns file paths and scores.
           
           set -euo pipefail
           
@@ -749,19 +726,6 @@ jobs:
           
           GH_AW_MCP_SCRIPTS_SH_QMD-QUERY_EOF
           chmod +x /opt/gh-aw/mcp-scripts/qmd-query.sh
-          cat > /opt/gh-aw/mcp-scripts/qmd-search.sh << 'GH_AW_MCP_SCRIPTS_SH_QMD-SEARCH_EOF'
-          #!/bin/bash
-          # Auto-generated mcp-script tool: qmd-search
-          # Search project documentation and return ranked excerpts.
-          
-          set -euo pipefail
-          
-          set -e
-          qmd search "$INPUT_QUERY" --json -n "${INPUT_LIMIT:-10}"
-          
-          
-          GH_AW_MCP_SCRIPTS_SH_QMD-SEARCH_EOF
-          chmod +x /opt/gh-aw/mcp-scripts/qmd-search.sh
           
       - name: Generate MCP Scripts Server Config
         id: mcp-scripts-config

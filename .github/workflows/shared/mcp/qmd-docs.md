@@ -29,29 +29,13 @@ steps:
       qmd collection add "${GITHUB_WORKSPACE}" --name gh-aw --glob "docs/src/content/docs/**,.github/agents/**,.github/aw/**" 2>/dev/null || true
 
 mcp-scripts:
-  qmd-search:
-    description: "Search project documentation and return ranked excerpts."
-    inputs:
-      query:
-        type: string
-        required: true
-        description: "Search query"
-      limit:
-        type: number
-        required: false
-        default: 10
-        description: "Maximum number of results to return"
-    run: |
-      set -e
-      qmd search "$INPUT_QUERY" --json -n "${INPUT_LIMIT:-10}"
-
   qmd-query:
-    description: "Find relevant file paths in project documentation. Returns file paths and scores."
+    description: "Find relevant file paths in project documentation using vector similarity search. Returns file paths and scores."
     inputs:
       query:
         type: string
         required: true
-        description: "Search query"
+        description: "Natural language search query"
       min_score:
         type: number
         required: false
@@ -62,3 +46,7 @@ mcp-scripts:
       qmd query "$INPUT_QUERY" --files --min-score "${INPUT_MIN_SCORE:-0.4}"
 
 ---
+
+<qmd>
+Use `qmd-query` to find relevant documentation files with a natural language request — it queries a local vector database of project docs, agents, and workflow files. Read the returned file paths to get full content.
+</qmd>
