@@ -1,28 +1,12 @@
 ---
-# QMD MCP Server
+# QMD Documentation Search
 # Local on-device search engine for the project documentation, agents, and workflow instructions
 #
 # Documentation: https://github.com/tobi/qmd
 #
-# Available tools (via MCP):
-#   - query: Search with typed sub-queries (lex/vec/hyde), combined via RRF + reranking
-#   - get: Retrieve a document by path or docid (with fuzzy matching suggestions)
-#   - multi_get: Batch retrieve by glob pattern, comma-separated list, or docids
-#   - status: Index health and collection info
-#
 # Usage:
 #   imports:
 #     - shared/mcp/qmd-docs.md
-
-mcp-servers:
-  qmd:
-    type: http
-    url: http://localhost:8181/mcp
-    allowed:
-      - query
-      - get
-      - multi_get
-      - status
 
 resources:
   - .github/workflows/qmd-docs-indexer.yml
@@ -40,14 +24,8 @@ steps:
       path: ~/.cache/qmd
       key: qmd-docs-${{ hashFiles('docs/src/content/docs/**', '.github/agents/**', '.github/aw/**') }}
       restore-keys: qmd-docs-
-  - name: Start QMD MCP server
+  - name: Register QMD collections
     run: |
-      set -e
-      mkdir -p /tmp/gh-aw/mcp-logs/qmd/
-
-      # Re-register collections so qmd MCP tools are available.
-      # The cache restore only restores the index data; qmd requires collections
-      # to be registered in the current session for MCP tools to be served.
       DOCS_DIR="${GITHUB_WORKSPACE}/docs/src/content/docs"
       AGENTS_DIR="${GITHUB_WORKSPACE}/.github/agents"
       AW_DIR="${GITHUB_WORKSPACE}/.github/aw"
@@ -55,86 +33,48 @@ steps:
       [ -d "$DOCS_DIR" ]   && qmd collection add "$DOCS_DIR"   --name docs   2>/dev/null || true
       [ -d "$AGENTS_DIR" ] && qmd collection add "$AGENTS_DIR" --name agents 2>/dev/null || true
       [ -d "$AW_DIR" ]     && qmd collection add "$AW_DIR"     --name aw     2>/dev/null || true
-
-      # Start QMD MCP server in the background (explicit nohup rather than
-      # --daemon to ensure the process survives the step and stays running)
-      nohup qmd mcp --http > /tmp/gh-aw/mcp-logs/qmd/server.log 2>&1 &
-      echo $! > /tmp/gh-aw/mcp-logs/qmd/server.pid
-      echo "QMD MCP server started (PID $(cat /tmp/gh-aw/mcp-logs/qmd/server.pid))"
-
-      # Poll until the server is healthy (up to 15 seconds)
-      for i in $(seq 1 30); do
-        if curl -sf http://localhost:8181/health > /dev/null 2>&1; then
-          echo "QMD MCP server is healthy"
-          echo "Status: $(curl -s http://localhost:8181/health)"
-          break
-        fi
-        sleep 0.5
-      done
-
-      if ! curl -sf http://localhost:8181/health > /dev/null 2>&1; then
-        echo "QMD MCP server health check timed out after 15 seconds"
-        echo "Server logs:"
-        cat /tmp/gh-aw/mcp-logs/qmd/server.log || true
-        exit 1
-      fi
-
-      # Verify the MCP tools endpoint is responding with actual tools.
-      # Without this check, a server with no registered collections will pass
-      # the health check but return an empty tools list to the MCP Gateway.
-      for i in $(seq 1 20); do
-        TOOLS=$(curl -sf -X POST http://localhost:8181/mcp \
-          -H "Content-Type: application/json" \
-          -H "Accept: application/json, text/event-stream" \
-          -d '{"jsonrpc":"2.0","id":1,"method":"tools/list"}' 2>/dev/null \
-          | grep -o '"name":"[^"]*"' | wc -l || echo "0")
-        if [ "$TOOLS" -gt "0" ]; then
-          echo "QMD MCP server started successfully with $TOOLS tools available"
-          exit 0
-        fi
-        sleep 1
-      done
-
-      echo "QMD MCP server started but no tools available after 20 seconds"
-      echo "Server logs:"
-      cat /tmp/gh-aw/mcp-logs/qmd/server.log || true
-      exit 1
 ---
 
 <!--
 
-## QMD MCP Server
+## QMD Documentation Search
 
-Provides the QMD MCP server for on-device documentation search over the project docs,
-agent definitions, and workflow authoring instructions.
+Provides local documentation search over the project docs, agent definitions, and
+workflow authoring instructions using the `qmd` CLI.
 
 QMD (Query Markup Documents) is a local search engine that combines BM25 full-text
 search, vector semantic search, and LLM re-ranking — all running locally via
 node-llama-cpp with GGUF models.
 
-This shared configuration indexes three collections and starts a local HTTP
-MCP server for the agent to query:
+Three collections are indexed:
 
 - `docs` — `docs/src/content/docs/` (documentation guides and reference)
 - `agents` — `.github/agents/` (custom agent definitions and instructions)
 - `aw` — `.github/aw/` (workflow authoring instructions and templates)
 
-### Available Tools
+### Querying the Docs
 
-- **`query`** — Search with typed sub-queries
-  - Supports `lex` (BM25 keyword), `vec` (semantic), and `hyde` (LLM-expanded) query types
-  - Combined via RRF + reranking for best quality
-  - Parameters: `query` (string), `collections` (optional), `limit` (optional)
+Use the `qmd` CLI directly in workflow steps to search documentation:
 
-- **`get`** — Retrieve a specific document by path or docid
-  - Supports fuzzy matching suggestions when path is not found
-  - Parameters: `path` (string, e.g. `"docs/guides/getting-started.md"` or `"#abc123"`)
+```bash
+# Search across all collections and return structured JSON results
+qmd search "authentication" --json -n 10
 
-- **`multi_get`** — Batch retrieve by glob pattern or comma-separated list
-  - Parameters: `pattern` (string, e.g. `"docs/reference/*.md"`)
+# List all relevant files above a relevance threshold
+qmd query "error handling" --all --files --min-score 0.4
 
-- **`status`** — Index health and collection information
-  - Returns collection names, document counts, and MCP server uptime
+# Search a specific collection
+qmd search "compile workflow" --collection docs --json
+
+# Retrieve a specific document by path
+qmd get docs/guides/getting-started.md
+
+# Retrieve multiple documents matching a glob pattern
+qmd multi-get "docs/reference/*.md"
+
+# Show index health and collection info
+qmd status
+```
 
 ### Setup
 
@@ -157,11 +97,11 @@ imports:
 
 # Documentation Search Workflow
 
-Use the qmd tool to search the project documentation and answer questions.
+Search the project documentation and answer questions.
 
-1. Use `status` to see what collections are indexed
-2. Use `query` with `lex` type for fast keyword search
-3. Use `get` to retrieve specific documentation pages
+1. Run `qmd search "your topic" --json -n 10` to find relevant documents
+2. Run `qmd get <path>` to retrieve specific documentation pages
+3. Use `--collection docs`, `--collection agents`, or `--collection aw` to narrow results
 ```
 
 ### How It Works
@@ -175,17 +115,14 @@ At runtime (when this shared module is imported):
 1. Node.js 24 is installed
 2. QMD is installed globally from npm (`@tobilu/qmd`)
 3. The pre-built qmd index is restored from `actions/cache` using a key derived from a hash of the docs, agents, and aw content
-4. Collections are re-registered in the current session (`docs`, `agents`, `aw`) — required even after cache restore for qmd MCP tools to be served
-5. The HTTP MCP server starts on `localhost:8181` (via `nohup`) and is verified to have tools available before the step completes
+4. Collections are re-registered in the current session (`docs`, `agents`, `aw`)
 
-The `query` tool supports BM25 full-text search (`lex` type) out of the box.
-For semantic vector search (`vec`/`hyde` types), run `qmd embed` before starting
-the server to generate local GGUF model embeddings.
+The `search` command supports BM25 full-text search out of the box.
+For semantic vector search, run `qmd embed` first to generate local GGUF model embeddings.
 
 ### Documentation
 
 - **GitHub Repository**: https://github.com/tobi/qmd
 - **npm Package**: https://www.npmjs.com/package/@tobilu/qmd
-- **MCP Server docs**: https://github.com/tobi/qmd#mcp-server
 
 -->
