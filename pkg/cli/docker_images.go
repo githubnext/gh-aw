@@ -3,6 +3,7 @@ package cli
 import (
 	"context"
 	"errors"
+	"fmt"
 	"os/exec"
 	"strings"
 	"sync"
@@ -22,15 +23,17 @@ const (
 
 // dockerPullState tracks the state of docker pull operations
 type dockerPullState struct {
-	mu                 sync.RWMutex
-	downloading        map[string]bool // image -> is currently downloading
-	mockAvailable      map[string]bool // for testing: override IsDockerImageAvailable
-	mockAvailableInUse bool            // for testing: whether to use mockAvailable
+	mu                  sync.RWMutex
+	downloading         map[string]bool // image -> is currently downloading
+	mockAvailable       map[string]bool // for testing: override IsDockerImageAvailable
+	mockAvailableInUse  bool            // for testing: whether to use mockAvailable
+	mockDockerAvailable bool            // for testing: override IsDockerAvailable (default true)
 }
 
 var pullState = &dockerPullState{
-	downloading:   make(map[string]bool),
-	mockAvailable: make(map[string]bool),
+	downloading:         make(map[string]bool),
+	mockAvailable:       make(map[string]bool),
+	mockDockerAvailable: true,
 }
 
 // isDockerImageAvailableUnlocked checks if a Docker image is available locally
@@ -67,6 +70,26 @@ func IsDockerImageDownloading(image string) bool {
 	pullState.mu.RLock()
 	defer pullState.mu.RUnlock()
 	return pullState.downloading[image]
+}
+
+// IsDockerAvailable checks if the Docker daemon is running and accessible
+func IsDockerAvailable() bool {
+	pullState.mu.RLock()
+	if pullState.mockAvailableInUse {
+		available := pullState.mockDockerAvailable
+		pullState.mu.RUnlock()
+		dockerImagesLog.Printf("Mock: Docker available: %v", available)
+		return available
+	}
+	pullState.mu.RUnlock()
+
+	cmd := exec.Command("docker", "info")
+	cmd.Stdout = nil
+	cmd.Stderr = nil
+	err := cmd.Run()
+	available := err == nil
+	dockerImagesLog.Printf("Docker daemon available: %v", available)
+	return available
 }
 
 // StartDockerImageDownload starts downloading a Docker image in the background
@@ -167,8 +190,34 @@ func StartDockerImageDownload(ctx context.Context, image string) bool {
 //
 // Returns:
 //   - nil if all required images are available
-//   - error with retry message if any images are downloading or need to be downloaded
+//   - error if Docker is unavailable or images are downloading/need to be downloaded
 func CheckAndPrepareDockerImages(ctx context.Context, useZizmor, usePoutine, useActionlint bool) error {
+	// If no tools requested, nothing to do
+	if !useZizmor && !usePoutine && !useActionlint {
+		return nil
+	}
+
+	// Check if Docker daemon is available before attempting any image operations
+	if !IsDockerAvailable() {
+		var requestedTools []string
+		if useZizmor {
+			requestedTools = append(requestedTools, "zizmor")
+		}
+		if usePoutine {
+			requestedTools = append(requestedTools, "poutine")
+		}
+		if useActionlint {
+			requestedTools = append(requestedTools, "actionlint")
+		}
+		toolsList := strings.Join(requestedTools, " and ")
+		flagsList := "--" + strings.Join(requestedTools, "/--")
+		verb := "requires"
+		if len(requestedTools) > 1 {
+			verb = "require"
+		}
+		return fmt.Errorf("docker is not available (cannot connect to Docker daemon). %s %s Docker. Please install and start Docker, or omit the %s flags", toolsList, verb, flagsList)
+	}
+
 	var missingImages []string
 	var downloadingImages []string
 

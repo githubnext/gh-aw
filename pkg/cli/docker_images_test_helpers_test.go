@@ -9,6 +9,7 @@ func ResetDockerPullState() {
 	pullState.downloading = make(map[string]bool)
 	pullState.mockAvailable = make(map[string]bool)
 	pullState.mockAvailableInUse = false
+	pullState.mockDockerAvailable = true
 }
 
 // SetDockerImageDownloading sets the downloading state for an image (for testing)
@@ -28,4 +29,12 @@ func SetMockImageAvailable(image string, available bool) {
 	defer pullState.mu.Unlock()
 	pullState.mockAvailableInUse = true
 	pullState.mockAvailable[image] = available
+}
+
+// SetMockDockerAvailable sets the mock Docker daemon availability (for testing)
+func SetMockDockerAvailable(available bool) {
+	pullState.mu.Lock()
+	defer pullState.mu.Unlock()
+	pullState.mockAvailableInUse = true
+	pullState.mockDockerAvailable = available
 }

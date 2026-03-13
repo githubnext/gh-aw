@@ -20,13 +20,15 @@
 // Setup sequence:
 //  1. Download required Docker images
 //  2. Install gh-aw extension (if agentic-workflows enabled)
-//  3. Write safe-outputs config files (config.json, tools.json, validation.json)
-//  4. Generate and start safe-outputs HTTP server
-//  5. Setup mcp-scripts config and tool files (JavaScript, Python, Shell, Go)
-//  6. Generate and start mcp-scripts HTTP server
-//  7. Start Serena local mode server
-//  8. Start MCP Gateway with all environment variables
-//  9. Render engine-specific MCP configuration
+//  3. Write safe-outputs config.json (may contain template expressions; kept small)
+//  4. Write safe-outputs tools.json and validation.json (large, no template expressions)
+//  5. Generate and start safe-outputs HTTP server
+//  6. Setup mcp-scripts config and tool files (JavaScript, Python, Shell, Go)
+//  7. Generate and start mcp-scripts HTTP server
+//  8. Start Serena local mode server
+//  9. Start MCP Gateway with all environment variables
+//
+// 10. Render engine-specific MCP configuration
 //
 // MCP tools supported:
 //   - github: GitHub API access via MCP (local Docker or remote hosted)
@@ -192,7 +194,12 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 
 	// Write safe-outputs MCP server if enabled
 	if HasSafeOutputsEnabled(workflowData.SafeOutputs) {
-		// Step 1: Write config files (config.json, tools.json, validation.json)
+		// Step 1a: Write config.json (small, may contain GitHub Actions template expressions
+		// such as ${{ github.ref_name }} from create-pull-request base-branch config).
+		// This MUST be its own run: block, separate from the large tools.json step below,
+		// to avoid "Exceeded max expression length 21000" errors in GitHub Actions.
+		// GitHub Actions rejects any YAML scalar value that contains ${{ }} expressions
+		// AND exceeds 21,000 characters total.
 		yaml.WriteString("      - name: Write Safe Outputs Config\n")
 		yaml.WriteString("        run: |\n")
 		yaml.WriteString("          mkdir -p /opt/gh-aw/safeoutputs\n")
@@ -207,6 +214,12 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 			yaml.WriteString("          " + delimiter + "\n")
 		}
 
+		// Step 1b: Write tools.json and validation.json in a SEPARATE step.
+		// These files can be very large (e.g. 20KB+ when toolsets: [all] is configured)
+		// but contain only static content with no GitHub Actions template expressions.
+		// Keeping them in a separate run: block ensures they never combine with
+		// expression-containing content to exceed GitHub Actions' 21,000-character limit.
+
 		// Generate and write the filtered tools.json file
 		filteredToolsJSON, err := generateFilteredToolsJSON(workflowData, c.markdownPath)
 		if err != nil {
@@ -214,13 +227,6 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 			// Fall back to empty array on error
 			filteredToolsJSON = "[]"
 		}
-		toolsDelimiter := GenerateHeredocDelimiter("SAFE_OUTPUTS_TOOLS")
-		yaml.WriteString("          cat > /opt/gh-aw/safeoutputs/tools.json << '" + toolsDelimiter + "'\n")
-		// Write each line of the indented JSON with proper YAML indentation
-		for line := range strings.SplitSeq(filteredToolsJSON, "\n") {
-			yaml.WriteString("          " + line + "\n")
-		}
-		yaml.WriteString("          " + toolsDelimiter + "\n")
 
 		// Generate and write the validation configuration from Go source of truth
 		// Only include validation for activated safe output types to keep validation.json small
@@ -240,6 +246,18 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 			mcpSetupGeneratorLog.Printf("CRITICAL: Error generating validation config JSON: %v - validation will not work correctly", err)
 			validationConfigJSON = "{}"
 		}
+
+		yaml.WriteString("      - name: Write Safe Outputs Tools\n")
+		yaml.WriteString("        run: |\n")
+
+		toolsDelimiter := GenerateHeredocDelimiter("SAFE_OUTPUTS_TOOLS")
+		yaml.WriteString("          cat > /opt/gh-aw/safeoutputs/tools.json << '" + toolsDelimiter + "'\n")
+		// Write each line of the indented JSON with proper YAML indentation
+		for line := range strings.SplitSeq(filteredToolsJSON, "\n") {
+			yaml.WriteString("          " + line + "\n")
+		}
+		yaml.WriteString("          " + toolsDelimiter + "\n")
+
 		validationDelimiter := GenerateHeredocDelimiter("SAFE_OUTPUTS_VALIDATION")
 		yaml.WriteString("          cat > /opt/gh-aw/safeoutputs/validation.json << '" + validationDelimiter + "'\n")
 		// Write each line of the indented JSON with proper YAML indentation

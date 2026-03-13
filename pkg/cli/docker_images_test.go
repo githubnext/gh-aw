@@ -450,3 +450,98 @@ func TestStartDockerImageDownload_ContextCancellation(t *testing.T) {
 	// Clean up
 	ResetDockerPullState()
 }
+
+func TestCheckAndPrepareDockerImages_DockerUnavailable(t *testing.T) {
+	// Reset state before test
+	ResetDockerPullState()
+
+	// Mock Docker as unavailable
+	SetMockDockerAvailable(false)
+
+	// Should return a clear error about Docker not being available
+	err := CheckAndPrepareDockerImages(context.Background(), true, false, false)
+	if err == nil {
+		t.Fatal("Expected error when Docker is unavailable, got nil")
+	}
+
+	errMsg := err.Error()
+	if !strings.Contains(errMsg, "docker is not available") {
+		t.Errorf("Expected error to mention 'docker is not available', got: %s", errMsg)
+	}
+	if !strings.Contains(errMsg, "cannot connect to Docker daemon") {
+		t.Errorf("Expected error to mention 'cannot connect to Docker daemon', got: %s", errMsg)
+	}
+	if !strings.Contains(errMsg, "zizmor") {
+		t.Errorf("Expected error to mention 'zizmor', got: %s", errMsg)
+	}
+	if strings.Contains(errMsg, "being downloaded") {
+		t.Errorf("Expected error NOT to say 'being downloaded' when Docker is unavailable, got: %s", errMsg)
+	}
+
+	// Clean up
+	ResetDockerPullState()
+}
+
+func TestCheckAndPrepareDockerImages_DockerUnavailable_MultipleTools(t *testing.T) {
+	// Reset state before test
+	ResetDockerPullState()
+
+	// Mock Docker as unavailable
+	SetMockDockerAvailable(false)
+
+	// Request multiple tools
+	err := CheckAndPrepareDockerImages(context.Background(), true, false, true)
+	if err == nil {
+		t.Fatal("Expected error when Docker is unavailable, got nil")
+	}
+
+	errMsg := err.Error()
+	if !strings.Contains(errMsg, "docker is not available") {
+		t.Errorf("Expected error to mention 'docker is not available', got: %s", errMsg)
+	}
+	// Both tools should be mentioned
+	if !strings.Contains(errMsg, "zizmor") {
+		t.Errorf("Expected error to mention 'zizmor', got: %s", errMsg)
+	}
+	if !strings.Contains(errMsg, "actionlint") {
+		t.Errorf("Expected error to mention 'actionlint', got: %s", errMsg)
+	}
+
+	// Clean up
+	ResetDockerPullState()
+}
+
+func TestCheckAndPrepareDockerImages_DockerUnavailable_NoTools(t *testing.T) {
+	// Reset state before test
+	ResetDockerPullState()
+
+	// Mock Docker as unavailable
+	SetMockDockerAvailable(false)
+
+	// When no tools requested, should return nil even if Docker is unavailable
+	err := CheckAndPrepareDockerImages(context.Background(), false, false, false)
+	if err != nil {
+		t.Errorf("Expected no error when no tools requested (even with Docker unavailable), got: %v", err)
+	}
+
+	// Clean up
+	ResetDockerPullState()
+}
+
+func TestIsDockerAvailable_MockTrue(t *testing.T) {
+	ResetDockerPullState()
+	SetMockDockerAvailable(true)
+	if !IsDockerAvailable() {
+		t.Error("Expected IsDockerAvailable to return true when mocked as available")
+	}
+	ResetDockerPullState()
+}
+
+func TestIsDockerAvailable_MockFalse(t *testing.T) {
+	ResetDockerPullState()
+	SetMockDockerAvailable(false)
+	if IsDockerAvailable() {
+		t.Error("Expected IsDockerAvailable to return false when mocked as unavailable")
+	}
+	ResetDockerPullState()
+}
