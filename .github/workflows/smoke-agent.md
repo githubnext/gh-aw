@@ -15,6 +15,9 @@ engine: codex
 strict: true
 tools:
   github:
+    mode: remote
+    repos: "public"
+    min-integrity: approved
 network:
   allowed:
     - defaults
