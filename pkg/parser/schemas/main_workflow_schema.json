@@ -5460,6 +5460,17 @@
                   "type": "string",
                   "description": "Target PR for the review: 'triggering' (default, current PR), '*' (any PR, requires pull_request_number in agent output), or explicit PR number (e.g. ${{ github.event.inputs.pr_number }}). Required when workflow is not triggered by a pull request (e.g. workflow_dispatch)."
                 },
+                "target-repo": {
+                  "type": "string",
+                  "description": "Target repository in format 'owner/repo' for cross-repository PR review submission. Takes precedence over trial target repo settings."
+                },
+                "allowed-repos": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "description": "List of additional repositories in format 'owner/repo' that PR reviews can be submitted in. When specified, the agent can use a 'repo' field in the output to specify which repository to submit the review in. The target repository (current or target-repo) is always implicitly allowed."
+                },
                 "github-token": {
                   "$ref": "#/$defs/github_token",
                   "description": "GitHub token to use for this specific output type. Overrides global github-token if specified."

@@ -1433,6 +1433,8 @@ add-comment:
 ```yaml
 submit-pull-request-review:
   target: "triggering" | "*" | <PR number>   # Required when not in pull_request trigger
+  target-repo: owner/repo        # Cross-repository target
+  allowed-repos: [...]           # Additional allowed repositories
   footer: "always" | "none" | "if-body"     # Footer on review body
 ```
 
@@ -2647,6 +2649,7 @@ This section provides complete definitions for all remaining safe output types. 
 - Submits all buffered review comments from `create_pull_request_review_comment`
 - Review status affects PR merge requirements
 - **Target**: `target` accepts `"triggering"` (default), `"*"` (use `pull_request_number` from message), or an explicit PR number (e.g. `${{ github.event.inputs.pr_number }}`). Required when the workflow is not triggered by a pull request (e.g. `workflow_dispatch`).
+- **Cross-Repository**: `target-repo` specifies a repository in `owner/repo` format to submit reviews on PRs in another repo. Use `allowed-repos` to permit additional repositories.
 - Footer control: `footer` accepts `"always"` (default), `"none"`, or `"if-body"` (only when review body has text); boolean `true`/`false` maps to `"always"`/`"none"`
 
 ---
