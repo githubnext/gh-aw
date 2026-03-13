@@ -15,7 +15,7 @@ engine: codex
 strict: true
 tools:
   github:
-    mode: remote
+    mode: local
     repos: "public"
     min-integrity: approved
 network:
