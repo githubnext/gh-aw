@@ -7,7 +7,7 @@
  * IMPORTANT: Keep this function in sync with the normalizeBranchName function in upload_assets.cjs
  *
  * Valid characters: alphanumeric (a-z, A-Z, 0-9), dash (-), underscore (_), forward slash (/), dot (.)
- * Max length: 128 characters
+ * Max length: 128 characters (before salt is appended)
  *
  * The normalization process:
  * 1. Replaces invalid characters with a single dash
@@ -15,12 +15,16 @@
  * 3. Removes leading and trailing dashes
  * 4. Truncates to 128 characters
  * 5. Removes trailing dashes after truncation
- * 6. Converts to lowercase
+ * 6. Optionally converts to lowercase (opt-in via `options.lowercase`)
+ * 7. Optionally appends a salt suffix (opt-in via `options.salt`)
  *
  * @param {string} branchName - The branch name to normalize
+ * @param {{ lowercase?: boolean, salt?: string | null }} [options] - Normalization options
+ * @param {boolean} [options.lowercase=false] - When true, converts the branch name to lowercase
+ * @param {string | null} [options.salt=null] - When set, appends `-<salt>` to the branch name
  * @returns {string} The normalized branch name
  */
-function normalizeBranchName(branchName) {
+function normalizeBranchName(branchName, { lowercase = false, salt = null } = {}) {
   if (!branchName || typeof branchName !== "string" || branchName.trim() === "") {
     return branchName;
   }
@@ -43,57 +47,19 @@ function normalizeBranchName(branchName) {
   // Ensure it doesn't end with a dash after truncation
   normalized = normalized.replace(/-+$/, "");
 
-  // Convert to lowercase
-  normalized = normalized.toLowerCase();
+  // Optionally convert to lowercase
+  if (lowercase) {
+    normalized = normalized.toLowerCase();
+  }
+
+  // Optionally append a salt suffix
+  if (salt) {
+    normalized = `${normalized}-${salt}`;
+  }
 
   return normalized;
 }
 
-/**
- * Sanitizes a branch name by replacing invalid characters while preserving the original case.
- *
- * This is a security-safe alternative to normalizeBranchName for use when
- * preserve-branch-name is enabled. It still prevents shell injection by replacing
- * invalid characters, but skips the lowercase conversion.
- *
- * The sanitization process:
- * 1. Replaces invalid characters with a single dash
- * 2. Collapses multiple consecutive dashes to a single dash
- * 3. Removes leading and trailing dashes
- * 4. Truncates to 128 characters
- * 5. Removes trailing dashes after truncation
- * (No lowercase conversion)
- *
- * @param {string} branchName - The branch name to sanitize
- * @returns {string} The sanitized branch name with original casing preserved
- */
-function sanitizeBranchNamePreserveCase(branchName) {
-  if (!branchName || typeof branchName !== "string" || branchName.trim() === "") {
-    return branchName;
-  }
-
-  // Replace any sequence of invalid characters with a single dash
-  // Valid characters are: a-z, A-Z, 0-9, -, _, /, .
-  let sanitized = branchName.replace(/[^a-zA-Z0-9\-_/.]+/g, "-");
-
-  // Collapse multiple consecutive dashes to a single dash
-  sanitized = sanitized.replace(/-+/g, "-");
-
-  // Remove leading and trailing dashes
-  sanitized = sanitized.replace(/^-+|-+$/g, "");
-
-  // Truncate to max 128 characters
-  if (sanitized.length > 128) {
-    sanitized = sanitized.substring(0, 128);
-  }
-
-  // Ensure it doesn't end with a dash after truncation
-  sanitized = sanitized.replace(/-+$/, "");
-
-  return sanitized;
-}
-
 module.exports = {
   normalizeBranchName,
-  sanitizeBranchNamePreserveCase,
 };

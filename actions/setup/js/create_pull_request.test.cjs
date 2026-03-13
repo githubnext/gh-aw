@@ -356,30 +356,48 @@ describe("create_pull_request - security: branch name sanitization", () => {
     expect(normalizeBranchName("---")).toBe("");
   });
 
-  it("should convert to lowercase", () => {
+  it("should preserve original casing by default (no forced lowercase)", () => {
     const { normalizeBranchName } = require("./normalize_branch_name.cjs");
 
-    expect(normalizeBranchName("Feature/MyBranch")).toBe("feature/mybranch");
-    expect(normalizeBranchName("UPPERCASE")).toBe("uppercase");
+    expect(normalizeBranchName("Feature/MyBranch")).toBe("Feature/MyBranch");
+    expect(normalizeBranchName("UPPERCASE")).toBe("UPPERCASE");
+    // Motivating use-case: Jira keys stay uppercase
+    expect(normalizeBranchName("bugfix/BR-329-red")).toBe("bugfix/BR-329-red");
+  });
+
+  it("should convert to lowercase when lowercase option is true", () => {
+    const { normalizeBranchName } = require("./normalize_branch_name.cjs");
+
+    expect(normalizeBranchName("Feature/MyBranch", { lowercase: true })).toBe("feature/mybranch");
+    expect(normalizeBranchName("UPPERCASE", { lowercase: true })).toBe("uppercase");
+    expect(normalizeBranchName("bugfix/BR-329-red", { lowercase: true })).toBe("bugfix/br-329-red");
   });
 });
 
 // ──────────────────────────────────────────────────────
-// preserve-branch-name: sanitizeBranchNamePreserveCase
+// normalizeBranchName: salt option
 // ──────────────────────────────────────────────────────
 
-describe("create_pull_request - preserve-branch-name: sanitizeBranchNamePreserveCase", () => {
-  it("should preserve original casing while still sanitizing invalid characters", () => {
-    const { sanitizeBranchNamePreserveCase } = require("./normalize_branch_name.cjs");
+describe("create_pull_request - normalizeBranchName: salt option", () => {
+  it("should append salt suffix when salt option is provided", () => {
+    const { normalizeBranchName } = require("./normalize_branch_name.cjs");
 
-    // The motivating use-case: Jira keys in uppercase branch names
-    expect(sanitizeBranchNamePreserveCase("bugfix/BR-329-red")).toBe("bugfix/BR-329-red");
-    expect(sanitizeBranchNamePreserveCase("feature/JIRA-123-MyFeature")).toBe("feature/JIRA-123-MyFeature");
-    expect(sanitizeBranchNamePreserveCase("hotfix/UPPERCASE")).toBe("hotfix/UPPERCASE");
+    expect(normalizeBranchName("feature/my-branch", { salt: "abc123" })).toBe("feature/my-branch-abc123");
+    expect(normalizeBranchName("bugfix/BR-329-red", { salt: "cde2a954af3b8fa8" })).toBe("bugfix/BR-329-red-cde2a954af3b8fa8");
   });
 
-  it("should still replace shell metacharacters for security (CWE-78)", () => {
-    const { sanitizeBranchNamePreserveCase } = require("./normalize_branch_name.cjs");
+  it("should preserve original casing and add salt (preserve-branch-name use-case)", () => {
+    const { normalizeBranchName } = require("./normalize_branch_name.cjs");
+
+    // preserve-branch-name=false: lowercase + salt
+    expect(normalizeBranchName("bugfix/BR-329-red", { lowercase: true, salt: "cde2a954" })).toBe("bugfix/br-329-red-cde2a954");
+
+    // preserve-branch-name=true: no lowercase, no salt
+    expect(normalizeBranchName("bugfix/BR-329-red", { lowercase: false })).toBe("bugfix/BR-329-red");
+  });
+
+  it("should still replace shell metacharacters for security even when preserving case (CWE-78)", () => {
+    const { normalizeBranchName } = require("./normalize_branch_name.cjs");
 
     const dangerousNames = [
       { input: "Feature; rm -rf /", expected: "Feature-rm-rf-/" },
@@ -390,7 +408,7 @@ describe("create_pull_request - preserve-branch-name: sanitizeBranchNamePreserve
     ];
 
     for (const { input, expected } of dangerousNames) {
-      const result = sanitizeBranchNamePreserveCase(input);
+      const result = normalizeBranchName(input);
       expect(result).toBe(expected);
       expect(result).not.toContain(";");
       expect(result).not.toContain("$");

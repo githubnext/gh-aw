@@ -17,7 +17,7 @@ const { generateWorkflowIdMarker } = require("./generate_footer.cjs");
 const { parseBoolTemplatable } = require("./templatable.cjs");
 const { generateFooterWithMessages } = require("./messages_footer.cjs");
 const { generateHistoryUrl } = require("./generate_history_link.cjs");
-const { normalizeBranchName, sanitizeBranchNamePreserveCase } = require("./normalize_branch_name.cjs");
+const { normalizeBranchName } = require("./normalize_branch_name.cjs");
 const { pushExtraEmptyCommit } = require("./extra_empty_commit.cjs");
 const { createCheckoutManager } = require("./dynamic_checkout.cjs");
 const { getBaseBranch } = require("./get_base_branch.cjs");
@@ -134,7 +134,7 @@ async function main(config = {}) {
 
   // SECURITY: If base branch is explicitly configured, validate it at factory level
   if (configBaseBranch) {
-    const normalizedConfigBase = normalizeBranchName(configBaseBranch);
+    const normalizedConfigBase = normalizeBranchName(configBaseBranch, { lowercase: true });
     if (!normalizedConfigBase) {
       throw new Error(`Invalid baseBranch: sanitization resulted in empty string (original: "${configBaseBranch}")`);
     }
@@ -283,7 +283,7 @@ async function main(config = {}) {
 
     // SECURITY: Sanitize dynamically resolved base branch to prevent shell injection
     const originalBaseBranch = baseBranch;
-    baseBranch = normalizeBranchName(baseBranch);
+    baseBranch = normalizeBranchName(baseBranch, { lowercase: true });
     if (!baseBranch) {
       return {
         success: false,
@@ -528,20 +528,29 @@ async function main(config = {}) {
 
     let bodyLines = processedBody.split("\n");
     let branchName = pullRequestItem.branch ? pullRequestItem.branch.trim() : null;
+    const randomHex = crypto.randomBytes(8).toString("hex");
 
     // SECURITY: Sanitize branch name to prevent shell injection (CWE-78)
     // Branch names from user input must be normalized before use in git commands.
-    // When preserve-branch-name is enabled, original casing is kept but invalid
-    // characters are still replaced to prevent injection attacks.
+    // When preserve-branch-name is disabled (default), also lowercase the name and
+    // append a random salt suffix to avoid collisions.
     if (branchName) {
       const originalBranchName = branchName;
-      branchName = preserveBranchName ? sanitizeBranchNamePreserveCase(branchName) : normalizeBranchName(branchName);
+      branchName = normalizeBranchName(branchName, {
+        lowercase: !preserveBranchName,
+        salt: preserveBranchName ? undefined : randomHex,
+      });
 
       // Validate it's not empty after normalization
       if (!branchName) {
         throw new Error(`Invalid branch name: sanitization resulted in empty string (original: "${originalBranchName}")`);
       }
 
+      if (preserveBranchName) {
+        core.info(`Using branch name from JSONL as-is (preserve-branch-name enabled): ${branchName}`);
+      } else {
+        core.info(`Using branch name from JSONL with added salt: ${branchName}`);
+      }
       if (originalBranchName !== branchName) {
         core.info(`Branch name sanitized: "${originalBranchName}" -> "${branchName}"`);
       }
@@ -626,19 +635,10 @@ async function main(config = {}) {
     core.info(`Draft: ${draft}`);
     core.info(`Body length: ${body.length}`);
 
-    const randomHex = crypto.randomBytes(8).toString("hex");
-    // Use branch name from JSONL if provided, otherwise generate unique branch name.
-    // When preserve-branch-name is enabled, the agent-specified branch name is used as-is
-    // (no salt suffix appended) so CI branch naming conventions are respected.
+    // When no branch name was provided by the agent, generate a unique one.
     if (!branchName) {
       core.info("No branch name provided in JSONL, generating unique branch name");
-      // Generate unique branch name using cryptographic random hex
       branchName = `${workflowId}-${randomHex}`;
-    } else if (preserveBranchName) {
-      core.info(`Using branch name from JSONL as-is (preserve-branch-name enabled): ${branchName}`);
-    } else {
-      branchName = `${branchName}-${randomHex}`;
-      core.info(`Using branch name from JSONL with added salt: ${branchName}`);
     }
 
     core.info(`Generated branch name: ${branchName}`);

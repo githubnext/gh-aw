@@ -40,11 +40,20 @@ describe("normalizeBranchName", () => {
     expect(result).toBe("a".repeat(128));
   });
 
-  it("should convert to lowercase", async () => {
+  it("should NOT convert to lowercase by default", async () => {
     const { normalizeBranchName } = await import("./normalize_branch_name.cjs");
 
-    expect(normalizeBranchName("Feature/Add-Login")).toBe("feature/add-login");
-    expect(normalizeBranchName("MY-BRANCH")).toBe("my-branch");
+    expect(normalizeBranchName("Feature/Add-Login")).toBe("Feature/Add-Login");
+    expect(normalizeBranchName("MY-BRANCH")).toBe("MY-BRANCH");
+    expect(normalizeBranchName("bugfix/BR-329-red")).toBe("bugfix/BR-329-red");
+  });
+
+  it("should convert to lowercase when lowercase option is true", async () => {
+    const { normalizeBranchName } = await import("./normalize_branch_name.cjs");
+
+    expect(normalizeBranchName("Feature/Add-Login", { lowercase: true })).toBe("feature/add-login");
+    expect(normalizeBranchName("MY-BRANCH", { lowercase: true })).toBe("my-branch");
+    expect(normalizeBranchName("bugfix/BR-329-red", { lowercase: true })).toBe("bugfix/br-329-red");
   });
 
   it("should handle empty and invalid inputs", async () => {
@@ -66,7 +75,7 @@ describe("normalizeBranchName", () => {
   it("should handle complex combinations", async () => {
     const { normalizeBranchName } = await import("./normalize_branch_name.cjs");
 
-    expect(normalizeBranchName("Feature@Test/Branch#123")).toBe("feature-test/branch-123");
+    expect(normalizeBranchName("Feature@Test/Branch#123")).toBe("Feature-Test/Branch-123");
     expect(normalizeBranchName("__test__branch__")).toBe("__test__branch__");
   });
 
@@ -79,62 +88,35 @@ describe("normalizeBranchName", () => {
     expect(result.length).toBeLessThanOrEqual(128);
     expect(result).not.toMatch(/-$/);
   });
-});
 
-describe("sanitizeBranchNamePreserveCase", () => {
-  it("should preserve valid branch names with original casing", async () => {
-    const { sanitizeBranchNamePreserveCase } = await import("./normalize_branch_name.cjs");
+  it("should append salt suffix when salt option is provided", async () => {
+    const { normalizeBranchName } = await import("./normalize_branch_name.cjs");
 
-    expect(sanitizeBranchNamePreserveCase("bugfix/BR-329-red")).toBe("bugfix/BR-329-red");
-    expect(sanitizeBranchNamePreserveCase("feature/JIRA-123-MyFeature")).toBe("feature/JIRA-123-MyFeature");
-    expect(sanitizeBranchNamePreserveCase("hotfix/UPPERCASE")).toBe("hotfix/UPPERCASE");
+    expect(normalizeBranchName("feature/my-branch", { salt: "abc123" })).toBe("feature/my-branch-abc123");
+    expect(normalizeBranchName("bugfix/BR-329-red", { salt: "cde2a954af3b8fa8" })).toBe("bugfix/BR-329-red-cde2a954af3b8fa8");
   });
 
-  it("should replace invalid characters with dashes", async () => {
-    const { sanitizeBranchNamePreserveCase } = await import("./normalize_branch_name.cjs");
+  it("should not append salt when salt option is null or undefined", async () => {
+    const { normalizeBranchName } = await import("./normalize_branch_name.cjs");
 
-    expect(sanitizeBranchNamePreserveCase("Feature@Test")).toBe("Feature-Test");
-    expect(sanitizeBranchNamePreserveCase("branch; rm -rf /")).toBe("branch-rm-rf-/");
-    expect(sanitizeBranchNamePreserveCase("branch$(malicious)")).toBe("branch-malicious");
+    expect(normalizeBranchName("feature/my-branch", { salt: null })).toBe("feature/my-branch");
+    expect(normalizeBranchName("feature/my-branch", { salt: undefined })).toBe("feature/my-branch");
+    expect(normalizeBranchName("feature/my-branch", {})).toBe("feature/my-branch");
+    expect(normalizeBranchName("feature/my-branch")).toBe("feature/my-branch");
   });
 
-  it("should NOT convert to lowercase", async () => {
-    const { sanitizeBranchNamePreserveCase } = await import("./normalize_branch_name.cjs");
+  it("should support lowercase and salt together", async () => {
+    const { normalizeBranchName } = await import("./normalize_branch_name.cjs");
 
-    expect(sanitizeBranchNamePreserveCase("Feature/Add-Login")).toBe("Feature/Add-Login");
-    expect(sanitizeBranchNamePreserveCase("MY-BRANCH")).toBe("MY-BRANCH");
-    expect(sanitizeBranchNamePreserveCase("bugfix/BR-329-red")).toBe("bugfix/BR-329-red");
+    expect(normalizeBranchName("bugfix/BR-329-red", { lowercase: true, salt: "cde2a954" })).toBe("bugfix/br-329-red-cde2a954");
   });
 
-  it("should collapse multiple dashes", async () => {
-    const { sanitizeBranchNamePreserveCase } = await import("./normalize_branch_name.cjs");
+  it("should truncate to 128 chars before appending salt", async () => {
+    const { normalizeBranchName } = await import("./normalize_branch_name.cjs");
 
-    expect(sanitizeBranchNamePreserveCase("Test---Branch")).toBe("Test-Branch");
-    expect(sanitizeBranchNamePreserveCase("A--B--C")).toBe("A-B-C");
-  });
-
-  it("should remove leading and trailing dashes", async () => {
-    const { sanitizeBranchNamePreserveCase } = await import("./normalize_branch_name.cjs");
-
-    expect(sanitizeBranchNamePreserveCase("-Test-Branch-")).toBe("Test-Branch");
-    expect(sanitizeBranchNamePreserveCase("---Test---")).toBe("Test");
-  });
-
-  it("should truncate to 128 characters", async () => {
-    const { sanitizeBranchNamePreserveCase } = await import("./normalize_branch_name.cjs");
-
-    const longName = "A".repeat(150);
-    const result = sanitizeBranchNamePreserveCase(longName);
-    expect(result.length).toBe(128);
-    expect(result).toBe("A".repeat(128));
-  });
-
-  it("should handle empty and invalid inputs", async () => {
-    const { sanitizeBranchNamePreserveCase } = await import("./normalize_branch_name.cjs");
-
-    expect(sanitizeBranchNamePreserveCase("")).toBe("");
-    expect(sanitizeBranchNamePreserveCase("   ")).toBe("   ");
-    expect(sanitizeBranchNamePreserveCase(null)).toBe(null);
-    expect(sanitizeBranchNamePreserveCase(undefined)).toBe(undefined);
+    const longName = "a".repeat(150);
+    const result = normalizeBranchName(longName, { salt: "abc123" });
+    // Salt is appended after truncation so total length may exceed 128
+    expect(result).toBe("a".repeat(128) + "-abc123");
   });
 });
