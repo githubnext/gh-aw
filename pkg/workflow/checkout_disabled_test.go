@@ -74,6 +74,7 @@ strict: false
 			require.NoError(t, os.WriteFile(testFile, []byte(testContent), 0644), "should write test file")
 
 			compiler := NewCompiler()
+			compiler.SetActionMode(ActionModeDev)
 			require.NoError(t, compiler.CompileWorkflow(testFile), "should compile workflow")
 
 			lockFile := stringutil.MarkdownToLockFile(testFile)
