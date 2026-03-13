@@ -15,7 +15,7 @@ import (
 var copilotSetupLog = logger.New("cli:copilot_setup")
 
 // getActionRef returns the action reference string based on action mode and version.
-// If a resolver is provided and mode is release, attempts to resolve the SHA for a SHA-pinned reference.
+// If a resolver is provided and mode is release or action, attempts to resolve the SHA for a SHA-pinned reference.
 // Falls back to a version tag reference if SHA resolution fails or resolver is nil.
 func getActionRef(actionMode workflow.ActionMode, version string, resolver workflow.ActionSHAResolver) string {
 	if actionMode.IsRelease() && version != "" && version != "dev" {
@@ -29,6 +29,13 @@ func getActionRef(actionMode workflow.ActionMode, version string, resolver workf
 		return "@" + version
 	}
 	if actionMode.IsAction() && version != "" && version != "dev" {
+		if resolver != nil {
+			sha, err := resolver.ResolveSHA("github/gh-aw-actions/setup-cli", version)
+			if err == nil && sha != "" {
+				return fmt.Sprintf("@%s # %s", sha, version)
+			}
+			copilotSetupLog.Printf("Failed to resolve SHA for gh-aw-actions/setup-cli@%s: %v, falling back to version tag", version, err)
+		}
 		return "@" + version
 	}
 	return "@main"
