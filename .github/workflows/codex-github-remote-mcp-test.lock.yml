@@ -47,6 +47,14 @@ jobs:
       model: ${{ steps.generate_aw_info.outputs.model }}
       secret_verification_result: ${{ steps.validate-secret.outputs.verification_result }}
     steps:
+      - name: Checkout actions folder
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          repository: github/gh-aw
+          ref: ${{ github.action_ref }}
+          sparse-checkout: |
+            actions
+          persist-credentials: false
       - name: Setup Scripts
         uses: ./actions/setup
         with:
@@ -230,6 +238,14 @@ jobs:
       checkout_pr_success: ${{ steps.checkout-pr.outputs.checkout_pr_success || 'true' }}
       model: ${{ needs.activation.outputs.model }}
     steps:
+      - name: Checkout actions folder
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          repository: github/gh-aw
+          ref: ${{ github.action_ref }}
+          sparse-checkout: |
+            actions
+          persist-credentials: false
       - name: Setup Scripts
         uses: ./actions/setup
         with:

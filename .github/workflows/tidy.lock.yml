@@ -74,6 +74,14 @@ jobs:
       text: ${{ steps.sanitized.outputs.text }}
       title: ${{ steps.sanitized.outputs.title }}
     steps:
+      - name: Checkout actions folder
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          repository: github/gh-aw
+          ref: ${{ github.action_ref }}
+          sparse-checkout: |
+            actions
+          persist-credentials: false
       - name: Setup Scripts
         uses: ./actions/setup
         with:
@@ -311,6 +319,14 @@ jobs:
       output: ${{ steps.collect_output.outputs.output }}
       output_types: ${{ steps.collect_output.outputs.output_types }}
     steps:
+      - name: Checkout actions folder
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          repository: github/gh-aw
+          ref: ${{ github.action_ref }}
+          sparse-checkout: |
+            actions
+          persist-credentials: false
       - name: Setup Scripts
         uses: ./actions/setup
         with:
@@ -1123,6 +1139,14 @@ jobs:
       tools_reported: ${{ steps.missing_tool.outputs.tools_reported }}
       total_count: ${{ steps.missing_tool.outputs.total_count }}
     steps:
+      - name: Checkout actions folder
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          repository: github/gh-aw
+          ref: ${{ github.action_ref }}
+          sparse-checkout: |
+            actions
+          persist-credentials: false
       - name: Setup Scripts
         uses: ./actions/setup
         with:
@@ -1230,10 +1254,20 @@ jobs:
       ((github.event_name == 'issue_comment') && ((github.event_name == 'issue_comment') && (((startsWith(github.event.comment.body, '/tidy ')) ||
       (github.event.comment.body == '/tidy')) && (github.event.issue.pull_request != null)))) || (!(github.event_name == 'issue_comment'))
     runs-on: ubuntu-slim
+    permissions:
+      contents: read
     outputs:
       activated: ${{ (steps.check_membership.outputs.is_team_member == 'true') && (steps.check_command_position.outputs.command_position_ok == 'true') }}
       matched_command: ${{ steps.check_command_position.outputs.matched_command }}
     steps:
+      - name: Checkout actions folder
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          repository: github/gh-aw
+          ref: ${{ github.action_ref }}
+          sparse-checkout: |
+            actions
+          persist-credentials: false
       - name: Setup Scripts
         uses: ./actions/setup
         with:
@@ -1290,6 +1324,14 @@ jobs:
       push_commit_sha: ${{ steps.process_safe_outputs.outputs.push_commit_sha }}
       push_commit_url: ${{ steps.process_safe_outputs.outputs.push_commit_url }}
     steps:
+      - name: Checkout actions folder
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          repository: github/gh-aw
+          ref: ${{ github.action_ref }}
+          sparse-checkout: |
+            actions
+          persist-credentials: false
       - name: Setup Scripts
         uses: ./actions/setup
         with:

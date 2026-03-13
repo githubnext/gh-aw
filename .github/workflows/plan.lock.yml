@@ -66,6 +66,14 @@ jobs:
       text: ${{ steps.sanitized.outputs.text }}
       title: ${{ steps.sanitized.outputs.title }}
     steps:
+      - name: Checkout actions folder
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          repository: github/gh-aw
+          ref: ${{ github.action_ref }}
+          sparse-checkout: |
+            actions
+          persist-credentials: false
       - name: Setup Scripts
         uses: ./actions/setup
         with:
@@ -307,6 +315,14 @@ jobs:
       output: ${{ steps.collect_output.outputs.output }}
       output_types: ${{ steps.collect_output.outputs.output_types }}
     steps:
+      - name: Checkout actions folder
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          repository: github/gh-aw
+          ref: ${{ github.action_ref }}
+          sparse-checkout: |
+            actions
+          persist-credentials: false
       - name: Setup Scripts
         uses: ./actions/setup
         with:
@@ -1077,6 +1093,14 @@ jobs:
       tools_reported: ${{ steps.missing_tool.outputs.tools_reported }}
       total_count: ${{ steps.missing_tool.outputs.total_count }}
     steps:
+      - name: Checkout actions folder
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          repository: github/gh-aw
+          ref: ${{ github.action_ref }}
+          sparse-checkout: |
+            actions
+          persist-credentials: false
       - name: Setup Scripts
         uses: ./actions/setup
         with:
@@ -1167,10 +1191,20 @@ jobs:
       (github.event.issue.pull_request == null)) || (github.event_name == 'discussion_comment') && ((startsWith(github.event.comment.body, '/plan ')) ||
       (github.event.comment.body == '/plan'))
     runs-on: ubuntu-slim
+    permissions:
+      contents: read
     outputs:
       activated: ${{ (steps.check_membership.outputs.is_team_member == 'true') && (steps.check_command_position.outputs.command_position_ok == 'true') }}
       matched_command: ${{ steps.check_command_position.outputs.matched_command }}
     steps:
+      - name: Checkout actions folder
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          repository: github/gh-aw
+          ref: ${{ github.action_ref }}
+          sparse-checkout: |
+            actions
+          persist-credentials: false
       - name: Setup Scripts
         uses: ./actions/setup
         with:
@@ -1223,6 +1257,14 @@ jobs:
       process_safe_outputs_processed_count: ${{ steps.process_safe_outputs.outputs.processed_count }}
       process_safe_outputs_temporary_id_map: ${{ steps.process_safe_outputs.outputs.temporary_id_map }}
     steps:
+      - name: Checkout actions folder
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          repository: github/gh-aw
+          ref: ${{ github.action_ref }}
+          sparse-checkout: |
+            actions
+          persist-credentials: false
       - name: Setup Scripts
         uses: ./actions/setup
         with:
