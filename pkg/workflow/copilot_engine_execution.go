@@ -244,16 +244,6 @@ COPILOT_CLI_INSTRUCTION="$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"
 		"GITHUB_API_URL":    "${{ github.api_url }}",
 	}
 
-	// Override GITHUB_SERVER_URL if engine.enterprise.server-url is configured.
-	// This allows workflow authors to explicitly set the enterprise server URL for
-	// GitHub Enterprise Cloud (GHEC) or Server (GHES) environments.
-	// AWF's api-proxy will automatically detect GHEC (*.ghe.com) or GHES (custom domains)
-	// and route Copilot API traffic to the appropriate endpoint.
-	if workflowData.EngineConfig != nil && workflowData.EngineConfig.Enterprise != nil && workflowData.EngineConfig.Enterprise.ServerURL != "" {
-		env["GITHUB_SERVER_URL"] = workflowData.EngineConfig.Enterprise.ServerURL
-		copilotExecLog.Printf("Overriding GITHUB_SERVER_URL with enterprise server-url: %s", workflowData.EngineConfig.Enterprise.ServerURL)
-	}
-
 	// When copilot-requests feature is enabled, set S2STOKENS=true to allow the Copilot CLI
 	// to accept GitHub App installation tokens (ghs_*) such as ${{ github.token }}.
 	if useCopilotRequests {
@@ -269,6 +259,16 @@ COPILOT_CLI_INSTRUCTION="$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"
 
 	// Always add GH_AW_PROMPT for agentic workflows
 	env["GH_AW_PROMPT"] = "/tmp/gh-aw/aw-prompts/prompt.txt"
+
+	// Override GITHUB_SERVER_URL if engine.enterprise.server-url is configured.
+	// This allows workflow authors to explicitly set the enterprise server URL for
+	// GitHub Enterprise Cloud (GHEC) or Server (GHES) environments.
+	// AWF's api-proxy will automatically detect GHEC (*.ghe.com) or GHES (custom domains)
+	// and route Copilot API traffic to the appropriate endpoint.
+	if workflowData.EngineConfig != nil && workflowData.EngineConfig.Enterprise != nil && workflowData.EngineConfig.Enterprise.ServerURL != "" {
+		env["GITHUB_SERVER_URL"] = workflowData.EngineConfig.Enterprise.ServerURL
+		copilotExecLog.Printf("Overriding GITHUB_SERVER_URL with enterprise server-url: %s", workflowData.EngineConfig.Enterprise.ServerURL)
+	}
 	// Tag the step as a GitHub AW agentic execution for discoverability by agents
 	env["GITHUB_AW"] = "true"
 	// Indicate the phase: "agent" for the main run, "detection" for threat detection
