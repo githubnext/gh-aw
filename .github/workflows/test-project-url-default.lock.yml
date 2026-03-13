@@ -55,6 +55,8 @@ jobs:
           persist-credentials: false
       - name: Setup Scripts
         uses: ./actions/setup
+        with:
+          destination: ${{ env.GH_AW_HOME }}/actions
       - name: Generate agentic run info
         id: generate_aw_info
         env:
@@ -235,8 +237,11 @@ jobs:
       GH_AW_ASSETS_ALLOWED_EXTS: ""
       GH_AW_ASSETS_BRANCH: ""
       GH_AW_ASSETS_MAX_SIZE_KB: 0
-      GH_AW_HOME: /opt/gh-aw
+      GH_AW_HOME: ${{ env.GH_AW_HOME || '/opt/gh-aw' }}
       GH_AW_MCP_LOG_DIR: /tmp/gh-aw/mcp-logs/safeoutputs
+      GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_HOME }}/safeoutputs/outputs.jsonl
+      GH_AW_SAFE_OUTPUTS_CONFIG_PATH: ${{ env.GH_AW_HOME }}/safeoutputs/config.json
+      GH_AW_SAFE_OUTPUTS_TOOLS_PATH: ${{ env.GH_AW_HOME }}/safeoutputs/tools.json
       GH_AW_WORKFLOW_ID_SANITIZED: testprojecturldefault
     outputs:
       checkout_pr_success: ${{ steps.checkout-pr.outputs.checkout_pr_success || 'true' }}
@@ -257,6 +262,8 @@ jobs:
           persist-credentials: false
       - name: Setup Scripts
         uses: ./actions/setup
+        with:
+          destination: ${{ env.GH_AW_HOME }}/actions
       - name: Checkout repository
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
@@ -1159,7 +1166,7 @@ jobs:
       group: "gh-aw-conclusion-test-project-url-default"
       cancel-in-progress: false
     env:
-      GH_AW_HOME: /opt/gh-aw
+      GH_AW_HOME: ${{ env.GH_AW_HOME || '/opt/gh-aw' }}
     outputs:
       noop_message: ${{ steps.noop.outputs.noop_message }}
       tools_reported: ${{ steps.missing_tool.outputs.tools_reported }}
@@ -1174,6 +1181,8 @@ jobs:
           persist-credentials: false
       - name: Setup Scripts
         uses: ./actions/setup
+        with:
+          destination: ${{ env.GH_AW_HOME }}/actions
       - name: Download agent output artifact
         id: download-agent-output
         continue-on-error: true
@@ -1264,7 +1273,7 @@ jobs:
     env:
       GH_AW_CALLER_WORKFLOW_ID: "${{ github.repository }}/test-project-url-default"
       GH_AW_ENGINE_ID: "copilot"
-      GH_AW_HOME: /opt/gh-aw
+      GH_AW_HOME: ${{ env.GH_AW_HOME || '/opt/gh-aw' }}
       GH_AW_WORKFLOW_ID: "test-project-url-default"
       GH_AW_WORKFLOW_NAME: "Test Project URL Explicit Requirement"
     outputs:
@@ -1285,6 +1294,7 @@ jobs:
       - name: Setup Scripts
         uses: ./actions/setup
         with:
+          destination: ${{ env.GH_AW_HOME }}/actions
           safe-output-custom-tokens: 'true'
       - name: Download agent output artifact
         id: download-agent-output
@@ -1313,9 +1323,9 @@ jobs:
         with:
           github-token: ${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}
           script: |
-            const { setupGlobals } = require('${GH_AW_HOME}/actions/setup_globals.cjs');
+            const { setupGlobals } = require(process.env.GH_AW_HOME + '/actions/setup_globals.cjs');
             setupGlobals(core, github, context, exec, io);
-            const { main } = require('${GH_AW_HOME}/actions/safe_output_handler_manager.cjs');
+            const { main } = require(process.env.GH_AW_HOME + '/actions/safe_output_handler_manager.cjs');
             await main();
       - name: Upload Safe Output Items Manifest
         if: always()

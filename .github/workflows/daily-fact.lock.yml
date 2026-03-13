@@ -51,6 +51,8 @@ jobs:
     steps:
       - name: Setup Scripts
         uses: github/gh-aw/actions/setup@a70c5eada06553e3510ac27f2c3bda9d3705bccb # a70c5eada06553e3510ac27f2c3bda9d3705bccb
+        with:
+          destination: ${{ env.GH_AW_HOME }}/actions
       - name: Generate agentic run info
         id: generate_aw_info
         env:
@@ -230,8 +232,11 @@ jobs:
       GH_AW_ASSETS_ALLOWED_EXTS: ""
       GH_AW_ASSETS_BRANCH: ""
       GH_AW_ASSETS_MAX_SIZE_KB: 0
-      GH_AW_HOME: /opt/gh-aw
+      GH_AW_HOME: ${{ env.GH_AW_HOME || '/opt/gh-aw' }}
       GH_AW_MCP_LOG_DIR: /tmp/gh-aw/mcp-logs/safeoutputs
+      GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_HOME }}/safeoutputs/outputs.jsonl
+      GH_AW_SAFE_OUTPUTS_CONFIG_PATH: ${{ env.GH_AW_HOME }}/safeoutputs/config.json
+      GH_AW_SAFE_OUTPUTS_TOOLS_PATH: ${{ env.GH_AW_HOME }}/safeoutputs/tools.json
       GH_AW_WORKFLOW_ID_SANITIZED: dailyfact
     outputs:
       checkout_pr_success: ${{ steps.checkout-pr.outputs.checkout_pr_success || 'true' }}
@@ -244,6 +249,8 @@ jobs:
     steps:
       - name: Setup Scripts
         uses: github/gh-aw/actions/setup@a70c5eada06553e3510ac27f2c3bda9d3705bccb # a70c5eada06553e3510ac27f2c3bda9d3705bccb
+        with:
+          destination: ${{ env.GH_AW_HOME }}/actions
       - name: Checkout repository
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
@@ -912,7 +919,7 @@ jobs:
       group: "gh-aw-conclusion-daily-fact"
       cancel-in-progress: false
     env:
-      GH_AW_HOME: /opt/gh-aw
+      GH_AW_HOME: ${{ env.GH_AW_HOME || '/opt/gh-aw' }}
     outputs:
       noop_message: ${{ steps.noop.outputs.noop_message }}
       tools_reported: ${{ steps.missing_tool.outputs.tools_reported }}
@@ -920,6 +927,8 @@ jobs:
     steps:
       - name: Setup Scripts
         uses: github/gh-aw/actions/setup@a70c5eada06553e3510ac27f2c3bda9d3705bccb # a70c5eada06553e3510ac27f2c3bda9d3705bccb
+        with:
+          destination: ${{ env.GH_AW_HOME }}/actions
       - name: Download agent output artifact
         id: download-agent-output
         continue-on-error: true
@@ -1018,7 +1027,7 @@ jobs:
       GH_AW_CALLER_WORKFLOW_ID: "${{ github.repository }}/daily-fact"
       GH_AW_ENGINE_ID: "codex"
       GH_AW_ENGINE_MODEL: "gpt-5.1-codex-mini"
-      GH_AW_HOME: /opt/gh-aw
+      GH_AW_HOME: ${{ env.GH_AW_HOME || '/opt/gh-aw' }}
       GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 🪶 *Penned with care by [{workflow_name}]({run_url})*{history_link}\",\"runStarted\":\"📜 Hark! The muse awakens — [{workflow_name}]({run_url}) begins its verse upon this {event_type}...\",\"runSuccess\":\"✨ Lo! [{workflow_name}]({run_url}) hath woven its tale to completion, like a sonnet finding its final rhyme. 🌟\",\"runFailure\":\"🌧️ Alas! [{workflow_name}]({run_url}) {status}, its quill fallen mid-verse. The poem remains unfinished...\"}"
       GH_AW_TRACKER_ID: "daily-fact-thread"
       GH_AW_WORKFLOW_ID: "daily-fact"
@@ -1035,6 +1044,8 @@ jobs:
     steps:
       - name: Setup Scripts
         uses: github/gh-aw/actions/setup@a70c5eada06553e3510ac27f2c3bda9d3705bccb # a70c5eada06553e3510ac27f2c3bda9d3705bccb
+        with:
+          destination: ${{ env.GH_AW_HOME }}/actions
       - name: Download agent output artifact
         id: download-agent-output
         continue-on-error: true
@@ -1060,9 +1071,9 @@ jobs:
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
-            const { setupGlobals } = require('${GH_AW_HOME}/actions/setup_globals.cjs');
+            const { setupGlobals } = require(process.env.GH_AW_HOME + '/actions/setup_globals.cjs');
             setupGlobals(core, github, context, exec, io);
-            const { main } = require('${GH_AW_HOME}/actions/safe_output_handler_manager.cjs');
+            const { main } = require(process.env.GH_AW_HOME + '/actions/safe_output_handler_manager.cjs');
             await main();
       - name: Upload Safe Output Items Manifest
         if: always()

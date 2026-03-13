@@ -4,7 +4,7 @@
 
 set -e
 
-cd ${GH_AW_HOME:-/opt/gh-aw}/safeoutputs || exit 1
+cd "${GH_AW_HOME:-/opt/gh-aw}/safeoutputs" || exit 1
 
 # Verify required files exist
 echo "Verifying safe-outputs setup..."
@@ -12,12 +12,12 @@ echo "Verifying safe-outputs setup..."
 # Check core files (mcp-server.cjs and tools.json are required)
 if [ ! -f mcp-server.cjs ]; then
   echo "ERROR: mcp-server.cjs not found in ${GH_AW_HOME:-/opt/gh-aw}/safeoutputs"
-  ls -la ${GH_AW_HOME:-/opt/gh-aw}/safeoutputs/
+  ls -la "${GH_AW_HOME:-/opt/gh-aw}/safeoutputs/"
   exit 1
 fi
 if [ ! -f tools.json ]; then
   echo "ERROR: tools.json not found in ${GH_AW_HOME:-/opt/gh-aw}/safeoutputs"
-  ls -la ${GH_AW_HOME:-/opt/gh-aw}/safeoutputs/
+  ls -la "${GH_AW_HOME:-/opt/gh-aw}/safeoutputs/"
   exit 1
 fi
 
@@ -54,7 +54,7 @@ if [ ${#MISSING_FILES[@]} -gt 0 ]; then
   done
   echo
   echo "Current directory contents:"
-  ls -la ${GH_AW_HOME:-/opt/gh-aw}/safeoutputs/
+  ls -la "${GH_AW_HOME:-/opt/gh-aw}/safeoutputs/"
   echo
   echo "These files should have been copied by the Setup Scripts action."
   echo "This usually indicates a problem with the actions/setup step."

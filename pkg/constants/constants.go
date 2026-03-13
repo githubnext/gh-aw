@@ -439,8 +439,9 @@ const DevModeGhAwImage = "localhost/gh-aw:dev"
 const GhAwHomeDefault = "/opt/gh-aw"
 
 // DefaultGhAwMount is the mount path for the gh-aw directory in containerized MCP servers
-// Uses shell expansion so docker gets the resolved path at runtime
-const DefaultGhAwMount = "\\${GH_AW_HOME:-/opt/gh-aw}:\\${GH_AW_HOME:-/opt/gh-aw}:ro"
+// Uses shell expansion so docker gets the resolved path at runtime.
+// GH_AW_HOME is always set in the job-level env, so no fallback is needed here.
+const DefaultGhAwMount = "\\${GH_AW_HOME}:\\${GH_AW_HOME}:ro"
 
 // DefaultGhBinaryMount is the mount path for the gh CLI binary in containerized MCP servers
 // The gh CLI is required for agentic-workflows MCP server to run gh commands

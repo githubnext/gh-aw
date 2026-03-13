@@ -61,6 +61,8 @@ jobs:
           persist-credentials: false
       - name: Setup Scripts
         uses: ./actions/setup
+        with:
+          destination: ${{ env.GH_AW_HOME }}/actions
       - name: Generate agentic run info
         id: generate_aw_info
         env:
@@ -255,7 +257,7 @@ jobs:
     concurrency:
       group: "gh-aw-copilot-${{ github.workflow }}"
     env:
-      GH_AW_HOME: /opt/gh-aw
+      GH_AW_HOME: ${{ env.GH_AW_HOME || '/opt/gh-aw' }}
       GH_AW_WORKFLOW_ID_SANITIZED: metricscollector
     outputs:
       checkout_pr_success: ${{ steps.checkout-pr.outputs.checkout_pr_success || 'true' }}
@@ -271,6 +273,8 @@ jobs:
           persist-credentials: false
       - name: Setup Scripts
         uses: ./actions/setup
+        with:
+          destination: ${{ env.GH_AW_HOME }}/actions
       - name: Checkout repository
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
@@ -622,6 +626,8 @@ jobs:
           persist-credentials: false
       - name: Setup Scripts
         uses: ./actions/setup
+        with:
+          destination: ${{ env.GH_AW_HOME }}/actions
       - name: Check team membership for workflow
         id: check_membership
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
@@ -645,7 +651,7 @@ jobs:
       group: "push-repo-memory-${{ github.repository }}"
       cancel-in-progress: false
     env:
-      GH_AW_HOME: /opt/gh-aw
+      GH_AW_HOME: ${{ env.GH_AW_HOME || '/opt/gh-aw' }}
     outputs:
       patch_size_exceeded_default: ${{ steps.push_repo_memory_default.outputs.patch_size_exceeded }}
       validation_error_default: ${{ steps.push_repo_memory_default.outputs.validation_error }}
@@ -660,6 +666,8 @@ jobs:
           persist-credentials: false
       - name: Setup Scripts
         uses: ./actions/setup
+        with:
+          destination: ${{ env.GH_AW_HOME }}/actions
       - name: Checkout repository
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:

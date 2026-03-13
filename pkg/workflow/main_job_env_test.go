@@ -21,12 +21,15 @@ func TestMainJobEnvironmentVariables(t *testing.T) {
 		shouldHaveEnv   bool
 	}{
 		{
-			name: "No safe outputs - no env section",
+			name: "No safe outputs - only GH_AW_HOME set",
 			frontmatter: map[string]any{
 				"name": "Test Workflow",
 				"on":   "push",
 			},
-			shouldHaveEnv: false,
+			expectedEnvVars: []string{
+				"GH_AW_HOME: " + GhAwHomeExprDefault,
+			},
+			shouldHaveEnv: true,
 		},
 		{
 			name: "Safe outputs with create-issue",

@@ -159,13 +159,13 @@ func (c *Compiler) buildConsolidatedSafeOutputStep(data *WorkflowData, config Sa
 	// Use require mode if ScriptName is set, otherwise inline the bundled script
 	if config.ScriptName != "" {
 		// Require mode: Use setup_globals helper
-		steps = append(steps, "            const { setupGlobals } = require('"+SetupActionDestination+"/setup_globals.cjs');\n")
+		steps = append(steps, "            const { setupGlobals } = require("+JsRequireGhAw("actions/setup_globals.cjs")+");\n")
 		steps = append(steps, "            setupGlobals(core, github, context, exec, io);\n")
-		steps = append(steps, fmt.Sprintf("            const { main } = require('"+SetupActionDestination+"/%s.cjs');\n", config.ScriptName))
+		steps = append(steps, "            const { main } = require("+JsRequireGhAw("actions/"+config.ScriptName+".cjs")+");\n")
 		steps = append(steps, "            await main();\n")
 	} else {
 		// Inline JavaScript: Use setup_globals helper
-		steps = append(steps, "            const { setupGlobals } = require('"+SetupActionDestination+"/setup_globals.cjs');\n")
+		steps = append(steps, "            const { setupGlobals } = require("+JsRequireGhAw("actions/setup_globals.cjs")+");\n")
 		steps = append(steps, "            setupGlobals(core, github, context, exec, io);\n")
 		// Inline mode: embed the bundled script directly
 		formattedScript := FormatJavaScriptForYAML(config.Script)
@@ -437,9 +437,9 @@ func (c *Compiler) buildHandlerManagerStep(data *WorkflowData) []string {
 	c.addSafeOutputGitHubTokenForConfig(&steps, data, configToken)
 
 	steps = append(steps, "          script: |\n")
-	steps = append(steps, "            const { setupGlobals } = require('"+SetupActionDestination+"/setup_globals.cjs');\n")
+	steps = append(steps, "            const { setupGlobals } = require("+JsRequireGhAw("actions/setup_globals.cjs")+");\n")
 	steps = append(steps, "            setupGlobals(core, github, context, exec, io);\n")
-	steps = append(steps, "            const { main } = require('"+SetupActionDestination+"/safe_output_handler_manager.cjs');\n")
+	steps = append(steps, "            const { main } = require("+JsRequireGhAw("actions/safe_output_handler_manager.cjs")+");\n")
 	steps = append(steps, "            await main();\n")
 
 	return steps

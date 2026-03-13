@@ -73,6 +73,8 @@ jobs:
           persist-credentials: false
       - name: Setup Scripts
         uses: ./actions/setup
+        with:
+          destination: ${{ env.GH_AW_HOME }}/actions
       - name: Generate agentic run info
         id: generate_aw_info
         env:
@@ -296,8 +298,11 @@ jobs:
       GH_AW_ASSETS_ALLOWED_EXTS: ""
       GH_AW_ASSETS_BRANCH: ""
       GH_AW_ASSETS_MAX_SIZE_KB: 0
-      GH_AW_HOME: /opt/gh-aw
+      GH_AW_HOME: ${{ env.GH_AW_HOME || '/opt/gh-aw' }}
       GH_AW_MCP_LOG_DIR: /tmp/gh-aw/mcp-logs/safeoutputs
+      GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_HOME }}/safeoutputs/outputs.jsonl
+      GH_AW_SAFE_OUTPUTS_CONFIG_PATH: ${{ env.GH_AW_HOME }}/safeoutputs/config.json
+      GH_AW_SAFE_OUTPUTS_TOOLS_PATH: ${{ env.GH_AW_HOME }}/safeoutputs/tools.json
       GH_AW_WORKFLOW_ID_SANITIZED: smokeproject
     outputs:
       checkout_pr_success: ${{ steps.checkout-pr.outputs.checkout_pr_success || 'true' }}
@@ -318,6 +323,8 @@ jobs:
           persist-credentials: false
       - name: Setup Scripts
         uses: ./actions/setup
+        with:
+          destination: ${{ env.GH_AW_HOME }}/actions
       - name: Checkout repository
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
@@ -1545,7 +1552,7 @@ jobs:
       group: "gh-aw-conclusion-smoke-project"
       cancel-in-progress: false
     env:
-      GH_AW_HOME: /opt/gh-aw
+      GH_AW_HOME: ${{ env.GH_AW_HOME || '/opt/gh-aw' }}
     outputs:
       noop_message: ${{ steps.noop.outputs.noop_message }}
       tools_reported: ${{ steps.missing_tool.outputs.tools_reported }}
@@ -1560,6 +1567,8 @@ jobs:
           persist-credentials: false
       - name: Setup Scripts
         uses: ./actions/setup
+        with:
+          destination: ${{ env.GH_AW_HOME }}/actions
       - name: Download agent output artifact
         id: download-agent-output
         continue-on-error: true
@@ -1696,6 +1705,8 @@ jobs:
           persist-credentials: false
       - name: Setup Scripts
         uses: ./actions/setup
+        with:
+          destination: ${{ env.GH_AW_HOME }}/actions
       - name: Check team membership for workflow
         id: check_membership
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
@@ -1724,7 +1735,7 @@ jobs:
     env:
       GH_AW_CALLER_WORKFLOW_ID: "${{ github.repository }}/smoke-project"
       GH_AW_ENGINE_ID: "copilot"
-      GH_AW_HOME: /opt/gh-aw
+      GH_AW_HOME: ${{ env.GH_AW_HOME || '/opt/gh-aw' }}
       GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 🧪 *Project smoke test report by [{workflow_name}]({run_url})*{history_link}\",\"appendOnlyComments\":true,\"runStarted\":\"🧪 [{workflow_name}]({run_url}) is now testing project operations...\",\"runSuccess\":\"✅ [{workflow_name}]({run_url}) completed successfully. All project operations validated.\",\"runFailure\":\"❌ [{workflow_name}]({run_url}) encountered failures. Check the logs for details.\"}"
       GH_AW_WORKFLOW_ID: "smoke-project"
       GH_AW_WORKFLOW_NAME: "Smoke Project"
@@ -1752,6 +1763,7 @@ jobs:
       - name: Setup Scripts
         uses: ./actions/setup
         with:
+          destination: ${{ env.GH_AW_HOME }}/actions
           safe-output-custom-tokens: 'true'
       - name: Download agent output artifact
         id: download-agent-output
@@ -1809,9 +1821,9 @@ jobs:
         with:
           github-token: ${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}
           script: |
-            const { setupGlobals } = require('${GH_AW_HOME}/actions/setup_globals.cjs');
+            const { setupGlobals } = require(process.env.GH_AW_HOME + '/actions/setup_globals.cjs');
             setupGlobals(core, github, context, exec, io);
-            const { main } = require('${GH_AW_HOME}/actions/safe_output_handler_manager.cjs');
+            const { main } = require(process.env.GH_AW_HOME + '/actions/safe_output_handler_manager.cjs');
             await main();
       - name: Upload Safe Output Items Manifest
         if: always()

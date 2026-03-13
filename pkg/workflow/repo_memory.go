@@ -713,7 +713,7 @@ func (c *Compiler) buildPushRepoMemoryJob(data *WorkflowData, threatDetectionEna
 		If:          jobCondition,
 		Permissions: "permissions:\n      contents: write",
 		Concurrency: concurrency,
-		Env:         map[string]string{"GH_AW_HOME": constants.GhAwHomeDefault},
+		Env:         map[string]string{"GH_AW_HOME": GhAwHomeExprDefault},
 		Needs:       []string{"agent"}, // Detection dependency added by caller if needed
 		Steps:       steps,
 		Outputs:     outputs,

@@ -430,7 +430,7 @@ func (c *Compiler) buildConclusionJob(data *WorkflowData, mainJobName string, sa
 		Environment: c.indentYAMLLines(resolveSafeOutputsEnvironment(data), "    "),
 		Permissions: permissions.RenderToYAML(),
 		Concurrency: concurrency,
-		Env:         map[string]string{"GH_AW_HOME": constants.GhAwHomeDefault},
+		Env:         map[string]string{"GH_AW_HOME": GhAwHomeExprDefault},
 		Steps:       steps,
 		Needs:       needs,
 		Outputs:     outputs,

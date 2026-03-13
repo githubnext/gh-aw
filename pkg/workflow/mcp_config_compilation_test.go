@@ -487,7 +487,7 @@ This workflow tests that agentic-workflows uses the correct container in dev mod
 				}
 
 				// Verify binary mounts are NOT present in dev mode
-				if strings.Contains(string(lockContent), `/opt/gh-aw:/opt/gh-aw:ro`) {
+				if strings.Contains(string(lockContent), `${GH_AW_HOME}:${GH_AW_HOME}:ro`) {
 					t.Error("Did not expect /opt/gh-aw mount in dev mode (binary is in image)")
 				}
 				if strings.Contains(string(lockContent), `/usr/bin/gh:/usr/bin/gh:ro`) {

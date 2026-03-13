@@ -355,19 +355,19 @@ echo "Detected engine type: $ENGINE_TYPE"
 case "$ENGINE_TYPE" in
   copilot)
     echo "Using Copilot converter..."
-    bash ${GH_AW_HOME:-/opt/gh-aw}/actions/convert_gateway_config_copilot.sh
+    bash "${GH_AW_HOME:-/opt/gh-aw}/actions/convert_gateway_config_copilot.sh"
     ;;
   codex)
     echo "Using Codex converter..."
-    bash ${GH_AW_HOME:-/opt/gh-aw}/actions/convert_gateway_config_codex.sh
+    bash "${GH_AW_HOME:-/opt/gh-aw}/actions/convert_gateway_config_codex.sh"
     ;;
   claude)
     echo "Using Claude converter..."
-    bash ${GH_AW_HOME:-/opt/gh-aw}/actions/convert_gateway_config_claude.sh
+    bash "${GH_AW_HOME:-/opt/gh-aw}/actions/convert_gateway_config_claude.sh"
     ;;
   gemini)
     echo "Using Gemini converter..."
-    bash ${GH_AW_HOME:-/opt/gh-aw}/actions/convert_gateway_config_gemini.sh
+    bash "${GH_AW_HOME:-/opt/gh-aw}/actions/convert_gateway_config_gemini.sh"
     ;;
   *)
     echo "No agent-specific converter found for engine: $ENGINE_TYPE"
@@ -384,13 +384,13 @@ echo ""
 # Check MCP server functionality
 echo "Checking MCP server functionality..."
 MCP_CHECK_START=$(date +%s%3N)
-if [ -f ${GH_AW_HOME:-/opt/gh-aw}/actions/check_mcp_servers.sh ]; then
+if [ -f "${GH_AW_HOME:-/opt/gh-aw}/actions/check_mcp_servers.sh" ]; then
   echo "Running MCP server checks..."
   # Store check diagnostic logs in /tmp/gh-aw/mcp-logs/start-gateway.log for artifact upload
   # Use tee to output to both stdout and the log file
   # Enable pipefail so the exit code comes from check_mcp_servers.sh, not tee
   set -o pipefail
-  if ! bash ${GH_AW_HOME:-/opt/gh-aw}/actions/check_mcp_servers.sh \
+  if ! bash "${GH_AW_HOME:-/opt/gh-aw}/actions/check_mcp_servers.sh" \
     /tmp/gh-aw/mcp-config/gateway-output.json \
     "http://localhost:${MCP_GATEWAY_PORT}" \
     "${MCP_GATEWAY_API_KEY}" 2>&1 | tee /tmp/gh-aw/mcp-logs/start-gateway.log; then

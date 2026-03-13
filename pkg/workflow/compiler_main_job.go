@@ -175,12 +175,18 @@ func (c *Compiler) buildMainJob(data *WorkflowData, activationJobCreated bool) (
 	}
 
 	// Build job-level environment variables
-	// Always initialize env with GH_AW_HOME so steps don't need the :-fallback syntax
+	// Use GhAwHomeExprDefault so callers can override GH_AW_HOME via workflow/repo env
 	env := map[string]string{
-		"GH_AW_HOME": constants.GhAwHomeDefault,
+		"GH_AW_HOME": GhAwHomeExprDefault,
 	}
 
 	if data.SafeOutputs != nil {
+		// Set GH_AW_SAFE_OUTPUTS and related paths as job-level env vars.
+		// Using GhAwHomeExpr so paths adapt when GH_AW_HOME is overridden.
+		env["GH_AW_SAFE_OUTPUTS"] = GhAwHomeExpr + "/safeoutputs/outputs.jsonl"
+		env["GH_AW_SAFE_OUTPUTS_CONFIG_PATH"] = GhAwHomeExpr + "/safeoutputs/config.json"
+		env["GH_AW_SAFE_OUTPUTS_TOOLS_PATH"] = GhAwHomeExpr + "/safeoutputs/tools.json"
+
 		// Set GH_AW_MCP_LOG_DIR for safe outputs MCP server logging
 		// Store in mcp-logs directory so it's included in mcp-logs artifact
 		env["GH_AW_MCP_LOG_DIR"] = "/tmp/gh-aw/mcp-logs/safeoutputs"

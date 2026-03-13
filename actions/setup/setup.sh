@@ -26,6 +26,8 @@ create_dir() {
 
 # Get destination from input or use default
 DESTINATION="${INPUT_DESTINATION:-/opt/gh-aw/actions}"
+# Normalize trailing slash before deriving GH_AW_HOME
+DESTINATION="${DESTINATION%/}"
 
 # Derive GH_AW_HOME from DESTINATION (strip /actions suffix)
 # This allows setup.sh to be used with custom base directories

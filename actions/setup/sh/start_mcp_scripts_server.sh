@@ -4,7 +4,7 @@
 
 set -e
 
-cd ${GH_AW_HOME:-/opt/gh-aw}/mcp-scripts || exit 1
+cd "${GH_AW_HOME:-/opt/gh-aw}/mcp-scripts" || exit 1
 
 # Verify required files exist
 echo "Verifying mcp-scripts setup..."
@@ -12,12 +12,12 @@ echo "Verifying mcp-scripts setup..."
 # Check core configuration files
 if [ ! -f mcp-server.cjs ]; then
   echo "ERROR: mcp-server.cjs not found in ${GH_AW_HOME:-/opt/gh-aw}/mcp-scripts"
-  ls -la ${GH_AW_HOME:-/opt/gh-aw}/mcp-scripts/
+  ls -la "${GH_AW_HOME:-/opt/gh-aw}/mcp-scripts/"
   exit 1
 fi
 if [ ! -f tools.json ]; then
   echo "ERROR: tools.json not found in ${GH_AW_HOME:-/opt/gh-aw}/mcp-scripts"
-  ls -la ${GH_AW_HOME:-/opt/gh-aw}/mcp-scripts/
+  ls -la "${GH_AW_HOME:-/opt/gh-aw}/mcp-scripts/"
   exit 1
 fi
 
@@ -54,7 +54,7 @@ if [ ${#MISSING_FILES[@]} -gt 0 ]; then
   done
   echo
   echo "Current directory contents:"
-  ls -la ${GH_AW_HOME:-/opt/gh-aw}/mcp-scripts/
+  ls -la "${GH_AW_HOME:-/opt/gh-aw}/mcp-scripts/"
   echo
   echo "These files should have been copied by the Setup Scripts action."
   echo "This usually indicates a problem with the actions/setup step."
