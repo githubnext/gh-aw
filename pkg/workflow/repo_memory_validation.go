@@ -24,11 +24,15 @@ import (
 	"strings"
 )
 
+var repoMemValidationLog = newValidationLogger("repo_memory")
+
 // validateBranchPrefix validates that the branch prefix meets requirements
 func validateBranchPrefix(prefix string) error {
 	if prefix == "" {
 		return nil // Empty means use default
 	}
+
+	repoMemValidationLog.Printf("Validating branch prefix: %q", prefix)
 
 	// Check length (4-32 characters)
 	if len(prefix) < 4 {
@@ -49,12 +53,14 @@ func validateBranchPrefix(prefix string) error {
 		return errors.New("branch-prefix cannot be 'copilot' (reserved)")
 	}
 
+	repoMemValidationLog.Printf("Branch prefix %q passed validation", prefix)
 	return nil
 }
 
 // validateNoDuplicateMemoryIDs checks for duplicate memory IDs and returns an error if found.
 // Uses the generic validateNoDuplicateIDs helper for consistent duplicate detection.
 func validateNoDuplicateMemoryIDs(memories []RepoMemoryEntry) error {
+	repoMemValidationLog.Printf("Validating %d memory entries for duplicate IDs", len(memories))
 	return validateNoDuplicateIDs(memories, func(m RepoMemoryEntry) string { return m.ID }, func(id string) error {
 		return fmt.Errorf("duplicate memory ID found: '%s'. Each memory must have a unique ID", id)
 	})
