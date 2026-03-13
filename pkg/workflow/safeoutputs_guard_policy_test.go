@@ -33,18 +33,32 @@ func TestDeriveSafeOutputsGuardPolicyFromGitHub(t *testing.T) {
 			description: "Single repo pattern should get private: prefix",
 		},
 		{
-			name: "wildcard repo pattern",
+			name: "owner wildcard pattern",
 			githubTool: map[string]any{
 				"repos":         "github/*",
 				"min-integrity": "approved",
 			},
 			expectedPolicies: map[string]any{
 				"write-sink": map[string]any{
-					"accept": []string{"private:github/*"},
+					"accept": []string{"private:github"},
 				},
 			},
 			expectNil:   false,
-			description: "Wildcard pattern should get private: prefix",
+			description: "Owner wildcard (github/*) should strip wildcard → private:github",
+		},
+		{
+			name: "repo prefix wildcard pattern",
+			githubTool: map[string]any{
+				"repos":         "github/gh-aw*",
+				"min-integrity": "approved",
+			},
+			expectedPolicies: map[string]any{
+				"write-sink": map[string]any{
+					"accept": []string{"private:github/gh-aw*"},
+				},
+			},
+			expectNil:   false,
+			description: "Repo prefix wildcard should keep as-is with private: prefix",
 		},
 		{
 			name: "repos set to all",
@@ -54,11 +68,11 @@ func TestDeriveSafeOutputsGuardPolicyFromGitHub(t *testing.T) {
 			},
 			expectedPolicies: map[string]any{
 				"write-sink": map[string]any{
-					"accept": []string{"private:*"},
+					"accept": []string{},
 				},
 			},
 			expectNil:   false,
-			description: "repos='all' should map to private:*",
+			description: "repos='all' should map to empty accept array (agent secrecy is empty)",
 		},
 		{
 			name: "repos set to public",
@@ -68,11 +82,11 @@ func TestDeriveSafeOutputsGuardPolicyFromGitHub(t *testing.T) {
 			},
 			expectedPolicies: map[string]any{
 				"write-sink": map[string]any{
-					"accept": []string{"public"},
+					"accept": []string{},
 				},
 			},
 			expectNil:   false,
-			description: "repos='public' should map to public (without :* suffix)",
+			description: "repos='public' should map to empty accept array (agent secrecy is empty)",
 		},
 		{
 			name: "multiple repo patterns as []any",
@@ -92,7 +106,7 @@ func TestDeriveSafeOutputsGuardPolicyFromGitHub(t *testing.T) {
 				},
 			},
 			expectNil:   false,
-			description: "Array of patterns should all get private: prefix",
+			description: "Array of prefix patterns should all get private: prefix",
 		},
 		{
 			name: "multiple repo patterns as []string",
@@ -113,6 +127,26 @@ func TestDeriveSafeOutputsGuardPolicyFromGitHub(t *testing.T) {
 			},
 			expectNil:   false,
 			description: "[]string array should all get private: prefix",
+		},
+		{
+			name: "mixed patterns with owner wildcard",
+			githubTool: map[string]any{
+				"repos": []string{
+					"github/*",
+					"microsoft/copilot",
+				},
+				"min-integrity": "approved",
+			},
+			expectedPolicies: map[string]any{
+				"write-sink": map[string]any{
+					"accept": []string{
+						"private:github",
+						"private:microsoft/copilot",
+					},
+				},
+			},
+			expectNil:   false,
+			description: "Owner wildcard (github/*) should transform to private:github, specific repo should keep pattern",
 		},
 		{
 			name: "no repos configured",
