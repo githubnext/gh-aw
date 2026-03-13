@@ -5341,7 +5341,12 @@
                   "items": {
                     "type": "string"
                   },
-                  "description": "Exclusive allowlist of glob patterns. When set, every file in the patch must match at least one pattern \u2014 files outside the list are always refused, including normal source files. This is a restriction, not an exception: setting allowed-files: [\".github/workflows/*\"] blocks all other files. To allow multiple sets of files, list all patterns explicitly. Acts independently of the protected-files policy; both checks must pass. To modify a protected file, it must both match allowed-files and be permitted by protected-files (e.g. protected-files: allowed). Supports * (any characters except /) and ** (any characters including /)."
+                  "description": "Exclusive allowlist of glob patterns. When set, every file in the patch must match at least one pattern — files outside the list are always refused, including normal source files. This is a restriction, not an exception: setting allowed-files: [\".github/workflows/*\"] blocks all other files. To allow multiple sets of files, list all patterns explicitly. Acts independently of the protected-files policy; both checks must pass. To modify a protected file, it must both match allowed-files and be permitted by protected-files (e.g. protected-files: allowed). Supports * (any characters except /) and ** (any characters including /)."
+                },
+                "preserve-branch-name": {
+                  "type": "boolean",
+                  "description": "When true, the random salt suffix is not appended to the agent-specified branch name. Invalid characters are still replaced for security, and casing is always preserved regardless of this setting. Useful when the target repository enforces branch naming conventions (e.g. Jira keys in uppercase such as 'bugfix/BR-329-red'). Defaults to false.",
+                  "default": false
                 }
               },
               "additionalProperties": false,

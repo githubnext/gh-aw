@@ -40,11 +40,13 @@ describe("normalizeBranchName", () => {
     expect(result).toBe("a".repeat(128));
   });
 
-  it("should convert to lowercase", async () => {
+  it("should preserve original casing (no lowercase conversion)", async () => {
     const { normalizeBranchName } = await import("./normalize_branch_name.cjs");
 
-    expect(normalizeBranchName("Feature/Add-Login")).toBe("feature/add-login");
-    expect(normalizeBranchName("MY-BRANCH")).toBe("my-branch");
+    expect(normalizeBranchName("Feature/Add-Login")).toBe("Feature/Add-Login");
+    expect(normalizeBranchName("MY-BRANCH")).toBe("MY-BRANCH");
+    expect(normalizeBranchName("bugfix/BR-329-red")).toBe("bugfix/BR-329-red");
+    expect(normalizeBranchName("feature/JIRA-123-MyFeature")).toBe("feature/JIRA-123-MyFeature");
   });
 
   it("should handle empty and invalid inputs", async () => {
@@ -66,7 +68,7 @@ describe("normalizeBranchName", () => {
   it("should handle complex combinations", async () => {
     const { normalizeBranchName } = await import("./normalize_branch_name.cjs");
 
-    expect(normalizeBranchName("Feature@Test/Branch#123")).toBe("feature-test/branch-123");
+    expect(normalizeBranchName("Feature@Test/Branch#123")).toBe("Feature-Test/Branch-123");
     expect(normalizeBranchName("__test__branch__")).toBe("__test__branch__");
   });
 
@@ -78,5 +80,29 @@ describe("normalizeBranchName", () => {
     const result = normalizeBranchName(longName);
     expect(result.length).toBeLessThanOrEqual(128);
     expect(result).not.toMatch(/-$/);
+  });
+
+  it("should append salt suffix when salt argument is provided", async () => {
+    const { normalizeBranchName } = await import("./normalize_branch_name.cjs");
+
+    expect(normalizeBranchName("feature/my-branch", "abc123")).toBe("feature/my-branch-abc123");
+    expect(normalizeBranchName("bugfix/BR-329-red", "cde2a954af3b8fa8")).toBe("bugfix/BR-329-red-cde2a954af3b8fa8");
+  });
+
+  it("should not append salt when salt is null or undefined", async () => {
+    const { normalizeBranchName } = await import("./normalize_branch_name.cjs");
+
+    expect(normalizeBranchName("feature/my-branch", null)).toBe("feature/my-branch");
+    expect(normalizeBranchName("feature/my-branch", undefined)).toBe("feature/my-branch");
+    expect(normalizeBranchName("feature/my-branch")).toBe("feature/my-branch");
+  });
+
+  it("should truncate to 128 chars before appending salt", async () => {
+    const { normalizeBranchName } = await import("./normalize_branch_name.cjs");
+
+    const longName = "a".repeat(150);
+    const result = normalizeBranchName(longName, "abc123");
+    // Salt is appended after truncation so total length may exceed 128
+    expect(result).toBe("a".repeat(128) + "-abc123");
   });
 });

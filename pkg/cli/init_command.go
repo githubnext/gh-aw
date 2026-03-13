@@ -14,7 +14,7 @@ var initCommandLog = logger.New("cli:init_command")
 func NewInitCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "init",
-		Short: "Initialize repository for agentic workflows",
+		Short: "Initialize the repository for agentic workflows",
 		Long: `Initialize the repository for agentic workflows by configuring .gitattributes and creating the dispatcher agent file.
 
 Interactive Mode (default):

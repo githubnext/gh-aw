@@ -26,6 +26,7 @@ imports:
   - ../skills/documentation/SKILL.md
   - ../agents/technical-doc-writer.agent.md
   - shared/mcp/serena-go.md
+  - shared/mcp/qmd-docs.md
 
 safe-outputs:
   create-pull-request:

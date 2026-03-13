@@ -54,6 +54,7 @@ timeout-minutes: 30
 imports:
   - shared/reporting.md
   - shared/mcp/serena-go.md
+  - shared/mcp/qmd-docs.md
 
 ---
 

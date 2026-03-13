@@ -11,7 +11,7 @@ const { ERR_API, ERR_CONFIG, ERR_SYSTEM, ERR_VALIDATION } = require("./error_cod
 /**
  * Normalizes a branch name to be a valid git branch name.
  *
- * IMPORTANT: Keep this function in sync with the normalizeBranchName function in safe_outputs_mcp_server.cjs
+ * IMPORTANT: Keep this function in sync with the normalizeBranchName function in normalize_branch_name.cjs
  *
  * Valid characters: alphanumeric (a-z, A-Z, 0-9), dash (-), underscore (_), forward slash (/), dot (.)
  * Max length: 128 characters
@@ -22,7 +22,6 @@ const { ERR_API, ERR_CONFIG, ERR_SYSTEM, ERR_VALIDATION } = require("./error_cod
  * 3. Removes leading and trailing dashes
  * 4. Truncates to 128 characters
  * 5. Removes trailing dashes after truncation
- * 6. Converts to lowercase
  *
  * @param {string} branchName - The branch name to normalize
  * @returns {string} The normalized branch name
@@ -49,9 +48,6 @@ function normalizeBranchName(branchName) {
 
   // Ensure it doesn't end with a dash after truncation
   normalized = normalized.replace(/-+$/, "");
-
-  // Convert to lowercase
-  normalized = normalized.toLowerCase();
 
   return normalized;
 }
