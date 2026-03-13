@@ -23,7 +23,7 @@
 #
 # Build, test, and release gh-aw extension, then generate and prepend release highlights
 #
-# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"9cf910c2148ba6f578ef394b0f275005277ad2c468df820acdb679d1685b7f4d","strict":true}
+# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"5219f3be0d79b84fde78c4e4699d10bc376e7ba113c8403197534753d66ef0c8","strict":true}
 
 name: "Release"
 "on":
@@ -66,7 +66,7 @@ jobs:
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           repository: github/gh-aw
-          ref: dba6334
+          ref: e6ce8e0
           sparse-checkout: |
             actions
           persist-credentials: false
@@ -282,7 +282,7 @@ jobs:
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           repository: github/gh-aw
-          ref: dba6334
+          ref: e6ce8e0
           sparse-checkout: |
             actions
           persist-credentials: false
@@ -990,7 +990,7 @@ jobs:
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           repository: github/gh-aw
-          ref: dba6334
+          ref: e6ce8e0
           sparse-checkout: |
             actions
           persist-credentials: false
@@ -1198,7 +1198,7 @@ jobs:
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           repository: github/gh-aw
-          ref: dba6334
+          ref: e6ce8e0
           sparse-checkout: |
             actions
           persist-credentials: false
@@ -1274,6 +1274,23 @@ jobs:
           name: release-binaries-${{ needs.config.outputs.release_tag }}
           path: dist/
           retention-days: 1
+      - name: "Notify - run sync actions and merge PR"
+        run: |
+          echo "## Manual Sync Actions Required" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "The following manual steps must be completed in **github/gh-aw-actions** before this release continues:" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "1. Trigger the **sync-actions** workflow in github/gh-aw-actions:" >> "$GITHUB_STEP_SUMMARY"
+          echo "   https://github.com/github/gh-aw-actions/actions/workflows/sync-actions.yml" >> "$GITHUB_STEP_SUMMARY"
+          echo "2. Merge the PR created by the sync-actions workflow in **github/gh-aw-actions**" >> "$GITHUB_STEP_SUMMARY"
+          echo "3. Verify that tag **\`${RELEASE_TAG}\`** exists in github/gh-aw-actions" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "Once the above steps are complete, approve the **gh-aw-actions-release** environment gate to continue the release." >> "$GITHUB_STEP_SUMMARY"
+
+          echo "Sync actions instructions written for release: $RELEASE_TAG"
+          echo "Ensure the sync-actions job has been run and the PR merged in github/gh-aw-actions before approving."
+        env:
+          RELEASE_TAG: ${{ needs.config.outputs.release_tag }}
 
   release:
     needs:
@@ -1431,7 +1448,7 @@ jobs:
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           repository: github/gh-aw
-          ref: dba6334
+          ref: e6ce8e0
           sparse-checkout: |
             actions
           persist-credentials: false
@@ -1485,21 +1502,6 @@ jobs:
     runs-on: ubuntu-latest
     environment: gh-aw-actions-release
     steps:
-      - name: "Notify - run sync actions and merge PR"
-        run: |
-          echo "## Manual Sync Actions Required" >> "$GITHUB_STEP_SUMMARY"
-          echo "" >> "$GITHUB_STEP_SUMMARY"
-          echo "The following manual steps must be completed in **github/gh-aw-actions** before this release continues:" >> "$GITHUB_STEP_SUMMARY"
-          echo "" >> "$GITHUB_STEP_SUMMARY"
-          echo "1. Trigger the **sync-actions** workflow in github/gh-aw-actions:" >> "$GITHUB_STEP_SUMMARY"
-          echo "   https://github.com/github/gh-aw-actions/actions/workflows/sync-actions.yml" >> "$GITHUB_STEP_SUMMARY"
-          echo "2. Merge the PR created by the sync-actions workflow in **github/gh-aw-actions**" >> "$GITHUB_STEP_SUMMARY"
-          echo "3. Verify that tag **\`${RELEASE_TAG}\`** exists in github/gh-aw-actions" >> "$GITHUB_STEP_SUMMARY"
-          echo "" >> "$GITHUB_STEP_SUMMARY"
-          echo "Once the above steps are complete, approve the **gh-aw-actions-release** environment gate to continue the release." >> "$GITHUB_STEP_SUMMARY"
-
-          echo "Sync actions instructions written for release: $RELEASE_TAG"
-          echo "Ensure the sync-actions job has been run and the PR merged in github/gh-aw-actions before approving."
-        env:
-          RELEASE_TAG: ${{ needs.config.outputs.release_tag }}
+      - name: Await manual approval
+        run: echo "Manual approval received. Continuing release."
 
