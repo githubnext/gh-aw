@@ -126,9 +126,13 @@ func hasWriteAccess(permission string) bool {
 	}
 }
 
-// validateWorkflowName validates that a workflow name exists.
+// validateWorkflowName validates that a workflow name exists in the repository.
 // Returns nil if the workflow exists, or an error with suggestions if not.
 // Empty workflow names are considered valid (means all workflows).
+//
+// Note: This function checks whether a workflow exists/is accessible, not its format.
+// For format-only validation (alphanumeric characters, hyphens, underscores),
+// use validators.go:ValidateWorkflowName instead.
 func validateWorkflowName(workflowName string) error {
 	// Empty workflow name means "all workflows" - this is valid
 	if workflowName == "" {

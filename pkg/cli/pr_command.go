@@ -103,11 +103,6 @@ The command will:
 	return cmd
 }
 
-// parsePRURL extracts owner, repo, and PR number from a GitHub PR URL
-func parsePRURL(prURL string) (owner, repo string, prNumber int, err error) {
-	return parser.ParsePRURL(prURL)
-}
-
 // checkRepositoryAccess checks if the current user has write access to the target repository
 func checkRepositoryAccess(owner, repo string) (bool, error) {
 	prLog.Printf("Checking repository access: %s/%s", owner, repo)
@@ -548,7 +543,7 @@ func transferPR(prURL, targetRepo string, verbose bool) error {
 	}
 
 	// Parse PR URL
-	sourceOwner, sourceRepoName, prNumber, err := parsePRURL(prURL)
+	sourceOwner, sourceRepoName, prNumber, err := parser.ParsePRURL(prURL)
 	if err != nil {
 		prLog.Printf("Failed to parse PR URL: %s", err)
 		return err
