@@ -32,49 +32,11 @@ steps:
   - name: Install QMD
     run: npm install -g @tobilu/qmd
   - name: Restore QMD index cache
-    id: qmd-cache
     uses: actions/cache/restore@v4
     with:
       path: ~/.cache/qmd
       key: qmd-docs-${{ hashFiles('docs/src/content/docs/**', '.github/agents/**', '.github/aw/**') }}
       restore-keys: qmd-docs-
-  - name: Index docs with QMD
-    if: steps.qmd-cache.outputs.cache-hit != 'true'
-    run: |
-      set -e
-
-      DOCS_DIR="${{ github.workspace }}/docs/src/content/docs"
-      AGENTS_DIR="${{ github.workspace }}/.github/agents"
-      AW_DIR="${{ github.workspace }}/.github/aw"
-
-      if [ ! -d "$DOCS_DIR" ]; then
-        echo "Docs directory not found: $DOCS_DIR"
-        exit 1
-      fi
-
-      # Add documentation collection pointing to the docs source
-      qmd collection add "$DOCS_DIR" --name docs
-
-      # Add context to improve search relevance and results
-      qmd context add qmd://docs "GitHub Agentic Workflows (gh-aw) documentation - guides, reference, examples, and patterns for building agentic workflows"
-
-      # Index agent definitions if present
-      if [ -d "$AGENTS_DIR" ]; then
-        qmd collection add "$AGENTS_DIR" --name agents
-        qmd context add qmd://agents "GitHub Agentic Workflows agent definitions and instructions - custom agent configurations and behaviours"
-      fi
-
-      # Index workflow authoring instructions if present
-      if [ -d "$AW_DIR" ]; then
-        qmd collection add "$AW_DIR" --name aw
-        qmd context add qmd://aw "GitHub Agentic Workflows authoring instructions and templates - workflow creation guides and shared configurations"
-      fi
-  - name: Save QMD index cache
-    if: steps.qmd-cache.outputs.cache-hit != 'true'
-    uses: actions/cache/save@v4
-    with:
-      path: ~/.cache/qmd
-      key: ${{ steps.qmd-cache.outputs.cache-primary-key }}
   - name: Start QMD MCP server
     run: |
       set -e
@@ -164,11 +126,16 @@ Use the qmd tool to search the project documentation and answer questions.
 
 ### How It Works
 
+The QMD index is pre-built by the `qmd-docs-indexer.yml` workflow on every trusted push
+to `main` (path-filtered to the indexed directories) and on a daily schedule. This ensures
+the index always reflects verified content.
+
+At runtime (when this shared module is imported):
+
 1. Node.js 24 is installed
 2. QMD is installed globally from npm (`@tobilu/qmd`)
-3. The qmd index is restored from `actions/cache` using a key derived from a hash of the docs, agents, and aw content
-4. If the cache is missed, the three collections are indexed with context descriptions, and the resulting index is saved to cache
-5. The HTTP MCP server starts on `localhost:8181`
+3. The pre-built qmd index is restored from `actions/cache` using a key derived from a hash of the docs, agents, and aw content
+4. The HTTP MCP server starts on `localhost:8181`
 
 The `query` tool supports BM25 full-text search (`lex` type) out of the box.
 For semantic vector search (`vec`/`hyde` types), run `qmd embed` before starting

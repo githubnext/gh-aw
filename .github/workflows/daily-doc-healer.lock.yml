@@ -28,7 +28,7 @@
 #     - shared/mcp/qmd-docs.md
 #     - shared/reporting.md
 #
-# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"4cb50dcba0b4d234d52e190e04b57085be793dcc66f25f58fd33febf16e05e07","strict":true}
+# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"3281ba1de9c3a7453fd4e74eb14dcbf06ea83c84ac6709d0dfe024f818dd4a3d","strict":true}
 
 name: "Daily Documentation Healer"
 "on":
@@ -303,22 +303,12 @@ jobs:
         run: bash /opt/gh-aw/actions/create_gh_aw_tmp_dir.sh
       - name: Install QMD
         run: npm install -g @tobilu/qmd
-      - id: qmd-cache
-        name: Restore QMD index cache
+      - name: Restore QMD index cache
         uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         with:
           key: qmd-docs-${{ hashFiles('docs/src/content/docs/**', '.github/agents/**', '.github/aw/**') }}
           path: ~/.cache/qmd
           restore-keys: qmd-docs-
-      - if: steps.qmd-cache.outputs.cache-hit != 'true'
-        name: Index docs with QMD
-        run: "set -e\n\nDOCS_DIR=\"${{ github.workspace }}/docs/src/content/docs\"\nAGENTS_DIR=\"${{ github.workspace }}/.github/agents\"\nAW_DIR=\"${{ github.workspace }}/.github/aw\"\n\nif [ ! -d \"$DOCS_DIR\" ]; then\n  echo \"Docs directory not found: $DOCS_DIR\"\n  exit 1\nfi\n\n# Add documentation collection pointing to the docs source\nqmd collection add \"$DOCS_DIR\" --name docs\n\n# Add context to improve search relevance and results\nqmd context add qmd://docs \"GitHub Agentic Workflows (gh-aw) documentation - guides, reference, examples, and patterns for building agentic workflows\"\n\n# Index agent definitions if present\nif [ -d \"$AGENTS_DIR\" ]; then\n  qmd collection add \"$AGENTS_DIR\" --name agents\n  qmd context add qmd://agents \"GitHub Agentic Workflows agent definitions and instructions - custom agent configurations and behaviours\"\nfi\n\n# Index workflow authoring instructions if present\nif [ -d \"$AW_DIR\" ]; then\n  qmd collection add \"$AW_DIR\" --name aw\n  qmd context add qmd://aw \"GitHub Agentic Workflows authoring instructions and templates - workflow creation guides and shared configurations\"\nfi\n"
-      - if: steps.qmd-cache.outputs.cache-hit != 'true'
-        name: Save QMD index cache
-        uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
-        with:
-          key: ${{ steps.qmd-cache.outputs.cache-primary-key }}
-          path: ~/.cache/qmd
       - name: Start QMD MCP server
         run: "set -e\nmkdir -p /tmp/gh-aw/mcp-logs/qmd/\n\n# Start QMD MCP server in HTTP daemon mode (default port 8181)\nqmd mcp --http --daemon > /tmp/gh-aw/mcp-logs/qmd/server.log 2>&1\n\n# Poll until the server is healthy (up to 15 seconds)\nfor i in $(seq 1 30); do\n  if curl -sf http://localhost:8181/health > /dev/null 2>&1; then\n    echo \"QMD MCP server started successfully\"\n    echo \"Status: $(curl -s http://localhost:8181/health)\"\n    exit 0\n  fi\n  sleep 0.5\ndone\n\necho \"QMD MCP server health check timed out after 15 seconds\"\necho \"Server logs:\"\ncat /tmp/gh-aw/mcp-logs/qmd/server.log || true\nexit 1"
 
