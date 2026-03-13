@@ -34,6 +34,7 @@ type CreatePullRequestsConfig struct {
 	GithubTokenForExtraEmptyCommit string   `yaml:"github-token-for-extra-empty-commit,omitempty"` // Token used to push an empty commit to trigger CI events. Use a PAT or "app" for GitHub App auth.
 	ManifestFilesPolicy            *string  `yaml:"protected-files,omitempty"`                     // Controls protected-file protection: "blocked" (default) hard-blocks, "allowed" permits all changes, "fallback-to-issue" pushes the branch but creates a review issue.
 	AllowedFiles                   []string `yaml:"allowed-files,omitempty"`                       // Strict allowlist of glob patterns for files eligible for create. Checked independently of protected-files; both checks must pass.
+	PreserveBranchName             *bool    `yaml:"preserve-branch-name,omitempty"`                // When true, skips branch name lowercasing and salt suffix. Still sanitizes dangerous characters. Useful when repos enforce branch naming conventions (e.g., uppercase Jira keys).
 }
 
 // parsePullRequestsConfig handles only create-pull-request (singular) configuration

@@ -118,6 +118,7 @@ async function main(config = {}) {
   const titlePrefix = config.title_prefix || "";
   const envLabels = config.labels ? (Array.isArray(config.labels) ? config.labels : config.labels.split(",")).map(label => String(label).trim()).filter(label => label) : [];
   const draftDefault = parseBoolTemplatable(config.draft, true);
+  const preserveBranchName = config.preserve_branch_name === true;
   const ifNoChanges = config.if_no_changes || "warn";
   const allowEmpty = parseBoolTemplatable(config.allow_empty, false);
   const autoMerge = parseBoolTemplatable(config.auto_merge, false);
@@ -532,7 +533,9 @@ async function main(config = {}) {
     // Branch names from user input must be normalized before use in git commands
     if (branchName) {
       const originalBranchName = branchName;
-      branchName = normalizeBranchName(branchName);
+      // When preserve-branch-name is enabled, preserve the original casing but still sanitize
+      // dangerous characters to prevent shell injection
+      branchName = normalizeBranchName(branchName, { preserveCase: preserveBranchName });
 
       // Validate it's not empty after normalization
       if (!branchName) {
@@ -629,6 +632,9 @@ async function main(config = {}) {
       core.info("No branch name provided in JSONL, generating unique branch name");
       // Generate unique branch name using cryptographic random hex
       branchName = `${workflowId}-${randomHex}`;
+    } else if (preserveBranchName) {
+      // preserve-branch-name: use agent-specified branch name as-is (no salt suffix)
+      core.info(`Using branch name from JSONL as-is (preserve-branch-name enabled): ${branchName}`);
     } else {
       branchName = `${branchName}-${randomHex}`;
       core.info(`Using branch name from JSONL with added salt: ${branchName}`);

@@ -80,3 +80,37 @@ describe("normalizeBranchName", () => {
     expect(result).not.toMatch(/-$/);
   });
 });
+
+describe("normalizeBranchName - preserveCase option", () => {
+  it("should preserve original casing when preserveCase is true", async () => {
+    const { normalizeBranchName } = await import("./normalize_branch_name.cjs");
+
+    expect(normalizeBranchName("Feature/Add-Login", { preserveCase: true })).toBe("Feature/Add-Login");
+    expect(normalizeBranchName("MY-BRANCH", { preserveCase: true })).toBe("MY-BRANCH");
+    expect(normalizeBranchName("bugfix/BR-329-red", { preserveCase: true })).toBe("bugfix/BR-329-red");
+  });
+
+  it("should still sanitize dangerous characters when preserveCase is true", async () => {
+    const { normalizeBranchName } = await import("./normalize_branch_name.cjs");
+
+    expect(normalizeBranchName("feature; rm -rf /", { preserveCase: true })).toBe("feature-rm-rf-/");
+    expect(normalizeBranchName("branch$(malicious)", { preserveCase: true })).toBe("branch-malicious");
+    expect(normalizeBranchName("UPPER@CASE", { preserveCase: true })).toBe("UPPER-CASE");
+  });
+
+  it("should still collapse dashes and truncate when preserveCase is true", async () => {
+    const { normalizeBranchName } = await import("./normalize_branch_name.cjs");
+
+    expect(normalizeBranchName("Feature---Branch", { preserveCase: true })).toBe("Feature-Branch");
+    const longName = "A".repeat(150);
+    const result = normalizeBranchName(longName, { preserveCase: true });
+    expect(result.length).toBe(128);
+  });
+
+  it("should behave the same as default when preserveCase is false or omitted", async () => {
+    const { normalizeBranchName } = await import("./normalize_branch_name.cjs");
+
+    expect(normalizeBranchName("Feature/Add-Login", { preserveCase: false })).toBe("feature/add-login");
+    expect(normalizeBranchName("Feature/Add-Login")).toBe("feature/add-login");
+  });
+});

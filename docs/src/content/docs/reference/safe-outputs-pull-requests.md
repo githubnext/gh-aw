@@ -32,6 +32,7 @@ safe-outputs:
     github-token: ${{ secrets.SOME_CUSTOM_TOKEN }} # optional custom token for permissions
     github-token-for-extra-empty-commit: ${{ secrets.CI_TOKEN }} # optional token to push empty commit triggering CI
     protected-files: fallback-to-issue  # push branch, create review issue if protected files modified
+    preserve-branch-name: true          # keep agent-specified branch name as-is (no lowercase, no salt suffix)
 ```
 
 The `base-branch` field specifies which branch the pull request should target. This is particularly useful for cross-repository PRs where you need to target non-default branches (e.g., `vnext`, `release/v1.0`, `staging`). When not specified, defaults to `github.base_ref` (the PR's target branch) with a fallback to `github.ref_name` (the workflow's branch) for push events.
@@ -50,6 +51,26 @@ safe-outputs:
 The `draft` field is a **configuration policy**, not a default. Whatever value is set in the workflow frontmatter is always used — the agent cannot override it at runtime.
 
 PR creation may fail if "Allow GitHub Actions to create and approve pull requests" is disabled in Organization Settings. By default (`fallback-as-issue: true`), fallback creates an issue with branch link and requires `issues: write` permission. Set `fallback-as-issue: false` to disable fallback and only require `contents: write` + `pull-requests: write`.
+
+### Preserving Branch Names with `preserve-branch-name`
+
+By default, `create-pull-request` normalizes the agent-specified branch name in two ways:
+1. Converts the branch name to lowercase (`bugfix/BR-329-red` → `bugfix/br-329-red`)
+2. Appends a random salt suffix to ensure uniqueness (`bugfix/br-329-red` → `bugfix/br-329-red-cde2a954af3b8fa8`)
+
+When your repository enforces branch naming conventions (e.g., requiring uppercase Jira ticket keys), you can disable both normalizations with `preserve-branch-name: true`:
+
+```yaml
+safe-outputs:
+  create-pull-request:
+    preserve-branch-name: true
+```
+
+With this option enabled, the branch name provided by the agent is used as-is, preserving original casing and without a random salt suffix. Shell-injection characters are still sanitized for security. If the agent does not specify a branch name, a unique name is still generated automatically.
+
+:::caution[Branch collision risk]
+Without the salt suffix, if the agent creates a PR using an existing branch name, the operation may fail. Ensure the agent provides unique branch names or that existing branches are cleaned up beforehand.
+:::
 
 When `create-pull-request` is configured, git commands (`checkout`, `branch`, `switch`, `add`, `rm`, `commit`, `merge`) are automatically enabled.
 

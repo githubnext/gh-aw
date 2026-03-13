@@ -15,12 +15,13 @@
  * 3. Removes leading and trailing dashes
  * 4. Truncates to 128 characters
  * 5. Removes trailing dashes after truncation
- * 6. Converts to lowercase
+ * 6. Converts to lowercase (unless options.preserveCase is true)
  *
  * @param {string} branchName - The branch name to normalize
+ * @param {{ preserveCase?: boolean }} [options] - Optional normalization options
  * @returns {string} The normalized branch name
  */
-function normalizeBranchName(branchName) {
+function normalizeBranchName(branchName, options = {}) {
   if (!branchName || typeof branchName !== "string" || branchName.trim() === "") {
     return branchName;
   }
@@ -43,8 +44,10 @@ function normalizeBranchName(branchName) {
   // Ensure it doesn't end with a dash after truncation
   normalized = normalized.replace(/-+$/, "");
 
-  // Convert to lowercase
-  normalized = normalized.toLowerCase();
+  // Convert to lowercase (unless preserveCase is explicitly requested)
+  if (!options.preserveCase) {
+    normalized = normalized.toLowerCase();
+  }
 
   return normalized;
 }
