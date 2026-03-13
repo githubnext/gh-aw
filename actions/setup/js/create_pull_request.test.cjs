@@ -356,11 +356,58 @@ describe("create_pull_request - security: branch name sanitization", () => {
     expect(normalizeBranchName("---")).toBe("");
   });
 
-  it("should convert to lowercase", () => {
+  it("should preserve original casing (no lowercase conversion)", () => {
     const { normalizeBranchName } = require("./normalize_branch_name.cjs");
 
-    expect(normalizeBranchName("Feature/MyBranch")).toBe("feature/mybranch");
-    expect(normalizeBranchName("UPPERCASE")).toBe("uppercase");
+    expect(normalizeBranchName("Feature/MyBranch")).toBe("Feature/MyBranch");
+    expect(normalizeBranchName("UPPERCASE")).toBe("UPPERCASE");
+    // Motivating use-case: Jira keys stay uppercase
+    expect(normalizeBranchName("bugfix/BR-329-red")).toBe("bugfix/BR-329-red");
+  });
+});
+
+// ──────────────────────────────────────────────────────
+// normalizeBranchName: salt argument
+// ──────────────────────────────────────────────────────
+
+describe("create_pull_request - normalizeBranchName: salt argument", () => {
+  it("should append salt suffix when salt argument is provided", () => {
+    const { normalizeBranchName } = require("./normalize_branch_name.cjs");
+
+    expect(normalizeBranchName("feature/my-branch", "abc123")).toBe("feature/my-branch-abc123");
+    expect(normalizeBranchName("bugfix/BR-329-red", "cde2a954af3b8fa8")).toBe("bugfix/BR-329-red-cde2a954af3b8fa8");
+  });
+
+  it("should preserve original casing and add salt (default behaviour)", () => {
+    const { normalizeBranchName } = require("./normalize_branch_name.cjs");
+
+    // Default: preserve case + salt
+    expect(normalizeBranchName("bugfix/BR-329-red", "cde2a954")).toBe("bugfix/BR-329-red-cde2a954");
+
+    // preserve-branch-name=true: no salt
+    expect(normalizeBranchName("bugfix/BR-329-red")).toBe("bugfix/BR-329-red");
+  });
+
+  it("should still replace shell metacharacters for security even when preserving case (CWE-78)", () => {
+    const { normalizeBranchName } = require("./normalize_branch_name.cjs");
+
+    const dangerousNames = [
+      { input: "Feature; rm -rf /", expected: "Feature-rm-rf-/" },
+      { input: "Branch$(malicious)", expected: "Branch-malicious" },
+      { input: "BRANCH`backdoor`", expected: "BRANCH-backdoor" },
+      { input: "Branch| curl EVIL.COM", expected: "Branch-curl-EVIL.COM" },
+      { input: "Branch && echo HACKED", expected: "Branch-echo-HACKED" },
+    ];
+
+    for (const { input, expected } of dangerousNames) {
+      const result = normalizeBranchName(input);
+      expect(result).toBe(expected);
+      expect(result).not.toContain(";");
+      expect(result).not.toContain("$");
+      expect(result).not.toContain("`");
+      expect(result).not.toContain("|");
+      expect(result).not.toContain("&");
+    }
   });
 });
 

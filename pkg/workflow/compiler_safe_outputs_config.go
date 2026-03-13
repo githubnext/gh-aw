@@ -486,7 +486,8 @@ var handlerRegistry = map[string]handlerBuilder{
 			AddStringPtr("protected_files_policy", c.ManifestFilesPolicy).
 			AddStringSlice("protected_files", getAllManifestFiles()).
 			AddStringSlice("protected_path_prefixes", getProtectedPathPrefixes()).
-			AddStringSlice("allowed_files", c.AllowedFiles)
+			AddStringSlice("allowed_files", c.AllowedFiles).
+			AddIfTrue("preserve_branch_name", c.PreserveBranchName)
 		return builder.Build()
 	},
 	"push_to_pull_request_branch": func(cfg *SafeOutputsConfig) map[string]any {

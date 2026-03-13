@@ -7,7 +7,7 @@
  * IMPORTANT: Keep this function in sync with the normalizeBranchName function in upload_assets.cjs
  *
  * Valid characters: alphanumeric (a-z, A-Z, 0-9), dash (-), underscore (_), forward slash (/), dot (.)
- * Max length: 128 characters
+ * Max length: 128 characters (before salt is appended)
  *
  * The normalization process:
  * 1. Replaces invalid characters with a single dash
@@ -15,12 +15,13 @@
  * 3. Removes leading and trailing dashes
  * 4. Truncates to 128 characters
  * 5. Removes trailing dashes after truncation
- * 6. Converts to lowercase
+ * 6. Appends `-<salt>` suffix when a salt value is provided
  *
  * @param {string} branchName - The branch name to normalize
+ * @param {string | null} [salt=null] - When set, appends `-<salt>` to the branch name
  * @returns {string} The normalized branch name
  */
-function normalizeBranchName(branchName) {
+function normalizeBranchName(branchName, salt = null) {
   if (!branchName || typeof branchName !== "string" || branchName.trim() === "") {
     return branchName;
   }
@@ -43,8 +44,10 @@ function normalizeBranchName(branchName) {
   // Ensure it doesn't end with a dash after truncation
   normalized = normalized.replace(/-+$/, "");
 
-  // Convert to lowercase
-  normalized = normalized.toLowerCase();
+  // Append a salt suffix when provided
+  if (salt) {
+    normalized = `${normalized}-${salt}`;
+  }
 
   return normalized;
 }
