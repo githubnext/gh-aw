@@ -66,13 +66,13 @@ describe("generate_workflow_overview.cjs", () => {
     expect(summaryArg).toContain("<details>");
     // engine_id and version should appear in the summary label
     expect(summaryArg).toContain("<summary>Run details - copilot v1.2.3</summary>");
-    // All fields should be rendered as bullet points
-    expect(summaryArg).toContain("- **engine_id**: copilot");
-    expect(summaryArg).toContain("- **engine_name**: GitHub Copilot");
+    // All fields should be rendered as bullet points with humanified keys
+    expect(summaryArg).toContain("- **engine id**: copilot");
+    expect(summaryArg).toContain("- **engine name**: GitHub Copilot");
     expect(summaryArg).toContain("- **model**: gpt-4");
     expect(summaryArg).toContain("- **version**: v1.2.3");
-    expect(summaryArg).toContain("- **firewall_enabled**: true");
-    expect(summaryArg).toContain("- **awf_version**: 1.0.0");
+    expect(summaryArg).toContain("- **firewall enabled**: true");
+    expect(summaryArg).toContain("- **awf version**: 1.0.0");
     expect(summaryArg).toContain("</details>");
     // Ensure no table syntax is present
     expect(summaryArg).not.toContain("| Property | Value |");
@@ -91,8 +91,8 @@ describe("generate_workflow_overview.cjs", () => {
 
     const summaryArg = mockCore.summary.addRaw.mock.calls[0][0];
     expect(summaryArg).toContain("<summary>Run details - claude</summary>");
-    expect(summaryArg).toContain("- **engine_id**: claude");
-    expect(summaryArg).toContain("- **firewall_enabled**: false");
+    expect(summaryArg).toContain("- **engine id**: claude");
+    expect(summaryArg).toContain("- **firewall enabled**: false");
   });
 
   it("should show plain 'Run details' in summary label when both engine_id and version are missing", async () => {
@@ -119,8 +119,8 @@ describe("generate_workflow_overview.cjs", () => {
     await generateWorkflowOverview(mockCore);
 
     const summaryArg = mockCore.summary.addRaw.mock.calls[0][0];
-    expect(summaryArg).toContain("- **engine_id**: copilot");
-    expect(summaryArg).toContain("- **allowed_domains**:");
+    expect(summaryArg).toContain("- **engine id**: copilot");
+    expect(summaryArg).toContain("- **allowed domains**:");
     expect(summaryArg).toContain("  - example.com");
     expect(summaryArg).toContain("  - github.com");
     expect(summaryArg).toContain("- **steps**:");

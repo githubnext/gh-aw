@@ -8,6 +8,16 @@
  */
 
 /**
+ * Humanify a JSON key by replacing underscores and hyphens with spaces.
+ * e.g. "engine_id" → "engine id", "awf-version" → "awf version"
+ * @param {string} key - The raw object key
+ * @returns {string} - Human-readable key
+ */
+function humanifyKey(key) {
+  return key.replace(/[_-]/g, " ");
+}
+
+/**
  * Format a single value as a readable string for Markdown output.
  * @param {unknown} value - The value to format
  * @returns {string} - String representation of the value
@@ -42,11 +52,12 @@ function jsonObjectToMarkdown(obj, depth = 0) {
   const lines = [];
 
   for (const [key, value] of Object.entries(obj)) {
+    const label = humanifyKey(key);
     if (Array.isArray(value)) {
       if (value.length === 0) {
-        lines.push(`${indent}- **${key}**: (none)`);
+        lines.push(`${indent}- **${label}**: (none)`);
       } else {
-        lines.push(`${indent}- **${key}**:`);
+        lines.push(`${indent}- **${label}**:`);
         for (const item of value) {
           if (typeof item === "object" && item !== null) {
             lines.push(jsonObjectToMarkdown(/** @type {Record<string, unknown>} */ item, depth + 1));
@@ -56,15 +67,15 @@ function jsonObjectToMarkdown(obj, depth = 0) {
         }
       }
     } else if (typeof value === "object" && value !== null) {
-      lines.push(`${indent}- **${key}**:`);
+      lines.push(`${indent}- **${label}**:`);
       lines.push(jsonObjectToMarkdown(/** @type {Record<string, unknown>} */ value, depth + 1));
     } else {
       const formatted = formatValue(value);
-      lines.push(`${indent}- **${key}**: ${formatted}`);
+      lines.push(`${indent}- **${label}**: ${formatted}`);
     }
   }
 
   return lines.join("\n");
 }
 
-module.exports = { jsonObjectToMarkdown };
+module.exports = { humanifyKey, jsonObjectToMarkdown };
