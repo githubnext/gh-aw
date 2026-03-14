@@ -82,8 +82,15 @@ async function main(config = {}) {
   // When running in a PR context, GITHUB_REF points to the merge ref (refs/pull/{PR_NUMBER}/merge)
   // which is not a valid branch ref for dispatching workflows. Instead, we need to use
   // GITHUB_HEAD_REF which contains the actual PR branch name.
+  // For cross-repo dispatch (workflow_call relay), the caller's GITHUB_REF has no meaning on
+  // the target repository, so we use the compiler-injected target-ref instead.
   let ref;
-  if (process.env.GITHUB_HEAD_REF) {
+  if (config["target-ref"]) {
+    // Compiler-injected target ref for cross-repo dispatch (workflow_call relay pattern).
+    // Takes precedence over all environment variables to avoid using the caller's ref.
+    ref = config["target-ref"];
+    core.info(`Using configured target-ref: ${ref}`);
+  } else if (process.env.GITHUB_HEAD_REF) {
     // We're in a pull_request event, use the PR branch ref
     ref = `refs/heads/${process.env.GITHUB_HEAD_REF}`;
     core.info(`Using PR branch ref: ${ref}`);

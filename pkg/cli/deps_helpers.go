@@ -5,14 +5,22 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/github/gh-aw/pkg/logger"
 )
+
+var depsHelpersLog = logger.New("cli:deps_helpers")
 
 // findGoMod locates the go.mod file in the repository.
 // It first checks the current directory, then falls back to the git root.
 func findGoMod() (string, error) {
 	// Try current directory first
 	if _, err := os.Stat("go.mod"); err == nil {
-		return filepath.Abs("go.mod")
+		absPath, err := filepath.Abs("go.mod")
+		if err == nil {
+			depsHelpersLog.Printf("Found go.mod in current directory: %s", absPath)
+		}
+		return absPath, err
 	}
 
 	// Try git root
@@ -26,12 +34,14 @@ func findGoMod() (string, error) {
 		return "", errors.New("not in a Go module (no go.mod found)")
 	}
 
+	depsHelpersLog.Printf("Found go.mod at git root: %s", goModPath)
 	return goModPath, nil
 }
 
 // parseGoModFile parses a go.mod file and returns all dependencies (direct and indirect).
 // Callers can filter on the Indirect field as needed.
 func parseGoModFile(path string) ([]DependencyInfoWithIndirect, error) {
+	depsHelpersLog.Printf("Parsing go.mod file: %s", path)
 	content, err := os.ReadFile(path)
 	if err != nil {
 		return nil, err
@@ -75,5 +85,6 @@ func parseGoModFile(path string) ([]DependencyInfoWithIndirect, error) {
 		}
 	}
 
+	depsHelpersLog.Printf("Parsed %d dependencies from go.mod", len(deps))
 	return deps, nil
 }

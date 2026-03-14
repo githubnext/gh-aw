@@ -46,8 +46,8 @@ func formatCompilerMessage(filePath string, msgType string, message string) stri
 	return console.FormatError(console.CompilerError{
 		Position: console.ErrorPosition{
 			File:   filePath,
-			Line:   1,
-			Column: 1,
+			Line:   0,
+			Column: 0,
 		},
 		Type:    msgType,
 		Message: message,
@@ -396,6 +396,12 @@ Ensure proper audience validation and trust policies are configured.`
 	log.Print("Validating dispatch-workflow configuration")
 	if err := c.validateDispatchWorkflow(workflowData, markdownPath); err != nil {
 		return formatCompilerError(markdownPath, "error", fmt.Sprintf("dispatch-workflow validation failed: %v", err), err)
+	}
+
+	// Validate call-workflow configuration (independent of agentic-workflows tool)
+	log.Print("Validating call-workflow configuration")
+	if err := c.validateCallWorkflow(workflowData, markdownPath); err != nil {
+		return formatCompilerError(markdownPath, "error", fmt.Sprintf("call-workflow validation failed: %v", err), err)
 	}
 
 	return nil

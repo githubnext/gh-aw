@@ -1,6 +1,11 @@
 package workflow
 
-import "github.com/github/gh-aw/pkg/constants"
+import (
+	"github.com/github/gh-aw/pkg/constants"
+	"github.com/github/gh-aw/pkg/logger"
+)
+
+var safeOutputsRuntimeLog = logger.New("workflow:safe_outputs_runtime")
 
 // ========================================
 // Safe Output Runtime Configuration
@@ -14,20 +19,12 @@ import "github.com/github/gh-aw/pkg/constants"
 // Falls back to the default activation job runner image when not explicitly set.
 func (c *Compiler) formatSafeOutputsRunsOn(safeOutputs *SafeOutputsConfig) string {
 	if safeOutputs == nil || safeOutputs.RunsOn == "" {
+		safeOutputsRuntimeLog.Printf("Safe outputs runs-on not set, using default: %s", constants.DefaultActivationJobRunnerImage)
 		return "runs-on: " + constants.DefaultActivationJobRunnerImage
 	}
 
+	safeOutputsRuntimeLog.Printf("Safe outputs runs-on: %s", safeOutputs.RunsOn)
 	return "runs-on: " + safeOutputs.RunsOn
-}
-
-// formatDetectionRunsOn resolves the runner for the detection job using the following priority:
-// 1. safe-outputs.detection.runs-on (detection-specific override)
-// 2. agentRunsOn (the agent job's runner, passed by the caller)
-func (c *Compiler) formatDetectionRunsOn(safeOutputs *SafeOutputsConfig, agentRunsOn string) string {
-	if safeOutputs != nil && safeOutputs.ThreatDetection != nil && safeOutputs.ThreatDetection.RunsOn != "" {
-		return "runs-on: " + safeOutputs.ThreatDetection.RunsOn
-	}
-	return agentRunsOn
 }
 
 // usesPatchesAndCheckouts checks if the workflow uses safe outputs that require
@@ -36,5 +33,8 @@ func usesPatchesAndCheckouts(safeOutputs *SafeOutputsConfig) bool {
 	if safeOutputs == nil {
 		return false
 	}
-	return safeOutputs.CreatePullRequests != nil || safeOutputs.PushToPullRequestBranch != nil
+	result := safeOutputs.CreatePullRequests != nil || safeOutputs.PushToPullRequestBranch != nil
+	safeOutputsRuntimeLog.Printf("usesPatchesAndCheckouts: createPR=%v, pushToPRBranch=%v, result=%v",
+		safeOutputs.CreatePullRequests != nil, safeOutputs.PushToPullRequestBranch != nil, result)
+	return result
 }

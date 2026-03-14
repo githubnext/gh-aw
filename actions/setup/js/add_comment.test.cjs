@@ -879,8 +879,8 @@ describe("add_comment", () => {
       const retryLog = infoCalls.find(msg => msg.includes("retrying as discussion"));
       expect(retryLog).toBeTruthy();
 
-      const foundLog = infoCalls.find(msg => msg.includes("Found discussion"));
-      expect(foundLog).toBeTruthy();
+      const createdLog = infoCalls.find(msg => msg.includes("Created comment on discussion"));
+      expect(createdLog).toBeTruthy();
     });
 
     it("should return skipped when item_number not found as issue/PR or discussion", async () => {

@@ -486,7 +486,8 @@ var handlerRegistry = map[string]handlerBuilder{
 			AddStringPtr("protected_files_policy", c.ManifestFilesPolicy).
 			AddStringSlice("protected_files", getAllManifestFiles()).
 			AddStringSlice("protected_path_prefixes", getProtectedPathPrefixes()).
-			AddStringSlice("allowed_files", c.AllowedFiles)
+			AddStringSlice("allowed_files", c.AllowedFiles).
+			AddIfTrue("preserve_branch_name", c.PreserveBranchName)
 		return builder.Build()
 	},
 	"push_to_pull_request_branch": func(cfg *SafeOutputsConfig) map[string]any {
@@ -577,6 +578,7 @@ var handlerRegistry = map[string]handlerBuilder{
 			builder.AddDefault("workflow_files", c.WorkflowFiles)
 		}
 
+		builder.AddIfNotEmpty("target-ref", c.TargetRef)
 		builder.AddIfNotEmpty("github-token", c.GitHubToken)
 		return builder.Build()
 	},
@@ -731,12 +733,18 @@ func (c *Compiler) addHandlerManagerConfigEnvVar(steps *[]string, data *Workflow
 	fullManifestFiles := getAllManifestFiles(extraManifestFiles...)
 	fullPathPrefixes := getProtectedPathPrefixes(extraPathPrefixes...)
 
-	// For workflow_call relay workflows, inject the resolved platform repo into the
+	// For workflow_call relay workflows, inject the resolved platform repo and ref into the
 	// dispatch_workflow handler config so dispatch targets the host repo, not the caller's.
 	safeOutputs := data.SafeOutputs
-	if hasWorkflowCallTrigger(data.On) && safeOutputs.DispatchWorkflow != nil && safeOutputs.DispatchWorkflow.TargetRepoSlug == "" {
-		safeOutputs = safeOutputsWithDispatchTargetRepo(safeOutputs, "${{ needs.activation.outputs.target_repo }}")
-		compilerSafeOutputsConfigLog.Print("Injecting target_repo into dispatch_workflow config for workflow_call relay")
+	if hasWorkflowCallTrigger(data.On) && safeOutputs.DispatchWorkflow != nil {
+		if safeOutputs.DispatchWorkflow.TargetRepoSlug == "" {
+			safeOutputs = safeOutputsWithDispatchTargetRepo(safeOutputs, "${{ needs.activation.outputs.target_repo }}")
+			compilerSafeOutputsConfigLog.Print("Injecting target_repo into dispatch_workflow config for workflow_call relay")
+		}
+		if safeOutputs.DispatchWorkflow.TargetRef == "" {
+			safeOutputs = safeOutputsWithDispatchTargetRef(safeOutputs, "${{ needs.activation.outputs.target_ref }}")
+			compilerSafeOutputsConfigLog.Print("Injecting target_ref into dispatch_workflow config for workflow_call relay")
+		}
 	}
 
 	// Build configuration for each handler using the registry
@@ -779,6 +787,17 @@ func (c *Compiler) addHandlerManagerConfigEnvVar(steps *[]string, data *Workflow
 func safeOutputsWithDispatchTargetRepo(cfg *SafeOutputsConfig, targetRepo string) *SafeOutputsConfig {
 	dispatchCopy := *cfg.DispatchWorkflow
 	dispatchCopy.TargetRepoSlug = targetRepo
+	configCopy := *cfg
+	configCopy.DispatchWorkflow = &dispatchCopy
+	return &configCopy
+}
+
+// safeOutputsWithDispatchTargetRef returns a shallow copy of cfg with the dispatch_workflow
+// TargetRef overridden to targetRef. Only DispatchWorkflow is deep-copied; all other
+// pointer fields remain shared. This avoids mutating the original config.
+func safeOutputsWithDispatchTargetRef(cfg *SafeOutputsConfig, targetRef string) *SafeOutputsConfig {
+	dispatchCopy := *cfg.DispatchWorkflow
+	dispatchCopy.TargetRef = targetRef
 	configCopy := *cfg
 	configCopy.DispatchWorkflow = &dispatchCopy
 	return &configCopy

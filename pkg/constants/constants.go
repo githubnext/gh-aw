@@ -344,7 +344,7 @@ const DefaultGeminiVersion Version = "latest"
 const DefaultGitHubMCPServerVersion Version = "v0.32.0"
 
 // DefaultFirewallVersion is the default version of the gh-aw-firewall (AWF) binary
-const DefaultFirewallVersion Version = "v0.23.0"
+const DefaultFirewallVersion Version = "v0.24.1"
 
 // AWF (Agentic Workflow Firewall) constants
 
@@ -358,7 +358,7 @@ const AWFProxyLogsDir = "/tmp/gh-aw/sandbox/firewall/logs"
 const AWFDefaultLogLevel = "info"
 
 // DefaultMCPGatewayVersion is the default version of the MCP Gateway (gh-aw-mcpg) Docker image
-const DefaultMCPGatewayVersion Version = "v0.1.14"
+const DefaultMCPGatewayVersion Version = "v0.1.15"
 
 // DefaultMCPGatewayContainer is the default container image for the MCP Gateway
 const DefaultMCPGatewayContainer = "ghcr.io/github/gh-aw-mcpg"
@@ -675,6 +675,10 @@ const CheckCommandPositionStepID StepID = "check_command_position"
 const CheckRateLimitStepID StepID = "check_rate_limit"
 const CheckSkipRolesStepID StepID = "check_skip_roles"
 const CheckSkipBotsStepID StepID = "check_skip_bots"
+
+// PreActivationAppTokenStepID is the step ID for the unified GitHub App token mint step
+// emitted in the pre-activation job when on.github-app is configured alongside skip-if checks.
+const PreActivationAppTokenStepID StepID = "pre-activation-app-token"
 
 // Output names for pre-activation job steps
 const IsTeamMemberOutput = "is_team_member"

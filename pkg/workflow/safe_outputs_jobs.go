@@ -61,10 +61,12 @@ func (c *Compiler) buildSafeOutputJob(data *WorkflowData, config SafeOutputJobCo
 	// Add GitHub App token minting step if app is configured
 	if data.SafeOutputs != nil && data.SafeOutputs.GitHubApp != nil {
 		safeOutputsJobsLog.Print("Adding GitHub App token minting step with auto-computed permissions")
-		// For workflow_call relay workflows, scope the token to the platform repo.
+		// For workflow_call relay workflows, scope the token to the platform repo name only
+		// (not the full slug) because actions/create-github-app-token expects repo names
+		// without the owner prefix when `owner` is also set.
 		var appTokenFallbackRepo string
 		if hasWorkflowCallTrigger(data.On) {
-			appTokenFallbackRepo = "${{ needs.activation.outputs.target_repo }}"
+			appTokenFallbackRepo = "${{ needs.activation.outputs.target_repo_name }}"
 		}
 		steps = append(steps, c.buildGitHubAppTokenMintStep(data.SafeOutputs.GitHubApp, config.Permissions, appTokenFallbackRepo)...)
 	}
@@ -433,31 +435,6 @@ func applySafeOutputEnvToMap(env map[string]string, data *WorkflowData) {
 		env["GH_AW_ASSETS_BRANCH"] = fmt.Sprintf("%q", data.SafeOutputs.UploadAssets.BranchName)
 		env["GH_AW_ASSETS_MAX_SIZE_KB"] = strconv.Itoa(data.SafeOutputs.UploadAssets.MaxSizeKB)
 		env["GH_AW_ASSETS_ALLOWED_EXTS"] = fmt.Sprintf("%q", strings.Join(data.SafeOutputs.UploadAssets.AllowedExts, ","))
-	}
-}
-
-// applySafeOutputEnvToSlice adds safe-output related environment variables to a YAML string slice
-// This is for engines that build YAML line-by-line (like Claude)
-func applySafeOutputEnvToSlice(stepLines *[]string, workflowData *WorkflowData) {
-	if workflowData.SafeOutputs == nil {
-		return
-	}
-
-	*stepLines = append(*stepLines, "          GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}")
-
-	// Add staged flag if specified
-	if workflowData.TrialMode || workflowData.SafeOutputs.Staged {
-		*stepLines = append(*stepLines, "          GH_AW_SAFE_OUTPUTS_STAGED: \"true\"")
-	}
-	if workflowData.TrialMode && workflowData.TrialLogicalRepo != "" {
-		*stepLines = append(*stepLines, fmt.Sprintf("          GH_AW_TARGET_REPO_SLUG: %q", workflowData.TrialLogicalRepo))
-	}
-
-	// Add branch name if upload assets is configured
-	if workflowData.SafeOutputs.UploadAssets != nil {
-		*stepLines = append(*stepLines, fmt.Sprintf("          GH_AW_ASSETS_BRANCH: %q", workflowData.SafeOutputs.UploadAssets.BranchName))
-		*stepLines = append(*stepLines, fmt.Sprintf("          GH_AW_ASSETS_MAX_SIZE_KB: %d", workflowData.SafeOutputs.UploadAssets.MaxSizeKB))
-		*stepLines = append(*stepLines, fmt.Sprintf("          GH_AW_ASSETS_ALLOWED_EXTS: %q", strings.Join(workflowData.SafeOutputs.UploadAssets.AllowedExts, ",")))
 	}
 }
 

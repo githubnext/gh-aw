@@ -201,8 +201,11 @@ func (c *Compiler) buildInitialWorkflowData(
 	// (e.g. due to unrecognised tool config shapes like bash: ["*"]).
 	if toolsResult.parsedFrontmatter != nil {
 		workflowData.CheckoutConfigs = toolsResult.parsedFrontmatter.CheckoutConfigs
+		workflowData.CheckoutDisabled = toolsResult.parsedFrontmatter.CheckoutDisabled
 	} else if rawCheckout, ok := result.Frontmatter["checkout"]; ok {
-		if configs, err := ParseCheckoutConfigs(rawCheckout); err == nil {
+		if checkoutValue, ok := rawCheckout.(bool); ok && !checkoutValue {
+			workflowData.CheckoutDisabled = true
+		} else if configs, err := ParseCheckoutConfigs(rawCheckout); err == nil {
 			workflowData.CheckoutConfigs = configs
 		}
 	}
@@ -590,8 +593,8 @@ func (c *Compiler) extractAdditionalConfigurations(
 	workflowData.RateLimit = c.extractRateLimitConfig(frontmatter)
 	workflowData.SkipRoles = c.mergeSkipRoles(c.extractSkipRoles(frontmatter), importsResult.MergedSkipRoles)
 	workflowData.SkipBots = c.mergeSkipBots(c.extractSkipBots(frontmatter), importsResult.MergedSkipBots)
-	workflowData.ActivationGitHubToken = c.extractActivationGitHubToken(frontmatter)
-	workflowData.ActivationGitHubApp = c.extractActivationGitHubApp(frontmatter)
+	workflowData.ActivationGitHubToken = c.resolveActivationGitHubToken(frontmatter, importsResult)
+	workflowData.ActivationGitHubApp = c.resolveActivationGitHubApp(frontmatter, importsResult)
 
 	// Use the already extracted output configuration
 	workflowData.SafeOutputs = safeOutputs

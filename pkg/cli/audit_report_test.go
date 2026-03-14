@@ -1150,16 +1150,31 @@ func TestExtractCreatedItemsFromManifest(t *testing.T) {
 		assert.Equal(t, "add_comment", items[1].Type)
 	})
 
-	t.Run("skips entries without URL", func(t *testing.T) {
+	t.Run("includes entries without URL (modification types like add_labels)", func(t *testing.T) {
 		dir := t.TempDir()
-		content := `{"type":"create_issue","url":"","timestamp":"2024-01-01T00:00:00Z"}
+		content := `{"type":"add_labels","number":20875,"timestamp":"2024-01-01T00:00:00Z"}
 {"type":"create_issue","url":"https://github.com/owner/repo/issues/2","timestamp":"2024-01-01T00:01:00Z"}
 `
 		require.NoError(t, os.WriteFile(filepath.Join(dir, safeOutputItemsManifestFilename), []byte(content), 0600))
 
 		items := extractCreatedItemsFromManifest(dir)
-		require.Len(t, items, 1, "should skip entry with empty URL")
-		assert.Equal(t, "https://github.com/owner/repo/issues/2", items[0].URL)
+		require.Len(t, items, 2, "should include both entries: one without URL and one with URL")
+		assert.Equal(t, "add_labels", items[0].Type)
+		assert.Empty(t, items[0].URL)
+		assert.Equal(t, 20875, items[0].Number)
+		assert.Equal(t, "https://github.com/owner/repo/issues/2", items[1].URL)
+	})
+
+	t.Run("skips entries without type field", func(t *testing.T) {
+		dir := t.TempDir()
+		content := `{"url":"https://github.com/owner/repo/issues/1","timestamp":"2024-01-01T00:00:00Z"}
+{"type":"add_comment","url":"https://github.com/owner/repo/issues/1#issuecomment-1","timestamp":"2024-01-01T00:02:00Z"}
+`
+		require.NoError(t, os.WriteFile(filepath.Join(dir, safeOutputItemsManifestFilename), []byte(content), 0600))
+
+		items := extractCreatedItemsFromManifest(dir)
+		require.Len(t, items, 1, "should skip entry without type and parse 1 valid one")
+		assert.Equal(t, "add_comment", items[0].Type)
 	})
 
 	t.Run("skips invalid JSON lines", func(t *testing.T) {

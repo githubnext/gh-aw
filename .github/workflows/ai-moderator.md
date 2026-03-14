@@ -41,6 +41,7 @@ safe-outputs:
     max: 5
     allowed-reasons: [spam]
   threat-detection: false
+checkout: false
 ---
 
 # AI Moderator

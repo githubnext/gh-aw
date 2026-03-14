@@ -1141,6 +1141,61 @@ jobs:
 			resolver:      nil,
 			expectUpgrade: false,
 		},
+		{
+			name: "corrects drift: SHA-pinned uses comment ahead of with: version:",
+			content: `jobs:
+  copilot-setup-steps:
+    steps:
+      - name: Install gh-aw extension
+        uses: github/gh-aw/actions/setup-cli@cb7966564184443e601bd6135d5fbb534300070e # v0.58.0
+        with:
+          version: v0.53.6
+`,
+			actionMode:    workflow.ActionModeRelease,
+			version:       "v0.60.0",
+			resolver:      &mockSHAResolver{sha: "newsha123"},
+			expectUpgrade: true,
+			validate: func(t *testing.T, got string) {
+				if !strings.Contains(got, "uses: github/gh-aw/actions/setup-cli@newsha123 # v0.60.0") {
+					t.Errorf("Expected updated SHA-pinned uses: line, got:\n%s", got)
+				}
+				if !strings.Contains(got, "version: v0.60.0") {
+					t.Errorf("Expected with: version: updated to v0.60.0, got:\n%s", got)
+				}
+				if strings.Contains(got, "v0.53.6") {
+					t.Errorf("Stale version v0.53.6 should be gone, got:\n%s", got)
+				}
+				if strings.Contains(got, "v0.58.0") {
+					t.Errorf("Old comment version v0.58.0 should be gone, got:\n%s", got)
+				}
+			},
+		},
+		{
+			name: "corrects drift: version-tag uses ahead of with: version:",
+			content: `jobs:
+  copilot-setup-steps:
+    steps:
+      - name: Install gh-aw extension
+        uses: github/gh-aw/actions/setup-cli@v0.58.0
+        with:
+          version: v0.53.6
+`,
+			actionMode:    workflow.ActionModeRelease,
+			version:       "v0.60.0",
+			resolver:      nil,
+			expectUpgrade: true,
+			validate: func(t *testing.T, got string) {
+				if !strings.Contains(got, "uses: github/gh-aw/actions/setup-cli@v0.60.0") {
+					t.Errorf("Expected updated uses: line, got:\n%s", got)
+				}
+				if !strings.Contains(got, "version: v0.60.0") {
+					t.Errorf("Expected with: version: updated to v0.60.0, got:\n%s", got)
+				}
+				if strings.Contains(got, "v0.53.6") {
+					t.Errorf("Stale version v0.53.6 should be gone, got:\n%s", got)
+				}
+			},
+		},
 	}
 
 	for _, tt := range tests {

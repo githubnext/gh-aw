@@ -217,7 +217,7 @@ async function hideOlderComments(github, owner, repo, itemNumber, workflowId, is
     const nodeId = isDiscussion ? String(comment.id) : comment.node_id;
     core.info(`Hiding comment: ${nodeId}`);
 
-    const result = await minimizeComment(github, nodeId, normalizedReason);
+    await minimizeComment(github, nodeId, normalizedReason);
     hiddenCount++;
     core.info(`✓ Hidden comment: ${nodeId}`);
   }
@@ -357,8 +357,6 @@ async function main(config = {}) {
 
     processedCount++;
 
-    const item = message;
-
     // Merge resolved temp IDs
     if (resolvedTemporaryIds) {
       for (const [tempId, resolved] of Object.entries(resolvedTemporaryIds)) {
@@ -369,7 +367,7 @@ async function main(config = {}) {
     }
 
     // Resolve and validate target repository
-    const repoResult = resolveAndValidateRepo(item, defaultTargetRepo, allowedRepos, "comment");
+    const repoResult = resolveAndValidateRepo(message, defaultTargetRepo, allowedRepos, "comment");
     if (!repoResult.success) {
       core.warning(`Skipping comment: ${repoResult.error}`);
       return {
@@ -385,26 +383,26 @@ async function main(config = {}) {
     let isDiscussion = false;
 
     // Check if item_number was explicitly provided in the message
-    if (item.item_number !== undefined && item.item_number !== null) {
+    if (message.item_number !== undefined && message.item_number !== null) {
       // Resolve temporary IDs if present
-      const resolvedTarget = resolveRepoIssueTarget(item.item_number, temporaryIdMap, repoParts.owner, repoParts.repo);
+      const resolvedTarget = resolveRepoIssueTarget(message.item_number, temporaryIdMap, repoParts.owner, repoParts.repo);
 
       // Check if this is an unresolved temporary ID
       if (resolvedTarget.wasTemporaryId && !resolvedTarget.resolved) {
-        core.info(`Deferring add_comment: unresolved temporary ID (${item.item_number})`);
+        core.info(`Deferring add_comment: unresolved temporary ID (${message.item_number})`);
         return {
           success: false,
           deferred: true,
-          error: resolvedTarget.errorMessage || `Unresolved temporary ID: ${item.item_number}`,
+          error: resolvedTarget.errorMessage || `Unresolved temporary ID: ${message.item_number}`,
         };
       }
 
       // Check for other resolution errors (including null resolved)
       if (resolvedTarget.errorMessage || !resolvedTarget.resolved) {
-        core.warning(`Invalid item_number specified: ${item.item_number}`);
+        core.warning(`Invalid item_number specified: ${message.item_number}`);
         return {
           success: false,
-          error: `Invalid item_number specified: ${item.item_number}`,
+          error: `Invalid item_number specified: ${message.item_number}`,
         };
       }
 
@@ -433,7 +431,7 @@ async function main(config = {}) {
         // For issues/PRs, use the resolveTarget helper which respects target configuration
         const targetResult = resolveTarget({
           targetConfig: commentTarget,
-          item: item,
+          item: message,
           context: context,
           itemType: "add_comment",
           supportsPR: true, // add_comment supports both issues and PRs
@@ -460,7 +458,7 @@ async function main(config = {}) {
     // author so the second sanitization pass does not accidentally strip them.
     const parentAuthors = [];
     if (!isDiscussion) {
-      if (item.item_number !== undefined && item.item_number !== null) {
+      if (message.item_number !== undefined && message.item_number !== null) {
         // Explicit item_number: fetch the issue/PR to get its author
         try {
           const { data: issueData } = await githubClient.rest.issues.get({
@@ -494,7 +492,7 @@ async function main(config = {}) {
     }
 
     // Replace temporary ID references in body
-    let processedBody = replaceTemporaryIdReferences(item.body || "", temporaryIdMap, itemRepo);
+    let processedBody = replaceTemporaryIdReferences(message.body || "", temporaryIdMap, itemRepo);
 
     // Sanitize content to prevent injection attacks, allowing parent issue/PR/discussion authors
     // so they can be @mentioned in the generated comment.
@@ -583,6 +581,12 @@ async function main(config = {}) {
       };
     }
 
+    // Records a created comment in createdComments and returns the success result.
+    const recordComment = (/** @type {{ id: string | number, html_url: string }} */ comment, /** @type {boolean} */ isDiscussionFlag) => {
+      createdComments.push({ id: comment.id, html_url: comment.html_url, _tracking: { commentId: comment.id, itemNumber, repo: itemRepo, isDiscussion: isDiscussionFlag } });
+      return { success: true, commentId: comment.id, url: comment.html_url, itemNumber, repo: itemRepo, isDiscussion: isDiscussionFlag };
+    };
+
     try {
       // Hide older comments if enabled AND append-only-comments is not enabled
       // When append-only-comments is true, we want to keep all comments visible
@@ -595,27 +599,6 @@ async function main(config = {}) {
       /** @type {{ id: string | number, html_url: string }} */
       let comment;
       if (isDiscussion) {
-        // Use GraphQL for discussions
-        const discussionQuery = `
-          query($owner: String!, $repo: String!, $number: Int!) {
-            repository(owner: $owner, name: $repo) {
-              discussion(number: $number) {
-                id
-              }
-            }
-          }
-        `;
-        const queryResult = await githubClient.graphql(discussionQuery, {
-          owner: repoParts.owner,
-          repo: repoParts.repo,
-          number: itemNumber,
-        });
-
-        const discussionId = queryResult?.repository?.discussion?.id;
-        if (!discussionId) {
-          throw new Error(`${ERR_NOT_FOUND}: Discussion #${itemNumber} not found in ${itemRepo}`);
-        }
-
         comment = await commentOnDiscussion(githubClient, repoParts.owner, repoParts.repo, itemNumber, processedBody, null);
       } else {
         // Use REST API for issues/PRs
@@ -629,29 +612,7 @@ async function main(config = {}) {
       }
 
       core.info(`Created comment: ${comment.html_url}`);
-
-      // Add tracking metadata
-      const commentResult = {
-        id: comment.id,
-        html_url: comment.html_url,
-        _tracking: {
-          commentId: comment.id,
-          itemNumber: itemNumber,
-          repo: itemRepo,
-          isDiscussion: isDiscussion,
-        },
-      };
-
-      createdComments.push(commentResult);
-
-      return {
-        success: true,
-        commentId: comment.id,
-        url: comment.html_url,
-        itemNumber: itemNumber,
-        repo: itemRepo,
-        isDiscussion: isDiscussion,
-      };
+      return recordComment(comment, isDiscussion);
     } catch (error) {
       const errorMessage = getErrorMessage(error);
 
@@ -661,58 +622,15 @@ async function main(config = {}) {
 
       // If 404 and item_number was explicitly provided and we tried as issue/PR,
       // retry as a discussion (the user may have provided a discussion number)
-      if (is404 && !isDiscussion && item.item_number !== undefined && item.item_number !== null) {
+      if (is404 && !isDiscussion && message.item_number !== undefined && message.item_number !== null) {
         core.info(`Item #${itemNumber} not found as issue/PR, retrying as discussion...`);
 
         try {
-          // Try to find and comment on the discussion
-          const discussionQuery = `
-            query($owner: String!, $repo: String!, $number: Int!) {
-              repository(owner: $owner, name: $repo) {
-                discussion(number: $number) {
-                  id
-                }
-              }
-            }
-          `;
-          const queryResult = await githubClient.graphql(discussionQuery, {
-            owner: repoParts.owner,
-            repo: repoParts.repo,
-            number: itemNumber,
-          });
-
-          const discussionId = queryResult?.repository?.discussion?.id;
-          if (!discussionId) {
-            throw new Error(`${ERR_NOT_FOUND}: Discussion #${itemNumber} not found in ${itemRepo}`);
-          }
-
-          core.info(`Found discussion #${itemNumber}, adding comment...`);
+          core.info(`Trying #${itemNumber} as discussion...`);
           const comment = await commentOnDiscussion(githubClient, repoParts.owner, repoParts.repo, itemNumber, processedBody, null);
 
           core.info(`Created comment on discussion: ${comment.html_url}`);
-
-          // Add tracking metadata
-          const commentResult = {
-            id: comment.id,
-            html_url: comment.html_url,
-            _tracking: {
-              commentId: comment.id,
-              itemNumber: itemNumber,
-              repo: itemRepo,
-              isDiscussion: true,
-            },
-          };
-
-          createdComments.push(commentResult);
-
-          return {
-            success: true,
-            commentId: comment.id,
-            url: comment.html_url,
-            itemNumber: itemNumber,
-            repo: itemRepo,
-            isDiscussion: true,
-          };
+          return recordComment(comment, true);
         } catch (discussionError) {
           const discussionErrorMessage = getErrorMessage(discussionError);
           // @ts-expect-error - Error handling with optional chaining

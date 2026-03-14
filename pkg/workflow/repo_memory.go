@@ -1,25 +1,16 @@
-// This file provides repository memory configuration and validation.
+// This file provides repository memory configuration and generation.
 //
 // This file handles:
 //   - Repo-memory configuration structures and defaults
 //   - Repo-memory tool configuration extraction and parsing
 //   - Generation of per-memory GitHub token secrets
-//   - Domain-specific validation for repo-memory configurations
 //
-// # Validation Functions
-//
-// This file contains domain-specific validation functions for repo-memory:
-//   - validateNoDuplicateMemoryIDs() - Ensures unique memory identifiers
-//
-// These validation functions are co-located with repo-memory logic following the
-// principle that domain-specific validation belongs in domain files. See validation.go
-// for the validation architecture documentation.
+// See repo_memory_validation.go for validation functions.
 
 package workflow
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"regexp"
 	"strings"
@@ -76,34 +67,6 @@ func generateDefaultBranchName(memoryID string, branchPrefix string) string {
 		branchPrefix = "memory"
 	}
 	return fmt.Sprintf("%s/%s", branchPrefix, memoryID)
-}
-
-// validateBranchPrefix validates that the branch prefix meets requirements
-func validateBranchPrefix(prefix string) error {
-	if prefix == "" {
-		return nil // Empty means use default
-	}
-
-	// Check length (4-32 characters)
-	if len(prefix) < 4 {
-		return fmt.Errorf("branch-prefix must be at least 4 characters long, got %d", len(prefix))
-	}
-	if len(prefix) > 32 {
-		return fmt.Errorf("branch-prefix must be at most 32 characters long, got %d", len(prefix))
-	}
-
-	// Check for alphanumeric and branch-friendly characters (alphanumeric, hyphens, underscores)
-	// Use pre-compiled regex from package level for performance
-	if !branchPrefixValidPattern.MatchString(prefix) {
-		return fmt.Errorf("branch-prefix must contain only alphanumeric characters, hyphens, and underscores, got '%s'", prefix)
-	}
-
-	// Cannot be "copilot"
-	if strings.ToLower(prefix) == "copilot" {
-		return errors.New("branch-prefix cannot be 'copilot' (reserved)")
-	}
-
-	return nil
 }
 
 // extractRepoMemoryConfig extracts repo-memory configuration from tools section.
@@ -504,18 +467,6 @@ func (c *Compiler) extractRepoMemoryConfig(toolsConfig *ToolsConfig, workflowID 
 	}
 
 	return nil, nil
-}
-
-// validateNoDuplicateMemoryIDs checks for duplicate memory IDs and returns an error if found
-func validateNoDuplicateMemoryIDs(memories []RepoMemoryEntry) error {
-	seen := make(map[string]bool)
-	for _, memory := range memories {
-		if seen[memory.ID] {
-			return fmt.Errorf("duplicate memory ID found: '%s'. Each memory must have a unique ID", memory.ID)
-		}
-		seen[memory.ID] = true
-	}
-	return nil
 }
 
 // generateRepoMemoryArtifactUpload generates steps to upload repo-memory directories as artifacts

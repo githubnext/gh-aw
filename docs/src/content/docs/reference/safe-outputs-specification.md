@@ -1433,6 +1433,8 @@ add-comment:
 ```yaml
 submit-pull-request-review:
   target: "triggering" | "*" | <PR number>   # Required when not in pull_request trigger
+  target-repo: owner/repo        # Cross-repository target
+  allowed-repos: [...]           # Additional allowed repositories
   footer: "always" | "none" | "if-body"     # Footer on review body
 ```
 
@@ -2647,6 +2649,7 @@ This section provides complete definitions for all remaining safe output types. 
 - Submits all buffered review comments from `create_pull_request_review_comment`
 - Review status affects PR merge requirements
 - **Target**: `target` accepts `"triggering"` (default), `"*"` (use `pull_request_number` from message), or an explicit PR number (e.g. `${{ github.event.inputs.pr_number }}`). Required when the workflow is not triggered by a pull request (e.g. `workflow_dispatch`).
+- **Cross-Repository**: `target-repo` specifies a repository in `owner/repo` format to submit reviews on PRs in another repo. Use `allowed-repos` to permit additional repositories.
 - Footer control: `footer` accepts `"always"` (default), `"none"`, or `"if-body"` (only when review body has text); boolean `true`/`false` maps to `"always"`/`"none"`
 
 ---
@@ -3071,6 +3074,7 @@ safe-outputs:
 - `max`: Operation limit (default: 3)
 - `workflows`: Allowlist of workflow names that may be dispatched
 - `target-repo`: Cross-repository target (owner/repo)
+- `target-ref`: Git ref (branch, tag, or SHA) to use when dispatching the workflow. In `workflow_call` relay scenarios this is auto-injected by the compiler from `needs.activation.outputs.target_ref`, ensuring the correct platform branch is used instead of the caller's `GITHUB_REF`.
 - `allowed-repos`: Cross-repo allowlist (supports wildcards, e.g. `org/*`)
 
 **Notes**:
@@ -3078,6 +3082,7 @@ safe-outputs:
 - Target workflow must support `workflow_dispatch` trigger
 - Workflow inputs are validated against target workflow's input schema
 - Cross-repository dispatch requires appropriate `actions: write` permissions in the target repository
+- In `workflow_call` relay (CentralRepoOps) scenarios, the compiler automatically injects both `target-repo` and `target-ref` from `needs.activation.outputs.*` so the dispatch targets the correct platform repository and branch
 
 ---
 

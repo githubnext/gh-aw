@@ -371,6 +371,8 @@ func formatSchemaFailureDetail(pathInfo JSONPathInfo, schemaJSON, frontmatterCon
 	message = stripAtPathPrefix(message)
 	// Translate schema constraint language (e.g. "minimum: got X, want Y") to plain English.
 	message = translateSchemaConstraintMessage(message)
+	// Append valid-values hint for well-known fields (e.g. permissions scopes).
+	message = appendKnownFieldValidValuesHint(message, pathInfo.Path)
 	suggestions := generateSchemaBasedSuggestions(schemaJSON, pathInfo.Message, pathInfo.Path, frontmatterContent)
 	if suggestions != "" {
 		message = message + ". " + suggestions

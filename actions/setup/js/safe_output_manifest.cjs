@@ -11,8 +11,9 @@ const { ERR_SYSTEM } = require("./error_codes.cjs");
 const MANIFEST_FILE_PATH = "/tmp/safe-output-items.jsonl";
 
 /**
- * Safe output types that create items in GitHub.
- * These are the types that should be logged to the manifest.
+ * Safe output types that create new items in GitHub (these typically return a URL,
+ * but the URL may be omitted in some cases).
+ * Kept for backward compatibility.
  * @type {Set<string>}
  */
 const CREATE_ITEM_TYPES = new Set([
@@ -30,9 +31,22 @@ const CREATE_ITEM_TYPES = new Set([
 ]);
 
 /**
+ * Safe output types that should NEVER be logged to the manifest.
+ * These types represent metadata signals rather than GitHub state changes:
+ * - noop: no-op message, produces no GitHub side effects
+ * - missing_tool: records a missing tool capability (metadata only)
+ * - missing_data: records missing required data (metadata only)
+ *
+ * All other types — built-in handler types, custom safe job types, and
+ * any future types — are logged automatically without needing to update this list.
+ * @type {Set<string>}
+ */
+const NOT_LOGGED_TYPES = new Set(["noop", "missing_tool", "missing_data"]);
+
+/**
  * @typedef {Object} ManifestEntry
  * @property {string} type - The safe output type (e.g., "create_issue")
- * @property {string} url - URL of the created item in GitHub
+ * @property {string} [url] - URL of the affected item in GitHub (present for creation types; omitted for modification types that don't return a URL)
  * @property {number} [number] - Issue/PR/discussion number if applicable
  * @property {string} [repo] - Repository slug (owner/repo) if applicable
  * @property {string} [temporaryId] - Temporary ID assigned to this item, if any
@@ -40,7 +54,7 @@ const CREATE_ITEM_TYPES = new Set([
  */
 
 /**
- * Create a manifest logger function for recording created items.
+ * Create a manifest logger function for recording executed safe output items.
  *
  * The logger writes JSONL entries to the specified manifest file.
  * It is designed to be easily testable by accepting the file path as a parameter.
@@ -54,18 +68,17 @@ function createManifestLogger(manifestFile = MANIFEST_FILE_PATH) {
   ensureManifestExists(manifestFile);
 
   /**
-   * Log a created item to the manifest file.
-   * Items without a URL are silently skipped.
+   * Log an executed safe output item to the manifest file.
    *
-   * @param {{type: string, url?: string, number?: number, repo?: string, temporaryId?: string}} item - Created item details
+   * @param {{type: string, url?: string, number?: number, repo?: string, temporaryId?: string}} item - Executed item details
    */
   return function logCreatedItem(item) {
-    if (!item || !item.url) return;
+    if (!item) return;
 
     /** @type {ManifestEntry} */
     const entry = {
       type: item.type,
-      url: item.url,
+      ...(item.url ? { url: item.url } : {}),
       ...(item.number != null ? { number: item.number } : {}),
       ...(item.repo ? { repo: item.repo } : {}),
       ...(item.temporaryId ? { temporaryId: item.temporaryId } : {}),
@@ -99,27 +112,31 @@ function ensureManifestExists(manifestFile = MANIFEST_FILE_PATH) {
 }
 
 /**
- * Extract created item details from a handler result for manifest logging.
- * Returns null if the result does not represent a created item with a URL,
- * or if the result is from a staged (preview) run where no item was actually created.
+ * Extract executed item details from a handler result for manifest logging.
+ * Returns null if the type is explicitly excluded (NOT_LOGGED_TYPES) or if the
+ * result is from a staged (preview) run where no item was actually modified.
+ *
+ * All other types — built-in handlers, custom safe job types, and future types —
+ * are logged automatically. For creation types (CREATE_ITEM_TYPES), the result
+ * URL is included when present. For modification types (e.g. add_labels,
+ * close_issue), the URL is optional.
  *
  * @param {string} type - The handler type (e.g., "create_issue")
  * @param {any} result - The handler result object
- * @returns {{type: string, url: string, number?: number, repo?: string, temporaryId?: string}|null}
+ * @returns {{type: string, url?: string, number?: number, repo?: string, temporaryId?: string}|null}
  */
 function extractCreatedItemFromResult(type, result) {
-  if (!result || !CREATE_ITEM_TYPES.has(type)) return null;
+  if (!result || NOT_LOGGED_TYPES.has(type)) return null;
 
-  // In staged mode (🎭 Staged Mode Preview), no item was actually created in GitHub — skip logging
+  // In staged mode (🎭 Staged Mode Preview), no item was actually modified in GitHub — skip logging
   if (result.staged === true) return null;
 
-  // Normalize URL from different result shapes
+  // Normalize URL from different result shapes (present for creation types)
   const url = result.url || result.projectUrl || result.html_url;
-  if (!url) return null;
 
   return {
     type,
-    url,
+    ...(url ? { url } : {}),
     ...(result.number != null ? { number: result.number } : {}),
     ...(result.repo ? { repo: result.repo } : {}),
     ...(result.temporaryId ? { temporaryId: result.temporaryId } : {}),
@@ -129,6 +146,7 @@ function extractCreatedItemFromResult(type, result) {
 module.exports = {
   MANIFEST_FILE_PATH,
   CREATE_ITEM_TYPES,
+  NOT_LOGGED_TYPES,
   createManifestLogger,
   ensureManifestExists,
   extractCreatedItemFromResult,

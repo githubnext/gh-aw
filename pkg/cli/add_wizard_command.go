@@ -16,7 +16,7 @@ var addWizardLog = logger.New("cli:add_wizard_command")
 func NewAddWizardCommand(validateEngine func(string) error) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "add-wizard <workflow>...",
-		Short: "Interactively add an agentic workflow with guided setup",
+		Short: "Interactively add one or more agentic workflows with guided setup",
 		Long: `Interactively add one or more workflows with guided setup.
 
 This command walks you through:

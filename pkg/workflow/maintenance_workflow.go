@@ -15,6 +15,7 @@ var maintenanceLog = logger.New("workflow:maintenance_workflow")
 // generateInstallCLISteps generates YAML steps to install or build the gh-aw CLI.
 // In dev mode: builds from source using Setup Go + Build gh-aw (./gh-aw binary available)
 // In release mode: installs the released CLI via the setup-cli action (gh aw available)
+// In action mode: installs the released CLI via the gh-aw-actions/setup-cli action (gh aw available)
 func generateInstallCLISteps(actionMode ActionMode, version string, actionTag string) string {
 	if actionMode == ActionModeDev {
 		return `      - name: Setup Go
@@ -29,11 +30,22 @@ func generateInstallCLISteps(actionMode ActionMode, version string, actionTag st
 `
 	}
 
-	// Release mode: use setup-cli action (consistent with copilot-setup-steps.yml)
 	cliTag := actionTag
 	if cliTag == "" {
 		cliTag = version
 	}
+
+	// Action mode: use setup-cli action from external gh-aw-actions repository
+	if actionMode == ActionModeAction {
+		return `      - name: Install gh-aw
+        uses: github/gh-aw-actions/setup-cli@` + cliTag + `
+        with:
+          version: ` + cliTag + `
+
+`
+	}
+
+	// Release mode: use setup-cli action (consistent with copilot-setup-steps.yml)
 	return `      - name: Install gh-aw
         uses: github/gh-aw/actions/setup-cli@` + cliTag + `
         with:
@@ -209,16 +221,14 @@ jobs:
 	}
 	setupActionRef := ResolveSetupActionReference(actionMode, version, actionTag, resolver)
 
-	// Add checkout step only in dev mode (for local action paths)
-	if actionMode == ActionModeDev {
-		yaml.WriteString(`      - name: Checkout actions folder
-        uses: ` + GetActionPin("actions/checkout") + `
-        with:
-          sparse-checkout: |
-            actions
-          persist-credentials: false
-
-`)
+	// Add checkout step only in dev/script mode (for local action paths)
+	if actionMode == ActionModeDev || actionMode == ActionModeScript {
+		yaml.WriteString("      - name: Checkout actions folder\n")
+		yaml.WriteString("        uses: " + GetActionPin("actions/checkout") + "\n")
+		yaml.WriteString("        with:\n")
+		yaml.WriteString("          sparse-checkout: |\n")
+		yaml.WriteString("            actions\n")
+		yaml.WriteString("          persist-credentials: false\n\n")
 	}
 
 	// Add setup step with the resolved action reference

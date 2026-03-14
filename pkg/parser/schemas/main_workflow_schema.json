@@ -1339,13 +1339,18 @@
                           "description": "GitHub Actions expression that resolves to an integer at runtime"
                         }
                       ]
+                    },
+                    "scope": {
+                      "type": "string",
+                      "enum": ["none"],
+                      "description": "Scope for the search query. Set to 'none' to disable the automatic 'repo:owner/repo' scoping, enabling org-wide or cross-repo queries."
                     }
                   },
                   "additionalProperties": false,
-                  "description": "Skip-if-match configuration object with query and maximum match count"
+                  "description": "Skip-if-match configuration object with query, maximum match count, and optional scope. For custom authentication use the top-level on.github-token or on.github-app fields."
                 }
               ],
-              "description": "Conditionally skip workflow execution when a GitHub search query has matches. Can be a string (query only, implies max=1) or an object with 'query' and optional 'max' fields."
+              "description": "Conditionally skip workflow execution when a GitHub search query has matches. Can be a string (query only, implies max=1) or an object with 'query', optional 'max', and 'scope' fields. Use top-level on.github-token or on.github-app for custom authentication."
             },
             "skip-if-no-match": {
               "oneOf": [
@@ -1365,13 +1370,18 @@
                       "type": "integer",
                       "minimum": 1,
                       "description": "Minimum number of items that must be matched for the workflow to proceed. Defaults to 1 if not specified."
+                    },
+                    "scope": {
+                      "type": "string",
+                      "enum": ["none"],
+                      "description": "Scope for the search query. Set to 'none' to disable the automatic 'repo:owner/repo' scoping, enabling org-wide or cross-repo queries."
                     }
                   },
                   "additionalProperties": false,
-                  "description": "Skip-if-no-match configuration object with query and minimum match count"
+                  "description": "Skip-if-no-match configuration object with query, minimum match count, and optional scope. For custom authentication use the top-level on.github-token or on.github-app fields."
                 }
               ],
-              "description": "Conditionally skip workflow execution when a GitHub search query has no matches (or fewer than minimum). Can be a string (query only, implies min=1) or an object with 'query' and optional 'min' fields."
+              "description": "Conditionally skip workflow execution when a GitHub search query has no matches (or fewer than minimum). Can be a string (query only, implies min=1) or an object with 'query', optional 'min', and 'scope' fields. Use top-level on.github-token or on.github-app for custom authentication."
             },
             "skip-roles": {
               "oneOf": [
@@ -1464,12 +1474,12 @@
             },
             "github-token": {
               "type": "string",
-              "description": "Custom GitHub token to use for pre-activation reactions and activation status comments. When specified, overrides the default GITHUB_TOKEN for these operations.",
+              "description": "Custom GitHub token for pre-activation reactions, activation status comments, and skip-if search queries. When specified, overrides the default GITHUB_TOKEN for these operations.",
               "examples": ["${{ secrets.MY_GITHUB_TOKEN }}"]
             },
             "github-app": {
               "type": "object",
-              "description": "GitHub App configuration for minting a token used in pre-activation reactions and activation status comments. When configured, a GitHub App installation access token is minted and used instead of the default GITHUB_TOKEN.",
+              "description": "GitHub App configuration for minting a token used in pre-activation reactions, activation status comments, and skip-if search queries. When configured, a single GitHub App installation access token is minted and shared across all these operations instead of using the default GITHUB_TOKEN. Can be defined in a shared agentic workflow and inherited by importing workflows.",
               "properties": {
                 "app-id": {
                   "type": "string",
@@ -1856,6 +1866,31 @@
           "concurrency": {
             "$ref": "#/properties/concurrency",
             "description": "Concurrency control configuration for this job. Prevents parallel execution of jobs with the same concurrency group."
+          },
+          "environment": {
+            "oneOf": [
+              {
+                "type": "string",
+                "description": "The name of the GitHub Actions environment this job references. Environments can have protection rules (required reviewers, wait timers) that must be satisfied before the job runs."
+              },
+              {
+                "type": "object",
+                "description": "Environment configuration with name and optional URL.",
+                "additionalProperties": false,
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "description": "The name of the GitHub Actions environment."
+                  },
+                  "url": {
+                    "type": "string",
+                    "description": "The URL to set as the environment URL in the deployment."
+                  }
+                },
+                "required": ["name"]
+              }
+            ],
+            "description": "The GitHub Actions environment this job references. When set, any protection rules for the environment must pass before the job runs. Use this to gate jobs on manual approval workflows."
           },
           "uses": {
             "type": "string",
@@ -5317,6 +5352,11 @@
                     "type": "string"
                   },
                   "description": "Exclusive allowlist of glob patterns. When set, every file in the patch must match at least one pattern — files outside the list are always refused, including normal source files. This is a restriction, not an exception: setting allowed-files: [\".github/workflows/*\"] blocks all other files. To allow multiple sets of files, list all patterns explicitly. Acts independently of the protected-files policy; both checks must pass. To modify a protected file, it must both match allowed-files and be permitted by protected-files (e.g. protected-files: allowed). Supports * (any characters except /) and ** (any characters including /)."
+                },
+                "preserve-branch-name": {
+                  "type": "boolean",
+                  "description": "When true, the random salt suffix is not appended to the agent-specified branch name. Invalid characters are still replaced for security, and casing is always preserved regardless of this setting. Useful when the target repository enforces branch naming conventions (e.g. Jira keys in uppercase such as 'bugfix/BR-329-red'). Defaults to false.",
+                  "default": false
                 }
               },
               "additionalProperties": false,
@@ -5434,6 +5474,17 @@
                 "target": {
                   "type": "string",
                   "description": "Target PR for the review: 'triggering' (default, current PR), '*' (any PR, requires pull_request_number in agent output), or explicit PR number (e.g. ${{ github.event.inputs.pr_number }}). Required when workflow is not triggered by a pull request (e.g. workflow_dispatch)."
+                },
+                "target-repo": {
+                  "type": "string",
+                  "description": "Target repository in format 'owner/repo' for cross-repository PR review submission. Takes precedence over trial target repo settings."
+                },
+                "allowed-repos": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "description": "List of additional repositories in format 'owner/repo' that PR reviews can be submitted in. When specified, the agent can use a 'repo' field in the output to specify which repository to submit the review in. The target repository (current or target-repo) is always implicitly allowed."
                 },
                 "github-token": {
                   "$ref": "#/$defs/github_token",
@@ -6357,7 +6408,7 @@
                   "items": {
                     "type": "string"
                   },
-                  "description": "Exclusive allowlist of glob patterns. When set, every file in the patch must match at least one pattern — files outside the list are always refused, including normal source files. This is a restriction, not an exception: setting allowed-files: [\".github/workflows/*\"] blocks all other files. To allow multiple sets of files, list all patterns explicitly. Acts independently of the protected-files policy; both checks must pass. To modify a protected file, it must both match allowed-files and be permitted by protected-files (e.g. protected-files: allowed). Supports * (any characters except /) and ** (any characters including /)."
+                  "description": "Exclusive allowlist of glob patterns. When set, every file in the patch must match at least one pattern \u2014 files outside the list are always refused, including normal source files. This is a restriction, not an exception: setting allowed-files: [\".github/workflows/*\"] blocks all other files. To allow multiple sets of files, list all patterns explicitly. Acts independently of the protected-files policy; both checks must pass. To modify a protected file, it must both match allowed-files and be permitted by protected-files (e.g. protected-files: allowed). Supports * (any characters except /) and ** (any characters including /)."
                 }
               },
               "additionalProperties": false
@@ -6505,6 +6556,14 @@
                 "github-token": {
                   "$ref": "#/$defs/github_token",
                   "description": "GitHub token to use for dispatching workflows. Overrides global github-token if specified."
+                },
+                "target-repo": {
+                  "type": "string",
+                  "description": "Target repository in format 'owner/repo' for cross-repository workflow dispatch. When specified, the workflow will be dispatched to the target repository instead of the current one."
+                },
+                "target-ref": {
+                  "type": "string",
+                  "description": "Git ref (branch, tag, or SHA) to use when dispatching the workflow. For workflow_call relay scenarios this is auto-injected by the compiler from needs.activation.outputs.target_ref. Overrides the caller's GITHUB_REF."
                 }
               },
               "required": ["workflows"],
@@ -6522,6 +6581,59 @@
             }
           ],
           "description": "Dispatch workflow_dispatch events to other workflows. Used by orchestrators to delegate work to worker workflows with controlled maximum dispatch count."
+        },
+        "call-workflow": {
+          "oneOf": [
+            {
+              "type": "object",
+              "description": "Configuration for calling reusable workflows via workflow_call fan-out. The compiler generates conditional `uses:` jobs at compile time; the agent selects which worker to activate at runtime.",
+              "properties": {
+                "workflows": {
+                  "type": "array",
+                  "description": "List of workflow names (without .md extension) to allow calling. Each workflow must exist in .github/workflows/ and declare a workflow_call trigger.",
+                  "items": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "minItems": 1,
+                  "maxItems": 50
+                },
+                "max": {
+                  "description": "Maximum number of workflow_call fan-out operations per run (default: 1, max: 50). Supports integer or GitHub Actions expression (e.g. '${{ inputs.max }}').",
+                  "oneOf": [
+                    {
+                      "type": "integer",
+                      "minimum": 1,
+                      "maximum": 50,
+                      "default": 1
+                    },
+                    {
+                      "type": "string",
+                      "pattern": "^\\$\\{\\{.*\\}\\}$",
+                      "description": "GitHub Actions expression that resolves to an integer at runtime"
+                    }
+                  ]
+                },
+                "github-token": {
+                  "$ref": "#/$defs/github_token",
+                  "description": "GitHub token passed to called workflows. Overrides global github-token if specified."
+                }
+              },
+              "required": ["workflows"],
+              "additionalProperties": false
+            },
+            {
+              "type": "array",
+              "description": "Shorthand array format: list of workflow names (without .md extension) to allow calling",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              },
+              "minItems": 1,
+              "maxItems": 50
+            }
+          ],
+          "description": "Call reusable workflows via workflow_call fan-out. The compiler generates static conditional jobs; the agent selects which worker to activate. Use this for orchestrator/dispatcher patterns within the same repository."
         },
         "missing-tool": {
           "oneOf": [
@@ -7606,7 +7718,7 @@
       "additionalProperties": false
     },
     "checkout": {
-      "description": "Checkout configuration for the agent job. Controls how actions/checkout is invoked. Can be a single checkout configuration or an array for multiple checkouts.",
+      "description": "Checkout configuration for the agent job. Controls how actions/checkout is invoked. Can be a single checkout configuration, an array for multiple checkouts, or false to disable the default checkout step entirely (dev-mode checkouts are unaffected).",
       "oneOf": [
         {
           "$ref": "#/$defs/checkoutConfig",
@@ -7618,12 +7730,23 @@
           "items": {
             "$ref": "#/$defs/checkoutConfig"
           }
+        },
+        {
+          "type": "boolean",
+          "enum": [false],
+          "description": "Set to false to disable the default checkout step. The agent job will not check out any repository (dev-mode checkouts are unaffected)."
         }
       ]
     },
     "dependencies": {
       "description": "APM package references to install. Supports array format (list of package slugs) or object format with packages and isolated fields.",
-      "examples": [["microsoft/apm-sample-package", "acme/custom-tools"], { "packages": ["microsoft/apm-sample-package"], "isolated": true }],
+      "examples": [
+        ["microsoft/apm-sample-package", "acme/custom-tools"],
+        {
+          "packages": ["microsoft/apm-sample-package"],
+          "isolated": true
+        }
+      ],
       "oneOf": [
         {
           "type": "array",
@@ -8183,12 +8306,16 @@
                     "query": {
                       "type": "object",
                       "description": "Static query parameters",
-                      "additionalProperties": { "type": "string" }
+                      "additionalProperties": {
+                        "type": "string"
+                      }
                     },
                     "body-inject": {
                       "type": "object",
                       "description": "Key/value pairs injected into the JSON request body",
-                      "additionalProperties": { "type": "string" }
+                      "additionalProperties": {
+                        "type": "string"
+                      }
                     }
                   },
                   "additionalProperties": false
@@ -8206,7 +8333,9 @@
                 },
                 "supported": {
                   "type": "array",
-                  "items": { "type": "string" },
+                  "items": {
+                    "type": "string"
+                  },
                   "description": "List of supported model identifiers"
                 }
               },
@@ -8214,7 +8343,7 @@
             },
             "auth": {
               "type": "array",
-              "description": "Authentication bindings — maps logical roles (e.g. 'api-key') to GitHub Actions secret names",
+              "description": "Authentication bindings \u2014 maps logical roles (e.g. 'api-key') to GitHub Actions secret names",
               "items": {
                 "type": "object",
                 "properties": {

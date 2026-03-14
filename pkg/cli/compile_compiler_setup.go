@@ -201,7 +201,7 @@ func validateActionModeConfig(actionMode string) error {
 
 	mode := workflow.ActionMode(actionMode)
 	if !mode.IsValid() {
-		return fmt.Errorf("invalid action mode '%s'. Must be 'dev', 'release', or 'script'", actionMode)
+		return fmt.Errorf("invalid action mode '%s'. Must be 'dev', 'release', 'script', or 'action'", actionMode)
 	}
 
 	return nil

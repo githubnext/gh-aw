@@ -389,6 +389,72 @@ async function findExistingDraftByTitle(github, projectId, targetTitle) {
 }
 
 /**
+ * Fetch all fields for a GitHub Project v2, paginating through all results.
+ * @param {Object} github - GitHub client (Octokit instance)
+ * @param {string} projectId - Project node ID
+ * @returns {Promise<Array>} All field nodes
+ */
+async function fetchAllProjectFields(github, projectId) {
+  const allFields = [];
+  let hasNextPage = true;
+  let endCursor = null;
+
+  while (hasNextPage) {
+    const result = await github.graphql(
+      `query($projectId: ID!, $after: String) {
+        node(id: $projectId) {
+          ... on ProjectV2 {
+            fields(first: 100, after: $after) {
+              nodes {
+                ... on ProjectV2Field {
+                  id
+                  name
+                  dataType
+                }
+                ... on ProjectV2SingleSelectField {
+                  id
+                  name
+                  dataType
+                  options {
+                    id
+                    name
+                    color
+                  }
+                }
+                ... on ProjectV2IterationField {
+                  id
+                  name
+                  dataType
+                  configuration {
+                    iterations {
+                      id
+                      title
+                      startDate
+                      duration
+                    }
+                  }
+                }
+              }
+              pageInfo {
+                hasNextPage
+                endCursor
+              }
+            }
+          }
+        }
+      }`,
+      { projectId, after: endCursor }
+    );
+
+    allFields.push(...result.node.fields.nodes);
+    hasNextPage = result.node.fields.pageInfo.hasNextPage;
+    endCursor = result.node.fields.pageInfo.endCursor;
+  }
+
+  return allFields;
+}
+
+/**
  * Update a GitHub Project v2
  * @param {any} output - Safe output configuration
  * @param {Map<string, any>} temporaryIdMap - Map of temporary IDs to resolved issue numbers
@@ -785,12 +851,7 @@ async function updateProject(output, temporaryIdMap = new Map(), githubClient = 
 
       const fieldsToUpdate = output.fields ? { ...output.fields } : {};
       if (Object.keys(fieldsToUpdate).length > 0) {
-        const projectFields = (
-          await github.graphql(
-            "query($projectId: ID!) {\n            node(id: $projectId) {\n              ... on ProjectV2 {\n                fields(first: 20) {\n                  nodes {\n                    ... on ProjectV2Field {\n                      id\n                      name\n                      dataType\n                    }\n                    ... on ProjectV2SingleSelectField {\n                      id\n                      name\n                      dataType\n                      options {\n                        id\n                        name\n                        color\n                      }\n                    }\n                    ... on ProjectV2IterationField {\n                      id\n                      name\n                      dataType\n                      configuration {\n                        iterations {\n                          id\n                          title\n                          startDate\n                          duration\n                        }\n                      }\n                    }\n                  }\n                }\n              }\n            }\n          }",
-            { projectId }
-          )
-        ).node.fields.nodes;
+        const projectFields = await fetchAllProjectFields(github, projectId);
         for (const [fieldName, fieldValue] of Object.entries(fieldsToUpdate)) {
           const normalizedFieldName = fieldName
             .split(/[\s_-]+/)
@@ -982,12 +1043,7 @@ async function updateProject(output, temporaryIdMap = new Map(), githubClient = 
       }
       const fieldsToUpdate = output.fields ? { ...output.fields } : {};
       if (Object.keys(fieldsToUpdate).length > 0) {
-        const projectFields = (
-          await github.graphql(
-            "query($projectId: ID!) {\n            node(id: $projectId) {\n              ... on ProjectV2 {\n                fields(first: 20) {\n                  nodes {\n                    ... on ProjectV2Field {\n                      id\n                      name\n                      dataType\n                    }\n                    ... on ProjectV2SingleSelectField {\n                      id\n                      name\n                      dataType\n                      options {\n                        id\n                        name\n                        color\n                      }\n                    }\n                    ... on ProjectV2IterationField {\n                      id\n                      name\n                      dataType\n                      configuration {\n                        iterations {\n                          id\n                          title\n                          startDate\n                          duration\n                        }\n                      }\n                    }\n                  }\n                }\n              }\n            }\n          }",
-            { projectId }
-          )
-        ).node.fields.nodes;
+        const projectFields = await fetchAllProjectFields(github, projectId);
         for (const [fieldName, fieldValue] of Object.entries(fieldsToUpdate)) {
           const normalizedFieldName = fieldName
             .split(/[\s_-]+/)

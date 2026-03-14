@@ -99,7 +99,7 @@ function resolveCategoryId(categoryConfig, itemCategory, categories) {
     }
   }
 
-  // Fall back to announcement-capable category if available, otherwise first category
+  // Fall back to "Announcements" category if available, otherwise first category
   if (categories.length > 0) {
     // Try to find an "Announcements" category (case-insensitive)
     const announcementCategory = categories.find(cat => cat.name.toLowerCase() === "announcements" || cat.slug.toLowerCase() === "announcements");
@@ -261,7 +261,7 @@ function isPermissionsError(errorMessage) {
 async function handleFallbackToIssue(createIssueHandler, item, qualifiedItemRepo, resolvedTemporaryIds, contextMessage) {
   try {
     // Prepare issue message with a note about the fallback
-    const fallbackNote = `\n\n---\n\n> [!WARNING]\n> This was intended to be a discussion, but discussions could not be created due to permissions issues. This issue was created as a fallback.\n>\n> Discussion creation may fail if the specified category is not announcement-capable. Consider using the "Announcements" category or another announcement-capable category in your workflow configuration.\n`;
+    const fallbackNote = `\n\n---\n\n> [!WARNING]\n> This was intended to be a discussion, but discussions could not be created due to permissions issues. This issue was created as a fallback.\n> To enable discussions, ensure the repository has an Announcements category (announcement-capable) configured.\n`;
     const issueMessage = {
       ...item,
       body: (item.body || "") + fallbackNote,

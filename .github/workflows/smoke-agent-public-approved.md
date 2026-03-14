@@ -10,11 +10,14 @@ permissions:
   contents: read
   issues: read
   pull-requests: read
-name: Smoke Agent
+name: "Smoke Agent: public/approved"
 engine: codex
 strict: true
 tools:
   github:
+    mode: local
+    repos: "public"
+    min-integrity: approved
 network:
   allowed:
     - defaults

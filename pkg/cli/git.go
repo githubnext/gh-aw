@@ -87,6 +87,60 @@ func parseGitHubRepoSlugFromURL(url string) string {
 	return ""
 }
 
+// extractHostFromRemoteURL extracts the host (optionally including port) from a git remote URL.
+// Supports HTTPS (https://host[:port]/path), HTTP (http://host[:port]/path), and SSH (git@host[:port]:path or ssh://git@host[:port]/path) formats.
+// Returns the host portion as "host[:port]" when parsed, or "github.com" as the default if the URL cannot be parsed.
+func extractHostFromRemoteURL(remoteURL string) string {
+	// HTTPS / HTTP format: https://host/path or http://host/path
+	for _, scheme := range []string{"https://", "http://"} {
+		if after, ok := strings.CutPrefix(remoteURL, scheme); ok {
+			if host, _, found := strings.Cut(after, "/"); found {
+				return host
+			}
+			return after
+		}
+	}
+
+	// SSH scp-like format: git@host:path
+	if after, ok := strings.CutPrefix(remoteURL, "git@"); ok {
+		if host, _, found := strings.Cut(after, ":"); found {
+			return host
+		}
+	}
+
+	// SSH URL format: ssh://git@host/path or ssh://host/path
+	if after, ok := strings.CutPrefix(remoteURL, "ssh://"); ok {
+		// Strip optional user info (e.g. "git@")
+		if _, userStripped, hasAt := strings.Cut(after, "@"); hasAt {
+			after = userStripped
+		}
+		if host, _, found := strings.Cut(after, "/"); found {
+			return host
+		}
+		return after
+	}
+
+	return "github.com"
+}
+
+// getHostFromOriginRemote returns the hostname of the git origin remote.
+// For example, a remote URL of "https://ghes.example.com/org/repo.git" returns "ghes.example.com",
+// and "git@github.com:owner/repo.git" returns "github.com".
+// Returns "github.com" as the default if the remote URL cannot be determined.
+func getHostFromOriginRemote() string {
+	cmd := exec.Command("git", "config", "--get", "remote.origin.url")
+	output, err := cmd.Output()
+	if err != nil {
+		gitLog.Printf("Failed to get remote origin URL: %v", err)
+		return "github.com"
+	}
+
+	remoteURL := strings.TrimSpace(string(output))
+	host := extractHostFromRemoteURL(remoteURL)
+	gitLog.Printf("Detected GitHub host from remote origin: %s", host)
+	return host
+}
+
 // getRepositorySlugFromRemote extracts the repository slug (owner/repo) from git remote URL
 func getRepositorySlugFromRemote() string {
 	gitLog.Print("Getting repository slug from git remote")

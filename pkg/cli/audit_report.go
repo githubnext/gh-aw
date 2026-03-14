@@ -105,10 +105,12 @@ type FileInfo struct {
 	Description string `json:"description"`
 }
 
-// CreatedItemReport represents a single item created in GitHub by a safe output handler
+// CreatedItemReport represents a single item executed in GitHub by a safe output handler.
+// URL is present for creation types (e.g. create_issue, add_comment) but may be empty
+// for modification types (e.g. add_labels, close_issue) that do not return a URL.
 type CreatedItemReport struct {
 	Type        string `json:"type" console:"header:Type"`
-	URL         string `json:"url" console:"header:URL"`
+	URL         string `json:"url,omitempty" console:"header:URL,omitempty"`
 	Number      int    `json:"number,omitempty" console:"header:Number,omitempty"`
 	Repo        string `json:"repo,omitempty" console:"header:Repo,omitempty"`
 	TemporaryID string `json:"temporaryId,omitempty" console:"header:Temp ID,omitempty"`
@@ -409,7 +411,7 @@ func extractCreatedItemsFromManifest(logsPath string) []CreatedItemReport {
 			auditReportLog.Printf("Skipping invalid manifest line: %v", err)
 			continue
 		}
-		if item.URL == "" {
+		if item.Type == "" {
 			continue
 		}
 		items = append(items, item)

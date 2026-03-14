@@ -81,6 +81,7 @@ func TestRenderGitHubMCPRemoteConfig(t *testing.T) {
 				`"create_issue"`,
 				`"env": {`,
 				`"GITHUB_PERSONAL_ACCESS_TOKEN": "\${GITHUB_MCP_SERVER_TOKEN}"`,
+				`"GITHUB_HOST": "\${GITHUB_SERVER_URL}"`,
 			},
 			notExpected: []string{
 				`"X-MCP-Readonly"`,
@@ -104,6 +105,7 @@ func TestRenderGitHubMCPRemoteConfig(t *testing.T) {
 				`"X-MCP-Toolsets": "all"`,
 				`"env": {`,
 				`"GITHUB_PERSONAL_ACCESS_TOKEN": "\${GITHUB_MCP_SERVER_TOKEN}"`,
+				`"GITHUB_HOST": "\${GITHUB_SERVER_URL}"`,
 			},
 			notExpected: []string{
 				`"X-MCP-Readonly"`,
@@ -131,6 +133,7 @@ func TestRenderGitHubMCPRemoteConfig(t *testing.T) {
 				`"get_repository"`,
 				`"env": {`,
 				`"GITHUB_PERSONAL_ACCESS_TOKEN": "\${GITHUB_MCP_SERVER_TOKEN}"`,
+				`"GITHUB_HOST": "\${GITHUB_SERVER_URL}"`,
 			},
 			notExpected: []string{},
 		},

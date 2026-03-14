@@ -171,6 +171,10 @@ func generatePullRequestConfig(prConfig *CreatePullRequestsConfig, defaultMax in
 	if prConfig.FallbackAsIssue != nil {
 		additionalFields["fallback_as_issue"] = *prConfig.FallbackAsIssue
 	}
+	// Pass preserve_branch_name to skip the random salt suffix
+	if prConfig.PreserveBranchName {
+		additionalFields["preserve_branch_name"] = true
+	}
 
 	// Use generateTargetConfigWithRepos to include target-repo and allowed_repos
 	targetConfig := SafeOutputTargetConfig{

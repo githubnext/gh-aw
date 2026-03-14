@@ -238,6 +238,11 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 		outputs["push_commit_url"] = "${{ steps.process_safe_outputs.outputs.push_commit_url }}"
 	}
 
+	if data.SafeOutputs.CallWorkflow != nil {
+		outputs["call_workflow_name"] = "${{ steps.process_safe_outputs.outputs.call_workflow_name }}"
+		outputs["call_workflow_payload"] = "${{ steps.process_safe_outputs.outputs.call_workflow_payload }}"
+	}
+
 	// If no steps were added, return nil
 	if len(safeOutputStepNames) == 0 {
 		consolidatedSafeOutputsJobLog.Print("No safe output steps were added")
@@ -246,11 +251,12 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 
 	// Add GitHub App token minting step at the beginning if app is configured
 	if data.SafeOutputs.GitHubApp != nil {
-		// For workflow_call relay workflows, scope the token to the platform repo so that
-		// API calls targeting the host repo (e.g. dispatch_workflow) are authorized.
+		// For workflow_call relay workflows, scope the token to the platform repo name only
+		// (not the full slug) because actions/create-github-app-token expects repo names
+		// without the owner prefix when `owner` is also set.
 		var appTokenFallbackRepo string
 		if hasWorkflowCallTrigger(data.On) {
-			appTokenFallbackRepo = "${{ needs.activation.outputs.target_repo }}"
+			appTokenFallbackRepo = "${{ needs.activation.outputs.target_repo_name }}"
 		}
 		appTokenSteps := c.buildGitHubAppTokenMintStep(data.SafeOutputs.GitHubApp, permissions, appTokenFallbackRepo)
 		// Calculate insertion index: after setup action (if present) and artifact downloads, but before checkout and safe output steps

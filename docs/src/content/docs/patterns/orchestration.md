@@ -1,6 +1,6 @@
 ---
 title: Orchestration
-description: Coordinate multiple agentic workflows using workflow dispatch (orchestrator/worker pattern).
+description: Coordinate multiple agentic workflows using workflow dispatch or reusable workflow calls (orchestrator/worker pattern).
 ---
 
 Use this pattern when one workflow (the **orchestrator**) needs to fan out work to one or more **worker** workflows.
@@ -13,7 +13,7 @@ Use this pattern when one workflow (the **orchestrator**) needs to fan out work 
 
 ## Dispatch workers with `dispatch-workflow`
 
-Allow dispatching specific workflows:
+Allow dispatching specific workflows via GitHub's `workflow_dispatch` API:
 
 ```yaml
 safe-outputs:
@@ -22,9 +22,28 @@ safe-outputs:
     max: 10
 ```
 
-During compilation, gh-aw validates the target workflows exist and support `workflow_dispatch`.
+During compilation, gh-aw validates the target workflows exist and support `workflow_dispatch`. Workers receive a JSON payload and run asynchronously as independent workflow runs.
 
 See [`dispatch-workflow` safe output](/gh-aw/reference/safe-outputs/#workflow-dispatch-dispatch-workflow).
+
+## Call workers with `call-workflow`
+
+Call reusable workflows (`workflow_call`) via compile-time fan-out—no API call at runtime:
+
+```yaml
+safe-outputs:
+  call-workflow:
+    workflows: [spring-boot-bugfix, frontend-dep-upgrade]
+    max: 1
+```
+
+The compiler validates that each worker declares `workflow_call`, generates a typed MCP tool per worker from its inputs, and emits a conditional `uses:` job. At runtime the worker whose name the agent selected executes as part of the same workflow run—preserving `github.actor` and billing attribution.
+
+See [`call-workflow` safe output](/gh-aw/reference/safe-outputs/#workflow-call-call-workflow).
+
+## Choosing between the two approaches
+
+Use `call-workflow` when actor attribution matters, workers must finish before the orchestrator concludes, or you want zero API overhead. Use `dispatch-workflow` when workers should run asynchronously, outlive the parent run, or need `workflow_dispatch` inputs.
 
 ## Passing correlation IDs
 

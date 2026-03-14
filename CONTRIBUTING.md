@@ -516,6 +516,53 @@ This project follows the GitHub Community Guidelines. Please be respectful and i
 - **For examples**: Look at existing issues and PRs created by core team members
 - **Remember**: You don't create PRs - you create issues with plans that a core team member implements using agents
 
+## 🚀 Release Process
+
+> **For core team maintainers only.** Community members do not participate in releasing.
+
+Releases are triggered manually by a core team member using the GitHub Actions release workflow.
+
+### Steps
+
+1. **Launch the release action**
+
+   Go to [Actions → Release](https://github.com/github/gh-aw/actions/workflows/release.lock.yml) and click **Run workflow**. Select the release type (`patch`, `minor`, or `major`) and start the run.
+
+   The workflow will build the release binaries, push a new git tag, and then pause — waiting for a required manual step before publishing.
+
+2. **Complete the sync in `github/gh-aw-actions`**
+
+   While the workflow is paused at the `gh-aw-actions-release` environment gate, complete the following steps in the [`github/gh-aw-actions`](https://github.com/github/gh-aw-actions) repository:
+
+   a. **Run the sync-actions workflow** — go to [Actions → sync-actions](https://github.com/github/gh-aw-actions/actions/workflows/sync-actions.yml) and trigger it with the new release tag (e.g. `v1.2.3`).
+
+   b. **Merge the PR** — the sync-actions workflow will open a pull request in `github/gh-aw-actions`. Review and merge it to bring the tag into that repository.
+
+3. **Approve the environment gate**
+
+   Return to the paused release run in [`github/gh-aw`](https://github.com/github/gh-aw/actions). Approve the **`gh-aw-actions-release`** environment gate. The workflow will verify that the new tag exists in `github/gh-aw-actions` and then publish the GitHub release.
+
+### Summary
+
+```
+Launch release action
+        │
+        ▼
+Workflow pushes tag & pauses
+        │
+        ▼
+Run sync-actions in github/gh-aw-actions (with new tag)
+        │
+        ▼
+Merge the sync-actions PR
+        │
+        ▼
+Approve the gh-aw-actions-release environment gate
+        │
+        ▼
+Release published 🎉
+```
+
 ## 🎯 Why This Contribution Model?
 
 This project is built by a core team using agentic development to demonstrate and dogfood the capabilities of GitHub Agentic Workflows:

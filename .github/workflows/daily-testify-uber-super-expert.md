@@ -15,6 +15,7 @@ tracker-id: daily-testify-uber-super-expert
 engine: copilot
 
 imports:
+  - shared/activation-app.md
   - shared/reporting.md
   - shared/safe-output-app.md
   - shared/mcp/serena-go.md

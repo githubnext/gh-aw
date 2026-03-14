@@ -5,7 +5,11 @@ import (
 	"os"
 	"strings"
 	"sync"
+
+	"github.com/github/gh-aw/pkg/logger"
 )
+
+var virtualFsLog = logger.New("parser:virtual_fs")
 
 // builtinVirtualFiles holds embedded built-in files registered at startup.
 // Keys use the "@builtin:" path prefix (e.g. "@builtin:engines/copilot.md").
@@ -35,6 +39,7 @@ func RegisterBuiltinVirtualFile(path string, content []byte) {
 		}
 		return // idempotent: same content, no-op
 	}
+	virtualFsLog.Printf("Registering builtin virtual file: %s (%d bytes)", path, len(content))
 	builtinVirtualFiles[path] = content
 }
 

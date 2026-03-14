@@ -659,4 +659,75 @@ describe("dispatch_workflow handler factory", () => {
       })
     );
   });
+
+  it("should use configured target-ref when dispatching cross-repo", async () => {
+    // Caller is on refs/heads/main, target workflow should run on feature-branch
+    process.env.GITHUB_REF = "refs/heads/main";
+    delete process.env.GITHUB_HEAD_REF;
+
+    const config = {
+      "target-repo": "other-org/other-repo",
+      "target-ref": "refs/heads/feature-branch",
+      workflows: ["target-workflow"],
+      workflow_files: { "target-workflow": ".lock.yml" },
+    };
+    const handler = await main(config);
+
+    await handler({ type: "dispatch_workflow", workflow_name: "target-workflow", inputs: {} }, {});
+
+    // Should dispatch to the configured target ref, NOT the caller's main
+    expect(github.rest.actions.createWorkflowDispatch).toHaveBeenCalledWith(
+      expect.objectContaining({
+        owner: "other-org",
+        repo: "other-repo",
+        ref: "refs/heads/feature-branch",
+      })
+    );
+  });
+
+  it("should use caller GITHUB_REF when dispatching to same repo without target-ref", async () => {
+    process.env.GITHUB_REF = "refs/heads/feature-branch";
+    delete process.env.GITHUB_HEAD_REF;
+
+    const config = {
+      workflows: ["local-workflow"],
+      workflow_files: { "local-workflow": ".lock.yml" },
+    };
+    const handler = await main(config);
+
+    await handler({ type: "dispatch_workflow", workflow_name: "local-workflow", inputs: {} }, {});
+
+    // Same-repo dispatch should still use the caller's GITHUB_REF
+    expect(github.rest.actions.createWorkflowDispatch).toHaveBeenCalledWith(
+      expect.objectContaining({
+        owner: "test-owner",
+        repo: "test-repo",
+        ref: "refs/heads/feature-branch",
+      })
+    );
+  });
+
+  it("should prefer configured target-ref over GITHUB_HEAD_REF for cross-repo dispatch", async () => {
+    process.env.GITHUB_REF = "refs/pull/42/merge";
+    process.env.GITHUB_HEAD_REF = "pr-branch";
+
+    const config = {
+      "target-repo": "other-org/other-repo",
+      "target-ref": "refs/heads/feature-branch",
+      workflows: ["target-workflow"],
+      workflow_files: { "target-workflow": ".lock.yml" },
+    };
+    const handler = await main(config);
+
+    await handler({ type: "dispatch_workflow", workflow_name: "target-workflow", inputs: {} }, {});
+
+    // Cross-repo should use configured target-ref, not the PR branch
+    expect(github.rest.actions.createWorkflowDispatch).toHaveBeenCalledWith(
+      expect.objectContaining({
+        owner: "other-org",
+        repo: "other-repo",
+        ref: "refs/heads/feature-branch",
+      })
+    );
+  });
 });

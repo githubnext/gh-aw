@@ -453,3 +453,130 @@ func TestCheckWorkflowFileStatusNotInRepo(t *testing.T) {
 		t.Error("Expected empty status when not in git repository")
 	}
 }
+
+func TestExtractHostFromRemoteURL(t *testing.T) {
+	tests := []struct {
+		name     string
+		url      string
+		expected string
+	}{
+		{
+			name:     "public GitHub HTTPS",
+			url:      "https://github.com/owner/repo.git",
+			expected: "github.com",
+		},
+		{
+			name:     "public GitHub SSH scp-like",
+			url:      "git@github.com:owner/repo.git",
+			expected: "github.com",
+		},
+		{
+			name:     "GHES HTTPS",
+			url:      "https://ghes.example.com/org/repo.git",
+			expected: "ghes.example.com",
+		},
+		{
+			name:     "GHES SSH scp-like",
+			url:      "git@ghes.example.com:org/repo.git",
+			expected: "ghes.example.com",
+		},
+		{
+			name:     "GHES HTTPS without .git suffix",
+			url:      "https://ghes.example.com/org/repo",
+			expected: "ghes.example.com",
+		},
+		{
+			name:     "SSH URL format with user",
+			url:      "ssh://git@ghes.example.com/org/repo.git",
+			expected: "ghes.example.com",
+		},
+		{
+			name:     "SSH URL format without user",
+			url:      "ssh://ghes.example.com/org/repo.git",
+			expected: "ghes.example.com",
+		},
+		{
+			name:     "HTTP URL",
+			url:      "http://ghes.example.com/org/repo.git",
+			expected: "ghes.example.com",
+		},
+		{
+			name:     "empty URL defaults to github.com",
+			url:      "",
+			expected: "github.com",
+		},
+		{
+			name:     "unrecognized URL defaults to github.com",
+			url:      "not-a-url",
+			expected: "github.com",
+		},
+		{
+			name:     "GHES with port",
+			url:      "https://ghes.example.com:8443/org/repo.git",
+			expected: "ghes.example.com:8443",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := extractHostFromRemoteURL(tt.url)
+			if got != tt.expected {
+				t.Errorf("extractHostFromRemoteURL(%q) = %q, want %q", tt.url, got, tt.expected)
+			}
+		})
+	}
+}
+
+func TestGetHostFromOriginRemote(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "test-get-host-*")
+
+	originalDir, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("Failed to get current directory: %v", err)
+	}
+	defer func() {
+		if err := os.Chdir(originalDir); err != nil {
+			t.Logf("Warning: failed to restore directory: %v", err)
+		}
+	}()
+
+	if err := os.Chdir(tmpDir); err != nil {
+		t.Fatalf("Failed to change to temp directory: %v", err)
+	}
+
+	// Initialize a git repo
+	if err := exec.Command("git", "init").Run(); err != nil {
+		t.Skip("Git not available")
+	}
+
+	t.Run("no remote defaults to github.com", func(t *testing.T) {
+		got := getHostFromOriginRemote()
+		if got != "github.com" {
+			t.Errorf("getHostFromOriginRemote() without remote = %q, want %q", got, "github.com")
+		}
+	})
+
+	t.Run("public GitHub remote", func(t *testing.T) {
+		if err := exec.Command("git", "remote", "add", "origin", "https://github.com/owner/repo.git").Run(); err != nil {
+			t.Fatalf("Failed to add remote: %v", err)
+		}
+		defer func() { _ = exec.Command("git", "remote", "remove", "origin").Run() }()
+
+		got := getHostFromOriginRemote()
+		if got != "github.com" {
+			t.Errorf("getHostFromOriginRemote() = %q, want %q", got, "github.com")
+		}
+	})
+
+	t.Run("GHES remote", func(t *testing.T) {
+		if err := exec.Command("git", "remote", "add", "origin", "https://ghes.example.com/org/repo.git").Run(); err != nil {
+			t.Fatalf("Failed to add remote: %v", err)
+		}
+		defer func() { _ = exec.Command("git", "remote", "remove", "origin").Run() }()
+
+		got := getHostFromOriginRemote()
+		if got != "ghes.example.com" {
+			t.Errorf("getHostFromOriginRemote() = %q, want %q", got, "ghes.example.com")
+		}
+	})
+}

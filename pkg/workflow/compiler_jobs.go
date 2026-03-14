@@ -632,6 +632,26 @@ func (c *Compiler) buildCustomJobs(data *WorkflowData, activationJobCreated bool
 				}
 			}
 
+			// Extract environment for custom jobs
+			if environment, hasEnvironment := configMap["environment"]; hasEnvironment {
+				switch v := environment.(type) {
+				case string:
+					job.Environment = "environment: " + v
+				case map[string]any:
+					yamlBytes, err := yaml.Marshal(v)
+					if err != nil {
+						return fmt.Errorf("failed to convert environment to YAML for job '%s': %w", jobName, err)
+					}
+					lines := strings.Split(strings.TrimSpace(string(yamlBytes)), "\n")
+					var formattedEnvironment strings.Builder
+					formattedEnvironment.WriteString("environment:\n")
+					for _, line := range lines {
+						formattedEnvironment.WriteString("      " + line + "\n")
+					}
+					job.Environment = strings.TrimSuffix(formattedEnvironment.String(), "\n")
+				}
+			}
+
 			// Extract outputs for custom jobs
 			if outputs, hasOutputs := configMap["outputs"]; hasOutputs {
 				if outputsMap, ok := outputs.(map[string]any); ok {
@@ -726,9 +746,16 @@ func (c *Compiler) buildCustomJobs(data *WorkflowData, activationJobCreated bool
 //
 // The checkout step is only skipped when:
 //   - Custom steps already contain a checkout action
+//   - checkout: false is set in the workflow frontmatter
 //
 // Otherwise, checkout is always added to ensure the agent has access to the repository.
 func (c *Compiler) shouldAddCheckoutStep(data *WorkflowData) bool {
+	// If checkout was explicitly disabled via checkout: false, skip it
+	if data.CheckoutDisabled {
+		log.Print("Skipping checkout step: checkout disabled via checkout: false")
+		return false
+	}
+
 	// If custom steps already contain checkout, don't add another one
 	if data.CustomSteps != "" && ContainsCheckout(data.CustomSteps) {
 		log.Print("Skipping checkout step: custom steps already contain checkout")

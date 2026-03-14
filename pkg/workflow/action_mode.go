@@ -21,6 +21,9 @@ const (
 
 	// ActionModeScript runs setup.sh script from checked-out .github folder instead of using action steps
 	ActionModeScript ActionMode = "script"
+
+	// ActionModeAction references custom actions from the github/gh-aw-actions repository using the same release version
+	ActionModeAction ActionMode = "action"
 )
 
 // String returns the string representation of the action mode
@@ -30,7 +33,7 @@ func (m ActionMode) String() string {
 
 // IsValid checks if the action mode is valid
 func (m ActionMode) IsValid() bool {
-	return m == ActionModeDev || m == ActionModeRelease || m == ActionModeScript
+	return m == ActionModeDev || m == ActionModeRelease || m == ActionModeScript || m == ActionModeAction
 }
 
 // IsDev returns true if the action mode is development mode
@@ -46,6 +49,11 @@ func (m ActionMode) IsRelease() bool {
 // IsScript returns true if the action mode is script mode
 func (m ActionMode) IsScript() bool {
 	return m == ActionModeScript
+}
+
+// IsAction returns true if the action mode is action mode (uses github/gh-aw-actions repo)
+func (m ActionMode) IsAction() bool {
+	return m == ActionModeAction
 }
 
 // UsesExternalActions returns true (always true since inline mode was removed)

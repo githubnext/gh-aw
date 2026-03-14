@@ -210,6 +210,19 @@ function collectMissingMessages(messages) {
 }
 
 /**
+ * Format a log message for a manifest entry.
+ * Prefers the URL when available, otherwise falls back to the item number.
+ *
+ * @param {{type: string, url?: string, number?: number}} item - Manifest item
+ * @returns {string} Formatted log message
+ */
+function formatManifestLogMessage(item) {
+  if (item.url) return `📝 Manifest: logged ${item.type} → ${item.url}`;
+  if (item.number != null) return `📝 Manifest: logged ${item.type} #${item.number}`;
+  return `📝 Manifest: logged ${item.type}`;
+}
+
+/**
  * Process all messages from agent output in the order they appear
  * Dispatches each message to the appropriate handler while maintaining shared state (temporary ID map)
  * Tracks outputs created with unresolved temporary IDs and generates synthetic updates after resolution
@@ -304,8 +317,28 @@ async function processMessages(messageHandlers, messages, onItemCreated = null) 
 
       // Check if this message type is handled by a custom safe output job
       if (customJobTypes.has(messageType)) {
-        // Silently skip - this is handled by a custom safe output job step
         core.debug(`Message ${i + 1} (${messageType}) will be handled by custom safe output job`);
+
+        // Log the dispatch to the manifest so the operation is counted in SafeItemsCount.
+        // The custom job does the actual work; here we record the intent from the message.
+        if (onItemCreated) {
+          // Prefer item_number (explicit target), fall back to issue_number then pull_request_number.
+          // This mirrors the precedence order used by individual safe output handlers.
+          const rawNumber = message.item_number ?? message.issue_number ?? message.pull_request_number;
+          const itemNumber = rawNumber != null ? parseInt(String(rawNumber), 10) : undefined;
+          const validNumber = itemNumber != null && !isNaN(itemNumber) ? itemNumber : undefined;
+
+          const messageResult = {
+            ...(validNumber != null ? { number: validNumber } : {}),
+            ...(message.repo ? { repo: message.repo } : {}),
+          };
+          const createdItem = extractCreatedItemFromResult(messageType, messageResult);
+          if (createdItem) {
+            core.info(formatManifestLogMessage(createdItem));
+            onItemCreated(createdItem);
+          }
+        }
+
         results.push({
           type: messageType,
           messageIndex: i,
@@ -457,14 +490,14 @@ async function processMessages(messageHandlers, messages, onItemCreated = null) 
           for (const item of result) {
             const createdItem = extractCreatedItemFromResult(messageType, item);
             if (createdItem) {
-              core.info(`📝 Manifest: logged ${createdItem.type} → ${createdItem.url}`);
+              core.info(formatManifestLogMessage(createdItem));
               onItemCreated(createdItem);
             }
           }
         } else {
           const createdItem = extractCreatedItemFromResult(messageType, result);
           if (createdItem) {
-            core.info(`📝 Manifest: logged ${createdItem.type} → ${createdItem.url}`);
+            core.info(formatManifestLogMessage(createdItem));
             onItemCreated(createdItem);
           }
         }
@@ -573,7 +606,7 @@ async function processMessages(messageHandlers, messages, onItemCreated = null) 
           if (onItemCreated) {
             const createdItem = extractCreatedItemFromResult(deferred.type, result);
             if (createdItem) {
-              core.info(`📝 Manifest: logged ${createdItem.type} → ${createdItem.url}`);
+              core.info(formatManifestLogMessage(createdItem));
               onItemCreated(createdItem);
             }
           }
