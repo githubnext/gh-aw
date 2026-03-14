@@ -100,13 +100,28 @@ func RunHealth(config HealthConfig) error {
 		return fmt.Errorf("invalid days value: %d. Must be 7, 30, or 90", config.Days)
 	}
 
+	// workflowAPIName is used for gh run list API calls. Using the lock file name
+	// (e.g. "smoke-copilot.lock.yml") is more reliable than the display name because
+	// the GitHub CLI matches by filename directly, avoiding "workflow not found" errors
+	// that can occur when the workflow's display name doesn't match the registry.
+	var workflowAPIName string
+
 	// Resolve workflow name from workflow ID to GitHub Actions display name
 	if config.WorkflowName != "" {
 		resolvedName, err := workflow.FindWorkflowName(config.WorkflowName)
 		if err != nil {
 			return fmt.Errorf("workflow '%s' not found: %w", config.WorkflowName, err)
 		}
-		healthLog.Printf("Resolved workflow name: %s -> %s", config.WorkflowName, resolvedName)
+
+		lockFileName, lockErr := workflow.GetWorkflowLockFileName(config.WorkflowName)
+		if lockErr == nil {
+			workflowAPIName = lockFileName
+		} else {
+			// Fall back to resolved display name if lock file lookup fails
+			workflowAPIName = resolvedName
+		}
+
+		healthLog.Printf("Resolved workflow name: %s -> %s (API name: %s)", config.WorkflowName, resolvedName, workflowAPIName)
 		config.WorkflowName = resolvedName
 	}
 
@@ -118,7 +133,7 @@ func RunHealth(config HealthConfig) error {
 	}
 
 	// Fetch workflow runs from GitHub
-	runs, err := fetchWorkflowRuns(config.WorkflowName, startDate, config.RepoOverride, config.Verbose)
+	runs, err := fetchWorkflowRuns(workflowAPIName, startDate, config.RepoOverride, config.Verbose)
 	if err != nil {
 		return fmt.Errorf("failed to fetch workflow runs: %w", err)
 	}
@@ -126,6 +141,11 @@ func RunHealth(config HealthConfig) error {
 	if len(runs) == 0 {
 		if config.WorkflowName != "" {
 			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("No runs found for workflow '%s' in the last %d days", config.WorkflowName, config.Days)))
+			// When JSON output is requested for a specific workflow, still output a valid
+			// zero-run JSON structure so callers can parse the result programmatically.
+			if config.JSONOutput {
+				return displayDetailedHealth(runs, config)
+			}
 		} else {
 			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("No workflow runs found in the last %d days", config.Days)))
 		}

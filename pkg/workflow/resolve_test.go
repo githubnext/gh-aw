@@ -605,3 +605,102 @@ func TestGetAllWorkflows(t *testing.T) {
 		}
 	}
 }
+
+func TestGetWorkflowLockFileName(t *testing.T) {
+	// Create a temporary directory with workflow files
+	tempDir := testutil.TempDir(t, "test-*")
+	workflowsDir := filepath.Join(tempDir, constants.GetWorkflowDir())
+	err := os.MkdirAll(workflowsDir, 0755)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Create sample workflow files
+	testWorkflows := map[string]string{
+		"smoke-copilot": "Smoke Copilot",
+		"weekly-plan":   "Weekly Plan",
+	}
+	for workflowID, displayName := range testWorkflows {
+		mdFile := filepath.Join(workflowsDir, workflowID+".md")
+		lockFile := filepath.Join(workflowsDir, workflowID+".lock.yml")
+
+		err = os.WriteFile(mdFile, []byte("# "+workflowID+"\nSome content"), 0644)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		lockContent := "name: \"" + displayName + "\"\non: push\n"
+		err = os.WriteFile(lockFile, []byte(lockContent), 0644)
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	// Change to the temp directory
+	t.Chdir(tempDir)
+
+	tests := []struct {
+		name         string
+		input        string
+		expectedFile string
+		expectError  bool
+	}{
+		{
+			name:         "workflow ID",
+			input:        "smoke-copilot",
+			expectedFile: "smoke-copilot.lock.yml",
+		},
+		{
+			name:         "workflow ID with .md extension",
+			input:        "smoke-copilot.md",
+			expectedFile: "smoke-copilot.lock.yml",
+		},
+		{
+			name:         "workflow ID with .lock.yml extension",
+			input:        "smoke-copilot.lock.yml",
+			expectedFile: "smoke-copilot.lock.yml",
+		},
+		{
+			name:         "display name exact match",
+			input:        "Smoke Copilot",
+			expectedFile: "smoke-copilot.lock.yml",
+		},
+		{
+			name:         "display name case-insensitive match",
+			input:        "smoke copilot",
+			expectedFile: "smoke-copilot.lock.yml",
+		},
+		{
+			name:        "non-existent workflow",
+			input:       "non-existent",
+			expectError: true,
+		},
+		{
+			name:         "empty input",
+			input:        "",
+			expectedFile: "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result, err := GetWorkflowLockFileName(tt.input)
+
+			if tt.expectError {
+				if err == nil {
+					t.Errorf("Expected error for input %q, but got none (result: %q)", tt.input, result)
+				}
+				return
+			}
+
+			if err != nil {
+				t.Errorf("Unexpected error for input %q: %v", tt.input, err)
+				return
+			}
+
+			if result != tt.expectedFile {
+				t.Errorf("Expected lock file %q, got %q", tt.expectedFile, result)
+			}
+		})
+	}
+}

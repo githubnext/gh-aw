@@ -197,6 +197,41 @@ func FindWorkflowName(input string) (string, error) {
 	return "", fmt.Errorf("workflow '%s' not found", input)
 }
 
+// GetWorkflowLockFileName returns the lock file name (e.g. "smoke-copilot.lock.yml")
+// for the given workflow input. It accepts a workflow ID (e.g. "smoke-copilot"),
+// a file name with any supported extension (e.g. "smoke-copilot.md"), or a display
+// name (e.g. "Smoke Copilot"). Returns an error if no matching workflow is found.
+func GetWorkflowLockFileName(input string) (string, error) {
+	if input == "" {
+		return "", nil
+	}
+
+	// Strategy 1: Normalize and check if the lock file exists directly.
+	// This handles workflow IDs and filenames with .md or .lock.yml extensions.
+	workflowsDir := constants.GetWorkflowDir()
+	normalizedName := stringutil.NormalizeWorkflowName(input)
+	lockFile := filepath.Join(workflowsDir, normalizedName+".lock.yml")
+	if _, err := os.Stat(lockFile); err == nil {
+		return normalizedName + ".lock.yml", nil
+	}
+
+	// Strategy 2: Match by display name (case-insensitive) via GetAllWorkflows.
+	// This handles inputs like "Smoke Copilot" that normalize to non-existent filenames.
+	workflows, err := GetAllWorkflows()
+	if err != nil {
+		return "", fmt.Errorf("failed to get workflows: %w", err)
+	}
+
+	lowerInput := strings.ToLower(input)
+	for _, wf := range workflows {
+		if strings.ToLower(wf.DisplayName) == lowerInput {
+			return wf.WorkflowID + ".lock.yml", nil
+		}
+	}
+
+	return "", fmt.Errorf("workflow lock file not found for '%s'", input)
+}
+
 // GetAllWorkflows returns all available workflows with their IDs and display names
 func GetAllWorkflows() ([]WorkflowNameMatch, error) {
 	workflowsDir := constants.GetWorkflowDir()
