@@ -153,6 +153,13 @@ type WorkflowExecutor interface {
 	// microsoft/apm-action. Supported values are "copilot", "claude", and "all".
 	// The default implementation returns "all" (packs all primitive types).
 	GetAPMTarget() string
+
+	// GetPreBundleSteps returns GitHub Actions steps that must run before the unified artifact
+	// upload. These steps are injected prior to secret redaction so any engine-produced files
+	// are moved into /tmp/gh-aw/ where they will be scanned and picked up by the artifact
+	// upload under the correct common-ancestor path.
+	// The default implementation returns an empty slice.
+	GetPreBundleSteps(workflowData *WorkflowData) []GitHubActionStep
 }
 
 // MCPConfigProvider handles MCP (Model Context Protocol) configuration
@@ -346,6 +353,13 @@ func (e *BaseEngine) GetFirewallLogsCollectionStep(workflowData *WorkflowData) [
 // CopilotEngine overrides this to return "copilot"; ClaudeEngine overrides to return "claude".
 func (e *BaseEngine) GetAPMTarget() string {
 	return "all"
+}
+
+// GetPreBundleSteps returns an empty slice by default.
+// Engines that need to relocate output files into /tmp/gh-aw/ before the unified artifact
+// upload should override this method.
+func (e *BaseEngine) GetPreBundleSteps(workflowData *WorkflowData) []GitHubActionStep {
+	return []GitHubActionStep{}
 }
 
 // ParseLogMetrics provides a default no-op implementation for log parsing

@@ -344,6 +344,14 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 		}
 	}
 
+	// Run engine pre-bundle steps to relocate files before secret redaction.
+	// This ensures all artifact paths share a common ancestor under /tmp/gh-aw/.
+	for _, step := range engine.GetPreBundleSteps(data) {
+		for _, line := range step {
+			yaml.WriteString(line + "\n")
+		}
+	}
+
 	// Stop MCP gateway after agent execution and before secret redaction
 	// This ensures the gateway process is properly cleaned up
 	// The MCP gateway is always enabled, even when agent sandbox is disabled

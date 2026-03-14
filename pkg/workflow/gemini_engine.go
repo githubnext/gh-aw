@@ -166,9 +166,25 @@ func (e *GeminiEngine) GetInstallationSteps(workflowData *WorkflowData) []GitHub
 // Gemini CLI writes structured error reports to /tmp/gemini-client-error-*.json
 // with a timestamp in the filename (e.g. gemini-client-error-Turn.run-sendMessageStream-2026-02-21T20-45-59-824Z.json).
 // These files provide detailed diagnostics when the Gemini API call fails.
+// GetPreBundleSteps moves these files into /tmp/gh-aw/ so all artifact paths share a common
+// ancestor under /tmp/gh-aw/ and the actions/upload-artifact LCA calculation stays correct.
 func (e *GeminiEngine) GetDeclaredOutputFiles() []string {
 	return []string{
-		"/tmp/gemini-client-error-*.json",
+		"/tmp/gh-aw/gemini-client-error-*.json",
+	}
+}
+
+// GetPreBundleSteps returns a step that moves Gemini CLI error reports from /tmp/ into
+// /tmp/gh-aw/ before the unified artifact upload. This keeps all artifact paths under
+// /tmp/gh-aw/ so that actions/upload-artifact computes the correct least-common-ancestor
+// path and downstream jobs find files at the expected locations.
+func (e *GeminiEngine) GetPreBundleSteps(workflowData *WorkflowData) []GitHubActionStep {
+	return []GitHubActionStep{
+		{
+			"      - name: Move Gemini error files to artifact directory",
+			"        if: always()",
+			"        run: mv /tmp/gemini-client-error-*.json /tmp/gh-aw/ 2>/dev/null || true",
+		},
 	}
 }
 

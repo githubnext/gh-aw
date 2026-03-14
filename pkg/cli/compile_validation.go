@@ -20,7 +20,7 @@ func RunActionlintOnFiles(lockFiles []string, verbose bool, strict bool) error {
 	if len(lockFiles) == 0 {
 		return nil
 	}
-	return runActionlintOnFile(lockFiles, verbose, strict)
+	return runActionlintOnFiles(lockFiles, verbose, strict)
 }
 
 // RunZizmorOnFiles runs zizmor on multiple lock files in a single batch
@@ -113,7 +113,7 @@ func CompileWorkflowWithValidation(compiler *workflow.Compiler, filePath string,
 	// Run actionlint on the generated lock file if requested
 	// Note: For batch processing, use RunActionlintOnFiles instead
 	if runActionlintPerFile {
-		if err := runActionlintOnFile([]string{lockFile}, verbose, strict); err != nil {
+		if err := runActionlintOnFiles([]string{lockFile}, verbose, strict); err != nil {
 			return fmt.Errorf("actionlint linter failed: %w", err)
 		}
 	}
@@ -181,7 +181,7 @@ func CompileWorkflowDataWithValidation(compiler *workflow.Compiler, workflowData
 	// Run actionlint on the generated lock file if requested
 	// Note: For batch processing, use RunActionlintOnFiles instead
 	if runActionlintPerFile {
-		if err := runActionlintOnFile([]string{lockFile}, verbose, strict); err != nil {
+		if err := runActionlintOnFiles([]string{lockFile}, verbose, strict); err != nil {
 			return fmt.Errorf("actionlint linter failed: %w", err)
 		}
 	}
