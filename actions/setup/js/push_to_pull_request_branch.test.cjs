@@ -1165,6 +1165,103 @@ ${diffs}
       expect(result.error).not.toContain(".changeset/my-fix.md");
     });
   });
+
+  // excluded-files exclusion list
+  // ──────────────────────────────────────────────────────
+
+  describe("excluded-files exclusion list", () => {
+    /**
+     * Helper to create a patch that touches only the given file path(s).
+     */
+    function createPatchWithFiles(...filePaths) {
+      const diffs = filePaths
+        .map(
+          p => `diff --git a/${p} b/${p}
+new file mode 100644
+index 0000000..abc1234
+--- /dev/null
++++ b/${p}
+@@ -0,0 +1 @@
++content
+`
+        )
+        .join("\n");
+      return `From abc123 Mon Sep 17 00:00:00 2001
+From: Test Author <test@example.com>
+Date: Mon, 1 Jan 2024 00:00:00 +0000
+Subject: [PATCH] Test commit
+
+${diffs}
+--
+2.34.1
+`;
+    }
+
+    it("should ignore files matching excluded-files patterns (not blocked by allowed-files)", async () => {
+      // excluded-files are excluded at patch generation time via git :(exclude) pathspecs.
+      // Simulate post-generation: the patch already contains only the non-ignored file.
+      const patchPath = createPatchFile(createPatchWithFiles("src/index.js"));
+      mockExec.getExecOutput.mockResolvedValue({ exitCode: 0, stdout: "abc123\n", stderr: "" });
+
+      const module = await loadModule();
+      const handler = await module.main({
+        excluded_files: ["auto-generated/**"],
+        allowed_files: ["src/**"],
+      });
+      const result = await handler({ patch_path: patchPath }, {});
+
+      expect(result.error || "").not.toContain("outside the allowed-files list");
+    });
+
+    it("should still block non-ignored files that violate the allowed-files list", async () => {
+      const patchPath = createPatchFile(createPatchWithFiles("src/index.js", "other/file.txt"));
+
+      const module = await loadModule();
+      const handler = await module.main({
+        excluded_files: ["auto-generated/**"],
+        allowed_files: ["src/**"],
+      });
+      const result = await handler({ patch_path: patchPath }, {});
+
+      expect(result.success).toBe(false);
+      expect(result.error).toContain("outside the allowed-files list");
+      expect(result.error).toContain("other/file.txt");
+      expect(result.error).not.toContain("src/index.js");
+    });
+
+    it("should ignore files matching excluded-files patterns (not blocked by protected-files)", async () => {
+      // excluded-files are excluded at patch generation time via git :(exclude) pathspecs.
+      // Simulate post-generation: the patch already contains only the non-ignored file.
+      const patchPath = createPatchFile(createPatchWithFiles("src/index.js"));
+      mockExec.getExecOutput.mockResolvedValue({ exitCode: 0, stdout: "abc123\n", stderr: "" });
+
+      const module = await loadModule();
+      const handler = await module.main({
+        excluded_files: ["package.json"],
+        protected_files: ["package.json"],
+        protected_files_policy: "blocked",
+      });
+      const result = await handler({ patch_path: patchPath }, {});
+
+      expect(result.error || "").not.toContain("protected files");
+    });
+
+    it("should allow when all patch files are ignored (even with allowed-files set)", async () => {
+      // excluded-files are excluded at patch generation time via git :(exclude) pathspecs.
+      // Simulate post-generation: all files were excluded so no patch file is produced.
+      const nonexistentPath = path.join(tempDir, "nonexistent.patch");
+
+      const module = await loadModule();
+      const handler = await module.main({
+        excluded_files: ["dist/**"],
+        allowed_files: ["src/**"],
+      });
+      const result = await handler({ patch_path: nonexistentPath }, {});
+
+      // No patch → treated as no changes, not an allowlist violation
+      expect(result.error || "").not.toContain("outside the allowed-files list");
+    });
+  });
 });
 
 // ──────────────────────────────────────────────────────

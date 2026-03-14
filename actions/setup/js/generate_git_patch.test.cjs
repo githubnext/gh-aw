@@ -1,4 +1,11 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import { execSync } from "child_process";
+import { createRequire } from "module";
+import * as fs from "fs";
+import * as path from "path";
+import * as os from "os";
+
+const require = createRequire(import.meta.url);
 
 describe("generateGitPatch", () => {
   let originalEnv;
@@ -374,5 +381,107 @@ describe("getPatchPath", () => {
 
     expect(getPatchPath("feature/branch")).toBe("/tmp/gh-aw/aw-feature-branch.patch");
     expect(getPatchPath("Feature/BRANCH")).toBe("/tmp/gh-aw/aw-feature-branch.patch");
+  });
+});
+
+// ──────────────────────────────────────────────────────
+// excludedFiles option – end-to-end with a real git repo
+// ──────────────────────────────────────────────────────
+
+describe("generateGitPatch – excludedFiles option", () => {
+  let repoDir;
+  let originalEnv;
+
+  beforeEach(() => {
+    originalEnv = { GITHUB_WORKSPACE: process.env.GITHUB_WORKSPACE, GITHUB_SHA: process.env.GITHUB_SHA };
+
+    // Set up the core global required by git_helpers.cjs
+    global.core = { debug: () => {}, info: () => {}, warning: () => {}, error: () => {} };
+
+    // Create an isolated git repo in a temp directory
+    repoDir = fs.mkdtempSync(path.join(os.tmpdir(), "gh-aw-patch-test-"));
+    execSync("git init -b main", { cwd: repoDir });
+    execSync('git config user.email "test@example.com"', { cwd: repoDir });
+    execSync('git config user.name "Test"', { cwd: repoDir });
+
+    // Initial commit so the repo has a base
+    fs.writeFileSync(path.join(repoDir, "README.md"), "# Repo\n");
+    execSync("git add .", { cwd: repoDir });
+    execSync('git commit -m "init"', { cwd: repoDir });
+
+    // Record the initial commit SHA for GITHUB_SHA (Strategy 2 base)
+    const sha = execSync("git rev-parse HEAD", { cwd: repoDir }).toString().trim();
+    process.env.GITHUB_SHA = sha;
+    // Clear GITHUB_WORKSPACE so the cwd option is used instead
+    delete process.env.GITHUB_WORKSPACE;
+
+    // Reset module cache so each test gets a fresh module instance
+    delete require.cache[require.resolve("./generate_git_patch.cjs")];
+  });
+
+  afterEach(() => {
+    // Restore env
+    Object.entries(originalEnv).forEach(([k, v]) => {
+      if (v !== undefined) process.env[k] = v;
+      else delete process.env[k];
+    });
+    // Clean up temp repo
+    if (repoDir && fs.existsSync(repoDir)) {
+      fs.rmSync(repoDir, { recursive: true, force: true });
+    }
+    delete require.cache[require.resolve("./generate_git_patch.cjs")];
+    delete global.core;
+  });
+
+  function commitFiles(files) {
+    for (const [filePath, content] of Object.entries(files)) {
+      const abs = path.join(repoDir, filePath);
+      fs.mkdirSync(path.dirname(abs), { recursive: true });
+      fs.writeFileSync(abs, content);
+    }
+    execSync("git add .", { cwd: repoDir });
+    execSync('git commit -m "add files"', { cwd: repoDir });
+  }
+
+  it("should include all files when excludedFiles is not set", async () => {
+    commitFiles({
+      "src/index.js": "console.log('hello');\n",
+      "dist/bundle.js": "/* bundled */\n",
+    });
+
+    const { generateGitPatch } = require("./generate_git_patch.cjs");
+    const result = await generateGitPatch(null, "main", { cwd: repoDir });
+
+    expect(result.success).toBe(true);
+    const patch = fs.readFileSync(result.patchPath, "utf8");
+    expect(patch).toContain("src/index.js");
+    expect(patch).toContain("dist/bundle.js");
+  });
+
+  it("should exclude files matching excludedFiles patterns from the patch", async () => {
+    commitFiles({
+      "src/index.js": "console.log('hello');\n",
+      "dist/bundle.js": "/* bundled */\n",
+    });
+
+    const { generateGitPatch } = require("./generate_git_patch.cjs");
+    const result = await generateGitPatch(null, "main", { cwd: repoDir, excludedFiles: ["dist/**"] });
+
+    expect(result.success).toBe(true);
+    const patch = fs.readFileSync(result.patchPath, "utf8");
+    expect(patch).toContain("src/index.js");
+    expect(patch).not.toContain("dist/bundle.js");
+  });
+
+  it("should return no patch when all files are ignored", async () => {
+    commitFiles({
+      "dist/bundle.js": "/* bundled */\n",
+    });
+
+    const { generateGitPatch } = require("./generate_git_patch.cjs");
+    const result = await generateGitPatch(null, "main", { cwd: repoDir, excludedFiles: ["dist/**"] });
+
+    // All changes were excluded — patch is empty so generation reports no changes
+    expect(result.success).toBe(false);
   });
 });

@@ -96,6 +96,9 @@ function getPatchPathForRepo(branchName, repoSlug) {
  *   Required for multi-repo scenarios to prevent patch file collisions.
  * @param {string} [options.token] - GitHub token for git authentication. Falls back to GITHUB_TOKEN env var.
  *   Use this for cross-repo scenarios where a custom PAT with access to the target repo is needed.
+ * @param {string[]} [options.excludedFiles] - Glob patterns for files to exclude from the patch.
+ *   Each pattern is passed to `git format-patch` as a `:(exclude)<pattern>` magic pathspec so
+ *   matching files are never included in the generated patch.
  * @returns {Promise<Object>} Object with patch info or error
  */
 async function generateGitPatch(branchName, baseBranch, options = {}) {
@@ -103,6 +106,21 @@ async function generateGitPatch(branchName, baseBranch, options = {}) {
   // Support custom cwd for multi-repo scenarios
   const cwd = options.cwd || process.env.GITHUB_WORKSPACE || process.cwd();
   // Include repo slug in patch path for multi-repo disambiguation
+
+  // Build :(exclude) pathspec arguments from the excludedFiles option.
+  // These are appended after "--" so git treats them as pathspecs, not revisions.
+  // Using git's native pathspec magic keeps the exclusions out of the patch entirely
+  // without any post-processing of the generated patch file.
+  const excludePathspecs = Array.isArray(options.excludedFiles) && options.excludedFiles.length > 0 ? options.excludedFiles.map(p => `:(exclude)${p}`) : [];
+
+  /**
+   * Returns the arguments to append to a format-patch call when excludedFiles is set.
+   * Produces ["--", ":(exclude)pattern1", ":(exclude)pattern2", ...] or [].
+   * @returns {string[]}
+   */
+  function excludeArgs() {
+    return excludePathspecs.length > 0 ? ["--", ...excludePathspecs] : [];
+  }
   const patchPath = options.repoSlug ? getPatchPathForRepo(branchName, options.repoSlug) : getPatchPath(branchName);
 
   // Validate baseBranch early to avoid confusing git errors (e.g., origin/undefined)
@@ -235,7 +253,7 @@ async function generateGitPatch(branchName, baseBranch, options = {}) {
 
         if (commitCount > 0) {
           // Generate patch from the determined base to the branch
-          const patchContent = execGitSync(["format-patch", `${baseRef}..${branchName}`, "--stdout"], { cwd });
+          const patchContent = execGitSync(["format-patch", `${baseRef}..${branchName}`, "--stdout", ...excludeArgs()], { cwd });
 
           if (patchContent && patchContent.trim()) {
             fs.writeFileSync(patchPath, patchContent, "utf8");
@@ -304,7 +322,7 @@ async function generateGitPatch(branchName, baseBranch, options = {}) {
 
             if (commitCount > 0) {
               // Generate patch from GITHUB_SHA to HEAD
-              const patchContent = execGitSync(["format-patch", `${githubSha}..HEAD`, "--stdout"], { cwd });
+              const patchContent = execGitSync(["format-patch", `${githubSha}..HEAD`, "--stdout", ...excludeArgs()], { cwd });
 
               if (patchContent && patchContent.trim()) {
                 fs.writeFileSync(patchPath, patchContent, "utf8");
@@ -339,8 +357,8 @@ async function generateGitPatch(branchName, baseBranch, options = {}) {
           if (remoteRefs.length > 0) {
             // Find commits on current branch not reachable from any remote ref
             // This gets commits the agent added that haven't been pushed anywhere
-            const excludeArgs = remoteRefs.flatMap(ref => ["--not", ref]);
-            const revListArgs = ["rev-list", "--count", branchName, ...excludeArgs];
+            const remoteExcludeArgs = remoteRefs.flatMap(ref => ["--not", ref]);
+            const revListArgs = ["rev-list", "--count", branchName, ...remoteExcludeArgs];
 
             const commitCount = parseInt(execGitSync(revListArgs, { cwd }).trim(), 10);
             debugLog(`Strategy 3: Found ${commitCount} commits not reachable from any remote ref`);
@@ -362,7 +380,7 @@ async function generateGitPatch(branchName, baseBranch, options = {}) {
               }
 
               if (baseCommit) {
-                const patchContent = execGitSync(["format-patch", `${baseCommit}..${branchName}`, "--stdout"], { cwd });
+                const patchContent = execGitSync(["format-patch", `${baseCommit}..${branchName}`, "--stdout", ...excludeArgs()], { cwd });
 
                 if (patchContent && patchContent.trim()) {
                   fs.writeFileSync(patchPath, patchContent, "utf8");

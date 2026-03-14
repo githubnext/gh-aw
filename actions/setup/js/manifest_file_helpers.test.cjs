@@ -3,7 +3,7 @@ import { describe, it, expect } from "vitest";
 import { createRequire } from "module";
 
 const require = createRequire(import.meta.url);
-const { extractFilenamesFromPatch, checkForManifestFiles, checkAllowedFiles, checkFileProtection } = require("./manifest_file_helpers.cjs");
+const { extractFilenamesFromPatch, checkForManifestFiles, checkAllowedFiles, checkExcludedFiles, checkFileProtection } = require("./manifest_file_helpers.cjs");
 
 describe("manifest_file_helpers", () => {
   describe("extractFilenamesFromPatch", () => {
@@ -333,6 +333,36 @@ index abc..def 100644
       const patch = `diff --git a/.changeset/deep/nested/entry.md b/.changeset/deep/nested/entry.md\nindex abc..def 100644\n`;
       const result = checkAllowedFiles(patch, [".changeset/**"]);
       expect(result.hasDisallowedFiles).toBe(false);
+    });
+  });
+
+  describe("checkExcludedFiles", () => {
+    const makePatch = (...filePaths) => filePaths.map(p => `diff --git a/${p} b/${p}\nindex abc..def 100644\n`).join("\n");
+
+    it("should return empty when patterns is empty", () => {
+      const result = checkExcludedFiles(makePatch("src/index.js"), []);
+      expect(result.excludedFiles).toEqual([]);
+    });
+
+    it("should return empty for empty patch", () => {
+      const result = checkExcludedFiles("", ["auto-generated/**"]);
+      expect(result.excludedFiles).toEqual([]);
+    });
+
+    it("should identify files matching ignored patterns", () => {
+      const result = checkExcludedFiles(makePatch("auto-generated/file.txt", "src/index.js"), ["auto-generated/**"]);
+      expect(result.excludedFiles).toContain("auto-generated/file.txt");
+      expect(result.excludedFiles).not.toContain("src/index.js");
+    });
+
+    it("should return all files when all match ignored patterns", () => {
+      const result = checkExcludedFiles(makePatch("auto-generated/a.txt", "auto-generated/b.txt"), ["auto-generated/**"]);
+      expect(result.excludedFiles).toHaveLength(2);
+    });
+
+    it("should support ** glob for deep path matching", () => {
+      const result = checkExcludedFiles(makePatch("dist/deep/nested/bundle.js"), ["dist/**"]);
+      expect(result.excludedFiles).toContain("dist/deep/nested/bundle.js");
     });
   });
 

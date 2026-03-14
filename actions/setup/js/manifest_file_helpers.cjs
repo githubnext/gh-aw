@@ -127,16 +127,45 @@ function checkAllowedFiles(patchContent, allowedFilePatterns) {
 }
 
 /**
+ * Identifies which files in a patch match the given list of excluded-file glob patterns.
+ * Matching is done against the full file path (e.g. `.github/workflows/ci.yml`).
+ *
+ * Glob matching supports `*` (matches any characters except `/`) and `**` (matches
+ * any characters including `/`).
+ *
+ * @param {string} patchContent - The git patch content
+ * @param {string[]} excludedFilePatterns - Glob patterns for files to exclude
+ * @returns {{ excludedFiles: string[] }}
+ */
+function checkExcludedFiles(patchContent, excludedFilePatterns) {
+  if (!excludedFilePatterns || excludedFilePatterns.length === 0) {
+    return { excludedFiles: [] };
+  }
+  const allPaths = extractPathsFromPatch(patchContent);
+  if (allPaths.length === 0) {
+    return { excludedFiles: [] };
+  }
+  const { globPatternToRegex } = require("./glob_pattern_helpers.cjs");
+  const compiledPatterns = excludedFilePatterns.map(p => globPatternToRegex(p));
+  const excludedFiles = allPaths.filter(p => compiledPatterns.some(re => re.test(p)));
+  return { excludedFiles };
+}
+
+/**
  * Evaluates a patch against the configured file-protection policy and returns a
  * single structured result, eliminating nested branching in callers.
  *
- * The two checks are orthogonal and both must pass:
- * 1. If `allowed_files` is set → every file must match at least one pattern (deny if not).
- * 2. `protected-files` policy applies independently: "allowed" = skip, "fallback-to-issue"
- *    = create review issue, default ("blocked") = deny.
+ * The checks are applied in order and all must pass:
+ * 1. If `allowed_files` is set → every file in the patch must match at least one pattern (deny if not).
+ * 2. `protected-files` policy applies independently: "allowed" = skip,
+ *    "fallback-to-issue" = create review issue, default ("blocked") = deny.
  *
  * To allow an agent to write protected files, set both `allowed-files` (strict scope) and
  * `protected-files: allowed` (explicit permission) — neither overrides the other implicitly.
+ *
+ * Note: `excluded-files` are excluded at patch generation time via `git format-patch`
+ * `:(exclude)` pathspecs (see `generateGitPatch` options), so they will never appear in
+ * the patch passed to this function.
  *
  * @param {string} patchContent - The git patch content
  * @param {HandlerConfig} config
@@ -170,4 +199,4 @@ function checkFileProtection(patchContent, config) {
   return config.protected_files_policy === "fallback-to-issue" ? { action: "fallback", files: allFound } : { action: "deny", source: "protected", files: allFound };
 }
 
-module.exports = { extractFilenamesFromPatch, extractPathsFromPatch, checkForManifestFiles, checkForProtectedPaths, checkAllowedFiles, checkFileProtection };
+module.exports = { extractFilenamesFromPatch, extractPathsFromPatch, checkForManifestFiles, checkForProtectedPaths, checkAllowedFiles, checkExcludedFiles, checkFileProtection };

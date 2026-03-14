@@ -324,6 +324,10 @@ function createHandlers(server, appendSafeOutput, config = {}) {
     if (prConfig["github-token"]) {
       patchOptions.token = prConfig["github-token"];
     }
+    // Pass excluded_files so git excludes them via :(exclude) pathspecs at generation time.
+    if (Array.isArray(prConfig.excluded_files) && prConfig.excluded_files.length > 0) {
+      patchOptions.excludedFiles = prConfig.excluded_files;
+    }
     const patchResult = await generateGitPatch(entry.branch, baseBranch, patchOptions);
 
     if (!patchResult.success) {
@@ -433,6 +437,10 @@ function createHandlers(server, appendSafeOutput, config = {}) {
     const pushPatchOptions = { mode: "incremental" };
     if (pushConfig["github-token"]) {
       pushPatchOptions.token = pushConfig["github-token"];
+    }
+    // Pass excluded_files so git excludes them via :(exclude) pathspecs at generation time.
+    if (Array.isArray(pushConfig.excluded_files) && pushConfig.excluded_files.length > 0) {
+      pushPatchOptions.excludedFiles = pushConfig.excluded_files;
     }
     const patchResult = await generateGitPatch(entry.branch, baseBranch, pushPatchOptions);
 
