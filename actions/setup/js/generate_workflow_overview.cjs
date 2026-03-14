@@ -32,17 +32,14 @@ async function generateWorkflowOverview(core) {
     "<details>\n" +
     "<summary>Run details</summary>\n\n" +
     "#### Engine Configuration\n" +
-    "| Property | Value |\n" +
-    "|----------|-------|\n" +
-    `| Engine ID | ${awInfo.engine_id} |\n` +
-    `| Engine Name | ${awInfo.engine_name} |\n` +
-    `| Model | ${awInfo.model || "(default)"} |\n` +
+    `- **Version**: ${awInfo.version || "(unknown)"}\n` +
+    `- **Engine ID**: ${awInfo.engine_id}\n` +
+    `- **Engine Name**: ${awInfo.engine_name}\n` +
+    `- **Model**: ${awInfo.model || "(default)"}\n` +
     "\n" +
     "#### Network Configuration\n" +
-    "| Property | Value |\n" +
-    "|----------|-------|\n" +
-    `| Firewall | ${awInfo.firewall_enabled ? "✅ Enabled" : "❌ Disabled"} |\n` +
-    `| Firewall Version | ${awInfo.awf_version || "(latest)"} |\n` +
+    `- **Firewall**: ${awInfo.firewall_enabled ? "✅ Enabled" : "❌ Disabled"}\n` +
+    `- **Firewall Version**: ${awInfo.awf_version || "(latest)"}\n` +
     "\n" +
     (networkDetails ? `##### Allowed Domains\n${networkDetails}\n` : "") +
     "</details>";

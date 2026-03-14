@@ -54,6 +54,7 @@ describe("generate_workflow_overview.cjs", () => {
       engine_id: "copilot",
       engine_name: "GitHub Copilot",
       model: "gpt-4",
+      version: "v1.2.3",
       firewall_enabled: true,
       awf_version: "1.0.0",
       allowed_domains: [],
@@ -69,13 +70,17 @@ describe("generate_workflow_overview.cjs", () => {
     expect(summaryArg).toContain("<details>");
     expect(summaryArg).toContain("<summary>Run details</summary>");
     expect(summaryArg).toContain("#### Engine Configuration");
-    expect(summaryArg).toContain("| Engine ID | copilot |");
-    expect(summaryArg).toContain("| Engine Name | GitHub Copilot |");
-    expect(summaryArg).toContain("| Model | gpt-4 |");
+    expect(summaryArg).toContain("- **Version**: v1.2.3");
+    expect(summaryArg).toContain("- **Engine ID**: copilot");
+    expect(summaryArg).toContain("- **Engine Name**: GitHub Copilot");
+    expect(summaryArg).toContain("- **Model**: gpt-4");
     expect(summaryArg).toContain("#### Network Configuration");
-    expect(summaryArg).toContain("| Firewall | ✅ Enabled |");
-    expect(summaryArg).toContain("| Firewall Version | 1.0.0 |");
+    expect(summaryArg).toContain("- **Firewall**: ✅ Enabled");
+    expect(summaryArg).toContain("- **Firewall Version**: 1.0.0");
     expect(summaryArg).toContain("</details>");
+    // Ensure no table syntax is present
+    expect(summaryArg).not.toContain("| Property | Value |");
+    expect(summaryArg).not.toContain("|----------|-------|");
   });
 
   it("should handle missing optional fields with defaults", async () => {
@@ -90,9 +95,10 @@ describe("generate_workflow_overview.cjs", () => {
     await generateWorkflowOverview(mockCore);
 
     const summaryArg = mockCore.summary.addRaw.mock.calls[0][0];
-    expect(summaryArg).toContain("| Model | (default) |");
-    expect(summaryArg).toContain("| Firewall | ❌ Disabled |");
-    expect(summaryArg).toContain("| Firewall Version | (latest) |");
+    expect(summaryArg).toContain("- **Version**: (unknown)");
+    expect(summaryArg).toContain("- **Model**: (default)");
+    expect(summaryArg).toContain("- **Firewall**: ❌ Disabled");
+    expect(summaryArg).toContain("- **Firewall Version**: (latest)");
   });
 
   it("should include allowed domains when present (up to 10)", async () => {
