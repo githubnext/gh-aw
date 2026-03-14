@@ -13,6 +13,7 @@
 #
 # If none are set, defaults to github.com (public GitHub).
 
+ORIGINAL_SHELL_FLAGS="$-"
 set -e
 
 # Function to normalize GitHub host URL
@@ -111,3 +112,9 @@ main() {
 
 # Run main function
 main
+
+# Restore original errexit state so sourcing this script does not leak set -e
+case "$ORIGINAL_SHELL_FLAGS" in
+  *e*) set -e ;;
+  *) set +e ;;
+esac
