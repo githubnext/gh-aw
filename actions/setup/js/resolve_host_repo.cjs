@@ -27,6 +27,8 @@
  * environment variables (GITHUB_WORKFLOW_REF, GITHUB_REPOSITORY, GITHUB_REF) set by the
  * GitHub Actions runtime. They are not derived from user-supplied input, so no allowlist
  * check is required in this handler.
+ *
+ * @safe-outputs-exempt SEC-005: values sourced from trusted runtime env vars only
  */
 
 /**

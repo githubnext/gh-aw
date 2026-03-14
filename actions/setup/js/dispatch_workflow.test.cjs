@@ -554,6 +554,7 @@ describe("dispatch_workflow handler factory", () => {
 
     const config = {
       "target-repo": "platform-org/platform-repo",
+      "allowed-repos": ["platform-org/platform-repo"],
       workflows: ["platform-worker"],
       workflow_files: { "platform-worker": ".lock.yml" },
     };
@@ -589,6 +590,7 @@ describe("dispatch_workflow handler factory", () => {
 
       const config = {
         "target-repo": "platform-org/platform-repo",
+        "allowed-repos": ["platform-org/platform-repo"],
         workflows: ["platform-worker"],
         workflow_files: { "platform-worker": ".lock.yml" },
       };
@@ -667,6 +669,7 @@ describe("dispatch_workflow handler factory", () => {
 
     const config = {
       "target-repo": "other-org/other-repo",
+      "allowed-repos": ["other-org/other-repo"],
       "target-ref": "refs/heads/feature-branch",
       workflows: ["target-workflow"],
       workflow_files: { "target-workflow": ".lock.yml" },
@@ -713,6 +716,7 @@ describe("dispatch_workflow handler factory", () => {
 
     const config = {
       "target-repo": "other-org/other-repo",
+      "allowed-repos": ["other-org/other-repo"],
       "target-ref": "refs/heads/feature-branch",
       workflows: ["target-workflow"],
       workflow_files: { "target-workflow": ".lock.yml" },
@@ -727,6 +731,77 @@ describe("dispatch_workflow handler factory", () => {
         owner: "other-org",
         repo: "other-repo",
         ref: "refs/heads/feature-branch",
+      })
+    );
+  });
+
+  it("throws E004 when cross-repo dispatch is attempted without any allowlist configured", async () => {
+    process.env.GITHUB_REF = "refs/heads/main";
+
+    const config = {
+      "target-repo": "other-org/other-repo",
+      workflows: ["target-workflow"],
+      workflow_files: { "target-workflow": ".lock.yml" },
+    };
+
+    await expect(main(config)).rejects.toThrow(/E004.*No allowlist is configured/);
+    expect(github.rest.actions.createWorkflowDispatch).not.toHaveBeenCalled();
+  });
+
+  it("throws E004 when target repo is not present in the allowlist", async () => {
+    process.env.GITHUB_REF = "refs/heads/main";
+
+    const config = {
+      "target-repo": "other-org/other-repo",
+      "allowed-repos": ["other-org/different-repo"],
+      workflows: ["target-workflow"],
+      workflow_files: { "target-workflow": ".lock.yml" },
+    };
+
+    await expect(main(config)).rejects.toThrow(/E004.*not permitted.*Add it to the 'allowed-repos'/);
+    expect(github.rest.actions.createWorkflowDispatch).not.toHaveBeenCalled();
+  });
+
+  it("allows cross-repo dispatch when target repo is present in the allowlist", async () => {
+    process.env.GITHUB_REF = "refs/heads/main";
+
+    const config = {
+      "target-repo": "allowed-org/allowed-repo",
+      "allowed-repos": ["allowed-org/allowed-repo", "other-org/other-repo"],
+      workflows: ["target-workflow"],
+      workflow_files: { "target-workflow": ".lock.yml" },
+    };
+
+    const handler = await main(config);
+    const result = await handler({ type: "dispatch_workflow", workflow_name: "target-workflow", inputs: {} }, {});
+
+    expect(result.success).toBe(true);
+    expect(core.info).toHaveBeenCalledWith("Cross-repo allowlist check passed for allowed-org/allowed-repo");
+    expect(github.rest.actions.createWorkflowDispatch).toHaveBeenCalledWith(
+      expect.objectContaining({
+        owner: "allowed-org",
+        repo: "allowed-repo",
+      })
+    );
+  });
+
+  it("does not apply allowlist check for same-repo dispatch", async () => {
+    process.env.GITHUB_REF = "refs/heads/main";
+
+    // No allowed-repos configured, but dispatching to the same repo (context.repo)
+    const config = {
+      workflows: ["local-workflow"],
+      workflow_files: { "local-workflow": ".lock.yml" },
+    };
+
+    const handler = await main(config);
+    const result = await handler({ type: "dispatch_workflow", workflow_name: "local-workflow", inputs: {} }, {});
+
+    expect(result.success).toBe(true);
+    expect(github.rest.actions.createWorkflowDispatch).toHaveBeenCalledWith(
+      expect.objectContaining({
+        owner: "test-owner",
+        repo: "test-repo",
       })
     );
   });

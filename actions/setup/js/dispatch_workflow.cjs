@@ -44,6 +44,20 @@ async function main(config = {}) {
 
   const isCrossRepoDispatch = resolvedRepoSlug !== contextRepoSlug;
 
+  // SEC-005: Enforce cross-repository allowlist per Safe Outputs Specification §3.2.6 (SP6).
+  // Default-deny: cross-repo dispatch is only permitted when an explicit allowlist is configured
+  // and the resolved target repo is present in that list.
+  const allowedRepos = config["allowed-repos"] || config.allowedRepos || [];
+  if (isCrossRepoDispatch) {
+    if (allowedRepos.length === 0) {
+      throw new Error(`E004: Cross-repository dispatch to '${resolvedRepoSlug}' is not permitted. ` + `No allowlist is configured. Define 'allowed-repos' to enable cross-repository dispatch.`);
+    }
+    if (!allowedRepos.includes(resolvedRepoSlug)) {
+      throw new Error(`E004: Cross-repository dispatch to '${resolvedRepoSlug}' is not permitted. ` + `Add it to the 'allowed-repos' configuration to authorise this target.`);
+    }
+    core.info(`Cross-repo allowlist check passed for ${resolvedRepoSlug}`);
+  }
+
   core.info(`Dispatch workflow configuration: max=${maxCount}`);
   if (allowedWorkflows.length > 0) {
     core.info(`Allowed workflows: ${allowedWorkflows.join(", ")}`);

@@ -163,6 +163,11 @@ check_cross_repo() {
         # Skip test files
         [[ "$handler" =~ test ]] && continue
         
+        # Skip files with a documented SEC-005 exemption annotation
+        if grep -q "@safe-outputs-exempt.*SEC-005" "$handler"; then
+            continue
+        fi
+        
         # Check if handler supports target-repo
         if grep -q "target.*[Rr]epo\|targetRepo" "$handler"; then
             # Check for allowlist validation
