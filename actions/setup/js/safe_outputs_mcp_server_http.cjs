@@ -337,6 +337,13 @@ async function startHttpServer(options = {}) {
       }
     });
 
+    // Disable all HTTP server timeouts to prevent idle connections from being dropped
+    // during long agent runs where safe-output tools may not be called for several minutes.
+    httpServer.timeout = 0;
+    httpServer.keepAliveTimeout = 0;
+    httpServer.headersTimeout = 0;
+    httpServer.requestTimeout = 0;
+
     // Start listening
     logger.debug(`Attempting to bind to port ${port}...`);
     httpServer.listen(port, () => {
