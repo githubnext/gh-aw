@@ -69,8 +69,8 @@ func (c *Compiler) validatePushToPullRequestBranchWarnings(safeOutputs *SafeOutp
 	// Warning 1: no wildcard fetch pattern in any checkout configuration.
 	// Suppressed for public repositories — PR branches are always accessible
 	// in public repos regardless of the fetch configuration.
-	if !c.computeIsPublicRepo() {
-		if !hasWildcardFetch(checkoutConfigs) {
+	if !hasWildcardFetch(checkoutConfigs) {
+		if !c.computeIsPublicRepo() {
 			msg := strings.Join([]string{
 				"push-to-pull-request-branch: target: \"*\" requires that all PR branches are fetched at checkout.",
 				"Your checkout configuration does not include a wildcard fetch pattern (e.g., fetch: [\"*\"]).",
