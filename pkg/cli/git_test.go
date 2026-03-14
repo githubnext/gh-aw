@@ -546,7 +546,7 @@ func TestGetHostFromOriginRemote(t *testing.T) {
 
 	// Initialize a git repo
 	if err := exec.Command("git", "init").Run(); err != nil {
-		t.Fatalf("Failed to init git repo: %v", err)
+		t.Skip("Git not available")
 	}
 
 	t.Run("no remote defaults to github.com", func(t *testing.T) {

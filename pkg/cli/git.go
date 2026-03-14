@@ -87,9 +87,9 @@ func parseGitHubRepoSlugFromURL(url string) string {
 	return ""
 }
 
-// extractHostFromRemoteURL extracts the hostname from a git remote URL.
-// Supports HTTPS (https://host/path), HTTP (http://host/path), and SSH (git@host:path or ssh://git@host/path) formats.
-// Returns "github.com" as the default if the URL cannot be parsed.
+// extractHostFromRemoteURL extracts the host (optionally including port) from a git remote URL.
+// Supports HTTPS (https://host[:port]/path), HTTP (http://host[:port]/path), and SSH (git@host[:port]:path or ssh://git@host[:port]/path) formats.
+// Returns the host portion as "host[:port]" when parsed, or "github.com" as the default if the URL cannot be parsed.
 func extractHostFromRemoteURL(remoteURL string) string {
 	// HTTPS / HTTP format: https://host/path or http://host/path
 	for _, scheme := range []string{"https://", "http://"} {
