@@ -171,12 +171,13 @@ var ValidationConfig = map[string]TypeValidationConfig{
 		DefaultMax:       1,
 		CustomValidation: "startLineLessOrEqualLine",
 		Fields: map[string]FieldValidation{
-			"path":       {Required: true, Type: "string"},
-			"line":       {Required: true, PositiveInteger: true},
-			"body":       {Required: true, Type: "string", Sanitize: true, MaxLength: MaxBodyLength},
-			"start_line": {OptionalPositiveInteger: true},
-			"side":       {Type: "string", Enum: []string{"LEFT", "RIGHT"}},
-			"repo":       {Type: "string", MaxLength: 256}, // Optional: target repository in format "owner/repo"
+			"path":                {Required: true, Type: "string"},
+			"line":                {Required: true, PositiveInteger: true},
+			"body":                {Required: true, Type: "string", Sanitize: true, MaxLength: MaxBodyLength},
+			"pull_request_number": {OptionalPositiveInteger: true},
+			"start_line":          {OptionalPositiveInteger: true},
+			"side":                {Type: "string", Enum: []string{"LEFT", "RIGHT"}},
+			"repo":                {Type: "string", MaxLength: 256}, // Optional: target repository in format "owner/repo"
 		},
 	},
 	"submit_pull_request_review": {
