@@ -377,8 +377,16 @@ safe-outputs:
 
 			// Capture stderr to check for warnings
 			oldStderr := os.Stderr
-			r, w, _ := os.Pipe()
+			r, w, errPipe := os.Pipe()
+			if errPipe != nil {
+				t.Fatalf("failed to create stderr pipe: %v", errPipe)
+			}
 			os.Stderr = w
+			defer func() {
+				_ = w.Close()
+				os.Stderr = oldStderr
+				_ = r.Close()
+			}()
 
 			var compiler *Compiler
 			if tt.isPublicRepo != nil {
@@ -388,9 +396,8 @@ safe-outputs:
 			}
 			err := compiler.CompileWorkflow(testFile)
 
-			// Restore stderr
-			w.Close()
-			os.Stderr = oldStderr
+			// Stop writing to the pipe so we can read all captured output.
+			_ = w.Close()
 			var buf bytes.Buffer
 			io.Copy(&buf, r) //nolint:errcheck
 			stderrOutput := buf.String()
