@@ -32,7 +32,7 @@ safe-outputs:
     expires: 2d
     title-prefix: "[cloclo] "
     labels: [automation, cloclo]
-    ignored-files:
+    excluded-files:
       - ".github/workflows/*.lock.yml"
   add-comment:
     max: 1

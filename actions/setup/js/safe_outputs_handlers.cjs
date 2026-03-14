@@ -324,9 +324,9 @@ function createHandlers(server, appendSafeOutput, config = {}) {
     if (prConfig["github-token"]) {
       patchOptions.token = prConfig["github-token"];
     }
-    // Pass ignored_files so git excludes them via :(exclude) pathspecs at generation time.
-    if (Array.isArray(prConfig.ignored_files) && prConfig.ignored_files.length > 0) {
-      patchOptions.ignoredFiles = prConfig.ignored_files;
+    // Pass excluded_files so git excludes them via :(exclude) pathspecs at generation time.
+    if (Array.isArray(prConfig.excluded_files) && prConfig.excluded_files.length > 0) {
+      patchOptions.excludedFiles = prConfig.excluded_files;
     }
     const patchResult = await generateGitPatch(entry.branch, baseBranch, patchOptions);
 
@@ -438,9 +438,9 @@ function createHandlers(server, appendSafeOutput, config = {}) {
     if (pushConfig["github-token"]) {
       pushPatchOptions.token = pushConfig["github-token"];
     }
-    // Pass ignored_files so git excludes them via :(exclude) pathspecs at generation time.
-    if (Array.isArray(pushConfig.ignored_files) && pushConfig.ignored_files.length > 0) {
-      pushPatchOptions.ignoredFiles = pushConfig.ignored_files;
+    // Pass excluded_files so git excludes them via :(exclude) pathspecs at generation time.
+    if (Array.isArray(pushConfig.excluded_files) && pushConfig.excluded_files.length > 0) {
+      pushPatchOptions.excludedFiles = pushConfig.excluded_files;
     }
     const patchResult = await generateGitPatch(entry.branch, baseBranch, pushPatchOptions);
 

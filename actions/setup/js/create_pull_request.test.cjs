@@ -591,10 +591,10 @@ ${diffs}
   });
 });
 
-// ignored-files exclusion list
+// excluded-files exclusion list
 // ──────────────────────────────────────────────────────
 
-describe("create_pull_request - ignored-files exclusion list", () => {
+describe("create_pull_request - excluded-files exclusion list", () => {
   let tempDir;
   let originalEnv;
 
@@ -696,14 +696,14 @@ ${diffs}
     return p;
   }
 
-  it("should ignore files matching ignored-files patterns (not blocked by allowed-files)", async () => {
-    // ignored-files are excluded at patch generation time via git :(exclude) pathspecs.
+  it("should ignore files matching excluded-files patterns (not blocked by allowed-files)", async () => {
+    // excluded-files are excluded at patch generation time via git :(exclude) pathspecs.
     // Simulate post-generation: the patch already contains only the non-ignored file.
     const patchPath = writePatch(createPatchWithFiles("src/index.js"));
 
     const { main } = require("./create_pull_request.cjs");
     const handler = await main({
-      ignored_files: ["auto-generated/**"],
+      excluded_files: ["auto-generated/**"],
       allowed_files: ["src/**"],
     });
     const result = await handler({ patch_path: patchPath, title: "Test PR", body: "" }, {});
@@ -716,7 +716,7 @@ ${diffs}
 
     const { main } = require("./create_pull_request.cjs");
     const handler = await main({
-      ignored_files: ["auto-generated/**"],
+      excluded_files: ["auto-generated/**"],
       allowed_files: ["src/**"],
     });
     const result = await handler({ patch_path: patchPath, title: "Test PR", body: "" }, {});
@@ -727,14 +727,14 @@ ${diffs}
     expect(result.error).not.toContain("src/index.js");
   });
 
-  it("should ignore files matching ignored-files patterns (not blocked by protected-files)", async () => {
-    // ignored-files are excluded at patch generation time via git :(exclude) pathspecs.
+  it("should ignore files matching excluded-files patterns (not blocked by protected-files)", async () => {
+    // excluded-files are excluded at patch generation time via git :(exclude) pathspecs.
     // Simulate post-generation: the patch already contains only the non-ignored file.
     const patchPath = writePatch(createPatchWithFiles("src/index.js"));
 
     const { main } = require("./create_pull_request.cjs");
     const handler = await main({
-      ignored_files: ["package.json"],
+      excluded_files: ["package.json"],
       protected_files: ["package.json"],
       protected_files_policy: "blocked",
     });
@@ -744,11 +744,11 @@ ${diffs}
   });
 
   it("should allow when all patch files are ignored (even with allowed-files set)", async () => {
-    // ignored-files are excluded at patch generation time via git :(exclude) pathspecs.
+    // excluded-files are excluded at patch generation time via git :(exclude) pathspecs.
     // Simulate post-generation: all files were excluded so the patch file is absent.
     const { main } = require("./create_pull_request.cjs");
     const handler = await main({
-      ignored_files: ["dist/**"],
+      excluded_files: ["dist/**"],
       allowed_files: ["src/**"],
     });
     // No patch file — simulates all changes being ignored at generation time

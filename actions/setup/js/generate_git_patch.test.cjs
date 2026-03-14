@@ -385,10 +385,10 @@ describe("getPatchPath", () => {
 });
 
 // ──────────────────────────────────────────────────────
-// ignoredFiles option – end-to-end with a real git repo
+// excludedFiles option – end-to-end with a real git repo
 // ──────────────────────────────────────────────────────
 
-describe("generateGitPatch – ignoredFiles option", () => {
+describe("generateGitPatch – excludedFiles option", () => {
   let repoDir;
   let originalEnv;
 
@@ -443,7 +443,7 @@ describe("generateGitPatch – ignoredFiles option", () => {
     execSync('git commit -m "add files"', { cwd: repoDir });
   }
 
-  it("should include all files when ignoredFiles is not set", async () => {
+  it("should include all files when excludedFiles is not set", async () => {
     commitFiles({
       "src/index.js": "console.log('hello');\n",
       "dist/bundle.js": "/* bundled */\n",
@@ -458,14 +458,14 @@ describe("generateGitPatch – ignoredFiles option", () => {
     expect(patch).toContain("dist/bundle.js");
   });
 
-  it("should exclude files matching ignoredFiles patterns from the patch", async () => {
+  it("should exclude files matching excludedFiles patterns from the patch", async () => {
     commitFiles({
       "src/index.js": "console.log('hello');\n",
       "dist/bundle.js": "/* bundled */\n",
     });
 
     const { generateGitPatch } = require("./generate_git_patch.cjs");
-    const result = await generateGitPatch(null, "main", { cwd: repoDir, ignoredFiles: ["dist/**"] });
+    const result = await generateGitPatch(null, "main", { cwd: repoDir, excludedFiles: ["dist/**"] });
 
     expect(result.success).toBe(true);
     const patch = fs.readFileSync(result.patchPath, "utf8");
@@ -479,7 +479,7 @@ describe("generateGitPatch – ignoredFiles option", () => {
     });
 
     const { generateGitPatch } = require("./generate_git_patch.cjs");
-    const result = await generateGitPatch(null, "main", { cwd: repoDir, ignoredFiles: ["dist/**"] });
+    const result = await generateGitPatch(null, "main", { cwd: repoDir, excludedFiles: ["dist/**"] });
 
     // All changes were excluded — patch is empty so generation reports no changes
     expect(result.success).toBe(false);

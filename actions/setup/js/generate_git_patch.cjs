@@ -96,8 +96,8 @@ function getPatchPathForRepo(branchName, repoSlug) {
  *   Required for multi-repo scenarios to prevent patch file collisions.
  * @param {string} [options.token] - GitHub token for git authentication. Falls back to GITHUB_TOKEN env var.
  *   Use this for cross-repo scenarios where a custom PAT with access to the target repo is needed.
- * @param {string[]} [options.ignoredFiles] - Glob patterns for files to exclude from the patch.
- *   Each pattern is passed to `git format-patch` as a `:(exclude)<pattern>` pathspec so the
+ * @param {string[]} [options.excludedFiles] - Glob patterns for files to exclude from the patch.
+ *   Each pattern is passed to `git format-patch` as a `:(exclude)<pattern>` magic pathspec so
  *   matching files are never included in the generated patch.
  * @returns {Promise<Object>} Object with patch info or error
  */
@@ -107,14 +107,14 @@ async function generateGitPatch(branchName, baseBranch, options = {}) {
   const cwd = options.cwd || process.env.GITHUB_WORKSPACE || process.cwd();
   // Include repo slug in patch path for multi-repo disambiguation
 
-  // Build :(exclude) pathspec arguments from the ignoredFiles option.
+  // Build :(exclude) pathspec arguments from the excludedFiles option.
   // These are appended after "--" so git treats them as pathspecs, not revisions.
   // Using git's native pathspec magic keeps the exclusions out of the patch entirely
   // without any post-processing of the generated patch file.
-  const excludePathspecs = Array.isArray(options.ignoredFiles) && options.ignoredFiles.length > 0 ? options.ignoredFiles.map(p => `:(exclude)${p}`) : [];
+  const excludePathspecs = Array.isArray(options.excludedFiles) && options.excludedFiles.length > 0 ? options.excludedFiles.map(p => `:(exclude)${p}`) : [];
 
   /**
-   * Returns the arguments to append to a format-patch call when ignoredFiles is set.
+   * Returns the arguments to append to a format-patch call when excludedFiles is set.
    * Produces ["--", ":(exclude)pattern1", ":(exclude)pattern2", ...] or [].
    * @returns {string[]}
    */
