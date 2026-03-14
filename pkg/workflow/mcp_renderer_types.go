@@ -78,6 +78,10 @@ type GitHubMCPDockerOptions struct {
 	Mounts []string
 	// GuardPolicies specifies access control policies for the MCP gateway (e.g., allow-only repos/integrity)
 	GuardPolicies map[string]any
+	// Host specifies the GitHub Enterprise Server base URL (e.g. "https://ghes.example.com").
+	// When non-empty, GITHUB_HOST is added to the MCP server container env so that
+	// the GitHub MCP server targets the correct GHES API instead of api.github.com.
+	Host string
 }
 
 // GitHubMCPRemoteOptions defines configuration for GitHub MCP remote mode rendering

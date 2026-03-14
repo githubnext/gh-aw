@@ -81,6 +81,7 @@ func (r *MCPConfigRendererUnified) RenderGitHubMCP(yaml *strings.Builder, github
 			AllowedTools:       getGitHubAllowedTools(githubTool),
 			EffectiveToken:     "", // Token passed via env
 			GuardPolicies:      getGitHubGuardPolicies(githubTool),
+			Host:               getGitHubHost(githubTool),
 		})
 	}
 
@@ -184,6 +185,11 @@ func (r *MCPConfigRendererUnified) renderGitHubTOML(yaml *strings.Builder, githu
 
 		envVars["GITHUB_TOOLSETS"] = toolsets
 
+		// GitHub Enterprise Server host (GHES only)
+		if host := getGitHubHost(githubTool); host != "" {
+			envVars["GITHUB_HOST"] = host
+		}
+
 		// Write environment variables in sorted order for deterministic output
 		envKeys := sortedMapKeys(envVars)
 
@@ -286,6 +292,11 @@ func RenderGitHubMCPDockerConfig(yaml *strings.Builder, options GitHubMCPDockerO
 
 	// Toolsets (always configured, defaults to "default")
 	envVars["GITHUB_TOOLSETS"] = options.Toolsets
+
+	// GitHub Enterprise Server host (GHES only – omit for github.com which is the default)
+	if options.Host != "" {
+		envVars["GITHUB_HOST"] = options.Host
+	}
 
 	// Write environment variables in sorted order for deterministic output
 	envKeys := sortedMapKeys(envVars)

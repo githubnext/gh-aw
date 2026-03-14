@@ -343,6 +343,46 @@ func transformRepoPattern(pattern string) string {
 	return "private:" + pattern
 }
 
+// getGitHubHost extracts the GHES host from GitHub tool configuration and normalises it
+// to a full URL (https://host). Returns an empty string when no host is configured or
+// the host resolves to the default github.com.
+func getGitHubHost(githubTool any) string {
+	if toolConfig, ok := githubTool.(map[string]any); ok {
+		if hostSetting, exists := toolConfig["host"]; exists {
+			if hostValue, ok := hostSetting.(string); ok {
+				return normalizeGitHubHost(hostValue)
+			}
+		}
+	}
+	return ""
+}
+
+// normalizeGitHubHost converts a raw host value to a full https:// URL, or returns ""
+// if the host is github.com (the default MCP server target).
+func normalizeGitHubHost(host string) string {
+	host = strings.TrimSpace(host)
+	if host == "" {
+		return ""
+	}
+
+	// Strip trailing slashes so downstream consumers get a clean base URL
+	host = strings.TrimRight(host, "/")
+
+	// Add scheme if missing
+	if !strings.HasPrefix(host, "https://") && !strings.HasPrefix(host, "http://") {
+		host = "https://" + host
+	}
+
+	// Strip scheme for comparison against default hostname
+	bare := strings.TrimPrefix(strings.TrimPrefix(host, "https://"), "http://")
+	if bare == "github.com" || bare == "api.github.com" {
+		// Default – no override required
+		return ""
+	}
+
+	return host
+}
+
 func getGitHubDockerImageVersion(githubTool any) string {
 	githubDockerImageVersion := string(constants.DefaultGitHubMCPServerVersion) // Default Docker image version
 	// Extract version setting from tool properties

@@ -292,6 +292,10 @@ type GitHubToolConfig struct {
 	Toolset     GitHubToolsets     `yaml:"toolsets,omitempty"`
 	Lockdown    bool               `yaml:"lockdown,omitempty"`
 	GitHubApp   *GitHubAppConfig   `yaml:"github-app,omitempty"` // GitHub App configuration for token minting
+	// Host specifies the GitHub Enterprise Server host (e.g. "ghes.example.com").
+	// When set to a non-github.com value, GITHUB_HOST is emitted in the MCP server env
+	// with the https:// scheme included, as required by github-mcp-server v0.30.3+.
+	Host string `yaml:"host,omitempty"`
 
 	// Guard policy fields (flat syntax under github:)
 	// Repos defines the access scope for policy enforcement.

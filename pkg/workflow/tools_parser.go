@@ -229,6 +229,10 @@ func parseGitHubTool(val any) *GitHubToolConfig {
 			config.Lockdown = lockdown
 		}
 
+		if host, ok := configMap["host"].(string); ok {
+			config.Host = host
+		}
+
 		// Parse app configuration for GitHub App token minting
 		if rawApp, exists := configMap["github-app"]; exists {
 			if appMap, ok := rawApp.(map[string]any); ok {
