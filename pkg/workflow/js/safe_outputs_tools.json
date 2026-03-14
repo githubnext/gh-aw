@@ -380,6 +380,10 @@
           ],
           "description": "Side of the diff to comment on: RIGHT for the new version (additions), LEFT for the old version (deletions). Defaults to RIGHT."
         },
+        "repo": {
+          "type": "string",
+          "description": "Target repository in 'owner/repo' format. If omitted, uses the configured target repository. Must be in the allowed-repos list if specified."
+        },
         "secrecy": {
           "type": "string",
           "description": "Confidentiality level of the message content (e.g., \"public\", \"internal\", \"private\")."

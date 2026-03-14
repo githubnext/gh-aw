@@ -423,6 +423,10 @@ jobs:
                       "string"
                     ]
                   },
+                  "repo": {
+                    "description": "Target repository in 'owner/repo' format. If omitted, uses the configured target repository. Must be in the allowed-repos list if specified.",
+                    "type": "string"
+                  },
                   "secrecy": {
                     "description": "Confidentiality level of the message content (e.g., \"public\", \"internal\", \"private\").",
                     "type": "string"
