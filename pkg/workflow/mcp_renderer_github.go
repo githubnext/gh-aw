@@ -173,6 +173,10 @@ func (r *MCPConfigRendererUnified) renderGitHubTOML(yaml *strings.Builder, githu
 		// Build environment variables
 		envVars := make(map[string]string)
 		envVars["GITHUB_PERSONAL_ACCESS_TOKEN"] = "$GH_AW_GITHUB_TOKEN"
+		// GitHub host for enterprise deployments (format: https://hostname, e.g. https://myorg.ghe.com).
+		// GITHUB_SERVER_URL is set by GitHub Actions as a full URL (https://hostname, no trailing slash),
+		// which matches the format expected by github-mcp-server for GITHUB_HOST.
+		envVars["GITHUB_HOST"] = "$GITHUB_SERVER_URL"
 
 		if readOnly {
 			envVars["GITHUB_READ_ONLY"] = "1"
@@ -263,9 +267,18 @@ func RenderGitHubMCPDockerConfig(yaml *strings.Builder, options GitHubMCPDockerO
 	if options.IncludeTypeField {
 		// Copilot engine: use escaped variable for Copilot CLI to interpolate
 		envVars["GITHUB_PERSONAL_ACCESS_TOKEN"] = "\\${GITHUB_MCP_SERVER_TOKEN}"
+		// GitHub host for enterprise deployments (format: https://hostname, e.g. https://myorg.ghe.com).
+		// GITHUB_SERVER_URL is set by GitHub Actions as a full URL (https://hostname, no trailing slash),
+		// which matches the format expected by github-mcp-server for GITHUB_HOST.
+		// Copilot CLI interpolation syntax used here.
+		envVars["GITHUB_HOST"] = "\\${GITHUB_SERVER_URL}"
 	} else {
 		// Non-Copilot engines (Claude/Custom): use plain shell variable
 		envVars["GITHUB_PERSONAL_ACCESS_TOKEN"] = "$GITHUB_MCP_SERVER_TOKEN"
+		// GitHub host for enterprise deployments (format: https://hostname, e.g. https://myorg.ghe.com).
+		// GITHUB_SERVER_URL is set by GitHub Actions as a full URL (https://hostname, no trailing slash),
+		// which matches the format expected by github-mcp-server for GITHUB_HOST.
+		envVars["GITHUB_HOST"] = "$GITHUB_SERVER_URL"
 	}
 
 	// Read-only mode
@@ -378,7 +391,11 @@ func RenderGitHubMCPRemoteConfig(yaml *strings.Builder, options GitHubMCPRemoteO
 	// Add env section if needed (Copilot uses this, Claude doesn't)
 	if options.IncludeEnvSection {
 		yaml.WriteString("                \"env\": {\n")
-		yaml.WriteString("                  \"GITHUB_PERSONAL_ACCESS_TOKEN\": \"\\${GITHUB_MCP_SERVER_TOKEN}\"\n")
+		yaml.WriteString("                  \"GITHUB_PERSONAL_ACCESS_TOKEN\": \"\\${GITHUB_MCP_SERVER_TOKEN}\",\n")
+		// GitHub host for enterprise deployments (format: https://hostname, e.g. https://myorg.ghe.com).
+		// GITHUB_SERVER_URL is set by GitHub Actions as a full URL (https://hostname, no trailing slash),
+		// which matches the format expected by github-mcp-server for GITHUB_HOST.
+		yaml.WriteString("                  \"GITHUB_HOST\": \"\\${GITHUB_SERVER_URL}\"\n")
 		// Close env section, with trailing comma if guard-policies follows
 		if len(options.GuardPolicies) > 0 {
 			yaml.WriteString("                },\n")

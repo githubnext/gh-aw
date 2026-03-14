@@ -116,11 +116,12 @@ jobs:
 
 func TestValidateWorkflowInputs(t *testing.T) {
 	tests := []struct {
-		name           string
-		lockContent    string
-		providedInputs []string
-		expectError    bool
-		errorContains  []string // strings that should be in the error message
+		name             string
+		lockContent      string
+		providedInputs   []string
+		expectError      bool
+		errorContains    []string // strings that should be in the error message
+		errorNotContains []string // strings that should NOT be in the error message
 	}{
 		{
 			name: "all required inputs provided",
@@ -159,7 +160,53 @@ jobs:
 `,
 			providedInputs: []string{},
 			expectError:    true,
-			errorContains:  []string{"Missing required input(s)", "issue_url"},
+			errorContains:  []string{"Missing required input(s)", "issue_url", "gh aw run test-workflow -F issue_url=<value>"},
+		},
+		{
+			name: "required input with default value - should not error when missing",
+			lockContent: `name: "Test Workflow"
+on:
+  workflow_dispatch:
+    inputs:
+      release_type:
+        description: 'Release type'
+        required: true
+        default: patch
+        type: string
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "test"
+`,
+			providedInputs: []string{},
+			expectError:    false,
+		},
+		{
+			name: "required input with default shown in valid inputs list",
+			lockContent: `name: "Test Workflow"
+on:
+  workflow_dispatch:
+    inputs:
+      missing_required:
+        description: 'Must be set'
+        required: true
+        type: string
+      defaulted:
+        description: 'Has a default'
+        required: true
+        default: patch
+        type: string
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "test"
+`,
+			providedInputs:   []string{},
+			expectError:      true,
+			errorContains:    []string{"Missing required input(s)", "missing_required", "default: patch"},
+			errorNotContains: []string{"gh aw run test-workflow -F defaulted=<value>"},
 		},
 		{
 			name: "typo in input name",
@@ -288,6 +335,11 @@ jobs:
 					for _, expected := range tt.errorContains {
 						if !strings.Contains(errStr, expected) {
 							t.Errorf("Expected error to contain '%s', but got: %s", expected, errStr)
+						}
+					}
+					for _, notExpected := range tt.errorNotContains {
+						if strings.Contains(errStr, notExpected) {
+							t.Errorf("Expected error NOT to contain '%s', but got: %s", notExpected, errStr)
 						}
 					}
 				}

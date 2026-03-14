@@ -647,6 +647,7 @@ jobs:
                 "type": "stdio",
                 "container": "ghcr.io/github/github-mcp-server:v0.32.0",
                 "env": {
+                  "GITHUB_HOST": "\${GITHUB_SERVER_URL}",
                   "GITHUB_PERSONAL_ACCESS_TOKEN": "\${GITHUB_MCP_SERVER_TOKEN}",
                   "GITHUB_READ_ONLY": "1",
                   "GITHUB_TOOLSETS": "context,repos,issues,pull_requests"

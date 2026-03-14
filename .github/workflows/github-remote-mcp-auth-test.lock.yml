@@ -637,7 +637,8 @@ jobs:
                   "issue_read"
                 ],
                 "env": {
-                  "GITHUB_PERSONAL_ACCESS_TOKEN": "\${GITHUB_MCP_SERVER_TOKEN}"
+                  "GITHUB_PERSONAL_ACCESS_TOKEN": "\${GITHUB_MCP_SERVER_TOKEN}",
+                  "GITHUB_HOST": "\${GITHUB_SERVER_URL}"
                 }
               },
               "safeoutputs": {
