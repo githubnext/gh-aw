@@ -357,8 +357,8 @@ async function generateGitPatch(branchName, baseBranch, options = {}) {
           if (remoteRefs.length > 0) {
             // Find commits on current branch not reachable from any remote ref
             // This gets commits the agent added that haven't been pushed anywhere
-            const excludeArgs = remoteRefs.flatMap(ref => ["--not", ref]);
-            const revListArgs = ["rev-list", "--count", branchName, ...excludeArgs];
+            const remoteExcludeArgs = remoteRefs.flatMap(ref => ["--not", ref]);
+            const revListArgs = ["rev-list", "--count", branchName, ...remoteExcludeArgs];
 
             const commitCount = parseInt(execGitSync(revListArgs, { cwd }).trim(), 10);
             debugLog(`Strategy 3: Found ${commitCount} commits not reachable from any remote ref`);
