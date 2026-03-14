@@ -75,6 +75,30 @@ gh auth login --hostname github.enterprise.com                   # Authenticate
 gh aw logs workflow --repo github.enterprise.com/owner/repo      # Use with commands
 ```
 
+Commands that support `--create-pull-request` (such as `gh aw add`, `gh aw add-wizard`, `gh aw init`, `gh aw update`, and `gh aw upgrade`) automatically detect the enterprise host from the git remote and route PR creation to the correct GHES instance. No extra flags are needed.
+
+#### Configuring `gh` CLI in workflow steps on GHES
+
+When agentic workflows run on GitHub Enterprise Server and use custom `steps:` that invoke `gh` CLI commands, source the bundled helper script to configure `gh` for the enterprise host:
+
+```yaml wrap
+steps:
+  - name: Configure gh for GHE
+    run: source /opt/gh-aw/actions/configure_gh_for_ghe.sh
+
+  - name: Fetch repository data
+    env:
+      GH_TOKEN: ${{ github.token }}
+    run: |
+      gh issue list --state open --limit 500 --json number,labels
+      gh pr list --state open --limit 200 --json number,title
+```
+
+The script automatically detects the GitHub host from the `GITHUB_SERVER_URL` environment variable (set by GitHub Actions on GHES) and configures `gh` to authenticate against it. No manual configuration is needed for standard GHES deployments. The script is installed to `/opt/gh-aw/actions/configure_gh_for_ghe.sh` by the setup action.
+
+> [!NOTE]
+> Custom steps run outside the agent firewall sandbox and have access to standard GitHub Actions environment variables including `GITHUB_SERVER_URL`, `GITHUB_TOKEN`, and `GH_TOKEN`.
+
 ## Global Options
 
 | Flag | Description |
