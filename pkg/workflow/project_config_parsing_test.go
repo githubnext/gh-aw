@@ -34,6 +34,20 @@ func TestParseProjectViews(t *testing.T) {
 			expected: nil,
 		},
 		{
+			name: "views value is wrong type (string)",
+			input: map[string]any{
+				"views": "not-a-list",
+			},
+			expected: nil,
+		},
+		{
+			name: "views value is wrong type (map)",
+			input: map[string]any{
+				"views": map[string]any{"name": "Board", "layout": "board"},
+			},
+			expected: nil,
+		},
+		{
 			name: "single valid view with required fields only",
 			input: map[string]any{
 				"views": []any{
@@ -68,6 +82,21 @@ func TestParseProjectViews(t *testing.T) {
 					VisibleFields: []int{1, 2, 3},
 					Description:   "Main board",
 				},
+			},
+		},
+		{
+			name: "visible-fields with mixed types: non-int elements are ignored",
+			input: map[string]any{
+				"views": []any{
+					map[string]any{
+						"name":           "Mixed",
+						"layout":         "table",
+						"visible-fields": []any{1, "bad", 3, nil},
+					},
+				},
+			},
+			expected: []ProjectView{
+				{Name: "Mixed", Layout: "table", VisibleFields: []int{1, 3}},
 			},
 		},
 		{
@@ -131,7 +160,11 @@ func TestParseProjectViews(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result := parseProjectViews(tt.input, testLog)
-			assert.Equal(t, tt.expected, result, "parseProjectViews result should match expected")
+			if tt.expected == nil {
+				assert.Empty(t, result, "parseProjectViews result should be empty")
+			} else {
+				assert.Equal(t, tt.expected, result, "parseProjectViews result should match expected")
+			}
 		})
 	}
 }
@@ -153,6 +186,20 @@ func TestParseProjectFieldDefinitions(t *testing.T) {
 			name: "empty field-definitions list",
 			input: map[string]any{
 				"field-definitions": []any{},
+			},
+			expected: nil,
+		},
+		{
+			name: "field-definitions value is wrong type (string)",
+			input: map[string]any{
+				"field-definitions": "not-a-list",
+			},
+			expected: nil,
+		},
+		{
+			name: "field-definitions value is wrong type (map)",
+			input: map[string]any{
+				"field-definitions": map[string]any{"name": "Foo", "data-type": "TEXT"},
 			},
 			expected: nil,
 		},
@@ -197,6 +244,21 @@ func TestParseProjectFieldDefinitions(t *testing.T) {
 			},
 			expected: []ProjectFieldDefinition{
 				{Name: "Priority", DataType: "SINGLE_SELECT", Options: []string{"High", "Medium", "Low"}},
+			},
+		},
+		{
+			name: "options with mixed types: non-string elements are ignored",
+			input: map[string]any{
+				"field-definitions": []any{
+					map[string]any{
+						"name":      "Size",
+						"data-type": "SINGLE_SELECT",
+						"options":   []any{"S", 42, "L", nil},
+					},
+				},
+			},
+			expected: []ProjectFieldDefinition{
+				{Name: "Size", DataType: "SINGLE_SELECT", Options: []string{"S", "L"}},
 			},
 		},
 		{
@@ -262,7 +324,11 @@ func TestParseProjectFieldDefinitions(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result := parseProjectFieldDefinitions(tt.input, testLog)
-			assert.Equal(t, tt.expected, result, "parseProjectFieldDefinitions result should match expected")
+			if tt.expected == nil {
+				assert.Empty(t, result, "parseProjectFieldDefinitions result should be empty")
+			} else {
+				assert.Equal(t, tt.expected, result, "parseProjectFieldDefinitions result should match expected")
+			}
 		})
 	}
 }
