@@ -11,7 +11,8 @@ const { ERR_SYSTEM } = require("./error_codes.cjs");
 const MANIFEST_FILE_PATH = "/tmp/safe-output-items.jsonl";
 
 /**
- * Safe output types that create new items in GitHub (always return a URL).
+ * Safe output types that create new items in GitHub (these typically return a URL,
+ * but the URL may be omitted in some cases).
  * This is a subset of LOGGED_TYPES kept for backward compatibility.
  * @type {Set<string>}
  */
@@ -31,8 +32,9 @@ const CREATE_ITEM_TYPES = new Set([
 
 /**
  * All safe output types that should be logged to the manifest, including both
- * creation operations (which return a URL) and modification operations (which
- * operate on existing GitHub items and may not return a URL).
+ * creation operations (which typically return a URL, but may omit it) and
+ * modification operations (which operate on existing GitHub items and may not
+ * return a URL).
  *
  * Excludes purely internal types that do not represent a GitHub state change:
  * - noop: no-op, produces no GitHub side effects
