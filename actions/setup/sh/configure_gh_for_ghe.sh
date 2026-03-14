@@ -106,7 +106,9 @@ main() {
 
   # Set GH_HOST environment variable to ensure gh uses the correct host for subsequent commands
   export GH_HOST="${github_host}"
-  echo "GH_HOST=${github_host}" >> "${GITHUB_ENV}"
+  if [ -n "${GITHUB_ENV:-}" ]; then
+    echo "GH_HOST=${github_host}" >> "${GITHUB_ENV}"
+  fi
   echo "✓ Set GH_HOST environment variable to ${github_host}"
 }
 
