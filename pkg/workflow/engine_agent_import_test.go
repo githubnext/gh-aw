@@ -126,11 +126,11 @@ func TestClaudeEngineWithAgentFromImports(t *testing.T) {
 
 	steps := engine.GetExecutionSteps(workflowData, "/tmp/gh-aw/test.log")
 
-	if len(steps) != 2 {
-		t.Fatalf("Expected 2 execution steps (preflight + execution), got %d", len(steps))
+	if len(steps) != 1 {
+		t.Fatalf("Expected 1 execution step, got %d", len(steps))
 	}
 
-	stepContent := strings.Join([]string(steps[1]), "\n")
+	stepContent := strings.Join([]string(steps[0]), "\n")
 
 	// Check that custom agent content extraction is present
 	if !strings.Contains(stepContent, `AGENT_CONTENT="$(awk`) {
@@ -160,11 +160,11 @@ func TestClaudeEngineWithoutAgentFile(t *testing.T) {
 
 	steps := engine.GetExecutionSteps(workflowData, "/tmp/gh-aw/test.log")
 
-	if len(steps) != 2 {
-		t.Fatalf("Expected 2 execution steps (preflight + execution), got %d", len(steps))
+	if len(steps) != 1 {
+		t.Fatalf("Expected 1 execution step, got %d", len(steps))
 	}
 
-	stepContent := strings.Join([]string(steps[1]), "\n")
+	stepContent := strings.Join([]string(steps[0]), "\n")
 
 	// Should not have agent content extraction
 	if strings.Contains(stepContent, "AGENT_CONTENT") {
@@ -190,11 +190,11 @@ func TestCodexEngineWithAgentFromImports(t *testing.T) {
 
 	steps := engine.GetExecutionSteps(workflowData, "/tmp/gh-aw/test.log")
 
-	if len(steps) != 2 {
-		t.Fatalf("Expected 2 execution steps (preflight + execution), got %d", len(steps))
+	if len(steps) != 1 {
+		t.Fatalf("Expected 1 execution step, got %d", len(steps))
 	}
 
-	stepContent := strings.Join([]string(steps[1]), "\n")
+	stepContent := strings.Join([]string(steps[0]), "\n")
 
 	// Check that agent content extraction is present
 	if !strings.Contains(stepContent, `AGENT_CONTENT="$(awk`) {
@@ -228,11 +228,11 @@ func TestCodexEngineWithoutAgentFile(t *testing.T) {
 
 	steps := engine.GetExecutionSteps(workflowData, "/tmp/gh-aw/test.log")
 
-	if len(steps) != 2 {
-		t.Fatalf("Expected 2 execution steps (preflight + execution), got %d", len(steps))
+	if len(steps) != 1 {
+		t.Fatalf("Expected 1 execution step, got %d", len(steps))
 	}
 
-	stepContent := strings.Join([]string(steps[1]), "\n")
+	stepContent := strings.Join([]string(steps[0]), "\n")
 
 	// Should not have agent content extraction
 	if strings.Contains(stepContent, "AGENT_CONTENT") {
