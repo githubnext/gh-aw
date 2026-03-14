@@ -87,6 +87,13 @@ func collectMCPEnvironmentVariables(tools map[string]any, mcpTools []string, wor
 		if !hasGitHubLockdownExplicitlySet(githubTool) && !appConfigured {
 			envVars["GITHUB_MCP_LOCKDOWN"] = "${{ steps.determine-automatic-lockdown.outputs.lockdown == 'true' && '1' || '0' }}"
 		}
+
+		// When tools.github.host is not explicitly set, the detect-github-host step reads
+		// GH_HOST at runtime. Pass the step output through GITHUB_MCP_HOST so the MCP
+		// gateway container can expand $GITHUB_MCP_HOST inside the MCP server env block.
+		if !hasGitHubHostExplicitlySet(githubTool) {
+			envVars["GITHUB_MCP_HOST"] = "${{ steps.detect-github-host.outputs.host }}"
+		}
 	}
 
 	// Check for safe-outputs env vars

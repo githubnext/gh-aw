@@ -262,6 +262,9 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 	// Add GitHub MCP lockdown detection step if needed
 	c.generateGitHubMCPLockdownDetectionStep(yaml, data)
 
+	// Add GitHub MCP host detection step if needed (reads GH_HOST at runtime)
+	c.generateGitHubMCPHostDetectionStep(yaml, data)
+
 	// Add GitHub MCP app token minting step if configured
 	c.generateGitHubMCPAppTokenMintingStep(yaml, data)
 

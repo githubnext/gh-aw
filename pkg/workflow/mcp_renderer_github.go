@@ -69,6 +69,10 @@ func (r *MCPConfigRendererUnified) RenderGitHubMCP(yaml *strings.Builder, github
 		customArgs := getGitHubCustomArgs(githubTool)
 		mounts := getGitHubMounts(githubTool)
 
+		// When host is not explicitly configured, infer it at runtime from GH_HOST
+		// via the detect-github-host step (see generateGitHubMCPHostDetectionStep).
+		hostExplicit := hasGitHubHostExplicitlySet(githubTool)
+
 		RenderGitHubMCPDockerConfig(yaml, GitHubMCPDockerOptions{
 			ReadOnly:           readOnly,
 			Lockdown:           lockdown,
@@ -82,6 +86,7 @@ func (r *MCPConfigRendererUnified) RenderGitHubMCP(yaml *strings.Builder, github
 			EffectiveToken:     "", // Token passed via env
 			GuardPolicies:      getGitHubGuardPolicies(githubTool),
 			Host:               getGitHubHost(githubTool),
+			HostFromStep:       !hostExplicit,
 		})
 	}
 
@@ -185,9 +190,13 @@ func (r *MCPConfigRendererUnified) renderGitHubTOML(yaml *strings.Builder, githu
 
 		envVars["GITHUB_TOOLSETS"] = toolsets
 
-		// GitHub Enterprise Server host (GHES only)
+		// GitHub Enterprise Server host (GHES only).
+		// When host is not explicitly configured, infer it from $GITHUB_MCP_HOST which
+		// is set by the detect-github-host step at runtime (from GH_HOST).
 		if host := getGitHubHost(githubTool); host != "" {
 			envVars["GITHUB_HOST"] = host
+		} else if !hasGitHubHostExplicitlySet(githubTool) {
+			envVars["GITHUB_HOST"] = "$GITHUB_MCP_HOST"
 		}
 
 		// Write environment variables in sorted order for deterministic output
@@ -293,8 +302,13 @@ func RenderGitHubMCPDockerConfig(yaml *strings.Builder, options GitHubMCPDockerO
 	// Toolsets (always configured, defaults to "default")
 	envVars["GITHUB_TOOLSETS"] = options.Toolsets
 
-	// GitHub Enterprise Server host (GHES only – omit for github.com which is the default)
-	if options.Host != "" {
+	// GitHub Enterprise Server host (GHES only – omit for github.com which is the default).
+	// When HostFromStep is true the value is inferred at runtime from GH_HOST via the
+	// detect-github-host step; empty GH_HOST means the default github.com is used and
+	// the MCP server treats an empty GITHUB_HOST as "use default".
+	if options.HostFromStep {
+		envVars["GITHUB_HOST"] = "$GITHUB_MCP_HOST"
+	} else if options.Host != "" {
 		envVars["GITHUB_HOST"] = options.Host
 	}
 

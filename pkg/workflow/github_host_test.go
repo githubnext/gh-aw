@@ -153,11 +153,12 @@ func TestRenderGitHubMCPDockerConfig_WithHost(t *testing.T) {
 			notFound: nil,
 		},
 		{
-			name: "no host - GITHUB_HOST absent",
+			name: "no host and no HostFromStep - GITHUB_HOST absent",
 			options: GitHubMCPDockerOptions{
 				Toolsets:           "default",
 				DockerImageVersion: "latest",
 				Host:               "",
+				HostFromStep:       false,
 			},
 			expected: []string{
 				`"GITHUB_PERSONAL_ACCESS_TOKEN": "$GITHUB_MCP_SERVER_TOKEN"`,
@@ -165,6 +166,20 @@ func TestRenderGitHubMCPDockerConfig_WithHost(t *testing.T) {
 			notFound: []string{
 				`"GITHUB_HOST"`,
 			},
+		},
+		{
+			name: "HostFromStep emits GITHUB_HOST referencing env var",
+			options: GitHubMCPDockerOptions{
+				Toolsets:           "default",
+				DockerImageVersion: "latest",
+				Host:               "",
+				HostFromStep:       true,
+			},
+			expected: []string{
+				`"GITHUB_HOST": "$GITHUB_MCP_HOST"`,
+				`"GITHUB_PERSONAL_ACCESS_TOKEN": "$GITHUB_MCP_SERVER_TOKEN"`,
+			},
+			notFound: nil,
 		},
 		{
 			name: "GHES host sorted before GITHUB_TOOLSETS",
@@ -191,6 +206,118 @@ func TestRenderGitHubMCPDockerConfig_WithHost(t *testing.T) {
 				assert.Contains(t, output, want, "expected output to contain %q\nOutput:\n%s", want, output)
 			}
 			for _, notWant := range tt.notFound {
+				assert.NotContains(t, output, notWant, "expected output NOT to contain %q\nOutput:\n%s", notWant, output)
+			}
+		})
+	}
+}
+
+func TestHasGitHubHostExplicitlySet(t *testing.T) {
+	tests := []struct {
+		name       string
+		githubTool any
+		expected   bool
+	}{
+		{
+			name:       "host explicitly set",
+			githubTool: map[string]any{"host": "ghes.example.com"},
+			expected:   true,
+		},
+		{
+			name:       "host set to empty string is still explicit",
+			githubTool: map[string]any{"host": ""},
+			expected:   true,
+		},
+		{
+			name:       "no host field",
+			githubTool: map[string]any{"mode": "local"},
+			expected:   false,
+		},
+		{
+			name:       "nil tool",
+			githubTool: nil,
+			expected:   false,
+		},
+		{
+			name:       "string tool config",
+			githubTool: "default",
+			expected:   false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := hasGitHubHostExplicitlySet(tt.githubTool)
+			assert.Equal(t, tt.expected, result, "hasGitHubHostExplicitlySet with tool=%v", tt.githubTool)
+		})
+	}
+}
+
+func TestGenerateGitHubMCPHostDetectionStep(t *testing.T) {
+	compiler := &Compiler{}
+
+	tests := []struct {
+		name     string
+		data     *WorkflowData
+		expected []string
+		absent   []string
+	}{
+		{
+			name: "generates step when host not configured",
+			data: &WorkflowData{
+				Tools: map[string]any{
+					"github": map[string]any{"toolsets": []any{"default"}},
+				},
+			},
+			expected: []string{
+				"detect-github-host",
+				"GH_HOST",
+				"GITHUB_OUTPUT",
+			},
+		},
+		{
+			name: "skips step when host is explicitly set",
+			data: &WorkflowData{
+				Tools: map[string]any{
+					"github": map[string]any{"host": "ghes.example.com"},
+				},
+			},
+			absent: []string{
+				"detect-github-host",
+			},
+		},
+		{
+			name: "skips step when github tool not present",
+			data: &WorkflowData{
+				Tools: map[string]any{},
+			},
+			absent: []string{
+				"detect-github-host",
+			},
+		},
+		{
+			name: "skips step when github tool disabled",
+			data: &WorkflowData{
+				Tools: map[string]any{
+					"github": false,
+				},
+			},
+			absent: []string{
+				"detect-github-host",
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var out strings.Builder
+			compiler.generateGitHubMCPHostDetectionStep(&out, tt.data)
+			output := out.String()
+
+			for _, want := range tt.expected {
+				assert.Contains(t, output, want, "expected output to contain %q\nOutput:\n%s", want, output)
+			}
+			for _, notWant := range tt.absent {
 				assert.NotContains(t, output, notWant, "expected output NOT to contain %q\nOutput:\n%s", notWant, output)
 			}
 		})

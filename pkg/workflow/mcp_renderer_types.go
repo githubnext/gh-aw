@@ -82,6 +82,10 @@ type GitHubMCPDockerOptions struct {
 	// When non-empty, GITHUB_HOST is added to the MCP server container env so that
 	// the GitHub MCP server targets the correct GHES API instead of api.github.com.
 	Host string
+	// HostFromStep indicates that GITHUB_HOST should be read from the $GITHUB_MCP_HOST
+	// environment variable set by the detect-github-host step at runtime (i.e. inferred
+	// from GH_HOST when tools.github.host is not explicitly configured).
+	HostFromStep bool
 }
 
 // GitHubMCPRemoteOptions defines configuration for GitHub MCP remote mode rendering

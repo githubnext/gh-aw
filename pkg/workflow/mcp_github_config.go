@@ -383,6 +383,15 @@ func normalizeGitHubHost(host string) string {
 	return host
 }
 
+// hasGitHubHostExplicitlySet checks if the host field is explicitly set in GitHub tool config
+func hasGitHubHostExplicitlySet(githubTool any) bool {
+	if toolConfig, ok := githubTool.(map[string]any); ok {
+		_, exists := toolConfig["host"]
+		return exists
+	}
+	return false
+}
+
 func getGitHubDockerImageVersion(githubTool any) string {
 	githubDockerImageVersion := string(constants.DefaultGitHubMCPServerVersion) // Default Docker image version
 	// Extract version setting from tool properties
@@ -471,10 +480,46 @@ func (c *Compiler) generateGitHubMCPLockdownDetectionStep(yaml *strings.Builder,
 	yaml.WriteString("            await determineAutomaticLockdown(github, context, core);\n")
 }
 
+// generateGitHubMCPHostDetectionStep generates a step that reads the GH_HOST environment
+// variable at runtime and emits a normalised HTTPS URL as the detect-github-host step output.
+// This step is generated when:
+//   - GitHub tool is enabled AND
+//   - tools.github.host is NOT explicitly set in the workflow frontmatter
+//
+// The step output (host) is consumed via the GITHUB_MCP_HOST environment variable that is
+// injected into the MCP gateway container, where it maps to the GITHUB_HOST env var inside
+// the GitHub MCP server container so API calls target the correct GHES instance.
+func (c *Compiler) generateGitHubMCPHostDetectionStep(yaml *strings.Builder, data *WorkflowData) {
+	// Check if GitHub tool is present
+	githubTool, hasGitHub := data.Tools["github"]
+	if !hasGitHub || githubTool == false {
+		return
+	}
+
+	// Skip when host is explicitly configured – use the static value instead
+	if hasGitHubHostExplicitlySet(githubTool) {
+		githubConfigLog.Print("GitHub host explicitly set in workflow, skipping runtime GH_HOST detection")
+		return
+	}
+
+	githubConfigLog.Print("Generating runtime GH_HOST detection step for GitHub MCP server")
+
+	yaml.WriteString("      - name: Detect GitHub Enterprise Server host for MCP Server\n")
+	yaml.WriteString("        id: detect-github-host\n")
+	yaml.WriteString("        shell: bash\n")
+	yaml.WriteString("        run: |\n")
+	yaml.WriteString("          host=\"${GH_HOST:-}\"\n")
+	yaml.WriteString("          if [ -n \"$host\" ] && [ \"$host\" != \"github.com\" ] && [ \"$host\" != \"api.github.com\" ]; then\n")
+	yaml.WriteString("            case \"$host\" in\n")
+	yaml.WriteString("              http://*|https://*) ;;\n")
+	yaml.WriteString("              *) host=\"https://$host\" ;;\n")
+	yaml.WriteString("            esac\n")
+	yaml.WriteString("            host=\"${host%/}\"\n")
+	yaml.WriteString("            echo \"host=$host\" >> \"$GITHUB_OUTPUT\"\n")
+	yaml.WriteString("          fi\n")
+}
+
 // generateGitHubMCPAppTokenMintingStep generates a step to mint a GitHub App token for GitHub MCP server
-// This step is added when:
-// - GitHub tool is enabled with app configuration
-// The step mints an installation access token with permissions matching the agent job permissions
 func (c *Compiler) generateGitHubMCPAppTokenMintingStep(yaml *strings.Builder, data *WorkflowData) {
 	// Check if GitHub tool has app configuration
 	if data.ParsedTools == nil || data.ParsedTools.GitHub == nil || data.ParsedTools.GitHub.GitHubApp == nil {
