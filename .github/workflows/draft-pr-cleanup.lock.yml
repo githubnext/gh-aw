@@ -321,7 +321,7 @@ jobs:
           mkdir -p /tmp/gh-aw/safeoutputs
           mkdir -p /tmp/gh-aw/mcp-logs/safeoutputs
           cat > /opt/gh-aw/safeoutputs/config.json << 'GH_AW_SAFE_OUTPUTS_CONFIG_EOF'
-          {"add_comment":{"max":20},"add_labels":{"max":20},"missing_data":{},"missing_tool":{},"noop":{"max":1}}
+          {"add_comment":{"max":20},"add_labels":{"max":20},"close_pull_request":{"max":10,"target":"*"},"missing_data":{},"missing_tool":{},"noop":{"max":1}}
           GH_AW_SAFE_OUTPUTS_CONFIG_EOF
       - name: Write Safe Outputs Tools
         run: |
@@ -552,6 +552,24 @@ jobs:
                   "itemType": "string",
                   "itemSanitize": true,
                   "itemMaxLength": 128
+                },
+                "repo": {
+                  "type": "string",
+                  "maxLength": 256
+                }
+              }
+            },
+            "close_pull_request": {
+              "defaultMax": 1,
+              "fields": {
+                "body": {
+                  "required": true,
+                  "type": "string",
+                  "sanitize": true,
+                  "maxLength": 65000
+                },
+                "pull_request_number": {
+                  "optionalPositiveInteger": true
                 },
                 "repo": {
                   "type": "string",
