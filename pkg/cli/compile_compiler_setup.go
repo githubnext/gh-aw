@@ -214,8 +214,12 @@ func detectRepoVisibility(repoSlug string) *bool {
 
 	// Validate that the slug has the expected "owner/repo" format to avoid
 	// unexpected API paths from malformed inputs.
+	if strings.Count(repoSlug, "/") != 1 {
+		compileCompilerSetupLog.Printf("Skipping visibility check: slug %q is not in owner/repo format", repoSlug)
+		return nil
+	}
 	parts := strings.SplitN(repoSlug, "/", 2)
-	if len(parts) != 2 || parts[0] == "" || parts[1] == "" {
+	if parts[0] == "" || parts[1] == "" {
 		compileCompilerSetupLog.Printf("Skipping visibility check: slug %q is not in owner/repo format", repoSlug)
 		return nil
 	}
