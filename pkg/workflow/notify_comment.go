@@ -60,8 +60,9 @@ func (c *Compiler) buildConclusionJob(data *WorkflowData, mainJobName string, sa
 		steps = append(steps, c.buildGitHubAppTokenMintStep(data.SafeOutputs.GitHubApp, permissions, appTokenFallbackRepo)...)
 	}
 
-	// Add artifact download steps once (shared by noop and conclusion steps)
-	steps = append(steps, buildAgentOutputDownloadSteps("")...)
+	// Add artifact download steps once (shared by noop and conclusion steps).
+	// In workflow_call context, use the per-invocation prefix to avoid artifact name clashes.
+	steps = append(steps, buildAgentOutputDownloadSteps(artifactPrefixExprForDownstreamJob(data))...)
 
 	// Add noop processing step if noop is configured
 	if data.SafeOutputs.NoOp != nil {

@@ -914,3 +914,68 @@ func TestConclusionJobNoPushRepoMemoryResult(t *testing.T) {
 		t.Error("Expected conclusion job to NOT include GH_AW_PUSH_REPO_MEMORY_RESULT when repo-memory is not configured")
 	}
 }
+
+// TestConclusionJobWorkflowCallArtifactPrefix verifies that the conclusion job uses the
+// prefixed artifact name in workflow_call context to match the upload step.
+func TestConclusionJobWorkflowCallArtifactPrefix(t *testing.T) {
+	compiler := NewCompiler()
+
+	workflowData := &WorkflowData{
+		Name: "Test Workflow",
+		On:   "workflow_call",
+		SafeOutputs: &SafeOutputsConfig{
+			NoOp: &NoOpConfig{},
+		},
+	}
+
+	job, err := compiler.buildConclusionJob(workflowData, string(constants.AgentJobName), []string{})
+	if err != nil {
+		t.Fatalf("Failed to build conclusion job: %v", err)
+	}
+	if job == nil {
+		t.Fatal("Expected conclusion job to be created")
+	}
+
+	allSteps := strings.Join(job.Steps, "\n")
+
+	// In workflow_call context, the artifact download must use the prefixed name
+	// to match the upload step which uses needs.activation.outputs.artifact_prefix.
+	prefixedArtifactName := "${{ needs.activation.outputs.artifact_prefix }}agent"
+	if !strings.Contains(allSteps, prefixedArtifactName) {
+		t.Errorf("Expected conclusion job download step to use prefixed artifact name %q in workflow_call context, but it was not found.\nGenerated steps:\n%s", prefixedArtifactName, allSteps)
+	}
+
+	// Ensure the unprefixed artifact name is not used
+	if strings.Contains(allSteps, "name: agent\n") {
+		t.Errorf("Expected conclusion job NOT to use unprefixed artifact name 'agent' in workflow_call context.\nGenerated steps:\n%s", allSteps)
+	}
+}
+
+// TestConclusionJobNonWorkflowCallNoArtifactPrefix verifies that the conclusion job uses
+// the unprefixed artifact name for non-workflow_call workflows.
+func TestConclusionJobNonWorkflowCallNoArtifactPrefix(t *testing.T) {
+	compiler := NewCompiler()
+
+	workflowData := &WorkflowData{
+		Name: "Test Workflow",
+		On:   "issues",
+		SafeOutputs: &SafeOutputsConfig{
+			NoOp: &NoOpConfig{},
+		},
+	}
+
+	job, err := compiler.buildConclusionJob(workflowData, string(constants.AgentJobName), []string{})
+	if err != nil {
+		t.Fatalf("Failed to build conclusion job: %v", err)
+	}
+	if job == nil {
+		t.Fatal("Expected conclusion job to be created")
+	}
+
+	allSteps := strings.Join(job.Steps, "\n")
+
+	// In non-workflow_call context, the artifact download should use the plain (unprefixed) name.
+	if strings.Contains(allSteps, "needs.activation.outputs.artifact_prefix") {
+		t.Errorf("Expected conclusion job NOT to use artifact_prefix in non-workflow_call context.\nGenerated steps:\n%s", allSteps)
+	}
+}

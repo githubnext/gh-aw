@@ -188,8 +188,9 @@ func (c *Compiler) buildCustomActionStep(data *WorkflowData, config GitHubScript
 		return c.buildGitHubScriptStep(data, config)
 	}
 
-	// Add artifact download steps before the custom action step
-	steps = append(steps, buildAgentOutputDownloadSteps("")...)
+	// Add artifact download steps before the custom action step.
+	// In workflow_call context, use the per-invocation prefix to avoid artifact name clashes.
+	steps = append(steps, buildAgentOutputDownloadSteps(artifactPrefixExprForDownstreamJob(data))...)
 
 	// Step name and metadata
 	steps = append(steps, fmt.Sprintf("      - name: %s\n", config.StepName))
@@ -287,8 +288,9 @@ func (c *Compiler) buildGitHubScriptStep(data *WorkflowData, config GitHubScript
 
 	var steps []string
 
-	// Add artifact download steps before the GitHub Script step
-	steps = append(steps, buildAgentOutputDownloadSteps("")...)
+	// Add artifact download steps before the GitHub Script step.
+	// In workflow_call context, use the per-invocation prefix to avoid artifact name clashes.
+	steps = append(steps, buildAgentOutputDownloadSteps(artifactPrefixExprForDownstreamJob(data))...)
 
 	// Step name and metadata
 	steps = append(steps, fmt.Sprintf("      - name: %s\n", config.StepName))
