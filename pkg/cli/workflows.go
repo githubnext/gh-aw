@@ -289,19 +289,40 @@ func extractWorkflowNameFromFile(filePath string) (string, error) {
 		return "", err
 	}
 
-	// Extract markdown content (excluding frontmatter)
-	result, err := parser.ExtractFrontmatterFromContent(string(content))
-	if err != nil {
-		return "", err
+	// Scan lines directly: skip frontmatter block (between --- delimiters) without
+	// YAML parsing, then find the first H1 header. This avoids the cost of a full
+	// yaml.Unmarshal which is unnecessary when we only need the H1 title.
+	//
+	// Frontmatter is only recognised when "---" appears on the very first line,
+	// matching the behaviour of ExtractFrontmatterFromContent.
+	lines := strings.SplitSeq(string(content), "\n")
+	firstLine := true
+	inFrontmatter := false
+	pastFrontmatter := false
+	for line := range lines {
+		trimmed := strings.TrimSpace(line)
+		if firstLine {
+			firstLine = false
+			if trimmed == "---" {
+				inFrontmatter = true
+				continue
+			}
+			// No frontmatter on first line; treat the entire file as markdown.
+			pastFrontmatter = true
+		} else if inFrontmatter && !pastFrontmatter {
+			if trimmed == "---" {
+				pastFrontmatter = true
+			}
+			continue
+		}
+		if pastFrontmatter && strings.HasPrefix(trimmed, "# ") {
+			return strings.TrimSpace(trimmed[2:]), nil
+		}
 	}
 
-	// Look for first H1 header
-	lines := strings.SplitSeq(result.Markdown, "\n")
-	for line := range lines {
-		line = strings.TrimSpace(line)
-		if strings.HasPrefix(line, "# ") {
-			return strings.TrimSpace(line[2:]), nil
-		}
+	// Unclosed frontmatter is an error (consistent with ExtractFrontmatterFromContent).
+	if inFrontmatter && !pastFrontmatter {
+		return "", errors.New("frontmatter not properly closed")
 	}
 
 	// No H1 header found, generate default name from filename
