@@ -127,13 +127,41 @@ function checkAllowedFiles(patchContent, allowedFilePatterns) {
 }
 
 /**
+ * Identifies which files in a patch match the given list of ignored-file glob patterns.
+ * Matching is done against the full file path (e.g. `.github/workflows/ci.yml`).
+ * Files that match are excluded from subsequent `allowed-files` and `protected-files`
+ * checks inside `checkFileProtection`.
+ *
+ * Glob matching supports `*` (matches any characters except `/`) and `**` (matches
+ * any characters including `/`).
+ *
+ * @param {string} patchContent - The git patch content
+ * @param {string[]} ignoredFilePatterns - Glob patterns for files to ignore
+ * @returns {{ ignoredFiles: string[] }}
+ */
+function checkIgnoredFiles(patchContent, ignoredFilePatterns) {
+  if (!ignoredFilePatterns || ignoredFilePatterns.length === 0) {
+    return { ignoredFiles: [] };
+  }
+  const allPaths = extractPathsFromPatch(patchContent);
+  if (allPaths.length === 0) {
+    return { ignoredFiles: [] };
+  }
+  const { globPatternToRegex } = require("./glob_pattern_helpers.cjs");
+  const compiledPatterns = ignoredFilePatterns.map(p => globPatternToRegex(p));
+  const ignoredFiles = allPaths.filter(p => compiledPatterns.some(re => re.test(p)));
+  return { ignoredFiles };
+}
+
+/**
  * Evaluates a patch against the configured file-protection policy and returns a
  * single structured result, eliminating nested branching in callers.
  *
- * The two checks are orthogonal and both must pass:
- * 1. If `allowed_files` is set → every file must match at least one pattern (deny if not).
- * 2. `protected-files` policy applies independently: "allowed" = skip, "fallback-to-issue"
- *    = create review issue, default ("blocked") = deny.
+ * The checks are applied in order and all must pass:
+ * 0. If `ignored_files` is set → matching files are excluded from all subsequent checks.
+ * 1. If `allowed_files` is set → every non-ignored file must match at least one pattern (deny if not).
+ * 2. `protected-files` policy applies independently to non-ignored files: "allowed" = skip,
+ *    "fallback-to-issue" = create review issue, default ("blocked") = deny.
  *
  * To allow an agent to write protected files, set both `allowed-files` (strict scope) and
  * `protected-files: allowed` (explicit permission) — neither overrides the other implicitly.
@@ -143,16 +171,29 @@ function checkAllowedFiles(patchContent, allowedFilePatterns) {
  * @returns {{ action: 'allow' } | { action: 'deny', source: 'allowlist'|'protected', files: string[] } | { action: 'fallback', files: string[] }}
  */
 function checkFileProtection(patchContent, config) {
-  // Step 1: allowlist check (if configured)
+  // Step 0: build ignored-file sets (applied before all other checks)
+  const ignoredFilePatterns = Array.isArray(config.ignored_files) ? config.ignored_files : [];
+  const { ignoredFiles } = checkIgnoredFiles(patchContent, ignoredFilePatterns);
+  const ignoredPaths = new Set(ignoredFiles);
+  // Build basename set for filtering manifest (basename-only) results
+  const ignoredBasenames = new Set(
+    ignoredFiles.map(p => {
+      const parts = p.split("/");
+      return parts[parts.length - 1];
+    })
+  );
+
+  // Step 1: allowlist check (if configured) — applied to non-ignored files only
   const allowedFilePatterns = Array.isArray(config.allowed_files) ? config.allowed_files : [];
   if (allowedFilePatterns.length > 0) {
     const { disallowedFiles } = checkAllowedFiles(patchContent, allowedFilePatterns);
-    if (disallowedFiles.length > 0) {
-      return { action: "deny", source: "allowlist", files: disallowedFiles };
+    const effectiveDisallowed = disallowedFiles.filter(f => !ignoredPaths.has(f));
+    if (effectiveDisallowed.length > 0) {
+      return { action: "deny", source: "allowlist", files: effectiveDisallowed };
     }
   }
 
-  // Step 2: protected-files check (independent of allowlist)
+  // Step 2: protected-files check (independent of allowlist) — applied to non-ignored files only
   if (config.protected_files_policy === "allowed") {
     return { action: "allow" };
   }
@@ -161,7 +202,9 @@ function checkFileProtection(patchContent, config) {
   const prefixes = Array.isArray(config.protected_path_prefixes) ? config.protected_path_prefixes : [];
   const { manifestFilesFound } = checkForManifestFiles(patchContent, manifestFiles);
   const { protectedPathsFound } = checkForProtectedPaths(patchContent, prefixes);
-  const allFound = [...manifestFilesFound, ...protectedPathsFound];
+  const effectiveManifest = manifestFilesFound.filter(f => !ignoredBasenames.has(f));
+  const effectivePaths = protectedPathsFound.filter(f => !ignoredPaths.has(f));
+  const allFound = [...effectiveManifest, ...effectivePaths];
 
   if (allFound.length === 0) {
     return { action: "allow" };
@@ -170,4 +213,4 @@ function checkFileProtection(patchContent, config) {
   return config.protected_files_policy === "fallback-to-issue" ? { action: "fallback", files: allFound } : { action: "deny", source: "protected", files: allFound };
 }
 
-module.exports = { extractFilenamesFromPatch, extractPathsFromPatch, checkForManifestFiles, checkForProtectedPaths, checkAllowedFiles, checkFileProtection };
+module.exports = { extractFilenamesFromPatch, extractPathsFromPatch, checkForManifestFiles, checkForProtectedPaths, checkAllowedFiles, checkIgnoredFiles, checkFileProtection };

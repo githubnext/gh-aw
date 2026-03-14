@@ -10,6 +10,8 @@ interface HandlerConfig {
   max?: number;
   /** Strict allowlist of glob patterns for files eligible for push/create. Checked independently of protected-files; both checks must pass. */
   allowed_files?: string[];
+  /** List of glob patterns for files to ignore when creating the patch. Applied before allowed-files and protected-files checks; matching files are excluded from all checks. */
+  ignored_files?: string[];
   /** List of filenames (basenames) whose presence in a patch triggers protected-file handling */
   protected_files?: string[];
   /** List of path prefixes that trigger protected-file handling when any changed file matches */

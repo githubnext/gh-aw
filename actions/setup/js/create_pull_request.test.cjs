@@ -590,3 +590,167 @@ ${diffs}
     expect(result.error).toContain("protected files");
   });
 });
+
+// ignored-files exclusion list
+// ──────────────────────────────────────────────────────
+
+describe("create_pull_request - ignored-files exclusion list", () => {
+  let tempDir;
+  let originalEnv;
+
+  beforeEach(() => {
+    originalEnv = { ...process.env };
+    process.env.GH_AW_WORKFLOW_ID = "test-workflow";
+    process.env.GITHUB_REPOSITORY = "test-owner/test-repo";
+    process.env.GITHUB_BASE_REF = "main";
+    tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "create-pr-ignored-test-"));
+
+    global.core = {
+      info: vi.fn(),
+      warning: vi.fn(),
+      error: vi.fn(),
+      debug: vi.fn(),
+      setFailed: vi.fn(),
+      setOutput: vi.fn(),
+      startGroup: vi.fn(),
+      endGroup: vi.fn(),
+      summary: {
+        addRaw: vi.fn().mockReturnThis(),
+        write: vi.fn().mockResolvedValue(undefined),
+      },
+    };
+    global.github = {
+      rest: {
+        pulls: {
+          create: vi.fn().mockResolvedValue({ data: { number: 1, html_url: "https://github.com/test" } }),
+        },
+        repos: {
+          get: vi.fn().mockResolvedValue({ data: { default_branch: "main" } }),
+        },
+      },
+      graphql: vi.fn(),
+    };
+    global.context = {
+      eventName: "workflow_dispatch",
+      repo: { owner: "test-owner", repo: "test-repo" },
+      payload: {},
+    };
+    global.exec = {
+      exec: vi.fn().mockResolvedValue(0),
+      getExecOutput: vi.fn().mockResolvedValue({ exitCode: 0, stdout: "abc123\n", stderr: "" }),
+    };
+
+    // Clear module cache so globals are picked up fresh
+    delete require.cache[require.resolve("./create_pull_request.cjs")];
+  });
+
+  afterEach(() => {
+    for (const key of Object.keys(process.env)) {
+      if (!(key in originalEnv)) {
+        delete process.env[key];
+      }
+    }
+    Object.assign(process.env, originalEnv);
+
+    if (tempDir && fs.existsSync(tempDir)) {
+      fs.rmSync(tempDir, { recursive: true, force: true });
+    }
+
+    delete global.core;
+    delete global.github;
+    delete global.context;
+    delete global.exec;
+    vi.clearAllMocks();
+  });
+
+  /**
+   * Creates a minimal git patch touching the given file paths.
+   */
+  function createPatchWithFiles(...filePaths) {
+    const diffs = filePaths
+      .map(
+        p => `diff --git a/${p} b/${p}
+new file mode 100644
+index 0000000..abc1234
+--- /dev/null
++++ b/${p}
+@@ -0,0 +1 @@
++content
+`
+      )
+      .join("\n");
+    return `From abc123 Mon Sep 17 00:00:00 2001
+From: Test Author <test@example.com>
+Date: Mon, 1 Jan 2024 00:00:00 +0000
+Subject: [PATCH] Test commit
+
+${diffs}
+--
+2.34.1
+`;
+  }
+
+  function writePatch(content) {
+    const p = path.join(tempDir, "test.patch");
+    fs.writeFileSync(p, content);
+    return p;
+  }
+
+  it("should ignore files matching ignored-files patterns (not blocked by allowed-files)", async () => {
+    // auto-generated/file.txt would violate the allowed-files list but is ignored
+    const patchPath = writePatch(createPatchWithFiles("src/index.js", "auto-generated/file.txt"));
+
+    const { main } = require("./create_pull_request.cjs");
+    const handler = await main({
+      ignored_files: ["auto-generated/**"],
+      allowed_files: ["src/**"],
+    });
+    const result = await handler({ patch_path: patchPath, title: "Test PR", body: "" }, {});
+
+    expect(result.error || "").not.toContain("outside the allowed-files list");
+  });
+
+  it("should still block non-ignored files that violate the allowed-files list", async () => {
+    const patchPath = writePatch(createPatchWithFiles("src/index.js", "other/file.txt"));
+
+    const { main } = require("./create_pull_request.cjs");
+    const handler = await main({
+      ignored_files: ["auto-generated/**"],
+      allowed_files: ["src/**"],
+    });
+    const result = await handler({ patch_path: patchPath, title: "Test PR", body: "" }, {});
+
+    expect(result.success).toBe(false);
+    expect(result.error).toContain("outside the allowed-files list");
+    expect(result.error).toContain("other/file.txt");
+    expect(result.error).not.toContain("src/index.js");
+  });
+
+  it("should ignore files matching ignored-files patterns (not blocked by protected-files)", async () => {
+    // package.json is protected but is ignored → should not trigger protection
+    const patchPath = writePatch(createPatchWithFiles("src/index.js", "package.json"));
+
+    const { main } = require("./create_pull_request.cjs");
+    const handler = await main({
+      ignored_files: ["package.json"],
+      protected_files: ["package.json"],
+      protected_files_policy: "blocked",
+    });
+    const result = await handler({ patch_path: patchPath, title: "Test PR", body: "" }, {});
+
+    expect(result.error || "").not.toContain("protected files");
+  });
+
+  it("should allow when all patch files are ignored (even with allowed-files set)", async () => {
+    const patchPath = writePatch(createPatchWithFiles("dist/bundle.js"));
+
+    const { main } = require("./create_pull_request.cjs");
+    const handler = await main({
+      ignored_files: ["dist/**"],
+      allowed_files: ["src/**"],
+    });
+    const result = await handler({ patch_path: patchPath, title: "Test PR", body: "" }, {});
+
+    expect(result.error || "").not.toContain("outside the allowed-files list");
+  });
+});
