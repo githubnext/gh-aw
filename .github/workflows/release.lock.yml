@@ -23,7 +23,7 @@
 #
 # Build, test, and release gh-aw extension, then generate and prepend release highlights
 #
-# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"5219f3be0d79b84fde78c4e4699d10bc376e7ba113c8403197534753d66ef0c8","strict":true}
+# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"55688b2c60bab462b74c72e82a8c9bbc8f513aaf0844864ea167e2a04045d5ea","strict":true}
 
 name: "Release"
 "on":
@@ -1270,7 +1270,7 @@ jobs:
           name: release-binaries-${{ needs.config.outputs.release_tag }}
           path: dist/
           retention-days: 1
-      - name: "Notify - run sync actions and merge PR"
+      - name: Display release sync instructions
         run: |
           echo "## Manual Sync Actions Required" >> "$GITHUB_STEP_SUMMARY"
           echo "" >> "$GITHUB_STEP_SUMMARY"

@@ -245,7 +245,7 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 			BuildEventTypeEquals("issue_comment"),
 		)
 
-		steps = append(steps, "      - name: Lock issue for agent workflow\n")
+		steps = append(steps, "      - name: Lock issue for agentic workflow\n")
 		steps = append(steps, "        id: lock-issue\n")
 		steps = append(steps, fmt.Sprintf("        if: %s\n", lockCondition.Render()))
 		steps = append(steps, fmt.Sprintf("        uses: %s\n", GetActionPin("actions/github-script")))

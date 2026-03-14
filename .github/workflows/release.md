@@ -194,7 +194,7 @@ jobs:
           path: dist/
           retention-days: 1
 
-      - name: Notify - run sync actions and merge PR
+      - name: Display release sync instructions
         env:
           RELEASE_TAG: ${{ needs.config.outputs.release_tag }}
         run: |
