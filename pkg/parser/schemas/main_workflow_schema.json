@@ -5363,7 +5363,7 @@
                   "items": {
                     "type": "string"
                   },
-                  "description": "List of glob patterns for files to ignore when creating the patch. Applied before allowed-files and protected-files checks — matching files are excluded from all protection checks and from the effective patch. Supports * (any characters except /) and ** (any characters including /)."
+                  "description": "List of glob patterns for files to exclude from the patch before it is applied. Matching files are stripped from the patch entirely so they will not appear in the resulting commit and will not be subject to allowed-files or protected-files checks. Supports * (any characters except /) and ** (any characters including /)."
                 }
               },
               "additionalProperties": false,
@@ -6422,7 +6422,7 @@
                   "items": {
                     "type": "string"
                   },
-                  "description": "List of glob patterns for files to ignore when creating the patch. Applied before allowed-files and protected-files checks — matching files are excluded from all protection checks and from the effective patch. Supports * (any characters except /) and ** (any characters including /)."
+                  "description": "List of glob patterns for files to exclude from the patch before it is applied. Matching files are stripped from the patch entirely so they will not appear in the resulting commit and will not be subject to allowed-files or protected-files checks. Supports * (any characters except /) and ** (any characters including /)."
                 }
               },
               "additionalProperties": false

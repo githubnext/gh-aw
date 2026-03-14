@@ -129,8 +129,6 @@ function checkAllowedFiles(patchContent, allowedFilePatterns) {
 /**
  * Identifies which files in a patch match the given list of ignored-file glob patterns.
  * Matching is done against the full file path (e.g. `.github/workflows/ci.yml`).
- * Files that match are excluded from subsequent `allowed-files` and `protected-files`
- * checks inside `checkFileProtection`.
  *
  * Glob matching supports `*` (matches any characters except `/`) and `**` (matches
  * any characters including `/`).
@@ -154,46 +152,106 @@ function checkIgnoredFiles(patchContent, ignoredFilePatterns) {
 }
 
 /**
+ * Filters a git patch to remove entire diff sections for files matching the given glob patterns.
+ * This implements `.gitignore`-style exclusion: matching files are completely stripped from the
+ * patch so they will not appear in the resulting commit when the patch is applied with `git am`.
+ *
+ * Both the `a/<path>` (original) and `b/<path>` (new) sides of each diff section are checked
+ * against the patterns so that renames are handled correctly: if either side matches, the
+ * entire diff section is removed.
+ *
+ * Glob matching supports `*` (matches any characters except `/`) and `**` (matches
+ * any characters including `/`).
+ *
+ * @param {string} patchContent - The git patch content (from git format-patch)
+ * @param {string[]} ignoredFilePatterns - Glob patterns for files to exclude from the patch
+ * @returns {string} The filtered patch with ignored file sections removed, or empty string if all files were ignored
+ */
+function filterPatchByIgnoredFiles(patchContent, ignoredFilePatterns) {
+  if (!ignoredFilePatterns || ignoredFilePatterns.length === 0) {
+    return patchContent;
+  }
+  if (!patchContent || !patchContent.trim()) {
+    return patchContent;
+  }
+  const { globPatternToRegex } = require("./glob_pattern_helpers.cjs");
+  const compiledPatterns = ignoredFilePatterns.map(p => globPatternToRegex(p));
+
+  /**
+   * @param {string} filePath
+   * @returns {boolean}
+   */
+  function isIgnored(filePath) {
+    return compiledPatterns.some(re => re.test(filePath));
+  }
+
+  // Find the start of the first diff section
+  const firstDiffMatch = /^diff --git /m.exec(patchContent);
+  if (!firstDiffMatch) {
+    return patchContent; // No diff sections found
+  }
+
+  const header = patchContent.slice(0, firstDiffMatch.index);
+  const diffContent = patchContent.slice(firstDiffMatch.index);
+
+  // Split into individual diff sections; lookahead keeps "diff --git" prefix with each section
+  const sections = diffContent.split(/(?=^diff --git )/m);
+
+  const keptSections = sections.filter(section => {
+    if (!section.startsWith("diff --git ")) {
+      return true; // keep non-diff content (e.g. trailing version signature)
+    }
+    // Extract paths from "diff --git a/<aPath> b/<bPath>"
+    const headerMatch = /^diff --git a\/(.+) b\/(.+)$/m.exec(section);
+    if (!headerMatch) {
+      return true; // can't parse, keep it
+    }
+    const aPath = headerMatch[1].trimEnd();
+    const bPath = headerMatch[2].trimEnd();
+    // Remove this section if either path matches an ignored pattern
+    return !isIgnored(aPath) && !isIgnored(bPath);
+  });
+
+  // If no diff sections remain, return empty string
+  const hasRemainingDiffs = keptSections.some(s => s.startsWith("diff --git "));
+  if (!hasRemainingDiffs) {
+    return "";
+  }
+
+  return header + keptSections.join("");
+}
+
+/**
  * Evaluates a patch against the configured file-protection policy and returns a
  * single structured result, eliminating nested branching in callers.
  *
  * The checks are applied in order and all must pass:
- * 0. If `ignored_files` is set → matching files are excluded from all subsequent checks.
- * 1. If `allowed_files` is set → every non-ignored file must match at least one pattern (deny if not).
- * 2. `protected-files` policy applies independently to non-ignored files: "allowed" = skip,
+ * 1. If `allowed_files` is set → every file in the patch must match at least one pattern (deny if not).
+ * 2. `protected-files` policy applies independently: "allowed" = skip,
  *    "fallback-to-issue" = create review issue, default ("blocked") = deny.
  *
  * To allow an agent to write protected files, set both `allowed-files` (strict scope) and
  * `protected-files: allowed` (explicit permission) — neither overrides the other implicitly.
  *
- * @param {string} patchContent - The git patch content
+ * Note: `ignored-files` filtering must be applied to the patch **before** calling this function
+ * (see `filterPatchByIgnoredFiles`). The ignored files will already be absent from the patch
+ * by the time protection checks run.
+ *
+ * @param {string} patchContent - The git patch content (after ignored-files have been filtered out)
  * @param {HandlerConfig} config
  * @returns {{ action: 'allow' } | { action: 'deny', source: 'allowlist'|'protected', files: string[] } | { action: 'fallback', files: string[] }}
  */
 function checkFileProtection(patchContent, config) {
-  // Step 0: build ignored-file sets (applied before all other checks)
-  const ignoredFilePatterns = Array.isArray(config.ignored_files) ? config.ignored_files : [];
-  const { ignoredFiles } = checkIgnoredFiles(patchContent, ignoredFilePatterns);
-  const ignoredPaths = new Set(ignoredFiles);
-  // Build basename set for filtering manifest (basename-only) results
-  const ignoredBasenames = new Set(
-    ignoredFiles.map(p => {
-      const parts = p.split("/");
-      return parts[parts.length - 1];
-    })
-  );
-
-  // Step 1: allowlist check (if configured) — applied to non-ignored files only
+  // Step 1: allowlist check (if configured)
   const allowedFilePatterns = Array.isArray(config.allowed_files) ? config.allowed_files : [];
   if (allowedFilePatterns.length > 0) {
     const { disallowedFiles } = checkAllowedFiles(patchContent, allowedFilePatterns);
-    const effectiveDisallowed = disallowedFiles.filter(f => !ignoredPaths.has(f));
-    if (effectiveDisallowed.length > 0) {
-      return { action: "deny", source: "allowlist", files: effectiveDisallowed };
+    if (disallowedFiles.length > 0) {
+      return { action: "deny", source: "allowlist", files: disallowedFiles };
     }
   }
 
-  // Step 2: protected-files check (independent of allowlist) — applied to non-ignored files only
+  // Step 2: protected-files check (independent of allowlist)
   if (config.protected_files_policy === "allowed") {
     return { action: "allow" };
   }
@@ -202,9 +260,7 @@ function checkFileProtection(patchContent, config) {
   const prefixes = Array.isArray(config.protected_path_prefixes) ? config.protected_path_prefixes : [];
   const { manifestFilesFound } = checkForManifestFiles(patchContent, manifestFiles);
   const { protectedPathsFound } = checkForProtectedPaths(patchContent, prefixes);
-  const effectiveManifest = manifestFilesFound.filter(f => !ignoredBasenames.has(f));
-  const effectivePaths = protectedPathsFound.filter(f => !ignoredPaths.has(f));
-  const allFound = [...effectiveManifest, ...effectivePaths];
+  const allFound = [...manifestFilesFound, ...protectedPathsFound];
 
   if (allFound.length === 0) {
     return { action: "allow" };
@@ -213,4 +269,4 @@ function checkFileProtection(patchContent, config) {
   return config.protected_files_policy === "fallback-to-issue" ? { action: "fallback", files: allFound } : { action: "deny", source: "protected", files: allFound };
 }
 
-module.exports = { extractFilenamesFromPatch, extractPathsFromPatch, checkForManifestFiles, checkForProtectedPaths, checkAllowedFiles, checkIgnoredFiles, checkFileProtection };
+module.exports = { extractFilenamesFromPatch, extractPathsFromPatch, checkForManifestFiles, checkForProtectedPaths, checkAllowedFiles, checkIgnoredFiles, filterPatchByIgnoredFiles, checkFileProtection };

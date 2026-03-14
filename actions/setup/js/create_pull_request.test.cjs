@@ -697,7 +697,8 @@ ${diffs}
   }
 
   it("should ignore files matching ignored-files patterns (not blocked by allowed-files)", async () => {
-    // auto-generated/file.txt would violate the allowed-files list but is ignored
+    // auto-generated/file.txt would violate the allowed-files list but is ignored →
+    // it is stripped from the patch before protection checks run
     const patchPath = writePatch(createPatchWithFiles("src/index.js", "auto-generated/file.txt"));
 
     const { main } = require("./create_pull_request.cjs");
@@ -708,6 +709,10 @@ ${diffs}
     const result = await handler({ patch_path: patchPath, title: "Test PR", body: "" }, {});
 
     expect(result.error || "").not.toContain("outside the allowed-files list");
+    // Verify the patch file was rewritten to exclude the ignored file
+    const filteredPatch = fs.readFileSync(patchPath, "utf8");
+    expect(filteredPatch).not.toContain("auto-generated/file.txt");
+    expect(filteredPatch).toContain("src/index.js");
   });
 
   it("should still block non-ignored files that violate the allowed-files list", async () => {
@@ -727,7 +732,7 @@ ${diffs}
   });
 
   it("should ignore files matching ignored-files patterns (not blocked by protected-files)", async () => {
-    // package.json is protected but is ignored → should not trigger protection
+    // package.json is protected but is ignored → stripped from patch before protection checks
     const patchPath = writePatch(createPatchWithFiles("src/index.js", "package.json"));
 
     const { main } = require("./create_pull_request.cjs");
@@ -739,6 +744,9 @@ ${diffs}
     const result = await handler({ patch_path: patchPath, title: "Test PR", body: "" }, {});
 
     expect(result.error || "").not.toContain("protected files");
+    // Verify the patch file was rewritten to exclude package.json
+    const filteredPatch = fs.readFileSync(patchPath, "utf8");
+    expect(filteredPatch).not.toContain("package.json");
   });
 
   it("should allow when all patch files are ignored (even with allowed-files set)", async () => {
@@ -751,6 +759,10 @@ ${diffs}
     });
     const result = await handler({ patch_path: patchPath, title: "Test PR", body: "" }, {});
 
+    // Patch is empty after filtering — no allowlist violation triggered
     expect(result.error || "").not.toContain("outside the allowed-files list");
+    // Verify the patch file was cleared
+    const filteredPatch = fs.readFileSync(patchPath, "utf8");
+    expect(filteredPatch).toBe("");
   });
 });

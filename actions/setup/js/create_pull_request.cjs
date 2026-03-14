@@ -23,7 +23,7 @@ const { createCheckoutManager } = require("./dynamic_checkout.cjs");
 const { getBaseBranch } = require("./get_base_branch.cjs");
 const { createAuthenticatedGitHubClient } = require("./handler_auth.cjs");
 const { buildWorkflowRunUrl } = require("./workflow_metadata_helpers.cjs");
-const { checkFileProtection } = require("./manifest_file_helpers.cjs");
+const { checkFileProtection, filterPatchByIgnoredFiles } = require("./manifest_file_helpers.cjs");
 const { renderTemplate } = require("./messages_core.cjs");
 
 /**
@@ -340,6 +340,20 @@ async function main(config = {}) {
 
     if (patchFilePath && fs.existsSync(patchFilePath)) {
       patchContent = fs.readFileSync(patchFilePath, "utf8");
+
+      // Apply ignored-files filter: strip diff sections for matching files from the patch
+      // so they are absent from the resulting commit (`.gitignore`-style exclusion).
+      const ignoredFilePatterns = Array.isArray(config.ignored_files) ? config.ignored_files : [];
+      if (ignoredFilePatterns.length > 0) {
+        const filteredContent = filterPatchByIgnoredFiles(patchContent, ignoredFilePatterns);
+        if (filteredContent !== patchContent) {
+          core.info(`ignored-files: filtered patch (${ignoredFilePatterns.join(", ")})`);
+          patchContent = filteredContent;
+          // Write the filtered patch back so git am uses the correct content
+          fs.writeFileSync(patchFilePath, patchContent, "utf8");
+        }
+      }
+
       isEmpty = !patchContent || !patchContent.trim();
     }
 

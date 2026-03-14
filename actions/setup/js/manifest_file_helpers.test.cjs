@@ -3,7 +3,7 @@ import { describe, it, expect } from "vitest";
 import { createRequire } from "module";
 
 const require = createRequire(import.meta.url);
-const { extractFilenamesFromPatch, checkForManifestFiles, checkAllowedFiles, checkIgnoredFiles, checkFileProtection } = require("./manifest_file_helpers.cjs");
+const { extractFilenamesFromPatch, checkForManifestFiles, checkAllowedFiles, checkIgnoredFiles, filterPatchByIgnoredFiles, checkFileProtection } = require("./manifest_file_helpers.cjs");
 
 describe("manifest_file_helpers", () => {
   describe("extractFilenamesFromPatch", () => {
@@ -440,53 +440,96 @@ index abc..def 100644
       expect(result.action).toBe("deny");
       expect(result.source).toBe("allowlist");
     });
+  });
 
-    it("should allow when ignored file would have violated the allowlist", () => {
-      // auto-generated/file.txt is outside allowed-files but is ignored → allow
-      const result = checkFileProtection(makePatch("auto-generated/file.txt"), {
-        ignored_files: ["auto-generated/**"],
-        allowed_files: ["src/**"],
-      });
-      expect(result.action).toBe("allow");
+  describe("filterPatchByIgnoredFiles", () => {
+    /**
+     * Build a minimal git format-patch containing one diff section per file path.
+     * @param {...string} filePaths
+     * @returns {string}
+     */
+    function makePatch(...filePaths) {
+      const diffs = filePaths
+        .map(
+          p => `diff --git a/${p} b/${p}
+new file mode 100644
+index 0000000..abc1234
+--- /dev/null
++++ b/${p}
+@@ -0,0 +1 @@
++content
+`
+        )
+        .join("");
+      return `From abc123 Mon Sep 17 00:00:00 2001\nFrom: Test <test@example.com>\nDate: Mon, 1 Jan 2024 00:00:00 +0000\nSubject: [PATCH] Test\n\n${diffs}--\n2.34.1\n`;
+    }
+
+    it("should return original patch when no patterns provided", () => {
+      const patch = makePatch("src/index.js");
+      expect(filterPatchByIgnoredFiles(patch, [])).toBe(patch);
+      expect(filterPatchByIgnoredFiles(patch, null)).toBe(patch);
     });
 
-    it("should still deny non-ignored files that violate the allowlist", () => {
-      // auto-generated/file.txt is ignored, but src/bad.js is outside allowed-files
-      const result = checkFileProtection(makePatch("auto-generated/file.txt", "src/bad.js"), {
-        ignored_files: ["auto-generated/**"],
-        allowed_files: ["src/good.js"],
-      });
-      expect(result.action).toBe("deny");
-      expect(result.source).toBe("allowlist");
-      expect(result.files).toContain("src/bad.js");
-      expect(result.files).not.toContain("auto-generated/file.txt");
+    it("should return original patch for empty or null content", () => {
+      expect(filterPatchByIgnoredFiles("", ["dist/**"])).toBe("");
+      expect(filterPatchByIgnoredFiles(null, ["dist/**"])).toBe(null);
     });
 
-    it("should allow when ignored file would have triggered protected-files", () => {
-      // package.json is protected but it is ignored → allow
-      const result = checkFileProtection(makePatch("package.json"), {
-        ignored_files: ["package.json"],
+    it("should remove diff section for a file matching the pattern", () => {
+      const patch = makePatch("src/index.js", "auto-generated/file.txt");
+      const result = filterPatchByIgnoredFiles(patch, ["auto-generated/**"]);
+      expect(result).toContain("diff --git a/src/index.js");
+      expect(result).not.toContain("diff --git a/auto-generated/file.txt");
+    });
+
+    it("should return empty string when all files are ignored", () => {
+      const patch = makePatch("dist/bundle.js", "dist/bundle.css");
+      const result = filterPatchByIgnoredFiles(patch, ["dist/**"]);
+      expect(result).toBe("");
+    });
+
+    it("should support ** glob for deep path matching", () => {
+      const patch = makePatch("dist/deep/nested/bundle.js", "src/index.js");
+      const result = filterPatchByIgnoredFiles(patch, ["dist/**"]);
+      expect(result).not.toContain("dist/deep/nested/bundle.js");
+      expect(result).toContain("src/index.js");
+    });
+
+    it("should remove section when a-side of a rename matches the pattern", () => {
+      const renamePatch = `From abc123 Mon Sep 17 00:00:00 2001\nSubject: rename\n\ndiff --git a/auto-generated/old.txt b/src/new.txt\nsimilarity index 100%\nrename from auto-generated/old.txt\nrename to src/new.txt\n`;
+      const result = filterPatchByIgnoredFiles(renamePatch, ["auto-generated/**"]);
+      expect(result).toBe("");
+    });
+
+    it("should allow when ignored file would have violated the allowlist (integration)", () => {
+      // Simulate what handlers do: filter patch first, then check protection
+      const patch = makePatch("auto-generated/file.txt");
+      const filtered = filterPatchByIgnoredFiles(patch, ["auto-generated/**"]);
+      // After filtering the patch is empty — no files remain to violate the allowlist
+      expect(filtered).toBe("");
+    });
+
+    it("should allow when ignored file would have triggered protected-files (integration)", () => {
+      const patch = makePatch("src/index.js", "package.json");
+      const filtered = filterPatchByIgnoredFiles(patch, ["package.json"]);
+      // package.json diff is gone; only src/index.js remains
+      const result = checkFileProtection(filtered, {
         protected_files: ["package.json"],
         protected_files_policy: "blocked",
       });
       expect(result.action).toBe("allow");
     });
 
-    it("should allow when ignored file would have triggered protected path prefix", () => {
-      const result = checkFileProtection(makePatch(".github/workflows/ci.yml"), {
-        ignored_files: [".github/**"],
-        protected_path_prefixes: [".github/"],
-        protected_files_policy: "blocked",
+    it("should still deny non-ignored files that violate the allowlist (integration)", () => {
+      const patch = makePatch("auto-generated/file.txt", "src/bad.js");
+      const filtered = filterPatchByIgnoredFiles(patch, ["auto-generated/**"]);
+      // auto-generated stripped; src/bad.js remains and is outside src/good.js allowlist
+      const result = checkFileProtection(filtered, {
+        allowed_files: ["src/good.js"],
       });
-      expect(result.action).toBe("allow");
-    });
-
-    it("should allow when all patch files are ignored", () => {
-      const result = checkFileProtection(makePatch("dist/bundle.js", "dist/bundle.css"), {
-        ignored_files: ["dist/**"],
-        allowed_files: ["src/**"],
-      });
-      expect(result.action).toBe("allow");
+      expect(result.action).toBe("deny");
+      expect(result.source).toBe("allowlist");
+      expect(result.files).toContain("src/bad.js");
     });
   });
 });
