@@ -34,20 +34,24 @@ func (c *Compiler) validatePushToPullRequestBranchWarnings(safeOutputs *SafeOutp
 	pushToPullRequestBranchValidationLog.Printf("Validating push-to-pull-request-branch with target: \"*\"")
 
 	// Warning 1: no wildcard fetch pattern in any checkout configuration.
-	if !hasWildcardFetch(checkoutConfigs) {
-		msg := strings.Join([]string{
-			"push-to-pull-request-branch: target: \"*\" requires that all PR branches are fetched at checkout.",
-			"Your checkout configuration does not include a wildcard fetch pattern (e.g., fetch: [\"*\"]).",
-			"Without this the agent may fail to access PR branches when pushing.",
-			"",
-			"Add a wildcard fetch to your checkout configuration:",
-			"",
-			"  checkout:",
-			"    fetch: [\"*\"]      # fetch all remote branches",
-			"    fetch-depth: 0   # fetch full history",
-		}, "\n")
-		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(msg))
-		c.IncrementWarningCount()
+	// This warning is only relevant for private/internal repos; public repos can always
+	// access all PR branches regardless of the fetch configuration.
+	if c.isPublicRepo == nil || !*c.isPublicRepo {
+		if !hasWildcardFetch(checkoutConfigs) {
+			msg := strings.Join([]string{
+				"push-to-pull-request-branch: target: \"*\" requires that all PR branches are fetched at checkout.",
+				"Your checkout configuration does not include a wildcard fetch pattern (e.g., fetch: [\"*\"]).",
+				"Without this the agent may fail to access PR branches when pushing.",
+				"",
+				"Add a wildcard fetch to your checkout configuration:",
+				"",
+				"  checkout:",
+				"    fetch: [\"*\"]      # fetch all remote branches",
+				"    fetch-depth: 0   # fetch full history",
+			}, "\n")
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(msg))
+			c.IncrementWarningCount()
+		}
 	}
 
 	// Warning 2: no constraints restricting which PRs can be targeted.

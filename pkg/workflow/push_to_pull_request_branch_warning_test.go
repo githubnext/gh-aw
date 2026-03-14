@@ -327,3 +327,87 @@ func TestHasWildcardFetch(t *testing.T) {
 		})
 	}
 }
+
+// TestPushToPullRequestBranchPublicRepoSuppressesWildcardFetchWarning verifies that the
+// wildcard fetch warning is not emitted when the repository is known to be public.
+// Public repos are always accessible so the restriction on PR branch fetching does not apply.
+func TestPushToPullRequestBranchPublicRepoSuppressesWildcardFetchWarning(t *testing.T) {
+	const warningText = "push-to-pull-request-branch: target: \"*\" requires that all PR branches are fetched at checkout"
+
+	workflowWithNoFetch := `---
+on: push
+safe-outputs:
+  push-to-pull-request-branch:
+    target: "*"
+    title-prefix: "[bot] "
+---
+
+# Test Workflow
+`
+
+	tests := []struct {
+		name          string
+		isPublicRepo  *bool
+		expectWarning bool
+	}{
+		{
+			name:          "public repo suppresses wildcard fetch warning",
+			isPublicRepo:  boolPtr(true),
+			expectWarning: false,
+		},
+		{
+			name:          "private repo still emits wildcard fetch warning",
+			isPublicRepo:  boolPtr(false),
+			expectWarning: true,
+		},
+		{
+			name:          "unknown visibility (nil) still emits wildcard fetch warning",
+			isPublicRepo:  nil,
+			expectWarning: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tmpDir := testutil.TempDir(t, "push-pr-branch-public-repo-*")
+			testFile := filepath.Join(tmpDir, "test-workflow.md")
+			if err := os.WriteFile(testFile, []byte(workflowWithNoFetch), 0644); err != nil {
+				t.Fatal(err)
+			}
+
+			// Capture stderr to check for warnings
+			oldStderr := os.Stderr
+			r, w, _ := os.Pipe()
+			os.Stderr = w
+
+			var compiler *Compiler
+			if tt.isPublicRepo != nil {
+				compiler = NewCompiler(WithPublicRepo(*tt.isPublicRepo))
+			} else {
+				compiler = NewCompiler()
+			}
+			err := compiler.CompileWorkflow(testFile)
+
+			// Restore stderr
+			w.Close()
+			os.Stderr = oldStderr
+			var buf bytes.Buffer
+			io.Copy(&buf, r) //nolint:errcheck
+			stderrOutput := buf.String()
+
+			if err != nil {
+				t.Fatalf("Expected compilation to succeed but got error: %v", err)
+			}
+
+			if tt.expectWarning {
+				if !strings.Contains(stderrOutput, warningText) {
+					t.Errorf("Expected warning containing %q\ngot stderr:\n%s", warningText, stderrOutput)
+				}
+			} else {
+				if strings.Contains(stderrOutput, warningText) {
+					t.Errorf("Unexpected warning %q in stderr output:\n%s", warningText, stderrOutput)
+				}
+			}
+		})
+	}
+}
