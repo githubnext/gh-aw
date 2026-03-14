@@ -210,6 +210,19 @@ function collectMissingMessages(messages) {
 }
 
 /**
+ * Format a log message for a manifest entry.
+ * Shows the URL for creation types and the item number for modification types.
+ *
+ * @param {{type: string, url?: string, number?: number}} item - Manifest item
+ * @returns {string} Formatted log message
+ */
+function formatManifestLogMessage(item) {
+  if (item.url) return `📝 Manifest: logged ${item.type} → ${item.url}`;
+  if (item.number != null) return `📝 Manifest: logged ${item.type} #${item.number}`;
+  return `📝 Manifest: logged ${item.type}`;
+}
+
+/**
  * Process all messages from agent output in the order they appear
  * Dispatches each message to the appropriate handler while maintaining shared state (temporary ID map)
  * Tracks outputs created with unresolved temporary IDs and generates synthetic updates after resolution
@@ -457,14 +470,14 @@ async function processMessages(messageHandlers, messages, onItemCreated = null) 
           for (const item of result) {
             const createdItem = extractCreatedItemFromResult(messageType, item);
             if (createdItem) {
-              core.info(`📝 Manifest: logged ${createdItem.type} → ${createdItem.url}`);
+              core.info(formatManifestLogMessage(createdItem));
               onItemCreated(createdItem);
             }
           }
         } else {
           const createdItem = extractCreatedItemFromResult(messageType, result);
           if (createdItem) {
-            core.info(`📝 Manifest: logged ${createdItem.type} → ${createdItem.url}`);
+            core.info(formatManifestLogMessage(createdItem));
             onItemCreated(createdItem);
           }
         }
@@ -573,7 +586,7 @@ async function processMessages(messageHandlers, messages, onItemCreated = null) 
           if (onItemCreated) {
             const createdItem = extractCreatedItemFromResult(deferred.type, result);
             if (createdItem) {
-              core.info(`📝 Manifest: logged ${createdItem.type} → ${createdItem.url}`);
+              core.info(formatManifestLogMessage(createdItem));
               onItemCreated(createdItem);
             }
           }

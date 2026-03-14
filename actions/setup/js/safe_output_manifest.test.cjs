@@ -2,7 +2,7 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import fs from "fs";
 import path from "path";
-import { MANIFEST_FILE_PATH, CREATE_ITEM_TYPES, createManifestLogger, ensureManifestExists, extractCreatedItemFromResult } from "./safe_output_manifest.cjs";
+import { MANIFEST_FILE_PATH, CREATE_ITEM_TYPES, LOGGED_TYPES, createManifestLogger, ensureManifestExists, extractCreatedItemFromResult } from "./safe_output_manifest.cjs";
 
 describe("safe_output_manifest", () => {
   let testManifestFile;
@@ -47,6 +47,30 @@ describe("safe_output_manifest", () => {
     });
   });
 
+  describe("LOGGED_TYPES", () => {
+    it("should include all CREATE_ITEM_TYPES", () => {
+      for (const type of CREATE_ITEM_TYPES) {
+        expect(LOGGED_TYPES.has(type)).toBe(true);
+      }
+    });
+
+    it("should include modification types not in CREATE_ITEM_TYPES", () => {
+      expect(LOGGED_TYPES.has("add_labels")).toBe(true);
+      expect(LOGGED_TYPES.has("close_issue")).toBe(true);
+      expect(LOGGED_TYPES.has("update_issue")).toBe(true);
+      expect(LOGGED_TYPES.has("remove_labels")).toBe(true);
+      expect(LOGGED_TYPES.has("close_discussion")).toBe(true);
+      expect(LOGGED_TYPES.has("update_pull_request")).toBe(true);
+      expect(LOGGED_TYPES.has("close_pull_request")).toBe(true);
+    });
+
+    it("should not include internal/meta types", () => {
+      expect(LOGGED_TYPES.has("noop")).toBe(false);
+      expect(LOGGED_TYPES.has("missing_tool")).toBe(false);
+      expect(LOGGED_TYPES.has("missing_data")).toBe(false);
+    });
+  });
+
   describe("createManifestLogger", () => {
     it("should append a JSONL entry when called with a url", () => {
       const log = createManifestLogger(testManifestFile);
@@ -67,13 +91,19 @@ describe("safe_output_manifest", () => {
       expect(Date.parse(entry.timestamp)).not.toBeNaN();
     });
 
-    it("should skip items without a url", () => {
+    it("should append a JSONL entry for an item without a url (modification type)", () => {
       const log = createManifestLogger(testManifestFile);
-      log({ type: "create_issue", url: undefined });
+      log({ type: "add_labels", number: 20875 });
 
-      // File is created by createManifestLogger() immediately, but should be empty
-      expect(fs.existsSync(testManifestFile)).toBe(true);
-      expect(fs.readFileSync(testManifestFile, "utf8")).toBe("");
+      const content = fs.readFileSync(testManifestFile, "utf8");
+      const lines = content.trim().split("\n");
+      expect(lines).toHaveLength(1);
+
+      const entry = JSON.parse(lines[0]);
+      expect(entry.type).toBe("add_labels");
+      expect(entry.url).toBeUndefined();
+      expect(entry.number).toBe(20875);
+      expect(entry.timestamp).toBeDefined();
     });
 
     it("should skip null/undefined items", () => {
@@ -194,20 +224,37 @@ describe("safe_output_manifest", () => {
       expect(item.type).toBe("add_comment");
     });
 
-    it("should return null for non-create types", () => {
+    it("should return null for non-logged types (noop and internal meta types)", () => {
       const result = { success: true, url: "https://github.com/owner/repo/issues/1" };
-      expect(extractCreatedItemFromResult("update_issue", result)).toBeNull();
-      expect(extractCreatedItemFromResult("close_issue", result)).toBeNull();
-      expect(extractCreatedItemFromResult("add_labels", result)).toBeNull();
       expect(extractCreatedItemFromResult("noop", result)).toBeNull();
+      expect(extractCreatedItemFromResult("missing_tool", result)).toBeNull();
+      expect(extractCreatedItemFromResult("missing_data", result)).toBeNull();
     });
 
-    it("should return null for staged results (no item actually created)", () => {
-      // Staged results have staged: true and no URL — nothing was really created
+    it("should extract item from add_labels result (modification type without url)", () => {
+      const result = { success: true, number: 20875, labelsAdded: ["bug", "cli"], contextType: "issue" };
+      const item = extractCreatedItemFromResult("add_labels", result);
+      expect(item).not.toBeNull();
+      expect(item.type).toBe("add_labels");
+      expect(item.url).toBeUndefined();
+      expect(item.number).toBe(20875);
+    });
+
+    it("should extract item from close_issue result (modification type with url)", () => {
+      const result = { success: true, number: 123, url: "https://github.com/owner/repo/issues/123", title: "Test" };
+      const item = extractCreatedItemFromResult("close_issue", result);
+      expect(item).not.toBeNull();
+      expect(item.type).toBe("close_issue");
+      expect(item.url).toBe("https://github.com/owner/repo/issues/123");
+      expect(item.number).toBe(123);
+    });
+
+    it("should return null for staged results (no item actually modified)", () => {
+      // Staged results have staged: true — nothing was really changed
       const stagedResult = { success: true, staged: true, previewInfo: { repo: "owner/repo", title: "Test" } };
       expect(extractCreatedItemFromResult("create_issue", stagedResult)).toBeNull();
       expect(extractCreatedItemFromResult("add_comment", stagedResult)).toBeNull();
-      expect(extractCreatedItemFromResult("create_discussion", stagedResult)).toBeNull();
+      expect(extractCreatedItemFromResult("add_labels", stagedResult)).toBeNull();
     });
 
     it("should return null for staged results even if url is somehow present", () => {
@@ -216,9 +263,12 @@ describe("safe_output_manifest", () => {
       expect(extractCreatedItemFromResult("create_issue", stagedResultWithUrl)).toBeNull();
     });
 
-    it("should return null when result has no URL", () => {
+    it("should return item without url when result has no URL (for logged types)", () => {
       const result = { success: true, repo: "owner/repo", number: 1 };
-      expect(extractCreatedItemFromResult("create_issue", result)).toBeNull();
+      const item = extractCreatedItemFromResult("create_issue", result);
+      expect(item).not.toBeNull();
+      expect(item.url).toBeUndefined();
+      expect(item.number).toBe(1);
     });
 
     it("should return null for null/undefined result", () => {
