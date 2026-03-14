@@ -13,7 +13,7 @@ const MANIFEST_FILE_PATH = "/tmp/safe-output-items.jsonl";
 /**
  * Safe output types that create new items in GitHub (these typically return a URL,
  * but the URL may be omitted in some cases).
- * This is a subset of LOGGED_TYPES kept for backward compatibility.
+ * Kept for backward compatibility.
  * @type {Set<string>}
  */
 const CREATE_ITEM_TYPES = new Set([
@@ -31,54 +31,17 @@ const CREATE_ITEM_TYPES = new Set([
 ]);
 
 /**
- * All safe output types that should be logged to the manifest, including both
- * creation operations (which typically return a URL, but may omit it) and
- * modification operations (which operate on existing GitHub items and may not
- * return a URL).
+ * Safe output types that should NEVER be logged to the manifest.
+ * These types represent metadata signals rather than GitHub state changes:
+ * - noop: no-op message, produces no GitHub side effects
+ * - missing_tool: records a missing tool capability (metadata only)
+ * - missing_data: records missing required data (metadata only)
  *
- * Excludes purely internal types that do not represent a GitHub state change:
- * - noop: no-op, produces no GitHub side effects
- * - missing_tool / missing_data: meta-operations that signal missing capabilities
+ * All other types — built-in handler types, custom safe job types, and
+ * any future types — are logged automatically without needing to update this list.
  * @type {Set<string>}
  */
-const LOGGED_TYPES = new Set([
-  // Creation types (also in CREATE_ITEM_TYPES)
-  "create_issue",
-  "add_comment",
-  "create_discussion",
-  "create_pull_request",
-  "create_project",
-  "create_project_status_update",
-  "create_pull_request_review_comment",
-  "submit_pull_request_review",
-  "reply_to_pull_request_review_comment",
-  "create_code_scanning_alert",
-  "autofix_code_scanning_alert",
-  "create_missing_tool_issue",
-  "create_missing_data_issue",
-  // Modification/action types
-  "close_issue",
-  "close_discussion",
-  "add_labels",
-  "remove_labels",
-  "update_issue",
-  "update_discussion",
-  "link_sub_issue",
-  "update_release",
-  "resolve_pull_request_review_thread",
-  "push_to_pull_request_branch",
-  "update_pull_request",
-  "close_pull_request",
-  "mark_pull_request_as_ready_for_review",
-  "hide_comment",
-  "set_issue_type",
-  "add_reviewer",
-  "assign_milestone",
-  "assign_to_user",
-  "unassign_from_user",
-  "dispatch_workflow",
-  "update_project",
-]);
+const NOT_LOGGED_TYPES = new Set(["noop", "missing_tool", "missing_data"]);
 
 /**
  * @typedef {Object} ManifestEntry
@@ -150,18 +113,20 @@ function ensureManifestExists(manifestFile = MANIFEST_FILE_PATH) {
 
 /**
  * Extract executed item details from a handler result for manifest logging.
- * Returns null if the type is not tracked (not in LOGGED_TYPES) or if the
+ * Returns null if the type is explicitly excluded (NOT_LOGGED_TYPES) or if the
  * result is from a staged (preview) run where no item was actually modified.
  *
- * For creation types (CREATE_ITEM_TYPES), the result URL is included when present.
- * For modification types (e.g. add_labels, close_issue), the URL is optional.
+ * All other types — built-in handlers, custom safe job types, and future types —
+ * are logged automatically. For creation types (CREATE_ITEM_TYPES), the result
+ * URL is included when present. For modification types (e.g. add_labels,
+ * close_issue), the URL is optional.
  *
  * @param {string} type - The handler type (e.g., "create_issue")
  * @param {any} result - The handler result object
  * @returns {{type: string, url?: string, number?: number, repo?: string, temporaryId?: string}|null}
  */
 function extractCreatedItemFromResult(type, result) {
-  if (!result || !LOGGED_TYPES.has(type)) return null;
+  if (!result || NOT_LOGGED_TYPES.has(type)) return null;
 
   // In staged mode (🎭 Staged Mode Preview), no item was actually modified in GitHub — skip logging
   if (result.staged === true) return null;
@@ -181,7 +146,7 @@ function extractCreatedItemFromResult(type, result) {
 module.exports = {
   MANIFEST_FILE_PATH,
   CREATE_ITEM_TYPES,
-  LOGGED_TYPES,
+  NOT_LOGGED_TYPES,
   createManifestLogger,
   ensureManifestExists,
   extractCreatedItemFromResult,

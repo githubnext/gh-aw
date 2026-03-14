@@ -2,7 +2,7 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import fs from "fs";
 import path from "path";
-import { MANIFEST_FILE_PATH, CREATE_ITEM_TYPES, LOGGED_TYPES, createManifestLogger, ensureManifestExists, extractCreatedItemFromResult } from "./safe_output_manifest.cjs";
+import { MANIFEST_FILE_PATH, CREATE_ITEM_TYPES, NOT_LOGGED_TYPES, createManifestLogger, ensureManifestExists, extractCreatedItemFromResult } from "./safe_output_manifest.cjs";
 
 describe("safe_output_manifest", () => {
   let testManifestFile;
@@ -47,27 +47,30 @@ describe("safe_output_manifest", () => {
     });
   });
 
-  describe("LOGGED_TYPES", () => {
-    it("should include all CREATE_ITEM_TYPES", () => {
+  describe("NOT_LOGGED_TYPES", () => {
+    it("should contain only noop and internal meta types", () => {
+      expect(NOT_LOGGED_TYPES.has("noop")).toBe(true);
+      expect(NOT_LOGGED_TYPES.has("missing_tool")).toBe(true);
+      expect(NOT_LOGGED_TYPES.has("missing_data")).toBe(true);
+    });
+
+    it("should not contain any handler or modification types (all are logged by default)", () => {
+      expect(NOT_LOGGED_TYPES.has("create_issue")).toBe(false);
+      expect(NOT_LOGGED_TYPES.has("add_labels")).toBe(false);
+      expect(NOT_LOGGED_TYPES.has("close_issue")).toBe(false);
+      expect(NOT_LOGGED_TYPES.has("update_issue")).toBe(false);
+    });
+
+    it("should not contain CREATE_ITEM_TYPES (they are logged)", () => {
       for (const type of CREATE_ITEM_TYPES) {
-        expect(LOGGED_TYPES.has(type)).toBe(true);
+        expect(NOT_LOGGED_TYPES.has(type)).toBe(false);
       }
     });
 
-    it("should include modification types not in CREATE_ITEM_TYPES", () => {
-      expect(LOGGED_TYPES.has("add_labels")).toBe(true);
-      expect(LOGGED_TYPES.has("close_issue")).toBe(true);
-      expect(LOGGED_TYPES.has("update_issue")).toBe(true);
-      expect(LOGGED_TYPES.has("remove_labels")).toBe(true);
-      expect(LOGGED_TYPES.has("close_discussion")).toBe(true);
-      expect(LOGGED_TYPES.has("update_pull_request")).toBe(true);
-      expect(LOGGED_TYPES.has("close_pull_request")).toBe(true);
-    });
-
-    it("should not include internal/meta types", () => {
-      expect(LOGGED_TYPES.has("noop")).toBe(false);
-      expect(LOGGED_TYPES.has("missing_tool")).toBe(false);
-      expect(LOGGED_TYPES.has("missing_data")).toBe(false);
+    it("should allow custom safe job types to be logged automatically (not in exclusion list)", () => {
+      // Custom safe job types are never added to NOT_LOGGED_TYPES so they are always logged
+      expect(NOT_LOGGED_TYPES.has("my_custom_job_type")).toBe(false);
+      expect(NOT_LOGGED_TYPES.has("deploy_to_staging")).toBe(false);
     });
   });
 
@@ -224,11 +227,19 @@ describe("safe_output_manifest", () => {
       expect(item.type).toBe("add_comment");
     });
 
-    it("should return null for non-logged types (noop and internal meta types)", () => {
+    it("should return null for excluded types (noop and internal meta types)", () => {
       const result = { success: true, url: "https://github.com/owner/repo/issues/1" };
       expect(extractCreatedItemFromResult("noop", result)).toBeNull();
       expect(extractCreatedItemFromResult("missing_tool", result)).toBeNull();
       expect(extractCreatedItemFromResult("missing_data", result)).toBeNull();
+    });
+
+    it("should extract item from custom safe job type (generic: any type not excluded is logged)", () => {
+      const result = { success: true, number: 42 };
+      const item = extractCreatedItemFromResult("my_custom_job_type", result);
+      expect(item).not.toBeNull();
+      expect(item.type).toBe("my_custom_job_type");
+      expect(item.number).toBe(42);
     });
 
     it("should extract item from add_labels result (modification type without url)", () => {
