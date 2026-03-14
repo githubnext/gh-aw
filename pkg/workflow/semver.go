@@ -1,13 +1,23 @@
 package workflow
 
 import (
+	"regexp"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/logger"
 	"golang.org/x/mod/semver"
 )
 
+// versionTagRegex matches version tags: vmajor, vmajor.minor, or vmajor.minor.patch
+var versionTagRegex = regexp.MustCompile(`^v[0-9]+(\.[0-9]+(\.[0-9]+)?)?$`)
+
 var semverLog = logger.New("workflow:semver")
+
+// isValidVersionTag checks if a string is a valid action version tag.
+// Supports vmajor, vmajor.minor, and vmajor.minor.patch formats only.
+func isValidVersionTag(s string) bool {
+	return versionTagRegex.MatchString(s)
+}
 
 // compareVersions compares two semantic versions, returns 1 if v1 > v2, -1 if v1 < v2, 0 if equal
 // Uses golang.org/x/mod/semver for proper semantic version comparison

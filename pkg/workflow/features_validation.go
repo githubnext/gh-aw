@@ -4,14 +4,15 @@
 //
 // This file validates feature flag values to ensure they meet requirements
 // before being used in workflow compilation. It ensures that:
-//   - action-tag uses full 40-character SHA when specified
+//   - action-tag uses a full 40-character SHA or a version tag when specified
 //   - Other feature-specific constraints are met
 //
 // # Validation Functions
 //
 //   - validateFeatures() - Validates all feature flags in WorkflowData
-//   - validateActionTag() - Validates action-tag is a full SHA
+//   - validateActionTag() - Validates action-tag is a full SHA or version tag
 //   - isValidFullSHA() - Checks if a string is a valid 40-character SHA
+//   - isValidVersionTag() - Checks if a string is a valid version tag (in semver.go)
 //
 // # When to Add Validation Here
 //
@@ -30,9 +31,6 @@ import (
 var featuresValidationLog = newValidationLogger("features")
 
 var shaRegex = regexp.MustCompile("^[0-9a-f]{40}$")
-
-// versionTagRegex matches version tags like "v0", "v1", "v1.0", "v1.0.0", etc.
-var versionTagRegex = regexp.MustCompile(`^v[0-9]+(\.[0-9]+)*$`)
 
 // validateFeatures validates all feature flags in the workflow data
 func validateFeatures(data *WorkflowData) error {
@@ -104,9 +102,4 @@ func isValidFullSHA(s string) bool {
 		return false
 	}
 	return shaRegex.MatchString(s)
-}
-
-// isValidVersionTag checks if a string is a valid version tag (e.g., "v0", "v1", "v1.0.0")
-func isValidVersionTag(s string) bool {
-	return versionTagRegex.MatchString(s)
 }
