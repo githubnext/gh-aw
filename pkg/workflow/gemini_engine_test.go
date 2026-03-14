@@ -57,7 +57,18 @@ func TestGeminiEngine(t *testing.T) {
 	t.Run("declared output files", func(t *testing.T) {
 		outputFiles := engine.GetDeclaredOutputFiles()
 		require.Len(t, outputFiles, 1, "Should declare one output file path")
-		assert.Equal(t, "/tmp/gemini-client-error-*.json", outputFiles[0], "Should declare Gemini error log wildcard path")
+		assert.Equal(t, "/tmp/gh-aw/gemini-client-error-*.json", outputFiles[0], "Should declare Gemini error log wildcard path under /tmp/gh-aw/")
+	})
+
+	t.Run("pre-bundle steps move files to /tmp/gh-aw/", func(t *testing.T) {
+		workflowData := &WorkflowData{Name: "test-workflow"}
+		steps := engine.GetPreBundleSteps(workflowData)
+		require.Len(t, steps, 1, "Should return exactly one pre-bundle step")
+
+		stepContent := strings.Join(steps[0], "\n")
+		assert.Contains(t, stepContent, "Move Gemini error files", "Step name should describe move operation")
+		assert.Contains(t, stepContent, "mv /tmp/gemini-client-error-*.json /tmp/gh-aw/", "Step should move files to /tmp/gh-aw/")
+		assert.Contains(t, stepContent, "if: always()", "Step should run always so files are captured on failure")
 	})
 }
 

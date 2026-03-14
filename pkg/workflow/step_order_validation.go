@@ -190,11 +190,11 @@ func isPathScannedBySecretRedaction(path string) bool {
 		}
 
 		// Allow wildcard paths under /tmp/ with a known-safe extension.
-		// These are engine-declared diagnostic output files (e.g. Gemini CLI error reports at
-		// /tmp/gemini-client-error-*.json). They are produced by the CLI tool itself, not by
-		// agent-generated content, and they live outside /tmp/gh-aw/ so they are not scanned by
-		// the redact_secrets step. However, these files (JSON error reports, log files) are
-		// structurally unlikely to contain raw secret values, so we allow them through validation.
+		// These are engine-declared diagnostic output files that have not yet been relocated.
+		// NOTE: The Gemini engine now moves its error reports into /tmp/gh-aw/ via
+		// GetPreBundleSteps before the upload, so they are covered by the /tmp/gh-aw/ branch
+		// above. This exception is kept for any future engine that may produce wildcard
+		// diagnostic files directly under /tmp/.
 		if strings.HasPrefix(path, "/tmp/") && strings.Contains(path, "*") {
 			ext := filepath.Ext(path)
 			safeExtensions := []string{".txt", ".json", ".log", ".jsonl"}

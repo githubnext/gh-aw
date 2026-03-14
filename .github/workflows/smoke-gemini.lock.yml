@@ -1018,6 +1018,9 @@ jobs:
           SERVER_URL_STRIPPED="${SERVER_URL#https://}"
           git remote set-url origin "https://x-access-token:${{ github.token }}@${SERVER_URL_STRIPPED}/${REPO_NAME}.git"
           echo "Git configured with standard GitHub Actions identity"
+      - name: Move Gemini error files to artifact directory
+        if: always()
+        run: mv /tmp/gemini-client-error-*.json /tmp/gh-aw/ 2>/dev/null || true
       - name: Stop MCP Gateway
         if: always()
         continue-on-error: true
@@ -1065,9 +1068,6 @@ jobs:
             setupGlobals(core, github, context, exec, io);
             const { main } = require('/opt/gh-aw/actions/collect_ndjson_output.cjs');
             await main();
-      - name: Clean up engine output files
-        run: |
-          rm -fr /tmp/gemini-client-error-*.json
       - name: Parse agent logs for step summary
         if: always()
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
@@ -1111,7 +1111,7 @@ jobs:
           name: agent
           path: |
             /tmp/gh-aw/aw-prompts/prompt.txt
-            /tmp/gemini-client-error-*.json
+            /tmp/gh-aw/gemini-client-error-*.json
             /tmp/gh-aw/redacted-urls.log
             /tmp/gh-aw/mcp-logs/
             /tmp/gh-aw/mcp-scripts/logs/
