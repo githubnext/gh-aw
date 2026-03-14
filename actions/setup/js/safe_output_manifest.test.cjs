@@ -2,7 +2,7 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import fs from "fs";
 import path from "path";
-import { MANIFEST_FILE_PATH, CREATE_ITEM_TYPES, createManifestLogger, ensureManifestExists, extractCreatedItemFromResult } from "./safe_output_manifest.cjs";
+import { MANIFEST_FILE_PATH, CREATE_ITEM_TYPES, NOT_LOGGED_TYPES, createManifestLogger, ensureManifestExists, extractCreatedItemFromResult } from "./safe_output_manifest.cjs";
 
 describe("safe_output_manifest", () => {
   let testManifestFile;
@@ -47,6 +47,33 @@ describe("safe_output_manifest", () => {
     });
   });
 
+  describe("NOT_LOGGED_TYPES", () => {
+    it("should contain only noop and internal meta types", () => {
+      expect(NOT_LOGGED_TYPES.has("noop")).toBe(true);
+      expect(NOT_LOGGED_TYPES.has("missing_tool")).toBe(true);
+      expect(NOT_LOGGED_TYPES.has("missing_data")).toBe(true);
+    });
+
+    it("should not contain any handler or modification types (all are logged by default)", () => {
+      expect(NOT_LOGGED_TYPES.has("create_issue")).toBe(false);
+      expect(NOT_LOGGED_TYPES.has("add_labels")).toBe(false);
+      expect(NOT_LOGGED_TYPES.has("close_issue")).toBe(false);
+      expect(NOT_LOGGED_TYPES.has("update_issue")).toBe(false);
+    });
+
+    it("should not contain CREATE_ITEM_TYPES (they are logged)", () => {
+      for (const type of CREATE_ITEM_TYPES) {
+        expect(NOT_LOGGED_TYPES.has(type)).toBe(false);
+      }
+    });
+
+    it("should allow custom safe job types to be logged automatically (not in exclusion list)", () => {
+      // Custom safe job types are never added to NOT_LOGGED_TYPES so they are always logged
+      expect(NOT_LOGGED_TYPES.has("my_custom_job_type")).toBe(false);
+      expect(NOT_LOGGED_TYPES.has("deploy_to_staging")).toBe(false);
+    });
+  });
+
   describe("createManifestLogger", () => {
     it("should append a JSONL entry when called with a url", () => {
       const log = createManifestLogger(testManifestFile);
@@ -67,13 +94,19 @@ describe("safe_output_manifest", () => {
       expect(Date.parse(entry.timestamp)).not.toBeNaN();
     });
 
-    it("should skip items without a url", () => {
+    it("should append a JSONL entry for an item without a url (modification type)", () => {
       const log = createManifestLogger(testManifestFile);
-      log({ type: "create_issue", url: undefined });
+      log({ type: "add_labels", number: 20875 });
 
-      // File is created by createManifestLogger() immediately, but should be empty
-      expect(fs.existsSync(testManifestFile)).toBe(true);
-      expect(fs.readFileSync(testManifestFile, "utf8")).toBe("");
+      const content = fs.readFileSync(testManifestFile, "utf8");
+      const lines = content.trim().split("\n");
+      expect(lines).toHaveLength(1);
+
+      const entry = JSON.parse(lines[0]);
+      expect(entry.type).toBe("add_labels");
+      expect(entry.url).toBeUndefined();
+      expect(entry.number).toBe(20875);
+      expect(entry.timestamp).toBeDefined();
     });
 
     it("should skip null/undefined items", () => {
@@ -194,20 +227,45 @@ describe("safe_output_manifest", () => {
       expect(item.type).toBe("add_comment");
     });
 
-    it("should return null for non-create types", () => {
+    it("should return null for excluded types (noop and internal meta types)", () => {
       const result = { success: true, url: "https://github.com/owner/repo/issues/1" };
-      expect(extractCreatedItemFromResult("update_issue", result)).toBeNull();
-      expect(extractCreatedItemFromResult("close_issue", result)).toBeNull();
-      expect(extractCreatedItemFromResult("add_labels", result)).toBeNull();
       expect(extractCreatedItemFromResult("noop", result)).toBeNull();
+      expect(extractCreatedItemFromResult("missing_tool", result)).toBeNull();
+      expect(extractCreatedItemFromResult("missing_data", result)).toBeNull();
     });
 
-    it("should return null for staged results (no item actually created)", () => {
-      // Staged results have staged: true and no URL — nothing was really created
+    it("should extract item from custom safe job type (generic: any type not excluded is logged)", () => {
+      const result = { success: true, number: 42 };
+      const item = extractCreatedItemFromResult("my_custom_job_type", result);
+      expect(item).not.toBeNull();
+      expect(item.type).toBe("my_custom_job_type");
+      expect(item.number).toBe(42);
+    });
+
+    it("should extract item from add_labels result (modification type without url)", () => {
+      const result = { success: true, number: 20875, labelsAdded: ["bug", "cli"], contextType: "issue" };
+      const item = extractCreatedItemFromResult("add_labels", result);
+      expect(item).not.toBeNull();
+      expect(item.type).toBe("add_labels");
+      expect(item.url).toBeUndefined();
+      expect(item.number).toBe(20875);
+    });
+
+    it("should extract item from close_issue result (modification type with url)", () => {
+      const result = { success: true, number: 123, url: "https://github.com/owner/repo/issues/123", title: "Test" };
+      const item = extractCreatedItemFromResult("close_issue", result);
+      expect(item).not.toBeNull();
+      expect(item.type).toBe("close_issue");
+      expect(item.url).toBe("https://github.com/owner/repo/issues/123");
+      expect(item.number).toBe(123);
+    });
+
+    it("should return null for staged results (no item actually modified)", () => {
+      // Staged results have staged: true — nothing was really changed
       const stagedResult = { success: true, staged: true, previewInfo: { repo: "owner/repo", title: "Test" } };
       expect(extractCreatedItemFromResult("create_issue", stagedResult)).toBeNull();
       expect(extractCreatedItemFromResult("add_comment", stagedResult)).toBeNull();
-      expect(extractCreatedItemFromResult("create_discussion", stagedResult)).toBeNull();
+      expect(extractCreatedItemFromResult("add_labels", stagedResult)).toBeNull();
     });
 
     it("should return null for staged results even if url is somehow present", () => {
@@ -216,9 +274,12 @@ describe("safe_output_manifest", () => {
       expect(extractCreatedItemFromResult("create_issue", stagedResultWithUrl)).toBeNull();
     });
 
-    it("should return null when result has no URL", () => {
+    it("should return item without url when result has no URL (for logged types)", () => {
       const result = { success: true, repo: "owner/repo", number: 1 };
-      expect(extractCreatedItemFromResult("create_issue", result)).toBeNull();
+      const item = extractCreatedItemFromResult("create_issue", result);
+      expect(item).not.toBeNull();
+      expect(item.url).toBeUndefined();
+      expect(item.number).toBe(1);
     });
 
     it("should return null for null/undefined result", () => {

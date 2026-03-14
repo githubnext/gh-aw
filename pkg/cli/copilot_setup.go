@@ -299,6 +299,32 @@ func renderCopilotSetupUpdateInstructions(filePath string, actionMode workflow.A
 var setupCliUsesPattern = regexp.MustCompile(
 	`(?m)^(\s+uses:[ \t]*)"?(github/gh-aw(?:-actions)?/(?:actions/)?setup-cli@[^"\n]*)"?([ \t]*)$`)
 
+// versionInWithPattern matches the version: parameter in the with: block that immediately
+// follows any setup-cli uses: line (any ref format: version tag, SHA-pinned, or quoted).
+// It is anchored to the same action repos as setupCliUsesPattern so that it only updates
+// the version belonging to the setup-cli step, but is independent of the exact ref value.
+// This allows it to correct pre-existing drift where the uses: comment and with: version:
+// were already out of sync before the upgrade was run.
+//
+// Pattern breakdown:
+//
+//	[ \t]+uses:[ \t]*         — indented uses: key with optional surrounding spaces
+//	"?github/gh-aw(?:-actions)?/(?:actions/)?setup-cli@[^"\n]*"?
+//	                           — any setup-cli ref (version tag, SHA+comment, or quoted)
+//	[^\n]*\n                   — rest of the uses: line (e.g. trailing spaces)
+//	(?:[^\n]*\n)*?             — zero or more lines between uses: and with: (non-greedy)
+//	[ \t]+with:[ \t]*\n        — indented with: key
+//	(?:[^\n]*\n)*?             — zero or more lines between with: and version: (non-greedy)
+//	[ \t]+version:[ \t]*       — indented version: key (final part of the prefix captured as group 1)
+//	(\S+)                      — the version value (captured as group 2)
+//	([ \t]*(?:\n|$))           — trailing whitespace and line terminator (captured as group 3)
+//
+// Note: In the full pattern, group 1 wraps the entire prefix from the setup-cli `uses:` line
+// through the `version:` key (and following spaces), group 2 is just the version value, and
+// group 3 is the trailing whitespace plus the line terminator.
+var versionInWithPattern = regexp.MustCompile(
+	`(?s)([ \t]+uses:[ \t]*"?github/gh-aw(?:-actions)?/(?:actions/)?setup-cli@[^"\n]*"?[^\n]*\n(?:[^\n]*\n)*?[ \t]+with:[ \t]*\n(?:[^\n]*\n)*?[ \t]+version:[ \t]*)(\S+)([ \t]*(?:\n|$))`)
+
 // upgradeSetupCliVersionInContent replaces the setup-cli action reference and the
 // associated version: parameter in the raw YAML content using targeted regex
 // substitutions, preserving all other formatting in the file.
@@ -325,13 +351,9 @@ func upgradeSetupCliVersionInContent(content []byte, actionMode workflow.ActionM
 	updated := setupCliUsesPattern.ReplaceAll(content, []byte("${1}"+newUses+"${3}"))
 
 	// Replace the version: value in the with: block immediately following the
-	// setup-cli uses: line.  A combined multiline match is used so that only the
-	// version: parameter belonging to this specific step is updated.
-	// This pattern cannot be pre-compiled at package level because it embeds
-	// the runtime value newUses (which varies with version and resolver output).
-	escapedNewUses := regexp.QuoteMeta(newUses)
-	versionInWithPattern := regexp.MustCompile(
-		`(?s)(uses:[ \t]*` + escapedNewUses + `[^\n]*\n(?:[^\n]*\n)*?[ \t]+with:[ \t]*\n(?:[^\n]*\n)*?[ \t]+version:[ \t]*)(\S+)([ \t]*(?:\n|$))`)
+	// setup-cli uses: line.  versionInWithPattern matches any valid setup-cli
+	// reference so it succeeds even when there was pre-existing drift between
+	// the uses: comment and the version: parameter before the upgrade was run.
 	updated = versionInWithPattern.ReplaceAll(updated, []byte("${1}"+version+"${3}"))
 
 	if bytes.Equal(content, updated) {

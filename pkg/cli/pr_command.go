@@ -767,8 +767,18 @@ func createPR(branchName, title, body string, verbose bool) (int, string, error)
 		fmt.Fprintln(os.Stderr, console.FormatProgressMessage("Creating PR: "+title))
 	}
 
+	// Detect the GitHub host from the git remote so that GitHub Enterprise Server
+	// repositories are targeted correctly instead of defaulting to github.com.
+	remoteHost := getHostFromOriginRemote()
+
+	// Build gh repo view args, adding --hostname for GHES instances.
+	repoViewArgs := []string{"repo", "view", "--json", "owner,name"}
+	if remoteHost != "github.com" {
+		repoViewArgs = append(repoViewArgs, "--hostname", remoteHost)
+	}
+
 	// Get the current repository info to ensure PR is created in the correct repo
-	repoOutput, err := workflow.RunGH("Fetching repository info...", "repo", "view", "--json", "owner,name")
+	repoOutput, err := workflow.RunGH("Fetching repository info...", repoViewArgs...)
 	if err != nil {
 		return 0, "", fmt.Errorf("failed to get current repository info: %w", err)
 	}
@@ -786,8 +796,15 @@ func createPR(branchName, title, body string, verbose bool) (int, string, error)
 
 	repoSpec := fmt.Sprintf("%s/%s", repoInfo.Owner.Login, repoInfo.Name)
 
-	// Explicitly specify the repository to ensure PR is created in the current repo (not upstream)
-	output, err := workflow.RunGH("Creating pull request...", "pr", "create", "--repo", repoSpec, "--title", title, "--body", body, "--head", branchName)
+	// Build gh pr create args. Explicitly specifying --repo ensures the PR is created in the
+	// current repo (not an upstream fork). For GHES instances, --hostname routes the request
+	// to the correct GitHub Enterprise host instead of defaulting to github.com.
+	prCreateArgs := []string{"pr", "create", "--repo", repoSpec, "--title", title, "--body", body, "--head", branchName}
+	if remoteHost != "github.com" {
+		prCreateArgs = append(prCreateArgs, "--hostname", remoteHost)
+	}
+
+	output, err := workflow.RunGH("Creating pull request...", prCreateArgs...)
 	if err != nil {
 		// Try to get stderr for better error reporting
 		var exitError *exec.ExitError

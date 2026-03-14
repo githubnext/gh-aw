@@ -131,42 +131,15 @@ mcp-servers:
 
 ### Registry Field
 
-The `registry` field specifies the URI to an MCP server's installation location in an MCP registry. This is useful for documenting the source of an MCP server and can be used by tooling to discover and install MCP servers:
+The `registry` field specifies the source URI of an MCP server in a registry. It is informational — useful for documenting server origin and enabling registry-aware tooling — and does not affect execution. Works with both stdio and HTTP servers:
 
 ```yaml wrap
-mcp-servers:
-  markitdown:
-    registry: "https://api.mcp.github.com/v0/servers/microsoft/markitdown"
-    command: "npx"
-    args: ["-y", "@microsoft/markitdown"]
-```
-
-**When to use**:
-
-- **Document server source**: Include `registry` to indicate where the MCP server is published
-- **Registry-aware tooling**: Some tools may use the registry URI for discovery and version management
-- **Both stdio and HTTP servers**: Works with both `command`-based stdio servers and `url`-based HTTP servers
-
-**Examples**:
-
-```yaml wrap
-# Stdio server with registry
 mcp-servers:
   filesystem:
     registry: "https://api.mcp.github.com/v0/servers/modelcontextprotocol/filesystem"
     command: "npx"
     args: ["-y", "@modelcontextprotocol/server-filesystem"]
-
-# HTTP server with registry
-mcp-servers:
-  custom-api:
-    registry: "https://registry.example.com/servers/custom-api"
-    url: "https://api.example.com/mcp"
-    headers:
-      Authorization: "Bearer ${{ secrets.API_TOKEN }}"
 ```
-
-The `registry` field is informational and does not affect server execution. It complements other configuration fields like `command`, `args`, `container`, or `url`.
 
 ## Related Documentation
 
@@ -178,6 +151,3 @@ The `registry` field is informational and does not affect server execution. It c
 - [Frontmatter](/gh-aw/reference/frontmatter/) - All frontmatter configuration options
 - [Network Permissions](/gh-aw/reference/network/) - Network access control for AI engines
 - [MCPs](/gh-aw/guides/mcps/) - Complete Model Context Protocol setup and usage
-- [CLI Commands](/gh-aw/setup/cli/) - CLI commands for workflow management
-- [Workflow Structure](/gh-aw/reference/workflow-structure/) - Directory layout and organization
-- [Imports](/gh-aw/reference/imports/) - Modularizing workflows with includes

@@ -30,6 +30,14 @@ Each skill provides focused guidance on specific topics. Reference them only as 
 
 ## Critical Requirements
 
+### ⚠️ MANDATORY: Always Create a Pull Request ⚠️
+
+**🚨 IF YOU ARE THE GITHUB COPILOT CODING AGENT AND YOU HAVE FILE CHANGES, YOU MUST ALWAYS CREATE A PULL REQUEST - NO EXCEPTIONS.**
+
+Use the **report_progress** tool to commit and push your changes. This will automatically create or update the pull request.
+
+**Never leave file changes uncommitted.** Even for small or "obvious" changes, always use **report_progress** to push your work to a PR so it can be reviewed.
+
 ### ⚠️ MANDATORY PRE-COMMIT VALIDATION ⚠️
 
 **🚨 BEFORE EVERY COMMIT - NO EXCEPTIONS:**
@@ -1134,6 +1142,11 @@ make minor-release  # Automated via GitHub Actions
 ```
 
 ## Quick Reference for AI Agents
+
+### 🚨 CRITICAL - Always Create a Pull Request
+**If you are the GitHub Copilot coding agent and you have file changes, you MUST always create a pull request.**
+
+Use **report_progress** to commit, push, and update the PR. Never leave changes uncommitted.
 
 ### 🚨 CRITICAL - Pre-Commit Checklist
 Before EVERY commit:

@@ -608,3 +608,78 @@ func TestGenerateSafeOutputsConfigReplyToPullRequestReviewCommentWithTarget(t *t
 
 	assert.Equal(t, true, replyConfig["footer"], "footer should be true")
 }
+
+// TestGenerateSafeOutputsConfigClosePullRequest tests that generateSafeOutputsConfig correctly
+// includes close_pull_request configuration in config.json.
+func TestGenerateSafeOutputsConfigClosePullRequest(t *testing.T) {
+	maxVal := "3"
+	data := &WorkflowData{
+		SafeOutputs: &SafeOutputsConfig{
+			ClosePullRequests: &ClosePullRequestsConfig{
+				BaseSafeOutputConfig: BaseSafeOutputConfig{
+					Max:         &maxVal,
+					GitHubToken: "${{ secrets.MY_TOKEN }}",
+				},
+				SafeOutputTargetConfig: SafeOutputTargetConfig{
+					Target:         "*",
+					TargetRepoSlug: "org/repo",
+					AllowedRepos:   []string{"org/other-repo"},
+				},
+				SafeOutputFilterConfig: SafeOutputFilterConfig{
+					RequiredLabels:      []string{"ready-to-close"},
+					RequiredTitlePrefix: "[my-prefix]",
+				},
+			},
+		},
+	}
+
+	result := generateSafeOutputsConfig(data)
+	require.NotEmpty(t, result, "Expected non-empty config")
+
+	var parsed map[string]any
+	require.NoError(t, json.Unmarshal([]byte(result), &parsed), "Result must be valid JSON")
+
+	closePRConfig, ok := parsed["close_pull_request"].(map[string]any)
+	require.True(t, ok, "Expected close_pull_request key in config.json")
+
+	assert.InDelta(t, float64(3), closePRConfig["max"], 0.0001, "max should be 3")
+	assert.Equal(t, "*", closePRConfig["target"], "target should be set")
+	assert.Equal(t, "org/repo", closePRConfig["target-repo"], "target-repo should be set")
+	assert.Equal(t, "${{ secrets.MY_TOKEN }}", closePRConfig["github-token"], "github-token should be set")
+	assert.Equal(t, "[my-prefix]", closePRConfig["required_title_prefix"], "required_title_prefix should be set")
+
+	allowedRepos, ok := closePRConfig["allowed_repos"].([]any)
+	require.True(t, ok, "allowed_repos should be an array")
+	assert.Len(t, allowedRepos, 1, "Should have 1 allowed repo")
+	assert.Equal(t, "org/other-repo", allowedRepos[0], "allowed_repos entry should match")
+
+	requiredLabels, ok := closePRConfig["required_labels"].([]any)
+	require.True(t, ok, "required_labels should be an array")
+	assert.Len(t, requiredLabels, 1, "Should have 1 required label")
+	assert.Equal(t, "ready-to-close", requiredLabels[0], "required_labels entry should match")
+}
+
+// TestGenerateSafeOutputsConfigClosePullRequestStaged tests that staged is included in config.json.
+func TestGenerateSafeOutputsConfigClosePullRequestStaged(t *testing.T) {
+	data := &WorkflowData{
+		SafeOutputs: &SafeOutputsConfig{
+			ClosePullRequests: &ClosePullRequestsConfig{
+				BaseSafeOutputConfig: BaseSafeOutputConfig{
+					Staged: true,
+				},
+			},
+		},
+	}
+
+	result := generateSafeOutputsConfig(data)
+	require.NotEmpty(t, result, "Expected non-empty config")
+
+	var parsed map[string]any
+	require.NoError(t, json.Unmarshal([]byte(result), &parsed), "Result must be valid JSON")
+
+	closePRConfig, ok := parsed["close_pull_request"].(map[string]any)
+	require.True(t, ok, "Expected close_pull_request key in config.json")
+
+	assert.Equal(t, true, closePRConfig["staged"], "staged should be true")
+	assert.Nil(t, closePRConfig["github-token"], "github-token should not be set when empty")
+}

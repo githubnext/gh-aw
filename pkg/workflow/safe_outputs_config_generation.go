@@ -105,6 +105,27 @@ func generateSafeOutputsConfig(data *WorkflowData) string {
 				additionalFields,
 			)
 		}
+		if data.SafeOutputs.ClosePullRequests != nil {
+			additionalFields := make(map[string]any)
+			if len(data.SafeOutputs.ClosePullRequests.RequiredLabels) > 0 {
+				additionalFields["required_labels"] = data.SafeOutputs.ClosePullRequests.RequiredLabels
+			}
+			if data.SafeOutputs.ClosePullRequests.RequiredTitlePrefix != "" {
+				additionalFields["required_title_prefix"] = data.SafeOutputs.ClosePullRequests.RequiredTitlePrefix
+			}
+			if data.SafeOutputs.ClosePullRequests.GitHubToken != "" {
+				additionalFields["github-token"] = data.SafeOutputs.ClosePullRequests.GitHubToken
+			}
+			if data.SafeOutputs.ClosePullRequests.Staged {
+				additionalFields["staged"] = true
+			}
+			safeOutputsConfig["close_pull_request"] = generateTargetConfigWithRepos(
+				data.SafeOutputs.ClosePullRequests.SafeOutputTargetConfig,
+				data.SafeOutputs.ClosePullRequests.Max,
+				1, // default max
+				additionalFields,
+			)
+		}
 		if data.SafeOutputs.CreatePullRequests != nil {
 			safeOutputsConfig["create_pull_request"] = generatePullRequestConfig(
 				data.SafeOutputs.CreatePullRequests,
