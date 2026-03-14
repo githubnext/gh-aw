@@ -211,7 +211,7 @@ function collectMissingMessages(messages) {
 
 /**
  * Format a log message for a manifest entry.
- * Shows the URL for creation types and the item number for modification types.
+ * Prefers the URL when available, otherwise falls back to the item number.
  *
  * @param {{type: string, url?: string, number?: number}} item - Manifest item
  * @returns {string} Formatted log message
