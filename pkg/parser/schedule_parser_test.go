@@ -4,6 +4,9 @@ package parser
 
 import (
 	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestParseSchedule(t *testing.T) {
@@ -976,6 +979,25 @@ func TestParseSchedule(t *testing.T) {
 			shouldError:    true,
 			errorSubstring: "minute intervals with 'on weekdays' are not supported",
 		},
+		// Edge cases
+		{
+			name:           "empty input",
+			input:          "",
+			shouldError:    true,
+			errorSubstring: "schedule expression cannot be empty",
+		},
+		{
+			name:         "passthrough valid cron expression",
+			input:        "*/5 * * * *",
+			expectedCron: "*/5 * * * *",
+			expectedOrig: "",
+		},
+		{
+			name:         "passthrough cron with whitespace trimmed",
+			input:        "  0 9 * * 1  ",
+			expectedCron: "0 9 * * 1",
+			expectedOrig: "",
+		},
 	}
 
 	for _, tt := range tests {
@@ -983,56 +1005,19 @@ func TestParseSchedule(t *testing.T) {
 			cron, orig, err := ParseSchedule(tt.input)
 
 			if tt.shouldError {
-				if err == nil {
-					t.Errorf("expected error containing '%s', got nil", tt.errorSubstring)
-					return
-				}
-				if tt.errorSubstring != "" && !containsSubstring(err.Error(), tt.errorSubstring) {
-					t.Errorf("expected error containing '%s', got '%s'", tt.errorSubstring, err.Error())
+				require.Error(t, err, "ParseSchedule(%q) should return an error", tt.input)
+				if tt.errorSubstring != "" {
+					assert.Contains(t, err.Error(), tt.errorSubstring,
+						"error for %q should contain %q", tt.input, tt.errorSubstring)
 				}
 				return
 			}
 
-			if err != nil {
-				t.Errorf("unexpected error: %v", err)
-				return
-			}
-
-			if cron != tt.expectedCron {
-				t.Errorf("expected cron '%s', got '%s'", tt.expectedCron, cron)
-			}
-
-			if orig != tt.expectedOrig {
-				t.Errorf("expected original '%s', got '%s'", tt.expectedOrig, orig)
-			}
+			require.NoError(t, err, "ParseSchedule(%q) should succeed", tt.input)
+			assert.Equal(t, tt.expectedCron, cron,
+				"ParseSchedule(%q) cron expression mismatch", tt.input)
+			assert.Equal(t, tt.expectedOrig, orig,
+				"ParseSchedule(%q) original string mismatch", tt.input)
 		})
 	}
-}
-
-// containsSubstring checks if s contains substr (case-insensitive)
-func containsSubstring(s, substr string) bool {
-	return len(substr) == 0 || len(s) >= len(substr) && (s == substr || len(s) > len(substr) && containsIgnoreCase(s, substr))
-}
-
-func containsIgnoreCase(s, substr string) bool {
-	s = toLower(s)
-	substr = toLower(substr)
-	for i := 0; i <= len(s)-len(substr); i++ {
-		if s[i:i+len(substr)] == substr {
-			return true
-		}
-	}
-	return false
-}
-
-func toLower(s string) string {
-	b := make([]byte, len(s))
-	for i := range len(s) {
-		c := s[i]
-		if 'A' <= c && c <= 'Z' {
-			c += 'a' - 'A'
-		}
-		b[i] = c
-	}
-	return string(b)
 }

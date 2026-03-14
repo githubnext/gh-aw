@@ -393,7 +393,7 @@ jobs:
           cat > /opt/gh-aw/safeoutputs/tools.json << 'GH_AW_SAFE_OUTPUTS_TOOLS_EOF'
           [
             {
-              "description": "Create a review comment on a specific line of code in a pull request. Use this for inline code review feedback, suggestions, or questions about specific code changes. For general PR comments not tied to specific lines, use add_comment instead. CONSTRAINTS: Maximum 5 review comment(s) can be created. Comments will be on the RIGHT side of the diff.",
+              "description": "Create a review comment on a specific line of code in a pull request. Use this for inline code review feedback, suggestions, or questions about specific code changes. For general PR comments not tied to specific lines, use add_comment instead. When the workflow is configured with `target: \"*\"`, you must specify `pull_request_number` to indicate which PR to target. CONSTRAINTS: Maximum 5 review comment(s) can be created. Comments will be on the RIGHT side of the diff.",
               "inputSchema": {
                 "additionalProperties": false,
                 "properties": {
@@ -414,6 +414,17 @@ jobs:
                   },
                   "path": {
                     "description": "File path relative to the repository root (e.g., 'src/auth/login.js'). Must be a file that was changed in the PR.",
+                    "type": "string"
+                  },
+                  "pull_request_number": {
+                    "description": "Pull request number to add the review comment to. This is the numeric ID from the GitHub URL (e.g., 876 in github.com/owner/repo/pull/876). If omitted, adds the comment to the PR that triggered this workflow. Required when the workflow target is '*' (any PR) — omitting it will cause the comment to fail.",
+                    "type": [
+                      "number",
+                      "string"
+                    ]
+                  },
+                  "repo": {
+                    "description": "Target repository in 'owner/repo' format. If omitted, uses the configured target repository. Must be in the allowed-repos list if specified.",
                     "type": "string"
                   },
                   "secrecy": {
@@ -589,6 +600,9 @@ jobs:
                 "path": {
                   "required": true,
                   "type": "string"
+                },
+                "pull_request_number": {
+                  "optionalPositiveInteger": true
                 },
                 "repo": {
                   "type": "string",
