@@ -554,7 +554,7 @@ describe("dispatch_workflow handler factory", () => {
 
     const config = {
       "target-repo": "platform-org/platform-repo",
-      "allowed-repos": ["platform-org/platform-repo"],
+      allowed_repos: ["platform-org/platform-repo"],
       workflows: ["platform-worker"],
       workflow_files: { "platform-worker": ".lock.yml" },
     };
@@ -590,7 +590,7 @@ describe("dispatch_workflow handler factory", () => {
 
       const config = {
         "target-repo": "platform-org/platform-repo",
-        "allowed-repos": ["platform-org/platform-repo"],
+        allowed_repos: ["platform-org/platform-repo"],
         workflows: ["platform-worker"],
         workflow_files: { "platform-worker": ".lock.yml" },
       };
@@ -669,7 +669,7 @@ describe("dispatch_workflow handler factory", () => {
 
     const config = {
       "target-repo": "other-org/other-repo",
-      "allowed-repos": ["other-org/other-repo"],
+      allowed_repos: ["other-org/other-repo"],
       "target-ref": "refs/heads/feature-branch",
       workflows: ["target-workflow"],
       workflow_files: { "target-workflow": ".lock.yml" },
@@ -716,7 +716,7 @@ describe("dispatch_workflow handler factory", () => {
 
     const config = {
       "target-repo": "other-org/other-repo",
-      "allowed-repos": ["other-org/other-repo"],
+      allowed_repos: ["other-org/other-repo"],
       "target-ref": "refs/heads/feature-branch",
       workflows: ["target-workflow"],
       workflow_files: { "target-workflow": ".lock.yml" },
@@ -753,12 +753,12 @@ describe("dispatch_workflow handler factory", () => {
 
     const config = {
       "target-repo": "other-org/other-repo",
-      "allowed-repos": ["other-org/different-repo"],
+      allowed_repos: ["other-org/different-repo"],
       workflows: ["target-workflow"],
       workflow_files: { "target-workflow": ".lock.yml" },
     };
 
-    await expect(main(config)).rejects.toThrow(/E004.*not permitted.*Add it to the 'allowed-repos'/);
+    await expect(main(config)).rejects.toThrow(/E004.*not in the allowed-repos list/);
     expect(github.rest.actions.createWorkflowDispatch).not.toHaveBeenCalled();
   });
 
@@ -767,7 +767,7 @@ describe("dispatch_workflow handler factory", () => {
 
     const config = {
       "target-repo": "allowed-org/allowed-repo",
-      "allowed-repos": ["allowed-org/allowed-repo", "other-org/other-repo"],
+      allowed_repos: ["allowed-org/allowed-repo", "other-org/other-repo"],
       workflows: ["target-workflow"],
       workflow_files: { "target-workflow": ".lock.yml" },
     };
