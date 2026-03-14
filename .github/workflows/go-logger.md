@@ -54,6 +54,10 @@ tools:
 imports:
   - shared/go-make.md
 
+network:
+  allowed:
+    - proxy.golang.org
+
 timeout-minutes: 15
 ---
 
