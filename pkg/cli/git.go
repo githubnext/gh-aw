@@ -176,7 +176,7 @@ func getGHESAllowedDomains() []string {
 	// For GHES, allow both the main host and api subdomain
 	domains := []string{
 		host,
-		fmt.Sprintf("api.%s", host),
+		"api." + host,
 	}
 
 	gitLog.Printf("GHES allowed domains: %v", domains)
