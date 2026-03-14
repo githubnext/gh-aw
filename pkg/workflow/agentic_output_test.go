@@ -268,8 +268,8 @@ func TestEngineOutputFileDeclarations(t *testing.T) {
 		t.Error("Gemini engine should declare output files for error log collection")
 	}
 
-	if len(geminiOutputFiles) > 0 && geminiOutputFiles[0] != "/tmp/gemini-client-error-*.json" {
-		t.Errorf("Gemini engine should declare /tmp/gemini-client-error-*.json, got: %v", geminiOutputFiles[0])
+	if len(geminiOutputFiles) > 0 && geminiOutputFiles[0] != "/tmp/gh-aw/gemini-client-error-*.json" {
+		t.Errorf("Gemini engine should declare /tmp/gh-aw/gemini-client-error-*.json, got: %v", geminiOutputFiles[0])
 	}
 
 	t.Logf("Claude engine declares: %v", claudeOutputFiles)
@@ -703,8 +703,12 @@ This workflow tests that the Gemini engine error log wildcard is uploaded as an 
 	}
 
 	// Verify that the Gemini error log wildcard path is included in the unified artifact upload
-	if !strings.Contains(lockStr, "/tmp/gemini-client-error-*.json") {
-		t.Error("Gemini workflow should include '/tmp/gemini-client-error-*.json' in unified agent artifact upload")
+	// under /tmp/gh-aw/ (not /tmp/) so the artifact upload LCA stays at /tmp/gh-aw/
+	if !strings.Contains(lockStr, "/tmp/gh-aw/gemini-client-error-*.json") {
+		t.Error("Gemini workflow should include '/tmp/gh-aw/gemini-client-error-*.json' in unified agent artifact upload")
+	}
+	if strings.Contains(lockStr, "path: /tmp/gemini-client-error") {
+		t.Error("Gemini workflow must NOT have '/tmp/gemini-client-error' artifact path (causes wrong LCA)")
 	}
 
 	// Verify that the unified agent artifact name is used (not separate agent_outputs)

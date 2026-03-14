@@ -184,8 +184,8 @@ func getActionlintVersion() (string, error) {
 	return version, nil
 }
 
-// runActionlintOnFile runs the actionlint linter on one or more .lock.yml files using Docker
-func runActionlintOnFile(lockFiles []string, verbose bool, strict bool) error {
+// runActionlintOnFiles runs the actionlint linter on one or more .lock.yml files using Docker
+func runActionlintOnFiles(lockFiles []string, verbose bool, strict bool) error {
 	if len(lockFiles) == 0 {
 		return nil
 	}
