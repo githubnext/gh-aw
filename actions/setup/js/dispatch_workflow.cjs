@@ -50,10 +50,10 @@ async function main(config = {}) {
   const allowedRepos = config["allowed-repos"] || config.allowedRepos || [];
   if (isCrossRepoDispatch) {
     if (allowedRepos.length === 0) {
-      throw new Error(`E004: Cross-repository dispatch to '${resolvedRepoSlug}' is not permitted. ` + `No allowlist is configured. Define 'allowed-repos' to enable cross-repository dispatch.`);
+      throw new Error(`E004: Cross-repository dispatch to '${resolvedRepoSlug}' is not permitted. No allowlist is configured. Define 'allowed-repos' to enable cross-repository dispatch.`);
     }
     if (!allowedRepos.includes(resolvedRepoSlug)) {
-      throw new Error(`E004: Cross-repository dispatch to '${resolvedRepoSlug}' is not permitted. ` + `Add it to the 'allowed-repos' configuration to authorise this target.`);
+      throw new Error(`E004: Cross-repository dispatch to '${resolvedRepoSlug}' is not permitted. Add it to the 'allowed-repos' configuration to authorize this target.`);
     }
     core.info(`Cross-repo allowlist check passed for ${resolvedRepoSlug}`);
   }
