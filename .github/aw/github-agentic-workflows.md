@@ -101,9 +101,10 @@ The YAML frontmatter supports these fields:
       ```yaml
       skip-if-match:
         query: "is:issue is:open label:in-progress"
-        max: 3   # Skip if 3 or more matches (default: 1)
+        max: 3      # Skip if 3 or more matches (default: 1)
+        scope: none # Optional: disable automatic repo:owner/repo scoping for org-wide queries
       ```
-    - Query is automatically scoped to the current repository
+    - Query is automatically scoped to the current repository (use `scope: none` for cross-repo queries)
     - Use to avoid duplicate work (e.g., skip if an open issue already exists)
   - **`skip-if-no-match:`** - Skip workflow execution when a GitHub search query returns no results (string or object)
     - String format: `skip-if-no-match: "is:pr is:open label:ready-to-deploy"` (implies min=1)
@@ -111,10 +112,31 @@ The YAML frontmatter supports these fields:
       ```yaml
       skip-if-no-match:
         query: "is:pr is:open label:ready-to-deploy"
-        min: 2   # Require at least 2 matches to proceed (default: 1)
+        min: 2      # Require at least 2 matches to proceed (default: 1)
+        scope: none # Optional: disable automatic repo:owner/repo scoping for org-wide queries
       ```
-    - Query is automatically scoped to the current repository
+    - Query is automatically scoped to the current repository (use `scope: none` for cross-repo queries)
     - Use to gate workflows on preconditions (e.g., only run if open PRs exist)
+  - **`github-token:`** - Custom GitHub token for pre-activation reactions, status comments, and skip-if search queries (string)
+    - When specified, overrides the default `GITHUB_TOKEN` for these operations
+    - Example: `github-token: ${{ secrets.MY_GITHUB_TOKEN }}`
+  - **`github-app:`** - GitHub App credentials for minting a token used in pre-activation operations (object)
+    - Mints a single installation access token shared across reactions, status comments, and skip-if queries
+    - Can be defined in a shared agentic workflow and inherited by importing workflows
+    - Fields:
+      - `app-id:` - GitHub App ID (required, e.g., `${{ vars.APP_ID }}`)
+      - `private-key:` - GitHub App private key (required, e.g., `${{ secrets.APP_PRIVATE_KEY }}`)
+      - `owner:` - Optional installation owner (defaults to current repository owner)
+      - `repositories:` - Optional list of repositories to grant access to
+    - Example:
+      ```yaml
+      on:
+        issues:
+          types: [opened]
+        github-app:
+          app-id: ${{ vars.APP_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+      ```
 
 - **`permissions:`** - GitHub token permissions
   - Object with permission levels: `read`, `write`, `none`
@@ -262,8 +284,12 @@ The YAML frontmatter supports these fields:
         if: "hashFiles('go.mod') != ''"   # Only install Go when go.mod exists
     ```
 
-- **`checkout:`** - Override how the repository is checked out in the agent job (object or array)
+- **`checkout:`** - Override how the repository is checked out in the agent job (object, array, or `false`)
   - By default, the workflow automatically checks out the repository. Use this field to customize checkout behavior.
+  - Set to `false` to disable automatic checkout entirely (reduces startup time when repo access is not needed):
+    ```yaml
+    checkout: false
+    ```
   - Single checkout (object):
     ```yaml
     checkout:
@@ -523,12 +549,15 @@ The YAML frontmatter supports these fields:
         expires: 7                      # Optional: auto-close after 7 days (supports: 2h, 7d, 2w, 1m, 1y; min: 2h)
         auto-merge: false               # Optional: enable auto-merge when checks pass (default: false)
         base-branch: "vnext"            # Optional: base branch for PR (defaults to workflow's branch)
+        preserve-branch-name: true      # Optional: skip random salt suffix on agent-specified branch names (default: false)
         fallback-as-issue: false        # Optional: when true (default), creates a fallback issue on PR creation failure; on permission errors, the issue includes a one-click link to create the PR via GitHub's compare URL
         target-repo: "owner/repo"       # Optional: cross-repository
         github-token-for-extra-empty-commit: ${{ secrets.MY_CI_PAT }}  # Optional: PAT or "app" to trigger CI on created PRs
     ```
 
     **Auto-Expiration**: The `expires` field auto-closes PRs after a time period. Supports integers (days) or relative formats (2h, 7d, 2w, 1m, 1y). Minimum duration: 2 hours. Only for same-repo PRs without target-repo. Generates `agentics-maintenance.yml` workflow.
+
+    **Branch Name Preservation**: Set `preserve-branch-name: true` to skip the random salt suffix on agent-specified branch names. Useful when CI enforces branch naming conventions (e.g., Jira keys in uppercase). Invalid characters are still replaced for security; casing is always preserved.
 
     **CI Triggering**: By default, PRs created with `GITHUB_TOKEN` do not trigger CI workflow runs. To trigger CI, set `github-token-for-extra-empty-commit` to a PAT with `Contents: Read & Write` permission, or to `"app"` to use the configured GitHub App. Alternatively, set the magic secret `GH_AW_CI_TRIGGER_TOKEN` to a suitable PAT — this is automatically used without requiring explicit configuration in the workflow.
 
@@ -849,6 +878,17 @@ The YAML frontmatter supports these fields:
         max: 3                              # Optional: max dispatches (default: 1, max: 3)
     ```
     Triggers other agentic workflows in the same repository using workflow_dispatch. Agent output includes `workflow_name` (without .md extension) and optional `inputs` (key-value pairs). Not supported for cross-repository operations.
+  - `call-workflow:` - Call reusable workflows via workflow_call fan-out (orchestrator pattern)
+    ```yaml
+    safe-outputs:
+      call-workflow:
+        workflows: [worker-a, worker-b]     # Required: workflow names (without .md) with workflow_call trigger
+        max: 1                              # Optional: max calls per run (default: 1, max: 50)
+        github-token: ${{ secrets.TOKEN }}  # Optional: token passed to called workflows
+    ```
+    Array shorthand: `call-workflow: [worker-a, worker-b]`
+
+    Unlike `dispatch-workflow` (which uses the GitHub Actions API at runtime), `call-workflow` generates static conditional `uses:` jobs at compile time. The agent selects which worker to activate; the compiler validates and wires up all fan-out jobs. Each listed workflow must exist in `.github/workflows/` and declare a `workflow_call` trigger. Use this for orchestrator/dispatcher patterns within the same repository.
   - `create-code-scanning-alert:` - Generate SARIF security advisories
     ```yaml
     safe-outputs:
