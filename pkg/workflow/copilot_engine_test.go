@@ -1679,7 +1679,7 @@ func TestCopilotPreflightDiagnosticStep(t *testing.T) {
 		steps := engine.GetExecutionSteps(workflowData, "/tmp/gh-aw/test.log")
 
 		// Should have only 1 step: execution (no preflight)
-		if len(steps) != 2 {
+		if len(steps) != 1 {
 			t.Fatalf("Expected 1 step (execution only), got %d", len(steps))
 		}
 
@@ -1701,7 +1701,7 @@ func TestCopilotPreflightDiagnosticStep(t *testing.T) {
 		steps := engine.GetExecutionSteps(workflowData, "/tmp/gh-aw/test.log")
 
 		// Should have only 1 step: execution (no preflight)
-		if len(steps) != 2 {
+		if len(steps) != 1 {
 			t.Fatalf("Expected 1 step (execution only), got %d", len(steps))
 		}
 
