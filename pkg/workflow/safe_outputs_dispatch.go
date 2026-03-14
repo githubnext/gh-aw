@@ -4,8 +4,11 @@ import (
 	"fmt"
 	"sort"
 
+	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/stringutil"
 )
+
+var safeOutputsDispatchWorkflowLog = logger.New("workflow:safe_outputs_dispatch")
 
 // ========================================
 // Safe Output Dispatch Workflow Handling
@@ -68,6 +71,8 @@ func populateDispatchWorkflowFiles(data *WorkflowData, markdownPath string) {
 // The tool will be named after the workflow (normalized to underscores) and accept
 // the workflow's defined workflow_dispatch inputs as parameters.
 func generateDispatchWorkflowTool(workflowName string, workflowInputs map[string]any) map[string]any {
+	safeOutputsDispatchWorkflowLog.Printf("Generating dispatch-workflow tool: workflow=%s, inputs=%d", workflowName, len(workflowInputs))
+
 	// Normalize workflow name to use underscores for tool name
 	toolName := stringutil.NormalizeSafeOutputIdentifier(workflowName)
 
@@ -160,5 +165,6 @@ func generateDispatchWorkflowTool(workflowName string, workflowInputs map[string
 		tool["inputSchema"].(map[string]any)["required"] = required
 	}
 
+	safeOutputsDispatchWorkflowLog.Printf("Generated dispatch-workflow tool: name=%s, properties=%d, required=%d", toolName, len(properties), len(required))
 	return tool
 }

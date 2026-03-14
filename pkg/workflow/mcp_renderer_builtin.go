@@ -5,7 +5,10 @@ import (
 	"strings"
 
 	"github.com/github/gh-aw/pkg/constants"
+	"github.com/github/gh-aw/pkg/logger"
 )
+
+var mcpRendererBuiltinLog = logger.New("workflow:mcp_renderer_builtin")
 
 // RenderPlaywrightMCP generates the Playwright MCP server configuration
 func (r *MCPConfigRendererUnified) RenderPlaywrightMCP(yaml *strings.Builder, playwrightTool any) {
@@ -27,6 +30,7 @@ func (r *MCPConfigRendererUnified) RenderPlaywrightMCP(yaml *strings.Builder, pl
 // Per MCP Gateway Specification v1.0.0 section 3.2.1, stdio-based MCP servers MUST be containerized.
 // Uses MCP Gateway spec format: container, entrypointArgs, mounts, and args fields.
 func (r *MCPConfigRendererUnified) renderPlaywrightTOML(yaml *strings.Builder, playwrightConfig *PlaywrightToolConfig) {
+	mcpRendererBuiltinLog.Print("Rendering Playwright MCP in TOML format")
 	customArgs := getPlaywrightCustomArgs(playwrightConfig)
 
 	// Use official Playwright MCP Docker image (no version tag - only one image)
@@ -82,6 +86,7 @@ func (r *MCPConfigRendererUnified) RenderSerenaMCP(yaml *strings.Builder, serena
 // - "docker" (default): Uses Docker container with stdio transport
 // - "local": Uses local uvx with HTTP transport
 func (r *MCPConfigRendererUnified) renderSerenaTOML(yaml *strings.Builder, serenaTool any) {
+	mcpRendererBuiltinLog.Print("Rendering Serena MCP in TOML format")
 	customArgs := getSerenaCustomArgs(serenaTool)
 
 	yaml.WriteString("          \n")
@@ -221,6 +226,7 @@ func (r *MCPConfigRendererUnified) RenderAgenticWorkflowsMCP(yaml *strings.Build
 // renderAgenticWorkflowsTOML generates Agentic Workflows MCP configuration in TOML format
 // Per MCP Gateway Specification v1.0.0 section 3.2.1, stdio-based MCP servers MUST be containerized.
 func (r *MCPConfigRendererUnified) renderAgenticWorkflowsTOML(yaml *strings.Builder) {
+	mcpRendererBuiltinLog.Printf("Rendering Agentic Workflows MCP in TOML format: action_mode=%s", r.options.ActionMode)
 	yaml.WriteString("          \n")
 	yaml.WriteString("          [mcp_servers." + constants.AgenticWorkflowsMCPServerID.String() + "]\n")
 

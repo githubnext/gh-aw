@@ -4,8 +4,11 @@ import (
 	"fmt"
 	"sort"
 
+	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/stringutil"
 )
+
+var safeOutputsCallWorkflowLog = logger.New("workflow:safe_outputs_call_workflow")
 
 // ========================================
 // Safe Output Call Workflow Handling
@@ -70,6 +73,8 @@ func populateCallWorkflowFiles(data *WorkflowData, markdownPath string) {
 // The agent calls this tool to select which worker to activate; the handler writes
 // call_workflow_name and call_workflow_payload outputs for the conditional `uses:` jobs.
 func generateCallWorkflowTool(workflowName string, workflowInputs map[string]any) map[string]any {
+	safeOutputsCallWorkflowLog.Printf("Generating call-workflow tool: workflow=%s, inputs=%d", workflowName, len(workflowInputs))
+
 	// Normalize workflow name to use underscores for tool name
 	toolName := stringutil.NormalizeSafeOutputIdentifier(workflowName)
 
@@ -158,5 +163,6 @@ func generateCallWorkflowTool(workflowName string, workflowInputs map[string]any
 		tool["inputSchema"].(map[string]any)["required"] = required
 	}
 
+	safeOutputsCallWorkflowLog.Printf("Generated call-workflow tool: name=%s, properties=%d, required=%d", toolName, len(properties), len(required))
 	return tool
 }

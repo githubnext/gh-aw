@@ -6,7 +6,11 @@ import (
 	"fmt"
 	"maps"
 	"strings"
+
+	"github.com/github/gh-aw/pkg/logger"
 )
+
+var toolsMergerLog = logger.New("parser:tools_merger")
 
 // mergeToolsFromJSON merges multiple JSON tool objects from content
 func mergeToolsFromJSON(content string) (string, error) {
@@ -158,6 +162,7 @@ func MergeTools(base, additional map[string]any) (map[string]any, error) {
 
 // mergeAllowedArrays merges two allowed arrays and removes duplicates
 func mergeAllowedArrays(existing, new any) []any {
+	toolsMergerLog.Print("Merging allowed arrays")
 	var result []any
 	seen := make(map[string]bool)
 
@@ -190,6 +195,7 @@ func mergeAllowedArrays(existing, new any) []any {
 
 // mergeMCPTools merges two MCP tool configurations, detecting conflicts except for 'allowed' arrays
 func mergeMCPTools(existing, new map[string]any) (map[string]any, error) {
+	toolsMergerLog.Printf("Merging MCP tool configs: existing_keys=%d, new_keys=%d", len(existing), len(new))
 	result := make(map[string]any)
 
 	// Copy existing properties

@@ -6,13 +6,17 @@ import (
 	"path/filepath"
 	"time"
 
+	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/parser"
 	"github.com/github/gh-aw/pkg/stringutil"
 )
 
+var compilerStringAPILog = logger.New("workflow:compiler_string_api")
+
 // CompileToYAML compiles workflow data and returns the YAML as a string
 // without writing to disk. This is useful for Wasm builds and programmatic usage.
 func (c *Compiler) CompileToYAML(workflowData *WorkflowData, markdownPath string) (string, error) {
+	compilerStringAPILog.Printf("CompileToYAML: markdownPath=%s", markdownPath)
 	c.markdownPath = markdownPath
 	c.skipHeader = true
 	// Clear contentOverride after compilation (set by ParseWorkflowString)
@@ -93,6 +97,8 @@ func (c *Compiler) ParseWorkflowString(content string, virtualPath string) (*Wor
 	if err := parser.ValidateMainWorkflowFrontmatterWithSchemaAndLocation(frontmatterForValidation, cleanPath); err != nil {
 		return nil, err
 	}
+
+	compilerStringAPILog.Printf("ParseWorkflowString: frontmatter validated, frontmatter_fields=%d", len(frontmatterForValidation))
 
 	// Build parse result to reuse the rest of the orchestrator pipeline
 	parseResult := &frontmatterParseResult{
