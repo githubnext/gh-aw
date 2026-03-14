@@ -32,7 +32,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
 
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/workflow"
@@ -181,7 +180,6 @@ func setupActionMode(compiler *workflow.Compiler, actionMode string, actionTag s
 }
 
 // setupRepositoryContext sets the repository slug for schedule scattering
-// and detects repository visibility to suppress irrelevant warnings.
 func setupRepositoryContext(compiler *workflow.Compiler) {
 	compileCompilerSetupLog.Print("Setting up repository context")
 
@@ -190,50 +188,9 @@ func setupRepositoryContext(compiler *workflow.Compiler) {
 	if repoSlug != "" {
 		compiler.SetRepositorySlug(repoSlug)
 		compileCompilerSetupLog.Printf("Repository slug set: %s", repoSlug)
-
-		// Detect repository visibility so the compiler can suppress warnings
-		// that are only relevant for private/internal repos (e.g., the
-		// push-to-pull-request-branch wildcard fetch warning).
-		if isPublic := detectRepoVisibility(repoSlug); isPublic != nil {
-			compiler.SetPublicRepo(*isPublic)
-			compileCompilerSetupLog.Printf("Repository visibility detected: isPublic=%v", *isPublic)
-		}
 	} else {
 		compileCompilerSetupLog.Print("No repository slug found")
 	}
-}
-
-// detectRepoVisibility returns true if the given repository slug is publicly
-// visible, false if it is private or internal, and nil if visibility cannot
-// be determined (e.g. no gh authentication or network error).
-//
-// Returning nil on failure is intentional: callers should treat an unknown
-// visibility as "private" so that safety warnings are still shown.
-func detectRepoVisibility(repoSlug string) *bool {
-	compileCompilerSetupLog.Printf("Detecting visibility for repository: %s", repoSlug)
-
-	// Validate that the slug has the expected "owner/repo" format to avoid
-	// unexpected API paths from malformed inputs.
-	if strings.Count(repoSlug, "/") != 1 {
-		compileCompilerSetupLog.Printf("Skipping visibility check: slug %q is not in owner/repo format", repoSlug)
-		return nil
-	}
-	parts := strings.SplitN(repoSlug, "/", 2)
-	if parts[0] == "" || parts[1] == "" {
-		compileCompilerSetupLog.Printf("Skipping visibility check: slug %q is not in owner/repo format", repoSlug)
-		return nil
-	}
-
-	output, err := workflow.RunGH("Checking repository visibility...", "api", "/repos/"+repoSlug, "--jq", ".visibility")
-	if err != nil {
-		compileCompilerSetupLog.Printf("Could not detect repository visibility: %v", err)
-		return nil
-	}
-
-	visibility := strings.TrimSpace(string(output))
-	isPublic := visibility == "public"
-	compileCompilerSetupLog.Printf("Repository visibility: %s (isPublic=%v)", visibility, isPublic)
-	return &isPublic
 }
 
 // validateActionModeConfig validates the action mode configuration

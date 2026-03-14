@@ -52,13 +52,6 @@ func WithWorkflowIdentifier(identifier string) CompilerOption {
 	return func(c *Compiler) { c.workflowIdentifier = identifier }
 }
 
-// WithPublicRepo sets whether the repository is publicly visible.
-// When set to true, warnings that are only relevant for private repositories
-// (such as the push-to-pull-request-branch wildcard fetch warning) are suppressed.
-func WithPublicRepo(isPublic bool) CompilerOption {
-	return func(c *Compiler) { c.isPublicRepo = &isPublic }
-}
-
 // FileTracker interface for tracking files created during compilation
 type FileTracker interface {
 	TrackCreated(filePath string)
@@ -112,7 +105,6 @@ type Compiler struct {
 	contentOverride         string              // If set, use this content instead of reading from disk (for Wasm/in-memory compilation)
 	skipHeader              bool                // If true, skip ASCII art header in generated YAML (for Wasm/editor mode)
 	inlinePrompt            bool                // If true, inline markdown content in YAML instead of using runtime-import macros (for Wasm builds)
-	isPublicRepo            *bool               // If set, indicates whether the repository is public (true) or private/internal (false); nil means unknown
 }
 
 // NewCompiler creates a new workflow compiler with functional options.
@@ -257,13 +249,6 @@ func (c *Compiler) SetWorkflowIdentifier(identifier string) {
 // SetRepositorySlug sets the repository slug for schedule scattering
 func (c *Compiler) SetRepositorySlug(slug string) {
 	c.repositorySlug = slug
-}
-
-// SetPublicRepo records whether the repository is publicly visible.
-// When set to true, warnings that are only relevant for private repositories
-// (such as the push-to-pull-request-branch wildcard fetch warning) are suppressed.
-func (c *Compiler) SetPublicRepo(isPublic bool) {
-	c.isPublicRepo = &isPublic
 }
 
 // GetScheduleWarnings returns all accumulated schedule warnings for this compiler instance
