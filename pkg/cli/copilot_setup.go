@@ -315,9 +315,12 @@ var setupCliUsesPattern = regexp.MustCompile(
 //	(?:[^\n]*\n)*?             — zero or more lines between uses: and with: (non-greedy)
 //	[ \t]+with:[ \t]*\n        — indented with: key
 //	(?:[^\n]*\n)*?             — zero or more lines between with: and version: (non-greedy)
-//	[ \t]+version:[ \t]*       — indented version: key (captured as group 1)
+//	[ \t]+version:[ \t]*       — indented version: key (final part of the prefix captured as group 1)
 //	(\S+)                      — the version value (captured as group 2)
 //	([ \t]*(?:\n|$))           — trailing whitespace and line terminator (captured as group 3)
+// Note: In the full pattern, group 1 wraps the entire prefix from the setup-cli `uses:` line
+// through the `version:` key (and following spaces), group 2 is just the version value, and
+// group 3 is the trailing whitespace plus the line terminator.
 var versionInWithPattern = regexp.MustCompile(
 	`(?s)([ \t]+uses:[ \t]*"?github/gh-aw(?:-actions)?/(?:actions/)?setup-cli@[^"\n]*"?[^\n]*\n(?:[^\n]*\n)*?[ \t]+with:[ \t]*\n(?:[^\n]*\n)*?[ \t]+version:[ \t]*)(\S+)([ \t]*(?:\n|$))`)
 
