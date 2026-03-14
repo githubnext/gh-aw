@@ -41,25 +41,8 @@ echo ""
 echo "Test 3: Testing host detection from GITHUB_SERVER_URL..."
 export GITHUB_SERVER_URL="https://myorg.ghe.com"
 export GH_TOKEN="test-token"
-# We can't actually run gh auth login in test, but we can test the host detection
-output=$(bash -c "
-  detect_github_host() {
-    local host=\"\"
-    if [ -n \"\${GITHUB_SERVER_URL}\" ]; then
-      host=\${GITHUB_SERVER_URL}
-      host=\"\${host%/}\"
-      if [[ \"\$host\" =~ ^https?:// ]]; then
-        host=\"\${host#http://}\"
-        host=\"\${host#https://}\"
-        host=\"\${host%%/*}\"
-      fi
-    else
-      host=\"github.com\"
-    fi
-    echo \"\$host\"
-  }
-  detect_github_host
-" 2>&1)
+# Use the real detect_github_host implementation from configure_gh_for_ghe.sh
+output=$(bash -c "source '${CONFIGURE_GH_SCRIPT}'; detect_github_host" 2>&1)
 if [ "$output" = "myorg.ghe.com" ]; then
   echo "PASS: Correctly extracted host from GITHUB_SERVER_URL"
 else
@@ -72,24 +55,8 @@ echo ""
 echo "Test 4: Testing host detection from GITHUB_ENTERPRISE_HOST..."
 unset GITHUB_SERVER_URL
 export GITHUB_ENTERPRISE_HOST="enterprise.github.com"
-output=$(bash -c "
-  detect_github_host() {
-    local host=\"\"
-    if [ -n \"\${GITHUB_ENTERPRISE_HOST}\" ]; then
-      host=\${GITHUB_ENTERPRISE_HOST}
-      host=\"\${host%/}\"
-      if [[ \"\$host\" =~ ^https?:// ]]; then
-        host=\"\${host#http://}\"
-        host=\"\${host#https://}\"
-        host=\"\${host%%/*}\"
-      fi
-    else
-      host=\"github.com\"
-    fi
-    echo \"\$host\"
-  }
-  detect_github_host
-" 2>&1)
+# Use the real detect_github_host implementation from configure_gh_for_ghe.sh
+output=$(bash -c "source '${CONFIGURE_GH_SCRIPT}'; detect_github_host" 2>&1)
 if [ "$output" = "enterprise.github.com" ]; then
   echo "PASS: Correctly extracted host from GITHUB_ENTERPRISE_HOST"
 else
