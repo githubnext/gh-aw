@@ -11,7 +11,7 @@ const { pushExtraEmptyCommit } = require("./extra_empty_commit.cjs");
 const { detectForkPR } = require("./pr_helpers.cjs");
 const { resolveTargetRepoConfig, resolveAndValidateRepo } = require("./repo_helpers.cjs");
 const { createAuthenticatedGitHubClient } = require("./handler_auth.cjs");
-const { checkFileProtection, filterPatchByIgnoredFiles } = require("./manifest_file_helpers.cjs");
+const { checkFileProtection } = require("./manifest_file_helpers.cjs");
 const { buildWorkflowRunUrl } = require("./workflow_metadata_helpers.cjs");
 const { renderTemplate } = require("./messages_core.cjs");
 const { getGitAuthEnv } = require("./git_helpers.cjs");
@@ -116,20 +116,7 @@ async function main(config = {}) {
       }
     }
 
-    let patchContent = fs.readFileSync(patchFilePath, "utf8");
-
-    // Apply ignored-files filter: strip diff sections for matching files from the patch
-    // so they are absent from the resulting commit (`.gitignore`-style exclusion).
-    const ignoredFilePatterns = Array.isArray(config.ignored_files) ? config.ignored_files : [];
-    if (ignoredFilePatterns.length > 0) {
-      const filteredContent = filterPatchByIgnoredFiles(patchContent, ignoredFilePatterns);
-      if (filteredContent !== patchContent) {
-        core.info(`ignored-files: filtered patch (${ignoredFilePatterns.join(", ")})`);
-        patchContent = filteredContent;
-        // Write the filtered patch back so git am uses the correct content
-        fs.writeFileSync(patchFilePath, patchContent, "utf8");
-      }
-    }
+    const patchContent = fs.readFileSync(patchFilePath, "utf8");
 
     // Check for actual error conditions
     if (patchContent.includes("Failed to generate patch")) {
