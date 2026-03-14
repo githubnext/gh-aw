@@ -28,6 +28,7 @@ func TestRenderGitHubMCPDockerConfig(t *testing.T) {
 			expected: []string{
 				`"container": "ghcr.io/github/github-mcp-server:latest"`,
 				`"env": {`,
+				`"GITHUB_HOST": "$GITHUB_SERVER_URL"`,
 				`"GITHUB_PERSONAL_ACCESS_TOKEN": "$GITHUB_MCP_SERVER_TOKEN"`,
 				`"GITHUB_TOOLSETS": "default"`,
 			},
@@ -53,6 +54,7 @@ func TestRenderGitHubMCPDockerConfig(t *testing.T) {
 				`"type": "stdio"`,
 				`"container": "ghcr.io/github/github-mcp-server:latest"`,
 				`"env": {`,
+				`"GITHUB_HOST": "\${GITHUB_SERVER_URL}"`,
 				`"GITHUB_PERSONAL_ACCESS_TOKEN": "\${GITHUB_MCP_SERVER_TOKEN}"`,
 				`"GITHUB_TOOLSETS": "default"`,
 			},
@@ -76,6 +78,7 @@ func TestRenderGitHubMCPDockerConfig(t *testing.T) {
 			expected: []string{
 				`"container": "ghcr.io/github/github-mcp-server:v1.0.0"`,
 				`"env": {`,
+				`"GITHUB_HOST": "$GITHUB_SERVER_URL"`,
 				`"GITHUB_READ_ONLY": "1"`,
 				`"GITHUB_PERSONAL_ACCESS_TOKEN": "$GITHUB_MCP_SERVER_TOKEN"`,
 				`"GITHUB_TOOLSETS": "default"`,
