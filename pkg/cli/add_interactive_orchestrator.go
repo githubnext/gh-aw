@@ -57,6 +57,18 @@ func RunAddInteractive(ctx context.Context, workflowSpecs []string, verbose bool
 		return errors.New("interactive add cannot be used in automated tests or CI environments")
 	}
 
+	// Auto-detect GHES host from git remote if not already set
+	if os.Getenv("GH_HOST") == "" {
+		detectedHost := getHostFromOriginRemote()
+		if detectedHost != "github.com" {
+			addInteractiveLog.Printf("Auto-detected GHES host from git remote: %s", detectedHost)
+			os.Setenv("GH_HOST", detectedHost)
+			if verbose {
+				fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Auto-detected GitHub Enterprise host: "+detectedHost))
+			}
+		}
+	}
+
 	config := &AddInteractiveConfig{
 		WorkflowSpecs:   workflowSpecs,
 		Verbose:         verbose,

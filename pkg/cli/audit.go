@@ -133,7 +133,15 @@ func isPermissionError(err error) bool {
 // If jobID is provided (>0), focuses audit on that specific job
 // If stepNumber is provided (>0), extracts output for that specific step
 func AuditWorkflowRun(ctx context.Context, runID int64, owner, repo, hostname string, outputDir string, verbose bool, parse bool, jsonOutput bool, jobID int64, stepNumber int) error {
-	auditLog.Printf("Starting audit for workflow run: runID=%d, owner=%s, repo=%s, jobID=%d, stepNumber=%d", runID, owner, repo, jobID, stepNumber)
+	// Auto-detect GHES host from git remote if hostname is not provided
+	if hostname == "" {
+		hostname = getHostFromOriginRemote()
+		if hostname != "github.com" {
+			auditLog.Printf("Auto-detected GHES host from git remote: %s", hostname)
+		}
+	}
+
+	auditLog.Printf("Starting audit for workflow run: runID=%d, owner=%s, repo=%s, hostname=%s, jobID=%d, stepNumber=%d", runID, owner, repo, hostname, jobID, stepNumber)
 
 	// Check context cancellation at the start
 	select {
@@ -433,7 +441,15 @@ func AuditWorkflowRun(ctx context.Context, runID int64, owner, repo, hostname st
 // auditJobRun performs a targeted audit of a specific job within a workflow run
 // If stepNumber > 0, focuses on extracting output for that specific step
 func auditJobRun(runID int64, jobID int64, stepNumber int, owner, repo, hostname string, outputDir string, verbose bool, jsonOutput bool) error {
-	auditLog.Printf("Starting job-specific audit: runID=%d, jobID=%d, stepNumber=%d", runID, jobID, stepNumber)
+	// Auto-detect GHES host from git remote if hostname is not provided
+	if hostname == "" {
+		hostname = getHostFromOriginRemote()
+		if hostname != "github.com" {
+			auditLog.Printf("Auto-detected GHES host from git remote: %s", hostname)
+		}
+	}
+
+	auditLog.Printf("Starting job-specific audit: runID=%d, jobID=%d, stepNumber=%d, hostname=%s", runID, jobID, stepNumber, hostname)
 
 	// Create output directory for job-specific artifacts
 	if err := os.MkdirAll(outputDir, 0750); err != nil {
