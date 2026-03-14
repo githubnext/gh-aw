@@ -108,7 +108,11 @@ When reviewing documentation for the specified topic in the **docs/** folder:
 
 1. **Analyze the topic** provided in the workflow input: "${{ github.event.inputs.topic }}"
 
-2. **Review relevant documentation files** in the docs/ folder related to the topic
+2. **Find relevant documentation files** using `qmd-query` before browsing files manually:
+   - Query with the topic: e.g., `qmd-query("${{ github.event.inputs.topic }}")`
+   - Run additional targeted queries if needed (e.g., `qmd-query("${{ github.event.inputs.topic }} examples")`)
+   - Read each returned file path to get the full content
+   - Then review those files in the docs/ folder
 
 3. **Make improvements** to the documentation as needed:
    - Fix clarity and conciseness issues

@@ -49,4 +49,16 @@ mcp-scripts:
 
 <qmd>
 Use `qmd-query` to find relevant documentation files with a natural language request — it queries a local vector database of project docs, agents, and workflow files. Read the returned file paths to get full content.
+
+**Always use `qmd-query` first** when you need to find, verify, or search documentation:
+- **Before using `find` or `bash` to list files** — use `qmd-query` to discover the most relevant docs for a topic
+- **Before writing new content** — search first to check whether documentation already exists
+- **When identifying relevant files** — use it to narrow down which documentation pages cover a feature or concept
+- **When understanding a term or concept** — query to find authoritative documentation describing it
+
+**Usage tips:**
+- Use descriptive, natural language queries: e.g., `"how to configure MCP servers"` or `"safe-outputs create-pull-request options"` or `"permissions frontmatter field"`
+- Lower `min_score` (e.g., `0.3`) to get broader results; raise it (e.g., `0.6`) to get only the most closely matching files
+- Always read the returned file paths to get the full content — `qmd-query` returns paths only, not content
+- Combine multiple targeted queries rather than one broad query for better coverage
 </qmd>

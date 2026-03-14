@@ -125,12 +125,17 @@ Pay special attention to:
 
 Review the documentation in the `docs/src/content/docs/` directory:
 
+**First, use `qmd-query` to search for existing documentation** related to each identified change — this is faster and more accurate than browsing files manually:
+- For each new feature or change, run a targeted query: e.g., `qmd-query("engine configuration options")` or `qmd-query("permissions frontmatter field")`
+- Read the returned file paths to check if documentation already exists
+- Only resort to `find` for exhaustive listing when you need a complete inventory
+
 - Check if new features are already documented
 - Identify which documentation files need updates
 - Determine the appropriate documentation type (tutorial, how-to, reference, explanation)
 - Find the best location for new content
 
-Use bash commands to explore documentation structure:
+Use bash commands to explore documentation structure when needed:
 
 ```bash
 find docs/src/content/docs -name '*.md' -o -name '*.mdx'

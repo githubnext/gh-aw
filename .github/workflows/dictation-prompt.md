@@ -56,9 +56,16 @@ Create a concise dictation instruction file at `skills/dictation/SKILL.md` that:
 
 ### 1. Scan Documentation for Project-Specific Glossary
 
-Scan documentation files in `docs/src/content/docs/` to extract approximately 1000 project-specific technical terms (950-1050 acceptable).
+Use `qmd-query` to efficiently discover documentation covering different areas of the project, then read the returned files to extract vocabulary. This is more targeted than scanning all files with `find`:
 
-**Focus areas:**
+- `qmd-query("workflow configuration frontmatter engine permissions")` — core workflow concepts
+- `qmd-query("safe-outputs create-pull-request tools MCP server")` — tools and integrations
+- `qmd-query("compilation CLI commands audit logs")` — CLI and developer tools
+- `qmd-query("network sandbox runtime activation triggers")` — advanced features
+
+Read each returned file path for its content, then also scan any remaining documentation files in `docs/src/content/docs/` to ensure broad coverage.
+
+**Focus areas for extraction:**
 - Configuration: safe-outputs, permissions, tools, cache-memory, toolset, frontmatter
 - Engines: copilot, claude, codex, custom
 - Bot mentions: @copilot (for GitHub issue assignment)
