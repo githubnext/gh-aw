@@ -17,7 +17,7 @@ engine:
 strict: true
 timeout-minutes: 15
 features:
-  action-tag: "a70c5eada06553e3510ac27f2c3bda9d3705bccb"
+  action-tag: "v0"
 
 network:
   allowed:
