@@ -714,6 +714,8 @@ func TestGenerateFetchStep(t *testing.T) {
 		assert.Contains(t, got, "http.extraheader=Authorization:", "should configure credentials via http.extraheader")
 		// When no custom token set, falls back to the effective GitHub token chain
 		assert.Contains(t, got, "GH_AW_GITHUB_TOKEN", "should fall back to GH_AW token chain when no checkout token set")
+		// base64 must use -w 0 to prevent line wrapping with long tokens (e.g. fine-grained PATs)
+		assert.Contains(t, got, "base64 -w 0", "should use base64 -w 0 to disable line wrapping")
 	})
 
 	t.Run("fetch refs/pulls/open/* uses PR refspec", func(t *testing.T) {

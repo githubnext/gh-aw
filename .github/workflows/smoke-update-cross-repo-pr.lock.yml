@@ -338,7 +338,7 @@ jobs:
         env:
           GH_AW_FETCH_TOKEN: ${{ secrets.GH_AW_SIDE_REPO_PAT }}
         run: |
-          header=$(printf "x-access-token:%s" "${GH_AW_FETCH_TOKEN}" | base64)
+          header=$(printf "x-access-token:%s" "${GH_AW_FETCH_TOKEN}" | base64 -w 0)
           git -c "http.extraheader=Authorization: Basic ${header}" fetch origin '+refs/heads/main:refs/remotes/origin/main' '+refs/pull/*/head:refs/remotes/origin/pull/*/head'
       - name: Create gh-aw temp directory
         run: bash /opt/gh-aw/actions/create_gh_aw_tmp_dir.sh
