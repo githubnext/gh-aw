@@ -25,6 +25,12 @@ safe-outputs:
     max: 10
     project: "https://github.com/orgs/githubnext/projects/122"
 runs-on: ubuntu-latest
+permissions:
+  actions: read
+  contents: read
+  issues: read
+  pull-requests: read
+  security-events: read
 tools:
   bash:
   - "*"

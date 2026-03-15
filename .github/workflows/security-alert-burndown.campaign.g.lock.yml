@@ -23,7 +23,7 @@
 #
 # Orchestrator workflow for campaign 'security-alert-burndown'
 #
-# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"4cabee9e7e0a3b1a2f3c07dce2b2a763a9e8aeadbb3e8228389b45f8255ac805","strict":true}
+# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"95c604b0da56636c5697a678a5a3be8ec94c72422e416485321e10fa43001f3e","strict":true}
 
 name: "Security Alert Burndown"
 "on":
@@ -244,7 +244,11 @@ jobs:
     needs: activation
     runs-on: ubuntu-latest
     permissions:
+      actions: read
       contents: read
+      issues: read
+      pull-requests: read
+      security-events: read
     concurrency:
       group: "gh-aw-claude-${{ github.workflow }}"
     env:
