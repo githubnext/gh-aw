@@ -16,6 +16,7 @@ tools:
     branch-name: memory/meta-orchestrators
     file-glob: "**"
     max-file-size: 102400  # 100KB
+    max-patch-size: 51200  # 5x the default limit (default: 10240)
 safe-outputs:
   create-issue:
     max: 10

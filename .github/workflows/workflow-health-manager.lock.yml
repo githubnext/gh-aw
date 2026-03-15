@@ -27,7 +27,7 @@
 #   Imports:
 #     - shared/reporting.md
 #
-# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"089ab4490bcf03158fd24f624870b99b5649c592d2cbdace93adc44c729d3853","strict":true}
+# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"4227776f06975052b956f8bbf91a7aba77854cf8557dccef3f6b99b4125d7c69","strict":true}
 
 name: "Workflow Health Manager - Meta-Orchestrator"
 "on":
@@ -204,7 +204,7 @@ jobs:
           GH_AW_GITHUB_RUN_ID: ${{ github.run_id }}
           GH_AW_GITHUB_WORKSPACE: ${{ github.workspace }}
           GH_AW_MEMORY_BRANCH_NAME: 'memory/meta-orchestrators'
-          GH_AW_MEMORY_CONSTRAINTS: "\n\n**Constraints:**\n- **Allowed Files**: Only files matching patterns: **\n- **Max File Size**: 102400 bytes (0.10 MB) per file\n- **Max File Count**: 100 files per commit\n- **Max Patch Size**: 10240 bytes (10 KB) total per push (max: 100 KB)\n"
+          GH_AW_MEMORY_CONSTRAINTS: "\n\n**Constraints:**\n- **Allowed Files**: Only files matching patterns: **\n- **Max File Size**: 102400 bytes (0.10 MB) per file\n- **Max File Count**: 100 files per commit\n- **Max Patch Size**: 51200 bytes (50 KB) total per push (max: 100 KB)\n"
           GH_AW_MEMORY_DESCRIPTION: ''
           GH_AW_MEMORY_DIR: '/tmp/gh-aw/repo-memory/default/'
           GH_AW_MEMORY_TARGET_REPO: ' of the current repository'
@@ -363,7 +363,7 @@ jobs:
           mkdir -p /tmp/gh-aw/safeoutputs
           mkdir -p /tmp/gh-aw/mcp-logs/safeoutputs
           cat > /opt/gh-aw/safeoutputs/config.json << 'GH_AW_SAFE_OUTPUTS_CONFIG_EOF'
-          {"add_comment":{"max":15},"create_issue":{"expires":24,"group":true,"max":10},"missing_data":{},"missing_tool":{},"noop":{"max":1},"push_repo_memory":{"memories":[{"dir":"/tmp/gh-aw/repo-memory/default","id":"default","max_file_count":100,"max_file_size":102400,"max_patch_size":10240}]},"update_issue":{"max":5}}
+          {"add_comment":{"max":15},"create_issue":{"expires":24,"group":true,"max":10},"missing_data":{},"missing_tool":{},"noop":{"max":1},"push_repo_memory":{"memories":[{"dir":"/tmp/gh-aw/repo-memory/default","id":"default","max_file_count":100,"max_file_size":102400,"max_patch_size":51200}]},"update_issue":{"max":5}}
           GH_AW_SAFE_OUTPUTS_CONFIG_EOF
       - name: Write Safe Outputs Tools
         run: |
@@ -1414,7 +1414,7 @@ jobs:
           BRANCH_NAME: memory/meta-orchestrators
           MAX_FILE_SIZE: 102400
           MAX_FILE_COUNT: 100
-          MAX_PATCH_SIZE: 10240
+          MAX_PATCH_SIZE: 51200
           ALLOWED_EXTENSIONS: '[]'
           FILE_GLOB_FILTER: "**"
         with:
