@@ -35,7 +35,7 @@
 #
 # inlined-imports: true
 #
-# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"cf65ca18529a16d3f7278e9f39c60eee12cb0abe10843fcb1411350b7bba20b5","strict":true}
+# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"a04d580158ec6df72087c960a6ecf438ac705cc98929fa160c8513ad5a685318","strict":true}
 
 name: "Smoke Claude"
 "on":
@@ -101,7 +101,7 @@ jobs:
           GH_AW_INFO_EXPERIMENTAL: "false"
           GH_AW_INFO_SUPPORTS_TOOLS_ALLOWLIST: "true"
           GH_AW_INFO_STAGED: "false"
-          GH_AW_INFO_ALLOWED_DOMAINS: '["defaults","github","playwright"]'
+          GH_AW_INFO_ALLOWED_DOMAINS: '["defaults","github","go","playwright"]'
           GH_AW_INFO_FIREWALL_ENABLED: "true"
           GH_AW_INFO_AWF_VERSION: "v0.24.1"
           GH_AW_INFO_AWMG_VERSION: ""
