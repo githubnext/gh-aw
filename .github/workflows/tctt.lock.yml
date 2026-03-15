@@ -23,7 +23,7 @@
 #
 # Blocks the author of the triggering issue/comment/discussion/PR by adding them to the silent list and creating a PR to update .github/workflows/silent.md
 #
-# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"6f864020374b22d4cee060ad840f6d10f00243cb222272c0afc4b1ae142fff3d","strict":true}
+# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"efdb094eaaeabd9d0eb65305c519488a75755cd90fc52177bbdfd7044e6d22d9","strict":true}
 
 name: "TCTT"
 "on":
@@ -38,7 +38,6 @@ name: "TCTT"
   # roles: # Roles processed as role check in pre-activation job
   # - admin # Roles processed as role check in pre-activation job
   # - maintainer # Roles processed as role check in pre-activation job
-  # - write # Roles processed as role check in pre-activation job
 
 permissions: {}
 
@@ -1243,7 +1242,7 @@ jobs:
         id: check_membership
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
-          GH_AW_REQUIRED_ROLES: admin,maintainer,write
+          GH_AW_REQUIRED_ROLES: admin,maintainer
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |

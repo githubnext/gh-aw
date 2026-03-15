@@ -2,7 +2,7 @@
 name: TCTT
 description: Blocks the author of the triggering issue/comment/discussion/PR by adding them to the silent list and creating a PR to update .github/workflows/silent.md
 on:
-  roles: [admin, maintainer, write]
+  roles: [admin, maintainer]
   slash_command:
     name: tctt
     events: [issue_comment, discussion_comment]
