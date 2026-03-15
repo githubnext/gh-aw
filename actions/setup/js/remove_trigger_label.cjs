@@ -123,8 +123,14 @@ async function main() {
     }
   } catch (error) {
     // Non-fatal: log a warning but do not fail the step.
-    // The label may have already been removed or may not be present.
-    core.warning(`${ERR_API}: Failed to remove label '${triggerLabel}': ${getErrorMessage(error)}`);
+    // A 404 status means the label is no longer present on the item (e.g., another concurrent
+    // workflow run already removed it), which is an expected outcome in multi-workflow setups.
+    const status = /** @type {any} */ error?.status;
+    if (status === 404) {
+      core.info(`Label '${triggerLabel}' is no longer present on the item – already removed by another run.`);
+    } else {
+      core.warning(`${ERR_API}: Failed to remove label '${triggerLabel}': ${getErrorMessage(error)}`);
+    }
   }
 
   core.setOutput("label_name", triggerLabel);
