@@ -153,6 +153,17 @@ func (c *Compiler) parseOnSection(frontmatter map[string]any, workflowData *Work
 					baseName := strings.TrimSuffix(filepath.Base(markdownPath), ".md")
 					workflowData.LabelCommand = []string{baseName}
 				}
+				// Validate: existing issues/pull_request/discussion triggers that have non-label types
+				// would be silently overridden by the label_command generation. Require label-only types
+				// (labeled/unlabeled) so the merge is deterministic and user config is not lost.
+				labelConflictingEvents := []string{"issues", "pull_request", "discussion"}
+				for _, eventName := range labelConflictingEvents {
+					if eventValue, hasConflict := onMap[eventName]; hasConflict {
+						if !parser.IsLabelOnlyEvent(eventValue) {
+							return fmt.Errorf("cannot use 'label_command' with '%s' trigger (non-label types); use only labeled/unlabeled types or remove this trigger", eventName)
+						}
+					}
+				}
 				// Clear the On field so applyDefaults will handle label-command trigger generation
 				workflowData.On = ""
 			}

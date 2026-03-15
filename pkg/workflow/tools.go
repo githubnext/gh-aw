@@ -180,31 +180,51 @@ func (c *Compiler) applyDefaults(data *WorkflowData, markdownPath string) error 
 					},
 				},
 			}
+			// Signal that this workflow has a dispatch item_number input so that
+			// applyWorkflowDispatchFallbacks and concurrency key building add the
+			// necessary inputs.item_number fallbacks for manual workflow_dispatch runs.
+			data.HasDispatchItemNumber = true
 
 			// Merge other events (if any) — this handles the no-clash requirement:
 			// if the user also has e.g. "issues: {types: [labeled], names: [bug]}" as a
-			// regular label trigger alongside label_command, merge them rather than
-			// generating a duplicate "issues:" block.
+			// regular label trigger alongside label_command, merge the "types" arrays
+			// rather than generating a duplicate "issues:" block or silently dropping config.
 			if len(data.LabelCommandOtherEvents) > 0 {
 				for eventKey, eventVal := range data.LabelCommandOtherEvents {
-					if _, exists := labelEventsMap[eventKey]; exists {
-						// Event already present from label_command generation — keep ours
-						// (the condition handles filtering by label name at job level)
-						continue
+					if existing, exists := labelEventsMap[eventKey]; exists {
+						// Merge types arrays from user config into the label_command-generated entry.
+						existingMap, _ := existing.(map[string]any)
+						userMap, _ := eventVal.(map[string]any)
+						if existingMap != nil && userMap != nil {
+							existingTypes, _ := existingMap["types"].([]any)
+							userTypes, _ := userMap["types"].([]any)
+							merged := make([]any, 0, len(existingTypes)+len(userTypes))
+							merged = append(merged, existingTypes...)
+							merged = append(merged, userTypes...)
+							existingMap["types"] = merged
+							// Other fields (names, branches, etc.) from the user config are preserved.
+							for k, v := range userMap {
+								if k != "types" {
+									existingMap[k] = v
+								}
+							}
+						}
+					} else {
+						labelEventsMap[eventKey] = eventVal
 					}
-					labelEventsMap[eventKey] = eventVal
 				}
 			}
 
 			// Convert merged events to YAML
 			mergedEventsYAML, err := yaml.Marshal(map[string]any{"on": labelEventsMap})
-			if err == nil {
-				yamlStr := strings.TrimSuffix(string(mergedEventsYAML), "\n")
-				yamlStr = parser.QuoteCronExpressions(yamlStr)
-				// Pass frontmatter so label names in "names:" fields get commented out
-				yamlStr = c.commentOutProcessedFieldsInOnSection(yamlStr, map[string]any{})
-				data.On = yamlStr
+			if err != nil {
+				return fmt.Errorf("failed to marshal label-command events: %w", err)
 			}
+			yamlStr := strings.TrimSuffix(string(mergedEventsYAML), "\n")
+			yamlStr = parser.QuoteCronExpressions(yamlStr)
+			// Pass frontmatter so label names in "names:" fields get commented out
+			yamlStr = c.commentOutProcessedFieldsInOnSection(yamlStr, map[string]any{})
+			data.On = yamlStr
 
 			// Build the label-command condition
 			hasOtherEvents := len(data.LabelCommandOtherEvents) > 0

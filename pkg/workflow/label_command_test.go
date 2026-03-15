@@ -368,21 +368,24 @@ Triggered by the deploy label on issues only.
 }
 
 // TestLabelCommandNoClashWithExistingLabelTrigger verifies that label_command can coexist
-// with a regular label trigger without creating a duplicate issues: YAML block.
+// with an existing label-only issues trigger without creating a duplicate issues: YAML block.
+// The existing issues block types are merged into the label_command-generated issues block.
 func TestLabelCommandNoClashWithExistingLabelTrigger(t *testing.T) {
 	tempDir := t.TempDir()
 
-	// Workflow that has both a regular label trigger (schedule via default) and label_command
+	// Workflow that has both an explicit "issues: types: [labeled]" block AND label_command.
+	// This is the exact key-clash scenario: without merging, two "issues:" keys would appear
+	// in the compiled YAML, which is invalid and silently broken.
 	workflowContent := `---
 name: No Clash Test
 on:
   label_command: deploy
-  schedule:
-    - cron: "0 * * * *"
+  issues:
+    types: [labeled]
 engine: copilot
 ---
 
-Both label-command and scheduled trigger.
+Both label-command and existing issues labeled trigger.
 `
 
 	workflowPath := filepath.Join(tempDir, "no-clash-test.md")
@@ -391,7 +394,7 @@ Both label-command and scheduled trigger.
 
 	compiler := NewCompiler()
 	err = compiler.CompileWorkflow(workflowPath)
-	require.NoError(t, err, "CompileWorkflow() should not error when mixing label_command and other triggers")
+	require.NoError(t, err, "CompileWorkflow() should not error when mixing label_command with existing label trigger")
 
 	lockFilePath := stringutil.MarkdownToLockFile(workflowPath)
 	lockContent, err := os.ReadFile(lockFilePath)
@@ -405,4 +408,32 @@ Both label-command and scheduled trigger.
 	assert.Equal(t, 1, issuesCount,
 		"there should be exactly one 'issues:' trigger block in the compiled YAML, got %d. Compiled:\n%s",
 		issuesCount, lockStr)
+}
+
+// TestLabelCommandConflictWithNonLabelTrigger verifies that using label_command alongside
+// an issues/pull_request trigger with non-label types returns a validation error.
+func TestLabelCommandConflictWithNonLabelTrigger(t *testing.T) {
+	tempDir := t.TempDir()
+
+	// Workflow with label_command and issues: types: [opened] — non-label type conflicts
+	workflowContent := `---
+name: Conflict Test
+on:
+  label_command: deploy
+  issues:
+    types: [opened]
+engine: copilot
+---
+
+This should fail validation.
+`
+
+	workflowPath := filepath.Join(tempDir, "conflict-test.md")
+	err := os.WriteFile(workflowPath, []byte(workflowContent), 0644)
+	require.NoError(t, err, "failed to write test workflow")
+
+	compiler := NewCompiler()
+	err = compiler.CompileWorkflow(workflowPath)
+	require.Error(t, err, "CompileWorkflow() should error when label_command is combined with non-label issues trigger")
+	assert.Contains(t, err.Error(), "label_command", "error should mention label_command")
 }

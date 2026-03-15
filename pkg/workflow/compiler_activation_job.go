@@ -300,7 +300,7 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 		if err != nil {
 			return nil, fmt.Errorf("failed to marshal label-command names: %w", err)
 		}
-		steps = append(steps, fmt.Sprintf("          GH_AW_LABEL_NAMES: %q\n", string(labelNamesJSON)))
+		steps = append(steps, fmt.Sprintf("          GH_AW_LABEL_NAMES: '%s'\n", string(labelNamesJSON)))
 		steps = append(steps, "        with:\n")
 		steps = append(steps, "          script: |\n")
 		steps = append(steps, generateGitHubScriptWithRequire("remove_trigger_label.cjs"))
@@ -449,6 +449,13 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 	// Add issues:write permission if lock-for-agent is enabled (even without reaction)
 	if data.LockForAgent {
 		permsMap[PermissionIssues] = PermissionWrite
+	}
+
+	// Add write permissions for label removal when label_command is configured.
+	// Labels on issues/PRs require issues:write; discussion labels require discussions:write.
+	if len(data.LabelCommand) > 0 {
+		permsMap[PermissionIssues] = PermissionWrite
+		permsMap[PermissionDiscussions] = PermissionWrite
 	}
 
 	perms := NewPermissionsFromMap(permsMap)
