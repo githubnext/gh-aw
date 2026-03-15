@@ -20,29 +20,16 @@ type wrappedCompilerError struct {
 func (e *wrappedCompilerError) Error() string { return e.formatted }
 func (e *wrappedCompilerError) Unwrap() error { return e.cause }
 
-// formatCompilerError creates a formatted compiler error message with optional error wrapping.
-// It always uses line:1, column:1 so IDE tooling can navigate to the file even when a
-// specific source position is unavailable.
+// formatCompilerError creates a formatted compiler error at line 1, column 1.
+// Use this when the exact source position is unknown; IDE tooling can still navigate to the file.
+// Use formatCompilerErrorWithPosition when a specific line/column is available.
 //
 // filePath: the file path to include in the error (typically markdownPath or lockFile)
 // errType: the error type ("error" or "warning")
 // message: the error message text
 // cause: optional underlying error to wrap (use nil for validation errors)
 func formatCompilerError(filePath string, errType string, message string, cause error) error {
-	compilerErrorLog.Printf("Formatting compiler error: file=%s, type=%s, message=%s", filePath, errType, message)
-	formattedErr := console.FormatError(console.CompilerError{
-		Position: console.ErrorPosition{
-			File:   filePath,
-			Line:   1,
-			Column: 1,
-		},
-		Type:    errType,
-		Message: message,
-	})
-
-	// Always return a *wrappedCompilerError so isFormattedCompilerError can detect it.
-	// cause may be nil for validation errors that have no underlying cause.
-	return &wrappedCompilerError{formatted: formattedErr, cause: cause}
+	return formatCompilerErrorWithPosition(filePath, 1, 1, errType, message, cause)
 }
 
 // isFormattedCompilerError reports whether err is already a console-formatted compiler error

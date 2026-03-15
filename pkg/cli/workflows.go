@@ -292,7 +292,6 @@ func getMarkdownWorkflowFiles(workflowDir string) ([]string, error) {
 func fastParseTitle(content string) (string, error) {
 	firstLine := true
 	inFrontmatter := false
-	pastFrontmatter := false
 	for line := range strings.SplitSeq(content, "\n") {
 		trimmed := strings.TrimSpace(line)
 		if firstLine {
@@ -301,21 +300,19 @@ func fastParseTitle(content string) (string, error) {
 				inFrontmatter = true
 				continue
 			}
-			// No frontmatter on first line; treat the entire file as markdown.
-			pastFrontmatter = true
-		} else if inFrontmatter && !pastFrontmatter {
+		} else if inFrontmatter {
 			if trimmed == "---" {
-				pastFrontmatter = true
+				inFrontmatter = false
 			}
 			continue
 		}
-		if pastFrontmatter && strings.HasPrefix(trimmed, "# ") {
+		if strings.HasPrefix(trimmed, "# ") {
 			return strings.TrimSpace(trimmed[2:]), nil
 		}
 	}
 
 	// Unclosed frontmatter is an error (consistent with ExtractFrontmatterFromContent).
-	if inFrontmatter && !pastFrontmatter {
+	if inFrontmatter {
 		return "", errors.New("frontmatter not properly closed")
 	}
 
