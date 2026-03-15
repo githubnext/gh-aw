@@ -151,14 +151,6 @@ func safeUintToInt(u uint) int {
 	return int(u)
 }
 
-// safeUint64ToInt safely converts uint64 to int, returning 0 if overflow would occur
-func safeUint64ToInt(u uint64) int {
-	if u > math.MaxInt {
-		return 0 // Return 0 (engine default) if value would overflow
-	}
-	return int(u)
-}
-
 // extractToolsTimeout extracts the timeout setting from tools
 // Returns 0 if not set (engines will use their own defaults)
 // Returns error if timeout is explicitly set but invalid (< 1)

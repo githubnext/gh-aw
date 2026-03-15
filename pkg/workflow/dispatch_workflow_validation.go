@@ -355,18 +355,5 @@ func extractMDWorkflowDispatchInputs(mdPath string) (map[string]any, error) {
 //   - []any:      "on: [push, workflow_dispatch]"
 //   - map[string]any: "on:\n  workflow_dispatch: ..."
 func containsWorkflowDispatch(onSection any) bool {
-	switch on := onSection.(type) {
-	case string:
-		return on == "workflow_dispatch"
-	case []any:
-		for _, trigger := range on {
-			if triggerStr, ok := trigger.(string); ok && triggerStr == "workflow_dispatch" {
-				return true
-			}
-		}
-	case map[string]any:
-		_, ok := on["workflow_dispatch"]
-		return ok
-	}
-	return false
+	return containsTrigger(onSection, "workflow_dispatch")
 }
