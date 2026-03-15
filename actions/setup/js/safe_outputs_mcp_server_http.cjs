@@ -115,6 +115,11 @@ function createMCPServer(options = {}) {
     // The _workflow_name should be a non-empty string
     const isDispatchWorkflowTool = tool._workflow_name && typeof tool._workflow_name === "string" && tool._workflow_name.length > 0;
 
+    // Check if this is a call_workflow tool (has _call_workflow_name metadata)
+    // These tools are dynamically generated with workflow-specific names
+    // The _call_workflow_name should be a non-empty string
+    const isCallWorkflowTool = tool._call_workflow_name && typeof tool._call_workflow_name === "string" && tool._call_workflow_name.length > 0;
+
     if (isDispatchWorkflowTool) {
       logger.debug(`Found dispatch_workflow tool: ${tool.name} (_workflow_name: ${tool._workflow_name})`);
       if (!safeOutputsConfig.dispatch_workflow) {
@@ -124,11 +129,20 @@ function createMCPServer(options = {}) {
         continue;
       }
       logger.debug(`  dispatch_workflow config exists, registering tool`);
+    } else if (isCallWorkflowTool) {
+      logger.debug(`Found call_workflow tool: ${tool.name} (_call_workflow_name: ${tool._call_workflow_name})`);
+      if (!safeOutputsConfig.call_workflow) {
+        logger.debug(`  WARNING: call_workflow config is missing or falsy - tool will NOT be registered`);
+        logger.debug(`  Config keys: ${Object.keys(safeOutputsConfig).join(", ")}`);
+        logger.debug(`  config.call_workflow value: ${JSON.stringify(safeOutputsConfig.call_workflow)}`);
+        continue;
+      }
+      logger.debug(`  call_workflow config exists, registering tool`);
     } else {
       // Check if regular tool is enabled in configuration
       if (!enabledTools.has(tool.name)) {
         // Log tool metadata to help diagnose registration issues
-        const toolMeta = tool._workflow_name !== undefined ? ` (_workflow_name: ${JSON.stringify(tool._workflow_name)})` : "";
+        const toolMeta = tool._workflow_name !== undefined ? ` (_workflow_name: ${JSON.stringify(tool._workflow_name)})` : tool._call_workflow_name !== undefined ? ` (_call_workflow_name: ${JSON.stringify(tool._call_workflow_name)})` : "";
         logger.debug(`Skipping tool ${tool.name}${toolMeta} - not enabled in config (tool has ${Object.keys(tool).length} properties: ${Object.keys(tool).join(", ")})`);
         continue;
       }
