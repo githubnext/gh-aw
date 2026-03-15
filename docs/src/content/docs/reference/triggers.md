@@ -282,9 +282,32 @@ See the [Security Architecture](/gh-aw/introduction/architecture/) for details.
 
 The `slash_command:` trigger creates workflows that respond to `/command-name` mentions in issues, pull requests, and comments. See [Command Triggers](/gh-aw/reference/command-triggers/) for complete documentation including event filtering, context text, reactions, and examples.
 
+### Label Command Trigger (`label_command:`)
+
+The `label_command:` trigger activates a workflow when a specific label is applied to an issue, pull request, or discussion, and **automatically removes that label** so it can be re-applied to re-trigger. This treats a label as a one-shot command rather than a persistent state marker.
+
+```yaml wrap
+# Fires on issues, pull_request, and discussion by default
+on:
+  label_command: deploy
+
+# Restrict to specific event types
+on:
+  label_command:
+    name: deploy
+    events: [pull_request]
+
+# Shorthand string form
+on: "label-command deploy"
+```
+
+The compiler generates `issues`, `pull_request`, and/or `discussion` events with `types: [labeled]`, adds a `workflow_dispatch` trigger with `item_number` for manual testing, and injects a label removal step in the activation job. The matched label name is exposed as `needs.activation.outputs.label_command`.
+
+`label_command` can be combined with `slash_command:` — the workflow activates when either condition is met. See [LabelOps](/gh-aw/patterns/label-ops/) for patterns and examples.
+
 ### Label Filtering (`names:`)
 
-Filter issue and pull request triggers by label names using the `names:` field:
+Filter issue and pull request triggers by label names using the `names:` field. Unlike `label_command`, the label stays on the item after the workflow runs.
 
 ```yaml wrap
 on:
@@ -477,7 +500,7 @@ on:
 
 Instead of writing full YAML trigger configurations, you can use natural-language shorthand strings with `on:`. The compiler expands these into standard GitHub Actions trigger syntax and automatically includes `workflow_dispatch` so the workflow can also be run manually.
 
-For label-based shorthands (`on: issue labeled bug`, `on: pull_request labeled needs-review`), see [Label Filtering](#label-filtering-names) above.
+For label-based shorthands (`on: issue labeled bug`, `on: pull_request labeled needs-review`), see [Label Filtering](#label-filtering-names) above. For the label-command pattern, see [Label Command Trigger](#label-command-trigger-label_command) above.
 
 ### Push and Pull Request
 
