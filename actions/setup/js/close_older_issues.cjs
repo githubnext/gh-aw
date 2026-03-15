@@ -1,7 +1,7 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
 
-const { getWorkflowIdMarkerContent, generateWorkflowIdMarker, generateWorkflowCallIdMarker } = require("./generate_footer.cjs");
+const { getWorkflowIdMarkerContent, generateWorkflowIdMarker, generateWorkflowCallIdMarker, generateCloseKeyMarker, getCloseKeyMarkerContent } = require("./generate_footer.cjs");
 const { sanitizeContent } = require("./sanitize_content.cjs");
 const { closeOlderEntities, MAX_CLOSE_COUNT: SHARED_MAX_CLOSE_COUNT } = require("./close_older_entities.cjs");
 
@@ -26,26 +26,41 @@ const API_DELAY_MS = 500;
  *   When set, filters by the `gh-aw-workflow-call-id` marker so callers sharing the same
  *   reusable workflow do not close each other's issues. Falls back to `gh-aw-workflow-id`
  *   when not provided (backward compat for issues created before this fix).
+ * @param {string} [closeOlderKey] - Optional explicit deduplication key. When set, the
+ *   `gh-aw-close-key` marker is used as the primary search term and exact filter instead
+ *   of the workflow-id / workflow-call-id markers.
  * @returns {Promise<Array<{number: number, title: string, html_url: string, labels: Array<{name: string}>}>>} Matching issues
  */
-async function searchOlderIssues(github, owner, repo, workflowId, excludeNumber, callerWorkflowId) {
+async function searchOlderIssues(github, owner, repo, workflowId, excludeNumber, callerWorkflowId, closeOlderKey) {
   core.info(`Starting search for older issues in ${owner}/${repo}`);
   core.info(`  Workflow ID: ${workflowId || "(none)"}`);
   core.info(`  Exclude issue number: ${excludeNumber}`);
 
-  if (!workflowId) {
-    core.info("No workflow ID provided - cannot search for older issues");
+  if (!workflowId && !closeOlderKey) {
+    core.info("No workflow ID or close-older-key provided - cannot search for older issues");
     return [];
   }
 
-  // Build REST API search query
-  // Search for open issues with the workflow-id marker in the body
-  const workflowIdMarker = getWorkflowIdMarkerContent(workflowId);
-  // Escape quotes in workflow ID to prevent query injection
-  const escapedMarker = workflowIdMarker.replace(/"/g, '\\"');
-  const searchQuery = `repo:${owner}/${repo} is:issue is:open "${escapedMarker}" in:body`;
-
-  core.info(`  Added workflow-id marker filter to query: "${escapedMarker}" in:body`);
+  // Build REST API search query.
+  // When a close-older-key is provided it becomes the primary search term; otherwise
+  // fall back to the workflow-id marker.
+  let searchQuery;
+  let exactMarker;
+  if (closeOlderKey) {
+    const closeKeyMarkerContent = getCloseKeyMarkerContent(closeOlderKey);
+    const escapedMarker = closeKeyMarkerContent.replace(/"/g, '\\"');
+    searchQuery = `repo:${owner}/${repo} is:issue is:open "${escapedMarker}" in:body`;
+    exactMarker = generateCloseKeyMarker(closeOlderKey);
+    core.info(`  Using close-older-key for search: "${escapedMarker}" in:body`);
+  } else {
+    // Search for open issues with the workflow-id marker in the body
+    const workflowIdMarker = getWorkflowIdMarkerContent(workflowId);
+    // Escape quotes in workflow ID to prevent query injection
+    const escapedMarker = workflowIdMarker.replace(/"/g, '\\"');
+    searchQuery = `repo:${owner}/${repo} is:issue is:open "${escapedMarker}" in:body`;
+    exactMarker = callerWorkflowId ? generateWorkflowCallIdMarker(callerWorkflowId) : generateWorkflowIdMarker(workflowId);
+    core.info(`  Added workflow-id marker filter to query: "${escapedMarker}" in:body`);
+  }
   core.info(`Executing GitHub search with query: ${searchQuery}`);
 
   const result = await github.rest.search.issuesAndPullRequests({
@@ -63,17 +78,15 @@ async function searchOlderIssues(github, owner, repo, workflowId, excludeNumber,
   // Filter results:
   // 1. Must not be the excluded issue (newly created one)
   // 2. Must not be a pull request
-  // 3. Body must contain the exact marker for this workflow.
-  //    When callerWorkflowId is set, match `gh-aw-workflow-call-id` so that callers
-  //    sharing the same reusable workflow do not close each other's issues.
+  // 3. Body must contain the exact marker. When closeOlderKey is set the close-key marker
+  //    is used. Otherwise, when callerWorkflowId is set, match `gh-aw-workflow-call-id` so
+  //    that callers sharing the same reusable workflow do not close each other's issues.
   //    Fall back to `gh-aw-workflow-id` for backward compat with older issues.
   core.info("Filtering search results...");
   let filteredCount = 0;
   let pullRequestCount = 0;
   let excludedCount = 0;
   let markerMismatchCount = 0;
-
-  const exactMarker = callerWorkflowId ? generateWorkflowCallIdMarker(callerWorkflowId) : generateWorkflowIdMarker(workflowId);
 
   const filtered = result.data.items
     .filter(item => {
@@ -205,15 +218,17 @@ function getCloseOlderIssueMessage({ newIssueUrl, newIssueNumber, workflowName, 
  * @param {string} workflowName - Name of the workflow
  * @param {string} runUrl - URL of the workflow run
  * @param {string} [callerWorkflowId] - Optional calling workflow identity for precise filtering
+ * @param {string} [closeOlderKey] - Optional explicit deduplication key for close-older matching
  * @returns {Promise<Array<{number: number, html_url: string}>>} List of closed issues
  */
-async function closeOlderIssues(github, owner, repo, workflowId, newIssue, workflowName, runUrl, callerWorkflowId) {
+async function closeOlderIssues(github, owner, repo, workflowId, newIssue, workflowName, runUrl, callerWorkflowId, closeOlderKey) {
   const result = await closeOlderEntities(github, owner, repo, workflowId, newIssue, workflowName, runUrl, {
     entityType: "issue",
     entityTypePlural: "issues",
-    // Use a closure so callerWorkflowId is forwarded to searchOlderIssues without going
-    // through the closeOlderEntities extraArgs mechanism (which appends excludeNumber last)
-    searchOlderEntities: (gh, o, r, wid, excludeNumber) => searchOlderIssues(gh, o, r, wid, excludeNumber, callerWorkflowId),
+    // Use a closure so callerWorkflowId and closeOlderKey are forwarded to searchOlderIssues
+    // without going through the closeOlderEntities extraArgs mechanism (which appends
+    // excludeNumber last)
+    searchOlderEntities: (gh, o, r, wid, excludeNumber) => searchOlderIssues(gh, o, r, wid, excludeNumber, callerWorkflowId, closeOlderKey),
     getCloseMessage: params =>
       getCloseOlderIssueMessage({
         newIssueUrl: params.newEntityUrl,

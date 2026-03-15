@@ -320,6 +320,87 @@ describe("close_older_discussions.cjs", () => {
       expect(result).toHaveLength(1);
       expect(result[0].number).toBe(5);
     });
+
+    it("should use close-key marker as primary search term when closeOlderKey is provided", async () => {
+      const { searchOlderDiscussions } = await import("./close_older_discussions.cjs");
+
+      mockGithub.graphql.mockResolvedValueOnce({
+        search: {
+          nodes: [
+            {
+              id: "D_with_key",
+              number: 5,
+              title: "Has close-key marker - should be included",
+              url: "https://github.com/testowner/testrepo/discussions/5",
+              body: "<!-- gh-aw-workflow-id: some-workflow -->\n<!-- gh-aw-close-key: my-stable-key -->",
+              category: { id: "DIC_test123" },
+              closed: false,
+            },
+            {
+              id: "D_no_key",
+              number: 6,
+              title: "Missing close-key marker - should be excluded",
+              url: "https://github.com/testowner/testrepo/discussions/6",
+              body: "<!-- gh-aw-workflow-id: some-workflow -->",
+              category: { id: "DIC_test123" },
+              closed: false,
+            },
+          ],
+        },
+      });
+
+      const result = await searchOlderDiscussions(mockGithub, "testowner", "testrepo", "some-workflow", "DIC_test123", 99, undefined, "my-stable-key");
+
+      expect(result).toHaveLength(1);
+      expect(result[0].number).toBe(5);
+      // Should search by the close-key marker, not the workflow-id marker
+      expect(mockGithub.graphql).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({
+          searchTerms: expect.stringContaining("gh-aw-close-key: my-stable-key"),
+        })
+      );
+    });
+
+    it("should work with close-key when workflowId is empty", async () => {
+      const { searchOlderDiscussions } = await import("./close_older_discussions.cjs");
+
+      mockGithub.graphql.mockResolvedValueOnce({
+        search: {
+          nodes: [
+            {
+              id: "D_with_key",
+              number: 5,
+              title: "Has close-key marker",
+              url: "https://github.com/testowner/testrepo/discussions/5",
+              body: "<!-- gh-aw-close-key: team-report -->",
+              category: { id: "DIC_test123" },
+              closed: false,
+            },
+          ],
+        },
+      });
+
+      const result = await searchOlderDiscussions(mockGithub, "testowner", "testrepo", "", "DIC_test123", 99, undefined, "team-report");
+
+      expect(result).toHaveLength(1);
+      expect(result[0].number).toBe(5);
+      expect(mockGithub.graphql).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({
+          searchTerms: expect.stringContaining("gh-aw-close-key: team-report"),
+        })
+      );
+    });
+
+    it("should return empty array when neither workflowId nor closeOlderKey is provided", async () => {
+      const { searchOlderDiscussions } = await import("./close_older_discussions.cjs");
+
+      const result = await searchOlderDiscussions(mockGithub, "testowner", "testrepo", "", "DIC_test123", 99, undefined, undefined);
+
+      expect(result).toHaveLength(0);
+      expect(mockGithub.graphql).not.toHaveBeenCalled();
+    });
   });
 
   describe("closeOlderDiscussions", () => {

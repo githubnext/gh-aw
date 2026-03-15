@@ -4245,6 +4245,11 @@
                   "description": "When true, automatically close older issues with the same workflow-id marker as 'not planned' with a comment linking to the new issue. Searches for issues containing the workflow-id marker in their body. Maximum 10 issues will be closed. Only runs if issue creation succeeds.",
                   "default": false
                 },
+                "close-older-key": {
+                  "type": "string",
+                  "description": "Optional explicit deduplication key for close-older matching. When set, a `<!-- gh-aw-close-key: <value> -->` marker is embedded in the issue body and used as the primary key for searching and filtering older issues instead of the workflow-id markers. This gives deterministic isolation across caller workflows and is stable across workflow renames.",
+                  "minLength": 1
+                },
                 "footer": {
                   "type": "boolean",
                   "description": "Controls whether AI-generated footer is added to the issue. When false, the visible footer content is omitted but XML markers (workflow-id, tracker-id, metadata) are still included for searchability. Defaults to true.",
@@ -4723,6 +4728,11 @@
                   "type": "boolean",
                   "description": "When true, automatically close older discussions matching the same title prefix or labels as 'outdated' with a comment linking to the new discussion. Requires title-prefix or labels to be set. Maximum 10 discussions will be closed. Only runs if discussion creation succeeds. When fallback-to-issue is enabled and discussion creation fails, older issues will be closed instead.",
                   "default": false
+                },
+                "close-older-key": {
+                  "type": "string",
+                  "description": "Optional explicit deduplication key for close-older matching. When set, a `<!-- gh-aw-close-key: <value> -->` marker is embedded in the discussion body and used as the primary key for searching and filtering older discussions instead of the workflow-id markers. This gives deterministic isolation across caller workflows and is stable across workflow renames.",
+                  "minLength": 1
                 },
                 "fallback-to-issue": {
                   "type": "boolean",

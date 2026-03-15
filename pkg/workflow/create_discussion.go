@@ -20,6 +20,7 @@ type CreateDiscussionsConfig struct {
 	TargetRepoSlug        string   `yaml:"target-repo,omitempty"`             // Target repository in format "owner/repo" for cross-repository discussions
 	AllowedRepos          []string `yaml:"allowed-repos,omitempty"`           // List of additional repositories that discussions can be created in
 	CloseOlderDiscussions *string  `yaml:"close-older-discussions,omitempty"` // When true, close older discussions with same title prefix or labels as outdated
+	CloseOlderKey         string   `yaml:"close-older-key,omitempty"`         // Optional explicit deduplication key for close-older matching. When set, uses gh-aw-close-key marker instead of workflow-id markers.
 	RequiredCategory      string   `yaml:"required-category,omitempty"`       // Required category for matching when close-older-discussions is enabled
 	Expires               int      `yaml:"expires,omitempty"`                 // Hours until the discussion expires and should be automatically closed
 	FallbackToIssue       *bool    `yaml:"fallback-to-issue,omitempty"`       // When true (default), fallback to create-issue if discussion creation fails due to permissions.
