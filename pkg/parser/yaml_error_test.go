@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/goccy/go-yaml"
+	"github.com/stretchr/testify/assert"
 )
 
 // TestFormatYAMLError tests the new FormatYAMLError function that uses yaml.FormatError()
@@ -155,4 +156,87 @@ func TestFormatYAMLErrorAdjustment(t *testing.T) {
 			t.Logf("Formatted error (offset %d):\n%s", tt.offset, formatted)
 		})
 	}
+}
+
+// TestTranslateYAMLMessage tests that YAML parser jargon is replaced with plain English.
+func TestTranslateYAMLMessage(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		contains string // substring that must appear in output
+		absent   string // substring that must NOT appear in output (jargon)
+	}{
+		{
+			name:     "mapping values jargon",
+			input:    "[3:5] mapping values are not allowed in this context\n>  3 | bad:\n         ^",
+			contains: "unexpected ':'",
+			absent:   "mapping values are not allowed",
+		},
+		{
+			name:     "missing key jargon",
+			input:    "[2:1] could not find expected ':'\n>  2 | bad\n    ^",
+			contains: "missing ':' after key name",
+			absent:   "could not find expected ':'",
+		},
+		{
+			name:     "block sequence jargon",
+			input:    "[4:3] block sequence entries are not allowed in this context\n>  4 |   - item\n       ^",
+			contains: "unexpected '-' list item",
+			absent:   "block sequence entries are not allowed",
+		},
+		{
+			name:     "duplicate key jargon",
+			input:    "[3:1] found duplicate key \"name\" already defined at [1:1]\n>  3 | name: b\n    ^",
+			contains: "duplicate key",
+			absent:   "found duplicate key",
+		},
+		{
+			name:     "unknown jargon passes through",
+			input:    "[1:1] some unknown error message\n>  1 | bad\n    ^",
+			contains: "some unknown error message",
+			absent:   "",
+		},
+		{
+			name:     "multiline — only first line translated",
+			input:    "[3:5] mapping values are not allowed in this context\n   2 | key: val\n>  3 | bad: :\n         ^",
+			contains: "unexpected ':'",
+			// source context lines must be untouched
+		},
+		{
+			name:     "empty input returns empty",
+			input:    "",
+			contains: "",
+			absent:   "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := translateYAMLMessage(tt.input)
+			if tt.contains != "" {
+				assert.Contains(t, result, tt.contains, "output should contain plain-English replacement")
+			}
+			if tt.absent != "" {
+				assert.NotContains(t, result, tt.absent, "output should not contain raw parser jargon")
+			}
+			t.Logf("result: %s", result)
+		})
+	}
+}
+
+// TestFormatYAMLErrorTranslatesJargon ensures FormatYAMLError produces translated messages.
+func TestFormatYAMLErrorTranslatesJargon(t *testing.T) {
+	// "invalid: yaml: syntax" triggers "mapping values are not allowed in this context"
+	yamlContent := "invalid: yaml: syntax"
+	var result map[string]any
+	err := yaml.Unmarshal([]byte(yamlContent), &result)
+	if err == nil {
+		t.Fatal("Expected YAML parsing to fail")
+	}
+
+	formatted := FormatYAMLError(err, 2, yamlContent)
+	assert.NotContains(t, formatted, "mapping values are not allowed in this context",
+		"jargon should be translated to plain English")
+	assert.Contains(t, formatted, "unexpected ':'",
+		"translated plain-English message should be present")
 }

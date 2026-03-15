@@ -18,6 +18,48 @@ var (
 	sourceLinePattern    = regexp.MustCompile(`(?m)^(>?\s*)(\d+)(\s*\|)`)
 )
 
+// yamlErrorTranslations maps raw goccy/go-yaml parser messages to plain-English equivalents.
+// Keys are lower-cased for case-insensitive matching; both singular and plural forms are included
+// to handle different goccy/go-yaml versions.
+var yamlErrorTranslations = map[string]string{
+	"mapping value is not allowed in this context":           "unexpected ':' — check for an extra ':' or incorrect indentation",
+	"mapping values are not allowed in this context":         "unexpected ':' — check for an extra ':' or incorrect indentation",
+	"did not find expected key":                              "incorrect indentation or missing key",
+	"could not find expected ':'":                            "missing ':' after key name",
+	"block sequence entries are not allowed in this context": "unexpected '-' list item — check indentation",
+	"found duplicate key":                                    "duplicate key",
+	"found character that cannot start any token":            "invalid character in YAML",
+}
+
+// translateYAMLMessage replaces known parser jargon in a YAML error message with
+// plain-English equivalents. It processes only the first line of multi-line formatted
+// errors (which contains the [line:col] prefix and jargon message). Subsequent lines
+// (source-context lines with | markers and ^ pointer) are preserved unchanged.
+func translateYAMLMessage(formatted string) string {
+	if formatted == "" {
+		return formatted
+	}
+	firstNewline := strings.Index(formatted, "\n")
+	firstLine := formatted
+	rest := ""
+	if firstNewline >= 0 {
+		firstLine = formatted[:firstNewline]
+		rest = formatted[firstNewline:]
+	}
+
+	lower := strings.ToLower(firstLine)
+	for jargon, plain := range yamlErrorTranslations {
+		if strings.Contains(lower, jargon) {
+			// Replace preserving original case by doing a case-insensitive search
+			re := regexp.MustCompile("(?i)" + regexp.QuoteMeta(jargon))
+			firstLine = re.ReplaceAllString(firstLine, plain)
+			break
+		}
+	}
+
+	return firstLine + rest
+}
+
 // FormatYAMLError formats a YAML error with source code context using yaml.FormatError()
 // frontmatterLineOffset is the line number where the frontmatter content begins in the document (1-based)
 // Returns the formatted error string with line numbers adjusted for frontmatter position
@@ -32,6 +74,9 @@ func FormatYAMLError(err error, frontmatterLineOffset int, sourceYAML string) st
 	if frontmatterLineOffset > 1 {
 		formatted = adjustLineNumbersInFormattedError(formatted, frontmatterLineOffset-1)
 	}
+
+	// Translate raw parser jargon to plain-English messages for better developer experience
+	formatted = translateYAMLMessage(formatted)
 
 	return formatted
 }
