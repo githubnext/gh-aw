@@ -70,11 +70,11 @@ func computeEffectivePRCheckoutToken(safeOutputs *SafeOutputsConfig) (token stri
 //  2. Safe-outputs level token
 //  3. Magic secret fallback via getEffectiveProjectGitHubToken()
 func computeEffectiveProjectToken(perConfigToken string, safeOutputsToken string) string {
-	configToken := perConfigToken
-	if configToken == "" && safeOutputsToken != "" {
-		configToken = safeOutputsToken
+	token := perConfigToken
+	if token == "" {
+		token = safeOutputsToken
 	}
-	return getEffectiveProjectGitHubToken(configToken)
+	return getEffectiveProjectGitHubToken(token)
 }
 
 // computeProjectURLAndToken computes the project URL and token from the various project-related

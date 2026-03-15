@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"strconv"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/console"
@@ -126,11 +125,10 @@ func RunListDomains(jsonOutput bool) error {
 		return nil
 	}
 
-	count := len(summaries)
-	if count == 1 {
+	if len(summaries) == 1 {
 		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Found 1 workflow"))
 	} else {
-		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Found %d workflows", count)))
+		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Found %d workflows", len(summaries))))
 	}
 	fmt.Fprint(os.Stderr, console.RenderStruct(summaries))
 
@@ -193,9 +191,7 @@ func RunWorkflowDomains(workflowArg string, jsonOutput bool) error {
 	}
 	fmt.Fprint(os.Stderr, console.RenderTable(tableConfig))
 
-	allowedCount := strconv.Itoa(len(allowedDomains))
-	blockedCount := strconv.Itoa(len(blockedDomains))
-	fmt.Fprintf(os.Stderr, "\n%s allowed, %s blocked\n", allowedCount, blockedCount)
+	fmt.Fprintf(os.Stderr, "\n%d allowed, %d blocked\n", len(allowedDomains), len(blockedDomains))
 
 	return nil
 }
