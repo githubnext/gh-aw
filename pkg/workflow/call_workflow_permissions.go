@@ -86,7 +86,9 @@ func extractCallWorkflowPermissions(workflowName, markdownPath string) (*Permiss
 // and returns the merged permissions from all its jobs.
 func extractPermissionsFromYAMLFile(filePath string) (*Permissions, error) {
 	cleanPath := filepath.Clean(filePath)
-	content, err := os.ReadFile(cleanPath) // #nosec G304 -- path is validated via isPathWithinDir() in findWorkflowFile()
+	// filePath originates from findWorkflowFile(), which validates all paths via
+	// isPathWithinDir() to prevent directory traversal before returning them.
+	content, err := os.ReadFile(cleanPath) // #nosec G304 -- path pre-validated by findWorkflowFile() via isPathWithinDir()
 	if err != nil {
 		return nil, fmt.Errorf("failed to read workflow file %s: %w", filePath, err)
 	}
@@ -105,7 +107,9 @@ func extractPermissionsFromYAMLFile(filePath string) (*Permissions, error) {
 // permissions field as a proxy for the job permissions that will be generated when the
 // worker is compiled.
 func extractPermissionsFromMDFile(mdPath string) (*Permissions, error) {
-	content, err := os.ReadFile(mdPath) // #nosec G304 -- mdPath is validated via isPathWithinDir() in findWorkflowFile()
+	// mdPath originates from findWorkflowFile(), which validates paths via
+	// isPathWithinDir() to prevent directory traversal before returning them.
+	content, err := os.ReadFile(mdPath) // #nosec G304 -- path pre-validated by findWorkflowFile() via isPathWithinDir()
 	if err != nil {
 		return nil, fmt.Errorf("failed to read workflow source %s: %w", mdPath, err)
 	}

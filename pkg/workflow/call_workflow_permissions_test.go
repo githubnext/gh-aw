@@ -420,5 +420,7 @@ jobs:
 	// Verify permissions appear before uses in the YAML (job-level ordering)
 	permIdx := strings.Index(yamlOutput, "permissions:")
 	usesIdx := strings.Index(yamlOutput, "uses:")
+	require.NotEqual(t, -1, permIdx, "permissions: should be present in YAML output")
+	require.NotEqual(t, -1, usesIdx, "uses: should be present in YAML output")
 	assert.Less(t, permIdx, usesIdx, "permissions: should appear before uses: in job YAML")
 }

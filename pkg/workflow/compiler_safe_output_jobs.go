@@ -183,7 +183,11 @@ func (c *Compiler) buildCallWorkflowJobs(data *WorkflowData, markdownPath string
 			perms, permErr := extractCallWorkflowPermissions(workflowName, markdownPath)
 			if permErr != nil {
 				// Non-fatal: log and continue without permissions rather than aborting compilation.
-				compilerSafeOutputJobsLog.Printf("Warning: could not extract permissions for call-workflow job '%s': %v", jobName, permErr)
+				// The call-* job will be created without a permissions block; this may cause
+				// GitHub to reject nested worker jobs that require non-none permissions.
+				compilerSafeOutputJobsLog.Printf("Warning: could not extract permissions for call-workflow job '%s': %v. "+
+					"Ensure the target workflow file exists and contains valid YAML. "+
+					"The job will be created without a permissions block.", jobName, permErr)
 			} else if perms != nil {
 				rendered := perms.RenderToYAML()
 				if rendered != "" {
