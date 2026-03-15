@@ -1,5 +1,9 @@
 // @ts-check
 import { describe, it, expect, beforeEach } from "vitest";
+import fs from "fs";
+import path from "path";
+import { fileURLToPath } from "url";
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const { main } = require("./add_labels.cjs");
 
 describe("add_labels", () => {
@@ -507,6 +511,59 @@ describe("add_labels", () => {
       expect(result.error).toContain("E003");
       expect(result.error).toContain("Cannot add more than 10 labels");
       expect(result.error).toContain("received 11");
+    });
+  });
+
+  describe("temporary ID resolution", () => {
+    it("should resolve temporary ID in item_number field", async () => {
+      const addLabelsScript = fs.readFileSync(path.join(__dirname, "add_labels.cjs"), "utf8");
+
+      const addLabelsCalls = [];
+      mockGithub.rest.issues.addLabels = async params => {
+        addLabelsCalls.push(params);
+        return {};
+      };
+
+      const handler = await eval(`(async () => { ${addLabelsScript}; return await main({}); })()`);
+
+      const message = {
+        type: "add_labels",
+        item_number: "aw_report1",
+        labels: ["bug"],
+      };
+
+      // Simulate the temporary ID being registered after create_issue succeeded
+      const resolvedTemporaryIds = {
+        aw_report1: { repo: "test-owner/test-repo", number: 21029 },
+      };
+
+      const result = await handler(message, resolvedTemporaryIds);
+
+      expect(result.success).toBe(true);
+      expect(result.number).toBe(21029);
+      expect(result.labelsAdded).toEqual(["bug"]);
+      expect(addLabelsCalls[0].issue_number).toBe(21029);
+    });
+
+    it("should defer when temporary ID is not yet resolved", async () => {
+      const addLabelsScript = fs.readFileSync(path.join(__dirname, "add_labels.cjs"), "utf8");
+
+      const handler = await eval(`(async () => { ${addLabelsScript}; return await main({}); })()`);
+
+      const message = {
+        type: "add_labels",
+        item_number: "aw_report1",
+        labels: ["bug"],
+      };
+
+      // Empty resolved map — temporary ID not yet registered
+      const resolvedTemporaryIds = {};
+
+      const result = await handler(message, resolvedTemporaryIds);
+
+      expect(result.success).toBe(false);
+      expect(result.deferred).toBe(true);
+      expect(result.error).toContain("aw_report1");
     });
   });
 });

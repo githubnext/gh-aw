@@ -14,6 +14,7 @@ const { resolveTargetRepoConfig, resolveAndValidateRepo } = require("./repo_help
 const { tryEnforceArrayLimit } = require("./limit_enforcement_helpers.cjs");
 const { logStagedPreviewInfo } = require("./staged_preview.cjs");
 const { createAuthenticatedGitHubClient } = require("./handler_auth.cjs");
+const { loadTemporaryIdMapFromResolved, resolveRepoIssueTarget } = require("./temporary_id.cjs");
 
 /**
  * Maximum limits for label parameters to prevent resource exhaustion.
@@ -53,6 +54,9 @@ async function main(config = {}) {
   // Track how many items we've processed for max limit
   let processedCount = 0;
 
+  // Track temporary ID mappings across handler invocations (e.g. from create_issue)
+  const temporaryIdMap = new Map();
+
   /**
    * Message handler function that processes a single add_labels message
    * @param {Object} message - The add_labels message to process
@@ -71,6 +75,18 @@ async function main(config = {}) {
 
     processedCount++;
 
+    // Merge resolved temporary IDs passed from the handler manager.
+    // We don't overwrite existing entries — once a temporary ID is registered
+    // (e.g. aw_report1 → repo#21029), that mapping is final for this run.
+    if (resolvedTemporaryIds) {
+      const resolved = loadTemporaryIdMapFromResolved(resolvedTemporaryIds);
+      for (const [tempId, value] of resolved) {
+        if (!temporaryIdMap.has(tempId)) {
+          temporaryIdMap.set(tempId, value);
+        }
+      }
+    }
+
     // Resolve and validate target repository
     const repoResult = resolveAndValidateRepo(message, defaultTargetRepo, allowedRepos, "label");
     if (!repoResult.success) {
@@ -83,11 +99,36 @@ async function main(config = {}) {
     const { repo: itemRepo, repoParts } = repoResult;
     core.info(`Target repository: ${itemRepo}`);
 
-    // Determine target issue/PR number
-    const itemNumber = message.item_number !== undefined ? parseInt(String(message.item_number), 10) : (context.payload?.issue?.number ?? context.payload?.pull_request?.number);
+    // Determine target issue/PR number, resolving temporary IDs when present
+    let itemNumber;
+    if (message.item_number !== undefined && message.item_number !== null) {
+      const resolvedTarget = resolveRepoIssueTarget(message.item_number, temporaryIdMap, repoParts.owner, repoParts.repo);
+
+      // Unresolved temporary ID — defer so the handler manager can retry after
+      // a preceding create_issue (or similar) registers the mapping
+      if (resolvedTarget.wasTemporaryId && !resolvedTarget.resolved) {
+        core.info(`Deferring add_labels: unresolved temporary ID (${message.item_number})`);
+        return {
+          success: false,
+          deferred: true,
+          error: resolvedTarget.errorMessage || `Unresolved temporary ID: ${message.item_number}`,
+        };
+      }
+
+      if (resolvedTarget.errorMessage || !resolvedTarget.resolved) {
+        const error = `Invalid item number: ${message.item_number}`;
+        core.warning(error);
+        return { success: false, error };
+      }
+
+      itemNumber = resolvedTarget.resolved.number;
+      core.info(`Using explicitly provided item_number: #${itemNumber}`);
+    } else {
+      itemNumber = context.payload?.issue?.number ?? context.payload?.pull_request?.number;
+    }
 
     if (!itemNumber || isNaN(itemNumber)) {
-      const error = message.item_number !== undefined ? `Invalid item number: ${message.item_number}` : "No issue/PR number available";
+      const error = "No issue/PR number available";
       core.warning(error);
       return { success: false, error };
     }
