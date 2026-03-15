@@ -255,7 +255,16 @@ func (c *Compiler) collectPromptSections(data *WorkflowData) []PromptSection {
 		})
 	}
 
-	// 4. Trial mode note (if in trial mode)
+	// 4. Agentic Workflows MCP guide (if agentic-workflows tool is enabled)
+	if hasAgenticWorkflowsTool(data.ParsedTools) {
+		unifiedPromptLog.Print("Adding agentic-workflows guide section")
+		sections = append(sections, PromptSection{
+			Content: agenticWorkflowsGuideFile,
+			IsFile:  true,
+		})
+	}
+
+	// 5. Trial mode note (if in trial mode)
 	if c.trialMode {
 		unifiedPromptLog.Print("Adding trial mode section")
 		trialContent := fmt.Sprintf("## Note\nThis workflow is running in directory $GITHUB_WORKSPACE, but that directory actually contains the contents of the repository '%s'.", c.trialLogicalRepoSlug)
@@ -265,7 +274,7 @@ func (c *Compiler) collectPromptSections(data *WorkflowData) []PromptSection {
 		})
 	}
 
-	// 5. Cache memory instructions (if enabled)
+	// 6. Cache memory instructions (if enabled)
 	if data.CacheMemoryConfig != nil && len(data.CacheMemoryConfig.Caches) > 0 {
 		unifiedPromptLog.Printf("Adding cache memory section: caches=%d", len(data.CacheMemoryConfig.Caches))
 		section := buildCacheMemoryPromptSection(data.CacheMemoryConfig)
@@ -274,7 +283,7 @@ func (c *Compiler) collectPromptSections(data *WorkflowData) []PromptSection {
 		}
 	}
 
-	// 6. Repo memory instructions (if enabled)
+	// 7. Repo memory instructions (if enabled)
 	if data.RepoMemoryConfig != nil && len(data.RepoMemoryConfig.Memories) > 0 {
 		unifiedPromptLog.Printf("Adding repo memory section: memories=%d", len(data.RepoMemoryConfig.Memories))
 		section := buildRepoMemoryPromptSection(data.RepoMemoryConfig)
@@ -283,7 +292,7 @@ func (c *Compiler) collectPromptSections(data *WorkflowData) []PromptSection {
 		}
 	}
 
-	// 7. Safe outputs instructions (if enabled)
+	// 8. Safe outputs instructions (if enabled)
 	if HasSafeOutputsEnabled(data.SafeOutputs) {
 		unifiedPromptLog.Print("Adding safe outputs section")
 		// Static intro from file (gh CLI warning, temporary ID rules, noop note)
@@ -294,7 +303,7 @@ func (c *Compiler) collectPromptSections(data *WorkflowData) []PromptSection {
 		// Per-tool sections: opening tag + tools list (inline), tool instruction files, closing tag
 		sections = append(sections, buildSafeOutputsSections(data.SafeOutputs)...)
 	}
-	// 8. GitHub context (if GitHub tool is enabled)
+	// 9. GitHub context (if GitHub tool is enabled)
 	if hasGitHubTool(data.ParsedTools) {
 		unifiedPromptLog.Print("Adding GitHub context section")
 
@@ -333,7 +342,7 @@ func (c *Compiler) collectPromptSections(data *WorkflowData) []PromptSection {
 		}
 	}
 
-	// 9. PR context (if comment-related triggers and checkout is needed)
+	// 10. PR context (if comment-related triggers and checkout is needed)
 	hasCommentTriggers := c.hasCommentRelatedTriggers(data)
 	needsCheckout := c.shouldAddCheckoutStep(data)
 	permParser := NewPermissionsParser(data.Permissions)
