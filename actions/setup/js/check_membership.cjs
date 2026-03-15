@@ -59,7 +59,7 @@ async function main() {
   } else {
     // User doesn't have required permissions (or the permission check failed with an error).
     // Always attempt the bot allowlist fallback before giving up, so that GitHub Apps whose
-    // actor is not a recognised GitHub user (e.g. "Copilot") are not silently denied.
+    // actor is not a recognized GitHub user (e.g. "Copilot") are not silently denied.
     if (allowedBots && allowedBots.length > 0) {
       core.info(`Checking if actor '${actor}' is in allowed bots list: ${allowedBots.join(", ")}`);
 
@@ -79,7 +79,7 @@ async function main() {
           core.warning(`Bot '${actor}' is in the allowed list but not active/installed on ${owner}/${repo}`);
           core.setOutput("is_team_member", "false");
           core.setOutput("result", "bot_not_active");
-          core.setOutput("user_permission", result.permission);
+          core.setOutput("user_permission", result.permission ?? "bot");
           core.setOutput("error_message", `Access denied: Bot '${actor}' is not active/installed on this repository`);
           return;
         } else {
