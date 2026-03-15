@@ -27,7 +27,7 @@
 #     - shared/jqschema.md
 #     - shared/mcp/serena-go.md
 #
-# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"183df887ed669775015161c11ab4c4b3f52f06a00a94ec9d64785a0eda3be9c2","strict":true}
+# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"ad111cf099d958c340ed839a8e88f5053a501ce37fb239bdc2645ee1a872d14a","strict":true}
 
 name: "/cloclo"
 "on":
@@ -35,6 +35,7 @@ name: "/cloclo"
     types:
     - created
     - edited
+    - labeled
   discussion_comment:
     types:
     - created
@@ -44,15 +45,17 @@ name: "/cloclo"
     - created
     - edited
   issues:
-    # names: # Label filtering applied via job conditions
-    # - cloclo # Label filtering applied via job conditions
     types:
+    - opened
+    - edited
+    - reopened
     - labeled
   pull_request:
     types:
     - opened
     - edited
     - reopened
+    - labeled
   pull_request_review_comment:
     types:
     - created
@@ -70,9 +73,7 @@ jobs:
   activation:
     needs: pre_activation
     if: >
-      (needs.pre_activation.outputs.activated == 'true') && ((((github.event_name == 'issues' || github.event_name == 'issue_comment' ||
-      github.event_name == 'pull_request' || github.event_name == 'pull_request_review_comment' || github.event_name == 'discussion' ||
-      github.event_name == 'discussion_comment') && ((github.event_name == 'issues') && ((startsWith(github.event.issue.body, '/cloclo ')) ||
+      (needs.pre_activation.outputs.activated == 'true') && (((github.event_name == 'issues') && ((startsWith(github.event.issue.body, '/cloclo ')) ||
       (github.event.issue.body == '/cloclo')) || (github.event_name == 'issue_comment') && (((startsWith(github.event.comment.body, '/cloclo ')) ||
       (github.event.comment.body == '/cloclo')) && (github.event.issue.pull_request == null)) || (github.event_name == 'issue_comment') &&
       (((startsWith(github.event.comment.body, '/cloclo ')) || (github.event.comment.body == '/cloclo')) &&
@@ -82,10 +83,9 @@ jobs:
       ((startsWith(github.event.pull_request.body, '/cloclo ')) || (github.event.pull_request.body == '/cloclo')) ||
       (github.event_name == 'discussion') && ((startsWith(github.event.discussion.body, '/cloclo ')) || (github.event.discussion.body == '/cloclo')) ||
       (github.event_name == 'discussion_comment') && ((startsWith(github.event.comment.body, '/cloclo ')) ||
-      (github.event.comment.body == '/cloclo')))) || (!(github.event_name == 'issues' || github.event_name == 'issue_comment' ||
-      github.event_name == 'pull_request' || github.event_name == 'pull_request_review_comment' || github.event_name == 'discussion' ||
-      github.event_name == 'discussion_comment'))) && ((github.event_name != 'issues') || ((github.event.action != 'labeled') ||
-      (github.event.label.name == 'cloclo'))))
+      (github.event.comment.body == '/cloclo'))) || ((github.event_name == 'issues') && (github.event.label.name == 'cloclo') ||
+      (github.event_name == 'pull_request') && (github.event.label.name == 'cloclo') || (github.event_name == 'discussion') &&
+      (github.event.label.name == 'cloclo')))
     runs-on: ubuntu-slim
     permissions:
       contents: read
@@ -97,6 +97,7 @@ jobs:
       comment_id: ${{ steps.add-comment.outputs.comment-id }}
       comment_repo: ${{ steps.add-comment.outputs.comment-repo }}
       comment_url: ${{ steps.add-comment.outputs.comment-url }}
+      label_command: ${{ steps.remove_trigger_label.outputs.label_name }}
       model: ${{ steps.generate_aw_info.outputs.model }}
       secret_verification_result: ${{ steps.validate-secret.outputs.verification_result }}
       slash_command: ${{ needs.pre_activation.outputs.matched_command }}
@@ -195,6 +196,17 @@ jobs:
             const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
             setupGlobals(core, github, context, exec, io);
             const { main } = require('/opt/gh-aw/actions/add_workflow_run_comment.cjs');
+            await main();
+      - name: Remove trigger label
+        id: remove_trigger_label
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        env:
+          GH_AW_LABEL_NAMES: "[\"cloclo\"]"
+        with:
+          script: |
+            const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
+            setupGlobals(core, github, context, exec, io);
+            const { main } = require('/opt/gh-aw/actions/remove_trigger_label.cjs');
             await main();
       - name: Create prompt with built-in context
         env:
@@ -1533,8 +1545,6 @@ jobs:
 
   pre_activation:
     if: >
-      (((github.event_name == 'issues' || github.event_name == 'issue_comment' || github.event_name == 'pull_request' ||
-      github.event_name == 'pull_request_review_comment' || github.event_name == 'discussion' || github.event_name == 'discussion_comment') &&
       ((github.event_name == 'issues') && ((startsWith(github.event.issue.body, '/cloclo ')) || (github.event.issue.body == '/cloclo')) ||
       (github.event_name == 'issue_comment') && (((startsWith(github.event.comment.body, '/cloclo ')) || (github.event.comment.body == '/cloclo')) &&
       (github.event.issue.pull_request == null)) || (github.event_name == 'issue_comment') && (((startsWith(github.event.comment.body, '/cloclo ')) ||
@@ -1544,10 +1554,9 @@ jobs:
       ((startsWith(github.event.pull_request.body, '/cloclo ')) || (github.event.pull_request.body == '/cloclo')) ||
       (github.event_name == 'discussion') && ((startsWith(github.event.discussion.body, '/cloclo ')) || (github.event.discussion.body == '/cloclo')) ||
       (github.event_name == 'discussion_comment') && ((startsWith(github.event.comment.body, '/cloclo ')) ||
-      (github.event.comment.body == '/cloclo')))) || (!(github.event_name == 'issues' || github.event_name == 'issue_comment' ||
-      github.event_name == 'pull_request' || github.event_name == 'pull_request_review_comment' || github.event_name == 'discussion' ||
-      github.event_name == 'discussion_comment'))) && ((github.event_name != 'issues') || ((github.event.action != 'labeled') ||
-      (github.event.label.name == 'cloclo')))
+      (github.event.comment.body == '/cloclo'))) || ((github.event_name == 'issues') && (github.event.label.name == 'cloclo') ||
+      (github.event_name == 'pull_request') && (github.event.label.name == 'cloclo') || (github.event_name == 'discussion') &&
+      (github.event.label.name == 'cloclo'))
     runs-on: ubuntu-slim
     permissions:
       contents: read

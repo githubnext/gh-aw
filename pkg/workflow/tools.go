@@ -77,6 +77,33 @@ func (c *Compiler) applyDefaults(data *WorkflowData, markdownPath string) error 
 				maps.Copy(commandEventsMap, data.CommandOtherEvents)
 			}
 
+			// If label_command is also configured alongside slash_command, merge label events
+			// into the existing command events map to avoid duplicate YAML keys.
+			if len(data.LabelCommand) > 0 {
+				labelEventNames := FilterLabelCommandEvents(data.LabelCommandEvents)
+				for _, eventName := range labelEventNames {
+					if existingAny, ok := commandEventsMap[eventName]; ok {
+						if existingMap, ok := existingAny.(map[string]any); ok {
+							switch t := existingMap["types"].(type) {
+							case []string:
+								newTypes := make([]any, len(t)+1)
+								for i, s := range t {
+									newTypes[i] = s
+								}
+								newTypes[len(t)] = "labeled"
+								existingMap["types"] = newTypes
+							case []any:
+								existingMap["types"] = append(t, "labeled")
+							}
+						}
+					} else {
+						commandEventsMap[eventName] = map[string]any{
+							"types": []any{"labeled"},
+						}
+					}
+				}
+			}
+
 			// Convert merged events to YAML
 			mergedEventsYAML, err := yaml.Marshal(map[string]any{"on": commandEventsMap})
 			if err == nil {
@@ -117,7 +144,18 @@ func (c *Compiler) applyDefaults(data *WorkflowData, markdownPath string) error 
 			}
 
 			if data.If == "" {
-				data.If = commandConditionTree.Render()
+				if len(data.LabelCommand) > 0 {
+					// Combine: (slash_command condition) OR (label_command condition)
+					// This allows the workflow to activate via either mechanism.
+					labelConditionTree, err := buildLabelCommandCondition(data.LabelCommand, data.LabelCommandEvents, false)
+					if err != nil {
+						return fmt.Errorf("failed to build combined label-command condition: %w", err)
+					}
+					combined := &OrNode{Left: commandConditionTree, Right: labelConditionTree}
+					data.If = combined.Render()
+				} else {
+					data.If = commandConditionTree.Render()
+				}
 			}
 		} else if isLabelCommandTrigger {
 			toolsLog.Print("Workflow is label-command trigger, configuring label events")

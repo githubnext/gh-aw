@@ -3,9 +3,9 @@ description: Smoke Copilot
 on: 
   schedule: every 12h
   workflow_dispatch:
-  pull_request:
-    types: [labeled]
-    names: ["smoke"]
+  label_command:
+    name: smoke
+    events: [pull_request]
   reaction: "eyes"
   status-comment: true
   github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}

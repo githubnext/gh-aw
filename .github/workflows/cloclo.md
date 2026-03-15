@@ -2,9 +2,7 @@
 on:
   slash_command:
     name: cloclo
-  issues:
-    types: [labeled]
-    names: [cloclo]
+  label_command: cloclo
   status-comment: true
 permissions:
   contents: read

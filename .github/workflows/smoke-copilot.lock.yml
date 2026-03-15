@@ -29,24 +29,26 @@
 #     - shared/github-queries-mcp-script.md
 #     - shared/reporting.md
 #
-# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"00655b0e7e36f5b9cd4f2463f6d1fa4626f10db1abd0ed26dae87c1fa244d4dd","strict":true}
+# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"b8385d3a5fc381c62fd4658d02d54168dea724b8f222a4e71df570339fa0d084","strict":true}
 
 name: "Smoke Copilot"
 "on":
   pull_request:
-    # names: # Label filtering applied via job conditions
-    # - smoke # Label filtering applied via job conditions
     types:
     - labeled
   schedule:
   - cron: "47 */12 * * *"
-  workflow_dispatch: null
+  workflow_dispatch:
+    inputs:
+      item_number:
+        description: The number of the issue, pull request, or discussion
+        required: true
+        type: string
 
 permissions: {}
 
 concurrency:
-  group: "gh-aw-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref || github.run_id }}"
-  cancel-in-progress: true
+  group: "gh-aw-${{ github.workflow }}-${{ github.event.issue.number || github.event.pull_request.number || github.run_id }}"
 
 run-name: "Smoke Copilot"
 
@@ -54,8 +56,8 @@ jobs:
   activation:
     needs: pre_activation
     if: >
-      (needs.pre_activation.outputs.activated == 'true') && (((github.event_name != 'pull_request') || (github.event.pull_request.head.repo.id == github.repository_id)) &&
-      ((github.event_name != 'pull_request') || ((github.event.action != 'labeled') || (github.event.label.name == 'smoke'))))
+      (needs.pre_activation.outputs.activated == 'true') && (((github.event_name == 'pull_request') && (github.event.label.name == 'smoke')) ||
+      (!(github.event_name == 'pull_request')))
     runs-on: ubuntu-slim
     permissions:
       contents: read
@@ -63,14 +65,12 @@ jobs:
       issues: write
       pull-requests: write
     outputs:
-      body: ${{ steps.sanitized.outputs.body }}
       comment_id: ${{ steps.add-comment.outputs.comment-id }}
       comment_repo: ${{ steps.add-comment.outputs.comment-repo }}
       comment_url: ${{ steps.add-comment.outputs.comment-url }}
+      label_command: ${{ steps.remove_trigger_label.outputs.label_name }}
       model: ${{ steps.generate_aw_info.outputs.model }}
       secret_verification_result: ${{ steps.validate-secret.outputs.verification_result }}
-      text: ${{ steps.sanitized.outputs.text }}
-      title: ${{ steps.sanitized.outputs.title }}
     steps:
       - name: Checkout actions folder
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
@@ -143,15 +143,6 @@ jobs:
             setupGlobals(core, github, context, exec, io);
             const { main } = require('/opt/gh-aw/actions/check_workflow_timestamp_api.cjs');
             await main();
-      - name: Compute current body text
-        id: sanitized
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
-        with:
-          script: |
-            const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
-            setupGlobals(core, github, context, exec, io);
-            const { main } = require('/opt/gh-aw/actions/compute_text.cjs');
-            await main();
       - name: Add comment with workflow run link
         id: add-comment
         if: github.event_name == 'issues' || github.event_name == 'issue_comment' || github.event_name == 'pull_request_review_comment' || github.event_name == 'discussion' || github.event_name == 'discussion_comment' || (github.event_name == 'pull_request') && (github.event.pull_request.head.repo.id == github.repository_id)
@@ -165,6 +156,17 @@ jobs:
             const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
             setupGlobals(core, github, context, exec, io);
             const { main } = require('/opt/gh-aw/actions/add_workflow_run_comment.cjs');
+            await main();
+      - name: Remove trigger label
+        id: remove_trigger_label
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        env:
+          GH_AW_LABEL_NAMES: "[\"smoke\"]"
+        with:
+          script: |
+            const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
+            setupGlobals(core, github, context, exec, io);
+            const { main } = require('/opt/gh-aw/actions/remove_trigger_label.cjs');
             await main();
       - name: Create prompt with built-in context
         env:
@@ -2329,8 +2331,7 @@ jobs:
 
   pre_activation:
     if: >
-      ((github.event_name != 'pull_request') || (github.event.pull_request.head.repo.id == github.repository_id)) &&
-      ((github.event_name != 'pull_request') || ((github.event.action != 'labeled') || (github.event.label.name == 'smoke')))
+      ((github.event_name == 'pull_request') && (github.event.label.name == 'smoke')) || (!(github.event_name == 'pull_request'))
     runs-on: ubuntu-slim
     permissions:
       contents: read
