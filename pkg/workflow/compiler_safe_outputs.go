@@ -22,6 +22,7 @@ func (c *Compiler) parseOnSection(frontmatter map[string]any, workflowData *Work
 	// Check if "slash_command" or "command" (deprecated) is used as a trigger in the "on" section
 	// Also extract "reaction" from the "on" section
 	var hasCommand bool
+	var hasLabelCommand bool
 	var hasReaction bool
 	var hasStopAfter bool
 	var hasStatusComment bool
@@ -139,14 +140,37 @@ func (c *Compiler) parseOnSection(frontmatter map[string]any, workflowData *Work
 				// Clear the On field so applyDefaults will handle command trigger generation
 				workflowData.On = ""
 			}
-			// Extract other (non-conflicting) events excluding slash_command, command, reaction, status-comment, and stop-after
-			otherEvents = filterMapKeys(onMap, "slash_command", "command", "reaction", "status-comment", "stop-after", "github-token", "github-app")
+
+			// Detect label_command trigger
+			if _, hasLabelCommandKey := onMap["label_command"]; hasLabelCommandKey {
+				hasLabelCommand = true
+				// Set default label names from WorkflowData if already populated by extractLabelCommandConfig
+				if len(workflowData.LabelCommand) == 0 {
+					// extractLabelCommandConfig has not been called yet or returned nothing;
+					// set a placeholder so applyDefaults knows this is a label-command workflow.
+					// The actual label names will be extracted from the frontmatter in applyDefaults
+					// via extractLabelCommandConfig which was called in parseOnSectionRaw.
+					baseName := strings.TrimSuffix(filepath.Base(markdownPath), ".md")
+					workflowData.LabelCommand = []string{baseName}
+				}
+				// Clear the On field so applyDefaults will handle label-command trigger generation
+				workflowData.On = ""
+			}
+
+			// Extract other (non-conflicting) events excluding slash_command, command, label_command, reaction, status-comment, and stop-after
+			otherEvents = filterMapKeys(onMap, "slash_command", "command", "label_command", "reaction", "status-comment", "stop-after", "github-token", "github-app")
 		}
 	}
 
 	// Clear command field if no command trigger was found
 	if !hasCommand {
 		workflowData.Command = nil
+	}
+
+	// Clear label-command field if no label_command trigger was found
+	if !hasLabelCommand {
+		workflowData.LabelCommand = nil
+		workflowData.LabelCommandEvents = nil
 	}
 
 	// Auto-enable "eyes" reaction for command triggers if no explicit reaction was specified
@@ -159,6 +183,10 @@ func (c *Compiler) parseOnSection(frontmatter map[string]any, workflowData *Work
 		// We'll store this and handle it in applyDefaults
 		workflowData.On = "" // This will trigger command handling in applyDefaults
 		workflowData.CommandOtherEvents = otherEvents
+	} else if hasLabelCommand && len(otherEvents) > 0 {
+		// Store other events for label-command merging in applyDefaults
+		workflowData.On = "" // This will trigger label-command handling in applyDefaults
+		workflowData.LabelCommandOtherEvents = otherEvents
 	} else if (hasReaction || hasStopAfter || hasStatusComment) && len(otherEvents) > 0 {
 		// Only re-marshal the "on" if we have to
 		onEventsYAML, err := yaml.Marshal(map[string]any{"on": otherEvents})

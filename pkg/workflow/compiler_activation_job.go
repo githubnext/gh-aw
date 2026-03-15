@@ -1,6 +1,7 @@
 package workflow
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"strings"
@@ -282,6 +283,27 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 			// Fallback to steps reference if pre_activation doesn't exist (shouldn't happen for command workflows)
 			outputs["slash_command"] = fmt.Sprintf("${{ steps.%s.outputs.%s }}", constants.CheckCommandPositionStepID, constants.MatchedCommandOutput)
 		}
+	}
+
+	// Add label removal step and label_command output for label-command workflows.
+	// When a label-command trigger fires, the triggering label is immediately removed
+	// so that the same label can be applied again to trigger the workflow in the future.
+	if len(data.LabelCommand) > 0 {
+		// The removal step only makes sense for actual "labeled" events; for
+		// workflow_dispatch we skip it silently via the env-based label check.
+		steps = append(steps, "      - name: Remove trigger label\n")
+		steps = append(steps, fmt.Sprintf("        id: %s\n", constants.RemoveTriggerLabelStepID))
+		steps = append(steps, fmt.Sprintf("        uses: %s\n", GetActionPin("actions/github-script")))
+		steps = append(steps, "        env:\n")
+		// Pass label names as a JSON array so the script can validate the label
+		labelNamesJSON, _ := json.Marshal(data.LabelCommand)
+		steps = append(steps, fmt.Sprintf("          GH_AW_LABEL_NAMES: %q\n", string(labelNamesJSON)))
+		steps = append(steps, "        with:\n")
+		steps = append(steps, "          script: |\n")
+		steps = append(steps, generateGitHubScriptWithRequire("remove_trigger_label.cjs"))
+
+		// Expose the matched label name as a job output for downstream jobs to consume
+		outputs["label_command"] = fmt.Sprintf("${{ steps.%s.outputs.label_name }}", constants.RemoveTriggerLabelStepID)
 	}
 
 	// If no steps have been added, add a placeholder step to make the job valid

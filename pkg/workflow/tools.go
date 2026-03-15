@@ -22,11 +22,14 @@ func (c *Compiler) applyDefaults(data *WorkflowData, markdownPath string) error 
 
 	// Check if this is a command trigger workflow (by checking if user specified "on.command")
 	isCommandTrigger := false
+	isLabelCommandTrigger := false
 	if data.On == "" {
 		// parseOnSection may have already detected the command trigger and populated data.Command
 		// (this covers slash_command map format, slash_command shorthand "on: /name", and deprecated "command:")
 		if len(data.Command) > 0 {
 			isCommandTrigger = true
+		} else if len(data.LabelCommand) > 0 {
+			isLabelCommandTrigger = true
 		} else {
 			// Check the original frontmatter for command trigger
 			content, err := os.ReadFile(markdownPath)
@@ -40,6 +43,8 @@ func (c *Compiler) applyDefaults(data *WorkflowData, markdownPath string) error 
 								isCommandTrigger = true
 							} else if _, hasCommand := onMap["command"]; hasCommand {
 								isCommandTrigger = true
+							} else if _, hasLabelCommand := onMap["label_command"]; hasLabelCommand {
+								isLabelCommandTrigger = true
 							}
 						}
 					}
@@ -114,6 +119,65 @@ func (c *Compiler) applyDefaults(data *WorkflowData, markdownPath string) error 
 			if data.If == "" {
 				data.If = commandConditionTree.Render()
 			}
+		} else if isLabelCommandTrigger {
+			toolsLog.Print("Workflow is label-command trigger, configuring label events")
+
+			// Build the label-command events map
+			// Generate events: issues, pull_request, discussion with types: [labeled]
+			filteredEvents := FilterLabelCommandEvents(data.LabelCommandEvents)
+			labelEventsMap := make(map[string]any)
+			for _, eventName := range filteredEvents {
+				labelEventsMap[eventName] = map[string]any{
+					"types": []any{"labeled"},
+				}
+			}
+
+			// Add workflow_dispatch with item_number input for manual testing
+			labelEventsMap["workflow_dispatch"] = map[string]any{
+				"inputs": map[string]any{
+					"item_number": map[string]any{
+						"description": "The number of the issue, pull request, or discussion",
+						"required":    true,
+						"type":        "string",
+					},
+				},
+			}
+
+			// Merge other events (if any) — this handles the no-clash requirement:
+			// if the user also has e.g. "issues: {types: [labeled], names: [bug]}" as a
+			// regular label trigger alongside label_command, merge them rather than
+			// generating a duplicate "issues:" block.
+			if len(data.LabelCommandOtherEvents) > 0 {
+				for eventKey, eventVal := range data.LabelCommandOtherEvents {
+					if _, exists := labelEventsMap[eventKey]; exists {
+						// Event already present from label_command generation — keep ours
+						// (the condition handles filtering by label name at job level)
+						continue
+					}
+					labelEventsMap[eventKey] = eventVal
+				}
+			}
+
+			// Convert merged events to YAML
+			mergedEventsYAML, err := yaml.Marshal(map[string]any{"on": labelEventsMap})
+			if err == nil {
+				yamlStr := strings.TrimSuffix(string(mergedEventsYAML), "\n")
+				yamlStr = parser.QuoteCronExpressions(yamlStr)
+				// Pass frontmatter so label names in "names:" fields get commented out
+				yamlStr = c.commentOutProcessedFieldsInOnSection(yamlStr, map[string]any{})
+				data.On = yamlStr
+			}
+
+			// Build the label-command condition
+			hasOtherEvents := len(data.LabelCommandOtherEvents) > 0
+			labelConditionTree, err := buildLabelCommandCondition(data.LabelCommand, data.LabelCommandEvents, hasOtherEvents)
+			if err != nil {
+				return fmt.Errorf("failed to build label-command condition: %w", err)
+			}
+
+			if data.If == "" {
+				data.If = labelConditionTree.Render()
+			}
 		} else {
 			data.On = `on:
   # Start either every 10 minutes, or when some kind of human event occurs.
@@ -141,7 +205,7 @@ func (c *Compiler) applyDefaults(data *WorkflowData, markdownPath string) error 
 	}
 
 	// Generate concurrency configuration using the dedicated concurrency module
-	data.Concurrency = GenerateConcurrencyConfig(data, isCommandTrigger)
+	data.Concurrency = GenerateConcurrencyConfig(data, isCommandTrigger || isLabelCommandTrigger)
 
 	if data.RunName == "" {
 		data.RunName = fmt.Sprintf(`run-name: "%s"`, data.Name)

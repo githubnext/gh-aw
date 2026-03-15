@@ -690,6 +690,73 @@ func (c *Compiler) extractCommandConfig(frontmatter map[string]any) (commandName
 	return nil, nil
 }
 
+// extractLabelCommandConfig extracts the label-command configuration from frontmatter
+// including label name(s) and the events field.
+// It reads on.label_command which can be:
+//   - a string: label name directly (e.g. label_command: "deploy")
+//   - a map with "name" or "names" and optional "events" fields
+//
+// Returns (labelNames, labelEvents) where labelEvents is nil for default (all events).
+func (c *Compiler) extractLabelCommandConfig(frontmatter map[string]any) (labelNames []string, labelEvents []string) {
+	frontmatterLog.Print("Extracting label-command configuration from frontmatter")
+	onValue, exists := frontmatter["on"]
+	if !exists {
+		return nil, nil
+	}
+	onMap, ok := onValue.(map[string]any)
+	if !ok {
+		return nil, nil
+	}
+	labelCommandValue, hasLabelCommand := onMap["label_command"]
+	if !hasLabelCommand {
+		return nil, nil
+	}
+
+	// Simple string form: label_command: "my-label"
+	if nameStr, ok := labelCommandValue.(string); ok {
+		frontmatterLog.Printf("Extracted label-command name (shorthand): %s", nameStr)
+		return []string{nameStr}, nil
+	}
+
+	// Map form: label_command: {name: "...", names: [...], events: [...]}
+	if lcMap, ok := labelCommandValue.(map[string]any); ok {
+		var names []string
+		var events []string
+
+		if nameVal, hasName := lcMap["name"]; hasName {
+			if nameStr, ok := nameVal.(string); ok {
+				names = []string{nameStr}
+			} else if nameArray, ok := nameVal.([]any); ok {
+				for _, item := range nameArray {
+					if s, ok := item.(string); ok {
+						names = append(names, s)
+					}
+				}
+			}
+		}
+		if namesVal, hasNames := lcMap["names"]; hasNames {
+			if namesArray, ok := namesVal.([]any); ok {
+				for _, item := range namesArray {
+					if s, ok := item.(string); ok {
+						names = append(names, s)
+					}
+				}
+			} else if namesStr, ok := namesVal.(string); ok {
+				names = append(names, namesStr)
+			}
+		}
+
+		if eventsVal, hasEvents := lcMap["events"]; hasEvents {
+			events = ParseCommandEvents(eventsVal)
+		}
+
+		frontmatterLog.Printf("Extracted label-command config: names=%v, events=%v", names, events)
+		return names, events
+	}
+
+	return nil, nil
+}
+
 // isGitHubAppNestedField returns true if the trimmed YAML line represents a known
 // nested field or array item inside an on.github-app object.
 func isGitHubAppNestedField(trimmedLine string) bool {

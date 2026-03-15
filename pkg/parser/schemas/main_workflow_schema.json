@@ -300,6 +300,86 @@
                 }
               ]
             },
+            "label_command": {
+              "description": "On Label Command trigger: fires when a specific label is added to an issue, pull request, or discussion. The triggering label is automatically removed at workflow start so it can be applied again to re-trigger. Use the 'events' field to restrict which item types (issues, pull_request, discussion) activate the trigger.",
+              "oneOf": [
+                {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "Label name as a string (shorthand format). The workflow fires when this label is added to any supported item type (issue, pull request, or discussion)."
+                },
+                {
+                  "type": "object",
+                  "description": "Label command configuration object with label name(s) and optional event filtering.",
+                  "properties": {
+                    "name": {
+                      "oneOf": [
+                        {
+                          "type": "string",
+                          "minLength": 1,
+                          "description": "Single label name that acts as a command (e.g., 'deploy' triggers the workflow when the 'deploy' label is added)."
+                        },
+                        {
+                          "type": "array",
+                          "minItems": 1,
+                          "description": "Array of label names — any of these labels will trigger the workflow.",
+                          "items": {
+                            "type": "string",
+                            "minLength": 1,
+                            "description": "A label name"
+                          },
+                          "maxItems": 25
+                        }
+                      ],
+                      "description": "Label name(s) that trigger the workflow when added to an issue, pull request, or discussion."
+                    },
+                    "names": {
+                      "oneOf": [
+                        {
+                          "type": "string",
+                          "minLength": 1,
+                          "description": "Single label name."
+                        },
+                        {
+                          "type": "array",
+                          "minItems": 1,
+                          "description": "Array of label names — any of these labels will trigger the workflow.",
+                          "items": {
+                            "type": "string",
+                            "minLength": 1,
+                            "description": "A label name"
+                          },
+                          "maxItems": 25
+                        }
+                      ],
+                      "description": "Alternative to 'name': label name(s) that trigger the workflow."
+                    },
+                    "events": {
+                      "description": "Item types where the label-command trigger should be active. Default is all supported types: issues, pull_request, discussion.",
+                      "oneOf": [
+                        {
+                          "type": "string",
+                          "description": "Single item type or '*' for all types.",
+                          "enum": ["*", "issues", "pull_request", "discussion"]
+                        },
+                        {
+                          "type": "array",
+                          "minItems": 1,
+                          "description": "Array of item types where the trigger is active.",
+                          "items": {
+                            "type": "string",
+                            "description": "Item type.",
+                            "enum": ["*", "issues", "pull_request", "discussion"]
+                          },
+                          "maxItems": 3
+                        }
+                      ]
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              ]
+            },
             "push": {
               "description": "Push event trigger that runs the workflow when code is pushed to the repository",
               "type": "object",
