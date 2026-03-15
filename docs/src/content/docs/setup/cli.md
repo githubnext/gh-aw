@@ -77,6 +77,8 @@ gh aw logs workflow --repo github.enterprise.com/owner/repo      # Use with comm
 
 Commands that support `--create-pull-request` (such as `gh aw add`, `gh aw add-wizard`, `gh aw init`, `gh aw update`, and `gh aw upgrade`) automatically detect the enterprise host from the git remote and route PR creation to the correct GHES instance. No extra flags are needed.
 
+`gh aw audit` and `gh aw add-wizard` also auto-detect the GHES host from the git remote, so running them inside a GHES repository works without setting `GH_HOST` manually.
+
 #### Configuring `gh` CLI in workflow steps on GHES
 
 When agentic workflows run on GitHub Enterprise Server and use custom `steps:` that invoke `gh` CLI commands, source the bundled helper script to configure `gh` for the enterprise host:

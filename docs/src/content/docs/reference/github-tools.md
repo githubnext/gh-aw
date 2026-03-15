@@ -144,17 +144,19 @@ tools:
     min-integrity: approved
 ```
 
-### Safe Outputs Integration
+### Non-GitHub MCP Server Integration
 
-When you configure `repos` in the GitHub guard policy, the compiler automatically derives a linked guard-policy for the [safe outputs](/gh-aw/reference/safe-outputs/) MCP server:
+When you configure `repos` in the GitHub guard policy, the compiler automatically derives a linked write-sink guard-policy for **all non-GitHub MCP servers** — including [safe outputs](/gh-aw/reference/safe-outputs/), playwright, serena, mcp-scripts, agentic-workflows, web-fetch, and any custom tools. This ensures that as guard policies are applied to GitHub inputs, the corresponding write operations to non-GitHub servers are permitted.
 
-- **`repos: "all"` or `repos: "public"`**: Creates a write-sink policy with `accept: ["*"]` to allow all safe output operations
-- **`repos: [patterns]`**: Each entry in the `repos` list is transformed and added as an accept entry in the safeoutputs policy:
+The transformation rules are:
+
+- **`repos: "all"` or `repos: "public"`**: Creates a write-sink policy with `accept: ["*"]` to allow all write operations
+- **`repos: [patterns]`**: Each entry is transformed and added as an accept entry:
   - `"owner/*"` → `"private:owner"` (owner wildcard → strip wildcard)
   - `"owner/prefix*"` → `"private:owner/prefix*"` (prefix wildcard → keep as-is)
   - `"owner/repo"` → `"private:owner/repo"` (specific repo → keep as-is)
 
-This derivation happens at compile time and requires no additional configuration, allowing the MCP gateway to read repository data through the GitHub tools and still write outputs via safeoutputs.
+This derivation happens at compile time and requires no additional configuration, allowing the MCP gateway to read repository data through the GitHub tools and write outputs to any configured non-GitHub MCP server.
 
 ```yaml wrap
 tools:
