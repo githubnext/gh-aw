@@ -117,11 +117,16 @@ Example body (rows reflect whatever editors were discovered in Step 0):
 ```markdown
 ### Editor Health Report – <date>
 
+<details>
+<summary><b>Editor Status & Screenshots</b></summary>
+
 | Editor | URL | Status | Preview |
 |--------|-----|--------|---------|
 | Compiler Playground | https://github.github.com/gh-aw/editor/ | ✅ 200 | ![preview](<url>) |
 | Agentic Prompt Generator | https://ashleywolf.github.io/agentic-prompt-generator/ | ✅ 200 | ![preview](<url>) |
 | ... | ... | ... | ... |
+
+</details>
 ```
 
 ## Error Handling

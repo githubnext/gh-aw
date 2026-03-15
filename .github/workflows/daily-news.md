@@ -413,15 +413,23 @@ Include the charts in your daily news discussion report with this structure:
 ```markdown
 ### 📈 Trend Analysis
 
-### Issues & Pull Requests Activity
+<details>
+<summary><b>Issues & Pull Requests Activity</b></summary>
+
 ![Issues and PR Trends](URL_FROM_UPLOAD_ASSET_CHART_1)
 
 [Brief 2-3 sentence analysis of the trends shown in this chart, highlighting notable patterns, increases, decreases, or insights]
 
-### Commit Activity & Contributors
+</details>
+
+<details>
+<summary><b>Commit Activity & Contributors</b></summary>
+
 ![Commit Activity Trends](URL_FROM_UPLOAD_ASSET_CHART_2)
 
 [Brief 2-3 sentence analysis of the trends shown in this chart, noting developer engagement, busy periods, or collaboration patterns]
+
+</details>
 ```
 
 ### Python Implementation Notes

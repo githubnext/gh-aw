@@ -211,7 +211,7 @@ Ran the updated script successfully:
 
 </details>
 
-## Related Files
+### Related Files
 
 - Specification: `docs/src/content/docs/reference/safe-outputs-specification.md`
 - Conformance Script: `scripts/check-safe-outputs-conformance.sh`
