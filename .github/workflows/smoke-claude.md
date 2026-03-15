@@ -55,6 +55,7 @@ runtimes:
   go:
     version: "1.25"
 safe-outputs:
+    allowed-url-domains: [default-redaction]
     add-comment:
       hide-older-comments: true
       max: 2

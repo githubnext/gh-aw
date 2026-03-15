@@ -1012,3 +1012,26 @@ func TestComputeAllowedURLDomainsForSanitization(t *testing.T) {
 		}
 	})
 }
+
+// TestDefaultRedactionEcosystem tests that the default-redaction compound ecosystem
+// correctly expands to the union of defaults + dev-tools
+func TestDefaultRedactionEcosystem(t *testing.T) {
+	result := expandAllowedURLDomains([]string{"default-redaction"})
+	joined := strings.Join(result, ",")
+
+	// From defaults ecosystem
+	defaultsSamples := []string{"json-schema.org", "archive.ubuntu.com", "ocsp.digicert.com"}
+	// From dev-tools ecosystem
+	devToolsSamples := []string{"codecov.io", "snyk.io", "shields.io"}
+
+	for _, d := range append(defaultsSamples, devToolsSamples...) {
+		if !strings.Contains(joined, d) {
+			t.Errorf("Expected domain %q from default-redaction ecosystem in result", d)
+		}
+	}
+
+	// Should include both defaults and dev-tools (at least 34+21 = 55 domains)
+	if len(result) < 50 {
+		t.Errorf("Expected at least 50 domains in default-redaction, got %d", len(result))
+	}
+}

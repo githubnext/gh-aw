@@ -45,6 +45,7 @@ sandbox:
   mcp:
     container: "ghcr.io/github/gh-aw-mcpg"
 safe-outputs:
+    allowed-url-domains: [default-redaction]
     add-comment:
       allowed-repos: ["github/gh-aw"]
       hide-older-comments: true

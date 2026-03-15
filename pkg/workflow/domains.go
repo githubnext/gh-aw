@@ -128,9 +128,36 @@ func init() {
 	domainsLog.Printf("Loaded %d ecosystem categories", len(ecosystemDomains))
 }
 
-// getEcosystemDomains returns the domains for a given ecosystem category
-// The returned list is sorted and contains unique entries
+// compoundEcosystems defines ecosystem identifiers that expand to the union of multiple
+// component ecosystems. These are resolved at lookup time, so they stay in sync with
+// any future changes to the component ecosystems.
+var compoundEcosystems = map[string][]string{
+	// default-redaction: the recommended baseline for URL redaction in safe-outputs.
+	// Covers common infrastructure certificate/OCSP hosts (via "defaults") plus popular
+	// developer-tool and CI/CD service domains (via "dev-tools").
+	"default-redaction": {"defaults", "dev-tools"},
+}
+
+// getEcosystemDomains returns the domains for a given ecosystem category.
+// Supports compound ecosystem identifiers (see compoundEcosystems).
+// The returned list is sorted and contains unique entries.
 func getEcosystemDomains(category string) []string {
+	// Check for compound ecosystem first
+	if components, ok := compoundEcosystems[category]; ok {
+		domainMap := make(map[string]bool)
+		for _, component := range components {
+			for _, d := range getEcosystemDomains(component) {
+				domainMap[d] = true
+			}
+		}
+		result := make([]string, 0, len(domainMap))
+		for d := range domainMap {
+			result = append(result, d)
+		}
+		sort.Strings(result)
+		return result
+	}
+
 	domains, exists := ecosystemDomains[category]
 	if !exists {
 		return []string{}
@@ -334,6 +361,7 @@ var ecosystemPriority = []string{
 	"swift",
 	"terraform",
 	"zig",
+	"default-redaction", // compound: defaults + dev-tools
 }
 
 // GetDomainEcosystem returns the ecosystem identifier for a given domain, or empty string if not found.
