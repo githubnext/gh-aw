@@ -862,3 +862,51 @@ safe-outputs:
 	assert.NotContains(t, yaml, "fromJSON(needs.safe_outputs.outputs.call_workflow_payload).payload",
 		"payload itself must not be duplicated as a fromJSON entry")
 }
+
+// TestCallWorkflowCompile_ForwardsHyphenatedInputs tests that the compiler correctly emits
+// fromJSON-derived with: entries for inputs whose names contain hyphens (e.g. "task-description"),
+// which are not valid Go/YAML identifiers but are valid GitHub Actions input names.
+func TestCallWorkflowCompile_ForwardsHyphenatedInputs(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "call-workflow-hyphen-inputs")
+	workflowsDir := filepath.Join(tmpDir, ".github", "workflows")
+	require.NoError(t, os.MkdirAll(workflowsDir, 0755))
+
+	typedInputs := `      payload:
+        type: string
+        required: false
+      task-description:
+        description: Human-readable description of the task to perform
+        type: string
+        required: false
+`
+	createWorker(t, workflowsDir, "worker-a", typedInputs)
+
+	gatewayMD := `---
+on: workflow_dispatch
+engine: copilot
+permissions:
+  contents: read
+safe-outputs:
+  add-comment:
+    max: 1
+  call-workflow:
+    workflows:
+      - worker-a
+---
+
+# Gateway — hyphenated input forwarding
+`
+	yaml := compileAndReadLock(t, filepath.Join(workflowsDir, "gateway.md"), gatewayMD)
+
+	// Canonical payload transport must always be present
+	assert.Contains(t, yaml, "payload: ${{ needs.safe_outputs.outputs.call_workflow_payload }}",
+		"Should always forward canonical payload")
+
+	// Hyphenated input must be forwarded via fromJSON
+	assert.Contains(t, yaml, "fromJSON(needs.safe_outputs.outputs.call_workflow_payload).task-description",
+		"Should forward task-description (hyphenated) via fromJSON")
+
+	// payload must not appear as a fromJSON entry
+	assert.NotContains(t, yaml, "fromJSON(needs.safe_outputs.outputs.call_workflow_payload).payload",
+		"payload itself must not be duplicated as a fromJSON entry")
+}

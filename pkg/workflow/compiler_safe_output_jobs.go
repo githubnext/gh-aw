@@ -190,11 +190,14 @@ func (c *Compiler) buildCallWorkflowJobs(data *WorkflowData, markdownPath string
 					workflowInputs, inputErr = extractWorkflowCallInputs(fileResult.ymlPath)
 				case fileResult.mdExists:
 					workflowInputs, inputErr = extractMDWorkflowCallInputs(fileResult.mdPath)
+				default:
+					compilerSafeOutputJobsLog.Printf("Warning: no worker file found for '%s'; "+
+						"typed inputs will not be forwarded in the with: block.", workflowName)
 				}
 				if inputErr != nil {
 					compilerSafeOutputJobsLog.Printf("Warning: could not extract workflow_call inputs for '%s': %v. "+
 						"Typed inputs will not be forwarded in the with: block.", workflowName, inputErr)
-				} else {
+				} else if workflowInputs != nil {
 					typedInputCount := 0
 					for inputName := range workflowInputs {
 						if inputName == "payload" {
