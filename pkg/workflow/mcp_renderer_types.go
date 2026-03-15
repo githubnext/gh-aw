@@ -14,6 +14,11 @@ type MCPRendererOptions struct {
 	IsLast bool
 	// ActionMode indicates the action mode for workflow compilation (dev, release, script)
 	ActionMode ActionMode
+	// WriteSinkGuardPolicies contains the write-sink guard policies to apply to non-GitHub MCP servers.
+	// These are derived from the GitHub guard-policy configuration and applied as a default write-sink
+	// to ensure that as guard policies are rolled out, only GitHub inputs are filtered while outputs
+	// to non-GitHub servers are not restricted. Nil when no GitHub guard policies are configured.
+	WriteSinkGuardPolicies map[string]any
 }
 
 // MCPConfigRendererUnified provides unified rendering methods for MCP configurations

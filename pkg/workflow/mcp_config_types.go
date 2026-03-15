@@ -47,6 +47,11 @@ type MCPConfigRenderer struct {
 	// RewriteLocalhostToDocker indicates if localhost URLs should be rewritten to host.docker.internal
 	// This is needed when the agent runs inside a firewall container and needs to access MCP servers on the host
 	RewriteLocalhostToDocker bool
+	// GuardPolicies contains the write-sink guard policies to render at the end of the MCP server configuration.
+	// For JSON format, they are added as the last field inside the server object.
+	// For TOML format, they are added as a separate TOML section after the server config.
+	// Nil when no guard policies should be applied.
+	GuardPolicies map[string]any
 }
 
 // ToolConfig represents a tool configuration interface for type safety

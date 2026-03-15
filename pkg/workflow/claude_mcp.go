@@ -16,11 +16,12 @@ func (e *ClaudeEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]a
 	// Claude uses JSON format without Copilot-specific fields and multi-line args
 	createRenderer := func(isLast bool) *MCPConfigRendererUnified {
 		return NewMCPConfigRenderer(MCPRendererOptions{
-			IncludeCopilotFields: false, // Claude doesn't use "type" and "tools" fields
-			InlineArgs:           false, // Claude uses multi-line args format
-			Format:               "json",
-			IsLast:               isLast,
-			ActionMode:           GetActionModeFromWorkflowData(workflowData),
+			IncludeCopilotFields:   false, // Claude doesn't use "type" and "tools" fields
+			InlineArgs:             false, // Claude uses multi-line args format
+			Format:                 "json",
+			IsLast:                 isLast,
+			ActionMode:             GetActionModeFromWorkflowData(workflowData),
+			WriteSinkGuardPolicies: deriveWriteSinkGuardPolicyFromWorkflow(workflowData),
 		})
 	}
 
@@ -59,7 +60,7 @@ func (e *ClaudeEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]a
 				renderer.RenderMCPScriptsMCP(yaml, mcpScripts, workflowData)
 			},
 			RenderWebFetch: func(yaml *strings.Builder, isLast bool) {
-				renderMCPFetchServerConfig(yaml, "json", "              ", isLast, false)
+				renderMCPFetchServerConfig(yaml, "json", "              ", isLast, false, deriveWriteSinkGuardPolicyFromWorkflow(workflowData))
 			},
 			RenderCustomMCPConfig: func(yaml *strings.Builder, toolName string, toolConfig map[string]any, isLast bool) error {
 				return e.renderClaudeMCPConfigWithContext(yaml, toolName, toolConfig, isLast, workflowData)
