@@ -282,24 +282,18 @@ func getMarkdownWorkflowFiles(workflowDir string) ([]string, error) {
 	return mdFiles, nil
 }
 
-// extractWorkflowNameFromFile extracts the workflow name from a file's H1 header
-func extractWorkflowNameFromFile(filePath string) (string, error) {
-	content, err := os.ReadFile(filePath)
-	if err != nil {
-		return "", err
-	}
-
-	// Scan lines directly: skip frontmatter block (between --- delimiters) without
-	// YAML parsing, then find the first H1 header. This avoids the cost of a full
-	// yaml.Unmarshal which is unnecessary when we only need the H1 title.
-	//
-	// Frontmatter is only recognised when "---" appears on the very first line,
-	// matching the behaviour of ExtractFrontmatterFromContent.
-	lines := strings.SplitSeq(string(content), "\n")
+// fastParseTitle scans markdown content for the first H1 header, skipping an
+// optional frontmatter block, without performing a full YAML parse.
+//
+// Frontmatter is recognised only when "---" appears on the very first line
+// (matching the behaviour of ExtractFrontmatterFromContent). Returns the H1
+// title text, or ("", nil) when no H1 header is present. Returns an error if
+// frontmatter is opened but never closed.
+func fastParseTitle(content string) (string, error) {
 	firstLine := true
 	inFrontmatter := false
 	pastFrontmatter := false
-	for line := range lines {
+	for line := range strings.SplitSeq(content, "\n") {
 		trimmed := strings.TrimSpace(line)
 		if firstLine {
 			firstLine = false
@@ -323,6 +317,24 @@ func extractWorkflowNameFromFile(filePath string) (string, error) {
 	// Unclosed frontmatter is an error (consistent with ExtractFrontmatterFromContent).
 	if inFrontmatter && !pastFrontmatter {
 		return "", errors.New("frontmatter not properly closed")
+	}
+
+	return "", nil
+}
+
+// extractWorkflowNameFromFile extracts the workflow name from a file's H1 header
+func extractWorkflowNameFromFile(filePath string) (string, error) {
+	content, err := os.ReadFile(filePath)
+	if err != nil {
+		return "", err
+	}
+
+	title, err := fastParseTitle(string(content))
+	if err != nil {
+		return "", err
+	}
+	if title != "" {
+		return title, nil
 	}
 
 	// No H1 header found, generate default name from filename
