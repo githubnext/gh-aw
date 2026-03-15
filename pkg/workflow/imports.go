@@ -172,6 +172,19 @@ func getSafeOutputTypeKeys() ([]string, error) {
 
 // MergeSafeOutputs merges safe-outputs configurations from imports into the top-level safe-outputs
 // Returns an error if a conflict is detected (same safe-output type defined in both main and imported)
+// MergeSafeOutputs merges safe-output configurations from imported workflows into the
+// top-level (main workflow) configuration. For most safe-output types the main workflow
+// definition takes complete precedence over any imported definition (override semantics).
+//
+// Exception — create-discussion: uses field-level merge semantics so that a shared
+// component (e.g. shared/daily-audit-discussion.md) can provide base fields such as
+// category and close-older-discussions while individual workflows override only their
+// specific settings (title-prefix, expires). See mergeCreateDiscussionsFields for the
+// exact fields that participate in field-level merge.
+//
+// Conflict detection still applies between multiple imported files: if two imported
+// workflows both define the same safe-output type (including create-discussion), an
+// error is returned.
 func (c *Compiler) MergeSafeOutputs(topSafeOutputs *SafeOutputsConfig, importedSafeOutputsJSON []string) (*SafeOutputsConfig, error) {
 	importsLog.Print("Merging safe-outputs from imports")
 
@@ -655,9 +668,12 @@ func mergeCreateDiscussionsFields(result, imported *CreateDiscussionsConfig) {
 	if result.Footer == nil && imported.Footer != nil {
 		result.Footer = imported.Footer
 	}
-	// Note: TitlePrefix, Expires, TargetRepoSlug, AllowedRepos, CloseOlderKey, Max, and
-	// BaseSafeOutputConfig fields are NOT merged – they either default in parseDiscussionsConfig
-	// or are intentionally workflow-specific.
+	// Note: TitlePrefix, Expires, TargetRepoSlug, AllowedRepos, and CloseOlderKey are
+	// intentionally workflow-specific and are NOT merged from shared components.
+	// Max is excluded because it can be set to a non-default value per workflow (e.g. max: 2
+	// for poem-bot.md) and is already defaulted to 1 by parseDiscussionsConfig, so merging
+	// would silently overwrite a deliberate workflow choice.
+	// BaseSafeOutputConfig fields (GitHubToken, Staged) are similarly excluded.
 }
 
 // MergeFeatures merges features configurations from imports with top-level features

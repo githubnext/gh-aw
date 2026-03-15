@@ -475,7 +475,8 @@ safe-outputs:
 
 	// Verify workflow-specific fields from main workflow are present
 	assert.Equal(t, "[my-workflow] ", workflowData.SafeOutputs.CreateDiscussions.TitlePrefix, "TitlePrefix should come from main workflow")
-	assert.Equal(t, 24, workflowData.SafeOutputs.CreateDiscussions.Expires, "Expires should come from main workflow (1d = 24 hours)")
+	// expires: 1d is parsed as 24 hours by parseDiscussionsConfig duration parsing
+	assert.Equal(t, 24, workflowData.SafeOutputs.CreateDiscussions.Expires, "Expires should come from main workflow: 1d parses to 24 hours")
 
 	// Verify base fields from shared component are filled in via field-level merge
 	assert.Equal(t, "audits", workflowData.SafeOutputs.CreateDiscussions.Category, "Category should come from shared component")
