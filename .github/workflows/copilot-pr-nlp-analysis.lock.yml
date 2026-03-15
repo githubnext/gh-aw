@@ -28,10 +28,11 @@
 #     - shared/copilot-pr-data-fetch.md
 #     - shared/jqschema.md
 #     - shared/python-dataviz.md
+#     - shared/python-nlp.md
 #     - shared/reporting.md
 #     - shared/copilot-pr-analysis-base.md
 #
-# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"f2b6098d37f2490aa73983346ec72a1b9b929981244ae63b5af8099ce04a78b8","strict":true}
+# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"a25428ae2bcd93270dfa698f1b2d9de5fcbefaef683f825a257b7d9d9b5977d8","strict":true}
 
 name: "Copilot PR Conversation NLP Analysis"
 "on":
@@ -177,6 +178,9 @@ jobs:
           GH_AW_PROMPT_EOF
           cat << 'GH_AW_PROMPT_EOF'
           {{#runtime-import .github/workflows/shared/python-dataviz.md}}
+          GH_AW_PROMPT_EOF
+          cat << 'GH_AW_PROMPT_EOF'
+          {{#runtime-import .github/workflows/shared/python-nlp.md}}
           GH_AW_PROMPT_EOF
           cat << 'GH_AW_PROMPT_EOF'
           {{#runtime-import .github/workflows/shared/reporting.md}}
@@ -342,6 +346,8 @@ jobs:
             /tmp/gh-aw/python/*.py
             /tmp/gh-aw/python/data/*
           retention-days: 30
+      - name: Setup Python NLP environment
+        run: "mkdir -p /tmp/gh-aw/python/{data,charts,artifacts}\npip install --user --quiet nltk scikit-learn textblob wordcloud\n\n# Download required NLTK corpora\npython3 -c \"\nimport nltk\nfor corpus in ['punkt_tab', 'stopwords', 'vader_lexicon', 'averaged_perceptron_tagger_eng']:\n    nltk.download(corpus, quiet=True)\nprint('NLTK corpora ready')\n\"\n\npython3 -c \"import sklearn; print(f'scikit-learn {sklearn.__version__}')\""
       - name: Setup jq utilities directory
         run: "mkdir -p /tmp/gh-aw\ncat > /tmp/gh-aw/jqschema.sh << 'EOF'\n#!/usr/bin/env bash\n# jqschema.sh\njq -c '\ndef walk(f):\n  . as $in |\n  if type == \"object\" then\n    reduce keys[] as $k ({}; . + {($k): ($in[$k] | walk(f))})\n  elif type == \"array\" then\n    if length == 0 then [] else [.[0] | walk(f)] end\n  else\n    type\n  end;\nwalk(.)\n'\nEOF\nchmod +x /tmp/gh-aw/jqschema.sh"
       - env:
@@ -354,8 +360,6 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         name: Fetch PR comments for detailed analysis
         run: "# Create comments directory\nmkdir -p /tmp/gh-aw/pr-comments\n\n# Fetch detailed comments for each PR from the pre-fetched data\nPR_COUNT=$(jq 'length' /tmp/gh-aw/pr-data/copilot-prs.json)\necho \"Fetching comments for $PR_COUNT PRs...\"\n\njq -r '.[].number' /tmp/gh-aw/pr-data/copilot-prs.json | while read -r PR_NUM; do\n  echo \"Fetching comments for PR #${PR_NUM}\"\n  gh pr view \"${PR_NUM}\" \\\n    --json comments,reviews,reviewComments \\\n    > \"/tmp/gh-aw/pr-comments/pr-${PR_NUM}.json\" 2>/dev/null || echo \"{}\" > \"/tmp/gh-aw/pr-comments/pr-${PR_NUM}.json\"\n  sleep 0.5  # Rate limiting\ndone\n\necho \"Comment data saved to /tmp/gh-aw/pr-comments/\"\n"
-      - name: Install NLP libraries
-        run: "pip install --user --quiet nltk scikit-learn textblob wordcloud\n\n# Download required NLTK data (using punkt_tab for NLTK 3.9+)\npython3 -c \"import nltk; nltk.download('punkt_tab', quiet=True); nltk.download('stopwords', quiet=True); nltk.download('vader_lexicon', quiet=True); nltk.download('averaged_perceptron_tagger_eng', quiet=True)\"\n\n# Verify installations\npython3 -c \"import nltk; print(f'NLTK {nltk.__version__} installed')\"\npython3 -c \"import sklearn; print(f'scikit-learn {sklearn.__version__} installed')\"\npython3 -c \"from importlib.metadata import version; print(f'TextBlob {version(\\\"textblob\\\")} installed')\"\npython3 -c \"import wordcloud; print(f'WordCloud {wordcloud.__version__} installed')\"\n\necho \"All NLP libraries installed successfully\"\n"
 
       # Cache memory file share configuration from frontmatter processed below
       - name: Create cache-memory directory

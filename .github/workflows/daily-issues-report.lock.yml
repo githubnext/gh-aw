@@ -28,10 +28,11 @@
 #     - shared/issues-data-fetch.md
 #     - shared/jqschema.md
 #     - shared/python-dataviz.md
+#     - shared/python-nlp.md
 #     - shared/reporting.md
 #     - shared/trends.md
 #
-# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"667a196ac2033e3f747d5c0dd2d3391c9a05f01941879279691b28a1ccc5f68b","strict":true}
+# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"0b3fc119e1d72b7a68ab71c7298b846813cae152c54e8384de51cce919de9675","strict":true}
 
 name: "Daily Issues Report Generator"
 "on":
@@ -193,6 +194,9 @@ jobs:
           {{#runtime-import .github/workflows/shared/python-dataviz.md}}
           GH_AW_PROMPT_EOF
           cat << 'GH_AW_PROMPT_EOF'
+          {{#runtime-import .github/workflows/shared/python-nlp.md}}
+          GH_AW_PROMPT_EOF
+          cat << 'GH_AW_PROMPT_EOF'
           {{#runtime-import .github/workflows/shared/trends.md}}
           GH_AW_PROMPT_EOF
           cat << 'GH_AW_PROMPT_EOF'
@@ -349,6 +353,8 @@ jobs:
             /tmp/gh-aw/python/*.py
             /tmp/gh-aw/python/data/*
           retention-days: 30
+      - name: Setup Python NLP environment
+        run: "mkdir -p /tmp/gh-aw/python/{data,charts,artifacts}\npip install --user --quiet nltk scikit-learn textblob wordcloud\n\n# Download required NLTK corpora\npython3 -c \"\nimport nltk\nfor corpus in ['punkt_tab', 'stopwords', 'vader_lexicon', 'averaged_perceptron_tagger_eng']:\n    nltk.download(corpus, quiet=True)\nprint('NLTK corpora ready')\n\"\n\npython3 -c \"import sklearn; print(f'scikit-learn {sklearn.__version__}')\""
 
       # Cache memory file share configuration from frontmatter processed below
       - name: Create cache-memory directory
