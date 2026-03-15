@@ -972,22 +972,22 @@ jobs:
         id: check
         run: |
           set +e
-          OUTPUT=$(bash scripts/check-validator-sizes.sh 2>&1)
+          OUTPUT=$(NO_COLOR=1 bash scripts/check-validator-sizes.sh 2>&1)
           EXIT_CODE=$?
           echo "$OUTPUT"
-          echo "exit_code=$EXIT_CODE" >> $GITHUB_OUTPUT
-          echo "## Validator File Size Check" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "Checking \`*_validation.go\` files against the 300-line hard limit (AGENTS.md)." >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
-          echo "$OUTPUT" >> $GITHUB_STEP_SUMMARY
-          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
-          if [ $EXIT_CODE -ne 0 ]; then
-            echo "" >> $GITHUB_STEP_SUMMARY
-            echo "⚠️ This check is currently non-blocking. Fix violations to keep the codebase healthy." >> $GITHUB_STEP_SUMMARY
+          echo "exit_code=$EXIT_CODE" >> "$GITHUB_OUTPUT"
+          echo "## Validator File Size Check" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "Checking \`*_validation.go\` files against the 512-line hard limit (AGENTS.md)." >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "\`\`\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "$OUTPUT" >> "$GITHUB_STEP_SUMMARY"
+          echo "\`\`\`" >> "$GITHUB_STEP_SUMMARY"
+          if [ "$EXIT_CODE" -ne 0 ]; then
+            echo "" >> "$GITHUB_STEP_SUMMARY"
+            echo "⚠️ This check is currently non-blocking. Fix violations to keep the codebase healthy." >> "$GITHUB_STEP_SUMMARY"
           fi
-          exit $EXIT_CODE
+          exit "$EXIT_CODE"
 
   lint-go:
     runs-on: ubuntu-latest
