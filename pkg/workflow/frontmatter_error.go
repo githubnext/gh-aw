@@ -64,10 +64,15 @@ func translateYAMLMessage(message string) string {
 // document line number.  frontmatterStart is the 1-based line number of the
 // first frontmatter line (i.e., the line immediately after the opening "---").
 // Returns 0 if the field is not found.
+//
+// Only top-level (non-indented) keys are matched.  Nested values that happen
+// to contain the field name are ignored.
 func findFrontmatterFieldLine(frontmatterLines []string, frontmatterStart int, fieldName string) int {
 	prefix := fieldName + ":"
 	for i, line := range frontmatterLines {
-		if strings.HasPrefix(strings.TrimSpace(line), prefix) {
+		// Match only non-indented lines so nested YAML values are not confused
+		// with top-level keys (e.g. "  engine: ..." inside a mapping is ignored).
+		if strings.HasPrefix(line, prefix) {
 			return frontmatterStart + i
 		}
 	}

@@ -1,0 +1,60 @@
+//go:build !integration
+
+package workflow
+
+import (
+	"errors"
+	"testing"
+
+	"github.com/stretchr/testify/assert"
+)
+
+// TestIsFormattedCompilerError verifies that the helper correctly identifies
+// errors produced by formatCompilerError / formatCompilerErrorWithPosition and
+// returns false for other error types.
+func TestIsFormattedCompilerError(t *testing.T) {
+	tests := []struct {
+		name     string
+		err      error
+		expected bool
+	}{
+		{
+			name:     "error from formatCompilerError with nil cause",
+			err:      formatCompilerError("file.md", "error", "something went wrong", nil),
+			expected: true,
+		},
+		{
+			name:     "error from formatCompilerError with non-nil cause",
+			err:      formatCompilerError("file.md", "error", "something went wrong", errors.New("root cause")),
+			expected: true,
+		},
+		{
+			name:     "error from formatCompilerErrorWithPosition",
+			err:      formatCompilerErrorWithPosition("file.md", 5, 3, "error", "bad value", nil),
+			expected: true,
+		},
+		{
+			name:     "plain error is not formatted",
+			err:      errors.New("plain error"),
+			expected: false,
+		},
+		{
+			name:     "fmt.Errorf error is not formatted",
+			err:      errors.New("wrapped: plain error"),
+			expected: false,
+		},
+		{
+			name:     "nil error",
+			err:      nil,
+			expected: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := isFormattedCompilerError(tt.err)
+			assert.Equal(t, tt.expected, got,
+				"isFormattedCompilerError(%v) should be %v", tt.err, tt.expected)
+		})
+	}
+}
