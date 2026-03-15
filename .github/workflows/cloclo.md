@@ -35,6 +35,7 @@ safe-outputs:
     labels: [automation, cloclo]
     excluded-files:
       - ".github/workflows/*.lock.yml"
+    protected-files: fallback-to-issue
   add-comment:
     max: 1
   messages:
