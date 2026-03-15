@@ -6,6 +6,7 @@ on:
   slash_command:
     name: q
   reaction: rocket
+  status-comment: true
 permissions:
   contents: read
   actions: read
