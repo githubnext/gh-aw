@@ -6,6 +6,7 @@ on:
     name: archie
     events: [issues, issue_comment, pull_request, pull_request_comment]
   reaction: eyes
+  status-comment: true
 permissions:
   contents: read
   issues: read

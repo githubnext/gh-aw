@@ -5,6 +5,7 @@ on:
   issues:
     types: [labeled]
     names: [cloclo]
+  status-comment: true
 permissions:
   contents: read
   pull-requests: read
