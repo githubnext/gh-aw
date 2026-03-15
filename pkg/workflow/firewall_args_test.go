@@ -27,7 +27,7 @@ func TestFirewallArgsInCopilotEngine(t *testing.T) {
 		engine := NewCopilotEngine()
 		steps := engine.GetExecutionSteps(workflowData, "test.log")
 
-		_, stepContent := requireCopilotPreflightAndExecutionSteps(t, steps)
+		stepContent := requireCopilotExecutionStep(t, steps)
 
 		// Check that the command contains awf (AWF v0.15.0+ uses chroot mode by default)
 		if !strings.Contains(stepContent, "sudo -E awf") {
@@ -65,7 +65,7 @@ func TestFirewallArgsInCopilotEngine(t *testing.T) {
 		engine := NewCopilotEngine()
 		steps := engine.GetExecutionSteps(workflowData, "test.log")
 
-		_, stepContent := requireCopilotPreflightAndExecutionSteps(t, steps)
+		stepContent := requireCopilotExecutionStep(t, steps)
 
 		// Check that custom args are included
 		if !strings.Contains(stepContent, "--custom-arg") {
@@ -103,7 +103,7 @@ func TestFirewallArgsInCopilotEngine(t *testing.T) {
 		engine := NewCopilotEngine()
 		steps := engine.GetExecutionSteps(workflowData, "test.log")
 
-		_, stepContent := requireCopilotPreflightAndExecutionSteps(t, steps)
+		stepContent := requireCopilotExecutionStep(t, steps)
 
 		// Check that args with spaces are present (they should be escaped)
 		if !strings.Contains(stepContent, "--message") {
@@ -132,7 +132,7 @@ func TestFirewallArgsInCopilotEngine(t *testing.T) {
 		engine := NewCopilotEngine()
 		steps := engine.GetExecutionSteps(workflowData, "test.log")
 
-		_, stepContent := requireCopilotPreflightAndExecutionSteps(t, steps)
+		stepContent := requireCopilotExecutionStep(t, steps)
 
 		// Check that AWF is used for transparent host access (AWF v0.15.0+)
 		// Chroot mode is now the default, so no --enable-chroot flag is needed
@@ -162,7 +162,7 @@ func TestFirewallArgsInCopilotEngine(t *testing.T) {
 		engine := NewCopilotEngine()
 		steps := engine.GetExecutionSteps(workflowData, "test.log")
 
-		_, stepContent := requireCopilotPreflightAndExecutionSteps(t, steps)
+		stepContent := requireCopilotExecutionStep(t, steps)
 
 		// Check that --image-tag is included with default version (without v prefix)
 		expectedImageTag := "--image-tag " + strings.TrimPrefix(string(constants.DefaultFirewallVersion), "v")
@@ -189,7 +189,7 @@ func TestFirewallArgsInCopilotEngine(t *testing.T) {
 		engine := NewCopilotEngine()
 		steps := engine.GetExecutionSteps(workflowData, "test.log")
 
-		_, stepContent := requireCopilotPreflightAndExecutionSteps(t, steps)
+		stepContent := requireCopilotExecutionStep(t, steps)
 
 		// Check that --image-tag is included with custom version (without v prefix)
 		expectedImageTag := "--image-tag " + strings.TrimPrefix(customVersion, "v")
@@ -221,7 +221,7 @@ func TestFirewallArgsInCopilotEngine(t *testing.T) {
 		engine := NewCopilotEngine()
 		steps := engine.GetExecutionSteps(workflowData, "test.log")
 
-		_, stepContent := requireCopilotPreflightAndExecutionSteps(t, steps)
+		stepContent := requireCopilotExecutionStep(t, steps)
 
 		// Check that --ssl-bump flag is included
 		if !strings.Contains(stepContent, "--ssl-bump") {
@@ -247,7 +247,7 @@ func TestFirewallArgsInCopilotEngine(t *testing.T) {
 		engine := NewCopilotEngine()
 		steps := engine.GetExecutionSteps(workflowData, "test.log")
 
-		_, stepContent := requireCopilotPreflightAndExecutionSteps(t, steps)
+		stepContent := requireCopilotExecutionStep(t, steps)
 
 		// Check that --ssl-bump flag is included
 		if !strings.Contains(stepContent, "--ssl-bump") {
@@ -282,7 +282,7 @@ func TestFirewallArgsInCopilotEngine(t *testing.T) {
 		engine := NewCopilotEngine()
 		steps := engine.GetExecutionSteps(workflowData, "test.log")
 
-		_, stepContent := requireCopilotPreflightAndExecutionSteps(t, steps)
+		stepContent := requireCopilotExecutionStep(t, steps)
 
 		// Check that --ssl-bump flag is NOT included
 		if strings.Contains(stepContent, "--ssl-bump") {

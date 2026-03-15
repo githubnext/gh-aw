@@ -352,14 +352,6 @@ jobs:
           path: /tmp/gh-aw
       - name: Clean git credentials
         run: bash /opt/gh-aw/actions/clean_git_credentials.sh
-      - name: Copilot pre-flight diagnostic
-        id: copilot-preflight
-        continue-on-error: true
-        env:
-          COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
-          GITHUB_SERVER_URL: ${{ github.server_url }}
-          GITHUB_API_URL: ${{ github.api_url }}
-        run: bash /opt/gh-aw/actions/copilot_preflight_diagnostic.sh
       - name: Execute GitHub Copilot CLI
         id: agentic_execution
         # Copilot CLI tool arguments (sorted):

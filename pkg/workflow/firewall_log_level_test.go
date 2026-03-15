@@ -137,7 +137,7 @@ func TestFirewallLogLevelInCopilotEngine(t *testing.T) {
 		engine := NewCopilotEngine()
 		steps := engine.GetExecutionSteps(workflowData, "test.log")
 
-		_, stepContent := requireCopilotPreflightAndExecutionSteps(t, steps)
+		stepContent := requireCopilotExecutionStep(t, steps)
 
 		// Check that the command contains --log-level info (default)
 		if !strings.Contains(stepContent, "--log-level info") {
@@ -162,7 +162,7 @@ func TestFirewallLogLevelInCopilotEngine(t *testing.T) {
 		engine := NewCopilotEngine()
 		steps := engine.GetExecutionSteps(workflowData, "test.log")
 
-		_, stepContent := requireCopilotPreflightAndExecutionSteps(t, steps)
+		stepContent := requireCopilotExecutionStep(t, steps)
 
 		// Check that the command contains --log-level debug
 		if !strings.Contains(stepContent, "--log-level debug") {
@@ -190,7 +190,7 @@ func TestFirewallLogLevelInCopilotEngine(t *testing.T) {
 			engine := NewCopilotEngine()
 			steps := engine.GetExecutionSteps(workflowData, "test.log")
 
-			_, stepContent := requireCopilotPreflightAndExecutionSteps(t, steps)
+			stepContent := requireCopilotExecutionStep(t, steps)
 
 			expectedFlag := "--log-level " + level
 			if !strings.Contains(stepContent, expectedFlag) {

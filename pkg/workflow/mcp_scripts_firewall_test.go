@@ -37,7 +37,7 @@ func TestMCPScriptsWithFirewallIncludesHostDockerInternal(t *testing.T) {
 	engine := NewCopilotEngine()
 	steps := engine.GetExecutionSteps(workflowData, "test.log")
 
-	_, stepContent := requireCopilotPreflightAndExecutionSteps(t, steps)
+	stepContent := requireCopilotExecutionStep(t, steps)
 
 	// Verify that host.docker.internal is in the allowed domains
 	if !strings.Contains(stepContent, "host.docker.internal") {
