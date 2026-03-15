@@ -13,6 +13,7 @@ import (
 )
 
 // TestExtractJobPermissionsFromParsedWorkflow_NoJobs tests empty workflow map
+
 func TestExtractJobPermissionsFromParsedWorkflow_NoJobs(t *testing.T) {
 	perms := extractJobPermissionsFromParsedWorkflow(map[string]any{})
 	assert.Empty(t, perms.RenderToYAML(), "Should return empty permissions when no jobs present")
@@ -423,4 +424,241 @@ jobs:
 	require.NotEqual(t, -1, permIdx, "permissions: should be present in YAML output")
 	require.NotEqual(t, -1, usesIdx, "uses: should be present in YAML output")
 	assert.Less(t, permIdx, usesIdx, "permissions: should appear before uses: in job YAML")
+}
+
+// TestExtractCallWorkflowPermissions_LockYMLPriorityOverYML tests that .lock.yml takes
+// priority over .yml when both exist
+func TestExtractCallWorkflowPermissions_LockYMLPriorityOverYML(t *testing.T) {
+	tmpDir := t.TempDir()
+	workflowsDir := filepath.Join(tmpDir, ".github", "workflows")
+	require.NoError(t, os.MkdirAll(workflowsDir, 0755), "Failed to create workflows directory")
+
+	// .lock.yml has contents: write
+	lockContent := `name: Worker Lock
+on:
+  workflow_call: {}
+jobs:
+  work:
+    permissions:
+      contents: write
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "lock"
+`
+	// .yml has contents: read (should be ignored when .lock.yml exists)
+	ymlContent := `name: Worker YML
+on:
+  workflow_call: {}
+jobs:
+  work:
+    permissions:
+      contents: read
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "yml"
+`
+	require.NoError(t, os.WriteFile(filepath.Join(workflowsDir, "worker-priority.lock.yml"), []byte(lockContent), 0644), "Failed to write worker-priority.lock.yml")
+	require.NoError(t, os.WriteFile(filepath.Join(workflowsDir, "worker-priority.yml"), []byte(ymlContent), 0644), "Failed to write worker-priority.yml")
+
+	markdownPath := filepath.Join(workflowsDir, "gateway.md")
+
+	perms, err := extractCallWorkflowPermissions("worker-priority", markdownPath)
+	require.NoError(t, err, "Should extract permissions without error")
+	require.NotNil(t, perms, "Should return non-nil permissions")
+
+	rendered := perms.RenderToYAML()
+	// Should use .lock.yml (contents: write), not .yml (contents: read)
+	assert.Contains(t, rendered, "contents: write", "Should use .lock.yml permissions, not .yml")
+}
+
+// TestCallWorkflowPermissions_EndToEnd tests full gateway compilation with permissioned workers —
+// the generated lock file must include job-level permissions blocks on every call-* job.
+func TestCallWorkflowPermissions_EndToEnd(t *testing.T) {
+	compiler := NewCompilerWithVersion("1.0.0")
+
+	tmpDir := t.TempDir()
+	workflowsDir := filepath.Join(tmpDir, ".github", "workflows")
+	require.NoError(t, os.MkdirAll(workflowsDir, 0755), "Failed to create workflows directory")
+
+	// Worker A: needs read permissions
+	workerA := `name: Worker A
+on:
+  workflow_call:
+    inputs:
+      payload:
+        type: string
+        required: false
+jobs:
+  activation:
+    permissions:
+      contents: read
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "activation"
+  agent:
+    permissions:
+      actions: read
+      contents: read
+      issues: read
+      pull-requests: read
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "agent"
+  safe_outputs:
+    permissions:
+      contents: write
+      issues: write
+      pull-requests: write
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "safe_outputs"
+`
+	require.NoError(t, os.WriteFile(filepath.Join(workflowsDir, "worker-a.lock.yml"), []byte(workerA), 0644), "Failed to write worker-a.lock.yml")
+
+	// Worker B: only needs issues: write
+	workerB := `name: Worker B
+on:
+  workflow_call:
+    inputs:
+      payload:
+        type: string
+        required: false
+jobs:
+  work:
+    permissions:
+      issues: write
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "work"
+`
+	require.NoError(t, os.WriteFile(filepath.Join(workflowsDir, "worker-b.lock.yml"), []byte(workerB), 0644), "Failed to write worker-b.lock.yml")
+
+	// Gateway markdown: calls both workers
+	gatewayMD := `---
+on:
+  issues:
+    types: [opened]
+engine: copilot
+permissions:
+  contents: read
+safe-outputs:
+  add-comment:
+    max: 1
+  call-workflow:
+    workflows:
+      - worker-a
+      - worker-b
+    max: 1
+---
+
+# Gateway
+
+Analyse the issue and determine which worker to run.
+`
+	gatewayFile := filepath.Join(workflowsDir, "gateway.md")
+	require.NoError(t, os.WriteFile(gatewayFile, []byte(gatewayMD), 0644), "Failed to write gateway.md")
+
+	require.NoError(t, compiler.CompileWorkflow(gatewayFile), "Should compile without error")
+
+	lockFile := gatewayFile[:len(gatewayFile)-len(".md")] + ".lock.yml"
+	lockContentBytes, err := os.ReadFile(lockFile)
+	require.NoError(t, err, "Should read the generated lock file")
+	yamlOutput := string(lockContentBytes)
+
+	// Verify call-worker-a job exists and has permissions
+	assert.Contains(t, yamlOutput, "call-worker-a:", "Should contain call-worker-a job")
+	assert.Contains(t, yamlOutput, "call-worker-b:", "Should contain call-worker-b job")
+
+	// Both call-* jobs must include a permissions: block
+	assert.Contains(t, yamlOutput, "permissions:", "Generated YAML should include at least one permissions block")
+
+	// Locate the call-worker-a section and verify its permissions block
+	callAStart := strings.Index(yamlOutput, "call-worker-a:")
+	callBStart := strings.Index(yamlOutput, "call-worker-b:")
+	require.NotEqual(t, -1, callAStart, "call-worker-a: must appear in generated YAML")
+	require.NotEqual(t, -1, callBStart, "call-worker-b: must appear in generated YAML")
+
+	// Extract the YAML section for call-worker-a (up to the next top-level job or end of file)
+	var callAEnd int
+	if callBStart > callAStart {
+		callAEnd = callBStart
+	} else {
+		callAEnd = len(yamlOutput)
+	}
+	callASection := yamlOutput[callAStart:callAEnd]
+	assert.Contains(t, callASection, "permissions:", "call-worker-a job must have permissions block")
+	// Worker A has contents: write (from safe_outputs job — write wins over read)
+	assert.Contains(t, callASection, "contents: write", "call-worker-a permissions should include contents: write")
+
+	// Extract the YAML section for call-worker-b (union from its single job)
+	callBSection := yamlOutput[callBStart:]
+	assert.Contains(t, callBSection, "permissions:", "call-worker-b job must have permissions block")
+	assert.Contains(t, callBSection, "issues: write", "call-worker-b permissions should include issues: write")
+}
+
+// TestCallWorkflowPermissions_EndToEnd_YMLWorker tests that a worker referenced via a .yml
+// file (not .lock.yml) also gets its permissions propagated in the generated call-* job.
+func TestCallWorkflowPermissions_EndToEnd_YMLWorker(t *testing.T) {
+	compiler := NewCompilerWithVersion("1.0.0")
+
+	tmpDir := t.TempDir()
+	workflowsDir := filepath.Join(tmpDir, ".github", "workflows")
+	require.NoError(t, os.MkdirAll(workflowsDir, 0755), "Failed to create workflows directory")
+
+	// Worker delivered as a plain .yml (no .lock.yml counterpart)
+	workerYML := `name: Worker YML
+on:
+  workflow_call:
+    inputs:
+      payload:
+        type: string
+        required: false
+jobs:
+  work:
+    permissions:
+      contents: read
+      pull-requests: write
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "work"
+`
+	require.NoError(t, os.WriteFile(filepath.Join(workflowsDir, "worker-plain.yml"), []byte(workerYML), 0644), "Failed to write worker-plain.yml")
+
+	gatewayMD := `---
+on:
+  issues:
+    types: [opened]
+engine: copilot
+permissions:
+  contents: read
+safe-outputs:
+  add-comment:
+    max: 1
+  call-workflow:
+    workflows:
+      - worker-plain
+    max: 1
+---
+
+# Gateway
+
+Pick the right worker.
+`
+	gatewayFile := filepath.Join(workflowsDir, "gateway.md")
+	require.NoError(t, os.WriteFile(gatewayFile, []byte(gatewayMD), 0644), "Failed to write gateway.md")
+
+	require.NoError(t, compiler.CompileWorkflow(gatewayFile), "Should compile without error")
+
+	lockFile := gatewayFile[:len(gatewayFile)-len(".md")] + ".lock.yml"
+	lockContentBytes, err := os.ReadFile(lockFile)
+	require.NoError(t, err, "Should read the generated lock file")
+	yamlOutput := string(lockContentBytes)
+
+	callStart := strings.Index(yamlOutput, "call-worker-plain:")
+	require.NotEqual(t, -1, callStart, "call-worker-plain: must appear in generated YAML")
+
+	callSection := yamlOutput[callStart:]
+	assert.Contains(t, callSection, "permissions:", "call-worker-plain job must have permissions block")
+	assert.Contains(t, callSection, "contents: read", "Permissions should include contents: read")
+	assert.Contains(t, callSection, "pull-requests: write", "Permissions should include pull-requests: write")
 }
