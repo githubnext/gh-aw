@@ -381,8 +381,9 @@ func (c *Compiler) buildDetectionEngineExecutionStep(data *WorkflowData) []strin
 	for _, step := range executionSteps {
 		for i, line := range step {
 			// Prefix step IDs with "detection_" to avoid conflicts with agent job steps
-			// (e.g., "agentic_execution" is already used by the main engine execution step)
+			// (e.g., "agentic_execution" and "copilot-preflight" are already used by the main engine execution step)
 			prefixed := strings.Replace(line, "id: agentic_execution", "id: detection_agentic_execution", 1)
+			prefixed = strings.Replace(prefixed, "id: copilot-preflight", "id: detection-copilot-preflight", 1)
 			steps = append(steps, prefixed+"\n")
 			// Inject the if condition after the first line (- name:)
 			if i == 0 {

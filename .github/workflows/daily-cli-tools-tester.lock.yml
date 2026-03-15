@@ -975,7 +975,7 @@ jobs:
           touch /tmp/gh-aw/threat-detection/detection.log
       - name: Copilot pre-flight diagnostic
         if: always() && steps.detection_guard.outputs.run_detection == 'true'
-        id: copilot-preflight
+        id: detection-copilot-preflight
         continue-on-error: true
         env:
           COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
