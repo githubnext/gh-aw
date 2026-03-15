@@ -527,6 +527,18 @@ function formatMcpParameters(input) {
 }
 
 /**
+ * Formats a tool name with its input parameters for display in summaries.
+ * If the input has parameters, appends them in parentheses; otherwise returns the name unchanged.
+ * @param {string} name - The display name of the tool (e.g., "github-list_issues")
+ * @param {Object} input - The tool input parameters object
+ * @returns {string} Tool name with optional parameters (e.g., "github-list_issues(owner: github, repo: gh-aw)")
+ */
+function formatToolDisplayName(name, input) {
+  const params = formatMcpParameters(input);
+  return params ? `${name}(${params})` : name;
+}
+
+/**
  * Formats initialization information from system init entry
  * @param {any} initEntry - The system init entry containing tools, mcp_servers, etc.
  * @param {Object} options - Configuration options
@@ -1104,7 +1116,7 @@ function generatePlainTextSummary(logEntries, options = {}) {
           } else if (toolName.startsWith("mcp__")) {
             // Format MCP tool names like github-list_pull_requests
             const formattedName = formatMcpName(toolName).replace("::", "-");
-            displayName = formattedName;
+            displayName = formatToolDisplayName(formattedName, input);
 
             // Show result preview if available
             if (toolResult && toolResult.content) {
@@ -1113,7 +1125,7 @@ function generatePlainTextSummary(logEntries, options = {}) {
               resultPreview = `   └ ${truncated}`;
             }
           } else {
-            displayName = toolName;
+            displayName = formatToolDisplayName(toolName, input);
 
             // Show result preview if available
             if (toolResult && toolResult.content) {
@@ -1318,7 +1330,7 @@ function generateCopilotCliStyleSummary(logEntries, options = {}) {
           } else if (toolName.startsWith("mcp__")) {
             // Format MCP tool names like github-list_pull_requests
             const formattedName = formatMcpName(toolName).replace("::", "-");
-            displayName = formattedName;
+            displayName = formatToolDisplayName(formattedName, input);
 
             // Show result preview if available
             if (toolResult && toolResult.content) {
@@ -1327,7 +1339,7 @@ function generateCopilotCliStyleSummary(logEntries, options = {}) {
               resultPreview = `   └ ${truncated}`;
             }
           } else {
-            displayName = toolName;
+            displayName = formatToolDisplayName(toolName, input);
 
             // Show result preview if available
             if (toolResult && toolResult.content) {
@@ -1611,6 +1623,7 @@ module.exports = {
   generateConversationMarkdown,
   generateInformationSection,
   formatMcpParameters,
+  formatToolDisplayName,
   formatInitializationSummary,
   formatToolUse,
   parseLogEntries,
