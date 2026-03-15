@@ -1014,7 +1014,7 @@ func TestComputeExpandedAllowedDomainsForSanitization(t *testing.T) {
 }
 
 // TestDefaultSafeOutputsEcosystem tests that the default-safe-outputs compound ecosystem
-// correctly expands to the union of defaults + dev-tools
+// correctly expands to the union of defaults + dev-tools + github
 func TestDefaultSafeOutputsEcosystem(t *testing.T) {
 	result := expandAllowedDomains([]string{"default-safe-outputs"})
 	joined := strings.Join(result, ",")
@@ -1022,16 +1022,18 @@ func TestDefaultSafeOutputsEcosystem(t *testing.T) {
 	// From defaults ecosystem
 	defaultsSamples := []string{"json-schema.org", "archive.ubuntu.com", "ocsp.digicert.com"}
 	// From dev-tools ecosystem
-	devToolsSamples := []string{"codecov.io", "snyk.io", "shields.io"}
+	devToolsSamples := []string{"codecov.io", "snyk.io", "shields.io", "localhost", "127.0.0.1", "::1"}
+	// From github ecosystem
+	githubSamples := []string{"github.com", "docs.github.com", "github.blog", "*.githubusercontent.com"}
 
-	for _, d := range append(defaultsSamples, devToolsSamples...) {
+	for _, d := range append(append(defaultsSamples, devToolsSamples...), githubSamples...) {
 		if !strings.Contains(joined, d) {
 			t.Errorf("Expected domain %q from default-safe-outputs ecosystem in result", d)
 		}
 	}
 
-	// Should include both defaults and dev-tools (at least 34+21 = 55 domains)
-	if len(result) < 50 {
-		t.Errorf("Expected at least 50 domains in default-safe-outputs, got %d", len(result))
+	// Should include defaults + dev-tools + github (at least 34+24+11 = 69 domains, with some overlap)
+	if len(result) < 60 {
+		t.Errorf("Expected at least 60 domains in default-safe-outputs, got %d", len(result))
 	}
 }

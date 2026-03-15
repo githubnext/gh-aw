@@ -40,6 +40,8 @@
     "packages.microsoft.com"
   ],
   "dev-tools": [
+    "127.0.0.1",
+    "::1",
     "app.renovatebot.com",
     "appveyor.com",
     "badgen.net",
@@ -52,6 +54,7 @@
     "docs.github.com",
     "drone.io",
     "img.shields.io",
+    "localhost",
     "readthedocs.io",
     "readthedocs.org",
     "renovatebot.com",
@@ -85,13 +88,16 @@
   "fonts": ["fonts.googleapis.com", "fonts.gstatic.com"],
   "github": [
     "*.githubusercontent.com",
-    "raw.githubusercontent.com",
-    "objects.githubusercontent.com",
-    "lfs.github.com",
+    "codeload.github.com",
+    "docs.github.com",
     "github-cloud.githubusercontent.com",
     "github-cloud.s3.amazonaws.com",
-    "codeload.github.com",
-    "github.githubassets.com"
+    "github.blog",
+    "github.com",
+    "github.githubassets.com",
+    "lfs.github.com",
+    "objects.githubusercontent.com",
+    "raw.githubusercontent.com"
   ],
   "github-actions": [
     "productionresultssa0.blob.core.windows.net",
@@ -225,28 +231,5 @@
   "scala": ["repo.scala-sbt.org", "scala-ci.typesafe.com", "repo.typesafe.com", "jitpack.io", "dl.bintray.com"],
   "swift": ["download.swift.org", "swift.org", "cocoapods.org", "cdn.cocoapods.org"],
   "terraform": ["releases.hashicorp.com", "apt.releases.hashicorp.com", "yum.releases.hashicorp.com", "registry.terraform.io"],
-  "zig": ["ziglang.org", "pkg.machengine.org"],
-  "dev-tools": [
-    "app.renovatebot.com",
-    "appveyor.com",
-    "badgen.net",
-    "circleci.com",
-    "codacy.com",
-    "codeclimate.com",
-    "codecov.io",
-    "coveralls.io",
-    "deepsource.io",
-    "docs.github.com",
-    "drone.io",
-    "img.shields.io",
-    "readthedocs.io",
-    "readthedocs.org",
-    "renovatebot.com",
-    "semaphoreci.com",
-    "shields.io",
-    "snyk.io",
-    "sonarcloud.io",
-    "sonarqube.com",
-    "travis-ci.com"
-  ]
+  "zig": ["ziglang.org", "pkg.machengine.org"]
 }
