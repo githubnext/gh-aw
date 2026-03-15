@@ -275,7 +275,7 @@ Brief 2-3 paragraph executive summary highlighting:
 <details>
 <summary><b>📋 Full Regulatory Report</b></summary>
 
-## 📊 Reports Reviewed
+### 📊 Reports Reviewed
 
 | Report | Title | Created | Status |
 |--------|-------|---------|--------|
@@ -283,7 +283,7 @@ Brief 2-3 paragraph executive summary highlighting:
 | [Report 2] | [Title] | [Timestamp] | ✅ Valid / ⚠️ Issues / ❌ Failed |
 | ... | ... | ... | ... |
 
-## 🔍 Data Consistency Analysis
+### 🔍 Data Consistency Analysis
 
 ### Cross-Report Metrics Comparison
 
@@ -307,7 +307,7 @@ Reference scratchpad/metrics-glossary.md for metric definitions and scopes.
 - **Critical Discrepancies**: [COUNT]
 - **Minor Discrepancies**: [COUNT]
 
-## ⚠️ Issues and Anomalies
+### ⚠️ Issues and Anomalies
 
 ### Critical Issues
 
@@ -333,7 +333,7 @@ Reference scratchpad/metrics-glossary.md for metric definitions and scopes.
 - [Note about incomplete reports]
 - [Note about data freshness]
 
-## 📈 Trend Analysis
+### 📈 Trend Analysis
 
 ### Week-over-Week Comparison
 
@@ -348,7 +348,7 @@ Reference scratchpad/metrics-glossary.md for metric definitions and scopes.
 - [Pattern identified across reports]
 - [Concerning or positive trend]
 
-## 📝 Per-Report Analysis
+### 📝 Per-Report Analysis
 
 ### [Report 1 Name]
 
@@ -367,7 +367,7 @@ Reference scratchpad/metrics-glossary.md for metric definitions and scopes.
 
 [Same structure as above]
 
-## 💡 Recommendations
+### 💡 Recommendations
 
 ### Process Improvements
 
@@ -383,7 +383,7 @@ Reference scratchpad/metrics-glossary.md for metric definitions and scopes.
 
 1. **[Suggestion]**: [For improving consistency across reports]
 
-## 📊 Regulatory Metrics
+### 📊 Regulatory Metrics
 
 | Metric | Value |
 |--------|-------|

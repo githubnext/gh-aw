@@ -123,7 +123,7 @@ Generate exactly **2 high-quality trend charts**:
 Include the charts in your newspaper-style report with this structure:
 
 ```markdown
-## 📈 THE NUMBERS - Visualized
+### 📈 THE NUMBERS - Visualized
 
 ### Issues & Pull Requests Activity
 ![Issues and PR Trends](URL_FROM_UPLOAD_ASSET_CHART_1)

@@ -411,7 +411,7 @@ Generate exactly **2 high-quality trend charts**:
 Include the charts in your daily news discussion report with this structure:
 
 ```markdown
-## 📈 Trend Analysis
+### 📈 Trend Analysis
 
 ### Issues & Pull Requests Activity
 ![Issues and PR Trends](URL_FROM_UPLOAD_ASSET_CHART_1)

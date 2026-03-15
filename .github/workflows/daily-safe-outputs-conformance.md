@@ -116,6 +116,9 @@ Example: `SEC-001: Agent job in workflow X has write permissions`
 - **Workflows**: [List workflows if applicable]
 - **Handlers**: [List handler files if applicable]
 
+<details>
+<summary><b>🔍 Current vs Expected Behavior</b></summary>
+
 ### Current Behavior
 
 [Describe what the code currently does that violates conformance]
@@ -123,6 +126,8 @@ Example: `SEC-001: Agent job in workflow X has write permissions`
 ### Expected Behavior
 
 [Describe what the specification requires]
+
+</details>
 
 ### Remediation Steps
 
@@ -174,10 +179,13 @@ If multiple similar issues are found (e.g., 3 handlers missing the same validati
 After processing all issues, provide a summary in the workflow output:
 
 ```markdown
-## Safe Outputs Conformance Summary
+### Safe Outputs Conformance Summary
 
 **Run Date**: $(date +%Y-%m-%d)
 **Script Exit Code**: [exit_code]
+
+<details>
+<summary><b>📊 Detailed Results & Actions</b></summary>
 
 ### Results
 
@@ -191,6 +199,8 @@ After processing all issues, provide a summary in the workflow output:
 - Created [N] GitHub issues for conformance violations
 - Issues will auto-expire in 1 day if not addressed
 - Older conformance issues automatically closed
+
+</details>
 
 ### Status
 
