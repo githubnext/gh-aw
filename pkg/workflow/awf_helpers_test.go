@@ -247,6 +247,36 @@ func TestAWFCustomAPITargetFlags(t *testing.T) {
 		assert.Contains(t, argsStr, "--anthropic-api-target", "Should include --anthropic-api-target flag")
 		assert.Contains(t, argsStr, "anthropic-proxy.company.com", "Should include Anthropic custom hostname")
 	})
+
+	t.Run("includes gemini-api-target flag when GEMINI_API_BASE_URL is configured", func(t *testing.T) {
+		workflowData := &WorkflowData{
+			Name: "test-workflow",
+			EngineConfig: &EngineConfig{
+				ID: "gemini",
+				Env: map[string]string{
+					"GEMINI_API_BASE_URL": "https://gemini-proxy.internal.company.com",
+					"GEMINI_API_KEY":      "${{ secrets.GEMINI_PROXY_KEY }}",
+				},
+			},
+			NetworkPermissions: &NetworkPermissions{
+				Firewall: &FirewallConfig{
+					Enabled: true,
+				},
+			},
+		}
+
+		config := AWFCommandConfig{
+			EngineName:     "gemini",
+			WorkflowData:   workflowData,
+			AllowedDomains: "github.com",
+		}
+
+		args := BuildAWFArgs(config)
+		argsStr := strings.Join(args, " ")
+
+		assert.Contains(t, argsStr, "--gemini-api-target", "Should include --gemini-api-target flag")
+		assert.Contains(t, argsStr, "gemini-proxy.internal.company.com", "Should include Gemini custom hostname")
+	})
 }
 
 // TestEngineExecutionWithCustomAPITarget tests that engine execution steps include
@@ -306,5 +336,57 @@ func TestEngineExecutionWithCustomAPITarget(t *testing.T) {
 
 		assert.Contains(t, stepContent, "--anthropic-api-target", "Should include --anthropic-api-target flag")
 		assert.Contains(t, stepContent, "claude-proxy.internal.company.com", "Should include custom hostname")
+	})
+
+	t.Run("Gemini engine includes gemini-api-target flag when GEMINI_API_BASE_URL is configured", func(t *testing.T) {
+		workflowData := &WorkflowData{
+			Name: "test-workflow",
+			EngineConfig: &EngineConfig{
+				ID: "gemini",
+				Env: map[string]string{
+					"GEMINI_API_BASE_URL": "https://gemini-proxy.internal.company.com",
+					"GEMINI_API_KEY":      "${{ secrets.GEMINI_PROXY_KEY }}",
+				},
+			},
+			NetworkPermissions: &NetworkPermissions{
+				Firewall: &FirewallConfig{
+					Enabled: true,
+				},
+			},
+		}
+
+		engine := NewGeminiEngine()
+		steps := engine.GetExecutionSteps(workflowData, "test.log")
+
+		assert.NotEmpty(t, steps, "Should generate execution steps")
+
+		// Gemini generates multiple steps; join all to find the AWF command
+		var allContent strings.Builder
+		for _, step := range steps {
+			allContent.WriteString(strings.Join(step, "\n"))
+			allContent.WriteString("\n")
+		}
+		stepContent := allContent.String()
+
+		assert.Contains(t, stepContent, "--gemini-api-target", "Should include --gemini-api-target flag")
+		assert.Contains(t, stepContent, "gemini-proxy.internal.company.com", "Should include Gemini custom hostname")
+	})
+
+	t.Run("Claude engine sets ANTHROPIC_BASE_URL to AWF proxy when firewall enabled", func(t *testing.T) {
+		workflowData := &WorkflowData{
+			Name: "test-workflow",
+			NetworkPermissions: &NetworkPermissions{
+				Firewall: &FirewallConfig{Enabled: true},
+			},
+		}
+
+		engine := NewClaudeEngine()
+		steps := engine.GetExecutionSteps(workflowData, "test.log")
+
+		assert.NotEmpty(t, steps, "Should generate execution steps")
+		stepContent := strings.Join(steps[0], "\n")
+
+		assert.Contains(t, stepContent, "ANTHROPIC_BASE_URL:", "Should include ANTHROPIC_BASE_URL")
+		assert.Contains(t, stepContent, "host.docker.internal", "Should point ANTHROPIC_BASE_URL to AWF proxy")
 	})
 }

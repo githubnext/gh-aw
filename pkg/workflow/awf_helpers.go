@@ -205,6 +205,12 @@ func BuildAWFArgs(config AWFCommandConfig) []string {
 		awfHelpersLog.Printf("Added --anthropic-api-target=%s", anthropicTarget)
 	}
 
+	geminiTarget := extractAPITargetHost(config.WorkflowData, "GEMINI_API_BASE_URL")
+	if geminiTarget != "" {
+		awfArgs = append(awfArgs, "--gemini-api-target", geminiTarget)
+		awfHelpersLog.Printf("Added --gemini-api-target=%s", geminiTarget)
+	}
+
 	// Add Copilot API target for custom Copilot endpoints (GHEC, GHES, or custom)
 	// This uses the engine.api-target field if configured
 	if config.WorkflowData.EngineConfig != nil && config.WorkflowData.EngineConfig.APITarget != "" {

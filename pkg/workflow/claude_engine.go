@@ -380,8 +380,14 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 	// In sandbox (AWF) mode, set git identity environment variables so the first git commit
 	// succeeds inside the container. AWF's --env-all forwards these to the container, ensuring
 	// git does not rely on the host-side ~/.gitconfig which is not visible in the sandbox.
+	// Also declare ANTHROPIC_BASE_URL pointing to the AWF LLM gateway proxy so that Claude routes
+	// all Anthropic API calls through AWF (consistent with Gemini's GEMINI_API_BASE_URL).
+	// A user-provided ANTHROPIC_BASE_URL in engine.env will override this default via maps.Copy below;
+	// the custom hostname is extracted for --anthropic-api-target in BuildAWFArgs so AWF routes
+	// requests to the custom endpoint while the agent still talks to the local proxy.
 	if isFirewallEnabled(workflowData) {
 		maps.Copy(env, getGitIdentityEnvVars())
+		env["ANTHROPIC_BASE_URL"] = fmt.Sprintf("http://host.docker.internal:%d", constants.ClaudeLLMGatewayPort)
 	}
 
 	// Set timeout environment variables for Claude Code

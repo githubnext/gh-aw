@@ -764,3 +764,158 @@ func TestCodexEngineWebSearch(t *testing.T) {
 		}
 	})
 }
+
+// TestCodexEngineOpenAIBaseURL verifies that OPENAI_BASE_URL is declared in the
+// execution step env pointing to the AWF LLM gateway when firewall is enabled,
+// and that a user-provided override (engine.env.OPENAI_BASE_URL) takes precedence.
+func TestCodexEngineOpenAIBaseURL(t *testing.T) {
+	engine := NewCodexEngine()
+
+	t.Run("sets OPENAI_BASE_URL to AWF proxy when firewall enabled", func(t *testing.T) {
+		workflowData := &WorkflowData{
+			Name: "test-workflow",
+			NetworkPermissions: &NetworkPermissions{
+				Firewall: &FirewallConfig{Enabled: true},
+			},
+		}
+		steps := engine.GetExecutionSteps(workflowData, "test.log")
+		if len(steps) != 1 {
+			t.Fatalf("Expected 1 step, got %d", len(steps))
+		}
+		stepContent := strings.Join([]string(steps[0]), "\n")
+		expected := fmt.Sprintf("OPENAI_BASE_URL: http://host.docker.internal:%d/v1", constants.CodexLLMGatewayPort)
+		if !strings.Contains(stepContent, expected) {
+			t.Errorf("Expected step to contain %q, got:\n%s", expected, stepContent)
+		}
+	})
+
+	t.Run("user-provided OPENAI_BASE_URL in engine.env overrides proxy default", func(t *testing.T) {
+		workflowData := &WorkflowData{
+			Name: "test-workflow",
+			EngineConfig: &EngineConfig{
+				Env: map[string]string{
+					"OPENAI_BASE_URL": "https://openrouter.ai/api/v1",
+					"OPENAI_API_KEY":  "${{ secrets.OPENROUTER_API_KEY }}",
+				},
+			},
+			NetworkPermissions: &NetworkPermissions{
+				Firewall: &FirewallConfig{Enabled: true},
+			},
+		}
+		steps := engine.GetExecutionSteps(workflowData, "test.log")
+		if len(steps) != 1 {
+			t.Fatalf("Expected 1 step, got %d", len(steps))
+		}
+		stepContent := strings.Join([]string(steps[0]), "\n")
+		if !strings.Contains(stepContent, "OPENAI_BASE_URL: https://openrouter.ai/api/v1") {
+			t.Errorf("Expected step to contain user-provided OPENAI_BASE_URL, got:\n%s", stepContent)
+		}
+		// Default proxy URL should not appear when user overrides
+		proxyURL := fmt.Sprintf("http://host.docker.internal:%d/v1", constants.CodexLLMGatewayPort)
+		if strings.Contains(stepContent, "OPENAI_BASE_URL: "+proxyURL) {
+			t.Errorf("Default proxy OPENAI_BASE_URL should be replaced by engine.env override, got:\n%s", stepContent)
+		}
+	})
+
+	t.Run("OPENAI_BASE_URL not set when firewall disabled", func(t *testing.T) {
+		workflowData := &WorkflowData{
+			Name: "test-workflow",
+		}
+		steps := engine.GetExecutionSteps(workflowData, "test.log")
+		if len(steps) != 1 {
+			t.Fatalf("Expected 1 step, got %d", len(steps))
+		}
+		stepContent := strings.Join([]string(steps[0]), "\n")
+		proxyURL := fmt.Sprintf("OPENAI_BASE_URL: http://host.docker.internal:%d/v1", constants.CodexLLMGatewayPort)
+		if strings.Contains(stepContent, proxyURL) {
+			t.Errorf("Expected OPENAI_BASE_URL proxy not to be set when firewall is disabled, got:\n%s", stepContent)
+		}
+	})
+}
+
+// TestCodexEngineCustomModelProviderConfig verifies that the Codex config.toml includes a
+// custom model provider entry when OPENAI_BASE_URL is set in engine.env.
+// This is required for custom API endpoints (e.g. openrouter) where the model name
+// (e.g. "openrouter/free") would otherwise be rejected by the built-in "openai" provider.
+func TestCodexEngineCustomModelProviderConfig(t *testing.T) {
+	engine := NewCodexEngine()
+
+	t.Run("includes custom model provider when OPENAI_BASE_URL is set", func(t *testing.T) {
+		workflowData := &WorkflowData{
+			Name: "test-workflow",
+			EngineConfig: &EngineConfig{
+				Model: "openrouter/free",
+				Env: map[string]string{
+					"OPENAI_BASE_URL": "https://openrouter.ai/api/v1",
+					"OPENAI_API_KEY":  "${{ secrets.OPENROUTER_API_KEY }}",
+				},
+			},
+		}
+
+		var yaml strings.Builder
+		if err := engine.RenderMCPConfig(&yaml, map[string]any{}, []string{}, workflowData); err != nil {
+			t.Fatalf("RenderMCPConfig returned unexpected error: %v", err)
+		}
+		result := yaml.String()
+
+		if !strings.Contains(result, `model_provider = "openai-compat"`) {
+			t.Errorf("Expected config.toml to contain model_provider = \"openai-compat\", got:\n%s", result)
+		}
+		if !strings.Contains(result, "[model_providers.openai-compat]") {
+			t.Errorf("Expected config.toml to contain [model_providers.openai-compat], got:\n%s", result)
+		}
+		expectedBaseURL := fmt.Sprintf(`base_url = "http://host.docker.internal:%d/v1"`, constants.CodexLLMGatewayPort)
+		if !strings.Contains(result, expectedBaseURL) {
+			t.Errorf("Expected config.toml to contain %s, got:\n%s", expectedBaseURL, result)
+		}
+		if !strings.Contains(result, `env_key = "OPENAI_API_KEY"`) {
+			t.Errorf("Expected config.toml to contain env_key = \"OPENAI_API_KEY\", got:\n%s", result)
+		}
+	})
+
+	t.Run("model_provider appears before [history] section in TOML output", func(t *testing.T) {
+		workflowData := &WorkflowData{
+			Name: "test-workflow",
+			EngineConfig: &EngineConfig{
+				Env: map[string]string{
+					"OPENAI_BASE_URL": "https://openrouter.ai/api/v1",
+				},
+			},
+		}
+
+		var yaml strings.Builder
+		if err := engine.RenderMCPConfig(&yaml, map[string]any{}, []string{}, workflowData); err != nil {
+			t.Fatalf("RenderMCPConfig returned unexpected error: %v", err)
+		}
+		result := yaml.String()
+
+		modelProviderIdx := strings.Index(result, "model_provider")
+		historyIdx := strings.Index(result, "[history]")
+		if modelProviderIdx == -1 {
+			t.Error("Expected config.toml to contain model_provider")
+		}
+		if historyIdx == -1 {
+			t.Error("Expected config.toml to contain [history]")
+		}
+		if modelProviderIdx != -1 && historyIdx != -1 && modelProviderIdx > historyIdx {
+			t.Errorf("model_provider must appear before [history] for valid TOML (positions: model_provider=%d, history=%d)", modelProviderIdx, historyIdx)
+		}
+	})
+
+	t.Run("no custom model provider when OPENAI_BASE_URL is not set", func(t *testing.T) {
+		workflowData := &WorkflowData{
+			Name:         "test-workflow",
+			EngineConfig: &EngineConfig{},
+		}
+
+		var yaml strings.Builder
+		if err := engine.RenderMCPConfig(&yaml, map[string]any{}, []string{}, workflowData); err != nil {
+			t.Fatalf("RenderMCPConfig returned unexpected error: %v", err)
+		}
+		result := yaml.String()
+
+		if strings.Contains(result, "model_provider") {
+			t.Errorf("Expected config.toml NOT to contain model_provider when OPENAI_BASE_URL is not set, got:\n%s", result)
+		}
+	})
+}

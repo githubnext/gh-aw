@@ -310,8 +310,14 @@ mkdir -p "$CODEX_HOME/logs"
 	// In sandbox (AWF) mode, set git identity environment variables so the first git commit
 	// succeeds inside the container. AWF's --env-all forwards these to the container, ensuring
 	// git does not rely on the host-side ~/.gitconfig which is not visible in the sandbox.
+	// Also declare OPENAI_BASE_URL pointing to the AWF LLM gateway proxy so that Codex routes
+	// all OpenAI-compatible API calls through AWF (consistent with Gemini's GEMINI_API_BASE_URL).
+	// A user-provided OPENAI_BASE_URL in engine.env will override this default via maps.Copy below;
+	// the custom hostname is extracted for --openai-api-target in BuildAWFArgs so AWF routes
+	// requests to the custom endpoint while the agent still talks to the local proxy.
 	if firewallEnabled {
 		maps.Copy(env, getGitIdentityEnvVars())
+		env["OPENAI_BASE_URL"] = fmt.Sprintf("http://host.docker.internal:%d/v1", constants.CodexLLMGatewayPort)
 	}
 
 	// Add GH_AW_STARTUP_TIMEOUT environment variable (in seconds) if startup-timeout is specified

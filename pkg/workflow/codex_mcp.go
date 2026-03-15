@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
 )
 
@@ -30,6 +31,33 @@ func (e *CodexEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]an
 
 	delimiter := GenerateHeredocDelimiter("MCP_CONFIG")
 	yaml.WriteString("          cat > /tmp/gh-aw/mcp-config/config.toml << " + delimiter + "\n")
+
+	// When the user specifies OPENAI_BASE_URL in engine.env (custom API endpoint), generate a
+	// named model provider so that Codex accepts any model name (e.g. "openrouter/free").
+	// Codex's built-in "openai" provider validates models against its known list and falls back
+	// to gpt-5.3-codex when the model is unrecognised. A user-defined provider has no such
+	// validation and passes the model name through to the API as-is.
+	//
+	// TOML requires bare key-value pairs to appear before the first section header, so this
+	// block must be written before [history] and all [mcp_servers.*] entries.
+	//
+	// The base_url points to the AWF LLM gateway proxy (host.docker.internal:<port>).
+	// AWF's --openai-api-target flag (set in BuildAWFArgs) routes those proxy requests
+	// on to the actual custom endpoint (e.g. openrouter.ai).
+	if workflowData != nil && workflowData.EngineConfig != nil &&
+		len(workflowData.EngineConfig.Env) > 0 {
+		if _, hasCustomBaseURL := workflowData.EngineConfig.Env["OPENAI_BASE_URL"]; hasCustomBaseURL {
+			proxyBaseURL := fmt.Sprintf("http://host.docker.internal:%d/v1", constants.CodexLLMGatewayPort)
+			yaml.WriteString("          # Custom model provider: accepts any model name for non-OpenAI compatible endpoints\n")
+			yaml.WriteString("          model_provider = \"openai-compat\"\n")
+			yaml.WriteString("          \n")
+			yaml.WriteString("          [model_providers.openai-compat]\n")
+			yaml.WriteString("          name = \"openai-compat\"\n")
+			fmt.Fprintf(yaml, "          base_url = %q\n", proxyBaseURL)
+			yaml.WriteString("          env_key = \"OPENAI_API_KEY\"\n")
+			yaml.WriteString("          \n")
+		}
+	}
 
 	// Add history configuration to disable persistence
 	yaml.WriteString("          [history]\n")
