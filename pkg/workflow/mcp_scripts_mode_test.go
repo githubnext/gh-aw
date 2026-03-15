@@ -117,7 +117,7 @@ Test mcp-scripts HTTP mode
 // extractMCPServerEntryPoint extracts the mcp-server.cjs entry point script from the YAML
 func extractMCPServerEntryPoint(yamlStr string) string {
 	// Find the mcp-server.cjs section
-	start := strings.Index(yamlStr, "cat > /opt/gh-aw/mcp-scripts/mcp-server.cjs")
+	start := strings.Index(yamlStr, "cat > ${GH_AW_HOME}/mcp-scripts/mcp-server.cjs")
 	if start == -1 {
 		return ""
 	}

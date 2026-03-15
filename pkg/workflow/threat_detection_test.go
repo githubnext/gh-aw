@@ -621,7 +621,7 @@ func TestSetupScriptReferencesPromptFile(t *testing.T) {
 	script := compiler.buildSetupScriptRequire()
 
 	// Verify the script uses require to load setup_threat_detection.cjs
-	if !strings.Contains(script, "require('"+SetupActionDestination+"/setup_threat_detection.cjs')") {
+	if !strings.Contains(script, "require("+JsRequireGhAw("actions/setup_threat_detection.cjs")+")") {
 		t.Error("Expected setup script to require setup_threat_detection.cjs")
 	}
 

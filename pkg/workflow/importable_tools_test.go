@@ -240,7 +240,7 @@ Uses imported agentic-workflows tool.
 	}
 
 	// Verify binary mounts are NOT present in dev mode
-	if strings.Contains(workflowData, `/opt/gh-aw:/opt/gh-aw:ro`) {
+	if strings.Contains(workflowData, `${GH_AW_HOME}:${GH_AW_HOME}:ro`) {
 		t.Error("Did not expect /opt/gh-aw mount in dev mode (binary is in image)")
 	}
 

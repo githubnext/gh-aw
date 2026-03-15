@@ -263,7 +263,7 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 		yaml.WriteString("          " + toolsDelimiter + "\n")
 
 		validationDelimiter := GenerateHeredocDelimiter("SAFE_OUTPUTS_VALIDATION")
-		yaml.WriteString("          cat > /opt/gh-aw/safeoutputs/validation.json << '" + validationDelimiter + "'\n")
+		yaml.WriteString("          cat > " + GhAwHome + "/safeoutputs/validation.json << '" + validationDelimiter + "'\n")
 		// Write each line of the indented JSON with proper YAML indentation
 		for line := range strings.SplitSeq(validationConfigJSON, "\n") {
 			yaml.WriteString("          " + line + "\n")
@@ -302,8 +302,8 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 		yaml.WriteString("          DEBUG: '*'\n")
 		yaml.WriteString("          GH_AW_SAFE_OUTPUTS_PORT: ${{ steps.safe-outputs-config.outputs.safe_outputs_port }}\n")
 		yaml.WriteString("          GH_AW_SAFE_OUTPUTS_API_KEY: ${{ steps.safe-outputs-config.outputs.safe_outputs_api_key }}\n")
-		yaml.WriteString("          GH_AW_SAFE_OUTPUTS_TOOLS_PATH: /opt/gh-aw/safeoutputs/tools.json\n")
-		yaml.WriteString("          GH_AW_SAFE_OUTPUTS_CONFIG_PATH: /opt/gh-aw/safeoutputs/config.json\n")
+		yaml.WriteString("          GH_AW_SAFE_OUTPUTS_TOOLS_PATH: " + GhAwHomeExpr + "/safeoutputs/tools.json\n")
+		yaml.WriteString("          GH_AW_SAFE_OUTPUTS_CONFIG_PATH: " + GhAwHomeExpr + "/safeoutputs/config.json\n")
 		yaml.WriteString("          GH_AW_MCP_LOG_DIR: /tmp/gh-aw/mcp-logs/safeoutputs\n")
 
 		yaml.WriteString("        run: |\n")
@@ -317,7 +317,7 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 		yaml.WriteString("          \n")
 
 		// Call the bundled shell script to start the server
-		yaml.WriteString("          bash /opt/gh-aw/actions/start_safe_outputs_server.sh\n")
+		yaml.WriteString("          bash " + GhAwHome + "/actions/start_safe_outputs_server.sh\n")
 		yaml.WriteString("          \n")
 	}
 
@@ -327,12 +327,12 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 		// Step 1: Write config files (JavaScript files are now copied by actions/setup)
 		yaml.WriteString("      - name: Setup MCP Scripts Config\n")
 		yaml.WriteString("        run: |\n")
-		yaml.WriteString("          mkdir -p /opt/gh-aw/mcp-scripts/logs\n")
+		yaml.WriteString("          mkdir -p " + GhAwHome + "/mcp-scripts/logs\n")
 
 		// Generate the tools.json configuration file
 		toolsJSON := generateMCPScriptsToolsConfig(workflowData.MCPScripts)
 		toolsDelimiter := GenerateHeredocDelimiter("MCP_SCRIPTS_TOOLS")
-		yaml.WriteString("          cat > /opt/gh-aw/mcp-scripts/tools.json << '" + toolsDelimiter + "'\n")
+		yaml.WriteString("          cat > " + GhAwHome + "/mcp-scripts/tools.json << '" + toolsDelimiter + "'\n")
 		for line := range strings.SplitSeq(toolsJSON, "\n") {
 			yaml.WriteString("          " + line + "\n")
 		}
@@ -341,12 +341,12 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 		// Generate the MCP server entry point
 		mcpScriptsMCPServer := generateMCPScriptsMCPServerScript(workflowData.MCPScripts)
 		serverDelimiter := GenerateHeredocDelimiter("MCP_SCRIPTS_SERVER")
-		yaml.WriteString("          cat > /opt/gh-aw/mcp-scripts/mcp-server.cjs << '" + serverDelimiter + "'\n")
+		yaml.WriteString("          cat > " + GhAwHome + "/mcp-scripts/mcp-server.cjs << '" + serverDelimiter + "'\n")
 		for _, line := range FormatJavaScriptForYAML(mcpScriptsMCPServer) {
 			yaml.WriteString(line)
 		}
 		yaml.WriteString("          " + serverDelimiter + "\n")
-		yaml.WriteString("          chmod +x /opt/gh-aw/mcp-scripts/mcp-server.cjs\n")
+		yaml.WriteString("          chmod +x " + GhAwHome + "/mcp-scripts/mcp-server.cjs\n")
 		yaml.WriteString("          \n")
 
 		// Step 2: Generate tool files (js/py/sh)
@@ -363,7 +363,7 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 				// JavaScript tool
 				toolScript := generateMCPScriptJavaScriptToolScript(toolConfig)
 				jsDelimiter := GenerateHeredocDelimiter("MCP_SCRIPTS_JS_" + strings.ToUpper(toolName))
-				fmt.Fprintf(yaml, "          cat > /opt/gh-aw/mcp-scripts/%s.cjs << '%s'\n", toolName, jsDelimiter)
+				fmt.Fprintf(yaml, "          cat > "+GhAwHome+"/mcp-scripts/%s.cjs << '%s'\n", toolName, jsDelimiter)
 				for _, line := range FormatJavaScriptForYAML(toolScript) {
 					yaml.WriteString(line)
 				}
@@ -372,27 +372,27 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 				// Shell script tool
 				toolScript := generateMCPScriptShellToolScript(toolConfig)
 				shDelimiter := GenerateHeredocDelimiter("MCP_SCRIPTS_SH_" + strings.ToUpper(toolName))
-				fmt.Fprintf(yaml, "          cat > /opt/gh-aw/mcp-scripts/%s.sh << '%s'\n", toolName, shDelimiter)
+				fmt.Fprintf(yaml, "          cat > "+GhAwHome+"/mcp-scripts/%s.sh << '%s'\n", toolName, shDelimiter)
 				for line := range strings.SplitSeq(toolScript, "\n") {
 					yaml.WriteString("          " + line + "\n")
 				}
 				fmt.Fprintf(yaml, "          %s\n", shDelimiter)
-				fmt.Fprintf(yaml, "          chmod +x /opt/gh-aw/mcp-scripts/%s.sh\n", toolName)
+				fmt.Fprintf(yaml, "          chmod +x "+GhAwHome+"/mcp-scripts/%s.sh\n", toolName)
 			} else if toolConfig.Py != "" {
 				// Python script tool
 				toolScript := generateMCPScriptPythonToolScript(toolConfig)
 				pyDelimiter := GenerateHeredocDelimiter("MCP_SCRIPTS_PY_" + strings.ToUpper(toolName))
-				fmt.Fprintf(yaml, "          cat > /opt/gh-aw/mcp-scripts/%s.py << '%s'\n", toolName, pyDelimiter)
+				fmt.Fprintf(yaml, "          cat > "+GhAwHome+"/mcp-scripts/%s.py << '%s'\n", toolName, pyDelimiter)
 				for line := range strings.SplitSeq(toolScript, "\n") {
 					yaml.WriteString("          " + line + "\n")
 				}
 				fmt.Fprintf(yaml, "          %s\n", pyDelimiter)
-				fmt.Fprintf(yaml, "          chmod +x /opt/gh-aw/mcp-scripts/%s.py\n", toolName)
+				fmt.Fprintf(yaml, "          chmod +x "+GhAwHome+"/mcp-scripts/%s.py\n", toolName)
 			} else if toolConfig.Go != "" {
 				// Go script tool
 				toolScript := generateMCPScriptGoToolScript(toolConfig)
 				goDelimiter := GenerateHeredocDelimiter("MCP_SCRIPTS_GO_" + strings.ToUpper(toolName))
-				fmt.Fprintf(yaml, "          cat > /opt/gh-aw/mcp-scripts/%s.go << '%s'\n", toolName, goDelimiter)
+				fmt.Fprintf(yaml, "          cat > "+GhAwHome+"/mcp-scripts/%s.go << '%s'\n", toolName, goDelimiter)
 				for line := range strings.SplitSeq(toolScript, "\n") {
 					yaml.WriteString("          " + line + "\n")
 				}
@@ -452,7 +452,7 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 		yaml.WriteString("          \n")
 
 		// Call the bundled shell script to start the server
-		yaml.WriteString("          bash /opt/gh-aw/actions/start_mcp_scripts_server.sh\n")
+		yaml.WriteString("          bash " + GhAwHome + "/actions/start_mcp_scripts_server.sh\n")
 		yaml.WriteString("          \n")
 	}
 

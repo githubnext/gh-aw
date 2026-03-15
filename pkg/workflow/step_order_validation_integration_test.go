@@ -174,7 +174,7 @@ This workflow uploads artifacts.
 
 	// Verify common upload paths are present and under /tmp/gh-aw/ or /opt/gh-aw/
 	uploadPaths := []string{
-		"/opt/gh-aw/safeoutputs/outputs.jsonl",
+		"${GH_AW_HOME}/safeoutputs/outputs.jsonl",
 		"/tmp/gh-aw/agent-stdio.log",
 		"/tmp/gh-aw/mcp-logs/",
 	}
@@ -182,7 +182,7 @@ This workflow uploads artifacts.
 	for _, path := range uploadPaths {
 		if strings.Contains(contentStr, path) {
 			// Verify it's under /tmp/gh-aw/ or /opt/gh-aw/ (scannable paths)
-			if !strings.HasPrefix(path, "/tmp/gh-aw/") && !strings.HasPrefix(path, "/opt/gh-aw/") {
+			if !strings.HasPrefix(path, "/tmp/gh-aw/") && !strings.HasPrefix(path, "/opt/gh-aw/") && !strings.HasPrefix(path, "${GH_AW_HOME") {
 				t.Errorf("Upload path %s is not under /tmp/gh-aw/ or /opt/gh-aw/ and won't be scanned", path)
 			}
 		}
