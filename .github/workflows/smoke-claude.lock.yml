@@ -35,7 +35,7 @@
 #
 # inlined-imports: true
 #
-# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"ca7cebdbef133f4a3a2f6c0cddfbdf45fdfd2dc3d9fb2da2a1c9bbba7051f614","strict":true}
+# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"824ddfaa1c06335001cd4434a5ac6af2749652cef82c56645faa411a4b1c2711","strict":true}
 
 name: "Smoke Claude"
 "on":

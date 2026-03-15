@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"sort"
-	"strings"
 
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/stringutil"
@@ -320,10 +319,8 @@ func (c *Compiler) buildHandlerManagerStep(data *WorkflowData) []string {
 	// default GitHub domains, causing user-configured allowed domains to be redacted.
 	var domainsStr string
 	if data.SafeOutputs != nil && len(data.SafeOutputs.AllowedDomains) > 0 {
-		domainsStr = strings.Join(data.SafeOutputs.AllowedDomains, ",")
-	} else if data.SafeOutputs != nil && len(data.SafeOutputs.AllowedURLDomains) > 0 {
-		// allowed-url-domains: additional domains unioned with engine/network base set
-		domainsStr = c.computeAllowedURLDomainsForSanitization(data)
+		// allowed-domains: additional domains unioned with engine/network base set; supports ecosystem identifiers
+		domainsStr = c.computeExpandedAllowedDomainsForSanitization(data)
 	} else {
 		domainsStr = c.computeAllowedDomainsForSanitization(data)
 	}

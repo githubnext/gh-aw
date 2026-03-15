@@ -23,7 +23,7 @@
 #
 # Test creating multiple pull requests in a single workflow run
 #
-# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"e4b831bcb1c19ca8689f6094b8a56ee28b6300cbfb857297cb03c2cd051ad6c1","strict":true}
+# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"ee31e52ea131e5257cdee9983e2401eca1666057c51720c5e667f48b6a4de359","strict":true}
 
 name: "Smoke Multi PR"
 "on":

@@ -29,7 +29,7 @@
 #     - shared/github-queries-mcp-script.md
 #     - shared/reporting.md
 #
-# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"00655b0e7e36f5b9cd4f2463f6d1fa4626f10db1abd0ed26dae87c1fa244d4dd","strict":true}
+# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"1a7fa2c830c582eef2c1ca858d020772b9efc949615721d692484047ab127162","strict":true}
 
 name: "Smoke Copilot"
 "on":

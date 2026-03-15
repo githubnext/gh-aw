@@ -23,7 +23,7 @@
 #
 # Test temporary ID functionality for issue chaining and cross-references
 #
-# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"1407ac440e5791bff6b9fcb37b2df5a8e39ad80c22b3eb9143bfc8a74da7d60a","strict":true}
+# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"12576301d22af2259a94778128a412fb13a9fa458278f35ffd57e10d58921542","strict":true}
 
 name: "Smoke Temporary ID"
 "on":

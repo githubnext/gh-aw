@@ -4136,7 +4136,7 @@
       "properties": {
         "allowed-domains": {
           "type": "array",
-          "description": "List of allowed domains for URI filtering in AI workflow output. URLs from other domains will be replaced with '(redacted)' for security.",
+          "description": "List of allowed domains for URL redaction in safe output handlers. Supports ecosystem identifiers (e.g., \"python\", \"node\", \"default-safe-outputs\") like network.allowed. These domains are unioned with the engine defaults and network.allowed when computing the final allowed domain set. localhost and github.com are always included.",
           "items": {
             "type": "string"
           }
@@ -7414,10 +7414,11 @@
         },
         "allowed-url-domains": {
           "type": "array",
-          "description": "Additional allowed domains for URL redaction in safe output handlers. Supports the same ecosystem identifiers as network.allowed (e.g., \"python\", \"node\", \"dev-tools\"). These domains are unioned with the engine defaults and network.allowed when computing the final allowed domain set. localhost and github.com are always included.",
+          "description": "Deprecated: use allowed-domains instead.",
           "items": {
             "type": "string"
-          }
+          },
+          "deprecated": true
         }
       },
       "additionalProperties": false

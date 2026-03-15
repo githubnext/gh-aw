@@ -477,26 +477,25 @@ type SafeOutputsConfig struct {
 	ThreatDetection                 *ThreatDetectionConfig                 `yaml:"threat-detection,omitempty"`             // Threat detection configuration
 	Jobs                            map[string]*SafeJobConfig              `yaml:"jobs,omitempty"`                         // Safe-jobs configuration (moved from top-level)
 	GitHubApp                       *GitHubAppConfig                       `yaml:"github-app,omitempty"`                   // GitHub App credentials for token minting
-	AllowedDomains                  []string                               `yaml:"allowed-domains,omitempty"`
-	AllowedURLDomains               []string                               `yaml:"allowed-url-domains,omitempty"`       // Additional allowed domains for URL redaction, unioned with network.allowed; supports ecosystem identifiers
-	AllowGitHubReferences           []string                               `yaml:"allowed-github-references,omitempty"` // Allowed repositories for GitHub references (e.g., ["repo", "org/repo2"])
-	Staged                          bool                                   `yaml:"staged,omitempty"`                    // If true, emit step summary messages instead of making GitHub API calls
-	Env                             map[string]string                      `yaml:"env,omitempty"`                       // Environment variables to pass to safe output jobs
-	GitHubToken                     string                                 `yaml:"github-token,omitempty"`              // GitHub token for safe output jobs
-	MaximumPatchSize                int                                    `yaml:"max-patch-size,omitempty"`            // Maximum allowed patch size in KB (defaults to 1024)
-	RunsOn                          string                                 `yaml:"runs-on,omitempty"`                   // Runner configuration for safe-outputs jobs
-	Messages                        *SafeOutputMessagesConfig              `yaml:"messages,omitempty"`                  // Custom message templates for footer and notifications
-	Mentions                        *MentionsConfig                        `yaml:"mentions,omitempty"`                  // Configuration for @mention filtering in safe outputs
-	Footer                          *bool                                  `yaml:"footer,omitempty"`                    // Global footer control - when false, omits visible footer from all safe outputs (XML markers still included)
-	GroupReports                    bool                                   `yaml:"group-reports,omitempty"`             // If true, create parent "Failed runs" issue for agent failures (default: false)
-	ReportFailureAsIssue            *bool                                  `yaml:"report-failure-as-issue,omitempty"`   // If false, disables creating failure tracking issues when workflows fail (default: true)
-	FailureIssueRepo                string                                 `yaml:"failure-issue-repo,omitempty"`        // Repository to create failure issues in (format: "owner/repo"), defaults to current repo
-	MaxBotMentions                  *string                                `yaml:"max-bot-mentions,omitempty"`          // Maximum bot trigger references (e.g. 'fixes #123') allowed before filtering. Default: 10. Supports integer or GitHub Actions expression.
-	Steps                           []any                                  `yaml:"steps,omitempty"`                     // User-provided steps injected after setup/checkout and before safe-output code
-	IDToken                         *string                                `yaml:"id-token,omitempty"`                  // Override id-token permission: "write" to force-add, "none" to disable auto-detection
-	ConcurrencyGroup                string                                 `yaml:"concurrency-group,omitempty"`         // Concurrency group for the safe-outputs job (cancel-in-progress is always false)
-	Environment                     string                                 `yaml:"environment,omitempty"`               // Override the GitHub deployment environment for the safe-outputs job (defaults to the top-level environment: field)
-	AutoInjectedCreateIssue         bool                                   `yaml:"-"`                                   // Internal: true when create-issues was automatically injected by the compiler (not user-configured)
+	AllowedDomains                  []string                               `yaml:"allowed-domains,omitempty"`              // Allowed domains for URL redaction, unioned with network.allowed; supports ecosystem identifiers
+	AllowGitHubReferences           []string                               `yaml:"allowed-github-references,omitempty"`    // Allowed repositories for GitHub references (e.g., ["repo", "org/repo2"])
+	Staged                          bool                                   `yaml:"staged,omitempty"`                       // If true, emit step summary messages instead of making GitHub API calls
+	Env                             map[string]string                      `yaml:"env,omitempty"`                          // Environment variables to pass to safe output jobs
+	GitHubToken                     string                                 `yaml:"github-token,omitempty"`                 // GitHub token for safe output jobs
+	MaximumPatchSize                int                                    `yaml:"max-patch-size,omitempty"`               // Maximum allowed patch size in KB (defaults to 1024)
+	RunsOn                          string                                 `yaml:"runs-on,omitempty"`                      // Runner configuration for safe-outputs jobs
+	Messages                        *SafeOutputMessagesConfig              `yaml:"messages,omitempty"`                     // Custom message templates for footer and notifications
+	Mentions                        *MentionsConfig                        `yaml:"mentions,omitempty"`                     // Configuration for @mention filtering in safe outputs
+	Footer                          *bool                                  `yaml:"footer,omitempty"`                       // Global footer control - when false, omits visible footer from all safe outputs (XML markers still included)
+	GroupReports                    bool                                   `yaml:"group-reports,omitempty"`                // If true, create parent "Failed runs" issue for agent failures (default: false)
+	ReportFailureAsIssue            *bool                                  `yaml:"report-failure-as-issue,omitempty"`      // If false, disables creating failure tracking issues when workflows fail (default: true)
+	FailureIssueRepo                string                                 `yaml:"failure-issue-repo,omitempty"`           // Repository to create failure issues in (format: "owner/repo"), defaults to current repo
+	MaxBotMentions                  *string                                `yaml:"max-bot-mentions,omitempty"`             // Maximum bot trigger references (e.g. 'fixes #123') allowed before filtering. Default: 10. Supports integer or GitHub Actions expression.
+	Steps                           []any                                  `yaml:"steps,omitempty"`                        // User-provided steps injected after setup/checkout and before safe-output code
+	IDToken                         *string                                `yaml:"id-token,omitempty"`                     // Override id-token permission: "write" to force-add, "none" to disable auto-detection
+	ConcurrencyGroup                string                                 `yaml:"concurrency-group,omitempty"`            // Concurrency group for the safe-outputs job (cancel-in-progress is always false)
+	Environment                     string                                 `yaml:"environment,omitempty"`                  // Override the GitHub deployment environment for the safe-outputs job (defaults to the top-level environment: field)
+	AutoInjectedCreateIssue         bool                                   `yaml:"-"`                                      // Internal: true when create-issues was automatically injected by the compiler (not user-configured)
 }
 
 // SafeOutputMessagesConfig holds custom message templates for safe-output footer and notification messages

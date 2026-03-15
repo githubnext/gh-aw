@@ -23,7 +23,7 @@
 #
 # Guard policy smoke test: repos=all, min-integrity=none (most permissive)
 #
-# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"c5cb0ff0be1c9ba981c37d92deb45be8f6e2390a2fc0c666c54615388a0f14d6","strict":true}
+# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"8456baa1448783534cbadceb33b0a2573cad268e2f9770dbd94a5f8ffa6c5359","strict":true}
 
 name: "Smoke Agent: all/none"
 "on":

@@ -20,7 +20,7 @@ network:
     - defaults
     - node
 safe-outputs:
-  allowed-url-domains: [default-redaction]
+  allowed-domains: [default-safe-outputs]
   create-issue:
     expires: 2h
     title-prefix: "[smoke-temporary-id] "

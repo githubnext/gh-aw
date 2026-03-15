@@ -23,7 +23,7 @@
 #
 # Guard policy smoke test: repos=[github/gh-aw, github/*], min-integrity=approved (scoped patterns)
 #
-# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"b48c91de1358c6935ee29e21826320d018a9360ab53d2bad9a45ca99939e3ca8","strict":true}
+# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"8f173dceb0dfef5029dd1b3c2e82e0d19fd91482af0ea15994137ec59dd51a4c","strict":true}
 
 name: "Smoke Agent: scoped/approved"
 "on":

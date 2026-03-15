@@ -23,7 +23,7 @@
 #
 # Smoke Project - Test project operations
 #
-# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"537682c51777e746059922e9d8efd9595b4135c3f9ede3270cdf3eb53ff0029d","strict":true}
+# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"710ec62380b7f4046fc0e531419bf0be666859f6668744e95e249cc359b3d6c8","strict":true}
 
 name: "Smoke Project"
 "on":

@@ -693,11 +693,8 @@ func (c *Compiler) generateOutputCollectionStep(yaml *strings.Builder, data *Wor
 	// Use manually configured domains if available, otherwise compute from network configuration
 	var domainsStr string
 	if data.SafeOutputs != nil && len(data.SafeOutputs.AllowedDomains) > 0 {
-		// Use manually configured allowed domains (legacy override behavior)
-		domainsStr = strings.Join(data.SafeOutputs.AllowedDomains, ",")
-	} else if data.SafeOutputs != nil && len(data.SafeOutputs.AllowedURLDomains) > 0 {
-		// allowed-url-domains: additional domains unioned with engine/network base set
-		domainsStr = c.computeAllowedURLDomainsForSanitization(data)
+		// allowed-domains: additional domains unioned with engine/network base set; supports ecosystem identifiers
+		domainsStr = c.computeExpandedAllowedDomainsForSanitization(data)
 	} else {
 		// Fall back to computing from network configuration (same as firewall)
 		domainsStr = c.computeAllowedDomainsForSanitization(data)
