@@ -70,6 +70,7 @@ allowed-reasons
 allowed-repos
 allowlist
 analysis
+analyze_imports
 ANTHROPIC_API_KEY
 api.github.com
 apiKey
@@ -274,6 +275,7 @@ daily-workflow-updater
 dart
 data-analysis
 data-ops
+data-server
 database
 datadog
 date
@@ -430,6 +432,8 @@ get_teams
 get_team_members
 get_user
 gh-aw
+gh-aw.wasm
+gh-aw.wasm.br
 GH_AW_ACTION_MODE
 GH_AW_AGENT_OUTPUT
 GH_AW_AGENT_TOKEN
@@ -479,6 +483,7 @@ GITHUB_WORKSPACE
 global
 glossary
 golang
+go-mod-file
 googleapis
 GOROOT
 grumpy-reviewer
@@ -486,6 +491,7 @@ guidance
 guides
 handlers
 hash-check
+haskell
 headers
 health
 health-check
@@ -509,6 +515,7 @@ implementation
 implements
 import-path
 imported
+importResolver
 imports
 incremental
 injection-protection
@@ -516,6 +523,8 @@ input
 input-field
 input-validation
 inputs
+insert_after_symbol
+insert_before_symbol
 inspect
 install
 install-gh
@@ -555,6 +564,7 @@ language
 language-detection
 latest
 list_code_scanning_alerts
+list_codemods
 list_commits
 list_discussions
 list_issues
@@ -562,6 +572,7 @@ list_pull_requests
 list_users
 list_workflow_runs
 list_workflows
+list_symbols_in_file
 layer
 libraries
 limit
@@ -592,14 +603,17 @@ match
 matching
 max-file-count
 max-file-size
+max_tokens
 maximize
 mcp
 mcp-gateway
 mcp-inspect
+mcp-scripts-mode-removal
 mcp-list
 mcp-registry
 mcp-server
 mcp-servers
+mcp_failures
 mechanism
 mechanisms
 member
@@ -630,6 +644,7 @@ needs.activation.outputs.title
 network
 network.allowed
 network.firewall
+network-firewall-migration
 nightly-run
 node
 none
@@ -670,6 +685,9 @@ path
 paths
 patterns
 payloadDir
+payloadPath
+payloadPathPrefix
+payloadSizeThreshold
 perl
 permissions
 phase
@@ -945,11 +963,13 @@ timeout_minutes
 timestamp
 timezone
 timezone-offset
+time_remaining
 title-prefix
 todo
 tokens
 toolsets
 toolTimeout
+tool_usage
 tracker-id
 tracking
 tracking-issue
