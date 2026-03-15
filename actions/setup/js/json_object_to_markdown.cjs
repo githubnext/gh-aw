@@ -39,7 +39,7 @@ function formatValue(value) {
  * Convert a plain JavaScript object to Markdown bullet points.
  * Nested objects and arrays are rendered as indented sub-lists.
  *
- * @param {Record<string, unknown>} obj - The object to render
+ * @param {object} obj - The object to render
  * @param {number} [depth=0] - Current indentation depth
  * @returns {string} - Markdown bullet list string
  */
@@ -60,7 +60,7 @@ function jsonObjectToMarkdown(obj, depth = 0) {
         lines.push(`${indent}- **${label}**:`);
         for (const item of value) {
           if (typeof item === "object" && item !== null) {
-            lines.push(jsonObjectToMarkdown(/** @type {Record<string, unknown>} */ item, depth + 1));
+            lines.push(jsonObjectToMarkdown(item, depth + 1));
           } else {
             lines.push(`${"  ".repeat(depth + 1)}- ${String(item)}`);
           }
@@ -68,7 +68,7 @@ function jsonObjectToMarkdown(obj, depth = 0) {
       }
     } else if (typeof value === "object" && value !== null) {
       lines.push(`${indent}- **${label}**:`);
-      lines.push(jsonObjectToMarkdown(/** @type {Record<string, unknown>} */ value, depth + 1));
+      lines.push(jsonObjectToMarkdown(value, depth + 1));
     } else {
       const formatted = formatValue(value);
       lines.push(`${indent}- **${label}**: ${formatted}`);
