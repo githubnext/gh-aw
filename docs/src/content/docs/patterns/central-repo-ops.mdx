@@ -8,23 +8,7 @@ description: Operate and roll out changes across many repositories from a single
 
 CentralRepoOps is a [MultiRepoOps](/gh-aw/patterns/multi-repo-ops/) deployment variant where a single private repository acts as a control plane for large-scale operations across many repositories.
 
-Use this pattern when you need to coordinate rollouts, policy updates, and tracking across tens or hundreds of repositories from a private central location, using cross-repository safe outputs and secure authentication to deliver consistency, control, and auditability.
-
-Below are the key benefits of this pattern for enterprise use cases:
-
-- **Consistency at scale** - Same rollout logic and policy gates across all repositories
-- **Risk reduction** - Controlled fan-out (`max`), phased prioritization, and explicit rationale
-- **Auditability** - One orchestrator run provides a full decision trail of selection and outcomes
-- **Operational agility** - Update workflows in one central repository without pushing `main` changes across dozens or hundreds of repositories
-- **Security posture** - Prioritize exposed or vulnerable repositories first
-
-
-## When to Use CentralRepoOps
-
-- **Organization-wide rollouts** - Apply one change pattern across dozens or hundreds of repositories.
-- **Central governance** - Keep prioritization, approvals, and reporting in one control repository.
-- **Phased adoption** - Roll out by waves (pilot first, then broader groups).
-- **Security operations** - Prioritize repositories with alerts or higher exposure.
+Use this pattern for organization-wide rollouts, phased adoption (pilot waves first), central governance, and security-aware prioritization across tens or hundreds of repositories. Each orchestrator run delivers consistent policy gates, controlled fan-out (`max`), and a complete decision trail — without pushing `main` changes to individual target repositories.
 
 ## Example: Dependabot Rollout (Orchestrator + Worker)
 
@@ -372,12 +356,6 @@ jobs:
     secrets:
       GH_AW_READ_ORG_TOKEN: ${{ secrets.GH_AW_READ_ORG_TOKEN }}
 ```
-
-> [!NOTE]
-> Cross-repository `workflow_call` requires the caller and the callee to be in the **same organization** or the callee repository must be public. The called workflow's `on.workflow_call` section must be present (added in the orchestrator step above).
-
-> [!TIP]
-> Cross-repository calls support `secrets: inherit` — the caller's secrets (including `COPILOT_GITHUB_TOKEN`) are passed through automatically. Premium Copilot requests bill to the caller's token, not the platform's.
 
 ### Trade-offs: Schedule Only vs Trigger File
 
