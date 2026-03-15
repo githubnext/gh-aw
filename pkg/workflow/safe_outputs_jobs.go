@@ -190,7 +190,9 @@ func (c *Compiler) buildCustomActionStep(data *WorkflowData, config GitHubScript
 
 	// Add artifact download steps before the custom action step.
 	// In workflow_call context, use the per-invocation prefix to avoid artifact name clashes.
-	steps = append(steps, buildAgentOutputDownloadSteps(artifactPrefixExprForDownstreamJob(data))...)
+	// These steps are used in jobs that depend on the agent job (not activation), so use
+	// the agent-downstream prefix expression.
+	steps = append(steps, buildAgentOutputDownloadSteps(artifactPrefixExprForAgentDownstreamJob(data))...)
 
 	// Step name and metadata
 	steps = append(steps, fmt.Sprintf("      - name: %s\n", config.StepName))
@@ -290,7 +292,9 @@ func (c *Compiler) buildGitHubScriptStep(data *WorkflowData, config GitHubScript
 
 	// Add artifact download steps before the GitHub Script step.
 	// In workflow_call context, use the per-invocation prefix to avoid artifact name clashes.
-	steps = append(steps, buildAgentOutputDownloadSteps(artifactPrefixExprForDownstreamJob(data))...)
+	// These steps are used in jobs that depend on the agent job (not activation), so use
+	// the agent-downstream prefix expression.
+	steps = append(steps, buildAgentOutputDownloadSteps(artifactPrefixExprForAgentDownstreamJob(data))...)
 
 	// Step name and metadata
 	steps = append(steps, fmt.Sprintf("      - name: %s\n", config.StepName))

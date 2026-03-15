@@ -682,3 +682,62 @@ func TestBuildGitHubScriptStepNoWorkingDirectory(t *testing.T) {
 		t.Error("Expected step to contain script")
 	}
 }
+
+// TestBuildGitHubScriptStepWorkflowCallArtifactPrefix verifies that agent artifact downloads
+// in buildGitHubScriptStep use needs.agent.outputs.artifact_prefix in workflow_call context.
+// These steps are used in jobs that depend on the agent job (not activation), so the
+// agent-downstream prefix expression must be used.
+func TestBuildGitHubScriptStepWorkflowCallArtifactPrefix(t *testing.T) {
+	compiler := &Compiler{}
+	workflowData := &WorkflowData{
+		Name: "Test Workflow",
+		On:   "workflow_call",
+	}
+
+	config := GitHubScriptStepConfig{
+		StepName:    "Test Step",
+		StepID:      "test_step",
+		MainJobName: "agent",
+		Script:      "console.log('test');",
+	}
+
+	steps := compiler.buildGitHubScriptStep(workflowData, config)
+	stepsStr := strings.Join(steps, "")
+
+	// In workflow_call context, the download must reference needs.agent (not needs.activation)
+	// because buildSafeOutputJob-based jobs depend on agent, not activation.
+	agentPrefix := "${{ needs.agent.outputs.artifact_prefix }}agent"
+	if !strings.Contains(stepsStr, agentPrefix) {
+		t.Errorf("Expected buildGitHubScriptStep to use %q in workflow_call context, but it was not found.\nGenerated steps:\n%s", agentPrefix, stepsStr)
+	}
+
+	// Ensure activation prefix is NOT used
+	if strings.Contains(stepsStr, "needs.activation.outputs.artifact_prefix") {
+		t.Errorf("Expected buildGitHubScriptStep NOT to use needs.activation.outputs.artifact_prefix (job does not depend on activation).\nGenerated steps:\n%s", stepsStr)
+	}
+}
+
+// TestBuildGitHubScriptStepNonWorkflowCallNoArtifactPrefix verifies no prefix is added
+// in non-workflow_call context.
+func TestBuildGitHubScriptStepNonWorkflowCallNoArtifactPrefix(t *testing.T) {
+	compiler := &Compiler{}
+	workflowData := &WorkflowData{
+		Name: "Test Workflow",
+		On:   "issues",
+	}
+
+	config := GitHubScriptStepConfig{
+		StepName:    "Test Step",
+		StepID:      "test_step",
+		MainJobName: "agent",
+		Script:      "console.log('test');",
+	}
+
+	steps := compiler.buildGitHubScriptStep(workflowData, config)
+	stepsStr := strings.Join(steps, "")
+
+	// In non-workflow_call context, no artifact prefix should be used
+	if strings.Contains(stepsStr, "artifact_prefix") {
+		t.Errorf("Expected buildGitHubScriptStep NOT to use artifact_prefix in non-workflow_call context.\nGenerated steps:\n%s", stepsStr)
+	}
+}
