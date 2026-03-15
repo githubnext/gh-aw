@@ -239,7 +239,7 @@ Test workflow with ecosystem identifiers.
 }
 
 // TestManualAllowedDomainsHasPriority tests that manually configured allowed-domains
-// takes precedence over network configuration
+// unions with network configuration (not overrides it)
 func TestManualAllowedDomainsHasPriority(t *testing.T) {
 	tests := []struct {
 		name             string
@@ -248,7 +248,7 @@ func TestManualAllowedDomainsHasPriority(t *testing.T) {
 		unexpectedDomain string
 	}{
 		{
-			name: "Manual allowed-domains overrides network config",
+			name: "Manual allowed-domains unions with network config",
 			workflow: `---
 on: push
 permissions:
@@ -270,14 +270,15 @@ safe-outputs:
 
 # Test Workflow
 
-Test that manual allowed-domains takes precedence.
+Test that manual allowed-domains unions with network config.
 `,
 			expectedDomains: []string{
 				"manual-domain.com",
 				"override.org",
+				"example.com", // from network.allowed - still present (union)
 			},
-			// Network domains and Copilot defaults should NOT be included
-			unexpectedDomain: "example.com",
+			// No domain should be absent
+			unexpectedDomain: "",
 		},
 		{
 			name: "Empty allowed-domains uses network config",

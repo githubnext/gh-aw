@@ -21,6 +21,12 @@ func (c *Compiler) validateNetworkAllowedDomains(network *NetworkPermissions) er
 	collector := NewErrorCollector(c.failFast)
 
 	for i, domain := range network.Allowed {
+		// "*" means allow all traffic - skip validation
+		if domain == "*" {
+			safeOutputsDomainsValidationLog.Print("Skipping allow-all wildcard '*'")
+			continue
+		}
+
 		// Skip ecosystem identifiers - they don't need domain pattern validation
 		if isEcosystemIdentifier(domain) {
 			safeOutputsDomainsValidationLog.Printf("Skipping ecosystem identifier: %s", domain)
