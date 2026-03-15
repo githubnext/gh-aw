@@ -27,7 +27,7 @@
 #   Imports:
 #     - shared/mcp/qmd-docs.md
 #
-# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"2ca3fcce34841266fda43b23a1d89c0d4cbc91dc4915afeeec869e552dbe0718","strict":true}
+# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"45909f3dc4a29eb4d66e194108d0f6ce64b6b88392bb2d11cf7e542a856bfdfb","strict":true}
 
 name: "Daily Documentation Updater"
 "on":
@@ -721,7 +721,7 @@ jobs:
           set -euo pipefail
           
           set -e
-          qmd query "$INPUT_QUERY" --files --min-score "${INPUT_MIN_SCORE:-0.4}"
+          qmd vsearch "$INPUT_QUERY" --files --min-score "${INPUT_MIN_SCORE:-0.4}"
           
           
           GH_AW_MCP_SCRIPTS_SH_QMD-QUERY_EOF

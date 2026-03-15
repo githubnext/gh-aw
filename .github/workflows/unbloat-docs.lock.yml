@@ -29,7 +29,7 @@
 #     - shared/mcp/qmd-docs.md
 #     - shared/reporting.md
 #
-# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"26e303a59518ef623bce8fae208671e464e837899f1a119920e5e54360b58aed","strict":true}
+# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"1ea348ceeae0c5a3a49a003b730348485ecc316c50839f51c40457b872a01fb5","strict":true}
 
 name: "Documentation Unbloat"
 "on":
@@ -872,7 +872,7 @@ jobs:
           set -euo pipefail
           
           set -e
-          qmd query "$INPUT_QUERY" --files --min-score "${INPUT_MIN_SCORE:-0.4}"
+          qmd vsearch "$INPUT_QUERY" --files --min-score "${INPUT_MIN_SCORE:-0.4}"
           
           
           GH_AW_MCP_SCRIPTS_SH_QMD-QUERY_EOF

@@ -29,7 +29,7 @@
 #     - ../skills/documentation/SKILL.md
 #     - shared/mcp/qmd-docs.md
 #
-# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"70488be0345f23dbb58e0cf6af7898c4f92894e38c7145a7b213189739102021","strict":true}
+# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"67e1c74f352e82212cf8a54d7bd16101c8d33f6ae6f827dd605c1e2eb55ece85","strict":true}
 
 name: "Rebuild the documentation after making changes"
 "on":
@@ -881,7 +881,7 @@ jobs:
           set -euo pipefail
           
           set -e
-          qmd query "$INPUT_QUERY" --files --min-score "${INPUT_MIN_SCORE:-0.4}"
+          qmd vsearch "$INPUT_QUERY" --files --min-score "${INPUT_MIN_SCORE:-0.4}"
           
           
           GH_AW_MCP_SCRIPTS_SH_QMD-QUERY_EOF

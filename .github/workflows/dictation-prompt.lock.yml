@@ -28,7 +28,7 @@
 #     - shared/mcp/qmd-docs.md
 #     - shared/reporting.md
 #
-# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"57e39879303c950d7410843a24a51971750bf435c5e6ff19b3c5f64df42acdc3","strict":true}
+# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"e669f1985322d653e56b3511425cbb449eaa6d08254a3f8bbbd4a5d1b5a7752a","strict":true}
 
 name: "Dictation Prompt Generator"
 "on":
@@ -699,7 +699,7 @@ jobs:
           set -euo pipefail
           
           set -e
-          qmd query "$INPUT_QUERY" --files --min-score "${INPUT_MIN_SCORE:-0.4}"
+          qmd vsearch "$INPUT_QUERY" --files --min-score "${INPUT_MIN_SCORE:-0.4}"
           
           
           GH_AW_MCP_SCRIPTS_SH_QMD-QUERY_EOF

@@ -30,7 +30,7 @@
 #     - shared/mcp/qmd-docs.md
 #     - shared/mcp/serena-go.md
 #
-# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"4927b697b16c09d45d965efce0de80f0070f13026dc236761a735b768cef7d9e","strict":true}
+# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"d81dd9faccd7ffa6b29de1a63d3b439317292d09b249d3cd518679976544eb65","strict":true}
 
 name: "Glossary Maintainer"
 "on":
@@ -780,7 +780,7 @@ jobs:
           set -euo pipefail
           
           set -e
-          qmd query "$INPUT_QUERY" --files --min-score "${INPUT_MIN_SCORE:-0.4}"
+          qmd vsearch "$INPUT_QUERY" --files --min-score "${INPUT_MIN_SCORE:-0.4}"
           
           
           GH_AW_MCP_SCRIPTS_SH_QMD-QUERY_EOF

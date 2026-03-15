@@ -43,7 +43,7 @@ mcp-scripts:
         description: "Minimum relevance score threshold (0–1)"
     run: |
       set -e
-      qmd query "$INPUT_QUERY" --files --min-score "${INPUT_MIN_SCORE:-0.4}"
+      qmd vsearch "$INPUT_QUERY" --files --min-score "${INPUT_MIN_SCORE:-0.4}"
 
 ---
 
