@@ -188,7 +188,7 @@ func TestRenderMCPFetchServerConfig(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			var yaml strings.Builder
-			renderMCPFetchServerConfig(&yaml, tt.format, tt.indent, tt.isLast, tt.includeTools)
+			renderMCPFetchServerConfig(&yaml, tt.format, tt.indent, tt.isLast, tt.includeTools, nil)
 			output := yaml.String()
 
 			for _, substr := range tt.expectSubstr {

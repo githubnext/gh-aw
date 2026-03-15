@@ -19,11 +19,16 @@ func (r *MCPConfigRendererUnified) RenderPlaywrightMCP(yaml *strings.Builder, pl
 
 	if r.options.Format == "toml" {
 		r.renderPlaywrightTOML(yaml, playwrightConfig)
+		// Add guard policies for TOML format as a separate section
+		if len(r.options.WriteSinkGuardPolicies) > 0 {
+			mcpRendererLog.Print("Adding guard-policies to playwright TOML (derived from GitHub guard-policy)")
+			renderGuardPoliciesToml(yaml, r.options.WriteSinkGuardPolicies, "playwright")
+		}
 		return
 	}
 
 	// JSON format
-	renderPlaywrightMCPConfigWithOptions(yaml, playwrightConfig, r.options.IsLast, r.options.IncludeCopilotFields, r.options.InlineArgs)
+	renderPlaywrightMCPConfigWithOptions(yaml, playwrightConfig, r.options.IsLast, r.options.IncludeCopilotFields, r.options.InlineArgs, r.options.WriteSinkGuardPolicies)
 }
 
 // renderPlaywrightTOML generates Playwright MCP configuration in TOML format
@@ -74,11 +79,16 @@ func (r *MCPConfigRendererUnified) RenderSerenaMCP(yaml *strings.Builder, serena
 
 	if r.options.Format == "toml" {
 		r.renderSerenaTOML(yaml, serenaTool)
+		// Add guard policies for TOML format as a separate section
+		if len(r.options.WriteSinkGuardPolicies) > 0 {
+			mcpRendererLog.Print("Adding guard-policies to serena TOML (derived from GitHub guard-policy)")
+			renderGuardPoliciesToml(yaml, r.options.WriteSinkGuardPolicies, "serena")
+		}
 		return
 	}
 
 	// JSON format
-	renderSerenaMCPConfigWithOptions(yaml, serenaTool, r.options.IsLast, r.options.IncludeCopilotFields, r.options.InlineArgs)
+	renderSerenaMCPConfigWithOptions(yaml, serenaTool, r.options.IsLast, r.options.IncludeCopilotFields, r.options.InlineArgs, r.options.WriteSinkGuardPolicies)
 }
 
 // renderSerenaTOML generates Serena MCP configuration in TOML format
@@ -180,11 +190,16 @@ func (r *MCPConfigRendererUnified) RenderMCPScriptsMCP(yaml *strings.Builder, mc
 
 	if r.options.Format == "toml" {
 		r.renderMCPScriptsTOML(yaml, mcpScripts, workflowData)
+		// Add guard policies for TOML format as a separate section
+		if len(r.options.WriteSinkGuardPolicies) > 0 {
+			mcpRendererLog.Print("Adding guard-policies to mcp-scripts TOML (derived from GitHub guard-policy)")
+			renderGuardPoliciesToml(yaml, r.options.WriteSinkGuardPolicies, constants.MCPScriptsMCPServerID.String())
+		}
 		return
 	}
 
 	// JSON format
-	renderMCPScriptsMCPConfigWithOptions(yaml, mcpScripts, r.options.IsLast, r.options.IncludeCopilotFields, workflowData)
+	renderMCPScriptsMCPConfigWithOptions(yaml, mcpScripts, r.options.IsLast, r.options.IncludeCopilotFields, workflowData, r.options.WriteSinkGuardPolicies)
 }
 
 // renderMCPScriptsTOML generates MCP Scripts configuration in TOML format
@@ -216,11 +231,16 @@ func (r *MCPConfigRendererUnified) RenderAgenticWorkflowsMCP(yaml *strings.Build
 
 	if r.options.Format == "toml" {
 		r.renderAgenticWorkflowsTOML(yaml)
+		// Add guard policies for TOML format as a separate section
+		if len(r.options.WriteSinkGuardPolicies) > 0 {
+			mcpRendererLog.Print("Adding guard-policies to agentic-workflows TOML (derived from GitHub guard-policy)")
+			renderGuardPoliciesToml(yaml, r.options.WriteSinkGuardPolicies, constants.AgenticWorkflowsMCPServerID.String())
+		}
 		return
 	}
 
 	// JSON format
-	renderAgenticWorkflowsMCPConfigWithOptions(yaml, r.options.IsLast, r.options.IncludeCopilotFields, r.options.ActionMode)
+	renderAgenticWorkflowsMCPConfigWithOptions(yaml, r.options.IsLast, r.options.IncludeCopilotFields, r.options.ActionMode, r.options.WriteSinkGuardPolicies)
 }
 
 // renderAgenticWorkflowsTOML generates Agentic Workflows MCP configuration in TOML format

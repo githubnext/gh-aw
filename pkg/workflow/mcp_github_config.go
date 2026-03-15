@@ -343,6 +343,21 @@ func transformRepoPattern(pattern string) string {
 	return "private:" + pattern
 }
 
+// deriveWriteSinkGuardPolicyFromWorkflow derives a write-sink guard policy for non-GitHub MCP servers
+// from the workflow's GitHub guard-policy configuration. This uses the same derivation as
+// deriveSafeOutputsGuardPolicyFromGitHub, ensuring that as guard policies are rolled out, only
+// GitHub inputs are filtered while outputs to non-GitHub servers are not restricted.
+// Returns nil when no GitHub guard policies are configured or when workflowData is nil.
+func deriveWriteSinkGuardPolicyFromWorkflow(workflowData *WorkflowData) map[string]any {
+	if workflowData == nil || workflowData.Tools == nil {
+		return nil
+	}
+	if githubTool, hasGitHub := workflowData.Tools["github"]; hasGitHub {
+		return deriveSafeOutputsGuardPolicyFromGitHub(githubTool)
+	}
+	return nil
+}
+
 func getGitHubDockerImageVersion(githubTool any) string {
 	githubDockerImageVersion := string(constants.DefaultGitHubMCPServerVersion) // Default Docker image version
 	// Extract version setting from tool properties

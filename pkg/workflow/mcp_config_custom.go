@@ -31,6 +31,7 @@ func renderCustomMCPConfigWrapperWithContext(yaml *strings.Builder, toolName str
 		IndentLevel:              "                ",
 		Format:                   "json",
 		RewriteLocalhostToDocker: rewriteLocalhost,
+		GuardPolicies:            deriveWriteSinkGuardPolicyFromWorkflow(workflowData),
 	}
 
 	err := renderSharedMCPConfig(yaml, toolName, toolConfig, renderer)
@@ -181,9 +182,14 @@ func renderSharedMCPConfig(yaml *strings.Builder, toolName string, toolConfig ma
 		return nil
 	}
 
+	// When guard policies are present in JSON format, they become the actual last field.
+	// The last existing property must have a trailing comma to allow appending guard policies.
+	hasTrailingGuardPolicies := renderer.Format == "json" && len(renderer.GuardPolicies) > 0
+
 	// Render properties based on format
 	for propIndex, property := range existingProperties {
-		isLast := propIndex == len(existingProperties)-1
+		// In JSON format, if guard policies follow, the last existing property is no longer "last"
+		isLast := (propIndex == len(existingProperties)-1) && !hasTrailingGuardPolicies
 
 		switch property {
 		case "type":
@@ -495,6 +501,15 @@ func renderSharedMCPConfig(yaml *strings.Builder, toolName string, toolConfig ma
 				fmt.Fprintf(yaml, "%s\"registry\": \"%s\"%s\n", renderer.IndentLevel, mcpConfig.Registry, comma)
 			}
 		}
+	}
+
+	// Render guard policies after all properties
+	if hasTrailingGuardPolicies {
+		// JSON format: guard policies are the last field inside the server object
+		renderGuardPoliciesJSON(yaml, renderer.GuardPolicies, renderer.IndentLevel)
+	} else if renderer.Format == "toml" && len(renderer.GuardPolicies) > 0 {
+		// TOML format: guard policies are a separate TOML section after the server config
+		renderGuardPoliciesToml(yaml, renderer.GuardPolicies, toolName)
 	}
 
 	return nil

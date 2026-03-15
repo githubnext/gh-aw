@@ -53,7 +53,8 @@ func AddMCPFetchServerIfNeeded(tools map[string]any, engine CodingAgentEngine) (
 // renderMCPFetchServerConfig renders the MCP fetch server configuration
 // This is a shared function that can be used by all engines
 // includeTools parameter adds "tools": ["*"] field for engines that require it (e.g., Copilot)
-func renderMCPFetchServerConfig(yaml *strings.Builder, format string, indent string, isLast bool, includeTools bool) {
+// guardPolicies parameter adds write-sink guard policies when derived from the GitHub guard-policy
+func renderMCPFetchServerConfig(yaml *strings.Builder, format string, indent string, isLast bool, includeTools bool, guardPolicies map[string]any) {
 	fetchLog.Printf("Rendering MCP fetch server config: format=%s, includeTools=%v", format, includeTools)
 
 	switch format {
@@ -61,7 +62,12 @@ func renderMCPFetchServerConfig(yaml *strings.Builder, format string, indent str
 		// JSON format (for Claude, Copilot, Custom engines)
 		// Use container key per MCP Gateway schema (container-based stdio server)
 		yaml.WriteString(indent + "\"web-fetch\": {\n")
-		yaml.WriteString(indent + "  \"container\": \"mcp/fetch\"\n")
+		if len(guardPolicies) > 0 {
+			yaml.WriteString(indent + "  \"container\": \"mcp/fetch\",\n")
+			renderGuardPoliciesJSON(yaml, guardPolicies, indent+"  ")
+		} else {
+			yaml.WriteString(indent + "  \"container\": \"mcp/fetch\"\n")
+		}
 		if isLast {
 			yaml.WriteString(indent + "}\n")
 		} else {
@@ -73,5 +79,9 @@ func renderMCPFetchServerConfig(yaml *strings.Builder, format string, indent str
 		yaml.WriteString(indent + "\n")
 		yaml.WriteString(indent + "[mcp_servers.\"web-fetch\"]\n")
 		yaml.WriteString(indent + "container = \"mcp/fetch\"\n")
+		// Add guard policies as a separate TOML section if configured
+		if len(guardPolicies) > 0 {
+			renderGuardPoliciesToml(yaml, guardPolicies, "web-fetch")
+		}
 	}
 }

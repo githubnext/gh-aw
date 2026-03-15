@@ -19,11 +19,12 @@ func (e *CopilotEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]
 	// Copilot uses JSON format with type and tools fields, and inline args
 	createRenderer := func(isLast bool) *MCPConfigRendererUnified {
 		return NewMCPConfigRenderer(MCPRendererOptions{
-			IncludeCopilotFields: true, // Copilot uses "type" and "tools" fields
-			InlineArgs:           true, // Copilot uses inline args format
-			Format:               "json",
-			IsLast:               isLast,
-			ActionMode:           GetActionModeFromWorkflowData(workflowData),
+			IncludeCopilotFields:   true, // Copilot uses "type" and "tools" fields
+			InlineArgs:             true, // Copilot uses inline args format
+			Format:                 "json",
+			IsLast:                 isLast,
+			ActionMode:             GetActionModeFromWorkflowData(workflowData),
+			WriteSinkGuardPolicies: deriveWriteSinkGuardPolicyFromWorkflow(workflowData),
 		})
 	}
 
@@ -64,7 +65,7 @@ func (e *CopilotEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]
 				renderer.RenderMCPScriptsMCP(yaml, mcpScripts, workflowData)
 			},
 			RenderWebFetch: func(yaml *strings.Builder, isLast bool) {
-				renderMCPFetchServerConfig(yaml, "json", "              ", isLast, true)
+				renderMCPFetchServerConfig(yaml, "json", "              ", isLast, true, deriveWriteSinkGuardPolicyFromWorkflow(workflowData))
 			},
 			RenderCustomMCPConfig: func(yaml *strings.Builder, toolName string, toolConfig map[string]any, isLast bool) error {
 				return e.renderCopilotMCPConfigWithContext(yaml, toolName, toolConfig, isLast, workflowData)
@@ -96,6 +97,7 @@ func (e *CopilotEngine) renderCopilotMCPConfigWithContext(yaml *strings.Builder,
 		IndentLevel:              "                ",
 		RequiresCopilotFields:    true,
 		RewriteLocalhostToDocker: rewriteLocalhost,
+		GuardPolicies:            deriveWriteSinkGuardPolicyFromWorkflow(workflowData),
 	}
 
 	yaml.WriteString("              \"" + toolName + "\": {\n")
