@@ -77,7 +77,7 @@ func (c *Compiler) buildSafeOutputsJobs(data *WorkflowData, jobName, markdownPat
 	// Build conditional call-workflow fan-out jobs if configured.
 	// Each allowed worker gets its own `uses:` job with an `if:` condition that
 	// checks whether safe_outputs selected it. Only one runs per execution.
-	callWorkflowJobNames, err := c.buildCallWorkflowJobs(data)
+	callWorkflowJobNames, err := c.buildCallWorkflowJobs(data, markdownPath)
 	if err != nil {
 		return fmt.Errorf("failed to build call-workflow fan-out jobs: %w", err)
 	}
@@ -132,10 +132,12 @@ func (c *Compiler) buildSafeOutputsJobs(data *WorkflowData, jobName, markdownPat
 //   - uses: the relative path to the worker's .lock.yml (or .yml)
 //   - passes payload as a `with:` input
 //   - inherits all caller secrets via `secrets: inherit`
+//   - includes a job-level `permissions:` block that is the union of all the
+//     worker's job-level permissions, so GitHub allows the nested jobs to run
 //
 // Returns the names of all generated jobs so they can be added to the conclusion
 // job's `needs` list.
-func (c *Compiler) buildCallWorkflowJobs(data *WorkflowData) ([]string, error) {
+func (c *Compiler) buildCallWorkflowJobs(data *WorkflowData, markdownPath string) ([]string, error) {
 	if data.SafeOutputs == nil || data.SafeOutputs.CallWorkflow == nil {
 		return nil, nil
 	}
@@ -171,6 +173,24 @@ func (c *Compiler) buildCallWorkflowJobs(data *WorkflowData) ([]string, error) {
 			With: map[string]any{
 				"payload": "${{ needs.safe_outputs.outputs.call_workflow_payload }}",
 			},
+		}
+
+		// Compute the permission superset required by the worker's jobs and
+		// attach it to the caller job. GitHub validates reusable workflow calls
+		// against the caller job's declared permission envelope; without a
+		// permissions block the nested jobs are constrained to `none`.
+		if markdownPath != "" {
+			perms, permErr := extractCallWorkflowPermissions(workflowName, markdownPath)
+			if permErr != nil {
+				// Non-fatal: log and continue without permissions rather than aborting compilation.
+				compilerSafeOutputJobsLog.Printf("Warning: could not extract permissions for call-workflow job '%s': %v", jobName, permErr)
+			} else if perms != nil {
+				rendered := perms.RenderToYAML()
+				if rendered != "" {
+					callJob.Permissions = rendered
+					compilerSafeOutputJobsLog.Printf("Set permissions on call-workflow job '%s': %s", jobName, rendered)
+				}
+			}
 		}
 
 		if err := c.jobManager.AddJob(callJob); err != nil {

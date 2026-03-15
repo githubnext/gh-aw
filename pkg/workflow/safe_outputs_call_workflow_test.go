@@ -32,7 +32,7 @@ func TestBuildCallWorkflowJobs_GeneratesConditionalJobs(t *testing.T) {
 		},
 	}
 
-	jobNames, err := compiler.buildCallWorkflowJobs(workflowData)
+	jobNames, err := compiler.buildCallWorkflowJobs(workflowData, "")
 	require.NoError(t, err, "Should not error building call-workflow jobs")
 	assert.Len(t, jobNames, 2, "Should generate 2 fan-out jobs")
 	assert.Contains(t, jobNames, "call-spring-boot-bugfix", "Should generate job for spring-boot-bugfix")
@@ -57,7 +57,7 @@ func TestBuildCallWorkflowJobs_NoConfig(t *testing.T) {
 		SafeOutputs: &SafeOutputsConfig{},
 	}
 
-	jobNames, err := compiler.buildCallWorkflowJobs(workflowData)
+	jobNames, err := compiler.buildCallWorkflowJobs(workflowData, "")
 	require.NoError(t, err, "Should not error when call-workflow is not configured")
 	assert.Empty(t, jobNames, "Should not generate any jobs when call-workflow is not configured")
 }
@@ -78,7 +78,7 @@ func TestBuildCallWorkflowJobs_FallbackPath(t *testing.T) {
 		},
 	}
 
-	jobNames, err := compiler.buildCallWorkflowJobs(workflowData)
+	jobNames, err := compiler.buildCallWorkflowJobs(workflowData, "")
 	require.NoError(t, err, "Should not error with missing WorkflowFiles")
 	assert.Equal(t, []string{"call-worker-a"}, jobNames, "Should generate the job")
 
@@ -271,7 +271,7 @@ func TestCallWorkflowJobYAMLOutput(t *testing.T) {
 		},
 	}
 
-	_, err := compiler.buildCallWorkflowJobs(workflowData)
+	_, err := compiler.buildCallWorkflowJobs(workflowData, "")
 	require.NoError(t, err, "Should build jobs without error")
 
 	job, exists := compiler.jobManager.GetJob("call-worker-a")
