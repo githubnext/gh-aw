@@ -18,6 +18,7 @@
 //
 // Type Conversion:
 //   - parseIntValue() - Safely parse numeric types to int with truncation warnings
+//   - safeUint64ToInt() - Convert uint64 to int, returning 0 on overflow
 //
 // Map Operations:
 //   - filterMapKeys() - Create new map excluding specified keys
@@ -28,6 +29,8 @@
 package workflow
 
 import (
+	"math"
+
 	"github.com/github/gh-aw/pkg/logger"
 )
 
@@ -59,6 +62,14 @@ func parseIntValue(value any) (int, bool) {
 	default:
 		return 0, false
 	}
+}
+
+// safeUint64ToInt safely converts uint64 to int, returning 0 if overflow would occur
+func safeUint64ToInt(u uint64) int {
+	if u > math.MaxInt {
+		return 0 // Return 0 (engine default) if value would overflow
+	}
+	return int(u)
 }
 
 // filterMapKeys creates a new map excluding the specified keys

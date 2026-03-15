@@ -504,7 +504,17 @@ jobs:
               "description": "Call the 'smoke-workflow-call' reusable workflow via workflow_call. This workflow must support workflow_call and be in .github/workflows/ directory in the same repository.",
               "inputSchema": {
                 "additionalProperties": false,
-                "properties": {},
+                "properties": {
+                  "payload": {
+                    "description": "Input parameter 'payload' for workflow smoke-workflow-call",
+                    "type": "string"
+                  },
+                  "task-description": {
+                    "default": "validate workflow_call checkout",
+                    "description": "Short description of the validation task to include in the output comment",
+                    "type": "string"
+                  }
+                },
                 "type": "object"
               },
               "name": "smoke_workflow_call"
@@ -989,6 +999,7 @@ jobs:
     uses: ./.github/workflows/smoke-workflow-call.lock.yml
     with:
       payload: ${{ needs.safe_outputs.outputs.call_workflow_payload }}
+      task-description: ${{ fromJSON(needs.safe_outputs.outputs.call_workflow_payload).task-description }}
     secrets: inherit
 
   conclusion:

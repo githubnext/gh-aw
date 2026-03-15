@@ -381,6 +381,51 @@ describe("check_membership.cjs", () => {
       expect(mockCore.setOutput).toHaveBeenCalledWith("result", "insufficient_permissions");
     });
 
+    it("should authorize a bot in the allowlist when permission check returns an API error (e.g. GitHub App not a user)", async () => {
+      process.env.GH_AW_ALLOWED_BOTS = "Copilot";
+      mockContext.actor = "Copilot";
+
+      const notAUserError = new Error("Copilot is not a user");
+      mockGithub.rest.repos.getCollaboratorPermissionLevel
+        .mockRejectedValueOnce(notAUserError) // initial permission check → error
+        .mockResolvedValueOnce({ data: { permission: "none" } }); // bot status check (Copilot[bot] form) → active
+
+      await runScript();
+
+      expect(mockCore.setOutput).toHaveBeenCalledWith("is_team_member", "true");
+      expect(mockCore.setOutput).toHaveBeenCalledWith("result", "authorized_bot");
+      expect(mockCore.setOutput).toHaveBeenCalledWith("user_permission", "bot");
+    });
+
+    it("should return bot_not_active when permission check returns API error and bot is not installed", async () => {
+      process.env.GH_AW_ALLOWED_BOTS = "Copilot";
+      mockContext.actor = "Copilot";
+
+      const notAUserError = new Error("Copilot is not a user");
+      const notFoundError = { status: 404, message: "Not Found" };
+      mockGithub.rest.repos.getCollaboratorPermissionLevel
+        .mockRejectedValueOnce(notAUserError) // initial permission check → error
+        .mockRejectedValue(notFoundError); // all bot status checks → 404
+
+      await runScript();
+
+      expect(mockCore.setOutput).toHaveBeenCalledWith("is_team_member", "false");
+      expect(mockCore.setOutput).toHaveBeenCalledWith("result", "bot_not_active");
+    });
+
+    it("should return api_error when permission check fails and actor is not in allowed bots list", async () => {
+      process.env.GH_AW_ALLOWED_BOTS = "some-other-bot";
+      mockContext.actor = "Copilot";
+
+      const notAUserError = new Error("Copilot is not a user");
+      mockGithub.rest.repos.getCollaboratorPermissionLevel.mockRejectedValue(notAUserError);
+
+      await runScript();
+
+      expect(mockCore.setOutput).toHaveBeenCalledWith("is_team_member", "false");
+      expect(mockCore.setOutput).toHaveBeenCalledWith("result", "api_error");
+    });
+
     it("should authorize a bot with [bot] suffix in the allowlist via slug fallback", async () => {
       process.env.GH_AW_ALLOWED_BOTS = "copilot";
       mockContext.actor = "copilot[bot]";

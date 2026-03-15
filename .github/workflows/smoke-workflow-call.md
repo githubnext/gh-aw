@@ -3,7 +3,22 @@ name: Smoke Workflow Call
 description: Reusable workflow to validate checkout from fork works correctly in workflow_call context
 on:
   workflow_call:
+    inputs:
+      payload:
+        type: string
+        required: false
+      task-description:
+        description: Short description of the validation task to include in the output comment
+        type: string
+        required: false
+        default: validate workflow_call checkout
   workflow_dispatch:
+    inputs:
+      task-description:
+        description: Short description of the validation task to include in the output comment
+        type: string
+        required: false
+        default: validate workflow_call checkout
 permissions:
   contents: read
   pull-requests: read
@@ -48,6 +63,7 @@ It validates that the PR branch checkout works correctly when invoked in a `work
 ## Output
 
 Add a comment summarizing the checkout validation results:
+- Task: "${{ inputs.task-description }}"
 - Current branch name
 - Whether the workspace is clean or has changes
 - Whether the checkout succeeded (based on git commands working without errors)

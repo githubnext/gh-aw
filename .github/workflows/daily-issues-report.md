@@ -29,6 +29,7 @@ imports:
   - shared/jqschema.md
   - shared/issues-data-fetch.md
   - shared/python-dataviz.md
+  - shared/python-nlp.md
   - shared/trends.md
   - shared/reporting.md
 ---
@@ -190,10 +191,7 @@ with open('/tmp/gh-aw/python/data/metrics.json', 'w') as f:
 
 ### Install Additional Libraries
 
-If needed for better clustering:
-```bash
-pip install --user scikit-learn
-```
+scikit-learn, NLTK, TextBlob, and WordCloud are pre-installed via the shared NLP environment.
 
 ## Phase 3: Generate Trend Charts
 

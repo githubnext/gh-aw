@@ -37,6 +37,6 @@ The worker will validate that the repository checkout works correctly in a `work
 ## Instructions
 
 1. Use the `smoke_workflow_call` MCP tool to select the `smoke-workflow-call` worker.
-2. No additional inputs are needed for the worker.
+2. Pass `"smoke test checkout validation"` as the `task-description` input.
 
-**Important**: You MUST call the `smoke_workflow_call` MCP tool. Do not use the `noop` tool.
+**Important**: You MUST call the `smoke_workflow_call` MCP tool with the `task-description` input. Do not use the `noop` tool.

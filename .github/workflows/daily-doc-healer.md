@@ -153,7 +153,7 @@ If you make documentation edits, create a pull request with `create_pull_request
 **PR Description**:
 
 ```markdown
-## Self-Healing Documentation Fixes
+### Self-Healing Documentation Fixes
 
 This PR was automatically created by the Daily Documentation Healer workflow.
 
@@ -165,9 +165,14 @@ This PR was automatically created by the Daily Documentation Healer workflow.
 
 [Explanation of why DDUw missed this]
 
+<details>
+<summary><b>💡 DDUw Improvement Suggestions</b></summary>
+
 ### DDUw Improvement Suggestions
 
 [Specific, actionable changes to daily-doc-updater.md that would prevent recurrence]
+
+</details>
 
 ### Related Issues
 

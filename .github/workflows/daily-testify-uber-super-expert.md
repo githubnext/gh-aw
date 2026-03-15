@@ -184,11 +184,11 @@ Create a detailed issue with this structure:
 ```markdown
 # Improve Test Quality: [FILE_PATH]
 
-## Overview
+### Overview
 
 The test file `[FILE_PATH]` has been selected for quality improvement by the Testify Uber Super Expert. This issue provides specific, actionable recommendations to enhance test quality, coverage, and maintainability using testify best practices.
 
-## Current State
+### Current State
 
 - **Test File**: `[FILE_PATH]`
 - **Source File**: `[SOURCE_FILE]` (if exists)
@@ -196,11 +196,14 @@ The test file `[FILE_PATH]` has been selected for quality improvement by the Tes
 - **Lines of Code**: [LOC] lines
 - **Last Modified**: [DATE if available]
 
-## Test Quality Analysis
+### Test Quality Analysis
 
 ### Strengths ✅
 
 [List 2-3 things the test file does well]
+
+<details>
+<summary><b>🎯 Areas for Improvement</b></summary>
 
 ### Areas for Improvement 🎯
 
@@ -334,9 +337,12 @@ require.NoError(t, err, "setup should succeed without errors")
 
 **Why this matters**: Good assertion messages make test failures easier to debug.
 
-## Implementation Guidelines
+</details>
 
-### Priority Order
+<details>
+<summary><b>📋 Implementation Guidelines</b></summary>
+
+#### Priority Order
 1. **High**: Add missing tests for critical functions
 2. **High**: Convert manual error checks to testify assertions
 3. **Medium**: Refactor similar tests into table-driven tests
@@ -362,7 +368,9 @@ go test -cover [PACKAGE_PATH]
 make test-unit
 ```
 
-## Acceptance Criteria
+</details>
+
+### Acceptance Criteria
 
 - [ ] All manual error checks replaced with testify assertions (`require.NoError`, `assert.Equal`, etc.)
 - [ ] Similar test functions refactored into table-driven tests
@@ -372,7 +380,7 @@ make test-unit
 - [ ] Tests pass: `make test-unit`
 - [ ] Code follows patterns in `scratchpad/testing.md`
 
-## Additional Context
+### Additional Context
 
 - **Repository Testing Guidelines**: See `scratchpad/testing.md` for comprehensive testing patterns
 - **Example Tests**: Look at recent test files in `pkg/workflow/*_test.go` for examples

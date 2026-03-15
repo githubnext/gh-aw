@@ -112,7 +112,7 @@ Generate exactly **2 high-quality trend charts**:
 Include the charts in your firewall report with this structure:
 
 ```markdown
-## 📈 Firewall Activity Trends
+### 📈 Firewall Activity Trends
 
 ### Request Patterns
 ![Firewall Request Trends](URL_FROM_UPLOAD_ASSET_CHART_1)

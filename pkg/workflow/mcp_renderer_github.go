@@ -98,6 +98,8 @@ func (r *MCPConfigRendererUnified) renderGitHubTOML(yaml *strings.Builder, githu
 	lockdown := getGitHubLockdown(githubTool)
 	toolsets := getGitHubToolsets(githubTool)
 
+	mcpRendererLog.Printf("Rendering GitHub MCP TOML: type=%s, read_only=%t, lockdown=%t, toolsets=%s", githubType, readOnly, lockdown, toolsets)
+
 	yaml.WriteString("          \n")
 	yaml.WriteString("          [mcp_servers.github]\n")
 
@@ -220,6 +222,8 @@ func (r *MCPConfigRendererUnified) renderGitHubTOML(yaml *strings.Builder, githu
 //   - yaml: The string builder for YAML output
 //   - options: GitHub MCP Docker rendering options
 func RenderGitHubMCPDockerConfig(yaml *strings.Builder, options GitHubMCPDockerOptions) {
+	mcpRendererLog.Printf("Rendering GitHub MCP Docker config: image=%s, read_only=%t, lockdown=%t", options.DockerImageVersion, options.ReadOnly, options.Lockdown)
+
 	// Add type field if needed (Copilot requires this, Claude doesn't)
 	// Per MCP Gateway Specification v1.0.0 section 4.1.2, use "stdio" for containerized servers
 	if options.IncludeTypeField {
@@ -328,6 +332,8 @@ func RenderGitHubMCPDockerConfig(yaml *strings.Builder, options GitHubMCPDockerO
 //   - yaml: The string builder for YAML output
 //   - options: GitHub MCP remote rendering options
 func RenderGitHubMCPRemoteConfig(yaml *strings.Builder, options GitHubMCPRemoteOptions) {
+	mcpRendererLog.Printf("Rendering GitHub MCP remote config: read_only=%t, lockdown=%t, toolsets=%s", options.ReadOnly, options.Lockdown, options.Toolsets)
+
 	// Remote mode - use hosted GitHub MCP server
 	yaml.WriteString("                \"type\": \"http\",\n")
 	yaml.WriteString("                \"url\": \"https://api.githubcopilot.com/mcp/\",\n")

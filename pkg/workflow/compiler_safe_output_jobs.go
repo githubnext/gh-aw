@@ -130,7 +130,10 @@ func (c *Compiler) buildSafeOutputsJobs(data *WorkflowData, jobName, markdownPat
 //   - depends on safe_outputs
 //   - has an `if:` that checks needs.safe_outputs.outputs.call_workflow_name
 //   - uses: the relative path to the worker's .lock.yml (or .yml)
-//   - passes payload as a `with:` input
+//   - passes payload as the canonical `with:` input
+//   - also passes one `with:` entry per declared workflow_call input (except
+//     payload) as `fromJSON(needs.safe_outputs.outputs.call_workflow_payload).<name>`
+//     so that worker steps can reference inputs.<name> directly
 //   - inherits all caller secrets via `secrets: inherit`
 //   - includes a job-level `permissions:` block that is the union of all the
 //     worker's job-level permissions, so GitHub allows the nested jobs to run
@@ -164,15 +167,57 @@ func (c *Compiler) buildCallWorkflowJobs(data *WorkflowData, markdownPath string
 			workflowPath = fmt.Sprintf("./.github/workflows/%s.lock.yml", workflowName)
 		}
 
+		// Build the with: block. Always include the canonical payload transport,
+		// then add per-input entries derived from the payload for every declared
+		// workflow_call input on the worker (except 'payload' itself) so that
+		// worker steps can reference inputs.<name> directly without parsing JSON.
+		with := map[string]any{
+			"payload": "${{ needs.safe_outputs.outputs.call_workflow_payload }}",
+		}
+
+		if markdownPath != "" {
+			fileResult, findErr := findWorkflowFile(workflowName, markdownPath)
+			if findErr != nil {
+				compilerSafeOutputJobsLog.Printf("Warning: could not find worker workflow file for '%s': %v. "+
+					"Typed inputs will not be forwarded in the with: block.", workflowName, findErr)
+			} else {
+				var workflowInputs map[string]any
+				var inputErr error
+				switch {
+				case fileResult.lockExists:
+					workflowInputs, inputErr = extractWorkflowCallInputs(fileResult.lockPath)
+				case fileResult.ymlExists:
+					workflowInputs, inputErr = extractWorkflowCallInputs(fileResult.ymlPath)
+				case fileResult.mdExists:
+					workflowInputs, inputErr = extractMDWorkflowCallInputs(fileResult.mdPath)
+				default:
+					compilerSafeOutputJobsLog.Printf("Warning: no worker file found for '%s'; "+
+						"typed inputs will not be forwarded in the with: block.", workflowName)
+				}
+				if inputErr != nil {
+					compilerSafeOutputJobsLog.Printf("Warning: could not extract workflow_call inputs for '%s': %v. "+
+						"Typed inputs will not be forwarded in the with: block.", workflowName, inputErr)
+				} else if workflowInputs != nil {
+					typedInputCount := 0
+					for inputName := range workflowInputs {
+						if inputName == "payload" {
+							continue
+						}
+						with[inputName] = fmt.Sprintf("${{ fromJSON(needs.safe_outputs.outputs.call_workflow_payload).%s }}", inputName)
+						typedInputCount++
+					}
+					compilerSafeOutputJobsLog.Printf("Forwarding %d typed inputs for call-workflow job '%s'", typedInputCount, jobName)
+				}
+			}
+		}
+
 		callJob := &Job{
 			Name:           jobName,
 			Needs:          []string{"safe_outputs"},
 			If:             fmt.Sprintf("needs.safe_outputs.outputs.call_workflow_name == '%s'", workflowName),
 			Uses:           workflowPath,
 			SecretsInherit: true,
-			With: map[string]any{
-				"payload": "${{ needs.safe_outputs.outputs.call_workflow_payload }}",
-			},
+			With:           with,
 		}
 
 		// Compute the permission superset required by the worker's jobs and

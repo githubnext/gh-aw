@@ -23,11 +23,20 @@
 #
 # Reusable workflow to validate checkout from fork works correctly in workflow_call context
 #
-# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"12247848e3ea5828f151c968bd52cdb59680fd89fc89114e4bfb6fa8af65b224","strict":true}
+# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"ec8e06e54f77696dc841d99cf0dbe8391ab81ac495ec1ebb806afab7287c77f1","strict":true}
 
 name: "Smoke Workflow Call"
 "on":
   workflow_call:
+    inputs:
+      payload:
+        required: false
+        type: string
+      task-description:
+        default: validate workflow_call checkout
+        description: Short description of the validation task to include in the output comment
+        required: false
+        type: string
     outputs:
       comment_id:
         description: ID of the first added comment
@@ -35,7 +44,13 @@ name: "Smoke Workflow Call"
       comment_url:
         description: URL of the first added comment
         value: ${{ jobs.safe_outputs.outputs.comment_url }}
-  workflow_dispatch: null
+  workflow_dispatch:
+    inputs:
+      task-description:
+        default: validate workflow_call checkout
+        description: Short description of the validation task to include in the output comment
+        required: false
+        type: string
 
 permissions: {}
 
@@ -146,6 +161,7 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
+          GH_AW_EXPR_B3924FAD: ${{ inputs.task-description }}
           GH_AW_GITHUB_ACTOR: ${{ github.actor }}
           GH_AW_GITHUB_EVENT_COMMENT_ID: ${{ github.event.comment.id }}
           GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER: ${{ github.event.discussion.number }}
@@ -208,6 +224,7 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
+          GH_AW_EXPR_B3924FAD: ${{ inputs.task-description }}
         with:
           script: |
             const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
@@ -218,6 +235,7 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
+          GH_AW_EXPR_B3924FAD: ${{ inputs.task-description }}
           GH_AW_GITHUB_ACTOR: ${{ github.actor }}
           GH_AW_GITHUB_EVENT_COMMENT_ID: ${{ github.event.comment.id }}
           GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER: ${{ github.event.discussion.number }}
@@ -238,6 +256,7 @@ jobs:
             return await substitutePlaceholders({
               file: process.env.GH_AW_PROMPT,
               substitutions: {
+                GH_AW_EXPR_B3924FAD: process.env.GH_AW_EXPR_B3924FAD,
                 GH_AW_GITHUB_ACTOR: process.env.GH_AW_GITHUB_ACTOR,
                 GH_AW_GITHUB_EVENT_COMMENT_ID: process.env.GH_AW_GITHUB_EVENT_COMMENT_ID,
                 GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER: process.env.GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER,

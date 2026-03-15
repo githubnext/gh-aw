@@ -187,7 +187,7 @@ If you made any documentation changes:
 
 **PR Description Template**:
 ```markdown
-## Documentation Updates - [Date]
+### Documentation Updates - [Date]
 
 This PR updates the documentation based on features merged in the last 24 hours.
 
@@ -195,6 +195,9 @@ This PR updates the documentation based on features merged in the last 24 hours.
 
 - Feature 1 (from #PR_NUMBER)
 - Feature 2 (from #PR_NUMBER)
+
+<details>
+<summary><b>📝 Detailed Changes & References</b></summary>
 
 ### Changes Made
 
@@ -205,6 +208,8 @@ This PR updates the documentation based on features merged in the last 24 hours.
 
 - #PR_NUMBER - Brief description
 - #PR_NUMBER - Brief description
+
+</details>
 
 ### Notes
 

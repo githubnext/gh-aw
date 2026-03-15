@@ -115,7 +115,7 @@ After updating the documentation file, use the `create-pull-request` safe output
 Example body (rows reflect whatever editors were discovered in Step 0):
 
 ```markdown
-## Editor Health Report – <date>
+### Editor Health Report – <date>
 
 | Editor | URL | Status | Preview |
 |--------|-----|--------|---------|

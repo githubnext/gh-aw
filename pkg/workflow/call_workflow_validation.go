@@ -291,18 +291,5 @@ func mdHasWorkflowCall(mdPath string) (bool, error) {
 //   - []any:           "on: [push, workflow_call]"
 //   - map[string]any:  "on:\n  workflow_call: ..."
 func containsWorkflowCall(onSection any) bool {
-	switch on := onSection.(type) {
-	case string:
-		return on == "workflow_call"
-	case []any:
-		for _, trigger := range on {
-			if triggerStr, ok := trigger.(string); ok && triggerStr == "workflow_call" {
-				return true
-			}
-		}
-	case map[string]any:
-		_, ok := on["workflow_call"]
-		return ok
-	}
-	return false
+	return containsTrigger(onSection, "workflow_call")
 }

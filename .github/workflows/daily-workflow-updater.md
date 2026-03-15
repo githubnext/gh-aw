@@ -119,15 +119,20 @@ If `.github/aw/actions-lock.json` has changes:
 
 **PR Body Template**:
 ```markdown
-## GitHub Actions Updates - [Date]
+### GitHub Actions Updates - [Date]
 
 This PR updates GitHub Actions versions in `.github/aw/actions-lock.json` to their latest compatible releases.
+
+<details>
+<summary><b>📦 Actions Updated (full list)</b></summary>
 
 ### Actions Updated
 
 [List each action that was updated with before/after versions, e.g.:]
 - `actions/checkout`: v4 → v5
 - `actions/setup-node`: v5 → v6
+
+</details>
 
 ### Summary
 

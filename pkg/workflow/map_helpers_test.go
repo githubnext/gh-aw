@@ -246,3 +246,51 @@ func TestFilterMapKeys(t *testing.T) {
 		})
 	}
 }
+
+func TestSafeUint64ToInt(t *testing.T) {
+	tests := []struct {
+		name     string
+		value    uint64
+		expected int
+	}{
+		{
+			name:     "zero",
+			value:    0,
+			expected: 0,
+		},
+		{
+			name:     "small value",
+			value:    42,
+			expected: 42,
+		},
+		{
+			name:     "large value within int range",
+			value:    1000000,
+			expected: 1000000,
+		},
+		{
+			name:     "max int value",
+			value:    uint64(^uint(0) >> 1),
+			expected: int(^uint(0) >> 1),
+		},
+		{
+			name:     "overflow: max uint64 returns 0",
+			value:    ^uint64(0),
+			expected: 0,
+		},
+		{
+			name:     "overflow: max int + 1 returns 0",
+			value:    uint64(^uint(0)>>1) + 1,
+			expected: 0,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := safeUint64ToInt(tt.value)
+			if result != tt.expected {
+				t.Errorf("safeUint64ToInt(%d) = %d, want %d", tt.value, result, tt.expected)
+			}
+		})
+	}
+}
