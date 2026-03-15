@@ -238,9 +238,9 @@ Test workflow with ecosystem identifiers.
 	}
 }
 
-// TestManualAllowedDomainsHasPriority tests that manually configured allowed-domains
+// TestManualAllowedDomainsUnionWithNetworkConfig tests that manually configured allowed-domains
 // unions with network configuration (not overrides it)
-func TestManualAllowedDomainsHasPriority(t *testing.T) {
+func TestManualAllowedDomainsUnionWithNetworkConfig(t *testing.T) {
 	tests := []struct {
 		name             string
 		workflow         string
