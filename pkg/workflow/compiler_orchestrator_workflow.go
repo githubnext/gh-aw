@@ -38,13 +38,28 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 	// Setup engine and process imports
 	engineSetup, err := c.setupEngineAndImports(result, cleanPath, content, markdownDir)
 	if err != nil {
-		return nil, err
+		// Wrap unformatted errors with file location.  Errors produced by
+		// formatCompilerError/formatCompilerErrorWithPosition are already
+		// console-formatted and must not be double-wrapped.
+		if isFormattedCompilerError(err) {
+			return nil, err
+		}
+		// Try to point at the exact line of the "engine:" field so the user can
+		// navigate directly to the problem location.
+		engineLine := findFrontmatterFieldLine(result.FrontmatterLines, result.FrontmatterStart, "engine")
+		if engineLine > 0 {
+			return nil, formatCompilerErrorWithPosition(cleanPath, engineLine, 1, "error", err.Error(), err)
+		}
+		return nil, formatCompilerError(cleanPath, "error", err.Error(), err)
 	}
 
 	// Process tools and markdown
 	toolsResult, err := c.processToolsAndMarkdown(result, cleanPath, markdownDir, engineSetup.agenticEngine, engineSetup.engineSetting, engineSetup.importsResult)
 	if err != nil {
-		return nil, err
+		if isFormattedCompilerError(err) {
+			return nil, err
+		}
+		return nil, formatCompilerError(cleanPath, "error", err.Error(), err)
 	}
 
 	// Build initial workflow data structure

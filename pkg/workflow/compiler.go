@@ -75,12 +75,11 @@ func (c *Compiler) CompileWorkflow(markdownPath string) error {
 	log.Printf("Parsing workflow file")
 	workflowData, err := c.ParseWorkflowFile(markdownPath)
 	if err != nil {
-		// Check if this is already a formatted console error
-		if strings.Contains(err.Error(), ":") && (strings.Contains(err.Error(), "error:") || strings.Contains(err.Error(), "warning:")) {
-			// Already formatted, return as-is
+		// ParseWorkflowFile already returns formatted compiler errors; pass them through.
+		if isFormattedCompilerError(err) {
 			return err
 		}
-		// Otherwise, create a basic formatted error with wrapping
+		// Fallback for any unformatted error that slipped through.
 		return formatCompilerError(markdownPath, "error", err.Error(), err)
 	}
 

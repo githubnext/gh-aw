@@ -40,14 +40,17 @@ func formatCompilerError(filePath string, errType string, message string, cause 
 		Message: message,
 	})
 
-	// Preserve the error chain via Unwrap() so errors.Is/As continue to work on the
-	// returned error, while Error() returns only the clean formatted string (no duplication).
-	if cause != nil {
-		return &wrappedCompilerError{formatted: formattedErr, cause: cause}
-	}
+	// Always return a *wrappedCompilerError so isFormattedCompilerError can detect it.
+	// cause may be nil for validation errors that have no underlying cause.
+	return &wrappedCompilerError{formatted: formattedErr, cause: cause}
+}
 
-	// Create new error for validation errors (no underlying cause)
-	return errors.New(formattedErr)
+// isFormattedCompilerError reports whether err is already a console-formatted compiler error
+// produced by formatCompilerError or formatCompilerErrorWithPosition.  Use this instead of
+// fragile string-contains checks to avoid double-wrapping.
+func isFormattedCompilerError(err error) bool {
+	var wce *wrappedCompilerError
+	return errors.As(err, &wce)
 }
 
 // formatCompilerErrorWithPosition creates a formatted compiler error with specific line/column position.
@@ -70,12 +73,7 @@ func formatCompilerErrorWithPosition(filePath string, line int, column int, errT
 		Message: message,
 	})
 
-	// Preserve the error chain via Unwrap() so errors.Is/As continue to work on the
-	// returned error, while Error() returns only the clean formatted string (no duplication).
-	if cause != nil {
-		return &wrappedCompilerError{formatted: formattedErr, cause: cause}
-	}
-
-	// Create new error for validation errors (no underlying cause)
-	return errors.New(formattedErr)
+	// Always return a *wrappedCompilerError so isFormattedCompilerError can detect it.
+	// cause may be nil for validation errors that have no underlying cause.
+	return &wrappedCompilerError{formatted: formattedErr, cause: cause}
 }

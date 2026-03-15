@@ -471,6 +471,84 @@ Test content.`,
 	}
 }
 
+// TestEngineValidationErrorHasFileLocation verifies that invalid engine errors include
+// the file:line:column: prefix pointing to the "engine:" field in the source file.
+func TestEngineValidationErrorHasFileLocation(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "engine-location-test")
+
+	tests := []struct {
+		name              string
+		content           string
+		expectedErrorLine int
+		description       string
+	}{
+		{
+			name: "invalid_engine_line3",
+			content: `---
+on: push
+engine: openai_gpt
+---
+
+# Test Workflow
+
+Content.`,
+			expectedErrorLine: 3, // "engine: openai_gpt" is on line 3 in the file
+			description:       "invalid engine on line 3 should produce error at line 3",
+		},
+		{
+			name: "invalid_engine_with_other_fields",
+			content: `---
+on: push
+permissions:
+  contents: read
+engine: badengine_xyz
+strict: false
+---
+
+# Test Workflow
+
+Content.`,
+			expectedErrorLine: 5, // "engine: badengine_xyz" is on line 5 in the file
+			description:       "invalid engine after permissions block should produce error at correct line",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			testFile := filepath.Join(tmpDir, tt.name+".md")
+			if err := os.WriteFile(testFile, []byte(tt.content), 0644); err != nil {
+				t.Fatal(err)
+			}
+
+			compiler := NewCompiler()
+			err := compiler.CompileWorkflow(testFile)
+			if err == nil {
+				t.Errorf("%s: expected compilation to fail for invalid engine", tt.description)
+				return
+			}
+
+			errorStr := err.Error()
+
+			// Verify error contains filename:line:col: format pointing to the engine field
+			expectedPattern := fmt.Sprintf(".md:%d:1:", tt.expectedErrorLine)
+			if !strings.Contains(errorStr, expectedPattern) {
+				t.Errorf("%s: error should contain '%s' pointing to the engine: field, got: %s",
+					tt.description, expectedPattern, errorStr)
+			}
+
+			// Verify the error contains the invalid engine name
+			if !strings.Contains(errorStr, "invalid engine:") {
+				t.Errorf("%s: error should contain 'invalid engine:', got: %s", tt.description, errorStr)
+			}
+
+			// Verify the error type indicator is present
+			if !strings.Contains(errorStr, "error:") {
+				t.Errorf("%s: error should contain 'error:' type indicator, got: %s", tt.description, errorStr)
+			}
+		})
+	}
+}
+
 // TestCommentOutProcessedFieldsInOnSection tests the commentOutProcessedFieldsInOnSection function directly
 
 // TestAddCustomStepsAsIsBasic tests adding custom steps as-is
