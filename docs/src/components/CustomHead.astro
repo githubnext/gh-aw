@@ -74,6 +74,11 @@ const filteredHead = head.filter(({ tag, attrs }) => {
   import '../scripts/responsive-tables.ts';
 </script>
 
+<!-- Search accessibility enhancement: adds aria-live to the dynamic results container -->
+<script>
+  import '../scripts/search-aria.ts';
+</script>
+
 <script is:inline>
   (function() {
     const storedTheme = localStorage.getItem('starlight-theme') || 'auto';
