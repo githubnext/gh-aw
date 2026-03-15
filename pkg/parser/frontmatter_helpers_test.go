@@ -18,12 +18,11 @@ func TestUpdateWorkflowFrontmatter(t *testing.T) {
 	tempDir := testutil.TempDir(t, "test-*")
 
 	tests := []struct {
-		name            string
-		initialContent  string
-		updateFunc      func(frontmatter map[string]any) error
-		expectedContent string
-		expectError     bool
-		verbose         bool
+		name           string
+		initialContent string
+		updateFunc     func(frontmatter map[string]any) error
+		expectError    bool
+		verbose        bool
 	}{
 		{
 			name: "Add tool to existing tools section",
@@ -38,17 +37,6 @@ Some content`,
 				tools["new-tool"] = map[string]any{"type": "test"}
 				return nil
 			},
-			expectedContent: `---
-existing: {}
-new-tool:
-  type: test
-tools:
-  existing: {}
-  new-tool:
-    type: test
----
-# Test Workflow
-Some content`,
 			expectError: false,
 		},
 		{
@@ -63,14 +51,6 @@ Some content`,
 				tools["new-tool"] = map[string]any{"type": "test"}
 				return nil
 			},
-			expectedContent: `---
-engine: claude
-tools:
-  new-tool:
-    type: test
----
-# Test Workflow
-Some content`,
 			expectError: false,
 		},
 		{
@@ -84,13 +64,6 @@ Some content`,
 				tools["new-tool"] = map[string]any{"type": "test"}
 				return nil
 			},
-			expectedContent: `---
-tools:
-  new-tool:
-    type: test
----
-# Test Workflow
-Some content`,
 			expectError: false,
 		},
 		{
@@ -102,13 +75,6 @@ Some content without frontmatter`,
 				tools["new-tool"] = map[string]any{"type": "test"}
 				return nil
 			},
-			expectedContent: `---
-tools:
-  new-tool:
-    type: test
----
-# Test Workflow
-Some content without frontmatter`,
 			expectError: false,
 		},
 		{
@@ -120,11 +86,10 @@ tools: {}
 			updateFunc: func(frontmatter map[string]any) error {
 				return errors.New("test error")
 			},
-			expectedContent: "",
-			expectError:     true,
+			expectError: true,
 		},
 		{
-			name: "Verbose mode does not affect output",
+			name: "Verbose mode emits info message to stderr",
 			initialContent: `---
 engine: claude
 ---
@@ -145,8 +110,15 @@ engine: claude
 			err := os.WriteFile(testFile, []byte(tt.initialContent), 0644)
 			require.NoError(t, err, "test file setup should succeed")
 
-			// Run the update function
-			err = UpdateWorkflowFrontmatter(testFile, tt.updateFunc, tt.verbose)
+			// Run the update function, capturing stderr to detect verbose output
+			var stderr string
+			if tt.verbose {
+				stderr = testutil.CaptureStderr(t, func() {
+					err = UpdateWorkflowFrontmatter(testFile, tt.updateFunc, true)
+				})
+			} else {
+				err = UpdateWorkflowFrontmatter(testFile, tt.updateFunc, false)
+			}
 
 			if tt.expectError {
 				assert.Error(t, err, "UpdateWorkflowFrontmatter should return an error")
@@ -161,7 +133,9 @@ engine: claude
 
 			content := string(updatedContent)
 			if tt.verbose {
-				// Verbose mode: verify the update was applied correctly (engine changed to copilot)
+				// Verbose mode: verify the info message was emitted to stderr
+				assert.Contains(t, stderr, "Updated workflow file", "verbose mode should emit an info message to stderr")
+				// Verify the update was still applied correctly
 				assert.Contains(t, content, "engine: copilot", "verbose mode should still update frontmatter correctly")
 				assert.Contains(t, content, "---", "verbose mode should preserve frontmatter delimiters")
 			} else {
@@ -214,8 +188,12 @@ func TestEnsureToolsSection(t *testing.T) {
 			frontmatterTools, ok := tt.frontmatter["tools"].(map[string]any)
 			require.True(t, ok, "frontmatter['tools'] should be a map[string]any")
 
-			// Verify returned tools matches the frontmatter entry and expected content
-			assert.Equal(t, frontmatterTools, tools, "returned tools should be the same reference as frontmatter['tools']")
+			// Verify reference identity: mutating the returned map must be visible via frontmatter
+			tools["__probe__"] = true
+			assert.Equal(t, true, frontmatterTools["__probe__"], "returned tools should be the same map stored in frontmatter['tools']")
+			delete(tools, "__probe__")
+
+			// Verify returned tools matches the expected content
 			assert.Equal(t, tt.expectedTools, tools, "tools section should match expected state")
 		})
 	}
