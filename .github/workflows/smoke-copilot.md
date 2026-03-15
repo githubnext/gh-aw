@@ -56,12 +56,14 @@ safe-outputs:
       expires: 2h
       group: true
       close-older-issues: true
+      close-older-key: "smoke-copilot"
       labels: [automation, testing]
     create-discussion:
       category: announcements
       labels: [ai-generated]
       expires: 2h
       close-older-discussions: true
+      close-older-key: "smoke-copilot"
       max: 1
     create-pull-request-review-comment:
       max: 5
