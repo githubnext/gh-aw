@@ -854,3 +854,147 @@ func TestGenerateSchemaBasedSuggestionsWithPathHeuristic(t *testing.T) {
 		})
 	}
 }
+
+// TestExtractSchemaExamples tests that examples are extracted from the schema for a given JSON path.
+func TestExtractSchemaExamples(t *testing.T) {
+	schemaJSON := `{
+		"type": "object",
+		"properties": {
+			"timeout-minutes": {
+				"type": "integer",
+				"minimum": 1,
+				"examples": [5, 10, 30]
+			},
+			"name": {
+				"type": "string",
+				"examples": ["My Workflow"]
+			},
+			"no-examples": {
+				"type": "integer"
+			}
+		}
+	}`
+	var schemaDoc any
+	if err := json.Unmarshal([]byte(schemaJSON), &schemaDoc); err != nil {
+		t.Fatalf("Failed to parse schema JSON: %v", err)
+	}
+
+	tests := []struct {
+		name     string
+		jsonPath string
+		want     []string
+	}{
+		{
+			name:     "integer field with examples",
+			jsonPath: "/timeout-minutes",
+			want:     []string{"5", "10", "30"},
+		},
+		{
+			name:     "string field with examples",
+			jsonPath: "/name",
+			want:     []string{"My Workflow"},
+		},
+		{
+			name:     "field without examples",
+			jsonPath: "/no-examples",
+			want:     nil,
+		},
+		{
+			name:     "non-existent path",
+			jsonPath: "/does-not-exist",
+			want:     nil,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := extractSchemaExamples(schemaDoc, tt.jsonPath)
+			if len(got) != len(tt.want) {
+				t.Errorf("extractSchemaExamples(%q) returned %v, want %v", tt.jsonPath, got, tt.want)
+				return
+			}
+			for i := range tt.want {
+				if got[i] != tt.want[i] {
+					t.Errorf("extractSchemaExamples(%q)[%d] = %q, want %q", tt.jsonPath, i, got[i], tt.want[i])
+				}
+			}
+		})
+	}
+}
+
+// TestGenerateSchemaBasedSuggestions_RangeConstraintExamples tests that examples are surfaced
+// for minimum/maximum constraint violations.
+// pathInfo.Message from jsonschema has the form "at '/path': minimum: got X, want Y".
+func TestGenerateSchemaBasedSuggestions_RangeConstraintExamples(t *testing.T) {
+	schemaJSON := `{
+		"type": "object",
+		"properties": {
+			"timeout-minutes": {
+				"type": "integer",
+				"minimum": 1,
+				"examples": [5, 10, 30]
+			},
+			"retry-count": {
+				"type": "integer",
+				"minimum": 0,
+				"maximum": 10
+			}
+		}
+	}`
+
+	tests := []struct {
+		name         string
+		errorMessage string
+		jsonPath     string
+		wantContains string
+		wantEmpty    bool
+	}{
+		{
+			name:         "minimum violation with examples (bare form)",
+			errorMessage: "minimum: got -1, want 1",
+			jsonPath:     "/timeout-minutes",
+			wantContains: "Example values: 5, 10, 30",
+		},
+		{
+			name:         "minimum violation with examples (at-path prefix form from jsonschema)",
+			errorMessage: "at '/timeout-minutes': minimum: got -1, want 1",
+			jsonPath:     "/timeout-minutes",
+			wantContains: "Example values: 5, 10, 30",
+		},
+		{
+			name:         "maximum violation with examples surfaced",
+			errorMessage: "at '/timeout-minutes': maximum: got 15, want 10",
+			jsonPath:     "/timeout-minutes",
+			wantContains: "Example values: 5, 10, 30",
+		},
+		{
+			name:         "minimum violation without examples — range handler skips, type handler may fire",
+			errorMessage: "at '/retry-count': minimum: got -1, want 0",
+			jsonPath:     "/retry-count",
+			// The range-constraint handler finds no examples and skips.
+			// The type-error handler may still produce a generic "Expected format: …" hint.
+			// What must NOT happen is surfacing "Example values: …" (there are none).
+			wantContains: "",
+			wantEmpty:    false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := generateSchemaBasedSuggestions(schemaJSON, tt.errorMessage, tt.jsonPath, "")
+			if tt.wantEmpty {
+				if result != "" {
+					t.Errorf("Expected empty result, got: %q", result)
+				}
+				return
+			}
+			if tt.wantContains != "" && !strings.Contains(result, tt.wantContains) {
+				t.Errorf("Expected result to contain %q, got: %q", tt.wantContains, result)
+			}
+			// When wantContains is "", we only assert "Example values" is absent (no false examples)
+			if tt.wantContains == "" && strings.Contains(result, "Example values:") {
+				t.Errorf("Expected result NOT to contain 'Example values:', got: %q", result)
+			}
+		})
+	}
+}
