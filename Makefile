@@ -611,6 +611,12 @@ lint-errors:
 check-file-sizes:
 	@bash scripts/check-file-sizes.sh
 
+# Check that *_validation.go files stay within the 768-line hard limit
+# Set WARN_ONLY=1 to report violations without failing (non-blocking mode)
+.PHONY: check-validator-sizes
+check-validator-sizes:
+	@bash scripts/check-validator-sizes.sh
+
 # Validate all project files
 .PHONY: lint
 lint: fmt-check fmt-check-json lint-cjs golint
@@ -802,6 +808,8 @@ help:
 	@echo "  lint-cjs         - Lint JavaScript (.cjs) and JSON files in actions/setup/js"
 	@echo "  lint-json        - Lint JSON files in pkg directory (excluding actions/setup/js)"
 	@echo "  lint-errors      - Lint error messages for quality compliance"
+	@echo "  check-file-sizes - Check Go file sizes and function counts (informational)"
+	@echo "  check-validator-sizes - Check *_validation.go files against the 768-line hard limit"
 	@echo "  security-scan    - Run all security scans (gosec, govulncheck, trivy)"
 	@echo "  security-gosec   - Run gosec Go security scanner"
 	@echo "  security-govulncheck - Run govulncheck for known vulnerabilities"

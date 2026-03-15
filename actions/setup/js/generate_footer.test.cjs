@@ -36,6 +36,7 @@ describe("generate_footer.cjs", () => {
   let generateWorkflowIdMarker;
   let generateWorkflowCallIdMarker;
   let getWorkflowIdMarkerContent;
+  let normalizeCloseOlderKey;
 
   beforeEach(async () => {
     // Reset mocks
@@ -54,6 +55,7 @@ describe("generate_footer.cjs", () => {
     generateWorkflowIdMarker = module.generateWorkflowIdMarker;
     generateWorkflowCallIdMarker = module.generateWorkflowCallIdMarker;
     getWorkflowIdMarkerContent = module.getWorkflowIdMarkerContent;
+    normalizeCloseOlderKey = module.normalizeCloseOlderKey;
   });
 
   describe("generateXMLMarker", () => {
@@ -283,6 +285,50 @@ describe("generate_footer.cjs", () => {
       const result = getWorkflowIdMarkerContent("");
 
       expect(result).toBe("gh-aw-workflow-id: ");
+    });
+  });
+
+  describe("normalizeCloseOlderKey", () => {
+    it("should return an already-valid identifier unchanged", () => {
+      expect(normalizeCloseOlderKey("my-key")).toBe("my-key");
+      expect(normalizeCloseOlderKey("smoke_copilot")).toBe("smoke_copilot");
+      expect(normalizeCloseOlderKey("abc123")).toBe("abc123");
+    });
+
+    it("should convert to lowercase", () => {
+      expect(normalizeCloseOlderKey("MyKey")).toBe("mykey");
+      expect(normalizeCloseOlderKey("SMOKE-COPILOT")).toBe("smoke-copilot");
+    });
+
+    it("should replace spaces with dashes", () => {
+      expect(normalizeCloseOlderKey("my key")).toBe("my-key");
+      expect(normalizeCloseOlderKey("hello world foo")).toBe("hello-world-foo");
+    });
+
+    it("should replace special characters with dashes", () => {
+      expect(normalizeCloseOlderKey("My Key!")).toBe("my-key");
+      expect(normalizeCloseOlderKey("foo@bar#baz")).toBe("foo-bar-baz");
+    });
+
+    it("should collapse multiple consecutive dashes into one", () => {
+      expect(normalizeCloseOlderKey("a  b")).toBe("a-b");
+      expect(normalizeCloseOlderKey("foo---bar")).toBe("foo-bar");
+    });
+
+    it("should trim leading and trailing dashes and underscores", () => {
+      expect(normalizeCloseOlderKey("  hello  ")).toBe("hello");
+      expect(normalizeCloseOlderKey("!hello!")).toBe("hello");
+      expect(normalizeCloseOlderKey("-foo-")).toBe("foo");
+    });
+
+    it("should return empty string for whitespace-only input", () => {
+      expect(normalizeCloseOlderKey("   ")).toBe("");
+      expect(normalizeCloseOlderKey("\t\n")).toBe("");
+    });
+
+    it("should return empty string for input with only special characters", () => {
+      expect(normalizeCloseOlderKey("!!!")).toBe("");
+      expect(normalizeCloseOlderKey("@#$%")).toBe("");
     });
   });
 

@@ -28,7 +28,7 @@ function resetIssuesToAssignCopilot() {
 const { sanitizeLabelContent } = require("./sanitize_label_content.cjs");
 const { sanitizeTitle, applyTitlePrefix } = require("./sanitize_title.cjs");
 const { generateFooterWithMessages } = require("./messages_footer.cjs");
-const { generateWorkflowIdMarker, generateWorkflowCallIdMarker } = require("./generate_footer.cjs");
+const { generateWorkflowIdMarker, generateWorkflowCallIdMarker, generateCloseKeyMarker, normalizeCloseOlderKey } = require("./generate_footer.cjs");
 const { generateHistoryUrl } = require("./generate_history_link.cjs");
 const { getTrackerID } = require("./get_tracker_id.cjs");
 const { generateTemporaryId, isTemporaryId, normalizeTemporaryId, getOrGenerateTemporaryId, replaceTemporaryIdReferences } = require("./temporary_id.cjs");
@@ -216,6 +216,11 @@ async function main(config = {}) {
   const { defaultTargetRepo, allowedRepos } = resolveTargetRepoConfig(config);
   const groupEnabled = parseBoolTemplatable(config.group, false);
   const closeOlderIssuesEnabled = parseBoolTemplatable(config.close_older_issues, false);
+  const rawCloseOlderKey = config.close_older_key ? String(config.close_older_key) : "";
+  const closeOlderKey = rawCloseOlderKey ? normalizeCloseOlderKey(rawCloseOlderKey) : "";
+  if (rawCloseOlderKey && !closeOlderKey) {
+    throw new Error(`close-older-key "${rawCloseOlderKey}" is invalid: it must contain at least one alphanumeric character after normalization`);
+  }
   const includeFooter = parseBoolTemplatable(config.footer, true);
 
   // Create an authenticated GitHub client. Uses config["github-token"] when set
@@ -250,6 +255,9 @@ async function main(config = {}) {
   }
   if (closeOlderIssuesEnabled) {
     core.info(`Close older issues enabled: older issues with same workflow-id marker will be closed`);
+    if (closeOlderKey) {
+      core.info(`  Using explicit close-older-key: "${closeOlderKey}"`);
+    }
   }
 
   // Track how many items we've processed for max limit
@@ -475,6 +483,10 @@ async function main(config = {}) {
     if (callerWorkflowId) {
       bodyLines.push(generateWorkflowCallIdMarker(callerWorkflowId));
     }
+    // Add explicit close-key marker when a custom deduplication key is provided
+    if (closeOlderKey) {
+      bodyLines.push(generateCloseKeyMarker(closeOlderKey));
+    }
 
     bodyLines.push("");
     const body = bodyLines.join("\n").trim();
@@ -531,10 +543,11 @@ async function main(config = {}) {
 
       // Close older issues if enabled
       if (closeOlderIssuesEnabled) {
-        if (workflowId) {
-          core.info(`Attempting to close older issues for ${qualifiedItemRepo}#${issue.number} using workflow-id: ${workflowId}`);
+        if (workflowId || closeOlderKey) {
+          const searchKey = closeOlderKey ? `close-older-key: ${closeOlderKey}` : `workflow-id: ${workflowId}`;
+          core.info(`Attempting to close older issues for ${qualifiedItemRepo}#${issue.number} using ${searchKey}`);
           try {
-            const closedIssues = await closeOlderIssues(github, repoParts.owner, repoParts.repo, workflowId, { number: issue.number, html_url: issue.html_url }, workflowName, runUrl, callerWorkflowId);
+            const closedIssues = await closeOlderIssues(github, repoParts.owner, repoParts.repo, workflowId, { number: issue.number, html_url: issue.html_url }, workflowName, runUrl, callerWorkflowId, closeOlderKey);
             if (closedIssues.length > 0) {
               core.info(`Closed ${closedIssues.length} older issue(s)`);
             }

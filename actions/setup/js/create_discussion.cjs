@@ -16,10 +16,11 @@ const { createAuthenticatedGitHubClient } = require("./handler_auth.cjs");
 const { removeDuplicateTitleFromDescription } = require("./remove_duplicate_title.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { createExpirationLine, generateFooterWithExpiration } = require("./ephemerals.cjs");
-const { generateWorkflowIdMarker, generateWorkflowCallIdMarker } = require("./generate_footer.cjs");
+const { generateWorkflowIdMarker, generateWorkflowCallIdMarker, generateCloseKeyMarker, normalizeCloseOlderKey } = require("./generate_footer.cjs");
 const { sanitizeLabelContent } = require("./sanitize_label_content.cjs");
 const { tryEnforceArrayLimit } = require("./limit_enforcement_helpers.cjs");
 const { logStagedPreviewInfo } = require("./staged_preview.cjs");
+const { closeOlderDiscussions: closeOlderDiscussionsFunc } = require("./close_older_discussions.cjs");
 const { parseBoolTemplatable } = require("./templatable.cjs");
 const { buildWorkflowRunUrl } = require("./workflow_metadata_helpers.cjs");
 const { generateHistoryLink } = require("./generate_history_link.cjs");
@@ -310,7 +311,12 @@ async function main(config = {}) {
   const maxCount = config.max || 10;
   const expiresHours = config.expires ? parseInt(String(config.expires), 10) : 0;
   const fallbackToIssue = config.fallback_to_issue !== false; // Default to true
-  const closeOlderDiscussions = parseBoolTemplatable(config.close_older_discussions, false);
+  const closeOlderDiscussionsEnabled = parseBoolTemplatable(config.close_older_discussions, false);
+  const rawCloseOlderKey = config.close_older_key ? String(config.close_older_key) : "";
+  const closeOlderKey = rawCloseOlderKey ? normalizeCloseOlderKey(rawCloseOlderKey) : "";
+  if (rawCloseOlderKey && !closeOlderKey) {
+    throw new Error(`close-older-key "${rawCloseOlderKey}" is invalid: it must contain at least one alphanumeric character after normalization`);
+  }
   const includeFooter = parseBoolTemplatable(config.footer, true);
 
   // Create an authenticated GitHub client. Uses config["github-token"] when set
@@ -337,8 +343,11 @@ async function main(config = {}) {
   if (fallbackToIssue) {
     core.info("Fallback to issue enabled: will create an issue if discussion creation fails due to permissions");
   }
-  if (closeOlderDiscussions) {
+  if (closeOlderDiscussionsEnabled) {
     core.info("Close older discussions enabled: will close older discussions/issues with same workflow-id marker");
+    if (closeOlderKey) {
+      core.info(`  Using explicit close-older-key: "${closeOlderKey}"`);
+    }
   }
 
   // Track state
@@ -356,7 +365,8 @@ async function main(config = {}) {
       max: maxCount,
       expires: expiresHours,
       // Map close_older_discussions to close_older_issues for fallback issues
-      close_older_issues: closeOlderDiscussions,
+      close_older_issues: closeOlderDiscussionsEnabled,
+      close_older_key: closeOlderKey,
     });
   }
 
@@ -548,6 +558,10 @@ async function main(config = {}) {
     if (callerWorkflowId) {
       bodyLines.push(generateWorkflowCallIdMarker(callerWorkflowId));
     }
+    // Add explicit close-key marker when a custom deduplication key is provided
+    if (closeOlderKey) {
+      bodyLines.push(generateCloseKeyMarker(closeOlderKey));
+    }
 
     bodyLines.push("");
     const body = bodyLines.join("\n").trim();
@@ -606,6 +620,36 @@ async function main(config = {}) {
       }
 
       core.info(`Created discussion ${qualifiedItemRepo}#${discussion.number}: ${discussion.url}`);
+
+      // Close older discussions if enabled
+      if (closeOlderDiscussionsEnabled) {
+        if (workflowId || closeOlderKey) {
+          const searchKey = closeOlderKey ? `close-older-key: ${closeOlderKey}` : `workflow-id: ${workflowId}`;
+          core.info(`Attempting to close older discussions for ${qualifiedItemRepo}#${discussion.number} using ${searchKey}`);
+          try {
+            const closedDiscussions = await closeOlderDiscussionsFunc(
+              github,
+              repoParts.owner,
+              repoParts.repo,
+              workflowId,
+              categoryId || undefined,
+              { number: discussion.number, url: discussion.url },
+              workflowName,
+              runUrl,
+              callerWorkflowId,
+              closeOlderKey
+            );
+            if (closedDiscussions.length > 0) {
+              core.info(`Closed ${closedDiscussions.length} older discussion(s)`);
+            }
+          } catch (error) {
+            // Log error but don't fail the workflow
+            core.warning(`Failed to close older discussions: ${getErrorMessage(error)}`);
+          }
+        } else {
+          core.warning("Close older discussions enabled but GH_AW_WORKFLOW_ID environment variable not set - skipping");
+        }
+      }
 
       // Apply labels if configured
       if (discussionLabels.length > 0) {

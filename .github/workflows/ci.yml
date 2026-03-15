@@ -957,6 +957,38 @@ jobs:
           if-no-files-found: ignore
           retention-days: 14
 
+  check-validator-sizes:
+    name: Check validator file sizes
+    runs-on: ubuntu-latest
+    # Non-blocking: report violations but don't fail the build until existing files are cleaned up
+    continue-on-error: true
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Check validator file sizes
+        id: check
+        run: |
+          set +e
+          OUTPUT=$(NO_COLOR=1 bash scripts/check-validator-sizes.sh 2>&1)
+          EXIT_CODE=$?
+          echo "$OUTPUT"
+          echo "exit_code=$EXIT_CODE" >> "$GITHUB_OUTPUT"
+          echo "## Validator File Size Check" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "Checking \`*_validation.go\` files against the 768-line hard limit (AGENTS.md)." >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "\`\`\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "$OUTPUT" >> "$GITHUB_STEP_SUMMARY"
+          echo "\`\`\`" >> "$GITHUB_STEP_SUMMARY"
+          if [ "$EXIT_CODE" -ne 0 ]; then
+            echo "" >> "$GITHUB_STEP_SUMMARY"
+            echo "⚠️ This check is currently non-blocking. Fix violations to keep the codebase healthy." >> "$GITHUB_STEP_SUMMARY"
+          fi
+          exit "$EXIT_CODE"
+
   lint-go:
     runs-on: ubuntu-latest
     permissions:

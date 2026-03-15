@@ -125,6 +125,7 @@ function getFooterWorkflowRecompileCommentMessage(ctx) {
  * @property {string} runUrl - URL of the workflow run
  * @property {string} [workflowSource] - Source of the workflow (owner/repo/path@ref)
  * @property {string} [workflowSourceUrl] - GitHub URL for the workflow source
+ * @property {string} [historyUrl] - GitHub search URL for issues created by this workflow (for the history link)
  */
 
 /**
@@ -135,14 +136,24 @@ function getFooterWorkflowRecompileCommentMessage(ctx) {
 function getFooterAgentFailureIssueMessage(ctx) {
   const messages = getMessages();
 
-  // Create context with both camelCase and snake_case keys
-  const templateContext = toSnakeCase(ctx);
+  // Pre-compute history_link as a ready-to-use markdown suffix (empty string when unavailable)
+  const historyLink = ctx.historyUrl ? ` · [◷](${ctx.historyUrl})` : "";
 
-  // Default footer template with link to workflow run
-  const defaultFooter = "> Generated from [{workflow_name}]({run_url})";
+  // Create context with both camelCase and snake_case keys, including computed history_link
+  const templateContext = toSnakeCase({ ...ctx, historyLink });
 
   // Use custom agent failure issue footer if configured, otherwise use default footer
-  return messages?.agentFailureIssue ? renderTemplate(messages.agentFailureIssue, templateContext) : renderTemplate(defaultFooter, templateContext);
+  if (messages?.agentFailureIssue) {
+    return renderTemplate(messages.agentFailureIssue, templateContext);
+  }
+
+  // Default footer template with link to workflow run
+  let defaultFooter = "> Generated from [{workflow_name}]({run_url})";
+  // Append history link when available
+  if (ctx.historyUrl) {
+    defaultFooter += " · [◷]({history_url})";
+  }
+  return renderTemplate(defaultFooter, templateContext);
 }
 
 /**
@@ -153,14 +164,24 @@ function getFooterAgentFailureIssueMessage(ctx) {
 function getFooterAgentFailureCommentMessage(ctx) {
   const messages = getMessages();
 
-  // Create context with both camelCase and snake_case keys
-  const templateContext = toSnakeCase(ctx);
+  // Pre-compute history_link as a ready-to-use markdown suffix (empty string when unavailable)
+  const historyLink = ctx.historyUrl ? ` · [◷](${ctx.historyUrl})` : "";
 
-  // Default footer template with link to workflow run
-  const defaultFooter = "> Generated from [{workflow_name}]({run_url})";
+  // Create context with both camelCase and snake_case keys, including computed history_link
+  const templateContext = toSnakeCase({ ...ctx, historyLink });
 
   // Use custom agent failure comment footer if configured, otherwise use default footer
-  return messages?.agentFailureComment ? renderTemplate(messages.agentFailureComment, templateContext) : renderTemplate(defaultFooter, templateContext);
+  if (messages?.agentFailureComment) {
+    return renderTemplate(messages.agentFailureComment, templateContext);
+  }
+
+  // Default footer template with link to workflow run
+  let defaultFooter = "> Generated from [{workflow_name}]({run_url})";
+  // Append history link when available
+  if (ctx.historyUrl) {
+    defaultFooter += " · [◷]({history_url})";
+  }
+  return renderTemplate(defaultFooter, templateContext);
 }
 
 /**

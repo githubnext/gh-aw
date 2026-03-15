@@ -149,6 +149,7 @@ var handlerRegistry = map[string]handlerBuilder{
 			AddIfNotEmpty("target-repo", c.TargetRepoSlug).
 			AddTemplatableBool("group", c.Group).
 			AddTemplatableBool("close_older_issues", c.CloseOlderIssues).
+			AddIfNotEmpty("close_older_key", c.CloseOlderKey).
 			AddTemplatableBool("footer", getEffectiveFooterForTemplatable(c.Footer, cfg.Footer)).
 			AddIfNotEmpty("github-token", c.GitHubToken).
 			Build()
@@ -181,6 +182,7 @@ var handlerRegistry = map[string]handlerBuilder{
 			AddStringSlice("allowed_labels", c.AllowedLabels).
 			AddStringSlice("allowed_repos", c.AllowedRepos).
 			AddTemplatableBool("close_older_discussions", c.CloseOlderDiscussions).
+			AddIfNotEmpty("close_older_key", c.CloseOlderKey).
 			AddIfNotEmpty("required_category", c.RequiredCategory).
 			AddIfPositive("expires", c.Expires).
 			AddBoolPtr("fallback_to_issue", c.FallbackToIssue).

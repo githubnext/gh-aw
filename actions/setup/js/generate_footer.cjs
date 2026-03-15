@@ -122,10 +122,56 @@ function generateWorkflowCallIdMarker(callerWorkflowId) {
   return `<!-- gh-aw-workflow-call-id: ${callerWorkflowId} -->`;
 }
 
+/**
+ * Normalizes a user-supplied close-older-key to identifier style.
+ * Converts to lowercase, replaces runs of non-alphanumeric/dash/underscore characters
+ * with a single dash, then trims leading and trailing dashes and underscores.
+ *
+ * Examples: "My Key!" → "my-key", "  hello world  " → "hello-world"
+ *
+ * @param {string} key - Raw user-supplied key
+ * @returns {string} Normalized identifier-style key, or empty string if nothing remains
+ */
+function normalizeCloseOlderKey(key) {
+  return key
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9_-]+/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^[-_]+|[-_]+$/g, "");
+}
+
+/**
+ * Generates a standalone close-key XML comment marker for close-older matching.
+ * When a user provides an explicit `close-older-key`, this marker is embedded in
+ * the issue/discussion body and used as the primary deduplication key instead of
+ * the workflow-id or workflow-call-id markers.
+ *
+ * @param {string} closeKey - Normalized close-older deduplication key
+ * @returns {string} Standalone close-key XML comment marker
+ */
+function generateCloseKeyMarker(closeKey) {
+  return `<!-- gh-aw-close-key: ${closeKey} -->`;
+}
+
+/**
+ * Gets the close-key marker content (without XML comment wrapper) for searching.
+ * This is used when searching for issues/discussions by close-older-key.
+ *
+ * @param {string} closeKey - Normalized close-older deduplication key
+ * @returns {string} Close-key marker content for search queries
+ */
+function getCloseKeyMarkerContent(closeKey) {
+  return `gh-aw-close-key: ${closeKey}`;
+}
+
 module.exports = {
   generateXMLMarker,
   generateWorkflowIdMarker,
   generateWorkflowCallIdMarker,
   getWorkflowIdMarkerContent,
   generateExpiredEntityFooter,
+  normalizeCloseOlderKey,
+  generateCloseKeyMarker,
+  getCloseKeyMarkerContent,
 };

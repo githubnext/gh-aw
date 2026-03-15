@@ -9,6 +9,7 @@ const { getCurrentBranch } = require("./get_current_branch.cjs");
 const { createExpirationLine, generateFooterWithExpiration } = require("./ephemerals.cjs");
 const { MAX_SUB_ISSUES, getSubIssueCount } = require("./sub_issue_helpers.cjs");
 const { formatMissingData } = require("./missing_info_formatter.cjs");
+const { generateHistoryUrl } = require("./generate_history_link.cjs");
 const fs = require("fs");
 
 /**
@@ -774,6 +775,14 @@ async function main() {
     // Try to find a pull request for the current branch
     const pullRequest = await findPullRequestForCurrentBranch();
 
+    // Generate history URL for linking to all failure issues created by this workflow
+    const historyUrl = generateHistoryUrl({
+      owner,
+      repo,
+      itemType: "issue",
+      workflowId: workflowID,
+    });
+
     // Check if parent issue creation is enabled (defaults to false)
     const groupReports = process.env.GH_AW_GROUP_REPORTS === "true";
 
@@ -920,6 +929,7 @@ async function main() {
           runUrl,
           workflowSource,
           workflowSourceUrl: workflowSourceURL,
+          historyUrl: historyUrl || undefined,
         };
         const footer = getFooterAgentFailureCommentMessage(ctx);
 
@@ -1045,6 +1055,7 @@ async function main() {
           runUrl,
           workflowSource,
           workflowSourceUrl: workflowSourceURL,
+          historyUrl: historyUrl || undefined,
         };
         const footer = getFooterAgentFailureIssueMessage(ctx);
 

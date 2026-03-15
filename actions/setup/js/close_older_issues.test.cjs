@@ -210,6 +210,105 @@ describe("close_older_issues", () => {
       expect(results).toHaveLength(1);
       expect(results[0].number).toBe(123);
     });
+
+    it("should use close-key marker as primary search term when closeOlderKey is provided", async () => {
+      mockGithub.rest.search.issuesAndPullRequests.mockResolvedValue({
+        data: {
+          items: [
+            {
+              number: 123,
+              title: "Has close-key marker - should be included",
+              html_url: "https://github.com/owner/repo/issues/123",
+              labels: [],
+              body: "<!-- gh-aw-workflow-id: some-workflow -->\n<!-- gh-aw-close-key: my-stable-key -->",
+            },
+            {
+              number: 124,
+              title: "Missing close-key marker - should be excluded",
+              html_url: "https://github.com/owner/repo/issues/124",
+              labels: [],
+              body: "<!-- gh-aw-workflow-id: some-workflow -->",
+            },
+          ],
+        },
+      });
+
+      const results = await searchOlderIssues(mockGithub, "owner", "repo", "some-workflow", 999, undefined, "my-stable-key");
+
+      expect(results).toHaveLength(1);
+      expect(results[0].number).toBe(123);
+      // Should search by the close-key marker, not the workflow-id marker
+      expect(mockGithub.rest.search.issuesAndPullRequests).toHaveBeenCalledWith({
+        q: 'repo:owner/repo is:issue is:open "gh-aw-close-key: my-stable-key" in:body',
+        per_page: 50,
+      });
+    });
+
+    it("should work with close-key when workflowId is empty", async () => {
+      mockGithub.rest.search.issuesAndPullRequests.mockResolvedValue({
+        data: {
+          items: [
+            {
+              number: 123,
+              title: "Has close-key marker",
+              html_url: "https://github.com/owner/repo/issues/123",
+              labels: [],
+              body: "<!-- gh-aw-close-key: team-report -->",
+            },
+          ],
+        },
+      });
+
+      const results = await searchOlderIssues(mockGithub, "owner", "repo", "", 999, undefined, "team-report");
+
+      expect(results).toHaveLength(1);
+      expect(results[0].number).toBe(123);
+      expect(mockGithub.rest.search.issuesAndPullRequests).toHaveBeenCalledWith({
+        q: 'repo:owner/repo is:issue is:open "gh-aw-close-key: team-report" in:body',
+        per_page: 50,
+      });
+    });
+
+    it("should return empty array when neither workflowId nor closeOlderKey is provided", async () => {
+      const results = await searchOlderIssues(mockGithub, "owner", "repo", "", 999, undefined, undefined);
+
+      expect(results).toHaveLength(0);
+      expect(mockGithub.rest.search.issuesAndPullRequests).not.toHaveBeenCalled();
+    });
+
+    it("should prefer close-key marker over callerWorkflowId when both are provided", async () => {
+      mockGithub.rest.search.issuesAndPullRequests.mockResolvedValue({
+        data: {
+          items: [
+            {
+              number: 123,
+              title: "Has both markers - close-key should win",
+              html_url: "https://github.com/owner/repo/issues/123",
+              labels: [],
+              body: "<!-- gh-aw-workflow-call-id: owner/repo/CallerA -->\n<!-- gh-aw-close-key: shared-key -->",
+            },
+            {
+              number: 124,
+              title: "Has only caller marker - should be excluded (close-key takes priority)",
+              html_url: "https://github.com/owner/repo/issues/124",
+              labels: [],
+              body: "<!-- gh-aw-workflow-call-id: owner/repo/CallerA -->",
+            },
+          ],
+        },
+      });
+
+      // Both callerWorkflowId and closeOlderKey provided - close-key should take priority
+      const results = await searchOlderIssues(mockGithub, "owner", "repo", "my-workflow", 999, "owner/repo/CallerA", "shared-key");
+
+      expect(results).toHaveLength(1);
+      expect(results[0].number).toBe(123);
+      // close-key should be used for search query
+      expect(mockGithub.rest.search.issuesAndPullRequests).toHaveBeenCalledWith({
+        q: 'repo:owner/repo is:issue is:open "gh-aw-close-key: shared-key" in:body',
+        per_page: 50,
+      });
+    });
   });
 
   describe("addIssueComment", () => {

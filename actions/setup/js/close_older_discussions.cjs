@@ -3,7 +3,7 @@
 
 const { getCloseOlderDiscussionMessage } = require("./messages_close_discussion.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
-const { getWorkflowIdMarkerContent, generateWorkflowIdMarker, generateWorkflowCallIdMarker } = require("./generate_footer.cjs");
+const { getWorkflowIdMarkerContent, generateWorkflowIdMarker, generateWorkflowCallIdMarker, generateCloseKeyMarker, getCloseKeyMarkerContent } = require("./generate_footer.cjs");
 const { sanitizeContent } = require("./sanitize_content.cjs");
 const { closeOlderEntities, MAX_CLOSE_COUNT: SHARED_MAX_CLOSE_COUNT } = require("./close_older_entities.cjs");
 
@@ -29,26 +29,42 @@ const GRAPHQL_DELAY_MS = 500;
  *   When set, filters by the `gh-aw-workflow-call-id` marker so callers sharing the same
  *   reusable workflow do not close each other's discussions. Falls back to `gh-aw-workflow-id`
  *   when not provided (backward compat for discussions created before this fix).
+ * @param {string} [closeOlderKey] - Optional explicit deduplication key. When set, the
+ *   `gh-aw-close-key` marker is used as the primary search term and exact filter instead
+ *   of the workflow-id / workflow-call-id markers.
  * @returns {Promise<Array<{id: string, number: number, title: string, url: string}>>} Matching discussions
  */
-async function searchOlderDiscussions(github, owner, repo, workflowId, categoryId, excludeNumber, callerWorkflowId) {
+async function searchOlderDiscussions(github, owner, repo, workflowId, categoryId, excludeNumber, callerWorkflowId, closeOlderKey) {
   core.info(`Starting search for older discussions in ${owner}/${repo}`);
   core.info(`  Workflow ID: ${workflowId || "(none)"}`);
   core.info(`  Exclude discussion number: ${excludeNumber}`);
 
-  if (!workflowId) {
-    core.info("No workflow ID provided - cannot search for older discussions");
+  if (!workflowId && !closeOlderKey) {
+    core.info("No workflow ID or close-older-key provided - cannot search for older discussions");
     return [];
   }
 
-  // Build GraphQL search query
-  // Search for open discussions with the workflow-id marker in the body
-  const workflowIdMarker = getWorkflowIdMarkerContent(workflowId);
-  // Escape quotes in workflow ID to prevent query injection
-  const escapedMarker = workflowIdMarker.replace(/"/g, '\\"');
-  let searchQuery = `repo:${owner}/${repo} is:open "${escapedMarker}" in:body`;
-
-  core.info(`  Added workflow ID marker filter to query: "${escapedMarker}" in:body`);
+  // Build GraphQL search query.
+  // When a close-older-key is provided it becomes the primary search term; otherwise
+  // fall back to the workflow-id marker.
+  let searchQuery;
+  let exactMarker;
+  if (closeOlderKey) {
+    const closeKeyMarkerContent = getCloseKeyMarkerContent(closeOlderKey);
+    const escapedMarker = closeKeyMarkerContent.replace(/"/g, '\\"');
+    searchQuery = `repo:${owner}/${repo} is:open "${escapedMarker}" in:body`;
+    exactMarker = generateCloseKeyMarker(closeOlderKey);
+    core.info(`  Using close-older-key for search: "${escapedMarker}" in:body`);
+  } else {
+    // Build GraphQL search query
+    // Search for open discussions with the workflow-id marker in the body
+    const workflowIdMarker = getWorkflowIdMarkerContent(workflowId);
+    // Escape quotes in workflow ID to prevent query injection
+    const escapedMarker = workflowIdMarker.replace(/"/g, '\\"');
+    searchQuery = `repo:${owner}/${repo} is:open "${escapedMarker}" in:body`;
+    exactMarker = callerWorkflowId ? generateWorkflowCallIdMarker(callerWorkflowId) : generateWorkflowIdMarker(workflowId);
+    core.info(`  Added workflow ID marker filter to query: "${escapedMarker}" in:body`);
+  }
   core.info(`Executing GitHub search with query: ${searchQuery}`);
 
   const result = await github.graphql(
@@ -84,17 +100,15 @@ async function searchOlderDiscussions(github, owner, repo, workflowId, categoryI
   // 1. Must not be the excluded discussion (newly created one)
   // 2. Must not be already closed
   // 3. If categoryId is specified, must match
-  // 4. Body must contain the exact marker for this workflow.
-  //    When callerWorkflowId is set, match `gh-aw-workflow-call-id` so that callers
-  //    sharing the same reusable workflow do not close each other's discussions.
+  // 4. Body must contain the exact marker. When closeOlderKey is set the close-key marker
+  //    is used. Otherwise, when callerWorkflowId is set, match `gh-aw-workflow-call-id` so
+  //    that callers sharing the same reusable workflow do not close each other's discussions.
   //    Fall back to `gh-aw-workflow-id` for backward compat with older discussions.
   core.info("Filtering search results...");
   let filteredCount = 0;
   let excludedCount = 0;
   let closedCount = 0;
   let markerMismatchCount = 0;
-
-  const exactMarker = callerWorkflowId ? generateWorkflowCallIdMarker(callerWorkflowId) : generateWorkflowIdMarker(workflowId);
 
   const filtered = result.search.nodes
     .filter(
@@ -215,9 +229,10 @@ async function closeDiscussionAsOutdated(github, owner, repo, discussionId) {
  * @param {string} workflowName - Name of the workflow
  * @param {string} runUrl - URL of the workflow run
  * @param {string} [callerWorkflowId] - Optional calling workflow identity for precise filtering
+ * @param {string} [closeOlderKey] - Optional explicit deduplication key for close-older matching
  * @returns {Promise<Array<{number: number, url: string}>>} List of closed discussions
  */
-async function closeOlderDiscussions(github, owner, repo, workflowId, categoryId, newDiscussion, workflowName, runUrl, callerWorkflowId) {
+async function closeOlderDiscussions(github, owner, repo, workflowId, categoryId, newDiscussion, workflowName, runUrl, callerWorkflowId, closeOlderKey) {
   const result = await closeOlderEntities(
     github,
     owner,
@@ -229,9 +244,10 @@ async function closeOlderDiscussions(github, owner, repo, workflowId, categoryId
     {
       entityType: "discussion",
       entityTypePlural: "discussions",
-      // Use a closure so callerWorkflowId is forwarded to searchOlderDiscussions without going
-      // through the closeOlderEntities extraArgs mechanism (which appends excludeNumber last)
-      searchOlderEntities: (gh, o, r, wid, categoryId, excludeNumber) => searchOlderDiscussions(gh, o, r, wid, categoryId, excludeNumber, callerWorkflowId),
+      // Use a closure so callerWorkflowId and closeOlderKey are forwarded to
+      // searchOlderDiscussions without going through the closeOlderEntities extraArgs
+      // mechanism (which appends excludeNumber last)
+      searchOlderEntities: (gh, o, r, wid, categoryId, excludeNumber) => searchOlderDiscussions(gh, o, r, wid, categoryId, excludeNumber, callerWorkflowId, closeOlderKey),
       getCloseMessage: params =>
         getCloseOlderDiscussionMessage({
           newDiscussionUrl: params.newEntityUrl,
