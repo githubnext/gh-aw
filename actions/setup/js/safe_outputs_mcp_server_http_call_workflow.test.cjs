@@ -1,5 +1,9 @@
 // @ts-check
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import * as fs from "fs";
+import * as path from "path";
+import * as os from "os";
+const { createMCPServer } = require("./safe_outputs_mcp_server_http.cjs");
 
 /**
  * Regression tests for call_workflow tool registration in HTTP server.
@@ -265,5 +269,257 @@ describe("safe_outputs_mcp_server_http call_workflow registration", () => {
     expect(registeredToolNames).toContain("missing_tool");
     expect(registeredToolNames).not.toContain("generic_worker");
     expect(registeredToolNames).toHaveLength(1);
+  });
+});
+
+/**
+ * Integration tests for call_workflow registration that exercise createMCPServer directly.
+ *
+ * These tests use real temp config/tools files (same pattern as safe_outputs_bootstrap.test.cjs)
+ * and verify the actual server.tools Map populated by createMCPServer.
+ */
+describe("safe_outputs_mcp_server_http createMCPServer call_workflow integration", () => {
+  let tempDir;
+
+  beforeEach(() => {
+    tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "test-http-call-workflow-"));
+  });
+
+  afterEach(() => {
+    if (tempDir && fs.existsSync(tempDir)) {
+      fs.rmSync(tempDir, { recursive: true, force: true });
+    }
+    delete process.env.GH_AW_SAFE_OUTPUTS_CONFIG_PATH;
+    delete process.env.GH_AW_SAFE_OUTPUTS_TOOLS_PATH;
+    delete process.env.GH_AW_SAFE_OUTPUTS;
+  });
+
+  it("should register a call_workflow tool when config.call_workflow is present", () => {
+    const configPath = path.join(tempDir, "config.json");
+    const toolsPath = path.join(tempDir, "tools.json");
+    const outputPath = path.join(tempDir, "output.jsonl");
+
+    fs.writeFileSync(
+      configPath,
+      JSON.stringify({
+        "call-workflow": { workflows: ["generic-worker"] },
+      })
+    );
+    fs.writeFileSync(
+      toolsPath,
+      JSON.stringify([
+        {
+          name: "generic_worker",
+          _call_workflow_name: "generic-worker",
+          description: "Call the 'generic-worker' workflow",
+          inputSchema: { type: "object", properties: {}, additionalProperties: false },
+        },
+      ])
+    );
+
+    process.env.GH_AW_SAFE_OUTPUTS_CONFIG_PATH = configPath;
+    process.env.GH_AW_SAFE_OUTPUTS_TOOLS_PATH = toolsPath;
+    process.env.GH_AW_SAFE_OUTPUTS = outputPath;
+
+    const { server } = createMCPServer();
+
+    expect(server.tools.has("generic_worker")).toBe(true);
+  });
+
+  it("should NOT register a call_workflow tool when config.call_workflow is absent", () => {
+    const configPath = path.join(tempDir, "config.json");
+    const toolsPath = path.join(tempDir, "tools.json");
+    const outputPath = path.join(tempDir, "output.jsonl");
+
+    // Config without call-workflow key
+    fs.writeFileSync(configPath, JSON.stringify({ "missing-tool": {}, noop: { max: 1 } }));
+    fs.writeFileSync(
+      toolsPath,
+      JSON.stringify([
+        {
+          name: "generic_worker",
+          _call_workflow_name: "generic-worker",
+          description: "Call the 'generic-worker' workflow",
+          inputSchema: { type: "object", properties: {} },
+        },
+      ])
+    );
+
+    process.env.GH_AW_SAFE_OUTPUTS_CONFIG_PATH = configPath;
+    process.env.GH_AW_SAFE_OUTPUTS_TOOLS_PATH = toolsPath;
+    process.env.GH_AW_SAFE_OUTPUTS = outputPath;
+
+    const { server } = createMCPServer();
+
+    expect(server.tools.has("generic_worker")).toBe(false);
+  });
+
+  it("should register all call_workflow tools for multiple configured workers", () => {
+    const configPath = path.join(tempDir, "config.json");
+    const toolsPath = path.join(tempDir, "tools.json");
+    const outputPath = path.join(tempDir, "output.jsonl");
+
+    fs.writeFileSync(
+      configPath,
+      JSON.stringify({
+        "call-workflow": { workflows: ["generic-worker", "specialist-worker"] },
+      })
+    );
+    fs.writeFileSync(
+      toolsPath,
+      JSON.stringify([
+        {
+          name: "generic_worker",
+          _call_workflow_name: "generic-worker",
+          description: "Call the 'generic-worker' workflow",
+          inputSchema: { type: "object", properties: {} },
+        },
+        {
+          name: "specialist_worker",
+          _call_workflow_name: "specialist-worker",
+          description: "Call the 'specialist-worker' workflow",
+          inputSchema: { type: "object", properties: {} },
+        },
+      ])
+    );
+
+    process.env.GH_AW_SAFE_OUTPUTS_CONFIG_PATH = configPath;
+    process.env.GH_AW_SAFE_OUTPUTS_TOOLS_PATH = toolsPath;
+    process.env.GH_AW_SAFE_OUTPUTS = outputPath;
+
+    const { server } = createMCPServer();
+
+    expect(server.tools.has("generic_worker")).toBe(true);
+    expect(server.tools.has("specialist_worker")).toBe(true);
+  });
+
+  it("should register call_workflow and regular tools together from config", () => {
+    const configPath = path.join(tempDir, "config.json");
+    const toolsPath = path.join(tempDir, "tools.json");
+    const outputPath = path.join(tempDir, "output.jsonl");
+
+    fs.writeFileSync(
+      configPath,
+      JSON.stringify({
+        noop: { max: 1 },
+        "call-workflow": { workflows: ["generic-worker"] },
+      })
+    );
+    fs.writeFileSync(
+      toolsPath,
+      JSON.stringify([
+        {
+          name: "noop",
+          description: "No-op tool",
+          inputSchema: { type: "object", properties: {} },
+        },
+        {
+          name: "generic_worker",
+          _call_workflow_name: "generic-worker",
+          description: "Call the 'generic-worker' workflow",
+          inputSchema: { type: "object", properties: {} },
+        },
+      ])
+    );
+
+    process.env.GH_AW_SAFE_OUTPUTS_CONFIG_PATH = configPath;
+    process.env.GH_AW_SAFE_OUTPUTS_TOOLS_PATH = toolsPath;
+    process.env.GH_AW_SAFE_OUTPUTS = outputPath;
+
+    const { server } = createMCPServer();
+
+    expect(server.tools.has("noop")).toBe(true);
+    expect(server.tools.has("generic_worker")).toBe(true);
+  });
+
+  it("should register call_workflow and dispatch_workflow tools independently", () => {
+    const configPath = path.join(tempDir, "config.json");
+    const toolsPath = path.join(tempDir, "tools.json");
+    const outputPath = path.join(tempDir, "output.jsonl");
+
+    fs.writeFileSync(
+      configPath,
+      JSON.stringify({
+        "call-workflow": { workflows: ["generic-worker"] },
+        dispatch_workflow: { workflows: ["release-workflow"] },
+      })
+    );
+    fs.writeFileSync(
+      toolsPath,
+      JSON.stringify([
+        {
+          name: "generic_worker",
+          _call_workflow_name: "generic-worker",
+          description: "Call the 'generic-worker' workflow",
+          inputSchema: { type: "object", properties: {} },
+        },
+        {
+          name: "release_workflow",
+          _workflow_name: "release-workflow",
+          description: "Dispatch the 'release-workflow' workflow",
+          inputSchema: { type: "object", properties: {} },
+        },
+      ])
+    );
+
+    process.env.GH_AW_SAFE_OUTPUTS_CONFIG_PATH = configPath;
+    process.env.GH_AW_SAFE_OUTPUTS_TOOLS_PATH = toolsPath;
+    process.env.GH_AW_SAFE_OUTPUTS = outputPath;
+
+    const { server } = createMCPServer();
+
+    expect(server.tools.has("generic_worker")).toBe(true);
+    expect(server.tools.has("release_workflow")).toBe(true);
+  });
+
+  it("should return a call_workflow tool with a callable handler", async () => {
+    const configPath = path.join(tempDir, "config.json");
+    const toolsPath = path.join(tempDir, "tools.json");
+    const outputPath = path.join(tempDir, "output.jsonl");
+
+    fs.writeFileSync(
+      configPath,
+      JSON.stringify({
+        "call-workflow": { workflows: ["generic-worker"] },
+      })
+    );
+    fs.writeFileSync(
+      toolsPath,
+      JSON.stringify([
+        {
+          name: "generic_worker",
+          _call_workflow_name: "generic-worker",
+          description: "Call the 'generic-worker' workflow",
+          inputSchema: {
+            type: "object",
+            properties: { task: { type: "string", description: "Task to perform" } },
+            additionalProperties: false,
+          },
+        },
+      ])
+    );
+
+    process.env.GH_AW_SAFE_OUTPUTS_CONFIG_PATH = configPath;
+    process.env.GH_AW_SAFE_OUTPUTS_TOOLS_PATH = toolsPath;
+    process.env.GH_AW_SAFE_OUTPUTS = outputPath;
+
+    const { server } = createMCPServer();
+    const tool = server.tools.get("generic_worker");
+
+    expect(tool).toBeDefined();
+    expect(typeof tool.handler).toBe("function");
+
+    // Calling the handler should produce a valid MCP result and write to the output file
+    const result = await tool.handler({ task: "do something" });
+
+    expect(result).toBeDefined();
+    expect(result.content).toBeDefined();
+    expect(result.isError).toBe(false);
+
+    // Output file should have been written with call_workflow type
+    const written = fs.readFileSync(outputPath, "utf8");
+    const entry = JSON.parse(written.trim());
+    expect(entry.type).toBe("call_workflow");
+    expect(entry.workflow_name).toBe("generic-worker");
   });
 });
