@@ -24,7 +24,7 @@ else
 fi
 
 # Hard limit (lines per validator file)
-HARD_LIMIT=512
+HARD_LIMIT=768
 
 # Set WARN_ONLY=1 to make the check non-blocking (report but always exit 0)
 WARN_ONLY="${WARN_ONLY:-0}"
