@@ -406,3 +406,52 @@ func TestExtractTopLevelYAMLSectionWithOrdering(t *testing.T) {
 		})
 	}
 }
+
+func TestFormatYAMLValue(t *testing.T) {
+	tests := []struct {
+		name     string
+		value    any
+		expected string
+	}{
+		// string cases
+		{name: "string: true keyword quoted", value: "true", expected: "'true'"},
+		{name: "string: false keyword quoted", value: "false", expected: "'false'"},
+		{name: "string: null keyword quoted", value: "null", expected: "'null'"},
+		{name: "string: numeric string quoted", value: "42", expected: "'42'"},
+		{name: "string: float string quoted", value: "3.14", expected: "'3.14'"},
+		{name: "string: plain string quoted", value: "hello", expected: "'hello'"},
+		{name: "string: empty string quoted", value: "", expected: "''"},
+		// bool cases
+		{name: "bool: true", value: true, expected: "true"},
+		{name: "bool: false", value: false, expected: "false"},
+		// integer cases
+		{name: "int", value: int(42), expected: "42"},
+		{name: "int8", value: int8(8), expected: "8"},
+		{name: "int16", value: int16(16), expected: "16"},
+		{name: "int32", value: int32(32), expected: "32"},
+		{name: "int64", value: int64(64), expected: "64"},
+		{name: "int: zero", value: int(0), expected: "0"},
+		{name: "int: negative", value: int(-1), expected: "-1"},
+		// unsigned integer cases
+		{name: "uint", value: uint(10), expected: "10"},
+		{name: "uint8", value: uint8(8), expected: "8"},
+		{name: "uint16", value: uint16(16), expected: "16"},
+		{name: "uint32", value: uint32(32), expected: "32"},
+		{name: "uint64", value: uint64(64), expected: "64"},
+		// float cases
+		{name: "float32", value: float32(1.5), expected: "1.5"},
+		{name: "float64", value: float64(2.5), expected: "2.5"},
+		// default fallback
+		{name: "nil: quoted", value: nil, expected: "'<nil>'"},
+		{name: "struct: quoted", value: struct{ A int }{A: 1}, expected: "'{1}'"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := formatYAMLValue(tt.value)
+			if result != tt.expected {
+				t.Errorf("formatYAMLValue(%v) = %q, want %q", tt.value, result, tt.expected)
+			}
+		})
+	}
+}
