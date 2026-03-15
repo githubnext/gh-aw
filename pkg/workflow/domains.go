@@ -313,6 +313,7 @@ var ecosystemPriority = []string{
 	"containers",
 	"dart",
 	"defaults",
+	"dev-tools",
 	"dotnet",
 	"elixir",
 	"fonts",
@@ -638,4 +639,69 @@ func (c *Compiler) computeAllowedDomainsForSanitization(data *WorkflowData) stri
 		domains := GetAllowedDomains(data.NetworkPermissions)
 		return strings.Join(domains, ",")
 	}
+}
+
+// expandAllowedURLDomains expands a list of domain entries (which may include ecosystem
+// identifiers like "python", "node", "dev-tools") into a deduplicated, sorted list of
+// concrete domain strings. This uses the same expansion logic as network.allowed.
+func expandAllowedURLDomains(entries []string) []string {
+	domainMap := make(map[string]bool)
+	for _, entry := range entries {
+		ecosystemDomains := getEcosystemDomains(entry)
+		if len(ecosystemDomains) > 0 {
+			for _, d := range ecosystemDomains {
+				domainMap[d] = true
+			}
+		} else {
+			domainMap[entry] = true
+		}
+	}
+	result := make([]string, 0, len(domainMap))
+	for d := range domainMap {
+		result = append(result, d)
+	}
+	sort.Strings(result)
+	return result
+}
+
+// computeAllowedURLDomainsForSanitization computes the allowed domains for URL sanitization,
+// unioning the engine/network base set with the safe-outputs.allowed-url-domains entries.
+// It always includes "localhost" and "github.com" in the result.
+// The allowed-url-domains entries support ecosystem identifiers (same syntax as network.allowed).
+func (c *Compiler) computeAllowedURLDomainsForSanitization(data *WorkflowData) string {
+	// Start from the base set (engine defaults + network.allowed + tools + runtimes)
+	base := c.computeAllowedDomainsForSanitization(data)
+
+	domainMap := make(map[string]bool)
+
+	// Seed from the base computation
+	if base != "" {
+		for d := range strings.SplitSeq(base, ",") {
+			d = strings.TrimSpace(d)
+			if d != "" {
+				domainMap[d] = true
+			}
+		}
+	}
+
+	// Union with allowed-url-domains (expanded)
+	if data.SafeOutputs != nil && len(data.SafeOutputs.AllowedURLDomains) > 0 {
+		for _, d := range expandAllowedURLDomains(data.SafeOutputs.AllowedURLDomains) {
+			domainMap[d] = true
+		}
+	}
+
+	// Always allow localhost (for local development URL references)
+	domainMap["localhost"] = true
+
+	// Always allow github.com (GitHub page of the current repo)
+	domainMap["github.com"] = true
+
+	// Produce a sorted, comma-separated result
+	result := make([]string, 0, len(domainMap))
+	for d := range domainMap {
+		result = append(result, d)
+	}
+	sort.Strings(result)
+	return strings.Join(result, ",")
 }

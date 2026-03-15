@@ -321,6 +321,9 @@ func (c *Compiler) buildHandlerManagerStep(data *WorkflowData) []string {
 	var domainsStr string
 	if data.SafeOutputs != nil && len(data.SafeOutputs.AllowedDomains) > 0 {
 		domainsStr = strings.Join(data.SafeOutputs.AllowedDomains, ",")
+	} else if data.SafeOutputs != nil && len(data.SafeOutputs.AllowedURLDomains) > 0 {
+		// allowed-url-domains: additional domains unioned with engine/network base set
+		domainsStr = c.computeAllowedURLDomainsForSanitization(data)
 	} else {
 		domainsStr = c.computeAllowedDomainsForSanitization(data)
 	}
