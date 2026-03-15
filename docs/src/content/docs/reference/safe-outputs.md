@@ -1150,7 +1150,9 @@ safe-outputs:
 
 #### Worker Inputs
 
-Worker inputs are forwarded as a single JSON-encoded `payload` string, avoiding GitHub's per-`workflow_call` limit. Define the input in the worker:
+Worker inputs are forwarded via two complementary mechanisms.
+
+**Canonical transport — `payload`:** The runtime serializes all agent-provided arguments into a single JSON string and writes it to the `call_workflow_payload` step output. The compiler always includes this in the generated `with:` block:
 
 ```yaml title="spring-boot-bugfix.md (worker)"
 on:
@@ -1161,12 +1163,15 @@ on:
         required: false
 ```
 
-The compiler also reads typed inputs declared on the worker and exposes them as parameters on the generated MCP tool, so the agent can provide structured values:
+**Typed inputs — compiler-derived forwarding:** When a worker declares additional `workflow_call.inputs` beyond `payload`, the compiler reads those declarations and emits one extra `with:` entry per input in the fan-out job using `fromJSON(needs.safe_outputs.outputs.call_workflow_payload).<inputName>`. This means worker steps can reference `inputs.<name>` directly, without manually parsing the JSON envelope:
 
 ```yaml title="deploy.md (worker)"
 on:
   workflow_call:
     inputs:
+      payload:
+        type: string
+        required: false
       environment:
         description: Target environment
         type: choice
@@ -1181,7 +1186,7 @@ Supported input types: `string`, `number`, `boolean`, `choice` (rendered as an e
 
 #### Compiled Output
 
-For each worker the compiler emits a conditional `uses:` job in the lock file:
+For each worker the compiler emits a conditional `uses:` job in the lock file. The `with:` block always includes the canonical `payload` entry; for each declared worker input other than `payload`, the compiler also emits a `fromJSON`-derived entry so worker steps can use `${{ inputs.<name> }}` directly:
 
 ```yaml title="gateway.lock.yml (simplified)"
 safe_outputs:
@@ -1196,7 +1201,11 @@ call-spring-boot-bugfix:
   secrets: inherit
   with:
     payload: ${{ needs.safe_outputs.outputs.call_workflow_payload }}
+    environment: ${{ fromJSON(needs.safe_outputs.outputs.call_workflow_payload).environment }}
+    dry_run: ${{ fromJSON(needs.safe_outputs.outputs.call_workflow_payload).dry_run }}
 ```
+
+`payload` remains the canonical transport; the additional entries are compiler-derived projections of the same data so that worker steps can reference `inputs.<name>` without parsing JSON.
 
 #### Validation Rules
 

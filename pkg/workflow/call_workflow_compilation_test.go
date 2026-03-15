@@ -808,3 +808,57 @@ Worker is in .github/workflows - should be found via directory discovery.
 	assert.Contains(t, yaml, "call-worker-a:", "Should find and generate fan-out job for worker in workflows dir")
 	assert.Contains(t, yaml, ".github/workflows/worker-a.lock.yml", "Should reference worker in workflows dir")
 }
+
+// TestCallWorkflowCompile_ForwardsTypedInputsAlongsidePayload tests that the compiler
+// emits fromJSON-derived with: entries for each declared workflow_call input (except payload)
+// alongside the canonical payload entry in the generated fan-out job.
+func TestCallWorkflowCompile_ForwardsTypedInputsAlongsidePayload(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "call-workflow-forward-inputs")
+	workflowsDir := filepath.Join(tmpDir, ".github", "workflows")
+	require.NoError(t, os.MkdirAll(workflowsDir, 0755))
+
+	typedInputs := `      payload:
+        type: string
+        required: false
+      source_repo:
+        description: Repository to check out
+        type: string
+        required: false
+      issue_number:
+        description: Issue number to process
+        type: string
+        required: false
+`
+	createWorker(t, workflowsDir, "worker-a", typedInputs)
+
+	gatewayMD := `---
+on: workflow_dispatch
+engine: copilot
+permissions:
+  contents: read
+safe-outputs:
+  add-comment:
+    max: 1
+  call-workflow:
+    workflows:
+      - worker-a
+---
+
+# Gateway — typed input forwarding
+`
+	yaml := compileAndReadLock(t, filepath.Join(workflowsDir, "gateway.md"), gatewayMD)
+
+	// Canonical payload transport must always be present
+	assert.Contains(t, yaml, "payload: ${{ needs.safe_outputs.outputs.call_workflow_payload }}",
+		"Should always forward canonical payload")
+
+	// Typed inputs must be derived from the payload via fromJSON
+	assert.Contains(t, yaml, "fromJSON(needs.safe_outputs.outputs.call_workflow_payload).source_repo",
+		"Should forward source_repo via fromJSON")
+	assert.Contains(t, yaml, "fromJSON(needs.safe_outputs.outputs.call_workflow_payload).issue_number",
+		"Should forward issue_number via fromJSON")
+
+	// payload must not appear as a fromJSON entry (it must remain the raw string)
+	assert.NotContains(t, yaml, "fromJSON(needs.safe_outputs.outputs.call_workflow_payload).payload",
+		"payload itself must not be duplicated as a fromJSON entry")
+}
