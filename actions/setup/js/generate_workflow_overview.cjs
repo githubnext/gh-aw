@@ -1,6 +1,8 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
 
+const { jsonObjectToMarkdown } = require("./json_object_to_markdown.cjs");
+
 /**
  * Generate workflow overview step that writes an agentic workflow run overview
  * to the GitHub step summary. This reads from aw_info.json that was created by
@@ -16,36 +18,15 @@ async function generateWorkflowOverview(core) {
   // Load aw_info.json
   const awInfo = JSON.parse(fs.readFileSync(awInfoPath, "utf8"));
 
-  let networkDetails = "";
-  if (awInfo.allowed_domains && awInfo.allowed_domains.length > 0) {
-    networkDetails = awInfo.allowed_domains
-      .slice(0, 10)
-      .map(d => `  - ${d}`)
-      .join("\n");
-    if (awInfo.allowed_domains.length > 10) {
-      networkDetails += `\n  - ... and ${awInfo.allowed_domains.length - 10} more`;
-    }
-  }
+  // Build the collapsible summary label with engine_id and version
+  const engineLabel = [awInfo.engine_id, awInfo.version].filter(Boolean).join(" ");
+  const summaryLabel = engineLabel ? `Run details - ${engineLabel}` : "Run details";
+
+  // Render all aw_info fields as markdown bullet points
+  const details = jsonObjectToMarkdown(awInfo);
 
   // Build summary using string concatenation to avoid YAML parsing issues with template literals
-  const summary =
-    "<details>\n" +
-    "<summary>Run details</summary>\n\n" +
-    "#### Engine Configuration\n" +
-    "| Property | Value |\n" +
-    "|----------|-------|\n" +
-    `| Engine ID | ${awInfo.engine_id} |\n` +
-    `| Engine Name | ${awInfo.engine_name} |\n` +
-    `| Model | ${awInfo.model || "(default)"} |\n` +
-    "\n" +
-    "#### Network Configuration\n" +
-    "| Property | Value |\n" +
-    "|----------|-------|\n" +
-    `| Firewall | ${awInfo.firewall_enabled ? "✅ Enabled" : "❌ Disabled"} |\n` +
-    `| Firewall Version | ${awInfo.awf_version || "(latest)"} |\n` +
-    "\n" +
-    (networkDetails ? `##### Allowed Domains\n${networkDetails}\n` : "") +
-    "</details>";
+  const summary = "<details>\n" + `<summary>${summaryLabel}</summary>\n\n` + details + "\n" + "</details>";
 
   await core.summary.addRaw(summary).write();
   console.log("Generated workflow overview in step summary");

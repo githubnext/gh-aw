@@ -137,11 +137,7 @@ func TestFirewallLogLevelInCopilotEngine(t *testing.T) {
 		engine := NewCopilotEngine()
 		steps := engine.GetExecutionSteps(workflowData, "test.log")
 
-		if len(steps) == 0 {
-			t.Fatal("Expected at least one execution step")
-		}
-
-		stepContent := strings.Join(steps[0], "\n")
+		_, stepContent := requireCopilotPreflightAndExecutionSteps(t, steps)
 
 		// Check that the command contains --log-level info (default)
 		if !strings.Contains(stepContent, "--log-level info") {
@@ -166,11 +162,7 @@ func TestFirewallLogLevelInCopilotEngine(t *testing.T) {
 		engine := NewCopilotEngine()
 		steps := engine.GetExecutionSteps(workflowData, "test.log")
 
-		if len(steps) == 0 {
-			t.Fatal("Expected at least one execution step")
-		}
-
-		stepContent := strings.Join(steps[0], "\n")
+		_, stepContent := requireCopilotPreflightAndExecutionSteps(t, steps)
 
 		// Check that the command contains --log-level debug
 		if !strings.Contains(stepContent, "--log-level debug") {
@@ -198,11 +190,7 @@ func TestFirewallLogLevelInCopilotEngine(t *testing.T) {
 			engine := NewCopilotEngine()
 			steps := engine.GetExecutionSteps(workflowData, "test.log")
 
-			if len(steps) == 0 {
-				t.Fatalf("Expected at least one execution step for log-level '%s'", level)
-			}
-
-			stepContent := strings.Join(steps[0], "\n")
+			_, stepContent := requireCopilotPreflightAndExecutionSteps(t, steps)
 
 			expectedFlag := "--log-level " + level
 			if !strings.Contains(stepContent, expectedFlag) {

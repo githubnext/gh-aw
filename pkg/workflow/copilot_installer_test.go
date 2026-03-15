@@ -26,6 +26,7 @@ func TestGenerateCopilotInstallerSteps(t *testing.T) {
 			shouldContain: []string{
 				"/opt/gh-aw/actions/install_copilot_cli.sh 0.0.369",
 				"name: Install GitHub Copilot CLI",
+				"GH_HOST: github.com",
 			},
 			shouldNotContain: []string{
 				"gh.io/copilot-install | sudo bash", // Should not pipe directly to bash
@@ -38,6 +39,7 @@ func TestGenerateCopilotInstallerSteps(t *testing.T) {
 			expectedVersion: "v0.0.370",
 			shouldContain: []string{
 				"/opt/gh-aw/actions/install_copilot_cli.sh v0.0.370",
+				"GH_HOST: github.com",
 			},
 			shouldNotContain: []string{
 				"gh.io/copilot-install | sudo bash",
@@ -51,6 +53,7 @@ func TestGenerateCopilotInstallerSteps(t *testing.T) {
 			shouldContain: []string{
 				"/opt/gh-aw/actions/install_copilot_cli.sh 1.2.3",
 				"name: Custom Install Step",
+				"GH_HOST: github.com",
 			},
 			shouldNotContain: []string{
 				"gh.io/copilot-install | sudo bash",
@@ -63,6 +66,7 @@ func TestGenerateCopilotInstallerSteps(t *testing.T) {
 			expectedVersion: string(constants.DefaultCopilotVersion), // Should use DefaultCopilotVersion
 			shouldContain: []string{
 				"/opt/gh-aw/actions/install_copilot_cli.sh " + string(constants.DefaultCopilotVersion),
+				"GH_HOST: github.com",
 			},
 			shouldNotContain: []string{
 				"gh.io/copilot-install | sudo bash",
@@ -136,5 +140,10 @@ func TestCopilotInstallerCustomVersion(t *testing.T) {
 	expectedVersionLine := "/opt/gh-aw/actions/install_copilot_cli.sh " + customVersion
 	if !strings.Contains(installStep, expectedVersionLine) {
 		t.Errorf("Expected custom version %s in install step, got:\n%s", customVersion, installStep)
+	}
+
+	// Should always override GH_HOST to github.com to prevent GHES host leakage
+	if !strings.Contains(installStep, "GH_HOST: github.com") {
+		t.Errorf("Expected GH_HOST: github.com in install step to prevent GHES host leakage, got:\n%s", installStep)
 	}
 }

@@ -125,18 +125,21 @@ func ResolveSetupActionReference(actionMode ActionMode, version string, actionTa
 
 // resolveActionReference converts a local action path to the appropriate reference
 // based on the current action mode (dev vs release vs action).
-// If action-tag is specified in features, it overrides the mode check and enables release mode behavior.
+// If action-tag is specified in features, it overrides the mode check and enables action mode behavior
+// (using the github/gh-aw-actions external repository).
 // For dev mode: returns the local path as-is (e.g., "./actions/create-issue")
 // For release mode: converts to SHA-pinned remote reference (e.g., "github/gh-aw/actions/create-issue@SHA # tag")
 // For action mode: converts to SHA-pinned reference in external repo if possible (e.g., "github/gh-aw-actions/create-issue@SHA # version")
 func (c *Compiler) resolveActionReference(localActionPath string, data *WorkflowData) string {
-	// Check if action-tag is specified in features - if so, override mode and use release behavior
+	// Check if action-tag is specified in features - if so, override mode and use action mode behavior
 	hasActionTag := false
+	var frontmatterActionTag string
 	if data != nil && data.Features != nil {
 		if actionTagVal, exists := data.Features["action-tag"]; exists {
 			if actionTagStr, ok := actionTagVal.(string); ok && actionTagStr != "" {
 				hasActionTag = true
-				actionRefLog.Printf("action-tag feature detected: %s - using release mode behavior", actionTagStr)
+				frontmatterActionTag = actionTagStr
+				actionRefLog.Printf("action-tag feature detected: %s - using action mode behavior", actionTagStr)
 			}
 		}
 	}
@@ -154,15 +157,17 @@ func (c *Compiler) resolveActionReference(localActionPath string, data *Workflow
 		if !hasActionTag {
 			return ResolveSetupActionReference(c.actionMode, c.version, "", resolver)
 		}
+		// hasActionTag is true and no compiler actionTag: use action mode with the frontmatter tag
+		return ResolveSetupActionReference(ActionModeAction, c.version, frontmatterActionTag, resolver)
 	}
 
-	// Action mode - use external gh-aw-actions repository with version tag (no SHA pinning)
-	if c.actionMode == ActionModeAction && !hasActionTag {
+	// Action mode - use external gh-aw-actions repository
+	if c.actionMode == ActionModeAction || hasActionTag {
 		return c.convertToExternalActionsRef(localActionPath, data)
 	}
 
-	// Use release mode if either actionMode is release OR action-tag is specified
-	if c.actionMode == ActionModeRelease || hasActionTag {
+	// Use release mode
+	if c.actionMode == ActionModeRelease {
 		// Convert to tag-based remote reference for release
 		remoteRef := c.convertToRemoteActionRef(localActionPath, data)
 		if remoteRef == "" {
@@ -185,22 +190,14 @@ func (c *Compiler) resolveActionReference(localActionPath string, data *Workflow
 			}
 			if pinnedRef != "" {
 				// Successfully resolved to SHA
-				if hasActionTag {
-					actionRefLog.Printf("action-tag override: resolved %s to SHA-pinned reference: %s", remoteRef, pinnedRef)
-				} else {
-					actionRefLog.Printf("Release mode: resolved %s to SHA-pinned reference: %s", remoteRef, pinnedRef)
-				}
+				actionRefLog.Printf("Release mode: resolved %s to SHA-pinned reference: %s", remoteRef, pinnedRef)
 				return pinnedRef
 			}
 		}
 
 		// If we couldn't resolve to SHA, return the tag-based reference
 		// This happens in non-strict mode when no pin is available
-		if hasActionTag {
-			actionRefLog.Printf("action-tag override: using tag-based remote action reference: %s", remoteRef)
-		} else {
-			actionRefLog.Printf("Release mode: using tag-based remote action reference: %s", remoteRef)
-		}
+		actionRefLog.Printf("Release mode: using tag-based remote action reference: %s", remoteRef)
 		return remoteRef
 	}
 

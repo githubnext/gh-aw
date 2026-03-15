@@ -126,13 +126,13 @@ func TestCopilotEngineExecutionSteps(t *testing.T) {
 	}
 	steps := engine.GetExecutionSteps(workflowData, "/tmp/gh-aw/test.log")
 
-	// GetExecutionSteps only returns the execution step, not Squid logs or cleanup
-	if len(steps) != 1 {
-		t.Fatalf("Expected 1 step (copilot execution), got %d", len(steps))
+	// GetExecutionSteps now returns 2 steps: preflight diagnostic + copilot execution
+	if len(steps) != 2 {
+		t.Fatalf("Expected 2 steps (preflight + copilot execution), got %d", len(steps))
 	}
 
-	// Check the execution step
-	stepContent := strings.Join([]string(steps[0]), "\n")
+	// Check the execution step (second step, after preflight)
+	stepContent := strings.Join([]string(steps[1]), "\n")
 
 	if !strings.Contains(stepContent, "name: Execute GitHub Copilot CLI") {
 		t.Errorf("Expected step name 'Execute GitHub Copilot CLI' in step content:\n%s", stepContent)
@@ -206,13 +206,13 @@ func TestCopilotEngineExecutionStepsWithOutput(t *testing.T) {
 	}
 	steps := engine.GetExecutionSteps(workflowData, "/tmp/gh-aw/test.log")
 
-	// GetExecutionSteps only returns the execution step
-	if len(steps) != 1 {
-		t.Fatalf("Expected 1 step (copilot execution), got %d", len(steps))
+	// GetExecutionSteps now returns 2 steps: preflight + execution
+	if len(steps) != 2 {
+		t.Fatalf("Expected 2 steps (preflight + execution), got %d", len(steps))
 	}
 
-	// Check the execution step
-	stepContent := strings.Join([]string(steps[0]), "\n")
+	// Check the execution step (second step)
+	stepContent := strings.Join([]string(steps[1]), "\n")
 
 	// Test that GH_AW_SAFE_OUTPUTS is present when SafeOutputs is not nil
 	if !strings.Contains(stepContent, "GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}") {
@@ -571,12 +571,12 @@ func TestCopilotEngineExecutionStepsWithToolArguments(t *testing.T) {
 	steps := engine.GetExecutionSteps(workflowData, "/tmp/gh-aw/test.log")
 
 	// GetExecutionSteps only returns the execution step
-	if len(steps) != 1 {
-		t.Fatalf("Expected 1 step (copilot execution), got %d", len(steps))
+	if len(steps) != 2 {
+		t.Fatalf("Expected 2 steps (preflight + execution), got %d", len(steps))
 	}
 
 	// Check the execution step contains tool arguments
-	stepContent := strings.Join([]string(steps[0]), "\n")
+	stepContent := strings.Join([]string(steps[1]), "\n")
 
 	// Should contain the tool arguments in the command line
 	if !strings.Contains(stepContent, "--allow-tool shell(echo)") {
@@ -657,11 +657,11 @@ func TestCopilotEngineEditToolAddsAllowAllPaths(t *testing.T) {
 			steps := engine.GetExecutionSteps(workflowData, "/tmp/gh-aw/test.log")
 
 			// GetExecutionSteps only returns the execution step
-			if len(steps) != 1 {
-				t.Fatalf("Expected 1 step, got %d", len(steps))
+			if len(steps) != 2 {
+				t.Fatalf("Expected 2 steps, got %d", len(steps))
 			}
 
-			stepContent := strings.Join([]string(steps[0]), "\n")
+			stepContent := strings.Join([]string(steps[1]), "\n")
 
 			// Check for --allow-all-paths flag
 			hasAllowAllPaths := strings.Contains(stepContent, "--allow-all-paths")
@@ -704,12 +704,12 @@ func TestCopilotEngineShellEscaping(t *testing.T) {
 	steps := engine.GetExecutionSteps(workflowData, "/tmp/gh-aw/test.log")
 
 	// GetExecutionSteps only returns the execution step
-	if len(steps) != 1 {
-		t.Fatalf("Expected 1 step, got %d", len(steps))
+	if len(steps) != 2 {
+		t.Fatalf("Expected 2 steps, got %d", len(steps))
 	}
 
 	// Get the full command from the execution step
-	stepContent := strings.Join([]string(steps[0]), "\n")
+	stepContent := strings.Join([]string(steps[1]), "\n")
 
 	// Find the line that contains the copilot command
 	// When firewall is disabled, it uses 'copilot' instead of 'npx'
@@ -751,12 +751,12 @@ func TestCopilotEngineInstructionPromptNotEscaped(t *testing.T) {
 	steps := engine.GetExecutionSteps(workflowData, "/tmp/gh-aw/test.log")
 
 	// GetExecutionSteps only returns the execution step
-	if len(steps) != 1 {
-		t.Fatalf("Expected 1 step, got %d", len(steps))
+	if len(steps) != 2 {
+		t.Fatalf("Expected 2 steps, got %d", len(steps))
 	}
 
 	// Get the full command from the execution step
-	stepContent := strings.Join([]string(steps[0]), "\n")
+	stepContent := strings.Join([]string(steps[1]), "\n")
 
 	// Find the line that contains the copilot command
 	// When firewall is disabled, it uses 'copilot' instead of 'npx'
@@ -882,12 +882,12 @@ func TestCopilotEngineGitHubToolsShellEscaping(t *testing.T) {
 	steps := engine.GetExecutionSteps(workflowData, "/tmp/gh-aw/test.log")
 
 	// GetExecutionSteps only returns the execution step
-	if len(steps) != 1 {
-		t.Fatalf("Expected 1 step, got %d", len(steps))
+	if len(steps) != 2 {
+		t.Fatalf("Expected 2 steps, got %d", len(steps))
 	}
 
 	// Get the full command from the execution step
-	stepContent := strings.Join([]string(steps[0]), "\n")
+	stepContent := strings.Join([]string(steps[1]), "\n")
 
 	// Find the line that contains the copilot command
 	// When firewall is disabled, it uses 'copilot' instead of 'npx'
@@ -1042,11 +1042,11 @@ func TestCopilotEngineExecutionStepsWithCacheMemory(t *testing.T) {
 	steps := engine.GetExecutionSteps(workflowData, "/tmp/gh-aw/test.log")
 
 	// GetExecutionSteps only returns the execution step
-	if len(steps) != 1 {
-		t.Fatalf("Expected 1 step, got %d", len(steps))
+	if len(steps) != 2 {
+		t.Fatalf("Expected 2 steps, got %d", len(steps))
 	}
 
-	stepContent := strings.Join([]string(steps[0]), "\n")
+	stepContent := strings.Join([]string(steps[1]), "\n")
 
 	// Test that mkdir commands are present for cache-memory directories
 	if !strings.Contains(stepContent, "mkdir -p /tmp/gh-aw/cache-memory/") {
@@ -1082,11 +1082,11 @@ func TestCopilotEngineExecutionStepsWithCustomAddDirArgs(t *testing.T) {
 	steps := engine.GetExecutionSteps(workflowData, "/tmp/gh-aw/test.log")
 
 	// GetExecutionSteps only returns the execution step
-	if len(steps) != 1 {
-		t.Fatalf("Expected 1 step, got %d", len(steps))
+	if len(steps) != 2 {
+		t.Fatalf("Expected 2 steps, got %d", len(steps))
 	}
 
-	stepContent := strings.Join([]string(steps[0]), "\n")
+	stepContent := strings.Join([]string(steps[1]), "\n")
 
 	// Test that mkdir commands are present for custom --add-dir path
 	if !strings.Contains(stepContent, "mkdir -p /custom/path/") {
@@ -1497,11 +1497,11 @@ func TestCopilotEnginePluginDiscoveryInSandboxMode(t *testing.T) {
 			steps := engine.GetExecutionSteps(workflowData, "/tmp/gh-aw/test.log")
 
 			// GetExecutionSteps only returns the execution step
-			if len(steps) != 1 {
-				t.Fatalf("Expected 1 step, got %d", len(steps))
+			if len(steps) != 2 {
+				t.Fatalf("Expected 2 steps, got %d", len(steps))
 			}
 
-			stepContent := strings.Join([]string(steps[0]), "\n")
+			stepContent := strings.Join([]string(steps[1]), "\n")
 
 			// Check for --add-dir /home/runner/.copilot/ in the copilot command
 			hasCopilotDir := strings.Contains(stepContent, "--add-dir /home/runner/.copilot/")
@@ -1548,11 +1548,11 @@ func TestCopilotEnginePluginDiscoveryWithSRT(t *testing.T) {
 	steps := engine.GetExecutionSteps(workflowData, "/tmp/gh-aw/test.log")
 
 	// GetExecutionSteps only returns the execution step
-	if len(steps) != 1 {
-		t.Fatalf("Expected 1 step, got %d", len(steps))
+	if len(steps) != 2 {
+		t.Fatalf("Expected 2 steps, got %d", len(steps))
 	}
 
-	stepContent := strings.Join([]string(steps[0]), "\n")
+	stepContent := strings.Join([]string(steps[1]), "\n")
 
 	// Should include --add-dir /home/runner/.copilot/ when SRT is enabled with plugins
 	if !strings.Contains(stepContent, "--add-dir /home/runner/.copilot/") {
@@ -1596,11 +1596,11 @@ func TestCopilotEngineEnvOverridesTokenExpression(t *testing.T) {
 		}
 
 		steps := engine.GetExecutionSteps(workflowData, "/tmp/gh-aw/test.log")
-		if len(steps) != 1 {
-			t.Fatalf("Expected 1 step, got %d", len(steps))
+		if len(steps) != 2 {
+			t.Fatalf("Expected 2 steps, got %d", len(steps))
 		}
 
-		stepContent := strings.Join([]string(steps[0]), "\n")
+		stepContent := strings.Join([]string(steps[1]), "\n")
 
 		// engine.env override should replace the default token expression
 		if !strings.Contains(stepContent, "COPILOT_GITHUB_TOKEN: ${{ secrets.MY_ORG_COPILOT_TOKEN }}") {
@@ -1622,14 +1622,115 @@ func TestCopilotEngineEnvOverridesTokenExpression(t *testing.T) {
 		}
 
 		steps := engine.GetExecutionSteps(workflowData, "/tmp/gh-aw/test.log")
-		if len(steps) != 1 {
-			t.Fatalf("Expected 1 step, got %d", len(steps))
+		if len(steps) != 2 {
+			t.Fatalf("Expected 2 steps, got %d", len(steps))
 		}
 
-		stepContent := strings.Join([]string(steps[0]), "\n")
+		stepContent := strings.Join([]string(steps[1]), "\n")
 
 		if !strings.Contains(stepContent, "CUSTOM_VAR: custom-value") {
 			t.Errorf("Expected engine.env to add CUSTOM_VAR, got:\n%s", stepContent)
+		}
+	})
+}
+
+func TestCopilotPreflightDiagnosticStep(t *testing.T) {
+	engine := NewCopilotEngine()
+
+	t.Run("includes preflight diagnostic by default", func(t *testing.T) {
+		workflowData := &WorkflowData{
+			Name: "test-workflow",
+		}
+
+		steps := engine.GetExecutionSteps(workflowData, "/tmp/gh-aw/test.log")
+
+		// Should have 2 steps: preflight + execution
+		if len(steps) != 2 {
+			t.Fatalf("Expected 2 steps (preflight + execution), got %d", len(steps))
+		}
+
+		// First step should be preflight diagnostic
+		preflightContent := strings.Join([]string(steps[0]), "\n")
+		if !strings.Contains(preflightContent, "Copilot pre-flight diagnostic") {
+			t.Errorf("Expected first step to be preflight diagnostic, got:\n%s", preflightContent)
+		}
+
+		if !strings.Contains(preflightContent, "copilot_preflight_diagnostic.sh") {
+			t.Errorf("Expected preflight step to call diagnostic script, got:\n%s", preflightContent)
+		}
+
+		if !strings.Contains(preflightContent, "COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}") {
+			t.Errorf("Expected preflight step to pass COPILOT_GITHUB_TOKEN, got:\n%s", preflightContent)
+		}
+
+		if !strings.Contains(preflightContent, "GITHUB_API_URL: ${{ github.api_url }}") {
+			t.Errorf("Expected preflight step to pass GITHUB_API_URL, got:\n%s", preflightContent)
+		}
+	})
+
+	t.Run("skips preflight when copilot-requests feature enabled", func(t *testing.T) {
+		workflowData := &WorkflowData{
+			Name: "test-workflow",
+			Features: map[string]any{
+				"copilot-requests": true,
+			},
+		}
+
+		steps := engine.GetExecutionSteps(workflowData, "/tmp/gh-aw/test.log")
+
+		// Should have only 1 step: execution (no preflight)
+		if len(steps) != 1 {
+			t.Fatalf("Expected 1 step (execution only), got %d", len(steps))
+		}
+
+		// Step should be execution, not preflight
+		stepContent := strings.Join([]string(steps[0]), "\n")
+		if strings.Contains(stepContent, "Copilot pre-flight diagnostic") {
+			t.Errorf("Expected preflight to be skipped with copilot-requests feature, but found it:\n%s", stepContent)
+		}
+	})
+
+	t.Run("skips preflight when custom command specified", func(t *testing.T) {
+		workflowData := &WorkflowData{
+			Name: "test-workflow",
+			EngineConfig: &EngineConfig{
+				Command: "/custom/copilot",
+			},
+		}
+
+		steps := engine.GetExecutionSteps(workflowData, "/tmp/gh-aw/test.log")
+
+		// Should have only 1 step: execution (no preflight)
+		if len(steps) != 1 {
+			t.Fatalf("Expected 1 step (execution only), got %d", len(steps))
+		}
+
+		// Step should be execution, not preflight
+		stepContent := strings.Join([]string(steps[0]), "\n")
+		if strings.Contains(stepContent, "Copilot pre-flight diagnostic") {
+			t.Errorf("Expected preflight to be skipped with custom command, but found it:\n%s", stepContent)
+		}
+	})
+
+	t.Run("includes api-target in preflight when configured", func(t *testing.T) {
+		workflowData := &WorkflowData{
+			Name: "test-workflow",
+			EngineConfig: &EngineConfig{
+				APITarget: "https://ghe.example.com/api/v3",
+			},
+		}
+
+		steps := engine.GetExecutionSteps(workflowData, "/tmp/gh-aw/test.log")
+
+		// Should have 2 steps: preflight + execution
+		if len(steps) != 2 {
+			t.Fatalf("Expected 2 steps (preflight + execution), got %d", len(steps))
+		}
+
+		// First step should include COPILOT_API_TARGET
+		preflightContent := strings.Join([]string(steps[0]), "\n")
+		if !strings.Contains(preflightContent, "COPILOT_API_TARGET: https://ghe.example.com/api/v3") {
+			t.Errorf("Expected preflight to include COPILOT_API_TARGET, got:\n%s", preflightContent)
 		}
 	})
 }

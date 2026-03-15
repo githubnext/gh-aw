@@ -93,22 +93,26 @@ func TestValidateActionTag(t *testing.T) {
 			expectError: false,
 		},
 		{
+			name:        "valid - version tag v0",
+			value:       "v0",
+			expectError: false,
+		},
+		{
+			name:        "valid - version tag v1.0.0",
+			value:       "v1.0.0",
+			expectError: false,
+		},
+		{
 			name:        "invalid - short SHA (7 chars)",
 			value:       "5c3428a",
 			expectError: true,
-			errorMsg:    "action-tag must be a full 40-character commit SHA",
+			errorMsg:    "action-tag must be a full 40-character commit SHA or a version tag",
 		},
 		{
 			name:        "invalid - short SHA (8 chars)",
 			value:       "abc123de",
 			expectError: true,
-			errorMsg:    "action-tag must be a full 40-character commit SHA",
-		},
-		{
-			name:        "invalid - version tag instead of SHA",
-			value:       "v1.0.0",
-			expectError: true,
-			errorMsg:    "action-tag must be a full 40-character commit SHA",
+			errorMsg:    "action-tag must be a full 40-character commit SHA or a version tag",
 		},
 		{
 			name:        "invalid - not a string",
@@ -126,7 +130,7 @@ func TestValidateActionTag(t *testing.T) {
 			name:        "invalid - uppercase SHA",
 			value:       "ABCDEF0123456789ABCDEF0123456789ABCDEF01",
 			expectError: true,
-			errorMsg:    "action-tag must be a full 40-character commit SHA",
+			errorMsg:    "action-tag must be a full 40-character commit SHA or a version tag",
 		},
 	}
 
@@ -182,17 +186,16 @@ func TestValidateFeatures(t *testing.T) {
 				},
 			},
 			expectError: true,
-			errorMsg:    "action-tag must be a full 40-character commit SHA",
+			errorMsg:    "action-tag must be a full 40-character commit SHA or a version tag",
 		},
 		{
-			name: "invalid action-tag - version tag",
+			name: "valid action-tag - version tag",
 			data: &WorkflowData{
 				Features: map[string]any{
 					"action-tag": "v2.0.0",
 				},
 			},
-			expectError: true,
-			errorMsg:    "action-tag must be a full 40-character commit SHA",
+			expectError: false,
 		},
 		{
 			name: "empty action-tag is allowed",

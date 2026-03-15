@@ -225,6 +225,7 @@ The YAML frontmatter supports these fields:
     - `copilot-requests: true` - Use GitHub Actions token for Copilot authentication instead of `COPILOT_GITHUB_TOKEN` secret; injects `copilot-requests: write` permission and sets `S2STOKENS=true` (Copilot engine only)
     - `mcp-gateway: true` - Enable MCP Gateway for routing MCP server calls through a unified HTTP gateway (experimental)
     - `disable-xpia-prompt: true` - Disable the built-in cross-prompt injection attack (XPIA) system prompt
+    - `action-tag: "v0"` - Pin compiled action references to a specific version of the `gh-aw-actions` repository. Accepts version tags (e.g., `"v0"`, `"v1"`, `"v1.0.0"`) or a full 40-character commit SHA. When set, overrides the compiler's default action mode and resolves all action references from the external `github/gh-aw-actions` repository at the specified tag.
   - Example:
     ```yaml
     features:

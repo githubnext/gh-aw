@@ -264,11 +264,11 @@ func TestCopilotEngineWithCustomMounts(t *testing.T) {
 		engine := NewCopilotEngine()
 		steps := engine.GetExecutionSteps(workflowData, "test.log")
 
-		if len(steps) == 0 {
-			t.Fatal("Expected at least one execution step")
+		if len(steps) < 2 {
+			t.Fatal("Expected at least 2 execution steps (preflight + execution)")
 		}
 
-		stepContent := strings.Join(steps[0], "\n")
+		stepContent := strings.Join(steps[1], "\n")
 
 		// Check that custom mounts are included
 		if !strings.Contains(stepContent, "--mount /host/data:/data:ro") {
@@ -305,7 +305,7 @@ func TestCopilotEngineWithCustomMounts(t *testing.T) {
 			t.Fatal("Expected at least one execution step")
 		}
 
-		stepContent := strings.Join(steps[0], "\n")
+		stepContent := strings.Join(steps[1], "\n")
 
 		// Verify AWF is present (chroot mode is default in v0.15.0+)
 		if !strings.Contains(stepContent, "sudo -E awf") {
@@ -349,7 +349,7 @@ func TestCopilotEngineWithCustomMounts(t *testing.T) {
 			t.Fatal("Expected at least one execution step")
 		}
 
-		stepContent := strings.Join(steps[0], "\n")
+		stepContent := strings.Join(steps[1], "\n")
 
 		// Find the positions of each mount in the output
 		dataPos := strings.Index(stepContent, "--mount /data:/data:rw")

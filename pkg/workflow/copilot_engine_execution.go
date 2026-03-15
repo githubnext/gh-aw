@@ -40,6 +40,14 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 
 	var steps []GitHubActionStep
 
+	// Add pre-flight diagnostic step before Copilot CLI execution
+	// This helps diagnose licensing and configuration issues on GHES
+	preflightStep := generateCopilotPreflightDiagnosticStep(workflowData)
+	if len(preflightStep) > 0 {
+		steps = append(steps, preflightStep)
+		copilotExecLog.Print("Added pre-flight diagnostic step")
+	}
+
 	// Build copilot CLI arguments based on configuration
 	var copilotArgs []string
 	sandboxEnabled := isFirewallEnabled(workflowData)
@@ -443,6 +451,54 @@ func generateCopilotSessionFileCopyStep() GitHubActionStep {
 	step = append(step, "          else")
 	step = append(step, "            echo \"No session-state directory found at $SESSION_STATE_DIR\"")
 	step = append(step, "          fi")
+
+	return GitHubActionStep(step)
+}
+
+// generateCopilotPreflightDiagnosticStep generates a pre-flight diagnostic step that runs
+// before Copilot CLI execution to detect and report licensing/configuration issues early.
+// This is especially helpful on GHES where errors are often opaque.
+//
+// The diagnostic checks:
+// 1. Token exchange to Copilot inference API (validates licensing and token validity)
+// 2. GHES-specific configuration validation (api-target, network domains)
+//
+// The step is skipped when:
+// - copilot-requests feature is enabled (uses GitHub Actions token, no separate token needed)
+// - custom command is specified (non-standard Copilot setup)
+func generateCopilotPreflightDiagnosticStep(workflowData *WorkflowData) GitHubActionStep {
+	// Skip if copilot-requests feature is enabled (uses GitHub Actions token)
+	if isFeatureEnabled(constants.CopilotRequestsFeatureFlag, workflowData) {
+		copilotExecLog.Print("Skipping pre-flight diagnostic: copilot-requests feature enabled")
+		return GitHubActionStep{}
+	}
+
+	// Skip if custom command is specified (non-standard setup)
+	if workflowData.EngineConfig != nil && workflowData.EngineConfig.Command != "" {
+		copilotExecLog.Print("Skipping pre-flight diagnostic: custom command specified")
+		return GitHubActionStep{}
+	}
+
+	copilotExecLog.Print("Generating Copilot pre-flight diagnostic step")
+
+	var step []string
+	step = append(step, "      - name: Copilot pre-flight diagnostic")
+	step = append(step, "        id: copilot-preflight")
+	step = append(step, "        continue-on-error: true")
+	step = append(step, "        env:")
+
+	// Use COPILOT_GITHUB_TOKEN for the diagnostic
+	// #nosec G101 -- This is a GitHub Actions expression template, not a hardcoded credential
+	step = append(step, "          COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}")
+	step = append(step, "          GITHUB_SERVER_URL: ${{ github.server_url }}")
+	step = append(step, "          GITHUB_API_URL: ${{ github.api_url }}")
+
+	// Pass engine.api-target if configured
+	if workflowData.EngineConfig != nil && workflowData.EngineConfig.APITarget != "" {
+		step = append(step, "          COPILOT_API_TARGET: "+workflowData.EngineConfig.APITarget)
+	}
+
+	step = append(step, "        run: bash /opt/gh-aw/actions/copilot_preflight_diagnostic.sh")
 
 	return GitHubActionStep(step)
 }

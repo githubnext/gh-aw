@@ -16,8 +16,9 @@ engine:
   model: gpt-5.1-codex-mini
 strict: true
 timeout-minutes: 15
+inlined-imports: true
 features:
-  action-tag: "a70c5eada06553e3510ac27f2c3bda9d3705bccb"
+  action-tag: "v0"
 
 network:
   allowed:

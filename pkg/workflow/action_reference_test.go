@@ -152,8 +152,8 @@ func TestResolveActionReference(t *testing.T) {
 			localPath:   "./actions/setup",
 			version:     "v1.0.0",
 			actionTag:   "latest",
-			expectedRef: "github/gh-aw/actions/setup@latest",
-			description: "Release mode with action-tag should use action-tag instead of version",
+			expectedRef: "github/gh-aw-actions/setup@latest",
+			description: "Frontmatter action-tag should use action mode (gh-aw-actions) regardless of compiler mode",
 		},
 		{
 			name:        "release mode with action-tag using SHA",
@@ -161,17 +161,17 @@ func TestResolveActionReference(t *testing.T) {
 			localPath:   "./actions/setup",
 			version:     "v1.0.0",
 			actionTag:   "abc123def456789",
-			expectedRef: "github/gh-aw/actions/setup@abc123def456789",
-			description: "Release mode with action-tag SHA should use the SHA",
+			expectedRef: "github/gh-aw-actions/setup@abc123def456789",
+			description: "Frontmatter action-tag SHA should use action mode (gh-aw-actions)",
 		},
 		{
-			name:        "dev mode with action-tag uses remote reference",
+			name:        "dev mode with action-tag uses external actions repo",
 			actionMode:  ActionModeDev,
 			localPath:   "./actions/setup",
 			version:     "v1.0.0",
 			actionTag:   "latest",
-			expectedRef: "github/gh-aw/actions/setup@latest",
-			description: "Dev mode with action-tag should override and use remote reference",
+			expectedRef: "github/gh-aw-actions/setup@latest",
+			description: "Dev mode with frontmatter action-tag should use action mode (gh-aw-actions)",
 		},
 	}
 

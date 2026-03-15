@@ -29,9 +29,7 @@ func TestFirewallBlockedDomainsInCopilotEngine(t *testing.T) {
 		engine := NewCopilotEngine()
 		steps := engine.GetExecutionSteps(workflowData, "test.log")
 
-		assert.NotEmpty(t, steps, "Expected at least one execution step")
-
-		stepContent := strings.Join(steps[0], "\n")
+		_, stepContent := requireCopilotPreflightAndExecutionSteps(t, steps)
 
 		// Verify --allow-domains is present
 		assert.Contains(t, stepContent, "--allow-domains", "Expected command to contain '--allow-domains'")
@@ -61,9 +59,7 @@ func TestFirewallBlockedDomainsInCopilotEngine(t *testing.T) {
 		engine := NewCopilotEngine()
 		steps := engine.GetExecutionSteps(workflowData, "test.log")
 
-		assert.NotEmpty(t, steps, "Expected at least one execution step")
-
-		stepContent := strings.Join(steps[0], "\n")
+		_, stepContent := requireCopilotPreflightAndExecutionSteps(t, steps)
 
 		// Verify --allow-domains is present
 		assert.Contains(t, stepContent, "--allow-domains", "Expected command to contain '--allow-domains'")
@@ -90,9 +86,7 @@ func TestFirewallBlockedDomainsInCopilotEngine(t *testing.T) {
 		engine := NewCopilotEngine()
 		steps := engine.GetExecutionSteps(workflowData, "test.log")
 
-		assert.NotEmpty(t, steps, "Expected at least one execution step")
-
-		stepContent := strings.Join(steps[0], "\n")
+		_, stepContent := requireCopilotPreflightAndExecutionSteps(t, steps)
 
 		// Verify --block-domains is present
 		assert.Contains(t, stepContent, "--block-domains", "Expected command to contain '--block-domains'")
