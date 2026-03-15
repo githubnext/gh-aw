@@ -20,14 +20,10 @@ tools:
 safe-outputs:
   create-discussion:
     expires: 3d
-    category: "audits"
     title-prefix: "[daily regulatory] "
-    max: 1
-    close-older-discussions: true
-  close-discussion:
-    max: 10
 timeout-minutes: 30
 imports:
+  - shared/daily-audit-discussion.md
   - shared/github-queries-mcp-script.md
   - shared/reporting.md
 ---

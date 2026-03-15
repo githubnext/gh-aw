@@ -24,11 +24,9 @@ tools:
 safe-outputs:
   create-discussion:
     expires: 1d
-    category: "audits"
     title-prefix: "[mcp-analysis] "
-    max: 1
-    close-older-discussions: true
 imports:
+  - shared/daily-audit-discussion.md
   - shared/python-dataviz.md
   - shared/reporting.md
 ---

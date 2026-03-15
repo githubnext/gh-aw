@@ -412,6 +412,216 @@ imports:
 	assert.Equal(t, strPtr("5"), workflowData.SafeOutputs.AddComments.Max)
 }
 
+// TestCreateDiscussionFieldLevelMerge tests that when the same create-discussion type is defined
+// in both main and imported workflow, base fields from the imported config fill in any unset fields
+// in the main workflow's create-discussion config (field-level merge).
+func TestCreateDiscussionFieldLevelMerge(t *testing.T) {
+	compiler := NewCompilerWithVersion("1.0.0")
+
+	// Create a temporary directory for test files
+	tmpDir := t.TempDir()
+	workflowsDir := filepath.Join(tmpDir, ".github", "workflows")
+	err := os.MkdirAll(workflowsDir, 0755)
+	require.NoError(t, err, "Failed to create workflows directory")
+
+	// Create a shared workflow that provides the base create-discussion config
+	sharedWorkflow := `---
+safe-outputs:
+  create-discussion:
+    category: "audits"
+    close-older-discussions: true
+---
+
+# Shared Audit Discussion Base Config
+`
+
+	sharedFile := filepath.Join(workflowsDir, "shared-audit-discussion.md")
+	err = os.WriteFile(sharedFile, []byte(sharedWorkflow), 0644)
+	require.NoError(t, err, "Failed to write shared file")
+
+	// Create main workflow that only specifies workflow-specific fields
+	mainWorkflow := `---
+on: schedule
+permissions:
+  contents: read
+  discussions: write
+imports:
+  - ./shared-audit-discussion.md
+safe-outputs:
+  create-discussion:
+    title-prefix: "[my-workflow] "
+    expires: 1d
+---
+
+# Main Workflow
+`
+
+	mainFile := filepath.Join(workflowsDir, "main.md")
+	err = os.WriteFile(mainFile, []byte(mainWorkflow), 0644)
+	require.NoError(t, err, "Failed to write main file")
+
+	// Change to the workflows directory for relative path resolution
+	oldDir, err := os.Getwd()
+	require.NoError(t, err, "Failed to get current directory")
+	err = os.Chdir(workflowsDir)
+	require.NoError(t, err, "Failed to change directory")
+	defer func() { _ = os.Chdir(oldDir) }()
+
+	// Parse the main workflow
+	workflowData, err := compiler.ParseWorkflowFile("main.md")
+	require.NoError(t, err, "Should parse workflow successfully")
+	require.NotNil(t, workflowData.SafeOutputs, "SafeOutputs should not be nil")
+	require.NotNil(t, workflowData.SafeOutputs.CreateDiscussions, "CreateDiscussions should be present")
+
+	// Verify workflow-specific fields from main workflow are present
+	assert.Equal(t, "[my-workflow] ", workflowData.SafeOutputs.CreateDiscussions.TitlePrefix, "TitlePrefix should come from main workflow")
+	assert.Equal(t, 24, workflowData.SafeOutputs.CreateDiscussions.Expires, "Expires should come from main workflow (1d = 24 hours)")
+
+	// Verify base fields from shared component are filled in via field-level merge
+	assert.Equal(t, "audits", workflowData.SafeOutputs.CreateDiscussions.Category, "Category should come from shared component")
+	require.NotNil(t, workflowData.SafeOutputs.CreateDiscussions.CloseOlderDiscussions, "CloseOlderDiscussions should come from shared component")
+	assert.Equal(t, "true", *workflowData.SafeOutputs.CreateDiscussions.CloseOlderDiscussions, "CloseOlderDiscussions should be true from shared component")
+}
+
+// TestCreateDiscussionFieldLevelMergeMainTakesPrecedence tests that when both main and imported
+// workflow define the same create-discussion field, the main workflow's value wins.
+func TestCreateDiscussionFieldLevelMergeMainTakesPrecedence(t *testing.T) {
+	compiler := NewCompilerWithVersion("1.0.0")
+
+	// Create a temporary directory for test files
+	tmpDir := t.TempDir()
+	workflowsDir := filepath.Join(tmpDir, ".github", "workflows")
+	err := os.MkdirAll(workflowsDir, 0755)
+	require.NoError(t, err, "Failed to create workflows directory")
+
+	// Create a shared workflow with base config
+	sharedWorkflow := `---
+safe-outputs:
+  create-discussion:
+    category: "audits"
+    close-older-discussions: true
+---
+
+# Shared Config
+`
+
+	sharedFile := filepath.Join(workflowsDir, "shared.md")
+	err = os.WriteFile(sharedFile, []byte(sharedWorkflow), 0644)
+	require.NoError(t, err, "Failed to write shared file")
+
+	// Create main workflow that explicitly sets category (overrides shared's category)
+	mainWorkflow := `---
+on: schedule
+permissions:
+  contents: read
+  discussions: write
+imports:
+  - ./shared.md
+safe-outputs:
+  create-discussion:
+    category: "reports"
+    title-prefix: "[report] "
+    expires: 3d
+---
+
+# Main Workflow
+`
+
+	mainFile := filepath.Join(workflowsDir, "main.md")
+	err = os.WriteFile(mainFile, []byte(mainWorkflow), 0644)
+	require.NoError(t, err, "Failed to write main file")
+
+	// Change to the workflows directory for relative path resolution
+	oldDir, err := os.Getwd()
+	require.NoError(t, err, "Failed to get current directory")
+	err = os.Chdir(workflowsDir)
+	require.NoError(t, err, "Failed to change directory")
+	defer func() { _ = os.Chdir(oldDir) }()
+
+	// Parse the main workflow
+	workflowData, err := compiler.ParseWorkflowFile("main.md")
+	require.NoError(t, err, "Should parse workflow successfully")
+	require.NotNil(t, workflowData.SafeOutputs, "SafeOutputs should not be nil")
+	require.NotNil(t, workflowData.SafeOutputs.CreateDiscussions, "CreateDiscussions should be present")
+
+	// Verify main workflow's explicit category overrides shared's category
+	assert.Equal(t, "reports", workflowData.SafeOutputs.CreateDiscussions.Category, "Category from main workflow should take precedence over shared")
+
+	// Verify close-older-discussions from shared fills in (not set in main)
+	require.NotNil(t, workflowData.SafeOutputs.CreateDiscussions.CloseOlderDiscussions, "CloseOlderDiscussions should come from shared component")
+	assert.Equal(t, "true", *workflowData.SafeOutputs.CreateDiscussions.CloseOlderDiscussions, "CloseOlderDiscussions should be true from shared")
+
+	// Verify workflow-specific fields
+	assert.Equal(t, "[report] ", workflowData.SafeOutputs.CreateDiscussions.TitlePrefix, "TitlePrefix should come from main workflow")
+	assert.Equal(t, 72, workflowData.SafeOutputs.CreateDiscussions.Expires, "Expires should come from main workflow (3d = 72 hours)")
+}
+
+// TestCreateDiscussionImportConflictBetweenSharedComponents tests that a conflict error is
+// returned when create-discussion is defined in multiple imported shared workflows.
+func TestCreateDiscussionImportConflictBetweenSharedComponents(t *testing.T) {
+	compiler := NewCompilerWithVersion("1.0.0")
+
+	// Create a temporary directory for test files
+	tmpDir := t.TempDir()
+	workflowsDir := filepath.Join(tmpDir, ".github", "workflows")
+	err := os.MkdirAll(workflowsDir, 0755)
+	require.NoError(t, err, "Failed to create workflows directory")
+
+	// Create two shared workflows both defining create-discussion
+	shared1 := `---
+safe-outputs:
+  create-discussion:
+    category: "audits"
+---
+
+# Shared 1
+`
+	shared2 := `---
+safe-outputs:
+  create-discussion:
+    category: "reports"
+---
+
+# Shared 2
+`
+
+	err = os.WriteFile(filepath.Join(workflowsDir, "shared1.md"), []byte(shared1), 0644)
+	require.NoError(t, err, "Failed to write shared1 file")
+	err = os.WriteFile(filepath.Join(workflowsDir, "shared2.md"), []byte(shared2), 0644)
+	require.NoError(t, err, "Failed to write shared2 file")
+
+	// Create main workflow that imports both (conflict between imports)
+	mainWorkflow := `---
+on: schedule
+permissions:
+  contents: read
+  discussions: write
+imports:
+  - ./shared1.md
+  - ./shared2.md
+---
+
+# Main Workflow
+`
+
+	mainFile := filepath.Join(workflowsDir, "main.md")
+	err = os.WriteFile(mainFile, []byte(mainWorkflow), 0644)
+	require.NoError(t, err, "Failed to write main file")
+
+	// Change to the workflows directory for relative path resolution
+	oldDir, err := os.Getwd()
+	require.NoError(t, err, "Failed to get current directory")
+	err = os.Chdir(workflowsDir)
+	require.NoError(t, err, "Failed to change directory")
+	defer func() { _ = os.Chdir(oldDir) }()
+
+	// Parse should fail with a conflict error
+	_, err = compiler.ParseWorkflowFile("main.md")
+	require.Error(t, err, "Should return error for create-discussion defined in multiple imports")
+	assert.Contains(t, err.Error(), "safe-outputs conflict", "Error should mention safe-outputs conflict")
+	assert.Contains(t, err.Error(), "create-discussion", "Error should mention create-discussion")
+}
+
 // TestMergeSafeOutputsUnit tests the MergeSafeOutputs function directly
 func TestMergeSafeOutputsUnit(t *testing.T) {
 	compiler := NewCompilerWithVersion("1.0.0")

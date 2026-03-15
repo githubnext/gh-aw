@@ -19,11 +19,10 @@ safe-outputs:
   create-discussion:
     expires: 1d
     title-prefix: "[auth-test] "
-    category: "audits"
-    max: 1
-    close-older-discussions: true
 timeout-minutes: 5
 strict: true
+imports:
+  - shared/daily-audit-discussion.md
 ---
 
 # GitHub Remote MCP Authentication Test

@@ -216,14 +216,24 @@ func (c *Compiler) MergeSafeOutputs(topSafeOutputs *SafeOutputsConfig, importedS
 		}
 
 		// Check for conflicts and remove types already defined in top-level config
-		// Main workflow definitions take precedence over imports (override behavior)
+		// Main workflow definitions take precedence over imports (override behavior).
+		// Exception: create-discussion supports field-level merging so shared components
+		// can provide base fields (category, max, close-older-discussions) while individual
+		// workflows override only their specific settings (title-prefix, expires).
 		for _, key := range typeKeys {
 			if _, exists := config[key]; exists {
 				if topDefinedTypes[key] {
-					// Main workflow overrides imported definition - remove from imported config
-					importsLog.Printf("Main workflow overrides imported safe-output: %s", key)
-					delete(config, key)
-					continue
+					if key == "create-discussion" {
+						// Allow field-level merge: keep imported create-discussion so
+						// mergeSafeOutputConfig can fill in base fields that the main
+						// workflow has not set (e.g. category, close-older-discussions).
+						importsLog.Printf("Allowing field-level merge for create-discussion from import")
+					} else {
+						// Main workflow overrides imported definition - remove from imported config
+						importsLog.Printf("Main workflow overrides imported safe-output: %s", key)
+						delete(config, key)
+						continue
+					}
 				}
 				if importedDefinedTypes[key] {
 					return nil, fmt.Errorf("safe-outputs conflict: '%s' is defined in multiple imported workflows. Each safe-output type can only be defined once", key)
@@ -372,8 +382,14 @@ func mergeSafeOutputConfig(result *SafeOutputsConfig, config map[string]any, c *
 	if result.CreateIssues == nil && importedConfig.CreateIssues != nil {
 		result.CreateIssues = importedConfig.CreateIssues
 	}
-	if result.CreateDiscussions == nil && importedConfig.CreateDiscussions != nil {
-		result.CreateDiscussions = importedConfig.CreateDiscussions
+	if importedConfig.CreateDiscussions != nil {
+		if result.CreateDiscussions == nil {
+			result.CreateDiscussions = importedConfig.CreateDiscussions
+		} else {
+			// Field-level merge: fill in base fields from shared component that the
+			// main workflow has not explicitly set (e.g. category, close-older-discussions).
+			mergeCreateDiscussionsFields(result.CreateDiscussions, importedConfig.CreateDiscussions)
+		}
 	}
 	if result.UpdateDiscussions == nil && importedConfig.UpdateDiscussions != nil {
 		result.UpdateDiscussions = importedConfig.UpdateDiscussions
@@ -613,6 +629,35 @@ func mergeMessagesConfig(result, imported *SafeOutputMessagesConfig) *SafeOutput
 		result.CommitPushed = imported.CommitPushed
 	}
 	return result
+}
+
+// mergeCreateDiscussionsFields fills in base configuration fields from the imported (shared)
+// component into the result (main workflow) config. This enables shared components to provide
+// base fields such as category and close-older-discussions while individual workflows override
+// only their specific settings (title-prefix, expires).
+// The main workflow's non-zero/non-nil values always take precedence.
+func mergeCreateDiscussionsFields(result, imported *CreateDiscussionsConfig) {
+	if result.Category == "" && imported.Category != "" {
+		result.Category = imported.Category
+	}
+	if result.CloseOlderDiscussions == nil && imported.CloseOlderDiscussions != nil {
+		result.CloseOlderDiscussions = imported.CloseOlderDiscussions
+	}
+	if result.RequiredCategory == "" && imported.RequiredCategory != "" {
+		result.RequiredCategory = imported.RequiredCategory
+	}
+	if len(result.Labels) == 0 && len(imported.Labels) > 0 {
+		result.Labels = imported.Labels
+	}
+	if len(result.AllowedLabels) == 0 && len(imported.AllowedLabels) > 0 {
+		result.AllowedLabels = imported.AllowedLabels
+	}
+	if result.Footer == nil && imported.Footer != nil {
+		result.Footer = imported.Footer
+	}
+	// Note: TitlePrefix, Expires, TargetRepoSlug, AllowedRepos, CloseOlderKey, Max, and
+	// BaseSafeOutputConfig fields are NOT merged – they either default in parseDiscussionsConfig
+	// or are intentionally workflow-specific.
 }
 
 // MergeFeatures merges features configurations from imports with top-level features

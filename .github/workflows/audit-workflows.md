@@ -22,11 +22,9 @@ safe-outputs:
   upload-asset:
   create-discussion:
     expires: 1d
-    category: "audits"
-    max: 1
-    close-older-discussions: true
 timeout-minutes: 30
 imports:
+  - shared/daily-audit-discussion.md
   - shared/jqschema.md
   - shared/reporting.md
   - shared/trending-charts-simple.md

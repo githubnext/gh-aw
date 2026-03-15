@@ -21,12 +21,10 @@ safe-outputs:
   upload-asset:
   create-discussion:
     expires: 3d
-    category: "audits"
-    max: 1
-    close-older-discussions: true
 timeout-minutes: 30
 strict: true
 imports:
+  - shared/daily-audit-discussion.md
   - shared/reporting.md
   - shared/python-dataviz.md
   - shared/trends.md

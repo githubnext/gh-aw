@@ -30,11 +30,9 @@ safe-outputs:
   create-discussion:
     expires: 1d
     title-prefix: "[audit] "
-    category: "audits"
-    max: 1
-    close-older-discussions: true
 timeout-minutes: 10
 imports:
+  - shared/daily-audit-discussion.md
   - shared/reporting.md
 ---
 

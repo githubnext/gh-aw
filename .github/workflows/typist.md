@@ -14,15 +14,13 @@ permissions:
 engine: claude
 
 imports:
+  - shared/daily-audit-discussion.md
   - shared/reporting.md
   - shared/mcp/serena-go.md
 
 safe-outputs:
   create-discussion:
     expires: 1d
-    category: "audits"
-    max: 1
-    close-older-discussions: true
 
 tools:
   github:

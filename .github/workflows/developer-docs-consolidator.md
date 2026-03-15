@@ -22,10 +22,6 @@ network:
     - github
 
 safe-outputs:
-  create-discussion:
-    category: "audits"
-    max: 1
-    close-older-discussions: true
   create-pull-request:
     expires: 2d
     title-prefix: "[docs] "
@@ -52,6 +48,7 @@ tools:
 timeout-minutes: 30
 
 imports:
+  - shared/daily-audit-discussion.md
   - shared/reporting.md
   - shared/mcp/serena-go.md
   - shared/mcp/qmd-docs.md

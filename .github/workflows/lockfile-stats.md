@@ -14,12 +14,10 @@ tools:
 safe-outputs:
   create-discussion:
     expires: 1d
-    category: "audits"
-    max: 1
-    close-older-discussions: true
 timeout-minutes: 15
 strict: true
 imports:
+  - shared/daily-audit-discussion.md
   - shared/reporting.md
 ---
 

@@ -18,14 +18,10 @@ tools:
 safe-outputs:
   create-discussion:
     expires: 3d
-    category: "audits"
     title-prefix: "[daily secrets] "
-    max: 1
-    close-older-discussions: true
-  close-discussion:
-    max: 10
 timeout-minutes: 20
 imports:
+  - shared/daily-audit-discussion.md
   - shared/reporting.md
 features:
   copilot-requests: true

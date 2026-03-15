@@ -25,9 +25,10 @@
 #
 # Resolved workflow manifest:
 #   Imports:
+#     - shared/daily-audit-discussion.md
 #     - shared/reporting.md
 #
-# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"8e7c90b156e9a9c5a415792db7e51dd31799eb95a17d36b2034ccb3ceb3d71d6","strict":true}
+# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"cb47c1df37524b9b2e754ff70942f13d6784704c82721ace21413e146324cd35","strict":true}
 
 name: "Lockfile Statistics Analysis Agent"
 "on":
@@ -137,7 +138,7 @@ jobs:
           cat "/opt/gh-aw/prompts/safe_outputs_prompt.md"
           cat << 'GH_AW_PROMPT_EOF'
           <safe-output-tools>
-          Tools: create_discussion, missing_tool, missing_data, noop
+          Tools: create_discussion, close_discussion, missing_tool, missing_data, noop
           </safe-output-tools>
           <github-context>
           The following GitHub context information is available for this workflow:
@@ -170,6 +171,9 @@ jobs:
           GH_AW_PROMPT_EOF
           cat << 'GH_AW_PROMPT_EOF'
           </system>
+          GH_AW_PROMPT_EOF
+          cat << 'GH_AW_PROMPT_EOF'
+          {{#runtime-import .github/workflows/shared/daily-audit-discussion.md}}
           GH_AW_PROMPT_EOF
           cat << 'GH_AW_PROMPT_EOF'
           {{#runtime-import .github/workflows/shared/reporting.md}}
@@ -354,7 +358,7 @@ jobs:
           mkdir -p /tmp/gh-aw/safeoutputs
           mkdir -p /tmp/gh-aw/mcp-logs/safeoutputs
           cat > /opt/gh-aw/safeoutputs/config.json << 'GH_AW_SAFE_OUTPUTS_CONFIG_EOF'
-          {"create_discussion":{"expires":24,"max":1},"missing_data":{},"missing_tool":{},"noop":{"max":1}}
+          {"close_discussion":{"max":10},"create_discussion":{"expires":24,"max":1},"missing_data":{},"missing_tool":{},"noop":{"max":1}}
           GH_AW_SAFE_OUTPUTS_CONFIG_EOF
       - name: Write Safe Outputs Tools
         run: |
@@ -393,6 +397,48 @@ jobs:
                 "type": "object"
               },
               "name": "create_discussion"
+            },
+            {
+              "description": "Close a GitHub discussion with a resolution comment and optional reason. You can and should always add a comment when closing a discussion to explain the action or provide context. Use this to mark discussions as resolved, answered, or no longer needed. The closing comment should explain why the discussion is being closed. If the discussion is already closed, a comment will still be posted. CONSTRAINTS: Maximum 10 discussion(s) can be closed.",
+              "inputSchema": {
+                "additionalProperties": false,
+                "properties": {
+                  "body": {
+                    "description": "Closing comment explaining why the discussion is being closed and summarizing any resolution or conclusion.",
+                    "type": "string"
+                  },
+                  "discussion_number": {
+                    "description": "Discussion number to close. This is the numeric ID from the GitHub URL (e.g., 678 in github.com/owner/repo/discussions/678). If omitted, closes the discussion that triggered this workflow (requires a discussion event trigger).",
+                    "type": [
+                      "number",
+                      "string"
+                    ]
+                  },
+                  "integrity": {
+                    "description": "Trustworthiness level of the message source (e.g., \"low\", \"medium\", \"high\").",
+                    "type": "string"
+                  },
+                  "reason": {
+                    "description": "Resolution reason: RESOLVED (issue addressed), DUPLICATE (discussed elsewhere), OUTDATED (no longer relevant), or ANSWERED (question answered).",
+                    "enum": [
+                      "RESOLVED",
+                      "DUPLICATE",
+                      "OUTDATED",
+                      "ANSWERED"
+                    ],
+                    "type": "string"
+                  },
+                  "secrecy": {
+                    "description": "Confidentiality level of the message content (e.g., \"public\", \"internal\", \"private\").",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "body"
+                ],
+                "type": "object"
+              },
+              "name": "close_discussion"
             },
             {
               "description": "Report that a tool or capability needed to complete the task is not available, or share any information you deem important about missing functionality or limitations. Use this when you cannot accomplish what was requested because the required functionality is missing or access is restricted.",
@@ -491,6 +537,33 @@ jobs:
           GH_AW_SAFE_OUTPUTS_TOOLS_EOF
           cat > /opt/gh-aw/safeoutputs/validation.json << 'GH_AW_SAFE_OUTPUTS_VALIDATION_EOF'
           {
+            "close_discussion": {
+              "defaultMax": 1,
+              "fields": {
+                "body": {
+                  "required": true,
+                  "type": "string",
+                  "sanitize": true,
+                  "maxLength": 65000
+                },
+                "discussion_number": {
+                  "optionalPositiveInteger": true
+                },
+                "reason": {
+                  "type": "string",
+                  "enum": [
+                    "RESOLVED",
+                    "DUPLICATE",
+                    "OUTDATED",
+                    "ANSWERED"
+                  ]
+                },
+                "repo": {
+                  "type": "string",
+                  "maxLength": 256
+                }
+              }
+            },
             "create_discussion": {
               "defaultMax": 1,
               "fields": {
@@ -1196,7 +1269,7 @@ jobs:
           GH_AW_ALLOWED_DOMAINS: "*.githubusercontent.com,anthropic.com,api.anthropic.com,api.github.com,api.snapcraft.io,archive.ubuntu.com,azure.archive.ubuntu.com,cdn.playwright.dev,codeload.github.com,crl.geotrust.com,crl.globalsign.com,crl.identrust.com,crl.sectigo.com,crl.thawte.com,crl.usertrust.com,crl.verisign.com,crl3.digicert.com,crl4.digicert.com,crls.ssl.com,files.pythonhosted.org,ghcr.io,github-cloud.githubusercontent.com,github-cloud.s3.amazonaws.com,github.com,host.docker.internal,json-schema.org,json.schemastore.org,keyserver.ubuntu.com,lfs.github.com,objects.githubusercontent.com,ocsp.digicert.com,ocsp.geotrust.com,ocsp.globalsign.com,ocsp.identrust.com,ocsp.sectigo.com,ocsp.ssl.com,ocsp.thawte.com,ocsp.usertrust.com,ocsp.verisign.com,packagecloud.io,packages.cloud.google.com,packages.microsoft.com,playwright.download.prss.microsoft.com,ppa.launchpad.net,pypi.org,raw.githubusercontent.com,registry.npmjs.org,s.symcb.com,s.symcd.com,security.ubuntu.com,sentry.io,statsig.anthropic.com,ts-crl.ws.symantec.com,ts-ocsp.ws.symantec.com"
           GITHUB_SERVER_URL: ${{ github.server_url }}
           GITHUB_API_URL: ${{ github.api_url }}
-          GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG: "{\"create_discussion\":{\"category\":\"audits\",\"close_older_discussions\":true,\"expires\":24,\"fallback_to_issue\":true,\"max\":1},\"missing_data\":{},\"missing_tool\":{}}"
+          GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG: "{\"close_discussion\":{\"max\":10},\"create_discussion\":{\"category\":\"audits\",\"close_older_discussions\":true,\"expires\":24,\"fallback_to_issue\":true,\"max\":1},\"missing_data\":{},\"missing_tool\":{}}"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |

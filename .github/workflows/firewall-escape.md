@@ -35,9 +35,7 @@ sandbox:
 safe-outputs:
   create-discussion:
     expires: 1d
-    category: "audits"
     title-prefix: "[Firewall Escape] "
-    max: 1
 
 tools:
   github:
@@ -84,6 +82,8 @@ jobs:
             });
 features:
   copilot-requests: true
+imports:
+  - shared/daily-audit-discussion.md
 ---
 
 # The Great Escapi

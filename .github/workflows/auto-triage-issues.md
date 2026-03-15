@@ -18,6 +18,7 @@ network:
     - defaults
     - github
 imports:
+  - shared/daily-audit-discussion.md
   - shared/reporting.md
 tools:
   github:
@@ -31,9 +32,6 @@ safe-outputs:
   create-discussion:
     expires: 1d
     title-prefix: "[Auto-Triage] "
-    category: "audits"
-    close-older-discussions: true
-    max: 1
 timeout-minutes: 15
 features:
   copilot-requests: true

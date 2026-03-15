@@ -22,10 +22,6 @@ network:
     - github
 
 safe-outputs:
-  create-discussion:
-    category: "audits"
-    max: 1
-    close-older-discussions: true
   create-issue:
     expires: 2d
     labels: [delight, cookie]
@@ -56,6 +52,7 @@ tools:
 timeout-minutes: 30
 
 imports:
+  - shared/daily-audit-discussion.md
   - shared/reporting.md
   - shared/jqschema.md
 

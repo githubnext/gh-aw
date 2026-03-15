@@ -27,9 +27,6 @@ safe-outputs:
   create-discussion:
     expires: 1d
     title-prefix: "[copilot-session-insights] "
-    category: "audits"
-    max: 1
-    close-older-discussions: true
 
 tools:
   repo-memory:
@@ -48,6 +45,7 @@ tools:
     - "date *"
 
 imports:
+  - shared/daily-audit-discussion.md
   - shared/jqschema.md  # Must come before copilot-session-data-fetch.md (dependency)
   - shared/copilot-session-data-fetch.md
   - shared/session-analysis-charts.md

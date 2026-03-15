@@ -15,6 +15,7 @@ timeout-minutes: 10
 strict: true
 
 imports:
+  - shared/daily-audit-discussion.md
   - shared/mcp/serena-go.md
   - shared/reporting.md
 
@@ -28,9 +29,6 @@ tools:
 safe-outputs:
   create-discussion:
     expires: 1d
-    category: "audits"
-    max: 1
-    close-older-discussions: true
 ---
 
 # Terminal Stylist - Console Output Analysis

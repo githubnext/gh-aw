@@ -23,9 +23,6 @@ safe-outputs:
   create-discussion:
     expires: 1d
     title-prefix: "[copilot-pr-merged-report] "
-    category: "audits"
-    max: 1
-    close-older-discussions: true
 
 network:
   allowed:
@@ -34,6 +31,7 @@ network:
     - api.github.com
 
 imports:
+  - shared/daily-audit-discussion.md
   - shared/gh.md
   - shared/copilot-pr-analysis-base.md
   - shared/reporting.md

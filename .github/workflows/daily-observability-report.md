@@ -17,14 +17,10 @@ tools:
 safe-outputs:
   create-discussion:
     expires: 1d
-    category: "audits"
     title-prefix: "[observability] "
-    max: 1
-    close-older-discussions: true
-  close-discussion:
-    max: 10
 timeout-minutes: 45
 imports:
+  - shared/daily-audit-discussion.md
   - shared/reporting.md
 ---
 

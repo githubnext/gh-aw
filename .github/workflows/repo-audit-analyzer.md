@@ -24,15 +24,13 @@ tools:
 safe-outputs:
   create-discussion:
     expires: 1d
-    category: "audits"
-    max: 1
-    close-older-discussions: true
   missing-tool:
     create-issue: true
     labels: [cookie]
 timeout-minutes: 45
 strict: true
 imports:
+  - shared/daily-audit-discussion.md
   - shared/reporting.md
 ---
 

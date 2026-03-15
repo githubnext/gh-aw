@@ -21,9 +21,6 @@ safe-outputs:
   upload-asset:
   create-discussion:
     expires: 3d
-    category: "audits"
-    max: 1
-    close-older-discussions: true
 
 tools:
   agentic-workflows:
@@ -34,6 +31,7 @@ tools:
     - "*"
   edit:
 imports:
+  - shared/daily-audit-discussion.md
   - shared/reporting.md
   - shared/trending-charts-simple.md
 ---

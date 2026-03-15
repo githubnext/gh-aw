@@ -25,10 +25,11 @@
 #
 # Resolved workflow manifest:
 #   Imports:
+#     - shared/daily-audit-discussion.md
 #     - shared/reporting.md
 #     - shared/trending-charts-simple.md
 #
-# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"575da188e33143c8c5b5e07660a4f4d3302695314638124a21ac50fec6fd4b3a","strict":true}
+# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"d8948e33ae60bbcd4c6a0b0ae488aef2eec1b8426a2c1a503435ddaed9a1300f","strict":true}
 
 name: "Daily Firewall Logs Collector and Reporter"
 "on":
@@ -138,7 +139,7 @@ jobs:
           cat "/opt/gh-aw/prompts/safe_outputs_prompt.md"
           cat << 'GH_AW_PROMPT_EOF'
           <safe-output-tools>
-          Tools: create_discussion, upload_asset, missing_tool, missing_data, noop
+          Tools: create_discussion, close_discussion, upload_asset, missing_tool, missing_data, noop
           
           upload_asset: provide a file path; returns a URL; assets are published after the workflow completes (safeoutputs).
           </safe-output-tools>
@@ -173,6 +174,9 @@ jobs:
           GH_AW_PROMPT_EOF
           cat << 'GH_AW_PROMPT_EOF'
           </system>
+          GH_AW_PROMPT_EOF
+          cat << 'GH_AW_PROMPT_EOF'
+          {{#runtime-import .github/workflows/shared/daily-audit-discussion.md}}
           GH_AW_PROMPT_EOF
           cat << 'GH_AW_PROMPT_EOF'
           {{#runtime-import .github/workflows/shared/reporting.md}}
@@ -437,7 +441,7 @@ jobs:
           mkdir -p /tmp/gh-aw/safeoutputs
           mkdir -p /tmp/gh-aw/mcp-logs/safeoutputs
           cat > /opt/gh-aw/safeoutputs/config.json << 'GH_AW_SAFE_OUTPUTS_CONFIG_EOF'
-          {"create_discussion":{"expires":72,"max":1},"missing_data":{},"missing_tool":{},"noop":{"max":1},"upload_asset":{"max":0}}
+          {"close_discussion":{"max":10},"create_discussion":{"expires":72,"max":1},"missing_data":{},"missing_tool":{},"noop":{"max":1},"upload_asset":{"max":0}}
           GH_AW_SAFE_OUTPUTS_CONFIG_EOF
       - name: Write Safe Outputs Tools
         run: |
@@ -476,6 +480,48 @@ jobs:
                 "type": "object"
               },
               "name": "create_discussion"
+            },
+            {
+              "description": "Close a GitHub discussion with a resolution comment and optional reason. You can and should always add a comment when closing a discussion to explain the action or provide context. Use this to mark discussions as resolved, answered, or no longer needed. The closing comment should explain why the discussion is being closed. If the discussion is already closed, a comment will still be posted. CONSTRAINTS: Maximum 10 discussion(s) can be closed.",
+              "inputSchema": {
+                "additionalProperties": false,
+                "properties": {
+                  "body": {
+                    "description": "Closing comment explaining why the discussion is being closed and summarizing any resolution or conclusion.",
+                    "type": "string"
+                  },
+                  "discussion_number": {
+                    "description": "Discussion number to close. This is the numeric ID from the GitHub URL (e.g., 678 in github.com/owner/repo/discussions/678). If omitted, closes the discussion that triggered this workflow (requires a discussion event trigger).",
+                    "type": [
+                      "number",
+                      "string"
+                    ]
+                  },
+                  "integrity": {
+                    "description": "Trustworthiness level of the message source (e.g., \"low\", \"medium\", \"high\").",
+                    "type": "string"
+                  },
+                  "reason": {
+                    "description": "Resolution reason: RESOLVED (issue addressed), DUPLICATE (discussed elsewhere), OUTDATED (no longer relevant), or ANSWERED (question answered).",
+                    "enum": [
+                      "RESOLVED",
+                      "DUPLICATE",
+                      "OUTDATED",
+                      "ANSWERED"
+                    ],
+                    "type": "string"
+                  },
+                  "secrecy": {
+                    "description": "Confidentiality level of the message content (e.g., \"public\", \"internal\", \"private\").",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "body"
+                ],
+                "type": "object"
+              },
+              "name": "close_discussion"
             },
             {
               "description": "Upload a file as a URL-addressable asset that can be referenced in issues, PRs, or comments. The file is stored on an orphaned git branch and returns a permanent URL. Use this for images, diagrams, or other files that need to be embedded in GitHub content. CONSTRAINTS: Maximum file size: 10240KB. Allowed file extensions: [.png .jpg .jpeg].",
@@ -599,6 +645,33 @@ jobs:
           GH_AW_SAFE_OUTPUTS_TOOLS_EOF
           cat > /opt/gh-aw/safeoutputs/validation.json << 'GH_AW_SAFE_OUTPUTS_VALIDATION_EOF'
           {
+            "close_discussion": {
+              "defaultMax": 1,
+              "fields": {
+                "body": {
+                  "required": true,
+                  "type": "string",
+                  "sanitize": true,
+                  "maxLength": 65000
+                },
+                "discussion_number": {
+                  "optionalPositiveInteger": true
+                },
+                "reason": {
+                  "type": "string",
+                  "enum": [
+                    "RESOLVED",
+                    "DUPLICATE",
+                    "OUTDATED",
+                    "ANSWERED"
+                  ]
+                },
+                "repo": {
+                  "type": "string",
+                  "maxLength": 256
+                }
+              }
+            },
             "create_discussion": {
               "defaultMax": 1,
               "fields": {
@@ -1292,7 +1365,7 @@ jobs:
           GH_AW_ALLOWED_DOMAINS: "*.pythonhosted.org,anaconda.org,api.business.githubcopilot.com,api.enterprise.githubcopilot.com,api.github.com,api.githubcopilot.com,api.individual.githubcopilot.com,api.snapcraft.io,archive.ubuntu.com,azure.archive.ubuntu.com,binstar.org,bootstrap.pypa.io,conda.anaconda.org,conda.binstar.org,crates.io,crl.geotrust.com,crl.globalsign.com,crl.identrust.com,crl.sectigo.com,crl.thawte.com,crl.usertrust.com,crl.verisign.com,crl3.digicert.com,crl4.digicert.com,crls.ssl.com,files.pythonhosted.org,github.com,host.docker.internal,index.crates.io,json-schema.org,json.schemastore.org,keyserver.ubuntu.com,ocsp.digicert.com,ocsp.geotrust.com,ocsp.globalsign.com,ocsp.identrust.com,ocsp.sectigo.com,ocsp.ssl.com,ocsp.thawte.com,ocsp.usertrust.com,ocsp.verisign.com,packagecloud.io,packages.cloud.google.com,packages.microsoft.com,pip.pypa.io,ppa.launchpad.net,pypi.org,pypi.python.org,raw.githubusercontent.com,registry.npmjs.org,repo.anaconda.com,repo.continuum.io,s.symcb.com,s.symcd.com,security.ubuntu.com,static.crates.io,telemetry.enterprise.githubcopilot.com,ts-crl.ws.symantec.com,ts-ocsp.ws.symantec.com"
           GITHUB_SERVER_URL: ${{ github.server_url }}
           GITHUB_API_URL: ${{ github.api_url }}
-          GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG: "{\"create_discussion\":{\"category\":\"audits\",\"close_older_discussions\":true,\"expires\":72,\"fallback_to_issue\":true,\"max\":1},\"missing_data\":{},\"missing_tool\":{}}"
+          GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG: "{\"close_discussion\":{\"max\":10},\"create_discussion\":{\"category\":\"audits\",\"close_older_discussions\":true,\"expires\":72,\"fallback_to_issue\":true,\"max\":1},\"missing_data\":{},\"missing_tool\":{}}"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |

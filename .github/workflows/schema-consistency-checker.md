@@ -20,12 +20,10 @@ tools:
 safe-outputs:
   create-discussion:
     expires: 1d
-    category: "audits"
     title-prefix: "[Schema Consistency] "
-    max: 1
-    close-older-discussions: true
 timeout-minutes: 30
 imports:
+  - shared/daily-audit-discussion.md
   - shared/reporting.md
 ---
 

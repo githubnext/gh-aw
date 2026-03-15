@@ -21,12 +21,10 @@ sandbox:
 safe-outputs:
   create-discussion:
     expires: 1d
-    category: "audits"
-    max: 1
-    close-older-discussions: true
 timeout-minutes: 20
 strict: false
 imports:
+  - shared/daily-audit-discussion.md
   - shared/mcp/arxiv.md
   - shared/mcp/ast-grep.md
   # Note: azure.md excluded due to schema validation issue with entrypointArgs

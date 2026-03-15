@@ -28,11 +28,10 @@ safe-outputs:
   create-discussion:
     expires: 1d
     title-prefix: "[portfolio] "
-    category: "audits"
-    close-older-discussions: true
   upload-asset:
 timeout-minutes: 20
 imports:
+  - shared/daily-audit-discussion.md
   - shared/reporting.md
   - shared/jqschema.md
   - shared/trending-charts-simple.md

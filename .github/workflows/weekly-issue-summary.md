@@ -30,9 +30,8 @@ safe-outputs:
   create-discussion:
     expires: 1d
     title-prefix: "[Weekly Summary] "
-    category: "audits"
-    close-older-discussions: true
 imports:
+  - shared/daily-audit-discussion.md
   - shared/reporting.md
   - shared/trends.md
 ---

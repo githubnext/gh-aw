@@ -11,6 +11,7 @@ permissions:
 tracker-id: daily-compiler-quality
 engine: copilot
 imports:
+  - shared/daily-audit-discussion.md
   - shared/mcp/serena-go.md
   - shared/reporting.md
 tools:
@@ -28,9 +29,6 @@ tools:
 safe-outputs:
   create-discussion:
     expires: 1d
-    category: "audits"
-    max: 1
-    close-older-discussions: true
 timeout-minutes: 30
 strict: true
 features:

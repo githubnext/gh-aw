@@ -11,6 +11,7 @@ permissions:
   pull-requests: read
 engine: copilot
 imports:
+  - shared/daily-audit-discussion.md
   - shared/reporting.md
   - shared/mcp/serena-go.md
 tools:
@@ -25,9 +26,6 @@ tools:
 safe-outputs:
   create-discussion:
     expires: 1d
-    category: "audits"
-    max: 1
-    close-older-discussions: true
 timeout-minutes: 20
 strict: true
 

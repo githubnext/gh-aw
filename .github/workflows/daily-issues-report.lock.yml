@@ -25,13 +25,14 @@
 #
 # Resolved workflow manifest:
 #   Imports:
+#     - shared/daily-audit-discussion.md
 #     - shared/issues-data-fetch.md
 #     - shared/jqschema.md
 #     - shared/python-dataviz.md
 #     - shared/reporting.md
 #     - shared/trends.md
 #
-# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"667a196ac2033e3f747d5c0dd2d3391c9a05f01941879279691b28a1ccc5f68b","strict":true}
+# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"6818a76b8297b5268785c694a652df4dceff5ef850fe0b20c6ccc1e0317dbd96","strict":true}
 
 name: "Daily Issues Report Generator"
 "on":
@@ -182,6 +183,9 @@ jobs:
           GH_AW_PROMPT_EOF
           cat << 'GH_AW_PROMPT_EOF'
           </system>
+          GH_AW_PROMPT_EOF
+          cat << 'GH_AW_PROMPT_EOF'
+          {{#runtime-import .github/workflows/shared/daily-audit-discussion.md}}
           GH_AW_PROMPT_EOF
           cat << 'GH_AW_PROMPT_EOF'
           {{#runtime-import .github/workflows/shared/jqschema.md}}

@@ -14,6 +14,7 @@ network:
     - defaults
     - github
 imports:
+  - shared/daily-audit-discussion.md
   - shared/jqschema.md
   - shared/reporting.md
 tools:
@@ -65,8 +66,6 @@ safe-outputs:
   create-discussion:
     expires: 1d
     title-prefix: "[Issue Arborist] "
-    category: "audits"
-    close-older-discussions: true
 timeout-minutes: 15
 ---
 

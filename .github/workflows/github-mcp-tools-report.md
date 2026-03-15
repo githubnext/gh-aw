@@ -18,10 +18,6 @@ tools:
   cache-memory: true
   edit:
 safe-outputs:
-  create-discussion:
-    category: "audits"
-    max: 1
-    close-older-discussions: true
   create-pull-request:
     expires: 2d
     title-prefix: "[mcp-tools] "
@@ -30,6 +26,7 @@ safe-outputs:
     draft: false
 timeout-minutes: 15
 imports:
+  - shared/daily-audit-discussion.md
   - shared/reporting.md
 ---
 

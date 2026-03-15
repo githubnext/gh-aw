@@ -15,8 +15,6 @@ safe-outputs:
   create-discussion:
     expires: 1d
     title-prefix: "[nitpick-report] "
-    category: "audits"
-    max: 1
   create-pull-request-review-comment:
     max: 10
     side: "RIGHT"
@@ -29,6 +27,7 @@ safe-outputs:
     run-failure: "🔬 Lens cracked! [{workflow_name}]({run_url}) {status}. Some nitpicks remain undetected..."
 timeout-minutes: 15
 imports:
+  - shared/daily-audit-discussion.md
   - shared/reporting.md
 ---
 

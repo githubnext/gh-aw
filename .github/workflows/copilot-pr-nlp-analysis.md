@@ -27,11 +27,9 @@ safe-outputs:
   create-discussion:
     expires: 1d
     title-prefix: "[nlp-analysis] "
-    category: "audits"
-    max: 1
-    close-older-discussions: true
 
 imports:
+  - shared/daily-audit-discussion.md
   - shared/copilot-pr-analysis-base.md
   - shared/python-dataviz.md
   - shared/reporting.md

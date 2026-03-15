@@ -23,11 +23,9 @@ safe-outputs:
   create-discussion:
     expires: 1d
     title-prefix: "[prompt-clustering] "
-    category: "audits"
-    max: 1
-    close-older-discussions: true
 
 imports:
+  - shared/daily-audit-discussion.md
   - shared/jqschema.md
   - shared/reporting.md
   - shared/copilot-pr-data-fetch.md

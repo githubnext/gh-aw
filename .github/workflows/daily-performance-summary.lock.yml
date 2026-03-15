@@ -25,11 +25,12 @@
 #
 # Resolved workflow manifest:
 #   Imports:
+#     - shared/daily-audit-discussion.md
 #     - shared/github-queries-mcp-script.md
 #     - shared/reporting.md
 #     - shared/trending-charts-simple.md
 #
-# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"c93c3cce9fe58a74b02303d790120c6508d3d4d0bf95bb4fc24c36df3847efd0","strict":true}
+# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"c158f00b8cac75b3378e863689927a1c3bc41e1dba1317961562b6aa95f53894","strict":true}
 
 name: "Daily Project Performance Summary Generator (Using MCP Scripts)"
 "on":
@@ -174,6 +175,9 @@ jobs:
           GH_AW_PROMPT_EOF
           cat << 'GH_AW_PROMPT_EOF'
           </system>
+          GH_AW_PROMPT_EOF
+          cat << 'GH_AW_PROMPT_EOF'
+          {{#runtime-import .github/workflows/shared/daily-audit-discussion.md}}
           GH_AW_PROMPT_EOF
           cat << 'GH_AW_PROMPT_EOF'
           {{#runtime-import .github/workflows/shared/github-queries-mcp-script.md}}

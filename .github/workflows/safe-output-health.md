@@ -21,12 +21,10 @@ steps:
 safe-outputs:
   create-discussion:
     expires: 1d
-    category: "audits"
-    max: 1
-    close-older-discussions: true
 timeout-minutes: 30
 strict: true
 imports:
+  - shared/daily-audit-discussion.md
   - shared/jqschema.md
   - shared/reporting.md
 ---

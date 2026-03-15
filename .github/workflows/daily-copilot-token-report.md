@@ -39,11 +39,9 @@ safe-outputs:
   upload-asset:
   create-discussion:
     expires: 3d
-    category: "audits"
-    max: 1
-    close-older-discussions: true
 timeout-minutes: 20
 imports:
+  - shared/daily-audit-discussion.md
   - copilot-setup-steps.yml    # Import setup steps from copilot-setup-steps.yml
   - shared/reporting.md
   - shared/python-dataviz.md

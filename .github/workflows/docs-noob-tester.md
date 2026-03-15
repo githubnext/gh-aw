@@ -19,8 +19,6 @@ safe-outputs:
   upload-asset:
   create-discussion:
     expires: 1d
-    category: "audits"
-    close-older-discussions: true
 
 network:
   allowed:
@@ -28,6 +26,7 @@ network:
     - node
 
 imports:
+  - shared/daily-audit-discussion.md
   - shared/docs-server-lifecycle.md
   - shared/reporting.md
 features:

@@ -25,9 +25,6 @@ network:
 safe-outputs:
   create-discussion:
     expires: 1d
-    category: "audits"
-    max: 1
-    close-older-discussions: true
 
 tools:
   cache-memory: true
@@ -39,6 +36,7 @@ tools:
 timeout-minutes: 30
 
 imports:
+  - shared/daily-audit-discussion.md
   - shared/reporting.md
 
 features:

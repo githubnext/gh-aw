@@ -22,6 +22,7 @@ network:
     - go
 
 imports:
+  - shared/daily-audit-discussion.md
   - shared/reporting.md
   - shared/mcp/serena-go.md
 
@@ -29,9 +30,6 @@ safe-outputs:
   create-discussion:
     expires: 1d
     title-prefix: "[sergo] "
-    category: "audits"
-    max: 1
-    close-older-discussions: true
 
 tools:
   cache-memory: true

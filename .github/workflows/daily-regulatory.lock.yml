@@ -25,10 +25,11 @@
 #
 # Resolved workflow manifest:
 #   Imports:
+#     - shared/daily-audit-discussion.md
 #     - shared/github-queries-mcp-script.md
 #     - shared/reporting.md
 #
-# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"238c3282ef64bdb6800bd48877c082702a91b29214ffb81ce63903042421d706","strict":true}
+# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"9d36c8d42bd2a9ec079b1fd41b64467d1e6403a0314d7c2677e13d89b1770a31","strict":true}
 
 name: "Daily Regulatory Report Generator"
 "on":
@@ -170,6 +171,9 @@ jobs:
           GH_AW_PROMPT_EOF
           cat << 'GH_AW_PROMPT_EOF'
           </system>
+          GH_AW_PROMPT_EOF
+          cat << 'GH_AW_PROMPT_EOF'
+          {{#runtime-import .github/workflows/shared/daily-audit-discussion.md}}
           GH_AW_PROMPT_EOF
           cat << 'GH_AW_PROMPT_EOF'
           {{#runtime-import .github/workflows/shared/github-queries-mcp-script.md}}
