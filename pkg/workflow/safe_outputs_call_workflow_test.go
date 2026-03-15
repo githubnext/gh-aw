@@ -457,7 +457,7 @@ jobs:
 	_, hasPayloadFromJSON := job.With["payload"]
 	assert.True(t, hasPayloadFromJSON, "payload key must be present")
 	payloadVal, _ := job.With["payload"].(string)
-	assert.False(t, strings.Contains(payloadVal, "fromJSON"),
+	assert.NotContains(t, payloadVal, "fromJSON",
 		"payload canonical entry must be the raw step output, not a fromJSON expression")
 }
 
