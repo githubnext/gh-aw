@@ -943,9 +943,9 @@ func TestExpandAllowedDomains(t *testing.T) {
 	})
 }
 
-// TestComputeAllowedURLDomainsForSanitization tests that allowed-domains are unioned with
+// TestComputeExpandedAllowedDomainsForSanitization tests that allowed-domains are unioned with
 // the engine/network base set and always includes localhost and github.com
-func TestComputeAllowedURLDomainsForSanitization(t *testing.T) {
+func TestComputeExpandedAllowedDomainsForSanitization(t *testing.T) {
 	compiler := NewCompiler()
 
 	t.Run("unions with engine base set", func(t *testing.T) {

@@ -7411,14 +7411,6 @@
               }
             ]
           ]
-        },
-        "allowed-url-domains": {
-          "type": "array",
-          "description": "Deprecated: use allowed-domains instead.",
-          "items": {
-            "type": "string"
-          },
-          "deprecated": true
         }
       },
       "additionalProperties": false
