@@ -1,7 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import fs from "fs";
-import os from "os";
-import path from "path";
 
 // Mock the global objects that GitHub Actions provides
 const mockCore = {
@@ -22,9 +20,7 @@ global.core = mockCore;
 
 describe("generate_workflow_overview.cjs", () => {
   let generateWorkflowOverview;
-  let tmpDir;
   let awInfoPath;
-  let originalRequireCache;
 
   beforeEach(async () => {
     // Reset mocks
@@ -54,6 +50,7 @@ describe("generate_workflow_overview.cjs", () => {
       engine_id: "copilot",
       engine_name: "GitHub Copilot",
       model: "gpt-4",
+      version: "v1.2.3",
       firewall_enabled: true,
       awf_version: "1.0.0",
       allowed_domains: [],
@@ -67,19 +64,22 @@ describe("generate_workflow_overview.cjs", () => {
 
     const summaryArg = mockCore.summary.addRaw.mock.calls[0][0];
     expect(summaryArg).toContain("<details>");
-    expect(summaryArg).toContain("<summary>Run details</summary>");
-    expect(summaryArg).toContain("#### Engine Configuration");
-    expect(summaryArg).toContain("| Engine ID | copilot |");
-    expect(summaryArg).toContain("| Engine Name | GitHub Copilot |");
-    expect(summaryArg).toContain("| Model | gpt-4 |");
-    expect(summaryArg).toContain("#### Network Configuration");
-    expect(summaryArg).toContain("| Firewall | ✅ Enabled |");
-    expect(summaryArg).toContain("| Firewall Version | 1.0.0 |");
+    // engine_id and version should appear in the summary label
+    expect(summaryArg).toContain("<summary>Run details - copilot v1.2.3</summary>");
+    // All fields should be rendered as bullet points with humanified keys
+    expect(summaryArg).toContain("- **engine id**: copilot");
+    expect(summaryArg).toContain("- **engine name**: GitHub Copilot");
+    expect(summaryArg).toContain("- **model**: gpt-4");
+    expect(summaryArg).toContain("- **version**: v1.2.3");
+    expect(summaryArg).toContain("- **firewall enabled**: true");
+    expect(summaryArg).toContain("- **awf version**: 1.0.0");
     expect(summaryArg).toContain("</details>");
+    // Ensure no table syntax is present
+    expect(summaryArg).not.toContain("| Property | Value |");
+    expect(summaryArg).not.toContain("|----------|-------|");
   });
 
-  it("should handle missing optional fields with defaults", async () => {
-    // Create test aw_info.json with minimal fields
+  it("should show only engine_id in summary label when version is missing", async () => {
     const awInfo = {
       engine_id: "claude",
       engine_name: "Claude",
@@ -90,62 +90,41 @@ describe("generate_workflow_overview.cjs", () => {
     await generateWorkflowOverview(mockCore);
 
     const summaryArg = mockCore.summary.addRaw.mock.calls[0][0];
-    expect(summaryArg).toContain("| Model | (default) |");
-    expect(summaryArg).toContain("| Firewall | ❌ Disabled |");
-    expect(summaryArg).toContain("| Firewall Version | (latest) |");
+    expect(summaryArg).toContain("<summary>Run details - claude</summary>");
+    expect(summaryArg).toContain("- **engine id**: claude");
+    expect(summaryArg).toContain("- **firewall enabled**: false");
   });
 
-  it("should include allowed domains when present (up to 10)", async () => {
+  it("should show plain 'Run details' in summary label when both engine_id and version are missing", async () => {
     const awInfo = {
-      engine_id: "copilot",
-      engine_name: "GitHub Copilot",
-      firewall_enabled: true,
-      allowed_domains: ["example.com", "github.com", "api.github.com"],
+      engine_name: "Unknown Engine",
     };
     fs.writeFileSync(awInfoPath, JSON.stringify(awInfo));
 
     await generateWorkflowOverview(mockCore);
 
     const summaryArg = mockCore.summary.addRaw.mock.calls[0][0];
-    expect(summaryArg).toContain("##### Allowed Domains");
+    expect(summaryArg).toContain("<summary>Run details</summary>");
+  });
+
+  it("should render all fields from aw_info including nested objects and arrays", async () => {
+    const awInfo = {
+      engine_id: "copilot",
+      version: "v2.0.0",
+      allowed_domains: ["example.com", "github.com"],
+      steps: { firewall: "iptables" },
+    };
+    fs.writeFileSync(awInfoPath, JSON.stringify(awInfo));
+
+    await generateWorkflowOverview(mockCore);
+
+    const summaryArg = mockCore.summary.addRaw.mock.calls[0][0];
+    expect(summaryArg).toContain("- **engine id**: copilot");
+    expect(summaryArg).toContain("- **allowed domains**:");
     expect(summaryArg).toContain("  - example.com");
     expect(summaryArg).toContain("  - github.com");
-    expect(summaryArg).toContain("  - api.github.com");
-  });
-
-  it("should truncate allowed domains list when more than 10", async () => {
-    const domains = Array.from({ length: 15 }, (_, i) => `domain${i + 1}.com`);
-    const awInfo = {
-      engine_id: "copilot",
-      engine_name: "GitHub Copilot",
-      firewall_enabled: true,
-      allowed_domains: domains,
-    };
-    fs.writeFileSync(awInfoPath, JSON.stringify(awInfo));
-
-    await generateWorkflowOverview(mockCore);
-
-    const summaryArg = mockCore.summary.addRaw.mock.calls[0][0];
-    expect(summaryArg).toContain("##### Allowed Domains");
-    expect(summaryArg).toContain("  - domain1.com");
-    expect(summaryArg).toContain("  - domain10.com");
-    expect(summaryArg).toContain("  - ... and 5 more");
-    expect(summaryArg).not.toContain("domain11.com");
-  });
-
-  it("should not include Allowed Domains section when empty", async () => {
-    const awInfo = {
-      engine_id: "copilot",
-      engine_name: "GitHub Copilot",
-      firewall_enabled: false,
-      allowed_domains: [],
-    };
-    fs.writeFileSync(awInfoPath, JSON.stringify(awInfo));
-
-    await generateWorkflowOverview(mockCore);
-
-    const summaryArg = mockCore.summary.addRaw.mock.calls[0][0];
-    expect(summaryArg).not.toContain("##### Allowed Domains");
+    expect(summaryArg).toContain("- **steps**:");
+    expect(summaryArg).toContain("  - **firewall**: iptables");
   });
 
   it("should log success message", async () => {

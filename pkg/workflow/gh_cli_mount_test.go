@@ -25,11 +25,7 @@ func TestChrootModeInAWFContainer(t *testing.T) {
 		engine := NewCopilotEngine()
 		steps := engine.GetExecutionSteps(workflowData, "test.log")
 
-		if len(steps) == 0 {
-			t.Fatal("Expected at least one execution step")
-		}
-
-		stepContent := strings.Join(steps[0], "\n")
+		_, stepContent := requireCopilotPreflightAndExecutionSteps(t, steps)
 
 		// Check that AWF is used (chroot mode is default in v0.15.0+)
 		if !strings.Contains(stepContent, "sudo -E awf") {
@@ -53,11 +49,7 @@ func TestChrootModeInAWFContainer(t *testing.T) {
 		engine := NewCopilotEngine()
 		steps := engine.GetExecutionSteps(workflowData, "test.log")
 
-		if len(steps) == 0 {
-			t.Fatal("Expected at least one execution step")
-		}
-
-		stepContent := strings.Join(steps[0], "\n")
+		_, stepContent := requireCopilotPreflightAndExecutionSteps(t, steps)
 
 		// Check that AWF command is not used
 		if strings.Contains(stepContent, "awf") {
@@ -81,11 +73,7 @@ func TestChrootModeInAWFContainer(t *testing.T) {
 		engine := NewCopilotEngine()
 		steps := engine.GetExecutionSteps(workflowData, "test.log")
 
-		if len(steps) == 0 {
-			t.Fatal("Expected at least one execution step")
-		}
-
-		stepContent := strings.Join(steps[0], "\n")
+		_, stepContent := requireCopilotPreflightAndExecutionSteps(t, steps)
 
 		// Verify AWF is present (chroot mode is default in v0.15.0+)
 		if !strings.Contains(stepContent, "sudo -E awf") {
@@ -125,11 +113,7 @@ func TestChrootModeInAWFContainer(t *testing.T) {
 		engine := NewCopilotEngine()
 		steps := engine.GetExecutionSteps(workflowData, "test.log")
 
-		if len(steps) == 0 {
-			t.Fatal("Expected at least one execution step")
-		}
-
-		stepContent := strings.Join(steps[0], "\n")
+		_, stepContent := requireCopilotPreflightAndExecutionSteps(t, steps)
 
 		// Verify AWF is present with custom args (chroot mode is default in v0.15.0+)
 		if !strings.Contains(stepContent, "sudo -E awf") {
@@ -163,11 +147,7 @@ func TestChrootModeInAWFContainer(t *testing.T) {
 		engine := NewCopilotEngine()
 		steps := engine.GetExecutionSteps(workflowData, "test.log")
 
-		if len(steps) == 0 {
-			t.Fatal("Expected at least one execution step")
-		}
-
-		stepContent := strings.Join(steps[0], "\n")
+		_, stepContent := requireCopilotPreflightAndExecutionSteps(t, steps)
 
 		// Verify AWF is being used (chroot mode is default in v0.15.0+)
 		if !strings.Contains(stepContent, "awf") {
@@ -194,11 +174,7 @@ func TestChrootModeEnvFlags(t *testing.T) {
 		engine := NewCopilotEngine()
 		steps := engine.GetExecutionSteps(workflowData, "test.log")
 
-		if len(steps) == 0 {
-			t.Fatal("Expected at least one execution step")
-		}
-
-		stepContent := strings.Join(steps[0], "\n")
+		_, stepContent := requireCopilotPreflightAndExecutionSteps(t, steps)
 
 		// Verify AWF is present (chroot mode is default in v0.15.0+)
 		if !strings.Contains(stepContent, "sudo -E awf") {

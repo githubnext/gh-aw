@@ -48,7 +48,7 @@ func collectMCPScriptsSecrets(mcpScripts *MCPScriptsConfig) map[string]string {
 
 // renderMCPScriptsMCPConfigWithOptions generates the MCP Scripts server configuration with engine-specific options
 // Always uses HTTP transport mode
-func renderMCPScriptsMCPConfigWithOptions(yaml *strings.Builder, mcpScripts *MCPScriptsConfig, isLast bool, includeCopilotFields bool, workflowData *WorkflowData) {
+func renderMCPScriptsMCPConfigWithOptions(yaml *strings.Builder, mcpScripts *MCPScriptsConfig, isLast bool, includeCopilotFields bool, workflowData *WorkflowData, guardPolicies map[string]any) {
 	mcpScriptsRendererLog.Printf("Rendering MCP Scripts config: includeCopilotFields=%t, isLast=%t",
 		includeCopilotFields, isLast)
 
@@ -80,10 +80,15 @@ func renderMCPScriptsMCPConfigWithOptions(yaml *strings.Builder, mcpScripts *MCP
 		// Claude/Custom format: direct shell variable reference
 		yaml.WriteString("                  \"Authorization\": \"$GH_AW_MCP_SCRIPTS_API_KEY\"\n")
 	}
-	// Close headers - no trailing comma since this is the last field
+	// Close headers - with or without trailing comma depending on whether guard policies follow
 	// Note: env block is NOT included for HTTP servers because the old MCP Gateway schema
 	// doesn't allow env in httpServerConfig. The variables are resolved via URL templates.
-	yaml.WriteString("                }\n")
+	if len(guardPolicies) > 0 {
+		yaml.WriteString("                },\n")
+		renderGuardPoliciesJSON(yaml, guardPolicies, "                ")
+	} else {
+		yaml.WriteString("                }\n")
+	}
 
 	if isLast {
 		yaml.WriteString("              }\n")

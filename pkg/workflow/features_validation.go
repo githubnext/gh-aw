@@ -4,14 +4,15 @@
 //
 // This file validates feature flag values to ensure they meet requirements
 // before being used in workflow compilation. It ensures that:
-//   - action-tag uses full 40-character SHA when specified
+//   - action-tag uses a full 40-character SHA or a version tag when specified
 //   - Other feature-specific constraints are met
 //
 // # Validation Functions
 //
 //   - validateFeatures() - Validates all feature flags in WorkflowData
-//   - validateActionTag() - Validates action-tag is a full SHA
+//   - validateActionTag() - Validates action-tag is a full SHA or version tag
 //   - isValidFullSHA() - Checks if a string is a valid 40-character SHA
+//   - isValidVersionTag() - Checks if a string is a valid version tag (in semver.go)
 //
 // # When to Add Validation Here
 //
@@ -54,7 +55,7 @@ func validateFeatures(data *WorkflowData) error {
 	return nil
 }
 
-// validateActionTag validates that action-tag is a full 40-character SHA when specified
+// validateActionTag validates that action-tag is a full 40-character SHA or a version tag when specified
 func validateActionTag(value any) error {
 	// Allow empty or nil values
 	if value == nil {
@@ -68,7 +69,7 @@ func validateActionTag(value any) error {
 			"features.action-tag",
 			fmt.Sprintf("%T", value),
 			fmt.Sprintf("action-tag must be a string, got %T", value),
-			"Provide a string value for action-tag. Example:\nfeatures:\n  action-tag: \"a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6q7r8s9t0\"",
+			"Provide a string value for action-tag. Example:\nfeatures:\n  action-tag: \"v0\"",
 		)
 	}
 
@@ -77,17 +78,22 @@ func validateActionTag(value any) error {
 		return nil
 	}
 
-	// Validate it's a full SHA (40 hex characters)
-	if !isValidFullSHA(strVal) {
-		return NewValidationError(
-			"features.action-tag",
-			strVal,
-			fmt.Sprintf("action-tag must be a full 40-character commit SHA (length: %d). Short SHAs are not allowed", len(strVal)),
-			"Use 'git rev-parse <ref>' to get the full SHA. Example:\n\n$ git rev-parse HEAD\na1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6q7r8s9t0\n\nThen use in workflow:\nfeatures:\n  action-tag: \"a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6q7r8s9t0\"",
-		)
+	// Accept full 40-character commit SHA
+	if isValidFullSHA(strVal) {
+		return nil
 	}
 
-	return nil
+	// Accept version tags like "v0", "v1", "v1.0.0"
+	if isValidVersionTag(strVal) {
+		return nil
+	}
+
+	return NewValidationError(
+		"features.action-tag",
+		strVal,
+		fmt.Sprintf("action-tag must be a full 40-character commit SHA or a version tag (e.g. v0, v1.0.0). Got: %q", strVal),
+		"Use a version tag or a full commit SHA. Examples:\nfeatures:\n  action-tag: \"v0\"\n\nOr with a full SHA:\nfeatures:\n  action-tag: \"a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6q7r8s9t0\"",
+	)
 }
 
 // isValidFullSHA checks if a string is a valid 40-character hexadecimal SHA

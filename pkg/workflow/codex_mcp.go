@@ -19,11 +19,12 @@ func (e *CodexEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]an
 	// Codex uses TOML format without Copilot-specific fields and multi-line args
 	createRenderer := func(isLast bool) *MCPConfigRendererUnified {
 		return NewMCPConfigRenderer(MCPRendererOptions{
-			IncludeCopilotFields: false, // Codex doesn't use "type" and "tools" fields
-			InlineArgs:           false, // Codex uses multi-line args format
-			Format:               "toml",
-			IsLast:               isLast,
-			ActionMode:           GetActionModeFromWorkflowData(workflowData),
+			IncludeCopilotFields:   false, // Codex doesn't use "type" and "tools" fields
+			InlineArgs:             false, // Codex uses multi-line args format
+			Format:                 "toml",
+			IsLast:                 isLast,
+			ActionMode:             GetActionModeFromWorkflowData(workflowData),
+			WriteSinkGuardPolicies: deriveWriteSinkGuardPolicyFromWorkflow(workflowData),
 		})
 	}
 
@@ -69,7 +70,7 @@ func (e *CodexEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]an
 				renderer.RenderMCPScriptsMCP(yaml, workflowData.MCPScripts, workflowData)
 			}
 		case "web-fetch":
-			renderMCPFetchServerConfig(yaml, "toml", "          ", false, false)
+			renderMCPFetchServerConfig(yaml, "toml", "          ", false, false, deriveWriteSinkGuardPolicyFromWorkflow(workflowData))
 		default:
 			// Handle custom MCP tools using shared helper (with adapter for isLast parameter)
 			HandleCustomMCPToolInSwitch(yaml, toolName, expandedTools, false, func(yaml *strings.Builder, toolName string, toolConfig map[string]any, isLast bool) error {
@@ -112,11 +113,12 @@ func (e *CodexEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]an
 			actionMode = workflowData.ActionMode
 		}
 		return NewMCPConfigRenderer(MCPRendererOptions{
-			IncludeCopilotFields: false, // Gateway doesn't need Copilot fields
-			InlineArgs:           false, // Use standard multi-line format
-			Format:               "json",
-			IsLast:               isLast,
-			ActionMode:           actionMode,
+			IncludeCopilotFields:   false, // Gateway doesn't need Copilot fields
+			InlineArgs:             false, // Use standard multi-line format
+			Format:                 "json",
+			IsLast:                 isLast,
+			ActionMode:             actionMode,
+			WriteSinkGuardPolicies: deriveWriteSinkGuardPolicyFromWorkflow(workflowData),
 		})
 	}
 
@@ -152,7 +154,7 @@ func (e *CodexEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]an
 				renderer.RenderMCPScriptsMCP(yaml, mcpScripts, workflowData)
 			},
 			RenderWebFetch: func(yaml *strings.Builder, isLast bool) {
-				renderMCPFetchServerConfig(yaml, "json", "              ", isLast, false)
+				renderMCPFetchServerConfig(yaml, "json", "              ", isLast, false, deriveWriteSinkGuardPolicyFromWorkflow(workflowData))
 			},
 			RenderCustomMCPConfig: func(yaml *strings.Builder, toolName string, toolConfig map[string]any, isLast bool) error {
 				return e.renderCodexJSONMCPConfigWithContext(yaml, toolName, toolConfig, isLast, workflowData)
@@ -177,6 +179,7 @@ func (e *CodexEngine) renderCodexMCPConfigWithContext(yaml *strings.Builder, too
 		IndentLevel:              "          ",
 		Format:                   "toml",
 		RewriteLocalhostToDocker: rewriteLocalhost,
+		GuardPolicies:            deriveWriteSinkGuardPolicyFromWorkflow(workflowData),
 	}
 
 	err := renderSharedMCPConfig(yaml, toolName, toolConfig, renderer)
@@ -200,6 +203,7 @@ func (e *CodexEngine) renderCodexJSONMCPConfigWithContext(yaml *strings.Builder,
 		Format:                   "json",
 		IndentLevel:              "              ",
 		RewriteLocalhostToDocker: rewriteLocalhost,
+		GuardPolicies:            deriveWriteSinkGuardPolicyFromWorkflow(workflowData),
 	}
 
 	yaml.WriteString("              \"" + toolName + "\": {\n")

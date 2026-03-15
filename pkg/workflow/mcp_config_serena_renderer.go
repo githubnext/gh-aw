@@ -86,7 +86,7 @@ func selectSerenaContainer(serenaTool any) string {
 
 // renderSerenaMCPConfigWithOptions generates the Serena MCP server configuration with engine-specific options
 // Uses Docker container with stdio transport (ghcr.io/github/serena-mcp-server:latest)
-func renderSerenaMCPConfigWithOptions(yaml *strings.Builder, serenaTool any, isLast bool, includeCopilotFields bool, inlineArgs bool) {
+func renderSerenaMCPConfigWithOptions(yaml *strings.Builder, serenaTool any, isLast bool, includeCopilotFields bool, inlineArgs bool, guardPolicies map[string]any) {
 	customArgs := getSerenaCustomArgs(serenaTool)
 
 	yaml.WriteString("              \"serena\": {\n")
@@ -136,7 +136,13 @@ func renderSerenaMCPConfigWithOptions(yaml *strings.Builder, serenaTool any, isL
 
 	// Add volume mount for workspace access
 	// Security: Use GITHUB_WORKSPACE environment variable instead of template expansion to prevent template injection
-	yaml.WriteString("                \"mounts\": [\"\\${GITHUB_WORKSPACE}:\\${GITHUB_WORKSPACE}:rw\"]\n")
+	// When guard policies follow, mounts is not the last field (add trailing comma)
+	if len(guardPolicies) > 0 {
+		yaml.WriteString("                \"mounts\": [\"\\${GITHUB_WORKSPACE}:\\${GITHUB_WORKSPACE}:rw\"],\n")
+		renderGuardPoliciesJSON(yaml, guardPolicies, "                ")
+	} else {
+		yaml.WriteString("                \"mounts\": [\"\\${GITHUB_WORKSPACE}:\\${GITHUB_WORKSPACE}:rw\"]\n")
+	}
 
 	// Note: tools field is NOT included here - the converter script adds it back
 	// for Copilot. This keeps the gateway config compatible with the schema.

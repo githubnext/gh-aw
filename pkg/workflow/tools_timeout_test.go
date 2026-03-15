@@ -308,11 +308,12 @@ func TestCopilotEngineWithToolsTimeout(t *testing.T) {
 
 			// Get execution steps
 			executionSteps := engine.GetExecutionSteps(workflowData, "/tmp/test.log")
-			if len(executionSteps) == 0 {
-				t.Fatal("Expected at least one execution step")
+			if len(executionSteps) < 2 {
+				t.Fatal("Expected at least 2 execution steps (preflight + execution)")
 			}
 
-			stepContent := strings.Join([]string(executionSteps[0]), "\n")
+			// Get the execution step (second step, after preflight)
+			stepContent := strings.Join([]string(executionSteps[1]), "\n")
 
 			// Check for GH_AW_TOOL_TIMEOUT if expected
 			if tt.expectedEnvVar != "" {
