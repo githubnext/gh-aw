@@ -35,6 +35,8 @@ safe-outputs:
     reviewers: copilot
     draft: false
     if-no-changes: "ignore"
+    allowed-files:
+      - .github/workflows/**
   messages:
     footer: "> 🎩 *Equipped by [{workflow_name}]({run_url})*{history_link}"
     run-started: "🔧 Pay attention, 007! [{workflow_name}]({run_url}) is preparing your gadgets for this {event_type}..."
