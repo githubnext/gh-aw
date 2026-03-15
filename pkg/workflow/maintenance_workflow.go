@@ -235,7 +235,7 @@ jobs:
 	yaml.WriteString(`      - name: Setup Scripts
         uses: ` + setupActionRef + `
         with:
-          destination: /opt/gh-aw/actions
+          destination: ` + SetupActionDestination + `
 
       - name: Close expired discussions
         uses: ` + GetActionPin("actions/github-script") + `
@@ -244,10 +244,10 @@ jobs:
 `)
 
 	// Add the close expired discussions script using require()
-	yaml.WriteString(`            const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
-            setupGlobals(core, github, context, exec, io);
-            const { main } = require('/opt/gh-aw/actions/close_expired_discussions.cjs');
-            await main();
+	yaml.WriteString("            const { setupGlobals } = require(" + JsRequireGhAw("actions/setup_globals.cjs") + ");\n")
+	yaml.WriteString("            setupGlobals(core, github, context, exec, io);\n")
+	yaml.WriteString("            const { main } = require(" + JsRequireGhAw("actions/close_expired_discussions.cjs") + ");\n")
+	yaml.WriteString(`            await main();
 
       - name: Close expired issues
         uses: ` + GetActionPin("actions/github-script") + `
@@ -256,10 +256,10 @@ jobs:
 `)
 
 	// Add the close expired issues script using require()
-	yaml.WriteString(`            const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
-            setupGlobals(core, github, context, exec, io);
-            const { main } = require('/opt/gh-aw/actions/close_expired_issues.cjs');
-            await main();
+	yaml.WriteString("            const { setupGlobals } = require(" + JsRequireGhAw("actions/setup_globals.cjs") + ");\n")
+	yaml.WriteString("            setupGlobals(core, github, context, exec, io);\n")
+	yaml.WriteString("            const { main } = require(" + JsRequireGhAw("actions/close_expired_issues.cjs") + ");\n")
+	yaml.WriteString(`            await main();
 
       - name: Close expired pull requests
         uses: ` + GetActionPin("actions/github-script") + `
@@ -268,11 +268,10 @@ jobs:
 `)
 
 	// Add the close expired pull requests script using require()
-	yaml.WriteString(`            const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
-            setupGlobals(core, github, context, exec, io);
-            const { main } = require('/opt/gh-aw/actions/close_expired_pull_requests.cjs');
-            await main();
-`)
+	yaml.WriteString("            const { setupGlobals } = require(" + JsRequireGhAw("actions/setup_globals.cjs") + ");\n")
+	yaml.WriteString("            setupGlobals(core, github, context, exec, io);\n")
+	yaml.WriteString("            const { main } = require(" + JsRequireGhAw("actions/close_expired_pull_requests.cjs") + ");\n")
+	yaml.WriteString("            await main();\n")
 
 	// Add unified run_operation job for all dispatch operations
 	yaml.WriteString(`
@@ -292,19 +291,18 @@ jobs:
       - name: Setup Scripts
         uses: ` + setupActionRef + `
         with:
-          destination: /opt/gh-aw/actions
+          destination: ` + SetupActionDestination + `
 
       - name: Check admin/maintainer permissions
         uses: ` + GetActionPin("actions/github-script") + `
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
-            const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
-            setupGlobals(core, github, context, exec, io);
-            const { main } = require('/opt/gh-aw/actions/check_team_member.cjs');
-            await main();
-
 `)
+	yaml.WriteString("            const { setupGlobals } = require(" + JsRequireGhAw("actions/setup_globals.cjs") + ");\n")
+	yaml.WriteString("            setupGlobals(core, github, context, exec, io);\n")
+	yaml.WriteString("            const { main } = require(" + JsRequireGhAw("actions/check_team_member.cjs") + ");\n")
+	yaml.WriteString("            await main();\n\n")
 
 	yaml.WriteString(generateInstallCLISteps(actionMode, version, actionTag))
 	yaml.WriteString(`      - name: Run operation
@@ -316,11 +314,11 @@ jobs:
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
-            const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
-            setupGlobals(core, github, context, exec, io);
-            const { main } = require('/opt/gh-aw/actions/run_operation_update_upgrade.cjs');
-            await main();
 `)
+	yaml.WriteString("            const { setupGlobals } = require(" + JsRequireGhAw("actions/setup_globals.cjs") + ");\n")
+	yaml.WriteString("            setupGlobals(core, github, context, exec, io);\n")
+	yaml.WriteString("            const { main } = require(" + JsRequireGhAw("actions/run_operation_update_upgrade.cjs") + ");\n")
+	yaml.WriteString("            await main();\n")
 
 	// Add compile-workflows and zizmor-scan jobs only in dev mode
 	// These jobs are specific to the gh-aw repository and require go.mod, make build, etc.
@@ -354,16 +352,17 @@ jobs:
       - name: Setup Scripts
         uses: ` + setupActionRef + `
         with:
-          destination: /opt/gh-aw/actions
+          destination: ` + SetupActionDestination + `
 
       - name: Check for out-of-sync workflows and create issue if needed
         uses: ` + GetActionPin("actions/github-script") + `
         with:
           script: |
-            const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
-            setupGlobals(core, github, context, exec, io);
-            const { main } = require('/opt/gh-aw/actions/check_workflow_recompile_needed.cjs');
-            await main();
+`)
+		yaml.WriteString("            const { setupGlobals } = require(" + JsRequireGhAw("actions/setup_globals.cjs") + ");\n")
+		yaml.WriteString("            setupGlobals(core, github, context, exec, io);\n")
+		yaml.WriteString("            const { main } = require(" + JsRequireGhAw("actions/check_workflow_recompile_needed.cjs") + ");\n")
+		yaml.WriteString(`            await main();
 
   zizmor-scan:
     if: ${{ !github.event.repository.fork && (github.event_name != 'workflow_dispatch' || github.event.inputs.operation == '') }}
@@ -417,7 +416,7 @@ jobs:
       - name: Setup Scripts
         uses: ` + setupActionRef + `
         with:
-          destination: /opt/gh-aw/actions
+          destination: ` + SetupActionDestination + `
 
       - name: Validate Secrets
         uses: ` + GetActionPin("actions/github-script") + `
@@ -435,10 +434,11 @@ jobs:
           NOTION_API_TOKEN: ${{ secrets.NOTION_API_TOKEN }}
         with:
           script: |
-            const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
-            setupGlobals(core, github, context, exec, io);
-            const { main } = require('/opt/gh-aw/actions/validate_secrets.cjs');
-            await main();
+`)
+		yaml.WriteString("            const { setupGlobals } = require(" + JsRequireGhAw("actions/setup_globals.cjs") + ");\n")
+		yaml.WriteString("            setupGlobals(core, github, context, exec, io);\n")
+		yaml.WriteString("            const { main } = require(" + JsRequireGhAw("actions/validate_secrets.cjs") + ");\n")
+		yaml.WriteString(`            await main();
 
       - name: Upload secret validation report
         if: always()

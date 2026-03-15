@@ -227,8 +227,8 @@ This is a test workflow with cache-memory enabled.
 	}
 
 	// Test 3: Verify the template file is used (not inline text)
-	if !strings.Contains(lockStr, "/opt/gh-aw/prompts/cache_memory_prompt.md") {
-		t.Error("Expected '/opt/gh-aw/prompts/cache_memory_prompt.md' reference in generated workflow")
+	if !strings.Contains(lockStr, GhAwHome+"/prompts/cache_memory_prompt.md") {
+		t.Errorf("Expected '%s/prompts/cache_memory_prompt.md' reference in generated workflow", GhAwHome)
 	}
 
 	// Test 4: Verify the instruction mentions persistent cache

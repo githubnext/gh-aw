@@ -268,7 +268,12 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 			if len(c.generateCheckoutActionsFolder(data)) > 0 {
 				insertIndex += 6 // Checkout step (6 lines: name, uses, with, sparse-checkout header, actions, persist-credentials)
 			}
-			insertIndex += 4 // Setup step (4 lines: name, uses, with, destination)
+			enableCustomTokensForInsert := c.hasCustomTokenSafeOutputs(data.SafeOutputs)
+			if enableCustomTokensForInsert {
+				insertIndex += 4 // Setup step with custom tokens (4 lines: name, uses, with, safe-output-custom-tokens)
+			} else {
+				insertIndex += 2 // Setup step without custom tokens (2 lines: name, uses)
+			}
 		}
 
 		// Add artifact download steps count
@@ -384,6 +389,10 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 // for the consolidated safe_outputs job. These are variables that are common to all safe output steps.
 func (c *Compiler) buildJobLevelSafeOutputEnvVars(data *WorkflowData, workflowID string) map[string]string {
 	envVars := make(map[string]string)
+
+	// Set GH_AW_HOME so steps can use $GH_AW_HOME without the :-fallback syntax.
+	// Use GhAwHomeExprDefault so callers can override via workflow/repo env.
+	envVars["GH_AW_HOME"] = GhAwHomeExprDefault
 
 	// Set GH_AW_WORKFLOW_ID to the workflow ID (filename without extension)
 	// This is used for branch naming in create_pull_request and other operations

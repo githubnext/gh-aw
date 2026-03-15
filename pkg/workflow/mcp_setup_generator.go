@@ -184,12 +184,12 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 		yaml.WriteString("          fi\n")
 		yaml.WriteString("          gh aw --version\n")
 		yaml.WriteString("          # Copy the gh-aw binary to /opt/gh-aw for MCP server containerization\n")
-		yaml.WriteString("          mkdir -p /opt/gh-aw\n")
+		yaml.WriteString("          mkdir -p " + GhAwHome + "\n")
 		yaml.WriteString("          GH_AW_BIN=$(which gh-aw 2>/dev/null || find ~/.local/share/gh/extensions/gh-aw -name 'gh-aw' -type f 2>/dev/null | head -1)\n")
 		yaml.WriteString("          if [ -n \"$GH_AW_BIN\" ] && [ -f \"$GH_AW_BIN\" ]; then\n")
-		yaml.WriteString("            cp \"$GH_AW_BIN\" /opt/gh-aw/gh-aw\n")
-		yaml.WriteString("            chmod +x /opt/gh-aw/gh-aw\n")
-		yaml.WriteString("            echo \"Copied gh-aw binary to /opt/gh-aw/gh-aw\"\n")
+		yaml.WriteString("            cp \"$GH_AW_BIN\" " + GhAwHome + "/gh-aw\n")
+		yaml.WriteString("            chmod +x " + GhAwHome + "/gh-aw\n")
+		yaml.WriteString("            echo \"Copied gh-aw binary to " + GhAwHome + "/gh-aw\"\n")
 		yaml.WriteString("          else\n")
 		yaml.WriteString("            echo \"::error::Failed to find gh-aw binary for MCP server\"\n")
 		yaml.WriteString("            exit 1\n")
@@ -206,14 +206,14 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 		// AND exceeds 21,000 characters total.
 		yaml.WriteString("      - name: Write Safe Outputs Config\n")
 		yaml.WriteString("        run: |\n")
-		yaml.WriteString("          mkdir -p /opt/gh-aw/safeoutputs\n")
+		yaml.WriteString("          mkdir -p " + GhAwHome + "/safeoutputs\n")
 		yaml.WriteString("          mkdir -p /tmp/gh-aw/safeoutputs\n")
 		yaml.WriteString("          mkdir -p /tmp/gh-aw/mcp-logs/safeoutputs\n")
 
 		// Write the safe-outputs configuration to config.json
 		delimiter := GenerateHeredocDelimiter("SAFE_OUTPUTS_CONFIG")
 		if safeOutputConfig != "" {
-			yaml.WriteString("          cat > /opt/gh-aw/safeoutputs/config.json << '" + delimiter + "'\n")
+			yaml.WriteString("          cat > " + GhAwHome + "/safeoutputs/config.json << '" + delimiter + "'\n")
 			yaml.WriteString("          " + safeOutputConfig + "\n")
 			yaml.WriteString("          " + delimiter + "\n")
 		}
@@ -255,7 +255,7 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 		yaml.WriteString("        run: |\n")
 
 		toolsDelimiter := GenerateHeredocDelimiter("SAFE_OUTPUTS_TOOLS")
-		yaml.WriteString("          cat > /opt/gh-aw/safeoutputs/tools.json << '" + toolsDelimiter + "'\n")
+		yaml.WriteString("          cat > " + GhAwHome + "/safeoutputs/tools.json << '" + toolsDelimiter + "'\n")
 		// Write each line of the indented JSON with proper YAML indentation
 		for line := range strings.SplitSeq(filteredToolsJSON, "\n") {
 			yaml.WriteString("          " + line + "\n")

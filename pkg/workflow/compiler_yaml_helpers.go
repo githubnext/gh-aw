@@ -218,11 +218,11 @@ func generatePlaceholderSubstitutionStep(yaml *strings.Builder, expressionMappin
 	yaml.WriteString(indent + "    script: |\n")
 
 	// Use setup_globals helper to make GitHub Actions objects available globally
-	yaml.WriteString(indent + "      const { setupGlobals } = require('" + SetupActionDestination + "/setup_globals.cjs');\n")
+	yaml.WriteString(indent + "      const { setupGlobals } = require(" + JsRequireGhAw("actions/setup_globals.cjs") + ");\n")
 	yaml.WriteString(indent + "      setupGlobals(core, github, context, exec, io);\n")
 	yaml.WriteString(indent + "      \n")
 	// Use require() to load script from copied files
-	yaml.WriteString(indent + "      const substitutePlaceholders = require('" + SetupActionDestination + "/substitute_placeholders.cjs');\n")
+	yaml.WriteString(indent + "      const substitutePlaceholders = require(" + JsRequireGhAw("actions/substitute_placeholders.cjs") + ");\n")
 	yaml.WriteString(indent + "      \n")
 	yaml.WriteString(indent + "      // Call the substitution function\n")
 	yaml.WriteString(indent + "      return await substitutePlaceholders({\n")
@@ -354,9 +354,9 @@ func generateGitHubScriptWithRequire(scriptPath string) string {
 	var script strings.Builder
 
 	// Use the setup_globals helper to store GitHub Actions objects in global scope
-	script.WriteString("            const { setupGlobals } = require('" + SetupActionDestination + "/setup_globals.cjs');\n")
+	script.WriteString("            const { setupGlobals } = require(" + JsRequireGhAw("actions/setup_globals.cjs") + ");\n")
 	script.WriteString("            setupGlobals(core, github, context, exec, io);\n")
-	script.WriteString("            const { main } = require('" + SetupActionDestination + "/" + scriptPath + "');\n")
+	script.WriteString("            const { main } = require(" + JsRequireGhAw("actions/"+scriptPath) + ");\n")
 	script.WriteString("            await main();\n")
 
 	return script.String()
@@ -392,7 +392,8 @@ func generateInlineGitHubScriptStep(stepName, script, condition string) string {
 //
 // Parameters:
 //   - setupActionRef: The action reference for setup action (e.g., "./actions/setup" or "github/gh-aw/actions/setup@sha")
-//   - destination: The destination path where files should be copied (e.g., SetupActionDestination)
+//   - destination: The destination path where files should be copied (e.g., SetupActionDestination).
+//     This is passed as INPUT_DESTINATION in script mode or as the destination: input in dev/release mode.
 //   - enableCustomTokens: Whether to enable custom-token support (installs @actions/github so handler_auth.cjs can create per-handler Octokit clients)
 //
 // Returns a slice of strings representing the YAML lines for the setup step.
@@ -412,7 +413,8 @@ func (c *Compiler) generateSetupStep(setupActionRef string, destination string, 
 		return lines
 	}
 
-	// Dev/Release mode: use the setup action
+	// Dev/Release mode: use the setup action.
+	// Pass destination so callers can relocate GH_AW_HOME (e.g. on self-hosted runners).
 	lines := []string{
 		"      - name: Setup Scripts\n",
 		fmt.Sprintf("        uses: %s\n", setupActionRef),

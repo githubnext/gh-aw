@@ -72,6 +72,6 @@ func getGitIdentityEnvVars() map[string]string {
 func (c *Compiler) generateGitCredentialsCleanerStep() []string {
 	return []string{
 		"      - name: Clean git credentials\n",
-		"        run: bash /opt/gh-aw/actions/clean_git_credentials.sh\n",
+		"        run: bash " + GhAwHome + "/actions/clean_git_credentials.sh\n",
 	}
 }

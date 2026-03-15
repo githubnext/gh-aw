@@ -216,7 +216,7 @@ func renderAgenticWorkflowsMCPConfigWithOptions(yaml *strings.Builder, isLast bo
 		// Release mode: Use minimal Alpine image with mounted binaries
 		// The gh-aw binary is mounted from /opt/gh-aw and executed directly
 		// Pass --validate-actor flag to enable role-based access control
-		entrypoint = "/opt/gh-aw/gh-aw"
+		entrypoint = GhAwHome + "/gh-aw"
 		entrypointArgs = []string{"mcp-server", "--validate-actor"}
 		// Mount gh-aw binary, gh CLI binary, workspace, and temp directory
 		mounts = []string{constants.DefaultGhAwMount, constants.DefaultGhBinaryMount, constants.DefaultWorkspaceMount, constants.DefaultTmpGhAwMount}
@@ -228,11 +228,6 @@ func renderAgenticWorkflowsMCPConfigWithOptions(yaml *strings.Builder, isLast bo
 	// In dev mode, use the container's default ENTRYPOINT
 	if entrypoint != "" {
 		yaml.WriteString("                \"entrypoint\": \"" + entrypoint + "\",\n")
-	}
-
-	// Only write entrypointArgs if specified (release mode)
-	// In dev mode, use the container's default CMD
-	if entrypointArgs != nil {
 		yaml.WriteString("                \"entrypointArgs\": [")
 		for i, arg := range entrypointArgs {
 			if i > 0 {
