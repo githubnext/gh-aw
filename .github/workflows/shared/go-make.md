@@ -1,4 +1,7 @@
 ---
+network:
+  allowed:
+    - go
 mcp-scripts:
   go:
     description: "Execute any Go command. This tool is accessible as 'mcpscripts-go'. Provide the full command after 'go' (e.g., args: 'test ./...'). The tool will run: go <args>. Use single quotes ' for complex args to avoid shell interpretation issues."

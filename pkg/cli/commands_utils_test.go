@@ -113,6 +113,113 @@ func TestExtractWorkflowNameFromFile_NonExistentFile(t *testing.T) {
 	}
 }
 
+func TestFastParseTitle(t *testing.T) {
+	tests := []struct {
+		name        string
+		content     string
+		expected    string
+		expectError bool
+	}{
+		{
+			name: "H1 after frontmatter",
+			content: `---
+title: Test
+---
+
+# My Workflow Title
+
+Some content.`,
+			expected: "My Workflow Title",
+		},
+		{
+			name: "H1 with trailing spaces",
+			content: `---
+engine: copilot
+---
+
+# Weekly Research   
+
+Content here.`,
+			expected: "Weekly Research",
+		},
+		{
+			name: "H1 without frontmatter",
+			content: `# Simple Title
+
+No frontmatter here.`,
+			expected: "Simple Title",
+		},
+		{
+			name:     "H1 is first line (no frontmatter)",
+			content:  `# Inline Title`,
+			expected: "Inline Title",
+		},
+		{
+			name:     "no H1 header",
+			content:  "Just some text without headers.",
+			expected: "",
+		},
+		{
+			name: "only H2 headers",
+			content: `---
+engine: copilot
+---
+
+## Not an H1`,
+			expected: "",
+		},
+		{
+			name:     "empty content",
+			content:  "",
+			expected: "",
+		},
+		{
+			name: "unclosed frontmatter returns error",
+			content: `---
+title: Oops
+`,
+			expectError: true,
+		},
+		{
+			name: "dash in middle of content is not frontmatter",
+			content: `Some text
+
+---
+
+# Not Skipped`,
+			expected: "Not Skipped",
+		},
+		{
+			name: "H1 inside frontmatter is ignored",
+			content: `---
+# not a header
+---
+
+# Real Title`,
+			expected: "Real Title",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := fastParseTitle(tt.content)
+			if tt.expectError {
+				if err == nil {
+					t.Errorf("fastParseTitle(%q) expected error, got nil", tt.content)
+				}
+				return
+			}
+			if err != nil {
+				t.Errorf("fastParseTitle(%q) unexpected error: %v", tt.content, err)
+				return
+			}
+			if got != tt.expected {
+				t.Errorf("fastParseTitle(%q) = %q, want %q", tt.content, got, tt.expected)
+			}
+		})
+	}
+}
+
 func TestIsGitRepo(t *testing.T) {
 	// Test in current directory (should be a git repo based on project setup)
 	result := isGitRepo()

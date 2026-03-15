@@ -282,6 +282,46 @@ func getMarkdownWorkflowFiles(workflowDir string) ([]string, error) {
 	return mdFiles, nil
 }
 
+// fastParseTitle scans markdown content for the first H1 header, skipping an
+// optional frontmatter block, without performing a full YAML parse.
+//
+// Frontmatter is recognised only when "---" appears on the very first line
+// (matching the behaviour of ExtractFrontmatterFromContent). Returns the H1
+// title text, or ("", nil) when no H1 header is present. Returns an error if
+// frontmatter is opened but never closed.
+func fastParseTitle(content string) (string, error) {
+	firstLine := true
+	inFrontmatter := false
+	pastFrontmatter := false
+	for line := range strings.SplitSeq(content, "\n") {
+		trimmed := strings.TrimSpace(line)
+		if firstLine {
+			firstLine = false
+			if trimmed == "---" {
+				inFrontmatter = true
+				continue
+			}
+			// No frontmatter on first line; treat the entire file as markdown.
+			pastFrontmatter = true
+		} else if inFrontmatter && !pastFrontmatter {
+			if trimmed == "---" {
+				pastFrontmatter = true
+			}
+			continue
+		}
+		if pastFrontmatter && strings.HasPrefix(trimmed, "# ") {
+			return strings.TrimSpace(trimmed[2:]), nil
+		}
+	}
+
+	// Unclosed frontmatter is an error (consistent with ExtractFrontmatterFromContent).
+	if inFrontmatter && !pastFrontmatter {
+		return "", errors.New("frontmatter not properly closed")
+	}
+
+	return "", nil
+}
+
 // extractWorkflowNameFromFile extracts the workflow name from a file's H1 header
 func extractWorkflowNameFromFile(filePath string) (string, error) {
 	content, err := os.ReadFile(filePath)
@@ -289,19 +329,12 @@ func extractWorkflowNameFromFile(filePath string) (string, error) {
 		return "", err
 	}
 
-	// Extract markdown content (excluding frontmatter)
-	result, err := parser.ExtractFrontmatterFromContent(string(content))
+	title, err := fastParseTitle(string(content))
 	if err != nil {
 		return "", err
 	}
-
-	// Look for first H1 header
-	lines := strings.SplitSeq(result.Markdown, "\n")
-	for line := range lines {
-		line = strings.TrimSpace(line)
-		if strings.HasPrefix(line, "# ") {
-			return strings.TrimSpace(line[2:]), nil
-		}
+	if title != "" {
+		return title, nil
 	}
 
 	// No H1 header found, generate default name from filename
