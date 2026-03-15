@@ -62,9 +62,11 @@ func (m ActionMode) UsesExternalActions() bool {
 }
 
 // DetectActionMode determines the appropriate action mode based on the release flag.
-// Returns ActionModeRelease if this binary was built as a release (controlled by the
-// isReleaseBuild flag set via -X linker flag at build time), otherwise returns ActionModeDev.
-// Can be overridden with GH_AW_ACTION_MODE environment variable or GitHub Actions context.
+// Returns ActionModeAction if this binary was built as a release (controlled by the
+// isReleaseBuild flag set via -X linker flag at build time), or when running in a
+// GitHub Actions release context (release tags, release branches, or release events).
+// Returns ActionModeDev for all other cases (PRs, feature branches, local development).
+// Can be overridden with GH_AW_ACTION_MODE environment variable.
 // The version parameter is kept for backward compatibility but is no longer used for detection.
 func DetectActionMode(version string) ActionMode {
 	actionModeLog.Printf("Detecting action mode: version=%s, isRelease=%v", version, IsRelease())
@@ -82,8 +84,8 @@ func DetectActionMode(version string) ActionMode {
 	// Check if this binary was built as a release using the release flag
 	// This flag is set at build time via -X linker flag and does not rely on version string heuristics
 	if IsRelease() {
-		actionModeLog.Printf("Detected release mode from build flag (isReleaseBuild=true)")
-		return ActionModeRelease
+		actionModeLog.Printf("Detected action mode from build flag (isReleaseBuild=true)")
+		return ActionModeAction
 	}
 
 	// Check GitHub Actions context for additional hints
@@ -91,15 +93,15 @@ func DetectActionMode(version string) ActionMode {
 	githubEventName := os.Getenv("GITHUB_EVENT_NAME")
 	actionModeLog.Printf("GitHub context: ref=%s, event=%s", githubRef, githubEventName)
 
-	// Release mode conditions from GitHub Actions context:
+	// Conditions that return ActionModeAction from GitHub Actions context:
 	// 1. Running on a release branch (refs/heads/release*)
 	// 2. Running on a release tag (refs/tags/*)
 	// 3. Running on a release event
 	if strings.HasPrefix(githubRef, "refs/heads/release") ||
 		strings.HasPrefix(githubRef, "refs/tags/") ||
 		githubEventName == "release" {
-		actionModeLog.Printf("Detected release mode from GitHub context: ref=%s, event=%s", githubRef, githubEventName)
-		return ActionModeRelease
+		actionModeLog.Printf("Detected action mode from GitHub context: ref=%s, event=%s", githubRef, githubEventName)
+		return ActionModeAction
 	}
 
 	// Default to dev mode for all other cases:
