@@ -91,9 +91,10 @@ func generateSchemaBasedSuggestions(schemaJSON, errorMessage, jsonPath, frontmat
 	}
 
 	// Check if this is a minimum/maximum constraint violation and surface schema examples.
-	// "minimum: got X, want Y" and "maximum: got X, want Y" are produced by jsonschema.
+	// pathInfo.Message has the form "at '/timeout-minutes': minimum: got X, want Y",
+	// so use Contains rather than HasPrefix to detect the constraint keyword.
 	lowerMsg := strings.ToLower(errorMessage)
-	if (strings.HasPrefix(lowerMsg, "minimum:") || strings.HasPrefix(lowerMsg, "maximum:")) &&
+	if (strings.Contains(lowerMsg, "minimum:") || strings.Contains(lowerMsg, "maximum:")) &&
 		strings.Contains(lowerMsg, "got ") && strings.Contains(lowerMsg, "want ") {
 		schemaSuggestionsLog.Print("Detected range constraint violation, looking for schema examples")
 		if examples := extractSchemaExamples(schemaDoc, jsonPath); len(examples) > 0 {

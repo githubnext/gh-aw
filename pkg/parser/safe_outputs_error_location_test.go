@@ -424,8 +424,8 @@ safe-outputs:
 	}
 
 	errorText := err.Error()
-	// The path is now shown without a leading '/' — the line:col info is in the
-	// file:line:col prefix from console.FormatError rather than the message body.
+	// The path is shown without a leading '/'; line:col info appears both in the
+	// file:line:col prefix from console.FormatError and in each detail line.
 	wantSubstrings := []string{
 		"safe-outputs/create-issue",
 		"safe-outputs/create-discussion",
@@ -456,8 +456,9 @@ func TestFormatSchemaFailureDetailEmptyPath(t *testing.T) {
 	}
 }
 
-// TestFormatSchemaFailureDetailLineColumn verifies that the field path is included in
-// the formatted detail. Line/column info lives in CompilerError.Position, not the message.
+// TestFormatSchemaFailureDetailLineColumn verifies that line/column numbers are
+// included in the formatted detail when the path can be located in YAML, so that
+// secondary failures in multi-failure output retain their location context.
 func TestFormatSchemaFailureDetailLineColumn(t *testing.T) {
 	t.Parallel()
 
@@ -467,9 +468,9 @@ func TestFormatSchemaFailureDetailLineColumn(t *testing.T) {
 		Message: "additional property 'invalid-field' not allowed",
 	}
 	result := formatSchemaFailureDetail(pathInfo, "", frontmatterContent, 1)
-	// Line/column info is in CompilerError.Position, not in the message body.
-	if strings.Contains(result, "line ") && strings.Contains(result, "column ") {
-		t.Errorf("message body should not contain line/column info (already in Position prefix), got: %s", result)
+	// Line/column info should be included in each detail line for secondary failures.
+	if !strings.Contains(result, "line ") || !strings.Contains(result, "col ") {
+		t.Errorf("expected result to contain line/col info, got: %s", result)
 	}
 	// The field path should still appear (without the leading '/').
 	if !strings.Contains(result, "safe-outputs/create-issue") {

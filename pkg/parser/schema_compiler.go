@@ -351,15 +351,30 @@ func validateWithSchemaAndLocation(frontmatter map[string]any, schemaJSON, conte
 	return err
 }
 
+// formatSchemaFailureDetail builds a single line of schema error detail for one JSONPathInfo.
+// It is called once per failing schema constraint in validateWithSchemaAndLocation, which
+// then joins them into a "Multiple schema validation failures:" message. Because
+// CompilerError.Position only captures the *first* failure's location, each detail line
+// independently includes its own (line N, col M) so secondary failures remain navigable.
+// The old "at '/path' (line N, column M):" prefix is replaced with "'path' (line N, col M):"
+// to remove the schema-jargon "at" keyword and the leading slash.
 func formatSchemaFailureDetail(pathInfo JSONPathInfo, schemaJSON, frontmatterContent string, frontmatterStart int) string {
 	path := pathInfo.Path
 	if path == "" {
 		path = "/"
 	}
 
+	location := LocateJSONPathInYAMLWithAdditionalProperties(frontmatterContent, pathInfo.Path, pathInfo.Message)
+	line := frontmatterStart
+	column := 1
+	if location.Found {
+		line = location.Line + frontmatterStart - 1
+		column = location.Column
+	}
+
 	message := rewriteAdditionalPropertiesError(cleanOneOfMessage(pathInfo.Message))
 	// Strip any "at '/path': " prefix from the message to avoid duplication with the
-	// file:line:col prefix emitted by console.FormatError via CompilerError.Position.
+	// "'path' (line N, col M):" prefix we prepend below.
 	message = stripAtPathPrefix(message)
 	// Translate schema constraint language (e.g. "minimum: got X, want Y") to plain English.
 	message = translateSchemaConstraintMessage(message)
@@ -369,13 +384,9 @@ func formatSchemaFailureDetail(pathInfo JSONPathInfo, schemaJSON, frontmatterCon
 	if suggestions != "" {
 		message = message + ". " + suggestions
 	}
-	// The CompilerError.Position already carries the file:line:col prefix
-	// (populated by the caller in validateWithSchemaAndLocation), so we omit the
-	// redundant "(line N, column M)" from the message body.  We keep the field
-	// path so users know which key triggered the error.
 	displayPath := strings.TrimPrefix(path, "/")
 	if displayPath == "" {
 		return message
 	}
-	return fmt.Sprintf("'%s': %s", displayPath, message)
+	return fmt.Sprintf("'%s' (line %d, col %d): %s", displayPath, line, column, message)
 }

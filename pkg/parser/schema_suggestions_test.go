@@ -924,6 +924,7 @@ func TestExtractSchemaExamples(t *testing.T) {
 
 // TestGenerateSchemaBasedSuggestions_RangeConstraintExamples tests that examples are surfaced
 // for minimum/maximum constraint violations.
+// pathInfo.Message from jsonschema has the form "at '/path': minimum: got X, want Y".
 func TestGenerateSchemaBasedSuggestions_RangeConstraintExamples(t *testing.T) {
 	schemaJSON := `{
 		"type": "object",
@@ -949,20 +950,26 @@ func TestGenerateSchemaBasedSuggestions_RangeConstraintExamples(t *testing.T) {
 		wantEmpty    bool
 	}{
 		{
-			name:         "minimum violation with examples",
+			name:         "minimum violation with examples (bare form)",
 			errorMessage: "minimum: got -1, want 1",
 			jsonPath:     "/timeout-minutes",
 			wantContains: "Example values: 5, 10, 30",
 		},
 		{
+			name:         "minimum violation with examples (at-path prefix form from jsonschema)",
+			errorMessage: "at '/timeout-minutes': minimum: got -1, want 1",
+			jsonPath:     "/timeout-minutes",
+			wantContains: "Example values: 5, 10, 30",
+		},
+		{
 			name:         "maximum violation with examples surfaced",
-			errorMessage: "maximum: got 15, want 10",
+			errorMessage: "at '/timeout-minutes': maximum: got 15, want 10",
 			jsonPath:     "/timeout-minutes",
 			wantContains: "Example values: 5, 10, 30",
 		},
 		{
 			name:         "minimum violation without examples — range handler skips, type handler may fire",
-			errorMessage: "minimum: got -1, want 0",
+			errorMessage: "at '/retry-count': minimum: got -1, want 0",
 			jsonPath:     "/retry-count",
 			// The range-constraint handler finds no examples and skips.
 			// The type-error handler may still produce a generic "Expected format: …" hint.
