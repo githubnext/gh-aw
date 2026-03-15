@@ -4247,8 +4247,9 @@
                 },
                 "close-older-key": {
                   "type": "string",
-                  "description": "Optional explicit deduplication key for close-older matching. When set, a `<!-- gh-aw-close-key: <value> -->` marker is embedded in the issue body and used as the primary key for searching and filtering older issues instead of the workflow-id markers. This gives deterministic isolation across caller workflows and is stable across workflow renames.",
-                  "minLength": 1
+                  "description": "Optional explicit deduplication key for close-older matching. When set, a `<!-- gh-aw-close-key: <value> -->` marker is embedded in the issue body and used as the primary key for searching and filtering older issues instead of the workflow-id markers. This gives deterministic isolation across caller workflows and is stable across workflow renames. The value is normalized to identifier style (lowercase alphanumeric, dashes, underscores).",
+                  "minLength": 1,
+                  "pattern": "\\S"
                 },
                 "footer": {
                   "type": "boolean",
@@ -4731,8 +4732,9 @@
                 },
                 "close-older-key": {
                   "type": "string",
-                  "description": "Optional explicit deduplication key for close-older matching. When set, a `<!-- gh-aw-close-key: <value> -->` marker is embedded in the discussion body and used as the primary key for searching and filtering older discussions instead of the workflow-id markers. This gives deterministic isolation across caller workflows and is stable across workflow renames.",
-                  "minLength": 1
+                  "description": "Optional explicit deduplication key for close-older matching. When set, a `<!-- gh-aw-close-key: <value> -->` marker is embedded in the discussion body and used as the primary key for searching and filtering older discussions instead of the workflow-id markers. This gives deterministic isolation across caller workflows and is stable across workflow renames. The value is normalized to identifier style (lowercase alphanumeric, dashes, underscores).",
+                  "minLength": 1,
+                  "pattern": "\\S"
                 },
                 "fallback-to-issue": {
                   "type": "boolean",
