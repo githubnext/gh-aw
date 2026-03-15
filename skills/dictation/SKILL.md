@@ -40,6 +40,7 @@ actions/setup-java
 actions/setup-node
 actions/setup-python
 activation
+activation-job
 active
 actor
 actual
@@ -57,6 +58,7 @@ agentic-workflows
 agentics
 agents
 agent_output.json
+agent-job
 alerting
 alerts
 allow
@@ -72,8 +74,11 @@ allowlist
 analysis
 analyze_imports
 ANTHROPIC_API_KEY
+ANTHROPIC_BASE_URL
 api.github.com
+api-target
 apiKey
+APM
 append
 append-only-comments
 apply
@@ -100,6 +105,7 @@ auth
 authentication
 author
 autofix-code-scanning-alert
+auto-close
 automated
 automatic
 automation
@@ -149,6 +155,7 @@ characters
 chart
 charts
 charts-with-trending
+chat-ops
 chatops
 checkout
 checks
@@ -196,6 +203,7 @@ components
 conclusion
 conclusion-check
 concurrency
+concurrency-group
 config
 configuration-file
 configurations
@@ -409,6 +417,7 @@ function
 functionality
 functions
 fuzzy
+fuzzy-schedule
 FUZZY:BI-WEEKLY
 FUZZY:DAILY
 FUZZY:HOURLY
@@ -421,6 +430,7 @@ GEMINI_API_KEY
 generate
 generate-report
 generated
+gemini
 generation
 get_file_contents
 get_me
@@ -488,6 +498,7 @@ googleapis
 GOROOT
 grumpy-reviewer
 guidance
+guard-policy
 guides
 handlers
 hash-check
@@ -580,11 +591,13 @@ limit-per-run
 limits
 line
 lines
+link-sub-issue
 linking
 load
 local
 lock
 lock-file
+lockfile
 lockdown
 lockdown-mode
 logic
@@ -611,6 +624,7 @@ mcp-inspect
 mcp-scripts-mode-removal
 mcp-list
 mcp-registry
+mcp-scripts
 mcp-server
 mcp-servers
 mcp_failures
@@ -623,6 +637,7 @@ merge
 messages
 metadata
 metadata-read
+min-integrity
 migrate
 milestone
 minimal
@@ -645,6 +660,7 @@ network
 network.allowed
 network.firewall
 network-firewall-migration
+NDJSON
 nightly-run
 node
 none
@@ -653,6 +669,7 @@ null
 on-demand
 open-telemetry
 OPENAI_API_KEY
+OPENAI_BASE_URL
 operations
 operations-log
 operator
@@ -830,6 +847,7 @@ run-failure
 run-name
 run-started
 run-success
+run-id
 runner
 running
 runs
@@ -855,6 +873,7 @@ safe-outputs.staged
 safe-outputs.threat-detection
 safe_outputs
 sandbox
+SARIF
 sandbox-agent-false-removal
 sandbox.agent.env
 sandbox.agent.mounts
@@ -904,6 +923,9 @@ sidebar
 similar
 size
 skillz
+SARIF
+self-hosted
+serena
 SLACK_WEBHOOK
 skip
 skip-bots
@@ -918,6 +940,7 @@ software
 source
 source-destination
 specfile
+spec-ops
 specifications
 specified
 specifies
@@ -926,6 +949,7 @@ specVersion
 staged
 staged-description
 staged-title
+staged-mode
 staging
 stale
 standard
@@ -955,7 +979,9 @@ template-file
 temporary-id
 temporary_id
 terraform
+task-ops
 testing
+threat-detection
 timeout
 timeout-minutes
 timeout-minutes-migration
@@ -977,6 +1003,7 @@ transform
 translation
 tri-weekly
 trial
+trial-ops
 trials
 trigger
 trigger-event
