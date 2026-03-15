@@ -13,6 +13,7 @@ const { getErrorMessage } = require("./error_helpers.cjs");
 const { resolveTargetRepoConfig, resolveAndValidateRepo } = require("./repo_helpers.cjs");
 const { logStagedPreviewInfo } = require("./staged_preview.cjs");
 const { createAuthenticatedGitHubClient } = require("./handler_auth.cjs");
+const { resolveRepoIssueTarget, loadTemporaryIdMapFromResolved } = require("./temporary_id.cjs");
 
 /**
  * Main handler factory for remove_labels
@@ -76,15 +77,38 @@ async function main(config = {}) {
     core.info(`Target repository: ${itemRepo}`);
 
     // Determine target issue/PR number
-    const itemNumber = message.item_number !== undefined ? parseInt(String(message.item_number), 10) : context.payload?.issue?.number || context.payload?.pull_request?.number;
+    let itemNumber;
+    if (message.item_number !== undefined) {
+      // Resolve temporary IDs if present
+      const tempIdMap = loadTemporaryIdMapFromResolved(resolvedTemporaryIds);
+      const resolvedTarget = resolveRepoIssueTarget(message.item_number, tempIdMap, repoParts.owner, repoParts.repo);
+
+      // Check if this is an unresolved temporary ID
+      if (resolvedTarget.wasTemporaryId && !resolvedTarget.resolved) {
+        core.info(`Deferring remove_labels: unresolved temporary ID (${message.item_number})`);
+        return {
+          success: false,
+          deferred: true,
+          error: resolvedTarget.errorMessage || `Unresolved temporary ID: ${message.item_number}`,
+        };
+      }
+
+      // Check for other resolution errors
+      if (resolvedTarget.errorMessage || !resolvedTarget.resolved) {
+        const error = `Invalid item number: ${message.item_number}`;
+        core.warning(error);
+        return { success: false, error };
+      }
+
+      itemNumber = resolvedTarget.resolved.number;
+    } else {
+      itemNumber = context.payload?.issue?.number || context.payload?.pull_request?.number;
+    }
 
     if (!itemNumber || isNaN(itemNumber)) {
-      const errorMsg = message.item_number !== undefined ? `Invalid item number: ${message.item_number}` : "No item_number provided and not in issue/PR context";
-      core.warning(errorMsg);
-      return {
-        success: false,
-        error: message.item_number !== undefined ? `Invalid item number: ${message.item_number}` : "No issue/PR number available",
-      };
+      const error = "No issue/PR number available";
+      core.warning(error);
+      return { success: false, error };
     }
 
     const contextType = context.payload?.pull_request ? "pull request" : "issue";
