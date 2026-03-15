@@ -296,7 +296,10 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 		steps = append(steps, fmt.Sprintf("        uses: %s\n", GetActionPin("actions/github-script")))
 		steps = append(steps, "        env:\n")
 		// Pass label names as a JSON array so the script can validate the label
-		labelNamesJSON, _ := json.Marshal(data.LabelCommand)
+		labelNamesJSON, err := json.Marshal(data.LabelCommand)
+		if err != nil {
+			return nil, fmt.Errorf("failed to marshal label-command names: %w", err)
+		}
 		steps = append(steps, fmt.Sprintf("          GH_AW_LABEL_NAMES: %q\n", string(labelNamesJSON)))
 		steps = append(steps, "        with:\n")
 		steps = append(steps, "          script: |\n")

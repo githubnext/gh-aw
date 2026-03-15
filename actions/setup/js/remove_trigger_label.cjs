@@ -58,7 +58,12 @@ async function main() {
 
   core.info(`Removing trigger label '${triggerLabel}' (event: ${eventName})`);
 
-  const [owner, repo] = context.repo ? [context.repo.owner, context.repo.repo] : (context.payload?.repository?.full_name ?? "/").split("/");
+  const owner = context.repo?.owner;
+  const repo = context.repo?.repo;
+  if (!owner || !repo) {
+    core.setFailed(`${ERR_CONFIG}: Configuration error: Unable to determine repository owner/name from context.`);
+    return;
+  }
 
   try {
     if (eventName === "issues") {
