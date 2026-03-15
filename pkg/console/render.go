@@ -154,6 +154,8 @@ func renderSlice(val reflect.Value, title string, output *strings.Builder, depth
 		return
 	}
 
+	renderLog.Printf("Rendering slice: title=%s, length=%d, element_type=%s", title, val.Len(), val.Type().Elem().Name())
+
 	// Print title without FormatInfoMessage styling
 	if title != "" {
 		if depth == 0 {
@@ -208,6 +210,8 @@ func renderMap(val reflect.Value, title string, output *strings.Builder, depth i
 
 // buildTableConfig builds a TableConfig from a slice of structs
 func buildTableConfig(val reflect.Value, title string) TableConfig {
+	renderLog.Printf("Building table config: title=%s, elements=%d", title, val.Len())
+
 	config := TableConfig{
 		Title: "",
 	}
