@@ -1352,7 +1352,7 @@ jobs:
               "defaultMax": 5,
               "fields": {
                 "item_number": {
-                  "issueOrPRNumber": true
+                  "issueNumberOrTemporaryId": true
                 },
                 "labels": {
                   "required": true,

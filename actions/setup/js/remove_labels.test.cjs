@@ -529,5 +529,66 @@ describe("remove_labels", () => {
       expect(removeLabelCalls[0].owner).toBe("github");
       expect(removeLabelCalls[0].repo).toBe("gh-aw");
     });
+
+    it("should resolve temporary ID in item_number to real issue number", async () => {
+      const handler = await main({ max: 10 });
+      const removeLabelCalls = [];
+
+      mockGithub.rest.issues.removeLabel = async params => {
+        removeLabelCalls.push(params);
+        return {};
+      };
+
+      const result = await handler(
+        {
+          item_number: "aw_report1",
+          labels: ["bug"],
+        },
+        { aw_report1: { repo: "test-owner/test-repo", number: 42 } }
+      );
+
+      expect(result.success).toBe(true);
+      expect(result.number).toBe(42);
+      expect(removeLabelCalls.length).toBe(1);
+      expect(removeLabelCalls[0].issue_number).toBe(42);
+    });
+
+    it("should defer when item_number is an unresolved temporary ID", async () => {
+      const handler = await main({ max: 10 });
+
+      const result = await handler(
+        {
+          item_number: "aw_report1",
+          labels: ["bug"],
+        },
+        {}
+      );
+
+      expect(result.success).toBe(false);
+      expect(result.deferred).toBe(true);
+      expect(result.error).toContain("aw_report1");
+    });
+
+    it("should resolve temporary ID with hash prefix in item_number", async () => {
+      const handler = await main({ max: 10 });
+      const removeLabelCalls = [];
+
+      mockGithub.rest.issues.removeLabel = async params => {
+        removeLabelCalls.push(params);
+        return {};
+      };
+
+      const result = await handler(
+        {
+          item_number: "#aw_report1",
+          labels: ["enhancement"],
+        },
+        { aw_report1: { repo: "test-owner/test-repo", number: 99 } }
+      );
+
+      expect(result.success).toBe(true);
+      expect(result.number).toBe(99);
+      expect(removeLabelCalls[0].issue_number).toBe(99);
+    });
   });
 });

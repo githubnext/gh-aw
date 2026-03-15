@@ -732,6 +732,50 @@ describe("temporary_id.cjs", () => {
       expect(refs.has("aw_abc123")).toBe(true);
     });
 
+    it("should extract temporary IDs from item_number field", async () => {
+      const { extractTemporaryIdReferences } = await import("./temporary_id.cjs");
+
+      const message = {
+        type: "add_labels",
+        item_number: "aw_report1",
+        labels: ["bug"],
+      };
+
+      const refs = extractTemporaryIdReferences(message);
+
+      expect(refs.size).toBe(1);
+      expect(refs.has("aw_report1")).toBe(true);
+    });
+
+    it("should extract temporary IDs from item_number field (with # prefix)", async () => {
+      const { extractTemporaryIdReferences } = await import("./temporary_id.cjs");
+
+      const message = {
+        type: "remove_labels",
+        item_number: "#aw_report1",
+        labels: ["bug"],
+      };
+
+      const refs = extractTemporaryIdReferences(message);
+
+      expect(refs.size).toBe(1);
+      expect(refs.has("aw_report1")).toBe(true);
+    });
+
+    it("should not extract from item_number with regular issue number", async () => {
+      const { extractTemporaryIdReferences } = await import("./temporary_id.cjs");
+
+      const message = {
+        type: "add_labels",
+        item_number: 42,
+        labels: ["bug"],
+      };
+
+      const refs = extractTemporaryIdReferences(message);
+
+      expect(refs.size).toBe(0);
+    });
+
     it("should ignore invalid temporary ID formats", async () => {
       const { extractTemporaryIdReferences } = await import("./temporary_id.cjs");
 
