@@ -35,7 +35,7 @@ tools:
     - "git remote *"
     - "echo *"
 safe-outputs:
-  allowed-url-domains: [default-redaction]
+  allowed-domains: [default-safe-outputs]
   add-comment:
     hide-older-comments: true
     max: 1

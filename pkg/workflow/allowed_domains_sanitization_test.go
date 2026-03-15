@@ -238,9 +238,9 @@ Test workflow with ecosystem identifiers.
 	}
 }
 
-// TestManualAllowedDomainsHasPriority tests that manually configured allowed-domains
-// takes precedence over network configuration
-func TestManualAllowedDomainsHasPriority(t *testing.T) {
+// TestManualAllowedDomainsUnionWithNetworkConfig tests that manually configured allowed-domains
+// unions with network configuration (not overrides it)
+func TestManualAllowedDomainsUnionWithNetworkConfig(t *testing.T) {
 	tests := []struct {
 		name             string
 		workflow         string
@@ -248,7 +248,7 @@ func TestManualAllowedDomainsHasPriority(t *testing.T) {
 		unexpectedDomain string
 	}{
 		{
-			name: "Manual allowed-domains overrides network config",
+			name: "Manual allowed-domains unions with network config",
 			workflow: `---
 on: push
 permissions:
@@ -270,14 +270,15 @@ safe-outputs:
 
 # Test Workflow
 
-Test that manual allowed-domains takes precedence.
+Test that manual allowed-domains unions with network config.
 `,
 			expectedDomains: []string{
 				"manual-domain.com",
 				"override.org",
+				"example.com", // from network.allowed - still present (union)
 			},
-			// Network domains and Copilot defaults should NOT be included
-			unexpectedDomain: "example.com",
+			// No domain should be absent
+			unexpectedDomain: "",
 		},
 		{
 			name: "Empty allowed-domains uses network config",
@@ -459,16 +460,16 @@ func TestComputeAllowedDomainsForSanitization(t *testing.T) {
 	}
 }
 
-// TestAllowedURLDomainsUnionWithNetworkConfig tests that safe-outputs.allowed-url-domains
+// TestAllowedDomainsUnionWithNetworkConfig tests that safe-outputs.allowed-domains
 // is unioned with network.allowed and always includes localhost and github.com
-func TestAllowedURLDomainsUnionWithNetworkConfig(t *testing.T) {
+func TestAllowedDomainsUnionWithNetworkConfig(t *testing.T) {
 	tests := []struct {
 		name            string
 		workflow        string
 		expectedDomains []string
 	}{
 		{
-			name: "allowed-url-domains unioned with Copilot defaults and network config",
+			name: "allowed-domains unioned with Copilot defaults and network config",
 			workflow: `---
 on: push
 permissions:
@@ -481,16 +482,16 @@ network:
     - example.com
 safe-outputs:
   create-issue:
-  allowed-url-domains:
+  allowed-domains:
     - extra-domain.com
 ---
 
 # Test Workflow
 
-Test allowed-url-domains union with network config.
+Test allowed-domains union with network config.
 `,
 			expectedDomains: []string{
-				"extra-domain.com", // from allowed-url-domains
+				"extra-domain.com", // from allowed-domains
 				"example.com",      // from network.allowed
 				"api.github.com",   // Copilot default
 				"localhost",        // always included
@@ -498,7 +499,7 @@ Test allowed-url-domains union with network config.
 			},
 		},
 		{
-			name: "allowed-url-domains supports ecosystem identifiers",
+			name: "allowed-domains supports ecosystem identifiers",
 			workflow: `---
 on: push
 permissions:
@@ -508,14 +509,14 @@ engine: copilot
 strict: false
 safe-outputs:
   create-issue:
-  allowed-url-domains:
+  allowed-domains:
     - dev-tools
     - python
 ---
 
 # Test Workflow
 
-Test allowed-url-domains with ecosystem identifiers.
+Test allowed-domains with ecosystem identifiers.
 `,
 			expectedDomains: []string{
 				"codecov.io", // from dev-tools ecosystem
@@ -526,7 +527,7 @@ Test allowed-url-domains with ecosystem identifiers.
 			},
 		},
 		{
-			name: "allowed-url-domains does not override network config",
+			name: "allowed-domains does not override network config",
 			workflow: `---
 on: push
 permissions:
@@ -539,16 +540,16 @@ network:
     - network-domain.com
 safe-outputs:
   create-issue:
-  allowed-url-domains:
+  allowed-domains:
     - url-domain.com
 ---
 
 # Test Workflow
 
-Test that allowed-url-domains does not override network config.
+Test that allowed-domains does not override network config.
 `,
 			expectedDomains: []string{
-				"url-domain.com",     // from allowed-url-domains
+				"url-domain.com",     // from allowed-domains
 				"network-domain.com", // from network.allowed - still present (union)
 				"api.github.com",     // Copilot default
 				"localhost",          // always included
@@ -558,7 +559,7 @@ Test that allowed-url-domains does not override network config.
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			tmpDir := testutil.TempDir(t, "allowed-url-domains-test")
+			tmpDir := testutil.TempDir(t, "allowed-domains-test")
 			testFile := filepath.Join(tmpDir, "test-workflow.md")
 			if err := os.WriteFile(testFile, []byte(tt.workflow), 0644); err != nil {
 				t.Fatal(err)

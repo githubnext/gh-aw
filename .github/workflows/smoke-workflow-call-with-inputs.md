@@ -30,7 +30,7 @@ tools:
     - "echo *"
     - "date"
 safe-outputs:
-  allowed-url-domains: [default-redaction]
+  allowed-domains: [default-safe-outputs]
   noop:
 timeout-minutes: 5
 ---

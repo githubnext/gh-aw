@@ -132,10 +132,10 @@ func init() {
 // component ecosystems. These are resolved at lookup time, so they stay in sync with
 // any future changes to the component ecosystems.
 var compoundEcosystems = map[string][]string{
-	// default-redaction: the recommended baseline for URL redaction in safe-outputs.
+	// default-safe-outputs: the recommended baseline for URL redaction in safe-outputs.
 	// Covers common infrastructure certificate/OCSP hosts (via "defaults") plus popular
 	// developer-tool and CI/CD service domains (via "dev-tools").
-	"default-redaction": {"defaults", "dev-tools"},
+	"default-safe-outputs": {"defaults", "dev-tools"},
 }
 
 // getEcosystemDomains returns the domains for a given ecosystem category.
@@ -361,7 +361,7 @@ var ecosystemPriority = []string{
 	"swift",
 	"terraform",
 	"zig",
-	"default-redaction", // compound: defaults + dev-tools
+	"default-safe-outputs", // compound: defaults + dev-tools
 }
 
 // GetDomainEcosystem returns the ecosystem identifier for a given domain, or empty string if not found.
@@ -669,10 +669,10 @@ func (c *Compiler) computeAllowedDomainsForSanitization(data *WorkflowData) stri
 	}
 }
 
-// expandAllowedURLDomains expands a list of domain entries (which may include ecosystem
+// expandAllowedDomains expands a list of domain entries (which may include ecosystem
 // identifiers like "python", "node", "dev-tools") into a deduplicated, sorted list of
 // concrete domain strings. This uses the same expansion logic as network.allowed.
-func expandAllowedURLDomains(entries []string) []string {
+func expandAllowedDomains(entries []string) []string {
 	domainMap := make(map[string]bool)
 	for _, entry := range entries {
 		ecosystemDomains := getEcosystemDomains(entry)
@@ -692,11 +692,11 @@ func expandAllowedURLDomains(entries []string) []string {
 	return result
 }
 
-// computeAllowedURLDomainsForSanitization computes the allowed domains for URL sanitization,
-// unioning the engine/network base set with the safe-outputs.allowed-url-domains entries.
+// computeExpandedAllowedDomainsForSanitization computes the allowed domains for URL sanitization,
+// unioning the engine/network base set with the safe-outputs.allowed-domains entries.
 // It always includes "localhost" and "github.com" in the result.
-// The allowed-url-domains entries support ecosystem identifiers (same syntax as network.allowed).
-func (c *Compiler) computeAllowedURLDomainsForSanitization(data *WorkflowData) string {
+// The allowed-domains entries support ecosystem identifiers (same syntax as network.allowed).
+func (c *Compiler) computeExpandedAllowedDomainsForSanitization(data *WorkflowData) string {
 	// Start from the base set (engine defaults + network.allowed + tools + runtimes)
 	base := c.computeAllowedDomainsForSanitization(data)
 
@@ -712,9 +712,9 @@ func (c *Compiler) computeAllowedURLDomainsForSanitization(data *WorkflowData) s
 		}
 	}
 
-	// Union with allowed-url-domains (expanded)
-	if data.SafeOutputs != nil && len(data.SafeOutputs.AllowedURLDomains) > 0 {
-		for _, d := range expandAllowedURLDomains(data.SafeOutputs.AllowedURLDomains) {
+	// Union with allowed-domains (expanded)
+	if data.SafeOutputs != nil && len(data.SafeOutputs.AllowedDomains) > 0 {
+		for _, d := range expandAllowedDomains(data.SafeOutputs.AllowedDomains) {
 			domainMap[d] = true
 		}
 	}

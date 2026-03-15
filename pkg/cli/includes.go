@@ -119,6 +119,8 @@ func fetchAndSaveRemoteFrontmatterImports(content string, spec *WorkflowSpec, ta
 		return nil
 	}
 
+	remoteWorkflowLog.Printf("Fetching frontmatter imports for workflow: repo=%s, path=%s", spec.RepoSlug, spec.WorkflowPath)
+
 	parts := strings.SplitN(spec.RepoSlug, "/", 2)
 	if len(parts) != 2 {
 		return nil
@@ -188,6 +190,8 @@ func fetchFrontmatterImportsRecursive(content, owner, repo, ref, currentBaseDir,
 	if len(importPaths) == 0 {
 		return
 	}
+
+	remoteWorkflowLog.Printf("Processing %d frontmatter imports recursively: owner=%s, repo=%s, ref=%s", len(importPaths), owner, repo, ref)
 
 	// Pre-compute the absolute target directory once for path-traversal boundary checks.
 	absTargetDir, err := filepath.Abs(targetDir)

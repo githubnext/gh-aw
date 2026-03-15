@@ -23,7 +23,7 @@
 #
 # Smoke test that validates assign-to-agent with the agentic-workflows custom agent
 #
-# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"3c582fe0f4bd859be6ae9f91cdda2ebaafa21934283ac26646271a50c05ba1ea","strict":true}
+# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"3c97796557487cb3f9dfd02804b2c10932fddb5dd95d7c884c33a25e1a9c75d0","strict":true}
 
 name: "Smoke Agent: public/approved"
 "on":

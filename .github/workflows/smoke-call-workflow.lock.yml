@@ -23,7 +23,7 @@
 #
 # Smoke test for the call-workflow safe output - orchestrator that calls a worker via workflow_call at compile-time fan-out
 #
-# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"40e319124ecbe26f1e2e8e56c7e02788569d18eeff79c748c7b28b33304b4a50","strict":true}
+# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"61544e9548c9d83d99c2874329b16fde38e5eed99331c8de79e5eac9093ce3fa","strict":true}
 
 name: "Smoke Call Workflow"
 "on":

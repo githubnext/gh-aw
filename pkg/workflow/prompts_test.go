@@ -750,3 +750,101 @@ This is a test workflow without contents read permission.
 
 	t.Logf("Successfully verified PR context instructions are NOT included without contents permission")
 }
+
+// ============================================================================
+// Agentic Workflows Guide Prompt Tests
+// ============================================================================
+
+func TestAgenticWorkflowsGuideIncludedWhenEnabled(t *testing.T) {
+	tmpDir, err := os.MkdirTemp("", "gh-aw-agentic-guide-test-*")
+	if err != nil {
+		t.Fatalf("Failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	testFile := filepath.Join(tmpDir, "test-workflow.md")
+	testContent := `---
+on: schedule daily
+engine: claude
+tools:
+  agentic-workflows:
+permissions:
+  actions: read
+---
+
+# Test Workflow with Agentic Workflows
+
+This workflow uses the agentic-workflows MCP server.
+`
+
+	if err := os.WriteFile(testFile, []byte(testContent), 0644); err != nil {
+		t.Fatalf("Failed to create test workflow: %v", err)
+	}
+
+	compiler := NewCompiler()
+	if err := compiler.CompileWorkflow(testFile); err != nil {
+		t.Fatalf("Failed to compile workflow: %v", err)
+	}
+
+	lockFile := stringutil.MarkdownToLockFile(testFile)
+	lockContent, err := os.ReadFile(lockFile)
+	if err != nil {
+		t.Fatalf("Failed to read generated lock file: %v", err)
+	}
+
+	lockStr := string(lockContent)
+
+	if !strings.Contains(lockStr, "- name: Create prompt with built-in context") {
+		t.Error("Expected 'Create prompt with built-in context' step in generated workflow")
+	}
+
+	if !strings.Contains(lockStr, "cat \"/opt/gh-aw/prompts/agentic_workflows_guide.md\"") {
+		t.Error("Expected cat command for agentic_workflows_guide.md in generated workflow")
+	}
+
+	t.Logf("Successfully verified agentic-workflows guide is included when agentic-workflows tool is enabled")
+}
+
+func TestAgenticWorkflowsGuideNotIncludedWhenDisabled(t *testing.T) {
+	tmpDir, err := os.MkdirTemp("", "gh-aw-no-agentic-guide-test-*")
+	if err != nil {
+		t.Fatalf("Failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	testFile := filepath.Join(tmpDir, "test-workflow.md")
+	testContent := `---
+on: push
+engine: codex
+tools:
+  github:
+---
+
+# Test Workflow without Agentic Workflows
+
+This workflow does not use the agentic-workflows MCP server.
+`
+
+	if err := os.WriteFile(testFile, []byte(testContent), 0644); err != nil {
+		t.Fatalf("Failed to create test workflow: %v", err)
+	}
+
+	compiler := NewCompiler()
+	if err := compiler.CompileWorkflow(testFile); err != nil {
+		t.Fatalf("Failed to compile workflow: %v", err)
+	}
+
+	lockFile := stringutil.MarkdownToLockFile(testFile)
+	lockContent, err := os.ReadFile(lockFile)
+	if err != nil {
+		t.Fatalf("Failed to read generated lock file: %v", err)
+	}
+
+	lockStr := string(lockContent)
+
+	if strings.Contains(lockStr, "agentic_workflows_guide.md") {
+		t.Error("Did not expect 'agentic_workflows_guide.md' reference in workflow without agentic-workflows tool")
+	}
+
+	t.Logf("Successfully verified agentic-workflows guide is NOT included when agentic-workflows tool is disabled")
+}

@@ -508,7 +508,9 @@ func TestBuildHandlerManagerStep(t *testing.T) {
 				AddComments:    &AddCommentsConfig{},
 			},
 			checkContains: []string{
-				"GH_AW_ALLOWED_DOMAINS: \"docs.example.com,api.example.com\"",
+				"GH_AW_ALLOWED_DOMAINS:",
+				"docs.example.com",
+				"api.example.com",
 				"GITHUB_SERVER_URL: ${{ github.server_url }}",
 				"GITHUB_API_URL: ${{ github.api_url }}",
 			},

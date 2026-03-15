@@ -170,7 +170,7 @@ func (c *Compiler) extractSafeOutputsConfig(frontmatter map[string]any) *SafeOut
 				config.AutofixCodeScanningAlert = autofixCodeScanningAlertConfig
 			}
 
-			// Parse allowed-domains configuration
+			// Parse allowed-domains configuration (additional domains, unioned with network.allowed; supports ecosystem identifiers)
 			if allowedDomains, exists := outputMap["allowed-domains"]; exists {
 				if domainsArray, ok := allowedDomains.([]any); ok {
 					var domainStrings []string
@@ -181,20 +181,6 @@ func (c *Compiler) extractSafeOutputsConfig(frontmatter map[string]any) *SafeOut
 					}
 					config.AllowedDomains = domainStrings
 					safeOutputsConfigLog.Printf("Configured allowed-domains with %d domain(s)", len(domainStrings))
-				}
-			}
-
-			// Parse allowed-url-domains configuration (additional domains, unioned with network.allowed)
-			if allowedURLDomains, exists := outputMap["allowed-url-domains"]; exists {
-				if domainsArray, ok := allowedURLDomains.([]any); ok {
-					var domainStrings []string
-					for _, domain := range domainsArray {
-						if domainStr, ok := domain.(string); ok {
-							domainStrings = append(domainStrings, domainStr)
-						}
-					}
-					config.AllowedURLDomains = domainStrings
-					safeOutputsConfigLog.Printf("Configured allowed-url-domains with %d domain(s)", len(domainStrings))
 				}
 			}
 

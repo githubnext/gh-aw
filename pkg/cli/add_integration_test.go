@@ -978,7 +978,11 @@ func TestAddWorkflowWithDispatchWorkflowFromSharedImport(t *testing.T) {
 	// frontmatter. haiku-printer lives as haiku-printer.yml (a plain GitHub Actions
 	// workflow). The fetcher falls back to .yml when .md is 404, so both the main
 	// workflow and the dispatch-workflow dependency are written to disk.
-	workflowSpec := "github/gh-aw/.github/workflows/smoke-copilot.md@main"
+	//
+	// Note: pinned to a specific commit SHA from the branch that renamed
+	// allowed-url-domains → allowed-domains (schema change). Update to @main once
+	// that change has been merged.
+	workflowSpec := "github/gh-aw/.github/workflows/smoke-copilot.md@c93eec8"
 
 	cmd := exec.Command(setup.binaryPath, "add", workflowSpec, "--verbose")
 	cmd.Dir = setup.tempDir

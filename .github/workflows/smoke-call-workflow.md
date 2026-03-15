@@ -17,7 +17,7 @@ network:
   allowed:
     - defaults
 safe-outputs:
-  allowed-url-domains: [default-redaction]
+  allowed-domains: [default-safe-outputs]
   call-workflow:
     workflows:
       - smoke-workflow-call

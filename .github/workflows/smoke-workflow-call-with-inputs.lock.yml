@@ -23,7 +23,7 @@
 #
 # Reusable workflow with inputs - used to test that multiple callers don't clash on artifact names
 #
-# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"771740f24e223b8d34da36ea8e78936a7e124c69e9b98c1e4c8ff4b5ddaebe00","strict":true}
+# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"70659d13c51a9ae641724fcb962c32d078d6734c237660a62fdc5ccc0e7c999d","strict":true}
 
 name: "Smoke Workflow Call with Inputs"
 "on":
