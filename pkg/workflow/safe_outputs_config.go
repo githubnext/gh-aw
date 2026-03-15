@@ -184,6 +184,20 @@ func (c *Compiler) extractSafeOutputsConfig(frontmatter map[string]any) *SafeOut
 				}
 			}
 
+			// Parse allowed-url-domains configuration (additional domains, unioned with network.allowed)
+			if allowedURLDomains, exists := outputMap["allowed-url-domains"]; exists {
+				if domainsArray, ok := allowedURLDomains.([]any); ok {
+					var domainStrings []string
+					for _, domain := range domainsArray {
+						if domainStr, ok := domain.(string); ok {
+							domainStrings = append(domainStrings, domainStr)
+						}
+					}
+					config.AllowedURLDomains = domainStrings
+					safeOutputsConfigLog.Printf("Configured allowed-url-domains with %d domain(s)", len(domainStrings))
+				}
+			}
+
 			// Parse allowed-github-references configuration
 			if allowGitHubRefs, exists := outputMap["allowed-github-references"]; exists {
 				if refsArray, ok := allowGitHubRefs.([]any); ok {

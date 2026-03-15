@@ -89,6 +89,41 @@ func (c *Compiler) validateSafeOutputsAllowedDomains(config *SafeOutputsConfig) 
 	return nil
 }
 
+// validateSafeOutputsAllowedURLDomains validates the allowed-url-domains configuration in safe-outputs.
+// Supports ecosystem identifiers (e.g., "python", "node") like network.allowed.
+func (c *Compiler) validateSafeOutputsAllowedURLDomains(config *SafeOutputsConfig) error {
+	if config == nil || len(config.AllowedURLDomains) == 0 {
+		return nil
+	}
+
+	safeOutputsDomainsValidationLog.Printf("Validating %d allowed-url-domains", len(config.AllowedURLDomains))
+
+	collector := NewErrorCollector(c.failFast)
+
+	for i, domain := range config.AllowedURLDomains {
+		// Skip ecosystem identifiers - they don't need domain pattern validation
+		if isEcosystemIdentifier(domain) {
+			safeOutputsDomainsValidationLog.Printf("Skipping ecosystem identifier: %s", domain)
+			continue
+		}
+
+		if err := validateDomainPattern(domain); err != nil {
+			wrappedErr := fmt.Errorf("safe-outputs.allowed-url-domains[%d]: %w", i, err)
+			if returnErr := collector.Add(wrappedErr); returnErr != nil {
+				return returnErr // Fail-fast mode
+			}
+		}
+	}
+
+	if err := collector.Error(); err != nil {
+		safeOutputsDomainsValidationLog.Printf("Safe outputs allowed-url-domains validation failed: %v", err)
+		return err
+	}
+
+	safeOutputsDomainsValidationLog.Print("Safe outputs allowed-url-domains validation passed")
+	return nil
+}
+
 // validateDomainPattern validates a single domain pattern
 func validateDomainPattern(domain string) error {
 	// Check for empty domain

@@ -892,3 +892,146 @@ func TestGetCodexAllowedDomainsWithToolsAndRuntimes(t *testing.T) {
 		}
 	})
 }
+
+// TestExpandAllowedURLDomains tests the expandAllowedURLDomains function
+func TestExpandAllowedURLDomains(t *testing.T) {
+	t.Run("plain domains are returned as-is", func(t *testing.T) {
+		result := expandAllowedURLDomains([]string{"example.com", "test.org"})
+		if !strings.Contains(strings.Join(result, ","), "example.com") {
+			t.Error("Expected example.com in result")
+		}
+		if !strings.Contains(strings.Join(result, ","), "test.org") {
+			t.Error("Expected test.org in result")
+		}
+	})
+
+	t.Run("ecosystem identifiers are expanded", func(t *testing.T) {
+		result := expandAllowedURLDomains([]string{"python"})
+		joined := strings.Join(result, ",")
+		if !strings.Contains(joined, "pypi.org") {
+			t.Error("Expected pypi.org from python ecosystem in result")
+		}
+	})
+
+	t.Run("dev-tools ecosystem is expanded", func(t *testing.T) {
+		result := expandAllowedURLDomains([]string{"dev-tools"})
+		joined := strings.Join(result, ",")
+		if !strings.Contains(joined, "codecov.io") {
+			t.Error("Expected codecov.io from dev-tools ecosystem in result")
+		}
+		if !strings.Contains(joined, "snyk.io") {
+			t.Error("Expected snyk.io from dev-tools ecosystem in result")
+		}
+	})
+
+	t.Run("mixed plain domains and ecosystem identifiers", func(t *testing.T) {
+		result := expandAllowedURLDomains([]string{"example.com", "python"})
+		joined := strings.Join(result, ",")
+		if !strings.Contains(joined, "example.com") {
+			t.Error("Expected example.com in result")
+		}
+		if !strings.Contains(joined, "pypi.org") {
+			t.Error("Expected pypi.org from python ecosystem in result")
+		}
+	})
+
+	t.Run("empty input returns empty result", func(t *testing.T) {
+		result := expandAllowedURLDomains([]string{})
+		if len(result) != 0 {
+			t.Errorf("Expected empty result, got %v", result)
+		}
+	})
+}
+
+// TestComputeAllowedURLDomainsForSanitization tests that allowed-url-domains are unioned with
+// the engine/network base set and always includes localhost and github.com
+func TestComputeAllowedURLDomainsForSanitization(t *testing.T) {
+	compiler := NewCompiler()
+
+	t.Run("unions with engine base set", func(t *testing.T) {
+		data := &WorkflowData{
+			EngineConfig: &EngineConfig{ID: "copilot"},
+			NetworkPermissions: &NetworkPermissions{
+				Allowed: []string{"example.com"},
+			},
+			SafeOutputs: &SafeOutputsConfig{
+				AllowedURLDomains: []string{"extra-domain.com"},
+			},
+		}
+		result := compiler.computeAllowedURLDomainsForSanitization(data)
+		if !strings.Contains(result, "extra-domain.com") {
+			t.Error("Expected extra-domain.com in result")
+		}
+		if !strings.Contains(result, "example.com") {
+			t.Errorf("Expected network domain example.com in result, got: %s", result)
+		}
+		if !strings.Contains(result, "api.github.com") {
+			t.Error("Expected Copilot default api.github.com in result")
+		}
+	})
+
+	t.Run("always includes localhost", func(t *testing.T) {
+		data := &WorkflowData{
+			EngineConfig: &EngineConfig{ID: "copilot"},
+			SafeOutputs: &SafeOutputsConfig{
+				AllowedURLDomains: []string{"extra-domain.com"},
+			},
+		}
+		result := compiler.computeAllowedURLDomainsForSanitization(data)
+		if !strings.Contains(result, "localhost") {
+			t.Error("Expected localhost to always be in allowed-url-domains result")
+		}
+	})
+
+	t.Run("always includes github.com", func(t *testing.T) {
+		data := &WorkflowData{
+			EngineConfig: &EngineConfig{ID: "codex"},
+			SafeOutputs: &SafeOutputsConfig{
+				AllowedURLDomains: []string{"extra-domain.com"},
+			},
+		}
+		result := compiler.computeAllowedURLDomainsForSanitization(data)
+		if !strings.Contains(result, "github.com") {
+			t.Error("Expected github.com to always be in allowed-url-domains result")
+		}
+	})
+
+	t.Run("supports ecosystem identifiers", func(t *testing.T) {
+		data := &WorkflowData{
+			EngineConfig: &EngineConfig{ID: "copilot"},
+			SafeOutputs: &SafeOutputsConfig{
+				AllowedURLDomains: []string{"python", "dev-tools"},
+			},
+		}
+		result := compiler.computeAllowedURLDomainsForSanitization(data)
+		if !strings.Contains(result, "pypi.org") {
+			t.Error("Expected pypi.org from python ecosystem in result")
+		}
+		if !strings.Contains(result, "codecov.io") {
+			t.Error("Expected codecov.io from dev-tools ecosystem in result")
+		}
+	})
+}
+
+// TestDefaultRedactionEcosystem tests that the default-redaction compound ecosystem
+// correctly expands to the union of defaults + dev-tools
+func TestDefaultRedactionEcosystem(t *testing.T) {
+	result := expandAllowedURLDomains([]string{"default-redaction"})
+	joined := strings.Join(result, ",")
+
+	// From defaults ecosystem
+	defaultsSamples := []string{"json-schema.org", "archive.ubuntu.com", "ocsp.digicert.com"}
+	// From dev-tools ecosystem
+	devToolsSamples := []string{"codecov.io", "snyk.io", "shields.io"}
+
+	for _, d := range append(defaultsSamples, devToolsSamples...) {
+		if !strings.Contains(joined, d) {
+			t.Errorf("Expected domain %q from default-redaction ecosystem in result", d)
+		}
+	}
+
+	// Should include both defaults and dev-tools (at least 34+21 = 55 domains)
+	if len(result) < 50 {
+		t.Errorf("Expected at least 50 domains in default-redaction, got %d", len(result))
+	}
+}

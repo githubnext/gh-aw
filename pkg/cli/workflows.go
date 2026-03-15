@@ -350,6 +350,22 @@ func extractWorkflowNameFromFile(filePath string) (string, error) {
 	return strings.Join(words, " "), nil
 }
 
+// extractEngineIDFromFrontmatter extracts the engine ID from a parsed frontmatter map.
+// Returns "copilot" as the default if no engine is specified.
+func extractEngineIDFromFrontmatter(frontmatter map[string]any) string {
+	// Use the workflow package's ExtractEngineConfig to handle both string and object formats
+	compiler := &workflow.Compiler{}
+	engineSetting, engineConfig := compiler.ExtractEngineConfig(frontmatter)
+
+	if engineConfig != nil && engineConfig.ID != "" {
+		return engineConfig.ID
+	}
+	if engineSetting != "" {
+		return engineSetting
+	}
+	return "copilot" // Default engine
+}
+
 // extractEngineIDFromFile extracts the engine ID from a workflow file's frontmatter
 func extractEngineIDFromFile(filePath string) string {
 	content, err := os.ReadFile(filePath)
@@ -363,21 +379,7 @@ func extractEngineIDFromFile(filePath string) string {
 		return "" // Return empty string if frontmatter cannot be parsed
 	}
 
-	// Use the workflow package's extractEngineConfig to handle both string and object formats
-	compiler := &workflow.Compiler{}
-	engineSetting, engineConfig := compiler.ExtractEngineConfig(result.Frontmatter)
-
-	// If engine is specified, return the ID from the config
-	if engineConfig != nil && engineConfig.ID != "" {
-		return engineConfig.ID
-	}
-
-	// If we have an engine setting string, return it
-	if engineSetting != "" {
-		return engineSetting
-	}
-
-	return "copilot" // Default engine
+	return extractEngineIDFromFrontmatter(result.Frontmatter)
 }
 
 // normalizeWorkflowID extracts the workflow ID from a workflow identifier.

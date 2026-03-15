@@ -36,6 +36,7 @@ tools:
     github-token: ${{ secrets.GH_AW_SIDE_REPO_PAT }}
 
 safe-outputs:
+  allowed-url-domains: [default-redaction]
   create-issue:
     expires: 2h
     close-older-issues: true

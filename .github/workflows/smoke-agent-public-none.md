@@ -23,6 +23,7 @@ network:
     - defaults
     - github
 safe-outputs:
+  allowed-url-domains: [default-redaction]
   add-comment:
     hide-older-comments: true
     max: 2
