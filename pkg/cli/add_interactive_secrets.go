@@ -20,14 +20,9 @@ func (c *AddInteractiveConfig) checkExistingSecrets() error {
 		addInteractiveLog.Printf("Could not fetch existing secrets: %v", err)
 		// Continue without error - we'll just assume no secrets exist
 	} else {
-		// Parse the output - each secret name is on its own line
-		secretNames := strings.SplitSeq(strings.TrimSpace(string(output)), "\n")
-		for name := range secretNames {
-			name = strings.TrimSpace(name)
-			if name != "" {
-				c.existingSecrets[name] = true
-				addInteractiveLog.Printf("Found existing repository secret: %s", name)
-			}
+		for _, name := range parseSecretNames(output) {
+			c.existingSecrets[name] = true
+			addInteractiveLog.Printf("Found existing repository secret: %s", name)
 		}
 	}
 
@@ -37,13 +32,9 @@ func (c *AddInteractiveConfig) checkExistingSecrets() error {
 		if orgErr != nil {
 			addInteractiveLog.Printf("Could not fetch org secrets (this is expected for personal repos or if org access is restricted): %v", orgErr)
 		} else {
-			orgSecretNames := strings.SplitSeq(strings.TrimSpace(string(orgOutput)), "\n")
-			for name := range orgSecretNames {
-				name = strings.TrimSpace(name)
-				if name != "" {
-					c.existingSecrets[name] = true
-					addInteractiveLog.Printf("Found existing org secret: %s", name)
-				}
+			for _, name := range parseSecretNames(orgOutput) {
+				c.existingSecrets[name] = true
+				addInteractiveLog.Printf("Found existing org secret: %s", name)
 			}
 		}
 	}
@@ -62,6 +53,18 @@ func (c *AddInteractiveConfig) addRepositorySecret(name, value string) error {
 		return fmt.Errorf("failed to set secret: %w (output: %s)", err, string(output))
 	}
 	return nil
+}
+
+// parseSecretNames parses newline-delimited GitHub API output and returns the
+// non-empty, trimmed secret names.
+func parseSecretNames(output []byte) []string {
+	var names []string
+	for name := range strings.SplitSeq(strings.TrimSpace(string(output)), "\n") {
+		if name = strings.TrimSpace(name); name != "" {
+			names = append(names, name)
+		}
+	}
+	return names
 }
 
 // getSecretInfo returns the secret name and value based on the selected engine
