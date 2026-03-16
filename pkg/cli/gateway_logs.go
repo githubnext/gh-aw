@@ -19,13 +19,13 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/sliceutil"
-	"github.com/github/gh-aw/pkg/stringutil"
 	"github.com/github/gh-aw/pkg/timeutil"
 )
 
@@ -514,30 +514,30 @@ func renderGatewayMetricsTable(metrics *GatewayMetrics, verbose bool) string {
 
 	// Server metrics table
 	if len(metrics.Servers) > 0 {
-		output.WriteString("Server Usage:\n")
-		output.WriteString("┌────────────────────────────┬──────────┬────────────┬───────────┬────────┐\n")
-		output.WriteString("│ Server                     │ Requests │ Tool Calls │ Avg Time  │ Errors │\n")
-		output.WriteString("├────────────────────────────┼──────────┼────────────┼───────────┼────────┤\n")
-
 		// Sort servers by request count
 		serverNames := getSortedServerNames(metrics)
 
+		serverRows := make([][]string, 0, len(serverNames))
 		for _, serverName := range serverNames {
 			server := metrics.Servers[serverName]
 			avgTime := 0.0
 			if server.RequestCount > 0 {
 				avgTime = server.TotalDuration / float64(server.RequestCount)
 			}
-
-			fmt.Fprintf(&output, "│ %-26s │ %8d │ %10d │ %7.0fms │ %6d │\n",
-				stringutil.Truncate(serverName, 26),
-				server.RequestCount,
-				server.ToolCallCount,
-				avgTime,
-				server.ErrorCount)
+			serverRows = append(serverRows, []string{
+				serverName,
+				strconv.Itoa(server.RequestCount),
+				strconv.Itoa(server.ToolCallCount),
+				fmt.Sprintf("%.0fms", avgTime),
+				strconv.Itoa(server.ErrorCount),
+			})
 		}
 
-		output.WriteString("└────────────────────────────┴──────────┴────────────┴───────────┴────────┘\n")
+		output.WriteString(console.RenderTable(console.TableConfig{
+			Title:   "Server Usage",
+			Headers: []string{"Server", "Requests", "Tool Calls", "Avg Time", "Errors"},
+			Rows:    serverRows,
+		}))
 	}
 
 	// Tool metrics table (if verbose)
@@ -551,28 +551,29 @@ func renderGatewayMetricsTable(metrics *GatewayMetrics, verbose bool) string {
 				continue
 			}
 
-			fmt.Fprintf(&output, "\n%s:\n", serverName)
-			output.WriteString("┌──────────────────────────┬───────┬──────────┬──────────┬──────────┐\n")
-			output.WriteString("│ Tool                     │ Calls │ Avg Time │ Max Time │ Errors   │\n")
-			output.WriteString("├──────────────────────────┼───────┼──────────┼──────────┼──────────┤\n")
-
 			// Sort tools by call count
 			toolNames := sliceutil.MapToSlice(server.Tools)
 			sort.Slice(toolNames, func(i, j int) bool {
 				return server.Tools[toolNames[i]].CallCount > server.Tools[toolNames[j]].CallCount
 			})
 
+			toolRows := make([][]string, 0, len(toolNames))
 			for _, toolName := range toolNames {
 				tool := server.Tools[toolName]
-				fmt.Fprintf(&output, "│ %-24s │ %5d │ %6.0fms │ %6.0fms │ %8d │\n",
-					stringutil.Truncate(toolName, 24),
-					tool.CallCount,
-					tool.AvgDuration,
-					tool.MaxDuration,
-					tool.ErrorCount)
+				toolRows = append(toolRows, []string{
+					toolName,
+					strconv.Itoa(tool.CallCount),
+					fmt.Sprintf("%.0fms", tool.AvgDuration),
+					fmt.Sprintf("%.0fms", tool.MaxDuration),
+					strconv.Itoa(tool.ErrorCount),
+				})
 			}
 
-			output.WriteString("└──────────────────────────┴───────┴──────────┴──────────┴──────────┘\n")
+			output.WriteString(console.RenderTable(console.TableConfig{
+				Title:   serverName,
+				Headers: []string{"Tool", "Calls", "Avg Time", "Max Time", "Errors"},
+				Rows:    toolRows,
+			}))
 		}
 	}
 
