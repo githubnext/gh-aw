@@ -110,7 +110,9 @@ func (c *AddInteractiveConfig) createWorkflowPRAndConfigureSecret(ctx context.Co
 						mergeDone = true
 					} else {
 						fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to merge PR: %v", mergeErr)))
-						fmt.Fprintln(os.Stderr, "Please merge the PR manually: "+result.PRURL)
+						if mergeFailed {
+							fmt.Fprintln(os.Stderr, "Please merge the PR manually: "+result.PRURL)
+						}
 						mergeFailed = true
 					}
 				} else {
