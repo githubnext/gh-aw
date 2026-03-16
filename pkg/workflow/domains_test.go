@@ -1014,7 +1014,7 @@ func TestComputeExpandedAllowedDomainsForSanitization(t *testing.T) {
 }
 
 // TestDefaultSafeOutputsEcosystem tests that the default-safe-outputs compound ecosystem
-// correctly expands to the union of defaults + dev-tools + github
+// correctly expands to the union of defaults + dev-tools + github + local
 func TestDefaultSafeOutputsEcosystem(t *testing.T) {
 	result := expandAllowedDomains([]string{"default-safe-outputs"})
 	joined := strings.Join(result, ",")
@@ -1022,18 +1022,26 @@ func TestDefaultSafeOutputsEcosystem(t *testing.T) {
 	// From defaults ecosystem
 	defaultsSamples := []string{"json-schema.org", "archive.ubuntu.com", "ocsp.digicert.com"}
 	// From dev-tools ecosystem
-	devToolsSamples := []string{"codecov.io", "snyk.io", "shields.io", "localhost", "127.0.0.1", "::1"}
+	devToolsSamples := []string{"codecov.io", "snyk.io", "shields.io"}
 	// From github ecosystem
 	githubSamples := []string{"github.com", "docs.github.com", "github.blog", "*.githubusercontent.com"}
+	// From local ecosystem
+	localSamples := []string{"localhost", "127.0.0.1", "::1"}
 
-	for _, d := range append(append(defaultsSamples, devToolsSamples...), githubSamples...) {
+	for _, d := range append(append(append(defaultsSamples, devToolsSamples...), githubSamples...), localSamples...) {
 		if !strings.Contains(joined, d) {
 			t.Errorf("Expected domain %q from default-safe-outputs ecosystem in result", d)
 		}
 	}
 
-	// Should include defaults + dev-tools + github (at least 34+24+11 = 69 domains, with some overlap)
-	if len(result) < 60 {
-		t.Errorf("Expected at least 60 domains in default-safe-outputs, got %d", len(result))
+	// Verify the size matches the union of all component ecosystems
+	expectedDomains := make(map[string]bool)
+	for _, component := range []string{"defaults", "dev-tools", "github", "local"} {
+		for _, d := range getEcosystemDomains(component) {
+			expectedDomains[d] = true
+		}
+	}
+	if len(result) != len(expectedDomains) {
+		t.Errorf("Expected %d unique domains in default-safe-outputs (union of components), got %d", len(expectedDomains), len(result))
 	}
 }

@@ -40,8 +40,6 @@
     "packages.microsoft.com"
   ],
   "dev-tools": [
-    "127.0.0.1",
-    "::1",
     "app.renovatebot.com",
     "appveyor.com",
     "badgen.net",
@@ -51,10 +49,8 @@
     "codecov.io",
     "coveralls.io",
     "deepsource.io",
-    "docs.github.com",
     "drone.io",
     "img.shields.io",
-    "localhost",
     "readthedocs.io",
     "readthedocs.org",
     "renovatebot.com",
@@ -65,6 +61,7 @@
     "sonarqube.com",
     "travis-ci.com"
   ],
+  "local": ["127.0.0.1", "::1", "localhost"],
   "dotnet": [
     "nuget.org",
     "dist.nuget.org",

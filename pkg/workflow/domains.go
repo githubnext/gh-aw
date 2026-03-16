@@ -133,9 +133,10 @@ func init() {
 // any future changes to the component ecosystems.
 var compoundEcosystems = map[string][]string{
 	// default-safe-outputs: the recommended baseline for URL redaction in safe-outputs.
-	// Covers common infrastructure certificate/OCSP hosts (via "defaults") plus popular
-	// developer-tool and CI/CD service domains (via "dev-tools") and GitHub domains (via "github").
-	"default-safe-outputs": {"defaults", "dev-tools", "github"},
+	// Covers common infrastructure certificate/OCSP hosts (via "defaults"), popular
+	// developer-tool and CI/CD service domains (via "dev-tools"), GitHub domains (via "github"),
+	// and loopback/localhost addresses (via "local").
+	"default-safe-outputs": {"defaults", "dev-tools", "github", "local"},
 }
 
 // getEcosystemDomains returns the domains for a given ecosystem category.
@@ -351,6 +352,7 @@ var ecosystemPriority = []string{
 	"java",
 	"kotlin",
 	"linux-distros",
+	"local",
 	"node",
 	"perl",
 	"php",
@@ -361,7 +363,7 @@ var ecosystemPriority = []string{
 	"swift",
 	"terraform",
 	"zig",
-	"default-safe-outputs", // compound: defaults + dev-tools + github
+	"default-safe-outputs", // compound: defaults + dev-tools + github + local
 }
 
 // GetDomainEcosystem returns the ecosystem identifier for a given domain, or empty string if not found.
