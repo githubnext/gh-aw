@@ -83,7 +83,7 @@ describe("determine_automatic_lockdown", () => {
 
     await determineAutomaticLockdown(mockGithub, mockContext, mockCore);
 
-    expect(mockCore.setOutput).not.toHaveBeenCalledWith("min_integrity", expect.anything());
+    expect(mockCore.setOutput).toHaveBeenCalledWith("min_integrity", "merged");
     expect(mockCore.setOutput).toHaveBeenCalledWith("repos", "all");
     expect(mockCore.setOutput).toHaveBeenCalledWith("visibility", "public");
     expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("min-integrity already configured as 'merged'"));
@@ -102,11 +102,11 @@ describe("determine_automatic_lockdown", () => {
     await determineAutomaticLockdown(mockGithub, mockContext, mockCore);
 
     expect(mockCore.setOutput).toHaveBeenCalledWith("min_integrity", "approved");
-    expect(mockCore.setOutput).not.toHaveBeenCalledWith("repos", expect.anything());
+    expect(mockCore.setOutput).toHaveBeenCalledWith("repos", "public");
     expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("repos already configured as 'public'"));
   });
 
-  it("should not set guard policy outputs for private repository", async () => {
+  it("should set min_integrity=none and repos=all for private repository (no guard policy configured)", async () => {
     mockGithub.rest.repos.get.mockResolvedValue({
       data: {
         private: true,
@@ -120,14 +120,14 @@ describe("determine_automatic_lockdown", () => {
       owner: "test-owner",
       repo: "test-repo",
     });
-    expect(mockCore.setOutput).not.toHaveBeenCalledWith("min_integrity", expect.anything());
-    expect(mockCore.setOutput).not.toHaveBeenCalledWith("repos", expect.anything());
+    expect(mockCore.setOutput).toHaveBeenCalledWith("min_integrity", "none");
+    expect(mockCore.setOutput).toHaveBeenCalledWith("repos", "all");
     expect(mockCore.setOutput).toHaveBeenCalledWith("visibility", "private");
     expect(mockCore.setOutput).not.toHaveBeenCalledWith("lockdown", expect.anything());
     expect(mockCore.warning).not.toHaveBeenCalled();
   });
 
-  it("should not set guard policy outputs for internal repository", async () => {
+  it("should set min_integrity=none and repos=all for internal repository (no guard policy configured)", async () => {
     mockGithub.rest.repos.get.mockResolvedValue({
       data: {
         private: true,
@@ -137,8 +137,8 @@ describe("determine_automatic_lockdown", () => {
 
     await determineAutomaticLockdown(mockGithub, mockContext, mockCore);
 
-    expect(mockCore.setOutput).not.toHaveBeenCalledWith("min_integrity", expect.anything());
-    expect(mockCore.setOutput).not.toHaveBeenCalledWith("repos", expect.anything());
+    expect(mockCore.setOutput).toHaveBeenCalledWith("min_integrity", "none");
+    expect(mockCore.setOutput).toHaveBeenCalledWith("repos", "all");
     expect(mockCore.setOutput).toHaveBeenCalledWith("visibility", "internal");
   });
 
@@ -184,8 +184,8 @@ describe("determine_automatic_lockdown", () => {
 
     await determineAutomaticLockdown(mockGithub, mockContext, mockCore);
 
-    expect(mockCore.setOutput).not.toHaveBeenCalledWith("min_integrity", expect.anything());
-    expect(mockCore.setOutput).not.toHaveBeenCalledWith("repos", expect.anything());
+    expect(mockCore.setOutput).toHaveBeenCalledWith("min_integrity", "approved");
+    expect(mockCore.setOutput).toHaveBeenCalledWith("repos", "public");
     expect(mockCore.setOutput).toHaveBeenCalledWith("visibility", "public");
     expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("min-integrity already configured as 'approved'"));
     expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("repos already configured as 'public'"));
@@ -256,7 +256,7 @@ describe("determine_automatic_lockdown", () => {
     expect(mockCore.summary.write).toHaveBeenCalled();
   });
 
-  it("should not write step summary for private repository", async () => {
+  it("should write resolved guard policy values to step summary for private repository", async () => {
     mockGithub.rest.repos.get.mockResolvedValue({
       data: {
         private: true,
@@ -266,6 +266,15 @@ describe("determine_automatic_lockdown", () => {
 
     await determineAutomaticLockdown(mockGithub, mockContext, mockCore);
 
-    expect(mockCore.summary.write).not.toHaveBeenCalled();
+    expect(mockCore.summary.addTable).toHaveBeenCalledWith([
+      [
+        { data: "Field", header: true },
+        { data: "Value", header: true },
+        { data: "Source", header: true },
+      ],
+      ["min-integrity", "none", "automatic (private repo)"],
+      ["repos", "all", "automatic (private repo)"],
+    ]);
+    expect(mockCore.summary.write).toHaveBeenCalled();
   });
 });
