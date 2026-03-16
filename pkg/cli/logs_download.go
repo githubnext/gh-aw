@@ -145,6 +145,74 @@ func findArtifactDir(outputDir, baseName string, legacyName string) string {
 	return ""
 }
 
+// flattenArtifactTree moves all files from sourceDir into outputDir, preserving relative paths,
+// then removes artifactDir (which may equal sourceDir, or be a parent of it in the old-structure
+// case). label is used in log and user-facing messages.
+// Cleanup failures are non-fatal: they are logged (and optionally printed) but do not return an error.
+func flattenArtifactTree(sourceDir, artifactDir, outputDir, label string, verbose bool) error {
+	err := filepath.Walk(sourceDir, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+
+		// Skip the source directory itself
+		if path == sourceDir {
+			return nil
+		}
+
+		// Calculate relative path from source
+		relPath, err := filepath.Rel(sourceDir, path)
+		if err != nil {
+			return fmt.Errorf("failed to get relative path for %s: %w", path, err)
+		}
+
+		destPath := filepath.Join(outputDir, relPath)
+
+		if info.IsDir() {
+			// Create directory in destination with owner+group permissions only (0750)
+			if err := os.MkdirAll(destPath, 0750); err != nil {
+				return fmt.Errorf("failed to create directory %s: %w", destPath, err)
+			}
+			logsDownloadLog.Printf("Created directory: %s", destPath)
+		} else {
+			// Ensure parent directory exists with owner+group permissions only (0750)
+			if err := os.MkdirAll(filepath.Dir(destPath), 0750); err != nil {
+				return fmt.Errorf("failed to create parent directory for %s: %w", destPath, err)
+			}
+
+			if err := os.Rename(path, destPath); err != nil {
+				return fmt.Errorf("failed to move file %s to %s: %w", path, destPath, err)
+			}
+			logsDownloadLog.Printf("Moved file: %s → %s", path, destPath)
+			if verbose {
+				fmt.Fprintln(os.Stderr, console.FormatVerboseMessage(fmt.Sprintf("Flattened: %s → %s", relPath, relPath)))
+			}
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		return fmt.Errorf("failed to flatten %s: %w", label, err)
+	}
+
+	// Remove the now-empty artifact directory structure.
+	// Don't fail the entire operation if cleanup fails.
+	if err := os.RemoveAll(artifactDir); err != nil {
+		logsDownloadLog.Printf("Failed to remove %s directory %s: %v", label, artifactDir, err)
+		if verbose {
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to remove %s directory: %v", label, err)))
+		}
+	} else {
+		logsDownloadLog.Printf("Removed %s directory: %s", label, artifactDir)
+		if verbose {
+			fmt.Fprintln(os.Stderr, console.FormatVerboseMessage(fmt.Sprintf("Flattened %s and removed nested structure", label)))
+		}
+	}
+
+	return nil
+}
+
 // flattenUnifiedArtifact flattens the unified agent artifact directory structure.
 // The artifact is uploaded with all paths under /tmp/gh-aw/, so the action strips the
 // common prefix and files land directly inside the artifact directory (new structure).
@@ -162,98 +230,25 @@ func flattenUnifiedArtifact(outputDir string, verbose bool) error {
 
 	logsDownloadLog.Printf("Flattening unified agent artifact directory: %s", agentArtifactsDir)
 
-	// Check for old nested structure (agent-artifacts/tmp/gh-aw/)
+	// Determine the source path: old structure preserves the tmp/gh-aw/ prefix inside the artifact
+	sourceDir := agentArtifactsDir
 	tmpGhAwPath := filepath.Join(agentArtifactsDir, "tmp", "gh-aw")
-	hasOldStructure := false
 	if _, err := os.Stat(tmpGhAwPath); err == nil {
-		hasOldStructure = true
 		logsDownloadLog.Printf("Found old artifact structure with tmp/gh-aw prefix")
-	}
-
-	// Determine the source path for flattening
-	var sourcePath string
-	if hasOldStructure {
-		// Old structure: flatten from agent-artifacts/tmp/gh-aw/
-		sourcePath = tmpGhAwPath
+		sourceDir = tmpGhAwPath
 	} else {
-		// New structure: flatten from artifact directory directly
-		sourcePath = agentArtifactsDir
 		logsDownloadLog.Printf("Found new artifact structure without tmp/gh-aw prefix")
 	}
 
-	// Walk through source path and move all files to root output directory
-	err := filepath.Walk(sourcePath, func(path string, info os.FileInfo, err error) error {
-		if err != nil {
-			return err
-		}
-
-		// Skip the source directory itself
-		if path == sourcePath {
-			return nil
-		}
-
-		// Calculate relative path from source
-		relPath, err := filepath.Rel(sourcePath, path)
-		if err != nil {
-			return fmt.Errorf("failed to get relative path for %s: %w", path, err)
-		}
-
-		destPath := filepath.Join(outputDir, relPath)
-
-		if info.IsDir() {
-			// Create directory in destination with owner+group permissions only (0750)
-			if err := os.MkdirAll(destPath, 0750); err != nil {
-				return fmt.Errorf("failed to create directory %s: %w", destPath, err)
-			}
-			logsDownloadLog.Printf("Created directory: %s", destPath)
-		} else {
-			// Move file to destination
-			// Ensure parent directory exists with owner+group permissions only (0750)
-			if err := os.MkdirAll(filepath.Dir(destPath), 0750); err != nil {
-				return fmt.Errorf("failed to create parent directory for %s: %w", destPath, err)
-			}
-
-			if err := os.Rename(path, destPath); err != nil {
-				return fmt.Errorf("failed to move file %s to %s: %w", path, destPath, err)
-			}
-			logsDownloadLog.Printf("Moved file: %s → %s", path, destPath)
-			if verbose {
-				fmt.Fprintln(os.Stderr, console.FormatVerboseMessage(fmt.Sprintf("Flattened: %s → %s", relPath, relPath)))
-			}
-		}
-
-		return nil
-	})
-
-	if err != nil {
-		return fmt.Errorf("failed to flatten unified artifact: %w", err)
-	}
-
-	// Remove the now-empty artifact directory structure
-	if err := os.RemoveAll(agentArtifactsDir); err != nil {
-		logsDownloadLog.Printf("Failed to remove agent artifact directory %s: %v", agentArtifactsDir, err)
-		if verbose {
-			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to remove agent artifact directory: %v", err)))
-		}
-		// Don't fail the entire operation if cleanup fails
-	} else {
-		logsDownloadLog.Printf("Removed agent artifact directory: %s", agentArtifactsDir)
-		if verbose {
-			fmt.Fprintln(os.Stderr, console.FormatVerboseMessage("Flattened unified agent artifact and removed nested structure"))
-		}
-	}
-
-	return nil
+	return flattenArtifactTree(sourceDir, agentArtifactsDir, outputDir, "unified agent artifact", verbose)
 }
 
-// flattenActivationArtifact flattens the activation artifact directory structure
-// The activation artifact contains aw_info.json and aw-prompts/prompt.txt
+// flattenActivationArtifact flattens the activation artifact directory structure.
+// The activation artifact contains aw_info.json and aw-prompts/prompt.txt.
 // This function moves those files to the root output directory and removes the nested structure.
 // In workflow_call context, the artifact may be prefixed: "<hash>-activation"
 func flattenActivationArtifact(outputDir string, verbose bool) error {
 	activationDir := findArtifactDir(outputDir, "activation", "")
-
-	// Check if activation directory exists
 	if activationDir == "" {
 		// No activation artifact, nothing to flatten
 		return nil
@@ -261,73 +256,12 @@ func flattenActivationArtifact(outputDir string, verbose bool) error {
 
 	logsDownloadLog.Printf("Flattening activation artifact directory: %s", activationDir)
 
-	// Walk through activation directory and move all files to root output directory
-	err := filepath.Walk(activationDir, func(path string, info os.FileInfo, err error) error {
-		if err != nil {
-			return err
-		}
-
-		// Skip the source directory itself
-		if path == activationDir {
-			return nil
-		}
-
-		// Calculate relative path from source
-		relPath, err := filepath.Rel(activationDir, path)
-		if err != nil {
-			return fmt.Errorf("failed to get relative path for %s: %w", path, err)
-		}
-
-		destPath := filepath.Join(outputDir, relPath)
-
-		if info.IsDir() {
-			// Create directory in destination with owner+group permissions only (0750)
-			if err := os.MkdirAll(destPath, 0750); err != nil {
-				return fmt.Errorf("failed to create directory %s: %w", destPath, err)
-			}
-			logsDownloadLog.Printf("Created directory: %s", destPath)
-		} else {
-			// Move file to destination
-			// Ensure parent directory exists with owner+group permissions only (0750)
-			if err := os.MkdirAll(filepath.Dir(destPath), 0750); err != nil {
-				return fmt.Errorf("failed to create parent directory for %s: %w", destPath, err)
-			}
-
-			if err := os.Rename(path, destPath); err != nil {
-				return fmt.Errorf("failed to move file %s to %s: %w", path, destPath, err)
-			}
-			logsDownloadLog.Printf("Moved file: %s → %s", path, destPath)
-			if verbose {
-				fmt.Fprintln(os.Stderr, console.FormatVerboseMessage(fmt.Sprintf("Flattened: %s → %s", relPath, relPath)))
-			}
-		}
-
-		return nil
-	})
-
-	if err != nil {
-		return fmt.Errorf("failed to flatten activation artifact: %w", err)
-	}
-
-	// Remove the now-empty activation directory structure
-	if err := os.RemoveAll(activationDir); err != nil {
-		logsDownloadLog.Printf("Failed to remove activation directory %s: %v", activationDir, err)
-		if verbose {
-			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to remove activation directory: %v", err)))
-		}
-		// Don't fail the entire operation if cleanup fails
-	} else {
-		logsDownloadLog.Printf("Removed activation directory: %s", activationDir)
-		if verbose {
-			fmt.Fprintln(os.Stderr, console.FormatVerboseMessage("Flattened activation artifact and removed nested structure"))
-		}
-	}
-
-	return nil
+	return flattenArtifactTree(activationDir, activationDir, outputDir, "activation artifact", verbose)
 }
 
+// flattenAgentOutputsArtifact flattens the agent_outputs artifact directory structure.
 // The agent_outputs artifact contains session logs with detailed token usage data
-// that are critical for accurate token count parsing
+// that are critical for accurate token count parsing.
 func flattenAgentOutputsArtifact(outputDir string, verbose bool) error {
 	agentOutputsDir := filepath.Join(outputDir, "agent_outputs")
 
@@ -340,69 +274,7 @@ func flattenAgentOutputsArtifact(outputDir string, verbose bool) error {
 
 	logsDownloadLog.Printf("Flattening agent_outputs directory: %s", agentOutputsDir)
 
-	// Walk through agent_outputs and move all files to root output directory
-	err := filepath.Walk(agentOutputsDir, func(path string, info os.FileInfo, err error) error {
-		if err != nil {
-			return err
-		}
-
-		// Skip the root directory itself
-		if path == agentOutputsDir {
-			return nil
-		}
-
-		// Calculate relative path from agent_outputs
-		relPath, err := filepath.Rel(agentOutputsDir, path)
-		if err != nil {
-			return fmt.Errorf("failed to get relative path for %s: %w", path, err)
-		}
-
-		destPath := filepath.Join(outputDir, relPath)
-
-		if info.IsDir() {
-			// Create directory in destination
-			if err := os.MkdirAll(destPath, 0750); err != nil {
-				return fmt.Errorf("failed to create directory %s: %w", destPath, err)
-			}
-			logsDownloadLog.Printf("Created directory: %s", destPath)
-		} else {
-			// Move file to destination
-			// Ensure parent directory exists
-			if err := os.MkdirAll(filepath.Dir(destPath), 0750); err != nil {
-				return fmt.Errorf("failed to create parent directory for %s: %w", destPath, err)
-			}
-
-			if err := os.Rename(path, destPath); err != nil {
-				return fmt.Errorf("failed to move file %s to %s: %w", path, destPath, err)
-			}
-			logsDownloadLog.Printf("Moved file: %s → %s", path, destPath)
-			if verbose {
-				fmt.Fprintln(os.Stderr, console.FormatVerboseMessage(fmt.Sprintf("Flattened: %s → %s", relPath, relPath)))
-			}
-		}
-
-		return nil
-	})
-
-	if err != nil {
-		return fmt.Errorf("failed to flatten agent_outputs artifact: %w", err)
-	}
-
-	// Remove the now-empty agent_outputs directory
-	if err := os.RemoveAll(agentOutputsDir); err != nil {
-		logsDownloadLog.Printf("Failed to remove agent_outputs directory %s: %v", agentOutputsDir, err)
-		if verbose {
-			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to remove agent_outputs directory: %v", err)))
-		}
-		// Don't fail the entire operation if cleanup fails
-	} else {
-		logsDownloadLog.Printf("Removed agent_outputs directory: %s", agentOutputsDir)
-		if verbose {
-			fmt.Fprintln(os.Stderr, console.FormatVerboseMessage("Flattened agent_outputs artifact and removed nested structure"))
-		}
-	}
-
-	return nil
+	return flattenArtifactTree(agentOutputsDir, agentOutputsDir, outputDir, "agent_outputs artifact", verbose)
 }
 
 // downloadWorkflowRunLogs downloads and unzips workflow run logs using GitHub API
