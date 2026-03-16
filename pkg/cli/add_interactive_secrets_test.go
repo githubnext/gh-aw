@@ -96,7 +96,7 @@ func TestAddInteractiveConfig_getSecretInfo(t *testing.T) {
 	}
 }
 
-func TestAddInteractiveConfig_collectAPIKey_noWriteAccess(t *testing.T) {
+func TestAddInteractiveConfig_configureEngineAPISecret_noWriteAccess(t *testing.T) {
 	tests := []struct {
 		name   string
 		engine string
@@ -124,15 +124,15 @@ func TestAddInteractiveConfig_collectAPIKey_noWriteAccess(t *testing.T) {
 				existingSecrets: make(map[string]bool),
 			}
 
-			// When the user doesn't have write access, collectAPIKey should
+			// When the user doesn't have write access, configureEngineAPISecret should
 			// return nil without prompting or uploading any secrets.
-			err := config.collectAPIKey(tt.engine)
-			require.NoError(t, err, "collectAPIKey should succeed without write access")
+			err := config.configureEngineAPISecret(tt.engine)
+			require.NoError(t, err, "configureEngineAPISecret should succeed without write access")
 		})
 	}
 }
 
-func TestAddInteractiveConfig_collectAPIKey_skipSecret(t *testing.T) {
+func TestAddInteractiveConfig_configureEngineAPISecret_skipSecret(t *testing.T) {
 	tests := []struct {
 		name   string
 		engine string
@@ -161,10 +161,10 @@ func TestAddInteractiveConfig_collectAPIKey_skipSecret(t *testing.T) {
 				existingSecrets: make(map[string]bool),
 			}
 
-			// When SkipSecret is true, collectAPIKey should return nil without
+			// When SkipSecret is true, configureEngineAPISecret should return nil without
 			// prompting or uploading any secrets, even with write access.
-			err := config.collectAPIKey(tt.engine)
-			require.NoError(t, err, "collectAPIKey should succeed when SkipSecret is true")
+			err := config.configureEngineAPISecret(tt.engine)
+			require.NoError(t, err, "configureEngineAPISecret should succeed when SkipSecret is true")
 		})
 	}
 }

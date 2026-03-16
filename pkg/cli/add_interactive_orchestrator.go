@@ -146,7 +146,7 @@ func RunAddInteractive(ctx context.Context, workflowSpecs []string, verbose bool
 	}
 
 	// Step 9: Apply changes (create PR, merge, add secret)
-	if err := config.applyChanges(ctx, filesToAdd, initFiles, secretName, secretValue); err != nil {
+	if err := config.createWorkflowPRAndConfigureSecret(ctx, filesToAdd, initFiles, secretName, secretValue); err != nil {
 		return err
 	}
 

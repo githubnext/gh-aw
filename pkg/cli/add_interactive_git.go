@@ -14,8 +14,8 @@ import (
 	"github.com/github/gh-aw/pkg/workflow"
 )
 
-// applyChanges creates the PR, merges it, and adds the secret
-func (c *AddInteractiveConfig) applyChanges(ctx context.Context, workflowFiles, initFiles []string, secretName, secretValue string) error {
+// createWorkflowPRAndConfigureSecret creates the PR, merges it, and adds the secret
+func (c *AddInteractiveConfig) createWorkflowPRAndConfigureSecret(ctx context.Context, workflowFiles, initFiles []string, secretName, secretValue string) error {
 	addInteractiveLog.Print("Applying changes")
 
 	fmt.Fprintln(os.Stderr, "")
