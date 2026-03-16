@@ -121,11 +121,11 @@ async function main() {
     } else {
       core.info(`Event '${eventName}' does not support label removal – skipping.`);
     }
-  } catch (error) {
+  } catch (/** @type {any} */ error) {
     // Non-fatal: log a warning but do not fail the step.
     // A 404 status means the label is no longer present on the item (e.g., another concurrent
     // workflow run already removed it), which is an expected outcome in multi-workflow setups.
-    const status = /** @type {any} */ error?.status;
+    const status = error?.status;
     if (status === 404) {
       core.info(`Label '${triggerLabel}' is no longer present on the item – already removed by another run.`);
     } else {
