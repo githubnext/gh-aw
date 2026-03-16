@@ -41,6 +41,18 @@ async function main() {
   const eventName = context.eventName;
 
   try {
+    // For labeled events (label-command triggers), skip the command position check.
+    // The label name itself is the trigger, not a slash command in the body.
+    // Label name matching is enforced by the workflow-level `if:` condition
+    // (e.g. github.event.label.name == 'cloclo'), so no additional filtering
+    // is needed here regardless of which labels are configured.
+    if (context.payload?.action === "labeled") {
+      core.info(`Event ${eventName} with action 'labeled' does not require command position check`);
+      core.setOutput("command_position_ok", "true");
+      core.setOutput("matched_command", "");
+      return;
+    }
+
     if (eventName === "issues") {
       text = context.payload.issue?.body || "";
     } else if (eventName === "pull_request") {
