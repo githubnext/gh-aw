@@ -8,7 +8,7 @@ import (
 	"github.com/github/gh-aw/pkg/workflow"
 )
 
-// checkExistingSecrets fetches which secrets already exist in the repository
+// checkExistingSecrets fetches which secrets already exist in the repository or its organization
 func (c *AddInteractiveConfig) checkExistingSecrets() error {
 	addInteractiveLog.Print("Checking existing repository secrets")
 
@@ -19,21 +19,37 @@ func (c *AddInteractiveConfig) checkExistingSecrets() error {
 	if err != nil {
 		addInteractiveLog.Printf("Could not fetch existing secrets: %v", err)
 		// Continue without error - we'll just assume no secrets exist
-		return nil
+	} else {
+		// Parse the output - each secret name is on its own line
+		secretNames := strings.SplitSeq(strings.TrimSpace(string(output)), "\n")
+		for name := range secretNames {
+			name = strings.TrimSpace(name)
+			if name != "" {
+				c.existingSecrets[name] = true
+				addInteractiveLog.Printf("Found existing repository secret: %s", name)
+			}
+		}
 	}
 
-	// Parse the output - each secret name is on its own line
-	secretNames := strings.SplitSeq(strings.TrimSpace(string(output)), "\n")
-	for name := range secretNames {
-		name = strings.TrimSpace(name)
-		if name != "" {
-			c.existingSecrets[name] = true
-			addInteractiveLog.Printf("Found existing secret: %s", name)
+	// Also check org-level secrets if the repo belongs to an organization
+	if org, _, found := strings.Cut(c.RepoOverride, "/"); found && org != "" {
+		orgOutput, orgErr := workflow.RunGH("Checking organization secrets...", "api", fmt.Sprintf("/orgs/%s/actions/secrets", org), "--jq", ".secrets[].name")
+		if orgErr != nil {
+			addInteractiveLog.Printf("Could not fetch org secrets (this is expected for personal repos or if org access is restricted): %v", orgErr)
+		} else {
+			orgSecretNames := strings.SplitSeq(strings.TrimSpace(string(orgOutput)), "\n")
+			for name := range orgSecretNames {
+				name = strings.TrimSpace(name)
+				if name != "" {
+					c.existingSecrets[name] = true
+					addInteractiveLog.Printf("Found existing org secret: %s", name)
+				}
+			}
 		}
 	}
 
 	if c.Verbose && len(c.existingSecrets) > 0 {
-		fmt.Fprintf(os.Stderr, "Found %d existing repository secret(s)\n", len(c.existingSecrets))
+		fmt.Fprintf(os.Stderr, "Found %d existing secret(s) (repository + organization)\n", len(c.existingSecrets))
 	}
 
 	return nil
