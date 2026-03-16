@@ -50,7 +50,11 @@ tools:
     languages:
       go: {}
 dependencies:
-  - microsoft/apm-sample-package
+  github-app:
+    app-id: ${{ vars.APP_ID }}
+    private-key: ${{ secrets.APP_PRIVATE_KEY }}
+  packages:
+    - microsoft/apm-sample-package
 runtimes:
   go:
     version: "1.25"
