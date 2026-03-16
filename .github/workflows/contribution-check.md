@@ -15,7 +15,6 @@ env:
 tools:
   github:
     toolsets: [default]
-    lockdown: false
 safe-outputs:
   create-issue:
     title-prefix: "[Contribution Check Report]"

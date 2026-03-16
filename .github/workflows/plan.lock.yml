@@ -23,7 +23,7 @@
 #
 # Generates project plans and task breakdowns when invoked with /plan command in issues or PRs
 #
-# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"0557f488754d46db0b535c04267efa16ae72869133b87a4a9a8de87a96067ed3","strict":true}
+# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"ef15c568ed52f4f6c83a797e5c7c67c79c210cc7ba2bcc35d346df50fd910f72","strict":true}
 
 name: "Plan Command"
 "on":
