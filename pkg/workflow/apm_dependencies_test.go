@@ -288,7 +288,7 @@ func TestGenerateAPMPackStep(t *testing.T) {
 				"archive: 'true'",
 				"target: copilot",
 				"working-directory: /tmp/gh-aw/apm-workspace",
-				"version: " + string(constants.DefaultAPMVersion),
+				"apm-version: " + string(constants.DefaultAPMVersion),
 			},
 		},
 		{
@@ -302,7 +302,7 @@ func TestGenerateAPMPackStep(t *testing.T) {
 				"- microsoft/apm-sample-package",
 				"- github/skills/review",
 				"target: claude",
-				"version: " + string(constants.DefaultAPMVersion),
+				"apm-version: " + string(constants.DefaultAPMVersion),
 			},
 		},
 		{
@@ -311,7 +311,7 @@ func TestGenerateAPMPackStep(t *testing.T) {
 			target:  "all",
 			expectedContains: []string{
 				"target: all",
-				"version: " + string(constants.DefaultAPMVersion),
+				"apm-version: " + string(constants.DefaultAPMVersion),
 			},
 		},
 		{
@@ -319,7 +319,7 @@ func TestGenerateAPMPackStep(t *testing.T) {
 			apmDeps: &APMDependenciesInfo{Packages: []string{"microsoft/apm-sample-package"}, Version: "v1.0.0"},
 			target:  "copilot",
 			expectedContains: []string{
-				"version: v1.0.0",
+				"apm-version: v1.0.0",
 			},
 		},
 	}
@@ -369,7 +369,7 @@ func TestGenerateAPMRestoreStep(t *testing.T) {
 				"Restore APM dependencies",
 				"microsoft/apm-action",
 				"bundle: /tmp/gh-aw/apm-bundle/*.tar.gz",
-				"version: " + string(constants.DefaultAPMVersion),
+				"apm-version: " + string(constants.DefaultAPMVersion),
 			},
 			expectedNotContains: []string{"isolated"},
 		},
@@ -381,14 +381,14 @@ func TestGenerateAPMRestoreStep(t *testing.T) {
 				"microsoft/apm-action",
 				"bundle: /tmp/gh-aw/apm-bundle/*.tar.gz",
 				"isolated: 'true'",
-				"version: " + string(constants.DefaultAPMVersion),
+				"apm-version: " + string(constants.DefaultAPMVersion),
 			},
 		},
 		{
 			name:    "Custom APM version overrides default",
 			apmDeps: &APMDependenciesInfo{Packages: []string{"microsoft/apm-sample-package"}, Version: "v1.0.0"},
 			expectedContains: []string{
-				"version: v1.0.0",
+				"apm-version: v1.0.0",
 			},
 		},
 	}

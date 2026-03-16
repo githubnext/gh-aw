@@ -661,7 +661,7 @@ jobs:
           archive: 'true'
           target: claude
           working-directory: /tmp/gh-aw/apm-workspace
-          version: v0.8.0
+          apm-version: v0.8.0
       - name: Upload APM bundle artifact
         if: success()
         uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
@@ -815,7 +815,7 @@ jobs:
         uses: microsoft/apm-action@5eac264e08ed8db603fe2c40983794f94cab49d8 # v1.3.1
         with:
           bundle: /tmp/gh-aw/apm-bundle/*.tar.gz
-          version: v0.8.0
+          apm-version: v0.8.0
       - name: Determine automatic lockdown mode for GitHub MCP Server
         id: determine-automatic-lockdown
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
