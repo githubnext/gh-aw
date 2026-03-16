@@ -49,7 +49,7 @@
               "description": "Trustworthiness level of the message source (e.g., \"low\", \"medium\", \"high\")."
             }
           },
-          "additionalProperties": false
+          "additionalProperties": true
         }
       },
       "additionalProperties": false
@@ -81,7 +81,7 @@
               "description": "Trustworthiness level of the message source (e.g., \"low\", \"medium\", \"high\")."
             }
           },
-          "additionalProperties": false
+          "additionalProperties": true
         }
       },
       "additionalProperties": false
@@ -122,7 +122,7 @@
               "description": "Trustworthiness level of the message source (e.g., \"low\", \"medium\", \"high\")."
             }
           },
-          "additionalProperties": false
+          "additionalProperties": true
         }
       },
       "additionalProperties": false
@@ -162,7 +162,7 @@
               "description": "Trustworthiness level of the message source (e.g., \"low\", \"medium\", \"high\")."
             }
           },
-          "additionalProperties": false
+          "additionalProperties": true
         }
       },
       "additionalProperties": false
@@ -211,7 +211,7 @@
               "description": "Trustworthiness level of the message source (e.g., \"low\", \"medium\", \"high\")."
             }
           },
-          "additionalProperties": false
+          "additionalProperties": true
         }
       },
       "additionalProperties": false
@@ -250,7 +250,7 @@
               "description": "Trustworthiness level of the message source (e.g., \"low\", \"medium\", \"high\")."
             }
           },
-          "additionalProperties": false
+          "additionalProperties": true
         }
       },
       "additionalProperties": false
@@ -289,7 +289,7 @@
               "description": "Trustworthiness level of the message source (e.g., \"low\", \"medium\", \"high\")."
             }
           },
-          "additionalProperties": false
+          "additionalProperties": true
         }
       },
       "additionalProperties": false
@@ -333,7 +333,7 @@
               "description": "Trustworthiness level of the message source (e.g., \"low\", \"medium\", \"high\")."
             }
           },
-          "additionalProperties": false
+          "additionalProperties": true
         }
       },
       "additionalProperties": false
@@ -389,7 +389,7 @@
               "description": "Trustworthiness level of the message source (e.g., \"low\", \"medium\", \"high\")."
             }
           },
-          "additionalProperties": false
+          "additionalProperties": true
         }
       },
       "additionalProperties": false
@@ -460,7 +460,7 @@
               "description": "Trustworthiness level of the message source (e.g., \"low\", \"medium\", \"high\")."
             }
           },
-          "additionalProperties": false
+          "additionalProperties": true
         }
       },
       "additionalProperties": false
@@ -498,7 +498,7 @@
               "description": "Trustworthiness level of the message source (e.g., \"low\", \"medium\", \"high\")."
             }
           },
-          "additionalProperties": false
+          "additionalProperties": true
         }
       },
       "additionalProperties": false
@@ -545,7 +545,7 @@
               "description": "Trustworthiness level of the message source (e.g., \"low\", \"medium\", \"high\")."
             }
           },
-          "additionalProperties": false
+          "additionalProperties": true
         }
       },
       "additionalProperties": false
@@ -577,7 +577,7 @@
               "description": "Trustworthiness level of the message source (e.g., \"low\", \"medium\", \"high\")."
             }
           },
-          "additionalProperties": false
+          "additionalProperties": true
         }
       },
       "additionalProperties": false
@@ -644,7 +644,7 @@
               "description": "Trustworthiness level of the message source (e.g., \"low\", \"medium\", \"high\")."
             }
           },
-          "additionalProperties": false
+          "additionalProperties": true
         }
       },
       "additionalProperties": false
@@ -680,7 +680,7 @@
               "description": "Trustworthiness level of the message source (e.g., \"low\", \"medium\", \"high\")."
             }
           },
-          "additionalProperties": false
+          "additionalProperties": true
         }
       },
       "additionalProperties": false
@@ -716,7 +716,7 @@
               "description": "Trustworthiness level of the message source (e.g., \"low\", \"medium\", \"high\")."
             }
           },
-          "additionalProperties": false
+          "additionalProperties": true
         }
       },
       "required": [
@@ -761,7 +761,7 @@
               "description": "Trustworthiness level of the message source (e.g., \"low\", \"medium\", \"high\")."
             }
           },
-          "additionalProperties": false
+          "additionalProperties": true
         }
       },
       "additionalProperties": false
@@ -804,7 +804,7 @@
               "description": "Trustworthiness level of the message source (e.g., \"low\", \"medium\", \"high\")."
             }
           },
-          "additionalProperties": false
+          "additionalProperties": true
         }
       },
       "additionalProperties": false
@@ -851,7 +851,7 @@
               "description": "Trustworthiness level of the message source (e.g., \"low\", \"medium\", \"high\")."
             }
           },
-          "additionalProperties": false
+          "additionalProperties": true
         }
       },
       "additionalProperties": false
@@ -897,7 +897,7 @@
               "description": "Trustworthiness level of the message source (e.g., \"low\", \"medium\", \"high\")."
             }
           },
-          "additionalProperties": false
+          "additionalProperties": true
         }
       },
       "additionalProperties": false
@@ -944,7 +944,7 @@
               "description": "Trustworthiness level of the message source (e.g., \"low\", \"medium\", \"high\")."
             }
           },
-          "additionalProperties": false
+          "additionalProperties": true
         }
       },
       "additionalProperties": false
@@ -1023,7 +1023,7 @@
               "description": "Trustworthiness level of the message source (e.g., \"low\", \"medium\", \"high\")."
             }
           },
-          "additionalProperties": false
+          "additionalProperties": true
         }
       },
       "additionalProperties": false
@@ -1076,7 +1076,7 @@
               "description": "Trustworthiness level of the message source (e.g., \"low\", \"medium\", \"high\")."
             }
           },
-          "additionalProperties": false
+          "additionalProperties": true
         }
       },
       "additionalProperties": false
@@ -1119,7 +1119,7 @@
               "description": "Trustworthiness level of the message source (e.g., \"low\", \"medium\", \"high\")."
             }
           },
-          "additionalProperties": false
+          "additionalProperties": true
         }
       },
       "additionalProperties": false
@@ -1151,7 +1151,7 @@
               "description": "Trustworthiness level of the message source (e.g., \"low\", \"medium\", \"high\")."
             }
           },
-          "additionalProperties": false
+          "additionalProperties": true
         }
       },
       "additionalProperties": false
@@ -1198,7 +1198,7 @@
               "description": "Trustworthiness level of the message source (e.g., \"low\", \"medium\", \"high\")."
             }
           },
-          "additionalProperties": false
+          "additionalProperties": true
         }
       },
       "additionalProperties": false
@@ -1238,7 +1238,7 @@
               "description": "Trustworthiness level of the message source (e.g., \"low\", \"medium\", \"high\")."
             }
           },
-          "additionalProperties": false
+          "additionalProperties": true
         }
       },
       "additionalProperties": false
@@ -1270,7 +1270,7 @@
               "description": "Trustworthiness level of the message source (e.g., \"low\", \"medium\", \"high\")."
             }
           },
-          "additionalProperties": false
+          "additionalProperties": true
         }
       },
       "additionalProperties": false
@@ -1313,7 +1313,7 @@
               "description": "Trustworthiness level of the message source (e.g., \"low\", \"medium\", \"high\")."
             }
           },
-          "additionalProperties": false
+          "additionalProperties": true
         }
       },
       "additionalProperties": false
@@ -1356,7 +1356,7 @@
               "description": "Trustworthiness level of the message source (e.g., \"low\", \"medium\", \"high\")."
             }
           },
-          "additionalProperties": false
+          "additionalProperties": true
         }
       },
       "additionalProperties": false
@@ -1395,7 +1395,7 @@
               "description": "Trustworthiness level of the message source (e.g., \"low\", \"medium\", \"high\")."
             }
           },
-          "additionalProperties": false
+          "additionalProperties": true
         }
       },
       "additionalProperties": false
@@ -1546,7 +1546,7 @@
               "description": "Trustworthiness level of the message source (e.g., \"low\", \"medium\", \"high\")."
             }
           },
-          "additionalProperties": false
+          "additionalProperties": true
         }
       },
       "additionalProperties": false
@@ -1588,7 +1588,7 @@
               "description": "Trustworthiness level of the message source (e.g., \"low\", \"medium\", \"high\")."
             }
           },
-          "additionalProperties": false
+          "additionalProperties": true
         }
       },
       "additionalProperties": false
@@ -1640,7 +1640,7 @@
               "description": "Trustworthiness level of the message source (e.g., \"low\", \"medium\", \"high\")."
             }
           },
-          "additionalProperties": false
+          "additionalProperties": true
         }
       },
       "additionalProperties": false
@@ -1699,7 +1699,7 @@
               "description": "Trustworthiness level of the message source (e.g., \"low\", \"medium\", \"high\")."
             }
           },
-          "additionalProperties": false
+          "additionalProperties": true
         }
       },
       "additionalProperties": false
@@ -1744,7 +1744,7 @@
               "description": "Trustworthiness level of the message source (e.g., \"low\", \"medium\", \"high\")."
             }
           },
-          "additionalProperties": false
+          "additionalProperties": true
         }
       },
       "additionalProperties": false
@@ -1783,7 +1783,7 @@
               "description": "Trustworthiness level of the message source (e.g., \"low\", \"medium\", \"high\")."
             }
           },
-          "additionalProperties": false
+          "additionalProperties": true
         }
       },
       "additionalProperties": false

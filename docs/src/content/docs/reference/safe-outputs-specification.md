@@ -1819,7 +1819,7 @@ This specification does not normatively enumerate the allowed values for taint f
 
 **Schema Representation**:
 
-Taints are carried as a single optional `taints` object property in each tool's `inputSchema`, keeping them separate from all operation-specific inputs. Individual taint fields (`secrecy`, `integrity`) are nested within this object. All known taint fields are enumerated explicitly with `additionalProperties: false`; when a new taint is added, the schema for each applicable tool MUST be updated.
+Taints are carried as a single optional `taints` object property in each tool's `inputSchema`, keeping them separate from all operation-specific inputs. Individual taint fields (`secrecy`, `integrity`) are nested within this object. The `taints` object uses `additionalProperties: true` so that implementations can pass gateway-specific taint fields beyond the known set without a schema update.
 
 ```json
 {
@@ -1841,7 +1841,7 @@ Taints are carried as a single optional `taints` object property in each tool's 
             "description": "Trustworthiness level of the message source (e.g., \"low\", \"medium\", \"high\")."
           }
         },
-        "additionalProperties": false
+        "additionalProperties": true
       }
     },
     "additionalProperties": false
@@ -1911,7 +1911,7 @@ This section provides complete normative definitions for all safe output types. 
             "description": "Trustworthiness level of the message source (e.g., \"low\", \"medium\", \"high\")."
           }
         },
-        "additionalProperties": false
+        "additionalProperties": true
       }
     },
     "additionalProperties": false

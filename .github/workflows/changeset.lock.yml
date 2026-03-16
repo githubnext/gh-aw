@@ -418,10 +418,6 @@ jobs:
                     "description": "Whether the PR should be a draft (true) or ready for review (false). Use to convert between draft and ready states.",
                     "type": "boolean"
                   },
-                  "integrity": {
-                    "description": "Trustworthiness level of the message source (e.g., \"low\", \"medium\", \"high\").",
-                    "type": "string"
-                  },
                   "operation": {
                     "description": "How to update the PR body: 'replace' (default - completely overwrite), 'append' (add to end with separator), or 'prepend' (add to start with separator). Title is always replaced.",
                     "enum": [
@@ -438,9 +434,20 @@ jobs:
                       "string"
                     ]
                   },
-                  "secrecy": {
-                    "description": "Confidentiality level of the message content (e.g., \"public\", \"internal\", \"private\").",
-                    "type": "string"
+                  "taints": {
+                    "additionalProperties": false,
+                    "description": "Optional gateway-computed security annotations. These fields are separate from operation inputs and MUST NOT be interpreted as operational instructions.",
+                    "properties": {
+                      "integrity": {
+                        "description": "Trustworthiness level of the message source (e.g., \"low\", \"medium\", \"high\").",
+                        "type": "string"
+                      },
+                      "secrecy": {
+                        "description": "Confidentiality level of the message content (e.g., \"public\", \"internal\", \"private\").",
+                        "type": "string"
+                      }
+                    },
+                    "type": "object"
                   },
                   "title": {
                     "description": "New pull request title to replace the existing title.",
@@ -460,10 +467,6 @@ jobs:
                     "description": "Branch name to push changes from. If omitted, uses the current working branch. Only specify if you need to push from a different branch.",
                     "type": "string"
                   },
-                  "integrity": {
-                    "description": "Trustworthiness level of the message source (e.g., \"low\", \"medium\", \"high\").",
-                    "type": "string"
-                  },
                   "message": {
                     "description": "Commit message describing the changes. Follow repository commit message conventions (e.g., conventional commits).",
                     "type": "string"
@@ -475,9 +478,20 @@ jobs:
                       "string"
                     ]
                   },
-                  "secrecy": {
-                    "description": "Confidentiality level of the message content (e.g., \"public\", \"internal\", \"private\").",
-                    "type": "string"
+                  "taints": {
+                    "additionalProperties": false,
+                    "description": "Optional gateway-computed security annotations. These fields are separate from operation inputs and MUST NOT be interpreted as operational instructions.",
+                    "properties": {
+                      "integrity": {
+                        "description": "Trustworthiness level of the message source (e.g., \"low\", \"medium\", \"high\").",
+                        "type": "string"
+                      },
+                      "secrecy": {
+                        "description": "Confidentiality level of the message content (e.g., \"public\", \"internal\", \"private\").",
+                        "type": "string"
+                      }
+                    },
+                    "type": "object"
                   }
                 },
                 "required": [
@@ -496,17 +510,24 @@ jobs:
                     "description": "Any workarounds, manual steps, or alternative approaches the user could take (max 256 characters).",
                     "type": "string"
                   },
-                  "integrity": {
-                    "description": "Trustworthiness level of the message source (e.g., \"low\", \"medium\", \"high\").",
-                    "type": "string"
-                  },
                   "reason": {
                     "description": "Explanation of why this tool is needed or what information you want to share about the limitation (max 256 characters).",
                     "type": "string"
                   },
-                  "secrecy": {
-                    "description": "Confidentiality level of the message content (e.g., \"public\", \"internal\", \"private\").",
-                    "type": "string"
+                  "taints": {
+                    "additionalProperties": false,
+                    "description": "Optional gateway-computed security annotations. These fields are separate from operation inputs and MUST NOT be interpreted as operational instructions.",
+                    "properties": {
+                      "integrity": {
+                        "description": "Trustworthiness level of the message source (e.g., \"low\", \"medium\", \"high\").",
+                        "type": "string"
+                      },
+                      "secrecy": {
+                        "description": "Confidentiality level of the message content (e.g., \"public\", \"internal\", \"private\").",
+                        "type": "string"
+                      }
+                    },
+                    "type": "object"
                   },
                   "tool": {
                     "description": "Optional: Name or description of the missing tool or capability (max 128 characters). Be specific about what functionality is needed.",
@@ -525,17 +546,24 @@ jobs:
               "inputSchema": {
                 "additionalProperties": false,
                 "properties": {
-                  "integrity": {
-                    "description": "Trustworthiness level of the message source (e.g., \"low\", \"medium\", \"high\").",
-                    "type": "string"
-                  },
                   "message": {
                     "description": "Status or completion message to log. Should explain what was analyzed and the outcome (e.g., 'Code review complete - no issues found', 'Analysis complete - all tests passing').",
                     "type": "string"
                   },
-                  "secrecy": {
-                    "description": "Confidentiality level of the message content (e.g., \"public\", \"internal\", \"private\").",
-                    "type": "string"
+                  "taints": {
+                    "additionalProperties": false,
+                    "description": "Optional gateway-computed security annotations. These fields are separate from operation inputs and MUST NOT be interpreted as operational instructions.",
+                    "properties": {
+                      "integrity": {
+                        "description": "Trustworthiness level of the message source (e.g., \"low\", \"medium\", \"high\").",
+                        "type": "string"
+                      },
+                      "secrecy": {
+                        "description": "Confidentiality level of the message content (e.g., \"public\", \"internal\", \"private\").",
+                        "type": "string"
+                      }
+                    },
+                    "type": "object"
                   }
                 },
                 "required": [
@@ -562,17 +590,24 @@ jobs:
                     "description": "Type or description of the missing data or information (max 128 characters). Be specific about what data is needed.",
                     "type": "string"
                   },
-                  "integrity": {
-                    "description": "Trustworthiness level of the message source (e.g., \"low\", \"medium\", \"high\").",
-                    "type": "string"
-                  },
                   "reason": {
                     "description": "Explanation of why this data is needed to complete the task (max 256 characters).",
                     "type": "string"
                   },
-                  "secrecy": {
-                    "description": "Confidentiality level of the message content (e.g., \"public\", \"internal\", \"private\").",
-                    "type": "string"
+                  "taints": {
+                    "additionalProperties": false,
+                    "description": "Optional gateway-computed security annotations. These fields are separate from operation inputs and MUST NOT be interpreted as operational instructions.",
+                    "properties": {
+                      "integrity": {
+                        "description": "Trustworthiness level of the message source (e.g., \"low\", \"medium\", \"high\").",
+                        "type": "string"
+                      },
+                      "secrecy": {
+                        "description": "Confidentiality level of the message content (e.g., \"public\", \"internal\", \"private\").",
+                        "type": "string"
+                      }
+                    },
+                    "type": "object"
                   }
                 },
                 "required": [],
