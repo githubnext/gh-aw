@@ -53,8 +53,9 @@ jobs:
       pull-requests: write
     outputs:
       body: ${{ steps.sanitized.outputs.body }}
-      comment_id: ""
-      comment_repo: ""
+      comment_id: ${{ steps.add-comment.outputs.comment-id }}
+      comment_repo: ${{ steps.add-comment.outputs.comment-repo }}
+      comment_url: ${{ steps.add-comment.outputs.comment-url }}
       model: ${{ steps.generate_aw_info.outputs.model }}
       secret_verification_result: ${{ steps.validate-secret.outputs.verification_result }}
       slash_command: ${{ needs.pre_activation.outputs.matched_command }}
@@ -140,6 +141,18 @@ jobs:
             const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
             setupGlobals(core, github, context, exec, io);
             const { main } = require('/opt/gh-aw/actions/compute_text.cjs');
+            await main();
+      - name: Add comment with workflow run link
+        id: add-comment
+        if: github.event_name == 'issues' || github.event_name == 'issue_comment' || github.event_name == 'pull_request_review_comment' || github.event_name == 'discussion' || github.event_name == 'discussion_comment' || (github.event_name == 'pull_request') && (github.event.pull_request.head.repo.id == github.repository_id)
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        env:
+          GH_AW_WORKFLOW_NAME: "ACE Editor Session"
+        with:
+          script: |
+            const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
+            setupGlobals(core, github, context, exec, io);
+            const { main } = require('/opt/gh-aw/actions/add_workflow_run_comment.cjs');
             await main();
       - name: Create prompt with built-in context
         env:

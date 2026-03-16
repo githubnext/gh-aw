@@ -184,9 +184,15 @@ func (c *Compiler) parseOnSection(frontmatter map[string]any, workflowData *Work
 		workflowData.LabelCommandEvents = nil
 	}
 
-	// Auto-enable "eyes" reaction for command triggers if no explicit reaction was specified
-	if hasCommand && !hasReaction && workflowData.AIReaction == "" {
+	// Auto-enable "eyes" reaction for slash_command/label_command (and deprecated command) triggers if no explicit reaction was specified
+	if (hasCommand || hasLabelCommand) && !hasReaction && workflowData.AIReaction == "" {
 		workflowData.AIReaction = "eyes"
+	}
+
+	// Auto-enable status-comment for slash_command/label_command (and deprecated command) triggers if not explicitly set
+	if (hasCommand || hasLabelCommand) && !hasStatusComment && workflowData.StatusComment == nil {
+		trueVal := true
+		workflowData.StatusComment = &trueVal
 	}
 
 	// Store other events for merging in applyDefaults

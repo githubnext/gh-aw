@@ -224,6 +224,18 @@ Deploy the application because label "deploy" was added.
 	require.NoError(t, err, "failed to write test workflow")
 
 	compiler := NewCompiler()
+
+	// Parse the workflow first to verify defaults are set during parsing
+	workflowData, err := compiler.ParseWorkflowFile(workflowPath)
+	require.NoError(t, err, "ParseWorkflowFile() should not error")
+
+	// Verify AIReaction defaults to "eyes" for label_command workflows
+	assert.Equal(t, "eyes", workflowData.AIReaction, "AIReaction should default to 'eyes' for label_command workflows")
+
+	// Verify StatusComment defaults to true for label_command workflows
+	require.NotNil(t, workflowData.StatusComment, "StatusComment should not be nil for label_command workflows")
+	assert.True(t, *workflowData.StatusComment, "StatusComment should default to true for label_command workflows")
+
 	err = compiler.CompileWorkflow(workflowPath)
 	require.NoError(t, err, "CompileWorkflow() should not error")
 
@@ -277,6 +289,10 @@ Deploy the application because label "deploy" was added.
 		}
 	}
 	assert.True(t, foundRemoveStep, "activation job should contain a remove_trigger_label step")
+
+	// Verify the compiled workflow includes the default eyes reaction step
+	assert.Contains(t, lockStr, "Add eyes reaction for immediate feedback",
+		"activation job should have eyes reaction step when reaction defaults to 'eyes'")
 
 	// Verify the workflow condition includes the label name check
 	agentJob, hasAgent := jobs["agent"].(map[string]any)

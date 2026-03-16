@@ -17,12 +17,13 @@ func TestCommandWorkflowWithReactionNone(t *testing.T) {
 	// Create temporary directory for test files
 	tmpDir := testutil.TempDir(t, "reaction-none-test")
 
-	// Create a test markdown file with command and reaction: none
+	// Create a test markdown file with command and reaction: none and status-comment: false
 	testContent := `---
 on:
   command:
     name: test-bot
   reaction: none
+  status-comment: false
 permissions:
   contents: read
   issues: read
@@ -146,6 +147,11 @@ Test command workflow with default (eyes) reaction.
 	// Verify AIReaction defaults to "eyes" for command workflows
 	if workflowData.AIReaction != "eyes" {
 		t.Errorf("Expected AIReaction to default to 'eyes' for command workflows, got '%s'", workflowData.AIReaction)
+	}
+
+	// Verify StatusComment defaults to true for command workflows
+	if workflowData.StatusComment == nil || !*workflowData.StatusComment {
+		t.Error("Expected StatusComment to default to true for command workflows")
 	}
 
 	// Compile the workflow
