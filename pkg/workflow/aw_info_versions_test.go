@@ -406,7 +406,7 @@ func TestApmVersionInAwInfo(t *testing.T) {
 			name:               "No APM deps configured",
 			apmDeps:            nil,
 			expectedApmVersion: "",
-			description:        "Should have empty apm_version when no APM dependencies are configured",
+			description:        "Should not emit GH_AW_INFO_APM_VERSION when no APM dependencies are configured",
 		},
 	}
 
@@ -428,10 +428,17 @@ func TestApmVersionInAwInfo(t *testing.T) {
 			compiler.generateCreateAwInfo(&yaml, workflowData, engine)
 			output := yaml.String()
 
-			expectedLine := `GH_AW_INFO_APM_VERSION: "` + tt.expectedApmVersion + `"`
-			if !strings.Contains(output, expectedLine) {
-				t.Errorf("%s: Expected output to contain '%s', got:\n%s",
-					tt.description, expectedLine, output)
+			if tt.expectedApmVersion == "" {
+				if strings.Contains(output, "GH_AW_INFO_APM_VERSION") {
+					t.Errorf("%s: Expected output to NOT contain GH_AW_INFO_APM_VERSION, got:\n%s",
+						tt.description, output)
+				}
+			} else {
+				expectedLine := `GH_AW_INFO_APM_VERSION: "` + tt.expectedApmVersion + `"`
+				if !strings.Contains(output, expectedLine) {
+					t.Errorf("%s: Expected output to contain '%s', got:\n%s",
+						tt.description, expectedLine, output)
+				}
 			}
 		})
 	}
