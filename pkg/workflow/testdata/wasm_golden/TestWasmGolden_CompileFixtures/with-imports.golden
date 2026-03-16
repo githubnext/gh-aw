@@ -307,7 +307,8 @@ jobs:
                 },
                 "guard-policies": {
                   "allow-only": {
-                    "min-integrity": "approved"
+                    "min-integrity": "approved",
+                    "repos": "all"
                   }
                 }
               }

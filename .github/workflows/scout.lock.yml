@@ -833,7 +833,14 @@ jobs:
                   "search_arxiv",
                   "get_paper_details",
                   "get_paper_pdf"
-                ]
+                ],
+                "guard-policies": {
+                  "write-sink": {
+                    "accept": [
+                      "*"
+                    ]
+                  }
+                }
               },
               "deepwiki": {
                 "type": "http",
@@ -842,7 +849,14 @@ jobs:
                   "read_wiki_structure",
                   "read_wiki_contents",
                   "ask_question"
-                ]
+                ],
+                "guard-policies": {
+                  "write-sink": {
+                    "accept": [
+                      "*"
+                    ]
+                  }
+                }
               },
               "github": {
                 "container": "ghcr.io/github/github-mcp-server:v0.32.0",
@@ -854,7 +868,8 @@ jobs:
                 },
                 "guard-policies": {
                   "allow-only": {
-                    "min-integrity": "approved"
+                    "min-integrity": "approved",
+                    "repos": "all"
                   }
                 }
               },
@@ -863,20 +878,41 @@ jobs:
                 "container": "mcp/markitdown",
                 "tools": [
                   "*"
-                ]
+                ],
+                "guard-policies": {
+                  "write-sink": {
+                    "accept": [
+                      "*"
+                    ]
+                  }
+                }
               },
               "microsoftdocs": {
                 "type": "http",
                 "url": "https://learn.microsoft.com/api/mcp",
                 "tools": [
                   "*"
-                ]
+                ],
+                "guard-policies": {
+                  "write-sink": {
+                    "accept": [
+                      "*"
+                    ]
+                  }
+                }
               },
               "safeoutputs": {
                 "type": "http",
                 "url": "http://host.docker.internal:$GH_AW_SAFE_OUTPUTS_PORT",
                 "headers": {
                   "Authorization": "$GH_AW_SAFE_OUTPUTS_API_KEY"
+                },
+                "guard-policies": {
+                  "write-sink": {
+                    "accept": [
+                      "*"
+                    ]
+                  }
                 }
               },
               "tavily": {
@@ -887,7 +923,14 @@ jobs:
                 },
                 "tools": [
                   "*"
-                ]
+                ],
+                "guard-policies": {
+                  "write-sink": {
+                    "accept": [
+                      "*"
+                    ]
+                  }
+                }
               }
             },
             "gateway": {

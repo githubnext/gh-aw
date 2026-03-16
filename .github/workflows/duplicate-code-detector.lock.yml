@@ -669,6 +669,11 @@ jobs:
           [mcp_servers.safeoutputs.headers]
           Authorization = "$GH_AW_SAFE_OUTPUTS_API_KEY"
           
+          [mcp_servers.safeoutputs."guard-policies"]
+          
+          [mcp_servers.safeoutputs."guard-policies".write-sink]
+          accept = ["*"]
+          
           [mcp_servers.serena]
           container = "ghcr.io/github/serena-mcp-server:latest"
           args = [
@@ -684,6 +689,11 @@ jobs:
             "${GITHUB_WORKSPACE}"
           ]
           mounts = ["${GITHUB_WORKSPACE}:${GITHUB_WORKSPACE}:rw"]
+          
+          [mcp_servers.serena."guard-policies"]
+          
+          [mcp_servers.serena."guard-policies".write-sink]
+          accept = ["*"]
           GH_AW_MCP_CONFIG_EOF
           
           # Generate JSON config for MCP gateway
@@ -700,7 +710,8 @@ jobs:
                 },
                 "guard-policies": {
                   "allow-only": {
-                    "min-integrity": "approved"
+                    "min-integrity": "approved",
+                    "repos": "all"
                   }
                 }
               },
@@ -709,6 +720,13 @@ jobs:
                 "url": "http://host.docker.internal:$GH_AW_SAFE_OUTPUTS_PORT",
                 "headers": {
                   "Authorization": "$GH_AW_SAFE_OUTPUTS_API_KEY"
+                },
+                "guard-policies": {
+                  "write-sink": {
+                    "accept": [
+                      "*"
+                    ]
+                  }
                 }
               },
               "serena": {
@@ -725,7 +743,14 @@ jobs:
                   "--project",
                   "\${GITHUB_WORKSPACE}"
                 ],
-                "mounts": ["\${GITHUB_WORKSPACE}:\${GITHUB_WORKSPACE}:rw"]
+                "mounts": ["\${GITHUB_WORKSPACE}:\${GITHUB_WORKSPACE}:rw"],
+                "guard-policies": {
+                  "write-sink": {
+                    "accept": [
+                      "*"
+                    ]
+                  }
+                }
               }
             },
             "gateway": {

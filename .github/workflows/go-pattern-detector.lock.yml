@@ -654,7 +654,14 @@ jobs:
                 "container": "mcp/ast-grep:latest",
                 "tools": [
                   "*"
-                ]
+                ],
+                "guard-policies": {
+                  "write-sink": {
+                    "accept": [
+                      "*"
+                    ]
+                  }
+                }
               },
               "github": {
                 "container": "ghcr.io/github/github-mcp-server:v0.32.0",
@@ -666,7 +673,8 @@ jobs:
                 },
                 "guard-policies": {
                   "allow-only": {
-                    "min-integrity": "approved"
+                    "min-integrity": "approved",
+                    "repos": "all"
                   }
                 }
               },
@@ -675,6 +683,13 @@ jobs:
                 "url": "http://host.docker.internal:$GH_AW_SAFE_OUTPUTS_PORT",
                 "headers": {
                   "Authorization": "$GH_AW_SAFE_OUTPUTS_API_KEY"
+                },
+                "guard-policies": {
+                  "write-sink": {
+                    "accept": [
+                      "*"
+                    ]
+                  }
                 }
               }
             },

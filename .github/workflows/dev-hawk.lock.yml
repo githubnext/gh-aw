@@ -700,6 +700,13 @@ jobs:
                   "GITHUB_TOKEN": "\${GITHUB_TOKEN}",
                   "GITHUB_ACTOR": "\${GITHUB_ACTOR}",
                   "GITHUB_REPOSITORY": "\${GITHUB_REPOSITORY}"
+                },
+                "guard-policies": {
+                  "write-sink": {
+                    "accept": [
+                      "*"
+                    ]
+                  }
                 }
               },
               "github": {
@@ -713,7 +720,8 @@ jobs:
                 },
                 "guard-policies": {
                   "allow-only": {
-                    "min-integrity": "approved"
+                    "min-integrity": "approved",
+                    "repos": "all"
                   }
                 }
               },
@@ -722,6 +730,13 @@ jobs:
                 "url": "http://host.docker.internal:$GH_AW_SAFE_OUTPUTS_PORT",
                 "headers": {
                   "Authorization": "\${GH_AW_SAFE_OUTPUTS_API_KEY}"
+                },
+                "guard-policies": {
+                  "write-sink": {
+                    "accept": [
+                      "*"
+                    ]
+                  }
                 }
               }
             },
