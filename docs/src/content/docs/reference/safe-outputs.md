@@ -1425,7 +1425,21 @@ safe-outputs:
   allowed-github-references: []      # Escape all GitHub references
 ```
 
-**Domain Filtering** (`allowed-domains`): Controls which domains are allowed in URLs. URLs from other domains are replaced with `(redacted)`.
+**Domain Filtering** (`allowed-domains`): Controls which domains are allowed in URLs. URLs from other domains are replaced with `(redacted)`. Accepts specific domain strings or [ecosystem identifiers](/gh-aw/reference/network/#ecosystem-identifiers):
+
+```yaml wrap
+safe-outputs:
+  # Allow specific domains
+  allowed-domains: [api.example.com, "*.storage.example.com"]
+
+  # Use ecosystem identifiers
+  allowed-domains: [default-safe-outputs]  # defaults + dev-tools + github + local
+
+  # Mix identifiers and custom domains
+  allowed-domains: [default-safe-outputs, api.example.com]
+```
+
+The `default-safe-outputs` compound ecosystem is the recommended baseline — it covers infrastructure certificates (`defaults`), GitHub domains (`github`), popular developer tooling (`dev-tools`), and loopback addresses (`local`).
 
 **Reference Escaping** (`allowed-github-references`): Controls which GitHub repository references (`#123`, `owner/repo#456`) are allowed in workflow output. When configured, references to unlisted repositories are escaped with backticks to prevent GitHub from creating timeline items. This is particularly useful for [SideRepoOps](/gh-aw/patterns/side-repo-ops/) workflows to prevent automation from cluttering your main repository's timeline.
 
