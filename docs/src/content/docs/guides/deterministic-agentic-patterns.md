@@ -94,28 +94,70 @@ Pass data between jobs via artifacts, job outputs, or environment variables.
 
 ## Custom Trigger Filtering
 
+Use a deterministic job to compute whether the agent should run, expose the result as a job output, and reference it with `if:`. The compiler automatically adds the filter job as a dependency of the activation job, so when the condition is false the workflow run is **skipped** (not failed), keeping the Actions tab clean.
+
 ```yaml wrap title=".github/workflows/smart-responder.md"
 ---
 on:
   issues:
-    types: [opened, edited]
+    types: [opened]
 engine: copilot
 safe-outputs:
   add-comment:
 
-steps:
-  - id: filter
-    run: |
-      if echo "${{ github.event.issue.body }}" | grep -q "urgent"; then
-        echo "priority=high" >> "$GITHUB_OUTPUT"
-      else
-        exit 1
-      fi
+jobs:
+  filter:
+    runs-on: ubuntu-latest
+    outputs:
+      should-run: ${{ steps.check.outputs.result }}
+    steps:
+      - id: check
+        env:
+          LABELS: ${{ toJSON(github.event.issue.labels.*.name) }}
+        run: |
+          if echo "$LABELS" | grep -q '"bug"'; then
+            echo "result=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "result=false" >> "$GITHUB_OUTPUT"
+          fi
+
+if: needs.filter.outputs.should-run == 'true'
 ---
 
-# Smart Issue Responder
+# Bug Issue Responder
 
-Respond to urgent issue: "${{ github.event.issue.title }}" (Priority: ${{ steps.filter.outputs.priority }})
+Triage bug report: "${{ github.event.issue.title }}" and add-comment with a summary of the next steps.
+```
+
+When `should-run` is `false`, GitHub marks the dependent jobs as **skipped** rather than failed, so no red X appears in the Actions tab and the Workflow Failure issue mechanism is not triggered.
+
+### Simple Context Conditions
+
+For conditions that can be expressed directly with GitHub Actions context, use `if:` without a custom job:
+
+```yaml wrap
+---
+on:
+  pull_request:
+    types: [opened, synchronize]
+engine: copilot
+if: github.event.pull_request.draft == false
+---
+```
+
+### Query-Based Filtering
+
+For conditions based on GitHub search results, use [`skip-if-match:`](/gh-aw/reference/triggers/#skip-if-match-condition-skip-if-match) or [`skip-if-no-match:`](/gh-aw/reference/triggers/#skip-if-no-match-condition-skip-if-no-match) in the `on:` section — these accept standard [GitHub search query syntax](https://docs.github.com/en/search-github/searching-on-github/searching-issues-and-pull-requests) and are evaluated in the pre-activation job, producing the same skipped-not-failed behaviour:
+
+```yaml wrap
+---
+on:
+  issues:
+    types: [opened]
+  # Skip if a duplicate issue already exists (GitHub search query syntax)
+  skip-if-match: 'is:issue is:open label:duplicate'
+engine: copilot
+---
 ```
 
 ## Post-Processing Pattern
