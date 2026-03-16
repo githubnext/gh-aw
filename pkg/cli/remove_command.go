@@ -1,7 +1,6 @@
 package cli
 
 import (
-	"bufio"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -391,9 +390,7 @@ func findIncludesInContent(content, baseDir string, verbose bool) ([]string, err
 	_ = verbose // unused parameter for now, keeping for potential future use
 	var includes []string
 
-	scanner := bufio.NewScanner(strings.NewReader(content))
-	for scanner.Scan() {
-		line := scanner.Text()
+	for line := range strings.Lines(content) {
 		directive := parser.ParseImportDirective(line)
 		if directive != nil {
 			includePath := directive.Path
@@ -411,5 +408,5 @@ func findIncludesInContent(content, baseDir string, verbose bool) ([]string, err
 		}
 	}
 
-	return includes, scanner.Err()
+	return includes, nil // strings.Lines iterates over an in-memory string; no I/O errors can occur.
 }
