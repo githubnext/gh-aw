@@ -70,6 +70,7 @@ func (c *Compiler) buildCustomActionStep(data *WorkflowData, config GitHubScript
 // - UseCopilotRequestsToken: customToken > SafeOutputs.GitHubToken > COPILOT_GITHUB_TOKEN
 // - Default: customToken > SafeOutputs.GitHubToken > GH_AW_GITHUB_TOKEN || GITHUB_TOKEN
 func (c *Compiler) addCustomActionGitHubToken(steps *[]string, data *WorkflowData, config GitHubScriptStepConfig) {
+	safeOutputsStepsLog.Printf("Selecting GitHub token for step: %s (copilotCodingAgent=%t, copilotRequests=%t)", config.StepName, config.UseCopilotCodingAgentToken, config.UseCopilotRequestsToken)
 	var token string
 
 	// Get safe-outputs level token
@@ -249,6 +250,7 @@ func (c *Compiler) buildGitHubScriptStepWithoutDownload(data *WorkflowData, conf
 // GH_AW_AGENT_OUTPUT is only set when the artifact was actually downloaded successfully.
 // prefix is prepended to the artifact name; use empty string for non-workflow_call workflows.
 func buildAgentOutputDownloadSteps(prefix string) []string {
+	safeOutputsStepsLog.Printf("Building agent output download steps with prefix: %q", prefix)
 	return buildArtifactDownloadSteps(ArtifactDownloadConfig{
 		ArtifactName:     prefix + constants.AgentArtifactName, // Unified agent artifact (prefixed in workflow_call)
 		ArtifactFilename: constants.AgentOutputFilename,        // Filename inside the artifact directory

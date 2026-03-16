@@ -175,6 +175,7 @@ func (jm *JobManager) RenderToYAML() string {
 
 // renderJob renders a single job to YAML
 func (jm *JobManager) renderJob(job *Job) string {
+	jobLog.Printf("Rendering job: %s (steps=%d, needs=%d, reusable=%t)", job.Name, len(job.Steps), len(job.Needs), job.Uses != "")
 	var yaml strings.Builder
 
 	fmt.Fprintf(&yaml, "  %s:\n", job.Name)
@@ -310,6 +311,7 @@ func (jm *JobManager) renderJob(job *Job) string {
 
 	// Check if this is a reusable workflow call
 	if job.Uses != "" {
+		jobLog.Printf("Rendering reusable workflow call: %s uses=%s with=%d secrets=%d", job.Name, job.Uses, len(job.With), len(job.Secrets))
 		// Add uses directive for reusable workflow
 		fmt.Fprintf(&yaml, "    uses: %s\n", job.Uses)
 

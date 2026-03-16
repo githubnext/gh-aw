@@ -90,10 +90,12 @@ func validateConcurrencyGroupExpression(group string) error {
 // such values are rare in concurrency group expressions, and any resulting syntax errors will be
 // caught by the subsequent expression validation.
 func extractConcurrencyGroupFromYAML(concurrencyYAML string) string {
+	concurrencyValidationLog.Printf("Extracting concurrency group from YAML (%d bytes)", len(concurrencyYAML))
 	// First, check if it's object format with explicit "group:" field
 	// Pattern: group: "value" or group: 'value' or group: value (at start of line or after spaces)
 	matches := concurrencyGroupPattern.FindStringSubmatch(concurrencyYAML)
 	if len(matches) > 1 {
+		concurrencyValidationLog.Printf("Extracted concurrency group from object format: %q", strings.TrimSpace(matches[1]))
 		return strings.TrimSpace(matches[1])
 	}
 
@@ -108,9 +110,11 @@ func extractConcurrencyGroupFromYAML(concurrencyYAML string) string {
 			value := strings.TrimSpace(after)
 			// Remove quotes if present
 			value = strings.Trim(value, `"'`)
+			concurrencyValidationLog.Printf("Extracted concurrency group from string format: %q", value)
 			return value
 		}
 	}
 
+	concurrencyValidationLog.Print("No concurrency group found in YAML")
 	return ""
 }
