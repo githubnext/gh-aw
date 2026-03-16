@@ -2,7 +2,7 @@ package workflow
 
 import "github.com/github/gh-aw/pkg/logger"
 
-var safeOutputParserLog = logger.New("workflow:safe_output_parser")
+var safeOutputParserLog = logger.New("workflow:safe_outputs_parser")
 
 // SafeOutputTargetConfig contains common target-related fields for safe output configurations.
 // Embed this in safe output config structs that support targeting specific items.

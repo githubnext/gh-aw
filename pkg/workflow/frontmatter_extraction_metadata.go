@@ -3,7 +3,6 @@ package workflow
 import (
 	"fmt"
 	"maps"
-	"math"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/logger"
@@ -144,12 +143,7 @@ func buildSourceURL(source string) string {
 }
 
 // safeUintToInt safely converts uint to int, returning 0 if overflow would occur
-func safeUintToInt(u uint) int {
-	if u > math.MaxInt {
-		return 0 // Return 0 (engine default) if value would overflow
-	}
-	return int(u)
-}
+func safeUintToInt(u uint) int { return safeUint64ToInt(uint64(u)) }
 
 // extractToolsTimeout extracts the timeout setting from tools
 // Returns 0 if not set (engines will use their own defaults)

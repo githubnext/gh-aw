@@ -6,7 +6,7 @@ import (
 	"github.com/github/gh-aw/pkg/logger"
 )
 
-var safeOutputValidationLog = logger.New("workflow:safe_output_validation_config")
+var safeOutputValidationLog = logger.New("workflow:safe_outputs_validation_config")
 
 // FieldValidation defines validation rules for a single field
 type FieldValidation struct {
