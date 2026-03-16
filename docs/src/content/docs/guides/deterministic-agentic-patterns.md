@@ -107,12 +107,8 @@ on:
     - id: check
       env:
         LABELS: ${{ toJSON(github.event.issue.labels.*.name) }}
-      run: |
-        if echo "$LABELS" | grep -q '"bug"'; then
-          echo "result=true" >> "$GITHUB_OUTPUT"
-        else
-          echo "result=false" >> "$GITHUB_OUTPUT"
-        fi
+      run: echo "$LABELS" | grep -q '"bug"'
+      # exits 0 (outcome: success) if the label is found, 1 (outcome: failure) if not
 engine: copilot
 safe-outputs:
   add-comment:
@@ -125,15 +121,17 @@ if: needs.pre_activation.outputs.check_result == 'success'
 Triage bug report: "${{ github.event.issue.title }}" and add-comment with a summary of the next steps.
 ```
 
-Each step with an `id` gets an auto-wired output `<id>_result: ${{ steps.<id>.outcome }}` — `success` when the step passes, `failure` when it exits non-zero. To expose richer step output values, declare them via `jobs.pre-activation.outputs`:
+Each step with an `id` gets an auto-wired output `<id>_result` set to `${{ steps.<id>.outcome }}` — `success` when the step's exit code is 0, `failure` when non-zero. Gate the workflow by checking `needs.pre_activation.outputs.<id>_result == 'success'`.
+
+To pass an explicit value rather than relying on exit codes, set a step output and re-expose it via `jobs.pre-activation.outputs`:
 
 ```yaml wrap
 jobs:
   pre-activation:
     outputs:
-      should_run: ${{ steps.check.outputs.result }}
+      has_bug_label: ${{ steps.check.outputs.has_bug_label }}
 
-if: needs.pre_activation.outputs.should_run == 'true'
+if: needs.pre_activation.outputs.has_bug_label == 'true'
 ```
 
 When `on.steps:` need GitHub API access, use `on.permissions:` to grant the required scopes to the pre-activation job:

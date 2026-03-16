@@ -509,6 +509,25 @@ on:
       id: label_check
       env:
         LABELS: ${{ toJSON(github.event.issue.labels.*.name) }}
+      run: echo "$LABELS" | grep -q '"bug"'
+      # exits 0 (outcome: success) if the label is found, 1 (outcome: failure) if not
+
+if: needs.pre_activation.outputs.label_check_result == 'success'
+```
+
+Each step with an `id` automatically gets an output `<id>_result` wired to `${{ steps.<id>.outcome }}` (values: `success`, `failure`, `cancelled`, `skipped`). This lets you gate the workflow on whether the step **succeeded or failed** via its exit code.
+
+To pass an explicit value rather than relying on exit codes, set a step output and re-expose it via `jobs.pre-activation.outputs`:
+
+```yaml wrap
+on:
+  issues:
+    types: [opened]
+  steps:
+    - name: Check issue label
+      id: label_check
+      env:
+        LABELS: ${{ toJSON(github.event.issue.labels.*.name) }}
       run: |
         if echo "$LABELS" | grep -q '"bug"'; then
           echo "has_bug_label=true" >> "$GITHUB_OUTPUT"
@@ -516,14 +535,6 @@ on:
           echo "has_bug_label=false" >> "$GITHUB_OUTPUT"
         fi
 
-if: needs.pre_activation.outputs.label_check_result == 'success'
-```
-
-Each step with an `id` automatically gets an output `<id>_result: ${{ steps.<id>.outcome }}` (values: `success`, `failure`, `cancelled`, `skipped`) wired into the pre-activation job outputs. Reference the result with `needs.pre_activation.outputs.<id>_result`.
-
-To expose additional step output values (beyond the auto-wired outcome), use `jobs.pre-activation.outputs`:
-
-```yaml wrap
 jobs:
   pre-activation:
     outputs:
@@ -532,7 +543,7 @@ jobs:
 if: needs.pre_activation.outputs.has_bug_label == 'true'
 ```
 
-Explicit outputs defined in `jobs.pre-activation.outputs` take precedence over auto-wired outputs on key collision.
+Explicit outputs defined in `jobs.pre-activation.outputs` take precedence over auto-wired `<id>_result` outputs on key collision.
 
 ### Pre-Activation Permissions (`on.permissions:`)
 
