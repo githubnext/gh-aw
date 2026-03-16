@@ -22,7 +22,8 @@ func GenerateAPMPackStep(apmDeps *APMDependenciesInfo, target string, data *Work
 		return GitHubActionStep{}
 	}
 
-	apmDepsLog.Printf("Generating APM pack step: %d packages, target=%s", len(apmDeps.Packages), target)
+	apmVersion := apmDeps.GetAPMVersion()
+	apmDepsLog.Printf("Generating APM pack step: %d packages, target=%s, apm-version=%s", len(apmDeps.Packages), target, apmVersion)
 
 	actionRef := GetActionPin("microsoft/apm-action")
 
@@ -43,6 +44,7 @@ func GenerateAPMPackStep(apmDeps *APMDependenciesInfo, target string, data *Work
 		"          pack: 'true'",
 		"          archive: 'true'",
 		"          target: "+target,
+		"          apm-version: "+apmVersion,
 		"          working-directory: /tmp/gh-aw/apm-workspace",
 	)
 
@@ -63,7 +65,8 @@ func GenerateAPMRestoreStep(apmDeps *APMDependenciesInfo, data *WorkflowData) Gi
 		return GitHubActionStep{}
 	}
 
-	apmDepsLog.Printf("Generating APM restore step (isolated=%v)", apmDeps.Isolated)
+	apmVersion := apmDeps.GetAPMVersion()
+	apmDepsLog.Printf("Generating APM restore step (isolated=%v, apm-version=%s)", apmDeps.Isolated, apmVersion)
 
 	actionRef := GetActionPin("microsoft/apm-action")
 
@@ -72,6 +75,7 @@ func GenerateAPMRestoreStep(apmDeps *APMDependenciesInfo, data *WorkflowData) Gi
 		"        uses: " + actionRef,
 		"        with:",
 		"          bundle: /tmp/gh-aw/apm-bundle/*.tar.gz",
+		"          apm-version: " + apmVersion,
 	}
 
 	if apmDeps.Isolated {

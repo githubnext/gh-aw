@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"strconv"
 
+	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
 )
 
@@ -87,11 +88,21 @@ type PluginsConfig struct {
 }
 
 // APMDependenciesInfo encapsulates APM (Agent Package Manager) dependency configuration.
-// Supports simple array format and object format with packages and isolated fields.
+// Supports simple array format and object format with packages, isolated, and apm-version fields.
 // When present, a pack step is emitted in the activation job and a restore step in the agent job.
 type APMDependenciesInfo struct {
-	Packages []string // APM package slugs to install (e.g., "org/package")
-	Isolated bool     // If true, agent restore step clears primitive dirs before unpacking
+	Packages   []string // APM package slugs to install (e.g., "org/package")
+	Isolated   bool     // If true, agent restore step clears primitive dirs before unpacking
+	APMVersion string   // Version of the microsoft/apm CLI tool to install (empty string triggers DefaultAPMVersion during generation)
+}
+
+// GetAPMVersion returns the configured APM CLI version, falling back to DefaultAPMVersion
+// when no version has been explicitly set.
+func (a *APMDependenciesInfo) GetAPMVersion() string {
+	if a.APMVersion != "" {
+		return a.APMVersion
+	}
+	return constants.DefaultAPMVersion.String()
 }
 
 // RateLimitConfig represents rate limiting configuration for workflow triggers

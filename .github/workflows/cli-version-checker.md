@@ -1,5 +1,5 @@
 ---
-description: Monitors and updates agentic CLI tools (Claude Code, GitHub Copilot CLI, OpenAI Codex, GitHub MCP Server, Playwright MCP, Playwright Browser, MCP Gateway) for new versions
+description: Monitors and updates agentic CLI tools (Claude Code, GitHub Copilot CLI, OpenAI Codex, GitHub MCP Server, Playwright MCP, Playwright Browser, MCP Gateway, microsoft/apm) for new versions
 on:
   schedule: daily
   workflow_dispatch:
@@ -31,7 +31,7 @@ timeout-minutes: 45
 
 # CLI Version Checker
 
-Monitor and update agentic CLI tools: Claude Code, GitHub Copilot CLI, OpenAI Codex, GitHub MCP Server, Playwright MCP, Playwright Browser, and MCP Gateway.
+Monitor and update agentic CLI tools: Claude Code, GitHub Copilot CLI, OpenAI Codex, GitHub MCP Server, Playwright MCP, Playwright Browser, MCP Gateway, and microsoft/apm.
 
 **Repository**: ${{ github.repository }} | **Run**: ${{ github.run_id }}
 
@@ -74,6 +74,11 @@ For each CLI/MCP server:
   - Release Notes: https://github.com/github/gh-aw-mcpg/releases
   - Docker Image: `ghcr.io/github/gh-aw-mcpg:v{VERSION}`
   - Used as default sandbox.agent container (see `pkg/constants/constants.go`)
+- **microsoft/apm**: `https://api.github.com/repos/microsoft/apm/releases/latest`
+  - Repository: https://github.com/microsoft/apm
+  - Release Notes: https://github.com/microsoft/apm/releases
+  - Constant: `DefaultAPMVersion` in `pkg/constants/constants.go`
+  - Used as default APM CLI version for dependencies installation
 
 **Optimization**: Fetch all versions in parallel using multiple npm view or WebFetch calls in a single turn.
 
@@ -119,6 +124,9 @@ For each update, analyze intermediate versions:
   - Parse release body for changelog entries
   - **CRITICAL**: Convert PR/issue references to full URLs (e.g., `https://github.com/github/gh-aw-mcpg/pull/123`)
   - Note: Used as default sandbox.agent container in MCP Gateway configuration
+- **microsoft/apm**: Fetch release notes from https://github.com/microsoft/apm/releases/tag/{VERSION}
+  - Parse release body for changelog entries
+  - **CRITICAL**: Convert PR/issue references to full URLs (e.g., `https://github.com/microsoft/apm/pull/123`)
 
 **NPM Metadata Fallback**: When GitHub release notes are unavailable, use:
 - `npm view <package> --json` for package metadata
@@ -267,6 +275,7 @@ Legacy template reference (adapt to use Report Structure Pattern above):
   - GitHub MCP Server: Always fetch from https://github.com/github/github-mcp-server/releases
   - Playwright Browser: Always fetch from https://github.com/microsoft/playwright/releases
   - MCP Gateway: Always fetch from https://github.com/github/gh-aw-mcpg/releases
+  - microsoft/apm: Always fetch from https://github.com/microsoft/apm/releases
   - Copilot CLI: Try to fetch, but may be inaccessible (private repo)
   - Playwright MCP: Check NPM metadata, uses Playwright versioning
 - **EXPLORE SUBCOMMANDS**: Install and test CLI tools to discover new features via `--help` and explore each subcommand

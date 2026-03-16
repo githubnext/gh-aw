@@ -6,16 +6,18 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/github/gh-aw/pkg/constants"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 func TestExtractAPMDependenciesFromFrontmatter(t *testing.T) {
 	tests := []struct {
-		name             string
-		frontmatter      map[string]any
-		expectedDeps     []string
-		expectedIsolated bool
+		name               string
+		frontmatter        map[string]any
+		expectedDeps       []string
+		expectedIsolated   bool
+		expectedAPMVersion string
 	}{
 		{
 			name: "No dependencies field",
@@ -29,7 +31,8 @@ func TestExtractAPMDependenciesFromFrontmatter(t *testing.T) {
 			frontmatter: map[string]any{
 				"dependencies": []any{"microsoft/apm-sample-package"},
 			},
-			expectedDeps: []string{"microsoft/apm-sample-package"},
+			expectedDeps:       []string{"microsoft/apm-sample-package"},
+			expectedAPMVersion: constants.DefaultAPMVersion.String(),
 		},
 		{
 			name: "Multiple dependencies (array format)",
@@ -45,6 +48,7 @@ func TestExtractAPMDependenciesFromFrontmatter(t *testing.T) {
 				"github/awesome-copilot/skills/review-and-refactor",
 				"anthropics/skills/skills/frontend-design",
 			},
+			expectedAPMVersion: constants.DefaultAPMVersion.String(),
 		},
 		{
 			name: "Empty array",
@@ -65,7 +69,8 @@ func TestExtractAPMDependenciesFromFrontmatter(t *testing.T) {
 			frontmatter: map[string]any{
 				"dependencies": []any{"microsoft/apm-sample-package", "", "github/awesome-copilot"},
 			},
-			expectedDeps: []string{"microsoft/apm-sample-package", "github/awesome-copilot"},
+			expectedDeps:       []string{"microsoft/apm-sample-package", "github/awesome-copilot"},
+			expectedAPMVersion: constants.DefaultAPMVersion.String(),
 		},
 		{
 			name: "Object format with packages only",
@@ -77,8 +82,9 @@ func TestExtractAPMDependenciesFromFrontmatter(t *testing.T) {
 					},
 				},
 			},
-			expectedDeps:     []string{"microsoft/apm-sample-package", "github/awesome-copilot"},
-			expectedIsolated: false,
+			expectedDeps:       []string{"microsoft/apm-sample-package", "github/awesome-copilot"},
+			expectedIsolated:   false,
+			expectedAPMVersion: constants.DefaultAPMVersion.String(),
 		},
 		{
 			name: "Object format with isolated true",
@@ -88,8 +94,9 @@ func TestExtractAPMDependenciesFromFrontmatter(t *testing.T) {
 					"isolated": true,
 				},
 			},
-			expectedDeps:     []string{"microsoft/apm-sample-package"},
-			expectedIsolated: true,
+			expectedDeps:       []string{"microsoft/apm-sample-package"},
+			expectedIsolated:   true,
+			expectedAPMVersion: constants.DefaultAPMVersion.String(),
 		},
 		{
 			name: "Object format with isolated false",
@@ -99,8 +106,9 @@ func TestExtractAPMDependenciesFromFrontmatter(t *testing.T) {
 					"isolated": false,
 				},
 			},
-			expectedDeps:     []string{"microsoft/apm-sample-package"},
-			expectedIsolated: false,
+			expectedDeps:       []string{"microsoft/apm-sample-package"},
+			expectedIsolated:   false,
+			expectedAPMVersion: constants.DefaultAPMVersion.String(),
 		},
 		{
 			name: "Object format with empty packages",
@@ -110,6 +118,30 @@ func TestExtractAPMDependenciesFromFrontmatter(t *testing.T) {
 				},
 			},
 			expectedDeps: nil,
+		},
+		{
+			name: "Object format with custom apm-version",
+			frontmatter: map[string]any{
+				"dependencies": map[string]any{
+					"packages":    []any{"microsoft/apm-sample-package"},
+					"apm-version": "v0.6.0",
+				},
+			},
+			expectedDeps:       []string{"microsoft/apm-sample-package"},
+			expectedAPMVersion: "v0.6.0",
+		},
+		{
+			name: "Object format with apm-version and isolated",
+			frontmatter: map[string]any{
+				"dependencies": map[string]any{
+					"packages":    []any{"microsoft/apm-sample-package"},
+					"isolated":    true,
+					"apm-version": "v0.5.1",
+				},
+			},
+			expectedDeps:       []string{"microsoft/apm-sample-package"},
+			expectedIsolated:   true,
+			expectedAPMVersion: "v0.5.1",
 		},
 	}
 
@@ -122,6 +154,7 @@ func TestExtractAPMDependenciesFromFrontmatter(t *testing.T) {
 				require.NotNil(t, result, "Should return non-nil APMDependenciesInfo")
 				assert.Equal(t, tt.expectedDeps, result.Packages, "Extracted packages should match expected")
 				assert.Equal(t, tt.expectedIsolated, result.Isolated, "Isolated flag should match expected")
+				assert.Equal(t, tt.expectedAPMVersion, result.APMVersion, "APM version should match expected")
 			}
 		})
 	}
@@ -148,6 +181,8 @@ func TestEngineGetAPMTarget(t *testing.T) {
 }
 
 func TestGenerateAPMPackStep(t *testing.T) {
+	defaultVersion := constants.DefaultAPMVersion.String()
+
 	tests := []struct {
 		name             string
 		apmDeps          *APMDependenciesInfo
@@ -168,7 +203,7 @@ func TestGenerateAPMPackStep(t *testing.T) {
 			expectedEmpty: true,
 		},
 		{
-			name:    "Single dependency with copilot target",
+			name:    "Single dependency with copilot target uses default version",
 			apmDeps: &APMDependenciesInfo{Packages: []string{"microsoft/apm-sample-package"}},
 			target:  "copilot",
 			expectedContains: []string{
@@ -181,6 +216,7 @@ func TestGenerateAPMPackStep(t *testing.T) {
 				"pack: 'true'",
 				"archive: 'true'",
 				"target: copilot",
+				"apm-version: " + defaultVersion,
 				"working-directory: /tmp/gh-aw/apm-workspace",
 			},
 		},
@@ -195,6 +231,7 @@ func TestGenerateAPMPackStep(t *testing.T) {
 				"- microsoft/apm-sample-package",
 				"- github/skills/review",
 				"target: claude",
+				"apm-version: " + defaultVersion,
 			},
 		},
 		{
@@ -203,6 +240,15 @@ func TestGenerateAPMPackStep(t *testing.T) {
 			target:  "all",
 			expectedContains: []string{
 				"target: all",
+				"apm-version: " + defaultVersion,
+			},
+		},
+		{
+			name:    "Custom apm-version overrides default",
+			apmDeps: &APMDependenciesInfo{Packages: []string{"microsoft/apm-sample-package"}, APMVersion: "v0.6.0"},
+			target:  "copilot",
+			expectedContains: []string{
+				"apm-version: v0.6.0",
 			},
 		},
 	}
@@ -233,6 +279,8 @@ func TestGenerateAPMPackStep(t *testing.T) {
 }
 
 func TestGenerateAPMRestoreStep(t *testing.T) {
+	defaultVersion := constants.DefaultAPMVersion.String()
+
 	tests := []struct {
 		name                string
 		apmDeps             *APMDependenciesInfo
@@ -251,23 +299,32 @@ func TestGenerateAPMRestoreStep(t *testing.T) {
 			expectedEmpty: true,
 		},
 		{
-			name:    "Non-isolated restore step",
+			name:    "Non-isolated restore step uses default version",
 			apmDeps: &APMDependenciesInfo{Packages: []string{"microsoft/apm-sample-package"}, Isolated: false},
 			expectedContains: []string{
 				"Restore APM dependencies",
 				"microsoft/apm-action",
 				"bundle: /tmp/gh-aw/apm-bundle/*.tar.gz",
+				"apm-version: " + defaultVersion,
 			},
 			expectedNotContains: []string{"isolated"},
 		},
 		{
-			name:    "Isolated restore step",
+			name:    "Isolated restore step includes isolated flag",
 			apmDeps: &APMDependenciesInfo{Packages: []string{"microsoft/apm-sample-package"}, Isolated: true},
 			expectedContains: []string{
 				"Restore APM dependencies",
 				"microsoft/apm-action",
 				"bundle: /tmp/gh-aw/apm-bundle/*.tar.gz",
+				"apm-version: " + defaultVersion,
 				"isolated: 'true'",
+			},
+		},
+		{
+			name:    "Custom apm-version overrides default in restore step",
+			apmDeps: &APMDependenciesInfo{Packages: []string{"microsoft/apm-sample-package"}, APMVersion: "v0.6.0"},
+			expectedContains: []string{
+				"apm-version: v0.6.0",
 			},
 		},
 	}

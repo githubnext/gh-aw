@@ -31,7 +31,8 @@ dependencies:
   packages:
     - microsoft/apm-sample-package
     - github/awesome-copilot/skills/review-and-refactor
-  isolated: true   # clear repo primitives before unpack (default: false)
+  isolated: true         # clear repo primitives before unpack (default: false)
+  apm-version: v0.7.2   # pin microsoft/apm CLI version (default: latest pinned version)
 ```
 
 ## Package reference formats
@@ -67,6 +68,8 @@ dependencies:
 ## Compilation behavior
 
 The compiler emits an `apm pack` step in the activation job and an `apm unpack` step in the agent job. The APM target is automatically inferred from the configured engine (`copilot`, `claude`, or `all` for other engines). The `isolated` flag controls whether existing `.github/` primitive directories are cleared before the bundle is unpacked in the agent job.
+
+The `apm-version` field pins the exact version of the `microsoft/apm` CLI used to install and unpack packages. When omitted, the default pinned version from `pkg/constants/constants.go` (`DefaultAPMVersion`) is used. This ensures reproducible dependency installation across all workflow runs.
 
 To reproduce or debug the pack/unpack flow locally, run `apm pack` and `apm unpack` directly. See the [pack and distribute guide](https://microsoft.github.io/apm/guides/pack-distribute/) for instructions.
 

@@ -5,6 +5,7 @@ import (
 	"maps"
 	"strings"
 
+	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
 )
 
@@ -348,7 +349,7 @@ func extractPluginsFromFrontmatter(frontmatter map[string]any) *PluginInfo {
 // extractAPMDependenciesFromFrontmatter extracts APM (Agent Package Manager) dependency
 // configuration from frontmatter. Supports two formats:
 //   - Array format: ["org/pkg1", "org/pkg2"]
-//   - Object format: {packages: ["org/pkg1", "org/pkg2"], isolated: true}
+//   - Object format: {packages: ["org/pkg1", "org/pkg2"], isolated: true, apm-version: "v0.7.2"}
 //
 // Returns nil if no dependencies field is present or if the field contains no packages.
 func extractAPMDependenciesFromFrontmatter(frontmatter map[string]any) *APMDependenciesInfo {
@@ -359,6 +360,7 @@ func extractAPMDependenciesFromFrontmatter(frontmatter map[string]any) *APMDepen
 
 	var packages []string
 	var isolated bool
+	var apmVersion string
 
 	switch v := value.(type) {
 	case []any:
@@ -369,7 +371,7 @@ func extractAPMDependenciesFromFrontmatter(frontmatter map[string]any) *APMDepen
 			}
 		}
 	case map[string]any:
-		// Object format: dependencies: {packages: [...], isolated: true}
+		// Object format: dependencies: {packages: [...], isolated: true, apm-version: "v0.7.2"}
 		if pkgsAny, ok := v["packages"]; ok {
 			if pkgsArray, ok := pkgsAny.([]any); ok {
 				for _, item := range pkgsArray {
@@ -384,6 +386,11 @@ func extractAPMDependenciesFromFrontmatter(frontmatter map[string]any) *APMDepen
 				isolated = isoBool
 			}
 		}
+		if ver, ok := v["apm-version"]; ok {
+			if verStr, ok := ver.(string); ok {
+				apmVersion = verStr
+			}
+		}
 	default:
 		return nil
 	}
@@ -392,6 +399,10 @@ func extractAPMDependenciesFromFrontmatter(frontmatter map[string]any) *APMDepen
 		return nil
 	}
 
-	frontmatterMetadataLog.Printf("Extracted %d APM dependency packages from frontmatter (isolated=%v)", len(packages), isolated)
-	return &APMDependenciesInfo{Packages: packages, Isolated: isolated}
+	if apmVersion == "" {
+		apmVersion = constants.DefaultAPMVersion.String()
+	}
+
+	frontmatterMetadataLog.Printf("Extracted %d APM dependency packages from frontmatter (isolated=%v, apm-version=%s)", len(packages), isolated, apmVersion)
+	return &APMDependenciesInfo{Packages: packages, Isolated: isolated, APMVersion: apmVersion}
 }
