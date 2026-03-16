@@ -217,9 +217,8 @@ mcp-servers:
 
 Test workflow.
 `,
-			serverName:         `"my-api"`,
-			expectedContent:    []string{`"get_data"`, `"list_items"`},
-			unexpectedInServer: []string{`"*"`},
+			serverName:      `"my-api"`,
+			expectedContent: []string{`"get_data"`, `"list_items"`},
 		},
 		{
 			name: "copilot - stdio mcp server with specific allowed tools",
@@ -240,9 +239,8 @@ mcp-servers:
 
 Test workflow.
 `,
-			serverName:         `"my-tool"`,
-			expectedContent:    []string{`"run_query"`, `"fetch_results"`},
-			unexpectedInServer: []string{`"*"`},
+			serverName:      `"my-tool"`,
+			expectedContent: []string{`"run_query"`, `"fetch_results"`},
 		},
 		{
 			name: "copilot - mcp server with no allowed field defaults to wildcard",
@@ -285,9 +283,8 @@ mcp-servers:
 
 Test workflow.
 `,
-			serverName:         `"my-api"`,
-			expectedContent:    []string{`"get_data"`, `"list_items"`},
-			unexpectedInServer: []string{`"*"`},
+			serverName:      `"my-api"`,
+			expectedContent: []string{`"get_data"`, `"list_items"`},
 		},
 		{
 			name: "claude - http mcp server with no allowed field has no tools filter",

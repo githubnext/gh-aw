@@ -193,20 +193,30 @@ func TestDeriveSafeOutputsGuardPolicyFromGitHub(t *testing.T) {
 			description: "Multiple owner wildcards should all strip the wildcard suffix",
 		},
 		{
-			name: "no repos configured",
+			name: "no repos configured, defaults to all",
 			githubTool: map[string]any{
 				"min-integrity": "approved",
 			},
-			expectNil:   true,
-			description: "No repos means no guard-policy for safeoutputs",
+			expectedPolicies: map[string]any{
+				"write-sink": map[string]any{
+					"accept": []string{"*"},
+				},
+			},
+			expectNil:   false,
+			description: "No repos defaults to 'all', which maps to accept=['*']",
 		},
 		{
-			name: "no guard policy at all",
+			name: "no guard policy at all, defaults to repos=all",
 			githubTool: map[string]any{
 				"toolsets": []string{"default"},
 			},
-			expectNil:   true,
-			description: "No guard policy means no guard-policy for safeoutputs",
+			expectedPolicies: map[string]any{
+				"write-sink": map[string]any{
+					"accept": []string{"*"},
+				},
+			},
+			expectNil:   false,
+			description: "No guard policy defaults to repos='all', which maps to accept=['*']",
 		},
 		{
 			name:        "nil github tool",

@@ -65,8 +65,6 @@ type GitHubMCPDockerOptions struct {
 	ReadOnly bool
 	// Lockdown enables lockdown mode for GitHub MCP server (limits content from public repos)
 	Lockdown bool
-	// LockdownFromStep indicates if lockdown value should be read from step output
-	LockdownFromStep bool
 	// Toolsets specifies the GitHub toolsets to enable
 	Toolsets string
 	// DockerImageVersion specifies the GitHub MCP server Docker image version
@@ -91,8 +89,6 @@ type GitHubMCPRemoteOptions struct {
 	ReadOnly bool
 	// Lockdown enables lockdown mode for GitHub MCP server (limits content from public repos)
 	Lockdown bool
-	// LockdownFromStep indicates if lockdown value should be read from step output
-	LockdownFromStep bool
 	// Toolsets specifies the GitHub toolsets to enable
 	Toolsets string
 	// AuthorizationValue is the value for the Authorization header

@@ -14,7 +14,6 @@
 //   - Expanding and managing GitHub toolsets (repos, issues, pull_requests, etc.)
 //   - Handling allowed tool lists for fine-grained access control
 //   - Determining Docker image versions for local mode
-//   - Generating automatic lockdown detection steps
 //   - Managing GitHub App token minting and invalidation
 //
 // GitHub MCP modes:
@@ -23,8 +22,8 @@
 //
 // Security features:
 //   - Read-only mode: Always enforced - write operations via GitHub MCP are not permitted
-//   - GitHub lockdown mode: Restricts access to current repository only
-//   - Automatic lockdown: Enables lockdown for public repositories with GH_AW_GITHUB_TOKEN
+//   - GitHub lockdown mode: Restricts access to current repository only (explicit only)
+//   - Guard policies: repos/min-integrity defaults to "all"/"approved" when not configured
 //   - Allowed tools: Restricts available GitHub API operations
 //
 // GitHub toolsets:
@@ -40,9 +39,9 @@
 //  3. Top-level github-token from frontmatter
 //  4. Default GITHUB_TOKEN secret
 //
-// Automatic lockdown detection:
-// When lockdown is not explicitly set, a step is generated to automatically
-// enable lockdown for public repositories ONLY when GH_AW_GITHUB_TOKEN is configured.
+// Guard policy defaults:
+// When repos and min-integrity are not explicitly configured, guard policies default to
+// repos="all" and min-integrity="approved" to provide baseline security.
 //
 // Related files:
 //   - mcp_renderer.go: Renders GitHub MCP configuration to YAML
@@ -56,7 +55,7 @@
 //	  github:
 //	    mode: remote                    # or "local" for Docker
 //	    github-token: ${{ secrets.PAT }}
-//	    lockdown: true                  # or omit for automatic detection
+//	    lockdown: true                  # or omit (no automatic detection)
 //	    toolsets: [repos, issues, pull_requests]
 //	    allowed: [get_repo, list_issues, get_pull_request]
 package workflow
@@ -235,22 +234,24 @@ func getGitHubAllowedTools(githubTool any) []string {
 
 // getGitHubGuardPolicies extracts guard policies from GitHub tool configuration.
 // It reads the flat repos/min-integrity fields and wraps them for MCP gateway rendering.
-// Returns nil if no guard policies are configured.
+// When neither field is set, defaults to repos="all" and min-integrity="approved".
 func getGitHubGuardPolicies(githubTool any) map[string]any {
 	if toolConfig, ok := githubTool.(map[string]any); ok {
 		repos, hasRepos := toolConfig["repos"]
 		integrity, hasIntegrity := toolConfig["min-integrity"]
-		if hasRepos || hasIntegrity {
-			policy := map[string]any{}
-			if hasRepos {
-				policy["repos"] = repos
-			}
-			if hasIntegrity {
-				policy["min-integrity"] = integrity
-			}
-			return map[string]any{
-				"allow-only": policy,
-			}
+		policy := map[string]any{}
+		if hasRepos {
+			policy["repos"] = repos
+		} else {
+			policy["repos"] = "all"
+		}
+		if hasIntegrity {
+			policy["min-integrity"] = integrity
+		} else {
+			policy["min-integrity"] = "approved"
+		}
+		return map[string]any{
+			"allow-only": policy,
 		}
 	}
 	return nil
@@ -380,70 +381,6 @@ func getGitHubDockerImageVersion(githubTool any) string {
 		}
 	}
 	return githubDockerImageVersion
-}
-
-// generateGitHubMCPLockdownDetectionStep generates a step to determine automatic lockdown mode
-// for GitHub MCP server based on repository visibility and token availability.
-// This step is added when:
-//   - GitHub tool is enabled AND
-//   - lockdown field is not explicitly specified in the workflow configuration AND
-//   - tools.github.app is NOT configured (GitHub App tokens are already repo-scoped, so
-//     automatic lockdown detection is unnecessary and skipped)
-//
-// Lockdown mode is automatically enabled for public repositories when any custom GitHub token
-// is configured (GH_AW_GITHUB_TOKEN, GH_AW_GITHUB_MCP_SERVER_TOKEN, or custom github-token).
-func (c *Compiler) generateGitHubMCPLockdownDetectionStep(yaml *strings.Builder, data *WorkflowData) {
-	// Check if GitHub tool is present
-	githubTool, hasGitHub := data.Tools["github"]
-	if !hasGitHub || githubTool == false {
-		return
-	}
-
-	// Check if lockdown is already explicitly set
-	if hasGitHubLockdownExplicitlySet(githubTool) {
-		githubConfigLog.Print("Lockdown explicitly set in workflow, skipping automatic lockdown determination")
-		return
-	}
-
-	// Skip automatic lockdown detection when a GitHub App is configured.
-	// GitHub App tokens are already scoped to specific repositories, so automatic
-	// lockdown detection is not needed — the token's access is inherently bounded
-	// by the app installation and the listed repositories.
-	if hasGitHubApp(githubTool) {
-		githubConfigLog.Print("GitHub App configured, skipping automatic lockdown determination (app tokens are already repo-scoped)")
-		return
-	}
-
-	githubConfigLog.Print("Generating automatic lockdown determination step for GitHub MCP server")
-
-	// Resolve the latest version of actions/github-script
-	actionRepo := "actions/github-script"
-	actionVersion := string(constants.DefaultGitHubScriptVersion)
-	pinnedAction, err := GetActionPinWithData(actionRepo, actionVersion, data)
-	if err != nil {
-		githubConfigLog.Printf("Failed to resolve %s@%s: %v", actionRepo, actionVersion, err)
-		// In strict mode, this error would have been returned by GetActionPinWithData
-		// In normal mode, we fall back to using the version tag without pinning
-		pinnedAction = fmt.Sprintf("%s@%s", actionRepo, actionVersion)
-	}
-
-	// Extract custom github-token if present
-	customToken := getGitHubToken(githubTool)
-
-	// Generate the step using the determine_automatic_lockdown.cjs action
-	yaml.WriteString("      - name: Determine automatic lockdown mode for GitHub MCP Server\n")
-	yaml.WriteString("        id: determine-automatic-lockdown\n")
-	fmt.Fprintf(yaml, "        uses: %s\n", pinnedAction)
-	yaml.WriteString("        env:\n")
-	yaml.WriteString("          GH_AW_GITHUB_TOKEN: ${{ secrets.GH_AW_GITHUB_TOKEN }}\n")
-	yaml.WriteString("          GH_AW_GITHUB_MCP_SERVER_TOKEN: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN }}\n")
-	if customToken != "" {
-		fmt.Fprintf(yaml, "          CUSTOM_GITHUB_TOKEN: %s\n", customToken)
-	}
-	yaml.WriteString("        with:\n")
-	yaml.WriteString("          script: |\n")
-	yaml.WriteString("            const determineAutomaticLockdown = require('/opt/gh-aw/actions/determine_automatic_lockdown.cjs');\n")
-	yaml.WriteString("            await determineAutomaticLockdown(github, context, core);\n")
 }
 
 // generateGitHubMCPAppTokenMintingStep generates a step to mint a GitHub App token for GitHub MCP server

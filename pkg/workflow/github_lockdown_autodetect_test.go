@@ -13,14 +13,13 @@ import (
 
 func TestGitHubLockdownAutodetection(t *testing.T) {
 	tests := []struct {
-		name                    string
-		workflow                string
-		expectedLockdown        string // "true" means hardcoded true, "auto" means automatic detection, "none" means no lockdown setting at all
-		expectAutoDetectionStep bool   // true if automatic detection step should be present
-		description             string
+		name             string
+		workflow         string
+		expectedLockdown string // "true" means hardcoded true, "none" means no lockdown setting at all
+		description      string
 	}{
 		{
-			name: "Automatic detection when lockdown not specified",
+			name: "No lockdown when lockdown not specified",
 			workflow: `---
 on: issues
 engine: copilot
@@ -32,11 +31,10 @@ tools:
 
 # Test Workflow
 
-Test that automatic lockdown detection is enabled when lockdown is not specified.
+Test that no automatic lockdown detection step is generated when lockdown is not specified.
 `,
-			expectedLockdown:        "auto",
-			expectAutoDetectionStep: true,
-			description:             "When lockdown is not specified, automatic detection step should be present",
+			expectedLockdown: "none",
+			description:      "When lockdown is not specified, no lockdown step or hardcoded lockdown should be present",
 		},
 		{
 			name: "Lockdown enabled when explicitly set to true",
@@ -54,9 +52,8 @@ tools:
 
 Test with explicit lockdown enabled.
 `,
-			expectedLockdown:        "true",
-			expectAutoDetectionStep: false,
-			description:             "When lockdown is explicitly true, lockdown should be hardcoded",
+			expectedLockdown: "true",
+			description:      "When lockdown is explicitly true, lockdown should be hardcoded",
 		},
 		{
 			name: "No lockdown when explicitly set to false",
@@ -74,12 +71,11 @@ tools:
 
 Test with explicit lockdown disabled.
 `,
-			expectedLockdown:        "none",
-			expectAutoDetectionStep: false,
-			description:             "When lockdown is explicitly false, no lockdown setting should be present",
+			expectedLockdown: "none",
+			description:      "When lockdown is explicitly false, no lockdown setting should be present",
 		},
 		{
-			name: "Automatic detection with remote mode when not specified",
+			name: "No lockdown with remote mode when not specified",
 			workflow: `---
 on: issues
 engine: copilot
@@ -91,11 +87,10 @@ tools:
 
 # Test Workflow
 
-Test that remote mode uses automatic detection when lockdown not specified.
+Test that remote mode has no lockdown when lockdown not specified.
 `,
-			expectedLockdown:        "auto",
-			expectAutoDetectionStep: true,
-			description:             "Remote mode without explicit lockdown should use automatic detection",
+			expectedLockdown: "none",
+			description:      "Remote mode without explicit lockdown should have no lockdown",
 		},
 	}
 
@@ -128,15 +123,11 @@ Test that remote mode uses automatic detection when lockdown not specified.
 			}
 			yaml := string(lockContent)
 
-			// Check for automatic detection step based on expectation
+			// Verify that the automatic lockdown detection step is never present
 			hasDetectionStep := strings.Contains(yaml, "Determine automatic lockdown") &&
 				strings.Contains(yaml, "determine-automatic-lockdown")
-
-			if tt.expectAutoDetectionStep && !hasDetectionStep {
-				t.Errorf("%s: Expected automatic detection step but it was not found", tt.description)
-			}
-			if !tt.expectAutoDetectionStep && hasDetectionStep {
-				t.Errorf("%s: Did not expect automatic detection step but it was found", tt.description)
+			if hasDetectionStep {
+				t.Errorf("%s: Automatic lockdown detection step should not be generated", tt.description)
 			}
 
 			// Check lockdown configuration based on expected value
@@ -148,19 +139,13 @@ Test that remote mode uses automatic detection when lockdown not specified.
 				if !hasDockerLockdown && !hasRemoteLockdown {
 					t.Errorf("%s: Expected hardcoded lockdown setting", tt.description)
 				}
-			case "auto":
-				// Should use step output expression for lockdown
-				hasStepOutput := strings.Contains(yaml, "steps.determine-automatic-lockdown.outputs.lockdown")
-				if !hasStepOutput {
-					t.Errorf("%s: Expected lockdown to use step output expression", tt.description)
-				}
 			case "none":
-				// Should not have GITHUB_LOCKDOWN_MODE or X-MCP-Lockdown (unless using step output)
+				// Should not have GITHUB_LOCKDOWN_MODE=1 or X-MCP-Lockdown
 				if strings.Contains(yaml, `"GITHUB_LOCKDOWN_MODE": "1"`) {
 					t.Errorf("%s: Expected no hardcoded lockdown setting", tt.description)
 				}
-				if strings.Contains(yaml, "X-MCP-Lockdown") && !strings.Contains(yaml, "steps.determine-automatic-lockdown") {
-					t.Errorf("%s: Expected no hardcoded lockdown setting", tt.description)
+				if strings.Contains(yaml, "X-MCP-Lockdown") {
+					t.Errorf("%s: Expected no X-MCP-Lockdown header", tt.description)
 				}
 			}
 		})
@@ -209,16 +194,15 @@ Test that Claude engine has no automatic lockdown determination.
 	}
 	yaml := string(lockContent)
 
-	// Verify automatic detection step is present (lockdown not explicitly set)
-	detectStepPresent := strings.Contains(yaml, "Determine automatic lockdown mode for GitHub MCP Server") &&
+	// Verify no automatic detection step is present
+	detectStepPresent := strings.Contains(yaml, "Determine automatic lockdown mode for GitHub MCP Server") ||
 		strings.Contains(yaml, "determine-automatic-lockdown")
-
-	if !detectStepPresent {
-		t.Error("Determination step should be present for Claude engine when lockdown not explicitly set")
+	if detectStepPresent {
+		t.Error("Automatic lockdown detection step should not be present for Claude engine")
 	}
 
-	// Check if lockdown uses step output expression
-	if !strings.Contains(yaml, "steps.determine-automatic-lockdown.outputs.lockdown") {
-		t.Error("Expected lockdown to use step output expression for Claude engine")
+	// Verify no hardcoded lockdown when lockdown not explicitly set
+	if strings.Contains(yaml, `"GITHUB_LOCKDOWN_MODE": "1"`) {
+		t.Error("Expected no hardcoded lockdown setting when lockdown not explicitly set")
 	}
 }
