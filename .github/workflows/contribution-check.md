@@ -15,6 +15,8 @@ env:
 tools:
   github:
     toolsets: [default]
+    repos: all
+    min-integrity: none
 safe-outputs:
   create-issue:
     title-prefix: "[Contribution Check Report]"

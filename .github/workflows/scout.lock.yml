@@ -33,7 +33,7 @@
 #     - shared/mcp/tavily.md
 #     - shared/reporting.md
 #
-# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"afb56af2ad7f39657bed5275c2b3eba2fefebbfba9ea4219294dd6f881b012ac","strict":true}
+# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"1257d91a7cbfe146dbfc43fb7b731d709fe84bfc4622da42ad1cf548a7f04428","strict":true}
 
 name: "Scout"
 "on":
@@ -485,16 +485,6 @@ jobs:
         run: bash /opt/gh-aw/actions/install_awf_binary.sh v0.24.2
       - name: Install Claude Code CLI
         run: npm install -g @anthropic-ai/claude-code@latest
-      - name: Determine automatic lockdown mode for GitHub MCP Server
-        id: determine-automatic-lockdown
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
-        env:
-          GH_AW_GITHUB_TOKEN: ${{ secrets.GH_AW_GITHUB_TOKEN }}
-          GH_AW_GITHUB_MCP_SERVER_TOKEN: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN }}
-        with:
-          script: |
-            const determineAutomaticLockdown = require('/opt/gh-aw/actions/determine_automatic_lockdown.cjs');
-            await determineAutomaticLockdown(github, context, core);
       - name: Download container images
         run: bash /opt/gh-aw/actions/download_docker_images.sh ghcr.io/github/gh-aw-firewall/agent:0.24.2 ghcr.io/github/gh-aw-firewall/api-proxy:0.24.2 ghcr.io/github/gh-aw-firewall/squid:0.24.2 ghcr.io/github/gh-aw-mcpg:v0.1.15 ghcr.io/github/github-mcp-server:v0.32.0 mcp/arxiv-mcp-server mcp/markitdown node:lts-alpine
       - name: Write Safe Outputs Config
@@ -812,8 +802,6 @@ jobs:
           GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
           GH_AW_SAFE_OUTPUTS_API_KEY: ${{ steps.safe-outputs-start.outputs.api_key }}
           GH_AW_SAFE_OUTPUTS_PORT: ${{ steps.safe-outputs-start.outputs.port }}
-          GITHUB_MCP_GUARD_MIN_INTEGRITY: ${{ steps.determine-automatic-lockdown.outputs.min_integrity }}
-          GITHUB_MCP_GUARD_REPOS: ${{ steps.determine-automatic-lockdown.outputs.repos }}
           GITHUB_MCP_SERVER_TOKEN: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           TAVILY_API_KEY: ${{ secrets.TAVILY_API_KEY }}
         run: |
@@ -844,7 +832,14 @@ jobs:
                   "search_arxiv",
                   "get_paper_details",
                   "get_paper_pdf"
-                ]
+                ],
+                "guard-policies": {
+                  "write-sink": {
+                    "accept": [
+                      "*"
+                    ]
+                  }
+                }
               },
               "deepwiki": {
                 "type": "http",
@@ -853,7 +848,14 @@ jobs:
                   "read_wiki_structure",
                   "read_wiki_contents",
                   "ask_question"
-                ]
+                ],
+                "guard-policies": {
+                  "write-sink": {
+                    "accept": [
+                      "*"
+                    ]
+                  }
+                }
               },
               "github": {
                 "container": "ghcr.io/github/github-mcp-server:v0.32.0",
@@ -865,8 +867,8 @@ jobs:
                 },
                 "guard-policies": {
                   "allow-only": {
-                    "min-integrity": "$GITHUB_MCP_GUARD_MIN_INTEGRITY",
-                    "repos": "$GITHUB_MCP_GUARD_REPOS"
+                    "min-integrity": "none",
+                    "repos": "all"
                   }
                 }
               },
@@ -875,20 +877,41 @@ jobs:
                 "container": "mcp/markitdown",
                 "tools": [
                   "*"
-                ]
+                ],
+                "guard-policies": {
+                  "write-sink": {
+                    "accept": [
+                      "*"
+                    ]
+                  }
+                }
               },
               "microsoftdocs": {
                 "type": "http",
                 "url": "https://learn.microsoft.com/api/mcp",
                 "tools": [
                   "*"
-                ]
+                ],
+                "guard-policies": {
+                  "write-sink": {
+                    "accept": [
+                      "*"
+                    ]
+                  }
+                }
               },
               "safeoutputs": {
                 "type": "http",
                 "url": "http://host.docker.internal:$GH_AW_SAFE_OUTPUTS_PORT",
                 "headers": {
                   "Authorization": "$GH_AW_SAFE_OUTPUTS_API_KEY"
+                },
+                "guard-policies": {
+                  "write-sink": {
+                    "accept": [
+                      "*"
+                    ]
+                  }
                 }
               },
               "tavily": {
@@ -899,7 +922,14 @@ jobs:
                 },
                 "tools": [
                   "*"
-                ]
+                ],
+                "guard-policies": {
+                  "write-sink": {
+                    "accept": [
+                      "*"
+                    ]
+                  }
+                }
               }
             },
             "gateway": {

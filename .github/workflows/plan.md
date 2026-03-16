@@ -14,6 +14,8 @@ engine: copilot
 tools:
   github:
     toolsets: [default, discussions]
+    repos: all
+    min-integrity: none
 safe-outputs:
   create-issue:
     expires: 2d
