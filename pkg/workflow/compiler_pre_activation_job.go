@@ -195,6 +195,23 @@ func (c *Compiler) buildPreActivationJob(data *WorkflowData, needsPermissionChec
 		steps = append(steps, customSteps...)
 	}
 
+	// Append on.steps if present (injected after other checks)
+	var onStepIDs []string
+	if len(data.OnSteps) > 0 {
+		compilerActivationJobsLog.Printf("Adding %d on.steps to pre-activation job", len(data.OnSteps))
+		for i, stepMap := range data.OnSteps {
+			stepYAML, err := c.convertStepToYAML(stepMap)
+			if err != nil {
+				return nil, fmt.Errorf("failed to convert on.steps[%d] to YAML: %w", i, err)
+			}
+			steps = append(steps, stepYAML)
+			// Collect step IDs for output wiring
+			if id, ok := stepMap["id"].(string); ok && id != "" {
+				onStepIDs = append(onStepIDs, id)
+			}
+		}
+	}
+
 	// Generate the activated output expression using expression builders
 	var activatedNode ConditionNode
 
@@ -283,9 +300,18 @@ func (c *Compiler) buildPreActivationJob(data *WorkflowData, needsPermissionChec
 
 	// Build the final expression
 	if len(conditions) == 0 {
-		// This should never happen - it means pre-activation job was created without any checks
-		// If we reach this point, it's a developer error in the compiler logic
-		return nil, errors.New("developer error: pre-activation job created without permission check or stop-time configuration")
+		// Pre-activation was created solely for on.steps injection.
+		// The activated output is unconditionally true; the user controls
+		// agent execution through their own if: condition referencing the
+		// on.steps outputs (e.g., needs.pre_activation.outputs.gate_result).
+		if len(data.OnSteps) > 0 {
+			compilerActivationJobsLog.Printf("Pre-activation created with on.steps only (%d steps); activated output is unconditionally true", len(data.OnSteps))
+			activatedNode = BuildStringLiteral("true")
+		} else {
+			// This should never happen - it means pre-activation job was created without any checks
+			// If we reach this point, it's a developer error in the compiler logic
+			return nil, errors.New("developer error: pre-activation job created without permission check or stop-time configuration")
+		}
 	} else if len(conditions) == 1 {
 		// Single condition
 		activatedNode = conditions[0]
@@ -317,6 +343,17 @@ func (c *Compiler) buildPreActivationJob(data *WorkflowData, needsPermissionChec
 	if len(customOutputs) > 0 {
 		compilerActivationJobsLog.Printf("Adding %d custom outputs to pre-activation job", len(customOutputs))
 		maps.Copy(outputs, customOutputs)
+	}
+
+	// Wire on.steps step results as pre-activation outputs.
+	// For each step with an id, emit output "<id>_result: ${{ steps.<id>.result }}"
+	// so users can reference them with: needs.pre_activation.outputs.<id>_result
+	if len(onStepIDs) > 0 {
+		compilerActivationJobsLog.Printf("Wiring %d on.steps step results as pre-activation outputs", len(onStepIDs))
+		for _, id := range onStepIDs {
+			outputKey := id + "_result"
+			outputs[outputKey] = fmt.Sprintf("${{ steps.%s.result }}", id)
+		}
 	}
 
 	// Pre-activation job uses the user's original if condition (data.If)
@@ -477,4 +514,45 @@ func (c *Compiler) resolvePreActivationSkipIfToken(data *WorkflowData) string {
 		return data.ActivationGitHubToken
 	}
 	return ""
+}
+
+// extractOnSteps extracts the 'steps' field from the 'on:' section of frontmatter.
+// These steps are injected into the pre-activation job and their results are wired
+// as pre-activation outputs so users can reference them with:
+//
+//	needs.pre_activation.outputs.<id>_result
+//
+// Returns nil if on.steps is not configured.
+// Returns an error if on.steps is not an array or contains non-object items.
+func extractOnSteps(frontmatter map[string]any) ([]map[string]any, error) {
+	onValue, exists := frontmatter["on"]
+	if !exists || onValue == nil {
+		return nil, nil
+	}
+
+	onMap, ok := onValue.(map[string]any)
+	if !ok {
+		return nil, nil
+	}
+
+	stepsValue, exists := onMap["steps"]
+	if !exists || stepsValue == nil {
+		return nil, nil
+	}
+
+	stepsList, ok := stepsValue.([]any)
+	if !ok {
+		return nil, fmt.Errorf("on.steps must be an array, got %T", stepsValue)
+	}
+
+	result := make([]map[string]any, 0, len(stepsList))
+	for i, step := range stepsList {
+		stepMap, ok := step.(map[string]any)
+		if !ok {
+			return nil, fmt.Errorf("on.steps[%d] must be an object, got %T", i, step)
+		}
+		result = append(result, stepMap)
+	}
+
+	return result, nil
 }

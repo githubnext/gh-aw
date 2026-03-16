@@ -322,7 +322,7 @@
                         {
                           "type": "array",
                           "minItems": 1,
-                          "description": "Array of label names — any of these labels will trigger the workflow.",
+                          "description": "Array of label names \u2014 any of these labels will trigger the workflow.",
                           "items": {
                             "type": "string",
                             "minLength": 1,
@@ -343,7 +343,7 @@
                         {
                           "type": "array",
                           "minItems": 1,
-                          "description": "Array of label names — any of these labels will trigger the workflow.",
+                          "description": "Array of label names \u2014 any of these labels will trigger the workflow.",
                           "items": {
                             "type": "string",
                             "minLength": 1,
@@ -1588,6 +1588,62 @@
                   "app-id": "${{ vars.APP_ID }}",
                   "private-key": "${{ secrets.APP_PRIVATE_KEY }}"
                 }
+              ]
+            },
+            "steps": {
+              "type": "array",
+              "description": "Steps to inject into the pre-activation job. These steps run after all built-in checks (membership, stop-time, skip-if, etc.) and their results are exposed as pre-activation outputs. Use 'id' on steps to reference their results via needs.pre_activation.outputs.<id>_result.",
+              "items": {
+                "type": "object",
+                "description": "A GitHub Actions step to inject into the pre-activation job",
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "description": "Optional name for the step"
+                  },
+                  "id": {
+                    "type": "string",
+                    "description": "Optional step ID. When set, the step result is exposed as needs.pre_activation.outputs.<id>_result"
+                  },
+                  "run": {
+                    "type": "string",
+                    "description": "Shell command to run"
+                  },
+                  "uses": {
+                    "type": "string",
+                    "description": "Action to use (e.g., 'actions/checkout@v4')"
+                  },
+                  "with": {
+                    "type": "object",
+                    "description": "Input parameters for the action",
+                    "additionalProperties": true
+                  },
+                  "env": {
+                    "type": "object",
+                    "description": "Environment variables for the step",
+                    "additionalProperties": {
+                      "type": "string"
+                    }
+                  },
+                  "if": {
+                    "type": "string",
+                    "description": "Conditional expression for the step"
+                  },
+                  "continue-on-error": {
+                    "type": "boolean",
+                    "description": "Whether to continue if the step fails"
+                  }
+                },
+                "additionalProperties": true
+              },
+              "examples": [
+                [
+                  {
+                    "name": "Gate check",
+                    "id": "gate",
+                    "run": "echo 'Checking gate...' && exit 0"
+                  }
+                ]
               ]
             }
           },
