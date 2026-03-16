@@ -406,27 +406,50 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 	compilerActivationJobLog.Print("Generating prompt in activation job")
 	c.generatePromptInActivationJob(&steps, data, preActivationJobCreated, customJobsBeforeActivation)
 
-	// Generate APM pack step if dependencies are specified.
-	// The pack step runs after prompt generation and uploads as a separate "apm" artifact.
+	// Generate APM pack step(s) if dependencies are specified.
+	// When no GitHub App is configured: single pack step (backward compat).
+	// When a GitHub App is configured: one token-mint + pack + upload step per package group.
 	if data.APMDependencies != nil && len(data.APMDependencies.Packages) > 0 {
-		compilerActivationJobLog.Printf("Adding APM pack step: %d packages", len(data.APMDependencies.Packages))
 		apmTarget := engine.GetAPMTarget()
-		apmPackStep := GenerateAPMPackStep(data.APMDependencies, apmTarget, data)
-		for _, line := range apmPackStep {
-			steps = append(steps, line+"\n")
+		apmGroups := data.APMDependencies.GetPackageGroups()
+		compilerActivationJobLog.Printf("Adding %d APM pack group(s): %d packages total",
+			len(apmGroups), len(data.APMDependencies.Packages))
+
+		for _, group := range apmGroups {
+			// Mint a GitHub App token before the pack step when the group requires one.
+			tokenStepID := ""
+			if group.GitHubApp != nil {
+				tokenStepID = apmAppTokenStepID(group.Index)
+				compilerActivationJobLog.Printf("Adding APM GitHub App token mint step for group %d", group.Index)
+				tokenSteps := c.generateAPMAppTokenMintStep(group.GitHubApp, tokenStepID)
+				steps = append(steps, tokenSteps...)
+			}
+
+			// Generate the pack step for this group.
+			var packStep GitHubActionStep
+			if data.APMDependencies.HasGitHubApp() {
+				packStep = GenerateAPMPackStepForGroup(group, apmTarget, tokenStepID, data)
+			} else {
+				packStep = GenerateAPMPackStep(data.APMDependencies, apmTarget, data)
+			}
+			for _, line := range packStep {
+				steps = append(steps, line+"\n")
+			}
+
+			// Upload the packed APM bundle as a separate artifact for the agent job to download.
+			// The path comes from the apm_pack / apm_pack_N step output `bundle-path`.
+			packID := apmPackStepID(data.APMDependencies, group.Index)
+			artifactBaseName := apmArtifactBaseName(data.APMDependencies, group.Index)
+			artifactName := artifactPrefixExprForActivationJob(data) + artifactBaseName
+			compilerActivationJobLog.Printf("Adding APM bundle artifact upload step for group %d (artifact=%s)", group.Index, artifactBaseName)
+			steps = append(steps, "      - name: Upload APM bundle artifact\n")
+			steps = append(steps, "        if: success()\n")
+			steps = append(steps, fmt.Sprintf("        uses: %s\n", GetActionPin("actions/upload-artifact")))
+			steps = append(steps, "        with:\n")
+			steps = append(steps, fmt.Sprintf("          name: %s\n", artifactName))
+			steps = append(steps, fmt.Sprintf("          path: ${{ steps.%s.outputs.bundle-path }}\n", packID))
+			steps = append(steps, "          retention-days: 1\n")
 		}
-		// Upload the packed APM bundle as a separate artifact for the agent job to download.
-		// The path comes from the apm_pack step output `bundle-path`, which microsoft/apm-action
-		// sets to the location of the packed .tar.gz archive.
-		compilerActivationJobLog.Print("Adding APM bundle artifact upload step")
-		apmArtifactName := artifactPrefixExprForActivationJob(data) + constants.APMArtifactName
-		steps = append(steps, "      - name: Upload APM bundle artifact\n")
-		steps = append(steps, "        if: success()\n")
-		steps = append(steps, fmt.Sprintf("        uses: %s\n", GetActionPin("actions/upload-artifact")))
-		steps = append(steps, "        with:\n")
-		steps = append(steps, fmt.Sprintf("          name: %s\n", apmArtifactName))
-		steps = append(steps, "          path: ${{ steps.apm_pack.outputs.bundle-path }}\n")
-		steps = append(steps, "          retention-days: 1\n")
 	}
 
 	// Upload aw_info.json and prompt.txt as the activation artifact for the agent job to download.

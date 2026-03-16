@@ -322,7 +322,7 @@
                         {
                           "type": "array",
                           "minItems": 1,
-                          "description": "Array of label names — any of these labels will trigger the workflow.",
+                          "description": "Array of label names \u2014 any of these labels will trigger the workflow.",
                           "items": {
                             "type": "string",
                             "minLength": 1,
@@ -343,7 +343,7 @@
                         {
                           "type": "array",
                           "minItems": 1,
-                          "description": "Array of label names — any of these labels will trigger the workflow.",
+                          "description": "Array of label names \u2014 any of these labels will trigger the workflow.",
                           "items": {
                             "type": "string",
                             "minLength": 1,
@@ -7845,18 +7845,41 @@
       ]
     },
     "dependencies": {
-      "description": "APM package references to install. Supports array format (list of package slugs) or object format with packages and isolated fields.",
+      "description": "APM package references to install. Supports array format (list of package slugs), object format with packages and optional isolated/github-app fields, and per-package github-app overrides for cross-org access.",
       "examples": [
         ["microsoft/apm-sample-package", "acme/custom-tools"],
         {
           "packages": ["microsoft/apm-sample-package"],
           "isolated": true
+        },
+        {
+          "github-app": {
+            "app-id": "${{ vars.APP_ID }}",
+            "private-key": "${{ secrets.APP_PRIVATE_KEY }}"
+          },
+          "packages": ["acme-platform-org/acme-skills/plugins/dev-tools"]
+        },
+        {
+          "github-app": {
+            "app-id": "${{ vars.APP_ID }}",
+            "private-key": "${{ secrets.APP_PRIVATE_KEY }}"
+          },
+          "packages": [
+            "acme-platform-org/acme-skills/plugins/dev-tools",
+            {
+              "source": "partner-org/partner-package",
+              "github-app": {
+                "app-id": "${{ vars.PARTNER_APP_ID }}",
+                "private-key": "${{ secrets.PARTNER_APP_PRIVATE_KEY }}"
+              }
+            }
+          ]
         }
       ],
       "oneOf": [
         {
           "type": "array",
-          "description": "Simple array of APM package references.",
+          "description": "Simple array of APM package references (no auth required).",
           "items": {
             "type": "string",
             "pattern": "^[a-zA-Z0-9_-]+/[a-zA-Z0-9_./-]+$",
@@ -7865,20 +7888,91 @@
         },
         {
           "type": "object",
-          "description": "Object format with packages and optional isolated flag.",
+          "description": "Object format with packages, optional isolated flag, and optional github-app for cross-org access.",
           "properties": {
             "packages": {
               "type": "array",
-              "description": "List of APM package references to install.",
+              "description": "List of APM package references. Each entry is either a string or an object with source and optional github-app override.",
               "items": {
-                "type": "string",
-                "pattern": "^[a-zA-Z0-9_-]+/[a-zA-Z0-9_./-]+$",
-                "description": "APM package reference in the format 'org/repo' or 'org/repo/path/to/skill'"
+                "oneOf": [
+                  {
+                    "type": "string",
+                    "pattern": "^[a-zA-Z0-9_-]+/[a-zA-Z0-9_./-]+$",
+                    "description": "APM package reference in the format 'org/repo' or 'org/repo/path/to/skill'"
+                  },
+                  {
+                    "type": "object",
+                    "description": "Object format for per-package github-app override.",
+                    "properties": {
+                      "source": {
+                        "type": "string",
+                        "pattern": "^[a-zA-Z0-9_-]+/[a-zA-Z0-9_./-]+$",
+                        "description": "APM package reference in the format 'org/repo' or 'org/repo/path/to/skill'"
+                      },
+                      "github-app": {
+                        "type": "object",
+                        "description": "GitHub App configuration for generating a token with cross-org access.",
+                        "properties": {
+                          "app-id": {
+                            "type": "string",
+                            "description": "GitHub App ID or reference (e.g. '${{ vars.APP_ID }}')."
+                          },
+                          "private-key": {
+                            "type": "string",
+                            "description": "GitHub App private key or reference (e.g. '${{ secrets.APP_PRIVATE_KEY }}')."
+                          },
+                          "owner": {
+                            "type": "string",
+                            "description": "Optional GitHub App installation owner. Defaults to the repository owner."
+                          },
+                          "repositories": {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            },
+                            "description": "Optional list of repositories to grant access to. Use ['*'] for org-wide access."
+                          }
+                        },
+                        "required": ["app-id", "private-key"],
+                        "additionalProperties": false
+                      }
+                    },
+                    "required": ["source", "github-app"],
+                    "additionalProperties": false
+                  }
+                ]
               }
             },
             "isolated": {
               "type": "boolean",
               "description": "If true, agent restore step clears primitive dirs before unpacking."
+            },
+            "github-app": {
+              "type": "object",
+              "description": "GitHub App configuration for generating a token with cross-org access.",
+              "properties": {
+                "app-id": {
+                  "type": "string",
+                  "description": "GitHub App ID or reference (e.g. '${{ vars.APP_ID }}')."
+                },
+                "private-key": {
+                  "type": "string",
+                  "description": "GitHub App private key or reference (e.g. '${{ secrets.APP_PRIVATE_KEY }}')."
+                },
+                "owner": {
+                  "type": "string",
+                  "description": "Optional GitHub App installation owner. Defaults to the repository owner."
+                },
+                "repositories": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "description": "Optional list of repositories to grant access to. Use ['*'] for org-wide access."
+                }
+              },
+              "required": ["app-id", "private-key"],
+              "additionalProperties": false
             }
           },
           "required": ["packages"],

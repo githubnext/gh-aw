@@ -352,9 +352,13 @@ func extractPluginsFromFrontmatter(frontmatter map[string]any) *PluginInfo {
 }
 
 // extractAPMDependenciesFromFrontmatter extracts APM (Agent Package Manager) dependency
-// configuration from frontmatter. Supports two formats:
+// configuration from frontmatter. Supports the following formats:
+//
 //   - Array format: ["org/pkg1", "org/pkg2"]
-//   - Object format: {packages: ["org/pkg1", "org/pkg2"], isolated: true}
+//   - Object format with packages and isolated: {packages: [...], isolated: true}
+//   - Object format with a default github-app: {github-app: {...}, packages: [...]}
+//   - Object format with per-package github-app overrides:
+//     {github-app: {...}, packages: ["org/pkg1", {source: "org/pkg2", github-app: {...}}]}
 //
 // Returns nil if no dependencies field is present or if the field contains no packages.
 func extractAPMDependenciesFromFrontmatter(frontmatter map[string]any) *APMDependenciesInfo {
@@ -364,7 +368,9 @@ func extractAPMDependenciesFromFrontmatter(frontmatter map[string]any) *APMDepen
 	}
 
 	var packages []string
+	var entries []APMPackageEntry
 	var isolated bool
+	var defaultApp *GitHubAppConfig
 
 	switch v := value.(type) {
 	case []any:
@@ -372,22 +378,59 @@ func extractAPMDependenciesFromFrontmatter(frontmatter map[string]any) *APMDepen
 		for _, item := range v {
 			if s, ok := item.(string); ok && s != "" {
 				packages = append(packages, s)
+				entries = append(entries, APMPackageEntry{Source: s})
 			}
 		}
 	case map[string]any:
-		// Object format: dependencies: {packages: [...], isolated: true}
-		if pkgsAny, ok := v["packages"]; ok {
-			if pkgsArray, ok := pkgsAny.([]any); ok {
-				for _, item := range pkgsArray {
-					if s, ok := item.(string); ok && s != "" {
-						packages = append(packages, s)
-					}
-				}
+		// Object format: dependencies: {github-app: {...}, packages: [...], isolated: true}
+
+		// Parse optional default github-app at the top level
+		if appAny, ok := v["github-app"]; ok {
+			if appMap, ok := appAny.(map[string]any); ok {
+				defaultApp = parseAppConfig(appMap)
 			}
 		}
+
+		// Parse isolated flag
 		if iso, ok := v["isolated"]; ok {
 			if isoBool, ok := iso.(bool); ok {
 				isolated = isoBool
+			}
+		}
+
+		// Parse packages: each item is either a string or an object {source: "...", github-app: {...}}
+		if pkgsAny, ok := v["packages"]; ok {
+			if pkgsArray, ok := pkgsAny.([]any); ok {
+				for _, item := range pkgsArray {
+					switch pkg := item.(type) {
+					case string:
+						// Simple string entry
+						if pkg != "" {
+							packages = append(packages, pkg)
+							entries = append(entries, APMPackageEntry{Source: pkg})
+						}
+					case map[string]any:
+						// Object entry: {source: "org/repo", github-app: {...}}
+						sourceAny, hasSource := pkg["source"]
+						if !hasSource {
+							frontmatterMetadataLog.Print("Skipping APM package entry: missing 'source' field")
+							continue
+						}
+						source, ok := sourceAny.(string)
+						if !ok || source == "" {
+							frontmatterMetadataLog.Print("Skipping APM package entry: 'source' field must be a non-empty string")
+							continue
+						}
+						entry := APMPackageEntry{Source: source}
+						if appAny, ok := pkg["github-app"]; ok {
+							if appMap, ok := appAny.(map[string]any); ok {
+								entry.GitHubApp = parseAppConfig(appMap)
+							}
+						}
+						packages = append(packages, source)
+						entries = append(entries, entry)
+					}
+				}
 			}
 		}
 	default:
@@ -398,6 +441,12 @@ func extractAPMDependenciesFromFrontmatter(frontmatter map[string]any) *APMDepen
 		return nil
 	}
 
-	frontmatterMetadataLog.Printf("Extracted %d APM dependency packages from frontmatter (isolated=%v)", len(packages), isolated)
-	return &APMDependenciesInfo{Packages: packages, Isolated: isolated}
+	frontmatterMetadataLog.Printf("Extracted %d APM dependency packages from frontmatter (isolated=%v, hasDefaultApp=%v)",
+		len(packages), isolated, defaultApp != nil)
+	return &APMDependenciesInfo{
+		Packages:  packages,
+		Entries:   entries,
+		Isolated:  isolated,
+		GitHubApp: defaultApp,
+	}
 }

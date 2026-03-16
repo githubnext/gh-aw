@@ -232,3 +232,148 @@ Test with Claude engine target inference
 	assert.Contains(t, lockContent, "target: claude",
 		"Lock file should use claude target for claude engine")
 }
+
+func TestAPMDependenciesCompilationDefaultGitHubApp(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "apm-deps-github-app-test")
+
+	workflow := `---
+engine: claude
+on: workflow_dispatch
+permissions:
+  issues: read
+  pull-requests: read
+dependencies:
+  github-app:
+    app-id: ${{ vars.APP_ID }}
+    private-key: ${{ secrets.APP_PRIVATE_KEY }}
+  packages:
+    - acme-platform-org/acme-skills/plugins/dev-tools
+    - acme-platform-org/another-package
+---
+
+Test with default github-app for cross-org APM access
+`
+
+	testFile := filepath.Join(tmpDir, "test-apm-github-app.md")
+	err := os.WriteFile(testFile, []byte(workflow), 0644)
+	require.NoError(t, err, "Failed to write test file")
+
+	compiler := NewCompiler()
+	err = compiler.CompileWorkflow(testFile)
+	require.NoError(t, err, "Compilation should succeed")
+
+	lockFile := strings.Replace(testFile, ".md", ".lock.yml", 1)
+	content, err := os.ReadFile(lockFile)
+	require.NoError(t, err, "Failed to read lock file")
+
+	lockContent := string(content)
+
+	// Activation job: token mint step before the pack step
+	assert.Contains(t, lockContent, "Generate GitHub App token for APM dependencies",
+		"Lock file should contain APM GitHub App token mint step")
+	assert.Contains(t, lockContent, "id: apm-app-token-0",
+		"Lock file should use indexed token step ID")
+	assert.Contains(t, lockContent, "${{ vars.APP_ID }}",
+		"Lock file should reference the app ID variable")
+	assert.Contains(t, lockContent, "${{ secrets.APP_PRIVATE_KEY }}",
+		"Lock file should reference the private key secret")
+
+	// Activation job: pack step with GITHUB_TOKEN env override
+	assert.Contains(t, lockContent, "id: apm_pack_0",
+		"Lock file should use indexed pack step ID")
+	assert.Contains(t, lockContent, "GITHUB_TOKEN: ${{ steps.apm-app-token-0.outputs.token }}",
+		"Lock file should set GITHUB_TOKEN from app token mint step")
+	assert.Contains(t, lockContent, "- acme-platform-org/acme-skills/plugins/dev-tools",
+		"Lock file should list first dependency")
+	assert.Contains(t, lockContent, "- acme-platform-org/another-package",
+		"Lock file should list second dependency")
+
+	// Activation job: artifact upload uses indexed name
+	assert.Contains(t, lockContent, "name: apm-0",
+		"Lock file should use indexed artifact name")
+
+	// Agent job: download step uses indexed artifact name
+	assert.Contains(t, lockContent, "Download APM bundle artifact",
+		"Lock file should download APM bundle in agent job")
+
+	// Agent job: single restore step handles all bundles
+	assert.Contains(t, lockContent, "Restore APM dependencies",
+		"Lock file should contain APM restore step")
+	assert.Contains(t, lockContent, "bundle: /tmp/gh-aw/apm-bundle/*.tar.gz",
+		"Lock file should restore from bundle path")
+}
+
+func TestAPMDependenciesCompilationPerPackageGitHubApp(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "apm-deps-per-pkg-app-test")
+
+	workflow := `---
+engine: claude
+on: workflow_dispatch
+permissions:
+  issues: read
+  pull-requests: read
+dependencies:
+  github-app:
+    app-id: ${{ vars.APP_ID }}
+    private-key: ${{ secrets.APP_PRIVATE_KEY }}
+  packages:
+    - acme-platform-org/acme-skills/plugins/dev-tools
+    - source: partner-org/partner-package
+      github-app:
+        app-id: ${{ vars.PARTNER_APP_ID }}
+        private-key: ${{ secrets.PARTNER_APP_PRIVATE_KEY }}
+---
+
+Test with per-package github-app overrides for multi-org APM access
+`
+
+	testFile := filepath.Join(tmpDir, "test-apm-per-pkg-app.md")
+	err := os.WriteFile(testFile, []byte(workflow), 0644)
+	require.NoError(t, err, "Failed to write test file")
+
+	compiler := NewCompiler()
+	err = compiler.CompileWorkflow(testFile)
+	require.NoError(t, err, "Compilation should succeed")
+
+	lockFile := strings.Replace(testFile, ".md", ".lock.yml", 1)
+	content, err := os.ReadFile(lockFile)
+	require.NoError(t, err, "Failed to read lock file")
+
+	lockContent := string(content)
+
+	// Group 0: default app for acme-platform-org package
+	assert.Contains(t, lockContent, "id: apm-app-token-0",
+		"Lock file should have token mint step for group 0")
+	assert.Contains(t, lockContent, "${{ vars.APP_ID }}",
+		"Lock file should reference default app ID")
+	assert.Contains(t, lockContent, "id: apm_pack_0",
+		"Lock file should have pack step for group 0")
+	assert.Contains(t, lockContent, "GITHUB_TOKEN: ${{ steps.apm-app-token-0.outputs.token }}",
+		"Pack step 0 should use token from group 0 mint")
+	assert.Contains(t, lockContent, "- acme-platform-org/acme-skills/plugins/dev-tools",
+		"Pack step 0 should list the acme package")
+	assert.Contains(t, lockContent, "name: apm-0",
+		"Artifact upload for group 0 should use indexed name")
+
+	// Group 1: per-package app for partner-org package
+	assert.Contains(t, lockContent, "id: apm-app-token-1",
+		"Lock file should have token mint step for group 1")
+	assert.Contains(t, lockContent, "${{ vars.PARTNER_APP_ID }}",
+		"Lock file should reference partner app ID")
+	assert.Contains(t, lockContent, "id: apm_pack_1",
+		"Lock file should have pack step for group 1")
+	assert.Contains(t, lockContent, "GITHUB_TOKEN: ${{ steps.apm-app-token-1.outputs.token }}",
+		"Pack step 1 should use token from group 1 mint")
+	assert.Contains(t, lockContent, "- partner-org/partner-package",
+		"Pack step 1 should list the partner package")
+	assert.Contains(t, lockContent, "name: apm-1",
+		"Artifact upload for group 1 should use indexed name")
+
+	// Agent job: two download steps (one per group)
+	downloadCount := strings.Count(lockContent, "Download APM bundle artifact")
+	assert.Equal(t, 2, downloadCount, "Agent job should have 2 APM bundle download steps")
+
+	// Agent job: single restore step
+	assert.Contains(t, lockContent, "Restore APM dependencies",
+		"Lock file should contain APM restore step")
+}

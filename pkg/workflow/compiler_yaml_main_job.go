@@ -237,19 +237,27 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 		}
 	}
 
-	// Add APM (Agent Package Manager) setup step if dependencies are specified
+	// Add APM (Agent Package Manager) setup step if dependencies are specified.
+	// When no GitHub App is configured: single download step (backward compat).
+	// When a GitHub App is configured: one download step per artifact group, all going to
+	// /tmp/gh-aw/apm-bundle so the single restore step can glob *.tar.gz across all groups.
 	if data.APMDependencies != nil && len(data.APMDependencies.Packages) > 0 {
-		// Download the pre-packed APM bundle from the separate "apm" artifact.
-		// In workflow_call context, apply the per-invocation prefix to avoid name clashes.
-		compilerYamlLog.Printf("Adding APM bundle download step: %d packages", len(data.APMDependencies.Packages))
-		apmArtifactName := artifactPrefixExprForDownstreamJob(data) + constants.APMArtifactName
-		yaml.WriteString("      - name: Download APM bundle artifact\n")
-		fmt.Fprintf(yaml, "        uses: %s\n", GetActionPin("actions/download-artifact"))
-		yaml.WriteString("        with:\n")
-		fmt.Fprintf(yaml, "          name: %s\n", apmArtifactName)
-		yaml.WriteString("          path: /tmp/gh-aw/apm-bundle\n")
+		apmGroups := data.APMDependencies.GetPackageGroups()
+		compilerYamlLog.Printf("Adding %d APM bundle download step(s): %d packages total",
+			len(apmGroups), len(data.APMDependencies.Packages))
+		prefix := artifactPrefixExprForDownstreamJob(data)
 
-		// Restore APM dependencies from bundle
+		for _, group := range apmGroups {
+			artifactBaseName := apmArtifactBaseName(data.APMDependencies, group.Index)
+			artifactName := prefix + artifactBaseName
+			yaml.WriteString("      - name: Download APM bundle artifact\n")
+			fmt.Fprintf(yaml, "        uses: %s\n", GetActionPin("actions/download-artifact"))
+			yaml.WriteString("        with:\n")
+			fmt.Fprintf(yaml, "          name: %s\n", artifactName)
+			yaml.WriteString("          path: /tmp/gh-aw/apm-bundle\n")
+		}
+
+		// Restore APM dependencies from all bundles in the shared directory
 		compilerYamlLog.Printf("Adding APM restore step")
 		apmStep := GenerateAPMRestoreStep(data.APMDependencies, data)
 		for _, line := range apmStep {
