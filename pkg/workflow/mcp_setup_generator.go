@@ -615,7 +615,9 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 	if hasGitHub && getGitHubType(githubTool) == "remote" && engine.GetID() == "copilot" {
 		containerCmd.WriteString(" -e GITHUB_PERSONAL_ACCESS_TOKEN")
 	}
-	containerCmd.WriteString(" -e GITHUB_MCP_LOCKDOWN")
+	// Automatic guard policy env vars (set from determine-automatic-lockdown step outputs)
+	containerCmd.WriteString(" -e GITHUB_MCP_GUARD_MIN_INTEGRITY")
+	containerCmd.WriteString(" -e GITHUB_MCP_GUARD_REPOS")
 	// Standard GitHub Actions environment variables (repository context)
 	containerCmd.WriteString(" -e GITHUB_REPOSITORY")
 	containerCmd.WriteString(" -e GITHUB_SERVER_URL")
@@ -678,7 +680,7 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 			"MCP_GATEWAY_LOG_DIR", "GH_AW_MCP_LOG_DIR", "GH_AW_SAFE_OUTPUTS",
 			"GH_AW_SAFE_OUTPUTS_CONFIG_PATH", "GH_AW_SAFE_OUTPUTS_TOOLS_PATH",
 			"GH_AW_ASSETS_BRANCH", "GH_AW_ASSETS_MAX_SIZE_KB", "GH_AW_ASSETS_ALLOWED_EXTS",
-			"DEFAULT_BRANCH", "GITHUB_MCP_SERVER_TOKEN", "GITHUB_MCP_LOCKDOWN",
+			"DEFAULT_BRANCH", "GITHUB_MCP_SERVER_TOKEN", "GITHUB_MCP_GUARD_MIN_INTEGRITY", "GITHUB_MCP_GUARD_REPOS",
 			"GITHUB_REPOSITORY", "GITHUB_SERVER_URL", "GITHUB_SHA", "GITHUB_WORKSPACE",
 			"GITHUB_TOKEN", "GITHUB_RUN_ID", "GITHUB_RUN_NUMBER", "GITHUB_RUN_ATTEMPT",
 			"GITHUB_JOB", "GITHUB_ACTION", "GITHUB_EVENT_NAME", "GITHUB_EVENT_PATH",

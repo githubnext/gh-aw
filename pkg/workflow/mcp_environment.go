@@ -16,7 +16,7 @@
 //   - Managing agentic-workflows GITHUB_TOKEN
 //
 // Environment variable categories:
-//   - GitHub MCP: GITHUB_MCP_SERVER_TOKEN, GITHUB_MCP_LOCKDOWN
+//   - GitHub MCP: GITHUB_MCP_SERVER_TOKEN, GITHUB_MCP_GUARD_MIN_INTEGRITY, GITHUB_MCP_GUARD_REPOS
 //   - Safe Outputs: GH_AW_SAFE_OUTPUTS_*, GH_AW_ASSETS_*
 //   - MCP Scripts: GH_AW_MCP_SCRIPTS_PORT, GH_AW_MCP_SCRIPTS_API_KEY
 //   - Serena: GH_AW_SERENA_PORT (local mode only)
@@ -79,13 +79,14 @@ func collectMCPEnvironmentVariables(tools map[string]any, mcpTools []string, wor
 			envVars["GITHUB_MCP_SERVER_TOKEN"] = effectiveToken
 		}
 
-		// Add lockdown value if it's determined from step output.
-		// Skip when a GitHub App is configured — in that case, the determine-automatic-lockdown
-		// step is not generated, so there is no step output to reference.
-		// Security: Pass step output through environment variable to prevent template injection
-		// Convert "true"/"false" to "1"/"0" at the source to avoid shell conversion in templates
-		if !hasGitHubLockdownExplicitlySet(githubTool) && !appConfigured {
-			envVars["GITHUB_MCP_LOCKDOWN"] = "${{ steps.determine-automatic-lockdown.outputs.lockdown == 'true' && '1' || '0' }}"
+		// Add guard policy env vars if the determine-automatic-lockdown step will be generated.
+		// Skip when a GitHub App is configured or when guard policy is already explicitly set —
+		// in those cases, the determine-automatic-lockdown step is not generated.
+		// Security: Pass step outputs through environment variables to prevent template injection.
+		guardPoliciesExplicit := len(getGitHubGuardPolicies(githubTool)) > 0
+		if !guardPoliciesExplicit && !appConfigured {
+			envVars["GITHUB_MCP_GUARD_MIN_INTEGRITY"] = "${{ steps.determine-automatic-lockdown.outputs.min_integrity }}"
+			envVars["GITHUB_MCP_GUARD_REPOS"] = "${{ steps.determine-automatic-lockdown.outputs.repos }}"
 		}
 	}
 

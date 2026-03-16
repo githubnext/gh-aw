@@ -38,14 +38,14 @@ describe("determine_automatic_lockdown", () => {
     delete process.env.GH_AW_GITHUB_TOKEN;
     delete process.env.GH_AW_GITHUB_MCP_SERVER_TOKEN;
     delete process.env.CUSTOM_GITHUB_TOKEN;
+    delete process.env.GH_AW_GITHUB_MIN_INTEGRITY;
+    delete process.env.GH_AW_GITHUB_REPOS;
 
     // Import the module
     determineAutomaticLockdown = (await import("./determine_automatic_lockdown.cjs")).default;
   });
 
-  it("should set lockdown to true for public repository with GH_AW_GITHUB_TOKEN", async () => {
-    process.env.GH_AW_GITHUB_TOKEN = "ghp_test_token";
-
+  it("should set min_integrity=approved and repos=all for public repository (no guard policy configured)", async () => {
     mockGithub.rest.repos.get.mockResolvedValue({
       data: {
         private: false,
@@ -59,15 +59,15 @@ describe("determine_automatic_lockdown", () => {
       owner: "test-owner",
       repo: "test-repo",
     });
-    expect(mockCore.info).toHaveBeenCalledWith("GH_AW_GITHUB_TOKEN configured: true");
-    expect(mockCore.info).toHaveBeenCalledWith("Any custom token configured: true");
-    expect(mockCore.setOutput).toHaveBeenCalledWith("lockdown", "true");
+    expect(mockCore.setOutput).toHaveBeenCalledWith("min_integrity", "approved");
+    expect(mockCore.setOutput).toHaveBeenCalledWith("repos", "all");
     expect(mockCore.setOutput).toHaveBeenCalledWith("visibility", "public");
-    expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("GitHub MCP lockdown mode enabled"));
+    expect(mockCore.setOutput).not.toHaveBeenCalledWith("lockdown", expect.anything());
+    expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("guard policy automatically applied"));
   });
 
-  it("should set lockdown to true for public repository with GH_AW_GITHUB_MCP_SERVER_TOKEN", async () => {
-    process.env.GH_AW_GITHUB_MCP_SERVER_TOKEN = "ghp_mcp_token";
+  it("should not override min_integrity when already configured", async () => {
+    process.env.GH_AW_GITHUB_MIN_INTEGRITY = "merged";
 
     mockGithub.rest.repos.get.mockResolvedValue({
       data: {
@@ -78,16 +78,14 @@ describe("determine_automatic_lockdown", () => {
 
     await determineAutomaticLockdown(mockGithub, mockContext, mockCore);
 
-    expect(mockCore.info).toHaveBeenCalledWith("GH_AW_GITHUB_TOKEN configured: false");
-    expect(mockCore.info).toHaveBeenCalledWith("GH_AW_GITHUB_MCP_SERVER_TOKEN configured: true");
-    expect(mockCore.info).toHaveBeenCalledWith("Any custom token configured: true");
-    expect(mockCore.setOutput).toHaveBeenCalledWith("lockdown", "true");
+    expect(mockCore.setOutput).not.toHaveBeenCalledWith("min_integrity", expect.anything());
+    expect(mockCore.setOutput).toHaveBeenCalledWith("repos", "all");
     expect(mockCore.setOutput).toHaveBeenCalledWith("visibility", "public");
-    expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("GitHub MCP lockdown mode enabled"));
+    expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("min-integrity already configured as 'merged'"));
   });
 
-  it("should set lockdown to true for public repository with custom github-token", async () => {
-    process.env.CUSTOM_GITHUB_TOKEN = "ghp_custom_token";
+  it("should not override repos when already configured", async () => {
+    process.env.GH_AW_GITHUB_REPOS = "public";
 
     mockGithub.rest.repos.get.mockResolvedValue({
       data: {
@@ -98,41 +96,12 @@ describe("determine_automatic_lockdown", () => {
 
     await determineAutomaticLockdown(mockGithub, mockContext, mockCore);
 
-    expect(mockCore.info).toHaveBeenCalledWith("GH_AW_GITHUB_TOKEN configured: false");
-    expect(mockCore.info).toHaveBeenCalledWith("GH_AW_GITHUB_MCP_SERVER_TOKEN configured: false");
-    expect(mockCore.info).toHaveBeenCalledWith("Custom github-token configured: true");
-    expect(mockCore.info).toHaveBeenCalledWith("Any custom token configured: true");
-    expect(mockCore.setOutput).toHaveBeenCalledWith("lockdown", "true");
-    expect(mockCore.setOutput).toHaveBeenCalledWith("visibility", "public");
+    expect(mockCore.setOutput).toHaveBeenCalledWith("min_integrity", "approved");
+    expect(mockCore.setOutput).not.toHaveBeenCalledWith("repos", expect.anything());
+    expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("repos already configured as 'public'"));
   });
 
-  it("should set lockdown to false for public repository without any custom tokens", async () => {
-    // No custom tokens set
-
-    mockGithub.rest.repos.get.mockResolvedValue({
-      data: {
-        private: false,
-        visibility: "public",
-      },
-    });
-
-    await determineAutomaticLockdown(mockGithub, mockContext, mockCore);
-
-    expect(mockGithub.rest.repos.get).toHaveBeenCalledWith({
-      owner: "test-owner",
-      repo: "test-repo",
-    });
-    expect(mockCore.info).toHaveBeenCalledWith("GH_AW_GITHUB_TOKEN configured: false");
-    expect(mockCore.info).toHaveBeenCalledWith("GH_AW_GITHUB_MCP_SERVER_TOKEN configured: false");
-    expect(mockCore.info).toHaveBeenCalledWith("Custom github-token configured: false");
-    expect(mockCore.info).toHaveBeenCalledWith("Any custom token configured: false");
-    expect(mockCore.setOutput).toHaveBeenCalledWith("lockdown", "false");
-    expect(mockCore.setOutput).toHaveBeenCalledWith("visibility", "public");
-    expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Automatic lockdown mode disabled for public repository (no custom tokens configured)"));
-    expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("To enable lockdown mode for enhanced security"));
-  });
-
-  it("should set lockdown to false for private repository", async () => {
+  it("should not set guard policy outputs for private repository", async () => {
     mockGithub.rest.repos.get.mockResolvedValue({
       data: {
         private: true,
@@ -146,12 +115,14 @@ describe("determine_automatic_lockdown", () => {
       owner: "test-owner",
       repo: "test-repo",
     });
-    expect(mockCore.setOutput).toHaveBeenCalledWith("lockdown", "false");
+    expect(mockCore.setOutput).not.toHaveBeenCalledWith("min_integrity", expect.anything());
+    expect(mockCore.setOutput).not.toHaveBeenCalledWith("repos", expect.anything());
     expect(mockCore.setOutput).toHaveBeenCalledWith("visibility", "private");
+    expect(mockCore.setOutput).not.toHaveBeenCalledWith("lockdown", expect.anything());
     expect(mockCore.warning).not.toHaveBeenCalled();
   });
 
-  it("should set lockdown to false for internal repository", async () => {
+  it("should not set guard policy outputs for internal repository", async () => {
     mockGithub.rest.repos.get.mockResolvedValue({
       data: {
         private: true,
@@ -161,24 +132,26 @@ describe("determine_automatic_lockdown", () => {
 
     await determineAutomaticLockdown(mockGithub, mockContext, mockCore);
 
-    expect(mockCore.setOutput).toHaveBeenCalledWith("lockdown", "false");
+    expect(mockCore.setOutput).not.toHaveBeenCalledWith("min_integrity", expect.anything());
+    expect(mockCore.setOutput).not.toHaveBeenCalledWith("repos", expect.anything());
     expect(mockCore.setOutput).toHaveBeenCalledWith("visibility", "internal");
   });
 
-  it("should handle API failure and default to lockdown mode", async () => {
+  it("should handle API failure and default to safe guard policy", async () => {
     const error = new Error("API request failed");
     mockGithub.rest.repos.get.mockRejectedValue(error);
 
     await determineAutomaticLockdown(mockGithub, mockContext, mockCore);
 
-    expect(mockCore.error).toHaveBeenCalledWith("Failed to determine automatic lockdown mode: API request failed");
-    expect(mockCore.setOutput).toHaveBeenCalledWith("lockdown", "true");
+    expect(mockCore.error).toHaveBeenCalledWith("Failed to determine automatic guard policy: API request failed");
+    expect(mockCore.setOutput).toHaveBeenCalledWith("min_integrity", "approved");
+    expect(mockCore.setOutput).toHaveBeenCalledWith("repos", "all");
     expect(mockCore.setOutput).toHaveBeenCalledWith("visibility", "unknown");
+    expect(mockCore.setOutput).not.toHaveBeenCalledWith("lockdown", expect.anything());
     expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("Failed to determine repository visibility"));
   });
 
   it("should infer visibility from private field when visibility field is missing", async () => {
-    // Public repo without GH_AW_GITHUB_TOKEN
     mockGithub.rest.repos.get.mockResolvedValue({
       data: {
         private: false,
@@ -188,12 +161,14 @@ describe("determine_automatic_lockdown", () => {
 
     await determineAutomaticLockdown(mockGithub, mockContext, mockCore);
 
-    expect(mockCore.setOutput).toHaveBeenCalledWith("lockdown", "false");
+    expect(mockCore.setOutput).toHaveBeenCalledWith("min_integrity", "approved");
+    expect(mockCore.setOutput).toHaveBeenCalledWith("repos", "all");
     expect(mockCore.setOutput).toHaveBeenCalledWith("visibility", "public");
   });
 
-  it("should log appropriate info messages for public repo with token", async () => {
-    process.env.GH_AW_GITHUB_TOKEN = "ghp_test_token";
+  it("should not override either guard policy field when both are already configured", async () => {
+    process.env.GH_AW_GITHUB_MIN_INTEGRITY = "approved";
+    process.env.GH_AW_GITHUB_REPOS = "public";
 
     mockGithub.rest.repos.get.mockResolvedValue({
       data: {
@@ -204,12 +179,27 @@ describe("determine_automatic_lockdown", () => {
 
     await determineAutomaticLockdown(mockGithub, mockContext, mockCore);
 
-    expect(mockCore.info).toHaveBeenCalledWith("Determining automatic lockdown mode for GitHub MCP server");
+    expect(mockCore.setOutput).not.toHaveBeenCalledWith("min_integrity", expect.anything());
+    expect(mockCore.setOutput).not.toHaveBeenCalledWith("repos", expect.anything());
+    expect(mockCore.setOutput).toHaveBeenCalledWith("visibility", "public");
+    expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("min-integrity already configured as 'approved'"));
+    expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("repos already configured as 'public'"));
+  });
+
+  it("should log appropriate info messages for public repo", async () => {
+    mockGithub.rest.repos.get.mockResolvedValue({
+      data: {
+        private: false,
+        visibility: "public",
+      },
+    });
+
+    await determineAutomaticLockdown(mockGithub, mockContext, mockCore);
+
+    expect(mockCore.info).toHaveBeenCalledWith("Determining automatic guard policy for GitHub MCP server");
     expect(mockCore.info).toHaveBeenCalledWith("Checking repository: test-owner/test-repo");
     expect(mockCore.info).toHaveBeenCalledWith("Repository visibility: public");
     expect(mockCore.info).toHaveBeenCalledWith("Repository is private: false");
-    expect(mockCore.info).toHaveBeenCalledWith("GH_AW_GITHUB_TOKEN configured: true");
-    expect(mockCore.info).toHaveBeenCalledWith("Automatic lockdown mode determined: true");
-    expect(mockCore.info).toHaveBeenCalledWith("Automatic lockdown mode enabled for public repository with custom GitHub token");
+    expect(mockCore.info).toHaveBeenCalledWith("Automatic guard policy determination complete for public repository");
   });
 });
