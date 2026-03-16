@@ -169,6 +169,57 @@ func TestAddInteractiveConfig_configureEngineAPISecret_skipSecret(t *testing.T) 
 	}
 }
 
+func TestParseSecretNames(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    []byte
+		expected []string
+	}{
+		{
+			name:     "single secret name",
+			input:    []byte("MY_SECRET\n"),
+			expected: []string{"MY_SECRET"},
+		},
+		{
+			name:     "multiple secret names",
+			input:    []byte("SECRET_A\nSECRET_B\nSECRET_C"),
+			expected: []string{"SECRET_A", "SECRET_B", "SECRET_C"},
+		},
+		{
+			name:     "empty output",
+			input:    []byte(""),
+			expected: nil,
+		},
+		{
+			name:     "output with only whitespace",
+			input:    []byte("   \n  \n"),
+			expected: nil,
+		},
+		{
+			name:     "names with surrounding whitespace",
+			input:    []byte("  MY_SECRET  \n  ANOTHER_SECRET  "),
+			expected: []string{"MY_SECRET", "ANOTHER_SECRET"},
+		},
+		{
+			name:     "output with blank lines interspersed",
+			input:    []byte("FIRST_SECRET\n\nSECOND_SECRET\n\n"),
+			expected: []string{"FIRST_SECRET", "SECOND_SECRET"},
+		},
+		{
+			name:     "trailing newline is handled correctly",
+			input:    []byte("SECRET_ONE\nSECRET_TWO\n"),
+			expected: []string{"SECRET_ONE", "SECRET_TWO"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := parseSecretNames(tt.input)
+			assert.Equal(t, tt.expected, result, "parseSecretNames output should match expected")
+		})
+	}
+}
+
 func TestAddInteractiveConfig_checkExistingSecrets(t *testing.T) {
 	config := &AddInteractiveConfig{
 		RepoOverride: "test-owner/test-repo",
