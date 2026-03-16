@@ -86,40 +86,22 @@ type PluginsConfig struct {
 	GitHubToken string   `json:"github-token,omitempty"` // Custom GitHub token for plugin installation
 }
 
-// APMPackageEntry represents a single APM package entry.
-// Supports both simple string format (just the package source) and object format with an
-// optional per-package GitHub App override (source: + github-app:).
-type APMPackageEntry struct {
-	Source    string           // Package source (e.g., "org/repo" or "org/repo/path/to/skill")
-	GitHubApp *GitHubAppConfig // Optional per-package GitHub App override; nil means use the default
-}
-
 // APMDependenciesInfo encapsulates APM (Agent Package Manager) dependency configuration.
 // Supports:
 //   - Simple array format: dependencies: [pkg1, pkg2]
 //   - Object format with packages and isolated: dependencies: {packages: [...], isolated: true}
 //   - Object format with a default github-app for cross-org access
-//   - Per-package github-app overrides for multi-org scenarios
 //
 // When present, a pack step is emitted in the activation job and a restore step in the agent job.
 type APMDependenciesInfo struct {
-	Packages  []string          // Flat list of all APM package sources (for backward compat)
-	Entries   []APMPackageEntry // Package entries with optional per-package GitHub App overrides
-	Isolated  bool              // If true, agent restore step clears primitive dirs before unpacking
-	GitHubApp *GitHubAppConfig  // Default GitHub App for all packages that don't override it
+	Packages  []string         // List of APM package sources
+	Isolated  bool             // If true, agent restore step clears primitive dirs before unpacking
+	GitHubApp *GitHubAppConfig // Optional GitHub App for cross-org access (applied to all packages)
 }
 
-// HasGitHubApp returns true if any GitHub App is configured (default or per-package override).
+// HasGitHubApp returns true if a GitHub App is configured.
 func (a *APMDependenciesInfo) HasGitHubApp() bool {
-	if a.GitHubApp != nil {
-		return true
-	}
-	for _, e := range a.Entries {
-		if e.GitHubApp != nil {
-			return true
-		}
-	}
-	return false
+	return a.GitHubApp != nil
 }
 
 // RateLimitConfig represents rate limiting configuration for workflow triggers

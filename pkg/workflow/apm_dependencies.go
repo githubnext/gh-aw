@@ -9,103 +9,34 @@ import (
 
 var apmDepsLog = logger.New("workflow:apm_dependencies")
 
-// APMPackageGroup represents a group of APM packages that share the same effective GitHub App config.
-// Packages with per-package overrides are in their own group; packages without overrides share
-// the default github-app group (or the "no-auth" group when no default is configured).
-type APMPackageGroup struct {
-	GitHubApp *GitHubAppConfig // nil = use GITHUB_TOKEN; non-nil = mint a fresh token
-	Packages  []string         // Package sources in this group
-	Index     int              // Group index for deterministic step/artifact naming
-}
-
-// GetPackageGroups returns the package groups derived from the dependency configuration.
-// When no GitHub App is configured (simple case), a single group with no auth is returned.
-// When a GitHub App is configured, entries are grouped by their effective app config so that
-// packages sharing the same credentials are packed together in one APM step.
-func (a *APMDependenciesInfo) GetPackageGroups() []APMPackageGroup {
-	return groupAPMEntriesByApp(a)
-}
-
-// groupAPMEntriesByApp groups APM package entries by their effective GitHub App config.
-// Entries without a per-package override use the default GitHubApp (or no app).
-// Entries with identical AppID+PrivateKey combinations are placed in the same group.
-func groupAPMEntriesByApp(deps *APMDependenciesInfo) []APMPackageGroup {
-	if !deps.HasGitHubApp() {
-		// Simple case: no GitHub App configured — single group, no token minting needed
-		return []APMPackageGroup{{Packages: deps.Packages, Index: 0}}
-	}
-
-	type groupData struct {
-		app      *GitHubAppConfig
-		packages []string
-	}
-
-	groupMap := make(map[string]*groupData) // key = apmAppGroupKey
-	var groupOrder []string                 // preserves insertion order for determinism
-
-	for _, entry := range deps.Entries {
-		effectiveApp := entry.GitHubApp
-		if effectiveApp == nil {
-			effectiveApp = deps.GitHubApp // fall back to the top-level default
-		}
-		key := apmAppGroupKey(effectiveApp)
-		if _, exists := groupMap[key]; !exists {
-			groupMap[key] = &groupData{app: effectiveApp}
-			groupOrder = append(groupOrder, key)
-		}
-		groupMap[key].packages = append(groupMap[key].packages, entry.Source)
-	}
-
-	groups := make([]APMPackageGroup, len(groupOrder))
-	for i, key := range groupOrder {
-		groups[i] = APMPackageGroup{
-			GitHubApp: groupMap[key].app,
-			Packages:  groupMap[key].packages,
-			Index:     i,
-		}
-	}
-	return groups
-}
-
-// apmAppGroupKey returns a stable string key for a GitHubAppConfig used to group packages.
-// A nil config (= use GITHUB_TOKEN) maps to an empty string.
-func apmAppGroupKey(app *GitHubAppConfig) string {
-	if app == nil {
-		return ""
-	}
-	return app.AppID + "|" + app.PrivateKey
-}
-
-// apmArtifactBaseName returns the artifact base name for a given APMDependenciesInfo and group index.
+// apmArtifactBaseName returns the artifact base name for a given APMDependenciesInfo.
 // When GitHub App auth is NOT configured (simple case) the legacy name "apm" is used to
 // preserve backward compatibility with previously compiled lock files.
-// When GitHub App auth IS configured, artifacts are named "apm-N".
-func apmArtifactBaseName(deps *APMDependenciesInfo, groupIndex int) string {
+// When GitHub App auth IS configured, the artifact is named "apm-0".
+func apmArtifactBaseName(deps *APMDependenciesInfo) string {
 	if !deps.HasGitHubApp() {
 		return constants.APMArtifactName // "apm" — backward compat
 	}
-	return fmt.Sprintf("%s-%d", constants.APMArtifactName, groupIndex)
+	return constants.APMArtifactName + "-0"
 }
 
-// apmPackStepID returns the step ID for the APM pack step of a given group.
+// apmPackStepID returns the step ID for the APM pack step.
 // The simple-case (no GitHub App) keeps the legacy "apm_pack" step ID.
-func apmPackStepID(deps *APMDependenciesInfo, groupIndex int) string {
+func apmPackStepID(deps *APMDependenciesInfo) string {
 	if !deps.HasGitHubApp() {
 		return "apm_pack" // legacy
 	}
-	return fmt.Sprintf("apm_pack_%d", groupIndex)
+	return "apm_pack_0"
 }
 
-// apmAppTokenStepID returns the step ID for the GitHub App token mint step for a given group.
-func apmAppTokenStepID(groupIndex int) string {
-	return fmt.Sprintf("apm-app-token-%d", groupIndex)
+// apmAppTokenStepID returns the step ID for the GitHub App token mint step.
+func apmAppTokenStepID() string {
+	return "apm-app-token-0"
 }
 
 // generateAPMAppTokenMintStep generates the step that mints a short-lived GitHub App
 // installation token scoped for use in the APM pack step.
-// groupIndex is included in the step name to avoid duplicate-step validation errors when
-// multiple groups each require their own token.
-func (c *Compiler) generateAPMAppTokenMintStep(app *GitHubAppConfig, stepID string, groupIndex int) []string {
+func (c *Compiler) generateAPMAppTokenMintStep(app *GitHubAppConfig, stepID string) []string {
 	effectiveOwner := app.Owner
 	if effectiveOwner == "" {
 		effectiveOwner = "${{ github.repository_owner }} (default)"
@@ -113,7 +44,7 @@ func (c *Compiler) generateAPMAppTokenMintStep(app *GitHubAppConfig, stepID stri
 	apmDepsLog.Printf("Generating APM GitHub App token mint step: id=%s, owner=%s", stepID, effectiveOwner)
 	var steps []string
 
-	steps = append(steps, fmt.Sprintf("      - name: Generate GitHub App token for APM dependencies (%d)\n", groupIndex))
+	steps = append(steps, "      - name: Generate GitHub App token for APM dependencies\n")
 	steps = append(steps, fmt.Sprintf("        id: %s\n", stepID))
 	steps = append(steps, fmt.Sprintf("        uses: %s\n", GetActionPin("actions/create-github-app-token")))
 	steps = append(steps, "        with:\n")
@@ -147,8 +78,8 @@ func (c *Compiler) generateAPMAppTokenMintStep(app *GitHubAppConfig, stepID stri
 // packs them into a bundle in the activation job. The step always uses isolated:true because
 // the activation job has no repo context to preserve.
 //
-// This is the simple (backward-compatible) form: no GitHub App auth, single group.
-// For the multi-group case use GenerateAPMPackStepForGroup.
+// This is the simple (backward-compatible) form: no GitHub App auth.
+// For the GitHub App case use generateAPMPackStepWithToken.
 //
 // Parameters:
 //   - apmDeps: APM dependency configuration extracted from frontmatter
@@ -164,7 +95,7 @@ func GenerateAPMPackStep(apmDeps *APMDependenciesInfo, target string, data *Work
 
 	apmDepsLog.Printf("Generating APM pack step: %d packages, target=%s", len(apmDeps.Packages), target)
 
-	stepID := apmPackStepID(apmDeps, 0)
+	stepID := apmPackStepID(apmDeps)
 	actionRef := GetActionPin("microsoft/apm-action")
 
 	lines := []string{
@@ -190,30 +121,24 @@ func GenerateAPMPackStep(apmDeps *APMDependenciesInfo, target string, data *Work
 	return GitHubActionStep(lines)
 }
 
-// GenerateAPMPackStepForGroup generates the APM pack step for a specific package group.
-// Used when GitHub App auth is configured (Option B), where each group may use a different token.
-//
-// Parameters:
-//   - group:       APMPackageGroup containing the packages and optional GitHub App config
-//   - target:      APM target (e.g. "copilot", "claude", "all")
-//   - tokenStepID: Step ID of the preceding token-mint step (empty = use default GITHUB_TOKEN)
-//   - data:        WorkflowData used for action pin resolution
-func GenerateAPMPackStepForGroup(group APMPackageGroup, target string, tokenStepID string, data *WorkflowData) GitHubActionStep {
-	if len(group.Packages) == 0 {
-		apmDepsLog.Print("No APM packages in group to pack")
+// generateAPMPackStepWithToken generates the APM pack step for the GitHub App auth case.
+// It sets the GITHUB_TOKEN env to the token minted by the preceding token-mint step.
+// Uses step ID "apm_pack_0" (distinguished from the no-auth "apm_pack") so artifact
+// references remain consistent when workflows have a github-app configured.
+func generateAPMPackStepWithToken(apmDeps *APMDependenciesInfo, target string, tokenStepID string, data *WorkflowData) GitHubActionStep {
+	if len(apmDeps.Packages) == 0 {
+		apmDepsLog.Print("No APM packages to pack")
 		return GitHubActionStep{}
 	}
 
-	apmDepsLog.Printf("Generating APM pack step for group %d: %d packages, target=%s, tokenStep=%s",
-		group.Index, len(group.Packages), target, tokenStepID)
+	apmDepsLog.Printf("Generating APM pack step with token: %d packages, target=%s, tokenStep=%s",
+		len(apmDeps.Packages), target, tokenStepID)
 
-	stepID := fmt.Sprintf("apm_pack_%d", group.Index)
-	workDir := fmt.Sprintf("/tmp/gh-aw/apm-workspace-%d", group.Index)
 	actionRef := GetActionPin("microsoft/apm-action")
 
 	lines := []string{
-		fmt.Sprintf("      - name: Install and pack APM dependencies (%d)", group.Index),
-		"        id: " + stepID,
+		"      - name: Install and pack APM dependencies",
+		"        id: " + apmPackStepID(apmDeps),
 		"        uses: " + actionRef,
 	}
 
@@ -229,7 +154,7 @@ func GenerateAPMPackStepForGroup(group APMPackageGroup, target string, tokenStep
 		"          dependencies: |",
 	)
 
-	for _, dep := range group.Packages {
+	for _, dep := range apmDeps.Packages {
 		lines = append(lines, "            - "+dep)
 	}
 
@@ -238,7 +163,7 @@ func GenerateAPMPackStepForGroup(group APMPackageGroup, target string, tokenStep
 		"          pack: 'true'",
 		"          archive: 'true'",
 		"          target: "+target,
-		"          working-directory: "+workDir,
+		"          working-directory: /tmp/gh-aw/apm-workspace",
 	)
 
 	return GitHubActionStep(lines)

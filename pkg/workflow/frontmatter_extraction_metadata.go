@@ -357,8 +357,6 @@ func extractPluginsFromFrontmatter(frontmatter map[string]any) *PluginInfo {
 //   - Array format: ["org/pkg1", "org/pkg2"]
 //   - Object format with packages and isolated: {packages: [...], isolated: true}
 //   - Object format with a default github-app: {github-app: {...}, packages: [...]}
-//   - Object format with per-package github-app overrides:
-//     {github-app: {...}, packages: ["org/pkg1", {source: "org/pkg2", github-app: {...}}]}
 //
 // Returns nil if no dependencies field is present or if the field contains no packages.
 func extractAPMDependenciesFromFrontmatter(frontmatter map[string]any) *APMDependenciesInfo {
@@ -368,7 +366,6 @@ func extractAPMDependenciesFromFrontmatter(frontmatter map[string]any) *APMDepen
 	}
 
 	var packages []string
-	var entries []APMPackageEntry
 	var isolated bool
 	var defaultApp *GitHubAppConfig
 
@@ -378,7 +375,6 @@ func extractAPMDependenciesFromFrontmatter(frontmatter map[string]any) *APMDepen
 		for _, item := range v {
 			if s, ok := item.(string); ok && s != "" {
 				packages = append(packages, s)
-				entries = append(entries, APMPackageEntry{Source: s})
 			}
 		}
 	case map[string]any:
@@ -398,19 +394,18 @@ func extractAPMDependenciesFromFrontmatter(frontmatter map[string]any) *APMDepen
 			}
 		}
 
-		// Parse packages: each item is either a string or an object {source: "...", github-app: {...}}
+		// Parse packages: each item is a string; object entries are also accepted if they have a 'source' field
 		if pkgsAny, ok := v["packages"]; ok {
 			if pkgsArray, ok := pkgsAny.([]any); ok {
 				for _, item := range pkgsArray {
 					switch pkg := item.(type) {
 					case string:
-						// Simple string entry
 						if pkg != "" {
 							packages = append(packages, pkg)
-							entries = append(entries, APMPackageEntry{Source: pkg})
 						}
 					case map[string]any:
-						// Object entry: {source: "org/repo", github-app: {...}}
+						// Object entry: only the 'source' field is used.
+						// Any other fields (e.g. 'github-app') are silently ignored.
 						sourceAny, hasSource := pkg["source"]
 						if !hasSource {
 							frontmatterMetadataLog.Print("Skipping APM package entry: missing 'source' field")
@@ -421,14 +416,7 @@ func extractAPMDependenciesFromFrontmatter(frontmatter map[string]any) *APMDepen
 							frontmatterMetadataLog.Print("Skipping APM package entry: 'source' field must be a non-empty string")
 							continue
 						}
-						entry := APMPackageEntry{Source: source}
-						if appAny, ok := pkg["github-app"]; ok {
-							if appMap, ok := appAny.(map[string]any); ok {
-								entry.GitHubApp = parseAppConfig(appMap)
-							}
-						}
 						packages = append(packages, source)
-						entries = append(entries, entry)
 					}
 				}
 			}
@@ -445,7 +433,6 @@ func extractAPMDependenciesFromFrontmatter(frontmatter map[string]any) *APMDepen
 		len(packages), isolated, defaultApp != nil)
 	return &APMDependenciesInfo{
 		Packages:  packages,
-		Entries:   entries,
 		Isolated:  isolated,
 		GitHubApp: defaultApp,
 	}
