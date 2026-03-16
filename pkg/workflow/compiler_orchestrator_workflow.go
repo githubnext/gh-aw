@@ -735,5 +735,8 @@ func (c *Compiler) processOnSectionAndFilters(
 	}
 	workflowData.OnSteps = onSteps
 
+	// Extract on.permissions for pre-activation job permissions
+	workflowData.OnPermissions = extractOnPermissions(frontmatter)
+
 	return nil
 }

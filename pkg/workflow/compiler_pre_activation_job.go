@@ -55,6 +55,15 @@ func (c *Compiler) buildPreActivationJob(data *WorkflowData, needsPermissionChec
 		perms.Set(PermissionActions, PermissionRead)
 	}
 
+	// Merge on.permissions into the pre-activation job permissions.
+	// on.permissions lets users declare extra scopes required by their on.steps steps.
+	if data.OnPermissions != nil {
+		if perms == nil {
+			perms = NewPermissions()
+		}
+		perms.Merge(data.OnPermissions)
+	}
+
 	// Set permissions if any were configured
 	if perms != nil {
 		permissions = perms.RenderToYAML()
@@ -362,8 +371,10 @@ func (c *Compiler) buildPreActivationJob(data *WorkflowData, needsPermissionChec
 	// Pre-activation job uses the user's original if condition (data.If)
 	// The workflow_run safety check is NOT applied here - it's only on the activation job
 	// Don't include conditions that reference custom job outputs (those belong on the agent job)
+	// Also don't include conditions that reference pre_activation outputs - those are outputs of this
+	// very job and can only be evaluated by downstream jobs (activation, agent).
 	var jobIfCondition string
-	if !c.referencesCustomJobOutputs(data.If, data.Jobs) {
+	if !c.referencesCustomJobOutputs(data.If, data.Jobs) && !referencesPreActivationOutputs(data.If) {
 		jobIfCondition = data.If
 	}
 
@@ -558,4 +569,40 @@ func extractOnSteps(frontmatter map[string]any) ([]map[string]any, error) {
 	}
 
 	return result, nil
+}
+
+// extractOnPermissions extracts the 'permissions' field from the 'on:' section of frontmatter.
+// These permissions are merged into the pre-activation job permissions, allowing users to declare
+// extra scopes required by their on.steps (e.g., issues: read for GitHub API calls).
+//
+// Returns nil if on.permissions is not configured.
+func extractOnPermissions(frontmatter map[string]any) *Permissions {
+	onValue, exists := frontmatter["on"]
+	if !exists || onValue == nil {
+		return nil
+	}
+
+	onMap, ok := onValue.(map[string]any)
+	if !ok {
+		return nil
+	}
+
+	permsValue, exists := onMap["permissions"]
+	if !exists || permsValue == nil {
+		return nil
+	}
+
+	parser := NewPermissionsParserFromValue(permsValue)
+	return parser.ToPermissions()
+}
+
+// referencesPreActivationOutputs returns true if the condition references the pre_activation job's
+// own outputs (e.g., "needs.pre_activation.outputs.foo"). Such conditions cannot be applied to the
+// pre_activation job itself (a job cannot reference its own outputs), so they are deferred to
+// downstream jobs (activation, agent).
+func referencesPreActivationOutputs(condition string) bool {
+	if condition == "" {
+		return false
+	}
+	return strings.Contains(condition, fmt.Sprintf("needs.%s.outputs.", string(constants.PreActivationJobName)))
 }
