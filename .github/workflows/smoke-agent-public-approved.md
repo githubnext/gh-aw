@@ -23,6 +23,7 @@ network:
     - defaults
     - github
 safe-outputs:
+  allowed-domains: [default-safe-outputs]
   assign-to-agent:
     target: "*"
     max: 1

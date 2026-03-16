@@ -145,6 +145,7 @@ func getActionDirectories(actionsDir string) ([]string, error) {
 	}
 
 	sort.Strings(dirs)
+	actionsBuildLog.Printf("Found %d action directories in %s", len(dirs), actionsDir)
 	return dirs, nil
 }
 
@@ -162,6 +163,7 @@ func getActionDirectories(actionsDir string) ([]string, error) {
 //
 // This follows the principle that domain-specific validation belongs in domain files.
 func validateActionYml(actionPath string) error {
+	actionsBuildLog.Printf("Validating action.yml: path=%s", actionPath)
 	ymlPath := filepath.Join(actionPath, "action.yml")
 
 	if _, err := os.Stat(ymlPath); os.IsNotExist(err) {
@@ -299,6 +301,7 @@ func isCompositeAction(actionPath string) (bool, error) {
 // These files are manually edited and committed to git. They are NOT synced to pkg/workflow/
 // At runtime, setup.sh copies these files to /tmp/gh-aw/actions for workflow execution.
 func buildSetupAction(actionsDir, actionName string) error {
+	actionsBuildLog.Printf("Building setup action: actionsDir=%s, actionName=%s", actionsDir, actionName)
 	actionPath := filepath.Join(actionsDir, actionName)
 	jsDir := filepath.Join(actionPath, "js")
 	shDir := filepath.Join(actionPath, "sh")

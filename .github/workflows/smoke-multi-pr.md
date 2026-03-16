@@ -25,6 +25,7 @@ tools:
     - "echo *"
     - "printf *"
 safe-outputs:
+  allowed-domains: [default-safe-outputs]
   create-pull-request:
     title-prefix: "[smoke-multi-pr] "
     if-no-changes: "warn"

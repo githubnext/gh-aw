@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"maps"
 	"sort"
-	"strconv"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/logger"
@@ -156,55 +155,6 @@ func generateSetupStep(req *RuntimeRequirement) GitHubActionStep {
 	}
 
 	return step
-}
-
-// formatYAMLValue formats a value for YAML output
-func formatYAMLValue(value any) string {
-	switch v := value.(type) {
-	case string:
-		// Quote strings if they contain special characters or look like non-string types
-		if v == "true" || v == "false" || v == "null" {
-			return fmt.Sprintf("'%s'", v)
-		}
-		// Check if it's a number
-		if _, err := fmt.Sscanf(v, "%f", new(float64)); err == nil {
-			return fmt.Sprintf("'%s'", v)
-		}
-		// Return as-is for simple strings, quote for complex ones
-		return fmt.Sprintf("'%s'", v)
-	case bool:
-		if v {
-			return "true"
-		}
-		return "false"
-	case int:
-		return strconv.Itoa(v)
-	case int8:
-		return strconv.Itoa(int(v))
-	case int16:
-		return strconv.Itoa(int(v))
-	case int32:
-		return strconv.Itoa(int(v))
-	case int64:
-		return strconv.FormatInt(v, 10)
-	case uint:
-		return strconv.FormatUint(uint64(v), 10)
-	case uint8:
-		return strconv.FormatUint(uint64(v), 10)
-	case uint16:
-		return strconv.FormatUint(uint64(v), 10)
-	case uint32:
-		return strconv.FormatUint(uint64(v), 10)
-	case uint64:
-		return strconv.FormatUint(v, 10)
-	case float32:
-		return fmt.Sprintf("%v", v)
-	case float64:
-		return fmt.Sprintf("%v", v)
-	default:
-		// For other types, convert to string and quote
-		return fmt.Sprintf("'%v'", v)
-	}
 }
 
 // GenerateMultiSecretValidationStep creates a GitHub Actions step that validates at least one

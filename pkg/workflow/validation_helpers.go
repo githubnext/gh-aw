@@ -9,6 +9,7 @@
 //   - newValidationLogger() - Creates a standardized logger for a validation domain
 //   - validateIntRange() - Validates that an integer value is within a specified range
 //   - validateMountStringFormat() - Parses and validates a "source:dest:mode" mount string
+//   - containsTrigger() - Reports whether an 'on:' section includes a named trigger
 //
 // # Design Rationale
 //
@@ -149,4 +150,26 @@ func validateNoDuplicateIDs[T any](items []T, idFunc func(T) string, onDuplicate
 		seen[id] = true
 	}
 	return nil
+}
+
+// containsTrigger reports whether the given 'on:' section value includes
+// the named trigger. It handles the three GitHub Actions forms:
+//   - string:          "on: <triggerName>"
+//   - []any:           "on: [push, <triggerName>]"
+//   - map[string]any:  "on:\n  <triggerName>: ..."
+func containsTrigger(onSection any, triggerName string) bool {
+	switch on := onSection.(type) {
+	case string:
+		return on == triggerName
+	case []any:
+		for _, trigger := range on {
+			if triggerStr, ok := trigger.(string); ok && triggerStr == triggerName {
+				return true
+			}
+		}
+	case map[string]any:
+		_, ok := on[triggerName]
+		return ok
+	}
+	return false
 }

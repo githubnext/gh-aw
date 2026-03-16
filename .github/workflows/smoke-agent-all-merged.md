@@ -23,6 +23,7 @@ network:
     - defaults
     - github
 safe-outputs:
+  allowed-domains: [default-safe-outputs]
   add-comment:
     hide-older-comments: true
     max: 2

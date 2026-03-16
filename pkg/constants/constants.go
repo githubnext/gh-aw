@@ -344,7 +344,7 @@ const DefaultGeminiVersion Version = "latest"
 const DefaultGitHubMCPServerVersion Version = "v0.32.0"
 
 // DefaultFirewallVersion is the default version of the gh-aw-firewall (AWF) binary
-const DefaultFirewallVersion Version = "v0.24.1"
+const DefaultFirewallVersion Version = "v0.24.2"
 
 // AWF (Agentic Workflow Firewall) constants
 
@@ -676,6 +676,7 @@ const CheckStopTimeStepID StepID = "check_stop_time"
 const CheckSkipIfMatchStepID StepID = "check_skip_if_match"
 const CheckSkipIfNoMatchStepID StepID = "check_skip_if_no_match"
 const CheckCommandPositionStepID StepID = "check_command_position"
+const RemoveTriggerLabelStepID StepID = "remove_trigger_label"
 const CheckRateLimitStepID StepID = "check_rate_limit"
 const CheckSkipRolesStepID StepID = "check_skip_roles"
 const CheckSkipBotsStepID StepID = "check_skip_bots"

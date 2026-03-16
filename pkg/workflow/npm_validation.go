@@ -17,7 +17,7 @@
 // NPM package validation queries the npm registry using the npm CLI:
 //   - Uses `npm view <package> name` to check package existence
 //   - Returns hard errors if packages don't exist (unlike pip validation)
-//   - Requires npm to be installed on the system
+//   - Returns ErrNpmNotAvailable (treated as a warning) when npm is not installed
 //
 // # When to Add Validation Here
 //
@@ -34,6 +34,7 @@
 package workflow
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -43,6 +44,16 @@ import (
 )
 
 var npmValidationLog = newValidationLogger("npm")
+
+// ErrNpmNotAvailable is returned by validateNpxPackages when npm is not installed on the system.
+// Callers should treat this as a warning rather than a hard error, since the workflow may still
+// compile and run successfully in environments that have npm (e.g., GitHub Actions).
+var ErrNpmNotAvailable = errors.New("npm not available")
+
+// isErrNpmNotAvailable reports whether err indicates that npm is not installed on the system.
+func isErrNpmNotAvailable(err error) bool {
+	return errors.Is(err, ErrNpmNotAvailable)
+}
 
 // validateNpxPackages validates that npx packages are available on npm registry
 func (c *Compiler) validateNpxPackages(workflowData *WorkflowData) error {
@@ -58,13 +69,7 @@ func (c *Compiler) validateNpxPackages(workflowData *WorkflowData) error {
 	_, err := exec.LookPath("npm")
 	if err != nil {
 		npmValidationLog.Print("npm command not found, cannot validate npx packages")
-		return NewOperationError(
-			"validate",
-			"npx packages",
-			"",
-			err,
-			"Install Node.js and npm to enable npx package validation:\n\nUsing nvm (recommended):\n$ nvm install --lts\n\nOr download from https://nodejs.org\n\nAlternatively, disable validation by setting GH_AW_SKIP_NPX_VALIDATION=true",
-		)
+		return ErrNpmNotAvailable
 	}
 
 	var errors []string

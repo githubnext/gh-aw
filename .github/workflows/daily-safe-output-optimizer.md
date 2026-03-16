@@ -231,11 +231,14 @@ Use the cache memory folder `/tmp/gh-aw/cache-memory/` to build persistent knowl
 ```markdown
 # Improve [Tool Name] Description to Prevent Agent Errors
 
-## Summary
+### Summary
 
 Analysis of the last 24 hours of workflow runs identified **[N] errors** where agents incorrectly used the `[tool_name]` safe output tool. The workflow prompts appear correct, indicating the tool description needs improvement.
 
-## Error Analysis
+<details>
+<summary><b>🔍 Error Analysis Details</b></summary>
+
+### Error Analysis
 
 ### Error Pattern 1: [Description]
 
@@ -269,7 +272,9 @@ Analysis of the last 24 hours of workflow runs identified **[N] errors** where a
 
 [Repeat structure above for additional patterns]
 
-## Current Tool Description
+</details>
+
+### Current Tool Description
 
 <details>
 <summary><b>Current description from safe_outputs_tools.json</b></summary>
@@ -280,16 +285,16 @@ Analysis of the last 24 hours of workflow runs identified **[N] errors** where a
 
 </details>
 
-## Root Cause Analysis
+### Root Cause Analysis
 
 The tool description issues:
 1. [Specific problem 1 - e.g., "Field description is ambiguous"]
 2. [Specific problem 2 - e.g., "Required fields not clearly marked"]
 3. [Specific problem 3 - e.g., "Similar field names cause confusion"]
 
-## Recommended Improvements
+### Recommended Improvements
 
-### Update Tool Description
+#### Update Tool Description
 
 Modify the description in `pkg/workflow/js/safe_outputs_tools.json`:
 
@@ -307,13 +312,13 @@ Modify the description in `pkg/workflow/js/safe_outputs_tools.json`:
    - Make it clearer that `[field_name]` is required
    - Add note about what happens if omitted
 
-### Update Field Descriptions
+#### Update Field Descriptions
 
 For inputSchema properties:
 - **`[field_1]`**: [Current description] → [Improved description]
 - **`[field_2]`**: [Current description] → [Improved description]
 
-## Affected Workflows
+### Affected Workflows
 
 The following workflows had errors with this tool:
 
@@ -321,7 +326,7 @@ The following workflows had errors with this tool:
 - `[workflow-2]` - [N] errors
 - `[workflow-3]` - [N] errors
 
-## Testing Plan
+### Testing Plan
 
 After updating the tool description:
 
@@ -330,7 +335,7 @@ After updating the tool description:
 3. Monitor logs for 2-3 days to verify error rate decreases
 4. Check if agents correctly use the updated descriptions
 
-## Implementation Checklist
+### Implementation Checklist
 
 - [ ] Update tool description in `pkg/workflow/js/safe_outputs_tools.json`
 - [ ] Update field descriptions in inputSchema
@@ -340,7 +345,7 @@ After updating the tool description:
 - [ ] Run `make test` to ensure no regressions
 - [ ] Deploy and monitor error rates
 
-## References
+### References
 
 - Tool schema: `pkg/workflow/js/safe_outputs_tools.json`
 - MCP server loader: `actions/setup/js/safe_outputs_tools_loader.cjs`

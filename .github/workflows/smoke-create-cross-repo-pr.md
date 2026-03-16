@@ -32,6 +32,7 @@ tools:
     github-token: ${{ secrets.GH_AW_SIDE_REPO_PAT }}
 
 safe-outputs:
+  allowed-domains: [default-safe-outputs]
   create-pull-request:
     target-repo: "githubnext/gh-aw-side-repo"
     github-token: ${{ secrets.GH_AW_SIDE_REPO_PAT }}

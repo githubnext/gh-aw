@@ -31,6 +31,7 @@ imports:
   - shared/jqschema.md
   - shared/reporting.md
   - shared/copilot-pr-data-fetch.md
+  - shared/python-nlp.md
   - shared/trending-charts-simple.md
 
 cache:
@@ -48,10 +49,6 @@ tools:
   bash: ["*"]
 
 steps:
-  - name: Install additional ML libraries
-    run: |
-      pip3 install --user scikit-learn nltk
-
   - name: Download full PR data with comments and reviews
     env:
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

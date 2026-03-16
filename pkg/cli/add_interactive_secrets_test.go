@@ -96,7 +96,7 @@ func TestAddInteractiveConfig_getSecretInfo(t *testing.T) {
 	}
 }
 
-func TestAddInteractiveConfig_collectAPIKey_noWriteAccess(t *testing.T) {
+func TestAddInteractiveConfig_configureEngineAPISecret_noWriteAccess(t *testing.T) {
 	tests := []struct {
 		name   string
 		engine string
@@ -124,15 +124,15 @@ func TestAddInteractiveConfig_collectAPIKey_noWriteAccess(t *testing.T) {
 				existingSecrets: make(map[string]bool),
 			}
 
-			// When the user doesn't have write access, collectAPIKey should
+			// When the user doesn't have write access, configureEngineAPISecret should
 			// return nil without prompting or uploading any secrets.
-			err := config.collectAPIKey(tt.engine)
-			require.NoError(t, err, "collectAPIKey should succeed without write access")
+			err := config.configureEngineAPISecret(tt.engine)
+			require.NoError(t, err, "configureEngineAPISecret should succeed without write access")
 		})
 	}
 }
 
-func TestAddInteractiveConfig_collectAPIKey_skipSecret(t *testing.T) {
+func TestAddInteractiveConfig_configureEngineAPISecret_skipSecret(t *testing.T) {
 	tests := []struct {
 		name   string
 		engine string
@@ -161,10 +161,61 @@ func TestAddInteractiveConfig_collectAPIKey_skipSecret(t *testing.T) {
 				existingSecrets: make(map[string]bool),
 			}
 
-			// When SkipSecret is true, collectAPIKey should return nil without
+			// When SkipSecret is true, configureEngineAPISecret should return nil without
 			// prompting or uploading any secrets, even with write access.
-			err := config.collectAPIKey(tt.engine)
-			require.NoError(t, err, "collectAPIKey should succeed when SkipSecret is true")
+			err := config.configureEngineAPISecret(tt.engine)
+			require.NoError(t, err, "configureEngineAPISecret should succeed when SkipSecret is true")
+		})
+	}
+}
+
+func TestParseSecretNames(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    []byte
+		expected []string
+	}{
+		{
+			name:     "single secret name",
+			input:    []byte("MY_SECRET\n"),
+			expected: []string{"MY_SECRET"},
+		},
+		{
+			name:     "multiple secret names",
+			input:    []byte("SECRET_A\nSECRET_B\nSECRET_C"),
+			expected: []string{"SECRET_A", "SECRET_B", "SECRET_C"},
+		},
+		{
+			name:     "empty output",
+			input:    []byte(""),
+			expected: nil,
+		},
+		{
+			name:     "output with only whitespace",
+			input:    []byte("   \n  \n"),
+			expected: nil,
+		},
+		{
+			name:     "names with surrounding whitespace",
+			input:    []byte("  MY_SECRET  \n  ANOTHER_SECRET  "),
+			expected: []string{"MY_SECRET", "ANOTHER_SECRET"},
+		},
+		{
+			name:     "output with blank lines interspersed",
+			input:    []byte("FIRST_SECRET\n\nSECOND_SECRET\n\n"),
+			expected: []string{"FIRST_SECRET", "SECOND_SECRET"},
+		},
+		{
+			name:     "trailing newline is handled correctly",
+			input:    []byte("SECRET_ONE\nSECRET_TWO\n"),
+			expected: []string{"SECRET_ONE", "SECRET_TWO"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := parseSecretNames(tt.input)
+			assert.Equal(t, tt.expected, result, "parseSecretNames output should match expected")
 		})
 	}
 }

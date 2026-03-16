@@ -94,28 +94,137 @@ Pass data between jobs via artifacts, job outputs, or environment variables.
 
 ## Custom Trigger Filtering
 
+### Inline Steps (`on.steps:`) — Preferred
+
+Inject deterministic steps directly into the pre-activation job using `on.steps:`. This saves **one workflow job** compared to the multi-job pattern and is the recommended approach for lightweight filtering:
+
 ```yaml wrap title=".github/workflows/smart-responder.md"
 ---
 on:
   issues:
-    types: [opened, edited]
+    types: [opened]
+  steps:
+    - id: check
+      env:
+        LABELS: ${{ toJSON(github.event.issue.labels.*.name) }}
+      run: echo "$LABELS" | grep -q '"bug"'
+      # exits 0 (outcome: success) if the label is found, 1 (outcome: failure) if not
 engine: copilot
 safe-outputs:
   add-comment:
 
-steps:
-  - id: filter
-    run: |
-      if echo "${{ github.event.issue.body }}" | grep -q "urgent"; then
-        echo "priority=high" >> "$GITHUB_OUTPUT"
-      else
-        exit 1
-      fi
+if: needs.pre_activation.outputs.check_result == 'success'
 ---
 
-# Smart Issue Responder
+# Bug Issue Responder
 
-Respond to urgent issue: "${{ github.event.issue.title }}" (Priority: ${{ steps.filter.outputs.priority }})
+Triage bug report: "${{ github.event.issue.title }}" and add-comment with a summary of the next steps.
+```
+
+Each step with an `id` gets an auto-wired output `<id>_result` set to `${{ steps.<id>.outcome }}` — `success` when the step's exit code is 0, `failure` when non-zero. Gate the workflow by checking `needs.pre_activation.outputs.<id>_result == 'success'`.
+
+To pass an explicit value rather than relying on exit codes, set a step output and re-expose it via `jobs.pre-activation.outputs`:
+
+```yaml wrap
+jobs:
+  pre-activation:
+    outputs:
+      has_bug_label: ${{ steps.check.outputs.has_bug_label }}
+
+if: needs.pre_activation.outputs.has_bug_label == 'true'
+```
+
+When `on.steps:` need GitHub API access, use `on.permissions:` to grant the required scopes to the pre-activation job:
+
+```yaml wrap
+on:
+  schedule: every 30m
+  permissions:
+    issues: read
+  steps:
+    - id: search
+      uses: actions/github-script@v8
+      with:
+        script: |
+          const open = await github.rest.issues.listForRepo({ ...context.repo, state: 'open' });
+          core.setOutput('has_work', open.data.length > 0 ? 'true' : 'false');
+
+jobs:
+  pre-activation:
+    outputs:
+      has_work: ${{ steps.search.outputs.has_work }}
+
+if: needs.pre_activation.outputs.has_work == 'true'
+```
+
+See [Pre-Activation Steps](/gh-aw/reference/triggers/#pre-activation-steps-onsteps) and [Pre-Activation Permissions](/gh-aw/reference/triggers/#pre-activation-permissions-onpermissions) for full documentation.
+
+### Multi-Job Pattern — For Complex Cases
+
+Use a separate `jobs:` entry when filtering requires heavy tooling (checkout, compiled tools, multiple runners):
+
+```yaml wrap title=".github/workflows/smart-responder.md"
+---
+on:
+  issues:
+    types: [opened]
+engine: copilot
+safe-outputs:
+  add-comment:
+
+jobs:
+  filter:
+    runs-on: ubuntu-latest
+    outputs:
+      should-run: ${{ steps.check.outputs.result }}
+    steps:
+      - id: check
+        env:
+          LABELS: ${{ toJSON(github.event.issue.labels.*.name) }}
+        run: |
+          if echo "$LABELS" | grep -q '"bug"'; then
+            echo "result=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "result=false" >> "$GITHUB_OUTPUT"
+          fi
+
+if: needs.filter.outputs.should-run == 'true'
+---
+
+# Bug Issue Responder
+
+Triage bug report: "${{ github.event.issue.title }}" and add-comment with a summary of the next steps.
+```
+
+The compiler automatically adds the filter job as a dependency of the activation job, so when the condition is false the workflow run is **skipped** (not failed), keeping the Actions tab clean.
+
+### Simple Context Conditions
+
+For conditions that can be expressed directly with GitHub Actions context, use `if:` without a custom job:
+
+```yaml wrap
+---
+on:
+  pull_request:
+    types: [opened, synchronize]
+engine: copilot
+if: github.event.pull_request.draft == false
+---
+```
+
+### Query-Based Filtering
+
+For conditions based on GitHub search results, use [`skip-if-match:`](/gh-aw/reference/triggers/#skip-if-match-condition-skip-if-match) or [`skip-if-no-match:`](/gh-aw/reference/triggers/#skip-if-no-match-condition-skip-if-no-match) in the `on:` section — these accept standard [GitHub search query syntax](https://docs.github.com/en/search-github/searching-on-github/searching-issues-and-pull-requests) and are evaluated in the pre-activation job, producing the same skipped-not-failed behaviour:
+
+```yaml wrap
+---
+on:
+  issues:
+    types: [opened]
+  # Skip if a duplicate issue already exists (GitHub search query syntax)
+  skip-if-match: 'is:issue is:open label:duplicate'
+engine: copilot
+---
 ```
 
 ## Post-Processing Pattern
@@ -178,6 +287,8 @@ Reference in prompts: "Analyze issues in `/tmp/gh-aw/agent/issues.json` and PRs 
 
 ## Related Documentation
 
+- [Pre-Activation Steps](/gh-aw/reference/triggers/#pre-activation-steps-onsteps) - Inline step injection into the pre-activation job
+- [Pre-Activation Permissions](/gh-aw/reference/triggers/#pre-activation-permissions-onpermissions) - Grant additional scopes for `on.steps:` API calls
 - [Custom Safe Outputs](/gh-aw/reference/custom-safe-outputs/) - Custom post-processing jobs
 - [Frontmatter Reference](/gh-aw/reference/frontmatter/) - Configuration options
 - [Compilation Process](/gh-aw/reference/compilation-process/) - How jobs are orchestrated

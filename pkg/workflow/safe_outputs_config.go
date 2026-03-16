@@ -170,7 +170,7 @@ func (c *Compiler) extractSafeOutputsConfig(frontmatter map[string]any) *SafeOut
 				config.AutofixCodeScanningAlert = autofixCodeScanningAlertConfig
 			}
 
-			// Parse allowed-domains configuration
+			// Parse allowed-domains configuration (additional domains, unioned with network.allowed; supports ecosystem identifiers)
 			if allowedDomains, exists := outputMap["allowed-domains"]; exists {
 				if domainsArray, ok := allowedDomains.([]any); ok {
 					var domainStrings []string

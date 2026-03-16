@@ -10,10 +10,9 @@ import (
 	"testing"
 
 	"github.com/github/gh-aw/pkg/testutil"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
-
-// Tests for artifact unfold rule implementation
-// Unfold rule: If an artifact download folder contains a single file, move the file to root and delete the folder
 
 func TestFlattenSingleFileArtifacts(t *testing.T) {
 	tests := []struct {
@@ -531,4 +530,109 @@ func TestFlattenUnifiedArtifact(t *testing.T) {
 			}
 		})
 	}
+}
+
+// TestFlattenArtifactTree tests the shared flatten helper directly.
+
+func TestFlattenArtifactTreeBasic(t *testing.T) {
+	outputDir := t.TempDir()
+	artifactDir := filepath.Join(outputDir, "myartifact")
+	require.NoError(t, os.MkdirAll(artifactDir, 0750), "setup: create artifactDir")
+	require.NoError(t, os.WriteFile(filepath.Join(artifactDir, "file.txt"), []byte("hello"), 0600), "setup: write file")
+
+	err := flattenArtifactTree(artifactDir, artifactDir, outputDir, "test artifact", false)
+	require.NoError(t, err, "flattenArtifactTree should succeed")
+
+	content, err := os.ReadFile(filepath.Join(outputDir, "file.txt"))
+	require.NoError(t, err, "file should be moved to outputDir")
+	assert.Equal(t, "hello", string(content), "file content should be preserved")
+
+	_, err = os.Stat(artifactDir)
+	assert.True(t, os.IsNotExist(err), "artifactDir should be removed after flattening")
+}
+
+func TestFlattenArtifactTreeNestedDirs(t *testing.T) {
+	outputDir := t.TempDir()
+	artifactDir := filepath.Join(outputDir, "artifact")
+	nestedDir := filepath.Join(artifactDir, "subdir", "deeper")
+	require.NoError(t, os.MkdirAll(nestedDir, 0750), "setup: create nested dirs")
+	require.NoError(t, os.WriteFile(filepath.Join(nestedDir, "nested.txt"), []byte("nested"), 0600), "setup: write nested file")
+
+	err := flattenArtifactTree(artifactDir, artifactDir, outputDir, "nested artifact", false)
+	require.NoError(t, err, "flattenArtifactTree should succeed with nested dirs")
+
+	content, err := os.ReadFile(filepath.Join(outputDir, "subdir", "deeper", "nested.txt"))
+	require.NoError(t, err, "nested file should be moved preserving relative path")
+	assert.Equal(t, "nested", string(content), "nested file content should be preserved")
+
+	_, err = os.Stat(artifactDir)
+	assert.True(t, os.IsNotExist(err), "artifactDir should be removed")
+}
+
+func TestFlattenArtifactTreeDifferentSourceAndArtifactDir(t *testing.T) {
+	// Covers the old-structure unified artifact case where sourceDir is a subdirectory of artifactDir.
+	outputDir := t.TempDir()
+	artifactDir := filepath.Join(outputDir, "agent-artifacts")
+	sourceDir := filepath.Join(artifactDir, "tmp", "gh-aw")
+	require.NoError(t, os.MkdirAll(sourceDir, 0750), "setup: create old-structure sourceDir")
+	require.NoError(t, os.WriteFile(filepath.Join(sourceDir, "session.json"), []byte(`{}`), 0600), "setup: write file")
+
+	err := flattenArtifactTree(sourceDir, artifactDir, outputDir, "unified agent artifact", false)
+	require.NoError(t, err, "flattenArtifactTree should succeed")
+
+	content, err := os.ReadFile(filepath.Join(outputDir, "session.json"))
+	require.NoError(t, err, "file should be moved to outputDir relative to sourceDir")
+	assert.Equal(t, `{}`, string(content), "file content should be preserved")
+
+	_, err = os.Stat(artifactDir)
+	assert.True(t, os.IsNotExist(err), "entire artifactDir should be removed, not just sourceDir")
+}
+
+func TestFlattenArtifactTreeEmptySource(t *testing.T) {
+	outputDir := t.TempDir()
+	artifactDir := filepath.Join(outputDir, "empty-artifact")
+	require.NoError(t, os.MkdirAll(artifactDir, 0750), "setup: create empty artifactDir")
+
+	err := flattenArtifactTree(artifactDir, artifactDir, outputDir, "empty artifact", false)
+	require.NoError(t, err, "flattenArtifactTree should succeed on empty dir")
+
+	_, err = os.Stat(artifactDir)
+	assert.True(t, os.IsNotExist(err), "empty artifactDir should be removed")
+}
+
+func TestFlattenArtifactTreeMultipleFiles(t *testing.T) {
+	outputDir := t.TempDir()
+	artifactDir := filepath.Join(outputDir, "multi")
+	require.NoError(t, os.MkdirAll(artifactDir, 0750), "setup: create artifactDir")
+
+	files := map[string]string{
+		"a.txt": "content-a",
+		"b.txt": "content-b",
+		"c.txt": "content-c",
+	}
+	for name, body := range files {
+		require.NoError(t, os.WriteFile(filepath.Join(artifactDir, name), []byte(body), 0600), "setup: write "+name)
+	}
+
+	err := flattenArtifactTree(artifactDir, artifactDir, outputDir, "multi artifact", false)
+	require.NoError(t, err, "flattenArtifactTree should succeed")
+
+	for name, expected := range files {
+		content, err := os.ReadFile(filepath.Join(outputDir, name))
+		require.NoError(t, err, "file %s should exist in outputDir", name)
+		assert.Equal(t, expected, string(content), "content of %s should be preserved", name)
+	}
+}
+
+func TestFlattenArtifactTreeVerboseMode(t *testing.T) {
+	outputDir := t.TempDir()
+	artifactDir := filepath.Join(outputDir, "verbose-artifact")
+	require.NoError(t, os.MkdirAll(artifactDir, 0750), "setup: create artifactDir")
+	require.NoError(t, os.WriteFile(filepath.Join(artifactDir, "log.txt"), []byte("log"), 0600), "setup: write file")
+
+	err := flattenArtifactTree(artifactDir, artifactDir, outputDir, "verbose artifact", true)
+	require.NoError(t, err, "flattenArtifactTree should succeed in verbose mode")
+
+	_, err = os.ReadFile(filepath.Join(outputDir, "log.txt"))
+	require.NoError(t, err, "file should be moved in verbose mode too")
 }

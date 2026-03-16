@@ -3,21 +3,11 @@ package workflow
 import (
 	"encoding/json"
 	"fmt"
-	"math"
 
 	"github.com/github/gh-aw/pkg/logger"
 )
 
 var mcpScriptsLog = logger.New("workflow:mcp_scripts")
-
-// safeUint64ToIntForTimeout safely converts uint64 to int for timeout values
-// Returns 0 (which signals to use engine defaults) if overflow would occur
-func safeUint64ToIntForTimeout(u uint64) int {
-	if u > math.MaxInt {
-		return 0 // Return 0 (engine default) if value would overflow
-	}
-	return int(u)
-}
 
 // MCPScriptsConfig holds the configuration for mcp-scripts custom tools
 type MCPScriptsConfig struct {
@@ -185,7 +175,7 @@ func parseMCPScriptsMap(mcpScriptsMap map[string]any) (*MCPScriptsConfig, bool) 
 			case int:
 				toolConfig.Timeout = t
 			case uint64:
-				toolConfig.Timeout = safeUint64ToIntForTimeout(t) // Safe conversion to prevent overflow (alert #414)
+				toolConfig.Timeout = safeUint64ToInt(t) // Safe conversion to prevent overflow (alert #414)
 			case float64:
 				toolConfig.Timeout = int(t)
 			case string:
@@ -356,7 +346,7 @@ func (c *Compiler) mergeMCPScripts(main *MCPScriptsConfig, importedConfigs []str
 				case int:
 					toolConfig.Timeout = t
 				case uint64:
-					toolConfig.Timeout = safeUint64ToIntForTimeout(t) // Safe conversion to prevent overflow (alert #413)
+					toolConfig.Timeout = safeUint64ToInt(t) // Safe conversion to prevent overflow (alert #413)
 				case float64:
 					toolConfig.Timeout = int(t)
 				case string:

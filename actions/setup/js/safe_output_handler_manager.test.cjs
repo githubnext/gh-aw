@@ -1108,4 +1108,36 @@ describe("Safe Output Handler Manager", () => {
       expect(global.core.setOutput).toHaveBeenCalledWith("created_issue_url", "https://github.com/owner/repo/issues/7");
     });
   });
+
+  describe("call_workflow handler registration", () => {
+    it("processes call_workflow messages without no-handler warnings when handler is registered", async () => {
+      const messages = [{ type: "call_workflow", workflow_name: "worker-a" }];
+      const mockHandler = vi.fn().mockResolvedValue({
+        success: true,
+        workflow_name: "worker-a",
+        payload: "{}",
+      });
+      const handlers = new Map([["call_workflow", mockHandler]]);
+
+      const result = await processMessages(handlers, messages);
+
+      expect(result.results).toHaveLength(1);
+      expect(result.results[0].type).toBe("call_workflow");
+      // Handler was invoked, so no "no handler loaded" error
+      expect(result.results[0].error).toBeUndefined();
+      expect(mockHandler).toHaveBeenCalledTimes(1);
+    });
+
+    it("records no-handler error for call_workflow when handler map is missing entry", async () => {
+      const messages = [{ type: "call_workflow", workflow_name: "worker-a" }];
+      // Empty handler map - simulates the bug where call_workflow was not in HANDLER_MAP
+      const handlers = new Map();
+
+      const result = await processMessages(handlers, messages);
+
+      expect(result.results).toHaveLength(1);
+      expect(result.results[0].success).toBe(false);
+      expect(result.results[0].error).toContain("No handler loaded for type 'call_workflow'");
+    });
+  });
 });

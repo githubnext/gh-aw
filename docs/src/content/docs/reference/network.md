@@ -94,7 +94,10 @@ Mix ecosystem identifiers with specific domains for fine-grained control:
 | Identifier | Includes |
 |------------|----------|
 | `defaults` | Basic infrastructure (certificates, JSON schema, Ubuntu, package mirrors) |
-| `github` | GitHub domains |
+| `github` | GitHub domains (`github.com`, `docs.github.com`, `github.blog`, `*.githubusercontent.com`, and related) |
+| `local` | Loopback addresses (`localhost`, `127.0.0.1`, `::1`) |
+| `dev-tools` | Popular CI/CD and developer tool services (Codecov, Shields.io, Snyk, Renovate, CircleCI, etc.) |
+| `default-safe-outputs` | Compound: `defaults` + `dev-tools` + `github` + `local` — recommended baseline for `safe-outputs.allowed-domains` |
 | `containers` | Docker Hub, GitHub Container Registry, Quay |
 | `linux-distros` | Debian, Alpine, and other Linux package repositories |
 | `dotnet`, `dart`, `go`, `haskell`, `java`, `julia`, `node`, `perl`, `php`, `python`, `ruby`, `rust`, `swift` | Language-specific package managers and registries |

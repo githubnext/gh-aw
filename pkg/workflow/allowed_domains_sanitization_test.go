@@ -238,9 +238,9 @@ Test workflow with ecosystem identifiers.
 	}
 }
 
-// TestManualAllowedDomainsHasPriority tests that manually configured allowed-domains
-// takes precedence over network configuration
-func TestManualAllowedDomainsHasPriority(t *testing.T) {
+// TestManualAllowedDomainsUnionWithNetworkConfig tests that manually configured allowed-domains
+// unions with network configuration (not overrides it)
+func TestManualAllowedDomainsUnionWithNetworkConfig(t *testing.T) {
 	tests := []struct {
 		name             string
 		workflow         string
@@ -248,7 +248,7 @@ func TestManualAllowedDomainsHasPriority(t *testing.T) {
 		unexpectedDomain string
 	}{
 		{
-			name: "Manual allowed-domains overrides network config",
+			name: "Manual allowed-domains unions with network config",
 			workflow: `---
 on: push
 permissions:
@@ -270,14 +270,15 @@ safe-outputs:
 
 # Test Workflow
 
-Test that manual allowed-domains takes precedence.
+Test that manual allowed-domains unions with network config.
 `,
 			expectedDomains: []string{
 				"manual-domain.com",
 				"override.org",
+				"example.com", // from network.allowed - still present (union)
 			},
-			// Network domains and Copilot defaults should NOT be included
-			unexpectedDomain: "example.com",
+			// No domain should be absent
+			unexpectedDomain: "",
 		},
 		{
 			name: "Empty allowed-domains uses network config",
@@ -453,6 +454,149 @@ func TestComputeAllowedDomainsForSanitization(t *testing.T) {
 			for _, expectedDomain := range tt.expectedDomains {
 				if !strings.Contains(domainsStr, expectedDomain) {
 					t.Errorf("Expected domain '%s' not found in result: %s", expectedDomain, domainsStr)
+				}
+			}
+		})
+	}
+}
+
+// TestAllowedDomainsUnionWithNetworkConfig tests that safe-outputs.allowed-domains
+// is unioned with network.allowed and always includes localhost and github.com
+func TestAllowedDomainsUnionWithNetworkConfig(t *testing.T) {
+	tests := []struct {
+		name            string
+		workflow        string
+		expectedDomains []string
+	}{
+		{
+			name: "allowed-domains unioned with Copilot defaults and network config",
+			workflow: `---
+on: push
+permissions:
+  contents: read
+  issues: read
+engine: copilot
+strict: false
+network:
+  allowed:
+    - example.com
+safe-outputs:
+  create-issue:
+  allowed-domains:
+    - extra-domain.com
+---
+
+# Test Workflow
+
+Test allowed-domains union with network config.
+`,
+			expectedDomains: []string{
+				"extra-domain.com", // from allowed-domains
+				"example.com",      // from network.allowed
+				"api.github.com",   // Copilot default
+				"localhost",        // always included
+				"github.com",       // always included
+			},
+		},
+		{
+			name: "allowed-domains supports ecosystem identifiers",
+			workflow: `---
+on: push
+permissions:
+  contents: read
+  issues: read
+engine: copilot
+strict: false
+safe-outputs:
+  create-issue:
+  allowed-domains:
+    - dev-tools
+    - python
+---
+
+# Test Workflow
+
+Test allowed-domains with ecosystem identifiers.
+`,
+			expectedDomains: []string{
+				"codecov.io", // from dev-tools ecosystem
+				"snyk.io",    // from dev-tools ecosystem
+				"pypi.org",   // from python ecosystem
+				"localhost",  // always included
+				"github.com", // always included
+			},
+		},
+		{
+			name: "allowed-domains does not override network config",
+			workflow: `---
+on: push
+permissions:
+  contents: read
+  issues: read
+engine: copilot
+strict: false
+network:
+  allowed:
+    - network-domain.com
+safe-outputs:
+  create-issue:
+  allowed-domains:
+    - url-domain.com
+---
+
+# Test Workflow
+
+Test that allowed-domains does not override network config.
+`,
+			expectedDomains: []string{
+				"url-domain.com",     // from allowed-domains
+				"network-domain.com", // from network.allowed - still present (union)
+				"api.github.com",     // Copilot default
+				"localhost",          // always included
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tmpDir := testutil.TempDir(t, "allowed-domains-test")
+			testFile := filepath.Join(tmpDir, "test-workflow.md")
+			if err := os.WriteFile(testFile, []byte(tt.workflow), 0644); err != nil {
+				t.Fatal(err)
+			}
+
+			compiler := NewCompiler()
+			if err := compiler.CompileWorkflow(testFile); err != nil {
+				t.Fatalf("Failed to compile workflow: %v", err)
+			}
+
+			lockFile := stringutil.MarkdownToLockFile(testFile)
+			lockContent, err := os.ReadFile(lockFile)
+			if err != nil {
+				t.Fatalf("Failed to read lock file: %v", err)
+			}
+			lockStr := string(lockContent)
+
+			if !strings.Contains(lockStr, "GH_AW_ALLOWED_DOMAINS:") {
+				t.Error("Expected GH_AW_ALLOWED_DOMAINS environment variable in lock file")
+			}
+
+			lines := strings.Split(lockStr, "\n")
+			var domainsLine string
+			for _, line := range lines {
+				if strings.Contains(line, "GH_AW_ALLOWED_DOMAINS:") {
+					domainsLine = line
+					break
+				}
+			}
+
+			if domainsLine == "" {
+				t.Fatal("GH_AW_ALLOWED_DOMAINS not found in lock file")
+			}
+
+			for _, expectedDomain := range tt.expectedDomains {
+				if !strings.Contains(domainsLine, expectedDomain) {
+					t.Errorf("Expected domain %q not found in GH_AW_ALLOWED_DOMAINS.\nLine: %s", expectedDomain, domainsLine)
 				}
 			}
 		})

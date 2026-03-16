@@ -246,8 +246,17 @@ func (c *Compiler) validateRuntimePackages(workflowData *WorkflowData) error {
 			// Validate npx packages used in the workflow
 			runtimeValidationLog.Print("Validating npx packages")
 			if err := c.validateNpxPackages(workflowData); err != nil {
-				runtimeValidationLog.Printf("Npx package validation failed: %v", err)
-				errors = append(errors, err.Error())
+				if isErrNpmNotAvailable(err) {
+					// npm is not installed on this system — treat as a warning, not an error.
+					// The workflow may still compile and run successfully in environments
+					// that have npm (e.g., GitHub Actions).
+					runtimeValidationLog.Print("npm not available, skipping npx package validation")
+					fmt.Fprintln(os.Stderr, console.FormatWarningMessage("npm not found, skipping npx package validation"))
+					c.IncrementWarningCount()
+				} else {
+					runtimeValidationLog.Printf("Npx package validation failed: %v", err)
+					errors = append(errors, err.Error())
+				}
 			}
 		case "python":
 			// Validate pip packages used in the workflow

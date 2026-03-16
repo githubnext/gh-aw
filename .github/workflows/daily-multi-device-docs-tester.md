@@ -16,7 +16,7 @@ permissions:
 tracker-id: daily-multi-device-docs-tester
 engine:
   id: claude
-  max-turns: 30  # Prevent runaway token usage
+  max-turns: 50  # Prevent runaway token usage (10 devices × ~3 turns + build/setup/report)
 strict: true
 timeout-minutes: 30
 tools:
@@ -106,19 +106,28 @@ Playwright is provided through an MCP server interface, **NOT** as an npm packag
 
 **Example Usage:**
 
+```bash
+# First, get the container's bridge IP (needed for Playwright - see shared lifecycle instructions)
+SERVER_IP=$(ip -4 route get 1.1.1.1 2>/dev/null | awk '{print $7; exit}')
+if [ -z "$SERVER_IP" ]; then SERVER_IP=$(hostname -I | awk '{print $1}'); fi
+echo "Playwright server URL: http://${SERVER_IP}:4321/gh-aw/"
+```
+
 ```javascript
-// Use browser_run_code to execute Playwright commands
+// Use browser_run_code to execute Playwright commands.
+// IMPORTANT: Replace 172.30.0.20 below with the actual SERVER_IP from the bash command above.
+// Do NOT use "localhost" — Playwright runs with --network host so its localhost differs.
 mcp__playwright__browser_run_code({
   code: `async (page) => {
     await page.setViewportSize({ width: 390, height: 844 });
-    await page.goto('http://localhost:4321/gh-aw/');
+    await page.goto('http://172.30.0.20:4321/gh-aw/');  // substitute actual SERVER_IP
     return { url: page.url(), title: await page.title() };
   }`
 })
 ```
 
 For each device viewport, use Playwright MCP tools to:
-- Set viewport size and navigate to http://localhost:4321/gh-aw/
+- Set viewport size and navigate to `http://${SERVER_IP}:4321/gh-aw/` (substitute the bridge IP you obtained above, NOT localhost)
 - Take screenshots and run accessibility audits
 - Test interactions (navigation, search, buttons)
 - Check for layout issues (overflow, truncation, broken layouts)

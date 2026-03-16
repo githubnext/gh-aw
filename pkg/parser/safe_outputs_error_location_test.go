@@ -424,11 +424,11 @@ safe-outputs:
 	}
 
 	errorText := err.Error()
+	// The path is shown without a leading '/'; line:col info appears both in the
+	// file:line:col prefix from console.FormatError and in each detail line.
 	wantSubstrings := []string{
-		"/safe-outputs/create-issue",
-		"/safe-outputs/create-discussion",
-		"line 5, column 5",
-		"line 7, column 5",
+		"safe-outputs/create-issue",
+		"safe-outputs/create-discussion",
 	}
 	for _, want := range wantSubstrings {
 		if !strings.Contains(errorText, want) {
@@ -437,7 +437,8 @@ safe-outputs:
 	}
 }
 
-// TestFormatSchemaFailureDetailEmptyPath verifies that an empty path is normalised to "/".
+// TestFormatSchemaFailureDetailEmptyPath verifies that an empty path returns the message
+// without any path prefix (the root path "/" is stripped from the display).
 func TestFormatSchemaFailureDetailEmptyPath(t *testing.T) {
 	t.Parallel()
 
@@ -446,13 +447,18 @@ func TestFormatSchemaFailureDetailEmptyPath(t *testing.T) {
 		Message: "additional property 'x' not allowed",
 	}
 	result := formatSchemaFailureDetail(pathInfo, "", "on: daily\n", 1)
-	if !strings.HasPrefix(result, "at '/'") {
-		t.Errorf("expected result to start with \"at '/'\", got: %s", result)
+	// Empty/root paths return just the message without a path prefix
+	if strings.HasPrefix(result, "at '/'") {
+		t.Errorf("result should not start with \"at '/'\", got: %s", result)
+	}
+	if !strings.Contains(result, "Unknown property") {
+		t.Errorf("expected result to contain error message, got: %s", result)
 	}
 }
 
 // TestFormatSchemaFailureDetailLineColumn verifies that line/column numbers are
-// included in the formatted detail when the path can be located in YAML.
+// included in the formatted detail when the path can be located in YAML, so that
+// secondary failures in multi-failure output retain their location context.
 func TestFormatSchemaFailureDetailLineColumn(t *testing.T) {
 	t.Parallel()
 
@@ -462,11 +468,13 @@ func TestFormatSchemaFailureDetailLineColumn(t *testing.T) {
 		Message: "additional property 'invalid-field' not allowed",
 	}
 	result := formatSchemaFailureDetail(pathInfo, "", frontmatterContent, 1)
-	if !strings.Contains(result, "line ") || !strings.Contains(result, "column ") {
-		t.Errorf("expected result to contain line/column info, got: %s", result)
+	// Line/column info should be included in each detail line for secondary failures.
+	if !strings.Contains(result, "line ") || !strings.Contains(result, "col ") {
+		t.Errorf("expected result to contain line/col info, got: %s", result)
 	}
-	if !strings.Contains(result, "/safe-outputs/create-issue") {
-		t.Errorf("expected result to contain path '/safe-outputs/create-issue', got: %s", result)
+	// The field path should still appear (without the leading '/').
+	if !strings.Contains(result, "safe-outputs/create-issue") {
+		t.Errorf("expected result to contain path 'safe-outputs/create-issue', got: %s", result)
 	}
 }
 

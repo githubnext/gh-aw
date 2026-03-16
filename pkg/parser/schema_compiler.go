@@ -351,6 +351,13 @@ func validateWithSchemaAndLocation(frontmatter map[string]any, schemaJSON, conte
 	return err
 }
 
+// formatSchemaFailureDetail builds a single line of schema error detail for one JSONPathInfo.
+// It is called once per failing schema constraint in validateWithSchemaAndLocation, which
+// then joins them into a "Multiple schema validation failures:" message. Because
+// CompilerError.Position only captures the *first* failure's location, each detail line
+// independently includes its own (line N, col M) so secondary failures remain navigable.
+// The old "at '/path' (line N, column M):" prefix is replaced with "'path' (line N, col M):"
+// to remove the schema-jargon "at" keyword and the leading slash.
 func formatSchemaFailureDetail(pathInfo JSONPathInfo, schemaJSON, frontmatterContent string, frontmatterStart int) string {
 	path := pathInfo.Path
 	if path == "" {
@@ -367,7 +374,7 @@ func formatSchemaFailureDetail(pathInfo JSONPathInfo, schemaJSON, frontmatterCon
 
 	message := rewriteAdditionalPropertiesError(cleanOneOfMessage(pathInfo.Message))
 	// Strip any "at '/path': " prefix from the message to avoid duplication with the
-	// "at 'path' (line N, column M):" prefix we prepend below.
+	// "'path' (line N, col M):" prefix we prepend below.
 	message = stripAtPathPrefix(message)
 	// Translate schema constraint language (e.g. "minimum: got X, want Y") to plain English.
 	message = translateSchemaConstraintMessage(message)
@@ -377,5 +384,9 @@ func formatSchemaFailureDetail(pathInfo JSONPathInfo, schemaJSON, frontmatterCon
 	if suggestions != "" {
 		message = message + ". " + suggestions
 	}
-	return fmt.Sprintf("at '%s' (line %d, column %d): %s", path, line, column, message)
+	displayPath := strings.TrimPrefix(path, "/")
+	if displayPath == "" {
+		return message
+	}
+	return fmt.Sprintf("'%s' (line %d, col %d): %s", displayPath, line, column, message)
 }

@@ -36,6 +36,9 @@ const HANDLER_TYPE = "create_pull_request";
 /** @type {string} Label always added to fallback issues so the triage system can find them */
 const MANAGED_FALLBACK_ISSUE_LABEL = "agentic-workflows";
 
+// GitHub Copilot reviewer bot username
+const COPILOT_REVIEWER_BOT = "copilot-pull-request-reviewer[bot]";
+
 /**
  * Merges the required fallback label with any workflow-configured labels,
  * deduplicating and filtering empty values.
@@ -117,6 +120,7 @@ async function main(config = {}) {
   // Extract configuration
   const titlePrefix = config.title_prefix || "";
   const envLabels = config.labels ? (Array.isArray(config.labels) ? config.labels : config.labels.split(",")).map(label => String(label).trim()).filter(label => label) : [];
+  const configReviewers = config.reviewers ? (Array.isArray(config.reviewers) ? config.reviewers : config.reviewers.split(",")).map(r => String(r).trim()).filter(r => r) : [];
   const draftDefault = parseBoolTemplatable(config.draft, true);
   const ifNoChanges = config.if_no_changes || "warn";
   const allowEmpty = parseBoolTemplatable(config.allow_empty, false);
@@ -165,6 +169,9 @@ async function main(config = {}) {
   }
   if (envLabels.length > 0) {
     core.info(`Default labels: ${envLabels.join(", ")}`);
+  }
+  if (configReviewers.length > 0) {
+    core.info(`Configured reviewers: ${configReviewers.join(", ")}`);
   }
   if (titlePrefix) {
     core.info(`Title prefix: ${titlePrefix}`);
@@ -1028,6 +1035,42 @@ ${patchPreview}`;
           labels: labels,
         });
         core.info(`Added labels to pull request: ${JSON.stringify(labels)}`);
+      }
+
+      // Add configured reviewers if specified
+      if (configReviewers.length > 0) {
+        const hasCopilot = configReviewers.includes("copilot");
+        const otherReviewers = configReviewers.filter(r => r !== "copilot");
+
+        if (otherReviewers.length > 0) {
+          core.info(`Requesting ${otherReviewers.length} reviewer(s) for pull request #${pullRequest.number}: ${JSON.stringify(otherReviewers)}`);
+          try {
+            await githubClient.rest.pulls.requestReviewers({
+              owner: repoParts.owner,
+              repo: repoParts.repo,
+              pull_number: pullRequest.number,
+              reviewers: otherReviewers,
+            });
+            core.info(`Requested reviewers for pull request #${pullRequest.number}: ${JSON.stringify(otherReviewers)}`);
+          } catch (reviewerError) {
+            core.warning(`Failed to request reviewers for PR #${pullRequest.number}: ${reviewerError instanceof Error ? reviewerError.message : String(reviewerError)}`);
+          }
+        }
+
+        if (hasCopilot) {
+          core.info(`Requesting copilot as reviewer for pull request #${pullRequest.number}`);
+          try {
+            await githubClient.rest.pulls.requestReviewers({
+              owner: repoParts.owner,
+              repo: repoParts.repo,
+              pull_number: pullRequest.number,
+              reviewers: [COPILOT_REVIEWER_BOT],
+            });
+            core.info(`Requested copilot as reviewer for pull request #${pullRequest.number}`);
+          } catch (copilotError) {
+            core.warning(`Failed to request copilot as reviewer for PR #${pullRequest.number}: ${copilotError instanceof Error ? copilotError.message : String(copilotError)}`);
+          }
+        }
       }
 
       // Enable auto-merge if configured

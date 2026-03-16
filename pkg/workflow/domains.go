@@ -128,9 +128,37 @@ func init() {
 	domainsLog.Printf("Loaded %d ecosystem categories", len(ecosystemDomains))
 }
 
-// getEcosystemDomains returns the domains for a given ecosystem category
-// The returned list is sorted and contains unique entries
+// compoundEcosystems defines ecosystem identifiers that expand to the union of multiple
+// component ecosystems. These are resolved at lookup time, so they stay in sync with
+// any future changes to the component ecosystems.
+var compoundEcosystems = map[string][]string{
+	// default-safe-outputs: the recommended baseline for URL redaction in safe-outputs.
+	// Covers common infrastructure certificate/OCSP hosts (via "defaults"), popular
+	// developer-tool and CI/CD service domains (via "dev-tools"), GitHub domains (via "github"),
+	// and loopback/localhost addresses (via "local").
+	"default-safe-outputs": {"defaults", "dev-tools", "github", "local"},
+}
+
+// getEcosystemDomains returns the domains for a given ecosystem category.
+// Supports compound ecosystem identifiers (see compoundEcosystems).
+// The returned list is sorted and contains unique entries.
 func getEcosystemDomains(category string) []string {
+	// Check for compound ecosystem first
+	if components, ok := compoundEcosystems[category]; ok {
+		domainMap := make(map[string]bool)
+		for _, component := range components {
+			for _, d := range getEcosystemDomains(component) {
+				domainMap[d] = true
+			}
+		}
+		result := make([]string, 0, len(domainMap))
+		for d := range domainMap {
+			result = append(result, d)
+		}
+		sort.Strings(result)
+		return result
+	}
+
 	domains, exists := ecosystemDomains[category]
 	if !exists {
 		return []string{}
@@ -313,6 +341,7 @@ var ecosystemPriority = []string{
 	"containers",
 	"dart",
 	"defaults",
+	"dev-tools",
 	"dotnet",
 	"elixir",
 	"fonts",
@@ -323,6 +352,7 @@ var ecosystemPriority = []string{
 	"java",
 	"kotlin",
 	"linux-distros",
+	"local",
 	"node",
 	"perl",
 	"php",
@@ -333,6 +363,7 @@ var ecosystemPriority = []string{
 	"swift",
 	"terraform",
 	"zig",
+	"default-safe-outputs", // compound: defaults + dev-tools + github + local
 }
 
 // GetDomainEcosystem returns the ecosystem identifier for a given domain, or empty string if not found.
@@ -638,4 +669,69 @@ func (c *Compiler) computeAllowedDomainsForSanitization(data *WorkflowData) stri
 		domains := GetAllowedDomains(data.NetworkPermissions)
 		return strings.Join(domains, ",")
 	}
+}
+
+// expandAllowedDomains expands a list of domain entries (which may include ecosystem
+// identifiers like "python", "node", "dev-tools") into a deduplicated, sorted list of
+// concrete domain strings. This uses the same expansion logic as network.allowed.
+func expandAllowedDomains(entries []string) []string {
+	domainMap := make(map[string]bool)
+	for _, entry := range entries {
+		ecosystemDomains := getEcosystemDomains(entry)
+		if len(ecosystemDomains) > 0 {
+			for _, d := range ecosystemDomains {
+				domainMap[d] = true
+			}
+		} else {
+			domainMap[entry] = true
+		}
+	}
+	result := make([]string, 0, len(domainMap))
+	for d := range domainMap {
+		result = append(result, d)
+	}
+	sort.Strings(result)
+	return result
+}
+
+// computeExpandedAllowedDomainsForSanitization computes the allowed domains for URL sanitization,
+// unioning the engine/network base set with the safe-outputs.allowed-domains entries.
+// It always includes "localhost" and "github.com" in the result.
+// The allowed-domains entries support ecosystem identifiers (same syntax as network.allowed).
+func (c *Compiler) computeExpandedAllowedDomainsForSanitization(data *WorkflowData) string {
+	// Start from the base set (engine defaults + network.allowed + tools + runtimes)
+	base := c.computeAllowedDomainsForSanitization(data)
+
+	domainMap := make(map[string]bool)
+
+	// Seed from the base computation
+	if base != "" {
+		for d := range strings.SplitSeq(base, ",") {
+			d = strings.TrimSpace(d)
+			if d != "" {
+				domainMap[d] = true
+			}
+		}
+	}
+
+	// Union with allowed-domains (expanded)
+	if data.SafeOutputs != nil && len(data.SafeOutputs.AllowedDomains) > 0 {
+		for _, d := range expandAllowedDomains(data.SafeOutputs.AllowedDomains) {
+			domainMap[d] = true
+		}
+	}
+
+	// Always allow localhost (for local development URL references)
+	domainMap["localhost"] = true
+
+	// Always allow github.com (GitHub page of the current repo)
+	domainMap["github.com"] = true
+
+	// Produce a sorted, comma-separated result
+	result := make([]string, 0, len(domainMap))
+	for d := range domainMap {
+		result = append(result, d)
+	}
+	sort.Strings(result)
+	return strings.Join(result, ",")
 }

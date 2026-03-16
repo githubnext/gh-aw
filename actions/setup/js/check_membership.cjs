@@ -52,19 +52,14 @@ async function main() {
   // Check if the actor has the required repository permissions
   const result = await checkRepositoryPermission(actor, owner, repo, requiredPermissions);
 
-  if (result.error) {
-    core.setOutput("is_team_member", "false");
-    core.setOutput("result", "api_error");
-    core.setOutput("error_message", `Repository permission check failed: ${result.error}`);
-    return;
-  }
-
   if (result.authorized) {
     core.setOutput("is_team_member", "true");
     core.setOutput("result", "authorized");
     core.setOutput("user_permission", result.permission);
   } else {
-    // User doesn't have required permissions, check if they're an allowed bot
+    // User doesn't have required permissions (or the permission check failed with an error).
+    // Always attempt the bot allowlist fallback before giving up, so that GitHub Apps whose
+    // actor is not a recognized GitHub user (e.g. "Copilot") are not silently denied.
     if (allowedBots && allowedBots.length > 0) {
       core.info(`Checking if actor '${actor}' is in allowed bots list: ${allowedBots.join(", ")}`);
 
@@ -84,7 +79,7 @@ async function main() {
           core.warning(`Bot '${actor}' is in the allowed list but not active/installed on ${owner}/${repo}`);
           core.setOutput("is_team_member", "false");
           core.setOutput("result", "bot_not_active");
-          core.setOutput("user_permission", result.permission);
+          core.setOutput("user_permission", result.permission ?? "bot");
           core.setOutput("error_message", `Access denied: Bot '${actor}' is not active/installed on this repository`);
           return;
         } else {
@@ -94,14 +89,20 @@ async function main() {
     }
 
     // Not authorized by role or bot
-    core.setOutput("is_team_member", "false");
-    core.setOutput("result", "insufficient_permissions");
-    core.setOutput("user_permission", result.permission);
-    core.setOutput(
-      "error_message",
-      `Access denied: User '${actor}' is not authorized. Required permissions: ${requiredPermissions.join(", ")}. ` +
-        `To allow this user to run the workflow, add their role to the frontmatter. Example: roles: [${requiredPermissions.join(", ")}, ${result.permission}]`
-    );
+    if (result.error) {
+      core.setOutput("is_team_member", "false");
+      core.setOutput("result", "api_error");
+      core.setOutput("error_message", `Repository permission check failed: ${result.error}`);
+    } else {
+      core.setOutput("is_team_member", "false");
+      core.setOutput("result", "insufficient_permissions");
+      core.setOutput("user_permission", result.permission);
+      core.setOutput(
+        "error_message",
+        `Access denied: User '${actor}' is not authorized. Required permissions: ${requiredPermissions.join(", ")}. ` +
+          `To allow this user to run the workflow, add their role to the frontmatter. Example: roles: [${requiredPermissions.join(", ")}, ${result.permission}]`
+      );
+    }
   }
 }
 

@@ -227,15 +227,15 @@ Otherwise, create an issue with this structure:
 **Analysis Date**: <YYYY-MM-DD>
 **Round-Robin Position**: files <start_index>–<end_index> of <total> total
 
-## Why This Matters
+### Why This Matters
 
 When AI coding agents search for functions to complete a task, they rely on function
 names to understand what code does. Clear, descriptive names increase the likelihood
 that an agent will find the right function instead of reimplementing existing logic.
 
-## Rename Suggestions
+### Rename Suggestions
 
-### `<file1>`
+#### `<file1>`
 
 | Current Name | Suggested Name | Reason |
 |---|---|---|
@@ -245,17 +245,20 @@ that an agent will find the right function instead of reimplementing existing lo
 - `functionA()` — ✅ Clear, no change needed
 - `oldName()` — ⚠️ Rename suggested (see table above)
 
-### `<file2>`
+#### `<file2>`
 
 <!-- Same structure, or: "No renames needed for this file." -->
 
-### `<file3>`
+#### `<file3>`
 
 <!-- Same structure, or: "No renames needed for this file." -->
 
 ---
 
-## Agentic Implementation Plan
+<details>
+<summary><b>🤖 Agentic Implementation Plan</b></summary>
+
+### Agentic Implementation Plan
 
 This issue is designed to be assigned to a coding agent. The agent should implement
 all rename suggestions below in a single pull request.
@@ -330,6 +333,8 @@ refactor: rename <oldName> to <newName> for clarity
   skip it and leave a comment in the PR explaining why
 - Follow existing naming conventions documented in `AGENTS.md`
 - Unexported functions used only as closures or immediately-invoked can be skipped
+
+</details>
 
 ---
 

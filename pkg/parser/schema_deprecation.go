@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"regexp"
 	"sort"
+	"sync"
 )
 
 // DeprecatedField represents a deprecated field with its replacement information
@@ -14,21 +15,37 @@ type DeprecatedField struct {
 	Description string // Description from the schema
 }
 
-// GetMainWorkflowDeprecatedFields returns a list of deprecated fields from the main workflow schema
-func GetMainWorkflowDeprecatedFields() ([]DeprecatedField, error) {
-	log.Print("Getting deprecated fields from main workflow schema")
-	// Parse the schema JSON
-	var schemaDoc map[string]any
-	if err := json.Unmarshal([]byte(mainWorkflowSchema), &schemaDoc); err != nil {
-		return nil, fmt.Errorf("failed to parse main workflow schema: %w", err)
-	}
+// deprecatedFieldsCache caches the result of parsing the main workflow schema so that
+// the expensive 414KB JSON unmarshal is only performed once per process lifetime.
+// Both the result and any error are cached permanently: since mainWorkflowSchema is an
+// embedded compile-time constant, a parse failure is always a programming error (not
+// transient), so re-parsing on subsequent calls would produce the same failure.
+var (
+	deprecatedFieldsOnce  sync.Once
+	deprecatedFieldsCache []DeprecatedField
+	deprecatedFieldsErr   error
+)
 
-	fields, err := extractDeprecatedFields(schemaDoc)
-	if err != nil {
-		return nil, err
-	}
-	log.Printf("Found %d deprecated fields in main workflow schema", len(fields))
-	return fields, nil
+// GetMainWorkflowDeprecatedFields returns a list of deprecated fields from the main workflow schema.
+// The result is cached after the first call so the schema is only parsed once per process.
+// Callers must not modify the returned slice.
+func GetMainWorkflowDeprecatedFields() ([]DeprecatedField, error) {
+	deprecatedFieldsOnce.Do(func() {
+		log.Print("Getting deprecated fields from main workflow schema")
+		var schemaDoc map[string]any
+		if err := json.Unmarshal([]byte(mainWorkflowSchema), &schemaDoc); err != nil {
+			deprecatedFieldsErr = fmt.Errorf("failed to parse main workflow schema: %w", err)
+			return
+		}
+		fields, err := extractDeprecatedFields(schemaDoc)
+		if err != nil {
+			deprecatedFieldsErr = err
+			return
+		}
+		deprecatedFieldsCache = fields
+		log.Printf("Found %d deprecated fields in main workflow schema", len(fields))
+	})
+	return deprecatedFieldsCache, deprecatedFieldsErr
 }
 
 // extractDeprecatedFields extracts deprecated fields from a schema document
@@ -75,20 +92,21 @@ func extractDeprecatedFields(schemaDoc map[string]any) ([]DeprecatedField, error
 	return deprecated, nil
 }
 
-// extractReplacementFromDescription extracts the replacement field name from a description
-// It looks for patterns like "Use 'field-name' instead" or "Deprecated: Use 'field-name'"
-func extractReplacementFromDescription(description string) string {
-	// Common patterns in deprecation messages
-	patterns := []string{
-		`[Uu]se '([^']+)' instead`,
-		`[Uu]se "([^"]+)" instead`,
-		`[Uu]se ` + "`" + `([^` + "`" + `]+)` + "`" + ` instead`,
-		`[Rr]eplace(?:d)? (?:with|by) '([^']+)'`,
-		`[Rr]eplace(?:d)? (?:with|by) "([^"]+)"`,
-	}
+// replacementPatterns are pre-compiled regexes used by extractReplacementFromDescription.
+// Pre-compiling avoids repeated compilation overhead when extracting replacements from
+// many deprecated field descriptions.
+var replacementPatterns = []*regexp.Regexp{
+	regexp.MustCompile(`[Uu]se '([^']+)' instead`),
+	regexp.MustCompile(`[Uu]se "([^"]+)" instead`),
+	regexp.MustCompile("[Uu]se `([^`]+)` instead"),
+	regexp.MustCompile(`[Rr]eplace(?:d)? (?:with|by) '([^']+)'`),
+	regexp.MustCompile(`[Rr]eplace(?:d)? (?:with|by) "([^"]+)"`),
+}
 
-	for _, pattern := range patterns {
-		re := regexp.MustCompile(pattern)
+// extractReplacementFromDescription extracts the replacement field name from a description.
+// It looks for patterns like "Use 'field-name' instead" or "Deprecated: Use 'field-name'".
+func extractReplacementFromDescription(description string) string {
+	for _, re := range replacementPatterns {
 		if match := re.FindStringSubmatch(description); len(match) >= 2 {
 			return match[1]
 		}

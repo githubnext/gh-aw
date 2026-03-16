@@ -73,7 +73,7 @@ func (c *AddInteractiveConfig) selectAIEngineAndKey() error {
 	// If engine is already overridden, skip selection
 	if c.EngineOverride != "" {
 		fmt.Fprintf(os.Stderr, "Using coding agent: %s\n", c.EngineOverride)
-		return c.collectAPIKey(c.EngineOverride)
+		return c.configureEngineAPISecret(c.EngineOverride)
 	}
 
 	// Inform user if workflow specifies an engine
@@ -132,11 +132,11 @@ func (c *AddInteractiveConfig) selectAIEngineAndKey() error {
 	c.EngineOverride = selectedEngine
 	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Selected engine: "+selectedEngine))
 
-	return c.collectAPIKey(selectedEngine)
+	return c.configureEngineAPISecret(selectedEngine)
 }
 
-// collectAPIKey collects the API key for the selected engine using the unified engine secrets functions
-func (c *AddInteractiveConfig) collectAPIKey(engine string) error {
+// configureEngineAPISecret collects the API key for the selected engine using the unified engine secrets functions
+func (c *AddInteractiveConfig) configureEngineAPISecret(engine string) error {
 	addInteractiveLog.Printf("Collecting API key for engine: %s", engine)
 
 	// If --skip-secret flag is set, skip secrets configuration entirely.
@@ -179,7 +179,7 @@ func (c *AddInteractiveConfig) collectAPIKey(engine string) error {
 	}
 
 	// Update existingSecrets to reflect that the secret was uploaded
-	// This prevents duplicate secret uploads in applyChanges later
+	// This prevents duplicate secret uploads in createWorkflowPRAndConfigureSecret later
 	opt := constants.GetEngineOption(engine)
 	if opt != nil {
 		c.existingSecrets[opt.SecretName] = true

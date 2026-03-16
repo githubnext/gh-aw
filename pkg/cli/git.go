@@ -141,48 +141,6 @@ func getHostFromOriginRemote() string {
 	return host
 }
 
-// isGHESInstance returns true if the git remote origin points to a GitHub Enterprise Server instance
-// (not github.com). This is used to enable GHES-specific behavior like auto-configuring api-target
-// and network firewall domains.
-func isGHESInstance() bool {
-	host := getHostFromOriginRemote()
-	isGHES := host != "github.com"
-	gitLog.Printf("GHES instance check: host=%s, isGHES=%v", host, isGHES)
-	return isGHES
-}
-
-// getGHESAPIURL returns the API URL for a GHES instance (e.g., "https://ghes.example.com/api/v3")
-// or an empty string if not a GHES instance. This is used to auto-populate engine.api-target.
-func getGHESAPIURL() string {
-	host := getHostFromOriginRemote()
-	if host == "github.com" {
-		return ""
-	}
-
-	// GHES API URL format: https://<host>/api/v3
-	apiURL := fmt.Sprintf("https://%s/api/v3", host)
-	gitLog.Printf("GHES API URL: %s", apiURL)
-	return apiURL
-}
-
-// getGHESAllowedDomains returns a list of domains that should be added to the firewall
-// allowed list for GHES instances. This includes the GHES hostname and api.<ghes-host>.
-func getGHESAllowedDomains() []string {
-	host := getHostFromOriginRemote()
-	if host == "github.com" {
-		return nil
-	}
-
-	// For GHES, allow both the main host and api subdomain
-	domains := []string{
-		host,
-		"api." + host,
-	}
-
-	gitLog.Printf("GHES allowed domains: %v", domains)
-	return domains
-}
-
 // getRepositorySlugFromRemote extracts the repository slug (owner/repo) from git remote URL
 func getRepositorySlugFromRemote() string {
 	gitLog.Print("Getting repository slug from git remote")

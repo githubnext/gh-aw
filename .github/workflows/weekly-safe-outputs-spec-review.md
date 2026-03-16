@@ -180,33 +180,38 @@ If script updates were made, create a pull request using `create pull request`:
 **Pull Request Template:**
 
 ```markdown
-## Summary
+### Summary
 
 Updates the Safe Outputs conformance checker script to align with recent specification changes.
 
-## Specification Changes Reviewed
+### Specification Changes Reviewed
 
 [List git commits or specific changes reviewed]
 
-## Script Updates
+<details>
+<summary><b>📋 Script Updates & Testing Details</b></summary>
 
-### New Checks Added
+### Script Updates
+
+#### New Checks Added
 - **CHECK-ID**: Description of new check and what requirement it validates
 
-### Checks Modified
+#### Checks Modified
 - **CHECK-ID**: Description of modifications and why they were needed
 
-### Checks Removed
+#### Checks Removed
 - **CHECK-ID**: Reason for removal (requirement deprecated/removed)
 
-## Testing
+### Testing
 
 Ran the updated script successfully:
 ```
 [Include relevant output showing tests passed]
 ```
 
-## Related Files
+</details>
+
+### Related Files
 
 - Specification: `docs/src/content/docs/reference/safe-outputs-specification.md`
 - Conformance Script: `scripts/check-safe-outputs-conformance.sh`

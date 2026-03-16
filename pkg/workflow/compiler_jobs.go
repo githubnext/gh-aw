@@ -243,10 +243,11 @@ func (c *Compiler) buildPreActivationAndActivationJobs(data *WorkflowData, front
 	hasSkipBots := len(data.SkipBots) > 0
 	hasCommandTrigger := len(data.Command) > 0
 	hasRateLimit := data.RateLimit != nil
-	compilerJobsLog.Printf("Job configuration: needsPermissionCheck=%v, hasStopTime=%v, hasSkipIfMatch=%v, hasSkipIfNoMatch=%v, hasSkipRoles=%v, hasSkipBots=%v, hasCommand=%v, hasRateLimit=%v", needsPermissionCheck, hasStopTime, hasSkipIfMatch, hasSkipIfNoMatch, hasSkipRoles, hasSkipBots, hasCommandTrigger, hasRateLimit)
+	hasOnSteps := len(data.OnSteps) > 0
+	compilerJobsLog.Printf("Job configuration: needsPermissionCheck=%v, hasStopTime=%v, hasSkipIfMatch=%v, hasSkipIfNoMatch=%v, hasSkipRoles=%v, hasSkipBots=%v, hasCommand=%v, hasRateLimit=%v, hasOnSteps=%v", needsPermissionCheck, hasStopTime, hasSkipIfMatch, hasSkipIfNoMatch, hasSkipRoles, hasSkipBots, hasCommandTrigger, hasRateLimit, hasOnSteps)
 
-	// Build pre-activation job if needed (combines membership checks, stop-time validation, skip-if-match check, skip-if-no-match check, skip-roles check, skip-bots check, rate limit check, and command position check)
-	if needsPermissionCheck || hasStopTime || hasSkipIfMatch || hasSkipIfNoMatch || hasSkipRoles || hasSkipBots || hasCommandTrigger || hasRateLimit {
+	// Build pre-activation job if needed (combines membership checks, stop-time validation, skip-if-match check, skip-if-no-match check, skip-roles check, skip-bots check, rate limit check, command position check, and on.steps injection)
+	if needsPermissionCheck || hasStopTime || hasSkipIfMatch || hasSkipIfNoMatch || hasSkipRoles || hasSkipBots || hasCommandTrigger || hasRateLimit || hasOnSteps {
 		compilerJobsLog.Print("Building pre-activation job")
 		preActivationJob, err := c.buildPreActivationJob(data, needsPermissionCheck)
 		if err != nil {

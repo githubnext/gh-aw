@@ -34,6 +34,7 @@ safe-outputs:
 imports:
   - shared/copilot-pr-analysis-base.md
   - shared/python-dataviz.md
+  - shared/python-nlp.md
   - shared/reporting.md
 
 tools:
@@ -65,21 +66,6 @@ steps:
       done
 
       echo "Comment data saved to /tmp/gh-aw/pr-comments/"
-
-  - name: Install NLP libraries
-    run: |
-      pip install --user --quiet nltk scikit-learn textblob wordcloud
-      
-      # Download required NLTK data (using punkt_tab for NLTK 3.9+)
-      python3 -c "import nltk; nltk.download('punkt_tab', quiet=True); nltk.download('stopwords', quiet=True); nltk.download('vader_lexicon', quiet=True); nltk.download('averaged_perceptron_tagger_eng', quiet=True)"
-      
-      # Verify installations
-      python3 -c "import nltk; print(f'NLTK {nltk.__version__} installed')"
-      python3 -c "import sklearn; print(f'scikit-learn {sklearn.__version__} installed')"
-      python3 -c "from importlib.metadata import version; print(f'TextBlob {version(\"textblob\")} installed')"
-      python3 -c "import wordcloud; print(f'WordCloud {wordcloud.__version__} installed')"
-      
-      echo "All NLP libraries installed successfully"
 
 timeout-minutes: 20
 

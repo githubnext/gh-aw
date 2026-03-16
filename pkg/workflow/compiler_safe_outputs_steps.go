@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"sort"
-	"strings"
 
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/stringutil"
@@ -70,11 +69,11 @@ func computeEffectivePRCheckoutToken(safeOutputs *SafeOutputsConfig) (token stri
 //  2. Safe-outputs level token
 //  3. Magic secret fallback via getEffectiveProjectGitHubToken()
 func computeEffectiveProjectToken(perConfigToken string, safeOutputsToken string) string {
-	configToken := perConfigToken
-	if configToken == "" && safeOutputsToken != "" {
-		configToken = safeOutputsToken
+	token := perConfigToken
+	if token == "" {
+		token = safeOutputsToken
 	}
-	return getEffectiveProjectGitHubToken(configToken)
+	return getEffectiveProjectGitHubToken(token)
 }
 
 // computeProjectURLAndToken computes the project URL and token from the various project-related
@@ -320,7 +319,8 @@ func (c *Compiler) buildHandlerManagerStep(data *WorkflowData) []string {
 	// default GitHub domains, causing user-configured allowed domains to be redacted.
 	var domainsStr string
 	if data.SafeOutputs != nil && len(data.SafeOutputs.AllowedDomains) > 0 {
-		domainsStr = strings.Join(data.SafeOutputs.AllowedDomains, ",")
+		// allowed-domains: additional domains unioned with engine/network base set; supports ecosystem identifiers
+		domainsStr = c.computeExpandedAllowedDomainsForSanitization(data)
 	} else {
 		domainsStr = c.computeAllowedDomainsForSanitization(data)
 	}

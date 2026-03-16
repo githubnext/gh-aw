@@ -420,3 +420,124 @@ func TestValidateMountStringFormat(t *testing.T) {
 		})
 	}
 }
+
+// TestContainsTrigger tests the shared trigger detection helper.
+func TestContainsTrigger(t *testing.T) {
+	tests := []struct {
+		name        string
+		onSection   any
+		triggerName string
+		expected    bool
+	}{
+		// string form
+		{
+			name:        "string: matching trigger",
+			onSection:   "workflow_dispatch",
+			triggerName: "workflow_dispatch",
+			expected:    true,
+		},
+		{
+			name:        "string: non-matching trigger",
+			onSection:   "push",
+			triggerName: "workflow_dispatch",
+			expected:    false,
+		},
+		{
+			name:        "string: partial match does not count",
+			onSection:   "workflow_dispatch_extra",
+			triggerName: "workflow_dispatch",
+			expected:    false,
+		},
+		// []any form
+		{
+			name:        "slice: contains trigger",
+			onSection:   []any{"push", "workflow_dispatch"},
+			triggerName: "workflow_dispatch",
+			expected:    true,
+		},
+		{
+			name:        "slice: trigger absent",
+			onSection:   []any{"push", "pull_request"},
+			triggerName: "workflow_dispatch",
+			expected:    false,
+		},
+		{
+			name:        "slice: single element matching",
+			onSection:   []any{"workflow_call"},
+			triggerName: "workflow_call",
+			expected:    true,
+		},
+		{
+			name:        "slice: non-string element skipped",
+			onSection:   []any{42, "workflow_dispatch"},
+			triggerName: "workflow_dispatch",
+			expected:    true,
+		},
+		{
+			name:        "slice: empty slice",
+			onSection:   []any{},
+			triggerName: "workflow_dispatch",
+			expected:    false,
+		},
+		// map form
+		{
+			name:        "map: trigger key present",
+			onSection:   map[string]any{"workflow_dispatch": nil},
+			triggerName: "workflow_dispatch",
+			expected:    true,
+		},
+		{
+			name:        "map: trigger key present with value",
+			onSection:   map[string]any{"workflow_dispatch": map[string]any{"inputs": nil}},
+			triggerName: "workflow_dispatch",
+			expected:    true,
+		},
+		{
+			name:        "map: trigger key absent",
+			onSection:   map[string]any{"push": nil, "pull_request": nil},
+			triggerName: "workflow_dispatch",
+			expected:    false,
+		},
+		{
+			name:        "map: empty map",
+			onSection:   map[string]any{},
+			triggerName: "workflow_dispatch",
+			expected:    false,
+		},
+		// nil / unsupported types
+		{
+			name:        "nil onSection",
+			onSection:   nil,
+			triggerName: "workflow_dispatch",
+			expected:    false,
+		},
+		{
+			name:        "unsupported type",
+			onSection:   42,
+			triggerName: "workflow_dispatch",
+			expected:    false,
+		},
+		// workflow_call variant (ensures triggerName is respected)
+		{
+			name:        "string: workflow_call matching",
+			onSection:   "workflow_call",
+			triggerName: "workflow_call",
+			expected:    true,
+		},
+		{
+			name:        "string: workflow_dispatch does not match workflow_call",
+			onSection:   "workflow_dispatch",
+			triggerName: "workflow_call",
+			expected:    false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := containsTrigger(tt.onSection, tt.triggerName)
+			if result != tt.expected {
+				t.Errorf("containsTrigger(%v, %q) = %v, want %v", tt.onSection, tt.triggerName, result, tt.expected)
+			}
+		})
+	}
+}

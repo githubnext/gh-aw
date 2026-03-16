@@ -263,6 +263,23 @@ func TestAddHandlerManagerConfigEnvVar(t *testing.T) {
 			checkJSON:    true,
 			expectedKeys: []string{"create_issue"},
 		},
+		{
+			name: "call_workflow config",
+			safeOutputs: &SafeOutputsConfig{
+				CallWorkflow: &CallWorkflowConfig{
+					BaseSafeOutputConfig: BaseSafeOutputConfig{
+						Max: strPtr("1"),
+					},
+					Workflows:     []string{"worker-a", "worker-b"},
+					WorkflowFiles: map[string]string{"worker-a": "./.github/workflows/worker-a.lock.yml", "worker-b": "./.github/workflows/worker-b.lock.yml"},
+				},
+			},
+			checkContains: []string{
+				"GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG",
+			},
+			checkJSON:    true,
+			expectedKeys: []string{"call_workflow"},
+		},
 	}
 
 	for _, tt := range tests {
@@ -1296,4 +1313,73 @@ func TestHandlerConfigStagedMode(t *testing.T) {
 			}
 		})
 	}
+}
+
+// TestAddHandlerManagerConfigEnvVar_CallWorkflow asserts that GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG
+// contains call_workflow, workflows, and workflow_files when SafeOutputs.CallWorkflow is configured.
+func TestAddHandlerManagerConfigEnvVar_CallWorkflow(t *testing.T) {
+	compiler := NewCompiler()
+
+	workflowData := &WorkflowData{
+		Name: "Test Workflow",
+		SafeOutputs: &SafeOutputsConfig{
+			CallWorkflow: &CallWorkflowConfig{
+				BaseSafeOutputConfig: BaseSafeOutputConfig{
+					Max: strPtr("1"),
+				},
+				Workflows:     []string{"worker-a", "worker-b"},
+				WorkflowFiles: map[string]string{"worker-a": "./.github/workflows/worker-a.lock.yml", "worker-b": "./.github/workflows/worker-b.lock.yml"},
+			},
+		},
+	}
+
+	var steps []string
+	compiler.addHandlerManagerConfigEnvVar(&steps, workflowData)
+
+	require.NotEmpty(t, steps, "Steps should not be empty")
+
+	var callWorkflowConfig map[string]any
+	for _, step := range steps {
+		if strings.Contains(step, "GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG") {
+			parts := strings.Split(step, "GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG: ")
+			require.Len(t, parts, 2, "Should have two parts")
+
+			jsonStr := strings.TrimSpace(parts[1])
+			jsonStr = strings.Trim(jsonStr, "\"")
+			jsonStr = strings.ReplaceAll(jsonStr, "\\\"", "\"")
+
+			var config map[string]map[string]any
+			err := json.Unmarshal([]byte(jsonStr), &config)
+			require.NoError(t, err, "Handler config JSON should be valid")
+
+			cfg, ok := config["call_workflow"]
+			require.True(t, ok, "GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG should contain 'call_workflow' key")
+			callWorkflowConfig = cfg
+			break
+		}
+	}
+
+	require.NotNil(t, callWorkflowConfig, "call_workflow config should be present")
+
+	// Verify max
+	maxVal, ok := callWorkflowConfig["max"]
+	require.True(t, ok, "call_workflow config should have 'max' field")
+	assert.InDelta(t, float64(1), maxVal, 0.0001, "max should be 1")
+
+	// Verify workflows list
+	workflowsVal, ok := callWorkflowConfig["workflows"]
+	require.True(t, ok, "call_workflow config should have 'workflows' field")
+	workflowsSlice, ok := workflowsVal.([]any)
+	require.True(t, ok, "workflows should be an array")
+	assert.Len(t, workflowsSlice, 2, "Should have 2 workflows")
+	assert.Contains(t, workflowsSlice, "worker-a", "Should contain worker-a")
+	assert.Contains(t, workflowsSlice, "worker-b", "Should contain worker-b")
+
+	// Verify workflow_files map
+	filesVal, ok := callWorkflowConfig["workflow_files"]
+	require.True(t, ok, "call_workflow config should have 'workflow_files' field")
+	filesMap, ok := filesVal.(map[string]any)
+	require.True(t, ok, "workflow_files should be a map")
+	assert.Equal(t, "./.github/workflows/worker-a.lock.yml", filesMap["worker-a"], "worker-a path should match")
+	assert.Equal(t, "./.github/workflows/worker-b.lock.yml", filesMap["worker-b"], "worker-b path should match")
 }

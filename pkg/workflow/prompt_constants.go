@@ -18,6 +18,7 @@ const (
 	safeOutputsCreatePRFile        = "safe_outputs_create_pull_request.md"
 	safeOutputsPushToBranchFile    = "safe_outputs_push_to_pr_branch.md"
 	safeOutputsAutoCreateIssueFile = "safe_outputs_auto_create_issue.md"
+	agenticWorkflowsGuideFile      = "agentic_workflows_guide.md"
 )
 
 // GitHub context prompt is kept embedded because it contains GitHub Actions expressions

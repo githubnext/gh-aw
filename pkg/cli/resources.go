@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path"
@@ -75,7 +76,7 @@ func fetchAndSaveRemoteResources(content string, spec *WorkflowSpec, targetDir s
 	owner, repo := parts[0], parts[1]
 	ref := spec.Version
 	if ref == "" {
-		defaultBranch, err := getRepoDefaultBranch(spec.RepoSlug)
+		defaultBranch, err := getRepoDefaultBranch(context.Background(), spec.RepoSlug)
 		if err != nil {
 			remoteWorkflowLog.Printf("Failed to resolve default branch for %s, falling back to 'main': %v", spec.RepoSlug, err)
 			ref = "main"

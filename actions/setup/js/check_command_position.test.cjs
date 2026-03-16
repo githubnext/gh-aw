@@ -114,5 +114,29 @@ const mockCore = {
           (mockContext.payload = { comment: { body: "/discuss-bot analyze this" } }),
           await eval(`(async () => { ${checkCommandPositionScript}; await main(); })()`),
           expect(mockCore.setOutput).toHaveBeenCalledWith("command_position_ok", "true"));
+      }),
+      it("should pass for labeled issues event (label-command trigger)", async () => {
+        process.env.GH_AW_COMMANDS = JSON.stringify(["cloclo"]);
+        mockContext.eventName = "issues";
+        mockContext.payload = { action: "labeled", label: { name: "cloclo" }, issue: { body: "This is a regular issue body" } };
+        await eval(`(async () => { ${checkCommandPositionScript}; await main(); })()`);
+        expect(mockCore.setOutput).toHaveBeenCalledWith("command_position_ok", "true");
+        expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("does not require command position check"));
+      }),
+      it("should pass for labeled pull_request event (label-command trigger)", async () => {
+        process.env.GH_AW_COMMANDS = JSON.stringify(["cloclo"]);
+        mockContext.eventName = "pull_request";
+        mockContext.payload = { action: "labeled", label: { name: "cloclo" }, pull_request: { body: "PR body without command" } };
+        await eval(`(async () => { ${checkCommandPositionScript}; await main(); })()`);
+        expect(mockCore.setOutput).toHaveBeenCalledWith("command_position_ok", "true");
+        expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("does not require command position check"));
+      }),
+      it("should pass for labeled discussion event (label-command trigger)", async () => {
+        process.env.GH_AW_COMMANDS = JSON.stringify(["cloclo"]);
+        mockContext.eventName = "discussion";
+        mockContext.payload = { action: "labeled", label: { name: "cloclo" }, discussion: { body: "Discussion body without command" } };
+        await eval(`(async () => { ${checkCommandPositionScript}; await main(); })()`);
+        expect(mockCore.setOutput).toHaveBeenCalledWith("command_position_ok", "true");
+        expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("does not require command position check"));
       }));
   }));

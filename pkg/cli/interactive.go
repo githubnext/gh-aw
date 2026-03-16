@@ -141,6 +141,7 @@ func (b *InteractiveWorkflowBuilder) promptForConfiguration() error {
 
 	// Pre-detect network access based on repo contents
 	detectedNetworks := detectNetworkFromRepo()
+	interactiveLog.Printf("Pre-detected networks from repo: %v", detectedNetworks)
 
 	// Prepare network options
 	networkOptions := []huh.Option[string]{
@@ -230,6 +231,8 @@ func (b *InteractiveWorkflowBuilder) promptForConfiguration() error {
 	// Store the multi-select results
 	b.Tools = selectedTools
 	b.SafeOutputs = selectedOutputs
+
+	interactiveLog.Printf("User configuration selected: trigger=%s, engine=%s, tools=%v, safe_outputs=%v", b.Trigger, b.Engine, selectedTools, selectedOutputs)
 
 	return nil
 }

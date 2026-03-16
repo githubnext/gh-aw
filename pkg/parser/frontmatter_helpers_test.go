@@ -6,10 +6,11 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
-	"strings"
 	"testing"
 
 	"github.com/github/gh-aw/pkg/testutil"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestUpdateWorkflowFrontmatter(t *testing.T) {
@@ -17,11 +18,11 @@ func TestUpdateWorkflowFrontmatter(t *testing.T) {
 	tempDir := testutil.TempDir(t, "test-*")
 
 	tests := []struct {
-		name            string
-		initialContent  string
-		updateFunc      func(frontmatter map[string]any) error
-		expectedContent string
-		expectError     bool
+		name           string
+		initialContent string
+		updateFunc     func(frontmatter map[string]any) error
+		expectError    bool
+		verbose        bool
 	}{
 		{
 			name: "Add tool to existing tools section",
@@ -36,17 +37,6 @@ Some content`,
 				tools["new-tool"] = map[string]any{"type": "test"}
 				return nil
 			},
-			expectedContent: `---
-existing: {}
-new-tool:
-  type: test
-tools:
-  existing: {}
-  new-tool:
-    type: test
----
-# Test Workflow
-Some content`,
 			expectError: false,
 		},
 		{
@@ -61,14 +51,6 @@ Some content`,
 				tools["new-tool"] = map[string]any{"type": "test"}
 				return nil
 			},
-			expectedContent: `---
-engine: claude
-tools:
-  new-tool:
-    type: test
----
-# Test Workflow
-Some content`,
 			expectError: false,
 		},
 		{
@@ -82,13 +64,6 @@ Some content`,
 				tools["new-tool"] = map[string]any{"type": "test"}
 				return nil
 			},
-			expectedContent: `---
-tools:
-  new-tool:
-    type: test
----
-# Test Workflow
-Some content`,
 			expectError: false,
 		},
 		{
@@ -100,13 +75,6 @@ Some content without frontmatter`,
 				tools["new-tool"] = map[string]any{"type": "test"}
 				return nil
 			},
-			expectedContent: `---
-tools:
-  new-tool:
-    type: test
----
-# Test Workflow
-Some content without frontmatter`,
 			expectError: false,
 		},
 		{
@@ -118,8 +86,20 @@ tools: {}
 			updateFunc: func(frontmatter map[string]any) error {
 				return errors.New("test error")
 			},
-			expectedContent: "",
-			expectError:     true,
+			expectError: true,
+		},
+		{
+			name: "Verbose mode emits info message to stderr",
+			initialContent: `---
+engine: claude
+---
+# Test`,
+			updateFunc: func(frontmatter map[string]any) error {
+				frontmatter["engine"] = "copilot"
+				return nil
+			},
+			expectError: false,
+			verbose:     true,
 		},
 	}
 
@@ -127,44 +107,41 @@ tools: {}
 		t.Run(tt.name, func(t *testing.T) {
 			// Create test file
 			testFile := filepath.Join(tempDir, "test-workflow.md")
-			if err := os.WriteFile(testFile, []byte(tt.initialContent), 0644); err != nil {
-				t.Fatalf("Failed to create test file: %v", err)
-			}
+			err := os.WriteFile(testFile, []byte(tt.initialContent), 0644)
+			require.NoError(t, err, "test file setup should succeed")
 
-			// Run the update function
-			err := UpdateWorkflowFrontmatter(testFile, tt.updateFunc, false)
+			// Run the update function, capturing stderr to detect verbose output
+			var stderr string
+			if tt.verbose {
+				stderr = testutil.CaptureStderr(t, func() {
+					err = UpdateWorkflowFrontmatter(testFile, tt.updateFunc, true)
+				})
+			} else {
+				err = UpdateWorkflowFrontmatter(testFile, tt.updateFunc, false)
+			}
 
 			if tt.expectError {
-				if err == nil {
-					t.Errorf("Expected error but got none")
-				}
+				assert.Error(t, err, "UpdateWorkflowFrontmatter should return an error")
 				return
 			}
 
-			if err != nil {
-				t.Errorf("Unexpected error: %v", err)
-				return
-			}
+			require.NoError(t, err, "UpdateWorkflowFrontmatter should succeed")
 
 			// Read the updated content
 			updatedContent, err := os.ReadFile(testFile)
-			if err != nil {
-				t.Fatalf("Failed to read updated file: %v", err)
-			}
+			require.NoError(t, err, "reading updated file should succeed")
 
-			// For tools section tests, just verify the tools were added correctly
-			// Skip exact content comparison since YAML marshaling order may vary
-			if strings.Contains(tt.name, "tool") {
-				content := string(updatedContent)
-				if !strings.Contains(content, "new-tool:") {
-					t.Errorf("Expected 'new-tool:' in updated content, got: %s", content)
-				}
-				if !strings.Contains(content, "type: test") {
-					t.Errorf("Expected 'type: test' in updated content, got: %s", content)
-				}
-				if !strings.Contains(content, "---") {
-					t.Errorf("Expected frontmatter delimiters '---' in updated content, got: %s", content)
-				}
+			content := string(updatedContent)
+			if tt.verbose {
+				// Verbose mode: verify the info message was emitted to stderr
+				assert.Contains(t, stderr, "Updated workflow file", "verbose mode should emit an info message to stderr")
+				// Verify the update was still applied correctly
+				assert.Contains(t, content, "engine: copilot", "verbose mode should still update frontmatter correctly")
+				assert.Contains(t, content, "---", "verbose mode should preserve frontmatter delimiters")
+			} else {
+				assert.Contains(t, content, "new-tool:", "updated file should contain the new tool key")
+				assert.Contains(t, content, "type: test", "updated file should contain the tool type")
+				assert.Contains(t, content, "---", "updated file should preserve frontmatter delimiters")
 			}
 		})
 	}
@@ -205,41 +182,19 @@ func TestEnsureToolsSection(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			tools := EnsureToolsSection(tt.frontmatter)
 
-			// Verify tools section is a map
-			if tools == nil {
-				t.Errorf("Expected tools to be a map, got nil")
-				return
-			}
+			require.NotNil(t, tools, "EnsureToolsSection should never return nil")
 
-			// Verify frontmatter was updated
+			// Verify frontmatter was updated to contain the tools map
 			frontmatterTools, ok := tt.frontmatter["tools"].(map[string]any)
-			if !ok {
-				t.Errorf("Expected frontmatter['tools'] to be a map")
-				return
-			}
+			require.True(t, ok, "frontmatter['tools'] should be a map[string]any")
 
-			// Verify returned tools is the same reference as in frontmatter
-			if len(tools) != len(frontmatterTools) {
-				t.Errorf("Expected returned tools to have same length as frontmatter['tools']")
-			}
+			// Verify reference identity: mutating the returned map must be visible via frontmatter
+			tools["__probe__"] = true
+			assert.Equal(t, true, frontmatterTools["__probe__"], "returned tools should be the same map stored in frontmatter['tools']")
+			delete(tools, "__probe__")
 
-			// For existing tools, verify content
-			if len(tt.expectedTools) > 0 {
-				for key, expectedValue := range tt.expectedTools {
-					if actualValue, exists := tools[key]; !exists {
-						t.Errorf("Expected tool '%s' not found", key)
-					} else {
-						// Simple comparison for test values
-						if expectedMap, ok := expectedValue.(map[string]any); ok {
-							if actualMap, ok := actualValue.(map[string]any); ok {
-								if expectedMap["type"] != actualMap["type"] {
-									t.Errorf("Expected tool '%s' type '%v', got '%v'", key, expectedMap["type"], actualMap["type"])
-								}
-							}
-						}
-					}
-				}
-			}
+			// Verify returned tools matches the expected content
+			assert.Equal(t, tt.expectedTools, tools, "tools section should match expected state")
 		})
 	}
 }
@@ -280,14 +235,8 @@ func TestReconstructWorkflowFile(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result, err := reconstructWorkflowFile(tt.frontmatterYAML, tt.markdownContent)
-			if err != nil {
-				t.Errorf("Unexpected error: %v", err)
-				return
-			}
-
-			if result != tt.expectedResult {
-				t.Errorf("Expected:\n%s\n\nGot:\n%s", tt.expectedResult, result)
-			}
+			require.NoError(t, err, "reconstructWorkflowFile should succeed")
+			assert.Equal(t, tt.expectedResult, result, "reconstructed file content should match")
 		})
 	}
 }

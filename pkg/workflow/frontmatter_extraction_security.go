@@ -438,6 +438,47 @@ func (c *Compiler) extractMCPGatewayConfig(mcpVal any) *MCPGatewayRuntimeConfig 
 		}
 	}
 
+	// Extract payloadDir / payload-dir (directory for storing large payload JSON files)
+	for _, key := range []string{"payloadDir", "payload-dir"} {
+		if payloadDirVal, hasPayloadDir := mcpObj[key]; hasPayloadDir {
+			if payloadDirStr, ok := payloadDirVal.(string); ok {
+				mcpConfig.PayloadDir = payloadDirStr
+				break
+			}
+		}
+	}
+
+	// Extract payloadPathPrefix / payload-path-prefix (path prefix to remap payload paths)
+	for _, key := range []string{"payloadPathPrefix", "payload-path-prefix"} {
+		if payloadPathPrefixVal, hasPayloadPathPrefix := mcpObj[key]; hasPayloadPathPrefix {
+			if payloadPathPrefixStr, ok := payloadPathPrefixVal.(string); ok {
+				mcpConfig.PayloadPathPrefix = payloadPathPrefixStr
+				break
+			}
+		}
+	}
+
+	// Extract payloadSizeThreshold / payload-size-threshold (size threshold in bytes)
+	for _, key := range []string{"payloadSizeThreshold", "payload-size-threshold"} {
+		if payloadSizeThresholdVal, hasPayloadSizeThreshold := mcpObj[key]; hasPayloadSizeThreshold {
+			switch v := payloadSizeThresholdVal.(type) {
+			case int:
+				mcpConfig.PayloadSizeThreshold = v
+			case int64:
+				mcpConfig.PayloadSizeThreshold = int(v)
+			case uint:
+				mcpConfig.PayloadSizeThreshold = int(v)
+			case uint64:
+				mcpConfig.PayloadSizeThreshold = int(v)
+			case float64:
+				mcpConfig.PayloadSizeThreshold = int(v)
+			}
+			if mcpConfig.PayloadSizeThreshold != 0 {
+				break
+			}
+		}
+	}
+
 	return mcpConfig
 }
 

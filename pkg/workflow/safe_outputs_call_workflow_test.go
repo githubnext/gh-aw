@@ -383,6 +383,84 @@ func TestCallWorkflowConclusionDependencies(t *testing.T) {
 	assert.True(t, workerBExists, "call-worker-b job should exist")
 }
 
+// TestBuildCallWorkflowJobs_ForwardsDeclaredInputsFromPayload tests that declared
+// workflow_call inputs (except 'payload') are forwarded as fromJSON expressions
+// in the generated with: block.
+func TestBuildCallWorkflowJobs_ForwardsDeclaredInputsFromPayload(t *testing.T) {
+	tmpDir := t.TempDir()
+	workflowsDir := filepath.Join(tmpDir, ".github", "workflows")
+	require.NoError(t, os.MkdirAll(workflowsDir, 0755))
+
+	// Worker declares environment, version, and the canonical payload input.
+	workerContent := `name: Worker
+on:
+  workflow_call:
+    inputs:
+      payload:
+        type: string
+        required: false
+      environment:
+        description: Target environment
+        type: string
+        required: true
+      version:
+        description: Package version
+        type: string
+        required: false
+jobs:
+  work:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "Working"
+`
+	require.NoError(t, os.WriteFile(filepath.Join(workflowsDir, "worker-a.lock.yml"), []byte(workerContent), 0644))
+
+	gatewayFile := filepath.Join(workflowsDir, "gateway.md")
+	require.NoError(t, os.WriteFile(gatewayFile, []byte("# Gateway"), 0644))
+
+	compiler := NewCompilerWithVersion("1.0.0")
+	workflowData := &WorkflowData{
+		SafeOutputs: &SafeOutputsConfig{
+			CallWorkflow: &CallWorkflowConfig{
+				BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("1")},
+				Workflows:            []string{"worker-a"},
+				WorkflowFiles: map[string]string{
+					"worker-a": "./.github/workflows/worker-a.lock.yml",
+				},
+			},
+		},
+	}
+
+	jobNames, err := compiler.buildCallWorkflowJobs(workflowData, gatewayFile)
+	require.NoError(t, err, "Should not error building call-workflow jobs")
+	require.Equal(t, []string{"call-worker-a"}, jobNames)
+
+	job, exists := compiler.jobManager.GetJob("call-worker-a")
+	require.True(t, exists, "call-worker-a job should exist")
+
+	// payload is always forwarded as the canonical transport
+	assert.Equal(t, "${{ needs.safe_outputs.outputs.call_workflow_payload }}", job.With["payload"],
+		"Should always include payload")
+
+	// environment and version should be derived from the payload
+	assert.Equal(t,
+		"${{ fromJSON(needs.safe_outputs.outputs.call_workflow_payload).environment }}",
+		job.With["environment"],
+		"Should forward environment from payload")
+	assert.Equal(t,
+		"${{ fromJSON(needs.safe_outputs.outputs.call_workflow_payload).version }}",
+		job.With["version"],
+		"Should forward version from payload")
+
+	// payload must appear exactly once as the canonical (non-fromJSON) transport entry.
+	// Verify it is not duplicated as a fromJSON expression.
+	_, hasPayloadFromJSON := job.With["payload"]
+	assert.True(t, hasPayloadFromJSON, "payload key must be present")
+	payloadVal, _ := job.With["payload"].(string)
+	assert.NotContains(t, payloadVal, "fromJSON",
+		"payload canonical entry must be the raw step output, not a fromJSON expression")
+}
+
 // TestExtractWorkflowCallInputsFromParsed tests the parsing of workflow_call inputs
 // from an already-parsed workflow map
 func TestExtractWorkflowCallInputsFromParsed(t *testing.T) {

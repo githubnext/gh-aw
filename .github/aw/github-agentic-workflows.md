@@ -531,6 +531,7 @@ The YAML frontmatter supports these fields:
         discussions: true               # Optional: set false to exclude discussions:write permission (default: true)
         issues: true                    # Optional: set false to exclude issues:write permission (default: true)
         pull-requests: true             # Optional: set false to exclude pull-requests:write permission (default: true)
+        footer: true                    # Optional: when false, omits visible footer but preserves XML markers (default: true)
         target-repo: "owner/repo"       # Optional: cross-repository
     ```
 
@@ -1136,6 +1137,9 @@ The YAML frontmatter supports these fields:
   - `report-failure-as-issue:` - Control whether workflow failures are reported as GitHub issues (boolean, default: `true`)
     - When `false`, suppresses automatic failure issue creation for this workflow
     - Use to silence noisy failure reports for workflows where failures are expected or handled externally
+  - `failure-issue-repo:` - Repository to create failure tracking issues in (string, format: `"owner/repo"`)
+    - Defaults to the current repository when not specified
+    - Use when the current repository has issues disabled: `failure-issue-repo: "myorg/infra-alerts"`
   - `id-token:` - Override the id-token permission for the safe-outputs job (string: `"write"` or `"none"`)
     - `"write"`: force-enable `id-token: write` permission (required for OIDC authentication with cloud providers)
     - `"none"`: suppress automatic detection and prevent adding `id-token: write` even when vault/OIDC actions are detected in steps

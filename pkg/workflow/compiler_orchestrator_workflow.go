@@ -596,6 +596,7 @@ func (c *Compiler) extractAdditionalConfigurations(
 
 	// Extract and process mcp-scripts and safe-outputs
 	workflowData.Command, workflowData.CommandEvents = c.extractCommandConfig(frontmatter)
+	workflowData.LabelCommand, workflowData.LabelCommandEvents = c.extractLabelCommandConfig(frontmatter)
 	workflowData.Jobs = c.extractJobsFromFrontmatter(frontmatter)
 
 	// Merge jobs from imported YAML workflows
@@ -726,6 +727,16 @@ func (c *Compiler) processOnSectionAndFilters(
 
 	// Apply label filter if specified
 	c.applyLabelFilter(workflowData, frontmatter)
+
+	// Extract on.steps for pre-activation step injection
+	onSteps, err := extractOnSteps(frontmatter)
+	if err != nil {
+		return err
+	}
+	workflowData.OnSteps = onSteps
+
+	// Extract on.permissions for pre-activation job permissions
+	workflowData.OnPermissions = extractOnPermissions(frontmatter)
 
 	return nil
 }

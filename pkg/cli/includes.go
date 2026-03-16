@@ -2,6 +2,7 @@ package cli
 
 import (
 	"bufio"
+	"context"
 	"errors"
 	"fmt"
 	"os"
@@ -119,6 +120,8 @@ func fetchAndSaveRemoteFrontmatterImports(content string, spec *WorkflowSpec, ta
 		return nil
 	}
 
+	remoteWorkflowLog.Printf("Fetching frontmatter imports for workflow: repo=%s, path=%s", spec.RepoSlug, spec.WorkflowPath)
+
 	parts := strings.SplitN(spec.RepoSlug, "/", 2)
 	if len(parts) != 2 {
 		return nil
@@ -127,7 +130,7 @@ func fetchAndSaveRemoteFrontmatterImports(content string, spec *WorkflowSpec, ta
 	ref := spec.Version
 	if ref == "" {
 		// Resolve the actual default branch of the source repo rather than assuming "main"
-		defaultBranch, err := getRepoDefaultBranch(spec.RepoSlug)
+		defaultBranch, err := getRepoDefaultBranch(context.Background(), spec.RepoSlug)
 		if err != nil {
 			remoteWorkflowLog.Printf("Failed to resolve default branch for %s, falling back to 'main': %v", spec.RepoSlug, err)
 			ref = "main"
@@ -188,6 +191,8 @@ func fetchFrontmatterImportsRecursive(content, owner, repo, ref, currentBaseDir,
 	if len(importPaths) == 0 {
 		return
 	}
+
+	remoteWorkflowLog.Printf("Processing %d frontmatter imports recursively: owner=%s, repo=%s, ref=%s", len(importPaths), owner, repo, ref)
 
 	// Pre-compute the absolute target directory once for path-traversal boundary checks.
 	absTargetDir, err := filepath.Abs(targetDir)

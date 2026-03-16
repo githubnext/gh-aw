@@ -4,6 +4,18 @@
 const { getErrorMessage, isLockedError } = require("./error_helpers.cjs");
 const { ERR_API, ERR_NOT_FOUND, ERR_VALIDATION } = require("./error_codes.cjs");
 
+/** Maps REST reaction names to GraphQL ReactionContent enum values */
+const REACTION_MAP = {
+  "+1": "THUMBS_UP",
+  "-1": "THUMBS_DOWN",
+  laugh: "LAUGH",
+  confused: "CONFUSED",
+  heart: "HEART",
+  hooray: "HOORAY",
+  rocket: "ROCKET",
+  eyes: "EYES",
+};
+
 /**
  * Add a reaction to the triggering item (issue, PR, comment, or discussion).
  * This provides immediate feedback to the user when a workflow is triggered.
@@ -17,7 +29,7 @@ async function main() {
   core.info(`Adding reaction: ${reaction}`);
 
   // Validate reaction type
-  const validReactions = ["+1", "-1", "laugh", "confused", "heart", "hooray", "rocket", "eyes"];
+  const validReactions = Object.keys(REACTION_MAP);
   if (!validReactions.includes(reaction)) {
     core.setFailed(`${ERR_VALIDATION}: Invalid reaction type: ${reaction}. Valid reactions are: ${validReactions.join(", ")}`);
     return;
@@ -101,7 +113,7 @@ async function main() {
 
     // Add reaction using REST API (for non-discussion events)
     core.info(`Adding reaction to: ${reactionEndpoint}`);
-    await addReaction(reactionEndpoint, reaction);
+    await addReaction(/** @type {string} */ reactionEndpoint, reaction);
   } catch (error) {
     const errorMessage = getErrorMessage(error);
 
@@ -124,7 +136,7 @@ async function main() {
  * @param {string} reaction - The reaction type to add
  */
 async function addReaction(endpoint, reaction) {
-  const response = await github.request("POST " + endpoint, {
+  const response = await github.request(`POST ${endpoint}`, {
     content: reaction,
     headers: {
       Accept: "application/vnd.github+json",
@@ -132,13 +144,8 @@ async function addReaction(endpoint, reaction) {
   });
 
   const reactionId = response.data?.id;
-  if (reactionId) {
-    core.info(`Successfully added reaction: ${reaction} (id: ${reactionId})`);
-    core.setOutput("reaction-id", reactionId.toString());
-  } else {
-    core.info(`Successfully added reaction: ${reaction}`);
-    core.setOutput("reaction-id", "");
-  }
+  core.info(`Successfully added reaction: ${reaction}${reactionId ? ` (id: ${reactionId})` : ""}`);
+  core.setOutput("reaction-id", reactionId?.toString() ?? "");
 }
 
 /**
@@ -147,19 +154,7 @@ async function addReaction(endpoint, reaction) {
  * @param {string} reaction - The reaction type to add (mapped to GitHub's ReactionContent enum)
  */
 async function addDiscussionReaction(subjectId, reaction) {
-  // Map reaction names to GitHub's GraphQL ReactionContent enum
-  const reactionMap = {
-    "+1": "THUMBS_UP",
-    "-1": "THUMBS_DOWN",
-    laugh: "LAUGH",
-    confused: "CONFUSED",
-    heart: "HEART",
-    hooray: "HOORAY",
-    rocket: "ROCKET",
-    eyes: "EYES",
-  };
-
-  const reactionContent = reactionMap[reaction];
+  const reactionContent = REACTION_MAP[reaction];
   if (!reactionContent) {
     throw new Error(`${ERR_VALIDATION}: Invalid reaction type for GraphQL: ${reaction}`);
   }

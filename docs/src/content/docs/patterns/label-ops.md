@@ -5,13 +5,94 @@ sidebar:
   badge: { text: 'Event-triggered', variant: 'success' }
 ---
 
-LabelOps uses GitHub labels as workflow triggers, metadata, and state markers. GitHub Agentic Workflows supports label-based triggers with filtering to activate workflows only for specific label changes while maintaining secure, automated responses.
+LabelOps uses GitHub labels as workflow triggers, metadata, and state markers. GitHub Agentic Workflows supports two distinct approaches to label-based triggers: `label_command` for command-style one-shot activation, and `names:` filtering for persistent label-state awareness.
 
 ## When to Use LabelOps
 
 Use LabelOps for priority-based workflows (run checks when `priority: high` is added), stage transitions (trigger actions when moving between workflow states), specialized processing (different workflows for different label categories), and team coordination (automate handoffs between teams using labels).
 
+## Label Command Trigger
+
+The `label_command` trigger treats a label as a one-shot command: applying the label fires the workflow, and the label is **automatically removed** so it can be re-applied to re-trigger. This is the right choice when you want a label to mean "do this now" rather than "this item has this property."
+
+```aw wrap
+---
+on:
+  label_command: deploy
+permissions:
+  contents: read
+  actions: write
+safe-outputs:
+  add-comment:
+    max: 1
+---
+
+# Deploy Preview
+
+A `deploy` label was applied to this pull request. Build and deploy a preview environment and post the URL as a comment.
+
+The matched label name is available as `${{ needs.activation.outputs.label_command }}` if needed to distinguish between multiple label commands.
+```
+
+After activation the `deploy` label is removed from the pull request, so a reviewer can apply it again to trigger another deployment without any cleanup step.
+
+### Syntax
+
+`label_command` accepts a shorthand string, a map with a single name, or a map with multiple names and an optional `events` restriction:
+
+```yaml
+# Shorthand — fires on issues, pull_request, and discussion
+on: "label-command deploy"
+
+# Map with a single name
+on:
+  label_command: deploy
+
+# Restrict to specific event types
+on:
+  label_command:
+    name: deploy
+    events: [issues, pull_request]
+
+# Multiple label names
+on:
+  label_command:
+    names: [deploy, redeploy]
+    events: [pull_request]
+```
+
+The compiler generates `issues`, `pull_request`, and/or `discussion` events with `types: [labeled]`, filtered to the named labels. It also adds a `workflow_dispatch` trigger with an `item_number` input so you can test the workflow manually without applying a real label.
+
+### Accessing the matched label
+
+The label that triggered the workflow is exposed as an output of the activation job:
+
+```
+${{ needs.activation.outputs.label_command }}
+```
+
+This is useful when a workflow handles multiple label commands and needs to branch on which one was applied.
+
+### Combining with slash commands
+
+`label_command` can be combined with `slash_command:` in the same workflow. The two triggers are OR'd — the workflow activates when either condition is met:
+
+```yaml
+on:
+  slash_command: deploy
+  label_command:
+    name: deploy
+    events: [pull_request]
+```
+
+This lets a workflow be triggered both by a `/deploy` comment and by applying a `deploy` label, sharing the same agent logic.
+
+> [!NOTE]
+> The automatic label removal requires `issues: write` or `pull-requests: write` permission (depending on item type). Add the relevant permission to your frontmatter when using `label_command`.
+
 ## Label Filtering
+
+Use `names:` filtering when you want the workflow to run whenever a label is present on an item and the label should remain attached. This is suitable for monitoring label state rather than reacting to a transient command.
 
 GitHub Agentic Workflows allows you to filter `labeled` and `unlabeled` events to trigger only for specific label names using the `names` field:
 
@@ -42,7 +123,16 @@ Check the issue for:
 Respond with a comment outlining next steps and recommended actions.
 ```
 
-This workflow activates only when the `bug`, `critical`, or `security` labels are added to an issue, not for other label changes.
+This workflow activates only when the `bug`, `critical`, or `security` labels are added to an issue, not for other label changes. The labels remain on the issue after the workflow runs.
+
+### Choosing between `label_command` and `names:` filtering
+
+| | `label_command` | `names:` filtering |
+|---|---|---|
+| Label lifecycle | Removed automatically after trigger | Stays on the item |
+| Re-triggerable | Yes — reapply the label | Only on the next `labeled` event |
+| Typical use | "Do this now" commands | State-based routing |
+| Supported items | Issues, pull requests, discussions | Issues, pull requests |
 
 ### Label Filter Syntax
 

@@ -90,6 +90,19 @@ func generateSchemaBasedSuggestions(schemaJSON, errorMessage, jsonPath, frontmat
 		}
 	}
 
+	// Check if this is a minimum/maximum constraint violation and surface schema examples.
+	// pathInfo.Message has the form "at '/timeout-minutes': minimum: got X, want Y",
+	// so use Contains rather than HasPrefix to detect the constraint keyword.
+	lowerMsg := strings.ToLower(errorMessage)
+	if (strings.Contains(lowerMsg, "minimum:") || strings.Contains(lowerMsg, "maximum:")) &&
+		strings.Contains(lowerMsg, "got ") && strings.Contains(lowerMsg, "want ") {
+		schemaSuggestionsLog.Print("Detected range constraint violation, looking for schema examples")
+		if examples := extractSchemaExamples(schemaDoc, jsonPath); len(examples) > 0 {
+			schemaSuggestionsLog.Printf("Found %d schema examples for %s", len(examples), jsonPath)
+			return "Example values: " + strings.Join(examples, ", ")
+		}
+	}
+
 	// Check if this is a type error
 	if strings.Contains(strings.ToLower(errorMessage), "got ") && strings.Contains(strings.ToLower(errorMessage), "want ") {
 		schemaSuggestionsLog.Print("Detected type mismatch error")
@@ -102,6 +115,34 @@ func generateSchemaBasedSuggestions(schemaJSON, errorMessage, jsonPath, frontmat
 
 	schemaSuggestionsLog.Print("No suggestions generated for error")
 	return ""
+}
+
+// extractSchemaExamples navigates the schema to the given JSON path using
+// navigateToSchemaPath and returns any "examples" array entries as formatted strings.
+// Returns nil if the path does not exist in the schema or the field has no examples.
+// The schema must have a top-level "properties" map for path navigation to succeed.
+func extractSchemaExamples(schemaDoc any, jsonPath string) []string {
+	schemaMap, ok := schemaDoc.(map[string]any)
+	if !ok {
+		return nil
+	}
+	target := navigateToSchemaPath(schemaMap, jsonPath)
+	if target == nil {
+		return nil
+	}
+	raw, ok := target["examples"]
+	if !ok {
+		return nil
+	}
+	items, ok := raw.([]any)
+	if !ok || len(items) == 0 {
+		return nil
+	}
+	examples := make([]string, 0, len(items))
+	for _, item := range items {
+		examples = append(examples, fmt.Sprintf("%v", item))
+	}
+	return examples
 }
 
 // extractAcceptedFieldsFromSchema extracts the list of accepted fields from a schema at a given JSON path

@@ -30,6 +30,21 @@ func hasPlaywrightTool(parsedTools *Tools) bool {
 }
 
 // ============================================================================
+// Tool Prompts - Agentic Workflows
+// ============================================================================
+
+// hasAgenticWorkflowsTool checks if the agentic workflows tool is enabled in the tools configuration
+func hasAgenticWorkflowsTool(parsedTools *Tools) bool {
+	if parsedTools == nil {
+		log.Print("Checking for agentic-workflows tool: no parsed tools provided")
+		return false
+	}
+	hasAgenticWorkflows := parsedTools.AgenticWorkflows != nil
+	log.Printf("Agentic-workflows tool enabled: %v", hasAgenticWorkflows)
+	return hasAgenticWorkflows
+}
+
+// ============================================================================
 // PR Context Prompts
 // ============================================================================
 

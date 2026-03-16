@@ -300,6 +300,86 @@
                 }
               ]
             },
+            "label_command": {
+              "description": "On Label Command trigger: fires when a specific label is added to an issue, pull request, or discussion. The triggering label is automatically removed at workflow start so it can be applied again to re-trigger. Use the 'events' field to restrict which item types (issues, pull_request, discussion) activate the trigger.",
+              "oneOf": [
+                {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "Label name as a string (shorthand format). The workflow fires when this label is added to any supported item type (issue, pull request, or discussion)."
+                },
+                {
+                  "type": "object",
+                  "description": "Label command configuration object with label name(s) and optional event filtering.",
+                  "properties": {
+                    "name": {
+                      "oneOf": [
+                        {
+                          "type": "string",
+                          "minLength": 1,
+                          "description": "Single label name that acts as a command (e.g., 'deploy' triggers the workflow when the 'deploy' label is added)."
+                        },
+                        {
+                          "type": "array",
+                          "minItems": 1,
+                          "description": "Array of label names \u2014 any of these labels will trigger the workflow.",
+                          "items": {
+                            "type": "string",
+                            "minLength": 1,
+                            "description": "A label name"
+                          },
+                          "maxItems": 25
+                        }
+                      ],
+                      "description": "Label name(s) that trigger the workflow when added to an issue, pull request, or discussion."
+                    },
+                    "names": {
+                      "oneOf": [
+                        {
+                          "type": "string",
+                          "minLength": 1,
+                          "description": "Single label name."
+                        },
+                        {
+                          "type": "array",
+                          "minItems": 1,
+                          "description": "Array of label names \u2014 any of these labels will trigger the workflow.",
+                          "items": {
+                            "type": "string",
+                            "minLength": 1,
+                            "description": "A label name"
+                          },
+                          "maxItems": 25
+                        }
+                      ],
+                      "description": "Alternative to 'name': label name(s) that trigger the workflow."
+                    },
+                    "events": {
+                      "description": "Item types where the label-command trigger should be active. Default is all supported types: issues, pull_request, discussion.",
+                      "oneOf": [
+                        {
+                          "type": "string",
+                          "description": "Single item type or '*' for all types.",
+                          "enum": ["*", "issues", "pull_request", "discussion"]
+                        },
+                        {
+                          "type": "array",
+                          "minItems": 1,
+                          "description": "Array of item types where the trigger is active.",
+                          "items": {
+                            "type": "string",
+                            "description": "Item type.",
+                            "enum": ["*", "issues", "pull_request", "discussion"]
+                          },
+                          "maxItems": 3
+                        }
+                      ]
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              ]
+            },
             "push": {
               "description": "Push event trigger that runs the workflow when code is pushed to the repository",
               "type": "object",
@@ -1418,12 +1498,12 @@
               "description": "Skip workflow execution for specific GitHub users. Useful for preventing workflows from running for specific accounts (e.g., bots, specific team members)."
             },
             "roles": {
-              "description": "Repository access roles required to trigger agentic workflows. Defaults to ['admin', 'maintainer', 'write'] for security. Use 'all' to allow any authenticated user (⚠️ security consideration).",
+              "description": "Repository access roles required to trigger agentic workflows. Defaults to ['admin', 'maintainer', 'write'] for security. Use 'all' to allow any authenticated user (\u26a0\ufe0f security consideration).",
               "oneOf": [
                 {
                   "type": "string",
                   "enum": ["all"],
-                  "description": "Allow any authenticated user to trigger the workflow (⚠️ disables permission checking entirely - use with caution)"
+                  "description": "Allow any authenticated user to trigger the workflow (\u26a0\ufe0f disables permission checking entirely - use with caution)"
                 },
                 {
                   "type": "array",
@@ -1507,6 +1587,131 @@
                 {
                   "app-id": "${{ vars.APP_ID }}",
                   "private-key": "${{ secrets.APP_PRIVATE_KEY }}"
+                }
+              ]
+            },
+            "steps": {
+              "type": "array",
+              "description": "Steps to inject into the pre-activation job. These steps run after all built-in checks (membership, stop-time, skip-if, etc.) and their results are exposed as pre-activation outputs. Use 'id' on steps to reference their results via needs.pre_activation.outputs.<id>_result.",
+              "items": {
+                "type": "object",
+                "description": "A GitHub Actions step to inject into the pre-activation job",
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "description": "Optional name for the step"
+                  },
+                  "id": {
+                    "type": "string",
+                    "description": "Optional step ID. When set, the step result is exposed as needs.pre_activation.outputs.<id>_result"
+                  },
+                  "run": {
+                    "type": "string",
+                    "description": "Shell command to run"
+                  },
+                  "uses": {
+                    "type": "string",
+                    "description": "Action to use (e.g., 'actions/checkout@v4')"
+                  },
+                  "with": {
+                    "type": "object",
+                    "description": "Input parameters for the action",
+                    "additionalProperties": true
+                  },
+                  "env": {
+                    "type": "object",
+                    "description": "Environment variables for the step",
+                    "additionalProperties": {
+                      "type": "string"
+                    }
+                  },
+                  "if": {
+                    "type": "string",
+                    "description": "Conditional expression for the step"
+                  },
+                  "continue-on-error": {
+                    "type": "boolean",
+                    "description": "Whether to continue if the step fails"
+                  }
+                },
+                "additionalProperties": true
+              },
+              "examples": [
+                [
+                  {
+                    "name": "Gate check",
+                    "id": "gate",
+                    "run": "echo 'Checking gate...' && exit 0"
+                  }
+                ]
+              ]
+            },
+            "permissions": {
+              "description": "Additional permissions for the pre-activation job. Use to declare extra scopes required by on.steps (e.g., issues: read for GitHub API calls in steps).",
+              "oneOf": [
+                {
+                  "type": "object",
+                  "description": "Map of permission scope to level",
+                  "properties": {
+                    "actions": {
+                      "type": "string",
+                      "enum": ["read", "write", "none"]
+                    },
+                    "checks": {
+                      "type": "string",
+                      "enum": ["read", "write", "none"]
+                    },
+                    "contents": {
+                      "type": "string",
+                      "enum": ["read", "write", "none"]
+                    },
+                    "deployments": {
+                      "type": "string",
+                      "enum": ["read", "write", "none"]
+                    },
+                    "discussions": {
+                      "type": "string",
+                      "enum": ["read", "write", "none"]
+                    },
+                    "issues": {
+                      "type": "string",
+                      "enum": ["read", "write", "none"]
+                    },
+                    "packages": {
+                      "type": "string",
+                      "enum": ["read", "write", "none"]
+                    },
+                    "pages": {
+                      "type": "string",
+                      "enum": ["read", "write", "none"]
+                    },
+                    "pull-requests": {
+                      "type": "string",
+                      "enum": ["read", "write", "none"]
+                    },
+                    "repository-projects": {
+                      "type": "string",
+                      "enum": ["read", "write", "none"]
+                    },
+                    "security-events": {
+                      "type": "string",
+                      "enum": ["read", "write", "none"]
+                    },
+                    "statuses": {
+                      "type": "string",
+                      "enum": ["read", "write", "none"]
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              ],
+              "examples": [
+                {
+                  "issues": "read"
+                },
+                {
+                  "issues": "read",
+                  "pull-requests": "read"
                 }
               ]
             }
@@ -2287,7 +2492,7 @@
     },
     "network": {
       "$comment": "Strict mode requirements: When strict=true, the 'network' field must be present (not null/undefined) and cannot contain standalone wildcard '*' in allowed domains (but patterns like '*.example.com' ARE allowed). This is validated in Go code (pkg/workflow/strict_mode_validation.go) via validateStrictNetwork().",
-      "description": "Network access control for AI engines using ecosystem identifiers and domain allowlists. Supports wildcard patterns like '*.example.com' to match any subdomain. Controls web fetch and search capabilities. IMPORTANT: For workflows that build/install/test code, always include the language ecosystem identifier alongside 'defaults' — 'defaults' alone only covers basic infrastructure, not package registries. Key ecosystem identifiers by runtime: 'dotnet' (.NET/NuGet), 'python' (pip/PyPI), 'node' (npm/yarn), 'go' (go modules), 'java' (Maven/Gradle), 'ruby' (Bundler), 'rust' (Cargo), 'swift' (Swift PM). Example: a .NET project needs network: { allowed: [defaults, dotnet] }.",
+      "description": "Network access control for AI engines using ecosystem identifiers and domain allowlists. Supports wildcard patterns like '*.example.com' to match any subdomain. Controls web fetch and search capabilities. IMPORTANT: For workflows that build/install/test code, always include the language ecosystem identifier alongside 'defaults' \u2014 'defaults' alone only covers basic infrastructure, not package registries. Key ecosystem identifiers by runtime: 'dotnet' (.NET/NuGet), 'python' (pip/PyPI), 'node' (npm/yarn), 'go' (go modules), 'java' (Maven/Gradle), 'ruby' (Bundler), 'rust' (Cargo), 'swift' (Swift PM). Example: a .NET project needs network: { allowed: [defaults, dotnet] }.",
       "examples": [
         "defaults",
         {
@@ -2675,7 +2880,7 @@
       ]
     },
     "plugins": {
-      "description": "⚠️  EXPERIMENTAL: Plugin configuration for installing plugins before workflow execution. Supports array format (list of repos/plugin configs) and object format (repos + custom token). Note: Plugin support is experimental and may change in future releases.",
+      "description": "\u26a0\ufe0f  EXPERIMENTAL: Plugin configuration for installing plugins before workflow execution. Supports array format (list of repos/plugin configs) and object format (repos + custom token). Note: Plugin support is experimental and may change in future releases.",
       "examples": [
         ["github/copilot-plugin", "acme/custom-tools"],
         [
@@ -2872,7 +3077,7 @@
             [
               {
                 "name": "Verify Post-Steps Execution",
-                "run": "echo \"✅ Post-steps are executing correctly\"\necho \"This step runs after the AI agent completes\"\n"
+                "run": "echo \"\u2705 Post-steps are executing correctly\"\necho \"This step runs after the AI agent completes\"\n"
               },
               {
                 "name": "Upload Test Results",
@@ -4136,7 +4341,7 @@
       "properties": {
         "allowed-domains": {
           "type": "array",
-          "description": "List of allowed domains for URI filtering in AI workflow output. URLs from other domains will be replaced with '(redacted)' for security.",
+          "description": "List of allowed domains for URL redaction in safe output handlers. Supports ecosystem identifiers (e.g., \"python\", \"node\", \"default-safe-outputs\") like network.allowed. These domains are unioned with the engine defaults and network.allowed when computing the final allowed domain set. localhost and github.com are always included.",
           "items": {
             "type": "string"
           }
@@ -5363,7 +5568,7 @@
                   "items": {
                     "type": "string"
                   },
-                  "description": "Exclusive allowlist of glob patterns. When set, every file in the patch must match at least one pattern — files outside the list are always refused, including normal source files. This is a restriction, not an exception: setting allowed-files: [\".github/workflows/*\"] blocks all other files. To allow multiple sets of files, list all patterns explicitly. Acts independently of the protected-files policy; both checks must pass. To modify a protected file, it must both match allowed-files and be permitted by protected-files (e.g. protected-files: allowed). Supports * (any characters except /) and ** (any characters including /)."
+                  "description": "Exclusive allowlist of glob patterns. When set, every file in the patch must match at least one pattern \u2014 files outside the list are always refused, including normal source files. This is a restriction, not an exception: setting allowed-files: [\".github/workflows/*\"] blocks all other files. To allow multiple sets of files, list all patterns explicitly. Acts independently of the protected-files policy; both checks must pass. To modify a protected file, it must both match allowed-files and be permitted by protected-files (e.g. protected-files: allowed). Supports * (any characters except /) and ** (any characters including /)."
                 },
                 "preserve-branch-name": {
                   "type": "boolean",
@@ -5578,7 +5783,7 @@
           "oneOf": [
             {
               "type": "object",
-              "description": "Configuration for resolving review threads on pull requests. Resolution is scoped to the triggering PR only — threads on other PRs cannot be resolved.",
+              "description": "Configuration for resolving review threads on pull requests. Resolution is scoped to the triggering PR only \u2014 threads on other PRs cannot be resolved.",
               "properties": {
                 "max": {
                   "description": "Maximum number of review threads to resolve (default: 10) Supports integer or GitHub Actions expression (e.g. '${{ inputs.max }}').",
@@ -6427,7 +6632,7 @@
                   "items": {
                     "type": "string"
                   },
-                  "description": "Exclusive allowlist of glob patterns. When set, every file in the patch must match at least one pattern — files outside the list are always refused, including normal source files. This is a restriction, not an exception: setting allowed-files: [\".github/workflows/*\"] blocks all other files. To allow multiple sets of files, list all patterns explicitly. Acts independently of the protected-files policy; both checks must pass. To modify a protected file, it must both match allowed-files and be permitted by protected-files (e.g. protected-files: allowed). Supports * (any characters except /) and ** (any characters including /)."
+                  "description": "Exclusive allowlist of glob patterns. When set, every file in the patch must match at least one pattern \u2014 files outside the list are always refused, including normal source files. This is a restriction, not an exception: setting allowed-files: [\".github/workflows/*\"] blocks all other files. To allow multiple sets of files, list all patterns explicitly. Acts independently of the protected-files policy; both checks must pass. To modify a protected file, it must both match allowed-files and be permitted by protected-files (e.g. protected-files: allowed). Supports * (any characters except /) and ** (any characters including /)."
                 },
                 "excluded-files": {
                   "type": "array",
@@ -7202,8 +7407,8 @@
             },
             "staged-title": {
               "type": "string",
-              "description": "Custom title template for staged mode preview. Available placeholders: {operation}. Example: '🎭 Preview: {operation}'",
-              "examples": ["🎭 Preview: {operation}", "## Staged Mode: {operation}"]
+              "description": "Custom title template for staged mode preview. Available placeholders: {operation}. Example: '\ud83c\udfad Preview: {operation}'",
+              "examples": ["\ud83c\udfad Preview: {operation}", "## Staged Mode: {operation}"]
             },
             "staged-description": {
               "type": "string",
@@ -7217,18 +7422,18 @@
             },
             "run-success": {
               "type": "string",
-              "description": "Custom message template for successful workflow completion. Available placeholders: {workflow_name}, {run_url}. Default: '✅ Agentic [{workflow_name}]({run_url}) completed successfully.'",
-              "examples": ["✅ Agentic [{workflow_name}]({run_url}) completed successfully.", "✅ [{workflow_name}]({run_url}) finished."]
+              "description": "Custom message template for successful workflow completion. Available placeholders: {workflow_name}, {run_url}. Default: '\u2705 Agentic [{workflow_name}]({run_url}) completed successfully.'",
+              "examples": ["\u2705 Agentic [{workflow_name}]({run_url}) completed successfully.", "\u2705 [{workflow_name}]({run_url}) finished."]
             },
             "run-failure": {
               "type": "string",
-              "description": "Custom message template for failed workflow. Available placeholders: {workflow_name}, {run_url}, {status}. Default: '❌ Agentic [{workflow_name}]({run_url}) {status} and wasn't able to produce a result.'",
-              "examples": ["❌ Agentic [{workflow_name}]({run_url}) {status} and wasn't able to produce a result.", "❌ [{workflow_name}]({run_url}) {status}."]
+              "description": "Custom message template for failed workflow. Available placeholders: {workflow_name}, {run_url}, {status}. Default: '\u274c Agentic [{workflow_name}]({run_url}) {status} and wasn't able to produce a result.'",
+              "examples": ["\u274c Agentic [{workflow_name}]({run_url}) {status} and wasn't able to produce a result.", "\u274c [{workflow_name}]({run_url}) {status}."]
             },
             "detection-failure": {
               "type": "string",
-              "description": "Custom message template for detection job failure. Available placeholders: {workflow_name}, {run_url}. Default: '⚠️ Security scanning failed for [{workflow_name}]({run_url}). Review the logs for details.'",
-              "examples": ["⚠️ Security scanning failed for [{workflow_name}]({run_url}). Review the logs for details.", "⚠️ Detection job failed in [{workflow_name}]({run_url})."]
+              "description": "Custom message template for detection job failure. Available placeholders: {workflow_name}, {run_url}. Default: '\u26a0\ufe0f Security scanning failed for [{workflow_name}]({run_url}). Review the logs for details.'",
+              "examples": ["\u26a0\ufe0f Security scanning failed for [{workflow_name}]({run_url}). Review the logs for details.", "\u26a0\ufe0f Detection job failed in [{workflow_name}]({run_url})."]
             },
             "agent-failure-issue": {
               "type": "string",
@@ -8369,7 +8574,7 @@
             },
             "auth": {
               "type": "array",
-              "description": "Authentication bindings — maps logical roles (e.g. 'api-key') to GitHub Actions secret names",
+              "description": "Authentication bindings \u2014 maps logical roles (e.g. 'api-key') to GitHub Actions secret names",
               "items": {
                 "type": "object",
                 "properties": {

@@ -128,6 +128,18 @@ func (c *Compiler) preprocessScheduleFields(frontmatter map[string]any, markdown
 			return nil
 		}
 
+		// Check if it's a label-command shorthand (starts with "label-command ")
+		if labelName, ok := strings.CutPrefix(onStr, "label-command "); ok {
+			labelName = strings.TrimSpace(labelName)
+			if labelName == "" {
+				return errors.New("label-command shorthand requires a label name after 'label-command'")
+			}
+			schedulePreprocessingLog.Printf("Converting shorthand 'on: %s' to label_command + workflow_dispatch", onStr)
+			onMap := expandLabelCommandShorthand(labelName)
+			frontmatter["on"] = onMap
+			return nil
+		}
+
 		// Check if it's a label trigger shorthand (labeled label1 label2...)
 		entityType, labelNames, isLabelTrigger, err := parseLabelTriggerShorthand(onStr)
 		if err != nil {

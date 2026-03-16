@@ -737,3 +737,32 @@ func TestConclusionJobWithGitHubAppWorkflowCallUsesTargetRepoNameFallback(t *tes
 	assert.NotContains(t, stepsContent, "repositories: ${{ needs.activation.outputs.target_repo }}",
 		"Conclusion job GitHub App token step must not use target_repo (full slug) for workflow_call workflows")
 }
+
+// TestCallWorkflowOnly_UsesHandlerManagerStep asserts that a workflow configured with only
+// call-workflow (no other handler-manager types) still compiles a "Process Safe Outputs" step.
+func TestCallWorkflowOnly_UsesHandlerManagerStep(t *testing.T) {
+	compiler := NewCompiler()
+	compiler.jobManager = NewJobManager()
+
+	workflowData := &WorkflowData{
+		Name: "Test Workflow",
+		SafeOutputs: &SafeOutputsConfig{
+			CallWorkflow: &CallWorkflowConfig{
+				BaseSafeOutputConfig: BaseSafeOutputConfig{
+					Max: strPtr("1"),
+				},
+				Workflows: []string{"worker-a"},
+			},
+		},
+	}
+
+	job, stepNames, err := compiler.buildConsolidatedSafeOutputsJob(workflowData, string(constants.AgentJobName), "test-workflow.md")
+	require.NoError(t, err, "Should compile without error")
+	require.NotNil(t, job, "safe_outputs job should be generated when only call-workflow is configured")
+	require.NotNil(t, stepNames, "Step names should not be nil")
+
+	stepsContent := strings.Join(job.Steps, "")
+	assert.Contains(t, stepsContent, "Process Safe Outputs", "Compiled job should include 'Process Safe Outputs' step")
+	assert.Contains(t, stepsContent, "GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG", "Compiled job should include handler config env var")
+	assert.Contains(t, stepsContent, "call_workflow", "Handler config should reference call_workflow")
+}

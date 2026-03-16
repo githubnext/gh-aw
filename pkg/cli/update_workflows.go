@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"net/url"
@@ -202,7 +203,7 @@ func resolveLatestRef(repo, currentRef string, allowMajor, verbose bool) (string
 // logically track the default branch.
 func resolveLatestCommitFromDefaultBranch(repo, currentSHA string, verbose bool) (string, error) {
 	// Get the default branch name
-	defaultBranch, err := getRepoDefaultBranch(repo)
+	defaultBranch, err := getRepoDefaultBranch(context.Background(), repo)
 	if err != nil {
 		return "", fmt.Errorf("failed to get default branch for %s: %w", repo, err)
 	}
@@ -225,8 +226,8 @@ func resolveLatestCommitFromDefaultBranch(repo, currentSHA string, verbose bool)
 }
 
 // getRepoDefaultBranch fetches the default branch name for a repository.
-func getRepoDefaultBranch(repo string) (string, error) {
-	output, err := workflow.RunGH("Fetching repo info...", "api", "/repos/"+repo, "--jq", ".default_branch")
+func getRepoDefaultBranch(ctx context.Context, repo string) (string, error) {
+	output, err := workflow.RunGHContext(ctx, "Fetching repo info...", "api", "/repos/"+repo, "--jq", ".default_branch")
 	if err != nil {
 		return "", err
 	}
