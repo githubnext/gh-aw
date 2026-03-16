@@ -163,6 +163,7 @@ jobs:
         env:
           GH_AW_LABEL_NAMES: '["smoke"]'
         with:
+          github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
             const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
             setupGlobals(core, github, context, exec, io);
