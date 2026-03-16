@@ -250,7 +250,7 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 		for _, group := range apmGroups {
 			artifactBaseName := apmArtifactBaseName(data.APMDependencies, group.Index)
 			artifactName := prefix + artifactBaseName
-			yaml.WriteString("      - name: Download APM bundle artifact\n")
+			fmt.Fprintf(yaml, "      - name: Download APM bundle artifact (%d)\n", group.Index)
 			fmt.Fprintf(yaml, "        uses: %s\n", GetActionPin("actions/download-artifact"))
 			yaml.WriteString("        with:\n")
 			fmt.Fprintf(yaml, "          name: %s\n", artifactName)

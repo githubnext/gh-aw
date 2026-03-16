@@ -103,7 +103,9 @@ func apmAppTokenStepID(groupIndex int) string {
 
 // generateAPMAppTokenMintStep generates the step that mints a short-lived GitHub App
 // installation token scoped for use in the APM pack step.
-func (c *Compiler) generateAPMAppTokenMintStep(app *GitHubAppConfig, stepID string) []string {
+// groupIndex is included in the step name to avoid duplicate-step validation errors when
+// multiple groups each require their own token.
+func (c *Compiler) generateAPMAppTokenMintStep(app *GitHubAppConfig, stepID string, groupIndex int) []string {
 	effectiveOwner := app.Owner
 	if effectiveOwner == "" {
 		effectiveOwner = "${{ github.repository_owner }} (default)"
@@ -111,7 +113,7 @@ func (c *Compiler) generateAPMAppTokenMintStep(app *GitHubAppConfig, stepID stri
 	apmDepsLog.Printf("Generating APM GitHub App token mint step: id=%s, owner=%s", stepID, effectiveOwner)
 	var steps []string
 
-	steps = append(steps, "      - name: Generate GitHub App token for APM dependencies\n")
+	steps = append(steps, fmt.Sprintf("      - name: Generate GitHub App token for APM dependencies (%d)\n", groupIndex))
 	steps = append(steps, fmt.Sprintf("        id: %s\n", stepID))
 	steps = append(steps, fmt.Sprintf("        uses: %s\n", GetActionPin("actions/create-github-app-token")))
 	steps = append(steps, "        with:\n")
@@ -210,7 +212,7 @@ func GenerateAPMPackStepForGroup(group APMPackageGroup, target string, tokenStep
 	actionRef := GetActionPin("microsoft/apm-action")
 
 	lines := []string{
-		"      - name: Install and pack APM dependencies",
+		fmt.Sprintf("      - name: Install and pack APM dependencies (%d)", group.Index),
 		"        id: " + stepID,
 		"        uses: " + actionRef,
 	}

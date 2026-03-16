@@ -421,7 +421,7 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 			if group.GitHubApp != nil {
 				tokenStepID = apmAppTokenStepID(group.Index)
 				compilerActivationJobLog.Printf("Adding APM GitHub App token mint step for group %d", group.Index)
-				tokenSteps := c.generateAPMAppTokenMintStep(group.GitHubApp, tokenStepID)
+				tokenSteps := c.generateAPMAppTokenMintStep(group.GitHubApp, tokenStepID, group.Index)
 				steps = append(steps, tokenSteps...)
 			}
 
@@ -442,7 +442,7 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 			artifactBaseName := apmArtifactBaseName(data.APMDependencies, group.Index)
 			artifactName := artifactPrefixExprForActivationJob(data) + artifactBaseName
 			compilerActivationJobLog.Printf("Adding APM bundle artifact upload step for group %d (artifact=%s)", group.Index, artifactBaseName)
-			steps = append(steps, "      - name: Upload APM bundle artifact\n")
+			steps = append(steps, fmt.Sprintf("      - name: Upload APM bundle artifact (%d)\n", group.Index))
 			steps = append(steps, "        if: success()\n")
 			steps = append(steps, fmt.Sprintf("        uses: %s\n", GetActionPin("actions/upload-artifact")))
 			steps = append(steps, "        with:\n")
