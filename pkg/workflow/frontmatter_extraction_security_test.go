@@ -117,3 +117,104 @@ func TestExtractFirewallConfig(t *testing.T) {
 		assert.Nil(t, config.AllowURLs, "Should ignore non-array allow-urls value")
 	})
 }
+
+// TestExtractMCPGatewayConfigPayloadFields tests extraction of payload-related fields
+// from MCP gateway frontmatter configuration
+func TestExtractMCPGatewayConfigPayloadFields(t *testing.T) {
+	compiler := &Compiler{}
+
+	t.Run("extracts payloadDir using camelCase key", func(t *testing.T) {
+		mcpObj := map[string]any{
+			"container":  "ghcr.io/github/gh-aw-mcpg",
+			"payloadDir": "/custom/payloads",
+		}
+		config := compiler.extractMCPGatewayConfig(mcpObj)
+		require.NotNil(t, config, "Should extract MCP gateway config")
+		assert.Equal(t, "/custom/payloads", config.PayloadDir, "Should extract payloadDir")
+	})
+
+	t.Run("extracts payloadDir using kebab-case key", func(t *testing.T) {
+		mcpObj := map[string]any{
+			"container":   "ghcr.io/github/gh-aw-mcpg",
+			"payload-dir": "/custom/payloads",
+		}
+		config := compiler.extractMCPGatewayConfig(mcpObj)
+		require.NotNil(t, config, "Should extract MCP gateway config")
+		assert.Equal(t, "/custom/payloads", config.PayloadDir, "Should extract payload-dir")
+	})
+
+	t.Run("extracts payloadPathPrefix using camelCase key", func(t *testing.T) {
+		mcpObj := map[string]any{
+			"container":         "ghcr.io/github/gh-aw-mcpg",
+			"payloadPathPrefix": "/workspace/payloads",
+		}
+		config := compiler.extractMCPGatewayConfig(mcpObj)
+		require.NotNil(t, config, "Should extract MCP gateway config")
+		assert.Equal(t, "/workspace/payloads", config.PayloadPathPrefix, "Should extract payloadPathPrefix")
+	})
+
+	t.Run("extracts payloadPathPrefix using kebab-case key", func(t *testing.T) {
+		mcpObj := map[string]any{
+			"container":           "ghcr.io/github/gh-aw-mcpg",
+			"payload-path-prefix": "/workspace/payloads",
+		}
+		config := compiler.extractMCPGatewayConfig(mcpObj)
+		require.NotNil(t, config, "Should extract MCP gateway config")
+		assert.Equal(t, "/workspace/payloads", config.PayloadPathPrefix, "Should extract payload-path-prefix")
+	})
+
+	t.Run("extracts payloadSizeThreshold using camelCase key", func(t *testing.T) {
+		mcpObj := map[string]any{
+			"container":            "ghcr.io/github/gh-aw-mcpg",
+			"payloadSizeThreshold": 65536,
+		}
+		config := compiler.extractMCPGatewayConfig(mcpObj)
+		require.NotNil(t, config, "Should extract MCP gateway config")
+		assert.Equal(t, 65536, config.PayloadSizeThreshold, "Should extract payloadSizeThreshold")
+	})
+
+	t.Run("extracts payloadSizeThreshold using kebab-case key", func(t *testing.T) {
+		mcpObj := map[string]any{
+			"container":              "ghcr.io/github/gh-aw-mcpg",
+			"payload-size-threshold": 65536,
+		}
+		config := compiler.extractMCPGatewayConfig(mcpObj)
+		require.NotNil(t, config, "Should extract MCP gateway config")
+		assert.Equal(t, 65536, config.PayloadSizeThreshold, "Should extract payload-size-threshold")
+	})
+
+	t.Run("extracts payloadSizeThreshold as float64 (YAML default numeric type)", func(t *testing.T) {
+		mcpObj := map[string]any{
+			"container":            "ghcr.io/github/gh-aw-mcpg",
+			"payloadSizeThreshold": float64(65536),
+		}
+		config := compiler.extractMCPGatewayConfig(mcpObj)
+		require.NotNil(t, config, "Should extract MCP gateway config")
+		assert.Equal(t, 65536, config.PayloadSizeThreshold, "Should extract payloadSizeThreshold from float64")
+	})
+
+	t.Run("extracts all payload fields together", func(t *testing.T) {
+		mcpObj := map[string]any{
+			"container":            "ghcr.io/github/gh-aw-mcpg",
+			"payloadDir":           "/custom/payloads",
+			"payloadPathPrefix":    "/workspace/payloads",
+			"payloadSizeThreshold": 1048576,
+		}
+		config := compiler.extractMCPGatewayConfig(mcpObj)
+		require.NotNil(t, config, "Should extract MCP gateway config")
+		assert.Equal(t, "/custom/payloads", config.PayloadDir, "Should extract payloadDir")
+		assert.Equal(t, "/workspace/payloads", config.PayloadPathPrefix, "Should extract payloadPathPrefix")
+		assert.Equal(t, 1048576, config.PayloadSizeThreshold, "Should extract payloadSizeThreshold")
+	})
+
+	t.Run("leaves payload fields zero/empty when not specified", func(t *testing.T) {
+		mcpObj := map[string]any{
+			"container": "ghcr.io/github/gh-aw-mcpg",
+		}
+		config := compiler.extractMCPGatewayConfig(mcpObj)
+		require.NotNil(t, config, "Should extract MCP gateway config")
+		assert.Empty(t, config.PayloadDir, "PayloadDir should be empty when not specified")
+		assert.Empty(t, config.PayloadPathPrefix, "PayloadPathPrefix should be empty when not specified")
+		assert.Equal(t, 0, config.PayloadSizeThreshold, "PayloadSizeThreshold should be 0 when not specified")
+	})
+}
