@@ -145,8 +145,10 @@ func (c *Compiler) commentOutProcessedFieldsInOnSection(yamlStr string, frontmat
 
 	for _, line := range lines {
 		// Check if we're entering a pull_request, issues, discussion, or issue_comment section.
-		// Skip these checks when inside on.permissions or on.steps to avoid false matches
-		// (e.g., `    issues: read` inside on.permissions must not be treated as the issues: trigger).
+		// Skip these checks when inside on.permissions or on.steps to avoid false matches.
+		// Example: `    issues: read` inside on.permissions was previously matched as the
+		// `issues:` event trigger, incorrectly entering the inIssues state and suppressing
+		// the permission comment-out logic.
 		if !inOnPermissions && !inOnSteps {
 			if strings.Contains(line, "pull_request:") {
 				inPullRequest = true

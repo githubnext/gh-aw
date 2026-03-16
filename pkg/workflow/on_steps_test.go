@@ -491,6 +491,11 @@ func TestReferencesPreActivationOutputs(t *testing.T) {
 			condition: "needs.pre_activation.result == 'success'",
 			expected:  false,
 		},
+		{
+			name:      "references_pre_activation_arbitrary_output",
+			condition: "needs.pre_activation.outputs.custom_gate_check == 'passed'",
+			expected:  true,
+		},
 	}
 
 	for _, tt := range tests {

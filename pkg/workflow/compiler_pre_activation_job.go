@@ -604,5 +604,5 @@ func referencesPreActivationOutputs(condition string) bool {
 	if condition == "" {
 		return false
 	}
-	return strings.Contains(condition, fmt.Sprintf("needs.%s.outputs.", string(constants.PreActivationJobName)))
+	return strings.Contains(condition, "needs."+string(constants.PreActivationJobName)+".outputs.")
 }
