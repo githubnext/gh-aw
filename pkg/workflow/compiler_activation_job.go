@@ -413,7 +413,15 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 		// This allows APM to access cross-org private repositories.
 		if data.APMDependencies.GitHubApp != nil {
 			compilerActivationJobLog.Print("Adding APM GitHub App token mint step for cross-org access")
-			steps = append(steps, buildAPMAppTokenMintStep(data.APMDependencies.GitHubApp)...)
+			// In workflow_call relay workflows the activation job contains a resolve-host-repo step
+			// that identifies the platform (host) repository. Use its output as the fallback
+			// repositories value so the minted token is scoped to the host repo's NAME rather than
+			// github.event.repository.name (the caller repo in cross-repo workflow_call scenarios).
+			var apmFallbackRepoExpr string
+			if hasWorkflowCallTrigger(data.On) && !data.InlinedImports {
+				apmFallbackRepoExpr = "${{ steps.resolve-host-repo.outputs.target_repo_name }}"
+			}
+			steps = append(steps, buildAPMAppTokenMintStep(data.APMDependencies.GitHubApp, apmFallbackRepoExpr)...)
 		}
 		compilerActivationJobLog.Printf("Adding APM pack step: %d packages", len(data.APMDependencies.Packages))
 		apmTarget := engine.GetAPMTarget()

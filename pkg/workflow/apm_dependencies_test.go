@@ -402,7 +402,7 @@ func TestBuildAPMAppTokenMintStep(t *testing.T) {
 			AppID:      "${{ vars.APP_ID }}",
 			PrivateKey: "${{ secrets.APP_PRIVATE_KEY }}",
 		}
-		steps := buildAPMAppTokenMintStep(app)
+		steps := buildAPMAppTokenMintStep(app, "")
 
 		combined := strings.Join(steps, "")
 		assert.Contains(t, combined, "Generate GitHub App token for APM dependencies", "Should have descriptive step name")
@@ -419,7 +419,7 @@ func TestBuildAPMAppTokenMintStep(t *testing.T) {
 			PrivateKey: "${{ secrets.APP_PRIVATE_KEY }}",
 			Owner:      "acme-org",
 		}
-		steps := buildAPMAppTokenMintStep(app)
+		steps := buildAPMAppTokenMintStep(app, "")
 
 		combined := strings.Join(steps, "")
 		assert.Contains(t, combined, "owner: acme-org", "Should include explicit owner")
@@ -430,7 +430,7 @@ func TestBuildAPMAppTokenMintStep(t *testing.T) {
 			AppID:      "${{ vars.APP_ID }}",
 			PrivateKey: "${{ secrets.APP_PRIVATE_KEY }}",
 		}
-		steps := buildAPMAppTokenMintStep(app)
+		steps := buildAPMAppTokenMintStep(app, "")
 
 		combined := strings.Join(steps, "")
 		assert.Contains(t, combined, "owner: ${{ github.repository_owner }}", "Should default owner to github.repository_owner")
@@ -442,7 +442,7 @@ func TestBuildAPMAppTokenMintStep(t *testing.T) {
 			PrivateKey:   "${{ secrets.APP_PRIVATE_KEY }}",
 			Repositories: []string{"*"},
 		}
-		steps := buildAPMAppTokenMintStep(app)
+		steps := buildAPMAppTokenMintStep(app, "")
 
 		combined := strings.Join(steps, "")
 		assert.NotContains(t, combined, "repositories:", "Should omit repositories field for org-wide access")
@@ -454,9 +454,32 @@ func TestBuildAPMAppTokenMintStep(t *testing.T) {
 			PrivateKey:   "${{ secrets.APP_PRIVATE_KEY }}",
 			Repositories: []string{"acme-skills"},
 		}
-		steps := buildAPMAppTokenMintStep(app)
+		steps := buildAPMAppTokenMintStep(app, "")
 
 		combined := strings.Join(steps, "")
 		assert.Contains(t, combined, "repositories: acme-skills", "Should include explicit repository")
+	})
+
+	t.Run("App token mint step uses fallbackRepoExpr when no repositories configured", func(t *testing.T) {
+		app := &GitHubAppConfig{
+			AppID:      "${{ vars.APP_ID }}",
+			PrivateKey: "${{ secrets.APP_PRIVATE_KEY }}",
+		}
+		steps := buildAPMAppTokenMintStep(app, "${{ steps.resolve-host-repo.outputs.target_repo_name }}")
+
+		combined := strings.Join(steps, "")
+		assert.Contains(t, combined, "repositories: ${{ steps.resolve-host-repo.outputs.target_repo_name }}", "Should use fallback repo expr for workflow_call relay")
+		assert.NotContains(t, combined, "github.event.repository.name", "Should not fall back to event repository")
+	})
+
+	t.Run("App token mint step defaults to github.event.repository.name when no fallback and no repositories", func(t *testing.T) {
+		app := &GitHubAppConfig{
+			AppID:      "${{ vars.APP_ID }}",
+			PrivateKey: "${{ secrets.APP_PRIVATE_KEY }}",
+		}
+		steps := buildAPMAppTokenMintStep(app, "")
+
+		combined := strings.Join(steps, "")
+		assert.Contains(t, combined, "repositories: ${{ github.event.repository.name }}", "Should default to event repository name")
 	})
 }

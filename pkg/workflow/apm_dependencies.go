@@ -16,10 +16,14 @@ const apmAppTokenStepID = "apm-app-token"
 // for use by the APM pack step to access cross-org private repositories.
 //
 // Parameters:
-//   - app: GitHub App configuration containing app-id, private-key, owner, and repositories
+//   - app:              GitHub App configuration containing app-id, private-key, owner, and repositories
+//   - fallbackRepoExpr: expression used as the repositories value when app.Repositories is empty.
+//     Pass "${{ steps.resolve-host-repo.outputs.target_repo_name }}" for workflow_call relay
+//     workflows so the token is scoped to the platform (host) repo rather than the caller repo.
+//     Pass "" to use the default "${{ github.event.repository.name }}" fallback.
 //
 // Returns a slice of YAML step lines.
-func buildAPMAppTokenMintStep(app *GitHubAppConfig) []string {
+func buildAPMAppTokenMintStep(app *GitHubAppConfig, fallbackRepoExpr string) []string {
 	apmDepsLog.Printf("Building APM GitHub App token mint step: owner=%s, repos=%d", app.Owner, len(app.Repositories))
 	var steps []string
 
@@ -56,8 +60,14 @@ func buildAPMAppTokenMintStep(app *GitHubAppConfig) []string {
 			steps = append(steps, fmt.Sprintf("            %s\n", repo))
 		}
 	} else {
-		// No explicit repositories: default to the current repository
-		steps = append(steps, "          repositories: ${{ github.event.repository.name }}\n")
+		// No explicit repositories: use fallback expression, or default to the triggering repo's name.
+		// For workflow_call relay scenarios the caller passes steps.resolve-host-repo.outputs.target_repo_name
+		// so the token is scoped to the platform (host) repo name rather than the full owner/repo slug.
+		repoExpr := fallbackRepoExpr
+		if repoExpr == "" {
+			repoExpr = "${{ github.event.repository.name }}"
+		}
+		steps = append(steps, fmt.Sprintf("          repositories: %s\n", repoExpr))
 	}
 
 	// Always add github-api-url from environment variable
