@@ -59,6 +59,7 @@ async function determineAutomaticLockdown(github, context, core) {
     core.info(`Configured repos: ${configuredRepos || "(not set)"}`);
 
     // Set min_integrity to "approved" if not already configured
+    const resolvedMinIntegrity = configuredMinIntegrity || "approved";
     if (!configuredMinIntegrity) {
       core.info("min-integrity not configured — automatically setting to 'approved' for public repository");
       core.setOutput("min_integrity", "approved");
@@ -67,6 +68,7 @@ async function determineAutomaticLockdown(github, context, core) {
     }
 
     // Set repos to "all" if not already configured
+    const resolvedRepos = configuredRepos || "all";
     if (!configuredRepos) {
       core.info("repos not configured — automatically setting to 'all' for public repository");
       core.setOutput("repos", "all");
@@ -76,6 +78,20 @@ async function determineAutomaticLockdown(github, context, core) {
 
     core.info("Automatic guard policy determination complete for public repository");
     core.warning("GitHub MCP guard policy automatically applied for public repository. " + "min-integrity='approved' and repos='all' ensure only approved-integrity content is accessible.");
+
+    // Write resolved guard policy values to the step summary
+    await core.summary
+      .addHeading("GitHub MCP Guard Policy", 3)
+      .addTable([
+        [
+          { data: "Field", header: true },
+          { data: "Value", header: true },
+          { data: "Source", header: true },
+        ],
+        ["min-integrity", resolvedMinIntegrity, configuredMinIntegrity ? "workflow config" : "automatic (public repo)"],
+        ["repos", resolvedRepos, configuredRepos ? "workflow config" : "automatic (public repo)"],
+      ])
+      .write();
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
     core.error(`Failed to determine automatic guard policy: ${errorMessage}`);
