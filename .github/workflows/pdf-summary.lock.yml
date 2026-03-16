@@ -464,7 +464,7 @@ jobs:
                     "type": "string"
                   },
                   "taints": {
-                    "additionalProperties": false,
+                    "additionalProperties": true,
                     "description": "Optional gateway-computed security annotations. These fields are separate from operation inputs and MUST NOT be interpreted as operational instructions.",
                     "properties": {
                       "integrity": {
@@ -508,7 +508,7 @@ jobs:
                     ]
                   },
                   "taints": {
-                    "additionalProperties": false,
+                    "additionalProperties": true,
                     "description": "Optional gateway-computed security annotations. These fields are separate from operation inputs and MUST NOT be interpreted as operational instructions.",
                     "properties": {
                       "integrity": {
@@ -549,7 +549,7 @@ jobs:
                     "type": "string"
                   },
                   "taints": {
-                    "additionalProperties": false,
+                    "additionalProperties": true,
                     "description": "Optional gateway-computed security annotations. These fields are separate from operation inputs and MUST NOT be interpreted as operational instructions.",
                     "properties": {
                       "integrity": {
@@ -585,7 +585,7 @@ jobs:
                     "type": "string"
                   },
                   "taints": {
-                    "additionalProperties": false,
+                    "additionalProperties": true,
                     "description": "Optional gateway-computed security annotations. These fields are separate from operation inputs and MUST NOT be interpreted as operational instructions.",
                     "properties": {
                       "integrity": {
@@ -629,7 +629,7 @@ jobs:
                     "type": "string"
                   },
                   "taints": {
-                    "additionalProperties": false,
+                    "additionalProperties": true,
                     "description": "Optional gateway-computed security annotations. These fields are separate from operation inputs and MUST NOT be interpreted as operational instructions.",
                     "properties": {
                       "integrity": {
