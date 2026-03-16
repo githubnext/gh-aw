@@ -728,5 +728,15 @@ func (c *Compiler) processOnSectionAndFilters(
 	// Apply label filter if specified
 	c.applyLabelFilter(workflowData, frontmatter)
 
+	// Extract on.steps for pre-activation step injection
+	onSteps, err := extractOnSteps(frontmatter)
+	if err != nil {
+		return err
+	}
+	workflowData.OnSteps = onSteps
+
+	// Extract on.permissions for pre-activation job permissions
+	workflowData.OnPermissions = extractOnPermissions(frontmatter)
+
 	return nil
 }

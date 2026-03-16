@@ -55,6 +55,15 @@ func (c *Compiler) buildPreActivationJob(data *WorkflowData, needsPermissionChec
 		perms.Set(PermissionActions, PermissionRead)
 	}
 
+	// Merge on.permissions into the pre-activation job permissions.
+	// on.permissions lets users declare extra scopes required by their on.steps steps.
+	if data.OnPermissions != nil {
+		if perms == nil {
+			perms = NewPermissions()
+		}
+		perms.Merge(data.OnPermissions)
+	}
+
 	// Set permissions if any were configured
 	if perms != nil {
 		permissions = perms.RenderToYAML()
@@ -195,6 +204,23 @@ func (c *Compiler) buildPreActivationJob(data *WorkflowData, needsPermissionChec
 		steps = append(steps, customSteps...)
 	}
 
+	// Append on.steps if present (injected after other checks)
+	var onStepIDs []string
+	if len(data.OnSteps) > 0 {
+		compilerActivationJobsLog.Printf("Adding %d on.steps to pre-activation job", len(data.OnSteps))
+		for i, stepMap := range data.OnSteps {
+			stepYAML, err := c.convertStepToYAML(stepMap)
+			if err != nil {
+				return nil, fmt.Errorf("failed to convert on.steps[%d] to YAML: %w", i, err)
+			}
+			steps = append(steps, stepYAML)
+			// Collect step IDs for output wiring
+			if id, ok := stepMap["id"].(string); ok && id != "" {
+				onStepIDs = append(onStepIDs, id)
+			}
+		}
+	}
+
 	// Generate the activated output expression using expression builders
 	var activatedNode ConditionNode
 
@@ -283,9 +309,18 @@ func (c *Compiler) buildPreActivationJob(data *WorkflowData, needsPermissionChec
 
 	// Build the final expression
 	if len(conditions) == 0 {
-		// This should never happen - it means pre-activation job was created without any checks
-		// If we reach this point, it's a developer error in the compiler logic
-		return nil, errors.New("developer error: pre-activation job created without permission check or stop-time configuration")
+		// Pre-activation was created solely for on.steps injection.
+		// The activated output is unconditionally true; the user controls
+		// agent execution through their own if: condition referencing the
+		// on.steps outputs (e.g., needs.pre_activation.outputs.gate_result).
+		if len(data.OnSteps) > 0 {
+			compilerActivationJobsLog.Printf("Pre-activation created with on.steps only (%d steps); activated output is unconditionally true", len(data.OnSteps))
+			activatedNode = BuildStringLiteral("true")
+		} else {
+			// This should never happen - it means pre-activation job was created without any checks
+			// If we reach this point, it's a developer error in the compiler logic
+			return nil, errors.New("developer error: pre-activation job created without permission check or stop-time configuration")
+		}
 	} else if len(conditions) == 1 {
 		// Single condition
 		activatedNode = conditions[0]
@@ -313,7 +348,21 @@ func (c *Compiler) buildPreActivationJob(data *WorkflowData, needsPermissionChec
 		outputs[constants.MatchedCommandOutput] = "''"
 	}
 
-	// Merge custom outputs from jobs.pre-activation if present
+	// Wire on.steps step outcomes as pre-activation outputs.
+	// For each step with an id, emit output "<id>_result: ${{ steps.<id>.outcome }}"
+	// so users can reference them with: needs.pre_activation.outputs.<id>_result
+	// This is done BEFORE merging custom outputs so that explicit user-defined outputs
+	// in jobs.pre-activation.outputs take precedence over the auto-wired values.
+	if len(onStepIDs) > 0 {
+		compilerActivationJobsLog.Printf("Wiring %d on.steps step outcomes as pre-activation outputs", len(onStepIDs))
+		for _, id := range onStepIDs {
+			outputKey := id + "_result"
+			outputs[outputKey] = fmt.Sprintf("${{ steps.%s.outcome }}", id)
+		}
+	}
+
+	// Merge custom outputs from jobs.pre-activation if present.
+	// Custom outputs are applied last so they take precedence over auto-wired on.steps outputs.
 	if len(customOutputs) > 0 {
 		compilerActivationJobsLog.Printf("Adding %d custom outputs to pre-activation job", len(customOutputs))
 		maps.Copy(outputs, customOutputs)
@@ -322,8 +371,10 @@ func (c *Compiler) buildPreActivationJob(data *WorkflowData, needsPermissionChec
 	// Pre-activation job uses the user's original if condition (data.If)
 	// The workflow_run safety check is NOT applied here - it's only on the activation job
 	// Don't include conditions that reference custom job outputs (those belong on the agent job)
+	// Also don't include conditions that reference pre_activation outputs - those are outputs of this
+	// very job and can only be evaluated by downstream jobs (activation, agent).
 	var jobIfCondition string
-	if !c.referencesCustomJobOutputs(data.If, data.Jobs) {
+	if !c.referencesCustomJobOutputs(data.If, data.Jobs) && !referencesPreActivationOutputs(data.If) {
 		jobIfCondition = data.If
 	}
 
@@ -477,4 +528,81 @@ func (c *Compiler) resolvePreActivationSkipIfToken(data *WorkflowData) string {
 		return data.ActivationGitHubToken
 	}
 	return ""
+}
+
+// extractOnSteps extracts the 'steps' field from the 'on:' section of frontmatter.
+// These steps are injected into the pre-activation job and their step outcome is wired
+// as pre-activation outputs so users can reference them with:
+//
+//	needs.pre_activation.outputs.<id>_result   (contains outcome: success/failure/cancelled/skipped)
+//
+// Returns nil if on.steps is not configured.
+// Returns an error if on.steps is not an array or contains non-object items.
+func extractOnSteps(frontmatter map[string]any) ([]map[string]any, error) {
+	onValue, exists := frontmatter["on"]
+	if !exists || onValue == nil {
+		return nil, nil
+	}
+
+	onMap, ok := onValue.(map[string]any)
+	if !ok {
+		return nil, nil
+	}
+
+	stepsValue, exists := onMap["steps"]
+	if !exists || stepsValue == nil {
+		return nil, nil
+	}
+
+	stepsList, ok := stepsValue.([]any)
+	if !ok {
+		return nil, fmt.Errorf("on.steps must be an array, got %T", stepsValue)
+	}
+
+	result := make([]map[string]any, 0, len(stepsList))
+	for i, step := range stepsList {
+		stepMap, ok := step.(map[string]any)
+		if !ok {
+			return nil, fmt.Errorf("on.steps[%d] must be an object, got %T", i, step)
+		}
+		result = append(result, stepMap)
+	}
+
+	return result, nil
+}
+
+// extractOnPermissions extracts the 'permissions' field from the 'on:' section of frontmatter.
+// These permissions are merged into the pre-activation job permissions, allowing users to declare
+// extra scopes required by their on.steps (e.g., issues: read for GitHub API calls).
+//
+// Returns nil if on.permissions is not configured.
+func extractOnPermissions(frontmatter map[string]any) *Permissions {
+	onValue, exists := frontmatter["on"]
+	if !exists || onValue == nil {
+		return nil
+	}
+
+	onMap, ok := onValue.(map[string]any)
+	if !ok {
+		return nil
+	}
+
+	permsValue, exists := onMap["permissions"]
+	if !exists || permsValue == nil {
+		return nil
+	}
+
+	parser := NewPermissionsParserFromValue(permsValue)
+	return parser.ToPermissions()
+}
+
+// referencesPreActivationOutputs returns true if the condition references the pre_activation job's
+// own outputs (e.g., "needs.pre_activation.outputs.foo"). Such conditions cannot be applied to the
+// pre_activation job itself (a job cannot reference its own outputs), so they are deferred to
+// downstream jobs (activation, agent).
+func referencesPreActivationOutputs(condition string) bool {
+	if condition == "" {
+		return false
+	}
+	return strings.Contains(condition, "needs."+string(constants.PreActivationJobName)+".outputs.")
 }

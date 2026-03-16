@@ -381,6 +381,8 @@ type WorkflowData struct {
 	SkipIfNoMatch               *SkipIfNoMatchConfig // skip-if-no-match configuration with query and min threshold
 	SkipRoles                   []string             // roles to skip workflow for (e.g., [admin, maintainer, write])
 	SkipBots                    []string             // users to skip workflow for (e.g., [user1, user2])
+	OnSteps                     []map[string]any     // steps to inject into the pre-activation job from on.steps
+	OnPermissions               *Permissions         // additional permissions for the pre-activation job from on.permissions
 	ManualApproval              string               // environment name for manual approval from on: section
 	Command                     []string             // for /command trigger support - multiple command names
 	CommandEvents               []string             // events where command should be active (nil = all events)

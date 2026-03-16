@@ -28,14 +28,20 @@ type ImportDirectiveMatch struct {
 func ParseImportDirective(line string) *ImportDirectiveMatch {
 	trimmedLine := strings.TrimSpace(line)
 
+	// Fast-path: import directives must start with '@' or '{'; skip the regex for all other lines.
+	if len(trimmedLine) == 0 || (trimmedLine[0] != '@' && trimmedLine[0] != '{') {
+		return nil
+	}
+
 	// Check if it matches the import pattern at all
 	matches := IncludeDirectivePattern.FindStringSubmatch(trimmedLine)
 	if matches == nil {
 		return nil
 	}
 
-	// Check if it's legacy syntax
-	isLegacy := LegacyIncludeDirectivePattern.MatchString(trimmedLine)
+	// Determine legacy vs new syntax from the captured groups of the first match.
+	// Group 2 (path for @include/@import) is non-empty iff the legacy alternative matched.
+	isLegacy := matches[2] != ""
 	importDirectiveLog.Printf("Parsing import directive: legacy=%t, line=%s", isLegacy, trimmedLine)
 
 	var isOptional bool

@@ -94,7 +94,74 @@ Pass data between jobs via artifacts, job outputs, or environment variables.
 
 ## Custom Trigger Filtering
 
-Use a deterministic job to compute whether the agent should run, expose the result as a job output, and reference it with `if:`. The compiler automatically adds the filter job as a dependency of the activation job, so when the condition is false the workflow run is **skipped** (not failed), keeping the Actions tab clean.
+### Inline Steps (`on.steps:`) — Preferred
+
+Inject deterministic steps directly into the pre-activation job using `on.steps:`. This saves **one workflow job** compared to the multi-job pattern and is the recommended approach for lightweight filtering:
+
+```yaml wrap title=".github/workflows/smart-responder.md"
+---
+on:
+  issues:
+    types: [opened]
+  steps:
+    - id: check
+      env:
+        LABELS: ${{ toJSON(github.event.issue.labels.*.name) }}
+      run: echo "$LABELS" | grep -q '"bug"'
+      # exits 0 (outcome: success) if the label is found, 1 (outcome: failure) if not
+engine: copilot
+safe-outputs:
+  add-comment:
+
+if: needs.pre_activation.outputs.check_result == 'success'
+---
+
+# Bug Issue Responder
+
+Triage bug report: "${{ github.event.issue.title }}" and add-comment with a summary of the next steps.
+```
+
+Each step with an `id` gets an auto-wired output `<id>_result` set to `${{ steps.<id>.outcome }}` — `success` when the step's exit code is 0, `failure` when non-zero. Gate the workflow by checking `needs.pre_activation.outputs.<id>_result == 'success'`.
+
+To pass an explicit value rather than relying on exit codes, set a step output and re-expose it via `jobs.pre-activation.outputs`:
+
+```yaml wrap
+jobs:
+  pre-activation:
+    outputs:
+      has_bug_label: ${{ steps.check.outputs.has_bug_label }}
+
+if: needs.pre_activation.outputs.has_bug_label == 'true'
+```
+
+When `on.steps:` need GitHub API access, use `on.permissions:` to grant the required scopes to the pre-activation job:
+
+```yaml wrap
+on:
+  schedule: every 30m
+  permissions:
+    issues: read
+  steps:
+    - id: search
+      uses: actions/github-script@v8
+      with:
+        script: |
+          const open = await github.rest.issues.listForRepo({ ...context.repo, state: 'open' });
+          core.setOutput('has_work', open.data.length > 0 ? 'true' : 'false');
+
+jobs:
+  pre-activation:
+    outputs:
+      has_work: ${{ steps.search.outputs.has_work }}
+
+if: needs.pre_activation.outputs.has_work == 'true'
+```
+
+See [Pre-Activation Steps](/gh-aw/reference/triggers/#pre-activation-steps-onsteps) and [Pre-Activation Permissions](/gh-aw/reference/triggers/#pre-activation-permissions-onpermissions) for full documentation.
+
+### Multi-Job Pattern — For Complex Cases
+
+Use a separate `jobs:` entry when filtering requires heavy tooling (checkout, compiled tools, multiple runners):
 
 ```yaml wrap title=".github/workflows/smart-responder.md"
 ---
@@ -129,7 +196,7 @@ if: needs.filter.outputs.should-run == 'true'
 Triage bug report: "${{ github.event.issue.title }}" and add-comment with a summary of the next steps.
 ```
 
-When `should-run` is `false`, GitHub marks the dependent jobs as **skipped** rather than failed, so no red X appears in the Actions tab and the Workflow Failure issue mechanism is not triggered.
+The compiler automatically adds the filter job as a dependency of the activation job, so when the condition is false the workflow run is **skipped** (not failed), keeping the Actions tab clean.
 
 ### Simple Context Conditions
 
@@ -220,6 +287,8 @@ Reference in prompts: "Analyze issues in `/tmp/gh-aw/agent/issues.json` and PRs 
 
 ## Related Documentation
 
+- [Pre-Activation Steps](/gh-aw/reference/triggers/#pre-activation-steps-onsteps) - Inline step injection into the pre-activation job
+- [Pre-Activation Permissions](/gh-aw/reference/triggers/#pre-activation-permissions-onpermissions) - Grant additional scopes for `on.steps:` API calls
 - [Custom Safe Outputs](/gh-aw/reference/custom-safe-outputs/) - Custom post-processing jobs
 - [Frontmatter Reference](/gh-aw/reference/frontmatter/) - Configuration options
 - [Compilation Process](/gh-aw/reference/compilation-process/) - How jobs are orchestrated

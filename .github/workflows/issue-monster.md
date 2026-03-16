@@ -8,6 +8,332 @@ on:
     query: "is:pr is:open is:draft author:app/copilot-swe-agent"
     max: 5
   skip-if-no-match: "is:issue is:open"
+  permissions:
+    issues: read
+    pull-requests: read
+  steps:
+    - name: Search for candidate issues
+      id: search
+      uses: actions/github-script@v8
+      with:
+        script: |
+          const { owner, repo } = context.repo;
+          
+          try {
+            // Check for recent rate-limited PRs to avoid scheduling more work during rate limiting
+            core.info('Checking for recent rate-limited PRs...');
+            const rateLimitCheckDate = new Date();
+            rateLimitCheckDate.setHours(rateLimitCheckDate.getHours() - 1); // Check last hour
+            // Format as YYYY-MM-DDTHH:MM:SS for GitHub search API
+            const rateLimitCheckISO = rateLimitCheckDate.toISOString().split('.')[0] + 'Z';
+            
+            const recentPRsQuery = `is:pr author:app/copilot-swe-agent created:>${rateLimitCheckISO} repo:${owner}/${repo}`;
+            const recentPRsResponse = await github.rest.search.issuesAndPullRequests({
+              q: recentPRsQuery,
+              per_page: 10,
+              sort: 'created',
+              order: 'desc'
+            });
+            
+            core.info(`Found ${recentPRsResponse.data.total_count} recent Copilot PRs to check for rate limiting`);
+            
+            // Check if any recent PRs have rate limit indicators
+            let rateLimitDetected = false;
+            for (const pr of recentPRsResponse.data.items) {
+              try {
+                const prTimelineQuery = `
+                  query($owner: String!, $repo: String!, $number: Int!) {
+                    repository(owner: $owner, name: $repo) {
+                      pullRequest(number: $number) {
+                        timelineItems(first: 50, itemTypes: [ISSUE_COMMENT]) {
+                          nodes {
+                            __typename
+                            ... on IssueComment {
+                              body
+                              createdAt
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                `;
+                
+                const prTimelineResult = await github.graphql(prTimelineQuery, {
+                  owner,
+                  repo,
+                  number: pr.number
+                });
+                
+                const comments = prTimelineResult?.repository?.pullRequest?.timelineItems?.nodes || [];
+                const rateLimitPattern = /rate limit|API rate limit|secondary rate limit|abuse detection|429|too many requests/i;
+                
+                for (const comment of comments) {
+                  if (comment.body && rateLimitPattern.test(comment.body)) {
+                    core.warning(`Rate limiting detected in PR #${pr.number}: ${comment.body.substring(0, 200)}`);
+                    rateLimitDetected = true;
+                    break;
+                  }
+                }
+                
+                if (rateLimitDetected) break;
+              } catch (error) {
+                core.warning(`Could not check PR #${pr.number} for rate limiting: ${error.message}`);
+              }
+            }
+            
+            if (rateLimitDetected) {
+              core.warning('🛑 Rate limiting detected in recent PRs. Skipping issue assignment to prevent further rate limit issues.');
+              core.setOutput('issue_count', 0);
+              core.setOutput('issue_numbers', '');
+              core.setOutput('issue_list', '');
+              core.setOutput('has_issues', 'false');
+              return;
+            }
+            
+            core.info('✓ No rate limiting detected. Proceeding with issue search.');
+            
+            // Labels that indicate an issue should NOT be auto-assigned
+            const excludeLabels = [
+              'wontfix',
+              'duplicate',
+              'invalid',
+              'question',
+              'discussion',
+              'needs-discussion',
+              'blocked',
+              'on-hold',
+              'waiting-for-feedback',
+              'needs-more-info',
+              'no-bot',
+              'no-campaign'
+            ];
+            
+            // Labels that indicate an issue is a GOOD candidate for auto-assignment
+            const priorityLabels = [
+              'good first issue',
+              'good-first-issue',
+              'bug',
+              'enhancement',
+              'feature',
+              'documentation',
+              'tech-debt',
+              'refactoring',
+              'performance',
+              'security'
+            ];
+            
+            // Search for open issues with "cookie" label and without excluded labels
+            // The "cookie" label indicates issues that are approved work queue items from automated workflows
+            const query = `is:issue is:open repo:${owner}/${repo} label:cookie -label:"${excludeLabels.join('" -label:"')}"`;
+            core.info(`Searching: ${query}`);
+            const response = await github.rest.search.issuesAndPullRequests({
+              q: query,
+              per_page: 100,
+              sort: 'created',
+              order: 'desc'
+            });
+            core.info(`Found ${response.data.total_count} total issues matching basic criteria`);
+            
+            // Fetch full details for each issue to get labels, assignees, sub-issues, and linked PRs
+            const issuesWithDetails = await Promise.all(
+              response.data.items.map(async (issue) => {
+                const fullIssue = await github.rest.issues.get({
+                  owner,
+                  repo,
+                  issue_number: issue.number
+                });
+                
+                // Check if this issue has sub-issues and linked PRs using GraphQL
+                let subIssuesCount = 0;
+                let linkedPRs = [];
+                try {
+                  const issueDetailsQuery = `
+                    query($owner: String!, $repo: String!, $number: Int!) {
+                      repository(owner: $owner, name: $repo) {
+                        issue(number: $number) {
+                          subIssues {
+                            totalCount
+                          }
+                          timelineItems(first: 100, itemTypes: [CROSS_REFERENCED_EVENT]) {
+                            nodes {
+                              ... on CrossReferencedEvent {
+                                source {
+                                  __typename
+                                  ... on PullRequest {
+                                    number
+                                    state
+                                    isDraft
+                                    author {
+                                      login
+                                    }
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  `;
+                  const issueDetailsResult = await github.graphql(issueDetailsQuery, {
+                    owner,
+                    repo,
+                    number: issue.number
+                  });
+                  
+                  subIssuesCount = issueDetailsResult?.repository?.issue?.subIssues?.totalCount || 0;
+                  
+                  // Extract linked PRs from timeline
+                  const timelineItems = issueDetailsResult?.repository?.issue?.timelineItems?.nodes || [];
+                  linkedPRs = timelineItems
+                    .filter(item => item?.source?.__typename === 'PullRequest')
+                    .map(item => ({
+                      number: item.source.number,
+                      state: item.source.state,
+                      isDraft: item.source.isDraft,
+                      author: item.source.author?.login
+                    }));
+                    
+                  core.info(`Issue #${issue.number} has ${linkedPRs.length} linked PR(s)`);
+                } catch (error) {
+                  // If GraphQL query fails, continue with defaults
+                  core.warning(`Could not check details for #${issue.number}: ${error.message}`);
+                }
+                
+                return {
+                  ...fullIssue.data,
+                  subIssuesCount,
+                  linkedPRs
+                };
+              })
+            );
+            
+            // Filter and score issues
+            const scoredIssues = issuesWithDetails
+              .filter(issue => {
+                // Exclude issues that already have assignees
+                if (issue.assignees && issue.assignees.length > 0) {
+                  core.info(`Skipping #${issue.number}: already has assignees`);
+                  return false;
+                }
+                
+                // Exclude issues with excluded labels (double check)
+                const issueLabels = issue.labels.map(l => l.name.toLowerCase());
+                if (issueLabels.some(label => excludeLabels.map(l => l.toLowerCase()).includes(label))) {
+                  core.info(`Skipping #${issue.number}: has excluded label`);
+                  return false;
+                }
+                
+                // Exclude issues with campaign labels (campaign:*)
+                // Campaign items are managed by campaign orchestrators
+                if (issueLabels.some(label => label.startsWith('campaign:'))) {
+                  core.info(`Skipping #${issue.number}: has campaign label (managed by campaign orchestrator)`);
+                  return false;
+                }
+                
+                // Exclude issues that have sub-issues (parent/organizing issues)
+                if (issue.subIssuesCount > 0) {
+                  core.info(`Skipping #${issue.number}: has ${issue.subIssuesCount} sub-issue(s) - parent issues are used for organizing, not tasks`);
+                  return false;
+                }
+                
+                // Exclude issues with closed PRs (treat as complete)
+                const closedPRs = issue.linkedPRs?.filter(pr => pr.state === 'CLOSED' || pr.state === 'MERGED') || [];
+                if (closedPRs.length > 0) {
+                  core.info(`Skipping #${issue.number}: has ${closedPRs.length} closed/merged PR(s) - treating as complete`);
+                  return false;
+                }
+                
+                // Exclude issues with open PRs from Copilot coding agent
+                const openCopilotPRs = issue.linkedPRs?.filter(pr => 
+                  pr.state === 'OPEN' && 
+                  (pr.author === 'copilot-swe-agent' || pr.author?.includes('copilot'))
+                ) || [];
+                if (openCopilotPRs.length > 0) {
+                  core.info(`Skipping #${issue.number}: has ${openCopilotPRs.length} open PR(s) from Copilot - already being worked on`);
+                  return false;
+                }
+                
+                return true;
+              })
+              .map(issue => {
+                const issueLabels = issue.labels.map(l => l.name.toLowerCase());
+                let score = 0;
+                
+                // Score based on priority labels (higher score = higher priority)
+                if (issueLabels.includes('good first issue') || issueLabels.includes('good-first-issue')) {
+                  score += 50;
+                }
+                if (issueLabels.includes('bug')) {
+                  score += 40;
+                }
+                if (issueLabels.includes('security')) {
+                  score += 45;
+                }
+                if (issueLabels.includes('documentation')) {
+                  score += 35;
+                }
+                if (issueLabels.includes('enhancement') || issueLabels.includes('feature')) {
+                  score += 30;
+                }
+                if (issueLabels.includes('performance')) {
+                  score += 25;
+                }
+                if (issueLabels.includes('tech-debt') || issueLabels.includes('refactoring')) {
+                  score += 20;
+                }
+                
+                // Bonus for issues with clear labels (any priority label)
+                if (issueLabels.some(label => priorityLabels.map(l => l.toLowerCase()).includes(label))) {
+                  score += 10;
+                }
+                
+                // Age bonus: older issues get slight priority (days old / 10)
+                const ageInDays = Math.floor((Date.now() - new Date(issue.created_at)) / (1000 * 60 * 60 * 24));
+                score += Math.min(ageInDays / 10, 20); // Cap age bonus at 20 points
+                
+                return {
+                  number: issue.number,
+                  title: issue.title,
+                  labels: issue.labels.map(l => l.name),
+                  created_at: issue.created_at,
+                  score
+                };
+              })
+              .sort((a, b) => b.score - a.score); // Sort by score descending
+            
+            // Format output
+            const issueList = scoredIssues.map(i => {
+              const labelStr = i.labels.length > 0 ? ` [${i.labels.join(', ')}]` : '';
+              return `#${i.number}: ${i.title}${labelStr} (score: ${i.score.toFixed(1)})`;
+            }).join('\n');
+            
+            const issueNumbers = scoredIssues.map(i => i.number).join(',');
+            
+            core.info(`Total candidate issues after filtering: ${scoredIssues.length}`);
+            if (scoredIssues.length > 0) {
+              core.info(`Top candidates:\n${issueList.split('\n').slice(0, 10).join('\n')}`);
+            }
+            
+            core.setOutput('issue_count', scoredIssues.length);
+            core.setOutput('issue_numbers', issueNumbers);
+            core.setOutput('issue_list', issueList);
+            
+            if (scoredIssues.length === 0) {
+              core.info('🍽️ No suitable candidate issues - the plate is empty!');
+              core.setOutput('has_issues', 'false');
+            } else {
+              core.setOutput('has_issues', 'true');
+            }
+          } catch (error) {
+            core.error(`Error searching for issues: ${error.message}`);
+            core.setOutput('issue_count', 0);
+            core.setOutput('issue_numbers', '');
+            core.setOutput('issue_list', '');
+            core.setOutput('has_issues', 'false');
+          }
+
 
 permissions:
   contents: read
@@ -28,342 +354,15 @@ tools:
     lockdown: true
     toolsets: [default, pull_requests]
 
-if: needs.search_issues.outputs.has_issues == 'true'
+if: needs.pre_activation.outputs.has_issues == 'true'
 
 jobs:
-  search_issues:
-    needs: ["pre_activation"]
-    if: needs.pre_activation.outputs.activated == 'true'
-    runs-on: ubuntu-latest
-    permissions:
-      issues: read
+  pre-activation:
     outputs:
       issue_count: ${{ steps.search.outputs.issue_count }}
       issue_numbers: ${{ steps.search.outputs.issue_numbers }}
       issue_list: ${{ steps.search.outputs.issue_list }}
       has_issues: ${{ steps.search.outputs.has_issues }}
-    steps:
-      - name: Search for candidate issues
-        id: search
-        uses: actions/github-script@v8
-        with:
-          script: |
-            const { owner, repo } = context.repo;
-            
-            try {
-              // Check for recent rate-limited PRs to avoid scheduling more work during rate limiting
-              core.info('Checking for recent rate-limited PRs...');
-              const rateLimitCheckDate = new Date();
-              rateLimitCheckDate.setHours(rateLimitCheckDate.getHours() - 1); // Check last hour
-              // Format as YYYY-MM-DDTHH:MM:SS for GitHub search API
-              const rateLimitCheckISO = rateLimitCheckDate.toISOString().split('.')[0] + 'Z';
-              
-              const recentPRsQuery = `is:pr author:app/copilot-swe-agent created:>${rateLimitCheckISO} repo:${owner}/${repo}`;
-              const recentPRsResponse = await github.rest.search.issuesAndPullRequests({
-                q: recentPRsQuery,
-                per_page: 10,
-                sort: 'created',
-                order: 'desc'
-              });
-              
-              core.info(`Found ${recentPRsResponse.data.total_count} recent Copilot PRs to check for rate limiting`);
-              
-              // Check if any recent PRs have rate limit indicators
-              let rateLimitDetected = false;
-              for (const pr of recentPRsResponse.data.items) {
-                try {
-                  const prTimelineQuery = `
-                    query($owner: String!, $repo: String!, $number: Int!) {
-                      repository(owner: $owner, name: $repo) {
-                        pullRequest(number: $number) {
-                          timelineItems(first: 50, itemTypes: [ISSUE_COMMENT]) {
-                            nodes {
-                              __typename
-                              ... on IssueComment {
-                                body
-                                createdAt
-                              }
-                            }
-                          }
-                        }
-                      }
-                    }
-                  `;
-                  
-                  const prTimelineResult = await github.graphql(prTimelineQuery, {
-                    owner,
-                    repo,
-                    number: pr.number
-                  });
-                  
-                  const comments = prTimelineResult?.repository?.pullRequest?.timelineItems?.nodes || [];
-                  const rateLimitPattern = /rate limit|API rate limit|secondary rate limit|abuse detection|429|too many requests/i;
-                  
-                  for (const comment of comments) {
-                    if (comment.body && rateLimitPattern.test(comment.body)) {
-                      core.warning(`Rate limiting detected in PR #${pr.number}: ${comment.body.substring(0, 200)}`);
-                      rateLimitDetected = true;
-                      break;
-                    }
-                  }
-                  
-                  if (rateLimitDetected) break;
-                } catch (error) {
-                  core.warning(`Could not check PR #${pr.number} for rate limiting: ${error.message}`);
-                }
-              }
-              
-              if (rateLimitDetected) {
-                core.warning('🛑 Rate limiting detected in recent PRs. Skipping issue assignment to prevent further rate limit issues.');
-                core.setOutput('issue_count', 0);
-                core.setOutput('issue_numbers', '');
-                core.setOutput('issue_list', '');
-                core.setOutput('has_issues', 'false');
-                return;
-              }
-              
-              core.info('✓ No rate limiting detected. Proceeding with issue search.');
-              
-              // Labels that indicate an issue should NOT be auto-assigned
-              const excludeLabels = [
-                'wontfix',
-                'duplicate',
-                'invalid',
-                'question',
-                'discussion',
-                'needs-discussion',
-                'blocked',
-                'on-hold',
-                'waiting-for-feedback',
-                'needs-more-info',
-                'no-bot',
-                'no-campaign'
-              ];
-              
-              // Labels that indicate an issue is a GOOD candidate for auto-assignment
-              const priorityLabels = [
-                'good first issue',
-                'good-first-issue',
-                'bug',
-                'enhancement',
-                'feature',
-                'documentation',
-                'tech-debt',
-                'refactoring',
-                'performance',
-                'security'
-              ];
-              
-              // Search for open issues with "cookie" label and without excluded labels
-              // The "cookie" label indicates issues that are approved work queue items from automated workflows
-              const query = `is:issue is:open repo:${owner}/${repo} label:cookie -label:"${excludeLabels.join('" -label:"')}"`;
-              core.info(`Searching: ${query}`);
-              const response = await github.rest.search.issuesAndPullRequests({
-                q: query,
-                per_page: 100,
-                sort: 'created',
-                order: 'desc'
-              });
-              core.info(`Found ${response.data.total_count} total issues matching basic criteria`);
-              
-              // Fetch full details for each issue to get labels, assignees, sub-issues, and linked PRs
-              const issuesWithDetails = await Promise.all(
-                response.data.items.map(async (issue) => {
-                  const fullIssue = await github.rest.issues.get({
-                    owner,
-                    repo,
-                    issue_number: issue.number
-                  });
-                  
-                  // Check if this issue has sub-issues and linked PRs using GraphQL
-                  let subIssuesCount = 0;
-                  let linkedPRs = [];
-                  try {
-                    const issueDetailsQuery = `
-                      query($owner: String!, $repo: String!, $number: Int!) {
-                        repository(owner: $owner, name: $repo) {
-                          issue(number: $number) {
-                            subIssues {
-                              totalCount
-                            }
-                            timelineItems(first: 100, itemTypes: [CROSS_REFERENCED_EVENT]) {
-                              nodes {
-                                ... on CrossReferencedEvent {
-                                  source {
-                                    __typename
-                                    ... on PullRequest {
-                                      number
-                                      state
-                                      isDraft
-                                      author {
-                                        login
-                                      }
-                                    }
-                                  }
-                                }
-                              }
-                            }
-                          }
-                        }
-                      }
-                    `;
-                    const issueDetailsResult = await github.graphql(issueDetailsQuery, {
-                      owner,
-                      repo,
-                      number: issue.number
-                    });
-                    
-                    subIssuesCount = issueDetailsResult?.repository?.issue?.subIssues?.totalCount || 0;
-                    
-                    // Extract linked PRs from timeline
-                    const timelineItems = issueDetailsResult?.repository?.issue?.timelineItems?.nodes || [];
-                    linkedPRs = timelineItems
-                      .filter(item => item?.source?.__typename === 'PullRequest')
-                      .map(item => ({
-                        number: item.source.number,
-                        state: item.source.state,
-                        isDraft: item.source.isDraft,
-                        author: item.source.author?.login
-                      }));
-                      
-                    core.info(`Issue #${issue.number} has ${linkedPRs.length} linked PR(s)`);
-                  } catch (error) {
-                    // If GraphQL query fails, continue with defaults
-                    core.warning(`Could not check details for #${issue.number}: ${error.message}`);
-                  }
-                  
-                  return {
-                    ...fullIssue.data,
-                    subIssuesCount,
-                    linkedPRs
-                  };
-                })
-              );
-              
-              // Filter and score issues
-              const scoredIssues = issuesWithDetails
-                .filter(issue => {
-                  // Exclude issues that already have assignees
-                  if (issue.assignees && issue.assignees.length > 0) {
-                    core.info(`Skipping #${issue.number}: already has assignees`);
-                    return false;
-                  }
-                  
-                  // Exclude issues with excluded labels (double check)
-                  const issueLabels = issue.labels.map(l => l.name.toLowerCase());
-                  if (issueLabels.some(label => excludeLabels.map(l => l.toLowerCase()).includes(label))) {
-                    core.info(`Skipping #${issue.number}: has excluded label`);
-                    return false;
-                  }
-                  
-                  // Exclude issues with campaign labels (campaign:*)
-                  // Campaign items are managed by campaign orchestrators
-                  if (issueLabels.some(label => label.startsWith('campaign:'))) {
-                    core.info(`Skipping #${issue.number}: has campaign label (managed by campaign orchestrator)`);
-                    return false;
-                  }
-                  
-                  // Exclude issues that have sub-issues (parent/organizing issues)
-                  if (issue.subIssuesCount > 0) {
-                    core.info(`Skipping #${issue.number}: has ${issue.subIssuesCount} sub-issue(s) - parent issues are used for organizing, not tasks`);
-                    return false;
-                  }
-                  
-                  // Exclude issues with closed PRs (treat as complete)
-                  const closedPRs = issue.linkedPRs?.filter(pr => pr.state === 'CLOSED' || pr.state === 'MERGED') || [];
-                  if (closedPRs.length > 0) {
-                    core.info(`Skipping #${issue.number}: has ${closedPRs.length} closed/merged PR(s) - treating as complete`);
-                    return false;
-                  }
-                  
-                  // Exclude issues with open PRs from Copilot coding agent
-                  const openCopilotPRs = issue.linkedPRs?.filter(pr => 
-                    pr.state === 'OPEN' && 
-                    (pr.author === 'copilot-swe-agent' || pr.author?.includes('copilot'))
-                  ) || [];
-                  if (openCopilotPRs.length > 0) {
-                    core.info(`Skipping #${issue.number}: has ${openCopilotPRs.length} open PR(s) from Copilot - already being worked on`);
-                    return false;
-                  }
-                  
-                  return true;
-                })
-                .map(issue => {
-                  const issueLabels = issue.labels.map(l => l.name.toLowerCase());
-                  let score = 0;
-                  
-                  // Score based on priority labels (higher score = higher priority)
-                  if (issueLabels.includes('good first issue') || issueLabels.includes('good-first-issue')) {
-                    score += 50;
-                  }
-                  if (issueLabels.includes('bug')) {
-                    score += 40;
-                  }
-                  if (issueLabels.includes('security')) {
-                    score += 45;
-                  }
-                  if (issueLabels.includes('documentation')) {
-                    score += 35;
-                  }
-                  if (issueLabels.includes('enhancement') || issueLabels.includes('feature')) {
-                    score += 30;
-                  }
-                  if (issueLabels.includes('performance')) {
-                    score += 25;
-                  }
-                  if (issueLabels.includes('tech-debt') || issueLabels.includes('refactoring')) {
-                    score += 20;
-                  }
-                  
-                  // Bonus for issues with clear labels (any priority label)
-                  if (issueLabels.some(label => priorityLabels.map(l => l.toLowerCase()).includes(label))) {
-                    score += 10;
-                  }
-                  
-                  // Age bonus: older issues get slight priority (days old / 10)
-                  const ageInDays = Math.floor((Date.now() - new Date(issue.created_at)) / (1000 * 60 * 60 * 24));
-                  score += Math.min(ageInDays / 10, 20); // Cap age bonus at 20 points
-                  
-                  return {
-                    number: issue.number,
-                    title: issue.title,
-                    labels: issue.labels.map(l => l.name),
-                    created_at: issue.created_at,
-                    score
-                  };
-                })
-                .sort((a, b) => b.score - a.score); // Sort by score descending
-              
-              // Format output
-              const issueList = scoredIssues.map(i => {
-                const labelStr = i.labels.length > 0 ? ` [${i.labels.join(', ')}]` : '';
-                return `#${i.number}: ${i.title}${labelStr} (score: ${i.score.toFixed(1)})`;
-              }).join('\n');
-              
-              const issueNumbers = scoredIssues.map(i => i.number).join(',');
-              
-              core.info(`Total candidate issues after filtering: ${scoredIssues.length}`);
-              if (scoredIssues.length > 0) {
-                core.info(`Top candidates:\n${issueList.split('\n').slice(0, 10).join('\n')}`);
-              }
-              
-              core.setOutput('issue_count', scoredIssues.length);
-              core.setOutput('issue_numbers', issueNumbers);
-              core.setOutput('issue_list', issueList);
-              
-              if (scoredIssues.length === 0) {
-                core.info('🍽️ No suitable candidate issues - the plate is empty!');
-                core.setOutput('has_issues', 'false');
-              } else {
-                core.setOutput('has_issues', 'true');
-              }
-            } catch (error) {
-              core.error(`Error searching for issues: ${error.message}`);
-              core.setOutput('issue_count', 0);
-              core.setOutput('issue_numbers', '');
-              core.setOutput('issue_list', '');
-              core.setOutput('has_issues', 'false');
-            }
 
 safe-outputs:
   assign-to-agent:
@@ -399,7 +398,7 @@ Find up to three issues that need work and assign them to the Copilot coding age
 
 ### 1. Review Pre-Searched and Prioritized Issue List
 
-The issue search has already been performed in a previous job with smart filtering and prioritization:
+The issue search has already been performed in the pre-activation job with smart filtering and prioritization:
 
 **Rate Limiting Protection:**
 - 🛡️ **Checks for rate-limited PRs in the last hour** before scheduling new work
@@ -428,12 +427,12 @@ Issues are scored and sorted by priority:
 - Has any priority label: +10 points
 - Age bonus: +0-20 points (older issues get slight priority)
 
-**Issue Count**: ${{ needs.search_issues.outputs.issue_count }}
-**Issue Numbers**: ${{ needs.search_issues.outputs.issue_numbers }}
+**Issue Count**: ${{ needs.pre_activation.outputs.issue_count }}
+**Issue Numbers**: ${{ needs.pre_activation.outputs.issue_numbers }}
 
 **Available Issues (sorted by priority score):**
 ```
-${{ needs.search_issues.outputs.issue_list }}
+${{ needs.pre_activation.outputs.issue_list }}
 ```
 
 Work with this pre-fetched, filtered, and prioritized list of issues. Do not perform additional searches - the issue numbers are already identified above, sorted from highest to lowest priority.
@@ -459,7 +458,7 @@ For issues with the "task" or "plan" label, check if they are sub-issues linked 
 
 ### 2. Review the Pre-Filtered Issue List
 
-The search job has already performed comprehensive filtering, including:
+The pre-activation job has already performed comprehensive filtering, including:
 - Issues already assigned to Copilot
 - Issues with open PRs linked to them (from any author)
 - Issues with closed/merged PRs (treated as complete)
@@ -568,7 +567,7 @@ A successful run means:
 ## Error Handling
 
 If anything goes wrong or no work can be assigned:
-- **Rate limiting detected**: The workflow automatically skips (no action needed - the search job handles this)
+- **Rate limiting detected**: The workflow automatically skips (no action needed - the pre-activation job handles this)
 - **No issues found**: Use the `noop` tool with message: "🍽️ No suitable candidate issues - the plate is empty!"
 - **All issues assigned**: Use the `noop` tool with message: "🍽️ All issues are already being worked on!"
 - **No suitable separate issues**: Use the `noop` tool explaining which issues were considered and why they couldn't be assigned (e.g., overlapping topics, sibling PRs, etc.)

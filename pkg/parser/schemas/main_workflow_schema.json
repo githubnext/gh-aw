@@ -1589,6 +1589,131 @@
                   "private-key": "${{ secrets.APP_PRIVATE_KEY }}"
                 }
               ]
+            },
+            "steps": {
+              "type": "array",
+              "description": "Steps to inject into the pre-activation job. These steps run after all built-in checks (membership, stop-time, skip-if, etc.) and their results are exposed as pre-activation outputs. Use 'id' on steps to reference their results via needs.pre_activation.outputs.<id>_result.",
+              "items": {
+                "type": "object",
+                "description": "A GitHub Actions step to inject into the pre-activation job",
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "description": "Optional name for the step"
+                  },
+                  "id": {
+                    "type": "string",
+                    "description": "Optional step ID. When set, the step result is exposed as needs.pre_activation.outputs.<id>_result"
+                  },
+                  "run": {
+                    "type": "string",
+                    "description": "Shell command to run"
+                  },
+                  "uses": {
+                    "type": "string",
+                    "description": "Action to use (e.g., 'actions/checkout@v4')"
+                  },
+                  "with": {
+                    "type": "object",
+                    "description": "Input parameters for the action",
+                    "additionalProperties": true
+                  },
+                  "env": {
+                    "type": "object",
+                    "description": "Environment variables for the step",
+                    "additionalProperties": {
+                      "type": "string"
+                    }
+                  },
+                  "if": {
+                    "type": "string",
+                    "description": "Conditional expression for the step"
+                  },
+                  "continue-on-error": {
+                    "type": "boolean",
+                    "description": "Whether to continue if the step fails"
+                  }
+                },
+                "additionalProperties": true
+              },
+              "examples": [
+                [
+                  {
+                    "name": "Gate check",
+                    "id": "gate",
+                    "run": "echo 'Checking gate...' && exit 0"
+                  }
+                ]
+              ]
+            },
+            "permissions": {
+              "description": "Additional permissions for the pre-activation job. Use to declare extra scopes required by on.steps (e.g., issues: read for GitHub API calls in steps).",
+              "oneOf": [
+                {
+                  "type": "object",
+                  "description": "Map of permission scope to level",
+                  "properties": {
+                    "actions": {
+                      "type": "string",
+                      "enum": ["read", "write", "none"]
+                    },
+                    "checks": {
+                      "type": "string",
+                      "enum": ["read", "write", "none"]
+                    },
+                    "contents": {
+                      "type": "string",
+                      "enum": ["read", "write", "none"]
+                    },
+                    "deployments": {
+                      "type": "string",
+                      "enum": ["read", "write", "none"]
+                    },
+                    "discussions": {
+                      "type": "string",
+                      "enum": ["read", "write", "none"]
+                    },
+                    "issues": {
+                      "type": "string",
+                      "enum": ["read", "write", "none"]
+                    },
+                    "packages": {
+                      "type": "string",
+                      "enum": ["read", "write", "none"]
+                    },
+                    "pages": {
+                      "type": "string",
+                      "enum": ["read", "write", "none"]
+                    },
+                    "pull-requests": {
+                      "type": "string",
+                      "enum": ["read", "write", "none"]
+                    },
+                    "repository-projects": {
+                      "type": "string",
+                      "enum": ["read", "write", "none"]
+                    },
+                    "security-events": {
+                      "type": "string",
+                      "enum": ["read", "write", "none"]
+                    },
+                    "statuses": {
+                      "type": "string",
+                      "enum": ["read", "write", "none"]
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              ],
+              "examples": [
+                {
+                  "issues": "read"
+                },
+                {
+                  "issues": "read",
+                  "pull-requests": "read"
+                }
+              ]
             }
           },
           "additionalProperties": false,

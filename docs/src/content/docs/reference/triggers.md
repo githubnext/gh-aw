@@ -496,6 +496,86 @@ on:
     owner: myorg
 ```
 
+### Pre-Activation Steps (`on.steps:`)
+
+Inject custom deterministic steps directly into the pre-activation job. Steps run after all built-in checks (membership, stop-time, skip-if, etc.) and **before** agent execution. This saves one workflow job compared to the multi-job pattern and keeps filtering logic co-located with the trigger configuration.
+
+```yaml wrap
+on:
+  issues:
+    types: [opened]
+  steps:
+    - name: Check issue label
+      id: label_check
+      env:
+        LABELS: ${{ toJSON(github.event.issue.labels.*.name) }}
+      run: echo "$LABELS" | grep -q '"bug"'
+      # exits 0 (outcome: success) if the label is found, 1 (outcome: failure) if not
+
+if: needs.pre_activation.outputs.label_check_result == 'success'
+```
+
+Each step with an `id` automatically gets an output `<id>_result` wired to `${{ steps.<id>.outcome }}` (values: `success`, `failure`, `cancelled`, `skipped`). This lets you gate the workflow on whether the step **succeeded or failed** via its exit code.
+
+To pass an explicit value rather than relying on exit codes, set a step output and re-expose it via `jobs.pre-activation.outputs`:
+
+```yaml wrap
+on:
+  issues:
+    types: [opened]
+  steps:
+    - name: Check issue label
+      id: label_check
+      env:
+        LABELS: ${{ toJSON(github.event.issue.labels.*.name) }}
+      run: |
+        if echo "$LABELS" | grep -q '"bug"'; then
+          echo "has_bug_label=true" >> "$GITHUB_OUTPUT"
+        else
+          echo "has_bug_label=false" >> "$GITHUB_OUTPUT"
+        fi
+
+jobs:
+  pre-activation:
+    outputs:
+      has_bug_label: ${{ steps.label_check.outputs.has_bug_label }}
+
+if: needs.pre_activation.outputs.has_bug_label == 'true'
+```
+
+Explicit outputs defined in `jobs.pre-activation.outputs` take precedence over auto-wired `<id>_result` outputs on key collision.
+
+### Pre-Activation Permissions (`on.permissions:`)
+
+Grant additional GitHub token permission scopes to the pre-activation job. Use when `on.steps:` make GitHub API calls that require permissions beyond the defaults.
+
+```yaml wrap
+on:
+  schedule: every 30m
+  permissions:
+    issues: read
+    pull-requests: read
+  steps:
+    - name: Search for candidate issues
+      id: search
+      uses: actions/github-script@v8
+      with:
+        script: |
+          const issues = await github.rest.issues.listForRepo(context.repo);
+          core.setOutput('has_issues', issues.data.length > 0 ? 'true' : 'false');
+
+jobs:
+  pre-activation:
+    outputs:
+      has_issues: ${{ steps.search.outputs.has_issues }}
+
+if: needs.pre_activation.outputs.has_issues == 'true'
+```
+
+Supported permission scopes: `actions`, `checks`, `contents`, `deployments`, `discussions`, `issues`, `packages`, `pages`, `pull-requests`, `repository-projects`, `security-events`, `statuses`.
+
+`on.permissions` is merged on top of any permissions already required by the pre-activation job (e.g., `contents: read` for dev-mode checkout, `actions: read` for rate limiting).
+
 ## Trigger Shorthands
 
 Instead of writing full YAML trigger configurations, you can use natural-language shorthand strings with `on:`. The compiler expands these into standard GitHub Actions trigger syntax and automatically includes `workflow_dispatch` so the workflow can also be run manually.

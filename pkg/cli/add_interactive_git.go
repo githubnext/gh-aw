@@ -56,6 +56,7 @@ func (c *AddInteractiveConfig) createWorkflowPRAndConfigureSecret(ctx context.Co
 		type mergeAction string
 		const (
 			mergeActionAttempt   mergeAction = "attempt"
+			mergeActionEditTitle mergeAction = "editTitle"
 			mergeActionReview    mergeAction = "review"
 			mergeActionConfirmed mergeAction = "confirmed"
 			mergeActionExit      mergeAction = "exit"
@@ -69,8 +70,10 @@ func (c *AddInteractiveConfig) createWorkflowPRAndConfigureSecret(ctx context.Co
 			// Build option list based on current state
 			var options []huh.Option[mergeAction]
 
-			if !mergeFailed {
-				options = append(options, huh.NewOption("Attempt to merge", mergeActionAttempt))
+			options = append(options, huh.NewOption("Attempt to merge", mergeActionAttempt))
+
+			if mergeFailed {
+				options = append(options, huh.NewOption("Edit PR title and retry", mergeActionEditTitle))
 			}
 
 			if userReviewing {
@@ -107,12 +110,37 @@ func (c *AddInteractiveConfig) createWorkflowPRAndConfigureSecret(ctx context.Co
 						mergeDone = true
 					} else {
 						fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to merge PR: %v", mergeErr)))
-						fmt.Fprintln(os.Stderr, "Please merge the PR manually: "+result.PRURL)
+						if mergeFailed {
+							fmt.Fprintln(os.Stderr, "Please merge the PR manually: "+result.PRURL)
+						}
 						mergeFailed = true
 					}
 				} else {
 					fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Merged pull request "+result.PRURL))
 					mergeDone = true
+				}
+
+			case mergeActionEditTitle:
+				var newTitle string
+				titleForm := huh.NewForm(
+					huh.NewGroup(
+						huh.NewInput().
+							Title("Enter new PR title").
+							Description("Add a prefix if required, for example: feat: or fix:").
+							Value(&newTitle),
+					),
+				).WithAccessible(console.IsAccessibleMode())
+				if titleErr := titleForm.Run(); titleErr != nil {
+					return fmt.Errorf("failed to get user input: %w", titleErr)
+				}
+				newTitle = strings.TrimSpace(newTitle)
+				if newTitle == "" {
+					fmt.Fprintln(os.Stderr, console.FormatWarningMessage("PR title cannot be empty, keeping current title"))
+				} else if editErr := editPRTitle(result.PRNumber, newTitle, c.RepoOverride); editErr != nil {
+					fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to update PR title: %v", editErr)))
+				} else {
+					fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("PR title updated to: "+newTitle))
+					mergeFailed = false
 				}
 
 			case mergeActionReview:
@@ -251,6 +279,19 @@ func (c *AddInteractiveConfig) mergePullRequest(prNumber int) error {
 	output, err := workflow.RunGHCombined("Merging pull request...", "pr", "merge", strconv.Itoa(prNumber), "--repo", c.RepoOverride, "--merge")
 	if err != nil {
 		return fmt.Errorf("merge failed: %w (output: %s)", err, string(output))
+	}
+	return nil
+}
+
+// editPRTitle updates the title of the specified PR via the gh CLI.
+func editPRTitle(prNumber int, newTitle, repoOverride string) error {
+	args := []string{"pr", "edit", strconv.Itoa(prNumber), "--title", newTitle}
+	if repoOverride != "" {
+		args = append(args, "--repo", repoOverride)
+	}
+	output, err := workflow.RunGHCombined("Updating PR title...", args...)
+	if err != nil {
+		return fmt.Errorf("failed to update PR title: %w (output: %s)", err, string(output))
 	}
 	return nil
 }

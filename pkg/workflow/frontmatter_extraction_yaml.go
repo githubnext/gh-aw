@@ -100,7 +100,7 @@ func (c *Compiler) extractTopLevelYAMLSection(frontmatter map[string]any, key st
 	return yamlStr
 }
 
-// commentOutProcessedFieldsInOnSection comments out draft, fork, forks, names, manual-approval, stop-after, skip-if-match, skip-if-no-match, skip-roles, reaction, and lock-for-agent fields in the on section
+// commentOutProcessedFieldsInOnSection comments out draft, fork, forks, names, manual-approval, stop-after, skip-if-match, skip-if-no-match, skip-roles, reaction, lock-for-agent, steps, and permissions fields in the on section
 // These fields are processed separately and should be commented for documentation
 // Exception: names fields in sections with __gh_aw_native_label_filter__ marker in frontmatter are NOT commented out
 func (c *Compiler) commentOutProcessedFieldsInOnSection(yamlStr string, frontmatter map[string]any) string {
@@ -139,45 +139,53 @@ func (c *Compiler) commentOutProcessedFieldsInOnSection(yamlStr string, frontmat
 	inRolesArray := false
 	inBotsArray := false
 	inGitHubApp := false
+	inOnSteps := false
+	inOnPermissions := false
 	currentSection := "" // Track which section we're in ("issues", "pull_request", "discussion", or "issue_comment")
 
 	for _, line := range lines {
-		// Check if we're entering a pull_request, issues, discussion, or issue_comment section
-		if strings.Contains(line, "pull_request:") {
-			inPullRequest = true
-			inIssues = false
-			inDiscussion = false
-			inIssueComment = false
-			currentSection = "pull_request"
-			result = append(result, line)
-			continue
-		}
-		if strings.Contains(line, "issues:") {
-			inIssues = true
-			inPullRequest = false
-			inDiscussion = false
-			inIssueComment = false
-			currentSection = "issues"
-			result = append(result, line)
-			continue
-		}
-		if strings.Contains(line, "discussion:") {
-			inDiscussion = true
-			inPullRequest = false
-			inIssues = false
-			inIssueComment = false
-			currentSection = "discussion"
-			result = append(result, line)
-			continue
-		}
-		if strings.Contains(line, "issue_comment:") {
-			inIssueComment = true
-			inPullRequest = false
-			inIssues = false
-			inDiscussion = false
-			currentSection = "issue_comment"
-			result = append(result, line)
-			continue
+		// Check if we're entering a pull_request, issues, discussion, or issue_comment section.
+		// Skip these checks when inside on.permissions or on.steps to avoid false matches.
+		// Example: `    issues: read` inside on.permissions was previously matched as the
+		// `issues:` event trigger, incorrectly entering the inIssues state and suppressing
+		// the permission comment-out logic.
+		if !inOnPermissions && !inOnSteps {
+			if strings.Contains(line, "pull_request:") {
+				inPullRequest = true
+				inIssues = false
+				inDiscussion = false
+				inIssueComment = false
+				currentSection = "pull_request"
+				result = append(result, line)
+				continue
+			}
+			if strings.Contains(line, "issues:") {
+				inIssues = true
+				inPullRequest = false
+				inDiscussion = false
+				inIssueComment = false
+				currentSection = "issues"
+				result = append(result, line)
+				continue
+			}
+			if strings.Contains(line, "discussion:") {
+				inDiscussion = true
+				inPullRequest = false
+				inIssues = false
+				inIssueComment = false
+				currentSection = "discussion"
+				result = append(result, line)
+				continue
+			}
+			if strings.Contains(line, "issue_comment:") {
+				inIssueComment = true
+				inPullRequest = false
+				inIssues = false
+				inDiscussion = false
+				currentSection = "issue_comment"
+				result = append(result, line)
+				continue
+			}
 		}
 
 		// Check if we're leaving the pull_request, issues, discussion, or issue_comment section (new top-level key or end of indent)
@@ -230,6 +238,17 @@ func (c *Compiler) commentOutProcessedFieldsInOnSection(yamlStr string, frontmat
 		if !inPullRequest && !inIssues && !inDiscussion && !inIssueComment && strings.HasPrefix(trimmedLine, "bots:") {
 			// Check if this is an array (next line will be "- ") or inline value
 			inBotsArray = true
+		}
+
+		// Check if we're entering on.steps array
+		if !inPullRequest && !inIssues && !inDiscussion && !inIssueComment && strings.HasPrefix(trimmedLine, "steps:") {
+			inOnSteps = true
+		}
+
+		// Check if we're entering on.permissions object
+		if !inPullRequest && !inIssues && !inDiscussion && !inIssueComment && !inOnPermissions &&
+			strings.HasPrefix(trimmedLine, "permissions:") {
+			inOnPermissions = true
 		}
 
 		// Check if we're entering skip-if-match object
@@ -353,6 +372,25 @@ func (c *Compiler) commentOutProcessedFieldsInOnSection(yamlStr string, frontmat
 			}
 		}
 
+		// Check if we're leaving the on.steps array by encountering another top-level field
+		if inOnSteps && strings.TrimSpace(line) != "" {
+			lineIndent := len(line) - len(strings.TrimLeft(line, " \t"))
+			// If this is a line at the same level as steps (2 spaces) and not a dash or comment, we're out
+			if lineIndent == 2 && !strings.HasPrefix(trimmedLine, "-") && !strings.HasPrefix(trimmedLine, "steps:") && !strings.HasPrefix(trimmedLine, "#") {
+				inOnSteps = false
+			}
+		}
+
+		// Check if we're leaving the on.permissions object by encountering another top-level field
+		if inOnPermissions && strings.TrimSpace(line) != "" &&
+			!strings.HasPrefix(trimmedLine, "permissions:") &&
+			!strings.HasPrefix(trimmedLine, "# permissions:") {
+			lineIndent := len(line) - len(strings.TrimLeft(line, " \t"))
+			if lineIndent == 2 && !strings.HasPrefix(trimmedLine, "#") {
+				inOnPermissions = false
+			}
+		}
+
 		// Determine if we should comment out this line
 		shouldComment := false
 		var commentReason string
@@ -407,6 +445,20 @@ func (c *Compiler) commentOutProcessedFieldsInOnSection(yamlStr string, frontmat
 				// Comment out array items in bots
 				shouldComment = true
 				commentReason = " # Bots processed as bot check in pre-activation job"
+			} else if strings.HasPrefix(trimmedLine, "steps:") {
+				shouldComment = true
+				commentReason = " # Steps injected into pre-activation job"
+			} else if inOnSteps {
+				// Comment out all content of on.steps (both array items and their nested fields)
+				shouldComment = true
+				commentReason = ""
+			} else if strings.HasPrefix(trimmedLine, "permissions:") {
+				shouldComment = true
+				commentReason = " # Permissions applied to pre-activation job"
+			} else if inOnPermissions {
+				// Comment out all nested permission scope lines
+				shouldComment = true
+				commentReason = ""
 			} else if strings.HasPrefix(trimmedLine, "reaction:") {
 				shouldComment = true
 				commentReason = " # Reaction processed as activation job step"
