@@ -218,6 +218,10 @@ func (e *CodexEngine) GetExecutionSteps(workflowData *WorkflowData, logFile stri
 		// Build AWF-wrapped command using helper function
 		// Get allowed domains (Codex defaults + network permissions + HTTP MCP server URLs + runtime ecosystem domains)
 		allowedDomains := GetCodexAllowedDomainsWithToolsAndRuntimes(workflowData.NetworkPermissions, workflowData.Tools, workflowData.Runtimes)
+		// Add GHES/custom API target domains to the firewall allow-list when engine.api-target is set
+		if workflowData.EngineConfig != nil && workflowData.EngineConfig.APITarget != "" {
+			allowedDomains = mergeAPITargetDomains(allowedDomains, workflowData.EngineConfig.APITarget)
+		}
 
 		// Build the command with agent file handling if specified
 		// INSTRUCTION reading is done inside the AWF command to avoid Docker Compose interpolation
