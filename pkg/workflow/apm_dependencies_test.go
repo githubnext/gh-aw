@@ -153,12 +153,12 @@ func TestExtractAPMDependenciesFromFrontmatter(t *testing.T) {
 				"dependencies": map[string]any{
 					"packages": []any{
 						map[string]any{
-							"foo": "bar", // no source field
+							"foo": "bar", // non-string entries are silently skipped
 						},
 					},
 				},
 			},
-			expectedDeps: nil, // no valid source → skipped
+			expectedDeps: nil,
 		},
 	}
 
@@ -233,6 +233,7 @@ func TestGenerateAPMPackStep(t *testing.T) {
 		name             string
 		apmDeps          *APMDependenciesInfo
 		target           string
+		tokenStepID      string
 		expectedContains []string
 		expectedEmpty    bool
 	}{
@@ -249,7 +250,7 @@ func TestGenerateAPMPackStep(t *testing.T) {
 			expectedEmpty: true,
 		},
 		{
-			name:    "Single dependency with copilot target",
+			name:    "Single dependency with copilot target (no token)",
 			apmDeps: &APMDependenciesInfo{Packages: []string{"microsoft/apm-sample-package"}},
 			target:  "copilot",
 			expectedContains: []string{
@@ -266,32 +267,34 @@ func TestGenerateAPMPackStep(t *testing.T) {
 			},
 		},
 		{
-			name:    "Multiple dependencies with claude target",
-			apmDeps: &APMDependenciesInfo{Packages: []string{"microsoft/apm-sample-package", "github/skills/review"}},
-			target:  "claude",
+			name:        "With GitHub App token uses apm_pack_0 step ID",
+			apmDeps:     &APMDependenciesInfo{Packages: []string{"acme-org/pkg"}, GitHubApp: &GitHubAppConfig{AppID: "123", PrivateKey: "key"}},
+			target:      "claude",
+			tokenStepID: "apm-app-token-0",
 			expectedContains: []string{
-				"Install and pack APM dependencies",
-				"id: apm_pack",
-				"microsoft/apm-action",
-				"- microsoft/apm-sample-package",
-				"- github/skills/review",
+				"id: apm_pack_0",
+				"env:",
+				"GITHUB_TOKEN: ${{ steps.apm-app-token-0.outputs.token }}",
+				"- acme-org/pkg",
 				"target: claude",
 			},
 		},
 		{
-			name:    "All target for non-copilot/claude engine",
-			apmDeps: &APMDependenciesInfo{Packages: []string{"microsoft/apm-sample-package"}},
-			target:  "all",
+			name:    "Multiple dependencies with claude target",
+			apmDeps: &APMDependenciesInfo{Packages: []string{"microsoft/apm-sample-package", "github/skills/review"}},
+			target:  "claude",
 			expectedContains: []string{
-				"target: all",
+				"id: apm_pack",
+				"- microsoft/apm-sample-package",
+				"- github/skills/review",
+				"target: claude",
 			},
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			data := &WorkflowData{Name: "test-workflow"}
-			step := GenerateAPMPackStep(tt.apmDeps, tt.target, data)
+			step := generateAPMPackStep(tt.apmDeps, tt.target, tt.tokenStepID)
 
 			if tt.expectedEmpty {
 				assert.Empty(t, step, "Step should be empty for empty/nil dependencies")
@@ -355,8 +358,7 @@ func TestGenerateAPMRestoreStep(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			data := &WorkflowData{Name: "test-workflow"}
-			step := GenerateAPMRestoreStep(tt.apmDeps, data)
+			step := GenerateAPMRestoreStep(tt.apmDeps)
 
 			if tt.expectedEmpty {
 				assert.Empty(t, step, "Step should be empty for empty/nil dependencies")

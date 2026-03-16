@@ -241,20 +241,16 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 	if data.APMDependencies != nil && len(data.APMDependencies.Packages) > 0 {
 		compilerYamlLog.Printf("Adding APM bundle download step: %d packages total",
 			len(data.APMDependencies.Packages))
-		prefix := artifactPrefixExprForDownstreamJob(data)
 
-		artifactBaseName := apmArtifactBaseName(data.APMDependencies)
-		artifactName := prefix + artifactBaseName
+		artifactName := apmArtifactName(data.APMDependencies, artifactPrefixExprForDownstreamJob(data))
 		fmt.Fprintf(yaml, "      - name: Download APM bundle artifact\n")
 		fmt.Fprintf(yaml, "        uses: %s\n", GetActionPin("actions/download-artifact"))
 		yaml.WriteString("        with:\n")
 		fmt.Fprintf(yaml, "          name: %s\n", artifactName)
 		yaml.WriteString("          path: /tmp/gh-aw/apm-bundle\n")
 
-		// Restore APM dependencies from the bundle
-		compilerYamlLog.Printf("Adding APM restore step")
-		apmStep := GenerateAPMRestoreStep(data.APMDependencies, data)
-		for _, line := range apmStep {
+		compilerYamlLog.Print("Adding APM restore step")
+		for _, line := range GenerateAPMRestoreStep(data.APMDependencies) {
 			yaml.WriteString(line + "\n")
 		}
 	}

@@ -406,9 +406,8 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 	compilerActivationJobLog.Print("Generating prompt in activation job")
 	c.generatePromptInActivationJob(&steps, data, preActivationJobCreated, customJobsBeforeActivation)
 
-	// Generate APM pack step(s) if dependencies are specified.
-	// When no GitHub App is configured: single pack step (backward compat).
-	// When a GitHub App is configured: one token-mint + pack + upload step.
+	// Generate APM pack steps if dependencies are specified.
+	// Optionally mints a GitHub App token first when a github-app is configured.
 	if data.APMDependencies != nil && len(data.APMDependencies.Packages) > 0 {
 		apmTarget := engine.GetAPMTarget()
 		compilerActivationJobLog.Printf("Adding APM pack step: %d packages total",
@@ -417,28 +416,23 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 		// Mint a GitHub App token before the pack step when configured.
 		tokenStepID := ""
 		if data.APMDependencies.GitHubApp != nil {
-			tokenStepID = apmAppTokenStepID()
+			tokenStepID = apmAppTokenStepID
 			compilerActivationJobLog.Print("Adding APM GitHub App token mint step")
-			tokenSteps := c.generateAPMAppTokenMintStep(data.APMDependencies.GitHubApp, tokenStepID)
-			steps = append(steps, tokenSteps...)
+			steps = append(steps, c.generateAPMAppTokenMintStep(data.APMDependencies.GitHubApp)...)
 		}
 
-		// Generate the pack step.
-		var packStep GitHubActionStep
-		if data.APMDependencies.GitHubApp != nil {
-			packStep = generateAPMPackStepWithToken(data.APMDependencies, apmTarget, tokenStepID, data)
-		} else {
-			packStep = GenerateAPMPackStep(data.APMDependencies, apmTarget, data)
-		}
-		for _, line := range packStep {
+		// Generate the pack step (token is applied when tokenStepID is non-empty).
+		for _, line := range generateAPMPackStep(data.APMDependencies, apmTarget, tokenStepID) {
 			steps = append(steps, line+"\n")
 		}
 
 		// Upload the packed APM bundle as a separate artifact for the agent job to download.
-		// The path comes from the apm_pack / apm_pack_0 step output `bundle-path`.
 		packID := apmPackStepID(data.APMDependencies)
-		artifactBaseName := apmArtifactBaseName(data.APMDependencies)
-		artifactName := artifactPrefixExprForActivationJob(data) + artifactBaseName
+		artifactBaseName := constants.APMArtifactName
+		if data.APMDependencies.HasGitHubApp() {
+			artifactBaseName += "-0"
+		}
+		artifactName := apmArtifactName(data.APMDependencies, artifactPrefixExprForActivationJob(data))
 		compilerActivationJobLog.Printf("Adding APM bundle artifact upload step (artifact=%s)", artifactBaseName)
 		steps = append(steps, "      - name: Upload APM bundle artifact\n")
 		steps = append(steps, "        if: success()\n")

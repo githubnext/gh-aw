@@ -394,29 +394,12 @@ func extractAPMDependenciesFromFrontmatter(frontmatter map[string]any) *APMDepen
 			}
 		}
 
-		// Parse packages: each item is a string; object entries are also accepted if they have a 'source' field
+		// Parse packages: only string entries are supported.
 		if pkgsAny, ok := v["packages"]; ok {
 			if pkgsArray, ok := pkgsAny.([]any); ok {
 				for _, item := range pkgsArray {
-					switch pkg := item.(type) {
-					case string:
-						if pkg != "" {
-							packages = append(packages, pkg)
-						}
-					case map[string]any:
-						// Object entry: only the 'source' field is used.
-						// Any other fields (e.g. 'github-app') are silently ignored.
-						sourceAny, hasSource := pkg["source"]
-						if !hasSource {
-							frontmatterMetadataLog.Print("Skipping APM package entry: missing 'source' field")
-							continue
-						}
-						source, ok := sourceAny.(string)
-						if !ok || source == "" {
-							frontmatterMetadataLog.Print("Skipping APM package entry: 'source' field must be a non-empty string")
-							continue
-						}
-						packages = append(packages, source)
+					if pkg, ok := item.(string); ok && pkg != "" {
+						packages = append(packages, pkg)
 					}
 				}
 			}
