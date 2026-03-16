@@ -170,7 +170,7 @@ describe("safe_output_summary", () => {
       expect(summary).toContain("https://github.com/orgs/owner/projects/123");
     });
 
-    it("should display secrecy field when present in message", () => {
+    it("should display secrecy field when present in message taints", () => {
       const options = {
         type: "create_issue",
         messageIndex: 1,
@@ -182,7 +182,9 @@ describe("safe_output_summary", () => {
         message: {
           title: "Secure Issue",
           body: "Sensitive content",
-          secrecy: "private",
+          taints: {
+            secrecy: "private",
+          },
         },
       };
 
@@ -192,7 +194,7 @@ describe("safe_output_summary", () => {
       expect(summary).toContain("private");
     });
 
-    it("should display integrity field when present in message", () => {
+    it("should display integrity field when present in message taints", () => {
       const options = {
         type: "create_issue",
         messageIndex: 1,
@@ -204,7 +206,9 @@ describe("safe_output_summary", () => {
         message: {
           title: "Trusted Issue",
           body: "Verified content",
-          integrity: "high",
+          taints: {
+            integrity: "high",
+          },
         },
       };
 
@@ -214,7 +218,7 @@ describe("safe_output_summary", () => {
       expect(summary).toContain("high");
     });
 
-    it("should display both secrecy and integrity fields when present", () => {
+    it("should display both secrecy and integrity fields when present in taints", () => {
       const options = {
         type: "add_comment",
         messageIndex: 2,
@@ -225,8 +229,10 @@ describe("safe_output_summary", () => {
         },
         message: {
           body: "A comment",
-          secrecy: "internal",
-          integrity: "medium",
+          taints: {
+            secrecy: "internal",
+            integrity: "medium",
+          },
         },
       };
 
@@ -238,7 +244,7 @@ describe("safe_output_summary", () => {
       expect(summary).toContain("medium");
     });
 
-    it("should not display secrecy or integrity when absent from message", () => {
+    it("should not display secrecy or integrity when taints absent from message", () => {
       const options = {
         type: "create_issue",
         messageIndex: 1,
@@ -259,7 +265,7 @@ describe("safe_output_summary", () => {
       expect(summary).not.toContain("Integrity:");
     });
 
-    it("should display secrecy and integrity fields even when operation fails", () => {
+    it("should display taints even when operation fails", () => {
       const options = {
         type: "create_issue",
         messageIndex: 1,
@@ -267,8 +273,10 @@ describe("safe_output_summary", () => {
         result: null,
         message: {
           title: "Failed Issue",
-          secrecy: "public",
-          integrity: "low",
+          taints: {
+            secrecy: "public",
+            integrity: "low",
+          },
         },
         error: "Permission denied",
       };

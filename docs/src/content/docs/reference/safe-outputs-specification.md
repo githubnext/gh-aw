@@ -1794,11 +1794,11 @@ Test Case 4: Mention Filtering
 **Feature Identifier**: Gateway-Computed Security Annotations  
 **Scope**: All safe output types (optional)
 
-Taints are optional metadata fields computed by the MCP Gateway based on its assessment of the agent's state at the time a tool is called. They are attached at the top level of the tool call arguments alongside the operation parameters supplied by the agent. Because taints and operation parameters share the same JSON object, taint field names MUST NOT conflict with any operation-specific field names defined for the same tool.
+Taints are optional metadata fields computed by the MCP Gateway based on its assessment of the agent's state at the time a tool is called. To avoid interfering with operation inputs, taints are grouped in a dedicated `taints` object that is passed alongside the operation-specific arguments, rather than being merged as flat top-level fields.
 
 **Normative Requirements**:
 
-**Requirement TM1**: Taints MUST be represented as top-level fields in the safe output tool call arguments, alongside operation-specific fields. Taint field names MUST NOT conflict with any operation-specific field defined for the same tool.
+**Requirement TM1**: Taints MUST be carried in a single top-level `taints` object property in the safe output tool call arguments. They MUST NOT be represented as individual flat fields mixed with operation-specific inputs.
 
 **Requirement TM2**: All taints are OPTIONAL. A conforming implementation MUST accept tool calls both with and without taint fields present.
 
@@ -1819,7 +1819,7 @@ This specification does not normatively enumerate the allowed values for taint f
 
 **Schema Representation**:
 
-Taints appear as optional, top-level properties in each tool's `inputSchema`. The following excerpt illustrates the standard placement. All known taint fields are listed explicitly in each tool's schema, with `additionalProperties: false` ensuring that unrecognized taint names are rejected. When a new taint is introduced, the schema for each applicable tool MUST be updated to include it.
+Taints are carried as a single optional `taints` object property in each tool's `inputSchema`, keeping them separate from all operation-specific inputs. Individual taint fields (`secrecy`, `integrity`) are nested within this object. All known taint fields are enumerated explicitly with `additionalProperties: false`; when a new taint is added, the schema for each applicable tool MUST be updated.
 
 ```json
 {
@@ -1828,13 +1828,20 @@ Taints appear as optional, top-level properties in each tool's `inputSchema`. Th
     "properties": {
       "title": { "type": "string" },
       "body":  { "type": "string" },
-      "secrecy": {
-        "type": "string",
-        "description": "Confidentiality level of the message content (e.g., \"public\", \"internal\", \"private\")."
-      },
-      "integrity": {
-        "type": "string",
-        "description": "Trustworthiness level of the message source (e.g., \"low\", \"medium\", \"high\")."
+      "taints": {
+        "type": "object",
+        "description": "Optional gateway-computed security annotations. Separate from operation inputs.",
+        "properties": {
+          "secrecy": {
+            "type": "string",
+            "description": "Confidentiality level of the message content (e.g., \"public\", \"internal\", \"private\")."
+          },
+          "integrity": {
+            "type": "string",
+            "description": "Trustworthiness level of the message source (e.g., \"low\", \"medium\", \"high\")."
+          }
+        },
+        "additionalProperties": false
       }
     },
     "additionalProperties": false
@@ -1845,16 +1852,16 @@ Taints appear as optional, top-level properties in each tool's `inputSchema`. Th
 **Conformance Verification**:
 
 Test Case 1: Call without taints
-- Invoke any safe output tool omitting both `secrecy` and `integrity`
+- Invoke any safe output tool omitting the `taints` property
 - Expected: Tool call accepted and operation proceeds normally
 
 Test Case 2: Call with taints present
-- Invoke any safe output tool with `secrecy: "internal"` and `integrity: "high"`
+- Invoke any safe output tool with `taints: { secrecy: "internal", integrity: "high" }`
 - Expected: Tool call accepted; taint values appear in step summary metadata
 
 Test Case 3: Taint values do not alter operation
-- Invoke `create_issue` with `secrecy: "private"` and a valid `title`/`body`
-- Expected: Issue created with the specified title and body; `secrecy` value recorded but does not modify issue content
+- Invoke `create_issue` with `taints: { secrecy: "private" }` and a valid `title`/`body`
+- Expected: Issue created with the specified title and body; `taints.secrecy` recorded but does not modify issue content
 
 ---
 
@@ -1891,13 +1898,20 @@ This section provides complete normative definitions for all safe output types. 
         "pattern": "^aw_[A-Za-z0-9]{3,8}$",
         "description": "Temporary ID for referencing before creation"
       },
-      "secrecy": {
-        "type": "string",
-        "description": "Confidentiality level of the message content (e.g., \"public\", \"internal\", \"private\")."
-      },
-      "integrity": {
-        "type": "string",
-        "description": "Trustworthiness level of the message source (e.g., \"low\", \"medium\", \"high\")."
+      "taints": {
+        "type": "object",
+        "description": "Optional gateway-computed security annotations. Separate from operation inputs.",
+        "properties": {
+          "secrecy": {
+            "type": "string",
+            "description": "Confidentiality level of the message content (e.g., \"public\", \"internal\", \"private\")."
+          },
+          "integrity": {
+            "type": "string",
+            "description": "Trustworthiness level of the message source (e.g., \"low\", \"medium\", \"high\")."
+          }
+        },
+        "additionalProperties": false
       }
     },
     "additionalProperties": false

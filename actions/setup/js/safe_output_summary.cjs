@@ -108,15 +108,16 @@ function generateSafeOutputSummary(options) {
     }
   }
 
-  // Display secrecy and integrity security metadata fields if present in the message.
-  // secrecy indicates the confidentiality level of the message content.
-  // integrity indicates the trustworthiness level of the message source.
-  if (message) {
-    if (message.secrecy !== undefined && message.secrecy !== null) {
-      summary += `**Secrecy:** \`${message.secrecy}\`\n\n`;
+  // Display taint security metadata if present in the message.
+  // Taints are gateway-computed annotations stored under message.taints,
+  // separate from operation inputs.
+  if (message && message.taints) {
+    const { secrecy, integrity } = message.taints;
+    if (secrecy !== undefined && secrecy !== null) {
+      summary += `**Secrecy:** \`${secrecy}\`\n\n`;
     }
-    if (message.integrity !== undefined && message.integrity !== null) {
-      summary += `**Integrity:** \`${message.integrity}\`\n\n`;
+    if (integrity !== undefined && integrity !== null) {
+      summary += `**Integrity:** \`${integrity}\`\n\n`;
     }
   }
 
