@@ -7,9 +7,9 @@ sidebar:
 
 # Safe Outputs MCP Gateway Specification
 
-**Version**: 1.13.0  
+**Version**: 1.15.0  
 **Status**: Working Draft  
-**Publication Date**: 2026-02-18  
+**Publication Date**: 2026-03-16  
 **Editor**: GitHub Agentic Workflows Team  
 **This Version**: [safe-outputs-specification](/gh-aw/reference/safe-outputs-specification/)  
 **Latest Published Version**: This document
@@ -34,6 +34,11 @@ This specification follows World Wide Web Consortium (W3C) formatting convention
 4. [Structural Components](#4-structural-components)
 5. [Configuration Semantics](#5-configuration-semantics)
 6. [Universal Feature Interpretation](#6-universal-feature-interpretation)
+   - 6.1 [Max Limit Semantics](#61-max-limit-semantics)
+   - 6.2 [Staged Mode Semantics](#62-staged-mode-semantics)
+   - 6.3 [Footer Attribution Semantics](#63-footer-attribution-semantics)
+   - 6.4 [Content Sanitization Semantics](#64-content-sanitization-semantics)
+   - 6.5 [Taint Metadata](#65-taint-metadata)
 7. [Safe Output Type Definitions](#7-safe-output-type-definitions)
 8. [Protocol Exchange Patterns](#8-protocol-exchange-patterns)
 9. [Content Integrity Mechanisms](#9-content-integrity-mechanisms)
@@ -67,6 +72,8 @@ This specification uses the following terms with precise definitions:
 **Temporary ID**: A placeholder identifier (format: `aw_<id>`) used to reference not-yet-created resources. Resolved to actual resource numbers during processing.
 
 **Provenance**: Metadata identifying the workflow and run that created a GitHub resource. Included in footers or API metadata fields.
+
+**Taint**: An optional, gateway-computed metadata field attached at the top level of a safe output tool call. Taints describe aspects of agent state as evaluated by the gateway and are distinct from agent-provided operation parameters. Known taints are `secrecy` and `integrity`.
 
 ---
 
@@ -1782,6 +1789,75 @@ Test Case 4: Mention Filtering
 
 ---
 
+### 6.5 Taint Metadata
+
+**Feature Identifier**: Gateway-Computed Security Annotations  
+**Scope**: All safe output types (optional)
+
+Taints are optional metadata fields computed by the MCP Gateway based on its assessment of the agent's state at the time a tool is called. They are attached at the top level of the tool call arguments alongside the operation parameters supplied by the agent. Because taints and operation parameters share the same JSON object, taint field names MUST NOT conflict with any operation-specific field names defined for the same tool.
+
+**Normative Requirements**:
+
+**Requirement TM1**: Taints MUST be represented as top-level fields in the safe output tool call arguments, alongside operation-specific fields. Taint field names MUST NOT conflict with any operation-specific field defined for the same tool.
+
+**Requirement TM2**: All taints are OPTIONAL. A conforming implementation MUST accept tool calls both with and without taint fields present.
+
+**Requirement TM3**: The gateway MAY inject taint fields into a tool call when agent-state information is available. The agent MAY also supply taint values directly. Precedence is applied per-field: for each individual taint field, a gateway-computed value overrides any agent-supplied value for that same field, while taint fields not overridden by the gateway retain their agent-supplied values.
+
+**Requirement TM4**: Safe output handlers SHOULD surface taint values in step summaries and output metadata so that downstream jobs (e.g., threat detection) can inspect them.
+
+**Requirement TM5**: Taint values MUST NOT be interpreted as operational instructions. They are informational metadata only and MUST NOT alter the operation performed by the handler.
+
+**Known Taints**:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `secrecy` | `string` | Confidentiality level of the message content. Values are implementation-defined; example values include `"public"`, `"internal"`, and `"private"`. |
+| `integrity` | `string` | Trustworthiness level of the message source. Values are implementation-defined; example values include `"low"`, `"medium"`, and `"high"`. |
+
+This specification does not normatively enumerate the allowed values for taint fields. Implementations MAY define their own taxonomies; documentation SHOULD describe the supported values and their semantics.
+
+**Schema Representation**:
+
+Taints appear as optional, top-level properties in each tool's `inputSchema`. The following excerpt illustrates the standard placement. All known taint fields are listed explicitly in each tool's schema, with `additionalProperties: false` ensuring that unrecognized taint names are rejected. When a new taint is introduced, the schema for each applicable tool MUST be updated to include it.
+
+```json
+{
+  "inputSchema": {
+    "type": "object",
+    "properties": {
+      "title": { "type": "string" },
+      "body":  { "type": "string" },
+      "secrecy": {
+        "type": "string",
+        "description": "Confidentiality level of the message content (e.g., \"public\", \"internal\", \"private\")."
+      },
+      "integrity": {
+        "type": "string",
+        "description": "Trustworthiness level of the message source (e.g., \"low\", \"medium\", \"high\")."
+      }
+    },
+    "additionalProperties": false
+  }
+}
+```
+
+**Conformance Verification**:
+
+Test Case 1: Call without taints
+- Invoke any safe output tool omitting both `secrecy` and `integrity`
+- Expected: Tool call accepted and operation proceeds normally
+
+Test Case 2: Call with taints present
+- Invoke any safe output tool with `secrecy: "internal"` and `integrity: "high"`
+- Expected: Tool call accepted; taint values appear in step summary metadata
+
+Test Case 3: Taint values do not alter operation
+- Invoke `create_issue` with `secrecy: "private"` and a valid `title`/`body`
+- Expected: Issue created with the specified title and body; `secrecy` value recorded but does not modify issue content
+
+---
+
 ## 7. Safe Output Type Definitions
 
 This section provides complete normative definitions for all safe output types. Each definition includes tool schema, operational semantics, configuration parameters, and security requirements.
@@ -1814,6 +1890,14 @@ This section provides complete normative definitions for all safe output types. 
         "type": "string",
         "pattern": "^aw_[A-Za-z0-9]{3,8}$",
         "description": "Temporary ID for referencing before creation"
+      },
+      "secrecy": {
+        "type": "string",
+        "description": "Confidentiality level of the message content (e.g., \"public\", \"internal\", \"private\")."
+      },
+      "integrity": {
+        "type": "string",
+        "description": "Trustworthiness level of the message source (e.g., \"low\", \"medium\", \"high\")."
       }
     },
     "additionalProperties": false
@@ -3747,6 +3831,7 @@ This section defines required behavior for unusual or boundary conditions.
   - [ ] Staged mode preview generation
   - [ ] Footer injection
   - [ ] Content sanitization pipeline
+  - [ ] Taint metadata accepted and surfaced in summaries
 
 - [ ] Safe Output Types
   - [ ] Mandatory: create_issue, add_comment, create_pull_request, noop
@@ -4037,6 +4122,13 @@ safe-outputs:
 ---
 
 ## Appendix F: Document History
+
+**Version 1.15.0** (2026-03-16):
+- **Added**: Section 6.5 "Taint Metadata" specifying optional, gateway-computed security annotation fields (`secrecy`, `integrity`) on safe output tool calls
+- **Added**: `Taint` definition to the Terminology section
+- **Updated**: `create_issue` MCP tool schema example (Section 7.1) to include taint fields
+- **Updated**: Appendix A conformance checklist to include taint metadata acceptance and surfacing
+- **Clarified**: Taints are top-level fields distinct from operation parameters; they MUST NOT influence the operation performed by the handler
 
 **Version 1.14.0** (2026-02-22):
 - **Added**: Section 5.5 "Templatable Fields" documenting support for GitHub Actions expressions in integer and boolean configuration fields
