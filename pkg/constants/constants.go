@@ -413,6 +413,10 @@ const DefaultMCPSDKVersion Version = "1.24.0"
 // DefaultGitHubScriptVersion is the default version of the actions/github-script action
 const DefaultGitHubScriptVersion Version = "v8"
 
+// DefaultAPMActionVersion is the default version of the microsoft/apm-action GitHub Action
+// used to install and manage APM (Agent Package Manager) dependencies.
+const DefaultAPMActionVersion Version = "v1.3.1"
+
 // DefaultAPMVersion is the default version of the microsoft/apm CLI tool used for
 // installing APM (Agent Package Manager) dependencies in agentic workflows.
 const DefaultAPMVersion Version = "v0.8.0"

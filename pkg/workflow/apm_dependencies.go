@@ -1,10 +1,28 @@
 package workflow
 
 import (
+	"fmt"
+
+	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
 )
 
 var apmDepsLog = logger.New("workflow:apm_dependencies")
+
+// resolveAPMActionRef resolves the microsoft/apm-action reference using the action pin manager.
+// It uses GetActionPinWithData for dynamic resolution (via the ActionResolver when available),
+// falling back to hardcoded pins in action_pins.json.
+func resolveAPMActionRef(data *WorkflowData) string {
+	actionRepo := "microsoft/apm-action"
+	actionVersion := string(constants.DefaultAPMActionVersion)
+	pinnedRef, err := GetActionPinWithData(actionRepo, actionVersion, data)
+	if err != nil || pinnedRef == "" {
+		apmDepsLog.Printf("Failed to resolve %s@%s via pin manager: %v, using tag reference", actionRepo, actionVersion, err)
+		return fmt.Sprintf("%s@%s", actionRepo, actionVersion)
+	}
+	apmDepsLog.Printf("Resolved %s@%s to %s via pin manager", actionRepo, actionVersion, pinnedRef)
+	return pinnedRef
+}
 
 // GenerateAPMPackStep generates the GitHub Actions step that installs APM packages and
 // packs them into a bundle in the activation job. The step always uses isolated:true because
@@ -25,7 +43,7 @@ func GenerateAPMPackStep(apmDeps *APMDependenciesInfo, target string, data *Work
 	apmVersion := apmDeps.GetAPMVersion()
 	apmDepsLog.Printf("Generating APM pack step: %d packages, target=%s, apm-version=%s", len(apmDeps.Packages), target, apmVersion)
 
-	actionRef := GetActionPin("microsoft/apm-action")
+	actionRef := resolveAPMActionRef(data)
 
 	lines := []string{
 		"      - name: Install and pack APM dependencies",
@@ -68,7 +86,7 @@ func GenerateAPMRestoreStep(apmDeps *APMDependenciesInfo, data *WorkflowData) Gi
 	apmVersion := apmDeps.GetAPMVersion()
 	apmDepsLog.Printf("Generating APM restore step (isolated=%v, apm-version=%s)", apmDeps.Isolated, apmVersion)
 
-	actionRef := GetActionPin("microsoft/apm-action")
+	actionRef := resolveAPMActionRef(data)
 
 	lines := []string{
 		"      - name: Restore APM dependencies",
