@@ -63,7 +63,7 @@ Test workflow with on.steps creating pre-activation job
 		}
 
 		// Verify the output is wired
-		if !strings.Contains(lockContentStr, "gate_result: ${{ steps.gate.result }}") {
+		if !strings.Contains(lockContentStr, "gate_result: ${{ steps.gate.outcome }}") {
 			t.Errorf("Expected gate_result output to be wired. Lock file:\n%s", lockContentStr)
 		}
 
@@ -111,7 +111,7 @@ Test workflow with on.steps combined with role checks
 		}
 
 		// The gate_result output should be wired
-		if !strings.Contains(lockContentStr, "gate_result: ${{ steps.gate.result }}") {
+		if !strings.Contains(lockContentStr, "gate_result: ${{ steps.gate.outcome }}") {
 			t.Errorf("Expected gate_result output. Lock file:\n%s", lockContentStr)
 		}
 
@@ -161,10 +161,10 @@ Test workflow with multiple on.steps
 		lockContentStr := string(lockContent)
 
 		// Both step IDs should have outputs
-		if !strings.Contains(lockContentStr, "first_result: ${{ steps.first.result }}") {
+		if !strings.Contains(lockContentStr, "first_result: ${{ steps.first.outcome }}") {
 			t.Errorf("Expected first_result output. Lock file:\n%s", lockContentStr)
 		}
-		if !strings.Contains(lockContentStr, "second_result: ${{ steps.second.result }}") {
+		if !strings.Contains(lockContentStr, "second_result: ${{ steps.second.outcome }}") {
 			t.Errorf("Expected second_result output. Lock file:\n%s", lockContentStr)
 		}
 

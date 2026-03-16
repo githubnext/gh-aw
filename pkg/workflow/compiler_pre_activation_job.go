@@ -339,21 +339,24 @@ func (c *Compiler) buildPreActivationJob(data *WorkflowData, needsPermissionChec
 		outputs[constants.MatchedCommandOutput] = "''"
 	}
 
-	// Merge custom outputs from jobs.pre-activation if present
+	// Wire on.steps step outcomes as pre-activation outputs.
+	// For each step with an id, emit output "<id>_result: ${{ steps.<id>.outcome }}"
+	// so users can reference them with: needs.pre_activation.outputs.<id>_result
+	// This is done BEFORE merging custom outputs so that explicit user-defined outputs
+	// in jobs.pre-activation.outputs take precedence over the auto-wired values.
+	if len(onStepIDs) > 0 {
+		compilerActivationJobsLog.Printf("Wiring %d on.steps step outcomes as pre-activation outputs", len(onStepIDs))
+		for _, id := range onStepIDs {
+			outputKey := id + "_result"
+			outputs[outputKey] = fmt.Sprintf("${{ steps.%s.outcome }}", id)
+		}
+	}
+
+	// Merge custom outputs from jobs.pre-activation if present.
+	// Custom outputs are applied last so they take precedence over auto-wired on.steps outputs.
 	if len(customOutputs) > 0 {
 		compilerActivationJobsLog.Printf("Adding %d custom outputs to pre-activation job", len(customOutputs))
 		maps.Copy(outputs, customOutputs)
-	}
-
-	// Wire on.steps step results as pre-activation outputs.
-	// For each step with an id, emit output "<id>_result: ${{ steps.<id>.result }}"
-	// so users can reference them with: needs.pre_activation.outputs.<id>_result
-	if len(onStepIDs) > 0 {
-		compilerActivationJobsLog.Printf("Wiring %d on.steps step results as pre-activation outputs", len(onStepIDs))
-		for _, id := range onStepIDs {
-			outputKey := id + "_result"
-			outputs[outputKey] = fmt.Sprintf("${{ steps.%s.result }}", id)
-		}
 	}
 
 	// Pre-activation job uses the user's original if condition (data.If)
@@ -517,10 +520,10 @@ func (c *Compiler) resolvePreActivationSkipIfToken(data *WorkflowData) string {
 }
 
 // extractOnSteps extracts the 'steps' field from the 'on:' section of frontmatter.
-// These steps are injected into the pre-activation job and their results are wired
+// These steps are injected into the pre-activation job and their step outcome is wired
 // as pre-activation outputs so users can reference them with:
 //
-//	needs.pre_activation.outputs.<id>_result
+//	needs.pre_activation.outputs.<id>_result   (contains outcome: success/failure/cancelled/skipped)
 //
 // Returns nil if on.steps is not configured.
 // Returns an error if on.steps is not an array or contains non-object items.
