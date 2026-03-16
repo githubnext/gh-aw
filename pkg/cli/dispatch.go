@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path"
@@ -74,7 +75,7 @@ type fileDownloadFn func(owner, repo, path, ref string) ([]byte, error)
 //
 // An optional downloader function may be provided as the last argument to override the default
 // parser.DownloadFileFromGitHub implementation (used in tests to avoid real network calls).
-func fetchAndSaveRemoteDispatchWorkflows(content string, spec *WorkflowSpec, targetDir string, verbose bool, force bool, tracker *FileTracker, downloaders ...fileDownloadFn) error {
+func fetchAndSaveRemoteDispatchWorkflows(ctx context.Context, content string, spec *WorkflowSpec, targetDir string, verbose bool, force bool, tracker *FileTracker, downloaders ...fileDownloadFn) error {
 	downloader := fileDownloadFn(parser.DownloadFileFromGitHub)
 	if len(downloaders) > 0 && downloaders[0] != nil {
 		downloader = downloaders[0]
@@ -90,7 +91,7 @@ func fetchAndSaveRemoteDispatchWorkflows(content string, spec *WorkflowSpec, tar
 	owner, repo := parts[0], parts[1]
 	ref := spec.Version
 	if ref == "" {
-		defaultBranch, err := getRepoDefaultBranch(spec.RepoSlug)
+		defaultBranch, err := getRepoDefaultBranch(ctx, spec.RepoSlug)
 		if err != nil {
 			remoteWorkflowLog.Printf("Failed to resolve default branch for %s, falling back to 'main': %v", spec.RepoSlug, err)
 			ref = "main"

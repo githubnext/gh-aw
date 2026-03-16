@@ -73,6 +73,32 @@ func ExecGHContext(ctx context.Context, args ...string) *exec.Cmd {
 	return setupGHCommand(ctx, args...)
 }
 
+// runGHWithSpinnerContext executes a gh CLI command with context support, a spinner,
+// and returns the output. This is the core implementation for RunGHContext.
+func runGHWithSpinnerContext(ctx context.Context, spinnerMessage string, combined bool, args ...string) ([]byte, error) {
+	cmd := ExecGHContext(ctx, args...)
+
+	// Show spinner in interactive terminals
+	if tty.IsStderrTerminal() {
+		spinner := console.NewSpinner(spinnerMessage)
+		spinner.Start()
+		var output []byte
+		var err error
+		if combined {
+			output, err = cmd.CombinedOutput()
+		} else {
+			output, err = cmd.Output()
+		}
+		spinner.Stop()
+		return output, err
+	}
+
+	if combined {
+		return cmd.CombinedOutput()
+	}
+	return cmd.Output()
+}
+
 // runGHWithSpinner executes a gh CLI command with a spinner and returns the output.
 // This is the core implementation shared by RunGH and RunGHCombined.
 func runGHWithSpinner(spinnerMessage string, combined bool, args ...string) ([]byte, error) {
@@ -108,6 +134,17 @@ func runGHWithSpinner(spinnerMessage string, combined bool, args ...string) ([]b
 //	output, err := RunGH("Fetching user info...", "api", "/user")
 func RunGH(spinnerMessage string, args ...string) ([]byte, error) {
 	return runGHWithSpinner(spinnerMessage, false, args...)
+}
+
+// RunGHContext executes a gh CLI command with context support (for cancellation/timeout), a
+// spinner, and returns the stdout output. The spinner is shown in interactive terminals to
+// provide feedback during network operations.
+//
+// Usage:
+//
+//	output, err := RunGHContext(ctx, "Fetching user info...", "api", "/user")
+func RunGHContext(ctx context.Context, spinnerMessage string, args ...string) ([]byte, error) {
+	return runGHWithSpinnerContext(ctx, spinnerMessage, false, args...)
 }
 
 // RunGHCombined executes a gh CLI command with a spinner and returns combined stdout+stderr output.

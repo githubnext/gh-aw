@@ -2,6 +2,7 @@ package cli
 
 import (
 	"bufio"
+	"context"
 	"errors"
 	"fmt"
 	"os"
@@ -129,7 +130,7 @@ func fetchAndSaveRemoteFrontmatterImports(content string, spec *WorkflowSpec, ta
 	ref := spec.Version
 	if ref == "" {
 		// Resolve the actual default branch of the source repo rather than assuming "main"
-		defaultBranch, err := getRepoDefaultBranch(spec.RepoSlug)
+		defaultBranch, err := getRepoDefaultBranch(context.Background(), spec.RepoSlug)
 		if err != nil {
 			remoteWorkflowLog.Printf("Failed to resolve default branch for %s, falling back to 'main': %v", spec.RepoSlug, err)
 			ref = "main"

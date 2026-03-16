@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"os"
@@ -370,7 +371,7 @@ func addWorkflowWithTracking(resolved *ResolvedWorkflow, tracker *FileTracker, o
 		}
 		// Fetch and save workflows referenced in safe-outputs.dispatch-workflow so they are
 		// available locally. Workflow names using GitHub Actions expression syntax are skipped.
-		if err := fetchAndSaveRemoteDispatchWorkflows(string(sourceContent), workflowSpec, githubWorkflowsDir, opts.Verbose, opts.Force, tracker); err != nil {
+		if err := fetchAndSaveRemoteDispatchWorkflows(context.Background(), string(sourceContent), workflowSpec, githubWorkflowsDir, opts.Verbose, opts.Force, tracker); err != nil {
 			return err
 		}
 		// Fetch files listed in the 'resources:' frontmatter field (additional workflow or

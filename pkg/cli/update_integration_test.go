@@ -3,6 +3,7 @@
 package cli
 
 import (
+	"context"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -359,7 +360,7 @@ func TestIsCommitSHA_Integration(t *testing.T) {
 func TestGetRepoDefaultBranch_Integration(t *testing.T) {
 	skipWithoutGitHubAuth(t)
 
-	branch, err := getRepoDefaultBranch("actions/checkout")
+	branch, err := getRepoDefaultBranch(context.Background(), "actions/checkout")
 	require.NoError(t, err, "Should fetch default branch for actions/checkout")
 	assert.Equal(t, "main", branch, "actions/checkout default branch should be 'main'")
 }

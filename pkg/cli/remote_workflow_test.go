@@ -3,6 +3,7 @@
 package cli
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"os"
@@ -677,7 +678,7 @@ engine: copilot
 	}
 
 	tmpDir := t.TempDir()
-	err := fetchAndSaveRemoteDispatchWorkflows(content, spec, tmpDir, false, false, nil)
+	err := fetchAndSaveRemoteDispatchWorkflows(context.Background(), content, spec, tmpDir, false, false, nil)
 	require.NoError(t, err, "should not error when no safe-outputs present")
 
 	entries, readErr := os.ReadDir(tmpDir)
@@ -705,7 +706,7 @@ safe-outputs:
 	}
 
 	tmpDir := t.TempDir()
-	err := fetchAndSaveRemoteDispatchWorkflows(content, spec, tmpDir, false, false, nil)
+	err := fetchAndSaveRemoteDispatchWorkflows(context.Background(), content, spec, tmpDir, false, false, nil)
 	require.NoError(t, err, "should not error for local workflow")
 
 	entries, readErr := os.ReadDir(tmpDir)
@@ -735,7 +736,7 @@ safe-outputs:
 	}
 
 	tmpDir := t.TempDir()
-	err := fetchAndSaveRemoteDispatchWorkflows(content, spec, tmpDir, false, false, nil)
+	err := fetchAndSaveRemoteDispatchWorkflows(context.Background(), content, spec, tmpDir, false, false, nil)
 	require.NoError(t, err, "should not error when all workflow names are macros")
 
 	entries, readErr := os.ReadDir(tmpDir)
@@ -774,7 +775,7 @@ safe-outputs:
 		WorkflowPath: ".github/workflows/my-workflow.md",
 	}
 
-	err := fetchAndSaveRemoteDispatchWorkflows(content, spec, tmpDir, false, false, nil)
+	err := fetchAndSaveRemoteDispatchWorkflows(context.Background(), content, spec, tmpDir, false, false, nil)
 	require.NoError(t, err)
 
 	// The existing file must be untouched (no network call attempted because file already exists)
@@ -818,7 +819,7 @@ safe-outputs:
 		WorkflowPath: ".github/workflows/my-workflow.md",
 	}
 
-	err := fetchAndSaveRemoteDispatchWorkflows(content, spec, tmpDir, false, false, tracker)
+	err := fetchAndSaveRemoteDispatchWorkflows(context.Background(), content, spec, tmpDir, false, false, tracker)
 	require.NoError(t, err)
 	assert.Empty(t, tracker.CreatedFiles, "pre-existing file must not appear in CreatedFiles")
 	assert.Empty(t, tracker.ModifiedFiles, "pre-existing file must not appear in ModifiedFiles")
@@ -843,7 +844,7 @@ safe-outputs:
 	}
 
 	tmpDir := t.TempDir()
-	err := fetchAndSaveRemoteDispatchWorkflows(content, spec, tmpDir, false, false, nil)
+	err := fetchAndSaveRemoteDispatchWorkflows(context.Background(), content, spec, tmpDir, false, false, nil)
 	require.NoError(t, err, "invalid RepoSlug should return nil without error")
 
 	entries, readErr := os.ReadDir(tmpDir)
@@ -1489,7 +1490,7 @@ safe-outputs:
 		WorkflowPath: ".github/workflows/main.md",
 	}
 
-	err := fetchAndSaveRemoteDispatchWorkflows(content, spec, workflowsDir, false, false, nil)
+	err := fetchAndSaveRemoteDispatchWorkflows(context.Background(), content, spec, workflowsDir, false, false, nil)
 	require.Error(t, err, "should error when existing file has a different source repo")
 	assert.Contains(t, err.Error(), "target-workflow", "error should name the conflicting file")
 	assert.Contains(t, err.Error(), "otherorg/other-repo", "error should mention existing source")
@@ -1524,7 +1525,7 @@ safe-outputs:
 		WorkflowPath: ".github/workflows/main.md",
 	}
 
-	err := fetchAndSaveRemoteDispatchWorkflows(content, spec, workflowsDir, false, false, nil)
+	err := fetchAndSaveRemoteDispatchWorkflows(context.Background(), content, spec, workflowsDir, false, false, nil)
 	require.NoError(t, err, "should not error when existing file is from the same source repo")
 
 	// File must not have been modified
@@ -1556,7 +1557,7 @@ safe-outputs:
 		WorkflowPath: ".github/workflows/main.md",
 	}
 
-	err := fetchAndSaveRemoteDispatchWorkflows(content, spec, workflowsDir, false, false, nil)
+	err := fetchAndSaveRemoteDispatchWorkflows(context.Background(), content, spec, workflowsDir, false, false, nil)
 	require.Error(t, err, "should error when existing file has no source field")
 	assert.Contains(t, err.Error(), "target-workflow", "error should name the conflicting file")
 	assert.Contains(t, err.Error(), "(no source field)", "error should show placeholder for missing source")
@@ -1595,7 +1596,7 @@ safe-outputs:
 	mockDownloader := func(_, _, _, _ string) ([]byte, error) {
 		return nil, errors.New("download not available in unit tests")
 	}
-	err := fetchAndSaveRemoteDispatchWorkflows(content, spec, dir, false, true, nil, mockDownloader)
+	err := fetchAndSaveRemoteDispatchWorkflows(context.Background(), content, spec, dir, false, true, nil, mockDownloader)
 	assert.NoError(t, err, "force=true should bypass conflict detection and return nil (download fails silently)")
 }
 

@@ -35,6 +35,10 @@ func RunGH(spinnerMessage string, args ...string) ([]byte, error) {
 	return nil, fmt.Errorf("gh CLI not available in Wasm")
 }
 
+func RunGHContext(ctx context.Context, spinnerMessage string, args ...string) ([]byte, error) {
+	return nil, fmt.Errorf("gh CLI not available in Wasm")
+}
+
 func RunGHCombined(spinnerMessage string, args ...string) ([]byte, error) {
 	return nil, fmt.Errorf("gh CLI not available in Wasm")
 }
