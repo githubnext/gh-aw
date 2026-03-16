@@ -586,6 +586,22 @@ var handlerRegistry = map[string]handlerBuilder{
 		builder.AddIfNotEmpty("github-token", c.GitHubToken)
 		return builder.Build()
 	},
+	"call_workflow": func(cfg *SafeOutputsConfig) map[string]any {
+		if cfg.CallWorkflow == nil {
+			return nil
+		}
+		c := cfg.CallWorkflow
+		builder := newHandlerConfigBuilder().
+			AddTemplatableInt("max", c.Max).
+			AddStringSlice("workflows", c.Workflows)
+
+		// Add workflow_files map if it has entries
+		if len(c.WorkflowFiles) > 0 {
+			builder.AddDefault("workflow_files", c.WorkflowFiles)
+		}
+
+		return builder.Build()
+	},
 	"missing_tool": func(cfg *SafeOutputsConfig) map[string]any {
 		if cfg.MissingTool == nil {
 			return nil
