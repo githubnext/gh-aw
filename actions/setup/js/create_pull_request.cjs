@@ -1043,6 +1043,7 @@ ${patchPreview}`;
         const otherReviewers = configReviewers.filter(r => r !== "copilot");
 
         if (otherReviewers.length > 0) {
+          core.info(`Requesting ${otherReviewers.length} reviewer(s) for pull request #${pullRequest.number}: ${JSON.stringify(otherReviewers)}`);
           try {
             await githubClient.rest.pulls.requestReviewers({
               owner: repoParts.owner,
@@ -1050,13 +1051,14 @@ ${patchPreview}`;
               pull_number: pullRequest.number,
               reviewers: otherReviewers,
             });
-            core.info(`Requested reviewers for pull request: ${JSON.stringify(otherReviewers)}`);
+            core.info(`Requested reviewers for pull request #${pullRequest.number}: ${JSON.stringify(otherReviewers)}`);
           } catch (reviewerError) {
             core.warning(`Failed to request reviewers for PR #${pullRequest.number}: ${reviewerError instanceof Error ? reviewerError.message : String(reviewerError)}`);
           }
         }
 
         if (hasCopilot) {
+          core.info(`Requesting copilot as reviewer for pull request #${pullRequest.number}`);
           try {
             await githubClient.rest.pulls.requestReviewers({
               owner: repoParts.owner,
