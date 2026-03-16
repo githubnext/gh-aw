@@ -1,10 +1,70 @@
 package workflow
 
 import (
+	"fmt"
+	"sort"
+
 	"github.com/github/gh-aw/pkg/logger"
 )
 
 var apmDepsLog = logger.New("workflow:apm_dependencies")
+
+// apmAppTokenStepID is the step ID for the GitHub App token mint step used by APM dependencies.
+const apmAppTokenStepID = "apm-app-token"
+
+// buildAPMAppTokenMintStep generates the step to mint a GitHub App installation access token
+// for use by the APM pack step to access cross-org private repositories.
+//
+// Parameters:
+//   - app: GitHub App configuration containing app-id, private-key, owner, and repositories
+//
+// Returns a slice of YAML step lines.
+func buildAPMAppTokenMintStep(app *GitHubAppConfig) []string {
+	apmDepsLog.Printf("Building APM GitHub App token mint step: owner=%s, repos=%d", app.Owner, len(app.Repositories))
+	var steps []string
+
+	steps = append(steps, "      - name: Generate GitHub App token for APM dependencies\n")
+	steps = append(steps, fmt.Sprintf("        id: %s\n", apmAppTokenStepID))
+	steps = append(steps, fmt.Sprintf("        uses: %s\n", GetActionPin("actions/create-github-app-token")))
+	steps = append(steps, "        with:\n")
+	steps = append(steps, fmt.Sprintf("          app-id: %s\n", app.AppID))
+	steps = append(steps, fmt.Sprintf("          private-key: %s\n", app.PrivateKey))
+
+	// Add owner - default to current repository owner if not specified
+	owner := app.Owner
+	if owner == "" {
+		owner = "${{ github.repository_owner }}"
+	}
+	steps = append(steps, fmt.Sprintf("          owner: %s\n", owner))
+
+	// Add repositories - behavior depends on configuration:
+	// - If repositories is ["*"], omit the field to allow org-wide access
+	// - If repositories is a single value, use inline format
+	// - If repositories has multiple values, use block scalar format
+	// - If repositories is empty/not specified, default to the current repository
+	if len(app.Repositories) == 1 && app.Repositories[0] == "*" {
+		// Org-wide access: omit repositories field entirely
+		apmDepsLog.Print("Using org-wide GitHub App token for APM (repositories: *)")
+	} else if len(app.Repositories) == 1 {
+		steps = append(steps, fmt.Sprintf("          repositories: %s\n", app.Repositories[0]))
+	} else if len(app.Repositories) > 1 {
+		steps = append(steps, "          repositories: |-\n")
+		reposCopy := make([]string, len(app.Repositories))
+		copy(reposCopy, app.Repositories)
+		sort.Strings(reposCopy)
+		for _, repo := range reposCopy {
+			steps = append(steps, fmt.Sprintf("            %s\n", repo))
+		}
+	} else {
+		// No explicit repositories: default to the current repository
+		steps = append(steps, "          repositories: ${{ github.event.repository.name }}\n")
+	}
+
+	// Always add github-api-url from environment variable
+	steps = append(steps, "          github-api-url: ${{ github.api_url }}\n")
+
+	return steps
+}
 
 // GenerateAPMPackStep generates the GitHub Actions step that installs APM packages and
 // packs them into a bundle in the activation job. The step always uses isolated:true because
@@ -30,9 +90,20 @@ func GenerateAPMPackStep(apmDeps *APMDependenciesInfo, target string, data *Work
 		"      - name: Install and pack APM dependencies",
 		"        id: apm_pack",
 		"        uses: " + actionRef,
+	}
+
+	// Inject the minted GitHub App token as GITHUB_TOKEN so APM can access cross-org private repos
+	if apmDeps.GitHubApp != nil {
+		lines = append(lines,
+			"        env:",
+			fmt.Sprintf("          GITHUB_TOKEN: ${{ steps.%s.outputs.token }}", apmAppTokenStepID),
+		)
+	}
+
+	lines = append(lines,
 		"        with:",
 		"          dependencies: |",
-	}
+	)
 
 	for _, dep := range apmDeps.Packages {
 		lines = append(lines, "            - "+dep)

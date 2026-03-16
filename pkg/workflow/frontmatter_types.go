@@ -87,11 +87,12 @@ type PluginsConfig struct {
 }
 
 // APMDependenciesInfo encapsulates APM (Agent Package Manager) dependency configuration.
-// Supports simple array format and object format with packages and isolated fields.
+// Supports simple array format and object format with packages, isolated, and github-app fields.
 // When present, a pack step is emitted in the activation job and a restore step in the agent job.
 type APMDependenciesInfo struct {
-	Packages []string // APM package slugs to install (e.g., "org/package")
-	Isolated bool     // If true, agent restore step clears primitive dirs before unpacking
+	Packages  []string         // APM package slugs to install (e.g., "org/package")
+	Isolated  bool             // If true, agent restore step clears primitive dirs before unpacking
+	GitHubApp *GitHubAppConfig // Optional GitHub App for cross-org private package access
 }
 
 // RateLimitConfig represents rate limiting configuration for workflow triggers

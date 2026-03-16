@@ -409,6 +409,12 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 	// Generate APM pack step if dependencies are specified.
 	// The pack step runs after prompt generation and uploads as a separate "apm" artifact.
 	if data.APMDependencies != nil && len(data.APMDependencies.Packages) > 0 {
+		// Mint a GitHub App token before the pack step if a github-app is configured for APM.
+		// This allows APM to access cross-org private repositories.
+		if data.APMDependencies.GitHubApp != nil {
+			compilerActivationJobLog.Print("Adding APM GitHub App token mint step for cross-org access")
+			steps = append(steps, buildAPMAppTokenMintStep(data.APMDependencies.GitHubApp)...)
+		}
 		compilerActivationJobLog.Printf("Adding APM pack step: %d packages", len(data.APMDependencies.Packages))
 		apmTarget := engine.GetAPMTarget()
 		apmPackStep := GenerateAPMPackStep(data.APMDependencies, apmTarget, data)

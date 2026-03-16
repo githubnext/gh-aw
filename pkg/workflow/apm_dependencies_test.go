@@ -10,6 +10,15 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// combineStepLines joins a GitHubActionStep slice into a single string for assertion.
+func combineStepLines(step []string) string {
+	var sb strings.Builder
+	for _, line := range step {
+		sb.WriteString(line + "\n")
+	}
+	return sb.String()
+}
+
 func TestExtractAPMDependenciesFromFrontmatter(t *testing.T) {
 	tests := []struct {
 		name             string
@@ -127,6 +136,68 @@ func TestExtractAPMDependenciesFromFrontmatter(t *testing.T) {
 	}
 }
 
+func TestExtractAPMDependenciesGitHubApp(t *testing.T) {
+	t.Run("Object format with github-app", func(t *testing.T) {
+		frontmatter := map[string]any{
+			"dependencies": map[string]any{
+				"packages": []any{"acme-org/acme-skills/plugins/dev-tools"},
+				"github-app": map[string]any{
+					"app-id":      "${{ vars.APP_ID }}",
+					"private-key": "${{ secrets.APP_PRIVATE_KEY }}",
+				},
+			},
+		}
+		result := extractAPMDependenciesFromFrontmatter(frontmatter)
+		require.NotNil(t, result, "Should return non-nil APMDependenciesInfo")
+		assert.Equal(t, []string{"acme-org/acme-skills/plugins/dev-tools"}, result.Packages)
+		require.NotNil(t, result.GitHubApp, "GitHubApp should be set")
+		assert.Equal(t, "${{ vars.APP_ID }}", result.GitHubApp.AppID)
+		assert.Equal(t, "${{ secrets.APP_PRIVATE_KEY }}", result.GitHubApp.PrivateKey)
+	})
+
+	t.Run("Object format with github-app including owner and repositories", func(t *testing.T) {
+		frontmatter := map[string]any{
+			"dependencies": map[string]any{
+				"packages": []any{"acme-org/acme-skills/plugins/dev-tools"},
+				"github-app": map[string]any{
+					"app-id":       "${{ vars.APP_ID }}",
+					"private-key":  "${{ secrets.APP_PRIVATE_KEY }}",
+					"owner":        "acme-org",
+					"repositories": []any{"acme-skills"},
+				},
+			},
+		}
+		result := extractAPMDependenciesFromFrontmatter(frontmatter)
+		require.NotNil(t, result, "Should return non-nil APMDependenciesInfo")
+		require.NotNil(t, result.GitHubApp, "GitHubApp should be set")
+		assert.Equal(t, "acme-org", result.GitHubApp.Owner)
+		assert.Equal(t, []string{"acme-skills"}, result.GitHubApp.Repositories)
+	})
+
+	t.Run("Object format with github-app missing app-id is ignored", func(t *testing.T) {
+		frontmatter := map[string]any{
+			"dependencies": map[string]any{
+				"packages": []any{"acme-org/acme-skills"},
+				"github-app": map[string]any{
+					"private-key": "${{ secrets.APP_PRIVATE_KEY }}",
+				},
+			},
+		}
+		result := extractAPMDependenciesFromFrontmatter(frontmatter)
+		require.NotNil(t, result, "Packages should still be extracted")
+		assert.Nil(t, result.GitHubApp, "GitHubApp should be nil when app-id is missing")
+	})
+
+	t.Run("Array format does not support github-app", func(t *testing.T) {
+		frontmatter := map[string]any{
+			"dependencies": []any{"microsoft/apm-sample-package"},
+		}
+		result := extractAPMDependenciesFromFrontmatter(frontmatter)
+		require.NotNil(t, result, "Should return non-nil APMDependenciesInfo")
+		assert.Nil(t, result.GitHubApp, "GitHubApp should be nil for array format")
+	})
+}
+
 func TestEngineGetAPMTarget(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -218,12 +289,7 @@ func TestGenerateAPMPackStep(t *testing.T) {
 			}
 
 			require.NotEmpty(t, step, "Step should not be empty")
-
-			var sb strings.Builder
-			for _, line := range step {
-				sb.WriteString(line + "\n")
-			}
-			combined := sb.String()
+			combined := combineStepLines(step)
 
 			for _, expected := range tt.expectedContains {
 				assert.Contains(t, combined, expected, "Step should contain: %s", expected)
@@ -283,12 +349,7 @@ func TestGenerateAPMRestoreStep(t *testing.T) {
 			}
 
 			require.NotEmpty(t, step, "Step should not be empty")
-
-			var sb strings.Builder
-			for _, line := range step {
-				sb.WriteString(line + "\n")
-			}
-			combined := sb.String()
+			combined := combineStepLines(step)
 
 			for _, expected := range tt.expectedContains {
 				assert.Contains(t, combined, expected, "Step should contain: %s", expected)
@@ -298,4 +359,104 @@ func TestGenerateAPMRestoreStep(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestGenerateAPMPackStepWithGitHubApp(t *testing.T) {
+	t.Run("Pack step includes GITHUB_TOKEN env when github-app is configured", func(t *testing.T) {
+		apmDeps := &APMDependenciesInfo{
+			Packages: []string{"acme-org/acme-skills/plugins/dev-tools"},
+			GitHubApp: &GitHubAppConfig{
+				AppID:      "${{ vars.APP_ID }}",
+				PrivateKey: "${{ secrets.APP_PRIVATE_KEY }}",
+			},
+		}
+		data := &WorkflowData{Name: "test-workflow"}
+		step := GenerateAPMPackStep(apmDeps, "claude", data)
+
+		require.NotEmpty(t, step, "Step should not be empty")
+		combined := combineStepLines(step)
+
+		assert.Contains(t, combined, "GITHUB_TOKEN: ${{ steps.apm-app-token.outputs.token }}", "Should inject app token as GITHUB_TOKEN")
+		assert.Contains(t, combined, "env:", "Should have env section")
+		assert.Contains(t, combined, "- acme-org/acme-skills/plugins/dev-tools", "Should list dependency")
+	})
+
+	t.Run("Pack step has no env section without github-app", func(t *testing.T) {
+		apmDeps := &APMDependenciesInfo{
+			Packages: []string{"microsoft/apm-sample-package"},
+		}
+		data := &WorkflowData{Name: "test-workflow"}
+		step := GenerateAPMPackStep(apmDeps, "copilot", data)
+
+		require.NotEmpty(t, step, "Step should not be empty")
+		combined := combineStepLines(step)
+
+		assert.NotContains(t, combined, "GITHUB_TOKEN:", "Should not have GITHUB_TOKEN without github-app")
+		assert.NotContains(t, combined, "apm-app-token", "Should not reference app token without github-app")
+	})
+}
+
+func TestBuildAPMAppTokenMintStep(t *testing.T) {
+	t.Run("Basic app token mint step", func(t *testing.T) {
+		app := &GitHubAppConfig{
+			AppID:      "${{ vars.APP_ID }}",
+			PrivateKey: "${{ secrets.APP_PRIVATE_KEY }}",
+		}
+		steps := buildAPMAppTokenMintStep(app)
+
+		combined := strings.Join(steps, "")
+		assert.Contains(t, combined, "Generate GitHub App token for APM dependencies", "Should have descriptive step name")
+		assert.Contains(t, combined, "id: apm-app-token", "Should use apm-app-token step ID")
+		assert.Contains(t, combined, "actions/create-github-app-token", "Should use create-github-app-token action")
+		assert.Contains(t, combined, "app-id: ${{ vars.APP_ID }}", "Should include app-id")
+		assert.Contains(t, combined, "private-key: ${{ secrets.APP_PRIVATE_KEY }}", "Should include private-key")
+		assert.Contains(t, combined, "github-api-url: ${{ github.api_url }}", "Should include github-api-url")
+	})
+
+	t.Run("App token mint step with explicit owner", func(t *testing.T) {
+		app := &GitHubAppConfig{
+			AppID:      "${{ vars.APP_ID }}",
+			PrivateKey: "${{ secrets.APP_PRIVATE_KEY }}",
+			Owner:      "acme-org",
+		}
+		steps := buildAPMAppTokenMintStep(app)
+
+		combined := strings.Join(steps, "")
+		assert.Contains(t, combined, "owner: acme-org", "Should include explicit owner")
+	})
+
+	t.Run("App token mint step defaults to github.repository_owner when owner not set", func(t *testing.T) {
+		app := &GitHubAppConfig{
+			AppID:      "${{ vars.APP_ID }}",
+			PrivateKey: "${{ secrets.APP_PRIVATE_KEY }}",
+		}
+		steps := buildAPMAppTokenMintStep(app)
+
+		combined := strings.Join(steps, "")
+		assert.Contains(t, combined, "owner: ${{ github.repository_owner }}", "Should default owner to github.repository_owner")
+	})
+
+	t.Run("App token mint step with wildcard repositories omits repositories field", func(t *testing.T) {
+		app := &GitHubAppConfig{
+			AppID:        "${{ vars.APP_ID }}",
+			PrivateKey:   "${{ secrets.APP_PRIVATE_KEY }}",
+			Repositories: []string{"*"},
+		}
+		steps := buildAPMAppTokenMintStep(app)
+
+		combined := strings.Join(steps, "")
+		assert.NotContains(t, combined, "repositories:", "Should omit repositories field for org-wide access")
+	})
+
+	t.Run("App token mint step with explicit repositories", func(t *testing.T) {
+		app := &GitHubAppConfig{
+			AppID:        "${{ vars.APP_ID }}",
+			PrivateKey:   "${{ secrets.APP_PRIVATE_KEY }}",
+			Repositories: []string{"acme-skills"},
+		}
+		steps := buildAPMAppTokenMintStep(app)
+
+		combined := strings.Join(steps, "")
+		assert.Contains(t, combined, "repositories: acme-skills", "Should include explicit repository")
+	})
 }

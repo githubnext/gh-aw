@@ -158,13 +158,24 @@ Each plugin repository must be specified in `org/repo` format. The compiler gene
 Specifies [APM (Agent Package Manager)](https://microsoft.github.io/apm/) packages to install before workflow execution. APM manages AI agent primitives such as skills, prompts, instructions, agents, hooks, and plugins (including the Claude `plugin.json` format). When present, the compiler runs `apm pack` in the activation job and `apm unpack` in the agent job for faster, deterministic startup.
 
 ```yaml wrap
+# Simple array format (public or same-org packages)
 dependencies:
   - microsoft/apm-sample-package
   - github/awesome-copilot/skills/review-and-refactor
   - microsoft/apm-sample-package#v2.0   # version-pinned
 ```
 
-See **[APM Dependencies Reference](/gh-aw/reference/dependencies/)** for the full format specification, version pinning syntax, plugin support, reproducibility and governance details, and local debugging instructions.
+```yaml wrap
+# Object format with GitHub App auth for cross-org private packages
+dependencies:
+  github-app:
+    app-id: ${{ vars.APP_ID }}
+    private-key: ${{ secrets.APP_PRIVATE_KEY }}
+  packages:
+    - acme-platform-org/acme-skills/plugins/dev-tools
+```
+
+See **[APM Dependencies Reference](/gh-aw/reference/dependencies/)** for the full format specification, version pinning syntax, GitHub App authentication, plugin support, reproducibility and governance details, and local debugging instructions.
 
 ### Runtimes (`runtimes:`)
 

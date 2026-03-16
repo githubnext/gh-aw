@@ -8004,6 +8004,35 @@
             "isolated": {
               "type": "boolean",
               "description": "If true, agent restore step clears primitive dirs before unpacking."
+            },
+            "github-app": {
+              "type": "object",
+              "description": "GitHub App credentials for minting installation access tokens used by APM to access cross-org private repositories.",
+              "required": ["app-id", "private-key"],
+              "properties": {
+                "app-id": {
+                  "type": "string",
+                  "description": "GitHub App ID (e.g., '${{ vars.APP_ID }}').",
+                  "examples": ["${{ vars.APP_ID }}"]
+                },
+                "private-key": {
+                  "type": "string",
+                  "description": "GitHub App private key (e.g., '${{ secrets.APP_PRIVATE_KEY }}').",
+                  "examples": ["${{ secrets.APP_PRIVATE_KEY }}"]
+                },
+                "owner": {
+                  "type": "string",
+                  "description": "Optional owner of the GitHub App installation. Defaults to current repository owner if not specified."
+                },
+                "repositories": {
+                  "type": "array",
+                  "description": "Optional list of repositories to grant access to. Use [\"*\"] for all repositories in the installation owner's org.",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              },
+              "additionalProperties": false
             }
           },
           "required": ["packages"],
