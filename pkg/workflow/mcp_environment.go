@@ -16,7 +16,7 @@
 //   - Managing agentic-workflows GITHUB_TOKEN
 //
 // Environment variable categories:
-//   - GitHub MCP: GITHUB_MCP_SERVER_TOKEN, GITHUB_MCP_LOCKDOWN
+//   - GitHub MCP: GITHUB_MCP_SERVER_TOKEN
 //   - Safe Outputs: GH_AW_SAFE_OUTPUTS_*, GH_AW_ASSETS_*
 //   - MCP Scripts: GH_AW_MCP_SCRIPTS_PORT, GH_AW_MCP_SCRIPTS_API_KEY
 //   - Serena: GH_AW_SERENA_PORT (local mode only)

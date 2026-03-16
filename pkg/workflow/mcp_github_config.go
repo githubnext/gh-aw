@@ -10,11 +10,10 @@
 //   - Extracting GitHub tool configuration from workflow frontmatter
 //   - Managing GitHub MCP server modes (local Docker vs remote hosted)
 //   - Handling GitHub authentication tokens (custom, default, GitHub App)
-//   - Managing read-only and lockdown security modes
+//   - Managing read-only mode and gateway guard policies
 //   - Expanding and managing GitHub toolsets (repos, issues, pull_requests, etc.)
 //   - Handling allowed tool lists for fine-grained access control
 //   - Determining Docker image versions for local mode
-//   - Generating automatic lockdown detection steps
 //   - Managing GitHub App token minting and invalidation
 //
 // GitHub MCP modes:
@@ -23,8 +22,8 @@
 //
 // Security features:
 //   - Read-only mode: Always enforced - write operations via GitHub MCP are not permitted
-//   - GitHub lockdown mode: Restricts access to current repository only
-//   - Automatic lockdown: Enables lockdown for public repositories with GH_AW_GITHUB_TOKEN
+//   - Gateway guard policy: Enforces repos/integrity constraints at the gateway level.
+//     Default policy: repos:all, min-integrity:approved (can be overridden in workflow config)
 //   - Allowed tools: Restricts available GitHub API operations
 //
 // GitHub toolsets:
@@ -40,10 +39,6 @@
 //  3. Top-level github-token from frontmatter
 //  4. Default GITHUB_TOKEN secret
 //
-// Automatic lockdown detection:
-// When lockdown is not explicitly set, a step is generated to automatically
-// enable lockdown for public repositories ONLY when GH_AW_GITHUB_TOKEN is configured.
-//
 // Related files:
 //   - mcp_renderer.go: Renders GitHub MCP configuration to YAML
 //   - mcp_environment.go: Manages GitHub MCP environment variables
@@ -56,7 +51,6 @@
 //	  github:
 //	    mode: remote                    # or "local" for Docker
 //	    github-token: ${{ secrets.PAT }}
-//	    lockdown: true                  # or omit for automatic detection
 //	    toolsets: [repos, issues, pull_requests]
 //	    allowed: [get_repo, list_issues, get_pull_request]
 package workflow
