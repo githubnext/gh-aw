@@ -56,46 +56,11 @@ mcp-scripts:
     timeout: 120                       # Optional: timeout in seconds (default: 60)
 ```
 
-### Required Fields
-
-- **`description:`** - Human-readable description of what the tool does. This is shown to the agent for tool selection.
-
-### Optional Fields
-
-- **`timeout:`** - Maximum execution time in seconds (default: 60). The tool will be terminated if it exceeds this duration. Applies to shell (`run:`) and Python (`py:`) tools.
-
-### Implementation Options
-
-Choose one implementation method:
-
-- **`script:`** - JavaScript (CommonJS) code
-- **`run:`** - Shell script
-- **`py:`** - Python script (Python 3.1x)
-- **`go:`** - Go (Golang) code
-
-You can only use one of `script:`, `run:`, `py:`, or `go:` per tool.
+Each tool requires `description:` and exactly one of `script:`, `run:`, `py:`, or `go:`.
 
 ## JavaScript Tools (`script:`)
 
-JavaScript tools are automatically wrapped in an async function with destructured inputs:
-
-```yaml wrap
-mcp-scripts:
-  calculate-sum:
-    description: "Add two numbers"
-    inputs:
-      a:
-        type: number
-        required: true
-      b:
-        type: number
-        required: true
-    script: |
-      const result = a + b;
-      return { sum: result };
-```
-
-Your script is wrapped as `async function execute(inputs)` with inputs destructured. Access secrets via `process.env`:
+JavaScript tools wrap your `script:` in `async function execute(inputs)` with inputs destructured. Access secrets via `process.env`:
 
 ```yaml wrap
 mcp-scripts:
@@ -195,35 +160,7 @@ mcp-scripts:
 
 Your Go code receives `inputs map[string]any` from stdin and should output JSON to stdout. The code is wrapped in a `package main` with a `main()` function that handles input parsing.
 
-**Available by default:**
-- `encoding/json` - JSON encoding/decoding
-- `fmt` - Formatted I/O
-- `io` - I/O primitives
-- `os` - Operating system functionality
-
-Access environment variables (including secrets) using `os.Getenv()`:
-
-```yaml wrap
-mcp-scripts:
-  api-call:
-    description: "Call an API with Go"
-    inputs:
-      endpoint:
-        type: string
-        required: true
-    go: |
-      apiKey := os.Getenv("API_KEY")
-      endpoint := inputs["endpoint"].(string)
-
-      // Make your API call here
-      result := map[string]any{
-          "endpoint": endpoint,
-          "authenticated": apiKey != "",
-      }
-      json.NewEncoder(os.Stdout).Encode(result)
-    env:
-      API_KEY: "${{ secrets.API_KEY }}"
-```
+Access secrets via `os.Getenv("VAR_NAME")` (see [Environment Variables](#environment-variables-env) for the `env:` field).
 
 ## Input Parameters
 
@@ -247,21 +184,6 @@ mcp-scripts:
         enum: ["option1", "option2", "option3"]
         description: "Limited to specific values"
 ```
-
-### Supported Types
-
-- `string` - Text values
-- `number` - Numeric values
-- `boolean` - True/false values
-- `array` - List of values
-- `object` - Structured data
-
-### Validation Options
-
-- `required: true` - Parameter must be provided
-- `default: value` - Default if not provided
-- `enum: [...]` - Restrict to specific values
-- `description: "..."` - Help text for the agent
 
 ## Timeout Configuration
 
@@ -345,9 +267,6 @@ Analyze provided text using the `analyze-text` tool and create a discussion with
 ## Security Considerations
 
 MCP Scripts tools run on the GitHub Actions **runner host** — outside the agent container — so they can access the runner's file system and environment but are isolated from the AI's own execution environment. Tools also provide secret isolation (only specified env vars are forwarded), process isolation (separate execution), and output sanitization (large outputs saved to files). Only predefined tools are available to agents.
-
-> [!CAUTION]
-> Because MCP Scripts execute outside the sandbox, **only implement READ-ONLY tools**. Write operations (file writes, API mutations, repository changes) must be handled through [Safe Output Jobs](/gh-aw/reference/safe-outputs/) or [Custom Safe Output Jobs](/gh-aw/reference/custom-safe-outputs/), which provide proper audit trails and approval gates.
 
 ## Comparison with Other Options
 
