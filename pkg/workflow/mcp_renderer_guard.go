@@ -3,6 +3,7 @@ package workflow
 import (
 	"encoding/json"
 	"fmt"
+	"slices"
 	"strings"
 )
 
@@ -25,7 +26,7 @@ func renderGuardPoliciesJSON(yaml *strings.Builder, policies map[string]any, ind
 }
 
 // renderGuardPoliciesToml renders a "guard-policies" section in TOML format for a given server.
-// The policies map contains policy names (e.g., "write-sink") mapped to their configurations.
+// The policies map contains policy names (e.g., "write-sink", "allow-only") mapped to their configurations.
 func renderGuardPoliciesToml(yaml *strings.Builder, policies map[string]any, serverID string) {
 	if len(policies) == 0 {
 		return
@@ -34,18 +35,29 @@ func renderGuardPoliciesToml(yaml *strings.Builder, policies map[string]any, ser
 	yaml.WriteString("          \n")
 	yaml.WriteString("          [mcp_servers." + serverID + ".\"guard-policies\"]\n")
 
-	// Iterate over each policy (e.g., "write-sink")
+	// Iterate over each policy (e.g., "write-sink", "allow-only")
 	for policyName, policyConfig := range policies {
 		yaml.WriteString("          \n")
 		yaml.WriteString("          [mcp_servers." + serverID + ".\"guard-policies\"." + policyName + "]\n")
 
-		// Extract policy fields (e.g., "accept")
+		// Extract policy fields (e.g., "accept", "repos", "min-integrity")
 		if configMap, ok := policyConfig.(map[string]any); ok {
-			for fieldName, fieldValue := range configMap {
-				// Handle array values (e.g., accept = ["private:github/gh-aw*"])
-				if arrayValue, ok := fieldValue.([]string); ok {
+			// Collect and sort keys for deterministic output
+			keys := make([]string, 0, len(configMap))
+			for k := range configMap {
+				keys = append(keys, k)
+			}
+			slices.Sort(keys)
+			for _, fieldName := range keys {
+				fieldValue := configMap[fieldName]
+				switch v := fieldValue.(type) {
+				case string:
+					// Handle string values (e.g., repos = "all", min-integrity = "approved")
+					yaml.WriteString("          " + fieldName + " = \"" + v + "\"\n")
+				case []string:
+					// Handle array values (e.g., accept = ["private:github/gh-aw*"])
 					yaml.WriteString("          " + fieldName + " = [")
-					for i, item := range arrayValue {
+					for i, item := range v {
 						if i > 0 {
 							yaml.WriteString(", ")
 						}

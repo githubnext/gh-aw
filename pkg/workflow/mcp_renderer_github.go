@@ -16,24 +16,14 @@ func (r *MCPConfigRendererUnified) RenderGitHubMCP(yaml *strings.Builder, github
 	githubType := getGitHubType(githubTool)
 	readOnly := getGitHubReadOnly(githubTool)
 
-	// Get lockdown value - use detected value if lockdown wasn't explicitly set
-	lockdown := getGitHubLockdown(githubTool)
-
-	// Check if automatic lockdown determination step will be generated.
-	// The step is skipped when lockdown is explicitly set, or when a GitHub App is configured
-	// (app tokens are already repo-scoped, so automatic lockdown detection is not needed).
-	shouldUseStepOutput := !hasGitHubLockdownExplicitlySet(githubTool) && !hasGitHubApp(githubTool)
-
-	if shouldUseStepOutput {
-		// Use the detected lockdown value from the step output
-		// This will be evaluated at runtime based on repository visibility
-		lockdown = true // This is a placeholder - actual value comes from step output
-	}
+	// Use explicit guard policies if set, otherwise apply the default policy that restricts
+	// access to repos:all with min-integrity:approved (enforced at the gateway level).
+	guardPolicies := getEffectiveGitHubGuardPolicies(githubTool)
 
 	toolsets := getGitHubToolsets(githubTool)
 
-	mcpRendererLog.Printf("Rendering GitHub MCP: type=%s, read_only=%t, lockdown=%t (explicit=%t, use_step=%t), toolsets=%v, format=%s",
-		githubType, readOnly, lockdown, hasGitHubLockdownExplicitlySet(githubTool), shouldUseStepOutput, toolsets, r.options.Format)
+	mcpRendererLog.Printf("Rendering GitHub MCP: type=%s, read_only=%t, toolsets=%v, format=%s",
+		githubType, readOnly, toolsets, r.options.Format)
 
 	if r.options.Format == "toml" {
 		r.renderGitHubTOML(yaml, githubTool, workflowData)
@@ -54,14 +44,12 @@ func (r *MCPConfigRendererUnified) RenderGitHubMCP(yaml *strings.Builder, github
 
 		RenderGitHubMCPRemoteConfig(yaml, GitHubMCPRemoteOptions{
 			ReadOnly:           readOnly,
-			Lockdown:           lockdown,
-			LockdownFromStep:   shouldUseStepOutput,
 			Toolsets:           toolsets,
 			AuthorizationValue: authValue,
 			IncludeToolsField:  r.options.IncludeCopilotFields,
 			AllowedTools:       getGitHubAllowedTools(githubTool),
 			IncludeEnvSection:  r.options.IncludeCopilotFields,
-			GuardPolicies:      getGitHubGuardPolicies(githubTool),
+			GuardPolicies:      guardPolicies,
 		})
 	} else {
 		// Local mode - use Docker-based GitHub MCP server (default)
@@ -71,8 +59,6 @@ func (r *MCPConfigRendererUnified) RenderGitHubMCP(yaml *strings.Builder, github
 
 		RenderGitHubMCPDockerConfig(yaml, GitHubMCPDockerOptions{
 			ReadOnly:           readOnly,
-			Lockdown:           lockdown,
-			LockdownFromStep:   shouldUseStepOutput,
 			Toolsets:           toolsets,
 			DockerImageVersion: githubDockerImageVersion,
 			CustomArgs:         customArgs,
@@ -80,7 +66,7 @@ func (r *MCPConfigRendererUnified) RenderGitHubMCP(yaml *strings.Builder, github
 			IncludeTypeField:   r.options.IncludeCopilotFields,
 			AllowedTools:       getGitHubAllowedTools(githubTool),
 			EffectiveToken:     "", // Token passed via env
-			GuardPolicies:      getGitHubGuardPolicies(githubTool),
+			GuardPolicies:      guardPolicies,
 		})
 	}
 
@@ -95,10 +81,10 @@ func (r *MCPConfigRendererUnified) RenderGitHubMCP(yaml *strings.Builder, github
 func (r *MCPConfigRendererUnified) renderGitHubTOML(yaml *strings.Builder, githubTool any, workflowData *WorkflowData) {
 	githubType := getGitHubType(githubTool)
 	readOnly := getGitHubReadOnly(githubTool)
-	lockdown := getGitHubLockdown(githubTool)
 	toolsets := getGitHubToolsets(githubTool)
+	guardPolicies := getEffectiveGitHubGuardPolicies(githubTool)
 
-	mcpRendererLog.Printf("Rendering GitHub MCP TOML: type=%s, read_only=%t, lockdown=%t, toolsets=%s", githubType, readOnly, lockdown, toolsets)
+	mcpRendererLog.Printf("Rendering GitHub MCP TOML: type=%s, read_only=%t, toolsets=%s", githubType, readOnly, toolsets)
 
 	yaml.WriteString("          \n")
 	yaml.WriteString("          [mcp_servers.github]\n")
@@ -184,10 +170,6 @@ func (r *MCPConfigRendererUnified) renderGitHubTOML(yaml *strings.Builder, githu
 			envVars["GITHUB_READ_ONLY"] = "1"
 		}
 
-		if lockdown {
-			envVars["GITHUB_LOCKDOWN_MODE"] = "1"
-		}
-
 		envVars["GITHUB_TOOLSETS"] = toolsets
 
 		// Write environment variables in sorted order for deterministic output
@@ -212,6 +194,11 @@ func (r *MCPConfigRendererUnified) renderGitHubTOML(yaml *strings.Builder, githu
 		}
 		yaml.WriteString("]\n")
 	}
+
+	// Add guard-policies if configured
+	if len(guardPolicies) > 0 {
+		renderGuardPoliciesToml(yaml, guardPolicies, "github")
+	}
 }
 
 // RenderGitHubMCPDockerConfig renders the GitHub MCP server configuration for Docker (local mode).
@@ -222,7 +209,7 @@ func (r *MCPConfigRendererUnified) renderGitHubTOML(yaml *strings.Builder, githu
 //   - yaml: The string builder for YAML output
 //   - options: GitHub MCP Docker rendering options
 func RenderGitHubMCPDockerConfig(yaml *strings.Builder, options GitHubMCPDockerOptions) {
-	mcpRendererLog.Printf("Rendering GitHub MCP Docker config: image=%s, read_only=%t, lockdown=%t", options.DockerImageVersion, options.ReadOnly, options.Lockdown)
+	mcpRendererLog.Printf("Rendering GitHub MCP Docker config: image=%s, read_only=%t", options.DockerImageVersion, options.ReadOnly)
 
 	// Add type field if needed (Copilot requires this, Claude doesn't)
 	// Per MCP Gateway Specification v1.0.0 section 4.1.2, use "stdio" for containerized servers
@@ -290,17 +277,6 @@ func RenderGitHubMCPDockerConfig(yaml *strings.Builder, options GitHubMCPDockerO
 		envVars["GITHUB_READ_ONLY"] = "1"
 	}
 
-	// GitHub lockdown mode
-	if options.LockdownFromStep {
-		// Security: Use environment variable instead of template expression to prevent template injection
-		// The GITHUB_MCP_LOCKDOWN env var is set in Start MCP Gateway step from step output
-		// Value is already converted to "1" or "0" in the environment variable
-		envVars["GITHUB_LOCKDOWN_MODE"] = "$GITHUB_MCP_LOCKDOWN"
-	} else if options.Lockdown {
-		// Use explicit lockdown value from configuration
-		envVars["GITHUB_LOCKDOWN_MODE"] = "1"
-	}
-
 	// Toolsets (always configured, defaults to "default")
 	envVars["GITHUB_TOOLSETS"] = options.Toolsets
 
@@ -332,7 +308,7 @@ func RenderGitHubMCPDockerConfig(yaml *strings.Builder, options GitHubMCPDockerO
 //   - yaml: The string builder for YAML output
 //   - options: GitHub MCP remote rendering options
 func RenderGitHubMCPRemoteConfig(yaml *strings.Builder, options GitHubMCPRemoteOptions) {
-	mcpRendererLog.Printf("Rendering GitHub MCP remote config: read_only=%t, lockdown=%t, toolsets=%s", options.ReadOnly, options.Lockdown, options.Toolsets)
+	mcpRendererLog.Printf("Rendering GitHub MCP remote config: read_only=%t, toolsets=%s", options.ReadOnly, options.Toolsets)
 
 	// Remote mode - use hosted GitHub MCP server
 	yaml.WriteString("                \"type\": \"http\",\n")
@@ -346,16 +322,6 @@ func RenderGitHubMCPRemoteConfig(yaml *strings.Builder, options GitHubMCPRemoteO
 	// Add X-MCP-Readonly header if read-only mode is enabled
 	if options.ReadOnly {
 		headers["X-MCP-Readonly"] = "true"
-	}
-
-	// Add X-MCP-Lockdown header if lockdown mode is enabled
-	if options.LockdownFromStep {
-		// Security: Use environment variable instead of template expression to prevent template injection
-		// The GITHUB_MCP_LOCKDOWN env var contains "1" or "0", convert to "true" or "false" for header
-		headers["X-MCP-Lockdown"] = "$([ \"$GITHUB_MCP_LOCKDOWN\" = \"1\" ] && echo true || echo false)"
-	} else if options.Lockdown {
-		// Use explicit lockdown value from configuration
-		headers["X-MCP-Lockdown"] = "true"
 	}
 
 	// Add X-MCP-Toolsets header if toolsets are configured

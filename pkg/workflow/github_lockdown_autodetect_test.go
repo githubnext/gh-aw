@@ -11,16 +11,14 @@ import (
 	"github.com/github/gh-aw/pkg/stringutil"
 )
 
-func TestGitHubLockdownAutodetection(t *testing.T) {
+func TestGitHubDefaultGuardPolicy(t *testing.T) {
 	tests := []struct {
-		name                    string
-		workflow                string
-		expectedLockdown        string // "true" means hardcoded true, "auto" means automatic detection, "none" means no lockdown setting at all
-		expectAutoDetectionStep bool   // true if automatic detection step should be present
-		description             string
+		name        string
+		workflow    string
+		description string
 	}{
 		{
-			name: "Automatic detection when lockdown not specified",
+			name: "Default guard policy applied when no guard policy configured",
 			workflow: `---
 on: issues
 engine: copilot
@@ -32,54 +30,12 @@ tools:
 
 # Test Workflow
 
-Test that automatic lockdown detection is enabled when lockdown is not specified.
+Test that default guard policy is applied.
 `,
-			expectedLockdown:        "auto",
-			expectAutoDetectionStep: true,
-			description:             "When lockdown is not specified, automatic detection step should be present",
+			description: "When no guard policy is configured, default repos:all min-integrity:approved should be present",
 		},
 		{
-			name: "Lockdown enabled when explicitly set to true",
-			workflow: `---
-on: issues
-engine: copilot
-tools:
-  github:
-    mode: local
-    lockdown: true
-    toolsets: [default]
----
-
-# Test Workflow
-
-Test with explicit lockdown enabled.
-`,
-			expectedLockdown:        "true",
-			expectAutoDetectionStep: false,
-			description:             "When lockdown is explicitly true, lockdown should be hardcoded",
-		},
-		{
-			name: "No lockdown when explicitly set to false",
-			workflow: `---
-on: issues
-engine: copilot
-tools:
-  github:
-    mode: local
-    lockdown: false
-    toolsets: [default]
----
-
-# Test Workflow
-
-Test with explicit lockdown disabled.
-`,
-			expectedLockdown:        "none",
-			expectAutoDetectionStep: false,
-			description:             "When lockdown is explicitly false, no lockdown setting should be present",
-		},
-		{
-			name: "Automatic detection with remote mode when not specified",
+			name: "Default guard policy in remote mode",
 			workflow: `---
 on: issues
 engine: copilot
@@ -91,36 +47,30 @@ tools:
 
 # Test Workflow
 
-Test that remote mode uses automatic detection when lockdown not specified.
+Test that remote mode gets default guard policy.
 `,
-			expectedLockdown:        "auto",
-			expectAutoDetectionStep: true,
-			description:             "Remote mode without explicit lockdown should use automatic detection",
+			description: "Remote mode should also get default guard policy",
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// Create temporary directory for test
-			tmpDir, err := os.MkdirTemp("", "lockdown-autodetect-test-*")
+			tmpDir, err := os.MkdirTemp("", "guard-policy-default-test-*")
 			if err != nil {
 				t.Fatalf("Failed to create temp dir: %v", err)
 			}
 			defer os.RemoveAll(tmpDir)
 
-			// Write workflow file
 			workflowPath := filepath.Join(tmpDir, "test-workflow.md")
 			if err := os.WriteFile(workflowPath, []byte(tt.workflow), 0644); err != nil {
 				t.Fatalf("Failed to write workflow file: %v", err)
 			}
 
-			// Compile workflow
 			compiler := NewCompiler()
 			if err := compiler.CompileWorkflow(workflowPath); err != nil {
 				t.Fatalf("Failed to compile workflow: %v", err)
 			}
 
-			// Read the generated lock file
 			lockPath := stringutil.MarkdownToLockFile(workflowPath)
 			lockContent, err := os.ReadFile(lockPath)
 			if err != nil {
@@ -128,46 +78,31 @@ Test that remote mode uses automatic detection when lockdown not specified.
 			}
 			yaml := string(lockContent)
 
-			// Check for automatic detection step based on expectation
-			hasDetectionStep := strings.Contains(yaml, "Determine automatic lockdown") &&
-				strings.Contains(yaml, "determine-automatic-lockdown")
-
-			if tt.expectAutoDetectionStep && !hasDetectionStep {
-				t.Errorf("%s: Expected automatic detection step but it was not found", tt.description)
-			}
-			if !tt.expectAutoDetectionStep && hasDetectionStep {
-				t.Errorf("%s: Did not expect automatic detection step but it was found", tt.description)
+			// Verify no lockdown detection step
+			if strings.Contains(yaml, "Determine automatic lockdown") || strings.Contains(yaml, "determine-automatic-lockdown") {
+				t.Errorf("%s: Lockdown detection step should not be present", tt.description)
 			}
 
-			// Check lockdown configuration based on expected value
-			switch tt.expectedLockdown {
-			case "true":
-				// Should have hardcoded GITHUB_LOCKDOWN_MODE=1 or X-MCP-Lockdown: true
-				hasDockerLockdown := strings.Contains(yaml, `"GITHUB_LOCKDOWN_MODE": "1"`)
-				hasRemoteLockdown := strings.Contains(yaml, "X-MCP-Lockdown") && strings.Contains(yaml, "\"true\"")
-				if !hasDockerLockdown && !hasRemoteLockdown {
-					t.Errorf("%s: Expected hardcoded lockdown setting", tt.description)
-				}
-			case "auto":
-				// Should use step output expression for lockdown
-				hasStepOutput := strings.Contains(yaml, "steps.determine-automatic-lockdown.outputs.lockdown")
-				if !hasStepOutput {
-					t.Errorf("%s: Expected lockdown to use step output expression", tt.description)
-				}
-			case "none":
-				// Should not have GITHUB_LOCKDOWN_MODE or X-MCP-Lockdown (unless using step output)
-				if strings.Contains(yaml, `"GITHUB_LOCKDOWN_MODE": "1"`) {
-					t.Errorf("%s: Expected no hardcoded lockdown setting", tt.description)
-				}
-				if strings.Contains(yaml, "X-MCP-Lockdown") && !strings.Contains(yaml, "steps.determine-automatic-lockdown") {
-					t.Errorf("%s: Expected no hardcoded lockdown setting", tt.description)
-				}
+			// Verify no lockdown mode in MCP config
+			if strings.Contains(yaml, "GITHUB_LOCKDOWN_MODE") {
+				t.Errorf("%s: GITHUB_LOCKDOWN_MODE should not be present", tt.description)
+			}
+
+			// Verify default guard policy is present
+			if !strings.Contains(yaml, "guard-policies") {
+				t.Errorf("%s: Expected guard-policies to be present", tt.description)
+			}
+			if !strings.Contains(yaml, `"repos": "all"`) && !strings.Contains(yaml, `repos = "all"`) {
+				t.Errorf("%s: Expected repos:all in guard policy", tt.description)
+			}
+			if !strings.Contains(yaml, `"min-integrity": "approved"`) && !strings.Contains(yaml, `min-integrity = "approved"`) {
+				t.Errorf("%s: Expected min-integrity:approved in guard policy", tt.description)
 			}
 		})
 	}
 }
 
-func TestGitHubLockdownExplicitOnlyClaudeEngine(t *testing.T) {
+func TestGitHubNoLockdownDetectionStepClaudeEngine(t *testing.T) {
 	workflow := `---
 on: issues
 engine: claude
@@ -179,29 +114,25 @@ tools:
 
 # Test Workflow
 
-Test that Claude engine has no automatic lockdown determination.
+Test that Claude engine has no lockdown detection step.
 `
 
-	// Create temporary directory for test
-	tmpDir, err := os.MkdirTemp("", "lockdown-explicit-claude-test-*")
+	tmpDir, err := os.MkdirTemp("", "no-lockdown-claude-test-*")
 	if err != nil {
 		t.Fatalf("Failed to create temp dir: %v", err)
 	}
 	defer os.RemoveAll(tmpDir)
 
-	// Write workflow file
 	workflowPath := filepath.Join(tmpDir, "test-workflow.md")
 	if err := os.WriteFile(workflowPath, []byte(workflow), 0644); err != nil {
 		t.Fatalf("Failed to write workflow file: %v", err)
 	}
 
-	// Compile workflow
 	compiler := NewCompiler()
 	if err := compiler.CompileWorkflow(workflowPath); err != nil {
 		t.Fatalf("Failed to compile workflow: %v", err)
 	}
 
-	// Read the generated lock file
 	lockPath := stringutil.MarkdownToLockFile(workflowPath)
 	lockContent, err := os.ReadFile(lockPath)
 	if err != nil {
@@ -209,16 +140,14 @@ Test that Claude engine has no automatic lockdown determination.
 	}
 	yaml := string(lockContent)
 
-	// Verify automatic detection step is present (lockdown not explicitly set)
-	detectStepPresent := strings.Contains(yaml, "Determine automatic lockdown mode for GitHub MCP Server") &&
-		strings.Contains(yaml, "determine-automatic-lockdown")
-
-	if !detectStepPresent {
-		t.Error("Determination step should be present for Claude engine when lockdown not explicitly set")
+	// Verify no lockdown detection step
+	if strings.Contains(yaml, "Determine automatic lockdown mode for GitHub MCP Server") ||
+		strings.Contains(yaml, "determine-automatic-lockdown") {
+		t.Error("Lockdown detection step should not be present for Claude engine")
 	}
 
-	// Check if lockdown uses step output expression
-	if !strings.Contains(yaml, "steps.determine-automatic-lockdown.outputs.lockdown") {
-		t.Error("Expected lockdown to use step output expression for Claude engine")
+	// Verify default guard policy is present
+	if !strings.Contains(yaml, "guard-policies") {
+		t.Error("Expected guard-policies to be present for Claude engine")
 	}
 }

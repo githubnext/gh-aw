@@ -27,7 +27,6 @@ tools:
   bash:
     - "*"
   github:
-    lockdown: true
     toolsets:
       - repos
       - pull_requests

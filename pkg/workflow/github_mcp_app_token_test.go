@@ -255,9 +255,7 @@ Test org-wide GitHub MCP app token.
 }
 
 // TestGitHubMCPAppTokenNoLockdownDetectionStep tests that determine-automatic-lockdown
-// step is NOT generated when a GitHub App is configured.
-// GitHub App tokens are already scoped to specific repositories, so automatic lockdown
-// detection is unnecessary.
+// step is never generated (it was removed in favor of gateway guard policies).
 func TestGitHubMCPAppTokenNoLockdownDetectionStep(t *testing.T) {
 	compiler := NewCompilerWithVersion("1.0.0")
 
@@ -296,9 +294,9 @@ Test that determine-automatic-lockdown is not generated when app is configured.
 	require.NoError(t, err, "Failed to read lock file")
 	lockContent := string(content)
 
-	// The automatic lockdown detection step must NOT be present when app is configured
-	assert.NotContains(t, lockContent, "Determine automatic lockdown mode", "determine-automatic-lockdown step should not be generated when app is configured")
-	assert.NotContains(t, lockContent, "id: determine-automatic-lockdown", "determine-automatic-lockdown step ID should not be present")
+	// The lockdown detection step must never be present (feature removed)
+	assert.NotContains(t, lockContent, "Determine automatic lockdown mode", "lockdown detection step should not be generated")
+	assert.NotContains(t, lockContent, "id: determine-automatic-lockdown", "lockdown detection step ID should not be present")
 	assert.NotContains(t, lockContent, "steps.determine-automatic-lockdown.outputs.lockdown", "lockdown step output reference should not be present")
 
 	// App token should still be minted and used

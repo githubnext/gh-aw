@@ -11,7 +11,6 @@ permissions:
 engine: copilot
 tools:
   github:
-    lockdown: true
     toolsets: [pull_requests, repos, issues, labels]
   repo-memory:
     branch-name: memory/pr-triage

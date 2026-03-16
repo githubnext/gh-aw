@@ -259,9 +259,6 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 
 	// GH_AW_SAFE_OUTPUTS is now set at job level, no setup step needed
 
-	// Add GitHub MCP lockdown detection step if needed
-	c.generateGitHubMCPLockdownDetectionStep(yaml, data)
-
 	// Add GitHub MCP app token minting step if configured
 	c.generateGitHubMCPAppTokenMintingStep(yaml, data)
 

@@ -225,10 +225,6 @@ func parseGitHubTool(val any) *GitHubToolConfig {
 			}
 		}
 
-		if lockdown, ok := configMap["lockdown"].(bool); ok {
-			config.Lockdown = lockdown
-		}
-
 		// Parse app configuration for GitHub App token minting
 		if rawApp, exists := configMap["github-app"]; exists {
 			if appMap, ok := rawApp.(map[string]any); ok {

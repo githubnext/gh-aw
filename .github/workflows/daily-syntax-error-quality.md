@@ -12,7 +12,6 @@ tracker-id: daily-syntax-error-quality
 engine: copilot
 tools:
   github:
-    lockdown: false
     toolsets:
       - default
   bash:
@@ -136,8 +135,8 @@ Examples:
   ```yaml
   tools:
     github:
-      mode: lockdown
-      toolsets: [default]  # Conflicting with lockdown mode
+      repos: [github/gh-aw]
+      toolsets: [default]  # Conflicting configuration example
   ```
 - **Invalid value**: Out-of-range or invalid enum value
   ```yaml

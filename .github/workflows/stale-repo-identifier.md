@@ -52,7 +52,6 @@ safe-outputs:
 tools:
   github:
     read-only: true
-    lockdown: true
     toolsets:
       - repos
       - issues

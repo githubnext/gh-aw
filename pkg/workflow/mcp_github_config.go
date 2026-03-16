@@ -119,28 +119,6 @@ func getGitHubReadOnly(_ any) bool {
 	return true
 }
 
-// getGitHubLockdown checks if lockdown mode is enabled for GitHub tool
-// Defaults to false (lockdown disabled)
-func getGitHubLockdown(githubTool any) bool {
-	if toolConfig, ok := githubTool.(map[string]any); ok {
-		if lockdownSetting, exists := toolConfig["lockdown"]; exists {
-			if boolValue, ok := lockdownSetting.(bool); ok {
-				return boolValue
-			}
-		}
-	}
-	return false // default to lockdown disabled
-}
-
-// hasGitHubLockdownExplicitlySet checks if lockdown field is explicitly set in GitHub tool config
-func hasGitHubLockdownExplicitlySet(githubTool any) bool {
-	if toolConfig, ok := githubTool.(map[string]any); ok {
-		_, exists := toolConfig["lockdown"]
-		return exists
-	}
-	return false
-}
-
 // getGitHubToolsets extracts the toolsets configuration from GitHub tool
 // Expands "default" to individual toolsets for action-friendly compatibility
 func getGitHubToolsets(githubTool any) string {
@@ -254,6 +232,22 @@ func getGitHubGuardPolicies(githubTool any) map[string]any {
 		}
 	}
 	return nil
+}
+
+// getEffectiveGitHubGuardPolicies returns the guard policies to apply for the GitHub MCP server.
+// If explicit repos/min-integrity are configured, those are used. Otherwise, the default gateway
+// guard policy (repos: all, min-integrity: approved) is applied to enforce integrity requirements.
+func getEffectiveGitHubGuardPolicies(githubTool any) map[string]any {
+	explicit := getGitHubGuardPolicies(githubTool)
+	if explicit != nil {
+		return explicit
+	}
+	return map[string]any{
+		"allow-only": map[string]any{
+			"repos":         "all",
+			"min-integrity": "approved",
+		},
+	}
 }
 
 // deriveSafeOutputsGuardPolicyFromGitHub generates a safeoutputs guard-policy from GitHub guard-policy.
@@ -380,70 +374,6 @@ func getGitHubDockerImageVersion(githubTool any) string {
 		}
 	}
 	return githubDockerImageVersion
-}
-
-// generateGitHubMCPLockdownDetectionStep generates a step to determine automatic lockdown mode
-// for GitHub MCP server based on repository visibility and token availability.
-// This step is added when:
-//   - GitHub tool is enabled AND
-//   - lockdown field is not explicitly specified in the workflow configuration AND
-//   - tools.github.app is NOT configured (GitHub App tokens are already repo-scoped, so
-//     automatic lockdown detection is unnecessary and skipped)
-//
-// Lockdown mode is automatically enabled for public repositories when any custom GitHub token
-// is configured (GH_AW_GITHUB_TOKEN, GH_AW_GITHUB_MCP_SERVER_TOKEN, or custom github-token).
-func (c *Compiler) generateGitHubMCPLockdownDetectionStep(yaml *strings.Builder, data *WorkflowData) {
-	// Check if GitHub tool is present
-	githubTool, hasGitHub := data.Tools["github"]
-	if !hasGitHub || githubTool == false {
-		return
-	}
-
-	// Check if lockdown is already explicitly set
-	if hasGitHubLockdownExplicitlySet(githubTool) {
-		githubConfigLog.Print("Lockdown explicitly set in workflow, skipping automatic lockdown determination")
-		return
-	}
-
-	// Skip automatic lockdown detection when a GitHub App is configured.
-	// GitHub App tokens are already scoped to specific repositories, so automatic
-	// lockdown detection is not needed — the token's access is inherently bounded
-	// by the app installation and the listed repositories.
-	if hasGitHubApp(githubTool) {
-		githubConfigLog.Print("GitHub App configured, skipping automatic lockdown determination (app tokens are already repo-scoped)")
-		return
-	}
-
-	githubConfigLog.Print("Generating automatic lockdown determination step for GitHub MCP server")
-
-	// Resolve the latest version of actions/github-script
-	actionRepo := "actions/github-script"
-	actionVersion := string(constants.DefaultGitHubScriptVersion)
-	pinnedAction, err := GetActionPinWithData(actionRepo, actionVersion, data)
-	if err != nil {
-		githubConfigLog.Printf("Failed to resolve %s@%s: %v", actionRepo, actionVersion, err)
-		// In strict mode, this error would have been returned by GetActionPinWithData
-		// In normal mode, we fall back to using the version tag without pinning
-		pinnedAction = fmt.Sprintf("%s@%s", actionRepo, actionVersion)
-	}
-
-	// Extract custom github-token if present
-	customToken := getGitHubToken(githubTool)
-
-	// Generate the step using the determine_automatic_lockdown.cjs action
-	yaml.WriteString("      - name: Determine automatic lockdown mode for GitHub MCP Server\n")
-	yaml.WriteString("        id: determine-automatic-lockdown\n")
-	fmt.Fprintf(yaml, "        uses: %s\n", pinnedAction)
-	yaml.WriteString("        env:\n")
-	yaml.WriteString("          GH_AW_GITHUB_TOKEN: ${{ secrets.GH_AW_GITHUB_TOKEN }}\n")
-	yaml.WriteString("          GH_AW_GITHUB_MCP_SERVER_TOKEN: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN }}\n")
-	if customToken != "" {
-		fmt.Fprintf(yaml, "          CUSTOM_GITHUB_TOKEN: %s\n", customToken)
-	}
-	yaml.WriteString("        with:\n")
-	yaml.WriteString("          script: |\n")
-	yaml.WriteString("            const determineAutomaticLockdown = require('/opt/gh-aw/actions/determine_automatic_lockdown.cjs');\n")
-	yaml.WriteString("            await determineAutomaticLockdown(github, context, core);\n")
 }
 
 // generateGitHubMCPAppTokenMintingStep generates a step to mint a GitHub App token for GitHub MCP server

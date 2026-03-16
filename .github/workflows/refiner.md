@@ -8,7 +8,6 @@ permissions:
 engine: copilot
 tools:
   github:
-    lockdown: true
     toolsets: [pull_requests, repos, issues]
 safe-outputs:
   create-pull-request:

@@ -290,7 +290,6 @@ type GitHubToolConfig struct {
 	ReadOnly    bool               `yaml:"read-only,omitempty"`
 	GitHubToken string             `yaml:"github-token,omitempty"`
 	Toolset     GitHubToolsets     `yaml:"toolsets,omitempty"`
-	Lockdown    bool               `yaml:"lockdown,omitempty"`
 	GitHubApp   *GitHubAppConfig   `yaml:"github-app,omitempty"` // GitHub App configuration for token minting
 
 	// Guard policy fields (flat syntax under github:)

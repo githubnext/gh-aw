@@ -12,7 +12,6 @@ strict: true
 tracker-id: daily-issues-report
 tools:
   github:
-    lockdown: true
     toolsets: [default, discussions]
 safe-outputs:
   upload-asset:

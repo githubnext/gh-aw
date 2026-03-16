@@ -5,106 +5,57 @@ package workflow
 import (
 	"strings"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
-func TestGitHubLockdownField(t *testing.T) {
+func TestGetEffectiveGitHubGuardPolicies(t *testing.T) {
 	tests := []struct {
-		name     string
-		toolsMap map[string]any
-		expected bool
+		name       string
+		githubTool any
+		wantRepos  string
+		wantInteg  string
 	}{
 		{
-			name: "lockdown explicitly enabled",
-			toolsMap: map[string]any{
-				"github": map[string]any{
-					"lockdown": true,
-				},
-			},
-			expected: true,
-		},
-		{
-			name: "lockdown explicitly disabled",
-			toolsMap: map[string]any{
-				"github": map[string]any{
-					"lockdown": false,
-				},
-			},
-			expected: false,
-		},
-		{
-			name: "lockdown not specified (default false)",
-			toolsMap: map[string]any{
-				"github": map[string]any{
-					"mode": "local",
-				},
-			},
-			expected: false,
-		},
-		{
-			name:     "empty github config (default false)",
-			toolsMap: map[string]any{"github": map[string]any{}},
-			expected: false,
-		},
-		{
-			name:     "nil github config (default false)",
-			toolsMap: map[string]any{"github": nil},
-			expected: false,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			githubTool := tt.toolsMap["github"]
-			result := getGitHubLockdown(githubTool)
-			if result != tt.expected {
-				t.Errorf("getGitHubLockdown() = %v, want %v", result, tt.expected)
-			}
-		})
-	}
-}
-
-func TestGitHubToolConfigLockdownParsing(t *testing.T) {
-	tests := []struct {
-		name     string
-		config   map[string]any
-		expected bool
-	}{
-		{
-			name: "lockdown true in config",
-			config: map[string]any{
-				"lockdown": true,
-				"mode":     "local",
-			},
-			expected: true,
-		},
-		{
-			name: "lockdown false in config",
-			config: map[string]any{
-				"lockdown": false,
-				"mode":     "remote",
-			},
-			expected: false,
-		},
-		{
-			name: "lockdown not present",
-			config: map[string]any{
+			name: "default policy when no guard policy configured",
+			githubTool: map[string]any{
 				"mode": "local",
 			},
-			expected: false,
+			wantRepos: "all",
+			wantInteg: "approved",
+		},
+		{
+			name:       "default policy when github tool is empty",
+			githubTool: map[string]any{},
+			wantRepos:  "all",
+			wantInteg:  "approved",
+		},
+		{
+			name: "explicit repos and min-integrity override default",
+			githubTool: map[string]any{
+				"repos":         "public",
+				"min-integrity": "merged",
+			},
+			wantRepos: "public",
+			wantInteg: "merged",
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			parsed := parseGitHubTool(tt.config)
-			if parsed.Lockdown != tt.expected {
-				t.Errorf("parseGitHubTool().Lockdown = %v, want %v", parsed.Lockdown, tt.expected)
-			}
+			result := getEffectiveGitHubGuardPolicies(tt.githubTool)
+			assert.NotNil(t, result, "guard policies should not be nil")
+
+			allowOnly, ok := result["allow-only"].(map[string]any)
+			assert.True(t, ok, "allow-only should be a map")
+
+			assert.Equal(t, tt.wantRepos, allowOnly["repos"], "repos should match")
+			assert.Equal(t, tt.wantInteg, allowOnly["min-integrity"], "min-integrity should match")
 		})
 	}
 }
 
-func TestRenderGitHubMCPDockerConfigWithLockdown(t *testing.T) {
+func TestRenderGitHubMCPDockerConfigNoLockdown(t *testing.T) {
 	tests := []struct {
 		name     string
 		options  GitHubMCPDockerOptions
@@ -112,32 +63,12 @@ func TestRenderGitHubMCPDockerConfigWithLockdown(t *testing.T) {
 		notFound []string
 	}{
 		{
-			name: "Docker mode with lockdown enabled",
+			name: "Docker mode does not render GITHUB_LOCKDOWN_MODE",
 			options: GitHubMCPDockerOptions{
 				ReadOnly:           false,
-				Lockdown:           true,
 				Toolsets:           "default",
 				DockerImageVersion: "latest",
 				IncludeTypeField:   true,
-				AllowedTools:       nil,
-			},
-			expected: []string{
-				`"type": "stdio"`,
-				`"GITHUB_LOCKDOWN_MODE": "1"`,
-				`"GITHUB_TOOLSETS": "default"`,
-				`"container": "ghcr.io/github/github-mcp-server:latest"`,
-			},
-			notFound: []string{},
-		},
-		{
-			name: "Docker mode with lockdown disabled",
-			options: GitHubMCPDockerOptions{
-				ReadOnly:           false,
-				Lockdown:           false,
-				Toolsets:           "default",
-				DockerImageVersion: "latest",
-				IncludeTypeField:   true,
-				AllowedTools:       nil,
 			},
 			expected: []string{
 				`"type": "stdio"`,
@@ -149,21 +80,20 @@ func TestRenderGitHubMCPDockerConfigWithLockdown(t *testing.T) {
 			},
 		},
 		{
-			name: "Docker mode with lockdown and read-only both enabled",
+			name: "Docker mode with read-only does not render lockdown",
 			options: GitHubMCPDockerOptions{
 				ReadOnly:           true,
-				Lockdown:           true,
 				Toolsets:           "default",
 				DockerImageVersion: "v1.0.0",
 				IncludeTypeField:   false,
-				AllowedTools:       nil,
 			},
 			expected: []string{
 				`"GITHUB_READ_ONLY": "1"`,
-				`"GITHUB_LOCKDOWN_MODE": "1"`,
 				`"container": "ghcr.io/github/github-mcp-server:v1.0.0"`,
 			},
-			notFound: []string{},
+			notFound: []string{
+				`"GITHUB_LOCKDOWN_MODE"`,
+			},
 		},
 	}
 
@@ -173,24 +103,18 @@ func TestRenderGitHubMCPDockerConfigWithLockdown(t *testing.T) {
 			RenderGitHubMCPDockerConfig(&yaml, tt.options)
 			output := yaml.String()
 
-			// Check expected strings
 			for _, expected := range tt.expected {
-				if !strings.Contains(output, expected) {
-					t.Errorf("Expected output to contain %q, but it doesn't.\nOutput: %s", expected, output)
-				}
+				assert.Contains(t, output, expected, "should contain %q", expected)
 			}
 
-			// Check strings that should NOT be present
 			for _, notFound := range tt.notFound {
-				if strings.Contains(output, notFound) {
-					t.Errorf("Expected output NOT to contain %q, but it does.\nOutput: %s", notFound, output)
-				}
+				assert.NotContains(t, output, notFound, "should not contain %q", notFound)
 			}
 		})
 	}
 }
 
-func TestRenderGitHubMCPRemoteConfigWithLockdown(t *testing.T) {
+func TestRenderGitHubMCPRemoteConfigNoLockdown(t *testing.T) {
 	tests := []struct {
 		name     string
 		options  GitHubMCPRemoteOptions
@@ -198,31 +122,9 @@ func TestRenderGitHubMCPRemoteConfigWithLockdown(t *testing.T) {
 		notFound []string
 	}{
 		{
-			name: "Remote mode with lockdown enabled",
+			name: "Remote mode does not render X-MCP-Lockdown",
 			options: GitHubMCPRemoteOptions{
 				ReadOnly:           false,
-				Lockdown:           true,
-				Toolsets:           "default",
-				AuthorizationValue: "Bearer test-token",
-				IncludeToolsField:  true,
-				AllowedTools:       []string{"*"},
-				IncludeEnvSection:  false,
-			},
-			expected: []string{
-				`"type": "http"`,
-				`"X-MCP-Lockdown": "true"`,
-				`"X-MCP-Toolsets": "default"`,
-				`"Authorization": "Bearer test-token"`,
-			},
-			notFound: []string{
-				`"X-MCP-Readonly"`,
-			},
-		},
-		{
-			name: "Remote mode with lockdown disabled",
-			options: GitHubMCPRemoteOptions{
-				ReadOnly:           false,
-				Lockdown:           false,
 				Toolsets:           "default",
 				AuthorizationValue: "Bearer test-token",
 				IncludeToolsField:  true,
@@ -240,10 +142,9 @@ func TestRenderGitHubMCPRemoteConfigWithLockdown(t *testing.T) {
 			},
 		},
 		{
-			name: "Remote mode with lockdown and read-only both enabled",
+			name: "Remote mode with read-only does not render X-MCP-Lockdown",
 			options: GitHubMCPRemoteOptions{
 				ReadOnly:           true,
-				Lockdown:           true,
 				Toolsets:           "repos,issues",
 				AuthorizationValue: "Bearer test-token",
 				IncludeToolsField:  false,
@@ -253,10 +154,11 @@ func TestRenderGitHubMCPRemoteConfigWithLockdown(t *testing.T) {
 			expected: []string{
 				`"type": "http"`,
 				`"X-MCP-Readonly": "true"`,
-				`"X-MCP-Lockdown": "true"`,
 				`"X-MCP-Toolsets": "repos,issues"`,
 			},
-			notFound: []string{},
+			notFound: []string{
+				`"X-MCP-Lockdown"`,
+			},
 		},
 	}
 
@@ -266,18 +168,12 @@ func TestRenderGitHubMCPRemoteConfigWithLockdown(t *testing.T) {
 			RenderGitHubMCPRemoteConfig(&yaml, tt.options)
 			output := yaml.String()
 
-			// Check expected strings
 			for _, expected := range tt.expected {
-				if !strings.Contains(output, expected) {
-					t.Errorf("Expected output to contain %q, but it doesn't.\nOutput: %s", expected, output)
-				}
+				assert.Contains(t, output, expected, "should contain %q", expected)
 			}
 
-			// Check strings that should NOT be present
 			for _, notFound := range tt.notFound {
-				if strings.Contains(output, notFound) {
-					t.Errorf("Expected output NOT to contain %q, but it does.\nOutput: %s", notFound, output)
-				}
+				assert.NotContains(t, output, notFound, "should not contain %q", notFound)
 			}
 		})
 	}

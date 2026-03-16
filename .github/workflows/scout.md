@@ -35,7 +35,6 @@ tools:
   edit:
   cache-memory: true
   github:
-    lockdown: false
 safe-outputs:
   add-comment:
     max: 1
