@@ -204,6 +204,10 @@ Custom GitHub token or GitHub App used by the activation job to post reactions a
 
 A time-based trigger format. Use short syntax like `daily` or `weekly on monday` (recommended with automatic time scattering) or standard cron expressions for fixed times. See also Fuzzy Scheduling and Time Scattering.
 
+### Ecosystem Identifiers
+
+Named shorthand references to predefined domain sets used in `network.allowed` and `safe-outputs.allowed-domains`. Instead of listing individual domain names, ecosystem identifiers expand to curated sets for a language runtime or service category. Common identifiers: `python` (PyPI/pip), `node` (npm), `go` (proxy.golang.org), `github` (GitHub domains), `dev-tools` (CI/CD services such as Codecov, Snyk, Shields.io), `local` (loopback addresses), and `default-safe-outputs` (a compound set combining `defaults` + `dev-tools` + `github` + `local`, recommended as a baseline for `safe-outputs.allowed-domains`). See [Network Permissions Reference](/gh-aw/reference/network/#ecosystem-identifiers).
+
 ### Engine
 
 The AI system that powers the agentic workflow - essentially "which AI to use" to execute workflow instructions. GitHub Agentic Workflows supports multiple engines, with GitHub Copilot as the default.
@@ -387,6 +391,15 @@ A system-injected environment variable identifying the active execution phase. S
 ### `GH_AW_VERSION`
 
 A system-injected environment variable containing the gh-aw compiler version that generated the workflow (e.g. `"0.40.1"`). Useful for writing conditional logic that depends on a minimum feature version. Cannot be overridden by user-defined `env:` blocks. See [Environment Variables Reference](/gh-aw/reference/environment-variables/).
+
+### Label Command Trigger (`label_command`)
+
+A trigger that activates a workflow when a specific label is added to an issue, pull request, or discussion. Unlike standard label filtering, the label command trigger automatically removes the applied label on activation so it can be reapplied to re-trigger the workflow. Configured via `label_command:` in the `on:` section; exposes `needs.activation.outputs.label_command` with the matched label name for downstream jobs. Can be combined with `slash_command:` to support both label-based and comment-based triggering. See [LabelOps patterns](/gh-aw/patterns/label-ops/).
+
+```yaml wrap
+on:
+  label_command: deploy
+```
 
 ### Repo Memory
 
