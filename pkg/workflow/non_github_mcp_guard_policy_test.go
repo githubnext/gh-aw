@@ -42,7 +42,7 @@ func TestDeriveWriteSinkGuardPolicyFromWorkflow(t *testing.T) {
 			description: "no github tool means no guard policy",
 		},
 		{
-			name: "github tool without guard policy defaults to repos=all",
+			name: "github tool without explicit guard policy produces no write-sink",
 			workflowData: &WorkflowData{
 				Tools: map[string]any{
 					"github": map[string]any{
@@ -50,9 +50,8 @@ func TestDeriveWriteSinkGuardPolicyFromWorkflow(t *testing.T) {
 					},
 				},
 			},
-			expectNil:   false,
-			expectedKey: "write-sink",
-			description: "github tool without repos/min-integrity defaults to repos=all producing write-sink policy",
+			expectNil:   true,
+			description: "github tool without repos has no write-sink guard policy (repos determines the accept list)",
 		},
 		{
 			name: "github tool with repos=all",
@@ -368,9 +367,10 @@ func TestAllNonGitHubMCPServersGetGuardPoliciesViaRenderer(t *testing.T) {
 }
 
 // TestNonGitHubMCPServersGetGuardPoliciesWhenGitHubConfiguredWithoutExplicitPolicy verifies that servers
-// get default guard policies (repos=all) when the GitHub tool has no explicit guard policy configured.
-// This replaced the old "no guard policies when GitHub has no guard policy" behavior.
-func TestNonGitHubMCPServersGetGuardPoliciesWhenGitHubConfiguredWithoutExplicitPolicy(t *testing.T) {
+// TestNonGitHubMCPServersNoWriteSinkWhenNoReposConfigured verifies that non-GitHub MCP servers
+// do not get a write-sink guard policy when the GitHub tool has no repos configured.
+// Only min-integrity is defaulted; repos determines the write-sink accept list.
+func TestNonGitHubMCPServersNoWriteSinkWhenNoReposConfigured(t *testing.T) {
 	workflowData := &WorkflowData{
 		Tools: map[string]any{
 			"github": map[string]any{
@@ -381,16 +381,9 @@ func TestNonGitHubMCPServersGetGuardPoliciesWhenGitHubConfiguredWithoutExplicitP
 	}
 
 	policies := deriveWriteSinkGuardPolicyFromWorkflow(workflowData)
-	require.NotNil(t, policies, "guard policies should be derived from GitHub defaults (repos=all)")
+	assert.Nil(t, policies, "no write-sink guard policy when GitHub has no repos configured")
 
-	expectedPolicies := map[string]any{
-		"write-sink": map[string]any{
-			"accept": []string{"*"},
-		},
-	}
-	assert.Equal(t, expectedPolicies, policies, "default guard policy should produce write-sink with accept=*")
-
-	// Verify playwright JSON rendering has guard-policies from defaults
+	// Verify playwright JSON rendering has no guard-policies
 	var output strings.Builder
 	renderer := NewMCPConfigRenderer(MCPRendererOptions{
 		Format:                 "json",
@@ -398,7 +391,7 @@ func TestNonGitHubMCPServersGetGuardPoliciesWhenGitHubConfiguredWithoutExplicitP
 		WriteSinkGuardPolicies: policies,
 	})
 	renderer.RenderPlaywrightMCP(&output, nil)
-	assert.Contains(t, output.String(), "guard-policies", "playwright should have guard-policies from GitHub defaults")
+	assert.NotContains(t, output.String(), "guard-policies", "playwright should not have guard-policies when no repos configured")
 }
 
 // TestNonGitHubMCPServersGetGuardPoliciesWhenGitHubConfigured verifies the end-to-end flow:

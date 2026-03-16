@@ -103,6 +103,24 @@ async function main(core, ctx) {
 
   // Generate workflow overview and write to step summary
   await generateWorkflowOverview(core);
+
+  // When min-integrity was not explicitly set, the GitHub MCP server defaults to
+  // min-integrity=approved. Write a notice to the step summary explaining this
+  // and how to relax the setting.
+  if (process.env.GH_AW_GITHUB_MIN_INTEGRITY_DEFAULT === "true") {
+    const notice =
+      "\n> [!NOTE]\n" +
+      "> **GitHub MCP Server**: `min-integrity: approved` is applied automatically.\n" +
+      "> Only tools from approved pull requests are allowed by default.\n" +
+      "> To relax this restriction, set `min-integrity: none` in your workflow frontmatter:\n" +
+      "> ```yaml\n" +
+      "> tools:\n" +
+      ">   github:\n" +
+      ">     min-integrity: none\n" +
+      "> ```\n";
+    await core.summary.addRaw(notice).write();
+    core.info("GitHub MCP Server: min-integrity=approved applied automatically (set min-integrity: none to relax)");
+  }
 }
 
 module.exports = { main };

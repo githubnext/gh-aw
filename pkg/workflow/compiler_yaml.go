@@ -662,6 +662,16 @@ func (c *Compiler) generateCreateAwInfo(yaml *strings.Builder, data *WorkflowDat
 			fmt.Fprintf(yaml, "          CUSTOM_GITHUB_TOKEN: %s\n", customToken)
 		}
 	}
+	// When github tool is enabled and min-integrity is not explicitly set, signal that
+	// min-integrity="approved" is being applied automatically so generate_aw_info.cjs
+	// can include a step summary notice and guidance on how to relax the setting.
+	if hasGitHub && githubTool != false {
+		if toolConfig, ok := githubTool.(map[string]any); ok {
+			if _, hasIntegrity := toolConfig["min-integrity"]; !hasIntegrity {
+				yaml.WriteString("          GH_AW_GITHUB_MIN_INTEGRITY_DEFAULT: \"true\"\n")
+			}
+		}
+	}
 	fmt.Fprintf(yaml, "        uses: %s\n", GetActionPin("actions/github-script"))
 	yaml.WriteString("        with:\n")
 	yaml.WriteString("          script: |\n")

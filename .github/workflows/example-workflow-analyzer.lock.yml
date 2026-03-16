@@ -83,6 +83,7 @@ jobs:
           GH_AW_INFO_AWMG_VERSION: ""
           GH_AW_INFO_FIREWALL_TYPE: "squid"
           GH_AW_COMPILED_STRICT: "true"
+          GH_AW_GITHUB_MIN_INTEGRITY_DEFAULT: "true"
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         with:
           script: |
@@ -680,13 +681,6 @@ jobs:
                   "GITHUB_TOKEN": "$GITHUB_TOKEN",
                   "GITHUB_ACTOR": "$GITHUB_ACTOR",
                   "GITHUB_REPOSITORY": "$GITHUB_REPOSITORY"
-                },
-                "guard-policies": {
-                  "write-sink": {
-                    "accept": [
-                      "*"
-                    ]
-                  }
                 }
               },
               "github": {
@@ -699,8 +693,7 @@ jobs:
                 },
                 "guard-policies": {
                   "allow-only": {
-                    "min-integrity": "approved",
-                    "repos": "all"
+                    "min-integrity": "approved"
                   }
                 }
               },
@@ -709,13 +702,6 @@ jobs:
                 "url": "http://host.docker.internal:$GH_AW_SAFE_OUTPUTS_PORT",
                 "headers": {
                   "Authorization": "$GH_AW_SAFE_OUTPUTS_API_KEY"
-                },
-                "guard-policies": {
-                  "write-sink": {
-                    "accept": [
-                      "*"
-                    ]
-                  }
                 }
               }
             },

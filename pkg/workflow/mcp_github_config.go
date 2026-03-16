@@ -234,7 +234,7 @@ func getGitHubAllowedTools(githubTool any) []string {
 
 // getGitHubGuardPolicies extracts guard policies from GitHub tool configuration.
 // It reads the flat repos/min-integrity fields and wraps them for MCP gateway rendering.
-// When neither field is set, defaults to repos="all" and min-integrity="approved".
+// When min-integrity is not set, defaults to "approved". repos has no default.
 func getGitHubGuardPolicies(githubTool any) map[string]any {
 	if toolConfig, ok := githubTool.(map[string]any); ok {
 		repos, hasRepos := toolConfig["repos"]
@@ -242,8 +242,6 @@ func getGitHubGuardPolicies(githubTool any) map[string]any {
 		policy := map[string]any{}
 		if hasRepos {
 			policy["repos"] = repos
-		} else {
-			policy["repos"] = "all"
 		}
 		if hasIntegrity {
 			policy["min-integrity"] = integrity
