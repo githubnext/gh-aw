@@ -120,7 +120,7 @@ func getGitHubReadOnly(_ any) bool {
 }
 
 // getGitHubLockdown checks if lockdown mode is enabled for GitHub tool
-// Defaults to false (lockdown disabled)
+// Defaults to constants.DefaultGitHubLockdown (false)
 func getGitHubLockdown(githubTool any) bool {
 	if toolConfig, ok := githubTool.(map[string]any); ok {
 		if lockdownSetting, exists := toolConfig["lockdown"]; exists {
@@ -129,7 +129,7 @@ func getGitHubLockdown(githubTool any) bool {
 			}
 		}
 	}
-	return false // default to lockdown disabled
+	return constants.DefaultGitHubLockdown
 }
 
 // hasGitHubLockdownExplicitlySet checks if lockdown field is explicitly set in GitHub tool config
