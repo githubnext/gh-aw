@@ -63,6 +63,8 @@ Guard policy fields (`repos` and `min-integrity`) are experimental and may chang
 
 Restrict which repositories and integrity levels the GitHub MCP server can access during agent execution. Guard policies apply fine-grained access control at the MCP gateway level.
 
+For **public repositories** without explicit guard policy configuration, `min-integrity: approved` is applied automatically at runtime, ensuring content is filtered to owners, members, and collaborators even without additional authentication. See [Automatic Minimum-Integrity Protection](/gh-aw/reference/lockdown-mode/#automatic-minimum-integrity-protection) for details.
+
 ```yaml wrap
 tools:
   github:

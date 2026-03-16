@@ -205,6 +205,8 @@ See [Network Permissions](/gh-aw/reference/network/) for complete configuration 
 
 Lockdown mode is **automatically enabled** for public repositories if [Additional Authentication for GitHub Tools](/gh-aw/reference/github-tools/#additional-authentication-for-github-tools) is configured. It is not in effect for private or internal repositories.
 
+In addition, for **public repositories** where the GitHub MCP server is not explicitly configured with `lockdown` or `min-integrity`, `min-integrity: approved` is automatically applied at runtime. This provides equivalent protection — restricting content to owners, members, and collaborators — even without additional authentication.
+
 ## Configuration & Setup
 
 ### What is a workflow lock file?
