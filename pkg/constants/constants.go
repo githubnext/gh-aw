@@ -344,7 +344,7 @@ const DefaultGeminiVersion Version = "latest"
 const DefaultGitHubMCPServerVersion Version = "v0.32.0"
 
 // DefaultFirewallVersion is the default version of the gh-aw-firewall (AWF) binary
-const DefaultFirewallVersion Version = "v0.24.1"
+const DefaultFirewallVersion Version = "v0.24.2"
 
 // AWF (Agentic Workflow Firewall) constants
 
