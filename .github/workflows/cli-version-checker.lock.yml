@@ -21,14 +21,14 @@
 #
 # For more information: https://github.github.com/gh-aw/introduction/overview/
 #
-# Monitors and updates agentic CLI tools (Claude Code, GitHub Copilot CLI, OpenAI Codex, GitHub MCP Server, Playwright MCP, Playwright Browser, MCP Gateway) for new versions
+# Monitors and updates agentic CLI tools (Claude Code, GitHub Copilot CLI, OpenAI Codex, GitHub MCP Server, Playwright MCP, Playwright Browser, MCP Gateway, APM) for new versions
 #
 # Resolved workflow manifest:
 #   Imports:
 #     - shared/jqschema.md
 #     - shared/reporting.md
 #
-# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"f1edaf6fb88a3f4f73256faa6a1c60181f239cbc5e01436d07f90b282d6bff79"}
+# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"e33a1982ca40e184f0ac66603487475e34c5357114f7bb3fe75d9ff92b3df4b6"}
 
 name: "CLI Version Checker"
 "on":
@@ -82,6 +82,7 @@ jobs:
           GH_AW_INFO_FIREWALL_ENABLED: "true"
           GH_AW_INFO_AWF_VERSION: "v0.24.2"
           GH_AW_INFO_AWMG_VERSION: ""
+          GH_AW_INFO_APM_VERSION: ""
           GH_AW_INFO_FIREWALL_TYPE: "squid"
           GH_AW_COMPILED_STRICT: "false"
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
@@ -968,7 +969,7 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           WORKFLOW_NAME: "CLI Version Checker"
-          WORKFLOW_DESCRIPTION: "Monitors and updates agentic CLI tools (Claude Code, GitHub Copilot CLI, OpenAI Codex, GitHub MCP Server, Playwright MCP, Playwright Browser, MCP Gateway) for new versions"
+          WORKFLOW_DESCRIPTION: "Monitors and updates agentic CLI tools (Claude Code, GitHub Copilot CLI, OpenAI Codex, GitHub MCP Server, Playwright MCP, Playwright Browser, MCP Gateway, APM) for new versions"
           HAS_PATCH: ${{ steps.collect_output.outputs.has_patch }}
         with:
           script: |

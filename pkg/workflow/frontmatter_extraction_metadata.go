@@ -348,7 +348,7 @@ func extractPluginsFromFrontmatter(frontmatter map[string]any) *PluginInfo {
 // extractAPMDependenciesFromFrontmatter extracts APM (Agent Package Manager) dependency
 // configuration from frontmatter. Supports two formats:
 //   - Array format: ["org/pkg1", "org/pkg2"]
-//   - Object format: {packages: ["org/pkg1", "org/pkg2"], isolated: true, github-app: {...}}
+//   - Object format: {packages: ["org/pkg1", "org/pkg2"], isolated: true, github-app: {...}, version: "v0.8.0"}
 //
 // Returns nil if no dependencies field is present or if the field contains no packages.
 func extractAPMDependenciesFromFrontmatter(frontmatter map[string]any) *APMDependenciesInfo {
@@ -360,6 +360,7 @@ func extractAPMDependenciesFromFrontmatter(frontmatter map[string]any) *APMDepen
 	var packages []string
 	var isolated bool
 	var githubApp *GitHubAppConfig
+	var version string
 
 	switch v := value.(type) {
 	case []any:
@@ -370,7 +371,7 @@ func extractAPMDependenciesFromFrontmatter(frontmatter map[string]any) *APMDepen
 			}
 		}
 	case map[string]any:
-		// Object format: dependencies: {packages: [...], isolated: true, github-app: {...}}
+		// Object format: dependencies: {packages: [...], isolated: true, github-app: {...}, version: "v0.8.0"}
 		if pkgsAny, ok := v["packages"]; ok {
 			if pkgsArray, ok := pkgsAny.([]any); ok {
 				for _, item := range pkgsArray {
@@ -394,6 +395,11 @@ func extractAPMDependenciesFromFrontmatter(frontmatter map[string]any) *APMDepen
 				}
 			}
 		}
+		if versionAny, ok := v["version"]; ok {
+			if versionStr, ok := versionAny.(string); ok && versionStr != "" {
+				version = versionStr
+			}
+		}
 	default:
 		return nil
 	}
@@ -402,6 +408,6 @@ func extractAPMDependenciesFromFrontmatter(frontmatter map[string]any) *APMDepen
 		return nil
 	}
 
-	frontmatterMetadataLog.Printf("Extracted %d APM dependency packages from frontmatter (isolated=%v, github-app=%v)", len(packages), isolated, githubApp != nil)
-	return &APMDependenciesInfo{Packages: packages, Isolated: isolated, GitHubApp: githubApp}
+	frontmatterMetadataLog.Printf("Extracted %d APM dependency packages from frontmatter (isolated=%v, github-app=%v, version=%s)", len(packages), isolated, githubApp != nil, version)
+	return &APMDependenciesInfo{Packages: packages, Isolated: isolated, GitHubApp: githubApp, Version: version}
 }
