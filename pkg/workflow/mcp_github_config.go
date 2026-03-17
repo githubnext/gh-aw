@@ -120,7 +120,7 @@ func getGitHubReadOnly(_ any) bool {
 }
 
 // getGitHubLockdown checks if lockdown mode is enabled for GitHub tool
-// Defaults to false (lockdown disabled)
+// Defaults to constants.DefaultGitHubLockdown (false)
 func getGitHubLockdown(githubTool any) bool {
 	if toolConfig, ok := githubTool.(map[string]any); ok {
 		if lockdownSetting, exists := toolConfig["lockdown"]; exists {
@@ -129,7 +129,7 @@ func getGitHubLockdown(githubTool any) bool {
 			}
 		}
 	}
-	return false // default to lockdown disabled
+	return constants.DefaultGitHubLockdown
 }
 
 // hasGitHubLockdownExplicitlySet checks if lockdown field is explicitly set in GitHub tool config
@@ -347,14 +347,42 @@ func transformRepoPattern(pattern string) string {
 // from the workflow's GitHub guard-policy configuration. This uses the same derivation as
 // deriveSafeOutputsGuardPolicyFromGitHub, ensuring that as guard policies are rolled out, only
 // GitHub inputs are filtered while outputs to non-GitHub servers are not restricted.
-// Returns nil when no GitHub guard policies are configured or when workflowData is nil.
+//
+// Two cases produce a non-nil policy:
+//  1. Explicit guard policy — when repos/min-integrity are set on the GitHub tool, a write-sink
+//     policy is derived from those settings (e.g. "private:myorg/myrepo").
+//  2. Auto-lockdown — when the GitHub tool is present without explicit guard policies and without
+//     a GitHub App configured, auto-lockdown detection will set repos=all at runtime, so a
+//     write-sink policy with accept=["*"] is returned to match that runtime behaviour.
+//
+// Returns nil when workflowData is nil, when no GitHub tool is present, or when a GitHub App is
+// configured (auto-lockdown is skipped for GitHub App tokens, which are already repo-scoped).
 func deriveWriteSinkGuardPolicyFromWorkflow(workflowData *WorkflowData) map[string]any {
 	if workflowData == nil || workflowData.Tools == nil {
 		return nil
 	}
-	if githubTool, hasGitHub := workflowData.Tools["github"]; hasGitHub {
-		return deriveSafeOutputsGuardPolicyFromGitHub(githubTool)
+	githubTool, hasGitHub := workflowData.Tools["github"]
+	if !hasGitHub {
+		return nil
 	}
+
+	// Try to derive from explicit guard policy first
+	policy := deriveSafeOutputsGuardPolicyFromGitHub(githubTool)
+	if policy != nil {
+		return policy
+	}
+
+	// When no explicit guard policy is configured but automatic lockdown detection would run
+	// (GitHub tool present and not disabled, no GitHub App configured), return accept=["*"]
+	// because automatic lockdown always sets repos=all at runtime.
+	if githubTool != false && len(getGitHubGuardPolicies(githubTool)) == 0 && !hasGitHubApp(githubTool) {
+		return map[string]any{
+			"write-sink": map[string]any{
+				"accept": []string{"*"},
+			},
+		}
+	}
+
 	return nil
 }
 
@@ -382,16 +410,16 @@ func getGitHubDockerImageVersion(githubTool any) string {
 	return githubDockerImageVersion
 }
 
-// generateGitHubMCPLockdownDetectionStep generates a step to determine automatic lockdown mode
-// for GitHub MCP server based on repository visibility and token availability.
+// generateGitHubMCPLockdownDetectionStep generates a step to determine automatic guard policy
+// for GitHub MCP server based on repository visibility.
 // This step is added when:
 //   - GitHub tool is enabled AND
-//   - lockdown field is not explicitly specified in the workflow configuration AND
+//   - guard policy (repos/min-integrity) is not fully configured in the workflow AND
 //   - tools.github.app is NOT configured (GitHub App tokens are already repo-scoped, so
-//     automatic lockdown detection is unnecessary and skipped)
+//     automatic guard policy detection is unnecessary and skipped)
 //
-// Lockdown mode is automatically enabled for public repositories when any custom GitHub token
-// is configured (GH_AW_GITHUB_TOKEN, GH_AW_GITHUB_MCP_SERVER_TOKEN, or custom github-token).
+// For public repositories, the step automatically sets min-integrity to "approved" and
+// repos to "all" if they are not already configured.
 func (c *Compiler) generateGitHubMCPLockdownDetectionStep(yaml *strings.Builder, data *WorkflowData) {
 	// Check if GitHub tool is present
 	githubTool, hasGitHub := data.Tools["github"]
@@ -399,22 +427,23 @@ func (c *Compiler) generateGitHubMCPLockdownDetectionStep(yaml *strings.Builder,
 		return
 	}
 
-	// Check if lockdown is already explicitly set
-	if hasGitHubLockdownExplicitlySet(githubTool) {
-		githubConfigLog.Print("Lockdown explicitly set in workflow, skipping automatic lockdown determination")
+	// Skip when guard policy is already fully configured in the workflow.
+	// The step is only needed to auto-configure guard policies for public repos.
+	if len(getGitHubGuardPolicies(githubTool)) > 0 {
+		githubConfigLog.Print("Guard policy already configured in workflow, skipping automatic guard policy determination")
 		return
 	}
 
-	// Skip automatic lockdown detection when a GitHub App is configured.
+	// Skip automatic guard policy detection when a GitHub App is configured.
 	// GitHub App tokens are already scoped to specific repositories, so automatic
-	// lockdown detection is not needed — the token's access is inherently bounded
+	// guard policy detection is not needed — the token's access is inherently bounded
 	// by the app installation and the listed repositories.
 	if hasGitHubApp(githubTool) {
-		githubConfigLog.Print("GitHub App configured, skipping automatic lockdown determination (app tokens are already repo-scoped)")
+		githubConfigLog.Print("GitHub App configured, skipping automatic guard policy determination (app tokens are already repo-scoped)")
 		return
 	}
 
-	githubConfigLog.Print("Generating automatic lockdown determination step for GitHub MCP server")
+	githubConfigLog.Print("Generating automatic guard policy determination step for GitHub MCP server")
 
 	// Resolve the latest version of actions/github-script
 	actionRepo := "actions/github-script"
@@ -427,8 +456,18 @@ func (c *Compiler) generateGitHubMCPLockdownDetectionStep(yaml *strings.Builder,
 		pinnedAction = fmt.Sprintf("%s@%s", actionRepo, actionVersion)
 	}
 
-	// Extract custom github-token if present
-	customToken := getGitHubToken(githubTool)
+	// Extract current guard policy configuration to pass as env vars so the step can
+	// detect whether each field is already configured and avoid overriding it.
+	configuredMinIntegrity := ""
+	configuredRepos := ""
+	if toolConfig, ok := githubTool.(map[string]any); ok {
+		if v, exists := toolConfig["min-integrity"]; exists {
+			configuredMinIntegrity = fmt.Sprintf("%v", v)
+		}
+		if v, exists := toolConfig["repos"]; exists {
+			configuredRepos = fmt.Sprintf("%v", v)
+		}
+	}
 
 	// Generate the step using the determine_automatic_lockdown.cjs action
 	yaml.WriteString("      - name: Determine automatic lockdown mode for GitHub MCP Server\n")
@@ -437,8 +476,11 @@ func (c *Compiler) generateGitHubMCPLockdownDetectionStep(yaml *strings.Builder,
 	yaml.WriteString("        env:\n")
 	yaml.WriteString("          GH_AW_GITHUB_TOKEN: ${{ secrets.GH_AW_GITHUB_TOKEN }}\n")
 	yaml.WriteString("          GH_AW_GITHUB_MCP_SERVER_TOKEN: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN }}\n")
-	if customToken != "" {
-		fmt.Fprintf(yaml, "          CUSTOM_GITHUB_TOKEN: %s\n", customToken)
+	if configuredMinIntegrity != "" {
+		fmt.Fprintf(yaml, "          GH_AW_GITHUB_MIN_INTEGRITY: %s\n", configuredMinIntegrity)
+	}
+	if configuredRepos != "" {
+		fmt.Fprintf(yaml, "          GH_AW_GITHUB_REPOS: %s\n", configuredRepos)
 	}
 	yaml.WriteString("        with:\n")
 	yaml.WriteString("          script: |\n")

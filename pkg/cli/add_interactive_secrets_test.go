@@ -10,7 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestAddInteractiveConfig_getSecretInfo(t *testing.T) {
+func TestAddInteractiveConfig_resolveEngineApiKeyCredential(t *testing.T) {
 	tests := []struct {
 		name            string
 		engineOverride  string
@@ -79,7 +79,7 @@ func TestAddInteractiveConfig_getSecretInfo(t *testing.T) {
 				config.existingSecrets = make(map[string]bool)
 			}
 
-			name, value, err := config.getSecretInfo()
+			name, value, err := config.resolveEngineApiKeyCredential()
 
 			if tt.wantErr {
 				assert.Error(t, err, "Expected error but got none")

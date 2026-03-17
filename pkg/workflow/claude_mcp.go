@@ -12,60 +12,17 @@ var claudeMCPLog = logger.New("workflow:claude_mcp")
 func (e *ClaudeEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]any, mcpTools []string, workflowData *WorkflowData) error {
 	claudeMCPLog.Printf("Rendering MCP config for Claude: tool_count=%d, mcp_tool_count=%d", len(tools), len(mcpTools))
 
-	// Create unified renderer with Claude-specific options
 	// Claude uses JSON format without Copilot-specific fields and multi-line args
-	createRenderer := func(isLast bool) *MCPConfigRendererUnified {
-		return NewMCPConfigRenderer(MCPRendererOptions{
-			IncludeCopilotFields:   false, // Claude doesn't use "type" and "tools" fields
-			InlineArgs:             false, // Claude uses multi-line args format
-			Format:                 "json",
-			IsLast:                 isLast,
-			ActionMode:             GetActionModeFromWorkflowData(workflowData),
-			WriteSinkGuardPolicies: deriveWriteSinkGuardPolicyFromWorkflow(workflowData),
-		})
-	}
+	createRenderer := buildMCPRendererFactory(workflowData, "json", false, false)
 
 	// Build gateway configuration for MCP config
 	// Per MCP Gateway Specification v1.0.0 section 4.1.3, the gateway section is required
-	gatewayConfig := buildMCPGatewayConfig(workflowData)
-
-	// Use shared JSON MCP config renderer with unified renderer methods
 	return RenderJSONMCPConfig(yaml, tools, mcpTools, workflowData, JSONMCPConfigOptions{
 		ConfigPath:    "/tmp/gh-aw/mcp-config/mcp-servers.json",
-		GatewayConfig: gatewayConfig,
-		Renderers: MCPToolRenderers{
-			RenderGitHub: func(yaml *strings.Builder, githubTool any, isLast bool, workflowData *WorkflowData) {
-				renderer := createRenderer(isLast)
-				renderer.RenderGitHubMCP(yaml, githubTool, workflowData)
-			},
-			RenderPlaywright: func(yaml *strings.Builder, playwrightTool any, isLast bool) {
-				renderer := createRenderer(isLast)
-				renderer.RenderPlaywrightMCP(yaml, playwrightTool)
-			},
-			RenderSerena: func(yaml *strings.Builder, serenaTool any, isLast bool) {
-				renderer := createRenderer(isLast)
-				renderer.RenderSerenaMCP(yaml, serenaTool)
-			},
-			RenderCacheMemory: noOpCacheMemoryRenderer,
-			RenderAgenticWorkflows: func(yaml *strings.Builder, isLast bool) {
-				renderer := createRenderer(isLast)
-				renderer.RenderAgenticWorkflowsMCP(yaml)
-			},
-			RenderSafeOutputs: func(yaml *strings.Builder, isLast bool, workflowData *WorkflowData) {
-				renderer := createRenderer(isLast)
-				renderer.RenderSafeOutputsMCP(yaml, workflowData)
-			},
-			RenderMCPScripts: func(yaml *strings.Builder, mcpScripts *MCPScriptsConfig, isLast bool) {
-				renderer := createRenderer(isLast)
-				renderer.RenderMCPScriptsMCP(yaml, mcpScripts, workflowData)
-			},
-			RenderWebFetch: func(yaml *strings.Builder, isLast bool) {
-				renderMCPFetchServerConfig(yaml, "json", "              ", isLast, false, deriveWriteSinkGuardPolicyFromWorkflow(workflowData))
-			},
-			RenderCustomMCPConfig: func(yaml *strings.Builder, toolName string, toolConfig map[string]any, isLast bool) error {
-				return e.renderClaudeMCPConfigWithContext(yaml, toolName, toolConfig, isLast, workflowData)
-			},
-		},
+		GatewayConfig: buildMCPGatewayConfig(workflowData),
+		Renderers: buildStandardJSONMCPRenderers(workflowData, createRenderer, false, func(yaml *strings.Builder, toolName string, toolConfig map[string]any, isLast bool) error {
+			return e.renderClaudeMCPConfigWithContext(yaml, toolName, toolConfig, isLast, workflowData)
+		}),
 	})
 }
 

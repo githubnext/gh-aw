@@ -299,3 +299,82 @@ on: push
 	}
 
 }
+
+// TestExpandLocalWildcard tests the expandLocalWildcard function directly,
+// covering the filter (.md only) and map (WorkflowSpec construction) pipeline.
+func TestExpandLocalWildcard(t *testing.T) {
+	tempDir := testutil.TempDir(t, "test-*")
+
+	// Create .md workflow files
+	mdFiles := []string{"alpha.md", "beta.md"}
+	for _, f := range mdFiles {
+		require.NoError(t, os.WriteFile(filepath.Join(tempDir, f), []byte("# Test"), 0644))
+	}
+	// Create non-.md files that must be excluded
+	nonMdFiles := []string{"README.txt", "config.yml", "notes.md.bak"}
+	for _, f := range nonMdFiles {
+		require.NoError(t, os.WriteFile(filepath.Join(tempDir, f), []byte("other"), 0644))
+	}
+
+	origDir, err := os.Getwd()
+	require.NoError(t, err)
+	defer func() { _ = os.Chdir(origDir) }()
+	require.NoError(t, os.Chdir(tempDir))
+
+	t.Run("only .md files are returned", func(t *testing.T) {
+		spec := &WorkflowSpec{
+			RepoSpec:     RepoSpec{},
+			WorkflowPath: "./*",
+			WorkflowName: "*",
+			IsWildcard:   true,
+		}
+		result, err := expandLocalWildcard(spec)
+		require.NoError(t, err, "should not error for valid glob pattern")
+		require.Len(t, result, 2, "should return exactly the 2 .md files")
+		for _, s := range result {
+			assert.True(t, strings.HasSuffix(s.WorkflowPath, ".md"), "every result path should end in .md: %s", s.WorkflowPath)
+		}
+	})
+
+	t.Run("expanded specs are not wildcards", func(t *testing.T) {
+		spec := &WorkflowSpec{
+			RepoSpec:     RepoSpec{},
+			WorkflowPath: "./*.md",
+			WorkflowName: "*",
+			IsWildcard:   true,
+		}
+		result, err := expandLocalWildcard(spec)
+		require.NoError(t, err)
+		for _, s := range result {
+			assert.False(t, s.IsWildcard, "expanded spec should not be a wildcard")
+		}
+	})
+
+	t.Run("repo slug and version are inherited from parent spec", func(t *testing.T) {
+		spec := &WorkflowSpec{
+			RepoSpec:     RepoSpec{RepoSlug: "owner/repo", Version: "v1.2.3"},
+			WorkflowPath: "./*.md",
+			WorkflowName: "*",
+			IsWildcard:   true,
+		}
+		result, err := expandLocalWildcard(spec)
+		require.NoError(t, err)
+		require.NotEmpty(t, result, "should find .md files")
+		for _, s := range result {
+			assert.Equal(t, "owner/repo", s.RepoSlug, "repo slug should be inherited")
+			assert.Equal(t, "v1.2.3", s.Version, "version should be inherited")
+		}
+	})
+
+	t.Run("no matches returns nil without error", func(t *testing.T) {
+		spec := &WorkflowSpec{
+			RepoSpec:     RepoSpec{},
+			WorkflowPath: "./*.nonexistent",
+			WorkflowName: "*",
+			IsWildcard:   true,
+		}
+		result, err := expandLocalWildcard(spec)
+		require.NoError(t, err, "no matches should not be an error")
+		assert.Nil(t, result, "result should be nil when nothing matches")
+	})
+}

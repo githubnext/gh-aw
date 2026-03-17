@@ -343,6 +343,11 @@ const DefaultGeminiVersion Version = "latest"
 // DefaultGitHubMCPServerVersion is the default version of the GitHub MCP server Docker image
 const DefaultGitHubMCPServerVersion Version = "v0.32.0"
 
+// DefaultGitHubLockdown is the default value for the GitHub MCP server lockdown setting.
+// Lockdown mode restricts the GitHub MCP server to the triggering repository only.
+// Defaults to false (lockdown disabled).
+const DefaultGitHubLockdown = false
+
 // DefaultFirewallVersion is the default version of the gh-aw-firewall (AWF) binary
 const DefaultFirewallVersion Version = "v0.24.2"
 
@@ -400,6 +405,9 @@ var SerenaLanguageSupport = map[string][]string{
 		"markdown", "zig", "elm",
 	},
 }
+
+// DefaultAPMVersion is the default version of the microsoft/APM (Agent Package Manager) CLI
+const DefaultAPMVersion Version = "v0.8.0"
 
 // DefaultPlaywrightMCPVersion is the default version of the @playwright/mcp package
 const DefaultPlaywrightMCPVersion Version = "0.0.68"

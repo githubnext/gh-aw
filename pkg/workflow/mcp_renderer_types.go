@@ -67,6 +67,9 @@ type GitHubMCPDockerOptions struct {
 	Lockdown bool
 	// LockdownFromStep indicates if lockdown value should be read from step output
 	LockdownFromStep bool
+	// GuardPoliciesFromStep indicates if guard policy values should be read from step outputs
+	// (GITHUB_MCP_GUARD_MIN_INTEGRITY and GITHUB_MCP_GUARD_REPOS env vars)
+	GuardPoliciesFromStep bool
 	// Toolsets specifies the GitHub toolsets to enable
 	Toolsets string
 	// DockerImageVersion specifies the GitHub MCP server Docker image version
@@ -93,6 +96,9 @@ type GitHubMCPRemoteOptions struct {
 	Lockdown bool
 	// LockdownFromStep indicates if lockdown value should be read from step output
 	LockdownFromStep bool
+	// GuardPoliciesFromStep indicates if guard policy values should be read from step outputs
+	// (GITHUB_MCP_GUARD_MIN_INTEGRITY and GITHUB_MCP_GUARD_REPOS env vars)
+	GuardPoliciesFromStep bool
 	// Toolsets specifies the GitHub toolsets to enable
 	Toolsets string
 	// AuthorizationValue is the value for the Authorization header

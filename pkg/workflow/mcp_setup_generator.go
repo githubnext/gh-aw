@@ -218,18 +218,24 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 			yaml.WriteString("          " + delimiter + "\n")
 		}
 
-		// Step 1b: Write tools.json and validation.json in a SEPARATE step.
-		// These files can be very large (e.g. 20KB+ when toolsets: [all] is configured)
-		// but contain only static content with no GitHub Actions template expressions.
-		// Keeping them in a separate run: block ensures they never combine with
+		// Step 1b: Write tools_meta.json and validation.json in a SEPARATE step.
+		// tools_meta.json replaces the large inlined tools.json heredoc: it contains
+		// only the workflow-specific customisations (description suffixes, repo params,
+		// dynamic tools). At runtime, generate_safe_outputs_tools.cjs combines this
+		// with the source safe_outputs_tools.json from the actions folder to produce
+		// the final /opt/gh-aw/safeoutputs/tools.json.
+		//
+		// Keeping this in a separate run: block ensures it never combines with
 		// expression-containing content to exceed GitHub Actions' 21,000-character limit.
 
-		// Generate and write the filtered tools.json file
-		filteredToolsJSON, err := generateFilteredToolsJSON(workflowData, c.markdownPath)
+		// Generate tools_meta.json: small file with description suffixes, repo params,
+		// and dynamic tools. The large static tool definitions are loaded at runtime
+		// from the actions folder by generate_safe_outputs_tools.cjs.
+		toolsMetaJSON, err := generateToolsMetaJSON(workflowData, c.markdownPath)
 		if err != nil {
-			mcpSetupGeneratorLog.Printf("Error generating filtered tools JSON: %v", err)
-			// Fall back to empty array on error
-			filteredToolsJSON = "[]"
+			mcpSetupGeneratorLog.Printf("Error generating tools meta JSON: %v", err)
+			// Fall back to empty meta on error
+			toolsMetaJSON = `{"description_suffixes":{},"repo_params":{},"dynamic_tools":[]}`
 		}
 
 		// Generate and write the validation configuration from Go source of truth
@@ -254,13 +260,13 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 		yaml.WriteString("      - name: Write Safe Outputs Tools\n")
 		yaml.WriteString("        run: |\n")
 
-		toolsDelimiter := GenerateHeredocDelimiter("SAFE_OUTPUTS_TOOLS")
-		yaml.WriteString("          cat > " + GhAwHome + "/safeoutputs/tools.json << '" + toolsDelimiter + "'\n")
-		// Write each line of the indented JSON with proper YAML indentation
-		for line := range strings.SplitSeq(filteredToolsJSON, "\n") {
+		toolsMetaDelimiter := GenerateHeredocDelimiter("SAFE_OUTPUTS_TOOLS_META")
+		yaml.WriteString("          cat > " + GhAwHome + "/safeoutputs/tools_meta.json << '" + toolsMetaDelimiter + "'\n")
+		// Write each line of the compact meta JSON with proper YAML indentation
+		for line := range strings.SplitSeq(toolsMetaJSON, "\n") {
 			yaml.WriteString("          " + line + "\n")
 		}
-		yaml.WriteString("          " + toolsDelimiter + "\n")
+		yaml.WriteString("          " + toolsMetaDelimiter + "\n")
 
 		validationDelimiter := GenerateHeredocDelimiter("SAFE_OUTPUTS_VALIDATION")
 		yaml.WriteString("          cat > " + GhAwHome + "/safeoutputs/validation.json << '" + validationDelimiter + "'\n")
@@ -269,6 +275,11 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 			yaml.WriteString("          " + line + "\n")
 		}
 		yaml.WriteString("          " + validationDelimiter + "\n")
+
+		// Generate the final tools.json at runtime from the source file in the actions folder.
+		// generate_safe_outputs_tools.cjs reads safe_outputs_tools.json (deployed by actions/setup),
+		// applies the meta overrides from tools_meta.json, and writes tools.json.
+		yaml.WriteString("          node " + GhAwHome + "/actions/generate_safe_outputs_tools.cjs\n")
 
 		// Note: The MCP server entry point (mcp-server.cjs) is now copied by actions/setup
 		// from safe-outputs-mcp-server.cjs - no need to generate it here
@@ -615,7 +626,9 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 	if hasGitHub && getGitHubType(githubTool) == "remote" && engine.GetID() == "copilot" {
 		containerCmd.WriteString(" -e GITHUB_PERSONAL_ACCESS_TOKEN")
 	}
-	containerCmd.WriteString(" -e GITHUB_MCP_LOCKDOWN")
+	// Automatic guard policy env vars (set from determine-automatic-lockdown step outputs)
+	containerCmd.WriteString(" -e GITHUB_MCP_GUARD_MIN_INTEGRITY")
+	containerCmd.WriteString(" -e GITHUB_MCP_GUARD_REPOS")
 	// Standard GitHub Actions environment variables (repository context)
 	containerCmd.WriteString(" -e GITHUB_REPOSITORY")
 	containerCmd.WriteString(" -e GITHUB_SERVER_URL")
@@ -678,7 +691,7 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 			"MCP_GATEWAY_LOG_DIR", "GH_AW_MCP_LOG_DIR", "GH_AW_SAFE_OUTPUTS",
 			"GH_AW_SAFE_OUTPUTS_CONFIG_PATH", "GH_AW_SAFE_OUTPUTS_TOOLS_PATH",
 			"GH_AW_ASSETS_BRANCH", "GH_AW_ASSETS_MAX_SIZE_KB", "GH_AW_ASSETS_ALLOWED_EXTS",
-			"DEFAULT_BRANCH", "GITHUB_MCP_SERVER_TOKEN", "GITHUB_MCP_LOCKDOWN",
+			"DEFAULT_BRANCH", "GITHUB_MCP_SERVER_TOKEN", "GITHUB_MCP_GUARD_MIN_INTEGRITY", "GITHUB_MCP_GUARD_REPOS",
 			"GITHUB_REPOSITORY", "GITHUB_SERVER_URL", "GITHUB_SHA", "GITHUB_WORKSPACE",
 			"GITHUB_TOKEN", "GITHUB_RUN_ID", "GITHUB_RUN_NUMBER", "GITHUB_RUN_ATTEMPT",
 			"GITHUB_JOB", "GITHUB_ACTION", "GITHUB_EVENT_NAME", "GITHUB_EVENT_PATH",

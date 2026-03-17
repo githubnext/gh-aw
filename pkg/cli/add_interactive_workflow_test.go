@@ -42,7 +42,7 @@ func TestGetWorkflowStatuses(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			// This function calls gh CLI, so it will likely error in tests
 			// We just verify it doesn't panic
-			statuses, err := getWorkflowStatuses(tt.pattern, tt.repoOverride, tt.verbose)
+			statuses, err := findWorkflowsByFilenamePattern(tt.pattern, tt.repoOverride, tt.verbose)
 
 			// Either succeeds or fails gracefully, but shouldn't panic
 			// Note: statuses may be nil even when err is nil (no workflows found)

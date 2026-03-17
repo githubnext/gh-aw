@@ -2,49 +2,52 @@
 # Documentation Server Lifecycle Management
 # 
 # This shared workflow provides instructions for starting, waiting for readiness,
-# and cleaning up the Astro Starlight documentation preview server.
+# and cleaning up the Astro Starlight documentation dev server.
 #
 # Prerequisites:
-# - Documentation must be built first (npm run build in docs/ directory)
-# - Bash permissions: npm *, curl *, kill *, echo *, sleep *
+# - npm install must have been run in docs/ directory
+# - Bash permissions: npm *, npx *, curl *, kill *, echo *, sleep *
 # - Working directory should be in repository root
 ---
 
 ## Starting the Documentation Preview Server
 
-**Context**: The documentation has been pre-built using `npm run build`. Use the preview server to serve the static build.
-
-Navigate to the docs directory and start the preview server in the background, binding to all network interfaces on a fixed port:
+Navigate to the docs directory and start the development server in the background, binding to all network interfaces on a fixed port:
 
 ```bash
 cd docs
-npm run preview -- --host 0.0.0.0 --port 4321 > /tmp/preview.log 2>&1 &
+npm run dev -- --host 0.0.0.0 --port 4321 > /tmp/preview.log 2>&1 &
 echo $! > /tmp/server.pid
 ```
 
 This will:
-- Start the preview server on port 4321, bound to all interfaces (`0.0.0.0`)
+- Start the Astro development server on port 4321, bound to all interfaces (`0.0.0.0`)
 - Redirect output to `/tmp/preview.log`
 - Save the process ID to `/tmp/server.pid` for later cleanup
+
+**Why `npm run dev` instead of `npm run preview`:**
+The `npm run preview` command serves the pre-built static output. However, Astro's Starlight documentation site uses hybrid routing which requires the development server (`astro dev`) to correctly serve all pages at the `/gh-aw/` base URL. Using `npm run preview` returns 404 for `/gh-aw/` paths.
 
 **Why `--host 0.0.0.0 --port 4321` is required:**
 The agent runs inside a Docker container. Playwright also runs in its own container with `--network host`, meaning its `localhost` is the Docker host — not the agent container. Binding to `0.0.0.0` makes the server accessible on the agent container's bridge IP (e.g. `172.30.x.x`). The `--port 4321` flag prevents port conflicts if a previous server instance is still shutting down.
 
 ## Waiting for Server Readiness
 
-Poll the server with curl to ensure it's ready before use:
+Poll the server with curl until the `/gh-aw/` path returns HTTP 200:
 
 ```bash
-for i in {1..30}; do
-  curl -s http://localhost:4321 > /dev/null && echo "Server ready!" && break
-  echo "Waiting for server... ($i/30)" && sleep 2
+for i in {1..45}; do
+  STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:4321/gh-aw/)
+  [ "$STATUS" = "200" ] && echo "Server ready at http://localhost:4321/gh-aw/!" && break
+  echo "Waiting for server... ($i/45) (status: $STATUS)" && sleep 3
 done
 ```
 
 This will:
-- Attempt to connect up to 30 times (60 seconds total)
-- Wait 2 seconds between attempts
-- Exit successfully when server responds
+- Attempt to connect up to 45 times (135 seconds total) to allow for Astro dev server startup
+- Check that `/gh-aw/` specifically returns HTTP 200 (not just that the port is open)
+- Wait 3 seconds between attempts
+- Exit successfully when the docs site is fully accessible
 
 ## Playwright Browser Access
 
@@ -94,3 +97,4 @@ This will:
 - For Playwright browser tools, use the container bridge IP (see "Playwright Browser Access" section above)
 - Always clean up the server when done to avoid orphan processes
 - If the server fails to start, check `/tmp/preview.log` for errors
+- No `npm run build` step is required before starting the dev server

@@ -86,6 +86,12 @@ async function main(core, ctx) {
     awInfo.cli_version = cliVersion;
   }
 
+  // Include apm_version only when APM dependencies are configured
+  const apmVersion = process.env.GH_AW_INFO_APM_VERSION;
+  if (apmVersion) {
+    awInfo.apm_version = apmVersion;
+  }
+
   // Write to /tmp/gh-aw directory to avoid inclusion in PR
   fs.mkdirSync(TMP_GH_AW_PATH, { recursive: true });
   const tmpPath = TMP_GH_AW_PATH + "/aw_info.json";

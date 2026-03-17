@@ -50,7 +50,8 @@ tools:
     languages:
       go: {}
 dependencies:
-  - microsoft/apm-sample-package
+  packages:
+    - microsoft/apm-sample-package
 runtimes:
   go:
     version: "1.25"

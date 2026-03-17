@@ -392,6 +392,12 @@ func TestBuildScheduleOptions(t *testing.T) {
 		assert.Equal(t, "weekly", opts[0].Value, "weekly should be first option")
 	})
 
+	t.Run("3-hourly schedule puts 3-hourly first", func(t *testing.T) {
+		opts := buildScheduleOptions("every 3h", "3-hourly")
+		require.NotEmpty(t, opts, "options should not be empty")
+		assert.Equal(t, "3-hourly", opts[0].Value, "3-hourly should be first option")
+	})
+
 	t.Run("monthly schedule puts monthly first", func(t *testing.T) {
 		opts := buildScheduleOptions("0 0 1 * *", "monthly")
 		require.NotEmpty(t, opts, "options should not be empty")

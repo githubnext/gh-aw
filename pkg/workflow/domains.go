@@ -642,6 +642,62 @@ func formatBlockedDomains(network *NetworkPermissions) string {
 	return strings.Join(blockedDomains, ",")
 }
 
+// GetAPITargetDomains returns the set of domains to add to the allow-list when engine.api-target is set.
+// For a GHES instance with api-target "api.acme.ghe.com", this returns both the API domain
+// ("api.acme.ghe.com") and the base hostname ("acme.ghe.com") so that both the GitHub web UI
+// and API requests pass through the firewall without manual lock file edits.
+// Returns nil for empty apiTarget.
+func GetAPITargetDomains(apiTarget string) []string {
+	if apiTarget == "" {
+		return nil
+	}
+
+	domains := []string{apiTarget}
+
+	// Derive the base hostname by stripping the first subdomain label, but only for
+	// API-style hostnames that start with "api.".
+	// e.g., "api.acme.ghe.com" → "acme.ghe.com"
+	// Only add the base hostname if it still looks like a multi-label hostname (contains a dot).
+	if strings.HasPrefix(apiTarget, "api.") {
+		if idx := strings.Index(apiTarget, "."); idx > 0 {
+			baseHost := apiTarget[idx+1:]
+			if strings.Contains(baseHost, ".") && baseHost != apiTarget {
+				domains = append(domains, baseHost)
+			}
+		}
+	}
+
+	return domains
+}
+
+// mergeAPITargetDomains merges the api-target domains into an existing comma-separated domain string.
+// When engine.api-target is set, both the API hostname and its base hostname are added to the allow-list.
+// Returns the original string unchanged when apiTarget is empty.
+func mergeAPITargetDomains(domainsStr string, apiTarget string) string {
+	extraDomains := GetAPITargetDomains(apiTarget)
+	if len(extraDomains) == 0 {
+		return domainsStr
+	}
+
+	domainMap := make(map[string]bool)
+	for d := range strings.SplitSeq(domainsStr, ",") {
+		d = strings.TrimSpace(d)
+		if d != "" {
+			domainMap[d] = true
+		}
+	}
+	for _, d := range extraDomains {
+		domainMap[d] = true
+	}
+
+	result := make([]string, 0, len(domainMap))
+	for d := range domainMap {
+		result = append(result, d)
+	}
+	sort.Strings(result)
+	return strings.Join(result, ",")
+}
+
 // computeAllowedDomainsForSanitization computes the allowed domains for sanitization
 // based on the engine and network configuration, matching what's provided to the firewall
 func (c *Compiler) computeAllowedDomainsForSanitization(data *WorkflowData) string {
@@ -655,20 +711,28 @@ func (c *Compiler) computeAllowedDomainsForSanitization(data *WorkflowData) stri
 
 	// Compute domains based on engine type, including tools and runtimes to match
 	// what's provided to the actual firewall at runtime
+	var base string
 	switch engineID {
 	case "copilot":
-		return GetCopilotAllowedDomainsWithToolsAndRuntimes(data.NetworkPermissions, data.Tools, data.Runtimes)
+		base = GetCopilotAllowedDomainsWithToolsAndRuntimes(data.NetworkPermissions, data.Tools, data.Runtimes)
 	case "codex":
-		return GetCodexAllowedDomainsWithToolsAndRuntimes(data.NetworkPermissions, data.Tools, data.Runtimes)
+		base = GetCodexAllowedDomainsWithToolsAndRuntimes(data.NetworkPermissions, data.Tools, data.Runtimes)
 	case "claude":
-		return GetClaudeAllowedDomainsWithToolsAndRuntimes(data.NetworkPermissions, data.Tools, data.Runtimes)
+		base = GetClaudeAllowedDomainsWithToolsAndRuntimes(data.NetworkPermissions, data.Tools, data.Runtimes)
 	case "gemini":
-		return GetGeminiAllowedDomainsWithToolsAndRuntimes(data.NetworkPermissions, data.Tools, data.Runtimes)
+		base = GetGeminiAllowedDomainsWithToolsAndRuntimes(data.NetworkPermissions, data.Tools, data.Runtimes)
 	default:
 		// For other engines, use network permissions only
 		domains := GetAllowedDomains(data.NetworkPermissions)
-		return strings.Join(domains, ",")
+		base = strings.Join(domains, ",")
 	}
+
+	// Add GHES/custom API target domains so GH_AW_ALLOWED_DOMAINS stays in sync with --allow-domains
+	if data.EngineConfig != nil && data.EngineConfig.APITarget != "" {
+		base = mergeAPITargetDomains(base, data.EngineConfig.APITarget)
+	}
+
+	return base
 }
 
 // expandAllowedDomains expands a list of domain entries (which may include ecosystem

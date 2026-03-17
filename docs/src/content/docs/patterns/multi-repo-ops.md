@@ -46,8 +46,6 @@ Analyze the issue and create a tracking issue that:
 - Provides context for cross-component coordination
 ```
 
-This workflow creates a hub-and-spoke architecture where component repositories automatically report issues to a central tracking repository.
-
 ## Authentication for Cross-Repo Access
 
 Cross-repository operations require authentication beyond the default `GITHUB_TOKEN`, which is scoped to the current repository only.
@@ -147,12 +145,6 @@ tools:
 > [!IMPORTANT]
 > When reading from repositories other than the workflow's repository, you must configure additional authentication. The default `GITHUB_TOKEN` only has access to the current repository. Use a PAT, GitHub App token, or the magic secret `GH_AW_GITHUB_MCP_SERVER_TOKEN`. See [GitHub Tools Reference](/gh-aw/reference/github-tools/#cross-repository-reading) for details.
 
-**Available Operations:**
-- **repos**: Read files, search code, list commits, get releases
-- **issues**: List and search issues across repositories
-- **pull_requests**: List and search PRs across repositories
-- **actions**: Access workflow runs and artifacts
-
 Agent instructions can reference remote repositories:
 
 ```markdown
@@ -207,51 +199,10 @@ Explore detailed MultiRepoOps examples:
 
 ## Best Practices
 
-### Authentication and Security
-
-- Use GitHub Apps for automatic token revocation
-- Scope PATs minimally to required repositories
-- Rotate tokens regularly
-- Store tokens as GitHub secrets (never in code)
-
-### Workflow Design
-
-- Set appropriate `max` limits on safe outputs
-- Use meaningful title prefixes for tracking
-- Apply consistent labels across repositories
-- Include clear documentation in created items
-
-### Error Handling
-
-- Validate repository access before operations
-- Handle rate limits appropriately
-- Provide fallback for permission failures
-- Monitor workflow execution across repositories
-
-### Testing
-
-- Test with public repositories first
-- Pilot with small repository subset
-- Verify path mappings and configurations
-- Monitor costs and rate limits
-
-## Advanced Topics
-
-### Private Repository Access
-
-When working with private repositories:
-- Ensure PAT owner has repository access
-- Install GitHub Apps in target organizations
-- Configure repository lists explicitly
-- Test permissions before full rollout
-
-### Organization-Level Operations
-
-For organization-wide workflows:
-- Use organization-level secrets
-- Configure GitHub Apps at organization level
-- Plan phased rollouts
-- Provide clear communication
+- **Authentication**: Use GitHub Apps for automatic token revocation; scope PATs minimally to required repositories; store tokens as GitHub secrets
+- **Workflow design**: Set appropriate `max` limits; use meaningful title prefixes and consistent labels
+- **Error handling**: Handle rate limits and permission failures; monitor workflow execution across repositories
+- **Testing**: Start with public repositories, pilot a small subset, and verify configurations before full rollout
 
 ## Related Patterns
 

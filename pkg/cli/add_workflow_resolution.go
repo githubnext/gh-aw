@@ -245,25 +245,20 @@ func expandLocalWildcard(spec *WorkflowSpec) ([]*WorkflowSpec, error) {
 		return nil, nil
 	}
 
-	var result []*WorkflowSpec
-	for _, match := range matches {
-		// Only include .md files
-		if !strings.HasSuffix(match, ".md") {
-			continue
-		}
-
-		// Create a new spec for each matched file
-		workflowName := normalizeWorkflowID(match)
-		result = append(result, &WorkflowSpec{
+	mdMatches := sliceutil.Filter(matches, func(m string) bool {
+		return strings.HasSuffix(m, ".md")
+	})
+	result := sliceutil.Map(mdMatches, func(match string) *WorkflowSpec {
+		return &WorkflowSpec{
 			RepoSpec: RepoSpec{
 				RepoSlug: spec.RepoSlug,
 				Version:  spec.Version,
 			},
 			WorkflowPath: match,
-			WorkflowName: workflowName,
+			WorkflowName: normalizeWorkflowID(match),
 			IsWildcard:   false,
-		})
-	}
+		}
+	})
 
 	return result, nil
 }

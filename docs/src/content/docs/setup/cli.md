@@ -511,7 +511,7 @@ gh aw mcp-server --validate-actor     # Enable actor validation
 
 **Options:** `--port` (HTTP server port), `--cmd` (custom subprocess command), `--validate-actor` (enforce actor validation for logs and audit tools)
 
-**Available Tools:** status, compile, logs, audit, mcp-inspect, add, update
+**Available Tools:** status, compile, logs, audit, mcp-inspect, add, update, fix
 
 When `--validate-actor` is enabled, logs and audit tools require write+ repository access via GitHub API (permissions cached for 1 hour). See [MCP Server Guide](/gh-aw/reference/gh-aw-as-mcp-server/).
 

@@ -12,6 +12,7 @@ import (
 
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/sliceutil"
 	"github.com/github/gh-aw/pkg/workflow"
 )
 
@@ -137,12 +138,8 @@ func getActionDirectories(actionsDir string) ([]string, error) {
 		return nil, fmt.Errorf("failed to read actions directory: %w", err)
 	}
 
-	var dirs []string
-	for _, entry := range entries {
-		if entry.IsDir() {
-			dirs = append(dirs, entry.Name())
-		}
-	}
+	dirEntries := sliceutil.Filter(entries, func(e os.DirEntry) bool { return e.IsDir() })
+	dirs := sliceutil.Map(dirEntries, func(e os.DirEntry) string { return e.Name() })
 
 	sort.Strings(dirs)
 	actionsBuildLog.Printf("Found %d action directories in %s", len(dirs), actionsDir)

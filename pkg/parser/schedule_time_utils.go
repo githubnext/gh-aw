@@ -42,6 +42,7 @@ func isAMPMToken(token string) bool {
 // normalizeTimeTokens combines time tokens into a normalized string
 // Handles time, AM/PM, and timezone tokens
 func normalizeTimeTokens(tokens []string) string {
+	scheduleTimeUtilsLog.Printf("Normalizing time tokens: %v", tokens)
 	if len(tokens) == 0 {
 		return ""
 	}
@@ -62,6 +63,7 @@ func normalizeTimeTokens(tokens []string) string {
 		}
 	}
 
+	scheduleTimeUtilsLog.Printf("Normalized time string: %q", timeStr)
 	return timeStr
 }
 

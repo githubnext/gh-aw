@@ -13,8 +13,9 @@ permissions:
 engine: copilot
 tools:
   github:
-    lockdown: false
     toolsets: [default, discussions]
+    repos: all
+    min-integrity: none
 safe-outputs:
   create-issue:
     expires: 2d

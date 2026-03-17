@@ -409,6 +409,20 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 	// Generate APM pack step if dependencies are specified.
 	// The pack step runs after prompt generation and uploads as a separate "apm" artifact.
 	if data.APMDependencies != nil && len(data.APMDependencies.Packages) > 0 {
+		// Mint a GitHub App token before the pack step if a github-app is configured for APM.
+		// This allows APM to access cross-org private repositories.
+		if data.APMDependencies.GitHubApp != nil {
+			compilerActivationJobLog.Print("Adding APM GitHub App token mint step for cross-org access")
+			// In workflow_call relay workflows the activation job contains a resolve-host-repo step
+			// that identifies the platform (host) repository. Use its output as the fallback
+			// repositories value so the minted token is scoped to the host repo's NAME rather than
+			// github.event.repository.name (the caller repo in cross-repo workflow_call scenarios).
+			var apmFallbackRepoExpr string
+			if hasWorkflowCallTrigger(data.On) && !data.InlinedImports {
+				apmFallbackRepoExpr = "${{ steps.resolve-host-repo.outputs.target_repo_name }}"
+			}
+			steps = append(steps, buildAPMAppTokenMintStep(data.APMDependencies.GitHubApp, apmFallbackRepoExpr)...)
+		}
 		compilerActivationJobLog.Printf("Adding APM pack step: %d packages", len(data.APMDependencies.Packages))
 		apmTarget := engine.GetAPMTarget()
 		apmPackStep := GenerateAPMPackStep(data.APMDependencies, apmTarget, data)
@@ -497,6 +511,19 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 		environment = "environment: " + cleanManualApproval
 	}
 
+	// Set job-level GH_AW_INFO_APM_VERSION so the apm_pack step can reference it
+	// via ${{ env.GH_AW_INFO_APM_VERSION }} in its with: block
+	var activationJobEnv map[string]string
+	if data.APMDependencies != nil && len(data.APMDependencies.Packages) > 0 {
+		apmVersion := data.APMDependencies.Version
+		if apmVersion == "" {
+			apmVersion = string(constants.DefaultAPMVersion)
+		}
+		activationJobEnv = map[string]string{
+			"GH_AW_INFO_APM_VERSION": apmVersion,
+		}
+	}
+
 	job := &Job{
 		Name:                       string(constants.ActivationJobName),
 		If:                         activationCondition,
@@ -504,6 +531,7 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 		RunsOn:                     c.formatSafeOutputsRunsOn(data.SafeOutputs),
 		Permissions:                permissions,
 		Environment:                environment,
+		Env:                        activationJobEnv,
 		Steps:                      steps,
 		Outputs:                    outputs,
 		Needs:                      activationNeeds, // Depend on pre-activation job if it exists

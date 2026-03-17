@@ -34,6 +34,29 @@ dependencies:
   isolated: true   # clear repo primitives before unpack (default: false)
 ```
 
+### Cross-org private packages with GitHub App authentication
+
+Use `github-app:` when packages live in a different organization and require a GitHub App token for access. The token is minted before the APM pack step so APM can reach the private repository.
+
+```yaml wrap
+dependencies:
+  github-app:
+    app-id: ${{ vars.APP_ID }}
+    private-key: ${{ secrets.APP_PRIVATE_KEY }}
+    repositories:
+      - acme-skills      # or use ["*"] for all repos in the app installation owner's org
+  packages:
+    - acme-platform-org/acme-skills/plugins/dev-tools
+    - acme-platform-org/acme-skills/skills/code-review
+```
+
+| Field | Required | Description |
+|-------|----------|-------------|
+| `github-app.app-id` | Yes | GitHub App ID (e.g., `${{ vars.APP_ID }}`) |
+| `github-app.private-key` | Yes | GitHub App private key (e.g., `${{ secrets.APP_PRIVATE_KEY }}`) |
+| `github-app.owner` | No | Installation owner (defaults to current repository owner) |
+| `github-app.repositories` | No | Repositories to grant access to. Use `["*"]` for all repos in the owner's installation |
+
 ## Package reference formats
 
 Each entry is an APM package reference. Supported formats:

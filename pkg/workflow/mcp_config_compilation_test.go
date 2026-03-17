@@ -4,6 +4,7 @@ package workflow
 
 import (
 	"os"
+	"regexp"
 	"strings"
 	"testing"
 )
@@ -217,9 +218,11 @@ mcp-servers:
 
 Test workflow.
 `,
-			serverName:         `"my-api"`,
-			expectedContent:    []string{`"get_data"`, `"list_items"`},
-			unexpectedInServer: []string{`"*"`},
+			serverName:      `"my-api"`,
+			expectedContent: []string{`"get_data"`, `"list_items"`},
+			// Regex: "tools" key whose value array starts with "*" (ignores whitespace/indentation).
+			// guard-policies "accept": ["*"] has a different key, so it is never matched.
+			unexpectedInServer: []string{`"tools"\s*:\s*\[\s*"\*"`},
 		},
 		{
 			name: "copilot - stdio mcp server with specific allowed tools",
@@ -240,9 +243,11 @@ mcp-servers:
 
 Test workflow.
 `,
-			serverName:         `"my-tool"`,
-			expectedContent:    []string{`"run_query"`, `"fetch_results"`},
-			unexpectedInServer: []string{`"*"`},
+			serverName:      `"my-tool"`,
+			expectedContent: []string{`"run_query"`, `"fetch_results"`},
+			// Regex: "tools" key whose value array starts with "*" (ignores whitespace/indentation).
+			// guard-policies "accept": ["*"] has a different key, so it is never matched.
+			unexpectedInServer: []string{`"tools"\s*:\s*\[\s*"\*"`},
 		},
 		{
 			name: "copilot - mcp server with no allowed field defaults to wildcard",
@@ -285,9 +290,11 @@ mcp-servers:
 
 Test workflow.
 `,
-			serverName:         `"my-api"`,
-			expectedContent:    []string{`"get_data"`, `"list_items"`},
-			unexpectedInServer: []string{`"*"`},
+			serverName:      `"my-api"`,
+			expectedContent: []string{`"get_data"`, `"list_items"`},
+			// Regex: "tools" key whose value array starts with "*" (ignores whitespace/indentation).
+			// guard-policies "accept": ["*"] has a different key, so it is never matched.
+			unexpectedInServer: []string{`"tools"\s*:\s*\[\s*"\*"`},
 		},
 		{
 			name: "claude - http mcp server with no allowed field has no tools filter",
@@ -355,10 +362,14 @@ Test workflow.
 				}
 			}
 
-			for _, content := range tt.unexpectedInServer {
-				if strings.Contains(serverBlock, content) {
-					t.Errorf("Unexpected %q found in server block for %s.\nServer block:\n%s",
-						content, tt.serverName, serverBlock)
+			for _, pattern := range tt.unexpectedInServer {
+				matched, err := regexp.MatchString(pattern, serverBlock)
+				if err != nil {
+					t.Fatalf("Invalid regex pattern %q: %v", pattern, err)
+				}
+				if matched {
+					t.Errorf("Unexpected pattern %q matched in server block for %s.\nServer block:\n%s",
+						pattern, tt.serverName, serverBlock)
 				}
 			}
 		})

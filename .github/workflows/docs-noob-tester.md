@@ -11,6 +11,7 @@ permissions:
 engine: copilot
 timeout-minutes: 30
 tools:
+  timeout: 120  # Playwright navigation on Astro dev server can take >60s; increase to 120s
   playwright:
   edit:
   bash:
@@ -62,16 +63,48 @@ Follow the shared **Documentation Server Lifecycle Management** instructions:
 1. Start the preview server (section "Starting the Documentation Preview Server")
 2. Wait for server readiness (section "Waiting for Server Readiness")
 
+**Get the bridge IP for Playwright access** (run this after the server is ready):
+
+```bash
+SERVER_IP=$(ip -4 route get 1.1.1.1 2>/dev/null | awk '{print $7; exit}')
+if [ -z "$SERVER_IP" ]; then SERVER_IP=$(hostname -I | awk '{print $1}'); fi
+echo "Playwright server URL: http://${SERVER_IP}:4321/gh-aw/"
+```
+
+Use `http://${SERVER_IP}:4321/gh-aw/` (NOT `localhost:4321`) for all Playwright navigation below.
+
 ## Step 2: Navigate Documentation as a Noob
+
+**IMPORTANT: Using Playwright in gh-aw Workflows**
+
+Playwright is provided through an MCP server interface. Use the bridge IP obtained in Step 1 for all navigation:
+
+- ✅ **Correct**: `browser_run_code` with `page.goto(url, { waitUntil: 'domcontentloaded', timeout: 30000 })`
+- ✅ **Correct**: `browser_navigate` to `http://${SERVER_IP}:4321/gh-aw/` (use the bridge IP, NOT localhost)
+- ❌ **Incorrect**: Using `http://localhost:4321/...` — Playwright runs with `--network host` so its localhost is the Docker host, not the agent container
+
+**⚠️ CRITICAL: Navigation Timeout Prevention**
+
+The Astro development server loads many JavaScript modules per page. Always use `waitUntil: 'domcontentloaded'`:
+
+```javascript
+// ALWAYS use domcontentloaded - replace SERVER_IP with the actual IP from Step 1
+mcp__playwright__browser_run_code({
+  code: `async (page) => {
+    await page.goto('http://SERVER_IP:4321/gh-aw/', { waitUntil: 'domcontentloaded', timeout: 30000 });
+    return { url: page.url(), title: await page.title() };
+  }`
+})
+```
 
 Using Playwright, navigate through the documentation site as if you're a complete beginner:
 
-1. **Visit the home page** at http://localhost:4321/gh-aw/
+1. **Visit the home page** at `http://${SERVER_IP}:4321/gh-aw/`
    - Take a screenshot
    - Note: Is it immediately clear what this tool does?
    - Note: Can you quickly find the "Get Started" or "Quick Start" link?
 
-2. **Follow the Quick Start Guide** at http://localhost:4321/gh-aw/setup/quick-start/
+2. **Follow the Quick Start Guide** at `http://${SERVER_IP}:4321/gh-aw/setup/quick-start/`
    - Take screenshots of each major section
    - Try to understand each step from a beginner's perspective
    - Questions to consider:
@@ -81,12 +114,12 @@ Using Playwright, navigate through the documentation site as if you're a complet
      - Do code examples work as shown?
      - Are error messages explained?
 
-3. **Check the CLI Commands page** at http://localhost:4321/gh-aw/setup/cli/
+3. **Check the CLI Commands page** at `http://${SERVER_IP}:4321/gh-aw/setup/cli/`
    - Take a screenshot
    - Note: Are the most important commands highlighted?
    - Note: Are examples provided for common use cases?
 
-4. **Explore Creating Workflows guide** at http://localhost:4321/gh-aw/setup/creating-workflows/
+4. **Explore Creating Workflows guide** at `http://${SERVER_IP}:4321/gh-aw/setup/creating-workflows/`
    - Take screenshots of confusing sections
    - Note: Is the workflow format explained clearly?
    - Note: Are there enough examples?

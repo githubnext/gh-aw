@@ -1045,3 +1045,118 @@ func TestDefaultSafeOutputsEcosystem(t *testing.T) {
 		t.Errorf("Expected %d unique domains in default-safe-outputs (union of components), got %d", len(expectedDomains), len(result))
 	}
 }
+
+func TestGetAPITargetDomains(t *testing.T) {
+	tests := []struct {
+		name      string
+		apiTarget string
+		expected  []string
+	}{
+		{
+			name:      "empty api-target returns nil",
+			apiTarget: "",
+			expected:  nil,
+		},
+		{
+			name:      "GHES api-target with api. prefix returns both api and base domains",
+			apiTarget: "api.acme.ghe.com",
+			expected:  []string{"api.acme.ghe.com", "acme.ghe.com"},
+		},
+		{
+			name:      "GHES api-target custom domain",
+			apiTarget: "api.contoso-aw.ghe.com",
+			expected:  []string{"api.contoso-aw.ghe.com", "contoso-aw.ghe.com"},
+		},
+		{
+			name:      "enterprise githubcopilot.com api-target",
+			apiTarget: "api.enterprise.githubcopilot.com",
+			expected:  []string{"api.enterprise.githubcopilot.com", "enterprise.githubcopilot.com"},
+		},
+		{
+			name:      "non-api. prefix hostname returns only itself",
+			apiTarget: "copilot.example.com",
+			expected:  []string{"copilot.example.com"},
+		},
+		{
+			name:      "single label hostname (no dot) returns only itself",
+			apiTarget: "localhost",
+			expected:  []string{"localhost"},
+		},
+		{
+			name:      "two-label hostname does not add TLD alone",
+			apiTarget: "example.com",
+			expected:  []string{"example.com"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := GetAPITargetDomains(tt.apiTarget)
+			if tt.expected == nil {
+				if result != nil {
+					t.Errorf("Expected nil, got %v", result)
+				}
+				return
+			}
+			if len(result) != len(tt.expected) {
+				t.Errorf("Expected %d domains %v, got %d domains %v", len(tt.expected), tt.expected, len(result), result)
+				return
+			}
+			for _, expected := range tt.expected {
+				if !slices.Contains(result, expected) {
+					t.Errorf("Expected domain %q not found in result %v", expected, result)
+				}
+			}
+		})
+	}
+}
+
+func TestMergeAPITargetDomains(t *testing.T) {
+	tests := []struct {
+		name       string
+		domainsStr string
+		apiTarget  string
+		wantIn     []string
+		wantNotIn  []string
+	}{
+		{
+			name:       "empty api-target leaves domains unchanged",
+			domainsStr: "github.com,api.github.com",
+			apiTarget:  "",
+			wantIn:     []string{"github.com", "api.github.com"},
+		},
+		{
+			name:       "GHES api-target adds both api and base domains",
+			domainsStr: "github.com,api.github.com",
+			apiTarget:  "api.acme.ghe.com",
+			wantIn:     []string{"github.com", "api.github.com", "api.acme.ghe.com", "acme.ghe.com"},
+		},
+		{
+			name:       "result is sorted and deduplicated",
+			domainsStr: "api.acme.ghe.com,github.com",
+			apiTarget:  "api.acme.ghe.com",
+			wantIn:     []string{"api.acme.ghe.com", "acme.ghe.com", "github.com"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := mergeAPITargetDomains(tt.domainsStr, tt.apiTarget)
+			domains := strings.Split(result, ",")
+			domainSet := make(map[string]bool)
+			for _, d := range domains {
+				domainSet[d] = true
+			}
+			for _, want := range tt.wantIn {
+				if !domainSet[want] {
+					t.Errorf("Expected domain %q in result %q, but not found", want, result)
+				}
+			}
+			for _, notWant := range tt.wantNotIn {
+				if domainSet[notWant] {
+					t.Errorf("Did not expect domain %q in result %q", notWant, result)
+				}
+			}
+		})
+	}
+}

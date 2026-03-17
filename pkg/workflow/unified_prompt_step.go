@@ -340,6 +340,20 @@ func (c *Compiler) collectPromptSections(data *WorkflowData) []PromptSection {
 				EnvVars: envVars,
 			})
 		}
+
+		// GitHub MCP tool-use guidance: clarifies that the MCP server is read-only and
+		// directs the model to use it for GitHub reads. When safe-outputs is also enabled,
+		// the guidance explicitly separates reads (GitHub MCP) from writes (safeoutputs) so
+		// the model is never steered away from the available read tools.
+		unifiedPromptLog.Print("Adding GitHub MCP tool-use guidance")
+		githubMCPFile := githubMCPToolsPromptFile
+		if HasSafeOutputsEnabled(data.SafeOutputs) {
+			githubMCPFile = githubMCPToolsWithSafeOutputsPromptFile
+		}
+		sections = append(sections, PromptSection{
+			Content: githubMCPFile,
+			IsFile:  true,
+		})
 	}
 
 	// 10. PR context (if comment-related triggers and checkout is needed)

@@ -5,6 +5,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/github/gh-aw/pkg/sliceutil"
 	"github.com/github/gh-aw/pkg/workflow"
 )
 
@@ -58,18 +59,20 @@ func (c *AddInteractiveConfig) addRepositorySecret(name, value string) error {
 // parseSecretNames parses newline-delimited GitHub API output and returns the
 // non-empty, trimmed secret names.
 func parseSecretNames(output []byte) []string {
-	var names []string
-	for name := range strings.SplitSeq(strings.TrimSpace(string(output)), "\n") {
-		if name = strings.TrimSpace(name); name != "" {
-			names = append(names, name)
-		}
+	trimmed := strings.TrimSpace(string(output))
+	if trimmed == "" {
+		return nil
 	}
-	return names
+	lines := strings.Split(trimmed, "\n")
+	return sliceutil.Filter(
+		sliceutil.Map(lines, strings.TrimSpace),
+		func(name string) bool { return name != "" },
+	)
 }
 
-// getSecretInfo returns the secret name and value based on the selected engine
+// resolveEngineApiKeyCredential returns the secret name and value based on the selected engine
 // Returns empty value if the secret already exists in the repository
-func (c *AddInteractiveConfig) getSecretInfo() (name string, value string, err error) {
+func (c *AddInteractiveConfig) resolveEngineApiKeyCredential() (name string, value string, err error) {
 	addInteractiveLog.Printf("Getting secret info for engine: %s", c.EngineOverride)
 
 	secretName, secretValue, existsInRepo, err := GetEngineSecretNameAndValue(c.EngineOverride, c.existingSecrets)

@@ -3,6 +3,8 @@
 package console
 
 import (
+	"errors"
+	"fmt"
 	"strings"
 	"testing"
 )
@@ -374,4 +376,105 @@ func TestFormattingFunctionsWithUnicodeCharacters(t *testing.T) {
 			t.Errorf("FormatErrorMessage did not preserve unicode text")
 		}
 	})
+}
+
+func TestFormatErrorChain(t *testing.T) {
+	tests := []struct {
+		name             string
+		err              error
+		expectedContains []string
+		expectMultiLine  bool
+	}{
+		{
+			name:             "nil error",
+			err:              nil,
+			expectedContains: []string{},
+			expectMultiLine:  false,
+		},
+		{
+			name:             "simple single error",
+			err:              errors.New("file not found"),
+			expectedContains: []string{"✗", "file not found"},
+			expectMultiLine:  false,
+		},
+		{
+			name:             "two-level wrapped error",
+			err:              fmt.Errorf("outer: %w", errors.New("inner cause")),
+			expectedContains: []string{"✗", "outer", "inner cause"},
+			expectMultiLine:  true,
+		},
+		{
+			name: "three-level wrapped error chain",
+			err: fmt.Errorf("workflow not found: %w",
+				fmt.Errorf("failed to download: %w",
+					errors.New("HTTP 404: Not Found"))),
+			expectedContains: []string{"✗", "workflow not found", "failed to download", "HTTP 404: Not Found"},
+			expectMultiLine:  true,
+		},
+		{
+			name:             "multiline error from errors.Join",
+			err:              errors.Join(errors.New("error one"), errors.New("error two")),
+			expectedContains: []string{"✗", "error one", "error two"},
+			expectMultiLine:  true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := FormatErrorChain(tt.err)
+
+			for _, expected := range tt.expectedContains {
+				if !strings.Contains(result, expected) {
+					t.Errorf("FormatErrorChain() = %q, should contain %q", result, expected)
+				}
+			}
+
+			if tt.expectMultiLine && !strings.Contains(result, "\n") {
+				t.Errorf("FormatErrorChain() should produce multi-line output for wrapped/joined errors, got: %q", result)
+			}
+
+			// Verify indentation: continuation lines should start with spaces, first line should not
+			if tt.expectMultiLine && tt.err != nil {
+				lines := strings.Split(result, "\n")
+				if len(lines) > 1 {
+					// First line must start with the ✗ symbol (not spaces)
+					if strings.HasPrefix(lines[0], "  ") {
+						t.Errorf("FormatErrorChain() first line should not be indented, got: %q", lines[0])
+					}
+					if !strings.Contains(lines[0], "✗") {
+						t.Errorf("FormatErrorChain() first line should contain ✗ symbol, got: %q", lines[0])
+					}
+					// Continuation lines must be indented
+					for _, line := range lines[1:] {
+						if line != "" && !strings.HasPrefix(line, "  ") {
+							t.Errorf("FormatErrorChain() continuation line should be indented with 2 spaces, got: %q", line)
+						}
+					}
+				}
+			}
+		})
+	}
+}
+
+// TestFormatErrorChainDoesNotRepeatContext verifies that the chain format does not
+// duplicate inner messages on the first line when errors are properly wrapped.
+func TestFormatErrorChainDoesNotRepeatContext(t *testing.T) {
+	inner := errors.New("HTTP 404: Not Found")
+	middle := fmt.Errorf("failed to fetch file: %w", inner)
+	outer := fmt.Errorf("workflow not found: %w", middle)
+
+	result := FormatErrorChain(outer)
+	lines := strings.Split(result, "\n")
+
+	if len(lines) < 3 {
+		t.Fatalf("expected at least 3 lines, got %d: %q", len(lines), result)
+	}
+
+	// First line should only contain the outermost message prefix, not inner messages
+	if strings.Contains(lines[0], "failed to fetch file") {
+		t.Errorf("first line should not contain middle message, got: %q", lines[0])
+	}
+	if strings.Contains(lines[0], "HTTP 404") {
+		t.Errorf("first line should not contain innermost message, got: %q", lines[0])
+	}
 }

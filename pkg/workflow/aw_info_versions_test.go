@@ -382,3 +382,64 @@ func TestAllVersionsInAwInfo(t *testing.T) {
 		t.Errorf("Expected output to contain awmg_version '%s', got:\n%s", expectedAwmgLine, output)
 	}
 }
+
+func TestApmVersionInAwInfo(t *testing.T) {
+	tests := []struct {
+		name               string
+		apmDeps            *APMDependenciesInfo
+		expectedApmVersion string
+		description        string
+	}{
+		{
+			name:               "APM deps with explicit version",
+			apmDeps:            &APMDependenciesInfo{Packages: []string{"microsoft/apm-sample-package"}, Version: "v1.0.0"},
+			expectedApmVersion: "v1.0.0",
+			description:        "Should use explicit APM version when provided",
+		},
+		{
+			name:               "APM deps with default version",
+			apmDeps:            &APMDependenciesInfo{Packages: []string{"microsoft/apm-sample-package"}},
+			expectedApmVersion: string(constants.DefaultAPMVersion),
+			description:        "Should use default APM version when not specified",
+		},
+		{
+			name:               "No APM deps configured",
+			apmDeps:            nil,
+			expectedApmVersion: "",
+			description:        "Should not emit GH_AW_INFO_APM_VERSION when no APM dependencies are configured",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			compiler := NewCompilerWithVersion("1.0.0")
+			registry := GetGlobalEngineRegistry()
+			engine, err := registry.GetEngine("copilot")
+			if err != nil {
+				t.Fatalf("Failed to get copilot engine: %v", err)
+			}
+
+			workflowData := &WorkflowData{
+				Name:            "Test Workflow",
+				APMDependencies: tt.apmDeps,
+			}
+
+			var yaml strings.Builder
+			compiler.generateCreateAwInfo(&yaml, workflowData, engine)
+			output := yaml.String()
+
+			if tt.expectedApmVersion == "" {
+				if strings.Contains(output, "GH_AW_INFO_APM_VERSION") {
+					t.Errorf("%s: Expected output to NOT contain GH_AW_INFO_APM_VERSION, got:\n%s",
+						tt.description, output)
+				}
+			} else {
+				expectedLine := `GH_AW_INFO_APM_VERSION: "` + tt.expectedApmVersion + `"`
+				if !strings.Contains(output, expectedLine) {
+					t.Errorf("%s: Expected output to contain '%s', got:\n%s",
+						tt.description, expectedLine, output)
+				}
+			}
+		})
+	}
+}

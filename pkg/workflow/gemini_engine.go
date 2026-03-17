@@ -240,6 +240,10 @@ func (e *GeminiEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 			workflowData.Tools,
 			workflowData.Runtimes,
 		)
+		// Add GHES/custom API target domains to the firewall allow-list when engine.api-target is set
+		if workflowData.EngineConfig != nil && workflowData.EngineConfig.APITarget != "" {
+			allowedDomains = mergeAPITargetDomains(allowedDomains, workflowData.EngineConfig.APITarget)
+		}
 
 		npmPathSetup := GetNpmBinPathSetup()
 		geminiCommandWithPath := fmt.Sprintf("%s && %s", npmPathSetup, geminiCommand)

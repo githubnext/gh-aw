@@ -533,11 +533,11 @@ func addWorkflowWithTracking(resolved *ResolvedWorkflow, tracker *FileTracker, o
 	// Compile the workflow
 	if tracker != nil {
 		if err := compileWorkflowWithTracking(destFile, opts.Verbose, opts.Quiet, opts.EngineOverride, tracker); err != nil {
-			fmt.Fprintln(os.Stderr, console.FormatErrorMessage(err.Error()))
+			fmt.Fprintln(os.Stderr, console.FormatErrorChain(err))
 		}
 	} else {
 		if err := compileWorkflow(destFile, opts.Verbose, opts.Quiet, opts.EngineOverride); err != nil {
-			fmt.Fprintln(os.Stderr, console.FormatErrorMessage(err.Error()))
+			fmt.Fprintln(os.Stderr, console.FormatErrorChain(err))
 		}
 	}
 

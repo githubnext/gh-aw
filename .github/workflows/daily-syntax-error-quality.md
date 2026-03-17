@@ -12,7 +12,6 @@ tracker-id: daily-syntax-error-quality
 engine: copilot
 tools:
   github:
-    lockdown: false
     toolsets:
       - default
   bash:

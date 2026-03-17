@@ -611,6 +611,15 @@ func (c *Compiler) generateCreateAwInfo(yaml *strings.Builder, data *WorkflowDat
 		mcpGatewayVersion = data.SandboxConfig.MCP.Version
 	}
 
+	// APM version
+	apmVersion := ""
+	if data.APMDependencies != nil && len(data.APMDependencies.Packages) > 0 {
+		apmVersion = data.APMDependencies.Version
+		if apmVersion == "" {
+			apmVersion = string(constants.DefaultAPMVersion)
+		}
+	}
+
 	// Firewall type
 	firewallType := ""
 	if isFirewallEnabled(data) {
@@ -641,6 +650,9 @@ func (c *Compiler) generateCreateAwInfo(yaml *strings.Builder, data *WorkflowDat
 	fmt.Fprintf(yaml, "          GH_AW_INFO_FIREWALL_ENABLED: \"%t\"\n", firewallEnabled)
 	fmt.Fprintf(yaml, "          GH_AW_INFO_AWF_VERSION: \"%s\"\n", firewallVersion)
 	fmt.Fprintf(yaml, "          GH_AW_INFO_AWMG_VERSION: \"%s\"\n", mcpGatewayVersion)
+	if apmVersion != "" {
+		fmt.Fprintf(yaml, "          GH_AW_INFO_APM_VERSION: \"%s\"\n", apmVersion)
+	}
 	fmt.Fprintf(yaml, "          GH_AW_INFO_FIREWALL_TYPE: \"%s\"\n", firewallType)
 	// Always include strict mode flag for lockdown validation.
 	// validateLockdownRequirements uses this to enforce strict: true for public repositories.

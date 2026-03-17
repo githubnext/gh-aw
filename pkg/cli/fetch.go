@@ -83,7 +83,7 @@ func fetchRemoteWorkflow(spec *WorkflowSpec, verbose bool) (*FetchedWorkflow, er
 	}
 
 	// Resolve the ref to a commit SHA for source tracking
-	commitSHA, err := parser.ResolveRefToSHA(owner, repo, ref)
+	commitSHA, err := parser.ResolveRefToSHAForHost(owner, repo, ref, spec.Host)
 	if err != nil {
 		remoteWorkflowLog.Printf("Failed to resolve ref to SHA: %v", err)
 		// Continue without SHA - we can still fetch the content
@@ -96,7 +96,7 @@ func fetchRemoteWorkflow(spec *WorkflowSpec, verbose bool) (*FetchedWorkflow, er
 	}
 
 	// Download the workflow file from GitHub
-	content, err := parser.DownloadFileFromGitHub(owner, repo, spec.WorkflowPath, ref)
+	content, err := parser.DownloadFileFromGitHubForHost(owner, repo, spec.WorkflowPath, ref, spec.Host)
 	if err != nil {
 		// Try with common workflow directory prefixes if the direct path fails.
 		// This handles short workflow names without path separators (e.g. "my-workflow.md").
@@ -107,7 +107,7 @@ func fetchRemoteWorkflow(spec *WorkflowSpec, verbose bool) (*FetchedWorkflow, er
 					altPath += ".md"
 				}
 				remoteWorkflowLog.Printf("Direct path failed, trying: %s", altPath)
-				if altContent, altErr := parser.DownloadFileFromGitHub(owner, repo, altPath, ref); altErr == nil {
+				if altContent, altErr := parser.DownloadFileFromGitHubForHost(owner, repo, altPath, ref, spec.Host); altErr == nil {
 					return &FetchedWorkflow{
 						Content:    altContent,
 						CommitSHA:  commitSHA,

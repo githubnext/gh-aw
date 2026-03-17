@@ -10,6 +10,29 @@ sidebar:
 > [!IMPORTANT]
 > Workflows running on public repositories must be compiled with strict mode enabled. If `strict: false` is set in the frontmatter, the workflow will fail at runtime on public repositories. See [Strict Mode](/gh-aw/reference/frontmatter/#strict-mode-strict) for details.
 
+## Automatic Minimum-Integrity Protection
+
+For **public repositories** where the GitHub MCP server is configured **without** explicit `lockdown` or `min-integrity` guard policy settings, `min-integrity: approved` is automatically applied at runtime. This ensures the guardrail is always in place — even when additional authentication has not been configured.
+
+`min-integrity: approved` restricts content to objects authored by owners, members, and collaborators (users with push access), providing the same level of content filtering as enabling lockdown mode explicitly.
+
+- **Public repositories**: `min-integrity: approved` is applied automatically (same filtering level as explicit lockdown mode).
+- **Private/internal repositories**: No guard policy is applied automatically (`min-integrity: none`).
+
+The automatic guard policy does **not** apply when:
+- An explicit `lockdown` or `min-integrity` value is set in the workflow frontmatter.
+- A GitHub App token is configured (`tools.github.app`).
+
+To override or disable the automatic guard policy, set an explicit value:
+
+```yaml wrap
+tools:
+  github:
+    min-integrity: none  # Disable automatic guard for public repo workflows that process all users
+```
+
+## Lockdown Mode (Content Filter)
+
 To enable lockdown mode for your workflow:
 
 1. **Set `lockdown: true` in your workflow frontmatter**

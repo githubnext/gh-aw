@@ -293,6 +293,10 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 		// Build the AWF-wrapped command using helper function
 		// Get allowed domains (Claude defaults + network permissions + HTTP MCP server URLs + runtime ecosystem domains)
 		allowedDomains := GetClaudeAllowedDomainsWithToolsAndRuntimes(workflowData.NetworkPermissions, workflowData.Tools, workflowData.Runtimes)
+		// Add GHES/custom API target domains to the firewall allow-list when engine.api-target is set
+		if workflowData.EngineConfig != nil && workflowData.EngineConfig.APITarget != "" {
+			allowedDomains = mergeAPITargetDomains(allowedDomains, workflowData.EngineConfig.APITarget)
+		}
 
 		// Build AWF command with all configuration
 		// AWF v0.15.0+ uses chroot mode by default, providing transparent access to host binaries

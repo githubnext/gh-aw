@@ -9,6 +9,7 @@ import (
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/parser"
+	"github.com/github/gh-aw/pkg/sliceutil"
 )
 
 var scheduleWizardLog = logger.New("cli:add_interactive_schedule")
@@ -282,7 +283,7 @@ func (c *AddInteractiveConfig) selectScheduleFrequency() error {
 // buildScheduleOptions constructs the huh option list for the schedule frequency form.
 // The default option (matching the current frequency) is placed first.
 func buildScheduleOptions(rawExpr, currentFreq string) []huh.Option[string] {
-	var options []huh.Option[string]
+	options := make([]huh.Option[string], 0, len(standardScheduleFrequencies)+1)
 
 	// If the current schedule doesn't match any standard frequency, add a "Custom" entry
 	if currentFreq == "custom" {
@@ -302,16 +303,7 @@ func buildScheduleOptions(rawExpr, currentFreq string) []huh.Option[string] {
 	// Move the default option to the front so huh selects it initially.
 	// classifyScheduleFrequency always returns a non-empty string ("custom" as its last resort),
 	// so currentFreq is never empty when this function is called from selectScheduleFrequency.
-	defaultValue := currentFreq
-
-	var reordered []huh.Option[string]
-	var rest []huh.Option[string]
-	for _, opt := range options {
-		if opt.Value == defaultValue {
-			reordered = append(reordered, opt)
-		} else {
-			rest = append(rest, opt)
-		}
-	}
+	reordered := sliceutil.Filter(options, func(opt huh.Option[string]) bool { return opt.Value == currentFreq })
+	rest := sliceutil.Filter(options, func(opt huh.Option[string]) bool { return opt.Value != currentFreq })
 	return append(reordered, rest...)
 }

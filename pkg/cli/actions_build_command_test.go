@@ -128,6 +128,19 @@ func TestGetActionDirectories(t *testing.T) {
 	}
 }
 
+func TestGetActionDirectories_SortedOutput(t *testing.T) {
+	tmpDir := t.TempDir()
+	actionsDir := filepath.Join(tmpDir, "actions")
+	// Create directories in reverse-alphabetical order to verify sorting
+	for _, name := range []string{"zebra", "alpha", "middle"} {
+		require.NoError(t, os.MkdirAll(filepath.Join(actionsDir, name), 0755), "failed to create dir")
+	}
+
+	dirs, err := getActionDirectories(actionsDir)
+	require.NoError(t, err, "should not error with valid actions directory")
+	assert.Equal(t, []string{"alpha", "middle", "zebra"}, dirs, "directories should be sorted alphabetically")
+}
+
 func TestValidateActionYml(t *testing.T) {
 	tests := []struct {
 		name             string

@@ -132,6 +132,7 @@ func TestParseWorkflowSpec(t *testing.T) {
 		wantWorkflowPath string
 		wantWorkflowName string
 		wantVersion      string
+		wantHost         string
 		wantErr          bool
 		errContains      string
 	}{
@@ -142,6 +143,7 @@ func TestParseWorkflowSpec(t *testing.T) {
 			wantWorkflowPath: "workflows/release-issue-linker.md",
 			wantWorkflowName: "release-issue-linker",
 			wantVersion:      "main",
+			wantHost:         "github.com",
 			wantErr:          false,
 		},
 		{
@@ -181,10 +183,20 @@ func TestParseWorkflowSpec(t *testing.T) {
 			wantErr:          false,
 		},
 		{
-			name:        "GitHub URL - invalid domain",
+			name:             "GitHub URL - GHE.com instance",
+			spec:             "https://myorg.ghe.com/owner/repo/blob/main/workflows/test.md",
+			wantRepo:         "owner/repo",
+			wantWorkflowPath: "workflows/test.md",
+			wantWorkflowName: "test",
+			wantVersion:      "main",
+			wantHost:         "myorg.ghe.com",
+			wantErr:          false,
+		},
+		{
+			name:        "GitHub URL - non-github.com host is rejected (e.g. gitlab.com)",
 			spec:        "https://gitlab.com/owner/repo/blob/main/workflows/test.md",
 			wantErr:     true,
-			errContains: "must be from github.com",
+			errContains: "github.com",
 		},
 		{
 			name:        "GitHub URL - missing file extension",
@@ -327,6 +339,9 @@ func TestParseWorkflowSpec(t *testing.T) {
 			}
 			if spec.Version != tt.wantVersion {
 				t.Errorf("parseWorkflowSpec() version = %q, want %q", spec.Version, tt.wantVersion)
+			}
+			if tt.wantHost != "" && spec.Host != tt.wantHost {
+				t.Errorf("parseWorkflowSpec() host = %q, want %q", spec.Host, tt.wantHost)
 			}
 		})
 	}

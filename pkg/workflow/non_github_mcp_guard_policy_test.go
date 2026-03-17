@@ -42,7 +42,7 @@ func TestDeriveWriteSinkGuardPolicyFromWorkflow(t *testing.T) {
 			description: "no github tool means no guard policy",
 		},
 		{
-			name: "github tool without guard policy",
+			name: "github tool without guard policy (auto-lockdown)",
 			workflowData: &WorkflowData{
 				Tools: map[string]any{
 					"github": map[string]any{
@@ -50,8 +50,20 @@ func TestDeriveWriteSinkGuardPolicyFromWorkflow(t *testing.T) {
 					},
 				},
 			},
-			expectNil:   true,
-			description: "github tool without repos/min-integrity has no guard policy",
+			expectNil:   false,
+			expectedKey: "write-sink",
+			description: "github tool without repos/min-integrity triggers auto-lockdown which sets accept=[*]",
+		},
+		{
+			name: "github tool with nil value (auto-lockdown)",
+			workflowData: &WorkflowData{
+				Tools: map[string]any{
+					"github": nil,
+				},
+			},
+			expectNil:   false,
+			expectedKey: "write-sink",
+			description: "github tool with nil value triggers auto-lockdown which sets accept=[*]",
 		},
 		{
 			name: "github tool with repos=all",
@@ -366,9 +378,10 @@ func TestAllNonGitHubMCPServersGetGuardPoliciesViaRenderer(t *testing.T) {
 	})
 }
 
-// TestNonGitHubMCPServersNoGuardPoliciesWhenGitHubNotConfigured verifies that servers
-// do not get guard policies when the GitHub tool has no guard policy configured
-func TestNonGitHubMCPServersNoGuardPoliciesWhenGitHubNotConfigured(t *testing.T) {
+// TestNonGitHubMCPServersGetGuardPoliciesFromAutoLockdown verifies that non-GitHub MCP servers
+// get write-sink: {accept: ["*"]} guard policies when the GitHub tool is configured without
+// explicit guard policies (auto-lockdown detection will set repos=all at runtime)
+func TestNonGitHubMCPServersGetGuardPoliciesFromAutoLockdown(t *testing.T) {
 	workflowData := &WorkflowData{
 		Tools: map[string]any{
 			"github": map[string]any{
@@ -379,9 +392,16 @@ func TestNonGitHubMCPServersNoGuardPoliciesWhenGitHubNotConfigured(t *testing.T)
 	}
 
 	policies := deriveWriteSinkGuardPolicyFromWorkflow(workflowData)
-	assert.Nil(t, policies, "no guard policies when GitHub has no guard policy configured")
+	require.NotNil(t, policies, "guard policies should be derived when GitHub tool triggers auto-lockdown")
 
-	// Verify playwright JSON rendering has no guard-policies
+	expectedPolicies := map[string]any{
+		"write-sink": map[string]any{
+			"accept": []string{"*"},
+		},
+	}
+	assert.Equal(t, expectedPolicies, policies, "auto-lockdown should produce write-sink with accept=*")
+
+	// Verify playwright JSON rendering has guard-policies
 	var output strings.Builder
 	renderer := NewMCPConfigRenderer(MCPRendererOptions{
 		Format:                 "json",
@@ -389,7 +409,167 @@ func TestNonGitHubMCPServersNoGuardPoliciesWhenGitHubNotConfigured(t *testing.T)
 		WriteSinkGuardPolicies: policies,
 	})
 	renderer.RenderPlaywrightMCP(&output, nil)
-	assert.NotContains(t, output.String(), "guard-policies", "playwright should not have guard-policies when GitHub has no guard policy")
+	assert.Contains(t, output.String(), "guard-policies", "playwright should have guard-policies when auto-lockdown is active")
+}
+
+// TestNonGitHubMCPServersNoGuardPoliciesWithGitHubApp verifies that non-GitHub MCP servers
+// do NOT get write-sink guard policies when a GitHub App is configured.
+// GitHub App tokens are already repo-scoped, so auto-lockdown detection is skipped.
+func TestNonGitHubMCPServersNoGuardPoliciesWithGitHubApp(t *testing.T) {
+	workflowData := &WorkflowData{
+		Tools: map[string]any{
+			"github": map[string]any{
+				"toolsets": []string{"default"},
+				"github-app": map[string]any{
+					"app-id": "12345",
+				},
+			},
+			"playwright": nil,
+		},
+	}
+
+	policies := deriveWriteSinkGuardPolicyFromWorkflow(workflowData)
+	assert.Nil(t, policies, "no guard policies when GitHub App is configured (auto-lockdown is skipped)")
+}
+
+// TestAllNonGitHubMCPServersGetWriteSinkWhenGitHubHasAllowOnly verifies that when the GitHub
+// MCP server has an explicit allow-only guard-policy configured (repos + min-integrity),
+// ALL non-GitHub MCP server types receive a corresponding write-sink guard-policy via
+// the MCPConfigRendererUnified.
+func TestAllNonGitHubMCPServersGetWriteSinkWhenGitHubHasAllowOnly(t *testing.T) {
+	tests := []struct {
+		name           string
+		githubConfig   map[string]any
+		expectedAccept []string
+		description    string
+	}{
+		{
+			name: "repos=all min-integrity=none",
+			githubConfig: map[string]any{
+				"repos":         "all",
+				"min-integrity": "none",
+			},
+			expectedAccept: []string{"*"},
+			description:    "repos=all should produce accept=[*]",
+		},
+		{
+			name: "repos=public min-integrity=approved",
+			githubConfig: map[string]any{
+				"repos":         "public",
+				"min-integrity": "approved",
+			},
+			expectedAccept: []string{"*"},
+			description:    "repos=public should produce accept=[*]",
+		},
+		{
+			name: "repos=specific-repo min-integrity=approved",
+			githubConfig: map[string]any{
+				"repos":         "myorg/myrepo",
+				"min-integrity": "approved",
+			},
+			expectedAccept: []string{"private:myorg/myrepo"},
+			description:    "specific repo should produce accept=[private:myorg/myrepo]",
+		},
+		{
+			name: "repos=owner-wildcard min-integrity=merged",
+			githubConfig: map[string]any{
+				"repos":         "myorg/*",
+				"min-integrity": "merged",
+			},
+			expectedAccept: []string{"private:myorg"},
+			description:    "owner/* should produce accept=[private:myorg]",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			workflowData := &WorkflowData{
+				Tools: map[string]any{
+					"github":            tt.githubConfig,
+					"playwright":        nil,
+					"serena":            nil,
+					"agentic-workflows": nil,
+					"web-fetch":         nil,
+				},
+			}
+
+			// Derive write-sink guard policies from the configured allow-only GitHub guard policy
+			policies := deriveWriteSinkGuardPolicyFromWorkflow(workflowData)
+			require.NotNil(t, policies, "write-sink guard policies should be derived when GitHub has allow-only policy: %s", tt.description)
+
+			writeSink, ok := policies["write-sink"].(map[string]any)
+			require.True(t, ok, "write-sink should be a map: %s", tt.description)
+			assert.Equal(t, tt.expectedAccept, writeSink["accept"], "accept list should match: %s", tt.description)
+
+			// Verify every non-GitHub MCP server type gets the guard policies via the renderer
+			serverChecks := []struct {
+				serverName string
+				render     func(*strings.Builder, *MCPConfigRendererUnified)
+			}{
+				{
+					serverName: "playwright",
+					render: func(out *strings.Builder, r *MCPConfigRendererUnified) {
+						r.RenderPlaywrightMCP(out, nil)
+					},
+				},
+				{
+					serverName: "serena",
+					render: func(out *strings.Builder, r *MCPConfigRendererUnified) {
+						r.RenderSerenaMCP(out, nil)
+					},
+				},
+				{
+					serverName: "agentic-workflows",
+					render: func(out *strings.Builder, r *MCPConfigRendererUnified) {
+						r.RenderAgenticWorkflowsMCP(out)
+					},
+				},
+				{
+					serverName: "mcp-scripts",
+					render: func(out *strings.Builder, r *MCPConfigRendererUnified) {
+						mcpScripts := &MCPScriptsConfig{}
+						r.RenderMCPScriptsMCP(out, mcpScripts, workflowData)
+					},
+				},
+				{
+					serverName: "safe-outputs",
+					render: func(out *strings.Builder, r *MCPConfigRendererUnified) {
+						r.RenderSafeOutputsMCP(out, workflowData)
+					},
+				},
+			}
+
+			for _, check := range serverChecks {
+				t.Run(check.serverName+" JSON", func(t *testing.T) {
+					renderer := NewMCPConfigRenderer(MCPRendererOptions{
+						Format:                 "json",
+						IsLast:                 true,
+						WriteSinkGuardPolicies: policies,
+					})
+					var output strings.Builder
+					check.render(&output, renderer)
+					result := output.String()
+					assert.Contains(t, result, "\"guard-policies\"",
+						"%s should have guard-policies when GitHub has allow-only policy: %s", check.serverName, tt.description)
+					assert.Contains(t, result, "\"write-sink\"",
+						"%s should have write-sink policy: %s", check.serverName, tt.description)
+					assert.Contains(t, result, "\"accept\"",
+						"%s should have accept field: %s", check.serverName, tt.description)
+				})
+			}
+
+			// Also test web-fetch (has its own render function)
+			t.Run("web-fetch JSON", func(t *testing.T) {
+				var output strings.Builder
+				renderMCPFetchServerConfig(&output, "json", "              ", true, false, policies)
+				result := output.String()
+				assert.Contains(t, result, "\"guard-policies\"",
+					"web-fetch should have guard-policies when GitHub has allow-only policy: %s", tt.description)
+				assert.Contains(t, result, "\"write-sink\"",
+					"web-fetch should have write-sink policy: %s", tt.description)
+			})
+		})
+	}
 }
 
 // TestNonGitHubMCPServersGetGuardPoliciesWhenGitHubConfigured verifies the end-to-end flow:

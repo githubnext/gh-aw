@@ -249,7 +249,7 @@ func downloadIncludeFromWorkflowSpec(spec string, cache *ImportCache) (string, e
 	var sha string
 	if cache != nil {
 		// Only resolve SHA if we're using the cache
-		resolvedSHA, err := resolveRefToSHA(owner, repo, ref)
+		resolvedSHA, err := resolveRefToSHA(owner, repo, ref, "")
 		if err != nil {
 			// SHA resolution failure (including auth errors) only means we cannot cache; the
 			// actual file download will be attempted below and may succeed via git fallback for
@@ -316,10 +316,15 @@ func downloadIncludeFromWorkflowSpec(spec string, cache *ImportCache) (string, e
 
 // resolveRefToSHAViaGit resolves a git ref to SHA using git ls-remote
 // This is a fallback for when GitHub API authentication fails
-func resolveRefToSHAViaGit(owner, repo, ref string) (string, error) {
+func resolveRefToSHAViaGit(owner, repo, ref, host string) (string, error) {
 	remoteLog.Printf("Attempting git ls-remote fallback for ref resolution: %s/%s@%s", owner, repo, ref)
 
-	githubHost := GetGitHubHostForRepo(owner, repo)
+	var githubHost string
+	if host != "" {
+		githubHost = "https://" + host
+	} else {
+		githubHost = GetGitHubHostForRepo(owner, repo)
+	}
 	repoURL := fmt.Sprintf("%s/%s/%s.git", githubHost, owner, repo)
 
 	// Try to resolve the ref using git ls-remote
@@ -365,7 +370,7 @@ func resolveRefToSHAViaGit(owner, repo, ref string) (string, error) {
 }
 
 // resolveRefToSHA resolves a git ref (branch, tag, or SHA) to its commit SHA
-func resolveRefToSHA(owner, repo, ref string) (string, error) {
+func resolveRefToSHA(owner, repo, ref, host string) (string, error) {
 	// If ref is already a full SHA (40 hex characters), return it as-is
 	if len(ref) == 40 && gitutil.IsHexString(ref) {
 		return ref, nil
@@ -374,14 +379,21 @@ func resolveRefToSHA(owner, repo, ref string) (string, error) {
 	// Use gh CLI to get the commit SHA for the ref
 	// This works for branches, tags, and short SHAs
 	// Using go-gh to properly handle enterprise GitHub instances via GH_HOST
-	stdout, stderr, err := gh.Exec("api", fmt.Sprintf("/repos/%s/%s/commits/%s", owner, repo, ref), "--jq", ".sha")
+	apiPath := fmt.Sprintf("/repos/%s/%s/commits/%s", owner, repo, ref)
+	var args []string
+	if host != "" {
+		args = []string{"api", "--hostname", host, apiPath, "--jq", ".sha"}
+	} else {
+		args = []string{"api", apiPath, "--jq", ".sha"}
+	}
+	stdout, stderr, err := gh.Exec(args...)
 
 	if err != nil {
 		outputStr := stderr.String()
 		if gitutil.IsAuthError(outputStr) {
 			remoteLog.Printf("GitHub API authentication failed, attempting git ls-remote fallback for %s/%s@%s", owner, repo, ref)
 			// Try fallback using git ls-remote for public repositories
-			sha, gitErr := resolveRefToSHAViaGit(owner, repo, ref)
+			sha, gitErr := resolveRefToSHAViaGit(owner, repo, ref, host)
 			if gitErr != nil {
 				// If git fallback also fails, return both errors
 				return "", fmt.Errorf("failed to resolve ref via GitHub API (auth error) and git ls-remote: API error: %w, Git error: %w", err, gitErr)
@@ -406,20 +418,29 @@ func resolveRefToSHA(owner, repo, ref string) (string, error) {
 
 // downloadFileViaGit downloads a file from a Git repository using git commands
 // This is a fallback for when GitHub API authentication fails
-func downloadFileViaGit(owner, repo, path, ref string) ([]byte, error) {
+func downloadFileViaGit(owner, repo, path, ref, host string) ([]byte, error) {
 	remoteLog.Printf("Attempting git fallback for %s/%s/%s@%s", owner, repo, path, ref)
 
 	// First, try via raw.githubusercontent.com — no auth required for public repos and
 	// no dependency on git being installed.
-	content, rawErr := downloadFileViaRawURL(owner, repo, path, ref)
-	if rawErr == nil {
-		return content, nil
+	// Only attempt raw URL for github.com repos (not GHE) since raw.githubusercontent.com
+	// only serves public GitHub content.
+	if host == "" || host == "github.com" {
+		content, rawErr := downloadFileViaRawURL(owner, repo, path, ref)
+		if rawErr == nil {
+			return content, nil
+		}
+		remoteLog.Printf("Raw URL download failed for %s/%s/%s@%s, trying git archive: %v", owner, repo, path, ref, rawErr)
 	}
-	remoteLog.Printf("Raw URL download failed for %s/%s/%s@%s, trying git archive: %v", owner, repo, path, ref, rawErr)
 
 	// Use git archive to get the file content without cloning
 	// This works for public repositories without authentication
-	githubHost := GetGitHubHostForRepo(owner, repo)
+	var githubHost string
+	if host != "" {
+		githubHost = "https://" + host
+	} else {
+		githubHost = GetGitHubHostForRepo(owner, repo)
+	}
 	repoURL := fmt.Sprintf("%s/%s/%s.git", githubHost, owner, repo)
 
 	// git archive command: git archive --remote=<repo> <ref> <path>
@@ -429,11 +450,11 @@ func downloadFileViaGit(owner, repo, path, ref string) ([]byte, error) {
 	archiveOutput, err := cmd.Output()
 	if err != nil {
 		// If git archive fails, try with git clone + git show as a fallback
-		return downloadFileViaGitClone(owner, repo, path, ref)
+		return downloadFileViaGitClone(owner, repo, path, ref, host)
 	}
 
 	// Extract the file from the tar archive using Go's archive/tar (cross-platform)
-	content, err = fileutil.ExtractFileFromTar(archiveOutput, path)
+	content, err := fileutil.ExtractFileFromTar(archiveOutput, path)
 	if err != nil {
 		return nil, fmt.Errorf("failed to extract file from git archive: %w", err)
 	}
@@ -474,7 +495,7 @@ func downloadFileViaRawURL(owner, repo, filePath, ref string) ([]byte, error) {
 
 // downloadFileViaGitClone downloads a file by shallow cloning the repository
 // This is used as a fallback when git archive doesn't work
-func downloadFileViaGitClone(owner, repo, path, ref string) ([]byte, error) {
+func downloadFileViaGitClone(owner, repo, path, ref, host string) ([]byte, error) {
 	remoteLog.Printf("Attempting git clone fallback for %s/%s/%s@%s", owner, repo, path, ref)
 
 	// Create a temporary directory for the shallow clone
@@ -484,7 +505,12 @@ func downloadFileViaGitClone(owner, repo, path, ref string) ([]byte, error) {
 	}
 	defer os.RemoveAll(tmpDir)
 
-	githubHost := GetGitHubHostForRepo(owner, repo)
+	var githubHost string
+	if host != "" {
+		githubHost = "https://" + host
+	} else {
+		githubHost = GetGitHubHostForRepo(owner, repo)
+	}
 	repoURL := fmt.Sprintf("%s/%s/%s.git", githubHost, owner, repo)
 
 	// Check if ref is a SHA (40 hex characters)
@@ -580,25 +606,18 @@ func checkRemoteSymlink(client *api.RESTClient, owner, repo, dirPath, ref string
 // if .github/workflows/shared is a symlink to ../../gh-agent-workflows/shared,
 // fetching .github/workflows/shared/elastic-tools.md returns 404.
 // This function walks the path components and resolves any symlinks found.
-func resolveRemoteSymlinks(owner, repo, filePath, ref string) (string, error) {
+// The caller must provide a REST client (already authenticated for the correct host).
+func resolveRemoteSymlinks(client *api.RESTClient, owner, repo, filePath, ref string) (string, error) {
 	parts := strings.Split(filePath, "/")
 	if len(parts) <= 1 {
 		return "", fmt.Errorf("no directory components to resolve in path: %s", filePath)
 	}
 
-	remoteLog.Printf("Attempting symlink resolution for %s/%s/%s@%s (%d path components)", owner, repo, filePath, ref, len(parts))
-
-	client, err := api.DefaultRESTClient()
-	if err != nil {
-		// When auth is unavailable (e.g., running inside an agentic workflow without credentials),
-		// symlink resolution cannot proceed. Return a descriptive error so the caller can skip
-		// symlink resolution and proceed without it.
-		if gitutil.IsAuthError(err.Error()) {
-			remoteLog.Printf("REST client creation failed due to auth error, skipping symlink resolution for %s/%s/%s@%s", owner, repo, filePath, ref)
-			return "", fmt.Errorf("skipping symlink resolution: no auth available for %s/%s/%s@%s", owner, repo, filePath, ref)
-		}
-		return "", fmt.Errorf("failed to create REST client: %w", err)
+	if client == nil {
+		return "", fmt.Errorf("no REST client available for symlink resolution of %s/%s/%s@%s", owner, repo, filePath, ref)
 	}
+
+	remoteLog.Printf("Attempting symlink resolution for %s/%s/%s@%s (%d path components)", owner, repo, filePath, ref, len(parts))
 
 	// Check each directory prefix (not including the final filename) to find symlinks
 	for i := 1; i < len(parts); i++ {
@@ -665,30 +684,55 @@ func resolveRemoteSymlinks(owner, repo, filePath, ref string) (string, error) {
 // - ref: Git reference (branch, tag, or commit SHA)
 // Returns the file content as bytes or an error if the file cannot be retrieved.
 func DownloadFileFromGitHub(owner, repo, path, ref string) ([]byte, error) {
-	return downloadFileFromGitHub(owner, repo, path, ref)
+	return downloadFileFromGitHubWithDepth(owner, repo, path, ref, 0, "")
+}
+
+// DownloadFileFromGitHubForHost downloads a file from a GitHub repository using the GitHub API,
+// targeting a specific GitHub host. Use this when the target repository is on a different host
+// than the one configured via GH_HOST (e.g., fetching from github.com while GH_HOST is a GHE instance).
+// host is the hostname without scheme (e.g., "github.com", "myorg.ghe.com").
+// An empty host uses the default configured host (GH_HOST or github.com).
+func DownloadFileFromGitHubForHost(owner, repo, path, ref, host string) ([]byte, error) {
+	return downloadFileFromGitHubWithDepth(owner, repo, path, ref, 0, host)
 }
 
 // ResolveRefToSHA resolves a git ref (branch, tag, or short SHA) to its full commit SHA.
 // This is the exported wrapper for resolveRefToSHA.
 // If the ref is already a 40-character hex SHA, it returns it as-is.
 func ResolveRefToSHA(owner, repo, ref string) (string, error) {
-	return resolveRefToSHA(owner, repo, ref)
+	return resolveRefToSHA(owner, repo, ref, "")
+}
+
+// ResolveRefToSHAForHost resolves a git ref to its full commit SHA on a specific GitHub host.
+// Use this when the target repository is on a different host than the one configured via GH_HOST.
+// host is the hostname without scheme (e.g., "github.com", "myorg.ghe.com").
+// An empty host uses the default configured host (GH_HOST or github.com).
+func ResolveRefToSHAForHost(owner, repo, ref, host string) (string, error) {
+	return resolveRefToSHA(owner, repo, ref, host)
 }
 
 func downloadFileFromGitHub(owner, repo, path, ref string) ([]byte, error) {
-	return downloadFileFromGitHubWithDepth(owner, repo, path, ref, 0)
+	return downloadFileFromGitHubWithDepth(owner, repo, path, ref, 0, "")
 }
 
-func downloadFileFromGitHubWithDepth(owner, repo, path, ref string, symlinkDepth int) ([]byte, error) {
-	// Create REST client
-	client, err := api.DefaultRESTClient()
+func downloadFileFromGitHubWithDepth(owner, repo, path, ref string, symlinkDepth int, host string) ([]byte, error) {
+	// Create a REST client targeting the correct host.
+	// When host is explicitly specified (e.g., "github.com"), use it directly so that
+	// cross-host fetches work correctly even when GH_HOST is set to a different instance.
+	var client *api.RESTClient
+	var err error
+	if host != "" {
+		client, err = api.NewRESTClient(api.ClientOptions{Host: host})
+	} else {
+		client, err = api.DefaultRESTClient()
+	}
 	if err != nil {
 		// When the REST client cannot be created due to missing auth (e.g., running inside an
 		// agentic workflow without gh CLI credentials), fall back to git-based download so that
 		// public repositories are still accessible without authentication.
 		if gitutil.IsAuthError(err.Error()) {
 			remoteLog.Printf("REST client creation failed due to auth error, attempting git fallback for %s/%s/%s@%s: %v", owner, repo, path, ref, err)
-			content, gitErr := downloadFileViaGit(owner, repo, path, ref)
+			content, gitErr := downloadFileViaGit(owner, repo, path, ref, host)
 			if gitErr != nil {
 				// Both REST (auth error) and git fallback failed. Return the original auth error
 				// so callers and tests can detect the auth-unavailable condition and skip/handle
@@ -717,7 +761,7 @@ func downloadFileFromGitHubWithDepth(owner, repo, path, ref string, symlinkDepth
 		if gitutil.IsAuthError(errStr) {
 			remoteLog.Printf("GitHub API authentication failed, attempting git fallback for %s/%s/%s@%s", owner, repo, path, ref)
 			// Try fallback using git commands for public repositories
-			content, gitErr := downloadFileViaGit(owner, repo, path, ref)
+			content, gitErr := downloadFileViaGit(owner, repo, path, ref, host)
 			if gitErr != nil {
 				// If git fallback also fails, return both errors
 				return nil, fmt.Errorf("failed to fetch file content via GitHub API (auth error) and git fallback: API error: %w, Git error: %w", err, gitErr)
@@ -728,10 +772,10 @@ func downloadFileFromGitHubWithDepth(owner, repo, path, ref string, symlinkDepth
 		// Check if this is a 404 — the path may traverse a symlink that the API doesn't follow
 		if isNotFoundError(errStr) && symlinkDepth < constants.MaxSymlinkDepth {
 			remoteLog.Printf("File not found at %s/%s/%s@%s, checking for symlinks in path (depth: %d)", owner, repo, path, ref, symlinkDepth)
-			resolvedPath, resolveErr := resolveRemoteSymlinks(owner, repo, path, ref)
+			resolvedPath, resolveErr := resolveRemoteSymlinks(client, owner, repo, path, ref)
 			if resolveErr == nil && resolvedPath != path {
 				remoteLog.Printf("Retrying download with symlink-resolved path: %s -> %s", path, resolvedPath)
-				return downloadFileFromGitHubWithDepth(owner, repo, resolvedPath, ref, symlinkDepth+1)
+				return downloadFileFromGitHubWithDepth(owner, repo, resolvedPath, ref, symlinkDepth+1, host)
 			}
 		}
 

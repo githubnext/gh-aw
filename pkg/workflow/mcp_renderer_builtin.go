@@ -170,17 +170,13 @@ func (r *MCPConfigRendererUnified) renderSafeOutputsTOML(yaml *strings.Builder, 
 	yaml.WriteString("          [mcp_servers." + constants.SafeOutputsMCPServerID.String() + ".headers]\n")
 	yaml.WriteString("          Authorization = \"$GH_AW_SAFE_OUTPUTS_API_KEY\"\n")
 
-	// Check if GitHub tool has guard-policies configured
+	// Check if GitHub tool has guard-policies configured (or auto-lockdown will run)
 	// If so, generate a linked write-sink guard-policy for safeoutputs
-	if workflowData != nil && workflowData.Tools != nil {
-		if githubTool, hasGitHub := workflowData.Tools["github"]; hasGitHub {
-			guardPolicies := deriveSafeOutputsGuardPolicyFromGitHub(githubTool)
-			if len(guardPolicies) > 0 {
-				mcpRendererLog.Print("Adding guard-policies to safeoutputs TOML (derived from GitHub guard-policy)")
-				// Render guard-policies in TOML format
-				renderGuardPoliciesToml(yaml, guardPolicies, constants.SafeOutputsMCPServerID.String())
-			}
-		}
+	guardPolicies := deriveWriteSinkGuardPolicyFromWorkflow(workflowData)
+	if len(guardPolicies) > 0 {
+		mcpRendererLog.Print("Adding guard-policies to safeoutputs TOML (derived from GitHub guard-policy or auto-lockdown detection)")
+		// Render guard-policies in TOML format
+		renderGuardPoliciesToml(yaml, guardPolicies, constants.SafeOutputsMCPServerID.String())
 	}
 }
 

@@ -217,7 +217,12 @@ func TestCheckRemoteSymlink(t *testing.T) {
 // directory components of a real path and returns "no symlinks found" when none exist.
 func TestResolveRemoteSymlinksNoSymlinks(t *testing.T) {
 	// "Global/Perl.gitignore" is a real path in github/gitignore with no symlinks
-	_, err := resolveRemoteSymlinks("github", "gitignore", "Global/Perl.gitignore", "main")
+	client, err := api.DefaultRESTClient()
+	if err != nil {
+		skipOnAuthError(t, err)
+		return
+	}
+	_, err = resolveRemoteSymlinks(client, "github", "gitignore", "Global/Perl.gitignore", "main")
 	require.Error(t, err, "Expected error when no symlinks found")
 	skipOnAuthError(t, err)
 

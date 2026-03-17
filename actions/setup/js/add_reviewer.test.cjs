@@ -286,4 +286,175 @@ describe("add_reviewer (Handler Factory Architecture)", () => {
     expect(result.reviewersAdded).toEqual(["user1", "copilot"]);
     expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("Failed to add copilot as reviewer"));
   });
+
+  it("should handle undefined reviewers as empty array", async () => {
+    const message = {
+      type: "add_reviewer",
+      // reviewers intentionally omitted
+    };
+
+    const result = await handler(message, {});
+
+    expect(result.success).toBe(true);
+    expect(result.reviewersAdded).toEqual([]);
+    expect(result.message).toContain("No valid reviewers found");
+    expect(mockGithub.rest.pulls.requestReviewers).not.toHaveBeenCalled();
+  });
+
+  it("should add only copilot when copilot is the only reviewer", async () => {
+    const message = {
+      type: "add_reviewer",
+      reviewers: ["copilot"],
+    };
+
+    const result = await handler(message, {});
+
+    expect(result.success).toBe(true);
+    expect(result.reviewersAdded).toEqual(["copilot"]);
+    // Only called once for copilot, not for other reviewers
+    expect(mockGithub.rest.pulls.requestReviewers).toHaveBeenCalledTimes(1);
+    expect(mockGithub.rest.pulls.requestReviewers).toHaveBeenCalledWith({
+      owner: "testowner",
+      repo: "testrepo",
+      pull_number: 123,
+      reviewers: ["copilot-pull-request-reviewer[bot]"],
+    });
+  });
+
+  it("should use default config values when no options provided", async () => {
+    const { main } = require("./add_reviewer.cjs");
+    const defaultHandler = await main({});
+
+    const message = {
+      type: "add_reviewer",
+      reviewers: ["anyuser"],
+    };
+
+    // With no allowed list, all reviewers are allowed
+    const result = await defaultHandler(message, {});
+
+    expect(result.success).toBe(true);
+    expect(result.reviewersAdded).toEqual(["anyuser"]);
+    expect(mockGithub.rest.pulls.requestReviewers).toHaveBeenCalledWith({
+      owner: "testowner",
+      repo: "testrepo",
+      pull_number: 123,
+      reviewers: ["anyuser"],
+    });
+  });
+
+  it("should return error for invalid pull_request_number", async () => {
+    const invalidValues = ["not-a-number", null, "abc123"];
+
+    for (const invalidValue of invalidValues) {
+      vi.clearAllMocks();
+      const message = {
+        type: "add_reviewer",
+        reviewers: ["user1"],
+        pull_request_number: invalidValue,
+      };
+
+      const result = await handler(message, {});
+
+      expect(result.success).toBe(false);
+      expect(result.error).toContain("Invalid pull_request_number");
+      expect(mockGithub.rest.pulls.requestReviewers).not.toHaveBeenCalled();
+    }
+  });
+
+  it("should filter out copilot when not in allowed list", async () => {
+    const { main } = require("./add_reviewer.cjs");
+    // allowed list does NOT include "copilot"
+    const restrictedHandler = await main({ max: 10, allowed: ["user1", "user2"] });
+
+    const message = {
+      type: "add_reviewer",
+      reviewers: ["user1", "copilot"],
+    };
+
+    const result = await restrictedHandler(message, {});
+
+    expect(result.success).toBe(true);
+    expect(result.reviewersAdded).toEqual(["user1"]);
+    // Only called once — for user1 only; copilot was filtered out
+    expect(mockGithub.rest.pulls.requestReviewers).toHaveBeenCalledTimes(1);
+    expect(mockGithub.rest.pulls.requestReviewers).toHaveBeenCalledWith({
+      owner: "testowner",
+      repo: "testrepo",
+      pull_number: 123,
+      reviewers: ["user1"],
+    });
+  });
+
+  it("should sanitize null and falsy values in reviewers array", async () => {
+    const { main } = require("./add_reviewer.cjs");
+    const permissiveHandler = await main({ max: 10, allowed: [] });
+
+    const message = {
+      type: "add_reviewer",
+      // null, undefined, false, empty string, and whitespace-only strings are all stripped
+      reviewers: [null, undefined, false, "", "   ", "user1", "  user2  "],
+    };
+
+    const result = await permissiveHandler(message, {});
+
+    expect(result.success).toBe(true);
+    // Only real usernames survive; whitespace is trimmed; whitespace-only strings are dropped
+    expect(result.reviewersAdded).toEqual(["user1", "user2"]);
+    expect(mockGithub.rest.pulls.requestReviewers).toHaveBeenCalledWith({
+      owner: "testowner",
+      repo: "testrepo",
+      pull_number: 123,
+      reviewers: ["user1", "user2"],
+    });
+  });
+
+  it("should trim reviewer list to maxCount within a single message", async () => {
+    const { main } = require("./add_reviewer.cjs");
+    const tightHandler = await main({ max: 2, allowed: [] });
+
+    const message = {
+      type: "add_reviewer",
+      reviewers: ["user1", "user2", "user3", "user4"],
+    };
+
+    const result = await tightHandler(message, {});
+
+    expect(result.success).toBe(true);
+    // Only first 2 reviewers should be added
+    expect(result.reviewersAdded).toEqual(["user1", "user2"]);
+    expect(mockGithub.rest.pulls.requestReviewers).toHaveBeenCalledWith({
+      owner: "testowner",
+      repo: "testrepo",
+      pull_number: 123,
+      reviewers: ["user1", "user2"],
+    });
+  });
+
+  it("should count staged calls toward max processedCount", async () => {
+    const originalEnv = process.env.GH_AW_SAFE_OUTPUTS_STAGED;
+    process.env.GH_AW_SAFE_OUTPUTS_STAGED = "true";
+
+    try {
+      const { main } = require("./add_reviewer.cjs");
+      const stagedHandler = await main({ max: 1, allowed: ["user1"] });
+
+      const message = {
+        type: "add_reviewer",
+        reviewers: ["user1"],
+      };
+
+      // First call in staged mode — should succeed as a preview
+      const result1 = await stagedHandler(message, {});
+      expect(result1.success).toBe(true);
+      expect(result1.staged).toBe(true);
+
+      // Second call should be blocked by max count (processedCount was incremented in staged mode)
+      const result2 = await stagedHandler(message, {});
+      expect(result2.success).toBe(false);
+      expect(result2.error).toContain("Max count");
+    } finally {
+      process.env.GH_AW_SAFE_OUTPUTS_STAGED = originalEnv;
+    }
+  });
 });

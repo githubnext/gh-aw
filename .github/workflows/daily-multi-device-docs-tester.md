@@ -16,16 +16,17 @@ permissions:
 tracker-id: daily-multi-device-docs-tester
 engine:
   id: claude
-  max-turns: 50  # Prevent runaway token usage (10 devices × ~3 turns + build/setup/report)
+  max-turns: 80  # 10 devices × ~5 turns each + setup/report overhead
 strict: true
 timeout-minutes: 30
 tools:
+  timeout: 120  # Playwright navigation on Astro dev server can take >60s; increase to 120s
   playwright:
     version: "v1.56.1"
   bash:
     - "npm install*"
-    - "npm run build*"
-    - "npm run preview*"
+    - "npm run dev*"
+    - "npx astro*"
     - "npx playwright*"
     - "curl*"
     - "kill*"
@@ -70,20 +71,19 @@ You are a documentation testing specialist. Your task is to comprehensively test
 
 ## Your Mission
 
-Build the documentation site locally, serve it, and perform comprehensive multi-device testing. Test layout responsiveness, accessibility, interactive elements, and visual rendering across all device types. Use a single Playwright browser instance for efficiency.
+Start the documentation development server and perform comprehensive multi-device testing. Test layout responsiveness, accessibility, interactive elements, and visual rendering across all device types. Use a single Playwright browser instance for efficiency.
 
-## Step 1: Build and Serve
+## Step 1: Install Dependencies and Start Server
 
-Navigate to the docs folder and build the site:
+Navigate to the docs folder and install dependencies:
 
 ```bash
 cd ${{ github.workspace }}/docs
 npm install
-npm run build
 ```
 
 Follow the shared **Documentation Server Lifecycle Management** instructions:
-1. Start the preview server (section "Starting the Documentation Preview Server")
+1. Start the dev server (section "Starting the Documentation Preview Server")
 2. Wait for server readiness (section "Waiting for Server Readiness")
 
 ## Step 2: Device Configuration
@@ -100,9 +100,17 @@ Test these device types based on input `${{ inputs.devices }}`:
 
 Playwright is provided through an MCP server interface, **NOT** as an npm package. You must use the MCP Playwright tools:
 
-- ✅ **Correct**: Use MCP tools like `mcp__playwright__browser_navigate`, `mcp__playwright__browser_run_code`, etc.
+- ✅ **Correct**: Use `mcp__playwright__browser_run_code` with `page.goto(..., { waitUntil: 'domcontentloaded' })`
 - ❌ **Incorrect**: Do NOT try to `require('playwright')` or create standalone Node.js scripts
 - ❌ **Incorrect**: Do NOT install playwright via npm - it's already available through MCP
+
+**⚠️ CRITICAL: Navigation Timeout Prevention**
+
+The Astro development server uses Vite, which loads many JavaScript modules per page. Using the default `waitUntil: 'load'` or `waitForLoadState('networkidle')` will cause 60s timeouts because the browser waits for all modules to finish. **Always use `waitUntil: 'domcontentloaded'`** for navigation:
+
+- ✅ **Correct**: `page.goto(url, { waitUntil: 'domcontentloaded', timeout: 30000 })`
+- ❌ **Never use**: `page.waitForLoadState('networkidle')` — causes guaranteed timeouts
+- ❌ **Never use**: `mcp__playwright__browser_navigate` for first load — it uses default 'load' wait which times out
 
 **Example Usage:**
 
@@ -117,10 +125,11 @@ echo "Playwright server URL: http://${SERVER_IP}:4321/gh-aw/"
 // Use browser_run_code to execute Playwright commands.
 // IMPORTANT: Replace 172.30.0.20 below with the actual SERVER_IP from the bash command above.
 // Do NOT use "localhost" — Playwright runs with --network host so its localhost differs.
+// ALWAYS use waitUntil: 'domcontentloaded' to prevent timeout on the Vite dev server.
 mcp__playwright__browser_run_code({
   code: `async (page) => {
     await page.setViewportSize({ width: 390, height: 844 });
-    await page.goto('http://172.30.0.20:4321/gh-aw/');  // substitute actual SERVER_IP
+    await page.goto('http://172.30.0.20:4321/gh-aw/', { waitUntil: 'domcontentloaded', timeout: 30000 });  // substitute actual SERVER_IP
     return { url: page.url(), title: await page.title() };
   }`
 })

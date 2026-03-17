@@ -110,7 +110,9 @@ An optional field on safe output tool calls indicating the trustworthiness level
 
 ### Lockdown Mode
 
-A security feature of the GitHub MCP server that filters content in public repositories to only surface items (issues, pull requests, comments, discussions) from users with push access. Protects agentic workflows from processing potentially malicious or misleading content submitted by untrusted users. Enabled via `lockdown: true` in the `tools.github` section. See [Lockdown Mode](/gh-aw/reference/lockdown-mode/).
+A security feature of the GitHub MCP server that filters content in public repositories to only surface items (issues, pull requests, comments, discussions) from users with push access. Protects agentic workflows from processing potentially malicious or misleading content submitted by untrusted users.
+
+For **public repositories**, `min-integrity: approved` is automatically applied at runtime when no explicit `lockdown` or `min-integrity` guard policy is configured — providing the same filtering level as lockdown without requiring additional authentication. Explicit `lockdown: true` requires a custom `github-token` and is automatically enabled for public repositories when one is configured. Set `min-integrity: none` or `lockdown: false` to disable for workflows designed to process content from all users. See [Lockdown Mode](/gh-aw/reference/lockdown-mode/).
 
 ### Status Comment
 
@@ -211,6 +213,16 @@ Named shorthand references to predefined domain sets used in `network.allowed` a
 ### Engine
 
 The AI system that powers the agentic workflow - essentially "which AI to use" to execute workflow instructions. GitHub Agentic Workflows supports multiple engines, with GitHub Copilot as the default.
+
+### Enterprise API Endpoint (`api-target`)
+
+An `engine` configuration field specifying a custom API endpoint hostname for GitHub Enterprise Cloud (GHEC) or GitHub Enterprise Server (GHES) deployments. When set, the compiler automatically adds both the API domain and the base hostname to the AWF firewall `--allow-domains` list and the `GH_AW_ALLOWED_DOMAINS` environment variable, eliminating the need for manual network configuration after each recompile. The value must be a hostname only — no protocol or path (e.g., `api.acme.ghe.com`). See [Engines Reference](/gh-aw/reference/engines/#enterprise-api-endpoint-api-target).
+
+```aw wrap
+engine:
+  id: copilot
+  api-target: api.acme.ghe.com
+```
 
 ### Inline Engine Definition
 
@@ -391,6 +403,10 @@ A system-injected environment variable identifying the active execution phase. S
 ### `GH_AW_VERSION`
 
 A system-injected environment variable containing the gh-aw compiler version that generated the workflow (e.g. `"0.40.1"`). Useful for writing conditional logic that depends on a minimum feature version. Cannot be overridden by user-defined `env:` blocks. See [Environment Variables Reference](/gh-aw/reference/environment-variables/).
+
+### `GH_AW_ALLOWED_DOMAINS`
+
+A system-injected environment variable containing the comma-separated list of domains allowed by the workflow's network configuration. Used by safe output jobs for URL sanitization — URLs from unlisted domains are redacted in AI-generated content before it is applied. Automatically populated from `network.allowed` domains and, when `engine.api-target` is set, includes the GHES/GHEC API hostname and base domain. Cannot be overridden by user-defined `env:` blocks. See [Environment Variables Reference](/gh-aw/reference/environment-variables/).
 
 ### Label Command Trigger (`label_command`)
 
