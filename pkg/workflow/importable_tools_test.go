@@ -239,9 +239,9 @@ Uses imported agentic-workflows tool.
 		t.Error("Did not expect entrypoint field in dev mode (uses container's ENTRYPOINT)")
 	}
 
-	// Verify binary mounts are NOT present in dev mode
-	if strings.Contains(workflowData, `${RUNNER_TEMP}/gh-aw:${RUNNER_TEMP}/gh-aw:ro`) {
-		t.Error("Did not expect ${RUNNER_TEMP}/gh-aw mount in dev mode (binary is in image)")
+	// Verify ${RUNNER_TEMP}/gh-aw is always mounted read-only for security
+	if !strings.Contains(workflowData, `${RUNNER_TEMP}/gh-aw:${RUNNER_TEMP}/gh-aw:ro`) {
+		t.Error("Expected ${RUNNER_TEMP}/gh-aw to be mounted read-only in AWF for security")
 	}
 
 	// Verify DEBUG and GITHUB_TOKEN are present

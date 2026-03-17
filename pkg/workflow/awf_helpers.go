@@ -137,6 +137,22 @@ func BuildAWFArgs(config AWFCommandConfig) []string {
 	awfArgs = append(awfArgs, "--container-workdir", "\"${GITHUB_WORKSPACE}\"")
 	awfHelpersLog.Print("Set container working directory to GITHUB_WORKSPACE")
 
+	// Mount ${RUNNER_TEMP}/gh-aw read-only inside the container.
+	// This overrides the broader $HOME:rw mount that AWF sets up in chroot mode,
+	// preventing the agent from directly writing to gh-aw infrastructure files
+	// (e.g. safeoutputs/outputs.jsonl) and bypassing the safe-outputs MCP server.
+	// The MCP server runs on the host (outside AWF) and retains full write access.
+	// Two entries are needed: one for the direct path (non-chroot) and one for the
+	// /host-prefixed path (chroot mode, where the agent sees the host FS under /host).
+	// Pre-wrap in double quotes so shellEscapeArg leaves them alone and ${RUNNER_TEMP}
+	// is expanded by the shell at runtime (single quotes would suppress expansion).
+	ghAwDir := "${RUNNER_TEMP}/gh-aw"
+	awfArgs = append(awfArgs,
+		"--mount", "\""+ghAwDir+":"+ghAwDir+":ro\"",
+		"--mount", "\""+ghAwDir+":/host"+ghAwDir+":ro\"",
+	)
+	awfHelpersLog.Print("Mounted ${RUNNER_TEMP}/gh-aw read-only in AWF container")
+
 	// Add custom mounts from agent config if specified
 	if agentConfig != nil && len(agentConfig.Mounts) > 0 {
 		// Sort mounts for consistent output
