@@ -15,62 +15,18 @@ func (e *CopilotEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]
 	// Create the directory first
 	yaml.WriteString("          mkdir -p /home/runner/.copilot\n")
 
-	// Create unified renderer with Copilot-specific options
 	// Copilot uses JSON format with type and tools fields, and inline args
-	createRenderer := func(isLast bool) *MCPConfigRendererUnified {
-		return NewMCPConfigRenderer(MCPRendererOptions{
-			IncludeCopilotFields:   true, // Copilot uses "type" and "tools" fields
-			InlineArgs:             true, // Copilot uses inline args format
-			Format:                 "json",
-			IsLast:                 isLast,
-			ActionMode:             GetActionModeFromWorkflowData(workflowData),
-			WriteSinkGuardPolicies: deriveWriteSinkGuardPolicyFromWorkflow(workflowData),
-		})
-	}
+	createRenderer := buildMCPRendererFactory(workflowData, "json", true, true)
 
 	// Build gateway configuration for MCP config
 	// Per MCP Gateway Specification v1.0.0 section 4.1.3, the gateway section is required
-	gatewayConfig := buildMCPGatewayConfig(workflowData)
-
-	// Use shared JSON MCP config renderer with unified renderer methods
 	options := JSONMCPConfigOptions{
 		ConfigPath:    "/home/runner/.copilot/mcp-config.json",
-		GatewayConfig: gatewayConfig,
-		Renderers: MCPToolRenderers{
-			RenderGitHub: func(yaml *strings.Builder, githubTool any, isLast bool, workflowData *WorkflowData) {
-				renderer := createRenderer(isLast)
-				renderer.RenderGitHubMCP(yaml, githubTool, workflowData)
-			},
-			RenderPlaywright: func(yaml *strings.Builder, playwrightTool any, isLast bool) {
-				renderer := createRenderer(isLast)
-				renderer.RenderPlaywrightMCP(yaml, playwrightTool)
-			},
-			RenderSerena: func(yaml *strings.Builder, serenaTool any, isLast bool) {
-				renderer := createRenderer(isLast)
-				renderer.RenderSerenaMCP(yaml, serenaTool)
-			},
-			RenderCacheMemory: func(yaml *strings.Builder, isLast bool, workflowData *WorkflowData) {
-				// Cache-memory is not used for Copilot (filtered out)
-			},
-			RenderAgenticWorkflows: func(yaml *strings.Builder, isLast bool) {
-				renderer := createRenderer(isLast)
-				renderer.RenderAgenticWorkflowsMCP(yaml)
-			},
-			RenderSafeOutputs: func(yaml *strings.Builder, isLast bool, workflowData *WorkflowData) {
-				renderer := createRenderer(isLast)
-				renderer.RenderSafeOutputsMCP(yaml, workflowData)
-			},
-			RenderMCPScripts: func(yaml *strings.Builder, mcpScripts *MCPScriptsConfig, isLast bool) {
-				renderer := createRenderer(isLast)
-				renderer.RenderMCPScriptsMCP(yaml, mcpScripts, workflowData)
-			},
-			RenderWebFetch: func(yaml *strings.Builder, isLast bool) {
-				renderMCPFetchServerConfig(yaml, "json", "              ", isLast, true, deriveWriteSinkGuardPolicyFromWorkflow(workflowData))
-			},
-			RenderCustomMCPConfig: func(yaml *strings.Builder, toolName string, toolConfig map[string]any, isLast bool) error {
-				return e.renderCopilotMCPConfigWithContext(yaml, toolName, toolConfig, isLast, workflowData)
-			},
-		},
+		GatewayConfig: buildMCPGatewayConfig(workflowData),
+		// webFetchIncludeTools=true: Copilot requires a tools field in the web-fetch server config
+		Renderers: buildStandardJSONMCPRenderers(workflowData, createRenderer, true, func(yaml *strings.Builder, toolName string, toolConfig map[string]any, isLast bool) error {
+			return e.renderCopilotMCPConfigWithContext(yaml, toolName, toolConfig, isLast, workflowData)
+		}),
 		FilterTool: func(toolName string) bool {
 			// Filter out cache-memory for Copilot
 			// Cache-memory is handled as a simple file share, not an MCP server
