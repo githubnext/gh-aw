@@ -177,10 +177,17 @@ func TestDownloadedFilesInAuditData(t *testing.T) {
 		t.Errorf("Expected %d files, got %d", expectedCount, len(files))
 	}
 
+	// Verify all paths are absolute
+	for _, file := range files {
+		if !filepath.IsAbs(file.Path) {
+			t.Errorf("Expected absolute path, got relative path: %s", file.Path)
+		}
+	}
+
 	// Verify specific files have correct attributes
 	fileMap := make(map[string]FileInfo)
 	for _, file := range files {
-		// Use basename for lookup since paths are now relative to workspace root
+		// Use basename for lookup since we only need to find files by name
 		basename := filepath.Base(file.Path)
 		fileMap[basename] = file
 	}
@@ -323,7 +330,7 @@ func TestAuditReportFileListingIntegration(t *testing.T) {
 	// Build a map for easy lookup
 	fileMap := make(map[string]FileInfo)
 	for _, f := range files {
-		// Use basename for lookup since paths are now relative to workspace root
+		// Use basename for lookup since we only need to find files by name
 		basename := filepath.Base(f.Path)
 		fileMap[basename] = f
 	}

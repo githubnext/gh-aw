@@ -339,13 +339,6 @@ func extractDownloadedFiles(logsPath string) []FileInfo {
 		return files
 	}
 
-	// Get current working directory to calculate relative paths
-	cwd, err := os.Getwd()
-	if err != nil {
-		auditReportLog.Printf("Failed to get current directory: %v", err)
-		cwd = ""
-	}
-
 	for _, entry := range entries {
 		// Skip directories
 		if entry.IsDir() {
@@ -355,16 +348,15 @@ func extractDownloadedFiles(logsPath string) []FileInfo {
 		name := entry.Name()
 		fullPath := filepath.Join(logsPath, name)
 
-		// Calculate relative path from workspace root (current working directory)
-		relativePath := fullPath
-		if cwd != "" {
-			if relPath, err := filepath.Rel(cwd, fullPath); err == nil {
-				relativePath = relPath
-			}
+		// Use absolute path so callers get a directly usable path
+		absPath, err := filepath.Abs(fullPath)
+		if err != nil {
+			auditReportLog.Printf("Failed to resolve absolute path for %s: %v", fullPath, err)
+			absPath = fullPath
 		}
 
 		fileInfo := FileInfo{
-			Path:        relativePath,
+			Path:        absPath,
 			Description: describeFile(name),
 		}
 
