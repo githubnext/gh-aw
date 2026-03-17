@@ -35,36 +35,8 @@ func (c *Compiler) addAllSafeOutputConfigEnvVars(steps *[]string, data *Workflow
 // Staged mode is independent of target-repo: it activates whenever staged is set
 // and at least one handler is present.
 func hasSafeOutputConfigured(so *SafeOutputsConfig) bool {
-	if so.AutofixCodeScanningAlert != nil {
-		return true
-	}
-	if so.UploadAssets != nil {
-		return true
-	}
-	if so.UpdateProjects != nil {
-		return true
-	}
-	if so.CreateProjects != nil {
-		return true
-	}
-	if so.CreateProjectStatusUpdates != nil {
-		return true
-	}
-	if so.CallWorkflow != nil {
-		return true
-	}
-	if so.MissingTool != nil {
-		return true
-	}
-	if so.MissingData != nil {
-		return true
-	}
-	if so.NoOp != nil {
-		return true
-	}
-	if so.CreateIssues != nil {
-		return true
-	}
+	return hasAnySafeOutputEnabled(so)
+}
 	if so.CreateDiscussions != nil {
 		return true
 	}
