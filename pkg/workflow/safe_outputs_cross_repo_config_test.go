@@ -420,91 +420,9 @@ func TestPushToPullRequestBranchCrossRepoInHandlerConfig(t *testing.T) {
 	assert.Contains(t, allowedRepos, "githubnext/gh-aw-side-repo", "allowed_repos should contain the repo")
 }
 
-// TestUpdateProjectAllowedReposConfig verifies that the `allowed-repos` key in the
-// `update-project` frontmatter configuration is correctly parsed and populates the
-// AllowedRepos field on UpdateProjectConfig.
-func TestUpdateProjectAllowedReposConfig(t *testing.T) {
-	compiler := NewCompiler()
-
-	tests := []struct {
-		name          string
-		configMap     map[string]any
-		expectedRepos []string
-	}{
-		{
-			name: "allowed-repos configured",
-			configMap: map[string]any{
-				"update-project": map[string]any{
-					"allowed-repos": []any{"github/docs", "github/github"},
-				},
-			},
-			expectedRepos: []string{"github/docs", "github/github"},
-		},
-		{
-			name: "allowed-repos with single repo",
-			configMap: map[string]any{
-				"update-project": map[string]any{
-					"allowed-repos": []any{"myorg/myrepo"},
-				},
-			},
-			expectedRepos: []string{"myorg/myrepo"},
-		},
-		{
-			name: "no allowed-repos",
-			configMap: map[string]any{
-				"update-project": map[string]any{
-					"max": 5,
-				},
-			},
-			expectedRepos: nil,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			cfg := compiler.parseUpdateProjectConfig(tt.configMap)
-
-			require.NotNil(t, cfg, "config should not be nil")
-			assert.Equal(t, tt.expectedRepos, cfg.AllowedRepos, "AllowedRepos mismatch")
-		})
-	}
-}
-
-// TestUpdateProjectAllowedReposInHandlerConfig verifies the end-to-end flow: that
-// allowed-repos on UpdateProjectConfig is compiled into the GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG
-// environment variable as `allowed_repos`, so the JS runtime receives the configuration.
-func TestUpdateProjectAllowedReposInHandlerConfig(t *testing.T) {
-	compiler := NewCompiler()
-
-	workflowData := &WorkflowData{
-		Name: "Test",
-		SafeOutputs: &SafeOutputsConfig{
-			UpdateProjects: &UpdateProjectConfig{
-				GitHubToken:  "${{ secrets.PROJECT_GITHUB_TOKEN }}",
-				Project:      "https://github.com/orgs/myorg/projects/42",
-				AllowedRepos: []string{"github/docs", "github/github"},
-			},
-		},
-	}
-
-	var steps []string
-	compiler.addHandlerManagerConfigEnvVar(&steps, workflowData)
-
-	require.NotEmpty(t, steps)
-	handlerConfig := extractHandlerConfig(t, strings.Join(steps, ""))
-
-	updateProject, ok := handlerConfig["update_project"]
-	require.True(t, ok, "update_project config should be present")
-
-	assert.Equal(t, "${{ secrets.PROJECT_GITHUB_TOKEN }}", updateProject["github-token"], "github-token should be in handler config")
-	assert.Equal(t, "https://github.com/orgs/myorg/projects/42", updateProject["project"], "project should be in handler config")
-
-	allowedRepos, ok := updateProject["allowed_repos"]
-	require.True(t, ok, "allowed_repos should be present")
-	assert.Contains(t, allowedRepos, "github/docs", "allowed_repos should contain github/docs")
-	assert.Contains(t, allowedRepos, "github/github", "allowed_repos should contain github/github")
-}
-
+// TestHandlerManagerStepPerOutputTokenInHandlerConfig verifies that per-output tokens
+// (e.g., add-comment.github-token) are wired into the handler config JSON (GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG)
+// but NOT used as the step-level with.github-token. The step-level token follows the same
 // precedence as github_token.go: project token > global safe-outputs token > magic secrets.
 func TestHandlerManagerStepPerOutputTokenInHandlerConfig(t *testing.T) {
 	compiler := NewCompiler()

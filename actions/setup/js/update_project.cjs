@@ -5,7 +5,7 @@ const { loadAgentOutput } = require("./load_agent_output.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { loadTemporaryIdMapFromResolved, resolveIssueNumber, isTemporaryId, normalizeTemporaryId } = require("./temporary_id.cjs");
 const { logStagedPreviewInfo } = require("./staged_preview.cjs");
-const { ERR_API, ERR_CONFIG, ERR_NOT_FOUND, ERR_PARSE, ERR_PERMISSION, ERR_VALIDATION } = require("./error_codes.cjs");
+const { ERR_API, ERR_CONFIG, ERR_NOT_FOUND, ERR_PARSE, ERR_VALIDATION } = require("./error_codes.cjs");
 
 /**
  * Normalize agent output keys for update_project.
@@ -462,10 +462,9 @@ async function fetchAllProjectFields(github, projectId) {
  * @param {any} output - Safe output configuration
  * @param {Map<string, any>} temporaryIdMap - Map of temporary IDs to resolved issue numbers
  * @param {Object} githubClient - GitHub client (Octokit instance) to use for GraphQL queries
- * @param {Set<string>|null} allowedContentRepos - Optional set of allowed repos for content_repo validation. When non-empty, only repos in this set (plus the workflow's host repository from context.repo) are accepted as content_repo values. When null or empty, any repo is accepted.
  * @returns {Promise<void|{temporaryId?: string, draftItemId?: string}>} Returns undefined for most operations, or an object with temporary ID mapping for draft issue creation
  */
-async function updateProject(output, temporaryIdMap = new Map(), githubClient = null, allowedContentRepos = null) {
+async function updateProject(output, temporaryIdMap = new Map(), githubClient = null) {
   output = normalizeUpdateProjectOutput(output);
 
   // Use the provided github client, or fall back to the global github object
@@ -1020,20 +1019,6 @@ async function updateProject(output, temporaryIdMap = new Map(), githubClient = 
         const trimmedContentRepo = output.content_repo.trim();
         const parts = trimmedContentRepo.split("/").map(p => p.trim());
         if (parts.length === 2 && parts[0] && parts[1]) {
-          const requestedContentRepo = `${parts[0]}/${parts[1]}`;
-          const defaultRepo = `${owner}/${repo}`;
-          // Validate against allowed_repos when configured
-          if (allowedContentRepos !== null && allowedContentRepos.size > 0) {
-            const isDefaultRepo = requestedContentRepo === defaultRepo;
-            const isAllowed = isDefaultRepo || allowedContentRepos.has(requestedContentRepo);
-            if (!isAllowed) {
-              throw new Error(
-                `${ERR_PERMISSION}: content_repo "${requestedContentRepo}" is not in the allowed-repos list. ` +
-                  `Allowed: ${defaultRepo}${allowedContentRepos.size > 0 ? ", " + Array.from(allowedContentRepos).join(", ") : ""}. ` +
-                  `Configure allowed-repos under safe-outputs.update-project in your workflow frontmatter.`
-              );
-            }
-          }
           contentOwner = parts[0];
           contentRepo = parts[1];
           core.info(`Using content_repo for resolution: ${contentOwner}/${contentRepo}`);
@@ -1246,12 +1231,6 @@ async function main(config = {}, githubClient = null) {
   const configuredViews = Array.isArray(config.views) ? config.views : [];
   const configuredFieldDefinitions = Array.isArray(config.field_definitions) ? config.field_definitions : [];
 
-  // Parse allowed-repos for content_repo validation (cross-repo issue/PR resolution)
-  // When non-empty, only repos in this set (plus the workflow's host repository) are accepted as content_repo values.
-  const rawAllowedRepos = Array.isArray(config.allowed_repos) ? config.allowed_repos : [];
-  const sanitizedAllowedRepos = rawAllowedRepos.map(r => (typeof r === "string" ? r.trim() : "")).filter(r => r);
-  const allowedContentRepos = new Set(sanitizedAllowedRepos);
-
   // Check if we're in staged mode
   const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true";
 
@@ -1260,9 +1239,6 @@ async function main(config = {}, githubClient = null) {
   }
   if (configuredFieldDefinitions.length > 0) {
     core.info(`Found ${configuredFieldDefinitions.length} configured field definition(s) in frontmatter`);
-  }
-  if (allowedContentRepos.size > 0) {
-    core.info(`Allowed content repos: ${Array.from(allowedContentRepos).join(", ")}`);
   }
   core.info(`Max count: ${maxCount}`);
 
@@ -1383,7 +1359,7 @@ async function main(config = {}, githubClient = null) {
           };
 
           try {
-            await updateProject(fieldsOutput, tempIdMap, github, allowedContentRepos);
+            await updateProject(fieldsOutput, tempIdMap, github);
             core.info("✓ Created configured fields");
           } catch (err) {
             // prettier-ignore
@@ -1415,7 +1391,7 @@ async function main(config = {}, githubClient = null) {
       }
 
       // Process the update_project message
-      const updateResult = await updateProject(effectiveMessage, tempIdMap, github, allowedContentRepos);
+      const updateResult = await updateProject(effectiveMessage, tempIdMap, github);
 
       // After processing the first message, create configured views if any
       // Views are created after the first item is processed to ensure the project exists
@@ -1440,7 +1416,7 @@ async function main(config = {}, githubClient = null) {
               },
             };
 
-            await updateProject(viewOutput, tempIdMap, github, allowedContentRepos);
+            await updateProject(viewOutput, tempIdMap, github);
             core.info(`✓ Created view ${i + 1}/${configuredViews.length}: ${viewConfig.name} (${viewConfig.layout})`);
           } catch (err) {
             // prettier-ignore

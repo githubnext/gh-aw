@@ -4691,13 +4691,6 @@
                     },
                     "additionalProperties": false
                   }
-                },
-                "allowed-repos": {
-                  "type": "array",
-                  "description": "Optional list of additional repositories (in 'owner/repo' format) that are allowed as content_repo values for cross-repo issue/PR resolution. When configured, agents may only reference issues or pull requests from these repositories (plus the workflow host repository). Wildcards are supported (e.g., 'myorg/*'). Example: ['github/docs', 'github/github'].",
-                  "items": {
-                    "type": "string"
-                  }
                 }
               },
               "additionalProperties": false,
@@ -4708,11 +4701,6 @@
                 {
                   "github-token": "${{ secrets.PROJECT_GITHUB_TOKEN }}",
                   "max": 15
-                },
-                {
-                  "allowed-repos": ["myorg/docs", "myorg/api"],
-                  "github-token": "${{ secrets.PROJECT_GITHUB_TOKEN }}",
-                  "max": 20
                 }
               ]
             },
