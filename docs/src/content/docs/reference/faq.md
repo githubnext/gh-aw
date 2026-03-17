@@ -88,6 +88,45 @@ tools:
 
 See [Getting Started with MCP](/gh-aw/guides/getting-started-mcp/) and [MCP Servers](/gh-aw/guides/mcps/) for configuration guides.
 
+### Can I use Claude plugins with APM dependencies?
+
+Yes! [APM (Agent Package Manager)](https://microsoft.github.io/apm/) supports Claude plugins in the `plugin.json` format alongside other agent primitives (skills, prompts, instructions). Install them via the `dependencies:` field in your workflow frontmatter:
+
+```yaml wrap
+engine: claude
+
+dependencies:
+  - github/awesome-copilot/plugins/context-engineering
+  - owner/repo/plugins/my-claude-plugin
+```
+
+APM automatically infers the `claude` engine target and unpacks only Claude-compatible primitives. You can mix plugins with other APM primitives in the same `dependencies:` block, and APM resolves the full dependency tree including transitive dependencies.
+
+For version-pinned plugins:
+
+```yaml wrap
+engine: claude
+
+dependencies:
+  - owner/repo/plugins/my-plugin#v2.0    # pinned to a tag
+  - owner/repo/plugins/my-plugin#main    # pinned to a branch
+```
+
+For private plugins hosted in another organization, use `github-app:` authentication:
+
+```yaml wrap
+engine: claude
+
+dependencies:
+  github-app:
+    app-id: ${{ vars.APP_ID }}
+    private-key: ${{ secrets.APP_PRIVATE_KEY }}
+  packages:
+    - acme-org/acme-plugins/plugins/my-claude-plugin
+```
+
+See [APM Dependencies](/gh-aw/reference/dependencies/) for full configuration options including cross-org private packages and the `isolated` flag.
+
 ### Can workflows be broken up into shareable components?
 
 Workflows can import shared configurations and components:

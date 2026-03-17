@@ -28,7 +28,6 @@ func GenerateWorkflowHeader(sourceFile string, generatedBy string, customInstruc
 	var header strings.Builder
 
 	// Add ASCII logo
-	header.WriteString("#\n")
 	// TrimRight removes only trailing newlines, preserving per-line leading spaces
 	logoLines := strings.Split(strings.TrimRight(headerAsciiLogo, "\n"), "\n")
 	headerLog.Printf("Adding ASCII logo with %d lines", len(logoLines))
