@@ -49,7 +49,7 @@ func (c *AddInteractiveConfig) checkStatusAndOfferRun(ctx context.Context) error
 					fmt.Fprintf(os.Stderr, "Checking workflow status (attempt %d/5) for: %s\n", i+1, parsed.WorkflowName)
 				}
 				// Check if workflow is in status
-				statuses, err := getWorkflowStatuses(parsed.WorkflowName, c.RepoOverride, c.Verbose)
+				statuses, err := findWorkflowsByFilenamePattern(parsed.WorkflowName, c.RepoOverride, c.Verbose)
 				if err != nil {
 					if c.Verbose {
 						fmt.Fprintf(os.Stderr, "Status check error: %v\n", err)
@@ -147,9 +147,9 @@ func (c *AddInteractiveConfig) checkStatusAndOfferRun(ctx context.Context) error
 	return nil
 }
 
-// getWorkflowStatuses is a helper to get workflow statuses for a pattern
+// findWorkflowsByFilenamePattern is a helper to find workflows registered in GitHub by filename pattern.
 // The pattern is matched against the workflow filename (basename without extension)
-func getWorkflowStatuses(pattern, repoOverride string, verbose bool) ([]WorkflowStatus, error) {
+func findWorkflowsByFilenamePattern(pattern, repoOverride string, verbose bool) ([]WorkflowStatus, error) {
 	// This would normally call StatusWorkflows but we need just a simple check
 	// For now, we'll use the gh CLI directly
 	// Request 'path' field so we can match by filename, not by workflow name

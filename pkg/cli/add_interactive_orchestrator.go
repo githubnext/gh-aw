@@ -135,7 +135,7 @@ func RunAddInteractive(ctx context.Context, workflowSpecs []string, verbose bool
 	// Step 8: Confirm with user
 	var secretName, secretValue string
 	if config.hasWriteAccess && !config.SkipSecret {
-		secretName, secretValue, err = config.getSecretInfo()
+		secretName, secretValue, err = config.resolveEngineApiKeyCredential()
 		if err != nil {
 			return err
 		}

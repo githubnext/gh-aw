@@ -67,9 +67,9 @@ func parseSecretNames(output []byte) []string {
 	return names
 }
 
-// getSecretInfo returns the secret name and value based on the selected engine
+// resolveEngineApiKeyCredential returns the secret name and value based on the selected engine
 // Returns empty value if the secret already exists in the repository
-func (c *AddInteractiveConfig) getSecretInfo() (name string, value string, err error) {
+func (c *AddInteractiveConfig) resolveEngineApiKeyCredential() (name string, value string, err error) {
 	addInteractiveLog.Printf("Getting secret info for engine: %s", c.EngineOverride)
 
 	secretName, secretValue, existsInRepo, err := GetEngineSecretNameAndValue(c.EngineOverride, c.existingSecrets)
