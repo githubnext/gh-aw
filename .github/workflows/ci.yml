@@ -561,6 +561,7 @@ jobs:
         run: |
           RUN_ID="${{ github.run_id }}"
           REPO="${{ github.repository }}"
+          SHA="${{ github.sha }}"
           echo "## 📦 gh-aw Binary" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "The \`gh-aw\` Linux (amd64) binary has been uploaded as an artifact." >> $GITHUB_STEP_SUMMARY
@@ -581,6 +582,11 @@ jobs:
           echo "  -L \"https://api.github.com/repos/${REPO}/actions/artifacts/\$ARTIFACT_ID/zip\" \\" >> $GITHUB_STEP_SUMMARY
           echo "  -o gh-aw-linux-amd64.zip" >> $GITHUB_STEP_SUMMARY
           echo "unzip gh-aw-linux-amd64.zip && chmod +x gh-aw" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Recompile workflows with this build" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`bash" >> $GITHUB_STEP_SUMMARY
+          echo "./gh-aw compile --action-mode release --action-tag ${SHA}" >> $GITHUB_STEP_SUMMARY
           echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
 
       - name: Rebuild lock files
