@@ -2,6 +2,7 @@ package workflow
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 	"sync"
 
@@ -461,6 +462,7 @@ func (r *EngineRegistry) GetSupportedEngines() []string {
 	for id := range r.engines {
 		engines = append(engines, id)
 	}
+	sort.Strings(engines)
 	return engines
 }
 
@@ -478,10 +480,19 @@ func (r *EngineRegistry) GetDefaultEngine() CodingAgentEngine {
 // GetEngineByPrefix returns an engine that matches the given prefix
 // This is useful for backward compatibility with strings like "codex-experimental"
 func (r *EngineRegistry) GetEngineByPrefix(prefix string) (CodingAgentEngine, error) {
+	type engineCandidate struct {
+		id     string
+		engine CodingAgentEngine
+	}
+	var candidates []engineCandidate
 	for id, engine := range r.engines {
 		if strings.HasPrefix(prefix, id) {
-			return engine, nil
+			candidates = append(candidates, engineCandidate{id, engine})
 		}
 	}
-	return nil, fmt.Errorf("no engine found matching prefix: %s", prefix)
+	if len(candidates) == 0 {
+		return nil, fmt.Errorf("no engine found matching prefix: %s", prefix)
+	}
+	sort.Slice(candidates, func(i, j int) bool { return candidates[i].id < candidates[j].id })
+	return candidates[0].engine, nil
 }
