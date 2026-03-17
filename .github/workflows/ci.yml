@@ -590,7 +590,7 @@ jobs:
           echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
 
       - name: Rebuild lock files
-        run: ./gh-aw compile --validate --verbose --purge --stats --action-mode release --action-tag ${{ github.sha }}
+        run: make recompile
         env:
           GH_TOKEN: ${{ github.token }}
 
