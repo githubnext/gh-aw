@@ -5,6 +5,7 @@ package workflow
 import (
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
@@ -12,6 +13,22 @@ import (
 
 	"github.com/github/gh-aw/pkg/testutil"
 )
+
+// extractQuotedCSV returns the comma-separated domain list embedded inside
+// the first pair of double-quotes in line. Used to enable exact-entry checks
+// (avoiding substring false-positives like "corp.example.com" matching "copilot.corp.example.com").
+func extractQuotedCSV(line string) string {
+	start := strings.Index(line, `"`)
+	if start < 0 {
+		return line
+	}
+	rest := line[start+1:]
+	end := strings.Index(rest, `"`)
+	if end < 0 {
+		return rest
+	}
+	return rest[:end]
+}
 
 // TestAllowedDomainsFromNetworkConfig tests that GH_AW_ALLOWED_DOMAINS is computed
 // from network configuration for sanitization
@@ -374,10 +391,12 @@ Test that empty allowed-domains falls back to network config.
 // TestComputeAllowedDomainsForSanitization tests the computeAllowedDomainsForSanitization function
 func TestComputeAllowedDomainsForSanitization(t *testing.T) {
 	tests := []struct {
-		name            string
-		engineID        string
-		networkPerms    *NetworkPermissions
-		expectedDomains []string
+		name              string
+		engineID          string
+		apiTarget         string
+		networkPerms      *NetworkPermissions
+		expectedDomains   []string
+		unexpectedDomains []string
 	}{
 		{
 			name:     "Copilot with custom domains",
@@ -434,6 +453,30 @@ func TestComputeAllowedDomainsForSanitization(t *testing.T) {
 				"example.com",
 			},
 		},
+		{
+			name:         "Copilot with GHES api-target includes api and base domains",
+			engineID:     "copilot",
+			apiTarget:    "api.acme.ghe.com",
+			networkPerms: nil,
+			expectedDomains: []string{
+				"api.acme.ghe.com", // GHES API domain
+				"acme.ghe.com",     // GHES base domain (derived from api-target)
+				"api.github.com",   // Copilot default
+				"github.com",       // Copilot default
+			},
+		},
+		{
+			name:         "non-api prefix api-target only adds the configured hostname",
+			engineID:     "copilot",
+			apiTarget:    "copilot.corp.example.com",
+			networkPerms: nil,
+			expectedDomains: []string{
+				"copilot.corp.example.com", // configured hostname
+			},
+			unexpectedDomains: []string{
+				"corp.example.com", // base hostname should NOT be added for non-api. prefix
+			},
+		},
 	}
 
 	for _, tt := range tests {
@@ -442,7 +485,8 @@ func TestComputeAllowedDomainsForSanitization(t *testing.T) {
 			compiler := NewCompiler()
 			data := &WorkflowData{
 				EngineConfig: &EngineConfig{
-					ID: tt.engineID,
+					ID:        tt.engineID,
+					APITarget: tt.apiTarget,
 				},
 				NetworkPermissions: tt.networkPerms,
 			}
@@ -450,10 +494,164 @@ func TestComputeAllowedDomainsForSanitization(t *testing.T) {
 			// Call the function
 			domainsStr := compiler.computeAllowedDomainsForSanitization(data)
 
-			// Verify expected domains are present
+			// Verify expected domains are present (substring match is fine here since domain names
+			// in a CSV string that are exact entries won't appear as substrings of other entries
+			// when checking expected ones – we only need exact match for the negative "not present" check)
 			for _, expectedDomain := range tt.expectedDomains {
 				if !strings.Contains(domainsStr, expectedDomain) {
 					t.Errorf("Expected domain '%s' not found in result: %s", expectedDomain, domainsStr)
+				}
+			}
+
+			// Verify unexpected domains are absent using exact membership (not substring)
+			// to avoid false positives where "corp.example.com" matches "copilot.corp.example.com"
+			parts := strings.Split(domainsStr, ",")
+			for _, unexpectedDomain := range tt.unexpectedDomains {
+				if slices.Contains(parts, unexpectedDomain) {
+					t.Errorf("Unexpected domain '%s' found in result: %s", unexpectedDomain, domainsStr)
+				}
+			}
+		})
+	}
+}
+
+// TestAPITargetDomainsInCompiledWorkflow is a regression test verifying that when engine.api-target
+// is configured, both --allow-domains (AWF firewall flag) and GH_AW_ALLOWED_DOMAINS (sanitization
+// env var) in the compiled lock file contain the api-target hostname and its derived base hostname.
+func TestAPITargetDomainsInCompiledWorkflow(t *testing.T) {
+	tests := []struct {
+		name              string
+		workflow          string
+		expectedDomains   []string
+		unexpectedDomains []string
+	}{
+		{
+			name: "GHES api-target adds api and base domains to allow-domains and GH_AW_ALLOWED_DOMAINS",
+			workflow: `---
+on: push
+permissions:
+  contents: read
+  issues: read
+  pull-requests: read
+engine:
+  id: copilot
+  api-target: api.acme.ghe.com
+strict: false
+safe-outputs:
+  create-issue:
+---
+
+# Test Workflow
+
+Test workflow with GHES api-target.
+`,
+			expectedDomains: []string{
+				"api.acme.ghe.com", // GHES API domain
+				"acme.ghe.com",     // GHES base domain derived from api-target
+				"api.github.com",   // Copilot default
+				"github.com",       // Copilot default
+			},
+		},
+		{
+			name: "non-api prefix api-target only adds the configured hostname",
+			workflow: `---
+on: push
+permissions:
+  contents: read
+  issues: read
+  pull-requests: read
+engine:
+  id: copilot
+  api-target: copilot.corp.example.com
+strict: false
+safe-outputs:
+  create-issue:
+---
+
+# Test Workflow
+
+Test workflow with non-api prefix api-target.
+`,
+			expectedDomains: []string{
+				"copilot.corp.example.com", // configured hostname
+			},
+			unexpectedDomains: []string{
+				"corp.example.com", // base hostname should NOT be added for non-api. prefix
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tmpDir := testutil.TempDir(t, "api-target-domains-test")
+			testFile := filepath.Join(tmpDir, "test-workflow.md")
+			if err := os.WriteFile(testFile, []byte(tt.workflow), 0644); err != nil {
+				t.Fatal(err)
+			}
+
+			compiler := NewCompiler()
+			if err := compiler.CompileWorkflow(testFile); err != nil {
+				t.Fatalf("Failed to compile workflow: %v", err)
+			}
+
+			lockFile := stringutil.MarkdownToLockFile(testFile)
+			lockContent, err := os.ReadFile(lockFile)
+			if err != nil {
+				t.Fatalf("Failed to read lock file: %v", err)
+			}
+			lockStr := string(lockContent)
+
+			// Check --allow-domains in AWF command contains expected domains
+			allowDomainsIdx := strings.Index(lockStr, "--allow-domains")
+			if allowDomainsIdx < 0 {
+				t.Fatal("--allow-domains flag not found in compiled lock file")
+			}
+			// Extract the line with --allow-domains for more targeted checking
+			allowDomainsEnd := strings.Index(lockStr[allowDomainsIdx:], "\n")
+			if allowDomainsEnd < 0 {
+				allowDomainsEnd = len(lockStr) - allowDomainsIdx
+			}
+			allowDomainsLine := lockStr[allowDomainsIdx : allowDomainsIdx+allowDomainsEnd]
+
+			for _, domain := range tt.expectedDomains {
+				if !strings.Contains(allowDomainsLine, domain) {
+					t.Errorf("Expected domain %q not found in --allow-domains.\nLine: %s", domain, allowDomainsLine)
+				}
+			}
+			// Use exact CSV membership for "not present" checks to avoid false positives
+			// (e.g. "corp.example.com" would substring-match "copilot.corp.example.com")
+			allowedDomainsCSV := extractQuotedCSV(allowDomainsLine)
+			allowedParts := strings.Split(allowedDomainsCSV, ",")
+			for _, domain := range tt.unexpectedDomains {
+				if slices.Contains(allowedParts, domain) {
+					t.Errorf("Unexpected domain %q found in --allow-domains.\nLine: %s", domain, allowDomainsLine)
+				}
+			}
+
+			// Check GH_AW_ALLOWED_DOMAINS env var contains expected domains
+			lines := strings.Split(lockStr, "\n")
+			var domainsLine string
+			for _, line := range lines {
+				if strings.Contains(line, "GH_AW_ALLOWED_DOMAINS:") {
+					domainsLine = line
+					break
+				}
+			}
+			if domainsLine == "" {
+				t.Fatal("GH_AW_ALLOWED_DOMAINS not found in compiled lock file")
+			}
+
+			for _, domain := range tt.expectedDomains {
+				if !strings.Contains(domainsLine, domain) {
+					t.Errorf("Expected domain %q not found in GH_AW_ALLOWED_DOMAINS.\nLine: %s", domain, domainsLine)
+				}
+			}
+			// Use exact CSV membership for "not present" checks
+			allowedDomainsEnvCSV := extractQuotedCSV(domainsLine)
+			allowedEnvParts := strings.Split(allowedDomainsEnvCSV, ",")
+			for _, domain := range tt.unexpectedDomains {
+				if slices.Contains(allowedEnvParts, domain) {
+					t.Errorf("Unexpected domain %q found in GH_AW_ALLOWED_DOMAINS.\nLine: %s", domain, domainsLine)
 				}
 			}
 		})
