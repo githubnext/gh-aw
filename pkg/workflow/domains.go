@@ -654,13 +654,16 @@ func GetAPITargetDomains(apiTarget string) []string {
 
 	domains := []string{apiTarget}
 
-	// Derive the base hostname by stripping the first subdomain label.
+	// Derive the base hostname by stripping the first subdomain label, but only for
+	// API-style hostnames that start with "api.".
 	// e.g., "api.acme.ghe.com" → "acme.ghe.com"
 	// Only add the base hostname if it still looks like a multi-label hostname (contains a dot).
-	if idx := strings.Index(apiTarget, "."); idx > 0 {
-		baseHost := apiTarget[idx+1:]
-		if strings.Contains(baseHost, ".") && baseHost != apiTarget {
-			domains = append(domains, baseHost)
+	if strings.HasPrefix(apiTarget, "api.") {
+		if idx := strings.Index(apiTarget, "."); idx > 0 {
+			baseHost := apiTarget[idx+1:]
+			if strings.Contains(baseHost, ".") && baseHost != apiTarget {
+				domains = append(domains, baseHost)
+			}
 		}
 	}
 
