@@ -630,7 +630,7 @@ function buildInferenceAccessErrorContext(hasInferenceAccessError) {
     return "";
   }
 
-  const templatePath = "/opt/gh-aw/prompts/inference_access_error.md";
+  const templatePath = `${process.env.RUNNER_TEMP}/gh-aw/prompts/inference_access_error.md`;
   const template = fs.readFileSync(templatePath, "utf8");
   return "\n" + template;
 }
@@ -820,7 +820,7 @@ async function main() {
         core.info(`Found existing issue #${existingIssue.number}: ${existingIssue.html_url}`);
 
         // Read comment template
-        const commentTemplatePath = "/opt/gh-aw/prompts/agent_failure_comment.md";
+        const commentTemplatePath = `${process.env.RUNNER_TEMP}/gh-aw/prompts/agent_failure_comment.md`;
         const commentTemplate = fs.readFileSync(commentTemplatePath, "utf8");
 
         // Extract run ID from URL (e.g., https://github.com/owner/repo/actions/runs/123 -> "123")
@@ -949,7 +949,7 @@ async function main() {
         core.info("No existing issue found, creating a new one");
 
         // Read issue template
-        const issueTemplatePath = "/opt/gh-aw/prompts/agent_failure_issue.md";
+        const issueTemplatePath = `${process.env.RUNNER_TEMP}/gh-aw/prompts/agent_failure_issue.md`;
         const issueTemplate = fs.readFileSync(issueTemplatePath, "utf8");
 
         // Get current branch information

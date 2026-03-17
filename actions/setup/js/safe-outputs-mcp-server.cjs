@@ -20,7 +20,7 @@ const { startHttpServer } = require("./safe_outputs_mcp_server_http.cjs");
 logger.debug("Successfully required safe_outputs_mcp_server_http.cjs");
 
 // Start the HTTP server
-// The server reads configuration from /opt/gh-aw/safeoutputs/config.json
+// The server reads configuration from ${RUNNER_TEMP}/gh-aw/safeoutputs/config.json
 // Port and API key are configured via environment variables:
 // - GH_AW_SAFE_OUTPUTS_PORT
 // - GH_AW_SAFE_OUTPUTS_API_KEY

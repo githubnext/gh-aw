@@ -17,7 +17,7 @@ async function main() {
     const { resolveAllowedMentionsFromPayload } = require("./resolve_mentions_from_payload.cjs");
 
     // Load validation config from file and set it in environment for the validator to read
-    const validationConfigPath = process.env.GH_AW_VALIDATION_CONFIG_PATH || "/opt/gh-aw/safeoutputs/validation.json";
+    const validationConfigPath = process.env.GH_AW_VALIDATION_CONFIG_PATH || `${process.env.RUNNER_TEMP}/gh-aw/safeoutputs/validation.json`;
     let validationConfig = null;
     try {
       if (fs.existsSync(validationConfigPath)) {
@@ -155,7 +155,7 @@ async function main() {
     }
     const outputFile = process.env.GH_AW_SAFE_OUTPUTS;
     // Read config from file instead of environment variable
-    const configPath = process.env.GH_AW_SAFE_OUTPUTS_CONFIG_PATH || "/opt/gh-aw/safeoutputs/config.json";
+    const configPath = process.env.GH_AW_SAFE_OUTPUTS_CONFIG_PATH || `${process.env.RUNNER_TEMP}/gh-aw/safeoutputs/config.json`;
     let safeOutputsConfig;
     core.info(`[INGESTION] Reading config from: ${configPath}`);
     try {

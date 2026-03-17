@@ -177,7 +177,7 @@ function createParentIssueTemplate(groupId, titlePrefix, workflowName, workflowS
   const title = applyTitlePrefix(`${groupId} - Issue Group`, titlePrefix);
 
   // Load issue template
-  const issueTemplatePath = "/opt/gh-aw/prompts/issue_group_parent.md";
+  const issueTemplatePath = `${process.env.RUNNER_TEMP}/gh-aw/prompts/issue_group_parent.md`;
   const issueTemplate = fs.readFileSync(issueTemplatePath, "utf8");
 
   // Create template context

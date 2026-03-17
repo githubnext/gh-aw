@@ -20,7 +20,7 @@ const main = buildMissingIssueHandler({
   defaultTitlePrefix: "[missing tool]",
   defaultLabels: ["agentic-workflows"],
   itemsField: "missing_tools",
-  templatePath: "/opt/gh-aw/prompts/missing_tool_issue.md",
+  templatePath: `${process.env.RUNNER_TEMP}/gh-aw/prompts/missing_tool_issue.md`,
   templateListKey: "missing_tools_list",
   buildCommentHeader: runUrl => [`## Missing Tools Reported`, ``, `The following tools were reported as missing during [workflow run](${runUrl}):`, ``],
   renderCommentItem: (tool, index) => {

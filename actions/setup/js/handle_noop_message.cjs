@@ -45,7 +45,7 @@ async function ensureAgentRunsIssue() {
   core.info(`No no-op runs issue found, creating one`);
 
   // Load template from file
-  const templatePath = "/opt/gh-aw/prompts/noop_runs_issue.md";
+  const templatePath = `${process.env.RUNNER_TEMP}/gh-aw/prompts/noop_runs_issue.md`;
   const parentBodyContent = fs.readFileSync(templatePath, "utf8");
 
   // Add expiration marker (30 days from now) inside the quoted section using helper
@@ -140,7 +140,7 @@ async function main() {
     }
 
     // Load comment template from file
-    const commentTemplatePath = "/opt/gh-aw/prompts/noop_comment.md";
+    const commentTemplatePath = `${process.env.RUNNER_TEMP}/gh-aw/prompts/noop_comment.md`;
     const commentTemplate = fs.readFileSync(commentTemplatePath, "utf8");
 
     // Build the comment body by replacing template variables

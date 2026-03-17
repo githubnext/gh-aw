@@ -13,22 +13,22 @@
  *
  * Environment variables:
  *   GH_AW_SAFE_OUTPUTS_TOOLS_SOURCE_PATH - Path to the source safe_outputs_tools.json
- *     Default: /opt/gh-aw/actions/safe_outputs_tools.json
+ *     Default: ${RUNNER_TEMP}/gh-aw/actions/safe_outputs_tools.json
  *   GH_AW_SAFE_OUTPUTS_CONFIG_PATH - Path to config.json (used to determine enabled tools)
- *     Default: /opt/gh-aw/safeoutputs/config.json
+ *     Default: ${RUNNER_TEMP}/gh-aw/safeoutputs/config.json
  *   GH_AW_SAFE_OUTPUTS_TOOLS_META_PATH - Path to tools_meta.json (descriptions, repo params, dynamic tools)
- *     Default: /opt/gh-aw/safeoutputs/tools_meta.json
+ *     Default: ${RUNNER_TEMP}/gh-aw/safeoutputs/tools_meta.json
  *   GH_AW_SAFE_OUTPUTS_TOOLS_PATH - Output path for the generated tools.json
- *     Default: /opt/gh-aw/safeoutputs/tools.json
+ *     Default: ${RUNNER_TEMP}/gh-aw/safeoutputs/tools.json
  */
 
 const fs = require("fs");
 const path = require("path");
 
-const toolsSourcePath = process.env.GH_AW_SAFE_OUTPUTS_TOOLS_SOURCE_PATH || "/opt/gh-aw/actions/safe_outputs_tools.json";
-const configPath = process.env.GH_AW_SAFE_OUTPUTS_CONFIG_PATH || "/opt/gh-aw/safeoutputs/config.json";
+const toolsSourcePath = process.env.GH_AW_SAFE_OUTPUTS_TOOLS_SOURCE_PATH || `${process.env.RUNNER_TEMP}/gh-aw/actions/safe_outputs_tools.json`;
+const configPath = process.env.GH_AW_SAFE_OUTPUTS_CONFIG_PATH || `${process.env.RUNNER_TEMP}/gh-aw/safeoutputs/config.json`;
 const toolsMetaPath = process.env.GH_AW_SAFE_OUTPUTS_TOOLS_META_PATH || path.join(path.dirname(configPath), "tools_meta.json");
-const outputPath = process.env.GH_AW_SAFE_OUTPUTS_TOOLS_PATH || "/opt/gh-aw/safeoutputs/tools.json";
+const outputPath = process.env.GH_AW_SAFE_OUTPUTS_TOOLS_PATH || `${process.env.RUNNER_TEMP}/gh-aw/safeoutputs/tools.json`;
 
 // Load all source tools from the actions folder
 if (!fs.existsSync(toolsSourcePath)) {

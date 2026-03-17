@@ -120,13 +120,13 @@ describe("safe_outputs_config", () => {
       fs.mkdirSync(configDir, { recursive: true });
       fs.writeFileSync(testConfigPath, JSON.stringify({}));
 
-      // Mock fs.mkdirSync to avoid permission error on /opt/gh-aw/safeoutputs
+      // Mock fs.mkdirSync to avoid permission error on ${RUNNER_TEMP}/gh-aw/safeoutputs
       const mkdirSyncSpy = vi.spyOn(fs, "mkdirSync").mockImplementation(() => undefined);
       const existsSyncSpy = vi.spyOn(fs, "existsSync");
       const originalExistsSync = existsSyncSpy.getMockImplementation() || fs.existsSync.bind(fs);
       existsSyncSpy.mockImplementation(p => {
-        // Pretend /opt/gh-aw/safeoutputs exists to skip mkdir
-        if (String(p).startsWith("/opt/gh-aw/safeoutputs")) return true;
+        // Pretend ${RUNNER_TEMP}/gh-aw/safeoutputs exists to skip mkdir
+        if (String(p).startsWith(`${process.env.RUNNER_TEMP}/gh-aw/safeoutputs`)) return true;
         return originalExistsSync(p);
       });
 
@@ -134,7 +134,7 @@ describe("safe_outputs_config", () => {
         /** @type {import("./safe_outputs_config.cjs").LoadConfigResult} */
         const result = loadConfig(mockServer);
 
-        expect(result.outputFile).toBe("/opt/gh-aw/safeoutputs/outputs.jsonl");
+        expect(result.outputFile).toBe(`${process.env.RUNNER_TEMP}/gh-aw/safeoutputs/outputs.jsonl`);
         expect(mockServer.debug).toHaveBeenCalledWith(expect.stringContaining("GH_AW_SAFE_OUTPUTS not set"));
       } finally {
         mkdirSyncSpy.mockRestore();

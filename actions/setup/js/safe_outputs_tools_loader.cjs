@@ -11,7 +11,7 @@ const fs = require("fs");
  * @returns {Array} Array of tool definitions
  */
 function loadTools(server) {
-  const toolsPath = process.env.GH_AW_SAFE_OUTPUTS_TOOLS_PATH || "/opt/gh-aw/safeoutputs/tools.json";
+  const toolsPath = process.env.GH_AW_SAFE_OUTPUTS_TOOLS_PATH || `${process.env.RUNNER_TEMP}/gh-aw/safeoutputs/tools.json`;
 
   server.debug(`Reading tools from file: ${toolsPath}`);
 

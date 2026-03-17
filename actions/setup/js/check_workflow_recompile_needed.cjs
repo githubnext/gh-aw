@@ -128,7 +128,7 @@ async function main() {
 
   // Read the issue template from the prompts directory
   // Allow override via environment variable for testing
-  const promptsDir = process.env.GH_AW_PROMPTS_DIR || "/opt/gh-aw/prompts";
+  const promptsDir = process.env.GH_AW_PROMPTS_DIR || `${process.env.RUNNER_TEMP}/gh-aw/prompts`;
   const templatePath = `${promptsDir}/workflow_recompile_issue.md`;
   let issueTemplate;
   try {

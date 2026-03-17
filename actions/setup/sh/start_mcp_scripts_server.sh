@@ -4,20 +4,20 @@
 
 set -e
 
-cd /opt/gh-aw/mcp-scripts || exit 1
+cd ${RUNNER_TEMP}/gh-aw/mcp-scripts || exit 1
 
 # Verify required files exist
 echo "Verifying mcp-scripts setup..."
 
 # Check core configuration files
 if [ ! -f mcp-server.cjs ]; then
-  echo "ERROR: mcp-server.cjs not found in /opt/gh-aw/mcp-scripts"
-  ls -la /opt/gh-aw/mcp-scripts/
+  echo "ERROR: mcp-server.cjs not found in ${RUNNER_TEMP}/gh-aw/mcp-scripts"
+  ls -la ${RUNNER_TEMP}/gh-aw/mcp-scripts/
   exit 1
 fi
 if [ ! -f tools.json ]; then
-  echo "ERROR: tools.json not found in /opt/gh-aw/mcp-scripts"
-  ls -la /opt/gh-aw/mcp-scripts/
+  echo "ERROR: tools.json not found in ${RUNNER_TEMP}/gh-aw/mcp-scripts"
+  ls -la ${RUNNER_TEMP}/gh-aw/mcp-scripts/
   exit 1
 fi
 
@@ -48,13 +48,13 @@ for dep in "${REQUIRED_DEPS[@]}"; do
 done
 
 if [ ${#MISSING_FILES[@]} -gt 0 ]; then
-  echo "ERROR: Missing required dependency files in /opt/gh-aw/mcp-scripts/"
+  echo "ERROR: Missing required dependency files in ${RUNNER_TEMP}/gh-aw/mcp-scripts/"
   for file in "${MISSING_FILES[@]}"; do
     echo "  - $file"
   done
   echo
   echo "Current directory contents:"
-  ls -la /opt/gh-aw/mcp-scripts/
+  ls -la ${RUNNER_TEMP}/gh-aw/mcp-scripts/
   echo
   echo "These files should have been copied by the Setup Scripts action."
   echo "This usually indicates a problem with the actions/setup step."

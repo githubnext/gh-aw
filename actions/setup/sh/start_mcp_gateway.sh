@@ -355,19 +355,19 @@ echo "Detected engine type: $ENGINE_TYPE"
 case "$ENGINE_TYPE" in
   copilot)
     echo "Using Copilot converter..."
-    bash /opt/gh-aw/actions/convert_gateway_config_copilot.sh
+    bash ${RUNNER_TEMP}/gh-aw/actions/convert_gateway_config_copilot.sh
     ;;
   codex)
     echo "Using Codex converter..."
-    bash /opt/gh-aw/actions/convert_gateway_config_codex.sh
+    bash ${RUNNER_TEMP}/gh-aw/actions/convert_gateway_config_codex.sh
     ;;
   claude)
     echo "Using Claude converter..."
-    bash /opt/gh-aw/actions/convert_gateway_config_claude.sh
+    bash ${RUNNER_TEMP}/gh-aw/actions/convert_gateway_config_claude.sh
     ;;
   gemini)
     echo "Using Gemini converter..."
-    bash /opt/gh-aw/actions/convert_gateway_config_gemini.sh
+    bash ${RUNNER_TEMP}/gh-aw/actions/convert_gateway_config_gemini.sh
     ;;
   *)
     echo "No agent-specific converter found for engine: $ENGINE_TYPE"
@@ -384,13 +384,13 @@ echo ""
 # Check MCP server functionality
 echo "Checking MCP server functionality..."
 MCP_CHECK_START=$(date +%s%3N)
-if [ -f /opt/gh-aw/actions/check_mcp_servers.sh ]; then
+if [ -f ${RUNNER_TEMP}/gh-aw/actions/check_mcp_servers.sh ]; then
   echo "Running MCP server checks..."
   # Store check diagnostic logs in /tmp/gh-aw/mcp-logs/start-gateway.log for artifact upload
   # Use tee to output to both stdout and the log file
   # Enable pipefail so the exit code comes from check_mcp_servers.sh, not tee
   set -o pipefail
-  if ! bash /opt/gh-aw/actions/check_mcp_servers.sh \
+  if ! bash ${RUNNER_TEMP}/gh-aw/actions/check_mcp_servers.sh \
     /tmp/gh-aw/mcp-config/gateway-output.json \
     "http://localhost:${MCP_GATEWAY_PORT}" \
     "${MCP_GATEWAY_API_KEY}" 2>&1 | tee /tmp/gh-aw/mcp-logs/start-gateway.log; then
@@ -402,7 +402,7 @@ if [ -f /opt/gh-aw/actions/check_mcp_servers.sh ]; then
   set +o pipefail
   print_timing $MCP_CHECK_START "MCP server connectivity checks"
 else
-  echo "WARNING: MCP server check script not found at /opt/gh-aw/actions/check_mcp_servers.sh"
+  echo "WARNING: MCP server check script not found at ${RUNNER_TEMP}/gh-aw/actions/check_mcp_servers.sh"
   echo "Skipping MCP server functionality checks"
 fi
 echo ""

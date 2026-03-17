@@ -24,8 +24,8 @@ const { ERR_VALIDATION } = require("./error_codes.cjs");
  */
 async function main() {
   // Read the threat detection template from file
-  // At runtime, markdown files are copied to /opt/gh-aw/prompts/ by the setup action
-  const templatePath = "/opt/gh-aw/prompts/threat_detection.md";
+  // At runtime, markdown files are copied to ${RUNNER_TEMP}/gh-aw/prompts/ by the setup action
+  const templatePath = `${process.env.RUNNER_TEMP}/gh-aw/prompts/threat_detection.md`;
   if (!fs.existsSync(templatePath)) {
     core.setFailed(`${ERR_VALIDATION}: Threat detection template not found at: ${templatePath}`);
     return;

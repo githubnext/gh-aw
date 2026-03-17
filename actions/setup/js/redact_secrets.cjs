@@ -2,8 +2,8 @@
 /// <reference types="@actions/github-script" />
 
 /**
- * Redacts secrets from files in /tmp/gh-aw and /opt/gh-aw directories before uploading artifacts
- * This script processes all .txt, .json, .log, .md, .mdx, .yml, .jsonl files under /tmp/gh-aw and /opt/gh-aw
+ * Redacts secrets from files in /tmp/gh-aw and ${RUNNER_TEMP}/gh-aw directories before uploading artifacts
+ * This script processes all .txt, .json, .log, .md, .mdx, .yml, .jsonl files under /tmp/gh-aw and ${RUNNER_TEMP}/gh-aw
  * and redacts any strings matching the actual secret values provided via environment variables.
  */
 const fs = require("fs");
@@ -171,7 +171,7 @@ async function main() {
   // Get the list of secret names from environment variable
   const secretNames = process.env.GH_AW_SECRET_NAMES;
 
-  core.info("Starting secret redaction in /tmp/gh-aw and /opt/gh-aw directories");
+  core.info(`Starting secret redaction in /tmp/gh-aw and ${process.env.RUNNER_TEMP}/gh-aw directories`);
   try {
     // Collect custom secret values from environment variables
     const secretValues = [];
@@ -196,12 +196,12 @@ async function main() {
     // Always scan for built-in patterns, even if there are no custom secrets
     core.info("Scanning for built-in credential patterns and custom secrets");
 
-    // Find all target files in /tmp/gh-aw and /opt/gh-aw directories
+    // Find all target files in /tmp/gh-aw and ${RUNNER_TEMP}/gh-aw directories
     const targetExtensions = [".txt", ".json", ".log", ".md", ".mdx", ".yml", ".jsonl"];
     const tmpFiles = findFiles("/tmp/gh-aw", targetExtensions);
-    const optFiles = findFiles("/opt/gh-aw", targetExtensions);
+    const optFiles = findFiles(`${process.env.RUNNER_TEMP}/gh-aw`, targetExtensions);
     const files = [...tmpFiles, ...optFiles];
-    core.info(`Found ${files.length} file(s) to scan for secrets (${tmpFiles.length} in /tmp/gh-aw, ${optFiles.length} in /opt/gh-aw)`);
+    core.info(`Found ${files.length} file(s) to scan for secrets (${tmpFiles.length} in /tmp/gh-aw, ${optFiles.length} in ${process.env.RUNNER_TEMP}/gh-aw)`);
     let totalRedactions = 0;
     let filesWithRedactions = 0;
     // Process each file

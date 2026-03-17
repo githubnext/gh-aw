@@ -20,7 +20,7 @@ const main = buildMissingIssueHandler({
   defaultTitlePrefix: "[missing data]",
   defaultLabels: ["agentic-workflows"],
   itemsField: "missing_data",
-  templatePath: "/opt/gh-aw/prompts/missing_data_issue.md",
+  templatePath: `${process.env.RUNNER_TEMP}/gh-aw/prompts/missing_data_issue.md`,
   templateListKey: "missing_data_list",
   buildCommentHeader: runUrl => [`## Missing Data Reported`, ``, `The following data was reported as missing during [workflow run](${runUrl}):`, ``],
   renderCommentItem: (item, index) => {
