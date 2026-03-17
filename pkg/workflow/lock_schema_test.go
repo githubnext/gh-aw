@@ -456,8 +456,7 @@ on: push
 
 func TestExtractMetadataRealisticLockFile(t *testing.T) {
 	// Realistic lock file content with metadata
-	content := `#
-#    ___                   _   _      
+	content := `#    ___                   _   _      
 #   / _ \                 | | (_)     
 #  | |_| | __ _  ___ _ __ | |_ _  ___ 
 #
