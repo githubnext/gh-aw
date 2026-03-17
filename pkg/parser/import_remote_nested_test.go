@@ -470,7 +470,7 @@ func TestResolveRemoteSymlinksPathConstruction(t *testing.T) {
 	// GitHub API access, which is tested in integration tests.
 
 	t.Run("single component path returns error", func(t *testing.T) {
-		_, err := resolveRemoteSymlinks("owner", "repo", "file.md", "main")
+		_, err := resolveRemoteSymlinks(nil, "owner", "repo", "file.md", "main")
 		assert.Error(t, err, "Single component path has no directories to resolve")
 	})
 
