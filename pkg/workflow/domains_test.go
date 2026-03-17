@@ -1073,9 +1073,9 @@ func TestGetAPITargetDomains(t *testing.T) {
 			expected:  []string{"api.enterprise.githubcopilot.com", "enterprise.githubcopilot.com"},
 		},
 		{
-			name:      "non-api. prefix hostname returns both levels",
+			name:      "non-api. prefix hostname returns only itself",
 			apiTarget: "copilot.example.com",
-			expected:  []string{"copilot.example.com", "example.com"},
+			expected:  []string{"copilot.example.com"},
 		},
 		{
 			name:      "single label hostname (no dot) returns only itself",
