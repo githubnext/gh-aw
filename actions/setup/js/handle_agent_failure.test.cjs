@@ -302,10 +302,25 @@ describe("handle_agent_failure", () => {
 
   describe("buildAppTokenMintingFailedContext", () => {
     let buildAppTokenMintingFailedContext;
+    const fs = require("fs");
+    const path = require("path");
+    const templateContent = fs.readFileSync(path.join(__dirname, "../md/app_token_minting_failed.md"), "utf8");
+    const originalReadFileSync = fs.readFileSync.bind(fs);
 
     beforeEach(() => {
       vi.resetModules();
+      // Stub readFileSync so the runtime path resolves to the source-tree template
+      fs.readFileSync = (filePath, encoding) => {
+        if (typeof filePath === "string" && filePath.includes("app_token_minting_failed.md")) {
+          return templateContent;
+        }
+        return originalReadFileSync(filePath, encoding);
+      };
       ({ buildAppTokenMintingFailedContext } = require("./handle_agent_failure.cjs"));
+    });
+
+    afterEach(() => {
+      fs.readFileSync = originalReadFileSync;
     });
 
     it("returns empty string when no failure", () => {

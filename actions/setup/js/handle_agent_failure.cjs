@@ -645,14 +645,9 @@ function buildAppTokenMintingFailedContext(hasAppTokenMintingFailed) {
     return "";
   }
 
-  let ctx = "\n**🔑 GitHub App Authentication Failed**: Failed to generate a GitHub App installation access token.\n\n";
-  ctx += "This is typically caused by an incorrect GitHub App configuration. Please verify:\n";
-  ctx += "- The **App ID** secret/variable is set correctly\n";
-  ctx += "- The **private key** secret contains a valid PEM-encoded RSA private key\n";
-  ctx += "- The GitHub App is **installed** on the target repository or organization\n";
-  ctx += "- The App has the **required permissions** for your workflow's safe-outputs\n\n";
-  ctx += "For more information, see: https://github.github.com/gh-aw/reference/safe-outputs/#github-app\n";
-  return ctx;
+  const templatePath = "/opt/gh-aw/prompts/app_token_minting_failed.md";
+  const template = fs.readFileSync(templatePath, "utf8");
+  return "\n" + template;
 }
 
 /**
