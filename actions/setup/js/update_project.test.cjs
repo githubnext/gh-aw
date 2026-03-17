@@ -1085,6 +1085,70 @@ describe("updateProject", () => {
     expect(getOutput("item-id")).toBe("camel-item");
   });
 
+  it("normalizes dash-style content-repo alias to content_repo", async () => {
+    const projectUrl = "https://github.com/orgs/testowner/projects/60";
+    const output = {
+      type: "update_project",
+      project: projectUrl,
+      content_type: "issue",
+      content_number: 88,
+      "content-repo": "dashowner/dashrepo",
+    };
+
+    queueResponses([repoResponse(), viewerResponse(), orgProjectV2Response(projectUrl, 60, "project-dash-repo"), issueResponse("dash-issue-id"), emptyItemsResponse(), { addProjectV2ItemById: { item: { id: "dash-item" } } }]);
+
+    await updateProject(output);
+
+    const contentQuery = mockGithub.graphql.mock.calls.find(([query, vars]) => query.includes("issue(number:") && vars?.owner === "dashowner");
+    expect(contentQuery).toBeDefined();
+    expect(contentQuery[1]).toMatchObject({ owner: "dashowner", repo: "dashrepo", number: 88 });
+    expect(getOutput("item-id")).toBe("dash-item");
+  });
+
+  it("trims whitespace from content_repo before resolving", async () => {
+    const projectUrl = "https://github.com/orgs/testowner/projects/60";
+    const output = {
+      type: "update_project",
+      project: projectUrl,
+      content_type: "issue",
+      content_number: 99,
+      content_repo: "  trimowner/trimrepo  ",
+    };
+
+    queueResponses([repoResponse(), viewerResponse(), orgProjectV2Response(projectUrl, 60, "project-trim-repo"), issueResponse("trim-issue-id"), emptyItemsResponse(), { addProjectV2ItemById: { item: { id: "trim-item" } } }]);
+
+    await updateProject(output);
+
+    const contentQuery = mockGithub.graphql.mock.calls.find(([query, vars]) => query.includes("issue(number:") && vars?.owner === "trimowner");
+    expect(contentQuery).toBeDefined();
+    expect(contentQuery[1]).toMatchObject({ owner: "trimowner", repo: "trimrepo", number: 99 });
+    expect(mockCore.warning).not.toHaveBeenCalled();
+  });
+
+  it("warns and falls back to context.repo on invalid content_repo format (no slash)", async () => {
+    const projectUrl = "https://github.com/orgs/testowner/projects/60";
+    const output = {
+      type: "update_project",
+      project: projectUrl,
+      content_type: "issue",
+      content_number: 42,
+      content_repo: "noslashrepo",
+    };
+
+    queueResponses([repoResponse(), viewerResponse(), orgProjectV2Response(projectUrl, 60, "project-fallback"), issueResponse("fallback-issue-id"), emptyItemsResponse(), { addProjectV2ItemById: { item: { id: "fallback-item" } } }]);
+
+    await updateProject(output);
+
+    // Warning should be emitted once with the full invalid format message
+    expect(mockCore.warning).toHaveBeenCalledTimes(1);
+    expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining('Invalid content_repo format "noslashrepo": expected "owner/repo". Falling back to workflow host repository.'));
+
+    // GraphQL content query should use context.repo fallback (testowner/testrepo)
+    const contentQuery = mockGithub.graphql.mock.calls.find(([query, vars]) => query.includes("issue(number:") && vars?.owner === "testowner" && vars?.repo === "testrepo");
+    expect(contentQuery).toBeDefined();
+    expect(contentQuery[1]).toMatchObject({ owner: "testowner", repo: "testrepo", number: 42 });
+  });
+
   it("updates an existing text field", async () => {
     const projectUrl = "https://github.com/orgs/testowner/projects/60";
     const output = {

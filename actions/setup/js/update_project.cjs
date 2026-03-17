@@ -24,6 +24,8 @@ function normalizeUpdateProjectOutput(value) {
   if (output.content_type === undefined && output.contentType !== undefined) output.content_type = output.contentType;
   if (output.content_number === undefined && output.contentNumber !== undefined) output.content_number = output.contentNumber;
   if (output.content_repo === undefined && output.contentRepo !== undefined) output.content_repo = output.contentRepo;
+  // Support YAML dash-style alias: content-repo → content_repo
+  if (output.content_repo === undefined && output["content-repo"] !== undefined) output.content_repo = output["content-repo"];
 
   if (output.draft_title === undefined && output.draftTitle !== undefined) output.draft_title = output.draftTitle;
   if (output.draft_body === undefined && output.draftBody !== undefined) output.draft_body = output.draftBody;
@@ -1015,9 +1017,10 @@ async function updateProject(output, temporaryIdMap = new Map(), githubClient = 
       let contentOwner = owner;
       let contentRepo = repo;
       if (output.content_repo) {
-        const parts = output.content_repo.split("/");
+        const trimmedContentRepo = output.content_repo.trim();
+        const parts = trimmedContentRepo.split("/").map(p => p.trim());
         if (parts.length === 2 && parts[0] && parts[1]) {
-          const requestedContentRepo = output.content_repo;
+          const requestedContentRepo = `${parts[0]}/${parts[1]}`;
           const defaultRepo = `${owner}/${repo}`;
           // Validate against allowed_repos when configured
           if (allowedContentRepos !== null && allowedContentRepos.size > 0) {
