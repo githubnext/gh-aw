@@ -663,7 +663,9 @@ var handlerRegistry = map[string]handlerBuilder{
 		builder := newHandlerConfigBuilder().
 			AddTemplatableInt("max", c.Max).
 			AddIfNotEmpty("github-token", c.GitHubToken).
-			AddIfNotEmpty("project", c.Project)
+			AddIfNotEmpty("project", c.Project).
+			AddIfNotEmpty("target-repo", c.TargetRepoSlug).
+			AddStringSlice("allowed_repos", c.AllowedRepos)
 		if len(c.Views) > 0 {
 			builder.AddDefault("views", c.Views)
 		}

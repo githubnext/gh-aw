@@ -4629,6 +4629,17 @@
                   "pattern": "^https://github\\.com/(users|orgs)/([^/]+|<[A-Z_]+>)/projects/(\\d+|<[A-Z_]+>)$",
                   "examples": ["https://github.com/orgs/myorg/projects/123", "https://github.com/users/username/projects/456"]
                 },
+                "target-repo": {
+                  "type": "string",
+                  "description": "Default repository in format 'owner/repo' for cross-repository content resolution. When specified, the agent can use 'content_repo' in agent output to resolve issues or PRs from this repository. Wildcards ('*') are not allowed."
+                },
+                "allowed-repos": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "description": "List of additional repositories in format 'owner/repo' allowed for cross-repository content resolution via 'content_repo'. The target-repo (or current repo) is always implicitly allowed. Supports wildcard patterns (e.g., 'org/*')."
+                },
                 "views": {
                   "type": "array",
                   "description": "Optional array of project views to create. Each view must have a name and layout. Views are created during project setup.",
