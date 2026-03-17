@@ -29,6 +29,13 @@ func (c *Compiler) buildMainJob(data *WorkflowData, activationJobCreated bool) (
 		steps = append(steps, c.generateSetupStep(setupActionRef, SetupActionDestination, false)...)
 	}
 
+	// Set runtime paths that depend on RUNNER_TEMP via $GITHUB_ENV.
+	// These cannot be set in job-level env: because the runner context is not
+	// available there (only in step-level env: and run: blocks).
+	if data.SafeOutputs != nil {
+		steps = append(steps, c.generateSetRuntimePathsStep()...)
+	}
+
 	// Checkout .github folder is now done in activation job (before prompt generation)
 	// This ensures the activation job has access to .github and .agents folders for runtime imports
 
@@ -179,18 +186,13 @@ func (c *Compiler) buildMainJob(data *WorkflowData, activationJobCreated bool) (
 	if data.SafeOutputs != nil {
 		env = make(map[string]string)
 
-		// Set GH_AW_SAFE_OUTPUTS to path in /opt (read-only mount for agent container)
-		// The MCP server writes agent outputs to this file during execution
-		// This file is in /opt to prevent the agent container from having write access
-		env["GH_AW_SAFE_OUTPUTS"] = "${{ runner.temp }}/gh-aw/safeoutputs/outputs.jsonl"
-
 		// Set GH_AW_MCP_LOG_DIR for safe outputs MCP server logging
 		// Store in mcp-logs directory so it's included in mcp-logs artifact
 		env["GH_AW_MCP_LOG_DIR"] = "/tmp/gh-aw/mcp-logs/safeoutputs"
 
-		// Set config and tools paths (readonly files in ${RUNNER_TEMP}/gh-aw)
-		env["GH_AW_SAFE_OUTPUTS_CONFIG_PATH"] = "${{ runner.temp }}/gh-aw/safeoutputs/config.json"
-		env["GH_AW_SAFE_OUTPUTS_TOOLS_PATH"] = "${{ runner.temp }}/gh-aw/safeoutputs/tools.json"
+		// Note: GH_AW_SAFE_OUTPUTS, GH_AW_SAFE_OUTPUTS_CONFIG_PATH, and
+		// GH_AW_SAFE_OUTPUTS_TOOLS_PATH are set via a run step (see generateSetRuntimePathsStep)
+		// because the runner context is not available in job-level env: blocks.
 
 		// Add asset-related environment variables
 		// These must always be set (even to empty) because awmg v0.0.12+ validates ${VAR} references

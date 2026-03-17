@@ -425,6 +425,19 @@ func (c *Compiler) generateSetupStep(setupActionRef string, destination string, 
 	return lines
 }
 
+// generateSetRuntimePathsStep generates a step that sets RUNNER_TEMP-based env vars
+// via $GITHUB_ENV. These cannot be set in job-level env: because the runner context
+// is not available there.
+func (c *Compiler) generateSetRuntimePathsStep() []string {
+	return []string{
+		"      - name: Set runtime paths\n",
+		"        run: |\n",
+		"          echo \"GH_AW_SAFE_OUTPUTS=${RUNNER_TEMP}/gh-aw/safeoutputs/outputs.jsonl\" >> \"$GITHUB_ENV\"\n",
+		"          echo \"GH_AW_SAFE_OUTPUTS_CONFIG_PATH=${RUNNER_TEMP}/gh-aw/safeoutputs/config.json\" >> \"$GITHUB_ENV\"\n",
+		"          echo \"GH_AW_SAFE_OUTPUTS_TOOLS_PATH=${RUNNER_TEMP}/gh-aw/safeoutputs/tools.json\" >> \"$GITHUB_ENV\"\n",
+	}
+}
+
 // renderStepFromMap renders a GitHub Actions step from a map to YAML
 func (c *Compiler) renderStepFromMap(yaml *strings.Builder, step map[string]any, data *WorkflowData, indent string) {
 	// Start the step with a dash
