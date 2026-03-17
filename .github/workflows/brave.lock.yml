@@ -210,10 +210,8 @@ jobs:
           {{/if}}
           </github-context>
           
-          <github-mcp-tools>
-          The GitHub MCP server is read-only. Use GitHub MCP tools for all GitHub reads: listing and searching issues, pull requests, discussions, labels, milestones; reading workflow runs, jobs, and artifacts; accessing repository contents, code, and metadata. Do not use shell `gh` commands for GitHub API reads — `gh` is not authenticated. Use safeoutputs tools for GitHub writes and completion signaling.
-          </github-mcp-tools>
           GH_AW_PROMPT_EOF
+          cat "/opt/gh-aw/prompts/github_mcp_tools_with_safeoutputs_prompt.md"
           if [ "$GITHUB_EVENT_NAME" = "issue_comment" ] && [ -n "$GH_AW_IS_PR_COMMENT" ] || [ "$GITHUB_EVENT_NAME" = "pull_request_review_comment" ] || [ "$GITHUB_EVENT_NAME" = "pull_request_review" ]; then
             cat "/opt/gh-aw/prompts/pr_context_prompt.md"
           fi
