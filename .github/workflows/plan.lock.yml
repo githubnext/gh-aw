@@ -519,7 +519,7 @@ jobs:
             }
           }
           GH_AW_SAFE_OUTPUTS_VALIDATION_EOF
-          node /tmp/gh-aw/actions/generate_safe_outputs_tools.cjs
+          node /opt/gh-aw/actions/generate_safe_outputs_tools.cjs
       - name: Generate Safe Outputs MCP Server Config
         id: safe-outputs-config
         run: |

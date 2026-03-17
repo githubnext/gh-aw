@@ -54,7 +54,7 @@ Test workflow for tools meta description suffixes.
 	assert.NotContains(t, yamlStr, "cat > /opt/gh-aw/safeoutputs/tools.json", "should NOT inline tools.json")
 
 	// Must invoke the JavaScript generator at runtime
-	assert.Contains(t, yamlStr, "node /tmp/gh-aw/actions/generate_safe_outputs_tools.cjs", "should invoke JS generator")
+	assert.Contains(t, yamlStr, "node /opt/gh-aw/actions/generate_safe_outputs_tools.cjs", "should invoke JS generator")
 
 	// Extract the tools_meta.json content from the lock file
 	meta := extractToolsMetaFromLockFile(t, yamlStr)

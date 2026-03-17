@@ -279,7 +279,7 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 		// Generate the final tools.json at runtime from the source file in the actions folder.
 		// generate_safe_outputs_tools.cjs reads safe_outputs_tools.json (deployed by actions/setup),
 		// applies the meta overrides from tools_meta.json, and writes tools.json.
-		yaml.WriteString("          node /tmp/gh-aw/actions/generate_safe_outputs_tools.cjs\n")
+		yaml.WriteString("          node /opt/gh-aw/actions/generate_safe_outputs_tools.cjs\n")
 
 		// Note: The MCP server entry point (mcp-server.cjs) is now copied by actions/setup
 		// from safe-outputs-mcp-server.cjs - no need to generate it here
