@@ -9,6 +9,7 @@ import (
 func (c *Compiler) generateEngineExecutionSteps(yaml *strings.Builder, data *WorkflowData, engine CodingAgentEngine, logFile string) {
 
 	steps := engine.GetExecutionSteps(data, logFile)
+	compilerYamlLog.Printf("Generating engine execution steps: engine=%s, steps=%d", engine.GetID(), len(steps))
 
 	for _, step := range steps {
 		for _, line := range step {

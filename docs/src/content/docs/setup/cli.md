@@ -79,9 +79,11 @@ Commands that support `--create-pull-request` (such as `gh aw add`, `gh aw add-w
 
 `gh aw audit` and `gh aw add-wizard` also auto-detect the GHES host from the git remote, so running them inside a GHES repository works without setting `GH_HOST` manually.
 
-#### Configuring `gh` CLI in workflow steps on GHES
+#### Configuring `gh` CLI on GHES
 
-When agentic workflows run on GitHub Enterprise Server and use custom `steps:` that invoke `gh` CLI commands, source the bundled helper script to configure `gh` for the enterprise host:
+The compiled agent job automatically runs `configure_gh_for_ghe.sh` before the agent starts executing. The script detects the GitHub host from the `GITHUB_SERVER_URL` environment variable (set by GitHub Actions on GHES) and configures `gh` to authenticate against it. No configuration is required for the agent to use `gh` CLI commands on your GHES instance.
+
+For custom `steps:` that run outside the agent sandbox (for example, pre-agent data gathering or post-agent reporting), source the helper script manually:
 
 ```yaml wrap
 steps:
@@ -96,7 +98,7 @@ steps:
       gh pr list --state open --limit 200 --json number,title
 ```
 
-The script automatically detects the GitHub host from the `GITHUB_SERVER_URL` environment variable (set by GitHub Actions on GHES) and configures `gh` to authenticate against it. No manual configuration is needed for standard GHES deployments. The script is installed to `/opt/gh-aw/actions/configure_gh_for_ghe.sh` by the setup action.
+The script is installed to `/opt/gh-aw/actions/configure_gh_for_ghe.sh` by the setup action.
 
 > [!NOTE]
 > Custom steps run outside the agent firewall sandbox and have access to standard GitHub Actions environment variables including `GITHUB_SERVER_URL`, `GITHUB_TOKEN`, and `GH_TOKEN`.
