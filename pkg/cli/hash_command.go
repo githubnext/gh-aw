@@ -16,7 +16,7 @@ var hashLog = logger.New("cli:hash")
 func NewHashCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "hash-frontmatter <workflow>",
-		Short: "Compute frontmatter hash for a workflow",
+		Short: "Compute the frontmatter hash for a workflow",
 		Long: `Compute a deterministic SHA-256 hash of workflow frontmatter.
 
 The hash includes:

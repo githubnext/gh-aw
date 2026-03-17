@@ -12,7 +12,7 @@ func NewSecretsCommand() *cobra.Command {
 	secretsCommandLog.Print("Creating secrets command with subcommands")
 	cmd := &cobra.Command{
 		Use:   "secrets",
-		Short: "Manage repository secrets",
+		Short: "Manage GitHub Actions secrets for agentic workflows",
 		Long: `Manage GitHub Actions secrets for GitHub Agentic Workflows.
 
 This command provides tools for managing secrets required by agentic workflows, including

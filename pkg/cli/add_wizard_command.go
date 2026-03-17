@@ -17,7 +17,7 @@ func NewAddWizardCommand(validateEngine func(string) error) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "add-wizard <workflow>...",
 		Short: "Interactively add one or more agentic workflows with guided setup",
-		Long: `Interactively add one or more workflows with guided setup.
+		Long: `Interactively add one or more agentic workflows with guided setup.
 
 This command walks you through:
   - Selecting an AI engine (Copilot, Claude, or Codex)
