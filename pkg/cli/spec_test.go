@@ -193,7 +193,7 @@ func TestParseWorkflowSpec(t *testing.T) {
 			wantErr:          false,
 		},
 		{
-			name:             "GitHub URL - invalid domain",
+			name:             "GitHub URL - non-github.com host is accepted (e.g. gitlab.com)",
 			spec:             "https://gitlab.com/owner/repo/blob/main/workflows/test.md",
 			wantRepo:         "owner/repo",
 			wantWorkflowPath: "workflows/test.md",

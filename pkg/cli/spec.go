@@ -159,7 +159,7 @@ func parseGitHubURL(spec string) (*WorkflowSpec, error) {
 	}
 
 	if parsedURL.Host == "" {
-		return nil, errors.New("URL must include a host")
+		return nil, fmt.Errorf("URL must include a host: %s", spec)
 	}
 
 	owner, repo, ref, filePath, err := parser.ParseRepoFileURL(spec)

@@ -613,6 +613,10 @@ func resolveRemoteSymlinks(client *api.RESTClient, owner, repo, filePath, ref st
 		return "", fmt.Errorf("no directory components to resolve in path: %s", filePath)
 	}
 
+	if client == nil {
+		return "", fmt.Errorf("no REST client available for symlink resolution of %s/%s/%s@%s", owner, repo, filePath, ref)
+	}
+
 	remoteLog.Printf("Attempting symlink resolution for %s/%s/%s@%s (%d path components)", owner, repo, filePath, ref, len(parts))
 
 	// Check each directory prefix (not including the final filename) to find symlinks
