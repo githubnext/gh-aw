@@ -181,7 +181,7 @@ Trial results are saved both locally (in trials/ directory) and in the host repo
 	cmd.Flags().String("clone-repo", "", "Alternative to --logical-repo: clone the contents of the specified repo into the host repo instead of using logical repository simulation")
 
 	cmd.Flags().String("host-repo", "", "Custom host repository slug (defaults to '<username>/gh-aw-trial'). Use '.' for current repository")
-	cmd.Flags().String("repo", "", "Alias for --host-repo")
+	cmd.Flags().String("repo", "", "Alias for --host-repo: the repository where workflows are installed and run (note: different semantics from --repo in other commands)")
 	cmd.Flags().Bool("delete-host-repo-after", false, "Delete the host repository after completion (default: keep)")
 	cmd.Flags().Bool("force-delete-host-repo-before", false, "Force delete the host repository before creation, if it exists before creating it")
 	cmd.Flags().BoolP("yes", "y", false, "Skip confirmation prompts")
