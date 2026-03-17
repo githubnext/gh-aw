@@ -280,6 +280,175 @@ func TestAddHandlerManagerConfigEnvVar(t *testing.T) {
 			checkJSON:    true,
 			expectedKeys: []string{"call_workflow"},
 		},
+		{
+			name: "submit_pull_request_review config",
+			safeOutputs: &SafeOutputsConfig{
+				SubmitPullRequestReview: &SubmitPullRequestReviewConfig{
+					BaseSafeOutputConfig: BaseSafeOutputConfig{
+						Max: strPtr("1"),
+					},
+				},
+			},
+			checkContains: []string{
+				"GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG",
+			},
+			checkJSON:    true,
+			expectedKeys: []string{"submit_pull_request_review"},
+		},
+		{
+			name: "reply_to_pull_request_review_comment config",
+			safeOutputs: &SafeOutputsConfig{
+				ReplyToPullRequestReviewComment: &ReplyToPullRequestReviewCommentConfig{
+					BaseSafeOutputConfig: BaseSafeOutputConfig{
+						Max: strPtr("5"),
+					},
+				},
+			},
+			checkContains: []string{
+				"GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG",
+			},
+			checkJSON:    true,
+			expectedKeys: []string{"reply_to_pull_request_review_comment"},
+		},
+		{
+			name: "resolve_pull_request_review_thread config",
+			safeOutputs: &SafeOutputsConfig{
+				ResolvePullRequestReviewThread: &ResolvePullRequestReviewThreadConfig{
+					BaseSafeOutputConfig: BaseSafeOutputConfig{
+						Max: strPtr("10"),
+					},
+				},
+			},
+			checkContains: []string{
+				"GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG",
+			},
+			checkJSON:    true,
+			expectedKeys: []string{"resolve_pull_request_review_thread"},
+		},
+		{
+			name: "create_code_scanning_alert config",
+			safeOutputs: &SafeOutputsConfig{
+				CreateCodeScanningAlerts: &CreateCodeScanningAlertsConfig{
+					BaseSafeOutputConfig: BaseSafeOutputConfig{
+						Max: strPtr("3"),
+					},
+					Driver: "Test Scanner",
+				},
+			},
+			checkContains: []string{
+				"GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG",
+			},
+			checkJSON:    true,
+			expectedKeys: []string{"create_code_scanning_alert"},
+		},
+		{
+			name: "remove_labels config",
+			safeOutputs: &SafeOutputsConfig{
+				RemoveLabels: &RemoveLabelsConfig{
+					Allowed: []string{"bug", "wontfix"},
+				},
+			},
+			checkContains: []string{
+				"GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG",
+			},
+			checkJSON:    true,
+			expectedKeys: []string{"remove_labels"},
+		},
+		{
+			name: "update_pull_request config",
+			safeOutputs: &SafeOutputsConfig{
+				UpdatePullRequests: &UpdatePullRequestsConfig{
+					UpdateEntityConfig: UpdateEntityConfig{
+						BaseSafeOutputConfig: BaseSafeOutputConfig{
+							Max: strPtr("1"),
+						},
+					},
+					Title: testBoolPtr(true),
+					Body:  testBoolPtr(true),
+				},
+			},
+			checkContains: []string{
+				"GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG",
+			},
+			checkJSON:    true,
+			expectedKeys: []string{"update_pull_request"},
+		},
+		{
+			name: "update_project config",
+			safeOutputs: &SafeOutputsConfig{
+				UpdateProjects: &UpdateProjectConfig{
+					BaseSafeOutputConfig: BaseSafeOutputConfig{
+						Max: strPtr("5"),
+					},
+				},
+			},
+			checkContains: []string{
+				"GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG",
+			},
+			checkJSON:    true,
+			expectedKeys: []string{"update_project"},
+		},
+		{
+			name: "create_project config",
+			safeOutputs: &SafeOutputsConfig{
+				CreateProjects: &CreateProjectsConfig{
+					BaseSafeOutputConfig: BaseSafeOutputConfig{
+						Max: strPtr("1"),
+					},
+				},
+			},
+			checkContains: []string{
+				"GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG",
+			},
+			checkJSON:    true,
+			expectedKeys: []string{"create_project"},
+		},
+		{
+			name: "create_project_status_update config",
+			safeOutputs: &SafeOutputsConfig{
+				CreateProjectStatusUpdates: &CreateProjectStatusUpdateConfig{
+					BaseSafeOutputConfig: BaseSafeOutputConfig{
+						Max: strPtr("1"),
+					},
+				},
+			},
+			checkContains: []string{
+				"GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG",
+			},
+			checkJSON:    true,
+			expectedKeys: []string{"create_project_status_update"},
+		},
+		{
+			name: "link_sub_issue config",
+			safeOutputs: &SafeOutputsConfig{
+				LinkSubIssue: &LinkSubIssueConfig{
+					BaseSafeOutputConfig: BaseSafeOutputConfig{
+						Max: strPtr("5"),
+					},
+				},
+			},
+			checkContains: []string{
+				"GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG",
+			},
+			checkJSON:    true,
+			expectedKeys: []string{"link_sub_issue"},
+		},
+		{
+			name: "dispatch_workflow config",
+			safeOutputs: &SafeOutputsConfig{
+				DispatchWorkflow: &DispatchWorkflowConfig{
+					BaseSafeOutputConfig: BaseSafeOutputConfig{
+						Max: strPtr("1"),
+					},
+					Workflows: []string{"worker-a"},
+				},
+			},
+			checkContains: []string{
+				"GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG",
+			},
+			checkJSON:    true,
+			expectedKeys: []string{"dispatch_workflow"},
+		},
 	}
 
 	for _, tt := range tests {
