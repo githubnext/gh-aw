@@ -29,7 +29,7 @@
 #     - shared/jqschema.md
 #     - shared/safe-output-app.md
 #
-# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"a68f2edc9e5d35050adaf025a4b924895ab5ec5219264fd0237515b01c0fbb76","strict":true}
+# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"bc0e7b784e29f30ce74e564cdef6ab7024c4908b978900fd92591ae3da48dc62","strict":true}
 
 name: "Changeset Generator"
 "on":

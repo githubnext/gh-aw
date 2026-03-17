@@ -28,7 +28,7 @@
 #     - shared/reporting.md
 #     - shared/safe-output-app.md
 #
-# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"ec4bf7cb905b85ccdcc95c21b2ed16912b1c6737fcbfcecb1cbc252559791663","strict":true}
+# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"4c0a43534e6b56f7c18ebdd303ea3380ecedab1530dd852bdc6d60a317359aaf","strict":true}
 
 name: "Artifacts Summary"
 "on":
