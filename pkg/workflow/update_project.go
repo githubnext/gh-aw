@@ -25,7 +25,8 @@ type ProjectFieldDefinition struct {
 type UpdateProjectConfig struct {
 	BaseSafeOutputConfig `yaml:",inline"`
 	GitHubToken          string                   `yaml:"github-token,omitempty"`
-	Project              string                   `yaml:"project,omitempty"` // Default project URL for operations
+	Project              string                   `yaml:"project,omitempty"`       // Default project URL for operations
+	AllowedRepos         []string                 `yaml:"allowed-repos,omitempty"` // Optional list of repositories allowed as content_repo for cross-repo issue/PR resolution
 	Views                []ProjectView            `yaml:"views,omitempty"`
 	FieldDefinitions     []ProjectFieldDefinition `yaml:"field-definitions,omitempty" json:"field_definitions,omitempty"`
 }
@@ -57,6 +58,9 @@ func (c *Compiler) parseUpdateProjectConfig(outputMap map[string]any) *UpdatePro
 				}
 			}
 
+			// Parse allowed-repos for cross-repo content_repo validation
+			updateProjectConfig.AllowedRepos = parseAllowedReposFromConfig(configMap)
+
 			// Parse views if specified
 			updateProjectConfig.Views = parseProjectViews(configMap, updateProjectLog)
 
@@ -64,8 +68,8 @@ func (c *Compiler) parseUpdateProjectConfig(outputMap map[string]any) *UpdatePro
 			updateProjectConfig.FieldDefinitions = parseProjectFieldDefinitions(configMap, updateProjectLog)
 		}
 
-		updateProjectLog.Printf("Parsed update-project config: max=%d, hasCustomToken=%v, hasCustomProject=%v, viewCount=%d, fieldDefinitionCount=%d",
-			updateProjectConfig.Max, updateProjectConfig.GitHubToken != "", updateProjectConfig.Project != "", len(updateProjectConfig.Views), len(updateProjectConfig.FieldDefinitions))
+		updateProjectLog.Printf("Parsed update-project config: max=%d, hasCustomToken=%v, hasCustomProject=%v, allowedReposCount=%d, viewCount=%d, fieldDefinitionCount=%d",
+			updateProjectConfig.Max, updateProjectConfig.GitHubToken != "", updateProjectConfig.Project != "", len(updateProjectConfig.AllowedRepos), len(updateProjectConfig.Views), len(updateProjectConfig.FieldDefinitions))
 		return updateProjectConfig
 	}
 	updateProjectLog.Print("No update-project configuration found")
