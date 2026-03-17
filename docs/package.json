@@ -26,7 +26,7 @@
     "starlight-blog": "^0.25.3",
     "starlight-changelogs": "^0.4.0",
     "starlight-links-validator": "^0.19.2",
-    "starlight-llms-txt": "^0.7.0",
+    "starlight-llms-txt": "^0.8.0",
     "yaml": "^2.8.2"
   },
   "devDependencies": {
