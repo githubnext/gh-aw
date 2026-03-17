@@ -5,6 +5,7 @@ on:
   schedule:
     - cron: daily
   workflow_dispatch:
+  skip-if-no-match: "is:pr is:open author:app/dependabot label:dependencies"
 
 permissions:
   contents: read

@@ -68,7 +68,7 @@ jobs:
 
       - name: Install dependencies
         working-directory: ./docs
-        run: npm ci
+        run: npm ci --legacy-peer-deps
 
       - name: Build documentation
         working-directory: ./docs
