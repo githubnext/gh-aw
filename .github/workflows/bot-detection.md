@@ -33,7 +33,7 @@ jobs:
         id: precompute
         uses: actions/github-script@v8
         with:
-          github-token: ${{ secrets.GH_AW_BOT_DETECTION_TOKEN || secrets.GITHUB_TOKEN }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
             const { owner, repo } = context.repo;
             const HOURS_BACK = 6;

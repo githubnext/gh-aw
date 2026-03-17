@@ -23,7 +23,7 @@
 #
 # Investigates suspicious repository activity and maintains a single triage issue
 #
-# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"45b5b917f22b3ce4657e92078ab1e4c13bda07e7c2497a72f877acf95ead5941","strict":true}
+# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"f847d84805ff36145ce98c043742c4640b7d8a9ecb702994ee8ffdbfbdb49117","strict":true}
 
 name: "Bot Detection"
 "on":
@@ -920,7 +920,7 @@ jobs:
         id: precompute
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         with:
-          github-token: ${{ secrets.GH_AW_BOT_DETECTION_TOKEN || secrets.GITHUB_TOKEN }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
             const { owner, repo } = context.repo;
             const HOURS_BACK = 6;
