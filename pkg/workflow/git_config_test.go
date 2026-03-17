@@ -193,14 +193,15 @@ func TestGitCredentialsCleanerStepsHelper(t *testing.T) {
 
 	steps := compiler.generateGitCredentialsCleanerStep()
 
-	// Verify we get expected number of lines (2 lines: name and run)
-	if len(steps) != 2 {
-		t.Errorf("Expected 2 lines in git credentials cleaner steps, got %d", len(steps))
+	// Verify we get expected number of lines (3 lines: name, continue-on-error, and run)
+	if len(steps) != 3 {
+		t.Errorf("Expected 3 lines in git credentials cleaner steps, got %d", len(steps))
 	}
 
 	// Verify the content of the steps
 	expectedContents := []string{
 		"Clean git credentials",
+		"continue-on-error: true",
 		"run: bash /opt/gh-aw/actions/clean_git_credentials.sh",
 	}
 
@@ -215,5 +216,58 @@ func TestGitCredentialsCleanerStepsHelper(t *testing.T) {
 	// Verify proper indentation (should start with 6 spaces for job step level)
 	if !strings.HasPrefix(steps[0], "      - name:") {
 		t.Error("Expected first line to have proper indentation for job step (6 spaces)")
+	}
+}
+
+// TestGitConfigurationSkippedWhenCheckoutDisabled verifies that git credential steps
+// are not emitted when checkout: false is set in the workflow frontmatter.
+func TestGitConfigurationSkippedWhenCheckoutDisabled(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "git-config-checkout-false-test")
+
+	testContent := `---
+on: issues
+permissions:
+  issues: read
+engine: copilot
+checkout: false
+---
+
+# Test Workflow (no checkout)
+
+This workflow uses API tools only and does not need the repository to be checked out.
+`
+
+	testFile := filepath.Join(tmpDir, "test-no-checkout.md")
+	if err := os.WriteFile(testFile, []byte(testContent), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	compiler := NewCompiler()
+	compiler.SetSkipValidation(true)
+
+	workflowData, err := compiler.ParseWorkflowFile(testFile)
+	if err != nil {
+		t.Fatalf("Failed to parse workflow file: %v", err)
+	}
+
+	lockContent, err := compiler.generateYAML(workflowData, testFile)
+	if err != nil {
+		t.Fatalf("Failed to generate YAML: %v", err)
+	}
+
+	// When checkout: false, the agent job must NOT contain "Configure Git credentials"
+	// since there is no .git directory and git remote set-url origin would fail.
+	if strings.Contains(lockContent, "Configure Git credentials") {
+		t.Error("'Configure Git credentials' step must NOT be present when checkout: false (no .git directory)")
+	}
+
+	// The "Clean git credentials" step should still be present (resilient, continue-on-error)
+	if !strings.Contains(lockContent, "Clean git credentials") {
+		t.Error("Expected 'Clean git credentials' step to still be present even when checkout: false")
+	}
+
+	// Verify continue-on-error is set on the cleaner step
+	if !strings.Contains(lockContent, "continue-on-error: true") {
+		t.Error("Expected 'continue-on-error: true' on Clean git credentials step")
 	}
 }

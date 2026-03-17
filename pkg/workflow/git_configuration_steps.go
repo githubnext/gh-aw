@@ -68,10 +68,13 @@ func getGitIdentityEnvVars() map[string]string {
 }
 
 // generateGitCredentialsCleanerStep generates a step that removes git credentials from .git/config
-// This is a security measure to prevent credentials left by injected steps from being accessed by the agent
+// This is a security measure to prevent credentials left by injected steps from being accessed by the agent.
+// The step uses continue-on-error to remain resilient when no .git directory exists (e.g. checkout: false)
+// or when git is not installed.
 func (c *Compiler) generateGitCredentialsCleanerStep() []string {
 	return []string{
 		"      - name: Clean git credentials\n",
+		"        continue-on-error: true\n",
 		"        run: bash /opt/gh-aw/actions/clean_git_credentials.sh\n",
 	}
 }

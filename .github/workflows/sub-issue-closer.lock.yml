@@ -778,6 +778,7 @@ jobs:
           name: activation
           path: /tmp/gh-aw
       - name: Clean git credentials
+        continue-on-error: true
         run: bash /opt/gh-aw/actions/clean_git_credentials.sh
       - name: Execute GitHub Copilot CLI
         id: agentic_execution

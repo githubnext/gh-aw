@@ -206,10 +206,18 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 	compilerYamlLog.Printf("Generating repo-memory steps for workflow")
 	generateRepoMemorySteps(yaml, data)
 
-	// Configure git credentials for agentic workflows
-	gitConfigSteps := c.generateGitConfigurationSteps()
-	for _, line := range gitConfigSteps {
-		yaml.WriteString(line)
+	// Configure git credentials for agentic workflows.
+	// Git credential configuration requires a .git directory in the workspace, which is only
+	// present when the repository was checked out. Skip these steps when checkout is disabled
+	// and no custom steps perform a checkout, since git remote set-url origin would fail
+	// with "fatal: not a git repository" otherwise.
+	needsGitConfig := needsCheckout || customStepsContainCheckout
+	compilerYamlLog.Printf("Git credential configuration needed: %t (needsCheckout=%t, customStepsContainCheckout=%t)", needsGitConfig, needsCheckout, customStepsContainCheckout)
+	if needsGitConfig {
+		gitConfigSteps := c.generateGitConfigurationSteps()
+		for _, line := range gitConfigSteps {
+			yaml.WriteString(line)
+		}
 	}
 
 	// Add step to checkout PR branch if the event is pull_request
@@ -331,10 +339,13 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 
 	// Regenerate git credentials after agent execution
 	// This allows safe-outputs operations (like create_pull_request) to work properly
-	// We regenerate the credentials rather than restoring from backup
-	gitConfigStepsAfterAgent := c.generateGitConfigurationSteps()
-	for _, line := range gitConfigStepsAfterAgent {
-		yaml.WriteString(line)
+	// We regenerate the credentials rather than restoring from backup.
+	// Only emit these steps when a checkout was performed (requires a .git directory).
+	if needsGitConfig {
+		gitConfigStepsAfterAgent := c.generateGitConfigurationSteps()
+		for _, line := range gitConfigStepsAfterAgent {
+			yaml.WriteString(line)
+		}
 	}
 
 	// Collect firewall logs BEFORE secret redaction so secrets in logs can be redacted
