@@ -4631,14 +4631,14 @@
                 },
                 "target-repo": {
                   "type": "string",
-                  "description": "Default repository in format 'owner/repo' for cross-repository content resolution. When specified, the agent can use 'content_repo' in agent output to resolve issues or PRs from this repository. Wildcards ('*') are not allowed."
+                  "description": "Default repository in format 'owner/repo' for cross-repository content resolution. When specified, the agent can use 'target_repo' in agent output to resolve issues or PRs from this repository. Wildcards ('*') are not allowed."
                 },
                 "allowed-repos": {
                   "type": "array",
                   "items": {
                     "type": "string"
                   },
-                  "description": "List of additional repositories in format 'owner/repo' allowed for cross-repository content resolution via 'content_repo'. The target-repo (or current repo) is always implicitly allowed. Supports wildcard patterns (e.g., 'org/*')."
+                  "description": "List of additional repositories in format 'owner/repo' allowed for cross-repository content resolution via 'target_repo'. The target-repo (or current repo) is always implicitly allowed. Supports wildcard patterns (e.g., 'org/*')."
                 },
                 "views": {
                   "type": "array",

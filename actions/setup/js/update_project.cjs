@@ -24,6 +24,7 @@ function normalizeUpdateProjectOutput(value) {
 
   if (output.content_type === undefined && output.contentType !== undefined) output.content_type = output.contentType;
   if (output.content_number === undefined && output.contentNumber !== undefined) output.content_number = output.contentNumber;
+  if (output.target_repo === undefined && output.targetRepo !== undefined) output.target_repo = output.targetRepo;
 
   if (output.draft_title === undefined && output.draftTitle !== undefined) output.draft_title = output.draftTitle;
   if (output.draft_body === undefined && output.draftBody !== undefined) output.draft_body = output.draftBody;
@@ -474,19 +475,19 @@ async function updateProject(output, temporaryIdMap = new Map(), githubClient = 
   const { owner, repo } = context.repo;
 
   // Determine the effective owner/repo for content resolution.
-  // When content_repo is provided, use it instead of the workflow's host repo.
+  // When target_repo is provided, use it instead of the workflow's host repo.
   // This enables org-level project workflows to resolve issues from other repos.
   let contentOwner = owner;
-  let contentRepo = repo;
-  if (output.content_repo && typeof output.content_repo === "string") {
-    const contentRepoSlug = output.content_repo.trim();
-    const parsed = parseRepoSlug(contentRepoSlug);
+  let targetRepo = repo;
+  if (output.target_repo && typeof output.target_repo === "string") {
+    const targetRepoSlug = output.target_repo.trim();
+    const parsed = parseRepoSlug(targetRepoSlug);
     if (!parsed) {
-      throw new Error(`${ERR_VALIDATION}: Invalid content_repo format "${contentRepoSlug}". Use "owner/repo" format (e.g., "github/docs").`);
+      throw new Error(`${ERR_VALIDATION}: Invalid target_repo format "${targetRepoSlug}". Use "owner/repo" format (e.g., "github/docs").`);
     }
     contentOwner = parsed.owner;
-    contentRepo = parsed.repo;
-    core.info(`Using content_repo ${contentRepoSlug} for content resolution`);
+    targetRepo = parsed.repo;
+    core.info(`Using target_repo ${targetRepoSlug} for content resolution`);
   }
 
   const projectInfo = parseProjectUrl(output.project);
@@ -1032,7 +1033,7 @@ async function updateProject(output, temporaryIdMap = new Map(), githubClient = 
           "Issue" === contentType
             ? "query($owner: String!, $repo: String!, $number: Int!) {\n            repository(owner: $owner, name: $repo) {\n              issue(number: $number) {\n                id\n              }\n            }\n          }"
             : "query($owner: String!, $repo: String!, $number: Int!) {\n            repository(owner: $owner, name: $repo) {\n              pullRequest(number: $number) {\n                id\n              }\n            }\n          }",
-        contentResult = await github.graphql(contentQuery, { owner: contentOwner, repo: contentRepo, number: contentNumber }),
+        contentResult = await github.graphql(contentQuery, { owner: contentOwner, repo: targetRepo, number: contentNumber }),
         contentData = "Issue" === contentType ? contentResult.repository.issue : contentResult.repository.pullRequest,
         contentId = contentData.id,
         existingItem = await (async function (projectId, contentId) {
@@ -1264,16 +1265,16 @@ async function main(config = {}, githubClient = null) {
 
     const tempIdMap = temporaryIdMap instanceof Map ? temporaryIdMap : loadTemporaryIdMapFromResolved(resolvedTemporaryIds);
 
-    // Validate content_repo if provided: must be in the allowed repos list.
+    // Validate target_repo if provided: must be in the allowed repos list.
     // Note: defaultTargetRepo already falls back to context.repo (the current workflow repository)
     // when no target-repo is configured in the frontmatter — so the host repo is always implicitly allowed.
-    if (message.content_repo && typeof message.content_repo === "string") {
-      const contentRepoSlug = message.content_repo.trim();
+    if (message.target_repo && typeof message.target_repo === "string") {
+      const targetRepoSlug = message.target_repo.trim();
       // defaultTargetRepo (target-repo config or current workflow repo) is always permitted;
       // additional repos must be listed in allowed-repos.
-      const isDefaultRepo = contentRepoSlug === defaultTargetRepo;
-      if (!isDefaultRepo && !isRepoAllowed(contentRepoSlug, allowedRepos)) {
-        const errorMsg = `Repository "${contentRepoSlug}" is not allowed for cross-repo content resolution. Configure safe-outputs.update-project.allowed-repos in the workflow frontmatter to permit this repository.`;
+      const isDefaultRepo = targetRepoSlug === defaultTargetRepo;
+      if (!isDefaultRepo && !isRepoAllowed(targetRepoSlug, allowedRepos)) {
+        const errorMsg = `Repository "${targetRepoSlug}" is not allowed for cross-repo content resolution. Configure safe-outputs.update-project.allowed-repos in the workflow frontmatter to permit this repository.`;
         core.error(errorMsg);
         return {
           success: false,

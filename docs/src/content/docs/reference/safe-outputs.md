@@ -517,7 +517,7 @@ safe-outputs:
     project: "https://github.com/orgs/myorg/projects/42"  # required: target project URL
     max: 20                         # max operations (default: 10)
     github-token: ${{ secrets.GH_AW_WRITE_PROJECT_TOKEN }}
-    target-repo: "org/default-repo"         # optional: default repo for content_repo resolution
+    target-repo: "org/default-repo"         # optional: default repo for target_repo resolution
     allowed-repos: ["org/repo-a", "org/repo-b"]  # optional: additional repos for cross-repo items
     views:                          # optional: auto-create views
       - name: "Sprint Board"
@@ -535,13 +535,13 @@ safe-outputs:
 - `max`: Maximum number of operations per run (default: 10).
 - `github-token`: Custom token with Projects permissions (required for Projects v2 access).
 - `target-repo`: Default repository for cross-repo content resolution in `owner/repo` format. Wildcards (`*`) are not allowed.
-- `allowed-repos`: List of additional repositories whose issues/PRs can be resolved via `content_repo`. The `target-repo` is always implicitly allowed.
+- `allowed-repos`: List of additional repositories whose issues/PRs can be resolved via `target_repo`. The `target-repo` is always implicitly allowed.
 - `views`: Optional array of project views to create automatically.
 - Exposes outputs: `project-id`, `project-number`, `project-url`, `item-id`.
 
 #### Cross-Repository Content Resolution
 
-For **organization-level projects** that aggregate issues from multiple repositories, use `content_repo` in the agent output to specify which repo contains the issue or PR:
+For **organization-level projects** that aggregate issues from multiple repositories, use `target_repo` in the agent output to specify which repo contains the issue or PR:
 
 ```yaml wrap
 safe-outputs:
@@ -550,7 +550,7 @@ safe-outputs:
     allowed-repos: ["org/docs", "org/backend", "org/frontend"]
 ```
 
-The agent can then specify `content_repo` alongside `content_number`:
+The agent can then specify `target_repo` alongside `content_number`:
 
 ```json
 {
@@ -558,12 +558,12 @@ The agent can then specify `content_repo` alongside `content_number`:
   "project": "https://github.com/orgs/myorg/projects/42",
   "content_type": "issue",
   "content_number": 123,
-  "content_repo": "org/docs",
+  "target_repo": "org/docs",
   "fields": { "Status": "In Progress" }
 }
 ```
 
-Without `content_repo`, the workflow's host repository is used to resolve `content_number`.
+Without `target_repo`, the workflow's host repository is used to resolve `content_number`.
 
 #### Supported Field Types
 

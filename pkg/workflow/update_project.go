@@ -27,7 +27,7 @@ type UpdateProjectConfig struct {
 	GitHubToken          string                   `yaml:"github-token,omitempty"`
 	Project              string                   `yaml:"project,omitempty"`       // Default project URL for operations
 	TargetRepoSlug       string                   `yaml:"target-repo,omitempty"`   // Default repository for cross-repo content resolution in "owner/repo" format
-	AllowedRepos         []string                 `yaml:"allowed-repos,omitempty"` // List of additional repositories allowed for content_repo resolution
+	AllowedRepos         []string                 `yaml:"allowed-repos,omitempty"` // List of additional repositories allowed for target_repo resolution
 	Views                []ProjectView            `yaml:"views,omitempty"`
 	FieldDefinitions     []ProjectFieldDefinition `yaml:"field-definitions,omitempty" json:"field_definitions,omitempty"`
 }
