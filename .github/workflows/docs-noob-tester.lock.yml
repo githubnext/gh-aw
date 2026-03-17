@@ -28,7 +28,7 @@
 #     - shared/docs-server-lifecycle.md
 #     - shared/reporting.md
 #
-# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"a505bd34e8d11cbaec46d8455564fc4702abbaaec99657909469c8612780c6e3","strict":true}
+# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"a594f6d74c90b0467a750ff7da349b7cb66df3d83ac97f3dc2b582c87527556b","strict":true}
 
 name: "Documentation Noob Tester"
 "on":
@@ -605,6 +605,7 @@ jobs:
           GH_AW_PHASE: agent
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
+          GH_AW_TOOL_TIMEOUT: 120
           GH_AW_VERSION: dev
           GITHUB_API_URL: ${{ github.api_url }}
           GITHUB_AW: true
