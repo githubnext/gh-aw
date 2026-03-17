@@ -342,4 +342,114 @@ describe("add_reviewer (Handler Factory Architecture)", () => {
       reviewers: ["anyuser"],
     });
   });
+
+  it("should return error for invalid pull_request_number", async () => {
+    const message = {
+      type: "add_reviewer",
+      reviewers: ["user1"],
+      pull_request_number: "not-a-number",
+    };
+
+    const result = await handler(message, {});
+
+    expect(result.success).toBe(false);
+    expect(result.error).toContain("Invalid pull_request_number");
+    expect(mockGithub.rest.pulls.requestReviewers).not.toHaveBeenCalled();
+  });
+
+  it("should filter out copilot when not in allowed list", async () => {
+    const { main } = require("./add_reviewer.cjs");
+    // allowed list does NOT include "copilot"
+    const restrictedHandler = await main({ max: 10, allowed: ["user1", "user2"] });
+
+    const message = {
+      type: "add_reviewer",
+      reviewers: ["user1", "copilot"],
+    };
+
+    const result = await restrictedHandler(message, {});
+
+    expect(result.success).toBe(true);
+    expect(result.reviewersAdded).toEqual(["user1"]);
+    // Only called once — for user1 only; copilot was filtered out
+    expect(mockGithub.rest.pulls.requestReviewers).toHaveBeenCalledTimes(1);
+    expect(mockGithub.rest.pulls.requestReviewers).toHaveBeenCalledWith({
+      owner: "testowner",
+      repo: "testrepo",
+      pull_number: 123,
+      reviewers: ["user1"],
+    });
+  });
+
+  it("should sanitize null and falsy values in reviewers array", async () => {
+    const { main } = require("./add_reviewer.cjs");
+    const permissiveHandler = await main({ max: 10, allowed: [] });
+
+    const message = {
+      type: "add_reviewer",
+      // null, undefined, false, and empty string are all falsy and should be stripped
+      reviewers: [null, undefined, false, "", "user1", "  user2  "],
+    };
+
+    const result = await permissiveHandler(message, {});
+
+    expect(result.success).toBe(true);
+    // Only real usernames survive; whitespace is trimmed
+    expect(result.reviewersAdded).toEqual(["user1", "user2"]);
+    expect(mockGithub.rest.pulls.requestReviewers).toHaveBeenCalledWith({
+      owner: "testowner",
+      repo: "testrepo",
+      pull_number: 123,
+      reviewers: ["user1", "user2"],
+    });
+  });
+
+  it("should trim reviewer list to maxCount within a single message", async () => {
+    const { main } = require("./add_reviewer.cjs");
+    const tightHandler = await main({ max: 2, allowed: [] });
+
+    const message = {
+      type: "add_reviewer",
+      reviewers: ["user1", "user2", "user3", "user4"],
+    };
+
+    const result = await tightHandler(message, {});
+
+    expect(result.success).toBe(true);
+    // Only first 2 reviewers should be added
+    expect(result.reviewersAdded).toEqual(["user1", "user2"]);
+    expect(mockGithub.rest.pulls.requestReviewers).toHaveBeenCalledWith({
+      owner: "testowner",
+      repo: "testrepo",
+      pull_number: 123,
+      reviewers: ["user1", "user2"],
+    });
+  });
+
+  it("should count staged calls toward max processedCount", async () => {
+    const originalEnv = process.env.GH_AW_SAFE_OUTPUTS_STAGED;
+    process.env.GH_AW_SAFE_OUTPUTS_STAGED = "true";
+
+    try {
+      const { main } = require("./add_reviewer.cjs");
+      const stagedHandler = await main({ max: 1, allowed: ["user1"] });
+
+      const message = {
+        type: "add_reviewer",
+        reviewers: ["user1"],
+      };
+
+      // First call in staged mode — should succeed as a preview
+      const result1 = await stagedHandler(message, {});
+      expect(result1.success).toBe(true);
+      expect(result1.staged).toBe(true);
+
+      // Second call should be blocked by max count (processedCount was incremented in staged mode)
+      const result2 = await stagedHandler(message, {});
+      expect(result2.success).toBe(false);
+      expect(result2.error).toContain("Max count");
+    } finally {
+      process.env.GH_AW_SAFE_OUTPUTS_STAGED = originalEnv;
+    }
+  });
 });
