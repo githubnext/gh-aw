@@ -68,6 +68,8 @@ jobs:
       discussions: write
       issues: write
       pull-requests: write
+    env:
+      GH_AW_INFO_APM_VERSION: v0.8.0
     outputs:
       body: ${{ steps.sanitized.outputs.body }}
       comment_id: ${{ steps.add-comment.outputs.comment-id }}
@@ -661,7 +663,7 @@ jobs:
           archive: 'true'
           target: claude
           working-directory: /tmp/gh-aw/apm-workspace
-          apm-version: v0.8.0
+          apm-version: ${{ env.GH_AW_INFO_APM_VERSION }}
       - name: Upload APM bundle artifact
         if: success()
         uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
@@ -693,6 +695,7 @@ jobs:
       GH_AW_ASSETS_ALLOWED_EXTS: ""
       GH_AW_ASSETS_BRANCH: ""
       GH_AW_ASSETS_MAX_SIZE_KB: 0
+      GH_AW_INFO_APM_VERSION: v0.8.0
       GH_AW_MCP_LOG_DIR: /tmp/gh-aw/mcp-logs/safeoutputs
       GH_AW_SAFE_OUTPUTS: /opt/gh-aw/safeoutputs/outputs.jsonl
       GH_AW_SAFE_OUTPUTS_CONFIG_PATH: /opt/gh-aw/safeoutputs/config.json
@@ -815,7 +818,7 @@ jobs:
         uses: microsoft/apm-action@5eac264e08ed8db603fe2c40983794f94cab49d8 # v1.3.1
         with:
           bundle: /tmp/gh-aw/apm-bundle/*.tar.gz
-          apm-version: v0.8.0
+          apm-version: ${{ env.GH_AW_INFO_APM_VERSION }}
       - name: Determine automatic lockdown mode for GitHub MCP Server
         id: determine-automatic-lockdown
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8

@@ -221,6 +221,19 @@ func (c *Compiler) buildMainJob(data *WorkflowData, activationJobCreated bool) (
 		env["GH_AW_WORKFLOW_ID_SANITIZED"] = sanitizedID
 	}
 
+	// Set job-level GH_AW_INFO_APM_VERSION so the apm_restore step can reference it
+	// via ${{ env.GH_AW_INFO_APM_VERSION }} in its with: block
+	if data.APMDependencies != nil && len(data.APMDependencies.Packages) > 0 {
+		if env == nil {
+			env = make(map[string]string)
+		}
+		apmVersion := data.APMDependencies.Version
+		if apmVersion == "" {
+			apmVersion = string(constants.DefaultAPMVersion)
+		}
+		env["GH_AW_INFO_APM_VERSION"] = apmVersion
+	}
+
 	// Generate agent concurrency configuration
 	agentConcurrency := GenerateJobConcurrencyConfig(data)
 

@@ -6,7 +6,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/github/gh-aw/pkg/constants"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -288,7 +287,7 @@ func TestGenerateAPMPackStep(t *testing.T) {
 				"archive: 'true'",
 				"target: copilot",
 				"working-directory: /tmp/gh-aw/apm-workspace",
-				"apm-version: " + string(constants.DefaultAPMVersion),
+				"apm-version: ${{ env.GH_AW_INFO_APM_VERSION }}",
 			},
 		},
 		{
@@ -302,7 +301,7 @@ func TestGenerateAPMPackStep(t *testing.T) {
 				"- microsoft/apm-sample-package",
 				"- github/skills/review",
 				"target: claude",
-				"apm-version: " + string(constants.DefaultAPMVersion),
+				"apm-version: ${{ env.GH_AW_INFO_APM_VERSION }}",
 			},
 		},
 		{
@@ -311,15 +310,15 @@ func TestGenerateAPMPackStep(t *testing.T) {
 			target:  "all",
 			expectedContains: []string{
 				"target: all",
-				"apm-version: " + string(constants.DefaultAPMVersion),
+				"apm-version: ${{ env.GH_AW_INFO_APM_VERSION }}",
 			},
 		},
 		{
-			name:    "Custom APM version overrides default",
+			name:    "Custom APM version still uses env var reference in step",
 			apmDeps: &APMDependenciesInfo{Packages: []string{"microsoft/apm-sample-package"}, Version: "v1.0.0"},
 			target:  "copilot",
 			expectedContains: []string{
-				"apm-version: v1.0.0",
+				"apm-version: ${{ env.GH_AW_INFO_APM_VERSION }}",
 			},
 		},
 	}
@@ -369,7 +368,7 @@ func TestGenerateAPMRestoreStep(t *testing.T) {
 				"Restore APM dependencies",
 				"microsoft/apm-action",
 				"bundle: /tmp/gh-aw/apm-bundle/*.tar.gz",
-				"apm-version: " + string(constants.DefaultAPMVersion),
+				"apm-version: ${{ env.GH_AW_INFO_APM_VERSION }}",
 			},
 			expectedNotContains: []string{"isolated"},
 		},
@@ -381,14 +380,14 @@ func TestGenerateAPMRestoreStep(t *testing.T) {
 				"microsoft/apm-action",
 				"bundle: /tmp/gh-aw/apm-bundle/*.tar.gz",
 				"isolated: 'true'",
-				"apm-version: " + string(constants.DefaultAPMVersion),
+				"apm-version: ${{ env.GH_AW_INFO_APM_VERSION }}",
 			},
 		},
 		{
-			name:    "Custom APM version overrides default",
+			name:    "Custom APM version still uses env var reference in step",
 			apmDeps: &APMDependenciesInfo{Packages: []string{"microsoft/apm-sample-package"}, Version: "v1.0.0"},
 			expectedContains: []string{
-				"apm-version: v1.0.0",
+				"apm-version: ${{ env.GH_AW_INFO_APM_VERSION }}",
 			},
 		},
 	}

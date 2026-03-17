@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"sort"
 
-	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
 )
 
@@ -120,19 +119,13 @@ func GenerateAPMPackStep(apmDeps *APMDependenciesInfo, target string, data *Work
 		lines = append(lines, "            - "+dep)
 	}
 
-	// Use the user-specified APM version, or fall back to the pinned default
-	apmVersion := apmDeps.Version
-	if apmVersion == "" {
-		apmVersion = string(constants.DefaultAPMVersion)
-	}
-
 	lines = append(lines,
 		"          isolated: 'true'",
 		"          pack: 'true'",
 		"          archive: 'true'",
 		"          target: "+target,
 		"          working-directory: /tmp/gh-aw/apm-workspace",
-		"          apm-version: "+apmVersion,
+		"          apm-version: ${{ env.GH_AW_INFO_APM_VERSION }}",
 	)
 
 	return GitHubActionStep(lines)
@@ -156,18 +149,12 @@ func GenerateAPMRestoreStep(apmDeps *APMDependenciesInfo, data *WorkflowData) Gi
 
 	actionRef := GetActionPin("microsoft/apm-action")
 
-	// Use the user-specified APM version, or fall back to the pinned default
-	apmVersion := apmDeps.Version
-	if apmVersion == "" {
-		apmVersion = string(constants.DefaultAPMVersion)
-	}
-
 	lines := []string{
 		"      - name: Restore APM dependencies",
 		"        uses: " + actionRef,
 		"        with:",
 		"          bundle: /tmp/gh-aw/apm-bundle/*.tar.gz",
-		"          apm-version: " + apmVersion,
+		"          apm-version: ${{ env.GH_AW_INFO_APM_VERSION }}",
 	}
 
 	if apmDeps.Isolated {

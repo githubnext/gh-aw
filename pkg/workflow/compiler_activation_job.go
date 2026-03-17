@@ -511,6 +511,19 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 		environment = "environment: " + cleanManualApproval
 	}
 
+	// Set job-level GH_AW_INFO_APM_VERSION so the apm_pack step can reference it
+	// via ${{ env.GH_AW_INFO_APM_VERSION }} in its with: block
+	var activationJobEnv map[string]string
+	if data.APMDependencies != nil && len(data.APMDependencies.Packages) > 0 {
+		apmVersion := data.APMDependencies.Version
+		if apmVersion == "" {
+			apmVersion = string(constants.DefaultAPMVersion)
+		}
+		activationJobEnv = map[string]string{
+			"GH_AW_INFO_APM_VERSION": apmVersion,
+		}
+	}
+
 	job := &Job{
 		Name:                       string(constants.ActivationJobName),
 		If:                         activationCondition,
@@ -518,6 +531,7 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 		RunsOn:                     c.formatSafeOutputsRunsOn(data.SafeOutputs),
 		Permissions:                permissions,
 		Environment:                environment,
+		Env:                        activationJobEnv,
 		Steps:                      steps,
 		Outputs:                    outputs,
 		Needs:                      activationNeeds, // Depend on pre-activation job if it exists
