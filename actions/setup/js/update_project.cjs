@@ -1274,7 +1274,7 @@ async function main(config = {}, githubClient = null) {
       // additional repos must be listed in allowed-repos.
       const isDefaultRepo = targetRepoSlug === defaultTargetRepo;
       if (!isDefaultRepo && !isRepoAllowed(targetRepoSlug, allowedRepos)) {
-        const errorMsg = `Repository "${targetRepoSlug}" is not allowed for cross-repo content resolution. Configure safe-outputs.update-project.allowed-repos in the workflow frontmatter to permit this repository.`;
+        const errorMsg = `Repository "${targetRepoSlug}" is not allowed for cross-repo content resolution. Configure safe-outputs.update-project.target-repo to set it as the default repository, or add it to safe-outputs.update-project.allowed-repos in the workflow frontmatter to permit this repository.`;
         core.error(errorMsg);
         return {
           success: false,
