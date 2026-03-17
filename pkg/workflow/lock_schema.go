@@ -87,6 +87,8 @@ func formatSupportedVersions() string {
 // GenerateLockMetadata creates a LockMetadata struct for embedding in lock files
 // For release builds, the compiler version is included in the metadata
 func GenerateLockMetadata(frontmatterHash string, stopTime string, strict bool) *LockMetadata {
+	lockSchemaLog.Printf("Generating lock metadata: schema=%s, strict=%t, hasStopTime=%t", LockSchemaV2, strict, stopTime != "")
+
 	metadata := &LockMetadata{
 		SchemaVersion:   LockSchemaV2,
 		FrontmatterHash: frontmatterHash,
@@ -97,6 +99,7 @@ func GenerateLockMetadata(frontmatterHash string, stopTime string, strict bool) 
 	// Include compiler version only for release builds
 	if IsRelease() {
 		metadata.CompilerVersion = GetVersion()
+		lockSchemaLog.Printf("Including compiler version in lock metadata: %s", metadata.CompilerVersion)
 	}
 
 	return metadata

@@ -37,6 +37,7 @@ func hasDeprecatedAppField(frontmatter map[string]any) bool {
 			if githubAny, hasGitHub := toolsMap["github"]; hasGitHub {
 				if githubMap, ok := githubAny.(map[string]any); ok {
 					if _, hasApp := githubMap["app"]; hasApp {
+						githubAppCodemodLog.Print("Deprecated 'app' field found in tools.github")
 						return true
 					}
 				}
@@ -48,6 +49,7 @@ func hasDeprecatedAppField(frontmatter map[string]any) bool {
 	if soAny, hasSO := frontmatter["safe-outputs"]; hasSO {
 		if soMap, ok := soAny.(map[string]any); ok {
 			if _, hasApp := soMap["app"]; hasApp {
+				githubAppCodemodLog.Print("Deprecated 'app' field found in safe-outputs")
 				return true
 			}
 		}
@@ -57,6 +59,7 @@ func hasDeprecatedAppField(frontmatter map[string]any) bool {
 	if checkoutAny, hasCheckout := frontmatter["checkout"]; hasCheckout {
 		if checkoutMap, ok := checkoutAny.(map[string]any); ok {
 			if _, hasApp := checkoutMap["app"]; hasApp {
+				githubAppCodemodLog.Print("Deprecated 'app' field found in checkout")
 				return true
 			}
 		}
@@ -64,6 +67,7 @@ func hasDeprecatedAppField(frontmatter map[string]any) bool {
 			for _, item := range checkoutArr {
 				if itemMap, ok := item.(map[string]any); ok {
 					if _, hasApp := itemMap["app"]; hasApp {
+						githubAppCodemodLog.Print("Deprecated 'app' field found in checkout array item")
 						return true
 					}
 				}
