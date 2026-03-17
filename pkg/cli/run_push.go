@@ -16,6 +16,7 @@ import (
 	"github.com/github/gh-aw/pkg/fileutil"
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/parser"
+	"github.com/github/gh-aw/pkg/sliceutil"
 	"github.com/github/gh-aw/pkg/workflow"
 )
 
@@ -115,10 +116,7 @@ func collectWorkflowFiles(ctx context.Context, workflowPath string, verbose bool
 	runPushLog.Printf("Import collection completed")
 
 	// Convert map to slice
-	var result []string
-	for file := range files {
-		result = append(result, file)
-	}
+	result := sliceutil.MapToSlice(files)
 
 	// Sort files for stable output
 	sort.Strings(result)
