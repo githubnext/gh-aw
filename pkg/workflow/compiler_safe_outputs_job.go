@@ -266,10 +266,8 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 		// Count setup action steps (checkout + setup if in dev mode without action-tag, or just setup)
 		setupActionRef := c.resolveActionReference("./actions/setup", data)
 		if setupActionRef != "" {
-			if len(c.generateCheckoutActionsFolder(data)) > 0 {
-				insertIndex += 6 // Checkout step (6 lines: name, uses, with, sparse-checkout header, actions, persist-credentials)
-			}
-			insertIndex += 4 // Setup step (4 lines: name, uses, with, destination)
+			insertIndex += len(c.generateCheckoutActionsFolder(data))
+			insertIndex += len(c.generateSetupStep(setupActionRef, SetupActionDestination, c.hasCustomTokenSafeOutputs(data.SafeOutputs)))
 		}
 
 		// Add artifact download steps count
