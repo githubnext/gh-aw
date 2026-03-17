@@ -28,7 +28,7 @@
 #     - shared/docs-server-lifecycle.md
 #     - shared/reporting.md
 #
-# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"67d7121754cd87f039eff5782dd31356426aed9c72c09881a79957f3ab7b9580","strict":true}
+# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"a505bd34e8d11cbaec46d8455564fc4702abbaaec99657909469c8612780c6e3","strict":true}
 
 name: "Documentation Noob Tester"
 "on":
