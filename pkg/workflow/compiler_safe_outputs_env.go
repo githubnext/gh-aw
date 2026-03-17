@@ -15,7 +15,7 @@ func (c *Compiler) addAllSafeOutputConfigEnvVars(steps *[]string, data *Workflow
 
 	// Add the global staged env var once if staged mode is enabled, not in trial mode,
 	// and at least one handler is configured. Staged mode is independent of target-repo.
-	if !c.trialMode && data.SafeOutputs.Staged && hasSafeOutputConfigured(data.SafeOutputs) {
+	if !c.trialMode && data.SafeOutputs.Staged && hasAnySafeOutputEnabled(data.SafeOutputs) {
 		*steps = append(*steps, "          GH_AW_SAFE_OUTPUTS_STAGED: \"true\"\n")
 		compilerSafeOutputsEnvLog.Print("Added staged flag")
 	}
@@ -29,100 +29,4 @@ func (c *Compiler) addAllSafeOutputConfigEnvVars(steps *[]string, data *Workflow
 	}
 
 	// Note: All handler configuration is read from the config.json file at runtime.
-}
-
-// hasSafeOutputConfigured returns true if any safe output handler is configured.
-// Staged mode is independent of target-repo: it activates whenever staged is set
-// and at least one handler is present.
-func hasSafeOutputConfigured(so *SafeOutputsConfig) bool {
-	return hasAnySafeOutputEnabled(so)
-}
-	if so.CreateDiscussions != nil {
-		return true
-	}
-	if so.CloseDiscussions != nil {
-		return true
-	}
-	if so.CloseIssues != nil {
-		return true
-	}
-	if so.ClosePullRequests != nil {
-		return true
-	}
-	if so.MarkPullRequestAsReadyForReview != nil {
-		return true
-	}
-	if so.AddComments != nil {
-		return true
-	}
-	if so.CreatePullRequests != nil {
-		return true
-	}
-	if so.CreatePullRequestReviewComments != nil {
-		return true
-	}
-	if so.SubmitPullRequestReview != nil {
-		return true
-	}
-	if so.ReplyToPullRequestReviewComment != nil {
-		return true
-	}
-	if so.ResolvePullRequestReviewThread != nil {
-		return true
-	}
-	if so.CreateCodeScanningAlerts != nil {
-		return true
-	}
-	if so.AddLabels != nil {
-		return true
-	}
-	if so.RemoveLabels != nil {
-		return true
-	}
-	if so.AddReviewer != nil {
-		return true
-	}
-	if so.AssignMilestone != nil {
-		return true
-	}
-	if so.AssignToAgent != nil {
-		return true
-	}
-	if so.AssignToUser != nil {
-		return true
-	}
-	if so.UnassignFromUser != nil {
-		return true
-	}
-	if so.UpdateIssues != nil {
-		return true
-	}
-	if so.UpdatePullRequests != nil {
-		return true
-	}
-	if so.UpdateDiscussions != nil {
-		return true
-	}
-	if so.UpdateRelease != nil {
-		return true
-	}
-	if so.PushToPullRequestBranch != nil {
-		return true
-	}
-	if so.HideComment != nil {
-		return true
-	}
-	if so.SetIssueType != nil {
-		return true
-	}
-	if so.DispatchWorkflow != nil {
-		return true
-	}
-	if so.CreateAgentSessions != nil {
-		return true
-	}
-	if so.LinkSubIssue != nil {
-		return true
-	}
-	return false
 }
