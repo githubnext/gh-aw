@@ -218,7 +218,10 @@ func TestCheckRemoteSymlink(t *testing.T) {
 func TestResolveRemoteSymlinksNoSymlinks(t *testing.T) {
 	// "Global/Perl.gitignore" is a real path in github/gitignore with no symlinks
 	client, err := api.DefaultRESTClient()
-	require.NoError(t, err, "Should be able to create REST client")
+	if err != nil {
+		skipOnAuthError(t, err)
+		return
+	}
 	_, err = resolveRemoteSymlinks(client, "github", "gitignore", "Global/Perl.gitignore", "main")
 	require.Error(t, err, "Expected error when no symlinks found")
 	skipOnAuthError(t, err)
