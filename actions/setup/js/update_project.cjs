@@ -23,6 +23,7 @@ function normalizeUpdateProjectOutput(value) {
 
   if (output.content_type === undefined && output.contentType !== undefined) output.content_type = output.contentType;
   if (output.content_number === undefined && output.contentNumber !== undefined) output.content_number = output.contentNumber;
+  if (output.content_repo === undefined && output.contentRepo !== undefined) output.content_repo = output.contentRepo;
 
   if (output.draft_title === undefined && output.draftTitle !== undefined) output.draft_title = output.draftTitle;
   if (output.draft_body === undefined && output.draftBody !== undefined) output.draft_body = output.draftBody;
@@ -1009,12 +1010,25 @@ async function updateProject(output, temporaryIdMap = new Map(), githubClient = 
       }
     }
     if (null !== contentNumber) {
+      // Determine owner/repo for content resolution: content_repo overrides context.repo for cross-repo support
+      let contentOwner = owner;
+      let contentRepo = repo;
+      if (output.content_repo) {
+        const parts = output.content_repo.split("/");
+        if (parts.length === 2 && parts[0] && parts[1]) {
+          contentOwner = parts[0];
+          contentRepo = parts[1];
+          core.info(`Using content_repo for resolution: ${contentOwner}/${contentRepo}`);
+        } else {
+          core.warning(`Invalid content_repo format "${output.content_repo}": expected "owner/repo". Falling back to workflow host repository.`);
+        }
+      }
       const contentType = "pull_request" === output.content_type ? "PullRequest" : "issue" === output.content_type || output.issue ? "Issue" : "PullRequest",
         contentQuery =
           "Issue" === contentType
             ? "query($owner: String!, $repo: String!, $number: Int!) {\n            repository(owner: $owner, name: $repo) {\n              issue(number: $number) {\n                id\n              }\n            }\n          }"
             : "query($owner: String!, $repo: String!, $number: Int!) {\n            repository(owner: $owner, name: $repo) {\n              pullRequest(number: $number) {\n                id\n              }\n            }\n          }",
-        contentResult = await github.graphql(contentQuery, { owner, repo, number: contentNumber }),
+        contentResult = await github.graphql(contentQuery, { owner: contentOwner, repo: contentRepo, number: contentNumber }),
         contentData = "Issue" === contentType ? contentResult.repository.issue : contentResult.repository.pullRequest,
         contentId = contentData.id,
         existingItem = await (async function (projectId, contentId) {

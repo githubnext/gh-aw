@@ -1015,6 +1015,76 @@ describe("updateProject", () => {
     await expect(updateProject(output, temporaryIdMap)).rejects.toThrow(/Temporary ID 'aw_abc789' not found in map/);
   });
 
+  it("resolves content_number using content_repo for cross-repo issues", async () => {
+    const projectUrl = "https://github.com/orgs/testowner/projects/60";
+    const output = {
+      type: "update_project",
+      project: projectUrl,
+      content_type: "issue",
+      content_number: 99,
+      content_repo: "otherowner/otherrepo",
+    };
+
+    queueResponses([repoResponse(), viewerResponse(), orgProjectV2Response(projectUrl, 60, "project-cross-repo"), issueResponse("cross-repo-issue-id"), emptyItemsResponse(), { addProjectV2ItemById: { item: { id: "cross-repo-item" } } }]);
+
+    await updateProject(output);
+
+    // Verify the content resolution used the cross-repo owner/repo
+    const contentQuery = mockGithub.graphql.mock.calls.find(([query, vars]) => query.includes("issue(number:") && vars?.owner === "otherowner");
+    expect(contentQuery).toBeDefined();
+    expect(contentQuery[1]).toMatchObject({ owner: "otherowner", repo: "otherrepo", number: 99 });
+    expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Using content_repo for resolution: otherowner/otherrepo"));
+    expect(getOutput("item-id")).toBe("cross-repo-item");
+  });
+
+  it("resolves content_number using content_repo for cross-repo pull requests", async () => {
+    const projectUrl = "https://github.com/orgs/testowner/projects/60";
+    const output = {
+      type: "update_project",
+      project: projectUrl,
+      content_type: "pull_request",
+      content_number: 55,
+      content_repo: "anotherorg/anotherrepo",
+    };
+
+    queueResponses([
+      repoResponse(),
+      viewerResponse(),
+      orgProjectV2Response(projectUrl, 60, "project-cross-repo-pr"),
+      pullRequestResponse("cross-repo-pr-id"),
+      emptyItemsResponse(),
+      { addProjectV2ItemById: { item: { id: "cross-repo-pr-item" } } },
+    ]);
+
+    await updateProject(output);
+
+    // Verify the content resolution used the cross-repo owner/repo
+    const prQuery = mockGithub.graphql.mock.calls.find(([query, vars]) => query.includes("pullRequest(number:") && vars?.owner === "anotherorg");
+    expect(prQuery).toBeDefined();
+    expect(prQuery[1]).toMatchObject({ owner: "anotherorg", repo: "anotherrepo", number: 55 });
+    expect(getOutput("item-id")).toBe("cross-repo-pr-item");
+  });
+
+  it("normalizes camelCase contentRepo to content_repo", async () => {
+    const projectUrl = "https://github.com/orgs/testowner/projects/60";
+    const output = {
+      type: "update_project",
+      project: projectUrl,
+      content_type: "issue",
+      content_number: 77,
+      contentRepo: "camelowner/camelrepo",
+    };
+
+    queueResponses([repoResponse(), viewerResponse(), orgProjectV2Response(projectUrl, 60, "project-camel-repo"), issueResponse("camel-issue-id"), emptyItemsResponse(), { addProjectV2ItemById: { item: { id: "camel-item" } } }]);
+
+    await updateProject(output);
+
+    const contentQuery = mockGithub.graphql.mock.calls.find(([query, vars]) => query.includes("issue(number:") && vars?.owner === "camelowner");
+    expect(contentQuery).toBeDefined();
+    expect(contentQuery[1]).toMatchObject({ owner: "camelowner", repo: "camelrepo", number: 77 });
+    expect(getOutput("item-id")).toBe("camel-item");
+  });
+
   it("updates an existing text field", async () => {
     const projectUrl = "https://github.com/orgs/testowner/projects/60";
     const output = {

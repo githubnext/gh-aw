@@ -1222,6 +1222,11 @@
           ],
           "description": "Issue or pull request number to add to the project. This is the numeric ID from the GitHub URL (e.g., 123 in github.com/owner/repo/issues/123 for issue #123, or 456 in github.com/owner/repo/pull/456 for PR #456), or a temporary ID from a recent create_issue call (e.g., 'aw_abc123', '#aw_Test123'). Required when content_type is 'issue' or 'pull_request'."
         },
+        "content_repo": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$",
+          "description": "Repository that owns the issue or PR, in 'owner/repo' format (e.g., 'github/docs'). When provided, overrides the workflow host repository for resolving content_number. Use this for cross-repo project item resolution when the issue/PR lives in a different repository than where the workflow runs."
+        },
         "draft_title": {
           "type": "string",
           "description": "Title for a Projects v2 draft issue. Required when content_type is 'draft_issue'."

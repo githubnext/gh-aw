@@ -593,6 +593,10 @@
           "oneOf": [{ "type": "number" }, { "type": "string" }],
           "description": "Issue or PR number (preferred field)"
         },
+        "content_repo": {
+          "type": "string",
+          "description": "Repository that owns the issue or PR, in 'owner/repo' format (e.g., 'github/docs'). When provided, overrides the workflow host repository for resolving content_number. Use this for cross-repo project item resolution when the issue/PR lives in a different repository than where the workflow runs."
+        },
         "issue": {
           "oneOf": [{ "type": "number" }, { "type": "string" }],
           "description": "Issue number (legacy field, use content_number instead)"
