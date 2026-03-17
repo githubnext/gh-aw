@@ -19,6 +19,7 @@ safe-outputs:
   create-pull-request:
     expires: 2d
     title-prefix: "[ci-coach] "
+    protected-files: fallback-to-issue
 timeout-minutes: 30
 imports:
   - shared/ci-data-analysis.md
