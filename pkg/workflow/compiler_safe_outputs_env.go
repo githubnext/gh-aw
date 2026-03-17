@@ -14,8 +14,8 @@ func (c *Compiler) addAllSafeOutputConfigEnvVars(steps *[]string, data *Workflow
 	}
 
 	// Add the global staged env var once if staged mode is enabled, not in trial mode,
-	// and at least one configured handler targets the current repository.
-	if !c.trialMode && data.SafeOutputs.Staged && hasSafeOutputWithoutTargetRepo(data.SafeOutputs) {
+	// and at least one handler is configured. Staged mode is independent of target-repo.
+	if !c.trialMode && data.SafeOutputs.Staged && hasSafeOutputConfigured(data.SafeOutputs) {
 		*steps = append(*steps, "          GH_AW_SAFE_OUTPUTS_STAGED: \"true\"\n")
 		compilerSafeOutputsEnvLog.Print("Added staged flag")
 	}
@@ -31,11 +31,10 @@ func (c *Compiler) addAllSafeOutputConfigEnvVars(steps *[]string, data *Workflow
 	// Note: All handler configuration is read from the config.json file at runtime.
 }
 
-// hasSafeOutputWithoutTargetRepo returns true if any configured safe output handler
-// targets the current repository (i.e., has no target-repo specified).
-// Handlers without a target-repo field always target the current repo,
-// while handlers with a target-repo field qualify only when no cross-repo target is set.
-func hasSafeOutputWithoutTargetRepo(so *SafeOutputsConfig) bool {
+// hasSafeOutputConfigured returns true if any safe output handler is configured.
+// Staged mode is independent of target-repo: it activates whenever staged is set
+// and at least one handler is present.
+func hasSafeOutputConfigured(so *SafeOutputsConfig) bool {
 	if so.AutofixCodeScanningAlert != nil {
 		return true
 	}
@@ -63,96 +62,94 @@ func hasSafeOutputWithoutTargetRepo(so *SafeOutputsConfig) bool {
 	if so.NoOp != nil {
 		return true
 	}
-
-	// Handlers with a target-repo field qualify only when no cross-repo target is specified.
-	if so.CreateIssues != nil && so.CreateIssues.TargetRepoSlug == "" {
+	if so.CreateIssues != nil {
 		return true
 	}
-	if so.CreateDiscussions != nil && so.CreateDiscussions.TargetRepoSlug == "" {
+	if so.CreateDiscussions != nil {
 		return true
 	}
-	if so.CloseDiscussions != nil && so.CloseDiscussions.TargetRepoSlug == "" {
+	if so.CloseDiscussions != nil {
 		return true
 	}
-	if so.CloseIssues != nil && so.CloseIssues.TargetRepoSlug == "" {
+	if so.CloseIssues != nil {
 		return true
 	}
-	if so.ClosePullRequests != nil && so.ClosePullRequests.TargetRepoSlug == "" {
+	if so.ClosePullRequests != nil {
 		return true
 	}
-	if so.MarkPullRequestAsReadyForReview != nil && so.MarkPullRequestAsReadyForReview.TargetRepoSlug == "" {
+	if so.MarkPullRequestAsReadyForReview != nil {
 		return true
 	}
-	if so.AddComments != nil && so.AddComments.TargetRepoSlug == "" {
+	if so.AddComments != nil {
 		return true
 	}
-	if so.CreatePullRequests != nil && so.CreatePullRequests.TargetRepoSlug == "" {
+	if so.CreatePullRequests != nil {
 		return true
 	}
-	if so.CreatePullRequestReviewComments != nil && so.CreatePullRequestReviewComments.TargetRepoSlug == "" {
+	if so.CreatePullRequestReviewComments != nil {
 		return true
 	}
-	if so.SubmitPullRequestReview != nil && so.SubmitPullRequestReview.TargetRepoSlug == "" {
+	if so.SubmitPullRequestReview != nil {
 		return true
 	}
-	if so.ReplyToPullRequestReviewComment != nil && so.ReplyToPullRequestReviewComment.TargetRepoSlug == "" {
+	if so.ReplyToPullRequestReviewComment != nil {
 		return true
 	}
-	if so.ResolvePullRequestReviewThread != nil && so.ResolvePullRequestReviewThread.TargetRepoSlug == "" {
+	if so.ResolvePullRequestReviewThread != nil {
 		return true
 	}
-	if so.CreateCodeScanningAlerts != nil && so.CreateCodeScanningAlerts.TargetRepoSlug == "" {
+	if so.CreateCodeScanningAlerts != nil {
 		return true
 	}
-	if so.AddLabels != nil && so.AddLabels.TargetRepoSlug == "" {
+	if so.AddLabels != nil {
 		return true
 	}
-	if so.RemoveLabels != nil && so.RemoveLabels.TargetRepoSlug == "" {
+	if so.RemoveLabels != nil {
 		return true
 	}
-	if so.AddReviewer != nil && so.AddReviewer.TargetRepoSlug == "" {
+	if so.AddReviewer != nil {
 		return true
 	}
-	if so.AssignMilestone != nil && so.AssignMilestone.TargetRepoSlug == "" {
+	if so.AssignMilestone != nil {
 		return true
 	}
-	if so.AssignToAgent != nil && so.AssignToAgent.TargetRepoSlug == "" {
+	if so.AssignToAgent != nil {
 		return true
 	}
-	if so.AssignToUser != nil && so.AssignToUser.TargetRepoSlug == "" {
+	if so.AssignToUser != nil {
 		return true
 	}
-	if so.UnassignFromUser != nil && so.UnassignFromUser.TargetRepoSlug == "" {
+	if so.UnassignFromUser != nil {
 		return true
 	}
-	if so.UpdateIssues != nil && so.UpdateIssues.TargetRepoSlug == "" {
+	if so.UpdateIssues != nil {
 		return true
 	}
-	if so.UpdatePullRequests != nil && so.UpdatePullRequests.TargetRepoSlug == "" {
+	if so.UpdatePullRequests != nil {
 		return true
 	}
-	if so.UpdateDiscussions != nil && so.UpdateDiscussions.TargetRepoSlug == "" {
+	if so.UpdateDiscussions != nil {
 		return true
 	}
-	if so.UpdateRelease != nil && so.UpdateRelease.TargetRepoSlug == "" {
+	if so.UpdateRelease != nil {
 		return true
 	}
-	if so.PushToPullRequestBranch != nil && so.PushToPullRequestBranch.TargetRepoSlug == "" {
+	if so.PushToPullRequestBranch != nil {
 		return true
 	}
-	if so.HideComment != nil && so.HideComment.TargetRepoSlug == "" {
+	if so.HideComment != nil {
 		return true
 	}
-	if so.SetIssueType != nil && so.SetIssueType.TargetRepoSlug == "" {
+	if so.SetIssueType != nil {
 		return true
 	}
-	if so.DispatchWorkflow != nil && so.DispatchWorkflow.TargetRepoSlug == "" {
+	if so.DispatchWorkflow != nil {
 		return true
 	}
-	if so.CreateAgentSessions != nil && so.CreateAgentSessions.TargetRepoSlug == "" {
+	if so.CreateAgentSessions != nil {
 		return true
 	}
-	if so.LinkSubIssue != nil && so.LinkSubIssue.TargetRepoSlug == "" {
+	if so.LinkSubIssue != nil {
 		return true
 	}
 	return false

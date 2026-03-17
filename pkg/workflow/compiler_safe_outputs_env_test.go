@@ -132,7 +132,8 @@ func TestAddAllSafeOutputConfigEnvVars(t *testing.T) {
 			},
 		},
 		{
-			name: "target-repo specified does not add staged flag",
+			// staged is independent of target-repo: staged flag is emitted even when target-repo is set
+			name: "target-repo specified still adds staged flag",
 			safeOutputs: &SafeOutputsConfig{
 				Staged: true,
 				CreateIssues: &CreateIssuesConfig{
@@ -140,8 +141,8 @@ func TestAddAllSafeOutputConfigEnvVars(t *testing.T) {
 					TitlePrefix:    "[Test] ",
 				},
 			},
-			checkNotContains: []string{
-				"GH_AW_SAFE_OUTPUTS_STAGED",
+			checkContains: []string{
+				"GH_AW_SAFE_OUTPUTS_STAGED: \"true\"",
 			},
 		},
 	}
@@ -222,22 +223,23 @@ func TestNoEnvVarsWhenNoSafeOutputs(t *testing.T) {
 	assert.Empty(t, steps)
 }
 
-// TestStagedFlagWithTargetRepo tests staged flag behavior with target-repo
+// TestStagedFlagWithTargetRepo tests that staged flag is emitted regardless of target-repo
 func TestStagedFlagWithTargetRepo(t *testing.T) {
 	tests := []struct {
-		name           string
-		targetRepoSlug string
-		shouldAddFlag  bool
+		name          string
+		targetRepo    string
+		shouldAddFlag bool
 	}{
 		{
-			name:           "no target-repo",
-			targetRepoSlug: "",
-			shouldAddFlag:  true,
+			name:          "no target-repo",
+			targetRepo:    "",
+			shouldAddFlag: true,
 		},
 		{
-			name:           "with target-repo",
-			targetRepoSlug: "org/repo",
-			shouldAddFlag:  false,
+			// staged is independent of target-repo
+			name:          "with target-repo",
+			targetRepo:    "org/repo",
+			shouldAddFlag: true,
 		},
 	}
 
@@ -250,7 +252,7 @@ func TestStagedFlagWithTargetRepo(t *testing.T) {
 				SafeOutputs: &SafeOutputsConfig{
 					Staged: true,
 					CreateIssues: &CreateIssuesConfig{
-						TargetRepoSlug: tt.targetRepoSlug,
+						TargetRepoSlug: tt.targetRepo,
 					},
 				},
 			}
@@ -395,11 +397,11 @@ func TestEnvVarFormatting(t *testing.T) {
 // TestStagedFlagPrecedence tests staged flag behavior across different configurations
 func TestStagedFlagPrecedence(t *testing.T) {
 	tests := []struct {
-		name           string
-		staged         bool
-		trialMode      bool
-		targetRepoSlug string
-		expectFlag     bool
+		name       string
+		staged     bool
+		trialMode  bool
+		targetRepo string
+		expectFlag bool
 	}{
 		{
 			name:       "staged true, no trial, no target-repo",
@@ -414,10 +416,11 @@ func TestStagedFlagPrecedence(t *testing.T) {
 			expectFlag: false,
 		},
 		{
-			name:           "staged true, target-repo set",
-			staged:         true,
-			targetRepoSlug: "org/repo",
-			expectFlag:     false,
+			// staged is independent of target-repo
+			name:       "staged true, target-repo set",
+			staged:     true,
+			targetRepo: "org/repo",
+			expectFlag: true,
 		},
 		{
 			name:       "staged false",
@@ -425,11 +428,12 @@ func TestStagedFlagPrecedence(t *testing.T) {
 			expectFlag: false,
 		},
 		{
-			name:           "staged true, trial mode and target-repo",
-			staged:         true,
-			trialMode:      true,
-			targetRepoSlug: "org/repo",
-			expectFlag:     false,
+			// trial mode suppresses staged regardless of target-repo
+			name:       "staged true, trial mode and target-repo",
+			staged:     true,
+			trialMode:  true,
+			targetRepo: "org/repo",
+			expectFlag: false,
 		},
 	}
 
@@ -445,7 +449,7 @@ func TestStagedFlagPrecedence(t *testing.T) {
 				SafeOutputs: &SafeOutputsConfig{
 					Staged: tt.staged,
 					CreateIssues: &CreateIssuesConfig{
-						TargetRepoSlug: tt.targetRepoSlug,
+						TargetRepoSlug: tt.targetRepo,
 					},
 				},
 			}
@@ -486,8 +490,8 @@ func TestAddCommentsTargetRepoStagedBehavior(t *testing.T) {
 
 	stepsContent := strings.Join(steps, "")
 
-	// Should not add staged flag when target-repo is set
-	assert.NotContains(t, stepsContent, "GH_AW_SAFE_OUTPUTS_STAGED")
+	// staged is independent of target-repo: flag is emitted even with target-repo set
+	assert.Contains(t, stepsContent, "GH_AW_SAFE_OUTPUTS_STAGED")
 }
 
 // TestAddLabelsTargetRepoStagedBehavior tests staged flag behavior for add_labels with target-repo
@@ -512,8 +516,8 @@ func TestAddLabelsTargetRepoStagedBehavior(t *testing.T) {
 
 	stepsContent := strings.Join(steps, "")
 
-	// Should not add staged flag when target-repo is set
-	assert.NotContains(t, stepsContent, "GH_AW_SAFE_OUTPUTS_STAGED")
+	// staged is independent of target-repo: flag is emitted even with target-repo set
+	assert.Contains(t, stepsContent, "GH_AW_SAFE_OUTPUTS_STAGED")
 }
 
 // TestStagedFlagForAllHandlerTypes tests that the staged flag is emitted for all safe output handler types.
@@ -523,7 +527,7 @@ func TestStagedFlagForAllHandlerTypes(t *testing.T) {
 		safeOutputs *SafeOutputsConfig
 		expectFlag  bool
 	}{
-		// Handlers without a target-repo field always qualify
+		// Handlers without a target-repo field
 		{
 			name: "autofix-code-scanning-alert with staged",
 			safeOutputs: &SafeOutputsConfig{
@@ -596,7 +600,7 @@ func TestStagedFlagForAllHandlerTypes(t *testing.T) {
 			},
 			expectFlag: true,
 		},
-		// Handlers with a target-repo field: qualify when no cross-repo target is set
+		// Handlers with a target-repo field: staged is emitted regardless of target-repo value
 		{
 			name: "create-discussion without target-repo",
 			safeOutputs: &SafeOutputsConfig{
@@ -613,7 +617,7 @@ func TestStagedFlagForAllHandlerTypes(t *testing.T) {
 					TargetRepoSlug: "org/other",
 				},
 			},
-			expectFlag: false,
+			expectFlag: true,
 		},
 		{
 			name: "close-issue without target-repo",
@@ -671,19 +675,324 @@ func TestStagedFlagForAllHandlerTypes(t *testing.T) {
 					TargetRepoSlug: "org/other",
 				},
 			},
-			expectFlag: false,
+			expectFlag: true,
 		},
-		// Only cross-repo handlers configured: no staged flag
+		// Handlers previously missing from test coverage
 		{
-			name: "only cross-repo handlers configured",
+			name: "close-discussion with staged",
+			safeOutputs: &SafeOutputsConfig{
+				Staged:           true,
+				CloseDiscussions: &CloseDiscussionsConfig{},
+			},
+			expectFlag: true,
+		},
+		{
+			name: "close-discussion with target-repo",
 			safeOutputs: &SafeOutputsConfig{
 				Staged: true,
-				CreateIssues: &CreateIssuesConfig{
-					TargetRepoSlug: "org/repo",
+				CloseDiscussions: &CloseDiscussionsConfig{
+					SafeOutputTargetConfig: SafeOutputTargetConfig{TargetRepoSlug: "org/other"},
 				},
-				CreateDiscussions: &CreateDiscussionsConfig{
+			},
+			expectFlag: true,
+		},
+		{
+			name: "add-reviewer with staged",
+			safeOutputs: &SafeOutputsConfig{
+				Staged:      true,
+				AddReviewer: &AddReviewerConfig{},
+			},
+			expectFlag: true,
+		},
+		{
+			name: "add-reviewer with target-repo",
+			safeOutputs: &SafeOutputsConfig{
+				Staged: true,
+				AddReviewer: &AddReviewerConfig{
+					SafeOutputTargetConfig: SafeOutputTargetConfig{TargetRepoSlug: "org/other"},
+				},
+			},
+			expectFlag: true,
+		},
+		{
+			name: "assign-milestone with staged",
+			safeOutputs: &SafeOutputsConfig{
+				Staged:          true,
+				AssignMilestone: &AssignMilestoneConfig{},
+			},
+			expectFlag: true,
+		},
+		{
+			name: "assign-milestone with target-repo",
+			safeOutputs: &SafeOutputsConfig{
+				Staged: true,
+				AssignMilestone: &AssignMilestoneConfig{
+					SafeOutputTargetConfig: SafeOutputTargetConfig{TargetRepoSlug: "org/other"},
+				},
+			},
+			expectFlag: true,
+		},
+		{
+			name: "assign-to-agent with staged",
+			safeOutputs: &SafeOutputsConfig{
+				Staged:        true,
+				AssignToAgent: &AssignToAgentConfig{},
+			},
+			expectFlag: true,
+		},
+		{
+			name: "assign-to-agent with target-repo",
+			safeOutputs: &SafeOutputsConfig{
+				Staged: true,
+				AssignToAgent: &AssignToAgentConfig{
+					SafeOutputTargetConfig: SafeOutputTargetConfig{TargetRepoSlug: "org/other"},
+				},
+			},
+			expectFlag: true,
+		},
+		{
+			name: "assign-to-user with staged",
+			safeOutputs: &SafeOutputsConfig{
+				Staged:       true,
+				AssignToUser: &AssignToUserConfig{},
+			},
+			expectFlag: true,
+		},
+		{
+			name: "assign-to-user with target-repo",
+			safeOutputs: &SafeOutputsConfig{
+				Staged: true,
+				AssignToUser: &AssignToUserConfig{
+					SafeOutputTargetConfig: SafeOutputTargetConfig{TargetRepoSlug: "org/other"},
+				},
+			},
+			expectFlag: true,
+		},
+		{
+			name: "unassign-from-user with staged",
+			safeOutputs: &SafeOutputsConfig{
+				Staged:           true,
+				UnassignFromUser: &UnassignFromUserConfig{},
+			},
+			expectFlag: true,
+		},
+		{
+			name: "unassign-from-user with target-repo",
+			safeOutputs: &SafeOutputsConfig{
+				Staged: true,
+				UnassignFromUser: &UnassignFromUserConfig{
+					SafeOutputTargetConfig: SafeOutputTargetConfig{TargetRepoSlug: "org/other"},
+				},
+			},
+			expectFlag: true,
+		},
+		{
+			name: "remove-labels with staged",
+			safeOutputs: &SafeOutputsConfig{
+				Staged:       true,
+				RemoveLabels: &RemoveLabelsConfig{},
+			},
+			expectFlag: true,
+		},
+		{
+			name: "remove-labels with target-repo",
+			safeOutputs: &SafeOutputsConfig{
+				Staged: true,
+				RemoveLabels: &RemoveLabelsConfig{
+					SafeOutputTargetConfig: SafeOutputTargetConfig{TargetRepoSlug: "org/other"},
+				},
+			},
+			expectFlag: true,
+		},
+		{
+			name: "create-code-scanning-alerts with staged",
+			safeOutputs: &SafeOutputsConfig{
+				Staged:                   true,
+				CreateCodeScanningAlerts: &CreateCodeScanningAlertsConfig{},
+			},
+			expectFlag: true,
+		},
+		{
+			name: "create-code-scanning-alerts with target-repo",
+			safeOutputs: &SafeOutputsConfig{
+				Staged: true,
+				CreateCodeScanningAlerts: &CreateCodeScanningAlertsConfig{
 					TargetRepoSlug: "org/other",
 				},
+			},
+			expectFlag: true,
+		},
+		{
+			name: "create-agent-session with staged",
+			safeOutputs: &SafeOutputsConfig{
+				Staged:              true,
+				CreateAgentSessions: &CreateAgentSessionConfig{},
+			},
+			expectFlag: true,
+		},
+		{
+			name: "create-agent-session with target-repo",
+			safeOutputs: &SafeOutputsConfig{
+				Staged: true,
+				CreateAgentSessions: &CreateAgentSessionConfig{
+					TargetRepoSlug: "org/other",
+				},
+			},
+			expectFlag: true,
+		},
+		{
+			name: "link-sub-issue with staged",
+			safeOutputs: &SafeOutputsConfig{
+				Staged:       true,
+				LinkSubIssue: &LinkSubIssueConfig{},
+			},
+			expectFlag: true,
+		},
+		{
+			name: "link-sub-issue with target-repo",
+			safeOutputs: &SafeOutputsConfig{
+				Staged: true,
+				LinkSubIssue: &LinkSubIssueConfig{
+					SafeOutputTargetConfig: SafeOutputTargetConfig{TargetRepoSlug: "org/other"},
+				},
+			},
+			expectFlag: true,
+		},
+		{
+			name: "hide-comment with staged",
+			safeOutputs: &SafeOutputsConfig{
+				Staged:      true,
+				HideComment: &HideCommentConfig{},
+			},
+			expectFlag: true,
+		},
+		{
+			name: "hide-comment with target-repo",
+			safeOutputs: &SafeOutputsConfig{
+				Staged: true,
+				HideComment: &HideCommentConfig{
+					SafeOutputTargetConfig: SafeOutputTargetConfig{TargetRepoSlug: "org/other"},
+				},
+			},
+			expectFlag: true,
+		},
+		{
+			name: "set-issue-type with staged",
+			safeOutputs: &SafeOutputsConfig{
+				Staged:       true,
+				SetIssueType: &SetIssueTypeConfig{},
+			},
+			expectFlag: true,
+		},
+		{
+			name: "set-issue-type with target-repo",
+			safeOutputs: &SafeOutputsConfig{
+				Staged: true,
+				SetIssueType: &SetIssueTypeConfig{
+					SafeOutputTargetConfig: SafeOutputTargetConfig{TargetRepoSlug: "org/other"},
+				},
+			},
+			expectFlag: true,
+		},
+		{
+			name: "reply-to-pull-request-review-comment with staged",
+			safeOutputs: &SafeOutputsConfig{
+				Staged:                          true,
+				ReplyToPullRequestReviewComment: &ReplyToPullRequestReviewCommentConfig{},
+			},
+			expectFlag: true,
+		},
+		{
+			name: "reply-to-pull-request-review-comment with target-repo",
+			safeOutputs: &SafeOutputsConfig{
+				Staged: true,
+				ReplyToPullRequestReviewComment: &ReplyToPullRequestReviewCommentConfig{
+					SafeOutputTargetConfig: SafeOutputTargetConfig{TargetRepoSlug: "org/other"},
+				},
+			},
+			expectFlag: true,
+		},
+		{
+			name: "resolve-pull-request-review-thread with staged",
+			safeOutputs: &SafeOutputsConfig{
+				Staged:                         true,
+				ResolvePullRequestReviewThread: &ResolvePullRequestReviewThreadConfig{},
+			},
+			expectFlag: true,
+		},
+		{
+			name: "resolve-pull-request-review-thread with target-repo",
+			safeOutputs: &SafeOutputsConfig{
+				Staged: true,
+				ResolvePullRequestReviewThread: &ResolvePullRequestReviewThreadConfig{
+					SafeOutputTargetConfig: SafeOutputTargetConfig{TargetRepoSlug: "org/other"},
+				},
+			},
+			expectFlag: true,
+		},
+		{
+			name: "push-to-pull-request-branch with staged",
+			safeOutputs: &SafeOutputsConfig{
+				Staged:                  true,
+				PushToPullRequestBranch: &PushToPullRequestBranchConfig{},
+			},
+			expectFlag: true,
+		},
+		{
+			name: "push-to-pull-request-branch with target-repo",
+			safeOutputs: &SafeOutputsConfig{
+				Staged: true,
+				PushToPullRequestBranch: &PushToPullRequestBranchConfig{
+					TargetRepoSlug: "org/other",
+				},
+			},
+			expectFlag: true,
+		},
+		{
+			name: "update-pull-request with staged",
+			safeOutputs: &SafeOutputsConfig{
+				Staged:             true,
+				UpdatePullRequests: &UpdatePullRequestsConfig{},
+			},
+			expectFlag: true,
+		},
+		{
+			name: "update-pull-request with target-repo",
+			safeOutputs: &SafeOutputsConfig{
+				Staged: true,
+				UpdatePullRequests: &UpdatePullRequestsConfig{
+					UpdateEntityConfig: UpdateEntityConfig{
+						SafeOutputTargetConfig: SafeOutputTargetConfig{TargetRepoSlug: "org/other"},
+					},
+				},
+			},
+			expectFlag: true,
+		},
+		{
+			name: "update-release with staged",
+			safeOutputs: &SafeOutputsConfig{
+				Staged:        true,
+				UpdateRelease: &UpdateReleaseConfig{},
+			},
+			expectFlag: true,
+		},
+		{
+			name: "update-release with target-repo",
+			safeOutputs: &SafeOutputsConfig{
+				Staged: true,
+				UpdateRelease: &UpdateReleaseConfig{
+					UpdateEntityConfig: UpdateEntityConfig{
+						SafeOutputTargetConfig: SafeOutputTargetConfig{TargetRepoSlug: "org/other"},
+					},
+				},
+			},
+			expectFlag: true,
+		},
+		// Staged not emitted when no handlers are configured
+		{
+			name: "no handlers configured",
+			safeOutputs: &SafeOutputsConfig{
+				Staged: true,
 			},
 			expectFlag: false,
 		},
