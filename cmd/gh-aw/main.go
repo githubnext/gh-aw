@@ -842,7 +842,7 @@ func main() {
 		if isAlreadyFormatted {
 			fmt.Fprintln(os.Stderr, errMsg)
 		} else {
-			fmt.Fprintln(os.Stderr, console.FormatErrorMessage(errMsg))
+			fmt.Fprintln(os.Stderr, console.FormatErrorChain(err))
 		}
 		os.Exit(1)
 	}

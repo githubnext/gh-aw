@@ -3,6 +3,7 @@
 package console
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"strconv"
@@ -243,6 +244,86 @@ func FormatListItem(item string) string {
 // FormatErrorMessage formats a simple error message (for stderr output)
 func FormatErrorMessage(message string) string {
 	return applyStyle(styles.Error, "✗ ") + message
+}
+
+// FormatErrorChain formats an error and its full unwrapped chain in a reading-friendly way.
+// For wrapped errors (fmt.Errorf with %w), each level of the chain is shown on a new
+// indented line. For errors whose message contains newlines (e.g. errors.Join), each
+// line is indented after the first.
+func FormatErrorChain(err error) string {
+	if err == nil {
+		return ""
+	}
+
+	chain := unwrapErrorChain(err)
+	if len(chain) <= 1 {
+		return formatMultilineError(err.Error())
+	}
+
+	var sb strings.Builder
+	sb.WriteString(applyStyle(styles.Error, "✗ "))
+	sb.WriteString(chain[0])
+	for _, msg := range chain[1:] {
+		// Each message in the chain may itself contain newlines (e.g. from errors.Join
+		// nested inside a wrapping error); expand them all with consistent indentation.
+		for line := range strings.SplitSeq(msg, "\n") {
+			if line != "" {
+				sb.WriteString("\n  ")
+				sb.WriteString(line)
+			}
+		}
+	}
+	return sb.String()
+}
+
+// unwrapErrorChain walks the error chain via errors.Unwrap and returns a slice of
+// individual message contributions, from outermost to innermost. Each entry contains
+// only the message added at that level (i.e. the inner error's message is stripped).
+func unwrapErrorChain(err error) []string {
+	var chain []string
+	current := err
+	for current != nil {
+		next := errors.Unwrap(current)
+		if next == nil {
+			chain = append(chain, current.Error())
+			break
+		}
+		outerMsg := current.Error()
+		innerMsg := next.Error()
+		// Strip the inner error's message from the current error's message
+		// to isolate this level's own contribution. This assumes the standard
+		// fmt.Errorf("prefix: %w", inner) pattern (colon-space separator).
+		// If the pattern does not match, the full message is used as a fallback
+		// so no information is lost.
+		suffix := ": " + innerMsg
+		if strings.HasSuffix(outerMsg, suffix) {
+			chain = append(chain, outerMsg[:len(outerMsg)-len(suffix)])
+		} else {
+			// Format does not follow the standard ": %w" pattern; keep the full message.
+			chain = append(chain, outerMsg)
+		}
+		current = next
+	}
+	return chain
+}
+
+// formatMultilineError formats a plain error message, indenting any newlines so that
+// continuation lines are visually subordinate to the leading "✗" prefix.
+func formatMultilineError(msg string) string {
+	if !strings.Contains(msg, "\n") {
+		return FormatErrorMessage(msg)
+	}
+	lines := strings.Split(msg, "\n")
+	var sb strings.Builder
+	sb.WriteString(applyStyle(styles.Error, "✗ "))
+	sb.WriteString(lines[0])
+	for _, line := range lines[1:] {
+		if line != "" {
+			sb.WriteString("\n  ")
+			sb.WriteString(line)
+		}
+	}
+	return sb.String()
 }
 
 // FormatSectionHeader formats a section header with proper styling
