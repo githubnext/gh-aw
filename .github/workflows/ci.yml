@@ -557,6 +557,32 @@ jobs:
           path: gh-aw
           retention-days: 14
 
+      - name: Report binary download instructions
+        run: |
+          RUN_ID="${{ github.run_id }}"
+          REPO="${{ github.repository }}"
+          echo "## 📦 gh-aw Binary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "The \`gh-aw\` Linux (amd64) binary has been uploaded as an artifact." >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Download with GitHub CLI" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`bash" >> $GITHUB_STEP_SUMMARY
+          echo "gh run download ${RUN_ID} --repo ${REPO} --name gh-aw-linux-amd64" >> $GITHUB_STEP_SUMMARY
+          echo "chmod +x gh-aw" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Download with curl" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`bash" >> $GITHUB_STEP_SUMMARY
+          echo "# Requires a GitHub token with actions:read scope" >> $GITHUB_STEP_SUMMARY
+          echo "ARTIFACT_ID=\$(curl -fsSL -H \"Authorization: Bearer \$GH_TOKEN\" \\" >> $GITHUB_STEP_SUMMARY
+          echo "  \"https://api.github.com/repos/${REPO}/actions/runs/${RUN_ID}/artifacts\" \\" >> $GITHUB_STEP_SUMMARY
+          echo "  | jq -r '.artifacts[] | select(.name==\"gh-aw-linux-amd64\") | .id')" >> $GITHUB_STEP_SUMMARY
+          echo "curl -fsSL -H \"Authorization: Bearer \$GH_TOKEN\" \\" >> $GITHUB_STEP_SUMMARY
+          echo "  -L \"https://api.github.com/repos/${REPO}/actions/artifacts/\$ARTIFACT_ID/zip\" \\" >> $GITHUB_STEP_SUMMARY
+          echo "  -o gh-aw-linux-amd64.zip" >> $GITHUB_STEP_SUMMARY
+          echo "unzip gh-aw-linux-amd64.zip && chmod +x gh-aw" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+
       - name: Rebuild lock files
         run: make recompile
         env:

@@ -25,7 +25,9 @@ type ProjectFieldDefinition struct {
 type UpdateProjectConfig struct {
 	BaseSafeOutputConfig `yaml:",inline"`
 	GitHubToken          string                   `yaml:"github-token,omitempty"`
-	Project              string                   `yaml:"project,omitempty"` // Default project URL for operations
+	Project              string                   `yaml:"project,omitempty"`       // Default project URL for operations
+	TargetRepoSlug       string                   `yaml:"target-repo,omitempty"`   // Default repository for cross-repo content resolution in "owner/repo" format
+	AllowedRepos         []string                 `yaml:"allowed-repos,omitempty"` // List of additional repositories allowed for target_repo resolution
 	Views                []ProjectView            `yaml:"views,omitempty"`
 	FieldDefinitions     []ProjectFieldDefinition `yaml:"field-definitions,omitempty" json:"field_definitions,omitempty"`
 }
@@ -57,6 +59,16 @@ func (c *Compiler) parseUpdateProjectConfig(outputMap map[string]any) *UpdatePro
 				}
 			}
 
+			// Parse target-repo for cross-repo content resolution (no wildcard allowed)
+			targetRepoSlug, isInvalid := parseTargetRepoWithValidation(configMap)
+			if isInvalid {
+				return nil
+			}
+			updateProjectConfig.TargetRepoSlug = targetRepoSlug
+
+			// Parse allowed-repos for cross-repo content resolution
+			updateProjectConfig.AllowedRepos = parseAllowedReposFromConfig(configMap)
+
 			// Parse views if specified
 			updateProjectConfig.Views = parseProjectViews(configMap, updateProjectLog)
 
@@ -64,8 +76,8 @@ func (c *Compiler) parseUpdateProjectConfig(outputMap map[string]any) *UpdatePro
 			updateProjectConfig.FieldDefinitions = parseProjectFieldDefinitions(configMap, updateProjectLog)
 		}
 
-		updateProjectLog.Printf("Parsed update-project config: max=%d, hasCustomToken=%v, hasCustomProject=%v, viewCount=%d, fieldDefinitionCount=%d",
-			updateProjectConfig.Max, updateProjectConfig.GitHubToken != "", updateProjectConfig.Project != "", len(updateProjectConfig.Views), len(updateProjectConfig.FieldDefinitions))
+		updateProjectLog.Printf("Parsed update-project config: max=%d, hasCustomToken=%v, hasCustomProject=%v, targetRepo=%q, allowedReposCount=%d, viewCount=%d, fieldDefinitionCount=%d",
+			updateProjectConfig.Max, updateProjectConfig.GitHubToken != "", updateProjectConfig.Project != "", updateProjectConfig.TargetRepoSlug, len(updateProjectConfig.AllowedRepos), len(updateProjectConfig.Views), len(updateProjectConfig.FieldDefinitions))
 		return updateProjectConfig
 	}
 	updateProjectLog.Print("No update-project configuration found")

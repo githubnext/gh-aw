@@ -87,6 +87,7 @@ Most safe output types support the `target-repo` parameter for cross-repository 
 | `create-discussion` | ✅ | Create discussions in any repo |
 | `create-agent-session` | ✅ | Create tasks in target repos |
 | `update-release` | ✅ | Update release notes across repos |
+| `update-project` | ✅ (`target_repo`) | Update project items from other repos |
 
 **Configuration Example:**
 
