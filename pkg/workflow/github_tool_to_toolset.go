@@ -22,6 +22,7 @@ func init() {
 	if err := json.Unmarshal(githubToolToToolsetJSON, &GitHubToolToToolsetMap); err != nil {
 		panic("failed to load GitHub tool to toolset mapping: " + err.Error())
 	}
+	githubToolToToolsetLog.Printf("Loaded GitHub tool-to-toolset mapping: %d entries", len(GitHubToolToToolsetMap))
 }
 
 // GitHubToolToToolsetMap is the last declaration in this file; ValidateGitHubToolsAgainstToolsets
