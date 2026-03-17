@@ -340,120 +340,31 @@ jobs:
           GH_AW_SAFE_OUTPUTS_CONFIG_EOF
       - name: Write Safe Outputs Tools
         run: |
-          cat > /opt/gh-aw/safeoutputs/tools.json << 'GH_AW_SAFE_OUTPUTS_TOOLS_EOF'
-          [
-            {
-              "description": "Report that a tool or capability needed to complete the task is not available, or share any information you deem important about missing functionality or limitations. Use this when you cannot accomplish what was requested because the required functionality is missing or access is restricted.",
-              "inputSchema": {
-                "additionalProperties": false,
-                "properties": {
-                  "alternatives": {
-                    "description": "Any workarounds, manual steps, or alternative approaches the user could take (max 256 characters).",
-                    "type": "string"
+          cat > /opt/gh-aw/safeoutputs/tools_meta.json << 'GH_AW_SAFE_OUTPUTS_TOOLS_META_EOF'
+          {
+            "description_suffixes": {},
+            "repo_params": {},
+            "dynamic_tools": [
+              {
+                "description": "Add a comment to a Notion page",
+                "inputSchema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "comment": {
+                      "description": "The comment text to add",
+                      "type": "string"
+                    }
                   },
-                  "integrity": {
-                    "description": "Trustworthiness level of the message source (e.g., \"low\", \"medium\", \"high\").",
-                    "type": "string"
-                  },
-                  "reason": {
-                    "description": "Explanation of why this tool is needed or what information you want to share about the limitation (max 256 characters).",
-                    "type": "string"
-                  },
-                  "secrecy": {
-                    "description": "Confidentiality level of the message content (e.g., \"public\", \"internal\", \"private\").",
-                    "type": "string"
-                  },
-                  "tool": {
-                    "description": "Optional: Name or description of the missing tool or capability (max 128 characters). Be specific about what functionality is needed.",
-                    "type": "string"
-                  }
+                  "required": [
+                    "comment"
+                  ],
+                  "type": "object"
                 },
-                "required": [
-                  "reason"
-                ],
-                "type": "object"
-              },
-              "name": "missing_tool"
-            },
-            {
-              "description": "Log a transparency message when no significant actions are needed. Use this to confirm workflow completion and provide visibility when analysis is complete but no changes or outputs are required (e.g., 'No issues found', 'All checks passed'). This ensures the workflow produces human-visible output even when no other actions are taken.",
-              "inputSchema": {
-                "additionalProperties": false,
-                "properties": {
-                  "integrity": {
-                    "description": "Trustworthiness level of the message source (e.g., \"low\", \"medium\", \"high\").",
-                    "type": "string"
-                  },
-                  "message": {
-                    "description": "Status or completion message to log. Should explain what was analyzed and the outcome (e.g., 'Code review complete - no issues found', 'Analysis complete - all tests passing').",
-                    "type": "string"
-                  },
-                  "secrecy": {
-                    "description": "Confidentiality level of the message content (e.g., \"public\", \"internal\", \"private\").",
-                    "type": "string"
-                  }
-                },
-                "required": [
-                  "message"
-                ],
-                "type": "object"
-              },
-              "name": "noop"
-            },
-            {
-              "description": "Report that data or information needed to complete the task is not available. Use this when you cannot accomplish what was requested because required data, context, or information is missing.",
-              "inputSchema": {
-                "additionalProperties": false,
-                "properties": {
-                  "alternatives": {
-                    "description": "Any workarounds, manual steps, or alternative approaches the user could take (max 256 characters).",
-                    "type": "string"
-                  },
-                  "context": {
-                    "description": "Additional context about the missing data or where it should come from (max 256 characters).",
-                    "type": "string"
-                  },
-                  "data_type": {
-                    "description": "Type or description of the missing data or information (max 128 characters). Be specific about what data is needed.",
-                    "type": "string"
-                  },
-                  "integrity": {
-                    "description": "Trustworthiness level of the message source (e.g., \"low\", \"medium\", \"high\").",
-                    "type": "string"
-                  },
-                  "reason": {
-                    "description": "Explanation of why this data is needed to complete the task (max 256 characters).",
-                    "type": "string"
-                  },
-                  "secrecy": {
-                    "description": "Confidentiality level of the message content (e.g., \"public\", \"internal\", \"private\").",
-                    "type": "string"
-                  }
-                },
-                "required": [],
-                "type": "object"
-              },
-              "name": "missing_data"
-            },
-            {
-              "description": "Add a comment to a Notion page",
-              "inputSchema": {
-                "additionalProperties": false,
-                "properties": {
-                  "comment": {
-                    "description": "The comment text to add",
-                    "type": "string"
-                  }
-                },
-                "required": [
-                  "comment"
-                ],
-                "type": "object"
-              },
-              "name": "notion_add_comment"
-            }
-          ]
-          GH_AW_SAFE_OUTPUTS_TOOLS_EOF
+                "name": "notion_add_comment"
+              }
+            ]
+          }
+          GH_AW_SAFE_OUTPUTS_TOOLS_META_EOF
           cat > /opt/gh-aw/safeoutputs/validation.json << 'GH_AW_SAFE_OUTPUTS_VALIDATION_EOF'
           {
             "missing_data": {
@@ -515,6 +426,7 @@ jobs:
             }
           }
           GH_AW_SAFE_OUTPUTS_VALIDATION_EOF
+          node /tmp/gh-aw/actions/generate_safe_outputs_tools.cjs
       - name: Generate Safe Outputs MCP Server Config
         id: safe-outputs-config
         run: |

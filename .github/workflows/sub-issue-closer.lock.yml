@@ -331,212 +331,16 @@ jobs:
           GH_AW_SAFE_OUTPUTS_CONFIG_EOF
       - name: Write Safe Outputs Tools
         run: |
-          cat > /opt/gh-aw/safeoutputs/tools.json << 'GH_AW_SAFE_OUTPUTS_TOOLS_EOF'
-          [
-            {
-              "description": "Add a comment to an existing GitHub issue, pull request, or discussion. Use this to provide feedback, answer questions, or add information to an existing conversation. For creating new items, use create_issue, create_discussion, or create_pull_request instead. IMPORTANT: Comments are subject to validation constraints enforced by the MCP server - maximum 65536 characters for the complete comment (including footer which is added automatically), 10 mentions (@username), and 50 links. Exceeding these limits will result in an immediate error with specific guidance. NOTE: By default, this tool requires discussions:write permission. If your GitHub App lacks Discussions permission, set 'discussions: false' in the workflow's safe-outputs.add-comment configuration to exclude this permission. CONSTRAINTS: Maximum 20 comment(s) can be added. Target: *.",
-              "inputSchema": {
-                "additionalProperties": false,
-                "properties": {
-                  "body": {
-                    "description": "The comment text in Markdown format. This is the 'body' field - do not use 'comment_body' or other variations. Provide helpful, relevant information that adds value to the conversation. CONSTRAINTS: The complete comment (your body text + automatically added footer) must not exceed 65536 characters total. Maximum 10 mentions (@username), maximum 50 links (http/https URLs). A footer (~200-500 characters) is automatically appended with workflow attribution, so leave adequate space. If these limits are exceeded, the tool call will fail with a detailed error message indicating which constraint was violated.",
-                    "type": "string"
-                  },
-                  "integrity": {
-                    "description": "Trustworthiness level of the message source (e.g., \"low\", \"medium\", \"high\").",
-                    "type": "string"
-                  },
-                  "item_number": {
-                    "description": "The issue, pull request, or discussion number to comment on. This is the numeric ID from the GitHub URL (e.g., 123 in github.com/owner/repo/issues/123). Can also be a temporary_id (e.g., 'aw_abc123') from a previously created issue in the same workflow run. If omitted, the tool auto-targets the issue, PR, or discussion that triggered this workflow. Auto-targeting only works for issue, pull_request, discussion, and comment event triggers — it does NOT work for schedule, workflow_dispatch, push, or workflow_run triggers. For those trigger types, always provide item_number explicitly, or the tool call will fail with an error.",
-                    "type": [
-                      "number",
-                      "string"
-                    ]
-                  },
-                  "secrecy": {
-                    "description": "Confidentiality level of the message content (e.g., \"public\", \"internal\", \"private\").",
-                    "type": "string"
-                  },
-                  "temporary_id": {
-                    "description": "Unique temporary identifier for this comment. Format: 'aw_' followed by 3 to 12 alphanumeric characters (e.g., 'aw_abc1', 'aw_Test123'). Auto-generated if not provided. The temporary ID is returned in the tool response so you can reference this comment later.",
-                    "pattern": "^aw_[A-Za-z0-9]{3,12}$",
-                    "type": "string"
-                  }
-                },
-                "required": [
-                  "body"
-                ],
-                "type": "object"
-              },
-              "name": "add_comment"
+          cat > /opt/gh-aw/safeoutputs/tools_meta.json << 'GH_AW_SAFE_OUTPUTS_TOOLS_META_EOF'
+          {
+            "description_suffixes": {
+              "add_comment": " CONSTRAINTS: Maximum 20 comment(s) can be added. Target: *.",
+              "update_issue": " CONSTRAINTS: Maximum 20 issue(s) can be updated. Target: *."
             },
-            {
-              "description": "Update an existing GitHub issue's title, body, labels, assignees, or milestone WITHOUT closing it. This tool is primarily for editing issue metadata and content. While it supports changing status between 'open' and 'closed', use close_issue instead when you want to close an issue with a closing comment. Body updates support replacing, appending to, prepending content, or updating a per-run \"island\" section. CONSTRAINTS: Maximum 20 issue(s) can be updated. Target: *.",
-              "inputSchema": {
-                "additionalProperties": false,
-                "properties": {
-                  "assignees": {
-                    "description": "Replace the issue assignees with this list of GitHub usernames (e.g., ['octocat', 'mona']).",
-                    "items": {
-                      "type": "string"
-                    },
-                    "type": "array"
-                  },
-                  "body": {
-                    "description": "Issue body content in Markdown. For 'replace', this becomes the entire body. For 'append'/'prepend', this content is added with a separator and an attribution footer. For 'replace-island', only the run-specific section is updated.",
-                    "type": "string"
-                  },
-                  "integrity": {
-                    "description": "Trustworthiness level of the message source (e.g., \"low\", \"medium\", \"high\").",
-                    "type": "string"
-                  },
-                  "issue_number": {
-                    "description": "Issue number to update. This is the numeric ID from the GitHub URL (e.g., 789 in github.com/owner/repo/issues/789). Required when the workflow target is '*' (any issue).",
-                    "type": [
-                      "number",
-                      "string"
-                    ]
-                  },
-                  "labels": {
-                    "description": "Replace the issue labels with this list (e.g., ['bug', 'tracking:foo']). Labels must exist in the repository.",
-                    "items": {
-                      "type": "string"
-                    },
-                    "type": "array"
-                  },
-                  "milestone": {
-                    "description": "Milestone number to assign (e.g., 1). Use null to clear.",
-                    "type": [
-                      "number",
-                      "string"
-                    ]
-                  },
-                  "operation": {
-                    "description": "How to update the issue body: 'append' (default - add to end with separator), 'prepend' (add to start with separator), 'replace' (overwrite entire body), or 'replace-island' (update a run-specific section).",
-                    "enum": [
-                      "replace",
-                      "append",
-                      "prepend",
-                      "replace-island"
-                    ],
-                    "type": "string"
-                  },
-                  "secrecy": {
-                    "description": "Confidentiality level of the message content (e.g., \"public\", \"internal\", \"private\").",
-                    "type": "string"
-                  },
-                  "status": {
-                    "description": "New issue status: 'open' to reopen a closed issue, 'closed' to close an open issue.",
-                    "enum": [
-                      "open",
-                      "closed"
-                    ],
-                    "type": "string"
-                  },
-                  "title": {
-                    "description": "New issue title to replace the existing title.",
-                    "type": "string"
-                  }
-                },
-                "type": "object"
-              },
-              "name": "update_issue"
-            },
-            {
-              "description": "Report that a tool or capability needed to complete the task is not available, or share any information you deem important about missing functionality or limitations. Use this when you cannot accomplish what was requested because the required functionality is missing or access is restricted.",
-              "inputSchema": {
-                "additionalProperties": false,
-                "properties": {
-                  "alternatives": {
-                    "description": "Any workarounds, manual steps, or alternative approaches the user could take (max 256 characters).",
-                    "type": "string"
-                  },
-                  "integrity": {
-                    "description": "Trustworthiness level of the message source (e.g., \"low\", \"medium\", \"high\").",
-                    "type": "string"
-                  },
-                  "reason": {
-                    "description": "Explanation of why this tool is needed or what information you want to share about the limitation (max 256 characters).",
-                    "type": "string"
-                  },
-                  "secrecy": {
-                    "description": "Confidentiality level of the message content (e.g., \"public\", \"internal\", \"private\").",
-                    "type": "string"
-                  },
-                  "tool": {
-                    "description": "Optional: Name or description of the missing tool or capability (max 128 characters). Be specific about what functionality is needed.",
-                    "type": "string"
-                  }
-                },
-                "required": [
-                  "reason"
-                ],
-                "type": "object"
-              },
-              "name": "missing_tool"
-            },
-            {
-              "description": "Log a transparency message when no significant actions are needed. Use this to confirm workflow completion and provide visibility when analysis is complete but no changes or outputs are required (e.g., 'No issues found', 'All checks passed'). This ensures the workflow produces human-visible output even when no other actions are taken.",
-              "inputSchema": {
-                "additionalProperties": false,
-                "properties": {
-                  "integrity": {
-                    "description": "Trustworthiness level of the message source (e.g., \"low\", \"medium\", \"high\").",
-                    "type": "string"
-                  },
-                  "message": {
-                    "description": "Status or completion message to log. Should explain what was analyzed and the outcome (e.g., 'Code review complete - no issues found', 'Analysis complete - all tests passing').",
-                    "type": "string"
-                  },
-                  "secrecy": {
-                    "description": "Confidentiality level of the message content (e.g., \"public\", \"internal\", \"private\").",
-                    "type": "string"
-                  }
-                },
-                "required": [
-                  "message"
-                ],
-                "type": "object"
-              },
-              "name": "noop"
-            },
-            {
-              "description": "Report that data or information needed to complete the task is not available. Use this when you cannot accomplish what was requested because required data, context, or information is missing.",
-              "inputSchema": {
-                "additionalProperties": false,
-                "properties": {
-                  "alternatives": {
-                    "description": "Any workarounds, manual steps, or alternative approaches the user could take (max 256 characters).",
-                    "type": "string"
-                  },
-                  "context": {
-                    "description": "Additional context about the missing data or where it should come from (max 256 characters).",
-                    "type": "string"
-                  },
-                  "data_type": {
-                    "description": "Type or description of the missing data or information (max 128 characters). Be specific about what data is needed.",
-                    "type": "string"
-                  },
-                  "integrity": {
-                    "description": "Trustworthiness level of the message source (e.g., \"low\", \"medium\", \"high\").",
-                    "type": "string"
-                  },
-                  "reason": {
-                    "description": "Explanation of why this data is needed to complete the task (max 256 characters).",
-                    "type": "string"
-                  },
-                  "secrecy": {
-                    "description": "Confidentiality level of the message content (e.g., \"public\", \"internal\", \"private\").",
-                    "type": "string"
-                  }
-                },
-                "required": [],
-                "type": "object"
-              },
-              "name": "missing_data"
-            }
-          ]
-          GH_AW_SAFE_OUTPUTS_TOOLS_EOF
+            "repo_params": {},
+            "dynamic_tools": []
+          }
+          GH_AW_SAFE_OUTPUTS_TOOLS_META_EOF
           cat > /opt/gh-aw/safeoutputs/validation.json << 'GH_AW_SAFE_OUTPUTS_VALIDATION_EOF'
           {
             "add_comment": {
@@ -670,6 +474,7 @@ jobs:
             }
           }
           GH_AW_SAFE_OUTPUTS_VALIDATION_EOF
+          node /tmp/gh-aw/actions/generate_safe_outputs_tools.cjs
       - name: Generate Safe Outputs MCP Server Config
         id: safe-outputs-config
         run: |
