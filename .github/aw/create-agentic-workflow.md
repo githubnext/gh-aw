@@ -588,8 +588,6 @@ Deploy a preview environment for this pull request. The caller wrote:
 - You want the workflow to work across issues, PRs, and discussions uniformly
 - The action is something a user would naturally type as a comment
 
-**Required permission:** `slash_command` adds reactions to triggering comments, which requires `issues: write` or `pull-requests: write`. Use `safe-outputs` for any other write operations; do not grant write permissions directly on the agent job.
-
 ### label_command
 
 `label_command` triggers a workflow when a specific label is applied to an issue, PR, or discussion. The label is **automatically removed** after activation so it can be re-applied to trigger again. It is part of the LabelOps pattern.
@@ -625,8 +623,6 @@ The `deploy` label was applied to this pull request. Build and deploy a preview 
 - Discoverability matters — the label appears as an option in the GitHub label picker
 - The action fits naturally into a label-based process (e.g., release management, review gates)
 
-**Required permission:** The `label_command` trigger automatically removes the triggering label. Add `issues: write` (for issues/discussions) or `pull-requests: write` (for PRs) to the frontmatter `permissions:` block.
-
 ### Choosing between the two
 
 | | `slash_command` | `label_command` |
@@ -636,7 +632,6 @@ The `deploy` label was applied to this pull request. Build and deploy a preview 
 | Arguments | Comment body provides context | No arguments; one-shot action |
 | Re-triggerable | Yes — post a new comment | Yes — reapply the label |
 | Supported items | Issues, PRs, discussions, comments | Issues, PRs, discussions |
-| Required permission | `issues: write` or `pull-requests: write` (for reactions) | `issues: write` or `pull-requests: write` (for label removal) |
 | Part of LabelOps | No | Yes |
 
 ### Combining both
