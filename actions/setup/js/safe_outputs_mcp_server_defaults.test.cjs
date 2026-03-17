@@ -72,8 +72,8 @@ const canWriteDefault = canWriteToDefaultPath();
           setTimeout(() => {
             (child.kill(),
               clearTimeout(timeout),
-              expect(stderr).toContain("GH_AW_SAFE_OUTPUTS not set, using default: ${process.env.RUNNER_TEMP}/gh-aw/safeoutputs/outputs.jsonl"),
-              expect(stderr).toContain("Reading config from file: ${process.env.RUNNER_TEMP}/gh-aw/safeoutputs/config.json"),
+              expect(stderr).toContain(`GH_AW_SAFE_OUTPUTS not set, using default: ${process.env.RUNNER_TEMP}/gh-aw/safeoutputs/outputs.jsonl`),
+              expect(stderr).toContain(`Reading config from file: ${process.env.RUNNER_TEMP}/gh-aw/safeoutputs/config.json`),
               resolve());
           }, 2e3));
       });
@@ -102,7 +102,7 @@ const canWriteDefault = canWriteToDefaultPath();
             (child.kill(),
               clearTimeout(timeout),
               fs.existsSync(defaultConfigFile) && fs.unlinkSync(defaultConfigFile),
-              expect(stderr).toContain("Reading config from file: ${process.env.RUNNER_TEMP}/gh-aw/safeoutputs/config.json"),
+              expect(stderr).toContain(`Reading config from file: ${process.env.RUNNER_TEMP}/gh-aw/safeoutputs/config.json`),
               expect(stderr).toContain("Successfully parsed config from file with 2 configuration keys"),
               expect(stderr).toContain("Final processed config:"),
               expect(stderr).toContain("create_issue"),
@@ -132,7 +132,7 @@ const canWriteDefault = canWriteToDefaultPath();
           setTimeout(() => {
             (child.kill(),
               clearTimeout(timeout),
-              expect(stderr).toContain("Config file does not exist at: ${process.env.RUNNER_TEMP}/gh-aw/safeoutputs/config.json"),
+              expect(stderr).toContain(`Config file does not exist at: ${process.env.RUNNER_TEMP}/gh-aw/safeoutputs/config.json`),
               expect(stderr).toContain("Using minimal default configuration"),
               expect(stderr).toContain("Final processed config: {}"),
               resolve());
