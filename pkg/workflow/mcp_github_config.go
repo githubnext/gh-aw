@@ -348,11 +348,15 @@ func transformRepoPattern(pattern string) string {
 // deriveSafeOutputsGuardPolicyFromGitHub, ensuring that as guard policies are rolled out, only
 // GitHub inputs are filtered while outputs to non-GitHub servers are not restricted.
 //
-// When no explicit guard policy is configured but automatic lockdown detection would run
-// (GitHub tool present and not disabled, no GitHub App configured), a write-sink policy with
-// accept=["*"] is returned because automatic lockdown always sets repos=all at runtime.
+// Two cases produce a non-nil policy:
+//  1. Explicit guard policy — when repos/min-integrity are set on the GitHub tool, a write-sink
+//     policy is derived from those settings (e.g. "private:myorg/myrepo").
+//  2. Auto-lockdown — when the GitHub tool is present without explicit guard policies and without
+//     a GitHub App configured, auto-lockdown detection will set repos=all at runtime, so a
+//     write-sink policy with accept=["*"] is returned to match that runtime behaviour.
 //
-// Returns nil when no GitHub guard policies are configured or when workflowData is nil.
+// Returns nil when workflowData is nil, when no GitHub tool is present, or when a GitHub App is
+// configured (auto-lockdown is skipped for GitHub App tokens, which are already repo-scoped).
 func deriveWriteSinkGuardPolicyFromWorkflow(workflowData *WorkflowData) map[string]any {
 	if workflowData == nil || workflowData.Tools == nil {
 		return nil

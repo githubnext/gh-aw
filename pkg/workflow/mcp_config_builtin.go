@@ -150,7 +150,7 @@ func renderSafeOutputsMCPConfigWithOptions(yaml *strings.Builder, isLast bool, i
 
 	// Add guard-policies if configured
 	if len(guardPolicies) > 0 {
-		mcpBuiltinLog.Print("Adding guard-policies to safeoutputs (derived from GitHub guard-policy)")
+		mcpBuiltinLog.Print("Adding guard-policies to safeoutputs (derived from GitHub guard-policy or auto-lockdown detection)")
 		yaml.WriteString(",\n")
 		renderGuardPoliciesJSON(yaml, guardPolicies, "                ")
 	} else {

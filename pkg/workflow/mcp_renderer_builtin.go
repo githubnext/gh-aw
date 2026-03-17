@@ -174,7 +174,7 @@ func (r *MCPConfigRendererUnified) renderSafeOutputsTOML(yaml *strings.Builder, 
 	// If so, generate a linked write-sink guard-policy for safeoutputs
 	guardPolicies := deriveWriteSinkGuardPolicyFromWorkflow(workflowData)
 	if len(guardPolicies) > 0 {
-		mcpRendererLog.Print("Adding guard-policies to safeoutputs TOML (derived from GitHub guard-policy)")
+		mcpRendererLog.Print("Adding guard-policies to safeoutputs TOML (derived from GitHub guard-policy or auto-lockdown detection)")
 		// Render guard-policies in TOML format
 		renderGuardPoliciesToml(yaml, guardPolicies, constants.SafeOutputsMCPServerID.String())
 	}
