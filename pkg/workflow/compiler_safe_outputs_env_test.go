@@ -3,6 +3,7 @@
 package workflow
 
 import (
+	"reflect"
 	"strings"
 	"testing"
 
@@ -132,7 +133,8 @@ func TestAddAllSafeOutputConfigEnvVars(t *testing.T) {
 			},
 		},
 		{
-			name: "target-repo specified does not add staged flag",
+			// staged is independent of target-repo: staged flag is emitted even when target-repo is set
+			name: "target-repo specified still adds staged flag",
 			safeOutputs: &SafeOutputsConfig{
 				Staged: true,
 				CreateIssues: &CreateIssuesConfig{
@@ -140,8 +142,8 @@ func TestAddAllSafeOutputConfigEnvVars(t *testing.T) {
 					TitlePrefix:    "[Test] ",
 				},
 			},
-			checkNotContains: []string{
-				"GH_AW_SAFE_OUTPUTS_STAGED",
+			checkContains: []string{
+				"GH_AW_SAFE_OUTPUTS_STAGED: \"true\"",
 			},
 		},
 	}
@@ -222,22 +224,23 @@ func TestNoEnvVarsWhenNoSafeOutputs(t *testing.T) {
 	assert.Empty(t, steps)
 }
 
-// TestStagedFlagWithTargetRepo tests staged flag behavior with target-repo
+// TestStagedFlagWithTargetRepo tests that staged flag is emitted regardless of target-repo
 func TestStagedFlagWithTargetRepo(t *testing.T) {
 	tests := []struct {
-		name           string
-		targetRepoSlug string
-		shouldAddFlag  bool
+		name          string
+		targetRepo    string
+		shouldAddFlag bool
 	}{
 		{
-			name:           "no target-repo",
-			targetRepoSlug: "",
-			shouldAddFlag:  true,
+			name:          "no target-repo",
+			targetRepo:    "",
+			shouldAddFlag: true,
 		},
 		{
-			name:           "with target-repo",
-			targetRepoSlug: "org/repo",
-			shouldAddFlag:  false,
+			// staged is independent of target-repo
+			name:          "with target-repo",
+			targetRepo:    "org/repo",
+			shouldAddFlag: true,
 		},
 	}
 
@@ -250,7 +253,7 @@ func TestStagedFlagWithTargetRepo(t *testing.T) {
 				SafeOutputs: &SafeOutputsConfig{
 					Staged: true,
 					CreateIssues: &CreateIssuesConfig{
-						TargetRepoSlug: tt.targetRepoSlug,
+						TargetRepoSlug: tt.targetRepo,
 					},
 				},
 			}
@@ -395,11 +398,11 @@ func TestEnvVarFormatting(t *testing.T) {
 // TestStagedFlagPrecedence tests staged flag behavior across different configurations
 func TestStagedFlagPrecedence(t *testing.T) {
 	tests := []struct {
-		name           string
-		staged         bool
-		trialMode      bool
-		targetRepoSlug string
-		expectFlag     bool
+		name       string
+		staged     bool
+		trialMode  bool
+		targetRepo string
+		expectFlag bool
 	}{
 		{
 			name:       "staged true, no trial, no target-repo",
@@ -414,10 +417,11 @@ func TestStagedFlagPrecedence(t *testing.T) {
 			expectFlag: false,
 		},
 		{
-			name:           "staged true, target-repo set",
-			staged:         true,
-			targetRepoSlug: "org/repo",
-			expectFlag:     false,
+			// staged is independent of target-repo
+			name:       "staged true, target-repo set",
+			staged:     true,
+			targetRepo: "org/repo",
+			expectFlag: true,
 		},
 		{
 			name:       "staged false",
@@ -425,11 +429,12 @@ func TestStagedFlagPrecedence(t *testing.T) {
 			expectFlag: false,
 		},
 		{
-			name:           "staged true, trial mode and target-repo",
-			staged:         true,
-			trialMode:      true,
-			targetRepoSlug: "org/repo",
-			expectFlag:     false,
+			// trial mode suppresses staged regardless of target-repo
+			name:       "staged true, trial mode and target-repo",
+			staged:     true,
+			trialMode:  true,
+			targetRepo: "org/repo",
+			expectFlag: false,
 		},
 	}
 
@@ -445,7 +450,7 @@ func TestStagedFlagPrecedence(t *testing.T) {
 				SafeOutputs: &SafeOutputsConfig{
 					Staged: tt.staged,
 					CreateIssues: &CreateIssuesConfig{
-						TargetRepoSlug: tt.targetRepoSlug,
+						TargetRepoSlug: tt.targetRepo,
 					},
 				},
 			}
@@ -486,8 +491,8 @@ func TestAddCommentsTargetRepoStagedBehavior(t *testing.T) {
 
 	stepsContent := strings.Join(steps, "")
 
-	// Should not add staged flag when target-repo is set
-	assert.NotContains(t, stepsContent, "GH_AW_SAFE_OUTPUTS_STAGED")
+	// staged is independent of target-repo: flag is emitted even with target-repo set
+	assert.Contains(t, stepsContent, "GH_AW_SAFE_OUTPUTS_STAGED")
 }
 
 // TestAddLabelsTargetRepoStagedBehavior tests staged flag behavior for add_labels with target-repo
@@ -512,6 +517,60 @@ func TestAddLabelsTargetRepoStagedBehavior(t *testing.T) {
 
 	stepsContent := strings.Join(steps, "")
 
-	// Should not add staged flag when target-repo is set
-	assert.NotContains(t, stepsContent, "GH_AW_SAFE_OUTPUTS_STAGED")
+	// staged is independent of target-repo: flag is emitted even with target-repo set
+	assert.Contains(t, stepsContent, "GH_AW_SAFE_OUTPUTS_STAGED")
+}
+
+// TestStagedFlagForAllHandlerTypes tests that the staged flag is emitted for every handler type
+// registered in safeOutputFieldMapping. The test cases are generated via reflection so the test
+// stays complete automatically when new handler types are added to safeOutputFieldMapping.
+func TestStagedFlagForAllHandlerTypes(t *testing.T) {
+	soType := reflect.TypeFor[SafeOutputsConfig]()
+
+	// One sub-test per field registered in safeOutputFieldMapping.
+	// Each sub-test sets staged:true + that one handler, and verifies the env var is emitted.
+	for fieldName := range safeOutputFieldMapping {
+		t.Run(fieldName, func(t *testing.T) {
+			f, ok := soType.FieldByName(fieldName)
+			require.True(t, ok, "safeOutputFieldMapping references field %q which does not exist in SafeOutputsConfig", fieldName)
+
+			so := &SafeOutputsConfig{Staged: true}
+			soVal := reflect.ValueOf(so).Elem()
+			field := soVal.FieldByName(fieldName)
+			require.True(t, field.IsValid(), "Field %q not found in SafeOutputsConfig", fieldName)
+			require.Equal(t, reflect.Pointer, field.Kind(), "Expected pointer field for %q, got %v", fieldName, f.Type)
+
+			// Set the field to a zero-valued instance of the target struct.
+			field.Set(reflect.New(field.Type().Elem()))
+
+			compiler := NewCompiler()
+			workflowData := &WorkflowData{
+				Name:        "Test Workflow",
+				SafeOutputs: so,
+			}
+
+			var steps []string
+			compiler.addAllSafeOutputConfigEnvVars(&steps, workflowData)
+			stepsContent := strings.Join(steps, "")
+
+			assert.Contains(t, stepsContent, "GH_AW_SAFE_OUTPUTS_STAGED",
+				"Expected staged flag to be emitted for handler %q", fieldName)
+		})
+	}
+
+	// Verify the flag is not emitted when staged is set but no handler is configured.
+	t.Run("no handlers configured", func(t *testing.T) {
+		compiler := NewCompiler()
+		workflowData := &WorkflowData{
+			Name:        "Test Workflow",
+			SafeOutputs: &SafeOutputsConfig{Staged: true},
+		}
+
+		var steps []string
+		compiler.addAllSafeOutputConfigEnvVars(&steps, workflowData)
+		stepsContent := strings.Join(steps, "")
+
+		assert.NotContains(t, stepsContent, "GH_AW_SAFE_OUTPUTS_STAGED",
+			"Staged flag should not be emitted when no handlers are configured")
+	})
 }

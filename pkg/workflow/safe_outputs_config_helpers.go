@@ -199,6 +199,9 @@ func generateHideCommentConfig(max *string, defaultMax int, allowedReasons []str
 // - "allowed_repos" uses underscore to match JavaScript handler expectations (see repo_helpers.cjs)
 // This inconsistency is intentional to maintain compatibility with existing handler code.
 func generateTargetConfigWithRepos(targetConfig SafeOutputTargetConfig, max *string, defaultMax int, additionalFields map[string]any) map[string]any {
+	safeOutputsConfigGenLog.Printf("Generating target config: target=%s, targetRepo=%s, allowedReposCount=%d, additionalFieldsCount=%d",
+		targetConfig.Target, targetConfig.TargetRepoSlug, len(targetConfig.AllowedRepos), len(additionalFields))
+
 	config := generateMaxConfig(max, defaultMax)
 
 	// Add target if specified

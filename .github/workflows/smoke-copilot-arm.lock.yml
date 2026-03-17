@@ -396,6 +396,10 @@ jobs:
         run: echo "GOROOT=$(go env GOROOT)" >> "$GITHUB_ENV"
       - name: Create gh-aw temp directory
         run: bash /opt/gh-aw/actions/create_gh_aw_tmp_dir.sh
+      - name: Configure gh CLI for GitHub Enterprise
+        run: bash /opt/gh-aw/actions/configure_gh_for_ghe.sh
+        env:
+          GH_TOKEN: ${{ github.token }}
       # Cache memory file share configuration from frontmatter processed below
       - name: Create cache-memory directory
         run: bash /opt/gh-aw/actions/create_cache_memory_dir.sh

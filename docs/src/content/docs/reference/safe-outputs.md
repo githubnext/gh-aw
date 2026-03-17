@@ -517,6 +517,8 @@ safe-outputs:
     project: "https://github.com/orgs/myorg/projects/42"  # required: target project URL
     max: 20                         # max operations (default: 10)
     github-token: ${{ secrets.GH_AW_WRITE_PROJECT_TOKEN }}
+    target-repo: "org/default-repo"         # optional: default repo for target_repo resolution
+    allowed-repos: ["org/repo-a", "org/repo-b"]  # optional: additional repos for cross-repo items
     views:                          # optional: auto-create views
       - name: "Sprint Board"
         layout: board
@@ -532,8 +534,36 @@ safe-outputs:
 - `project` (required in configuration): Default project URL shown in examples. Note: Agent output messages **must** explicitly include the `project` field - the configured value is for documentation purposes only.
 - `max`: Maximum number of operations per run (default: 10).
 - `github-token`: Custom token with Projects permissions (required for Projects v2 access).
+- `target-repo`: Default repository for cross-repo content resolution in `owner/repo` format. Wildcards (`*`) are not allowed.
+- `allowed-repos`: List of additional repositories whose issues/PRs can be resolved via `target_repo`. The `target-repo` is always implicitly allowed.
 - `views`: Optional array of project views to create automatically.
 - Exposes outputs: `project-id`, `project-number`, `project-url`, `item-id`.
+
+#### Cross-Repository Content Resolution
+
+For **organization-level projects** that aggregate issues from multiple repositories, use `target_repo` in the agent output to specify which repo contains the issue or PR:
+
+```yaml wrap
+safe-outputs:
+  update-project:
+    github-token: ${{ secrets.GH_AW_WRITE_PROJECT_TOKEN }}
+    allowed-repos: ["org/docs", "org/backend", "org/frontend"]
+```
+
+The agent can then specify `target_repo` alongside `content_number`:
+
+```json
+{
+  "type": "update_project",
+  "project": "https://github.com/orgs/myorg/projects/42",
+  "content_type": "issue",
+  "content_number": 123,
+  "target_repo": "org/docs",
+  "fields": { "Status": "In Progress" }
+}
+```
+
+Without `target_repo`, the workflow's host repository is used to resolve `content_number`.
 
 #### Supported Field Types
 

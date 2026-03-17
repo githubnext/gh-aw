@@ -323,6 +323,10 @@ jobs:
             BINARY=dist/gh-aw-linux-amd64
       - name: Create gh-aw temp directory
         run: bash /opt/gh-aw/actions/create_gh_aw_tmp_dir.sh
+      - name: Configure gh CLI for GitHub Enterprise
+        run: bash /opt/gh-aw/actions/configure_gh_for_ghe.sh
+        env:
+          GH_TOKEN: ${{ github.token }}
       - name: Pull static analysis Docker images
         run: "set -e\necho \"Pulling Docker images for static analysis tools...\"\n\n# Pull zizmor Docker image\necho \"Pulling zizmor image...\"\ndocker pull ghcr.io/zizmorcore/zizmor:latest\n\n# Pull poutine Docker image\necho \"Pulling poutine image...\"\ndocker pull ghcr.io/boostsecurityio/poutine:latest\n\necho \"All static analysis Docker images pulled successfully\"\n"
       - name: Verify static analysis tools

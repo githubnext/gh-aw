@@ -54,6 +54,12 @@ Say hello to the world! Check the current date and time, and greet the user warm
 // Cache for fetched content (keyed by URL)
 const contentCache = new Map();
 
+// Allowlist of trusted origins for fetching workflow content
+const ALLOWED_FETCH_ORIGINS = new Set([
+  'https://raw.githubusercontent.com',
+  'https://github.com',
+]);
+
 const DEFAULT_CONTENT = SAMPLES['hello-world'].content;
 
 // ---------------------------------------------------------------
@@ -76,6 +82,15 @@ function toRawGitHubUrl(url) {
 /** Fetch markdown content from a URL (with cache) */
 async function fetchContent(url) {
   const rawUrl = toRawGitHubUrl(url);
+  let parsedUrl;
+  try {
+    parsedUrl = new URL(rawUrl);
+  } catch {
+    throw new Error(`Invalid URL: ${rawUrl}`);
+  }
+  if (!ALLOWED_FETCH_ORIGINS.has(parsedUrl.origin)) {
+    throw new Error(`Fetch not allowed from: ${parsedUrl.origin}`);
+  }
   if (contentCache.has(rawUrl)) return contentCache.get(rawUrl);
   const resp = await fetch(rawUrl);
   if (!resp.ok) throw new Error(`Failed to fetch ${rawUrl}: ${resp.status}`);

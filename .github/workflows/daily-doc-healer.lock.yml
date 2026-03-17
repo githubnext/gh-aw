@@ -303,6 +303,10 @@ jobs:
           package-manager-cache: false
       - name: Create gh-aw temp directory
         run: bash /opt/gh-aw/actions/create_gh_aw_tmp_dir.sh
+      - name: Configure gh CLI for GitHub Enterprise
+        run: bash /opt/gh-aw/actions/configure_gh_for_ghe.sh
+        env:
+          GH_TOKEN: ${{ github.token }}
       - name: Install QMD
         run: npm install -g @tobilu/qmd
       - name: Restore QMD index cache

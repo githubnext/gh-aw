@@ -39,7 +39,6 @@ tools:
 imports:
   - shared/changeset-format.md
   - shared/jqschema.md
-  - shared/safe-output-app.md
 ---
 
 # Changeset Generator

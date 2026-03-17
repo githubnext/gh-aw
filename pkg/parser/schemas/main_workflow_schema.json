@@ -4464,6 +4464,11 @@
                 "github-token": {
                   "$ref": "#/$defs/github_token",
                   "description": "GitHub token to use for this specific output type. Overrides global github-token if specified."
+                },
+                "staged": {
+                  "type": "boolean",
+                  "description": "If true, emit step summary messages instead of making GitHub API calls for this specific output type (preview mode)",
+                  "examples": [true, false]
                 }
               },
               "additionalProperties": false,
@@ -4536,6 +4541,11 @@
                 "github-token": {
                   "$ref": "#/$defs/github_token",
                   "description": "GitHub token to use for this specific output type. Overrides global github-token if specified."
+                },
+                "staged": {
+                  "type": "boolean",
+                  "description": "If true, emit step summary messages instead of making GitHub API calls for this specific output type (preview mode)",
+                  "examples": [true, false]
                 }
               },
               "additionalProperties": false
@@ -4586,6 +4596,11 @@
                 "github-token": {
                   "$ref": "#/$defs/github_token",
                   "description": "GitHub token to use for this specific output type. Overrides global github-token if specified."
+                },
+                "staged": {
+                  "type": "boolean",
+                  "description": "If true, emit step summary messages instead of making GitHub API calls for this specific output type (preview mode)",
+                  "examples": [true, false]
                 }
               },
               "additionalProperties": false
@@ -4628,6 +4643,37 @@
                   "description": "Target project URL for update-project operations. This is required in the configuration for documentation purposes. Agent messages MUST explicitly include the project field in their output - the configured value is not used as a fallback. Must be a valid GitHub Projects v2 URL.",
                   "pattern": "^https://github\\.com/(users|orgs)/([^/]+|<[A-Z_]+>)/projects/(\\d+|<[A-Z_]+>)$",
                   "examples": ["https://github.com/orgs/myorg/projects/123", "https://github.com/users/username/projects/456"]
+                },
+                "target-repo": {
+                  "description": "Default repository in format 'owner/repo' for cross-repository content resolution. When specified, the agent can use 'target_repo' in agent output to resolve issues or PRs from this repository. Wildcards ('*') are not allowed. Supports GitHub Actions expression syntax (e.g., '${{ vars.TARGET_REPO }}').",
+                  "oneOf": [
+                    {
+                      "type": "string",
+                      "pattern": "^[a-zA-Z0-9_.-]+/[a-zA-Z0-9_.-]+$"
+                    },
+                    {
+                      "type": "string",
+                      "pattern": "^\\$\\{\\{.*\\}\\}$",
+                      "description": "GitHub Actions expression that resolves to owner/repo at runtime"
+                    }
+                  ]
+                },
+                "allowed-repos": {
+                  "type": "array",
+                  "items": {
+                    "oneOf": [
+                      {
+                        "type": "string",
+                        "pattern": "^(\\*|([a-zA-Z0-9_.-]+|\\*)/([a-zA-Z0-9_.-]+|\\*))$"
+                      },
+                      {
+                        "type": "string",
+                        "pattern": "^\\$\\{\\{.*\\}\\}$",
+                        "description": "GitHub Actions expression that resolves to owner/repo at runtime"
+                      }
+                    ]
+                  },
+                  "description": "List of additional repositories in format 'owner/repo' allowed for cross-repository content resolution via 'target_repo'. The target-repo (or current repo) is always implicitly allowed. Supports wildcard patterns (e.g., 'org/*', '*/repo', '*') and GitHub Actions expression syntax for individual entries."
                 },
                 "views": {
                   "type": "array",
@@ -4691,6 +4737,11 @@
                     },
                     "additionalProperties": false
                   }
+                },
+                "staged": {
+                  "type": "boolean",
+                  "description": "If true, emit step summary messages instead of making GitHub API calls for this specific output type (preview mode)",
+                  "examples": [true, false]
                 }
               },
               "additionalProperties": false,
@@ -4806,6 +4857,11 @@
                     },
                     "additionalProperties": false
                   }
+                },
+                "staged": {
+                  "type": "boolean",
+                  "description": "If true, emit step summary messages instead of making GitHub API calls for this specific output type (preview mode)",
+                  "examples": [true, false]
                 }
               },
               "additionalProperties": false
@@ -4855,6 +4911,11 @@
                   "description": "Target project URL for status update operations. This is required in the configuration for documentation purposes. Agent messages MUST explicitly include the project field in their output - the configured value is not used as a fallback. Must be a valid GitHub Projects v2 URL.",
                   "pattern": "^https://github\\.com/(users|orgs)/([^/]+|<[A-Z_]+>)/projects/(\\d+|<[A-Z_]+>)$",
                   "examples": ["https://github.com/orgs/myorg/projects/123", "https://github.com/users/username/projects/456"]
+                },
+                "staged": {
+                  "type": "boolean",
+                  "description": "If true, emit step summary messages instead of making GitHub API calls for this specific output type (preview mode)",
+                  "examples": [true, false]
                 }
               },
               "additionalProperties": false,
@@ -4975,6 +5036,11 @@
                 "github-token": {
                   "$ref": "#/$defs/github_token",
                   "description": "GitHub token to use for this specific output type. Overrides global github-token if specified."
+                },
+                "staged": {
+                  "type": "boolean",
+                  "description": "If true, emit step summary messages instead of making GitHub API calls for this specific output type (preview mode)",
+                  "examples": [true, false]
                 }
               },
               "additionalProperties": false,
@@ -5056,6 +5122,11 @@
                 "target-repo": {
                   "type": "string",
                   "description": "Target repository in format 'owner/repo' for cross-repository operations. Takes precedence over trial target repo settings."
+                },
+                "staged": {
+                  "type": "boolean",
+                  "description": "If true, emit step summary messages instead of making GitHub API calls for this specific output type (preview mode)",
+                  "examples": [true, false]
                 }
               },
               "additionalProperties": false,
@@ -5128,6 +5199,11 @@
                   "type": "boolean",
                   "description": "Controls whether AI-generated footer is added when updating the discussion body. When false, the visible footer content is omitted. Defaults to true. Only applies when 'body' is enabled.",
                   "default": true
+                },
+                "staged": {
+                  "type": "boolean",
+                  "description": "If true, emit step summary messages instead of making GitHub API calls for this specific output type (preview mode)",
+                  "examples": [true, false]
                 }
               },
               "additionalProperties": false
@@ -5185,6 +5261,11 @@
                     "type": "string"
                   },
                   "description": "List of additional repositories in format 'owner/repo' that issues can be closed in. When specified, the agent can use a 'repo' field in the output to specify which repository to close the issue in. The target repository (current or target-repo) is always implicitly allowed."
+                },
+                "staged": {
+                  "type": "boolean",
+                  "description": "If true, emit step summary messages instead of making GitHub API calls for this specific output type (preview mode)",
+                  "examples": [true, false]
                 }
               },
               "additionalProperties": false,
@@ -5316,6 +5397,11 @@
                 "github-token": {
                   "$ref": "#/$defs/github_token",
                   "description": "GitHub token to use for this specific output type. Overrides global github-token if specified."
+                },
+                "staged": {
+                  "type": "boolean",
+                  "description": "If true, emit step summary messages instead of making GitHub API calls for this specific output type (preview mode)",
+                  "examples": [true, false]
                 }
               },
               "additionalProperties": false,
@@ -5410,6 +5496,11 @@
                 "github-token": {
                   "$ref": "#/$defs/github_token",
                   "description": "GitHub token to use for this specific output type. Overrides global github-token if specified."
+                },
+                "staged": {
+                  "type": "boolean",
+                  "description": "If true, emit step summary messages instead of making GitHub API calls for this specific output type (preview mode)",
+                  "examples": [true, false]
                 }
               },
               "additionalProperties": false,
@@ -5581,6 +5672,11 @@
                     "type": "string"
                   },
                   "description": "List of glob patterns for files to exclude from the patch. Each pattern is passed to `git format-patch` as a `:(exclude)<pattern>` magic pathspec, so matching files are stripped by git at generation time and will not appear in the commit. Excluded files are also not subject to `allowed-files` or `protected-files` checks. Supports * (any characters except /) and ** (any characters including /)."
+                },
+                "staged": {
+                  "type": "boolean",
+                  "description": "If true, emit step summary messages instead of making GitHub API calls for this specific output type (preview mode)",
+                  "examples": [true, false]
                 }
               },
               "additionalProperties": false,
@@ -5649,6 +5745,11 @@
                 "github-token": {
                   "$ref": "#/$defs/github_token",
                   "description": "GitHub token to use for this specific output type. Overrides global github-token if specified."
+                },
+                "staged": {
+                  "type": "boolean",
+                  "description": "If true, emit step summary messages instead of making GitHub API calls for this specific output type (preview mode)",
+                  "examples": [true, false]
                 }
               },
               "additionalProperties": false
@@ -5713,6 +5814,11 @@
                 "github-token": {
                   "$ref": "#/$defs/github_token",
                   "description": "GitHub token to use for this specific output type. Overrides global github-token if specified."
+                },
+                "staged": {
+                  "type": "boolean",
+                  "description": "If true, emit step summary messages instead of making GitHub API calls for this specific output type (preview mode)",
+                  "examples": [true, false]
                 }
               },
               "additionalProperties": false
@@ -5768,6 +5874,11 @@
                 "github-token": {
                   "$ref": "#/$defs/github_token",
                   "description": "GitHub token to use for this specific output type. Overrides global github-token if specified."
+                },
+                "staged": {
+                  "type": "boolean",
+                  "description": "If true, emit step summary messages instead of making GitHub API calls for this specific output type (preview mode)",
+                  "examples": [true, false]
                 }
               },
               "additionalProperties": false
@@ -5803,6 +5914,11 @@
                 "github-token": {
                   "$ref": "#/$defs/github_token",
                   "description": "GitHub token to use for this specific output type. Overrides global github-token if specified."
+                },
+                "staged": {
+                  "type": "boolean",
+                  "description": "If true, emit step summary messages instead of making GitHub API calls for this specific output type (preview mode)",
+                  "examples": [true, false]
                 }
               },
               "additionalProperties": false
@@ -5852,6 +5968,11 @@
                     "type": "string"
                   },
                   "description": "List of additional repositories in format 'owner/repo' that code scanning alerts can be created in. When specified, the agent can use a 'repo' field in the output to specify which repository to create the alert in. The target repository (current or target-repo) is always implicitly allowed."
+                },
+                "staged": {
+                  "type": "boolean",
+                  "description": "If true, emit step summary messages instead of making GitHub API calls for this specific output type (preview mode)",
+                  "examples": [true, false]
                 }
               },
               "additionalProperties": false
@@ -5886,6 +6007,11 @@
                 "github-token": {
                   "$ref": "#/$defs/github_token",
                   "description": "GitHub token to use for this specific output type. Overrides global github-token if specified."
+                },
+                "staged": {
+                  "type": "boolean",
+                  "description": "If true, emit step summary messages instead of making GitHub API calls for this specific output type (preview mode)",
+                  "examples": [true, false]
                 }
               },
               "additionalProperties": false
@@ -5957,6 +6083,11 @@
                     "type": "string"
                   },
                   "description": "List of additional repositories in format 'owner/repo' that labels can be added to. When specified, the agent can use a 'repo' field in the output to specify which repository to add labels to. The target repository (current or target-repo) is always implicitly allowed."
+                },
+                "staged": {
+                  "type": "boolean",
+                  "description": "If true, emit step summary messages instead of making GitHub API calls for this specific output type (preview mode)",
+                  "examples": [true, false]
                 }
               },
               "additionalProperties": false
@@ -6024,6 +6155,11 @@
                     "type": "string"
                   },
                   "description": "List of additional repositories in format 'owner/repo' that labels can be removed from. When specified, the agent can use a 'repo' field in the output to specify which repository to remove labels from. The target repository (current or target-repo) is always implicitly allowed."
+                },
+                "staged": {
+                  "type": "boolean",
+                  "description": "If true, emit step summary messages instead of making GitHub API calls for this specific output type (preview mode)",
+                  "examples": [true, false]
                 }
               },
               "additionalProperties": false
@@ -6075,6 +6211,11 @@
                 "github-token": {
                   "$ref": "#/$defs/github_token",
                   "description": "GitHub token to use for this specific output type. Overrides global github-token if specified."
+                },
+                "staged": {
+                  "type": "boolean",
+                  "description": "If true, emit step summary messages instead of making GitHub API calls for this specific output type (preview mode)",
+                  "examples": [true, false]
                 }
               },
               "additionalProperties": false
@@ -6122,6 +6263,11 @@
                 "github-token": {
                   "$ref": "#/$defs/github_token",
                   "description": "GitHub token to use for this specific output type. Overrides global github-token if specified."
+                },
+                "staged": {
+                  "type": "boolean",
+                  "description": "If true, emit step summary messages instead of making GitHub API calls for this specific output type (preview mode)",
+                  "examples": [true, false]
                 }
               },
               "additionalProperties": false
@@ -6207,6 +6353,11 @@
                 "github-token": {
                   "$ref": "#/$defs/github_token",
                   "description": "GitHub token to use for this specific output type. Overrides global github-token if specified."
+                },
+                "staged": {
+                  "type": "boolean",
+                  "description": "If true, emit step summary messages instead of making GitHub API calls for this specific output type (preview mode)",
+                  "examples": [true, false]
                 }
               },
               "additionalProperties": false
@@ -6275,6 +6426,11 @@
                     "type": "string"
                   },
                   "description": "List of allowed repositories in format 'owner/repo' for cross-repository user assignment operations. Use with 'repo' field in tool calls."
+                },
+                "staged": {
+                  "type": "boolean",
+                  "description": "If true, emit step summary messages instead of making GitHub API calls for this specific output type (preview mode)",
+                  "examples": [true, false]
                 }
               },
               "additionalProperties": false
@@ -6338,6 +6494,11 @@
                 "github-token": {
                   "$ref": "#/$defs/github_token",
                   "description": "GitHub token to use for this specific output type. Overrides global github-token if specified."
+                },
+                "staged": {
+                  "type": "boolean",
+                  "description": "If true, emit step summary messages instead of making GitHub API calls for this specific output type (preview mode)",
+                  "examples": [true, false]
                 }
               },
               "additionalProperties": false
@@ -6403,6 +6564,11 @@
                 "github-token": {
                   "$ref": "#/$defs/github_token",
                   "description": "GitHub token to use for this specific output type. Overrides global github-token if specified."
+                },
+                "staged": {
+                  "type": "boolean",
+                  "description": "If true, emit step summary messages instead of making GitHub API calls for this specific output type (preview mode)",
+                  "examples": [true, false]
                 }
               },
               "additionalProperties": false
@@ -6471,6 +6637,11 @@
                 "github-token": {
                   "$ref": "#/$defs/github_token",
                   "description": "GitHub token to use for this specific output type. Overrides global github-token if specified."
+                },
+                "staged": {
+                  "type": "boolean",
+                  "description": "If true, emit step summary messages instead of making GitHub API calls for this specific output type (preview mode)",
+                  "examples": [true, false]
                 }
               },
               "additionalProperties": false
@@ -6532,6 +6703,11 @@
                 "github-token": {
                   "$ref": "#/$defs/github_token",
                   "description": "GitHub token to use for this specific output type. Overrides global github-token if specified."
+                },
+                "staged": {
+                  "type": "boolean",
+                  "description": "If true, emit step summary messages instead of making GitHub API calls for this specific output type (preview mode)",
+                  "examples": [true, false]
                 }
               },
               "additionalProperties": false
@@ -6687,6 +6863,11 @@
                 "discussions": {
                   "type": "boolean",
                   "description": "Controls whether the workflow requests discussions:write permission for hide-comment. Default: true (includes discussions:write). Set to false if your GitHub App lacks Discussions permission to prevent 422 errors during token generation."
+                },
+                "staged": {
+                  "type": "boolean",
+                  "description": "If true, emit step summary messages instead of making GitHub API calls for this specific output type (preview mode)",
+                  "examples": [true, false]
                 }
               },
               "additionalProperties": false
@@ -6745,6 +6926,11 @@
                 "github-token": {
                   "$ref": "#/$defs/github_token",
                   "description": "GitHub token to use for this specific output type. Overrides global github-token if specified."
+                },
+                "staged": {
+                  "type": "boolean",
+                  "description": "If true, emit step summary messages instead of making GitHub API calls for this specific output type (preview mode)",
+                  "examples": [true, false]
                 }
               },
               "additionalProperties": false
@@ -6795,6 +6981,11 @@
                 "target-ref": {
                   "type": "string",
                   "description": "Git ref (branch, tag, or SHA) to use when dispatching the workflow. For workflow_call relay scenarios this is auto-injected by the compiler from needs.activation.outputs.target_ref. Overrides the caller's GITHUB_REF."
+                },
+                "staged": {
+                  "type": "boolean",
+                  "description": "If true, emit step summary messages instead of making GitHub API calls for this specific output type (preview mode)",
+                  "examples": [true, false]
                 }
               },
               "required": ["workflows"],
@@ -6848,6 +7039,11 @@
                 "github-token": {
                   "$ref": "#/$defs/github_token",
                   "description": "GitHub token passed to called workflows. Overrides global github-token if specified."
+                },
+                "staged": {
+                  "type": "boolean",
+                  "description": "If true, emit step summary messages instead of making GitHub API calls for this specific output type (preview mode)",
+                  "examples": [true, false]
                 }
               },
               "required": ["workflows"],
@@ -6907,6 +7103,11 @@
                 "github-token": {
                   "$ref": "#/$defs/github_token",
                   "description": "GitHub token to use for this specific output type. Overrides global github-token if specified."
+                },
+                "staged": {
+                  "type": "boolean",
+                  "description": "If true, emit step summary messages instead of making GitHub API calls for this specific output type (preview mode)",
+                  "examples": [true, false]
                 }
               },
               "additionalProperties": false
@@ -6964,6 +7165,11 @@
                 "github-token": {
                   "$ref": "#/$defs/github_token",
                   "description": "GitHub token to use for this specific output type. Overrides global github-token if specified."
+                },
+                "staged": {
+                  "type": "boolean",
+                  "description": "If true, emit step summary messages instead of making GitHub API calls for this specific output type (preview mode)",
+                  "examples": [true, false]
                 }
               },
               "additionalProperties": false
@@ -7009,6 +7215,11 @@
                   "type": "boolean",
                   "description": "Controls whether noop runs are reported as issue comments (default: true). Set to false to disable posting to the no-op runs issue.",
                   "default": true
+                },
+                "staged": {
+                  "type": "boolean",
+                  "description": "If true, emit step summary messages instead of making GitHub API calls for this specific output type (preview mode)",
+                  "examples": [true, false]
                 }
               },
               "additionalProperties": false
@@ -7069,6 +7280,11 @@
                 "github-token": {
                   "$ref": "#/$defs/github_token",
                   "description": "GitHub token to use for this specific output type. Overrides global github-token if specified."
+                },
+                "staged": {
+                  "type": "boolean",
+                  "description": "If true, emit step summary messages instead of making GitHub API calls for this specific output type (preview mode)",
+                  "examples": [true, false]
                 }
               },
               "additionalProperties": false
@@ -7111,6 +7327,11 @@
                   "type": "boolean",
                   "description": "Controls whether AI-generated footer is added when updating the release body. When false, the visible footer content is omitted. Defaults to true.",
                   "default": true
+                },
+                "staged": {
+                  "type": "boolean",
+                  "description": "If true, emit step summary messages instead of making GitHub API calls for this specific output type (preview mode)",
+                  "examples": [true, false]
                 }
               },
               "additionalProperties": false

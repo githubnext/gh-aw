@@ -2964,7 +2964,7 @@ safe-outputs:
 **Purpose**: Manage GitHub Projects V2 boards (add items, update fields, remove items).
 
 **Default Max**: 10  
-**Cross-Repository Support**: No (same repository only)  
+**Cross-Repository Support**: Yes (via `target_repo` field in agent output; requires `allowed-repos` configuration)  
 **Mandatory**: No
 
 **Required Permissions**:
@@ -2980,6 +2980,7 @@ safe-outputs:
 **Notes**:
 - Same permission requirements as `create_project`
 - Higher default max (10) enables batch project board updates
+- Cross-repo support uses `target_repo` in agent output to resolve issues/PRs from other repos; the `allowed-repos` configuration option controls which repos are permitted
 
 ---
 

@@ -327,9 +327,14 @@ func generateSafeOutputsConfig(data *WorkflowData) string {
 			safeOutputsConfig["missing_data"] = missingDataConfig
 		}
 		if data.SafeOutputs.UpdateProjects != nil {
-			safeOutputsConfig["update_project"] = generateMaxConfig(
+			safeOutputsConfig["update_project"] = generateTargetConfigWithRepos(
+				SafeOutputTargetConfig{
+					TargetRepoSlug: data.SafeOutputs.UpdateProjects.TargetRepoSlug,
+					AllowedRepos:   data.SafeOutputs.UpdateProjects.AllowedRepos,
+				},
 				data.SafeOutputs.UpdateProjects.Max,
 				10, // default max
+				nil,
 			)
 		}
 		if data.SafeOutputs.CreateProjectStatusUpdates != nil {

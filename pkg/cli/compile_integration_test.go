@@ -802,6 +802,240 @@ This workflow tests that invalid schedule strings in array format fail compilati
 	t.Logf("Integration test passed - invalid schedule in array format correctly failed compilation\nOutput: %s", outputStr)
 }
 
+// TestCompileStagedSafeOutputsCreateIssue verifies that a workflow with staged: true
+// and a create-issue handler compiles without error and emits GH_AW_SAFE_OUTPUTS_STAGED.
+// Prior to the schema fix, staged was not listed in the create-issue schema
+// (additionalProperties: false), so the frontmatter validator would reject the workflow.
+func TestCompileStagedSafeOutputsCreateIssue(t *testing.T) {
+	setup := setupIntegrationTest(t)
+	defer setup.cleanup()
+
+	testWorkflow := `---
+name: Staged Create Issue
+on:
+  workflow_dispatch:
+permissions: read-all
+engine: copilot
+safe-outputs:
+  staged: true
+  create-issue:
+    title-prefix: "[staged] "
+    max: 1
+---
+
+Verify staged safe-outputs with create-issue.
+`
+	testWorkflowPath := filepath.Join(setup.workflowsDir, "staged-create-issue.md")
+	if err := os.WriteFile(testWorkflowPath, []byte(testWorkflow), 0644); err != nil {
+		t.Fatalf("Failed to write test workflow file: %v", err)
+	}
+
+	cmd := exec.Command(setup.binaryPath, "compile", testWorkflowPath)
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("CLI compile command failed: %v\nOutput: %s", err, string(output))
+	}
+
+	lockFilePath := filepath.Join(setup.workflowsDir, "staged-create-issue.lock.yml")
+	lockContent, err := os.ReadFile(lockFilePath)
+	if err != nil {
+		t.Fatalf("Failed to read lock file: %v", err)
+	}
+	lockContentStr := string(lockContent)
+
+	if !strings.Contains(lockContentStr, `GH_AW_SAFE_OUTPUTS_STAGED: "true"`) {
+		t.Errorf("Lock file should contain GH_AW_SAFE_OUTPUTS_STAGED: \"true\"\nLock file content:\n%s", lockContentStr)
+	}
+}
+
+// TestCompileStagedSafeOutputsAddComment verifies that a workflow with staged: true
+// and an add-comment handler compiles and emits GH_AW_SAFE_OUTPUTS_STAGED.
+// Prior to the schema fix, staged was not listed in the add-comment handler schema.
+func TestCompileStagedSafeOutputsAddComment(t *testing.T) {
+	setup := setupIntegrationTest(t)
+	defer setup.cleanup()
+
+	testWorkflow := `---
+name: Staged Add Comment
+on:
+  workflow_dispatch:
+permissions: read-all
+engine: copilot
+safe-outputs:
+  staged: true
+  add-comment:
+    max: 1
+---
+
+Verify staged safe-outputs with add-comment.
+`
+	testWorkflowPath := filepath.Join(setup.workflowsDir, "staged-add-comment.md")
+	if err := os.WriteFile(testWorkflowPath, []byte(testWorkflow), 0644); err != nil {
+		t.Fatalf("Failed to write test workflow file: %v", err)
+	}
+
+	cmd := exec.Command(setup.binaryPath, "compile", testWorkflowPath)
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("CLI compile command failed: %v\nOutput: %s", err, string(output))
+	}
+
+	lockFilePath := filepath.Join(setup.workflowsDir, "staged-add-comment.lock.yml")
+	lockContent, err := os.ReadFile(lockFilePath)
+	if err != nil {
+		t.Fatalf("Failed to read lock file: %v", err)
+	}
+	lockContentStr := string(lockContent)
+
+	if !strings.Contains(lockContentStr, `GH_AW_SAFE_OUTPUTS_STAGED: "true"`) {
+		t.Errorf("Lock file should contain GH_AW_SAFE_OUTPUTS_STAGED: \"true\"\nLock file content:\n%s", lockContentStr)
+	}
+}
+
+// TestCompileStagedSafeOutputsCreateDiscussion verifies that a workflow with staged: true
+// and a create-discussion handler compiles and emits GH_AW_SAFE_OUTPUTS_STAGED.
+// Prior to the schema fix, staged was not listed in the create-discussion handler schema.
+func TestCompileStagedSafeOutputsCreateDiscussion(t *testing.T) {
+	setup := setupIntegrationTest(t)
+	defer setup.cleanup()
+
+	testWorkflow := `---
+name: Staged Create Discussion
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+engine: copilot
+safe-outputs:
+  staged: true
+  create-discussion:
+    max: 1
+    category: general
+---
+
+Verify staged safe-outputs with create-discussion.
+`
+	testWorkflowPath := filepath.Join(setup.workflowsDir, "staged-create-discussion.md")
+	if err := os.WriteFile(testWorkflowPath, []byte(testWorkflow), 0644); err != nil {
+		t.Fatalf("Failed to write test workflow file: %v", err)
+	}
+
+	cmd := exec.Command(setup.binaryPath, "compile", testWorkflowPath)
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("CLI compile command failed: %v\nOutput: %s", err, string(output))
+	}
+
+	lockFilePath := filepath.Join(setup.workflowsDir, "staged-create-discussion.lock.yml")
+	lockContent, err := os.ReadFile(lockFilePath)
+	if err != nil {
+		t.Fatalf("Failed to read lock file: %v", err)
+	}
+	lockContentStr := string(lockContent)
+
+	if !strings.Contains(lockContentStr, `GH_AW_SAFE_OUTPUTS_STAGED: "true"`) {
+		t.Errorf("Lock file should contain GH_AW_SAFE_OUTPUTS_STAGED: \"true\"\nLock file content:\n%s", lockContentStr)
+	}
+}
+
+// TestCompileStagedSafeOutputsWithTargetRepo verifies that staged: true emits
+// GH_AW_SAFE_OUTPUTS_STAGED even when a target-repo is specified on the handler.
+// Staged mode is independent of target-repo.
+func TestCompileStagedSafeOutputsWithTargetRepo(t *testing.T) {
+	setup := setupIntegrationTest(t)
+	defer setup.cleanup()
+
+	testWorkflow := `---
+name: Staged Cross-Repo
+on:
+  workflow_dispatch:
+permissions: read-all
+engine: copilot
+safe-outputs:
+  staged: true
+  create-issue:
+    title-prefix: "[cross-repo staged] "
+    max: 1
+    target-repo: org/other-repo
+---
+
+Verify that staged mode is independent of target-repo.
+`
+	testWorkflowPath := filepath.Join(setup.workflowsDir, "staged-cross-repo.md")
+	if err := os.WriteFile(testWorkflowPath, []byte(testWorkflow), 0644); err != nil {
+		t.Fatalf("Failed to write test workflow file: %v", err)
+	}
+
+	cmd := exec.Command(setup.binaryPath, "compile", testWorkflowPath)
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("CLI compile command failed: %v\nOutput: %s", err, string(output))
+	}
+
+	lockFilePath := filepath.Join(setup.workflowsDir, "staged-cross-repo.lock.yml")
+	lockContent, err := os.ReadFile(lockFilePath)
+	if err != nil {
+		t.Fatalf("Failed to read lock file: %v", err)
+	}
+	lockContentStr := string(lockContent)
+
+	// staged is independent of target-repo: env var must be present
+	if !strings.Contains(lockContentStr, `GH_AW_SAFE_OUTPUTS_STAGED: "true"`) {
+		t.Errorf("Lock file should contain GH_AW_SAFE_OUTPUTS_STAGED: \"true\" even with target-repo set\nLock file content:\n%s", lockContentStr)
+	}
+}
+
+// TestCompileStagedSafeOutputsMultipleHandlers verifies that staged: true with
+// multiple handler types compiles and emits GH_AW_SAFE_OUTPUTS_STAGED exactly once.
+// Previously, adding staged to most handler types caused a schema validation error.
+func TestCompileStagedSafeOutputsMultipleHandlers(t *testing.T) {
+	setup := setupIntegrationTest(t)
+	defer setup.cleanup()
+
+	testWorkflow := `---
+name: Staged Multiple Handlers
+on:
+  workflow_dispatch:
+permissions: read-all
+engine: copilot
+safe-outputs:
+  staged: true
+  create-issue:
+    title-prefix: "[staged] "
+    max: 1
+  add-comment:
+    max: 2
+  add-labels:
+    allowed:
+      - bug
+  update-issue:
+---
+
+Verify staged safe-outputs with multiple handler types.
+`
+	testWorkflowPath := filepath.Join(setup.workflowsDir, "staged-multi-handler.md")
+	if err := os.WriteFile(testWorkflowPath, []byte(testWorkflow), 0644); err != nil {
+		t.Fatalf("Failed to write test workflow file: %v", err)
+	}
+
+	cmd := exec.Command(setup.binaryPath, "compile", testWorkflowPath)
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("CLI compile command failed: %v\nOutput: %s", err, string(output))
+	}
+
+	lockFilePath := filepath.Join(setup.workflowsDir, "staged-multi-handler.lock.yml")
+	lockContent, err := os.ReadFile(lockFilePath)
+	if err != nil {
+		t.Fatalf("Failed to read lock file: %v", err)
+	}
+	lockContentStr := string(lockContent)
+
+	if !strings.Contains(lockContentStr, `GH_AW_SAFE_OUTPUTS_STAGED: "true"`) {
+		t.Errorf("Lock file should contain GH_AW_SAFE_OUTPUTS_STAGED: \"true\"\nLock file content:\n%s", lockContentStr)
+	}
+}
+
 // TestCompileFromSubdirectoryCreatesActionsLockAtRoot tests that actions-lock.json
 // is created at the repository root when compiling from a subdirectory
 func TestCompileFromSubdirectoryCreatesActionsLockAtRoot(t *testing.T) {

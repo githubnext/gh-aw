@@ -363,7 +363,7 @@
             "number",
             "string"
           ],
-          "description": "Pull request number to add the review comment to. This is the numeric ID from the GitHub URL (e.g., 876 in github.com/owner/repo/pull/876). If omitted, adds the comment to the PR that triggered this workflow. Required when the workflow target is '*' (any PR) — omitting it will cause the comment to fail."
+          "description": "Pull request number to add the review comment to. This is the numeric ID from the GitHub URL (e.g., 876 in github.com/owner/repo/pull/876). If omitted, adds the comment to the PR that triggered this workflow. Required when the workflow target is '*' (any PR) \u2014 omitting it will cause the comment to fail."
         },
         "start_line": {
           "type": [
@@ -1221,6 +1221,11 @@
             "string"
           ],
           "description": "Issue or pull request number to add to the project. This is the numeric ID from the GitHub URL (e.g., 123 in github.com/owner/repo/issues/123 for issue #123, or 456 in github.com/owner/repo/pull/456 for PR #456), or a temporary ID from a recent create_issue call (e.g., 'aw_abc123', '#aw_Test123'). Required when content_type is 'issue' or 'pull_request'."
+        },
+        "target_repo": {
+          "type": "string",
+          "pattern": "^[a-zA-Z0-9_.-]+/[a-zA-Z0-9_.-]+$",
+          "description": "Repository containing the issue or pull request, in \"owner/repo\" format (e.g., \"github/docs\"). Use this when the issue or PR belongs to a different repository than the one running the workflow. The repository must be permitted by either safe-outputs.update-project.target-repo (including the default host repository) or safe-outputs.update-project.allowed-repos."
         },
         "draft_title": {
           "type": "string",

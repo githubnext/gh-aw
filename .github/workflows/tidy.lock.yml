@@ -348,6 +348,10 @@ jobs:
           persist-credentials: false
       - name: Create gh-aw temp directory
         run: bash /opt/gh-aw/actions/create_gh_aw_tmp_dir.sh
+      - name: Configure gh CLI for GitHub Enterprise
+        run: bash /opt/gh-aw/actions/configure_gh_for_ghe.sh
+        env:
+          GH_TOKEN: ${{ github.token }}
       - name: Setup Node.js
         uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6.3.0
         with:

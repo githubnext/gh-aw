@@ -6,6 +6,7 @@ const { getErrorMessage } = require("./error_helpers.cjs");
 const { loadTemporaryIdMapFromResolved, resolveIssueNumber, isTemporaryId, normalizeTemporaryId } = require("./temporary_id.cjs");
 const { logStagedPreviewInfo } = require("./staged_preview.cjs");
 const { ERR_API, ERR_CONFIG, ERR_NOT_FOUND, ERR_PARSE, ERR_VALIDATION } = require("./error_codes.cjs");
+const { parseRepoSlug, resolveTargetRepoConfig, isRepoAllowed } = require("./repo_helpers.cjs");
 
 /**
  * Normalize agent output keys for update_project.
@@ -23,6 +24,7 @@ function normalizeUpdateProjectOutput(value) {
 
   if (output.content_type === undefined && output.contentType !== undefined) output.content_type = output.contentType;
   if (output.content_number === undefined && output.contentNumber !== undefined) output.content_number = output.contentNumber;
+  if (output.target_repo === undefined && output.targetRepo !== undefined) output.target_repo = output.targetRepo;
 
   if (output.draft_title === undefined && output.draftTitle !== undefined) output.draft_title = output.draftTitle;
   if (output.draft_body === undefined && output.draftBody !== undefined) output.draft_body = output.draftBody;
@@ -471,6 +473,23 @@ async function updateProject(output, temporaryIdMap = new Map(), githubClient = 
     throw new Error(`${ERR_CONFIG}: GitHub client is required but not provided. Either pass a github client to updateProject() or ensure global.github is set.`);
   }
   const { owner, repo } = context.repo;
+
+  // Determine the effective owner/repo for content resolution.
+  // When target_repo is provided, use it instead of the workflow's host repo.
+  // This enables org-level project workflows to resolve issues from other repos.
+  let contentOwner = owner;
+  let targetRepo = repo;
+  if (output.target_repo && typeof output.target_repo === "string") {
+    const targetRepoSlug = output.target_repo.trim();
+    const parsed = parseRepoSlug(targetRepoSlug);
+    if (!parsed) {
+      throw new Error(`${ERR_VALIDATION}: Invalid target_repo format "${targetRepoSlug}". Use "owner/repo" format (e.g., "github/docs").`);
+    }
+    contentOwner = parsed.owner;
+    targetRepo = parsed.repo;
+    core.info(`Using target_repo ${targetRepoSlug} for content resolution`);
+  }
+
   const projectInfo = parseProjectUrl(output.project);
   const projectNumberFromUrl = projectInfo.projectNumber;
 
@@ -1014,7 +1033,7 @@ async function updateProject(output, temporaryIdMap = new Map(), githubClient = 
           "Issue" === contentType
             ? "query($owner: String!, $repo: String!, $number: Int!) {\n            repository(owner: $owner, name: $repo) {\n              issue(number: $number) {\n                id\n              }\n            }\n          }"
             : "query($owner: String!, $repo: String!, $number: Int!) {\n            repository(owner: $owner, name: $repo) {\n              pullRequest(number: $number) {\n                id\n              }\n            }\n          }",
-        contentResult = await github.graphql(contentQuery, { owner, repo, number: contentNumber }),
+        contentResult = await github.graphql(contentQuery, { owner: contentOwner, repo: targetRepo, number: contentNumber }),
         contentData = "Issue" === contentType ? contentResult.repository.issue : contentResult.repository.pullRequest,
         contentId = contentData.id,
         existingItem = await (async function (projectId, contentId) {
@@ -1214,6 +1233,9 @@ async function main(config = {}, githubClient = null) {
   const configuredViews = Array.isArray(config.views) ? config.views : [];
   const configuredFieldDefinitions = Array.isArray(config.field_definitions) ? config.field_definitions : [];
 
+  // Resolve target-repo and allowed-repos for cross-repo content resolution validation
+  const { defaultTargetRepo, allowedRepos } = resolveTargetRepoConfig(config);
+
   // Check if we're in staged mode
   const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true";
 
@@ -1242,6 +1264,24 @@ async function main(config = {}, githubClient = null) {
     message = normalizeUpdateProjectOutput(message);
 
     const tempIdMap = temporaryIdMap instanceof Map ? temporaryIdMap : loadTemporaryIdMapFromResolved(resolvedTemporaryIds);
+
+    // Validate target_repo if provided: must be in the allowed repos list.
+    // Note: defaultTargetRepo already falls back to context.repo (the current workflow repository)
+    // when no target-repo is configured in the frontmatter — so the host repo is always implicitly allowed.
+    if (message.target_repo && typeof message.target_repo === "string") {
+      const targetRepoSlug = message.target_repo.trim();
+      // defaultTargetRepo (target-repo config or current workflow repo) is always permitted;
+      // additional repos must be listed in allowed-repos.
+      const isDefaultRepo = targetRepoSlug === defaultTargetRepo;
+      if (!isDefaultRepo && !isRepoAllowed(targetRepoSlug, allowedRepos)) {
+        const errorMsg = `Repository "${targetRepoSlug}" is not allowed for cross-repo content resolution. Configure safe-outputs.update-project.target-repo to set it as the default repository, or add it to safe-outputs.update-project.allowed-repos in the workflow frontmatter to permit this repository.`;
+        core.error(errorMsg);
+        return {
+          success: false,
+          error: errorMsg,
+        };
+      }
+    }
 
     // Check max limit
     if (processedCount >= maxCount) {
