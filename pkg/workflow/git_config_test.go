@@ -261,13 +261,11 @@ This workflow uses API tools only and does not need the repository to be checked
 		t.Error("'Configure Git credentials' step must NOT be present when checkout: false (no .git directory)")
 	}
 
-	// The "Clean git credentials" step should still be present (resilient, continue-on-error)
-	if !strings.Contains(lockContent, "Clean git credentials") {
-		t.Error("Expected 'Clean git credentials' step to still be present even when checkout: false")
-	}
-
-	// Verify continue-on-error is set on the cleaner step
-	if !strings.Contains(lockContent, "continue-on-error: true") {
-		t.Error("Expected 'continue-on-error: true' on Clean git credentials step")
+	// The "Clean git credentials" step should still be present (resilient, continue-on-error).
+	// Assert that the cleaner step block itself contains both the name and continue-on-error
+	// to avoid false positives from other steps that also use continue-on-error.
+	const cleanerStepBlock = "- name: Clean git credentials\n        continue-on-error: true\n        run: bash /opt/gh-aw/actions/clean_git_credentials.sh"
+	if !strings.Contains(lockContent, cleanerStepBlock) {
+		t.Error("Expected 'Clean git credentials' step with 'continue-on-error: true' to be present when checkout: false")
 	}
 }
