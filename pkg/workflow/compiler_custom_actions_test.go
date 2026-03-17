@@ -247,7 +247,7 @@ Test workflow with script mode.
 	}
 
 	// 5. Setup step should have INPUT_DESTINATION environment variable
-	if !strings.Contains(lockStr, "INPUT_DESTINATION: /opt/gh-aw/actions") {
+	if !strings.Contains(lockStr, "INPUT_DESTINATION: ${{ runner.temp }}/gh-aw/actions") {
 		t.Error("Expected INPUT_DESTINATION environment variable in setup step for script mode")
 	}
 

@@ -27,7 +27,7 @@
 // 2. Agentic-workflows MCP server:
 //   - Transport: stdio (runs in Docker container)
 //   - Container: Alpine Linux with gh-aw binary mounted (or localhost/gh-aw:dev in dev mode)
-//   - Entrypoint: /opt/gh-aw/gh-aw mcp-server (release mode) or container default (dev mode)
+//   - Entrypoint: ${{ runner.temp }}/gh-aw/gh-aw mcp-server (release mode) or container default (dev mode)
 //   - Network: Enabled via --network host for GitHub API access (api.github.com)
 //   - Purpose: Enables workflow compilation, validation, and execution via gh aw CLI
 //   - Tools: compile, validate, list, status, audit, logs, add, update, fix
@@ -58,7 +58,7 @@
 //
 // Agentic-workflows configuration:
 // Agentic-workflows runs in a stdio container and requires:
-//   - Mounted gh-aw binary from /opt/gh-aw (release mode) or baked into image (dev mode)
+//   - Mounted gh-aw binary from ${{ runner.temp }}/gh-aw (release mode) or baked into image (dev mode)
 //   - Mounted gh CLI binary for GitHub API access (release mode) or baked into image (dev mode)
 //   - Mounted workspace for workflow files
 //   - Mounted temp directory for logs
@@ -89,9 +89,9 @@
 //	  "agenticworkflows": {
 //	    "type": "stdio",
 //	    "container": "alpine:3.20",
-//	    "entrypoint": "/opt/gh-aw/gh-aw",
+//	    "entrypoint": "${{ runner.temp }}/gh-aw/gh-aw",
 //	    "entrypointArgs": ["mcp-server"],
-//	    "mounts": ["/opt/gh-aw:/opt/gh-aw:ro", ...],
+//	    "mounts": ["${{ runner.temp }}/gh-aw:${{ runner.temp }}/gh-aw:ro", ...],
 //	    "env": {
 //	      "GITHUB_TOKEN": "$GITHUB_TOKEN"
 //	    }
@@ -209,9 +209,9 @@ func renderAgenticWorkflowsMCPConfigWithOptions(yaml *strings.Builder, isLast bo
 		mounts = []string{constants.DefaultWorkspaceMount, constants.DefaultTmpGhAwMount}
 	} else {
 		// Release mode: Use minimal Alpine image with mounted binaries
-		// The gh-aw binary is mounted from /opt/gh-aw and executed directly
+		// The gh-aw binary is mounted from ${{ runner.temp }}/gh-aw and executed directly
 		// Pass --validate-actor flag to enable role-based access control
-		entrypoint = "/opt/gh-aw/gh-aw"
+		entrypoint = "${{ runner.temp }}/gh-aw/gh-aw"
 		entrypointArgs = []string{"mcp-server", "--validate-actor"}
 		// Mount gh-aw binary, gh CLI binary, workspace, and temp directory
 		mounts = []string{constants.DefaultGhAwMount, constants.DefaultGhBinaryMount, constants.DefaultWorkspaceMount, constants.DefaultTmpGhAwMount}

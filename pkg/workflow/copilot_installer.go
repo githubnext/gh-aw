@@ -27,7 +27,7 @@ func GenerateCopilotInstallerSteps(version, stepName string) []GitHubActionStep 
 	// other workflow steps.
 	stepLines := []string{
 		"      - name: " + stepName,
-		"        run: /opt/gh-aw/actions/install_copilot_cli.sh " + version,
+		"        run: ${{ runner.temp }}/gh-aw/actions/install_copilot_cli.sh " + version,
 		"        env:",
 		"          GH_HOST: github.com",
 	}

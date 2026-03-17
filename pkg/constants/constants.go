@@ -443,9 +443,15 @@ const DefaultAlpineImage = "alpine:latest"
 // This image is built during workflow execution and includes the gh-aw binary and dependencies
 const DevModeGhAwImage = "localhost/gh-aw:dev"
 
+// GhAwRootDir is the base directory for gh-aw files on the runner.
+// Uses ${{ runner.temp }} for compatibility with self-hosted runners that may not
+// have write access to /opt/gh-aw/. The expression is resolved by GitHub Actions
+// at workflow runtime before any step execution.
+const GhAwRootDir = "${{ runner.temp }}/gh-aw"
+
 // DefaultGhAwMount is the mount path for the gh-aw directory in containerized MCP servers
-// The gh-aw binary and supporting files are mounted read-only from /opt/gh-aw
-const DefaultGhAwMount = "/opt/gh-aw:/opt/gh-aw:ro"
+// The gh-aw binary and supporting files are mounted read-only from the runner temp directory
+const DefaultGhAwMount = GhAwRootDir + ":" + GhAwRootDir + ":ro"
 
 // DefaultGhBinaryMount is the mount path for the gh CLI binary in containerized MCP servers
 // The gh CLI is required for agentic-workflows MCP server to run gh commands

@@ -42,7 +42,7 @@ const (
 )
 
 // MCPScriptsDirectory is the directory where mcp-scripts files are generated
-const MCPScriptsDirectory = "/opt/gh-aw/mcp-scripts"
+const MCPScriptsDirectory = GhAwMCPScriptsDir
 
 // HasMCPScripts checks if mcp-scripts are configured
 func HasMCPScripts(mcpScripts *MCPScriptsConfig) bool {

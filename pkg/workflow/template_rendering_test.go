@@ -118,7 +118,7 @@ Normal content here.
 	}
 
 	// Verify the setupGlobals helper is used
-	if !strings.Contains(compiledStr, "const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs')") {
+	if !strings.Contains(compiledStr, "const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs')") {
 		t.Error("Template rendering step should use setupGlobals helper")
 	}
 
@@ -127,7 +127,7 @@ Normal content here.
 	}
 
 	// Verify the interpolate_prompt script is loaded via require
-	if !strings.Contains(compiledStr, "const { main } = require('/opt/gh-aw/actions/interpolate_prompt.cjs')") {
+	if !strings.Contains(compiledStr, "const { main } = require('${{ runner.temp }}/gh-aw/actions/interpolate_prompt.cjs')") {
 		t.Error("Template rendering step should require interpolate_prompt.cjs")
 	}
 

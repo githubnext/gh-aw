@@ -134,7 +134,7 @@ This workflow tests that the step summary includes agentic run information.
 	}
 
 	// Verify that the generate_aw_info.cjs helper is invoked from the step
-	if !strings.Contains(lockContent, "require('/opt/gh-aw/actions/generate_aw_info.cjs')") {
+	if !strings.Contains(lockContent, "require('${{ runner.temp }}/gh-aw/actions/generate_aw_info.cjs')") {
 		t.Error("Expected generate_aw_info.cjs require call in 'Generate agentic run info' step")
 	}
 
@@ -240,7 +240,7 @@ This workflow tests the workflow overview for Claude engine.
 			}
 
 			// Verify workflow overview call is present in the generate_aw_info step
-			if !strings.Contains(lockContent, "require('/opt/gh-aw/actions/generate_aw_info.cjs')") {
+			if !strings.Contains(lockContent, "require('${{ runner.temp }}/gh-aw/actions/generate_aw_info.cjs')") {
 				t.Error("Expected generate_aw_info.cjs require call inside 'Generate agentic run info' step")
 			}
 

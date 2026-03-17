@@ -161,7 +161,7 @@ func generateAWFInstallationStep(version string, agentConfig *AgentSandboxConfig
 
 	stepLines := []string{
 		"      - name: Install AWF binary",
-		"        run: bash /opt/gh-aw/actions/install_awf_binary.sh " + version,
+		"        run: bash ${{ runner.temp }}/gh-aw/actions/install_awf_binary.sh " + version,
 	}
 
 	return GitHubActionStep(stepLines)

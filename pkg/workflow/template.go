@@ -123,8 +123,8 @@ func (c *Compiler) generateInterpolationAndTemplateStep(yaml *strings.Builder, e
 
 	// Load interpolate_prompt script from external file
 	// Use setup_globals helper to store GitHub Actions objects in global scope
-	yaml.WriteString("            const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');\n")
+	yaml.WriteString("            const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');\n")
 	yaml.WriteString("            setupGlobals(core, github, context, exec, io);\n")
-	yaml.WriteString("            const { main } = require('/opt/gh-aw/actions/interpolate_prompt.cjs');\n")
+	yaml.WriteString("            const { main } = require('${{ runner.temp }}/gh-aw/actions/interpolate_prompt.cjs');\n")
 	yaml.WriteString("            await main();\n")
 }

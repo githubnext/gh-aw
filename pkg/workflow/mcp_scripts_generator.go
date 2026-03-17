@@ -164,7 +164,7 @@ const apiKey = process.env.GH_AW_MCP_SCRIPTS_API_KEY || "";
 startHttpServer(configPath, {
   port: port,
   stateless: true,
-  logDir: "/opt/gh-aw/mcp-scripts/logs"
+  logDir: "${{ runner.temp }}/gh-aw/mcp-scripts/logs"
 }).catch(error => {
   console.error("Failed to start mcp-scripts HTTP server:", error);
   process.exit(1);

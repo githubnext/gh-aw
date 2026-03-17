@@ -77,7 +77,7 @@ func TestGenerateMCPScriptsMCPServerScript(t *testing.T) {
 		t.Error("Script should reference tools.json configuration file")
 	}
 
-	if !strings.Contains(script, "/opt/gh-aw/mcp-scripts/logs") {
+	if !strings.Contains(script, "${{ runner.temp }}/gh-aw/mcp-scripts/logs") {
 		t.Error("Script should specify log directory")
 	}
 

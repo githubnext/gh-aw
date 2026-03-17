@@ -185,7 +185,7 @@ func GenerateMultiSecretValidationStep(secretNames []string, engineName, docsURL
 	stepLines := []string{
 		stepName,
 		"        id: validate-secret",
-		"        run: /opt/gh-aw/actions/validate_multi_secret.sh " + scriptArgsStr,
+		"        run: ${{ runner.temp }}/gh-aw/actions/validate_multi_secret.sh " + scriptArgsStr,
 		"        env:",
 	}
 

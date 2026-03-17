@@ -47,7 +47,7 @@ func TestBuildConsolidatedSafeOutputStep(t *testing.T) {
 				"name: Create Issue",
 				"id: create_issue",
 				"setupGlobals",
-				"require('/opt/gh-aw/actions/create_issue_handler.cjs')",
+				"require('${{ runner.temp }}/gh-aw/actions/create_issue_handler.cjs')",
 				"await main();",
 			},
 			checkNotContains: []string{
@@ -751,7 +751,7 @@ func TestScriptNameVsInlineScript(t *testing.T) {
 		stepsContent := strings.Join(steps, "")
 
 		assert.Contains(t, stepsContent, "setupGlobals")
-		assert.Contains(t, stepsContent, "require('/opt/gh-aw/actions/test_handler.cjs')")
+		assert.Contains(t, stepsContent, "require('${{ runner.temp }}/gh-aw/actions/test_handler.cjs')")
 		assert.Contains(t, stepsContent, "await main()")
 		assert.NotContains(t, stepsContent, "console.log")
 	})
