@@ -340,6 +340,16 @@ func (c *Compiler) collectPromptSections(data *WorkflowData) []PromptSection {
 				EnvVars: envVars,
 			})
 		}
+
+		// GitHub MCP tool-use guidance: clarifies that the MCP server is read-only and
+		// directs the model to use it for GitHub reads. When safe-outputs is also enabled,
+		// the guidance explicitly separates reads (GitHub MCP) from writes (safeoutputs) so
+		// the model is never steered away from the available read tools.
+		unifiedPromptLog.Print("Adding GitHub MCP tool-use guidance")
+		sections = append(sections, PromptSection{
+			Content: buildGitHubMCPToolsGuidance(HasSafeOutputsEnabled(data.SafeOutputs)),
+			IsFile:  false,
+		})
 	}
 
 	// 10. PR context (if comment-related triggers and checkout is needed)
@@ -778,4 +788,22 @@ func buildSafeOutputsSections(safeOutputs *SafeOutputsConfig) []PromptSection {
 	})
 
 	return sections
+}
+
+// buildGitHubMCPToolsGuidance returns inline text for the <github-mcp-tools> section.
+// It tells the model that the GitHub MCP server is read-only and directs it to use
+// those tools for all GitHub reads (issues, PRs, workflows, repository content, search).
+// When safe-outputs is also enabled, it explicitly separates the two paths so the model
+// is never steered away from the available GitHub MCP read tools.
+func buildGitHubMCPToolsGuidance(hasSafeOutputs bool) string {
+	text := "<github-mcp-tools>\n" +
+		"The GitHub MCP server is read-only. Use GitHub MCP tools for all GitHub reads: " +
+		"listing and searching issues, pull requests, discussions, labels, milestones; " +
+		"reading workflow runs, jobs, and artifacts; accessing repository contents, code, and metadata. " +
+		"Do not use shell `gh` commands for GitHub API reads — `gh` is not authenticated."
+	if hasSafeOutputs {
+		text += " Use safeoutputs tools for GitHub writes and completion signaling."
+	}
+	text += "\n</github-mcp-tools>"
+	return text
 }

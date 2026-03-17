@@ -224,6 +224,9 @@ jobs:
             - **Note**: If a branch you need is not in the list above and is not listed as an additional fetched ref, it has NOT been checked out. For private repositories you cannot fetch it without proper authentication. If the branch is required and not available, exit with an error and ask the user to add it to the `fetch:` option of the `checkout:` configuration (e.g., `fetch: ["refs/pulls/open/*"]` for all open PR refs, or `fetch: ["main", "feature/my-branch"]` for specific branches).
           </github-context>
           
+          <github-mcp-tools>
+          The GitHub MCP server is read-only. Use GitHub MCP tools for all GitHub reads: listing and searching issues, pull requests, discussions, labels, milestones; reading workflow runs, jobs, and artifacts; accessing repository contents, code, and metadata. Do not use shell `gh` commands for GitHub API reads — `gh` is not authenticated. Use safeoutputs tools for GitHub writes and completion signaling.
+          </github-mcp-tools>
           GH_AW_PROMPT_EOF
           cat << 'GH_AW_PROMPT_EOF'
           </system>

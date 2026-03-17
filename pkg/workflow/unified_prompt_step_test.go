@@ -538,3 +538,97 @@ func TestCollectPromptSections_DisableXPIA(t *testing.T) {
 		assert.True(t, hasXPIA, "XPIA section should be included when feature flag is explicitly false")
 	})
 }
+
+// TestCollectPromptSections_GitHubMCPAndSafeOutputsConsistency is a regression test that
+// ensures the generated prompt never assigns "all GitHub operations" to safeoutputs when
+// the GitHub MCP server is also mounted, and that GitHub MCP read guidance is always present.
+func TestCollectPromptSections_GitHubMCPAndSafeOutputsConsistency(t *testing.T) {
+	t.Run("both GitHub MCP and safe-outputs enabled", func(t *testing.T) {
+		compiler := &Compiler{}
+
+		data := &WorkflowData{
+			ParsedTools: NewTools(map[string]any{"github": true}),
+			SafeOutputs: &SafeOutputsConfig{
+				MissingData: &MissingDataConfig{},
+				NoOp:        &NoOpConfig{},
+			},
+		}
+
+		sections := compiler.collectPromptSections(data)
+		require.NotEmpty(t, sections, "Should collect sections")
+
+		// No inline section should claim safeoutputs handles "all GitHub operations"
+		for _, section := range sections {
+			if !section.IsFile {
+				assert.NotContains(t, section.Content, "all GitHub operations",
+					"Prompt must not claim safeoutputs handles all GitHub operations when GitHub MCP is mounted")
+			}
+		}
+
+		// A <github-mcp-tools> section must be present and say the server is read-only
+		var githubMCPSection *PromptSection
+		for i := range sections {
+			if !sections[i].IsFile && strings.Contains(sections[i].Content, "github-mcp-tools") {
+				githubMCPSection = &sections[i]
+				break
+			}
+		}
+		require.NotNil(t, githubMCPSection, "Should include <github-mcp-tools> guidance when GitHub MCP is enabled")
+		assert.Contains(t, githubMCPSection.Content, "read-only",
+			"GitHub MCP guidance must state the server is read-only")
+
+		// When safe-outputs is also enabled, the guidance must direct writes to safeoutputs
+		assert.Contains(t, githubMCPSection.Content, "safeoutputs",
+			"GitHub MCP guidance must direct writes to safeoutputs when both are enabled")
+	})
+
+	t.Run("only GitHub MCP enabled (no safe-outputs)", func(t *testing.T) {
+		compiler := &Compiler{}
+
+		data := &WorkflowData{
+			ParsedTools: NewTools(map[string]any{"github": true}),
+			SafeOutputs: nil,
+		}
+
+		sections := compiler.collectPromptSections(data)
+		require.NotEmpty(t, sections, "Should collect sections")
+
+		// <github-mcp-tools> guidance must still be present
+		var githubMCPSection *PromptSection
+		for i := range sections {
+			if !sections[i].IsFile && strings.Contains(sections[i].Content, "github-mcp-tools") {
+				githubMCPSection = &sections[i]
+				break
+			}
+		}
+		require.NotNil(t, githubMCPSection, "Should include <github-mcp-tools> guidance even without safe-outputs")
+		assert.Contains(t, githubMCPSection.Content, "read-only",
+			"GitHub MCP guidance must state the server is read-only")
+
+		// Without safe-outputs, the guidance should NOT mention safeoutputs
+		assert.NotContains(t, githubMCPSection.Content, "safeoutputs",
+			"GitHub MCP guidance should not mention safeoutputs when safe-outputs is not enabled")
+	})
+
+	t.Run("no GitHub MCP tool", func(t *testing.T) {
+		compiler := &Compiler{}
+
+		data := &WorkflowData{
+			ParsedTools: NewTools(map[string]any{}),
+			SafeOutputs: &SafeOutputsConfig{
+				MissingData: &MissingDataConfig{},
+				NoOp:        &NoOpConfig{},
+			},
+		}
+
+		sections := compiler.collectPromptSections(data)
+
+		// Without GitHub MCP there should be no <github-mcp-tools> section
+		for _, section := range sections {
+			if !section.IsFile {
+				assert.NotContains(t, section.Content, "github-mcp-tools",
+					"Should not include GitHub MCP guidance when GitHub tool is not enabled")
+			}
+		}
+	})
+}
