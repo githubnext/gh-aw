@@ -360,7 +360,7 @@ func generateCacheMemorySteps(builder *strings.Builder, data *WorkflowData) {
 		if useBackwardCompatiblePaths {
 			// For single default cache, use the original directory for backward compatibility
 			builder.WriteString("      - name: Create cache-memory directory\n")
-			builder.WriteString("        run: bash ${{ runner.temp }}/gh-aw/actions/create_cache_memory_dir.sh\n")
+			builder.WriteString("        run: bash ${RUNNER_TEMP}/gh-aw/actions/create_cache_memory_dir.sh\n")
 		} else {
 			fmt.Fprintf(builder, "      - name: Create cache-memory directory (%s)\n", cache.ID)
 			builder.WriteString("        run: |\n")

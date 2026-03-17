@@ -498,8 +498,8 @@ This workflow tests that agentic-workflows uses the correct container in dev mod
 				}
 
 				// Verify binary mounts are NOT present in dev mode
-				if strings.Contains(string(lockContent), `${{ runner.temp }}/gh-aw:${{ runner.temp }}/gh-aw:ro`) {
-					t.Error("Did not expect ${{ runner.temp }}/gh-aw mount in dev mode (binary is in image)")
+				if strings.Contains(string(lockContent), `${RUNNER_TEMP}/gh-aw:${RUNNER_TEMP}/gh-aw:ro`) {
+					t.Error("Did not expect ${RUNNER_TEMP}/gh-aw mount in dev mode (binary is in image)")
 				}
 				if strings.Contains(string(lockContent), `/usr/bin/gh:/usr/bin/gh:ro`) {
 					t.Error("Did not expect /usr/bin/gh mount in dev mode (gh CLI is in image)")

@@ -28,7 +28,7 @@ func hasWorkflowCallTrigger(onSection string) bool {
 // single workflow run (e.g. two jobs in the calling workflow each invoking the same lock.yml).
 //
 // The computation is delegated to actions/setup/sh/compute_artifact_prefix.sh (copied to
-// ${{ runner.temp }}/gh-aw/actions/ at runtime by the Setup Scripts step) which:
+// ${RUNNER_TEMP}/gh-aw/actions/ at runtime by the Setup Scripts step) which:
 //   - Hashes INPUTS_JSON + GITHUB_RUN_ATTEMPT using sha256, taking the first 8 hex chars.
 //   - Logs what it is hashing so the prefix is traceable in workflow logs.
 //   - Yields a value like "a1b2c3d4-".
@@ -47,7 +47,7 @@ func generateArtifactPrefixStep() []string {
 		"        id: artifact-prefix\n",
 		"        env:\n",
 		"          INPUTS_JSON: ${{ toJSON(inputs) }}\n",
-		"        run: bash ${{ runner.temp }}/gh-aw/actions/compute_artifact_prefix.sh\n",
+		"        run: bash ${RUNNER_TEMP}/gh-aw/actions/compute_artifact_prefix.sh\n",
 	}
 }
 

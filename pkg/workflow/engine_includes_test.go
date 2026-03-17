@@ -253,7 +253,7 @@ This should use the default engine.
 	lockStr := string(lockContent)
 
 	// Should contain references to copilot CLI (default engine) using install script wrapper
-	if !strings.Contains(lockStr, "${{ runner.temp }}/gh-aw/actions/install_copilot_cli.sh") {
+	if !strings.Contains(lockStr, "${RUNNER_TEMP}/gh-aw/actions/install_copilot_cli.sh") {
 		t.Error("Expected lock file to contain copilot CLI installation using install script wrapper")
 	}
 

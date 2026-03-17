@@ -27,9 +27,9 @@ func TestAWFInstallationStepDefaultVersion(t *testing.T) {
 			t.Error("Expected to call install_awf_binary.sh script")
 		}
 
-		// Verify it uses the script from ${{ runner.temp }}/gh-aw/actions/
-		if !strings.Contains(stepStr, "${{ runner.temp }}/gh-aw/actions/install_awf_binary.sh") {
-			t.Error("Expected to call script from ${{ runner.temp }}/gh-aw/actions/ directory")
+		// Verify it uses the script from ${RUNNER_TEMP}/gh-aw/actions/
+		if !strings.Contains(stepStr, "${RUNNER_TEMP}/gh-aw/actions/install_awf_binary.sh") {
+			t.Error("Expected to call script from ${RUNNER_TEMP}/gh-aw/actions/ directory")
 		}
 
 		// Ensure it's NOT using inline bash or the old unverified installer script

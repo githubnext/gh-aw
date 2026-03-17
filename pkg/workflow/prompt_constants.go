@@ -6,9 +6,9 @@ import (
 	"github.com/github/gh-aw/pkg/constants"
 )
 
-// Prompt file paths at runtime (copied by setup action to ${{ runner.temp }}/gh-aw/prompts)
+// Prompt file paths at runtime (copied by setup action to ${RUNNER_TEMP}/gh-aw/prompts)
 const (
-	promptsDir                              = constants.GhAwRootDir + "/prompts"
+	promptsDir                              = constants.GhAwRootDirShell + "/prompts"
 	prContextPromptFile                     = "pr_context_prompt.md"
 	tempFolderPromptFile                    = "temp_folder_prompt.md"
 	playwrightPromptFile                    = "playwright_prompt.md"

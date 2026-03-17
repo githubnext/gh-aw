@@ -200,8 +200,8 @@ func TestRenderAgenticWorkflowsMCP_JSON_Copilot(t *testing.T) {
 		t.Error("Did not expect entrypointArgs field in dev mode (uses container's CMD)")
 	}
 	// In dev mode, should NOT have binary mounts
-	if strings.Contains(output, `${{ runner.temp }}/gh-aw:${{ runner.temp }}/gh-aw:ro`) {
-		t.Error("Did not expect ${{ runner.temp }}/gh-aw mount in dev mode (binary is in image)")
+	if strings.Contains(output, `${RUNNER_TEMP}/gh-aw:${RUNNER_TEMP}/gh-aw:ro`) {
+		t.Error("Did not expect ${RUNNER_TEMP}/gh-aw mount in dev mode (binary is in image)")
 	}
 	if strings.Contains(output, `/usr/bin/gh:/usr/bin/gh:ro`) {
 		t.Error("Did not expect /usr/bin/gh mount in dev mode (gh CLI is in image)")
@@ -274,8 +274,8 @@ func TestRenderAgenticWorkflowsMCP_TOML(t *testing.T) {
 		t.Error("Did not expect entrypointArgs field in dev mode (uses container's CMD)")
 	}
 	// In dev mode, should NOT have binary mounts
-	if strings.Contains(output, `${{ runner.temp }}/gh-aw:${{ runner.temp }}/gh-aw:ro`) {
-		t.Error("Did not expect ${{ runner.temp }}/gh-aw mount in dev mode (binary is in image)")
+	if strings.Contains(output, `${RUNNER_TEMP}/gh-aw:${RUNNER_TEMP}/gh-aw:ro`) {
+		t.Error("Did not expect ${RUNNER_TEMP}/gh-aw mount in dev mode (binary is in image)")
 	}
 	if strings.Contains(output, `/usr/bin/gh:/usr/bin/gh:ro`) {
 		t.Error("Did not expect /usr/bin/gh mount in dev mode (gh CLI is in image)")

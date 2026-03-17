@@ -240,8 +240,8 @@ Uses imported agentic-workflows tool.
 	}
 
 	// Verify binary mounts are NOT present in dev mode
-	if strings.Contains(workflowData, `${{ runner.temp }}/gh-aw:${{ runner.temp }}/gh-aw:ro`) {
-		t.Error("Did not expect ${{ runner.temp }}/gh-aw mount in dev mode (binary is in image)")
+	if strings.Contains(workflowData, `${RUNNER_TEMP}/gh-aw:${RUNNER_TEMP}/gh-aw:ro`) {
+		t.Error("Did not expect ${RUNNER_TEMP}/gh-aw mount in dev mode (binary is in image)")
 	}
 
 	// Verify DEBUG and GITHUB_TOKEN are present

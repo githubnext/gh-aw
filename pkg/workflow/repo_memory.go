@@ -543,7 +543,7 @@ func generateRepoMemorySteps(builder *strings.Builder, data *WorkflowData) {
 		fmt.Fprintf(builder, "          TARGET_REPO: %s\n", targetRepo)
 		fmt.Fprintf(builder, "          MEMORY_DIR: %s\n", memoryDir)
 		fmt.Fprintf(builder, "          CREATE_ORPHAN: %t\n", memory.CreateOrphan)
-		builder.WriteString("        run: bash ${{ runner.temp }}/gh-aw/actions/clone_repo_memory_branch.sh\n")
+		builder.WriteString("        run: bash ${RUNNER_TEMP}/gh-aw/actions/clone_repo_memory_branch.sh\n")
 	}
 }
 

@@ -188,7 +188,7 @@ func (c *Compiler) buildMainJob(data *WorkflowData, activationJobCreated bool) (
 		// Store in mcp-logs directory so it's included in mcp-logs artifact
 		env["GH_AW_MCP_LOG_DIR"] = "/tmp/gh-aw/mcp-logs/safeoutputs"
 
-		// Set config and tools paths (readonly files in ${{ runner.temp }}/gh-aw)
+		// Set config and tools paths (readonly files in ${RUNNER_TEMP}/gh-aw)
 		env["GH_AW_SAFE_OUTPUTS_CONFIG_PATH"] = "${{ runner.temp }}/gh-aw/safeoutputs/config.json"
 		env["GH_AW_SAFE_OUTPUTS_TOOLS_PATH"] = "${{ runner.temp }}/gh-aw/safeoutputs/tools.json"
 

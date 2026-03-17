@@ -30,7 +30,7 @@ func GetJavaScriptSources() map[string]string {
 
 func GetLogParserScript(name string) string {
 	// Return non-empty placeholder to indicate parser exists
-	// Actual script is loaded at runtime via require() from ${{ runner.temp }}/gh-aw/actions/
+	// Actual script is loaded at runtime via require() from ${RUNNER_TEMP}/gh-aw/actions/
 	return "EXTERNAL_SCRIPT"
 }
 

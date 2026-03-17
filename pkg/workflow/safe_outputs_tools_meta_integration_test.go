@@ -50,11 +50,11 @@ Test workflow for tools meta description suffixes.
 	yamlStr := string(yamlBytes)
 
 	// Must write tools_meta.json (new approach), NOT tools.json
-	assert.Contains(t, yamlStr, "cat > ${{ runner.temp }}/gh-aw/safeoutputs/tools_meta.json", "should write tools_meta.json")
-	assert.NotContains(t, yamlStr, "cat > ${{ runner.temp }}/gh-aw/safeoutputs/tools.json", "should NOT inline tools.json")
+	assert.Contains(t, yamlStr, "cat > ${RUNNER_TEMP}/gh-aw/safeoutputs/tools_meta.json", "should write tools_meta.json")
+	assert.NotContains(t, yamlStr, "cat > ${RUNNER_TEMP}/gh-aw/safeoutputs/tools.json", "should NOT inline tools.json")
 
 	// Must invoke the JavaScript generator at runtime
-	assert.Contains(t, yamlStr, "node ${{ runner.temp }}/gh-aw/actions/generate_safe_outputs_tools.cjs", "should invoke JS generator")
+	assert.Contains(t, yamlStr, "node ${RUNNER_TEMP}/gh-aw/actions/generate_safe_outputs_tools.cjs", "should invoke JS generator")
 
 	// Extract the tools_meta.json content from the lock file
 	meta := extractToolsMetaFromLockFile(t, yamlStr)
@@ -370,7 +370,7 @@ Test workflow to verify tools_meta in compiled output.
 	// Structural checks: new strategy is in use
 	assert.Contains(t, yamlStr, "tools_meta.json", "lock file should reference tools_meta.json")
 	assert.Contains(t, yamlStr, "generate_safe_outputs_tools.cjs", "lock file should invoke JS generator")
-	assert.NotContains(t, yamlStr, `cat > ${{ runner.temp }}/gh-aw/safeoutputs/tools.json`, "lock file should NOT inline tools.json")
+	assert.NotContains(t, yamlStr, `cat > ${RUNNER_TEMP}/gh-aw/safeoutputs/tools.json`, "lock file should NOT inline tools.json")
 
 	// tools_meta.json must contain create_issue description suffix with constraint text
 	assert.Contains(t, yamlStr, "CONSTRAINTS:", "tools_meta should contain constraint text")

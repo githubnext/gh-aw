@@ -178,12 +178,12 @@ func (t *StepOrderTracker) findUnscannablePaths(artifactUploads []StepRecord) []
 // isPathScannedBySecretRedaction checks if a path would be scanned by the secret redaction step
 // or is otherwise safe to upload (known engine-controlled diagnostic paths).
 func isPathScannedBySecretRedaction(path string) bool {
-	// Paths must be under /tmp/gh-aw/ or ${{ runner.temp }}/gh-aw/ to be scanned
+	// Paths must be under /tmp/gh-aw/ or ${RUNNER_TEMP}/gh-aw/ to be scanned
 	// Accept both literal paths and environment variable references
-	if !strings.HasPrefix(path, "/tmp/gh-aw/") && !strings.HasPrefix(path, "${{ runner.temp }}/gh-aw/") {
-		// Check if it's an environment variable that might resolve to /tmp/gh-aw/ or ${{ runner.temp }}/gh-aw/
+	if !strings.HasPrefix(path, "/tmp/gh-aw/") && !strings.HasPrefix(path, "${RUNNER_TEMP}/gh-aw/") {
+		// Check if it's an environment variable that might resolve to /tmp/gh-aw/ or ${RUNNER_TEMP}/gh-aw/
 		// For now, we'll allow ${{ env.* }} patterns through as we can't resolve them at compile time
-		// Assume environment variables that might contain /tmp/gh-aw or ${{ runner.temp }}/gh-aw paths are safe
+		// Assume environment variables that might contain /tmp/gh-aw or ${RUNNER_TEMP}/gh-aw paths are safe
 		// This is a conservative assumption - in practice these are controlled by the compiler
 		if strings.Contains(path, "${{ env.") {
 			return true

@@ -408,7 +408,7 @@ func generateInferenceAccessErrorDetectionStep() GitHubActionStep {
 	step = append(step, "        id: detect-inference-error")
 	step = append(step, "        if: always()")
 	step = append(step, "        continue-on-error: true")
-	step = append(step, "        run: bash ${{ runner.temp }}/gh-aw/actions/detect_inference_access_error.sh")
+	step = append(step, "        run: bash ${RUNNER_TEMP}/gh-aw/actions/detect_inference_access_error.sh")
 
 	return GitHubActionStep(step)
 }

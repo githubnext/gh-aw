@@ -172,18 +172,18 @@ This workflow uploads artifacts.
 
 	contentStr := string(content)
 
-	// Verify common upload paths are present and under /tmp/gh-aw/ or ${{ runner.temp }}/gh-aw/
+	// Verify common upload paths are present and under /tmp/gh-aw/ or ${RUNNER_TEMP}/gh-aw/
 	uploadPaths := []string{
-		"${{ runner.temp }}/gh-aw/safeoutputs/outputs.jsonl",
+		"${RUNNER_TEMP}/gh-aw/safeoutputs/outputs.jsonl",
 		"/tmp/gh-aw/agent-stdio.log",
 		"/tmp/gh-aw/mcp-logs/",
 	}
 
 	for _, path := range uploadPaths {
 		if strings.Contains(contentStr, path) {
-			// Verify it's under /tmp/gh-aw/ or ${{ runner.temp }}/gh-aw/ (scannable paths)
-			if !strings.HasPrefix(path, "/tmp/gh-aw/") && !strings.HasPrefix(path, "${{ runner.temp }}/gh-aw/") {
-				t.Errorf("Upload path %s is not under /tmp/gh-aw/ or ${{ runner.temp }}/gh-aw/ and won't be scanned", path)
+			// Verify it's under /tmp/gh-aw/ or ${RUNNER_TEMP}/gh-aw/ (scannable paths)
+			if !strings.HasPrefix(path, "/tmp/gh-aw/") && !strings.HasPrefix(path, "${RUNNER_TEMP}/gh-aw/") {
+				t.Errorf("Upload path %s is not under /tmp/gh-aw/ or ${RUNNER_TEMP}/gh-aw/ and won't be scanned", path)
 			}
 		}
 	}
