@@ -617,7 +617,6 @@ The `deploy` label was applied to this pull request. Build and deploy a preview 
 - ✅ Works for users who prefer UI clicks over typing commands
 - ✅ Re-triggerable — label is removed after activation so it can be reapplied
 - ⚠️ Less flexible — no way to pass additional context or arguments
-- ⚠️ Requires `issues: write` or `pull-requests: write` permission for label removal
 - ⚠️ Label must exist in the repository before use
 
 **When to recommend `label_command`:**
