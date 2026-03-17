@@ -87,6 +87,18 @@ For each open issue:
 3. If confirmed, include a fix in this run's PR and reference the issue with `Closes #NNN`.
 4. If the gap is already fixed, note it (do not reopen or comment on the issue).
 
+### 1c. Scan Recently Closed Documentation Issues
+
+Search for documentation issues closed in the last 7 days (replace YYYY-MM-DD with the date 7 days ago):
+
+```
+repo:${{ github.repository }} is:issue is:closed label:documentation closed:>=YYYY-MM-DD
+```
+
+For each closed issue:
+- **closed as completed**: Check whether a `[docs]` PR references it. If no such PR exists, treat it as an unaddressed gap and follow the normal Step 2 flow.
+- **closed as not_planned**: Do not create documentation based solely on this issue. Instead, cross-reference the issue's subject matter against commits from the same 7-day window (Step 2). If a related code change is found, treat it as a new documentation gap (independent of the original issue decision) and follow the normal Step 2 flow for that code change.
+
 ### 2. Analyze Changes
 
 For each merged PR and commit, analyze:
