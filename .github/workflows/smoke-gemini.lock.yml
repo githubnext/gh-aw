@@ -751,6 +751,13 @@ jobs:
                 "url": "http://host.docker.internal:$GH_AW_MCP_SCRIPTS_PORT",
                 "headers": {
                   "Authorization": "$GH_AW_MCP_SCRIPTS_API_KEY"
+                },
+                "guard-policies": {
+                  "write-sink": {
+                    "accept": [
+                      "*"
+                    ]
+                  }
                 }
               },
               "safeoutputs": {
@@ -758,10 +765,24 @@ jobs:
                 "url": "http://host.docker.internal:$GH_AW_SAFE_OUTPUTS_PORT",
                 "headers": {
                   "Authorization": "$GH_AW_SAFE_OUTPUTS_API_KEY"
+                },
+                "guard-policies": {
+                  "write-sink": {
+                    "accept": [
+                      "*"
+                    ]
+                  }
                 }
               },
               "web-fetch": {
-                "container": "mcp/fetch"
+                "container": "mcp/fetch",
+                "guard-policies": {
+                  "write-sink": {
+                    "accept": [
+                      "*"
+                    ]
+                  }
+                }
               }
             },
             "gateway": {

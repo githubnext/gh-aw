@@ -347,14 +347,38 @@ func transformRepoPattern(pattern string) string {
 // from the workflow's GitHub guard-policy configuration. This uses the same derivation as
 // deriveSafeOutputsGuardPolicyFromGitHub, ensuring that as guard policies are rolled out, only
 // GitHub inputs are filtered while outputs to non-GitHub servers are not restricted.
+//
+// When no explicit guard policy is configured but automatic lockdown detection would run
+// (GitHub tool present and not disabled, no GitHub App configured), a write-sink policy with
+// accept=["*"] is returned because automatic lockdown always sets repos=all at runtime.
+//
 // Returns nil when no GitHub guard policies are configured or when workflowData is nil.
 func deriveWriteSinkGuardPolicyFromWorkflow(workflowData *WorkflowData) map[string]any {
 	if workflowData == nil || workflowData.Tools == nil {
 		return nil
 	}
-	if githubTool, hasGitHub := workflowData.Tools["github"]; hasGitHub {
-		return deriveSafeOutputsGuardPolicyFromGitHub(githubTool)
+	githubTool, hasGitHub := workflowData.Tools["github"]
+	if !hasGitHub {
+		return nil
 	}
+
+	// Try to derive from explicit guard policy first
+	policy := deriveSafeOutputsGuardPolicyFromGitHub(githubTool)
+	if policy != nil {
+		return policy
+	}
+
+	// When no explicit guard policy is configured but automatic lockdown detection would run
+	// (GitHub tool present and not disabled, no GitHub App configured), return accept=["*"]
+	// because automatic lockdown always sets repos=all at runtime.
+	if githubTool != false && len(getGitHubGuardPolicies(githubTool)) == 0 && !hasGitHubApp(githubTool) {
+		return map[string]any{
+			"write-sink": map[string]any{
+				"accept": []string{"*"},
+			},
+		}
+	}
+
 	return nil
 }
 

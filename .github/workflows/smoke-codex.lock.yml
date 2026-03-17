@@ -831,6 +831,11 @@ jobs:
           url = "http://host.docker.internal:$GH_AW_MCP_SCRIPTS_PORT"
           headers = { Authorization = "$GH_AW_MCP_SCRIPTS_API_KEY" }
           
+          [mcp_servers.mcpscripts."guard-policies"]
+          
+          [mcp_servers.mcpscripts."guard-policies".write-sink]
+          accept = ["*"]
+          
           [mcp_servers.playwright]
           container = "mcr.microsoft.com/playwright/mcp"
           args = [
@@ -847,12 +852,22 @@ jobs:
           ]
           mounts = ["/tmp/gh-aw/mcp-logs:/tmp/gh-aw/mcp-logs:rw"]
           
+          [mcp_servers.playwright."guard-policies"]
+          
+          [mcp_servers.playwright."guard-policies".write-sink]
+          accept = ["*"]
+          
           [mcp_servers.safeoutputs]
           type = "http"
           url = "http://host.docker.internal:$GH_AW_SAFE_OUTPUTS_PORT"
           
           [mcp_servers.safeoutputs.headers]
           Authorization = "$GH_AW_SAFE_OUTPUTS_API_KEY"
+          
+          [mcp_servers.safeoutputs."guard-policies"]
+          
+          [mcp_servers.safeoutputs."guard-policies".write-sink]
+          accept = ["*"]
           
           [mcp_servers.serena]
           container = "ghcr.io/github/serena-mcp-server:latest"
@@ -870,8 +885,18 @@ jobs:
           ]
           mounts = ["${GITHUB_WORKSPACE}:${GITHUB_WORKSPACE}:rw"]
           
+          [mcp_servers.serena."guard-policies"]
+          
+          [mcp_servers.serena."guard-policies".write-sink]
+          accept = ["*"]
+          
           [mcp_servers."web-fetch"]
           container = "mcp/fetch"
+          
+          [mcp_servers.web-fetch."guard-policies"]
+          
+          [mcp_servers.web-fetch."guard-policies".write-sink]
+          accept = ["*"]
           GH_AW_MCP_CONFIG_EOF
           
           # Generate JSON config for MCP gateway
@@ -898,6 +923,13 @@ jobs:
                 "url": "http://host.docker.internal:$GH_AW_MCP_SCRIPTS_PORT",
                 "headers": {
                   "Authorization": "$GH_AW_MCP_SCRIPTS_API_KEY"
+                },
+                "guard-policies": {
+                  "write-sink": {
+                    "accept": [
+                      "*"
+                    ]
+                  }
                 }
               },
               "playwright": {
@@ -915,13 +947,27 @@ jobs:
                   "/tmp/gh-aw/mcp-logs/playwright",
                   "--no-sandbox"
                 ],
-                "mounts": ["/tmp/gh-aw/mcp-logs:/tmp/gh-aw/mcp-logs:rw"]
+                "mounts": ["/tmp/gh-aw/mcp-logs:/tmp/gh-aw/mcp-logs:rw"],
+                "guard-policies": {
+                  "write-sink": {
+                    "accept": [
+                      "*"
+                    ]
+                  }
+                }
               },
               "safeoutputs": {
                 "type": "http",
                 "url": "http://host.docker.internal:$GH_AW_SAFE_OUTPUTS_PORT",
                 "headers": {
                   "Authorization": "$GH_AW_SAFE_OUTPUTS_API_KEY"
+                },
+                "guard-policies": {
+                  "write-sink": {
+                    "accept": [
+                      "*"
+                    ]
+                  }
                 }
               },
               "serena": {
@@ -938,10 +984,24 @@ jobs:
                   "--project",
                   "\${GITHUB_WORKSPACE}"
                 ],
-                "mounts": ["\${GITHUB_WORKSPACE}:\${GITHUB_WORKSPACE}:rw"]
+                "mounts": ["\${GITHUB_WORKSPACE}:\${GITHUB_WORKSPACE}:rw"],
+                "guard-policies": {
+                  "write-sink": {
+                    "accept": [
+                      "*"
+                    ]
+                  }
+                }
               },
               "web-fetch": {
-                "container": "mcp/fetch"
+                "container": "mcp/fetch",
+                "guard-policies": {
+                  "write-sink": {
+                    "accept": [
+                      "*"
+                    ]
+                  }
+                }
               }
             },
             "gateway": {

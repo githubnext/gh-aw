@@ -609,6 +609,11 @@ jobs:
           mounts = ["\${GITHUB_WORKSPACE}:\${GITHUB_WORKSPACE}:rw", "/tmp/gh-aw:/tmp/gh-aw:rw"]
           env_vars = ["DEBUG", "GH_TOKEN", "GITHUB_TOKEN", "GITHUB_ACTOR", "GITHUB_REPOSITORY"]
           
+          [mcp_servers.agenticworkflows."guard-policies"]
+          
+          [mcp_servers.agenticworkflows."guard-policies".write-sink]
+          accept = ["*"]
+          
           [mcp_servers.github]
           user_agent = "daily-observability-report-for-awf-firewall-and-mcp-gateway"
           startup_timeout_sec = 120
@@ -623,6 +628,11 @@ jobs:
           
           [mcp_servers.safeoutputs.headers]
           Authorization = "$GH_AW_SAFE_OUTPUTS_API_KEY"
+          
+          [mcp_servers.safeoutputs."guard-policies"]
+          
+          [mcp_servers.safeoutputs."guard-policies".write-sink]
+          accept = ["*"]
           GH_AW_MCP_CONFIG_EOF
           
           # Generate JSON config for MCP gateway
@@ -638,6 +648,13 @@ jobs:
                   "GITHUB_TOKEN": "$GITHUB_TOKEN",
                   "GITHUB_ACTOR": "$GITHUB_ACTOR",
                   "GITHUB_REPOSITORY": "$GITHUB_REPOSITORY"
+                },
+                "guard-policies": {
+                  "write-sink": {
+                    "accept": [
+                      "*"
+                    ]
+                  }
                 }
               },
               "github": {
@@ -660,6 +677,13 @@ jobs:
                 "url": "http://host.docker.internal:$GH_AW_SAFE_OUTPUTS_PORT",
                 "headers": {
                   "Authorization": "$GH_AW_SAFE_OUTPUTS_API_KEY"
+                },
+                "guard-policies": {
+                  "write-sink": {
+                    "accept": [
+                      "*"
+                    ]
+                  }
                 }
               }
             },

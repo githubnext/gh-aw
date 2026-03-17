@@ -708,6 +708,13 @@ jobs:
                   "GITHUB_TOKEN": "\${GITHUB_TOKEN}",
                   "GITHUB_ACTOR": "\${GITHUB_ACTOR}",
                   "GITHUB_REPOSITORY": "\${GITHUB_REPOSITORY}"
+                },
+                "guard-policies": {
+                  "write-sink": {
+                    "accept": [
+                      "*"
+                    ]
+                  }
                 }
               },
               "arxiv": {
@@ -717,14 +724,28 @@ jobs:
                   "search_arxiv",
                   "get_paper_details",
                   "get_paper_pdf"
-                ]
+                ],
+                "guard-policies": {
+                  "write-sink": {
+                    "accept": [
+                      "*"
+                    ]
+                  }
+                }
               },
               "ast-grep": {
                 "type": "stdio",
                 "container": "mcp/ast-grep:latest",
                 "tools": [
                   "*"
-                ]
+                ],
+                "guard-policies": {
+                  "write-sink": {
+                    "accept": [
+                      "*"
+                    ]
+                  }
+                }
               },
               "brave-search": {
                 "type": "stdio",
@@ -734,6 +755,13 @@ jobs:
                 ],
                 "env": {
                   "BRAVE_API_KEY": "\${BRAVE_API_KEY}"
+                },
+                "guard-policies": {
+                  "write-sink": {
+                    "accept": [
+                      "*"
+                    ]
+                  }
                 }
               },
               "context7": {
@@ -745,6 +773,13 @@ jobs:
                 ],
                 "env": {
                   "CONTEXT7_API_KEY": "\${CONTEXT7_API_KEY}"
+                },
+                "guard-policies": {
+                  "write-sink": {
+                    "accept": [
+                      "*"
+                    ]
+                  }
                 }
               },
               "datadog": {
@@ -765,6 +800,13 @@ jobs:
                   "DD_API_KEY": "\${DD_API_KEY}",
                   "DD_APPLICATION_KEY": "\${DD_APPLICATION_KEY}",
                   "DD_SITE": "\${DD_SITE}"
+                },
+                "guard-policies": {
+                  "write-sink": {
+                    "accept": [
+                      "*"
+                    ]
+                  }
                 }
               },
               "deepwiki": {
@@ -774,7 +816,14 @@ jobs:
                   "read_wiki_structure",
                   "read_wiki_contents",
                   "ask_question"
-                ]
+                ],
+                "guard-policies": {
+                  "write-sink": {
+                    "accept": [
+                      "*"
+                    ]
+                  }
+                }
               },
               "fabric-rti": {
                 "type": "stdio",
@@ -803,6 +852,13 @@ jobs:
                   "AZURE_CLIENT_ID": "\${AZURE_CLIENT_ID}",
                   "AZURE_CLIENT_SECRET": "\${AZURE_CLIENT_SECRET}",
                   "AZURE_TENANT_ID": "\${AZURE_TENANT_ID}"
+                },
+                "guard-policies": {
+                  "write-sink": {
+                    "accept": [
+                      "*"
+                    ]
+                  }
                 }
               },
               "github": {
@@ -826,7 +882,14 @@ jobs:
                 "container": "mcp/markitdown",
                 "tools": [
                   "*"
-                ]
+                ],
+                "guard-policies": {
+                  "write-sink": {
+                    "accept": [
+                      "*"
+                    ]
+                  }
+                }
               },
               "memory": {
                 "type": "stdio",
@@ -840,14 +903,28 @@ jobs:
                   "retrieve_memory",
                   "list_memories",
                   "delete_memory"
-                ]
+                ],
+                "guard-policies": {
+                  "write-sink": {
+                    "accept": [
+                      "*"
+                    ]
+                  }
+                }
               },
               "microsoftdocs": {
                 "type": "http",
                 "url": "https://learn.microsoft.com/api/mcp",
                 "tools": [
                   "*"
-                ]
+                ],
+                "guard-policies": {
+                  "write-sink": {
+                    "accept": [
+                      "*"
+                    ]
+                  }
+                }
               },
               "notion": {
                 "type": "stdio",
@@ -860,6 +937,13 @@ jobs:
                 ],
                 "env": {
                   "NOTION_API_TOKEN": "\${NOTION_API_TOKEN}"
+                },
+                "guard-policies": {
+                  "write-sink": {
+                    "accept": [
+                      "*"
+                    ]
+                  }
                 }
               },
               "safeoutputs": {
@@ -867,6 +951,13 @@ jobs:
                 "url": "http://host.docker.internal:$GH_AW_SAFE_OUTPUTS_PORT",
                 "headers": {
                   "Authorization": "\${GH_AW_SAFE_OUTPUTS_API_KEY}"
+                },
+                "guard-policies": {
+                  "write-sink": {
+                    "accept": [
+                      "*"
+                    ]
+                  }
                 }
               },
               "sentry": {
@@ -897,6 +988,13 @@ jobs:
                   "OPENAI_API_KEY": "\${SENTRY_OPENAI_API_KEY}",
                   "SENTRY_ACCESS_TOKEN": "\${SENTRY_ACCESS_TOKEN}",
                   "SENTRY_HOST": "\${SENTRY_HOST}"
+                },
+                "guard-policies": {
+                  "write-sink": {
+                    "accept": [
+                      "*"
+                    ]
+                  }
                 }
               },
               "serena": {
@@ -905,7 +1003,14 @@ jobs:
                 "args": ["--network", "host"],
                 "entrypoint": "serena",
                 "entrypointArgs": ["start-mcp-server", "--context", "codex", "--project", "\${GITHUB_WORKSPACE}"],
-                "mounts": ["\${GITHUB_WORKSPACE}:\${GITHUB_WORKSPACE}:rw"]
+                "mounts": ["\${GITHUB_WORKSPACE}:\${GITHUB_WORKSPACE}:rw"],
+                "guard-policies": {
+                  "write-sink": {
+                    "accept": [
+                      "*"
+                    ]
+                  }
+                }
               },
               "tavily": {
                 "type": "http",
@@ -918,6 +1023,13 @@ jobs:
                 ],
                 "env": {
                   "TAVILY_API_KEY": "\${TAVILY_API_KEY}"
+                },
+                "guard-policies": {
+                  "write-sink": {
+                    "accept": [
+                      "*"
+                    ]
+                  }
                 }
               }
             },

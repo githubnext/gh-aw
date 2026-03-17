@@ -42,7 +42,7 @@ func TestDeriveWriteSinkGuardPolicyFromWorkflow(t *testing.T) {
 			description: "no github tool means no guard policy",
 		},
 		{
-			name: "github tool without guard policy",
+			name: "github tool without guard policy (auto-lockdown)",
 			workflowData: &WorkflowData{
 				Tools: map[string]any{
 					"github": map[string]any{
@@ -50,8 +50,20 @@ func TestDeriveWriteSinkGuardPolicyFromWorkflow(t *testing.T) {
 					},
 				},
 			},
-			expectNil:   true,
-			description: "github tool without repos/min-integrity has no guard policy",
+			expectNil:   false,
+			expectedKey: "write-sink",
+			description: "github tool without repos/min-integrity triggers auto-lockdown which sets accept=[*]",
+		},
+		{
+			name: "github tool with nil value (auto-lockdown)",
+			workflowData: &WorkflowData{
+				Tools: map[string]any{
+					"github": nil,
+				},
+			},
+			expectNil:   false,
+			expectedKey: "write-sink",
+			description: "github tool with nil value triggers auto-lockdown which sets accept=[*]",
 		},
 		{
 			name: "github tool with repos=all",
@@ -366,9 +378,10 @@ func TestAllNonGitHubMCPServersGetGuardPoliciesViaRenderer(t *testing.T) {
 	})
 }
 
-// TestNonGitHubMCPServersNoGuardPoliciesWhenGitHubNotConfigured verifies that servers
-// do not get guard policies when the GitHub tool has no guard policy configured
-func TestNonGitHubMCPServersNoGuardPoliciesWhenGitHubNotConfigured(t *testing.T) {
+// TestNonGitHubMCPServersGetGuardPoliciesFromAutoLockdown verifies that non-GitHub MCP servers
+// get write-sink: {accept: ["*"]} guard policies when the GitHub tool is configured without
+// explicit guard policies (auto-lockdown detection will set repos=all at runtime)
+func TestNonGitHubMCPServersGetGuardPoliciesFromAutoLockdown(t *testing.T) {
 	workflowData := &WorkflowData{
 		Tools: map[string]any{
 			"github": map[string]any{
@@ -379,9 +392,16 @@ func TestNonGitHubMCPServersNoGuardPoliciesWhenGitHubNotConfigured(t *testing.T)
 	}
 
 	policies := deriveWriteSinkGuardPolicyFromWorkflow(workflowData)
-	assert.Nil(t, policies, "no guard policies when GitHub has no guard policy configured")
+	require.NotNil(t, policies, "guard policies should be derived when GitHub tool triggers auto-lockdown")
 
-	// Verify playwright JSON rendering has no guard-policies
+	expectedPolicies := map[string]any{
+		"write-sink": map[string]any{
+			"accept": []string{"*"},
+		},
+	}
+	assert.Equal(t, expectedPolicies, policies, "auto-lockdown should produce write-sink with accept=*")
+
+	// Verify playwright JSON rendering has guard-policies
 	var output strings.Builder
 	renderer := NewMCPConfigRenderer(MCPRendererOptions{
 		Format:                 "json",
@@ -389,7 +409,27 @@ func TestNonGitHubMCPServersNoGuardPoliciesWhenGitHubNotConfigured(t *testing.T)
 		WriteSinkGuardPolicies: policies,
 	})
 	renderer.RenderPlaywrightMCP(&output, nil)
-	assert.NotContains(t, output.String(), "guard-policies", "playwright should not have guard-policies when GitHub has no guard policy")
+	assert.Contains(t, output.String(), "guard-policies", "playwright should have guard-policies when auto-lockdown is active")
+}
+
+// TestNonGitHubMCPServersNoGuardPoliciesWithGitHubApp verifies that non-GitHub MCP servers
+// do NOT get write-sink guard policies when a GitHub App is configured.
+// GitHub App tokens are already repo-scoped, so auto-lockdown detection is skipped.
+func TestNonGitHubMCPServersNoGuardPoliciesWithGitHubApp(t *testing.T) {
+	workflowData := &WorkflowData{
+		Tools: map[string]any{
+			"github": map[string]any{
+				"toolsets": []string{"default"},
+				"github-app": map[string]any{
+					"app-id": "12345",
+				},
+			},
+			"playwright": nil,
+		},
+	}
+
+	policies := deriveWriteSinkGuardPolicyFromWorkflow(workflowData)
+	assert.Nil(t, policies, "no guard policies when GitHub App is configured (auto-lockdown is skipped)")
 }
 
 // TestNonGitHubMCPServersGetGuardPoliciesWhenGitHubConfigured verifies the end-to-end flow:

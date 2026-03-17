@@ -144,14 +144,9 @@ func renderSafeOutputsMCPConfigWithOptions(yaml *strings.Builder, isLast bool, i
 	}
 	yaml.WriteString("                }")
 
-	// Check if GitHub tool has guard-policies configured
+	// Check if GitHub tool has guard-policies configured (or auto-lockdown will run)
 	// If so, generate a linked write-sink guard-policy for safeoutputs
-	var guardPolicies map[string]any
-	if workflowData != nil && workflowData.Tools != nil {
-		if githubTool, hasGitHub := workflowData.Tools["github"]; hasGitHub {
-			guardPolicies = deriveSafeOutputsGuardPolicyFromGitHub(githubTool)
-		}
-	}
+	guardPolicies := deriveWriteSinkGuardPolicyFromWorkflow(workflowData)
 
 	// Add guard-policies if configured
 	if len(guardPolicies) > 0 {
