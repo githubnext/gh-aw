@@ -28,7 +28,7 @@
 #     - shared/activation-app.md
 #     - shared/reporting.md
 #
-# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"a7011f09224b79475d25a6867214db655a751d141f5c99b9344f89befa74976a","strict":true}
+# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"fe7e183fb438b78cdfe76d148d53c40c421dcac32b7364799f1cc4d040b2f552","strict":true}
 
 name: "Daily Rendering Scripts Verifier"
 "on":
@@ -1201,6 +1201,15 @@ jobs:
             setupGlobals(core, github, context, exec, io);
             const { main } = require('/opt/gh-aw/actions/check_membership.cjs');
             await main();
+      - name: Generate GitHub App token for skip-if checks
+        id: pre-activation-app-token
+        uses: actions/create-github-app-token@a7f885bf4560200d03183ed941cb6fb072e4b343 # v3.0.0-beta.4
+        with:
+          app-id: ${{ vars.APP_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+          repositories: ${{ github.event.repository.name }}
+          github-api-url: ${{ github.api_url }}
       - name: Check skip-if-match query
         id: check_skip_if_match
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
@@ -1209,6 +1218,7 @@ jobs:
           GH_AW_WORKFLOW_NAME: "Daily Rendering Scripts Verifier"
           GH_AW_SKIP_MAX_MATCHES: "1"
         with:
+          github-token: ${{ steps.pre-activation-app-token.outputs.token }}
           script: |
             const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
             setupGlobals(core, github, context, exec, io);

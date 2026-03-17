@@ -27,7 +27,7 @@
 #   Imports:
 #     - shared/activation-app.md
 #
-# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"262aa2c38c59cd857d3031db4ff424e381cd83850ea0b9170f07e52e5fa75e70","strict":true}
+# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"bd9156f0ffeeb4750c881301b6c5db6a9e895a85c1b7469ba212664237dc3f3b","strict":true}
 
 name: "Ubuntu Actions Image Analyzer"
 "on":
@@ -1044,6 +1044,15 @@ jobs:
             setupGlobals(core, github, context, exec, io);
             const { main } = require('/opt/gh-aw/actions/check_membership.cjs');
             await main();
+      - name: Generate GitHub App token for skip-if checks
+        id: pre-activation-app-token
+        uses: actions/create-github-app-token@a7f885bf4560200d03183ed941cb6fb072e4b343 # v3.0.0-beta.4
+        with:
+          app-id: ${{ vars.APP_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+          repositories: ${{ github.event.repository.name }}
+          github-api-url: ${{ github.api_url }}
       - name: Check skip-if-match query
         id: check_skip_if_match
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
@@ -1052,6 +1061,7 @@ jobs:
           GH_AW_WORKFLOW_NAME: "Ubuntu Actions Image Analyzer"
           GH_AW_SKIP_MAX_MATCHES: "1"
         with:
+          github-token: ${{ steps.pre-activation-app-token.outputs.token }}
           script: |
             const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
             setupGlobals(core, github, context, exec, io);

@@ -27,7 +27,7 @@
 #   Imports:
 #     - shared/activation-app.md
 #
-# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"80035cf878cbaf37da0e8584c32106eafd5e488f78bea3e758d86a4d3e025864","strict":true}
+# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"ece77a4b96614fc08a51dbbdec2d9058cd2270d7057ce1378e3b1eded2504679","strict":true}
 
 name: "Issue Monster"
 "on":
@@ -1365,6 +1365,15 @@ jobs:
             setupGlobals(core, github, context, exec, io);
             const { main } = require('/opt/gh-aw/actions/check_membership.cjs');
             await main();
+      - name: Generate GitHub App token for skip-if checks
+        id: pre-activation-app-token
+        uses: actions/create-github-app-token@a7f885bf4560200d03183ed941cb6fb072e4b343 # v3.0.0-beta.4
+        with:
+          app-id: ${{ vars.APP_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+          repositories: ${{ github.event.repository.name }}
+          github-api-url: ${{ github.api_url }}
       - name: Check skip-if-match query
         id: check_skip_if_match
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
@@ -1373,6 +1382,7 @@ jobs:
           GH_AW_WORKFLOW_NAME: "Issue Monster"
           GH_AW_SKIP_MAX_MATCHES: "5"
         with:
+          github-token: ${{ steps.pre-activation-app-token.outputs.token }}
           script: |
             const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
             setupGlobals(core, github, context, exec, io);
@@ -1386,6 +1396,7 @@ jobs:
           GH_AW_WORKFLOW_NAME: "Issue Monster"
           GH_AW_SKIP_MIN_MATCHES: "1"
         with:
+          github-token: ${{ steps.pre-activation-app-token.outputs.token }}
           script: |
             const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
             setupGlobals(core, github, context, exec, io);
