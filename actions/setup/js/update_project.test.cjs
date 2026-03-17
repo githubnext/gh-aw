@@ -1994,3 +1994,199 @@ describe("update_project temporary project ID resolution", () => {
     expect(mockCore.info).not.toHaveBeenCalledWith(expect.stringContaining("Resolved temporary project ID"));
   });
 });
+
+describe("update_project target_repo cross-repo content resolution", () => {
+  it("uses target_repo owner/repo when resolving issue content_number", async () => {
+    const projectUrl = "https://github.com/orgs/testowner/projects/60";
+    const output = {
+      type: "update_project",
+      project: projectUrl,
+      content_type: "issue",
+      content_number: 123,
+      target_repo: "otherorg/otherrepo",
+    };
+
+    // Queue responses - issue is resolved against otherorg/otherrepo
+    queueResponses([
+      repoResponse(), // repository info for testowner/testrepo (project owner lookup)
+      viewerResponse(),
+      orgProjectV2Response(projectUrl, 60, "project123"),
+      issueResponse("issue-id-123"),
+      emptyItemsResponse(),
+      { addProjectV2ItemById: { item: { id: "item-cross" } } },
+    ]);
+
+    await updateProject(output);
+
+    // Verify the GraphQL query was made with the correct cross-repo owner/repo
+    const contentQueryCall = mockGithub.graphql.mock.calls.find(([query]) => query.includes("issue(number:"));
+    expect(contentQueryCall).toBeDefined();
+    expect(contentQueryCall[1]).toMatchObject({ owner: "otherorg", repo: "otherrepo", number: 123 });
+
+    expect(getOutput("item-id")).toBe("item-cross");
+    expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Using target_repo otherorg/otherrepo for content resolution"));
+  });
+
+  it("normalizes camelCase targetRepo to target_repo", async () => {
+    const projectUrl = "https://github.com/orgs/testowner/projects/60";
+    const output = {
+      type: "update_project",
+      project: projectUrl,
+      content_type: "issue",
+      content_number: 5,
+      targetRepo: "otherorg/otherrepo", // camelCase alias
+    };
+
+    queueResponses([repoResponse(), viewerResponse(), orgProjectV2Response(projectUrl, 60, "project123"), issueResponse("issue-id-5"), emptyItemsResponse(), { addProjectV2ItemById: { item: { id: "item-camel" } } }]);
+
+    await updateProject(output);
+
+    const contentQueryCall = mockGithub.graphql.mock.calls.find(([query]) => query.includes("issue(number:"));
+    expect(contentQueryCall).toBeDefined();
+    expect(contentQueryCall[1]).toMatchObject({ owner: "otherorg", repo: "otherrepo", number: 5 });
+  });
+
+  it("throws on invalid target_repo format", async () => {
+    const projectUrl = "https://github.com/orgs/testowner/projects/60";
+    const output = {
+      type: "update_project",
+      project: projectUrl,
+      content_type: "issue",
+      content_number: 1,
+      target_repo: "invalid-no-slash",
+    };
+
+    queueResponses([repoResponse(), viewerResponse(), orgProjectV2Response(projectUrl, 60, "project123")]);
+
+    await expect(updateProject(output)).rejects.toThrow(/Invalid target_repo format/);
+  });
+
+  it("falls back to context.repo when target_repo is not provided", async () => {
+    const projectUrl = "https://github.com/orgs/testowner/projects/60";
+    const output = {
+      type: "update_project",
+      project: projectUrl,
+      content_type: "issue",
+      content_number: 7,
+      // No target_repo - should use context.repo (testowner/testrepo)
+    };
+
+    queueResponses([repoResponse(), viewerResponse(), orgProjectV2Response(projectUrl, 60, "project123"), issueResponse("issue-id-7"), emptyItemsResponse(), { addProjectV2ItemById: { item: { id: "item-default" } } }]);
+
+    await updateProject(output);
+
+    const contentQueryCall = mockGithub.graphql.mock.calls.find(([query]) => query.includes("issue(number:"));
+    expect(contentQueryCall).toBeDefined();
+    // Should use context.repo values (testowner/testrepo)
+    expect(contentQueryCall[1]).toMatchObject({ owner: "testowner", repo: "testrepo", number: 7 });
+    expect(mockCore.info).not.toHaveBeenCalledWith(expect.stringContaining("Using target_repo"));
+  });
+});
+
+describe("update_project handler: target_repo allowed-repos validation", () => {
+  let messageHandler;
+
+  beforeEach(() => {
+    mockGithub.graphql.mockReset();
+    clearCoreMocks();
+  });
+
+  it("rejects target_repo not in allowed-repos", async () => {
+    const config = { max: 10, allowed_repos: ["org/allowed-repo"] };
+    messageHandler = await updateProjectHandlerFactory(config, mockGithub);
+
+    const message = {
+      type: "update_project",
+      project: "https://github.com/orgs/testowner/projects/60",
+      content_type: "issue",
+      content_number: 1,
+      target_repo: "org/forbidden-repo",
+    };
+
+    const result = await messageHandler(message, {}, new Map());
+
+    expect(result.success).toBe(false);
+    expect(result.error).toMatch(/not allowed for cross-repo content resolution/);
+    expect(mockCore.error).toHaveBeenCalledWith(expect.stringContaining("org/forbidden-repo"));
+  });
+
+  it("allows target_repo that matches the default target-repo config", async () => {
+    const projectUrl = "https://github.com/orgs/testowner/projects/60";
+    const config = { max: 10, "target-repo": "org/target-repo", allowed_repos: [] };
+    messageHandler = await updateProjectHandlerFactory(config, mockGithub);
+
+    queueResponses([repoResponse(), viewerResponse(), orgProjectV2Response(projectUrl, 60, "project123"), issueResponse("issue-id-2"), emptyItemsResponse(), { addProjectV2ItemById: { item: { id: "item-allowed" } } }]);
+
+    const message = {
+      type: "update_project",
+      project: projectUrl,
+      content_type: "issue",
+      content_number: 2,
+      target_repo: "org/target-repo", // Same as configured target-repo
+    };
+
+    const result = await messageHandler(message, {}, new Map());
+
+    expect(result.success).toBe(true);
+  });
+
+  it("allows target_repo that matches an entry in allowed-repos", async () => {
+    const projectUrl = "https://github.com/orgs/testowner/projects/60";
+    const config = { max: 10, allowed_repos: ["org/allowed-repo", "org/another-repo"] };
+    messageHandler = await updateProjectHandlerFactory(config, mockGithub);
+
+    queueResponses([repoResponse(), viewerResponse(), orgProjectV2Response(projectUrl, 60, "project123"), issueResponse("issue-id-3"), emptyItemsResponse(), { addProjectV2ItemById: { item: { id: "item-in-list" } } }]);
+
+    const message = {
+      type: "update_project",
+      project: projectUrl,
+      content_type: "issue",
+      content_number: 3,
+      target_repo: "org/allowed-repo",
+    };
+
+    const result = await messageHandler(message, {}, new Map());
+
+    expect(result.success).toBe(true);
+  });
+
+  it("allows wildcard allowed-repo pattern", async () => {
+    const projectUrl = "https://github.com/orgs/testowner/projects/60";
+    const config = { max: 10, allowed_repos: ["org/*"] };
+    messageHandler = await updateProjectHandlerFactory(config, mockGithub);
+
+    queueResponses([repoResponse(), viewerResponse(), orgProjectV2Response(projectUrl, 60, "project123"), issueResponse("issue-id-4"), emptyItemsResponse(), { addProjectV2ItemById: { item: { id: "item-wildcard" } } }]);
+
+    const message = {
+      type: "update_project",
+      project: projectUrl,
+      content_type: "issue",
+      content_number: 4,
+      target_repo: "org/any-repo-in-org",
+    };
+
+    const result = await messageHandler(message, {}, new Map());
+
+    expect(result.success).toBe(true);
+  });
+
+  it("does not validate target_repo when not provided", async () => {
+    const projectUrl = "https://github.com/orgs/testowner/projects/60";
+    const config = { max: 10, allowed_repos: ["org/specific-repo"] };
+    messageHandler = await updateProjectHandlerFactory(config, mockGithub);
+
+    queueResponses([repoResponse(), viewerResponse(), orgProjectV2Response(projectUrl, 60, "project123"), issueResponse("issue-id-5"), emptyItemsResponse(), { addProjectV2ItemById: { item: { id: "item-no-target" } } }]);
+
+    const message = {
+      type: "update_project",
+      project: projectUrl,
+      content_type: "issue",
+      content_number: 5,
+      // No target_repo - should pass validation
+    };
+
+    const result = await messageHandler(message, {}, new Map());
+
+    expect(result.success).toBe(true);
+  });
+});
