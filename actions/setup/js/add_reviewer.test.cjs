@@ -286,4 +286,60 @@ describe("add_reviewer (Handler Factory Architecture)", () => {
     expect(result.reviewersAdded).toEqual(["user1", "copilot"]);
     expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("Failed to add copilot as reviewer"));
   });
+
+  it("should handle undefined reviewers as empty array", async () => {
+    const message = {
+      type: "add_reviewer",
+      // reviewers intentionally omitted
+    };
+
+    const result = await handler(message, {});
+
+    expect(result.success).toBe(true);
+    expect(result.reviewersAdded).toEqual([]);
+    expect(result.message).toContain("No valid reviewers found");
+    expect(mockGithub.rest.pulls.requestReviewers).not.toHaveBeenCalled();
+  });
+
+  it("should add only copilot when copilot is the only reviewer", async () => {
+    const message = {
+      type: "add_reviewer",
+      reviewers: ["copilot"],
+    };
+
+    const result = await handler(message, {});
+
+    expect(result.success).toBe(true);
+    expect(result.reviewersAdded).toEqual(["copilot"]);
+    // Only called once for copilot, not for other reviewers
+    expect(mockGithub.rest.pulls.requestReviewers).toHaveBeenCalledTimes(1);
+    expect(mockGithub.rest.pulls.requestReviewers).toHaveBeenCalledWith({
+      owner: "testowner",
+      repo: "testrepo",
+      pull_number: 123,
+      reviewers: ["copilot-pull-request-reviewer[bot]"],
+    });
+  });
+
+  it("should use default config values when no options provided", async () => {
+    const { main } = require("./add_reviewer.cjs");
+    const defaultHandler = await main({});
+
+    const message = {
+      type: "add_reviewer",
+      reviewers: ["anyuser"],
+    };
+
+    // With no allowed list, all reviewers are allowed
+    const result = await defaultHandler(message, {});
+
+    expect(result.success).toBe(true);
+    expect(result.reviewersAdded).toEqual(["anyuser"]);
+    expect(mockGithub.rest.pulls.requestReviewers).toHaveBeenCalledWith({
+      owner: "testowner",
+      repo: "testrepo",
+      pull_number: 123,
+      reviewers: ["anyuser"],
+    });
+  });
 });

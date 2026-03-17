@@ -14,9 +14,6 @@ const { createAuthenticatedGitHubClient } = require("./handler_auth.cjs");
 // GitHub Copilot reviewer bot username
 const COPILOT_REVIEWER_BOT = "copilot-pull-request-reviewer[bot]";
 
-/** @type {string} Safe output type handled by this module */
-const HANDLER_TYPE = "add_reviewer";
-
 /**
  * Main handler factory for add_reviewer
  * Returns a message handler function that processes individual add_reviewer messages
