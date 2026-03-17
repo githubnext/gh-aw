@@ -647,7 +647,7 @@ function buildAppTokenMintingFailedContext(hasAppTokenMintingFailed) {
 
   const templatePath = "/opt/gh-aw/prompts/app_token_minting_failed.md";
   const template = fs.readFileSync(templatePath, "utf8");
-  return "\n" + template;
+  return "\n" + renderTemplate(template, {});
 }
 
 /**
