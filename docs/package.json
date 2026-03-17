@@ -34,6 +34,6 @@
     "@playwright/test": "^1.58.2",
     "@types/primer__octicons": "^19.21.0",
     "http-server": "^14.1.1",
-    "starlight-github-alerts": "^0.1.1"
+    "starlight-github-alerts": "^0.2.0"
   }
 }
