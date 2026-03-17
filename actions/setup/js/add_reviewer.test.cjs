@@ -344,17 +344,22 @@ describe("add_reviewer (Handler Factory Architecture)", () => {
   });
 
   it("should return error for invalid pull_request_number", async () => {
-    const message = {
-      type: "add_reviewer",
-      reviewers: ["user1"],
-      pull_request_number: "not-a-number",
-    };
+    const invalidValues = ["not-a-number", null, "abc123"];
 
-    const result = await handler(message, {});
+    for (const invalidValue of invalidValues) {
+      vi.clearAllMocks();
+      const message = {
+        type: "add_reviewer",
+        reviewers: ["user1"],
+        pull_request_number: invalidValue,
+      };
 
-    expect(result.success).toBe(false);
-    expect(result.error).toContain("Invalid pull_request_number");
-    expect(mockGithub.rest.pulls.requestReviewers).not.toHaveBeenCalled();
+      const result = await handler(message, {});
+
+      expect(result.success).toBe(false);
+      expect(result.error).toContain("Invalid pull_request_number");
+      expect(mockGithub.rest.pulls.requestReviewers).not.toHaveBeenCalled();
+    }
   });
 
   it("should filter out copilot when not in allowed list", async () => {
@@ -387,14 +392,14 @@ describe("add_reviewer (Handler Factory Architecture)", () => {
 
     const message = {
       type: "add_reviewer",
-      // null, undefined, false, and empty string are all falsy and should be stripped
-      reviewers: [null, undefined, false, "", "user1", "  user2  "],
+      // null, undefined, false, empty string, and whitespace-only strings are all stripped
+      reviewers: [null, undefined, false, "", "   ", "user1", "  user2  "],
     };
 
     const result = await permissiveHandler(message, {});
 
     expect(result.success).toBe(true);
-    // Only real usernames survive; whitespace is trimmed
+    // Only real usernames survive; whitespace is trimmed; whitespace-only strings are dropped
     expect(result.reviewersAdded).toEqual(["user1", "user2"]);
     expect(mockGithub.rest.pulls.requestReviewers).toHaveBeenCalledWith({
       owner: "testowner",
