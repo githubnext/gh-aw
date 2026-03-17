@@ -13,93 +13,147 @@ func (c *Compiler) addAllSafeOutputConfigEnvVars(steps *[]string, data *Workflow
 		return
 	}
 
-	// Track if we've already added staged flag to avoid duplicates
-	stagedFlagAdded := false
+	// Add the global staged env var once if staged mode is enabled, not in trial mode,
+	// and at least one configured handler targets the current repository.
+	if !c.trialMode && data.SafeOutputs.Staged && hasSafeOutputWithoutTargetRepo(data.SafeOutputs) {
+		*steps = append(*steps, "          GH_AW_SAFE_OUTPUTS_STAGED: \"true\"\n")
+		compilerSafeOutputsEnvLog.Print("Added staged flag")
+	}
 
-	// Create Issue env vars - target-repo, allowed_labels and allowed_repos now in config object
+	// Check if copilot is in create-issue assignees - if so, output issues for assign_to_agent job
 	if data.SafeOutputs.CreateIssues != nil {
-		cfg := data.SafeOutputs.CreateIssues
-		compilerSafeOutputsEnvLog.Print("Processing create-issue env vars")
-		// Add staged flag if needed (but not if target-repo is specified or we're in trial mode)
-		if !c.trialMode && data.SafeOutputs.Staged && !stagedFlagAdded && cfg.TargetRepoSlug == "" {
-			*steps = append(*steps, "          GH_AW_SAFE_OUTPUTS_STAGED: \"true\"\n")
-			stagedFlagAdded = true
-			compilerSafeOutputsEnvLog.Print("Added staged flag for create-issue")
-		}
-		// Check if copilot is in assignees - if so, we'll output issues for assign_to_agent job
-		if hasCopilotAssignee(cfg.Assignees) {
+		if hasCopilotAssignee(data.SafeOutputs.CreateIssues.Assignees) {
 			*steps = append(*steps, "          GH_AW_ASSIGN_COPILOT: \"true\"\n")
 			compilerSafeOutputsEnvLog.Print("Copilot assignment requested - will output issues_to_assign_copilot")
 		}
 	}
 
-	// Add Comment - all config now in handler config JSON
-	if data.SafeOutputs.AddComments != nil {
-		cfg := data.SafeOutputs.AddComments
-		// Add staged flag if needed (but not if target-repo is specified or we're in trial mode)
-		if !c.trialMode && data.SafeOutputs.Staged && !stagedFlagAdded && cfg.TargetRepoSlug == "" {
-			*steps = append(*steps, "          GH_AW_SAFE_OUTPUTS_STAGED: \"true\"\n")
-			stagedFlagAdded = true
-		}
-		// All add_comment configuration (target, target-repo, hide_older_comments, max) is now in handler config JSON
+	// Note: All handler configuration is read from the config.json file at runtime.
+}
+
+// hasSafeOutputWithoutTargetRepo returns true if any configured safe output handler
+// targets the current repository (i.e., has no target-repo specified).
+// Handlers without a target-repo field always target the current repo.
+func hasSafeOutputWithoutTargetRepo(so *SafeOutputsConfig) bool {
+	// Handlers without a target-repo field always target the current repo.
+	if so.AutofixCodeScanningAlert != nil {
+		return true
+	}
+	if so.UploadAssets != nil {
+		return true
+	}
+	if so.UpdateProjects != nil {
+		return true
+	}
+	if so.CreateProjects != nil {
+		return true
+	}
+	if so.CreateProjectStatusUpdates != nil {
+		return true
+	}
+	if so.CallWorkflow != nil {
+		return true
+	}
+	if so.MissingTool != nil {
+		return true
+	}
+	if so.MissingData != nil {
+		return true
+	}
+	if so.NoOp != nil {
+		return true
 	}
 
-	// Add Labels - all config now in handler config JSON
-	if data.SafeOutputs.AddLabels != nil {
-		cfg := data.SafeOutputs.AddLabels
-		// Add staged flag if needed (but not if target-repo is specified or we're in trial mode)
-		if !c.trialMode && data.SafeOutputs.Staged && !stagedFlagAdded && cfg.TargetRepoSlug == "" {
-			*steps = append(*steps, "          GH_AW_SAFE_OUTPUTS_STAGED: \"true\"\n")
-			stagedFlagAdded = true
-		}
-		// All add_labels configuration (allowed, max, target) is now in handler config JSON
+	// Handlers with a target-repo field qualify only when no cross-repo target is specified.
+	if so.CreateIssues != nil && so.CreateIssues.TargetRepoSlug == "" {
+		return true
 	}
-
-	// Remove Labels - all config now in handler config JSON
-	if data.SafeOutputs.RemoveLabels != nil {
-		cfg := data.SafeOutputs.RemoveLabels
-		// Add staged flag if needed (but not if target-repo is specified or we're in trial mode)
-		if !c.trialMode && data.SafeOutputs.Staged && !stagedFlagAdded && cfg.TargetRepoSlug == "" {
-			*steps = append(*steps, "          GH_AW_SAFE_OUTPUTS_STAGED: \"true\"\n")
-			stagedFlagAdded = true
-		}
-		// All remove_labels configuration (allowed, max, target) is now in handler config JSON
+	if so.CreateDiscussions != nil && so.CreateDiscussions.TargetRepoSlug == "" {
+		return true
 	}
-
-	// Update Issue env vars
-	if data.SafeOutputs.UpdateIssues != nil {
-		cfg := data.SafeOutputs.UpdateIssues
-		// Add staged flag if needed (but not if target-repo is specified or we're in trial mode)
-		if !c.trialMode && data.SafeOutputs.Staged && !stagedFlagAdded && cfg.TargetRepoSlug == "" {
-			*steps = append(*steps, "          GH_AW_SAFE_OUTPUTS_STAGED: \"true\"\n")
-			stagedFlagAdded = true
-		}
+	if so.CloseDiscussions != nil && so.CloseDiscussions.TargetRepoSlug == "" {
+		return true
 	}
-
-	// Update Discussion env vars
-	if data.SafeOutputs.UpdateDiscussions != nil {
-		cfg := data.SafeOutputs.UpdateDiscussions
-		// Add staged flag if needed (but not if target-repo is specified or we're in trial mode)
-		if !c.trialMode && data.SafeOutputs.Staged && !stagedFlagAdded && cfg.TargetRepoSlug == "" {
-			*steps = append(*steps, "          GH_AW_SAFE_OUTPUTS_STAGED: \"true\"\n")
-			stagedFlagAdded = true
-		}
-		// All update configuration (target, allow_title, allow_body, allow_labels) is now in handler config JSON
+	if so.CloseIssues != nil && so.CloseIssues.TargetRepoSlug == "" {
+		return true
 	}
-
-	// Create Pull Request env vars
-	if data.SafeOutputs.CreatePullRequests != nil {
-		// Add staged flag if needed
-		if !c.trialMode && data.SafeOutputs.Staged && !stagedFlagAdded {
-			*steps = append(*steps, "          GH_AW_SAFE_OUTPUTS_STAGED: \"true\"\n")
-			stagedFlagAdded = true
-		}
-		// Note: base_branch and max_patch_size are now in handler config JSON
+	if so.ClosePullRequests != nil && so.ClosePullRequests.TargetRepoSlug == "" {
+		return true
 	}
-
-	if stagedFlagAdded {
-		_ = stagedFlagAdded // Mark as used for linter
+	if so.MarkPullRequestAsReadyForReview != nil && so.MarkPullRequestAsReadyForReview.TargetRepoSlug == "" {
+		return true
 	}
-
-	// Note: Most handlers read from the config.json file, so we may not need all env vars here
+	if so.AddComments != nil && so.AddComments.TargetRepoSlug == "" {
+		return true
+	}
+	if so.CreatePullRequests != nil && so.CreatePullRequests.TargetRepoSlug == "" {
+		return true
+	}
+	if so.CreatePullRequestReviewComments != nil && so.CreatePullRequestReviewComments.TargetRepoSlug == "" {
+		return true
+	}
+	if so.SubmitPullRequestReview != nil && so.SubmitPullRequestReview.TargetRepoSlug == "" {
+		return true
+	}
+	if so.ReplyToPullRequestReviewComment != nil && so.ReplyToPullRequestReviewComment.TargetRepoSlug == "" {
+		return true
+	}
+	if so.ResolvePullRequestReviewThread != nil && so.ResolvePullRequestReviewThread.TargetRepoSlug == "" {
+		return true
+	}
+	if so.CreateCodeScanningAlerts != nil && so.CreateCodeScanningAlerts.TargetRepoSlug == "" {
+		return true
+	}
+	if so.AddLabels != nil && so.AddLabels.TargetRepoSlug == "" {
+		return true
+	}
+	if so.RemoveLabels != nil && so.RemoveLabels.TargetRepoSlug == "" {
+		return true
+	}
+	if so.AddReviewer != nil && so.AddReviewer.TargetRepoSlug == "" {
+		return true
+	}
+	if so.AssignMilestone != nil && so.AssignMilestone.TargetRepoSlug == "" {
+		return true
+	}
+	if so.AssignToAgent != nil && so.AssignToAgent.TargetRepoSlug == "" {
+		return true
+	}
+	if so.AssignToUser != nil && so.AssignToUser.TargetRepoSlug == "" {
+		return true
+	}
+	if so.UnassignFromUser != nil && so.UnassignFromUser.TargetRepoSlug == "" {
+		return true
+	}
+	if so.UpdateIssues != nil && so.UpdateIssues.TargetRepoSlug == "" {
+		return true
+	}
+	if so.UpdatePullRequests != nil && so.UpdatePullRequests.TargetRepoSlug == "" {
+		return true
+	}
+	if so.UpdateDiscussions != nil && so.UpdateDiscussions.TargetRepoSlug == "" {
+		return true
+	}
+	if so.UpdateRelease != nil && so.UpdateRelease.TargetRepoSlug == "" {
+		return true
+	}
+	if so.PushToPullRequestBranch != nil && so.PushToPullRequestBranch.TargetRepoSlug == "" {
+		return true
+	}
+	if so.HideComment != nil && so.HideComment.TargetRepoSlug == "" {
+		return true
+	}
+	if so.SetIssueType != nil && so.SetIssueType.TargetRepoSlug == "" {
+		return true
+	}
+	if so.DispatchWorkflow != nil && so.DispatchWorkflow.TargetRepoSlug == "" {
+		return true
+	}
+	if so.CreateAgentSessions != nil && so.CreateAgentSessions.TargetRepoSlug == "" {
+		return true
+	}
+	if so.LinkSubIssue != nil && so.LinkSubIssue.TargetRepoSlug == "" {
+		return true
+	}
+	return false
 }

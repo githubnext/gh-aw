@@ -515,3 +515,197 @@ func TestAddLabelsTargetRepoStagedBehavior(t *testing.T) {
 	// Should not add staged flag when target-repo is set
 	assert.NotContains(t, stepsContent, "GH_AW_SAFE_OUTPUTS_STAGED")
 }
+
+// TestStagedFlagForAllHandlerTypes tests that the staged flag is emitted for all safe output handler types.
+func TestStagedFlagForAllHandlerTypes(t *testing.T) {
+	tests := []struct {
+		name        string
+		safeOutputs *SafeOutputsConfig
+		expectFlag  bool
+	}{
+		// Handlers without a target-repo field always qualify
+		{
+			name: "autofix-code-scanning-alert with staged",
+			safeOutputs: &SafeOutputsConfig{
+				Staged:                   true,
+				AutofixCodeScanningAlert: &AutofixCodeScanningAlertConfig{},
+			},
+			expectFlag: true,
+		},
+		{
+			name: "upload-asset with staged",
+			safeOutputs: &SafeOutputsConfig{
+				Staged:       true,
+				UploadAssets: &UploadAssetsConfig{},
+			},
+			expectFlag: true,
+		},
+		{
+			name: "update-project with staged",
+			safeOutputs: &SafeOutputsConfig{
+				Staged:         true,
+				UpdateProjects: &UpdateProjectConfig{},
+			},
+			expectFlag: true,
+		},
+		{
+			name: "create-project with staged",
+			safeOutputs: &SafeOutputsConfig{
+				Staged:         true,
+				CreateProjects: &CreateProjectsConfig{},
+			},
+			expectFlag: true,
+		},
+		{
+			name: "create-project-status-update with staged",
+			safeOutputs: &SafeOutputsConfig{
+				Staged:                     true,
+				CreateProjectStatusUpdates: &CreateProjectStatusUpdateConfig{},
+			},
+			expectFlag: true,
+		},
+		{
+			name: "call-workflow with staged",
+			safeOutputs: &SafeOutputsConfig{
+				Staged:       true,
+				CallWorkflow: &CallWorkflowConfig{},
+			},
+			expectFlag: true,
+		},
+		{
+			name: "noop with staged",
+			safeOutputs: &SafeOutputsConfig{
+				Staged: true,
+				NoOp:   &NoOpConfig{},
+			},
+			expectFlag: true,
+		},
+		{
+			name: "missing-tool with staged",
+			safeOutputs: &SafeOutputsConfig{
+				Staged:      true,
+				MissingTool: &MissingToolConfig{},
+			},
+			expectFlag: true,
+		},
+		{
+			name: "missing-data with staged",
+			safeOutputs: &SafeOutputsConfig{
+				Staged:      true,
+				MissingData: &MissingDataConfig{},
+			},
+			expectFlag: true,
+		},
+		// Handlers with target-repo: qualify when no target-repo is set
+		{
+			name: "create-discussion without target-repo",
+			safeOutputs: &SafeOutputsConfig{
+				Staged:            true,
+				CreateDiscussions: &CreateDiscussionsConfig{},
+			},
+			expectFlag: true,
+		},
+		{
+			name: "create-discussion with target-repo",
+			safeOutputs: &SafeOutputsConfig{
+				Staged: true,
+				CreateDiscussions: &CreateDiscussionsConfig{
+					TargetRepoSlug: "org/other",
+				},
+			},
+			expectFlag: false,
+		},
+		{
+			name: "close-issue without target-repo",
+			safeOutputs: &SafeOutputsConfig{
+				Staged:      true,
+				CloseIssues: &CloseIssuesConfig{},
+			},
+			expectFlag: true,
+		},
+		{
+			name: "close-pull-request without target-repo",
+			safeOutputs: &SafeOutputsConfig{
+				Staged:            true,
+				ClosePullRequests: &ClosePullRequestsConfig{},
+			},
+			expectFlag: true,
+		},
+		{
+			name: "mark-pr-ready-for-review without target-repo",
+			safeOutputs: &SafeOutputsConfig{
+				Staged:                          true,
+				MarkPullRequestAsReadyForReview: &MarkPullRequestAsReadyForReviewConfig{},
+			},
+			expectFlag: true,
+		},
+		{
+			name: "create-pull-request-review-comment without target-repo",
+			safeOutputs: &SafeOutputsConfig{
+				Staged:                          true,
+				CreatePullRequestReviewComments: &CreatePullRequestReviewCommentsConfig{},
+			},
+			expectFlag: true,
+		},
+		{
+			name: "submit-pull-request-review without target-repo",
+			safeOutputs: &SafeOutputsConfig{
+				Staged:                  true,
+				SubmitPullRequestReview: &SubmitPullRequestReviewConfig{},
+			},
+			expectFlag: true,
+		},
+		{
+			name: "dispatch-workflow without target-repo",
+			safeOutputs: &SafeOutputsConfig{
+				Staged:           true,
+				DispatchWorkflow: &DispatchWorkflowConfig{},
+			},
+			expectFlag: true,
+		},
+		{
+			name: "dispatch-workflow with target-repo",
+			safeOutputs: &SafeOutputsConfig{
+				Staged: true,
+				DispatchWorkflow: &DispatchWorkflowConfig{
+					TargetRepoSlug: "org/other",
+				},
+			},
+			expectFlag: false,
+		},
+		// Only cross-repo handlers configured: no staged flag
+		{
+			name: "only cross-repo handlers configured",
+			safeOutputs: &SafeOutputsConfig{
+				Staged: true,
+				CreateIssues: &CreateIssuesConfig{
+					TargetRepoSlug: "org/repo",
+				},
+				CreateDiscussions: &CreateDiscussionsConfig{
+					TargetRepoSlug: "org/other",
+				},
+			},
+			expectFlag: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			compiler := NewCompiler()
+			workflowData := &WorkflowData{
+				Name:        "Test Workflow",
+				SafeOutputs: tt.safeOutputs,
+			}
+
+			var steps []string
+			compiler.addAllSafeOutputConfigEnvVars(&steps, workflowData)
+			stepsContent := strings.Join(steps, "")
+
+			if tt.expectFlag {
+				assert.Contains(t, stepsContent, "GH_AW_SAFE_OUTPUTS_STAGED", "Expected staged flag to be present")
+			} else {
+				assert.NotContains(t, stepsContent, "GH_AW_SAFE_OUTPUTS_STAGED", "Expected staged flag to be absent")
+			}
+		})
+	}
+}
