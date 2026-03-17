@@ -224,7 +224,7 @@ These resources contain workflow patterns, best practices, safe outputs, and per
 
    Analyze the user's response and map it to agentic workflows. Ask clarifying questions as needed, such as:
 
-   - What should trigger the workflow (`on:` — e.g., issues, pull requests, schedule, slash command)?
+   - What should trigger the workflow (`on:` — e.g., issues, pull requests, schedule, slash command, label command)?
    - What should the agent do (comment, triage, create PR, fetch API data, etc.)?
   - If the user says “campaign”, “KPI”, “pacing”, “cadence”, or “stop-after”, consult `.github/aw/campaign.md` (it’s still an agentic workflow; this is just a pattern).
    - ⚠️ If you think the task requires **network access beyond localhost**, **automatically infer** the ecosystem from repository language files rather than asking the user. Only ask if you cannot determine the ecosystem from available context.
@@ -549,6 +549,112 @@ These resources contain workflow patterns, best practices, safe outputs, and per
      - Present automation as a positive productivity tool used BY humans, not as independent actors or replacements
      - This is especially important for reporting/summary workflows (daily reports, chronicles, team status updates)
 
+## Creating Command Workflows
+
+Command workflows run on demand when a user explicitly requests an action. There are two preferred approaches: `slash_command` and `label_command`. Each has distinct tradeoffs — choose based on the interaction model that fits the user's context.
+
+### slash_command
+
+`slash_command` triggers a workflow when a user types `/command-name` as the first word of an issue body, PR body, or comment. It is the more flexible and composable option.
+
+```aw wrap
+---
+on:
+  slash_command: deploy
+permissions:
+  contents: read
+safe-outputs:
+  add-comment:
+    max: 1
+---
+
+# Deploy Preview
+
+Deploy a preview environment for this pull request. The caller wrote:
+"${{ needs.activation.outputs.text }}"
+```
+
+**Tradeoffs:**
+- ✅ Works across issues, PRs, and all comment types (configurable via `events:`)
+- ✅ Natural to invoke — users type `/command` in any comment
+- ✅ Supports multiple command aliases in one workflow (`name: ["deploy", "redeploy"]`)
+- ✅ The triggering comment text is available as context via `needs.activation.outputs.text`
+- ⚠️ Less discoverable — users must know the command name exists
+- ⚠️ Cannot be triggered without writing a comment (no label-based invocation)
+
+**When to recommend `slash_command`:**
+- The command is conversational or accepts arguments in the comment body
+- Users are already familiar with slash-command conventions (e.g., `/label`, `/assign`)
+- You want the workflow to work across issues, PRs, and discussions uniformly
+- The action is something a user would naturally type as a comment
+
+### label_command
+
+`label_command` triggers a workflow when a specific label is applied to an issue, PR, or discussion. The label is **automatically removed** after activation so it can be re-applied to trigger again. It is part of the LabelOps pattern.
+
+```aw wrap
+---
+on:
+  label_command: deploy
+permissions:
+  contents: read
+  pull-requests: write  # Required for automatic label removal
+safe-outputs:
+  add-comment:
+    max: 1
+---
+
+# Deploy Preview
+
+The `deploy` label was applied to this pull request. Build and deploy a preview environment and post the URL as a comment.
+```
+
+**Tradeoffs:**
+- ✅ Visible and discoverable — labels appear in the GitHub UI sidebar
+- ✅ Integrates naturally with label-based workflows (LabelOps)
+- ✅ Works for users who prefer UI clicks over typing commands
+- ✅ Re-triggerable — label is removed after activation so it can be reapplied
+- ⚠️ Less flexible — no way to pass additional context or arguments
+- ⚠️ Label must exist in the repository before use
+
+**When to recommend `label_command`:**
+- The command is a one-shot action with no arguments (e.g., "deploy this", "approve this")
+- The workflow is targeted at PR reviewers or issue triagers who work in the GitHub UI
+- Discoverability matters — the label appears as an option in the GitHub label picker
+- The action fits naturally into a label-based process (e.g., release management, review gates)
+
+### Choosing between the two
+
+| | `slash_command` | `label_command` |
+|---|---|---|
+| Invocation | `/command` as first word of a comment | Apply a label via GitHub UI |
+| Discoverability | Low — must know the command name | High — visible in label picker |
+| Arguments | Comment body provides context | No arguments; one-shot action |
+| Re-triggerable | Yes — post a new comment | Yes — reapply the label |
+| Supported items | Issues, PRs, discussions, comments | Issues, PRs, discussions |
+| Part of LabelOps | No | Yes |
+
+### Combining both
+
+You can combine `slash_command` and `label_command` in the same workflow. The workflow activates when either trigger fires, and the same agent logic handles both:
+
+```yaml
+on:
+  slash_command: deploy
+  label_command:
+    name: deploy
+    events: [pull_request]
+```
+
+This gives users the choice of triggering via comment (`/deploy`) or via label, making the workflow both flexible and discoverable. Use this pattern when the action is common enough to warrant both invocation styles.
+
+> [!NOTE]
+> When combining triggers, the matched trigger output is available as `needs.activation.outputs.slash_command` (for slash commands) or `needs.activation.outputs.label_command` (for label commands) to let the agent distinguish which trigger fired.
+
+**Documentation references:**
+- `slash_command` full reference: https://github.github.com/gh-aw/reference/command-triggers/
+- `label_command` and LabelOps: https://github.github.com/gh-aw/patterns/label-ops/
+
 ## Best Practices
 
 ### Improver Coding Agents in Large Repositories
@@ -630,6 +736,9 @@ Based on the parsed requirements, determine:
    - Issue automation → `on: issues: types: [opened, edited]` (add `workflow_dispatch:` manually if manual runs needed)
    - PR automation → `on: pull_request: types: [opened, synchronize]` (add `workflow_dispatch:` manually if manual runs needed)
    - Scheduled tasks → `on: schedule: daily on weekdays` (prefer weekdays to avoid Monday backlog - workflow_dispatch auto-added for fuzzy schedules only)
+   - **On-demand commands** → use `slash_command` or `label_command` (see [Creating Command Workflows](#creating-command-workflows)):
+     - `slash_command` → user types `/command-name` in a comment or body; flexible, works across issues/PRs/discussions
+     - `label_command` → user applies a label; discoverable in the GitHub UI, part of LabelOps; label is auto-removed after trigger
    - **External deployment monitoring** (Heroku, Vercel, Railway, Fly.io, etc.) → `on: deployment_status:` with `if: ${{ github.event.deployment_status.state == 'failure' }}` — use this when third-party services post deployment status back to GitHub. See reference: @.github/aw/deployment-status.md
    - **GitHub Actions pipeline monitoring** → `on: workflow_run:` with `if: ${{ github.event.workflow_run.conclusion == 'failure' }}` — use this when monitoring other GitHub Actions workflows in the same repo
    - **`deployment_status` vs `workflow_run`**: Use `deployment_status` for **external deployment services** that integrate with the GitHub Deployments API; use `workflow_run` for **GitHub Actions-internal** pipelines. Never use `workflow_run` as a workaround for external deployment failures.

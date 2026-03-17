@@ -180,6 +180,20 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 	yaml.WriteString("      - name: Create gh-aw temp directory\n")
 	yaml.WriteString("        run: bash /opt/gh-aw/actions/create_gh_aw_tmp_dir.sh\n")
 
+	// Configure gh CLI for GitHub Enterprise hosts (*.ghe.com / GHES).
+	// This step runs configure_gh_for_ghe.sh which:
+	//   1. Detects the GitHub host from GITHUB_SERVER_URL
+	//   2. For github.com: exits immediately (no-op)
+	//   3. For GHE/GHES: authenticates gh CLI with the enterprise host and sets
+	//      GH_HOST=<host> in GITHUB_ENV so every subsequent step in this job
+	//      picks up the correct host without manual per-step configuration.
+	// Must run after the setup action (so the script is available at /opt/gh-aw/actions/)
+	// and before any custom steps that invoke gh CLI commands.
+	yaml.WriteString("      - name: Configure gh CLI for GitHub Enterprise\n")
+	yaml.WriteString("        run: bash /opt/gh-aw/actions/configure_gh_for_ghe.sh\n")
+	yaml.WriteString("        env:\n")
+	yaml.WriteString("          GH_TOKEN: ${{ github.token }}\n")
+
 	// Add custom steps if present
 	if data.CustomSteps != "" {
 		if customStepsContainCheckout && len(runtimeSetupSteps) > 0 {

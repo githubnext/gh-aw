@@ -23,7 +23,8 @@ type Logger struct {
 
 var (
 	// DEBUG environment variable value, read once at initialization.
-	debugEnv = os.Getenv("DEBUG")
+	// If DEBUG is not set but ACTIONS_RUNNER_DEBUG=true, all loggers are enabled.
+	debugEnv = initDebugEnv()
 
 	// DEBUG_COLORS environment variable to control color output.
 	debugColors = os.Getenv("DEBUG_COLORS") != "0"
@@ -50,6 +51,19 @@ var (
 
 	colorReset = "\033[0m"
 )
+
+// initDebugEnv resolves the effective debug pattern.
+// If DEBUG is set, it takes precedence. Otherwise, if ACTIONS_RUNNER_DEBUG=true,
+// all loggers are enabled (equivalent to DEBUG=*).
+func initDebugEnv() string {
+	if d := os.Getenv("DEBUG"); d != "" {
+		return d
+	}
+	if os.Getenv("ACTIONS_RUNNER_DEBUG") == "true" {
+		return "*"
+	}
+	return ""
+}
 
 // New creates a new Logger for the given namespace.
 // The enabled state is computed at construction time based on the DEBUG environment variable.
