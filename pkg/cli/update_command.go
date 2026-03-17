@@ -17,7 +17,7 @@ func NewUpdateCommand(validateEngine func(string) error) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "update [workflow]...",
 		Short: "Update agentic workflows from their source repositories",
-		Long: `Update one or more workflows from their source repositories.
+		Long: `Update one or more agentic workflows from their source repositories.
 
 The update command fetches the latest version of each workflow from its source
 repository, merges upstream changes with any local modifications, and recompiles.

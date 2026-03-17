@@ -332,6 +332,52 @@ func TestColorDisabling(t *testing.T) {
 	}
 }
 
+func TestInitDebugEnv(t *testing.T) {
+	tests := []struct {
+		name               string
+		debugEnvVal        string
+		actionsRunnerDebug string
+		want               string
+	}{
+		{
+			name:               "DEBUG takes precedence over ACTIONS_RUNNER_DEBUG",
+			debugEnvVal:        "cli:*",
+			actionsRunnerDebug: "true",
+			want:               "cli:*",
+		},
+		{
+			name:               "ACTIONS_RUNNER_DEBUG=true enables all loggers",
+			debugEnvVal:        "",
+			actionsRunnerDebug: "true",
+			want:               "*",
+		},
+		{
+			name:               "ACTIONS_RUNNER_DEBUG=false does not enable loggers",
+			debugEnvVal:        "",
+			actionsRunnerDebug: "false",
+			want:               "",
+		},
+		{
+			name:               "neither set returns empty",
+			debugEnvVal:        "",
+			actionsRunnerDebug: "",
+			want:               "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Setenv("DEBUG", tt.debugEnvVal)
+			t.Setenv("ACTIONS_RUNNER_DEBUG", tt.actionsRunnerDebug)
+
+			got := initDebugEnv()
+			if got != tt.want {
+				t.Errorf("initDebugEnv() = %q, want %q", got, tt.want)
+			}
+		})
+	}
+}
+
 func TestMatchPattern(t *testing.T) {
 	tests := []struct {
 		name      string

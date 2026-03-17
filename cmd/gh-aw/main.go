@@ -161,7 +161,7 @@ Examples:
 
 var removeCmd = &cobra.Command{
 	Use:   "remove [pattern]",
-	Short: "Remove agentic workflow files matching the given name prefix",
+	Short: "Remove agentic workflow files matching the given pattern",
 	Long: `Remove agentic workflow files matching the given workflow-id pattern.
 
 The workflow-id is the basename of the Markdown file without the .md extension.
@@ -205,7 +205,7 @@ Examples:
 
 var disableCmd = &cobra.Command{
 	Use:   "disable [workflow]...",
-	Short: "Disable agentic workflows and cancel any in-progress runs",
+	Short: "Disable agentic workflows",
 	Long: `Disable one or more workflows by ID, or all workflows if no IDs are provided.
 Any in-progress runs will be cancelled before disabling.
 ` + cli.WorkflowIDExplanation + `
@@ -224,7 +224,7 @@ Examples:
 
 var compileCmd = &cobra.Command{
 	Use:   "compile [workflow]...",
-	Short: "Compile agentic workflow files (.md) into GitHub Actions workflows (.lock.yml)",
+	Short: "Compile agentic workflow Markdown files into GitHub Actions YAML",
 	Long: `Compile one or more agentic workflows to YAML workflows.
 
 If no workflows are specified, all Markdown files in .github/workflows will be compiled.

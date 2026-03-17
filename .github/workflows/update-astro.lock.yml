@@ -23,13 +23,14 @@
 #
 # Daily workflow to update Astro and related npm packages in the docs folder, review migration guides, ensure the docs build, and create a pull request with changes
 #
-# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"be960bdec2ba1dd0d5275d82936036847d4c1266c795cab926fee70aa28efcdd","strict":true}
+# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"4d194e0634ca6db1391f0e2d68ef97df74b2fffa42922858ab486aa431c56f95","strict":true}
 
 name: "Update Astro"
 "on":
   schedule:
   - cron: "2 9 * * *"
     # Friendly format: daily (scattered)
+  # skip-if-no-match: is:pr is:open author:app/dependabot label:dependencies # Skip-if-no-match processed as search check in pre-activation job
   workflow_dispatch:
 
 permissions: {}
@@ -41,8 +42,10 @@ run-name: "Update Astro"
 
 jobs:
   activation:
-    needs: check_updates
-    if: needs.check_updates.outputs.has_updates == 'true'
+    needs:
+      - check_updates
+      - pre_activation
+    if: (needs.pre_activation.outputs.activated == 'true') && (needs.check_updates.outputs.has_updates == 'true')
     runs-on: ubuntu-slim
     permissions:
       contents: read
@@ -206,6 +209,7 @@ jobs:
           GH_AW_GITHUB_SERVER_URL: ${{ github.server_url }}
           GH_AW_GITHUB_WORKSPACE: ${{ github.workspace }}
           GH_AW_NEEDS_CHECK_UPDATES_OUTPUTS_UPDATES_SUMMARY: ${{ needs.check_updates.outputs.updates_summary }}
+          GH_AW_NEEDS_PRE_ACTIVATION_OUTPUTS_ACTIVATED: ${{ needs.pre_activation.outputs.activated }}
         with:
           script: |
             const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
@@ -226,7 +230,8 @@ jobs:
                 GH_AW_GITHUB_RUN_ID: process.env.GH_AW_GITHUB_RUN_ID,
                 GH_AW_GITHUB_SERVER_URL: process.env.GH_AW_GITHUB_SERVER_URL,
                 GH_AW_GITHUB_WORKSPACE: process.env.GH_AW_GITHUB_WORKSPACE,
-                GH_AW_NEEDS_CHECK_UPDATES_OUTPUTS_UPDATES_SUMMARY: process.env.GH_AW_NEEDS_CHECK_UPDATES_OUTPUTS_UPDATES_SUMMARY
+                GH_AW_NEEDS_CHECK_UPDATES_OUTPUTS_UPDATES_SUMMARY: process.env.GH_AW_NEEDS_CHECK_UPDATES_OUTPUTS_UPDATES_SUMMARY,
+                GH_AW_NEEDS_PRE_ACTIVATION_OUTPUTS_ACTIVATED: process.env.GH_AW_NEEDS_PRE_ACTIVATION_OUTPUTS_ACTIVATED
               }
             });
       - name: Validate prompt placeholders
@@ -1026,6 +1031,51 @@ jobs:
             const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
             setupGlobals(core, github, context, exec, io);
             const { main } = require('/opt/gh-aw/actions/handle_create_pr_error.cjs');
+            await main();
+
+  pre_activation:
+    runs-on: ubuntu-slim
+    permissions:
+      contents: read
+    outputs:
+      activated: ${{ (steps.check_membership.outputs.is_team_member == 'true') && (steps.check_skip_if_no_match.outputs.skip_no_match_check_ok == 'true') }}
+      matched_command: ''
+    steps:
+      - name: Checkout actions folder
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          repository: github/gh-aw
+          sparse-checkout: |
+            actions
+          persist-credentials: false
+      - name: Setup Scripts
+        uses: ./actions/setup
+        with:
+          destination: /opt/gh-aw/actions
+      - name: Check team membership for workflow
+        id: check_membership
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        env:
+          GH_AW_REQUIRED_ROLES: admin,maintainer,write
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
+            setupGlobals(core, github, context, exec, io);
+            const { main } = require('/opt/gh-aw/actions/check_membership.cjs');
+            await main();
+      - name: Check skip-if-no-match query
+        id: check_skip_if_no_match
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        env:
+          GH_AW_SKIP_QUERY: "is:pr is:open author:app/dependabot label:dependencies"
+          GH_AW_WORKFLOW_NAME: "Update Astro"
+          GH_AW_SKIP_MIN_MATCHES: "1"
+        with:
+          script: |
+            const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
+            setupGlobals(core, github, context, exec, io);
+            const { main } = require('/opt/gh-aw/actions/check_skip_if_no_match.cjs');
             await main();
 
   safe_outputs:
