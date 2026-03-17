@@ -35,7 +35,7 @@
 #
 # inlined-imports: true
 #
-# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"e1a4851b14ef2f0d014f7873314ae0799b5f80f95b6b0d54ce8010f8d6d108ff","strict":true}
+# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"3dae8d9e152c763d93627e8fb4f0afa01809030a9e2d33c38c8451da27f250da","strict":true}
 
 name: "Smoke Claude"
 "on":
@@ -642,20 +642,9 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: bash /opt/gh-aw/actions/print_prompt_summary.sh
-      - name: Generate GitHub App token for APM dependencies
-        id: apm-app-token
-        uses: actions/create-github-app-token@a7f885bf4560200d03183ed941cb6fb072e4b343 # v3.0.0-beta.4
-        with:
-          app-id: ${{ vars.APP_ID }}
-          private-key: ${{ secrets.APP_PRIVATE_KEY }}
-          owner: ${{ github.repository_owner }}
-          repositories: ${{ github.event.repository.name }}
-          github-api-url: ${{ github.api_url }}
       - name: Install and pack APM dependencies
         id: apm_pack
         uses: microsoft/apm-action@5eac264e08ed8db603fe2c40983794f94cab49d8 # v1.3.1
-        env:
-          GITHUB_TOKEN: ${{ steps.apm-app-token.outputs.token }}
         with:
           dependencies: |
             - microsoft/apm-sample-package
