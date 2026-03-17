@@ -162,6 +162,10 @@ func parseGitHubURL(spec string) (*WorkflowSpec, error) {
 		return nil, fmt.Errorf("URL must include a host: %s", spec)
 	}
 
+	if !isGitHubHost(parsedURL.Host) {
+		return nil, fmt.Errorf("URL must be from github.com or a GitHub Enterprise host (*.ghe.com), got %q", parsedURL.Host)
+	}
+
 	owner, repo, ref, filePath, err := parser.ParseRepoFileURL(spec)
 	if err != nil {
 		specLog.Printf("Failed to parse repo file URL: %v", err)
@@ -202,6 +206,15 @@ func parseGitHubURL(spec string) (*WorkflowSpec, error) {
 // Format: owner/repo/workflows/workflow-name[@version] or owner/repo/workflow-name[@version]
 // Also supports full GitHub URLs like https://github.com/owner/repo/blob/branch/path/to/workflow.md
 // Also supports local paths like ./workflows/workflow-name.md
+
+// isGitHubHost returns true if the given host is a recognized GitHub or GitHub Enterprise host:
+// github.com, raw.githubusercontent.com, or any *.ghe.com host.
+func isGitHubHost(host string) bool {
+	return host == "github.com" ||
+		host == "raw.githubusercontent.com" ||
+		strings.HasSuffix(host, ".ghe.com") ||
+		strings.HasSuffix(host, ".github.com")
+}
 func parseWorkflowSpec(spec string) (*WorkflowSpec, error) {
 	specLog.Printf("Parsing workflow spec: %q", spec)
 

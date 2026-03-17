@@ -193,14 +193,10 @@ func TestParseWorkflowSpec(t *testing.T) {
 			wantErr:          false,
 		},
 		{
-			name:             "GitHub URL - non-github.com host is accepted (e.g. gitlab.com)",
-			spec:             "https://gitlab.com/owner/repo/blob/main/workflows/test.md",
-			wantRepo:         "owner/repo",
-			wantWorkflowPath: "workflows/test.md",
-			wantWorkflowName: "test",
-			wantVersion:      "main",
-			wantHost:         "gitlab.com",
-			wantErr:          false,
+			name:        "GitHub URL - non-github.com host is rejected (e.g. gitlab.com)",
+			spec:        "https://gitlab.com/owner/repo/blob/main/workflows/test.md",
+			wantErr:     true,
+			errContains: "github.com",
 		},
 		{
 			name:        "GitHub URL - missing file extension",
