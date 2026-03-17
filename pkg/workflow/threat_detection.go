@@ -287,10 +287,10 @@ func (c *Compiler) buildThreatDetectionAnalysisStep(data *WorkflowData) []string
 func (c *Compiler) buildSetupScriptRequire() string {
 	// Build a simple require statement that calls the main function
 	// The template is now read from file at runtime by the JavaScript module
-	script := `const { setupGlobals } = require('` + SetupActionDestination + `/setup_globals.cjs');
-setupGlobals(core, github, context, exec, io);
-const { main } = require('` + SetupActionDestination + `/setup_threat_detection.cjs');
-await main();`
+	script := "const { setupGlobals } = require(" + JsRequireGhAw("actions/setup_globals.cjs") + ");\n" +
+		"setupGlobals(core, github, context, exec, io);\n" +
+		"const { main } = require(" + JsRequireGhAw("actions/setup_threat_detection.cjs") + ");\n" +
+		"await main();"
 
 	return script
 }
@@ -434,10 +434,10 @@ func (c *Compiler) buildWorkflowContextEnvVars(data *WorkflowData) []string {
 // buildResultsParsingScriptRequire creates the parsing script that requires the .cjs module
 func (c *Compiler) buildResultsParsingScriptRequire() string {
 	// Build a simple require statement that calls the main function
-	script := `const { setupGlobals } = require('` + SetupActionDestination + `/setup_globals.cjs');
-setupGlobals(core, github, context, exec, io);
-const { main } = require('` + SetupActionDestination + `/parse_threat_detection_results.cjs');
-await main();`
+	script := "const { setupGlobals } = require(" + JsRequireGhAw("actions/setup_globals.cjs") + ");\n" +
+		"setupGlobals(core, github, context, exec, io);\n" +
+		"const { main } = require(" + JsRequireGhAw("actions/parse_threat_detection_results.cjs") + ");\n" +
+		"await main();"
 
 	return script
 }

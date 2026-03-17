@@ -1,5 +1,35 @@
 package workflow
 
+import "fmt"
+
+// GhAwHome is the shell expression for GH_AW_HOME.
+// Use this in bash `run:` contexts where shell variable expansion occurs.
+// The job-level env sets GH_AW_HOME to /opt/gh-aw by default.
+const GhAwHome = "${GH_AW_HOME}"
+
+// GhAwHomeJS is the JavaScript expression for GH_AW_HOME.
+// Use this inside require() or other JS expressions in github-script steps.
+// The job-level env sets GH_AW_HOME to /opt/gh-aw by default.
+const GhAwHomeJS = "process.env.GH_AW_HOME"
+
+// GhAwHomeExpr is the GitHub Actions expression for GH_AW_HOME.
+// Use this in YAML env: blocks where shell variable expansion does NOT occur.
+// GitHub Actions evaluates ${{ env.VAR }} before passing values to steps.
+const GhAwHomeExpr = "${{ env.GH_AW_HOME }}"
+
+// GhAwHomeExprDefault is the GitHub Actions expression for GH_AW_HOME with a fallback.
+// Use this in job-level env: blocks so callers can override GH_AW_HOME via
+// workflow-level or repository-level env, while defaulting to GhAwHomeDefault.
+const GhAwHomeExprDefault = "${{ env.GH_AW_HOME || '/opt/gh-aw' }}"
+
 // SetupActionDestination is the path where the setup action copies script files
 // on the agent runner (e.g. /opt/gh-aw/actions).
-const SetupActionDestination = "/opt/gh-aw/actions"
+// Uses GitHub Actions expression syntax so the value is resolved before being passed
+// to setup.sh (via INPUT_DESTINATION in script mode, or destination: in dev/release mode).
+const SetupActionDestination = GhAwHomeExpr + "/actions"
+
+// JsRequireGhAw generates a JavaScript require() argument expression for a file
+// under GH_AW_HOME. The relativePath should be like "actions/foo.cjs".
+func JsRequireGhAw(relativePath string) string {
+	return fmt.Sprintf("%s + '/%s'", GhAwHomeJS, relativePath)
+}
