@@ -992,6 +992,7 @@ jobs:
             await main();
       - name: Handle Agent Failure
         id: handle_agent_failure
+        if: always()
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
@@ -1003,6 +1004,7 @@ jobs:
           GH_AW_INFERENCE_ACCESS_ERROR: ${{ needs.agent.outputs.inference_access_error }}
           GH_AW_CODE_PUSH_FAILURE_ERRORS: ${{ needs.safe_outputs.outputs.code_push_failure_errors }}
           GH_AW_CODE_PUSH_FAILURE_COUNT: ${{ needs.safe_outputs.outputs.code_push_failure_count }}
+          GH_AW_ACTIVATION_APP_TOKEN_MINTING_FAILED: ${{ needs.activation.outputs.activation_app_token_minting_failed }}
           GH_AW_PUSH_REPO_MEMORY_RESULT: ${{ needs.push_repo_memory.result }}
           GH_AW_REPO_MEMORY_VALIDATION_FAILED_campaigns: ${{ needs.push_repo_memory.outputs.validation_failed_campaigns }}
           GH_AW_REPO_MEMORY_VALIDATION_ERROR_campaigns: ${{ needs.push_repo_memory.outputs.validation_error_campaigns }}

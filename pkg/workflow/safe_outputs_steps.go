@@ -132,6 +132,12 @@ type GitHubScriptStepConfig struct {
 	// (config token > GH_AW_AGENT_TOKEN)
 	// This should be true for agent assignment operations (assign-to-agent)
 	UseCopilotCodingAgentToken bool
+
+	// StepCondition is an optional `if:` expression for the step.
+	// When non-empty, `if: {StepCondition}` is inserted after the step ID so the
+	// step runs only when the condition is true. Use "always()" to run even after
+	// earlier steps in the same job have failed.
+	StepCondition string
 }
 
 // buildGitHubScriptStep creates a GitHub Script step with common scaffolding
@@ -203,6 +209,10 @@ func (c *Compiler) buildGitHubScriptStepWithoutDownload(data *WorkflowData, conf
 	// Step name and metadata (no artifact download steps)
 	steps = append(steps, fmt.Sprintf("      - name: %s\n", config.StepName))
 	steps = append(steps, fmt.Sprintf("        id: %s\n", config.StepID))
+	// Add optional step-level condition (e.g. "always()" to run even after prior step failures)
+	if config.StepCondition != "" {
+		steps = append(steps, fmt.Sprintf("        if: %s\n", config.StepCondition))
+	}
 	steps = append(steps, fmt.Sprintf("        uses: %s\n", GetActionPin("actions/github-script")))
 
 	// Environment variables section

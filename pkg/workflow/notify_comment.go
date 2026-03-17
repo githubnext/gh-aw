@@ -175,6 +175,21 @@ func (c *Compiler) buildConclusionJob(data *WorkflowData, mainJobName string, sa
 		agentFailureEnvVars = append(agentFailureEnvVars, "          GH_AW_CODE_PUSH_FAILURE_COUNT: ${{ needs.safe_outputs.outputs.code_push_failure_count }}\n")
 	}
 
+	// Pass GitHub App token minting failure status so the handler can surface auth errors.
+	// The safe_outputs job tracks whether its token step failed as a job output.
+	// The conclusion job tracks its own app token step outcome directly via steps context.
+	if data.SafeOutputs != nil && data.SafeOutputs.GitHubApp != nil {
+		agentFailureEnvVars = append(agentFailureEnvVars, "          GH_AW_SAFE_OUTPUTS_APP_TOKEN_MINTING_FAILED: ${{ needs.safe_outputs.outputs.app_token_minting_failed }}\n")
+		// Also check the conclusion job's own app token step outcome; this is important because
+		// the Handle Agent Failure step must use if: always() to run even when this step fails.
+		agentFailureEnvVars = append(agentFailureEnvVars, "          GH_AW_CONCLUSION_APP_TOKEN_MINTING_FAILED: ${{ steps.safe-outputs-app-token.outcome == 'failure' }}\n")
+	}
+
+	// Pass activation job GitHub App token minting failure status if configured.
+	if data.ActivationGitHubApp != nil {
+		agentFailureEnvVars = append(agentFailureEnvVars, fmt.Sprintf("          GH_AW_ACTIVATION_APP_TOKEN_MINTING_FAILED: ${{ needs.%s.outputs.activation_app_token_minting_failed }}\n", string(constants.ActivationJobName)))
+	}
+
 	// Pass custom messages config if present
 	if data.SafeOutputs != nil && data.SafeOutputs.Messages != nil {
 		messagesJSON, err := serializeMessagesConfig(data.SafeOutputs.Messages)
@@ -224,7 +239,10 @@ func (c *Compiler) buildConclusionJob(data *WorkflowData, mainJobName string, sa
 		agentFailureEnvVars = append(agentFailureEnvVars, fmt.Sprintf("          GH_AW_TIMEOUT_MINUTES: %q\n", timeoutValue))
 	}
 
-	// Build the agent failure handling step
+	// Build the agent failure handling step.
+	// Use if: always() so this step runs even when an earlier step in the conclusion job
+	// (such as the GitHub App token minting step) has failed. The handler uses the default
+	// GITHUB_TOKEN and does not depend on the app-minted token.
 	agentFailureSteps := c.buildGitHubScriptStepWithoutDownload(data, GitHubScriptStepConfig{
 		StepName:      "Handle Agent Failure",
 		StepID:        "handle_agent_failure",
@@ -233,6 +251,7 @@ func (c *Compiler) buildConclusionJob(data *WorkflowData, mainJobName string, sa
 		Script:        "const { main } = require('/opt/gh-aw/actions/handle_agent_failure.cjs'); await main();",
 		ScriptFile:    "handle_agent_failure.cjs",
 		CustomToken:   "", // Will use default GITHUB_TOKEN
+		StepCondition: "always()",
 	})
 	steps = append(steps, agentFailureSteps...)
 

@@ -295,4 +295,35 @@ describe("handle_agent_failure", () => {
       expect(result).toContain("max-patch-size: 51200");
     });
   });
+
+  // ──────────────────────────────────────────────────────
+  // buildAppTokenMintingFailedContext
+  // ──────────────────────────────────────────────────────
+
+  describe("buildAppTokenMintingFailedContext", () => {
+    let buildAppTokenMintingFailedContext;
+
+    beforeEach(() => {
+      vi.resetModules();
+      ({ buildAppTokenMintingFailedContext } = require("./handle_agent_failure.cjs"));
+    });
+
+    it("returns empty string when no failure", () => {
+      expect(buildAppTokenMintingFailedContext(false)).toBe("");
+    });
+
+    it("returns formatted error message when app token minting failed", () => {
+      const result = buildAppTokenMintingFailedContext(true);
+      expect(result).toContain("GitHub App Authentication Failed");
+      expect(result).toContain("App ID");
+      expect(result).toContain("private key");
+      expect(result).toContain("installed");
+    });
+
+    it("includes actionable remediation steps", () => {
+      const result = buildAppTokenMintingFailedContext(true);
+      expect(result).toContain("required permissions");
+      expect(result).toContain("https://github.github.com/gh-aw/reference/safe-outputs/");
+    });
+  });
 });

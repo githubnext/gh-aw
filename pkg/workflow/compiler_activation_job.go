@@ -141,6 +141,9 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 			}
 		}
 		steps = append(steps, c.buildActivationAppTokenMintStep(data.ActivationGitHubApp, appPerms)...)
+		// Track whether the token minting succeeded so the conclusion job can surface
+		// GitHub App authentication errors in the failure issue.
+		outputs["activation_app_token_minting_failed"] = "${{ steps.activation-app-token.outcome == 'failure' }}"
 	}
 
 	// Add reaction step for immediate feedback.

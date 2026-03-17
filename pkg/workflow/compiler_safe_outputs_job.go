@@ -252,6 +252,10 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 
 	// Add GitHub App token minting step at the beginning if app is configured
 	if data.SafeOutputs.GitHubApp != nil {
+		// Track whether the app token minting succeeded so the conclusion job can surface
+		// authentication errors in the failure issue.
+		outputs["app_token_minting_failed"] = "${{ steps.safe-outputs-app-token.outcome == 'failure' }}"
+
 		// For workflow_call relay workflows, scope the token to the platform repo name only
 		// (not the full slug) because actions/create-github-app-token expects repo names
 		// without the owner prefix when `owner` is also set.
