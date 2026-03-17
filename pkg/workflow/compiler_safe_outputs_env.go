@@ -33,9 +33,9 @@ func (c *Compiler) addAllSafeOutputConfigEnvVars(steps *[]string, data *Workflow
 
 // hasSafeOutputWithoutTargetRepo returns true if any configured safe output handler
 // targets the current repository (i.e., has no target-repo specified).
-// Handlers without a target-repo field always target the current repo.
+// Handlers without a target-repo field always target the current repo,
+// while handlers with a target-repo field qualify only when no cross-repo target is set.
 func hasSafeOutputWithoutTargetRepo(so *SafeOutputsConfig) bool {
-	// Handlers without a target-repo field always target the current repo.
 	if so.AutofixCodeScanningAlert != nil {
 		return true
 	}

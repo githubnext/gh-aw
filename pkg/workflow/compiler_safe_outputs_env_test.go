@@ -596,7 +596,7 @@ func TestStagedFlagForAllHandlerTypes(t *testing.T) {
 			},
 			expectFlag: true,
 		},
-		// Handlers with target-repo: qualify when no target-repo is set
+		// Handlers with a target-repo field: qualify when no cross-repo target is set
 		{
 			name: "create-discussion without target-repo",
 			safeOutputs: &SafeOutputsConfig{
