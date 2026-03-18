@@ -138,7 +138,7 @@ describe("safe_outputs_handlers", () => {
   });
 
   describe("uploadAssetHandler", () => {
-    it("should generate raw.githubusercontent.com URL for github.com", () => {
+    it("should generate blob URL with raw=true for github.com", () => {
       process.env.GH_AW_ASSETS_BRANCH = "test-branch";
       process.env.GITHUB_SERVER_URL = "https://github.com";
       process.env.GITHUB_REPOSITORY = "myorg/myrepo";
@@ -149,8 +149,9 @@ describe("safe_outputs_handlers", () => {
       handlers.uploadAssetHandler({ path: testFile });
 
       const entry = mockAppendSafeOutput.mock.calls[0][0];
-      expect(entry.url).toContain("raw.githubusercontent.com");
-      expect(entry.url).toContain("myorg/myrepo");
+      expect(entry.url).toContain("github.com/myorg/myrepo/blob/test-branch");
+      expect(entry.url).toContain("?raw=true");
+      expect(entry.url).not.toContain("raw.githubusercontent.com");
     });
 
     it("should generate enterprise URL for GitHub Enterprise Server", () => {
