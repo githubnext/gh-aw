@@ -95,6 +95,7 @@ func (p *Permissions) Get(scope PermissionScope) (PermissionLevel, bool) {
 // mergePermissionMaps merges a map of permissions into the current permissions
 // Write permission takes precedence over read
 func (p *Permissions) mergePermissionMaps(otherPerms map[PermissionScope]PermissionLevel) {
+	permissionsOpsLog.Printf("Merging %d permission entries into permissions map", len(otherPerms))
 	for scope, otherLevel := range otherPerms {
 		currentLevel, exists := p.permissions[scope]
 		if !exists {
@@ -217,6 +218,9 @@ func (p *Permissions) Merge(other *Permissions) {
 func (p *Permissions) RenderToYAML() string {
 	if p == nil {
 		return ""
+	}
+	if permissionsOpsLog.Enabled() {
+		permissionsOpsLog.Printf("Rendering permissions to YAML: shorthand=%s, hasAll=%t, perms_count=%d", p.shorthand, p.hasAll, len(p.permissions))
 	}
 
 	if p.shorthand != "" {
