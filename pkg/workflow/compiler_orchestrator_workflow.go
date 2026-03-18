@@ -615,13 +615,16 @@ func applyTopLevelGitHubAppFallbacks(data *WorkflowData) {
 	}
 
 	// Fallback for activation (on.github-app)
-	if data.ActivationGitHubApp == nil {
+	// Skip when on.github-token is already explicitly configured — the token takes priority over
+	// app-based auth at runtime and injecting a github-app fallback would flip that precedence.
+	if data.ActivationGitHubApp == nil && data.ActivationGitHubToken == "" {
 		orchestratorWorkflowLog.Print("Applying top-level github-app fallback for activation")
 		data.ActivationGitHubApp = fallback
 	}
 
 	// Fallback for safe-outputs
-	if data.SafeOutputs != nil && data.SafeOutputs.GitHubApp == nil {
+	// Also skip when a custom github-token is already configured for safe-outputs.
+	if data.SafeOutputs != nil && data.SafeOutputs.GitHubApp == nil && data.SafeOutputs.GitHubToken == "" {
 		orchestratorWorkflowLog.Print("Applying top-level github-app fallback for safe-outputs")
 		data.SafeOutputs.GitHubApp = fallback
 	}
