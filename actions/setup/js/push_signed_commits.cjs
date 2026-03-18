@@ -1,0 +1,115 @@
+// @ts-check
+/// <reference types="@actions/github-script" />
+
+/** @type {typeof import("fs")} */
+const fs = require("fs");
+/** @type {typeof import("path")} */
+const path = require("path");
+
+/**
+ * @fileoverview Signed Commit Push Helper
+ *
+ * Pushes local git commits to a remote branch using the GitHub GraphQL
+ * `createCommitOnBranch` mutation, so commits are cryptographically signed
+ * (verified) by GitHub.  Falls back to a plain `git push` when the GraphQL
+ * approach is unavailable (e.g. GitHub Enterprise Server instances that do
+ * not support the mutation, or when branch-protection policies reject it).
+ *
+ * Both `create_pull_request.cjs` and `push_to_pull_request_branch.cjs` use
+ * this helper so the signed-commit logic lives in exactly one place.
+ */
+
+/**
+ * Pushes local commits to a remote branch using the GitHub GraphQL
+ * `createCommitOnBranch` mutation so commits are cryptographically signed.
+ * Falls back to `git push` if the GraphQL approach fails (e.g. on GHES).
+ *
+ * @param {object} opts
+ * @param {any} opts.githubClient - Authenticated Octokit client with .graphql()
+ * @param {string} opts.owner - Repository owner
+ * @param {string} opts.repo - Repository name
+ * @param {string} opts.branch - Target branch name
+ * @param {string} opts.baseRef - Git ref of the remote head before commits were applied (used for rev-list)
+ * @param {string} opts.cwd - Working directory of the local git checkout
+ * @param {object} [opts.gitAuthEnv] - Environment variables for git push fallback auth
+ * @returns {Promise<void>}
+ */
+async function pushSignedCommits({ githubClient, owner, repo, branch, baseRef, cwd, gitAuthEnv }) {
+  // Collect the commits introduced (oldest-first)
+  const { stdout: revListOut } = await exec.getExecOutput("git", ["rev-list", "--reverse", `${baseRef}..HEAD`], { cwd });
+  const shas = revListOut.trim().split("\n").filter(Boolean);
+
+  if (shas.length === 0) {
+    core.info("pushSignedCommits: no new commits to push via GraphQL");
+    return;
+  }
+
+  core.info(`pushSignedCommits: replaying ${shas.length} commit(s) via GraphQL createCommitOnBranch`);
+
+  try {
+    for (const sha of shas) {
+      // Get the current remote HEAD OID (updated each iteration)
+      const { stdout: oidOut } = await exec.getExecOutput("git", ["ls-remote", "origin", `refs/heads/${branch}`], { cwd });
+      const expectedHeadOid = oidOut.trim().split(/\s+/)[0];
+      if (!expectedHeadOid) {
+        throw new Error(`Could not resolve remote HEAD OID for branch ${branch}`);
+      }
+
+      // Full commit message (subject + body)
+      const { stdout: msgOut } = await exec.getExecOutput("git", ["log", "-1", "--format=%B", sha], { cwd });
+      const message = msgOut.trim();
+      const headline = message.split("\n")[0];
+      const body = message.split("\n").slice(1).join("\n").trim();
+
+      // File changes for this commit (supports Add/Modify/Delete/Rename/Copy)
+      const { stdout: nameStatusOut } = await exec.getExecOutput("git", ["diff", "--name-status", `${sha}^`, sha], { cwd });
+      /** @type {Array<{path: string, contents: string}>} */
+      const additions = [];
+      /** @type {Array<{path: string}>} */
+      const deletions = [];
+
+      for (const line of nameStatusOut.trim().split("\n").filter(Boolean)) {
+        const parts = line.split("\t");
+        const status = parts[0];
+        if (status === "D") {
+          deletions.push({ path: parts[1] });
+        } else if (status.startsWith("R") || status.startsWith("C")) {
+          // Rename or Copy: parts[1] = old path, parts[2] = new path
+          deletions.push({ path: parts[1] });
+          const content = fs.readFileSync(path.join(cwd, parts[2]));
+          additions.push({ path: parts[2], contents: content.toString("base64") });
+        } else {
+          // Added or Modified
+          const content = fs.readFileSync(path.join(cwd, parts[1]));
+          additions.push({ path: parts[1], contents: content.toString("base64") });
+        }
+      }
+
+      /** @type {any} */
+      const input = {
+        branch: { repositoryNameWithOwner: `${owner}/${repo}`, branchName: branch },
+        message: { headline, ...(body ? { body } : {}) },
+        fileChanges: { additions, deletions },
+        expectedHeadOid,
+      };
+
+      const result = await githubClient.graphql(
+        `mutation($input: CreateCommitOnBranchInput!) {
+          createCommitOnBranch(input: $input) { commit { oid } }
+        }`,
+        { input }
+      );
+      const oid = result?.createCommitOnBranch?.commit?.oid;
+      core.info(`pushSignedCommits: signed commit created: ${oid}`);
+    }
+    core.info(`pushSignedCommits: all ${shas.length} commit(s) pushed as signed commits`);
+  } catch (graphqlError) {
+    core.warning(`pushSignedCommits: GraphQL signed push failed, falling back to git push: ${graphqlError instanceof Error ? graphqlError.message : String(graphqlError)}`);
+    await exec.exec("git", ["push", "origin", branch], {
+      cwd,
+      env: { ...process.env, ...(gitAuthEnv || {}) },
+    });
+  }
+}
+
+module.exports = { pushSignedCommits };
