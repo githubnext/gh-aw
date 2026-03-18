@@ -16,11 +16,7 @@ timeout-minutes: 30
 tools:
   agentic-workflows:
   edit:
-  bash:
-    - "date *"
-    - "echo *"
-    - "cat *"
-    - "ls *"
+  bash: ["*"]
   github:
     lockdown: true
     toolsets:
@@ -29,6 +25,9 @@ tools:
   repo-memory:
     wiki: true
     description: "Agent of the Week history – tracks which workflows have been featured so we rotate fairly"
+
+imports:
+  - shared/mcp/qmd-docs.md
 
 safe-outputs:
   create-pull-request:
