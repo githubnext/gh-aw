@@ -197,12 +197,10 @@ func (c *Compiler) buildMainJob(data *WorkflowData, activationJobCreated bool) (
 		// Add asset-related environment variables
 		// These must always be set (even to empty) because awmg v0.0.12+ validates ${VAR} references
 		if data.SafeOutputs.UploadAssets != nil {
-			env["GH_AW_ASSETS_BRANCH"] = fmt.Sprintf("%q", data.SafeOutputs.UploadAssets.BranchName)
 			env["GH_AW_ASSETS_MAX_SIZE_KB"] = strconv.Itoa(data.SafeOutputs.UploadAssets.MaxSizeKB)
 			env["GH_AW_ASSETS_ALLOWED_EXTS"] = fmt.Sprintf("%q", strings.Join(data.SafeOutputs.UploadAssets.AllowedExts, ","))
 		} else {
 			// Set empty defaults when upload-assets is not configured
-			env["GH_AW_ASSETS_BRANCH"] = `""`
 			env["GH_AW_ASSETS_MAX_SIZE_KB"] = "0"
 			env["GH_AW_ASSETS_ALLOWED_EXTS"] = `""`
 		}

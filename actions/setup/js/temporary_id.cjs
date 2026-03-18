@@ -541,9 +541,69 @@ function getCreatedTemporaryId(message) {
   return null;
 }
 
+/**
+ * Regex pattern for matching asset temporary ID references in URL positions.
+ * Matches aw_XXX to aw_XXXXXXXXXXXX (aw_ prefix + 3 to 12 alphanumeric chars)
+ * when used as a standalone URL (e.g. inside markdown link/image parentheses).
+ * This pattern does NOT require a leading '#', since asset IDs are used as URLs.
+ */
+const ASSET_ID_IN_URL_PATTERN = /\(aw_([A-Za-z0-9]{3,12})\)/gi;
+
+/**
+ * Load the asset URL map from environment variable.
+ * The map is a plain JSON object: { "aw_xyz": "https://...", ... }
+ * @returns {Map<string, string>} Map of normalized temporary_id to artifact URL
+ */
+function loadAssetUrlMap() {
+  const mapJson = process.env.GH_AW_ASSET_URL_MAP;
+  if (!mapJson || mapJson === "{}") {
+    return new Map();
+  }
+  try {
+    const mapObject = JSON.parse(mapJson);
+    /** @type {Map<string, string>} */
+    const result = new Map();
+    for (const [key, value] of Object.entries(mapObject)) {
+      const normalizedKey = normalizeTemporaryId(key);
+      if (typeof value === "string") {
+        result.set(normalizedKey, value);
+      }
+    }
+    return result;
+  } catch (error) {
+    if (typeof core !== "undefined") {
+      core.warning(`Failed to parse asset URL map: ${getErrorMessage(error)}`);
+    }
+    return new Map();
+  }
+}
+
+/**
+ * Replace asset temporary ID references in text with actual artifact URLs.
+ * Matches the pattern (aw_XXX) in URL positions (markdown images/links).
+ * Example: ![chart](aw_XYZ123) -> ![chart](https://github.com/.../artifacts/456)
+ * @param {string} text - The text to process
+ * @param {Map<string, string>} assetUrlMap - Map of normalized temporary_id to artifact URL
+ * @returns {string} Text with asset temporary IDs replaced with actual URLs
+ */
+function replaceAssetIdReferences(text, assetUrlMap) {
+  if (!text || assetUrlMap.size === 0) {
+    return text;
+  }
+  return text.replace(ASSET_ID_IN_URL_PATTERN, (match, assetId) => {
+    const resolved = assetUrlMap.get(normalizeTemporaryId(`aw_${assetId}`));
+    if (resolved !== undefined) {
+      return `(${resolved})`;
+    }
+    // Return original if not found (asset may not have been uploaded yet)
+    return match;
+  });
+}
+
 module.exports = {
   TEMPORARY_ID_PATTERN,
   TEMPORARY_ID_CANDIDATE_PATTERN,
+  ASSET_ID_IN_URL_PATTERN,
   generateTemporaryId,
   isTemporaryId,
   normalizeTemporaryId,
@@ -560,4 +620,6 @@ module.exports = {
   replaceTemporaryProjectReferences,
   extractTemporaryIdReferences,
   getCreatedTemporaryId,
+  loadAssetUrlMap,
+  replaceAssetIdReferences,
 };

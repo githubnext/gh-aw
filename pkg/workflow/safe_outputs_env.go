@@ -33,10 +33,9 @@ func applySafeOutputEnvToMap(env map[string]string, data *WorkflowData) {
 		env["GH_AW_TARGET_REPO_SLUG"] = data.TrialLogicalRepo
 	}
 
-	// Add branch name if upload assets is configured
+	// Add asset upload env vars if configured (for handler validation in agent job)
 	if data.SafeOutputs.UploadAssets != nil {
-		safeOutputsEnvLog.Printf("Adding upload assets env vars: branch=%s", data.SafeOutputs.UploadAssets.BranchName)
-		env["GH_AW_ASSETS_BRANCH"] = fmt.Sprintf("%q", data.SafeOutputs.UploadAssets.BranchName)
+		safeOutputsEnvLog.Printf("Adding upload assets env vars: max_size_kb=%d", data.SafeOutputs.UploadAssets.MaxSizeKB)
 		env["GH_AW_ASSETS_MAX_SIZE_KB"] = strconv.Itoa(data.SafeOutputs.UploadAssets.MaxSizeKB)
 		env["GH_AW_ASSETS_ALLOWED_EXTS"] = fmt.Sprintf("%q", strings.Join(data.SafeOutputs.UploadAssets.AllowedExts, ","))
 	}

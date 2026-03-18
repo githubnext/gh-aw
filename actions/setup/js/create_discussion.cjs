@@ -10,7 +10,7 @@ const HANDLER_TYPE = "create_discussion";
 
 const { getTrackerID } = require("./get_tracker_id.cjs");
 const { sanitizeTitle, applyTitlePrefix } = require("./sanitize_title.cjs");
-const { generateTemporaryId, isTemporaryId, normalizeTemporaryId, getOrGenerateTemporaryId, replaceTemporaryIdReferences } = require("./temporary_id.cjs");
+const { generateTemporaryId, isTemporaryId, normalizeTemporaryId, getOrGenerateTemporaryId, replaceTemporaryIdReferences, loadAssetUrlMap, replaceAssetIdReferences } = require("./temporary_id.cjs");
 const { resolveTargetRepoConfig, resolveAndValidateRepo } = require("./repo_helpers.cjs");
 const { createAuthenticatedGitHubClient } = require("./handler_auth.cjs");
 const { removeDuplicateTitleFromDescription } = require("./remove_duplicate_title.cjs");
@@ -498,6 +498,9 @@ async function main(config = {}) {
     // Build title
     let title = item.title ? item.title.trim() : "";
     let processedBody = replaceTemporaryIdReferences(item.body || "", temporaryIdMap, qualifiedItemRepo);
+    // Replace asset temporary ID references with actual artifact URLs (e.g. ![img](aw_XYZ) -> ![img](https://...))
+    const assetUrlMap = loadAssetUrlMap();
+    processedBody = replaceAssetIdReferences(processedBody, assetUrlMap);
     processedBody = removeDuplicateTitleFromDescription(title, processedBody);
 
     if (!title) {

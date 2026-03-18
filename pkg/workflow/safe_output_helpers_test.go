@@ -259,7 +259,6 @@ func TestApplySafeOutputEnvToMap(t *testing.T) {
 			workflowData: &WorkflowData{
 				SafeOutputs: &SafeOutputsConfig{
 					UploadAssets: &UploadAssetsConfig{
-						BranchName:  "gh-aw-assets",
 						MaxSizeKB:   10240,
 						AllowedExts: []string{".png", ".jpg", ".jpeg"},
 					},
@@ -267,7 +266,6 @@ func TestApplySafeOutputEnvToMap(t *testing.T) {
 			},
 			expected: map[string]string{
 				"GH_AW_SAFE_OUTPUTS":        "${{ env.GH_AW_SAFE_OUTPUTS }}",
-				"GH_AW_ASSETS_BRANCH":       "\"gh-aw-assets\"",
 				"GH_AW_ASSETS_MAX_SIZE_KB":  "10240",
 				"GH_AW_ASSETS_ALLOWED_EXTS": "\".png,.jpg,.jpeg\"",
 			},
@@ -563,7 +561,6 @@ func TestEnginesUseSameHelperLogic(t *testing.T) {
 		SafeOutputs: &SafeOutputsConfig{
 			Staged: true,
 			UploadAssets: &UploadAssetsConfig{
-				BranchName:  "gh-aw-assets",
 				MaxSizeKB:   10240,
 				AllowedExts: []string{".png", ".jpg"},
 			},
@@ -578,7 +575,6 @@ func TestEnginesUseSameHelperLogic(t *testing.T) {
 		"GH_AW_SAFE_OUTPUTS",
 		"GH_AW_SAFE_OUTPUTS_STAGED",
 		"GH_AW_TARGET_REPO_SLUG",
-		"GH_AW_ASSETS_BRANCH",
 		"GH_AW_ASSETS_MAX_SIZE_KB",
 		"GH_AW_ASSETS_ALLOWED_EXTS",
 	}

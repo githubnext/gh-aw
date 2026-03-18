@@ -661,7 +661,6 @@ var handlerRegistry = map[string]handlerBuilder{
 		c := cfg.UploadAssets
 		return newHandlerConfigBuilder().
 			AddTemplatableInt("max", c.Max).
-			AddIfNotEmpty("branch", c.BranchName).
 			AddIfPositive("max-size", c.MaxSizeKB).
 			AddStringSlice("allowed-exts", c.AllowedExts).
 			AddIfNotEmpty("github-token", c.GitHubToken).

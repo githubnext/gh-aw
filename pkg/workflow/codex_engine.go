@@ -491,7 +491,6 @@ func (e *CodexEngine) renderShellEnvironmentPolicy(yaml *strings.Builder, tools 
 		case "safe-outputs":
 			// Safe outputs MCP server needs several environment variables
 			envVars["GH_AW_SAFE_OUTPUTS"] = true
-			envVars["GH_AW_ASSETS_BRANCH"] = true
 			envVars["GH_AW_ASSETS_MAX_SIZE_KB"] = true
 			envVars["GH_AW_ASSETS_ALLOWED_EXTS"] = true
 			envVars["GITHUB_REPOSITORY"] = true

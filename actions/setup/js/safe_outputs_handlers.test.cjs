@@ -70,7 +70,6 @@ describe("safe_outputs_handlers", () => {
     delete process.env.GITHUB_WORKSPACE;
     delete process.env.GITHUB_SERVER_URL;
     delete process.env.GITHUB_REPOSITORY;
-    delete process.env.GH_AW_ASSETS_BRANCH;
     delete process.env.GH_AW_ASSETS_MAX_SIZE_KB;
     delete process.env.GH_AW_ASSETS_ALLOWED_EXTS;
   });
@@ -138,43 +137,31 @@ describe("safe_outputs_handlers", () => {
   });
 
   describe("uploadAssetHandler", () => {
-    it("should generate raw.githubusercontent.com URL for github.com", () => {
-      process.env.GH_AW_ASSETS_BRANCH = "test-branch";
-      process.env.GITHUB_SERVER_URL = "https://github.com";
-      process.env.GITHUB_REPOSITORY = "myorg/myrepo";
-
+    it("should return a temporary ID instead of a URL", () => {
       const testFile = path.join(testWorkspaceDir, "test.png");
       fs.writeFileSync(testFile, "test content");
 
-      handlers.uploadAssetHandler({ path: testFile });
+      const result = handlers.uploadAssetHandler({ path: testFile });
 
+      expect(mockAppendSafeOutput).toHaveBeenCalled();
       const entry = mockAppendSafeOutput.mock.calls[0][0];
-      expect(entry.url).toContain("raw.githubusercontent.com");
-      expect(entry.url).toContain("myorg/myrepo");
-    });
+      expect(entry.type).toBe("upload_asset");
+      expect(entry.fileName).toBe("test.png");
+      expect(entry.sha).toBeDefined();
+      // New: no url field, but temporaryId is present
+      expect(entry.url).toBeUndefined();
+      expect(entry.temporaryId).toBeDefined();
+      expect(entry.temporaryId).toMatch(/^aw_[A-Za-z0-9]{3,12}$/);
 
-    it("should generate enterprise URL for GitHub Enterprise Server", () => {
-      process.env.GH_AW_ASSETS_BRANCH = "test-branch";
-      process.env.GITHUB_SERVER_URL = "https://github.example.com";
-      process.env.GITHUB_REPOSITORY = "myorg/myrepo";
-
-      const testFile = path.join(testWorkspaceDir, "test2.png");
-      fs.writeFileSync(testFile, "test content");
-
-      handlers = createHandlers(mockServer, mockAppendSafeOutput);
-      handlers.uploadAssetHandler({ path: testFile });
-
-      const entry = mockAppendSafeOutput.mock.calls[0][0];
-      expect(entry.url).toContain("github.example.com");
-      expect(entry.url).toContain("/raw/");
-      expect(entry.url).not.toContain("raw.githubusercontent.com");
+      expect(result.content[0].type).toBe("text");
+      const resultData = JSON.parse(result.content[0].text);
+      // Returns the temporary ID, not a URL
+      expect(resultData.result).toMatch(/^aw_[A-Za-z0-9]{3,12}$/);
     });
 
     it("should validate and process valid asset upload", () => {
-      process.env.GH_AW_ASSETS_BRANCH = "test-branch";
-
       // Create test file
-      const testFile = path.join(testWorkspaceDir, "test.png");
+      const testFile = path.join(testWorkspaceDir, "test2.png");
       fs.writeFileSync(testFile, "test content");
 
       const args = { path: testFile };
@@ -183,26 +170,18 @@ describe("safe_outputs_handlers", () => {
       expect(mockAppendSafeOutput).toHaveBeenCalled();
       const entry = mockAppendSafeOutput.mock.calls[0][0];
       expect(entry.type).toBe("upload_asset");
-      expect(entry.fileName).toBe("test.png");
+      expect(entry.fileName).toBe("test2.png");
       expect(entry.sha).toBeDefined();
-      expect(entry.url).toContain("test-branch");
+      expect(entry.temporaryId).toBeDefined();
 
       expect(result.content[0].type).toBe("text");
       const resultData = JSON.parse(result.content[0].text);
-      expect(resultData.result).toContain("https://");
-    });
-
-    it("should throw error if GH_AW_ASSETS_BRANCH not set", () => {
-      delete process.env.GH_AW_ASSETS_BRANCH;
-
-      const args = { path: "/tmp/test.png" };
-
-      expect(() => handlers.uploadAssetHandler(args)).toThrow("GH_AW_ASSETS_BRANCH not set");
+      // Temporary ID is returned, not a URL
+      expect(resultData.result).not.toContain("https://");
+      expect(resultData.result).toMatch(/^aw_/);
     });
 
     it("should throw error if file not found", () => {
-      process.env.GH_AW_ASSETS_BRANCH = "test-branch";
-
       // Use a path in the workspace that doesn't exist
       const args = { path: path.join(testWorkspaceDir, "nonexistent.png") };
 
@@ -210,16 +189,12 @@ describe("safe_outputs_handlers", () => {
     });
 
     it("should throw error if file outside allowed directories", () => {
-      process.env.GH_AW_ASSETS_BRANCH = "test-branch";
-
       const args = { path: "/etc/passwd" };
 
       expect(() => handlers.uploadAssetHandler(args)).toThrow("File path must be within workspace directory");
     });
 
     it("should allow files in /tmp directory", () => {
-      process.env.GH_AW_ASSETS_BRANCH = "test-branch";
-
       // Create test file in /tmp
       const testFile = `/tmp/test-upload-${Date.now()}.png`;
       fs.writeFileSync(testFile, "test content");
@@ -239,8 +214,6 @@ describe("safe_outputs_handlers", () => {
     });
 
     it("should reject file with disallowed extension", () => {
-      process.env.GH_AW_ASSETS_BRANCH = "test-branch";
-
       // Create test file with .txt extension
       const testFile = path.join(testWorkspaceDir, "test.txt");
       fs.writeFileSync(testFile, "test content");
@@ -251,7 +224,6 @@ describe("safe_outputs_handlers", () => {
     });
 
     it("should accept custom allowed extensions", () => {
-      process.env.GH_AW_ASSETS_BRANCH = "test-branch";
       process.env.GH_AW_ASSETS_ALLOWED_EXTS = ".txt,.md";
 
       const testFile = path.join(testWorkspaceDir, "test.txt");
@@ -265,7 +237,6 @@ describe("safe_outputs_handlers", () => {
     });
 
     it("should reject file exceeding size limit", () => {
-      process.env.GH_AW_ASSETS_BRANCH = "test-branch";
       process.env.GH_AW_ASSETS_MAX_SIZE_KB = "1"; // 1 KB limit
 
       // Create file larger than 1KB

@@ -820,7 +820,7 @@
   },
   {
     "name": "upload_asset",
-    "description": "Upload a file as a URL-addressable asset that can be referenced in issues, PRs, or comments. The file is stored on an orphaned git branch and returns a permanent URL. Use this for images, diagrams, or other files that need to be embedded in GitHub content.",
+    "description": "Upload a file as an asset that can be referenced in issues, PRs, or comments. The file is uploaded as an unzipped GitHub Actions artifact and returns a temporary asset ID (e.g. aw_XYZ123). Use the returned ID as the image URL in markdown: ![alt text](aw_XYZ123). The ID is resolved to the real artifact URL before content is published. Use this for images, diagrams, or other files that need to be embedded in GitHub content.",
     "inputSchema": {
       "type": "object",
       "required": ["path"],

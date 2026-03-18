@@ -10,12 +10,11 @@ import (
 
 var publishAssetsLog = logger.New("workflow:publish_assets")
 
-// UploadAssetsConfig holds configuration for publishing assets to an orphaned git branch
+// UploadAssetsConfig holds configuration for uploading assets as GitHub Actions artifacts
 type UploadAssetsConfig struct {
 	BaseSafeOutputConfig `yaml:",inline"`
-	BranchName           string   `yaml:"branch,omitempty"`       // Branch name (default: "assets/${{ github.workflow }}")
 	MaxSizeKB            int      `yaml:"max-size,omitempty"`     // Maximum file size in KB (default: 10240 = 10MB)
-	AllowedExts          []string `yaml:"allowed-exts,omitempty"` // Allowed file extensions (default: common non-executable types)
+	AllowedExts          []string `yaml:"allowed-exts,omitempty"` // Allowed file extensions (default: common image types)
 }
 
 // parseUploadAssetConfig handles upload-asset configuration
@@ -23,8 +22,7 @@ func (c *Compiler) parseUploadAssetConfig(outputMap map[string]any) *UploadAsset
 	if configData, exists := outputMap["upload-asset"]; exists {
 		publishAssetsLog.Print("Parsing upload-asset configuration")
 		config := &UploadAssetsConfig{
-			BranchName: "assets/${{ github.workflow }}", // Default branch name
-			MaxSizeKB:  10240,                           // Default 10MB
+			MaxSizeKB: 10240, // Default 10MB
 			AllowedExts: []string{
 				// Default set of extensions as specified in problem statement
 				".png",
@@ -34,13 +32,6 @@ func (c *Compiler) parseUploadAssetConfig(outputMap map[string]any) *UploadAsset
 		}
 
 		if configMap, ok := configData.(map[string]any); ok {
-			// Parse branch
-			if branchName, exists := configMap["branch"]; exists {
-				if branchNameStr, ok := branchName.(string); ok {
-					config.BranchName = branchNameStr
-				}
-			}
-
 			// Parse max-size
 			if maxSize, exists := configMap["max-size"]; exists {
 				if maxSizeInt, ok := parseIntValue(maxSize); ok && maxSizeInt > 0 {
@@ -65,7 +56,7 @@ func (c *Compiler) parseUploadAssetConfig(outputMap map[string]any) *UploadAsset
 
 			// Parse common base fields with default max of 0 (no limit)
 			c.parseBaseSafeOutputConfig(configMap, &config.BaseSafeOutputConfig, 0)
-			publishAssetsLog.Printf("Parsed upload-asset config: branch=%s, max_size_kb=%d, allowed_exts=%d", config.BranchName, config.MaxSizeKB, len(config.AllowedExts))
+			publishAssetsLog.Printf("Parsed upload-asset config: max_size_kb=%d, allowed_exts=%d", config.MaxSizeKB, len(config.AllowedExts))
 		} else if configData == nil {
 			// Handle null case: create config with defaults
 			publishAssetsLog.Print("Using default upload-asset configuration")
@@ -78,7 +69,8 @@ func (c *Compiler) parseUploadAssetConfig(outputMap map[string]any) *UploadAsset
 	return nil
 }
 
-// buildUploadAssetsJob creates the publish_assets job
+// buildUploadAssetsJob creates the upload_assets job that uploads staged asset files
+// as unzipped GitHub Actions artifacts (archive:false) and outputs the URL map.
 func (c *Compiler) buildUploadAssetsJob(data *WorkflowData, mainJobName string, threatDetectionEnabled bool) (*Job, error) {
 	publishAssetsLog.Printf("Building upload_assets job: workflow=%s, main_job=%s, threat_detection=%v", data.Name, mainJobName, threatDetectionEnabled)
 
@@ -88,27 +80,18 @@ func (c *Compiler) buildUploadAssetsJob(data *WorkflowData, mainJobName string, 
 
 	var preSteps []string
 
-	// Permission checks are now handled by the separate check_membership job
-	// which is always created when needed (when activation job is created)
-
 	// Add setup step to copy scripts
 	setupActionRef := c.resolveActionReference("./actions/setup", data)
 	if setupActionRef != "" || c.actionMode.IsScript() {
 		// For dev mode (local action path), checkout the actions folder first
 		preSteps = append(preSteps, c.generateCheckoutActionsFolder(data)...)
 
-		// Publish assets job doesn't need project support
+		// Upload assets job doesn't need project support
 		preSteps = append(preSteps, c.generateSetupStep(setupActionRef, SetupActionDestination, false)...)
 	}
 
-	// Step 1: Checkout repository
-	preSteps = buildCheckoutRepository(preSteps, c, "", "")
-
-	// Step 2: Configure Git credentials
-	preSteps = append(preSteps, c.generateGitConfigurationSteps()...)
-
-	// Step 3: Download assets artifact if it exists.
-	// In workflow_call context, use the per-invocation prefix from the agent job to match the uploaded artifact name.
+	// Download assets artifact so upload_assets.cjs can read the staged files.
+	// In workflow_call context, use the per-invocation prefix from the agent job.
 	assetsArtifactPrefix := artifactPrefixExprForAgentDownstreamJob(data)
 	preSteps = append(preSteps, "      - name: Download assets\n")
 	preSteps = append(preSteps, "        continue-on-error: true\n") // Continue if no assets were uploaded
@@ -117,26 +100,25 @@ func (c *Compiler) buildUploadAssetsJob(data *WorkflowData, mainJobName string, 
 	preSteps = append(preSteps, fmt.Sprintf("          name: %ssafe-outputs-assets\n", assetsArtifactPrefix))
 	preSteps = append(preSteps, "          path: /tmp/gh-aw/safeoutputs/assets/\n")
 
-	// Step 4: List files
+	// List downloaded files for debugging
 	preSteps = append(preSteps, "      - name: List downloaded asset files\n")
-	preSteps = append(preSteps, "        continue-on-error: true\n") // Continue if no assets were uploaded
+	preSteps = append(preSteps, "        continue-on-error: true\n")
 	preSteps = append(preSteps, "        run: |\n")
 	preSteps = append(preSteps, "          echo \"Downloaded asset files:\"\n")
 	preSteps = append(preSteps, "          find /tmp/gh-aw/safeoutputs/assets/ -maxdepth 1 -ls\n")
 
-	// Build custom environment variables specific to upload-assets
+	// Environment variables needed by upload_assets.cjs
 	var customEnvVars []string
-	customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_ASSETS_BRANCH: %q\n", data.SafeOutputs.UploadAssets.BranchName))
 	customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_ASSETS_MAX_SIZE_KB: %d\n", data.SafeOutputs.UploadAssets.MaxSizeKB))
 	customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_ASSETS_ALLOWED_EXTS: %q\n", strings.Join(data.SafeOutputs.UploadAssets.AllowedExts, ",")))
 
 	// Add standard environment variables (metadata + staged/target repo)
-	customEnvVars = append(customEnvVars, c.buildStandardSafeOutputEnvVars(data, "")...) // No target repo for upload assets
+	customEnvVars = append(customEnvVars, c.buildStandardSafeOutputEnvVars(data, "")...)
 
-	// Create outputs for the job
+	// Job outputs: asset URL map (temporaryId -> artifactUrl) consumed by safe_outputs job
 	outputs := map[string]string{
-		"published_count": "${{ steps.upload_assets.outputs.published_count }}",
-		"branch_name":     "${{ steps.upload_assets.outputs.branch_name }}",
+		"upload_count":  "${{ steps.upload_assets.outputs.upload_count }}",
+		"asset_url_map": "${{ steps.upload_assets.outputs.asset_url_map }}",
 	}
 
 	// Build the job condition using expression tree
@@ -145,16 +127,18 @@ func (c *Compiler) buildUploadAssetsJob(data *WorkflowData, mainJobName string, 
 	// Build job dependencies — detection is now inline in the agent job
 	needs := []string{mainJobName}
 
-	// Use the shared builder function to create the job
+	// Use the shared builder function to create the job.
+	// The job no longer needs contents:write permission since it uploads artifacts,
+	// not git content. Use actions:write for artifact creation.
 	return c.buildSafeOutputJob(data, SafeOutputJobConfig{
 		JobName:       "upload_assets",
-		StepName:      "Push assets",
+		StepName:      "Upload assets",
 		StepID:        "upload_assets",
 		ScriptName:    "upload_assets",
 		MainJobName:   mainJobName,
 		CustomEnvVars: customEnvVars,
 		Script:        getUploadAssetsScript(),
-		Permissions:   NewPermissionsContentsWrite(),
+		Permissions:   NewPermissionsActionsWrite(),
 		Outputs:       outputs,
 		Condition:     jobCondition,
 		PreSteps:      preSteps,

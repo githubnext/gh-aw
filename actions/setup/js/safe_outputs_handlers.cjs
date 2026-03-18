@@ -5,7 +5,6 @@ const fs = require("fs");
 const path = require("path");
 const crypto = require("crypto");
 
-const { normalizeBranchName } = require("./normalize_branch_name.cjs");
 const { estimateTokens } = require("./estimate_tokens.cjs");
 const { writeLargeContentToFile } = require("./write_large_content_to_file.cjs");
 const { getCurrentBranch } = require("./get_current_branch.cjs");
@@ -86,14 +85,13 @@ function createHandlers(server, appendSafeOutput, config = {}) {
 
   /**
    * Handler for upload_asset tool
+   * Stages the file for later upload and returns a temporary asset ID.
+   * The actual upload to GitHub Actions artifacts happens in the upload_assets job.
+   * The temporary ID (e.g. aw_XYZ123) is used as a URL placeholder in markdown:
+   *   ![chart](aw_XYZ123)
+   * and gets resolved to the real artifact URL before issues/comments are created.
    */
   const uploadAssetHandler = args => {
-    const branchName = process.env.GH_AW_ASSETS_BRANCH;
-    if (!branchName) throw new Error(`${ERR_CONFIG}: GH_AW_ASSETS_BRANCH not set`);
-
-    // Normalize the branch name to ensure it's a valid git branch name
-    const normalizedBranchName = normalizeBranchName(branchName);
-
     const { path: filePath } = args;
 
     // Validate file path is within allowed directories
@@ -151,48 +149,35 @@ function createHandlers(server, appendSafeOutput, config = {}) {
 
     // Extract filename and extension
     const fileName = path.basename(filePath);
-    const fileExt = path.extname(fileName).toLowerCase();
 
     // Copy file to assets directory with original name
     const targetPath = path.join(assetsDir, fileName);
     fs.copyFileSync(filePath, targetPath);
 
-    // Generate target filename as sha + extension (lowercased)
-    const targetFileName = (sha + fileExt).toLowerCase();
+    // Generate a temporary ID for this asset (resolved to a real URL after upload)
+    const temporaryId = getOrGenerateTemporaryId({}, "upload_asset").temporaryId;
 
-    const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
-    const repo = process.env.GITHUB_REPOSITORY || "owner/repo";
-    let url;
-    try {
-      const serverHostname = new URL(githubServer).hostname;
-      if (serverHostname === "github.com") {
-        url = `https://raw.githubusercontent.com/${repo}/${normalizedBranchName}/${targetFileName}`;
-      } else {
-        // GitHub Enterprise Server - raw content is served from the same host with /raw/ path
-        url = `${githubServer}/${repo}/raw/${normalizedBranchName}/${targetFileName}`;
-      }
-    } catch {
-      url = `${githubServer}/${repo}/raw/${normalizedBranchName}/${targetFileName}`;
-    }
-
-    // Create entry for safe outputs
+    // Create entry for safe outputs — no URL yet, it is computed by the upload_assets job
     const entry = {
       type: "upload_asset",
       path: filePath,
       fileName: fileName,
       sha: sha,
       size: sizeBytes,
-      url: url,
-      targetFileName: targetFileName,
+      temporaryId: temporaryId,
     };
 
     appendSafeOutput(entry);
 
+    // Return the temporary ID. The agent should use it as a URL placeholder:
+    //   ![image](aw_XYZ123)
+    // The upload_assets job resolves this to the real artifact URL before
+    // issues/comments are created by the safe_outputs job.
     return {
       content: [
         {
           type: "text",
-          text: JSON.stringify({ result: url }),
+          text: JSON.stringify({ result: temporaryId }),
         },
       ],
     };

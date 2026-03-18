@@ -351,6 +351,12 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 		needs = append(needs, "unlock")
 		consolidatedSafeOutputsJobLog.Print("Added unlock job dependency to safe_outputs job")
 	}
+	// When upload-asset is configured, safe_outputs must run after upload_assets so that
+	// the asset URL map (temporaryId -> artifactUrl) is available for body text resolution.
+	if data.SafeOutputs.UploadAssets != nil {
+		needs = append(needs, "upload_assets")
+		consolidatedSafeOutputsJobLog.Print("Added upload_assets dependency to safe_outputs job")
+	}
 
 	// Extract workflow ID from markdown path for GH_AW_WORKFLOW_ID
 	workflowID := GetWorkflowIDFromPath(markdownPath)
@@ -454,6 +460,13 @@ func (c *Compiler) buildJobLevelSafeOutputEnvVars(data *WorkflowData, workflowID
 		} else if messagesJSON != "" {
 			envVars["GH_AW_SAFE_OUTPUT_MESSAGES"] = fmt.Sprintf("%q", messagesJSON)
 		}
+	}
+
+	// When upload-asset is configured, pass the asset URL map from the upload_assets job.
+	// The map (temporaryId -> artifactUrl) is used by create_issue/add_comment/create_discussion
+	// to replace asset temporary IDs with real artifact URLs before publishing content.
+	if data.SafeOutputs != nil && data.SafeOutputs.UploadAssets != nil {
+		envVars["GH_AW_ASSET_URL_MAP"] = "${{ needs.upload_assets.outputs.asset_url_map }}"
 	}
 
 	// Note: GH_AW_CI_TRIGGER_TOKEN is added at the step level (in buildHandlerManagerStep)

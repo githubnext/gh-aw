@@ -19,14 +19,12 @@ func TestParseUploadAssetConfig(t *testing.T) {
 			name: "upload-asset config with custom values",
 			input: map[string]any{
 				"upload-asset": map[string]any{
-					"branch":       "my-assets/${{ github.event.repository.name }}",
 					"max-size":     5120,
 					"allowed-exts": []any{".jpg", ".png", ".txt"},
 					"github-token": "${{ secrets.CUSTOM_TOKEN }}",
 				},
 			},
 			expected: &UploadAssetsConfig{
-				BranchName:           "my-assets/${{ github.event.repository.name }}",
 				MaxSizeKB:            5120,
 				AllowedExts:          []string{".jpg", ".png", ".txt"},
 				BaseSafeOutputConfig: BaseSafeOutputConfig{GitHubToken: "${{ secrets.CUSTOM_TOKEN }}"},
@@ -40,7 +38,6 @@ func TestParseUploadAssetConfig(t *testing.T) {
 				},
 			},
 			expected: &UploadAssetsConfig{
-				BranchName:           "assets/${{ github.workflow }}",
 				MaxSizeKB:            10240,
 				AllowedExts:          []string{".png", ".jpg", ".jpeg"},
 				BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("5")},
@@ -67,10 +64,6 @@ func TestParseUploadAssetConfig(t *testing.T) {
 			if result == nil {
 				t.Errorf("Expected %+v, got nil", tt.expected)
 				return
-			}
-
-			if result.BranchName != tt.expected.BranchName {
-				t.Errorf("BranchName: expected %s, got %s", tt.expected.BranchName, result.BranchName)
 			}
 
 			if result.MaxSizeKB != tt.expected.MaxSizeKB {
@@ -121,7 +114,6 @@ func TestUploadAssetsJobUsesFileInput(t *testing.T) {
 		Name: "Test Workflow",
 		SafeOutputs: &SafeOutputsConfig{
 			UploadAssets: &UploadAssetsConfig{
-				BranchName:  "assets/test",
 				MaxSizeKB:   10240,
 				AllowedExts: []string{".png", ".jpg"},
 			},
@@ -159,16 +151,17 @@ func TestUploadAssetsJobUsesFileInput(t *testing.T) {
 		t.Error("Should not use needs.*.outputs.output (JSON payload) - should use file path instead")
 	}
 
-	// Verify custom environment variables are present
-	if !strings.Contains(stepsStr, "GH_AW_ASSETS_BRANCH") {
-		t.Error("Expected GH_AW_ASSETS_BRANCH environment variable")
-	}
-
+	// Verify custom environment variables are present (no longer includes GH_AW_ASSETS_BRANCH)
 	if !strings.Contains(stepsStr, "GH_AW_ASSETS_MAX_SIZE_KB") {
 		t.Error("Expected GH_AW_ASSETS_MAX_SIZE_KB environment variable")
 	}
 
 	if !strings.Contains(stepsStr, "GH_AW_ASSETS_ALLOWED_EXTS") {
 		t.Error("Expected GH_AW_ASSETS_ALLOWED_EXTS environment variable")
+	}
+
+	// Verify asset_url_map output is present
+	if !strings.Contains(job.Outputs["asset_url_map"], "upload_assets.outputs.asset_url_map") {
+		t.Error("Expected asset_url_map output to reference upload_assets step output")
 	}
 }

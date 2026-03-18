@@ -776,7 +776,7 @@ func buildSafeOutputsSections(safeOutputs *SafeOutputsConfig) []PromptSection {
 	}
 	if safeOutputs.UploadAssets != nil {
 		sections = append(sections, PromptSection{
-			Content: "\nupload_asset: provide a file path; returns a URL; assets are published after the workflow completes (" + constants.SafeOutputsMCPServerID.String() + ").",
+			Content: "\nupload_asset: provide a file path; returns a temporary asset ID (e.g. aw_XYZ123); use the ID as a URL in markdown images: ![alt](aw_XYZ123); the ID is resolved to the real artifact URL before content is published (" + constants.SafeOutputsMCPServerID.String() + ").",
 			IsFile:  false,
 		})
 	}

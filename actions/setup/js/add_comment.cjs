@@ -8,7 +8,7 @@
 const { generateFooterWithMessages, generateXMLMarker } = require("./messages_footer.cjs");
 const { generateWorkflowCallIdMarker } = require("./generate_footer.cjs");
 const { getRepositoryUrl } = require("./get_repository_url.cjs");
-const { replaceTemporaryIdReferences, loadTemporaryIdMapFromResolved, resolveRepoIssueTarget } = require("./temporary_id.cjs");
+const { replaceTemporaryIdReferences, loadTemporaryIdMapFromResolved, resolveRepoIssueTarget, loadAssetUrlMap, replaceAssetIdReferences } = require("./temporary_id.cjs");
 const { getTrackerID } = require("./get_tracker_id.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { parseBoolTemplatable } = require("./templatable.cjs");
@@ -493,6 +493,10 @@ async function main(config = {}) {
 
     // Replace temporary ID references in body
     let processedBody = replaceTemporaryIdReferences(message.body || "", temporaryIdMap, itemRepo);
+
+    // Replace asset temporary ID references with actual artifact URLs (e.g. ![img](aw_XYZ) -> ![img](https://...))
+    const assetUrlMap = loadAssetUrlMap();
+    processedBody = replaceAssetIdReferences(processedBody, assetUrlMap);
 
     // Sanitize content to prevent injection attacks, allowing parent issue/PR/discussion authors
     // so they can be @mentioned in the generated comment.
