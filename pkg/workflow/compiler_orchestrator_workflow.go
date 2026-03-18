@@ -564,6 +564,87 @@ func (c *Compiler) mergeJobsFromYAMLImports(mainJobs map[string]any, mergedJobsJ
 	return result
 }
 
+// extractTopLevelGitHubApp extracts the 'github-app' field from the top-level frontmatter.
+// This provides a single GitHub App configuration that serves as a fallback for all nested
+// github-app token minting operations (on, safe-outputs, checkout, tools.github, dependencies).
+func extractTopLevelGitHubApp(frontmatter map[string]any) *GitHubAppConfig {
+	appAny, ok := frontmatter["github-app"]
+	if !ok {
+		return nil
+	}
+	appMap, ok := appAny.(map[string]any)
+	if !ok {
+		return nil
+	}
+	app := parseAppConfig(appMap)
+	if app.AppID == "" || app.PrivateKey == "" {
+		return nil
+	}
+	return app
+}
+
+// applyTopLevelGitHubAppFallbacks applies the top-level github-app as a fallback for all
+// nested github-app token minting operations when no section-specific github-app is configured.
+// Precedence: section-specific github-app > top-level github-app > no token minting.
+func applyTopLevelGitHubAppFallbacks(data *WorkflowData) {
+	fallback := data.TopLevelGitHubApp
+	if fallback == nil {
+		return
+	}
+
+	// Fallback for activation (on.github-app)
+	if data.ActivationGitHubApp == nil {
+		orchestratorWorkflowLog.Print("Applying top-level github-app fallback for activation")
+		data.ActivationGitHubApp = fallback
+	}
+
+	// Fallback for safe-outputs
+	if data.SafeOutputs != nil && data.SafeOutputs.GitHubApp == nil {
+		orchestratorWorkflowLog.Print("Applying top-level github-app fallback for safe-outputs")
+		data.SafeOutputs.GitHubApp = fallback
+	}
+
+	// Fallback for checkout configs: apply only when neither github-token nor github-app is set
+	for _, cfg := range data.CheckoutConfigs {
+		if cfg.GitHubApp == nil && cfg.GitHubToken == "" {
+			orchestratorWorkflowLog.Print("Applying top-level github-app fallback for checkout")
+			cfg.GitHubApp = fallback
+		}
+	}
+
+	// Fallback for tools.github (MCP GitHub token minting)
+	if data.ParsedTools != nil && data.ParsedTools.GitHub != nil && data.ParsedTools.GitHub.GitHubApp == nil {
+		orchestratorWorkflowLog.Print("Applying top-level github-app fallback for tools.github")
+		data.ParsedTools.GitHub.GitHubApp = fallback
+		// Also update the raw tools map so applyDefaultTools (called from applyDefaults in
+		// processOnSectionAndFilters) does not lose the fallback when it rebuilds ParsedTools
+		// from the map.
+		if github, ok := data.Tools["github"].(map[string]any); ok {
+			appMap := map[string]any{
+				"app-id":      fallback.AppID,
+				"private-key": fallback.PrivateKey,
+			}
+			if fallback.Owner != "" {
+				appMap["owner"] = fallback.Owner
+			}
+			if len(fallback.Repositories) > 0 {
+				repos := make([]any, len(fallback.Repositories))
+				for i, r := range fallback.Repositories {
+					repos[i] = r
+				}
+				appMap["repositories"] = repos
+			}
+			github["github-app"] = appMap
+		}
+	}
+
+	// Fallback for APM dependencies
+	if data.APMDependencies != nil && data.APMDependencies.GitHubApp == nil {
+		orchestratorWorkflowLog.Print("Applying top-level github-app fallback for dependencies")
+		data.APMDependencies.GitHubApp = fallback
+	}
+}
+
 // extractAdditionalConfigurations extracts cache-memory, repo-memory, mcp-scripts, and safe-outputs configurations
 func (c *Compiler) extractAdditionalConfigurations(
 	frontmatter map[string]any,
@@ -611,6 +692,7 @@ func (c *Compiler) extractAdditionalConfigurations(
 	workflowData.SkipBots = c.mergeSkipBots(c.extractSkipBots(frontmatter), importsResult.MergedSkipBots)
 	workflowData.ActivationGitHubToken = c.resolveActivationGitHubToken(frontmatter, importsResult)
 	workflowData.ActivationGitHubApp = c.resolveActivationGitHubApp(frontmatter, importsResult)
+	workflowData.TopLevelGitHubApp = extractTopLevelGitHubApp(frontmatter)
 
 	// Use the already extracted output configuration
 	workflowData.SafeOutputs = safeOutputs
@@ -677,6 +759,10 @@ func (c *Compiler) extractAdditionalConfigurations(
 	// Auto-inject create-issues if safe-outputs is configured but has no non-builtin outputs.
 	// This ensures every workflow with safe-outputs has at least one meaningful action handler.
 	applyDefaultCreateIssue(workflowData)
+
+	// Apply the top-level github-app as a fallback for all nested github-app token minting operations.
+	// This runs last so that all section-specific configurations have been resolved first.
+	applyTopLevelGitHubAppFallbacks(workflowData)
 
 	return nil
 }
