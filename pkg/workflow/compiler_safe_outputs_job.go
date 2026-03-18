@@ -73,6 +73,13 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 		steps = append(steps, checkoutSteps...)
 	}
 
+	// Configure GH_HOST for GHES/GHEC compatibility.
+	// The safe-outputs job runs as an independent GitHub Actions job and does not
+	// inherit GITHUB_ENV from the agent job. User-provided steps (below) and future
+	// safe-output handlers that invoke the gh CLI need GH_HOST to target the
+	// correct enterprise instance.
+	steps = append(steps, generateGHESHostConfigurationStep())
+
 	// Add user-provided steps after checkout/setup, before safe-output code
 	if len(data.SafeOutputs.Steps) > 0 {
 		consolidatedSafeOutputsJobLog.Printf("Adding %d user-provided steps to safe-outputs job", len(data.SafeOutputs.Steps))

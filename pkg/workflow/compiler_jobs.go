@@ -707,6 +707,12 @@ func (c *Compiler) buildCustomJobs(data *WorkflowData, activationJobCreated bool
 				// Add basic steps if specified (only for non-reusable workflow jobs)
 				if steps, hasSteps := configMap["steps"]; hasSteps {
 					if stepsList, ok := steps.([]any); ok {
+						// Prepend GH_HOST configuration step for GHES/GHEC compatibility.
+						// Custom frontmatter jobs run as independent GitHub Actions jobs that
+						// don't inherit GITHUB_ENV from the agent job, so the gh CLI won't
+						// know which host to target without this step.
+						job.Steps = append(job.Steps, generateGHESHostConfigurationStep())
+
 						for _, step := range stepsList {
 							if stepMap, ok := step.(map[string]any); ok {
 								// Convert to typed step for action pinning
