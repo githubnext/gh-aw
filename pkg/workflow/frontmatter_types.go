@@ -66,7 +66,6 @@ type GitHubAppPermissionsConfig struct {
 	OrganizationHooks                   string `json:"organization-hooks,omitempty"`
 	OrganizationMembers                 string `json:"organization-members,omitempty"`
 	OrganizationPackages                string `json:"organization-packages,omitempty"`
-	OrganizationSecrets                 string `json:"organization-secrets,omitempty"`
 	OrganizationSelfHostedRunners       string `json:"organization-self-hosted-runners,omitempty"`
 	OrganizationCustomOrgRoles          string `json:"organization-custom-org-roles,omitempty"`
 	OrganizationCustomProperties        string `json:"organization-custom-properties,omitempty"`
@@ -81,7 +80,6 @@ type GitHubAppPermissionsConfig struct {
 	OrganizationCodespaces              string `json:"organization-codespaces,omitempty"`
 	// Repository-level permissions
 	Administration             string `json:"administration,omitempty"`
-	Secrets                    string `json:"secrets,omitempty"`
 	Environments               string `json:"environments,omitempty"`
 	GitSigning                 string `json:"git-signing,omitempty"`
 	VulnerabilityAlerts        string `json:"vulnerability-alerts,omitempty"`
@@ -89,13 +87,11 @@ type GitHubAppPermissionsConfig struct {
 	RepositoryHooks            string `json:"repository-hooks,omitempty"`
 	SingleFile                 string `json:"single-file,omitempty"`
 	Codespaces                 string `json:"codespaces,omitempty"`
-	DependabotSecrets          string `json:"dependabot-secrets,omitempty"`
 	RepositoryCustomProperties string `json:"repository-custom-properties,omitempty"`
 	// User-level permissions
 	EmailAddresses           string `json:"email-addresses,omitempty"`
 	CodespacesLifecycleAdmin string `json:"codespaces-lifecycle-admin,omitempty"`
 	CodespacesMetadata       string `json:"codespaces-metadata,omitempty"`
-	CodespacesSecrets        string `json:"codespaces-secrets,omitempty"`
 }
 
 // PermissionsConfig represents GitHub Actions permissions configuration.
@@ -442,8 +438,6 @@ func parsePermissionsConfig(permissions map[string]any) (*PermissionsConfig, err
 			// GitHub App-only permission scopes
 			case "administration":
 				config.Administration = levelStr
-			case "secrets":
-				config.Secrets = levelStr
 			case "environments":
 				config.Environments = levelStr
 			case "git-signing":
@@ -458,8 +452,6 @@ func parsePermissionsConfig(permissions map[string]any) (*PermissionsConfig, err
 				config.SingleFile = levelStr
 			case "codespaces":
 				config.Codespaces = levelStr
-			case "dependabot-secrets":
-				config.DependabotSecrets = levelStr
 			case "repository-custom-properties":
 				config.RepositoryCustomProperties = levelStr
 			case "members":
@@ -474,8 +466,6 @@ func parsePermissionsConfig(permissions map[string]any) (*PermissionsConfig, err
 				config.OrganizationMembers = levelStr
 			case "organization-packages":
 				config.OrganizationPackages = levelStr
-			case "organization-secrets":
-				config.OrganizationSecrets = levelStr
 			case "organization-self-hosted-runners":
 				config.OrganizationSelfHostedRunners = levelStr
 			case "organization-custom-org-roles":
@@ -506,8 +496,6 @@ func parsePermissionsConfig(permissions map[string]any) (*PermissionsConfig, err
 				config.CodespacesLifecycleAdmin = levelStr
 			case "codespaces-metadata":
 				config.CodespacesMetadata = levelStr
-			case "codespaces-secrets":
-				config.CodespacesSecrets = levelStr
 			}
 		}
 	}
@@ -937,9 +925,6 @@ func permissionsConfigToMap(config *PermissionsConfig) map[string]any {
 	if config.Administration != "" {
 		result["administration"] = config.Administration
 	}
-	if config.Secrets != "" {
-		result["secrets"] = config.Secrets
-	}
 	if config.Environments != "" {
 		result["environments"] = config.Environments
 	}
@@ -960,9 +945,6 @@ func permissionsConfigToMap(config *PermissionsConfig) map[string]any {
 	}
 	if config.Codespaces != "" {
 		result["codespaces"] = config.Codespaces
-	}
-	if config.DependabotSecrets != "" {
-		result["dependabot-secrets"] = config.DependabotSecrets
 	}
 	if config.RepositoryCustomProperties != "" {
 		result["repository-custom-properties"] = config.RepositoryCustomProperties
@@ -986,9 +968,6 @@ func permissionsConfigToMap(config *PermissionsConfig) map[string]any {
 	}
 	if config.OrganizationPackages != "" {
 		result["organization-packages"] = config.OrganizationPackages
-	}
-	if config.OrganizationSecrets != "" {
-		result["organization-secrets"] = config.OrganizationSecrets
 	}
 	if config.OrganizationSelfHostedRunners != "" {
 		result["organization-self-hosted-runners"] = config.OrganizationSelfHostedRunners
@@ -1036,9 +1015,6 @@ func permissionsConfigToMap(config *PermissionsConfig) map[string]any {
 	}
 	if config.CodespacesMetadata != "" {
 		result["codespaces-metadata"] = config.CodespacesMetadata
-	}
-	if config.CodespacesSecrets != "" {
-		result["codespaces-secrets"] = config.CodespacesSecrets
 	}
 
 	if len(result) == 0 {

@@ -57,8 +57,6 @@ func convertStringToPermissionScope(key string) PermissionScope {
 		return PermissionMembers
 	case "organization-administration":
 		return PermissionOrganizationAdministration
-	case "secrets":
-		return PermissionSecrets
 	case "environments":
 		return PermissionEnvironments
 	case "git-signing":
@@ -77,16 +75,12 @@ func convertStringToPermissionScope(key string) PermissionScope {
 		return PermissionOrganizationMembers
 	case "organization-packages":
 		return PermissionOrganizationPackages
-	case "organization-secrets":
-		return PermissionOrganizationSecrets
 	case "organization-self-hosted-runners":
 		return PermissionOrganizationSelfHostedRunners
 	case "single-file":
 		return PermissionSingleFile
 	case "codespaces":
 		return PermissionCodespaces
-	case "dependabot-secrets":
-		return PermissionDependabotSecrets
 	case "email-addresses":
 		return PermissionEmailAddresses
 	case "repository-custom-properties":
@@ -117,8 +111,6 @@ func convertStringToPermissionScope(key string) PermissionScope {
 		return PermissionCodespacesLifecycleAdmin
 	case "codespaces-metadata":
 		return PermissionCodespacesMetadata
-	case "codespaces-secrets":
-		return PermissionCodespacesSecrets
 	case "all":
 		// "all" is a meta-key handled at the parser level; it is not a real scope
 		return ""
@@ -170,7 +162,6 @@ const (
 
 	// Repository-level GitHub App permissions
 	PermissionAdministration             PermissionScope = "administration"
-	PermissionSecrets                    PermissionScope = "secrets"
 	PermissionEnvironments               PermissionScope = "environments"
 	PermissionGitSigning                 PermissionScope = "git-signing"
 	PermissionVulnerabilityAlerts        PermissionScope = "vulnerability-alerts"
@@ -178,7 +169,6 @@ const (
 	PermissionRepositoryHooks            PermissionScope = "repository-hooks"
 	PermissionSingleFile                 PermissionScope = "single-file"
 	PermissionCodespaces                 PermissionScope = "codespaces"
-	PermissionDependabotSecrets          PermissionScope = "dependabot-secrets"
 	PermissionRepositoryCustomProperties PermissionScope = "repository-custom-properties"
 
 	// Organization-level GitHub App permissions
@@ -188,7 +178,6 @@ const (
 	PermissionOrganizationHooks                   PermissionScope = "organization-hooks"
 	PermissionOrganizationMembers                 PermissionScope = "organization-members"
 	PermissionOrganizationPackages                PermissionScope = "organization-packages"
-	PermissionOrganizationSecrets                 PermissionScope = "organization-secrets"
 	PermissionOrganizationSelfHostedRunners       PermissionScope = "organization-self-hosted-runners"
 	PermissionOrganizationCustomOrgRoles          PermissionScope = "organization-custom-org-roles"
 	PermissionOrganizationCustomProperties        PermissionScope = "organization-custom-properties"
@@ -206,7 +195,6 @@ const (
 	PermissionEmailAddresses           PermissionScope = "email-addresses"
 	PermissionCodespacesLifecycleAdmin PermissionScope = "codespaces-lifecycle-admin"
 	PermissionCodespacesMetadata       PermissionScope = "codespaces-metadata"
-	PermissionCodespacesSecrets        PermissionScope = "codespaces-secrets"
 )
 
 // GetAllPermissionScopes returns all GitHub Actions permission scopes (supported by GITHUB_TOKEN).
@@ -240,7 +228,6 @@ func GetAllGitHubAppOnlyScopes() []PermissionScope {
 	return []PermissionScope{
 		// Repository-level GitHub App permissions
 		PermissionAdministration,
-		PermissionSecrets,
 		PermissionEnvironments,
 		PermissionGitSigning,
 		PermissionVulnerabilityAlerts,
@@ -248,7 +235,6 @@ func GetAllGitHubAppOnlyScopes() []PermissionScope {
 		PermissionRepositoryHooks,
 		PermissionSingleFile,
 		PermissionCodespaces,
-		PermissionDependabotSecrets,
 		PermissionRepositoryCustomProperties,
 		// Organization-level GitHub App permissions
 		PermissionOrganizationProj,
@@ -258,7 +244,6 @@ func GetAllGitHubAppOnlyScopes() []PermissionScope {
 		PermissionOrganizationHooks,
 		PermissionOrganizationMembers,
 		PermissionOrganizationPackages,
-		PermissionOrganizationSecrets,
 		PermissionOrganizationSelfHostedRunners,
 		PermissionOrganizationCustomOrgRoles,
 		PermissionOrganizationCustomProperties,
@@ -275,7 +260,6 @@ func GetAllGitHubAppOnlyScopes() []PermissionScope {
 		PermissionEmailAddresses,
 		PermissionCodespacesLifecycleAdmin,
 		PermissionCodespacesMetadata,
-		PermissionCodespacesSecrets,
 	}
 }
 

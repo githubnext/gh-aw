@@ -255,9 +255,6 @@ func convertPermissionsToAppTokenFields(permissions *Permissions) map[string]str
 	if level, ok := permissions.GetExplicit(PermissionAdministration); ok {
 		fields["permission-administration"] = string(level)
 	}
-	if level, ok := permissions.GetExplicit(PermissionSecrets); ok {
-		fields["permission-secrets"] = string(level)
-	}
 	if level, ok := permissions.GetExplicit(PermissionEnvironments); ok {
 		fields["permission-environments"] = string(level)
 	}
@@ -278,9 +275,6 @@ func convertPermissionsToAppTokenFields(permissions *Permissions) map[string]str
 	}
 	if level, ok := permissions.GetExplicit(PermissionCodespaces); ok {
 		fields["permission-codespaces"] = string(level)
-	}
-	if level, ok := permissions.GetExplicit(PermissionDependabotSecrets); ok {
-		fields["permission-dependabot-secrets"] = string(level)
 	}
 	if level, ok := permissions.GetExplicit(PermissionRepositoryCustomProperties); ok {
 		fields["permission-repository-custom-properties"] = string(level)
@@ -306,9 +300,6 @@ func convertPermissionsToAppTokenFields(permissions *Permissions) map[string]str
 	}
 	if level, ok := permissions.GetExplicit(PermissionOrganizationPackages); ok {
 		fields["permission-organization-packages"] = string(level)
-	}
-	if level, ok := permissions.GetExplicit(PermissionOrganizationSecrets); ok {
-		fields["permission-organization-secrets"] = string(level)
 	}
 	if level, ok := permissions.GetExplicit(PermissionOrganizationSelfHostedRunners); ok {
 		fields["permission-organization-self-hosted-runners"] = string(level)
@@ -355,9 +346,6 @@ func convertPermissionsToAppTokenFields(permissions *Permissions) map[string]str
 	}
 	if level, ok := permissions.GetExplicit(PermissionCodespacesMetadata); ok {
 		fields["permission-codespaces-metadata"] = string(level)
-	}
-	if level, ok := permissions.GetExplicit(PermissionCodespacesSecrets); ok {
-		fields["permission-codespaces-secrets"] = string(level)
 	}
 
 	// Note: The following GitHub Actions permissions do NOT have GitHub App equivalents

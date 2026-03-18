@@ -46,12 +46,6 @@ func TestValidateGitHubAppOnlyPermissions(t *testing.T) {
 			errorContains: "GitHub App-only permissions require a GitHub App",
 		},
 		{
-			name:          "secrets permission without github-app - should error",
-			permissions:   "permissions:\n  secrets: read",
-			shouldError:   true,
-			errorContains: "GitHub App-only permissions require a GitHub App",
-		},
-		{
 			name:        "members permission with tools.github.github-app - should pass",
 			permissions: "permissions:\n  members: read",
 			parsedTools: &ToolsConfig{
@@ -83,12 +77,6 @@ func TestValidateGitHubAppOnlyPermissions(t *testing.T) {
 				PrivateKey: "${{ secrets.APP_PRIVATE_KEY }}",
 			},
 			shouldError: false,
-		},
-		{
-			name:          "organization-secrets permission without github-app - should error",
-			permissions:   "permissions:\n  organization-secrets: read",
-			shouldError:   true,
-			errorContains: "organization-secrets",
 		},
 		{
 			name:          "workflows permission without github-app - should error",
@@ -189,7 +177,6 @@ func TestIsGitHubAppOnlyScope(t *testing.T) {
 		{PermissionAdministration, true},
 		{PermissionMembers, true},
 		{PermissionOrganizationAdministration, true},
-		{PermissionSecrets, true},
 		{PermissionEnvironments, true},
 		{PermissionGitSigning, true},
 		{PermissionTeamDiscussions, true},
@@ -199,11 +186,9 @@ func TestIsGitHubAppOnlyScope(t *testing.T) {
 		{PermissionOrganizationHooks, true},
 		{PermissionOrganizationMembers, true},
 		{PermissionOrganizationPackages, true},
-		{PermissionOrganizationSecrets, true},
 		{PermissionOrganizationSelfHostedRunners, true},
 		{PermissionSingleFile, true},
 		{PermissionCodespaces, true},
-		{PermissionDependabotSecrets, true},
 		{PermissionEmailAddresses, true},
 	}
 
@@ -228,11 +213,9 @@ func TestGetAllGitHubAppOnlyScopes(t *testing.T) {
 		PermissionAdministration,
 		PermissionMembers,
 		PermissionOrganizationAdministration,
-		PermissionSecrets,
 		PermissionEnvironments,
 		PermissionWorkflows,
 		PermissionVulnerabilityAlerts,
-		PermissionOrganizationSecrets,
 		PermissionOrganizationPackages,
 	}
 
@@ -376,17 +359,6 @@ func TestConvertPermissionsToAppTokenFields_GitHubAppOnly(t *testing.T) {
 			},
 		},
 		{
-			name: "organization-secrets permission maps correctly",
-			permissions: func() *Permissions {
-				p := NewPermissions()
-				p.Set(PermissionOrganizationSecrets, PermissionRead)
-				return p
-			}(),
-			expectedFields: map[string]string{
-				"permission-organization-secrets": "read",
-			},
-		},
-		{
 			name: "workflows permission maps to permission-workflows",
 			permissions: func() *Permissions {
 				p := NewPermissions()
@@ -444,7 +416,6 @@ func TestConvertPermissionsToAppTokenFields_GitHubAppOnly(t *testing.T) {
 			absentFields: []string{
 				"permission-members",
 				"permission-administration",
-				"permission-organization-secrets",
 				"permission-workflows",
 				"permission-organization-projects",
 			},
@@ -455,7 +426,6 @@ func TestConvertPermissionsToAppTokenFields_GitHubAppOnly(t *testing.T) {
 			absentFields: []string{
 				"permission-members",
 				"permission-administration",
-				"permission-organization-secrets",
 			},
 		},
 	}
