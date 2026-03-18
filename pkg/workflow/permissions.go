@@ -88,7 +88,7 @@ func convertStringToPermissionScope(key string) PermissionScope {
 	case "email-addresses":
 		return PermissionEmailAddresses
 	case "repository-custom-properties":
-		return PermissionRepositoryCustomProps
+		return PermissionRepositoryCustomProperties
 	case "organization-custom-org-roles":
 		return PermissionOrganizationCustomOrgRoles
 	case "organization-custom-properties":
@@ -167,17 +167,17 @@ const (
 	// as permission-* inputs when minting GitHub App installation access tokens.
 
 	// Repository-level GitHub App permissions
-	PermissionAdministration        PermissionScope = "administration"
-	PermissionSecrets               PermissionScope = "secrets"
-	PermissionEnvironments          PermissionScope = "environments"
-	PermissionGitSigning            PermissionScope = "git-signing"
-	PermissionVulnerabilityAlerts   PermissionScope = "vulnerability-alerts"
-	PermissionWorkflows             PermissionScope = "workflows"
-	PermissionRepositoryHooks       PermissionScope = "repository-hooks"
-	PermissionSingleFile            PermissionScope = "single-file"
-	PermissionCodespaces            PermissionScope = "codespaces"
-	PermissionDependabotSecrets     PermissionScope = "dependabot-secrets"
-	PermissionRepositoryCustomProps PermissionScope = "repository-custom-properties"
+	PermissionAdministration             PermissionScope = "administration"
+	PermissionSecrets                    PermissionScope = "secrets"
+	PermissionEnvironments               PermissionScope = "environments"
+	PermissionGitSigning                 PermissionScope = "git-signing"
+	PermissionVulnerabilityAlerts        PermissionScope = "vulnerability-alerts"
+	PermissionWorkflows                  PermissionScope = "workflows"
+	PermissionRepositoryHooks            PermissionScope = "repository-hooks"
+	PermissionSingleFile                 PermissionScope = "single-file"
+	PermissionCodespaces                 PermissionScope = "codespaces"
+	PermissionDependabotSecrets          PermissionScope = "dependabot-secrets"
+	PermissionRepositoryCustomProperties PermissionScope = "repository-custom-properties"
 
 	// Organization-level GitHub App permissions
 	PermissionMembers                             PermissionScope = "members"
@@ -247,7 +247,7 @@ func GetAllGitHubAppOnlyScopes() []PermissionScope {
 		PermissionSingleFile,
 		PermissionCodespaces,
 		PermissionDependabotSecrets,
-		PermissionRepositoryCustomProps,
+		PermissionRepositoryCustomProperties,
 		// Organization-level GitHub App permissions
 		PermissionOrganizationProj,
 		PermissionMembers,

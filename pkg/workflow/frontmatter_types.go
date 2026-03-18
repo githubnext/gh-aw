@@ -62,17 +62,17 @@ type PermissionsConfig struct {
 	// GitHub App-only permission scopes (not supported by GITHUB_TOKEN).
 	// When any of these are specified, a GitHub App must be configured in the workflow.
 	// Repository-level
-	Administration        string `json:"administration,omitempty"`
-	Secrets               string `json:"secrets,omitempty"`
-	Environments          string `json:"environments,omitempty"`
-	GitSigning            string `json:"git-signing,omitempty"`
-	VulnerabilityAlerts   string `json:"vulnerability-alerts,omitempty"`
-	Workflows             string `json:"workflows,omitempty"`
-	RepositoryHooks       string `json:"repository-hooks,omitempty"`
-	SingleFile            string `json:"single-file,omitempty"`
-	Codespaces            string `json:"codespaces,omitempty"`
-	DependabotSecrets     string `json:"dependabot-secrets,omitempty"`
-	RepositoryCustomProps string `json:"repository-custom-properties,omitempty"`
+	Administration             string `json:"administration,omitempty"`
+	Secrets                    string `json:"secrets,omitempty"`
+	Environments               string `json:"environments,omitempty"`
+	GitSigning                 string `json:"git-signing,omitempty"`
+	VulnerabilityAlerts        string `json:"vulnerability-alerts,omitempty"`
+	Workflows                  string `json:"workflows,omitempty"`
+	RepositoryHooks            string `json:"repository-hooks,omitempty"`
+	SingleFile                 string `json:"single-file,omitempty"`
+	Codespaces                 string `json:"codespaces,omitempty"`
+	DependabotSecrets          string `json:"dependabot-secrets,omitempty"`
+	RepositoryCustomProperties string `json:"repository-custom-properties,omitempty"`
 	// Organization-level
 	Members                             string `json:"members,omitempty"`
 	OrganizationAdministration          string `json:"organization-administration,omitempty"`
@@ -448,7 +448,7 @@ func parsePermissionsConfig(permissions map[string]any) (*PermissionsConfig, err
 			case "dependabot-secrets":
 				config.DependabotSecrets = levelStr
 			case "repository-custom-properties":
-				config.RepositoryCustomProps = levelStr
+				config.RepositoryCustomProperties = levelStr
 			case "members":
 				config.Members = levelStr
 			case "organization-administration":
@@ -951,8 +951,8 @@ func permissionsConfigToMap(config *PermissionsConfig) map[string]any {
 	if config.DependabotSecrets != "" {
 		result["dependabot-secrets"] = config.DependabotSecrets
 	}
-	if config.RepositoryCustomProps != "" {
-		result["repository-custom-properties"] = config.RepositoryCustomProps
+	if config.RepositoryCustomProperties != "" {
+		result["repository-custom-properties"] = config.RepositoryCustomProperties
 	}
 
 	// GitHub App-only permission scopes - organization-level

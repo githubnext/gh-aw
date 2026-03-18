@@ -277,7 +277,7 @@ func convertPermissionsToAppTokenFields(permissions *Permissions) map[string]str
 	if level, ok := permissions.Get(PermissionDependabotSecrets); ok {
 		fields["permission-dependabot-secrets"] = string(level)
 	}
-	if level, ok := permissions.Get(PermissionRepositoryCustomProps); ok {
+	if level, ok := permissions.Get(PermissionRepositoryCustomProperties); ok {
 		fields["permission-repository-custom-properties"] = string(level)
 	}
 	// Organization-level
