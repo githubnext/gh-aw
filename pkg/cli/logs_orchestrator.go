@@ -328,7 +328,7 @@ func DownloadWorkflowLogs(ctx context.Context, workflowName string, count int, s
 				}
 
 				processedRun := ProcessedRun{
-					Run:                     result.Run,
+					Run:                     run,
 					AccessAnalysis:          result.AccessAnalysis,
 					FirewallAnalysis:        result.FirewallAnalysis,
 					RedactedDomainsAnalysis: result.RedactedDomainsAnalysis,
