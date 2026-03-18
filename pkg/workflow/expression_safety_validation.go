@@ -32,6 +32,8 @@ var (
 	// comparisonExtractionRegex extracts property accesses from comparison expressions
 	// Matches patterns like "github.workflow == 'value'" and extracts "github.workflow"
 	comparisonExtractionRegex = regexp.MustCompile(`([a-zA-Z_][a-zA-Z0-9_.]*)\s*(?:==|!=|<|>|<=|>=)\s*`)
+	// orExpressionPattern matches "left || right" for fallback literal/expression checking
+	orExpressionPattern = regexp.MustCompile(`^(.+?)\s*\|\|\s*(.+)$`)
 )
 
 // validateExpressionSafety checks that all GitHub Actions expressions in the markdown content
@@ -212,8 +214,7 @@ func validateSingleExpression(expression string, opts ExpressionValidationOption
 
 	// Check for OR expressions with literals (e.g., "inputs.repository || 'default'")
 	if !allowed {
-		orPattern := regexp.MustCompile(`^(.+?)\s*\|\|\s*(.+)$`)
-		orMatch := orPattern.FindStringSubmatch(expression)
+		orMatch := orExpressionPattern.FindStringSubmatch(expression)
 		if len(orMatch) > 2 {
 			leftExpr := strings.TrimSpace(orMatch[1])
 			rightExpr := strings.TrimSpace(orMatch[2])
@@ -290,10 +291,4 @@ func validateSingleExpression(expression string, opts ExpressionValidationOption
 // containsExpression checks if an expression is in the list
 func containsExpression(list *[]string, expr string) bool {
 	return slices.Contains(*list, expr)
-}
-
-// containsLogicalOperators checks if an expression contains logical operators (&&, ||, !).
-// Note: '!=' also matches '!' — this is acceptable since the expression parser handles it.
-func containsLogicalOperators(expr string) bool {
-	return strings.Contains(expr, "&&") || strings.Contains(expr, "||") || strings.Contains(expr, "!")
 }

@@ -228,3 +228,9 @@ func validateBalancedQuotes(expr string) error {
 
 	return nil
 }
+
+// containsLogicalOperators checks if an expression contains logical operators (&&, ||, !).
+// Note: '!=' also matches '!' — this is acceptable since the expression parser handles it.
+func containsLogicalOperators(expr string) bool {
+	return strings.Contains(expr, "&&") || strings.Contains(expr, "||") || strings.Contains(expr, "!")
+}

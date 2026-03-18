@@ -24,6 +24,12 @@ import (
 	"strings"
 )
 
+// runtimeImportMacroRe matches {{#runtime-import filepath}} or {{#runtime-import? filepath}}.
+var runtimeImportMacroRe = regexp.MustCompile(`\{\{#runtime-import\??[ \t]+([^\}]+)\}\}`)
+
+// lineRangeRe matches a line range suffix of the form "digits-digits" (e.g., "10-20").
+var lineRangeRe = regexp.MustCompile(`^\d+-\d+$`)
+
 // extractRuntimeImportPaths extracts all runtime-import file paths from markdown content.
 // Returns a list of file paths (not URLs) referenced in {{#runtime-import}} macros.
 // URLs (http:// or https://) are excluded since they are validated separately.
@@ -35,35 +41,37 @@ func extractRuntimeImportPaths(markdownContent string) []string {
 	var paths []string
 	seen := make(map[string]bool)
 
-	// Pattern to match {{#runtime-import filepath}} or {{#runtime-import? filepath}}
-	// Also handles line ranges like filepath:10-20
-	macroPattern := `\{\{#runtime-import\??[ \t]+([^\}]+)\}\}`
-	macroRe := regexp.MustCompile(macroPattern)
-	matches := macroRe.FindAllStringSubmatch(markdownContent, -1)
+	matches := runtimeImportMacroRe.FindAllStringSubmatch(markdownContent, -1)
 
 	for _, match := range matches {
 		if len(match) > 1 {
 			pathWithRange := strings.TrimSpace(match[1])
 
+			// Skip macros with empty or whitespace-only targets
+			if pathWithRange == "" {
+				expressionValidationLog.Print("Skipping runtime-import macro with empty target")
+				continue
+			}
+
 			// Remove line range if present (e.g., "file.md:10-20" -> "file.md")
-			filepath := pathWithRange
+			importPath := pathWithRange
 			if colonIdx := strings.Index(pathWithRange, ":"); colonIdx > 0 {
 				// Check if what follows colon looks like a line range (digits-digits)
 				afterColon := pathWithRange[colonIdx+1:]
-				if regexp.MustCompile(`^\d+-\d+$`).MatchString(afterColon) {
-					filepath = pathWithRange[:colonIdx]
+				if lineRangeRe.MatchString(afterColon) {
+					importPath = pathWithRange[:colonIdx]
 				}
 			}
 
 			// Skip URLs - they don't need file validation
-			if strings.HasPrefix(filepath, "http://") || strings.HasPrefix(filepath, "https://") {
+			if strings.HasPrefix(importPath, "http://") || strings.HasPrefix(importPath, "https://") {
 				continue
 			}
 
 			// Add to list if not already seen
-			if !seen[filepath] {
-				paths = append(paths, filepath)
-				seen[filepath] = true
+			if !seen[importPath] {
+				paths = append(paths, importPath)
+				seen[importPath] = true
 			}
 		}
 	}
@@ -116,10 +124,8 @@ func validateRuntimeImportFiles(markdownContent string, workspaceDir string) err
 			continue
 		}
 
-		// Check if file exists
+		// Check if file exists; missing files (optional or not) are deferred to runtime
 		if _, err := os.Stat(absolutePath); os.IsNotExist(err) {
-			// Skip validation for optional imports ({{#runtime-import? ...}})
-			// We can't determine if it's optional here, but missing files will be caught at runtime
 			expressionValidationLog.Printf("Skipping validation for non-existent file: %s", filePath)
 			continue
 		}
