@@ -305,6 +305,78 @@ If this command fails, the account associated with the token does not have a val
 > [!NOTE]
 > The `COPILOT_GITHUB_TOKEN` must belong to a user account with an active GitHub Copilot subscription. Organization-managed Copilot licenses may have additional restrictions on programmatic API access.
 
+## GitHub Enterprise Server Issues
+
+### Copilot Engine Prerequisites on GHES
+
+Before running Copilot-based workflows on GHES, verify the following:
+
+**Site admin requirements:**
+- **GitHub Connect** must be enabled — it connects GHES to github.com for Copilot cloud services.
+- **Copilot licensing** must be purchased and activated at the enterprise level.
+- The firewall must allow outbound HTTPS to `api.githubcopilot.com` and `api.enterprise.githubcopilot.com`.
+
+**Enterprise/org admin requirements:**
+- Copilot seats must be assigned to the user whose PAT is used as `COPILOT_GITHUB_TOKEN`.
+- The organization's Copilot policy must allow Copilot usage.
+
+**Workflow configuration:**
+
+```aw wrap
+engine:
+  id: copilot
+  api-target: api.enterprise.githubcopilot.com
+network:
+  allowed:
+    - defaults
+    - api.enterprise.githubcopilot.com
+```
+
+See [Enterprise API Endpoint](/gh-aw/reference/engines/#enterprise-api-endpoint-api-target) for GHEC/GHES `api-target` values.
+
+### Copilot GHES: Common Error Messages
+
+**`Error loading models: 400 Bad Request`**
+
+Copilot is not licensed at the enterprise level or the API proxy is routing incorrectly. Verify enterprise Copilot settings and confirm GitHub Connect is enabled.
+
+**`403 "unauthorized: not licensed to use Copilot"`**
+
+No Copilot license or seat is assigned to the PAT owner. Contact the site admin to enable Copilot at the enterprise level, then have an org admin assign a seat to the token owner.
+
+**`403 "Resource not accessible by personal access token"`**
+
+Wrong token type or missing permissions. Use a fine-grained PAT with the **Copilot Requests: Read** account permission, or a classic PAT with the `copilot` scope. See [`COPILOT_GITHUB_TOKEN`](/gh-aw/reference/auth/#copilot_github_token) for setup instructions.
+
+**`Could not resolve to a Repository`**
+
+`GH_HOST` is not set when running `gh` commands. This typically occurs in custom frontmatter jobs from older compiled workflows. Recompile with `gh aw compile` — compiled workflows now automatically export `GH_HOST` in custom jobs.
+
+For local CLI commands (`gh aw audit`, `gh aw add-wizard`), ensure you are inside a GHES repository clone or set `GH_HOST` explicitly:
+
+```bash wrap
+GH_HOST=github.company.com gh aw audit <run-id>
+```
+
+**Firewall blocks outbound HTTPS to `api.<ghes-host>`**
+
+Add the GHES domain to your workflow's allowed list:
+
+```aw wrap
+engine:
+  id: copilot
+  api-target: api.company.ghe.com
+network:
+  allowed:
+    - defaults
+    - company.ghe.com
+    - api.company.ghe.com
+```
+
+**`gh aw add-wizard` or `gh aw init` creates a PR on github.com instead of GHES**
+
+Run these commands from inside a GHES repository clone — they auto-detect the GHES host from the git remote. If PR creation still fails, use `gh aw add` to generate the workflow file, then create the PR manually with `gh pr create`.
+
 ## Context Expression Issues
 
 ### Unauthorized Expression

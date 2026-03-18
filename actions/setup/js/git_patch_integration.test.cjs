@@ -739,6 +739,51 @@ describe("git patch integration tests", () => {
       }
     });
 
+    it("should fall back to existing remote tracking ref when fetch fails in incremental mode", async () => {
+      // Simulate a shallow checkout scenario:
+      // 1. feature-branch is created, first commit pushed to origin (origin/feature-branch exists)
+      // 2. Agent adds a new commit locally
+      // 3. Remote URL is broken so git fetch fails
+      // 4. We expect patch generation to succeed using the existing origin/feature-branch ref
+      execGit(["checkout", "-b", "shallow-fetch-fail"], { cwd: workingRepo });
+      fs.writeFileSync(path.join(workingRepo, "base.txt"), "Base content\n");
+      execGit(["add", "base.txt"], { cwd: workingRepo });
+      execGit(["commit", "-m", "Base commit (already on remote)"], { cwd: workingRepo });
+
+      // Push so origin/shallow-fetch-fail tracking ref is set up (simulating shallow checkout)
+      execGit(["push", "-u", "origin", "shallow-fetch-fail"], { cwd: workingRepo });
+
+      // Add a new commit (the agent's work)
+      fs.writeFileSync(path.join(workingRepo, "agent-change.txt"), "Agent change\n");
+      execGit(["add", "agent-change.txt"], { cwd: workingRepo });
+      execGit(["commit", "-m", "Agent commit - should appear in patch"], { cwd: workingRepo });
+
+      // Break the remote URL to simulate fetch failure (e.g. missing credentials or network issue)
+      execGit(["remote", "set-url", "origin", "https://invalid.example.invalid/nonexistent-repo.git"], { cwd: workingRepo });
+
+      const restore = setTestEnv(workingRepo);
+      try {
+        // origin/shallow-fetch-fail still points to the base commit even though fetch will fail
+        const result = await generateGitPatch("shallow-fetch-fail", "main", { mode: "incremental" });
+
+        // Should succeed using the existing remote tracking ref as the base
+        expect(result.success).toBe(true);
+        expect(result.patchPath).toBeDefined();
+
+        const patchContent = fs.readFileSync(result.patchPath, "utf8");
+
+        // Should contain the agent's new commit
+        expect(patchContent).toContain("Agent commit - should appear in patch");
+
+        // Should NOT include the already-pushed base commit
+        expect(patchContent).not.toContain("Base commit (already on remote)");
+      } finally {
+        // Restore remote URL before cleanup so afterEach can delete the directory
+        execGit(["remote", "set-url", "origin", bareRepoDir], { cwd: workingRepo });
+        restore();
+      }
+    });
+
     it("should include all commits in full mode even when origin/branch exists", async () => {
       // Create a feature branch with first commit
       execGit(["checkout", "-b", "full-mode-branch"], { cwd: workingRepo });

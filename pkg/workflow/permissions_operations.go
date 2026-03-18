@@ -47,6 +47,19 @@ func (p *Permissions) Set(scope PermissionScope, level PermissionLevel) {
 	p.permissions[scope] = level
 }
 
+// GetExplicit returns the permission level only if the scope was explicitly declared in the
+// permissions map. Unlike Get, it never returns a level derived from shorthand (read-all /
+// write-all) or "all: read" defaults. Use this when you need to know what the user explicitly
+// specified — for example, when deciding which GitHub App-only scopes to forward to
+// actions/create-github-app-token, or when validating that App-only scopes are present.
+func (p *Permissions) GetExplicit(scope PermissionScope) (PermissionLevel, bool) {
+	if p == nil {
+		return "", false
+	}
+	level, exists := p.permissions[scope]
+	return level, exists
+}
+
 // Get gets the permission level for a specific scope
 func (p *Permissions) Get(scope PermissionScope) (PermissionLevel, bool) {
 	if p.shorthand != "" {
@@ -253,12 +266,15 @@ func (p *Permissions) RenderToYAML() string {
 
 	var lines []string
 	lines = append(lines, "permissions:")
+	hasRenderable := false
 	for _, scopeStr := range scopes {
 		scope := PermissionScope(scopeStr)
 		level := allPerms[scope]
 
-		// Skip organization-projects - it's only valid for GitHub App tokens, not workflow permissions
-		if scope == PermissionOrganizationProj {
+		// Skip GitHub App-only permissions - they are not valid GitHub Actions workflow permissions
+		// and cannot be set on the GITHUB_TOKEN. They are handled separately when minting
+		// GitHub App installation access tokens.
+		if IsGitHubAppOnlyScope(scope) {
 			continue
 		}
 
@@ -267,11 +283,20 @@ func (p *Permissions) RenderToYAML() string {
 			continue
 		}
 
+		hasRenderable = true
 		// Add 2 spaces for proper indentation under permissions:
 		// When rendered in a job, the job renderer adds 4 spaces to the first line only,
 		// so we need to pre-indent continuation lines with 4 additional spaces
 		// to get 6 total spaces (4 from job + 2 for being under permissions)
 		lines = append(lines, fmt.Sprintf("      %s: %s", scope, level))
+	}
+
+	// If everything was skipped (all App-only or metadata), return as if empty
+	if !hasRenderable {
+		if p.explicitEmpty {
+			return "permissions: {}"
+		}
+		return ""
 	}
 
 	return strings.Join(lines, "\n")

@@ -131,6 +131,12 @@ func (c *Compiler) validateWorkflowData(workflowData *WorkflowData, markdownPath
 		return formatCompilerError(markdownPath, "error", err.Error(), err)
 	}
 
+	// Validate GitHub App-only permissions require a GitHub App to be configured
+	log.Printf("Validating GitHub App-only permissions")
+	if err := validateGitHubAppOnlyPermissions(workflowData); err != nil {
+		return formatCompilerError(markdownPath, "error", err.Error(), err)
+	}
+
 	// Validate agent file exists if specified in engine config
 	log.Printf("Validating agent file if specified")
 	if err := c.validateAgentFile(workflowData, markdownPath); err != nil {

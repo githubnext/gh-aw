@@ -328,6 +328,10 @@ Markdown files with YAML frontmatter stored in `.github/agents/` defining intera
 
 A GitHub Personal Access Token with granular permission control, specifying exactly which repositories the token can access and what permissions it has. Created at github.com/settings/personal-access-tokens.
 
+### `RUNNER_TEMP` / `${{ runner.temp }}`
+
+A GitHub Actions environment variable pointing to a per-job temporary directory on the runner. Agentic workflows store compiled scripts and runtime artifacts under `${RUNNER_TEMP}/gh-aw/` for compatibility with self-hosted runners that may not have write access to system directories. In shell `run:` blocks, use the shell variable form `${RUNNER_TEMP}`; in `with:` or `env:` YAML fields, use the expression form `${{ runner.temp }}`.
+
 ## Development and Compilation
 
 ### CLI (Command Line Interface)
@@ -407,6 +411,10 @@ A system-injected environment variable containing the gh-aw compiler version tha
 ### `GH_AW_ALLOWED_DOMAINS`
 
 A system-injected environment variable containing the comma-separated list of domains allowed by the workflow's network configuration. Used by safe output jobs for URL sanitization — URLs from unlisted domains are redacted in AI-generated content before it is applied. Automatically populated from `network.allowed` domains and, when `engine.api-target` is set, includes the GHES/GHEC API hostname and base domain. Cannot be overridden by user-defined `env:` blocks. See [Environment Variables Reference](/gh-aw/reference/environment-variables/).
+
+### `GH_HOST`
+
+An environment variable recognized by the `gh` CLI that specifies the GitHub hostname for GitHub Enterprise Server (GHES) or GitHub Enterprise Cloud (GHEC) deployments. When set, `gh` commands target the specified enterprise instance instead of `github.com`. Agentic workflows automatically configure this from `GITHUB_SERVER_URL` at agent job startup; the variable is also propagated to custom frontmatter jobs and the safe-outputs job so all `gh` calls target the correct enterprise host. See [Environment Variables Reference](/gh-aw/reference/environment-variables/).
 
 ### Label Command Trigger (`label_command`)
 

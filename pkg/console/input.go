@@ -6,6 +6,7 @@ import (
 	"errors"
 
 	"github.com/charmbracelet/huh"
+	"github.com/github/gh-aw/pkg/styles"
 	"github.com/github/gh-aw/pkg/tty"
 )
 
@@ -34,7 +35,7 @@ func PromptSecretInput(title, description string) (string, error) {
 				}).
 				Value(&value),
 		),
-	).WithAccessible(IsAccessibleMode())
+	).WithTheme(styles.HuhTheme()).WithAccessible(IsAccessibleMode())
 
 	if err := form.Run(); err != nil {
 		return "", err

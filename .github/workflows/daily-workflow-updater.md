@@ -28,6 +28,7 @@ safe-outputs:
     title-prefix: "[actions] "
     labels: [dependencies, automation]
     draft: false
+    protected-files: allowed
 
 tools:
   github:

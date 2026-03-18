@@ -4,6 +4,7 @@ package console
 
 import (
 	"github.com/charmbracelet/huh"
+	"github.com/github/gh-aw/pkg/styles"
 )
 
 // ConfirmAction shows an interactive confirmation dialog using Bubble Tea (huh)
@@ -19,7 +20,7 @@ func ConfirmAction(title, affirmative, negative string) (bool, error) {
 				Negative(negative).
 				Value(&confirmed),
 		),
-	).WithAccessible(IsAccessibleMode())
+	).WithTheme(styles.HuhTheme()).WithAccessible(IsAccessibleMode())
 
 	if err := confirmForm.Run(); err != nil {
 		return false, err

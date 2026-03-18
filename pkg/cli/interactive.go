@@ -14,6 +14,7 @@ import (
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/styles"
 	"github.com/github/gh-aw/pkg/workflow"
 )
 
@@ -98,7 +99,7 @@ func (b *InteractiveWorkflowBuilder) promptForWorkflowName() error {
 				Value(&b.WorkflowName).
 				Validate(ValidateWorkflowName),
 		),
-	).WithAccessible(console.IsAccessibleMode())
+	).WithTheme(styles.HuhTheme()).WithAccessible(console.IsAccessibleMode())
 
 	return form.Run()
 }
@@ -222,7 +223,7 @@ func (b *InteractiveWorkflowBuilder) promptForConfiguration() error {
 		).
 			Title("Instructions").
 			Description("Describe what you want this workflow to accomplish"),
-	).WithAccessible(console.IsAccessibleMode())
+	).WithTheme(styles.HuhTheme()).WithAccessible(console.IsAccessibleMode())
 
 	if err := form.Run(); err != nil {
 		return err
@@ -267,7 +268,7 @@ func (b *InteractiveWorkflowBuilder) generateWorkflow(force bool) error {
 					Negative("No, cancel").
 					Value(&overwrite),
 			),
-		).WithAccessible(console.IsAccessibleMode())
+		).WithTheme(styles.HuhTheme()).WithAccessible(console.IsAccessibleMode())
 
 		if err := confirmForm.Run(); err != nil {
 			return fmt.Errorf("confirmation failed: %w", err)
