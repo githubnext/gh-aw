@@ -76,13 +76,14 @@ main() {
     exit 1
   fi
 
-  # When GH_TOKEN is already set in the environment, running 'gh auth login' fails with:
+  # When GH_TOKEN is already set in the environment, running 'gh auth login' would fail with:
   #   "The value of the GH_TOKEN environment variable is being used for authentication.
   #    To have GitHub CLI store credentials instead, first clear the value from the environment."
-  # In this case, gh CLI already authenticates via GH_TOKEN — we only need to set GH_HOST so
-  # gh knows which host to target.
+  # In this case, gh CLI will already authenticate via GH_TOKEN. This script still requires gh
+  # to be installed (checked above); here we only need to set GH_HOST so gh knows which host
+  # to target.
   if [ -n "${GH_TOKEN}" ]; then
-    echo "GH_TOKEN is set — skipping gh auth login and exporting GH_HOST only"
+    echo "GH_TOKEN is set — skipping gh auth login and exporting GH_HOST (gh CLI must already be installed)"
     export GH_HOST="${github_host}"
     if [ -n "${GITHUB_ENV:-}" ]; then
       echo "GH_HOST=${github_host}" >> "${GITHUB_ENV}"
