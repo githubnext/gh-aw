@@ -263,6 +263,7 @@ func getDomainsFromRuntimes(runtimes map[string]any) []string {
 //
 // # Supported ecosystem identifiers:
 //   - "defaults": basic infrastructure (certs, JSON schema, Ubuntu, package mirrors)
+//   - "browser": headless Chrome/Puppeteer/Playwright browser testing (*.google.com, *.googleapis.com, *.gvt1.com)
 //   - "clojure": Clojure/Clojars
 //   - "containers": container registries (Docker, GHCR, etc.)
 //   - "dart": Dart/Flutter ecosystem
@@ -344,12 +345,13 @@ var ecosystemPriority = []string{
 	"dev-tools",
 	"dotnet",
 	"elixir",
-	"fonts",
+	"fonts", // before "browser" — fonts.googleapis.com is a fonts domain, not a browser domain
 	"github",
 	"github-actions",
 	"go",
 	"haskell",
-	"java",
+	"java", // before "browser" — maven.google.com and dl.google.com are Java domains, not browser domains
+	"browser",
 	"kotlin",
 	"linux-distros",
 	"local",

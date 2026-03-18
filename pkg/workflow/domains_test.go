@@ -43,7 +43,7 @@ func TestGetDomainEcosystem(t *testing.T) {
 			expected: "containers",
 		},
 
-		// Fonts ecosystem
+		// Fonts ecosystem (takes priority over browser for fonts.googleapis.com)
 		{
 			name:     "fonts ecosystem - fonts.googleapis.com",
 			domain:   "fonts.googleapis.com",
@@ -53,6 +53,60 @@ func TestGetDomainEcosystem(t *testing.T) {
 			name:     "fonts ecosystem - fonts.gstatic.com",
 			domain:   "fonts.gstatic.com",
 			expected: "fonts",
+		},
+
+		// Browser ecosystem (Chrome/headless browser testing)
+		{
+			name:     "browser ecosystem - accounts.google.com",
+			domain:   "accounts.google.com",
+			expected: "browser",
+		},
+		{
+			name:     "browser ecosystem - www.google.com",
+			domain:   "www.google.com",
+			expected: "browser",
+		},
+		{
+			name:     "browser ecosystem - safebrowsing.googleapis.com",
+			domain:   "safebrowsing.googleapis.com",
+			expected: "browser",
+		},
+		{
+			name:     "browser ecosystem - optimizationguide-pa.googleapis.com",
+			domain:   "optimizationguide-pa.googleapis.com",
+			expected: "browser",
+		},
+		{
+			name:     "browser ecosystem - update.googleapis.com",
+			domain:   "update.googleapis.com",
+			expected: "browser",
+		},
+		{
+			name:     "browser ecosystem - redirector.gvt1.com",
+			domain:   "redirector.gvt1.com",
+			expected: "browser",
+		},
+		{
+			name:     "browser ecosystem - fresh.deno.dev",
+			domain:   "fresh.deno.dev",
+			expected: "browser",
+		},
+		// Java ecosystem takes priority over browser for its Google domains
+		{
+			name:     "java ecosystem - maven.google.com (not browser)",
+			domain:   "maven.google.com",
+			expected: "java",
+		},
+		{
+			name:     "java ecosystem - dl.google.com (not browser)",
+			domain:   "dl.google.com",
+			expected: "java",
+		},
+		// Defaults ecosystem takes priority over browser for packages.cloud.google.com
+		{
+			name:     "defaults ecosystem - packages.cloud.google.com (not browser)",
+			domain:   "packages.cloud.google.com",
+			expected: "defaults",
 		},
 
 		// Node CDNs ecosystem
@@ -432,6 +486,11 @@ func TestGetAllowedDomains_VariousCombinations(t *testing.T) {
 			name:           "fonts ecosystem",
 			allowed:        []string{"fonts"},
 			expectContains: []string{"fonts.googleapis.com", "fonts.gstatic.com"},
+		},
+		{
+			name:           "browser ecosystem",
+			allowed:        []string{"browser"},
+			expectContains: []string{"*.google.com", "*.googleapis.com", "*.gvt1.com", "fresh.deno.dev"},
 		},
 		{
 			name:           "node-cdns ecosystem",

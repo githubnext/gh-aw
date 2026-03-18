@@ -103,6 +103,7 @@ Mix ecosystem identifiers with specific domains for fine-grained control:
 | `dotnet`, `dart`, `go`, `haskell`, `java`, `julia`, `node`, `perl`, `php`, `python`, `ruby`, `rust`, `swift` | Language-specific package managers and registries |
 | `terraform` | HashiCorp and Terraform domains |
 | `playwright` | Playwright testing framework domains (see [Playwright Reference](/gh-aw/reference/playwright/)) |
+| `browser` | Headless Chrome/Puppeteer/Playwright browser testing (`*.google.com`, `*.googleapis.com`, `*.gvt1.com`, `fresh.deno.dev`) |
 
 Common identifiers: `python` (PyPI/pip), `node` (npm/yarn/pnpm), `containers` (Docker Hub/GHCR), `go` (proxy.golang.org). See the [Network Configuration Guide](/gh-aw/guides/network-configuration/) for complete domain lists.
 
