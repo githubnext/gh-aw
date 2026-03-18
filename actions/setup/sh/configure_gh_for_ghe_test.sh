@@ -108,6 +108,17 @@ echo "Test 6: Testing GHE host with GH_TOKEN set (should skip gh auth login)..."
 unset GITHUB_SERVER_URL GITHUB_ENTERPRISE_HOST GITHUB_HOST GH_HOST
 export GITHUB_SERVER_URL="https://myorg.ghe.com"
 export GH_TOKEN="test-token"
+
+# Stub a fake gh binary so configure_gh_for_ghe.sh can find it via command -v gh
+FAKE_GH_DIR=$(mktemp -d)
+FAKE_GH="${FAKE_GH_DIR}/gh"
+cat > "${FAKE_GH}" << 'EOF'
+#!/usr/bin/env bash
+exit 0
+EOF
+chmod +x "${FAKE_GH}"
+export PATH="${FAKE_GH_DIR}:${PATH}"
+
 FAKE_GITHUB_ENV=$(mktemp)
 output=$(bash -c "
   GITHUB_ENV='${FAKE_GITHUB_ENV}' \
@@ -121,12 +132,14 @@ if [ $exit_code -ne 0 ]; then
   echo "FAIL: Script exited with code $exit_code"
   echo "Output: $output"
   rm -f "${FAKE_GITHUB_ENV}"
+  rm -rf "${FAKE_GH_DIR}"
   exit 1
 fi
 
 if ! echo "$output" | grep -q "GH_TOKEN is set"; then
   echo "FAIL: Expected 'GH_TOKEN is set' message. Output: $output"
   rm -f "${FAKE_GITHUB_ENV}"
+  rm -rf "${FAKE_GH_DIR}"
   exit 1
 fi
 
@@ -134,6 +147,7 @@ if ! grep -q "GH_HOST=myorg.ghe.com" "${FAKE_GITHUB_ENV}"; then
   echo "FAIL: GH_HOST=myorg.ghe.com was not written to GITHUB_ENV"
   cat "${FAKE_GITHUB_ENV}"
   rm -f "${FAKE_GITHUB_ENV}"
+  rm -rf "${FAKE_GH_DIR}"
   exit 1
 fi
 rm -f "${FAKE_GITHUB_ENV}"
@@ -151,14 +165,19 @@ output=$(bash -c "
 
 if [ $exit_code -eq 0 ]; then
   echo "FAIL: Script should have failed but exited with 0"
+  rm -rf "${FAKE_GH_DIR}"
   exit 1
 fi
 
 if ! echo "$output" | grep -q "GH_TOKEN environment variable is not set"; then
   echo "FAIL: Expected 'GH_TOKEN environment variable is not set' error. Output: $output"
+  rm -rf "${FAKE_GH_DIR}"
   exit 1
 fi
 echo "PASS: Correctly errors when GH_TOKEN is not set for GHE host"
+
+# Clean up fake gh directory
+rm -rf "${FAKE_GH_DIR}"
 
 echo ""
 echo "================================"
