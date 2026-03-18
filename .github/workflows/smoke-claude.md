@@ -109,12 +109,10 @@ safe-outputs:
             required: true
             type: string
         script: |
-          return async function handlePostSlackMessage(item) {
-            const targetChannel = item.channel || "#general";
-            const text = item.message || "(no message)";
-            core.info(`[FICTITIOUS SLACK] → ${targetChannel}: ${text}`);
-            return { success: true, channel: targetChannel, message: text };
-          };
+          const targetChannel = item.channel || "#general";
+          const text = item.message || "(no message)";
+          core.info(`[FICTITIOUS SLACK] → ${targetChannel}: ${text}`);
+          return { success: true, channel: targetChannel, message: text };
 timeout-minutes: 10
 ---
 

@@ -7579,7 +7579,7 @@
                 },
                 "script": {
                   "type": "string",
-                  "description": "JavaScript body of the main function. Write only the body — the compiler wraps it with 'async function main(config = {}) { ... }' and 'module.exports = { main };'. The body has access to 'config' (the handler config) and should return an async message handler function."
+                  "description": "JavaScript handler body. Write only the code that runs inside the handler for each item — the compiler generates the full outer wrapper including config input destructuring (`const { channel, message } = config;`) and the handler function (`return async function handleX(item, resolvedTemporaryIds) { ... }`). The body has access to `item` (runtime message with input values), `resolvedTemporaryIds` (map of temporary IDs), and config-destructured local variables for each declared input."
                 }
               },
               "required": ["script"],

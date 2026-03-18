@@ -34,7 +34,7 @@
 #
 # inlined-imports: true
 #
-# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"df5b2e20728c1a3f7e64335f2fc80cb2f3ce98df51b13ab4929a209e733b639b","strict":true}
+# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"9a4d79294c209d0051ffe00014b288b54a2be522a7908fd96f44fab6aa5c9e60","strict":true}
 
 name: "Smoke Claude"
 "on":
@@ -2627,13 +2627,14 @@ jobs:
           
           /** @type {import('./types/safe-output-script').SafeOutputScriptMain} */
           async function main(config = {}) {
-            return async function handlePostSlackMessage(item) {
+            const { channel, message } = config;
+            return async function handlePostSlackMessage(item, resolvedTemporaryIds) {
               const targetChannel = item.channel || "#general";
               const text = item.message || "(no message)";
               core.info(`[FICTITIOUS SLACK] → ${targetChannel}: ${text}`);
               return { success: true, channel: targetChannel, message: text };
+              
             };
-            
           }
           module.exports = { main };
           
