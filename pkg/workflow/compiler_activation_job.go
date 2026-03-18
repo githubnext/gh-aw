@@ -69,6 +69,9 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 	steps = append(steps, awInfoYaml.String())
 	// Expose the model output from the activation job so downstream jobs can reference it
 	outputs["model"] = "${{ steps.generate_aw_info.outputs.model }}"
+	// Track whether the lockdown check failed so the conclusion job can surface
+	// the configuration error in the failure issue even when the agent never ran.
+	outputs["lockdown_check_failed"] = "${{ steps.generate_aw_info.outputs.lockdown_check_failed == 'true' }}"
 
 	// Expose the resolved platform (host) repository and ref so agent and safe_outputs jobs
 	// can use needs.activation.outputs.target_repo / target_ref for any checkout that must

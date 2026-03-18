@@ -60,6 +60,7 @@ jobs:
     outputs:
       comment_id: ""
       comment_repo: ""
+      lockdown_check_failed: ${{ steps.generate_aw_info.outputs.lockdown_check_failed == 'true' }}
       model: ${{ steps.generate_aw_info.outputs.model }}
       secret_verification_result: ${{ steps.validate-secret.outputs.verification_result }}
     steps:
@@ -1001,7 +1002,7 @@ jobs:
       - agent
       - safe_outputs
       - update_cache_memory
-    if: (always()) && (needs.agent.result != 'skipped')
+    if: (always()) && ((needs.agent.result != 'skipped') || (needs.activation.outputs.lockdown_check_failed == 'true'))
     runs-on: ubuntu-slim
     permissions:
       contents: read
@@ -1086,6 +1087,7 @@ jobs:
           GH_AW_SECRET_VERIFICATION_RESULT: ${{ needs.activation.outputs.secret_verification_result }}
           GH_AW_CHECKOUT_PR_SUCCESS: ${{ needs.agent.outputs.checkout_pr_success }}
           GH_AW_INFERENCE_ACCESS_ERROR: ${{ needs.agent.outputs.inference_access_error }}
+          GH_AW_LOCKDOWN_CHECK_FAILED: ${{ needs.activation.outputs.lockdown_check_failed }}
           GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 🩺 *Diagnosis provided by [{workflow_name}]({run_url})*{history_link}\",\"runStarted\":\"🏥 CI Doctor reporting for duty! [{workflow_name}]({run_url}) is examining the patient on this {event_type}...\",\"runSuccess\":\"🩺 Examination complete! [{workflow_name}]({run_url}) has delivered the diagnosis. Prescription issued! 💊\",\"runFailure\":\"🏥 Medical emergency! [{workflow_name}]({run_url}) {status}. Doctor needs assistance...\"}"
           GH_AW_GROUP_REPORTS: "false"
           GH_AW_FAILURE_REPORT_AS_ISSUE: "true"

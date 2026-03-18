@@ -55,6 +55,7 @@ function validateLockdownRequirements(core) {
         "To set a token:\\n" +
         '  gh aw secrets set GH_AW_GITHUB_TOKEN --value "YOUR_FINE_GRAINED_PAT"';
 
+      core.setOutput("lockdown_check_failed", "true");
       core.setFailed(errorMessage);
       throw new Error(errorMessage);
     }
@@ -83,6 +84,7 @@ function validateLockdownRequirements(core) {
       "\\n" +
       "See: https://github.com/github/gh-aw/blob/main/docs/src/content/docs/reference/security.mdx";
 
+    core.setOutput("lockdown_check_failed", "true");
     core.setFailed(errorMessage);
     throw new Error(errorMessage);
   }
