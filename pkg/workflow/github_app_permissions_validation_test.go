@@ -438,11 +438,8 @@ func TestConvertPermissionsToAppTokenFields_GitHubAppOnly(t *testing.T) {
 			},
 		},
 		{
-			name: "read-all shorthand does NOT produce App-only permission fields",
-			permissions: func() *Permissions {
-				p := NewPermissionsFromShorthand("read-all")
-				return p
-			}(),
+			name:        "read-all shorthand does NOT produce App-only permission fields",
+			permissions: NewPermissionsReadAll(),
 			// App-only scopes must not appear when using shorthand
 			absentFields: []string{
 				"permission-members",
@@ -453,11 +450,8 @@ func TestConvertPermissionsToAppTokenFields_GitHubAppOnly(t *testing.T) {
 			},
 		},
 		{
-			name: "write-all shorthand does NOT produce App-only permission fields",
-			permissions: func() *Permissions {
-				p := NewPermissionsFromShorthand("write-all")
-				return p
-			}(),
+			name:        "write-all shorthand does NOT produce App-only permission fields",
+			permissions: NewPermissionsWriteAll(),
 			absentFields: []string{
 				"permission-members",
 				"permission-administration",
