@@ -634,29 +634,37 @@ func applyTopLevelGitHubAppFallbacks(data *WorkflowData) {
 		}
 	}
 
-	// Fallback for tools.github (MCP GitHub token minting)
-	if data.ParsedTools != nil && data.ParsedTools.GitHub != nil && data.ParsedTools.GitHub.GitHubApp == nil {
+	// Fallback for tools.github (MCP GitHub token minting).
+	// Skip when a custom github-token is already configured for the MCP server (token takes priority).
+	if data.ParsedTools != nil && data.ParsedTools.GitHub != nil &&
+		data.ParsedTools.GitHub.GitHubApp == nil && data.ParsedTools.GitHub.GitHubToken == "" {
 		orchestratorWorkflowLog.Print("Applying top-level github-app fallback for tools.github")
 		data.ParsedTools.GitHub.GitHubApp = fallback
 		// Also update the raw tools map so applyDefaultTools (called from applyDefaults in
 		// processOnSectionAndFilters) does not lose the fallback when it rebuilds ParsedTools
 		// from the map.
+		appMap := map[string]any{
+			"app-id":      fallback.AppID,
+			"private-key": fallback.PrivateKey,
+		}
+		if fallback.Owner != "" {
+			appMap["owner"] = fallback.Owner
+		}
+		if len(fallback.Repositories) > 0 {
+			repos := make([]any, len(fallback.Repositories))
+			for i, r := range fallback.Repositories {
+				repos[i] = r
+			}
+			appMap["repositories"] = repos
+		}
+		// Normalize data.Tools["github"] to a map so the github-app survives re-parsing.
+		// Configurations like `github: true` are normalized here rather than losing the fallback.
 		if github, ok := data.Tools["github"].(map[string]any); ok {
-			appMap := map[string]any{
-				"app-id":      fallback.AppID,
-				"private-key": fallback.PrivateKey,
-			}
-			if fallback.Owner != "" {
-				appMap["owner"] = fallback.Owner
-			}
-			if len(fallback.Repositories) > 0 {
-				repos := make([]any, len(fallback.Repositories))
-				for i, r := range fallback.Repositories {
-					repos[i] = r
-				}
-				appMap["repositories"] = repos
-			}
+			// Already a map; inject into existing settings.
 			github["github-app"] = appMap
+		} else {
+			// Non-map value (e.g. true/false) — create a fresh map preserving the enabled signal.
+			data.Tools["github"] = map[string]any{"github-app": appMap}
 		}
 	}
 

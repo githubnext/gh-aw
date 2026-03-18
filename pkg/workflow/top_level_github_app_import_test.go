@@ -137,7 +137,59 @@ This workflow's own top-level github-app takes precedence over the imported one.
 		"Current workflow's github-app should take precedence over the imported one")
 }
 
-// TestTopLevelGitHubAppImportActivation tests that a top-level github-app imported from a shared
+// TestTopLevelGitHubAppToolsGitHubTokenSkip tests that the fallback is NOT applied
+// to tools.github when a custom github-token is already configured for the MCP server.
+func TestTopLevelGitHubAppToolsGitHubTokenSkip(t *testing.T) {
+	compiler := NewCompilerWithVersion("1.0.0")
+
+	// Use ParseWorkflowFile directly with inline frontmatter
+	tmpDir := t.TempDir()
+	workflowsDir := filepath.Join(tmpDir, ".github", "workflows")
+	require.NoError(t, os.MkdirAll(workflowsDir, 0755))
+
+	// Workflow with top-level github-app but tools.github uses an explicit github-token
+	workflowContent := `---
+on: issues
+permissions:
+  contents: read
+github-app:
+  app-id: ${{ vars.APP_ID }}
+  private-key: ${{ secrets.APP_PRIVATE_KEY }}
+tools:
+  github:
+    mode: remote
+    toolsets: [default]
+    github-token: ${{ secrets.CUSTOM_PAT }}
+engine: copilot
+---
+
+# Workflow With Explicit GitHub Token for MCP
+
+When tools.github.github-token is set, the top-level github-app fallback should NOT override it.
+`
+	mdPath := filepath.Join(workflowsDir, "main.md")
+	require.NoError(t, os.WriteFile(mdPath, []byte(workflowContent), 0644))
+
+	origDir, err := os.Getwd()
+	require.NoError(t, err)
+	require.NoError(t, os.Chdir(workflowsDir))
+	defer func() { _ = os.Chdir(origDir) }()
+
+	data, err := compiler.ParseWorkflowFile("main.md")
+	require.NoError(t, err)
+
+	// The top-level github-app should be resolved at the top level
+	require.NotNil(t, data.TopLevelGitHubApp, "TopLevelGitHubApp should be populated")
+
+	// But it must NOT be injected into tools.github because github-token takes precedence
+	require.NotNil(t, data.ParsedTools, "ParsedTools should be populated")
+	require.NotNil(t, data.ParsedTools.GitHub, "ParsedTools.GitHub should be populated")
+	assert.Equal(t, "${{ secrets.CUSTOM_PAT }}", data.ParsedTools.GitHub.GitHubToken,
+		"tools.github.github-token should be preserved")
+	assert.Nil(t, data.ParsedTools.GitHub.GitHubApp,
+		"tools.github.github-app should NOT be set when github-token is configured")
+}
+
 // workflow is propagated to the activation job (reactions/status comments).
 func TestTopLevelGitHubAppImportActivation(t *testing.T) {
 	compiler := NewCompilerWithVersion("1.0.0")

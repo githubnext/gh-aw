@@ -366,6 +366,14 @@ func TestTopLevelGitHubAppWorkflowFiles(t *testing.T) {
 				"app-id: ${{ vars.ACTIVATION_APP_ID }}",
 			},
 		},
+		{
+			name:         "tools.github MCP fallback workflow file",
+			workflowFile: "../cli/workflows/test-top-level-github-app-mcp.md",
+			expectContains: []string{
+				"id: github-mcp-app-token",
+				"app-id: ${{ vars.APP_ID }}",
+			},
+		},
 	}
 
 	for _, tt := range tests {
