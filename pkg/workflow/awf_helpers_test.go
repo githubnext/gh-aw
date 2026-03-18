@@ -249,6 +249,96 @@ func TestAWFCustomAPITargetFlags(t *testing.T) {
 	})
 }
 
+// TestBuildAWFArgsMemoryLimit tests that BuildAWFArgs passes --memory-limit
+// when sandbox.agent.memory is configured in the workflow frontmatter
+func TestBuildAWFArgsMemoryLimit(t *testing.T) {
+	t.Run("includes --memory-limit flag when memory is configured", func(t *testing.T) {
+		workflowData := &WorkflowData{
+			Name: "test-workflow",
+			EngineConfig: &EngineConfig{
+				ID: "copilot",
+			},
+			NetworkPermissions: &NetworkPermissions{
+				Firewall: &FirewallConfig{
+					Enabled: true,
+				},
+			},
+			SandboxConfig: &SandboxConfig{
+				Agent: &AgentSandboxConfig{
+					Memory: "6g",
+				},
+			},
+		}
+
+		config := AWFCommandConfig{
+			EngineName:     "copilot",
+			WorkflowData:   workflowData,
+			AllowedDomains: "github.com",
+		}
+
+		args := BuildAWFArgs(config)
+		argsStr := strings.Join(args, " ")
+
+		assert.Contains(t, argsStr, "--memory-limit", "Should include --memory-limit flag")
+		assert.Contains(t, argsStr, "6g", "Should include the memory value")
+	})
+
+	t.Run("does not include --memory-limit flag when memory is not configured", func(t *testing.T) {
+		workflowData := &WorkflowData{
+			Name: "test-workflow",
+			EngineConfig: &EngineConfig{
+				ID: "copilot",
+			},
+			NetworkPermissions: &NetworkPermissions{
+				Firewall: &FirewallConfig{
+					Enabled: true,
+				},
+			},
+		}
+
+		config := AWFCommandConfig{
+			EngineName:     "copilot",
+			WorkflowData:   workflowData,
+			AllowedDomains: "github.com",
+		}
+
+		args := BuildAWFArgs(config)
+		argsStr := strings.Join(args, " ")
+
+		assert.NotContains(t, argsStr, "--memory-limit", "Should not include --memory-limit when memory is not configured")
+	})
+
+	t.Run("includes correct memory value when multiple sizes configured", func(t *testing.T) {
+		for _, memory := range []string{"512m", "4g", "8g"} {
+			t.Run(memory, func(t *testing.T) {
+				workflowData := &WorkflowData{
+					Name: "test-workflow",
+					EngineConfig: &EngineConfig{
+						ID: "copilot",
+					},
+					SandboxConfig: &SandboxConfig{
+						Agent: &AgentSandboxConfig{
+							Memory: memory,
+						},
+					},
+				}
+
+				config := AWFCommandConfig{
+					EngineName:     "copilot",
+					WorkflowData:   workflowData,
+					AllowedDomains: "github.com",
+				}
+
+				args := BuildAWFArgs(config)
+				argsStr := strings.Join(args, " ")
+
+				assert.Contains(t, argsStr, "--memory-limit", "Should include --memory-limit flag")
+				assert.Contains(t, argsStr, memory, "Should include the correct memory value")
+			})
+		}
+	})
+}
+
 // TestEngineExecutionWithCustomAPITarget tests that engine execution steps include
 // custom API target flags when configured in engine.env
 func TestEngineExecutionWithCustomAPITarget(t *testing.T) {
