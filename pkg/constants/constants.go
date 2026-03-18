@@ -407,7 +407,7 @@ var SerenaLanguageSupport = map[string][]string{
 }
 
 // DefaultAPMVersion is the default version of the microsoft/APM (Agent Package Manager) CLI
-const DefaultAPMVersion Version = "v0.8.1"
+const DefaultAPMVersion Version = "v0.8.0"
 
 // DefaultPlaywrightMCPVersion is the default version of the @playwright/mcp package
 const DefaultPlaywrightMCPVersion Version = "0.0.68"
