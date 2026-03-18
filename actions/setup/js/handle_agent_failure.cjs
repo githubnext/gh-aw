@@ -651,6 +651,21 @@ function buildAppTokenMintingFailedContext(hasAppTokenMintingFailed) {
 }
 
 /**
+ * Build a context string when the lockdown check step failed in the activation job.
+ * @param {boolean} hasLockdownCheckFailed - Whether the lockdown check failed
+ * @returns {string} Formatted context string, or empty string if no failure
+ */
+function buildLockdownCheckFailedContext(hasLockdownCheckFailed) {
+  if (!hasLockdownCheckFailed) {
+    return "";
+  }
+
+  const templatePath = `${process.env.RUNNER_TEMP}/gh-aw/prompts/lockdown_check_failed.md`;
+  const template = fs.readFileSync(templatePath, "utf8");
+  return "\n" + template;
+}
+
+/**
  * Handle agent job failure by creating or updating a failure tracking issue
  * This script is called from the conclusion job when the agent job has failed
  * or when the agent succeeded but produced no safe outputs
@@ -682,6 +697,9 @@ async function main() {
     const conclusionAppTokenMintingFailed = process.env.GH_AW_CONCLUSION_APP_TOKEN_MINTING_FAILED === "true";
     const activationAppTokenMintingFailed = process.env.GH_AW_ACTIVATION_APP_TOKEN_MINTING_FAILED === "true";
     const hasAppTokenMintingFailed = safeOutputsAppTokenMintingFailed || conclusionAppTokenMintingFailed || activationAppTokenMintingFailed;
+    // Lockdown check failure from the activation job — set when validate_lockdown_requirements fails.
+    // The agent is skipped in this case, but the conclusion job still runs to report the failure.
+    const hasLockdownCheckFailed = process.env.GH_AW_LOCKDOWN_CHECK_FAILED === "true";
 
     // Collect repo-memory validation errors from all memory configurations
     const repoMemoryValidationErrors = [];
@@ -715,6 +733,7 @@ async function main() {
     core.info(`Inference access error: ${inferenceAccessError}`);
     core.info(`Push repo-memory result: ${pushRepoMemoryResult}`);
     core.info(`App token minting failed (safe_outputs/conclusion/activation): ${safeOutputsAppTokenMintingFailed}/${conclusionAppTokenMintingFailed}/${activationAppTokenMintingFailed}`);
+    core.info(`Lockdown check failed: ${hasLockdownCheckFailed}`);
 
     // Check if the agent timed out
     const isTimedOut = agentConclusion === "timed_out";
@@ -753,10 +772,20 @@ async function main() {
 
     // Only proceed if the agent job actually failed OR timed out OR there are assignment errors OR
     // create_discussion errors OR code-push failures OR push_repo_memory failed OR missing safe outputs
-    // OR a GitHub App token minting step failed.
+    // OR a GitHub App token minting step failed OR the lockdown check failed.
     // BUT skip if we only have noop outputs (that's a successful no-action scenario)
-    if (agentConclusion !== "failure" && !isTimedOut && !hasAssignmentErrors && !hasCreateDiscussionErrors && !hasCodePushFailures && !hasPushRepoMemoryFailure && !hasMissingSafeOutputs && !hasAppTokenMintingFailed) {
-      core.info(`Agent job did not fail and no assignment/discussion/code-push/push-repo-memory/app-token errors and has safe outputs (conclusion: ${agentConclusion}), skipping failure handling`);
+    if (
+      agentConclusion !== "failure" &&
+      !isTimedOut &&
+      !hasAssignmentErrors &&
+      !hasCreateDiscussionErrors &&
+      !hasCodePushFailures &&
+      !hasPushRepoMemoryFailure &&
+      !hasMissingSafeOutputs &&
+      !hasAppTokenMintingFailed &&
+      !hasLockdownCheckFailed
+    ) {
+      core.info(`Agent job did not fail and no assignment/discussion/code-push/push-repo-memory/app-token/lockdown errors and has safe outputs (conclusion: ${agentConclusion}), skipping failure handling`);
       return;
     }
 
@@ -923,6 +952,9 @@ async function main() {
         // Build GitHub App token minting failure context
         const appTokenMintingFailedContext = buildAppTokenMintingFailedContext(hasAppTokenMintingFailed);
 
+        // Build lockdown check failure context
+        const lockdownCheckFailedContext = buildLockdownCheckFailedContext(hasLockdownCheckFailed);
+
         // Create template context
         const templateContext = {
           run_url: runUrl,
@@ -946,6 +978,7 @@ async function main() {
           fork_context: forkContext,
           inference_access_error_context: inferenceAccessErrorContext,
           app_token_minting_failed_context: appTokenMintingFailedContext,
+          lockdown_check_failed_context: lockdownCheckFailedContext,
         };
 
         // Render the comment template
@@ -1052,6 +1085,9 @@ async function main() {
         // Build GitHub App token minting failure context
         const appTokenMintingFailedContext = buildAppTokenMintingFailedContext(hasAppTokenMintingFailed);
 
+        // Build lockdown check failure context
+        const lockdownCheckFailedContext = buildLockdownCheckFailedContext(hasLockdownCheckFailed);
+
         // Create template context with sanitized workflow name
         const templateContext = {
           workflow_name: sanitizedWorkflowName,
@@ -1076,6 +1112,7 @@ async function main() {
           fork_context: forkContext,
           inference_access_error_context: inferenceAccessErrorContext,
           app_token_minting_failed_context: appTokenMintingFailedContext,
+          lockdown_check_failed_context: lockdownCheckFailedContext,
         };
 
         // Render the issue template
@@ -1132,4 +1169,4 @@ async function main() {
   }
 }
 
-module.exports = { main, buildCodePushFailureContext, buildPushRepoMemoryFailureContext, buildAppTokenMintingFailedContext };
+module.exports = { main, buildCodePushFailureContext, buildPushRepoMemoryFailureContext, buildAppTokenMintingFailedContext, buildLockdownCheckFailedContext };

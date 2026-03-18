@@ -8,6 +8,7 @@ import (
 
 	"github.com/charmbracelet/huh"
 	"github.com/github/gh-aw/pkg/console"
+	"github.com/github/gh-aw/pkg/styles"
 )
 
 // checkGHAuthStatus verifies the user is logged in to GitHub CLI
@@ -55,7 +56,7 @@ func (c *AddInteractiveConfig) checkGitRepository() error {
 						return nil
 					}),
 			),
-		).WithAccessible(console.IsAccessibleMode())
+		).WithTheme(styles.HuhTheme()).WithAccessible(console.IsAccessibleMode())
 
 		if err := form.Run(); err != nil {
 			return fmt.Errorf("failed to get repository info: %w", err)

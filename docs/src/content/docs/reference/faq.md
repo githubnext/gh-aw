@@ -393,6 +393,36 @@ gh aw compile my-workflow
 
 See [Imports](/gh-aw/reference/imports/) for full documentation on the `imports:` field.
 
+### My workflow checkout is very slow because my repository is a large monorepo. How can I speed it up?
+
+Use **sparse checkout** to only fetch the parts of the repository that your workflow actually needs. This can reduce checkout time from tens of minutes to seconds for large monorepos.
+
+Configure `sparse-checkout` in your workflow frontmatter using the `checkout:` field:
+
+```yaml wrap
+checkout:
+  sparse-checkout: |
+    node/my-package
+    .github
+```
+
+This generates a checkout step that only downloads the specified paths, dramatically reducing clone size and time.
+
+For cases where you need multiple parts of a monorepo with different settings, you can combine checkouts:
+
+```yaml wrap
+checkout:
+  - sparse-checkout: |
+      node/my-package
+      .github
+  - repository: org/shared-libs
+    path: ./libs/shared
+    sparse-checkout: |
+      defaults/
+```
+
+The `sparse-checkout` field accepts newline-separated path patterns compatible with `actions/checkout`. See [Cross-Repository Operations](/gh-aw/reference/cross-repository/#checkout-configuration-options) for the full list of checkout configuration options.
+
 ## Workflow Design
 
 ### Should I focus on one workflow, or write many different ones?

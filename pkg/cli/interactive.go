@@ -14,6 +14,7 @@ import (
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/styles"
 	"github.com/github/gh-aw/pkg/workflow"
 )
 
@@ -98,7 +99,7 @@ func (b *InteractiveWorkflowBuilder) promptForWorkflowName() error {
 				Value(&b.WorkflowName).
 				Validate(ValidateWorkflowName),
 		),
-	).WithAccessible(console.IsAccessibleMode())
+	).WithTheme(styles.HuhTheme()).WithAccessible(console.IsAccessibleMode())
 
 	return form.Run()
 }
@@ -222,7 +223,7 @@ func (b *InteractiveWorkflowBuilder) promptForConfiguration() error {
 		).
 			Title("Instructions").
 			Description("Describe what you want this workflow to accomplish"),
-	).WithAccessible(console.IsAccessibleMode())
+	).WithTheme(styles.HuhTheme()).WithAccessible(console.IsAccessibleMode())
 
 	if err := form.Run(); err != nil {
 		return err
@@ -267,7 +268,7 @@ func (b *InteractiveWorkflowBuilder) generateWorkflow(force bool) error {
 					Negative("No, cancel").
 					Value(&overwrite),
 			),
-		).WithAccessible(console.IsAccessibleMode())
+		).WithTheme(styles.HuhTheme()).WithAccessible(console.IsAccessibleMode())
 
 		if err := confirmForm.Run(); err != nil {
 			return fmt.Errorf("confirmation failed: %w", err)
@@ -293,6 +294,7 @@ func (b *InteractiveWorkflowBuilder) generateWorkflow(force bool) error {
 
 // generateWorkflowContent creates the workflow markdown content
 func (b *InteractiveWorkflowBuilder) generateWorkflowContent() string {
+	interactiveLog.Printf("Generating workflow content: trigger=%s, engine=%s, tools=%v, safe_outputs=%v", b.Trigger, b.Engine, b.Tools, b.SafeOutputs)
 	var content strings.Builder
 
 	// Write frontmatter
@@ -366,6 +368,7 @@ func (b *InteractiveWorkflowBuilder) generateWorkflowContent() string {
 // Helper methods for generating configuration sections
 
 func (b *InteractiveWorkflowBuilder) generateTriggerConfig() string {
+	interactiveLog.Printf("Generating trigger config: trigger=%s", b.Trigger)
 	switch b.Trigger {
 	case "workflow_dispatch":
 		return "on:\n  workflow_dispatch:\n"
@@ -419,6 +422,7 @@ func (b *InteractiveWorkflowBuilder) generatePermissionsConfig() string {
 }
 
 func (b *InteractiveWorkflowBuilder) generateNetworkConfig() string {
+	interactiveLog.Printf("Generating network config: network=%s", b.NetworkAccess)
 	switch b.NetworkAccess {
 	case "ecosystem":
 		return "network:\n  allowed:\n    - defaults\n    - python\n    - node\n    - go\n    - java\n"

@@ -921,3 +921,112 @@ func TestCopilotDetectionDefaultModel(t *testing.T) {
 		})
 	}
 }
+
+// TestBuildDetectionEngineExecutionStepPropagatesAPITarget verifies that when engine.api-target
+// is configured on the main engine, the threat detection AWF invocation also receives
+// --copilot-api-target and the GHE domains in --allow-domains.
+// Regression test for: Threat detection AWF run missing --copilot-api-target on data residency.
+func TestBuildDetectionEngineExecutionStepPropagatesAPITarget(t *testing.T) {
+	compiler := NewCompiler()
+
+	tests := []struct {
+		name             string
+		data             *WorkflowData
+		expectedTarget   string
+		unexpectedTarget string
+	}{
+		{
+			name: "api-target from main engine config is propagated to detection step",
+			data: &WorkflowData{
+				AI: "copilot",
+				EngineConfig: &EngineConfig{
+					ID:        "copilot",
+					APITarget: "copilot-api.contoso-aw.ghe.com",
+				},
+				SafeOutputs: &SafeOutputsConfig{
+					ThreatDetection: &ThreatDetectionConfig{},
+				},
+			},
+			expectedTarget: "copilot-api.contoso-aw.ghe.com",
+		},
+		{
+			name: "api-target inherited when threat detection has its own engine config without api-target",
+			data: &WorkflowData{
+				AI: "copilot",
+				EngineConfig: &EngineConfig{
+					ID:        "copilot",
+					APITarget: "api.acme.ghe.com",
+				},
+				SafeOutputs: &SafeOutputsConfig{
+					ThreatDetection: &ThreatDetectionConfig{
+						EngineConfig: &EngineConfig{
+							ID:    "copilot",
+							Model: "gpt-4",
+							// No APITarget set - should be inherited from main engine config
+						},
+					},
+				},
+			},
+			expectedTarget: "api.acme.ghe.com",
+		},
+		{
+			name: "detection engine config api-target takes precedence over main engine config",
+			data: &WorkflowData{
+				AI: "copilot",
+				EngineConfig: &EngineConfig{
+					ID:        "copilot",
+					APITarget: "api.acme.ghe.com",
+				},
+				SafeOutputs: &SafeOutputsConfig{
+					ThreatDetection: &ThreatDetectionConfig{
+						EngineConfig: &EngineConfig{
+							ID:        "copilot",
+							APITarget: "api.custom-detection.ghe.com",
+						},
+					},
+				},
+			},
+			expectedTarget:   "api.custom-detection.ghe.com",
+			unexpectedTarget: "api.acme.ghe.com",
+		},
+		{
+			name: "no api-target when main engine config has none",
+			data: &WorkflowData{
+				AI: "copilot",
+				EngineConfig: &EngineConfig{
+					ID: "copilot",
+				},
+				SafeOutputs: &SafeOutputsConfig{
+					ThreatDetection: &ThreatDetectionConfig{},
+				},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			steps := compiler.buildDetectionEngineExecutionStep(tt.data)
+
+			if len(steps) == 0 {
+				t.Fatal("Expected non-empty steps")
+			}
+
+			allSteps := strings.Join(steps, "")
+
+			if tt.expectedTarget != "" {
+				if !strings.Contains(allSteps, "--copilot-api-target") {
+					t.Errorf("Expected detection steps to contain --copilot-api-target flag.\nGenerated steps:\n%s", allSteps)
+				}
+				if !strings.Contains(allSteps, tt.expectedTarget) {
+					t.Errorf("Expected detection steps to contain api-target %q.\nGenerated steps:\n%s", tt.expectedTarget, allSteps)
+				}
+			}
+
+			if tt.unexpectedTarget != "" {
+				if strings.Contains(allSteps, tt.unexpectedTarget) {
+					t.Errorf("Expected detection steps to NOT contain api-target %q, but found it.\nGenerated steps:\n%s", tt.unexpectedTarget, allSteps)
+				}
+			}
+		})
+	}
+}

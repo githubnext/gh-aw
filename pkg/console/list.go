@@ -9,15 +9,18 @@ import (
 	"os"
 	"strings"
 
-	"github.com/charmbracelet/bubbles/list"
-	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
+	"charm.land/bubbles/v2/list"
+	tea "charm.land/bubbletea/v2"
+	lipgloss "charm.land/lipgloss/v2"
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/styles"
 	"github.com/github/gh-aw/pkg/tty"
 )
 
 var listLog = logger.New("console:list")
+
+// listHeightPadding is the number of rows reserved for the list title, borders, and status bar
+const listHeightPadding = 4
 
 // listModel is the Bubble Tea model for the interactive list
 type listModel struct {
@@ -34,7 +37,7 @@ func (m listModel) Init() tea.Cmd {
 // Update handles messages and updates the model
 func (m listModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
-	case tea.KeyMsg:
+	case tea.KeyPressMsg:
 		switch msg.String() {
 		case "ctrl+c", "q", "esc":
 			m.quitting = true
@@ -47,6 +50,7 @@ func (m listModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 	case tea.WindowSizeMsg:
 		m.list.SetWidth(msg.Width)
+		m.list.SetHeight(msg.Height - listHeightPadding)
 		return m, nil
 	}
 
@@ -56,11 +60,13 @@ func (m listModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 // View renders the list
-func (m listModel) View() string {
+func (m listModel) View() tea.View {
 	if m.quitting {
-		return ""
+		return tea.View{}
 	}
-	return m.list.View()
+	v := tea.NewView(m.list.View())
+	v.AltScreen = true
+	return v
 }
 
 // itemDelegate is a custom delegate for list items
@@ -163,15 +169,15 @@ func ShowInteractiveList(title string, items []ListItem) (string, error) {
 		Bold(true).
 		Padding(0, 0, 1, 0)
 
-	l.Styles.FilterPrompt = lipgloss.NewStyle().
+	l.Styles.Filter.Focused.Prompt = lipgloss.NewStyle().
 		Foreground(styles.ColorInfo)
-
-	l.Styles.FilterCursor = lipgloss.NewStyle().
-		Foreground(styles.ColorSuccess)
+	l.Styles.Filter.Blurred.Prompt = lipgloss.NewStyle().
+		Foreground(styles.ColorComment)
+	l.Styles.Filter.Cursor.Color = styles.ColorSuccess
 
 	// Create the model and run the program
 	m := listModel{list: l}
-	p := tea.NewProgram(m, tea.WithAltScreen())
+	p := tea.NewProgram(m)
 
 	finalModel, err := p.Run()
 	if err != nil {

@@ -10,6 +10,7 @@ import (
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/parser"
 	"github.com/github/gh-aw/pkg/sliceutil"
+	"github.com/github/gh-aw/pkg/styles"
 )
 
 var scheduleWizardLog = logger.New("cli:add_interactive_schedule")
@@ -227,7 +228,7 @@ func (c *AddInteractiveConfig) selectScheduleFrequency() error {
 					Options(options...).
 					Value(&selected),
 			),
-		).WithAccessible(console.IsAccessibleMode())
+		).WithTheme(styles.HuhTheme()).WithAccessible(console.IsAccessibleMode())
 
 		if err := form.Run(); err != nil {
 			return fmt.Errorf("failed to select schedule frequency: %w", err)

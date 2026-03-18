@@ -341,4 +341,52 @@ describe("handle_agent_failure", () => {
       expect(result).toContain("https://github.github.com/gh-aw/reference/safe-outputs/");
     });
   });
+
+  // ──────────────────────────────────────────────────────
+  // buildLockdownCheckFailedContext
+  // ──────────────────────────────────────────────────────
+
+  describe("buildLockdownCheckFailedContext", () => {
+    let buildLockdownCheckFailedContext;
+    const fs = require("fs");
+    const path = require("path");
+    const templateContent = fs.readFileSync(path.join(__dirname, "../md/lockdown_check_failed.md"), "utf8");
+    const originalReadFileSync = fs.readFileSync.bind(fs);
+
+    beforeEach(() => {
+      vi.resetModules();
+      // Stub readFileSync so the runtime path resolves to the source-tree template
+      fs.readFileSync = (filePath, encoding) => {
+        if (typeof filePath === "string" && filePath.includes("lockdown_check_failed.md")) {
+          return templateContent;
+        }
+        return originalReadFileSync(filePath, encoding);
+      };
+      ({ buildLockdownCheckFailedContext } = require("./handle_agent_failure.cjs"));
+    });
+
+    afterEach(() => {
+      fs.readFileSync = originalReadFileSync;
+    });
+
+    it("returns empty string when no failure", () => {
+      expect(buildLockdownCheckFailedContext(false)).toBe("");
+    });
+
+    it("returns formatted error message when lockdown check failed", () => {
+      const result = buildLockdownCheckFailedContext(true);
+      expect(result).toContain("Lockdown Check Failed");
+    });
+
+    it("includes token configuration guidance", () => {
+      const result = buildLockdownCheckFailedContext(true);
+      expect(result).toContain("GH_AW_GITHUB_TOKEN");
+      expect(result).toContain("gh aw secrets set");
+    });
+
+    it("includes strict mode guidance", () => {
+      const result = buildLockdownCheckFailedContext(true);
+      expect(result).toContain("gh aw compile --strict");
+    });
+  });
 });

@@ -9,8 +9,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/charmbracelet/lipgloss"
-	"github.com/charmbracelet/lipgloss/table"
+	lipgloss "charm.land/lipgloss/v2"
+	"charm.land/lipgloss/v2/table"
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/styles"
 	"github.com/github/gh-aw/pkg/tty"
@@ -203,11 +203,16 @@ func RenderTable(config TableConfig) string {
 			PaddingRight(1)
 	}
 
+	borderStyle := lipgloss.NewStyle()
+	if isTTY() {
+		borderStyle = styles.TableBorder
+	}
+
 	t := table.New().
 		Headers(config.Headers...).
 		Rows(allRows...).
 		Border(styles.RoundedBorder).
-		BorderStyle(styles.TableBorder).
+		BorderStyle(borderStyle).
 		StyleFunc(styleFunc)
 
 	output.WriteString(t.String())

@@ -13,6 +13,7 @@ import (
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/sliceutil"
+	"github.com/github/gh-aw/pkg/styles"
 	"github.com/github/gh-aw/pkg/tty"
 	"github.com/github/gh-aw/pkg/workflow"
 )
@@ -189,7 +190,7 @@ func selectWorkflow(workflows []WorkflowOption) (*WorkflowOption, error) {
 				Height(15).
 				Value(&selected),
 		),
-	).WithAccessible(console.IsAccessibleMode())
+	).WithTheme(styles.HuhTheme()).WithAccessible(console.IsAccessibleMode())
 
 	if err := form.Run(); err != nil {
 		return nil, fmt.Errorf("workflow selection cancelled or failed: %w", err)
@@ -313,7 +314,7 @@ func collectInputsWithMap(inputs map[string]*workflow.InputDefinition) ([]string
 	}
 
 	// Show the form
-	form := huh.NewForm(formGroups...).WithAccessible(console.IsAccessibleMode())
+	form := huh.NewForm(formGroups...).WithTheme(styles.HuhTheme()).WithAccessible(console.IsAccessibleMode())
 	if err := form.Run(); err != nil {
 		return nil, fmt.Errorf("input collection cancelled: %w", err)
 	}
@@ -350,7 +351,7 @@ func confirmExecution(wf *WorkflowOption, inputs []string) bool {
 				Negative("No, cancel").
 				Value(&confirm),
 		),
-	).WithAccessible(console.IsAccessibleMode())
+	).WithTheme(styles.HuhTheme()).WithAccessible(console.IsAccessibleMode())
 
 	if err := form.Run(); err != nil {
 		runInteractiveLog.Printf("Confirmation failed: %v", err)

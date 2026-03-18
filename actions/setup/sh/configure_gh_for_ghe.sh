@@ -76,40 +76,24 @@ main() {
     exit 1
   fi
 
-  # Check if GH_TOKEN is set
-  if [ -z "${GH_TOKEN}" ]; then
-    echo "::error::GH_TOKEN environment variable is not set. gh CLI requires authentication."
-    exit 1
-  fi
-
-  # Configure gh to use the enterprise host
-  # We use 'gh auth login' with the token to configure the host
-  echo "Authenticating gh CLI with host: ${github_host}"
-
-  # Use gh auth login with --with-token to configure the host
-  # This sets up gh to use the correct API endpoint for the enterprise host
-  echo "${GH_TOKEN}" | gh auth login --hostname "${github_host}" --with-token
-
-  if [ $? -eq 0 ]; then
-    echo "✓ Successfully configured gh CLI for ${github_host}"
-
-    # Verify the configuration
-    if gh auth status --hostname "${github_host}" &> /dev/null; then
-      echo "✓ Verified gh CLI authentication for ${github_host}"
-    else
-      echo "::warning::gh CLI configured but authentication verification failed"
+  # When GH_TOKEN is already set in the environment, running 'gh auth login' would fail with:
+  #   "The value of the GH_TOKEN environment variable is being used for authentication.
+  #    To have GitHub CLI store credentials instead, first clear the value from the environment."
+  # In this case, gh CLI will already authenticate via GH_TOKEN. This script still requires gh
+  # to be installed (checked above); here we only need to set GH_HOST so gh knows which host
+  # to target.
+  if [ -n "${GH_TOKEN}" ]; then
+    echo "GH_TOKEN is set — skipping gh auth login and exporting GH_HOST (gh CLI must already be installed)"
+    export GH_HOST="${github_host}"
+    if [ -n "${GITHUB_ENV:-}" ]; then
+      echo "GH_HOST=${github_host}" >> "${GITHUB_ENV}"
     fi
-  else
-    echo "::error::Failed to configure gh CLI for ${github_host}"
-    exit 1
+    echo "✓ Set GH_HOST=${github_host}"
+    return 0
   fi
 
-  # Set GH_HOST environment variable to ensure gh uses the correct host for subsequent commands
-  export GH_HOST="${github_host}"
-  if [ -n "${GITHUB_ENV:-}" ]; then
-    echo "GH_HOST=${github_host}" >> "${GITHUB_ENV}"
-  fi
-  echo "✓ Set GH_HOST environment variable to ${github_host}"
+  echo "::error::GH_TOKEN environment variable is not set. gh CLI requires authentication."
+  exit 1
 }
 
 # Run main function

@@ -138,11 +138,11 @@ func TestSpinnerBubbleTeaModel(t *testing.T) {
 		t.Error("Update should return spinnerModel")
 	}
 
-	// Note: View() returns empty string with WithoutRenderer() mode
+	// Note: View() returns an empty View with WithoutRenderer() mode
 	// because rendering is done manually in Update() via render()
 	view := model.View()
-	if view != "" {
-		t.Errorf("View should return empty string with WithoutRenderer mode, got '%s'", view)
+	if view.Content != "" {
+		t.Errorf("View should return empty content with WithoutRenderer mode, got '%s'", view.Content)
 	}
 }
 

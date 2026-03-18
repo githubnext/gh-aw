@@ -209,4 +209,45 @@ describe("assign_milestone (Handler Factory Architecture)", () => {
     expect(result.success).toBe(false);
     expect(result.error).toContain("Invalid milestone_number");
   });
+
+  it("should resolve a temporary ID for issue_number", async () => {
+    mockGithub.rest.issues.update.mockResolvedValue({});
+
+    const message = {
+      type: "assign_milestone",
+      issue_number: "aw_abc123",
+      milestone_number: 5,
+    };
+
+    const resolvedTemporaryIds = {
+      aw_abc123: { repo: "test-owner/test-repo", number: 42 },
+    };
+
+    const result = await handler(message, resolvedTemporaryIds);
+
+    expect(result.success).toBe(true);
+    expect(result.issue_number).toBe(42);
+    expect(result.milestone_number).toBe(5);
+    expect(mockGithub.rest.issues.update).toHaveBeenCalledWith({
+      owner: "test-owner",
+      repo: "test-repo",
+      issue_number: 42,
+      milestone: 5,
+    });
+  });
+
+  it("should defer when temporary ID is not yet resolved", async () => {
+    const message = {
+      type: "assign_milestone",
+      issue_number: "aw_pending1",
+      milestone_number: 5,
+    };
+
+    // No resolved temporary IDs provided
+    const result = await handler(message, {});
+
+    expect(result.success).toBe(false);
+    expect(result.deferred).toBe(true);
+    expect(mockGithub.rest.issues.update).not.toHaveBeenCalled();
+  });
 });

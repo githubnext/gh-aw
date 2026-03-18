@@ -165,7 +165,9 @@ async function generateGitPatch(branchName, baseBranch, options = {}) {
           // INCREMENTAL MODE (for push_to_pull_request_branch):
           // Only include commits that are new since origin/branchName.
           // This prevents including commits that already exist on the PR branch.
-          // We must explicitly fetch origin/branchName and fail if it doesn't exist.
+          // Prefer a fresh fetch of origin/branchName; fall back to the existing
+          // remote tracking ref (set up by the initial shallow checkout) when the
+          // fetch fails (e.g. due to shallow clone limitations or missing credentials).
 
           debugLog(`Strategy 1 (incremental): Fetching origin/${branchName}`);
           // Configure git authentication via GIT_CONFIG_* environment variables.
@@ -183,15 +185,29 @@ async function generateGitPatch(branchName, baseBranch, options = {}) {
             baseRef = `origin/${branchName}`;
             debugLog(`Strategy 1 (incremental): Successfully fetched, baseRef=${baseRef}`);
           } catch (fetchError) {
-            // In incremental mode, we MUST have origin/branchName - no fallback
-            debugLog(`Strategy 1 (incremental): Fetch failed - ${getErrorMessage(fetchError)}`);
-            errorMessage = `Cannot generate incremental patch: failed to fetch origin/${branchName}. This typically happens when the remote branch doesn't exist yet or was force-pushed. Error: ${getErrorMessage(fetchError)}`;
-            // Don't try other strategies in incremental mode
-            return {
-              success: false,
-              error: errorMessage,
-              patchPath: patchPath,
-            };
+            // Fetch failed. Check if origin/branchName already exists from the initial shallow checkout.
+            // This handles cases where git fetch fails due to shallow clone limitations or when
+            // GITHUB_TOKEN is unavailable in the MCP server process (e.g. after clean_git_credentials.sh).
+            // Using the existing remote tracking ref as a fallback is safe: it represents the state
+            // of the branch at checkout time, so the incremental patch will include all commits
+            // made by the agent since then.
+            debugLog(`Strategy 1 (incremental): Fetch failed - ${getErrorMessage(fetchError)}, checking for existing remote tracking ref`);
+            try {
+              execGitSync(["show-ref", "--verify", "--quiet", `refs/remotes/origin/${branchName}`], { cwd });
+              // Remote tracking ref exists from initial shallow checkout — use it as base
+              baseRef = `origin/${branchName}`;
+              debugLog(`Strategy 1 (incremental): Using existing remote tracking ref as fallback, baseRef=${baseRef}`);
+            } catch (refCheckError) {
+              // No remote tracking ref at all — cannot safely generate an incremental patch.
+              // Report both errors: the original fetch failure and the missing ref.
+              debugLog(`Strategy 1 (incremental): No existing remote tracking ref found (${getErrorMessage(refCheckError)}), failing`);
+              errorMessage = `Cannot generate incremental patch: failed to fetch origin/${branchName} and no existing remote tracking ref found. This typically happens when the remote branch doesn't exist yet or was force-pushed. Fetch error: ${getErrorMessage(fetchError)}`;
+              return {
+                success: false,
+                error: errorMessage,
+                patchPath: patchPath,
+              };
+            }
           }
         } else {
           // FULL MODE (for create_pull_request):

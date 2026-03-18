@@ -177,7 +177,7 @@ func generateSafeOutputsAssetsArtifactUpload(builder *strings.Builder, data *Wor
 	prefix := artifactPrefixExprForDownstreamJob(data)
 
 	builder.WriteString("      # Upload safe-outputs assets for upload_assets job\n")
-	builder.WriteString("      - name: Upload Safe Outputs assets\n")
+	builder.WriteString("      - name: Upload Safe Outputs Assets\n")
 	builder.WriteString("        if: always()\n")
 	fmt.Fprintf(builder, "        uses: %s\n", GetActionPin("actions/upload-artifact"))
 	builder.WriteString("        with:\n")

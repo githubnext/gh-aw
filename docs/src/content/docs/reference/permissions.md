@@ -43,6 +43,35 @@ permissions:
 
 This permission is safe to use and does not require safe-outputs, even in strict mode.
 
+### GitHub App-Only Permissions
+
+Certain permission scopes cannot be granted to `GITHUB_TOKEN` and are forwarded instead as inputs to [`actions/create-github-app-token`](https://github.com/actions/create-github-app-token) when a GitHub App is configured. These scopes are omitted from the compiled workflow's `permissions:` block.
+
+**Repository-level:** `administration`, `environments`, `git-signing`, `vulnerability-alerts`, `workflows`, `repository-hooks`, `single-file`, `codespaces`, `repository-custom-properties`
+
+**Organization-level:** `organization-projects`, `members`, `organization-administration`, `team-discussions`, `organization-hooks`, `organization-members`, `organization-packages`, `organization-self-hosted-runners`, `organization-custom-org-roles`, `organization-custom-properties`, `organization-custom-repository-roles`, `organization-announcement-banners`, `organization-events`, `organization-plan`, `organization-user-blocking`, `organization-personal-access-token-requests`, `organization-personal-access-tokens`, `organization-copilot`, `organization-codespaces`
+
+**User-level:** `email-addresses`, `codespaces-lifecycle-admin`, `codespaces-metadata`
+
+These scopes must always be declared as `read`. Declaring `write` is a compile error; write operations through a GitHub App must go through [safe outputs](/gh-aw/reference/safe-outputs/), which provide a separate sanitized job for write operations.
+
+Declaring any of these scopes without a configured `github-app` causes a compile error. The GitHub App can be configured in `tools.github.github-app`, `safe-outputs.github-app`, or the top-level `github-app:` field — see [Tools](/gh-aw/reference/tools/) for configuration details.
+
+```aw wrap
+permissions:
+  contents: read
+  workflows: read          # GitHub App-only scope
+  members: read            # GitHub App-only scope
+tools:
+  github:
+    github-app:
+      app-id: ${{ vars.APP_ID }}
+      private-key: ${{ secrets.APP_PRIVATE_KEY }}
+```
+
+> [!NOTE]
+> Shorthand permissions (`read-all`, `write-all`, `all: read`) do not trigger the "GitHub App required" validation.
+
 ## Configuration
 
 Specify individual permission levels:
@@ -116,7 +145,9 @@ permissions:
   contents: read
 ```
 
-**Exception:** The `id-token: write` permission is explicitly allowed as it is used for OIDC authentication with cloud providers and does not grant repository write access.
+**Exceptions:**
+- `id-token: write` is allowed for OIDC authentication with cloud providers and does not grant repository write access.
+- GitHub App-only scopes (see above) always refuse `write` at compile time regardless of this policy; use [safe outputs](/gh-aw/reference/safe-outputs/) for write operations that require a GitHub App.
 
 #### Migrating Existing Workflows
 

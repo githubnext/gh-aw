@@ -166,7 +166,7 @@ function createHandlers(server, appendSafeOutput, config = {}) {
     try {
       const serverHostname = new URL(githubServer).hostname;
       if (serverHostname === "github.com") {
-        url = `https://raw.githubusercontent.com/${repo}/${normalizedBranchName}/${targetFileName}`;
+        url = `https://github.com/${repo}/blob/${normalizedBranchName}/${targetFileName}?raw=true`;
       } else {
         // GitHub Enterprise Server - raw content is served from the same host with /raw/ path
         url = `${githubServer}/${repo}/raw/${normalizedBranchName}/${targetFileName}`;

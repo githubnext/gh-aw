@@ -394,6 +394,7 @@ type WorkflowData struct {
 	StatusComment               *bool                // whether to post status comments (default: true when ai-reaction is set, false otherwise)
 	ActivationGitHubToken       string               // custom github token from on.github-token for reactions/comments
 	ActivationGitHubApp         *GitHubAppConfig     // github app config from on.github-app for minting activation tokens
+	TopLevelGitHubApp           *GitHubAppConfig     // top-level github-app fallback for all nested github-app token minting operations
 	LockForAgent                bool                 // whether to lock the issue during agent workflow execution
 	Jobs                        map[string]any       // custom job configurations with dependencies
 	Cache                       string               // cache configuration

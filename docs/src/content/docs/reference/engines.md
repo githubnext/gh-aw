@@ -139,9 +139,9 @@ The specified hostname must also be listed in `network.allowed` for the firewall
 
 #### Custom API Endpoints via Environment Variables
 
-Two environment variables receive special treatment when set in `engine.env`: `OPENAI_BASE_URL` (for `codex`) and `ANTHROPIC_BASE_URL` (for `claude`). When either is present, the AWF sandbox proxy automatically routes API calls to the specified host instead of the default `api.openai.com` or `api.anthropic.com`. Credential isolation and firewall enforcement remain active.
+Three environment variables receive special treatment when set in `engine.env`: `OPENAI_BASE_URL` (for `codex`), `ANTHROPIC_BASE_URL` (for `claude`), and `GITHUB_COPILOT_BASE_URL` (for `copilot`). When any of these is present, the AWF sandbox proxy automatically routes API calls to the specified host instead of the default endpoint. Credential isolation and firewall enforcement remain active.
 
-This enables workflows to use internal LLM routers, Azure OpenAI deployments, or other OpenAI-compatible endpoints without bypassing AWF's security model.
+This enables workflows to use internal LLM routers, Azure OpenAI deployments, corporate Copilot proxies, or other compatible endpoints without bypassing AWF's security model.
 
 ```yaml wrap
 engine:
@@ -172,7 +172,23 @@ network:
     - anthropic-proxy.internal.example.com
 ```
 
-The custom hostname is extracted from the URL and passed to the AWF `--openai-api-target` or `--anthropic-api-target` flag automatically at compile time. No additional configuration is required.
+For Copilot workflows routed through a custom Copilot-compatible endpoint (e.g., a corporate proxy or a GHE Cloud data residency instance):
+
+```yaml wrap
+engine:
+  id: copilot
+  env:
+    GITHUB_COPILOT_BASE_URL: "https://copilot-proxy.corp.example.com"
+
+network:
+  allowed:
+    - github.com
+    - copilot-proxy.corp.example.com
+```
+
+`GITHUB_COPILOT_BASE_URL` is used as a fallback when `engine.api-target` is not explicitly set. If both are configured, `engine.api-target` takes precedence.
+
+The custom hostname is extracted from the URL and passed to the AWF `--openai-api-target`, `--anthropic-api-target`, or `--copilot-api-target` flag automatically at compile time. No additional configuration is required.
 
 ### Engine Command-Line Arguments
 

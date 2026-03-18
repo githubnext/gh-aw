@@ -658,6 +658,164 @@ Test workflow with non-api prefix api-target.
 	}
 }
 
+// TestGitHubCopilotBaseURLInCompiledWorkflow verifies that when GITHUB_COPILOT_BASE_URL is set
+// in engine.env (without an explicit engine.api-target), the compiled lock file contains
+// --copilot-api-target and includes the extracted hostname in both --allow-domains and
+// GH_AW_ALLOWED_DOMAINS — matching the OPENAI_BASE_URL/ANTHROPIC_BASE_URL pattern for other engines.
+func TestGitHubCopilotBaseURLInCompiledWorkflow(t *testing.T) {
+	workflow := `---
+on: push
+permissions:
+  contents: read
+  issues: read
+  pull-requests: read
+engine:
+  id: copilot
+  env:
+    GITHUB_COPILOT_BASE_URL: "https://copilot-proxy.corp.example.com"
+strict: false
+safe-outputs:
+  create-issue:
+---
+
+# Test Workflow
+
+Test workflow with GITHUB_COPILOT_BASE_URL in engine.env.
+`
+
+	tmpDir := testutil.TempDir(t, "copilot-base-url-test")
+	testFile := filepath.Join(tmpDir, "test-workflow.md")
+	if err := os.WriteFile(testFile, []byte(workflow), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	compiler := NewCompiler()
+	if err := compiler.CompileWorkflow(testFile); err != nil {
+		t.Fatalf("Failed to compile workflow: %v", err)
+	}
+
+	lockFile := stringutil.MarkdownToLockFile(testFile)
+	lockContent, err := os.ReadFile(lockFile)
+	if err != nil {
+		t.Fatalf("Failed to read lock file: %v", err)
+	}
+	lockStr := string(lockContent)
+
+	// --copilot-api-target should be derived from the env var
+	if !strings.Contains(lockStr, "--copilot-api-target copilot-proxy.corp.example.com") {
+		t.Error("Expected --copilot-api-target to be derived from GITHUB_COPILOT_BASE_URL")
+	}
+
+	// Extracted hostname should appear in --allow-domains
+	allowDomainsIdx := strings.Index(lockStr, "--allow-domains")
+	if allowDomainsIdx < 0 {
+		t.Fatal("--allow-domains flag not found in compiled lock file")
+	}
+	allowDomainsEnd := strings.Index(lockStr[allowDomainsIdx:], "\n")
+	if allowDomainsEnd < 0 {
+		allowDomainsEnd = len(lockStr) - allowDomainsIdx
+	}
+	allowDomainsLine := lockStr[allowDomainsIdx : allowDomainsIdx+allowDomainsEnd]
+	if !strings.Contains(allowDomainsLine, "copilot-proxy.corp.example.com") {
+		t.Errorf("Expected hostname from GITHUB_COPILOT_BASE_URL in --allow-domains.\nLine: %s", allowDomainsLine)
+	}
+
+	// Extracted hostname should appear in GH_AW_ALLOWED_DOMAINS
+	lines := strings.Split(lockStr, "\n")
+	var domainsLine string
+	for _, line := range lines {
+		if strings.Contains(line, "GH_AW_ALLOWED_DOMAINS:") {
+			domainsLine = line
+			break
+		}
+	}
+	if domainsLine == "" {
+		t.Fatal("GH_AW_ALLOWED_DOMAINS not found in compiled lock file")
+	}
+	if !strings.Contains(domainsLine, "copilot-proxy.corp.example.com") {
+		t.Errorf("Expected hostname from GITHUB_COPILOT_BASE_URL in GH_AW_ALLOWED_DOMAINS.\nLine: %s", domainsLine)
+	}
+}
+
+// TestAPITargetDomainsInThreatDetectionStep is a regression test verifying that when engine.api-target
+// is configured, the threat detection AWF invocation in the compiled lock file also receives
+// --copilot-api-target and includes the GHE domains in its --allow-domains list.
+// Regression test for: Threat detection AWF run missing --copilot-api-target on data residency.
+func TestAPITargetDomainsInThreatDetectionStep(t *testing.T) {
+	workflow := `---
+on: push
+permissions:
+  contents: read
+  issues: read
+  pull-requests: read
+engine:
+  id: copilot
+  api-target: api.contoso-aw.ghe.com
+strict: false
+safe-outputs:
+  create-issue:
+---
+
+# Test Workflow
+
+Test workflow with GHE data residency api-target and threat detection.
+`
+
+	tmpDir := testutil.TempDir(t, "api-target-threat-detection-test")
+	testFile := filepath.Join(tmpDir, "test-workflow.md")
+	if err := os.WriteFile(testFile, []byte(workflow), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	compiler := NewCompiler()
+	if err := compiler.CompileWorkflow(testFile); err != nil {
+		t.Fatalf("Failed to compile workflow: %v", err)
+	}
+
+	lockFile := stringutil.MarkdownToLockFile(testFile)
+	lockContent, err := os.ReadFile(lockFile)
+	if err != nil {
+		t.Fatalf("Failed to read lock file: %v", err)
+	}
+	lockStr := string(lockContent)
+
+	// Verify --copilot-api-target appears at least twice:
+	// once for the main agent AWF run and once for the threat detection AWF run.
+	apiTargetCount := strings.Count(lockStr, "--copilot-api-target api.contoso-aw.ghe.com")
+	if apiTargetCount < 2 {
+		t.Errorf("Expected --copilot-api-target to appear in both the main agent and threat detection AWF invocations (at least 2 times), but found %d occurrence(s).", apiTargetCount)
+	}
+
+	// Find all --allow-domains occurrences and verify each contains the GHE domains.
+	// api.contoso-aw.ghe.com triggers base-domain derivation, so both the API domain
+	// and the base domain (contoso-aw.ghe.com) must appear in each AWF invocation.
+	requiredDomains := []string{"api.contoso-aw.ghe.com", "contoso-aw.ghe.com"}
+	remaining := lockStr
+	occurrenceIdx := 0
+	for {
+		idx := strings.Index(remaining, "--allow-domains")
+		if idx < 0 {
+			break
+		}
+		occurrenceIdx++
+		lineEnd := strings.Index(remaining[idx:], "\n")
+		if lineEnd < 0 {
+			lineEnd = len(remaining) - idx
+		}
+		line := remaining[idx : idx+lineEnd]
+		for _, domain := range requiredDomains {
+			if !strings.Contains(line, domain) {
+				t.Errorf("--allow-domains occurrence #%d is missing GHE domain %q.\nLine: %s", occurrenceIdx, domain, line)
+			}
+		}
+		remaining = remaining[idx+lineEnd:]
+	}
+
+	if occurrenceIdx < 2 {
+		t.Errorf("Expected at least 2 --allow-domains occurrences (main agent + threat detection), found %d", occurrenceIdx)
+	}
+}
+
 // TestAllowedDomainsUnionWithNetworkConfig tests that safe-outputs.allowed-domains
 // is unioned with network.allowed and always includes localhost and github.com
 func TestAllowedDomainsUnionWithNetworkConfig(t *testing.T) {

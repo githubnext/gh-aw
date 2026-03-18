@@ -449,6 +449,223 @@ func TestAddHandlerManagerConfigEnvVar(t *testing.T) {
 			checkJSON:    true,
 			expectedKeys: []string{"dispatch_workflow"},
 		},
+		{
+			name: "update_discussion config",
+			safeOutputs: &SafeOutputsConfig{
+				UpdateDiscussions: &UpdateDiscussionsConfig{
+					UpdateEntityConfig: UpdateEntityConfig{
+						BaseSafeOutputConfig: BaseSafeOutputConfig{
+							Max: strPtr("1"),
+						},
+					},
+					Title: testBoolPtr(true),
+					Body:  testBoolPtr(true),
+				},
+			},
+			checkContains: []string{
+				"GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG",
+			},
+			checkJSON:    true,
+			expectedKeys: []string{"update_discussion"},
+		},
+		{
+			name: "close_discussion config",
+			safeOutputs: &SafeOutputsConfig{
+				CloseDiscussions: &CloseEntityConfig{
+					BaseSafeOutputConfig: BaseSafeOutputConfig{
+						Max: strPtr("5"),
+					},
+				},
+			},
+			checkContains: []string{
+				"GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG",
+			},
+			checkJSON:    true,
+			expectedKeys: []string{"close_discussion"},
+		},
+		{
+			name: "mark_pull_request_as_ready_for_review config",
+			safeOutputs: &SafeOutputsConfig{
+				MarkPullRequestAsReadyForReview: &MarkPullRequestAsReadyForReviewConfig{
+					BaseSafeOutputConfig: BaseSafeOutputConfig{
+						Max: strPtr("1"),
+					},
+				},
+			},
+			checkContains: []string{
+				"GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG",
+			},
+			checkJSON:    true,
+			expectedKeys: []string{"mark_pull_request_as_ready_for_review"},
+		},
+		{
+			name: "create_pull_request_review_comment config",
+			safeOutputs: &SafeOutputsConfig{
+				CreatePullRequestReviewComments: &CreatePullRequestReviewCommentsConfig{
+					BaseSafeOutputConfig: BaseSafeOutputConfig{
+						Max: strPtr("10"),
+					},
+				},
+			},
+			checkContains: []string{
+				"GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG",
+			},
+			checkJSON:    true,
+			expectedKeys: []string{"create_pull_request_review_comment"},
+		},
+		{
+			name: "autofix_code_scanning_alert config",
+			safeOutputs: &SafeOutputsConfig{
+				AutofixCodeScanningAlert: &AutofixCodeScanningAlertConfig{
+					BaseSafeOutputConfig: BaseSafeOutputConfig{
+						Max: strPtr("10"),
+					},
+				},
+			},
+			checkContains: []string{
+				"GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG",
+			},
+			checkJSON:    true,
+			expectedKeys: []string{"autofix_code_scanning_alert"},
+		},
+		{
+			name: "add_reviewer config",
+			safeOutputs: &SafeOutputsConfig{
+				AddReviewer: &AddReviewerConfig{
+					BaseSafeOutputConfig: BaseSafeOutputConfig{
+						Max: strPtr("3"),
+					},
+				},
+			},
+			checkContains: []string{
+				"GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG",
+			},
+			checkJSON:    true,
+			expectedKeys: []string{"add_reviewer"},
+		},
+		{
+			name: "assign_milestone config",
+			safeOutputs: &SafeOutputsConfig{
+				AssignMilestone: &AssignMilestoneConfig{
+					BaseSafeOutputConfig: BaseSafeOutputConfig{
+						Max: strPtr("1"),
+					},
+				},
+			},
+			checkContains: []string{
+				"GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG",
+			},
+			checkJSON:    true,
+			expectedKeys: []string{"assign_milestone"},
+		},
+		{
+			name: "assign_to_agent config",
+			safeOutputs: &SafeOutputsConfig{
+				AssignToAgent: &AssignToAgentConfig{
+					BaseSafeOutputConfig: BaseSafeOutputConfig{
+						Max: strPtr("1"),
+					},
+					DefaultAgent: "copilot",
+				},
+			},
+			checkContains: []string{
+				"GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG",
+			},
+			checkJSON:    true,
+			expectedKeys: []string{"assign_to_agent"},
+		},
+		{
+			name: "upload_asset config",
+			safeOutputs: &SafeOutputsConfig{
+				UploadAssets: &UploadAssetsConfig{
+					BaseSafeOutputConfig: BaseSafeOutputConfig{
+						Max: strPtr("5"),
+					},
+				},
+			},
+			checkContains: []string{
+				"GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG",
+			},
+			checkJSON:    true,
+			expectedKeys: []string{"upload_asset"},
+		},
+		{
+			name: "update_release config",
+			safeOutputs: &SafeOutputsConfig{
+				UpdateRelease: &UpdateReleaseConfig{
+					UpdateEntityConfig: UpdateEntityConfig{
+						BaseSafeOutputConfig: BaseSafeOutputConfig{
+							Max: strPtr("1"),
+						},
+					},
+				},
+			},
+			checkContains: []string{
+				"GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG",
+			},
+			checkJSON:    true,
+			expectedKeys: []string{"update_release"},
+		},
+		{
+			name: "create_agent_session config",
+			safeOutputs: &SafeOutputsConfig{
+				CreateAgentSessions: &CreateAgentSessionConfig{
+					BaseSafeOutputConfig: BaseSafeOutputConfig{
+						Max: strPtr("1"),
+					},
+				},
+			},
+			checkContains: []string{
+				"GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG",
+			},
+			checkJSON:    true,
+			expectedKeys: []string{"create_agent_session"},
+		},
+		{
+			name: "hide_comment config",
+			safeOutputs: &SafeOutputsConfig{
+				HideComment: &HideCommentConfig{
+					BaseSafeOutputConfig: BaseSafeOutputConfig{
+						Max: strPtr("5"),
+					},
+				},
+			},
+			checkContains: []string{
+				"GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG",
+			},
+			checkJSON:    true,
+			expectedKeys: []string{"hide_comment"},
+		},
+		{
+			name: "set_issue_type config",
+			safeOutputs: &SafeOutputsConfig{
+				SetIssueType: &SetIssueTypeConfig{
+					BaseSafeOutputConfig: BaseSafeOutputConfig{
+						Max: strPtr("1"),
+					},
+				},
+			},
+			checkContains: []string{
+				"GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG",
+			},
+			checkJSON:    true,
+			expectedKeys: []string{"set_issue_type"},
+		},
+		{
+			name: "noop config",
+			safeOutputs: &SafeOutputsConfig{
+				NoOp: &NoOpConfig{
+					BaseSafeOutputConfig: BaseSafeOutputConfig{
+						Max: strPtr("1"),
+					},
+				},
+			},
+			checkContains: []string{
+				"GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG",
+			},
+			checkJSON:    true,
+			expectedKeys: []string{"noop"},
+		},
 	}
 
 	for _, tt := range tests {
