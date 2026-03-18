@@ -64,6 +64,12 @@ This workflow tests that aw_info.json is generated in /tmp directory.
 		t.Error("Expected step to call main(core, context) from generate_aw_info.cjs")
 	}
 
+	// Verify setupGlobals is called before main so that global.core is available
+	// for modules like staged_preview.cjs that rely on it (fixes staged mode ReferenceError)
+	if !strings.Contains(lockStr, "setupGlobals(core, github, context, exec, io)") {
+		t.Error("Expected step to call setupGlobals before main to set global.core")
+	}
+
 	// Test 2: Verify compile-time env vars are set on the step
 	if !strings.Contains(lockStr, "GH_AW_INFO_ENGINE_ID:") {
 		t.Error("Expected GH_AW_INFO_ENGINE_ID env var to be set on the step")

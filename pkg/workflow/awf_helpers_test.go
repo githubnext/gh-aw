@@ -249,6 +249,96 @@ func TestAWFCustomAPITargetFlags(t *testing.T) {
 	})
 }
 
+// TestBuildAWFArgsMemoryLimit tests that BuildAWFArgs passes --memory-limit
+// when sandbox.agent.memory is configured in the workflow frontmatter
+func TestBuildAWFArgsMemoryLimit(t *testing.T) {
+	t.Run("includes --memory-limit flag when memory is configured", func(t *testing.T) {
+		workflowData := &WorkflowData{
+			Name: "test-workflow",
+			EngineConfig: &EngineConfig{
+				ID: "copilot",
+			},
+			NetworkPermissions: &NetworkPermissions{
+				Firewall: &FirewallConfig{
+					Enabled: true,
+				},
+			},
+			SandboxConfig: &SandboxConfig{
+				Agent: &AgentSandboxConfig{
+					Memory: "6g",
+				},
+			},
+		}
+
+		config := AWFCommandConfig{
+			EngineName:     "copilot",
+			WorkflowData:   workflowData,
+			AllowedDomains: "github.com",
+		}
+
+		args := BuildAWFArgs(config)
+		argsStr := strings.Join(args, " ")
+
+		assert.Contains(t, argsStr, "--memory-limit", "Should include --memory-limit flag")
+		assert.Contains(t, argsStr, "6g", "Should include the memory value")
+	})
+
+	t.Run("does not include --memory-limit flag when memory is not configured", func(t *testing.T) {
+		workflowData := &WorkflowData{
+			Name: "test-workflow",
+			EngineConfig: &EngineConfig{
+				ID: "copilot",
+			},
+			NetworkPermissions: &NetworkPermissions{
+				Firewall: &FirewallConfig{
+					Enabled: true,
+				},
+			},
+		}
+
+		config := AWFCommandConfig{
+			EngineName:     "copilot",
+			WorkflowData:   workflowData,
+			AllowedDomains: "github.com",
+		}
+
+		args := BuildAWFArgs(config)
+		argsStr := strings.Join(args, " ")
+
+		assert.NotContains(t, argsStr, "--memory-limit", "Should not include --memory-limit when memory is not configured")
+	})
+
+	t.Run("includes correct memory value when multiple sizes configured", func(t *testing.T) {
+		for _, memory := range []string{"512m", "4g", "8g"} {
+			t.Run(memory, func(t *testing.T) {
+				workflowData := &WorkflowData{
+					Name: "test-workflow",
+					EngineConfig: &EngineConfig{
+						ID: "copilot",
+					},
+					SandboxConfig: &SandboxConfig{
+						Agent: &AgentSandboxConfig{
+							Memory: memory,
+						},
+					},
+				}
+
+				config := AWFCommandConfig{
+					EngineName:     "copilot",
+					WorkflowData:   workflowData,
+					AllowedDomains: "github.com",
+				}
+
+				args := BuildAWFArgs(config)
+				argsStr := strings.Join(args, " ")
+
+				assert.Contains(t, argsStr, "--memory-limit", "Should include --memory-limit flag")
+				assert.Contains(t, argsStr, memory, "Should include the correct memory value")
+			})
+		}
+	})
+}
+
 // TestEngineExecutionWithCustomAPITarget tests that engine execution steps include
 // custom API target flags when configured in engine.env
 func TestEngineExecutionWithCustomAPITarget(t *testing.T) {
@@ -307,4 +397,102 @@ func TestEngineExecutionWithCustomAPITarget(t *testing.T) {
 		assert.Contains(t, stepContent, "--anthropic-api-target", "Should include --anthropic-api-target flag")
 		assert.Contains(t, stepContent, "claude-proxy.internal.company.com", "Should include custom hostname")
 	})
+}
+
+// TestGetCopilotAPITarget tests the GetCopilotAPITarget helper that resolves the effective
+// Copilot API target from either engine.api-target or GITHUB_COPILOT_BASE_URL in engine.env.
+func TestGetCopilotAPITarget(t *testing.T) {
+	tests := []struct {
+		name         string
+		workflowData *WorkflowData
+		expected     string
+	}{
+		{
+			name: "engine.api-target takes precedence over GITHUB_COPILOT_BASE_URL",
+			workflowData: &WorkflowData{
+				EngineConfig: &EngineConfig{
+					ID:        "copilot",
+					APITarget: "api.acme.ghe.com",
+					Env: map[string]string{
+						"GITHUB_COPILOT_BASE_URL": "https://other.endpoint.com",
+					},
+				},
+			},
+			expected: "api.acme.ghe.com",
+		},
+		{
+			name: "GITHUB_COPILOT_BASE_URL used as fallback when api-target not set",
+			workflowData: &WorkflowData{
+				EngineConfig: &EngineConfig{
+					ID: "copilot",
+					Env: map[string]string{
+						"GITHUB_COPILOT_BASE_URL": "https://copilot-api.contoso-aw.ghe.com",
+					},
+				},
+			},
+			expected: "copilot-api.contoso-aw.ghe.com",
+		},
+		{
+			name: "GITHUB_COPILOT_BASE_URL with path extracts hostname only",
+			workflowData: &WorkflowData{
+				EngineConfig: &EngineConfig{
+					ID: "copilot",
+					Env: map[string]string{
+						"GITHUB_COPILOT_BASE_URL": "https://copilot-proxy.corp.example.com/v1",
+					},
+				},
+			},
+			expected: "copilot-proxy.corp.example.com",
+		},
+		{
+			name: "empty when neither api-target nor GITHUB_COPILOT_BASE_URL is set",
+			workflowData: &WorkflowData{
+				EngineConfig: &EngineConfig{
+					ID: "copilot",
+				},
+			},
+			expected: "",
+		},
+		{
+			name:         "empty when workflowData is nil",
+			workflowData: nil,
+			expected:     "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := GetCopilotAPITarget(tt.workflowData)
+			assert.Equal(t, tt.expected, result, "GetCopilotAPITarget should return expected hostname")
+		})
+	}
+}
+
+// TestCopilotEngineIncludesCopilotAPITargetFromEnvVar tests that the Copilot engine execution
+// step includes --copilot-api-target when GITHUB_COPILOT_BASE_URL is configured in engine.env.
+func TestCopilotEngineIncludesCopilotAPITargetFromEnvVar(t *testing.T) {
+	workflowData := &WorkflowData{
+		Name: "test-workflow",
+		EngineConfig: &EngineConfig{
+			ID: "copilot",
+			Env: map[string]string{
+				"GITHUB_COPILOT_BASE_URL": "https://copilot-api.contoso-aw.ghe.com",
+			},
+		},
+		NetworkPermissions: &NetworkPermissions{
+			Firewall: &FirewallConfig{
+				Enabled: true,
+			},
+		},
+	}
+
+	engine := NewCopilotEngine()
+	steps := engine.GetExecutionSteps(workflowData, "test.log")
+
+	assert.NotEmpty(t, steps, "Should generate execution steps")
+
+	stepContent := strings.Join(steps[0], "\n")
+
+	assert.Contains(t, stepContent, "--copilot-api-target", "Should include --copilot-api-target flag")
+	assert.Contains(t, stepContent, "copilot-api.contoso-aw.ghe.com", "Should include custom Copilot hostname")
 }

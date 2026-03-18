@@ -294,6 +294,7 @@ func (b *InteractiveWorkflowBuilder) generateWorkflow(force bool) error {
 
 // generateWorkflowContent creates the workflow markdown content
 func (b *InteractiveWorkflowBuilder) generateWorkflowContent() string {
+	interactiveLog.Printf("Generating workflow content: trigger=%s, engine=%s, tools=%v, safe_outputs=%v", b.Trigger, b.Engine, b.Tools, b.SafeOutputs)
 	var content strings.Builder
 
 	// Write frontmatter
@@ -367,6 +368,7 @@ func (b *InteractiveWorkflowBuilder) generateWorkflowContent() string {
 // Helper methods for generating configuration sections
 
 func (b *InteractiveWorkflowBuilder) generateTriggerConfig() string {
+	interactiveLog.Printf("Generating trigger config: trigger=%s", b.Trigger)
 	switch b.Trigger {
 	case "workflow_dispatch":
 		return "on:\n  workflow_dispatch:\n"
@@ -420,6 +422,7 @@ func (b *InteractiveWorkflowBuilder) generatePermissionsConfig() string {
 }
 
 func (b *InteractiveWorkflowBuilder) generateNetworkConfig() string {
+	interactiveLog.Printf("Generating network config: network=%s", b.NetworkAccess)
 	switch b.NetworkAccess {
 	case "ecosystem":
 		return "network:\n  allowed:\n    - defaults\n    - python\n    - node\n    - go\n    - java\n"

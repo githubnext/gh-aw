@@ -11,6 +11,7 @@ describe("validate_lockdown_requirements", () => {
     mockCore = {
       info: vi.fn(),
       setFailed: vi.fn(),
+      setOutput: vi.fn(),
     };
 
     // Reset process.env
@@ -85,6 +86,7 @@ describe("validate_lockdown_requirements", () => {
     expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("Lockdown mode is enabled (lockdown: true) but no custom GitHub token is configured"));
     expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("GH_AW_GITHUB_TOKEN (recommended)"));
     expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("GH_AW_GITHUB_MCP_SERVER_TOKEN (alternative)"));
+    expect(mockCore.setOutput).toHaveBeenCalledWith("lockdown_check_failed", "true");
   });
 
   it("should include documentation link in error message", () => {
@@ -133,6 +135,7 @@ describe("validate_lockdown_requirements", () => {
 
       expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("public repository but was not compiled with strict mode"));
       expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("gh aw compile --strict"));
+      expect(mockCore.setOutput).toHaveBeenCalledWith("lockdown_check_failed", "true");
     });
 
     it("should fail when repository is public and GH_AW_COMPILED_STRICT is not set", () => {
@@ -144,6 +147,7 @@ describe("validate_lockdown_requirements", () => {
       }).toThrow("not compiled with strict mode");
 
       expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("public repository but was not compiled with strict mode"));
+      expect(mockCore.setOutput).toHaveBeenCalledWith("lockdown_check_failed", "true");
     });
 
     it("should pass when repository is public and compiled with strict mode", () => {

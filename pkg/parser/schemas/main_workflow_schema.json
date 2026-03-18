@@ -2655,6 +2655,12 @@
                       },
                       "examples": [["/host/data:/data:ro", "/usr/local/bin/custom-tool:/usr/local/bin/custom-tool:ro"]]
                     },
+                    "memory": {
+                      "type": "string",
+                      "description": "Memory limit for the AWF container (e.g., '4g', '8g'). Passed as --memory-limit to AWF. If not specified, AWF's default memory limit is used.",
+                      "pattern": "^[0-9]+(b|k|m|g|kb|mb|gb|B|K|M|G|KB|MB|GB)$",
+                      "examples": ["4g", "8g", "512m"]
+                    },
                     "config": {
                       "type": "object",
                       "description": "Custom sandbox runtime configuration. Note: Network configuration is controlled by the top-level 'network' field, not here.",

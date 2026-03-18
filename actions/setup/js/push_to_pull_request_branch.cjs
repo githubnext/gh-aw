@@ -4,6 +4,7 @@
 /** @type {typeof import("fs")} */
 const fs = require("fs");
 const { generateStagedPreview } = require("./staged_preview.cjs");
+const { pushSignedCommits } = require("./push_signed_commits.cjs");
 const { updateActivationCommentWithCommit, updateActivationComment } = require("./update_activation_comment.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { normalizeBranchName } = require("./normalize_branch_name.cjs");
@@ -481,10 +482,16 @@ async function main(config = {}) {
         return { success: false, error: "Failed to apply patch" };
       }
 
-      // Push the applied commits to the branch (outside patch try/catch so push failures are not misattributed)
+      // Push the applied commits to the branch using signed GraphQL commits (outside patch try/catch so push failures are not misattributed)
       try {
-        await exec.exec("git", ["push", "origin", branchName], {
-          env: { ...process.env, ...gitAuthEnv },
+        await pushSignedCommits({
+          githubClient,
+          owner: repoParts.owner,
+          repo: repoParts.repo,
+          branch: branchName,
+          baseRef: remoteHeadBeforePatch || `origin/${branchName}`,
+          cwd: process.cwd(),
+          gitAuthEnv,
         });
         core.info(`Changes committed and pushed to branch: ${branchName}`);
       } catch (pushError) {

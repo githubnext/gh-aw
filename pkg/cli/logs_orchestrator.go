@@ -234,6 +234,7 @@ func DownloadWorkflowLogs(ctx context.Context, workflowName string, count int, s
 					}
 
 					if !engineMatches {
+						logsOrchestratorLog.Printf("Skipping run %d: engine filter=%s, no match detected", result.Run.DatabaseID, engine)
 						if verbose {
 							engineName := "unknown"
 							if detectedEngine != nil {
@@ -260,6 +261,7 @@ func DownloadWorkflowLogs(ctx context.Context, workflowName string, count int, s
 					}
 
 					if isStaged {
+						logsOrchestratorLog.Printf("Skipping run %d: staged workflow filtered by --no-staged", result.Run.DatabaseID)
 						if verbose {
 							fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Skipping run %d: workflow is staged (filtered out by --no-staged)", result.Run.DatabaseID)))
 						}
@@ -277,12 +279,14 @@ func DownloadWorkflowLogs(ctx context.Context, workflowName string, count int, s
 
 					// Check if the run matches the filter
 					if firewallOnly && !hasFirewall {
+						logsOrchestratorLog.Printf("Skipping run %d: no firewall detected, filtered by --firewall", result.Run.DatabaseID)
 						if verbose {
 							fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Skipping run %d: workflow does not use firewall (filtered by --firewall)", result.Run.DatabaseID)))
 						}
 						continue
 					}
 					if noFirewall && hasFirewall {
+						logsOrchestratorLog.Printf("Skipping run %d: firewall detected, filtered by --no-firewall", result.Run.DatabaseID)
 						if verbose {
 							fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Skipping run %d: workflow uses firewall (filtered by --no-firewall)", result.Run.DatabaseID)))
 						}

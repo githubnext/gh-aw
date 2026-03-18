@@ -190,6 +190,10 @@ func (c *Compiler) buildConclusionJob(data *WorkflowData, mainJobName string, sa
 		agentFailureEnvVars = append(agentFailureEnvVars, fmt.Sprintf("          GH_AW_ACTIVATION_APP_TOKEN_MINTING_FAILED: ${{ needs.%s.outputs.activation_app_token_minting_failed }}\n", string(constants.ActivationJobName)))
 	}
 
+	// Always pass lockdown check failure status so the handler can surface configuration
+	// errors even when the agent job was skipped due to the lockdown check failing.
+	agentFailureEnvVars = append(agentFailureEnvVars, fmt.Sprintf("          GH_AW_LOCKDOWN_CHECK_FAILED: ${{ needs.%s.outputs.lockdown_check_failed }}\n", string(constants.ActivationJobName)))
+
 	// Pass custom messages config if present
 	if data.SafeOutputs != nil && data.SafeOutputs.Messages != nil {
 		messagesJSON, err := serializeMessagesConfig(data.SafeOutputs.Messages)
@@ -378,7 +382,7 @@ func (c *Compiler) buildConclusionJob(data *WorkflowData, mainJobName string, sa
 
 	// Build the condition for this job:
 	// 1. always() - run even if agent fails
-	// 2. agent was activated (not skipped)
+	// 2. agent was activated (not skipped) OR lockdown check failed in activation job
 	// 3. IF comment_id exists: add_comment job either doesn't exist OR hasn't created a comment yet
 	//
 	// Note: The job should always run to handle noop messages (either update comment or write to summary)
@@ -392,6 +396,16 @@ func (c *Compiler) buildConclusionJob(data *WorkflowData, mainJobName string, sa
 		BuildStringLiteral("skipped"),
 	)
 
+	// Check if the lockdown check failed in the activation job — when this happens the agent
+	// is skipped, but we still want the conclusion job to run so it can report the failure.
+	lockdownCheckFailed := BuildEquals(
+		BuildPropertyAccess(fmt.Sprintf("needs.%s.outputs.lockdown_check_failed", string(constants.ActivationJobName))),
+		BuildStringLiteral("true"),
+	)
+
+	// Agent not skipped OR lockdown check failed
+	agentNotSkippedOrLockdownFailed := BuildOr(agentNotSkipped, lockdownCheckFailed)
+
 	// Check if add_comment job exists in the safe output jobs
 	hasAddCommentJob := slices.Contains(safeOutputJobNames, "add_comment")
 
@@ -404,12 +418,12 @@ func (c *Compiler) buildConclusionJob(data *WorkflowData, mainJobName string, sa
 			Child: BuildPropertyAccess("needs.add_comment.outputs.comment_id"),
 		}
 		condition = BuildAnd(
-			BuildAnd(alwaysFunc, agentNotSkipped),
+			BuildAnd(alwaysFunc, agentNotSkippedOrLockdownFailed),
 			noAddCommentOutput,
 		)
 	} else {
 		// If add_comment job doesn't exist, just check the basic conditions
-		condition = BuildAnd(alwaysFunc, agentNotSkipped)
+		condition = BuildAnd(alwaysFunc, agentNotSkippedOrLockdownFailed)
 	}
 
 	// Build dependencies - this job depends on all safe output jobs to ensure it runs last
