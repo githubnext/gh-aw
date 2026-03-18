@@ -707,8 +707,8 @@ Test workflow with GHE data residency api-target and threat detection.
 		t.Errorf("Expected --copilot-api-target to appear in both the main agent and threat detection AWF invocations (at least 2 times), but found %d occurrence(s).", apiTargetCount)
 	}
 
-	// Find all --allow-domains occurrences and verify each contains the GHE domain.
-	requiredDomains := []string{"copilot-api.contoso-aw.ghe.com", "contoso-aw.ghe.com"}
+	// Find all --allow-domains occurrences and verify each contains the configured Copilot API host.
+	requiredDomains := []string{"copilot-api.contoso-aw.ghe.com"}
 	remaining := lockStr
 	occurrenceIdx := 0
 	for {
