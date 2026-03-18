@@ -269,23 +269,6 @@ func IsGitHubAppOnlyScope(scope PermissionScope) bool {
 	return slices.Contains(GetAllGitHubAppOnlyScopes(), scope)
 }
 
-// GetReadOnlyGitHubAppOnlyScopes returns the GitHub App-only scopes that only support
-// the "read" permission level. Requesting "write" for any of these scopes is an error.
-func GetReadOnlyGitHubAppOnlyScopes() []PermissionScope {
-	return []PermissionScope{
-		PermissionOrganizationEvents, // events are always read-only
-		PermissionOrganizationPlan,   // billing plan info is read-only
-		PermissionEmailAddresses,     // user email addresses are read-only via App
-		PermissionCodespacesMetadata, // metadata is read-only
-	}
-}
-
-// IsReadOnlyGitHubAppOnlyScope returns true if the scope is a GitHub App-only permission
-// that only supports the "read" level (i.e., "write" is not a valid level for this scope).
-func IsReadOnlyGitHubAppOnlyScope(scope PermissionScope) bool {
-	return slices.Contains(GetReadOnlyGitHubAppOnlyScopes(), scope)
-}
-
 // Permissions represents GitHub Actions permissions
 // It can be a shorthand (read-all, write-all, read, write, none) or a map of scopes to levels
 // It can also have an "all" permission that expands to all scopes

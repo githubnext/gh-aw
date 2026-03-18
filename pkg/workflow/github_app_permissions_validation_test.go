@@ -29,7 +29,7 @@ func TestValidateGitHubAppOnlyPermissions(t *testing.T) {
 		},
 		{
 			name:          "organization-projects (App-only) without github-app - should error",
-			permissions:   "permissions:\n  organization-projects: write",
+			permissions:   "permissions:\n  organization-projects: read",
 			shouldError:   true,
 			errorContains: "GitHub App-only permissions require a GitHub App",
 		},
@@ -125,28 +125,28 @@ func TestValidateGitHubAppOnlyPermissions(t *testing.T) {
 			shouldError: false,
 		},
 		{
-			name:          "organization-events with write - should error (read-only scope)",
+			name:          "organization-events with write - should error (no write on App-only scopes)",
 			permissions:   "permissions:\n  organization-events: write",
 			shouldError:   true,
-			errorContains: "read-only",
+			errorContains: "safe-outputs",
 		},
 		{
-			name:          "organization-plan with write - should error (read-only scope)",
+			name:          "organization-plan with write - should error (no write on App-only scopes)",
 			permissions:   "permissions:\n  organization-plan: write",
 			shouldError:   true,
-			errorContains: "read-only",
+			errorContains: "safe-outputs",
 		},
 		{
-			name:          "email-addresses with write - should error (read-only scope)",
+			name:          "email-addresses with write - should error (no write on App-only scopes)",
 			permissions:   "permissions:\n  email-addresses: write",
 			shouldError:   true,
-			errorContains: "read-only",
+			errorContains: "safe-outputs",
 		},
 		{
-			name:          "codespaces-metadata with write - should error (read-only scope)",
+			name:          "codespaces-metadata with write - should error (no write on App-only scopes)",
 			permissions:   "permissions:\n  codespaces-metadata: write",
 			shouldError:   true,
-			errorContains: "read-only",
+			errorContains: "safe-outputs",
 		},
 		{
 			name:        "organization-events with read and github-app - should pass",
@@ -162,8 +162,14 @@ func TestValidateGitHubAppOnlyPermissions(t *testing.T) {
 			shouldError: false,
 		},
 		{
-			name:        "administration with write and github-app - should pass (write allowed)",
-			permissions: "permissions:\n  administration: write",
+			name:          "administration with write - should error (no write on App-only scopes)",
+			permissions:   "permissions:\n  administration: write",
+			shouldError:   true,
+			errorContains: "safe-outputs",
+		},
+		{
+			name:        "members with write - should error even with github-app (no write on App-only scopes)",
+			permissions: "permissions:\n  members: write",
 			parsedTools: &ToolsConfig{
 				GitHub: &GitHubToolConfig{
 					GitHubApp: &GitHubAppConfig{
@@ -172,7 +178,8 @@ func TestValidateGitHubAppOnlyPermissions(t *testing.T) {
 					},
 				},
 			},
-			shouldError: false,
+			shouldError:   true,
+			errorContains: "safe-outputs",
 		},
 	}
 
@@ -292,38 +299,6 @@ func TestGetAllGitHubAppOnlyScopes(t *testing.T) {
 		if scopeSet[notExpected] {
 			t.Errorf("Expected scope %q to NOT be in GetAllGitHubAppOnlyScopes()", notExpected)
 		}
-	}
-}
-
-func TestIsReadOnlyGitHubAppOnlyScope(t *testing.T) {
-	tests := []struct {
-		scope    PermissionScope
-		expected bool
-	}{
-		// Read-only GitHub App-only scopes - should return true
-		{PermissionOrganizationEvents, true},
-		{PermissionOrganizationPlan, true},
-		{PermissionEmailAddresses, true},
-		{PermissionCodespacesMetadata, true},
-		// Scopes that support both read and write - should return false
-		{PermissionAdministration, false},
-		{PermissionMembers, false},
-		{PermissionWorkflows, false},
-		{PermissionOrganizationAdministration, false},
-		{PermissionTeamDiscussions, false},
-		{PermissionEnvironments, false},
-		// GitHub Actions scopes - not App-only, should return false
-		{PermissionContents, false},
-		{PermissionIssues, false},
-	}
-
-	for _, tt := range tests {
-		t.Run(string(tt.scope), func(t *testing.T) {
-			result := IsReadOnlyGitHubAppOnlyScope(tt.scope)
-			if result != tt.expected {
-				t.Errorf("IsReadOnlyGitHubAppOnlyScope(%q) = %v, want %v", tt.scope, result, tt.expected)
-			}
-		})
 	}
 }
 

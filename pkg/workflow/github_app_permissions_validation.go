@@ -9,9 +9,11 @@ import (
 var githubAppPermissionsLog = newValidationLogger("github_app_permissions")
 
 // validateGitHubAppOnlyPermissions validates that when GitHub App-only permissions
-// are specified in the workflow, a GitHub App is configured somewhere in the workflow.
+// are specified in the workflow, a GitHub App is configured somewhere in the workflow,
+// and that no GitHub App-only permission is declared with "write" access (write operations
+// must be performed via safe-outputs, not through declared permissions).
 //
-// GitHub App-only permissions (e.g., members, administration, secrets) cannot be exercised
+// GitHub App-only permissions (e.g., members, administration) cannot be exercised
 // through the GITHUB_TOKEN — they require a GitHub App installation access token. When such
 // permissions are declared, a GitHub App must be configured via one of:
 //   - tools.github.github-app
@@ -19,7 +21,7 @@ var githubAppPermissionsLog = newValidationLogger("github_app_permissions")
 //   - the top-level github-app field (for the activation/pre-activation jobs)
 //
 // Returns an error if GitHub App-only permissions are used without any GitHub App configured,
-// or if "write" level is requested for a read-only GitHub App-only scope.
+// or if "write" level is requested for any GitHub App-only scope.
 func validateGitHubAppOnlyPermissions(workflowData *WorkflowData) error {
 	githubAppPermissionsLog.Print("Starting GitHub App-only permissions validation")
 
@@ -67,28 +69,26 @@ func validateGitHubAppOnlyPermissions(workflowData *WorkflowData) error {
 	return formatGitHubAppRequiredError(appOnlyScopes)
 }
 
-// validateGitHubAppOnlyPermissionsWrite checks that no read-only GitHub App-only scope
-// has been requested with "write" access. Such a request is always invalid because
-// the GitHub App permission model does not allow "write" for those scopes.
+// validateGitHubAppOnlyPermissionsWrite checks that no GitHub App-only scope has been
+// requested with "write" access. Write operations on GitHub App tokens must be performed
+// via safe-outputs, not through declared permissions.
 func validateGitHubAppOnlyPermissionsWrite(permissions *Permissions, appOnlyScopes []PermissionScope) error {
-	var writeOnReadOnly []PermissionScope
+	var writtenScopes []PermissionScope
 	for _, scope := range appOnlyScopes {
-		if !IsReadOnlyGitHubAppOnlyScope(scope) {
-			continue
-		}
 		if level, exists := permissions.GetExplicit(scope); exists && level == PermissionWrite {
-			writeOnReadOnly = append(writeOnReadOnly, scope)
+			writtenScopes = append(writtenScopes, scope)
 		}
 	}
-	if len(writeOnReadOnly) == 0 {
+	if len(writtenScopes) == 0 {
 		return nil
 	}
-	return formatWriteOnReadOnlyScopesError(writeOnReadOnly)
+	return formatWriteOnAppScopesError(writtenScopes)
 }
 
-// formatWriteOnReadOnlyScopesError formats the error when "write" is requested for
-// a read-only GitHub App-only scope.
-func formatWriteOnReadOnlyScopesError(scopes []PermissionScope) error {
+// formatWriteOnAppScopesError formats the error when "write" is requested for
+// any GitHub App-only scope. All App-only scopes must be declared read-only;
+// write operations are performed via safe-outputs.
+func formatWriteOnAppScopesError(scopes []PermissionScope) error {
 	scopeStrs := make([]string, len(scopes))
 	for i, s := range scopes {
 		scopeStrs[i] = string(s)
@@ -96,13 +96,15 @@ func formatWriteOnReadOnlyScopesError(scopes []PermissionScope) error {
 	sort.Strings(scopeStrs)
 
 	var lines []string
-	lines = append(lines, "The following GitHub App permissions are read-only and do not support \"write\" access:")
+	lines = append(lines, "GitHub App permissions must be declared as \"read\" only.")
+	lines = append(lines, "Write operations are performed via safe-outputs, not through declared permissions.")
+	lines = append(lines, "The following GitHub App-only permissions were declared with \"write\" access:")
 	lines = append(lines, "")
 	for _, s := range scopeStrs {
 		lines = append(lines, "  - "+s)
 	}
 	lines = append(lines, "")
-	lines = append(lines, "Change the permission level to \"read\" or remove these permissions.")
+	lines = append(lines, "Change the permission level to \"read\" or use safe-outputs for write operations.")
 
 	return errors.New(strings.Join(lines, "\n"))
 }
