@@ -622,9 +622,51 @@ var handlerRegistry = map[string]handlerBuilder{
 			AddIfNotEmpty("github-token", c.GitHubToken).
 			Build()
 	},
-	// Note: "noop" is intentionally NOT included here because it is always processed
-	// by a dedicated standalone step (see notify_comment.go buildConclusionJob).
-	// Adding it to the handler manager would create duplicate configuration overhead.
+	"noop": func(cfg *SafeOutputsConfig) map[string]any {
+		if cfg.NoOp == nil {
+			return nil
+		}
+		c := cfg.NoOp
+		return newHandlerConfigBuilder().
+			AddTemplatableInt("max", c.Max).
+			AddStringPtr("report-as-issue", c.ReportAsIssue).
+			Build()
+	},
+	"assign_to_agent": func(cfg *SafeOutputsConfig) map[string]any {
+		if cfg.AssignToAgent == nil {
+			return nil
+		}
+		c := cfg.AssignToAgent
+		return newHandlerConfigBuilder().
+			AddTemplatableInt("max", c.Max).
+			AddIfNotEmpty("name", c.DefaultAgent).
+			AddIfNotEmpty("model", c.DefaultModel).
+			AddIfNotEmpty("custom-agent", c.DefaultCustomAgent).
+			AddIfNotEmpty("custom-instructions", c.DefaultCustomInstructions).
+			AddStringSlice("allowed", c.Allowed).
+			AddIfTrue("ignore-if-error", c.IgnoreIfError).
+			AddIfNotEmpty("target", c.Target).
+			AddIfNotEmpty("target-repo", c.TargetRepoSlug).
+			AddStringSlice("allowed-repos", c.AllowedRepos).
+			AddIfNotEmpty("pull-request-repo", c.PullRequestRepoSlug).
+			AddStringSlice("allowed-pull-request-repos", c.AllowedPullRequestRepos).
+			AddIfNotEmpty("base-branch", c.BaseBranch).
+			AddIfNotEmpty("github-token", c.GitHubToken).
+			Build()
+	},
+	"upload_asset": func(cfg *SafeOutputsConfig) map[string]any {
+		if cfg.UploadAssets == nil {
+			return nil
+		}
+		c := cfg.UploadAssets
+		return newHandlerConfigBuilder().
+			AddTemplatableInt("max", c.Max).
+			AddIfNotEmpty("branch", c.BranchName).
+			AddIfPositive("max-size", c.MaxSizeKB).
+			AddStringSlice("allowed-exts", c.AllowedExts).
+			AddIfNotEmpty("github-token", c.GitHubToken).
+			Build()
+	},
 	"autofix_code_scanning_alert": func(cfg *SafeOutputsConfig) map[string]any {
 		if cfg.AutofixCodeScanningAlert == nil {
 			return nil
