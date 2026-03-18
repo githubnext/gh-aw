@@ -353,9 +353,18 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 	}
 	// When upload-asset is configured, safe_outputs must run after upload_assets so that
 	// the asset URL map (temporaryId -> artifactUrl) is available for body text resolution.
+	// Add a condition to allow safe_outputs to run when upload_assets is skipped (no upload_asset items).
 	if data.SafeOutputs.UploadAssets != nil {
 		needs = append(needs, "upload_assets")
 		consolidatedSafeOutputsJobLog.Print("Added upload_assets dependency to safe_outputs job")
+		// Allow safe_outputs to run regardless of whether upload_assets was skipped.
+		// upload_assets is skipped when no upload_asset items exist in the agent output.
+		uploadAssetsNotFailed := BuildOr(
+			BuildEquals(BuildPropertyAccess("needs.upload_assets.result"), BuildStringLiteral("success")),
+			BuildEquals(BuildPropertyAccess("needs.upload_assets.result"), BuildStringLiteral("skipped")),
+		)
+		jobCondition = BuildAnd(jobCondition, uploadAssetsNotFailed)
+		consolidatedSafeOutputsJobLog.Print("Added upload_assets result condition to safe_outputs job")
 	}
 
 	// Extract workflow ID from markdown path for GH_AW_WORKFLOW_ID

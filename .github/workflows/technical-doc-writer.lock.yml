@@ -1353,7 +1353,9 @@ jobs:
       - activation
       - agent
       - upload_assets
-    if: ((!cancelled()) && (needs.agent.result != 'skipped')) && (needs.agent.outputs.detection_success == 'true')
+    if: >
+      (((!cancelled()) && (needs.agent.result != 'skipped')) && (needs.agent.outputs.detection_success == 'true')) &&
+      ((needs.upload_assets.result == 'success') || (needs.upload_assets.result == 'skipped'))
     runs-on: ubuntu-slim
     permissions:
       contents: write
