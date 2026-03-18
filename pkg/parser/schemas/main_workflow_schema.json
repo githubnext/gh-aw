@@ -3412,11 +3412,11 @@
           ]
         },
         "playwright": {
-          "description": "Playwright browser automation tool for web scraping, testing, and UI interactions in containerized browsers",
+          "description": "Playwright browser automation tool for web scraping, testing, and UI interactions",
           "oneOf": [
             {
               "type": "null",
-              "description": "Enable Playwright tool with default settings"
+              "description": "Enable Playwright tool with default settings (cli mode)"
             },
             {
               "type": "object",
@@ -3433,6 +3433,12 @@
                   "items": {
                     "type": "string"
                   }
+                },
+                "mode": {
+                  "type": "string",
+                  "description": "Playwright mode: 'cli' (default) runs via npx @playwright/mcp, 'mcp' runs in a Docker container",
+                  "enum": ["cli", "mcp"],
+                  "default": "cli"
                 }
               },
               "additionalProperties": false

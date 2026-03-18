@@ -172,3 +172,80 @@ func renderPlaywrightMCPConfigWithOptions(yaml *strings.Builder, playwrightConfi
 		yaml.WriteString("              },\n")
 	}
 }
+
+// getPlaywrightPackage returns the @playwright/mcp npm package string with optional version
+func getPlaywrightPackage(playwrightConfig *PlaywrightToolConfig) string {
+	if playwrightConfig != nil && playwrightConfig.Version != "" {
+		return "@playwright/mcp@" + playwrightConfig.Version
+	}
+	return "@playwright/mcp"
+}
+
+// renderPlaywrightCLIConfigWithOptions generates the Playwright CLI (npx) MCP server configuration
+// In CLI mode, Playwright runs via npx @playwright/mcp directly instead of a Docker container.
+// This avoids pulling the mcr.microsoft.com/playwright/mcp Docker image.
+func renderPlaywrightCLIConfigWithOptions(yaml *strings.Builder, playwrightConfig *PlaywrightToolConfig, isLast bool, includeCopilotFields bool, inlineArgs bool, guardPolicies map[string]any) {
+	mcpPlaywrightLog.Printf("Rendering Playwright CLI config options: copilot_fields=%t, inline_args=%t", includeCopilotFields, inlineArgs)
+	customArgs := getPlaywrightCustomArgs(playwrightConfig)
+
+	// Extract all expressions from playwright arguments and replace them with env var references
+	expressions := extractExpressionsFromPlaywrightArgs(customArgs)
+
+	// Replace expressions in custom args
+	if len(customArgs) > 0 {
+		mcpPlaywrightLog.Printf("Applying %d custom Playwright args with %d extracted expressions", len(customArgs), len(expressions))
+		customArgs = replaceExpressionsInPlaywrightArgs(customArgs, expressions)
+	}
+
+	playwrightPackage := getPlaywrightPackage(playwrightConfig)
+
+	// Build the full args list: -y, @playwright/mcp[@version], --output-dir, ..., --no-sandbox, [customArgs...]
+	allArgs := []string{"-y", playwrightPackage, "--output-dir", "/tmp/gh-aw/mcp-logs/playwright", "--no-sandbox"}
+	if len(customArgs) > 0 {
+		allArgs = append(allArgs, customArgs...)
+	}
+
+	yaml.WriteString("              \"playwright\": {\n")
+
+	// Add type field for Copilot (per MCP Gateway Specification)
+	if includeCopilotFields {
+		yaml.WriteString("                \"type\": \"stdio\",\n")
+	}
+
+	yaml.WriteString("                \"command\": \"npx\",\n")
+
+	// Render args
+	if inlineArgs {
+		yaml.WriteString("                \"args\": [")
+		for i, arg := range allArgs {
+			if i > 0 {
+				yaml.WriteString(", ")
+			}
+			yaml.WriteString("\"" + arg + "\"")
+		}
+		yaml.WriteString("]")
+	} else {
+		yaml.WriteString("                \"args\": [\n")
+		for i, arg := range allArgs {
+			yaml.WriteString("                  \"" + arg + "\"")
+			if i < len(allArgs)-1 {
+				yaml.WriteString(",")
+			}
+			yaml.WriteString("\n")
+		}
+		yaml.WriteString("                ]")
+	}
+
+	if len(guardPolicies) > 0 {
+		yaml.WriteString(",\n")
+		renderGuardPoliciesJSON(yaml, guardPolicies, "                ")
+	} else {
+		yaml.WriteString("\n")
+	}
+
+	if isLast {
+		yaml.WriteString("              }\n")
+	} else {
+		yaml.WriteString("              },\n")
+	}
+}

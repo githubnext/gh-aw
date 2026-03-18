@@ -309,6 +309,11 @@ func parsePlaywrightTool(val any) *PlaywrightToolConfig {
 			config.Version = fmt.Sprintf("%g", versionNum)
 		}
 
+		// Handle mode field - "cli" (default) or "mcp"
+		if mode, ok := configMap["mode"].(string); ok {
+			config.Mode = mode
+		}
+
 		// Handle args field - can be []any or []string
 		if argsValue, ok := configMap["args"]; ok {
 			if arr, ok := argsValue.([]any); ok {

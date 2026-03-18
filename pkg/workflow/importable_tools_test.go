@@ -78,9 +78,12 @@ Uses imported playwright tool.
 		t.Error("Expected compiled workflow to contain playwright tool")
 	}
 
-	// Verify playwright Docker image
-	if !strings.Contains(workflowData, "mcr.microsoft.com/playwright/mcp") {
-		t.Error("Expected compiled workflow to contain playwright Docker image")
+	// Verify playwright CLI command (default mode is cli)
+	if !strings.Contains(workflowData, `"command": "npx"`) {
+		t.Error("Expected compiled workflow to use npx command for playwright (cli mode)")
+	}
+	if !strings.Contains(workflowData, "@playwright/mcp@v1.41.0") {
+		t.Error("Expected compiled workflow to contain versioned playwright package")
 	}
 }
 
@@ -335,8 +338,11 @@ Uses all imported tools.
 	}
 
 	// Verify specific configurations
-	if !strings.Contains(workflowData, "mcr.microsoft.com/playwright/mcp") {
-		t.Error("Expected compiled workflow to contain playwright Docker image")
+	if !strings.Contains(workflowData, `"command": "npx"`) {
+		t.Error("Expected compiled workflow to use npx command for playwright (cli mode)")
+	}
+	if !strings.Contains(workflowData, "@playwright/mcp") {
+		t.Error("Expected compiled workflow to reference @playwright/mcp package")
 	}
 	if !strings.Contains(workflowData, "ghcr.io/github/serena-mcp-server:latest") {
 		t.Error("Expected compiled workflow to contain serena Docker container")

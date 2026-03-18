@@ -55,9 +55,12 @@ Please navigate to example.com and take a screenshot.
 
 	lockContentStr := string(lockContent)
 
-	// Verify Playwright MCP configuration uses official Docker image
-	if !strings.Contains(lockContentStr, "mcr.microsoft.com/playwright/mcp") {
-		t.Error("Expected Playwright MCP configuration to include official Docker image 'mcr.microsoft.com/playwright/mcp'")
+	// Verify Playwright CLI configuration uses npx command (default cli mode)
+	if !strings.Contains(lockContentStr, `"command": "npx"`) {
+		t.Error("Expected Playwright CLI configuration to use npx command")
+	}
+	if !strings.Contains(lockContentStr, "@playwright/mcp") {
+		t.Error("Expected Playwright CLI configuration to reference @playwright/mcp package")
 	}
 
 	// Verify the playwright output directory is pre-created so the Docker container

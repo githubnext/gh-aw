@@ -18,7 +18,11 @@ func (r *MCPConfigRendererUnified) RenderPlaywrightMCP(yaml *strings.Builder, pl
 	playwrightConfig := parsePlaywrightTool(playwrightTool)
 
 	if r.options.Format == "toml" {
-		r.renderPlaywrightTOML(yaml, playwrightConfig)
+		if playwrightConfig.GetMode() == "mcp" {
+			r.renderPlaywrightTOML(yaml, playwrightConfig)
+		} else {
+			r.renderPlaywrightCLITOML(yaml, playwrightConfig)
+		}
 		// Add guard policies for TOML format as a separate section
 		if len(r.options.WriteSinkGuardPolicies) > 0 {
 			mcpRendererLog.Print("Adding guard-policies to playwright TOML (derived from GitHub guard-policy)")
@@ -28,10 +32,14 @@ func (r *MCPConfigRendererUnified) RenderPlaywrightMCP(yaml *strings.Builder, pl
 	}
 
 	// JSON format
-	renderPlaywrightMCPConfigWithOptions(yaml, playwrightConfig, r.options.IsLast, r.options.IncludeCopilotFields, r.options.InlineArgs, r.options.WriteSinkGuardPolicies)
+	if playwrightConfig.GetMode() == "mcp" {
+		renderPlaywrightMCPConfigWithOptions(yaml, playwrightConfig, r.options.IsLast, r.options.IncludeCopilotFields, r.options.InlineArgs, r.options.WriteSinkGuardPolicies)
+	} else {
+		renderPlaywrightCLIConfigWithOptions(yaml, playwrightConfig, r.options.IsLast, r.options.IncludeCopilotFields, r.options.InlineArgs, r.options.WriteSinkGuardPolicies)
+	}
 }
 
-// renderPlaywrightTOML generates Playwright MCP configuration in TOML format
+// renderPlaywrightTOML generates Playwright MCP configuration in TOML format using a Docker container.
 // Per MCP Gateway Specification v1.0.0 section 3.2.1, stdio-based MCP servers MUST be containerized.
 // Uses MCP Gateway spec format: container, entrypointArgs, mounts, and args fields.
 func (r *MCPConfigRendererUnified) renderPlaywrightTOML(yaml *strings.Builder, playwrightConfig *PlaywrightToolConfig) {
@@ -71,6 +79,35 @@ func (r *MCPConfigRendererUnified) renderPlaywrightTOML(yaml *strings.Builder, p
 
 	// Add volume mounts
 	yaml.WriteString("          mounts = [\"/tmp/gh-aw/mcp-logs:/tmp/gh-aw/mcp-logs:rw\"]\n")
+}
+
+// renderPlaywrightCLITOML generates Playwright CLI configuration in TOML format using npx.
+// In CLI mode, Playwright runs via npx @playwright/mcp directly without a Docker container.
+func (r *MCPConfigRendererUnified) renderPlaywrightCLITOML(yaml *strings.Builder, playwrightConfig *PlaywrightToolConfig) {
+	mcpRendererBuiltinLog.Print("Rendering Playwright CLI in TOML format")
+	customArgs := getPlaywrightCustomArgs(playwrightConfig)
+
+	playwrightPackage := getPlaywrightPackage(playwrightConfig)
+
+	yaml.WriteString("          \n")
+	yaml.WriteString("          [mcp_servers.playwright]\n")
+	yaml.WriteString("          command = \"npx\"\n")
+
+	// Build args: -y, @playwright/mcp[@version], --output-dir, ..., --no-sandbox, [customArgs...]
+	allArgs := []string{"-y", playwrightPackage, "--output-dir", "/tmp/gh-aw/mcp-logs/playwright", "--no-sandbox"}
+	if len(customArgs) > 0 {
+		allArgs = append(allArgs, customArgs...)
+	}
+
+	yaml.WriteString("          args = [\n")
+	for i, arg := range allArgs {
+		yaml.WriteString("            \"" + arg + "\"")
+		if i < len(allArgs)-1 {
+			yaml.WriteString(",")
+		}
+		yaml.WriteString("\n")
+	}
+	yaml.WriteString("          ]\n")
 }
 
 // RenderSerenaMCP generates Serena MCP server configuration
