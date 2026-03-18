@@ -8,6 +8,7 @@
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { logStagedPreviewInfo } = require("./staged_preview.cjs");
 const { createAuthenticatedGitHubClient } = require("./handler_auth.cjs");
+const { loadTemporaryIdMapFromResolved, resolveRepoIssueTarget } = require("./temporary_id.cjs");
 
 /** @type {string} Safe output type handled by this module */
 const HANDLER_TYPE = "assign_milestone";
@@ -57,16 +58,36 @@ async function main(config = {}) {
 
     const item = message;
 
-    const issueNumber = Number(item.issue_number);
-    const milestoneNumber = Number(item.milestone_number);
+    // Convert resolvedTemporaryIds to a normalized Map for resolveRepoIssueTarget
+    const temporaryIdMap = loadTemporaryIdMapFromResolved(resolvedTemporaryIds);
 
-    if (isNaN(issueNumber) || issueNumber <= 0) {
+    // Resolve issue_number, which may be a temporary ID (e.g. "aw_abc123") or a plain number
+    const resolvedIssueTarget = resolveRepoIssueTarget(item.issue_number, temporaryIdMap, context.repo.owner, context.repo.repo);
+
+    // If the issue_number is a temporary ID that hasn't been resolved yet, defer processing
+    if (resolvedIssueTarget.wasTemporaryId && !resolvedIssueTarget.resolved) {
+      core.info(`Deferring assign_milestone: unresolved temporary ID (${item.issue_number})`);
+      return {
+        success: false,
+        deferred: true,
+        error: resolvedIssueTarget.errorMessage || `Unresolved temporary ID: ${item.issue_number}`,
+      };
+    }
+
+    if (resolvedIssueTarget.errorMessage || !resolvedIssueTarget.resolved) {
       core.error(`Invalid issue_number: ${item.issue_number}`);
       return {
         success: false,
         error: `Invalid issue_number: ${item.issue_number}`,
       };
     }
+
+    const issueNumber = resolvedIssueTarget.resolved.number;
+    if (resolvedIssueTarget.wasTemporaryId) {
+      core.info(`Resolved temporary ID '${item.issue_number}' to issue #${issueNumber}`);
+    }
+
+    const milestoneNumber = Number(item.milestone_number);
 
     if (isNaN(milestoneNumber) || milestoneNumber <= 0) {
       core.error(`Invalid milestone_number: ${item.milestone_number}`);

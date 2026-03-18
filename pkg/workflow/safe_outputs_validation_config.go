@@ -99,7 +99,7 @@ var ValidationConfig = map[string]TypeValidationConfig{
 	"assign_milestone": {
 		DefaultMax: 1,
 		Fields: map[string]FieldValidation{
-			"issue_number":     {IssueOrPRNumber: true},
+			"issue_number":     {IssueNumberOrTemporaryID: true},
 			"milestone_number": {Required: true, PositiveInteger: true},
 			"repo":             {Type: "string", MaxLength: 256}, // Optional: target repository in format "owner/repo"
 		},
