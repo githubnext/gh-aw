@@ -2,9 +2,12 @@ package workflow
 
 import (
 	"fmt"
+	"sort"
+	"strings"
 
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/stringutil"
 )
 
 var consolidatedSafeOutputsJobLog = logger.New("workflow:compiler_safe_outputs_job")
@@ -145,10 +148,19 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 		data.SafeOutputs.CreateCodeScanningAlerts != nil ||
 		data.SafeOutputs.AutofixCodeScanningAlert != nil ||
 		data.SafeOutputs.MissingTool != nil ||
-		data.SafeOutputs.MissingData != nil
+		data.SafeOutputs.MissingData != nil ||
+		len(data.SafeOutputs.Scripts) > 0 // Custom scripts run in the handler loop
 
 	// Note: All project-related operations are now handled by the unified handler.
 	// The project handler manager has been removed.
+
+	// Add custom script files step (writes inline scripts to the actions folder)
+	// This must run before the handler manager step so the files are available for require()
+	if len(data.SafeOutputs.Scripts) > 0 {
+		consolidatedSafeOutputsJobLog.Printf("Adding setup step for %d custom safe-output script(s)", len(data.SafeOutputs.Scripts))
+		scriptSetupSteps := buildCustomScriptFilesStep(data.SafeOutputs.Scripts)
+		steps = append(steps, scriptSetupSteps...)
+	}
 
 	// 1. Handler Manager step (processes create_issue, update_issue, add_comment, etc.)
 	// This processes all safe output types that are handled by the unified handler
@@ -500,4 +512,40 @@ func buildSafeOutputItemsManifestUploadStep(prefix string) []string {
 		"          path: /tmp/safe-output-items.jsonl\n",
 		"          if-no-files-found: warn\n",
 	}
+}
+
+// buildCustomScriptFilesStep generates a run step that writes inline safe-output script files
+// to the setup action destination folder so they can be required by the handler manager.
+// Each script is written using a heredoc to avoid shell quoting issues.
+func buildCustomScriptFilesStep(scripts map[string]*SafeScriptConfig) []string {
+	if len(scripts) == 0 {
+		return nil
+	}
+
+	// Sort script names for deterministic output
+	scriptNames := make([]string, 0, len(scripts))
+	for name := range scripts {
+		scriptNames = append(scriptNames, name)
+	}
+	sort.Strings(scriptNames)
+
+	var steps []string
+	steps = append(steps, "      - name: Setup Safe Output Custom Scripts\n")
+	steps = append(steps, "        run: |\n")
+
+	for _, scriptName := range scriptNames {
+		scriptConfig := scripts[scriptName]
+		normalizedName := stringutil.NormalizeSafeOutputIdentifier(scriptName)
+		filename := safeOutputScriptFilename(normalizedName)
+		filepath := SetupActionDestinationShell + "/" + filename
+		delimiter := GenerateHeredocDelimiter("SAFE_OUTPUT_SCRIPT_" + strings.ToUpper(normalizedName))
+
+		steps = append(steps, fmt.Sprintf("          cat > %s << '%s'\n", filepath, delimiter))
+		for line := range strings.SplitSeq(scriptConfig.Script, "\n") {
+			steps = append(steps, "          "+line+"\n")
+		}
+		steps = append(steps, "          "+delimiter+"\n")
+	}
+
+	return steps
 }

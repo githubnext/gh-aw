@@ -20,7 +20,7 @@ const { getIssuesToAssignCopilot } = require("./create_issue.cjs");
 const { createReviewBuffer } = require("./pr_review_buffer.cjs");
 const { sanitizeContent } = require("./sanitize_content.cjs");
 const { createManifestLogger, ensureManifestExists, extractCreatedItemFromResult } = require("./safe_output_manifest.cjs");
-const { loadCustomSafeOutputJobTypes } = require("./safe_output_helpers.cjs");
+const { loadCustomSafeOutputJobTypes, loadCustomSafeOutputScriptHandlers } = require("./safe_output_helpers.cjs");
 const { emitSafeOutputActionOutputs } = require("./safe_outputs_action_outputs.cjs");
 
 /**
@@ -159,6 +159,38 @@ async function loadHandlers(config, prReviewBuffer) {
       }
     } else {
       core.debug(`Handler not enabled: ${type}`);
+    }
+  }
+
+  // Load custom script handlers from GH_AW_SAFE_OUTPUT_SCRIPTS
+  // These are inline scripts defined in safe-outputs.scripts that run in the handler loop
+  const customScriptHandlers = loadCustomSafeOutputScriptHandlers();
+  if (customScriptHandlers.size > 0) {
+    core.info(`Loading ${customScriptHandlers.size} custom script handler(s): ${[...customScriptHandlers.keys()].join(", ")}`);
+    for (const [scriptType, scriptFilename] of customScriptHandlers) {
+      const scriptPath = require("path").join(process.env.RUNNER_TEMP || "/tmp", "gh-aw", "actions", scriptFilename);
+      try {
+        const scriptModule = require(scriptPath);
+        if (scriptModule && typeof scriptModule.main === "function") {
+          const handlerConfig = config[scriptType] || {};
+          const messageHandler = await scriptModule.main(handlerConfig);
+          if (typeof messageHandler !== "function") {
+            const error = new Error(`Script handler ${scriptType} main() did not return a function - expected a message handler function but got ${typeof messageHandler}`);
+            core.error(`✗ Fatal error loading script handler ${scriptType}: ${error.message}`);
+            throw error;
+          }
+          messageHandlers.set(scriptType, messageHandler);
+          core.info(`✓ Loaded and initialized custom script handler for: ${scriptType}`);
+        } else {
+          core.warning(`Custom script handler module ${scriptType} does not export a main function`);
+        }
+      } catch (error) {
+        const errorMessage = getErrorMessage(error);
+        if (errorMessage.includes("did not return a function")) {
+          throw error;
+        }
+        core.warning(`Failed to load custom script handler for ${scriptType}: ${errorMessage}`);
+      }
     }
   }
 

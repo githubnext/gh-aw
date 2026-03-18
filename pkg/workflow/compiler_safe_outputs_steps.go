@@ -342,6 +342,13 @@ func (c *Compiler) buildHandlerManagerStep(data *WorkflowData) []string {
 		consolidatedSafeOutputsStepsLog.Print("Added GH_AW_SAFE_OUTPUT_JOBS env var for custom safe job types")
 	}
 
+	// Add GH_AW_SAFE_OUTPUT_SCRIPTS so the handler manager can load inline script handlers.
+	// The env var maps normalized script names to their .cjs filenames in the actions folder.
+	if customScriptsJSON := buildCustomSafeOutputScriptsJSON(data); customScriptsJSON != "" {
+		steps = append(steps, fmt.Sprintf("          GH_AW_SAFE_OUTPUT_SCRIPTS: %q\n", customScriptsJSON))
+		consolidatedSafeOutputsStepsLog.Print("Added GH_AW_SAFE_OUTPUT_SCRIPTS env var for custom script handlers")
+	}
+
 	// Add custom safe output env vars
 	c.addCustomSafeOutputEnvVars(&steps, data)
 

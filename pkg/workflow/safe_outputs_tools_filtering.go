@@ -230,8 +230,27 @@ func generateFilteredToolsJSON(data *WorkflowData, markdownPath string) (string,
 		}
 	}
 
+	// Add custom script tools from SafeOutputs.Scripts
+	if len(data.SafeOutputs.Scripts) > 0 {
+		safeOutputsConfigLog.Printf("Adding %d custom script tools", len(data.SafeOutputs.Scripts))
+
+		// Sort script names for deterministic output
+		scriptNames := make([]string, 0, len(data.SafeOutputs.Scripts))
+		for scriptName := range data.SafeOutputs.Scripts {
+			scriptNames = append(scriptNames, scriptName)
+		}
+		sort.Strings(scriptNames)
+
+		for _, scriptName := range scriptNames {
+			scriptConfig := data.SafeOutputs.Scripts[scriptName]
+			normalizedScriptName := stringutil.NormalizeSafeOutputIdentifier(scriptName)
+			customTool := generateCustomScriptToolDefinition(normalizedScriptName, scriptConfig)
+			filteredTools = append(filteredTools, customTool)
+		}
+	}
+
 	if safeOutputsConfigLog.Enabled() {
-		safeOutputsConfigLog.Printf("Filtered %d tools from %d total tools (including %d custom jobs)", len(filteredTools), len(allTools), len(data.SafeOutputs.Jobs))
+		safeOutputsConfigLog.Printf("Filtered %d tools from %d total tools (including %d custom jobs, %d custom scripts)", len(filteredTools), len(allTools), len(data.SafeOutputs.Jobs), len(data.SafeOutputs.Scripts))
 	}
 
 	// Add dynamic dispatch_workflow tools
@@ -722,6 +741,24 @@ func generateDynamicTools(data *WorkflowData, markdownPath string) ([]map[string
 			jobConfig := data.SafeOutputs.Jobs[jobName]
 			normalizedJobName := stringutil.NormalizeSafeOutputIdentifier(jobName)
 			customTool := generateCustomJobToolDefinition(normalizedJobName, jobConfig)
+			dynamicTools = append(dynamicTools, customTool)
+		}
+	}
+
+	// Add custom script tools from SafeOutputs.Scripts
+	if len(data.SafeOutputs.Scripts) > 0 {
+		safeOutputsConfigLog.Printf("Adding %d custom script tools to dynamic tools", len(data.SafeOutputs.Scripts))
+
+		scriptNames := make([]string, 0, len(data.SafeOutputs.Scripts))
+		for scriptName := range data.SafeOutputs.Scripts {
+			scriptNames = append(scriptNames, scriptName)
+		}
+		sort.Strings(scriptNames)
+
+		for _, scriptName := range scriptNames {
+			scriptConfig := data.SafeOutputs.Scripts[scriptName]
+			normalizedScriptName := stringutil.NormalizeSafeOutputIdentifier(scriptName)
+			customTool := generateCustomScriptToolDefinition(normalizedScriptName, scriptConfig)
 			dynamicTools = append(dynamicTools, customTool)
 		}
 	}
