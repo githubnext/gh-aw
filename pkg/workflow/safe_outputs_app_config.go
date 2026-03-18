@@ -201,6 +201,12 @@ func (c *Compiler) buildGitHubAppTokenMintStep(app *GitHubAppConfig, permissions
 // corresponding permission-* fields in actions/create-github-app-token.
 // Some GitHub Actions permissions (like 'models', 'id-token', 'attestations', 'copilot-requests')
 // don't have corresponding GitHub App permissions and are skipped.
+//
+// For GitHub Actions permissions (actions, checks, contents, …) we use Get() so that shorthand
+// permissions like "read-all" are correctly expanded.
+// For GitHub App-only permissions (administration, members, organization-secrets, …) we use
+// GetExplicit() so that only scopes the user actually declared are forwarded — a "read-all"
+// shorthand must never accidentally grant broad GitHub App-only permissions.
 func convertPermissionsToAppTokenFields(permissions *Permissions) map[string]string {
 	fields := make(map[string]string)
 
@@ -238,117 +244,119 @@ func convertPermissionsToAppTokenFields(permissions *Permissions) map[string]str
 	if level, ok := permissions.Get(PermissionStatuses); ok {
 		fields["permission-statuses"] = string(level)
 	}
-	if level, ok := permissions.Get(PermissionOrganizationProj); ok {
-		fields["permission-organization-projects"] = string(level)
-	}
 	if level, ok := permissions.Get(PermissionDiscussions); ok {
 		fields["permission-discussions"] = string(level)
 	}
 
-	// GitHub App-only permissions (not available in GitHub Actions GITHUB_TOKEN)
+	// GitHub App-only permissions (not available in GitHub Actions GITHUB_TOKEN).
+	// Use GetExplicit() so that shorthand permissions like "read-all" do not accidentally
+	// expand into broad GitHub App-only grants that the user never declared.
 	// Repository-level
-	if level, ok := permissions.Get(PermissionAdministration); ok {
+	if level, ok := permissions.GetExplicit(PermissionAdministration); ok {
 		fields["permission-administration"] = string(level)
 	}
-	if level, ok := permissions.Get(PermissionSecrets); ok {
+	if level, ok := permissions.GetExplicit(PermissionSecrets); ok {
 		fields["permission-secrets"] = string(level)
 	}
-	if level, ok := permissions.Get(PermissionEnvironments); ok {
+	if level, ok := permissions.GetExplicit(PermissionEnvironments); ok {
 		fields["permission-environments"] = string(level)
 	}
-	if level, ok := permissions.Get(PermissionGitSigning); ok {
+	if level, ok := permissions.GetExplicit(PermissionGitSigning); ok {
 		fields["permission-git-signing"] = string(level)
 	}
-	if level, ok := permissions.Get(PermissionVulnerabilityAlerts); ok {
+	if level, ok := permissions.GetExplicit(PermissionVulnerabilityAlerts); ok {
 		fields["permission-vulnerability-alerts"] = string(level)
 	}
-	if level, ok := permissions.Get(PermissionWorkflows); ok {
+	if level, ok := permissions.GetExplicit(PermissionWorkflows); ok {
 		fields["permission-workflows"] = string(level)
 	}
-	if level, ok := permissions.Get(PermissionRepositoryHooks); ok {
+	if level, ok := permissions.GetExplicit(PermissionRepositoryHooks); ok {
 		fields["permission-repository-hooks"] = string(level)
 	}
-	if level, ok := permissions.Get(PermissionSingleFile); ok {
+	if level, ok := permissions.GetExplicit(PermissionSingleFile); ok {
 		fields["permission-single-file"] = string(level)
 	}
-	if level, ok := permissions.Get(PermissionCodespaces); ok {
+	if level, ok := permissions.GetExplicit(PermissionCodespaces); ok {
 		fields["permission-codespaces"] = string(level)
 	}
-	if level, ok := permissions.Get(PermissionDependabotSecrets); ok {
+	if level, ok := permissions.GetExplicit(PermissionDependabotSecrets); ok {
 		fields["permission-dependabot-secrets"] = string(level)
 	}
-	if level, ok := permissions.Get(PermissionRepositoryCustomProperties); ok {
+	if level, ok := permissions.GetExplicit(PermissionRepositoryCustomProperties); ok {
 		fields["permission-repository-custom-properties"] = string(level)
 	}
 	// Organization-level
-	if level, ok := permissions.Get(PermissionMembers); ok {
+	if level, ok := permissions.GetExplicit(PermissionOrganizationProj); ok {
+		fields["permission-organization-projects"] = string(level)
+	}
+	if level, ok := permissions.GetExplicit(PermissionMembers); ok {
 		fields["permission-members"] = string(level)
 	}
-	if level, ok := permissions.Get(PermissionOrganizationAdministration); ok {
+	if level, ok := permissions.GetExplicit(PermissionOrganizationAdministration); ok {
 		fields["permission-organization-administration"] = string(level)
 	}
-	if level, ok := permissions.Get(PermissionTeamDiscussions); ok {
+	if level, ok := permissions.GetExplicit(PermissionTeamDiscussions); ok {
 		fields["permission-team-discussions"] = string(level)
 	}
-	if level, ok := permissions.Get(PermissionOrganizationHooks); ok {
+	if level, ok := permissions.GetExplicit(PermissionOrganizationHooks); ok {
 		fields["permission-organization-hooks"] = string(level)
 	}
-	if level, ok := permissions.Get(PermissionOrganizationMembers); ok {
+	if level, ok := permissions.GetExplicit(PermissionOrganizationMembers); ok {
 		fields["permission-organization-members"] = string(level)
 	}
-	if level, ok := permissions.Get(PermissionOrganizationPackages); ok {
+	if level, ok := permissions.GetExplicit(PermissionOrganizationPackages); ok {
 		fields["permission-organization-packages"] = string(level)
 	}
-	if level, ok := permissions.Get(PermissionOrganizationSecrets); ok {
+	if level, ok := permissions.GetExplicit(PermissionOrganizationSecrets); ok {
 		fields["permission-organization-secrets"] = string(level)
 	}
-	if level, ok := permissions.Get(PermissionOrganizationSelfHostedRunners); ok {
+	if level, ok := permissions.GetExplicit(PermissionOrganizationSelfHostedRunners); ok {
 		fields["permission-organization-self-hosted-runners"] = string(level)
 	}
-	if level, ok := permissions.Get(PermissionOrganizationCustomOrgRoles); ok {
+	if level, ok := permissions.GetExplicit(PermissionOrganizationCustomOrgRoles); ok {
 		fields["permission-organization-custom-org-roles"] = string(level)
 	}
-	if level, ok := permissions.Get(PermissionOrganizationCustomProperties); ok {
+	if level, ok := permissions.GetExplicit(PermissionOrganizationCustomProperties); ok {
 		fields["permission-organization-custom-properties"] = string(level)
 	}
-	if level, ok := permissions.Get(PermissionOrganizationCustomRepositoryRoles); ok {
+	if level, ok := permissions.GetExplicit(PermissionOrganizationCustomRepositoryRoles); ok {
 		fields["permission-organization-custom-repository-roles"] = string(level)
 	}
-	if level, ok := permissions.Get(PermissionOrganizationAnnouncementBanners); ok {
+	if level, ok := permissions.GetExplicit(PermissionOrganizationAnnouncementBanners); ok {
 		fields["permission-organization-announcement-banners"] = string(level)
 	}
-	if level, ok := permissions.Get(PermissionOrganizationEvents); ok {
+	if level, ok := permissions.GetExplicit(PermissionOrganizationEvents); ok {
 		fields["permission-organization-events"] = string(level)
 	}
-	if level, ok := permissions.Get(PermissionOrganizationPlan); ok {
+	if level, ok := permissions.GetExplicit(PermissionOrganizationPlan); ok {
 		fields["permission-organization-plan"] = string(level)
 	}
-	if level, ok := permissions.Get(PermissionOrganizationUserBlocking); ok {
+	if level, ok := permissions.GetExplicit(PermissionOrganizationUserBlocking); ok {
 		fields["permission-organization-user-blocking"] = string(level)
 	}
-	if level, ok := permissions.Get(PermissionOrganizationPersonalAccessTokenReqs); ok {
+	if level, ok := permissions.GetExplicit(PermissionOrganizationPersonalAccessTokenReqs); ok {
 		fields["permission-organization-personal-access-token-requests"] = string(level)
 	}
-	if level, ok := permissions.Get(PermissionOrganizationPersonalAccessTokens); ok {
+	if level, ok := permissions.GetExplicit(PermissionOrganizationPersonalAccessTokens); ok {
 		fields["permission-organization-personal-access-tokens"] = string(level)
 	}
-	if level, ok := permissions.Get(PermissionOrganizationCopilot); ok {
+	if level, ok := permissions.GetExplicit(PermissionOrganizationCopilot); ok {
 		fields["permission-organization-copilot"] = string(level)
 	}
-	if level, ok := permissions.Get(PermissionOrganizationCodespaces); ok {
+	if level, ok := permissions.GetExplicit(PermissionOrganizationCodespaces); ok {
 		fields["permission-organization-codespaces"] = string(level)
 	}
 	// User-level
-	if level, ok := permissions.Get(PermissionEmailAddresses); ok {
+	if level, ok := permissions.GetExplicit(PermissionEmailAddresses); ok {
 		fields["permission-email-addresses"] = string(level)
 	}
-	if level, ok := permissions.Get(PermissionCodespacesLifecycleAdmin); ok {
+	if level, ok := permissions.GetExplicit(PermissionCodespacesLifecycleAdmin); ok {
 		fields["permission-codespaces-lifecycle-admin"] = string(level)
 	}
-	if level, ok := permissions.Get(PermissionCodespacesMetadata); ok {
+	if level, ok := permissions.GetExplicit(PermissionCodespacesMetadata); ok {
 		fields["permission-codespaces-metadata"] = string(level)
 	}
-	if level, ok := permissions.Get(PermissionCodespacesSecrets); ok {
+	if level, ok := permissions.GetExplicit(PermissionCodespacesSecrets); ok {
 		fields["permission-codespaces-secrets"] = string(level)
 	}
 

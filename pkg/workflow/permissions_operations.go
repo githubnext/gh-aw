@@ -47,6 +47,19 @@ func (p *Permissions) Set(scope PermissionScope, level PermissionLevel) {
 	p.permissions[scope] = level
 }
 
+// GetExplicit returns the permission level only if the scope was explicitly declared in the
+// permissions map. Unlike Get, it never returns a level derived from shorthand (read-all /
+// write-all) or "all: read" defaults. Use this when you need to know what the user explicitly
+// specified — for example, when deciding which GitHub App-only scopes to forward to
+// actions/create-github-app-token, or when validating that App-only scopes are present.
+func (p *Permissions) GetExplicit(scope PermissionScope) (PermissionLevel, bool) {
+	if p == nil {
+		return "", false
+	}
+	level, exists := p.permissions[scope]
+	return level, exists
+}
+
 // Get gets the permission level for a specific scope
 func (p *Permissions) Get(scope PermissionScope) (PermissionLevel, bool) {
 	if p.shorthand != "" {

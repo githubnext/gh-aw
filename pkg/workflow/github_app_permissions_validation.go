@@ -33,10 +33,13 @@ func validateGitHubAppOnlyPermissions(workflowData *WorkflowData) error {
 		return nil
 	}
 
-	// Find any GitHub App-only permission scopes that are set
+	// Find any GitHub App-only permission scopes that are *explicitly* declared.
+	// We must not use Get() here because shorthand permissions (read-all / write-all) and
+	// "all: read" would cause Get() to return a value for every scope, incorrectly
+	// requiring a GitHub App even when no App-only scopes were explicitly declared.
 	var appOnlyScopes []PermissionScope
 	for _, scope := range GetAllGitHubAppOnlyScopes() {
-		if _, exists := permissions.Get(scope); exists {
+		if _, exists := permissions.GetExplicit(scope); exists {
 			appOnlyScopes = append(appOnlyScopes, scope)
 		}
 	}
