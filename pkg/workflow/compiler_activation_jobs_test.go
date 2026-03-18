@@ -504,6 +504,8 @@ func TestBuildActivationJob_APMTokenInvalidation(t *testing.T) {
 		// Invalidation step should appear after the APM bundle upload
 		uploadIdx := strings.Index(stepsStr, "Upload APM bundle artifact")
 		invalidateIdx := strings.Index(stepsStr, "Invalidate GitHub App token for APM")
+		require.NotEqual(t, -1, uploadIdx, "Upload APM bundle artifact step must be present")
+		require.NotEqual(t, -1, invalidateIdx, "Invalidate GitHub App token for APM step must be present")
 		assert.Greater(t, invalidateIdx, uploadIdx, "Invalidation step should appear after APM bundle upload")
 	})
 
