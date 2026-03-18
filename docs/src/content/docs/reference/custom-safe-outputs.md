@@ -229,7 +229,7 @@ The agent uses read-only tools to query, then calls the safe-job which executes 
 | `permissions` | object | No | GitHub token permissions for the job |
 | `env` | object | No | Environment variables for all steps |
 | `if` | string | No | Conditional execution expression |
-| `timeout-minutes` | number | No | Maximum job duration (default: 360) |
+| `timeout-minutes` | number | No | Maximum job duration (GitHub Actions default: 360) |
 
 ### Input Types
 
