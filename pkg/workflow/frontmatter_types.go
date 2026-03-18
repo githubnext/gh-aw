@@ -35,45 +35,31 @@ type RuntimesConfig struct {
 	Ruby    *RuntimeConfig `json:"ruby,omitempty"`    // Ruby runtime
 }
 
-// PermissionsConfig represents GitHub Actions permissions configuration
-// Supports both shorthand (read-all, write-all) and detailed scope-based permissions.
-// In addition to standard GitHub Actions scopes, this also supports GitHub App-only scopes
-// (e.g., members, administration) for use when a GitHub App is configured.
-type PermissionsConfig struct {
-	// Shorthand permission (read-all, write-all, read, write, none)
-	Shorthand string `json:"-"` // Not in JSON, set when parsing shorthand format
+// GitHubActionsPermissionsConfig holds permission scopes supported by the GitHub Actions GITHUB_TOKEN.
+// These scopes can be declared in the workflow's top-level permissions block and are enforced
+// natively by GitHub Actions.
+type GitHubActionsPermissionsConfig struct {
+	Actions            string `json:"actions,omitempty"`
+	Checks             string `json:"checks,omitempty"`
+	Contents           string `json:"contents,omitempty"`
+	Deployments        string `json:"deployments,omitempty"`
+	IDToken            string `json:"id-token,omitempty"`
+	Issues             string `json:"issues,omitempty"`
+	Discussions        string `json:"discussions,omitempty"`
+	Packages           string `json:"packages,omitempty"`
+	Pages              string `json:"pages,omitempty"`
+	PullRequests       string `json:"pull-requests,omitempty"`
+	RepositoryProjects string `json:"repository-projects,omitempty"`
+	SecurityEvents     string `json:"security-events,omitempty"`
+	Statuses           string `json:"statuses,omitempty"`
+}
 
-	// Detailed permissions by scope - GitHub Actions scopes (supported by GITHUB_TOKEN)
-	Actions              string `json:"actions,omitempty"`
-	Checks               string `json:"checks,omitempty"`
-	Contents             string `json:"contents,omitempty"`
-	Deployments          string `json:"deployments,omitempty"`
-	IDToken              string `json:"id-token,omitempty"`
-	Issues               string `json:"issues,omitempty"`
-	Discussions          string `json:"discussions,omitempty"`
-	Packages             string `json:"packages,omitempty"`
-	Pages                string `json:"pages,omitempty"`
-	PullRequests         string `json:"pull-requests,omitempty"`
-	RepositoryProjects   string `json:"repository-projects,omitempty"`
-	SecurityEvents       string `json:"security-events,omitempty"`
-	Statuses             string `json:"statuses,omitempty"`
-	OrganizationProjects string `json:"organization-projects,omitempty"`
-
-	// GitHub App-only permission scopes (not supported by GITHUB_TOKEN).
-	// When any of these are specified, a GitHub App must be configured in the workflow.
-	// Repository-level
-	Administration             string `json:"administration,omitempty"`
-	Secrets                    string `json:"secrets,omitempty"`
-	Environments               string `json:"environments,omitempty"`
-	GitSigning                 string `json:"git-signing,omitempty"`
-	VulnerabilityAlerts        string `json:"vulnerability-alerts,omitempty"`
-	Workflows                  string `json:"workflows,omitempty"`
-	RepositoryHooks            string `json:"repository-hooks,omitempty"`
-	SingleFile                 string `json:"single-file,omitempty"`
-	Codespaces                 string `json:"codespaces,omitempty"`
-	DependabotSecrets          string `json:"dependabot-secrets,omitempty"`
-	RepositoryCustomProperties string `json:"repository-custom-properties,omitempty"`
-	// Organization-level
+// GitHubAppPermissionsConfig holds permission scopes that are exclusive to GitHub App
+// installation access tokens (not supported by GITHUB_TOKEN). When any of these are
+// specified, a GitHub App must be configured in the workflow.
+type GitHubAppPermissionsConfig struct {
+	// Organization-level permissions (the common use-case placed first)
+	OrganizationProjects                string `json:"organization-projects,omitempty"`
 	Members                             string `json:"members,omitempty"`
 	OrganizationAdministration          string `json:"organization-administration,omitempty"`
 	TeamDiscussions                     string `json:"team-discussions,omitempty"`
@@ -93,11 +79,38 @@ type PermissionsConfig struct {
 	OrganizationPersonalAccessTokens    string `json:"organization-personal-access-tokens,omitempty"`
 	OrganizationCopilot                 string `json:"organization-copilot,omitempty"`
 	OrganizationCodespaces              string `json:"organization-codespaces,omitempty"`
-	// User-level
+	// Repository-level permissions
+	Administration             string `json:"administration,omitempty"`
+	Secrets                    string `json:"secrets,omitempty"`
+	Environments               string `json:"environments,omitempty"`
+	GitSigning                 string `json:"git-signing,omitempty"`
+	VulnerabilityAlerts        string `json:"vulnerability-alerts,omitempty"`
+	Workflows                  string `json:"workflows,omitempty"`
+	RepositoryHooks            string `json:"repository-hooks,omitempty"`
+	SingleFile                 string `json:"single-file,omitempty"`
+	Codespaces                 string `json:"codespaces,omitempty"`
+	DependabotSecrets          string `json:"dependabot-secrets,omitempty"`
+	RepositoryCustomProperties string `json:"repository-custom-properties,omitempty"`
+	// User-level permissions
 	EmailAddresses           string `json:"email-addresses,omitempty"`
 	CodespacesLifecycleAdmin string `json:"codespaces-lifecycle-admin,omitempty"`
 	CodespacesMetadata       string `json:"codespaces-metadata,omitempty"`
 	CodespacesSecrets        string `json:"codespaces-secrets,omitempty"`
+}
+
+// PermissionsConfig represents GitHub Actions permissions configuration.
+// Supports both shorthand (read-all, write-all) and detailed scope-based permissions.
+// Embeds GitHubActionsPermissionsConfig for standard GITHUB_TOKEN scopes and
+// GitHubAppPermissionsConfig for GitHub App-only scopes.
+type PermissionsConfig struct {
+	// Shorthand permission (read-all, write-all, read, write, none)
+	Shorthand string `json:"-"` // Not in JSON, set when parsing shorthand format
+
+	// GitHub Actions GITHUB_TOKEN permission scopes
+	GitHubActionsPermissionsConfig
+
+	// GitHub App-only permission scopes (require a GitHub App to be configured)
+	GitHubAppPermissionsConfig
 }
 
 // PluginMCPConfig represents MCP configuration for a plugin
