@@ -583,6 +583,28 @@ func extractTopLevelGitHubApp(frontmatter map[string]any) *GitHubAppConfig {
 	return app
 }
 
+// resolveTopLevelGitHubApp resolves the top-level github-app for token minting fallback.
+// Precedence:
+//  1. Current workflow's top-level github-app (explicit override wins)
+//  2. First top-level github-app found across imported shared workflows
+//  3. Nil (no fallback configured)
+func resolveTopLevelGitHubApp(frontmatter map[string]any, importsResult *parser.ImportsResult) *GitHubAppConfig {
+	if app := extractTopLevelGitHubApp(frontmatter); app != nil {
+		return app
+	}
+	if importsResult != nil && importsResult.MergedTopLevelGitHubApp != "" {
+		var appMap map[string]any
+		if err := json.Unmarshal([]byte(importsResult.MergedTopLevelGitHubApp), &appMap); err == nil {
+			app := parseAppConfig(appMap)
+			if app.AppID != "" && app.PrivateKey != "" {
+				orchestratorWorkflowLog.Print("Using top-level github-app from imported shared workflow")
+				return app
+			}
+		}
+	}
+	return nil
+}
+
 // applyTopLevelGitHubAppFallbacks applies the top-level github-app as a fallback for all
 // nested github-app token minting operations when no section-specific github-app is configured.
 // Precedence: section-specific github-app > top-level github-app > no token minting.
@@ -692,7 +714,7 @@ func (c *Compiler) extractAdditionalConfigurations(
 	workflowData.SkipBots = c.mergeSkipBots(c.extractSkipBots(frontmatter), importsResult.MergedSkipBots)
 	workflowData.ActivationGitHubToken = c.resolveActivationGitHubToken(frontmatter, importsResult)
 	workflowData.ActivationGitHubApp = c.resolveActivationGitHubApp(frontmatter, importsResult)
-	workflowData.TopLevelGitHubApp = extractTopLevelGitHubApp(frontmatter)
+	workflowData.TopLevelGitHubApp = resolveTopLevelGitHubApp(frontmatter, importsResult)
 
 	// Use the already extracted output configuration
 	workflowData.SafeOutputs = safeOutputs
