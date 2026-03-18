@@ -3,6 +3,7 @@
 package workflow
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 
@@ -535,5 +536,26 @@ func TestBuildAPMAppTokenMintStep(t *testing.T) {
 
 		combined := strings.Join(steps, "")
 		assert.Contains(t, combined, "repositories: ${{ github.event.repository.name }}", "Should default to event repository name")
+	})
+}
+
+func TestBuildAPMAppTokenInvalidationStep(t *testing.T) {
+	t.Run("Invalidation step targets apm-app-token step ID", func(t *testing.T) {
+		steps := buildAPMAppTokenInvalidationStep()
+
+		combined := strings.Join(steps, "")
+		assert.Contains(t, combined, "Invalidate GitHub App token for APM", "Should have descriptive step name")
+		assert.Contains(t, combined, fmt.Sprintf("if: always() && steps.%s.outputs.token != ''", apmAppTokenStepID), "Should run always and check token exists")
+		assert.Contains(t, combined, fmt.Sprintf("TOKEN: ${{ steps.%s.outputs.token }}", apmAppTokenStepID), "Should reference apm-app-token step output")
+		assert.Contains(t, combined, "gh api", "Should call GitHub API to revoke token")
+		assert.Contains(t, combined, "--method DELETE", "Should use DELETE method to revoke token")
+		assert.Contains(t, combined, "/installation/token", "Should target installation token endpoint")
+	})
+
+	t.Run("Invalidation step uses always() condition for cleanup even on failure", func(t *testing.T) {
+		steps := buildAPMAppTokenInvalidationStep()
+
+		combined := strings.Join(steps, "")
+		assert.Contains(t, combined, "always()", "Must run even if prior steps fail to ensure token cleanup")
 	})
 }

@@ -76,6 +76,28 @@ func buildAPMAppTokenMintStep(app *GitHubAppConfig, fallbackRepoExpr string) []s
 	return steps
 }
 
+// buildAPMAppTokenInvalidationStep generates the step to invalidate the GitHub App token
+// that was minted for APM cross-org repository access. This step always runs (even on failure)
+// to ensure the token is properly cleaned up after the APM pack step completes.
+func buildAPMAppTokenInvalidationStep() []string {
+	var steps []string
+
+	steps = append(steps, "      - name: Invalidate GitHub App token for APM\n")
+	steps = append(steps, fmt.Sprintf("        if: always() && steps.%s.outputs.token != ''\n", apmAppTokenStepID))
+	steps = append(steps, "        env:\n")
+	steps = append(steps, fmt.Sprintf("          TOKEN: ${{ steps.%s.outputs.token }}\n", apmAppTokenStepID))
+	steps = append(steps, "        run: |\n")
+	steps = append(steps, "          echo \"Revoking GitHub App installation token for APM...\"\n")
+	steps = append(steps, "          # GitHub CLI will auth with the token being revoked.\n")
+	steps = append(steps, "          gh api \\\n")
+	steps = append(steps, "            --method DELETE \\\n")
+	steps = append(steps, "            -H \"Authorization: token $TOKEN\" \\\n")
+	steps = append(steps, "            /installation/token || echo \"Token revocation failed (token may be expired or invalid).\"\n")
+	steps = append(steps, "          echo \"Token invalidation step complete.\"\n")
+
+	return steps
+}
+
 // GenerateAPMPackStep generates the GitHub Actions step that installs APM packages and
 // packs them into a bundle in the activation job. The step always uses isolated:true because
 // the activation job has no repo context to preserve.

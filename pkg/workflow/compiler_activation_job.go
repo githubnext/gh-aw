@@ -444,6 +444,11 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 		steps = append(steps, fmt.Sprintf("          name: %s\n", apmArtifactName))
 		steps = append(steps, "          path: ${{ steps.apm_pack.outputs.bundle-path }}\n")
 		steps = append(steps, "          retention-days: 1\n")
+		// Invalidate the APM GitHub App token after use to enforce least-privilege token lifecycle.
+		if data.APMDependencies.GitHubApp != nil {
+			compilerActivationJobLog.Print("Adding APM GitHub App token invalidation step")
+			steps = append(steps, buildAPMAppTokenInvalidationStep()...)
+		}
 	}
 
 	// Upload aw_info.json and prompt.txt as the activation artifact for the agent job to download.

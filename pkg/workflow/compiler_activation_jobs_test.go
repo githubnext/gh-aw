@@ -470,3 +470,57 @@ func TestBuildMainJob_EngineSpecific(t *testing.T) {
 		})
 	}
 }
+
+// TestBuildActivationJob_APMTokenInvalidation tests that the APM GitHub App token is invalidated after use
+func TestBuildActivationJob_APMTokenInvalidation(t *testing.T) {
+	compiler := NewCompiler()
+
+	t.Run("Invalidation step added when APM github-app is configured", func(t *testing.T) {
+		workflowData := &WorkflowData{
+			Name:    "Test Workflow",
+			Command: []string{"test"},
+			APMDependencies: &APMDependenciesInfo{
+				Packages: []string{"microsoft/apm-sample-package"},
+				GitHubApp: &GitHubAppConfig{
+					AppID:      "${{ vars.APP_ID }}",
+					PrivateKey: "${{ secrets.APP_PRIVATE_KEY }}",
+				},
+			},
+		}
+
+		job, err := compiler.buildActivationJob(workflowData, false, "", "test.lock.yml")
+		require.NoError(t, err, "buildActivationJob should succeed")
+		require.NotNil(t, job)
+
+		stepsStr := strings.Join(job.Steps, "")
+
+		// Token mint step should be present
+		assert.Contains(t, stepsStr, "id: apm-app-token", "Should mint APM GitHub App token")
+
+		// Invalidation step should be present and use always() condition
+		assert.Contains(t, stepsStr, "Invalidate GitHub App token for APM", "Should have APM token invalidation step")
+		assert.Contains(t, stepsStr, "always() && steps.apm-app-token.outputs.token != ''", "Invalidation step should run always")
+
+		// Invalidation step should appear after the APM bundle upload
+		uploadIdx := strings.Index(stepsStr, "Upload APM bundle artifact")
+		invalidateIdx := strings.Index(stepsStr, "Invalidate GitHub App token for APM")
+		assert.Greater(t, invalidateIdx, uploadIdx, "Invalidation step should appear after APM bundle upload")
+	})
+
+	t.Run("No invalidation step when APM has no github-app", func(t *testing.T) {
+		workflowData := &WorkflowData{
+			Name:    "Test Workflow",
+			Command: []string{"test"},
+			APMDependencies: &APMDependenciesInfo{
+				Packages: []string{"microsoft/apm-sample-package"},
+			},
+		}
+
+		job, err := compiler.buildActivationJob(workflowData, false, "", "test.lock.yml")
+		require.NoError(t, err, "buildActivationJob should succeed")
+		require.NotNil(t, job)
+
+		stepsStr := strings.Join(job.Steps, "")
+		assert.NotContains(t, stepsStr, "Invalidate GitHub App token for APM", "Should not have invalidation step when no github-app configured")
+	})
+}
