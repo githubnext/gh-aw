@@ -243,6 +243,12 @@ func BuildAWFArgs(config AWFCommandConfig) []string {
 		awfHelpersLog.Printf("Added %d custom args from agent config", len(agentConfig.Args))
 	}
 
+	// Pass memory limit to AWF container if specified in agent config
+	if agentConfig != nil && agentConfig.Memory != "" {
+		awfArgs = append(awfArgs, "--memory-limit", agentConfig.Memory)
+		awfHelpersLog.Printf("Set AWF memory limit to %s", agentConfig.Memory)
+	}
+
 	awfHelpersLog.Printf("Built %d AWF arguments", len(awfArgs))
 	return awfArgs
 }

@@ -458,6 +458,7 @@ func (r *EngineRegistry) GetEngine(id string) (CodingAgentEngine, error) {
 
 // GetSupportedEngines returns a list of all supported engine IDs
 func (r *EngineRegistry) GetSupportedEngines() []string {
+	agenticEngineLog.Print("Getting list of supported engines")
 	var engines []string
 	for id := range r.engines {
 		engines = append(engines, id)
@@ -480,6 +481,7 @@ func (r *EngineRegistry) GetDefaultEngine() CodingAgentEngine {
 // GetEngineByPrefix returns an engine that matches the given prefix
 // This is useful for backward compatibility with strings like "codex-experimental"
 func (r *EngineRegistry) GetEngineByPrefix(prefix string) (CodingAgentEngine, error) {
+	agenticEngineLog.Printf("Looking up engine by prefix: %s", prefix)
 	type engineCandidate struct {
 		id     string
 		engine CodingAgentEngine
@@ -491,8 +493,10 @@ func (r *EngineRegistry) GetEngineByPrefix(prefix string) (CodingAgentEngine, er
 		}
 	}
 	if len(candidates) == 0 {
+		agenticEngineLog.Printf("No engine found matching prefix: %s", prefix)
 		return nil, fmt.Errorf("no engine found matching prefix: %s", prefix)
 	}
 	sort.Slice(candidates, func(i, j int) bool { return candidates[i].id < candidates[j].id })
+	agenticEngineLog.Printf("Found %d engine candidate(s) for prefix %s, using: %s", len(candidates), prefix, candidates[0].id)
 	return candidates[0].engine, nil
 }

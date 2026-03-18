@@ -263,9 +263,11 @@ func getDomainsFromRuntimes(runtimes map[string]any) []string {
 //
 // # Supported ecosystem identifiers:
 //   - "defaults": basic infrastructure (certs, JSON schema, Ubuntu, package mirrors)
+//   - "chrome": headless Chrome/Puppeteer browser testing (*.google.com, *.googleapis.com, *.gvt1.com)
 //   - "clojure": Clojure/Clojars
 //   - "containers": container registries (Docker, GHCR, etc.)
 //   - "dart": Dart/Flutter ecosystem
+//   - "deno": Deno runtime (deno.land, *.jsr.io, googleapis.deno.dev, fresh.deno.dev)
 //   - "dotnet": .NET and NuGet ecosystem
 //   - "elixir": Elixir/Hex
 //   - "github": GitHub domains (*.githubusercontent.com, github.githubassets.com, etc.)
@@ -342,14 +344,16 @@ var ecosystemPriority = []string{
 	"dart",
 	"defaults",
 	"dev-tools",
+	"deno", // before "node" — deno-specific domains take precedence over the broader node set
 	"dotnet",
 	"elixir",
-	"fonts",
+	"fonts", // before "chrome" — fonts.googleapis.com is a fonts domain, not a chrome domain
 	"github",
 	"github-actions",
 	"go",
 	"haskell",
-	"java",
+	"java", // before "chrome" — maven.google.com and dl.google.com are Java domains, not chrome domains
+	"chrome",
 	"kotlin",
 	"linux-distros",
 	"local",

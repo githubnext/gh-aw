@@ -277,7 +277,7 @@ function evaluateExpression(expr) {
     // e.g., "needs.search_issues.outputs.issue_list" → "GH_AW_NEEDS_SEARCH_ISSUES_OUTPUTS_ISSUE_LIST"
     const envVarName = "GH_AW_" + trimmed.toUpperCase().replace(/\./g, "_");
     const envValue = process.env[envVarName];
-    if (envValue !== undefined && envValue !== null && envValue !== "") {
+    if (envValue !== undefined && envValue !== null) {
       return envValue;
     }
     // If not found in environment, continue to try other evaluation methods below

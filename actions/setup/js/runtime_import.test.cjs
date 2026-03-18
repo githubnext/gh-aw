@@ -768,6 +768,30 @@ describe("runtime_import", () => {
           expect(evaluateExpression("steps.test.outputs.result")).toContain("steps.test.outputs.result");
         });
 
+        it("should return empty string when env var is set to empty (e.g. workflow_dispatch with no text)", () => {
+          process.env.GH_AW_STEPS_SANITIZED_OUTPUTS_TEXT = "";
+          try {
+            expect(evaluateExpression("steps.sanitized.outputs.text")).toBe("");
+          } finally {
+            delete process.env.GH_AW_STEPS_SANITIZED_OUTPUTS_TEXT;
+          }
+        });
+
+        it("should return env var value for needs/steps expressions when set", () => {
+          process.env.GH_AW_STEPS_SANITIZED_OUTPUTS_TEXT = "Hello world";
+          try {
+            expect(evaluateExpression("steps.sanitized.outputs.text")).toBe("Hello world");
+          } finally {
+            delete process.env.GH_AW_STEPS_SANITIZED_OUTPUTS_TEXT;
+          }
+          process.env.GH_AW_NEEDS_BUILD_OUTPUTS_VERSION = "v1.2.3";
+          try {
+            expect(evaluateExpression("needs.build.outputs.version")).toBe("v1.2.3");
+          } finally {
+            delete process.env.GH_AW_NEEDS_BUILD_OUTPUTS_VERSION;
+          }
+        });
+
         it("should handle missing properties gracefully", () => {
           const result = evaluateExpression("github.event.nonexistent.property");
           expect(result).toContain("github.event.nonexistent.property");

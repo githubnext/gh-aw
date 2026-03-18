@@ -253,6 +253,7 @@ func generatePlaceholderSubstitutionStep(yaml *strings.Builder, expressionMappin
 //   - "v1.2.3" → "v1.2.3" (valid tag, used as-is)
 //   - "e284d1e" → "e284d1e" (plain short SHA, used as-is)
 func versionToGitRef(version string) string {
+	compilerYamlHelpersLog.Printf("Converting version to git ref: %s", version)
 	if version == "" || version == "dev" {
 		return ""
 	}
@@ -262,8 +263,10 @@ func versionToGitRef(version string) string {
 	// Pattern: anything ending with -<digits>-g<hexchars>
 	shaRe := regexp.MustCompile(`-\d+-g([0-9a-f]+)$`)
 	if m := shaRe.FindStringSubmatch(clean); m != nil {
+		compilerYamlHelpersLog.Printf("Extracted SHA from git-describe version: %s -> %s", version, m[1])
 		return m[1]
 	}
+	compilerYamlHelpersLog.Printf("Using version as git ref: %s -> %s", version, clean)
 	return clean
 }
 
@@ -276,6 +279,7 @@ func versionToGitRef(version string) string {
 // - Not in dev or script mode
 // - action-tag feature is specified (uses remote actions instead)
 func (c *Compiler) generateCheckoutActionsFolder(data *WorkflowData) []string {
+	compilerYamlHelpersLog.Printf("Generating checkout actions folder step: actionMode=%s, version=%s", c.actionMode, c.version)
 	// Check if action-tag is specified - if so, we're using remote actions
 	if data != nil && data.Features != nil {
 		if actionTagVal, exists := data.Features["action-tag"]; exists {

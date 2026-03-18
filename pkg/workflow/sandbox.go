@@ -50,6 +50,7 @@ type AgentSandboxConfig struct {
 	Args     []string              `yaml:"args,omitempty"`    // Additional arguments to append to the command
 	Env      map[string]string     `yaml:"env,omitempty"`     // Environment variables to set on the step
 	Mounts   []string              `yaml:"mounts,omitempty"`  // Container mounts to add for AWF (format: "source:dest:mode")
+	Memory   string                `yaml:"memory,omitempty"`  // Memory limit for the AWF container (e.g., "4g", "8g")
 }
 
 // SandboxRuntimeConfig represents the Anthropic Sandbox Runtime configuration
