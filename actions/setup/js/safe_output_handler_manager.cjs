@@ -175,21 +175,21 @@ async function loadHandlers(config, prReviewBuffer) {
           const handlerConfig = config[scriptType] || {};
           const messageHandler = await scriptModule.main(handlerConfig);
           if (typeof messageHandler !== "function") {
-            const error = new Error(`Script handler ${scriptType} main() did not return a function - expected a message handler function but got ${typeof messageHandler}`);
-            core.error(`✗ Fatal error loading script handler ${scriptType}: ${error.message}`);
-            throw error;
+            // Non-fatal: warn and skip this custom script handler rather than crashing the
+            // entire safe-output loop. A misconfigured user script should not block all
+            // other safe-output operations.
+            core.warning(`✗ Custom script handler ${scriptType} main() did not return a function (got ${typeof messageHandler}) — this handler will be skipped`);
+          } else {
+            messageHandlers.set(scriptType, messageHandler);
+            core.info(`✓ Loaded and initialized custom script handler for: ${scriptType}`);
           }
-          messageHandlers.set(scriptType, messageHandler);
-          core.info(`✓ Loaded and initialized custom script handler for: ${scriptType}`);
         } else {
-          core.warning(`Custom script handler module ${scriptType} does not export a main function`);
+          core.warning(`Custom script handler module ${scriptType} does not export a main function — skipping`);
         }
       } catch (error) {
-        const errorMessage = getErrorMessage(error);
-        if (errorMessage.includes("did not return a function")) {
-          throw error;
-        }
-        core.warning(`Failed to load custom script handler for ${scriptType}: ${errorMessage}`);
+        // Non-fatal: log a warning and continue loading the remaining handlers. A broken
+        // custom script should not prevent built-in or other custom handlers from running.
+        core.warning(`Failed to load custom script handler for ${scriptType}: ${getErrorMessage(error)} — this handler will be skipped`);
       }
     }
   }

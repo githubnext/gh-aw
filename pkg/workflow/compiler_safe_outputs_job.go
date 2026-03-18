@@ -570,7 +570,7 @@ func generateSafeOutputScriptContent(scriptName string, scriptConfig *SafeScript
 
 	// Generate the handler function that receives each item at runtime.
 	handlerName := scriptNameToHandlerName(scriptName)
-	sb.WriteString("  return async function " + handlerName + "(item, resolvedTemporaryIds) {\n")
+	sb.WriteString("  return async function " + handlerName + "(item, resolvedTemporaryIds, temporaryIdMap) {\n")
 	// Indent each line of the user's handler body by 4 spaces
 	for line := range strings.SplitSeq(scriptConfig.Script, "\n") {
 		sb.WriteString("    " + line + "\n")

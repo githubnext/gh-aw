@@ -268,7 +268,7 @@ func TestGenerateSafeOutputScriptContent(t *testing.T) {
 	assert.Contains(t, content, "// Auto-generated safe-output script handler: my-handler", "Should have comment header")
 	assert.Contains(t, content, "async function main(config = {}) {", "Should wrap with main function")
 	assert.Contains(t, content, "const { channel, message } = config;", "Should destructure config inputs")
-	assert.Contains(t, content, "return async function handleMyHandler(item, resolvedTemporaryIds) {", "Should generate handler function")
+	assert.Contains(t, content, "return async function handleMyHandler(item, resolvedTemporaryIds, temporaryIdMap) {", "Should generate handler function")
 	assert.Contains(t, content, "    core.info", "Should indent user body by 4 spaces")
 	assert.Contains(t, content, "module.exports = { main };", "Should include module.exports")
 
@@ -296,7 +296,7 @@ func TestGenerateSafeOutputScriptContentNoInputs(t *testing.T) {
 	content := generateSafeOutputScriptContent("simple-handler", scriptConfig)
 
 	assert.NotContains(t, content, "const {", "Should not destructure when no inputs declared")
-	assert.Contains(t, content, "return async function handleSimpleHandler(item, resolvedTemporaryIds) {", "Should still generate handler function")
+	assert.Contains(t, content, "return async function handleSimpleHandler(item, resolvedTemporaryIds, temporaryIdMap) {", "Should still generate handler function")
 	assert.Contains(t, content, "    return { success: true };", "Should indent user body by 4 spaces")
 }
 
@@ -345,7 +345,7 @@ func TestBuildCustomScriptFilesStep(t *testing.T) {
 	// Verify the compiler generates the full outer wrapper
 	assert.Contains(t, fullYAML, "async function main(config = {}) {", "Should generate main function declaration")
 	assert.Contains(t, fullYAML, "const { channel } = config;", "Should generate config input destructuring")
-	assert.Contains(t, fullYAML, "return async function handleMyHandler(item, resolvedTemporaryIds) {", "Should generate handler function")
+	assert.Contains(t, fullYAML, "return async function handleMyHandler(item, resolvedTemporaryIds, temporaryIdMap) {", "Should generate handler function")
 	assert.Contains(t, fullYAML, "module.exports = { main };", "Should include module.exports wrapper")
 	// User's handler body content should appear indented inside the handler
 	assert.Contains(t, fullYAML, "return { success: true };", "Should include user's handler body")
