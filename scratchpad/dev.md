@@ -1,7 +1,7 @@
 # Developer Instructions
 
-**Version**: 3.8
-**Last Updated**: 2026-03-06
+**Version**: 3.9
+**Last Updated**: 2026-03-18
 **Purpose**: Consolidated development guidelines for GitHub Agentic Workflows
 
 This document consolidates specifications from the scratchpad directory into unified developer instructions. It provides architecture patterns, security guidelines, code organization rules, and testing practices.
@@ -20,6 +20,8 @@ This document consolidates specifications from the scratchpad directory into uni
 - [MCP Integration](#mcp-integration)
 - [Go Type Patterns](#go-type-patterns)
 - [Quick Reference](#quick-reference)
+- [Repo Memory](#repo-memory)
+- [Release Management](#release-management)
 - [Additional Resources](#additional-resources)
 
 ---
@@ -313,6 +315,37 @@ maybe_needed_utils.go
 
 **Solution**: Wait until 2-3 use cases emerge, then extract common patterns.
 
+### String Processing: Sanitize vs Normalize
+
+The codebase uses two distinct patterns for string transformation:
+
+| Pattern | Purpose | Functions |
+|---------|---------|-----------|
+| **Sanitize** | Remove/replace invalid characters | `SanitizeName()`, `SanitizeWorkflowName()`, `SanitizeIdentifier()` |
+| **Normalize** | Standardize format | `normalizeWorkflowName()`, `normalizeSafeOutputIdentifier()` |
+
+**Decision rule**:
+- Use **sanitize** when input may contain invalid characters (user input, artifact names, file paths)
+- Use **normalize** when converting between valid representations (file extensions, naming conventions)
+
+```go
+// SANITIZE: User input → valid identifier
+sanitized := SanitizeIdentifier("My Workflow: Test/Build")
+// Returns: "my-workflow-test-build"
+
+// NORMALIZE: File name → workflow ID (remove extension)
+normalized := normalizeWorkflowName("weekly-research.md")
+// Returns: "weekly-research"
+
+// NORMALIZE: safe output identifier (dashes → underscores)
+normalized := normalizeSafeOutputIdentifier("create-issue")
+// Returns: "create_issue"
+```
+
+**Anti-pattern**: Do not sanitize already-normalized strings. `normalizeWorkflowName` output is already valid — additional sanitization is unnecessary processing.
+
+See `scratchpad/string-sanitization-normalization.md` for full function reference and decision tree.
+
 ---
 
 ## Validation Architecture
@@ -483,6 +516,35 @@ func validateIssueConfig(cfg CreateIssueConfig) error {
     return nil
 }
 ```
+
+### Validation File Refactoring
+
+Large validation files should be split into focused, single-responsibility validators when they exceed complexity thresholds.
+
+**Thresholds**:
+- **Target**: 100-200 lines per file
+- **Acceptable**: 200-300 lines
+- **Refactor required**: 300+ lines, or 2+ unrelated validation domains in one file
+
+**Naming convention**: `{domain}_{subdomain}_validation.go`
+
+**Logger convention** (one per file):
+```go
+var bundlerSafetyLog = logger.New("workflow:bundler_safety_validation")
+```
+
+**Refactoring process**:
+1. Group existing functions by domain
+2. Create new files with domain-specific package headers and loggers
+3. Move functions preserving signatures
+4. Split test files to match the new structure (one test file per validation file)
+5. Update `validation.go` package documentation to reference new files
+
+**Shared helpers**: If a helper is used by only one domain, keep it in that domain's file. If used equally across domains, create `{domain}_helpers.go`.
+
+See `scratchpad/validation-refactoring.md` for a complete step-by-step guide using the `bundler_validation.go` split as a reference implementation.
+
+---
 
 ### YAML Parser Compatibility
 
@@ -2088,6 +2150,144 @@ type Everything interface {
 
 ---
 
+## Repo Memory
+
+Repo Memory provides persistent, git-backed storage for AI agents across workflow runs. Agents read and write files in `/tmp/gh-aw/repo-memory/{id}/`, which are automatically committed to a `memory/{id}` branch after each job.
+
+### Data Flow
+
+```mermaid
+graph TD
+    A[Agent Job Start] --> B[Clone memory/{id} branch]
+    B --> C[Agent reads/writes /tmp/gh-aw/repo-memory/{id}/]
+    C --> D[Upload artifact: repo-memory-{id}]
+    D --> E[Push Repo Memory Job]
+    E --> F[Download artifact]
+    F --> G[Validate: size, count, patch]
+    G --> H[Commit and push to memory/{id} branch]
+```
+
+### Path Conventions
+
+| Layer | Pattern | Example |
+|-------|---------|---------|
+| Runtime directory | `/tmp/gh-aw/repo-memory/{id}` | `/tmp/gh-aw/repo-memory/default` |
+| Artifact name | `repo-memory-{id}` | `repo-memory-default` |
+| Git branch | `memory/{id}` | `memory/default` |
+| Prompt path | `/tmp/gh-aw/repo-memory/{id}/` | `/tmp/gh-aw/repo-memory/default/` |
+
+The prompt path always includes a trailing slash to indicate a directory for agent file operations.
+
+**File glob patterns** match against **relative paths from the artifact root** — branch names are not part of the path:
+
+```yaml
+# ✅ Correct: relative path from artifact root
+file-glob:
+  - "*.jsonl"
+  - "metrics/**"
+
+# ❌ Wrong: includes branch name
+file-glob:
+  - "memory/default/*.jsonl"
+```
+
+### Configuration
+
+```yaml
+tools:
+  # Boolean: enable with defaults (id: default, branch: memory/default)
+  repo-memory: true
+
+  # Object: custom configuration
+  repo-memory:
+    target-repo: myorg/memory-repo
+    branch-name: memory/agent-state
+    max-file-size: 524288    # 512 KB
+    file-glob: ["*.md", "*.json"]
+
+  # Array: multiple independent memories
+  repo-memory:
+    - id: session
+      branch-name: memory/session
+    - id: logs
+      branch-name: memory/logs
+      max-file-size: 2097152  # 2 MB
+```
+
+### Validation Limits
+
+| Parameter | Default | Maximum |
+|-----------|---------|---------|
+| `max-file-size` | 10 KB | 100 MB |
+| `max-file-count` | 100 files | 1000 files |
+| `max-patch-size` | 10 KB | 100 KB |
+
+Patch size is validated after `git add .` by computing `git diff --cached`. If the total diff exceeds `max-patch-size`, the push is aborted. Both upload and push steps run unconditionally (`if: always()`) to preserve memory state even when the agent job fails.
+
+### Implementation Files
+
+- `pkg/workflow/repo_memory.go` - Core configuration and compilation
+- `pkg/workflow/repo_memory_prompt.go` - Agent prompt generation
+- `actions/setup/sh/clone_repo_memory_branch.sh` - Git clone and orphan branch creation
+- `actions/setup/js/push_repo_memory.cjs` - Artifact download, validation, and push
+
+See `scratchpad/repo-memory.md` for the full specification including campaign mode, validation schemas, and cross-layer testing strategy.
+
+---
+
+## Release Management
+
+### Changeset CLI
+
+The project uses a custom changeset CLI (`scripts/changeset.js`) for managing version releases.
+
+**Commands**:
+
+```bash
+# Preview next version from changesets (read-only, never modifies files)
+node scripts/changeset.js version
+make version
+
+# Create release (updates CHANGELOG, tags, pushes to remote)
+node scripts/changeset.js release
+make release          # Recommended: runs tests first
+
+# Specify release type explicitly
+node scripts/changeset.js release patch
+node scripts/changeset.js release minor
+node scripts/changeset.js release major
+
+# Skip confirmation prompt
+node scripts/changeset.js release --yes
+```
+
+**Changeset file format** (`.changeset/*.md`):
+
+```markdown
+---
+"gh-aw": minor
+---
+
+Brief description of the change
+```
+
+**Bump types**: `patch` (0.0.x), `minor` (0.x.0), `major` (x.0.0).
+
+**Release prerequisites**:
+- Clean working tree (all changes committed or stashed)
+- On `main` branch
+
+**Standard release workflow**:
+1. Add changeset files to `.changeset/` for each significant change
+2. Run `make version` to preview the next version and CHANGELOG entry
+3. Run `make release` to create the release (updates CHANGELOG, deletes changeset files, commits, tags, and pushes)
+
+**Releasing without changesets**: When no changeset files exist, the CLI defaults to `patch` and adds a generic "Maintenance release" entry to the CHANGELOG.
+
+See `scratchpad/changesets.md` for complete documentation.
+
+---
+
 ## Additional Resources
 
 ### Agent Instruction Files
@@ -2115,6 +2315,11 @@ These files are loaded automatically by compatible AI tools (e.g., GitHub Copilo
 - [YAML Version Gotchas](./yaml-version-gotchas.md) - YAML 1.1 vs 1.2 parser compatibility: `on:` key behavior, false positive prevention
 - [Architecture Diagram](./architecture.md) - Package structure and dependency diagram for the `gh-aw` codebase
 - [Guard Policies Specification](./guard-policies-specification.md) - GitHub MCP guard policies: `repos` scope and `min-integrity` access control
+- [Repo Memory Specification](./repo-memory.md) - Persistent git-backed storage: configuration, path conventions, campaign mode, and cross-layer testing
+- [Changesets CLI](./changesets.md) - Version release management: changeset file format, release workflow, and CLI commands
+- [Validation Refactoring Guide](./validation-refactoring.md) - Step-by-step process for splitting large validation files into focused single-responsibility validators
+- [String Sanitization vs Normalization](./string-sanitization-normalization.md) - Distinction between sanitize and normalize patterns; function reference and decision tree
+- [Serena Tools Quick Reference](./serena-tools-quick-reference.md) - Tool usage statistics and efficiency analysis for Serena MCP integration
 
 ### External References
 
@@ -2126,6 +2331,7 @@ These files are loaded automatically by compatible AI tools (e.g., GitHub Copilo
 ---
 
 **Document History**:
+- v3.9 (2026-03-18): Added 5 previously uncovered spec files: Repo Memory section (from `repo-memory.md`: git-backed persistent storage, path conventions, configuration, validation limits), Release Management section (from `changesets.md`: changeset CLI, release workflow), Validation File Refactoring subsection (from `validation-refactoring.md`: complexity thresholds, naming conventions, process steps), String Processing subsection in Code Organization (from `string-sanitization-normalization.md`: sanitize vs normalize decision rule), and 7 new Related Documentation links. Coverage: 68 spec files (5 new).
 - v3.8 (2026-03-06): Fixed 2 tone issues — "Extreme Simplicity" heading → "Minimal Configuration Model" (mdflow.md:199), "Deep analysis" → "Detailed analysis" (README.md:40). Coverage: 63 spec files (62 spec + 1 test artifact).
 - v3.7 (2026-03-06): Fixed 3 tone issues — removed "intuitive way" (guard-policies-specification.md:17), replaced "User-friendly: Intuitive frontmatter syntax" with "Consistent syntax: Follows existing frontmatter conventions" (guard-policies-specification.md:303), and replaced "significantly improves the developer experience" with precise language (engine-architecture-review.md:312). Coverage: 63 spec files (62 spec + 1 test artifact).
 - v3.6 (2026-03-05): Fixed 2 tone issues — removed "seamlessly" from guard-policies-specification.md:307 and "robust" from pr-checkout-logic-explained.md:56. Coverage: 63 spec files (62 spec + 1 test artifact).
