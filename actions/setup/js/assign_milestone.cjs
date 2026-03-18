@@ -8,7 +8,7 @@
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { logStagedPreviewInfo } = require("./staged_preview.cjs");
 const { createAuthenticatedGitHubClient } = require("./handler_auth.cjs");
-const { resolveRepoIssueTarget } = require("./temporary_id.cjs");
+const { loadTemporaryIdMapFromResolved, resolveRepoIssueTarget } = require("./temporary_id.cjs");
 
 /** @type {string} Safe output type handled by this module */
 const HANDLER_TYPE = "assign_milestone";
@@ -38,9 +38,6 @@ async function main(config = {}) {
   // Cache milestones to avoid fetching multiple times
   let allMilestones = null;
 
-  // Map of temporary IDs resolved so far (accumulated across handler calls)
-  const temporaryIdMap = new Map();
-
   /**
    * Message handler function that processes a single assign_milestone message
    * @param {Object} message - The assign_milestone message to process
@@ -59,16 +56,10 @@ async function main(config = {}) {
 
     processedCount++;
 
-    // Merge resolved temporary IDs from the handler manager into our local map
-    if (resolvedTemporaryIds) {
-      for (const [tempId, resolved] of Object.entries(resolvedTemporaryIds)) {
-        if (!temporaryIdMap.has(tempId)) {
-          temporaryIdMap.set(tempId, resolved);
-        }
-      }
-    }
-
     const item = message;
+
+    // Convert resolvedTemporaryIds to a normalized Map for resolveRepoIssueTarget
+    const temporaryIdMap = loadTemporaryIdMapFromResolved(resolvedTemporaryIds);
 
     // Resolve issue_number, which may be a temporary ID (e.g. "aw_abc123") or a plain number
     const resolvedIssueTarget = resolveRepoIssueTarget(item.issue_number, temporaryIdMap, context.repo.owner, context.repo.repo);
