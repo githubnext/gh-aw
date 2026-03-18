@@ -31,10 +31,45 @@ func (r *MCPConfigRendererUnified) RenderPlaywrightMCP(yaml *strings.Builder, pl
 	renderPlaywrightMCPConfigWithOptions(yaml, playwrightConfig, r.options.IsLast, r.options.IncludeCopilotFields, r.options.InlineArgs, r.options.WriteSinkGuardPolicies)
 }
 
-// renderPlaywrightTOML generates Playwright MCP configuration in TOML format
+// renderPlaywrightTOML generates Playwright MCP configuration in TOML format.
+// Routes between CLI and Docker modes based on playwrightConfig.Mode.
+func (r *MCPConfigRendererUnified) renderPlaywrightTOML(yaml *strings.Builder, playwrightConfig *PlaywrightToolConfig) {
+	if playwrightConfig.IsCliMode() {
+		r.renderPlaywrightCLITOML(yaml, playwrightConfig)
+	} else {
+		r.renderPlaywrightDockerTOML(yaml, playwrightConfig)
+	}
+}
+
+// renderPlaywrightCLITOML generates Playwright CLI mode configuration in TOML format.
+// Runs @playwright/mcp via npx directly, without Docker.
+func (r *MCPConfigRendererUnified) renderPlaywrightCLITOML(yaml *strings.Builder, playwrightConfig *PlaywrightToolConfig) {
+	mcpRendererBuiltinLog.Print("Rendering Playwright CLI MCP in TOML format")
+	customArgs := getPlaywrightCustomArgs(playwrightConfig)
+	npxPackage := playwrightNpxPackage(playwrightConfig)
+
+	yaml.WriteString("          \n")
+	yaml.WriteString("          [mcp_servers.playwright]\n")
+	yaml.WriteString("          command = \"npx\"\n")
+
+	// Build args: -y, package, --output-dir, path, --no-sandbox, ...customArgs
+	yaml.WriteString("          args = [\n")
+	yaml.WriteString("            \"-y\",\n")
+	yaml.WriteString("            \"" + npxPackage + "\",\n")
+	yaml.WriteString("            \"--output-dir\",\n")
+	yaml.WriteString("            \"/tmp/gh-aw/mcp-logs/playwright\",\n")
+	yaml.WriteString("            \"--no-sandbox\"")
+
+	writeArgsToYAML(yaml, customArgs, "            ")
+
+	yaml.WriteString("\n")
+	yaml.WriteString("          ]\n")
+}
+
+// renderPlaywrightDockerTOML generates Playwright Docker/MCP mode configuration in TOML format.
 // Per MCP Gateway Specification v1.0.0 section 3.2.1, stdio-based MCP servers MUST be containerized.
 // Uses MCP Gateway spec format: container, entrypointArgs, mounts, and args fields.
-func (r *MCPConfigRendererUnified) renderPlaywrightTOML(yaml *strings.Builder, playwrightConfig *PlaywrightToolConfig) {
+func (r *MCPConfigRendererUnified) renderPlaywrightDockerTOML(yaml *strings.Builder, playwrightConfig *PlaywrightToolConfig) {
 	mcpRendererBuiltinLog.Print("Rendering Playwright MCP in TOML format")
 	customArgs := getPlaywrightCustomArgs(playwrightConfig)
 

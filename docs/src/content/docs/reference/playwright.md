@@ -9,28 +9,50 @@ Configure Playwright for browser automation and testing in your agentic workflow
 
 ```yaml wrap
 tools:
+  playwright:               # cli mode (default)
   playwright:
+    mode: cli               # explicitly select cli mode (default)
+    version: "0.0.26"       # optional @playwright/mcp version
   playwright:
-    version: "1.56.1"  # Optional: specify version, defaults to 1.56.1
-  playwright:
-    version: "latest"  # Use the latest available version
+    mode: mcp               # docker-based MCP mode
 ```
 
 ## Configuration Options
 
-### Version
+### Mode
 
-Specify the Playwright version to use:
+Select the Playwright integration mode:
 
 ```yaml wrap
 tools:
   playwright:
-    version: "1.56.1"  # Pin to specific version (default)
+    mode: cli   # default: runs @playwright/mcp via npx, no Docker required
   playwright:
-    version: "latest"  # Use latest available version
+    mode: mcp   # legacy: uses the mcr.microsoft.com/playwright/mcp Docker container
 ```
 
-**Default**: `1.56.1` (when `version` is not specified)
+| Mode | Description | Docker required |
+|------|-------------|-----------------|
+| `cli` (default) | Runs `@playwright/mcp` via `npx` directly on the runner | No |
+| `mcp` | Uses the `mcr.microsoft.com/playwright/mcp` Docker container | Yes |
+
+**Default**: `cli` (when `mode` is not specified)
+
+### Version
+
+In **cli mode**, `version` pins the `@playwright/mcp` npm package version:
+
+```yaml wrap
+tools:
+  playwright:
+    version: "0.0.26"  # Pin to specific @playwright/mcp version
+  playwright:
+    version: "latest"  # Use latest @playwright/mcp version (default)
+```
+
+**Default**: `latest` (when `version` is not specified in cli mode)
+
+In **mcp mode**, the `version` field is not used (the Docker image has no version tag).
 
 ## Network Access Configuration
 
@@ -77,12 +99,18 @@ This is sufficient for testing local development servers.
 
 ## GitHub Actions Compatibility
 
-Playwright runs in a Docker container on GitHub Actions runners. To ensure Chromium functions correctly, gh-aw automatically configures required security flags:
+### CLI mode (default)
+
+In CLI mode, Playwright runs via `npx` directly on the GitHub Actions runner (no Docker). The `--no-sandbox` flag is automatically applied to ensure Chromium works correctly.
+
+### MCP mode (Docker)
+
+In MCP mode, Playwright runs in a Docker container. To ensure Chromium functions correctly, gh-aw automatically configures required security flags:
 
 - `--security-opt seccomp=unconfined` - Allows Chromium's sandboxing mechanisms
 - `--ipc=host` - Enables inter-process communication for browser processes
 
-These flags are automatically applied starting with **gh-aw version 0.41.0 and later**. No manual configuration is needed.
+These flags are automatically applied. No manual configuration is needed.
 
 ## Browser Support
 
@@ -92,7 +120,7 @@ Playwright includes three browser engines:
 - **Firefox** - Mozilla Firefox engine
 - **WebKit** - Safari engine
 
-All three browsers are available in the Playwright Docker container. Your workflow can use any or all of them based on your testing needs.
+All three browsers are available. Your workflow can use any or all of them based on your testing needs.
 
 ## Common Use Cases
 

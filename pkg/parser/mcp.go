@@ -371,52 +371,70 @@ func processBuiltinMCPTool(toolName string, toolValue any, serverFilter string) 
 
 		return &config, nil
 	} else if toolName == "playwright" {
-		// Handle Playwright MCP server - always use Docker by default
-		config := MCPServerConfig{
-			BaseMCPServerConfig: types.BaseMCPServerConfig{
-				Type:    "docker", // Playwright defaults to Docker (containerized)
-				Command: "docker",
-				Args: []string{
-					"run", "-i", "--rm", "--shm-size=2gb", "--cap-add=SYS_ADMIN",
-					"-v", "/tmp/gh-aw/mcp-logs:/tmp/gh-aw/mcp-logs",
-					"mcr.microsoft.com/playwright:" + string(constants.DefaultPlaywrightBrowserVersion),
-				},
-				Env: make(map[string]string),
-			},
-			Name: "playwright",
-		}
+		// Determine mode: "cli" (default) or "mcp" (Docker)
+		mode := "cli"
+		var version string
+		var customArgs []string
 
-		// Check for custom Playwright configuration
 		if toolConfig, ok := toolValue.(map[string]any); ok {
-			// Check for custom Docker image version
-			if version, exists := toolConfig["version"]; exists {
-				if versionStr := stringutil.ParseVersionValue(version); versionStr != "" {
-					dockerImage := "mcr.microsoft.com/playwright:" + versionStr
-					// Update the Docker image in args
-					for i, arg := range config.Args {
-						if strings.HasPrefix(arg, "mcr.microsoft.com/playwright:") {
-							config.Args[i] = dockerImage
-							break
-						}
-					}
-				}
+			if modeVal, exists := toolConfig["mode"].(string); exists {
+				mode = modeVal
 			}
-
-			// Check for custom args
+			if verVal, exists := toolConfig["version"]; exists {
+				version = stringutil.ParseVersionValue(verVal)
+			}
 			if argsValue, exists := toolConfig["args"]; exists {
-				// Handle []any format
 				if argsSlice, ok := argsValue.([]any); ok {
 					for _, arg := range argsSlice {
 						if argStr, ok := arg.(string); ok {
-							config.Args = append(config.Args, argStr)
+							customArgs = append(customArgs, argStr)
 						}
 					}
-				}
-				// Handle []string format
-				if argsSlice, ok := argsValue.([]string); ok {
-					config.Args = append(config.Args, argsSlice...)
+				} else if argsSlice, ok := argsValue.([]string); ok {
+					customArgs = append(customArgs, argsSlice...)
 				}
 			}
+		}
+
+		if mode == "mcp" {
+			// MCP (Docker) mode: use the official Playwright MCP Docker container
+			dockerImage := "mcr.microsoft.com/playwright:" + string(constants.DefaultPlaywrightBrowserVersion)
+			if version != "" {
+				dockerImage = "mcr.microsoft.com/playwright:" + version
+			}
+			config := MCPServerConfig{
+				BaseMCPServerConfig: types.BaseMCPServerConfig{
+					Type:    "docker",
+					Command: "docker",
+					Args: append([]string{
+						"run", "-i", "--rm", "--shm-size=2gb", "--cap-add=SYS_ADMIN",
+						"-v", "/tmp/gh-aw/mcp-logs:/tmp/gh-aw/mcp-logs",
+						dockerImage,
+					}, customArgs...),
+					Env: make(map[string]string),
+				},
+				Name: "playwright",
+			}
+			return &config, nil
+		}
+
+		// CLI mode (default): run @playwright/mcp via npx
+		npxPackage := "@playwright/mcp@latest"
+		if version != "" {
+			npxPackage = "@playwright/mcp@" + version
+		}
+		config := MCPServerConfig{
+			BaseMCPServerConfig: types.BaseMCPServerConfig{
+				Type:    "stdio",
+				Command: "npx",
+				Args: append([]string{
+					"-y", npxPackage,
+					"--output-dir", "/tmp/gh-aw/mcp-logs/playwright",
+					"--no-sandbox",
+				}, customArgs...),
+				Env: make(map[string]string),
+			},
+			Name: "playwright",
 		}
 
 		return &config, nil

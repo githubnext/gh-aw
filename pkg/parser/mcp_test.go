@@ -222,29 +222,114 @@ func TestExtractMCPConfigurations(t *testing.T) {
 			},
 		},
 		{
-			name: "Playwright tool default configuration",
+			name: "Playwright tool default configuration (cli mode)",
 			frontmatter: map[string]any{
 				"tools": map[string]any{
 					"playwright": map[string]any{},
 				},
 			},
 			expected: []MCPServerConfig{
-				{BaseMCPServerConfig: types.BaseMCPServerConfig{Type: "docker",
-					Command: "docker",
+				{BaseMCPServerConfig: types.BaseMCPServerConfig{Type: "stdio",
+					Command: "npx",
 					Args: []string{
-						"run", "-i", "--rm", "--shm-size=2gb", "--cap-add=SYS_ADMIN",
-						"-v", "/tmp/gh-aw/mcp-logs:/tmp/gh-aw/mcp-logs",
-						"mcr.microsoft.com/playwright:" + string(constants.DefaultPlaywrightBrowserVersion),
+						"-y", "@playwright/mcp@latest",
+						"--output-dir", "/tmp/gh-aw/mcp-logs/playwright",
+						"--no-sandbox",
 					},
 					Env: map[string]string{}}, Name: "playwright",
 				},
 			},
 		},
 		{
-			name: "Playwright tool with custom Docker image",
+			name: "Playwright tool with version (cli mode - npm package version)",
 			frontmatter: map[string]any{
 				"tools": map[string]any{
 					"playwright": map[string]any{
+						"version": "v1.41.0",
+					},
+				},
+			},
+			expected: []MCPServerConfig{
+				{BaseMCPServerConfig: types.BaseMCPServerConfig{Type: "stdio",
+					Command: "npx",
+					Args: []string{
+						"-y", "@playwright/mcp@v1.41.0",
+						"--output-dir", "/tmp/gh-aw/mcp-logs/playwright",
+						"--no-sandbox",
+					},
+					Env: map[string]string{}}, Name: "playwright",
+				},
+			},
+		},
+		{
+			name: "Playwright tool with integer version (cli mode)",
+			frontmatter: map[string]any{
+				"tools": map[string]any{
+					"playwright": map[string]any{
+						"version": 20,
+					},
+				},
+			},
+			expected: []MCPServerConfig{
+				{BaseMCPServerConfig: types.BaseMCPServerConfig{Type: "stdio",
+					Command: "npx",
+					Args: []string{
+						"-y", "@playwright/mcp@20",
+						"--output-dir", "/tmp/gh-aw/mcp-logs/playwright",
+						"--no-sandbox",
+					},
+					Env: map[string]string{}}, Name: "playwright",
+				},
+			},
+		},
+		{
+			name: "Playwright tool with float version (cli mode)",
+			frontmatter: map[string]any{
+				"tools": map[string]any{
+					"playwright": map[string]any{
+						"version": 1.41,
+					},
+				},
+			},
+			expected: []MCPServerConfig{
+				{BaseMCPServerConfig: types.BaseMCPServerConfig{Type: "stdio",
+					Command: "npx",
+					Args: []string{
+						"-y", "@playwright/mcp@1.41",
+						"--output-dir", "/tmp/gh-aw/mcp-logs/playwright",
+						"--no-sandbox",
+					},
+					Env: map[string]string{}}, Name: "playwright",
+				},
+			},
+		},
+		{
+			name: "Playwright tool with int64 version (cli mode)",
+			frontmatter: map[string]any{
+				"tools": map[string]any{
+					"playwright": map[string]any{
+						"version": int64(142),
+					},
+				},
+			},
+			expected: []MCPServerConfig{
+				{BaseMCPServerConfig: types.BaseMCPServerConfig{Type: "stdio",
+					Command: "npx",
+					Args: []string{
+						"-y", "@playwright/mcp@142",
+						"--output-dir", "/tmp/gh-aw/mcp-logs/playwright",
+						"--no-sandbox",
+					},
+					Env: map[string]string{}}, Name: "playwright",
+				},
+			},
+		},
+		{
+			name: "Playwright tool with mcp mode (Docker)",
+			frontmatter: map[string]any{
+				"tools": map[string]any{
+					"playwright": map[string]any{
+						"mode":    "mcp",
 						"version": "v1.41.0",
 					},
 				},
@@ -256,69 +341,6 @@ func TestExtractMCPConfigurations(t *testing.T) {
 						"run", "-i", "--rm", "--shm-size=2gb", "--cap-add=SYS_ADMIN",
 						"-v", "/tmp/gh-aw/mcp-logs:/tmp/gh-aw/mcp-logs",
 						"mcr.microsoft.com/playwright:v1.41.0",
-					},
-					Env: map[string]string{}}, Name: "playwright",
-				},
-			},
-		},
-		{
-			name: "Playwright tool with integer version",
-			frontmatter: map[string]any{
-				"tools": map[string]any{
-					"playwright": map[string]any{
-						"version": 20,
-					},
-				},
-			},
-			expected: []MCPServerConfig{
-				{BaseMCPServerConfig: types.BaseMCPServerConfig{Type: "docker",
-					Command: "docker",
-					Args: []string{
-						"run", "-i", "--rm", "--shm-size=2gb", "--cap-add=SYS_ADMIN",
-						"-v", "/tmp/gh-aw/mcp-logs:/tmp/gh-aw/mcp-logs",
-						"mcr.microsoft.com/playwright:20",
-					},
-					Env: map[string]string{}}, Name: "playwright",
-				},
-			},
-		},
-		{
-			name: "Playwright tool with float version",
-			frontmatter: map[string]any{
-				"tools": map[string]any{
-					"playwright": map[string]any{
-						"version": 1.41,
-					},
-				},
-			},
-			expected: []MCPServerConfig{
-				{BaseMCPServerConfig: types.BaseMCPServerConfig{Type: "docker",
-					Command: "docker",
-					Args: []string{
-						"run", "-i", "--rm", "--shm-size=2gb", "--cap-add=SYS_ADMIN",
-						"-v", "/tmp/gh-aw/mcp-logs:/tmp/gh-aw/mcp-logs",
-						"mcr.microsoft.com/playwright:1.41",
-					},
-					Env: map[string]string{}}, Name: "playwright",
-				},
-			},
-		},
-		{
-			name: "Playwright tool with int64 version",
-			frontmatter: map[string]any{
-				"tools": map[string]any{
-					"playwright": map[string]any{
-						"version": int64(142),
-					},
-				},
-			},
-			expected: []MCPServerConfig{
-				{BaseMCPServerConfig: types.BaseMCPServerConfig{Type: "docker",
-					Command: "docker",
-					Args: []string{
-						"run", "-i", "--rm", "--shm-size=2gb", "--cap-add=SYS_ADMIN",
-						"-v", "/tmp/gh-aw/mcp-logs:/tmp/gh-aw/mcp-logs",
-						"mcr.microsoft.com/playwright:142",
 					},
 					Env: map[string]string{}}, Name: "playwright",
 				},

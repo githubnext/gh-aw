@@ -290,6 +290,65 @@ func TestPlaywrightConfigParsing(t *testing.T) {
 			t.Errorf("expected 1 arg, got %d", len(config.Args))
 		}
 	})
+
+	t.Run("defaults to cli mode when no mode specified", func(t *testing.T) {
+		toolsMap := map[string]any{
+			"playwright": map[string]any{},
+		}
+		tools := NewTools(toolsMap)
+		config := tools.Playwright
+		if config == nil {
+			t.Fatal("expected non-nil config")
+		}
+		if !config.IsCliMode() {
+			t.Errorf("expected cli mode (default), got mode=%q", config.Mode)
+		}
+	})
+
+	t.Run("parses cli mode explicitly", func(t *testing.T) {
+		toolsMap := map[string]any{
+			"playwright": map[string]any{
+				"mode": "cli",
+			},
+		}
+		tools := NewTools(toolsMap)
+		config := tools.Playwright
+		if config == nil {
+			t.Fatal("expected non-nil config")
+		}
+		if config.Mode != "cli" {
+			t.Errorf("expected mode 'cli', got %q", config.Mode)
+		}
+		if !config.IsCliMode() {
+			t.Error("expected IsCliMode() to return true for mode=cli")
+		}
+	})
+
+	t.Run("parses mcp mode", func(t *testing.T) {
+		toolsMap := map[string]any{
+			"playwright": map[string]any{
+				"mode": "mcp",
+			},
+		}
+		tools := NewTools(toolsMap)
+		config := tools.Playwright
+		if config == nil {
+			t.Fatal("expected non-nil config")
+		}
+		if config.Mode != "mcp" {
+			t.Errorf("expected mode 'mcp', got %q", config.Mode)
+		}
+		if config.IsCliMode() {
+			t.Error("expected IsCliMode() to return false for mode=mcp")
+		}
+	})
+
+	t.Run("nil config defaults to cli mode", func(t *testing.T) {
+		var config *PlaywrightToolConfig
+		if !config.IsCliMode() {
+			t.Error("expected nil config to report cli mode (default)")
+		}
+	})
 }
 
 func TestExtractToolsFromFrontmatter(t *testing.T) {

@@ -3416,16 +3416,22 @@
           "oneOf": [
             {
               "type": "null",
-              "description": "Enable Playwright tool with default settings"
+              "description": "Enable Playwright tool with default settings (cli mode)"
             },
             {
               "type": "object",
-              "description": "Playwright tool configuration with custom version and arguments",
+              "description": "Playwright tool configuration with mode, version and arguments",
               "properties": {
+                "mode": {
+                  "type": "string",
+                  "enum": ["cli", "mcp"],
+                  "description": "Integration mode: 'cli' (default) runs @playwright/mcp via npx without Docker; 'mcp' uses the mcr.microsoft.com/playwright/mcp Docker container.",
+                  "examples": ["cli", "mcp"]
+                },
                 "version": {
                   "type": ["string", "number"],
-                  "description": "Optional Playwright container version (e.g., 'v1.41.0', 1.41, 20). Numeric values are automatically converted to strings at runtime.",
-                  "examples": ["v1.41.0", 1.41, 20]
+                  "description": "Optional version. In cli mode: @playwright/mcp npm package version (e.g., '0.0.26', 'latest'). In mcp mode: unused (Docker image has no version tag). Numeric values are automatically converted to strings at runtime.",
+                  "examples": ["0.0.26", "latest"]
                 },
                 "args": {
                   "type": "array",

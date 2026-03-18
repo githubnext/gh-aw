@@ -7,13 +7,20 @@
 // Model Context Protocol (MCP). Playwright enables agents to interact with
 // web pages, take screenshots, extract content, and perform accessibility testing.
 //
-// Key responsibilities:
-//   - Generating Playwright MCP server configuration
-//   - Managing Docker container setup for Playwright
-//   - Processing custom Playwright arguments
-//   - Rendering configuration for different AI engines
+// Two modes are supported, selected via tools.playwright.mode:
 //
-// Container configuration:
+//   - "cli" (default): Runs @playwright/mcp via npx directly on the runner,
+//     without Docker. Simpler setup, no Docker image pull required.
+//   - "mcp": Runs the official Microsoft Playwright MCP Docker image
+//     (mcr.microsoft.com/playwright/mcp) via the MCP gateway.
+//
+// # CLI mode
+//
+// CLI mode invokes `npx -y @playwright/mcp[@version]` as a stdio MCP server.
+// The package is downloaded and executed by npx, so no pre-installation is needed.
+//
+// # MCP (Docker) mode
+//
 // Playwright runs in a Docker container using the official Microsoft Playwright
 // MCP image (mcr.microsoft.com/playwright/mcp). The container is configured with:
 //   - --init flag for proper signal handling
@@ -46,11 +53,16 @@
 // Example configuration:
 //
 //	tools:
+//	  playwright:           # cli mode (default)
 //	  playwright:
-//	    version: v1.41.0
+//	    mode: cli           # explicit cli mode (default)
+//	    version: "0.0.26"  # optional @playwright/mcp version
+//	    args:
+//	      - --timeout=30000
+//	  playwright:
+//	    mode: mcp           # docker-based MCP mode
 //	    args:
 //	      - --debug
-//	      - --timeout=30000
 //	network:
 //	  allowed:
 //	    - github.com
@@ -65,10 +77,99 @@ import (
 
 var mcpPlaywrightLog = logger.New("workflow:mcp_config_playwright_renderer")
 
-// renderPlaywrightMCPConfigWithOptions generates the Playwright MCP server configuration with engine-specific options
+// playwrightNpxPackage returns the npx package reference for CLI mode.
+// Uses the version from config if specified, otherwise defaults to "latest".
+func playwrightNpxPackage(playwrightConfig *PlaywrightToolConfig) string {
+	if playwrightConfig != nil && playwrightConfig.Version != "" {
+		return "@playwright/mcp@" + playwrightConfig.Version
+	}
+	return "@playwright/mcp@latest"
+}
+
+// renderPlaywrightMCPConfigWithOptions generates the Playwright MCP server configuration with engine-specific options.
+// Routes between cli and mcp modes based on playwrightConfig.Mode.
+func renderPlaywrightMCPConfigWithOptions(yaml *strings.Builder, playwrightConfig *PlaywrightToolConfig, isLast bool, includeCopilotFields bool, inlineArgs bool, guardPolicies map[string]any) {
+	if playwrightConfig.IsCliMode() {
+		renderPlaywrightCLIConfigJSON(yaml, playwrightConfig, isLast, includeCopilotFields, inlineArgs, guardPolicies)
+	} else {
+		renderPlaywrightDockerConfigJSON(yaml, playwrightConfig, isLast, includeCopilotFields, inlineArgs, guardPolicies)
+	}
+}
+
+// renderPlaywrightCLIConfigJSON generates Playwright CLI mode configuration in JSON format.
+// Runs @playwright/mcp via npx as a stdio MCP server without Docker.
+func renderPlaywrightCLIConfigJSON(yaml *strings.Builder, playwrightConfig *PlaywrightToolConfig, isLast bool, includeCopilotFields bool, inlineArgs bool, guardPolicies map[string]any) {
+	mcpPlaywrightLog.Printf("Rendering Playwright CLI config (JSON): copilot_fields=%t, inline_args=%t", includeCopilotFields, inlineArgs)
+	customArgs := getPlaywrightCustomArgs(playwrightConfig)
+
+	// Extract and replace expressions from custom args
+	expressions := extractExpressionsFromPlaywrightArgs(customArgs)
+	if len(customArgs) > 0 {
+		mcpPlaywrightLog.Printf("Applying %d custom Playwright args with %d extracted expressions", len(customArgs), len(expressions))
+		customArgs = replaceExpressionsInPlaywrightArgs(customArgs, expressions)
+	}
+
+	// Build the full args list: npx package + MCP server flags + custom args
+	npxPackage := playwrightNpxPackage(playwrightConfig)
+	// --no-sandbox: Required on GitHub Actions runners for Chromium process sandbox
+	// --output-dir:  Directory for screenshots and artifacts
+	allArgs := append([]string{"-y", npxPackage, "--output-dir", "/tmp/gh-aw/mcp-logs/playwright", "--no-sandbox"}, customArgs...)
+
+	yaml.WriteString("              \"playwright\": {\n")
+
+	// Add type field for Copilot (per MCP Gateway Specification v1.0.0)
+	if includeCopilotFields {
+		yaml.WriteString("                \"type\": \"stdio\",\n")
+	}
+
+	yaml.WriteString("                \"command\": \"npx\",\n")
+
+	// Determine if args field has a trailing comma (guard policies follow) or not
+	hasGuardPolicies := len(guardPolicies) > 0
+	if inlineArgs {
+		yaml.WriteString("                \"args\": [")
+		for i, arg := range allArgs {
+			if i > 0 {
+				yaml.WriteString(", ")
+			}
+			yaml.WriteString("\"" + arg + "\"")
+		}
+		if hasGuardPolicies {
+			yaml.WriteString("],\n")
+		} else {
+			yaml.WriteString("]\n")
+		}
+	} else {
+		yaml.WriteString("                \"args\": [\n")
+		for i, arg := range allArgs {
+			yaml.WriteString("                  \"" + arg + "\"")
+			if i < len(allArgs)-1 {
+				yaml.WriteString(",")
+			}
+			yaml.WriteString("\n")
+		}
+		if hasGuardPolicies {
+			yaml.WriteString("                ],\n")
+		} else {
+			yaml.WriteString("                ]\n")
+		}
+	}
+
+	if hasGuardPolicies {
+		renderGuardPoliciesJSON(yaml, guardPolicies, "                ")
+	}
+
+	if isLast {
+		yaml.WriteString("              }\n")
+	} else {
+		yaml.WriteString("              },\n")
+	}
+}
+
+// renderPlaywrightDockerConfigJSON generates Playwright Docker/MCP mode configuration in JSON format.
 // Per MCP Gateway Specification v1.0.0 section 3.2.1, stdio-based MCP servers MUST be containerized.
 // Uses MCP Gateway spec format: container, entrypointArgs, mounts, and args fields.
-func renderPlaywrightMCPConfigWithOptions(yaml *strings.Builder, playwrightConfig *PlaywrightToolConfig, isLast bool, includeCopilotFields bool, inlineArgs bool, guardPolicies map[string]any) {
+func renderPlaywrightDockerConfigJSON(yaml *strings.Builder, playwrightConfig *PlaywrightToolConfig, isLast bool, includeCopilotFields bool, inlineArgs bool, guardPolicies map[string]any) {
 	mcpPlaywrightLog.Printf("Rendering Playwright MCP config options: copilot_fields=%t, inline_args=%t", includeCopilotFields, inlineArgs)
 	customArgs := getPlaywrightCustomArgs(playwrightConfig)
 

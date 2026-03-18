@@ -30,12 +30,16 @@ func collectDockerImages(tools map[string]any, workflowData *WorkflowData, actio
 		}
 	}
 
-	// Check for Playwright tool (uses Docker image - no version tag, only one image)
-	if _, hasPlaywright := tools["playwright"]; hasPlaywright {
-		image := "mcr.microsoft.com/playwright/mcp"
-		if !imageSet[image] {
-			images = append(images, image)
-			imageSet[image] = true
+	// Check for Playwright tool (uses Docker image only in mcp mode)
+	if playwrightTool, hasPlaywright := tools["playwright"]; hasPlaywright {
+		playwrightConfig := parsePlaywrightTool(playwrightTool)
+		if !playwrightConfig.IsCliMode() {
+			// Only pull Docker image for mcp mode (cli mode uses npx without Docker)
+			image := "mcr.microsoft.com/playwright/mcp"
+			if !imageSet[image] {
+				images = append(images, image)
+				imageSet[image] = true
+			}
 		}
 	}
 

@@ -169,16 +169,16 @@ func TestArgsField(t *testing.T) {
 			t.Errorf("Expected to find --browser and firefox in args, got: %v", configs[0].Args)
 		}
 
-		// Verify that the Docker image is still present (should come before custom args)
-		foundDockerImage := false
+		// Verify that the @playwright/mcp package is present (cli mode is default)
+		foundPackage := false
 		for _, arg := range configs[0].Args {
-			if strings.Contains(arg, "mcr.microsoft.com/playwright:") {
-				foundDockerImage = true
+			if strings.Contains(arg, "@playwright/mcp") {
+				foundPackage = true
 				break
 			}
 		}
-		if !foundDockerImage {
-			t.Errorf("Expected to find Docker image in args, got: %v", configs[0].Args)
+		if !foundPackage {
+			t.Errorf("Expected to find @playwright/mcp in args, got: %v", configs[0].Args)
 		}
 	})
 

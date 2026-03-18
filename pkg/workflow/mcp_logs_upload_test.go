@@ -55,13 +55,12 @@ Please navigate to example.com and take a screenshot.
 
 	lockContentStr := string(lockContent)
 
-	// Verify Playwright MCP configuration uses official Docker image
-	if !strings.Contains(lockContentStr, "mcr.microsoft.com/playwright/mcp") {
-		t.Error("Expected Playwright MCP configuration to include official Docker image 'mcr.microsoft.com/playwright/mcp'")
+	// Verify Playwright MCP configuration uses CLI mode (npx) by default
+	if !strings.Contains(lockContentStr, "@playwright/mcp") {
+		t.Error("Expected Playwright MCP configuration to include @playwright/mcp (cli mode default)")
 	}
 
-	// Verify the playwright output directory is pre-created so the Docker container
-	// can write screenshots to the mounted volume path without ENOENT errors
+	// Verify the playwright output directory is pre-created
 	if !strings.Contains(lockContentStr, "mkdir -p /tmp/gh-aw/mcp-logs/playwright") {
 		t.Error("Expected 'mkdir -p /tmp/gh-aw/mcp-logs/playwright' in Start MCP Gateway step to pre-create screenshot directory")
 	}

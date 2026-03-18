@@ -92,7 +92,7 @@ func TestVersionField(t *testing.T) {
 			t.Errorf("Expected to find v2.0.0 in args, got: %v", configs[0].Args)
 		}
 
-		// Test Playwright tool with "version" field
+		// Test Playwright tool with "version" field (cli mode - default)
 		frontmatterPlaywright := map[string]any{
 			"tools": map[string]any{
 				"playwright": map[string]any{
@@ -110,18 +110,19 @@ func TestVersionField(t *testing.T) {
 			t.Fatal("No configs returned")
 		}
 
+		// In cli mode, version is the @playwright/mcp npm package version
 		found = false
 		for _, arg := range configs[0].Args {
-			if strings.Contains(arg, "mcr.microsoft.com/playwright:v1.41.0") {
+			if strings.Contains(arg, "@playwright/mcp@v1.41.0") {
 				found = true
 				break
 			}
 		}
 		if !found {
-			t.Errorf("Expected to find v1.41.0 in args, got: %v", configs[0].Args)
+			t.Errorf("Expected to find @playwright/mcp@v1.41.0 in args, got: %v", configs[0].Args)
 		}
 
-		// Test Playwright tool with integer version
+		// Test Playwright tool with integer version (cli mode - default)
 		frontmatterPlaywrightInt := map[string]any{
 			"tools": map[string]any{
 				"playwright": map[string]any{
@@ -139,18 +140,19 @@ func TestVersionField(t *testing.T) {
 			t.Fatal("No configs returned")
 		}
 
+		// In cli mode, version is the @playwright/mcp npm package version
 		found = false
 		for _, arg := range configs[0].Args {
-			if strings.Contains(arg, "mcr.microsoft.com/playwright:20") {
+			if strings.Contains(arg, "@playwright/mcp@20") {
 				found = true
 				break
 			}
 		}
 		if !found {
-			t.Errorf("Expected to find :20 in args, got: %v", configs[0].Args)
+			t.Errorf("Expected to find @playwright/mcp@20 in args, got: %v", configs[0].Args)
 		}
 
-		// Test Playwright tool with float version
+		// Test Playwright tool with float version (cli mode - default)
 		frontmatterPlaywrightFloat := map[string]any{
 			"tools": map[string]any{
 				"playwright": map[string]any{
@@ -168,15 +170,47 @@ func TestVersionField(t *testing.T) {
 			t.Fatal("No configs returned")
 		}
 
+		// In cli mode, version is the @playwright/mcp npm package version
 		found = false
 		for _, arg := range configs[0].Args {
-			if strings.Contains(arg, "mcr.microsoft.com/playwright:1.41") {
+			if strings.Contains(arg, "@playwright/mcp@1.41") {
 				found = true
 				break
 			}
 		}
 		if !found {
-			t.Errorf("Expected to find :1.41 in args, got: %v", configs[0].Args)
+			t.Errorf("Expected to find @playwright/mcp@1.41 in args, got: %v", configs[0].Args)
+		}
+
+		// Test Playwright tool in mcp mode with version (Docker mode)
+		frontmatterPlaywrightMCP := map[string]any{
+			"tools": map[string]any{
+				"playwright": map[string]any{
+					"mode":    "mcp",
+					"version": "v1.41.0",
+				},
+			},
+		}
+
+		configs, err = parser.ExtractMCPConfigurations(frontmatterPlaywrightMCP, "")
+		if err != nil {
+			t.Fatalf("Error parsing Playwright with mcp mode: %v", err)
+		}
+
+		if len(configs) == 0 {
+			t.Fatal("No configs returned")
+		}
+
+		// In mcp mode, version is the Docker image version
+		found = false
+		for _, arg := range configs[0].Args {
+			if strings.Contains(arg, "mcr.microsoft.com/playwright:v1.41.0") {
+				found = true
+				break
+			}
+		}
+		if !found {
+			t.Errorf("Expected to find mcr.microsoft.com/playwright:v1.41.0 in args, got: %v", configs[0].Args)
 		}
 	})
 }

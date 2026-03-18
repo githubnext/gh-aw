@@ -1826,13 +1826,18 @@ tools:
   # (optional)
   # This field supports multiple formats (oneOf):
 
-  # Option 1: Enable Playwright tool with default settings
+  # Option 1: Enable Playwright tool with default settings (cli mode)
   playwright: null
 
-  # Option 2: Playwright tool configuration with custom version and arguments
+  # Option 2: Playwright tool configuration with mode, version and arguments
   playwright:
-    # Optional Playwright container version (e.g., 'v1.41.0', 1.41, 20). Numeric
-    # values are automatically converted to strings at runtime.
+    # Integration mode: 'cli' (default) runs @playwright/mcp via npx without
+    # Docker; 'mcp' uses the mcr.microsoft.com/playwright/mcp Docker container.
+    # (optional, default: cli)
+    mode: cli
+
+    # Optional version. In cli mode: @playwright/mcp npm package version
+    # (e.g., '0.0.26', 'latest'). In mcp mode: unused.
     # (optional)
     version: null
 

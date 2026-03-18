@@ -99,11 +99,11 @@ Test playwright with copilot engine.
 
 			lockStr := string(lockContent)
 
-			// Verify the official Playwright MCP Docker image is used
+			// Verify the Playwright configuration is present (cli mode uses npx by default)
 			if tt.shouldContainPackage {
-				expectedImage := "mcr.microsoft.com/playwright/mcp"
-				if !strings.Contains(lockStr, expectedImage) {
-					t.Errorf("Expected lock file to contain Playwright MCP Docker image %s", expectedImage)
+				expectedPackage := "@playwright/mcp"
+				if !strings.Contains(lockStr, expectedPackage) {
+					t.Errorf("Expected lock file to contain Playwright MCP package %s (cli mode)", expectedPackage)
 				}
 			}
 
