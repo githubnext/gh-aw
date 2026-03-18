@@ -1,5 +1,5 @@
 {
-  "bazel": ["releases.bazel.build", "mirror.bazel.build", "bcr.bazel.build", "blog.bazel.build"],
+  "bazel": ["releases.bazel.build", "mirror.bazel.build", "bcr.bazel.build", "blog.bazel.build", "pypi.org", "files.pythonhosted.org"],
   "clojure": ["repo.clojars.org", "clojars.org"],
   "containers": ["ghcr.io", "registry.hub.docker.com", "*.docker.io", "*.docker.com", "production.cloudflare.docker.com", "dl.k8s.io", "pkgs.k8s.io", "quay.io", "mcr.microsoft.com", "gcr.io", "auth.docker.io"],
   "dart": ["pub.dev", "pub.dartlang.org", "storage.googleapis.com"],
@@ -37,7 +37,8 @@
     "api.snapcraft.io",
     "packagecloud.io",
     "packages.cloud.google.com",
-    "packages.microsoft.com"
+    "packages.microsoft.com",
+    "www.googleapis.com"
   ],
   "dev-tools": [
     "app.renovatebot.com",
@@ -148,10 +149,14 @@
     "maven.google.com",
     "dl.google.com",
     "repo.gradle.org",
-    "downloads.gradle-dn.com"
+    "downloads.gradle-dn.com",
+    "develocity.apache.org",
+    "scans-in.gradle.com",
+    "ge.spockframework.org",
+    "*.gradle-enterprise.cloud"
   ],
   "julia": ["pkg.julialang.org", "*.pkg.julialang.org", "julialang.org", "julialang-s3.julialang.org", "storage.julialang.net"],
-  "kotlin": ["ge.jetbrains.com", "packages.jetbrains.team", "kotlin.bintray.com"],
+  "kotlin": ["ge.jetbrains.com", "packages.jetbrains.team", "kotlin.bintray.com", "maven.pkg.jetbrains.space"],
   "linux-distros": [
     "deb.debian.org",
     "security.debian.org",
@@ -205,6 +210,7 @@
   "perl": ["cpan.org", "www.cpan.org", "metacpan.org", "cpan.metacpan.org"],
   "php": ["repo.packagist.org", "packagist.org", "getcomposer.org", "bitbucket.org"],
   "playwright": ["playwright.download.prss.microsoft.com", "cdn.playwright.dev"],
+  "powershell": ["powershellgallery.com", "www.powershellgallery.com"],
   "python": [
     "pypi.python.org",
     "pypi.org",
@@ -225,8 +231,8 @@
   "r": ["cloud.r-project.org", "cran.r-project.org", "cran.rstudio.com", "r-project.org"],
   "ruby": ["rubygems.org", "api.rubygems.org", "rubygems.pkg.github.com", "bundler.rubygems.org", "gems.rubyforge.org", "gems.rubyonrails.org", "index.rubygems.org", "cache.ruby-lang.org", "*.rvm.io"],
   "rust": ["crates.io", "index.crates.io", "static.crates.io", "sh.rustup.rs", "static.rust-lang.org"],
-  "scala": ["repo.scala-sbt.org", "scala-ci.typesafe.com", "repo.typesafe.com", "jitpack.io", "dl.bintray.com"],
+  "scala": ["repo.scala-sbt.org", "scala-ci.typesafe.com", "repo.typesafe.com", "jitpack.io", "dl.bintray.com", "scala.jfrog.io"],
   "swift": ["download.swift.org", "swift.org", "cocoapods.org", "cdn.cocoapods.org"],
   "terraform": ["releases.hashicorp.com", "apt.releases.hashicorp.com", "yum.releases.hashicorp.com", "registry.terraform.io"],
-  "zig": ["ziglang.org", "pkg.machengine.org"]
+  "zig": ["ziglang.org", "pkg.machengine.org", "deps.files.ghostty.org"]
 }
