@@ -43,7 +43,7 @@ steps:
       else
         echo "⬇ Downloading fresh discussions data..."
         
-        # Fetch all OPEN discussions using GraphQL with pagination
+        # Fetch OPEN discussions using GraphQL with pagination (up to GH_AW_DISCUSSIONS_COUNT, default 100)
         DISCUSSIONS_FILE="/tmp/gh-aw/discussions-data/discussions.json"
         echo '[]' > "$DISCUSSIONS_FILE"
         

@@ -173,8 +173,8 @@ jq 'length' /tmp/gh-aw/discussions-data/discussions.json
 DATE_7_DAYS_AGO=$(date -d '7 days ago' '+%Y-%m-%dT%H:%M:%SZ' 2>/dev/null || date -v-7d '+%Y-%m-%dT%H:%M:%SZ')
 jq --arg date "$DATE_7_DAYS_AGO" '[.[] | select(.updatedAt >= $date)]' /tmp/gh-aw/discussions-data/discussions.json
 
-# Get discussions by category
-jq '[.[] | select(.category == "reports")]' /tmp/gh-aw/discussions-data/discussions.json
+# Get discussions by category slug (e.g. "reports", "audits", "daily-news")
+jq '[.[] | select(.categorySlug == "reports")]' /tmp/gh-aw/discussions-data/discussions.json
 
 # Get AI-generated discussions only
 jq '[.[] | select(.isAgenticWorkflow == true)]' /tmp/gh-aw/discussions-data/discussions.json
