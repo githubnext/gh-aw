@@ -66,6 +66,9 @@ If your repository is [configured for agentic authoring](#configuring-your-repos
 
 The agent audits the run, identifies the root cause (missing tools, permission errors, network blocks), and suggests targeted fixes.
 
+> [!TIP]
+> Copy this prompt, replace `OWNER`, `REPO`, and `RUN_ID` with your values, and paste it into Copilot Chat. You can find the run URL on the GitHub Actions run page.
+
 ### Self-Contained (with URL)
 
 For any AI assistant or coding agent, share the URL to the standalone debugging prompt:
@@ -73,7 +76,7 @@ For any AI assistant or coding agent, share the URL to the standalone debugging 
 ```text wrap
 Debug this workflow run using https://raw.githubusercontent.com/github/gh-aw/main/debug.md
 
-Run URL: https://github.com/OWNER/REPO/actions/runs/RUN_ID
+The failed workflow run is at https://github.com/OWNER/REPO/actions/runs/RUN_ID
 ```
 
 <CopyEntireFileButton filePath="https://raw.githubusercontent.com/github/gh-aw/main/debug.md" label="Copy debug instructions" />

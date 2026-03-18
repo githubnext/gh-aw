@@ -110,6 +110,15 @@ You can investigate a specific workflow run using its ID or URL:
 /agent agentic-workflows debug https://github.com/owner/repo/actions/runs/1234567890
 ```
 
+> [!TIP]
+> For the fastest diagnosis, give the agent the full run URL from the GitHub Actions page:
+>
+> ```text wrap
+> /agent agentic-workflows debug https://github.com/OWNER/REPO/actions/runs/RUN_ID
+> ```
+>
+> Replace `OWNER`, `REPO`, and `RUN_ID` with your values. The agent will audit logs, identify the root cause, and suggest targeted fixes.
+
 The agent can help with various debugging scenarios:
 
 ```text wrap
@@ -133,7 +142,7 @@ If your repository is not yet set up with the `agentic-workflows` agent, or if y
 ```text wrap
 Debug this workflow run using https://raw.githubusercontent.com/github/gh-aw/main/debug.md
 
-Run URL: https://github.com/OWNER/REPO/actions/runs/RUN_ID
+The failed workflow run is at https://github.com/OWNER/REPO/actions/runs/RUN_ID
 ```
 
 <CopyEntireFileButton filePath="https://raw.githubusercontent.com/github/gh-aw/main/debug.md" label="Copy debug instructions" />

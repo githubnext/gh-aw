@@ -440,7 +440,26 @@ Common causes: missing tokens, permission mismatches, network restrictions, disa
 
 ### How Do I Debug a Failing Workflow?
 
-Check logs (`gh aw logs`), audit run (`gh aw audit <run-id>`), inspect `.lock.yml`, use Copilot Chat (`/agent agentic-workflows debug`), or watch compilation (`gh aw compile --watch`).
+The fastest way to debug a failing workflow is to ask an agent. Load the `agentic-workflows` agent and give it the run URL — it will audit the logs, identify the root cause, and suggest targeted fixes.
+
+**Using Copilot Chat** (requires [agentic authoring setup](/gh-aw/guides/agentic-authoring/#configuring-your-repository)):
+
+```text wrap
+/agent agentic-workflows debug https://github.com/OWNER/REPO/actions/runs/RUN_ID
+```
+
+**Using any coding agent** (self-contained, no setup required):
+
+```text wrap
+Debug this workflow run using https://raw.githubusercontent.com/github/gh-aw/main/debug.md
+
+The failed workflow run is at https://github.com/OWNER/REPO/actions/runs/RUN_ID
+```
+
+> [!TIP]
+> Replace `OWNER`, `REPO`, and `RUN_ID` with your own values. You can copy the run URL directly from the GitHub Actions run page. The agent will install `gh aw`, analyze logs, identify the root cause, and open a pull request with the fix.
+
+You can also investigate manually: check logs (`gh aw logs`), audit the run (`gh aw audit <run-id>`), inspect `.lock.yml`, or watch compilation (`gh aw compile --watch`).
 
 ### Debugging Strategies
 
