@@ -40,8 +40,6 @@ func convertStringToPermissionScope(key string) PermissionScope {
 		return PermissionPullRequests
 	case "repository-projects":
 		return PermissionRepositoryProj
-	case "organization-projects":
-		return PermissionOrganizationProj
 	case "security-events":
 		return PermissionSecurityEvents
 	case "statuses":
@@ -49,6 +47,10 @@ func convertStringToPermissionScope(key string) PermissionScope {
 	case "copilot-requests":
 		return PermissionCopilotRequests
 	// GitHub App-only permission scopes (not supported by GITHUB_TOKEN, require a GitHub App)
+	// organization-projects is included here because it is a GitHub App-only scope
+	// (it is excluded from GetAllPermissionScopes() and skipped in YAML rendering).
+	case "organization-projects":
+		return PermissionOrganizationProj
 	case "administration":
 		return PermissionAdministration
 	case "members":

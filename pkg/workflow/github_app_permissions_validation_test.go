@@ -121,6 +121,21 @@ func TestValidateGitHubAppOnlyPermissions(t *testing.T) {
 			shouldError:   true,
 			errorContains: "GitHub App-only permissions require a GitHub App",
 		},
+		{
+			name:        "read-all shorthand should NOT require a GitHub App",
+			permissions: "read-all",
+			shouldError: false,
+		},
+		{
+			name:        "write-all shorthand should NOT require a GitHub App",
+			permissions: "write-all",
+			shouldError: false,
+		},
+		{
+			name:        "all:read should NOT require a GitHub App",
+			permissions: "permissions:\n  all: read",
+			shouldError: false,
+		},
 	}
 
 	for _, tt := range tests {
@@ -251,6 +266,7 @@ func TestGitHubAppOnlyPermissionsRenderToYAML(t *testing.T) {
 	tests := []struct {
 		name          string
 		permissions   *Permissions
+		expectEmpty   bool
 		shouldContain []string
 		shouldSkip    []string
 	}{
@@ -271,6 +287,17 @@ func TestGitHubAppOnlyPermissionsRenderToYAML(t *testing.T) {
 				return p
 			}(),
 			shouldSkip: []string{"administration: read"},
+		},
+		{
+			name: "only App-only scopes returns empty string (not bare 'permissions:')",
+			permissions: func() *Permissions {
+				p := NewPermissions()
+				p.Set(PermissionMembers, PermissionRead)
+				p.Set(PermissionAdministration, PermissionRead)
+				return p
+			}(),
+			expectEmpty: true,
+			shouldSkip:  []string{"members: read", "administration: read", "permissions:"},
 		},
 		{
 			name: "contents permission IS included in GitHub Actions YAML",
@@ -299,6 +326,10 @@ func TestGitHubAppOnlyPermissionsRenderToYAML(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			yaml := tt.permissions.RenderToYAML()
+
+			if tt.expectEmpty && yaml != "" {
+				t.Errorf("Expected empty YAML output but got:\n%s", yaml)
+			}
 
 			for _, expected := range tt.shouldContain {
 				if !strings.Contains(yaml, expected) {
@@ -404,6 +435,33 @@ func TestConvertPermissionsToAppTokenFields_GitHubAppOnly(t *testing.T) {
 			}(),
 			expectedFields: map[string]string{
 				"permission-organization-packages": "read",
+			},
+		},
+		{
+			name: "read-all shorthand does NOT produce App-only permission fields",
+			permissions: func() *Permissions {
+				p := NewPermissionsFromShorthand("read-all")
+				return p
+			}(),
+			// App-only scopes must not appear when using shorthand
+			absentFields: []string{
+				"permission-members",
+				"permission-administration",
+				"permission-organization-secrets",
+				"permission-workflows",
+				"permission-organization-projects",
+			},
+		},
+		{
+			name: "write-all shorthand does NOT produce App-only permission fields",
+			permissions: func() *Permissions {
+				p := NewPermissionsFromShorthand("write-all")
+				return p
+			}(),
+			absentFields: []string{
+				"permission-members",
+				"permission-administration",
+				"permission-organization-secrets",
 			},
 		},
 	}

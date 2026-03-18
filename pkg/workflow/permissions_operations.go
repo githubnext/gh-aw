@@ -266,6 +266,7 @@ func (p *Permissions) RenderToYAML() string {
 
 	var lines []string
 	lines = append(lines, "permissions:")
+	hasRenderable := false
 	for _, scopeStr := range scopes {
 		scope := PermissionScope(scopeStr)
 		level := allPerms[scope]
@@ -282,11 +283,20 @@ func (p *Permissions) RenderToYAML() string {
 			continue
 		}
 
+		hasRenderable = true
 		// Add 2 spaces for proper indentation under permissions:
 		// When rendered in a job, the job renderer adds 4 spaces to the first line only,
 		// so we need to pre-indent continuation lines with 4 additional spaces
 		// to get 6 total spaces (4 from job + 2 for being under permissions)
 		lines = append(lines, fmt.Sprintf("      %s: %s", scope, level))
+	}
+
+	// If everything was skipped (all App-only or metadata), return as if empty
+	if !hasRenderable {
+		if p.explicitEmpty {
+			return "permissions: {}"
+		}
+		return ""
 	}
 
 	return strings.Join(lines, "\n")
