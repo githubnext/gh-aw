@@ -7,12 +7,14 @@ on:
 permissions:
   contents: read
   pull-requests: read
+  actions: read
 tracker-id: weekly-blog-post-writer
 engine: copilot
 strict: true
-timeout-minutes: 20
+timeout-minutes: 30
 
 tools:
+  agentic-workflows:
   edit:
   bash:
     - "date *"
@@ -24,6 +26,9 @@ tools:
     toolsets:
       - repos
       - pull_requests
+  repo-memory:
+    wiki: true
+    description: "Agent of the Week history – tracks which workflows have been featured so we rotate fairly"
 
 safe-outputs:
   create-pull-request:
@@ -93,7 +98,95 @@ From the releases and pull requests, identify the top 3–5 highlights to featur
 
 Prioritize by user impact and interestingness.
 
-### Step 5: Determine the Blog Post Filename
+### Step 5: Pick the Agent of the Week
+
+Every blog post must include an **Agent of the Week** spotlight that celebrates one of the active agentic workflows in the repository.
+
+#### 5-1: Load the Featured Workflows History
+
+Read the wiki memory to find the list of workflows already featured as Agent of the Week. The wiki file is at `/tmp/gh-aw/repo-memory/wiki/agent-of-the-week.md`. If it doesn't exist yet, start fresh — every workflow is eligible.
+
+```bash
+cat /tmp/gh-aw/repo-memory/wiki/agent-of-the-week.md 2>/dev/null || echo "(no history yet)"
+```
+
+#### 5-2: List All Active Workflows
+
+Use the `agentic-workflows` MCP `list` tool to get all workflows in the repository:
+
+**Tool**: `list`
+**Parameters**: `{}`
+
+From the list, exclude:
+- Workflows already featured in the wiki history
+- Test workflows (names starting with `test-`)
+- The `weekly-blog-post-writer` itself
+
+If all workflows have been featured, reset and start again from the beginning (oldest featured first).
+
+#### 5-3: Query Recent Logs for the Chosen Workflow
+
+Pick the workflow that has been active most recently and **hasn't been featured yet** (or was featured longest ago). To understand what it actually does in practice, use the `agentic-workflows` MCP `logs` tool to fetch its recent run logs:
+
+**Tool**: `logs`
+**Parameters**:
+```json
+{
+  "workflow_name": "<chosen-workflow-name>",
+  "count": 3,
+  "start_date": "-30d"
+}
+```
+
+Read the logs to understand:
+- What the workflow actually did in its recent runs
+- Any funny moments, surprising outputs, or interesting patterns
+- Typical inputs and outputs
+- How often it runs and whether it's been busy lately
+
+#### 5-4: Write the Agent of the Week Section
+
+Write a fun, engaging spotlight section with these elements:
+
+1. **Name + link**: Workflow name as a GitHub link to `.github/workflows/<name>.md` in the repository
+2. **What it does**: One-sentence description of its job
+3. **Recent adventures** (2–3 sentences): Based on the actual log data, describe what this workflow has been up to recently. Be specific — mention real outputs, patterns, or quirks you saw in the logs. This should feel like you're narrating a little story about the workflow's week.
+4. **Funny anecdote** (1–2 sentences): Something amusing, surprising, or relatable from the logs — e.g., "This week it decided three different issues all needed the label 'cookie'" or "It reviewed 47 PRs and still found time to leave a thoughtful comment on a 2-year-old issue."
+5. **Usage tip** (1 sentence): One practical insight about when or why to use this type of workflow.
+
+**Tone**: Warm, funny, and affectionate — like introducing a colleague at a team meeting. Reference the logs authentically; don't make things up.
+
+**Format**:
+```markdown
+## 🤖 Agent of the Week: [Workflow Name]
+
+[What it does — one sentence]
+
+[Recent adventures paragraph based on real log data]
+
+[Funny anecdote sentence]
+
+💡 **Usage tip**: [One practical insight]
+
+→ [View the workflow on GitHub](https://github.com/${{ github.repository }}/blob/main/.github/workflows/{workflow-filename}.md)
+```
+
+Where `{workflow-filename}` is the workflow's filename without the `.md` extension (e.g., `auto-triage-issues` for `auto-triage-issues.md`).
+
+#### 5-5: Update the Wiki History
+
+After choosing the workflow, update the wiki file at `/tmp/gh-aw/repo-memory/wiki/agent-of-the-week.md` using the `edit` tool. Append an entry with today's date and the chosen workflow name:
+
+```markdown
+## Featured Workflows
+
+<!-- Each entry: YYYY-MM-DD | workflow-name -->
+- YYYY-MM-DD | <chosen-workflow-name>
+```
+
+If the file doesn't exist, create it with the header above. The `edit` tool will write it to the wiki memory path automatically.
+
+### Step 6: Determine the Blog Post Filename
 
 Use today's date to form the blog post filename:
 
@@ -112,7 +205,7 @@ ls docs/src/content/docs/blog/YYYY-MM-DD-weekly-update.md 2>/dev/null && echo "e
 
 If the file already exists, use a different suffix like `YYYY-MM-DD-weekly-update-2.md`.
 
-### Step 6: Write the Blog Post
+### Step 7: Write the Blog Post
 
 Create a new file at `docs/src/content/docs/blog/YYYY-MM-DD-weekly-update.md` using the `edit` tool.
 
@@ -145,7 +238,9 @@ Then write the blog post body. Structure it as follows:
    - PR title linked to the PR URL on GitHub
    - A sentence explaining the change and why it matters
 
-4. **Closing paragraph** (1–2 sentences): Encourage readers to check out the release, try the new features, or contribute. Link to the repository or releases page on GitHub.
+4. **🤖 Agent of the Week**: Include the full spotlight section written in Step 4b. This section is **required** in every blog post.
+
+5. **Closing paragraph** (1–2 sentences): Encourage readers to check out the release, try the new features, or contribute. Link to the repository or releases page on GitHub.
 
 #### Tone Guidelines
 
@@ -187,12 +282,24 @@ Another week, another set of improvements to GitHub Agentic Workflows! Here's a 
 - **New `codex` engine option** ([#1235](https://github.com/github/gh-aw/pull/1235)): You can now run workflows using the Codex engine by setting `engine: codex` in your frontmatter.
 - **Fixed schedule parsing for monthly crons** ([#1236](https://github.com/github/gh-aw/pull/1236)): Monthly schedules using `schedule: monthly` now compile correctly.
 
+## 🤖 Agent of the Week: auto-triage-issues
+
+The unsung hero of issue management — reads every new issue and labels it so the right people see it.
+
+This week `auto-triage-issues` processed 23 incoming issues, correctly labeling 21 of them on the first try. It spotted a subtle pattern: three separate reports of the same compile bug filed under completely different titles and quietly tagged them all with `duplicate` before anyone noticed.
+
+It also briefly labeled a feature request as `security` because the issue title contained the word "injection" — in reference to dependency injection. Classic.
+
+💡 **Usage tip**: Pair this with a `notify` workflow on the `security` label so the team gets paged for real security issues.
+
+→ [View the workflow on GitHub](https://github.com/github/gh-aw/blob/main/.github/workflows/auto-triage-issues.md)
+
 ## Try It Out
 
 Update to [v1.5.0](https://github.com/github/gh-aw/releases/tag/v1.5.0) today and let us know what you think. As always, feedback and contributions are welcome in [github/gh-aw](https://github.com/github/gh-aw).
 ```
 
-### Step 7: Create the Pull Request
+### Step 8: Create the Pull Request
 
 After creating the blog post file, use the `create-pull-request` safe output to open a pull request with:
 
@@ -237,7 +344,9 @@ Ensure the blog post:
 - ✅ Contains accurate information (no hallucinated releases or features)
 - ✅ Links every release, PR, and commit reference to its GitHub URL
 - ✅ Follows GitHub blog tone (helpful, developer-friendly, specific)
-- ✅ Is between 200 and 800 words (concise but informative)
+- ✅ Includes an **Agent of the Week** section with real log-based anecdotes
+- ✅ Wiki memory updated with today's featured workflow
+- ✅ Is between 300 and 1000 words (concise but informative)
 
 ## Error Handling
 
@@ -250,8 +359,11 @@ Ensure the blog post:
 
 You have successfully completed this task when:
 - ✅ All releases and notable PRs from the past 7 days have been reviewed
+- ✅ An Agent of the Week has been selected using the `agentic-workflows` MCP logs tool
+- ✅ The wiki memory has been updated with the featured workflow
 - ✅ A blog post file has been created in `docs/src/content/docs/blog/`
 - ✅ The blog post uses correct Astro Starlight frontmatter
 - ✅ All version/PR/commit references link to GitHub URLs
+- ✅ The Agent of the Week section is present with real log-based anecdotes
 - ✅ A pull request has been opened with the `blog` label, OR
 - ✅ A `noop` call explains why no blog post was needed this week
