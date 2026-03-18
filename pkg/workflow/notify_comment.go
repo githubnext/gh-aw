@@ -319,8 +319,10 @@ func (c *Compiler) buildConclusionJob(data *WorkflowData, mainJobName string, sa
 	}
 	customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_AGENT_CONCLUSION: ${{ needs.%s.result }}\n", mainJobName))
 
-	// Pass detection conclusion if threat detection is enabled (inline in agent job)
-	if data.SafeOutputs.ThreatDetection != nil {
+	// Pass detection conclusion if detection is enabled (inline in agent job)
+	detectionEnabled := data.SafeOutputs.ThreatDetection != nil ||
+		(data.SafeOutputs.Detection != nil && len(data.SafeOutputs.Detection.Steps) > 0)
+	if detectionEnabled {
 		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_DETECTION_CONCLUSION: ${{ needs.%s.outputs.detection_conclusion }}\n", mainJobName))
 		notifyCommentLog.Print("Added detection conclusion environment variable to conclusion job")
 	}

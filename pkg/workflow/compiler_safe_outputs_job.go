@@ -32,8 +32,10 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 	// Compute permissions based on configured safe outputs (principle of least privilege)
 	permissions := ComputePermissionsForSafeOutputs(data.SafeOutputs)
 
-	// Track whether threat detection job is enabled for step conditions
-	threatDetectionEnabled := data.SafeOutputs.ThreatDetection != nil
+	// Track whether detection is enabled (threat-detection or detection.steps)
+	// for step conditions in safe-outputs job.
+	threatDetectionEnabled := data.SafeOutputs.ThreatDetection != nil ||
+		(data.SafeOutputs.Detection != nil && len(data.SafeOutputs.Detection.Steps) > 0)
 
 	// Note: GitHub App token minting step is added later (after setup/downloads)
 	// to ensure proper step ordering. See insertion logic below.

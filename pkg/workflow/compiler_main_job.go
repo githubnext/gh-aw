@@ -152,8 +152,10 @@ func (c *Compiler) buildMainJob(data *WorkflowData, activationJobCreated bool) (
 		outputs["has_patch"] = "${{ steps.collect_output.outputs.has_patch }}"
 	}
 
-	// Add inline detection outputs if threat detection is enabled
-	if data.SafeOutputs != nil && data.SafeOutputs.ThreatDetection != nil {
+	// Add inline detection outputs if detection is enabled (threat-detection or detection.steps)
+	detectionEnabled := data.SafeOutputs != nil && (data.SafeOutputs.ThreatDetection != nil ||
+		(data.SafeOutputs.Detection != nil && len(data.SafeOutputs.Detection.Steps) > 0))
+	if detectionEnabled {
 		outputs["detection_success"] = "${{ steps.detection_conclusion.outputs.success }}"
 		outputs["detection_conclusion"] = "${{ steps.detection_conclusion.outputs.conclusion }}"
 		compilerMainJobLog.Print("Added detection_success and detection_conclusion outputs to agent job")

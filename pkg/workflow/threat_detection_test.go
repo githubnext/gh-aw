@@ -921,3 +921,263 @@ func TestCopilotDetectionDefaultModel(t *testing.T) {
 		})
 	}
 }
+
+func TestParseDetectionConfig(t *testing.T) {
+	compiler := NewCompiler()
+
+	tests := []struct {
+		name           string
+		outputMap      map[string]any
+		expectedConfig *DetectionConfig
+	}{
+		{
+			name:           "missing detection key should return nil",
+			outputMap:      map[string]any{},
+			expectedConfig: nil,
+		},
+		{
+			name: "detection with steps",
+			outputMap: map[string]any{
+				"detection": map[string]any{
+					"steps": []any{
+						map[string]any{
+							"name": "Custom validation",
+							"run":  "echo 'Validating...'",
+						},
+					},
+				},
+			},
+			expectedConfig: &DetectionConfig{
+				Steps: []any{
+					map[string]any{
+						"name": "Custom validation",
+						"run":  "echo 'Validating...'",
+					},
+				},
+			},
+		},
+		{
+			name: "detection with empty steps array",
+			outputMap: map[string]any{
+				"detection": map[string]any{
+					"steps": []any{},
+				},
+			},
+			expectedConfig: &DetectionConfig{Steps: []any{}},
+		},
+		{
+			name: "detection as non-object should return nil",
+			outputMap: map[string]any{
+				"detection": true,
+			},
+			expectedConfig: nil,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := compiler.parseDetectionConfig(tt.outputMap)
+
+			if tt.expectedConfig == nil {
+				if result != nil {
+					t.Errorf("Expected nil config, got %+v", result)
+				}
+				return
+			}
+
+			if result == nil {
+				t.Fatalf("Expected non-nil config, got nil")
+			}
+
+			if len(result.Steps) != len(tt.expectedConfig.Steps) {
+				t.Errorf("Expected %d steps, got %d", len(tt.expectedConfig.Steps), len(result.Steps))
+			}
+		})
+	}
+}
+
+func TestBuildInlineDetectionStepsWithDetectionOnly(t *testing.T) {
+	compiler := NewCompiler()
+
+	tests := []struct {
+		name        string
+		data        *WorkflowData
+		expectNil   bool
+		expectSteps bool
+		expectNoAI  bool // true when AI engine steps should NOT be present
+	}{
+		{
+			name: "detection.steps alone (no threat-detection) should trigger pipeline",
+			data: &WorkflowData{
+				RunsOn: "runs-on: ubuntu-latest",
+				SafeOutputs: &SafeOutputsConfig{
+					ThreatDetection: nil,
+					Detection: &DetectionConfig{
+						Steps: []any{
+							map[string]any{
+								"name": "Custom validator",
+								"run":  "bash validate.sh",
+							},
+						},
+					},
+				},
+			},
+			expectNil:   false,
+			expectSteps: true,
+			expectNoAI:  true,
+		},
+		{
+			name: "detection.steps combined with threat-detection should include all steps",
+			data: &WorkflowData{
+				RunsOn: "runs-on: ubuntu-latest",
+				SafeOutputs: &SafeOutputsConfig{
+					ThreatDetection: &ThreatDetectionConfig{
+						Steps: []any{
+							map[string]any{
+								"name": "Threat step",
+								"run":  "echo 'threat'",
+							},
+						},
+					},
+					Detection: &DetectionConfig{
+						Steps: []any{
+							map[string]any{
+								"name": "Detection step",
+								"run":  "echo 'detection'",
+							},
+						},
+					},
+				},
+			},
+			expectNil:   false,
+			expectSteps: true,
+			expectNoAI:  false,
+		},
+		{
+			name: "empty detection.steps without threat-detection should return nil",
+			data: &WorkflowData{
+				SafeOutputs: &SafeOutputsConfig{
+					ThreatDetection: nil,
+					Detection: &DetectionConfig{
+						Steps: []any{},
+					},
+				},
+			},
+			expectNil:   true,
+			expectSteps: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			steps := compiler.buildInlineDetectionSteps(tt.data)
+
+			if tt.expectNil {
+				if steps != nil {
+					t.Errorf("Expected nil steps, got %d lines", len(steps))
+				}
+				return
+			}
+			if steps == nil {
+				t.Fatalf("Expected non-nil steps, got nil")
+			}
+
+			if tt.expectSteps {
+				joined := strings.Join(steps, "")
+
+				// All detection pipelines must have these steps
+				if !strings.Contains(joined, "detection_guard") {
+					t.Error("Expected inline steps to contain detection_guard step")
+				}
+				if !strings.Contains(joined, "parse_detection_results") {
+					t.Error("Expected inline steps to contain parse_detection_results step")
+				}
+				if !strings.Contains(joined, "detection_conclusion") {
+					t.Error("Expected inline steps to contain detection_conclusion step")
+				}
+
+				if tt.expectNoAI {
+					// When only detection.steps (no ThreatDetection), AI analysis steps should be absent
+					if strings.Contains(joined, "Setup threat detection") {
+						t.Error("Expected no AI analysis setup step when only detection.steps is configured")
+					}
+				}
+			}
+		})
+	}
+}
+
+func TestMergeDetectionStepsFromImports(t *testing.T) {
+	compiler := NewCompiler()
+
+	tests := []struct {
+		name              string
+		topConfig         *SafeOutputsConfig
+		importedJSON      []string
+		expectedStepCount int
+	}{
+		{
+			name:      "import detection steps into empty config",
+			topConfig: &SafeOutputsConfig{CreateIssues: &CreateIssuesConfig{}},
+			importedJSON: []string{`{
+"detection": {
+"steps": [
+{"name": "Imported step", "run": "echo imported"}
+]
+}
+}`},
+			expectedStepCount: 1,
+		},
+		{
+			name: "append imported detection steps to existing",
+			topConfig: &SafeOutputsConfig{
+				CreateIssues: &CreateIssuesConfig{},
+				Detection: &DetectionConfig{
+					Steps: []any{
+						map[string]any{"name": "Main step", "run": "echo main"},
+					},
+				},
+			},
+			importedJSON: []string{`{
+"detection": {
+"steps": [
+{"name": "Imported step", "run": "echo imported"}
+]
+}
+}`},
+			expectedStepCount: 2,
+		},
+		{
+			name: "append detection steps from multiple imports",
+			topConfig: &SafeOutputsConfig{
+				CreateIssues: &CreateIssuesConfig{},
+			},
+			importedJSON: []string{
+				`{"detection": {"steps": [{"name": "Step A", "run": "echo a"}]}}`,
+				`{"detection": {"steps": [{"name": "Step B", "run": "echo b"}]}}`,
+			},
+			expectedStepCount: 2,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result, err := compiler.MergeSafeOutputs(tt.topConfig, tt.importedJSON)
+			if err != nil {
+				t.Fatalf("MergeSafeOutputs returned error: %v", err)
+			}
+
+			if result == nil {
+				t.Fatal("MergeSafeOutputs returned nil result")
+			}
+
+			stepCount := 0
+			if result.Detection != nil {
+				stepCount = len(result.Detection.Steps)
+			}
+			if stepCount != tt.expectedStepCount {
+				t.Errorf("Expected %d detection steps, got %d", tt.expectedStepCount, stepCount)
+			}
+		})
+	}
+}

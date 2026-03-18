@@ -22,8 +22,10 @@ func (c *Compiler) buildSafeOutputsJobs(data *WorkflowData, jobName, markdownPat
 	}
 	compilerSafeOutputJobsLog.Print("Building safe outputs jobs (consolidated mode)")
 
-	// Track whether threat detection is enabled (used for downstream job conditions)
-	threatDetectionEnabled := data.SafeOutputs.ThreatDetection != nil
+	// Track whether detection is enabled (threat-detection or detection.steps)
+	// Used for downstream job conditions (waiting for detection_success output).
+	threatDetectionEnabled := data.SafeOutputs.ThreatDetection != nil ||
+		(data.SafeOutputs.Detection != nil && len(data.SafeOutputs.Detection.Steps) > 0)
 
 	// Threat detection is now handled inline in the agent job (see compiler_yaml.go).
 	// No separate detection job is created. The agent job outputs detection_success

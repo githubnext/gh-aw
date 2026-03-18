@@ -19,6 +19,37 @@ type ThreatDetectionConfig struct {
 	RunsOn         string        `yaml:"runs-on,omitempty"`       // Runner override for the detection job
 }
 
+// DetectionConfig holds configuration for injecting custom steps into the detection pipeline.
+// Unlike ThreatDetectionConfig (which controls the full AI-based threat analysis),
+// DetectionConfig provides a lightweight way to add extra validation steps to the detection job.
+// Steps from imports are appended rather than replaced, supporting shared workflow composition.
+type DetectionConfig struct {
+	Steps []any `yaml:"steps,omitempty"` // Array of extra job steps injected after the agentic validation steps
+}
+
+// parseDetectionConfig handles detection configuration (safe-outputs.detection)
+func (c *Compiler) parseDetectionConfig(outputMap map[string]any) *DetectionConfig {
+	configData, exists := outputMap["detection"]
+	if !exists {
+		return nil
+	}
+
+	configMap, ok := configData.(map[string]any)
+	if !ok {
+		return nil
+	}
+
+	config := &DetectionConfig{}
+	if steps, exists := configMap["steps"]; exists {
+		if stepsArray, ok := steps.([]any); ok {
+			config.Steps = stepsArray
+		}
+	}
+
+	threatLog.Printf("Detection config parsed with %d steps", len(config.Steps))
+	return config
+}
+
 // parseThreatDetectionConfig handles threat-detection configuration
 func (c *Compiler) parseThreatDetectionConfig(outputMap map[string]any) *ThreatDetectionConfig {
 	if configData, exists := outputMap["threat-detection"]; exists {
@@ -111,9 +142,15 @@ const detectionStepCondition = "always() && steps.detection_guard.outputs.run_de
 // buildInlineDetectionSteps builds the threat detection steps to be inlined in the agent job.
 // These steps run after the output collection step (collect_output) and analyze agent output
 // for threats using the same agentic engine with sandbox.agent and fully blocked network.
+// The pipeline runs when either ThreatDetection or Detection (detection.steps) is configured.
 func (c *Compiler) buildInlineDetectionSteps(data *WorkflowData) []string {
 	threatLog.Print("Building inline threat detection steps for agent job")
-	if data.SafeOutputs == nil || data.SafeOutputs.ThreatDetection == nil {
+	if data.SafeOutputs == nil {
+		return nil
+	}
+	hasThreatDetection := data.SafeOutputs.ThreatDetection != nil
+	hasDetectionSteps := data.SafeOutputs.Detection != nil && len(data.SafeOutputs.Detection.Steps) > 0
+	if !hasThreatDetection && !hasDetectionSteps {
 		return nil
 	}
 
@@ -131,15 +168,25 @@ func (c *Compiler) buildInlineDetectionSteps(data *WorkflowData) []string {
 	// Step 3: Prepare files - copies agent output files to expected paths
 	steps = append(steps, c.buildPrepareDetectionFilesStep()...)
 
-	// Step 4: Setup threat detection (github-script)
-	steps = append(steps, c.buildThreatDetectionAnalysisStep(data)...)
+	// Steps 4+5: AI analysis (only when ThreatDetection is configured)
+	if hasThreatDetection {
+		// Step 4: Setup threat detection (github-script)
+		steps = append(steps, c.buildThreatDetectionAnalysisStep(data)...)
 
-	// Step 5: Engine execution (AWF, no network)
-	steps = append(steps, c.buildDetectionEngineExecutionStep(data)...)
+		// Step 5: Engine execution (AWF, no network)
+		steps = append(steps, c.buildDetectionEngineExecutionStep(data)...)
+	}
 
-	// Step 6: Custom steps if configured
-	if len(data.SafeOutputs.ThreatDetection.Steps) > 0 {
-		steps = append(steps, c.buildCustomThreatDetectionSteps(data.SafeOutputs.ThreatDetection.Steps)...)
+	// Step 6: Custom steps - combine threat-detection.steps and detection.steps
+	var customSteps []any
+	if hasThreatDetection {
+		customSteps = append(customSteps, data.SafeOutputs.ThreatDetection.Steps...)
+	}
+	if hasDetectionSteps {
+		customSteps = append(customSteps, data.SafeOutputs.Detection.Steps...)
+	}
+	if len(customSteps) > 0 {
+		steps = append(steps, c.buildCustomThreatDetectionSteps(customSteps)...)
 	}
 
 	// Step 7: Parse threat detection results

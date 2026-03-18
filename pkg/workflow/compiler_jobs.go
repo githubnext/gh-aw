@@ -301,7 +301,8 @@ func (c *Compiler) buildMainJobWrapper(data *WorkflowData, activationJobCreated 
 // buildMemoryManagementJobs builds memory management jobs (push_repo_memory and update_cache_memory).
 // These jobs handle artifact-based memory persistence to git branches and GitHub Actions cache.
 func (c *Compiler) buildMemoryManagementJobs(data *WorkflowData) error {
-	threatDetectionEnabledForSafeJobs := data.SafeOutputs != nil && data.SafeOutputs.ThreatDetection != nil
+	threatDetectionEnabledForSafeJobs := data.SafeOutputs != nil && (data.SafeOutputs.ThreatDetection != nil ||
+		(data.SafeOutputs.Detection != nil && len(data.SafeOutputs.Detection.Steps) > 0))
 
 	// Build push_repo_memory job if repo-memory is configured
 	pushRepoMemoryJobName, err := c.buildPushRepoMemoryJobWrapper(data, threatDetectionEnabledForSafeJobs)

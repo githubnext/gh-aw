@@ -416,6 +416,12 @@ func (c *Compiler) extractSafeOutputsConfig(frontmatter map[string]any) *SafeOut
 				config.ThreatDetection = threatDetectionConfig
 			}
 
+			// Handle detection (custom steps injected into the detection pipeline)
+			detectionConfig := c.parseDetectionConfig(outputMap)
+			if detectionConfig != nil {
+				config.Detection = detectionConfig
+			}
+
 			// Handle runs-on configuration
 			if runsOn, exists := outputMap["runs-on"]; exists {
 				if runsOnStr, ok := runsOn.(string); ok {

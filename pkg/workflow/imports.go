@@ -550,6 +550,16 @@ func mergeSafeOutputConfig(result *SafeOutputsConfig, config map[string]any, c *
 		result.Steps = append(result.Steps, importedConfig.Steps...)
 	}
 
+	// Merge detection steps: concatenate imported detection steps after main workflow's detection steps.
+	// Unlike ThreatDetection (which is replaced wholesale), detection.steps are always appended
+	// to support shared workflow composition where multiple imports can each contribute validation steps.
+	if importedConfig.Detection != nil && len(importedConfig.Detection.Steps) > 0 {
+		if result.Detection == nil {
+			result.Detection = &DetectionConfig{}
+		}
+		result.Detection.Steps = append(result.Detection.Steps, importedConfig.Detection.Steps...)
+	}
+
 	// NOTE: Jobs are NOT merged here. They are handled separately in compiler_orchestrator.go
 	// via mergeSafeJobsFromIncludedConfigs and extractSafeJobsFromFrontmatter.
 	// The Jobs field is managed independently from other safe-output types to support

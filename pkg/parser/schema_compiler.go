@@ -92,6 +92,7 @@ var safeOutputMetaFields = map[string]bool{
 	"jobs":            true,
 	"runs-on":         true,
 	"messages":        true,
+	"detection":       true, // detection.steps are merged from imports, not treated as safe output types
 }
 
 // GetSafeOutputTypeKeys returns the list of safe output type keys from the embedded main workflow schema.

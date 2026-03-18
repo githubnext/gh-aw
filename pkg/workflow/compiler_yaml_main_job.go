@@ -520,7 +520,10 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 
 	// Add inline threat detection steps after all agent artifact uploads.
 	// Detection runs inside the agent job using sandbox.agent with fully blocked network.
-	if data.SafeOutputs != nil && data.SafeOutputs.ThreatDetection != nil {
+	// The pipeline runs when either ThreatDetection or Detection (detection.steps) is configured.
+	hasDetection := data.SafeOutputs != nil && (data.SafeOutputs.ThreatDetection != nil ||
+		(data.SafeOutputs.Detection != nil && len(data.SafeOutputs.Detection.Steps) > 0))
+	if hasDetection {
 		detectionSteps := c.buildInlineDetectionSteps(data)
 		for _, line := range detectionSteps {
 			yaml.WriteString(line)
