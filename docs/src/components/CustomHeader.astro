@@ -15,6 +15,23 @@ const base = import.meta.env.BASE_URL;
 	<a href={`${base}blog/`} class="header-link">Blog</a>
 	<a href={`${base}blog/2026-01-12-welcome-to-pelis-agent-factory/`} class="header-link">Peli's Agent Factory</a>
 </nav>
+
+<!-- Hamburger menu for tablets (769–900px) where full nav would overflow -->
+<div class="tablet-nav-wrapper">
+	<button class="hamburger-btn" aria-label="Toggle navigation menu" aria-expanded="false" aria-controls="tablet-nav-dropdown">
+		<span class="hamburger-icon" aria-hidden="true"></span>
+	</button>
+	<nav class="tablet-dropdown" id="tablet-nav-dropdown" aria-label="Primary navigation" hidden>
+		<a href={`${base}setup/quick-start/`} class="dropdown-link">Quick Start</a>
+		<a href={`${base}setup/creating-workflows/`} class="dropdown-link">Create</a>
+		<a href={`${base}index.html#gallery`} class="dropdown-link">Examples</a>
+		<a href={`${base}introduction/overview/`} class="dropdown-link">Docs</a>
+		<a href={`${base}reference/faq/`} class="dropdown-link">FAQ</a>
+		<a href={`${base}blog/`} class="dropdown-link">Blog</a>
+		<a href={`${base}blog/2026-01-12-welcome-to-pelis-agent-factory/`} class="dropdown-link">Peli's Agent Factory</a>
+	</nav>
+</div>
+
 <Default {...Astro.props} />
 
 <style>
@@ -39,4 +56,122 @@ const base = import.meta.env.BASE_URL;
 		color: var(--sl-color-text-accent);
 		background-color: rgba(110, 118, 129, 0.1);
 	}
+
+	/* Tablet navigation wrapper — hidden by default; shown via global CSS at 769–900px */
+	.tablet-nav-wrapper {
+		display: none;
+		position: relative;
+		margin-right: 0.5rem;
+	}
+
+	.hamburger-btn {
+		background: none;
+		border: none;
+		cursor: pointer;
+		padding: 0.5rem;
+		color: var(--sl-color-text);
+		border-radius: 4px;
+		min-height: 44px;
+		min-width: 44px;
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+	}
+
+	.hamburger-btn:hover {
+		background-color: rgba(110, 118, 129, 0.1);
+	}
+
+	/* Three-line hamburger icon built with CSS pseudo-elements */
+	.hamburger-icon {
+		display: block;
+		width: 20px;
+		height: 2px;
+		background: currentColor;
+		position: relative;
+	}
+
+	.hamburger-icon::before,
+	.hamburger-icon::after {
+		content: '';
+		display: block;
+		width: 20px;
+		height: 2px;
+		background: currentColor;
+		position: absolute;
+		left: 0;
+	}
+
+	.hamburger-icon::before { top: -6px; }
+	.hamburger-icon::after  { top:  6px; }
+
+	.tablet-dropdown {
+		position: absolute;
+		top: calc(100% + 0.5rem);
+		right: 0;
+		background: var(--sl-color-bg-nav, #161b22);
+		border: 1px solid rgba(48, 54, 61, 0.8);
+		border-radius: 8px;
+		padding: 0.5rem 0;
+		min-width: 180px;
+		z-index: 100;
+		box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+	}
+
+	.dropdown-link {
+		display: block;
+		padding: 0.625rem 1rem;
+		color: var(--sl-color-text);
+		text-decoration: none;
+		font-size: 0.875rem;
+		font-weight: 500;
+		transition: background-color 0.15s ease;
+	}
+
+	.dropdown-link:hover {
+		background-color: rgba(110, 118, 129, 0.1);
+		color: var(--sl-color-text-accent);
+	}
 </style>
+
+<script>
+	function initHamburgerMenu() {
+		const hamburgerBtn = document.querySelector<HTMLButtonElement>('.hamburger-btn');
+		const tabletDropdown = document.querySelector<HTMLElement>('.tablet-dropdown');
+
+		if (!hamburgerBtn || !tabletDropdown) return;
+
+		hamburgerBtn.addEventListener('click', (e) => {
+			e.stopPropagation();
+			const isOpen = hamburgerBtn.getAttribute('aria-expanded') === 'true';
+			hamburgerBtn.setAttribute('aria-expanded', String(!isOpen));
+			tabletDropdown.hidden = isOpen;
+			// Move focus to first link when opening for keyboard accessibility
+			if (!isOpen) {
+				const firstLink = tabletDropdown.querySelector<HTMLAnchorElement>('.dropdown-link');
+				firstLink?.focus();
+			}
+		});
+
+		// Close when clicking outside the menu
+		document.addEventListener('click', (e) => {
+			if (!hamburgerBtn.contains(e.target as Node) && !tabletDropdown.contains(e.target as Node)) {
+				hamburgerBtn.setAttribute('aria-expanded', 'false');
+				tabletDropdown.hidden = true;
+			}
+		});
+
+		// Close on Escape key only when dropdown is open, for keyboard accessibility
+		document.addEventListener('keydown', (e) => {
+			if (e.key === 'Escape' && hamburgerBtn.getAttribute('aria-expanded') === 'true') {
+				hamburgerBtn.setAttribute('aria-expanded', 'false');
+				tabletDropdown.hidden = true;
+				hamburgerBtn.focus();
+			}
+		});
+	}
+
+	// Initialize on first load and after Astro page transitions
+	initHamburgerMenu();
+	document.addEventListener('astro:page-load', initHamburgerMenu);
+</script>
