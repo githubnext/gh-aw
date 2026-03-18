@@ -83,7 +83,9 @@ Commands that support `--create-pull-request` (such as `gh aw add`, `gh aw add-w
 
 The compiled agent job automatically runs `configure_gh_for_ghe.sh` before the agent starts executing. The script detects the GitHub host from the `GITHUB_SERVER_URL` environment variable (set by GitHub Actions on GHES) and configures `gh` to authenticate against it. No configuration is required for the agent to use `gh` CLI commands on your GHES instance.
 
-For custom `steps:` that run outside the agent sandbox (for example, pre-agent data gathering or post-agent reporting), source the helper script manually:
+Custom workflow jobs (independent GitHub Actions jobs defined in workflow frontmatter) and the safe-outputs job automatically have `GH_HOST` derived from `GITHUB_SERVER_URL` at the start of each job. On github.com this is a no-op; on GHES/GHEC it ensures all `gh` CLI commands in the job target the correct instance without any manual setup.
+
+For custom `steps:` that require additional authentication setup (for example, when running `gh` commands without a `GH_TOKEN` in scope), the helper script is available:
 
 ```yaml wrap
 steps:
@@ -98,7 +100,7 @@ steps:
       gh pr list --state open --limit 200 --json number,title
 ```
 
-The script is installed to `/opt/gh-aw/actions/configure_gh_for_ghe.sh` by the setup action.
+The script is installed to `/opt/gh-aw/actions/configure_gh_for_ghe.sh` by the setup action. When `GH_TOKEN` is already set in the environment, the script skips `gh auth login` and only exports `GH_HOST` — the token handles authentication.
 
 > [!NOTE]
 > Custom steps run outside the agent firewall sandbox and have access to standard GitHub Actions environment variables including `GITHUB_SERVER_URL`, `GITHUB_TOKEN`, and `GH_TOKEN`.
