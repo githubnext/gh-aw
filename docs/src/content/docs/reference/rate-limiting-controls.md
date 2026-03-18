@@ -37,7 +37,7 @@ This prevents parallel execution explosions and AI resource exhaustion. See [Con
 
 ## Timeouts
 
-Jobs have maximum execution times (default: 360 minutes) controlled by the top-level `timeout-minutes` field:
+Jobs have maximum execution times (default: 20 minutes) controlled by the top-level `timeout-minutes` field:
 
 ```yaml wrap
 timeout-minutes: 120  # Apply 120-minute timeout to all jobs
