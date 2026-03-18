@@ -4,7 +4,7 @@
 //
 // # Adaptive Color System
 //
-// This package uses lipgloss.AdaptiveColor to automatically adapt colors based on the
+// This package uses compat.AdaptiveColor to automatically adapt colors based on the
 // terminal background, ensuring good readability in both light and dark terminal themes.
 // Each color constant includes both Light and Dark variants that are automatically
 // selected based on the user's terminal configuration.
@@ -46,76 +46,107 @@
 //	fmt.Println(customStyle.Render("Custom styled text"))
 package styles
 
-import "github.com/charmbracelet/lipgloss"
+import (
+	lipgloss "charm.land/lipgloss/v2"
+	"charm.land/lipgloss/v2/compat"
+)
+
+// Hex color constants for light and dark variants.
+// These are used both to build the AdaptiveColor values at runtime and to
+// enable straightforward assertions in tests (same package).
+const (
+	hexColorErrorLight       = "#D73737"
+	hexColorErrorDark        = "#FF5555"
+	hexColorWarningLight     = "#E67E22"
+	hexColorWarningDark      = "#FFB86C"
+	hexColorSuccessLight     = "#27AE60"
+	hexColorSuccessDark      = "#50FA7B"
+	hexColorInfoLight        = "#2980B9"
+	hexColorInfoDark         = "#8BE9FD"
+	hexColorPurpleLight      = "#8E44AD"
+	hexColorPurpleDark       = "#BD93F9"
+	hexColorYellowLight      = "#B7950B"
+	hexColorYellowDark       = "#F1FA8C"
+	hexColorCommentLight     = "#6C7A89"
+	hexColorCommentDark      = "#6272A4"
+	hexColorForegroundLight  = "#2C3E50"
+	hexColorForegroundDark   = "#F8F8F2"
+	hexColorBackgroundLight  = "#ECF0F1"
+	hexColorBackgroundDark   = "#282A36"
+	hexColorBorderLight      = "#BDC3C7"
+	hexColorBorderDark       = "#44475A"
+	hexColorTableAltRowLight = "#F5F5F5"
+	hexColorTableAltRowDark  = "#1A1A1A"
+)
 
 // Adaptive colors that work well in both light and dark terminal themes.
 // Light variants use darker, more saturated colors for visibility on light backgrounds.
 // Dark variants use brighter colors (Dracula theme inspired) for dark backgrounds.
 var (
 	// ColorError is used for error messages and critical issues.
-	ColorError = lipgloss.AdaptiveColor{
-		Light: "#D73737", // Darker red for light backgrounds
-		Dark:  "#FF5555", // Bright red for dark backgrounds (Dracula)
+	ColorError = compat.AdaptiveColor{
+		Light: lipgloss.Color(hexColorErrorLight), // Darker red for light backgrounds
+		Dark:  lipgloss.Color(hexColorErrorDark),  // Bright red for dark backgrounds (Dracula)
 	}
 
 	// ColorWarning is used for warning messages and cautionary information.
-	ColorWarning = lipgloss.AdaptiveColor{
-		Light: "#E67E22", // Darker orange for light backgrounds
-		Dark:  "#FFB86C", // Bright orange for dark backgrounds (Dracula)
+	ColorWarning = compat.AdaptiveColor{
+		Light: lipgloss.Color(hexColorWarningLight), // Darker orange for light backgrounds
+		Dark:  lipgloss.Color(hexColorWarningDark),  // Bright orange for dark backgrounds (Dracula)
 	}
 
 	// ColorSuccess is used for success messages and confirmations.
-	ColorSuccess = lipgloss.AdaptiveColor{
-		Light: "#27AE60", // Darker green for light backgrounds
-		Dark:  "#50FA7B", // Bright green for dark backgrounds (Dracula)
+	ColorSuccess = compat.AdaptiveColor{
+		Light: lipgloss.Color(hexColorSuccessLight), // Darker green for light backgrounds
+		Dark:  lipgloss.Color(hexColorSuccessDark),  // Bright green for dark backgrounds (Dracula)
 	}
 
 	// ColorInfo is used for informational messages
-	ColorInfo = lipgloss.AdaptiveColor{
-		Light: "#2980B9", // Darker cyan/blue for light backgrounds
-		Dark:  "#8BE9FD", // Bright cyan for dark backgrounds (Dracula)
+	ColorInfo = compat.AdaptiveColor{
+		Light: lipgloss.Color(hexColorInfoLight), // Darker cyan/blue for light backgrounds
+		Dark:  lipgloss.Color(hexColorInfoDark),  // Bright cyan for dark backgrounds (Dracula)
 	}
 
 	// ColorPurple is used for file paths, commands, and highlights
-	ColorPurple = lipgloss.AdaptiveColor{
-		Light: "#8E44AD", // Darker purple for light backgrounds
-		Dark:  "#BD93F9", // Bright purple for dark backgrounds (Dracula)
+	ColorPurple = compat.AdaptiveColor{
+		Light: lipgloss.Color(hexColorPurpleLight), // Darker purple for light backgrounds
+		Dark:  lipgloss.Color(hexColorPurpleDark),  // Bright purple for dark backgrounds (Dracula)
 	}
 
 	// ColorYellow is used for progress messages and attention-grabbing content
-	ColorYellow = lipgloss.AdaptiveColor{
-		Light: "#B7950B", // Darker yellow/gold for light backgrounds
-		Dark:  "#F1FA8C", // Bright yellow for dark backgrounds (Dracula)
+	ColorYellow = compat.AdaptiveColor{
+		Light: lipgloss.Color(hexColorYellowLight), // Darker yellow/gold for light backgrounds
+		Dark:  lipgloss.Color(hexColorYellowDark),  // Bright yellow for dark backgrounds (Dracula)
 	}
 
 	// ColorComment is used for secondary/muted information like line numbers
-	ColorComment = lipgloss.AdaptiveColor{
-		Light: "#6C7A89", // Muted gray-blue for light backgrounds
-		Dark:  "#6272A4", // Muted purple-gray for dark backgrounds (Dracula)
+	ColorComment = compat.AdaptiveColor{
+		Light: lipgloss.Color(hexColorCommentLight), // Muted gray-blue for light backgrounds
+		Dark:  lipgloss.Color(hexColorCommentDark),  // Muted purple-gray for dark backgrounds (Dracula)
 	}
 
 	// ColorForeground is used for primary text content
-	ColorForeground = lipgloss.AdaptiveColor{
-		Light: "#2C3E50", // Dark gray for light backgrounds
-		Dark:  "#F8F8F2", // Light gray/white for dark backgrounds (Dracula)
+	ColorForeground = compat.AdaptiveColor{
+		Light: lipgloss.Color(hexColorForegroundLight), // Dark gray for light backgrounds
+		Dark:  lipgloss.Color(hexColorForegroundDark),  // Light gray/white for dark backgrounds (Dracula)
 	}
 
 	// ColorBackground is used for highlighted backgrounds
-	ColorBackground = lipgloss.AdaptiveColor{
-		Light: "#ECF0F1", // Light gray for light backgrounds
-		Dark:  "#282A36", // Dark purple/gray for dark backgrounds (Dracula)
+	ColorBackground = compat.AdaptiveColor{
+		Light: lipgloss.Color(hexColorBackgroundLight), // Light gray for light backgrounds
+		Dark:  lipgloss.Color(hexColorBackgroundDark),  // Dark purple/gray for dark backgrounds (Dracula)
 	}
 
 	// ColorBorder is used for table borders and dividers
-	ColorBorder = lipgloss.AdaptiveColor{
-		Light: "#BDC3C7", // Light gray border for light backgrounds
-		Dark:  "#44475A", // Dark purple border for dark backgrounds (Dracula)
+	ColorBorder = compat.AdaptiveColor{
+		Light: lipgloss.Color(hexColorBorderLight), // Light gray border for light backgrounds
+		Dark:  lipgloss.Color(hexColorBorderDark),  // Dark purple border for dark backgrounds (Dracula)
 	}
 
 	// ColorTableAltRow is used for alternating row backgrounds in tables (zebra striping)
-	ColorTableAltRow = lipgloss.AdaptiveColor{
-		Light: "#F5F5F5", // Subtle light gray for light backgrounds
-		Dark:  "#1A1A1A", // Subtle darker background for dark backgrounds
+	ColorTableAltRow = compat.AdaptiveColor{
+		Light: lipgloss.Color(hexColorTableAltRowLight), // Subtle light gray for light backgrounds
+		Dark:  lipgloss.Color(hexColorTableAltRowDark),  // Subtle darker background for dark backgrounds
 	}
 )
 

@@ -8,7 +8,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/charmbracelet/lipgloss"
+	lipgloss "charm.land/lipgloss/v2"
 	"github.com/github/gh-aw/pkg/styles"
 )
 

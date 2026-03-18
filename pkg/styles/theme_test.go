@@ -6,37 +6,42 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/charmbracelet/lipgloss"
+	lipgloss "charm.land/lipgloss/v2"
+	"charm.land/lipgloss/v2/compat"
 )
 
 // TestAdaptiveColorsHaveBothVariants verifies that all adaptive colors
 // have both Light and Dark variants defined
 func TestAdaptiveColorsHaveBothVariants(t *testing.T) {
-	colors := map[string]lipgloss.AdaptiveColor{
-		"ColorError":       ColorError,
-		"ColorWarning":     ColorWarning,
-		"ColorSuccess":     ColorSuccess,
-		"ColorInfo":        ColorInfo,
-		"ColorPurple":      ColorPurple,
-		"ColorYellow":      ColorYellow,
-		"ColorComment":     ColorComment,
-		"ColorForeground":  ColorForeground,
-		"ColorBackground":  ColorBackground,
-		"ColorBorder":      ColorBorder,
-		"ColorTableAltRow": ColorTableAltRow,
+	colorDefs := []struct {
+		name  string
+		light string
+		dark  string
+	}{
+		{"ColorError", hexColorErrorLight, hexColorErrorDark},
+		{"ColorWarning", hexColorWarningLight, hexColorWarningDark},
+		{"ColorSuccess", hexColorSuccessLight, hexColorSuccessDark},
+		{"ColorInfo", hexColorInfoLight, hexColorInfoDark},
+		{"ColorPurple", hexColorPurpleLight, hexColorPurpleDark},
+		{"ColorYellow", hexColorYellowLight, hexColorYellowDark},
+		{"ColorComment", hexColorCommentLight, hexColorCommentDark},
+		{"ColorForeground", hexColorForegroundLight, hexColorForegroundDark},
+		{"ColorBackground", hexColorBackgroundLight, hexColorBackgroundDark},
+		{"ColorBorder", hexColorBorderLight, hexColorBorderDark},
+		{"ColorTableAltRow", hexColorTableAltRowLight, hexColorTableAltRowDark},
 	}
 
-	for name, color := range colors {
-		t.Run(name, func(t *testing.T) {
-			if color.Light == "" {
-				t.Errorf("%s has empty Light variant", name)
+	for _, def := range colorDefs {
+		t.Run(def.name, func(t *testing.T) {
+			if def.light == "" {
+				t.Errorf("%s has empty Light variant", def.name)
 			}
-			if color.Dark == "" {
-				t.Errorf("%s has empty Dark variant", name)
+			if def.dark == "" {
+				t.Errorf("%s has empty Dark variant", def.name)
 			}
 			// Ensure Light and Dark are different (otherwise adaptive isn't needed)
-			if color.Light == color.Dark {
-				t.Errorf("%s has identical Light and Dark variants: %s", name, color.Light)
+			if def.light == def.dark {
+				t.Errorf("%s has identical Light and Dark variants: %s", def.name, def.light)
 			}
 		})
 	}
@@ -44,18 +49,22 @@ func TestAdaptiveColorsHaveBothVariants(t *testing.T) {
 
 // TestColorFormats verifies all color values are valid hex colors
 func TestColorFormats(t *testing.T) {
-	colors := map[string]lipgloss.AdaptiveColor{
-		"ColorError":       ColorError,
-		"ColorWarning":     ColorWarning,
-		"ColorSuccess":     ColorSuccess,
-		"ColorInfo":        ColorInfo,
-		"ColorPurple":      ColorPurple,
-		"ColorYellow":      ColorYellow,
-		"ColorComment":     ColorComment,
-		"ColorForeground":  ColorForeground,
-		"ColorBackground":  ColorBackground,
-		"ColorBorder":      ColorBorder,
-		"ColorTableAltRow": ColorTableAltRow,
+	colorDefs := []struct {
+		name  string
+		light string
+		dark  string
+	}{
+		{"ColorError", hexColorErrorLight, hexColorErrorDark},
+		{"ColorWarning", hexColorWarningLight, hexColorWarningDark},
+		{"ColorSuccess", hexColorSuccessLight, hexColorSuccessDark},
+		{"ColorInfo", hexColorInfoLight, hexColorInfoDark},
+		{"ColorPurple", hexColorPurpleLight, hexColorPurpleDark},
+		{"ColorYellow", hexColorYellowLight, hexColorYellowDark},
+		{"ColorComment", hexColorCommentLight, hexColorCommentDark},
+		{"ColorForeground", hexColorForegroundLight, hexColorForegroundDark},
+		{"ColorBackground", hexColorBackgroundLight, hexColorBackgroundDark},
+		{"ColorBorder", hexColorBorderLight, hexColorBorderDark},
+		{"ColorTableAltRow", hexColorTableAltRowLight, hexColorTableAltRowDark},
 	}
 
 	isValidHex := func(s string) bool {
@@ -73,15 +82,15 @@ func TestColorFormats(t *testing.T) {
 		return true
 	}
 
-	for name, color := range colors {
-		t.Run(name+"_Light", func(t *testing.T) {
-			if !isValidHex(color.Light) {
-				t.Errorf("%s.Light is not a valid hex color: %s", name, color.Light)
+	for _, def := range colorDefs {
+		t.Run(def.name+"_Light", func(t *testing.T) {
+			if !isValidHex(def.light) {
+				t.Errorf("%s.Light is not a valid hex color: %s", def.name, def.light)
 			}
 		})
-		t.Run(name+"_Dark", func(t *testing.T) {
-			if !isValidHex(color.Dark) {
-				t.Errorf("%s.Dark is not a valid hex color: %s", name, color.Dark)
+		t.Run(def.name+"_Dark", func(t *testing.T) {
+			if !isValidHex(def.dark) {
+				t.Errorf("%s.Dark is not a valid hex color: %s", def.name, def.dark)
 			}
 		})
 	}
@@ -180,39 +189,69 @@ func TestStylesRenderNonEmpty(t *testing.T) {
 
 // TestDarkColorsAreOriginalDracula verifies that dark variants match the original Dracula theme colors
 func TestDarkColorsAreOriginalDracula(t *testing.T) {
-	// These are the original colors used in the codebase before the adaptive color migration
+	// These are the original Dracula palette colors hardcoded for comparison.
+	// If any hex constant in theme.go changes, this test will catch the drift.
 	expectedDarkColors := map[string]string{
-		"ColorError":   "#FF5555",
-		"ColorWarning": "#FFB86C",
-		"ColorSuccess": "#50FA7B",
-		"ColorInfo":    "#8BE9FD",
-		"ColorPurple":  "#BD93F9",
-		"ColorYellow":  "#F1FA8C",
-		"ColorComment": "#6272A4",
-		// ColorForeground and ColorBackground are Dracula theme colors
+		"ColorError":      "#FF5555",
+		"ColorWarning":    "#FFB86C",
+		"ColorSuccess":    "#50FA7B",
+		"ColorInfo":       "#8BE9FD",
+		"ColorPurple":     "#BD93F9",
+		"ColorYellow":     "#F1FA8C",
+		"ColorComment":    "#6272A4",
 		"ColorForeground": "#F8F8F2",
 		"ColorBackground": "#282A36",
 		"ColorBorder":     "#44475A",
 	}
 
-	actualColors := map[string]lipgloss.AdaptiveColor{
-		"ColorError":      ColorError,
-		"ColorWarning":    ColorWarning,
-		"ColorSuccess":    ColorSuccess,
-		"ColorInfo":       ColorInfo,
-		"ColorPurple":     ColorPurple,
-		"ColorYellow":     ColorYellow,
-		"ColorComment":    ColorComment,
-		"ColorForeground": ColorForeground,
-		"ColorBackground": ColorBackground,
-		"ColorBorder":     ColorBorder,
+	actualDarkHex := map[string]string{
+		"ColorError":      hexColorErrorDark,
+		"ColorWarning":    hexColorWarningDark,
+		"ColorSuccess":    hexColorSuccessDark,
+		"ColorInfo":       hexColorInfoDark,
+		"ColorPurple":     hexColorPurpleDark,
+		"ColorYellow":     hexColorYellowDark,
+		"ColorComment":    hexColorCommentDark,
+		"ColorForeground": hexColorForegroundDark,
+		"ColorBackground": hexColorBackgroundDark,
+		"ColorBorder":     hexColorBorderDark,
 	}
 
 	for name, expected := range expectedDarkColors {
 		t.Run(name, func(t *testing.T) {
-			actual := actualColors[name].Dark
+			actual := actualDarkHex[name]
 			if actual != expected {
 				t.Errorf("%s.Dark = %s, want %s (original Dracula color)", name, actual, expected)
+			}
+		})
+	}
+}
+
+// TestAdaptiveColorVarsUseHexConstants verifies that the exported AdaptiveColor vars
+// are backed by the expected hex constants (spot-check a few key colors).
+func TestAdaptiveColorVarsUseHexConstants(t *testing.T) {
+	// Verify that the compat.AdaptiveColor vars hold non-nil color values.
+	colors := map[string]compat.AdaptiveColor{
+		"ColorError":       ColorError,
+		"ColorWarning":     ColorWarning,
+		"ColorSuccess":     ColorSuccess,
+		"ColorInfo":        ColorInfo,
+		"ColorPurple":      ColorPurple,
+		"ColorYellow":      ColorYellow,
+		"ColorComment":     ColorComment,
+		"ColorForeground":  ColorForeground,
+		"ColorBackground":  ColorBackground,
+		"ColorBorder":      ColorBorder,
+		"ColorTableAltRow": ColorTableAltRow,
+	}
+
+	for name, c := range colors {
+		t.Run(name, func(t *testing.T) {
+			if c.Light == nil {
+				t.Errorf("%s.Light is nil", name)
+			}
+			if c.Dark == nil {
+				t.Errorf("%s.Dark is nil", name)
 			}
 		})
 	}

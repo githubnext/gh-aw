@@ -43,8 +43,8 @@ import (
 	"os"
 	"sync"
 
-	"github.com/charmbracelet/bubbles/spinner"
-	tea "github.com/charmbracelet/bubbletea"
+	"charm.land/bubbles/v2/spinner"
+	tea "charm.land/bubbletea/v2"
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/styles"
 	"github.com/github/gh-aw/pkg/tty"
@@ -63,8 +63,8 @@ type spinnerModel struct {
 	output  *os.File
 }
 
-func (m spinnerModel) Init() tea.Cmd { return m.spinner.Tick }
-func (m spinnerModel) View() string  { return "" } // Not used with WithoutRenderer
+func (m spinnerModel) Init() tea.Cmd  { return m.spinner.Tick }
+func (m spinnerModel) View() tea.View { return tea.View{} } // Not used with WithoutRenderer
 
 func (m spinnerModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
@@ -72,7 +72,7 @@ func (m spinnerModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.message = string(msg)
 		m.render()
 		return m, nil
-	case tea.KeyMsg:
+	case tea.KeyPressMsg:
 		if msg.String() == "ctrl+c" {
 			return m, tea.Quit
 		}
