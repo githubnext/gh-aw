@@ -109,11 +109,9 @@ safe-outputs:
             required: true
             type: string
         script: |
-          const { channel, message } = config;
           return async function handlePostSlackMessage(item) {
-            const { channel: itemChannel, message: itemMessage } = item.data || {};
-            const targetChannel = itemChannel || channel || "#general";
-            const text = itemMessage || message || "(no message)";
+            const targetChannel = item.channel || "#general";
+            const text = item.message || "(no message)";
             core.info(`[FICTITIOUS SLACK] → ${targetChannel}: ${text}`);
             return { success: true, channel: targetChannel, message: text };
           };

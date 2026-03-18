@@ -34,7 +34,7 @@
 #
 # inlined-imports: true
 #
-# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"c1ff801cd188649e2a6dc97d3e68acad8dca5063b03b2486588a2b8cfab9e4dd","strict":true}
+# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"df5b2e20728c1a3f7e64335f2fc80cb2f3ce98df51b13ab4929a209e733b639b","strict":true}
 
 name: "Smoke Claude"
 "on":
@@ -2623,11 +2623,9 @@ jobs:
           cat > ${RUNNER_TEMP}/gh-aw/actions/safe_output_script_post_slack_message.cjs << 'GH_AW_SAFE_OUTPUT_SCRIPT_POST_SLACK_MESSAGE_EOF'
           // Auto-generated safe-output script handler: post-slack-message
           async function main(config = {}) {
-            const { channel, message } = config;
             return async function handlePostSlackMessage(item) {
-              const { channel: itemChannel, message: itemMessage } = item.data || {};
-              const targetChannel = itemChannel || channel || "#general";
-              const text = itemMessage || message || "(no message)";
+              const targetChannel = item.channel || "#general";
+              const text = item.message || "(no message)";
               core.info(`[FICTITIOUS SLACK] → ${targetChannel}: ${text}`);
               return { success: true, channel: targetChannel, message: text };
             };
