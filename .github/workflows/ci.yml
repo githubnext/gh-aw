@@ -14,6 +14,7 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     permissions:
       contents: read
     concurrency:
@@ -162,6 +163,7 @@ jobs:
 
   integration:
     runs-on: ubuntu-latest
+    timeout-minutes: 25
     permissions:
       contents: read
     strategy:
@@ -391,6 +393,7 @@ jobs:
 
   canary_go:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     needs: [integration]  # test dependency removed - download-artifact fetches by name, not job dependency
     if: always()  # Run even if some tests fail to report coverage
     permissions:
@@ -444,6 +447,7 @@ jobs:
 
   update:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     permissions:
       contents: read
     concurrency:
@@ -509,6 +513,7 @@ jobs:
 
   build:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     permissions:
       contents: read
     concurrency:
@@ -596,6 +601,7 @@ jobs:
 
   build-wasm:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     permissions:
       contents: read
     concurrency:
@@ -689,6 +695,7 @@ jobs:
 
   validate-yaml:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     permissions:
       contents: read
     steps:
@@ -830,6 +837,7 @@ jobs:
 
   js:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     needs: validate-yaml
     permissions:
       contents: read
@@ -864,6 +872,7 @@ jobs:
 
   js-integration-live-api:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     needs: validate-yaml
     permissions:
       contents: read
@@ -916,6 +925,7 @@ jobs:
     # Only run benchmarks on main branch for performance tracking
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     permissions:
       contents: read
     concurrency:
@@ -992,6 +1002,7 @@ jobs:
   check-validator-sizes:
     name: Check validator file sizes
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     # Non-blocking: report violations but don't fail the build until existing files are cleaned up
     continue-on-error: true
     permissions:
@@ -1023,6 +1034,7 @@ jobs:
 
   lint-go:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     permissions:
       contents: read
     concurrency:
@@ -1123,6 +1135,7 @@ jobs:
 
   lint-js:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     permissions:
       contents: read
     concurrency:
@@ -1160,6 +1173,7 @@ jobs:
 
   audit:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     permissions:
       contents: read
     concurrency:
@@ -1254,6 +1268,7 @@ jobs:
 
   actions-build:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     permissions:
       contents: read
     concurrency:
@@ -1314,6 +1329,7 @@ jobs:
     # Only run fuzz tests on main branch (10s is insufficient for PRs)
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     permissions:
       contents: read
     concurrency:
@@ -1466,6 +1482,7 @@ jobs:
 
   security:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     permissions:
       contents: read
     concurrency:
@@ -1691,6 +1708,7 @@ jobs:
 
   health-smoke-copilot:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     permissions:
       contents: read
       actions: read
@@ -1747,6 +1765,7 @@ jobs:
 
   mcp-server-compile-test:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     permissions:
       contents: read
     concurrency:
@@ -1918,6 +1937,7 @@ jobs:
   cross-platform-build:
     name: Build & Test on ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
     permissions:
       contents: read
     strategy:
@@ -2046,6 +2066,7 @@ jobs:
   alpine-container-test:
     name: Alpine Container Test
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     permissions:
       contents: read
     concurrency:
@@ -2180,6 +2201,7 @@ jobs:
 
   safe-outputs-conformance:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     permissions:
       contents: read
     steps:
@@ -2232,6 +2254,7 @@ jobs:
   integration-add:
     name: Integration Add Workflows
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     permissions:
       contents: read
     concurrency:
@@ -2428,6 +2451,7 @@ jobs:
   integration-unauthenticated-add:
     name: Integration Unauthenticated Add (Public Repo)
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     permissions:
       contents: read
     concurrency:
@@ -2486,6 +2510,7 @@ jobs:
   integration-add-dispatch-workflow:
     name: Integration Add with dispatch-workflow Dependencies
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     permissions:
       contents: read
     concurrency:
