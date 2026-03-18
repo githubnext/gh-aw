@@ -197,10 +197,11 @@ async function generateGitPatch(branchName, baseBranch, options = {}) {
               // Remote tracking ref exists from initial shallow checkout — use it as base
               baseRef = `origin/${branchName}`;
               debugLog(`Strategy 1 (incremental): Using existing remote tracking ref as fallback, baseRef=${baseRef}`);
-            } catch {
-              // No remote tracking ref at all — cannot safely generate an incremental patch
-              debugLog(`Strategy 1 (incremental): No existing remote tracking ref found, failing`);
-              errorMessage = `Cannot generate incremental patch: failed to fetch origin/${branchName}. This typically happens when the remote branch doesn't exist yet or was force-pushed. Error: ${getErrorMessage(fetchError)}`;
+            } catch (refCheckError) {
+              // No remote tracking ref at all — cannot safely generate an incremental patch.
+              // Report both errors: the original fetch failure and the missing ref.
+              debugLog(`Strategy 1 (incremental): No existing remote tracking ref found (${getErrorMessage(refCheckError)}), failing`);
+              errorMessage = `Cannot generate incremental patch: failed to fetch origin/${branchName} and no existing remote tracking ref found. This typically happens when the remote branch doesn't exist yet or was force-pushed. Fetch error: ${getErrorMessage(fetchError)}`;
               return {
                 success: false,
                 error: errorMessage,
