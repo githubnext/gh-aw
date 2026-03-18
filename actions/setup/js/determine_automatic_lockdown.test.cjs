@@ -33,8 +33,7 @@ describe("determine_automatic_lockdown", () => {
       error: vi.fn(),
       setOutput: vi.fn(),
       summary: {
-        addHeading: vi.fn().mockReturnThis(),
-        addTable: vi.fn().mockReturnThis(),
+        addRaw: vi.fn().mockReturnThis(),
         write: vi.fn().mockResolvedValue(undefined),
       },
     };
@@ -218,16 +217,15 @@ describe("determine_automatic_lockdown", () => {
 
     await determineAutomaticLockdown(mockGithub, mockContext, mockCore);
 
-    expect(mockCore.summary.addHeading).toHaveBeenCalledWith("GitHub MCP Guard Policy", 3);
-    expect(mockCore.summary.addTable).toHaveBeenCalledWith([
-      [
-        { data: "Field", header: true },
-        { data: "Value", header: true },
-        { data: "Source", header: true },
-      ],
-      ["min-integrity", "approved", "automatic (public repo)"],
-      ["repos", "all", "automatic (public repo)"],
-    ]);
+    expect(mockCore.summary.addRaw).toHaveBeenCalledTimes(1);
+    const publicSummaryArg = mockCore.summary.addRaw.mock.calls[0][0];
+    expect(publicSummaryArg).toContain("<details>");
+    expect(publicSummaryArg).toContain("GitHub MCP Guard Policy");
+    expect(publicSummaryArg).toContain("min-integrity");
+    expect(publicSummaryArg).toContain("approved");
+    expect(publicSummaryArg).toContain("automatic (public repo)");
+    expect(publicSummaryArg).toContain("repos");
+    expect(publicSummaryArg).toContain("all");
     expect(mockCore.summary.write).toHaveBeenCalled();
   });
 
@@ -244,15 +242,13 @@ describe("determine_automatic_lockdown", () => {
 
     await determineAutomaticLockdown(mockGithub, mockContext, mockCore);
 
-    expect(mockCore.summary.addTable).toHaveBeenCalledWith([
-      [
-        { data: "Field", header: true },
-        { data: "Value", header: true },
-        { data: "Source", header: true },
-      ],
-      ["min-integrity", "merged", "workflow config"],
-      ["repos", "public", "workflow config"],
-    ]);
+    expect(mockCore.summary.addRaw).toHaveBeenCalledTimes(1);
+    const configuredSummaryArg = mockCore.summary.addRaw.mock.calls[0][0];
+    expect(configuredSummaryArg).toContain("min-integrity");
+    expect(configuredSummaryArg).toContain("merged");
+    expect(configuredSummaryArg).toContain("workflow config");
+    expect(configuredSummaryArg).toContain("repos");
+    expect(configuredSummaryArg).toContain("public");
     expect(mockCore.summary.write).toHaveBeenCalled();
   });
 
@@ -266,15 +262,13 @@ describe("determine_automatic_lockdown", () => {
 
     await determineAutomaticLockdown(mockGithub, mockContext, mockCore);
 
-    expect(mockCore.summary.addTable).toHaveBeenCalledWith([
-      [
-        { data: "Field", header: true },
-        { data: "Value", header: true },
-        { data: "Source", header: true },
-      ],
-      ["min-integrity", "none", "automatic (private repo)"],
-      ["repos", "all", "automatic (private repo)"],
-    ]);
+    expect(mockCore.summary.addRaw).toHaveBeenCalledTimes(1);
+    const privateSummaryArg = mockCore.summary.addRaw.mock.calls[0][0];
+    expect(privateSummaryArg).toContain("min-integrity");
+    expect(privateSummaryArg).toContain("none");
+    expect(privateSummaryArg).toContain("automatic (private repo)");
+    expect(privateSummaryArg).toContain("repos");
+    expect(privateSummaryArg).toContain("all");
     expect(mockCore.summary.write).toHaveBeenCalled();
   });
 });
