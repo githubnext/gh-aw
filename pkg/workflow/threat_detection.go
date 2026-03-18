@@ -340,13 +340,21 @@ func (c *Compiler) buildDetectionEngineExecutionStep(data *WorkflowData) []strin
 		detectionEngineConfig = &EngineConfig{ID: engineSetting}
 	} else {
 		detectionEngineConfig = &EngineConfig{
-			ID:      detectionEngineConfig.ID,
-			Model:   detectionEngineConfig.Model,
-			Version: detectionEngineConfig.Version,
-			Env:     detectionEngineConfig.Env,
-			Config:  detectionEngineConfig.Config,
-			Args:    detectionEngineConfig.Args,
+			ID:        detectionEngineConfig.ID,
+			Model:     detectionEngineConfig.Model,
+			Version:   detectionEngineConfig.Version,
+			Env:       detectionEngineConfig.Env,
+			Config:    detectionEngineConfig.Config,
+			Args:      detectionEngineConfig.Args,
+			APITarget: detectionEngineConfig.APITarget,
 		}
+	}
+
+	// Inherit APITarget from the main engine config for GHE/custom endpoints if not already set.
+	// This ensures the threat detection AWF invocation receives the same --copilot-api-target
+	// and GHE-specific domains in --allow-domains as the main agent AWF invocation.
+	if detectionEngineConfig.APITarget == "" && data.EngineConfig != nil && data.EngineConfig.APITarget != "" {
+		detectionEngineConfig.APITarget = data.EngineConfig.APITarget
 	}
 
 	// Create minimal WorkflowData for threat detection with network fully blocked.
