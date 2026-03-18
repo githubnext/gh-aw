@@ -361,6 +361,7 @@ func extractAPMDependenciesFromFrontmatter(frontmatter map[string]any) (*APMDepe
 	var isolated bool
 	var githubApp *GitHubAppConfig
 	var version string
+	var env map[string]string
 
 	switch v := value.(type) {
 	case []any:
@@ -403,6 +404,18 @@ func extractAPMDependenciesFromFrontmatter(frontmatter map[string]any) (*APMDepe
 				version = versionStr
 			}
 		}
+		if envAny, ok := v["env"]; ok {
+			if envMap, ok := envAny.(map[string]any); ok && len(envMap) > 0 {
+				env = make(map[string]string, len(envMap))
+				for k, val := range envMap {
+					if s, ok := val.(string); ok {
+						env[k] = s
+					} else {
+						frontmatterMetadataLog.Printf("Skipping non-string env value for key '%s'", k)
+					}
+				}
+			}
+		}
 	default:
 		return nil, nil
 	}
@@ -411,6 +424,6 @@ func extractAPMDependenciesFromFrontmatter(frontmatter map[string]any) (*APMDepe
 		return nil, nil
 	}
 
-	frontmatterMetadataLog.Printf("Extracted %d APM dependency packages from frontmatter (isolated=%v, github-app=%v, version=%s)", len(packages), isolated, githubApp != nil, version)
-	return &APMDependenciesInfo{Packages: packages, Isolated: isolated, GitHubApp: githubApp, Version: version}, nil
+	frontmatterMetadataLog.Printf("Extracted %d APM dependency packages from frontmatter (isolated=%v, github-app=%v, version=%s, env=%d)", len(packages), isolated, githubApp != nil, version, len(env))
+	return &APMDependenciesInfo{Packages: packages, Isolated: isolated, GitHubApp: githubApp, Version: version, Env: env}, nil
 }

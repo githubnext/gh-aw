@@ -124,12 +124,26 @@ func GenerateAPMPackStep(apmDeps *APMDependenciesInfo, target string, data *Work
 		"        uses: " + actionRef,
 	}
 
-	// Inject the minted GitHub App token as GITHUB_TOKEN so APM can access cross-org private repos
-	if apmDeps.GitHubApp != nil {
-		lines = append(lines,
-			"        env:",
-			fmt.Sprintf("          GITHUB_TOKEN: ${{ steps.%s.outputs.token }}", apmAppTokenStepID),
-		)
+	// Build env block: GitHub App token (if configured) + user-provided env vars
+	hasGitHubAppToken := apmDeps.GitHubApp != nil
+	hasUserEnv := len(apmDeps.Env) > 0
+	if hasGitHubAppToken || hasUserEnv {
+		lines = append(lines, "        env:")
+		if hasGitHubAppToken {
+			lines = append(lines,
+				fmt.Sprintf("          GITHUB_TOKEN: ${{ steps.%s.outputs.token }}", apmAppTokenStepID),
+			)
+		}
+		if hasUserEnv {
+			keys := make([]string, 0, len(apmDeps.Env))
+			for k := range apmDeps.Env {
+				keys = append(keys, k)
+			}
+			sort.Strings(keys)
+			for _, k := range keys {
+				lines = append(lines, fmt.Sprintf("          %s: %s", k, apmDeps.Env[k]))
+			}
+		}
 	}
 
 	lines = append(lines,
