@@ -54,6 +54,7 @@ tools:
 
 imports:
   - shared/jqschema.md
+  - shared/discussions-data-fetch.md
   - shared/weekly-issues-data-fetch.md
   - shared/reporting.md
 ---
@@ -83,7 +84,7 @@ Analyze recent discussions in this repository, focusing on:
 - **Report** discussions (category: reports) - Various agent analysis reports
 - **General** discussions - Other agent outputs
 
-Use the GitHub MCP tools to list and read discussions from the past 7 days.
+Pre-fetched discussions data is available at `/tmp/gh-aw/discussions-data/discussions.json` (populated by the discussions-data-fetch step). Use this file as the primary source for discussion analysis.
 
 ### Secondary: Workflow Logs
 
@@ -155,12 +156,29 @@ jq '[.[].author.login] | unique' /tmp/gh-aw/weekly-issues-data/issues.json
 
 ### Step 1: Gather Discussion Intelligence
 
-1. List all discussions from the past 7 days
-2. For each discussion:
+1. Load discussions from the pre-fetched data file at `/tmp/gh-aw/discussions-data/discussions.json`
+2. Filter for discussions from the past 7 days using the `createdAt` or `updatedAt` fields
+3. For each discussion:
    - Extract key metrics and findings
    - Identify the reporting agent (from tracker-id or title)
    - Note any warnings, alerts, or notable items
    - Record timestamps for trend analysis
+
+**Example jq queries:**
+```bash
+# Get all discussions
+jq 'length' /tmp/gh-aw/discussions-data/discussions.json
+
+# Get discussions from the past 7 days
+DATE_7_DAYS_AGO=$(date -d '7 days ago' '+%Y-%m-%dT%H:%M:%SZ' 2>/dev/null || date -v-7d '+%Y-%m-%dT%H:%M:%SZ')
+jq --arg date "$DATE_7_DAYS_AGO" '[.[] | select(.updatedAt >= $date)]' /tmp/gh-aw/discussions-data/discussions.json
+
+# Get discussions by category
+jq '[.[] | select(.category == "reports")]' /tmp/gh-aw/discussions-data/discussions.json
+
+# Get AI-generated discussions only
+jq '[.[] | select(.isAgenticWorkflow == true)]' /tmp/gh-aw/discussions-data/discussions.json
+```
 
 ### Step 2: Gather Workflow Intelligence
 
