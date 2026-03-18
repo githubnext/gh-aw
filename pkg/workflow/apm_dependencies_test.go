@@ -124,7 +124,8 @@ func TestExtractAPMDependenciesFromFrontmatter(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := extractAPMDependenciesFromFrontmatter(tt.frontmatter)
+			result, err := extractAPMDependenciesFromFrontmatter(tt.frontmatter)
+			require.NoError(t, err, "Should not return an error for valid frontmatter")
 			if tt.expectedDeps == nil {
 				assert.Nil(t, result, "Should return nil for no dependencies")
 			} else {
@@ -147,7 +148,8 @@ func TestExtractAPMDependenciesGitHubApp(t *testing.T) {
 				},
 			},
 		}
-		result := extractAPMDependenciesFromFrontmatter(frontmatter)
+		result, err := extractAPMDependenciesFromFrontmatter(frontmatter)
+		require.NoError(t, err, "Should not return an error")
 		require.NotNil(t, result, "Should return non-nil APMDependenciesInfo")
 		assert.Equal(t, []string{"acme-org/acme-skills/plugins/dev-tools"}, result.Packages)
 		require.NotNil(t, result.GitHubApp, "GitHubApp should be set")
@@ -167,7 +169,8 @@ func TestExtractAPMDependenciesGitHubApp(t *testing.T) {
 				},
 			},
 		}
-		result := extractAPMDependenciesFromFrontmatter(frontmatter)
+		result, err := extractAPMDependenciesFromFrontmatter(frontmatter)
+		require.NoError(t, err, "Should not return an error")
 		require.NotNil(t, result, "Should return non-nil APMDependenciesInfo")
 		require.NotNil(t, result.GitHubApp, "GitHubApp should be set")
 		assert.Equal(t, "acme-org", result.GitHubApp.Owner)
@@ -183,7 +186,8 @@ func TestExtractAPMDependenciesGitHubApp(t *testing.T) {
 				},
 			},
 		}
-		result := extractAPMDependenciesFromFrontmatter(frontmatter)
+		result, err := extractAPMDependenciesFromFrontmatter(frontmatter)
+		require.NoError(t, err, "Should not return an error")
 		require.NotNil(t, result, "Packages should still be extracted")
 		assert.Nil(t, result.GitHubApp, "GitHubApp should be nil when app-id is missing")
 	})
@@ -192,7 +196,8 @@ func TestExtractAPMDependenciesGitHubApp(t *testing.T) {
 		frontmatter := map[string]any{
 			"dependencies": []any{"microsoft/apm-sample-package"},
 		}
-		result := extractAPMDependenciesFromFrontmatter(frontmatter)
+		result, err := extractAPMDependenciesFromFrontmatter(frontmatter)
+		require.NoError(t, err, "Should not return an error")
 		require.NotNil(t, result, "Should return non-nil APMDependenciesInfo")
 		assert.Nil(t, result.GitHubApp, "GitHubApp should be nil for array format")
 	})
@@ -206,7 +211,8 @@ func TestExtractAPMDependenciesVersion(t *testing.T) {
 				"version":  "v1.0.0",
 			},
 		}
-		result := extractAPMDependenciesFromFrontmatter(frontmatter)
+		result, err := extractAPMDependenciesFromFrontmatter(frontmatter)
+		require.NoError(t, err, "Should not return an error for valid version")
 		require.NotNil(t, result, "Should return non-nil APMDependenciesInfo")
 		assert.Equal(t, "v1.0.0", result.Version, "Version should be extracted from object format")
 	})
@@ -215,7 +221,8 @@ func TestExtractAPMDependenciesVersion(t *testing.T) {
 		frontmatter := map[string]any{
 			"dependencies": []any{"microsoft/apm-sample-package"},
 		}
-		result := extractAPMDependenciesFromFrontmatter(frontmatter)
+		result, err := extractAPMDependenciesFromFrontmatter(frontmatter)
+		require.NoError(t, err, "Should not return an error")
 		require.NotNil(t, result, "Should return non-nil APMDependenciesInfo")
 		assert.Empty(t, result.Version, "Version should be empty for array format")
 	})
@@ -226,9 +233,74 @@ func TestExtractAPMDependenciesVersion(t *testing.T) {
 				"packages": []any{"microsoft/apm-sample-package"},
 			},
 		}
-		result := extractAPMDependenciesFromFrontmatter(frontmatter)
+		result, err := extractAPMDependenciesFromFrontmatter(frontmatter)
+		require.NoError(t, err, "Should not return an error")
 		require.NotNil(t, result, "Should return non-nil APMDependenciesInfo")
 		assert.Empty(t, result.Version, "Version should be empty when not specified")
+	})
+
+	t.Run("Invalid version with trailing quote produces error", func(t *testing.T) {
+		frontmatter := map[string]any{
+			"dependencies": map[string]any{
+				"packages": []any{"microsoft/apm-sample-package"},
+				"version":  `v0.8.0"`,
+			},
+		}
+		result, err := extractAPMDependenciesFromFrontmatter(frontmatter)
+		require.Error(t, err, "Should return an error for invalid version tag")
+		assert.Nil(t, result, "Should return nil result on error")
+		assert.Contains(t, err.Error(), "dependencies.version", "Error should mention the field name")
+	})
+
+	t.Run("Invalid version without v prefix produces error", func(t *testing.T) {
+		frontmatter := map[string]any{
+			"dependencies": map[string]any{
+				"packages": []any{"microsoft/apm-sample-package"},
+				"version":  "1.2.3",
+			},
+		}
+		result, err := extractAPMDependenciesFromFrontmatter(frontmatter)
+		require.Error(t, err, "Should return an error for version missing v prefix")
+		assert.Nil(t, result, "Should return nil result on error")
+		assert.Contains(t, err.Error(), "vX.Y.Z", "Error should describe expected format")
+	})
+
+	t.Run("Invalid version string 'latest' produces error", func(t *testing.T) {
+		frontmatter := map[string]any{
+			"dependencies": map[string]any{
+				"packages": []any{"microsoft/apm-sample-package"},
+				"version":  "latest",
+			},
+		}
+		result, err := extractAPMDependenciesFromFrontmatter(frontmatter)
+		require.Error(t, err, "Should return an error for non-semver version string")
+		assert.Nil(t, result, "Should return nil result on error")
+	})
+
+	t.Run("Valid partial version v1 compiles without error", func(t *testing.T) {
+		frontmatter := map[string]any{
+			"dependencies": map[string]any{
+				"packages": []any{"microsoft/apm-sample-package"},
+				"version":  "v1",
+			},
+		}
+		result, err := extractAPMDependenciesFromFrontmatter(frontmatter)
+		require.NoError(t, err, "Should not return an error for valid partial version")
+		require.NotNil(t, result, "Should return non-nil APMDependenciesInfo")
+		assert.Equal(t, "v1", result.Version, "Version should be extracted")
+	})
+
+	t.Run("Valid partial version v1.2 compiles without error", func(t *testing.T) {
+		frontmatter := map[string]any{
+			"dependencies": map[string]any{
+				"packages": []any{"microsoft/apm-sample-package"},
+				"version":  "v1.2",
+			},
+		}
+		result, err := extractAPMDependenciesFromFrontmatter(frontmatter)
+		require.NoError(t, err, "Should not return an error for valid partial version")
+		require.NotNil(t, result, "Should return non-nil APMDependenciesInfo")
+		assert.Equal(t, "v1.2", result.Version, "Version should be extracted")
 	})
 }
 

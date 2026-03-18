@@ -351,10 +351,10 @@ func extractPluginsFromFrontmatter(frontmatter map[string]any) *PluginInfo {
 //   - Object format: {packages: ["org/pkg1", "org/pkg2"], isolated: true, github-app: {...}, version: "v0.8.0"}
 //
 // Returns nil if no dependencies field is present or if the field contains no packages.
-func extractAPMDependenciesFromFrontmatter(frontmatter map[string]any) *APMDependenciesInfo {
+func extractAPMDependenciesFromFrontmatter(frontmatter map[string]any) (*APMDependenciesInfo, error) {
 	value, exists := frontmatter["dependencies"]
 	if !exists {
-		return nil
+		return nil, nil
 	}
 
 	var packages []string
@@ -397,17 +397,20 @@ func extractAPMDependenciesFromFrontmatter(frontmatter map[string]any) *APMDepen
 		}
 		if versionAny, ok := v["version"]; ok {
 			if versionStr, ok := versionAny.(string); ok && versionStr != "" {
+				if !isValidVersionTag(versionStr) {
+					return nil, fmt.Errorf("dependencies.version %q is not a valid semver tag (expected format: vX.Y.Z)", versionStr)
+				}
 				version = versionStr
 			}
 		}
 	default:
-		return nil
+		return nil, nil
 	}
 
 	if len(packages) == 0 {
-		return nil
+		return nil, nil
 	}
 
 	frontmatterMetadataLog.Printf("Extracted %d APM dependency packages from frontmatter (isolated=%v, github-app=%v, version=%s)", len(packages), isolated, githubApp != nil, version)
-	return &APMDependenciesInfo{Packages: packages, Isolated: isolated, GitHubApp: githubApp, Version: version}
+	return &APMDependenciesInfo{Packages: packages, Isolated: isolated, GitHubApp: githubApp, Version: version}, nil
 }

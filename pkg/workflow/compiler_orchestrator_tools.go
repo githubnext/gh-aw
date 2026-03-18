@@ -207,7 +207,10 @@ func (c *Compiler) processToolsAndMarkdown(result *parser.FrontmatterResult, cle
 	}
 
 	// Extract APM dependencies from frontmatter
-	apmDependencies := extractAPMDependenciesFromFrontmatter(result.Frontmatter)
+	apmDependencies, err := extractAPMDependenciesFromFrontmatter(result.Frontmatter)
+	if err != nil {
+		return nil, err
+	}
 	if apmDependencies != nil {
 		orchestratorToolsLog.Printf("Extracted %d APM dependencies from frontmatter", len(apmDependencies.Packages))
 	}
