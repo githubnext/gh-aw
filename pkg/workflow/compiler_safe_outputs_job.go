@@ -520,7 +520,10 @@ func buildSafeOutputItemsManifestUploadStep(prefix string) []string {
 // used by MCP-scripts and actions/github-script.
 func generateSafeOutputScriptContent(scriptName string, scriptBody string) string {
 	var sb strings.Builder
-	sb.WriteString("// Auto-generated safe-output script handler: " + scriptName + "\n")
+	sb.WriteString("// @ts-check\n")
+	sb.WriteString("/// <reference types=\"./safe-output-script\" />\n")
+	sb.WriteString("// Auto-generated safe-output script handler: " + scriptName + "\n\n")
+	sb.WriteString("/** @type {import('./types/safe-output-script').SafeOutputScriptMain} */\n")
 	sb.WriteString("async function main(config = {}) {\n")
 	// Indent each line of the user's body by 2 spaces
 	for line := range strings.SplitSeq(scriptBody, "\n") {

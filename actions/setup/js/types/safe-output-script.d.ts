@@ -151,6 +151,15 @@ export type SafeOutputScriptHandler<TInputs extends Record<string, unknown> = Re
  */
 export type SafeOutputScriptMain<TInputs extends Record<string, unknown> = Record<string, unknown>> = (config: SafeOutputScriptConfig) => Promise<SafeOutputScriptHandler<TInputs>>;
 
+/**
+ * The `main` factory function exported by every auto-generated safe-output
+ * script module (`module.exports = { main }`).
+ *
+ * This TypeScript declaration provides IDE type-checking support for the
+ * CommonJS export (`module.exports = { main }`) that the compiler generates.
+ */
+export declare function main(config: SafeOutputScriptConfig): Promise<SafeOutputScriptHandler>;
+
 // ── Globals available in the script body ────────────────────────────────────
 // The globals below are injected by the `actions/github-script` environment
 // that hosts the handler manager.  They are already declared in

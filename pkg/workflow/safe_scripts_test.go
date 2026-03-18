@@ -255,6 +255,9 @@ func TestGenerateSafeOutputScriptContent(t *testing.T) {
 	body := "return async (msg) => ({ success: true });"
 	content := generateSafeOutputScriptContent("my-handler", body)
 
+	assert.Contains(t, content, "// @ts-check", "Should include ts-check pragma")
+	assert.Contains(t, content, "/// <reference types=\"./safe-output-script\" />", "Should include type reference")
+	assert.Contains(t, content, "/** @type {import('./types/safe-output-script').SafeOutputScriptMain} */", "Should include type annotation for main")
 	assert.Contains(t, content, "// Auto-generated safe-output script handler: my-handler", "Should have comment header")
 	assert.Contains(t, content, "async function main(config = {}) {", "Should wrap body with main function")
 	assert.Contains(t, content, "  return async (msg) => ({ success: true });", "Should indent body by 2 spaces")

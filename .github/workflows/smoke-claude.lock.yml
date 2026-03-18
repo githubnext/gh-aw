@@ -2621,7 +2621,11 @@ jobs:
       - name: Setup Safe Output Custom Scripts
         run: |
           cat > ${RUNNER_TEMP}/gh-aw/actions/safe_output_script_post_slack_message.cjs << 'GH_AW_SAFE_OUTPUT_SCRIPT_POST_SLACK_MESSAGE_EOF'
+          // @ts-check
+          /// <reference types="./safe-output-script" />
           // Auto-generated safe-output script handler: post-slack-message
+          
+          /** @type {import('./types/safe-output-script').SafeOutputScriptMain} */
           async function main(config = {}) {
             return async function handlePostSlackMessage(item) {
               const targetChannel = item.channel || "#general";
