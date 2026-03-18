@@ -188,4 +188,18 @@ describe("generate_aw_info.cjs", () => {
     expect(mockCore.summary.addRaw).toHaveBeenCalled();
     expect(mockCore.summary.write).toHaveBeenCalled();
   });
+
+  it("should log staged mode preview info via core parameter when staged is true", async () => {
+    process.env.GH_AW_INFO_STAGED = "true";
+    await main(mockCore, mockContext);
+
+    expect(mockCore.info).toHaveBeenCalledWith("🎭 Staged Mode Preview — Generating workflow info in staged mode — no changes applied");
+  });
+
+  it("should not log staged mode preview info when staged is false", async () => {
+    process.env.GH_AW_INFO_STAGED = "false";
+    await main(mockCore, mockContext);
+
+    expect(mockCore.info).not.toHaveBeenCalledWith(expect.stringContaining("🎭 Staged Mode Preview"));
+  });
 });
