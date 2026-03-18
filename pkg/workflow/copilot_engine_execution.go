@@ -179,9 +179,10 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 		// Build AWF-wrapped command using helper function - no mkdir needed, AWF handles it
 		// Get allowed domains (copilot defaults + network permissions + HTTP MCP server URLs + runtime ecosystem domains)
 		allowedDomains := GetCopilotAllowedDomainsWithToolsAndRuntimes(workflowData.NetworkPermissions, workflowData.Tools, workflowData.Runtimes)
-		// Add GHES/custom API target domains to the firewall allow-list when engine.api-target is set
-		if workflowData.EngineConfig != nil && workflowData.EngineConfig.APITarget != "" {
-			allowedDomains = mergeAPITargetDomains(allowedDomains, workflowData.EngineConfig.APITarget)
+		// Add Copilot API target domains to the firewall allow-list.
+		// Resolved from engine.api-target or GITHUB_COPILOT_BASE_URL in engine.env.
+		if copilotAPITarget := GetCopilotAPITarget(workflowData); copilotAPITarget != "" {
+			allowedDomains = mergeAPITargetDomains(allowedDomains, copilotAPITarget)
 		}
 
 		// AWF v0.15.0+ uses chroot mode by default, providing transparent access to host binaries

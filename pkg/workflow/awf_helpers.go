@@ -221,11 +221,11 @@ func BuildAWFArgs(config AWFCommandConfig) []string {
 		awfHelpersLog.Printf("Added --anthropic-api-target=%s", anthropicTarget)
 	}
 
-	// Add Copilot API target for custom Copilot endpoints (GHEC, GHES, or custom)
-	// This uses the engine.api-target field if configured
-	if config.WorkflowData.EngineConfig != nil && config.WorkflowData.EngineConfig.APITarget != "" {
-		awfArgs = append(awfArgs, "--copilot-api-target", config.WorkflowData.EngineConfig.APITarget)
-		awfHelpersLog.Printf("Added --copilot-api-target=%s", config.WorkflowData.EngineConfig.APITarget)
+	// Add Copilot API target for custom Copilot endpoints (GHEC, GHES, or custom).
+	// Resolved from engine.api-target (explicit) or GITHUB_COPILOT_BASE_URL in engine.env (implicit).
+	if copilotTarget := GetCopilotAPITarget(config.WorkflowData); copilotTarget != "" {
+		awfArgs = append(awfArgs, "--copilot-api-target", copilotTarget)
+		awfHelpersLog.Printf("Added --copilot-api-target=%s", copilotTarget)
 	}
 
 	// Add SSL Bump support for HTTPS content inspection (v0.9.0+)
@@ -347,4 +347,24 @@ func extractAPITargetHost(workflowData *WorkflowData, envVar string) string {
 
 	awfHelpersLog.Printf("Extracted API target host from %s: %s", envVar, host)
 	return host
+}
+
+// GetCopilotAPITarget returns the effective Copilot API target hostname, checking in order:
+//  1. engine.api-target (explicit, takes precedence)
+//  2. GITHUB_COPILOT_BASE_URL in engine.env (implicit, derived from the configured Copilot base URL)
+//
+// This mirrors the pattern used by other engines:
+//   - Codex:    OPENAI_BASE_URL     → --openai-api-target
+//   - Claude:   ANTHROPIC_BASE_URL  → --anthropic-api-target
+//   - Copilot:  GITHUB_COPILOT_BASE_URL → --copilot-api-target (fallback when api-target not set)
+//
+// Returns empty string if neither source is configured.
+func GetCopilotAPITarget(workflowData *WorkflowData) string {
+	// Explicit engine.api-target takes precedence.
+	if workflowData != nil && workflowData.EngineConfig != nil && workflowData.EngineConfig.APITarget != "" {
+		return workflowData.EngineConfig.APITarget
+	}
+
+	// Fallback: derive from the well-known GITHUB_COPILOT_BASE_URL env var.
+	return extractAPITargetHost(workflowData, "GITHUB_COPILOT_BASE_URL")
 }

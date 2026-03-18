@@ -727,9 +727,10 @@ func (c *Compiler) computeAllowedDomainsForSanitization(data *WorkflowData) stri
 		base = strings.Join(domains, ",")
 	}
 
-	// Add GHES/custom API target domains so GH_AW_ALLOWED_DOMAINS stays in sync with --allow-domains
-	if data.EngineConfig != nil && data.EngineConfig.APITarget != "" {
-		base = mergeAPITargetDomains(base, data.EngineConfig.APITarget)
+	// Add Copilot API target domains so GH_AW_ALLOWED_DOMAINS stays in sync with --allow-domains.
+	// Resolved from engine.api-target or GITHUB_COPILOT_BASE_URL in engine.env.
+	if copilotAPITarget := GetCopilotAPITarget(data); copilotAPITarget != "" {
+		base = mergeAPITargetDomains(base, copilotAPITarget)
 	}
 
 	return base
