@@ -884,7 +884,7 @@ Agent output format: `{"type": "update_release", "tag": "v1.0.0", "operation": "
 
 ### Asset Uploads (`upload-asset:`)
 
-Uploads files (screenshots, charts, reports) to orphaned git branch with predictable URLs: `https://raw.githubusercontent.com/{owner}/{repo}/{branch}/{filename}`. Agent registers files via `upload_asset` tool; separate job with `contents: write` commits them.
+Uploads files (screenshots, charts, reports) to orphaned git branch with predictable URLs: `https://github.com/{owner}/{repo}/blob/{branch}/{filename}?raw=true`. Agent registers files via `upload_asset` tool; separate job with `contents: write` commits them.
 
 ```yaml wrap
 safe-outputs:
