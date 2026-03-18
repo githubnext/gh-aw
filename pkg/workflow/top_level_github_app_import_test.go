@@ -190,6 +190,52 @@ When tools.github.github-token is set, the top-level github-app fallback should 
 		"tools.github.github-app should NOT be set when github-token is configured")
 }
 
+// TestTopLevelGitHubAppToolsGitHubFalseSkip tests that the fallback is NOT applied
+// to tools.github when github is explicitly disabled (github: false).
+func TestTopLevelGitHubAppToolsGitHubFalseSkip(t *testing.T) {
+	compiler := NewCompilerWithVersion("1.0.0")
+
+	tmpDir := t.TempDir()
+	workflowsDir := filepath.Join(tmpDir, ".github", "workflows")
+	require.NoError(t, os.MkdirAll(workflowsDir, 0755))
+
+	// Workflow with top-level github-app but tools.github explicitly disabled
+	workflowContent := `---
+on: issues
+permissions:
+  contents: read
+github-app:
+  app-id: ${{ vars.APP_ID }}
+  private-key: ${{ secrets.APP_PRIVATE_KEY }}
+tools:
+  github: false
+engine: copilot
+---
+
+# Workflow With GitHub Tool Explicitly Disabled
+
+When tools.github is set to false, the top-level github-app fallback should NOT re-enable it.
+`
+	mdPath := filepath.Join(workflowsDir, "main.md")
+	require.NoError(t, os.WriteFile(mdPath, []byte(workflowContent), 0644))
+
+	origDir, err := os.Getwd()
+	require.NoError(t, err)
+	require.NoError(t, os.Chdir(workflowsDir))
+	defer func() { _ = os.Chdir(origDir) }()
+
+	data, err := compiler.ParseWorkflowFile("main.md")
+	require.NoError(t, err)
+
+	// The top-level github-app should be resolved at the top level
+	require.NotNil(t, data.TopLevelGitHubApp, "TopLevelGitHubApp should be populated")
+
+	// tools.github should remain disabled — applyDefaultTools removes the key when false.
+	// After compilation, ParsedTools.GitHub should be nil (no GitHub MCP tool enabled).
+	assert.Nil(t, data.ParsedTools.GitHub,
+		"ParsedTools.GitHub should be nil when tools.github: false — fallback must not re-enable it")
+}
+
 // workflow is propagated to the activation job (reactions/status comments).
 func TestTopLevelGitHubAppImportActivation(t *testing.T) {
 	compiler := NewCompilerWithVersion("1.0.0")

@@ -636,8 +636,10 @@ func applyTopLevelGitHubAppFallbacks(data *WorkflowData) {
 
 	// Fallback for tools.github (MCP GitHub token minting).
 	// Skip when a custom github-token is already configured for the MCP server (token takes priority).
+	// Also skip when tools.github is explicitly disabled (github: false) — do not re-enable it.
 	if data.ParsedTools != nil && data.ParsedTools.GitHub != nil &&
-		data.ParsedTools.GitHub.GitHubApp == nil && data.ParsedTools.GitHub.GitHubToken == "" {
+		data.ParsedTools.GitHub.GitHubApp == nil && data.ParsedTools.GitHub.GitHubToken == "" &&
+		data.Tools["github"] != false {
 		orchestratorWorkflowLog.Print("Applying top-level github-app fallback for tools.github")
 		data.ParsedTools.GitHub.GitHubApp = fallback
 		// Also update the raw tools map so applyDefaultTools (called from applyDefaults in
@@ -663,7 +665,7 @@ func applyTopLevelGitHubAppFallbacks(data *WorkflowData) {
 			// Already a map; inject into existing settings.
 			github["github-app"] = appMap
 		} else {
-			// Non-map value (e.g. true/false) — create a fresh map preserving the enabled signal.
+			// Non-map value (e.g. true) — create a fresh map.
 			data.Tools["github"] = map[string]any{"github-app": appMap}
 		}
 	}
