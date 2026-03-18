@@ -257,8 +257,10 @@ func (p *Permissions) RenderToYAML() string {
 		scope := PermissionScope(scopeStr)
 		level := allPerms[scope]
 
-		// Skip organization-projects - it's only valid for GitHub App tokens, not workflow permissions
-		if scope == PermissionOrganizationProj {
+		// Skip GitHub App-only permissions - they are not valid GitHub Actions workflow permissions
+		// and cannot be set on the GITHUB_TOKEN. They are handled separately when minting
+		// GitHub App installation access tokens.
+		if IsGitHubAppOnlyScope(scope) {
 			continue
 		}
 

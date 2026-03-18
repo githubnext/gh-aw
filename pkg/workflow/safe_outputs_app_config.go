@@ -197,17 +197,17 @@ func (c *Compiler) buildGitHubAppTokenMintStep(app *GitHubAppConfig, permissions
 
 // convertPermissionsToAppTokenFields converts job Permissions to permission-* action inputs
 // This follows GitHub's recommendation for explicit permission control
-// Note: This only includes permissions that are valid for GitHub App tokens.
-// Some GitHub Actions permissions (like 'discussions', 'models') don't have
-// corresponding GitHub App permissions and are skipped.
+// Note: This maps all permissions (both GitHub Actions and GitHub App-only) to their
+// corresponding permission-* fields in actions/create-github-app-token.
+// Some GitHub Actions permissions (like 'models', 'id-token', 'attestations', 'copilot-requests')
+// don't have corresponding GitHub App permissions and are skipped.
 func convertPermissionsToAppTokenFields(permissions *Permissions) map[string]string {
 	fields := make(map[string]string)
 
 	// Map GitHub Actions permissions to GitHub App permissions
-	// Only include permissions that exist in the actions/create-github-app-token action
 	// See: https://github.com/actions/create-github-app-token#permissions
 
-	// Repository permissions that map directly
+	// GitHub Actions permissions that also exist in GitHub App
 	if level, ok := permissions.Get(PermissionActions); ok {
 		fields["permission-actions"] = string(level)
 	}
@@ -245,11 +245,120 @@ func convertPermissionsToAppTokenFields(permissions *Permissions) map[string]str
 		fields["permission-discussions"] = string(level)
 	}
 
-	// Note: The following GitHub Actions permissions do NOT have GitHub App equivalents:
-	// - models (no GitHub App permission for this)
-	// - id-token (not applicable to GitHub Apps)
-	// - attestations (no GitHub App permission for this)
-	// - repository-projects (removed - classic projects are sunset; use organization-projects for Projects v2 via PAT/GitHub App)
+	// GitHub App-only permissions (not available in GitHub Actions GITHUB_TOKEN)
+	// Repository-level
+	if level, ok := permissions.Get(PermissionAdministration); ok {
+		fields["permission-administration"] = string(level)
+	}
+	if level, ok := permissions.Get(PermissionSecrets); ok {
+		fields["permission-secrets"] = string(level)
+	}
+	if level, ok := permissions.Get(PermissionEnvironments); ok {
+		fields["permission-environments"] = string(level)
+	}
+	if level, ok := permissions.Get(PermissionGitSigning); ok {
+		fields["permission-git-signing"] = string(level)
+	}
+	if level, ok := permissions.Get(PermissionVulnerabilityAlerts); ok {
+		fields["permission-vulnerability-alerts"] = string(level)
+	}
+	if level, ok := permissions.Get(PermissionWorkflows); ok {
+		fields["permission-workflows"] = string(level)
+	}
+	if level, ok := permissions.Get(PermissionRepositoryHooks); ok {
+		fields["permission-repository-hooks"] = string(level)
+	}
+	if level, ok := permissions.Get(PermissionSingleFile); ok {
+		fields["permission-single-file"] = string(level)
+	}
+	if level, ok := permissions.Get(PermissionCodespaces); ok {
+		fields["permission-codespaces"] = string(level)
+	}
+	if level, ok := permissions.Get(PermissionDependabotSecrets); ok {
+		fields["permission-dependabot-secrets"] = string(level)
+	}
+	if level, ok := permissions.Get(PermissionRepositoryCustomProps); ok {
+		fields["permission-repository-custom-properties"] = string(level)
+	}
+	// Organization-level
+	if level, ok := permissions.Get(PermissionMembers); ok {
+		fields["permission-members"] = string(level)
+	}
+	if level, ok := permissions.Get(PermissionOrganizationAdministration); ok {
+		fields["permission-organization-administration"] = string(level)
+	}
+	if level, ok := permissions.Get(PermissionTeamDiscussions); ok {
+		fields["permission-team-discussions"] = string(level)
+	}
+	if level, ok := permissions.Get(PermissionOrganizationHooks); ok {
+		fields["permission-organization-hooks"] = string(level)
+	}
+	if level, ok := permissions.Get(PermissionOrganizationMembers); ok {
+		fields["permission-organization-members"] = string(level)
+	}
+	if level, ok := permissions.Get(PermissionOrganizationPackages); ok {
+		fields["permission-organization-packages"] = string(level)
+	}
+	if level, ok := permissions.Get(PermissionOrganizationSecrets); ok {
+		fields["permission-organization-secrets"] = string(level)
+	}
+	if level, ok := permissions.Get(PermissionOrganizationSelfHostedRunners); ok {
+		fields["permission-organization-self-hosted-runners"] = string(level)
+	}
+	if level, ok := permissions.Get(PermissionOrganizationCustomOrgRoles); ok {
+		fields["permission-organization-custom-org-roles"] = string(level)
+	}
+	if level, ok := permissions.Get(PermissionOrganizationCustomProperties); ok {
+		fields["permission-organization-custom-properties"] = string(level)
+	}
+	if level, ok := permissions.Get(PermissionOrganizationCustomRepositoryRoles); ok {
+		fields["permission-organization-custom-repository-roles"] = string(level)
+	}
+	if level, ok := permissions.Get(PermissionOrganizationAnnouncementBanners); ok {
+		fields["permission-organization-announcement-banners"] = string(level)
+	}
+	if level, ok := permissions.Get(PermissionOrganizationEvents); ok {
+		fields["permission-organization-events"] = string(level)
+	}
+	if level, ok := permissions.Get(PermissionOrganizationPlan); ok {
+		fields["permission-organization-plan"] = string(level)
+	}
+	if level, ok := permissions.Get(PermissionOrganizationUserBlocking); ok {
+		fields["permission-organization-user-blocking"] = string(level)
+	}
+	if level, ok := permissions.Get(PermissionOrganizationPersonalAccessTokenReqs); ok {
+		fields["permission-organization-personal-access-token-requests"] = string(level)
+	}
+	if level, ok := permissions.Get(PermissionOrganizationPersonalAccessTokens); ok {
+		fields["permission-organization-personal-access-tokens"] = string(level)
+	}
+	if level, ok := permissions.Get(PermissionOrganizationCopilot); ok {
+		fields["permission-organization-copilot"] = string(level)
+	}
+	if level, ok := permissions.Get(PermissionOrganizationCodespaces); ok {
+		fields["permission-organization-codespaces"] = string(level)
+	}
+	// User-level
+	if level, ok := permissions.Get(PermissionEmailAddresses); ok {
+		fields["permission-email-addresses"] = string(level)
+	}
+	if level, ok := permissions.Get(PermissionCodespacesLifecycleAdmin); ok {
+		fields["permission-codespaces-lifecycle-admin"] = string(level)
+	}
+	if level, ok := permissions.Get(PermissionCodespacesMetadata); ok {
+		fields["permission-codespaces-metadata"] = string(level)
+	}
+	if level, ok := permissions.Get(PermissionCodespacesSecrets); ok {
+		fields["permission-codespaces-secrets"] = string(level)
+	}
+
+	// Note: The following GitHub Actions permissions do NOT have GitHub App equivalents
+	// and are therefore not mapped to permission-* fields:
+	// - models: no GitHub App permission for AI model access
+	// - id-token: not applicable to GitHub Apps (OIDC-specific)
+	// - attestations: no GitHub App permission for this
+	// - copilot-requests: GitHub Actions-specific Copilot authentication token
+	// - metadata: GitHub App metadata permission is automatically included (read-only)
 
 	return fields
 }
