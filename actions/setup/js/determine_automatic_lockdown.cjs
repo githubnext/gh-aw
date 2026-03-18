@@ -89,9 +89,20 @@ async function determineAutomaticLockdown(github, context, core) {
     const autoLabel = isPrivate ? "automatic (private repo)" : "automatic (public repo)";
     const minIntegritySource = configuredMinIntegrity ? "workflow config" : autoLabel;
     const reposSource = configuredRepos ? "workflow config" : autoLabel;
-    const tableRows = ["| Field | Value | Source |", "|-------|-------|--------|", `| min-integrity | ${resolvedMinIntegrity} | ${minIntegritySource} |`, `| repos | ${resolvedRepos} | ${reposSource} |`].join("\n");
-    const details = `<details>\n<summary>GitHub MCP Guard Policy</summary>\n\n${tableRows}\n\n</details>\n`;
-    await core.summary.addRaw(details).write();
+
+    await core.summary
+      .addRaw("<details>\n<summary>GitHub MCP Guard Policy</summary>\n\n")
+      .addTable([
+        [
+          { data: "Field", header: true },
+          { data: "Value", header: true },
+          { data: "Source", header: true },
+        ],
+        ["min-integrity", resolvedMinIntegrity, minIntegritySource],
+        ["repos", resolvedRepos, reposSource],
+      ])
+      .addRaw("\n</details>\n")
+      .write();
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
     core.error(`Failed to determine automatic guard policy: ${errorMessage}`);
