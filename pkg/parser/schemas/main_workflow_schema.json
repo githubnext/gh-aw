@@ -8162,6 +8162,10 @@
           "additionalProperties": false
         }
       ]
+    },
+    "github-app": {
+      "$ref": "#/$defs/github_app",
+      "description": "Top-level GitHub App configuration used as a fallback for all nested github-app token minting operations (on, safe-outputs, checkout, tools.github, dependencies). When a nested section does not define its own github-app, this top-level configuration is used automatically."
     }
   },
   "additionalProperties": false,

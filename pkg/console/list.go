@@ -19,6 +19,9 @@ import (
 
 var listLog = logger.New("console:list")
 
+// listHeightPadding is the number of rows reserved for the list title, borders, and status bar
+const listHeightPadding = 4
+
 // listModel is the Bubble Tea model for the interactive list
 type listModel struct {
 	list     list.Model
@@ -47,6 +50,7 @@ func (m listModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 	case tea.WindowSizeMsg:
 		m.list.SetWidth(msg.Width)
+		m.list.SetHeight(msg.Height - listHeightPadding)
 		return m, nil
 	}
 

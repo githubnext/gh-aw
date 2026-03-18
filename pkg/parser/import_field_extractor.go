@@ -50,6 +50,8 @@ type importAccumulator struct {
 	// First on.github-token / on.github-app found across all imported files (first-wins strategy)
 	activationGitHubToken string
 	activationGitHubApp   string // JSON-encoded GitHubAppConfig
+	// First top-level github-app found across all imported files (first-wins strategy)
+	topLevelGitHubApp string // JSON-encoded GitHubAppConfig
 }
 
 // newImportAccumulator creates and initializes a new importAccumulator.
@@ -228,6 +230,14 @@ func (acc *importAccumulator) extractAllImportFields(content []byte, item import
 		}
 	}
 
+	// Extract top-level github-app from imported file (first-wins: only set if not yet populated)
+	if acc.topLevelGitHubApp == "" {
+		if appJSON := extractTopLevelGitHubApp(string(content)); appJSON != "" {
+			acc.topLevelGitHubApp = appJSON
+			log.Printf("Extracted top-level github-app from import: %s", item.fullPath)
+		}
+	}
+
 	// Extract and merge plugins from imported file (merge into set to avoid duplicates).
 	// Handles both simple string format and object format with MCP configs.
 	pluginsContent, err := extractFrontmatterField(string(content), "plugins", "[]")
@@ -331,6 +341,7 @@ func (acc *importAccumulator) toImportsResult(topologicalOrder []string) *Import
 		ImportInputs:                acc.importInputs,
 		MergedActivationGitHubToken: acc.activationGitHubToken,
 		MergedActivationGitHubApp:   acc.activationGitHubApp,
+		MergedTopLevelGitHubApp:     acc.topLevelGitHubApp,
 	}
 }
 
@@ -370,11 +381,10 @@ func extractOnGitHubToken(content string) string {
 	return token
 }
 
-// extractOnGitHubApp returns the JSON-encoded on.github-app object from workflow content.
-// Returns "" if the field is absent, not a valid object, or missing required fields.
-func extractOnGitHubApp(content string) string {
-	appJSON, err := extractOnSectionAnyField(content, "github-app")
-	if err != nil || appJSON == "" || appJSON == "null" {
+// validateGitHubAppJSON validates that a JSON-encoded GitHub App configuration has the required
+// fields (app-id and private-key). Returns the input JSON if valid, or "" otherwise.
+func validateGitHubAppJSON(appJSON string) string {
+	if appJSON == "" || appJSON == "null" {
 		return ""
 	}
 	var appMap map[string]any
@@ -388,4 +398,24 @@ func extractOnGitHubApp(content string) string {
 		return ""
 	}
 	return appJSON
+}
+
+// extractOnGitHubApp returns the JSON-encoded on.github-app object from workflow content.
+// Returns "" if the field is absent, not a valid object, or missing required fields.
+func extractOnGitHubApp(content string) string {
+	appJSON, err := extractOnSectionAnyField(content, "github-app")
+	if err != nil {
+		return ""
+	}
+	return validateGitHubAppJSON(appJSON)
+}
+
+// extractTopLevelGitHubApp returns the JSON-encoded top-level github-app object from workflow content.
+// Returns "" if the field is absent, not a valid object, or missing required fields.
+func extractTopLevelGitHubApp(content string) string {
+	appJSON, err := extractFrontmatterField(content, "github-app", "")
+	if err != nil {
+		return ""
+	}
+	return validateGitHubAppJSON(appJSON)
 }

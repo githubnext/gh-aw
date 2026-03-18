@@ -10,6 +10,7 @@ import (
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/styles"
 )
 
 var addInteractiveLog = logger.New("cli:add_interactive")
@@ -228,7 +229,7 @@ func (c *AddInteractiveConfig) confirmChanges(workflowFiles, initFiles []string,
 				Negative("No, cancel").
 				Value(&confirmed),
 		),
-	).WithAccessible(console.IsAccessibleMode())
+	).WithTheme(styles.HuhTheme()).WithAccessible(console.IsAccessibleMode())
 
 	if err := form.Run(); err != nil {
 		return fmt.Errorf("confirmation failed: %w", err)

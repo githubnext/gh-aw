@@ -7,6 +7,7 @@ import (
 	"github.com/charmbracelet/huh"
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/constants"
+	"github.com/github/gh-aw/pkg/styles"
 	"github.com/github/gh-aw/pkg/workflow"
 )
 
@@ -123,7 +124,7 @@ func (c *AddInteractiveConfig) selectAIEngineAndKey() error {
 				Options(engineOptions...).
 				Value(&selectedEngine),
 		),
-	).WithAccessible(console.IsAccessibleMode())
+	).WithTheme(styles.HuhTheme()).WithAccessible(console.IsAccessibleMode())
 
 	if err := form.Run(); err != nil {
 		return fmt.Errorf("failed to select coding agent: %w", err)

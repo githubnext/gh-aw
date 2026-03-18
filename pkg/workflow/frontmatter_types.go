@@ -35,28 +35,78 @@ type RuntimesConfig struct {
 	Ruby    *RuntimeConfig `json:"ruby,omitempty"`    // Ruby runtime
 }
 
-// PermissionsConfig represents GitHub Actions permissions configuration
-// Supports both shorthand (read-all, write-all) and detailed scope-based permissions
+// GitHubActionsPermissionsConfig holds permission scopes supported by the GitHub Actions GITHUB_TOKEN.
+// These scopes can be declared in the workflow's top-level permissions block and are enforced
+// natively by GitHub Actions.
+type GitHubActionsPermissionsConfig struct {
+	Actions            string `json:"actions,omitempty"`
+	Checks             string `json:"checks,omitempty"`
+	Contents           string `json:"contents,omitempty"`
+	Deployments        string `json:"deployments,omitempty"`
+	IDToken            string `json:"id-token,omitempty"`
+	Issues             string `json:"issues,omitempty"`
+	Discussions        string `json:"discussions,omitempty"`
+	Packages           string `json:"packages,omitempty"`
+	Pages              string `json:"pages,omitempty"`
+	PullRequests       string `json:"pull-requests,omitempty"`
+	RepositoryProjects string `json:"repository-projects,omitempty"`
+	SecurityEvents     string `json:"security-events,omitempty"`
+	Statuses           string `json:"statuses,omitempty"`
+}
+
+// GitHubAppPermissionsConfig holds permission scopes that are exclusive to GitHub App
+// installation access tokens (not supported by GITHUB_TOKEN). When any of these are
+// specified, a GitHub App must be configured in the workflow.
+type GitHubAppPermissionsConfig struct {
+	// Organization-level permissions (the common use-case placed first)
+	OrganizationProjects                string `json:"organization-projects,omitempty"`
+	Members                             string `json:"members,omitempty"`
+	OrganizationAdministration          string `json:"organization-administration,omitempty"`
+	TeamDiscussions                     string `json:"team-discussions,omitempty"`
+	OrganizationHooks                   string `json:"organization-hooks,omitempty"`
+	OrganizationMembers                 string `json:"organization-members,omitempty"`
+	OrganizationPackages                string `json:"organization-packages,omitempty"`
+	OrganizationSelfHostedRunners       string `json:"organization-self-hosted-runners,omitempty"`
+	OrganizationCustomOrgRoles          string `json:"organization-custom-org-roles,omitempty"`
+	OrganizationCustomProperties        string `json:"organization-custom-properties,omitempty"`
+	OrganizationCustomRepositoryRoles   string `json:"organization-custom-repository-roles,omitempty"`
+	OrganizationAnnouncementBanners     string `json:"organization-announcement-banners,omitempty"`
+	OrganizationEvents                  string `json:"organization-events,omitempty"`
+	OrganizationPlan                    string `json:"organization-plan,omitempty"`
+	OrganizationUserBlocking            string `json:"organization-user-blocking,omitempty"`
+	OrganizationPersonalAccessTokenReqs string `json:"organization-personal-access-token-requests,omitempty"`
+	OrganizationPersonalAccessTokens    string `json:"organization-personal-access-tokens,omitempty"`
+	OrganizationCopilot                 string `json:"organization-copilot,omitempty"`
+	OrganizationCodespaces              string `json:"organization-codespaces,omitempty"`
+	// Repository-level permissions
+	Administration             string `json:"administration,omitempty"`
+	Environments               string `json:"environments,omitempty"`
+	GitSigning                 string `json:"git-signing,omitempty"`
+	VulnerabilityAlerts        string `json:"vulnerability-alerts,omitempty"`
+	Workflows                  string `json:"workflows,omitempty"`
+	RepositoryHooks            string `json:"repository-hooks,omitempty"`
+	SingleFile                 string `json:"single-file,omitempty"`
+	Codespaces                 string `json:"codespaces,omitempty"`
+	RepositoryCustomProperties string `json:"repository-custom-properties,omitempty"`
+	// User-level permissions
+	EmailAddresses           string `json:"email-addresses,omitempty"`
+	CodespacesLifecycleAdmin string `json:"codespaces-lifecycle-admin,omitempty"`
+	CodespacesMetadata       string `json:"codespaces-metadata,omitempty"`
+}
+
+// PermissionsConfig represents GitHub Actions permissions configuration.
+// Supports both shorthand (read-all, write-all) and detailed scope-based permissions.
+// Embeds GitHubActionsPermissionsConfig for standard GITHUB_TOKEN scopes and
+// GitHubAppPermissionsConfig for GitHub App-only scopes.
 type PermissionsConfig struct {
 	// Shorthand permission (read-all, write-all, read, write, none)
 	Shorthand string `json:"-"` // Not in JSON, set when parsing shorthand format
 
-	// Detailed permissions by scope
-	Actions              string `json:"actions,omitempty"`
-	Checks               string `json:"checks,omitempty"`
-	Contents             string `json:"contents,omitempty"`
-	Deployments          string `json:"deployments,omitempty"`
-	IDToken              string `json:"id-token,omitempty"`
-	Issues               string `json:"issues,omitempty"`
-	Discussions          string `json:"discussions,omitempty"`
-	Packages             string `json:"packages,omitempty"`
-	Pages                string `json:"pages,omitempty"`
-	PullRequests         string `json:"pull-requests,omitempty"`
-	RepositoryProjects   string `json:"repository-projects,omitempty"`
-	SecurityEvents       string `json:"security-events,omitempty"`
-	Statuses             string `json:"statuses,omitempty"`
-	OrganizationProjects string `json:"organization-projects,omitempty"`
-	OrganizationPackages string `json:"organization-packages,omitempty"`
+	// GitHub Actions GITHUB_TOKEN permission scopes
+	GitHubActionsPermissionsConfig
+
+	// GitHub App-only permission scopes (require a GitHub App to be configured)
+	GitHubAppPermissionsConfig
 }
 
 // PluginMCPConfig represents MCP configuration for a plugin
@@ -356,6 +406,7 @@ func parsePermissionsConfig(permissions map[string]any) (*PermissionsConfig, err
 	for scope, level := range permissions {
 		if levelStr, ok := level.(string); ok {
 			switch scope {
+			// GitHub Actions permission scopes
 			case "actions":
 				config.Actions = levelStr
 			case "checks":
@@ -384,8 +435,67 @@ func parsePermissionsConfig(permissions map[string]any) (*PermissionsConfig, err
 				config.Statuses = levelStr
 			case "organization-projects":
 				config.OrganizationProjects = levelStr
+			// GitHub App-only permission scopes
+			case "administration":
+				config.Administration = levelStr
+			case "environments":
+				config.Environments = levelStr
+			case "git-signing":
+				config.GitSigning = levelStr
+			case "vulnerability-alerts":
+				config.VulnerabilityAlerts = levelStr
+			case "workflows":
+				config.Workflows = levelStr
+			case "repository-hooks":
+				config.RepositoryHooks = levelStr
+			case "single-file":
+				config.SingleFile = levelStr
+			case "codespaces":
+				config.Codespaces = levelStr
+			case "repository-custom-properties":
+				config.RepositoryCustomProperties = levelStr
+			case "members":
+				config.Members = levelStr
+			case "organization-administration":
+				config.OrganizationAdministration = levelStr
+			case "team-discussions":
+				config.TeamDiscussions = levelStr
+			case "organization-hooks":
+				config.OrganizationHooks = levelStr
+			case "organization-members":
+				config.OrganizationMembers = levelStr
 			case "organization-packages":
 				config.OrganizationPackages = levelStr
+			case "organization-self-hosted-runners":
+				config.OrganizationSelfHostedRunners = levelStr
+			case "organization-custom-org-roles":
+				config.OrganizationCustomOrgRoles = levelStr
+			case "organization-custom-properties":
+				config.OrganizationCustomProperties = levelStr
+			case "organization-custom-repository-roles":
+				config.OrganizationCustomRepositoryRoles = levelStr
+			case "organization-announcement-banners":
+				config.OrganizationAnnouncementBanners = levelStr
+			case "organization-events":
+				config.OrganizationEvents = levelStr
+			case "organization-plan":
+				config.OrganizationPlan = levelStr
+			case "organization-user-blocking":
+				config.OrganizationUserBlocking = levelStr
+			case "organization-personal-access-token-requests":
+				config.OrganizationPersonalAccessTokenReqs = levelStr
+			case "organization-personal-access-tokens":
+				config.OrganizationPersonalAccessTokens = levelStr
+			case "organization-copilot":
+				config.OrganizationCopilot = levelStr
+			case "organization-codespaces":
+				config.OrganizationCodespaces = levelStr
+			case "email-addresses":
+				config.EmailAddresses = levelStr
+			case "codespaces-lifecycle-admin":
+				config.CodespacesLifecycleAdmin = levelStr
+			case "codespaces-metadata":
+				config.CodespacesMetadata = levelStr
 			}
 		}
 	}
@@ -767,6 +877,7 @@ func permissionsConfigToMap(config *PermissionsConfig) map[string]any {
 
 	result := make(map[string]any)
 
+	// GitHub Actions permission scopes
 	if config.Actions != "" {
 		result["actions"] = config.Actions
 	}
@@ -809,8 +920,101 @@ func permissionsConfigToMap(config *PermissionsConfig) map[string]any {
 	if config.OrganizationProjects != "" {
 		result["organization-projects"] = config.OrganizationProjects
 	}
+
+	// GitHub App-only permission scopes - repository-level
+	if config.Administration != "" {
+		result["administration"] = config.Administration
+	}
+	if config.Environments != "" {
+		result["environments"] = config.Environments
+	}
+	if config.GitSigning != "" {
+		result["git-signing"] = config.GitSigning
+	}
+	if config.VulnerabilityAlerts != "" {
+		result["vulnerability-alerts"] = config.VulnerabilityAlerts
+	}
+	if config.Workflows != "" {
+		result["workflows"] = config.Workflows
+	}
+	if config.RepositoryHooks != "" {
+		result["repository-hooks"] = config.RepositoryHooks
+	}
+	if config.SingleFile != "" {
+		result["single-file"] = config.SingleFile
+	}
+	if config.Codespaces != "" {
+		result["codespaces"] = config.Codespaces
+	}
+	if config.RepositoryCustomProperties != "" {
+		result["repository-custom-properties"] = config.RepositoryCustomProperties
+	}
+
+	// GitHub App-only permission scopes - organization-level
+	if config.Members != "" {
+		result["members"] = config.Members
+	}
+	if config.OrganizationAdministration != "" {
+		result["organization-administration"] = config.OrganizationAdministration
+	}
+	if config.TeamDiscussions != "" {
+		result["team-discussions"] = config.TeamDiscussions
+	}
+	if config.OrganizationHooks != "" {
+		result["organization-hooks"] = config.OrganizationHooks
+	}
+	if config.OrganizationMembers != "" {
+		result["organization-members"] = config.OrganizationMembers
+	}
 	if config.OrganizationPackages != "" {
 		result["organization-packages"] = config.OrganizationPackages
+	}
+	if config.OrganizationSelfHostedRunners != "" {
+		result["organization-self-hosted-runners"] = config.OrganizationSelfHostedRunners
+	}
+	if config.OrganizationCustomOrgRoles != "" {
+		result["organization-custom-org-roles"] = config.OrganizationCustomOrgRoles
+	}
+	if config.OrganizationCustomProperties != "" {
+		result["organization-custom-properties"] = config.OrganizationCustomProperties
+	}
+	if config.OrganizationCustomRepositoryRoles != "" {
+		result["organization-custom-repository-roles"] = config.OrganizationCustomRepositoryRoles
+	}
+	if config.OrganizationAnnouncementBanners != "" {
+		result["organization-announcement-banners"] = config.OrganizationAnnouncementBanners
+	}
+	if config.OrganizationEvents != "" {
+		result["organization-events"] = config.OrganizationEvents
+	}
+	if config.OrganizationPlan != "" {
+		result["organization-plan"] = config.OrganizationPlan
+	}
+	if config.OrganizationUserBlocking != "" {
+		result["organization-user-blocking"] = config.OrganizationUserBlocking
+	}
+	if config.OrganizationPersonalAccessTokenReqs != "" {
+		result["organization-personal-access-token-requests"] = config.OrganizationPersonalAccessTokenReqs
+	}
+	if config.OrganizationPersonalAccessTokens != "" {
+		result["organization-personal-access-tokens"] = config.OrganizationPersonalAccessTokens
+	}
+	if config.OrganizationCopilot != "" {
+		result["organization-copilot"] = config.OrganizationCopilot
+	}
+	if config.OrganizationCodespaces != "" {
+		result["organization-codespaces"] = config.OrganizationCodespaces
+	}
+
+	// GitHub App-only permission scopes - user-level
+	if config.EmailAddresses != "" {
+		result["email-addresses"] = config.EmailAddresses
+	}
+	if config.CodespacesLifecycleAdmin != "" {
+		result["codespaces-lifecycle-admin"] = config.CodespacesLifecycleAdmin
+	}
+	if config.CodespacesMetadata != "" {
+		result["codespaces-metadata"] = config.CodespacesMetadata
 	}
 
 	if len(result) == 0 {

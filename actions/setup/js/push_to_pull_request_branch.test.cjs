@@ -596,16 +596,30 @@ index 0000000..abc1234
       mockExec.exec.mockResolvedValueOnce(0); // rev-parse
       mockExec.exec.mockResolvedValueOnce(0); // checkout
 
-      mockExec.getExecOutput.mockResolvedValueOnce({ exitCode: 0, stdout: "before-sha\n", stderr: "" });
+      mockExec.getExecOutput.mockResolvedValueOnce({ exitCode: 0, stdout: "before-sha\n", stderr: "" }); // git rev-parse HEAD (before patch)
 
       mockExec.exec.mockResolvedValueOnce(0); // git am
+
+      // pushSignedCommits: git rev-list returns one SHA so the push is attempted
+      mockExec.getExecOutput.mockResolvedValueOnce({ exitCode: 0, stdout: "abc123\n", stderr: "" }); // git rev-list
+      // pushSignedCommits: git ls-remote returns remote HEAD OID
+      mockExec.getExecOutput.mockResolvedValueOnce({ exitCode: 0, stdout: "remote-oid\trefs/heads/feature-branch\n", stderr: "" }); // git ls-remote
+      // pushSignedCommits: git log -1 returns commit message
+      mockExec.getExecOutput.mockResolvedValueOnce({ exitCode: 0, stdout: "Test commit\n", stderr: "" }); // git log -1
+      // pushSignedCommits: git diff --name-status returns file changes
+      mockExec.getExecOutput.mockResolvedValueOnce({ exitCode: 0, stdout: "", stderr: "" }); // git diff --name-status (empty - no files)
+
+      // GraphQL call fails, triggering fallback to git push
+      mockGithub.graphql.mockRejectedValueOnce(new Error("GraphQL error: branch protection"));
+
+      // Fallback git push also fails with non-fast-forward
       mockExec.exec.mockRejectedValueOnce(new Error("! [rejected] feature-branch -> feature-branch (non-fast-forward)"));
 
       const module = await loadModule();
       const handler = await module.main({});
       const result = await handler({ patch_path: patchPath }, {});
 
-      // The error happens during push, which currently shows in patch apply failure
+      // The error happens during push
       expect(result.success).toBe(false);
     });
 
