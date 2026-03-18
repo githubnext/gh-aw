@@ -605,43 +605,55 @@ func resolveTopLevelGitHubApp(frontmatter map[string]any, importsResult *parser.
 	return nil
 }
 
+// topLevelFallbackNeeded reports whether the top-level github-app should be applied as a
+// fallback for a given section. It returns true when the section has neither an explicit
+// github-app nor an explicit github-token already configured.
+//
+// Rules (consistent across all sections):
+//   - If a section-specific github-app is set → keep it, no fallback needed.
+//   - If a section-specific github-token is set → keep it, no fallback needed (a token
+//     already provides the auth; injecting a github-app would silently change precedence).
+//   - Otherwise → apply the top-level fallback.
+func topLevelFallbackNeeded(app *GitHubAppConfig, token string) bool {
+	return app == nil && token == ""
+}
+
 // applyTopLevelGitHubAppFallbacks applies the top-level github-app as a fallback for all
 // nested github-app token minting operations when no section-specific github-app is configured.
-// Precedence: section-specific github-app > top-level github-app > no token minting.
+// Precedence: section-specific github-app > section-specific github-token > top-level github-app.
+//
+// Every section uses topLevelFallbackNeeded to decide whether the fallback is required,
+// ensuring consistent behaviour across all token-minting sites.
 func applyTopLevelGitHubAppFallbacks(data *WorkflowData) {
 	fallback := data.TopLevelGitHubApp
 	if fallback == nil {
 		return
 	}
 
-	// Fallback for activation (on.github-app)
-	// Skip when on.github-token is already explicitly configured — the token takes priority over
-	// app-based auth at runtime and injecting a github-app fallback would flip that precedence.
-	if data.ActivationGitHubApp == nil && data.ActivationGitHubToken == "" {
+	// Fallback for activation (on.github-app / on.github-token)
+	if topLevelFallbackNeeded(data.ActivationGitHubApp, data.ActivationGitHubToken) {
 		orchestratorWorkflowLog.Print("Applying top-level github-app fallback for activation")
 		data.ActivationGitHubApp = fallback
 	}
 
-	// Fallback for safe-outputs
-	// Also skip when a custom github-token is already configured for safe-outputs.
-	if data.SafeOutputs != nil && data.SafeOutputs.GitHubApp == nil && data.SafeOutputs.GitHubToken == "" {
+	// Fallback for safe-outputs (safe-outputs.github-app / safe-outputs.github-token)
+	if data.SafeOutputs != nil && topLevelFallbackNeeded(data.SafeOutputs.GitHubApp, data.SafeOutputs.GitHubToken) {
 		orchestratorWorkflowLog.Print("Applying top-level github-app fallback for safe-outputs")
 		data.SafeOutputs.GitHubApp = fallback
 	}
 
-	// Fallback for checkout configs: apply only when neither github-token nor github-app is set
+	// Fallback for checkout configs (checkout.github-app / checkout.github-token per entry)
 	for _, cfg := range data.CheckoutConfigs {
-		if cfg.GitHubApp == nil && cfg.GitHubToken == "" {
+		if topLevelFallbackNeeded(cfg.GitHubApp, cfg.GitHubToken) {
 			orchestratorWorkflowLog.Print("Applying top-level github-app fallback for checkout")
 			cfg.GitHubApp = fallback
 		}
 	}
 
-	// Fallback for tools.github (MCP GitHub token minting).
-	// Skip when a custom github-token is already configured for the MCP server (token takes priority).
-	// Also skip when tools.github is explicitly disabled (github: false) — do not re-enable it.
+	// Fallback for tools.github (tools.github.github-app / tools.github.github-token).
+	// Also skipped when tools.github is explicitly disabled (github: false) — do not re-enable it.
 	if data.ParsedTools != nil && data.ParsedTools.GitHub != nil &&
-		data.ParsedTools.GitHub.GitHubApp == nil && data.ParsedTools.GitHub.GitHubToken == "" &&
+		topLevelFallbackNeeded(data.ParsedTools.GitHub.GitHubApp, data.ParsedTools.GitHub.GitHubToken) &&
 		data.Tools["github"] != false {
 		orchestratorWorkflowLog.Print("Applying top-level github-app fallback for tools.github")
 		data.ParsedTools.GitHub.GitHubApp = fallback
@@ -673,8 +685,8 @@ func applyTopLevelGitHubAppFallbacks(data *WorkflowData) {
 		}
 	}
 
-	// Fallback for APM dependencies
-	if data.APMDependencies != nil && data.APMDependencies.GitHubApp == nil {
+	// Fallback for APM dependencies (dependencies.github-app; no github-token field)
+	if data.APMDependencies != nil && topLevelFallbackNeeded(data.APMDependencies.GitHubApp, "") {
 		orchestratorWorkflowLog.Print("Applying top-level github-app fallback for dependencies")
 		data.APMDependencies.GitHubApp = fallback
 	}
