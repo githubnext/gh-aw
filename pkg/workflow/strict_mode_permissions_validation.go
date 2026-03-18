@@ -75,8 +75,9 @@ func (c *Compiler) validateStrictDeprecatedFields(frontmatter map[string]any) er
 
 // validateStrictFirewall requires firewall to be enabled in strict mode for copilot and codex engines
 // when network domains are provided (non-wildcard).
-// In strict mode, ALL engines (regardless of LLM gateway support) require that network domains
-// must be defaults or from known ecosystems, and sandbox.agent must be enabled.
+// In strict mode, ALL engines (regardless of LLM gateway support) disallow sandbox.agent: false.
+// Ecosystem-owned domains that are not specified as ecosystem identifiers emit a warning suggesting
+// the identifier form, but truly custom domains are allowed without error.
 func (c *Compiler) validateStrictFirewall(engineID string, networkPermissions *NetworkPermissions, sandboxConfig *SandboxConfig) error {
 	if !c.strictMode {
 		strictModeValidationLog.Printf("Strict mode disabled, skipping firewall validation")
