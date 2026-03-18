@@ -328,7 +328,7 @@ func DownloadWorkflowLogs(ctx context.Context, workflowName string, count int, s
 				}
 
 				processedRun := ProcessedRun{
-					Run:                     run,
+					Run:                     result.Run,
 					AccessAnalysis:          result.AccessAnalysis,
 					FirewallAnalysis:        result.FirewallAnalysis,
 					RedactedDomainsAnalysis: result.RedactedDomainsAnalysis,
@@ -746,7 +746,7 @@ func downloadRunArtifactsConcurrent(ctx context.Context, runs []WorkflowRun, out
 					CLIVersion:              GetVersion(),
 					RunID:                   run.DatabaseID,
 					ProcessedAt:             time.Now(),
-					Run:                     run,
+					Run:                     result.Run,
 					Metrics:                 metrics,
 					AccessAnalysis:          accessAnalysis,
 					FirewallAnalysis:        firewallAnalysis,

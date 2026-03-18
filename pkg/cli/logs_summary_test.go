@@ -322,3 +322,46 @@ func TestRunSummaryJSONStructure(t *testing.T) {
 		t.Errorf("ArtifactsList length mismatch after round-trip: got %d, want %d", len(testUnmarshal.ArtifactsList), len(testSummary.ArtifactsList))
 	}
 }
+
+// TestSaveAndLoadRunSummary_SafeItemsCount verifies that SafeItemsCount is correctly
+// persisted to and loaded from the RunSummary cache. This is a regression test for
+// the bug where filtering logs by workflow_name returned safe_items_count=0 because
+// the RunSummary was saved with Run: run (which had SafeItemsCount=0) instead of
+// Run: result.Run (which had SafeItemsCount set after extractCreatedItemsFromManifest).
+func TestSaveAndLoadRunSummary_SafeItemsCount(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "test-safe-items-*")
+	runDir := filepath.Join(tmpDir, "run-99999")
+	if err := os.MkdirAll(runDir, 0755); err != nil {
+		t.Fatalf("Failed to create test directory: %v", err)
+	}
+
+	originalVersion := GetVersion()
+	SetVersionInfo("1.0.0-test")
+	defer SetVersionInfo(originalVersion)
+
+	testSummary := &RunSummary{
+		CLIVersion:  GetVersion(),
+		RunID:       99999,
+		ProcessedAt: time.Now(),
+		Run: WorkflowRun{
+			DatabaseID:     99999,
+			WorkflowName:   "Plan Command",
+			Status:         "completed",
+			Conclusion:     "success",
+			SafeItemsCount: 4,
+		},
+	}
+
+	if err := saveRunSummary(runDir, testSummary, false); err != nil {
+		t.Fatalf("Failed to save run summary: %v", err)
+	}
+
+	loaded, ok := loadRunSummary(runDir, false)
+	if !ok {
+		t.Fatal("Failed to load run summary")
+	}
+
+	if loaded.Run.SafeItemsCount != 4 {
+		t.Errorf("SafeItemsCount not persisted: got %d, want 4", loaded.Run.SafeItemsCount)
+	}
+}
