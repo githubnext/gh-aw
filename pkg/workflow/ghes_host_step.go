@@ -19,6 +19,7 @@ func generateGHESHostConfigurationStep() string {
 	ghesHostStepLog.Print("Generating inline GH_HOST configuration step for GHES compatibility")
 
 	return `      - name: Configure GH_HOST for enterprise compatibility
+        shell: bash
         run: |
           # Derive GH_HOST from GITHUB_SERVER_URL so the gh CLI targets the correct
           # GitHub instance (GHES/GHEC). On github.com this is a harmless no-op.

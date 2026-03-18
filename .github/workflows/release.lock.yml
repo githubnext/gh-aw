@@ -981,6 +981,7 @@ jobs:
       release_tag: ${{ steps.compute_config.outputs.release_tag }}
     steps:
       - name: Configure GH_HOST for enterprise compatibility
+        shell: bash
         run: |
           # Derive GH_HOST from GITHUB_SERVER_URL so the gh CLI targets the correct
           # GitHub instance (GHES/GHEC). On github.com this is a harmless no-op.
@@ -1130,6 +1131,7 @@ jobs:
 
     steps:
       - name: Configure GH_HOST for enterprise compatibility
+        shell: bash
         run: |
           # Derive GH_HOST from GITHUB_SERVER_URL so the gh CLI targets the correct
           # GitHub instance (GHES/GHEC). On github.com this is a harmless no-op.
@@ -1216,6 +1218,7 @@ jobs:
       release_id: ${{ steps.get_release.outputs.release_id }}
     steps:
       - name: Configure GH_HOST for enterprise compatibility
+        shell: bash
         run: |
           # Derive GH_HOST from GITHUB_SERVER_URL so the gh CLI targets the correct
           # GitHub instance (GHES/GHEC). On github.com this is a harmless no-op.
@@ -1383,6 +1386,7 @@ jobs:
           find "/tmp/gh-aw/" -type f -print
           echo "GH_AW_AGENT_OUTPUT=/tmp/gh-aw/agent_output.json" >> "$GITHUB_ENV"
       - name: Configure GH_HOST for enterprise compatibility
+        shell: bash
         run: |
           # Derive GH_HOST from GITHUB_SERVER_URL so the gh CLI targets the correct
           # GitHub instance (GHES/GHEC). On github.com this is a harmless no-op.
@@ -1423,6 +1427,7 @@ jobs:
     environment: gh-aw-actions-release
     steps:
       - name: Configure GH_HOST for enterprise compatibility
+        shell: bash
         run: |
           # Derive GH_HOST from GITHUB_SERVER_URL so the gh CLI targets the correct
           # GitHub instance (GHES/GHEC). On github.com this is a harmless no-op.
