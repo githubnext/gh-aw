@@ -663,7 +663,7 @@
             "number",
             "string"
           ],
-          "description": "Issue number to assign to the milestone. This is the numeric ID from the GitHub URL (e.g., 567 in github.com/owner/repo/issues/567)."
+          "description": "Issue number to assign to the milestone. This is the numeric ID from the GitHub URL (e.g., 567 in github.com/owner/repo/issues/567). Can also be a temporary_id (e.g., 'aw_abc123') from a previously created issue in the same workflow run."
         },
         "milestone_number": {
           "type": [
