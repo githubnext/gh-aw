@@ -514,8 +514,27 @@ func buildSafeOutputItemsManifestUploadStep(prefix string) []string {
 	}
 }
 
+// generateSafeOutputScriptContent wraps the user's script body in a main function template.
+// Users write only the body of the main function (the handler setup code and return statement),
+// and the compiler wraps it with the function declaration and module.exports — the same pattern
+// used by MCP-scripts and actions/github-script.
+func generateSafeOutputScriptContent(scriptName string, scriptBody string) string {
+	var sb strings.Builder
+	sb.WriteString("// Auto-generated safe-output script handler: " + scriptName + "\n")
+	sb.WriteString("async function main(config = {}) {\n")
+	// Indent each line of the user's body by 2 spaces
+	for line := range strings.SplitSeq(scriptBody, "\n") {
+		sb.WriteString("  " + line + "\n")
+	}
+	sb.WriteString("}\n")
+	sb.WriteString("module.exports = { main };\n")
+	return sb.String()
+}
+
 // buildCustomScriptFilesStep generates a run step that writes inline safe-output script files
 // to the setup action destination folder so they can be required by the handler manager.
+// The user's script body is automatically wrapped with async function main(config = {}) { ... }
+// and module.exports = { main }; — users write only the handler body, not the boilerplate.
 // Each script is written using a heredoc to avoid shell quoting issues.
 func buildCustomScriptFilesStep(scripts map[string]*SafeScriptConfig) []string {
 	if len(scripts) == 0 {
@@ -537,11 +556,12 @@ func buildCustomScriptFilesStep(scripts map[string]*SafeScriptConfig) []string {
 		scriptConfig := scripts[scriptName]
 		normalizedName := stringutil.NormalizeSafeOutputIdentifier(scriptName)
 		filename := safeOutputScriptFilename(normalizedName)
-		filepath := SetupActionDestinationShell + "/" + filename
+		filePath := SetupActionDestinationShell + "/" + filename
 		delimiter := GenerateHeredocDelimiter("SAFE_OUTPUT_SCRIPT_" + strings.ToUpper(normalizedName))
+		scriptContent := generateSafeOutputScriptContent(scriptName, scriptConfig.Script)
 
-		steps = append(steps, fmt.Sprintf("          cat > %s << '%s'\n", filepath, delimiter))
-		for line := range strings.SplitSeq(scriptConfig.Script, "\n") {
+		steps = append(steps, fmt.Sprintf("          cat > %s << '%s'\n", filePath, delimiter))
+		for line := range strings.SplitSeq(scriptContent, "\n") {
 			steps = append(steps, "          "+line+"\n")
 		}
 		steps = append(steps, "          "+delimiter+"\n")

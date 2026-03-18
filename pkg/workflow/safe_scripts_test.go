@@ -29,12 +29,10 @@ func TestParseSafeScriptsConfig(t *testing.T) {
 					"type":        "string",
 				},
 			},
-			"script": `async function main(config = {}) {
-  return async function handleSlackPostMessage(message, resolvedTemporaryIds) {
-    return { success: true };
-  };
-}
-module.exports = { main };`,
+			// Users write only the body of main — the compiler wraps it
+			"script": `return async function handleSlackPostMessage(message, resolvedTemporaryIds) {
+  return { success: true };
+};`,
 		},
 	}
 
@@ -47,7 +45,7 @@ module.exports = { main };`,
 	require.True(t, exists, "Should have slack-post-message script")
 	assert.Equal(t, "Post Slack Message", script.Name, "Name should match")
 	assert.Equal(t, "Post a message to a Slack channel", script.Description, "Description should match")
-	assert.Contains(t, script.Script, "async function main", "Script should contain main function")
+	assert.Contains(t, script.Script, "return async function", "Script body should contain handler return")
 
 	require.Len(t, script.Inputs, 2, "Should have 2 inputs")
 
@@ -75,7 +73,8 @@ func TestExtractSafeScriptsFromFrontmatter(t *testing.T) {
 			"scripts": map[string]any{
 				"my-handler": map[string]any{
 					"description": "A custom handler",
-					"script":      "module.exports = { main: async (c) => async (m) => ({ success: true }) };",
+					// Users write only the body — no module.exports or main declaration needed
+					"script": "return async (m) => ({ success: true });",
 				},
 			},
 		},
@@ -108,7 +107,7 @@ func TestBuildCustomSafeOutputScriptsJSON(t *testing.T) {
 			Scripts: map[string]*SafeScriptConfig{
 				"my-handler": {
 					Description: "Custom handler",
-					Script:      "module.exports = { main: async (c) => async (m) => ({ success: true }) };",
+					Script:      "return async (m) => ({ success: true });",
 				},
 			},
 		},
@@ -132,10 +131,10 @@ func TestBuildCustomSafeOutputScriptsJSONNormalization(t *testing.T) {
 		SafeOutputs: &SafeOutputsConfig{
 			Scripts: map[string]*SafeScriptConfig{
 				"slack-post-message": {
-					Script: "module.exports = { main: async (c) => async (m) => ({ success: true }) };",
+					Script: "return async (m) => ({ success: true });",
 				},
 				"notify-team": {
-					Script: "module.exports = { main: async (c) => async (m) => ({ success: true }) };",
+					Script: "return async (m) => ({ success: true });",
 				},
 			},
 		},
@@ -182,7 +181,7 @@ func TestGenerateCustomScriptToolDefinition(t *testing.T) {
 				Type:        "string",
 			},
 		},
-		Script: "module.exports = { main: async (c) => async (m) => ({ success: true }) };",
+		Script: "return async (m) => ({ success: true });",
 	}
 
 	tool := generateCustomScriptToolDefinition("slack_post_message", scriptConfig)
@@ -220,7 +219,7 @@ func TestScriptToolsInFilteredJSON(t *testing.T) {
 							Type:        "string",
 						},
 					},
-					Script: "module.exports = { main: async (c) => async (m) => ({ success: true }) };",
+					Script: "return async (m) => ({ success: true });",
 				},
 			},
 		},
@@ -251,11 +250,35 @@ func TestScriptToolsInFilteredJSON(t *testing.T) {
 	assert.Contains(t, properties, "target", "Should have target property")
 }
 
+// TestGenerateSafeOutputScriptContent verifies that the script body is wrapped in a main function
+func TestGenerateSafeOutputScriptContent(t *testing.T) {
+	body := "return async (msg) => ({ success: true });"
+	content := generateSafeOutputScriptContent("my-handler", body)
+
+	assert.Contains(t, content, "// Auto-generated safe-output script handler: my-handler", "Should have comment header")
+	assert.Contains(t, content, "async function main(config = {}) {", "Should wrap body with main function")
+	assert.Contains(t, content, "  return async (msg) => ({ success: true });", "Should indent body by 2 spaces")
+	assert.Contains(t, content, "module.exports = { main };", "Should include module.exports")
+
+	// Verify the overall structure: header → main() { body } → exports
+	headerIdx := strings.Index(content, "// Auto-generated")
+	mainIdx := strings.Index(content, "async function main")
+	bodyIdx := strings.Index(content, "  return async")
+	closingIdx := strings.Index(content, "\n}\n")
+	exportsIdx := strings.Index(content, "module.exports")
+
+	assert.Less(t, headerIdx, mainIdx, "Header should precede main")
+	assert.Less(t, mainIdx, bodyIdx, "main() declaration should precede body")
+	assert.Less(t, bodyIdx, closingIdx, "Body should precede closing brace")
+	assert.Less(t, closingIdx, exportsIdx, "Closing brace should precede exports")
+}
+
 // TestBuildCustomScriptFilesStep verifies the generated step writes scripts to files
 func TestBuildCustomScriptFilesStep(t *testing.T) {
 	scripts := map[string]*SafeScriptConfig{
 		"my-handler": {
-			Script: "async function main(config) {\n  return async (msg) => ({ success: true });\n}\nmodule.exports = { main };",
+			// Users write only the body — no module.exports or main declaration
+			Script: "return async (msg) => ({ success: true });",
 		},
 	}
 
@@ -268,7 +291,11 @@ func TestBuildCustomScriptFilesStep(t *testing.T) {
 	assert.Contains(t, fullYAML, "Setup Safe Output Custom Scripts", "Should have setup step name")
 	assert.Contains(t, fullYAML, "safe_output_script_my_handler.cjs", "Should reference the output filename")
 	assert.Contains(t, fullYAML, "GH_AW_SAFE_OUTPUT_SCRIPT_MY_HANDLER_EOF", "Should use correct heredoc delimiter")
-	assert.Contains(t, fullYAML, "async function main", "Should include script content")
+	// Verify the compiler wraps the body with async function main
+	assert.Contains(t, fullYAML, "async function main(config = {}) {", "Should wrap body with main function declaration")
+	assert.Contains(t, fullYAML, "module.exports = { main };", "Should include module.exports wrapper")
+	// Original body content should appear indented inside main
+	assert.Contains(t, fullYAML, "return async (msg) => ({ success: true });", "Should include user's script body")
 }
 
 // TestBuildCustomScriptFilesStepEmpty verifies nil return for empty scripts
@@ -289,7 +316,7 @@ func TestHandlerManagerStepIncludesScriptsEnvVar(t *testing.T) {
 			Scripts: map[string]*SafeScriptConfig{
 				"my-script": {
 					Description: "Custom script",
-					Script:      "module.exports = { main: async (c) => async (m) => ({ success: true }) };",
+					Script:      "return async (m) => ({ success: true });",
 				},
 			},
 		},
@@ -334,7 +361,8 @@ func TestSafeOutputsConfigIncludesScripts(t *testing.T) {
 							"type":        "string",
 						},
 					},
-					"script": "module.exports = { main: async (c) => async (m) => ({ success: true }) };",
+					// Users write only the body
+					"script": "return async (m) => ({ success: true });",
 				},
 			},
 		},
@@ -357,7 +385,7 @@ func TestHasAnySafeOutputEnabledWithScripts(t *testing.T) {
 	config := &SafeOutputsConfig{
 		Scripts: map[string]*SafeScriptConfig{
 			"my-script": {
-				Script: "module.exports = { main: async (c) => async (m) => ({ success: true }) };",
+				Script: "return async (m) => ({ success: true });",
 			},
 		},
 	}
@@ -369,7 +397,7 @@ func TestHasNonBuiltinSafeOutputsEnabledWithScripts(t *testing.T) {
 	config := &SafeOutputsConfig{
 		Scripts: map[string]*SafeScriptConfig{
 			"my-script": {
-				Script: "module.exports = { main: async (c) => async (m) => ({ success: true }) };",
+				Script: "return async (m) => ({ success: true });",
 			},
 		},
 	}
