@@ -208,7 +208,24 @@ gh extension upgrade gh-aw
 
 ### Write Operations Fail
 
-Use safe outputs or request new safe output types.
+Agentic workflows cannot write to GitHub directly. All writes (issues, comments, PR updates)
+must go through the `safe-outputs` system, which validates and executes write operations on
+behalf of the workflow.
+
+Ensure your workflow frontmatter declares the safe output types it needs:
+
+```yaml wrap
+safe-outputs:
+  create-issue:
+    title-prefix: "[bot] "
+    labels: [automation]
+  add-comment:      # no configuration required; uses defaults
+  update-issue:     # no configuration required; uses defaults
+```
+
+If the operation you need is not listed in the [Safe Outputs reference](/gh-aw/reference/safe-outputs/),
+it may not be supported yet. See the [Safe Outputs Specification](/gh-aw/reference/safe-outputs-specification/)
+for the full list of available output types and their configuration options.
 
 ### Safe Outputs Not Creating Issues
 
