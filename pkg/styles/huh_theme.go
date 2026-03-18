@@ -1,0 +1,74 @@
+//go:build !js && !wasm
+
+package styles
+
+import (
+	"github.com/charmbracelet/huh"
+	"github.com/charmbracelet/lipgloss"
+)
+
+// HuhTheme returns a custom huh.Theme that maps the pkg/styles Dracula-inspired
+// color palette to huh form fields, giving interactive forms the same visual
+// identity as the rest of the CLI output.
+func HuhTheme() *huh.Theme {
+	t := huh.ThemeBase()
+
+	// Map the pkg/styles palette to lipgloss.AdaptiveColor for huh compatibility.
+	// huh uses github.com/charmbracelet/lipgloss, so we use that type here.
+	var (
+		primary    = lipgloss.AdaptiveColor{Light: hexColorPurpleLight, Dark: hexColorPurpleDark}
+		success    = lipgloss.AdaptiveColor{Light: hexColorSuccessLight, Dark: hexColorSuccessDark}
+		errorColor = lipgloss.AdaptiveColor{Light: hexColorErrorLight, Dark: hexColorErrorDark}
+		warning    = lipgloss.AdaptiveColor{Light: hexColorWarningLight, Dark: hexColorWarningDark}
+		comment    = lipgloss.AdaptiveColor{Light: hexColorCommentLight, Dark: hexColorCommentDark}
+		fg         = lipgloss.AdaptiveColor{Light: hexColorForegroundLight, Dark: hexColorForegroundDark}
+		bg         = lipgloss.AdaptiveColor{Light: hexColorBackgroundLight, Dark: hexColorBackgroundDark}
+		border     = lipgloss.AdaptiveColor{Light: hexColorBorderLight, Dark: hexColorBorderDark}
+	)
+
+	// Focused field styles
+	t.Focused.Base = t.Focused.Base.BorderForeground(border)
+	t.Focused.Card = t.Focused.Base
+	t.Focused.Title = t.Focused.Title.Foreground(primary).Bold(true)
+	t.Focused.NoteTitle = t.Focused.NoteTitle.Foreground(primary).Bold(true).MarginBottom(1)
+	t.Focused.Directory = t.Focused.Directory.Foreground(primary)
+	t.Focused.Description = t.Focused.Description.Foreground(comment)
+	t.Focused.ErrorIndicator = t.Focused.ErrorIndicator.Foreground(errorColor)
+	t.Focused.ErrorMessage = t.Focused.ErrorMessage.Foreground(errorColor)
+
+	// Select / navigation indicators
+	t.Focused.SelectSelector = t.Focused.SelectSelector.Foreground(warning)
+	t.Focused.NextIndicator = t.Focused.NextIndicator.Foreground(warning)
+	t.Focused.PrevIndicator = t.Focused.PrevIndicator.Foreground(warning)
+
+	// List option styles
+	t.Focused.Option = t.Focused.Option.Foreground(fg)
+	t.Focused.MultiSelectSelector = t.Focused.MultiSelectSelector.Foreground(warning)
+	t.Focused.SelectedOption = t.Focused.SelectedOption.Foreground(success)
+	t.Focused.SelectedPrefix = t.Focused.SelectedPrefix.Foreground(success)
+	t.Focused.UnselectedOption = t.Focused.UnselectedOption.Foreground(fg)
+	t.Focused.UnselectedPrefix = t.Focused.UnselectedPrefix.Foreground(comment)
+
+	// Button styles
+	t.Focused.FocusedButton = t.Focused.FocusedButton.Foreground(bg).Background(primary).Bold(true)
+	t.Focused.BlurredButton = t.Focused.BlurredButton.Foreground(fg).Background(bg)
+	t.Focused.Next = t.Focused.FocusedButton
+
+	// Text input styles
+	t.Focused.TextInput.Cursor = t.Focused.TextInput.Cursor.Foreground(warning)
+	t.Focused.TextInput.Placeholder = t.Focused.TextInput.Placeholder.Foreground(comment)
+	t.Focused.TextInput.Prompt = t.Focused.TextInput.Prompt.Foreground(primary)
+
+	// Blurred styles mirror focused but hide the border
+	t.Blurred = t.Focused
+	t.Blurred.Base = t.Focused.Base.BorderStyle(lipgloss.HiddenBorder())
+	t.Blurred.Card = t.Blurred.Base
+	t.Blurred.NextIndicator = lipgloss.NewStyle()
+	t.Blurred.PrevIndicator = lipgloss.NewStyle()
+
+	// Group header styles
+	t.Group.Title = t.Focused.Title
+	t.Group.Description = t.Focused.Description
+
+	return t
+}
