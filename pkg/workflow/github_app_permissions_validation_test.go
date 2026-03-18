@@ -124,6 +124,56 @@ func TestValidateGitHubAppOnlyPermissions(t *testing.T) {
 			permissions: "permissions:\n  all: read",
 			shouldError: false,
 		},
+		{
+			name:          "organization-events with write - should error (read-only scope)",
+			permissions:   "permissions:\n  organization-events: write",
+			shouldError:   true,
+			errorContains: "read-only",
+		},
+		{
+			name:          "organization-plan with write - should error (read-only scope)",
+			permissions:   "permissions:\n  organization-plan: write",
+			shouldError:   true,
+			errorContains: "read-only",
+		},
+		{
+			name:          "email-addresses with write - should error (read-only scope)",
+			permissions:   "permissions:\n  email-addresses: write",
+			shouldError:   true,
+			errorContains: "read-only",
+		},
+		{
+			name:          "codespaces-metadata with write - should error (read-only scope)",
+			permissions:   "permissions:\n  codespaces-metadata: write",
+			shouldError:   true,
+			errorContains: "read-only",
+		},
+		{
+			name:        "organization-events with read and github-app - should pass",
+			permissions: "permissions:\n  organization-events: read",
+			parsedTools: &ToolsConfig{
+				GitHub: &GitHubToolConfig{
+					GitHubApp: &GitHubAppConfig{
+						AppID:      "${{ vars.APP_ID }}",
+						PrivateKey: "${{ secrets.APP_PRIVATE_KEY }}",
+					},
+				},
+			},
+			shouldError: false,
+		},
+		{
+			name:        "administration with write and github-app - should pass (write allowed)",
+			permissions: "permissions:\n  administration: write",
+			parsedTools: &ToolsConfig{
+				GitHub: &GitHubToolConfig{
+					GitHubApp: &GitHubAppConfig{
+						AppID:      "${{ vars.APP_ID }}",
+						PrivateKey: "${{ secrets.APP_PRIVATE_KEY }}",
+					},
+				},
+			},
+			shouldError: false,
+		},
 	}
 
 	for _, tt := range tests {
@@ -242,6 +292,38 @@ func TestGetAllGitHubAppOnlyScopes(t *testing.T) {
 		if scopeSet[notExpected] {
 			t.Errorf("Expected scope %q to NOT be in GetAllGitHubAppOnlyScopes()", notExpected)
 		}
+	}
+}
+
+func TestIsReadOnlyGitHubAppOnlyScope(t *testing.T) {
+	tests := []struct {
+		scope    PermissionScope
+		expected bool
+	}{
+		// Read-only GitHub App-only scopes - should return true
+		{PermissionOrganizationEvents, true},
+		{PermissionOrganizationPlan, true},
+		{PermissionEmailAddresses, true},
+		{PermissionCodespacesMetadata, true},
+		// Scopes that support both read and write - should return false
+		{PermissionAdministration, false},
+		{PermissionMembers, false},
+		{PermissionWorkflows, false},
+		{PermissionOrganizationAdministration, false},
+		{PermissionTeamDiscussions, false},
+		{PermissionEnvironments, false},
+		// GitHub Actions scopes - not App-only, should return false
+		{PermissionContents, false},
+		{PermissionIssues, false},
+	}
+
+	for _, tt := range tests {
+		t.Run(string(tt.scope), func(t *testing.T) {
+			result := IsReadOnlyGitHubAppOnlyScope(tt.scope)
+			if result != tt.expected {
+				t.Errorf("IsReadOnlyGitHubAppOnlyScope(%q) = %v, want %v", tt.scope, result, tt.expected)
+			}
+		})
 	}
 }
 

@@ -1,7 +1,7 @@
 package workflow
 
 import (
-	"fmt"
+	"errors"
 	"sort"
 	"strings"
 )
@@ -18,7 +18,8 @@ var githubAppPermissionsLog = newValidationLogger("github_app_permissions")
 //   - safe-outputs.github-app
 //   - the top-level github-app field (for the activation/pre-activation jobs)
 //
-// Returns an error if GitHub App-only permissions are used without any GitHub App configured.
+// Returns an error if GitHub App-only permissions are used without any GitHub App configured,
+// or if "write" level is requested for a read-only GitHub App-only scope.
 func validateGitHubAppOnlyPermissions(workflowData *WorkflowData) error {
 	githubAppPermissionsLog.Print("Starting GitHub App-only permissions validation")
 
@@ -51,6 +52,11 @@ func validateGitHubAppOnlyPermissions(workflowData *WorkflowData) error {
 
 	githubAppPermissionsLog.Printf("Found %d GitHub App-only permissions, checking for GitHub App configuration", len(appOnlyScopes))
 
+	// Check if "write" is requested for any read-only GitHub App-only scopes.
+	if err := validateGitHubAppOnlyPermissionsWrite(permissions, appOnlyScopes); err != nil {
+		return err
+	}
+
 	// Check if any GitHub App is configured
 	if hasGitHubAppConfigured(workflowData) {
 		githubAppPermissionsLog.Print("GitHub App is configured, validation passed")
@@ -61,7 +67,46 @@ func validateGitHubAppOnlyPermissions(workflowData *WorkflowData) error {
 	return formatGitHubAppRequiredError(appOnlyScopes)
 }
 
-// hasGitHubAppConfigured returns true if a GitHub App is configured anywhere in the workflow
+// validateGitHubAppOnlyPermissionsWrite checks that no read-only GitHub App-only scope
+// has been requested with "write" access. Such a request is always invalid because
+// the GitHub App permission model does not allow "write" for those scopes.
+func validateGitHubAppOnlyPermissionsWrite(permissions *Permissions, appOnlyScopes []PermissionScope) error {
+	var writeOnReadOnly []PermissionScope
+	for _, scope := range appOnlyScopes {
+		if !IsReadOnlyGitHubAppOnlyScope(scope) {
+			continue
+		}
+		if level, exists := permissions.GetExplicit(scope); exists && level == PermissionWrite {
+			writeOnReadOnly = append(writeOnReadOnly, scope)
+		}
+	}
+	if len(writeOnReadOnly) == 0 {
+		return nil
+	}
+	return formatWriteOnReadOnlyScopesError(writeOnReadOnly)
+}
+
+// formatWriteOnReadOnlyScopesError formats the error when "write" is requested for
+// a read-only GitHub App-only scope.
+func formatWriteOnReadOnlyScopesError(scopes []PermissionScope) error {
+	scopeStrs := make([]string, len(scopes))
+	for i, s := range scopes {
+		scopeStrs[i] = string(s)
+	}
+	sort.Strings(scopeStrs)
+
+	var lines []string
+	lines = append(lines, "The following GitHub App permissions are read-only and do not support \"write\" access:")
+	lines = append(lines, "")
+	for _, s := range scopeStrs {
+		lines = append(lines, "  - "+s)
+	}
+	lines = append(lines, "")
+	lines = append(lines, "Change the permission level to \"read\" or remove these permissions.")
+
+	return errors.New(strings.Join(lines, "\n"))
+}
+
 func hasGitHubAppConfigured(workflowData *WorkflowData) bool {
 	// Check tools.github.github-app
 	if workflowData.ParsedTools != nil &&
@@ -118,5 +163,5 @@ func formatGitHubAppRequiredError(appOnlyScopes []PermissionScope) error {
 	lines = append(lines, "    app-id: ${{ vars.APP_ID }}")
 	lines = append(lines, "    private-key: ${{ secrets.APP_PRIVATE_KEY }}")
 
-	return fmt.Errorf("%s", strings.Join(lines, "\n"))
+	return errors.New(strings.Join(lines, "\n"))
 }
