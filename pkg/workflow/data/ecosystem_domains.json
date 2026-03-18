@@ -1,6 +1,6 @@
 {
   "bazel": ["releases.bazel.build", "mirror.bazel.build", "bcr.bazel.build", "blog.bazel.build"],
-  "browser": ["*.google.com", "*.googleapis.com", "*.gvt1.com", "fresh.deno.dev"],
+  "chrome": ["*.google.com", "*.googleapis.com", "*.gvt1.com"],
   "clojure": ["repo.clojars.org", "clojars.org"],
   "containers": ["ghcr.io", "registry.hub.docker.com", "*.docker.io", "*.docker.com", "production.cloudflare.docker.com", "dl.k8s.io", "pkgs.k8s.io", "quay.io", "mcr.microsoft.com", "gcr.io", "auth.docker.io"],
   "dart": ["pub.dev", "pub.dartlang.org", "storage.googleapis.com"],
@@ -40,6 +40,7 @@
     "packages.cloud.google.com",
     "packages.microsoft.com"
   ],
+  "deno": ["deno.land", "jsr.io", "*.jsr.io", "googleapis.deno.dev", "fresh.deno.dev"],
   "dev-tools": [
     "app.renovatebot.com",
     "appveyor.com",

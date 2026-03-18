@@ -43,7 +43,7 @@ func TestGetDomainEcosystem(t *testing.T) {
 			expected: "containers",
 		},
 
-		// Fonts ecosystem (takes priority over browser for fonts.googleapis.com)
+		// Fonts ecosystem (takes priority over chrome for fonts.googleapis.com)
 		{
 			name:     "fonts ecosystem - fonts.googleapis.com",
 			domain:   "fonts.googleapis.com",
@@ -55,58 +55,75 @@ func TestGetDomainEcosystem(t *testing.T) {
 			expected: "fonts",
 		},
 
-		// Browser ecosystem (Chrome/headless browser testing)
+		// Chrome ecosystem (headless Chrome/Puppeteer browser testing)
 		{
-			name:     "browser ecosystem - accounts.google.com",
+			name:     "chrome ecosystem - accounts.google.com",
 			domain:   "accounts.google.com",
-			expected: "browser",
+			expected: "chrome",
 		},
 		{
-			name:     "browser ecosystem - www.google.com",
+			name:     "chrome ecosystem - www.google.com",
 			domain:   "www.google.com",
-			expected: "browser",
+			expected: "chrome",
 		},
 		{
-			name:     "browser ecosystem - safebrowsing.googleapis.com",
+			name:     "chrome ecosystem - safebrowsing.googleapis.com",
 			domain:   "safebrowsing.googleapis.com",
-			expected: "browser",
+			expected: "chrome",
 		},
 		{
-			name:     "browser ecosystem - optimizationguide-pa.googleapis.com",
+			name:     "chrome ecosystem - optimizationguide-pa.googleapis.com",
 			domain:   "optimizationguide-pa.googleapis.com",
-			expected: "browser",
+			expected: "chrome",
 		},
 		{
-			name:     "browser ecosystem - update.googleapis.com",
+			name:     "chrome ecosystem - update.googleapis.com",
 			domain:   "update.googleapis.com",
-			expected: "browser",
+			expected: "chrome",
 		},
 		{
-			name:     "browser ecosystem - redirector.gvt1.com",
+			name:     "chrome ecosystem - redirector.gvt1.com",
 			domain:   "redirector.gvt1.com",
-			expected: "browser",
+			expected: "chrome",
 		},
+		// Java ecosystem takes priority over chrome for its Google domains
 		{
-			name:     "browser ecosystem - fresh.deno.dev",
-			domain:   "fresh.deno.dev",
-			expected: "browser",
-		},
-		// Java ecosystem takes priority over browser for its Google domains
-		{
-			name:     "java ecosystem - maven.google.com (not browser)",
+			name:     "java ecosystem - maven.google.com (not chrome)",
 			domain:   "maven.google.com",
 			expected: "java",
 		},
 		{
-			name:     "java ecosystem - dl.google.com (not browser)",
+			name:     "java ecosystem - dl.google.com (not chrome)",
 			domain:   "dl.google.com",
 			expected: "java",
 		},
-		// Defaults ecosystem takes priority over browser for packages.cloud.google.com
+		// Defaults ecosystem takes priority over chrome for packages.cloud.google.com
 		{
-			name:     "defaults ecosystem - packages.cloud.google.com (not browser)",
+			name:     "defaults ecosystem - packages.cloud.google.com (not chrome)",
 			domain:   "packages.cloud.google.com",
 			expected: "defaults",
+		},
+
+		// Deno ecosystem
+		{
+			name:     "deno ecosystem - fresh.deno.dev",
+			domain:   "fresh.deno.dev",
+			expected: "deno",
+		},
+		{
+			name:     "deno ecosystem - googleapis.deno.dev",
+			domain:   "googleapis.deno.dev",
+			expected: "deno",
+		},
+		{
+			name:     "deno ecosystem - deno.land",
+			domain:   "deno.land",
+			expected: "deno",
+		},
+		{
+			name:     "deno ecosystem - jsr.io subdomain",
+			domain:   "api.jsr.io",
+			expected: "deno",
 		},
 
 		// Node CDNs ecosystem
@@ -488,9 +505,14 @@ func TestGetAllowedDomains_VariousCombinations(t *testing.T) {
 			expectContains: []string{"fonts.googleapis.com", "fonts.gstatic.com"},
 		},
 		{
-			name:           "browser ecosystem",
-			allowed:        []string{"browser"},
-			expectContains: []string{"*.google.com", "*.googleapis.com", "*.gvt1.com", "fresh.deno.dev"},
+			name:           "chrome ecosystem",
+			allowed:        []string{"chrome"},
+			expectContains: []string{"*.google.com", "*.googleapis.com", "*.gvt1.com"},
+		},
+		{
+			name:           "deno ecosystem",
+			allowed:        []string{"deno"},
+			expectContains: []string{"deno.land", "jsr.io", "*.jsr.io", "googleapis.deno.dev", "fresh.deno.dev"},
 		},
 		{
 			name:           "node-cdns ecosystem",
