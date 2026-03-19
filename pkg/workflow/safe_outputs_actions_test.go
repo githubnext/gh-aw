@@ -415,3 +415,106 @@ func TestActionOutputKey(t *testing.T) {
 	assert.Equal(t, "action_my_tool_payload", actionOutputKey("my_tool"))
 	assert.Equal(t, "action_another_action_payload", actionOutputKey("another_action"))
 }
+
+// TestParseActionsConfigWithEnv verifies parsing of env field in actions config
+func TestParseActionsConfigWithEnv(t *testing.T) {
+	actionsMap := map[string]any{
+		"my-tool": map[string]any{
+			"uses": "owner/repo@v1",
+			"env": map[string]any{
+				"MY_VAR":    "my-value",
+				"OTHER_VAR": "other-value",
+			},
+		},
+	}
+
+	result := parseActionsConfig(actionsMap)
+	require.Len(t, result, 1, "Should have one action")
+
+	myTool := result["my-tool"]
+	require.NotNil(t, myTool, "Should have my-tool")
+	require.Len(t, myTool.Env, 2, "Should have 2 env vars")
+	assert.Equal(t, "my-value", myTool.Env["MY_VAR"], "MY_VAR should match")
+	assert.Equal(t, "other-value", myTool.Env["OTHER_VAR"], "OTHER_VAR should match")
+}
+
+// TestBuildActionStepsWithEnv verifies that env vars are emitted in generated steps
+func TestBuildActionStepsWithEnv(t *testing.T) {
+	compiler := NewCompiler()
+	data := &WorkflowData{
+		SafeOutputs: &SafeOutputsConfig{
+			Actions: map[string]*SafeOutputActionConfig{
+				"my-tool": {
+					Uses:        "owner/repo@v1",
+					ResolvedRef: "owner/repo@abc123 # v1",
+					Env: map[string]string{
+						"MY_SECRET": "${{ secrets.MY_SECRET }}",
+						"MY_VAR":    "static-value",
+					},
+					Inputs: map[string]*ActionYAMLInput{
+						"title": {Required: true},
+					},
+				},
+			},
+		},
+	}
+
+	steps := compiler.buildActionSteps(data)
+	require.NotEmpty(t, steps, "Should generate steps")
+
+	fullYAML := strings.Join(steps, "")
+	assert.Contains(t, fullYAML, "env:", "Should have env block")
+	assert.Contains(t, fullYAML, "MY_SECRET: ${{ secrets.MY_SECRET }}", "Should have MY_SECRET env var")
+	assert.Contains(t, fullYAML, "MY_VAR: static-value", "Should have MY_VAR env var")
+	// Env block should appear before with: block
+	envIdx := strings.Index(fullYAML, "env:")
+	withIdx := strings.Index(fullYAML, "with:")
+	assert.Less(t, envIdx, withIdx, "env: should appear before with:")
+}
+
+// TestBuildActionStepsNoEnv verifies that no env block is emitted when Env is empty
+func TestBuildActionStepsNoEnv(t *testing.T) {
+	compiler := NewCompiler()
+	data := &WorkflowData{
+		SafeOutputs: &SafeOutputsConfig{
+			Actions: map[string]*SafeOutputActionConfig{
+				"my-tool": {
+					Uses:        "owner/repo@v1",
+					ResolvedRef: "owner/repo@abc123 # v1",
+					Inputs: map[string]*ActionYAMLInput{
+						"title": {Required: true},
+					},
+				},
+			},
+		},
+	}
+
+	steps := compiler.buildActionSteps(data)
+	fullYAML := strings.Join(steps, "")
+	assert.NotContains(t, fullYAML, "env:", "Should not have env block when Env is nil/empty")
+}
+
+// TestExtractSafeOutputsConfigIncludesActionsWithEnv verifies env is parsed via extractSafeOutputsConfig
+func TestExtractSafeOutputsConfigIncludesActionsWithEnv(t *testing.T) {
+	compiler := NewCompiler()
+	frontmatter := map[string]any{
+		"safe-outputs": map[string]any{
+			"actions": map[string]any{
+				"my-action": map[string]any{
+					"uses": "owner/repo@v1",
+					"env": map[string]any{
+						"TOKEN": "${{ secrets.MY_TOKEN }}",
+					},
+				},
+			},
+		},
+	}
+
+	config := compiler.extractSafeOutputsConfig(frontmatter)
+
+	require.NotNil(t, config, "Should extract config")
+	action := config.Actions["my-action"]
+	require.NotNil(t, action, "Should have my-action")
+	require.Len(t, action.Env, 1, "Should have 1 env var")
+	assert.Equal(t, "${{ secrets.MY_TOKEN }}", action.Env["TOKEN"], "TOKEN env var should match")
+}

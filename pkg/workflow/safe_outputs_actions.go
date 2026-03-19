@@ -22,8 +22,9 @@ var safeOutputActionsLog = logger.New("workflow:safe_outputs_actions")
 // Each configured action is resolved at compile time to get its inputs from action.yml,
 // and is mounted as an MCP tool that the AI agent can call once per workflow run.
 type SafeOutputActionConfig struct {
-	Uses        string `yaml:"uses"`
-	Description string `yaml:"description,omitempty"` // optional override of the action's description
+	Uses        string            `yaml:"uses"`
+	Description string            `yaml:"description,omitempty"` // optional override of the action's description
+	Env         map[string]string `yaml:"env,omitempty"`         // additional environment variables for the injected step
 
 	// Computed at compile time (not from frontmatter):
 	ResolvedRef       string                      `yaml:"-"` // Pinned action reference (e.g., "owner/repo@sha # v1")
@@ -82,6 +83,14 @@ func parseActionsConfig(actionsMap map[string]any) map[string]*SafeOutputActionC
 		}
 		if description, ok := actionConfigMap["description"].(string); ok {
 			actionConfig.Description = description
+		}
+		if envMap, ok := actionConfigMap["env"].(map[string]any); ok {
+			actionConfig.Env = make(map[string]string, len(envMap))
+			for k, v := range envMap {
+				if vStr, ok := v.(string); ok {
+					actionConfig.Env[k] = vStr
+				}
+			}
 		}
 
 		if actionConfig.Uses == "" {
@@ -407,6 +416,19 @@ func (c *Compiler) buildActionSteps(data *WorkflowData) []string {
 		steps = append(steps, fmt.Sprintf("        id: action_%s\n", normalizedName))
 		steps = append(steps, fmt.Sprintf("        if: steps.process_safe_outputs.outputs.%s != ''\n", outputKey))
 		steps = append(steps, fmt.Sprintf("        uses: %s\n", actionRef))
+
+		// Build optional env: block for per-action environment variables
+		if len(config.Env) > 0 {
+			steps = append(steps, "        env:\n")
+			envKeys := make([]string, 0, len(config.Env))
+			for k := range config.Env {
+				envKeys = append(envKeys, k)
+			}
+			sort.Strings(envKeys)
+			for _, envKey := range envKeys {
+				steps = append(steps, fmt.Sprintf("          %s: %s\n", envKey, config.Env[envKey]))
+			}
+		}
 
 		// Build the with: block
 		if len(config.Inputs) > 0 {

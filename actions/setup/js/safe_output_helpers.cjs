@@ -6,6 +6,9 @@
  * Provides common validation and target resolution logic
  */
 
+const { getErrorMessage } = require("./error_helpers.cjs");
+const { matchesSimpleGlob } = require("./glob_pattern_helpers.cjs");
+
 /**
  * Parse a comma-separated list of allowed items from environment variable
  * @param {string|undefined} envValue - Environment variable value
@@ -250,7 +253,6 @@ function loadCustomSafeOutputJobTypes() {
     return new Set(jobTypes);
   } catch (error) {
     if (typeof core !== "undefined") {
-      const { getErrorMessage } = require("./error_helpers.cjs");
       core.warning(`Failed to parse GH_AW_SAFE_OUTPUT_JOBS: ${getErrorMessage(error)}`);
     }
     return new Set();
@@ -317,7 +319,6 @@ function extractAssignees(message) {
  * @returns {boolean} True if username matches the blocked pattern
  */
 function matchesBlockedPattern(username, pattern) {
-  const { matchesSimpleGlob } = require("./glob_pattern_helpers.cjs");
   return matchesSimpleGlob(username, pattern);
 }
 
@@ -356,7 +357,6 @@ function loadCustomSafeOutputScriptHandlers() {
     return scriptHandlers;
   } catch (error) {
     if (typeof core !== "undefined") {
-      const { getErrorMessage } = require("./error_helpers.cjs");
       core.warning(`Failed to parse GH_AW_SAFE_OUTPUT_SCRIPTS: ${getErrorMessage(error)}`);
     }
     return new Map();
@@ -387,7 +387,6 @@ function loadCustomSafeOutputActionHandlers() {
     return actionHandlers;
   } catch (error) {
     if (typeof core !== "undefined") {
-      const { getErrorMessage } = require("./error_helpers.cjs");
       core.warning(`Failed to parse GH_AW_SAFE_OUTPUT_ACTIONS: ${getErrorMessage(error)}`);
     }
     return new Map();

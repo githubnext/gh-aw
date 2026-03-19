@@ -7,6 +7,7 @@
 
 const { replaceTemporaryIdReferences } = require("./temporary_id.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
+const { sanitizeContent } = require("./sanitize_content.cjs");
 
 /**
  * Internal safe-output message fields that should not be forwarded as action inputs.
@@ -69,9 +70,11 @@ async function main(config = {}) {
     try {
       core.info(`Processing custom action: ${actionName}`);
 
-      // Build the processed payload by applying temporary ID substitutions to all
-      // string-valued fields. Non-string fields (numbers, booleans, objects, arrays)
-      // are passed through as-is.
+      // Build the processed payload by:
+      // 1. Applying temporary ID reference substitutions to string fields
+      // 2. Redacting (sanitizing) all string fields via sanitizeContent() before export.
+      //    This prevents prompt-injected content from leaking URLs, mentions, or harmful
+      //    content into external action inputs.
       const processedInputs = {};
       for (const [key, value] of Object.entries(message)) {
         // Skip internal safe-output messaging fields that are not action inputs.
@@ -82,8 +85,11 @@ async function main(config = {}) {
         }
 
         if (typeof value === "string") {
-          // Apply temporary ID reference substitution (e.g., "aw_abc1" → "42")
-          processedInputs[key] = replaceTemporaryIdReferences(value, temporaryIdMap);
+          // Apply temporary ID reference substitution (e.g., "aw_abc1" → "42"), then
+          // sanitize to redact malicious URLs, neutralize bot-trigger phrases, and
+          // escape @mentions that could cause unintended notifications in the action.
+          const substituted = replaceTemporaryIdReferences(value, temporaryIdMap);
+          processedInputs[key] = sanitizeContent(substituted);
         } else {
           processedInputs[key] = value;
         }
