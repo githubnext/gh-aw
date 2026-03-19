@@ -697,7 +697,7 @@ The following job-level fields are supported in custom jobs:
 | `permissions` | GitHub token permissions for this job |
 | `outputs` | Values exposed to downstream jobs |
 | `env` | Environment variables available to all steps |
-| `timeout-minutes` | Maximum job duration (default: 360) |
+| `timeout-minutes` | Maximum job duration (GitHub Actions default: 360) |
 | `concurrency` | Concurrency group to prevent parallel runs |
 | `continue-on-error` | Allow the workflow to continue if this job fails |
 | `container` | Docker container to run steps in |
