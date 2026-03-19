@@ -93,8 +93,12 @@ func PollWithSignalHandling(options PollOptions) error {
 	for {
 		select {
 		case <-ctx.Done():
-			pollLog.Print("Context cancelled, stopping poll")
-			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Received interrupt signal, stopping wait..."))
+			pollLog.Printf("Context cancelled (%v), stopping poll", ctx.Err())
+			msg := "Operation cancelled, stopping wait..."
+			if err := ctx.Err(); err != nil {
+				msg = fmt.Sprintf("Operation cancelled (%v), stopping wait...", err)
+			}
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(msg))
 			return ErrInterrupted
 
 		case <-sigChan:
