@@ -631,3 +631,155 @@ func TestBuildAPMAppTokenInvalidationStep(t *testing.T) {
 		assert.Contains(t, combined, "always()", "Must run even if prior steps fail to ensure token cleanup")
 	})
 }
+
+func TestExtractAPMDependenciesEnv(t *testing.T) {
+	t.Run("Object format with env field extracts env vars", func(t *testing.T) {
+		frontmatter := map[string]any{
+			"dependencies": map[string]any{
+				"packages": []any{"microsoft/apm-sample-package"},
+				"env": map[string]any{
+					"MY_TOKEN": "${{ secrets.MY_TOKEN }}",
+					"REGISTRY": "https://registry.example.com",
+				},
+			},
+		}
+		result, err := extractAPMDependenciesFromFrontmatter(frontmatter)
+		require.NoError(t, err, "Should not return an error")
+		require.NotNil(t, result, "Should return non-nil APMDependenciesInfo")
+		require.NotNil(t, result.Env, "Env map should be set")
+		assert.Equal(t, "${{ secrets.MY_TOKEN }}", result.Env["MY_TOKEN"], "MY_TOKEN should be extracted")
+		assert.Equal(t, "https://registry.example.com", result.Env["REGISTRY"], "REGISTRY should be extracted")
+	})
+
+	t.Run("Object format without env field has nil Env", func(t *testing.T) {
+		frontmatter := map[string]any{
+			"dependencies": map[string]any{
+				"packages": []any{"microsoft/apm-sample-package"},
+			},
+		}
+		result, err := extractAPMDependenciesFromFrontmatter(frontmatter)
+		require.NoError(t, err, "Should not return an error")
+		require.NotNil(t, result, "Should return non-nil APMDependenciesInfo")
+		assert.Nil(t, result.Env, "Env should be nil when not specified")
+	})
+
+	t.Run("Array format has nil Env", func(t *testing.T) {
+		frontmatter := map[string]any{
+			"dependencies": []any{"microsoft/apm-sample-package"},
+		}
+		result, err := extractAPMDependenciesFromFrontmatter(frontmatter)
+		require.NoError(t, err, "Should not return an error")
+		require.NotNil(t, result, "Should return non-nil APMDependenciesInfo")
+		assert.Nil(t, result.Env, "Env should be nil for array format")
+	})
+
+	t.Run("Non-string env values are skipped", func(t *testing.T) {
+		frontmatter := map[string]any{
+			"dependencies": map[string]any{
+				"packages": []any{"microsoft/apm-sample-package"},
+				"env": map[string]any{
+					"VALID":   "value",
+					"INVALID": 42,
+				},
+			},
+		}
+		result, err := extractAPMDependenciesFromFrontmatter(frontmatter)
+		require.NoError(t, err, "Should not return an error")
+		require.NotNil(t, result, "Should return non-nil APMDependenciesInfo")
+		require.NotNil(t, result.Env, "Env map should be set")
+		assert.Equal(t, "value", result.Env["VALID"], "String value should be extracted")
+		assert.NotContains(t, result.Env, "INVALID", "Non-string value should be skipped")
+	})
+}
+
+func TestGenerateAPMPackStepWithEnv(t *testing.T) {
+	t.Run("Pack step includes user env vars", func(t *testing.T) {
+		apmDeps := &APMDependenciesInfo{
+			Packages: []string{"microsoft/apm-sample-package"},
+			Env: map[string]string{
+				"MY_TOKEN": "${{ secrets.MY_TOKEN }}",
+				"REGISTRY": "https://registry.example.com",
+			},
+		}
+		data := &WorkflowData{Name: "test-workflow"}
+		step := GenerateAPMPackStep(apmDeps, "copilot", data)
+
+		require.NotEmpty(t, step, "Step should not be empty")
+		combined := combineStepLines(step)
+
+		assert.Contains(t, combined, "env:", "Should have env section")
+		assert.Contains(t, combined, "MY_TOKEN: ${{ secrets.MY_TOKEN }}", "Should include MY_TOKEN env var")
+		assert.Contains(t, combined, "REGISTRY: https://registry.example.com", "Should include REGISTRY env var")
+		assert.NotContains(t, combined, "GITHUB_TOKEN:", "Should not have GITHUB_TOKEN without github-app")
+	})
+
+	t.Run("Pack step with env vars and github-app includes both", func(t *testing.T) {
+		apmDeps := &APMDependenciesInfo{
+			Packages: []string{"acme-org/acme-skills"},
+			GitHubApp: &GitHubAppConfig{
+				AppID:      "${{ vars.APP_ID }}",
+				PrivateKey: "${{ secrets.APP_PRIVATE_KEY }}",
+			},
+			Env: map[string]string{
+				"EXTRA": "value",
+			},
+		}
+		data := &WorkflowData{Name: "test-workflow"}
+		step := GenerateAPMPackStep(apmDeps, "copilot", data)
+
+		require.NotEmpty(t, step, "Step should not be empty")
+		combined := combineStepLines(step)
+
+		assert.Contains(t, combined, "GITHUB_TOKEN: ${{ steps.apm-app-token.outputs.token }}", "Should have GITHUB_TOKEN from app")
+		assert.Contains(t, combined, "EXTRA: value", "Should include user env var")
+	})
+
+	t.Run("Env vars are output in sorted order for determinism", func(t *testing.T) {
+		apmDeps := &APMDependenciesInfo{
+			Packages: []string{"microsoft/apm-sample-package"},
+			Env: map[string]string{
+				"Z_VAR": "z",
+				"A_VAR": "a",
+				"M_VAR": "m",
+			},
+		}
+		data := &WorkflowData{Name: "test-workflow"}
+		step := GenerateAPMPackStep(apmDeps, "copilot", data)
+
+		require.NotEmpty(t, step, "Step should not be empty")
+		combined := combineStepLines(step)
+
+		aPos := strings.Index(combined, "A_VAR:")
+		mPos := strings.Index(combined, "M_VAR:")
+		zPos := strings.Index(combined, "Z_VAR:")
+		require.NotEqual(t, -1, aPos, "A_VAR should be present in output")
+		require.NotEqual(t, -1, mPos, "M_VAR should be present in output")
+		require.NotEqual(t, -1, zPos, "Z_VAR should be present in output")
+		assert.True(t, aPos < mPos && mPos < zPos, "Env vars should be sorted alphabetically")
+	})
+
+	t.Run("GITHUB_TOKEN in user env is skipped when github-app is configured", func(t *testing.T) {
+		apmDeps := &APMDependenciesInfo{
+			Packages: []string{"acme-org/acme-skills"},
+			GitHubApp: &GitHubAppConfig{
+				AppID:      "${{ vars.APP_ID }}",
+				PrivateKey: "${{ secrets.APP_PRIVATE_KEY }}",
+			},
+			Env: map[string]string{
+				"GITHUB_TOKEN": "should-be-skipped",
+				"OTHER_VAR":    "kept",
+			},
+		}
+		data := &WorkflowData{Name: "test-workflow"}
+		step := GenerateAPMPackStep(apmDeps, "copilot", data)
+
+		require.NotEmpty(t, step, "Step should not be empty")
+		combined := combineStepLines(step)
+
+		assert.Contains(t, combined, "GITHUB_TOKEN: ${{ steps.apm-app-token.outputs.token }}", "Should have GITHUB_TOKEN from app token, not user env")
+		assert.NotContains(t, combined, "should-be-skipped", "User-supplied GITHUB_TOKEN value should be absent")
+		assert.Contains(t, combined, "OTHER_VAR: kept", "Other user env vars should be present")
+		count := strings.Count(combined, "GITHUB_TOKEN:")
+		assert.Equal(t, 1, count, "GITHUB_TOKEN should appear exactly once")
+	})
+}

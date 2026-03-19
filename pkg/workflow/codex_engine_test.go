@@ -45,10 +45,10 @@ func TestCodexEngine(t *testing.T) {
 		}
 	}
 
-	// Verify second step is Install Codex
+	// Verify second step is Install Codex CLI
 	if len(steps) > 1 && len(steps[1]) > 0 {
-		if !strings.Contains(steps[1][0], "Install Codex") {
-			t.Errorf("Expected second step to contain 'Install Codex', got '%s'", steps[1][0])
+		if !strings.Contains(steps[1][0], "Install Codex CLI") {
+			t.Errorf("Expected second step to contain 'Install Codex CLI', got '%s'", steps[1][0])
 		}
 	}
 

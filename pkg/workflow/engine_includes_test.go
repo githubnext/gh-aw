@@ -76,8 +76,8 @@ This should inherit the engine from the included file.
 	lockStr := string(lockContent)
 
 	// Should contain references to codex installation and execution
-	if !strings.Contains(lockStr, "Install Codex") {
-		t.Error("Expected lock file to contain 'Install Codex' step")
+	if !strings.Contains(lockStr, "Install Codex CLI") {
+		t.Error("Expected lock file to contain 'Install Codex CLI' step")
 	}
 	if !strings.Contains(lockStr, "codex") || !strings.Contains(lockStr, "exec") {
 		t.Error("Expected lock file to contain 'codex exec' command")
@@ -688,7 +688,7 @@ Imports a custom inline engine definition from a shared workflow.
 
 	// Lock file should reference codex execution (inline definition resolved to codex runtime)
 	lockStr := string(lockContent)
-	assert.Contains(t, lockStr, "Install Codex",
+	assert.Contains(t, lockStr, "Install Codex CLI",
 		"lock file should contain Codex installation step")
 	assert.Contains(t, lockStr, `GH_AW_INFO_ENGINE_ID: "codex"`,
 		"lock file should set engine ID to codex")

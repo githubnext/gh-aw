@@ -232,3 +232,45 @@ Test with Claude engine target inference
 	assert.Contains(t, lockContent, "target: claude",
 		"Lock file should use claude target for claude engine")
 }
+
+func TestAPMDependenciesCompilationWithEnv(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "apm-deps-env-test")
+
+	workflow := `---
+engine: copilot
+on: workflow_dispatch
+permissions:
+  issues: read
+  pull-requests: read
+dependencies:
+  packages:
+    - microsoft/apm-sample-package
+  env:
+    MY_TOKEN: ${{ secrets.MY_TOKEN }}
+    REGISTRY: https://registry.example.com
+---
+
+Test with env vars on APM pack step
+`
+
+	testFile := filepath.Join(tmpDir, "test-apm-env.md")
+	err := os.WriteFile(testFile, []byte(workflow), 0644)
+	require.NoError(t, err, "Failed to write test file")
+
+	compiler := NewCompiler()
+	err = compiler.CompileWorkflow(testFile)
+	require.NoError(t, err, "Compilation should succeed")
+
+	lockFile := strings.Replace(testFile, ".md", ".lock.yml", 1)
+	content, err := os.ReadFile(lockFile)
+	require.NoError(t, err, "Failed to read lock file")
+
+	lockContent := string(content)
+
+	assert.Contains(t, lockContent, "Install and pack APM dependencies",
+		"Lock file should contain APM pack step")
+	assert.Contains(t, lockContent, "MY_TOKEN:",
+		"Lock file should include MY_TOKEN env var on pack step")
+	assert.Contains(t, lockContent, "REGISTRY: https://registry.example.com",
+		"Lock file should include REGISTRY env var on pack step")
+}

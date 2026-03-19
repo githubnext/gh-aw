@@ -140,10 +140,11 @@ type PluginsConfig struct {
 // Supports simple array format and object format with packages, isolated, github-app, and version fields.
 // When present, a pack step is emitted in the activation job and a restore step in the agent job.
 type APMDependenciesInfo struct {
-	Packages  []string         // APM package slugs to install (e.g., "org/package")
-	Isolated  bool             // If true, agent restore step clears primitive dirs before unpacking
-	GitHubApp *GitHubAppConfig // Optional GitHub App for cross-org private package access
-	Version   string           // Optional APM CLI version override (e.g., "v0.8.0"); defaults to DefaultAPMVersion
+	Packages  []string          // APM package slugs to install (e.g., "org/package")
+	Isolated  bool              // If true, agent restore step clears primitive dirs before unpacking
+	GitHubApp *GitHubAppConfig  // Optional GitHub App for cross-org private package access
+	Version   string            // Optional APM CLI version override (e.g., "v0.8.0"); defaults to DefaultAPMVersion
+	Env       map[string]string // Optional environment variables to set on the APM pack step
 }
 
 // RateLimitConfig represents rate limiting configuration for workflow triggers

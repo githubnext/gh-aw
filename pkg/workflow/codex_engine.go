@@ -100,12 +100,13 @@ func (e *CodexEngine) GetInstallationSteps(workflowData *WorkflowData) []GitHubA
 
 	// Use base installation steps (npm install only; secret validation is in the activation job)
 	steps := GetBaseInstallationSteps(EngineInstallConfig{
-		Secrets:    []string{"CODEX_API_KEY", "OPENAI_API_KEY"},
-		DocsURL:    "https://github.github.com/gh-aw/reference/engines/#openai-codex",
-		NpmPackage: "@openai/codex",
-		Version:    string(constants.DefaultCodexVersion),
-		Name:       "Codex",
-		CliName:    "codex",
+		Secrets:         []string{"CODEX_API_KEY", "OPENAI_API_KEY"},
+		DocsURL:         "https://github.github.com/gh-aw/reference/engines/#openai-codex",
+		NpmPackage:      "@openai/codex",
+		Version:         string(constants.DefaultCodexVersion),
+		Name:            "Codex CLI",
+		InstallStepName: "Install Codex CLI",
+		CliName:         "codex",
 	}, workflowData)
 
 	// Add AWF installation step if firewall is enabled
