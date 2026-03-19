@@ -212,7 +212,7 @@ Test playwright CLI mode.
 				"mcr.microsoft.com/playwright/mcp",
 			},
 			shouldContain: []string{
-				"playwright-cli",
+				"@playwright/cli",
 				"Install Playwright CLI",
 			},
 		},
@@ -233,7 +233,7 @@ Test playwright MCP mode.
 				"mcr.microsoft.com/playwright/mcp",
 			},
 			shouldNotContain: []string{
-				"playwright-cli",
+				"@playwright/cli",
 				"Install Playwright CLI",
 			},
 		},
@@ -255,7 +255,7 @@ Test playwright explicit MCP mode.
 				"mcr.microsoft.com/playwright/mcp",
 			},
 			shouldNotContain: []string{
-				"playwright-cli",
+				"@playwright/cli",
 				"Install Playwright CLI",
 			},
 		},
@@ -277,7 +277,7 @@ Test playwright CLI mode with copilot.
 				"mcr.microsoft.com/playwright/mcp",
 			},
 			shouldContain: []string{
-				"playwright-cli",
+				"@playwright/cli",
 				"Install Playwright CLI",
 			},
 		},
@@ -299,7 +299,7 @@ Test playwright CLI mode with codex.
 				"mcr.microsoft.com/playwright/mcp",
 			},
 			shouldContain: []string{
-				"playwright-cli",
+				"@playwright/cli",
 				"Install Playwright CLI",
 			},
 		},
