@@ -211,6 +211,15 @@ section td {
   color: #e6edf3;
 }
 
+section table tr {
+  background-color: transparent;
+  border-top: none;
+}
+
+section table tr:nth-child(2n) {
+  background-color: rgba(255, 255, 255, 0.06);
+}
+
 section tr:last-child td {
   border-bottom: none;
 }
