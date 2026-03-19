@@ -7,7 +7,7 @@ sidebar:
 
 # GitHub MCP Server Access Control Specification
 
-**Version**: 1.0.0  
+**Version**: 1.1.0  
 **Status**: Draft  
 **Latest Version**: [github-mcp-access-control-specification](/gh-aw/scratchpad/github-mcp-access-control-specification/)  
 **JSON Schema**: [mcp-gateway-config.schema.json](/gh-aw/schemas/mcp-gateway-config.schema.json)  
@@ -246,6 +246,9 @@ tools:
       - "admin"                       # Full access
       - "maintain"                    # Maintain access
       - "write"                       # Write access
+    bots:                     # OPTIONAL: Bots considered team members
+      - "dependabot[bot]"             # Dependabot is treated as team member
+      - "renovate[bot]"               # Renovate is treated as team member
     private-repos: false        # OPTIONAL: Private repo access (default: true)
 ```
 
@@ -644,9 +647,41 @@ The `private-repos` field controls whether the GitHub MCP server can access priv
 private-repos: false   # Restrict to public repositories only
 ```
 
+#### 4.4.4 bots
+
+**Type**: Array of strings  
+**Required**: No  
+**Default**: Not specified (no bots treated as team members)
+
+The `bots` field specifies a list of GitHub bot account identifiers that are considered team members for access control purposes. When a bot is listed here, it bypasses the `roles` permission check and is granted the same access as a user with the minimum required role. This enables automated bots to interact with repositories even when they lack formal repository permission roles.
+
+**Behavior**:
+- When the authenticated actor matches a bot identifier in `bots`, the `roles` check is skipped
+- Bot identifiers MUST match GitHub's bot account name format (e.g., `dependabot[bot]`, `renovate[bot]`)
+- The `repos` and `private-repos` constraints still apply to listed bots
+- Bot name matching is case-insensitive and supports the `[bot]` suffix convention
+
+**Use Cases**:
+- Allow dependency update bots (Dependabot, Renovate) to interact with GitHub MCP tools
+- Permit CI/CD automation bots to access repositories through the MCP Gateway
+- Enable approved GitHub Apps operating as bots to bypass role restrictions
+
+**Example**:
+```yaml
+bots:
+  - "dependabot[bot]"    # Dependabot treated as team member
+  - "renovate[bot]"      # Renovate bot treated as team member
+  - "my-ci-bot[bot]"     # Custom CI bot
+```
+
+**Bot Name Format**:
+GitHub bot accounts follow the convention `{name}[bot]`. Both the full form (`dependabot[bot]`) and the short form (`dependabot`) are acceptable. The implementation MUST match both forms against the actor identity.
+
+**Security Note**: Only list bots that are trusted and have legitimate reasons to access GitHub resources through the MCP server. Each listed bot bypasses the `roles` check, so this list SHOULD be minimal and well-audited.
+
 ### 4.5 Relationship Between Tool Selection and Access Control
 
-The GitHub MCP server configuration combines tool selection (`toolsets` and `tools`) with access control (`repos`, `roles`, `private-repos`). These mechanisms operate independently but complement each other:
+The GitHub MCP server configuration combines tool selection (`toolsets` and `tools`) with access control (`repos`, `roles`, `bots`, `private-repos`). These mechanisms operate independently but complement each other:
 
 **Tool Selection** (existing GitHub MCP feature):
 - Controls **which operations** the agent can perform (e.g., read files, create issues)
@@ -655,7 +690,8 @@ The GitHub MCP server configuration combines tool selection (`toolsets` and `too
 
 **Access Control** (this specification):
 - Controls **which repositories** the agent can access
-- Controls **permission requirements** for repository access
+- Controls **permission requirements** for repository access (`roles`)
+- Controls **bot identity exceptions** to role requirements (`bots`)
 - Controls **visibility requirements** (public vs private)
 - Enforced at runtime when tools are invoked
 
@@ -666,15 +702,20 @@ tools:
     toolsets: [repos, issues]          # Agent can use repo and issue tools
     repos: ["myorg/*"]         # But only on myorg repositories
     roles: ["write", "admin"]  # And only where user has write/admin
+    bots: ["dependabot[bot]"]  # Or where actor is the Dependabot bot
     private-repos: false         # And only public repositories
 ```
 
 **Evaluation Order**:
 1. Tool selection filters available MCP tools → agent sees only enabled tools
 2. Agent invokes a tool with repository parameter
-3. Access control evaluates repository, role, and visibility → allows or denies
+3. Access control evaluates repository match → allows or denies based on `repos`
+4. If actor matches an entry in `bots` → skip role check, proceed to visibility check
+5. Otherwise evaluate `roles` → allows or denies based on permission level
+6. Evaluate visibility (`private-repos`) → allows or denies based on repository type
+7. All checks passed: allow
 
-**Key Principle**: Tool selection determines **what operations** are possible; access control determines **where operations** are permitted.
+**Key Principle**: Tool selection determines **what operations** are possible; access control determines **where operations** are permitted and **who** is permitted.
 
 ### 4.6 Configuration Validation
 
@@ -741,6 +782,7 @@ See https://docs.github.com/en/organizations/managing-access-to-your-organizatio
 **Rule**: Configuration fields MUST have correct types:
 - `repos`: array of strings
 - `roles`: array of strings
+- `bots`: array of strings
 - `private-repos`: boolean
 
 **Validation**:
@@ -748,23 +790,28 @@ See https://docs.github.com/en/organizations/managing-access-to-your-organizatio
 # VALID
 repos: ["owner/repo"]
 roles: ["write"]
+bots: ["dependabot[bot]"]
 private-repos: false
 
 # INVALID
 repos: "owner/repo"          # Must be array
 roles: ["write", 123]        # All elements must be strings
+bots: "dependabot[bot]"      # Must be array
 private-repos: "false"         # Must be boolean
 ```
 
 #### 4.6.4 Empty Array Validation
 
-**Rule**: Neither `repos` nor `roles` MAY be empty arrays
+**Rule**: Neither `repos` nor `roles` MAY be empty arrays. `bots` MAY be an empty array but SHOULD be omitted when no bots are intended.
 
 **Validation**:
 ```yaml
 # INVALID
 repos: []        # Empty array blocks all access
 roles: []        # Empty array blocks all access
+
+# VALID (but discouraged - omit instead)
+bots: []         # Empty array has same effect as omitting
 
 # VALID
 # (omit field entirely if you want no restrictions)
@@ -777,6 +824,30 @@ repos:
 Empty array for {field} is not allowed.
 Either omit the field entirely (no restrictions) or specify at least one pattern/role.
 To allow all access, use ["*/*"] for repos or omit the field.
+```
+
+#### 4.6.5 Bot Identifier Validation
+
+**Rule**: Each entry in `bots` MUST be a non-empty string that identifies a valid GitHub bot account or user.
+
+**Validation**:
+```text
+VALID:
+  - "dependabot[bot]"         → Standard GitHub bot with [bot] suffix
+  - "renovate[bot]"           → Standard GitHub bot with [bot] suffix
+  - "dependabot"              → Short form without [bot] suffix
+  - "my-ci-bot[bot]"          → Custom bot account
+
+INVALID:
+  - ""                        → Empty string
+  - 123                       → Must be string, not number
+```
+
+**Error Message**:
+```text
+Invalid bot identifier '{identifier}' in bots.
+Bot identifiers must be non-empty strings.
+Example: ["dependabot[bot]", "renovate[bot]"]
 ```
 
 ---
@@ -1373,7 +1444,8 @@ Access control is implemented as MCP Gateway middleware:
 │    ├─ Extract repository identifier         │
 │    ├─ Match against repos           │
 │    ├─ Verify private repository access      │
-│    ├─ Query user's role                     │
+│    ├─ Check actor against bots list         │
+│    ├─ Query user's role (if not a bot)      │
 │    ├─ Check against roles           │
 │    └─ Allow or deny with logging            │
 │ 4. Forward to GitHub MCP server (if allowed)│
@@ -1406,9 +1478,10 @@ GitHub MCP Server Access Control extends the MCP Gateway configuration schema:
       "type": "http",
       "url": "https://api.githubcopilot.com/mcp/",
       "headers": { ... },
-      "repos": ["owner/*"],           // NEW
-      "roles": ["write", "admin"],    // NEW
-      "private-repos": false            // NEW
+      "repos": ["owner/*"],                     // NEW
+      "roles": ["write", "admin"],              // NEW
+      "bots": ["dependabot[bot]"],              // NEW
+      "private-repos": false                    // NEW
     }
   }
 }
@@ -1426,6 +1499,7 @@ tools:
     toolsets: [default]
     repos: ["myorg/*"]
     roles: ["write", "admin"]
+    bots: ["dependabot[bot]"]
     private-repos: false
 ```
 
@@ -1441,6 +1515,7 @@ tools:
       },
       "repos": ["myorg/*"],
       "roles": ["write", "admin"],
+      "bots": ["dependabot[bot]"],
       "private-repos": false
     }
   }
@@ -1493,54 +1568,66 @@ Conforming implementations MUST pass the following test categories:
 - **T-GH-008**: Reject non-boolean values for `private-repos`
 - **T-GH-009**: Reject empty arrays for `repos`
 - **T-GH-010**: Reject empty arrays for `roles`
+- **T-GH-011**: Accept valid bot identifiers in `bots` (strings with or without `[bot]` suffix)
+- **T-GH-012**: Accept empty array for `bots` (treated as no bot exceptions)
+- **T-GH-013**: Reject non-string entries in `bots`
 
 #### 10.1.2 Repository Pattern Matching Tests
 
-- **T-GH-011**: Exact pattern matches target repository
-- **T-GH-012**: Exact pattern rejects non-matching repositories
-- **T-GH-013**: Owner wildcard matches all repos under owner
-- **T-GH-014**: Owner wildcard rejects repos under different owner
-- **T-GH-015**: Name wildcard matches repos with exact name
-- **T-GH-016**: Name wildcard rejects repos with different names
-- **T-GH-017**: Full wildcard matches all repositories
-- **T-GH-018**: Multiple patterns evaluated with OR logic
+- **T-GH-014**: Exact pattern matches target repository
+- **T-GH-015**: Exact pattern rejects non-matching repositories
+- **T-GH-016**: Owner wildcard matches all repos under owner
+- **T-GH-017**: Owner wildcard rejects repos under different owner
+- **T-GH-018**: Name wildcard matches repos with exact name
+- **T-GH-019**: Name wildcard rejects repos with different names
+- **T-GH-020**: Full wildcard matches all repositories
+- **T-GH-021**: Multiple patterns evaluated with OR logic
 
 #### 10.1.3 Role-Based Filtering Tests
 
-- **T-GH-019**: Allow access when user role matches `roles`
-- **T-GH-020**: Deny access when user role doesn't match `roles`
-- **T-GH-021**: Query GitHub API for user permission level
-- **T-GH-022**: Cache permission queries for performance
-- **T-GH-023**: Support multiple roles with OR logic
+- **T-GH-022**: Allow access when user role matches `roles`
+- **T-GH-023**: Deny access when user role doesn't match `roles`
+- **T-GH-024**: Query GitHub API for user permission level
+- **T-GH-025**: Cache permission queries for performance
+- **T-GH-026**: Support multiple roles with OR logic
 
-#### 10.1.4 Private Repository Control Tests
+#### 10.1.4 Bot Team Member Tests
 
-- **T-GH-024**: Allow private repository when `private-repos: true`
-- **T-GH-025**: Deny private repository when `private-repos: false`
-- **T-GH-026**: Allow public repository when `private-repos: false`
-- **T-GH-027**: Query GitHub API for repository visibility
-- **T-GH-028**: Cache repository visibility for performance
+- **T-GH-027**: Allow access when actor matches a `bots` entry with `[bot]` suffix form
+- **T-GH-028**: Allow access when actor matches a `bots` entry using short form (without `[bot]`)
+- **T-GH-029**: Bot bypass is case-insensitive for actor matching
+- **T-GH-030**: Bot bypass skips `roles` check but NOT `repos` or `private-repos` checks
+- **T-GH-031**: Actor not in `bots` list falls through to normal `roles` check
+- **T-GH-032**: Empty or absent `bots` list grants no bot exceptions
 
-#### 10.1.5 Access Decision Logging Tests
+#### 10.1.5 Private Repository Control Tests
 
-- **T-GH-029**: Log access granted decisions at INFO level
-- **T-GH-030**: Log access denied decisions at WARN level
-- **T-GH-031**: Include all required fields in log entries
-- **T-GH-032**: Redact sensitive data (tokens) from logs
+- **T-GH-033**: Allow private repository when `private-repos: true`
+- **T-GH-034**: Deny private repository when `private-repos: false`
+- **T-GH-035**: Allow public repository when `private-repos: false`
+- **T-GH-036**: Query GitHub API for repository visibility
+- **T-GH-037**: Cache repository visibility for performance
 
-#### 10.1.6 Error Handling Tests
+#### 10.1.6 Access Decision Logging Tests
 
-- **T-GH-033**: Return standardized error for repository not in allowlist
-- **T-GH-034**: Return standardized error for insufficient role
-- **T-GH-035**: Return standardized error for private repository denial
-- **T-GH-036**: Handle GitHub API errors gracefully
+- **T-GH-038**: Log access granted decisions at INFO level
+- **T-GH-039**: Log access denied decisions at WARN level
+- **T-GH-040**: Include all required fields in log entries
+- **T-GH-041**: Redact sensitive data (tokens) from logs
 
-#### 10.1.7 Integration Tests
+#### 10.1.7 Error Handling Tests
 
-- **T-GH-037**: Access control works with local mode GitHub MCP server
-- **T-GH-038**: Access control works with remote mode GitHub MCP server
-- **T-GH-039**: Access control integrates with MCP Gateway authentication
-- **T-GH-040**: Configuration compiles correctly in workflow frontmatter
+- **T-GH-042**: Return standardized error for repository not in allowlist
+- **T-GH-043**: Return standardized error for insufficient role
+- **T-GH-044**: Return standardized error for private repository denial
+- **T-GH-045**: Handle GitHub API errors gracefully
+
+#### 10.1.8 Integration Tests
+
+- **T-GH-046**: Access control works with local mode GitHub MCP server
+- **T-GH-047**: Access control works with remote mode GitHub MCP server
+- **T-GH-048**: Access control integrates with MCP Gateway authentication
+- **T-GH-049**: Configuration compiles correctly in workflow frontmatter
 
 ### 10.2 Compliance Checklist
 
@@ -1548,14 +1635,16 @@ Conforming implementations MUST pass the following test categories:
 |-------------|---------|-------|--------|
 | Parse repos | T-GH-001-003 | 1 | Required |
 | Validate repo patterns | T-GH-004 | 1 | Required |
-| Exact repo matching | T-GH-011-012 | 1 | Required |
-| Wildcard repo matching | T-GH-013-017 | 2 | Required |
+| Exact repo matching | T-GH-014-015 | 1 | Required |
+| Wildcard repo matching | T-GH-016-020 | 2 | Required |
 | Parse roles | T-GH-005-006 | 2 | Required |
-| Role-based filtering | T-GH-019-023 | 2 | Required |
-| Private repo controls | T-GH-024-028 | 2 | Required |
-| Access decision logging | T-GH-029-032 | 2 | Required |
-| Error responses | T-GH-033-036 | 2 | Required |
-| MCP Gateway integration | T-GH-037-040 | 2 | Required |
+| Role-based filtering | T-GH-022-026 | 2 | Required |
+| Parse bots | T-GH-011-013 | 2 | Required |
+| Bot team member bypass | T-GH-027-032 | 2 | Required |
+| Private repo controls | T-GH-033-037 | 2 | Required |
+| Access decision logging | T-GH-038-041 | 2 | Required |
+| Error responses | T-GH-042-045 | 2 | Required |
+| MCP Gateway integration | T-GH-046-049 | 2 | Required |
 
 ### 10.3 Test Execution
 
@@ -1568,6 +1657,7 @@ make test-github-mcp-access-control
 # Run specific test category
 make test-github-mcp-repository-patterns
 make test-github-mcp-role-filtering
+make test-github-mcp-bot-members
 make test-github-mcp-private-repos
 ```
 
@@ -1826,6 +1916,35 @@ tools:
 - `repos` further restricts which repos the MCP server can use
 - Both must allow a repository for access to be granted
 
+#### A.12 Bot Team Members with Role-Based Access Control
+
+Allow specific automation bots to interact with repositories as team members, bypassing the normal role check:
+
+```yaml
+tools:
+  github:
+    mode: "remote"
+    toolsets: [repos, issues, pull_requests]
+    repos:
+      - "myorg/*"
+    roles:
+      - "write"
+      - "admin"
+    bots:
+      - "dependabot[bot]"    # Dependabot bypass: no role check required
+      - "renovate[bot]"      # Renovate bypass: no role check required
+    private-repos: true
+```
+
+**Use Case**: Automated dependency management workflows where Dependabot or Renovate need to interact with GitHub MCP tools.
+
+**Bot Bypass Behavior**:
+- `roles` check is skipped when the actor matches a `bots` entry
+- `repos` and `private-repos` constraints still apply to bots
+- Bot identifiers support both `dependabot[bot]` and `dependabot` forms
+
+**Security Note**: Only list bots with a legitimate need to access GitHub resources. Review the bot list regularly to remove any bots that no longer require access.
+
 ### Appendix B: Error Messages
 
 #### B.1 Repository Not in Allowlist
@@ -1998,6 +2117,19 @@ GitHub API rate limits apply to:
 ---
 
 ## Change Log
+
+### Version 1.1.0 (Draft)
+
+**Bot Team Members Feature** - March 2026
+
+- **Added**: `bots` configuration field (`bots?: string[]`) allowing bot identifiers to be treated as team members, bypassing `roles` permission checks
+- **Added**: Section 4.4.4 describing `bots` field semantics, behavior, and constraints
+- **Added**: Section 4.6.5 validation rules for `bots` field entries
+- **Updated**: Section 4.5 evaluation order to include bot bypass step before role check
+- **Updated**: Section 9.2 middleware architecture diagram to show bot identity check
+- **Updated**: Section 9.3 and 9.4 schema and frontmatter examples to include `bots`
+- **Updated**: Section 10 compliance tests (T-GH-011 to T-GH-013 for bot validation, T-GH-027 to T-GH-032 for bot behavior)
+- **Added**: Appendix A.12 configuration example for bot team members with role-based access control
 
 ### Version 1.0.0 (Draft)
 
