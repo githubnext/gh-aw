@@ -526,14 +526,10 @@ func buildDetectionSuccessCondition() ConditionNode {
 // "agent" artifact) to avoid a 409 Conflict when both the agent job and safe_outputs job
 // try to upload an artifact with the same name in the same workflow run.
 // prefix is prepended to the artifact name; use empty string for non-workflow_call workflows.
-// continue-on-error is set to true because actions/upload-artifact v4+ returns a 409
-// conflict when a second job tries to upload to an artifact name that already exists;
-// the upload conflict must not fail the safe_outputs job.
 func buildSafeOutputItemsManifestUploadStep(prefix string) []string {
 	return []string{
 		"      - name: Upload safe output items\n",
 		"        if: always()\n",
-		"        continue-on-error: true\n",
 		fmt.Sprintf("        uses: %s\n", GetActionPin("actions/upload-artifact")),
 		"        with:\n",
 		fmt.Sprintf("          name: %s%s\n", prefix, constants.SafeOutputItemsArtifactName),
