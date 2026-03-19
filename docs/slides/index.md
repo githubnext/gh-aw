@@ -141,6 +141,54 @@ AI agents become risky when they combine **three capabilities** at once:
 
 ---
 
+# Useful Sandboxes: The Philosophy
+
+## Safe by design. Useful by default.
+
+---
+
+# From Scratch to MakeCode
+
+## Kid dev environments got here first
+
+- **Scratch** — Block-based coding (MIT) — can't break anything important
+- **MakeCode / pxt** — Hardware + game programming for beginners
+- **BASIC** — First language for a generation of developers
+
+These environments share one superpower:
+
+> You're protected from catastrophe — and you can still build something **real and delightful**
+
+---
+
+# What Makes a Sandbox "Useful"?
+
+## The beginner runtime principles
+
+- **Guardrails without walls** — protected, not trapped
+- **Immediate feedback** — actions produce visible results
+- **Progressive disclosure** — start simple, grow into complexity
+- **Real outputs** — even beginners ship something that matters
+- **Delight** — the sandbox feels like a superpower, not a restriction
+
+> The best sandboxes don't limit what's possible — they shape *how* it's possible
+
+---
+
+# Applying These Principles to Agentic Workflows
+
+| Beginner Runtime | Agentic Workflows |
+|---|---|
+| Runs in the browser | Container isolation |
+| Safe defaults | Read-only permissions |
+| Guardrailed actions | Safe outputs |
+| Real outputs | Issues, PRs, comments |
+| Delightful UX | Natural language workflows |
+
+> Same philosophy, enterprise scale
+
+---
+
 # Combine GitHub Actions and SWE Agents **SAFELY**
 
 ---
