@@ -47,7 +47,6 @@ safe-outputs:
   push-to-pull-request-branch:
     target-repo: "githubnext/gh-aw-side-repo"
     github-token: ${{ secrets.GH_AW_SIDE_REPO_PAT }}
-    title-prefix: "[smoke] "
     labels: [smoke-test]
     if-no-changes: "error"
     target: "1" # PR #1
