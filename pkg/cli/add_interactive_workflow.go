@@ -112,7 +112,7 @@ func (c *AddInteractiveConfig) checkStatusAndOfferRun(ctx context.Context) error
 		),
 	).WithTheme(styles.HuhTheme()).WithAccessible(console.IsAccessibleMode())
 
-	if err := form.RunWithContext(c.Ctx); err != nil {
+	if err := form.RunWithContext(ctx); err != nil {
 		return nil // Not critical, just skip
 	}
 
