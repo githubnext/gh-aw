@@ -69,10 +69,7 @@ Capabilities that an AI agent can use during workflow execution. Tools are confi
 
 ### Guard Policy
 
-An experimental access control configuration for the GitHub MCP server that restricts which repositories and content integrity levels the agent can read. Configured via `tools.github.repos` (repository scope: `"all"`, `"public"`, or a list of patterns) and `tools.github.min-integrity` (minimum required integrity level). Both fields are required when either is specified. Integrity levels by trust: `merged` (content reachable from the main branch) > `approved` (owners, members, collaborators) > `unapproved` (contributors) > `none` (first-time users). See [GitHub Tools Reference](/gh-aw/reference/github-tools/#guard-policies).
-
-> [!NOTE]
-> Guard policy fields are experimental and may change in future releases. Using either field emits a compilation warning.
+An access control configuration for the GitHub MCP server that restricts which repositories and content integrity levels the agent can read. Configured via `tools.github.repos` (repository scope: `"all"`, `"public"`, or a list of patterns) and `tools.github.min-integrity` (minimum required integrity level). Both fields are required when either is specified. Integrity levels by trust: `merged` (content reachable from the main branch) > `approved` (owners, members, collaborators) > `unapproved` (contributors) > `none` (first-time users). See [GitHub Tools Reference](/gh-aw/reference/github-tools/#guard-policies).
 
 ## Security and Outputs
 
