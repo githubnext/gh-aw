@@ -292,7 +292,7 @@ jobs:
         with:
           node-version: '24'
           package-manager-cache: false
-      - name: Install Codex
+      - name: Install Codex CLI
         run: npm install -g @openai/codex@latest
       - name: Install AWF binary
         run: bash ${RUNNER_TEMP}/gh-aw/actions/install_awf_binary.sh v0.24.3

@@ -2622,7 +2622,7 @@ jobs:
           GH_HOST="${GITHUB_SERVER_URL#https://}"
           GH_HOST="${GH_HOST#http://}"
           echo "GH_HOST=${GH_HOST}" >> "$GITHUB_ENV"
-      - name: Setup Safe Output Custom Scripts
+      - name: Setup Safe Outputs Custom Scripts
         run: |
           cat > ${RUNNER_TEMP}/gh-aw/actions/safe_output_script_post_slack_message.cjs << 'GH_AW_SAFE_OUTPUT_SCRIPT_POST_SLACK_MESSAGE_EOF'
           // @ts-check
@@ -2661,7 +2661,7 @@ jobs:
             setupGlobals(core, github, context, exec, io);
             const { main } = require('${{ runner.temp }}/gh-aw/actions/safe_output_handler_manager.cjs');
             await main();
-      - name: Upload Safe Output Items Manifest
+      - name: Upload Safe Outputs Items Manifest
         if: always()
         uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
         with:
