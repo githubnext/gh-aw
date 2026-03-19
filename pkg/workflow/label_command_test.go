@@ -514,6 +514,12 @@ Deploy the application because label "deploy" was added. The label is not remove
 	assert.Contains(t, labelCmdOutput, "get_trigger_label",
 		"label_command output should reference get_trigger_label step")
 
+	// A unified command_name output should also be present
+	commandNameOutput, hasCommandName := activationOutputs["command_name"]
+	assert.True(t, hasCommandName, "activation job should have a unified command_name output when remove_label is false")
+	assert.Contains(t, commandNameOutput, "get_trigger_label",
+		"command_name output should reference get_trigger_label step")
+
 	// When reactions and status-comment are also disabled, issues:write should NOT be present
 	// since it was only needed for label removal.
 	activationPerms, hasPerms := activation["permissions"].(map[string]any)
