@@ -63,6 +63,28 @@ func GenerateSerenaLanguageServiceSteps(tools *ToolsConfig) []GitHubActionStep {
 	return []GitHubActionStep{}
 }
 
+// generatePlaywrightCLIInstallSteps creates installation steps for playwright-cli.
+// playwright-cli is installed directly on the runner when tools.playwright.mode is "cli".
+// If a version is specified in the config, it is used for a pinned installation.
+// See https://github.com/microsoft/playwright-cli for the CLI tool.
+func generatePlaywrightCLIInstallSteps(config *PlaywrightToolConfig) []GitHubActionStep {
+	runtimeStepGeneratorLog.Print("Generating playwright-cli installation steps")
+
+	packageSpec := "playwright-cli"
+	if config != nil && config.Version != "" {
+		packageSpec = "playwright-cli@" + config.Version
+	}
+
+	return []GitHubActionStep{
+		{
+			"      - name: Install Playwright CLI",
+			"        run: |",
+			"          npm install -g " + packageSpec,
+			"          playwright-cli install",
+		},
+	}
+}
+
 // generateSetupStep creates a setup step for a given runtime requirement
 func generateSetupStep(req *RuntimeRequirement) GitHubActionStep {
 	runtime := req.Runtime

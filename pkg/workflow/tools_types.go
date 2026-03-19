@@ -304,7 +304,14 @@ type GitHubToolConfig struct {
 // PlaywrightToolConfig represents the configuration for the Playwright tool
 type PlaywrightToolConfig struct {
 	Version string   `yaml:"version,omitempty"`
+	Mode    string   `yaml:"mode,omitempty"` // "cli" or "mcp" (default: "mcp")
 	Args    []string `yaml:"args,omitempty"`
+}
+
+// isPlaywrightCLIMode returns true if the playwright tool is configured to use CLI mode.
+// In CLI mode, playwright-cli is installed directly and no MCP server is started.
+func isPlaywrightCLIMode(config *PlaywrightToolConfig) bool {
+	return config != nil && config.Mode == "cli"
 }
 
 // SerenaToolConfig represents the configuration for the Serena MCP tool

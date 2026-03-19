@@ -3428,6 +3428,11 @@
               "type": "object",
               "description": "Playwright tool configuration with custom version and arguments",
               "properties": {
+                "mode": {
+                  "type": "string",
+                  "description": "Playwright integration mode: 'mcp' (default) uses the Playwright MCP Docker container, 'cli' installs playwright-cli directly on the runner",
+                  "enum": ["cli", "mcp"]
+                },
                 "version": {
                   "type": ["string", "number"],
                   "description": "Optional Playwright container version (e.g., 'v1.41.0', 1.41, 20). Numeric values are automatically converted to strings at runtime.",

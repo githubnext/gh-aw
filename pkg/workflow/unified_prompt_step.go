@@ -248,11 +248,19 @@ func (c *Compiler) collectPromptSections(data *WorkflowData) []PromptSection {
 
 	// 3. Playwright instructions (if playwright tool is enabled)
 	if hasPlaywrightTool(data.ParsedTools) {
-		unifiedPromptLog.Print("Adding playwright section")
-		sections = append(sections, PromptSection{
-			Content: playwrightPromptFile,
-			IsFile:  true,
-		})
+		if hasPlaywrightCLITool(data.ParsedTools) {
+			unifiedPromptLog.Print("Adding playwright-cli section")
+			sections = append(sections, PromptSection{
+				Content: playwrightCLIPromptFile,
+				IsFile:  true,
+			})
+		} else {
+			unifiedPromptLog.Print("Adding playwright section")
+			sections = append(sections, PromptSection{
+				Content: playwrightPromptFile,
+				IsFile:  true,
+			})
+		}
 	}
 
 	// 4. Agentic Workflows MCP guide (if agentic-workflows tool is enabled)

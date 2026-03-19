@@ -99,12 +99,15 @@ func (e *ClaudeEngine) expandNeutralToolsToClaudeTools(tools map[string]any) map
 	}
 
 	// Handle playwright tool by converting it to an MCP tool configuration
-	if _, hasPlaywright := tools["playwright"]; hasPlaywright {
-		// Create playwright as an MCP tool with the same tools available as copilot agent
-		playwrightMCP := map[string]any{
-			"allowed": GetPlaywrightTools(),
+	if playwrightTool, hasPlaywright := tools["playwright"]; hasPlaywright {
+		playwrightConfig := parsePlaywrightTool(playwrightTool)
+		if !isPlaywrightCLIMode(playwrightConfig) {
+			// Create playwright as an MCP tool with the same tools available as copilot agent
+			playwrightMCP := map[string]any{
+				"allowed": GetPlaywrightTools(),
+			}
+			result["playwright"] = playwrightMCP
 		}
-		result["playwright"] = playwrightMCP
 	}
 
 	// Update claude section

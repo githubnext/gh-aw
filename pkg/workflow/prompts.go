@@ -29,6 +29,14 @@ func hasPlaywrightTool(parsedTools *Tools) bool {
 	return hasPlaywright
 }
 
+// hasPlaywrightCLITool checks if the playwright tool is enabled in CLI mode
+func hasPlaywrightCLITool(parsedTools *Tools) bool {
+	if parsedTools == nil {
+		return false
+	}
+	return isPlaywrightCLIMode(parsedTools.Playwright)
+}
+
 // ============================================================================
 // Tool Prompts - Agentic Workflows
 // ============================================================================

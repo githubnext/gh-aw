@@ -29,6 +29,23 @@ func validateBashToolConfig(tools *Tools, workflowName string) error {
 	return nil
 }
 
+// validatePlaywrightToolConfig validates the playwright tool configuration.
+// It ensures the mode field, if set, has a valid value ("cli" or "mcp").
+// An empty or unset mode defaults to "mcp" behavior.
+func validatePlaywrightToolConfig(tools *Tools, workflowName string) error {
+	if tools == nil || tools.Playwright == nil {
+		return nil
+	}
+
+	mode := tools.Playwright.Mode
+	if mode != "" && mode != "cli" && mode != "mcp" {
+		toolsValidationLog.Printf("Invalid playwright mode in workflow: %s, mode=%s", workflowName, mode)
+		return fmt.Errorf("invalid playwright tool configuration: 'tools.playwright.mode' must be \"cli\" or \"mcp\", got %q", mode)
+	}
+
+	return nil
+}
+
 // validateGitHubReadOnly validates that read-only: false is not set for the GitHub tool.
 // The GitHub MCP server always operates in read-only mode; write access is not permitted.
 func validateGitHubReadOnly(tools *Tools, workflowName string) error {

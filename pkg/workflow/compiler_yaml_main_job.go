@@ -259,6 +259,17 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 		}
 	}
 
+	// Add playwright-cli installation step if playwright is configured in CLI mode
+	if hasPlaywrightCLITool(data.ParsedTools) {
+		compilerYamlLog.Print("Adding playwright-cli installation step")
+		playwrightCLISteps := generatePlaywrightCLIInstallSteps(data.ParsedTools.Playwright)
+		for _, step := range playwrightCLISteps {
+			for _, line := range step {
+				yaml.WriteString(line + "\n")
+			}
+		}
+	}
+
 	// Add APM (Agent Package Manager) setup step if dependencies are specified
 	if data.APMDependencies != nil && len(data.APMDependencies.Packages) > 0 {
 		// Download the pre-packed APM bundle from the separate "apm" artifact.

@@ -430,7 +430,7 @@ func (e *CodexEngine) expandNeutralToolsToCodexTools(toolsConfig *ToolsConfig) *
 	maps.Copy(result.raw, toolsConfig.raw)
 
 	// Handle playwright tool by converting it to an MCP tool configuration with copilot agent tools
-	if toolsConfig.Playwright != nil {
+	if toolsConfig.Playwright != nil && !isPlaywrightCLIMode(toolsConfig.Playwright) {
 		// Create an updated Playwright config with the allowed tools
 		playwrightConfig := &PlaywrightToolConfig{
 			Version: toolsConfig.Playwright.Version,

@@ -95,8 +95,14 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 			continue
 		}
 		// Standard MCP tools
-		if toolName == "github" || toolName == "playwright" || toolName == "serena" || toolName == "cache-memory" || toolName == "agentic-workflows" {
+		if toolName == "github" || toolName == "serena" || toolName == "cache-memory" || toolName == "agentic-workflows" {
 			mcpTools = append(mcpTools, toolName)
+		} else if toolName == "playwright" {
+			// Only add playwright to MCP tools if not in CLI mode
+			playwrightConfig := parsePlaywrightTool(toolValue)
+			if !isPlaywrightCLIMode(playwrightConfig) {
+				mcpTools = append(mcpTools, toolName)
+			}
 		} else if mcpConfig, ok := toolValue.(map[string]any); ok {
 			// Check if it's explicitly marked as MCP type in the new format
 			if hasMcp, _ := hasMCPConfig(mcpConfig); hasMcp {

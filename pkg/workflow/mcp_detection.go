@@ -19,8 +19,15 @@ func HasMCPServers(workflowData *WorkflowData) bool {
 		if toolValue == false {
 			continue
 		}
-		if toolName == "github" || toolName == "playwright" || toolName == "cache-memory" || toolName == "agentic-workflows" {
+		if toolName == "github" || toolName == "cache-memory" || toolName == "agentic-workflows" {
 			return true
+		}
+		if toolName == "playwright" {
+			playwrightConfig := parsePlaywrightTool(toolValue)
+			if !isPlaywrightCLIMode(playwrightConfig) {
+				return true
+			}
+			continue
 		}
 		// Check for custom MCP tools
 		if mcpConfig, ok := toolValue.(map[string]any); ok {
