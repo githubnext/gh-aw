@@ -17,6 +17,7 @@ import (
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/parser"
 	"github.com/github/gh-aw/pkg/workflow"
+	"github.com/goccy/go-yaml"
 	"github.com/spf13/cobra"
 )
 
@@ -689,14 +690,20 @@ func fetchWorkflowRunMetadata(runID int64, owner, repo, hostname string, verbose
 }
 
 // resolveWorkflowDisplayName returns the human-readable display name for a workflow file.
-// It first attempts to read the YAML file from the local filesystem; if that fails it
-// falls back to a GitHub API call.  An empty string is returned on any error so that
-// callers can gracefully keep the original value.
+// It first attempts to read the YAML file from the local filesystem (resolving the path
+// relative to the git repository root so that it works from any working directory inside
+// the repo); if that fails it falls back to a GitHub API call.  An empty string is
+// returned on any error so that callers can gracefully keep the original value.
 func resolveWorkflowDisplayName(workflowPath, owner, repo, hostname string) string {
-	// Try local file first (works when audit is run from inside a cloned repository).
-	if content, err := os.ReadFile(workflowPath); err == nil {
-		if name := extractWorkflowNameFromYAML(string(content)); name != "" {
-			return name
+	// Try local file first.  workflowPath is a repo-relative path like
+	// ".github/workflows/foo.lock.yml", so we resolve it against the git root to
+	// produce a correct absolute path regardless of the current working directory.
+	if gitRoot, err := findGitRoot(); err == nil {
+		absPath := filepath.Join(gitRoot, workflowPath)
+		if content, err := os.ReadFile(absPath); err == nil {
+			if name := extractWorkflowNameFromYAML(content); name != "" {
+				return name
+			}
 		}
 	}
 
@@ -724,27 +731,16 @@ func resolveWorkflowDisplayName(workflowPath, owner, repo, hostname string) stri
 	return strings.TrimSpace(string(out))
 }
 
-// extractWorkflowNameFromYAML scans the top-level YAML content for a 'name:' key and
-// returns its value.  Only the first occurrence at the root level is considered.
-// This intentionally avoids importing a full YAML parser to keep the dependency
-// footprint minimal.
-func extractWorkflowNameFromYAML(content string) string {
-	for line := range strings.SplitSeq(content, "\n") {
-		trimmed := strings.TrimSpace(line)
-		// Skip blank lines and YAML comments.
-		if trimmed == "" || strings.HasPrefix(trimmed, "#") {
-			continue
-		}
-		// A top-level key starts at column 0 (no leading whitespace).
-		if !strings.HasPrefix(line, " ") && !strings.HasPrefix(line, "\t") {
-			if after, ok := strings.CutPrefix(trimmed, "name:"); ok {
-				name := strings.TrimSpace(after)
-				// Strip optional surrounding quotes (single or double).
-				name = strings.Trim(name, "\"'")
-				return name
-			}
-			// Continue scanning for 'name:' key — it may appear after other top-level keys.
-		}
+// extractWorkflowNameFromYAML parses a GitHub Actions workflow YAML document and
+// returns the value of its top-level "name:" field.  An empty string is returned
+// when the field is absent or the document cannot be parsed.
+func extractWorkflowNameFromYAML(content []byte) string {
+	var wf struct {
+		Name string `yaml:"name"`
 	}
-	return ""
+	if err := yaml.Unmarshal(content, &wf); err != nil {
+		auditLog.Printf("Failed to parse workflow YAML for name extraction (file may be malformed): %v", err)
+		return ""
+	}
+	return wf.Name
 }
