@@ -43,7 +43,7 @@ tools:
     file-glob: ["memory/discussion-task-miner/*.json", "memory/discussion-task-miner/*.md"]
     max-file-size: 102400  # 100KB
   github:
-    lockdown: true
+    min-integrity: approved
     toolsets: [default, discussions]
   bash:
     - "find .github -name '*.md'"
