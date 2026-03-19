@@ -153,6 +153,7 @@ type ExpressionValidationOptions struct {
 // This matches the JavaScript runtime validation in actions/setup/js/runtime_import.cjs
 // Returns an error if dangerous properties are found.
 func validateExpressionForDangerousProps(expression string) error {
+	expressionValidationLog.Printf("Checking expression for dangerous properties: %s", expression)
 	trimmed := strings.TrimSpace(expression)
 
 	// Split expression into parts using both dot and bracket notation;
