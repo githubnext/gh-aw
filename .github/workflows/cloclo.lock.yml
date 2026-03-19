@@ -26,7 +26,7 @@
 #     - shared/jqschema.md
 #     - shared/mcp/serena-go.md
 #
-# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"ad111cf099d958c340ed839a8e88f5053a501ce37fb239bdc2645ee1a872d14a","strict":true}
+# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"23a5e0db533ffc88e2014a79b7e1572f5e2652bd5e449d60f7ab9b967df38aed","strict":true}
 
 name: "/cloclo"
 "on":
@@ -59,6 +59,12 @@ name: "/cloclo"
     types:
     - created
     - edited
+  workflow_dispatch:
+    inputs:
+      item_number:
+        description: The number of the issue, pull request, or discussion to process
+        required: true
+        type: string
 
 permissions: {}
 
@@ -72,7 +78,9 @@ jobs:
   activation:
     needs: pre_activation
     if: >
-      (needs.pre_activation.outputs.activated == 'true') && (((github.event_name == 'issues') && ((startsWith(github.event.issue.body, '/cloclo ')) ||
+      (needs.pre_activation.outputs.activated == 'true') && ((((github.event_name == 'issues' || github.event_name == 'issue_comment' ||
+      github.event_name == 'pull_request' || github.event_name == 'pull_request_review_comment' || github.event_name == 'discussion' ||
+      github.event_name == 'discussion_comment') && ((github.event_name == 'issues') && ((startsWith(github.event.issue.body, '/cloclo ')) ||
       (github.event.issue.body == '/cloclo')) || (github.event_name == 'issue_comment') && (((startsWith(github.event.comment.body, '/cloclo ')) ||
       (github.event.comment.body == '/cloclo')) && (github.event.issue.pull_request == null)) || (github.event_name == 'issue_comment') &&
       (((startsWith(github.event.comment.body, '/cloclo ')) || (github.event.comment.body == '/cloclo')) &&
@@ -82,7 +90,9 @@ jobs:
       ((startsWith(github.event.pull_request.body, '/cloclo ')) || (github.event.pull_request.body == '/cloclo')) ||
       (github.event_name == 'discussion') && ((startsWith(github.event.discussion.body, '/cloclo ')) || (github.event.discussion.body == '/cloclo')) ||
       (github.event_name == 'discussion_comment') && ((startsWith(github.event.comment.body, '/cloclo ')) ||
-      (github.event.comment.body == '/cloclo'))) || ((github.event_name == 'issues') && (github.event.label.name == 'cloclo') ||
+      (github.event.comment.body == '/cloclo')))) || (!(github.event_name == 'issues' || github.event_name == 'issue_comment' ||
+      github.event_name == 'pull_request' || github.event_name == 'pull_request_review_comment' || github.event_name == 'discussion' ||
+      github.event_name == 'discussion_comment'))) || ((github.event_name == 'issues') && (github.event.label.name == 'cloclo') ||
       (github.event_name == 'pull_request') && (github.event.label.name == 'cloclo') || (github.event_name == 'discussion') &&
       (github.event.label.name == 'cloclo')))
     runs-on: ubuntu-slim
@@ -216,12 +226,12 @@ jobs:
           GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
           GH_AW_GITHUB_ACTOR: ${{ github.actor }}
           GH_AW_GITHUB_EVENT_COMMENT_ID: ${{ github.event.comment.id }}
-          GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER: ${{ github.event.discussion.number }}
-          GH_AW_GITHUB_EVENT_ISSUE_NUMBER: ${{ github.event.issue.number }}
+          GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER: ${{ github.event.discussion.number || inputs.item_number }}
+          GH_AW_GITHUB_EVENT_ISSUE_NUMBER: ${{ github.event.issue.number || inputs.item_number }}
           GH_AW_GITHUB_EVENT_ISSUE_STATE: ${{ github.event.issue.state }}
           GH_AW_GITHUB_EVENT_PULL_REQUEST_BASE_SHA: ${{ github.event.pull_request.base.sha }}
           GH_AW_GITHUB_EVENT_PULL_REQUEST_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
-          GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER: ${{ github.event.pull_request.number }}
+          GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER: ${{ github.event.pull_request.number || inputs.item_number }}
           GH_AW_GITHUB_EVENT_PULL_REQUEST_STATE: ${{ github.event.pull_request.state }}
           GH_AW_GITHUB_REPOSITORY: ${{ github.repository }}
           GH_AW_GITHUB_RUN_ID: ${{ github.run_id }}
@@ -299,12 +309,12 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GH_AW_GITHUB_ACTOR: ${{ github.actor }}
-          GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER: ${{ github.event.discussion.number }}
-          GH_AW_GITHUB_EVENT_ISSUE_NUMBER: ${{ github.event.issue.number }}
+          GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER: ${{ github.event.discussion.number || inputs.item_number }}
+          GH_AW_GITHUB_EVENT_ISSUE_NUMBER: ${{ github.event.issue.number || inputs.item_number }}
           GH_AW_GITHUB_EVENT_ISSUE_STATE: ${{ github.event.issue.state }}
           GH_AW_GITHUB_EVENT_PULL_REQUEST_BASE_SHA: ${{ github.event.pull_request.base.sha }}
           GH_AW_GITHUB_EVENT_PULL_REQUEST_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
-          GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER: ${{ github.event.pull_request.number }}
+          GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER: ${{ github.event.pull_request.number || inputs.item_number }}
           GH_AW_GITHUB_EVENT_PULL_REQUEST_STATE: ${{ github.event.pull_request.state }}
           GH_AW_GITHUB_REPOSITORY: ${{ github.repository }}
           GH_AW_STEPS_SANITIZED_OUTPUTS_TEXT: ${{ steps.sanitized.outputs.text }}
@@ -323,12 +333,12 @@ jobs:
           GH_AW_CACHE_DIR: '/tmp/gh-aw/cache-memory/'
           GH_AW_GITHUB_ACTOR: ${{ github.actor }}
           GH_AW_GITHUB_EVENT_COMMENT_ID: ${{ github.event.comment.id }}
-          GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER: ${{ github.event.discussion.number }}
-          GH_AW_GITHUB_EVENT_ISSUE_NUMBER: ${{ github.event.issue.number }}
+          GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER: ${{ github.event.discussion.number || inputs.item_number }}
+          GH_AW_GITHUB_EVENT_ISSUE_NUMBER: ${{ github.event.issue.number || inputs.item_number }}
           GH_AW_GITHUB_EVENT_ISSUE_STATE: ${{ github.event.issue.state }}
           GH_AW_GITHUB_EVENT_PULL_REQUEST_BASE_SHA: ${{ github.event.pull_request.base.sha }}
           GH_AW_GITHUB_EVENT_PULL_REQUEST_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
-          GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER: ${{ github.event.pull_request.number }}
+          GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER: ${{ github.event.pull_request.number || inputs.item_number }}
           GH_AW_GITHUB_EVENT_PULL_REQUEST_STATE: ${{ github.event.pull_request.state }}
           GH_AW_GITHUB_REPOSITORY: ${{ github.repository }}
           GH_AW_GITHUB_RUN_ID: ${{ github.run_id }}
@@ -1420,6 +1430,8 @@ jobs:
 
   pre_activation:
     if: >
+      (((github.event_name == 'issues' || github.event_name == 'issue_comment' || github.event_name == 'pull_request' ||
+      github.event_name == 'pull_request_review_comment' || github.event_name == 'discussion' || github.event_name == 'discussion_comment') &&
       ((github.event_name == 'issues') && ((startsWith(github.event.issue.body, '/cloclo ')) || (github.event.issue.body == '/cloclo')) ||
       (github.event_name == 'issue_comment') && (((startsWith(github.event.comment.body, '/cloclo ')) || (github.event.comment.body == '/cloclo')) &&
       (github.event.issue.pull_request == null)) || (github.event_name == 'issue_comment') && (((startsWith(github.event.comment.body, '/cloclo ')) ||
@@ -1429,7 +1441,9 @@ jobs:
       ((startsWith(github.event.pull_request.body, '/cloclo ')) || (github.event.pull_request.body == '/cloclo')) ||
       (github.event_name == 'discussion') && ((startsWith(github.event.discussion.body, '/cloclo ')) || (github.event.discussion.body == '/cloclo')) ||
       (github.event_name == 'discussion_comment') && ((startsWith(github.event.comment.body, '/cloclo ')) ||
-      (github.event.comment.body == '/cloclo'))) || ((github.event_name == 'issues') && (github.event.label.name == 'cloclo') ||
+      (github.event.comment.body == '/cloclo')))) || (!(github.event_name == 'issues' || github.event_name == 'issue_comment' ||
+      github.event_name == 'pull_request' || github.event_name == 'pull_request_review_comment' || github.event_name == 'discussion' ||
+      github.event_name == 'discussion_comment'))) || ((github.event_name == 'issues') && (github.event.label.name == 'cloclo') ||
       (github.event_name == 'pull_request') && (github.event.label.name == 'cloclo') || (github.event_name == 'discussion') &&
       (github.event.label.name == 'cloclo'))
     runs-on: ubuntu-slim

@@ -1,5 +1,11 @@
 ---
 on:
+  workflow_dispatch:
+    inputs:
+      item_number:
+        description: The number of the issue, pull request, or discussion to process
+        required: true
+        type: string
   slash_command:
     name: cloclo
   label_command: cloclo
