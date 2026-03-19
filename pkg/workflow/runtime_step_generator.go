@@ -80,7 +80,7 @@ func generatePlaywrightCLIInstallSteps(config *PlaywrightToolConfig) []GitHubAct
 			"      - name: Install Playwright CLI",
 			"        run: |",
 			"          npm install -g " + packageSpec,
-			"          playwright install --with-deps chromium",
+			"          playwright-cli install --with-deps chromium",
 		},
 	}
 }
