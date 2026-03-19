@@ -443,7 +443,7 @@ Automatic distribution of workflow execution times across the day to reduce load
 
 ### Timeout
 
-Maximum duration a workflow can run before automatic cancellation. Configured via `timeout-minutes:` in frontmatter. Default is 360 minutes (6 hours); workflows can specify shorter timeouts to fail faster.
+Maximum duration a workflow can run before automatic cancellation. Configured via `timeout-minutes:` in frontmatter. The agent execution step defaults to 20 minutes; other jobs (custom jobs, safe-output jobs) use the GitHub Actions platform default of 360 minutes unless explicitly set. Workflows can specify longer timeouts if needed.
 
 ### Toolsets
 

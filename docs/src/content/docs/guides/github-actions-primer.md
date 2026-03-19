@@ -34,7 +34,7 @@ jobs:
 
 ### Jobs
 
-A **job** is a set of steps that execute on the same runner (virtual machine). Jobs run in parallel by default but can depend on each other with `needs:`. Each job runs in a fresh VM, and results are shared between jobs using artifacts. Default timeout is 360 minutes.
+A **job** is a set of steps that execute on the same runner (virtual machine). Jobs run in parallel by default but can depend on each other with `needs:`. Each job runs in a fresh VM, and results are shared between jobs using artifacts. Default timeout is 360 minutes for standard GitHub Actions jobs; the agent execution step in agentic workflows defaults to 20 minutes.
 
 ```yaml
 jobs:
