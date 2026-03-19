@@ -502,7 +502,6 @@ These resources contain workflow patterns, best practices, safe outputs, and per
      ```yaml
      tools:
        github:
-         mode: remote
          toolsets: [default]
          repos: "all"
          min-integrity: approved  # Only content from trusted collaborators
