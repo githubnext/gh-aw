@@ -303,10 +303,14 @@ function generateFooterWithMessages(workflowName, runUrl, workflowSource, workfl
   }
 
   // Add GitHub Guard DIFC filtered section if any items were filtered
-  const difcFilteredEvents = getDifcFilteredEvents();
-  const difcFilteredSection = generateDifcFilteredSection(difcFilteredEvents);
-  if (difcFilteredSection) {
-    footer += difcFilteredSection;
+  try {
+    const difcFilteredEvents = getDifcFilteredEvents();
+    const difcFilteredSection = generateDifcFilteredSection(difcFilteredEvents);
+    if (difcFilteredSection) {
+      footer += difcFilteredSection;
+    }
+  } catch {
+    // ignore errors so the rest of the footer is always preserved
   }
 
   // Add XML comment marker for traceability
