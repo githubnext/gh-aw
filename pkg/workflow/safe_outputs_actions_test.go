@@ -222,20 +222,24 @@ func TestGenerateActionToolDefinitionFallbackDescription(t *testing.T) {
 	}
 }
 
-// TestGenerateActionToolDefinitionNoInputs verifies tool with no inputs (resolution failed)
+// TestGenerateActionToolDefinitionNoInputs verifies the fallback schema when resolution failed (Inputs == nil)
 func TestGenerateActionToolDefinitionNoInputs(t *testing.T) {
 	config := &SafeOutputActionConfig{
 		Uses: "owner/repo@v1",
+		// Inputs is nil (action.yml resolution failed)
 	}
 
 	tool := generateActionToolDefinition("my-tool", config)
 
 	schema, ok := tool["inputSchema"].(map[string]any)
 	require.True(t, ok, "inputSchema should be a map")
+	// Fallback schema should be permissive (additionalProperties: true) so agent can still call the tool
+	assert.Equal(t, true, schema["additionalProperties"], "Fallback schema should allow additional properties")
+	// Should have a payload property to hint to the agent what to send
 	properties, ok := schema["properties"].(map[string]any)
 	require.True(t, ok, "properties should be a map")
-	assert.Empty(t, properties, "No properties when inputs unknown")
-	assert.Nil(t, schema["required"], "No required fields when inputs unknown")
+	assert.Contains(t, properties, "payload", "Fallback schema should include a 'payload' property")
+	assert.Nil(t, schema["required"], "No required fields in fallback schema")
 }
 
 // TestBuildCustomSafeOutputActionsJSON verifies JSON generation for GH_AW_SAFE_OUTPUT_ACTIONS
@@ -591,4 +595,41 @@ func TestGenerateActionToolDefinitionSkipsGitHubExpressionInputs(t *testing.T) {
 	assert.Contains(t, properties, "labels", "labels should be in schema")
 	assert.NotContains(t, properties, "github_token", "github_token should be excluded from schema")
 	assert.NotContains(t, properties, "number", "number should be excluded from schema")
+}
+
+// TestExtractSHAFromPinnedRef verifies SHA extraction from pinned action references
+func TestExtractSHAFromPinnedRef(t *testing.T) {
+	tests := []struct {
+		name     string
+		pinned   string
+		expected string
+	}{
+		{
+			name:     "standard pinned reference",
+			pinned:   "actions-ecosystem/action-add-labels@" + strings.Repeat("a", 40) + " # v1",
+			expected: strings.Repeat("a", 40),
+		},
+		{
+			name:     "no @ separator",
+			pinned:   "no-at-sign",
+			expected: "",
+		},
+		{
+			name:     "non-SHA after @",
+			pinned:   "owner/repo@v1 # v1",
+			expected: "",
+		},
+		{
+			name:     "empty string",
+			pinned:   "",
+			expected: "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := extractSHAFromPinnedRef(tt.pinned)
+			assert.Equal(t, tt.expected, result, "extractSHAFromPinnedRef result should match")
+		})
+	}
 }

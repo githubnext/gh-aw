@@ -168,15 +168,24 @@ func (c *Compiler) fetchAndParseActionYAML(actionName string, config *SafeOutput
 	} else {
 		// Pin the action ref and fetch the action.yml
 		pinned, pinErr := GetActionPinWithData(ref.Repo, ref.Ref, data)
+		var fetchRef string
 		if pinErr != nil {
 			safeOutputActionsLog.Printf("Warning: failed to pin action %q (%s@%s): %v", actionName, ref.Repo, ref.Ref, pinErr)
 			// Fall back to using the original ref
 			resolvedRef = config.Uses
+			fetchRef = ref.Ref
 		} else {
 			resolvedRef = pinned
+			// Extract the pinned SHA from the reference (format: "repo@sha # tag")
+			// and use it to fetch action.yml so the schema matches the exact pinned version.
+			if sha := extractSHAFromPinnedRef(pinned); sha != "" {
+				fetchRef = sha
+			} else {
+				fetchRef = ref.Ref
+			}
 		}
 
-		actionYAML, err = fetchRemoteActionYAML(ref.Repo, ref.Subdir, ref.Ref)
+		actionYAML, err = fetchRemoteActionYAML(ref.Repo, ref.Subdir, fetchRef)
 		if err != nil {
 			safeOutputActionsLog.Printf("Warning: failed to fetch action.yml for %q (%s): %v", actionName, config.Uses, err)
 		}
@@ -192,6 +201,27 @@ func (c *Compiler) fetchAndParseActionYAML(actionName string, config *SafeOutput
 
 // fetchRemoteActionYAML fetches and parses action.yml from a GitHub repository.
 // It tries both action.yml and action.yaml filenames.
+
+// extractSHAFromPinnedRef parses the SHA from a pinned action reference string.
+// The format produced by formatActionReference is "repo@sha # version".
+// Returns the SHA string, or empty string if it cannot be parsed.
+func extractSHAFromPinnedRef(pinned string) string {
+	// Find the @ separator between repo and sha
+	_, afterAt, found := strings.Cut(pinned, "@")
+	if !found {
+		return ""
+	}
+	// Strip the "# version" comment
+	if commentIdx := strings.Index(afterAt, " #"); commentIdx >= 0 {
+		afterAt = strings.TrimSpace(afterAt[:commentIdx])
+	}
+	// Validate it looks like a full SHA (40 hex chars)
+	if isValidFullSHA(afterAt) {
+		return afterAt
+	}
+	return ""
+}
+
 func fetchRemoteActionYAML(repo, subdir, ref string) (*actionYAMLFile, error) {
 	for _, filename := range []string{"action.yml", "action.yaml"} {
 		var contentPath string
@@ -296,6 +326,27 @@ func generateActionToolDefinition(actionName string, config *SafeOutputActionCon
 	// Append once-only constraint to description
 	description += " (can only be called once)"
 
+	// When action.yml could not be fetched at compile time (Inputs == nil), generate a
+	// permissive fallback schema so the agent can still call the tool. The runtime step
+	// passes the raw payload through a single `payload` input rather than individual fields.
+	if config.Inputs == nil {
+		inputSchema := map[string]any{
+			"type": "object",
+			"properties": map[string]any{
+				"payload": map[string]any{
+					"type":        "string",
+					"description": "JSON-encoded payload to pass to the action",
+				},
+			},
+			"additionalProperties": true,
+		}
+		return map[string]any{
+			"name":        normalizedName,
+			"description": description,
+			"inputSchema": inputSchema,
+		}
+	}
+
 	inputSchema := map[string]any{
 		"type":                 "object",
 		"properties":           make(map[string]any),
@@ -305,36 +356,34 @@ func generateActionToolDefinition(actionName string, config *SafeOutputActionCon
 	var requiredFields []string
 	properties := inputSchema["properties"].(map[string]any)
 
-	if config.Inputs != nil {
-		// Sort for deterministic output
-		inputNames := make([]string, 0, len(config.Inputs))
-		for k := range config.Inputs {
-			inputNames = append(inputNames, k)
-		}
-		sort.Strings(inputNames)
+	// Sort for deterministic output
+	inputNames := make([]string, 0, len(config.Inputs))
+	for k := range config.Inputs {
+		inputNames = append(inputNames, k)
+	}
+	sort.Strings(inputNames)
 
-		for _, inputName := range inputNames {
-			inputDef := config.Inputs[inputName]
-			// Skip inputs whose defaults are GitHub expression (e.g. "${{ github.token }}").
-			// These are implementation details (authentication, context values) that the agent
-			// should not provide — GitHub Actions will apply the defaults automatically.
-			if isGitHubExpressionDefault(inputDef) {
-				continue
-			}
-			property := map[string]any{
-				"type": "string",
-			}
-			if inputDef.Description != "" {
-				property["description"] = inputDef.Description
-			}
-			if inputDef.Default != "" {
-				property["default"] = inputDef.Default
-			}
-			if inputDef.Required {
-				requiredFields = append(requiredFields, inputName)
-			}
-			properties[inputName] = property
+	for _, inputName := range inputNames {
+		inputDef := config.Inputs[inputName]
+		// Skip inputs whose defaults are GitHub expression (e.g. "${{ github.token }}").
+		// These are implementation details (authentication, context values) that the agent
+		// should not provide — GitHub Actions will apply the defaults automatically.
+		if isGitHubExpressionDefault(inputDef) {
+			continue
 		}
+		property := map[string]any{
+			"type": "string",
+		}
+		if inputDef.Description != "" {
+			property["description"] = inputDef.Description
+		}
+		if inputDef.Default != "" {
+			property["default"] = inputDef.Default
+		}
+		if inputDef.Required {
+			requiredFields = append(requiredFields, inputName)
+		}
+		properties[inputName] = property
 	}
 
 	if len(requiredFields) > 0 {

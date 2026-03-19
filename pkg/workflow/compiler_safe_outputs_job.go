@@ -228,7 +228,9 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 	// a JSON payload output for each action tool call. Each step is guarded by an `if:` condition
 	// that checks whether the handler manager exported a payload for this action.
 	if len(data.SafeOutputs.Actions) > 0 {
-		// Resolve action.yml for all actions (fetches inputs/descriptions at compile time)
+		// resolveAllActions was already called early in buildJobs (before generateToolsMetaJSON)
+		// so action configs already have Inputs/ActionDescription populated. We only call it
+		// again here as a safety net in case compileSafeOutputsJob is called independently.
 		c.resolveAllActions(data, markdownPath)
 
 		actionStepYAML := c.buildActionSteps(data)
