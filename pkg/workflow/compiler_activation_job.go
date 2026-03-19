@@ -124,9 +124,11 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 	hasReaction := data.AIReaction != "" && data.AIReaction != "none"
 	hasStatusComment := data.StatusComment != nil && *data.StatusComment
 	hasLabelCommand := len(data.LabelCommand) > 0
+	// shouldRemoveLabel is true when label-command is active AND remove_label is not disabled
+	shouldRemoveLabel := hasLabelCommand && data.LabelCommandRemoveLabel
 	// Compute filtered label events once and reuse below (permissions + app token scopes)
 	filteredLabelEvents := FilterLabelCommandEvents(data.LabelCommandEvents)
-	if data.ActivationGitHubApp != nil && (hasReaction || hasStatusComment || hasLabelCommand) {
+	if data.ActivationGitHubApp != nil && (hasReaction || hasStatusComment || shouldRemoveLabel) {
 		// Build the combined permissions needed for all activation steps.
 		// For label removal we only add the scopes required by the enabled events.
 		appPerms := NewPermissions()
@@ -135,7 +137,7 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 			appPerms.Set(PermissionPullRequests, PermissionWrite)
 			appPerms.Set(PermissionDiscussions, PermissionWrite)
 		}
-		if hasLabelCommand {
+		if shouldRemoveLabel {
 			if sliceutil.Contains(filteredLabelEvents, "issues") || sliceutil.Contains(filteredLabelEvents, "pull_request") {
 				appPerms.Set(PermissionIssues, PermissionWrite)
 			}
@@ -309,7 +311,8 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 	// Add label removal step and label_command output for label-command workflows.
 	// When a label-command trigger fires, the triggering label is immediately removed
 	// so that the same label can be applied again to trigger the workflow in the future.
-	if len(data.LabelCommand) > 0 {
+	// This step is skipped when remove_label is set to false.
+	if shouldRemoveLabel {
 		// The removal step only makes sense for actual "labeled" events; for
 		// workflow_dispatch we skip it silently via the env-based label check.
 		steps = append(steps, "      - name: Remove trigger label\n")
@@ -333,6 +336,10 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 
 		// Expose the matched label name as a job output for downstream jobs to consume
 		outputs["label_command"] = fmt.Sprintf("${{ steps.%s.outputs.label_name }}", constants.RemoveTriggerLabelStepID)
+	} else if hasLabelCommand {
+		// When remove_label is disabled, expose the triggering label name directly from the event
+		// so downstream jobs can still access it via needs.activation.outputs.label_command.
+		outputs["label_command"] = "${{ github.event.label.name }}"
 	}
 
 	// If no steps have been added, add a placeholder step to make the job valid
@@ -496,13 +503,14 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 		permsMap[PermissionIssues] = PermissionWrite
 	}
 
-	// Add write permissions for label removal when label_command is configured.
+	// Add write permissions for label removal when label_command is configured and remove_label is enabled.
 	// Only grant the scopes required by the enabled events:
 	// - issues/pull_request events need issues:write (PR labels use the issues REST API)
 	// - discussion events need discussions:write
 	// When a github-app token is configured, the GITHUB_TOKEN permissions are irrelevant
 	// for the label removal step (it uses the app token instead), so we skip them.
-	if hasLabelCommand && data.ActivationGitHubApp == nil {
+	// When remove_label is false, no label removal occurs so these permissions are not needed.
+	if shouldRemoveLabel && data.ActivationGitHubApp == nil {
 		if sliceutil.Contains(filteredLabelEvents, "issues") || sliceutil.Contains(filteredLabelEvents, "pull_request") {
 			permsMap[PermissionIssues] = PermissionWrite
 		}

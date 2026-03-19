@@ -374,6 +374,10 @@
                           "maxItems": 3
                         }
                       ]
+                    },
+                    "remove_label": {
+                      "type": "boolean",
+                      "description": "Whether to automatically remove the triggering label after the workflow starts. Defaults to true. Set to false to keep the label on the item and skip the label-removal step. When false, the issues:write and discussions:write permissions required for label removal are also omitted."
                     }
                   },
                   "additionalProperties": false
