@@ -636,8 +636,8 @@ function buildInferenceAccessErrorContext(hasInferenceAccessError) {
 }
 
 /**
- * Build a context string when the agent execution step returned a non-zero exit code but the
- * agent did produce safe outputs (e.g., Copilot CLI hit a rate limit after completing its work).
+ * Build a context string when the agent execution step failed but the agent may have
+ * produced safe outputs before the failure occurred.
  * @param {boolean} hasAgentExecutionFailed - Whether the execution step had a non-zero exit
  * @param {boolean} hasMissingSafeOutputs - Whether the agent produced no safe outputs
  * @returns {string} Formatted context string, or empty string when not applicable
@@ -649,11 +649,9 @@ function buildAgentExecutionFailedWithOutputsContext(hasAgentExecutionFailed, ha
     return "";
   }
 
-  return (
-    "\n**ℹ️ Agent Completed with Non-Zero Exit**: The agent produced results but the process " +
-    "exited with a non-zero exit code. This typically indicates the Copilot CLI hit a rate limit " +
-    "after completing its work. Safe outputs were persisted successfully.\n\n"
-  );
+  const templatePath = `${process.env.RUNNER_TEMP}/gh-aw/prompts/agent_execution_failed.md`;
+  const template = fs.readFileSync(templatePath, "utf8");
+  return "\n" + template;
 }
 
 /**
