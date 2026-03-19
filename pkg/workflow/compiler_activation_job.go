@@ -57,13 +57,14 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 		outputs[constants.ArtifactPrefixOutputName] = "${{ steps.artifact-prefix.outputs.prefix }}"
 	}
 
-	// Generate agentic run info immediately after setup so aw_info.json is ready as early as possible.
-	// This ensures it is available for prompt generation and can be uploaded together with prompt.txt.
+	// Generate agentic run info immediately after setup so aw_info.json is ready as early as
+	// possible. This step runs before the reaction so that its data is captured even if the
+	// reaction step fails.
 	engine, err := c.getAgenticEngine(data.AI)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get agentic engine: %w", err)
 	}
-	compilerActivationJobLog.Print("Generating aw_info step in activation job (first step after setup)")
+	compilerActivationJobLog.Print("Generating aw_info step in activation job")
 	var awInfoYaml strings.Builder
 	c.generateCreateAwInfo(&awInfoYaml, data, engine)
 	steps = append(steps, awInfoYaml.String())
@@ -81,6 +82,65 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 		outputs["target_repo"] = "${{ steps.resolve-host-repo.outputs.target_repo }}"
 		outputs["target_repo_name"] = "${{ steps.resolve-host-repo.outputs.target_repo_name }}"
 		outputs["target_ref"] = "${{ steps.resolve-host-repo.outputs.target_ref }}"
+	}
+
+	// Compute reaction/comment/label flags early so the app token and reaction steps can be
+	// inserted right after generate_aw_info for fast user feedback.
+	hasReaction := data.AIReaction != "" && data.AIReaction != "none"
+	hasStatusComment := data.StatusComment != nil && *data.StatusComment
+	hasLabelCommand := len(data.LabelCommand) > 0
+	// shouldRemoveLabel is true when label-command is active AND remove_label is not disabled
+	shouldRemoveLabel := hasLabelCommand && data.LabelCommandRemoveLabel
+	// Compute filtered label events once and reuse below (permissions + app token scopes)
+	filteredLabelEvents := FilterLabelCommandEvents(data.LabelCommandEvents)
+
+	// Mint a single activation app token upfront if a GitHub App is configured and any
+	// step in the activation job will need it (reaction, status-comment, or label removal).
+	// This avoids minting multiple tokens.
+	if data.ActivationGitHubApp != nil && (hasReaction || hasStatusComment || shouldRemoveLabel) {
+		// Build the combined permissions needed for all activation steps.
+		// For label removal we only add the scopes required by the enabled events.
+		appPerms := NewPermissions()
+		if hasReaction || hasStatusComment {
+			appPerms.Set(PermissionIssues, PermissionWrite)
+			appPerms.Set(PermissionPullRequests, PermissionWrite)
+			appPerms.Set(PermissionDiscussions, PermissionWrite)
+		}
+		if shouldRemoveLabel {
+			if sliceutil.Contains(filteredLabelEvents, "issues") || sliceutil.Contains(filteredLabelEvents, "pull_request") {
+				appPerms.Set(PermissionIssues, PermissionWrite)
+			}
+			if sliceutil.Contains(filteredLabelEvents, "discussion") {
+				appPerms.Set(PermissionDiscussions, PermissionWrite)
+			}
+		}
+		steps = append(steps, c.buildActivationAppTokenMintStep(data.ActivationGitHubApp, appPerms)...)
+		// Track whether the token minting succeeded so the conclusion job can surface
+		// GitHub App authentication errors in the failure issue.
+		outputs["activation_app_token_minting_failed"] = "${{ steps.activation-app-token.outcome == 'failure' }}"
+	}
+
+	// Add reaction step right after generate_aw_info so it is shown to the user as fast as
+	// possible. generate_aw_info runs first so its data is captured even if the reaction fails.
+	// This runs in the activation job so it can use any configured github-token or github-app.
+	if hasReaction {
+		reactionCondition := BuildReactionCondition()
+
+		steps = append(steps, fmt.Sprintf("      - name: Add %s reaction for immediate feedback\n", data.AIReaction))
+		steps = append(steps, "        id: react\n")
+		steps = append(steps, fmt.Sprintf("        if: %s\n", reactionCondition.Render()))
+		steps = append(steps, fmt.Sprintf("        uses: %s\n", GetActionPin("actions/github-script")))
+
+		// Add environment variables
+		steps = append(steps, "        env:\n")
+		// Quote the reaction value to prevent YAML interpreting +1/-1 as integers
+		steps = append(steps, fmt.Sprintf("          GH_AW_REACTION: %q\n", data.AIReaction))
+
+		steps = append(steps, "        with:\n")
+		// Use configured github-token or app-minted token; fall back to GITHUB_TOKEN
+		steps = append(steps, fmt.Sprintf("          github-token: %s\n", c.resolveActivationToken(data)))
+		steps = append(steps, "          script: |\n")
+		steps = append(steps, generateGitHubScriptWithRequire("add_reaction.cjs"))
 	}
 
 	// Add secret validation step before context variable validation.
@@ -117,61 +177,6 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 	// Always add this checkout in activation job since it needs access to workflow files for runtime imports
 	checkoutSteps := c.generateCheckoutGitHubFolderForActivation(data)
 	steps = append(steps, checkoutSteps...)
-
-	// Mint a single activation app token upfront if a GitHub App is configured and any
-	// step in the activation job will need it (reaction, status-comment, or label removal).
-	// This avoids minting multiple tokens.
-	hasReaction := data.AIReaction != "" && data.AIReaction != "none"
-	hasStatusComment := data.StatusComment != nil && *data.StatusComment
-	hasLabelCommand := len(data.LabelCommand) > 0
-	// shouldRemoveLabel is true when label-command is active AND remove_label is not disabled
-	shouldRemoveLabel := hasLabelCommand && data.LabelCommandRemoveLabel
-	// Compute filtered label events once and reuse below (permissions + app token scopes)
-	filteredLabelEvents := FilterLabelCommandEvents(data.LabelCommandEvents)
-	if data.ActivationGitHubApp != nil && (hasReaction || hasStatusComment || shouldRemoveLabel) {
-		// Build the combined permissions needed for all activation steps.
-		// For label removal we only add the scopes required by the enabled events.
-		appPerms := NewPermissions()
-		if hasReaction || hasStatusComment {
-			appPerms.Set(PermissionIssues, PermissionWrite)
-			appPerms.Set(PermissionPullRequests, PermissionWrite)
-			appPerms.Set(PermissionDiscussions, PermissionWrite)
-		}
-		if shouldRemoveLabel {
-			if sliceutil.Contains(filteredLabelEvents, "issues") || sliceutil.Contains(filteredLabelEvents, "pull_request") {
-				appPerms.Set(PermissionIssues, PermissionWrite)
-			}
-			if sliceutil.Contains(filteredLabelEvents, "discussion") {
-				appPerms.Set(PermissionDiscussions, PermissionWrite)
-			}
-		}
-		steps = append(steps, c.buildActivationAppTokenMintStep(data.ActivationGitHubApp, appPerms)...)
-		// Track whether the token minting succeeded so the conclusion job can surface
-		// GitHub App authentication errors in the failure issue.
-		outputs["activation_app_token_minting_failed"] = "${{ steps.activation-app-token.outcome == 'failure' }}"
-	}
-
-	// Add reaction step for immediate feedback.
-	// This runs in the activation job so it can use any configured github-token or github-app.
-	if hasReaction {
-		reactionCondition := BuildReactionCondition()
-
-		steps = append(steps, fmt.Sprintf("      - name: Add %s reaction for immediate feedback\n", data.AIReaction))
-		steps = append(steps, "        id: react\n")
-		steps = append(steps, fmt.Sprintf("        if: %s\n", reactionCondition.Render()))
-		steps = append(steps, fmt.Sprintf("        uses: %s\n", GetActionPin("actions/github-script")))
-
-		// Add environment variables
-		steps = append(steps, "        env:\n")
-		// Quote the reaction value to prevent YAML interpreting +1/-1 as integers
-		steps = append(steps, fmt.Sprintf("          GH_AW_REACTION: %q\n", data.AIReaction))
-
-		steps = append(steps, "        with:\n")
-		// Use configured github-token or app-minted token; fall back to GITHUB_TOKEN
-		steps = append(steps, fmt.Sprintf("          github-token: %s\n", c.resolveActivationToken(data)))
-		steps = append(steps, "          script: |\n")
-		steps = append(steps, generateGitHubScriptWithRequire("add_reaction.cjs"))
-	}
 
 	// Add timestamp check for lock file vs source file using GitHub API
 	// No checkout step needed - uses GitHub API to check commit times
