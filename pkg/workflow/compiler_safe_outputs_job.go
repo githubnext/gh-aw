@@ -525,10 +525,14 @@ func buildDetectionSuccessCondition() ConditionNode {
 // The file is written to /tmp/gh-aw/safe-output-items.jsonl so it is merged into the
 // same "agent" artifact that the main job uploads, rather than a separate artifact.
 // prefix is prepended to the artifact name; use empty string for non-workflow_call workflows.
+// continue-on-error is set to true because actions/upload-artifact v4+ returns a 409
+// conflict when a second job tries to upload to an artifact name that already exists;
+// the upload conflict must not fail the safe_outputs job.
 func buildSafeOutputItemsManifestUploadStep(prefix string) []string {
 	return []string{
 		"      - name: Upload safe output items\n",
 		"        if: always()\n",
+		"        continue-on-error: true\n",
 		fmt.Sprintf("        uses: %s\n", GetActionPin("actions/upload-artifact")),
 		"        with:\n",
 		fmt.Sprintf("          name: %sagent\n", prefix),
