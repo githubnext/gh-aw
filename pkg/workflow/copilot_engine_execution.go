@@ -368,6 +368,10 @@ COPILOT_CLI_INSTRUCTION="$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"
 
 	stepLines = append(stepLines, "      - name: "+stepName)
 	stepLines = append(stepLines, "        id: agentic_execution")
+	// continue-on-error allows the job to proceed and collect outputs even when the Copilot CLI
+	// exits with a non-zero code (e.g., rate limit hit after successful completion).
+	// The agentic_execution.conclusion output is captured separately to report this to the failure issue.
+	stepLines = append(stepLines, "        continue-on-error: true")
 
 	// Add tool arguments comment before the run section
 	toolArgsComment := e.generateCopilotToolArgumentsComment(workflowData.Tools, workflowData.SafeOutputs, workflowData.MCPScripts, workflowData, "        ")

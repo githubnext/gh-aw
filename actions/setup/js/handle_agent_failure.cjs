@@ -636,6 +636,27 @@ function buildInferenceAccessErrorContext(hasInferenceAccessError) {
 }
 
 /**
+ * Build a context string when the agent execution step returned a non-zero exit code but the
+ * agent did produce safe outputs (e.g., Copilot CLI hit a rate limit after completing its work).
+ * @param {boolean} hasAgentExecutionFailed - Whether the execution step had a non-zero exit
+ * @param {boolean} hasMissingSafeOutputs - Whether the agent produced no safe outputs
+ * @returns {string} Formatted context string, or empty string when not applicable
+ */
+function buildAgentExecutionFailedWithOutputsContext(hasAgentExecutionFailed, hasMissingSafeOutputs) {
+  // Only show this context when the step failed but outputs were produced.
+  // When there are no outputs the missing-safe-outputs context is more informative.
+  if (!hasAgentExecutionFailed || hasMissingSafeOutputs) {
+    return "";
+  }
+
+  return (
+    "\n**ℹ️ Agent Completed with Non-Zero Exit**: The agent produced results but the process " +
+    "exited with a non-zero exit code. This typically indicates the Copilot CLI hit a rate limit " +
+    "after completing its work. Safe outputs were persisted successfully.\n\n"
+  );
+}
+
+/**
  * Build a context string when a GitHub App token minting step failed.
  * @param {boolean} hasAppTokenMintingFailed - Whether any GitHub App token minting step failed
  * @returns {string} Formatted context string, or empty string if no error
@@ -690,6 +711,9 @@ async function main() {
     const timeoutMinutes = process.env.GH_AW_TIMEOUT_MINUTES || "";
     const inferenceAccessError = process.env.GH_AW_INFERENCE_ACCESS_ERROR === "true";
     const pushRepoMemoryResult = process.env.GH_AW_PUSH_REPO_MEMORY_RESULT || "";
+    // True when the Copilot CLI execution step exited with a non-zero code (e.g., rate limit
+    // after successful completion). The step uses continue-on-error so the job still succeeds.
+    const agentExecutionFailed = process.env.GH_AW_AGENT_EXECUTION_FAILED === "true";
     const reportFailureAsIssue = process.env.GH_AW_FAILURE_REPORT_AS_ISSUE !== "false"; // Default to true
     // GitHub App token minting failures from the safe_outputs job, conclusion job, and activation job.
     // Any of these being "true" indicates a GitHub App authentication configuration error.
@@ -732,6 +756,7 @@ async function main() {
     core.info(`Checkout PR success: ${checkoutPRSuccess}`);
     core.info(`Inference access error: ${inferenceAccessError}`);
     core.info(`Push repo-memory result: ${pushRepoMemoryResult}`);
+    core.info(`Agent execution step failed: ${agentExecutionFailed}`);
     core.info(`App token minting failed (safe_outputs/conclusion/activation): ${safeOutputsAppTokenMintingFailed}/${conclusionAppTokenMintingFailed}/${activationAppTokenMintingFailed}`);
     core.info(`Lockdown check failed: ${hasLockdownCheckFailed}`);
 
@@ -772,7 +797,8 @@ async function main() {
 
     // Only proceed if the agent job actually failed OR timed out OR there are assignment errors OR
     // create_discussion errors OR code-push failures OR push_repo_memory failed OR missing safe outputs
-    // OR a GitHub App token minting step failed OR the lockdown check failed.
+    // OR a GitHub App token minting step failed OR the lockdown check failed OR the execution step
+    // returned a non-zero exit code (e.g., rate limit after success).
     // BUT skip if we only have noop outputs (that's a successful no-action scenario)
     if (
       agentConclusion !== "failure" &&
@@ -783,7 +809,8 @@ async function main() {
       !hasPushRepoMemoryFailure &&
       !hasMissingSafeOutputs &&
       !hasAppTokenMintingFailed &&
-      !hasLockdownCheckFailed
+      !hasLockdownCheckFailed &&
+      !agentExecutionFailed
     ) {
       core.info(`Agent job did not fail and no assignment/discussion/code-push/push-repo-memory/app-token/lockdown errors and has safe outputs (conclusion: ${agentConclusion}), skipping failure handling`);
       return;
@@ -949,6 +976,9 @@ async function main() {
         // Build inference access error context
         const inferenceAccessErrorContext = buildInferenceAccessErrorContext(inferenceAccessError);
 
+        // Build agent execution failed with outputs context
+        const agentExecutionFailedWithOutputsContext = buildAgentExecutionFailedWithOutputsContext(agentExecutionFailed, hasMissingSafeOutputs);
+
         // Build GitHub App token minting failure context
         const appTokenMintingFailedContext = buildAppTokenMintingFailedContext(hasAppTokenMintingFailed);
 
@@ -977,6 +1007,7 @@ async function main() {
           timeout_context: timeoutContext,
           fork_context: forkContext,
           inference_access_error_context: inferenceAccessErrorContext,
+          agent_execution_failed_with_outputs_context: agentExecutionFailedWithOutputsContext,
           app_token_minting_failed_context: appTokenMintingFailedContext,
           lockdown_check_failed_context: lockdownCheckFailedContext,
         };
@@ -1082,6 +1113,9 @@ async function main() {
         // Build inference access error context
         const inferenceAccessErrorContext = buildInferenceAccessErrorContext(inferenceAccessError);
 
+        // Build agent execution failed with outputs context
+        const agentExecutionFailedWithOutputsContext = buildAgentExecutionFailedWithOutputsContext(agentExecutionFailed, hasMissingSafeOutputs);
+
         // Build GitHub App token minting failure context
         const appTokenMintingFailedContext = buildAppTokenMintingFailedContext(hasAppTokenMintingFailed);
 
@@ -1111,6 +1145,7 @@ async function main() {
           timeout_context: timeoutContext,
           fork_context: forkContext,
           inference_access_error_context: inferenceAccessErrorContext,
+          agent_execution_failed_with_outputs_context: agentExecutionFailedWithOutputsContext,
           app_token_minting_failed_context: appTokenMintingFailedContext,
           lockdown_check_failed_context: lockdownCheckFailedContext,
         };

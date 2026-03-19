@@ -178,6 +178,11 @@ func (c *Compiler) buildMainJob(data *WorkflowData, activationJobCreated bool) (
 		if _, ok := engine.(*CopilotEngine); ok {
 			outputs["inference_access_error"] = "${{ steps.detect-inference-error.outputs.inference_access_error || 'false' }}"
 			compilerMainJobLog.Print("Added inference_access_error output (Copilot engine)")
+			// Track whether the execution step itself failed (e.g., rate-limit exit after success).
+			// With continue-on-error on the execution step the job still succeeds, but this output
+			// lets the conclusion job report the non-zero exit in the failure issue.
+			outputs["agent_execution_failed"] = "${{ steps.agentic_execution.conclusion == 'failure' }}"
+			compilerMainJobLog.Print("Added agent_execution_failed output (Copilot engine)")
 		}
 	}
 

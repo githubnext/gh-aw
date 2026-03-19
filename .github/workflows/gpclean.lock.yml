@@ -266,6 +266,7 @@ jobs:
       GH_AW_MCP_LOG_DIR: /tmp/gh-aw/mcp-logs/safeoutputs
       GH_AW_WORKFLOW_ID_SANITIZED: gpclean
     outputs:
+      agent_execution_failed: ${{ steps.agentic_execution.conclusion == 'failure' }}
       checkout_pr_success: ${{ steps.checkout-pr.outputs.checkout_pr_success || 'true' }}
       detection_conclusion: ${{ steps.detection_conclusion.outputs.conclusion }}
       detection_success: ${{ steps.detection_conclusion.outputs.success }}
@@ -593,6 +594,7 @@ jobs:
         run: bash ${RUNNER_TEMP}/gh-aw/actions/clean_git_credentials.sh
       - name: Execute GitHub Copilot CLI
         id: agentic_execution
+        continue-on-error: true
         # Copilot CLI tool arguments (sorted):
         timeout-minutes: 30
         run: |
@@ -815,6 +817,7 @@ jobs:
       - name: Execute GitHub Copilot CLI
         if: always() && steps.detection_guard.outputs.run_detection == 'true'
         id: detection_agentic_execution
+        continue-on-error: true
         # Copilot CLI tool arguments (sorted):
         # --allow-tool shell(cat)
         # --allow-tool shell(grep)
@@ -970,6 +973,7 @@ jobs:
           GH_AW_SECRET_VERIFICATION_RESULT: ${{ needs.activation.outputs.secret_verification_result }}
           GH_AW_CHECKOUT_PR_SUCCESS: ${{ needs.agent.outputs.checkout_pr_success }}
           GH_AW_INFERENCE_ACCESS_ERROR: ${{ needs.agent.outputs.inference_access_error }}
+          GH_AW_AGENT_EXECUTION_FAILED: ${{ needs.agent.outputs.agent_execution_failed }}
           GH_AW_LOCKDOWN_CHECK_FAILED: ${{ needs.activation.outputs.lockdown_check_failed }}
           GH_AW_GROUP_REPORTS: "false"
           GH_AW_FAILURE_REPORT_AS_ISSUE: "true"

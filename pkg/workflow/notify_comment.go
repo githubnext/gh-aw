@@ -155,6 +155,10 @@ func (c *Compiler) buildConclusionJob(data *WorkflowData, mainJobName string, sa
 	// This detects when the Copilot CLI fails due to the token lacking inference access
 	if _, ok := engine.(*CopilotEngine); ok {
 		agentFailureEnvVars = append(agentFailureEnvVars, fmt.Sprintf("          GH_AW_INFERENCE_ACCESS_ERROR: ${{ needs.%s.outputs.inference_access_error }}\n", mainJobName))
+		// Pass whether the execution step itself exited with a non-zero code (e.g., rate-limit
+		// after successful completion). The step uses continue-on-error so the job still succeeds,
+		// but the conclusion job can include this in the failure issue when relevant.
+		agentFailureEnvVars = append(agentFailureEnvVars, fmt.Sprintf("          GH_AW_AGENT_EXECUTION_FAILED: ${{ needs.%s.outputs.agent_execution_failed }}\n", mainJobName))
 	}
 
 	// Pass assignment error outputs from safe_outputs job if assign-to-agent is configured

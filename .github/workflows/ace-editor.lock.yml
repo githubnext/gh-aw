@@ -291,6 +291,7 @@ jobs:
     env:
       GH_AW_WORKFLOW_ID_SANITIZED: aceeditor
     outputs:
+      agent_execution_failed: ${{ steps.agentic_execution.conclusion == 'failure' }}
       inference_access_error: ${{ steps.detect-inference-error.outputs.inference_access_error || 'false' }}
       model: ${{ needs.activation.outputs.model }}
     steps:
@@ -408,6 +409,7 @@ jobs:
         run: bash ${RUNNER_TEMP}/gh-aw/actions/clean_git_credentials.sh
       - name: Execute GitHub Copilot CLI
         id: agentic_execution
+        continue-on-error: true
         # Copilot CLI tool arguments (sorted):
         timeout-minutes: 20
         run: |
