@@ -50,6 +50,7 @@ func TestLogsJSONOutputWithNoRuns(t *testing.T) {
 		10,                           // timeout
 		"summary.json",               // summaryFile
 		"",                           // safeOutputType
+		false,                        // filteredIntegrity
 	)
 
 	// Restore stdout and read output

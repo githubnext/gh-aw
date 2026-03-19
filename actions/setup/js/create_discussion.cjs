@@ -24,13 +24,7 @@ const { closeOlderDiscussions: closeOlderDiscussionsFunc } = require("./close_ol
 const { parseBoolTemplatable } = require("./templatable.cjs");
 const { buildWorkflowRunUrl } = require("./workflow_metadata_helpers.cjs");
 const { generateHistoryLink } = require("./generate_history_link.cjs");
-
-/**
- * Maximum limits for discussion parameters to prevent resource exhaustion.
- * These limits align with GitHub's API constraints and security best practices.
- */
-/** @type {number} Maximum number of labels allowed per discussion */
-const MAX_LABELS = 10;
+const { MAX_LABELS } = require("./constants.cjs");
 
 /**
  * Fetch repository ID and discussion categories for a repository

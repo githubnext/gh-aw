@@ -3,6 +3,7 @@
 
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { ERR_CONFIG, ERR_NOT_FOUND, ERR_VALIDATION } = require("./error_codes.cjs");
+const { COPILOT_REVIEWER_BOT } = require("./constants.cjs");
 
 /**
  * Add Copilot as a reviewer to a pull request.
@@ -14,9 +15,6 @@ const { ERR_CONFIG, ERR_NOT_FOUND, ERR_VALIDATION } = require("./error_codes.cjs
  * Environment variables:
  * - PR_NUMBER: The pull request number to add the reviewer to
  */
-
-// GitHub Copilot reviewer bot username
-const COPILOT_REVIEWER_BOT = "copilot-pull-request-reviewer[bot]";
 
 async function main() {
   // Validate required environment variables

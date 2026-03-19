@@ -10,9 +10,7 @@ const { getErrorMessage } = require("./error_helpers.cjs");
 const { getPullRequestNumber } = require("./pr_helpers.cjs");
 const { logStagedPreviewInfo } = require("./staged_preview.cjs");
 const { createAuthenticatedGitHubClient } = require("./handler_auth.cjs");
-
-// GitHub Copilot reviewer bot username
-const COPILOT_REVIEWER_BOT = "copilot-pull-request-reviewer[bot]";
+const { COPILOT_REVIEWER_BOT } = require("./constants.cjs");
 
 /**
  * Main handler factory for add_reviewer
