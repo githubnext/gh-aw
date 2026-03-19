@@ -3,8 +3,12 @@
 package workflow
 
 import (
+	"errors"
+	"fmt"
 	"strings"
 	"testing"
+
+	"github.com/santhosh-tekuri/jsonschema/v6"
 )
 
 func TestExtractFieldPath(t *testing.T) {
@@ -232,6 +236,50 @@ jobs:
 						t.Errorf("error %q missing expected part %q", errStr, part)
 					}
 				}
+			}
+		})
+	}
+}
+
+func TestExtractSchemaErrorField(t *testing.T) {
+	tests := []struct {
+		name     string
+		err      error
+		expected string
+	}{
+		{
+			name: "top-level field from ValidationError",
+			err: fmt.Errorf("wrapped: %w", &jsonschema.ValidationError{
+				InstanceLocation: []string{"timeout-minutes"},
+			}),
+			expected: "timeout-minutes",
+		},
+		{
+			name: "nested field returns top-level",
+			err: fmt.Errorf("wrapped: %w", &jsonschema.ValidationError{
+				InstanceLocation: []string{"jobs", "build", "runs-on"},
+			}),
+			expected: "jobs",
+		},
+		{
+			name:     "non-ValidationError returns empty",
+			err:      errors.New("some other error"),
+			expected: "",
+		},
+		{
+			name: "ValidationError with empty location returns empty",
+			err: fmt.Errorf("wrapped: %w", &jsonschema.ValidationError{
+				InstanceLocation: []string{},
+			}),
+			expected: "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := extractSchemaErrorField(tt.err)
+			if result != tt.expected {
+				t.Errorf("extractSchemaErrorField() = %q, want %q", result, tt.expected)
 			}
 		})
 	}
