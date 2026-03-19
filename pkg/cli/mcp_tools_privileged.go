@@ -16,18 +16,19 @@ import (
 // Returns an error if schema generation fails.
 func registerLogsTool(server *mcp.Server, execCmd execCmdFunc, actor string, validateActor bool) error {
 	type logsArgs struct {
-		WorkflowName string `json:"workflow_name,omitempty" jsonschema:"Name of the workflow to download logs for (empty for all)"`
-		Count        int    `json:"count,omitempty" jsonschema:"Number of workflow runs to download (default: 100)"`
-		StartDate    string `json:"start_date,omitempty" jsonschema:"Filter runs created after this date (YYYY-MM-DD or delta like -1d, -1w, -1mo)"`
-		EndDate      string `json:"end_date,omitempty" jsonschema:"Filter runs created before this date (YYYY-MM-DD or delta like -1d, -1w, -1mo)"`
-		Engine       string `json:"engine,omitempty" jsonschema:"Filter logs by agentic engine type (claude, codex, copilot)"`
-		Firewall     bool   `json:"firewall,omitempty" jsonschema:"Filter to only runs with firewall enabled"`
-		NoFirewall   bool   `json:"no_firewall,omitempty" jsonschema:"Filter to only runs without firewall enabled"`
-		Branch       string `json:"branch,omitempty" jsonschema:"Filter runs by branch name"`
-		AfterRunID   int64  `json:"after_run_id,omitempty" jsonschema:"Filter runs with database ID after this value (exclusive)"`
-		BeforeRunID  int64  `json:"before_run_id,omitempty" jsonschema:"Filter runs with database ID before this value (exclusive)"`
-		Timeout      int    `json:"timeout,omitempty" jsonschema:"Maximum time in seconds to spend downloading logs (default: 50 for MCP server)"`
-		MaxTokens    int    `json:"max_tokens,omitempty" jsonschema:"Maximum number of tokens in output before triggering guardrail (default: 12000)"`
+		WorkflowName      string `json:"workflow_name,omitempty" jsonschema:"Name of the workflow to download logs for (empty for all)"`
+		Count             int    `json:"count,omitempty" jsonschema:"Number of workflow runs to download (default: 100)"`
+		StartDate         string `json:"start_date,omitempty" jsonschema:"Filter runs created after this date (YYYY-MM-DD or delta like -1d, -1w, -1mo)"`
+		EndDate           string `json:"end_date,omitempty" jsonschema:"Filter runs created before this date (YYYY-MM-DD or delta like -1d, -1w, -1mo)"`
+		Engine            string `json:"engine,omitempty" jsonschema:"Filter logs by agentic engine type (claude, codex, copilot)"`
+		Firewall          bool   `json:"firewall,omitempty" jsonschema:"Filter to only runs with firewall enabled"`
+		NoFirewall        bool   `json:"no_firewall,omitempty" jsonschema:"Filter to only runs without firewall enabled"`
+		FilteredIntegrity bool   `json:"filtered_integrity,omitempty" jsonschema:"Filter to only runs that contain DIFC integrity-filtered events in gateway logs"`
+		Branch            string `json:"branch,omitempty" jsonschema:"Filter runs by branch name"`
+		AfterRunID        int64  `json:"after_run_id,omitempty" jsonschema:"Filter runs with database ID after this value (exclusive)"`
+		BeforeRunID       int64  `json:"before_run_id,omitempty" jsonschema:"Filter runs with database ID before this value (exclusive)"`
+		Timeout           int    `json:"timeout,omitempty" jsonschema:"Maximum time in seconds to spend downloading logs (default: 50 for MCP server)"`
+		MaxTokens         int    `json:"max_tokens,omitempty" jsonschema:"Maximum number of tokens in output before triggering guardrail (default: 12000)"`
 	}
 
 	// Generate schema with elicitation defaults
@@ -120,6 +121,9 @@ return a schema description instead of the full output. Adjust the 'max_tokens' 
 		if args.NoFirewall {
 			cmdArgs = append(cmdArgs, "--no-firewall")
 		}
+		if args.FilteredIntegrity {
+			cmdArgs = append(cmdArgs, "--filtered-integrity")
+		}
 		if args.Branch != "" {
 			cmdArgs = append(cmdArgs, "--branch", args.Branch)
 		}
@@ -141,8 +145,8 @@ return a schema description instead of the full output. Adjust the 'max_tokens' 
 		cmdArgs = append(cmdArgs, "--json")
 
 		// Log the command being executed for debugging
-		mcpLog.Printf("Executing logs tool: workflow=%s, count=%d, firewall=%v, no_firewall=%v, timeout=%d, command_args=%v",
-			args.WorkflowName, args.Count, args.Firewall, args.NoFirewall, timeoutValue, cmdArgs)
+		mcpLog.Printf("Executing logs tool: workflow=%s, count=%d, firewall=%v, no_firewall=%v, filtered_integrity=%v, timeout=%d, command_args=%v",
+			args.WorkflowName, args.Count, args.Firewall, args.NoFirewall, args.FilteredIntegrity, timeoutValue, cmdArgs)
 
 		// Execute the CLI command
 		// Use separate stdout/stderr capture instead of CombinedOutput because:

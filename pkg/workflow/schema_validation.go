@@ -154,6 +154,21 @@ func extractFieldPath(location []string) string {
 	return location[len(location)-1] // Return the last element as the field name
 }
 
+// extractSchemaErrorField extracts the top-level field name from a schema validation error.
+// It unwraps the error chain to find a *jsonschema.ValidationError and returns the first
+// element of InstanceLocation, which is the top-level frontmatter key (e.g. "timeout-minutes").
+// Returns "" if no field name can be extracted.
+func extractSchemaErrorField(err error) string {
+	var ve *jsonschema.ValidationError
+	if !errors.As(err, &ve) {
+		return ""
+	}
+	if len(ve.InstanceLocation) == 0 {
+		return ""
+	}
+	return ve.InstanceLocation[0] // top-level field name
+}
+
 // getFieldExample returns an example for the given field based on the validation error
 func getFieldExample(fieldPath string, err error) string {
 	// Map of common fields to their examples
