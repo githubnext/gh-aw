@@ -90,13 +90,13 @@ func ExecuteWithRepeat(options RepeatOptions) error {
 			retryLog.Printf("Context cancelled at iteration %d/%d", i, options.RepeatCount)
 			fmt.Fprintln(output, console.FormatInfoMessage("Received interrupt signal, stopping repeat..."))
 			runCleanup()
-			return nil
+			return ctx.Err()
 
 		case <-sigChan:
 			retryLog.Printf("Interrupt signal received at iteration %d/%d", i, options.RepeatCount)
 			fmt.Fprintln(output, console.FormatInfoMessage("Received interrupt signal, stopping repeat..."))
 			runCleanup()
-			return nil
+			return context.Canceled
 
 		default:
 			retryLog.Printf("Starting iteration %d/%d", i, options.RepeatCount)
