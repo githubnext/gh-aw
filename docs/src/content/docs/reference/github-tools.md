@@ -70,7 +70,7 @@ tools:
     min-integrity: unapproved
 ```
 
-Both `repos` and `min-integrity` are required when either is specified.
+`min-integrity` can be specified alone; `repos` defaults to `"all"` when omitted. If `repos` is also specified, both fields must be valid.
 
 ### `repos`
 

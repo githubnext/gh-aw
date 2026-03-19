@@ -303,6 +303,81 @@ steps:
 
 The `inputs:` schema serves as both the MCP tool definition visible to the agent and validation for the output fields written to `GH_AW_AGENT_OUTPUT`.
 
+## Inline Script Handlers (`safe-outputs.scripts`)
+
+Use `safe-outputs.scripts` to define lightweight inline JavaScript handlers that execute inside the consolidated safe-outputs job handler loop. Unlike `jobs` (which create a separate GitHub Actions job for each tool call), scripts run in-process alongside the built-in safe-output handlers — there is no extra job allocation or startup overhead.
+
+**When to use scripts vs jobs:**
+
+| | Scripts | Jobs |
+|---|---|---|
+| Execution | In-process, in the consolidated safe-outputs job | Separate GitHub Actions job |
+| Startup | Fast (no job scheduling) | Slower (new job per call) |
+| Secrets | Not directly available — use for lightweight logic | Full access to repository secrets |
+| Use case | Lightweight processing, logging, notifications without secrets | External API calls requiring secrets |
+
+### Defining a Script
+
+Under `safe-outputs.scripts`, define each handler with a `description`, `inputs`, and `script` body:
+
+```yaml wrap title=".github/workflows/my-workflow.md"
+---
+safe-outputs:
+  scripts:
+    post-slack-message:
+      description: Post a message to a Slack channel
+      inputs:
+        channel:
+          description: Slack channel name
+          required: true
+          type: string
+        message:
+          description: Message text
+          required: true
+          type: string
+      script: |
+        const targetChannel = item.channel || "#general";
+        const text = item.message || "(no message)";
+        core.info(`Posting to ${targetChannel}: ${text}`);
+        return { success: true, channel: targetChannel };
+---
+```
+
+The agent calls `post_slack_message` (dashes normalized to underscores) and the script runs synchronously in the handler loop.
+
+### Script Body Context
+
+Write only the handler body — the compiler wraps it automatically. Inside the body you have access to:
+
+| Variable | Description |
+|----------|-------------|
+| `item` | Runtime message object with field values matching your `inputs` schema |
+| `core` | `@actions/core` for logging (`core.info()`, `core.warning()`, `core.error()`) |
+| `resolvedTemporaryIds` | Map of temporary object IDs resolved at runtime |
+
+Each input declared in `inputs` is also destructured into a local variable. For example, an `inputs.channel` entry is available as `item.channel`.
+
+```javascript
+// Example: access inputs via item
+const channel = item.channel;
+const message = item.message;
+core.info(`Sending to ${channel}: ${message}`);
+return { sent: true };
+```
+
+> [!NOTE]
+> Script names with dashes are normalized to underscores when registered as MCP tools (e.g., `post-slack-message` becomes `post_slack_message`). The normalized name is what the agent uses to call the tool.
+
+### Script Reference
+
+| Property | Type | Required | Description |
+|----------|------|----------|-------------|
+| `description` | string | Yes | Tool description shown to the agent |
+| `inputs` | object | Yes | Tool parameters (same schema as custom jobs) |
+| `script` | string | Yes | JavaScript handler body |
+
+Scripts support the same `inputs` types as custom jobs: `string`, `boolean`, and `number`.
+
 ## Importing Custom Jobs
 
 Define jobs in shared files under `.github/workflows/shared/` and import them:
@@ -358,7 +433,7 @@ When `GH_AW_SAFE_OUTPUTS_STAGED === 'true'`, skip the real operation and display
 
 | Issue | Solution |
 |-------|----------|
-| Job not appearing as tool | Ensure `inputs` and `description` are defined; verify import path; run `gh aw compile` |
+| Job or script not appearing as tool | Ensure `inputs` and `description` are defined; verify import path; run `gh aw compile` |
 | Secrets not available | Check secret exists in repository settings and name matches exactly (case-sensitive) |
 | Job fails silently | Add `core.info()` logging and ensure `core.setFailed()` is called on errors |
 | Agent calls wrong tool | Make `description` specific and unique; explicitly mention job name in prompt |
