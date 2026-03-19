@@ -87,11 +87,13 @@ async function main() {
     printAllGatewayFiles();
 
     const gatewayJsonlPath = "/tmp/gh-aw/mcp-logs/gateway.jsonl";
+    const rpcMessagesPath = "/tmp/gh-aw/mcp-logs/rpc-messages.jsonl";
     const gatewayMdPath = "/tmp/gh-aw/mcp-logs/gateway.md";
     const gatewayLogPath = "/tmp/gh-aw/mcp-logs/gateway.log";
     const stderrLogPath = "/tmp/gh-aw/mcp-logs/stderr.log";
 
-    // Parse gateway.jsonl for DIFC_FILTERED events (always attempted, regardless of other log files)
+    // Parse DIFC_FILTERED events from gateway.jsonl (preferred) or rpc-messages.jsonl (fallback).
+    // Both files use the same JSONL format with DIFC_FILTERED entries interleaved.
     let difcFilteredEvents = [];
     if (fs.existsSync(gatewayJsonlPath)) {
       const jsonlContent = fs.readFileSync(gatewayJsonlPath, "utf8");
@@ -100,8 +102,15 @@ async function main() {
       if (difcFilteredEvents.length > 0) {
         core.info(`Found ${difcFilteredEvents.length} DIFC_FILTERED event(s) in gateway.jsonl`);
       }
+    } else if (fs.existsSync(rpcMessagesPath)) {
+      const jsonlContent = fs.readFileSync(rpcMessagesPath, "utf8");
+      core.info(`No gateway.jsonl found; scanning rpc-messages.jsonl (${jsonlContent.length} bytes) for DIFC_FILTERED events`);
+      difcFilteredEvents = parseGatewayJsonlForDifcFiltered(jsonlContent);
+      if (difcFilteredEvents.length > 0) {
+        core.info(`Found ${difcFilteredEvents.length} DIFC_FILTERED event(s) in rpc-messages.jsonl`);
+      }
     } else {
-      core.info(`No gateway.jsonl found at: ${gatewayJsonlPath}`);
+      core.info(`No gateway.jsonl or rpc-messages.jsonl found for DIFC_FILTERED scanning`);
     }
 
     // Try to read gateway.md if it exists (preferred for general gateway summary)

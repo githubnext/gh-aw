@@ -115,13 +115,19 @@ type GatewayMetrics struct {
 
 // RPCMessageEntry represents a single entry from rpc-messages.jsonl.
 // This file is written by the Copilot CLI and contains raw JSON-RPC protocol messages
-// exchanged between the AI engine and MCP servers.
+// exchanged between the AI engine and MCP servers, as well as DIFC_FILTERED events.
 type RPCMessageEntry struct {
 	Timestamp string          `json:"timestamp"`
-	Direction string          `json:"direction"` // "IN" = received from server, "OUT" = sent to server
-	Type      string          `json:"type"`      // "REQUEST" or "RESPONSE"
+	Direction string          `json:"direction"` // "IN" = received from server, "OUT" = sent to server; empty for DIFC_FILTERED
+	Type      string          `json:"type"`      // "REQUEST", "RESPONSE", or "DIFC_FILTERED"
 	ServerID  string          `json:"server_id"`
 	Payload   json.RawMessage `json:"payload"`
+	// Fields populated only for DIFC_FILTERED entries
+	ToolName      string   `json:"tool_name,omitempty"`
+	Description   string   `json:"description,omitempty"`
+	Reason        string   `json:"reason,omitempty"`
+	SecrecyTags   []string `json:"secrecy_tags,omitempty"`
+	IntegrityTags []string `json:"integrity_tags,omitempty"`
 }
 
 // rpcRequestPayload represents the JSON-RPC request payload fields we care about.
@@ -214,6 +220,21 @@ func parseRPCMessages(logPath string, verbose bool) (*GatewayMetrics, error) {
 		}
 
 		switch {
+		case entry.Type == "DIFC_FILTERED":
+			// DIFC integrity/secrecy filter event — not a REQUEST or RESPONSE
+			metrics.TotalFiltered++
+			server := getOrCreateServer(metrics, entry.ServerID)
+			server.FilteredCount++
+			metrics.FilteredEvents = append(metrics.FilteredEvents, DifcFilteredEvent{
+				Timestamp:     entry.Timestamp,
+				ServerID:      entry.ServerID,
+				ToolName:      entry.ToolName,
+				Description:   entry.Description,
+				Reason:        entry.Reason,
+				SecrecyTags:   entry.SecrecyTags,
+				IntegrityTags: entry.IntegrityTags,
+			})
+
 		case entry.Direction == "OUT" && entry.Type == "REQUEST":
 			// Outgoing request from AI engine to MCP server
 			var req rpcRequestPayload
