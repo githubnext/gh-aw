@@ -168,9 +168,9 @@ func validateExpressionForDangerousProps(expression string) error {
 			if part == dangerousProp {
 				return NewValidationError(
 					"expressions",
-					fmt.Sprintf("dangerous property name '%s' found in expression", dangerousProp),
-					fmt.Sprintf("expression '%s' contains the dangerous property name '%s'", expression, dangerousProp),
-					fmt.Sprintf("Remove the dangerous property '%s' from the expression. Property names like constructor, __proto__, prototype, and similar JavaScript built-ins are blocked to prevent prototype pollution attacks. See PR #14826 for more details.", dangerousProp),
+					fmt.Sprintf("dangerous property name %q found in expression", dangerousProp),
+					fmt.Sprintf("expression %q contains the dangerous property name %q", expression, dangerousProp),
+					fmt.Sprintf("Remove the dangerous property %q from the expression. Property names like constructor, __proto__, prototype, and similar JavaScript built-ins are blocked to prevent prototype pollution attacks. See PR #14826 for more details.", dangerousProp),
 				)
 			}
 		}
