@@ -127,9 +127,15 @@ func WaitForWorkflowCompletion(ctx context.Context, repoSlug, runID string, time
 		PollInterval: 10 * time.Second,
 		Timeout:      timeout,
 		PollFunc: func() (PollResult, error) {
-			// Check workflow status
-			output, err := workflow.RunGH("Checking workflow status...", "run", "view", runID, "--repo", repoSlug, "--json", "status,conclusion")
+			// Abort quickly if the context has already been canceled.
+			select {
+			case <-ctx.Done():
+				return PollFailure, ctx.Err()
+			default:
+			}
 
+			// Check workflow status with context-aware GH execution.
+			output, err := workflow.RunGHWithContext(ctx, "Checking workflow status...", "run", "view", runID, "--repo", repoSlug, "--json", "status,conclusion")
 			if err != nil {
 				return PollFailure, fmt.Errorf("failed to check workflow status: %w", err)
 			}
