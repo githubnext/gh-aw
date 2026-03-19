@@ -586,8 +586,14 @@ async function main(config = {}) {
       bodyLines.push(trackerIDComment);
     }
 
+    // Snapshot the body content (without footer) for use in protected-files fallback ordering.
+    // The protected-files section must appear before the footer (including guard notices such as
+    // the integrity-filtering note) so that the footer always comes last in the issue body.
+    const mainBodyContent = bodyLines.join("\n").trim();
+
     // Generate footer using messages template system (respects custom messages.footer config)
     // When footer is disabled, only add XML markers (no visible footer content)
+    const footerParts = [];
     if (includeFooter) {
       const historyUrl = generateHistoryUrl({
         owner: repoParts.owner,
@@ -602,18 +608,25 @@ async function main(config = {}) {
         footer += "\n\n<!-- gh-aw-expires-type: pull-request -->";
       }
       bodyLines.push(``, ``, footer);
+      footerParts.push(footer);
     }
 
     // Add standalone workflow-id marker for searchability (consistent with comments)
     // Always add XML markers even when footer is disabled
     if (workflowId) {
-      bodyLines.push(``, generateWorkflowIdMarker(workflowId));
+      const workflowIdMarker = generateWorkflowIdMarker(workflowId);
+      // Add to bodyLines for the normal PR body path.
+      // Add to footerParts so the fallback issue body places it after the protected-files section.
+      bodyLines.push(``, workflowIdMarker);
+      footerParts.push(workflowIdMarker);
     }
 
     bodyLines.push("");
 
     // Prepare the body content
     const body = bodyLines.join("\n").trim();
+    // Footer section (footer + workflow-id marker) used when ordering protected-files notices
+    const footerContent = footerParts.join("\n\n");
 
     // Build labels array - merge config labels with message labels
     let labels = [...envLabels];
@@ -974,7 +987,8 @@ ${patchPreview}`;
         const pushFailedTemplatePath = `${process.env.RUNNER_TEMP}/gh-aw/prompts/manifest_protection_push_failed_fallback.md`;
         const pushFailedTemplate = fs.readFileSync(pushFailedTemplatePath, "utf8");
         fallbackBody = renderTemplate(pushFailedTemplate, {
-          body,
+          main_body: mainBodyContent,
+          footer: footerContent,
           files: filesFormatted,
           run_id: String(runId),
           branch_name: branchName,
@@ -992,7 +1006,8 @@ ${patchPreview}`;
         const templatePath = `${process.env.RUNNER_TEMP}/gh-aw/prompts/manifest_protection_create_pr_fallback.md`;
         const template = fs.readFileSync(templatePath, "utf8");
         fallbackBody = renderTemplate(template, {
-          body,
+          main_body: mainBodyContent,
+          footer: footerContent,
           files: filesFormatted,
           create_pr_url: createPrUrl,
         });

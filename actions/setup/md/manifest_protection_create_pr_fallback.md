@@ -1,4 +1,4 @@
-{body}
+{main_body}
 
 ---
 
@@ -13,3 +13,4 @@
 
 To route changes like this to a review issue instead of blocking, configure `protected-files: fallback-to-issue` in your workflow configuration.
 
+{footer}
