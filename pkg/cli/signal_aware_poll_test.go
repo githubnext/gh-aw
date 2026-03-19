@@ -14,7 +14,7 @@ func TestPollWithSignalHandling_Success(t *testing.T) {
 	err := PollWithSignalHandling(PollOptions{
 		PollInterval: 10 * time.Millisecond,
 		Timeout:      1 * time.Second,
-		PollFunc: func() (PollResult, error) {
+		PollFunc: func(_ context.Context) (PollResult, error) {
 			callCount++
 			if callCount >= 3 {
 				return PollSuccess, nil
@@ -38,7 +38,7 @@ func TestPollWithSignalHandling_Failure(t *testing.T) {
 	err := PollWithSignalHandling(PollOptions{
 		PollInterval: 10 * time.Millisecond,
 		Timeout:      1 * time.Second,
-		PollFunc: func() (PollResult, error) {
+		PollFunc: func(_ context.Context) (PollResult, error) {
 			return PollFailure, expectedErr
 		},
 		Verbose: false,
@@ -57,7 +57,7 @@ func TestPollWithSignalHandling_Timeout(t *testing.T) {
 	err := PollWithSignalHandling(PollOptions{
 		PollInterval: 50 * time.Millisecond,
 		Timeout:      100 * time.Millisecond,
-		PollFunc: func() (PollResult, error) {
+		PollFunc: func(_ context.Context) (PollResult, error) {
 			return PollContinue, nil
 		},
 		Verbose: false,
@@ -77,7 +77,7 @@ func TestPollWithSignalHandling_ImmediateSuccess(t *testing.T) {
 	err := PollWithSignalHandling(PollOptions{
 		PollInterval: 10 * time.Millisecond,
 		Timeout:      1 * time.Second,
-		PollFunc: func() (PollResult, error) {
+		PollFunc: func(_ context.Context) (PollResult, error) {
 			callCount++
 			return PollSuccess, nil
 		},
@@ -122,7 +122,7 @@ func TestPollWithSignalHandling_ContextCancellation(t *testing.T) {
 			Ctx:          ctx,
 			PollInterval: 50 * time.Millisecond,
 			Timeout:      5 * time.Second,
-			PollFunc: func() (PollResult, error) {
+			PollFunc: func(_ context.Context) (PollResult, error) {
 				// Signal that the poll loop is running, then keep returning Continue
 				select {
 				case <-pollStarted:
@@ -152,7 +152,7 @@ func TestPollWithSignalHandling_AlreadyCancelledContext(t *testing.T) {
 		Ctx:          ctx,
 		PollInterval: 10 * time.Millisecond,
 		Timeout:      5 * time.Second,
-		PollFunc: func() (PollResult, error) {
+		PollFunc: func(_ context.Context) (PollResult, error) {
 			return PollContinue, nil
 		},
 		Verbose: false,

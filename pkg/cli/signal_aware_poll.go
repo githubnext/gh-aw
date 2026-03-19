@@ -38,9 +38,11 @@ type PollOptions struct {
 	PollInterval time.Duration
 	// Timeout for the entire polling operation
 	Timeout time.Duration
-	// Function to call on each poll iteration
-	// Should return PollContinue to keep polling, PollSuccess to succeed, or PollFailure to fail
-	PollFunc func() (PollResult, error)
+	// Function to call on each poll iteration.
+	// The ctx passed to PollFunc is the same context used by the poll loop, so callers can
+	// pass it to context-aware operations (e.g. RunGHContext) to abort mid-call on Ctrl-C.
+	// Should return PollContinue to keep polling, PollSuccess to succeed, or PollFailure to fail.
+	PollFunc func(ctx context.Context) (PollResult, error)
 	// Message to display when polling starts (optional)
 	StartMessage string
 	// Message to display on each poll iteration (optional)
@@ -78,7 +80,7 @@ func PollWithSignalHandling(options PollOptions) error {
 	defer ticker.Stop()
 
 	// Perform initial check immediately
-	result, err := options.PollFunc()
+	result, err := options.PollFunc(ctx)
 	switch result {
 	case PollSuccess:
 		if options.Verbose && options.SuccessMessage != "" {
@@ -114,7 +116,7 @@ func PollWithSignalHandling(options PollOptions) error {
 			}
 
 			// Poll for status
-			result, err := options.PollFunc()
+			result, err := options.PollFunc(ctx)
 
 			switch result {
 			case PollSuccess:
