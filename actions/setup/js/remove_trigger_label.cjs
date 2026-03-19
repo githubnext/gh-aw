@@ -9,9 +9,13 @@ const { ERR_API, ERR_CONFIG } = require("./error_codes.cjs");
  *
  * Supported events: issues (labeled), pull_request (labeled), discussion (labeled).
  * For workflow_dispatch, the step emits an empty label_name output and exits without error.
+ *
+ * When GH_AW_REMOVE_LABEL is set to "false", the label is NOT removed but the label_name
+ * output is still set. This is useful when you want to keep the label on the item.
  */
 async function main() {
   const labelNamesJSON = process.env.GH_AW_LABEL_NAMES;
+  const removeLabelEnv = process.env.GH_AW_REMOVE_LABEL;
 
   const { getErrorMessage } = require("./error_helpers.cjs");
 
@@ -31,6 +35,9 @@ async function main() {
     core.setFailed(`${ERR_CONFIG}: Configuration error: Failed to parse GH_AW_LABEL_NAMES: ${getErrorMessage(error)}`);
     return;
   }
+
+  // When GH_AW_REMOVE_LABEL is "false", skip label removal but still output the label name.
+  const shouldRemoveLabel = removeLabelEnv !== "false";
 
   const eventName = context.eventName;
 
@@ -52,6 +59,12 @@ async function main() {
   // Confirm that this label is one of the configured command labels.
   if (!labelNames.includes(triggerLabel)) {
     core.info(`Trigger label '${triggerLabel}' is not in the configured label-command list [${labelNames.join(", ")}] – skipping removal.`);
+    core.setOutput("label_name", triggerLabel);
+    return;
+  }
+
+  if (!shouldRemoveLabel) {
+    core.info(`Label removal disabled (remove-label: false) – keeping label '${triggerLabel}' on the item.`);
     core.setOutput("label_name", triggerLabel);
     return;
   }

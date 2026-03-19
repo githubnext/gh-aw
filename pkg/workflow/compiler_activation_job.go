@@ -309,6 +309,8 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 	// Add label removal step and label_command output for label-command workflows.
 	// When a label-command trigger fires, the triggering label is immediately removed
 	// so that the same label can be applied again to trigger the workflow in the future.
+	// When remove-label is false, the step still runs to identify and output the label name
+	// but skips the actual removal operation.
 	if len(data.LabelCommand) > 0 {
 		// The removal step only makes sense for actual "labeled" events; for
 		// workflow_dispatch we skip it silently via the env-based label check.
@@ -322,6 +324,12 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 			return nil, fmt.Errorf("failed to marshal label-command names: %w", err)
 		}
 		steps = append(steps, fmt.Sprintf("          GH_AW_LABEL_NAMES: '%s'\n", string(labelNamesJSON)))
+		// Pass whether to remove the label (default true; false skips removal but still outputs label name)
+		removeLabelStr := "true"
+		if !data.LabelCommandRemoveLabel {
+			removeLabelStr = "false"
+		}
+		steps = append(steps, fmt.Sprintf("          GH_AW_REMOVE_LABEL: '%s'\n", removeLabelStr))
 		steps = append(steps, "        with:\n")
 		// Use GitHub App or custom token if configured (avoids needing elevated GITHUB_TOKEN permissions)
 		labelToken := c.resolveActivationToken(data)
@@ -502,7 +510,8 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 	// - discussion events need discussions:write
 	// When a github-app token is configured, the GITHUB_TOKEN permissions are irrelevant
 	// for the label removal step (it uses the app token instead), so we skip them.
-	if hasLabelCommand && data.ActivationGitHubApp == nil {
+	// When remove-label is false, the step does not remove labels so no write permissions are needed.
+	if hasLabelCommand && data.ActivationGitHubApp == nil && data.LabelCommandRemoveLabel {
 		if sliceutil.Contains(filteredLabelEvents, "issues") || sliceutil.Contains(filteredLabelEvents, "pull_request") {
 			permsMap[PermissionIssues] = PermissionWrite
 		}

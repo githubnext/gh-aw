@@ -354,6 +354,27 @@
                       ],
                       "description": "Alternative to 'name': label name(s) that trigger the workflow."
                     },
+                    "labels": {
+                      "oneOf": [
+                        {
+                          "type": "string",
+                          "minLength": 1,
+                          "description": "Single label name."
+                        },
+                        {
+                          "type": "array",
+                          "minItems": 1,
+                          "description": "Array of label names \u2014 any of these labels will trigger the workflow.",
+                          "items": {
+                            "type": "string",
+                            "minLength": 1,
+                            "description": "A label name"
+                          },
+                          "maxItems": 25
+                        }
+                      ],
+                      "description": "Label name(s) that trigger the workflow. Preferred alternative to 'name'/'names'."
+                    },
                     "events": {
                       "description": "Item types where the label-command trigger should be active. Default is all supported types: issues, pull_request, discussion.",
                       "oneOf": [
@@ -374,6 +395,10 @@
                           "maxItems": 3
                         }
                       ]
+                    },
+                    "remove-label": {
+                      "type": "boolean",
+                      "description": "Whether to remove the triggering label when the workflow starts. Default is true. Set to false to keep the label on the item and skip the label removal step (also removes the need for issues:write or discussions:write permissions)."
                     }
                   },
                   "additionalProperties": false

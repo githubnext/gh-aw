@@ -426,7 +426,192 @@ Both label-command and existing issues labeled trigger.
 		issuesCount, lockStr)
 }
 
-// TestLabelCommandConflictWithNonLabelTrigger verifies that using label_command alongside
+// TestLabelCommandLabelsField verifies that the "labels" field works as an alternative
+// to "name"/"names" for specifying label names in the map form.
+func TestLabelCommandLabelsField(t *testing.T) {
+	tempDir := t.TempDir()
+
+	workflowContent := `---
+name: Label Command Labels Field Test
+on:
+  label_command:
+    labels: [hot, cold]
+engine: copilot
+---
+
+Triggered by hot or cold labels.
+`
+
+	workflowPath := filepath.Join(tempDir, "label-command-labels.md")
+	err := os.WriteFile(workflowPath, []byte(workflowContent), 0644)
+	require.NoError(t, err, "failed to write test workflow")
+
+	compiler := NewCompiler()
+	err = compiler.CompileWorkflow(workflowPath)
+	require.NoError(t, err, "CompileWorkflow() should not error with labels field")
+
+	lockFilePath := stringutil.MarkdownToLockFile(workflowPath)
+	lockContent, err := os.ReadFile(lockFilePath)
+	require.NoError(t, err, "failed to read lock file")
+
+	lockStr := string(lockContent)
+
+	// Verify the compiled workflow triggers on labeled events
+	assert.Contains(t, lockStr, "labeled", "on section should contain labeled type")
+	assert.Contains(t, lockStr, "remove_trigger_label", "compiled workflow should contain remove_trigger_label step")
+
+	// Verify both label names are encoded in the step env
+	assert.Contains(t, lockStr, `"hot"`, "compiled workflow should reference hot label")
+	assert.Contains(t, lockStr, `"cold"`, "compiled workflow should reference cold label")
+}
+
+// TestLabelCommandRemoveLabelFalse verifies that when remove-label: false is set,
+// the compiled workflow still has the remove_trigger_label step (for label name output)
+// but the GH_AW_REMOVE_LABEL env var is set to 'false' and no write permissions are added
+// specifically for label removal.
+func TestLabelCommandRemoveLabelFalse(t *testing.T) {
+	tempDir := t.TempDir()
+
+	workflowContent := `---
+name: Label Command No Remove Test
+on:
+  label_command:
+    labels: [hot, cold]
+    remove-label: false
+engine: copilot
+---
+
+Triggered by hot or cold labels, but the label is NOT removed.
+`
+
+	workflowPath := filepath.Join(tempDir, "label-command-no-remove.md")
+	err := os.WriteFile(workflowPath, []byte(workflowContent), 0644)
+	require.NoError(t, err, "failed to write test workflow")
+
+	compiler := NewCompiler()
+
+	workflowData, err := compiler.ParseWorkflowFile(workflowPath)
+	require.NoError(t, err, "ParseWorkflowFile() should not error")
+
+	// Verify LabelCommandRemoveLabel is false
+	assert.False(t, workflowData.LabelCommandRemoveLabel, "LabelCommandRemoveLabel should be false when remove-label: false")
+
+	err = compiler.CompileWorkflow(workflowPath)
+	require.NoError(t, err, "CompileWorkflow() should not error with remove-label: false")
+
+	lockFilePath := stringutil.MarkdownToLockFile(workflowPath)
+	lockContent, err := os.ReadFile(lockFilePath)
+	require.NoError(t, err, "failed to read lock file")
+
+	lockStr := string(lockContent)
+
+	// The step should still be present (for label name output)
+	assert.Contains(t, lockStr, "remove_trigger_label", "compiled workflow should still contain remove_trigger_label step")
+
+	// GH_AW_REMOVE_LABEL should be set to false
+	assert.Contains(t, lockStr, "GH_AW_REMOVE_LABEL: 'false'", "compiled workflow should set GH_AW_REMOVE_LABEL to false")
+}
+
+// TestLabelCommandRemoveLabelFalsePermissions verifies that when remove-label: false is set
+// and other write-permission-requiring features are also disabled, no write permissions are
+// added to the activation job.
+func TestLabelCommandRemoveLabelFalsePermissions(t *testing.T) {
+	tempDir := t.TempDir()
+
+	// Disable status-comment and reaction to isolate permission effects of remove-label
+	workflowContent := `---
+name: Label Command No Remove Permissions Test
+on:
+  label_command:
+    labels: [deploy]
+    remove-label: false
+  status-comment: false
+  reaction: none
+engine: copilot
+---
+
+Triggered by deploy label, no label removal, no status comment, no reaction.
+`
+
+	workflowPath := filepath.Join(tempDir, "label-command-no-remove-perms.md")
+	err := os.WriteFile(workflowPath, []byte(workflowContent), 0644)
+	require.NoError(t, err, "failed to write test workflow")
+
+	compiler := NewCompiler()
+	err = compiler.CompileWorkflow(workflowPath)
+	require.NoError(t, err, "CompileWorkflow() should not error with remove-label: false")
+
+	lockFilePath := stringutil.MarkdownToLockFile(workflowPath)
+	lockContent, err := os.ReadFile(lockFilePath)
+	require.NoError(t, err, "failed to read lock file")
+
+	// Parse the YAML to verify permissions do NOT include issues:write or discussions:write
+	var workflow map[string]any
+	err = yaml.Unmarshal(lockContent, &workflow)
+	require.NoError(t, err, "failed to parse lock file as YAML")
+
+	jobs, ok := workflow["jobs"].(map[string]any)
+	require.True(t, ok, "workflow should have jobs")
+
+	activation, ok := jobs["activation"].(map[string]any)
+	require.True(t, ok, "workflow should have an activation job")
+
+	// When remove-label is false and status-comment is disabled,
+	// no write permissions should be added for the activation job
+	perms, hasPerms := activation["permissions"].(map[string]any)
+	if hasPerms {
+		issuesPerm, hasIssues := perms["issues"]
+		if hasIssues {
+			assert.NotEqual(t, "write", issuesPerm, "issues:write should not be set when remove-label is false and status-comment is disabled")
+		}
+		discussionsPerm, hasDiscussions := perms["discussions"]
+		if hasDiscussions {
+			assert.NotEqual(t, "write", discussionsPerm, "discussions:write should not be set when remove-label is false and status-comment is disabled")
+		}
+	}
+}
+
+// TestLabelCommandRemoveLabelTrue verifies that the default behavior (remove-label: true)
+// is preserved and GH_AW_REMOVE_LABEL is set to 'true'.
+func TestLabelCommandRemoveLabelTrue(t *testing.T) {
+	tempDir := t.TempDir()
+
+	workflowContent := `---
+name: Label Command Remove True Test
+on:
+  label_command:
+    labels: [deploy]
+    remove-label: true
+engine: copilot
+---
+
+Triggered by deploy label, label is removed (explicit true).
+`
+
+	workflowPath := filepath.Join(tempDir, "label-command-remove-true.md")
+	err := os.WriteFile(workflowPath, []byte(workflowContent), 0644)
+	require.NoError(t, err, "failed to write test workflow")
+
+	compiler := NewCompiler()
+
+	workflowData, err := compiler.ParseWorkflowFile(workflowPath)
+	require.NoError(t, err, "ParseWorkflowFile() should not error")
+
+	assert.True(t, workflowData.LabelCommandRemoveLabel, "LabelCommandRemoveLabel should be true when remove-label: true")
+
+	err = compiler.CompileWorkflow(workflowPath)
+	require.NoError(t, err, "CompileWorkflow() should not error with remove-label: true")
+
+	lockFilePath := stringutil.MarkdownToLockFile(workflowPath)
+	lockContent, err := os.ReadFile(lockFilePath)
+	require.NoError(t, err, "failed to read lock file")
+
+	lockStr := string(lockContent)
+
+	// GH_AW_REMOVE_LABEL should be set to true
+	assert.Contains(t, lockStr, "GH_AW_REMOVE_LABEL: 'true'", "compiled workflow should set GH_AW_REMOVE_LABEL to true")
+}
+
 // an issues/pull_request trigger with non-label types returns a validation error.
 func TestLabelCommandConflictWithNonLabelTrigger(t *testing.T) {
 	tempDir := t.TempDir()
