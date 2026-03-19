@@ -368,3 +368,43 @@ func TestBuildMCPToolUsageSummarySorting(t *testing.T) {
 	assert.Equal(t, "playwright", summary.Summary[2].ServerName)
 	assert.Equal(t, "navigate", summary.Summary[2].ToolName)
 }
+
+func TestBuildMCPToolUsageSummaryFilteredEvents(t *testing.T) {
+	// Verify FilteredEvents are aggregated across runs and that a non-nil summary
+	// is returned when filtered events exist even if there is no tool usage data.
+	event1 := DifcFilteredEvent{
+		Timestamp: "2024-01-12T10:00:00Z",
+		ServerID:  "github",
+		ToolName:  "pull_request_read",
+		Reason:    "integrity check failed",
+	}
+	event2 := DifcFilteredEvent{
+		Timestamp: "2024-01-12T10:00:01Z",
+		ServerID:  "github",
+		ToolName:  "issue_read",
+		Reason:    "secrecy violation",
+	}
+
+	processedRuns := []ProcessedRun{
+		{
+			Run: WorkflowRun{DatabaseID: 1},
+			MCPToolUsage: &MCPToolUsageData{
+				FilteredEvents: []DifcFilteredEvent{event1},
+			},
+		},
+		{
+			Run: WorkflowRun{DatabaseID: 2},
+			MCPToolUsage: &MCPToolUsageData{
+				FilteredEvents: []DifcFilteredEvent{event2},
+			},
+		},
+	}
+
+	summary := buildMCPToolUsageSummary(processedRuns)
+
+	// Should not be nil even though there is no tool data
+	require.NotNil(t, summary, "summary should not be nil when filtered events exist")
+	require.Len(t, summary.FilteredEvents, 2, "should aggregate filtered events from all runs")
+	assert.Equal(t, event1, summary.FilteredEvents[0])
+	assert.Equal(t, event2, summary.FilteredEvents[1])
+}

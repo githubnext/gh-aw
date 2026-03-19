@@ -123,11 +123,15 @@ type RPCMessageEntry struct {
 	ServerID  string          `json:"server_id"`
 	Payload   json.RawMessage `json:"payload"`
 	// Fields populated only for DIFC_FILTERED entries
-	ToolName      string   `json:"tool_name,omitempty"`
-	Description   string   `json:"description,omitempty"`
-	Reason        string   `json:"reason,omitempty"`
-	SecrecyTags   []string `json:"secrecy_tags,omitempty"`
-	IntegrityTags []string `json:"integrity_tags,omitempty"`
+	ToolName          string   `json:"tool_name,omitempty"`
+	Description       string   `json:"description,omitempty"`
+	Reason            string   `json:"reason,omitempty"`
+	SecrecyTags       []string `json:"secrecy_tags,omitempty"`
+	IntegrityTags     []string `json:"integrity_tags,omitempty"`
+	AuthorAssociation string   `json:"author_association,omitempty"`
+	AuthorLogin       string   `json:"author_login,omitempty"`
+	HTMLURL           string   `json:"html_url,omitempty"`
+	Number            string   `json:"number,omitempty"`
 }
 
 // rpcRequestPayload represents the JSON-RPC request payload fields we care about.
@@ -226,13 +230,17 @@ func parseRPCMessages(logPath string, verbose bool) (*GatewayMetrics, error) {
 			server := getOrCreateServer(metrics, entry.ServerID)
 			server.FilteredCount++
 			metrics.FilteredEvents = append(metrics.FilteredEvents, DifcFilteredEvent{
-				Timestamp:     entry.Timestamp,
-				ServerID:      entry.ServerID,
-				ToolName:      entry.ToolName,
-				Description:   entry.Description,
-				Reason:        entry.Reason,
-				SecrecyTags:   entry.SecrecyTags,
-				IntegrityTags: entry.IntegrityTags,
+				Timestamp:         entry.Timestamp,
+				ServerID:          entry.ServerID,
+				ToolName:          entry.ToolName,
+				Description:       entry.Description,
+				Reason:            entry.Reason,
+				SecrecyTags:       entry.SecrecyTags,
+				IntegrityTags:     entry.IntegrityTags,
+				AuthorAssociation: entry.AuthorAssociation,
+				AuthorLogin:       entry.AuthorLogin,
+				HTMLURL:           entry.HTMLURL,
+				Number:            entry.Number,
 			})
 
 		case entry.Direction == "OUT" && entry.Type == "REQUEST":

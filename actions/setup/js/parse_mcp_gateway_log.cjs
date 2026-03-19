@@ -69,7 +69,14 @@ function generateDifcFilteredSummary(filteredEvents) {
     const tool = event.tool_name ? `\`${event.tool_name}\`` : "-";
     const reason = (event.reason || "-").replace(/\n/g, " ").replace(/\|/g, "\\|");
     const user = event.author_login ? `${event.author_login} (${event.author_association || "NONE"})` : "-";
-    const resource = event.html_url ? `[#${event.number}](${event.html_url})` : event.description || "-";
+    let resource;
+    if (event.html_url) {
+      const lastSegment = event.html_url.split("/").filter(Boolean).pop();
+      const label = event.number ? `#${event.number}` : lastSegment || event.html_url;
+      resource = `[${label}](${event.html_url})`;
+    } else {
+      resource = event.description || "-";
+    }
     lines.push(`| ${time} | ${server} | ${tool} | ${reason} | ${user} | ${resource} |`);
   }
 
@@ -120,7 +127,7 @@ async function main() {
         core.info(`Found gateway.md (${gatewayMdContent.length} bytes)`);
 
         // Write the markdown directly to the step summary
-        core.summary.addRaw(gatewayMdContent);
+        core.summary.addRaw(gatewayMdContent.endsWith("\n") ? gatewayMdContent : gatewayMdContent + "\n");
 
         // Append DIFC_FILTERED section if any events found
         if (difcFilteredEvents.length > 0) {
