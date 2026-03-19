@@ -73,9 +73,9 @@ function getDifcFilteredEvents(gatewayJsonlPath, rpcMessagesPath) {
 }
 
 /**
- * Generates HTML details/summary section for DIFC filtered items wrapped in a GitHub tip alert.
+ * Generates HTML details/summary section for integrity-filtered items wrapped in a GitHub note alert.
  * @param {Array<Object>} filteredEvents - Array of DIFC_FILTERED event objects
- * @returns {string} GitHub tip alert with details section, or empty string if no filtered events
+ * @returns {string} GitHub note alert with details section, or empty string if no filtered events
  */
 function generateDifcFilteredSection(filteredEvents) {
   if (!filteredEvents || filteredEvents.length === 0) {
@@ -96,9 +96,9 @@ function generateDifcFilteredSection(filteredEvents) {
 
   let section = "\n\n> [!NOTE]\n";
   section += `> <details>\n`;
-  section += `> <summary>🔒 GitHub Guard filtered ${count} ${itemWord}</summary>\n`;
+  section += `> <summary>🔒 Integrity filtering filtered ${count} ${itemWord}</summary>\n`;
   section += `>\n`;
-  section += `> The GitHub Guard activated and filtered the following ${itemWord} during workflow execution.\n`;
+  section += `> Integrity filtering activated and filtered the following ${itemWord} during workflow execution.\n`;
   section += `> This happens when a tool call accesses a resource that does not meet the required integrity or secrecy level of the workflow.\n`;
   section += `>\n`;
 

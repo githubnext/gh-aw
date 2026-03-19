@@ -160,7 +160,7 @@ describe("gateway_difc_filtered.cjs", () => {
       expect(result).toContain("> [!NOTE]");
       expect(result).toContain("> <details>");
       expect(result).toContain("> </details>");
-      expect(result).toContain("> <summary>🔒 GitHub Guard filtered 1 item</summary>");
+      expect(result).toContain("> <summary>🔒 Integrity filtering filtered 1 item</summary>");
       expect(result).toContain("[#42](https://github.com/org/repo/issues/42)");
       expect(result).toContain("`list_issues`");
       expect(result).toContain("Integrity check failed");
@@ -187,7 +187,7 @@ describe("gateway_difc_filtered.cjs", () => {
       const result = generateDifcFilteredSection(events);
 
       expect(result).toContain("> [!NOTE]");
-      expect(result).toContain("> <summary>🔒 GitHub Guard filtered 2 items</summary>");
+      expect(result).toContain("> <summary>🔒 Integrity filtering filtered 2 items</summary>");
       expect(result).toContain("[#42](https://github.com/org/repo/issues/42)");
       expect(result).toContain("[#99](https://github.com/org/repo/issues/99)");
     });
@@ -242,7 +242,7 @@ describe("gateway_difc_filtered.cjs", () => {
       const events = [{ type: "DIFC_FILTERED", tool_name: "tool", reason: "reason" }];
       const result = generateDifcFilteredSection(events);
 
-      expect(result).toContain("GitHub Guard activated");
+      expect(result).toContain("Integrity filtering activated");
       expect(result).toContain("integrity or secrecy level");
     });
 
@@ -276,7 +276,7 @@ describe("gateway_difc_filtered.cjs", () => {
 
       const result = generateDifcFilteredSection(events);
 
-      expect(result).toContain("> <summary>🔒 GitHub Guard filtered 2 items</summary>");
+      expect(result).toContain("> <summary>🔒 Integrity filtering filtered 2 items</summary>");
       expect(result).toContain("[#42](https://github.com/org/repo/issues/42)");
       expect(result).toContain("[#99](https://github.com/org/repo/issues/99)");
     });

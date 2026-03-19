@@ -291,7 +291,7 @@ function generateFooterWithMessages(workflowName, runUrl, workflowSource, workfl
     guardNotices += blockedDomainsSection;
   }
 
-  // Add GitHub Guard DIFC filtered section if any items were filtered
+  // Add integrity filtering section if any items were filtered
   try {
     const difcFilteredEvents = getDifcFilteredEvents();
     const difcFilteredSection = generateDifcFilteredSection(difcFilteredEvents);
