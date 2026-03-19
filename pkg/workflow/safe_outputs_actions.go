@@ -199,9 +199,6 @@ func (c *Compiler) fetchAndParseActionYAML(actionName string, config *SafeOutput
 	}
 }
 
-// fetchRemoteActionYAML fetches and parses action.yml from a GitHub repository.
-// It tries both action.yml and action.yaml filenames.
-
 // extractSHAFromPinnedRef parses the SHA from a pinned action reference string.
 // The format produced by formatActionReference is "repo@sha # version".
 // Returns the SHA string, or empty string if it cannot be parsed.
@@ -222,6 +219,8 @@ func extractSHAFromPinnedRef(pinned string) string {
 	return ""
 }
 
+// fetchRemoteActionYAML fetches and parses action.yml from a GitHub repository.
+// It tries both action.yml and action.yaml filenames.
 func fetchRemoteActionYAML(repo, subdir, ref string) (*actionYAMLFile, error) {
 	for _, filename := range []string{"action.yml", "action.yaml"} {
 		var contentPath string

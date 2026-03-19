@@ -249,15 +249,12 @@ func generateFilteredToolsJSON(data *WorkflowData, markdownPath string) (string,
 		}
 	}
 
-	// Add custom action tools from SafeOutputs.Actions
+	// Add custom action tools from SafeOutputs.Actions.
+	// Action resolution (action.yml fetch + pinning) is done once in buildJobs before
+	// generateToolsMetaJSON/generateFilteredToolsJSON are called, so Inputs and
+	// ActionDescription are already populated here.
 	if len(data.SafeOutputs.Actions) > 0 {
 		safeOutputsConfigLog.Printf("Adding %d custom action tools", len(data.SafeOutputs.Actions))
-
-		// Ensure all configured actions are resolved (action.yml metadata loaded)
-		// before generating tool definitions that depend on ActionDescription/Inputs.
-		if err := resolveAllActions(); err != nil {
-			return "", fmt.Errorf("failed to resolve actions before generating safe-output tools: %w", err)
-		}
 
 		actionNames := make([]string, 0, len(data.SafeOutputs.Actions))
 		for actionName := range data.SafeOutputs.Actions {
