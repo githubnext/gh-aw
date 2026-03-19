@@ -335,11 +335,40 @@ function isUsernameBlocked(username, blockedPatterns) {
   return blockedPatterns.some(pattern => matchesBlockedPattern(username, pattern));
 }
 
+/**
+ * Load custom safe output script handlers from environment variable
+ * These are inline scripts defined in safe-outputs.scripts that run in the handler loop
+ * @returns {Map<string, string>} Map of script type names to their .cjs filenames
+ */
+function loadCustomSafeOutputScriptHandlers() {
+  const safeOutputScriptsEnv = process.env.GH_AW_SAFE_OUTPUT_SCRIPTS;
+  if (!safeOutputScriptsEnv) {
+    return new Map();
+  }
+
+  try {
+    const safeOutputScripts = JSON.parse(safeOutputScriptsEnv);
+    // The environment variable is a map of normalized script names to .cjs filenames
+    const scriptHandlers = new Map(Object.entries(safeOutputScripts));
+    if (typeof core !== "undefined") {
+      core.debug(`Loaded ${scriptHandlers.size} custom safe output script handler(s): ${[...scriptHandlers.keys()].join(", ")}`);
+    }
+    return scriptHandlers;
+  } catch (error) {
+    if (typeof core !== "undefined") {
+      const { getErrorMessage } = require("./error_helpers.cjs");
+      core.warning(`Failed to parse GH_AW_SAFE_OUTPUT_SCRIPTS: ${getErrorMessage(error)}`);
+    }
+    return new Map();
+  }
+}
+
 module.exports = {
   parseAllowedItems,
   parseMaxCount,
   resolveTarget,
   loadCustomSafeOutputJobTypes,
+  loadCustomSafeOutputScriptHandlers,
   resolveIssueNumber,
   extractAssignees,
   matchesBlockedPattern,

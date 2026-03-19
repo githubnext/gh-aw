@@ -531,6 +531,14 @@ func (c *Compiler) extractSafeOutputsConfig(frontmatter map[string]any) *SafeOut
 				}
 			}
 
+			// Handle scripts (inline handlers that run in the safe-output handler loop)
+			if scripts, exists := outputMap["scripts"]; exists {
+				if scriptsMap, ok := scripts.(map[string]any); ok {
+					config.Scripts = parseSafeScriptsConfig(scriptsMap)
+					safeOutputsConfigLog.Printf("Configured %d custom safe-output script(s)", len(config.Scripts))
+				}
+			}
+
 			// Handle app configuration for GitHub App token minting
 			if app, exists := outputMap["github-app"]; exists {
 				if appMap, ok := app.(map[string]any); ok {

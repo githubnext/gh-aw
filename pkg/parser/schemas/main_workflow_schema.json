@@ -7535,6 +7535,65 @@
           },
           "additionalProperties": false
         },
+        "scripts": {
+          "type": "object",
+          "description": "Inline JavaScript script handlers that run inside the consolidated safe-outputs job handler loop. Unlike 'jobs' (which create separate GitHub Actions jobs), scripts execute in-process alongside the built-in handlers. Users write only the body of the main function — the compiler wraps it with 'async function main(config = {}) { ... }' and 'module.exports = { main };' automatically. Script names containing dashes will be automatically normalized to underscores (e.g., 'post-slack-message' becomes 'post_slack_message').",
+          "patternProperties": {
+            "^[a-zA-Z_][a-zA-Z0-9_-]*$": {
+              "type": "object",
+              "description": "Inline script handler configuration. The script body has access to 'config' (the handler config object) and should return an async function that processes individual safe-output messages.",
+              "properties": {
+                "name": {
+                  "type": "string",
+                  "description": "Display name for the script handler"
+                },
+                "description": {
+                  "type": "string",
+                  "description": "Description of the script handler (used in MCP tool registration)"
+                },
+                "inputs": {
+                  "type": "object",
+                  "description": "Input parameters for the script handler",
+                  "patternProperties": {
+                    "^[a-zA-Z_][a-zA-Z0-9_-]*$": {
+                      "type": "object",
+                      "properties": {
+                        "description": {
+                          "type": "string",
+                          "description": "Input parameter description"
+                        },
+                        "required": {
+                          "type": "boolean",
+                          "description": "Whether this input is required",
+                          "default": false
+                        },
+                        "default": {
+                          "description": "Default value for the input",
+                          "oneOf": [{ "type": "string" }, { "type": "boolean" }, { "type": "number" }]
+                        },
+                        "type": {
+                          "type": "string",
+                          "enum": ["string", "boolean", "number"],
+                          "description": "Input parameter type",
+                          "default": "string"
+                        }
+                      },
+                      "additionalProperties": false
+                    }
+                  },
+                  "additionalProperties": false
+                },
+                "script": {
+                  "type": "string",
+                  "description": "JavaScript handler body. Write only the code that runs inside the handler for each item — the compiler generates the full outer wrapper including config input destructuring (`const { channel, message } = config;`) and the handler function (`return async function handleX(item, resolvedTemporaryIds) { ... }`). The body has access to `item` (runtime message with input values), `resolvedTemporaryIds` (map of temporary IDs), and config-destructured local variables for each declared input."
+                }
+              },
+              "required": ["script"],
+              "additionalProperties": false
+            }
+          },
+          "additionalProperties": false
+        },
         "messages": {
           "type": "object",
           "description": "Custom message templates for safe-output footer and notification messages. Available placeholders: {workflow_name} (workflow name), {run_url} (GitHub Actions run URL), {triggering_number} (issue/PR/discussion number), {workflow_source} (owner/repo/path@ref), {workflow_source_url} (GitHub URL to source), {operation} (safe-output operation name for staged mode).",

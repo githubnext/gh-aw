@@ -34,7 +34,7 @@
 #
 # inlined-imports: true
 #
-# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"3dae8d9e152c763d93627e8fb4f0afa01809030a9e2d33c38c8451da27f250da","strict":true}
+# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"9a4d79294c209d0051ffe00014b288b54a2be522a7908fd96f44fab6aa5c9e60","strict":true}
 
 name: "Smoke Claude"
 "on":
@@ -501,38 +501,42 @@ jobs:
              - Write a summary of the results to `/tmp/gh-aw/agent/smoke-claude-status-__GH_AW_GITHUB_RUN_ID__.txt` (create directory if needed)
              - Use bash to verify the file was created and display its contents
           
+          11. **Slack Script Safe Output Testing**: Use the `post_slack_message` safe-output tool to post a fictitious Slack message:
+             - Use `channel: "#smoke-tests"` and `message: "💥 Smoke test __GH_AW_GITHUB_RUN_ID__ passed — Claude engine nominal!"`
+             - Verify the tool call succeeds
+          
           ## PR Review Safe Outputs Testing
           
           **IMPORTANT**: The following tests require an open pull request. First, use the GitHub MCP tool to find an open PR in __GH_AW_GITHUB_REPOSITORY__ (or use the triggering PR if this is a pull_request event). Store the PR number for use in subsequent tests.
           
-          11. **Update PR Testing**: Use the `update_pull_request` tool to update the PR's body by appending a test message: "✨ PR Review Safe Output Test - Run __GH_AW_GITHUB_RUN_ID__"
+          12. **Update PR Testing**: Use the `update_pull_request` tool to update the PR's body by appending a test message: "✨ PR Review Safe Output Test - Run __GH_AW_GITHUB_RUN_ID__"
               - Use `pr_number: <pr_number>` to target the open PR
               - Use `operation: "append"` and `body: "\n\n---\n✨ PR Review Safe Output Test - Run __GH_AW_GITHUB_RUN_ID__"`
               - Verify the tool call succeeds
           
-          12. **PR Review Comment Testing**: Use the `create_pull_request_review_comment` tool to add review comments on the PR
+          13. **PR Review Comment Testing**: Use the `create_pull_request_review_comment` tool to add review comments on the PR
               - Find a file in the PR's diff (use GitHub MCP to get PR files)
               - Add at least 2 review comments on different lines with constructive feedback
               - Use `pr_number: <pr_number>`, `path: "<file_path>"`, `line: <line_number>`, and `body: "<comment_text>"`
               - Verify the tool calls succeed
           
-          13. **Submit PR Review Testing**: Use the `submit_pull_request_review` tool to submit a consolidated review
+          14. **Submit PR Review Testing**: Use the `submit_pull_request_review` tool to submit a consolidated review
               - Use `pr_number: <pr_number>`, `event: "COMMENT"`, and `body: "💥 Automated smoke test review - all systems nominal!"`
               - Verify the review is submitted successfully
-              - Note: This will bundle all review comments from test #12
+              - Note: This will bundle all review comments from test #13
           
-          14. **Resolve Review Thread Testing**: 
+          15. **Resolve Review Thread Testing**: 
               - Use the GitHub MCP tool to list review threads on the PR
               - If any threads exist, use the `resolve_pull_request_review_thread` tool to resolve one thread
               - Use `thread_id: "<thread_id>"` from an existing thread
               - If no threads exist, mark this test as ⚠️ (skipped - no threads to resolve)
           
-          15. **Add Reviewer Testing**: Use the `add_reviewer` tool to add a reviewer to the PR
+          16. **Add Reviewer Testing**: Use the `add_reviewer` tool to add a reviewer to the PR
               - Use `pr_number: <pr_number>` and `reviewers: ["copilot"]` (or another valid reviewer)
               - Verify the tool call succeeds
               - Note: May fail if reviewer is already assigned or doesn't have access
           
-          16. **Push to PR Branch Testing**: 
+          17. **Push to PR Branch Testing**: 
               - Create a test file at `/tmp/test-pr-push-__GH_AW_GITHUB_RUN_ID__.txt` with content "Test file for PR push"
               - Use git commands to check if we're on the PR branch
               - Use the `push_to_pull_request_branch` tool to push this change
@@ -540,7 +544,7 @@ jobs:
               - Verify the push succeeds
               - Note: This test may be skipped if not on a PR branch or if the PR is from a fork
           
-          17. **Close PR Testing** (CONDITIONAL - only if a test PR exists):
+          18. **Close PR Testing** (CONDITIONAL - only if a test PR exists):
               - If you can identify a test/bot PR that can be safely closed, use the `close_pull_request` tool
               - Use `pr_number: <test_pr_number>` and `comment: "Closing as part of smoke test - Run __GH_AW_GITHUB_RUN_ID__"`
               - If no suitable test PR exists, mark this test as ⚠️ (skipped - no safe PR to close)
@@ -553,7 +557,7 @@ jobs:
           1. **ALWAYS create an issue** with a summary of the smoke test run:
              - Title: "Smoke Test: Claude - __GH_AW_GITHUB_RUN_ID__"
              - Body should include:
-               - Test results (✅ for pass, ❌ for fail, ⚠️ for skipped) for each test (including PR review tests #11-17)
+               - Test results (✅ for pass, ❌ for fail, ⚠️ for skipped) for each test (including PR review tests #12-18)
                - Overall status: PASS (all passed), PARTIAL (some skipped), or FAIL (any failed)
                - Run URL: __GH_AW_GITHUB_SERVER_URL__/__GH_AW_GITHUB_REPOSITORY__/actions/runs/__GH_AW_GITHUB_RUN_ID__
                - Timestamp
@@ -562,8 +566,8 @@ jobs:
              - This issue MUST be created before any other safe output operations
           
           2. **Only if this workflow was triggered by a pull_request event**: Use the `add_comment` tool to add a **very brief** comment (max 5-10 lines) to the triggering pull request (omit the `item_number` parameter to auto-target the triggering PR) with:
-             - Test results for core tests #1-10 (✅ or ❌)
-             - Test results for PR review tests #11-17 (✅, ❌, or ⚠️)
+             - Test results for core tests #1-11 (✅ or ❌)
+             - Test results for PR review tests #12-18 (✅, ❌, or ⚠️)
              - Overall status: PASS, PARTIAL, or FAIL
           
           3. Use the `add_comment` tool with `item_number` set to the discussion number you extracted in step 9 to add a **fun comic-book style comment** to that discussion - be playful and use comic-book language like "💥 WHOOSH!"
@@ -859,7 +863,7 @@ jobs:
           mkdir -p /tmp/gh-aw/safeoutputs
           mkdir -p /tmp/gh-aw/mcp-logs/safeoutputs
           cat > ${RUNNER_TEMP}/gh-aw/safeoutputs/config.json << 'GH_AW_SAFE_OUTPUTS_CONFIG_EOF'
-          {"add_comment":{"max":2},"add_labels":{"allowed":["smoke-claude"],"max":3},"add_reviewer":{"max":2},"close_pull_request":{"max":1,"staged":true},"create_issue":{"expires":2,"group":true,"max":1},"create_pull_request_review_comment":{"max":5},"missing_data":{},"missing_tool":{},"noop":{"max":1},"push_to_pull_request_branch":{"max":1,"target":"*"},"resolve_pull_request_review_thread":{"max":5},"submit_pull_request_review":{"max":1},"update_pull_request":{"max":1}}
+          {"add_comment":{"max":2},"add_labels":{"allowed":["smoke-claude"],"max":3},"add_reviewer":{"max":2},"close_pull_request":{"max":1,"staged":true},"create_issue":{"expires":2,"group":true,"max":1},"create_pull_request_review_comment":{"max":5},"missing_data":{},"missing_tool":{},"noop":{"max":1},"post_slack_message":{"description":"Post a message to a fictitious Slack channel (smoke test only — no real Slack integration)","inputs":{"channel":{"default":null,"description":"Slack channel name to post to","required":true,"type":"string"},"message":{"default":null,"description":"Message text to post","required":true,"type":"string"}}},"push_to_pull_request_branch":{"max":1,"target":"*"},"resolve_pull_request_review_thread":{"max":5},"submit_pull_request_review":{"max":1},"update_pull_request":{"max":1}}
           GH_AW_SAFE_OUTPUTS_CONFIG_EOF
       - name: Write Safe Outputs Tools
         run: |
@@ -877,7 +881,30 @@ jobs:
               "update_pull_request": " CONSTRAINTS: Maximum 1 pull request(s) can be updated. Target: *."
             },
             "repo_params": {},
-            "dynamic_tools": []
+            "dynamic_tools": [
+              {
+                "description": "Post a message to a fictitious Slack channel (smoke test only — no real Slack integration)",
+                "inputSchema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "channel": {
+                      "description": "Slack channel name to post to",
+                      "type": "string"
+                    },
+                    "message": {
+                      "description": "Message text to post",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "channel",
+                    "message"
+                  ],
+                  "type": "object"
+                },
+                "name": "post_slack_message"
+              }
+            ]
           }
           GH_AW_SAFE_OUTPUTS_TOOLS_META_EOF
           cat > ${RUNNER_TEMP}/gh-aw/safeoutputs/validation.json << 'GH_AW_SAFE_OUTPUTS_VALIDATION_EOF'
@@ -2595,6 +2622,27 @@ jobs:
           GH_HOST="${GITHUB_SERVER_URL#https://}"
           GH_HOST="${GH_HOST#http://}"
           echo "GH_HOST=${GH_HOST}" >> "$GITHUB_ENV"
+      - name: Setup Safe Output Custom Scripts
+        run: |
+          cat > ${RUNNER_TEMP}/gh-aw/actions/safe_output_script_post_slack_message.cjs << 'GH_AW_SAFE_OUTPUT_SCRIPT_POST_SLACK_MESSAGE_EOF'
+          // @ts-check
+          /// <reference types="./safe-output-script" />
+          // Auto-generated safe-output script handler: post-slack-message
+          
+          /** @type {import('./types/safe-output-script').SafeOutputScriptMain} */
+          async function main(config = {}) {
+            const { channel, message } = config;
+            return async function handlePostSlackMessage(item, resolvedTemporaryIds, temporaryIdMap) {
+              const targetChannel = item.channel || "#general";
+              const text = item.message || "(no message)";
+              core.info(`[FICTITIOUS SLACK] → ${targetChannel}: ${text}`);
+              return { success: true, channel: targetChannel, message: text };
+              
+            };
+          }
+          module.exports = { main };
+          
+          GH_AW_SAFE_OUTPUT_SCRIPT_POST_SLACK_MESSAGE_EOF
       - name: Process Safe Outputs
         id: process_safe_outputs
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
@@ -2603,6 +2651,7 @@ jobs:
           GH_AW_ALLOWED_DOMAINS: "*.githubusercontent.com,127.0.0.1,::1,anthropic.com,api.anthropic.com,api.github.com,api.snapcraft.io,app.renovatebot.com,appveyor.com,archive.ubuntu.com,azure.archive.ubuntu.com,badgen.net,cdn.playwright.dev,circleci.com,codacy.com,codeclimate.com,codecov.io,codeload.github.com,coveralls.io,crl.geotrust.com,crl.globalsign.com,crl.identrust.com,crl.sectigo.com,crl.thawte.com,crl.usertrust.com,crl.verisign.com,crl3.digicert.com,crl4.digicert.com,crls.ssl.com,deepsource.io,docs.github.com,drone.io,files.pythonhosted.org,ghcr.io,github-cloud.githubusercontent.com,github-cloud.s3.amazonaws.com,github.blog,github.com,github.githubassets.com,go.dev,golang.org,goproxy.io,host.docker.internal,img.shields.io,json-schema.org,json.schemastore.org,keyserver.ubuntu.com,lfs.github.com,localhost,mcp.tavily.com,objects.githubusercontent.com,ocsp.digicert.com,ocsp.geotrust.com,ocsp.globalsign.com,ocsp.identrust.com,ocsp.sectigo.com,ocsp.ssl.com,ocsp.thawte.com,ocsp.usertrust.com,ocsp.verisign.com,packagecloud.io,packages.cloud.google.com,packages.microsoft.com,pkg.go.dev,playwright.download.prss.microsoft.com,ppa.launchpad.net,proxy.golang.org,pypi.org,raw.githubusercontent.com,readthedocs.io,readthedocs.org,registry.npmjs.org,renovatebot.com,s.symcb.com,s.symcd.com,security.ubuntu.com,semaphoreci.com,sentry.io,shields.io,snyk.io,sonarcloud.io,sonarqube.com,statsig.anthropic.com,storage.googleapis.com,sum.golang.org,travis-ci.com,ts-crl.ws.symantec.com,ts-ocsp.ws.symantec.com,www.googleapis.com"
           GITHUB_SERVER_URL: ${{ github.server_url }}
           GITHUB_API_URL: ${{ github.api_url }}
+          GH_AW_SAFE_OUTPUT_SCRIPTS: "{\"post_slack_message\":\"safe_output_script_post_slack_message.cjs\"}"
           GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG: "{\"add_comment\":{\"hide_older_comments\":true,\"max\":2},\"add_labels\":{\"allowed\":[\"smoke-claude\"]},\"add_reviewer\":{\"max\":2,\"target\":\"*\"},\"close_pull_request\":{\"max\":1,\"staged\":true},\"create_issue\":{\"close_older_issues\":true,\"expires\":2,\"group\":true,\"labels\":[\"automation\",\"testing\"],\"max\":1},\"create_pull_request_review_comment\":{\"max\":5,\"side\":\"RIGHT\",\"target\":\"*\"},\"missing_data\":{},\"missing_tool\":{},\"noop\":{\"max\":1,\"report-as-issue\":\"true\"},\"push_to_pull_request_branch\":{\"if_no_changes\":\"warn\",\"max_patch_size\":1024,\"protected_files\":[\"package.json\",\"bun.lockb\",\"bunfig.toml\",\"deno.json\",\"deno.jsonc\",\"deno.lock\",\"global.json\",\"NuGet.Config\",\"Directory.Packages.props\",\"mix.exs\",\"mix.lock\",\"go.mod\",\"go.sum\",\"stack.yaml\",\"stack.yaml.lock\",\"pom.xml\",\"build.gradle\",\"build.gradle.kts\",\"settings.gradle\",\"settings.gradle.kts\",\"gradle.properties\",\"package-lock.json\",\"yarn.lock\",\"pnpm-lock.yaml\",\"npm-shrinkwrap.json\",\"requirements.txt\",\"Pipfile\",\"Pipfile.lock\",\"pyproject.toml\",\"setup.py\",\"setup.cfg\",\"Gemfile\",\"Gemfile.lock\",\"uv.lock\",\"CLAUDE.md\"],\"protected_path_prefixes\":[\".github/\",\".agents/\",\".claude/\"],\"staged\":true,\"target\":\"*\"},\"resolve_pull_request_review_thread\":{\"max\":5},\"submit_pull_request_review\":{\"footer\":\"always\",\"max\":1},\"update_pull_request\":{\"allow_body\":true,\"allow_title\":true,\"max\":1,\"target\":\"*\"}}"
           GH_AW_CI_TRIGGER_TOKEN: ${{ secrets.GH_AW_CI_TRIGGER_TOKEN }}
         with:

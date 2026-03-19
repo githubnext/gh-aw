@@ -37,10 +37,10 @@ This prevents parallel execution explosions and AI resource exhaustion. See [Con
 
 ## Timeouts
 
-Jobs have maximum execution times (default: 360 minutes) controlled by the top-level `timeout-minutes` field:
+The agent execution step has a default timeout of 20 minutes, controlled by the top-level `timeout-minutes` field. Other jobs (custom jobs, safe-output jobs) use the GitHub Actions platform default of 360 minutes unless explicitly set:
 
 ```yaml wrap
-timeout-minutes: 120  # Apply 120-minute timeout to all jobs
+timeout-minutes: 120  # Apply 120-minute timeout to the agent execution step
 ```
 
 The `stop-after` field provides additional control for when workflows should stop running:

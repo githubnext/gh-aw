@@ -322,6 +322,86 @@ func TestProcessGatewayLogEntry(t *testing.T) {
 	assert.Equal(t, 1, server.ErrorCount)
 }
 
+func TestProcessGatewayLogEntryDifcFiltered(t *testing.T) {
+	metrics := &GatewayMetrics{
+		Servers: make(map[string]*GatewayServerMetrics),
+	}
+
+	entry := &GatewayLogEntry{
+		Timestamp:         "2024-01-12T10:00:00Z",
+		Type:              "DIFC_FILTERED",
+		ServerID:          "github",
+		ToolName:          "pull_request_read",
+		Reason:            "Resource has lower integrity than agent requires.",
+		AuthorLogin:       "octocat",
+		AuthorAssociation: "CONTRIBUTOR",
+		HTMLURL:           "https://github.com/github/gh-aw/pull/42",
+		Number:            "42",
+	}
+
+	processGatewayLogEntry(entry, metrics, false)
+
+	assert.Equal(t, 0, metrics.TotalRequests, "DIFC_FILTERED should not increment TotalRequests")
+	assert.Equal(t, 1, metrics.TotalFiltered, "DIFC_FILTERED should increment TotalFiltered")
+	require.Len(t, metrics.FilteredEvents, 1, "should record one filtered event")
+
+	evt := metrics.FilteredEvents[0]
+	assert.Equal(t, "github", evt.ServerID)
+	assert.Equal(t, "pull_request_read", evt.ToolName)
+	assert.Equal(t, "Resource has lower integrity than agent requires.", evt.Reason)
+	assert.Equal(t, "octocat", evt.AuthorLogin)
+	assert.Equal(t, "CONTRIBUTOR", evt.AuthorAssociation)
+	assert.Equal(t, "https://github.com/github/gh-aw/pull/42", evt.HTMLURL)
+	assert.Equal(t, "42", evt.Number)
+
+	require.Len(t, metrics.Servers, 1, "should create server entry for DIFC_FILTERED server")
+	githubServer := metrics.Servers["github"]
+	require.NotNil(t, githubServer)
+	assert.Equal(t, 1, githubServer.FilteredCount)
+}
+
+func TestParseRPCMessagesDifcFiltered(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	content := `{"timestamp":"2024-01-12T10:00:00.000000000Z","type":"DIFC_FILTERED","server_id":"github","tool_name":"pull_request_read","reason":"Resource has lower integrity than agent requires.","author_login":"octocat","author_association":"CONTRIBUTOR","html_url":"https://github.com/github/gh-aw/pull/42","number":"42"}
+{"timestamp":"2024-01-12T10:00:01.000000000Z","direction":"OUT","type":"REQUEST","server_id":"github","payload":{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"list_issues","arguments":{}}}}
+{"timestamp":"2024-01-12T10:00:01.200000000Z","direction":"IN","type":"RESPONSE","server_id":"github","payload":{"jsonrpc":"2.0","id":1,"result":{}}}
+{"timestamp":"2024-01-12T10:00:02.000000000Z","type":"DIFC_FILTERED","server_id":"github","tool_name":"issue_read","reason":"Secrecy violation.","secrecy_tags":["private"]}
+`
+	logPath := filepath.Join(tmpDir, "rpc-messages.jsonl")
+	require.NoError(t, os.WriteFile(logPath, []byte(content), 0644))
+
+	metrics, err := parseRPCMessages(logPath, false)
+	require.NoError(t, err)
+	require.NotNil(t, metrics)
+
+	assert.Equal(t, 2, metrics.TotalFiltered, "should count 2 DIFC_FILTERED events")
+	assert.Equal(t, 1, metrics.TotalRequests, "should count 1 REQUEST")
+	require.Len(t, metrics.FilteredEvents, 2)
+
+	// First filtered event — with user and resource metadata
+	first := metrics.FilteredEvents[0]
+	assert.Equal(t, "github", first.ServerID)
+	assert.Equal(t, "pull_request_read", first.ToolName)
+	assert.Equal(t, "Resource has lower integrity than agent requires.", first.Reason)
+	assert.Equal(t, "octocat", first.AuthorLogin)
+	assert.Equal(t, "CONTRIBUTOR", first.AuthorAssociation)
+	assert.Equal(t, "https://github.com/github/gh-aw/pull/42", first.HTMLURL)
+	assert.Equal(t, "42", first.Number)
+
+	// Second filtered event — with secrecy tags
+	second := metrics.FilteredEvents[1]
+	assert.Equal(t, "github", second.ServerID)
+	assert.Equal(t, "issue_read", second.ToolName)
+	assert.Equal(t, "Secrecy violation.", second.Reason)
+	assert.Equal(t, []string{"private"}, second.SecrecyTags)
+
+	// Server should have FilteredCount = 2
+	githubServer := metrics.Servers["github"]
+	require.NotNil(t, githubServer)
+	assert.Equal(t, 2, githubServer.FilteredCount)
+}
+
 func TestGetSortedServerNames(t *testing.T) {
 	metrics := &GatewayMetrics{
 		Servers: map[string]*GatewayServerMetrics{

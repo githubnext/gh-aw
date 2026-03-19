@@ -1,7 +1,7 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
 
-const { generateGatewayLogSummary, generatePlainTextGatewaySummary, generatePlainTextLegacySummary, printAllGatewayFiles } = require("./parse_mcp_gateway_log.cjs");
+const { generateGatewayLogSummary, generatePlainTextGatewaySummary, generatePlainTextLegacySummary, parseGatewayJsonlForDifcFiltered, generateDifcFilteredSummary, printAllGatewayFiles } = require("./parse_mcp_gateway_log.cjs");
 
 describe("parse_mcp_gateway_log", () => {
   // Note: The main() function now checks for gateway.md first before falling back to log files.
@@ -567,6 +567,160 @@ Some content here.`;
         // Clean up
         fs.rmSync(tmpDir, { recursive: true, force: true });
       }
+    });
+  });
+
+  describe("parseGatewayJsonlForDifcFiltered", () => {
+    test("extracts DIFC_FILTERED events from JSONL content", () => {
+      const jsonlContent = [
+        JSON.stringify({
+          timestamp: "2026-03-18T17:30:00.123456789Z",
+          type: "DIFC_FILTERED",
+          server_id: "github",
+          tool_name: "list_issues",
+          description: "resource:list_issues",
+          reason: "Integrity check failed, missingTags=[approved:github/copilot-indexing-issues-prs]",
+          secrecy_tags: ["private:github/copilot-indexing-issues-prs"],
+          integrity_tags: ["none:github/copilot-indexing-issues-prs"],
+          author_association: "NONE",
+          author_login: "external-user",
+          html_url: "https://github.com/github/copilot-indexing-issues-prs/issues/42",
+          number: "42",
+        }),
+        JSON.stringify({ timestamp: "2026-03-18T17:30:01Z", type: "RESPONSE", server_id: "github" }),
+        JSON.stringify({
+          timestamp: "2026-03-18T17:31:00Z",
+          type: "DIFC_FILTERED",
+          server_id: "github",
+          tool_name: "get_issue",
+          reason: "Secrecy check failed",
+          author_login: "user2",
+        }),
+      ].join("\n");
+
+      const events = parseGatewayJsonlForDifcFiltered(jsonlContent);
+
+      expect(events).toHaveLength(2);
+      expect(events[0].tool_name).toBe("list_issues");
+      expect(events[0].server_id).toBe("github");
+      expect(events[0].author_login).toBe("external-user");
+      expect(events[1].tool_name).toBe("get_issue");
+    });
+
+    test("returns empty array when no DIFC_FILTERED events", () => {
+      const jsonlContent = [JSON.stringify({ timestamp: "2026-03-18T17:30:01Z", type: "RESPONSE", server_id: "github" }), JSON.stringify({ timestamp: "2026-03-18T17:30:02Z", type: "REQUEST", server_id: "github" })].join("\n");
+
+      const events = parseGatewayJsonlForDifcFiltered(jsonlContent);
+      expect(events).toHaveLength(0);
+    });
+
+    test("returns empty array for empty content", () => {
+      expect(parseGatewayJsonlForDifcFiltered("")).toHaveLength(0);
+    });
+
+    test("skips malformed JSON lines", () => {
+      const jsonlContent = ["not valid json", JSON.stringify({ type: "DIFC_FILTERED", tool_name: "valid_tool" }), "{broken}"].join("\n");
+
+      const events = parseGatewayJsonlForDifcFiltered(jsonlContent);
+      expect(events).toHaveLength(1);
+      expect(events[0].tool_name).toBe("valid_tool");
+    });
+
+    test("skips blank lines", () => {
+      const jsonlContent = "\n" + JSON.stringify({ type: "DIFC_FILTERED", tool_name: "t1" }) + "\n\n" + JSON.stringify({ type: "DIFC_FILTERED", tool_name: "t2" }) + "\n";
+
+      const events = parseGatewayJsonlForDifcFiltered(jsonlContent);
+      expect(events).toHaveLength(2);
+    });
+  });
+
+  describe("generateDifcFilteredSummary", () => {
+    const sampleEvents = [
+      {
+        timestamp: "2026-03-18T17:30:00.123456789Z",
+        type: "DIFC_FILTERED",
+        server_id: "github",
+        tool_name: "list_issues",
+        description: "resource:list_issues",
+        reason: "Integrity check failed, missingTags=[approved:github/copilot-indexing-issues-prs]",
+        secrecy_tags: ["private:github/copilot-indexing-issues-prs"],
+        integrity_tags: ["none:github/copilot-indexing-issues-prs"],
+        author_association: "NONE",
+        author_login: "external-user",
+        html_url: "https://github.com/github/copilot-indexing-issues-prs/issues/42",
+        number: "42",
+      },
+    ];
+
+    test("returns empty string for empty events array", () => {
+      expect(generateDifcFilteredSummary([])).toBe("");
+    });
+
+    test("returns empty string for null/undefined", () => {
+      expect(generateDifcFilteredSummary(null)).toBe("");
+      expect(generateDifcFilteredSummary(undefined)).toBe("");
+    });
+
+    test("generates details/summary section with event count", () => {
+      const summary = generateDifcFilteredSummary(sampleEvents);
+      expect(summary).toContain("<details>");
+      expect(summary).toContain("DIFC Filtered Events (1)");
+      expect(summary).toContain("</details>");
+    });
+
+    test("includes tool name in code formatting", () => {
+      const summary = generateDifcFilteredSummary(sampleEvents);
+      expect(summary).toContain("`list_issues`");
+    });
+
+    test("includes server_id", () => {
+      const summary = generateDifcFilteredSummary(sampleEvents);
+      expect(summary).toContain("github");
+    });
+
+    test("includes reason for filtering", () => {
+      const summary = generateDifcFilteredSummary(sampleEvents);
+      expect(summary).toContain("Integrity check failed");
+    });
+
+    test("includes author login and association", () => {
+      const summary = generateDifcFilteredSummary(sampleEvents);
+      expect(summary).toContain("external-user");
+      expect(summary).toContain("NONE");
+    });
+
+    test("renders resource as linked issue number", () => {
+      const summary = generateDifcFilteredSummary(sampleEvents);
+      expect(summary).toContain("[#42]");
+      expect(summary).toContain("https://github.com/github/copilot-indexing-issues-prs/issues/42");
+    });
+
+    test("uses description as resource when html_url absent", () => {
+      const events = [{ type: "DIFC_FILTERED", tool_name: "my_tool", description: "resource:my_tool" }];
+      const summary = generateDifcFilteredSummary(events);
+      expect(summary).toContain("resource:my_tool");
+    });
+
+    test("escapes pipe characters in reason", () => {
+      const events = [{ type: "DIFC_FILTERED", tool_name: "t", reason: "failed | check" }];
+      const summary = generateDifcFilteredSummary(events);
+      expect(summary).toContain("failed \\| check");
+    });
+
+    test("generates correct table header", () => {
+      const summary = generateDifcFilteredSummary(sampleEvents);
+      expect(summary).toContain("| Time | Server | Tool | Reason | User | Resource |");
+      expect(summary).toContain("|------|--------|------|--------|------|----------|");
+    });
+
+    test("shows event count in summary for multiple events", () => {
+      const multiEvents = [
+        { type: "DIFC_FILTERED", tool_name: "t1", reason: "r1" },
+        { type: "DIFC_FILTERED", tool_name: "t2", reason: "r2" },
+        { type: "DIFC_FILTERED", tool_name: "t3", reason: "r3" },
+      ];
+      const summary = generateDifcFilteredSummary(multiEvents);
+      expect(summary).toContain("DIFC Filtered Events (3)");
     });
   });
 });

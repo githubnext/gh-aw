@@ -721,6 +721,7 @@ func buildMCPToolUsageSummary(processedRuns []ProcessedRun) *MCPToolUsageSummary
 	toolSummaryMap := make(map[string]*MCPToolSummary) // Key: serverName:toolName
 	serverStatsMap := make(map[string]*MCPServerStats) // Key: serverName
 	var allToolCalls []MCPToolCall
+	var allFilteredEvents []DifcFilteredEvent
 
 	// Aggregate data from all runs
 	for _, pr := range processedRuns {
@@ -730,6 +731,9 @@ func buildMCPToolUsageSummary(processedRuns []ProcessedRun) *MCPToolUsageSummary
 
 		// Aggregate tool calls
 		allToolCalls = append(allToolCalls, pr.MCPToolUsage.ToolCalls...)
+
+		// Aggregate DIFC filtered events
+		allFilteredEvents = append(allFilteredEvents, pr.MCPToolUsage.FilteredEvents...)
 
 		// Aggregate tool summaries
 		for _, summary := range pr.MCPToolUsage.Summary {
@@ -809,7 +813,7 @@ func buildMCPToolUsageSummary(processedRuns []ProcessedRun) *MCPToolUsageSummary
 	}
 
 	// Return nil if no MCP tool usage data was found
-	if len(toolSummaryMap) == 0 && len(serverStatsMap) == 0 {
+	if len(toolSummaryMap) == 0 && len(serverStatsMap) == 0 && len(allFilteredEvents) == 0 {
 		return nil
 	}
 
@@ -837,13 +841,14 @@ func buildMCPToolUsageSummary(processedRuns []ProcessedRun) *MCPToolUsageSummary
 		return cmp.Compare(a.ServerName, b.ServerName)
 	})
 
-	reportLog.Printf("Built MCP tool usage summary: %d tool summaries, %d servers, %d total tool calls",
-		len(summaries), len(servers), len(allToolCalls))
+	reportLog.Printf("Built MCP tool usage summary: %d tool summaries, %d servers, %d total tool calls, %d DIFC filtered events",
+		len(summaries), len(servers), len(allToolCalls), len(allFilteredEvents))
 
 	return &MCPToolUsageSummary{
-		Summary:   summaries,
-		Servers:   servers,
-		ToolCalls: allToolCalls,
+		Summary:        summaries,
+		Servers:        servers,
+		ToolCalls:      allToolCalls,
+		FilteredEvents: allFilteredEvents,
 	}
 }
 

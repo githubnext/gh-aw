@@ -6,6 +6,8 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+
+	"github.com/github/gh-aw/pkg/stringutil"
 )
 
 // ========================================
@@ -435,6 +437,44 @@ func generateSafeOutputsConfig(data *WorkflowData) string {
 			}
 
 			safeOutputsConfig[jobName] = safeJobConfig
+		}
+	}
+
+	// Add safe-scripts configuration from SafeOutputs.Scripts
+	// Scripts run in the handler loop, so they are registered the same way as jobs in the config
+	if len(data.SafeOutputs.Scripts) > 0 {
+		safeOutputsConfigLog.Printf("Processing %d safe script configurations", len(data.SafeOutputs.Scripts))
+		for scriptName, scriptConfig := range data.SafeOutputs.Scripts {
+			normalizedName := stringutil.NormalizeSafeOutputIdentifier(scriptName)
+			safeOutputsConfigLog.Printf("Generating config for safe script: %s (normalized: %s)", scriptName, normalizedName)
+			safeScriptConfigMap := map[string]any{}
+
+			// Add description if present
+			if scriptConfig.Description != "" {
+				safeScriptConfigMap["description"] = scriptConfig.Description
+			}
+
+			// Add inputs information
+			if len(scriptConfig.Inputs) > 0 {
+				inputsConfig := make(map[string]any)
+				for inputName, inputDef := range scriptConfig.Inputs {
+					inputConfig := map[string]any{
+						"type":        inputDef.Type,
+						"description": inputDef.Description,
+						"required":    inputDef.Required,
+					}
+					if inputDef.Default != "" {
+						inputConfig["default"] = inputDef.Default
+					}
+					if len(inputDef.Options) > 0 {
+						inputConfig["options"] = inputDef.Options
+					}
+					inputsConfig[inputName] = inputConfig
+				}
+				safeScriptConfigMap["inputs"] = inputsConfig
+			}
+
+			safeOutputsConfig[normalizedName] = safeScriptConfigMap
 		}
 	}
 

@@ -78,6 +78,12 @@ func hasAnySafeOutputEnabled(safeOutputs *SafeOutputsConfig) bool {
 		return true
 	}
 
+	// Check Scripts separately as it's a map
+	if len(safeOutputs.Scripts) > 0 {
+		safeOutputReflectionLog.Printf("Found %d custom scripts enabled", len(safeOutputs.Scripts))
+		return true
+	}
+
 	// Use reflection to check all pointer fields
 	val := reflect.ValueOf(safeOutputs).Elem()
 	for fieldName := range safeOutputFieldMapping {
@@ -122,6 +128,11 @@ func hasNonBuiltinSafeOutputsEnabled(safeOutputs *SafeOutputsConfig) bool {
 
 	// Custom safe-jobs are always non-builtin
 	if len(safeOutputs.Jobs) > 0 {
+		return true
+	}
+
+	// Custom scripts are always non-builtin
+	if len(safeOutputs.Scripts) > 0 {
 		return true
 	}
 

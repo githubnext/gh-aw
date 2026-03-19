@@ -36,19 +36,44 @@ const maxScannerBufferSize = 1024 * 1024
 
 // GatewayLogEntry represents a single log entry from gateway.jsonl
 type GatewayLogEntry struct {
-	Timestamp  string  `json:"timestamp"`
-	Level      string  `json:"level"`
-	Type       string  `json:"type"`
-	Event      string  `json:"event"`
-	ServerName string  `json:"server_name,omitempty"`
-	ToolName   string  `json:"tool_name,omitempty"`
-	Method     string  `json:"method,omitempty"`
-	Duration   float64 `json:"duration,omitempty"` // in milliseconds
-	InputSize  int     `json:"input_size,omitempty"`
-	OutputSize int     `json:"output_size,omitempty"`
-	Status     string  `json:"status,omitempty"`
-	Error      string  `json:"error,omitempty"`
-	Message    string  `json:"message,omitempty"`
+	Timestamp         string   `json:"timestamp"`
+	Level             string   `json:"level"`
+	Type              string   `json:"type"`
+	Event             string   `json:"event"`
+	ServerName        string   `json:"server_name,omitempty"`
+	ServerID          string   `json:"server_id,omitempty"` // used by DIFC_FILTERED events
+	ToolName          string   `json:"tool_name,omitempty"`
+	Method            string   `json:"method,omitempty"`
+	Duration          float64  `json:"duration,omitempty"` // in milliseconds
+	InputSize         int      `json:"input_size,omitempty"`
+	OutputSize        int      `json:"output_size,omitempty"`
+	Status            string   `json:"status,omitempty"`
+	Error             string   `json:"error,omitempty"`
+	Message           string   `json:"message,omitempty"`
+	Description       string   `json:"description,omitempty"`
+	Reason            string   `json:"reason,omitempty"`
+	SecrecyTags       []string `json:"secrecy_tags,omitempty"`
+	IntegrityTags     []string `json:"integrity_tags,omitempty"`
+	AuthorAssociation string   `json:"author_association,omitempty"`
+	AuthorLogin       string   `json:"author_login,omitempty"`
+	HTMLURL           string   `json:"html_url,omitempty"`
+	Number            string   `json:"number,omitempty"`
+}
+
+// DifcFilteredEvent represents a DIFC_FILTERED log entry from gateway.jsonl.
+// These events occur when a tool call is blocked by DIFC integrity or secrecy checks.
+type DifcFilteredEvent struct {
+	Timestamp         string   `json:"timestamp"`
+	ServerID          string   `json:"server_id"`
+	ToolName          string   `json:"tool_name"`
+	Description       string   `json:"description,omitempty"`
+	Reason            string   `json:"reason"`
+	SecrecyTags       []string `json:"secrecy_tags,omitempty"`
+	IntegrityTags     []string `json:"integrity_tags,omitempty"`
+	AuthorAssociation string   `json:"author_association,omitempty"`
+	AuthorLogin       string   `json:"author_login,omitempty"`
+	HTMLURL           string   `json:"html_url,omitempty"`
+	Number            string   `json:"number,omitempty"`
 }
 
 // GatewayServerMetrics represents usage metrics for a single MCP server
@@ -58,6 +83,7 @@ type GatewayServerMetrics struct {
 	ToolCallCount int
 	TotalDuration float64 // in milliseconds
 	ErrorCount    int
+	FilteredCount int // number of DIFC_FILTERED events for this server
 	Tools         map[string]*GatewayToolMetrics
 }
 
@@ -79,7 +105,9 @@ type GatewayMetrics struct {
 	TotalRequests  int
 	TotalToolCalls int
 	TotalErrors    int
+	TotalFiltered  int // number of DIFC_FILTERED events
 	Servers        map[string]*GatewayServerMetrics
+	FilteredEvents []DifcFilteredEvent
 	StartTime      time.Time
 	EndTime        time.Time
 	TotalDuration  float64 // in milliseconds
@@ -87,13 +115,23 @@ type GatewayMetrics struct {
 
 // RPCMessageEntry represents a single entry from rpc-messages.jsonl.
 // This file is written by the Copilot CLI and contains raw JSON-RPC protocol messages
-// exchanged between the AI engine and MCP servers.
+// exchanged between the AI engine and MCP servers, as well as DIFC_FILTERED events.
 type RPCMessageEntry struct {
 	Timestamp string          `json:"timestamp"`
-	Direction string          `json:"direction"` // "IN" = received from server, "OUT" = sent to server
-	Type      string          `json:"type"`      // "REQUEST" or "RESPONSE"
+	Direction string          `json:"direction"` // "IN" = received from server, "OUT" = sent to server; empty for DIFC_FILTERED
+	Type      string          `json:"type"`      // "REQUEST", "RESPONSE", or "DIFC_FILTERED"
 	ServerID  string          `json:"server_id"`
 	Payload   json.RawMessage `json:"payload"`
+	// Fields populated only for DIFC_FILTERED entries
+	ToolName          string   `json:"tool_name,omitempty"`
+	Description       string   `json:"description,omitempty"`
+	Reason            string   `json:"reason,omitempty"`
+	SecrecyTags       []string `json:"secrecy_tags,omitempty"`
+	IntegrityTags     []string `json:"integrity_tags,omitempty"`
+	AuthorAssociation string   `json:"author_association,omitempty"`
+	AuthorLogin       string   `json:"author_login,omitempty"`
+	HTMLURL           string   `json:"html_url,omitempty"`
+	Number            string   `json:"number,omitempty"`
 }
 
 // rpcRequestPayload represents the JSON-RPC request payload fields we care about.
@@ -186,6 +224,25 @@ func parseRPCMessages(logPath string, verbose bool) (*GatewayMetrics, error) {
 		}
 
 		switch {
+		case entry.Type == "DIFC_FILTERED":
+			// DIFC integrity/secrecy filter event — not a REQUEST or RESPONSE
+			metrics.TotalFiltered++
+			server := getOrCreateServer(metrics, entry.ServerID)
+			server.FilteredCount++
+			metrics.FilteredEvents = append(metrics.FilteredEvents, DifcFilteredEvent{
+				Timestamp:         entry.Timestamp,
+				ServerID:          entry.ServerID,
+				ToolName:          entry.ToolName,
+				Description:       entry.Description,
+				Reason:            entry.Reason,
+				SecrecyTags:       entry.SecrecyTags,
+				IntegrityTags:     entry.IntegrityTags,
+				AuthorAssociation: entry.AuthorAssociation,
+				AuthorLogin:       entry.AuthorLogin,
+				HTMLURL:           entry.HTMLURL,
+				Number:            entry.Number,
+			})
+
 		case entry.Direction == "OUT" && entry.Type == "REQUEST":
 			// Outgoing request from AI engine to MCP server
 			var req rpcRequestPayload
@@ -375,9 +432,13 @@ func parseGatewayLogs(logDir string, verbose bool) (*GatewayMetrics, error) {
 
 // processGatewayLogEntry processes a single log entry and updates metrics
 func processGatewayLogEntry(entry *GatewayLogEntry, metrics *GatewayMetrics, verbose bool) {
-	// Parse timestamp for time range
+	// Parse timestamp for time range (supports both RFC3339 and RFC3339Nano)
 	if entry.Timestamp != "" {
-		if t, err := time.Parse(time.RFC3339, entry.Timestamp); err == nil {
+		t, err := time.Parse(time.RFC3339Nano, entry.Timestamp)
+		if err != nil {
+			t, err = time.Parse(time.RFC3339, entry.Timestamp)
+		}
+		if err == nil {
 			if metrics.StartTime.IsZero() || t.Before(metrics.StartTime) {
 				metrics.StartTime = t
 			}
@@ -385,6 +446,34 @@ func processGatewayLogEntry(entry *GatewayLogEntry, metrics *GatewayMetrics, ver
 				metrics.EndTime = t
 			}
 		}
+	}
+
+	// Handle DIFC_FILTERED events
+	if entry.Type == "DIFC_FILTERED" {
+		metrics.TotalFiltered++
+		// DIFC_FILTERED events use server_id; fall back to server_name for compatibility
+		serverKey := entry.ServerID
+		if serverKey == "" {
+			serverKey = entry.ServerName
+		}
+		if serverKey != "" {
+			server := getOrCreateServer(metrics, serverKey)
+			server.FilteredCount++
+		}
+		metrics.FilteredEvents = append(metrics.FilteredEvents, DifcFilteredEvent{
+			Timestamp:         entry.Timestamp,
+			ServerID:          serverKey,
+			ToolName:          entry.ToolName,
+			Description:       entry.Description,
+			Reason:            entry.Reason,
+			SecrecyTags:       entry.SecrecyTags,
+			IntegrityTags:     entry.IntegrityTags,
+			AuthorAssociation: entry.AuthorAssociation,
+			AuthorLogin:       entry.AuthorLogin,
+			HTMLURL:           entry.HTMLURL,
+			Number:            entry.Number,
+		})
+		return
 	}
 
 	// Track errors
@@ -503,6 +592,9 @@ func renderGatewayMetricsTable(metrics *GatewayMetrics, verbose bool) string {
 	fmt.Fprintf(&output, "Total Requests: %d\n", metrics.TotalRequests)
 	fmt.Fprintf(&output, "Total Tool Calls: %d\n", metrics.TotalToolCalls)
 	fmt.Fprintf(&output, "Total Errors: %d\n", metrics.TotalErrors)
+	if metrics.TotalFiltered > 0 {
+		fmt.Fprintf(&output, "Total DIFC Filtered: %d\n", metrics.TotalFiltered)
+	}
 	fmt.Fprintf(&output, "Servers: %d\n", len(metrics.Servers))
 
 	if !metrics.StartTime.IsZero() && !metrics.EndTime.IsZero() {
@@ -517,6 +609,7 @@ func renderGatewayMetricsTable(metrics *GatewayMetrics, verbose bool) string {
 		// Sort servers by request count
 		serverNames := getSortedServerNames(metrics)
 
+		hasFiltered := metrics.TotalFiltered > 0
 		serverRows := make([][]string, 0, len(serverNames))
 		for _, serverName := range serverNames {
 			server := metrics.Servers[serverName]
@@ -524,19 +617,61 @@ func renderGatewayMetricsTable(metrics *GatewayMetrics, verbose bool) string {
 			if server.RequestCount > 0 {
 				avgTime = server.TotalDuration / float64(server.RequestCount)
 			}
-			serverRows = append(serverRows, []string{
-				serverName,
-				strconv.Itoa(server.RequestCount),
-				strconv.Itoa(server.ToolCallCount),
-				fmt.Sprintf("%.0fms", avgTime),
-				strconv.Itoa(server.ErrorCount),
-			})
+			if hasFiltered {
+				serverRows = append(serverRows, []string{
+					serverName,
+					strconv.Itoa(server.RequestCount),
+					strconv.Itoa(server.ToolCallCount),
+					fmt.Sprintf("%.0fms", avgTime),
+					strconv.Itoa(server.ErrorCount),
+					strconv.Itoa(server.FilteredCount),
+				})
+			} else {
+				serverRows = append(serverRows, []string{
+					serverName,
+					strconv.Itoa(server.RequestCount),
+					strconv.Itoa(server.ToolCallCount),
+					fmt.Sprintf("%.0fms", avgTime),
+					strconv.Itoa(server.ErrorCount),
+				})
+			}
 		}
 
+		if hasFiltered {
+			output.WriteString(console.RenderTable(console.TableConfig{
+				Title:   "Server Usage",
+				Headers: []string{"Server", "Requests", "Tool Calls", "Avg Time", "Errors", "Filtered"},
+				Rows:    serverRows,
+			}))
+		} else {
+			output.WriteString(console.RenderTable(console.TableConfig{
+				Title:   "Server Usage",
+				Headers: []string{"Server", "Requests", "Tool Calls", "Avg Time", "Errors"},
+				Rows:    serverRows,
+			}))
+		}
+	}
+
+	// DIFC filtered events table
+	if len(metrics.FilteredEvents) > 0 {
+		output.WriteString("\n")
+		filteredRows := make([][]string, 0, len(metrics.FilteredEvents))
+		for _, fe := range metrics.FilteredEvents {
+			reason := fe.Reason
+			if len(reason) > 80 {
+				reason = reason[:77] + "..."
+			}
+			filteredRows = append(filteredRows, []string{
+				fe.ServerID,
+				fe.ToolName,
+				fe.AuthorLogin,
+				reason,
+			})
+		}
 		output.WriteString(console.RenderTable(console.TableConfig{
-			Title:   "Server Usage",
-			Headers: []string{"Server", "Requests", "Tool Calls", "Avg Time", "Errors"},
-			Rows:    serverRows,
+			Title:   "DIFC Filtered Events",
+			Headers: []string{"Server", "Tool", "User", "Reason"},
+			Rows:    filteredRows,
 		}))
 	}
 
@@ -738,9 +873,10 @@ func extractMCPToolUsageData(logDir string, verbose bool) (*MCPToolUsageData, er
 	}
 
 	mcpData := &MCPToolUsageData{
-		Summary:   []MCPToolSummary{},
-		ToolCalls: []MCPToolCall{},
-		Servers:   []MCPServerStats{},
+		Summary:        []MCPToolSummary{},
+		ToolCalls:      []MCPToolCall{},
+		Servers:        []MCPServerStats{},
+		FilteredEvents: gatewayMetrics.FilteredEvents,
 	}
 
 	// Read the log file again to get individual tool call records.
@@ -930,7 +1066,9 @@ func displayAggregatedGatewayMetrics(processedRuns []ProcessedRun, outputDir str
 		aggregated.TotalRequests += runMetrics.TotalRequests
 		aggregated.TotalToolCalls += runMetrics.TotalToolCalls
 		aggregated.TotalErrors += runMetrics.TotalErrors
+		aggregated.TotalFiltered += runMetrics.TotalFiltered
 		aggregated.TotalDuration += runMetrics.TotalDuration
+		aggregated.FilteredEvents = append(aggregated.FilteredEvents, runMetrics.FilteredEvents...)
 
 		// Merge server metrics
 		for serverName, serverMetrics := range runMetrics.Servers {
@@ -939,6 +1077,7 @@ func displayAggregatedGatewayMetrics(processedRuns []ProcessedRun, outputDir str
 			aggServer.ToolCallCount += serverMetrics.ToolCallCount
 			aggServer.TotalDuration += serverMetrics.TotalDuration
 			aggServer.ErrorCount += serverMetrics.ErrorCount
+			aggServer.FilteredCount += serverMetrics.FilteredCount
 
 			// Merge tool metrics
 			for toolName, toolMetrics := range serverMetrics.Tools {

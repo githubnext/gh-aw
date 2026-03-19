@@ -136,9 +136,10 @@ type ToolUsageInfo struct {
 
 // MCPToolUsageData contains detailed MCP tool usage statistics and individual call records
 type MCPToolUsageData struct {
-	Summary   []MCPToolSummary `json:"summary"`           // Aggregated statistics per tool
-	ToolCalls []MCPToolCall    `json:"tool_calls"`        // Individual tool call records
-	Servers   []MCPServerStats `json:"servers,omitempty"` // Server-level statistics
+	Summary        []MCPToolSummary    `json:"summary"`                   // Aggregated statistics per tool
+	ToolCalls      []MCPToolCall       `json:"tool_calls"`                // Individual tool call records
+	Servers        []MCPServerStats    `json:"servers,omitempty"`         // Server-level statistics
+	FilteredEvents []DifcFilteredEvent `json:"filtered_events,omitempty"` // DIFC filtered events
 }
 
 // MCPToolSummary contains aggregated statistics for a single MCP tool

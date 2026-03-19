@@ -2,9 +2,12 @@ package workflow
 
 import (
 	"fmt"
+	"sort"
+	"strings"
 
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/stringutil"
 )
 
 var consolidatedSafeOutputsJobLog = logger.New("workflow:compiler_safe_outputs_job")
@@ -145,10 +148,19 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 		data.SafeOutputs.CreateCodeScanningAlerts != nil ||
 		data.SafeOutputs.AutofixCodeScanningAlert != nil ||
 		data.SafeOutputs.MissingTool != nil ||
-		data.SafeOutputs.MissingData != nil
+		data.SafeOutputs.MissingData != nil ||
+		len(data.SafeOutputs.Scripts) > 0 // Custom scripts run in the handler loop
 
 	// Note: All project-related operations are now handled by the unified handler.
 	// The project handler manager has been removed.
+
+	// Add custom script files step (writes inline scripts to the actions folder)
+	// This must run before the handler manager step so the files are available for require()
+	if len(data.SafeOutputs.Scripts) > 0 {
+		consolidatedSafeOutputsJobLog.Printf("Adding setup step for %d custom safe-output script(s)", len(data.SafeOutputs.Scripts))
+		scriptSetupSteps := buildCustomScriptFilesStep(data.SafeOutputs.Scripts)
+		steps = append(steps, scriptSetupSteps...)
+	}
 
 	// 1. Handler Manager step (processes create_issue, update_issue, add_comment, etc.)
 	// This processes all safe output types that are handled by the unified handler
@@ -500,4 +512,110 @@ func buildSafeOutputItemsManifestUploadStep(prefix string) []string {
 		"          path: /tmp/safe-output-items.jsonl\n",
 		"          if-no-files-found: warn\n",
 	}
+}
+
+// scriptNameToHandlerName converts a script name like "post-slack-message" to a
+// JavaScript function name like "handlePostSlackMessage".
+func scriptNameToHandlerName(scriptName string) string {
+	parts := strings.FieldsFunc(scriptName, func(r rune) bool {
+		return r == '-' || r == '_'
+	})
+	var sb strings.Builder
+	sb.WriteString("handle")
+	for _, part := range parts {
+		if len(part) > 0 {
+			sb.WriteString(strings.ToUpper(part[:1]) + part[1:])
+		}
+	}
+	if sb.Len() == len("handle") {
+		// Fallback: use the script name as-is when parts are empty
+		if len(scriptName) == 0 {
+			sb.WriteString("Unknown")
+		} else {
+			sb.WriteString(strings.ToUpper(scriptName[:1]) + scriptName[1:])
+		}
+	}
+	return sb.String()
+}
+
+// generateSafeOutputScriptContent generates a complete JavaScript module for a custom safe-output
+// script handler. Users write only the handler body (the code that runs inside the async handler
+// function for each item), and the compiler generates the full outer wrapper including:
+//   - Config input destructuring: const { channel, message } = config;
+//   - Handler function: return async function handleX(item, resolvedTemporaryIds) { ... }
+//   - The module.exports boilerplate
+func generateSafeOutputScriptContent(scriptName string, scriptConfig *SafeScriptConfig) string {
+	var sb strings.Builder
+	sb.WriteString("// @ts-check\n")
+	sb.WriteString("/// <reference types=\"./safe-output-script\" />\n")
+	sb.WriteString("// Auto-generated safe-output script handler: " + scriptName + "\n\n")
+	sb.WriteString("/** @type {import('./types/safe-output-script').SafeOutputScriptMain} */\n")
+	sb.WriteString("async function main(config = {}) {\n")
+
+	// Auto-destructure all declared input names from config (provides access to
+	// static YAML config values such as defaults).
+	if len(scriptConfig.Inputs) > 0 {
+		inputNames := make([]string, 0, len(scriptConfig.Inputs))
+		for name := range scriptConfig.Inputs {
+			safeName := stringutil.SanitizeParameterName(name)
+			if safeName != name {
+				inputNames = append(inputNames, name+": "+safeName)
+			} else {
+				inputNames = append(inputNames, name)
+			}
+		}
+		sort.Strings(inputNames)
+		sb.WriteString("  const { " + strings.Join(inputNames, ", ") + " } = config;\n")
+	}
+
+	// Generate the handler function that receives each item at runtime.
+	handlerName := scriptNameToHandlerName(scriptName)
+	sb.WriteString("  return async function " + handlerName + "(item, resolvedTemporaryIds, temporaryIdMap) {\n")
+	// Indent each line of the user's handler body by 4 spaces
+	for line := range strings.SplitSeq(scriptConfig.Script, "\n") {
+		sb.WriteString("    " + line + "\n")
+	}
+	sb.WriteString("  };\n")
+	sb.WriteString("}\n")
+	sb.WriteString("module.exports = { main };\n")
+	return sb.String()
+}
+
+// buildCustomScriptFilesStep generates a run step that writes inline safe-output script files
+// to the setup action destination folder so they can be required by the handler manager.
+// Users write only the handler body; the compiler wraps it with config destructuring,
+// the handler function, and module.exports boilerplate.
+// Each script is written using a heredoc to avoid shell quoting issues.
+func buildCustomScriptFilesStep(scripts map[string]*SafeScriptConfig) []string {
+	if len(scripts) == 0 {
+		return nil
+	}
+
+	// Sort script names for deterministic output
+	scriptNames := make([]string, 0, len(scripts))
+	for name := range scripts {
+		scriptNames = append(scriptNames, name)
+	}
+	sort.Strings(scriptNames)
+
+	var steps []string
+	steps = append(steps, "      - name: Setup Safe Output Custom Scripts\n")
+	steps = append(steps, "        run: |\n")
+
+	for _, scriptName := range scriptNames {
+		scriptConfig := scripts[scriptName]
+		normalizedName := stringutil.NormalizeSafeOutputIdentifier(scriptName)
+		filename := safeOutputScriptFilename(normalizedName)
+		filePath := SetupActionDestinationShell + "/" + filename
+		delimiter := GenerateHeredocDelimiter("SAFE_OUTPUT_SCRIPT_" + strings.ToUpper(normalizedName))
+		scriptContent := generateSafeOutputScriptContent(scriptName, scriptConfig)
+
+		steps = append(steps, fmt.Sprintf("          cat > %s << '%s'\n", filePath, delimiter))
+		for line := range strings.SplitSeq(scriptContent, "\n") {
+			steps = append(steps, "          "+line+"\n")
+		}
+		steps = append(steps, "          "+delimiter+"\n")
+	}
+
+	return steps
 }
