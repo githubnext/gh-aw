@@ -1177,16 +1177,15 @@ ${patchPreview}`;
           patchPreview = generatePatchPreview(patchContent);
         }
 
-        const fallbackBody =
-          `${body}\n\n---\n\n` +
-          `> [!NOTE]\n` +
-          `> This was originally intended as a pull request, but GitHub Actions is not permitted to create or approve pull requests in this repository.\n` +
-          `> The changes have been pushed to branch \`${branchName}\`.\n` +
-          `>\n` +
-          `> **[Click here to create the pull request](${createPrUrl})**\n\n` +
-          `To fix the permissions issue, go to **Settings** → **Actions** → **General** and enable **Allow GitHub Actions to create and approve pull requests**. ` +
-          `See also: [gh-aw FAQ](${FAQ_CREATE_PR_PERMISSIONS_URL})` +
-          patchPreview;
+        const fallbackTemplatePath = `${process.env.RUNNER_TEMP}/gh-aw/prompts/pr_permission_denied_fallback.md`;
+        const fallbackTemplate = fs.readFileSync(fallbackTemplatePath, "utf8");
+        const fallbackBody = renderTemplate(fallbackTemplate, {
+          body,
+          branch_name: branchName,
+          create_pr_url: createPrUrl,
+          faq_url: FAQ_CREATE_PR_PERMISSIONS_URL,
+          patch_preview: patchPreview,
+        });
 
         try {
           const { data: issue } = await githubClient.rest.issues.create({
