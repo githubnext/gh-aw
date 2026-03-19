@@ -248,7 +248,7 @@ The `gateway` section is required and configures gateway-specific behavior:
 | `payloadDir` | string | No | Directory path for storing large payload JSON files for authenticated clients |
 | `payloadPathPrefix` | string | No | Path prefix to remap payload paths for agent containers (e.g., /workspace/payloads) |
 | `payloadSizeThreshold` | integer | No | Size threshold in bytes for storing payloads to disk (default: 524288 = 512KB) |
-| `trustedBots` | array[string] | No | List of GitHub bot identity strings (e.g., `github-actions[bot]`) permitted to call the gateway. When configured, only callers whose `X-GitHub-Actor` header matches an entry are accepted. When omitted, bot identity is not checked. |
+| `trustedBots` | array[string] | No | Additional GitHub bot identity strings (e.g., `github-actions[bot]`) added to the gateway's built-in trusted identity list. This field is additive — it extends the internal list but cannot remove built-in entries. When bot identity enforcement is active, only callers whose `X-GitHub-Actor` header matches an entry in the combined list are accepted. |
 
 #### 4.1.3.1 Payload Directory Path Validation
 
@@ -370,14 +370,16 @@ payload_size_threshold = 262144   # 256KB - more aggressive disk storage
 
 #### 4.1.3.4 Trusted Bot Identity Configuration
 
-The optional `trustedBots` field in the gateway configuration provides an identity-based allowlist of GitHub bot accounts that are permitted to call the gateway. This is independent of the `apiKey` mechanism and operates at the HTTP request level by inspecting the `X-GitHub-Actor` header.
+The optional `trustedBots` field in the gateway configuration provides an identity-based allowlist of additional GitHub bot accounts that are permitted to call the gateway. This is independent of the `apiKey` mechanism and operates at the HTTP request level by inspecting the `X-GitHub-Actor` header.
+
+> **Important**: `trustedBots` is **additive**. The gateway maintains its own internal list of trusted bot identities that are always permitted regardless of this field. The `trustedBots` field extends that internal list with additional identities; it cannot remove or override the gateway's built-in trusted identities.
 
 **How it works**:
 
 1. The caller includes an `X-GitHub-Actor` header in each request identifying the GitHub actor (bot or user) making the request
-2. The gateway compares the header value against every entry in the `trustedBots` list
-3. If the list is configured and the actor does not match any entry, the gateway rejects the request with HTTP 403
-4. If the list is not configured, bot identity is not checked and any authenticated caller (i.e., one that passes API-key authentication) may invoke the gateway
+2. The gateway checks the header value against its **combined** list of trusted identities: the gateway's internal built-in list **plus** any entries in `trustedBots`
+3. If bot identity enforcement is active and the actor does not match any entry in the combined list, the gateway rejects the request with HTTP 403
+4. If `trustedBots` is not configured, the gateway still permits callers that match its internal built-in identities; no additional identities are added
 
 **Configuration Example**:
 
@@ -398,13 +400,16 @@ The optional `trustedBots` field in the gateway configuration provides an identi
 **Requirements**:
 - `trustedBots` MUST be a non-empty array of strings when present
 - Each entry MUST be a non-empty string (typically a GitHub username such as `github-actions[bot]`)
-- When `trustedBots` is configured, the gateway MUST reject requests where `X-GitHub-Actor` is absent or does not match any entry (HTTP 403)
-- When `trustedBots` is omitted, the gateway MUST NOT enforce bot identity checks
+- `trustedBots` entries are **merged** with the gateway's internal built-in trusted identities to form the effective allowlist
+- `trustedBots` MUST NOT be used to remove or override entries in the gateway's internal built-in trusted identity list
+- When bot identity enforcement is active, the gateway MUST reject requests where `X-GitHub-Actor` is absent or does not match any entry in the combined list (HTTP 403)
+- When `trustedBots` is omitted, only the gateway's built-in trusted identities are consulted
 - Bot identity checks are applied **after** API key authentication; a request must pass both checks when both are configured
 - Entries are compared case-sensitively
 
 **Security Considerations**:
 - `trustedBots` provides defense-in-depth: even if an API key is leaked, callers that cannot supply a matching `X-GitHub-Actor` header are denied
+- Because `trustedBots` is additive, the internal built-in identities cannot be narrowed through configuration — only expanded
 - The `X-GitHub-Actor` header MUST be treated as an untrusted claim unless the deployment ensures that only the gateway's own infrastructure can set it (e.g., the gateway runs inside a trusted network boundary)
 - Implementations SHOULD log rejected bot identity mismatches at the warning level without logging the header value in plaintext
 
@@ -988,11 +993,12 @@ The following endpoints MUST NOT require authentication:
 
 ### 7.5 Trusted Bot Identity Authentication
 
-When `gateway.trustedBots` is configured, the gateway enforces an additional identity check **after** API key authentication:
+When bot identity enforcement is active (either via `gateway.trustedBots` or the gateway's internal built-in trusted identity list), the gateway enforces an additional identity check **after** API key authentication:
 
 1. The gateway inspects the `X-GitHub-Actor` request header on all RPC requests to `/mcp/{server-name}` and `/close` endpoints
-2. The header value MUST match one of the entries in `trustedBots` (case-sensitive)
-3. If the header is absent or does not match any entry, the gateway MUST reject the request with HTTP 403
+2. The header value is checked against the **combined** list of trusted identities: the gateway's built-in internal list **plus** any entries supplied in `gateway.trustedBots`
+3. `gateway.trustedBots` is **additive** — it extends the built-in list but cannot remove entries from it
+4. If the header is absent or does not match any entry in the combined list, the gateway MUST reject the request with HTTP 403
 
 **Example request** (both API key and bot identity supplied):
 
