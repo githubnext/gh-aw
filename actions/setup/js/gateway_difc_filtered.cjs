@@ -1,0 +1,119 @@
+// @ts-check
+/// <reference types="@actions/github-script" />
+
+/**
+ * Gateway DIFC Filtered Module
+ *
+ * This module handles reading MCP gateway logs and extracting DIFC_FILTERED events
+ * for display in AI-generated footers.
+ */
+
+const fs = require("fs");
+
+const GATEWAY_JSONL_PATH = "/tmp/gh-aw/mcp-logs/gateway.jsonl";
+const RPC_MESSAGES_PATH = "/tmp/gh-aw/mcp-logs/rpc-messages.jsonl";
+
+/**
+ * Parses JSONL content and extracts DIFC_FILTERED events
+ * @param {string} jsonlContent - The JSONL file content
+ * @returns {Array<Object>} Array of DIFC_FILTERED event objects
+ */
+function parseDifcFilteredEvents(jsonlContent) {
+  const filteredEvents = [];
+  const lines = jsonlContent.split("\n");
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (!trimmed || !trimmed.includes("DIFC_FILTERED")) continue;
+    try {
+      const entry = JSON.parse(trimmed);
+      if (entry.type === "DIFC_FILTERED") {
+        filteredEvents.push(entry);
+      }
+    } catch {
+      // skip malformed lines
+    }
+  }
+  return filteredEvents;
+}
+
+/**
+ * Reads DIFC_FILTERED events from MCP gateway logs.
+ *
+ * This function checks two possible locations for gateway logs:
+ * 1. Path specified by gatewayJsonlPath (or /tmp/gh-aw/mcp-logs/gateway.jsonl by default)
+ * 2. Path specified by rpcMessagesPath (or /tmp/gh-aw/mcp-logs/rpc-messages.jsonl as fallback)
+ *
+ * @param {string} [gatewayJsonlPath] - Path to gateway.jsonl. Defaults to /tmp/gh-aw/mcp-logs/gateway.jsonl
+ * @param {string} [rpcMessagesPath] - Path to rpc-messages.jsonl fallback. Defaults to /tmp/gh-aw/mcp-logs/rpc-messages.jsonl
+ * @returns {Array<Object>} Array of DIFC_FILTERED event objects
+ */
+function getDifcFilteredEvents(gatewayJsonlPath, rpcMessagesPath) {
+  const jsonlPath = gatewayJsonlPath || GATEWAY_JSONL_PATH;
+  const rpcPath = rpcMessagesPath || RPC_MESSAGES_PATH;
+
+  if (fs.existsSync(jsonlPath)) {
+    try {
+      const content = fs.readFileSync(jsonlPath, "utf8");
+      return parseDifcFilteredEvents(content);
+    } catch {
+      return [];
+    }
+  }
+
+  if (fs.existsSync(rpcPath)) {
+    try {
+      const content = fs.readFileSync(rpcPath, "utf8");
+      return parseDifcFilteredEvents(content);
+    } catch {
+      return [];
+    }
+  }
+
+  return [];
+}
+
+/**
+ * Generates HTML details/summary section for DIFC filtered items wrapped in a GitHub tip alert.
+ * @param {Array<Object>} filteredEvents - Array of DIFC_FILTERED event objects
+ * @returns {string} GitHub tip alert with details section, or empty string if no filtered events
+ */
+function generateDifcFilteredSection(filteredEvents) {
+  if (!filteredEvents || filteredEvents.length === 0) {
+    return "";
+  }
+
+  const count = filteredEvents.length;
+  const itemWord = count === 1 ? "item" : "items";
+
+  let section = "\n\n> [!TIP]\n";
+  section += `> <details>\n`;
+  section += `> <summary>🔒 GitHub Guard filtered ${count} ${itemWord}</summary>\n`;
+  section += `>\n`;
+  section += `> The GitHub Guard activated and filtered the following ${itemWord} during workflow execution.\n`;
+  section += `> This happens when a tool call accesses a resource that does not meet the required integrity or secrecy level of the workflow.\n`;
+  section += `>\n`;
+
+  for (const event of filteredEvents) {
+    let reference;
+    if (event.html_url) {
+      const label = event.number ? `#${event.number}` : event.html_url;
+      reference = `[${label}](${event.html_url})`;
+    } else {
+      reference = event.description || (event.tool_name ? `\`${event.tool_name}\`` : "-");
+    }
+    const tool = event.tool_name ? `\`${event.tool_name}\`` : "-";
+    const reason = (event.reason || "-").replace(/\n/g, " ");
+    section += `> - ${reference} (${tool}: ${reason})\n`;
+  }
+
+  section += `>\n`;
+  section += `> </details>\n`;
+
+  return section;
+}
+
+module.exports = {
+  parseDifcFilteredEvents,
+  getDifcFilteredEvents,
+  generateDifcFilteredSection,
+};

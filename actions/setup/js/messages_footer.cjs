@@ -11,6 +11,7 @@
 const { getMessages, renderTemplate, toSnakeCase } = require("./messages_core.cjs");
 const { getMissingInfoSections } = require("./missing_messages_helper.cjs");
 const { getBlockedDomains, generateBlockedDomainsSection } = require("./firewall_blocked_domains.cjs");
+const { getDifcFilteredEvents, generateDifcFilteredSection } = require("./gateway_difc_filtered.cjs");
 
 /**
  * @typedef {Object} FooterContext
@@ -299,6 +300,13 @@ function generateFooterWithMessages(workflowName, runUrl, workflowSource, workfl
   const blockedDomainsSection = generateBlockedDomainsSection(blockedDomains);
   if (blockedDomainsSection) {
     footer += blockedDomainsSection;
+  }
+
+  // Add GitHub Guard DIFC filtered section if any items were filtered
+  const difcFilteredEvents = getDifcFilteredEvents();
+  const difcFilteredSection = generateDifcFilteredSection(difcFilteredEvents);
+  if (difcFilteredSection) {
+    footer += difcFilteredSection;
   }
 
   // Add XML comment marker for traceability
