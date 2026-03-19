@@ -45,6 +45,7 @@ const { tryEnforceArrayLimit } = require("./limit_enforcement_helpers.cjs");
 const fs = require("fs");
 const { logStagedPreviewInfo } = require("./staged_preview.cjs");
 const { buildWorkflowRunUrl } = require("./workflow_metadata_helpers.cjs");
+const { MAX_LABELS, MAX_ASSIGNEES } = require("./constants.cjs");
 
 /**
  * @typedef {import('./types/handler-factory').HandlerFactoryFunction} HandlerFactoryFunction
@@ -58,16 +59,6 @@ const MAX_SUB_ISSUES_PER_PARENT = MAX_SUB_ISSUES;
 
 /** @type {number} Maximum number of parent issues to check when searching */
 const MAX_PARENT_ISSUES_TO_CHECK = 10;
-
-/**
- * Maximum limits for issue parameters to prevent resource exhaustion.
- * These limits align with GitHub's API constraints and security best practices.
- */
-/** @type {number} Maximum number of labels allowed per issue */
-const MAX_LABELS = 10;
-
-/** @type {number} Maximum number of assignees allowed per issue */
-const MAX_ASSIGNEES = 5;
 
 /**
  * Searches for an existing parent issue that can accept more sub-issues

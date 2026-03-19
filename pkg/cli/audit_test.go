@@ -733,3 +733,101 @@ Also success
 		})
 	}
 }
+
+func TestExtractWorkflowNameFromYAML(t *testing.T) {
+	tests := []struct {
+		name     string
+		content  string
+		expected string
+	}{
+		{
+			name: "simple name field",
+			content: `name: Daily CLI Tools Exploratory Tester
+on:
+  push:
+    branches: [main]
+`,
+			expected: "Daily CLI Tools Exploratory Tester",
+		},
+		{
+			name: "name with double quotes",
+			content: `name: "My Workflow"
+on:
+  workflow_dispatch:
+`,
+			expected: "My Workflow",
+		},
+		{
+			name: "name with single quotes",
+			content: `name: 'Another Workflow'
+on:
+  push:
+`,
+			expected: "Another Workflow",
+		},
+		{
+			name: "no name field",
+			content: `on:
+  push:
+    branches: [main]
+jobs:
+  build:
+`,
+			expected: "",
+		},
+		{
+			name: "name field after comment",
+			content: `# This is a compiled workflow
+name: Test Workflow
+on:
+  push:
+`,
+			expected: "Test Workflow",
+		},
+		{
+			name: "indented name (not top-level) is ignored",
+			content: `on:
+  push:
+jobs:
+  build:
+    name: build-job
+`,
+			// GitHub Actions requires the workflow 'name' at the top level of the document.
+			// A 'name' key nested inside 'jobs' or other sections should not be returned.
+			expected: "",
+		},
+		{
+			name: "inline comment after name is stripped by YAML parser",
+			content: `name: My Workflow # inline comment
+on:
+  push:
+`,
+			expected: "My Workflow",
+		},
+		{
+			name:     "empty content",
+			content:  "",
+			expected: "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := extractWorkflowNameFromYAML([]byte(tt.content))
+			if result != tt.expected {
+				t.Errorf("extractWorkflowNameFromYAML() = %q, want %q", result, tt.expected)
+			}
+		})
+	}
+}
+
+func TestResolveWorkflowDisplayNameFromLocalFile(t *testing.T) {
+	// Write a temporary workflow YAML file and verify the name is extracted correctly
+	// via extractWorkflowNameFromYAML (the local-file path in resolveWorkflowDisplayName
+	// requires a real git root, so we test the YAML extraction directly here).
+	content := []byte("name: My Test Workflow\non:\n  push:\n")
+	name := extractWorkflowNameFromYAML(content)
+	if name != "My Test Workflow" {
+		t.Errorf("extractWorkflowNameFromYAML() = %q, want %q", name, "My Test Workflow")
+	}
+}

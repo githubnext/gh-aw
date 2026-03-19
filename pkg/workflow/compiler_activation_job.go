@@ -57,13 +57,14 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 		outputs[constants.ArtifactPrefixOutputName] = "${{ steps.artifact-prefix.outputs.prefix }}"
 	}
 
-	// Generate agentic run info immediately after setup so aw_info.json is ready as early as possible.
-	// This ensures it is available for prompt generation and can be uploaded together with prompt.txt.
+	// Generate agentic run info immediately after setup so aw_info.json is ready as early as
+	// possible. This step runs before the reaction so that its data is captured even if the
+	// reaction step fails.
 	engine, err := c.getAgenticEngine(data.AI)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get agentic engine: %w", err)
 	}
-	compilerActivationJobLog.Print("Generating aw_info step in activation job (first step after setup)")
+	compilerActivationJobLog.Print("Generating aw_info step in activation job")
 	var awInfoYaml strings.Builder
 	c.generateCreateAwInfo(&awInfoYaml, data, engine)
 	steps = append(steps, awInfoYaml.String())
@@ -81,6 +82,65 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 		outputs["target_repo"] = "${{ steps.resolve-host-repo.outputs.target_repo }}"
 		outputs["target_repo_name"] = "${{ steps.resolve-host-repo.outputs.target_repo_name }}"
 		outputs["target_ref"] = "${{ steps.resolve-host-repo.outputs.target_ref }}"
+	}
+
+	// Compute reaction/comment/label flags early so the app token and reaction steps can be
+	// inserted right after generate_aw_info for fast user feedback.
+	hasReaction := data.AIReaction != "" && data.AIReaction != "none"
+	hasStatusComment := data.StatusComment != nil && *data.StatusComment
+	hasLabelCommand := len(data.LabelCommand) > 0
+	// shouldRemoveLabel is true when label-command is active AND remove_label is not disabled
+	shouldRemoveLabel := hasLabelCommand && data.LabelCommandRemoveLabel
+	// Compute filtered label events once and reuse below (permissions + app token scopes)
+	filteredLabelEvents := FilterLabelCommandEvents(data.LabelCommandEvents)
+
+	// Mint a single activation app token upfront if a GitHub App is configured and any
+	// step in the activation job will need it (reaction, status-comment, or label removal).
+	// This avoids minting multiple tokens.
+	if data.ActivationGitHubApp != nil && (hasReaction || hasStatusComment || shouldRemoveLabel) {
+		// Build the combined permissions needed for all activation steps.
+		// For label removal we only add the scopes required by the enabled events.
+		appPerms := NewPermissions()
+		if hasReaction || hasStatusComment {
+			appPerms.Set(PermissionIssues, PermissionWrite)
+			appPerms.Set(PermissionPullRequests, PermissionWrite)
+			appPerms.Set(PermissionDiscussions, PermissionWrite)
+		}
+		if shouldRemoveLabel {
+			if sliceutil.Contains(filteredLabelEvents, "issues") || sliceutil.Contains(filteredLabelEvents, "pull_request") {
+				appPerms.Set(PermissionIssues, PermissionWrite)
+			}
+			if sliceutil.Contains(filteredLabelEvents, "discussion") {
+				appPerms.Set(PermissionDiscussions, PermissionWrite)
+			}
+		}
+		steps = append(steps, c.buildActivationAppTokenMintStep(data.ActivationGitHubApp, appPerms)...)
+		// Track whether the token minting succeeded so the conclusion job can surface
+		// GitHub App authentication errors in the failure issue.
+		outputs["activation_app_token_minting_failed"] = "${{ steps.activation-app-token.outcome == 'failure' }}"
+	}
+
+	// Add reaction step right after generate_aw_info so it is shown to the user as fast as
+	// possible. generate_aw_info runs first so its data is captured even if the reaction fails.
+	// This runs in the activation job so it can use any configured github-token or github-app.
+	if hasReaction {
+		reactionCondition := BuildReactionCondition()
+
+		steps = append(steps, fmt.Sprintf("      - name: Add %s reaction for immediate feedback\n", data.AIReaction))
+		steps = append(steps, "        id: react\n")
+		steps = append(steps, fmt.Sprintf("        if: %s\n", reactionCondition.Render()))
+		steps = append(steps, fmt.Sprintf("        uses: %s\n", GetActionPin("actions/github-script")))
+
+		// Add environment variables
+		steps = append(steps, "        env:\n")
+		// Quote the reaction value to prevent YAML interpreting +1/-1 as integers
+		steps = append(steps, fmt.Sprintf("          GH_AW_REACTION: %q\n", data.AIReaction))
+
+		steps = append(steps, "        with:\n")
+		// Use configured github-token or app-minted token; fall back to GITHUB_TOKEN
+		steps = append(steps, fmt.Sprintf("          github-token: %s\n", c.resolveActivationToken(data)))
+		steps = append(steps, "          script: |\n")
+		steps = append(steps, generateGitHubScriptWithRequire("add_reaction.cjs"))
 	}
 
 	// Add secret validation step before context variable validation.
@@ -117,59 +177,6 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 	// Always add this checkout in activation job since it needs access to workflow files for runtime imports
 	checkoutSteps := c.generateCheckoutGitHubFolderForActivation(data)
 	steps = append(steps, checkoutSteps...)
-
-	// Mint a single activation app token upfront if a GitHub App is configured and any
-	// step in the activation job will need it (reaction, status-comment, or label removal).
-	// This avoids minting multiple tokens.
-	hasReaction := data.AIReaction != "" && data.AIReaction != "none"
-	hasStatusComment := data.StatusComment != nil && *data.StatusComment
-	hasLabelCommand := len(data.LabelCommand) > 0
-	// Compute filtered label events once and reuse below (permissions + app token scopes)
-	filteredLabelEvents := FilterLabelCommandEvents(data.LabelCommandEvents)
-	if data.ActivationGitHubApp != nil && (hasReaction || hasStatusComment || hasLabelCommand) {
-		// Build the combined permissions needed for all activation steps.
-		// For label removal we only add the scopes required by the enabled events.
-		appPerms := NewPermissions()
-		if hasReaction || hasStatusComment {
-			appPerms.Set(PermissionIssues, PermissionWrite)
-			appPerms.Set(PermissionPullRequests, PermissionWrite)
-			appPerms.Set(PermissionDiscussions, PermissionWrite)
-		}
-		if hasLabelCommand {
-			if sliceutil.Contains(filteredLabelEvents, "issues") || sliceutil.Contains(filteredLabelEvents, "pull_request") {
-				appPerms.Set(PermissionIssues, PermissionWrite)
-			}
-			if sliceutil.Contains(filteredLabelEvents, "discussion") {
-				appPerms.Set(PermissionDiscussions, PermissionWrite)
-			}
-		}
-		steps = append(steps, c.buildActivationAppTokenMintStep(data.ActivationGitHubApp, appPerms)...)
-		// Track whether the token minting succeeded so the conclusion job can surface
-		// GitHub App authentication errors in the failure issue.
-		outputs["activation_app_token_minting_failed"] = "${{ steps.activation-app-token.outcome == 'failure' }}"
-	}
-
-	// Add reaction step for immediate feedback.
-	// This runs in the activation job so it can use any configured github-token or github-app.
-	if hasReaction {
-		reactionCondition := BuildReactionCondition()
-
-		steps = append(steps, fmt.Sprintf("      - name: Add %s reaction for immediate feedback\n", data.AIReaction))
-		steps = append(steps, "        id: react\n")
-		steps = append(steps, fmt.Sprintf("        if: %s\n", reactionCondition.Render()))
-		steps = append(steps, fmt.Sprintf("        uses: %s\n", GetActionPin("actions/github-script")))
-
-		// Add environment variables
-		steps = append(steps, "        env:\n")
-		// Quote the reaction value to prevent YAML interpreting +1/-1 as integers
-		steps = append(steps, fmt.Sprintf("          GH_AW_REACTION: %q\n", data.AIReaction))
-
-		steps = append(steps, "        with:\n")
-		// Use configured github-token or app-minted token; fall back to GITHUB_TOKEN
-		steps = append(steps, fmt.Sprintf("          github-token: %s\n", c.resolveActivationToken(data)))
-		steps = append(steps, "          script: |\n")
-		steps = append(steps, generateGitHubScriptWithRequire("add_reaction.cjs"))
-	}
 
 	// Add timestamp check for lock file vs source file using GitHub API
 	// No checkout step needed - uses GitHub API to check commit times
@@ -309,7 +316,8 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 	// Add label removal step and label_command output for label-command workflows.
 	// When a label-command trigger fires, the triggering label is immediately removed
 	// so that the same label can be applied again to trigger the workflow in the future.
-	if len(data.LabelCommand) > 0 {
+	// This step is skipped when remove_label is set to false.
+	if shouldRemoveLabel {
 		// The removal step only makes sense for actual "labeled" events; for
 		// workflow_dispatch we skip it silently via the env-based label check.
 		steps = append(steps, "      - name: Remove trigger label\n")
@@ -333,6 +341,29 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 
 		// Expose the matched label name as a job output for downstream jobs to consume
 		outputs["label_command"] = fmt.Sprintf("${{ steps.%s.outputs.label_name }}", constants.RemoveTriggerLabelStepID)
+	} else if hasLabelCommand {
+		// When remove_label is disabled, emit a github-script step that runs get_trigger_label.cjs
+		// (via generateGitHubScriptWithRequire) to safely resolve the triggering command name for
+		// both label_command and slash_command events and emit a unified `command_name` output
+		// (plus a `label_name` alias).
+		steps = append(steps, "      - name: Get trigger label name\n")
+		steps = append(steps, fmt.Sprintf("        id: %s\n", constants.GetTriggerLabelStepID))
+		steps = append(steps, fmt.Sprintf("        uses: %s\n", GetActionPin("actions/github-script")))
+		// Pass the pre-computed matched slash-command (if any) so the script can provide a
+		// unified command_name for workflows that have both label_command and slash_command.
+		if len(data.Command) > 0 {
+			steps = append(steps, "        env:\n")
+			if preActivationJobCreated {
+				steps = append(steps, fmt.Sprintf("          GH_AW_MATCHED_COMMAND: ${{ needs.%s.outputs.%s }}\n", string(constants.PreActivationJobName), constants.MatchedCommandOutput))
+			} else {
+				steps = append(steps, fmt.Sprintf("          GH_AW_MATCHED_COMMAND: ${{ steps.%s.outputs.%s }}\n", constants.CheckCommandPositionStepID, constants.MatchedCommandOutput))
+			}
+		}
+		steps = append(steps, "        with:\n")
+		steps = append(steps, "          script: |\n")
+		steps = append(steps, generateGitHubScriptWithRequire("get_trigger_label.cjs"))
+		outputs["label_command"] = fmt.Sprintf("${{ steps.%s.outputs.label_name }}", constants.GetTriggerLabelStepID)
+		outputs["command_name"] = fmt.Sprintf("${{ steps.%s.outputs.command_name }}", constants.GetTriggerLabelStepID)
 	}
 
 	// If no steps have been added, add a placeholder step to make the job valid
@@ -496,13 +527,14 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 		permsMap[PermissionIssues] = PermissionWrite
 	}
 
-	// Add write permissions for label removal when label_command is configured.
+	// Add write permissions for label removal when label_command is configured and remove_label is enabled.
 	// Only grant the scopes required by the enabled events:
 	// - issues/pull_request events need issues:write (PR labels use the issues REST API)
 	// - discussion events need discussions:write
 	// When a github-app token is configured, the GITHUB_TOKEN permissions are irrelevant
 	// for the label removal step (it uses the app token instead), so we skip them.
-	if hasLabelCommand && data.ActivationGitHubApp == nil {
+	// When remove_label is false, no label removal occurs so these permissions are not needed.
+	if shouldRemoveLabel && data.ActivationGitHubApp == nil {
 		if sliceutil.Contains(filteredLabelEvents, "issues") || sliceutil.Contains(filteredLabelEvents, "pull_request") {
 			permsMap[PermissionIssues] = PermissionWrite
 		}

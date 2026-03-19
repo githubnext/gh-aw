@@ -1575,17 +1575,17 @@ Use GitHub Actions context expressions throughout the workflow content. **Note: 
 - **`${{ github.workspace }}`** - The default working directory on the runner for steps
 
 #### Special Pattern Expressions
-- **`${{ needs.* }}`** - Any outputs from previous jobs (e.g., `${{ needs.activation.outputs.text }}`)
+- **`${{ needs.* }}`** - Any outputs from previous jobs (e.g., `${{ needs.pre_activation.outputs.activated }}`)
 - **`${{ steps.* }}`** - Any outputs from previous steps (e.g., `${{ steps.my-step.outputs.result }}`)
 - **`${{ github.event.inputs.* }}`** - Any workflow inputs when triggered by workflow_dispatch (e.g., `${{ github.event.inputs.environment }}`)
 
 All other expressions are disallowed.
 
-### Sanitized Context Text (`needs.activation.outputs.text`)
+### Sanitized Context Text (`steps.sanitized.outputs.text`)
 
-**RECOMMENDED**: Use `${{ needs.activation.outputs.text }}` instead of individual `github.event` fields for accessing issue/PR content.
+**RECOMMENDED**: Use `${{ steps.sanitized.outputs.text }}` instead of individual `github.event` fields for accessing issue/PR content.
 
-The `needs.activation.outputs.text` value provides automatically sanitized content based on the triggering event:
+The `steps.sanitized.outputs.text` value provides automatically sanitized content based on the triggering event:
 
 - **Issues**: `title + "\n\n" + body`
 - **Pull Requests**: `title + "\n\n" + body`
@@ -1605,7 +1605,7 @@ The `needs.activation.outputs.text` value provides automatically sanitized conte
 **Example Usage:**
 ```markdown
 # RECOMMENDED: Use sanitized context text
-Analyze this content: "${{ needs.activation.outputs.text }}"
+Analyze this content: "${{ steps.sanitized.outputs.text }}"
 
 # Less secure alternative (use only when specific fields are needed)
 Issue number: ${{ github.event.issue.number }}
@@ -1614,7 +1614,7 @@ Repository: ${{ github.repository }}
 
 ### Accessing Individual Context Fields
 
-While `needs.activation.outputs.text` is recommended for content access, you can still use individual context fields for metadata:
+While `steps.sanitized.outputs.text` is recommended for content access, you can still use individual context fields for metadata:
 
 ### Security Validation
 
@@ -1625,12 +1625,12 @@ Expression safety is automatically validated during compilation. If unauthorized
 # Valid expressions - RECOMMENDED: Use sanitized context text for security
 Analyze issue #${{ github.event.issue.number }} in repository ${{ github.repository }}.
 
-The issue content is: "${{ needs.activation.outputs.text }}"
+The issue content is: "${{ steps.sanitized.outputs.text }}"
 
 # Alternative approach using individual fields (less secure)
 The issue was created by ${{ github.actor }} with title: "${{ github.event.issue.title }}"
 
-Using output from previous task: "${{ needs.activation.outputs.text }}"
+Using output from previous task: "${{ steps.sanitized.outputs.text }}"
 
 Deploy to environment: "${{ github.event.inputs.environment }}"
 
@@ -2033,7 +2033,7 @@ safe-outputs:
 
 # Helper Bot
 
-Respond to /helper-bot mentions with helpful information related to ${{ github.repository }}. The request is "${{ needs.activation.outputs.text }}".
+Respond to /helper-bot mentions with helpful information related to ${{ github.repository }}. The request is "${{ steps.sanitized.outputs.text }}".
 ```
 
 ### Workflow Improvement Bot
@@ -2298,7 +2298,7 @@ Use `gh aw fix --write` to automatically migrate deprecated configurations:
 9. **Use specific tool permissions** rather than broad access
 10. **Monitor costs with `gh aw logs`** to track AI model usage and expenses
 11. **Use `--engine` filter** in logs command to analyze specific AI engine performance
-12. **Prefer sanitized context text** - Use `${{ needs.activation.outputs.text }}` instead of raw `github.event` fields for security
+12. **Prefer sanitized context text** - Use `${{ steps.sanitized.outputs.text }}` instead of raw `github.event` fields for security
 13. **Run security scanners** - Use `--actionlint`, `--zizmor`, and `--poutine` flags to scan compiled workflows for security issues, code quality, and supply chain risks
 
 ## Validation

@@ -22,6 +22,7 @@ Call all operations as MCP tools with JSON parameters.
 - `engine`: filter by AI engine (`copilot`, `claude`, `codex`)
 - `branch`: filter by branch name
 - `firewall` / `no_firewall`: filter by firewall status
+- `filtered_integrity`: filter to only runs with DIFC integrity-filtered events in gateway logs
 - `after_run_id` / `before_run_id`: paginate by run database ID
 - Logs are saved to `/tmp/gh-aw/aw-mcp/logs/`
 

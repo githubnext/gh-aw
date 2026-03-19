@@ -58,6 +58,7 @@ func TestLogsJSONOutputBeforeStderr(t *testing.T) {
 		10,                                // timeout
 		"summary.json",                    // summaryFile
 		"",                                // safeOutputType
+		false,                             // filteredIntegrity
 	)
 
 	// Close writers first
@@ -177,7 +178,8 @@ func TestLogsJSONAndStderrRedirected(t *testing.T) {
 		true, // jsonOutput
 		10,
 		"summary.json",
-		"", // safeOutputType
+		"",    // safeOutputType
+		false, // filteredIntegrity
 	)
 
 	// Close the writer

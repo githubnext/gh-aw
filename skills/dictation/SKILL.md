@@ -653,9 +653,9 @@ multirepoops
 my-workflow
 myorg
 needs.activation
-needs.activation.outputs.body
-needs.activation.outputs.text
-needs.activation.outputs.title
+steps.sanitized.outputs.body
+steps.sanitized.outputs.text
+steps.sanitized.outputs.title
 network
 network.allowed
 network.firewall

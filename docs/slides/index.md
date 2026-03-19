@@ -18,19 +18,67 @@ mermaid.initialize({ startOnLoad: true });
 
 ---
 
+# Software Engineer → Agentic Engineer
+
+| Software Engineer | Agentic Engineer |
+|---|---|
+| Writes code manually | Writes prompts & workflows |
+| Reviews PRs | Reviews agent outputs |
+| Runs CI/CD pipelines | Orchestrates AI agents |
+| Debugging code | Debugging agent behavior |
+
+> The role evolves: from coding to orchestrating agents
+
+---
+
+# Agentic Human Processes
+
+## Humans and AI collaborate at every stage
+
+- **Author** — Write natural language workflows
+- **Reviewer** — Approve plans and validate outputs
+- **Supervisor** — Monitor running agents and handle exceptions
+- **Debugger** — Diagnose workflow behavior and improve prompts
+
+> Human oversight, AI execution
+
+---
+
+# Pull Request Process
+
+<pre class="mermaid">
+flowchart TD
+    PR["Pull Request Opened"] --> Activation["Activation Job\nAuthorize & Sanitize"]
+    Activation --> Agent["Agent Job\nAnalyze Changes"]
+    Agent --> SafeOutput["Safe Outputs Job\nPost Comment / Review"]
+    SafeOutput --> Human{"Human Review"}
+    Human -->|Approve| Merge["Merge PR"]
+    Human -->|"Request Changes"| Agent
+</pre>
+
+---
+
+# Research → Plan → Act
+
+<pre class="mermaid">
+flowchart LR
+    Research["Research\nGather context\nAnalyze codebase"] --> Plan["Plan\nDefine approach\nCreate checklist"]
+    Plan --> Act["Act\nImplement changes\nCreate PR"]
+    Act --> Human{"Human Review"}
+    Human -->|Approved| Done["Done ✓"]
+    Human -->|"Revise"| Research
+</pre>
+
+---
+
 # Continuous Integration to Continuous AI
 
-- **Accessibility review** - Automated WCAG compliance checks
-
-- **Documentation** - Auto-generate API docs and README files
-
-- **Code review** - AI-powered PR analysis and suggestions
-
-- **Test improvement** - Identify missing test coverage
-
-- **Bundle analysis** - Monitor package size and dependencies
-
-- **Issue triage** - Automated labeling and prioritization
+- **Accessibility review** — Automated WCAG compliance checks
+- **Documentation** — Auto-generate API docs and README files
+- **Code review** — AI-powered PR analysis and suggestions
+- **Test improvement** — Identify missing test coverage
+- **Bundle analysis** — Monitor package size and dependencies
+- **Issue triage** — Automated labeling and prioritization
 
 > <https://githubnext.com/projects/continuous-ai/>
 
@@ -41,8 +89,6 @@ https://github.com/github/gh-aw/issues/1920
 ---
 
 # Evolution: LLMs to SWE Agents
-
-## From code completion to autonomous workflows
 
 **2021: GitHub Copilot** - AI-powered code completion
 
@@ -58,7 +104,7 @@ https://github.com/github/gh-aw/issues/1920
 
 # CI/CD with GitHub Actions
 
-YAML workflows as configuration stored in `.github/workflows/` that trigger on events like push, pull requests, issues.
+YAML workflows stored in `.github/workflows/`, triggered on events like push, pull requests, or issues.
 
 ```yaml
 on:
@@ -76,7 +122,7 @@ jobs:
 
 # The "Lethal Trifecta" for AI Agents
 
-AI agents become risky when they combine **three capabilities** at once:
+AI agents become dangerous when these **three capabilities** combine:
 
 - **Private data access**
 
@@ -85,6 +131,56 @@ AI agents become risky when they combine **three capabilities** at once:
 - **External communication**
 
 > <https://simonw.substack.com/p/the-lethal-trifecta-for-ai-agents>
+
+---
+
+# Useful Sandboxes: The Philosophy
+
+## Safe by design. Useful by default.
+
+> The best developer tools protect you from catastrophe while letting you build something real
+
+---
+
+# From Scratch to MakeCode
+
+## Kid dev environments got here first
+
+- **Scratch** — Block-based coding (MIT) — can't break anything important
+- **MakeCode / pxt** — Hardware + game programming for beginners
+- **BASIC** — First language for a generation of developers
+
+These environments share one superpower:
+
+> Protected from catastrophe — still building something **real and delightful**
+
+---
+
+# What Makes a Sandbox "Useful"?
+
+## The beginner runtime principles
+
+- **Guardrails without walls** — protected, not trapped
+- **Immediate feedback** — actions produce visible results
+- **Progressive disclosure** — start simple, grow into complexity
+- **Real outputs** — even beginners ship something that matters
+- **Delight** — the sandbox feels like a superpower, not a restriction
+
+> The best sandboxes don't limit what's possible — they shape *how* it's possible
+
+---
+
+# Applying These Principles to Agentic Workflows
+
+| Beginner Runtime | Agentic Workflows |
+|---|---|
+| Runs in the browser | Container isolation |
+| Safe defaults | Read-only permissions |
+| Guardrailed actions | Safe outputs |
+| Real outputs | Issues, PRs, comments |
+| Delightful UX | Natural language workflows |
+
+> Same philosophy, enterprise scale
 
 ---
 
@@ -131,7 +227,7 @@ Summarize issue and respond in a comment.
 
 ---
 
-# Compiled Action Yaml
+# Compiled Action YAML
 
 ```yaml
 jobs:
@@ -183,7 +279,7 @@ network:
 tools:
   web-fetch:
 ---
-Fetch latest TypeScript docs report findings in a comment.
+Fetch latest TypeScript docs and report findings in a comment.
 ```
 
 > Control external access for security
@@ -262,8 +358,6 @@ mcp-servers:
 
 # Monitoring & Optimization
 
-Track workflow performance and AI agent behavior.
-
 ```sh
 # View recent runs
 gh aw logs
@@ -303,8 +397,6 @@ Review this PR with context from previous reviews:
 
 # Playwright + Upload Assets
 
-## Browser automation for web app testing
-
 ```yaml
 ---
 on:
@@ -317,11 +409,10 @@ safe-outputs:
   upload-asset:   # Attach screenshots to artifacts
 ---
 Test the web application:
-1. Navigate to the deployed preview URL
+1. Navigate to the preview URL
 2. Take screenshots of key pages
-3. Check for visual regressions
-4. Validate responsive design (mobile, tablet, desktop)
-5. Create issue with findings and screenshots
+3. Check for visual regressions and responsive design
+4. Create issue with findings and screenshots
 ```
 
 **Use cases:** Visual regression, accessibility audits, E2E validation for SPAs
@@ -345,12 +436,7 @@ safe-outputs:
 ---
 # RECOMMENDED: Use sanitized context
 Analyze this issue content (safely sanitized):
-"${{ needs.activation.outputs.text }}"
-
-Metadata:
-- Issue #${{ github.event.issue.number }}
-- Repository: ${{ github.repository }}
-- Author: ${{ github.actor }}
+"${{ steps.sanitized.outputs.text }}"
 ```
 
 **Auto-sanitization:** @mentions neutralized, bot triggers blocked, malicious URIs filtered
@@ -361,14 +447,10 @@ Metadata:
 
 ## Multi-layered defense in depth
 
-GitHub Agentic Workflows implements a comprehensive security architecture with multiple isolation layers to protect against threats.
-
-**Key Security Principles:**
-
 - Container isolation for all components
 - Network firewall controls at every layer
 - Minimal permissions by default
-- Separation of concerns
+- Separation of concerns (agent, tools, outputs)
 
 ---
 
@@ -416,101 +498,48 @@ flowchart TB
 
 # Security Layer 1: Coding Agent Sandbox
 
-## Isolated agent process
+**Agent sandbox** — isolated container, read-only by default, limited system access
 
-**Coding Agent Sandbox:**
-
-- Agent process runs in isolated container
-- Read-only permissions by default
-- No direct write access to repository
-- Limited system access
-
-**Primary Proxy/Firewall:**
-
-- Filters outbound traffic from agent
-- Controls access to MCP Gateway
-- Enforces network allowlists
+**Primary proxy/firewall** — filters outbound traffic, controls MCP Gateway access, enforces network allowlists
 
 ---
 
 # Security Layer 2: MCP Gateway
 
-## Central routing with access controls
+**MCP Gateway (mcpg)** — central routing between agents and services
 
-**MCP Gateway (mcpg):**
-
-- Central routing component
-- Manages communication between agents and services
-- Validates tool invocations
-- Enforces permission boundaries
-
-**Benefits:**
-
-- Single point of control
-- Auditable tool access
-- Prevents direct agent-to-service communication
+- Validates tool invocations and enforces permission boundaries
+- Single point of control — no direct agent-to-service access
+- Full audit trail for tool calls
 
 ---
 
 # Security Layer 3: Tool Sandboxes
 
-## Isolated MCP servers and skills
+**MCP servers & skills** — each runs in its own container, non-root, dropped capabilities
 
-**MCP Server & Skill Sandboxes:**
-
-- Each MCP server runs in own container
-- Each skill runs in separate sandbox
-- Non-root user IDs
-- Dropped capabilities
-
-**Secondary Proxy/Firewalls:**
-
-- Additional proxy layers for egress traffic
-- Domain-specific allowlists
-- Defense against data exfiltration
+**Secondary proxies** — egress filtering, domain allowlists, defense against data exfiltration
 
 ---
 
 # Security Layer 4: Service Access
 
-## Controlled external communication
+External services accessed only through proxies — multiple controls before reaching any service
 
-**Service Layer:**
-
-- External services accessed through proxies
-- Multiple security controls before reaching services
-- Comprehensive audit trail
-- Network traffic monitoring
-
-**Defense in Depth:**
-Even if one layer is compromised, multiple additional security controls remain in place.
+> Defense in depth: if one layer is compromised, additional controls remain in place
 
 ---
 
 # Security Features Summary
 
-**Container Isolation:**
-
-- GitHub Actions Jobs in VMs
-- Separate sandboxes for agent, MCP servers, skills
-
-**Network Controls:**
-
-- Proxy/firewall at every layer
-- Domain allowlisting
-- Ecosystem-based controls (node, python, containers)
-
-**Permissions:**
-
-- Read-only by default
-- Safe outputs for write operations
-- Explicit permission grants
-
-**Monitoring:**
-
-- Threat detection
-- Audit logs
-- Workflow run analysis
+| Layer | Protection |
+|---|---|
+| **Containers** | VMs + sandboxes for agent, MCP servers, skills |
+| **Network** | Proxy/firewall at every layer, domain allowlisting |
+| **Permissions** | Read-only default, safe outputs for writes |
+| **Supply Chain** | Pinned action SHAs, protected CI/CD files |
+| **GitHub Guard** | `min-integrity`, secrecy & integrity metadata |
+| **Monitoring** | Threat detection, audit logs, run analysis |
 
 ---
 
@@ -550,7 +579,7 @@ Analyze issue and create implementation PR
 
 **Visit:** <https://github.github.com/gh-aw/introduction/architecture/>
 
-Security is foundational to GitHub Agentic Workflows. We continuously evolve our security controls and welcome community feedback.
+---
 
 # Getting Started (Agentically)
 

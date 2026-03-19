@@ -706,10 +706,10 @@ See `scratchpad/template-injection-prevention.md` for detailed analysis and fix 
 
 ```yaml
 # SECURE: Use sanitized context output
-Analyze this content: "${{ needs.activation.outputs.text }}"
+Analyze this content: "${{ steps.sanitized.outputs.text }}"
 ```
 
-The `needs.activation.outputs.text` output is automatically sanitized:
+The `steps.sanitized.outputs.text` output is automatically sanitized:
 - @mentions neutralized
 - Bot triggers protected
 - XML tags converted to safe format
@@ -923,7 +923,7 @@ gh aw compile --strict --actionlint --zizmor --poutine
 - [ ] No untrusted input in `${{ }}` expressions
 - [ ] Untrusted data passed via environment variables
 - [ ] Safe context variables used where possible
-- [ ] Sanitized context used (gh-aw: `needs.activation.outputs.text`)
+- [ ] Sanitized context used (gh-aw: `steps.sanitized.outputs.text`)
 
 #### Shell Scripts
 - [ ] All variables quoted: `"$VAR"`

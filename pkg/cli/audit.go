@@ -17,6 +17,7 @@ import (
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/parser"
 	"github.com/github/gh-aw/pkg/workflow"
+	"github.com/goccy/go-yaml"
 	"github.com/spf13/cobra"
 )
 
@@ -657,8 +658,14 @@ func fetchWorkflowRunMetadata(runID int64, owner, repo, hostname string, verbose
 		if verbose {
 			fmt.Fprintln(os.Stderr, console.FormatVerboseMessage(string(output)))
 		}
-		// Provide a human-readable error when the run ID doesn't exist
-		if strings.Contains(string(output), "Not Found") || strings.Contains(string(output), "404") {
+		// Provide a human-readable error when the run ID doesn't exist.
+		// GitHub CLI / API may surface the 404 in several forms depending on version.
+		outputStr := string(output)
+		if strings.Contains(outputStr, "Not Found") ||
+			strings.Contains(outputStr, "404") ||
+			strings.Contains(outputStr, "not found") ||
+			strings.Contains(outputStr, "Could not resolve") ||
+			strings.Contains(err.Error(), "404") {
 			return WorkflowRun{}, fmt.Errorf("workflow run %d not found. Please verify the run ID is correct and that you have access to the repository", runID)
 		}
 		return WorkflowRun{}, fmt.Errorf("failed to fetch run metadata: %w", err)
@@ -669,5 +676,71 @@ func fetchWorkflowRunMetadata(runID int64, owner, repo, hostname string, verbose
 		return WorkflowRun{}, fmt.Errorf("failed to parse run metadata: %w", err)
 	}
 
+	// When the GitHub API returns the workflow file path as the run's name (e.g. for runs
+	// that were cancelled or failed before any jobs started), resolve the actual workflow
+	// display name so that audit output is consistent with 'gh aw logs'.
+	if strings.HasPrefix(run.WorkflowName, ".github/") {
+		if displayName := resolveWorkflowDisplayName(run.WorkflowPath, owner, repo, hostname); displayName != "" {
+			auditLog.Printf("Resolved workflow display name: %q -> %q", run.WorkflowName, displayName)
+			run.WorkflowName = displayName
+		}
+	}
+
 	return run, nil
+}
+
+// resolveWorkflowDisplayName returns the human-readable display name for a workflow file.
+// It first attempts to read the YAML file from the local filesystem (resolving the path
+// relative to the git repository root so that it works from any working directory inside
+// the repo); if that fails it falls back to a GitHub API call.  An empty string is
+// returned on any error so that callers can gracefully keep the original value.
+func resolveWorkflowDisplayName(workflowPath, owner, repo, hostname string) string {
+	// Try local file first.  workflowPath is a repo-relative path like
+	// ".github/workflows/foo.lock.yml", so we resolve it against the git root to
+	// produce a correct absolute path regardless of the current working directory.
+	if gitRoot, err := findGitRoot(); err == nil {
+		absPath := filepath.Join(gitRoot, workflowPath)
+		if content, err := os.ReadFile(absPath); err == nil {
+			if name := extractWorkflowNameFromYAML(content); name != "" {
+				return name
+			}
+		}
+	}
+
+	// Fall back to the GitHub Actions workflows API.
+	filename := filepath.Base(workflowPath)
+	var endpoint string
+	if owner != "" && repo != "" {
+		endpoint = fmt.Sprintf("repos/%s/%s/actions/workflows/%s", owner, repo, filename)
+	} else {
+		endpoint = "repos/{owner}/{repo}/actions/workflows/" + filename
+	}
+
+	args := []string{"api"}
+	if hostname != "" && hostname != "github.com" {
+		args = append(args, "--hostname", hostname)
+	}
+	args = append(args, endpoint, "--jq", ".name")
+
+	out, err := workflow.RunGHCombined("Fetching workflow name...", args...)
+	if err != nil {
+		auditLog.Printf("Failed to fetch workflow display name for %q: %v", workflowPath, err)
+		return ""
+	}
+
+	return strings.TrimSpace(string(out))
+}
+
+// extractWorkflowNameFromYAML parses a GitHub Actions workflow YAML document and
+// returns the value of its top-level "name:" field.  An empty string is returned
+// when the field is absent or the document cannot be parsed.
+func extractWorkflowNameFromYAML(content []byte) string {
+	var wf struct {
+		Name string `yaml:"name"`
+	}
+	if err := yaml.Unmarshal(content, &wf); err != nil {
+		auditLog.Printf("Failed to parse workflow YAML for name extraction (file may be malformed): %v", err)
+		return ""
+	}
+	return wf.Name
 }

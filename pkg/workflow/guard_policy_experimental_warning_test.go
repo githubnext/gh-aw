@@ -13,16 +13,16 @@ import (
 	"github.com/github/gh-aw/pkg/testutil"
 )
 
-// TestGuardPolicyExperimentalWarning tests that the tools.github guard policy
-// (repos/min-integrity) emits an experimental warning when enabled.
-func TestGuardPolicyExperimentalWarning(t *testing.T) {
+// TestGuardPolicyNoExperimentalWarning tests that the tools.github guard policy
+// (repos/min-integrity) does not emit an experimental warning, as the feature
+// is no longer considered experimental.
+func TestGuardPolicyNoExperimentalWarning(t *testing.T) {
 	tests := []struct {
-		name          string
-		content       string
-		expectWarning bool
+		name    string
+		content string
 	}{
 		{
-			name: "guard policy enabled produces experimental warning",
+			name: "guard policy enabled does not produce experimental warning",
 			content: `---
 on: workflow_dispatch
 engine: copilot
@@ -36,7 +36,6 @@ permissions:
 
 # Test Workflow
 `,
-			expectWarning: true,
 		},
 		{
 			name: "no guard policy does not produce experimental warning",
@@ -49,7 +48,6 @@ permissions:
 
 # Test Workflow
 `,
-			expectWarning: false,
 		},
 		{
 			name: "github tool without guard policy does not produce experimental warning",
@@ -66,10 +64,9 @@ permissions:
 
 # Test Workflow
 `,
-			expectWarning: false,
 		},
 		{
-			name: "guard policy with repos array produces experimental warning",
+			name: "guard policy with repos array does not produce experimental warning",
 			content: `---
 on: workflow_dispatch
 engine: copilot
@@ -84,7 +81,6 @@ permissions:
 
 # Test Workflow
 `,
-			expectWarning: true,
 		},
 	}
 
@@ -118,24 +114,9 @@ permissions:
 				return
 			}
 
-			expectedMessage := "Using experimental feature: tools.github guard policy (repos/min-integrity)"
-
-			if tt.expectWarning {
-				if !strings.Contains(stderrOutput, expectedMessage) {
-					t.Errorf("Expected warning containing '%s', got stderr:\n%s", expectedMessage, stderrOutput)
-				}
-			} else {
-				if strings.Contains(stderrOutput, expectedMessage) {
-					t.Errorf("Did not expect warning '%s', but got stderr:\n%s", expectedMessage, stderrOutput)
-				}
-			}
-
-			// Verify warning count includes guard policy warning
-			if tt.expectWarning {
-				warningCount := compiler.GetWarningCount()
-				if warningCount == 0 {
-					t.Error("Expected warning count > 0 but got 0")
-				}
+			unexpectedMessage := "Using experimental feature: tools.github guard policy (repos/min-integrity)"
+			if strings.Contains(stderrOutput, unexpectedMessage) {
+				t.Errorf("Did not expect experimental warning '%s', but got stderr:\n%s", unexpectedMessage, stderrOutput)
 			}
 		})
 	}

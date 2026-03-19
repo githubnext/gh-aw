@@ -41,8 +41,8 @@ func getMaxConcurrentDownloads() int {
 }
 
 // DownloadWorkflowLogs downloads and analyzes workflow logs with metrics
-func DownloadWorkflowLogs(ctx context.Context, workflowName string, count int, startDate, endDate, outputDir, engine, ref string, beforeRunID, afterRunID int64, repoOverride string, verbose bool, toolGraph bool, noStaged bool, firewallOnly bool, noFirewall bool, parse bool, jsonOutput bool, timeout int, summaryFile string, safeOutputType string) error {
-	logsOrchestratorLog.Printf("Starting workflow log download: workflow=%s, count=%d, startDate=%s, endDate=%s, outputDir=%s, summaryFile=%s, safeOutputType=%s", workflowName, count, startDate, endDate, outputDir, summaryFile, safeOutputType)
+func DownloadWorkflowLogs(ctx context.Context, workflowName string, count int, startDate, endDate, outputDir, engine, ref string, beforeRunID, afterRunID int64, repoOverride string, verbose bool, toolGraph bool, noStaged bool, firewallOnly bool, noFirewall bool, parse bool, jsonOutput bool, timeout int, summaryFile string, safeOutputType string, filteredIntegrity bool) error {
+	logsOrchestratorLog.Printf("Starting workflow log download: workflow=%s, count=%d, startDate=%s, endDate=%s, outputDir=%s, summaryFile=%s, safeOutputType=%s, filteredIntegrity=%v", workflowName, count, startDate, endDate, outputDir, summaryFile, safeOutputType, filteredIntegrity)
 
 	// Ensure .github/aw/logs/.gitignore exists on every invocation
 	if err := ensureLogsGitignore(); err != nil {
@@ -304,6 +304,23 @@ func DownloadWorkflowLogs(ctx context.Context, workflowName string, count int, s
 					if !hasSafeOutputType {
 						if verbose {
 							fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Skipping run %d: no '%s' safe output messages found", result.Run.DatabaseID, safeOutputType)))
+						}
+						continue
+					}
+				}
+
+				// Apply filtered-integrity filtering if --filtered-integrity flag is specified
+				if filteredIntegrity {
+					hasFiltered, checkErr := runHasDifcFilteredItems(result.LogsPath, verbose)
+					if checkErr != nil {
+						fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to check DIFC filtered items for run %d: %v", result.Run.DatabaseID, checkErr)))
+						continue
+					}
+
+					if !hasFiltered {
+						logsOrchestratorLog.Printf("Skipping run %d: no DIFC filtered items found", result.Run.DatabaseID)
+						if verbose {
+							fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Skipping run %d: no DIFC integrity-filtered items found in gateway logs", result.Run.DatabaseID)))
 						}
 						continue
 					}
@@ -868,4 +885,23 @@ func runContainsSafeOutputType(runDir string, safeOutputType string, verbose boo
 	}
 
 	return false, nil
+}
+
+// runHasDifcFilteredItems checks if a run's gateway logs contain any DIFC_FILTERED events.
+// It parses the gateway logs (falling back to rpc-messages.jsonl when gateway.jsonl is absent)
+// and returns true when at least one DIFC integrity- or secrecy-filtered event is present.
+func runHasDifcFilteredItems(runDir string, verbose bool) (bool, error) {
+	logsOrchestratorLog.Printf("Checking run for DIFC filtered items: dir=%s", runDir)
+
+	gatewayMetrics, err := parseGatewayLogs(runDir, verbose)
+	if err != nil {
+		// No gateway log file present — not an error for workflows without MCP
+		return false, nil
+	}
+
+	if gatewayMetrics == nil {
+		return false, nil
+	}
+
+	return gatewayMetrics.TotalFiltered > 0, nil
 }

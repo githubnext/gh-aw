@@ -191,6 +191,31 @@ func TestGenerateFindings(t *testing.T) {
 			},
 		},
 		{
+			name: "failed workflow with zero errors and no error details uses pre-activation message",
+			processedRun: func() ProcessedRun {
+				pr := createTestProcessedRun()
+				pr.Run.Conclusion = "failure"
+				return pr
+			}(),
+			metrics: MetricsData{
+				ErrorCount: 0, // no errors extracted — logs were not available
+			},
+			errors:        []ErrorInfo{},
+			warnings:      []ErrorInfo{},
+			expectedCount: 1,
+			checkFindings: func(t *testing.T, findings []Finding) {
+				finding := findFindingByCategory(findings, "error")
+				require.NotNil(t, finding, "Failed workflow should still generate an error finding")
+				assert.Equal(t, "critical", finding.Severity, "Error finding should have critical severity")
+				assert.Contains(t, finding.Description, "before agent activation",
+					"Description should indicate pre-activation failure when no logs are available")
+				assert.Contains(t, finding.Description, "no error logs",
+					"Description should mention that no error logs were available")
+				assert.NotContains(t, finding.Description, "0 error(s)",
+					"Description must not produce the contradictory 'failed with 0 error(s)' message")
+			},
+		},
+		{
 			name: "timed out workflow",
 			processedRun: func() ProcessedRun {
 				pr := createTestProcessedRun()

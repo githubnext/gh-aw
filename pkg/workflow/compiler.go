@@ -273,15 +273,6 @@ func (c *Compiler) validateWorkflowData(workflowData *WorkflowData, markdownPath
 		c.IncrementWarningCount()
 	}
 
-	// Emit experimental warning for tools.github guard policy (repos/min-integrity)
-	if workflowData.ParsedTools != nil && workflowData.ParsedTools.GitHub != nil {
-		github := workflowData.ParsedTools.GitHub
-		if github.Repos != nil || github.MinIntegrity != "" {
-			fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Using experimental feature: tools.github guard policy (repos/min-integrity)"))
-			c.IncrementWarningCount()
-		}
-	}
-
 	// Validate workflow_run triggers have branch restrictions
 	log.Printf("Validating workflow_run triggers for branch restrictions")
 	if err := c.validateWorkflowRunBranches(workflowData, markdownPath); err != nil {
@@ -452,8 +443,20 @@ func (c *Compiler) generateAndValidateYAML(workflowData *WorkflowData, markdownP
 	if !c.skipValidation {
 		log.Print("Validating workflow against GitHub Actions schema")
 		if err := c.validateGitHubActionsSchema(yamlContent); err != nil {
+			// Try to point at the exact line of the failing field in the source markdown.
+			// extractSchemaErrorField unwraps the error chain to find the top-level field
+			// name (e.g. "timeout-minutes"), which findFrontmatterFieldLine then locates in
+			// the source frontmatter so the error is IDE-navigable.
+			fieldLine := 1
+			if fieldName := extractSchemaErrorField(err); fieldName != "" {
+				frontmatterLines := strings.Split(workflowData.FrontmatterYAML, "\n")
+				if line := findFrontmatterFieldLine(frontmatterLines, 2, fieldName); line > 0 {
+					fieldLine = line
+				}
+			}
 			// Store error first so we can write invalid YAML before returning
-			formattedErr := formatCompilerError(markdownPath, "error", fmt.Sprintf("workflow schema validation failed: %v", err), err)
+			formattedErr := formatCompilerErrorWithPosition(markdownPath, fieldLine, 1, "error",
+				fmt.Sprintf("invalid workflow: %v", err), err)
 			// Write the invalid YAML to a .invalid.yml file for inspection
 			invalidFile := strings.TrimSuffix(lockFile, ".lock.yml") + ".invalid.yml"
 			if writeErr := os.WriteFile(invalidFile, []byte(yamlContent), 0644); writeErr == nil {

@@ -273,7 +273,7 @@ When updating workflows, maintain security:
 - Default to `permissions: read-all` and expand only if necessary
 - Prefer `safe-outputs` over granting write permissions
 - Constrain `network:` to the minimum required ecosystems/domains
-- Use sanitized expressions (`${{ needs.activation.outputs.text }}`)
+- Use sanitized expressions (`${{ steps.sanitized.outputs.text }}`)
 
 ## Update Workflow Process
 

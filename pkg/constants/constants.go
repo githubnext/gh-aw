@@ -363,7 +363,7 @@ const AWFProxyLogsDir = "/tmp/gh-aw/sandbox/firewall/logs"
 const AWFDefaultLogLevel = "info"
 
 // DefaultMCPGatewayVersion is the default version of the MCP Gateway (gh-aw-mcpg) Docker image
-const DefaultMCPGatewayVersion Version = "v0.1.18"
+const DefaultMCPGatewayVersion Version = "v0.1.19"
 
 // DefaultMCPGatewayContainer is the default container image for the MCP Gateway
 const DefaultMCPGatewayContainer = "ghcr.io/github/gh-aw-mcpg"
@@ -407,7 +407,7 @@ var SerenaLanguageSupport = map[string][]string{
 }
 
 // DefaultAPMVersion is the default version of the microsoft/APM (Agent Package Manager) CLI
-const DefaultAPMVersion Version = "v0.8.0"
+const DefaultAPMVersion Version = "v0.8.2"
 
 // DefaultPlaywrightMCPVersion is the default version of the @playwright/mcp package
 const DefaultPlaywrightMCPVersion Version = "0.0.68"
@@ -648,6 +648,12 @@ const ActivationArtifactName = "activation"
 // APMArtifactName is the artifact name for the APM (Agent Package Manager) bundle.
 const APMArtifactName = "apm"
 
+// SafeOutputItemsArtifactName is the artifact name for the safe output items manifest.
+// This artifact contains the JSONL manifest of all items created by safe output handlers
+// and is uploaded by the safe_outputs job to avoid conflicting with the "agent" artifact
+// that is already uploaded by the agent job.
+const SafeOutputItemsArtifactName = "safe-output-items"
+
 // MCPServerID represents a built-in MCP server identifier.
 // This semantic type distinguishes MCP server IDs from arbitrary strings,
 // preventing accidental mixing of server identifiers with other string types.
@@ -696,6 +702,7 @@ const CheckSkipIfMatchStepID StepID = "check_skip_if_match"
 const CheckSkipIfNoMatchStepID StepID = "check_skip_if_no_match"
 const CheckCommandPositionStepID StepID = "check_command_position"
 const RemoveTriggerLabelStepID StepID = "remove_trigger_label"
+const GetTriggerLabelStepID StepID = "get_trigger_label"
 const CheckRateLimitStepID StepID = "check_rate_limit"
 const CheckSkipRolesStepID StepID = "check_skip_roles"
 const CheckSkipBotsStepID StepID = "check_skip_bots"

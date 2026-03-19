@@ -117,7 +117,7 @@ tools:
 When someone mentions /summarize-issue in an issue or comment, 
 analyze and provide a helpful summary.
 
-The current context text is: "${{ needs.activation.outputs.text }}"
+The current context text is: "${{ steps.sanitized.outputs.text }}"
 ```
 
 PR-focused example using event filtering to restrict to pull requests and PR comments:
@@ -145,7 +145,7 @@ timeout-minutes: 10
 When someone mentions /code-review in a pull request or PR comment,
 analyze the code changes and provide detailed feedback.
 
-The current context is: "${{ needs.activation.outputs.text }}"
+The current context is: "${{ steps.sanitized.outputs.text }}"
 
 Review the pull request changes and add helpful review comments on specific
 lines of code where improvements can be made.
@@ -153,10 +153,10 @@ lines of code where improvements can be made.
 
 ## Context Text
 
-All workflows access `needs.activation.outputs.text`, which provides **sanitized** context: for issues and PRs, it's `title + "\n\n" + body`; for comments and reviews, it's the body content.
+All workflows access `steps.sanitized.outputs.text`, which provides **sanitized** context: for issues and PRs, it's `title + "\n\n" + body`; for comments and reviews, it's the body content.
 
 ```aw wrap
-# Analyze this content: "${{ needs.activation.outputs.text }}"
+# Analyze this content: "${{ steps.sanitized.outputs.text }}"
 ```
 
 **Why sanitized context?** The sanitized text neutralizes @mentions and bot triggers (like `fixes #123`), protects against XML injection, filters URIs to trusted HTTPS domains, limits content size (0.5MB max, 65k lines), and strips ANSI escape sequences.
@@ -164,7 +164,7 @@ All workflows access `needs.activation.outputs.text`, which provides **sanitized
 **Comparison:**
 ```aw wrap
 # RECOMMENDED: Secure sanitized context
-Analyze this issue: "${{ needs.activation.outputs.text }}"
+Analyze this issue: "${{ steps.sanitized.outputs.text }}"
 
 # DISCOURAGED: Raw context values (security risks)
 Title: "${{ github.event.issue.title }}"

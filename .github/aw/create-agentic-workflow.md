@@ -484,24 +484,29 @@ These resources contain workflow patterns, best practices, safe outputs, and per
    - **Always use `safe-outputs` instead** for any GitHub write operations (creating issues, adding comments, etc.)
    - **Mode configuration** - Both `mode: local` (Docker-based, default) and `mode: remote` (hosted) are supported. Remote mode offers faster startup and no Docker requirement.
 
-   **GitHub lockdown Mode (Security Feature)**:
+   **Guard Policies (`repos` and `min-integrity`)**:
 
-   GitHub lockdown mode is a security feature that filters content in public repositories to only show issues, PRs, and comments from users with push access. This protects workflows from processing potentially malicious input from untrusted users.
+   Guard policies restrict which repositories and content integrity levels the GitHub MCP server can access during agent execution. These are experimental features that apply fine-grained access control at the MCP gateway level.
 
-   - **Automatic by default** - Lockdown is automatically enabled for public repositories, and has no impact for for private repositories (where all collaborators are trusted)
-   - **When to disable**: Only disable lockdown (`lockdown: false`) for specific safe use cases:
-     - Issue triage/labeling workflows with restricted safe outputs
-     - Spam detection systems designed to handle untrusted content
-     - Public status dashboards with read-only operations
-     - Command workflows that explicitly verify user permissions before acting
-   - **How to disable**:
+   - **`repos`** - Restricts which repositories the agent can access:
+     - `"all"` — All repositories accessible by the token
+     - `"public"` — Public repositories only
+     - Array of patterns — Specific repos or wildcards (e.g., `["myorg/*", "myorg/api-*"]`)
+   - **`min-integrity`** - Sets the minimum integrity level for content:
+     - `approved` — Only content from owners, members, and collaborators (highest trust)
+     - `unapproved` — Include contributors and first-time contributors
+     - `none` — Include all content regardless of author association
+   - **Both fields are required** when either is specified (you cannot use one without the other)
+   - **Automatic protection** - When neither `repos` nor `min-integrity` is configured, public repositories automatically get `min-integrity: approved` applied at runtime
+   - **Example**:
      ```yaml
      tools:
        github:
-         lockdown: false  # Only for workflows designed to safely process all user input
+         toolsets: [default]
+         repos: "all"
+         min-integrity: approved  # Only content from trusted collaborators
      ```
-   - **Security considerations**: Workflows with `lockdown: false` should have read-only operations, restrictive safe outputs with specific allowed values, no bash/web-fetch/playwright tools, and explicit input validation
-   - **Documentation**: See https://github.github.com/gh-aw/reference/lockdown-mode/ for complete guidance
+   - **Documentation**: See https://github.github.com/gh-aw/reference/github-tools/#guard-policies for complete guidance
 
   **Advanced static analysis tools**:
   For advanced code analysis tasks, see `.github/aw/serena-tool.md` for when and how to use Serena language server.
@@ -539,7 +544,7 @@ These resources contain workflow patterns, best practices, safe outputs, and per
      - Prefer `safe-outputs` (`create-issue`, `add-comment`, `create-pull-request`, `create-pull-request-review-comment`, `update-issue` for editing, `close-issue` for closing, `dispatch-workflow`) over granting write perms.
      - For custom write operations to external services (email, Slack, webhooks), use `safe-outputs.jobs:` to create custom safe output jobs.
      - Constrain `network:` to the minimum required ecosystems/domains.
-     - Use sanitized expressions (`${{ needs.activation.outputs.text }}`) instead of raw event text.
+     - Use sanitized expressions (`${{ steps.sanitized.outputs.text }}`) instead of raw event text.
    - **Emphasize human agency in workflow prompts**:
      - When writing prompts that report on repository activity (commits, PRs, issues), always attribute bot activity to humans
      - **@github-actions[bot]** and **@Copilot** are tools triggered by humans - workflows should identify who triggered, reviewed, or merged their actions
@@ -571,14 +576,14 @@ safe-outputs:
 # Deploy Preview
 
 Deploy a preview environment for this pull request. The caller wrote:
-"${{ needs.activation.outputs.text }}"
+"${{ steps.sanitized.outputs.text }}"
 ```
 
 **Tradeoffs:**
 - ✅ Works across issues, PRs, and all comment types (configurable via `events:`)
 - ✅ Natural to invoke — users type `/command` in any comment
 - ✅ Supports multiple command aliases in one workflow (`name: ["deploy", "redeploy"]`)
-- ✅ The triggering comment text is available as context via `needs.activation.outputs.text`
+- ✅ The triggering comment text is available as context via `steps.sanitized.outputs.text`
 - ⚠️ Less discoverable — users must know the command name exists
 - ⚠️ Cannot be triggered without writing a comment (no label-based invocation)
 

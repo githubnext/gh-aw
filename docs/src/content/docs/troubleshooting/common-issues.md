@@ -381,11 +381,11 @@ Run these commands from inside a GHES repository clone — they auto-detect the 
 
 ### Unauthorized Expression
 
-Use only [allowed expressions](/gh-aw/reference/templating/) (`github.event.issue.number`, `github.repository`, `needs.activation.outputs.text`). Disallowed: `secrets.*`, `env.*`.
+Use only [allowed expressions](/gh-aw/reference/templating/) (`github.event.issue.number`, `github.repository`, `steps.sanitized.outputs.text`). Disallowed: `secrets.*`, `env.*`.
 
 ### Sanitized Context Empty
 
-`needs.activation.outputs.text` requires issue/PR/comment events (`on: issues:`), not `push:` or similar triggers.
+`steps.sanitized.outputs.text` requires issue/PR/comment events (`on: issues:`), not `push:` or similar triggers.
 
 ## Build and Test Issues
 

@@ -212,6 +212,7 @@ func extractRunSnippet(runContent string, expression string) string {
 
 // detectExpressionContext identifies what type of expression this is
 func detectExpressionContext(expression string) string {
+	templateInjectionValidationLog.Printf("Detecting expression context for: %s", expression)
 	if strings.Contains(expression, "github.event.") {
 		return "github.event"
 	}

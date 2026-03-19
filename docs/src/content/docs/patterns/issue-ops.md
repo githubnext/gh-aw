@@ -42,10 +42,10 @@ safe-outputs:
 
 ## Accessing Issue Context
 
-Access sanitized issue content through `needs.activation.outputs.text`, which combines title and description while removing security risks (@mentions, URIs, injections):
+Access sanitized issue content through `steps.sanitized.outputs.text`, which combines title and description while removing security risks (@mentions, URIs, injections):
 
 ```yaml wrap
-Analyze this issue: "${{ needs.activation.outputs.text }}"
+Analyze this issue: "${{ steps.sanitized.outputs.text }}"
 ```
 
 ## Common IssueOps Patterns

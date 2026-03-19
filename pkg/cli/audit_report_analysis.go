@@ -18,16 +18,24 @@ func generateFindings(processedRun ProcessedRun, metrics MetricsData, errors []E
 
 	// Failure findings
 	if run.Conclusion == "failure" {
-		desc := fmt.Sprintf("Workflow '%s' failed with %d error(s)", run.WorkflowName, metrics.ErrorCount)
-		if len(errors) > 0 {
-			// Append a truncated first error message to help quickly identify the root cause.
-			// Keep descriptions short enough to be useful in a key findings summary.
-			const maxErrMsgLen = 200
-			msg := errors[0].Message
-			if len(msg) > maxErrMsgLen {
-				msg = msg[:maxErrMsgLen] + "..."
+		var desc string
+		if metrics.ErrorCount == 0 && len(errors) == 0 {
+			// No log data available — run likely failed before agent activation (e.g. cancelled,
+			// infrastructure failure, or no downloadable artifacts).  Saying "failed with 0 error(s)"
+			// is logically contradictory, so surface a clearer message instead.
+			desc = fmt.Sprintf("Workflow '%s' failed before agent activation — no error logs were available to analyze", run.WorkflowName)
+		} else {
+			desc = fmt.Sprintf("Workflow '%s' failed with %d error(s)", run.WorkflowName, metrics.ErrorCount)
+			if len(errors) > 0 {
+				// Append a truncated first error message to help quickly identify the root cause.
+				// Keep descriptions short enough to be useful in a key findings summary.
+				const maxErrMsgLen = 200
+				msg := errors[0].Message
+				if len(msg) > maxErrMsgLen {
+					msg = msg[:maxErrMsgLen] + "..."
+				}
+				desc += ": " + msg
 			}
-			desc += ": " + msg
 		}
 		findings = append(findings, Finding{
 			Category:    "error",
