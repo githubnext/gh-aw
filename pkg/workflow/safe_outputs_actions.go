@@ -269,6 +269,18 @@ func parseActionYAMLContent(content []byte) (*actionYAMLFile, error) {
 	return &parsed, nil
 }
 
+// isGitHubExpressionDefault returns true if the input's default value is a GitHub Actions
+// expression (e.g., "${{ github.token }}" or "${{ github.event.pull_request.number }}").
+// Such inputs should not be included in the MCP tool schema or the generated `with:` block
+// so that GitHub Actions can apply the defaults naturally rather than having them overridden
+// with an empty string from a missing JSON key in the agent payload.
+func isGitHubExpressionDefault(input *ActionYAMLInput) bool {
+	if input == nil {
+		return false
+	}
+	return strings.HasPrefix(strings.TrimSpace(input.Default), "${{")
+}
+
 // generateActionToolDefinition creates an MCP tool definition for a custom safe output action.
 // The tool name is the normalized action name. Inputs are derived from the action.yml.
 func generateActionToolDefinition(actionName string, config *SafeOutputActionConfig) map[string]any {
@@ -303,6 +315,12 @@ func generateActionToolDefinition(actionName string, config *SafeOutputActionCon
 
 		for _, inputName := range inputNames {
 			inputDef := config.Inputs[inputName]
+			// Skip inputs whose defaults are GitHub expression (e.g. "${{ github.token }}").
+			// These are implementation details (authentication, context values) that the agent
+			// should not provide — GitHub Actions will apply the defaults automatically.
+			if isGitHubExpressionDefault(inputDef) {
+				continue
+			}
 			property := map[string]any{
 				"type": "string",
 			}
@@ -432,17 +450,22 @@ func (c *Compiler) buildActionSteps(data *WorkflowData) []string {
 
 		// Build the with: block
 		if len(config.Inputs) > 0 {
-			steps = append(steps, "        with:\n")
-
-			inputNames := make([]string, 0, len(config.Inputs))
-			for k := range config.Inputs {
-				inputNames = append(inputNames, k)
+			// Filter to only inputs that the agent should provide (exclude those with GitHub
+			// expression defaults like "${{ github.token }}" — GitHub Actions applies them naturally).
+			agentInputNames := make([]string, 0, len(config.Inputs))
+			for k, v := range config.Inputs {
+				if !isGitHubExpressionDefault(v) {
+					agentInputNames = append(agentInputNames, k)
+				}
 			}
-			sort.Strings(inputNames)
+			sort.Strings(agentInputNames)
 
-			for _, inputName := range inputNames {
-				steps = append(steps, fmt.Sprintf("          %s: ${{ fromJSON(steps.process_safe_outputs.outputs.%s).%s }}\n",
-					inputName, outputKey, inputName))
+			if len(agentInputNames) > 0 {
+				steps = append(steps, "        with:\n")
+				for _, inputName := range agentInputNames {
+					steps = append(steps, fmt.Sprintf("          %s: ${{ fromJSON(steps.process_safe_outputs.outputs.%s).%s }}\n",
+						inputName, outputKey, inputName))
+				}
 			}
 		} else {
 			// When inputs couldn't be resolved, pass the raw payload as a single input

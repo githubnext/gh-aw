@@ -518,3 +518,77 @@ func TestExtractSafeOutputsConfigIncludesActionsWithEnv(t *testing.T) {
 	require.Len(t, action.Env, 1, "Should have 1 env var")
 	assert.Equal(t, "${{ secrets.MY_TOKEN }}", action.Env["TOKEN"], "TOKEN env var should match")
 }
+
+// TestIsGitHubExpressionDefault verifies detection of GitHub expression defaults
+func TestIsGitHubExpressionDefault(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    *ActionYAMLInput
+		expected bool
+	}{
+		{"nil input", nil, false},
+		{"no default", &ActionYAMLInput{}, false},
+		{"static default", &ActionYAMLInput{Default: "latest"}, false},
+		{"github token expression", &ActionYAMLInput{Default: "${{ github.token }}"}, true},
+		{"pr number expression", &ActionYAMLInput{Default: "${{ github.event.pull_request.number }}"}, true},
+		{"expression with leading whitespace", &ActionYAMLInput{Default: "  ${{ github.token }}"}, true},
+		{"partial expression no closing", &ActionYAMLInput{Default: "${{ incomplete"}, true}, // starts with ${{
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.expected, isGitHubExpressionDefault(tt.input), "isGitHubExpressionDefault result should match")
+		})
+	}
+}
+
+// TestBuildActionStepsSkipsGitHubExpressionDefaultInputs verifies inputs with ${{ defaults are excluded
+func TestBuildActionStepsSkipsGitHubExpressionDefaultInputs(t *testing.T) {
+	compiler := NewCompiler()
+	data := &WorkflowData{
+		SafeOutputs: &SafeOutputsConfig{
+			Actions: map[string]*SafeOutputActionConfig{
+				"add-labels": {
+					Uses:        "actions-ecosystem/action-add-labels@v1",
+					ResolvedRef: "actions-ecosystem/action-add-labels@abc123 # v1",
+					Inputs: map[string]*ActionYAMLInput{
+						"github_token": {Required: true, Default: "${{ github.token }}"},
+						"number":       {Required: false, Default: "${{ github.event.pull_request.number }}"},
+						"labels":       {Required: true},
+					},
+				},
+			},
+		},
+	}
+
+	steps := compiler.buildActionSteps(data)
+	fullYAML := strings.Join(steps, "")
+
+	// Only 'labels' should be in with: block
+	assert.Contains(t, fullYAML, "labels:", "labels should be in with: block")
+	assert.NotContains(t, fullYAML, "github_token:", "github_token should be excluded (has ${{ default})")
+	assert.NotContains(t, fullYAML, "number:", "number should be excluded (has ${{ default})")
+}
+
+// TestGenerateActionToolDefinitionSkipsGitHubExpressionInputs verifies schema omits ${{ inputs
+func TestGenerateActionToolDefinitionSkipsGitHubExpressionInputs(t *testing.T) {
+	config := &SafeOutputActionConfig{
+		Uses: "actions-ecosystem/action-add-labels@v1",
+		Inputs: map[string]*ActionYAMLInput{
+			"github_token": {Required: true, Default: "${{ github.token }}"},
+			"number":       {Required: false, Default: "${{ github.event.pull_request.number }}"},
+			"labels":       {Required: true, Description: "Labels to add"},
+		},
+	}
+
+	tool := generateActionToolDefinition("add-labels", config)
+
+	schema, ok := tool["inputSchema"].(map[string]any)
+	require.True(t, ok, "inputSchema should be a map")
+	properties, ok := schema["properties"].(map[string]any)
+	require.True(t, ok, "properties should be a map")
+
+	assert.Contains(t, properties, "labels", "labels should be in schema")
+	assert.NotContains(t, properties, "github_token", "github_token should be excluded from schema")
+	assert.NotContains(t, properties, "number", "number should be excluded from schema")
+}
