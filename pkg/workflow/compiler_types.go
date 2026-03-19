@@ -390,6 +390,7 @@ type WorkflowData struct {
 	LabelCommand                []string             // for label-command trigger support - label names that act as commands
 	LabelCommandEvents          []string             // events where label-command should be active (nil = all: issues, pull_request, discussion)
 	LabelCommandOtherEvents     map[string]any       // for merging label-command with other events
+	LabelCommandRemoveLabel     bool                 // whether to automatically remove the triggering label (default: true)
 	AIReaction                  string               // AI reaction type like "eyes", "heart", etc.
 	StatusComment               *bool                // whether to post status comments (default: true when ai-reaction is set, false otherwise)
 	ActivationGitHubToken       string               // custom github token from on.github-token for reactions/comments

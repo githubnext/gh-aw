@@ -73,7 +73,7 @@ This workflow tests the agentic output collection functionality.
 
 	// Upload Safe Outputs and Upload sanitized agent output are now merged into the
 	// unified 'agent' artifact — individual upload steps no longer exist.
-	if strings.Contains(lockContent, "- name: Upload Safe Outputs") {
+	if strings.Contains(lockContent, "- name: Upload Safe Outputs\n") {
 		t.Error("Upload Safe Outputs should be removed (merged into unified agent artifact)")
 	}
 
@@ -183,7 +183,7 @@ This workflow tests that Codex engine gets GH_AW_SAFE_OUTPUTS but not engine out
 
 	// Upload Safe Outputs and Upload sanitized agent output are now merged into the
 	// unified 'agent' artifact — individual upload steps no longer exist.
-	if strings.Contains(lockContent, "- name: Upload Safe Outputs") {
+	if strings.Contains(lockContent, "- name: Upload Safe Outputs\n") {
 		t.Error("Upload Safe Outputs should be removed (merged into unified agent artifact)")
 	}
 

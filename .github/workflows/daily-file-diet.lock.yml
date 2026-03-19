@@ -1201,7 +1201,7 @@ jobs:
             /installation/token || echo "Token revoke may already be expired."
           
           echo "Token invalidation step complete."
-      - name: Upload Safe Output Items Manifest
+      - name: Upload Safe Outputs Items Manifest
         if: always()
         uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
         with:
