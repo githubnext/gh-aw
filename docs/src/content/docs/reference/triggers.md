@@ -297,11 +297,19 @@ on:
     name: deploy
     events: [pull_request]
 
+# Disable automatic label removal (label stays on the item after activation)
+on:
+  label_command:
+    name: deploy
+    remove_label: false
+
 # Shorthand string form
 on: "label-command deploy"
 ```
 
 The compiler generates `issues`, `pull_request`, and/or `discussion` events with `types: [labeled]`, adds a `workflow_dispatch` trigger with `item_number` for manual testing, and injects a label removal step in the activation job. The matched label name is exposed as `needs.activation.outputs.label_command`.
+
+The `remove_label` field (boolean, default `true`) controls whether the label is automatically removed after activation. Set to `false` to keep the label on the item — useful when the label represents persistent state rather than a one-shot command. When `remove_label: false`, the workflow does not need `issues: write` or `pull-requests: write` permissions for label removal.
 
 `label_command` can be combined with `slash_command:` — the workflow activates when either condition is met. See [LabelOps](/gh-aw/patterns/label-ops/) for patterns and examples.
 

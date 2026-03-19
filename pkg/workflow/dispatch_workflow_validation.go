@@ -162,6 +162,7 @@ func (c *Compiler) validateDispatchWorkflow(data *WorkflowData, workflowPath str
 // extractWorkflowDispatchInputs parses a workflow file and extracts the workflow_dispatch inputs schema
 // Returns a map of input definitions that can be used to generate MCP tool schemas
 func extractWorkflowDispatchInputs(workflowPath string) (map[string]any, error) {
+	dispatchWorkflowValidationLog.Printf("Extracting workflow_dispatch inputs from: %s", workflowPath)
 	// Sanitize the path to prevent path traversal attacks
 	cleanPath := filepath.Clean(workflowPath)
 	if !filepath.IsAbs(cleanPath) {
@@ -257,6 +258,7 @@ type findWorkflowFileResult struct {
 // findWorkflowFile searches for a workflow file in .github/workflows directory only
 // Returns paths and existence flags for .md, .lock.yml, and .yml files
 func findWorkflowFile(workflowName string, currentWorkflowPath string) (*findWorkflowFileResult, error) {
+	dispatchWorkflowValidationLog.Printf("Finding workflow file: name=%s, current_path=%s", workflowName, currentWorkflowPath)
 	result := &findWorkflowFileResult{}
 
 	// Get the current workflow's directory
@@ -288,6 +290,7 @@ func findWorkflowFile(workflowName string, currentWorkflowPath string) (*findWor
 	result.lockExists = fileutil.FileExists(lockPath)
 	result.ymlExists = fileutil.FileExists(ymlPath)
 
+	dispatchWorkflowValidationLog.Printf("Workflow file search results: md_exists=%v, lock_exists=%v, yml_exists=%v", result.mdExists, result.lockExists, result.ymlExists)
 	return result, nil
 }
 
@@ -296,6 +299,7 @@ func findWorkflowFile(workflowName string, currentWorkflowPath string) (*findWor
 // This is used to validate same-batch dispatch-workflow targets whose .lock.yml has
 // not yet been generated.
 func mdHasWorkflowDispatch(mdPath string) (bool, error) {
+	dispatchWorkflowValidationLog.Printf("Checking for workflow_dispatch trigger in: %s", mdPath)
 	content, err := os.ReadFile(mdPath) // #nosec G304 -- mdPath is validated via isPathWithinDir in findWorkflowFile
 	if err != nil {
 		return false, err

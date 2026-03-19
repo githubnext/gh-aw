@@ -1,4 +1,4 @@
-{body}
+{main_body}
 
 ---
 
@@ -25,3 +25,5 @@ git am --3way /tmp/agent-artifacts-{run_id}/{patch_file}
 git push origin {branch_name}
 gh pr create --title '{title}' --base {base_branch} --head {branch_name} --repo {repo}
 ```
+
+{footer}

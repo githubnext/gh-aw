@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"os"
@@ -13,6 +14,9 @@ import (
 )
 
 var pollLog = logger.New("cli:signal_aware_poll")
+
+// ErrInterrupted is returned when polling is interrupted by a signal or context cancellation
+var ErrInterrupted = errors.New("interrupted by user")
 
 // PollResult represents the result of a polling operation
 type PollResult int
@@ -28,13 +32,17 @@ const (
 
 // PollOptions contains configuration for signal-aware polling
 type PollOptions struct {
+	// Context for cancellation (optional, but recommended for proper Ctrl-C handling)
+	Ctx context.Context
 	// Interval between poll attempts
 	PollInterval time.Duration
 	// Timeout for the entire polling operation
 	Timeout time.Duration
-	// Function to call on each poll iteration
-	// Should return PollContinue to keep polling, PollSuccess to succeed, or PollFailure to fail
-	PollFunc func() (PollResult, error)
+	// Function to call on each poll iteration.
+	// The ctx passed to PollFunc is the same context used by the poll loop, so callers can
+	// pass it to context-aware operations (e.g. RunGHContext) to abort mid-call on Ctrl-C.
+	// Should return PollContinue to keep polling, PollSuccess to succeed, or PollFailure to fail.
+	PollFunc func(ctx context.Context) (PollResult, error)
 	// Message to display when polling starts (optional)
 	StartMessage string
 	// Message to display on each poll iteration (optional)
@@ -54,7 +62,14 @@ func PollWithSignalHandling(options PollOptions) error {
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(options.StartMessage))
 	}
 
+	// Use provided context or fall back to background context
+	ctx := options.Ctx
+	if ctx == nil {
+		ctx = context.Background()
+	}
+
 	// Set up signal handling for graceful shutdown
+	// Signal channel provides a fallback when no context is provided or for direct OS signals
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
 	defer signal.Stop(sigChan)
@@ -65,7 +80,7 @@ func PollWithSignalHandling(options PollOptions) error {
 	defer ticker.Stop()
 
 	// Perform initial check immediately
-	result, err := options.PollFunc()
+	result, err := options.PollFunc(ctx)
 	switch result {
 	case PollSuccess:
 		if options.Verbose && options.SuccessMessage != "" {
@@ -79,10 +94,19 @@ func PollWithSignalHandling(options PollOptions) error {
 	// Continue polling
 	for {
 		select {
+		case <-ctx.Done():
+			pollLog.Printf("Context cancelled (%v), stopping poll", ctx.Err())
+			msg := "Operation cancelled, stopping wait..."
+			if err := ctx.Err(); err != nil {
+				msg = fmt.Sprintf("Operation cancelled (%v), stopping wait...", err)
+			}
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(msg))
+			return ErrInterrupted
+
 		case <-sigChan:
 			pollLog.Print("Received interrupt signal")
 			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Received interrupt signal, stopping wait..."))
-			return errors.New("interrupted by user")
+			return ErrInterrupted
 
 		case <-ticker.C:
 			// Check if timeout exceeded
@@ -92,7 +116,7 @@ func PollWithSignalHandling(options PollOptions) error {
 			}
 
 			// Poll for status
-			result, err := options.PollFunc()
+			result, err := options.PollFunc(ctx)
 
 			switch result {
 			case PollSuccess:

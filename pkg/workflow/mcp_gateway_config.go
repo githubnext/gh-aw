@@ -113,8 +113,10 @@ func buildMCPGatewayConfig(workflowData *WorkflowData) *MCPGatewayRuntimeConfig 
 
 	// If sandbox is disabled, skip gateway configuration entirely
 	if isSandboxDisabled(workflowData) {
+		mcpGatewayConfigLog.Print("Sandbox disabled, skipping MCP gateway configuration")
 		return nil
 	}
+	mcpGatewayConfigLog.Print("Building MCP gateway configuration")
 
 	// Ensure default configuration is set
 	ensureDefaultMCPGatewayConfig(workflowData)
@@ -154,5 +156,9 @@ func isAgentSandboxDisabled(workflowData *WorkflowData) bool {
 		return false
 	}
 	// Check if agent sandbox was explicitly disabled via sandbox.agent: false
-	return workflowData.SandboxConfig.Agent != nil && workflowData.SandboxConfig.Agent.Disabled
+	disabled := workflowData.SandboxConfig.Agent != nil && workflowData.SandboxConfig.Agent.Disabled
+	if disabled {
+		mcpGatewayConfigLog.Print("Agent sandbox (firewall) is explicitly disabled via sandbox.agent: false")
+	}
+	return disabled
 }

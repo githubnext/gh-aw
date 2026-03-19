@@ -346,6 +346,8 @@ func renderMCPToolUsageTable(mcpData *MCPToolUsageData) {
 
 // renderFirewallAnalysis renders firewall analysis with summary and domain breakdown
 func renderFirewallAnalysis(analysis *FirewallAnalysis) {
+	auditReportLog.Printf("Rendering firewall analysis: total=%d, allowed=%d, blocked=%d, allowed_domains=%d, blocked_domains=%d",
+		analysis.TotalRequests, analysis.AllowedRequests, analysis.BlockedRequests, len(analysis.AllowedDomains), len(analysis.BlockedDomains))
 	// Summary statistics
 	fmt.Fprintf(os.Stderr, "  Total Requests : %d\n", analysis.TotalRequests)
 	fmt.Fprintf(os.Stderr, "  Allowed        : %d\n", analysis.AllowedRequests)
@@ -377,6 +379,7 @@ func renderFirewallAnalysis(analysis *FirewallAnalysis) {
 
 // renderRedactedDomainsAnalysis renders redacted domains analysis
 func renderRedactedDomainsAnalysis(analysis *RedactedDomainsAnalysis) {
+	auditReportLog.Printf("Rendering redacted domains analysis: total_domains=%d", analysis.TotalDomains)
 	// Summary statistics
 	fmt.Fprintf(os.Stderr, "  Total Domains Redacted: %d\n", analysis.TotalDomains)
 	fmt.Fprintln(os.Stderr)
@@ -422,6 +425,7 @@ func renderCreatedItemsTable(items []CreatedItemReport) {
 
 // renderKeyFindings renders key findings with colored severity indicators
 func renderKeyFindings(findings []Finding) {
+	auditReportLog.Printf("Rendering key findings: total=%d", len(findings))
 	// Group findings by severity for better presentation
 	critical := []Finding{}
 	high := []Finding{}
@@ -497,6 +501,7 @@ func renderKeyFindings(findings []Finding) {
 
 // renderRecommendations renders actionable recommendations
 func renderRecommendations(recommendations []Recommendation) {
+	auditReportLog.Printf("Rendering recommendations: total=%d", len(recommendations))
 	// Group by priority
 	high := []Recommendation{}
 	medium := []Recommendation{}
@@ -548,6 +553,8 @@ func renderRecommendations(recommendations []Recommendation) {
 
 // renderPerformanceMetrics renders performance metrics
 func renderPerformanceMetrics(metrics *PerformanceMetrics) {
+	auditReportLog.Printf("Rendering performance metrics: tokens_per_min=%.1f, cost_efficiency=%s, most_used_tool=%s",
+		metrics.TokensPerMinute, metrics.CostEfficiency, metrics.MostUsedTool)
 	if metrics.TokensPerMinute > 0 {
 		fmt.Fprintf(os.Stderr, "  Tokens per Minute: %.1f\n", metrics.TokensPerMinute)
 	}

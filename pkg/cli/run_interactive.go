@@ -52,7 +52,7 @@ func RunWorkflowInteractively(ctx context.Context, verbose bool, repoOverride st
 	}
 
 	// Step 2: Let user select a workflow
-	selectedWorkflow, err := selectWorkflow(workflows)
+	selectedWorkflow, err := selectWorkflow(ctx, workflows)
 	if err != nil {
 		return fmt.Errorf("workflow selection cancelled or failed: %w", err)
 	}
@@ -63,13 +63,13 @@ func RunWorkflowInteractively(ctx context.Context, verbose bool, repoOverride st
 	showWorkflowInfo(selectedWorkflow)
 
 	// Step 4: Collect workflow inputs if needed
-	inputValues, err := collectWorkflowInputs(selectedWorkflow)
+	inputValues, err := collectWorkflowInputs(ctx, selectedWorkflow)
 	if err != nil {
 		return fmt.Errorf("failed to collect workflow inputs: %w", err)
 	}
 
 	// Step 5: Confirm execution
-	if !confirmExecution(selectedWorkflow, inputValues) {
+	if !confirmExecution(ctx, selectedWorkflow, inputValues) {
 		fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Workflow execution cancelled"))
 		return nil
 	}
@@ -168,7 +168,7 @@ func buildWorkflowDescription(inputs map[string]*workflow.InputDefinition) strin
 }
 
 // selectWorkflow displays an interactive list for workflow selection with fuzzy search
-func selectWorkflow(workflows []WorkflowOption) (*WorkflowOption, error) {
+func selectWorkflow(ctx context.Context, workflows []WorkflowOption) (*WorkflowOption, error) {
 	runInteractiveLog.Printf("Displaying workflow selection: %d workflows", len(workflows))
 
 	// Check if we're in a TTY environment
@@ -192,7 +192,7 @@ func selectWorkflow(workflows []WorkflowOption) (*WorkflowOption, error) {
 		),
 	).WithTheme(styles.HuhTheme()).WithAccessible(console.IsAccessibleMode())
 
-	if err := form.Run(); err != nil {
+	if err := form.RunWithContext(ctx); err != nil {
 		return nil, fmt.Errorf("workflow selection cancelled or failed: %w", err)
 	}
 
@@ -258,17 +258,17 @@ func showWorkflowInfo(wf *WorkflowOption) {
 }
 
 // collectWorkflowInputs collects input values from the user
-func collectWorkflowInputs(wf *WorkflowOption) ([]string, error) {
+func collectWorkflowInputs(ctx context.Context, wf *WorkflowOption) ([]string, error) {
 	if len(wf.Inputs) == 0 {
 		return nil, nil
 	}
 
 	runInteractiveLog.Printf("Collecting %d workflow inputs", len(wf.Inputs))
-	return collectInputsWithMap(wf.Inputs)
+	return collectInputsWithMap(ctx, wf.Inputs)
 }
 
 // collectInputsWithMap collects inputs using a map to properly capture values
-func collectInputsWithMap(inputs map[string]*workflow.InputDefinition) ([]string, error) {
+func collectInputsWithMap(ctx context.Context, inputs map[string]*workflow.InputDefinition) ([]string, error) {
 	// Create a map to store string values for the form
 	inputValues := make(map[string]string)
 	// Create a map to track the string pointers we'll pass to huh
@@ -315,7 +315,7 @@ func collectInputsWithMap(inputs map[string]*workflow.InputDefinition) ([]string
 
 	// Show the form
 	form := huh.NewForm(formGroups...).WithTheme(styles.HuhTheme()).WithAccessible(console.IsAccessibleMode())
-	if err := form.Run(); err != nil {
+	if err := form.RunWithContext(ctx); err != nil {
 		return nil, fmt.Errorf("input collection cancelled: %w", err)
 	}
 
@@ -333,7 +333,7 @@ func collectInputsWithMap(inputs map[string]*workflow.InputDefinition) ([]string
 }
 
 // confirmExecution asks the user to confirm workflow execution
-func confirmExecution(wf *WorkflowOption, inputs []string) bool {
+func confirmExecution(ctx context.Context, wf *WorkflowOption, inputs []string) bool {
 	runInteractiveLog.Print("Requesting execution confirmation")
 
 	var confirm bool
@@ -353,7 +353,7 @@ func confirmExecution(wf *WorkflowOption, inputs []string) bool {
 		),
 	).WithTheme(styles.HuhTheme()).WithAccessible(console.IsAccessibleMode())
 
-	if err := form.Run(); err != nil {
+	if err := form.RunWithContext(ctx); err != nil {
 		runInteractiveLog.Printf("Confirmation failed: %v", err)
 		return false
 	}
@@ -399,13 +399,13 @@ func RunSpecificWorkflowInteractively(ctx context.Context, workflowName string, 
 	}
 
 	// Collect workflow inputs if needed
-	inputValues, err := collectWorkflowInputs(wf)
+	inputValues, err := collectWorkflowInputs(ctx, wf)
 	if err != nil {
 		return fmt.Errorf("failed to collect workflow inputs: %w", err)
 	}
 
 	// Confirm execution (skip if no inputs were collected - user already confirmed they want to run)
-	if len(inputValues) > 0 && !confirmExecution(wf, inputValues) {
+	if len(inputValues) > 0 && !confirmExecution(ctx, wf, inputValues) {
 		fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Workflow execution cancelled"))
 		return nil
 	}
