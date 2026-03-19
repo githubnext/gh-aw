@@ -752,6 +752,34 @@ func TestGenerateAPMPackStepWithEnv(t *testing.T) {
 		aPos := strings.Index(combined, "A_VAR:")
 		mPos := strings.Index(combined, "M_VAR:")
 		zPos := strings.Index(combined, "Z_VAR:")
+		require.NotEqual(t, -1, aPos, "A_VAR should be present in output")
+		require.NotEqual(t, -1, mPos, "M_VAR should be present in output")
+		require.NotEqual(t, -1, zPos, "Z_VAR should be present in output")
 		assert.True(t, aPos < mPos && mPos < zPos, "Env vars should be sorted alphabetically")
+	})
+
+	t.Run("GITHUB_TOKEN in user env is skipped when github-app is configured", func(t *testing.T) {
+		apmDeps := &APMDependenciesInfo{
+			Packages: []string{"acme-org/acme-skills"},
+			GitHubApp: &GitHubAppConfig{
+				AppID:      "${{ vars.APP_ID }}",
+				PrivateKey: "${{ secrets.APP_PRIVATE_KEY }}",
+			},
+			Env: map[string]string{
+				"GITHUB_TOKEN": "should-be-skipped",
+				"OTHER_VAR":    "kept",
+			},
+		}
+		data := &WorkflowData{Name: "test-workflow"}
+		step := GenerateAPMPackStep(apmDeps, "copilot", data)
+
+		require.NotEmpty(t, step, "Step should not be empty")
+		combined := combineStepLines(step)
+
+		assert.Contains(t, combined, "GITHUB_TOKEN: ${{ steps.apm-app-token.outputs.token }}", "Should have GITHUB_TOKEN from app token, not user env")
+		assert.NotContains(t, combined, "should-be-skipped", "User-supplied GITHUB_TOKEN value should be absent")
+		assert.Contains(t, combined, "OTHER_VAR: kept", "Other user env vars should be present")
+		count := strings.Count(combined, "GITHUB_TOKEN:")
+		assert.Equal(t, 1, count, "GITHUB_TOKEN should appear exactly once")
 	})
 }

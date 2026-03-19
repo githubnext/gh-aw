@@ -124,7 +124,9 @@ func GenerateAPMPackStep(apmDeps *APMDependenciesInfo, target string, data *Work
 		"        uses: " + actionRef,
 	}
 
-	// Build env block: GitHub App token (if configured) + user-provided env vars
+	// Build env block: GitHub App token (if configured) + user-provided env vars.
+	// If github-app is configured, GITHUB_TOKEN is set from the minted app token, so any
+	// user-supplied GITHUB_TOKEN key is skipped to avoid a duplicate / conflicting entry.
 	hasGitHubAppToken := apmDeps.GitHubApp != nil
 	hasUserEnv := len(apmDeps.Env) > 0
 	if hasGitHubAppToken || hasUserEnv {
@@ -137,6 +139,10 @@ func GenerateAPMPackStep(apmDeps *APMDependenciesInfo, target string, data *Work
 		if hasUserEnv {
 			keys := make([]string, 0, len(apmDeps.Env))
 			for k := range apmDeps.Env {
+				// Skip GITHUB_TOKEN when github-app provides it to avoid duplicate keys
+				if hasGitHubAppToken && k == "GITHUB_TOKEN" {
+					continue
+				}
 				keys = append(keys, k)
 			}
 			sort.Strings(keys)

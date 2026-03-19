@@ -646,7 +646,7 @@ jobs:
         run: bash ${RUNNER_TEMP}/gh-aw/actions/print_prompt_summary.sh
       - name: Install and pack APM dependencies
         id: apm_pack
-        uses: microsoft/apm-action@24f26ec1cffbaa1aafb770517decbd551d497987 # v1.3.2
+        uses: microsoft/apm-action@83d54a6c7941049210433b16c8dfac573665b12a # v1.3.4
         with:
           dependencies: |
             - microsoft/apm-sample-package
@@ -813,7 +813,7 @@ jobs:
           name: apm
           path: /tmp/gh-aw/apm-bundle
       - name: Restore APM dependencies
-        uses: microsoft/apm-action@24f26ec1cffbaa1aafb770517decbd551d497987 # v1.3.2
+        uses: microsoft/apm-action@83d54a6c7941049210433b16c8dfac573665b12a # v1.3.4
         with:
           bundle: /tmp/gh-aw/apm-bundle/*.tar.gz
           apm-version: ${{ env.GH_AW_INFO_APM_VERSION }}
