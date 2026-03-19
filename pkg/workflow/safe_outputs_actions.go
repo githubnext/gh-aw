@@ -1,0 +1,447 @@
+package workflow
+
+import (
+	"context"
+	"encoding/base64"
+	"encoding/json"
+	"fmt"
+	"os"
+	"path/filepath"
+	"sort"
+	"strings"
+	"time"
+
+	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/stringutil"
+	"go.yaml.in/yaml/v3"
+)
+
+var safeOutputActionsLog = logger.New("workflow:safe_outputs_actions")
+
+// SafeOutputActionConfig holds configuration for a single custom safe output action.
+// Each configured action is resolved at compile time to get its inputs from action.yml,
+// and is mounted as an MCP tool that the AI agent can call once per workflow run.
+type SafeOutputActionConfig struct {
+	Uses        string `yaml:"uses"`
+	Description string `yaml:"description,omitempty"` // optional override of the action's description
+
+	// Computed at compile time (not from frontmatter):
+	ResolvedRef       string                      `yaml:"-"` // Pinned action reference (e.g., "owner/repo@sha # v1")
+	Inputs            map[string]*ActionYAMLInput `yaml:"-"` // Inputs parsed from action.yml
+	ActionDescription string                      `yaml:"-"` // Description from action.yml
+}
+
+// ActionYAMLInput holds an input definition parsed from a GitHub Action's action.yml.
+type ActionYAMLInput struct {
+	Description string `yaml:"description,omitempty"`
+	Required    bool   `yaml:"required,omitempty"`
+	Default     string `yaml:"default,omitempty"`
+}
+
+// actionYAMLFile is the parsed structure of a GitHub Action's action.yml.
+type actionYAMLFile struct {
+	Name        string                      `yaml:"name"`
+	Description string                      `yaml:"description"`
+	Inputs      map[string]*ActionYAMLInput `yaml:"inputs"`
+}
+
+// actionRef holds the parsed components of a GitHub Action `uses` field.
+type actionRef struct {
+	// Repo is the GitHub repository slug (e.g., "owner/repo").
+	Repo string
+	// Subdir is the sub-directory within the repository (e.g., "path/to/action").
+	// Empty string means the action.yml is at the repository root.
+	Subdir string
+	// Ref is the git ref (tag, SHA, or branch) to checkout (e.g., "v1", "main").
+	Ref string
+	// IsLocal is true when the `uses` value is a local path (e.g., "./path/to/action").
+	IsLocal bool
+	// LocalPath is the filesystem path (only set when IsLocal is true).
+	LocalPath string
+}
+
+// parseActionsConfig parses the safe-outputs.actions section from a raw frontmatter map.
+// It returns a map of action names to their configurations.
+func parseActionsConfig(actionsMap map[string]any) map[string]*SafeOutputActionConfig {
+	if actionsMap == nil {
+		return nil
+	}
+
+	result := make(map[string]*SafeOutputActionConfig)
+	for actionName, actionValue := range actionsMap {
+		actionConfigMap, ok := actionValue.(map[string]any)
+		if !ok {
+			safeOutputActionsLog.Printf("Warning: action %q config is not a map, skipping", actionName)
+			continue
+		}
+
+		actionConfig := &SafeOutputActionConfig{}
+
+		if uses, ok := actionConfigMap["uses"].(string); ok {
+			actionConfig.Uses = uses
+		}
+		if description, ok := actionConfigMap["description"].(string); ok {
+			actionConfig.Description = description
+		}
+
+		if actionConfig.Uses == "" {
+			safeOutputActionsLog.Printf("Warning: action %q is missing required 'uses' field, skipping", actionName)
+			continue
+		}
+
+		result[actionName] = actionConfig
+	}
+
+	return result
+}
+
+// parseActionUsesField parses a GitHub Action `uses` field into its components.
+// Supported formats:
+//   - "owner/repo@ref"              -> repo root action
+//   - "owner/repo/subdir@ref"       -> sub-directory action
+//   - "./local/path"                -> local filesystem action
+func parseActionUsesField(uses string) (*actionRef, error) {
+	if strings.HasPrefix(uses, "./") || strings.HasPrefix(uses, "../") {
+		return &actionRef{IsLocal: true, LocalPath: uses}, nil
+	}
+
+	// External action: split on "@" to get ref
+	atIdx := strings.LastIndex(uses, "@")
+	if atIdx < 0 {
+		return nil, fmt.Errorf("invalid action ref %q: missing @ref suffix", uses)
+	}
+
+	refStr := uses[atIdx+1:]
+	repoAndPath := uses[:atIdx]
+
+	// Split repo from subdir: first two path segments are owner/repo
+	parts := strings.SplitN(repoAndPath, "/", 3)
+	if len(parts) < 2 {
+		return nil, fmt.Errorf("invalid action ref %q: expected owner/repo format", uses)
+	}
+
+	repo := parts[0] + "/" + parts[1]
+	var subdir string
+	if len(parts) == 3 {
+		subdir = parts[2]
+	}
+
+	return &actionRef{
+		Repo:   repo,
+		Subdir: subdir,
+		Ref:    refStr,
+	}, nil
+}
+
+// fetchAndParseActionYAML resolves the inputs and description from the action.yml
+// for each configured action. Results are stored in the action config's computed fields.
+// This function should be called before tool generation and step generation.
+func (c *Compiler) fetchAndParseActionYAML(actionName string, config *SafeOutputActionConfig, markdownPath string, data *WorkflowData) {
+	if config.Uses == "" {
+		return
+	}
+
+	ref, err := parseActionUsesField(config.Uses)
+	if err != nil {
+		safeOutputActionsLog.Printf("Warning: failed to parse uses field %q for action %q: %v", config.Uses, actionName, err)
+		return
+	}
+
+	var actionYAML *actionYAMLFile
+	var resolvedRef string
+
+	if ref.IsLocal {
+		actionYAML, err = readLocalActionYAML(ref.LocalPath, markdownPath)
+		if err != nil {
+			safeOutputActionsLog.Printf("Warning: failed to read local action.yml for %q at %s: %v", actionName, ref.LocalPath, err)
+		}
+		resolvedRef = config.Uses // local paths stay as-is
+	} else {
+		// Pin the action ref and fetch the action.yml
+		pinned, pinErr := GetActionPinWithData(ref.Repo, ref.Ref, data)
+		if pinErr != nil {
+			safeOutputActionsLog.Printf("Warning: failed to pin action %q (%s@%s): %v", actionName, ref.Repo, ref.Ref, pinErr)
+			// Fall back to using the original ref
+			resolvedRef = config.Uses
+		} else {
+			resolvedRef = pinned
+		}
+
+		actionYAML, err = fetchRemoteActionYAML(ref.Repo, ref.Subdir, ref.Ref)
+		if err != nil {
+			safeOutputActionsLog.Printf("Warning: failed to fetch action.yml for %q (%s): %v", actionName, config.Uses, err)
+		}
+	}
+
+	config.ResolvedRef = resolvedRef
+
+	if actionYAML != nil {
+		config.Inputs = actionYAML.Inputs
+		config.ActionDescription = actionYAML.Description
+	}
+}
+
+// fetchRemoteActionYAML fetches and parses action.yml from a GitHub repository.
+// It tries both action.yml and action.yaml filenames.
+func fetchRemoteActionYAML(repo, subdir, ref string) (*actionYAMLFile, error) {
+	for _, filename := range []string{"action.yml", "action.yaml"} {
+		var contentPath string
+		if subdir != "" {
+			contentPath = subdir + "/" + filename
+		} else {
+			contentPath = filename
+		}
+
+		apiPath := fmt.Sprintf("/repos/%s/contents/%s?ref=%s", repo, contentPath, ref)
+		safeOutputActionsLog.Printf("Fetching action YAML from: %s", apiPath)
+
+		ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+		cmd := ExecGHContext(ctx, "api", apiPath, "--jq", ".content")
+		output, err := cmd.Output()
+		cancel()
+		if err != nil {
+			safeOutputActionsLog.Printf("Failed to fetch %s from %s@%s: %v", filename, repo, ref, err)
+			continue
+		}
+
+		// GitHub API returns base64-encoded content with newlines
+		b64Content := strings.ReplaceAll(strings.TrimSpace(string(output)), "\\n", "\n")
+		// Remove JSON string quotes if present
+		b64Content = strings.Trim(b64Content, "\"")
+		decoded, decErr := base64.StdEncoding.DecodeString(b64Content)
+		if decErr != nil {
+			safeOutputActionsLog.Printf("Failed to decode content for %s: %v", contentPath, decErr)
+			continue
+		}
+
+		actionYAML, parseErr := parseActionYAMLContent(decoded)
+		if parseErr != nil {
+			safeOutputActionsLog.Printf("Failed to parse %s: %v", contentPath, parseErr)
+			continue
+		}
+
+		return actionYAML, nil
+	}
+
+	return nil, fmt.Errorf("could not find action.yml or action.yaml in %s@%s (subdir=%q)", repo, ref, subdir)
+}
+
+// readLocalActionYAML reads and parses a local action.yml file.
+func readLocalActionYAML(localPath, markdownPath string) (*actionYAMLFile, error) {
+	baseDir := filepath.Dir(markdownPath)
+
+	// Strip leading "./" from the local path
+	cleanPath := strings.TrimPrefix(localPath, "./")
+	actionDir := filepath.Join(baseDir, cleanPath)
+
+	for _, filename := range []string{"action.yml", "action.yaml"} {
+		fullPath := filepath.Join(actionDir, filename)
+		content, err := os.ReadFile(fullPath)
+		if err != nil {
+			continue
+		}
+		return parseActionYAMLContent(content)
+	}
+
+	return nil, fmt.Errorf("could not find action.yml or action.yaml at %s", actionDir)
+}
+
+// parseActionYAMLContent parses raw action.yml YAML content.
+func parseActionYAMLContent(content []byte) (*actionYAMLFile, error) {
+	var parsed actionYAMLFile
+	if err := yaml.Unmarshal(content, &parsed); err != nil {
+		return nil, fmt.Errorf("failed to parse action YAML: %w", err)
+	}
+	return &parsed, nil
+}
+
+// generateActionToolDefinition creates an MCP tool definition for a custom safe output action.
+// The tool name is the normalized action name. Inputs are derived from the action.yml.
+func generateActionToolDefinition(actionName string, config *SafeOutputActionConfig) map[string]any {
+	normalizedName := stringutil.NormalizeSafeOutputIdentifier(actionName)
+
+	description := config.Description
+	if description == "" {
+		description = config.ActionDescription
+	}
+	if description == "" {
+		description = fmt.Sprintf("Run the %s action", actionName)
+	}
+	// Append once-only constraint to description
+	description += " (can only be called once)"
+
+	inputSchema := map[string]any{
+		"type":                 "object",
+		"properties":           make(map[string]any),
+		"additionalProperties": false,
+	}
+
+	var requiredFields []string
+	properties := inputSchema["properties"].(map[string]any)
+
+	if config.Inputs != nil {
+		// Sort for deterministic output
+		inputNames := make([]string, 0, len(config.Inputs))
+		for k := range config.Inputs {
+			inputNames = append(inputNames, k)
+		}
+		sort.Strings(inputNames)
+
+		for _, inputName := range inputNames {
+			inputDef := config.Inputs[inputName]
+			property := map[string]any{
+				"type": "string",
+			}
+			if inputDef.Description != "" {
+				property["description"] = inputDef.Description
+			}
+			if inputDef.Default != "" {
+				property["default"] = inputDef.Default
+			}
+			if inputDef.Required {
+				requiredFields = append(requiredFields, inputName)
+			}
+			properties[inputName] = property
+		}
+	}
+
+	if len(requiredFields) > 0 {
+		sort.Strings(requiredFields)
+		inputSchema["required"] = requiredFields
+	}
+
+	return map[string]any{
+		"name":        normalizedName,
+		"description": description,
+		"inputSchema": inputSchema,
+	}
+}
+
+// buildCustomSafeOutputActionsJSON builds a JSON mapping of normalized action names
+// used for the GH_AW_SAFE_OUTPUT_ACTIONS env var of the handler manager step.
+// This allows the handler manager to load and dispatch messages to action handlers.
+// The map value is the normalized action name (same as key) for future extensibility.
+func buildCustomSafeOutputActionsJSON(data *WorkflowData) string {
+	if data.SafeOutputs == nil || len(data.SafeOutputs.Actions) == 0 {
+		return ""
+	}
+
+	actionMapping := make(map[string]string, len(data.SafeOutputs.Actions))
+	for actionName := range data.SafeOutputs.Actions {
+		normalizedName := stringutil.NormalizeSafeOutputIdentifier(actionName)
+		actionMapping[normalizedName] = normalizedName
+	}
+
+	// Sort keys for deterministic output
+	keys := make([]string, 0, len(actionMapping))
+	for k := range actionMapping {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+
+	ordered := make(map[string]string, len(keys))
+	for _, k := range keys {
+		ordered[k] = actionMapping[k]
+	}
+
+	jsonBytes, err := json.Marshal(ordered)
+	if err != nil {
+		safeOutputActionsLog.Printf("Warning: failed to marshal custom safe output actions: %v", err)
+		return ""
+	}
+	return string(jsonBytes)
+}
+
+// actionOutputKey returns the step output key for a given normalized action name.
+// The handler exports this key and the compiler uses it in step conditions and with: blocks.
+func actionOutputKey(normalizedName string) string {
+	return "action_" + normalizedName + "_payload"
+}
+
+// buildActionSteps generates the YAML steps for all configured safe output actions.
+// Each step:
+//   - Is guarded by an `if:` condition checking the payload output from process_safe_outputs
+//   - Uses the resolved action reference
+//   - Has a `with:` block populated from parsed payload output via fromJSON
+func (c *Compiler) buildActionSteps(data *WorkflowData) []string {
+	if data.SafeOutputs == nil || len(data.SafeOutputs.Actions) == 0 {
+		return nil
+	}
+
+	// Sort action names for deterministic output
+	actionNames := make([]string, 0, len(data.SafeOutputs.Actions))
+	for name := range data.SafeOutputs.Actions {
+		actionNames = append(actionNames, name)
+	}
+	sort.Strings(actionNames)
+
+	var steps []string
+
+	for _, actionName := range actionNames {
+		config := data.SafeOutputs.Actions[actionName]
+		normalizedName := stringutil.NormalizeSafeOutputIdentifier(actionName)
+		outputKey := actionOutputKey(normalizedName)
+
+		// Determine the action reference to use in the step
+		actionRef := config.ResolvedRef
+		if actionRef == "" {
+			// Fall back to original uses value if resolution failed
+			actionRef = config.Uses
+		}
+
+		// Display name: prefer the user description, then action description, then action name
+		displayName := config.Description
+		if displayName == "" {
+			displayName = config.ActionDescription
+		}
+		if displayName == "" {
+			displayName = actionName
+		}
+
+		steps = append(steps, fmt.Sprintf("      - name: %s\n", displayName))
+		steps = append(steps, fmt.Sprintf("        id: action_%s\n", normalizedName))
+		steps = append(steps, fmt.Sprintf("        if: steps.process_safe_outputs.outputs.%s != ''\n", outputKey))
+		steps = append(steps, fmt.Sprintf("        uses: %s\n", actionRef))
+
+		// Build the with: block
+		if len(config.Inputs) > 0 {
+			steps = append(steps, "        with:\n")
+
+			inputNames := make([]string, 0, len(config.Inputs))
+			for k := range config.Inputs {
+				inputNames = append(inputNames, k)
+			}
+			sort.Strings(inputNames)
+
+			for _, inputName := range inputNames {
+				steps = append(steps, fmt.Sprintf("          %s: ${{ fromJSON(steps.process_safe_outputs.outputs.%s).%s }}\n",
+					inputName, outputKey, inputName))
+			}
+		} else {
+			// When inputs couldn't be resolved, pass the raw payload as a single input
+			steps = append(steps, "        with:\n")
+			steps = append(steps, fmt.Sprintf("          payload: ${{ steps.process_safe_outputs.outputs.%s }}\n", outputKey))
+		}
+	}
+
+	return steps
+}
+
+// resolveAllActions fetches action.yml for all configured actions and populates
+// the computed fields (ResolvedRef, Inputs, ActionDescription) in each config.
+// This should be called once during compilation before tool generation and step generation.
+func (c *Compiler) resolveAllActions(data *WorkflowData, markdownPath string) {
+	if data.SafeOutputs == nil || len(data.SafeOutputs.Actions) == 0 {
+		return
+	}
+
+	safeOutputActionsLog.Printf("Resolving %d custom safe output action(s)", len(data.SafeOutputs.Actions))
+	for actionName, config := range data.SafeOutputs.Actions {
+		if config.ResolvedRef != "" {
+			// Already resolved (e.g., called multiple times)
+			continue
+		}
+		c.fetchAndParseActionYAML(actionName, config, markdownPath, data)
+		safeOutputActionsLog.Printf("Resolved action %q: ref=%q, inputs=%d", actionName, config.ResolvedRef, len(config.Inputs))
+	}
+}

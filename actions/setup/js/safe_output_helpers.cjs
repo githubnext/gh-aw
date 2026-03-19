@@ -363,12 +363,44 @@ function loadCustomSafeOutputScriptHandlers() {
   }
 }
 
+/**
+ * Load custom safe output action handlers from environment variable.
+ * These are GitHub Actions configured in safe-outputs.actions that are processed
+ * by compiler-injected `uses:` steps after the handler manager exports their payloads.
+ * The handler manager processes the tool call, applies temporary ID substitutions,
+ * and exports `action_<name>_payload` outputs that the injected steps consume.
+ * @returns {Map<string, string>} Map of normalized action type name to action name (for handler config)
+ */
+function loadCustomSafeOutputActionHandlers() {
+  const safeOutputActionsEnv = process.env.GH_AW_SAFE_OUTPUT_ACTIONS;
+  if (!safeOutputActionsEnv) {
+    return new Map();
+  }
+
+  try {
+    const safeOutputActions = JSON.parse(safeOutputActionsEnv);
+    // The environment variable is a map of normalized action names to themselves
+    const actionHandlers = new Map(Object.entries(safeOutputActions));
+    if (typeof core !== "undefined") {
+      core.debug(`Loaded ${actionHandlers.size} custom safe output action handler(s): ${[...actionHandlers.keys()].join(", ")}`);
+    }
+    return actionHandlers;
+  } catch (error) {
+    if (typeof core !== "undefined") {
+      const { getErrorMessage } = require("./error_helpers.cjs");
+      core.warning(`Failed to parse GH_AW_SAFE_OUTPUT_ACTIONS: ${getErrorMessage(error)}`);
+    }
+    return new Map();
+  }
+}
+
 module.exports = {
   parseAllowedItems,
   parseMaxCount,
   resolveTarget,
   loadCustomSafeOutputJobTypes,
   loadCustomSafeOutputScriptHandlers,
+  loadCustomSafeOutputActionHandlers,
   resolveIssueNumber,
   extractAssignees,
   matchesBlockedPattern,
