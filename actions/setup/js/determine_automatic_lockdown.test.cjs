@@ -222,11 +222,11 @@ describe("determine_automatic_lockdown", () => {
     expect(publicSummaryArg).toContain("<details>");
     expect(publicSummaryArg).toContain("GitHub MCP Guard Policy");
     // Ensure we have a well-formed <details> block with a <summary> and closing </details>
-    expect(publicSummaryArg).toMatch(/<details>[\\s\\S]*<\\/details>/);
-    expect(publicSummaryArg).toMatch(/<summary>[\\s\\S]*GitHub MCP Guard Policy[\\s\\S]*<\\/summary>/);
+    expect(publicSummaryArg).toMatch(/<details>[\s\S]*<\/details>/);
+    expect(publicSummaryArg).toMatch(/<summary>[\s\S]*GitHub MCP Guard Policy[\s\S]*<\/summary>/);
     // Ensure the markdown table header and separator are present
-    expect(publicSummaryArg).toMatch(/\\| *Field *\\| *Value *\\| *Source *\\|/);
-    expect(publicSummaryArg).toMatch(/\\|[- ]+\\|[- ]+\\|[- ]+\\|/);
+    expect(publicSummaryArg).toMatch(/\| *Field *\| *Value *\| *Source *\|/);
+    expect(publicSummaryArg).toMatch(/\|[- ]+\|[- ]+\|[- ]+\|/);
     expect(publicSummaryArg).toContain("min-integrity");
     expect(publicSummaryArg).toContain("approved");
     expect(publicSummaryArg).toContain("automatic (public repo)");
@@ -251,10 +251,10 @@ describe("determine_automatic_lockdown", () => {
     expect(mockCore.summary.addRaw).toHaveBeenCalledTimes(1);
     const configuredSummaryArg = mockCore.summary.addRaw.mock.calls[0][0];
     // Ensure we have a well-formed <details> block with closing </details>
-    expect(configuredSummaryArg).toMatch(/<details>[\\s\\S]*<\\/details>/);
+    expect(configuredSummaryArg).toMatch(/<details>[\s\S]*<\/details>/);
     // Ensure the markdown table header and separator are present
-    expect(configuredSummaryArg).toMatch(/\\| *Field *\\| *Value *\\| *Source *\\|/);
-    expect(configuredSummaryArg).toMatch(/\\|[- ]+\\|[- ]+\\|[- ]+\\|/);
+    expect(configuredSummaryArg).toMatch(/\| *Field *\| *Value *\| *Source *\|/);
+    expect(configuredSummaryArg).toMatch(/\|[- ]+\|[- ]+\|[- ]+\|/);
     expect(configuredSummaryArg).toContain("min-integrity");
     expect(configuredSummaryArg).toContain("merged");
     expect(configuredSummaryArg).toContain("workflow config");
@@ -276,10 +276,10 @@ describe("determine_automatic_lockdown", () => {
     expect(mockCore.summary.addRaw).toHaveBeenCalledTimes(1);
     const privateSummaryArg = mockCore.summary.addRaw.mock.calls[0][0];
     // Ensure we have a well-formed <details> block with closing </details>
-    expect(privateSummaryArg).toMatch(/<details>[\\s\\S]*<\\/details>/);
+    expect(privateSummaryArg).toMatch(/<details>[\s\S]*<\/details>/);
     // Ensure the markdown table header and separator are present
-    expect(privateSummaryArg).toMatch(/\\| *Field *\\| *Value *\\| *Source *\\|/);
-    expect(privateSummaryArg).toMatch(/\\|[- ]+\\|[- ]+\\|[- ]+\\|/);
+    expect(privateSummaryArg).toMatch(/\| *Field *\| *Value *\| *Source *\|/);
+    expect(privateSummaryArg).toMatch(/\|[- ]+\|[- ]+\|[- ]+\|/);
     expect(privateSummaryArg).toContain("min-integrity");
     expect(privateSummaryArg).toContain("none");
     expect(privateSummaryArg).toContain("automatic (private repo)");

@@ -90,19 +90,22 @@ async function determineAutomaticLockdown(github, context, core) {
     const minIntegritySource = configuredMinIntegrity ? "workflow config" : autoLabel;
     const reposSource = configuredRepos ? "workflow config" : autoLabel;
 
-    await core.summary
-      .addRaw("<details>\n<summary>GitHub MCP Guard Policy</summary>\n\n")
-      .addTable([
-        [
-          { data: "Field", header: true },
-          { data: "Value", header: true },
-          { data: "Source", header: true },
-        ],
-        ["min-integrity", resolvedMinIntegrity, minIntegritySource],
-        ["repos", resolvedRepos, reposSource],
-      ])
-      .addRaw("\n</details>\n")
-      .write();
+    /**
+     * Escapes a value for safe embedding in a markdown table cell.
+     * Replaces HTML-special characters and pipe characters that would break the table.
+     * @param {string} value
+     * @returns {string}
+     */
+    const escapeCell = value => value.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/\|/g, "\\|").replace(/\n/g, " ");
+
+    const tableRows = [
+      "| Field | Value | Source |",
+      "|-------|-------|--------|",
+      `| min-integrity | ${escapeCell(resolvedMinIntegrity)} | ${escapeCell(minIntegritySource)} |`,
+      `| repos | ${escapeCell(resolvedRepos)} | ${escapeCell(reposSource)} |`,
+    ].join("\n");
+    const details = `<details>\n<summary>GitHub MCP Guard Policy</summary>\n\n${tableRows}\n\n</details>\n`;
+    await core.summary.addRaw(details).write();
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
     core.error(`Failed to determine automatic guard policy: ${errorMessage}`);
