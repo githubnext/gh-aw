@@ -26,7 +26,7 @@
 #   Imports:
 #     - shared/activation-app.md
 #
-# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"bd9156f0ffeeb4750c881301b6c5db6a9e895a85c1b7469ba212664237dc3f3b","strict":true}
+# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"17771797667713ac9be02e8d82488e686144d32e516fadd663650ae21c06f701","strict":true}
 
 name: "Ubuntu Actions Image Analyzer"
 "on":
@@ -985,7 +985,6 @@ jobs:
           GH_AW_INFERENCE_ACCESS_ERROR: ${{ needs.agent.outputs.inference_access_error }}
           GH_AW_CODE_PUSH_FAILURE_ERRORS: ${{ needs.safe_outputs.outputs.code_push_failure_errors }}
           GH_AW_CODE_PUSH_FAILURE_COUNT: ${{ needs.safe_outputs.outputs.code_push_failure_count }}
-          GH_AW_ACTIVATION_APP_TOKEN_MINTING_FAILED: ${{ needs.activation.outputs.activation_app_token_minting_failed }}
           GH_AW_LOCKDOWN_CHECK_FAILED: ${{ needs.activation.outputs.lockdown_check_failed }}
           GH_AW_GROUP_REPORTS: "false"
           GH_AW_FAILURE_REPORT_AS_ISSUE: "true"
@@ -1062,15 +1061,6 @@ jobs:
             setupGlobals(core, github, context, exec, io);
             const { main } = require('${{ runner.temp }}/gh-aw/actions/check_membership.cjs');
             await main();
-      - name: Generate GitHub App token for skip-if checks
-        id: pre-activation-app-token
-        uses: actions/create-github-app-token@a7f885bf4560200d03183ed941cb6fb072e4b343 # v3.0.0-beta.4
-        with:
-          app-id: ${{ vars.APP_ID }}
-          private-key: ${{ secrets.APP_PRIVATE_KEY }}
-          owner: ${{ github.repository_owner }}
-          repositories: ${{ github.event.repository.name }}
-          github-api-url: ${{ github.api_url }}
       - name: Check skip-if-match query
         id: check_skip_if_match
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
@@ -1079,7 +1069,6 @@ jobs:
           GH_AW_WORKFLOW_NAME: "Ubuntu Actions Image Analyzer"
           GH_AW_SKIP_MAX_MATCHES: "1"
         with:
-          github-token: ${{ steps.pre-activation-app-token.outputs.token }}
           script: |
             const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');
             setupGlobals(core, github, context, exec, io);
