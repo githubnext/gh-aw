@@ -15,13 +15,7 @@ const { tryEnforceArrayLimit } = require("./limit_enforcement_helpers.cjs");
 const { logStagedPreviewInfo } = require("./staged_preview.cjs");
 const { createAuthenticatedGitHubClient } = require("./handler_auth.cjs");
 const { resolveRepoIssueTarget, loadTemporaryIdMapFromResolved } = require("./temporary_id.cjs");
-
-/**
- * Maximum limits for label parameters to prevent resource exhaustion.
- * These limits align with GitHub's API constraints and security best practices.
- */
-/** @type {number} Maximum number of labels allowed per operation */
-const MAX_LABELS = 10;
+const { MAX_LABELS } = require("./constants.cjs");
 
 /**
  * Main handler factory for add_labels

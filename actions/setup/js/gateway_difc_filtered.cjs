@@ -9,9 +9,7 @@
  */
 
 const fs = require("fs");
-
-const GATEWAY_JSONL_PATH = "/tmp/gh-aw/mcp-logs/gateway.jsonl";
-const RPC_MESSAGES_PATH = "/tmp/gh-aw/mcp-logs/rpc-messages.jsonl";
+const { GATEWAY_JSONL_PATH, RPC_MESSAGES_PATH } = require("./constants.cjs");
 
 /**
  * Parses JSONL content and extracts DIFC_FILTERED events
