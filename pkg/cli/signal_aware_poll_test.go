@@ -3,6 +3,7 @@
 package cli
 
 import (
+	"context"
 	"errors"
 	"testing"
 	"time"
@@ -103,4 +104,61 @@ func TestPollWithSignalHandling_SignalInterruption(t *testing.T) {
 
 	// This test just verifies the structure is correct
 	t.Skip("Signal interruption requires manual testing - implementation verified by code review")
+}
+
+// TestPollWithSignalHandling_ContextCancellation verifies that PollWithSignalHandling
+// returns ErrInterrupted when the context is cancelled, enabling proper Ctrl-C propagation.
+func TestPollWithSignalHandling_ContextCancellation(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+
+	pollStarted := make(chan struct{})
+	err := func() error {
+		// Cancel context after poll loop starts its first wait
+		go func() {
+			<-pollStarted
+			cancel()
+		}()
+		return PollWithSignalHandling(PollOptions{
+			Ctx:          ctx,
+			PollInterval: 50 * time.Millisecond,
+			Timeout:      5 * time.Second,
+			PollFunc: func() (PollResult, error) {
+				// Signal that the poll loop is running, then keep returning Continue
+				select {
+				case <-pollStarted:
+				default:
+					close(pollStarted)
+				}
+				return PollContinue, nil
+			},
+			Verbose: false,
+		})
+	}()
+
+	if !errors.Is(err, ErrInterrupted) {
+		t.Errorf("Expected ErrInterrupted on context cancellation, got: %v", err)
+	}
+}
+
+// TestPollWithSignalHandling_AlreadyCancelledContext verifies that PollWithSignalHandling
+// returns ErrInterrupted immediately when given an already-cancelled context.
+func TestPollWithSignalHandling_AlreadyCancelledContext(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel() // cancel before starting
+
+	// The initial PollFunc call might succeed or return Continue, but the
+	// next select iteration should detect ctx.Done() and return ErrInterrupted.
+	err := PollWithSignalHandling(PollOptions{
+		Ctx:          ctx,
+		PollInterval: 10 * time.Millisecond,
+		Timeout:      5 * time.Second,
+		PollFunc: func() (PollResult, error) {
+			return PollContinue, nil
+		},
+		Verbose: false,
+	})
+
+	if !errors.Is(err, ErrInterrupted) {
+		t.Errorf("Expected ErrInterrupted for already-cancelled context, got: %v", err)
+	}
 }
