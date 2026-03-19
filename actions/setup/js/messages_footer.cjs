@@ -11,6 +11,7 @@
 const { getMessages, renderTemplate, toSnakeCase } = require("./messages_core.cjs");
 const { getMissingInfoSections } = require("./missing_messages_helper.cjs");
 const { getBlockedDomains, generateBlockedDomainsSection } = require("./firewall_blocked_domains.cjs");
+const { getDifcFilteredEvents, generateDifcFilteredSection } = require("./gateway_difc_filtered.cjs");
 
 /**
  * @typedef {Object} FooterContext
@@ -280,7 +281,29 @@ function generateFooterWithMessages(workflowName, runUrl, workflowSource, workfl
     historyUrl: historyUrl || undefined,
   };
 
-  let footer = "\n\n" + getFooterMessage(ctx);
+  // Collect guard notices to show BEFORE the attribution footer
+  let guardNotices = "";
+
+  // Add firewall blocked domains section if any domains were blocked
+  const blockedDomains = getBlockedDomains();
+  const blockedDomainsSection = generateBlockedDomainsSection(blockedDomains);
+  if (blockedDomainsSection) {
+    guardNotices += blockedDomainsSection;
+  }
+
+  // Add integrity filtering section if any items were filtered
+  try {
+    const difcFilteredEvents = getDifcFilteredEvents();
+    const difcFilteredSection = generateDifcFilteredSection(difcFilteredEvents);
+    if (difcFilteredSection) {
+      guardNotices += difcFilteredSection;
+    }
+  } catch {
+    // ignore errors so the rest of the footer is always preserved
+  }
+
+  // Attribution footer line comes after any guard notices
+  let footer = guardNotices + "\n\n" + getFooterMessage(ctx);
 
   // Add installation instructions if source is available
   const installMessage = getFooterInstallMessage(ctx);
@@ -292,13 +315,6 @@ function generateFooterWithMessages(workflowName, runUrl, workflowSource, workfl
   const missingInfoSections = getMissingInfoSections();
   if (missingInfoSections) {
     footer += missingInfoSections;
-  }
-
-  // Add firewall blocked domains section if any domains were blocked
-  const blockedDomains = getBlockedDomains();
-  const blockedDomainsSection = generateBlockedDomainsSection(blockedDomains);
-  if (blockedDomainsSection) {
-    footer += blockedDomainsSection;
   }
 
   // Add XML comment marker for traceability

@@ -453,3 +453,116 @@ This should fail validation.
 	require.Error(t, err, "CompileWorkflow() should error when label_command is combined with non-label issues trigger")
 	assert.Contains(t, err.Error(), "label_command", "error should mention label_command")
 }
+
+// TestLabelCommandRemoveLabelDisabled verifies that setting remove_label: false in the object form
+// skips the remove_trigger_label step and omits the label-removal permissions.
+func TestLabelCommandRemoveLabelDisabled(t *testing.T) {
+	tempDir := t.TempDir()
+
+	workflowContent := `---
+name: Label Command No Remove
+on:
+  label_command:
+    name: deploy
+    remove_label: false
+  reaction: none
+  status-comment: false
+engine: copilot
+---
+
+Deploy the application because label "deploy" was added. The label is not removed.
+`
+
+	workflowPath := filepath.Join(tempDir, "label-command-no-remove.md")
+	err := os.WriteFile(workflowPath, []byte(workflowContent), 0644)
+	require.NoError(t, err, "failed to write test workflow")
+
+	compiler := NewCompiler()
+	err = compiler.CompileWorkflow(workflowPath)
+	require.NoError(t, err, "CompileWorkflow() should not error when remove_label is false")
+
+	lockFilePath := stringutil.MarkdownToLockFile(workflowPath)
+	lockContent, err := os.ReadFile(lockFilePath)
+	require.NoError(t, err, "failed to read lock file")
+
+	lockStr := string(lockContent)
+
+	// The remove_trigger_label step should NOT be present
+	assert.NotContains(t, lockStr, "remove_trigger_label",
+		"compiled workflow should NOT contain remove_trigger_label step when remove_label is false")
+
+	// A lightweight get_trigger_label step should be present to safely read the label name
+	assert.Contains(t, lockStr, "get_trigger_label",
+		"compiled workflow should contain get_trigger_label step when remove_label is false")
+
+	// The label_command output should still be present (referencing get_trigger_label step output)
+	var workflow map[string]any
+	err = yaml.Unmarshal(lockContent, &workflow)
+	require.NoError(t, err, "failed to parse lock file as YAML")
+
+	jobs, ok := workflow["jobs"].(map[string]any)
+	require.True(t, ok, "workflow should have jobs")
+
+	activation, ok := jobs["activation"].(map[string]any)
+	require.True(t, ok, "workflow should have an activation job")
+
+	activationOutputs, ok := activation["outputs"].(map[string]any)
+	require.True(t, ok, "activation job should have outputs")
+
+	labelCmdOutput, hasLabelCmdOutput := activationOutputs["label_command"]
+	assert.True(t, hasLabelCmdOutput, "activation job should still have label_command output when remove_label is false")
+	assert.Contains(t, labelCmdOutput, "get_trigger_label",
+		"label_command output should reference get_trigger_label step")
+
+	// A unified command_name output should also be present
+	commandNameOutput, hasCommandName := activationOutputs["command_name"]
+	assert.True(t, hasCommandName, "activation job should have a unified command_name output when remove_label is false")
+	assert.Contains(t, commandNameOutput, "get_trigger_label",
+		"command_name output should reference get_trigger_label step")
+
+	// When reactions and status-comment are also disabled, issues:write should NOT be present
+	// since it was only needed for label removal.
+	activationPerms, hasPerms := activation["permissions"].(map[string]any)
+	if hasPerms {
+		issuesPerm, hasIssues := activationPerms["issues"]
+		if hasIssues {
+			assert.NotEqual(t, "write", issuesPerm,
+				"activation job should not have issues:write when remove_label, reaction, and status_comment are all disabled")
+		}
+	}
+}
+
+// TestLabelCommandRemoveLabelDefaultTrue verifies that the default behavior (remove_label not specified)
+// still removes the label, preserving backward compatibility.
+func TestLabelCommandRemoveLabelDefaultTrue(t *testing.T) {
+	tempDir := t.TempDir()
+
+	workflowContent := `---
+name: Label Command Default Remove
+on:
+  label_command:
+    name: deploy
+engine: copilot
+---
+
+Deploy the application because label "deploy" was added.
+`
+
+	workflowPath := filepath.Join(tempDir, "label-command-default-remove.md")
+	err := os.WriteFile(workflowPath, []byte(workflowContent), 0644)
+	require.NoError(t, err, "failed to write test workflow")
+
+	compiler := NewCompiler()
+	err = compiler.CompileWorkflow(workflowPath)
+	require.NoError(t, err, "CompileWorkflow() should not error")
+
+	lockFilePath := stringutil.MarkdownToLockFile(workflowPath)
+	lockContent, err := os.ReadFile(lockFilePath)
+	require.NoError(t, err, "failed to read lock file")
+
+	lockStr := string(lockContent)
+
+	// The remove_trigger_label step should be present (default behavior)
+	assert.Contains(t, lockStr, "remove_trigger_label",
+		"compiled workflow should contain remove_trigger_label step when remove_label is not specified (default true)")
+}
