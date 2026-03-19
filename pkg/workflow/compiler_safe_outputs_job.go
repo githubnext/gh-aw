@@ -549,6 +549,7 @@ func generateSafeOutputScriptContent(scriptName string, scriptConfig *SafeScript
 	sb.WriteString("// @ts-check\n")
 	sb.WriteString("/// <reference types=\"./safe-output-script\" />\n")
 	sb.WriteString("// Auto-generated safe-output script handler: " + scriptName + "\n\n")
+	sb.WriteString("const { sanitizeContent } = require(\"./sanitize_content.cjs\");\n\n")
 	sb.WriteString("/** @type {import('./types/safe-output-script').SafeOutputScriptMain} */\n")
 	sb.WriteString("async function main(config = {}) {\n")
 

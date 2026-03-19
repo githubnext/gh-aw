@@ -264,6 +264,7 @@ func TestGenerateSafeOutputScriptContent(t *testing.T) {
 
 	assert.Contains(t, content, "// @ts-check", "Should include ts-check pragma")
 	assert.Contains(t, content, "/// <reference types=\"./safe-output-script\" />", "Should include type reference")
+	assert.Contains(t, content, "const { sanitizeContent } = require(\"./sanitize_content.cjs\");", "Should require sanitizeContent")
 	assert.Contains(t, content, "/** @type {import('./types/safe-output-script').SafeOutputScriptMain} */", "Should include type annotation for main")
 	assert.Contains(t, content, "// Auto-generated safe-output script handler: my-handler", "Should have comment header")
 	assert.Contains(t, content, "async function main(config = {}) {", "Should wrap with main function")
@@ -273,15 +274,17 @@ func TestGenerateSafeOutputScriptContent(t *testing.T) {
 	assert.Contains(t, content, "module.exports = { main };", "Should include module.exports")
 
 	// Verify the overall structure:
-	// header → main() { destructuring → handler { body } } → exports
+	// header → sanitizeContent require → main() { destructuring → handler { body } } → exports
 	headerIdx := strings.Index(content, "// Auto-generated")
+	requireIdx := strings.Index(content, "const { sanitizeContent }")
 	mainIdx := strings.Index(content, "async function main")
 	destructureIdx := strings.Index(content, "const { channel")
 	handlerIdx := strings.Index(content, "return async function handle")
 	bodyIdx := strings.Index(content, "    core.info")
 	exportsIdx := strings.Index(content, "module.exports")
 
-	assert.Less(t, headerIdx, mainIdx, "Header should precede main")
+	assert.Less(t, headerIdx, requireIdx, "Header should precede sanitizeContent require")
+	assert.Less(t, requireIdx, mainIdx, "sanitizeContent require should precede main")
 	assert.Less(t, mainIdx, destructureIdx, "main() should precede config destructuring")
 	assert.Less(t, destructureIdx, handlerIdx, "Config destructuring should precede handler function")
 	assert.Less(t, handlerIdx, bodyIdx, "Handler function should precede user body")
@@ -295,7 +298,8 @@ func TestGenerateSafeOutputScriptContentNoInputs(t *testing.T) {
 	}
 	content := generateSafeOutputScriptContent("simple-handler", scriptConfig)
 
-	assert.NotContains(t, content, "const {", "Should not destructure when no inputs declared")
+	assert.Contains(t, content, "const { sanitizeContent } = require(\"./sanitize_content.cjs\");", "Should always require sanitizeContent")
+	assert.NotContains(t, content, "= config;", "Should not destructure config inputs when no inputs declared")
 	assert.Contains(t, content, "return async function handleSimpleHandler(item, resolvedTemporaryIds, temporaryIdMap) {", "Should still generate handler function")
 	assert.Contains(t, content, "    return { success: true };", "Should indent user body by 4 spaces")
 }
