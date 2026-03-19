@@ -204,10 +204,15 @@ func fetchRemoteActionYAML(repo, subdir, ref string) (*actionYAMLFile, error) {
 			continue
 		}
 
-		// GitHub API returns base64-encoded content with newlines
-		b64Content := strings.ReplaceAll(strings.TrimSpace(string(output)), "\\n", "\n")
-		// Remove JSON string quotes if present
-		b64Content = strings.Trim(b64Content, "\"")
+		// GitHub API returns base64-encoded content with embedded newlines (line-wrapping every ~76 chars).
+		// The `gh api --jq .content` output is a raw string value (no surrounding quotes).
+		// We strip all whitespace (newlines and spaces) from the base64 string before decoding.
+		b64Content := strings.Map(func(r rune) rune {
+			if r == '\n' || r == '\r' || r == ' ' {
+				return -1 // remove character
+			}
+			return r
+		}, strings.TrimSpace(string(output)))
 		decoded, decErr := base64.StdEncoding.DecodeString(b64Content)
 		if decErr != nil {
 			safeOutputActionsLog.Printf("Failed to decode content for %s: %v", contentPath, decErr)

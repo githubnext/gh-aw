@@ -9,6 +9,15 @@ const { replaceTemporaryIdReferences } = require("./temporary_id.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 
 /**
+ * Internal safe-output message fields that should not be forwarded as action inputs.
+ * These fields are part of the safe-output messaging protocol and are not user-defined.
+ * Maintained as an explicit set so future protocol fields can be added without silently
+ * forwarding them to external action `with:` inputs.
+ * @type {Set<string>}
+ */
+const INTERNAL_MESSAGE_FIELDS = new Set(["type"]);
+
+/**
  * Main handler factory for a custom safe output action.
  *
  * Each configured safe-output action gets its own instance of this factory function,
@@ -65,8 +74,10 @@ async function main(config = {}) {
       // are passed through as-is.
       const processedInputs = {};
       for (const [key, value] of Object.entries(message)) {
-        // Skip internal fields that are not action inputs
-        if (key === "type") {
+        // Skip internal safe-output messaging fields that are not action inputs.
+        // Maintained as an explicit set to allow future additions without silently
+        // forwarding new internal fields to external action steps.
+        if (INTERNAL_MESSAGE_FIELDS.has(key)) {
           continue;
         }
 
