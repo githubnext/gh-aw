@@ -475,6 +475,13 @@ func RunWorkflowTrials(ctx context.Context, workflowSpecs []string, opts TrialOp
 
 			// Wait for workflow completion
 			if err := WaitForWorkflowCompletion(ctx, hostRepoSlug, runID, opts.TimeoutMinutes, opts.Verbose); err != nil {
+				// If the context was canceled or its deadline was exceeded, return that directly
+				if ctxErr := ctx.Err(); ctxErr != nil {
+					return ctxErr
+				}
+				if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+					return err
+				}
 				return fmt.Errorf("workflow '%s' execution failed or timed out: %w", parsedSpec.WorkflowName, err)
 			}
 
