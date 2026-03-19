@@ -143,7 +143,7 @@ The YAML frontmatter supports these fields:
   - Available permissions: `contents`, `issues`, `pull-requests`, `discussions`, `actions`, `checks`, `statuses`, `models`, `deployments`, `security-events`
 
 - **`runs-on:`** - Runner type (string, array, or object)
-- **`timeout-minutes:`** - Workflow timeout (integer, has sensible default and can typically be omitted)
+- **`timeout-minutes:`** - Agent execution step timeout in minutes (integer, defaults to 20 minutes; custom jobs and safe-output jobs use the GitHub Actions platform default of 360 minutes unless explicitly set)
 - **`concurrency:`** - Concurrency control (string or object)
 - **`env:`** - Environment variables (object or string)
 - **`if:`** - Conditional execution expression (string)
