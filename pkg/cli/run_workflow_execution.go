@@ -353,7 +353,7 @@ func RunWorkflowOnGitHub(ctx context.Context, workflowIdOrName string, opts RunO
 	}
 
 	// Execute gh workflow run command and capture output
-	cmd := workflow.ExecGH(args...)
+	cmd := workflow.ExecGHContext(ctx, args...)
 
 	if opts.Verbose {
 		var cmdParts []string
@@ -460,7 +460,11 @@ func RunWorkflowOnGitHub(ctx context.Context, workflowIdOrName string, opts RunO
 				}
 
 				runIDStr := strconv.FormatInt(runInfo.DatabaseID, 10)
-				if err := WaitForWorkflowCompletion(targetRepo, runIDStr, 30, opts.Verbose); err != nil {
+				if err := WaitForWorkflowCompletion(ctx, targetRepo, runIDStr, 30, opts.Verbose); err != nil {
+					// Propagate interrupts/cancellation so the caller (repeat loop) can stop
+					if ctx.Err() != nil || errors.Is(err, ErrInterrupted) {
+						return err
+					}
 					if opts.AutoMergePRs {
 						fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Workflow did not complete successfully, skipping auto-merge: %v", err)))
 					} else {
@@ -610,6 +614,7 @@ func RunWorkflowsOnGitHub(ctx context.Context, workflowNames []string, opts RunO
 
 	// Execute workflows with optional repeat functionality
 	return ExecuteWithRepeat(RepeatOptions{
+		Ctx:           ctx,
 		RepeatCount:   opts.RepeatCount,
 		RepeatMessage: "Repeating workflow run",
 		ExecuteFunc:   runAllWorkflows,

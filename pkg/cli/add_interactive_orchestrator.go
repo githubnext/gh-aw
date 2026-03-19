@@ -17,6 +17,7 @@ var addInteractiveLog = logger.New("cli:add_interactive")
 
 // AddInteractiveConfig holds configuration for interactive add mode
 type AddInteractiveConfig struct {
+	Ctx             context.Context // Context for cancellation (Ctrl-C handling)
 	WorkflowSpecs   []string
 	Verbose         bool
 	EngineOverride  string
@@ -71,6 +72,7 @@ func RunAddInteractive(ctx context.Context, workflowSpecs []string, verbose bool
 	}
 
 	config := &AddInteractiveConfig{
+		Ctx:             ctx,
 		WorkflowSpecs:   workflowSpecs,
 		Verbose:         verbose,
 		EngineOverride:  engineOverride,
@@ -231,7 +233,7 @@ func (c *AddInteractiveConfig) confirmChanges(workflowFiles, initFiles []string,
 		),
 	).WithTheme(styles.HuhTheme()).WithAccessible(console.IsAccessibleMode())
 
-	if err := form.Run(); err != nil {
+	if err := form.RunWithContext(c.Ctx); err != nil {
 		return fmt.Errorf("confirmation failed: %w", err)
 	}
 

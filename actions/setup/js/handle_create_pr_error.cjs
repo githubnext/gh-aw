@@ -3,9 +3,7 @@
 
 const { sanitizeContent } = require("./sanitize_content.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
-
-/** @type {string} FAQ link for the "GitHub Actions is not permitted to create or approve pull requests" error */
-const FAQ_CREATE_PR_PERMISSIONS_URL = "https://github.github.com/gh-aw/reference/faq/#why-is-my-create-pull-request-workflow-failing-with-github-actions-is-not-permitted-to-create-or-approve-pull-requests";
+const { FAQ_CREATE_PR_PERMISSIONS_URL } = require("./constants.cjs");
 
 /**
  * Handle create_pull_request permission errors

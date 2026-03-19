@@ -18,16 +18,7 @@ const { ERR_VALIDATION } = require("./error_codes.cjs");
 const { parseBoolTemplatable } = require("./templatable.cjs");
 const { buildWorkflowRunUrl } = require("./workflow_metadata_helpers.cjs");
 const { generateHistoryUrl } = require("./generate_history_link.cjs");
-
-/**
- * Maximum limits for issue update parameters to prevent resource exhaustion.
- * These limits align with GitHub's API constraints and security best practices.
- */
-/** @type {number} Maximum number of labels allowed per issue */
-const MAX_LABELS = 10;
-
-/** @type {number} Maximum number of assignees allowed per issue */
-const MAX_ASSIGNEES = 5;
+const { MAX_LABELS, MAX_ASSIGNEES } = require("./constants.cjs");
 
 /**
  * Execute the issue update API call

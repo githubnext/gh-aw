@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"os/signal"
@@ -16,6 +17,8 @@ var retryLog = logger.New("cli:retry")
 
 // RepeatOptions contains configuration for the repeat functionality
 type RepeatOptions struct {
+	// Context for cancellation (optional, but recommended for proper Ctrl-C handling)
+	Ctx context.Context
 	// Number of times to repeat execution (0 = run once)
 	RepeatCount int
 	// Message to display when starting repeat mode
@@ -60,25 +63,41 @@ func ExecuteWithRepeat(options RepeatOptions) error {
 	}
 	fmt.Fprintln(output, console.FormatInfoMessage(startMsg))
 
+	// Use provided context or fall back to background context
+	ctx := options.Ctx
+	if ctx == nil {
+		ctx = context.Background()
+	}
+
 	// Set up signal handling for graceful shutdown
+	// Signal channel provides a fallback when no context is provided or for direct OS signals
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
 	defer signal.Stop(sigChan)
 
+	// runCleanup executes the optional cleanup function
+	runCleanup := func() {
+		if options.CleanupFunc != nil {
+			retryLog.Print("Executing cleanup function")
+			options.CleanupFunc()
+		}
+	}
+
 	// Run the specified number of additional times
 	for i := 1; i <= options.RepeatCount; i++ {
 		select {
+		case <-ctx.Done():
+			retryLog.Printf("Context cancelled at iteration %d/%d", i, options.RepeatCount)
+			fmt.Fprintln(output, console.FormatInfoMessage("Received interrupt signal, stopping repeat..."))
+			runCleanup()
+			return ctx.Err()
+
 		case <-sigChan:
 			retryLog.Printf("Interrupt signal received at iteration %d/%d", i, options.RepeatCount)
 			fmt.Fprintln(output, console.FormatInfoMessage("Received interrupt signal, stopping repeat..."))
+			runCleanup()
+			return context.Canceled
 
-			// Execute cleanup function if provided
-			if options.CleanupFunc != nil {
-				retryLog.Print("Executing cleanup function")
-				options.CleanupFunc()
-			}
-
-			return nil
 		default:
 			retryLog.Printf("Starting iteration %d/%d", i, options.RepeatCount)
 			// Use provided repeat message or default
