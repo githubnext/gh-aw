@@ -33,7 +33,7 @@ function parseGatewayJsonlForDifcFiltered(jsonlContent) {
   const lines = jsonlContent.split("\n");
   for (const line of lines) {
     const trimmed = line.trim();
-    if (!trimmed) continue;
+    if (!trimmed || !trimmed.includes("DIFC_FILTERED")) continue;
     try {
       const entry = JSON.parse(trimmed);
       if (entry.type === "DIFC_FILTERED") {
