@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"os"
@@ -34,6 +35,8 @@ type SecretRequirement struct {
 
 // EngineSecretConfig contains configuration for engine secret collection operations
 type EngineSecretConfig struct {
+	// Ctx is the context for cancellation (optional, but recommended for proper Ctrl-C handling)
+	Ctx context.Context
 	// RepoSlug is the repository slug to check for existing secrets (optional)
 	RepoSlug string
 	// Engine is the engine type to collect secrets for (e.g., "copilot", "claude", "codex")
@@ -169,6 +172,14 @@ func getMissingRequiredSecrets(requirements []SecretRequirement, existingSecrets
 		}
 	}
 	return missing
+}
+
+// ctx returns the context from the config, defaulting to background if nil
+func (c EngineSecretConfig) ctx() context.Context {
+	if c.Ctx != nil {
+		return c.Ctx
+	}
+	return context.Background()
 }
 
 // checkAndEnsureEngineSecretsForEngine is the unified entry point for checking and collecting engine secrets.
@@ -310,7 +321,7 @@ func promptForCopilotPATUnified(req SecretRequirement, config EngineSecretConfig
 		),
 	).WithTheme(styles.HuhTheme()).WithAccessible(console.IsAccessibleMode())
 
-	if err := form.Run(); err != nil {
+	if err := form.RunWithContext(config.ctx()); err != nil {
 		return fmt.Errorf("failed to get Copilot token: %w", err)
 	}
 
@@ -358,7 +369,7 @@ func promptForSystemTokenUnified(req SecretRequirement, config EngineSecretConfi
 		),
 	).WithTheme(styles.HuhTheme()).WithAccessible(console.IsAccessibleMode())
 
-	if err := form.Run(); err != nil {
+	if err := form.RunWithContext(config.ctx()); err != nil {
 		return fmt.Errorf("failed to get %s token: %w", req.Name, err)
 	}
 
@@ -411,7 +422,7 @@ func promptForGenericAPIKeyUnified(req SecretRequirement, config EngineSecretCon
 		),
 	).WithTheme(styles.HuhTheme()).WithAccessible(console.IsAccessibleMode())
 
-	if err := form.Run(); err != nil {
+	if err := form.RunWithContext(config.ctx()); err != nil {
 		return fmt.Errorf("failed to get %s API key: %w", label, err)
 	}
 

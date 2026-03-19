@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"os"
@@ -13,6 +14,9 @@ import (
 )
 
 var pollLog = logger.New("cli:signal_aware_poll")
+
+// ErrInterrupted is returned when polling is interrupted by a signal or context cancellation
+var ErrInterrupted = errors.New("interrupted by user")
 
 // PollResult represents the result of a polling operation
 type PollResult int
@@ -28,6 +32,8 @@ const (
 
 // PollOptions contains configuration for signal-aware polling
 type PollOptions struct {
+	// Context for cancellation (optional, but recommended for proper Ctrl-C handling)
+	Ctx context.Context
 	// Interval between poll attempts
 	PollInterval time.Duration
 	// Timeout for the entire polling operation
@@ -54,7 +60,14 @@ func PollWithSignalHandling(options PollOptions) error {
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(options.StartMessage))
 	}
 
+	// Use provided context or fall back to background context
+	ctx := options.Ctx
+	if ctx == nil {
+		ctx = context.Background()
+	}
+
 	// Set up signal handling for graceful shutdown
+	// Signal channel provides a fallback when no context is provided or for direct OS signals
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
 	defer signal.Stop(sigChan)
@@ -79,10 +92,15 @@ func PollWithSignalHandling(options PollOptions) error {
 	// Continue polling
 	for {
 		select {
+		case <-ctx.Done():
+			pollLog.Print("Context cancelled, stopping poll")
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Received interrupt signal, stopping wait..."))
+			return ErrInterrupted
+
 		case <-sigChan:
 			pollLog.Print("Received interrupt signal")
 			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Received interrupt signal, stopping wait..."))
-			return errors.New("interrupted by user")
+			return ErrInterrupted
 
 		case <-ticker.C:
 			// Check if timeout exceeded

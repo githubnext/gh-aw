@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -116,12 +117,13 @@ func AutoMergePullRequestsLegacy(repoSlug string, verbose bool) error {
 }
 
 // WaitForWorkflowCompletion waits for a workflow run to complete, with a specified timeout
-func WaitForWorkflowCompletion(repoSlug, runID string, timeoutMinutes int, verbose bool) error {
+func WaitForWorkflowCompletion(ctx context.Context, repoSlug, runID string, timeoutMinutes int, verbose bool) error {
 	prAutomergeLog.Printf("Waiting for workflow completion: repo=%s, runID=%s, timeout=%d minutes", repoSlug, runID, timeoutMinutes)
 
 	timeout := time.Duration(timeoutMinutes) * time.Minute
 
 	return PollWithSignalHandling(PollOptions{
+		Ctx:          ctx,
 		PollInterval: 10 * time.Second,
 		Timeout:      timeout,
 		PollFunc: func() (PollResult, error) {

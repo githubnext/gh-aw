@@ -3,6 +3,7 @@
 package cli
 
 import (
+	"context"
 	"testing"
 )
 
@@ -16,7 +17,7 @@ func TestWaitForWorkflowCompletionUsesSignalHandling(t *testing.T) {
 	// but we can verify that the timeout mechanism works, which confirms
 	// it's using the polling helper
 
-	err := WaitForWorkflowCompletion("nonexistent/repo", "12345", 0, false)
+	err := WaitForWorkflowCompletion(context.Background(), "nonexistent/repo", "12345", 0, false)
 
 	// Should timeout or fail to check workflow status
 	if err == nil {
