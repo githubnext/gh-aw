@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
+	"runtime"
 	"strings"
 
 	"golang.org/x/mod/semver"
@@ -76,6 +78,25 @@ func upgradeExtensionIfOutdated(verbose bool) (bool, error) {
 	// A newer version is available – upgrade automatically
 	updateExtensionCheckLog.Printf("Upgrading extension from %s to %s", currentVersion, latestVersion)
 	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Upgrading gh-aw extension from %s to %s...", currentVersion, latestVersion)))
+
+	// On Linux (including WSL), the kernel returns ETXTBSY when any process
+	// tries to open a currently-executing binary for writing. Removing the
+	// directory entry (unlink) first avoids this: the inode stays alive while
+	// this process is running, but the path is now free for gh to write the
+	// newly-downloaded binary.
+	if runtime.GOOS == "linux" {
+		if exe, err := os.Executable(); err == nil {
+			// Resolve any symlink so we remove the real file, not just a link.
+			if resolved, resolveErr := filepath.EvalSymlinks(exe); resolveErr == nil {
+				exe = resolved
+			}
+			if rmErr := os.Remove(exe); rmErr != nil {
+				updateExtensionCheckLog.Printf("Could not pre-remove executable before upgrade (upgrade may still fail): %v", rmErr)
+			} else {
+				updateExtensionCheckLog.Printf("Pre-removed executable to avoid ETXTBSY on Linux: %s", exe)
+			}
+		}
+	}
 
 	cmd := exec.Command("gh", "extension", "upgrade", "github/gh-aw")
 	cmd.Stdout = os.Stderr
