@@ -559,6 +559,17 @@ Even if one layer is compromised, multiple additional security controls remain i
 - Safe outputs for write operations
 - Explicit permission grants
 
+**Supply Chain Integrity:**
+
+- Classic: GitHub Actions pinned to commit SHAs at compile time
+- Agentic: Protected files guard CI/CD configuration from tampering
+
+**GitHub Guard:**
+
+- `min-integrity` restricts agent access by content trust level
+- Secrecy & integrity metadata on safe output messages
+- Automatic `min-integrity: approved` for public repositories
+
 **Monitoring:**
 
 - Threat detection
