@@ -407,7 +407,7 @@ var SerenaLanguageSupport = map[string][]string{
 }
 
 // DefaultAPMVersion is the default version of the microsoft/APM (Agent Package Manager) CLI
-const DefaultAPMVersion Version = "v0.8.0"
+const DefaultAPMVersion Version = "v0.8.2"
 
 // DefaultPlaywrightMCPVersion is the default version of the @playwright/mcp package
 const DefaultPlaywrightMCPVersion Version = "0.0.68"
@@ -696,6 +696,7 @@ const CheckSkipIfMatchStepID StepID = "check_skip_if_match"
 const CheckSkipIfNoMatchStepID StepID = "check_skip_if_no_match"
 const CheckCommandPositionStepID StepID = "check_command_position"
 const RemoveTriggerLabelStepID StepID = "remove_trigger_label"
+const GetTriggerLabelStepID StepID = "get_trigger_label"
 const CheckRateLimitStepID StepID = "check_rate_limit"
 const CheckSkipRolesStepID StepID = "check_skip_roles"
 const CheckSkipBotsStepID StepID = "check_skip_bots"

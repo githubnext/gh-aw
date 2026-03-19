@@ -18,6 +18,59 @@ mermaid.initialize({ startOnLoad: true });
 
 ---
 
+# Software Engineer → Agentic Engineer
+
+| Software Engineer | Agentic Engineer |
+|---|---|
+| Writes code manually | Writes prompts & workflows |
+| Reviews PRs | Reviews agent outputs |
+| Runs CI/CD pipelines | Orchestrates AI agents |
+| Debugging code | Debugging agent behavior |
+
+> The role evolves: from coding to orchestrating intelligent agents
+
+---
+
+# Agentic Human Processes
+
+## Humans and AI collaborate at every stage
+
+- **Author** — Write natural language workflows
+- **Reviewer** — Approve plans and validate outputs
+- **Supervisor** — Monitor running agents and handle exceptions
+- **Debugger** — Diagnose workflow behavior and improve prompts
+
+> The human stays in the loop while AI handles execution
+
+---
+
+# Pull Request Process
+
+<pre class="mermaid">
+flowchart TD
+    PR["Pull Request Opened"] --> Activation["Activation Job\nAuthorize & Sanitize"]
+    Activation --> Agent["Agent Job\nAnalyze Changes"]
+    Agent --> SafeOutput["Safe Outputs Job\nPost Comment / Review"]
+    SafeOutput --> Human{"Human Review"}
+    Human -->|Approve| Merge["Merge PR"]
+    Human -->|"Request Changes"| Agent
+</pre>
+
+---
+
+# Research → Plan → Act
+
+<pre class="mermaid">
+flowchart LR
+    Research["Research\nGather context\nAnalyze codebase"] --> Plan["Plan\nDefine approach\nCreate checklist"]
+    Plan --> Act["Act\nImplement changes\nCreate PR"]
+    Act --> Human{"Human Review"}
+    Human -->|Approved| Done["Done ✓"]
+    Human -->|"Revise"| Research
+</pre>
+
+---
+
 # Continuous Integration to Continuous AI
 
 - **Accessibility review** - Automated WCAG compliance checks
@@ -85,6 +138,54 @@ AI agents become risky when they combine **three capabilities** at once:
 - **External communication**
 
 > <https://simonw.substack.com/p/the-lethal-trifecta-for-ai-agents>
+
+---
+
+# Useful Sandboxes: The Philosophy
+
+## Safe by design. Useful by default.
+
+---
+
+# From Scratch to MakeCode
+
+## Kid dev environments got here first
+
+- **Scratch** — Block-based coding (MIT) — can't break anything important
+- **MakeCode / pxt** — Hardware + game programming for beginners
+- **BASIC** — First language for a generation of developers
+
+These environments share one superpower:
+
+> You're protected from catastrophe — and you can still build something **real and delightful**
+
+---
+
+# What Makes a Sandbox "Useful"?
+
+## The beginner runtime principles
+
+- **Guardrails without walls** — protected, not trapped
+- **Immediate feedback** — actions produce visible results
+- **Progressive disclosure** — start simple, grow into complexity
+- **Real outputs** — even beginners ship something that matters
+- **Delight** — the sandbox feels like a superpower, not a restriction
+
+> The best sandboxes don't limit what's possible — they shape *how* it's possible
+
+---
+
+# Applying These Principles to Agentic Workflows
+
+| Beginner Runtime | Agentic Workflows |
+|---|---|
+| Runs in the browser | Container isolation |
+| Safe defaults | Read-only permissions |
+| Guardrailed actions | Safe outputs |
+| Real outputs | Issues, PRs, comments |
+| Delightful UX | Natural language workflows |
+
+> Same philosophy, enterprise scale
 
 ---
 
@@ -505,6 +606,17 @@ Even if one layer is compromised, multiple additional security controls remain i
 - Read-only by default
 - Safe outputs for write operations
 - Explicit permission grants
+
+**Supply Chain Integrity:**
+
+- Classic: GitHub Actions pinned to commit SHAs at compile time
+- Agentic: Protected files guard CI/CD configuration from tampering
+
+**GitHub Guard:**
+
+- `min-integrity` restricts agent access by content trust level
+- Secrecy & integrity metadata on safe output messages
+- Automatic `min-integrity: approved` for public repositories
 
 **Monitoring:**
 

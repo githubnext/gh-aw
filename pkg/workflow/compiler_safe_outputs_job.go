@@ -504,7 +504,7 @@ func buildDetectionSuccessCondition() ConditionNode {
 // prefix is prepended to the artifact name; use empty string for non-workflow_call workflows.
 func buildSafeOutputItemsManifestUploadStep(prefix string) []string {
 	return []string{
-		"      - name: Upload Safe Output Items Manifest\n",
+		"      - name: Upload Safe Outputs Items Manifest\n",
 		"        if: always()\n",
 		fmt.Sprintf("        uses: %s\n", GetActionPin("actions/upload-artifact")),
 		"        with:\n",
@@ -549,6 +549,7 @@ func generateSafeOutputScriptContent(scriptName string, scriptConfig *SafeScript
 	sb.WriteString("// @ts-check\n")
 	sb.WriteString("/// <reference types=\"./safe-output-script\" />\n")
 	sb.WriteString("// Auto-generated safe-output script handler: " + scriptName + "\n\n")
+	sb.WriteString("const { sanitizeContent } = require(\"./sanitize_content.cjs\");\n\n")
 	sb.WriteString("/** @type {import('./types/safe-output-script').SafeOutputScriptMain} */\n")
 	sb.WriteString("async function main(config = {}) {\n")
 
@@ -599,7 +600,7 @@ func buildCustomScriptFilesStep(scripts map[string]*SafeScriptConfig) []string {
 	sort.Strings(scriptNames)
 
 	var steps []string
-	steps = append(steps, "      - name: Setup Safe Output Custom Scripts\n")
+	steps = append(steps, "      - name: Setup Safe Outputs Custom Scripts\n")
 	steps = append(steps, "        run: |\n")
 
 	for _, scriptName := range scriptNames {

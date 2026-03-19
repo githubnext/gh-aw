@@ -69,7 +69,7 @@ Capabilities that an AI agent can use during workflow execution. Tools are confi
 
 ### Guard Policy
 
-An access control configuration for the GitHub MCP server that restricts which repositories and content integrity levels the agent can read. Configured via `tools.github.repos` (repository scope: `"all"`, `"public"`, or a list of patterns) and `tools.github.min-integrity` (minimum required integrity level). Both fields are required when either is specified. Integrity levels by trust: `merged` (content reachable from the main branch) > `approved` (owners, members, collaborators) > `unapproved` (contributors) > `none` (first-time users). See [GitHub Tools Reference](/gh-aw/reference/github-tools/#guard-policies).
+An access control configuration for the GitHub MCP server that restricts which repositories and content integrity levels the agent can read. Configured via `tools.github.repos` (repository scope: `"all"`, `"public"`, or a list of patterns) and `tools.github.min-integrity` (minimum required integrity level). `min-integrity` can be specified alone; `repos` defaults to `"all"` when omitted. Integrity levels by trust: `merged` (content reachable from the main branch) > `approved` (owners, members, collaborators) > `unapproved` (contributors) > `none` (first-time users). See [GitHub Tools Reference](/gh-aw/reference/github-tools/#guard-policies).
 
 ## Security and Outputs
 
@@ -172,6 +172,10 @@ A recognized "magic" repository secret name that GitHub Agentic Workflows automa
 ### Custom Safe Outputs
 
 An extension mechanism for safe outputs that enables integration with third-party services beyond built-in GitHub operations. Defined under `safe-outputs.jobs:`, custom safe outputs separate read and write operations: agents use read-only MCP tools for queries, while custom jobs execute write operations with secret access after agent completion. Supports services like Slack, Notion, Jira, or any external API. See [Custom Safe Outputs](/gh-aw/reference/custom-safe-outputs/).
+
+### Safe Output Scripts
+
+Lightweight inline JavaScript handlers defined under `safe-outputs.scripts:` that execute inside the consolidated safe-outputs job handler loop. Unlike [Custom Safe Outputs](#custom-safe-outputs) (`safe-outputs.jobs`), which create a separate GitHub Actions job per tool call, scripts run in-process with no job scheduling overhead. Scripts do not have direct access to repository secrets, making them suitable for lightweight processing and logging. Each script declares `description`, `inputs`, and a `script` body; the compiler wraps the body and registers the handler as an MCP tool available to the agent. See [Custom Safe Outputs](/gh-aw/reference/custom-safe-outputs/#inline-script-handlers-safe-outputsscripts).
 
 ### Unassign from User
 

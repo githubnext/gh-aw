@@ -13,8 +13,7 @@ import (
 )
 
 // TestValidateSecretBeforeAwInfo verifies that the generate_aw_info step in the activation job
-// appears before the validate-secret step. generate_aw_info is now the first step after setup,
-// so it must precede validate-secret.
+// appears before the validate-secret step.
 func TestValidateSecretBeforeAwInfo(t *testing.T) {
 	tests := []struct {
 		name            string
@@ -112,7 +111,7 @@ This workflow tests that validate-secret appears before generate_aw_info.
 				t.Error("Expected 'id: generate_aw_info' to be present in generated workflow")
 			}
 
-			// generate_aw_info is the first step after setup in the activation job and must come before validate-secret.
+			// generate_aw_info must come before validate-secret.
 			if validateSecretPos != -1 && awInfoPos != -1 {
 				if awInfoPos > validateSecretPos {
 					t.Errorf("Step ordering error: generate_aw_info (pos %d) should come before validate-secret (pos %d)",
