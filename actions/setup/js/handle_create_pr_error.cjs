@@ -4,6 +4,9 @@
 const { sanitizeContent } = require("./sanitize_content.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 
+/** @type {string} FAQ link for the "GitHub Actions is not permitted to create or approve pull requests" error */
+const FAQ_CREATE_PR_PERMISSIONS_URL = "https://github.github.com/gh-aw/reference/faq/#why-is-my-create-pull-request-workflow-failing-with-github-actions-is-not-permitted-to-create-or-approve-pull-requests";
+
 /**
  * Handle create_pull_request permission errors
  * This script is called from the conclusion job when create_pull_request fails
@@ -44,7 +47,11 @@ async function main() {
     "3. Check the box: **Allow GitHub Actions to create and approve pull requests**\n" +
     "4. Click **Save**\n\n" +
     "### Documentation\n\n" +
-    "For more information, see: [Managing GitHub Actions settings for a repository](https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/enabling-features-for-your-repository/managing-github-actions-settings-for-a-repository#preventing-github-actions-from-creating-or-approving-pull-requests)\n\n" +
+    "For more information, see:\n" +
+    "- [gh-aw FAQ: Why is my create-pull-request workflow failing?](" +
+    FAQ_CREATE_PR_PERMISSIONS_URL +
+    ")\n" +
+    "- [Managing GitHub Actions settings for a repository](https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/enabling-features-for-your-repository/managing-github-actions-settings-for-a-repository#preventing-github-actions-from-creating-or-approving-pull-requests)\n\n" +
     "### Workflow Details\n\n" +
     "- **Workflow**: " +
     workflowName +

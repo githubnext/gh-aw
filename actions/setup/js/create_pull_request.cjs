@@ -37,6 +37,9 @@ const HANDLER_TYPE = "create_pull_request";
 /** @type {string} Label always added to fallback issues so the triage system can find them */
 const MANAGED_FALLBACK_ISSUE_LABEL = "agentic-workflows";
 
+/** @type {string} FAQ link for the "GitHub Actions is not permitted to create or approve pull requests" error */
+const FAQ_CREATE_PR_PERMISSIONS_URL = "https://github.github.com/gh-aw/reference/faq/#why-is-my-create-pull-request-workflow-failing-with-github-actions-is-not-permitted-to-create-or-approve-pull-requests";
+
 // GitHub Copilot reviewer bot username
 const COPILOT_REVIEWER_BOT = "copilot-pull-request-reviewer[bot]";
 
@@ -1158,7 +1161,7 @@ ${patchPreview}`;
 
       // Check if the error is the specific "GitHub actions is not permitted to create or approve pull requests" error
       if (errorMessage.includes("GitHub Actions is not permitted to create or approve pull requests")) {
-        core.error("Permission error: GitHub Actions is not permitted to create or approve pull requests");
+        core.error(`Permission error: GitHub Actions is not permitted to create or approve pull requests. See FAQ: ${FAQ_CREATE_PR_PERMISSIONS_URL}`);
 
         // Branch has already been pushed - create a fallback issue with a link to create the PR via GitHub UI
         const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
@@ -1181,7 +1184,8 @@ ${patchPreview}`;
           `> The changes have been pushed to branch \`${branchName}\`.\n` +
           `>\n` +
           `> **[Click here to create the pull request](${createPrUrl})**\n\n` +
-          `To fix the permissions issue, go to **Settings** → **Actions** → **General** and enable **Allow GitHub Actions to create and approve pull requests**.` +
+          `To fix the permissions issue, go to **Settings** → **Actions** → **General** and enable **Allow GitHub Actions to create and approve pull requests**. ` +
+          `See also: [gh-aw FAQ](${FAQ_CREATE_PR_PERMISSIONS_URL})` +
           patchPreview;
 
         try {
