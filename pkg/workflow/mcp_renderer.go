@@ -193,6 +193,16 @@ func RenderJSONMCPConfig(
 		if options.GatewayConfig.PayloadDir != "" {
 			fmt.Fprintf(&configBuilder, ",\n              \"payloadDir\": \"%s\"", options.GatewayConfig.PayloadDir)
 		}
+		if len(options.GatewayConfig.TrustedBots) > 0 {
+			configBuilder.WriteString(",\n              \"trustedBots\": [")
+			for i, bot := range options.GatewayConfig.TrustedBots {
+				if i > 0 {
+					configBuilder.WriteString(", ")
+				}
+				fmt.Fprintf(&configBuilder, "%q", bot)
+			}
+			configBuilder.WriteString("]")
+		}
 		configBuilder.WriteString("\n")
 		configBuilder.WriteString("            }\n")
 	} else {
