@@ -337,9 +337,17 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 		// Expose the matched label name as a job output for downstream jobs to consume
 		outputs["label_command"] = fmt.Sprintf("${{ steps.%s.outputs.label_name }}", constants.RemoveTriggerLabelStepID)
 	} else if hasLabelCommand {
-		// When remove_label is disabled, expose the triggering label name directly from the event
-		// so downstream jobs can still access it via needs.activation.outputs.label_command.
-		outputs["label_command"] = "${{ github.event.label.name }}"
+		// When remove_label is disabled, add a lightweight step that safely emits the
+		// triggering label name (or an empty string for workflow_dispatch / non-label events),
+		// mirroring the behaviour of remove_trigger_label.cjs for non-labeled events.
+		steps = append(steps, "      - name: Get trigger label name\n")
+		steps = append(steps, fmt.Sprintf("        id: %s\n", constants.GetTriggerLabelStepID))
+		steps = append(steps, fmt.Sprintf("        uses: %s\n", GetActionPin("actions/github-script")))
+		steps = append(steps, "        with:\n")
+		steps = append(steps, "          script: |\n")
+		steps = append(steps, "            const labelName = context.eventName === 'workflow_dispatch' ? '' : (context.payload?.label?.name ?? '');\n")
+		steps = append(steps, "            core.setOutput('label_name', labelName);\n")
+		outputs["label_command"] = fmt.Sprintf("${{ steps.%s.outputs.label_name }}", constants.GetTriggerLabelStepID)
 	}
 
 	// If no steps have been added, add a placeholder step to make the job valid

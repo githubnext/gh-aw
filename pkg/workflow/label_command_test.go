@@ -491,7 +491,11 @@ Deploy the application because label "deploy" was added. The label is not remove
 	assert.NotContains(t, lockStr, "remove_trigger_label",
 		"compiled workflow should NOT contain remove_trigger_label step when remove_label is false")
 
-	// The label_command output should still be present (referencing the event label directly)
+	// A lightweight get_trigger_label step should be present to safely read the label name
+	assert.Contains(t, lockStr, "get_trigger_label",
+		"compiled workflow should contain get_trigger_label step when remove_label is false")
+
+	// The label_command output should still be present (referencing get_trigger_label step output)
 	var workflow map[string]any
 	err = yaml.Unmarshal(lockContent, &workflow)
 	require.NoError(t, err, "failed to parse lock file as YAML")
@@ -505,8 +509,10 @@ Deploy the application because label "deploy" was added. The label is not remove
 	activationOutputs, ok := activation["outputs"].(map[string]any)
 	require.True(t, ok, "activation job should have outputs")
 
-	_, hasLabelCmdOutput := activationOutputs["label_command"]
+	labelCmdOutput, hasLabelCmdOutput := activationOutputs["label_command"]
 	assert.True(t, hasLabelCmdOutput, "activation job should still have label_command output when remove_label is false")
+	assert.Contains(t, labelCmdOutput, "get_trigger_label",
+		"label_command output should reference get_trigger_label step")
 
 	// When reactions and status-comment are also disabled, issues:write should NOT be present
 	// since it was only needed for label removal.
