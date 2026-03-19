@@ -31,7 +31,7 @@
 #     - shared/reporting.md
 #     - shared/trends.md
 #
-# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"0b3fc119e1d72b7a68ab71c7298b846813cae152c54e8384de51cce919de9675","strict":true}
+# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"1998e493224412f72e176d9487beda445f5a5009f1b9129aa3b3d7d31fc6b267","strict":true}
 
 name: "Daily Issues Report Generator"
 "on":
@@ -90,9 +90,6 @@ jobs:
           GH_AW_INFO_AWMG_VERSION: ""
           GH_AW_INFO_FIREWALL_TYPE: "squid"
           GH_AW_COMPILED_STRICT: "true"
-          GITHUB_MCP_LOCKDOWN_EXPLICIT: "true"
-          GH_AW_GITHUB_TOKEN: ${{ secrets.GH_AW_GITHUB_TOKEN }}
-          GH_AW_GITHUB_MCP_SERVER_TOKEN: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN }}
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         with:
           script: |
@@ -410,16 +407,6 @@ jobs:
         run: npm install -g @openai/codex@latest
       - name: Install AWF binary
         run: bash ${RUNNER_TEMP}/gh-aw/actions/install_awf_binary.sh v0.24.3
-      - name: Determine automatic lockdown mode for GitHub MCP Server
-        id: determine-automatic-lockdown
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
-        env:
-          GH_AW_GITHUB_TOKEN: ${{ secrets.GH_AW_GITHUB_TOKEN }}
-          GH_AW_GITHUB_MCP_SERVER_TOKEN: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN }}
-        with:
-          script: |
-            const determineAutomaticLockdown = require('${{ runner.temp }}/gh-aw/actions/determine_automatic_lockdown.cjs');
-            await determineAutomaticLockdown(github, context, core);
       - name: Download container images
         run: bash ${RUNNER_TEMP}/gh-aw/actions/download_docker_images.sh ghcr.io/github/gh-aw-firewall/agent:0.24.3 ghcr.io/github/gh-aw-firewall/api-proxy:0.24.3 ghcr.io/github/gh-aw-firewall/squid:0.24.3 ghcr.io/github/gh-aw-mcpg:v0.1.19 ghcr.io/github/github-mcp-server:v0.32.0 node:lts-alpine
       - name: Write Safe Outputs Config
@@ -614,8 +601,6 @@ jobs:
           GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
           GH_AW_SAFE_OUTPUTS_API_KEY: ${{ steps.safe-outputs-start.outputs.api_key }}
           GH_AW_SAFE_OUTPUTS_PORT: ${{ steps.safe-outputs-start.outputs.port }}
-          GITHUB_MCP_GUARD_MIN_INTEGRITY: ${{ steps.determine-automatic-lockdown.outputs.min_integrity }}
-          GITHUB_MCP_GUARD_REPOS: ${{ steps.determine-automatic-lockdown.outputs.repos }}
           GITHUB_MCP_SERVER_TOKEN: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
         run: |
           set -eo pipefail
@@ -648,8 +633,8 @@ jobs:
           startup_timeout_sec = 120
           tool_timeout_sec = 60
           container = "ghcr.io/github/github-mcp-server:v0.32.0"
-          env = { "GITHUB_HOST" = "$GITHUB_SERVER_URL", "GITHUB_LOCKDOWN_MODE" = "1", "GITHUB_PERSONAL_ACCESS_TOKEN" = "$GH_AW_GITHUB_TOKEN", "GITHUB_READ_ONLY" = "1", "GITHUB_TOOLSETS" = "context,repos,issues,pull_requests,discussions" }
-          env_vars = ["GITHUB_HOST", "GITHUB_LOCKDOWN_MODE", "GITHUB_PERSONAL_ACCESS_TOKEN", "GITHUB_READ_ONLY", "GITHUB_TOOLSETS"]
+          env = { "GITHUB_HOST" = "$GITHUB_SERVER_URL", "GITHUB_PERSONAL_ACCESS_TOKEN" = "$GH_AW_GITHUB_TOKEN", "GITHUB_READ_ONLY" = "1", "GITHUB_TOOLSETS" = "context,repos,issues,pull_requests,discussions" }
+          env_vars = ["GITHUB_HOST", "GITHUB_PERSONAL_ACCESS_TOKEN", "GITHUB_READ_ONLY", "GITHUB_TOOLSETS"]
           
           [mcp_servers.safeoutputs]
           type = "http"
@@ -657,11 +642,6 @@ jobs:
           
           [mcp_servers.safeoutputs.headers]
           Authorization = "$GH_AW_SAFE_OUTPUTS_API_KEY"
-          
-          [mcp_servers.safeoutputs."guard-policies"]
-          
-          [mcp_servers.safeoutputs."guard-policies".write-sink]
-          accept = ["*"]
           GH_AW_MCP_CONFIG_EOF
           
           # Generate JSON config for MCP gateway
@@ -672,15 +652,13 @@ jobs:
                 "container": "ghcr.io/github/github-mcp-server:v0.32.0",
                 "env": {
                   "GITHUB_HOST": "$GITHUB_SERVER_URL",
-                  "GITHUB_LOCKDOWN_MODE": "1",
                   "GITHUB_PERSONAL_ACCESS_TOKEN": "$GITHUB_MCP_SERVER_TOKEN",
                   "GITHUB_READ_ONLY": "1",
                   "GITHUB_TOOLSETS": "context,repos,issues,pull_requests,discussions"
                 },
                 "guard-policies": {
                   "allow-only": {
-                    "min-integrity": "$GITHUB_MCP_GUARD_MIN_INTEGRITY",
-                    "repos": "$GITHUB_MCP_GUARD_REPOS"
+                    "min-integrity": "approved"
                   }
                 }
               },
@@ -689,13 +667,6 @@ jobs:
                 "url": "http://host.docker.internal:$GH_AW_SAFE_OUTPUTS_PORT",
                 "headers": {
                   "Authorization": "$GH_AW_SAFE_OUTPUTS_API_KEY"
-                },
-                "guard-policies": {
-                  "write-sink": {
-                    "accept": [
-                      "*"
-                    ]
-                  }
                 }
               }
             },

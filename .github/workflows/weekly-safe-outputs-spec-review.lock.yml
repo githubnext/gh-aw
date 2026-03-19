@@ -22,7 +22,7 @@
 #
 # Reviews changes to the Safe Outputs specification and ensures the conformance checker script is up to date
 #
-# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"8c2101979950b517597aa3c9a241c7dbe762d2db9cc38c38b4fd4a70faa990a4","strict":true}
+# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"fb65eb54c07a48ae097d46a640a15616bd771f3a76ade9044ac8a3d7acbd60eb","strict":true}
 
 name: "Weekly Safe Outputs Specification Review"
 "on":
@@ -79,9 +79,6 @@ jobs:
           GH_AW_INFO_AWMG_VERSION: ""
           GH_AW_INFO_FIREWALL_TYPE: "squid"
           GH_AW_COMPILED_STRICT: "true"
-          GITHUB_MCP_LOCKDOWN_EXPLICIT: "true"
-          GH_AW_GITHUB_TOKEN: ${{ secrets.GH_AW_GITHUB_TOKEN }}
-          GH_AW_GITHUB_MCP_SERVER_TOKEN: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN }}
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         with:
           script: |
@@ -323,16 +320,6 @@ jobs:
           GH_HOST: github.com
       - name: Install AWF binary
         run: bash ${RUNNER_TEMP}/gh-aw/actions/install_awf_binary.sh v0.24.3
-      - name: Determine automatic lockdown mode for GitHub MCP Server
-        id: determine-automatic-lockdown
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
-        env:
-          GH_AW_GITHUB_TOKEN: ${{ secrets.GH_AW_GITHUB_TOKEN }}
-          GH_AW_GITHUB_MCP_SERVER_TOKEN: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN }}
-        with:
-          script: |
-            const determineAutomaticLockdown = require('${{ runner.temp }}/gh-aw/actions/determine_automatic_lockdown.cjs');
-            await determineAutomaticLockdown(github, context, core);
       - name: Download container images
         run: bash ${RUNNER_TEMP}/gh-aw/actions/download_docker_images.sh ghcr.io/github/gh-aw-firewall/agent:0.24.3 ghcr.io/github/gh-aw-firewall/api-proxy:0.24.3 ghcr.io/github/gh-aw-firewall/squid:0.24.3 ghcr.io/github/gh-aw-mcpg:v0.1.19 ghcr.io/github/github-mcp-server:v0.32.0 node:lts-alpine
       - name: Write Safe Outputs Config
@@ -496,8 +483,6 @@ jobs:
           GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
           GH_AW_SAFE_OUTPUTS_API_KEY: ${{ steps.safe-outputs-start.outputs.api_key }}
           GH_AW_SAFE_OUTPUTS_PORT: ${{ steps.safe-outputs-start.outputs.port }}
-          GITHUB_MCP_GUARD_MIN_INTEGRITY: ${{ steps.determine-automatic-lockdown.outputs.min_integrity }}
-          GITHUB_MCP_GUARD_REPOS: ${{ steps.determine-automatic-lockdown.outputs.repos }}
           GITHUB_MCP_SERVER_TOKEN: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
         run: |
           set -eo pipefail
@@ -526,15 +511,13 @@ jobs:
                 "container": "ghcr.io/github/github-mcp-server:v0.32.0",
                 "env": {
                   "GITHUB_HOST": "\${GITHUB_SERVER_URL}",
-                  "GITHUB_LOCKDOWN_MODE": "1",
                   "GITHUB_PERSONAL_ACCESS_TOKEN": "\${GITHUB_MCP_SERVER_TOKEN}",
                   "GITHUB_READ_ONLY": "1",
                   "GITHUB_TOOLSETS": "repos,pull_requests"
                 },
                 "guard-policies": {
                   "allow-only": {
-                    "min-integrity": "$GITHUB_MCP_GUARD_MIN_INTEGRITY",
-                    "repos": "$GITHUB_MCP_GUARD_REPOS"
+                    "min-integrity": "approved"
                   }
                 }
               },
@@ -543,13 +526,6 @@ jobs:
                 "url": "http://host.docker.internal:$GH_AW_SAFE_OUTPUTS_PORT",
                 "headers": {
                   "Authorization": "\${GH_AW_SAFE_OUTPUTS_API_KEY}"
-                },
-                "guard-policies": {
-                  "write-sink": {
-                    "accept": [
-                      "*"
-                    ]
-                  }
                 }
               }
             },

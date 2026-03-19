@@ -126,7 +126,7 @@ func (c *AddInteractiveConfig) selectAIEngineAndKey() error {
 		),
 	).WithTheme(styles.HuhTheme()).WithAccessible(console.IsAccessibleMode())
 
-	if err := form.Run(); err != nil {
+	if err := form.RunWithContext(c.Ctx); err != nil {
 		return fmt.Errorf("failed to select coding agent: %w", err)
 	}
 
@@ -167,6 +167,7 @@ func (c *AddInteractiveConfig) configureEngineAPISecret(engine string) error {
 
 	// Use the unified checkAndEnsureEngineSecrets function
 	config := EngineSecretConfig{
+		Ctx:                  c.Ctx,
 		RepoSlug:             c.RepoOverride,
 		Engine:               engine,
 		Verbose:              c.Verbose,

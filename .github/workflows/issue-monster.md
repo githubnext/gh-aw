@@ -351,7 +351,7 @@ timeout-minutes: 30
 
 tools:
   github:
-    lockdown: true
+    min-integrity: approved
     toolsets: [default, pull_requests]
 
 if: needs.pre_activation.outputs.has_issues == 'true'

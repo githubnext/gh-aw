@@ -1,11 +1,14 @@
 package main
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"os"
+	"os/signal"
 	"sort"
 	"strings"
+	"syscall"
 
 	"github.com/github/gh-aw/pkg/cli"
 	"github.com/github/gh-aw/pkg/console"
@@ -829,7 +832,12 @@ func main() {
 	// Set release flag in the workflow package
 	workflow.SetIsRelease(isRelease == "true")
 
-	if err := rootCmd.Execute(); err != nil {
+	// Set up a context that is cancelled when Ctrl-C (SIGINT) or SIGTERM is received.
+	// This ensures all commands and subprocesses are properly interrupted on Ctrl-C.
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+
+	if err := rootCmd.ExecuteContext(ctx); err != nil {
 		errMsg := err.Error()
 		// Check if error is already formatted to avoid double formatting:
 		// - Contains suggestions (FormatErrorWithSuggestions)

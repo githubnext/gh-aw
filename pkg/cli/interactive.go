@@ -36,6 +36,7 @@ var commonWorkflowNames = []string{
 
 // InteractiveWorkflowBuilder collects user input to build an agentic workflow
 type InteractiveWorkflowBuilder struct {
+	ctx           context.Context
 	WorkflowName  string
 	Trigger       string
 	Engine        string
@@ -60,6 +61,7 @@ func CreateWorkflowInteractively(ctx context.Context, workflowName string, verbo
 	}
 
 	builder := &InteractiveWorkflowBuilder{
+		ctx:          ctx,
 		WorkflowName: workflowName,
 	}
 
@@ -101,7 +103,7 @@ func (b *InteractiveWorkflowBuilder) promptForWorkflowName() error {
 		),
 	).WithTheme(styles.HuhTheme()).WithAccessible(console.IsAccessibleMode())
 
-	return form.Run()
+	return form.RunWithContext(b.ctx)
 }
 
 // promptForConfiguration organizes all prompts into logical groups with titles and descriptions
@@ -225,7 +227,7 @@ func (b *InteractiveWorkflowBuilder) promptForConfiguration() error {
 			Description("Describe what you want this workflow to accomplish"),
 	).WithTheme(styles.HuhTheme()).WithAccessible(console.IsAccessibleMode())
 
-	if err := form.Run(); err != nil {
+	if err := form.RunWithContext(b.ctx); err != nil {
 		return err
 	}
 
