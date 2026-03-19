@@ -301,14 +301,13 @@ func TestValidateGitHubGuardPolicy(t *testing.T) {
 			shouldError: false,
 		},
 		{
-			name: "missing repos field",
+			name: "missing repos field defaults to all",
 			toolsMap: map[string]any{
 				"github": map[string]any{
 					"min-integrity": "unapproved",
 				},
 			},
-			shouldError: true,
-			errorMsg:    "'github.repos' is required",
+			shouldError: false,
 		},
 		{
 			name: "missing min-integrity field",

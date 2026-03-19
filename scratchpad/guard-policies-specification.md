@@ -238,16 +238,14 @@ The design supports future MCP servers (Jira, WorkIQ) through:
 - Case-sensitive
 
 **Required Fields:**
-- Both `repos` and `min-integrity` are required when either is specified under `github:`
+- `min-integrity` is required when using GitHub guard policies
+- `repos` defaults to `"all"` if not specified
 
 ## Error Messages
 
 The implementation provides clear, actionable error messages:
 
 ```
-invalid guard policy: 'github.repos' is required.
-Use 'all', 'public', or an array of repository patterns (e.g., ['owner/repo', 'owner/*'])
-
 invalid guard policy: repository pattern 'Owner/Repo' must be lowercase
 
 invalid guard policy: repository pattern 'owner/re*po' has wildcard in the middle.

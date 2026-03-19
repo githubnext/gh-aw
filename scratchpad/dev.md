@@ -1771,7 +1771,7 @@ tools:
     min-integrity: unapproved   # none | unapproved | approved | merged
 ```
 
-Both `repos` and `min-integrity` are required when either is specified under `github:`.
+`min-integrity` is required when using GitHub guard policies. `repos` defaults to `"all"` if not specified.
 
 **Repository Pattern Options**:
 - `"all"` — All repositories accessible by the token

@@ -62,7 +62,7 @@ func validateGitHubToolConfig(tools *Tools, workflowName string) error {
 
 // validateGitHubGuardPolicy validates the GitHub guard policy configuration.
 // Guard policy fields (repos, min-integrity) are specified flat under github:.
-// Both fields must be present if either is specified.
+// If repos is not specified but min-integrity is, repos defaults to "all".
 func validateGitHubGuardPolicy(tools *Tools, workflowName string) error {
 	if tools == nil || tools.GitHub == nil {
 		return nil
@@ -77,10 +77,10 @@ func validateGitHubGuardPolicy(tools *Tools, workflowName string) error {
 		return nil
 	}
 
-	// Validate repos field (required when min-integrity is set)
+	// Default repos to "all" when not specified
 	if !hasRepos {
-		toolsValidationLog.Printf("Missing repos in guard policy for workflow: %s", workflowName)
-		return errors.New("invalid guard policy: 'github.repos' is required. Use 'all', 'public', or an array of repository patterns (e.g., ['owner/repo', 'owner/*'])")
+		toolsValidationLog.Printf("Defaulting repos to 'all' in guard policy for workflow: %s", workflowName)
+		github.Repos = "all"
 	}
 
 	// Validate repos format
