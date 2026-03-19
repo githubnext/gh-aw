@@ -733,3 +733,99 @@ Also success
 		})
 	}
 }
+
+func TestExtractWorkflowNameFromYAML(t *testing.T) {
+	tests := []struct {
+		name     string
+		content  string
+		expected string
+	}{
+		{
+			name: "simple name field",
+			content: `name: Daily CLI Tools Exploratory Tester
+on:
+  push:
+    branches: [main]
+`,
+			expected: "Daily CLI Tools Exploratory Tester",
+		},
+		{
+			name: "name with double quotes",
+			content: `name: "My Workflow"
+on:
+  workflow_dispatch:
+`,
+			expected: "My Workflow",
+		},
+		{
+			name: "name with single quotes",
+			content: `name: 'Another Workflow'
+on:
+  push:
+`,
+			expected: "Another Workflow",
+		},
+		{
+			name: "no name field",
+			content: `on:
+  push:
+    branches: [main]
+jobs:
+  build:
+`,
+			expected: "",
+		},
+		{
+			name: "name field after comment",
+			content: `# This is a compiled workflow
+name: Test Workflow
+on:
+  push:
+`,
+			expected: "Test Workflow",
+		},
+		{
+			name: "indented name (not top-level) is ignored",
+			content: `on:
+  push:
+jobs:
+  build:
+    name: build-job
+`,
+			expected: "",
+		},
+		{
+			name:     "empty content",
+			content:  "",
+			expected: "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := extractWorkflowNameFromYAML(tt.content)
+			if result != tt.expected {
+				t.Errorf("extractWorkflowNameFromYAML() = %q, want %q", result, tt.expected)
+			}
+		})
+	}
+}
+
+func TestResolveWorkflowDisplayNameFromLocalFile(t *testing.T) {
+	// Write a temporary workflow file and verify the name is read correctly.
+	dir := t.TempDir()
+	workflowPath := filepath.Join(dir, ".github", "workflows", "test.lock.yml")
+	if err := os.MkdirAll(filepath.Dir(workflowPath), 0755); err != nil {
+		t.Fatalf("failed to create dirs: %v", err)
+	}
+	content := "name: My Test Workflow\non:\n  push:\n"
+	if err := os.WriteFile(workflowPath, []byte(content), 0600); err != nil {
+		t.Fatalf("failed to write workflow file: %v", err)
+	}
+
+	// resolveWorkflowDisplayName should read the local file and return the name.
+	name := resolveWorkflowDisplayName(workflowPath, "", "", "")
+	if name != "My Test Workflow" {
+		t.Errorf("resolveWorkflowDisplayName() = %q, want %q", name, "My Test Workflow")
+	}
+}

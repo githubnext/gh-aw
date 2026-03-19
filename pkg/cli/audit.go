@@ -657,8 +657,14 @@ func fetchWorkflowRunMetadata(runID int64, owner, repo, hostname string, verbose
 		if verbose {
 			fmt.Fprintln(os.Stderr, console.FormatVerboseMessage(string(output)))
 		}
-		// Provide a human-readable error when the run ID doesn't exist
-		if strings.Contains(string(output), "Not Found") || strings.Contains(string(output), "404") {
+		// Provide a human-readable error when the run ID doesn't exist.
+		// GitHub CLI / API may surface the 404 in several forms depending on version.
+		outputStr := string(output)
+		if strings.Contains(outputStr, "Not Found") ||
+			strings.Contains(outputStr, "404") ||
+			strings.Contains(outputStr, "not found") ||
+			strings.Contains(outputStr, "Could not resolve") ||
+			strings.Contains(err.Error(), "404") {
 			return WorkflowRun{}, fmt.Errorf("workflow run %d not found. Please verify the run ID is correct and that you have access to the repository", runID)
 		}
 		return WorkflowRun{}, fmt.Errorf("failed to fetch run metadata: %w", err)
@@ -669,5 +675,76 @@ func fetchWorkflowRunMetadata(runID int64, owner, repo, hostname string, verbose
 		return WorkflowRun{}, fmt.Errorf("failed to parse run metadata: %w", err)
 	}
 
+	// When the GitHub API returns the workflow file path as the run's name (e.g. for runs
+	// that were cancelled or failed before any jobs started), resolve the actual workflow
+	// display name so that audit output is consistent with 'gh aw logs'.
+	if strings.HasPrefix(run.WorkflowName, ".github/") {
+		if displayName := resolveWorkflowDisplayName(run.WorkflowPath, owner, repo, hostname); displayName != "" {
+			auditLog.Printf("Resolved workflow display name: %q -> %q", run.WorkflowName, displayName)
+			run.WorkflowName = displayName
+		}
+	}
+
 	return run, nil
+}
+
+// resolveWorkflowDisplayName returns the human-readable display name for a workflow file.
+// It first attempts to read the YAML file from the local filesystem; if that fails it
+// falls back to a GitHub API call.  An empty string is returned on any error so that
+// callers can gracefully keep the original value.
+func resolveWorkflowDisplayName(workflowPath, owner, repo, hostname string) string {
+	// Try local file first (works when audit is run from inside a cloned repository).
+	if content, err := os.ReadFile(workflowPath); err == nil {
+		if name := extractWorkflowNameFromYAML(string(content)); name != "" {
+			return name
+		}
+	}
+
+	// Fall back to the GitHub Actions workflows API.
+	filename := filepath.Base(workflowPath)
+	var endpoint string
+	if owner != "" && repo != "" {
+		endpoint = fmt.Sprintf("repos/%s/%s/actions/workflows/%s", owner, repo, filename)
+	} else {
+		endpoint = "repos/{owner}/{repo}/actions/workflows/" + filename
+	}
+
+	args := []string{"api"}
+	if hostname != "" && hostname != "github.com" {
+		args = append(args, "--hostname", hostname)
+	}
+	args = append(args, endpoint, "--jq", ".name")
+
+	out, err := workflow.RunGHCombined("Fetching workflow name...", args...)
+	if err != nil {
+		auditLog.Printf("Failed to fetch workflow display name for %q: %v", workflowPath, err)
+		return ""
+	}
+
+	return strings.TrimSpace(string(out))
+}
+
+// extractWorkflowNameFromYAML scans the top-level YAML content for a 'name:' key and
+// returns its value.  Only the first occurrence at the root level is considered.
+// This intentionally avoids importing a full YAML parser to keep the dependency
+// footprint minimal.
+func extractWorkflowNameFromYAML(content string) string {
+	for line := range strings.SplitSeq(content, "\n") {
+		trimmed := strings.TrimSpace(line)
+		// Skip blank lines and YAML comments.
+		if trimmed == "" || strings.HasPrefix(trimmed, "#") {
+			continue
+		}
+		// A top-level key starts at column 0 (no leading whitespace).
+		if !strings.HasPrefix(line, " ") && !strings.HasPrefix(line, "\t") {
+			if after, ok := strings.CutPrefix(trimmed, "name:"); ok {
+				name := strings.TrimSpace(after)
+				// Strip optional surrounding quotes (single or double).
+				name = strings.Trim(name, "\"'")
+				return name
+			}
+			// Continue scanning for 'name:' key — it may appear after other top-level keys.
+		}
+	}
+	return ""
 }
