@@ -8221,6 +8221,13 @@
             "github-app": {
               "$ref": "#/$defs/github_app",
               "description": "GitHub App credentials for minting installation access tokens used by APM to access cross-org private repositories."
+            },
+            "env": {
+              "type": "object",
+              "description": "Environment variables to set on the APM pack step. Useful for passing registry tokens or other configuration.",
+              "additionalProperties": {
+                "type": "string"
+              }
             }
           },
           "required": ["packages"],

@@ -499,18 +499,20 @@ func buildDetectionSuccessCondition() ConditionNode {
 }
 
 // buildSafeOutputItemsManifestUploadStep builds the step that uploads the safe output
-// items manifest as a GitHub Actions artifact. The step always runs (if: always()) so
+// items manifest to the unified agent artifact. The step always runs (if: always()) so
 // the manifest is available to the audit command even if some safe output steps fail.
+// The file is written to /tmp/gh-aw/safe-output-items.jsonl so it is merged into the
+// same "agent" artifact that the main job uploads, rather than a separate artifact.
 // prefix is prepended to the artifact name; use empty string for non-workflow_call workflows.
 func buildSafeOutputItemsManifestUploadStep(prefix string) []string {
 	return []string{
-		"      - name: Upload Safe Outputs Items Manifest\n",
+		"      - name: Upload safe output items\n",
 		"        if: always()\n",
 		fmt.Sprintf("        uses: %s\n", GetActionPin("actions/upload-artifact")),
 		"        with:\n",
-		fmt.Sprintf("          name: %ssafe-output-items\n", prefix),
-		"          path: /tmp/safe-output-items.jsonl\n",
-		"          if-no-files-found: warn\n",
+		fmt.Sprintf("          name: %sagent\n", prefix),
+		"          path: /tmp/gh-aw/safe-output-items.jsonl\n",
+		"          if-no-files-found: ignore\n",
 	}
 }
 

@@ -1310,13 +1310,13 @@ jobs:
             setupGlobals(core, github, context, exec, io);
             const { main } = require('${{ runner.temp }}/gh-aw/actions/safe_output_handler_manager.cjs');
             await main();
-      - name: Upload Safe Outputs Items Manifest
+      - name: Upload safe output items
         if: always()
         uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
         with:
-          name: safe-output-items
-          path: /tmp/safe-output-items.jsonl
-          if-no-files-found: warn
+          name: agent
+          path: /tmp/gh-aw/safe-output-items.jsonl
+          if-no-files-found: ignore
 
   update_cache_memory:
     needs: agent
