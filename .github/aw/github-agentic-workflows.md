@@ -1575,7 +1575,7 @@ Use GitHub Actions context expressions throughout the workflow content. **Note: 
 - **`${{ github.workspace }}`** - The default working directory on the runner for steps
 
 #### Special Pattern Expressions
-- **`${{ needs.* }}`** - Any outputs from previous jobs (e.g., `${{ steps.sanitized.outputs.text }}`)
+- **`${{ needs.* }}`** - Any outputs from previous jobs (e.g., `${{ needs.pre_activation.outputs.activated }}`)
 - **`${{ steps.* }}`** - Any outputs from previous steps (e.g., `${{ steps.my-step.outputs.result }}`)
 - **`${{ github.event.inputs.* }}`** - Any workflow inputs when triggered by workflow_dispatch (e.g., `${{ github.event.inputs.environment }}`)
 

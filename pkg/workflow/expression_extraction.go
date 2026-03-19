@@ -71,15 +71,19 @@ func (e *ExpressionExtractor) ExtractExpressions(markdown string) ([]*Expression
 		transformedContent := transformActivationOutputs(content)
 		if transformedContent != content {
 			expressionExtractionLog.Printf("Transformed expression: %s -> %s", content, transformedContent)
-			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(
-				fmt.Sprintf("Deprecated expression '${{ %s }}': use '${{ %s }}' instead.", content, transformedContent),
-			))
 			content = transformedContent
 		}
 
-		// Skip if we've already seen this expression
+		// Skip if we've already seen this expression (also prevents duplicate deprecation warnings)
 		if _, exists := e.mappings[originalExpr]; exists {
 			continue
+		}
+
+		// Emit deprecation warning once per unique deprecated expression
+		if transformedContent != strings.TrimSpace(match[1]) {
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(
+				fmt.Sprintf("Deprecated expression '${{ %s }}': use '${{ %s }}' instead.", strings.TrimSpace(match[1]), transformedContent),
+			))
 		}
 
 		// Generate environment variable name
