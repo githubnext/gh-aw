@@ -250,6 +250,36 @@ func TestBuildActivationJob_WithReaction(t *testing.T) {
 	assert.NotEmpty(t, stepsStr, "Activation job should have steps")
 }
 
+// TestBuildActivationJob_ReactionAfterSetupScripts verifies that the reaction step is placed
+// immediately after the setup-scripts step so the user sees feedback as fast as possible.
+func TestBuildActivationJob_ReactionAfterSetupScripts(t *testing.T) {
+	compiler := NewCompiler()
+
+	workflowData := &WorkflowData{
+		Name:            "Test Workflow",
+		AIReaction:      "heart",
+		MarkdownContent: "# Test\n\nContent",
+	}
+
+	job, err := compiler.buildActivationJob(workflowData, false, "", "test.lock.yml")
+	require.NoError(t, err, "buildActivationJob should succeed")
+	require.NotNil(t, job)
+
+	stepsStr := strings.Join(job.Steps, "")
+
+	setupIdx := strings.Index(stepsStr, "Setup Scripts")
+	reactIdx := strings.Index(stepsStr, "id: react")
+	awInfoIdx := strings.Index(stepsStr, "id: generate_aw_info")
+
+	assert.Greater(t, setupIdx, -1, "Setup Scripts step should be present")
+	assert.Greater(t, reactIdx, -1, "Reaction step should be present")
+	assert.Greater(t, awInfoIdx, -1, "Generate aw_info step should be present")
+
+	// Reaction step must appear immediately after setup-scripts, before generate_aw_info
+	assert.Less(t, setupIdx, reactIdx, "Reaction step should appear after Setup Scripts")
+	assert.Less(t, reactIdx, awInfoIdx, "Reaction step should appear before generate_aw_info")
+}
+
 // TestBuildMainJob_Basic tests building a basic main job
 func TestBuildMainJob_Basic(t *testing.T) {
 	compiler := NewCompiler()
