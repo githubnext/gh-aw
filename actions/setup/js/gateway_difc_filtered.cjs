@@ -82,10 +82,19 @@ function generateDifcFilteredSection(filteredEvents) {
     return "";
   }
 
-  const count = filteredEvents.length;
+  // Deduplicate events by their significant fields
+  const seen = new Set();
+  const uniqueEvents = filteredEvents.filter(event => {
+    const key = [event.html_url || "", event.tool_name || "", event.description || "", event.reason || ""].join("|");
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+
+  const count = uniqueEvents.length;
   const itemWord = count === 1 ? "item" : "items";
 
-  let section = "\n\n> [!TIP]\n";
+  let section = "\n\n> [!NOTE]\n";
   section += `> <details>\n`;
   section += `> <summary>🔒 GitHub Guard filtered ${count} ${itemWord}</summary>\n`;
   section += `>\n`;
@@ -93,7 +102,7 @@ function generateDifcFilteredSection(filteredEvents) {
   section += `> This happens when a tool call accesses a resource that does not meet the required integrity or secrecy level of the workflow.\n`;
   section += `>\n`;
 
-  for (const event of filteredEvents) {
+  for (const event of uniqueEvents) {
     let reference;
     if (event.html_url) {
       const label = event.number ? `#${event.number}` : event.html_url;

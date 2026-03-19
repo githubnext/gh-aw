@@ -157,7 +157,7 @@ describe("gateway_difc_filtered.cjs", () => {
 
       const result = generateDifcFilteredSection(events);
 
-      expect(result).toContain("> [!TIP]");
+      expect(result).toContain("> [!NOTE]");
       expect(result).toContain("> <details>");
       expect(result).toContain("> </details>");
       expect(result).toContain("> <summary>🔒 GitHub Guard filtered 1 item</summary>");
@@ -186,7 +186,7 @@ describe("gateway_difc_filtered.cjs", () => {
 
       const result = generateDifcFilteredSection(events);
 
-      expect(result).toContain("> [!TIP]");
+      expect(result).toContain("> [!NOTE]");
       expect(result).toContain("> <summary>🔒 GitHub Guard filtered 2 items</summary>");
       expect(result).toContain("[#42](https://github.com/org/repo/issues/42)");
       expect(result).toContain("[#99](https://github.com/org/repo/issues/99)");
@@ -246,11 +246,11 @@ describe("gateway_difc_filtered.cjs", () => {
       expect(result).toContain("integrity or secrecy level");
     });
 
-    it("should start with double newline and tip alert", () => {
+    it("should start with double newline and note alert", () => {
       const events = [{ type: "DIFC_FILTERED", tool_name: "tool", reason: "reason" }];
       const result = generateDifcFilteredSection(events);
 
-      expect(result).toMatch(/^\n\n> \[!TIP\]/);
+      expect(result).toMatch(/^\n\n> \[!NOTE\]/);
     });
 
     it("should use correct singular/plural form", () => {
@@ -265,6 +265,20 @@ describe("gateway_difc_filtered.cjs", () => {
       ];
       const multiResult = generateDifcFilteredSection(multiEvents);
       expect(multiResult).toContain("2 items");
+    });
+
+    it("should deduplicate filtered events with identical fields", () => {
+      const events = [
+        { type: "DIFC_FILTERED", tool_name: "list_issues", reason: "Integrity check failed", html_url: "https://github.com/org/repo/issues/42", number: "42" },
+        { type: "DIFC_FILTERED", tool_name: "list_issues", reason: "Integrity check failed", html_url: "https://github.com/org/repo/issues/42", number: "42" },
+        { type: "DIFC_FILTERED", tool_name: "get_issue", reason: "Secrecy check failed", html_url: "https://github.com/org/repo/issues/99", number: "99" },
+      ];
+
+      const result = generateDifcFilteredSection(events);
+
+      expect(result).toContain("> <summary>🔒 GitHub Guard filtered 2 items</summary>");
+      expect(result).toContain("[#42](https://github.com/org/repo/issues/42)");
+      expect(result).toContain("[#99](https://github.com/org/repo/issues/99)");
     });
 
     it("should replace newlines in reason with spaces", () => {
