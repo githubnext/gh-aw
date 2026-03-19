@@ -648,6 +648,12 @@ const ActivationArtifactName = "activation"
 // APMArtifactName is the artifact name for the APM (Agent Package Manager) bundle.
 const APMArtifactName = "apm"
 
+// SafeOutputItemsArtifactName is the artifact name for the safe output items manifest.
+// This artifact contains the JSONL manifest of all items created by safe output handlers
+// and is uploaded by the safe_outputs job to avoid conflicting with the "agent" artifact
+// that is already uploaded by the agent job.
+const SafeOutputItemsArtifactName = "safe-output-items"
+
 // MCPServerID represents a built-in MCP server identifier.
 // This semantic type distinguishes MCP server IDs from arbitrary strings,
 // preventing accidental mixing of server identifiers with other string types.
