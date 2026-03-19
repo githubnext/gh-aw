@@ -3,8 +3,10 @@
 package cli
 
 import (
+	"bytes"
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -44,6 +46,28 @@ func TestUpgradeExtensionIfOutdated_SilentFailureOnAPIError(t *testing.T) {
 	require.NoError(t, err, "Should fail silently on API errors")
 	assert.False(t, upgraded, "Should not report upgrade when API is unreachable")
 	assert.Empty(t, installPath, "installPath should be empty when API is unreachable")
+}
+
+func TestFirstAttemptWriter_Linux(t *testing.T) {
+	if runtime.GOOS != "linux" {
+		t.Skip("Linux-only behavior")
+	}
+	var buf bytes.Buffer
+	dst := &bytes.Buffer{}
+	w := firstAttemptWriter(dst, &buf)
+	// On Linux the writer should be the buffer, not dst.
+	assert.Equal(t, &buf, w, "firstAttemptWriter should return the buffer on Linux")
+}
+
+func TestFirstAttemptWriter_NonLinux(t *testing.T) {
+	if runtime.GOOS == "linux" {
+		t.Skip("Non-Linux behavior only")
+	}
+	var buf bytes.Buffer
+	dst := &bytes.Buffer{}
+	w := firstAttemptWriter(dst, &buf)
+	// On non-Linux the writer should be dst.
+	assert.Equal(t, dst, w, "firstAttemptWriter should return dst on non-Linux")
 }
 
 func TestRenamePathForUpgrade(t *testing.T) {

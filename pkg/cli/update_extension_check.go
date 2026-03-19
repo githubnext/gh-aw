@@ -1,7 +1,9 @@
 package cli
 
 import (
+	"bytes"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -89,51 +91,85 @@ func upgradeExtensionIfOutdated(verbose bool) (bool, string, error) {
 	updateExtensionCheckLog.Printf("Upgrading extension from %s to %s", currentVersion, latestVersion)
 	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Upgrading gh-aw extension from %s to %s...", currentVersion, latestVersion)))
 
-	// On Linux (including WSL), the kernel returns ETXTBSY when any process
-	// tries to open a currently-executing binary for writing.  We rename the
-	// executable to a temporary backup path before running gh extension upgrade,
-	// which atomically frees the original path so gh can write the new binary
-	// there.  The inode stays alive for the running process.
+	// First attempt: run the upgrade without touching the filesystem.
+	// On most systems (and on Linux when there is no in-use binary conflict)
+	// this will succeed.  On Linux with WSL the kernel may return ETXTBSY when
+	// gh tries to open the currently-executing binary for writing; in that case
+	// we fall through to the rename+retry path below.
 	//
-	// Using rename (rather than remove) means we can restore the backup if the
-	// upgrade command fails, preventing the user from being left without gh-aw.
-	// We also capture the install path now – after the rename os.Executable()
-	// returns a "(deleted)" suffix on Linux, so the caller must not rely on it
-	// for the subsequent relaunch.
+	// On Linux we buffer the first attempt's output rather than printing it
+	// directly, so that the ETXTBSY error message is suppressed when the
+	// rename+retry path succeeds and the user is not shown a confusing failure.
+	var firstAttemptBuf bytes.Buffer
+	firstAttemptOut := firstAttemptWriter(os.Stderr, &firstAttemptBuf)
+	firstCmd := exec.Command("gh", "extension", "upgrade", "github/gh-aw")
+	firstCmd.Stdout = firstAttemptOut
+	firstCmd.Stderr = firstAttemptOut
+	firstErr := firstCmd.Run()
+	if firstErr == nil {
+		// First attempt succeeded without any file manipulation.
+		if runtime.GOOS == "linux" {
+			// Replay the buffered output that was not shown during the attempt.
+			_, _ = io.Copy(os.Stderr, &firstAttemptBuf)
+		}
+		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("✓ gh-aw extension upgraded to "+latestVersion))
+		return true, "", nil
+	}
+
+	// First attempt failed.
+	if runtime.GOOS != "linux" {
+		// On non-Linux systems there is nothing more to try.
+		return false, "", fmt.Errorf("failed to upgrade gh-aw extension: %w", firstErr)
+	}
+
+	// On Linux the failure is likely ETXTBSY.  Log the first attempt's output
+	// at debug level and attempt the rename+retry workaround.
+	updateExtensionCheckLog.Printf("First upgrade attempt failed (likely ETXTBSY); retrying with rename workaround. First attempt output: %s", firstAttemptBuf.String())
+
+	// Resolve the current executable path before renaming; after the rename
+	// os.Executable() returns a "(deleted)"-suffixed path on Linux.
 	var installPath string
-	if runtime.GOOS == "linux" {
-		if exe, exeErr := os.Executable(); exeErr == nil {
-			// Resolve any symlink so we work on the real binary, not a gh wrapper.
-			if resolved, resolveErr := filepath.EvalSymlinks(exe); resolveErr == nil {
-				exe = resolved
-			}
-			if path, renameErr := renamePathForUpgrade(exe); renameErr != nil {
-				updateExtensionCheckLog.Printf("Could not rename executable before upgrade (upgrade may fail with ETXTBSY): %v", renameErr)
-			} else {
-				installPath = path
-			}
+	if exe, exeErr := os.Executable(); exeErr == nil {
+		if resolved, resolveErr := filepath.EvalSymlinks(exe); resolveErr == nil {
+			exe = resolved
+		}
+		if path, renameErr := renamePathForUpgrade(exe); renameErr != nil {
+			// Rename failed; the retry will likely fail again with ETXTBSY.
+			updateExtensionCheckLog.Printf("Could not rename executable for retry (upgrade will likely fail with ETXTBSY): %v", renameErr)
+		} else {
+			installPath = path
 		}
 	}
 
-	cmd := exec.Command("gh", "extension", "upgrade", "github/gh-aw")
-	cmd.Stdout = os.Stderr
-	cmd.Stderr = os.Stderr
-	if upgradeErr := cmd.Run(); upgradeErr != nil {
-		// The upgrade failed. If we renamed the binary to a backup, restore it
-		// now so the user is not left without a working gh-aw installation.
+	retryCmd := exec.Command("gh", "extension", "upgrade", "github/gh-aw")
+	retryCmd.Stdout = os.Stderr
+	retryCmd.Stderr = os.Stderr
+	if retryErr := retryCmd.Run(); retryErr != nil {
+		// Retry also failed. Restore the backup so the user still has gh-aw.
 		if installPath != "" {
 			restoreExecutableBackup(installPath)
 		}
-		return false, "", fmt.Errorf("failed to upgrade gh-aw extension: %w", upgradeErr)
+		return false, "", fmt.Errorf("failed to upgrade gh-aw extension: %w", retryErr)
 	}
 
-	// Upgrade succeeded – clean up the backup file if one was created.
+	// Retry succeeded. Clean up the backup.
 	if installPath != "" {
 		cleanupExecutableBackup(installPath)
 	}
 
 	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("✓ gh-aw extension upgraded to "+latestVersion))
 	return true, installPath, nil
+}
+
+// firstAttemptWriter returns a writer that buffers output on Linux (so that
+// ETXTBSY error messages from a failed first upgrade attempt can be suppressed
+// when the rename+retry workaround succeeds) and writes directly to dst on
+// other platforms.
+func firstAttemptWriter(dst io.Writer, buf *bytes.Buffer) io.Writer {
+	if runtime.GOOS == "linux" {
+		return buf
+	}
+	return dst
 }
 
 // renamePathForUpgrade renames the binary at exe to exe+".bak", freeing the
