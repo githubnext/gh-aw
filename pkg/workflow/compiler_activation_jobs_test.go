@@ -251,7 +251,8 @@ func TestBuildActivationJob_WithReaction(t *testing.T) {
 }
 
 // TestBuildActivationJob_ReactionAfterSetupScripts verifies that the reaction step is placed
-// immediately after the setup-scripts step so the user sees feedback as fast as possible.
+// after generate_aw_info (so aw_info is captured even if reaction fails) and that both appear
+// early in the job before secret validation steps.
 func TestBuildActivationJob_ReactionAfterSetupScripts(t *testing.T) {
 	compiler := NewCompiler()
 
@@ -268,16 +269,17 @@ func TestBuildActivationJob_ReactionAfterSetupScripts(t *testing.T) {
 	stepsStr := strings.Join(job.Steps, "")
 
 	setupIdx := strings.Index(stepsStr, "Setup Scripts")
-	reactIdx := strings.Index(stepsStr, "id: react")
 	awInfoIdx := strings.Index(stepsStr, "id: generate_aw_info")
+	reactIdx := strings.Index(stepsStr, "id: react")
 
 	assert.Greater(t, setupIdx, -1, "Setup Scripts step should be present")
-	assert.Greater(t, reactIdx, -1, "Reaction step should be present")
 	assert.Greater(t, awInfoIdx, -1, "Generate aw_info step should be present")
+	assert.Greater(t, reactIdx, -1, "Reaction step should be present")
 
-	// Reaction step must appear immediately after setup-scripts, before generate_aw_info
-	assert.Less(t, setupIdx, reactIdx, "Reaction step should appear after Setup Scripts")
-	assert.Less(t, reactIdx, awInfoIdx, "Reaction step should appear before generate_aw_info")
+	// generate_aw_info runs first (after setup) so its data is captured even if reaction fails.
+	// Reaction runs right after generate_aw_info for fast user feedback.
+	assert.Less(t, setupIdx, awInfoIdx, "generate_aw_info should appear after Setup Scripts")
+	assert.Less(t, awInfoIdx, reactIdx, "Reaction step should appear after generate_aw_info")
 }
 
 // TestBuildMainJob_Basic tests building a basic main job

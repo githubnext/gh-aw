@@ -35,18 +35,66 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 	// Activation job doesn't need project support (no safe outputs processed here)
 	steps = append(steps, c.generateSetupStep(setupActionRef, SetupActionDestination, false)...)
 
+	// When a workflow_call trigger is present, resolve the platform (host) repository before
+	// generating aw_info so that target_repo can be included in aw_info.json and used by
+	// the checkout step. This is necessary for event-driven relays (e.g. on: issue_comment)
+	// where github.event_name is not 'workflow_call', making the previous expression
+	// (github.event_name == 'workflow_call' && github.action_repository || github.repository)
+	// unreliable. GITHUB_WORKFLOW_REF always reflects the executing workflow's repo regardless
+	// of how it was triggered.
+	if hasWorkflowCallTrigger(data.On) && !data.InlinedImports {
+		compilerActivationJobLog.Print("Adding resolve-host-repo step for workflow_call trigger")
+		steps = append(steps, c.generateResolveHostRepoStep())
+	}
+
+	// In workflow_call context, compute a unique artifact prefix from a hash of the
+	// workflow inputs. This prefix is applied to all artifact names so that multiple
+	// callers of the same reusable workflow can run concurrently in the same workflow
+	// run without artifact name collisions.
+	if hasWorkflowCallTrigger(data.On) {
+		compilerActivationJobLog.Print("Adding artifact prefix computation step for workflow_call trigger")
+		steps = append(steps, generateArtifactPrefixStep()...)
+		outputs[constants.ArtifactPrefixOutputName] = "${{ steps.artifact-prefix.outputs.prefix }}"
+	}
+
+	// Generate agentic run info immediately after setup so aw_info.json is ready as early as
+	// possible. This step runs before the reaction so that its data is captured even if the
+	// reaction step fails.
+	engine, err := c.getAgenticEngine(data.AI)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get agentic engine: %w", err)
+	}
+	compilerActivationJobLog.Print("Generating aw_info step in activation job")
+	var awInfoYaml strings.Builder
+	c.generateCreateAwInfo(&awInfoYaml, data, engine)
+	steps = append(steps, awInfoYaml.String())
+	// Expose the model output from the activation job so downstream jobs can reference it
+	outputs["model"] = "${{ steps.generate_aw_info.outputs.model }}"
+	// Track whether the lockdown check failed so the conclusion job can surface
+	// the configuration error in the failure issue even when the agent never ran.
+	outputs["lockdown_check_failed"] = "${{ steps.generate_aw_info.outputs.lockdown_check_failed == 'true' }}"
+
+	// Expose the resolved platform (host) repository and ref so agent and safe_outputs jobs
+	// can use needs.activation.outputs.target_repo / target_ref for any checkout that must
+	// target the platform repo and branch rather than github.repository (the caller's repo in
+	// cross-repo workflow_call scenarios, especially when pinned to a non-default branch).
+	if hasWorkflowCallTrigger(data.On) && !data.InlinedImports {
+		outputs["target_repo"] = "${{ steps.resolve-host-repo.outputs.target_repo }}"
+		outputs["target_repo_name"] = "${{ steps.resolve-host-repo.outputs.target_repo_name }}"
+		outputs["target_ref"] = "${{ steps.resolve-host-repo.outputs.target_ref }}"
+	}
+
 	// Compute reaction/comment/label flags early so the app token and reaction steps can be
-	// inserted immediately after setup for the fastest possible user feedback.
+	// inserted right after generate_aw_info for fast user feedback.
 	hasReaction := data.AIReaction != "" && data.AIReaction != "none"
 	hasStatusComment := data.StatusComment != nil && *data.StatusComment
 	hasLabelCommand := len(data.LabelCommand) > 0
 	// Compute filtered label events once and reuse below (permissions + app token scopes)
 	filteredLabelEvents := FilterLabelCommandEvents(data.LabelCommandEvents)
 
-	// Mint the activation app token immediately after setup so it is available for the
-	// reaction step below. A single token is minted upfront when a GitHub App is configured
-	// and at least one of the activation steps (reaction, status-comment, or label removal)
-	// needs it, avoiding multiple token mints.
+	// Mint a single activation app token upfront if a GitHub App is configured and any
+	// step in the activation job will need it (reaction, status-comment, or label removal).
+	// This avoids minting multiple tokens.
 	if data.ActivationGitHubApp != nil && (hasReaction || hasStatusComment || hasLabelCommand) {
 		// Build the combined permissions needed for all activation steps.
 		// For label removal we only add the scopes required by the enabled events.
@@ -70,9 +118,9 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 		outputs["activation_app_token_minting_failed"] = "${{ steps.activation-app-token.outcome == 'failure' }}"
 	}
 
-	// Add reaction step immediately after setup-scripts so it is shown to the user as fast
-	// as possible. This runs in the activation job so it can use any configured github-token
-	// or github-app.
+	// Add reaction step right after generate_aw_info so it is shown to the user as fast as
+	// possible. generate_aw_info runs first so its data is captured even if the reaction fails.
+	// This runs in the activation job so it can use any configured github-token or github-app.
 	if hasReaction {
 		reactionCondition := BuildReactionCondition()
 
@@ -91,54 +139,6 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 		steps = append(steps, fmt.Sprintf("          github-token: %s\n", c.resolveActivationToken(data)))
 		steps = append(steps, "          script: |\n")
 		steps = append(steps, generateGitHubScriptWithRequire("add_reaction.cjs"))
-	}
-
-	// When a workflow_call trigger is present, resolve the platform (host) repository before
-	// generating aw_info so that target_repo can be included in aw_info.json and used by
-	// the checkout step. This is necessary for event-driven relays (e.g. on: issue_comment)
-	// where github.event_name is not 'workflow_call', making the previous expression
-	// (github.event_name == 'workflow_call' && github.action_repository || github.repository)
-	// unreliable. GITHUB_WORKFLOW_REF always reflects the executing workflow's repo regardless
-	// of how it was triggered.
-	if hasWorkflowCallTrigger(data.On) && !data.InlinedImports {
-		compilerActivationJobLog.Print("Adding resolve-host-repo step for workflow_call trigger")
-		steps = append(steps, c.generateResolveHostRepoStep())
-	}
-
-	// In workflow_call context, compute a unique artifact prefix from a hash of the
-	// workflow inputs. This prefix is applied to all artifact names so that multiple
-	// callers of the same reusable workflow can run concurrently in the same workflow
-	// run without artifact name collisions.
-	if hasWorkflowCallTrigger(data.On) {
-		compilerActivationJobLog.Print("Adding artifact prefix computation step for workflow_call trigger")
-		steps = append(steps, generateArtifactPrefixStep()...)
-		outputs[constants.ArtifactPrefixOutputName] = "${{ steps.artifact-prefix.outputs.prefix }}"
-	}
-
-	// Generate agentic run info immediately after setup so aw_info.json is ready as early as possible.
-	// This ensures it is available for prompt generation and can be uploaded together with prompt.txt.
-	engine, err := c.getAgenticEngine(data.AI)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get agentic engine: %w", err)
-	}
-	compilerActivationJobLog.Print("Generating aw_info step in activation job")
-	var awInfoYaml strings.Builder
-	c.generateCreateAwInfo(&awInfoYaml, data, engine)
-	steps = append(steps, awInfoYaml.String())
-	// Expose the model output from the activation job so downstream jobs can reference it
-	outputs["model"] = "${{ steps.generate_aw_info.outputs.model }}"
-	// Track whether the lockdown check failed so the conclusion job can surface
-	// the configuration error in the failure issue even when the agent never ran.
-	outputs["lockdown_check_failed"] = "${{ steps.generate_aw_info.outputs.lockdown_check_failed == 'true' }}"
-
-	// Expose the resolved platform (host) repository and ref so agent and safe_outputs jobs
-	// can use needs.activation.outputs.target_repo / target_ref for any checkout that must
-	// target the platform repo and branch rather than github.repository (the caller's repo in
-	// cross-repo workflow_call scenarios, especially when pinned to a non-default branch).
-	if hasWorkflowCallTrigger(data.On) && !data.InlinedImports {
-		outputs["target_repo"] = "${{ steps.resolve-host-repo.outputs.target_repo }}"
-		outputs["target_repo_name"] = "${{ steps.resolve-host-repo.outputs.target_repo_name }}"
-		outputs["target_ref"] = "${{ steps.resolve-host-repo.outputs.target_ref }}"
 	}
 
 	// Add secret validation step before context variable validation.
