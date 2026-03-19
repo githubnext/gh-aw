@@ -288,5 +288,52 @@ describe("gateway_difc_filtered.cjs", () => {
       expect(result).toContain("line1 line2");
       expect(result).not.toContain("line1\nline2");
     });
+
+    it("should show at most 16 items and ellipse the rest", () => {
+      const events = Array.from({ length: 20 }, (_, i) => ({
+        type: "DIFC_FILTERED",
+        tool_name: `tool_${i}`,
+        reason: "reason",
+        html_url: `https://github.com/org/repo/issues/${i + 1}`,
+        number: String(i + 1),
+      }));
+
+      const result = generateDifcFilteredSection(events);
+
+      // Summary still shows the total count
+      expect(result).toContain("> <summary>🔒 Integrity filtering filtered 20 items</summary>");
+      // First 16 items rendered
+      expect(result).toContain("[#1](https://github.com/org/repo/issues/1)");
+      expect(result).toContain("[#16](https://github.com/org/repo/issues/16)");
+      // Items 17-20 not rendered individually
+      expect(result).not.toContain("[#17]");
+      // Ellipsis line present
+      expect(result).toContain("... and 4 more items");
+    });
+
+    it("should not show ellipsis when 16 or fewer items", () => {
+      const events = Array.from({ length: 16 }, (_, i) => ({
+        type: "DIFC_FILTERED",
+        tool_name: `tool_${i}`,
+        reason: "reason",
+      }));
+
+      const result = generateDifcFilteredSection(events);
+
+      expect(result).not.toContain("more item");
+    });
+
+    it("should use singular form in ellipsis for exactly 1 remaining item", () => {
+      const events = Array.from({ length: 17 }, (_, i) => ({
+        type: "DIFC_FILTERED",
+        tool_name: `tool_${i}`,
+        reason: "reason",
+      }));
+
+      const result = generateDifcFilteredSection(events);
+
+      expect(result).toContain("... and 1 more item");
+      expect(result).not.toContain("... and 1 more items");
+    });
   });
 });

@@ -102,7 +102,11 @@ function generateDifcFilteredSection(filteredEvents) {
   section += `> This happens when a tool call accesses a resource that does not meet the required integrity or secrecy level of the workflow.\n`;
   section += `>\n`;
 
-  for (const event of uniqueEvents) {
+  const maxItems = 16;
+  const visibleEvents = uniqueEvents.slice(0, maxItems);
+  const remainingCount = uniqueEvents.length - visibleEvents.length;
+
+  for (const event of visibleEvents) {
     let reference;
     if (event.html_url) {
       const label = event.number ? `#${event.number}` : event.html_url;
@@ -113,6 +117,10 @@ function generateDifcFilteredSection(filteredEvents) {
     const tool = event.tool_name ? `\`${event.tool_name}\`` : "-";
     const reason = (event.reason || "-").replace(/\n/g, " ");
     section += `> - ${reference} (${tool}: ${reason})\n`;
+  }
+
+  if (remainingCount > 0) {
+    section += `> - ... and ${remainingCount} more ${remainingCount === 1 ? "item" : "items"}\n`;
   }
 
   section += `>\n`;
