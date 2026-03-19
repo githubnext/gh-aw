@@ -4,10 +4,12 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
+	"os"
 	"regexp"
 	"sort"
 	"strings"
 
+	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/logger"
 )
 
@@ -64,11 +66,14 @@ func (e *ExpressionExtractor) ExtractExpressions(markdown string) ([]*Expression
 
 		// Apply activation output transformation for backward compatibility
 		// This transforms needs.activation.outputs.{text|title|body} to steps.sanitized.outputs.{text|title|body}
-		// Users should now use steps.sanitized.outputs.* directly, but we keep this transformation
-		// for backward compatibility with existing workflows.
+		// Users should now use steps.sanitized.outputs.* directly; this transformation exists only for
+		// backward compatibility with existing workflows.
 		transformedContent := transformActivationOutputs(content)
 		if transformedContent != content {
 			expressionExtractionLog.Printf("Transformed expression: %s -> %s", content, transformedContent)
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(
+				fmt.Sprintf("Deprecated expression '${{ %s }}': use '${{ %s }}' instead.", content, transformedContent),
+			))
 			content = transformedContent
 		}
 

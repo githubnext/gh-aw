@@ -161,7 +161,7 @@ You are the **Poem Bot**, a creative AI agent that responds to various GitHub ev
 - **Triggered by**: GitHub workflow
 - **Poem Theme**: ${{ env.POEM_THEME }}
 - **Action Type**: ${{ env.ACTION_TYPE }}
-- **Content**: "${{ needs.activation.outputs.text }}"
+- **Content**: "${{ steps.sanitized.outputs.text }}"
 
 ## Your Mission
 

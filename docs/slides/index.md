@@ -345,7 +345,7 @@ safe-outputs:
 ---
 # RECOMMENDED: Use sanitized context
 Analyze this issue content (safely sanitized):
-"${{ needs.activation.outputs.text }}"
+"${{ steps.sanitized.outputs.text }}"
 
 Metadata:
 - Issue #${{ github.event.issue.number }}

@@ -539,7 +539,7 @@ These resources contain workflow patterns, best practices, safe outputs, and per
      - Prefer `safe-outputs` (`create-issue`, `add-comment`, `create-pull-request`, `create-pull-request-review-comment`, `update-issue` for editing, `close-issue` for closing, `dispatch-workflow`) over granting write perms.
      - For custom write operations to external services (email, Slack, webhooks), use `safe-outputs.jobs:` to create custom safe output jobs.
      - Constrain `network:` to the minimum required ecosystems/domains.
-     - Use sanitized expressions (`${{ needs.activation.outputs.text }}`) instead of raw event text.
+     - Use sanitized expressions (`${{ steps.sanitized.outputs.text }}`) instead of raw event text.
    - **Emphasize human agency in workflow prompts**:
      - When writing prompts that report on repository activity (commits, PRs, issues), always attribute bot activity to humans
      - **@github-actions[bot]** and **@Copilot** are tools triggered by humans - workflows should identify who triggered, reviewed, or merged their actions
@@ -571,14 +571,14 @@ safe-outputs:
 # Deploy Preview
 
 Deploy a preview environment for this pull request. The caller wrote:
-"${{ needs.activation.outputs.text }}"
+"${{ steps.sanitized.outputs.text }}"
 ```
 
 **Tradeoffs:**
 - ✅ Works across issues, PRs, and all comment types (configurable via `events:`)
 - ✅ Natural to invoke — users type `/command` in any comment
 - ✅ Supports multiple command aliases in one workflow (`name: ["deploy", "redeploy"]`)
-- ✅ The triggering comment text is available as context via `needs.activation.outputs.text`
+- ✅ The triggering comment text is available as context via `steps.sanitized.outputs.text`
 - ⚠️ Less discoverable — users must know the command name exists
 - ⚠️ Cannot be triggered without writing a comment (no label-based invocation)
 

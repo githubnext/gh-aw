@@ -24,36 +24,21 @@ Agentic workflows restrict expressions in **markdown content** to prevent securi
 - Run metadata: `github.run_id`, `github.run_number`, `github.job`, `github.workflow`
 - Pattern expressions: `needs.*`, `steps.*`, `github.event.inputs.*`
 
-### Automatic Expression Transformations
+### Activation Outputs
 
-The compiler automatically transforms certain expressions to ensure they work correctly in the activation job context:
+Use `steps.sanitized.outputs.text/title/body` in your markdown prompts to access sanitized event content:
 
-**Activation Output Transformations:**
-- `needs.activation.outputs.text` → `steps.sanitized.outputs.text`
-- `needs.activation.outputs.title` → `steps.sanitized.outputs.title`
-- `needs.activation.outputs.body` → `steps.sanitized.outputs.body`
+- `steps.sanitized.outputs.text` — sanitized full context (title + body for issues/PRs, body for comments)
+- `steps.sanitized.outputs.title` — sanitized title of the triggering issue or PR
+- `steps.sanitized.outputs.body` — sanitized body of the triggering issue or PR
 
-**Why this transformation occurs:**
+:::caution[Deprecated: `needs.activation.outputs.*`]
+Using `${{ needs.activation.outputs.text }}`, `${{ needs.activation.outputs.title }}`, or `${{ needs.activation.outputs.body }}` in workflow markdown is **deprecated**. These expressions still work but produce a deprecation warning during compilation. Use `${{ steps.sanitized.outputs.text }}` etc. directly instead.
 
-The prompt is generated within the activation job, which cannot reference its own `needs.activation.*` outputs (a job cannot reference its own needs outputs in GitHub Actions). Instead, the compiler automatically rewrites these expressions to reference the `sanitized` step within the activation job, which computes sanitized versions of the issue/PR text, title, and body.
-
-**Example:**
-
-```markdown
-Analyze this content: "${{ needs.activation.outputs.text }}"
-```
-
-Is automatically transformed during compilation to:
-
-```markdown
-Analyze this content: "${{ steps.sanitized.outputs.text }}"
-```
-
-This transformation is particularly important for [runtime imports](#runtime-imports), which allow you to edit markdown content without recompilation. The compiler ensures all necessary expressions are available for runtime substitution.
-
-:::note
-Only `text`, `title`, and `body` outputs are transformed. Other activation outputs like `comment_id` and `comment_repo` are not transformed and remain as `needs.activation.outputs.*`.
+**Why:** The prompt is generated _inside_ the activation job, which cannot reference its own `needs.activation.*` outputs in GitHub Actions. The compiler automatically rewrites the deprecated form to `steps.sanitized.outputs.*`, but writing the correct form directly is preferred.
 :::
+
+Other activation outputs like `comment_id`, `comment_repo`, and `slash_command` are available as `needs.activation.outputs.*` in _downstream_ jobs (not in the markdown prompt itself).
 
 ### Prohibited Expressions
 

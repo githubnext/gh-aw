@@ -191,7 +191,7 @@ safe-outputs:
 Process the issue and make multiple updates without interference
 from concurrent modifications.
 
-Context: "${{ needs.activation.outputs.text }}"
+Context: "${{ steps.sanitized.outputs.text }}"
 ```
 
 ### Pull Request Triggers (`pull_request:`)

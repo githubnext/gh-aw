@@ -47,7 +47,7 @@ on:
     types: [opened]
 ---
 
-# Analyze issue: "${{ needs.activation.outputs.text }}"
+# Analyze issue: "${{ steps.sanitized.outputs.text }}"
 ```
 
 **Benefits**:
@@ -95,7 +95,7 @@ tools:
 ```markdown
 Repository: ${{ github.repository }}
 Issue Number: ${{ github.event.issue.number }}
-Issue Content: "${{ needs.activation.outputs.text }}"
+Issue Content: "${{ steps.sanitized.outputs.text }}"
 
 Analyze the above issue (content already provided).
 ```
@@ -158,7 +158,7 @@ on: issues
 
 # Issue Triage for #${{ github.event.issue.number }}
 
-**Issue Content**: "${{ needs.activation.outputs.text }}"
+**Issue Content**: "${{ steps.sanitized.outputs.text }}"
 
 Tasks:
 1. Categorize issue type (bug/feature/question)
@@ -352,11 +352,11 @@ Annual cost (500 runs): ~$75
 Get the full issue details, then summarize the description.
 ```
 
-**Problem**: Fetches large response just to extract what's already in `needs.activation.outputs.text`.
+**Problem**: Fetches large response just to extract what's already in `steps.sanitized.outputs.text`.
 
 **Solution**:
 ```markdown
-Issue: "${{ needs.activation.outputs.text }}"
+Issue: "${{ steps.sanitized.outputs.text }}"
 Summarize the above issue content.
 ```
 
@@ -409,7 +409,7 @@ grep -A5 "token_usage" logs/*.log
 ```
 
 **Solution**:
-1. Replace API calls with `needs.activation.outputs.text`
+1. Replace API calls with `steps.sanitized.outputs.text`
 2. Reduce tool permissions to minimum
 3. Add explicit "don't re-fetch" instructions
 
@@ -446,4 +446,4 @@ grep "turn" logs/*.log | wc -l
 - Issue #1728: Token usage optimization case study (481k → 150k)
 - Issue #2012: Workflow performance analysis patterns
 - `gh aw logs` documentation: Analyzing workflow execution
-- Sanitized context text: Using `needs.activation.outputs.text`
+- Sanitized context text: Using `steps.sanitized.outputs.text`

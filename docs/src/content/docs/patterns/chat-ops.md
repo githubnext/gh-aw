@@ -75,11 +75,11 @@ Customize access with the `roles:` configuration. Use `roles: [admin, maintainer
 
 ## Accessing Context Information
 
-Access sanitized event context through `needs.activation.outputs.text`:
+Access sanitized event context through `steps.sanitized.outputs.text`:
 
 ```aw wrap
 # Reference the sanitized text in your workflow:
-Analyze this content: "${{ needs.activation.outputs.text }}"
+Analyze this content: "${{ steps.sanitized.outputs.text }}"
 ```
 
 Sanitization filters unauthorized mentions, malicious links, and excessive content while preserving essential information.

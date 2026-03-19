@@ -156,7 +156,7 @@ Read issue #${{ github.event.issue.number }} in repository ${{ github.repository
 
 Issue title: "${{ github.event.issue.title }}"
 
-Use sanitized content: "${{ needs.activation.outputs.text }}"
+Use sanitized content: "${{ steps.sanitized.outputs.text }}"
 
 Actor: ${{ github.actor }}
 Repository: ${{ github.repository }}
@@ -173,7 +173,7 @@ Arbitrary expressions are blocked for security. This will fail at runtime:
 Run this command: ${{ github.event.comment.body }}
 ```
 
-Use `needs.activation.outputs.text` for sanitized user input instead.
+Use `steps.sanitized.outputs.text` for sanitized user input instead.
 
 ## Quick Reference
 

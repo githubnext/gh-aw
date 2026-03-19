@@ -45,7 +45,7 @@ tracking issue in the central tracker.
 
 **Original issue:** ${{ github.event.issue.html_url }}
 **Issue number:** ${{ github.event.issue.number }}
-**Content:** "${{ needs.activation.outputs.text }}"
+**Content:** "${{ steps.sanitized.outputs.text }}"
 
 Create tracking issue with link to original, component identifier, summary, suggested priority, and labels `from-component-alpha` and `tracking-issue`.
 ```
@@ -179,7 +179,7 @@ safe-outputs:
 Analyze new issues and create tracking issues in appropriate repositories.
 
 **Original issue:** ${{ github.event.issue.html_url }}
-**Content:** "${{ needs.activation.outputs.text }}"
+**Content:** "${{ steps.sanitized.outputs.text }}"
 
 Analyze issue severity and route to appropriate tracker: security issues to `myorg/security-tracker`, features to `myorg/feature-tracker`, bugs to `myorg/bug-tracker`, or infrastructure to `myorg/ops-tracker`. Include original link, triage reasoning, priority, affected components, and SLA targets.
 ```

@@ -58,7 +58,7 @@ imports:
 
 # Issue Notifier
 
-A new issue was opened: "${{ needs.activation.outputs.text }}"
+A new issue was opened: "${{ steps.sanitized.outputs.text }}"
 
 Summarize the issue and use the slack-notify tool to send a notification.
 ```
@@ -208,7 +208,7 @@ imports:
 
 # Issue Summary to Notion
 
-Analyze the issue: "${{ needs.activation.outputs.text }}"
+Analyze the issue: "${{ steps.sanitized.outputs.text }}"
 
 Search for the GitHub Issues page in Notion using the read-only Notion tools, then add a summary comment using the notion-add-comment safe-job.
 ```

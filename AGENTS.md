@@ -772,40 +772,35 @@ go test -race ./...
 
 ### Expression Transformations in Workflows
 
-**Automatic Activation Output Transformations:**
+**Deprecated: `needs.activation.outputs.*` in Workflow Markdown**
 
-The compiler automatically transforms certain `needs.activation.outputs.*` expressions to `steps.sanitized.outputs.*` for compatibility with the activation job context.
+Use `steps.sanitized.outputs.text/title/body` directly in workflow markdown prompts:
 
-**Why this transformation occurs:**
+- `${{ steps.sanitized.outputs.text }}` — sanitized full context
+- `${{ steps.sanitized.outputs.title }}` — sanitized issue/PR title
+- `${{ steps.sanitized.outputs.body }}` — sanitized issue/PR body
 
-The prompt is generated **within the activation job**, which means it cannot reference its own `needs.activation.*` outputs (a job cannot reference its own needs outputs in GitHub Actions). The compiler automatically rewrites these expressions to reference the `sanitized` step, which computes sanitized versions of the triggering content.
+**Why the `steps.sanitized.*` form is required:**
 
-**Transformations:**
+The prompt is generated **within the activation job**, which means it cannot reference its own `needs.activation.*` outputs (a job cannot reference its own needs outputs in GitHub Actions). The `sanitized` step within the activation job computes sanitized versions of the triggering content.
+
+**Backward compatibility:**
+
+The compiler still accepts the old form (`needs.activation.outputs.text/title/body`) and automatically rewrites it to `steps.sanitized.outputs.*`, but emits a deprecation warning. Use `steps.sanitized.outputs.*` directly in all new and updated workflows.
+
+**Old deprecated form → new correct form:**
 - `needs.activation.outputs.text` → `steps.sanitized.outputs.text`
 - `needs.activation.outputs.title` → `steps.sanitized.outputs.title`
 - `needs.activation.outputs.body` → `steps.sanitized.outputs.body`
 
 **Important notes:**
-- Only `text`, `title`, and `body` outputs are transformed
-- Other activation outputs (`comment_id`, `comment_repo`, `slash_command`) are NOT transformed
-- Transformation uses word boundary checking to prevent incorrect partial matches (e.g., `text_custom` is not transformed)
-- This is particularly important for runtime-import, where markdown can change without recompilation
-
-**Example:**
-
-```markdown
-Analyze this content: "${{ needs.activation.outputs.text }}"
-```
-
-Is automatically transformed to:
-
-```markdown
-Analyze this content: "${{ steps.sanitized.outputs.text }}"
-```
+- Only `text`, `title`, and `body` outputs are affected; use `needs.activation.outputs.*` for `comment_id`, `comment_repo`, `slash_command` etc. in _downstream_ jobs
+- Backward-compat transformation uses word boundary checking (e.g., `text_custom` is not transformed)
 
 **Implementation:**
 - Transformation happens in `pkg/workflow/expression_extraction.go::transformActivationOutputs()`
 - Applied during expression extraction from markdown
+- Deprecation warnings emitted to stderr during compilation
 - Transformations are logged for debugging when `DEBUG=workflow:expression_extraction`
 
 ### YAML Library Usage
