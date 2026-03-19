@@ -59,7 +59,15 @@ on:
   label_command:
     names: [deploy, redeploy]
     events: [pull_request]
+
+# Keep label after activation (persistent state, not one-shot command)
+on:
+  label_command:
+    name: in-review
+    remove_label: false
 ```
+
+The `remove_label` field (boolean, default `true`) controls whether the matched label is removed after the workflow activates. Set it to `false` when the label represents a persistent state rather than a transient command — for example, to mark that an item is currently being processed without consuming the label. When `remove_label: false`, the `issues: write` / `pull-requests: write` permissions for label removal are not required.
 
 The compiler generates `issues`, `pull_request`, and/or `discussion` events with `types: [labeled]`, filtered to the named labels. It also adds a `workflow_dispatch` trigger with an `item_number` input so you can test the workflow manually without applying a real label.
 
