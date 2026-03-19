@@ -8,7 +8,7 @@ const { ERR_SYSTEM } = require("./error_codes.cjs");
  * Default path for the safe output items manifest file.
  * This file records every item created in GitHub by safe output handlers.
  */
-const MANIFEST_FILE_PATH = "/tmp/safe-output-items.jsonl";
+const MANIFEST_FILE_PATH = "/tmp/gh-aw/safe-output-items.jsonl";
 
 /**
  * Safe output types that create new items in GitHub (these typically return a URL,

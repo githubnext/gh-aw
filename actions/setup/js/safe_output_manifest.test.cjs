@@ -26,7 +26,7 @@ describe("safe_output_manifest", () => {
 
   describe("MANIFEST_FILE_PATH", () => {
     it("should be the expected default path", () => {
-      expect(MANIFEST_FILE_PATH).toBe("/tmp/safe-output-items.jsonl");
+      expect(MANIFEST_FILE_PATH).toBe("/tmp/gh-aw/safe-output-items.jsonl");
     });
   });
 
