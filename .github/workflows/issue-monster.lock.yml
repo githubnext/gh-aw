@@ -1385,6 +1385,7 @@ jobs:
             await main();
       - name: Generate GitHub App token for skip-if checks
         id: pre-activation-app-token
+        continue-on-error: true
         uses: actions/create-github-app-token@a7f885bf4560200d03183ed941cb6fb072e4b343 # v3.0.0-beta.4
         with:
           app-id: ${{ vars.APP_ID }}
@@ -1400,7 +1401,7 @@ jobs:
           GH_AW_WORKFLOW_NAME: "Issue Monster"
           GH_AW_SKIP_MAX_MATCHES: "5"
         with:
-          github-token: ${{ steps.pre-activation-app-token.outputs.token }}
+          github-token: ${{ steps.pre-activation-app-token.outputs.token || github.token }}
           script: |
             const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');
             setupGlobals(core, github, context, exec, io);
@@ -1414,7 +1415,7 @@ jobs:
           GH_AW_WORKFLOW_NAME: "Issue Monster"
           GH_AW_SKIP_MIN_MATCHES: "1"
         with:
-          github-token: ${{ steps.pre-activation-app-token.outputs.token }}
+          github-token: ${{ steps.pre-activation-app-token.outputs.token || github.token }}
           script: |
             const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');
             setupGlobals(core, github, context, exec, io);

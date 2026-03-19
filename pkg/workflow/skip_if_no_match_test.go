@@ -499,9 +499,9 @@ This workflow uses a GitHub App token for org-wide search.
 			t.Error("Expected owner to be set in GitHub App token mint step")
 		}
 
-		// Verify the minted token is used in the skip-if step via the unified step ID
-		if !strings.Contains(lockContentStr, "github-token: ${{ steps.pre-activation-app-token.outputs.token }}") {
-			t.Error("Expected minted app token (pre-activation-app-token) to be used in skip-if-no-match step")
+		// Verify the minted token is used in the skip-if step via the unified step ID (with github.token fallback)
+		if !strings.Contains(lockContentStr, "github-token: ${{ steps.pre-activation-app-token.outputs.token || github.token }}") {
+			t.Error("Expected minted app token (pre-activation-app-token) with github.token fallback to be used in skip-if-no-match step")
 		}
 
 		// Verify GH_AW_SKIP_SCOPE is set to "none"
@@ -563,9 +563,9 @@ Both skip-if-match and skip-if-no-match share one mint step.
 		if !strings.Contains(lockContentStr, "Check skip-if-no-match query") {
 			t.Error("Expected skip-if-no-match check to be present")
 		}
-		// Both reference the same pre-activation-app-token step
-		if strings.Count(lockContentStr, "github-token: ${{ steps.pre-activation-app-token.outputs.token }}") != 2 {
-			t.Error("Expected both skip-if steps to reference the unified pre-activation-app-token step")
+		// Both reference the same pre-activation-app-token step (with github.token fallback)
+		if strings.Count(lockContentStr, "github-token: ${{ steps.pre-activation-app-token.outputs.token || github.token }}") != 2 {
+			t.Error("Expected both skip-if steps to reference the unified pre-activation-app-token step with github.token fallback")
 		}
 	})
 }

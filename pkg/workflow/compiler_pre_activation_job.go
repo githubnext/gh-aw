@@ -482,12 +482,15 @@ func (c *Compiler) extractPreActivationCustomFields(jobs map[string]any) ([]stri
 // buildPreActivationAppTokenMintStep generates a single GitHub App token mint step for use
 // by all skip-if checks in the pre-activation job. The step ID is "pre-activation-app-token".
 // Auth configuration comes from the top-level on.github-app field.
+// The step uses continue-on-error: true so that a missing app installation (HTTP 404) does not
+// fail the pre-activation job; skip-if checks fall back to github.token in that case.
 func (c *Compiler) buildPreActivationAppTokenMintStep(app *GitHubAppConfig) []string {
 	var steps []string
 	tokenStepID := constants.PreActivationAppTokenStepID
 
 	steps = append(steps, "      - name: Generate GitHub App token for skip-if checks\n")
 	steps = append(steps, fmt.Sprintf("        id: %s\n", tokenStepID))
+	steps = append(steps, "        continue-on-error: true\n")
 	steps = append(steps, fmt.Sprintf("        uses: %s\n", GetActionPin("actions/create-github-app-token")))
 	steps = append(steps, "        with:\n")
 	steps = append(steps, fmt.Sprintf("          app-id: %s\n", app.AppID))
@@ -520,9 +523,11 @@ func (c *Compiler) buildPreActivationAppTokenMintStep(app *GitHubAppConfig) []st
 // resolvePreActivationSkipIfToken returns the GitHub token expression to use for skip-if check
 // steps in the pre-activation job. Priority: App token > custom github-token > empty (default).
 // When non-empty, callers should emit `with.github-token: <value>` in the step.
+// When an app is configured the token step uses continue-on-error: true, so the expression
+// falls back to github.token in case the app is not installed on the repository.
 func (c *Compiler) resolvePreActivationSkipIfToken(data *WorkflowData) string {
 	if data.ActivationGitHubApp != nil {
-		return fmt.Sprintf("${{ steps.%s.outputs.token }}", constants.PreActivationAppTokenStepID)
+		return fmt.Sprintf("${{ steps.%s.outputs.token || github.token }}", constants.PreActivationAppTokenStepID)
 	}
 	if data.ActivationGitHubToken != "" {
 		return data.ActivationGitHubToken
