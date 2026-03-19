@@ -2629,6 +2629,8 @@ jobs:
           /// <reference types="./safe-output-script" />
           // Auto-generated safe-output script handler: post-slack-message
           
+          const { sanitizeContent } = require("./sanitize_content.cjs");
+          
           /** @type {import('./types/safe-output-script').SafeOutputScriptMain} */
           async function main(config = {}) {
             const { channel, message } = config;
