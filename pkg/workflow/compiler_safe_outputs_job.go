@@ -499,18 +499,20 @@ func buildDetectionSuccessCondition() ConditionNode {
 }
 
 // buildSafeOutputItemsManifestUploadStep builds the step that uploads the safe output
-// items manifest as a GitHub Actions artifact. The step always runs (if: always()) so
+// items manifest to the unified agent artifact. The step always runs (if: always()) so
 // the manifest is available to the audit command even if some safe output steps fail.
+// The file is written to /tmp/gh-aw/safe-output-items.jsonl so it is merged into the
+// same "agent" artifact that the main job uploads, rather than a separate artifact.
 // prefix is prepended to the artifact name; use empty string for non-workflow_call workflows.
 func buildSafeOutputItemsManifestUploadStep(prefix string) []string {
 	return []string{
-		"      - name: Upload Safe Output Items Manifest\n",
+		"      - name: Upload safe output items\n",
 		"        if: always()\n",
 		fmt.Sprintf("        uses: %s\n", GetActionPin("actions/upload-artifact")),
 		"        with:\n",
-		fmt.Sprintf("          name: %ssafe-output-items\n", prefix),
-		"          path: /tmp/safe-output-items.jsonl\n",
-		"          if-no-files-found: warn\n",
+		fmt.Sprintf("          name: %sagent\n", prefix),
+		"          path: /tmp/gh-aw/safe-output-items.jsonl\n",
+		"          if-no-files-found: ignore\n",
 	}
 }
 
@@ -549,6 +551,7 @@ func generateSafeOutputScriptContent(scriptName string, scriptConfig *SafeScript
 	sb.WriteString("// @ts-check\n")
 	sb.WriteString("/// <reference types=\"./safe-output-script\" />\n")
 	sb.WriteString("// Auto-generated safe-output script handler: " + scriptName + "\n\n")
+	sb.WriteString("const { sanitizeContent } = require(\"./sanitize_content.cjs\");\n\n")
 	sb.WriteString("/** @type {import('./types/safe-output-script').SafeOutputScriptMain} */\n")
 	sb.WriteString("async function main(config = {}) {\n")
 
@@ -599,7 +602,7 @@ func buildCustomScriptFilesStep(scripts map[string]*SafeScriptConfig) []string {
 	sort.Strings(scriptNames)
 
 	var steps []string
-	steps = append(steps, "      - name: Setup Safe Output Custom Scripts\n")
+	steps = append(steps, "      - name: Setup Safe Outputs Custom Scripts\n")
 	steps = append(steps, "        run: |\n")
 
 	for _, scriptName := range scriptNames {

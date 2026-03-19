@@ -743,37 +743,39 @@ func (c *Compiler) extractCommandConfig(frontmatter map[string]any) (commandName
 }
 
 // extractLabelCommandConfig extracts the label-command configuration from frontmatter
-// including label name(s) and the events field.
+// including label name(s), the events field, and the remove_label flag.
 // It reads on.label_command which can be:
 //   - a string: label name directly (e.g. label_command: "deploy")
-//   - a map with "name" or "names" and optional "events" fields
+//   - a map with "name" or "names", optional "events", and optional "remove_label" fields
 //
-// Returns (labelNames, labelEvents) where labelEvents is nil for default (all events).
-func (c *Compiler) extractLabelCommandConfig(frontmatter map[string]any) (labelNames []string, labelEvents []string) {
+// Returns (labelNames, labelEvents, removeLabel) where labelEvents is nil for default (all events)
+// and removeLabel defaults to true when not specified.
+func (c *Compiler) extractLabelCommandConfig(frontmatter map[string]any) (labelNames []string, labelEvents []string, removeLabel bool) {
 	frontmatterLog.Print("Extracting label-command configuration from frontmatter")
 	onValue, exists := frontmatter["on"]
 	if !exists {
-		return nil, nil
+		return nil, nil, true
 	}
 	onMap, ok := onValue.(map[string]any)
 	if !ok {
-		return nil, nil
+		return nil, nil, true
 	}
 	labelCommandValue, hasLabelCommand := onMap["label_command"]
 	if !hasLabelCommand {
-		return nil, nil
+		return nil, nil, true
 	}
 
 	// Simple string form: label_command: "my-label"
 	if nameStr, ok := labelCommandValue.(string); ok {
 		frontmatterLog.Printf("Extracted label-command name (shorthand): %s", nameStr)
-		return []string{nameStr}, nil
+		return []string{nameStr}, nil, true
 	}
 
-	// Map form: label_command: {name: "...", names: [...], events: [...]}
+	// Map form: label_command: {name: "...", names: [...], events: [...], remove_label: bool}
 	if lcMap, ok := labelCommandValue.(map[string]any); ok {
 		var names []string
 		var events []string
+		removeLabelVal := true // default to true
 
 		if nameVal, hasName := lcMap["name"]; hasName {
 			if nameStr, ok := nameVal.(string); ok {
@@ -802,11 +804,17 @@ func (c *Compiler) extractLabelCommandConfig(frontmatter map[string]any) (labelN
 			events = ParseCommandEvents(eventsVal)
 		}
 
-		frontmatterLog.Printf("Extracted label-command config: names=%v, events=%v", names, events)
-		return names, events
+		if removeLabelField, hasRemoveLabel := lcMap["remove_label"]; hasRemoveLabel {
+			if b, ok := removeLabelField.(bool); ok {
+				removeLabelVal = b
+			}
+		}
+
+		frontmatterLog.Printf("Extracted label-command config: names=%v, events=%v, remove_label=%v", names, events, removeLabelVal)
+		return names, events, removeLabelVal
 	}
 
-	return nil, nil
+	return nil, nil, true
 }
 
 // isGitHubAppNestedField returns true if the trimmed YAML line represents a known

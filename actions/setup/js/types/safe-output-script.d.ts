@@ -10,6 +10,8 @@
 //
 // The compiler generates:
 //
+//   const { sanitizeContent } = require("./sanitize_content.cjs");
+//
 //   async function main(config = {}) {
 //     const { channel } = config;          // from declared inputs
 //     return async function handleMyScript(item, resolvedTemporaryIds, temporaryIdMap) {
@@ -161,6 +163,40 @@ export interface ResolvedTemporaryIds {
  */
 export type TemporaryIdMap = Map<string, ResolvedTemporaryIdEntry>;
 
+// ── sanitizeContent ──────────────────────────────────────────────────────────
+
+/**
+ * Options for the {@link sanitizeContent} function.
+ */
+export interface SanitizeOptions {
+  /** Maximum length of content (default: 524288). */
+  maxLength?: number;
+  /** `@mention` aliases that should NOT be neutralized. */
+  allowedAliases?: string[];
+  /** Maximum bot-trigger references before filtering (default: 10). */
+  maxBotMentions?: number;
+}
+
+/**
+ * Sanitizes user-supplied content for safe output.
+ *
+ * Injected into every auto-generated safe-output script handler module via a
+ * module-level `require("./sanitize_content.cjs")` at the top of the generated
+ * wrapper.  It is available as a plain `const` in the handler body — no import
+ * or require needed.
+ *
+ * @param content - The text to sanitize.
+ * @param maxLengthOrOptions - Optional maximum length or full options object.
+ * @returns The sanitized text.
+ *
+ * @example
+ * ```javascript
+ * const safeTitle = sanitizeContent(item.title);
+ * const safeBody  = sanitizeContent(item.body, { allowedAliases: ["copilot-swe-agent"] });
+ * ```
+ */
+export declare const sanitizeContent: (content: string, maxLengthOrOptions?: number | SanitizeOptions) => string;
+
 // ── Handler and factory function types ─────────────────────────────────────
 
 /**
@@ -227,3 +263,7 @@ export declare function main(config: SafeOutputScriptConfig): Promise<SafeOutput
 //   glob     — @actions/glob
 //   io       — @actions/io
 //   require  — CommonJS require (supports relative paths and npm packages)
+//
+// The following is injected by the auto-generated wrapper (not github-script):
+//
+//   sanitizeContent — sanitize user content (see SanitizeOptions for options)

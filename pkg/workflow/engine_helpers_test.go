@@ -100,7 +100,7 @@ func TestBuildStandardNpmEngineInstallSteps_AllEngines(t *testing.T) {
 			name:           "codex engine",
 			packageName:    "@openai/codex",
 			defaultVersion: string(constants.DefaultCodexVersion),
-			stepName:       "Install Codex",
+			stepName:       "Install Codex CLI",
 			cacheKeyPrefix: "codex",
 		},
 		{
