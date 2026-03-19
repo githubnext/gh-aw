@@ -7,7 +7,7 @@ sidebar:
 
 # MCP Gateway Specification
 
-**Version**: 1.8.0  
+**Version**: 1.9.0  
 **Status**: Draft Specification  
 **Latest Version**: [mcp-gateway](/gh-aw/reference/mcp-gateway/)  
 **JSON Schema**: [mcp-gateway-config.schema.json](/gh-aw/schemas/mcp-gateway-config.schema.json)  
@@ -248,6 +248,7 @@ The `gateway` section is required and configures gateway-specific behavior:
 | `payloadDir` | string | No | Directory path for storing large payload JSON files for authenticated clients |
 | `payloadPathPrefix` | string | No | Path prefix to remap payload paths for agent containers (e.g., /workspace/payloads) |
 | `payloadSizeThreshold` | integer | No | Size threshold in bytes for storing payloads to disk (default: 524288 = 512KB) |
+| `trustedBots` | array[string] | No | List of GitHub bot identity strings (e.g., `github-actions[bot]`) permitted to call the gateway. When configured, only callers whose `X-GitHub-Actor` header matches an entry are accepted. When omitted, bot identity is not checked. |
 
 #### 4.1.3.1 Payload Directory Path Validation
 
@@ -366,6 +367,48 @@ payload_size_threshold = 262144   # 256KB - more aggressive disk storage
 - Threshold MUST be a positive integer representing bytes
 - Gateway MUST compare actual payload size against threshold before deciding storage method
 - Threshold MAY be adjusted based on deployment needs (memory vs disk I/O trade-offs)
+
+#### 4.1.3.4 Trusted Bot Identity Configuration
+
+The optional `trustedBots` field in the gateway configuration provides an identity-based allowlist of GitHub bot accounts that are permitted to call the gateway. This is independent of the `apiKey` mechanism and operates at the HTTP request level by inspecting the `X-GitHub-Actor` header.
+
+**How it works**:
+
+1. The caller includes an `X-GitHub-Actor` header in each request identifying the GitHub actor (bot or user) making the request
+2. The gateway compares the header value against every entry in the `trustedBots` list
+3. If the list is configured and the actor does not match any entry, the gateway rejects the request with HTTP 403
+4. If the list is not configured, bot identity is not checked and any authenticated caller (i.e., one that passes API-key authentication) may invoke the gateway
+
+**Configuration Example**:
+
+```json
+{
+  "gateway": {
+    "port": 8080,
+    "domain": "localhost",
+    "apiKey": "${MCP_GATEWAY_API_KEY}",
+    "trustedBots": [
+      "github-actions[bot]",
+      "copilot-swe-agent[bot]"
+    ]
+  }
+}
+```
+
+**Requirements**:
+- `trustedBots` MUST be a non-empty array of strings when present
+- Each entry MUST be a non-empty string (typically a GitHub username such as `github-actions[bot]`)
+- When `trustedBots` is configured, the gateway MUST reject requests where `X-GitHub-Actor` is absent or does not match any entry (HTTP 403)
+- When `trustedBots` is omitted, the gateway MUST NOT enforce bot identity checks
+- Bot identity checks are applied **after** API key authentication; a request must pass both checks when both are configured
+- Entries are compared case-sensitively
+
+**Security Considerations**:
+- `trustedBots` provides defense-in-depth: even if an API key is leaked, callers that cannot supply a matching `X-GitHub-Actor` header are denied
+- The `X-GitHub-Actor` header MUST be treated as an untrusted claim unless the deployment ensures that only the gateway's own infrastructure can set it (e.g., the gateway runs inside a trusted network boundary)
+- Implementations SHOULD log rejected bot identity mismatches at the warning level without logging the header value in plaintext
+
+**Compliance Test**: T-AUTH-006, T-AUTH-007 - Trusted Bot Identity Enforcement
 
 #### 4.1.3a Top-Level Configuration Fields
 
@@ -943,6 +986,32 @@ The following endpoints MUST NOT require authentication:
 
 - `/health`
 
+### 7.5 Trusted Bot Identity Authentication
+
+When `gateway.trustedBots` is configured, the gateway enforces an additional identity check **after** API key authentication:
+
+1. The gateway inspects the `X-GitHub-Actor` request header on all RPC requests to `/mcp/{server-name}` and `/close` endpoints
+2. The header value MUST match one of the entries in `trustedBots` (case-sensitive)
+3. If the header is absent or does not match any entry, the gateway MUST reject the request with HTTP 403
+
+**Example request** (both API key and bot identity supplied):
+
+```http
+POST /mcp/github HTTP/1.1
+Authorization: my-secret-api-key-12345
+X-GitHub-Actor: github-actions[bot]
+Content-Type: application/json
+```
+
+**Error responses**:
+
+| Condition | HTTP Status | Description |
+|-----------|-------------|-------------|
+| `X-GitHub-Actor` header missing | 403 | Bot identity required but not supplied |
+| `X-GitHub-Actor` does not match any trusted bot | 403 | Caller is not in the trusted bot list |
+
+**Security Note**: The `/health` endpoint MUST remain exempt from trusted bot identity checks (same as API key exemption).
+
 ---
 
 ## 8. Health Monitoring
@@ -1130,6 +1199,8 @@ A conforming implementation MUST pass the following test categories:
 - **T-AUTH-003**: Missing token rejection
 - **T-AUTH-004**: Health endpoint exemption
 - **T-AUTH-005**: Token rotation support
+- **T-AUTH-006**: Trusted bot identity acceptance — request with matching `X-GitHub-Actor` header is accepted when `trustedBots` is configured
+- **T-AUTH-007**: Trusted bot identity rejection — request with absent or non-matching `X-GitHub-Actor` header is rejected with HTTP 403 when `trustedBots` is configured
 
 #### 10.1.5 Timeout Tests
 
@@ -1468,6 +1539,23 @@ Content-Type: application/json
 ---
 
 ## Change Log
+
+### Version 1.9.0 (Draft)
+
+- **Added**: `trustedBots` field to gateway configuration (Section 4.1.3, 4.1.3.4)
+  - Optional array of GitHub bot identity strings permitted to call the gateway
+  - When configured, the gateway enforces an `X-GitHub-Actor` header check on all RPC requests
+  - Requests whose `X-GitHub-Actor` does not match any entry are rejected with HTTP 403
+  - When omitted, bot identity is not checked (any authenticated caller is accepted)
+  - Entries are compared case-sensitively
+  - The `/health` endpoint is exempt from bot identity checks
+- **Added**: Section 7.5 — Trusted Bot Identity Authentication
+  - Specifies HTTP 403 error behavior for absent or non-matching `X-GitHub-Actor` headers
+  - Bot identity check runs after API key authentication
+- **Added**: Compliance tests for trusted bot identities (Section 10.1.4)
+  - T-AUTH-006: Trusted bot identity acceptance
+  - T-AUTH-007: Trusted bot identity rejection
+- **Updated**: JSON Schema with `trustedBots` property in `gatewayConfig` definition
 
 ### Version 1.8.0 (Draft)
 

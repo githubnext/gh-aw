@@ -246,6 +246,15 @@
           "type": "string",
           "description": "Optional path prefix for payload file paths as seen from within agent containers. Use this when the payload directory is mounted at a different path inside the container than on the host.",
           "minLength": 1
+        },
+        "trustedBots": {
+          "type": "array",
+          "description": "List of trusted bot identity strings that are permitted to call the gateway. When configured, only requests whose 'X-GitHub-Actor' header matches one of these identities will be accepted. Typically GitHub bot usernames such as 'github-actions[bot]' or 'copilot-swe-agent[bot]'. When omitted, bot identity is not checked and any authenticated caller may invoke the gateway.",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "minItems": 1
         }
       },
       "required": ["port", "domain", "apiKey"],
