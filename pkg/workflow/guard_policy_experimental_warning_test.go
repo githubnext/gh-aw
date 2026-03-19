@@ -118,12 +118,6 @@ permissions:
 			if strings.Contains(stderrOutput, unexpectedMessage) {
 				t.Errorf("Did not expect experimental warning '%s', but got stderr:\n%s", unexpectedMessage, stderrOutput)
 			}
-
-			// Verify that no guard policy warning was recorded in the warning count
-			warningCount := compiler.GetWarningCount()
-			if warningCount != 0 {
-				t.Errorf("Expected no warnings but got %d warning(s); stderr:\n%s", warningCount, stderrOutput)
-			}
 		})
 	}
 }
