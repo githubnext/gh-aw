@@ -5,7 +5,8 @@
  * Constants
  *
  * This module provides shared constants used across JavaScript actions.
- * These constants should be kept in sync with the constants in pkg/constants/constants.go
+ * Where a constant has a counterpart in pkg/constants/constants.go, their values should be kept in sync.
+ * Some constants are specific to the JavaScript implementation and do not have Go equivalents.
  */
 
 /**
