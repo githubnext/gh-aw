@@ -17,7 +17,7 @@ func TestLogsCommandFlags(t *testing.T) {
 	cmd := NewLogsCommand()
 
 	// Check that all expected flags are present
-	expectedFlags := []string{"count", "start-date", "end-date", "output", "engine", "ref", "before-run-id", "after-run-id"}
+	expectedFlags := []string{"count", "start-date", "end-date", "output", "engine", "ref", "before-run-id", "after-run-id", "filtered-integrity"}
 
 	for _, flagName := range expectedFlags {
 		flag := cmd.Flags().Lookup(flagName)
@@ -443,4 +443,84 @@ func TestFindAgentLogFile(t *testing.T) {
 			t.Errorf("Expected to find agent-stdio.log, got: %s", found)
 		}
 	})
+}
+
+// TestRunHasDifcFilteredItems verifies the DIFC filtered-integrity filter helper.
+func TestRunHasDifcFilteredItems(t *testing.T) {
+	const gatewayWithDifc = `{"timestamp":"2025-01-01T00:00:00Z","type":"DIFC_FILTERED","server_id":"github","tool_name":"create_issue","reason":"integrity"}` + "\n"
+	const gatewayWithoutDifc = `{"timestamp":"2025-01-01T00:00:00Z","event":"tool_call","server_name":"github","tool_name":"list_issues","duration":10}` + "\n"
+
+	tests := []struct {
+		name        string
+		fileContent string
+		filePath    func(dir string) string
+		want        bool
+	}{
+		{
+			name:        "gateway.jsonl with DIFC_FILTERED event",
+			fileContent: gatewayWithDifc,
+			filePath:    func(dir string) string { return filepath.Join(dir, "gateway.jsonl") },
+			want:        true,
+		},
+		{
+			name:        "gateway.jsonl without DIFC_FILTERED events",
+			fileContent: gatewayWithoutDifc,
+			filePath:    func(dir string) string { return filepath.Join(dir, "gateway.jsonl") },
+			want:        false,
+		},
+		{
+			name:        "mcp-logs/gateway.jsonl with DIFC_FILTERED event",
+			fileContent: gatewayWithDifc,
+			filePath:    func(dir string) string { return filepath.Join(dir, "mcp-logs", "gateway.jsonl") },
+			want:        true,
+		},
+		{
+			name:        "no gateway logs present",
+			fileContent: "",
+			filePath:    nil, // no file created
+			want:        false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			dir := testutil.TempDir(t, "difc-filter-*")
+
+			if tt.filePath != nil {
+				path := tt.filePath(dir)
+				if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
+					t.Fatalf("failed to create directory: %v", err)
+				}
+				if err := os.WriteFile(path, []byte(tt.fileContent), 0644); err != nil {
+					t.Fatalf("failed to write gateway file: %v", err)
+				}
+			}
+
+			got, err := runHasDifcFilteredItems(dir, false)
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if got != tt.want {
+				t.Errorf("runHasDifcFilteredItems() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+// TestFilteredIntegrityFlag verifies the --filtered-integrity flag is registered correctly.
+func TestFilteredIntegrityFlag(t *testing.T) {
+	cmd := NewLogsCommand()
+
+	flag := cmd.Flags().Lookup("filtered-integrity")
+	if flag == nil {
+		t.Fatal("Expected flag 'filtered-integrity' not found in logs command")
+	}
+
+	if flag.DefValue != "false" {
+		t.Errorf("Expected 'filtered-integrity' default to be 'false', got: %s", flag.DefValue)
+	}
+
+	if flag.Usage == "" {
+		t.Error("Expected 'filtered-integrity' flag to have usage text")
+	}
 }
