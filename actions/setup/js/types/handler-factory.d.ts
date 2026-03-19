@@ -67,9 +67,10 @@ type HandlerResult = HandlerSuccessResult | HandlerErrorResult;
  *
  * @param message - The safe output message to process
  * @param resolvedTemporaryIds - Map of temporary IDs that have been resolved to actual issue/PR/discussion numbers
+ * @param temporaryIdMap - Live Map of temporary IDs for in-flight substitutions (may be used by action handlers)
  * @returns Promise resolving to result with success status and details
  */
-type MessageHandlerFunction = (message: any, resolvedTemporaryIds: ResolvedTemporaryIds) => Promise<HandlerResult>;
+type MessageHandlerFunction = (message: any, resolvedTemporaryIds: ResolvedTemporaryIds, temporaryIdMap?: Map<string, any>) => Promise<HandlerResult>;
 
 /**
  * Main factory function signature for safe output handlers

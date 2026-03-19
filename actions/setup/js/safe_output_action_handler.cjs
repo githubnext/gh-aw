@@ -55,7 +55,7 @@ async function main(config = {}) {
    * @param {Map<string, Object>} temporaryIdMap - Live map of temporary IDs (for substitution)
    * @returns {Promise<Object>} Result with success/error status
    */
-  return async function handleCustomAction(message, resolvedTemporaryIds, temporaryIdMap) {
+  return async function handleCustomAction(message, resolvedTemporaryIds, temporaryIdMap = new Map()) {
     // Enforce once-only constraint
     if (called) {
       const error = `Action "${actionName}" can only be called once per workflow run`;
