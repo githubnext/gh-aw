@@ -281,7 +281,29 @@ function generateFooterWithMessages(workflowName, runUrl, workflowSource, workfl
     historyUrl: historyUrl || undefined,
   };
 
-  let footer = "\n\n" + getFooterMessage(ctx);
+  // Collect guard notices to show BEFORE the attribution footer
+  let guardNotices = "";
+
+  // Add firewall blocked domains section if any domains were blocked
+  const blockedDomains = getBlockedDomains();
+  const blockedDomainsSection = generateBlockedDomainsSection(blockedDomains);
+  if (blockedDomainsSection) {
+    guardNotices += blockedDomainsSection;
+  }
+
+  // Add GitHub Guard DIFC filtered section if any items were filtered
+  try {
+    const difcFilteredEvents = getDifcFilteredEvents();
+    const difcFilteredSection = generateDifcFilteredSection(difcFilteredEvents);
+    if (difcFilteredSection) {
+      guardNotices += difcFilteredSection;
+    }
+  } catch {
+    // ignore errors so the rest of the footer is always preserved
+  }
+
+  // Attribution footer line comes after any guard notices
+  let footer = guardNotices + "\n\n" + getFooterMessage(ctx);
 
   // Add installation instructions if source is available
   const installMessage = getFooterInstallMessage(ctx);
@@ -293,24 +315,6 @@ function generateFooterWithMessages(workflowName, runUrl, workflowSource, workfl
   const missingInfoSections = getMissingInfoSections();
   if (missingInfoSections) {
     footer += missingInfoSections;
-  }
-
-  // Add firewall blocked domains section if any domains were blocked
-  const blockedDomains = getBlockedDomains();
-  const blockedDomainsSection = generateBlockedDomainsSection(blockedDomains);
-  if (blockedDomainsSection) {
-    footer += blockedDomainsSection;
-  }
-
-  // Add GitHub Guard DIFC filtered section if any items were filtered
-  try {
-    const difcFilteredEvents = getDifcFilteredEvents();
-    const difcFilteredSection = generateDifcFilteredSection(difcFilteredEvents);
-    if (difcFilteredSection) {
-      footer += difcFilteredSection;
-    }
-  } catch {
-    // ignore errors so the rest of the footer is always preserved
   }
 
   // Add XML comment marker for traceability
