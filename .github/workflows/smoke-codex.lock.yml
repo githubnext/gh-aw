@@ -245,6 +245,7 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
+          GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER: ${{ github.event.pull_request.number }}
           GH_AW_GITHUB_REPOSITORY: ${{ github.repository }}
           GH_AW_GITHUB_RUN_ID: ${{ github.run_id }}
           GH_AW_GITHUB_WORKSPACE: ${{ github.workspace }}
@@ -453,7 +454,7 @@ jobs:
                   "additionalProperties": false,
                   "properties": {
                     "labels": {
-                      "description": "The label names to add, separated by line breaks if there are multiple labels.",
+                      "description": "The labels' name to be added. Must be separated with line breaks if there're multiple labels.",
                       "type": "string"
                     },
                     "number": {
@@ -462,8 +463,7 @@ jobs:
                     }
                   },
                   "required": [
-                    "labels",
-                    "number"
+                    "labels"
                   ],
                   "type": "object"
                 },
