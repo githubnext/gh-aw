@@ -1036,8 +1036,185 @@ Verify staged safe-outputs with multiple handler types.
 	}
 }
 
-// TestCompileFromSubdirectoryCreatesActionsLockAtRoot tests that actions-lock.json
-// is created at the repository root when compiling from a subdirectory
+// TestCompileStagedSafeOutputsPermissionsGlobal verifies that when safe-outputs has
+// global staged: true, the compiled safe_outputs job has no job-level permissions block
+// (staged mode emits only preview output; no GitHub API writes are performed).
+func TestCompileStagedSafeOutputsPermissionsGlobal(t *testing.T) {
+	setup := setupIntegrationTest(t)
+	defer setup.cleanup()
+
+	testWorkflow := `---
+name: Staged Global Permissions
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+engine: copilot
+safe-outputs:
+  staged: true
+  create-issue:
+    title-prefix: "[staged] "
+    max: 1
+  add-labels:
+    max: 3
+  create-discussion:
+    max: 1
+---
+
+Verify that global staged mode removes all write permissions from the safe_outputs job.
+`
+	testWorkflowPath := filepath.Join(setup.workflowsDir, "staged-global-perms.md")
+	if err := os.WriteFile(testWorkflowPath, []byte(testWorkflow), 0644); err != nil {
+		t.Fatalf("Failed to write test workflow file: %v", err)
+	}
+
+	cmd := exec.Command(setup.binaryPath, "compile", testWorkflowPath)
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("CLI compile command failed: %v\nOutput: %s", err, string(output))
+	}
+
+	lockFilePath := filepath.Join(setup.workflowsDir, "staged-global-perms.lock.yml")
+	lockContent, err := os.ReadFile(lockFilePath)
+	if err != nil {
+		t.Fatalf("Failed to read lock file: %v", err)
+	}
+	lockContentStr := string(lockContent)
+
+	// Global staged means no write API calls are made, so the safe_outputs job must
+	// have no job-level permissions block (permissions come from the workflow level).
+	if strings.Contains(lockContentStr, "issues: write") {
+		t.Errorf("Staged lock file should NOT contain 'issues: write' in safe_outputs job\nLock file content:\n%s", lockContentStr)
+	}
+	if strings.Contains(lockContentStr, "discussions: write") {
+		t.Errorf("Staged lock file should NOT contain 'discussions: write' in safe_outputs job\nLock file content:\n%s", lockContentStr)
+	}
+	if strings.Contains(lockContentStr, "pull-requests: write") {
+		t.Errorf("Staged lock file should NOT contain 'pull-requests: write' in safe_outputs job\nLock file content:\n%s", lockContentStr)
+	}
+	if strings.Contains(lockContentStr, "contents: write") {
+		t.Errorf("Staged lock file should NOT contain 'contents: write' in safe_outputs job\nLock file content:\n%s", lockContentStr)
+	}
+
+	// Staged env var must still be present
+	if !strings.Contains(lockContentStr, `GH_AW_SAFE_OUTPUTS_STAGED: "true"`) {
+		t.Errorf("Lock file should contain GH_AW_SAFE_OUTPUTS_STAGED: \"true\"\nLock file content:\n%s", lockContentStr)
+	}
+}
+
+// TestCompileStagedSafeOutputsPermissionsPerHandler verifies that when only specific
+// safe-output handlers have staged: true, only those handlers' write permissions are
+// omitted. Non-staged handlers still contribute their required permissions.
+func TestCompileStagedSafeOutputsPermissionsPerHandler(t *testing.T) {
+	setup := setupIntegrationTest(t)
+	defer setup.cleanup()
+
+	testWorkflow := `---
+name: Staged Per-Handler Permissions
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+engine: copilot
+safe-outputs:
+  create-issue:
+    staged: true
+    title-prefix: "[staged] "
+    max: 1
+  add-labels:
+    max: 3
+---
+
+Verify that per-handler staged mode removes only that handler's write permissions.
+`
+	testWorkflowPath := filepath.Join(setup.workflowsDir, "staged-perhandler-perms.md")
+	if err := os.WriteFile(testWorkflowPath, []byte(testWorkflow), 0644); err != nil {
+		t.Fatalf("Failed to write test workflow file: %v", err)
+	}
+
+	cmd := exec.Command(setup.binaryPath, "compile", testWorkflowPath)
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("CLI compile command failed: %v\nOutput: %s", err, string(output))
+	}
+
+	lockFilePath := filepath.Join(setup.workflowsDir, "staged-perhandler-perms.lock.yml")
+	lockContent, err := os.ReadFile(lockFilePath)
+	if err != nil {
+		t.Fatalf("Failed to read lock file: %v", err)
+	}
+	lockContentStr := string(lockContent)
+
+	// add-labels is not staged and needs issues: write and pull-requests: write
+	if !strings.Contains(lockContentStr, "issues: write") {
+		t.Errorf("Lock file should contain 'issues: write' for non-staged add-labels\nLock file content:\n%s", lockContentStr)
+	}
+	if !strings.Contains(lockContentStr, "pull-requests: write") {
+		t.Errorf("Lock file should contain 'pull-requests: write' for non-staged add-labels\nLock file content:\n%s", lockContentStr)
+	}
+
+	// create-issue is staged so it must NOT add issues: write on its own.
+	// However add-labels already contributes issues: write, so we can only verify
+	// that discussions and contents: write are absent (which create-issue does not add
+	// anyway). The key behaviour is verified via the unit tests in safe_outputs_permissions_test.go.
+	if strings.Contains(lockContentStr, "discussions: write") {
+		t.Errorf("Lock file should NOT contain 'discussions: write' when only add-labels and staged create-issue are configured\nLock file content:\n%s", lockContentStr)
+	}
+	if strings.Contains(lockContentStr, "contents: write") {
+		t.Errorf("Lock file should NOT contain 'contents: write'\nLock file content:\n%s", lockContentStr)
+	}
+}
+
+// TestCompileStagedSafeOutputsPermissionsAllHandlersStaged verifies that when all
+// handlers are per-handler staged, the safe_outputs job has no write permissions.
+func TestCompileStagedSafeOutputsPermissionsAllHandlersStaged(t *testing.T) {
+	setup := setupIntegrationTest(t)
+	defer setup.cleanup()
+
+	testWorkflow := `---
+name: All Handlers Staged
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+engine: copilot
+safe-outputs:
+  create-issue:
+    staged: true
+    max: 1
+  create-discussion:
+    staged: true
+    max: 1
+---
+
+Verify that when all handlers are per-handler staged, no write permissions appear.
+`
+	testWorkflowPath := filepath.Join(setup.workflowsDir, "staged-all-handlers.md")
+	if err := os.WriteFile(testWorkflowPath, []byte(testWorkflow), 0644); err != nil {
+		t.Fatalf("Failed to write test workflow file: %v", err)
+	}
+
+	cmd := exec.Command(setup.binaryPath, "compile", testWorkflowPath)
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("CLI compile command failed: %v\nOutput: %s", err, string(output))
+	}
+
+	lockFilePath := filepath.Join(setup.workflowsDir, "staged-all-handlers.lock.yml")
+	lockContent, err := os.ReadFile(lockFilePath)
+	if err != nil {
+		t.Fatalf("Failed to read lock file: %v", err)
+	}
+	lockContentStr := string(lockContent)
+
+	// All handlers are staged — no write permissions should appear in safe_outputs job
+	for _, perm := range []string{"issues: write", "discussions: write", "pull-requests: write", "contents: write"} {
+		if strings.Contains(lockContentStr, perm) {
+			t.Errorf("Staged lock file should NOT contain %q\nLock file content:\n%s", perm, lockContentStr)
+		}
+	}
+}
+
 func TestCompileFromSubdirectoryCreatesActionsLockAtRoot(t *testing.T) {
 	setup := setupIntegrationTest(t)
 	defer setup.cleanup()
