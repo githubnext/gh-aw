@@ -26,7 +26,7 @@
 #   Imports:
 #     - shared/activation-app.md
 #
-# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"a1502fd29140535ef817c99dcabf36cb3592da3e418b6ad4d660e4e629896735","strict":true,"agent_id":"copilot","agent_model":"gpt-5.1-codex-mini"}
+# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"810d295f3ec4eadebaf8a208dc5c623ac79ed44e3a0ac78f15876712044f5328","strict":true,"agent_id":"copilot","agent_model":"gpt-5.1-codex-mini"}
 
 name: "Issue Monster"
 "on":
@@ -165,14 +165,35 @@ name: "Issue Monster"
           # core.info(`Found ${response.data.total_count} total issues matching basic criteria`);
           # 
           # // Fetch full details for each issue to get labels, assignees, sub-issues, and linked PRs
-          # const issuesWithDetails = await Promise.all(
+          # // Track integrity-filtered issues to emit a diagnostic summary
+          # const integrityFilteredIssues = [];
+          # const issuesWithDetails = (await Promise.all(
             # response.data.items.map(async (issue) => {
-              # const fullIssue = await github.rest.issues.get({
-                # owner,
-                # repo,
-                # issue_number: issue.number
-              # });
-              # 
+              # // Fetch full issue details — some issues may be blocked by integrity policy
+              # let fullIssue;
+              # try {
+                # fullIssue = await github.rest.issues.get({
+                  # owner,
+                  # repo,
+                  # issue_number: issue.number
+                # });
+              # } catch (fetchError) {
+                # // Integrity-filtered issues (403/451) or other transient errors should be
+                # // skipped individually rather than failing the entire batch
+                # const status = fetchError.status || fetchError.response?.status;
+                # // 403 = Forbidden (integrity policy), 451 = Unavailable For Legal Reasons
+                # const isIntegrityBlock = status === 403 || status === 451 ||
+                  # /\bintegrity\b/i.test(fetchError.message || '');
+                # const errorSummary = (fetchError.message || String(fetchError)).slice(0, 120);
+                # if (isIntegrityBlock) {
+                  # integrityFilteredIssues.push(issue.number);
+                  # core.warning(`⚠️ Skipping issue #${issue.number}: blocked by integrity policy (HTTP ${status || 'unknown'}): ${errorSummary}`);
+                # } else {
+                  # core.warning(`⚠️ Skipping issue #${issue.number}: could not fetch details (HTTP ${status || 'unknown'}): ${errorSummary}`);
+                # }
+                # return null;
+              # }
+        # 
               # // Check if this issue has sub-issues and linked PRs using GraphQL
               # let subIssuesCount = 0;
               # let linkedPRs = [];
@@ -236,7 +257,12 @@ name: "Issue Monster"
                 # linkedPRs
               # };
             # })
-          # );
+          # )).filter(Boolean); // Remove null entries (integrity-filtered or otherwise skipped)
+        # 
+          # // Emit diagnostic summary for integrity-filtered issues
+          # if (integrityFilteredIssues.length > 0) {
+            # core.warning(`🛡️ Integrity filter diagnostic: ${integrityFilteredIssues.length} issue(s) were skipped due to integrity policy: #${integrityFilteredIssues.join(', #')}. These issues will be excluded from this run.`);
+          # }
           # 
           # // Filter and score issues
           # const scoredIssues = issuesWithDetails
@@ -1516,13 +1542,34 @@ jobs:
               core.info(`Found ${response.data.total_count} total issues matching basic criteria`);
 
               // Fetch full details for each issue to get labels, assignees, sub-issues, and linked PRs
-              const issuesWithDetails = await Promise.all(
+              // Track integrity-filtered issues to emit a diagnostic summary
+              const integrityFilteredIssues = [];
+              const issuesWithDetails = (await Promise.all(
                 response.data.items.map(async (issue) => {
-                  const fullIssue = await github.rest.issues.get({
-                    owner,
-                    repo,
-                    issue_number: issue.number
-                  });
+                  // Fetch full issue details — some issues may be blocked by integrity policy
+                  let fullIssue;
+                  try {
+                    fullIssue = await github.rest.issues.get({
+                      owner,
+                      repo,
+                      issue_number: issue.number
+                    });
+                  } catch (fetchError) {
+                    // Integrity-filtered issues (403/451) or other transient errors should be
+                    // skipped individually rather than failing the entire batch
+                    const status = fetchError.status || fetchError.response?.status;
+                    // 403 = Forbidden (integrity policy), 451 = Unavailable For Legal Reasons
+                    const isIntegrityBlock = status === 403 || status === 451 ||
+                      /\bintegrity\b/i.test(fetchError.message || '');
+                    const errorSummary = (fetchError.message || String(fetchError)).slice(0, 120);
+                    if (isIntegrityBlock) {
+                      integrityFilteredIssues.push(issue.number);
+                      core.warning(`⚠️ Skipping issue #${issue.number}: blocked by integrity policy (HTTP ${status || 'unknown'}): ${errorSummary}`);
+                    } else {
+                      core.warning(`⚠️ Skipping issue #${issue.number}: could not fetch details (HTTP ${status || 'unknown'}): ${errorSummary}`);
+                    }
+                    return null;
+                  }
 
                   // Check if this issue has sub-issues and linked PRs using GraphQL
                   let subIssuesCount = 0;
@@ -1587,7 +1634,12 @@ jobs:
                     linkedPRs
                   };
                 })
-              );
+              )).filter(Boolean); // Remove null entries (integrity-filtered or otherwise skipped)
+
+              // Emit diagnostic summary for integrity-filtered issues
+              if (integrityFilteredIssues.length > 0) {
+                core.warning(`🛡️ Integrity filter diagnostic: ${integrityFilteredIssues.length} issue(s) were skipped due to integrity policy: #${integrityFilteredIssues.join(', #')}. These issues will be excluded from this run.`);
+              }
 
               // Filter and score issues
               const scoredIssues = issuesWithDetails
