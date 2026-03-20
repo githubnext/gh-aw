@@ -24,7 +24,7 @@ require (
 	go.yaml.in/yaml/v3 v3.0.4
 	golang.org/x/crypto v0.48.0
 	golang.org/x/mod v0.33.0
-	golang.org/x/term v0.40.0
+	golang.org/x/term v0.41.0
 	golang.org/x/vuln v1.1.4
 )
 
