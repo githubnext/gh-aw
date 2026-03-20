@@ -7,7 +7,6 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/parser"
 )
@@ -296,13 +295,15 @@ func parseWorkflowSpec(spec string) (*WorkflowSpec, error) {
 
 	repoSlug := fmt.Sprintf("%s/%s", owner, repo)
 
-	// When a GHE instance is configured, certain well-known repositories that exist only
-	// on public GitHub must have their host pinned to github.com so that API fetches target
-	// the correct server instead of the GHE instance.
+	// Determine the API host for this repo. getGitHubHostForRepo returns the canonical
+	// host, which for well-known public-only repos (githubnext/agentics, github/gh-aw)
+	// is always public GitHub regardless of GHE configuration. If the repo's canonical
+	// host differs from the configured host, record the explicit hostname so API fetches
+	// target the correct server.
 	var explicitHost string
-	if getGitHubHost() != string(constants.PublicGitHubHost) {
-		if repoSlug == "githubnext/agentics" || repoSlug == "github/gh-aw" {
-			explicitHost = "github.com"
+	if repoHost := getGitHubHostForRepo(repoSlug); repoHost != getGitHubHost() {
+		if u, parseErr := url.Parse(repoHost); parseErr == nil && u.Host != "" {
+			explicitHost = u.Host
 		}
 	}
 

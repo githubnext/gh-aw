@@ -453,7 +453,7 @@ jobs:
                   "additionalProperties": false,
                   "properties": {
                     "labels": {
-                      "description": "The labels' name to be added. Must be separated with line breaks if there're multiple labels.",
+                      "description": "The label names to add, separated by line breaks if there are multiple labels.",
                       "type": "string"
                     },
                     "number": {
@@ -462,7 +462,8 @@ jobs:
                     }
                   },
                   "required": [
-                    "labels"
+                    "labels",
+                    "number"
                   ],
                   "type": "object"
                 },
