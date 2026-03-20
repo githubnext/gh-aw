@@ -287,6 +287,38 @@ describe("add_comment", () => {
       expect(result.itemNumber).toBe(42);
       expect(result.isDiscussion).toBe(false);
     });
+
+    it('should allow commenting on any repo when target-repo is "*"', async () => {
+      const addCommentScript = fs.readFileSync(path.join(__dirname, "add_comment.cjs"), "utf8");
+
+      let capturedOwner = null;
+      let capturedRepo = null;
+      mockGithub.rest.issues.createComment = async params => {
+        capturedOwner = params.owner;
+        capturedRepo = params.repo;
+        return {
+          data: {
+            id: 12345,
+            html_url: `https://github.com/${params.owner}/${params.repo}/issues/${params.issue_number}#issuecomment-12345`,
+          },
+        };
+      };
+
+      const handler = await eval(`(async () => { ${addCommentScript}; return await main({ "target-repo": "*", target: "triggering" }); })()`);
+
+      const message = {
+        type: "add_comment",
+        item_number: 5,
+        repo: "other-org/other-repo",
+        body: "Cross-repo comment",
+      };
+
+      const result = await handler(message, {});
+
+      expect(result.success).toBe(true);
+      expect(capturedOwner).toBe("other-org");
+      expect(capturedRepo).toBe("other-repo");
+    });
   });
 
   describe("discussion support", () => {

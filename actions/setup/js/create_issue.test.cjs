@@ -315,6 +315,34 @@ describe("create_issue", () => {
         })
       );
     });
+    it("should create issue in specified repo when target-repo is wildcard *", async () => {
+      const handler = await main({
+        "target-repo": "*",
+      });
+      await handler({
+        title: "Test",
+        repo: "any-org/any-repo",
+      });
+
+      expect(mockGithub.rest.issues.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          owner: "any-org",
+          repo: "any-repo",
+        })
+      );
+    });
+
+    it("should reject invalid repo slug when target-repo is wildcard *", async () => {
+      const handler = await main({
+        "target-repo": "*",
+      });
+      const result = await handler({
+        title: "Test",
+        repo: "bare-repo-without-slash",
+      });
+
+      expect(result.success).toBe(false);
+    });
   });
 
   describe("temporary ID management", () => {
