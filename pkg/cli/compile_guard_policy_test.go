@@ -146,3 +146,45 @@ This workflow specifies repos without min-integrity.
 		})
 	}
 }
+
+// TestGuardPolicyMinIntegrityOnlyCompiledOutput verifies that when only min-integrity is
+// specified (without repos), the compiled lock file includes repos="all" in the guard policy.
+// This is a regression test for the MCP Gateway requirement that allow-only must include repos.
+func TestGuardPolicyMinIntegrityOnlyCompiledOutput(t *testing.T) {
+	workflowContent := `---
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+engine: copilot
+tools:
+  github:
+    min-integrity: approved
+---
+
+# Guard Policy Test
+
+This workflow uses min-integrity without specifying repos.
+`
+
+	tmpDir := t.TempDir()
+	workflowPath := filepath.Join(tmpDir, "test-guard-policy.md")
+	err := os.WriteFile(workflowPath, []byte(workflowContent), 0644)
+	require.NoError(t, err, "Failed to write workflow file")
+
+	compiler := workflow.NewCompiler()
+	err = CompileWorkflowWithValidation(compiler, workflowPath, false, false, false, false, false, false)
+	require.NoError(t, err, "Expected compilation to succeed")
+
+	// Read the compiled lock file and verify it contains the correct guard-policies JSON block.
+	// The MCP Gateway requires repos to be present in the allow-only policy.
+	lockFilePath := filepath.Join(tmpDir, "test-guard-policy.lock.yml")
+	lockFileBytes, err := os.ReadFile(lockFilePath)
+	require.NoError(t, err, "Failed to read compiled lock file")
+
+	lockFileContent := string(lockFileBytes)
+	// Check that the guard-policies allow-only block contains both repos=all and min-integrity=approved
+	// in the correct JSON structure expected by the MCP Gateway.
+	assert.Contains(t, lockFileContent, `"guard-policies": {`+"\n"+`                  "allow-only": {`+"\n"+`                    "min-integrity": "approved",`+"\n"+`                    "repos": "all"`,
+		"Compiled lock file must include repos=all and min-integrity=approved in the guard-policies allow-only block")
+}

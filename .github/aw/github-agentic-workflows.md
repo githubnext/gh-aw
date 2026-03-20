@@ -1024,6 +1024,26 @@ The YAML frontmatter supports these fields:
     ```
     Custom safe-output jobs define post-processing GitHub Actions jobs registered as MCP tools. Agents call the tool by its normalized name (dashes converted to underscores, e.g., `send_notification`). The job runs after the agent completes with access to `$GH_AW_AGENT_OUTPUT` (the path to agent output JSON). Use this to integrate with Slack, Discord, external APIs, databases, or any service requiring secrets. Import from shared files using the `imports:` field.
 
+  - `scripts:` - Inline JavaScript handlers running inside the safe-outputs job handler loop
+    ```yaml
+    safe-outputs:
+      scripts:
+        post-slack-message:
+          description: "Post a message to Slack"
+          inputs:
+            channel:
+              description: "Target Slack channel"
+              type: string
+              default: "#general"
+          script: |
+            // 'channel' is available from config inputs; 'item' contains runtime message values
+            await fetch(process.env.SLACK_WEBHOOK_URL, {
+              method: "POST",
+              body: JSON.stringify({ text: item.message, channel })
+            });
+    ```
+    Unlike `jobs:` (which create separate GitHub Actions jobs), scripts execute in-process alongside built-in handlers. Write only the handler body — the compiler generates the outer wrapper with config input destructuring and `async function handleX(item, resolvedTemporaryIds) { ... }`. Script names with dashes are normalized to underscores (e.g., `post-slack-message` → `post_slack_message`). The handler receives `item` (runtime message with input values) and `resolvedTemporaryIds` (map of temporary IDs).
+
   **Global Safe Output Configuration:**
   - `github-token:` - Custom GitHub token for all safe output jobs
     ```yaml

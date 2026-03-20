@@ -1127,3 +1127,270 @@ Test workflow to verify actions-lock.json path handling when compiling from subd
 
 	t.Logf("Integration test passed - actions-lock.json created at correct location")
 }
+
+// TestCompileSafeOutputsActions verifies that a workflow with safe-outputs.actions
+// compiles successfully and produces the expected output in the lock file:
+// - GH_AW_SAFE_OUTPUT_ACTIONS env var on the process_safe_outputs step
+// - An injected action step with the correct id and if-condition
+func TestCompileSafeOutputsActions(t *testing.T) {
+	setup := setupIntegrationTest(t)
+	defer setup.cleanup()
+
+	testWorkflow := `---
+name: Test Safe Output Actions
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+  pull-requests: read
+engine: copilot
+safe-outputs:
+  actions:
+    add-label:
+      uses: actions-ecosystem/action-add-labels@v1
+      description: Add a label to the current PR
+      env:
+        GITHUB_TOKEN: ${{ github.token }}
+---
+
+# Test Safe Output Actions
+
+When done, call add_label with the appropriate label.
+`
+	testWorkflowPath := filepath.Join(setup.workflowsDir, "test-safe-output-actions.md")
+	if err := os.WriteFile(testWorkflowPath, []byte(testWorkflow), 0644); err != nil {
+		t.Fatalf("Failed to write test workflow file: %v", err)
+	}
+
+	cmd := exec.Command(setup.binaryPath, "compile", testWorkflowPath)
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("CLI compile command failed: %v\nOutput: %s", err, string(output))
+	}
+
+	lockFilePath := filepath.Join(setup.workflowsDir, "test-safe-output-actions.lock.yml")
+	lockContent, err := os.ReadFile(lockFilePath)
+	if err != nil {
+		t.Fatalf("Failed to read lock file: %v", err)
+	}
+	lockContentStr := string(lockContent)
+
+	// Verify GH_AW_SAFE_OUTPUT_ACTIONS is emitted on the process_safe_outputs step
+	if !strings.Contains(lockContentStr, "GH_AW_SAFE_OUTPUT_ACTIONS") {
+		t.Errorf("Lock file should contain GH_AW_SAFE_OUTPUT_ACTIONS\nLock file content:\n%s", lockContentStr)
+	}
+
+	// Verify the injected action step id
+	if !strings.Contains(lockContentStr, "id: action_add_label") {
+		t.Errorf("Lock file should contain step 'id: action_add_label'\nLock file content:\n%s", lockContentStr)
+	}
+
+	// Verify the injected action step if-condition
+	if !strings.Contains(lockContentStr, "action_add_label_payload") {
+		t.Errorf("Lock file should contain 'action_add_label_payload' in the step if-condition\nLock file content:\n%s", lockContentStr)
+	}
+
+	// Verify the env block is included in the action step
+	if !strings.Contains(lockContentStr, "GITHUB_TOKEN") {
+		t.Errorf("Lock file should contain GITHUB_TOKEN env var in the action step\nLock file content:\n%s", lockContentStr)
+	}
+
+	// Verify the handler manager step is present (required to process action payloads)
+	if !strings.Contains(lockContentStr, "safe_output_handler_manager.cjs") {
+		t.Errorf("Lock file should contain the safe_output_handler_manager.cjs step\nLock file content:\n%s", lockContentStr)
+	}
+}
+
+// TestCompileSafeOutputsActionsMultiple verifies that multiple actions in safe-outputs.actions
+// all generate separate action steps and all appear in GH_AW_SAFE_OUTPUT_ACTIONS.
+func TestCompileSafeOutputsActionsMultiple(t *testing.T) {
+	setup := setupIntegrationTest(t)
+	defer setup.cleanup()
+
+	testWorkflow := `---
+name: Test Multiple Safe Output Actions
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+  issues: read
+  pull-requests: read
+engine: copilot
+safe-outputs:
+  actions:
+    add-bug-label:
+      uses: actions-ecosystem/action-add-labels@v1
+      description: Add a bug label
+      env:
+        GITHUB_TOKEN: ${{ github.token }}
+    close-issue:
+      uses: peter-evans/close-issue@v3
+      description: Close the issue
+---
+
+# Test Multiple Safe Output Actions
+
+Call add_bug_label or close_issue as appropriate.
+`
+	testWorkflowPath := filepath.Join(setup.workflowsDir, "test-multi-safe-output-actions.md")
+	if err := os.WriteFile(testWorkflowPath, []byte(testWorkflow), 0644); err != nil {
+		t.Fatalf("Failed to write test workflow file: %v", err)
+	}
+
+	cmd := exec.Command(setup.binaryPath, "compile", testWorkflowPath)
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("CLI compile command failed: %v\nOutput: %s", err, string(output))
+	}
+
+	lockFilePath := filepath.Join(setup.workflowsDir, "test-multi-safe-output-actions.lock.yml")
+	lockContent, err := os.ReadFile(lockFilePath)
+	if err != nil {
+		t.Fatalf("Failed to read lock file: %v", err)
+	}
+	lockContentStr := string(lockContent)
+
+	// Both action steps must be present
+	if !strings.Contains(lockContentStr, "id: action_add_bug_label") {
+		t.Errorf("Lock file should contain step 'id: action_add_bug_label'\nLock file content:\n%s", lockContentStr)
+	}
+	if !strings.Contains(lockContentStr, "id: action_close_issue") {
+		t.Errorf("Lock file should contain step 'id: action_close_issue'\nLock file content:\n%s", lockContentStr)
+	}
+
+	// Both payloads must appear in if-conditions
+	if !strings.Contains(lockContentStr, "action_add_bug_label_payload") {
+		t.Errorf("Lock file should contain 'action_add_bug_label_payload'\nLock file content:\n%s", lockContentStr)
+	}
+	if !strings.Contains(lockContentStr, "action_close_issue_payload") {
+		t.Errorf("Lock file should contain 'action_close_issue_payload'\nLock file content:\n%s", lockContentStr)
+	}
+
+	// GH_AW_SAFE_OUTPUT_ACTIONS must mention both tools
+	if !strings.Contains(lockContentStr, "add_bug_label") {
+		t.Errorf("Lock file should contain 'add_bug_label' in GH_AW_SAFE_OUTPUT_ACTIONS\nLock file content:\n%s", lockContentStr)
+	}
+	if !strings.Contains(lockContentStr, "close_issue") {
+		t.Errorf("Lock file should contain 'close_issue' in GH_AW_SAFE_OUTPUT_ACTIONS\nLock file content:\n%s", lockContentStr)
+	}
+}
+
+// TestCompileSafeOutputsActionsCombinedWithBuiltin verifies that safe-outputs.actions
+// can be used alongside built-in safe-output handlers (add-comment, create-issue, etc.)
+// without compilation errors.
+func TestCompileSafeOutputsActionsCombinedWithBuiltin(t *testing.T) {
+	setup := setupIntegrationTest(t)
+	defer setup.cleanup()
+
+	testWorkflow := `---
+name: Combined Safe Outputs
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+  issues: read
+  pull-requests: read
+engine: copilot
+safe-outputs:
+  add-comment:
+    max: 1
+  add-labels:
+    allowed: [bug, enhancement]
+  actions:
+    apply-fix:
+      uses: actions-ecosystem/action-add-labels@v1
+      description: Apply fix label
+      env:
+        GITHUB_TOKEN: ${{ github.token }}
+---
+
+# Combined Safe Outputs
+
+Use add_comment, add_labels, or apply_fix as appropriate.
+`
+	testWorkflowPath := filepath.Join(setup.workflowsDir, "test-combined-safe-outputs.md")
+	if err := os.WriteFile(testWorkflowPath, []byte(testWorkflow), 0644); err != nil {
+		t.Fatalf("Failed to write test workflow file: %v", err)
+	}
+
+	cmd := exec.Command(setup.binaryPath, "compile", testWorkflowPath)
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("CLI compile command failed: %v\nOutput: %s", err, string(output))
+	}
+
+	lockFilePath := filepath.Join(setup.workflowsDir, "test-combined-safe-outputs.lock.yml")
+	lockContent, err := os.ReadFile(lockFilePath)
+	if err != nil {
+		t.Fatalf("Failed to read lock file: %v", err)
+	}
+	lockContentStr := string(lockContent)
+
+	// Verify both built-in and action tools are present
+	if !strings.Contains(lockContentStr, "GH_AW_SAFE_OUTPUT_ACTIONS") {
+		t.Errorf("Lock file should contain GH_AW_SAFE_OUTPUT_ACTIONS\nLock file content:\n%s", lockContentStr)
+	}
+	if !strings.Contains(lockContentStr, "id: action_apply_fix") {
+		t.Errorf("Lock file should contain step 'id: action_apply_fix'\nLock file content:\n%s", lockContentStr)
+	}
+	// Verify built-in handler config is still present
+	if !strings.Contains(lockContentStr, "GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG") {
+		t.Errorf("Lock file should contain GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG\nLock file content:\n%s", lockContentStr)
+	}
+}
+
+// TestCompileSafeOutputsActionsOnlyNoBuiltin verifies that a workflow with only
+// safe-outputs.actions (no built-in handlers) still compiles correctly and emits
+// the safe_outputs job.
+func TestCompileSafeOutputsActionsOnlyNoBuiltin(t *testing.T) {
+	setup := setupIntegrationTest(t)
+	defer setup.cleanup()
+
+	testWorkflow := `---
+name: Actions Only Safe Outputs
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+  pull-requests: read
+engine: copilot
+safe-outputs:
+  actions:
+    pin-pr:
+      uses: actions-ecosystem/action-add-labels@v1
+      description: Pin the PR
+---
+
+# Actions Only Safe Outputs
+
+Call pin_pr to pin the pull request.
+`
+	testWorkflowPath := filepath.Join(setup.workflowsDir, "test-actions-only-safe-outputs.md")
+	if err := os.WriteFile(testWorkflowPath, []byte(testWorkflow), 0644); err != nil {
+		t.Fatalf("Failed to write test workflow file: %v", err)
+	}
+
+	cmd := exec.Command(setup.binaryPath, "compile", testWorkflowPath)
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("CLI compile command failed: %v\nOutput: %s", err, string(output))
+	}
+
+	lockFilePath := filepath.Join(setup.workflowsDir, "test-actions-only-safe-outputs.lock.yml")
+	lockContent, err := os.ReadFile(lockFilePath)
+	if err != nil {
+		t.Fatalf("Failed to read lock file: %v", err)
+	}
+	lockContentStr := string(lockContent)
+
+	// Verify the safe_outputs job is created
+	if !strings.Contains(lockContentStr, "safe_outputs") {
+		t.Errorf("Lock file should contain a 'safe_outputs' job\nLock file content:\n%s", lockContentStr)
+	}
+	if !strings.Contains(lockContentStr, "GH_AW_SAFE_OUTPUT_ACTIONS") {
+		t.Errorf("Lock file should contain GH_AW_SAFE_OUTPUT_ACTIONS\nLock file content:\n%s", lockContentStr)
+	}
+	if !strings.Contains(lockContentStr, "id: action_pin_pr") {
+		t.Errorf("Lock file should contain step 'id: action_pin_pr'\nLock file content:\n%s", lockContentStr)
+	}
+}

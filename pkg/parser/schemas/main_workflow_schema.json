@@ -7833,6 +7833,37 @@
               }
             ]
           ]
+        },
+        "actions": {
+          "type": "object",
+          "description": "Custom GitHub Actions to mount as once-callable MCP tools. Each action is resolved at compile time to derive its input schema from action.yml, and a guarded `uses:` step is injected in the safe_outputs job. Action names containing dashes will be automatically normalized to underscores (e.g., 'add-smoked-label' becomes 'add_smoked_label').",
+          "patternProperties": {
+            "^[a-zA-Z_][a-zA-Z0-9_-]*$": {
+              "type": "object",
+              "description": "Configuration for a custom safe output action.",
+              "properties": {
+                "uses": {
+                  "type": "string",
+                  "description": "The GitHub Action to use. Supports owner/repo@ref, owner/repo/subdir@ref, or ./local/path.",
+                  "examples": ["actions-ecosystem/action-add-labels@v1", "owner/repo@v1", "owner/repo/subdir@v1"]
+                },
+                "description": {
+                  "type": "string",
+                  "description": "Optional description override for the MCP tool. Defaults to the action's description from action.yml."
+                },
+                "env": {
+                  "type": "object",
+                  "description": "Additional environment variables to set on the injected action step. Useful for passing secrets like GITHUB_TOKEN.",
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "examples": [{ "GITHUB_TOKEN": "${{ github.token }}" }]
+                }
+              },
+              "required": ["uses"],
+              "additionalProperties": false
+            }
+          }
         }
       },
       "additionalProperties": false

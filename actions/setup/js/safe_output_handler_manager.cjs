@@ -20,7 +20,7 @@ const { getIssuesToAssignCopilot } = require("./create_issue.cjs");
 const { createReviewBuffer } = require("./pr_review_buffer.cjs");
 const { sanitizeContent } = require("./sanitize_content.cjs");
 const { createManifestLogger, ensureManifestExists, extractCreatedItemFromResult } = require("./safe_output_manifest.cjs");
-const { loadCustomSafeOutputJobTypes, loadCustomSafeOutputScriptHandlers } = require("./safe_output_helpers.cjs");
+const { loadCustomSafeOutputJobTypes, loadCustomSafeOutputScriptHandlers, loadCustomSafeOutputActionHandlers } = require("./safe_output_helpers.cjs");
 const { emitSafeOutputActionOutputs } = require("./safe_outputs_action_outputs.cjs");
 
 /**
@@ -190,6 +190,35 @@ async function loadHandlers(config, prReviewBuffer) {
         // Non-fatal: log a warning and continue loading the remaining handlers. A broken
         // custom script should not prevent built-in or other custom handlers from running.
         core.warning(`Failed to load custom script handler for ${scriptType}: ${getErrorMessage(error)} — this handler will be skipped`);
+      }
+    }
+  }
+
+  // Load custom action handlers from GH_AW_SAFE_OUTPUT_ACTIONS
+  // These are GitHub Actions configured in safe-outputs.actions. The handler applies
+  // temporary ID substitutions to the payload and exports `action_<name>_payload` outputs
+  // that compiler-generated `uses:` steps consume.
+  const customActionHandlers = loadCustomSafeOutputActionHandlers();
+  if (customActionHandlers.size > 0) {
+    core.info(`Loading ${customActionHandlers.size} custom action handler(s): ${[...customActionHandlers.keys()].join(", ")}`);
+    const actionHandlerPath = require("path").join(__dirname, "safe_output_action_handler.cjs");
+    for (const [actionType, actionName] of customActionHandlers) {
+      try {
+        const actionModule = require(actionHandlerPath);
+        if (actionModule && typeof actionModule.main === "function") {
+          const handlerConfig = { action_name: actionName, ...(config[actionType] || {}) };
+          const messageHandler = await actionModule.main(handlerConfig);
+          if (typeof messageHandler !== "function") {
+            core.warning(`✗ Custom action handler ${actionType} main() did not return a function (got ${typeof messageHandler}) — this handler will be skipped`);
+          } else {
+            messageHandlers.set(actionType, messageHandler);
+            core.info(`✓ Loaded and initialized custom action handler for: ${actionType}`);
+          }
+        } else {
+          core.warning(`Custom action handler module does not export a main function — skipping ${actionType}`);
+        }
+      } catch (error) {
+        core.warning(`Failed to load custom action handler for ${actionType}: ${getErrorMessage(error)} — this handler will be skipped`);
       }
     }
   }
