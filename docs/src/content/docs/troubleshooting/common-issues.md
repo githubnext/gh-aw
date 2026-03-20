@@ -530,6 +530,8 @@ Recompile with `gh aw compile` after updating. If the workflow is consistently t
 
 Common causes: missing tokens, permission mismatches, network restrictions, disabled tools, or rate limits. Use `gh aw audit <run-id>` to investigate.
 
+For a comprehensive walkthrough of all debugging techniques, see the [Debugging Workflows](/gh-aw/troubleshooting/debugging/) guide.
+
 ### How Do I Debug a Failing Workflow?
 
 The fastest way to debug a failing workflow is to ask an agent. Load the `agentic-workflows` agent and give it the run URL — it will audit the logs, identify the root cause, and suggest targeted fixes.
