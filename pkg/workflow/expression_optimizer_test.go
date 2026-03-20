@@ -1090,3 +1090,305 @@ func TestRebuildAndChain_Three(t *testing.T) {
 	// Left-folded: (a && b) && c
 	assert.Equal(t, "a == '1' && b == '2' && c == '3'", result.Render(), "three terms rebuild as left-folded AND chain")
 }
+
+// ---------------------------------------------------------------------------
+// Z3-inspired rules: Absorption, Subsumption, Resolution, Factoring
+// ---------------------------------------------------------------------------
+
+// --- Absorption (AND) -------------------------------------------------------
+
+// A && (A || B) → A
+func TestAbsorption_And_LeftAbsorbsRight(t *testing.T) {
+	a := cmp(prop("x"), "==", str("1"))
+	b := cmp(prop("y"), "==", str("2"))
+	// a && (a || b) → a
+	node := and2(a, or2(a, b))
+	result := OptimizeExpression(node)
+	assert.Equal(t, a.Render(), result.Render(), "A && (A || B) should reduce to A")
+}
+
+// A && (B || A) → A  (OR term appears second)
+func TestAbsorption_And_LeftAbsorbsRight_Reversed(t *testing.T) {
+	a := cmp(prop("x"), "==", str("1"))
+	b := cmp(prop("y"), "==", str("2"))
+	node := and2(a, or2(b, a))
+	result := OptimizeExpression(node)
+	assert.Equal(t, a.Render(), result.Render(), "A && (B || A) should reduce to A")
+}
+
+// (A || B) && A → A  (OR on left)
+func TestAbsorption_And_RightAbsorbsLeft(t *testing.T) {
+	a := cmp(prop("x"), "==", str("1"))
+	b := cmp(prop("y"), "==", str("2"))
+	node := and2(or2(a, b), a)
+	result := OptimizeExpression(node)
+	assert.Equal(t, a.Render(), result.Render(), "(A || B) && A should reduce to A")
+}
+
+// --- Absorption (OR) -------------------------------------------------------
+
+// A || (A && B) → A
+func TestAbsorption_Or_LeftAbsorbsRight(t *testing.T) {
+	a := cmp(prop("x"), "==", str("1"))
+	b := cmp(prop("y"), "==", str("2"))
+	node := or2(a, and2(a, b))
+	result := OptimizeExpression(node)
+	assert.Equal(t, a.Render(), result.Render(), "A || (A && B) should reduce to A")
+}
+
+// (A && B) || A → A  (AND on left)
+func TestAbsorption_Or_RightAbsorbsLeft(t *testing.T) {
+	a := cmp(prop("x"), "==", str("1"))
+	b := cmp(prop("y"), "==", str("2"))
+	node := or2(and2(a, b), a)
+	result := OptimizeExpression(node)
+	assert.Equal(t, a.Render(), result.Render(), "(A && B) || A should reduce to A")
+}
+
+// A || (B && A) → A  (conjunct appears second in AND)
+func TestAbsorption_Or_ConjunctSecond(t *testing.T) {
+	a := cmp(prop("x"), "==", str("1"))
+	b := cmp(prop("y"), "==", str("2"))
+	node := or2(a, and2(b, a))
+	result := OptimizeExpression(node)
+	assert.Equal(t, a.Render(), result.Render(), "A || (B && A) should reduce to A")
+}
+
+// Status function blocks absorption.
+func TestAbsorption_StatusFunc_Preserved(t *testing.T) {
+	a := fn("always")
+	b := cmp(prop("x"), "==", str("1"))
+	// always() || (always() && x == '1') — must NOT be absorbed; always() is guarded
+	node := or2(a, and2(a, b))
+	result := OptimizeExpression(node)
+	// Should not simplify to just always() since status funcs are guarded.
+	rendered := result.Render()
+	assert.Contains(t, rendered, "always()", "status function must be preserved in absorption")
+}
+
+// --- Subsumption (Disjunction) ---------------------------------------------
+
+// disj(A, A&&B) → A  (A&&B is subsumed by A)
+func TestSubsumption_Disj_BasicSubsumed(t *testing.T) {
+	a := cmp(prop("x"), "==", str("1"))
+	b := cmp(prop("y"), "==", str("2"))
+	node := disj(a, and2(a, b))
+	result := OptimizeExpression(node)
+	assert.Equal(t, a.Render(), result.Render(), "disj(A, A&&B) should reduce to A")
+}
+
+// disj(A&&B, A) → A  (order reversed)
+func TestSubsumption_Disj_SubsumingTermSecond(t *testing.T) {
+	a := cmp(prop("x"), "==", str("1"))
+	b := cmp(prop("y"), "==", str("2"))
+	node := disj(and2(a, b), a)
+	result := OptimizeExpression(node)
+	assert.Equal(t, a.Render(), result.Render(), "disj(A&&B, A) should reduce to A")
+}
+
+// disj(A, B, A&&C) → disj(A, B)  (only the subsumed term removed)
+func TestSubsumption_Disj_WithExtraTerms(t *testing.T) {
+	a := cmp(prop("x"), "==", str("1"))
+	b := cmp(prop("y"), "==", str("2"))
+	c := cmp(prop("z"), "==", str("3"))
+	node := disj(a, b, and2(a, c))
+	result := OptimizeExpression(node)
+	rendered := result.Render()
+	assert.Contains(t, rendered, a.Render(), "A should survive subsumption")
+	assert.Contains(t, rendered, b.Render(), "B should survive (not subsumed)")
+	assert.NotContains(t, rendered, c.Render(), "A&&C should be subsumed, c should not appear alone")
+}
+
+// Status function blocks subsumption.
+func TestSubsumption_Disj_StatusFunc_Preserved(t *testing.T) {
+	a := fn("success")
+	b := cmp(prop("x"), "==", str("1"))
+	node := disj(a, and2(a, b))
+	result := OptimizeExpression(node)
+	rendered := result.Render()
+	assert.Contains(t, rendered, "success()", "status function must be preserved in subsumption")
+}
+
+// --- Resolution ------------------------------------------------------------
+
+// (A || B) && (!A || B) → B
+func TestResolution_BasicCase(t *testing.T) {
+	a := cmp(prop("x"), "==", str("1"))
+	b := cmp(prop("y"), "==", str("2"))
+	// (A || B) && (!A || B) → B
+	node := and2(or2(a, b), or2(not1(a), b))
+	result := OptimizeExpression(node)
+	assert.Equal(t, b.Render(), result.Render(), "(A || B) && (!A || B) should resolve to B")
+}
+
+// (!A || B) && (A || B) → B  (operands swapped)
+func TestResolution_Swapped(t *testing.T) {
+	a := cmp(prop("x"), "==", str("1"))
+	b := cmp(prop("y"), "==", str("2"))
+	node := and2(or2(not1(a), b), or2(a, b))
+	result := OptimizeExpression(node)
+	assert.Equal(t, b.Render(), result.Render(), "(!A || B) && (A || B) should resolve to B")
+}
+
+// (A || B) && (!A || C) → B || C  (no shared residual)
+func TestResolution_DifferentResiduals(t *testing.T) {
+	a := cmp(prop("x"), "==", str("1"))
+	b := cmp(prop("y"), "==", str("2"))
+	c := cmp(prop("z"), "==", str("3"))
+	// (A || B) && (!A || C) → B || C
+	node := and2(or2(a, b), or2(not1(a), c))
+	result := OptimizeExpression(node)
+	rendered := result.Render()
+	assert.Contains(t, rendered, b.Render(), "B should appear in resolution result")
+	assert.Contains(t, rendered, c.Render(), "C should appear in resolution result")
+	assert.NotContains(t, rendered, a.Render(), "A should be resolved away")
+}
+
+// Status function blocks resolution.
+func TestResolution_StatusFunc_Preserved(t *testing.T) {
+	a := fn("failure")
+	b := cmp(prop("x"), "==", str("1"))
+	node := and2(or2(a, b), or2(not1(a), b))
+	result := OptimizeExpression(node)
+	rendered := result.Render()
+	assert.Contains(t, rendered, "failure()", "status function must block resolution")
+}
+
+// --- Factoring -------------------------------------------------------------
+
+// (A && B) || (A && C) → A && (B || C)
+func TestFactoring_BasicCase(t *testing.T) {
+	a := cmp(prop("x"), "==", str("1"))
+	b := cmp(prop("y"), "==", str("2"))
+	c := cmp(prop("z"), "==", str("3"))
+	node := or2(and2(a, b), and2(a, c))
+	result := OptimizeExpression(node)
+	rendered := result.Render()
+	assert.Contains(t, rendered, a.Render(), "A (common factor) should appear in result")
+	assert.Contains(t, rendered, b.Render(), "B should appear in factored result")
+	assert.Contains(t, rendered, c.Render(), "C should appear in factored result")
+	// The factored form should be shorter than the un-factored form.
+	assert.Less(t, len(rendered), len(node.Render()),
+		"factored form should be shorter: got %q", rendered)
+}
+
+// (A && B && C) || (A && B && D) → A && B && (C || D)
+func TestFactoring_MultipleCommonTerms(t *testing.T) {
+	a := cmp(prop("x"), "==", str("1"))
+	b := cmp(prop("y"), "==", str("2"))
+	c := cmp(prop("z"), "==", str("3"))
+	d := cmp(prop("w"), "==", str("4"))
+	node := or2(and2(and2(a, b), c), and2(and2(a, b), d))
+	result := OptimizeExpression(node)
+	rendered := result.Render()
+	assert.Contains(t, rendered, a.Render(), "A should appear in factored result")
+	assert.Contains(t, rendered, b.Render(), "B should appear in factored result")
+	assert.Contains(t, rendered, c.Render(), "C should appear in factored result")
+	assert.Contains(t, rendered, d.Render(), "D should appear in factored result")
+}
+
+// No shared terms: factoring should not fire.
+func TestFactoring_NoSharedTerms_Unchanged(t *testing.T) {
+	a := cmp(prop("x"), "==", str("1"))
+	b := cmp(prop("y"), "==", str("2"))
+	c := cmp(prop("z"), "==", str("3"))
+	d := cmp(prop("w"), "==", str("4"))
+	node := or2(and2(a, b), and2(c, d))
+	result := OptimizeExpression(node)
+	rendered := result.Render()
+	// All four terms should remain since there's nothing to factor.
+	assert.Contains(t, rendered, a.Render(), "A should remain")
+	assert.Contains(t, rendered, b.Render(), "B should remain")
+	assert.Contains(t, rendered, c.Render(), "C should remain")
+	assert.Contains(t, rendered, d.Render(), "D should remain")
+}
+
+// Status function blocks factoring.
+func TestFactoring_StatusFunc_Preserved(t *testing.T) {
+	a := fn("cancelled")
+	b := cmp(prop("x"), "==", str("1"))
+	c := cmp(prop("y"), "==", str("2"))
+	node := or2(and2(a, b), and2(a, c))
+	result := OptimizeExpression(node)
+	rendered := result.Render()
+	assert.Contains(t, rendered, "cancelled()", "status function must block factoring")
+}
+
+// --- rebuildOrChain (white-box) --------------------------------------------
+
+func TestRebuildOrChain_Single(t *testing.T) {
+	a := cmp(prop("x"), "==", str("1"))
+	result := rebuildOrChain([]ConditionNode{a})
+	assert.Equal(t, a.Render(), result.Render(), "single term should be returned unchanged")
+}
+
+func TestRebuildOrChain_Two(t *testing.T) {
+	a := cmp(prop("x"), "==", str("1"))
+	b := cmp(prop("y"), "==", str("2"))
+	result := rebuildOrChain([]ConditionNode{a, b})
+	assert.Equal(t, "x == '1' || y == '2'", result.Render(), "two terms should form an OrNode")
+}
+
+func TestRebuildOrChain_Three(t *testing.T) {
+	a := cmp(prop("x"), "==", str("1"))
+	b := cmp(prop("y"), "==", str("2"))
+	c := cmp(prop("z"), "==", str("3"))
+	result := rebuildOrChain([]ConditionNode{a, b, c})
+	assert.Equal(t, "x == '1' || y == '2' || z == '3'", result.Render(), "three terms rebuild as left-folded OR chain")
+}
+
+// --- termSubsumedBy (white-box) --------------------------------------------
+
+func TestTermSubsumedBy_AndChainSubsumed(t *testing.T) {
+	a := cmp(prop("x"), "==", str("1"))
+	b := cmp(prop("y"), "==", str("2"))
+	assert.True(t, termSubsumedBy(and2(a, b), a), "A&&B should be subsumed by A")
+}
+
+func TestTermSubsumedBy_NotSubsumed(t *testing.T) {
+	a := cmp(prop("x"), "==", str("1"))
+	b := cmp(prop("y"), "==", str("2"))
+	assert.False(t, termSubsumedBy(a, b), "A should not be subsumed by unrelated B")
+}
+
+func TestTermSubsumedBy_IdenticalNotSubsumed(t *testing.T) {
+	a := cmp(prop("x"), "==", str("1"))
+	assert.False(t, termSubsumedBy(a, a), "identical nodes are handled by dedup, not subsumption")
+}
+
+func TestTermSubsumedBy_StatusFuncBlocked(t *testing.T) {
+	a := fn("always")
+	b := cmp(prop("x"), "==", str("1"))
+	assert.False(t, termSubsumedBy(and2(a, b), a), "status func should block termSubsumedBy")
+}
+
+// --- tryResolve (white-box) ------------------------------------------------
+
+func TestTryResolve_BasicResolution(t *testing.T) {
+	a := cmp(prop("x"), "==", str("1"))
+	b := cmp(prop("y"), "==", str("2"))
+	// (A || B) && (!A || B) → B
+	termsI := []ConditionNode{a, b}
+	termsJ := []ConditionNode{not1(a), b}
+	result, ok := tryResolve(termsI, termsJ)
+	require.True(t, ok, "resolution should succeed")
+	assert.Equal(t, b.Render(), result.Render(), "residual should be B")
+}
+
+func TestTryResolve_NoComplementary(t *testing.T) {
+	a := cmp(prop("x"), "==", str("1"))
+	b := cmp(prop("y"), "==", str("2"))
+	termsI := []ConditionNode{a, b}
+	termsJ := []ConditionNode{a, b}
+	_, ok := tryResolve(termsI, termsJ)
+	assert.False(t, ok, "no complementary literals → resolution should fail")
+}
+
+func TestTryResolve_StatusFuncBlocked(t *testing.T) {
+	a := fn("success")
+	b := cmp(prop("x"), "==", str("1"))
+	termsI := []ConditionNode{a, b}
+	termsJ := []ConditionNode{not1(a), b}
+	_, ok := tryResolve(termsI, termsJ)
+	assert.False(t, ok, "status func should block tryResolve")
+}

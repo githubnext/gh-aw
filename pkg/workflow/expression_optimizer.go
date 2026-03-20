@@ -11,15 +11,22 @@ var expressionOptimizerLog = logger.New("workflow:expression_optimizer")
 // OptimizeExpression applies boolean algebra simplifications to a ConditionNode tree,
 // returning an equivalent but potentially simpler and shorter expression.
 //
-// Rules applied (in bottom-up order):
-//   - Constant folding:      !true → false, !false → true
-//   - Double negation:       !!A → A
-//   - Boolean identity:      A && true → A,  A || false → A
-//   - Boolean annihilation:  A && false → false, A || true → true
-//   - Idempotent law:        A && A → A,  A || A → A
-//   - Complement law:        A && !A → false, A || !A → true
-//   - DisjunctionNode:       deduplication of terms, removal of false terms,
-//     short-circuit on true terms
+// Rules applied (bottom-up, fixpoint iteration):
+//
+//	Constant folding:      !true → false, !false → true
+//	Double negation:       !!A → A
+//	Boolean identity:      A && true → A,  A || false → A
+//	Boolean annihilation:  A && false → false, A || true → true
+//	Idempotent law:        A && A → A,  A || A → A
+//	Complement law:        A && !A → false, A || !A → true
+//	De Morgan (AND):       !(A && B) → !A || !B
+//	De Morgan (OR):        !(A || B) → !A && !B
+//	Absorption (AND):      A && (A || B) → A
+//	Absorption (OR):       A || (A && B) → A
+//	Subsumption (disj):    disj(A, A&&B, …) → disj(A, …)  [A&&B subsumed by A]
+//	Resolution:            (A || B) && (!A || B) → B
+//	Factoring:             (A&&B) || (A&&C) → A && (B || C)
+//	DisjunctionNode:       deduplication, false-filtering, true short-circuit
 //
 // SAFETY: GitHub Actions status functions (always, success, failure, cancelled)
 // have semantics beyond plain booleans – they control step execution based on
@@ -178,6 +185,150 @@ func rebuildAndChain(terms []ConditionNode) ConditionNode {
 	return result
 }
 
+// rebuildOrChain assembles a left-folded OrNode chain from a non-empty slice.
+func rebuildOrChain(terms []ConditionNode) ConditionNode {
+	if len(terms) == 1 {
+		return terms[0]
+	}
+	result := ConditionNode(&OrNode{Left: terms[0], Right: terms[1]})
+	for _, t := range terms[2:] {
+		result = &OrNode{Left: result, Right: t}
+	}
+	return result
+}
+
+// termSubsumedBy returns true when cand is subsumed by sub, meaning sub |= cand
+// (cand is "more specific"). In a disjunction this makes cand redundant:
+// disj(sub, cand) = sub. Only applies when neither term contains a status func.
+//
+// Example: sub=A, cand=A&&B → every model satisfying A&&B also satisfies A,
+// so A already covers A&&B in a disjunction.
+func termSubsumedBy(cand, sub ConditionNode) bool {
+	if nodesEqual(cand, sub) {
+		return false // identical terms are handled by dedup, not subsumption
+	}
+	if containsStatusFunc(cand) || containsStatusFunc(sub) {
+		return false
+	}
+	for _, ct := range collectAndTerms(cand) {
+		if nodesEqual(ct, sub) {
+			return true
+		}
+	}
+	return false
+}
+
+// tryResolve checks whether two OR-clause term-lists can be resolved.
+// Resolution: (A || B) && (!A || B) → B
+// Returns the residual clause B and true if resolution succeeds, or nil/false.
+// Status functions block resolution (semantics-preserving guard).
+func tryResolve(termsI, termsJ []ConditionNode) (ConditionNode, bool) {
+	if slices.ContainsFunc(termsI, containsStatusFunc) {
+		return nil, false
+	}
+	if slices.ContainsFunc(termsJ, containsStatusFunc) {
+		return nil, false
+	}
+	// Find exactly one literal in termsI that is the negation of exactly one in termsJ.
+	for _, ti := range termsI {
+		for _, tj := range termsJ {
+			if isNegationOf(ti, tj) {
+				// Residual = termsI without ti unioned with termsJ without tj.
+				residualI := make([]ConditionNode, 0, len(termsI)-1)
+				for _, t := range termsI {
+					if !nodesEqual(t, ti) {
+						residualI = append(residualI, t)
+					}
+				}
+				residualJ := make([]ConditionNode, 0, len(termsJ)-1)
+				for _, t := range termsJ {
+					if !nodesEqual(t, tj) {
+						residualJ = append(residualJ, t)
+					}
+				}
+				// Merge: keep terms that appear in both residuals, or collect all.
+				allResidual := append(residualI, residualJ...)
+				// Deduplicate residual.
+				seen := make(map[string]struct{}, len(allResidual))
+				deduped := make([]ConditionNode, 0, len(allResidual))
+				for _, t := range allResidual {
+					k := t.Render()
+					if _, exists := seen[k]; !exists {
+						seen[k] = struct{}{}
+						deduped = append(deduped, t)
+					}
+				}
+				if len(deduped) == 0 {
+					// Both clauses were exact complements; the resolved expression is a tautology.
+					return &BooleanLiteralNode{Value: true}, true
+				}
+				return rebuildOrChain(deduped), true
+			}
+		}
+	}
+	return nil, false
+}
+
+// tryFactor checks whether two nodes share common AND-conjuncts that can be
+// factored out: (A && B) || (A && C) → A && (B || C).
+// Returns the factored node and true on success.
+// Both nodes must be free of status functions (caller's responsibility).
+func tryFactor(a, b ConditionNode) (ConditionNode, bool) {
+	termsA := collectAndTerms(a)
+	termsB := collectAndTerms(b)
+	if len(termsA) < 2 && len(termsB) < 2 {
+		return nil, false // at least one side must be a conjunction
+	}
+
+	// Find common terms (by rendered form).
+	commonKeys := make(map[string]ConditionNode, len(termsA))
+	for _, t := range termsA {
+		commonKeys[t.Render()] = t
+	}
+	common := make([]ConditionNode, 0)
+	for _, t := range termsB {
+		if c, ok := commonKeys[t.Render()]; ok {
+			common = append(common, c)
+		}
+	}
+	if len(common) == 0 {
+		return nil, false
+	}
+
+	// Residuals: each side minus the common terms.
+	// Build a set for O(1) membership tests.
+	commonSet := make(map[string]struct{}, len(common))
+	for _, c := range common {
+		commonSet[c.Render()] = struct{}{}
+	}
+	residualA := make([]ConditionNode, 0, len(termsA))
+	for _, t := range termsA {
+		if _, inCommon := commonSet[t.Render()]; !inCommon {
+			residualA = append(residualA, t)
+		}
+	}
+	residualB := make([]ConditionNode, 0, len(termsB))
+	for _, t := range termsB {
+		if _, inCommon := commonSet[t.Render()]; !inCommon {
+			residualB = append(residualB, t)
+		}
+	}
+
+	// Build factored form: common && (residualA || residualB)
+	// If either residual is empty the entire chain reduces to just the common
+	// factor (covers the A||(A&&C) → A case as well as the A||A → A case).
+	if len(residualA) == 0 || len(residualB) == 0 {
+		return rebuildAndChain(common), true
+	}
+	orPart := &OrNode{
+		Left:  rebuildAndChain(residualA),
+		Right: rebuildAndChain(residualB),
+	}
+
+	commonChain := rebuildAndChain(common)
+	return &AndNode{Left: commonChain, Right: orPart}, true
+}
+
 // --- node-specific optimisers ------------------------------------------------
 
 func optimizeAndNode(n *AndNode) ConditionNode {
@@ -246,6 +397,75 @@ func optimizeAndNode(n *AndNode) ConditionNode {
 		}
 	}
 
+	// Absorption (AND): A && (A || B) → A
+	// If any term is an OR/Disjunction that contains another conjunct as a
+	// sub-term, the OR term is absorbed: the simpler conjunct subsumes it.
+	if !hasStatusFuncInTerms {
+		absorbed := make([]bool, len(deduped))
+		for i, ti := range deduped {
+			orTerms := collectOrTerms(ti)
+			if len(orTerms) < 2 {
+				continue // ti is not an OR expression
+			}
+			for j, tj := range deduped {
+				if i == j || absorbed[i] {
+					continue
+				}
+				for _, ot := range orTerms {
+					if nodesEqual(ot, tj) {
+						expressionOptimizerLog.Printf("AND absorption: (%s) && (%s) → %s (absorbed)",
+							tj.Render(), ti.Render(), tj.Render())
+						absorbed[i] = true
+						break
+					}
+				}
+			}
+		}
+		anyAbsorbed := slices.Contains(absorbed, true)
+		if anyAbsorbed {
+			surviving := make([]ConditionNode, 0, len(deduped))
+			for i, t := range deduped {
+				if !absorbed[i] {
+					surviving = append(surviving, t)
+				}
+			}
+			if len(surviving) == 0 {
+				return &BooleanLiteralNode{Value: true}
+			}
+			return optimizeNode(rebuildAndChain(surviving))
+		}
+	}
+
+	// Resolution: (A || B) && (!A || B) → B
+	// Look for two OR-clauses in the flat AND list that differ by exactly one
+	// complementary literal; replace both with the shared residual.
+	if !hasStatusFuncInTerms && len(deduped) >= 2 {
+		for i, ti := range deduped {
+			termsI := collectOrTerms(ti)
+			if len(termsI) < 2 {
+				continue
+			}
+			for j := i + 1; j < len(deduped); j++ {
+				termsJ := collectOrTerms(deduped[j])
+				if len(termsJ) < 2 {
+					continue
+				}
+				if resolved, ok := tryResolve(termsI, termsJ); ok {
+					expressionOptimizerLog.Printf("AND resolution: (%s) && (%s) → %s",
+						ti.Render(), deduped[j].Render(), resolved.Render())
+					remaining := make([]ConditionNode, 0, len(deduped)-1)
+					for k, t := range deduped {
+						if k != i && k != j {
+							remaining = append(remaining, t)
+						}
+					}
+					remaining = append([]ConditionNode{resolved}, remaining...)
+					return optimizeNode(rebuildAndChain(remaining))
+				}
+			}
+		}
+	}
+
 	return rebuildAndChain(deduped)
 }
 
@@ -298,6 +518,28 @@ func optimizeOrNode(n *OrNode) ConditionNode {
 	if isNegationOf(left, right) {
 		expressionOptimizerLog.Printf("OR complement: %s || %s → true", left.Render(), right.Render())
 		return &BooleanLiteralNode{Value: true}
+	}
+
+	// Absorption (OR): A || (A && B) → A
+	// If one side is an AND-chain that contains the other side as a conjunct,
+	// the AND-chain is absorbed by the simpler operand.
+	for _, pair := range [][2]ConditionNode{{left, right}, {right, left}} {
+		simple, complex := pair[0], pair[1]
+		if termSubsumedBy(complex, simple) {
+			expressionOptimizerLog.Printf("OR absorption: %s || (%s) → %s (absorbed)",
+				simple.Render(), complex.Render(), simple.Render())
+			return simple
+		}
+	}
+
+	// Factoring: (A && B) || (A && C) → A && (B || C)
+	// Collect shared conjuncts between the two AND-chains and factor them out.
+	if !containsStatusFunc(left) && !containsStatusFunc(right) {
+		if factored, ok := tryFactor(left, right); ok {
+			expressionOptimizerLog.Printf("OR factoring: (%s) || (%s) → %s",
+				left.Render(), right.Render(), factored.Render())
+			return optimizeNode(factored)
+		}
 	}
 
 	return &OrNode{Left: left, Right: right}
@@ -424,6 +666,39 @@ func optimizeDisjunctionNode(n *DisjunctionNode) ConditionNode {
 					return &BooleanLiteralNode{Value: true}
 				}
 			}
+		}
+
+		// Subsumption: disj(A, A&&B, …) → disj(A, …)
+		// A term cand is subsumed (and thus redundant in a disjunction) when
+		// a simpler term sub is also present such that sub |= cand, i.e. every
+		// assignment that satisfies sub also satisfies cand.
+		subsumed := make([]bool, len(deduped))
+		for i, cand := range deduped {
+			for j, sub := range deduped {
+				if i == j {
+					continue
+				}
+				if termSubsumedBy(cand, sub) {
+					expressionOptimizerLog.Printf("Disjunction subsumption: %s subsumed by %s", cand.Render(), sub.Render())
+					subsumed[i] = true
+					break
+				}
+			}
+		}
+		if slices.Contains(subsumed, true) {
+			surviving := make([]ConditionNode, 0, len(deduped))
+			for i, t := range deduped {
+				if !subsumed[i] {
+					surviving = append(surviving, t)
+				}
+			}
+			if len(surviving) == 0 {
+				return &BooleanLiteralNode{Value: false}
+			}
+			if len(surviving) == 1 {
+				return surviving[0]
+			}
+			return optimizeNode(&DisjunctionNode{Terms: surviving, Multiline: n.Multiline})
 		}
 	}
 
