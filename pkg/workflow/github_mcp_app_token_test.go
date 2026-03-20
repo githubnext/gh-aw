@@ -254,11 +254,11 @@ Test org-wide GitHub MCP app token.
 	assert.Contains(t, lockContent, "app-id:", "Should include app-id field")
 }
 
-// TestGitHubMCPAppTokenNoLockdownDetectionStep tests that determine-automatic-lockdown
-// step is NOT generated when a GitHub App is configured.
-// GitHub App tokens are already scoped to specific repositories, so automatic lockdown
-// detection is unnecessary.
-func TestGitHubMCPAppTokenNoLockdownDetectionStep(t *testing.T) {
+// TestGitHubMCPAppTokenWithLockdownDetectionStep tests that determine-automatic-lockdown
+// step IS generated even when a GitHub App is configured.
+// Repo-scoping from a GitHub App token does not substitute for author-integrity filtering
+// inside a repository; public repos still need automatic min-integrity: approved protection.
+func TestGitHubMCPAppTokenWithLockdownDetectionStep(t *testing.T) {
 	compiler := NewCompilerWithVersion("1.0.0")
 
 	markdown := `---
@@ -280,7 +280,7 @@ tools:
 
 # Test Workflow
 
-Test that determine-automatic-lockdown is not generated when app is configured.
+Test that determine-automatic-lockdown is generated even when app is configured.
 `
 
 	tmpDir := t.TempDir()
@@ -296,10 +296,14 @@ Test that determine-automatic-lockdown is not generated when app is configured.
 	require.NoError(t, err, "Failed to read lock file")
 	lockContent := string(content)
 
-	// The automatic lockdown detection step must NOT be present when app is configured
-	assert.NotContains(t, lockContent, "Determine automatic lockdown mode", "determine-automatic-lockdown step should not be generated when app is configured")
-	assert.NotContains(t, lockContent, "id: determine-automatic-lockdown", "determine-automatic-lockdown step ID should not be present")
-	assert.NotContains(t, lockContent, "steps.determine-automatic-lockdown.outputs.lockdown", "lockdown step output reference should not be present")
+	// The automatic lockdown detection step MUST be present even when app is configured.
+	// GitHub App repo-scoping does not replace author-integrity filtering for public repos.
+	assert.Contains(t, lockContent, "Determine automatic lockdown mode", "determine-automatic-lockdown step should be generated even when app is configured")
+	assert.Contains(t, lockContent, "id: determine-automatic-lockdown", "determine-automatic-lockdown step ID should be present")
+
+	// Guard policy env vars must reference the lockdown step outputs
+	assert.Contains(t, lockContent, "GITHUB_MCP_GUARD_MIN_INTEGRITY: ${{ steps.determine-automatic-lockdown.outputs.min_integrity }}", "Guard min-integrity env var should reference lockdown step output")
+	assert.Contains(t, lockContent, "GITHUB_MCP_GUARD_REPOS: ${{ steps.determine-automatic-lockdown.outputs.repos }}", "Guard repos env var should reference lockdown step output")
 
 	// App token should still be minted and used
 	assert.Contains(t, lockContent, "id: github-mcp-app-token", "GitHub App token step should still be generated")

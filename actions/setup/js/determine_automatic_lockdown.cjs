@@ -15,9 +15,7 @@
  * from the workflow's tools.github guard policy configuration. Pre-configured values
  * are never overridden.
  *
- * Note: This step is NOT generated when tools.github.app is configured. GitHub App tokens
- * are already scoped to specific repositories, so automatic guard policy detection is
- * unnecessary. It is also NOT generated when both repos and min-integrity are explicitly
+ * Note: This step is NOT generated when both repos and min-integrity are explicitly
  * configured in the workflow.
  *
  * @param {any} github - GitHub API client
