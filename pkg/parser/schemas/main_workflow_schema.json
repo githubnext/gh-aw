@@ -23,7 +23,7 @@
     "source": {
       "type": "string",
       "description": "Optional source reference indicating where this workflow was added from. Format: owner/repo/path@ref (e.g., githubnext/agentics/workflows/ci-doctor.md@v1.0.0). Rendered as a comment in the generated lock file.",
-      "examples": ["githubnext/agentics/workflows/ci-doctor.md", "githubnext/agentics/workflows/daily-perf-improver.md@1f181b37d3fe5862ab590648f25a292e345b5de6"]
+      "examples": ["https://github.com/githubnext/agentics/blob/main/workflows/ci-doctor.md", "https://github.com/githubnext/agentics/blob/1f181b37d3fe5862ab590648f25a292e345b5de6/workflows/daily-perf-improver.md"]
     },
     "tracker-id": {
       "type": "string",
@@ -67,7 +67,7 @@
     },
     "imports": {
       "type": "array",
-      "description": "Optional array of workflow specifications to import (similar to @include directives but defined in frontmatter). Format: owner/repo/path@ref (e.g., githubnext/agentics/workflows/shared/common.md@v1.0.0). Can be strings or objects with path and inputs. Any markdown files under .github/agents directory are treated as custom agent files and only one agent file is allowed per workflow.",
+      "description": "Optional array of workflow specifications to import (similar to @include directives but defined in frontmatter). Format: owner/repo/path@ref (e.g., githubnext/agentics/workflows/shared/common.md@v1.0.0) or full GitHub URL. Can be strings or objects with path and inputs. Any markdown files under .github/agents directory are treated as custom agent files and only one agent file is allowed per workflow.",
       "items": {
         "oneOf": [
           {

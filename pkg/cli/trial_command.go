@@ -79,32 +79,32 @@ workflow(s) from their source repositories, and runs them in "trial mode" to cap
 making actual changes to the "simulated" host repository
 
 Single workflow:
-  ` + string(constants.CLIExtensionPrefix) + ` trial githubnext/agentics/weekly-research
+  ` + string(constants.CLIExtensionPrefix) + ` trial https://github.com/githubnext/agentics/blob/main/workflows/weekly-research.md
   Outputs: stdout + local trials/weekly-research.DATETIME-ID.json + trial repo trials/
 
 Multiple workflows (for comparison):
-  ` + string(constants.CLIExtensionPrefix) + ` trial githubnext/agentics/daily-plan githubnext/agentics/weekly-research
+  ` + string(constants.CLIExtensionPrefix) + ` trial https://github.com/githubnext/agentics/blob/main/workflows/daily-plan.md https://github.com/githubnext/agentics/blob/main/workflows/weekly-research.md
   Outputs: stdout + local trials/ + trial repo trials/ (individual + combined results)
 
 Workflows from different repositories:
-  ` + string(constants.CLIExtensionPrefix) + ` trial githubnext/agentics/daily-plan myorg/myrepo/custom-workflow
+  ` + string(constants.CLIExtensionPrefix) + ` trial https://github.com/githubnext/agentics/blob/main/workflows/daily-plan.md myorg/myrepo/custom-workflow
 
 Repository mode examples:
-  ` + string(constants.CLIExtensionPrefix) + ` trial githubnext/agentics/my-workflow --host-repo myorg/myrepo         # Run directly in myorg/myrepo (no simulation)
-  ` + string(constants.CLIExtensionPrefix) + ` trial githubnext/agentics/my-workflow --logical-repo myorg/myrepo  # Simulate running against myorg/myrepo
-  ` + string(constants.CLIExtensionPrefix) + ` trial githubnext/agentics/my-workflow --clone-repo myorg/myrepo   # Clone myorg/myrepo contents into host
+  ` + string(constants.CLIExtensionPrefix) + ` trial https://github.com/githubnext/agentics/blob/main/workflows/my-workflow.md --host-repo myorg/myrepo         # Run directly in myorg/myrepo (no simulation)
+  ` + string(constants.CLIExtensionPrefix) + ` trial https://github.com/githubnext/agentics/blob/main/workflows/my-workflow.md --logical-repo myorg/myrepo  # Simulate running against myorg/myrepo
+  ` + string(constants.CLIExtensionPrefix) + ` trial https://github.com/githubnext/agentics/blob/main/workflows/my-workflow.md --clone-repo myorg/myrepo   # Clone myorg/myrepo contents into host
 
 Repeat and cleanup examples:
-  ` + string(constants.CLIExtensionPrefix) + ` trial githubnext/agentics/my-workflow --repeat 3                # Run 4 times total (1 initial + 3 repeats)
-  ` + string(constants.CLIExtensionPrefix) + ` trial githubnext/agentics/my-workflow --delete-host-repo-after  # Delete repo after completion
-  ` + string(constants.CLIExtensionPrefix) + ` trial githubnext/agentics/my-workflow --host-repo my-trial       # Custom host repo
-  ` + string(constants.CLIExtensionPrefix) + ` trial githubnext/agentics/my-workflow --dry-run                 # Show what would be done without changes
+  ` + string(constants.CLIExtensionPrefix) + ` trial https://github.com/githubnext/agentics/blob/main/workflows/my-workflow.md --repeat 3                # Run 4 times total (1 initial + 3 repeats)
+  ` + string(constants.CLIExtensionPrefix) + ` trial https://github.com/githubnext/agentics/blob/main/workflows/my-workflow.md --delete-host-repo-after  # Delete repo after completion
+  ` + string(constants.CLIExtensionPrefix) + ` trial https://github.com/githubnext/agentics/blob/main/workflows/my-workflow.md --host-repo my-trial       # Custom host repo
+  ` + string(constants.CLIExtensionPrefix) + ` trial https://github.com/githubnext/agentics/blob/main/workflows/my-workflow.md --dry-run                 # Show what would be done without changes
 
 Auto-merge examples:
-  ` + string(constants.CLIExtensionPrefix) + ` trial githubnext/agentics/my-workflow --auto-merge-prs          # Auto-merge any PRs created during trial
+  ` + string(constants.CLIExtensionPrefix) + ` trial https://github.com/githubnext/agentics/blob/main/workflows/my-workflow.md --auto-merge-prs          # Auto-merge any PRs created during trial
 
 Advanced examples:
-  ` + string(constants.CLIExtensionPrefix) + ` trial githubnext/agentics/my-workflow --host-repo . # Use current repo as host
+  ` + string(constants.CLIExtensionPrefix) + ` trial https://github.com/githubnext/agentics/blob/main/workflows/my-workflow.md --host-repo . # Use current repo as host
   ` + string(constants.CLIExtensionPrefix) + ` trial ./local-workflow.md --clone-repo upstream/repo --repeat 2
 
 Repository modes:
@@ -118,7 +118,7 @@ The host repository will be created as private and kept by default unless --dele
 Trial results are saved both locally (in trials/ directory) and in the host repository for future reference.`,
 		Args: func(cmd *cobra.Command, args []string) error {
 			if len(args) < 1 {
-				return fmt.Errorf("missing workflow specification\n\nUsage:\n  %s <workflow-spec>...\n\nExamples:\n  %[1]s githubnext/agentics/daily-plan             Trial a workflow from a repository\n  %[1]s ./local-workflow.md                         Trial a local workflow\n\nRun '%[1]s --help' for more information", cmd.CommandPath())
+				return fmt.Errorf("missing workflow specification\n\nUsage:\n  %s <workflow-spec>...\n\nExamples:\n  %[1]s https://github.com/githubnext/agentics/blob/main/workflows/daily-plan.md             Trial a workflow from a repository\n  %[1]s ./local-workflow.md                         Trial a local workflow\n\nRun '%[1]s --help' for more information", cmd.CommandPath())
 			}
 			return nil
 		},

@@ -55,14 +55,13 @@ This command adds workflows directly without interactive prompts. Use 'add-wizar
 for a guided setup that configures secrets, creates a pull request, and more.
 
 Examples:
-  ` + string(constants.CLIExtensionPrefix) + ` add githubnext/agentics/daily-repo-status        # Add workflow directly
-  ` + string(constants.CLIExtensionPrefix) + ` add githubnext/agentics/ci-doctor@v1.0.0         # Add with version
-  ` + string(constants.CLIExtensionPrefix) + ` add githubnext/agentics/workflows/ci-doctor.md@main
+  ` + string(constants.CLIExtensionPrefix) + ` add https://github.com/githubnext/agentics/blob/main/workflows/daily-repo-status.md        # Add workflow directly
+  ` + string(constants.CLIExtensionPrefix) + ` add https://github.com/githubnext/agentics/blob/v1.0.0/workflows/ci-doctor.md              # Add with version
   ` + string(constants.CLIExtensionPrefix) + ` add https://github.com/githubnext/agentics/blob/main/workflows/ci-doctor.md
-  ` + string(constants.CLIExtensionPrefix) + ` add githubnext/agentics/ci-doctor --create-pull-request --force
+  ` + string(constants.CLIExtensionPrefix) + ` add https://github.com/githubnext/agentics/blob/main/workflows/ci-doctor.md --create-pull-request --force
   ` + string(constants.CLIExtensionPrefix) + ` add ./my-workflow.md                             # Add local workflow
   ` + string(constants.CLIExtensionPrefix) + ` add ./*.md                                       # Add all local workflows
-  ` + string(constants.CLIExtensionPrefix) + ` add githubnext/agentics/ci-doctor --dir shared   # Add to .github/workflows/shared/
+  ` + string(constants.CLIExtensionPrefix) + ` add https://github.com/githubnext/agentics/blob/main/workflows/ci-doctor.md --dir shared   # Add to .github/workflows/shared/
 
 Workflow specifications:
   - Three parts: "owner/repo/workflow-name[@version]" (implicitly looks in workflows/ directory)
@@ -81,7 +80,7 @@ Note: To create a new workflow from scratch, use the 'new' command instead.
 Note: For guided interactive setup, use the 'add-wizard' command instead.`,
 		Args: func(cmd *cobra.Command, args []string) error {
 			if len(args) < 1 {
-				return fmt.Errorf("missing workflow specification\n\nUsage:\n  %s <workflow>...\n\nExamples:\n  %[1]s githubnext/agentics/daily-repo-status      Add from repository\n  %[1]s ./my-workflow.md                           Add local workflow\n\nRun '%[1]s --help' for more information", cmd.CommandPath())
+				return fmt.Errorf("missing workflow specification\n\nUsage:\n  %s <workflow>...\n\nExamples:\n  %[1]s https://github.com/githubnext/agentics/blob/main/workflows/daily-repo-status.md      Add from repository\n  %[1]s ./my-workflow.md                           Add local workflow\n\nRun '%[1]s --help' for more information", cmd.CommandPath())
 			}
 			return nil
 		},
