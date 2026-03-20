@@ -79,7 +79,6 @@ import (
 	"fmt"
 	"regexp"
 	"slices"
-	"strconv"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/logger"
@@ -288,45 +287,6 @@ func GenerateHeredocDelimiter(name string) string {
 	return "GH_AW_" + strings.ToUpper(name) + "_EOF"
 }
 
-// ConvertToInt safely converts any to int
-func ConvertToInt(val any) int {
-	switch v := val.(type) {
-	case int:
-		return v
-	case int64:
-		return int(v)
-	case float64:
-		intVal := int(v)
-		// Warn if truncation occurs (value has fractional part)
-		if v != float64(intVal) {
-			stringsLog.Printf("Float value %.2f truncated to integer %d", v, intVal)
-		}
-		return intVal
-	case string:
-		if i, err := strconv.Atoi(v); err == nil {
-			return i
-		}
-	}
-	return 0
-}
-
-// ConvertToFloat safely converts any to float64
-func ConvertToFloat(val any) float64 {
-	switch v := val.(type) {
-	case float64:
-		return v
-	case int:
-		return float64(v)
-	case int64:
-		return float64(v)
-	case string:
-		if f, err := strconv.ParseFloat(v, 64); err == nil {
-			return f
-		}
-	}
-	return 0
-}
-
 // PrettifyToolName removes "mcp__" prefix and formats tool names nicely
 func PrettifyToolName(toolName string) string {
 	// Handle MCP tools: "mcp__github__search_issues" -> "github_search_issues"
@@ -349,4 +309,18 @@ func PrettifyToolName(toolName string) string {
 
 	// Return other tool names as-is
 	return toolName
+}
+
+// formatList formats a list of strings as a comma-separated list with natural language conjunction
+func formatList(items []string) string {
+	if len(items) == 0 {
+		return ""
+	}
+	if len(items) == 1 {
+		return items[0]
+	}
+	if len(items) == 2 {
+		return items[0] + " and " + items[1]
+	}
+	return fmt.Sprintf("%s, and %s", formatList(items[:len(items)-1]), items[len(items)-1])
 }

@@ -221,3 +221,17 @@ func validateCompileConfig(config CompileConfig) error {
 	compileValidationLog.Print("Config validation successful")
 	return nil
 }
+
+// validateActionModeConfig validates the action mode configuration
+func validateActionModeConfig(actionMode string) error {
+	if actionMode == "" {
+		return nil
+	}
+
+	mode := workflow.ActionMode(actionMode)
+	if !mode.IsValid() {
+		return fmt.Errorf("invalid action mode '%s'. Must be 'dev', 'release', 'script', or 'action'", actionMode)
+	}
+
+	return nil
+}
