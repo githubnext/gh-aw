@@ -14,7 +14,7 @@ tools:
     branch-name: memory/cli-performance
     description: "Historical CLI compilation performance benchmark results"
     file-glob: ["memory/cli-performance/*.json", "memory/cli-performance/*.jsonl", "memory/cli-performance/*.txt"]
-    max-file-size: 512000  # 500KB
+    max-file-size: 131072  # 128KB — bounded to limit context size
   bash: true
   edit:
   github:
@@ -58,6 +58,43 @@ This workflow imports `shared/go-make.md` which provides:
 - **mcpscripts-make** - Execute Make targets (e.g., args: "build", "test-unit", "bench")
 
 **IMPORTANT**: Always use these mcp-script tools for Go and Make commands instead of running them directly via bash.
+
+## Phase 0: Change Detection and Early-Exit Guard
+
+Before running expensive benchmarks, check whether compilation-related files have changed since the last run and whether a benchmark entry for today already exists.
+
+```bash
+# Check for recent changes to Go source and build files (last 24 hours)
+# Use :(glob) pathspec prefix so the pattern matches files at any depth in the tree
+RECENT_GO_CHANGES=$(git log --since="24 hours ago" --oneline -- ":(glob)**/*.go" "go.mod" "go.sum" "Makefile" 2>/dev/null | wc -l | tr -d ' ')
+echo "Recent compilation-related changes in last 24h: $RECENT_GO_CHANGES"
+
+# Check the date of the most recent benchmark entry
+LAST_RUN_DATE=""
+if [ -f /tmp/gh-aw/repo-memory/default/benchmark_history.jsonl ] && [ -s /tmp/gh-aw/repo-memory/default/benchmark_history.jsonl ]; then
+  LAST_RUN_DATE=$(tail -1 /tmp/gh-aw/repo-memory/default/benchmark_history.jsonl \
+    | python3 -c "import json,sys; line=sys.stdin.read().strip(); d=json.loads(line); print(d.get('date',''))" 2>&1) || {
+      echo "Warning: could not parse last benchmark date (malformed JSON or Python unavailable)"
+      LAST_RUN_DATE=""
+    }
+fi
+TODAY=$(date -u +%Y-%m-%d)
+echo "Last benchmark date: ${LAST_RUN_DATE:-none}"
+echo "Today: $TODAY"
+```
+
+**Decision rule** — if **both** of the following are true, there is nothing new to measure:
+
+1. `RECENT_GO_CHANGES` is `0` (no compilation-related file has changed in the last 24 hours), **and**
+2. `LAST_RUN_DATE` equals `TODAY` (a benchmark entry already exists for today)
+
+In that case, **stop here** and call the `noop` safe-output tool, substituting the actual value of `$LAST_RUN_DATE` into the message:
+
+```json
+{"noop": {"message": "No action needed: No compilation-related file changes in the last 24 hours and a benchmark entry already exists for today ($LAST_RUN_DATE)."}}
+```
+
+Otherwise, continue with Phase 1.
 
 ## Phase 1: Run Performance Benchmarks
 
@@ -179,13 +216,26 @@ if [ ! -f /tmp/gh-aw/repo-memory/default/benchmark_history.jsonl ]; then
   touch /tmp/gh-aw/repo-memory/default/benchmark_history.jsonl
 fi
 
+# Prune history to the last 14 entries (bounded context window)
+HISTORY_FILE="/tmp/gh-aw/repo-memory/default/benchmark_history.jsonl"
+MAX_HISTORY_ENTRIES=14
+ENTRY_COUNT=$(wc -l < "$HISTORY_FILE" | tr -d ' ')
+echo "Current history entries: $ENTRY_COUNT"
+if [ "$ENTRY_COUNT" -gt "$MAX_HISTORY_ENTRIES" ]; then
+  echo "Pruning history to last $MAX_HISTORY_ENTRIES entries (was $ENTRY_COUNT)"
+  tail -"$MAX_HISTORY_ENTRIES" "$HISTORY_FILE" > "${HISTORY_FILE}.tmp" \
+    || { echo "Error: failed to prune history file"; rm -f "${HISTORY_FILE}.tmp"; exit 1; }
+  mv "${HISTORY_FILE}.tmp" "$HISTORY_FILE" \
+    || { echo "Error: failed to replace history file after pruning"; exit 1; }
+fi
+
 # Append current results to history
 {
   cat /tmp/gh-aw/benchmarks/current_metrics.json
   echo ""
-} >> /tmp/gh-aw/repo-memory/default/benchmark_history.jsonl
+} >> "$HISTORY_FILE"
 
-echo "Historical data updated"
+echo "Historical data updated ($(wc -l < "$HISTORY_FILE" | tr -d ' ') entries)"
 ```
 
 ## Phase 3: Analyze Performance Trends
@@ -210,12 +260,15 @@ HISTORY_FILE = '/tmp/gh-aw/repo-memory/default/benchmark_history.jsonl'
 CURRENT_FILE = '/tmp/gh-aw/benchmarks/current_metrics.json'
 OUTPUT_FILE = '/tmp/gh-aw/benchmarks/analysis.json'
 
+# Bounded context window — must match MAX_HISTORY_ENTRIES in the bash pruning step
+MAX_HISTORY_ENTRIES = 14
+
 # Regression thresholds
 REGRESSION_THRESHOLD = 1.10  # 10% slower is a regression
 WARNING_THRESHOLD = 1.05     # 5% slower is a warning
 
 def load_history():
-    """Load historical benchmark data"""
+    """Load historical benchmark data — capped at last MAX_HISTORY_ENTRIES entries to bound context size"""
     history = []
     if os.path.exists(HISTORY_FILE):
         with open(HISTORY_FILE, 'r') as f:
@@ -226,7 +279,8 @@ def load_history():
                         history.append(json.loads(line))
                     except json.JSONDecodeError:
                         continue
-    return history
+    # Keep only the most recent entries (bounded context window)
+    return history[-MAX_HISTORY_ENTRIES:] if len(history) > MAX_HISTORY_ENTRIES else history
 
 def load_current():
     """Load current benchmark results"""
@@ -317,8 +371,8 @@ def main():
     with open(OUTPUT_FILE, 'w') as f:
         json.dump(analysis, f, indent=2)
     
-    print("Analysis complete!")
-    print(json.dumps(analysis, indent=2))
+    summary = analysis['summary']
+    print(f"Analysis complete! total={summary['total']} regressions={summary['regressions']} warnings={summary['warnings']} improvements={summary['improvements']}")
 
 if __name__ == '__main__':
     main()
@@ -487,22 +541,6 @@ def main():
     
     summary = analysis['summary']
     
-    # Print terminal output (for logs)
-    print("\n" + "="*70)
-    print("  DAILY CLI PERFORMANCE BENCHMARK REPORT")
-    print("="*70)
-    print(f"\nDate: {analysis['date']}")
-    print(f"Timestamp: {analysis['timestamp']}")
-    
-    print("\n" + "-"*70)
-    print("SUMMARY")
-    print("-"*70)
-    print(f"Total Benchmarks: {summary['total']}")
-    print(f"  ✅ Stable: {summary['stable']}")
-    print(f"  ⚡ Warnings: {summary['warnings']}")
-    print(f"  ⚠️  Regressions: {summary['regressions']}")
-    print(f"  ✨ Improvements: {summary['improvements']}")
-    
     # Generate markdown report following formatting guidelines
     with open('/tmp/gh-aw/benchmarks/report.md', 'w') as f:
         # Brief summary (always visible)
@@ -601,7 +639,7 @@ def main():
             f.write("1. Continue monitoring performance daily\n")
             f.write("2. Performance is stable - good work!\n")
     
-    print("\n✅ Markdown report generated at /tmp/gh-aw/benchmarks/report.md")
+    print(f"✅ Markdown report generated (date={analysis['date']} regressions={summary['regressions']} warnings={summary['warnings']})")
 
 if __name__ == '__main__':
     main()
@@ -609,21 +647,17 @@ EOF
 
 chmod +x /tmp/gh-aw/benchmarks/generate_report.py
 python3 /tmp/gh-aw/benchmarks/generate_report.py
-
-# Display the generated markdown report
-echo ""
-echo "=== Generated Markdown Report ==="
-cat /tmp/gh-aw/benchmarks/report.md
 ```
 
 ## Success Criteria
 
 A successful daily run will:
 
+✅ **Skip when unchanged** - Exit early (noop) when no compilation-related files changed in the last 24h and today's data already exists  
 ✅ **Run benchmarks** - Execute `make bench` and capture results  
 ✅ **Parse results** - Extract key metrics (ns/op, B/op, allocs/op) from benchmark output  
-✅ **Store in memory** - Append results to `benchmark_history.jsonl` in cache-memory  
-✅ **Analyze trends** - Compare current performance with 7-day historical average  
+✅ **Store in memory** - Append results to `benchmark_history.jsonl` in cache-memory (pruned to last 14 entries)  
+✅ **Analyze trends** - Compare current performance with recent historical average (bounded to last 14 entries)  
 ✅ **Detect regressions** - Identify benchmarks that are >10% slower  
 ✅ **Open issues** - Create GitHub issues for each regression detected (max 3)  
 ✅ **Generate report** - Display comprehensive performance summary
@@ -641,7 +675,7 @@ Performance data is stored in:
 - **Location**: `/tmp/gh-aw/repo-memory/default/`
 - **File**: `benchmark_history.jsonl`
 - **Format**: JSON Lines (one entry per day)
-- **Retention**: Managed by cache-memory tool
+- **Retention**: Last 14 entries (≈2 weeks) — older entries are pruned each run to bound context size (`MAX_HISTORY_ENTRIES` in the bash pruning step and `analyze_trends.py`)
 
 Each entry contains:
 ```json

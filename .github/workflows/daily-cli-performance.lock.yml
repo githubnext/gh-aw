@@ -27,7 +27,7 @@
 #     - shared/go-make.md
 #     - shared/reporting.md
 #
-# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"e7e3b3a6b265000f859ec090406ed8efb58befbb910edb62f60f014ea9f7495c","strict":true,"agent_id":"copilot"}
+# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"80ab75db69db8ddec2b1c891c60afdc9d93a93abfc55b59b80929b4d19485747","strict":true,"agent_id":"copilot"}
 
 name: "Daily CLI Performance Agent"
 "on":
@@ -208,7 +208,7 @@ jobs:
           GH_AW_GITHUB_SERVER_URL: ${{ github.server_url }}
           GH_AW_GITHUB_WORKSPACE: ${{ github.workspace }}
           GH_AW_MEMORY_BRANCH_NAME: 'memory/cli-performance'
-          GH_AW_MEMORY_CONSTRAINTS: "\n\n**Constraints:**\n- **Allowed Files**: Only files matching patterns: memory/cli-performance/*.json, memory/cli-performance/*.jsonl, memory/cli-performance/*.txt\n- **Max File Size**: 512000 bytes (0.49 MB) per file\n- **Max File Count**: 100 files per commit\n- **Max Patch Size**: 10240 bytes (10 KB) total per push (max: 100 KB)\n"
+          GH_AW_MEMORY_CONSTRAINTS: "\n\n**Constraints:**\n- **Allowed Files**: Only files matching patterns: memory/cli-performance/*.json, memory/cli-performance/*.jsonl, memory/cli-performance/*.txt\n- **Max File Size**: 131072 bytes (0.12 MB) per file\n- **Max File Count**: 100 files per commit\n- **Max Patch Size**: 10240 bytes (10 KB) total per push (max: 100 KB)\n"
           GH_AW_MEMORY_DESCRIPTION: ' Historical CLI compilation performance benchmark results'
           GH_AW_MEMORY_DIR: '/tmp/gh-aw/repo-memory/default/'
           GH_AW_MEMORY_TARGET_REPO: ' of the current repository'
@@ -372,7 +372,7 @@ jobs:
           mkdir -p /tmp/gh-aw/safeoutputs
           mkdir -p /tmp/gh-aw/mcp-logs/safeoutputs
           cat > ${RUNNER_TEMP}/gh-aw/safeoutputs/config.json << 'GH_AW_SAFE_OUTPUTS_CONFIG_EOF'
-          {"add_comment":{"max":5},"create_issue":{"expires":48,"group":true,"max":3},"missing_data":{},"missing_tool":{},"noop":{"max":1},"push_repo_memory":{"memories":[{"dir":"/tmp/gh-aw/repo-memory/default","id":"default","max_file_count":100,"max_file_size":512000,"max_patch_size":10240}]}}
+          {"add_comment":{"max":5},"create_issue":{"expires":48,"group":true,"max":3},"missing_data":{},"missing_tool":{},"noop":{"max":1},"push_repo_memory":{"memories":[{"dir":"/tmp/gh-aw/repo-memory/default","id":"default","max_file_count":100,"max_file_size":131072,"max_patch_size":10240}]}}
           GH_AW_SAFE_OUTPUTS_CONFIG_EOF
       - name: Write Safe Outputs Tools
         run: |
@@ -1247,7 +1247,7 @@ jobs:
           MEMORY_ID: default
           TARGET_REPO: ${{ github.repository }}
           BRANCH_NAME: memory/cli-performance
-          MAX_FILE_SIZE: 512000
+          MAX_FILE_SIZE: 131072
           MAX_FILE_COUNT: 100
           MAX_PATCH_SIZE: 10240
           ALLOWED_EXTENSIONS: '[]'
