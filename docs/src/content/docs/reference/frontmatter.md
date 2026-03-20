@@ -623,13 +623,90 @@ if: github.event_name == 'push'
 
 Configure how `actions/checkout` is invoked in the agent job. Override default checkout settings or check out multiple repositories for cross-repository workflows.
 
-Set `checkout: false` to disable the default repository checkout entirely — useful for workflows that access repositories through MCP servers or other mechanisms that do not require a local clone:
+By default, the agent job checks out the current repository at the triggering ref. Use `checkout:` to override this behavior.
+
+### Disabling Checkout (`checkout: false`)
+
+Set `checkout: false` to suppress the default `actions/checkout` step entirely. Use this for workflows that access repositories through MCP servers or other mechanisms that do not require a local clone:
 
 ```yaml wrap
 checkout: false
 ```
 
-See [Cross-Repository Operations](/gh-aw/reference/cross-repository/) for complete documentation on checkout configuration options (including `fetch:`, `checkout: false`), merging behavior, and cross-repo examples.
+### Single-Repository Customization
+
+Override default checkout settings for the current repository without defining a custom job:
+
+```yaml wrap
+checkout:
+  fetch-depth: 0                               # Full git history
+  github-token: ${{ secrets.MY_TOKEN }}        # Custom authentication
+```
+
+Use GitHub App authentication instead of a PAT:
+
+```yaml wrap
+checkout:
+  fetch-depth: 0
+  github-app:
+    app-id: ${{ vars.APP_ID }}
+    private-key: ${{ secrets.APP_PRIVATE_KEY }}
+```
+
+### Multiple Repositories
+
+Check out additional repositories alongside the main repository using an array:
+
+```yaml wrap
+checkout:
+  - fetch-depth: 0                              # main repo (full history)
+  - repository: owner/other-repo
+    path: ./libs/other
+    ref: main
+    github-token: ${{ secrets.CROSS_REPO_PAT }}
+```
+
+### Configuration Options
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `repository` | string | Repository in `owner/repo` format. Defaults to the current repository. |
+| `ref` | string | Branch, tag, or SHA to checkout. Defaults to the triggering ref. |
+| `path` | string | Relative path within `GITHUB_WORKSPACE`. Defaults to workspace root. |
+| `github-token` | string | Token for authentication (`${{ secrets.MY_TOKEN }}` syntax). |
+| `github-app` | object | GitHub App credentials (`app-id`, `private-key`, optional `owner`, `repositories`). Mutually exclusive with `github-token`. |
+| `fetch-depth` | integer | Number of commits to fetch. `0` = full history, `1` = shallow (default). |
+| `fetch` | string \| string[] | Additional Git refs to fetch after checkout (e.g., `["*"]` for all branches, `["refs/pulls/open/*"]` for open PRs). |
+| `sparse-checkout` | string | Newline-separated patterns for sparse checkout (e.g., `.github/\nsrc/`). |
+| `submodules` | string / bool | Submodule handling: `"recursive"`, `true`, or `false`. |
+| `lfs` | boolean | Download Git LFS objects. |
+| `current` | boolean | Mark this checkout as the agent's primary working repository. Only one entry may set `current: true`. |
+
+### Fetching Additional Refs
+
+Use `fetch:` to retrieve extra branches or refs after checkout — useful when the agent needs to inspect or modify branches beyond the default ref:
+
+```yaml wrap
+checkout:
+  - fetch: ["refs/pulls/open/*"]   # fetch all open PR refs
+    fetch-depth: 0
+```
+
+The `fetch:` option emits a dedicated `git fetch` step after `actions/checkout`. No credentials are persisted to disk.
+
+### Hub-and-Spoke: Setting a Primary Repository (`current: true`)
+
+When running a workflow from a central repository that targets another repository, use `current: true` to tell the agent which checkout is its primary working target:
+
+```yaml wrap
+checkout:
+  - repository: org/target-repo
+    path: ./target
+    github-token: ${{ secrets.CROSS_REPO_PAT }}
+    current: true
+```
+
+See [Cross-Repository Operations](/gh-aw/reference/cross-repository/) for complete documentation on checkout merging behavior, multi-repo patterns, and advanced examples.
 
 ## Custom Steps (`steps:`)
 
