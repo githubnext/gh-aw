@@ -218,3 +218,37 @@ func TestExtractMCPGatewayConfigPayloadFields(t *testing.T) {
 		assert.Equal(t, 0, config.PayloadSizeThreshold, "PayloadSizeThreshold should be 0 when not specified")
 	})
 }
+
+// TestExtractMCPGatewayConfigTrustedBots tests extraction of trustedBots from MCP gateway frontmatter
+func TestExtractMCPGatewayConfigTrustedBots(t *testing.T) {
+	compiler := &Compiler{}
+
+	t.Run("extracts trustedBots using camelCase key", func(t *testing.T) {
+		mcpObj := map[string]any{
+			"container":   "ghcr.io/github/gh-aw-mcpg",
+			"trustedBots": []any{"github-actions[bot]", "copilot-swe-agent[bot]"},
+		}
+		config := compiler.extractMCPGatewayConfig(mcpObj)
+		require.NotNil(t, config, "Should extract MCP gateway config")
+		assert.Equal(t, []string{"github-actions[bot]", "copilot-swe-agent[bot]"}, config.TrustedBots, "Should extract trustedBots")
+	})
+
+	t.Run("extracts trustedBots using kebab-case key", func(t *testing.T) {
+		mcpObj := map[string]any{
+			"container":    "ghcr.io/github/gh-aw-mcpg",
+			"trusted-bots": []any{"github-actions[bot]"},
+		}
+		config := compiler.extractMCPGatewayConfig(mcpObj)
+		require.NotNil(t, config, "Should extract MCP gateway config")
+		assert.Equal(t, []string{"github-actions[bot]"}, config.TrustedBots, "Should extract trusted-bots")
+	})
+
+	t.Run("leaves trustedBots nil when not specified", func(t *testing.T) {
+		mcpObj := map[string]any{
+			"container": "ghcr.io/github/gh-aw-mcpg",
+		}
+		config := compiler.extractMCPGatewayConfig(mcpObj)
+		require.NotNil(t, config, "Should extract MCP gateway config")
+		assert.Nil(t, config.TrustedBots, "TrustedBots should be nil when not specified")
+	})
+}

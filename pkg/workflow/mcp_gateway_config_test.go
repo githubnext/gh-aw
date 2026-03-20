@@ -316,9 +316,13 @@ func TestBuildMCPGatewayConfig(t *testing.T) {
 			},
 		},
 		{
-			name: "propagates bots from workflowData.Bots to gateway trustedBots",
+			name: "propagates trustedBots from frontmatter config",
 			workflowData: &WorkflowData{
-				Bots: []string{"github-actions[bot]", "copilot-swe-agent[bot]"},
+				SandboxConfig: &SandboxConfig{
+					MCP: &MCPGatewayRuntimeConfig{
+						TrustedBots: []string{"github-actions[bot]", "copilot-swe-agent[bot]"},
+					},
+				},
 			},
 			expected: &MCPGatewayRuntimeConfig{
 				Port:                 int(DefaultMCPGatewayPort),
