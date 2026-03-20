@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
 )
 
@@ -31,12 +32,12 @@ var identifiersLog = logger.New("stringutil:identifiers")
 //	NormalizeWorkflowName("my.workflow.md")             // returns "my.workflow"
 func NormalizeWorkflowName(name string) string {
 	// Remove .lock.yaml extension first (longer extension, .yaml variant)
-	if before, ok := strings.CutSuffix(name, ".lock.yaml"); ok {
+	if before, ok := strings.CutSuffix(name, constants.LockExtensionYAML); ok {
 		return before
 	}
 
 	// Remove .lock.yml extension (longer extension)
-	if before, ok := strings.CutSuffix(name, ".lock.yml"); ok {
+	if before, ok := strings.CutSuffix(name, constants.LockExtensionYML); ok {
 		return before
 	}
 
@@ -83,12 +84,12 @@ func NormalizeSafeOutputIdentifier(identifier string) string {
 //	MarkdownToLockFile("my.workflow.md")                        // returns "my.workflow.lock.yml"
 func MarkdownToLockFile(mdPath string) string {
 	// If already a lock file, return unchanged
-	if strings.HasSuffix(mdPath, ".lock.yml") || strings.HasSuffix(mdPath, ".lock.yaml") {
+	if strings.HasSuffix(mdPath, constants.LockExtensionYML) || strings.HasSuffix(mdPath, constants.LockExtensionYAML) {
 		return mdPath
 	}
 
 	cleaned := filepath.Clean(mdPath)
-	lockPath := strings.TrimSuffix(cleaned, ".md") + ".lock.yml"
+	lockPath := strings.TrimSuffix(cleaned, ".md") + constants.LockExtensionYML
 	identifiersLog.Printf("MarkdownToLockFile: %s -> %s", mdPath, lockPath)
 	return lockPath
 }
@@ -109,7 +110,7 @@ func MarkdownToLockFile(mdPath string) string {
 //	MarkdownToLockFileOnDisk("workflow.md")  // returns "workflow.lock.yml"
 func MarkdownToLockFileOnDisk(mdPath string) string {
 	// If already a lock file, return unchanged
-	if strings.HasSuffix(mdPath, ".lock.yml") || strings.HasSuffix(mdPath, ".lock.yaml") {
+	if strings.HasSuffix(mdPath, constants.LockExtensionYML) || strings.HasSuffix(mdPath, constants.LockExtensionYAML) {
 		return mdPath
 	}
 
@@ -117,13 +118,13 @@ func MarkdownToLockFileOnDisk(mdPath string) string {
 	base := strings.TrimSuffix(cleaned, ".md")
 
 	// Prefer .lock.yaml if it already exists on disk
-	lockYamlPath := base + ".lock.yaml"
+	lockYamlPath := base + constants.LockExtensionYAML
 	if _, err := os.Stat(lockYamlPath); err == nil {
 		identifiersLog.Printf("MarkdownToLockFileOnDisk: found existing .lock.yaml: %s -> %s", mdPath, lockYamlPath)
 		return lockYamlPath
 	}
 
-	lockPath := base + ".lock.yml"
+	lockPath := base + constants.LockExtensionYML
 	identifiersLog.Printf("MarkdownToLockFileOnDisk: %s -> %s", mdPath, lockPath)
 	return lockPath
 }
@@ -149,10 +150,10 @@ func LockFileToMarkdown(lockPath string) string {
 
 	cleaned := filepath.Clean(lockPath)
 	var mdPath string
-	if before, ok := strings.CutSuffix(cleaned, ".lock.yaml"); ok {
+	if before, ok := strings.CutSuffix(cleaned, constants.LockExtensionYAML); ok {
 		mdPath = before + ".md"
 	} else {
-		mdPath = strings.TrimSuffix(cleaned, ".lock.yml") + ".md"
+		mdPath = strings.TrimSuffix(cleaned, constants.LockExtensionYML) + ".md"
 	}
 	identifiersLog.Printf("LockFileToMarkdown: %s -> %s", lockPath, mdPath)
 	return mdPath
@@ -168,8 +169,8 @@ func LockFileToMarkdown(lockPath string) string {
 //	StripLockExtension("workflow.lock.yaml")  // returns "workflow"
 //	StripLockExtension("workflow.md")         // returns "workflow.md" (unchanged)
 func StripLockExtension(lockPath string) string {
-	if before, ok := strings.CutSuffix(lockPath, ".lock.yaml"); ok {
+	if before, ok := strings.CutSuffix(lockPath, constants.LockExtensionYAML); ok {
 		return before
 	}
-	return strings.TrimSuffix(lockPath, ".lock.yml")
+	return strings.TrimSuffix(lockPath, constants.LockExtensionYML)
 }

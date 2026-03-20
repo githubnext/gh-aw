@@ -1046,6 +1046,15 @@ var SharedWorkflowForbiddenFields = []string{
 	"tracker-id",      // Tracker ID
 }
 
+// LockExtensionYML is the file extension for compiled workflow lock files.
+// It is the standard output extension when compiling agentic workflow markdown files.
+const LockExtensionYML = ".lock.yml"
+
+// LockExtensionYAML is the alternative YAML extension for compiled workflow lock files.
+// When a workflow lock file already exists with this extension, it takes priority over
+// LockExtensionYML during recompilation to avoid creating duplicate files.
+const LockExtensionYAML = ".lock.yaml"
+
 func GetWorkflowDir() string {
 	return filepath.Join(".github", "workflows")
 }

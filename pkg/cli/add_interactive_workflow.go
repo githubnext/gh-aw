@@ -134,7 +134,7 @@ func (c *AddInteractiveConfig) checkStatusAndOfferRun(ctx context.Context) error
 			}
 
 			// Get the run URL for step 10
-			runInfo, err := getLatestWorkflowRunWithRetry(parsed.WorkflowName+".lock.yml", c.RepoOverride, c.Verbose)
+			runInfo, err := getLatestWorkflowRunWithRetry(parsed.WorkflowName+constants.LockExtensionYML, c.RepoOverride, c.Verbose)
 			if err == nil && runInfo.URL != "" {
 				fmt.Fprintln(os.Stderr, "")
 				fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Workflow triggered successfully!"))
@@ -180,7 +180,7 @@ func findWorkflowsByFilenamePattern(pattern, repoOverride string, verbose bool) 
 	// The pattern is the workflow name (e.g., "daily-repo-status")
 	// The path is like ".github/workflows/daily-repo-status.lock.yml"
 	// We check if the path contains the pattern
-	if strings.Contains(string(output), pattern+".lock.yml") || strings.Contains(string(output), pattern+".md") {
+	if strings.Contains(string(output), pattern+constants.LockExtensionYML) || strings.Contains(string(output), pattern+".md") {
 		if verbose {
 			fmt.Fprintf(os.Stderr, "Workflow with filename '%s' found in workflow list\n", pattern)
 		}

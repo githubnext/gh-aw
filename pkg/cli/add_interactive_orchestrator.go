@@ -202,7 +202,7 @@ func (c *AddInteractiveConfig) determineFilesToAdd() (workflowFiles []string, in
 			return nil, nil, fmt.Errorf("invalid workflow specification '%s': %w", spec, parseErr)
 		}
 		workflowFiles = append(workflowFiles, parsed.WorkflowName+".md")
-		workflowFiles = append(workflowFiles, parsed.WorkflowName+".lock.yml")
+		workflowFiles = append(workflowFiles, parsed.WorkflowName+constants.LockExtensionYML)
 	}
 
 	fmt.Fprintln(os.Stderr, "")

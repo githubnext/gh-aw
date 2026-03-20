@@ -305,7 +305,7 @@ func DisableAllWorkflowsExcept(repoSlug string, exceptWorkflows []string, verbos
 	for _, workflowName := range exceptWorkflows {
 		// Add both .md and .lock.yml variants
 		keepEnabled[workflowName+".md"] = true
-		keepEnabled[workflowName+".lock.yml"] = true
+		keepEnabled[workflowName+constants.LockExtensionYML] = true
 		keepEnabled[workflowName] = true // In case the full filename is provided
 	}
 

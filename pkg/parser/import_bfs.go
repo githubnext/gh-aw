@@ -12,6 +12,7 @@ import (
 	"path"
 	"strings"
 
+	"github.com/github/gh-aw/pkg/constants"
 	"github.com/goccy/go-yaml"
 )
 
@@ -121,7 +122,7 @@ func processImportsFromFrontmatterWithManifestAndSource(frontmatter map[string]a
 		}
 
 		// Validate that .lock.yml files are not imported
-		if strings.HasSuffix(strings.ToLower(fullPath), ".lock.yml") {
+		if strings.HasSuffix(strings.ToLower(fullPath), constants.LockExtensionYML) {
 			if workflowFilePath != "" && yamlContent != "" {
 				line, column := findImportItemLocation(yamlContent, importPath)
 				importErr := &ImportError{

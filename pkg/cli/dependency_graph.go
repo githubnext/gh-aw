@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/parser"
 	"github.com/github/gh-aw/pkg/workflow"
@@ -66,7 +67,7 @@ func (g *DependencyGraph) BuildGraph(compiler *workflow.Compiler) error {
 		if err != nil {
 			return err
 		}
-		if !info.IsDir() && strings.HasSuffix(path, ".md") && !strings.HasSuffix(path, ".lock.yml") {
+		if !info.IsDir() && strings.HasSuffix(path, ".md") && !strings.HasSuffix(path, constants.LockExtensionYML) {
 			allWorkflows = append(allWorkflows, path)
 		}
 		return nil

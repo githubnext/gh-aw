@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/stringutil"
 )
@@ -164,7 +165,7 @@ func (c *Compiler) buildCallWorkflowJobs(data *WorkflowData, markdownPath string
 		workflowPath, ok := config.WorkflowFiles[workflowName]
 		if !ok || workflowPath == "" {
 			// Fallback: construct path from name
-			workflowPath = fmt.Sprintf("./.github/workflows/%s.lock.yml", workflowName)
+			workflowPath = fmt.Sprintf("./.github/workflows/%s%s", workflowName, constants.LockExtensionYML)
 		}
 
 		// Build the with: block. Always include the canonical payload transport,

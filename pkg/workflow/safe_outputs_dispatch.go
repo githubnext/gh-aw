@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"sort"
 
+	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/stringutil"
 )
@@ -55,7 +56,7 @@ func populateDispatchWorkflowFiles(data *WorkflowData, markdownPath string) {
 			extension = ".yml"
 		} else if fileResult.mdExists {
 			// .md-only: the workflow is a same-batch compilation target that will produce a .lock.yml
-			extension = ".lock.yml"
+			extension = constants.LockExtensionYML
 		} else {
 			safeOutputsConfigLog.Printf("Warning: no workflow file found for %s (checked .lock.yaml, .lock.yml, .yml, .md)", workflowName)
 			continue

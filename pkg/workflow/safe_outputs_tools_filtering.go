@@ -6,6 +6,7 @@ import (
 	"maps"
 	"sort"
 
+	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/stringutil"
 )
 
@@ -306,7 +307,7 @@ func generateFilteredToolsJSON(data *WorkflowData, markdownPath string) (string,
 			} else if fileResult.mdExists {
 				// .md-only: the workflow is a same-batch compilation target that will produce a .lock.yml
 				workflowPath = fileResult.mdPath
-				extension = ".lock.yml"
+				extension = constants.LockExtensionYML
 				useMD = true
 			} else {
 				safeOutputsConfigLog.Printf("Warning: no workflow file found for %s (checked .lock.yaml, .lock.yml, .yml, .md)", workflowName)
@@ -370,7 +371,7 @@ func generateFilteredToolsJSON(data *WorkflowData, markdownPath string) (string,
 				extension = ".yml"
 			} else if fileResult.mdExists {
 				workflowPath = fileResult.mdPath
-				extension = ".lock.yml"
+				extension = constants.LockExtensionYML
 				useMD = true
 			} else {
 				safeOutputsConfigLog.Printf("Warning: no workflow file found for %s (checked .lock.yaml, .lock.yml, .yml, .md)", workflowName)
@@ -830,7 +831,7 @@ func generateDynamicTools(data *WorkflowData, markdownPath string) ([]map[string
 				extension = ".yml"
 			} else if fileResult.mdExists {
 				workflowPath = fileResult.mdPath
-				extension = ".lock.yml"
+				extension = constants.LockExtensionYML
 				useMD = true
 			} else {
 				safeOutputsConfigLog.Printf("Warning: no workflow file found for %s (checked .lock.yaml, .lock.yml, .yml, .md)", workflowName)
@@ -883,7 +884,7 @@ func generateDynamicTools(data *WorkflowData, markdownPath string) ([]map[string
 				extension = ".yml"
 			} else if fileResult.mdExists {
 				workflowPath = fileResult.mdPath
-				extension = ".lock.yml"
+				extension = constants.LockExtensionYML
 				useMD = true
 			} else {
 				safeOutputsConfigLog.Printf("Warning: no workflow file found for %s (checked .lock.yaml, .lock.yml, .yml, .md)", workflowName)

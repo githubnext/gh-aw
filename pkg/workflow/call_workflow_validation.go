@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/parser"
 	"github.com/goccy/go-yaml"
 )
@@ -74,7 +75,7 @@ func (c *Compiler) validateCallWorkflow(data *WorkflowData, workflowPath string)
 			repoRoot := filepath.Dir(githubDir)
 			workflowsDir := filepath.Join(repoRoot, ".github", "workflows")
 
-			notFoundErr := fmt.Errorf("call-workflow: workflow '%s' not found in %s\n\nChecked for: %s.md, %s.lock.yml, %s.lock.yaml, %s.yml\n\nTo fix:\n1. Verify the workflow file exists in .github/workflows/\n2. Ensure the filename matches exactly (case-sensitive)\n3. Use the filename without extension in your configuration", workflowName, workflowsDir, workflowName, workflowName, workflowName, workflowName)
+			notFoundErr := fmt.Errorf("call-workflow: workflow '%s' not found in %s\n\nChecked for: %s.md, %s%s, %s%s, %s.yml\n\nTo fix:\n1. Verify the workflow file exists in .github/workflows/\n2. Ensure the filename matches exactly (case-sensitive)\n3. Use the filename without extension in your configuration", workflowName, workflowsDir, workflowName, workflowName, constants.LockExtensionYML, workflowName, constants.LockExtensionYAML, workflowName)
 			if returnErr := collector.Add(notFoundErr); returnErr != nil {
 				return returnErr
 			}

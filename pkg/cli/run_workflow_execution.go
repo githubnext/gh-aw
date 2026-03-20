@@ -182,7 +182,7 @@ func RunWorkflowOnGitHub(ctx context.Context, workflowIdOrName string, opts RunO
 	normalizedID := normalizeWorkflowID(workflowIdOrName)
 
 	// Construct lock file name from normalized ID (same for both local and remote)
-	lockFileName := normalizedID + ".lock.yml"
+	lockFileName := normalizedID + constants.LockExtensionYML
 
 	// For local workflows, validate the workflow exists and check for lock file
 	var lockFilePath string
@@ -580,7 +580,7 @@ func RunWorkflowsOnGitHub(ctx context.Context, workflowNames []string, opts RunO
 			var results []WorkflowRunResult
 			for _, workflowName := range workflowNames {
 				normalizedID := normalizeWorkflowID(workflowName)
-				lockFileName := normalizedID + ".lock.yml"
+				lockFileName := normalizedID + constants.LockExtensionYML
 				status := "triggered"
 				if opts.DryRun {
 					status = "dry_run"

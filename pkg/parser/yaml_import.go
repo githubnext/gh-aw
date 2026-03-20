@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/goccy/go-yaml"
 )
@@ -20,7 +21,7 @@ func isYAMLWorkflowFile(filePath string) bool {
 	lower := strings.ToLower(filePath)
 
 	// Reject .lock.yml files (these are compiled outputs from gh-aw)
-	if strings.HasSuffix(lower, ".lock.yml") {
+	if strings.HasSuffix(lower, constants.LockExtensionYML) {
 		yamlImportLog.Printf("Rejecting lock file: %s", filePath)
 		return false
 	}

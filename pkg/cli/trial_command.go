@@ -816,7 +816,7 @@ func triggerWorkflowRun(repoSlug, workflowName string, triggerContext string, ve
 	}
 
 	// Trigger workflow using gh CLI
-	lockFileName := workflowName + ".lock.yml"
+	lockFileName := workflowName + constants.LockExtensionYML
 
 	// Build the command args
 	args := []string{"workflow", "run", lockFileName, "--repo", repoSlug}

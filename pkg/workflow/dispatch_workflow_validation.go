@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/fileutil"
 	"github.com/github/gh-aw/pkg/parser"
 	"github.com/goccy/go-yaml"
@@ -218,8 +219,8 @@ func getCurrentWorkflowName(workflowPath string) string {
 	filename := filepath.Base(workflowPath)
 	// Remove .md, .lock.yml, or .lock.yaml extension
 	filename = strings.TrimSuffix(filename, ".md")
-	filename = strings.TrimSuffix(filename, ".lock.yaml")
-	filename = strings.TrimSuffix(filename, ".lock.yml")
+	filename = strings.TrimSuffix(filename, constants.LockExtensionYAML)
+	filename = strings.TrimSuffix(filename, constants.LockExtensionYML)
 	return filename
 }
 
@@ -277,8 +278,8 @@ func findWorkflowFile(workflowName string, currentWorkflowPath string) (*findWor
 
 	// Build paths for the workflows directory
 	mdPath := filepath.Clean(filepath.Join(searchDir, workflowName+".md"))
-	lockYamlPath := filepath.Clean(filepath.Join(searchDir, workflowName+".lock.yaml"))
-	lockYmlPath := filepath.Clean(filepath.Join(searchDir, workflowName+".lock.yml"))
+	lockYamlPath := filepath.Clean(filepath.Join(searchDir, workflowName+constants.LockExtensionYAML))
+	lockYmlPath := filepath.Clean(filepath.Join(searchDir, workflowName+constants.LockExtensionYML))
 	ymlPath := filepath.Clean(filepath.Join(searchDir, workflowName+".yml"))
 
 	// Validate paths are within the search directory (prevent path traversal)
@@ -295,11 +296,11 @@ func findWorkflowFile(workflowName string, currentWorkflowPath string) (*findWor
 	// Prefer .lock.yaml over .lock.yml if both exist
 	if fileutil.FileExists(lockYamlPath) {
 		result.lockPath = lockYamlPath
-		result.lockExtension = ".lock.yaml"
+		result.lockExtension = constants.LockExtensionYAML
 		result.lockExists = true
 	} else {
 		result.lockPath = lockYmlPath
-		result.lockExtension = ".lock.yml"
+		result.lockExtension = constants.LockExtensionYML
 		result.lockExists = fileutil.FileExists(lockYmlPath)
 	}
 

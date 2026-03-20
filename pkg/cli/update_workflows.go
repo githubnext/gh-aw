@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/github/gh-aw/pkg/console"
+	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/parser"
 	"github.com/github/gh-aw/pkg/workflow"
 )
@@ -88,7 +89,7 @@ func findWorkflowsWithSource(workflowsDir string, filterNames []string, verbose 
 		}
 
 		// Skip .lock.yml files
-		if strings.HasSuffix(entry.Name(), ".lock.yml") {
+		if strings.HasSuffix(entry.Name(), constants.LockExtensionYML) {
 			continue
 		}
 
