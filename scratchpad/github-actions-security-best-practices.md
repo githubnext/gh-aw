@@ -434,7 +434,9 @@ jobs:
       - uses: actions/checkout@sha
       
       - name: Run Trivy
-        uses: aquasecurity/trivy-action@sha
+        # SECURITY: Pin to a verified safe version. v0.69.4 was confirmed compromised.
+        # Only v0.35.0 (57a97c7e7821a5776cebc9bb87c984fa69cba8f1) and v0.2.6 are verified safe.
+        uses: aquasecurity/trivy-action@57a97c7e7821a5776cebc9bb87c984fa69cba8f1 # 0.35.0
         with:
           scan-type: 'fs'
           scan-ref: '.'
