@@ -78,6 +78,10 @@ The agent requests issue creation; a separate job with `issues: write` creates i
 
 Create custom post-processing jobs registered as Model Context Protocol (MCP) tools. Support standard GitHub Actions properties and auto-access agent output via `$GH_AW_AGENT_OUTPUT`. See [Custom Safe Output Jobs](/gh-aw/reference/custom-safe-outputs/).
 
+### GitHub Action Wrappers (`actions:`)
+
+Mount any public GitHub Action as a once-callable MCP tool. The compiler pins the action reference to a SHA at compile time and derives the tool's input schema from the action's `action.yml`. See [GitHub Action Wrappers](/gh-aw/reference/custom-safe-outputs/#github-action-wrappers-safe-outputsactions).
+
 ### Issue Creation (`create-issue:`)
 
 Creates GitHub issues based on workflow output.

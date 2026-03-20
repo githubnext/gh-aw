@@ -373,7 +373,7 @@ gh aw logs "CI Failure Doctor"             # Display name
 gh aw logs "ci failure doctor"             # Case-insensitive display name
 ```
 
-**Options:** `-c`, `--count`, `-e`, `--engine`, `--start-date`, `--end-date`, `--ref`, `--parse`, `--json`, `--repo`
+**Options:** `-c`, `--count`, `-e`, `--engine`, `--start-date`, `--end-date`, `--ref`, `--parse`, `--json`, `--repo`, `--firewall`, `--no-firewall`, `--safe-output`, `--filtered-integrity`, `--after-run-id`, `--before-run-id`, `--no-staged`, `--tool-graph`, `--timeout`
 
 #### `audit`
 
