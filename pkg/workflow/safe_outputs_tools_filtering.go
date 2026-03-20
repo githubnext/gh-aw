@@ -293,13 +293,13 @@ func generateFilteredToolsJSON(data *WorkflowData, markdownPath string) (string,
 				continue
 			}
 
-			// Determine which file to use - priority: .lock.yml > .yml > .md (batch target)
+			// Determine which file to use - priority: .lock.yaml/.lock.yml > .yml > .md (batch target)
 			var workflowPath string
 			var extension string
 			var useMD bool
 			if fileResult.lockExists {
 				workflowPath = fileResult.lockPath
-				extension = ".lock.yml"
+				extension = fileResult.lockExtension
 			} else if fileResult.ymlExists {
 				workflowPath = fileResult.ymlPath
 				extension = ".yml"
@@ -309,7 +309,7 @@ func generateFilteredToolsJSON(data *WorkflowData, markdownPath string) (string,
 				extension = ".lock.yml"
 				useMD = true
 			} else {
-				safeOutputsConfigLog.Printf("Warning: no workflow file found for %s (checked .lock.yml, .yml, .md)", workflowName)
+				safeOutputsConfigLog.Printf("Warning: no workflow file found for %s (checked .lock.yaml, .lock.yml, .yml, .md)", workflowName)
 				// Continue with empty inputs
 				tool := generateDispatchWorkflowTool(workflowName, make(map[string]any))
 				filteredTools = append(filteredTools, tool)
@@ -358,13 +358,13 @@ func generateFilteredToolsJSON(data *WorkflowData, markdownPath string) (string,
 				continue
 			}
 
-			// Determine which file to use - priority: .lock.yml > .yml > .md (batch target)
+			// Determine which file to use - priority: .lock.yaml/.lock.yml > .yml > .md (batch target)
 			var workflowPath string
 			var extension string
 			var useMD bool
 			if fileResult.lockExists {
 				workflowPath = fileResult.lockPath
-				extension = ".lock.yml"
+				extension = fileResult.lockExtension
 			} else if fileResult.ymlExists {
 				workflowPath = fileResult.ymlPath
 				extension = ".yml"
@@ -373,7 +373,7 @@ func generateFilteredToolsJSON(data *WorkflowData, markdownPath string) (string,
 				extension = ".lock.yml"
 				useMD = true
 			} else {
-				safeOutputsConfigLog.Printf("Warning: no workflow file found for %s (checked .lock.yml, .yml, .md)", workflowName)
+				safeOutputsConfigLog.Printf("Warning: no workflow file found for %s (checked .lock.yaml, .lock.yml, .yml, .md)", workflowName)
 				tool := generateCallWorkflowTool(workflowName, make(map[string]any))
 				filteredTools = append(filteredTools, tool)
 				continue
@@ -824,7 +824,7 @@ func generateDynamicTools(data *WorkflowData, markdownPath string) ([]map[string
 			var useMD bool
 			if fileResult.lockExists {
 				workflowPath = fileResult.lockPath
-				extension = ".lock.yml"
+				extension = fileResult.lockExtension
 			} else if fileResult.ymlExists {
 				workflowPath = fileResult.ymlPath
 				extension = ".yml"
@@ -833,7 +833,7 @@ func generateDynamicTools(data *WorkflowData, markdownPath string) ([]map[string
 				extension = ".lock.yml"
 				useMD = true
 			} else {
-				safeOutputsConfigLog.Printf("Warning: no workflow file found for %s (checked .lock.yml, .yml, .md)", workflowName)
+				safeOutputsConfigLog.Printf("Warning: no workflow file found for %s (checked .lock.yaml, .lock.yml, .yml, .md)", workflowName)
 				dynamicTools = append(dynamicTools, generateDispatchWorkflowTool(workflowName, make(map[string]any)))
 				continue
 			}
@@ -877,7 +877,7 @@ func generateDynamicTools(data *WorkflowData, markdownPath string) ([]map[string
 			var useMD bool
 			if fileResult.lockExists {
 				workflowPath = fileResult.lockPath
-				extension = ".lock.yml"
+				extension = fileResult.lockExtension
 			} else if fileResult.ymlExists {
 				workflowPath = fileResult.ymlPath
 				extension = ".yml"
@@ -886,7 +886,7 @@ func generateDynamicTools(data *WorkflowData, markdownPath string) ([]map[string
 				extension = ".lock.yml"
 				useMD = true
 			} else {
-				safeOutputsConfigLog.Printf("Warning: no workflow file found for %s (checked .lock.yml, .yml, .md)", workflowName)
+				safeOutputsConfigLog.Printf("Warning: no workflow file found for %s (checked .lock.yaml, .lock.yml, .yml, .md)", workflowName)
 				dynamicTools = append(dynamicTools, generateCallWorkflowTool(workflowName, make(map[string]any)))
 				continue
 			}

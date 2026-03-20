@@ -64,7 +64,7 @@ func (c *Compiler) processStopAfterConfiguration(frontmatter map[string]any, wor
 	if workflowData.StopTime != "" {
 		stopAfterLog.Printf("Stop-after value specified: %s", workflowData.StopTime)
 		// Check if there's already a lock file with a stop time (recompilation case)
-		lockFile := stringutil.MarkdownToLockFile(markdownPath)
+		lockFile := stringutil.MarkdownToLockFileOnDisk(markdownPath)
 		existingStopTime := ExtractStopTimeFromLockFile(lockFile)
 
 		// If refresh flag is set, always regenerate the stop time

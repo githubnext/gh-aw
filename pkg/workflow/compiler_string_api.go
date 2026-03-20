@@ -36,7 +36,7 @@ func (c *Compiler) CompileToYAML(workflowData *WorkflowData, markdownPath string
 		c.artifactManager.Reset()
 	}
 
-	lockFile := stringutil.MarkdownToLockFile(markdownPath)
+	lockFile := stringutil.MarkdownToLockFileOnDisk(markdownPath)
 
 	if err := c.validateWorkflowData(workflowData, markdownPath); err != nil {
 		return "", err

@@ -46,17 +46,17 @@ func populateCallWorkflowFiles(data *WorkflowData, markdownPath string) {
 			continue
 		}
 
-		// Determine which file to use - priority: .lock.yml > .yml > .md (batch target)
+		// Determine which file to use - priority: .lock.yaml/.lock.yml > .yml > .md (batch target)
 		var extension string
 		if fileResult.lockExists {
-			extension = ".lock.yml"
+			extension = fileResult.lockExtension
 		} else if fileResult.ymlExists {
 			extension = ".yml"
 		} else if fileResult.mdExists {
 			// .md-only: the workflow is a same-batch compilation target that will produce a .lock.yml
 			extension = ".lock.yml"
 		} else {
-			callWorkflowLog.Printf("Warning: no workflow file found for %s (checked .lock.yml, .yml, .md)", workflowName)
+			callWorkflowLog.Printf("Warning: no workflow file found for %s (checked .lock.yaml, .lock.yml, .yml, .md)", workflowName)
 			continue
 		}
 

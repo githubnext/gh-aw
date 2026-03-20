@@ -20,7 +20,8 @@ package workflow
 
 import (
 	"fmt"
-	"strings"
+
+	"github.com/github/gh-aw/pkg/stringutil"
 )
 
 // ValidateLockSchemaCompatibility validates that a lock file's schema is compatible.
@@ -41,7 +42,7 @@ func ValidateLockSchemaCompatibility(content string, lockFilePath string) error 
 	if metadata == nil {
 		return fmt.Errorf("lock file %s is missing required metadata. This file may be corrupted or manually edited.\n\nTo fix this, recompile the workflow:\n  gh aw compile %s",
 			lockFilePath,
-			strings.TrimSuffix(lockFilePath, ".lock.yml")+".md")
+			stringutil.StripLockExtension(lockFilePath)+".md")
 	}
 
 	// Check schema compatibility
@@ -51,7 +52,7 @@ func ValidateLockSchemaCompatibility(content string, lockFilePath string) error 
 			lockFilePath,
 			metadata.SchemaVersion,
 			formatSupportedVersions(),
-			strings.TrimSuffix(lockFilePath, ".lock.yml")+".md")
+			stringutil.StripLockExtension(lockFilePath)+".md")
 	}
 
 	lockSchemaLog.Printf("Lock file schema validated: %s (version=%s)", lockFilePath, metadata.SchemaVersion)

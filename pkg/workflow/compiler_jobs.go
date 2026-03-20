@@ -196,7 +196,7 @@ func (c *Compiler) buildJobs(data *WorkflowData, markdownPath string) error {
 	}
 
 	// Extract lock filename for timestamp check
-	lockFilename := filepath.Base(stringutil.MarkdownToLockFile(markdownPath))
+	lockFilename := filepath.Base(stringutil.MarkdownToLockFileOnDisk(markdownPath))
 
 	// Resolve custom safe-output actions early so that tool schemas (derived from action.yml)
 	// are available when buildMainJobWrapper → generateMCPSetup → generateToolsMetaJSON →

@@ -74,7 +74,7 @@ func (c *Compiler) validateCallWorkflow(data *WorkflowData, workflowPath string)
 			repoRoot := filepath.Dir(githubDir)
 			workflowsDir := filepath.Join(repoRoot, ".github", "workflows")
 
-			notFoundErr := fmt.Errorf("call-workflow: workflow '%s' not found in %s\n\nChecked for: %s.md, %s.lock.yml, %s.yml\n\nTo fix:\n1. Verify the workflow file exists in .github/workflows/\n2. Ensure the filename matches exactly (case-sensitive)\n3. Use the filename without extension in your configuration", workflowName, workflowsDir, workflowName, workflowName, workflowName)
+			notFoundErr := fmt.Errorf("call-workflow: workflow '%s' not found in %s\n\nChecked for: %s.md, %s.lock.yml, %s.lock.yaml, %s.yml\n\nTo fix:\n1. Verify the workflow file exists in .github/workflows/\n2. Ensure the filename matches exactly (case-sensitive)\n3. Use the filename without extension in your configuration", workflowName, workflowsDir, workflowName, workflowName, workflowName, workflowName)
 			if returnErr := collector.Add(notFoundErr); returnErr != nil {
 				return returnErr
 			}
@@ -82,7 +82,7 @@ func (c *Compiler) validateCallWorkflow(data *WorkflowData, workflowPath string)
 		}
 
 		// Validate that the workflow supports workflow_call.
-		// Priority: .lock.yml > .yml > .md (same-batch compilation target)
+		// Priority: .lock.yaml/.lock.yml > .yml > .md (same-batch compilation target)
 		if fileResult.lockExists {
 			workflowContent, readErr := os.ReadFile(fileResult.lockPath) // #nosec G304 -- lockPath is validated via isPathWithinDir() in findWorkflowFile() before being returned
 			if readErr != nil {

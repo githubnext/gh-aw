@@ -419,7 +419,7 @@ func (c *Compiler) generateAndValidateYAML(workflowData *WorkflowData, markdownP
 		// Store error first so we can write invalid YAML before returning
 		formattedErr := formatCompilerError(markdownPath, "error", fmt.Sprintf("expression size validation failed: %v", err), err)
 		// Write the invalid YAML to a .invalid.yml file for inspection
-		invalidFile := strings.TrimSuffix(lockFile, ".lock.yml") + ".invalid.yml"
+		invalidFile := stringutil.StripLockExtension(lockFile) + ".invalid.yml"
 		if writeErr := os.WriteFile(invalidFile, []byte(yamlContent), 0644); writeErr == nil {
 			fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Invalid workflow YAML written to: "+console.ToRelativePath(invalidFile)))
 		}
@@ -432,7 +432,7 @@ func (c *Compiler) generateAndValidateYAML(workflowData *WorkflowData, markdownP
 		// Store error first so we can write invalid YAML before returning
 		formattedErr := formatCompilerError(markdownPath, "error", err.Error(), err)
 		// Write the invalid YAML to a .invalid.yml file for inspection
-		invalidFile := strings.TrimSuffix(lockFile, ".lock.yml") + ".invalid.yml"
+		invalidFile := stringutil.StripLockExtension(lockFile) + ".invalid.yml"
 		if writeErr := os.WriteFile(invalidFile, []byte(yamlContent), 0644); writeErr == nil {
 			fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Workflow with template injection risks written to: "+console.ToRelativePath(invalidFile)))
 		}
@@ -458,7 +458,7 @@ func (c *Compiler) generateAndValidateYAML(workflowData *WorkflowData, markdownP
 			formattedErr := formatCompilerErrorWithPosition(markdownPath, fieldLine, 1, "error",
 				fmt.Sprintf("invalid workflow: %v", err), err)
 			// Write the invalid YAML to a .invalid.yml file for inspection
-			invalidFile := strings.TrimSuffix(lockFile, ".lock.yml") + ".invalid.yml"
+			invalidFile := stringutil.StripLockExtension(lockFile) + ".invalid.yml"
 			if writeErr := os.WriteFile(invalidFile, []byte(yamlContent), 0644); writeErr == nil {
 				fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Invalid workflow YAML written to: "+console.ToRelativePath(invalidFile)))
 			}
@@ -591,8 +591,8 @@ func (c *Compiler) CompileWorkflowData(workflowData *WorkflowData, markdownPath 
 		c.artifactManager.Reset()
 	}
 
-	// Generate lock file name
-	lockFile := stringutil.MarkdownToLockFile(markdownPath)
+	// Generate lock file name, preferring .lock.yaml if it already exists on disk
+	lockFile := stringutil.MarkdownToLockFileOnDisk(markdownPath)
 
 	// Sanitize the lock file path to prevent path traversal attacks
 	lockFile = filepath.Clean(lockFile)

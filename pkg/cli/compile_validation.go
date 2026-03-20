@@ -65,7 +65,7 @@ func CompileWorkflowWithValidation(compiler *workflow.Compiler, filePath string,
 	}
 
 	// Always validate that the generated lock file is valid YAML (CLI requirement)
-	lockFile := stringutil.MarkdownToLockFile(filePath)
+	lockFile := stringutil.MarkdownToLockFileOnDisk(filePath)
 	if _, err := os.Stat(lockFile); err != nil {
 		compileValidationLog.Print("Lock file not found, skipping validation (likely no-emit mode)")
 		// Lock file doesn't exist (likely due to no-emit), skip YAML validation
@@ -133,7 +133,7 @@ func CompileWorkflowDataWithValidation(compiler *workflow.Compiler, workflowData
 	}
 
 	// Always validate that the generated lock file is valid YAML (CLI requirement)
-	lockFile := stringutil.MarkdownToLockFile(filePath)
+	lockFile := stringutil.MarkdownToLockFileOnDisk(filePath)
 	if _, err := os.Stat(lockFile); err != nil {
 		compileValidationLog.Print("Lock file not found, skipping validation (likely no-emit mode)")
 		// Lock file doesn't exist (likely due to no-emit), skip YAML validation

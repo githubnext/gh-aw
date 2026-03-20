@@ -66,7 +66,7 @@ func (c *Compiler) validateDispatchWorkflow(data *WorkflowData, workflowPath str
 			repoRoot := filepath.Dir(githubDir)
 			workflowsDir := filepath.Join(repoRoot, ".github", "workflows")
 
-			notFoundErr := fmt.Errorf("dispatch-workflow: workflow '%s' not found in %s\n\nChecked for: %s.md, %s.lock.yml, %s.yml\n\nTo fix:\n1. Verify the workflow file exists in .github/workflows/\n2. Ensure the filename matches exactly (case-sensitive)\n3. Use the filename without extension in your configuration", workflowName, workflowsDir, workflowName, workflowName, workflowName)
+			notFoundErr := fmt.Errorf("dispatch-workflow: workflow '%s' not found in %s\n\nChecked for: %s.md, %s.lock.yml, %s.lock.yaml, %s.yml\n\nTo fix:\n1. Verify the workflow file exists in .github/workflows/\n2. Ensure the filename matches exactly (case-sensitive)\n3. Use the filename without extension in your configuration", workflowName, workflowsDir, workflowName, workflowName, workflowName, workflowName)
 			if returnErr := collector.Add(notFoundErr); returnErr != nil {
 				return returnErr // Fail-fast mode
 			}
@@ -74,7 +74,7 @@ func (c *Compiler) validateDispatchWorkflow(data *WorkflowData, workflowPath str
 		}
 
 		// Validate that the workflow supports workflow_dispatch
-		// Priority: .lock.yml (compiled agentic workflow) > .yml (standard GitHub Actions) > .md (needs compilation)
+		// Priority: .lock.yaml/.lock.yml (compiled agentic workflow) > .yml (standard GitHub Actions) > .md (needs compilation)
 		var workflowContent []byte // #nosec G304 -- All file paths are validated via isPathWithinDir() before use
 		var workflowFile string
 		var readErr error
@@ -216,8 +216,9 @@ func extractWorkflowDispatchInputs(workflowPath string) (map[string]any, error) 
 // getCurrentWorkflowName extracts the workflow name from the file path
 func getCurrentWorkflowName(workflowPath string) string {
 	filename := filepath.Base(workflowPath)
-	// Remove .md or .lock.yml extension
+	// Remove .md, .lock.yml, or .lock.yaml extension
 	filename = strings.TrimSuffix(filename, ".md")
+	filename = strings.TrimSuffix(filename, ".lock.yaml")
 	filename = strings.TrimSuffix(filename, ".lock.yml")
 	return filename
 }
@@ -247,16 +248,18 @@ func isPathWithinDir(path, dir string) bool {
 
 // findWorkflowFileResult holds the result of finding a workflow file
 type findWorkflowFileResult struct {
-	mdPath     string
-	lockPath   string
-	ymlPath    string
-	mdExists   bool
-	lockExists bool
-	ymlExists  bool
+	mdPath        string
+	lockPath      string // Path to the lock file (.lock.yaml preferred over .lock.yml if both exist)
+	lockExtension string // Extension of the lock file: ".lock.yaml" or ".lock.yml"
+	ymlPath       string
+	mdExists      bool
+	lockExists    bool
+	ymlExists     bool
 }
 
 // findWorkflowFile searches for a workflow file in .github/workflows directory only
-// Returns paths and existence flags for .md, .lock.yml, and .yml files
+// Returns paths and existence flags for .md, .lock.yml/.lock.yaml, and .yml files.
+// When both .lock.yaml and .lock.yml exist, .lock.yaml takes priority.
 func findWorkflowFile(workflowName string, currentWorkflowPath string) (*findWorkflowFileResult, error) {
 	dispatchWorkflowValidationLog.Printf("Finding workflow file: name=%s, current_path=%s", workflowName, currentWorkflowPath)
 	result := &findWorkflowFileResult{}
@@ -274,23 +277,33 @@ func findWorkflowFile(workflowName string, currentWorkflowPath string) (*findWor
 
 	// Build paths for the workflows directory
 	mdPath := filepath.Clean(filepath.Join(searchDir, workflowName+".md"))
-	lockPath := filepath.Clean(filepath.Join(searchDir, workflowName+".lock.yml"))
+	lockYamlPath := filepath.Clean(filepath.Join(searchDir, workflowName+".lock.yaml"))
+	lockYmlPath := filepath.Clean(filepath.Join(searchDir, workflowName+".lock.yml"))
 	ymlPath := filepath.Clean(filepath.Join(searchDir, workflowName+".yml"))
 
 	// Validate paths are within the search directory (prevent path traversal)
-	if !isPathWithinDir(mdPath, searchDir) || !isPathWithinDir(lockPath, searchDir) || !isPathWithinDir(ymlPath, searchDir) {
+	if !isPathWithinDir(mdPath, searchDir) || !isPathWithinDir(lockYmlPath, searchDir) || !isPathWithinDir(ymlPath, searchDir) {
 		return result, fmt.Errorf("invalid workflow name '%s' (path traversal not allowed)", workflowName)
 	}
 
 	// Check which files exist
 	result.mdPath = mdPath
-	result.lockPath = lockPath
 	result.ymlPath = ymlPath
 	result.mdExists = fileutil.FileExists(mdPath)
-	result.lockExists = fileutil.FileExists(lockPath)
 	result.ymlExists = fileutil.FileExists(ymlPath)
 
-	dispatchWorkflowValidationLog.Printf("Workflow file search results: md_exists=%v, lock_exists=%v, yml_exists=%v", result.mdExists, result.lockExists, result.ymlExists)
+	// Prefer .lock.yaml over .lock.yml if both exist
+	if fileutil.FileExists(lockYamlPath) {
+		result.lockPath = lockYamlPath
+		result.lockExtension = ".lock.yaml"
+		result.lockExists = true
+	} else {
+		result.lockPath = lockYmlPath
+		result.lockExtension = ".lock.yml"
+		result.lockExists = fileutil.FileExists(lockYmlPath)
+	}
+
+	dispatchWorkflowValidationLog.Printf("Workflow file search results: md_exists=%v, lock_exists=%v (ext=%s), yml_exists=%v", result.mdExists, result.lockExists, result.lockExtension, result.ymlExists)
 	return result, nil
 }
 

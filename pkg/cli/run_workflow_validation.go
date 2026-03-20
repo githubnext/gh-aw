@@ -15,17 +15,18 @@ import (
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/parser"
+	"github.com/github/gh-aw/pkg/stringutil"
 	"github.com/github/gh-aw/pkg/workflow"
 	"github.com/goccy/go-yaml"
 )
 
 var validationLog = logger.New("cli:run_workflow_validation")
 
-// getLockFilePath converts a markdown workflow path to its compiled lock file path
-// Example: "/path/to/workflow.md" -> "/path/to/workflow.lock.yml"
+// getLockFilePath converts a markdown workflow path to its compiled lock file path,
+// preferring an existing .lock.yaml file over the default .lock.yml.
+// Example: "/path/to/workflow.md" -> "/path/to/workflow.lock.yml" (or .lock.yaml if it exists)
 func getLockFilePath(markdownPath string) string {
-	// Handle regular workflow files
-	return strings.TrimSuffix(markdownPath, ".md") + ".lock.yml"
+	return stringutil.MarkdownToLockFileOnDisk(markdownPath)
 }
 
 // IsRunnable checks if a workflow can be run (has schedule or workflow_dispatch trigger)
