@@ -29,17 +29,27 @@ const overriddenProps = new Set([
   'twitter:title', 'twitter:description', 'twitter:image',
 ]);
 
-// Filter Starlight's head tags to remove OG/Twitter tags we'll override
+// Generate the correct page title (avoids "Site | Site" duplicate on homepage)
+const pageTitle = isHomePage ? siteTitle : `${rawPageTitle} | ${siteTitle}`;
+
+// Filter Starlight's head tags to remove OG/Twitter tags we'll override.
+// Also filter the <title> tag: Starlight generates "Page Title | Site Title" for every page,
+// which produces "GitHub Agentic Workflows | GitHub Agentic Workflows" on the homepage
+// because the page title and site title are identical. We output our own deduplicated title below.
 const head = route?.head ?? [];
 const filteredHead = head.filter(({ tag, attrs }) => {
+  if (tag === 'title') return false;
   if (tag !== 'meta') return true;
   const prop = attrs?.property || attrs?.name;
   return !overriddenProps.has(prop);
 });
 ---
 
-<!-- Starlight's head tags (with OG/Twitter duplicates removed) -->
+<!-- Starlight's head tags (with OG/Twitter duplicates and title removed) -->
 {filteredHead.map(({ tag: Tag, attrs, content }) => <Tag {...attrs} set:html={content} />)}
+
+<!-- Page title (deduplicated: avoids "GitHub Agentic Workflows | GitHub Agentic Workflows" on homepage) -->
+<title>{pageTitle}</title>
 
 <!-- Enhanced OG tags with site name in title and social image -->
 <meta property="og:title" content={ogTitle} />

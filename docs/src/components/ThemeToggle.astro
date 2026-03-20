@@ -1,11 +1,16 @@
 ---
 import octicons from '@primer/octicons';
+import BlogThemeSelect from 'starlight-blog/components/ThemeSelect.astro';
 
 const sunIcon = octicons.sun.toSVG({ width: 16, height: 16 });
 const moonIcon = octicons.moon.toSVG({ width: 16, height: 16 });
 const autoIcon = octicons['device-desktop'].toSVG({ width: 16, height: 16 });
 ---
 
+<!-- Blog navigation link: starlight-blog's "ThemeSelect" override adds a "Blog" header link
+     (not a theme control). We include it here to delegate properly since astro.config.mjs sets
+     navigation: 'none' to suppress the plugin's duplicate-override warning. -->
+<BlogThemeSelect />
 <starlight-theme-select>
   <label class="theme-label">
     <span class="sr-only">Select theme</span>

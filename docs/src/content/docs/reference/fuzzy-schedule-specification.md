@@ -5,8 +5,6 @@ sidebar:
   order: 1360
 ---
 
-# Fuzzy Schedule Time Syntax Specification
-
 **Version**: 1.1.0  
 **Status**: Draft Specification  
 **Latest Version**: [fuzzy-schedule-specification](/gh-aw/reference/fuzzy-schedule-specification/)  

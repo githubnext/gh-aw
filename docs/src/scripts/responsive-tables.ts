@@ -15,10 +15,21 @@ function enhanceResponsiveTables() {
   tables.forEach(table => {
     const headers: string[] = [];
     
-    // Extract header text from thead
+    // Extract header text from thead and add scope="col" for accessibility
     const headerCells = table.querySelectorAll('thead th');
     headerCells.forEach(th => {
       headers.push(th.textContent?.trim() || '');
+      if (!th.hasAttribute('scope')) {
+        th.setAttribute('scope', 'col');
+      }
+    });
+
+    // Add scope="row" to row headers in tbody
+    const bodyHeaderCells = table.querySelectorAll('tbody th');
+    bodyHeaderCells.forEach(th => {
+      if (!th.hasAttribute('scope')) {
+        th.setAttribute('scope', 'row');
+      }
     });
     
     // Add data-label attribute to each td based on column position

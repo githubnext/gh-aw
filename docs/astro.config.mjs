@@ -165,12 +165,13 @@ export default defineConfig({
 						"markdown",
 						"yaml"
 					]),
-					langAlias: { aw: "markdown" }
+					langAlias: { aw: "markdown", abnf: "text" }
 				},
 			},
 			plugins: [
 				starlightBlog({
 					recentPostCount: 12,
+					navigation: 'none',
 					authors: createAuthors({
 						'githubnext': {
 							name: 'GitHub Next',
