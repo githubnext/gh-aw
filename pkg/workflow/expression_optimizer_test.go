@@ -976,3 +976,117 @@ func TestDeMorgan_NotOfAnd_DoubleNeg_Simplification(t *testing.T) {
 	node := not1(and2(not1(not1(a)), b))
 	assertRender(t, "!(a == '1') || !(b == '2')", node, "!(!!A && B) → !A || !B via double-neg + De Morgan")
 }
+
+// ---------------------------------------------------------------------------
+// DisjunctionNode complement law (A || !A → true)
+// ---------------------------------------------------------------------------
+
+func TestOptimizeDisjunction_ComplementPair(t *testing.T) {
+	// disj(A, !A) → true
+	a := cmp(prop("github.event_name"), "==", str("issues"))
+	node := disj(a, not1(a))
+	assertRender(t, "true", node, "disj(A, !A) → true via complement")
+}
+
+func TestOptimizeDisjunction_ComplementSymmetric(t *testing.T) {
+	// disj(!A, A) → true (symmetric)
+	a := cmp(prop("github.event_name"), "==", str("issues"))
+	node := disj(not1(a), a)
+	assertRender(t, "true", node, "disj(!A, A) → true via complement (symmetric)")
+}
+
+func TestOptimizeDisjunction_ComplementWithExtraTerms(t *testing.T) {
+	// disj(A, B, !A) → true even when the complement pair is not adjacent
+	a := cmp(prop("github.event_name"), "==", str("issues"))
+	b := cmp(prop("github.actor"), "!=", str("bot"))
+	node := disj(a, b, not1(a))
+	assertRender(t, "true", node, "disj(A, B, !A) → true when complement pair is non-adjacent")
+}
+
+func TestOptimizeDisjunction_ComplementWithStatusFunc_Preserved(t *testing.T) {
+	// disj(always(), !always()) — complement rule must NOT fire because of status function
+	always := fn("always")
+	notAlways := not1(always)
+	node := disj(always, notAlways)
+	result := OptimizeExpression(node)
+	rendered := result.Render()
+	assert.NotEqual(t, "true", rendered, "complement must not fire on status function in disjunction")
+	assert.Contains(t, rendered, "always()", "always() must be preserved")
+}
+
+// ---------------------------------------------------------------------------
+// Utility function tests (white-box)
+// ---------------------------------------------------------------------------
+
+func TestCollectOrTerms_Flat(t *testing.T) {
+	// collectOrTerms on a leaf returns just the leaf.
+	a := cmp(prop("a"), "==", str("1"))
+	terms := collectOrTerms(a)
+	require.Len(t, terms, 1, "leaf should produce one term")
+	assert.Equal(t, "a == '1'", terms[0].Render())
+}
+
+func TestCollectOrTerms_OrNode(t *testing.T) {
+	// collectOrTerms flattens a two-level OR.
+	a := cmp(prop("a"), "==", str("1"))
+	b := cmp(prop("b"), "==", str("2"))
+	c := cmp(prop("c"), "==", str("3"))
+	terms := collectOrTerms(or2(or2(a, b), c))
+	require.Len(t, terms, 3, "should collect 3 terms from nested OR")
+}
+
+func TestCollectOrTerms_DisjunctionNode(t *testing.T) {
+	// collectOrTerms flattens a DisjunctionNode.
+	a := cmp(prop("a"), "==", str("1"))
+	b := cmp(prop("b"), "==", str("2"))
+	terms := collectOrTerms(disj(a, b))
+	require.Len(t, terms, 2, "should collect 2 terms from DisjunctionNode")
+}
+
+func TestCollectOrTerms_MixedOrAndDisj(t *testing.T) {
+	// collectOrTerms flattens OrNode{DisjunctionNode{A,B}, C}.
+	a := cmp(prop("a"), "==", str("1"))
+	b := cmp(prop("b"), "==", str("2"))
+	c := cmp(prop("c"), "==", str("3"))
+	terms := collectOrTerms(or2(disj(a, b), c))
+	require.Len(t, terms, 3, "should collect 3 terms from OrNode with DisjunctionNode child")
+}
+
+func TestCollectAndTerms_Flat(t *testing.T) {
+	// collectAndTerms on a leaf returns just the leaf.
+	a := cmp(prop("a"), "==", str("1"))
+	terms := collectAndTerms(a)
+	require.Len(t, terms, 1, "leaf should produce one term")
+	assert.Equal(t, "a == '1'", terms[0].Render())
+}
+
+func TestCollectAndTerms_AndNode(t *testing.T) {
+	// collectAndTerms flattens A && (B && C).
+	a := cmp(prop("a"), "==", str("1"))
+	b := cmp(prop("b"), "==", str("2"))
+	c := cmp(prop("c"), "==", str("3"))
+	terms := collectAndTerms(and2(a, and2(b, c)))
+	require.Len(t, terms, 3, "should collect 3 terms from nested AND")
+}
+
+func TestRebuildAndChain_Single(t *testing.T) {
+	a := cmp(prop("a"), "==", str("1"))
+	result := rebuildAndChain([]ConditionNode{a})
+	assert.Equal(t, "a == '1'", result.Render(), "single term rebuilds without AND")
+}
+
+func TestRebuildAndChain_Two(t *testing.T) {
+	a := cmp(prop("a"), "==", str("1"))
+	b := cmp(prop("b"), "==", str("2"))
+	result := rebuildAndChain([]ConditionNode{a, b})
+	assert.Equal(t, "a == '1' && b == '2'", result.Render(), "two terms rebuild as binary AND")
+}
+
+func TestRebuildAndChain_Three(t *testing.T) {
+	a := cmp(prop("a"), "==", str("1"))
+	b := cmp(prop("b"), "==", str("2"))
+	c := cmp(prop("c"), "==", str("3"))
+	result := rebuildAndChain([]ConditionNode{a, b, c})
+	// Left-folded: (a && b) && c
+	assert.Equal(t, "a == '1' && b == '2' && c == '3'", result.Render(), "three terms rebuild as left-folded AND chain")
+}

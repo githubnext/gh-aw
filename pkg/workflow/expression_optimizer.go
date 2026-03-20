@@ -413,5 +413,19 @@ func optimizeDisjunctionNode(n *DisjunctionNode) ConditionNode {
 		return deduped[0]
 	}
 
+	// Complement: A || !A → true (mirrors the OrNode complement rule).
+	// Guard: skip when any term contains a status function so that
+	// status-function expressions are never silently eliminated.
+	if !slices.ContainsFunc(deduped, containsStatusFunc) {
+		for i := range deduped {
+			for j := i + 1; j < len(deduped); j++ {
+				if isNegationOf(deduped[i], deduped[j]) {
+					expressionOptimizerLog.Printf("Disjunction complement: %s || %s → true", deduped[i].Render(), deduped[j].Render())
+					return &BooleanLiteralNode{Value: true}
+				}
+			}
+		}
+	}
+
 	return &DisjunctionNode{Terms: deduped, Multiline: n.Multiline}
 }
