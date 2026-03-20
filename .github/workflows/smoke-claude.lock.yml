@@ -2368,7 +2368,7 @@ jobs:
     if: (always()) && ((needs.agent.result != 'skipped') || (needs.activation.outputs.lockdown_check_failed == 'true'))
     runs-on: ubuntu-slim
     permissions:
-      contents: write
+      contents: read
       discussions: write
       issues: write
       pull-requests: write
@@ -2536,7 +2536,7 @@ jobs:
     if: ((!cancelled()) && (needs.agent.result != 'skipped')) && (needs.agent.outputs.detection_success == 'true')
     runs-on: ubuntu-slim
     permissions:
-      contents: write
+      contents: read
       discussions: write
       issues: write
       pull-requests: write

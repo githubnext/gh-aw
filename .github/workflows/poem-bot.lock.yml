@@ -1294,11 +1294,6 @@ jobs:
       - upload_assets
     if: (always()) && ((needs.agent.result != 'skipped') || (needs.activation.outputs.lockdown_check_failed == 'true'))
     runs-on: ubuntu-slim
-    permissions:
-      contents: write
-      discussions: write
-      issues: write
-      pull-requests: write
     concurrency:
       group: "gh-aw-conclusion-poem-bot"
       cancel-in-progress: false
@@ -1492,11 +1487,6 @@ jobs:
       - agent
     if: ((!cancelled()) && (needs.agent.result != 'skipped')) && (needs.agent.outputs.detection_success == 'true')
     runs-on: ubuntu-slim
-    permissions:
-      contents: write
-      discussions: write
-      issues: write
-      pull-requests: write
     timeout-minutes: 15
     env:
       GH_AW_CALLER_WORKFLOW_ID: "${{ github.repository }}/poem-bot"
