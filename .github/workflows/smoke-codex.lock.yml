@@ -462,7 +462,8 @@ jobs:
                     }
                   },
                   "required": [
-                    "labels"
+                    "labels",
+                    "number"
                   ],
                   "type": "object"
                 },

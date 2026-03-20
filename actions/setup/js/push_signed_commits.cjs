@@ -116,7 +116,11 @@ async function pushSignedCommits({ githubClient, owner, repo, branch, baseRef, c
         }`,
         { input }
       );
-      lastOid = result?.createCommitOnBranch?.commit?.oid;
+      const newOid = result && result.createCommitOnBranch && result.createCommitOnBranch.commit ? result.createCommitOnBranch.commit.oid : undefined;
+      if (typeof newOid !== "string" || newOid.length === 0) {
+        throw new Error("pushSignedCommits: GraphQL createCommitOnBranch did not return a valid commit OID");
+      }
+      lastOid = newOid;
       core.info(`pushSignedCommits: signed commit created: ${lastOid}`);
     }
     core.info(`pushSignedCommits: all ${shas.length} commit(s) pushed as signed commits`);
