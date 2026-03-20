@@ -12,7 +12,7 @@ tools:
     toolsets: [issues, labels]
 safe-outputs:
   add-labels:
-    allowed: [bug, feature, enhancement, documentation, question, help-wanted, good-first-issue]
+    allowed: [bug, feature, enhancement, documentation, question, help-wanted, good-first-issue, community]
   add-comment: {}
 imports:
   - shared/reporting.md
