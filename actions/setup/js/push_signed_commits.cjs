@@ -44,18 +44,22 @@ async function pushSignedCommits({ githubClient, owner, repo, branch, baseRef, c
     return;
   }
 
-  core.info(`pushSignedCommits: replaying ${shas.length} commit(s) via GraphQL createCommitOnBranch`);
+  core.info(`pushSignedCommits: replaying ${shas.length} commit(s) via GraphQL createCommitOnBranch (branch: ${branch}, repo: ${owner}/${repo})`);
 
   try {
     /** @type {string | undefined} */
     let lastOid;
-    for (const sha of shas) {
+    for (let i = 0; i < shas.length; i++) {
+      const sha = shas[i];
+      core.info(`pushSignedCommits: processing commit ${i + 1}/${shas.length} sha=${sha}`);
+
       // Determine the expected HEAD OID for this commit.
       // After the first signed commit, reuse the OID returned by the previous GraphQL
       // mutation instead of re-querying ls-remote (works even if the branch is new).
       let expectedHeadOid;
       if (lastOid) {
         expectedHeadOid = lastOid;
+        core.info(`pushSignedCommits: using chained OID from previous mutation: ${expectedHeadOid}`);
       } else {
         // First commit: check whether the branch already exists on the remote.
         const { stdout: oidOut } = await exec.getExecOutput("git", ["ls-remote", "origin", `refs/heads/${branch}`], { cwd });
@@ -69,6 +73,9 @@ async function pushSignedCommits({ githubClient, owner, repo, branch, baseRef, c
           if (!expectedHeadOid) {
             throw new Error(`Could not resolve OID for new branch ${branch}`);
           }
+          core.info(`pushSignedCommits: using parent OID for new branch: ${expectedHeadOid}`);
+        } else {
+          core.info(`pushSignedCommits: using remote HEAD OID from ls-remote: ${expectedHeadOid}`);
         }
       }
 
@@ -77,6 +84,7 @@ async function pushSignedCommits({ githubClient, owner, repo, branch, baseRef, c
       const message = msgOut.trim();
       const headline = message.split("\n")[0];
       const body = message.split("\n").slice(1).join("\n").trim();
+      core.info(`pushSignedCommits: commit message headline: "${headline}"`);
 
       // File changes for this commit (supports Add/Modify/Delete/Rename/Copy)
       const { stdout: nameStatusOut } = await exec.getExecOutput("git", ["diff", "--name-status", `${sha}^`, sha], { cwd });
@@ -102,6 +110,8 @@ async function pushSignedCommits({ githubClient, owner, repo, branch, baseRef, c
         }
       }
 
+      core.info(`pushSignedCommits: file changes: ${additions.length} addition(s), ${deletions.length} deletion(s)`);
+
       /** @type {any} */
       const input = {
         branch: { repositoryNameWithOwner: `${owner}/${repo}`, branchName: branch },
@@ -110,6 +120,7 @@ async function pushSignedCommits({ githubClient, owner, repo, branch, baseRef, c
         expectedHeadOid,
       };
 
+      core.info(`pushSignedCommits: calling createCommitOnBranch mutation (expectedHeadOid=${expectedHeadOid})`);
       const result = await githubClient.graphql(
         `mutation($input: CreateCommitOnBranchInput!) {
           createCommitOnBranch(input: $input) { commit { oid } }
