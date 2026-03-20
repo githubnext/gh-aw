@@ -28,11 +28,11 @@ This command walks you through:
 Use 'add' for non-interactive workflow addition.
 
 Examples:
-  ` + string(constants.CLIExtensionPrefix) + ` add-wizard https://github.com/githubnext/agentics/blob/main/workflows/daily-repo-status.md    # Guided setup
-  ` + string(constants.CLIExtensionPrefix) + ` add-wizard https://github.com/githubnext/agentics/blob/v1.0.0/workflows/ci-doctor.md           # Guided setup with version
+  ` + string(constants.CLIExtensionPrefix) + ` add-wizard githubnext/agentics/daily-repo-status    # Guided setup
+  ` + string(constants.CLIExtensionPrefix) + ` add-wizard githubnext/agentics/ci-doctor@v1.0.0     # Guided setup with version
   ` + string(constants.CLIExtensionPrefix) + ` add-wizard ./my-workflow.md                         # Guided setup for local workflow
-  ` + string(constants.CLIExtensionPrefix) + ` add-wizard https://github.com/githubnext/agentics/blob/main/workflows/ci-doctor.md --engine copilot   # Pre-select engine
-  ` + string(constants.CLIExtensionPrefix) + ` add-wizard https://github.com/githubnext/agentics/blob/main/workflows/ci-doctor.md --skip-secret      # Skip secret prompt
+  ` + string(constants.CLIExtensionPrefix) + ` add-wizard githubnext/agentics/ci-doctor --engine copilot   # Pre-select engine
+  ` + string(constants.CLIExtensionPrefix) + ` add-wizard githubnext/agentics/ci-doctor --skip-secret      # Skip secret prompt
 
 Workflow specifications:
   - Three parts: "owner/repo/workflow-name[@version]" (implicitly looks in workflows/ directory)
