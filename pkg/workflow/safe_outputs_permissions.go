@@ -232,6 +232,15 @@ func ComputePermissionsForSafeOutputs(safeOutputs *SafeOutputsConfig) *Permissio
 		permissions.Set(PermissionIdToken, PermissionWrite)
 	}
 
+	// If safeOutputs is configured but no permissions were accumulated (all handlers staged),
+	// return explicit empty permissions so the compiled safe_outputs job renders
+	// "permissions: {}" rather than omitting the block and inheriting workflow-level permissions.
+	// This makes the security posture self-documenting in the generated YAML.
+	if len(permissions.permissions) == 0 {
+		safeOutputsPermissionsLog.Print("All handlers staged; returning explicit empty permissions (permissions: {})")
+		return NewPermissionsEmpty()
+	}
+
 	safeOutputsPermissionsLog.Printf("Computed permissions with %d scopes", len(permissions.permissions))
 	return permissions
 }

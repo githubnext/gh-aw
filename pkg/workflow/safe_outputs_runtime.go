@@ -28,13 +28,19 @@ func (c *Compiler) formatSafeOutputsRunsOn(safeOutputs *SafeOutputsConfig) strin
 }
 
 // usesPatchesAndCheckouts checks if the workflow uses safe outputs that require
-// git patches and checkouts (create-pull-request or push-to-pull-request-branch)
+// git patches and checkouts (create-pull-request or push-to-pull-request-branch).
+// Staged handlers are excluded because they only emit preview output and do not
+// perform real git operations or API calls.
 func usesPatchesAndCheckouts(safeOutputs *SafeOutputsConfig) bool {
 	if safeOutputs == nil {
 		return false
 	}
-	result := safeOutputs.CreatePullRequests != nil || safeOutputs.PushToPullRequestBranch != nil
-	safeOutputsRuntimeLog.Printf("usesPatchesAndCheckouts: createPR=%v, pushToPRBranch=%v, result=%v",
-		safeOutputs.CreatePullRequests != nil, safeOutputs.PushToPullRequestBranch != nil, result)
+	createPRNeedsCheckout := safeOutputs.CreatePullRequests != nil && !isHandlerStaged(safeOutputs.Staged, safeOutputs.CreatePullRequests.Staged)
+	pushToPRNeedsCheckout := safeOutputs.PushToPullRequestBranch != nil && !isHandlerStaged(safeOutputs.Staged, safeOutputs.PushToPullRequestBranch.Staged)
+	result := createPRNeedsCheckout || pushToPRNeedsCheckout
+	safeOutputsRuntimeLog.Printf("usesPatchesAndCheckouts: createPR=%v(needsCheckout=%v), pushToPRBranch=%v(needsCheckout=%v), result=%v",
+		safeOutputs.CreatePullRequests != nil, createPRNeedsCheckout,
+		safeOutputs.PushToPullRequestBranch != nil, pushToPRNeedsCheckout,
+		result)
 	return result
 }

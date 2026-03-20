@@ -909,6 +909,7 @@ jobs:
       - test_environment
     if: (always()) && ((needs.agent.result != 'skipped') || (needs.activation.outputs.lockdown_check_failed == 'true'))
     runs-on: ubuntu-slim
+    permissions: {}
     concurrency:
       group: "gh-aw-conclusion-daily-choice-test"
       cancel-in-progress: false
@@ -1017,6 +1018,7 @@ jobs:
     needs: agent
     if: ((!cancelled()) && (needs.agent.result != 'skipped')) && (needs.agent.outputs.detection_success == 'true')
     runs-on: ubuntu-slim
+    permissions: {}
     timeout-minutes: 15
     env:
       GH_AW_CALLER_WORKFLOW_ID: "${{ github.repository }}/daily-choice-test"

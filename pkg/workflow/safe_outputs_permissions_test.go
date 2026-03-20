@@ -693,3 +693,49 @@ func TestComputePermissionsForSafeOutputs_Staged(t *testing.T) {
 		})
 	}
 }
+
+// TestComputePermissionsForSafeOutputs_StagedYAMLRendering validates that fully-staged
+// safe output configurations produce explicit "permissions: {}" in YAML rendering,
+// rather than an empty string that would cause the job to inherit workflow-level permissions.
+func TestComputePermissionsForSafeOutputs_StagedYAMLRendering(t *testing.T) {
+	tests := []struct {
+		name             string
+		safeOutputs      *SafeOutputsConfig
+		expectedRendered string
+	}{
+		{
+			name: "globally staged - renders permissions: {}",
+			safeOutputs: &SafeOutputsConfig{
+				Staged:       true,
+				CreateIssues: &CreateIssuesConfig{},
+				AddLabels:    &AddLabelsConfig{},
+			},
+			expectedRendered: "permissions: {}",
+		},
+		{
+			name: "all per-handler staged - renders permissions: {}",
+			safeOutputs: &SafeOutputsConfig{
+				CreateIssues: &CreateIssuesConfig{BaseSafeOutputConfig: BaseSafeOutputConfig{Staged: true}},
+				AddLabels:    &AddLabelsConfig{BaseSafeOutputConfig: BaseSafeOutputConfig{Staged: true}},
+			},
+			expectedRendered: "permissions: {}",
+		},
+		{
+			name: "staged PR handlers - renders permissions: {}",
+			safeOutputs: &SafeOutputsConfig{
+				Staged:             true,
+				CreatePullRequests: &CreatePullRequestsConfig{},
+			},
+			expectedRendered: "permissions: {}",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			permissions := ComputePermissionsForSafeOutputs(tt.safeOutputs)
+			require.NotNil(t, permissions, "Permissions should not be nil")
+			rendered := permissions.RenderToYAML()
+			assert.Equal(t, tt.expectedRendered, rendered, "Fully-staged safe-outputs must render explicit empty permissions block")
+		})
+	}
+}

@@ -450,20 +450,13 @@ jobs:
               {
                 "description": "Add the 'smoked' label to the current pull request (can only be called once)",
                 "inputSchema": {
-                  "additionalProperties": false,
+                  "additionalProperties": true,
                   "properties": {
-                    "labels": {
-                      "description": "The labels' name to be added. Must be separated with line breaks if there're multiple labels.",
-                      "type": "string"
-                    },
-                    "number": {
-                      "description": "The number of the issue or pull request.",
+                    "payload": {
+                      "description": "JSON-encoded payload to pass to the action",
                       "type": "string"
                     }
                   },
-                  "required": [
-                    "labels"
-                  ],
                   "type": "object"
                 },
                 "name": "add_smoked_label"
@@ -1568,8 +1561,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ github.token }}
         with:
-          labels: ${{ fromJSON(steps.process_safe_outputs.outputs.action_add_smoked_label_payload).labels }}
-          number: ${{ fromJSON(steps.process_safe_outputs.outputs.action_add_smoked_label_payload).number }}
+          payload: ${{ steps.process_safe_outputs.outputs.action_add_smoked_label_payload }}
       - name: Upload safe output items
         if: always()
         uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
