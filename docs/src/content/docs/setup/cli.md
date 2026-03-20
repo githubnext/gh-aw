@@ -162,7 +162,7 @@ gh aw add ci-doctor --dir shared                  # Organize in subdirectory
 gh aw add ci-doctor --create-pull-request        # Create PR instead of commit
 ```
 
-**Options:** `--dir`, `--create-pull-request` (or `--pr`), `--no-gitattributes`
+**Options:** `--dir`, `--create-pull-request`, `--no-gitattributes`
 
 #### `new`
 
@@ -252,7 +252,7 @@ gh aw compile --dependabot                 # Generate dependency manifests
 gh aw compile --purge                      # Remove orphaned .lock.yml files
 ```
 
-**Options:** `--validate`, `--strict`, `--fix`, `--zizmor`, `--dependabot`, `--json`, `--watch`, `--purge`
+**Options:** `--validate`, `--strict`, `--fix`, `--zizmor`, `--dependabot`, `--json`, `--watch`, `--purge`, `--stats`
 
 **Error Reporting:** Displays detailed error messages with file paths, line numbers, column positions, and contextual code snippets.
 
@@ -285,16 +285,16 @@ All linters (`zizmor`, `actionlint`, `poutine`), `--validate`, and `--no-emit` a
 
 #### `trial`
 
-Test workflows in temporary private repositories (default) or run directly in specified repository (`--repo`). Results saved to `trials/`.
+Test workflows in temporary private repositories (default) or run directly in specified repository (`--host-repo`). Results saved to `trials/`.
 
 ```bash wrap
 gh aw trial githubnext/agentics/ci-doctor          # Test remote workflow
 gh aw trial ./workflow.md --logical-repo owner/repo # Act as different repo
-gh aw trial ./workflow.md --repo owner/repo        # Run directly in repository
+gh aw trial ./workflow.md --host-repo owner/repo   # Run directly in repository
 gh aw trial ./workflow.md --dry-run                # Preview without executing
 ```
 
-**Options:** `-e`, `--engine`, `--auto-merge-prs`, `--repeat`, `--delete-host-repo-after`, `--logical-repo`, `--clone-repo`, `--trigger-context`, `--repo`, `--dry-run`
+**Options:** `-e`, `--engine`, `--auto-merge-prs`, `--repeat`, `--delete-host-repo-after`, `--logical-repo`, `--clone-repo`, `--trigger-context`, `--host-repo`, `--dry-run`
 
 **Secret Handling:** API keys required for the selected engine are automatically checked. If missing from the target repository, they are prompted for interactively and uploaded.
 
@@ -411,6 +411,20 @@ gh aw health issue-monster --days 90  # 90-day metrics for workflow
 
 Shows success/failure rates, trend indicators (↑ improving, → stable, ↓ degrading), execution duration, token usage, costs, and alerts when success rate drops below threshold.
 
+#### `checks`
+
+Classify CI check state for a pull request and emit a normalized result.
+
+```bash wrap
+gh aw checks 42                    # Classify checks for PR #42
+gh aw checks 42 --repo owner/repo  # Specify repository
+gh aw checks 42 --json             # Output in JSON format
+```
+
+**Options:** `--repo/-r`, `--json/-j`
+
+Maps PR check rollups to one of the following normalized states: `success`, `failed`, `pending`, `no_checks`, `policy_blocked`. JSON output includes two state fields: `state` (aggregate across all checks) and `required_state` (derived from required checks only, ignoring optional third-party statuses like deployment integrations).
+
 ### Management
 
 #### `enable`
@@ -464,7 +478,7 @@ gh aw update --disable-release-bump       # Update workflows; only force-update 
 gh aw update --create-pull-request        # Update and open a pull request
 ```
 
-**Options:** `--dir`, `--no-merge`, `--major`, `--force`, `--engine`, `--no-stop-after`, `--stop-after`, `--disable-release-bump`, `--create-pull-request`
+**Options:** `--dir`, `--no-merge`, `--major`, `--force`, `--engine`, `--no-stop-after`, `--stop-after`, `--disable-release-bump`, `--create-pull-request`, `--no-compile`
 
 #### `upgrade`
 
@@ -472,7 +486,7 @@ Upgrade repository with latest agent files and apply codemods to all workflows.
 
 ```bash wrap
 gh aw upgrade                              # Upgrade repository agent files and all workflows
-gh aw upgrade --no-fix                     # Update agent files only (skip codemods)
+gh aw upgrade --no-fix                     # Update agent files only (skip codemods, actions, and compilation)
 gh aw upgrade --create-pull-request        # Upgrade and open a pull request
 gh aw upgrade --audit                      # Run dependency health audit
 gh aw upgrade --audit --json               # Dependency audit in JSON format
@@ -518,6 +532,21 @@ gh aw mcp-server --validate-actor     # Enable actor validation
 **Available Tools:** status, compile, logs, audit, mcp-inspect, add, update, fix
 
 When `--validate-actor` is enabled, logs and audit tools require write+ repository access via GitHub API (permissions cached for 1 hour). See [MCP Server Guide](/gh-aw/reference/gh-aw-as-mcp-server/).
+
+#### `domains`
+
+List network domains configured in agentic workflows.
+
+```bash wrap
+gh aw domains                           # List all workflows with domain counts
+gh aw domains weekly-research           # List domains for specific workflow
+gh aw domains --json                    # Output summary in JSON format
+gh aw domains weekly-research --json    # Output workflow domains in JSON format
+```
+
+**Options:** `--json/-j`
+
+When no workflow is specified, lists all workflows with a summary of allowed and blocked domain counts. When a workflow is specified, lists all effective allowed and blocked domains including domains expanded from ecosystem identifiers (e.g. `node`, `python`, `github`) and engine defaults.
 
 ### Utility Commands
 
