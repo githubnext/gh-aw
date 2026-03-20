@@ -130,7 +130,14 @@ Dependabot will automatically close all PRs whose dependency versions now match 
 | Compilation fails after version update | Check if the new version has breaking API changes |
 | Dependabot PR not auto-closing | Verify the exact version strings match; check for pre-release suffixes |
 
+## Dismissed Dependabot Alerts and VEX
+
+When a Dependabot security alert is dismissed with a substantive security reason (`not_used`, `inaccurate`, or `tolerable_risk`), consider generating a [VEX (Vulnerability Exploitability eXchange)](https://openvex.dev/) statement to record the assessment as a machine-readable OpenVEX v0.2.0 document in `.vex/<ghsa-id>.json`. Alerts dismissed as `no_bandwidth` do not represent a security decision and should not produce a VEX statement.
+
+Learn about the OpenVEX format, purl construction, and dismissal-to-justification mappings from [openvex.dev](https://openvex.dev/) before generating statements.
+
 ## Related Documentation
 
 - [Dependabot Support](/gh-aw/reference/dependabot/) — Full reference for `gh aw compile --dependabot`
+- [OpenVEX Specification](https://openvex.dev/) — VEX standard for vulnerability exploitability exchange
 - Local copy: @.github/aw/github-agentic-workflows.md
