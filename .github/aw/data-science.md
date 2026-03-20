@@ -4,7 +4,7 @@ description: Guidelines for creating agentic workflows that generate charts and 
 
 # Data Science & Chart Generation
 
-Consult this file when creating an agentic workflow that generates charts, visualizations, or trend analysis — including data dashboards, metric reports, time-series plots, or any Python-based visualization output.
+Use when creating a workflow that generates charts, trend visualizations, dashboards, or any Python-based metric output.
 
 ## Frontmatter Template
 
@@ -13,15 +13,15 @@ Consult this file when creating an agentic workflow that generates charts, visua
 description: [what the workflow visualizes]
 on:
   schedule:
-    - cron: "0 9 * * 1"   # example: every Monday at 09:00 UTC
+    - cron: "0 9 * * 1"  # weekly; adjust as needed
   workflow_dispatch:
 permissions:
   contents: read
-  actions: read          # add issues/discussions scopes when needed
+  actions: read
 engine: copilot
 tools:
   cache-memory:
-    key: trending-data-${{ github.workflow }}-${{ github.run_id }}
+    key: trending-${{ github.workflow }}-${{ github.run_id }}
   bash:
     - "*"
 network:
@@ -30,265 +30,118 @@ network:
     - python
 safe-outputs:
   upload-asset:
-  create-issue:          # or create-discussion for gallery-style reports
+  create-issue:          # or create-discussion
     title-prefix: "📊 [Report Name]:"
     labels: [report]
     close-older-issues: true
     expires: 30
 steps:
-  - name: Setup Python environment
+  - name: setup
     run: |
-      mkdir -p /tmp/gh-aw/python/{data,charts,artifacts}
+      mkdir -p /tmp/gh-aw/python/{data,charts}
       mkdir -p /tmp/gh-aw/cache-memory/trending
       pip install --user --quiet numpy pandas matplotlib seaborn scipy
-  - name: Upload charts
+  - name: upload charts
     if: always()
     uses: actions/upload-artifact@v7.0.0
     with:
-      name: data-charts
+      name: charts
       path: /tmp/gh-aw/python/charts/*.png
-      if-no-files-found: warn
-      retention-days: 30
-  - name: Upload source files and data
-    if: always()
-    uses: actions/upload-artifact@v7.0.0
-    with:
-      name: python-source-and-data
-      path: |
-        /tmp/gh-aw/python/*.py
-        /tmp/gh-aw/python/data/*
       if-no-files-found: warn
       retention-days: 30
 ---
 ```
 
-## Environment
+## Agent Prompt Structure
 
-| Location | Purpose |
-|---|---|
-| `/tmp/gh-aw/python/` | Working directory for scripts |
-| `/tmp/gh-aw/python/data/` | Input data files (CSV, JSON) |
-| `/tmp/gh-aw/python/charts/` | Generated chart images (PNG) |
-| `/tmp/gh-aw/python/artifacts/` | Additional output files |
-| `/tmp/gh-aw/cache-memory/trending/` | Persistent time-series history across runs |
+Write the agent prompt as five ordered steps:
 
-**Libraries**: NumPy · Pandas · Matplotlib · Seaborn · SciPy
+1. **Load history** — read `/tmp/gh-aw/cache-memory/trending/<metric>/history.jsonl` into a DataFrame if it exists; otherwise start empty.
+2. **Collect data** — fetch metrics from the GitHub API (or generate with NumPy). Save to `/tmp/gh-aw/python/data/<metric>.csv` — **never inline data in Python code**.
+3. **Append & prune** — append a JSON Lines record `{"timestamp": "<iso8601>", "metric": "...", "value": ...}` to `history.jsonl`; drop records older than 90 days.
+4. **Chart** — if ≥ 2 history points exist, generate a time-series line chart with 7-day moving average; otherwise use a bar/distribution chart. Save to `/tmp/gh-aw/python/charts/` at DPI 300.
+5. **Report** — upload each chart with `upload asset`, then create an issue/discussion embedding the URLs. Call `noop` if there is nothing to report.
 
-Charts and Python source files are automatically uploaded as GitHub Actions artifacts (`data-charts`, `python-source-and-data`, retention 30 days) so they are available even if the workflow fails.
+## Python Patterns
 
-## Writing the Agent Prompt
-
-A well-structured prompt for a data-visualization workflow has these phases:
-
-### Phase 1 – Load historical data
-```markdown
-1. Check `/tmp/gh-aw/cache-memory/trending/<metric>/history.jsonl` for existing data.
-2. Load it into a Pandas DataFrame if it exists; otherwise start fresh.
-```
-
-### Phase 2 – Collect or generate data
-```markdown
-1. Collect today's metrics from the GitHub API (or generate sample data with NumPy).
-2. Save raw data to `/tmp/gh-aw/python/data/<metric>.csv` or `.json` — never inline data in Python code.
-```
-
-### Phase 3 – Append to history (JSON Lines)
-```markdown
-Append a new record to history.jsonl with ISO 8601 timestamp, metric name, value, and metadata.
-Implement a 90-day retention policy to prevent unbounded growth.
-```
-
-### Phase 4 – Generate charts
-```markdown
-1. Create trend charts if ≥ 2 historical data points exist:
-   - Time-series line chart with 7-day moving average
-   - Comparative trend chart for multiple metrics
-2. Fall back to bar/distribution charts when history is empty.
-3. Save all charts to `/tmp/gh-aw/python/charts/` at DPI 300, seaborn style.
-```
-
-### Phase 5 – Upload and report
-```markdown
-1. Upload each chart using the `upload asset` tool.
-2. Create an issue (or discussion) embedding the uploaded chart URLs in markdown.
-3. If no meaningful data was found, call `noop` with a brief explanation.
-```
-
-## Data Rules
-
-**CRITICAL**: Data must never be inlined in Python code. Always write data to an external file first, then load it with pandas:
+### History: load → append → prune
 
 ```python
-# ❌ PROHIBITED
-data = [10, 20, 30, 40, 50]
+import json, os, pandas as pd
+from datetime import datetime, timedelta
 
-# ✅ REQUIRED
-import pandas as pd
-data = pd.read_csv('/tmp/gh-aw/python/data/metrics.csv')
-```
+HISTORY = '/tmp/gh-aw/cache-memory/trending/issues/history.jsonl'
 
-## Trending Patterns
-
-Cache-memory at `/tmp/gh-aw/cache-memory/trending/` persists across runs. Organize it as:
-
-```
-/tmp/gh-aw/cache-memory/trending/
-├── <metric-name>/
-│   ├── history.jsonl      # Time-series data (one JSON object per line)
-│   ├── metadata.json      # Data schema and description
-│   └── last_updated.txt   # Timestamp of last update
-└── index.json             # Index of all tracked metrics
-```
-
-### Append a daily data point
-
-```python
-import json
-from datetime import datetime
-
-point = {
-    "timestamp": datetime.now().isoformat(),
-    "metric": "issue_count",
-    "value": 42,
-    "metadata": {"source": "github_api"}
-}
-with open('/tmp/gh-aw/cache-memory/trending/issues/history.jsonl', 'a') as f:
-    f.write(json.dumps(point) + '\n')
-```
-
-### Load history into a DataFrame
-
-```python
-import pandas as pd
-import os
-
-history_file = '/tmp/gh-aw/cache-memory/trending/issues/history.jsonl'
-if os.path.exists(history_file):
-    df = pd.read_json(history_file, lines=True)
+# Load
+df = pd.read_json(HISTORY, lines=True) if os.path.exists(HISTORY) else pd.DataFrame()
+if not df.empty:
     df['timestamp'] = pd.to_datetime(df['timestamp'])
     df = df.sort_values('timestamp')
-else:
-    df = pd.DataFrame()  # Start fresh if no history
+
+# Append
+with open(HISTORY, 'a') as f:
+    f.write(json.dumps({"timestamp": datetime.now().isoformat(), "metric": "issue_count", "value": 42}) + '\n')
+
+# Prune to 90 days
+if not df.empty:
+    df = df[df['timestamp'] >= pd.Timestamp.now() - timedelta(days=90)]
+    df.to_json(HISTORY, orient='records', lines=True)
 ```
 
-### Compute a 7-day moving average
-
-```python
-df['rolling_avg'] = df['value'].rolling(window=7, min_periods=1).mean()
-
-fig, ax = plt.subplots(figsize=(12, 7), dpi=300)
-ax.plot(df['timestamp'], df['value'], label='Actual', alpha=0.5, marker='o')
-ax.plot(df['timestamp'], df['rolling_avg'], label='7-day Average', linewidth=2.5)
-ax.fill_between(df['timestamp'], df['value'], df['rolling_avg'], alpha=0.2)
-ax.legend(loc='best')
-```
-
-### Compare multiple metrics over time
-
-```python
-fig, ax = plt.subplots(figsize=(14, 8), dpi=300)
-for metric in ['metric_a', 'metric_b', 'metric_c']:
-    metric_data = df[df['metric'] == metric]
-    ax.plot(metric_data['timestamp'], metric_data['value'],
-            marker='o', label=metric, linewidth=2)
-ax.set_title('Comparative Metrics Trends', fontsize=16, fontweight='bold')
-ax.legend(loc='best', fontsize=12)
-ax.grid(True, alpha=0.3)
-```
-
-### Enforce 90-day retention
-
-```python
-from datetime import timedelta
-
-cutoff = pd.Timestamp.now() - timedelta(days=90)
-df = df[df['timestamp'] >= cutoff]
-df.to_json('/tmp/gh-aw/cache-memory/trending/issues/history.jsonl',
-           orient='records', lines=True)
-```
-
-## Chart Quality Settings
+### Chart: trend with moving average
 
 ```python
 import matplotlib.pyplot as plt
 import seaborn as sns
 
-sns.set_style("whitegrid")
-sns.set_palette("husl")
-
+sns.set_style("whitegrid"); sns.set_palette("husl")
 fig, ax = plt.subplots(figsize=(12, 7), dpi=300)
-# ... plotting code ...
-ax.set_title('Title', fontsize=16, fontweight='bold')
-ax.set_xlabel('Date', fontsize=12)
-ax.set_ylabel('Value', fontsize=12)
-ax.grid(True, alpha=0.3)
-plt.xticks(rotation=45)
-plt.tight_layout()
-plt.savefig('/tmp/gh-aw/python/charts/trend.png',
-            dpi=300, bbox_inches='tight', facecolor='white')
+
+df['rolling'] = df['value'].rolling(window=7, min_periods=1).mean()
+ax.plot(df['timestamp'], df['value'], label='Actual', alpha=0.5, marker='o')
+ax.plot(df['timestamp'], df['rolling'], label='7-day avg', linewidth=2.5)
+ax.fill_between(df['timestamp'], df['value'], df['rolling'], alpha=0.2)
+ax.set_title('Metric Trend', fontsize=16, fontweight='bold')
+ax.set_xlabel('Date', fontsize=12); ax.set_ylabel('Value', fontsize=12)
+ax.legend(); ax.grid(True, alpha=0.3); plt.xticks(rotation=45); plt.tight_layout()
+plt.savefig('/tmp/gh-aw/python/charts/trend.png', dpi=300, bbox_inches='tight', facecolor='white')
 ```
 
-**Standards**: 300 DPI minimum · 12×7 inch figure · clear axis labels and title · legend for multi-series · grid lines enabled · colorblind-friendly palette (seaborn `husl` default)
+**Chart standards**: 300 DPI · 12×7 in · labeled axes and title · legend for multi-series · `husl` palette
 
-## Including Charts in Reports
+### Multiple metrics
 
-Assets uploaded with the `upload asset` tool are published to an orphaned git branch and become URL-addressable after the workflow completes.
-
-```markdown
-## Visualization Results
-
-![Chart description](https://raw.githubusercontent.com/owner/repo/assets/workflow-name/trend.png)
-
-The chart above shows...
+```python
+for metric in metrics:
+    sub = df[df['metric'] == metric]
+    ax.plot(sub['timestamp'], sub['value'], marker='o', label=metric, linewidth=2)
 ```
 
-## Report Structure
-
-When creating the issue or discussion, use this template:
+## Report Template
 
 ```markdown
-# 📊 [Report Title] — [Date]
+# 📊 [Title] — [Date]
 
 ## Summary
-[2–3 sentences describing trends and key findings]
+[2–3 sentences on trends and key findings]
 
-## [Metric 1] Trend
-![Metric 1 trend chart](URL_FROM_UPLOAD_ASSET)
-[Brief analysis: direction, moving average, notable events]
-
-## [Metric 2] Distribution
-![Metric 2 chart](URL_FROM_UPLOAD_ASSET)
-[Brief analysis]
+### [Metric] Trend
+![chart](URL_FROM_UPLOAD_ASSET)
+[direction, moving average, notable events]
 
 ## Data Details
-- **Source**: [GitHub API / generated sample / external]
-- **Data points**: [count]
-- **Date range**: [start] to [end]
-- **Tracking period**: [N] days
-
-## Cache Status
-- **Metrics tracked**: [list]
-- **History location**: `/tmp/gh-aw/cache-memory/trending/`
+- **Source**: … | **Points**: … | **Range**: … | **Period**: …N days
+- **Cache**: `/tmp/gh-aw/cache-memory/trending/`
 ```
 
-Use `###` and lower for all headers inside the report body — `#` and `##` are reserved for issue/discussion titles.
+Use `###` and deeper for all headers inside the report body.
 
-## Common Use Cases
+## Use Cases
 
-| Intent | Notes |
-|---|---|
-| "Create a weekly GitHub activity chart" | Schedule weekly; track issues, PRs, commits |
-| "Visualize test coverage trends over time" | Trigger on push/PR; append per-run metrics |
-| "Generate a dashboard of workflow run durations" | Schedule daily; use GitHub Actions API |
-| "Plot stale repo aging distribution" | On-demand; no trending needed, skip cache |
-| "Track contributor growth month-over-month" | Schedule monthly; long retention (365 days) |
-
-## Key Reminders
-
-- ✅ **Check cache first** — load historical data before collecting new data
-- ✅ **Append, never overwrite** — use JSON Lines for time-series history
-- ✅ **External data files only** — never inline data in Python
-- ✅ **Upload charts before reporting** — collect all asset URLs, then create the issue/discussion
-- ✅ **Call `noop` if nothing to report** — required when no safe-output action is taken
-- ✅ **Use DPI 300** and seaborn styling for publication-quality charts
-- ✅ **90-day retention** — prune history to prevent unbounded growth
+| Intent | Trigger | Notes |
+|---|---|---|
+| Weekly GitHub activity chart | `schedule` weekly | track issues, PRs, commits |
+| Test coverage trends | `push`/`pull_request` | append per-run |
+| Workflow run durations | `schedule` daily | GitHub Actions API |
+| Stale repo aging distribution | `workflow_dispatch` | no cache needed |
+| Contributor growth | `schedule` monthly | 365-day retention |
