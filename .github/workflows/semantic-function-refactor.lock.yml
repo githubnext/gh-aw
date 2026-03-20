@@ -27,7 +27,7 @@
 #     - shared/mcp/serena-go.md
 #     - shared/reporting.md
 #
-# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"58b9c667bf6db3acec9c27027d1346b4cd6bb700b508ed533569938971852631","strict":true}
+# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"58b9c667bf6db3acec9c27027d1346b4cd6bb700b508ed533569938971852631","strict":true,"agent_id":"claude"}
 
 name: "Semantic Function Refactoring"
 "on":

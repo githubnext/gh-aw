@@ -22,7 +22,7 @@
 #
 # Automates PR categorization, risk assessment, and prioritization for agent-created pull requests
 #
-# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"72b5b9baa5dd4ae9600fc8435653c16976a884310290fd3a6d86a23811255568","strict":true}
+# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"72b5b9baa5dd4ae9600fc8435653c16976a884310290fd3a6d86a23811255568","strict":true,"agent_id":"copilot"}
 
 name: "PR Triage Agent"
 "on":

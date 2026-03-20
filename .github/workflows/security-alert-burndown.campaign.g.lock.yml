@@ -22,7 +22,7 @@
 #
 # Orchestrator workflow for campaign 'security-alert-burndown'
 #
-# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"95c604b0da56636c5697a678a5a3be8ec94c72422e416485321e10fa43001f3e","strict":true}
+# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"95c604b0da56636c5697a678a5a3be8ec94c72422e416485321e10fa43001f3e","strict":true,"agent_id":"claude"}
 
 name: "Security Alert Burndown"
 "on":

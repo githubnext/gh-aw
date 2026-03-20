@@ -22,7 +22,7 @@
 #
 # Security testing to find escape paths in the AWF (Agent Workflow Firewall)
 #
-# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"74e501e0d13e7e5a3b2d21418bc8460f5c0023998ac599caa303fec99234b69e","strict":true}
+# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"74e501e0d13e7e5a3b2d21418bc8460f5c0023998ac599caa303fec99234b69e","strict":true,"agent_id":"copilot"}
 
 name: "The Great Escapi"
 "on":

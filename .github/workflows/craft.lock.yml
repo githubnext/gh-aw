@@ -22,7 +22,7 @@
 #
 # Generates new agentic workflow markdown files based on user requests when invoked with /craft command
 #
-# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"ec234868e45fe0e4849c2b73f9ef1181d4d0e9072b1f6beaef8b2d7d403860f4","strict":true}
+# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"ec234868e45fe0e4849c2b73f9ef1181d4d0e9072b1f6beaef8b2d7d403860f4","strict":true,"agent_id":"copilot"}
 
 name: "Workflow Craft Agent"
 "on":

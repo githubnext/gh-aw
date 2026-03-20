@@ -31,7 +31,7 @@
 #     - shared/reporting.md
 #     - shared/copilot-pr-analysis-base.md
 #
-# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"a25428ae2bcd93270dfa698f1b2d9de5fcbefaef683f825a257b7d9d9b5977d8","strict":true}
+# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"a25428ae2bcd93270dfa698f1b2d9de5fcbefaef683f825a257b7d9d9b5977d8","strict":true,"agent_id":"copilot"}
 
 name: "Copilot PR Conversation NLP Analysis"
 "on":

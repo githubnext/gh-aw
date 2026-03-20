@@ -22,7 +22,7 @@
 #
 # Automatically formats and tidies code files (Go, JS, TypeScript) when code changes are pushed or on command
 #
-# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"1feef98e4663997347faa40dfe7fecb604aa53af78558ad017282ea9a005851b","strict":true}
+# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"1feef98e4663997347faa40dfe7fecb604aa53af78558ad017282ea9a005851b","strict":true,"agent_id":"copilot"}
 
 name: "Tidy"
 "on":

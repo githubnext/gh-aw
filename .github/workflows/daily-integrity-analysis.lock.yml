@@ -27,7 +27,7 @@
 #     - shared/python-dataviz.md
 #     - shared/reporting.md
 #
-# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"51a01527613f0564b51a32db3e875176da0073a411f18e86b898df02603357dd","strict":true}
+# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"51a01527613f0564b51a32db3e875176da0073a411f18e86b898df02603357dd","strict":true,"agent_id":"copilot"}
 
 name: "Daily DIFC Integrity-Filtered Events Analyzer"
 "on":

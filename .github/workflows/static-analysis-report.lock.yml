@@ -26,7 +26,7 @@
 #   Imports:
 #     - shared/reporting.md
 #
-# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"6e704ad580181ed88b36b117249a9b0079ae21982ff1e28edffa187b14b3262c","strict":true}
+# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"6e704ad580181ed88b36b117249a9b0079ae21982ff1e28edffa187b14b3262c","strict":true,"agent_id":"claude"}
 
 name: "Static Analysis Report"
 "on":

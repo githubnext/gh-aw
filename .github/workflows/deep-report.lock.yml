@@ -29,7 +29,7 @@
 #     - shared/reporting.md
 #     - shared/weekly-issues-data-fetch.md
 #
-# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"e825d8f874d57f17d744dd11ea6872a00f1f534e8ffd596140fee31b85b550bd","strict":true}
+# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"e825d8f874d57f17d744dd11ea6872a00f1f534e8ffd596140fee31b85b550bd","strict":true,"agent_id":"codex"}
 
 name: "DeepReport - Intelligence Gathering Agent"
 "on":

@@ -30,7 +30,7 @@
 #     - shared/reporting.md
 #     - shared/trends.md
 #
-# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"1ac39a8230fd053ed51356e22c975e01f92adacbc0b2c86481e600549aa107d7","strict":true}
+# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"1ac39a8230fd053ed51356e22c975e01f92adacbc0b2c86481e600549aa107d7","strict":true,"agent_id":"copilot"}
 
 name: "Daily News"
 "on":

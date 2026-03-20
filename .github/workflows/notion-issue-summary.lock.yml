@@ -26,7 +26,7 @@
 #   Imports:
 #     - shared/mcp/notion.md
 #
-# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"92dea2779599cc352b88f4ecc85cd97c218fdb3693e7d906216308624b4aab66","strict":true}
+# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"92dea2779599cc352b88f4ecc85cd97c218fdb3693e7d906216308624b4aab66","strict":true,"agent_id":"copilot"}
 
 name: "Issue Summary to Notion"
 "on":

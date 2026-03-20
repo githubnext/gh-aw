@@ -31,7 +31,7 @@
 #     - shared/reporting.md
 #     - shared/trends.md
 #
-# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"1998e493224412f72e176d9487beda445f5a5009f1b9129aa3b3d7d31fc6b267","strict":true}
+# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"1998e493224412f72e176d9487beda445f5a5009f1b9129aa3b3d7d31fc6b267","strict":true,"agent_id":"codex"}
 
 name: "Daily Issues Report Generator"
 "on":

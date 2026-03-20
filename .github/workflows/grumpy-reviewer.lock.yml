@@ -22,7 +22,7 @@
 #
 # Performs critical code review with a focus on edge cases, potential bugs, and code quality issues
 #
-# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"99688b4b07da4e545e1eba27ff92bf7ef0e515f8a9090868ee8b59efbeff725b","strict":true}
+# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"99688b4b07da4e545e1eba27ff92bf7ef0e515f8a9090868ee8b59efbeff725b","strict":true,"agent_id":"copilot"}
 
 name: "Grumpy Code Reviewer 🔥"
 "on":

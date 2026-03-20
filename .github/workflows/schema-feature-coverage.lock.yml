@@ -22,7 +22,7 @@
 #
 # Ensures 100% schema feature coverage across existing agentic workflows by creating PRs for any uncovered fields
 #
-# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"f4ac99aa1c881611e85255d79b537284e03dd6d57121b04e265099dbf74f4721","strict":true}
+# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"f4ac99aa1c881611e85255d79b537284e03dd6d57121b04e265099dbf74f4721","strict":true,"agent_id":"codex"}
 
 name: "Schema Feature Coverage Checker"
 "on":

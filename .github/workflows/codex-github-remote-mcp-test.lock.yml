@@ -22,7 +22,7 @@
 #
 # Test Codex engine with GitHub remote MCP server
 #
-# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"5ab6849e01b879f9ef5b024355eb7f903b410418619f128c6a71bbe826a24fd1","strict":true}
+# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"5ab6849e01b879f9ef5b024355eb7f903b410418619f128c6a71bbe826a24fd1","strict":true,"agent_id":"codex"}
 
 name: "Codex GitHub Remote MCP Test"
 "on":

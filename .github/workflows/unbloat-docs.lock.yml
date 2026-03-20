@@ -28,7 +28,7 @@
 #     - shared/mcp/qmd-docs.md
 #     - shared/reporting.md
 #
-# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"15a992aab926d7b16a05160a5af9ad70c0da495a3adc087e7022f031176d1c79","strict":true}
+# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"15a992aab926d7b16a05160a5af9ad70c0da495a3adc087e7022f031176d1c79","strict":true,"agent_id":"claude"}
 
 name: "Documentation Unbloat"
 "on":

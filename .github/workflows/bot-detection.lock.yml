@@ -22,7 +22,7 @@
 #
 # Investigates suspicious repository activity and maintains a single triage issue
 #
-# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"f847d84805ff36145ce98c043742c4640b7d8a9ecb702994ee8ffdbfbdb49117","strict":true}
+# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"f847d84805ff36145ce98c043742c4640b7d8a9ecb702994ee8ffdbfbdb49117","strict":true,"agent_id":"copilot"}
 
 name: "Bot Detection"
 "on":

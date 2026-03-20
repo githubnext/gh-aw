@@ -27,7 +27,7 @@
 #     - shared/docs-server-lifecycle.md
 #     - shared/reporting.md
 #
-# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"f5a4802459021b8361db58fb67d33ae472aaffe53fceda01e56ad10d735f2c27","strict":true}
+# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"f5a4802459021b8361db58fb67d33ae472aaffe53fceda01e56ad10d735f2c27","strict":true,"agent_id":"claude"}
 
 name: "Multi-Device Docs Tester"
 "on":

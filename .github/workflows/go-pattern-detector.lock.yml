@@ -27,7 +27,7 @@
 #     - shared/mcp/ast-grep.md
 #     - shared/reporting.md
 #
-# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"feb60c78b11509a3fb23506419baa3fcac8f83e5d62499e60a3fc3dc3766f2c1","strict":true}
+# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"feb60c78b11509a3fb23506419baa3fcac8f83e5d62499e60a3fc3dc3766f2c1","strict":true,"agent_id":"claude"}
 
 name: "Go Pattern Detector"
 "on":

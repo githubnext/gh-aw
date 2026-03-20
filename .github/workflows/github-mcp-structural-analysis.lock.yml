@@ -27,7 +27,7 @@
 #     - shared/python-dataviz.md
 #     - shared/reporting.md
 #
-# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"bae501e108ec9d6346e7e1686373396ef4828d5e532005db44bde88081d0ea79","strict":true}
+# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"bae501e108ec9d6346e7e1686373396ef4828d5e532005db44bde88081d0ea79","strict":true,"agent_id":"claude"}
 
 name: "GitHub MCP Structural Analysis"
 "on":

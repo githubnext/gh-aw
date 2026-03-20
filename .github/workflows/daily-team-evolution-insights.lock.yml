@@ -26,7 +26,7 @@
 #   Imports:
 #     - shared/reporting.md
 #
-# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"5cd3e800be141c9f7d3c827c683abb13e8db1661f5b12e1d6af506e135cbe5a4"}
+# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"5cd3e800be141c9f7d3c827c683abb13e8db1661f5b12e1d6af506e135cbe5a4","agent_id":"claude"}
 
 name: "Daily Team Evolution Insights"
 "on":

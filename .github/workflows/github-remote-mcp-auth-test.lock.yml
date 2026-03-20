@@ -22,7 +22,7 @@
 #
 # Daily test of GitHub remote MCP authentication with GitHub Actions token
 #
-# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"db9f3ebc997b550ea21426bffe49626f5370c470f814cac5e5846ac09231c0c4","strict":true}
+# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"db9f3ebc997b550ea21426bffe49626f5370c470f814cac5e5846ac09231c0c4","strict":true,"agent_id":"copilot","agent_model":"gpt-5.1-codex-mini"}
 
 name: "GitHub Remote MCP Authentication Test"
 "on":

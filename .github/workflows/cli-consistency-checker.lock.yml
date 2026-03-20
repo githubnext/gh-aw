@@ -22,7 +22,7 @@
 #
 # Inspects the gh-aw CLI to identify inconsistencies, typos, bugs, or documentation gaps by running commands and analyzing output
 #
-# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"f7d49ddba44953f5a8e723d907b90c1807d87ed13f3399e9d0737974e377ff6f"}
+# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"f7d49ddba44953f5a8e723d907b90c1807d87ed13f3399e9d0737974e377ff6f","agent_id":"copilot"}
 
 name: "CLI Consistency Checker"
 "on":

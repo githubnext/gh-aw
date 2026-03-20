@@ -32,7 +32,7 @@
 #     - shared/mcp/tavily.md
 #     - shared/reporting.md
 #
-# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"1257d91a7cbfe146dbfc43fb7b731d709fe84bfc4622da42ad1cf548a7f04428","strict":true}
+# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"1257d91a7cbfe146dbfc43fb7b731d709fe84bfc4622da42ad1cf548a7f04428","strict":true,"agent_id":"claude"}
 
 name: "Scout"
 "on":

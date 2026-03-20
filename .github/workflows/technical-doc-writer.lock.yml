@@ -28,7 +28,7 @@
 #     - ../skills/documentation/SKILL.md
 #     - shared/mcp/qmd-docs.md
 #
-# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"67e1c74f352e82212cf8a54d7bd16101c8d33f6ae6f827dd605c1e2eb55ece85","strict":true}
+# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"67e1c74f352e82212cf8a54d7bd16101c8d33f6ae6f827dd605c1e2eb55ece85","strict":true,"agent_id":"copilot"}
 
 name: "Rebuild the documentation after making changes"
 "on":

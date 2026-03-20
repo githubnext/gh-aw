@@ -26,7 +26,7 @@
 #   Imports:
 #     - shared/reporting.md
 #
-# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"878b2619a7ef728ee36423c6ded4bda471ba66d830dc760d5437153fdc594dc1"}
+# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"878b2619a7ef728ee36423c6ded4bda471ba66d830dc760d5437153fdc594dc1","agent_id":"claude"}
 
 name: "Blog Auditor"
 "on":

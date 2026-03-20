@@ -22,7 +22,7 @@
 #
 # Daily status report for gh-aw project
 #
-# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"8c8abae2e173ed0fcbd79e5003187cf9b17e04ae7fd24f874ccbd71611af6387"}
+# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"8c8abae2e173ed0fcbd79e5003187cf9b17e04ae7fd24f874ccbd71611af6387","agent_id":"copilot"}
 
 name: "Dev"
 "on":

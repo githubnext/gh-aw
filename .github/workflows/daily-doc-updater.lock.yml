@@ -26,7 +26,7 @@
 #   Imports:
 #     - shared/mcp/qmd-docs.md
 #
-# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"45909f3dc4a29eb4d66e194108d0f6ce64b6b88392bb2d11cf7e542a856bfdfb","strict":true}
+# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"45909f3dc4a29eb4d66e194108d0f6ce64b6b88392bb2d11cf7e542a856bfdfb","strict":true,"agent_id":"claude"}
 
 name: "Daily Documentation Updater"
 "on":

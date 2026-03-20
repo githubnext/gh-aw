@@ -26,7 +26,7 @@
 #   Imports:
 #     - shared/reporting.md
 #
-# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"fa23a957b1efd0ee21238a12543a2571f315073a9c05439e5155136ca2a6650d","strict":true}
+# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"fa23a957b1efd0ee21238a12543a2571f315073a9c05439e5155136ca2a6650d","strict":true,"agent_id":"copilot"}
 
 name: "Workflow Skill Extractor"
 "on":

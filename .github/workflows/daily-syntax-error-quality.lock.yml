@@ -26,7 +26,7 @@
 #   Imports:
 #     - shared/reporting.md
 #
-# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"617798aaf755b934777aa3c92ed8e6c6c45d1f3b23a20ab7e5b0ff2b8536f2cf","strict":true}
+# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"617798aaf755b934777aa3c92ed8e6c6c45d1f3b23a20ab7e5b0ff2b8536f2cf","strict":true,"agent_id":"copilot"}
 
 name: "Daily Syntax Error Quality Check"
 "on":

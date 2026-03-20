@@ -21,7 +21,7 @@
 # For more information: https://github.github.com/gh-aw/introduction/overview/
 #
 #
-# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"919aa9db316c03def96f98fa19bea30f29ce46d039263de87340d928180c4ab8","strict":true}
+# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"919aa9db316c03def96f98fa19bea30f29ce46d039263de87340d928180c4ab8","strict":true,"agent_id":"copilot"}
 
 name: "Test Project URL Explicit Requirement"
 "on":

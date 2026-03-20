@@ -21,7 +21,7 @@
 # For more information: https://github.github.com/gh-aw/introduction/overview/
 #
 #
-# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"8b8e7739047a7e1a0c6540f7574b93437f0a2b7607c424e28a72fd5745c56be5","strict":true}
+# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"8b8e7739047a7e1a0c6540f7574b93437f0a2b7607c424e28a72fd5745c56be5","strict":true,"agent_id":"copilot"}
 
 name: "Constraint Solving — Problem of the Day"
 "on":

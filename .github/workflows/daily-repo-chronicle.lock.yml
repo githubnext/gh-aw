@@ -28,7 +28,7 @@
 #     - shared/reporting.md
 #     - shared/trends.md
 #
-# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"d280003c53503f710cbc175043762a3178ecce060643056b10bb62925563677f","strict":true}
+# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"d280003c53503f710cbc175043762a3178ecce060643056b10bb62925563677f","strict":true,"agent_id":"copilot"}
 
 name: "The Daily Repository Chronicle"
 "on":

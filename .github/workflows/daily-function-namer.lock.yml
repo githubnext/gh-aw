@@ -27,7 +27,7 @@
 #     - shared/mcp/serena-go.md
 #     - shared/reporting.md
 #
-# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"1a6466ede70a1acc29fec0024f6f6bb615a33432fc93c08c7eb36bea1bcfa648","strict":true}
+# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"1a6466ede70a1acc29fec0024f6f6bb615a33432fc93c08c7eb36bea1bcfa648","strict":true,"agent_id":"claude"}
 
 name: "Daily Go Function Namer"
 "on":

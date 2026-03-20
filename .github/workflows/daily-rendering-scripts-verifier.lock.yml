@@ -27,7 +27,7 @@
 #     - shared/activation-app.md
 #     - shared/reporting.md
 #
-# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"e83213cb560f5219f2e59efc98dffe9b3dbee56b617882e1948b04ba4a2f5690","strict":true}
+# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"e83213cb560f5219f2e59efc98dffe9b3dbee56b617882e1948b04ba4a2f5690","strict":true,"agent_id":"claude"}
 
 name: "Daily Rendering Scripts Verifier"
 "on":

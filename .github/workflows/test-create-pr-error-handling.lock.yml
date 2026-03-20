@@ -22,7 +22,7 @@
 #
 # Test workflow to verify create_pull_request error handling
 #
-# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"56ed383223178c83cf59d59dc38aa7e14a9cf53f0a4bc96927b48cfdf328eb16","strict":true}
+# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"56ed383223178c83cf59d59dc38aa7e14a9cf53f0a4bc96927b48cfdf328eb16","strict":true,"agent_id":"claude"}
 
 name: "Test Create PR Error Handling"
 "on":

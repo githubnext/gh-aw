@@ -26,7 +26,7 @@
 #   Imports:
 #     - shared/reporting.md
 #
-# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"d5cfbfec6f95ccf30cbb45edc2cfd763005fc520faea690657451dfc50489028","strict":true}
+# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"d5cfbfec6f95ccf30cbb45edc2cfd763005fc520faea690657451dfc50489028","strict":true,"agent_id":"copilot"}
 
 name: "Dependabot Dependency Checker"
 "on":

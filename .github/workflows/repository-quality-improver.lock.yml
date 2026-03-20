@@ -27,7 +27,7 @@
 #     - shared/mcp/serena-go.md
 #     - shared/reporting.md
 #
-# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"6bb1a0d4a4a46eebdfbddfe915d6345a17575dd0489817be13e208c9921460da","strict":true}
+# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"6bb1a0d4a4a46eebdfbddfe915d6345a17575dd0489817be13e208c9921460da","strict":true,"agent_id":"copilot"}
 
 name: "Repository Quality Improvement Agent"
 "on":

@@ -27,7 +27,7 @@
 #     - shared/reporting.md
 #     - shared/safe-output-app.md
 #
-# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"eaa1f38cf00c496f273056586fc94c3907390cf6918573d826353d68134ed1d1","strict":true}
+# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"eaa1f38cf00c496f273056586fc94c3907390cf6918573d826353d68134ed1d1","strict":true,"agent_id":"copilot"}
 
 name: "Artifacts Summary"
 "on":

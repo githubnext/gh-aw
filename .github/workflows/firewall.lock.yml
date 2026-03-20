@@ -22,7 +22,7 @@
 #
 # Tests network firewall functionality and validates security rules for workflow network access
 #
-# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"2a0e834ee3cd0e91a2b612df54c1ffa488ab6e446f79ede1851d9af4a6365de0","strict":true}
+# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"2a0e834ee3cd0e91a2b612df54c1ffa488ab6e446f79ede1851d9af4a6365de0","strict":true,"agent_id":"copilot"}
 
 name: "Firewall Test Agent"
 "on":

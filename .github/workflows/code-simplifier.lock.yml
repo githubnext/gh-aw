@@ -27,7 +27,7 @@
 #     - shared/activation-app.md
 #     - shared/reporting.md
 #
-# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"beabc3a4f65883ff74f93fde85a541b24c5e31db2f5390f2c4d69d5460f0c7ae","strict":true}
+# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"beabc3a4f65883ff74f93fde85a541b24c5e31db2f5390f2c4d69d5460f0c7ae","strict":true,"agent_id":"copilot"}
 
 name: "Code Simplifier"
 "on":

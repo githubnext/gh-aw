@@ -22,7 +22,7 @@
 #
 # Automated cleanup policy for stale draft pull requests to reduce clutter and improve triage efficiency
 #
-# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"c6eb2caa9620b443d909c6fdf3be709069b7b91df9578cbf98351a04923d8a25","strict":true}
+# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"c6eb2caa9620b443d909c6fdf3be709069b7b91df9578cbf98351a04923d8a25","strict":true,"agent_id":"copilot"}
 
 name: "Draft PR Cleanup"
 "on":

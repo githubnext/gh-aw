@@ -26,7 +26,7 @@
 #   Imports:
 #     - shared/reporting.md
 #
-# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"4227776f06975052b956f8bbf91a7aba77854cf8557dccef3f6b99b4125d7c69","strict":true}
+# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"4227776f06975052b956f8bbf91a7aba77854cf8557dccef3f6b99b4125d7c69","strict":true,"agent_id":"copilot"}
 
 name: "Workflow Health Manager - Meta-Orchestrator"
 "on":

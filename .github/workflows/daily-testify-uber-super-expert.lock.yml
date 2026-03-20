@@ -29,7 +29,7 @@
 #     - shared/reporting.md
 #     - shared/safe-output-app.md
 #
-# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"a3ed12dda9bb93205831424a7912c78407da6aca5c47a7439ee05fa24b302b25","strict":true}
+# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"a3ed12dda9bb93205831424a7912c78407da6aca5c47a7439ee05fa24b302b25","strict":true,"agent_id":"copilot"}
 
 name: "Daily Testify Uber Super Expert"
 "on":

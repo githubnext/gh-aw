@@ -26,7 +26,7 @@
 #   Imports:
 #     - shared/reporting.md
 #
-# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"c9f371e2c9f855df56da69aa6fa020ab7f3762c68248c087fdbb48e2615c6bc2","strict":true}
+# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"c9f371e2c9f855df56da69aa6fa020ab7f3762c68248c087fdbb48e2615c6bc2","strict":true,"agent_id":"copilot"}
 
 name: "Functional Pragmatist"
 "on":

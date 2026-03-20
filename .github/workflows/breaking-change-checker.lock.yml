@@ -27,7 +27,7 @@
 #     - shared/activation-app.md
 #     - shared/reporting.md
 #
-# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"ea9d5cf9cab940d00e998e54f139da3311d9741998e850e14ce40703e5447ed3","strict":true}
+# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"ea9d5cf9cab940d00e998e54f139da3311d9741998e850e14ce40703e5447ed3","strict":true,"agent_id":"copilot"}
 
 name: "Breaking Change Checker"
 "on":

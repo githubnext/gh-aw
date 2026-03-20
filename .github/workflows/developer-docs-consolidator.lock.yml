@@ -28,7 +28,7 @@
 #     - shared/mcp/serena-go.md
 #     - shared/reporting.md
 #
-# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"6062086459893e5e8da7159dd36519fd83efc186b31d4a17896352563213ccfc","strict":true}
+# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"6062086459893e5e8da7159dd36519fd83efc186b31d4a17896352563213ccfc","strict":true,"agent_id":"claude"}
 
 name: "Developer Documentation Consolidator"
 "on":

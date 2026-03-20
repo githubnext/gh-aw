@@ -26,7 +26,7 @@
 #   Imports:
 #     - shared/mcp/serena-go.md
 #
-# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"b91c1d5c8843fddaa8756b86e649f7ce84095217903604b44675d76bd58c7170","strict":true}
+# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"b91c1d5c8843fddaa8756b86e649f7ce84095217903604b44675d76bd58c7170","strict":true,"agent_id":"copilot"}
 
 name: "Q"
 "on":

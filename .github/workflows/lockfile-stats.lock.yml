@@ -26,7 +26,7 @@
 #   Imports:
 #     - shared/reporting.md
 #
-# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"8e7c90b156e9a9c5a415792db7e51dd31799eb95a17d36b2034ccb3ceb3d71d6","strict":true}
+# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"8e7c90b156e9a9c5a415792db7e51dd31799eb95a17d36b2034ccb3ceb3d71d6","strict":true,"agent_id":"claude"}
 
 name: "Lockfile Statistics Analysis Agent"
 "on":

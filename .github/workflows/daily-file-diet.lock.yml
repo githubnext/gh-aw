@@ -29,7 +29,7 @@
 #     - shared/reporting.md
 #     - shared/safe-output-app.md
 #
-# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"60f4cf6a578b2ab4852691e13e7c9bd5ab13c10366caeeb5dd264e40238e0f8c","strict":true}
+# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"60f4cf6a578b2ab4852691e13e7c9bd5ab13c10366caeeb5dd264e40238e0f8c","strict":true,"agent_id":"copilot"}
 
 name: "Daily File Diet"
 "on":

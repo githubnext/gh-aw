@@ -26,7 +26,7 @@
 #   Imports:
 #     - shared/reporting.md
 #
-# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"02499e8cdb83ed473b50353b2f91edd95d5c962027fc11a8aaf5b11e67096427","strict":true}
+# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"02499e8cdb83ed473b50353b2f91edd95d5c962027fc11a8aaf5b11e67096427","strict":true,"agent_id":"copilot"}
 
 name: "PR Nitpick Reviewer 🔍"
 "on":

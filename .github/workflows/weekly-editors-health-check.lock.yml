@@ -22,7 +22,7 @@
 #
 # Checks that the workflow editors listed in the documentation are still valid, takes Playwright screenshots, and opens a PR to update the docs with preview images
 #
-# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"14d8bdeb32a4dc257f4ddd7b84ee9f5339b6369fc2521f4b8640cc1fa9ca22a7","strict":true}
+# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"14d8bdeb32a4dc257f4ddd7b84ee9f5339b6369fc2521f4b8640cc1fa9ca22a7","strict":true,"agent_id":"copilot"}
 
 name: "Weekly Editors Health Check"
 "on":

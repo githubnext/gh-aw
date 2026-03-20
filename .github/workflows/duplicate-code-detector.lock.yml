@@ -27,7 +27,7 @@
 #     - shared/mcp/serena-go.md
 #     - shared/reporting.md
 #
-# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"1704c3b6efe3516eb9e0d969d46884c2d0d78eb116c9ea0ee2c02886a2e0c025","strict":true}
+# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"1704c3b6efe3516eb9e0d969d46884c2d0d78eb116c9ea0ee2c02886a2e0c025","strict":true,"agent_id":"codex"}
 
 name: "Duplicate Code Detector"
 "on":

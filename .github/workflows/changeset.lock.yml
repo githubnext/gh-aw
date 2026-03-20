@@ -27,7 +27,7 @@
 #     - shared/changeset-format.md
 #     - shared/jqschema.md
 #
-# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"80ee3dbacd9d4d372d4e7820972ef40b5a69c2c572dde89ff3b3cc46ecf6aa7d","strict":true}
+# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"80ee3dbacd9d4d372d4e7820972ef40b5a69c2c572dde89ff3b3cc46ecf6aa7d","strict":true,"agent_id":"codex","agent_model":"gpt-5.1-codex-mini"}
 
 name: "Changeset Generator"
 "on":

@@ -26,7 +26,7 @@
 #   Imports:
 #     - ../agents/ci-cleaner.agent.md
 #
-# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"2dd311418b37201dccbb258a53a0494b5446faba57a6184d1321f1206436b4cd","strict":true}
+# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"2dd311418b37201dccbb258a53a0494b5446faba57a6184d1321f1206436b4cd","strict":true,"agent_id":"copilot"}
 
 name: "CI Cleaner"
 "on":

@@ -26,7 +26,7 @@
 #   Imports:
 #     - shared/reporting.md
 #
-# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"b2b481f42784eb25bc36cfd587b8b96ac047f581e1d27b81d4f1563711bb420c","strict":true}
+# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"b2b481f42784eb25bc36cfd587b8b96ac047f581e1d27b81d4f1563711bb420c","strict":true,"agent_id":"claude"}
 
 name: "Weekly Workflow Analysis"
 "on":

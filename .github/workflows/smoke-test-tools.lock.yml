@@ -22,7 +22,7 @@
 #
 # Smoke test to validate common development tools are available in the agent container
 #
-# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"5f0e65a120ba50edaf8801625d4f570c66f3428d29b3a6a82a32610833d8d1a5","strict":true}
+# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"5f0e65a120ba50edaf8801625d4f570c66f3428d29b3a6a82a32610833d8d1a5","strict":true,"agent_id":"copilot"}
 
 name: "Agent Container Smoke Test"
 "on":

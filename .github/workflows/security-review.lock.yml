@@ -22,7 +22,7 @@
 #
 # Security-focused AI agent that reviews pull requests to identify changes that could weaken security posture or extend AWF boundaries
 #
-# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"d5881d67be07fecc7e9406368eba2019fc2dc659a2db705ea58278f705731b16","strict":true}
+# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"d5881d67be07fecc7e9406368eba2019fc2dc659a2db705ea58278f705731b16","strict":true,"agent_id":"copilot"}
 
 name: "Security Review Agent 🔒"
 "on":

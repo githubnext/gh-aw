@@ -28,7 +28,7 @@
 #     - shared/reporting.md
 #     - shared/trends.md
 #
-# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"4e9943bf8b6e8eb0dea1849c943090514d265d77fc4731a5f697ae64e88dbccf","strict":true}
+# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"4e9943bf8b6e8eb0dea1849c943090514d265d77fc4731a5f697ae64e88dbccf","strict":true,"agent_id":"copilot"}
 
 name: "Weekly Issue Summary"
 "on":

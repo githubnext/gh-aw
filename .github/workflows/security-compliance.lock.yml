@@ -22,7 +22,7 @@
 #
 # Fix critical vulnerabilities before audit deadline with full tracking and reporting
 #
-# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"01738ba16ae7253d0909165ffb3f971ef84f616ce8f131598481ca66c9c0827f","strict":true}
+# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"01738ba16ae7253d0909165ffb3f971ef84f616ce8f131598481ca66c9c0827f","strict":true,"agent_id":"copilot"}
 
 name: "Security Compliance Campaign"
 "on":

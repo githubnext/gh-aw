@@ -22,7 +22,7 @@
 #
 # Daily JavaScript unbloater that cleans one .cjs file per day, prioritizing files with @ts-nocheck to enable type checking
 #
-# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"3b152ad44091be5971f16c1244a76cc06b0bdc61a021b3b7027b743cf6b09a88","strict":true}
+# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"3b152ad44091be5971f16c1244a76cc06b0bdc61a021b3b7027b743cf6b09a88","strict":true,"agent_id":"copilot"}
 
 name: "jsweep - JavaScript Unbloater"
 "on":

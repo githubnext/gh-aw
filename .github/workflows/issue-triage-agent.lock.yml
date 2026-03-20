@@ -25,7 +25,7 @@
 #   Imports:
 #     - shared/reporting.md
 #
-# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"a5422f57bcf9a480d7740be63735d9290c8860b482e6f1194c7751173e80b58f","strict":true}
+# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"a5422f57bcf9a480d7740be63735d9290c8860b482e6f1194c7751173e80b58f","strict":true,"agent_id":"copilot"}
 
 name: "Issue Triage Agent"
 "on":

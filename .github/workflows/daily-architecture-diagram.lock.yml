@@ -26,7 +26,7 @@
 #   Imports:
 #     - shared/reporting.md
 #
-# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"15c319e318a6b9de87fc6b5acd2a3c80463bb2ac5970875c00ce5325d428a71d","strict":true}
+# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"15c319e318a6b9de87fc6b5acd2a3c80463bb2ac5970875c00ce5325d428a71d","strict":true,"agent_id":"copilot"}
 
 name: "Architecture Diagram Generator"
 "on":

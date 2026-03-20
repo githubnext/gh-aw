@@ -22,7 +22,7 @@
 #
 # Reviews changes to the Safe Outputs specification and ensures the conformance checker script is up to date
 #
-# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"fb65eb54c07a48ae097d46a640a15616bd771f3a76ade9044ac8a3d7acbd60eb","strict":true}
+# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"fb65eb54c07a48ae097d46a640a15616bd771f3a76ade9044ac8a3d7acbd60eb","strict":true,"agent_id":"copilot"}
 
 name: "Weekly Safe Outputs Specification Review"
 "on":

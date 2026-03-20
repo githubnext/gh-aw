@@ -27,7 +27,7 @@
 #     - shared/reporting.md
 #     - shared/trending-charts-simple.md
 #
-# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"575da188e33143c8c5b5e07660a4f4d3302695314638124a21ac50fec6fd4b3a","strict":true}
+# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"575da188e33143c8c5b5e07660a4f4d3302695314638124a21ac50fec6fd4b3a","strict":true,"agent_id":"copilot"}
 
 name: "Daily Firewall Logs Collector and Reporter"
 "on":

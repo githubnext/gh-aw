@@ -28,7 +28,7 @@
 #     - shared/python-dataviz.md
 #     - shared/reporting.md
 #
-# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"62ed9373b2a71bd045f90201268707bb8c2044f67b98fb93de8ac325d21d3613","strict":true}
+# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"62ed9373b2a71bd045f90201268707bb8c2044f67b98fb93de8ac325d21d3613","strict":true,"agent_id":"copilot"}
 
 name: "Daily Copilot Token Consumption Report"
 "on":

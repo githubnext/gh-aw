@@ -27,7 +27,7 @@
 #     - shared/jqschema.md
 #     - shared/reporting.md
 #
-# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"00020e00cf1cd2251ab99ac78f281500ee26b1c69695f71ec416769285c291a9","strict":true}
+# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"00020e00cf1cd2251ab99ac78f281500ee26b1c69695f71ec416769285c291a9","strict":true,"agent_id":"claude"}
 
 name: "Safe Output Health Monitor"
 "on":

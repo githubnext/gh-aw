@@ -26,7 +26,7 @@
 #   Imports:
 #     - shared/reporting.md
 #
-# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"7cb844c9c9c32229b2755637af132ad41de3ddbda8eff01a2f5a5f753fb303a6","strict":true}
+# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"7cb844c9c9c32229b2755637af132ad41de3ddbda8eff01a2f5a5f753fb303a6","strict":true,"agent_id":"claude"}
 
 name: "Schema Consistency Checker"
 "on":

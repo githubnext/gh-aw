@@ -26,7 +26,7 @@
 #   Imports:
 #     - shared/reporting.md
 #
-# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"df8ee8e4d6ff58de0774bef7fbf88c90b0aab97064e3fe92662c062977bfdb32","strict":true}
+# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"df8ee8e4d6ff58de0774bef7fbf88c90b0aab97064e3fe92662c062977bfdb32","strict":true,"agent_id":"copilot"}
 
 name: "Agent Persona Explorer"
 "on":

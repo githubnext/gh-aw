@@ -27,7 +27,7 @@
 #     - shared/go-make.md
 #     - shared/reporting.md
 #
-# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"e7e3b3a6b265000f859ec090406ed8efb58befbb910edb62f60f014ea9f7495c","strict":true}
+# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"e7e3b3a6b265000f859ec090406ed8efb58befbb910edb62f60f014ea9f7495c","strict":true,"agent_id":"copilot"}
 
 name: "Daily CLI Performance Agent"
 "on":

@@ -26,7 +26,7 @@
 #   Imports:
 #     - shared/reporting.md
 #
-# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"b9a8666bdce8efad76dc16f0410edce4380322e346d19a697bcb9a2695b93e26","strict":true}
+# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"b9a8666bdce8efad76dc16f0410edce4380322e346d19a697bcb9a2695b93e26","strict":true,"agent_id":"copilot"}
 
 name: "Daily CLI Tools Exploratory Tester"
 "on":

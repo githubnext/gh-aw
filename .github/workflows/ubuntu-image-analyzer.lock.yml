@@ -26,7 +26,7 @@
 #   Imports:
 #     - shared/activation-app.md
 #
-# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"17771797667713ac9be02e8d82488e686144d32e516fadd663650ae21c06f701","strict":true}
+# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"17771797667713ac9be02e8d82488e686144d32e516fadd663650ae21c06f701","strict":true,"agent_id":"copilot"}
 
 name: "Ubuntu Actions Image Analyzer"
 "on":

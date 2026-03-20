@@ -22,7 +22,7 @@
 #
 # Generates an ACE editor session link when invoked with /ace command on pull request comments
 #
-# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"27465bad2a2328fd5f4ea18e00881a4996ec1ccb258079f63b922025c714470f"}
+# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"27465bad2a2328fd5f4ea18e00881a4996ec1ccb258079f63b922025c714470f","agent_id":"copilot"}
 
 name: "ACE Editor Session"
 "on":

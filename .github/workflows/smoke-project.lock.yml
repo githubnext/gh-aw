@@ -22,7 +22,7 @@
 #
 # Smoke Project - Test project operations
 #
-# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"710ec62380b7f4046fc0e531419bf0be666859f6668744e95e249cc359b3d6c8","strict":true}
+# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"710ec62380b7f4046fc0e531419bf0be666859f6668744e95e249cc359b3d6c8","strict":true,"agent_id":"copilot"}
 
 name: "Smoke Project"
 "on":
