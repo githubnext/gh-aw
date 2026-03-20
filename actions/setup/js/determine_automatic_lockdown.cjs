@@ -60,21 +60,19 @@ async function determineAutomaticLockdown(github, context, core) {
     const resolvedMinIntegrity = configuredMinIntegrity || defaultMinIntegrity;
     if (!configuredMinIntegrity) {
       core.info(`min-integrity not configured — automatically setting to '${defaultMinIntegrity}' for ${visibility} repository`);
-      core.setOutput("min_integrity", defaultMinIntegrity);
     } else {
       core.info(`min-integrity already configured as '${configuredMinIntegrity}' — not overriding`);
-      core.setOutput("min_integrity", configuredMinIntegrity);
     }
+    core.setOutput("min_integrity", resolvedMinIntegrity);
 
     // Set repos if not already configured
     const resolvedRepos = configuredRepos || defaultRepos;
     if (!configuredRepos) {
       core.info(`repos not configured — automatically setting to '${defaultRepos}' for ${visibility} repository`);
-      core.setOutput("repos", defaultRepos);
     } else {
       core.info(`repos already configured as '${configuredRepos}' — not overriding`);
-      core.setOutput("repos", configuredRepos);
     }
+    core.setOutput("repos", resolvedRepos);
 
     if (isPrivate) {
       core.info("Automatic guard policy determination complete for private/internal repository");
