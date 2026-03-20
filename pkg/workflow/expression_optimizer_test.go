@@ -612,6 +612,24 @@ func TestOptimize_Idempotent_Disjunction(t *testing.T) {
 }
 
 // ---------------------------------------------------------------------------
+// RenderCondition helper
+// ---------------------------------------------------------------------------
+
+func TestRenderCondition_SimplifiesIdentity(t *testing.T) {
+	// RenderCondition must apply the optimizer – A && true → A
+	a := expr("github.event_name == 'issues'")
+	result := RenderCondition(and2(a, boolLit(true)))
+	assert.Equal(t, "github.event_name == 'issues'", result, "RenderCondition should simplify A && true → A")
+}
+
+func TestRenderCondition_PreservesStatusFunc(t *testing.T) {
+	always := fn("always")
+	condition := expr("steps.run.outcome == 'success'")
+	result := RenderCondition(and2(always, condition))
+	assert.Contains(t, result, "always()", "RenderCondition must preserve status functions")
+}
+
+// ---------------------------------------------------------------------------
 // Helper utilities
 // ---------------------------------------------------------------------------
 

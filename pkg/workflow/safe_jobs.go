@@ -210,10 +210,10 @@ func (c *Compiler) buildSafeJobs(data *WorkflowData, threatDetectionEnabled bool
 			// If user provided a custom condition, combine it with the safe output type check
 			userConditionStr := c.extractExpressionFromIfString(jobConfig.If)
 			userCondition := &ExpressionNode{Expression: userConditionStr}
-			job.If = BuildAnd(safeOutputCondition, userCondition).Render()
+			job.If = RenderCondition(BuildAnd(safeOutputCondition, userCondition))
 		} else {
 			// Otherwise, just use the safe output type check
-			job.If = safeOutputCondition.Render()
+			job.If = RenderCondition(safeOutputCondition)
 		}
 
 		// Build job steps

@@ -128,7 +128,7 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 
 		steps = append(steps, fmt.Sprintf("      - name: Add %s reaction for immediate feedback\n", data.AIReaction))
 		steps = append(steps, "        id: react\n")
-		steps = append(steps, fmt.Sprintf("        if: %s\n", reactionCondition.Render()))
+		steps = append(steps, fmt.Sprintf("        if: %s\n", RenderCondition(reactionCondition)))
 		steps = append(steps, fmt.Sprintf("        uses: %s\n", GetActionPin("actions/github-script")))
 
 		// Add environment variables
@@ -221,7 +221,7 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 
 		steps = append(steps, "      - name: Add comment with workflow run link\n")
 		steps = append(steps, "        id: add-comment\n")
-		steps = append(steps, fmt.Sprintf("        if: %s\n", reactionCondition.Render()))
+		steps = append(steps, fmt.Sprintf("        if: %s\n", RenderCondition(reactionCondition)))
 		steps = append(steps, fmt.Sprintf("        uses: %s\n", GetActionPin("actions/github-script")))
 
 		// Add environment variables
@@ -276,7 +276,7 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 
 		steps = append(steps, "      - name: Lock issue for agent workflow\n")
 		steps = append(steps, "        id: lock-issue\n")
-		steps = append(steps, fmt.Sprintf("        if: %s\n", lockCondition.Render()))
+		steps = append(steps, fmt.Sprintf("        if: %s\n", RenderCondition(lockCondition)))
 		steps = append(steps, fmt.Sprintf("        uses: %s\n", GetActionPin("actions/github-script")))
 		steps = append(steps, "        with:\n")
 		steps = append(steps, "          script: |\n")
@@ -410,15 +410,15 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 			unwrappedIf := stripExpressionWrapper(data.If)
 			ifExpr := &ExpressionNode{Expression: unwrappedIf}
 			combinedExpr := BuildAnd(activatedExpr, ifExpr)
-			activationCondition = combinedExpr.Render()
+			activationCondition = RenderCondition(combinedExpr)
 		} else if data.If != "" && !c.referencesCustomJobOutputs(data.If, data.Jobs) {
 			// Include user's if condition that doesn't reference custom jobs
 			unwrappedIf := stripExpressionWrapper(data.If)
 			ifExpr := &ExpressionNode{Expression: unwrappedIf}
 			combinedExpr := BuildAnd(activatedExpr, ifExpr)
-			activationCondition = combinedExpr.Render()
+			activationCondition = RenderCondition(combinedExpr)
 		} else {
-			activationCondition = activatedExpr.Render()
+			activationCondition = RenderCondition(activatedExpr)
 		}
 	} else {
 		// No pre-activation check needed
