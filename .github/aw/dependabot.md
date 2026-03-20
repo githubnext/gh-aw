@@ -130,7 +130,86 @@ Dependabot will automatically close all PRs whose dependency versions now match 
 | Compilation fails after version update | Check if the new version has breaking API changes |
 | Dependabot PR not auto-closing | Verify the exact version strings match; check for pre-release suffixes |
 
+## Dismissed Dependabot Alerts and VEX
+
+When a Dependabot security alert is dismissed, the dismissal represents a security assessment — but that knowledge is typically lost. [VEX (Vulnerability Exploitability eXchange)](https://openvex.dev/) is an open standard for communicating that a software product is **not affected** by a known vulnerability, making that assessment machine-readable and consumable by downstream vulnerability scanners and SBOM tools.
+
+### When to Generate a VEX Statement
+
+Generate a VEX statement whenever a Dependabot alert is dismissed with a **substantive security reason**:
+
+| Dismissal Reason | VEX Status | VEX Justification |
+|------------------|------------|-------------------|
+| `not_used` — The vulnerable code path is never executed | `not_affected` | `vulnerable_code_not_present` |
+| `inaccurate` — The vulnerability report does not apply to this usage | `not_affected` | `vulnerable_code_not_in_execute_path` |
+| `tolerable_risk` — Mitigations are already in place | `not_affected` | `inline_mitigations_already_exist` |
+| `no_bandwidth` — Deferred without a security assessment | *(skip — not a security decision; do not generate VEX)* | N/A |
+
+### VEX Statement Format (OpenVEX v0.2.0)
+
+A VEX statement is a JSON document written to `.vex/<ghsa-id>.json`:
+
+```json
+{
+  "@context": "https://openvex.dev/ns/v0.2.0",
+  "@id": "https://github.com/<org>/<repo>/blob/main/.vex/<ghsa-id>.json",
+  "author": "GitHub Copilot (automated)",
+  "timestamp": "<ISO-8601>",
+  "statements": [
+    {
+      "vulnerability": { "name": "<CVE-ID>", "description": "<GHSA-ID>" },
+      "products": [{ "@id": "pkg:<ecosystem>/<package>@<version>" }],
+      "status": "not_affected",
+      "justification": "<vex-justification>",
+      "impact_statement": "<plain-english explanation from dismissal comment>"
+    }
+  ]
+}
+```
+
+### Package URL (purl) by Ecosystem
+
+| Ecosystem | purl format |
+|-----------|-------------|
+| npm | `pkg:npm/<package>@<version>` |
+| pip | `pkg:pypi/<package>@<version>` |
+| Maven | `pkg:maven/<group>/<artifact>@<version>` |
+| RubyGems | `pkg:gem/<package>@<version>` |
+| Go | `pkg:golang/<module>@<version>` |
+| NuGet | `pkg:nuget/<package>@<version>` |
+
+### Generating VEX Statements via the vex-generator Workflow
+
+The `vex-generator` agentic workflow automates VEX document creation for dismissed alerts. Trigger it via `workflow_dispatch` with the following inputs:
+
+| Input | Description |
+|-------|-------------|
+| `alert_number` | Dependabot alert number |
+| `ghsa_id` | GHSA ID (e.g., `GHSA-xvch-5gv4-984h`) |
+| `cve_id` | CVE ID (e.g., `CVE-2021-44906`) |
+| `package_name` | Affected package name |
+| `package_ecosystem` | `npm`, `pip`, `maven`, `gem`, `golang`, or `nuget` |
+| `severity` | `low`, `medium`, `high`, or `critical` |
+| `summary` | Brief vulnerability summary |
+| `dismissed_reason` | `not_used`, `inaccurate`, or `tolerable_risk` |
+
+The workflow maps the dismissal reason to a VEX justification, constructs the correct purl, generates a standards-compliant OpenVEX v0.2.0 document, and opens a PR to add it to `.vex/`.
+
+> [!NOTE]
+> Only dismiss alerts with `not_used`, `inaccurate`, or `tolerable_risk` when running the VEX generator. Alerts dismissed as `no_bandwidth` do not represent a security assessment and should not produce a VEX statement.
+
+### Manual VEX Generation
+
+If the workflow is not yet available, generate the statement manually:
+
+1. Determine the purl for the affected package (see table above)
+2. Map the dismissal reason to a VEX justification (see table above)
+3. Write the JSON document to `.vex/<ghsa-id>.json`
+4. Create `.vex/README.md` if it does not exist, explaining that VEX statements in this directory document vulnerability assessments for dismissed Dependabot alerts
+5. Open a PR with the new file
+
 ## Related Documentation
 
 - [Dependabot Support](/gh-aw/reference/dependabot/) — Full reference for `gh aw compile --dependabot`
+- [OpenVEX Specification](https://openvex.dev/) — VEX standard for vulnerability exploitability exchange
 - Local copy: @.github/aw/github-agentic-workflows.md
