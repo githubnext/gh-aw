@@ -307,6 +307,9 @@ If this command fails, the account associated with the token does not have a val
 
 ## GitHub Enterprise Server Issues
 
+> [!TIP]
+> For a complete walkthrough of setting up and debugging workflows on **GHE Cloud with data residency** (`*.ghe.com`), see [Debugging GHE Cloud with Data Residency](/gh-aw/troubleshooting/debug-ghe/).
+
 ### Copilot Engine Prerequisites on GHES
 
 Before running Copilot-based workflows on GHES, verify the following:
