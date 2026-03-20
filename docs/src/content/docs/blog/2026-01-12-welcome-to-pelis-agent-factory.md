@@ -115,4 +115,4 @@ Want to start with automated agentic workflows on GitHub? See our [Quick Start](
 
 ## Factory Status
 
-[Current Factory Status](/gh-aw/agent-factory-status)
+[Current Factory Status](/gh-aw/agent-factory-status/)
