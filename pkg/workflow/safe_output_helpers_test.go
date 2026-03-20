@@ -593,9 +593,10 @@ func TestEnginesUseSameHelperLogic(t *testing.T) {
 
 // TestBuildAgentOutputDownloadSteps verifies the agent output download steps
 // include directory creation to handle cases where artifact doesn't exist,
-// that GH_AW_AGENT_OUTPUT is only set when the artifact download succeeds,
-// and that the path is resolved dynamically via find to handle nested artifact
-// directory structures (e.g. /tmp/gh-aw/gh-aw/agent_output.json).
+// and that GH_AW_AGENT_OUTPUT is only set when the artifact download succeeds.
+// The Gemini engine's GetPreBundleSteps moves /tmp/gemini-client-error-*.json
+// into /tmp/gh-aw/ before upload, so the artifact LCA is always /tmp/gh-aw/
+// and the hardcoded path is reliable.
 func TestBuildAgentOutputDownloadSteps(t *testing.T) {
 	steps := buildAgentOutputDownloadSteps("")
 	stepsStr := strings.Join(steps, "")
@@ -611,10 +612,9 @@ func TestBuildAgentOutputDownloadSteps(t *testing.T) {
 		"- name: Setup agent output environment variable",
 		"if: steps.download-agent-output.outcome == 'success'",
 		"mkdir -p /tmp/gh-aw/",
-		"find \"/tmp/gh-aw/\" -type f -print",
-		// Dynamic find-based path resolution (handles nested artifact directories)
-		`FOUND_FILE=$(find "/tmp/gh-aw/" -name "agent_output.json" -type f 2>/dev/null | head -1)`,
-		`echo "GH_AW_AGENT_OUTPUT=$FOUND_FILE" >> "$GITHUB_ENV"`,
+		`find "/tmp/gh-aw/" -type f -print`,
+		// Hardcoded path is correct because GetPreBundleSteps ensures LCA is /tmp/gh-aw/
+		`echo "GH_AW_AGENT_OUTPUT=/tmp/gh-aw/agent_output.json" >> "$GITHUB_ENV"`,
 	}
 
 	for _, expected := range expectedComponents {
@@ -623,14 +623,15 @@ func TestBuildAgentOutputDownloadSteps(t *testing.T) {
 		}
 	}
 
-	// Verify the hardcoded path is NOT used (regression guard)
-	if strings.Contains(stepsStr, "GH_AW_AGENT_OUTPUT=/tmp/gh-aw/agent_output.json") {
-		t.Error("Step must not hardcode GH_AW_AGENT_OUTPUT path; it must use dynamic find resolution")
+	// Verify no dynamic find-based lookup is used (regression guard: the Gemini engine
+	// moves files to /tmp/gh-aw/ via GetPreBundleSteps so the hardcoded path is always valid)
+	if strings.Contains(stepsStr, "FOUND_FILE=$(find") {
+		t.Error("Step must not use dynamic find resolution; hardcoded path should be used instead")
 	}
 
 	// Verify mkdir comes before find to ensure directory exists
 	mkdirIdx := strings.Index(stepsStr, "mkdir -p /tmp/gh-aw/")
-	findIdx := strings.Index(stepsStr, "find \"/tmp/gh-aw/\"")
+	findIdx := strings.Index(stepsStr, `find "/tmp/gh-aw/"`)
 
 	if mkdirIdx == -1 {
 		t.Fatal("mkdir command not found in steps")
