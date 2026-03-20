@@ -315,6 +315,24 @@ func TestBuildMCPGatewayConfig(t *testing.T) {
 				PayloadSizeThreshold: constants.DefaultMCPGatewayPayloadSizeThreshold,
 			},
 		},
+		{
+			name: "propagates trustedBots from frontmatter config",
+			workflowData: &WorkflowData{
+				SandboxConfig: &SandboxConfig{
+					MCP: &MCPGatewayRuntimeConfig{
+						TrustedBots: []string{"github-actions[bot]", "copilot-swe-agent[bot]"},
+					},
+				},
+			},
+			expected: &MCPGatewayRuntimeConfig{
+				Port:                 int(DefaultMCPGatewayPort),
+				Domain:               "${MCP_GATEWAY_DOMAIN}",
+				APIKey:               "${MCP_GATEWAY_API_KEY}",
+				PayloadDir:           "${MCP_GATEWAY_PAYLOAD_DIR}",
+				PayloadSizeThreshold: constants.DefaultMCPGatewayPayloadSizeThreshold,
+				TrustedBots:          []string{"github-actions[bot]", "copilot-swe-agent[bot]"},
+			},
+		},
 	}
 
 	for _, tt := range tests {
@@ -330,6 +348,7 @@ func TestBuildMCPGatewayConfig(t *testing.T) {
 				assert.Equal(t, tt.expected.PayloadDir, result.PayloadDir, "PayloadDir should match")
 				assert.Equal(t, tt.expected.PayloadPathPrefix, result.PayloadPathPrefix, "PayloadPathPrefix should match")
 				assert.Equal(t, tt.expected.PayloadSizeThreshold, result.PayloadSizeThreshold, "PayloadSizeThreshold should match")
+				assert.Equal(t, tt.expected.TrustedBots, result.TrustedBots, "TrustedBots should match")
 			}
 		})
 	}

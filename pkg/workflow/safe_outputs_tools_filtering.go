@@ -249,8 +249,28 @@ func generateFilteredToolsJSON(data *WorkflowData, markdownPath string) (string,
 		}
 	}
 
+	// Add custom action tools from SafeOutputs.Actions.
+	// Action resolution (action.yml fetch + pinning) is done once in buildJobs before
+	// generateToolsMetaJSON/generateFilteredToolsJSON are called, so Inputs and
+	// ActionDescription are already populated here.
+	if len(data.SafeOutputs.Actions) > 0 {
+		safeOutputsConfigLog.Printf("Adding %d custom action tools", len(data.SafeOutputs.Actions))
+
+		actionNames := make([]string, 0, len(data.SafeOutputs.Actions))
+		for actionName := range data.SafeOutputs.Actions {
+			actionNames = append(actionNames, actionName)
+		}
+		sort.Strings(actionNames)
+
+		for _, actionName := range actionNames {
+			actionConfig := data.SafeOutputs.Actions[actionName]
+			customTool := generateActionToolDefinition(actionName, actionConfig)
+			filteredTools = append(filteredTools, customTool)
+		}
+	}
+
 	if safeOutputsConfigLog.Enabled() {
-		safeOutputsConfigLog.Printf("Filtered %d tools from %d total tools (including %d custom jobs, %d custom scripts)", len(filteredTools), len(allTools), len(data.SafeOutputs.Jobs), len(data.SafeOutputs.Scripts))
+		safeOutputsConfigLog.Printf("Filtered %d tools from %d total tools (including %d custom jobs, %d custom scripts, %d custom actions)", len(filteredTools), len(allTools), len(data.SafeOutputs.Jobs), len(data.SafeOutputs.Scripts), len(data.SafeOutputs.Actions))
 	}
 
 	// Add dynamic dispatch_workflow tools
@@ -759,6 +779,26 @@ func generateDynamicTools(data *WorkflowData, markdownPath string) ([]map[string
 			scriptConfig := data.SafeOutputs.Scripts[scriptName]
 			normalizedScriptName := stringutil.NormalizeSafeOutputIdentifier(scriptName)
 			customTool := generateCustomScriptToolDefinition(normalizedScriptName, scriptConfig)
+			dynamicTools = append(dynamicTools, customTool)
+		}
+	}
+
+	// Add custom action tools from SafeOutputs.Actions
+	// Each configured action is exposed as an MCP tool with schema derived from action.yml.
+	// The compiler resolves action.yml at compile time; if resolution fails the tool is still
+	// added with an empty inputSchema so the agent can still attempt to call it.
+	if len(data.SafeOutputs.Actions) > 0 {
+		safeOutputsConfigLog.Printf("Adding %d custom action tools to dynamic tools", len(data.SafeOutputs.Actions))
+
+		actionNames := make([]string, 0, len(data.SafeOutputs.Actions))
+		for actionName := range data.SafeOutputs.Actions {
+			actionNames = append(actionNames, actionName)
+		}
+		sort.Strings(actionNames)
+
+		for _, actionName := range actionNames {
+			actionConfig := data.SafeOutputs.Actions[actionName]
+			customTool := generateActionToolDefinition(actionName, actionConfig)
 			dynamicTools = append(dynamicTools, customTool)
 		}
 	}

@@ -137,6 +137,7 @@ func buildMCPGatewayConfig(workflowData *WorkflowData) *MCPGatewayRuntimeConfig 
 		PayloadDir:           "${MCP_GATEWAY_PAYLOAD_DIR}",                     // Gateway variable expression for payload directory
 		PayloadPathPrefix:    workflowData.SandboxConfig.MCP.PayloadPathPrefix, // Optional path prefix for agent containers
 		PayloadSizeThreshold: payloadSizeThreshold,                             // Size threshold in bytes
+		TrustedBots:          workflowData.SandboxConfig.MCP.TrustedBots,       // Additional trusted bot identities from frontmatter
 	}
 }
 

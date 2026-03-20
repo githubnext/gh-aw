@@ -539,6 +539,14 @@ func (c *Compiler) extractSafeOutputsConfig(frontmatter map[string]any) *SafeOut
 				}
 			}
 
+			// Handle actions (custom GitHub Actions mounted as safe output tools)
+			if actions, exists := outputMap["actions"]; exists {
+				if actionsMap, ok := actions.(map[string]any); ok {
+					config.Actions = parseActionsConfig(actionsMap)
+					safeOutputsConfigLog.Printf("Configured %d custom safe-output action(s)", len(config.Actions))
+				}
+			}
+
 			// Handle app configuration for GitHub App token minting
 			if app, exists := outputMap["github-app"]; exists {
 				if appMap, ok := app.(map[string]any); ok {

@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach, vi } from "vitest";
 
 describe("safe_output_helpers", () => {
   let helpers;
@@ -656,6 +656,51 @@ describe("safe_output_helpers", () => {
       } finally {
         delete global.context;
       }
+    });
+  });
+
+  describe("loadCustomSafeOutputActionHandlers", () => {
+    beforeEach(() => {
+      delete process.env.GH_AW_SAFE_OUTPUT_ACTIONS;
+      global.core = {
+        info: vi.fn(),
+        debug: vi.fn(),
+        warning: vi.fn(),
+        error: vi.fn(),
+      };
+    });
+
+    it("should return empty map when GH_AW_SAFE_OUTPUT_ACTIONS is not set", () => {
+      const result = helpers.loadCustomSafeOutputActionHandlers();
+      expect(result).toBeInstanceOf(Map);
+      expect(result.size).toBe(0);
+    });
+
+    it("should parse and return action handlers map from env var", () => {
+      process.env.GH_AW_SAFE_OUTPUT_ACTIONS = JSON.stringify({
+        add_smoked_label: "add_smoked_label",
+        notify_slack: "notify_slack",
+      });
+
+      const result = helpers.loadCustomSafeOutputActionHandlers();
+      expect(result).toBeInstanceOf(Map);
+      expect(result.size).toBe(2);
+      expect(result.get("add_smoked_label")).toBe("add_smoked_label");
+      expect(result.get("notify_slack")).toBe("notify_slack");
+    });
+
+    it("should return empty map when env var contains invalid JSON", () => {
+      process.env.GH_AW_SAFE_OUTPUT_ACTIONS = "not-valid-json";
+      const result = helpers.loadCustomSafeOutputActionHandlers();
+      expect(result).toBeInstanceOf(Map);
+      expect(result.size).toBe(0);
+    });
+
+    it("should return empty map when env var contains empty object", () => {
+      process.env.GH_AW_SAFE_OUTPUT_ACTIONS = JSON.stringify({});
+      const result = helpers.loadCustomSafeOutputActionHandlers();
+      expect(result).toBeInstanceOf(Map);
+      expect(result.size).toBe(0);
     });
   });
 });

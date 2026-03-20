@@ -149,7 +149,8 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 		data.SafeOutputs.AutofixCodeScanningAlert != nil ||
 		data.SafeOutputs.MissingTool != nil ||
 		data.SafeOutputs.MissingData != nil ||
-		len(data.SafeOutputs.Scripts) > 0 // Custom scripts run in the handler loop
+		len(data.SafeOutputs.Scripts) > 0 || // Custom scripts run in the handler loop
+		len(data.SafeOutputs.Actions) > 0 // Custom actions need handler to export their payloads
 
 	// Note: All project-related operations are now handled by the unified handler.
 	// The project handler manager has been removed.
@@ -220,6 +221,26 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 
 		outputs["create_agent_session_session_number"] = "${{ steps.create_agent_session.outputs.session_number }}"
 		outputs["create_agent_session_session_url"] = "${{ steps.create_agent_session.outputs.session_url }}"
+	}
+
+	// 5. Custom action steps — compiler-generated steps for each configured safe-output action.
+	// These steps run after the handler manager, which processes the agent payload and exports
+	// a JSON payload output for each action tool call. Each step is guarded by an `if:` condition
+	// that checks whether the handler manager exported a payload for this action.
+	if len(data.SafeOutputs.Actions) > 0 {
+		// resolveAllActions was already called early in buildJobs (before generateToolsMetaJSON)
+		// so action configs already have Inputs/ActionDescription populated. We only call it
+		// again here as a safety net in case compileSafeOutputsJob is called independently.
+		c.resolveAllActions(data, markdownPath)
+
+		actionStepYAML := c.buildActionSteps(data)
+		steps = append(steps, actionStepYAML...)
+
+		// Register each action as having a handler manager output
+		for actionName := range data.SafeOutputs.Actions {
+			normalizedName := stringutil.NormalizeSafeOutputIdentifier(actionName)
+			safeOutputStepNames = append(safeOutputStepNames, "action_"+normalizedName)
+		}
 	}
 
 	// The outputs and permissions are configured in the handler manager section above

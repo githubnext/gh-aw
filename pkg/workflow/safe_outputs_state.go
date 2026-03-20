@@ -84,6 +84,12 @@ func hasAnySafeOutputEnabled(safeOutputs *SafeOutputsConfig) bool {
 		return true
 	}
 
+	// Check Actions separately as it's a map
+	if len(safeOutputs.Actions) > 0 {
+		safeOutputReflectionLog.Printf("Found %d custom actions enabled", len(safeOutputs.Actions))
+		return true
+	}
+
 	// Use reflection to check all pointer fields
 	val := reflect.ValueOf(safeOutputs).Elem()
 	for fieldName := range safeOutputFieldMapping {
@@ -133,6 +139,11 @@ func hasNonBuiltinSafeOutputsEnabled(safeOutputs *SafeOutputsConfig) bool {
 
 	// Custom scripts are always non-builtin
 	if len(safeOutputs.Scripts) > 0 {
+		return true
+	}
+
+	// Custom actions are always non-builtin
+	if len(safeOutputs.Actions) > 0 {
 		return true
 	}
 

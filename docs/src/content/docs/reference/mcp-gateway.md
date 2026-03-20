@@ -7,7 +7,7 @@ sidebar:
 
 # MCP Gateway Specification
 
-**Version**: 1.8.0  
+**Version**: 1.9.0  
 **Status**: Draft Specification  
 **Latest Version**: [mcp-gateway](/gh-aw/reference/mcp-gateway/)  
 **JSON Schema**: [mcp-gateway-config.schema.json](/gh-aw/schemas/mcp-gateway-config.schema.json)  
@@ -248,6 +248,7 @@ The `gateway` section is required and configures gateway-specific behavior:
 | `payloadDir` | string | No | Directory path for storing large payload JSON files for authenticated clients |
 | `payloadPathPrefix` | string | No | Path prefix to remap payload paths for agent containers (e.g., /workspace/payloads) |
 | `payloadSizeThreshold` | integer | No | Size threshold in bytes for storing payloads to disk (default: 524288 = 512KB) |
+| `trustedBots` | array[string] | No | Additional GitHub bot identity strings (e.g., `github-actions[bot]`) passed to the gateway and merged with its built-in trusted identity list. This field is additive — it extends the internal list but cannot remove built-in entries. |
 
 #### 4.1.3.1 Payload Directory Path Validation
 
@@ -366,6 +367,46 @@ payload_size_threshold = 262144   # 256KB - more aggressive disk storage
 - Threshold MUST be a positive integer representing bytes
 - Gateway MUST compare actual payload size against threshold before deciding storage method
 - Threshold MAY be adjusted based on deployment needs (memory vs disk I/O trade-offs)
+
+#### 4.1.3.4 Trusted Bot Identity Configuration
+
+The optional `trustedBots` field in the gateway configuration passes an additional list of GitHub bot identity strings to the gateway. The gateway merges this list with its own built-in trusted identity list to form the effective set of identities it recognises.
+
+> **Important**: `trustedBots` is **additive**. The gateway maintains its own internal list of trusted bot identities. The `trustedBots` field extends that internal list with additional identities; it cannot remove or override the gateway's built-in trusted identities.
+
+**Configuration Example**:
+
+```json
+{
+  "gateway": {
+    "port": 8080,
+    "domain": "localhost",
+    "apiKey": "${MCP_GATEWAY_API_KEY}",
+    "trustedBots": [
+      "github-actions[bot]",
+      "copilot-swe-agent[bot]"
+    ]
+  }
+}
+```
+
+**Frontmatter Example** (workflow author):
+
+```yaml
+sandbox:
+  mcp:
+    trusted-bots:
+      - github-actions[bot]
+      - copilot-swe-agent[bot]
+```
+
+**Requirements**:
+- `trustedBots` MUST be a non-empty array of strings when present
+- Each entry MUST be a non-empty string (typically a GitHub username such as `github-actions[bot]`)
+- `trustedBots` entries are **merged** with the gateway's internal built-in trusted identities to form the effective list passed to the gateway
+- `trustedBots` MUST NOT be used to remove or override entries in the gateway's internal built-in trusted identity list
+
+**Compliance Test**: T-AUTH-006 - Trusted Bot Identity Configuration
 
 #### 4.1.3a Top-Level Configuration Fields
 
@@ -943,6 +984,14 @@ The following endpoints MUST NOT require authentication:
 
 - `/health`
 
+### 7.5 Trusted Bot Identity Configuration
+
+The `gateway.trustedBots` field allows workflow authors to pass additional trusted bot identity strings to the gateway via the generated gateway configuration file. The gateway merges these entries with its own built-in trusted identity list.
+
+`gateway.trustedBots` is **additive** — it extends the gateway's built-in list but cannot remove entries from it.
+
+Workflow authors set this via the `sandbox.mcp.trusted-bots` frontmatter field; the compiler translates it into the `trustedBots` array in the generated `gateway` section of the MCP config file.
+
 ---
 
 ## 8. Health Monitoring
@@ -1130,6 +1179,7 @@ A conforming implementation MUST pass the following test categories:
 - **T-AUTH-003**: Missing token rejection
 - **T-AUTH-004**: Health endpoint exemption
 - **T-AUTH-005**: Token rotation support
+- **T-AUTH-006**: Trusted bot identity configuration — `trustedBots` entries are present in the generated gateway config and merged with the gateway's built-in list
 
 #### 10.1.5 Timeout Tests
 
@@ -1468,6 +1518,18 @@ Content-Type: application/json
 ---
 
 ## Change Log
+
+### Version 1.9.0 (Draft)
+
+- **Added**: `trustedBots` field to gateway configuration (Section 4.1.3, 4.1.3.4)
+  - Optional array of GitHub bot identity strings passed to the gateway via the generated config
+  - Merged with the gateway's built-in trusted identity list (additive — cannot remove built-in entries)
+  - Workflow authors configure via `sandbox.mcp.trusted-bots` in frontmatter; the compiler translates it into the gateway config
+- **Added**: Section 7.5 — Trusted Bot Identity Configuration
+  - Describes `trustedBots` as a config-passing mechanism from frontmatter to gateway config
+- **Added**: Compliance test for trusted bot identity configuration (Section 10.1.4)
+  - T-AUTH-006: Trusted bot identity configuration
+- **Updated**: JSON Schema with `trustedBots` property in `gatewayConfig` definition
 
 ### Version 1.8.0 (Draft)
 

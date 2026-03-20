@@ -145,7 +145,23 @@ func (c *Compiler) generateWorkflowHeader(yaml *strings.Builder, data *WorkflowD
 	// Single-line format to minimize merge conflicts and be unaffected by LOC changes
 	if frontmatterHash != "" {
 		yaml.WriteString("#\n")
-		metadata := GenerateLockMetadata(frontmatterHash, data.StopTime, c.effectiveStrictMode(data.RawFrontmatter))
+		agentInfo := AgentMetadataInfo{}
+		// Agent ID: prefer EngineConfig.ID, fall back to legacy AI field
+		if data.EngineConfig != nil && data.EngineConfig.ID != "" {
+			agentInfo.AgentID = data.EngineConfig.ID
+		} else if data.AI != "" {
+			agentInfo.AgentID = data.AI
+		}
+		// Agent model: only include if statically configured
+		if data.EngineConfig != nil && data.EngineConfig.Model != "" {
+			agentInfo.AgentModel = data.EngineConfig.Model
+		}
+		// Detection agent info: only if threat detection has its own engine config
+		if data.SafeOutputs != nil && data.SafeOutputs.ThreatDetection != nil && data.SafeOutputs.ThreatDetection.EngineConfig != nil {
+			agentInfo.DetectionAgentID = data.SafeOutputs.ThreatDetection.EngineConfig.ID
+			agentInfo.DetectionAgentModel = data.SafeOutputs.ThreatDetection.EngineConfig.Model
+		}
+		metadata := GenerateLockMetadata(frontmatterHash, data.StopTime, c.effectiveStrictMode(data.RawFrontmatter), agentInfo)
 		metadataJSON, err := metadata.ToJSON()
 		if err != nil {
 			// Fallback to legacy format if JSON serialization fails

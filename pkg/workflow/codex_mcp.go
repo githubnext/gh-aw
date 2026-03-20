@@ -103,20 +103,12 @@ func (e *CodexEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]an
 	yaml.WriteString("          \n")
 	yaml.WriteString("          # Generate JSON config for MCP gateway\n")
 
-	// Build gateway configuration
-	gatewayConfig := buildMCPGatewayConfig(workflowData)
-
-	// Use shared JSON renderer for gateway input
 	// Gateway uses JSON format without Copilot-specific fields and multi-line args
-	createJSONRenderer := buildMCPRendererFactory(workflowData, "json", false, false)
-
-	return RenderJSONMCPConfig(yaml, tools, mcpTools, workflowData, JSONMCPConfigOptions{
-		ConfigPath:    "/tmp/gh-aw/mcp-config/mcp-servers.json",
-		GatewayConfig: gatewayConfig,
-		Renderers: buildStandardJSONMCPRenderers(workflowData, createJSONRenderer, false, func(yaml *strings.Builder, toolName string, toolConfig map[string]any, isLast bool) error {
+	return renderStandardJSONMCPConfig(yaml, tools, mcpTools, workflowData,
+		"/tmp/gh-aw/mcp-config/mcp-servers.json", false, false, false,
+		func(yaml *strings.Builder, toolName string, toolConfig map[string]any, isLast bool) error {
 			return e.renderCodexJSONMCPConfigWithContext(yaml, toolName, toolConfig, isLast, workflowData)
-		}),
-	})
+		}, nil)
 }
 
 // renderCodexMCPConfigWithContext generates custom MCP server configuration for a single tool in codex workflow config.toml

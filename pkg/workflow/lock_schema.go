@@ -23,23 +23,38 @@ type LockSchemaVersion string
 const (
 	// LockSchemaV1 is the legacy lock file schema version (no strict field)
 	LockSchemaV1 LockSchemaVersion = "v1"
-	// LockSchemaV2 is the current lock file schema version (adds strict field)
+	// LockSchemaV2 is the lock file schema version that adds the strict field
 	LockSchemaV2 LockSchemaVersion = "v2"
+	// LockSchemaV3 is the current lock file schema version (adds agent id/model and detection agent id/model fields)
+	LockSchemaV3 LockSchemaVersion = "v3"
 )
 
 // LockMetadata represents the structured metadata embedded in lock files
 type LockMetadata struct {
-	SchemaVersion   LockSchemaVersion `json:"schema_version"`
-	FrontmatterHash string            `json:"frontmatter_hash,omitempty"`
-	StopTime        string            `json:"stop_time,omitempty"`
-	CompilerVersion string            `json:"compiler_version,omitempty"`
-	Strict          bool              `json:"strict,omitempty"`
+	SchemaVersion       LockSchemaVersion `json:"schema_version"`
+	FrontmatterHash     string            `json:"frontmatter_hash,omitempty"`
+	StopTime            string            `json:"stop_time,omitempty"`
+	CompilerVersion     string            `json:"compiler_version,omitempty"`
+	Strict              bool              `json:"strict,omitempty"`
+	AgentID             string            `json:"agent_id,omitempty"`
+	AgentModel          string            `json:"agent_model,omitempty"`
+	DetectionAgentID    string            `json:"detection_agent_id,omitempty"`
+	DetectionAgentModel string            `json:"detection_agent_model,omitempty"`
+}
+
+// AgentMetadataInfo holds agent and detection agent information for embedding in lock file metadata
+type AgentMetadataInfo struct {
+	AgentID             string
+	AgentModel          string
+	DetectionAgentID    string
+	DetectionAgentModel string
 }
 
 // SupportedSchemaVersions lists all schema versions this build can consume
 var SupportedSchemaVersions = []LockSchemaVersion{
 	LockSchemaV1,
 	LockSchemaV2,
+	LockSchemaV3,
 }
 
 // IsSchemaVersionSupported checks if a schema version is supported
@@ -86,14 +101,18 @@ func formatSupportedVersions() string {
 
 // GenerateLockMetadata creates a LockMetadata struct for embedding in lock files
 // For release builds, the compiler version is included in the metadata
-func GenerateLockMetadata(frontmatterHash string, stopTime string, strict bool) *LockMetadata {
-	lockSchemaLog.Printf("Generating lock metadata: schema=%s, strict=%t, hasStopTime=%t", LockSchemaV2, strict, stopTime != "")
+func GenerateLockMetadata(frontmatterHash string, stopTime string, strict bool, agentInfo AgentMetadataInfo) *LockMetadata {
+	lockSchemaLog.Printf("Generating lock metadata: schema=%s, strict=%t, hasStopTime=%t", LockSchemaV3, strict, stopTime != "")
 
 	metadata := &LockMetadata{
-		SchemaVersion:   LockSchemaV2,
-		FrontmatterHash: frontmatterHash,
-		StopTime:        stopTime,
-		Strict:          strict,
+		SchemaVersion:       LockSchemaV3,
+		FrontmatterHash:     frontmatterHash,
+		StopTime:            stopTime,
+		Strict:              strict,
+		AgentID:             agentInfo.AgentID,
+		AgentModel:          agentInfo.AgentModel,
+		DetectionAgentID:    agentInfo.DetectionAgentID,
+		DetectionAgentModel: agentInfo.DetectionAgentModel,
 	}
 
 	// Include compiler version only for release builds

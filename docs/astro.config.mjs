@@ -33,6 +33,7 @@ function createAuthors(authors) {
 export default defineConfig({
 	site: 'https://github.github.com',
 	base: '/gh-aw/',
+	trailingSlash: 'always',
 	markdown: {
 		remarkPlugins: [remarkStripEmojis],
 	},

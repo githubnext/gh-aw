@@ -2,6 +2,42 @@ package workflow
 
 import "strings"
 
+// renderStandardJSONMCPConfig is a shared helper for JSON MCP config rendering used by
+// Claude, Gemini, Copilot, and Codex engines. It consolidates the repeated sequence of:
+// buildMCPRendererFactory → buildMCPGatewayConfig → buildStandardJSONMCPRenderers → RenderJSONMCPConfig.
+//
+// Parameters:
+//   - yaml: output builder
+//   - tools: tool configurations from frontmatter
+//   - mcpTools: list of enabled MCP tool names
+//   - workflowData: compiled workflow context
+//   - configPath: engine-specific MCP config file path
+//   - includeCopilotFields: whether to include "type" and "tools" fields (true for Copilot)
+//   - inlineArgs: whether to render args inline (true for Copilot) vs multi-line
+//   - webFetchIncludeTools: whether the web-fetch server includes a tools field (true for Copilot)
+//   - renderCustom: engine-specific handler for custom MCP tool entries
+//   - filterTool: optional tool filter function; nil to include all tools
+func renderStandardJSONMCPConfig(
+	yaml *strings.Builder,
+	tools map[string]any,
+	mcpTools []string,
+	workflowData *WorkflowData,
+	configPath string,
+	includeCopilotFields bool,
+	inlineArgs bool,
+	webFetchIncludeTools bool,
+	renderCustom RenderCustomMCPToolConfigHandler,
+	filterTool func(string) bool,
+) error {
+	createRenderer := buildMCPRendererFactory(workflowData, "json", includeCopilotFields, inlineArgs)
+	return RenderJSONMCPConfig(yaml, tools, mcpTools, workflowData, JSONMCPConfigOptions{
+		ConfigPath:    configPath,
+		GatewayConfig: buildMCPGatewayConfig(workflowData),
+		Renderers:     buildStandardJSONMCPRenderers(workflowData, createRenderer, webFetchIncludeTools, renderCustom),
+		FilterTool:    filterTool,
+	})
+}
+
 // buildMCPRendererFactory creates a factory function for MCPConfigRendererUnified instances.
 // The returned function accepts isLast as a parameter and creates a renderer with engine-specific
 // options derived from the provided parameters and workflowData at call time.

@@ -198,6 +198,14 @@ func (c *Compiler) buildJobs(data *WorkflowData, markdownPath string) error {
 	// Extract lock filename for timestamp check
 	lockFilename := filepath.Base(stringutil.MarkdownToLockFile(markdownPath))
 
+	// Resolve custom safe-output actions early so that tool schemas (derived from action.yml)
+	// are available when buildMainJobWrapper → generateMCPSetup → generateToolsMetaJSON →
+	// generateDynamicTools runs. Without this early resolution the dynamic_tools entry for
+	// each action tool would have an empty schema because Inputs/ActionDescription are nil.
+	if data.SafeOutputs != nil && len(data.SafeOutputs.Actions) > 0 {
+		c.resolveAllActions(data, markdownPath)
+	}
+
 	// Build pre-activation and activation jobs
 	_, activationJobCreated, err := c.buildPreActivationAndActivationJobs(data, frontmatter, lockFilename)
 	if err != nil {

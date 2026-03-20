@@ -180,4 +180,36 @@ describe("add_copilot_reviewer", () => {
 
     expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("321"));
   });
+
+  it("should include ERR_VALIDATION in message for non-numeric PR_NUMBER", async () => {
+    const { ERR_VALIDATION } = require("./error_codes.cjs");
+    process.env.PR_NUMBER = "abc";
+
+    await runScript();
+
+    expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining(ERR_VALIDATION));
+  });
+
+  it("should call core.error before core.setFailed on API error", async () => {
+    process.env.PR_NUMBER = "555";
+    const apiError = new Error("Forbidden");
+    mockGithub.rest.pulls.requestReviewers.mockRejectedValueOnce(apiError);
+
+    const callOrder = /** @type {string[]} */ [];
+    mockCore.error.mockImplementation(() => callOrder.push("error"));
+    mockCore.setFailed.mockImplementation(() => callOrder.push("setFailed"));
+
+    await runScript();
+
+    expect(callOrder).toEqual(["error", "setFailed"]);
+  });
+
+  it("should write summary with PR number on success", async () => {
+    process.env.PR_NUMBER = "42";
+
+    await runScript();
+
+    expect(mockCore.summary.addRaw).toHaveBeenCalledWith(expect.stringContaining("42"));
+    expect(mockCore.summary.write).toHaveBeenCalled();
+  });
 });
