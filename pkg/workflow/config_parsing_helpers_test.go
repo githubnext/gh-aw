@@ -479,8 +479,10 @@ func TestParseCommentsConfigWithWildcardTargetRepo(t *testing.T) {
 	}
 
 	result := compiler.parseCommentsConfig(outputMap)
-	if result != nil {
-		t.Errorf("expected nil for wildcard target-repo, got %+v", result)
+	if result == nil {
+		t.Errorf("expected non-nil config for wildcard target-repo, got nil")
+	} else if result.TargetRepoSlug != "*" {
+		t.Errorf("expected TargetRepoSlug to be \"*\", got %q", result.TargetRepoSlug)
 	}
 }
 
