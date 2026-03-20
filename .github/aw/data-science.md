@@ -10,20 +10,6 @@ Use when creating a workflow that generates charts, trend visualizations, dashbo
 
 ```yaml
 ---
-description: [what the workflow visualizes]
-on:
-  schedule:
-    - cron: "0 9 * * 1"  # weekly; adjust as needed
-  workflow_dispatch:
-permissions:
-  contents: read
-  actions: read
-engine: copilot
-tools:
-  cache-memory:
-    key: trending-${{ github.workflow }}-${{ github.run_id }}
-  bash:
-    - "*"
 network:
   allowed:
     - defaults
@@ -41,14 +27,6 @@ steps:
       mkdir -p /tmp/gh-aw/python/{data,charts}
       mkdir -p /tmp/gh-aw/cache-memory/trending
       pip install --user --quiet numpy pandas matplotlib seaborn scipy
-  - name: upload charts
-    if: always()
-    uses: actions/upload-artifact@v7.0.0
-    with:
-      name: charts
-      path: /tmp/gh-aw/python/charts/*.png
-      if-no-files-found: warn
-      retention-days: 30
 ---
 ```
 
@@ -126,7 +104,7 @@ for metric in metrics:
 [2–3 sentences on trends and key findings]
 
 ### [Metric] Trend
-![chart](URL_FROM_UPLOAD_ASSET)
+![chart](https://github.com/OWNER/REPO/blob/assets/WORKFLOW/chart.png?raw=true)
 [direction, moving average, notable events]
 
 ## Data Details
