@@ -1,5 +1,9 @@
 ---
 description: Guidelines for creating agentic workflows that generate charts and trend visualizations using Python scientific computing libraries with persistent historical data.
+imports:
+  - shared/python-dataviz.md
+  - shared/charts-with-trending.md
+  - shared/trending-charts-simple.md
 ---
 
 # Data Science & Chart Generation

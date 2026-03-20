@@ -129,17 +129,6 @@ When you interact with this agent, it will:
 - "Analyze coverage trends over time"
 - "Add a coverage gate that blocks PRs below a threshold"
 
-### Generate Charts and Trend Visualizations
-**Load when**: The workflow generates Python-based charts, trend visualizations, data dashboards, or any time-series analysis — whether triggered on a schedule, by a slash command, or on demand.
-
-**Prompt file**: https://github.com/github/gh-aw/blob/main/.github/aw/data-science.md
-
-**Use cases**:
-- "Create a weekly chart of GitHub activity trends"
-- "Visualize test coverage over time with moving averages"
-- "Generate a data dashboard for workflow run durations"
-- "Plot contributor growth month-over-month"
-
 ## Instructions
 
 When a user interacts with you:
