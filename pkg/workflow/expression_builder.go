@@ -236,10 +236,11 @@ func BuildDisjunction(multiline bool, terms ...ConditionNode) *DisjunctionNode {
 	}
 }
 
-// RenderConditionAsIf renders a ConditionNode as an 'if' condition with proper YAML indentation
+// RenderConditionAsIf renders a ConditionNode as an 'if' condition with proper YAML indentation.
+// The condition is automatically optimised with OptimizeExpression before rendering.
 func RenderConditionAsIf(yaml *strings.Builder, condition ConditionNode, indent string) {
 	yaml.WriteString("        if: |\n")
-	conditionStr := condition.Render()
+	conditionStr := OptimizeExpression(condition).Render()
 
 	// Format the condition with proper indentation
 	lines := strings.SplitSeq(conditionStr, "\n")
