@@ -55,10 +55,7 @@ run-name: "Poem Bot - A Creative Agentic Workflow"
 jobs:
   activation:
     needs: pre_activation
-    if: >
-      (needs.pre_activation.outputs.activated == 'true') && (((github.event_name == 'issues') && ((github.event_name == 'issues') &&
-      ((startsWith(github.event.issue.body, '/poem-bot ')) || (github.event.issue.body == '/poem-bot')))) ||
-      (!(github.event_name == 'issues')))
+    if: "(needs.pre_activation.outputs.activated == 'true') && (((github.event_name == 'issues') && ((github.event_name == 'issues') && (((startsWith(github.event.issue.body, '/poem-bot ')) || (startsWith(github.event.issue.body, '/poem-bot\n'))) || (github.event.issue.body == '/poem-bot')))) || (!(github.event_name == 'issues')))"
     runs-on: ubuntu-slim
     permissions:
       contents: read
@@ -1436,9 +1433,7 @@ jobs:
             await main();
 
   pre_activation:
-    if: >
-      ((github.event_name == 'issues') && ((github.event_name == 'issues') && ((startsWith(github.event.issue.body, '/poem-bot ')) ||
-      (github.event.issue.body == '/poem-bot')))) || (!(github.event_name == 'issues'))
+    if: "((github.event_name == 'issues') && ((github.event_name == 'issues') && (((startsWith(github.event.issue.body, '/poem-bot ')) || (startsWith(github.event.issue.body, '/poem-bot\n'))) || (github.event.issue.body == '/poem-bot')))) || (!(github.event_name == 'issues'))"
     runs-on: ubuntu-slim
     permissions:
       contents: read

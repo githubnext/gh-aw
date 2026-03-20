@@ -42,9 +42,7 @@ run-name: "Workflow Craft Agent"
 jobs:
   activation:
     needs: pre_activation
-    if: >
-      (needs.pre_activation.outputs.activated == 'true') && ((github.event_name == 'issues') && ((startsWith(github.event.issue.body, '/craft ')) ||
-      (github.event.issue.body == '/craft')))
+    if: "(needs.pre_activation.outputs.activated == 'true') && ((github.event_name == 'issues') && (((startsWith(github.event.issue.body, '/craft ')) || (startsWith(github.event.issue.body, '/craft\n'))) || (github.event.issue.body == '/craft')))"
     runs-on: ubuntu-slim
     permissions:
       contents: read
@@ -1058,8 +1056,7 @@ jobs:
             await main();
 
   pre_activation:
-    if: >
-      (github.event_name == 'issues') && ((startsWith(github.event.issue.body, '/craft ')) || (github.event.issue.body == '/craft'))
+    if: "(github.event_name == 'issues') && (((startsWith(github.event.issue.body, '/craft ')) || (startsWith(github.event.issue.body, '/craft\n'))) || (github.event.issue.body == '/craft'))"
     runs-on: ubuntu-slim
     permissions:
       contents: read

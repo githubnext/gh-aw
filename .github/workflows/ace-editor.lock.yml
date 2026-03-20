@@ -41,9 +41,7 @@ run-name: "ACE Editor Session"
 jobs:
   activation:
     needs: pre_activation
-    if: >
-      (needs.pre_activation.outputs.activated == 'true') && ((github.event_name == 'issue_comment') && (((startsWith(github.event.comment.body, '/ace ')) ||
-      (github.event.comment.body == '/ace')) && (github.event.issue.pull_request != null)))
+    if: "(needs.pre_activation.outputs.activated == 'true') && ((github.event_name == 'issue_comment') && ((((startsWith(github.event.comment.body, '/ace ')) || (startsWith(github.event.comment.body, '/ace\n'))) || (github.event.comment.body == '/ace')) && (github.event.issue.pull_request != null)))"
     runs-on: ubuntu-slim
     permissions:
       contents: read
@@ -585,9 +583,7 @@ jobs:
             });
 
   pre_activation:
-    if: >
-      (github.event_name == 'issue_comment') && (((startsWith(github.event.comment.body, '/ace ')) || (github.event.comment.body == '/ace')) &&
-      (github.event.issue.pull_request != null))
+    if: "(github.event_name == 'issue_comment') && ((((startsWith(github.event.comment.body, '/ace ')) || (startsWith(github.event.comment.body, '/ace\n'))) || (github.event.comment.body == '/ace')) && (github.event.issue.pull_request != null))"
     runs-on: ubuntu-slim
     permissions:
       contents: read

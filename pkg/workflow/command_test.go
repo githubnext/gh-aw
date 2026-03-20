@@ -232,8 +232,17 @@ This test validates that command conditions are applied correctly based on event
 				foundSimpleCommandCondition := false
 
 				for i, line := range lines {
-					// Check for single-line if condition
+					// Check for single-line if condition (plain YAML)
 					if strings.Contains(line, "if:") && (strings.Contains(line, "startsWith(") || strings.Contains(line, ".body == '/")) && !strings.Contains(line, "github.event_name") {
+						foundSimpleCommandCondition = true
+						break
+					}
+					// Check for double-quoted single-line if condition.
+					// When the condition contains a newline inside a string literal (e.g. for bot
+					// comment detection), YAML double-quoted scalars are used to preserve the \n
+					// escape. The full condition is on one line, so we accept it if it contains
+					// the expected command patterns.
+					if strings.Contains(line, "if: \"") && (strings.Contains(line, "startsWith(") || strings.Contains(line, ".body == '/")) {
 						foundSimpleCommandCondition = true
 						break
 					}
