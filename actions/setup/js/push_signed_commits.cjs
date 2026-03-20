@@ -47,12 +47,29 @@ async function pushSignedCommits({ githubClient, owner, repo, branch, baseRef, c
   core.info(`pushSignedCommits: replaying ${shas.length} commit(s) via GraphQL createCommitOnBranch`);
 
   try {
+    /** @type {string | undefined} */
+    let lastOid;
     for (const sha of shas) {
-      // Get the current remote HEAD OID (updated each iteration)
-      const { stdout: oidOut } = await exec.getExecOutput("git", ["ls-remote", "origin", `refs/heads/${branch}`], { cwd });
-      const expectedHeadOid = oidOut.trim().split(/\s+/)[0];
-      if (!expectedHeadOid) {
-        throw new Error(`Could not resolve remote HEAD OID for branch ${branch}`);
+      // Determine the expected HEAD OID for this commit.
+      // After the first signed commit, reuse the OID returned by the previous GraphQL
+      // mutation instead of re-querying ls-remote (works even if the branch is new).
+      let expectedHeadOid;
+      if (lastOid) {
+        expectedHeadOid = lastOid;
+      } else {
+        // First commit: check whether the branch already exists on the remote.
+        const { stdout: oidOut } = await exec.getExecOutput("git", ["ls-remote", "origin", `refs/heads/${branch}`], { cwd });
+        expectedHeadOid = oidOut.trim().split(/\s+/)[0];
+        if (!expectedHeadOid) {
+          // Branch does not exist on the remote yet – createCommitOnBranch will create it.
+          // Use the local parent commit OID as the expected base.
+          core.info(`pushSignedCommits: branch ${branch} not yet on the remote, resolving parent OID for first commit`);
+          const { stdout: parentOut } = await exec.getExecOutput("git", ["rev-parse", `${sha}^`], { cwd });
+          expectedHeadOid = parentOut.trim();
+          if (!expectedHeadOid) {
+            throw new Error(`Could not resolve OID for new branch ${branch}`);
+          }
+        }
       }
 
       // Full commit message (subject + body)
@@ -99,8 +116,8 @@ async function pushSignedCommits({ githubClient, owner, repo, branch, baseRef, c
         }`,
         { input }
       );
-      const oid = result?.createCommitOnBranch?.commit?.oid;
-      core.info(`pushSignedCommits: signed commit created: ${oid}`);
+      lastOid = result?.createCommitOnBranch?.commit?.oid;
+      core.info(`pushSignedCommits: signed commit created: ${lastOid}`);
     }
     core.info(`pushSignedCommits: all ${shas.length} commit(s) pushed as signed commits`);
   } catch (graphqlError) {

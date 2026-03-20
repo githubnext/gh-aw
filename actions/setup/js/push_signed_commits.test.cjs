@@ -338,6 +338,85 @@ describe("push_signed_commits integration tests", () => {
   });
 
   // ──────────────────────────────────────────────────────
+  // New branch – branch does not yet exist on remote
+  // ──────────────────────────────────────────────────────
+
+  describe("new branch (does not exist on remote)", () => {
+    it("should use parent OID when branch is not yet on remote (single commit)", async () => {
+      // Create a local branch with one commit but do NOT push it
+      execGit(["checkout", "-b", "new-unpushed-branch"], { cwd: workDir });
+      fs.writeFileSync(path.join(workDir, "new-file.txt"), "New file content\n");
+      execGit(["add", "new-file.txt"], { cwd: workDir });
+      execGit(["commit", "-m", "Add new-file.txt"], { cwd: workDir });
+
+      // Capture the local parent OID (main HEAD before the new commit)
+      const expectedParentOid = execGit(["rev-parse", "HEAD^"], { cwd: workDir }).stdout.trim();
+
+      global.exec = makeRealExec(workDir);
+      const githubClient = makeMockGithubClient();
+
+      await pushSignedCommits({
+        githubClient,
+        owner: "test-owner",
+        repo: "test-repo",
+        branch: "new-unpushed-branch",
+        baseRef: "origin/main",
+        cwd: workDir,
+      });
+
+      expect(githubClient.graphql).toHaveBeenCalledTimes(1);
+      const callArg = githubClient.graphql.mock.calls[0][1].input;
+      // expectedHeadOid must be the parent commit OID, not empty
+      expect(callArg.expectedHeadOid).toBe(expectedParentOid);
+      expect(callArg.branch.branchName).toBe("new-unpushed-branch");
+      expect(callArg.message.headline).toBe("Add new-file.txt");
+      // Verify the info log was emitted
+      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("not yet on the remote"));
+    });
+
+    it("should chain GraphQL OIDs for multiple commits on a new branch", async () => {
+      // Create a local branch with two commits but do NOT push it
+      execGit(["checkout", "-b", "new-multi-commit-branch"], { cwd: workDir });
+
+      fs.writeFileSync(path.join(workDir, "alpha.txt"), "Alpha\n");
+      execGit(["add", "alpha.txt"], { cwd: workDir });
+      execGit(["commit", "-m", "Add alpha.txt"], { cwd: workDir });
+
+      fs.writeFileSync(path.join(workDir, "beta.txt"), "Beta\n");
+      execGit(["add", "beta.txt"], { cwd: workDir });
+      execGit(["commit", "-m", "Add beta.txt"], { cwd: workDir });
+
+      // The parent OID of the first commit is main's HEAD (two commits back from current)
+      const expectedParentOid = execGit(["rev-parse", "HEAD^^"], { cwd: workDir }).stdout.trim();
+
+      global.exec = makeRealExec(workDir);
+      // Mock returns the same OID for all calls; second call must use that OID
+      const githubClient = makeMockGithubClient({ oid: "signed-oid-first" });
+
+      await pushSignedCommits({
+        githubClient,
+        owner: "test-owner",
+        repo: "test-repo",
+        branch: "new-multi-commit-branch",
+        baseRef: "origin/main",
+        cwd: workDir,
+      });
+
+      expect(githubClient.graphql).toHaveBeenCalledTimes(2);
+
+      // First call: expectedHeadOid is the parent commit OID (resolved via git rev-parse)
+      const firstCallArg = githubClient.graphql.mock.calls[0][1].input;
+      expect(firstCallArg.expectedHeadOid).toBe(expectedParentOid);
+      expect(firstCallArg.message.headline).toBe("Add alpha.txt");
+
+      // Second call: expectedHeadOid is the OID returned by the first GraphQL mutation
+      const secondCallArg = githubClient.graphql.mock.calls[1][1].input;
+      expect(secondCallArg.expectedHeadOid).toBe("signed-oid-first");
+      expect(secondCallArg.message.headline).toBe("Add beta.txt");
+    });
+  });
+
+  // ──────────────────────────────────────────────────────
   // Fallback path – GraphQL fails → git push
   // ──────────────────────────────────────────────────────
 
