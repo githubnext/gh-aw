@@ -104,19 +104,6 @@ func formatList(items []string) string {
 	return fmt.Sprintf("%s, and %s", formatList(items[:len(items)-1]), items[len(items)-1])
 }
 
-// validateTargetRepoSlug validates that a target-repo slug is not a wildcard.
-// Returns true if the value is invalid (i.e., equals "*").
-// This helper is used when the target-repo has already been parsed into a struct field.
-func validateTargetRepoSlug(targetRepoSlug string, log *logger.Logger) bool {
-	if targetRepoSlug == "*" {
-		if log != nil {
-			log.Print("Invalid target-repo: wildcard '*' is not allowed")
-		}
-		return true // Return true to indicate validation error
-	}
-	return false
-}
-
 // validateStringEnumField checks that a config field, if present, contains one
 // of the allowed string values. Non-string values and unrecognised strings are
 // removed from the map (treated as absent) and a warning is logged. Use this

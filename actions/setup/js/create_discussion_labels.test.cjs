@@ -433,4 +433,24 @@ describe("create_discussion with labels", () => {
     expect(result.error).toContain("Cannot add more than 10 labels");
     expect(result.error).toContain("received 11");
   });
+
+  it('should create discussion in any repo when target-repo is "*"', async () => {
+    const config = {
+      "target-repo": "*",
+      category: "general",
+    };
+
+    const handler = await createDiscussionMain(config);
+
+    const message = {
+      title: "Cross-repo Discussion",
+      body: "Discussion body",
+      repo: "other-org/other-repo",
+    };
+
+    const result = await handler(message, {});
+
+    expect(result.success).toBe(true);
+    expect(result.number).toBe(42);
+  });
 });

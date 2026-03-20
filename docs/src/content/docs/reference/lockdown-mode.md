@@ -21,7 +21,6 @@ For **public repositories** where the GitHub MCP server is configured **without*
 
 The automatic guard policy does **not** apply when:
 - An explicit `lockdown` or `min-integrity` value is set in the workflow frontmatter.
-- A GitHub App token is configured (`tools.github.app`).
 
 To override or disable the automatic guard policy, set an explicit value:
 

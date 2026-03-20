@@ -234,8 +234,8 @@ This workflow tests that Codex engine gets GH_AW_SAFE_OUTPUTS but not engine out
 	}
 
 	// Verify that the Codex execution step is still present
-	if !strings.Contains(lockContent, "- name: Execute Codex") {
-		t.Error("Expected 'Execute Codex' step to be in generated workflow")
+	if !strings.Contains(lockContent, "- name: Execute Codex CLI") {
+		t.Error("Expected 'Execute Codex CLI' step to be in generated workflow")
 	}
 
 	t.Log("Codex workflow correctly uses unified agent artifact for safe outputs and engine output files")

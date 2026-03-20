@@ -69,6 +69,22 @@ func TestAddCommentTargetRepoIntegration(t *testing.T) {
 			expectedTargetRepoValue: "",    // Not checked
 		},
 		{
+			name: "target-repo wildcard should be in handler config",
+			frontmatter: map[string]any{
+				"name":   "Test Workflow",
+				"engine": "copilot",
+				"safe-outputs": map[string]any{
+					"add-comment": map[string]any{
+						"max":         1,
+						"target":      "*",
+						"target-repo": "*",
+					},
+				},
+			},
+			shouldHaveTargetRepo:    true,
+			expectedTargetRepoValue: "*",
+		},
+		{
 			name: "no target-repo and no trial should not have target-repo in handler config",
 			frontmatter: map[string]any{
 				"name":   "Test Workflow",

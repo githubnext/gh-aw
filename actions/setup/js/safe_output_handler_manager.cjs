@@ -446,6 +446,23 @@ async function processMessages(messageHandlers, messages, onItemCreated = null) 
       // Call the message handler with the individual message and resolved temp IDs
       const result = await messageHandler(effectiveMessage, resolvedTemporaryIds, temporaryIdMap);
 
+      // Check if the handler explicitly returned a skipped result (e.g. if_no_changes: warn/ignore).
+      // Skipped results should NOT trigger fail-fast cancellation of subsequent messages.
+      if (result && result.success === false && result.skipped === true && !result.deferred) {
+        const msg = result.error || "Handler returned success: false with skipped: true";
+        if (CODE_PUSH_TYPES.has(messageType)) {
+          core.info(`⏭ Message ${i + 1} (${messageType}) skipped — ${msg}`);
+        }
+        results.push({
+          type: messageType,
+          messageIndex: i,
+          success: false,
+          skipped: true,
+          error: msg,
+        });
+        continue;
+      }
+
       // Check if the handler explicitly returned a failure
       if (result && result.success === false && !result.deferred) {
         const errorMsg = result.error || "Handler returned success: false";

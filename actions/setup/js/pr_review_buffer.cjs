@@ -356,6 +356,33 @@ function createReviewBuffer() {
         }
       }
 
+      // When the API cannot resolve a line reference in an inline comment, retry as a body-only
+      // review so that the overall review (and its footer body) is still submitted successfully.
+      if (errorMessage.includes("Line could not be resolved") && comments.length > 0) {
+        core.warning(`PR review submission failed due to unresolvable comment line(s): ${errorMessage}. Retrying as body-only review.`);
+        try {
+          const bodyOnlyParams = { ...requestParams };
+          delete bodyOnlyParams.comments;
+          const { data: review } = await github.rest.pulls.createReview(bodyOnlyParams);
+          core.info(`Created PR review #${review.id} (body-only fallback): ${review.html_url}`);
+          return {
+            success: true,
+            review_id: review.id,
+            review_url: review.html_url,
+            pull_request_number: pullRequestNumber,
+            repo: repo,
+            event: event,
+            comment_count: 0,
+          };
+        } catch (retryError) {
+          core.error(`Failed to submit body-only PR review: ${getErrorMessage(retryError)}`);
+          return {
+            success: false,
+            error: getErrorMessage(retryError),
+          };
+        }
+      }
+
       core.error(`Failed to submit PR review: ${errorMessage}`);
       return {
         success: false,

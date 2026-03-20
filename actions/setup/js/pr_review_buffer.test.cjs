@@ -591,6 +591,54 @@ describe("pr_review_buffer (factory pattern)", () => {
       expect(result.error).toContain("Validation Failed");
     });
 
+    it("should retry as body-only review when Line could not be resolved error occurs", async () => {
+      buffer.addComment({ path: ".changeset/some-file.md", line: 1, body: "Review comment on line 1" });
+      buffer.addComment({ path: ".github/workflows/ace-editor.lock.yml", line: 1, body: "Another review comment" });
+      buffer.setReviewMetadata("Reviewed with comments.", "COMMENT");
+      buffer.setReviewContext({
+        repo: "owner/repo",
+        repoParts: { owner: "owner", repo: "repo" },
+        pullRequestNumber: 21946,
+        pullRequest: { head: { sha: "abc123" } },
+      });
+
+      mockGithub.rest.pulls.createReview.mockRejectedValueOnce(new Error('Unprocessable Entity: "Line could not be resolved"')).mockResolvedValueOnce({
+        data: {
+          id: 800,
+          html_url: "https://github.com/owner/repo/pull/21946#pullrequestreview-800",
+        },
+      });
+
+      const result = await buffer.submitReview();
+
+      expect(result.success).toBe(true);
+      expect(result.review_id).toBe(800);
+      expect(result.comment_count).toBe(0);
+      expect(mockGithub.rest.pulls.createReview).toHaveBeenCalledTimes(2);
+      // Second call should have no comments array
+      const retryArgs = mockGithub.rest.pulls.createReview.mock.calls[1][0];
+      expect(retryArgs.comments).toBeUndefined();
+      expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("Line could not be resolved"));
+    });
+
+    it("should return failure when body-only retry also fails after Line could not be resolved", async () => {
+      buffer.addComment({ path: "some-file.md", line: 1, body: "Review comment" });
+      buffer.setReviewContext({
+        repo: "owner/repo",
+        repoParts: { owner: "owner", repo: "repo" },
+        pullRequestNumber: 42,
+        pullRequest: { head: { sha: "abc123" } },
+      });
+
+      mockGithub.rest.pulls.createReview.mockRejectedValueOnce(new Error("Line could not be resolved")).mockRejectedValueOnce(new Error("Some other error on retry"));
+
+      const result = await buffer.submitReview();
+
+      expect(result.success).toBe(false);
+      expect(result.error).toContain("Some other error on retry");
+      expect(mockGithub.rest.pulls.createReview).toHaveBeenCalledTimes(2);
+    });
+
     it("should submit multiple comments in a single review", async () => {
       buffer.addComment({ path: "file1.js", line: 5, body: "Comment 1" });
       buffer.addComment({ path: "file2.js", line: 10, body: "Comment 2" });

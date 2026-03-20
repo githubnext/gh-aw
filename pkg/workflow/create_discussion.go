@@ -85,11 +85,6 @@ func (c *Compiler) parseDiscussionsConfig(outputMap map[string]any) *CreateDiscu
 		discussionLog.Print("Using default fallback-to-issue: true")
 	}
 
-	// Validate target-repo (wildcard "*" is not allowed)
-	if validateTargetRepoSlug(config.TargetRepoSlug, discussionLog) {
-		return nil // Invalid configuration, return nil to cause validation error
-	}
-
 	// Normalize and validate category naming convention
 	config.Category = normalizeDiscussionCategory(config.Category, discussionLog, c.markdownPath)
 

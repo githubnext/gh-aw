@@ -4833,10 +4833,6 @@
             {
               "type": "null",
               "description": "Enable project creation with default configuration (max=1)"
-            },
-            {
-              "enum": [null],
-              "description": "Alternative null value syntax"
             }
           ],
           "default": {

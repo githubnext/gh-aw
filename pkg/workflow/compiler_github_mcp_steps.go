@@ -11,12 +11,12 @@ import (
 // for GitHub MCP server based on repository visibility.
 // This step is added when:
 //   - GitHub tool is enabled AND
-//   - guard policy (repos/min-integrity) is not fully configured in the workflow AND
-//   - tools.github.app is NOT configured (GitHub App tokens are already repo-scoped, so
-//     automatic guard policy detection is unnecessary and skipped)
+//   - guard policy (repos/min-integrity) is not fully configured in the workflow
 //
 // For public repositories, the step automatically sets min-integrity to "approved" and
 // repos to "all" if they are not already configured.
+// This applies regardless of whether a GitHub App token is configured, because repo-scoping
+// is not a substitute for author-integrity filtering inside a repository.
 func (c *Compiler) generateGitHubMCPLockdownDetectionStep(yaml *strings.Builder, data *WorkflowData) {
 	// Check if GitHub tool is present
 	githubTool, hasGitHub := data.Tools["github"]
@@ -28,15 +28,6 @@ func (c *Compiler) generateGitHubMCPLockdownDetectionStep(yaml *strings.Builder,
 	// The step is only needed to auto-configure guard policies for public repos.
 	if len(getGitHubGuardPolicies(githubTool)) > 0 {
 		githubConfigLog.Print("Guard policy already configured in workflow, skipping automatic guard policy determination")
-		return
-	}
-
-	// Skip automatic guard policy detection when a GitHub App is configured.
-	// GitHub App tokens are already scoped to specific repositories, so automatic
-	// guard policy detection is not needed — the token's access is inherently bounded
-	// by the app installation and the listed repositories.
-	if hasGitHubApp(githubTool) {
-		githubConfigLog.Print("GitHub App configured, skipping automatic guard policy determination (app tokens are already repo-scoped)")
 		return
 	}
 

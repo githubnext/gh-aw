@@ -80,11 +80,11 @@ func collectMCPEnvironmentVariables(tools map[string]any, mcpTools []string, wor
 		}
 
 		// Add guard policy env vars if the determine-automatic-lockdown step will be generated.
-		// Skip when a GitHub App is configured or when guard policy is already explicitly set —
-		// in those cases, the determine-automatic-lockdown step is not generated.
+		// Skip only when guard policy is already explicitly set — in that case, the
+		// determine-automatic-lockdown step is not generated.
 		// Security: Pass step outputs through environment variables to prevent template injection.
 		guardPoliciesExplicit := len(getGitHubGuardPolicies(githubTool)) > 0
-		if !guardPoliciesExplicit && !appConfigured {
+		if !guardPoliciesExplicit {
 			envVars["GITHUB_MCP_GUARD_MIN_INTEGRITY"] = "${{ steps.determine-automatic-lockdown.outputs.min_integrity }}"
 			envVars["GITHUB_MCP_GUARD_REPOS"] = "${{ steps.determine-automatic-lockdown.outputs.repos }}"
 		}

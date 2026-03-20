@@ -119,12 +119,6 @@ func (c *Compiler) parseCloseEntityConfig(outputMap map[string]any, params Close
 		logger.Printf("Set default max to 1 for %s", params.ConfigKey)
 	}
 
-	// Validate target-repo (wildcard "*" is not allowed)
-	if validateTargetRepoSlug(config.TargetRepoSlug, logger) {
-		logger.Printf("Invalid target-repo slug for %s", params.ConfigKey)
-		return nil
-	}
-
 	logger.Printf("Parsed %s configuration: max=%s, target=%s", params.ConfigKey, *config.Max, config.Target)
 
 	return &config

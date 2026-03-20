@@ -44,11 +44,6 @@ func (c *Compiler) parseAddReviewerConfig(outputMap map[string]any) *AddReviewer
 		config.Max = defaultIntStr(3)
 	}
 
-	// Validate target-repo (wildcard "*" is not allowed for safe outputs)
-	if validateTargetRepoSlug(config.TargetRepoSlug, addReviewerLog) {
-		return nil
-	}
-
 	addReviewerLog.Printf("Parsed add-reviewer config: allowed_reviewers=%d, target=%s", len(config.Reviewers), config.Target)
 
 	return &config
