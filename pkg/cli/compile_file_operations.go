@@ -46,7 +46,7 @@ import (
 	"github.com/github/gh-aw/pkg/workflow"
 )
 
-var compileHelpersLog = logger.New("cli:compile_helpers")
+var compileHelpersLog = logger.New("cli:compile_file_operations")
 
 // getRepositoryRelativePath converts an absolute file path to a repository-relative path
 // This ensures stable workflow identifiers regardless of where the repository is cloned

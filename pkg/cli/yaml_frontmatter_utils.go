@@ -8,7 +8,7 @@ import (
 	"github.com/github/gh-aw/pkg/parser"
 )
 
-var yamlUtilsLog = logger.New("cli:codemod_yaml_utils")
+var yamlUtilsLog = logger.New("cli:yaml_frontmatter_utils")
 
 // reconstructContent rebuilds the full markdown content from frontmatter lines and body
 func reconstructContent(frontmatterLines []string, markdown string) string {

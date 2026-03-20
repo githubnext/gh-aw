@@ -2,9 +2,7 @@ package workflow
 
 import (
 	"encoding/json"
-	"fmt"
 	"sort"
-	"strconv"
 	"strings"
 	"time"
 
@@ -192,69 +190,6 @@ func ExtractJSONCost(data map[string]any) float64 {
 	}
 
 	return 0
-}
-
-// ConvertToInt safely converts any to int
-func ConvertToInt(val any) int {
-	switch v := val.(type) {
-	case int:
-		return v
-	case int64:
-		return int(v)
-	case float64:
-		intVal := int(v)
-		// Warn if truncation occurs (value has fractional part)
-		if v != float64(intVal) {
-			metricsLog.Printf("Float value %.2f truncated to integer %d", v, intVal)
-		}
-		return intVal
-	case string:
-		if i, err := strconv.Atoi(v); err == nil {
-			return i
-		}
-	}
-	return 0
-}
-
-// ConvertToFloat safely converts any to float64
-func ConvertToFloat(val any) float64 {
-	switch v := val.(type) {
-	case float64:
-		return v
-	case int:
-		return float64(v)
-	case int64:
-		return float64(v)
-	case string:
-		if f, err := strconv.ParseFloat(v, 64); err == nil {
-			return f
-		}
-	}
-	return 0
-}
-
-// PrettifyToolName removes "mcp__" prefix and formats tool names nicely
-func PrettifyToolName(toolName string) string {
-	// Handle MCP tools: "mcp__github__search_issues" -> "github_search_issues"
-	// Avoid colons and leave underscores as-is
-	if strings.HasPrefix(toolName, "mcp__") {
-		parts := strings.Split(toolName, "__")
-		if len(parts) >= 3 {
-			provider := parts[1]
-			method := strings.Join(parts[2:], "_")
-			return fmt.Sprintf("%s_%s", provider, method)
-		}
-		// If format is unexpected, just remove the mcp__ prefix
-		return strings.TrimPrefix(toolName, "mcp__")
-	}
-
-	// Handle bash specially - keep as "bash"
-	if strings.ToLower(toolName) == "bash" {
-		return "bash"
-	}
-
-	// Return other tool names as-is
-	return toolName
 }
 
 // FinalizeToolMetricsOptions holds the options for FinalizeToolMetrics

@@ -138,11 +138,28 @@ func (e *CopilotEngine) GetAgentManifestFiles() []string {
 
 // GetLogFileForParsing is implemented in copilot_logs.go
 
-// GetFirewallLogsCollectionStep is implemented in copilot_logs.go
+// GetFirewallLogsCollectionStep returns steps for collecting firewall logs and copying session state files
+func (e *CopilotEngine) GetFirewallLogsCollectionStep(workflowData *WorkflowData) []GitHubActionStep {
+	var steps []GitHubActionStep
 
-// GetSquidLogsSteps is implemented in copilot_logs.go
+	// Add step to copy Copilot session state files to logs folder
+	// This ensures session files are in /tmp/gh-aw/ where secret redaction can scan them
+	sessionCopyStep := generateCopilotSessionFileCopyStep()
+	steps = append(steps, sessionCopyStep)
 
-// GetCleanupStep is implemented in copilot_logs.go
+	return steps
+}
+
+// GetSquidLogsSteps returns the steps for uploading and parsing Squid logs (after secret redaction)
+func (e *CopilotEngine) GetSquidLogsSteps(workflowData *WorkflowData) []GitHubActionStep {
+	return defaultGetSquidLogsSteps(workflowData, copilotLog)
+}
+
+// GetCleanupStep returns the post-execution cleanup step (currently empty)
+func (e *CopilotEngine) GetCleanupStep(workflowData *WorkflowData) GitHubActionStep {
+	// Return empty step - cleanup steps have been removed
+	return GitHubActionStep([]string{})
+}
 
 // computeCopilotToolArguments is implemented in copilot_engine_tools.go
 
