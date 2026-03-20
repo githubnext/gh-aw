@@ -98,17 +98,7 @@ The template system supports only basic conditionals - no nesting, `else` clause
 
 ## Runtime Imports
 
-Runtime imports allow you to include content from files and URLs directly within your workflow prompts **at runtime** during GitHub Actions execution. This differs from [frontmatter imports](/gh-aw/reference/imports/) which are processed at compile-time.
-
-**Security Note:** File imports are **restricted to the `.github` folder** in your repository. This ensures workflow configurations cannot access arbitrary files in your codebase.
-
-Runtime imports use the macro syntax: `{{#runtime-import filepath}}`
-
-The macro supports:
-- Line range extraction (e.g., `:10-20` for lines 10-20)
-- URL fetching with automatic caching
-- Content sanitization (front matter removal, macro detection)
-- Automatic `.github/` prefix handling
+Runtime imports include content from files and URLs in workflow prompts **at runtime** (unlike [compile-time imports](/gh-aw/reference/imports/)). File paths are restricted to the `.github` folder. Use `{{#runtime-import filepath}}` or `{{#runtime-import? filepath}}` for optional imports.
 
 ### Macro Syntax
 
@@ -169,18 +159,11 @@ All runtime imports include automatic security protections.
 
 **Content Sanitization:** YAML front matter and HTML/XML comments are automatically stripped. GitHub Actions expressions (`${{ ... }}`) are **rejected with error** to prevent template injection and unintended variable expansion.
 
-**Path Validation:**
-
-File paths are **restricted to the `.github` folder** to prevent access to arbitrary repository files:
+**Path Validation:** File paths are restricted to the `.github` folder to prevent access to arbitrary repository files. Path traversal and absolute paths are rejected:
 
 ```aw wrap
-# ✅ Valid - Files in .github folder
-{{#runtime-import shared-instructions.md}}           # Loads .github/shared-instructions.md
-{{#runtime-import .github/shared-instructions.md}}  # Same - .github/ prefix is trimmed
-
-# ❌ Invalid - Security violations
-{{#runtime-import ../src/config.go}}                # Error: Relative traversal outside .github
-{{#runtime-import /etc/passwd}}                     # Error: Absolute path not allowed
+{{#runtime-import ../src/config.go}}  # Error: Relative traversal outside .github
+{{#runtime-import /etc/passwd}}       # Error: Absolute path not allowed
 ```
 
 ### Caching
@@ -194,32 +177,6 @@ Runtime imports are processed before other substitutions:
 1. `{{#runtime-import}}` macros processed (files and URLs)
 2. `${GH_AW_EXPR_*}` variable interpolation
 3. `{{#if}}` template conditionals rendered
-
-### Common Use Cases
-
-**Shared instructions from a file:**
-
-```aw wrap
-# Code Review Agent
-
-{{#runtime-import workflows/shared/review-standards.md}}
-<!-- Loads .github/workflows/shared/review-standards.md -->
-
-Review the pull request changes.
-```
-
-**External content from a URL, with line range:**
-
-```aw wrap
-# Security Audit
-
-Follow this checklist:
-
-{{#runtime-import https://company.com/security/api-checklist.md}}
-
-Reference implementation (lines 100-150):
-{{#runtime-import docs/engine.go:100-150}}
-```
 
 ### Limitations
 
