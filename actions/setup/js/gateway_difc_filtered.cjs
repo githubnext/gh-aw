@@ -113,7 +113,7 @@ function generateDifcFilteredSection(filteredEvents) {
       reference = event.description || (event.tool_name ? `\`${event.tool_name}\`` : "-");
     }
     const tool = event.tool_name ? `\`${event.tool_name}\`` : "-";
-    const reason = (event.reason || "-").replace(/\n/g, " ");
+    const reason = (event.reason || "-").replace(/^Resource '[^']*' /, "").replace(/\n/g, " ");
     section += `> - ${reference} (${tool}: ${reason})\n`;
   }
 
