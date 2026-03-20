@@ -8,6 +8,12 @@ import (
 
 var copilotMCPLog = logger.New("workflow:copilot_mcp")
 
+// copilotMCPToolFilter returns true for MCP tools that should be included in the Copilot MCP config.
+// Cache-memory is excluded because it is handled as a simple file share, not an MCP server.
+func copilotMCPToolFilter(toolName string) bool {
+	return toolName != "cache-memory"
+}
+
 // RenderMCPConfig generates MCP server configuration for Copilot CLI
 func (e *CopilotEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]any, mcpTools []string, workflowData *WorkflowData) error {
 	copilotMCPLog.Printf("Rendering MCP config for Copilot engine: mcpTools=%d", len(mcpTools))
@@ -16,25 +22,14 @@ func (e *CopilotEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]
 	yaml.WriteString("          mkdir -p /home/runner/.copilot\n")
 
 	// Copilot uses JSON format with type and tools fields, and inline args
-	createRenderer := buildMCPRendererFactory(workflowData, "json", true, true)
-
-	// Build gateway configuration for MCP config
-	// Per MCP Gateway Specification v1.0.0 section 4.1.3, the gateway section is required
-	options := JSONMCPConfigOptions{
-		ConfigPath:    "/home/runner/.copilot/mcp-config.json",
-		GatewayConfig: buildMCPGatewayConfig(workflowData),
-		// webFetchIncludeTools=true: Copilot requires a tools field in the web-fetch server config
-		Renderers: buildStandardJSONMCPRenderers(workflowData, createRenderer, true, func(yaml *strings.Builder, toolName string, toolConfig map[string]any, isLast bool) error {
+	// webFetchIncludeTools=true: Copilot requires a tools field in the web-fetch server config
+	return renderStandardJSONMCPConfig(yaml, tools, mcpTools, workflowData,
+		"/home/runner/.copilot/mcp-config.json", true, true, true,
+		func(yaml *strings.Builder, toolName string, toolConfig map[string]any, isLast bool) error {
 			return e.renderCopilotMCPConfigWithContext(yaml, toolName, toolConfig, isLast, workflowData)
-		}),
-		FilterTool: func(toolName string) bool {
-			// Filter out cache-memory for Copilot
-			// Cache-memory is handled as a simple file share, not an MCP server
-			return toolName != "cache-memory"
 		},
-	}
-
-	return RenderJSONMCPConfig(yaml, tools, mcpTools, workflowData, options)
+		copilotMCPToolFilter,
+	)
 }
 
 // renderCopilotMCPConfigWithContext generates custom MCP server configuration for Copilot CLI
