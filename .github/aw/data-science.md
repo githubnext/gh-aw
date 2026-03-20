@@ -1,26 +1,12 @@
 ---
 description: Guidelines for creating agentic workflows that generate charts and trend visualizations using Python scientific computing libraries with persistent historical data.
-imports:
-  - shared/python-dataviz.md
-  - shared/charts-with-trending.md
-  - shared/trending-charts-simple.md
 ---
 
 # Data Science & Chart Generation
 
 Consult this file when creating an agentic workflow that generates charts, visualizations, or trend analysis — including data dashboards, metric reports, time-series plots, or any Python-based visualization output.
 
-## Choosing the Right Shared Import
-
-| Goal | Import |
-|---|---|
-| Generate charts + persistent trend tracking | `shared/charts-with-trending.md` |
-| Quick trending setup, no nested imports | `shared/trending-charts-simple.md` |
-| Python environment only, no cache-memory | `shared/python-dataviz.md` |
-
-Use `shared/charts-with-trending.md` by default when the workflow needs to track metrics across runs. Use `shared/trending-charts-simple.md` when strict-mode compatibility or a minimal configuration is preferred.
-
-## Minimal Frontmatter
+## Frontmatter Template
 
 ```yaml
 ---
@@ -31,10 +17,17 @@ on:
   workflow_dispatch:
 permissions:
   contents: read
-  actions: read          # add issue/discussion scopes when needed
+  actions: read          # add issues/discussions scopes when needed
 engine: copilot
-imports:
-  - shared/charts-with-trending.md
+tools:
+  cache-memory:
+    key: trending-data-${{ github.workflow }}-${{ github.run_id }}
+  bash:
+    - "*"
+network:
+  allowed:
+    - defaults
+    - python
 safe-outputs:
   upload-asset:
   create-issue:          # or create-discussion for gallery-style reports
@@ -42,21 +35,46 @@ safe-outputs:
     labels: [report]
     close-older-issues: true
     expires: 30
+steps:
+  - name: Setup Python environment
+    run: |
+      mkdir -p /tmp/gh-aw/python/{data,charts,artifacts}
+      mkdir -p /tmp/gh-aw/cache-memory/trending
+      pip install --user --quiet numpy pandas matplotlib seaborn scipy
+  - name: Upload charts
+    if: always()
+    uses: actions/upload-artifact@v7.0.0
+    with:
+      name: data-charts
+      path: /tmp/gh-aw/python/charts/*.png
+      if-no-files-found: warn
+      retention-days: 30
+  - name: Upload source files and data
+    if: always()
+    uses: actions/upload-artifact@v7.0.0
+    with:
+      name: python-source-and-data
+      path: |
+        /tmp/gh-aw/python/*.py
+        /tmp/gh-aw/python/data/*
+      if-no-files-found: warn
+      retention-days: 30
 ---
 ```
 
-## Environment Reference
-
-The import sets up everything automatically:
+## Environment
 
 | Location | Purpose |
 |---|---|
 | `/tmp/gh-aw/python/` | Working directory for scripts |
 | `/tmp/gh-aw/python/data/` | Input data files (CSV, JSON) |
 | `/tmp/gh-aw/python/charts/` | Generated chart images (PNG) |
-| `/tmp/gh-aw/cache-memory/trending/` | Persistent time-series history |
+| `/tmp/gh-aw/python/artifacts/` | Additional output files |
+| `/tmp/gh-aw/cache-memory/trending/` | Persistent time-series history across runs |
 
-**Libraries available**: NumPy, Pandas, Matplotlib, Seaborn, SciPy
+**Libraries**: NumPy · Pandas · Matplotlib · Seaborn · SciPy
+
+Charts and Python source files are automatically uploaded as GitHub Actions artifacts (`data-charts`, `python-source-and-data`, retention 30 days) so they are available even if the workflow fails.
 
 ## Writing the Agent Prompt
 
@@ -98,7 +116,7 @@ Implement a 90-day retention policy to prevent unbounded growth.
 
 ## Data Rules
 
-**CRITICAL**: Data must never be inlined in Python code. Always write data to a file first, then load it with pandas:
+**CRITICAL**: Data must never be inlined in Python code. Always write data to an external file first, then load it with pandas:
 
 ```python
 # ❌ PROHIBITED
@@ -111,26 +129,71 @@ data = pd.read_csv('/tmp/gh-aw/python/data/metrics.csv')
 
 ## Trending Patterns
 
+Cache-memory at `/tmp/gh-aw/cache-memory/trending/` persists across runs. Organize it as:
+
+```
+/tmp/gh-aw/cache-memory/trending/
+├── <metric-name>/
+│   ├── history.jsonl      # Time-series data (one JSON object per line)
+│   ├── metadata.json      # Data schema and description
+│   └── last_updated.txt   # Timestamp of last update
+└── index.json             # Index of all tracked metrics
+```
+
 ### Append a daily data point
 
 ```python
 import json
 from datetime import datetime
 
-point = {"timestamp": datetime.now().isoformat(), "value": 42, "metric": "issue_count"}
+point = {
+    "timestamp": datetime.now().isoformat(),
+    "metric": "issue_count",
+    "value": 42,
+    "metadata": {"source": "github_api"}
+}
 with open('/tmp/gh-aw/cache-memory/trending/issues/history.jsonl', 'a') as f:
     f.write(json.dumps(point) + '\n')
 ```
 
-### Load history and compute a 7-day moving average
+### Load history into a DataFrame
 
 ```python
 import pandas as pd
+import os
 
-df = pd.read_json('/tmp/gh-aw/cache-memory/trending/issues/history.jsonl', lines=True)
-df['date'] = pd.to_datetime(df['timestamp']).dt.date
-df = df.sort_values('timestamp')
+history_file = '/tmp/gh-aw/cache-memory/trending/issues/history.jsonl'
+if os.path.exists(history_file):
+    df = pd.read_json(history_file, lines=True)
+    df['timestamp'] = pd.to_datetime(df['timestamp'])
+    df = df.sort_values('timestamp')
+else:
+    df = pd.DataFrame()  # Start fresh if no history
+```
+
+### Compute a 7-day moving average
+
+```python
 df['rolling_avg'] = df['value'].rolling(window=7, min_periods=1).mean()
+
+fig, ax = plt.subplots(figsize=(12, 7), dpi=300)
+ax.plot(df['timestamp'], df['value'], label='Actual', alpha=0.5, marker='o')
+ax.plot(df['timestamp'], df['rolling_avg'], label='7-day Average', linewidth=2.5)
+ax.fill_between(df['timestamp'], df['value'], df['rolling_avg'], alpha=0.2)
+ax.legend(loc='best')
+```
+
+### Compare multiple metrics over time
+
+```python
+fig, ax = plt.subplots(figsize=(14, 8), dpi=300)
+for metric in ['metric_a', 'metric_b', 'metric_c']:
+    metric_data = df[df['metric'] == metric]
+    ax.plot(metric_data['timestamp'], metric_data['value'],
+            marker='o', label=metric, linewidth=2)
+ax.set_title('Comparative Metrics Trends', fontsize=16, fontweight='bold')
+ax.legend(loc='best', fontsize=12)
+ax.grid(True, alpha=0.3)
 ```
 
 ### Enforce 90-day retention
@@ -139,7 +202,7 @@ df['rolling_avg'] = df['value'].rolling(window=7, min_periods=1).mean()
 from datetime import timedelta
 
 cutoff = pd.Timestamp.now() - timedelta(days=90)
-df = df[pd.to_datetime(df['timestamp']) >= cutoff]
+df = df[df['timestamp'] >= cutoff]
 df.to_json('/tmp/gh-aw/cache-memory/trending/issues/history.jsonl',
            orient='records', lines=True)
 ```
@@ -155,12 +218,29 @@ sns.set_palette("husl")
 
 fig, ax = plt.subplots(figsize=(12, 7), dpi=300)
 # ... plotting code ...
+ax.set_title('Title', fontsize=16, fontweight='bold')
+ax.set_xlabel('Date', fontsize=12)
+ax.set_ylabel('Value', fontsize=12)
+ax.grid(True, alpha=0.3)
+plt.xticks(rotation=45)
 plt.tight_layout()
 plt.savefig('/tmp/gh-aw/python/charts/trend.png',
             dpi=300, bbox_inches='tight', facecolor='white')
 ```
 
-**Standards**: 300 DPI minimum · 12×7 inch figure · clear axis labels and title · legend for multi-series · grid lines enabled
+**Standards**: 300 DPI minimum · 12×7 inch figure · clear axis labels and title · legend for multi-series · grid lines enabled · colorblind-friendly palette (seaborn `husl` default)
+
+## Including Charts in Reports
+
+Assets uploaded with the `upload asset` tool are published to an orphaned git branch and become URL-addressable after the workflow completes.
+
+```markdown
+## Visualization Results
+
+![Chart description](https://raw.githubusercontent.com/owner/repo/assets/workflow-name/trend.png)
+
+The chart above shows...
+```
 
 ## Report Structure
 
@@ -205,10 +285,10 @@ Use `###` and lower for all headers inside the report body — `#` and `##` are 
 
 ## Key Reminders
 
-- ✅ **Import the right shared workflow** — `charts-with-trending.md` or `trending-charts-simple.md`
 - ✅ **Check cache first** — load historical data before collecting new data
 - ✅ **Append, never overwrite** — use JSON Lines for time-series history
 - ✅ **External data files only** — never inline data in Python
 - ✅ **Upload charts before reporting** — collect all asset URLs, then create the issue/discussion
 - ✅ **Call `noop` if nothing to report** — required when no safe-output action is taken
 - ✅ **Use DPI 300** and seaborn styling for publication-quality charts
+- ✅ **90-day retention** — prune history to prevent unbounded growth
