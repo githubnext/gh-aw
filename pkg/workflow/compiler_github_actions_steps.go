@@ -17,6 +17,7 @@ var compilerGitHubActionsStepsLog = logger.New("workflow:compiler_github_actions
 //
 // Returns a string containing the complete script content to be used in a github-script action's "script:" field.
 func generateGitHubScriptWithRequire(scriptPath string) string {
+	compilerGitHubActionsStepsLog.Printf("Generating GitHub script step with require: %s", scriptPath)
 	var script strings.Builder
 
 	// Use the setup_globals helper to store GitHub Actions objects in global scope
@@ -38,6 +39,7 @@ func generateGitHubScriptWithRequire(scriptPath string) string {
 //
 // Returns a string containing the complete YAML for the github-script step.
 func generateInlineGitHubScriptStep(stepName, script, condition string) string {
+	compilerGitHubActionsStepsLog.Printf("Generating inline GitHub script step: name=%q, condition=%q", stepName, condition)
 	var step strings.Builder
 
 	step.WriteString("      - name: " + stepName + "\n")

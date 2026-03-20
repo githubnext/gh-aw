@@ -94,10 +94,12 @@ func getGitHubType(githubTool any) string {
 	if toolConfig, ok := githubTool.(map[string]any); ok {
 		if modeSetting, exists := toolConfig["mode"]; exists {
 			if stringValue, ok := modeSetting.(string); ok {
+				githubConfigLog.Printf("GitHub MCP mode set explicitly: %s", stringValue)
 				return stringValue
 			}
 		}
 	}
+	githubConfigLog.Print("GitHub MCP mode: local (default)")
 	return "local" // default to local (Docker)
 }
 
@@ -158,15 +160,20 @@ func getGitHubToolsets(githubTool any) string {
 				}
 				toolsetsStr := strings.Join(toolsets, ",")
 				// Expand "default" to individual toolsets for action-friendly compatibility
-				return expandDefaultToolset(toolsetsStr)
+				resolved := expandDefaultToolset(toolsetsStr)
+				githubConfigLog.Printf("GitHub MCP toolsets resolved: %s", resolved)
+				return resolved
 			case []string:
 				toolsetsStr := strings.Join(v, ",")
 				// Expand "default" to individual toolsets for action-friendly compatibility
-				return expandDefaultToolset(toolsetsStr)
+				resolved := expandDefaultToolset(toolsetsStr)
+				githubConfigLog.Printf("GitHub MCP toolsets resolved: %s", resolved)
+				return resolved
 			}
 		}
 	}
 	// default to action-friendly toolsets (excludes "users" which GitHub Actions tokens don't support)
+	githubConfigLog.Print("GitHub MCP toolsets: using default action-friendly toolsets")
 	return strings.Join(ActionFriendlyGitHubToolsets, ",")
 }
 
@@ -190,6 +197,7 @@ func expandDefaultToolset(toolsetsStr string) string {
 		}
 
 		if toolset == "default" || toolset == "action-friendly" {
+			githubConfigLog.Printf("Expanding %q keyword to action-friendly toolsets", toolset)
 			// Expand "default" or "action-friendly" to action-friendly toolsets (excludes "users")
 			for _, dt := range ActionFriendlyGitHubToolsets {
 				if !seenToolsets[dt] {
@@ -415,5 +423,6 @@ func getGitHubDockerImageVersion(githubTool any) string {
 			}
 		}
 	}
+	githubConfigLog.Printf("GitHub MCP Docker image version: %s", githubDockerImageVersion)
 	return githubDockerImageVersion
 }

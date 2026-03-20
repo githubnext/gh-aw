@@ -86,12 +86,14 @@ func (e *CopilotEngine) computeCopilotToolArguments(tools map[string]any, safeOu
 	// Handle edit tools requirement for file write access
 	// Note: safe-outputs do not need write permission as they use MCP
 	if _, hasEdit := tools["edit"]; hasEdit {
+		copilotEngineToolsLog.Print("Edit tool enabled, adding write permission")
 		args = append(args, "--allow-tool", "write")
 	}
 
 	// Handle safe_outputs MCP server - allow all tools if safe outputs are enabled
 	// This includes both safeOutputs config and safeOutputs.Jobs
 	if HasSafeOutputsEnabled(safeOutputs) {
+		copilotEngineToolsLog.Print("Safe-outputs enabled, adding MCP server permission")
 		args = append(args, "--allow-tool", constants.SafeOutputsMCPServerID.String())
 	}
 
@@ -102,6 +104,7 @@ func (e *CopilotEngine) computeCopilotToolArguments(tools map[string]any, safeOu
 
 	// Handle web-fetch builtin tool (Copilot CLI uses web_fetch with underscore)
 	if _, hasWebFetch := tools["web-fetch"]; hasWebFetch {
+		copilotEngineToolsLog.Print("Web-fetch tool enabled, adding web_fetch permission")
 		// web-fetch -> web_fetch
 		args = append(args, "--allow-tool", "web_fetch")
 	}
@@ -169,6 +172,7 @@ func (e *CopilotEngine) computeCopilotToolArguments(tools map[string]any, safeOu
 		// Check if this is an MCP server configuration
 		if toolConfigMap, ok := toolConfig.(map[string]any); ok {
 			if hasMcp, _ := hasMCPConfig(toolConfigMap); hasMcp {
+				copilotEngineToolsLog.Printf("Adding custom MCP server permission: %s", toolName)
 				// Allow the entire MCP server
 				args = append(args, "--allow-tool", toolName)
 
