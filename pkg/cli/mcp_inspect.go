@@ -201,7 +201,7 @@ The command will:
 - Start each MCP server (stdio, docker, http)
 - Automatically start and inspect mcp-scripts server if present
 - Query available tools, resources, and roots
-- Validate required secrets are available  
+- Validate required secrets are available
 - Display results in formatted tables with error details`,
 		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {

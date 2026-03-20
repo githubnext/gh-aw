@@ -90,7 +90,7 @@ Workflows from different repositories:
   ` + string(constants.CLIExtensionPrefix) + ` trial githubnext/agentics/daily-plan myorg/myrepo/custom-workflow
 
 Repository mode examples:
-  ` + string(constants.CLIExtensionPrefix) + ` trial githubnext/agentics/my-workflow --repo myorg/myrepo            # Run directly in myorg/myrepo (no simulation)
+  ` + string(constants.CLIExtensionPrefix) + ` trial githubnext/agentics/my-workflow --host-repo myorg/myrepo         # Run directly in myorg/myrepo (no simulation)
   ` + string(constants.CLIExtensionPrefix) + ` trial githubnext/agentics/my-workflow --logical-repo myorg/myrepo  # Simulate running against myorg/myrepo
   ` + string(constants.CLIExtensionPrefix) + ` trial githubnext/agentics/my-workflow --clone-repo myorg/myrepo   # Clone myorg/myrepo contents into host
 
@@ -110,7 +110,7 @@ Advanced examples:
 Repository modes:
 - Default mode (no flags): Creates a temporary trial repository and simulates execution as if running against the current repository (github.repository context points to current repo)
 - --logical-repo REPO: Simulates execution against a specified repository (github.repository context points to REPO while actually running in a temporary trial repository)
-- --host-repo REPO (or --repo REPO): Uses the specified repository as the host for trial execution instead of creating a temporary one
+- --host-repo REPO: Uses the specified repository as the host for trial execution instead of creating a temporary one
 - --clone-repo REPO: Clones the specified repository's contents into the trial repository before execution (useful for testing against actual repository state)
 
 All workflows must support workflow_dispatch trigger to be used in trial mode.
@@ -182,6 +182,7 @@ Trial results are saved both locally (in trials/ directory) and in the host repo
 
 	cmd.Flags().String("host-repo", "", "Custom host repository slug (defaults to '<username>/gh-aw-trial'). Use '.' for current repository")
 	cmd.Flags().String("repo", "", "Alias for --host-repo: the repository where workflows are installed and run (note: different semantics from --repo in other commands)")
+	_ = cmd.Flags().MarkHidden("repo") // Hide alias to avoid semantic confusion with --repo in other commands
 	cmd.Flags().Bool("delete-host-repo-after", false, "Delete the host repository after completion (default: keep)")
 	cmd.Flags().Bool("force-delete-host-repo-before", false, "Force delete the host repository before creation, if it exists before creating it")
 	cmd.Flags().BoolP("yes", "y", false, "Skip confirmation prompts")
