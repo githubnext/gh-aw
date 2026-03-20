@@ -853,12 +853,11 @@ func TestOptimizeExpression_NotOfNot_FunctionCall_NonStatus(t *testing.T) {
 }
 
 func TestOptimizeExpression_NotOfAndNode(t *testing.T) {
-	// !(A && B) is not simplified (no De Morgan's by default — it can increase length)
+	// !(A && B) → !A || !B by De Morgan's law
 	a := expr("github.event_name == 'issues'")
 	b := expr("github.actor != 'bot'")
 	node := not1(and2(a, b))
-	expected := not1(and2(a, b)).Render()
-	assertRender(t, expected, node, "!(A && B) not simplified by default")
+	assertRender(t, "!(github.event_name == 'issues') || !(github.actor != 'bot')", node, "!(A && B) → !A || !B via De Morgan")
 }
 
 func TestOptimizeExpression_DisjunctionWithDuplicateStatusFunc(t *testing.T) {
@@ -891,4 +890,89 @@ func TestOptimizeExpression_NilSafeForAllBranches(t *testing.T) {
 	for _, n := range nodes {
 		assert.NotPanics(t, func() { OptimizeExpression(n) }, "should not panic for node %T", n)
 	}
+}
+
+// ---------------------------------------------------------------------------
+// De Morgan's law transformations
+// ---------------------------------------------------------------------------
+
+func TestDeMorgan_NotOfAnd_NoStatusFunc(t *testing.T) {
+	// !(A && B) → !A || !B
+	// NotNode children of OrNode are NOT wrapped (|| has lowest precedence, no child needs parens).
+	a := cmp(prop("github.event_name"), "==", str("issues"))
+	b := cmp(prop("github.actor"), "!=", str("bot"))
+	node := not1(and2(a, b))
+	assertRender(t, "!(github.event_name == 'issues') || !(github.actor != 'bot')", node, "De Morgan: !(A && B) → !A || !B")
+}
+
+func TestDeMorgan_NotOfOr_NoStatusFunc(t *testing.T) {
+	// !(A || B) → !A && !B
+	// NotNode children of AndNode ARE wrapped in parens (YAML ! tag safety).
+	// So the result is "(!(A)) && (!(B))".
+	a := cmp(prop("github.event_name"), "==", str("issues"))
+	b := cmp(prop("github.event_name"), "==", str("push"))
+	node := not1(or2(a, b))
+	assertRender(t, "(!(github.event_name == 'issues')) && (!(github.event_name == 'push'))", node, "De Morgan: !(A || B) → !A && !B")
+}
+
+func TestDeMorgan_NotOfDisjunction_NoStatusFunc(t *testing.T) {
+	// !(A || B || C) → !A && !B && !C  (DisjunctionNode form)
+	a := cmp(prop("github.event_name"), "==", str("issues"))
+	b := cmp(prop("github.event_name"), "==", str("push"))
+	c := cmp(prop("github.event_name"), "==", str("pull_request"))
+	node := not1(disj(a, b, c))
+	assertRender(t,
+		"(!(github.event_name == 'issues')) && (!(github.event_name == 'push')) && (!(github.event_name == 'pull_request'))",
+		node, "De Morgan: !(Disjunction{A,B,C}) → !A && !B && !C")
+}
+
+func TestDeMorgan_NotOfAnd_WithStatusFunc_Preserved(t *testing.T) {
+	// !(always() && X) — must NOT apply De Morgan because of status function
+	always := fn("always")
+	condition := cmp(prop("steps.run.outcome"), "==", str("success"))
+	node := not1(and2(always, condition))
+	result := OptimizeExpression(node)
+	rendered := result.Render()
+	assert.Contains(t, rendered, "always()", "De Morgan must not fire on status function AND")
+	// The result should still be a NOT wrapping an AND, not split to OR
+	assert.NotContains(t, rendered, "||", "De Morgan must not produce OR when status func present")
+}
+
+func TestDeMorgan_NotOfOr_WithStatusFunc_Preserved(t *testing.T) {
+	// !(always() || X) — must NOT apply De Morgan
+	always := fn("always")
+	condition := cmp(prop("steps.run.outcome"), "==", str("success"))
+	node := not1(or2(always, condition))
+	result := OptimizeExpression(node)
+	rendered := result.Render()
+	assert.Contains(t, rendered, "always()", "De Morgan must not fire on status function OR")
+}
+
+func TestDeMorgan_NotOfAnd_SelfComplement(t *testing.T) {
+	// Multi-step: !(A && !A)
+	// Pass 1: De Morgan: !(A && !A) → !A || !!A
+	// Pass 2: double-negation: !!A → A  →  !A || A
+	// Pass 3: OR complement: !A || A → true
+	a := cmp(prop("github.event_name"), "==", str("issues"))
+	node := not1(and2(a, not1(a)))
+	assertRender(t, "true", node, "!(A && !A) → true via De Morgan + double-neg + complement")
+}
+
+func TestDeMorgan_NotOfOr_SelfComplement(t *testing.T) {
+	// Multi-step: !(A || A)
+	// Pass 1: De Morgan: !(A || A) → !A && !A
+	// Pass 2: AND idempotent: !A && !A → !A
+	a := cmp(prop("github.event_name"), "==", str("issues"))
+	node := not1(or2(a, a))
+	assertRender(t, "!(github.event_name == 'issues')", node, "!(A || A) → !A via De Morgan + idempotent")
+}
+
+func TestDeMorgan_NotOfAnd_DoubleNeg_Simplification(t *testing.T) {
+	// Multi-step: !(!!A && B)
+	// Pass 1 (bottom-up): !!A → A  →  !(A && B)
+	// Pass 1 (De Morgan):  !(A && B) → !A || !B
+	a := cmp(prop("a"), "==", str("1"))
+	b := cmp(prop("b"), "==", str("2"))
+	node := not1(and2(not1(not1(a)), b))
+	assertRender(t, "!(a == '1') || !(b == '2')", node, "!(!!A && B) → !A || !B via double-neg + De Morgan")
 }

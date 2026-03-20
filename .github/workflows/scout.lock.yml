@@ -102,9 +102,9 @@ jobs:
       github.event.comment.body == '/scout') || github.event_name == 'pull_request' && (startsWith(github.event.pull_request.body, '/scout ') ||
       github.event.pull_request.body == '/scout') || github.event_name == 'discussion' && (startsWith(github.event.discussion.body, '/scout ') ||
       github.event.discussion.body == '/scout') || github.event_name == 'discussion_comment' && (startsWith(github.event.comment.body, '/scout ') ||
-      github.event.comment.body == '/scout')) || !(github.event_name == 'issues' || github.event_name == 'issue_comment' ||
-      github.event_name == 'pull_request' || github.event_name == 'pull_request_review_comment' || github.event_name == 'discussion' ||
-      github.event_name == 'discussion_comment'))
+      github.event.comment.body == '/scout')) || (!(github.event_name == 'issues')) && (!(github.event_name == 'issue_comment')) &&
+      (!(github.event_name == 'pull_request')) && (!(github.event_name == 'pull_request_review_comment')) &&
+      (!(github.event_name == 'discussion')) && (!(github.event_name == 'discussion_comment')))
     runs-on: ubuntu-slim
     permissions:
       contents: read
@@ -1331,8 +1331,9 @@ jobs:
       (startsWith(github.event.pull_request.body, '/scout ') || github.event.pull_request.body == '/scout') ||
       github.event_name == 'discussion' && (startsWith(github.event.discussion.body, '/scout ') || github.event.discussion.body == '/scout') ||
       github.event_name == 'discussion_comment' && (startsWith(github.event.comment.body, '/scout ') || github.event.comment.body == '/scout')) ||
-      !(github.event_name == 'issues' || github.event_name == 'issue_comment' || github.event_name == 'pull_request' ||
-      github.event_name == 'pull_request_review_comment' || github.event_name == 'discussion' || github.event_name == 'discussion_comment')
+      (!(github.event_name == 'issues')) && (!(github.event_name == 'issue_comment')) && (!(github.event_name == 'pull_request')) &&
+      (!(github.event_name == 'pull_request_review_comment')) && (!(github.event_name == 'discussion')) &&
+      (!(github.event_name == 'discussion_comment'))
     runs-on: ubuntu-slim
     permissions:
       contents: read

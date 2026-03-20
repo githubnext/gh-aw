@@ -321,6 +321,47 @@ func optimizeNotNode(n *NotNode) ConditionNode {
 		return optimizeNode(notChild.Child)
 	}
 
+	// De Morgan: !(A && B) → !A || !B
+	// Only applied when neither operand contains a status function, since
+	// rearranging status functions changes execution semantics.
+	if andChild, ok := child.(*AndNode); ok && !containsStatusFunc(andChild) {
+		expressionOptimizerLog.Printf("NOT De Morgan (AND): !(%s && %s) → !%s || !%s",
+			andChild.Left.Render(), andChild.Right.Render(),
+			andChild.Left.Render(), andChild.Right.Render())
+		return optimizeNode(&OrNode{
+			Left:  &NotNode{Child: andChild.Left},
+			Right: &NotNode{Child: andChild.Right},
+		})
+	}
+
+	// De Morgan: !(A || B) → !A && !B
+	if orChild, ok := child.(*OrNode); ok && !containsStatusFunc(orChild) {
+		expressionOptimizerLog.Printf("NOT De Morgan (OR): !(%s || %s) → !%s && !%s",
+			orChild.Left.Render(), orChild.Right.Render(),
+			orChild.Left.Render(), orChild.Right.Render())
+		return optimizeNode(&AndNode{
+			Left:  &NotNode{Child: orChild.Left},
+			Right: &NotNode{Child: orChild.Right},
+		})
+	}
+
+	// De Morgan: !(A || B || ...) → !A && !B && ... (DisjunctionNode form)
+	// Move the empty-terms guard before the containsStatusFunc call to avoid
+	// an unnecessary tree walk when the disjunction is empty.
+	if disjChild, ok := child.(*DisjunctionNode); ok {
+		if len(disjChild.Terms) == 0 {
+			return &NotNode{Child: child}
+		}
+		if !containsStatusFunc(disjChild) {
+			expressionOptimizerLog.Printf("NOT De Morgan (Disjunction): !(disjunction[%d]) → AND chain of negations", len(disjChild.Terms))
+			negations := make([]ConditionNode, len(disjChild.Terms))
+			for i, term := range disjChild.Terms {
+				negations[i] = &NotNode{Child: term}
+			}
+			return optimizeNode(rebuildAndChain(negations))
+		}
+	}
+
 	return &NotNode{Child: child}
 }
 
