@@ -393,12 +393,15 @@ The optional `trustedBots` field in the gateway configuration passes an addition
 **Frontmatter Example** (workflow author):
 
 ```yaml
-sandbox:
-  mcp:
-    trusted-bots:
-      - github-actions[bot]
-      - copilot-swe-agent[bot]
+on:
+  issues:
+    types: [opened]
+  bots:
+    - github-actions[bot]
+    - copilot-swe-agent[bot]
 ```
+
+The compiler reads the `on.bots` field and includes its values in the `trustedBots` array of the generated gateway config section.
 
 **Requirements**:
 - `trustedBots` MUST be a non-empty array of strings when present
@@ -990,7 +993,7 @@ The `gateway.trustedBots` field allows workflow authors to pass additional trust
 
 `gateway.trustedBots` is **additive** — it extends the gateway's built-in list but cannot remove entries from it.
 
-Workflow authors set this via the `sandbox.mcp.trusted-bots` frontmatter field; the compiler translates it into the `trustedBots` array in the generated `gateway` section of the MCP config file.
+Workflow authors set this via the `on.bots` frontmatter field; the compiler populates the `trustedBots` array in the generated `gateway` section of the MCP config file with the values from that field.
 
 ---
 
@@ -1524,9 +1527,9 @@ Content-Type: application/json
 - **Added**: `trustedBots` field to gateway configuration (Section 4.1.3, 4.1.3.4)
   - Optional array of GitHub bot identity strings passed to the gateway via the generated config
   - Merged with the gateway's built-in trusted identity list (additive — cannot remove built-in entries)
-  - Workflow authors configure via `sandbox.mcp.trusted-bots` in frontmatter; the compiler translates it into the gateway config
+  - Workflow authors configure via the existing `on.bots` frontmatter field; the compiler populates `trustedBots` in the gateway config from that field
 - **Added**: Section 7.5 — Trusted Bot Identity Configuration
-  - Describes `trustedBots` as a config-passing mechanism from frontmatter to gateway config
+  - Describes `trustedBots` as a config-passing mechanism from `on.bots` frontmatter to gateway config
 - **Added**: Compliance test for trusted bot identity configuration (Section 10.1.4)
   - T-AUTH-006: Trusted bot identity configuration
 - **Updated**: JSON Schema with `trustedBots` property in `gatewayConfig` definition
