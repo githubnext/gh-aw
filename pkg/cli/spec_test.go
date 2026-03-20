@@ -347,6 +347,93 @@ func TestParseWorkflowSpec(t *testing.T) {
 	}
 }
 
+// TestParseWorkflowSpecGHEHostPinning verifies that well-known public-only repos
+// (githubnext/agentics, github/gh-aw) always get Host pinned to "github.com"
+// when a GHE environment is detected, while other repos use an empty host.
+func TestParseWorkflowSpecGHEHostPinning(t *testing.T) {
+	tests := []struct {
+		name       string
+		spec       string
+		wantHost   string
+		wantNoHost bool // expect empty host
+	}{
+		{
+			name:     "githubnext/agentics three-part spec gets github.com in GHE mode",
+			spec:     "githubnext/agentics/daily-plan",
+			wantHost: "github.com",
+		},
+		{
+			name:     "githubnext/agentics wildcard gets github.com in GHE mode",
+			spec:     "githubnext/agentics/*",
+			wantHost: "github.com",
+		},
+		{
+			name:     "github/gh-aw three-part spec gets github.com in GHE mode",
+			spec:     "github/gh-aw/my-workflow",
+			wantHost: "github.com",
+		},
+		{
+			name:       "non-allowlisted repo has empty host in GHE mode",
+			spec:       "owner/repo/workflow",
+			wantNoHost: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Simulate a GHE environment
+			t.Setenv("GITHUB_SERVER_URL", "")
+			t.Setenv("GITHUB_ENTERPRISE_HOST", "myorg.ghe.com")
+			t.Setenv("GITHUB_HOST", "")
+			t.Setenv("GH_HOST", "")
+
+			spec, err := parseWorkflowSpec(tt.spec)
+			if err != nil {
+				t.Fatalf("parseWorkflowSpec(%q) unexpected error: %v", tt.spec, err)
+			}
+
+			if tt.wantNoHost {
+				if spec.Host != "" {
+					t.Errorf("parseWorkflowSpec(%q) host = %q, want empty", tt.spec, spec.Host)
+				}
+			} else {
+				if spec.Host != tt.wantHost {
+					t.Errorf("parseWorkflowSpec(%q) host = %q, want %q", tt.spec, spec.Host, tt.wantHost)
+				}
+			}
+		})
+	}
+}
+
+// TestParseWorkflowSpecNoGHEHostPinning verifies that on public github.com the
+// Host field is always empty for short-form specs (no pinning needed).
+func TestParseWorkflowSpecNoGHEHostPinning(t *testing.T) {
+	// Clear all GHE env vars to simulate standard github.com environment
+	t.Setenv("GITHUB_SERVER_URL", "")
+	t.Setenv("GITHUB_ENTERPRISE_HOST", "")
+	t.Setenv("GITHUB_HOST", "")
+	t.Setenv("GH_HOST", "")
+
+	specs := []string{
+		"githubnext/agentics/daily-plan",
+		"githubnext/agentics/*",
+		"github/gh-aw/my-workflow",
+		"owner/repo/workflow",
+	}
+
+	for _, s := range specs {
+		t.Run(s, func(t *testing.T) {
+			spec, err := parseWorkflowSpec(s)
+			if err != nil {
+				t.Fatalf("parseWorkflowSpec(%q) unexpected error: %v", s, err)
+			}
+			if spec.Host != "" {
+				t.Errorf("parseWorkflowSpec(%q) host = %q, want empty (no pinning on public GitHub)", s, spec.Host)
+			}
+		})
+	}
+}
+
 func TestParseLocalWorkflowSpec(t *testing.T) {
 	// Clear the repository slug cache to ensure clean test state
 	ClearCurrentRepoSlugCache()

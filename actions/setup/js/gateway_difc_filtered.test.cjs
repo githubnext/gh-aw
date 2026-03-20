@@ -289,6 +289,25 @@ describe("gateway_difc_filtered.cjs", () => {
       expect(result).not.toContain("line1\nline2");
     });
 
+    it("should strip 'Resource X' prefix from reason to avoid duplication", () => {
+      const events = [
+        {
+          type: "DIFC_FILTERED",
+          tool_name: "list_issues",
+          description: "issue:github/gh-aw#21982",
+          reason: "Resource 'issue:github/gh-aw#21982' has lower integrity than agent requires. The agent cannot read data with integrity below \"approved\".",
+        },
+      ];
+
+      const result = generateDifcFilteredSection(events);
+
+      // Resource prefix should be stripped from the reason
+      expect(result).not.toContain("Resource 'issue:github/gh-aw#21982'");
+      expect(result).toContain("has lower integrity than agent requires");
+      // The description (reference) should still be present
+      expect(result).toContain("issue:github/gh-aw#21982");
+    });
+
     it("should show at most 16 items and ellipse the rest", () => {
       const events = Array.from({ length: 20 }, (_, i) => ({
         type: "DIFC_FILTERED",

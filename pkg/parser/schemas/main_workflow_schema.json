@@ -764,6 +764,10 @@
                       "cron": {
                         "type": "string",
                         "description": "Cron expression using standard format (e.g., '0 9 * * 1') or fuzzy format (e.g., 'daily', 'daily around 14:00', 'daily between 9:00 and 17:00', 'weekly', 'weekly on monday', 'weekly on friday around 5pm', 'hourly', 'every 2h', 'every 10 minutes'). Fuzzy formats support: daily/weekly schedules with optional time windows, hourly intervals with scattered minutes, interval schedules (minimum 5 minutes), short duration units (m/h/d/w), and UTC timezone offsets (utc+N or utc+HH:MM)."
+                      },
+                      "timezone": {
+                        "type": "string",
+                        "description": "Optional IANA timezone string for timezone-aware scheduling (e.g., 'America/New_York', 'Europe/London', 'Asia/Tokyo', 'UTC'). When set, the cron expression is interpreted in the specified timezone instead of UTC."
                       }
                     },
                     "required": ["cron"],
@@ -1703,6 +1707,15 @@
               "schedule": [
                 {
                   "cron": "0 0 * * *"
+                }
+              ],
+              "workflow_dispatch": null
+            },
+            {
+              "schedule": [
+                {
+                  "cron": "30 5 * * 1-5",
+                  "timezone": "America/New_York"
                 }
               ],
               "workflow_dispatch": null

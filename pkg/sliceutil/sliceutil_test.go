@@ -3,6 +3,7 @@
 package sliceutil
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -51,6 +52,12 @@ func TestContains(t *testing.T) {
 			item:     "",
 			expected: false,
 		},
+		{
+			name:     "item in slice with duplicates",
+			slice:    []string{"apple", "banana", "apple", "cherry", "apple"},
+			item:     "apple",
+			expected: true,
+		},
 	}
 
 	for _, tt := range tests {
@@ -95,20 +102,206 @@ func TestContains_SingleElement(t *testing.T) {
 	assert.False(t, Contains(slice, "other"), "should not find different item in single-element slice")
 }
 
-func TestContains_Duplicates(t *testing.T) {
-	// Slice with duplicate values
-	slice := []string{"apple", "banana", "apple", "cherry", "apple"}
-
-	assert.True(t, Contains(slice, "apple"), "should find 'apple' in slice with duplicates")
-
-	// Should still return true on first match
-	count := 0
-	for _, item := range slice {
-		if item == "apple" {
-			count++
-		}
+func TestFilter(t *testing.T) {
+	tests := []struct {
+		name      string
+		slice     []string
+		predicate func(string) bool
+		expected  []string
+	}{
+		{
+			name:      "nil slice returns empty slice",
+			slice:     nil,
+			predicate: func(s string) bool { return len(s) > 3 },
+			expected:  []string{},
+		},
+		{
+			name:      "empty slice returns empty slice",
+			slice:     []string{},
+			predicate: func(s string) bool { return len(s) > 3 },
+			expected:  []string{},
+		},
+		{
+			name:      "no elements match predicate",
+			slice:     []string{"a", "b", "c"},
+			predicate: func(s string) bool { return len(s) > 3 },
+			expected:  []string{},
+		},
+		{
+			name:      "some elements match predicate",
+			slice:     []string{"apple", "fig", "banana", "kiwi"},
+			predicate: func(s string) bool { return len(s) > 3 },
+			expected:  []string{"apple", "banana", "kiwi"},
+		},
+		{
+			name:      "all elements match predicate",
+			slice:     []string{"apple", "banana", "cherry"},
+			predicate: func(s string) bool { return len(s) > 3 },
+			expected:  []string{"apple", "banana", "cherry"},
+		},
 	}
-	assert.Equal(t, 3, count, "should count all occurrences of duplicate item")
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := Filter(tt.slice, tt.predicate)
+			assert.Equal(t, tt.expected, result,
+				"Filter should return correct elements for slice %v", tt.slice)
+		})
+	}
+}
+
+func TestMap(t *testing.T) {
+	tests := []struct {
+		name      string
+		slice     []string
+		transform func(string) int
+		expected  []int
+	}{
+		{
+			name:      "nil slice returns empty slice",
+			slice:     nil,
+			transform: func(s string) int { return len(s) },
+			expected:  []int{},
+		},
+		{
+			name:      "empty slice returns empty slice",
+			slice:     []string{},
+			transform: func(s string) int { return len(s) },
+			expected:  []int{},
+		},
+		{
+			name:      "transforms each element",
+			slice:     []string{"apple", "fig", "banana"},
+			transform: func(s string) int { return len(s) },
+			expected:  []int{5, 3, 6},
+		},
+		{
+			name:      "single element",
+			slice:     []string{"hello"},
+			transform: func(s string) int { return len(s) },
+			expected:  []int{5},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := Map(tt.slice, tt.transform)
+			assert.Equal(t, tt.expected, result,
+				"Map should transform all elements in slice %v", tt.slice)
+		})
+	}
+}
+
+func TestDeduplicate(t *testing.T) {
+	tests := []struct {
+		name     string
+		slice    []string
+		expected []string
+	}{
+		{
+			name:     "nil slice returns empty slice",
+			slice:    nil,
+			expected: []string{},
+		},
+		{
+			name:     "empty slice returns empty slice",
+			slice:    []string{},
+			expected: []string{},
+		},
+		{
+			name:     "no duplicates returns same elements in order",
+			slice:    []string{"apple", "banana", "cherry"},
+			expected: []string{"apple", "banana", "cherry"},
+		},
+		{
+			name:     "partial duplicates removed preserving first occurrence order",
+			slice:    []string{"apple", "banana", "apple", "cherry", "banana"},
+			expected: []string{"apple", "banana", "cherry"},
+		},
+		{
+			name:     "all duplicates returns single element",
+			slice:    []string{"apple", "apple", "apple"},
+			expected: []string{"apple"},
+		},
+		{
+			name:     "single element",
+			slice:    []string{"apple"},
+			expected: []string{"apple"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := Deduplicate(tt.slice)
+			assert.Equal(t, tt.expected, result,
+				"Deduplicate should remove duplicates from slice %v", tt.slice)
+		})
+	}
+}
+
+func TestMapToSlice(t *testing.T) {
+	t.Run("nil map returns empty slice", func(t *testing.T) {
+		result := MapToSlice[string, int](nil)
+		assert.Empty(t, result, "MapToSlice should return empty slice for nil map")
+	})
+
+	t.Run("empty map returns empty slice", func(t *testing.T) {
+		result := MapToSlice(map[string]int{})
+		assert.Empty(t, result, "MapToSlice should return empty slice for empty map")
+	})
+
+	t.Run("returns all keys in any order", func(t *testing.T) {
+		m := map[string]int{"apple": 1, "banana": 2, "cherry": 3}
+		result := MapToSlice(m)
+		assert.ElementsMatch(t, []string{"apple", "banana", "cherry"}, result,
+			"MapToSlice should return all keys from map")
+	})
+
+	t.Run("single entry map", func(t *testing.T) {
+		m := map[string]bool{"only": true}
+		result := MapToSlice(m)
+		assert.Equal(t, []string{"only"}, result,
+			"MapToSlice should return the single key from a one-entry map")
+	})
+}
+
+func TestFilterMapKeys(t *testing.T) {
+	t.Run("nil map returns empty slice", func(t *testing.T) {
+		result := FilterMapKeys[string, int](nil, func(k string, v int) bool { return true })
+		assert.Empty(t, result, "FilterMapKeys should return empty slice for nil map")
+	})
+
+	t.Run("empty map returns empty slice", func(t *testing.T) {
+		result := FilterMapKeys(map[string]int{}, func(k string, v int) bool { return true })
+		assert.Empty(t, result, "FilterMapKeys should return empty slice for empty map")
+	})
+
+	t.Run("no keys match predicate", func(t *testing.T) {
+		m := map[string]int{"apple": 1, "banana": 2}
+		result := FilterMapKeys(m, func(k string, v int) bool { return v > 10 })
+		assert.Empty(t, result, "FilterMapKeys should return empty slice when no keys match")
+	})
+
+	t.Run("some keys match predicate", func(t *testing.T) {
+		m := map[string]int{"apple": 5, "banana": 2, "cherry": 8}
+		result := FilterMapKeys(m, func(k string, v int) bool { return v > 4 })
+		assert.ElementsMatch(t, []string{"apple", "cherry"}, result,
+			"FilterMapKeys should return only keys whose values match the predicate")
+	})
+
+	t.Run("all keys match predicate", func(t *testing.T) {
+		m := map[string]int{"apple": 5, "banana": 7, "cherry": 9}
+		result := FilterMapKeys(m, func(k string, v int) bool { return v > 0 })
+		assert.ElementsMatch(t, []string{"apple", "banana", "cherry"}, result,
+			"FilterMapKeys should return all keys when all match the predicate")
+	})
+
+	t.Run("predicate uses key value", func(t *testing.T) {
+		m := map[string]int{"keep-me": 1, "skip-me": 2, "keep-too": 3}
+		result := FilterMapKeys(m, func(k string, v int) bool { return strings.HasPrefix(k, "keep") })
+		assert.ElementsMatch(t, []string{"keep-me", "keep-too"}, result,
+			"FilterMapKeys should support predicates that filter on key names")
+	})
 }
 
 func TestAny(t *testing.T) {

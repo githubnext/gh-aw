@@ -87,6 +87,7 @@ func selectSerenaContainer(serenaTool any) string {
 // renderSerenaMCPConfigWithOptions generates the Serena MCP server configuration with engine-specific options
 // Uses Docker container with stdio transport (ghcr.io/github/serena-mcp-server:latest)
 func renderSerenaMCPConfigWithOptions(yaml *strings.Builder, serenaTool any, isLast bool, includeCopilotFields bool, inlineArgs bool, guardPolicies map[string]any) {
+	mcpSerenaLog.Printf("Rendering Serena MCP config: copilot_fields=%v, inline_args=%v, guard_policies=%v", includeCopilotFields, inlineArgs, len(guardPolicies) > 0)
 	customArgs := getSerenaCustomArgs(serenaTool)
 
 	yaml.WriteString("              \"serena\": {\n")
@@ -99,6 +100,7 @@ func renderSerenaMCPConfigWithOptions(yaml *strings.Builder, serenaTool any, isL
 
 	// Select the appropriate Serena container based on requested languages
 	containerImage := selectSerenaContainer(serenaTool)
+	mcpSerenaLog.Printf("Serena container image selected: %s", containerImage)
 	yaml.WriteString("                \"container\": \"" + containerImage + ":latest\",\n")
 
 	// Docker runtime args (--network host for network access)

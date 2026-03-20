@@ -7,7 +7,7 @@ sidebar:
 
 # GitHub MCP Server Access Control Specification
 
-**Version**: 1.0.0  
+**Version**: 1.1.0  
 **Status**: Draft  
 **Latest Version**: [github-mcp-access-control-specification](/gh-aw/scratchpad/github-mcp-access-control-specification/)  
 **JSON Schema**: [mcp-gateway-config.schema.json](/gh-aw/schemas/mcp-gateway-config.schema.json)  
@@ -17,7 +17,7 @@ sidebar:
 
 ## Abstract
 
-This specification defines access control extensions for the GitHub MCP (Model Context Protocol) Server when integrated with the MCP Gateway. These extensions enable fine-grained repository scoping, role-based permission filtering, and public/private repository access controls. The specification provides a security-focused configuration model that restricts GitHub API access to explicitly allowed repositories and permission levels, preventing unauthorized data access and enforcing least-privilege principles for AI agents operating through the GitHub MCP server.
+This specification defines access control extensions for the GitHub MCP (Model Context Protocol) Server when integrated with the MCP Gateway. These extensions enable fine-grained repository scoping, role-based permission filtering, public/private repository access controls, and integrity-level enforcement for GitHub content. The specification provides a security-focused configuration model that restricts GitHub API access to explicitly allowed repositories and permission levels, and enforces trust boundaries on content by author and label, preventing unauthorized data access and enforcing least-privilege principles for AI agents operating through the GitHub MCP server.
 
 ## Status of This Document
 
@@ -34,9 +34,10 @@ This document is governed by the GitHub Agentic Workflows project specifications
 5. [Repository Scoping](#5-repository-scoping)
 6. [Role-Based Filtering](#6-role-based-filtering)
 7. [Private Repository Controls](#7-private-repository-controls)
-8. [Security Model](#8-security-model)
-9. [Integration with MCP Gateway](#9-integration-with-mcp-gateway)
-10. [Compliance Testing](#10-compliance-testing)
+8. [Integrity Level Management](#8-integrity-level-management)
+9. [Security Model](#9-security-model)
+10. [Integration with MCP Gateway](#10-integration-with-mcp-gateway)
+11. [Compliance Testing](#11-compliance-testing)
 
 ---
 
@@ -51,6 +52,7 @@ This specification defines:
 - **Repository Scoping**: Explicit allowlists with wildcard patterns to restrict repository access
 - **Role-Based Filtering**: Permission level filtering to restrict operations based on user repository roles
 - **Private Repository Controls**: Configuration flags to enforce public-only repository access
+- **Integrity-Level Enforcement**: Content trust boundaries via minimum integrity levels, blocked-user lists, and label-based approval promotion
 - **Defense-in-Depth**: Multiple layers of access control validation and enforcement
 
 ### 1.2 Scope
@@ -61,6 +63,9 @@ This specification covers:
 - Repository allowlist patterns with wildcard matching semantics
 - Role-based permission filtering and enforcement rules
 - Private repository access control flags and behavior
+- Integrity-level enforcement for GitHub content items (pull requests, issues, comments)
+- Blocked-user lists for unconditional content rejection
+- Label-based approval promotion for content integrity elevation
 - Validation rules and error handling for configuration
 - Integration patterns with MCP Gateway infrastructure
 - Security considerations and threat models
@@ -82,9 +87,12 @@ The GitHub MCP Server Access Control extensions are designed to achieve:
 3. **Flexible Pattern Matching**: Wildcard patterns support both narrow and broad repository scoping
 4. **Role-Based Restrictions**: Operations restricted based on user's permission level in repositories
 5. **Private Data Protection**: Configurable controls to prevent private repository access
-6. **Clear Error Messages**: Configuration validation with actionable error reporting
-7. **Defense in Depth**: Multiple enforcement layers prevent access control bypasses
-8. **Backward Compatibility**: Non-breaking additions to existing GitHub MCP server configurations
+6. **Integrity-Level Enforcement**: Content items evaluated against a trust hierarchy; items below the minimum integrity threshold are blocked
+7. **Unconditional User Blocking**: Named users' contributions can be suppressed regardless of other integrity settings
+8. **Label-Based Approval**: Designated labels can promote content integrity to "approved", enabling trusted human review workflows
+9. **Clear Error Messages**: Configuration validation with actionable error reporting
+10. **Defense in Depth**: Multiple enforcement layers prevent access control bypasses
+11. **Backward Compatibility**: Non-breaking additions to existing GitHub MCP server configurations
 
 ### 1.4 Relationship to MCP Gateway
 
@@ -128,9 +136,15 @@ A **Complete Conforming Implementation** MUST satisfy Basic Conformance and:
 - Enforce role-based filtering for repository operations
 - Parse and validate `private-repos` configuration flag
 - Block private repository access when `private-repos` is false
+- Parse and validate `min-integrity` configuration field
+- Block content items whose integrity level is below `min-integrity`
+- Parse and validate `blocked-users` configuration field
+- Block all content items authored by users in `blocked-users`, regardless of integrity level
+- Parse and validate `approval-labels` configuration field
+- Promote content items bearing a label in `approval-labels` to "approved" integrity level
 - Validate configuration at compilation time with actionable error messages
 - Enforce all access controls at runtime through gateway middleware
-- Support all three configuration fields in combination
+- Support all configuration fields in combination
 
 ### 2.2 Requirements Notation
 
@@ -141,7 +155,7 @@ The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "S
 Implementations are classified into two levels based on completeness:
 
 - **Level 1: Basic** - Exact repository matching only
-- **Level 2: Complete** - Full feature set including wildcards, roles, and private repository controls
+- **Level 2: Complete** - Full feature set including wildcards, roles, private repository controls, and integrity-level management
 
 ---
 
@@ -247,6 +261,14 @@ tools:
       - "maintain"                    # Maintain access
       - "write"                       # Write access
     private-repos: false        # OPTIONAL: Private repo access (default: true)
+    # Integrity-Level Extensions (this specification)
+    min-integrity: "approved"   # OPTIONAL: Minimum integrity level required for content items
+    blocked-users:              # OPTIONAL: Users whose items are always blocked
+      - "external-bot"
+      - "untrusted-contributor"
+    approval-labels:            # OPTIONAL: Labels that raise item integrity to "approved"
+      - "approved"
+      - "human-reviewed"
 ```
 
 ### 4.2 GitHub MCP Server Configuration Fields
@@ -644,43 +666,227 @@ The `private-repos` field controls whether the GitHub MCP server can access priv
 private-repos: false   # Restrict to public repositories only
 ```
 
+#### 4.4.4 min-integrity
+
+**Type**: String (enum)  
+**Required**: No  
+**Default**: Not specified (no minimum integrity requirement)
+
+The `min-integrity` field sets the minimum integrity level that a GitHub content item (pull request, issue, comment, etc.) MUST meet before the agent is permitted to act on it. Items with an integrity level lower than `min-integrity` are blocked at the gateway.
+
+**Integrity Level Hierarchy** (from lowest to highest):
+
+| Level | Description |
+|-------|-------------|
+| `none` | No integrity requirement; item has no trust signals |
+| `unapproved` | Item has been reviewed but not yet approved |
+| `approved` | Item has been explicitly approved by a trusted reviewer |
+| `merged` | Item (e.g., pull request) has been merged into the target branch |
+
+**Valid Values**: `"none"`, `"unapproved"`, `"approved"`, `"merged"`
+
+**Semantics**:
+- Setting `min-integrity: "approved"` allows only items at `approved` or `merged` level.
+- Setting `min-integrity: "none"` enforces no lower bound (all non-blocked items are allowed).
+- When omitted, no integrity check is performed.
+
+**Relationship to blocked-users**: Items authored by users listed in `blocked-users` are treated as having an integrity level **below** `none`. They are always blocked even when `min-integrity` is not set or is `"none"`.
+
+**Example**:
+```yaml
+min-integrity: "approved"   # Only act on approved or merged items
+```
+
+**Constraints**:
+- Value MUST be one of the four valid integrity levels listed above.
+- Invalid values MUST be rejected at compilation with a clear error message.
+
+#### 4.4.5 blocked-users
+
+**Type**: Array of strings  
+**Required**: No  
+**Default**: Not specified (no users unconditionally blocked)
+
+The `blocked-users` field specifies GitHub usernames whose content items MUST always be blocked, regardless of any other integrity or label settings. This represents a trust level **below** `none` in the integrity hierarchy — not merely "no trust signals" but an explicit negative trust decision.
+
+**Semantics**:
+- A content item authored by any user in `blocked-users` is denied unconditionally.
+- `approval-labels` cannot override a `blocked-users` exclusion.
+- This field operates orthogonally to `min-integrity`; blocked users are rejected before the integrity level check.
+
+**Use Cases**:
+- Block known automated bots that generate untrusted content.
+- Block external contributors whose submissions must never reach the agent.
+- Suppress content from specific accounts pending a security review.
+
+**Constraints**:
+- Each entry MUST be a non-empty string.
+- Usernames SHOULD follow GitHub username constraints (alphanumeric with hyphens), but implementations MUST NOT reject syntactically unusual values in order to future-proof the list.
+- An empty array `[]` is semantically equivalent to omitting the field and SHOULD be treated as such.
+- Duplicate entries SHOULD generate a warning but are not errors.
+
+**Example**:
+```yaml
+blocked-users:
+  - "external-bot"
+  - "untrusted-fork-author"
+```
+
+**Error Message** (empty array):
+```text
+Warning: blocked-users is an empty array. Omit the field entirely to have no blocked users.
+```
+
+#### 4.4.6 approval-labels
+
+**Type**: Array of strings  
+**Required**: No  
+**Default**: Not specified (labels do not affect integrity levels)
+
+The `approval-labels` field lists GitHub issue or pull-request label names that, when present on a content item, promote that item's effective integrity level to `"approved"`. This enables human-review workflows where a trusted reviewer applies a label to signal that the content is safe for agent processing.
+
+**Semantics**:
+- When a content item carries at least one label from `approval-labels`, its effective integrity level is set to `"approved"`, regardless of its computed integrity.
+- This promotion applies **before** the `min-integrity` check, meaning a labelled item satisfies `min-integrity: "approved"` even if it would otherwise fall short.
+- `approval-labels` does NOT override `blocked-users`. An item authored by a blocked user remains blocked even if it bears an approval label.
+
+**Use Cases**:
+- Allow a human reviewer to approve externally submitted pull requests or issues for agent processing.
+- Gate agent actions on a `bot-approved` or `human-reviewed` label maintained by a trusted team.
+- Implement a two-step review workflow: external submission → human labels → agent acts.
+
+**Constraints**:
+- Each entry MUST be a non-empty string.
+- Label names SHOULD be lowercase and consistent with the target repository's label conventions.
+- An empty array `[]` is semantically equivalent to omitting the field and SHOULD be treated as such.
+- Duplicate entries SHOULD generate a warning but are not errors.
+
+**Example**:
+```yaml
+approval-labels:
+  - "approved"
+  - "human-reviewed"
+  - "safe-to-process"
+```
+
+**Error Message** (empty array):
+```text
+Warning: approval-labels is an empty array. Omit the field entirely to disable label-based approval.
+```
+
 ### 4.5 Relationship Between Tool Selection and Access Control
 
-The GitHub MCP server configuration combines tool selection (`toolsets` and `tools`) with access control (`repos`, `roles`, `private-repos`). These mechanisms operate independently but complement each other:
+The GitHub MCP server configuration combines tool selection (`toolsets` and `tools`) with access control (`repos`, `roles`, `private-repos`) and integrity-level management (`min-integrity`, `blocked-users`, `approval-labels`). These mechanisms operate independently but complement each other:
 
 **Tool Selection** (existing GitHub MCP feature):
 - Controls **which operations** the agent can perform (e.g., read files, create issues)
 - Configured via `toolsets` (recommended) or `tools` fields
 - Filters available MCP tools before they reach the agent
 
-**Access Control** (this specification):
+**Repository Access Control** (this specification):
 - Controls **which repositories** the agent can access
 - Controls **permission requirements** for repository access
 - Controls **visibility requirements** (public vs private)
 - Enforced at runtime when tools are invoked
 
+**Integrity-Level Management** (this specification):
+- Controls **which content items** the agent may act upon based on their trust level
+- Unconditionally blocks items from listed authors (`blocked-users`)
+- Promotes items bearing designated labels to "approved" level (`approval-labels`)
+- Rejects items below the configured minimum trust threshold (`min-integrity`)
+
 **Combined Behavior**:
 ```yaml
 tools:
   github:
-    toolsets: [repos, issues]          # Agent can use repo and issue tools
-    repos: ["myorg/*"]         # But only on myorg repositories
-    roles: ["write", "admin"]  # And only where user has write/admin
-    private-repos: false         # And only public repositories
+    toolsets: [repos, issues]           # Agent can use repo and issue tools
+    repos: ["myorg/*"]                  # But only on myorg repositories
+    roles: ["write", "admin"]           # And only where user has write/admin
+    private-repos: false                # And only public repositories
+    min-integrity: "approved"           # And only approved/merged content items
+    blocked-users: ["external-bot"]     # Never content from external-bot
+    approval-labels: ["human-reviewed"] # Label promotes to "approved"
 ```
 
 **Evaluation Order**:
 1. Tool selection filters available MCP tools → agent sees only enabled tools
-2. Agent invokes a tool with repository parameter
-3. Access control evaluates repository, role, and visibility → allows or denies
+2. Agent invokes a tool with repository and content parameters
+3. Repository access control evaluates repository, role, and visibility → allows or denies
+4. Integrity-level management evaluates author, labels, and integrity level → allows or denies
 
-**Key Principle**: Tool selection determines **what operations** are possible; access control determines **where operations** are permitted.
+**Key Principle**: Tool selection determines **what operations** are possible; repository access control determines **where operations** are permitted; integrity-level management determines **which content** the agent may act upon.
 
-### 4.6 Configuration Validation
+### 4.6 Integrity Level Model
+
+This section defines the integrity level hierarchy and the rules governing how `min-integrity`, `blocked-users`, and `approval-labels` interact.
+
+#### 4.6.1 Integrity Hierarchy
+
+Integrity levels form a total order from lowest to highest trust:
+
+```text
+blocked (below none) < none < unapproved < approved < merged
+```
+
+| Level | Ordinal | Description |
+|-------|---------|-------------|
+| blocked | -1 | Applied to items from `blocked-users`; always rejected |
+| `none` | 0 | No trust signal present; no human review has occurred |
+| `unapproved` | 1 | Item has been seen but not yet approved |
+| `approved` | 2 | Item has been explicitly approved by a trusted reviewer |
+| `merged` | 3 | Item (e.g., a pull request) has been merged into the target branch |
+
+#### 4.6.2 Effective Integrity Computation
+
+The effective integrity level of a content item is computed as follows:
+
+```text
+1. Start with the item's base integrity level (computed from GitHub metadata).
+2. IF the item's author is in blocked-users:
+     effective_integrity ← blocked  (terminates; item is always rejected)
+3. ELSE IF any label on the item is in approval-labels:
+     effective_integrity ← max(base_integrity, approved)
+4. ELSE:
+     effective_integrity ← base_integrity
+```
+
+**Notes**:
+- Step 2 takes precedence over step 3. Blocked users cannot be promoted by labels.
+- Step 3 only raises the integrity level; it cannot lower it. An item already at `merged` stays at `merged`.
+- The `max()` operation uses the ordinal values from the table above.
+
+#### 4.6.3 Access Decision
+
+After computing the effective integrity level, the gateway applies the following decision rule:
+
+```text
+IF effective_integrity == blocked:
+  DENY (author is in blocked-users)
+ELSE IF min-integrity is set AND effective_integrity < min-integrity:
+  DENY (below minimum integrity threshold)
+ELSE:
+  ALLOW (integrity check passes)
+```
+
+**Examples**:
+
+| `min-integrity` | `blocked-users` | `approval-labels` | Author | Labels | Decision |
+|---|---|---|---|---|---|
+| `approved` | — | `["approved"]` | `alice` | `["approved"]` | ALLOW (promoted to approved) |
+| `approved` | `["bot"]` | `["approved"]` | `bot` | `["approved"]` | DENY (blocked user) |
+| `approved` | — | — | `alice` | — | DENY (base=none < approved) |
+| `none` | — | — | `alice` | — | ALLOW (none ≥ none) |
+| `approved` | — | `["approved"]` | `alice` | `["merged"]` | ALLOW (merged > approved) |
+
+#### 4.6.4 Gateway Configuration Placement
+
+`min-integrity`, `blocked-users`, and `approval-labels` are siblings to `repos` inside the `allow-only` guard policy object in the MCP Gateway configuration. See [Section 10.3](#103-frontmatter-to-gateway-configuration) for the compiled representation.
+
+### 4.7 Configuration Validation
 
 Implementations MUST validate access control configuration at compilation time. The following validation rules apply:
 
-#### 4.6.1 Repository Pattern Validation
+#### 4.7.1 Repository Pattern Validation
 
 **Rule**: Each pattern in `repos` MUST match one of these formats:
 - Exact: `{owner}/{repo}` where both are non-empty alphanumeric with hyphens
@@ -711,7 +917,7 @@ Expected format: 'owner/repo', 'owner/*', '*/repo', or '*/*'.
 Pattern must contain exactly one slash with non-empty owner and repo segments.
 ```
 
-#### 4.6.2 Role Validation
+#### 4.7.2 Role Validation
 
 **Rule**: Each role in `roles` MUST be one of: `admin`, `maintain`, `write`, `triage`, `read`
 
@@ -736,12 +942,15 @@ Valid roles are: admin, maintain, write, triage, read.
 See https://docs.github.com/en/organizations/managing-access-to-your-organizations-repositories/repository-roles-for-an-organization
 ```
 
-#### 4.6.3 Type Validation
+#### 4.7.3 Type Validation
 
 **Rule**: Configuration fields MUST have correct types:
 - `repos`: array of strings
 - `roles`: array of strings
 - `private-repos`: boolean
+- `min-integrity`: string (one of the four valid integrity levels)
+- `blocked-users`: array of strings
+- `approval-labels`: array of strings
 
 **Validation**:
 ```yaml
@@ -749,16 +958,22 @@ See https://docs.github.com/en/organizations/managing-access-to-your-organizatio
 repos: ["owner/repo"]
 roles: ["write"]
 private-repos: false
+min-integrity: "approved"
+blocked-users: ["untrusted-bot"]
+approval-labels: ["human-reviewed"]
 
 # INVALID
 repos: "owner/repo"          # Must be array
 roles: ["write", 123]        # All elements must be strings
-private-repos: "false"         # Must be boolean
+private-repos: "false"       # Must be boolean
+min-integrity: "high"        # Not a valid integrity level
+blocked-users: "some-user"   # Must be array
+approval-labels: [true]      # All elements must be strings
 ```
 
-#### 4.6.4 Empty Array Validation
+#### 4.7.4 Empty Array Validation
 
-**Rule**: Neither `repos` nor `roles` MAY be empty arrays
+**Rule**: Neither `repos` nor `roles` MAY be empty arrays. `blocked-users` and `approval-labels` SHOULD NOT be empty arrays (treated as a warning, not an error, because an empty list is semantically equivalent to omitting the field).
 
 **Validation**:
 ```yaml
@@ -777,6 +992,31 @@ repos:
 Empty array for {field} is not allowed.
 Either omit the field entirely (no restrictions) or specify at least one pattern/role.
 To allow all access, use ["*/*"] for repos or omit the field.
+```
+
+#### 4.7.5 Integrity Level Value Validation
+
+**Rule**: The value of `min-integrity` MUST be one of: `"none"`, `"unapproved"`, `"approved"`, `"merged"`
+
+**Validation**:
+```text
+VALID:
+  - "none"
+  - "unapproved"
+  - "approved"
+  - "merged"
+
+INVALID:
+  - "high"          → Not a valid integrity level
+  - "low"           → Not a valid integrity level
+  - "true"          → Not a valid integrity level
+  - ""              → Empty string
+```
+
+**Error Message**:
+```text
+Invalid value '{value}' for min-integrity.
+Valid integrity levels are: none, unapproved, approved, merged.
 ```
 
 ---
@@ -1182,13 +1422,156 @@ To access private repositories, set 'private-repos: true' in the workflow config
 
 ---
 
-## 8. Security Model
+## 8. Integrity Level Management
 
-### 8.1 Threat Model
+This section specifies runtime behavior for `min-integrity`, `blocked-users`, and `approval-labels`. These fields are siblings to `repos` and `min-integrity` in the frontmatter and compile to the same `allow-only` guard policy in the MCP Gateway configuration.
+
+### 8.1 Base Integrity Level Determination
+
+The MCP Gateway MUST determine a base integrity level for each GitHub content item (issue, pull request, comment, etc.) before applying user or label overrides.
+
+**Base Level Mapping**:
+
+| Content State | Base Integrity Level |
+|---------------|---------------------|
+| Item submitted by external contributor with no review | `none` |
+| Item that has received comments or reactions but no approval | `unapproved` |
+| Item explicitly approved via GitHub review mechanism | `approved` |
+| Pull request merged into target branch | `merged` |
+
+The exact mapping from GitHub metadata to integrity levels is implementation-defined. Implementations SHOULD use GitHub's native review states (`APPROVED`, `CHANGES_REQUESTED`, `COMMENTED`) and merge status as primary signals.
+
+### 8.2 Blocked-User Enforcement
+
+When `blocked-users` is configured, the MCP Gateway MUST check the author of each content item against the list before performing any other integrity check.
+
+#### 8.2.1 Author Extraction
+
+**For pull requests and issues**: The author is the `user.login` field of the item.  
+**For comments**: The author is the `user.login` field of the comment.  
+**For review events**: The author is the `user.login` field of the review.
+
+#### 8.2.2 Blocking Algorithm
+
+```text
+IF item.author IN blocked-users:
+  DENY with code -32005 ("Blocked user")
+  LOG at WARN level: "Content from blocked user '{author}' rejected"
+  RETURN  ← no further checks
+```
+
+**Invariant**: An item authored by a blocked user is always denied, regardless of `approval-labels` or `min-integrity` settings.
+
+#### 8.2.3 Error Response
+
+```json
+{
+  "error": {
+    "code": -32005,
+    "message": "Access denied: Content from blocked user",
+    "data": {
+      "reason": "blocked_user",
+      "author": "untrusted-bot",
+      "details": "Content authored by 'untrusted-bot' is blocked by workflow configuration."
+    }
+  }
+}
+```
+
+### 8.3 Label-Based Approval Promotion
+
+When `approval-labels` is configured, the MCP Gateway MUST evaluate item labels and promote the effective integrity level when a matching label is found.
+
+#### 8.3.1 Label Extraction
+
+Labels are extracted from:
+- **Issues and pull requests**: The `labels` array in the GitHub API response
+- **Comments**: Labels are NOT directly attached to comments; the parent issue or PR labels are used
+
+#### 8.3.2 Promotion Algorithm
+
+```text
+effective_integrity ← base_integrity
+
+FOR each label in item.labels:
+  IF label.name IN approval-labels:
+    effective_integrity ← max(effective_integrity, approved)
+    LOG at INFO: "Item promoted to 'approved' by label '{label.name}'"
+    BREAK  ← one matching label is sufficient
+```
+
+**Notes**:
+- Promotion only raises the effective level; it cannot lower it.
+- If the base integrity is `merged`, it remains `merged` after promotion (merged > approved).
+- Label matching is **case-sensitive** by default. Implementations SHOULD document their case sensitivity behavior.
+
+#### 8.3.3 Label Caching
+
+Label data SHOULD be cached alongside other item metadata:
+
+- **Cache Key**: `{owner}/{repo}/{item_type}/{item_number}:labels`
+- **TTL**: 2 minutes (labels can be added/removed by reviewers at any time)
+- **Invalidation**: On any label mutation event
+
+### 8.4 Minimum Integrity Enforcement
+
+After computing the effective integrity level, the MCP Gateway MUST apply the `min-integrity` threshold.
+
+#### 8.4.1 Threshold Check Algorithm
+
+```text
+IF min-integrity IS set:
+  IF effective_integrity < min-integrity:
+    DENY with code -32006 ("Below minimum integrity")
+    LOG at WARN: "Item integrity '{effective}' below minimum '{min}'"
+  ELSE:
+    ALLOW (integrity check passes)
+ELSE:
+  ALLOW (no integrity check configured)
+```
+
+#### 8.4.2 Error Response
+
+```json
+{
+  "error": {
+    "code": -32006,
+    "message": "Access denied: Content integrity below minimum threshold",
+    "data": {
+      "reason": "insufficient_integrity",
+      "effective_integrity": "unapproved",
+      "min_integrity": "approved",
+      "details": "Item has integrity level 'unapproved', but 'approved' is required. Add a label from approval-labels to promote the item, or wait for it to be merged."
+    }
+  }
+}
+```
+
+### 8.5 Combined Evaluation Order
+
+The complete integrity evaluation MUST occur in this order:
+
+```text
+1. Author Check (blocked-users)
+   → If author is blocked: DENY immediately
+2. Label Promotion (approval-labels)
+   → Promote effective_integrity if a matching label is present
+3. Threshold Check (min-integrity)
+   → If effective_integrity < min-integrity: DENY
+4. All integrity checks passed: ALLOW
+```
+
+This order ensures that blocked users can never be promoted by labels, and that label promotion is always considered before the threshold check.
+
+---
+
+## 9. Security Model
+
+### 9.1 Threat Model
 
 GitHub MCP Server Access Control protects against the following threats:
 
-#### 8.1.1 Unauthorized Repository Access
+#### 9.1.1 Unauthorized Repository Access
 
 **Threat**: AI agent attempts to access repositories outside intended scope
 
@@ -1216,7 +1599,7 @@ repos: ["public-org/docs"]
 # Result: DENIED - "private-org/secrets" not in repos
 ```
 
-#### 8.1.2 Privilege Escalation via Role Confusion
+#### 9.1.2 Privilege Escalation via Role Confusion
 
 **Threat**: Agent performs write operations in read-only contexts
 
@@ -1243,7 +1626,7 @@ roles: ["read"]  # Read-only access
 # Result: DENIED - User has "read" permission, but "write" required
 ```
 
-#### 8.1.3 Private Data Leakage
+#### 9.1.3 Private Data Leakage
 
 **Threat**: Agent extracts private repository data through cross-repository queries
 
@@ -1268,29 +1651,59 @@ private-repos: false
 # Result: Search filtered to public repositories only
 ```
 
-### 8.2 Defense in Depth
+#### 9.1.4 Untrusted Content Processing
+
+**Threat**: Agent processes content from untrusted external contributors, enabling prompt injection or data exfiltration
+
+**Mitigation**:
+- `min-integrity` rejects content below trust threshold
+- `blocked-users` unconditionally suppresses content from known bad actors
+- `approval-labels` enables human gate before content reaches agent
+
+**Example Attack**:
+```yaml
+# Configuration
+min-integrity: "approved"
+blocked-users: ["malicious-bot"]
+approval-labels: ["safe-to-process"]
+
+# Attack attempt: malicious-bot submits a PR with approval label
+{
+  "tool": "get_pull_request",
+  "parameters": { "owner": "myorg", "repo": "app", "pull_number": 42 }
+  # PR authored by "malicious-bot" with label "safe-to-process"
+}
+
+# Result: DENIED - author is in blocked-users (label cannot override)
+```
+
+### 9.2 Defense in Depth
 
 GitHub MCP Server Access Control implements multiple defensive layers:
 
-#### 8.2.1 Layer 1: Compilation-Time Validation
+#### 9.2.1 Layer 1: Compilation-Time Validation
 
 - Syntax validation of configuration fields
 - Pattern format checking
 - Role name validation
+- Integrity level value validation
 - Type constraint enforcement
 
 **Benefit**: Catches misconfiguration before deployment
 
-#### 8.2.2 Layer 2: Gateway Middleware Enforcement
+#### 9.2.2 Layer 2: Gateway Middleware Enforcement
 
 - Request interception and parameter extraction
 - Pattern matching against allowlist
 - Permission level queries to GitHub API
 - Visibility verification for private repositories
+- Author check against blocked-users list
+- Label check for integrity promotion
+- Effective integrity comparison against min-integrity
 
 **Benefit**: Runtime enforcement at gateway boundary
 
-#### 8.2.3 Layer 3: Audit Logging
+#### 9.2.3 Layer 3: Audit Logging
 
 - Log all access decisions (allow and deny)
 - Include tool name, repository, user, and decision reason
@@ -1298,7 +1711,7 @@ GitHub MCP Server Access Control implements multiple defensive layers:
 
 **Benefit**: Security monitoring and incident response
 
-### 8.3 Access Decision Logging
+### 9.3 Access Decision Logging
 
 Implementations MUST log all access control decisions with the following information:
 
@@ -1316,7 +1729,13 @@ Implementations MUST log all access control decisions with the following informa
   "allowed_roles": ["write", "admin"],
   "user_role": "write",
   "private_repo": false,
-  "private_repos": true
+  "private_repos": true,
+  "content_author": "external-contributor",
+  "blocked_users": ["malicious-bot"],
+  "approval_labels": ["human-reviewed"],
+  "base_integrity": "none",
+  "effective_integrity": "approved",
+  "min_integrity": "approved"
 }
 ```
 
@@ -1324,21 +1743,21 @@ Implementations MUST log all access control decisions with the following informa
 - `INFO`: Access granted
 - `WARN`: Access denied (security relevant)
 
-### 8.4 Security Considerations
+### 9.4 Security Considerations
 
-#### 8.4.1 Token Security
+#### 9.4.1 Token Security
 
 - GitHub authentication tokens MUST NOT be logged in plaintext
 - Token values MUST be redacted in error messages
 - Token storage MUST follow GitHub Actions secrets best practices
 
-#### 8.4.2 Rate Limiting
+#### 9.4.2 Rate Limiting
 
 - Permission queries count against GitHub API rate limits
 - Implementations SHOULD implement caching to reduce API calls
 - Rate limit errors SHOULD be handled gracefully with retries
 
-#### 8.4.3 Error Message Information Disclosure
+#### 9.4.3 Error Message Information Disclosure
 
 - Error messages MUST NOT reveal repository existence for unauthorized repos
 - Error messages SHOULD be generic: "Access denied" rather than "Repository is private"
@@ -1346,9 +1765,9 @@ Implementations MUST log all access control decisions with the following informa
 
 ---
 
-## 9. Integration with MCP Gateway
+## 10. Integration with MCP Gateway
 
-### 9.1 Configuration Loading
+### 10.1 Configuration Loading
 
 GitHub MCP Server Access Control configuration is loaded during MCP Gateway initialization:
 
@@ -1359,7 +1778,7 @@ GitHub MCP Server Access Control configuration is loaded during MCP Gateway init
 4. Middleware registered in request processing pipeline
 ```
 
-### 9.2 Middleware Architecture
+### 10.2 Middleware Architecture
 
 Access control is implemented as MCP Gateway middleware:
 
@@ -1371,17 +1790,20 @@ Access control is implemented as MCP Gateway middleware:
 │ 2. Authentication middleware (existing)     │
 │ 3. GitHub Access Control Middleware (NEW)   │
 │    ├─ Extract repository identifier         │
-│    ├─ Match against repos           │
+│    ├─ Match against repos                   │
 │    ├─ Verify private repository access      │
 │    ├─ Query user's role                     │
-│    ├─ Check against roles           │
+│    ├─ Check against roles                   │
+│    ├─ Check author against blocked-users    │
+│    ├─ Promote integrity via approval-labels │
+│    ├─ Compare to min-integrity threshold    │
 │    └─ Allow or deny with logging            │
 │ 4. Forward to GitHub MCP server (if allowed)│
 │ 5. Response transformation (existing)       │
 └─────────────────────────────────────────────┘
 ```
 
-### 9.3 Schema Extension
+### 10.3 Schema Extension
 
 GitHub MCP Server Access Control extends the MCP Gateway configuration schema:
 
@@ -1398,7 +1820,7 @@ GitHub MCP Server Access Control extends the MCP Gateway configuration schema:
 }
 ```
 
-**Extended Schema** (with access control):
+**Extended Schema** (with access control and integrity-level management):
 ```json
 {
   "mcpServers": {
@@ -1406,15 +1828,22 @@ GitHub MCP Server Access Control extends the MCP Gateway configuration schema:
       "type": "http",
       "url": "https://api.githubcopilot.com/mcp/",
       "headers": { ... },
-      "repos": ["owner/*"],           // NEW
-      "roles": ["write", "admin"],    // NEW
-      "private-repos": false            // NEW
+      "guard-policies": {
+        "allow-only": {
+          "repos": ["owner/*"],               // Existing
+          "min-integrity": "approved",        // NEW
+          "blocked-users": ["bad-actor"],     // NEW
+          "approval-labels": ["safe-to-run"]  // NEW
+        }
+      },
+      "roles": ["write", "admin"],            // Existing
+      "private-repos": false                  // Existing
     }
   }
 }
 ```
 
-### 9.4 Frontmatter to Gateway Configuration
+### 10.4 Frontmatter to Gateway Configuration
 
 The workflow compiler transforms frontmatter to gateway configuration:
 
@@ -1427,6 +1856,11 @@ tools:
     repos: ["myorg/*"]
     roles: ["write", "admin"]
     private-repos: false
+    min-integrity: "approved"
+    blocked-users:
+      - "external-bot"
+    approval-labels:
+      - "human-reviewed"
 ```
 
 **Gateway Configuration** (compiled):
@@ -1439,7 +1873,14 @@ tools:
       "headers": {
         "Authorization": "Bearer ${GH_AW_GITHUB_TOKEN}"
       },
-      "repos": ["myorg/*"],
+      "guard-policies": {
+        "allow-only": {
+          "repos": ["myorg/*"],
+          "min-integrity": "approved",
+          "blocked-users": ["external-bot"],
+          "approval-labels": ["human-reviewed"]
+        }
+      },
       "roles": ["write", "admin"],
       "private-repos": false
     }
@@ -1447,7 +1888,7 @@ tools:
 }
 ```
 
-### 9.5 Error Response Format
+### 10.5 Error Response Format
 
 Access control denials MUST return standardized MCP error responses:
 
@@ -1472,16 +1913,18 @@ Access control denials MUST return standardized MCP error responses:
 - `-32002`: Repository not in allowlist (`repos`)
 - `-32003`: Insufficient permissions (`roles`)
 - `-32004`: Private repository access denied (`private-repos`)
+- `-32005`: Content from blocked user (`blocked-users`)
+- `-32006`: Content integrity below minimum threshold (`min-integrity`)
 
 ---
 
-## 10. Compliance Testing
+## 11. Compliance Testing
 
-### 10.1 Test Suite Requirements
+### 11.1 Test Suite Requirements
 
 Conforming implementations MUST pass the following test categories:
 
-#### 10.1.1 Configuration Validation Tests
+#### 11.1.1 Configuration Validation Tests
 
 - **T-GH-001**: Accept valid exact repository patterns
 - **T-GH-002**: Accept valid owner wildcard patterns (`owner/*`)
@@ -1493,8 +1936,14 @@ Conforming implementations MUST pass the following test categories:
 - **T-GH-008**: Reject non-boolean values for `private-repos`
 - **T-GH-009**: Reject empty arrays for `repos`
 - **T-GH-010**: Reject empty arrays for `roles`
+- **T-GH-041**: Accept valid `min-integrity` values (none, unapproved, approved, merged)
+- **T-GH-042**: Reject invalid `min-integrity` values
+- **T-GH-043**: Accept `blocked-users` as array of strings
+- **T-GH-044**: Reject `blocked-users` with non-string elements
+- **T-GH-045**: Accept `approval-labels` as array of strings
+- **T-GH-046**: Reject `approval-labels` with non-string elements
 
-#### 10.1.2 Repository Pattern Matching Tests
+#### 11.1.2 Repository Pattern Matching Tests
 
 - **T-GH-011**: Exact pattern matches target repository
 - **T-GH-012**: Exact pattern rejects non-matching repositories
@@ -1505,7 +1954,7 @@ Conforming implementations MUST pass the following test categories:
 - **T-GH-017**: Full wildcard matches all repositories
 - **T-GH-018**: Multiple patterns evaluated with OR logic
 
-#### 10.1.3 Role-Based Filtering Tests
+#### 11.1.3 Role-Based Filtering Tests
 
 - **T-GH-019**: Allow access when user role matches `roles`
 - **T-GH-020**: Deny access when user role doesn't match `roles`
@@ -1513,7 +1962,7 @@ Conforming implementations MUST pass the following test categories:
 - **T-GH-022**: Cache permission queries for performance
 - **T-GH-023**: Support multiple roles with OR logic
 
-#### 10.1.4 Private Repository Control Tests
+#### 11.1.4 Private Repository Control Tests
 
 - **T-GH-024**: Allow private repository when `private-repos: true`
 - **T-GH-025**: Deny private repository when `private-repos: false`
@@ -1521,28 +1970,48 @@ Conforming implementations MUST pass the following test categories:
 - **T-GH-027**: Query GitHub API for repository visibility
 - **T-GH-028**: Cache repository visibility for performance
 
-#### 10.1.5 Access Decision Logging Tests
+#### 11.1.5 Access Decision Logging Tests
 
 - **T-GH-029**: Log access granted decisions at INFO level
 - **T-GH-030**: Log access denied decisions at WARN level
 - **T-GH-031**: Include all required fields in log entries
 - **T-GH-032**: Redact sensitive data (tokens) from logs
 
-#### 10.1.6 Error Handling Tests
+#### 11.1.6 Error Handling Tests
 
 - **T-GH-033**: Return standardized error for repository not in allowlist
 - **T-GH-034**: Return standardized error for insufficient role
 - **T-GH-035**: Return standardized error for private repository denial
 - **T-GH-036**: Handle GitHub API errors gracefully
+- **T-GH-053**: Return `-32005` error for blocked-user content
+- **T-GH-054**: Return `-32006` error for content below min-integrity
 
-#### 10.1.7 Integration Tests
+#### 11.1.7 Integration Tests
 
 - **T-GH-037**: Access control works with local mode GitHub MCP server
 - **T-GH-038**: Access control works with remote mode GitHub MCP server
 - **T-GH-039**: Access control integrates with MCP Gateway authentication
 - **T-GH-040**: Configuration compiles correctly in workflow frontmatter
+- **T-GH-055**: Full config (repos + min-integrity + blocked-users + approval-labels) compiles to correct guard-policy object
+- **T-GH-056**: blocked-users, approval-labels, and min-integrity appear inside `allow-only` guard policy
 
-### 10.2 Compliance Checklist
+#### 11.1.8 Blocked-User Tests
+
+- **T-GH-047**: Deny content when author is in `blocked-users`
+- **T-GH-048**: Allow content when author is not in `blocked-users`
+- **T-GH-049**: Blocked user cannot be promoted by `approval-labels`
+- **T-GH-050**: Blocked-user check occurs before label evaluation
+
+#### 11.1.9 Integrity Level Tests
+
+- **T-GH-051**: Allow item when effective integrity meets `min-integrity`
+- **T-GH-052**: Deny item when effective integrity is below `min-integrity`
+- **T-GH-057**: Label in `approval-labels` promotes item to "approved"
+- **T-GH-058**: Promotion does not lower effective integrity (merged stays merged)
+- **T-GH-059**: No `min-integrity` configured → all non-blocked items pass integrity check
+- **T-GH-060**: Integrity ordinal order: none < unapproved < approved < merged
+
+### 11.2 Compliance Checklist
 
 | Requirement | Test ID | Level | Status |
 |-------------|---------|-------|--------|
@@ -1553,11 +2022,16 @@ Conforming implementations MUST pass the following test categories:
 | Parse roles | T-GH-005-006 | 2 | Required |
 | Role-based filtering | T-GH-019-023 | 2 | Required |
 | Private repo controls | T-GH-024-028 | 2 | Required |
+| Parse min-integrity | T-GH-041-042 | 2 | Required |
+| Parse blocked-users | T-GH-043-044 | 2 | Required |
+| Parse approval-labels | T-GH-045-046 | 2 | Required |
+| Blocked-user enforcement | T-GH-047-050 | 2 | Required |
+| Integrity level enforcement | T-GH-051-052, T-GH-057-060 | 2 | Required |
 | Access decision logging | T-GH-029-032 | 2 | Required |
-| Error responses | T-GH-033-036 | 2 | Required |
-| MCP Gateway integration | T-GH-037-040 | 2 | Required |
+| Error responses | T-GH-033-036, T-GH-053-054 | 2 | Required |
+| MCP Gateway integration | T-GH-037-040, T-GH-055-056 | 2 | Required |
 
-### 10.3 Test Execution
+### 11.3 Test Execution
 
 Implementations SHOULD provide automated test execution via:
 
@@ -1569,6 +2043,9 @@ make test-github-mcp-access-control
 make test-github-mcp-repository-patterns
 make test-github-mcp-role-filtering
 make test-github-mcp-private-repos
+make test-github-mcp-integrity-levels
+make test-github-mcp-blocked-users
+make test-github-mcp-approval-labels
 ```
 
 ---
@@ -1826,7 +2303,73 @@ tools:
 - `repos` further restricts which repos the MCP server can use
 - Both must allow a repository for access to be granted
 
-### Appendix B: Error Messages
+#### A.12 Approved Content Only (min-integrity)
+
+Restrict the agent to act only on items that have been explicitly approved:
+
+```yaml
+tools:
+  github:
+    mode: "remote"
+    toolsets: [repos, issues, pull_requests]
+    repos:
+      - "myorg/*"
+    min-integrity: "approved"
+```
+
+**Use Case**: Agent that triages or processes issues and PRs but should only act on items that a human reviewer has already approved, preventing prompt injection from untrusted external submissions.
+
+**Integrity behavior**: Items at `approved` or `merged` levels are allowed; items at `none` or `unapproved` are rejected.
+
+#### A.13 Block Known Bad Actors (blocked-users)
+
+Unconditionally suppress content from specific GitHub accounts:
+
+```yaml
+tools:
+  github:
+    mode: "remote"
+    toolsets: [issues, pull_requests]
+    repos:
+      - "myorg/*"
+    blocked-users:
+      - "spam-bot-account"
+      - "compromised-user"
+    min-integrity: "unapproved"
+```
+
+**Use Case**: Workflows where certain accounts are known to submit malicious or irrelevant content. Items authored by these users are always denied, even if they carry approval labels.
+
+**Security note**: `blocked-users` cannot be overridden by `approval-labels`. This is the highest-priority rejection.
+
+#### A.14 Human-Review Gate with Approval Labels (approval-labels + min-integrity)
+
+Use GitHub labels as the mechanism for a human reviewer to approve content for agent processing:
+
+```yaml
+tools:
+  github:
+    mode: "remote"
+    toolsets: [repos, issues, pull_requests]
+    repos:
+      - "myorg/*"
+    min-integrity: "approved"
+    blocked-users:
+      - "external-bot"
+    approval-labels:
+      - "approved-for-agent"
+      - "human-reviewed"
+```
+
+**Workflow**:
+1. External contributor opens an issue or PR (integrity: `none`)
+2. A human reviewer inspects the content and applies the `approved-for-agent` label
+3. The label promotes the item's effective integrity to `approved`
+4. The agent can now act on the item (`approved` ≥ `min-integrity: "approved"`)
+5. Items from `external-bot` are blocked regardless of labels
+
+**Use Case**: Open-source project workflows where external contributions must be human-vetted before agent automation triggers. Provides a clean audit trail via GitHub label history.
+
 
 #### B.1 Repository Not in Allowlist
 
@@ -1903,7 +2446,49 @@ Location: workflow.md:8
 Field: tools.github.roles[0]
 ```
 
-### Appendix C: Security Considerations
+#### B.6 Blocked User
+
+```json
+{
+  "error": {
+    "code": -32005,
+    "message": "Access denied: Content from blocked user",
+    "data": {
+      "reason": "blocked_user",
+      "author": "external-bot",
+      "details": "Content authored by 'external-bot' is blocked by workflow configuration. The blocked-users list cannot be overridden by approval labels."
+    }
+  }
+}
+```
+
+#### B.7 Content Below Minimum Integrity
+
+```json
+{
+  "error": {
+    "code": -32006,
+    "message": "Access denied: Content integrity below minimum threshold",
+    "data": {
+      "reason": "insufficient_integrity",
+      "effective_integrity": "none",
+      "min_integrity": "approved",
+      "details": "Item has effective integrity level 'none', but 'approved' is required. A reviewer must apply one of the configured approval-labels to the item, or wait for it to be merged."
+    }
+  }
+}
+```
+
+#### B.8 Invalid min-integrity Value
+
+```text
+Compilation Error: Invalid value 'high' for min-integrity.
+Valid integrity levels are: none, unapproved, approved, merged.
+
+Location: workflow.md:12
+Field: tools.github.min-integrity
+```
+
 
 #### C.1 Token Permissions
 
@@ -1998,6 +2583,27 @@ GitHub API rate limits apply to:
 ---
 
 ## Change Log
+
+### Version 1.1.0 (Draft)
+
+**Integrity-Level Management Extensions** - March 2026
+
+- **Added**: `min-integrity` configuration field — sets the minimum content trust level required for the agent to act on a GitHub item; valid values are `none`, `unapproved`, `approved`, `merged`
+- **Added**: `blocked-users` configuration field — list of GitHub usernames whose content is unconditionally blocked, representing an integrity level below `none` that cannot be overridden by labels
+- **Added**: `approval-labels` configuration field — list of GitHub label names that promote an item's effective integrity to `approved`, enabling human-review gate workflows
+- **Added**: Section 4.4.4 documenting `min-integrity`
+- **Added**: Section 4.4.5 documenting `blocked-users`
+- **Added**: Section 4.4.6 documenting `approval-labels`
+- **Added**: Section 4.6 Integrity Level Model — formal hierarchy, effective integrity computation algorithm, and access decision rules
+- **Added**: Section 8 Integrity Level Management — runtime enforcement specification for base level determination, blocked-user enforcement, label-based promotion, and threshold checking
+- **Updated**: Section 4.5 — extended combined evaluation order to include integrity-level management phase
+- **Updated**: Section 4.7 (formerly 4.6) — added type validation for new fields and integrity level value validation (§4.7.5)
+- **Updated**: Section 9 Security Model (formerly §8) — added threat scenario for untrusted content processing; expanded defense layers to include integrity enforcement; extended log entry structure
+- **Updated**: Section 10 Integration with MCP Gateway (formerly §9) — updated schema and configuration transformation examples to show `blocked-users` and `approval-labels` inside the `allow-only` guard policy object; added error codes `-32005` and `-32006`
+- **Updated**: Section 11 Compliance Testing (formerly §10) — added test groups 11.1.8 (blocked-user tests T-GH-047–050) and 11.1.9 (integrity level tests T-GH-051–052, T-GH-057–060); added configuration validation tests T-GH-041–046; added error handling tests T-GH-053–054; added integration tests T-GH-055–056
+- **Updated**: Appendix A — added examples A.12 (min-integrity), A.13 (blocked-users), A.14 (approval-labels + min-integrity combined)
+- **Updated**: Appendix B — added error messages B.6 (blocked user), B.7 (insufficient integrity), B.8 (invalid min-integrity value)
+- **Updated**: Abstract, Introduction, and Conformance to reflect new integrity-level controls
 
 ### Version 1.0.0 (Draft)
 
