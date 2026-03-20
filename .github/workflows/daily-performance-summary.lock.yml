@@ -1491,12 +1491,7 @@ jobs:
         run: |
           mkdir -p /tmp/gh-aw/
           find "/tmp/gh-aw/" -type f -print
-          FOUND_FILE=$(find "/tmp/gh-aw/" -name "agent_output.json" -type f 2>/dev/null | head -1)
-          if [ -n "$FOUND_FILE" ]; then
-            echo "GH_AW_AGENT_OUTPUT=$FOUND_FILE" >> "$GITHUB_ENV"
-          else
-            echo "Warning: agent_output.json not found under /tmp/gh-aw/" >&2
-          fi
+          echo "GH_AW_AGENT_OUTPUT=/tmp/gh-aw/agent_output.json" >> "$GITHUB_ENV"
       - name: Process No-Op Messages
         id: noop
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
@@ -1618,12 +1613,7 @@ jobs:
         run: |
           mkdir -p /tmp/gh-aw/
           find "/tmp/gh-aw/" -type f -print
-          FOUND_FILE=$(find "/tmp/gh-aw/" -name "agent_output.json" -type f 2>/dev/null | head -1)
-          if [ -n "$FOUND_FILE" ]; then
-            echo "GH_AW_AGENT_OUTPUT=$FOUND_FILE" >> "$GITHUB_ENV"
-          else
-            echo "Warning: agent_output.json not found under /tmp/gh-aw/" >&2
-          fi
+          echo "GH_AW_AGENT_OUTPUT=/tmp/gh-aw/agent_output.json" >> "$GITHUB_ENV"
       - name: Configure GH_HOST for enterprise compatibility
         shell: bash
         run: |
@@ -1761,12 +1751,7 @@ jobs:
         run: |
           mkdir -p /tmp/gh-aw/
           find "/tmp/gh-aw/" -type f -print
-          FOUND_FILE=$(find "/tmp/gh-aw/" -name "agent_output.json" -type f 2>/dev/null | head -1)
-          if [ -n "$FOUND_FILE" ]; then
-            echo "GH_AW_AGENT_OUTPUT=$FOUND_FILE" >> "$GITHUB_ENV"
-          else
-            echo "Warning: agent_output.json not found under /tmp/gh-aw/" >&2
-          fi
+          echo "GH_AW_AGENT_OUTPUT=/tmp/gh-aw/agent_output.json" >> "$GITHUB_ENV"
       - name: Push assets
         id: upload_assets
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8

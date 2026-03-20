@@ -55,8 +55,8 @@ func buildArtifactDownloadSteps(config ArtifactDownloadConfig) []string {
 
 	// Add environment variable setup if requested
 	if config.SetupEnvStep {
-		artifactsLog.Printf("Adding environment variable setup step: find %s -name %s",
-			config.DownloadPath, config.ArtifactFilename)
+		artifactsLog.Printf("Adding environment variable setup step: %s=%s%s",
+			config.EnvVarName, config.DownloadPath, config.ArtifactFilename)
 		steps = append(steps, "      - name: Setup agent output environment variable\n")
 		// Only set the env var when the artifact was actually downloaded
 		if config.StepID != "" {
@@ -66,16 +66,11 @@ func buildArtifactDownloadSteps(config ArtifactDownloadConfig) []string {
 		steps = append(steps, "        run: |\n")
 		steps = append(steps, fmt.Sprintf("          mkdir -p %s\n", config.DownloadPath))
 		steps = append(steps, fmt.Sprintf("          find \"%s\" -type f -print\n", config.DownloadPath))
-		// Use find to dynamically locate the file regardless of internal artifact directory
-		// structure. download-artifact may preserve the artifact's internal path hierarchy
-		// (e.g. /tmp/gh-aw/ becomes {download-path}/gh-aw/ after extraction), so we cannot
-		// rely on a hardcoded path.
-		steps = append(steps, fmt.Sprintf("          FOUND_FILE=$(find \"%s\" -name \"%s\" -type f 2>/dev/null | head -1)\n", config.DownloadPath, config.ArtifactFilename))
-		steps = append(steps, "          if [ -n \"$FOUND_FILE\" ]; then\n")
-		steps = append(steps, fmt.Sprintf("            echo \"%s=$FOUND_FILE\" >> \"$GITHUB_ENV\"\n", config.EnvVarName))
-		steps = append(steps, "          else\n")
-		steps = append(steps, fmt.Sprintf("            echo \"Warning: %s not found under %s\" >&2\n", config.ArtifactFilename, config.DownloadPath))
-		steps = append(steps, "          fi\n")
+		// When downloading a single artifact by name with download-artifact@v4,
+		// artifacts are extracted directly to {download-path}, not {download-path}/{artifact-name}/
+		// The actual filename is specified in ArtifactFilename
+		artifactPath := fmt.Sprintf("%s%s", config.DownloadPath, config.ArtifactFilename)
+		steps = append(steps, fmt.Sprintf("          echo \"%s=%s\" >> \"$GITHUB_ENV\"\n", config.EnvVarName, artifactPath))
 	}
 
 	return steps
