@@ -3,6 +3,29 @@ description: Daily CLI Performance - Runs benchmarks, tracks performance trends,
 on:
   schedule: daily
   workflow_dispatch:
+  permissions:
+    contents: read
+  steps:
+    - name: Detect recent compilation-related changes
+      id: changes
+      uses: actions/github-script@v8
+      with:
+        script: |
+          const { owner, repo } = context.repo;
+          const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+          // Check commits touching Go source, go.mod/go.sum, or Makefile in last 24h
+          const checkPaths = ['go.mod', 'go.sum', 'Makefile', 'pkg', 'cmd'];
+          let hasChanges = false;
+          for (const path of checkPaths) {
+            const resp = await github.rest.repos.listCommits({ owner, repo, since, path, per_page: 1 });
+            if (resp.data.length > 0) {
+              core.info(`Found recent compilation-related change via path: ${path}`);
+              hasChanges = true;
+              break;
+            }
+          }
+          core.info(`has_changes=${hasChanges}`);
+          core.setOutput('has_changes', hasChanges ? 'true' : 'false');
 permissions:
   contents: read
   issues: read
@@ -35,6 +58,11 @@ imports:
   - shared/go-make.md
 features:
   copilot-requests: true
+if: needs.pre_activation.outputs.has_changes == 'true' || github.event_name == 'workflow_dispatch'
+jobs:
+  pre-activation:
+    outputs:
+      has_changes: ${{ steps.changes.outputs.has_changes }}
 ---
 
 {{#runtime-import? .github/shared-instructions.md}}
@@ -58,43 +86,6 @@ This workflow imports `shared/go-make.md` which provides:
 - **mcpscripts-make** - Execute Make targets (e.g., args: "build", "test-unit", "bench")
 
 **IMPORTANT**: Always use these mcp-script tools for Go and Make commands instead of running them directly via bash.
-
-## Phase 0: Change Detection and Early-Exit Guard
-
-Before running expensive benchmarks, check whether compilation-related files have changed since the last run and whether a benchmark entry for today already exists.
-
-```bash
-# Check for recent changes to Go source and build files (last 24 hours)
-# Use :(glob) pathspec prefix so the pattern matches files at any depth in the tree
-RECENT_GO_CHANGES=$(git log --since="24 hours ago" --oneline -- ":(glob)**/*.go" "go.mod" "go.sum" "Makefile" 2>/dev/null | wc -l | tr -d ' ')
-echo "Recent compilation-related changes in last 24h: $RECENT_GO_CHANGES"
-
-# Check the date of the most recent benchmark entry
-LAST_RUN_DATE=""
-if [ -f /tmp/gh-aw/repo-memory/default/benchmark_history.jsonl ] && [ -s /tmp/gh-aw/repo-memory/default/benchmark_history.jsonl ]; then
-  LAST_RUN_DATE=$(tail -1 /tmp/gh-aw/repo-memory/default/benchmark_history.jsonl \
-    | python3 -c "import json,sys; line=sys.stdin.read().strip(); d=json.loads(line); print(d.get('date',''))" 2>&1) || {
-      echo "Warning: could not parse last benchmark date (malformed JSON or Python unavailable)"
-      LAST_RUN_DATE=""
-    }
-fi
-TODAY=$(date -u +%Y-%m-%d)
-echo "Last benchmark date: ${LAST_RUN_DATE:-none}"
-echo "Today: $TODAY"
-```
-
-**Decision rule** — if **both** of the following are true, there is nothing new to measure:
-
-1. `RECENT_GO_CHANGES` is `0` (no compilation-related file has changed in the last 24 hours), **and**
-2. `LAST_RUN_DATE` equals `TODAY` (a benchmark entry already exists for today)
-
-In that case, **stop here** and call the `noop` safe-output tool, substituting the actual value of `$LAST_RUN_DATE` into the message:
-
-```json
-{"noop": {"message": "No action needed: No compilation-related file changes in the last 24 hours and a benchmark entry already exists for today ($LAST_RUN_DATE)."}}
-```
-
-Otherwise, continue with Phase 1.
 
 ## Phase 1: Run Performance Benchmarks
 
@@ -653,7 +644,7 @@ python3 /tmp/gh-aw/benchmarks/generate_report.py
 
 A successful daily run will:
 
-✅ **Skip when unchanged** - Exit early (noop) when no compilation-related files changed in the last 24h and today's data already exists  
+✅ **Skip when unchanged** - Pre-activation step detects no compilation-related changes in the last 24h and skips activation entirely  
 ✅ **Run benchmarks** - Execute `make bench` and capture results  
 ✅ **Parse results** - Extract key metrics (ns/op, B/op, allocs/op) from benchmark output  
 ✅ **Store in memory** - Append results to `benchmark_history.jsonl` in cache-memory (pruned to last 14 entries)  
