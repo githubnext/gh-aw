@@ -7871,6 +7871,31 @@
                     "type": "string"
                   },
                   "examples": [{ "GITHUB_TOKEN": "${{ github.token }}" }]
+                },
+                "inputs": {
+                  "type": "object",
+                  "description": "Explicit input definitions for the action, overriding the auto-fetched action.yml schema. Use this to ensure deterministic compilation without requiring network access at compile time.",
+                  "patternProperties": {
+                    "^[a-zA-Z_][a-zA-Z0-9_-]*$": {
+                      "type": "object",
+                      "description": "Definition for a single action input.",
+                      "properties": {
+                        "description": {
+                          "type": "string",
+                          "description": "Description of the input."
+                        },
+                        "required": {
+                          "type": "boolean",
+                          "description": "Whether the input is required."
+                        },
+                        "default": {
+                          "type": "string",
+                          "description": "Default value for the input."
+                        }
+                      },
+                      "additionalProperties": false
+                    }
+                  }
                 }
               },
               "required": ["uses"],

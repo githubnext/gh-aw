@@ -68,6 +68,12 @@ safe-outputs:
         description: Add the 'smoked' label to the current pull request
         env:
           GITHUB_TOKEN: ${{ github.token }}
+        inputs:
+          labels:
+            description: "The labels' name to be added. Must be separated with line breaks if there're multiple labels."
+            required: true
+          number:
+            description: "The number of the issue or pull request."
 timeout-minutes: 15
 checkout:
   - fetch-depth: 2

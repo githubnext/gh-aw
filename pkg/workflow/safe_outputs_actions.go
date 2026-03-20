@@ -92,6 +92,24 @@ func parseActionsConfig(actionsMap map[string]any) map[string]*SafeOutputActionC
 				}
 			}
 		}
+		if inputsMap, ok := actionConfigMap["inputs"].(map[string]any); ok {
+			actionConfig.Inputs = make(map[string]*ActionYAMLInput, len(inputsMap))
+			for inputName, inputValue := range inputsMap {
+				inputDef := &ActionYAMLInput{}
+				if inputDefMap, ok := inputValue.(map[string]any); ok {
+					if desc, ok := inputDefMap["description"].(string); ok {
+						inputDef.Description = desc
+					}
+					if req, ok := inputDefMap["required"].(bool); ok {
+						inputDef.Required = req
+					}
+					if def, ok := inputDefMap["default"].(string); ok {
+						inputDef.Default = def
+					}
+				}
+				actionConfig.Inputs[inputName] = inputDef
+			}
+		}
 
 		if actionConfig.Uses == "" {
 			safeOutputActionsLog.Printf("Warning: action %q is missing required 'uses' field, skipping", actionName)
@@ -145,6 +163,10 @@ func parseActionUsesField(uses string) (*actionRef, error) {
 // fetchAndParseActionYAML resolves the inputs and description from the action.yml
 // for each configured action. Results are stored in the action config's computed fields.
 // This function should be called before tool generation and step generation.
+//
+// If inputs were already specified in the frontmatter (config.Inputs != nil), the
+// action.yml network fetch is skipped to ensure deterministic compilation.  The action
+// reference is still pinned to a commit SHA for security.
 func (c *Compiler) fetchAndParseActionYAML(actionName string, config *SafeOutputActionConfig, markdownPath string, data *WorkflowData) {
 	if config.Uses == "" {
 		return
@@ -156,17 +178,23 @@ func (c *Compiler) fetchAndParseActionYAML(actionName string, config *SafeOutput
 		return
 	}
 
+	// Remember whether inputs were provided via frontmatter so we can skip the
+	// action.yml fetch below (preventing non-deterministic compilation).
+	inputsFromFrontmatter := config.Inputs != nil
+
 	var actionYAML *actionYAMLFile
 	var resolvedRef string
 
 	if ref.IsLocal {
-		actionYAML, err = readLocalActionYAML(ref.LocalPath, markdownPath)
-		if err != nil {
-			safeOutputActionsLog.Printf("Warning: failed to read local action.yml for %q at %s: %v", actionName, ref.LocalPath, err)
+		if !inputsFromFrontmatter {
+			actionYAML, err = readLocalActionYAML(ref.LocalPath, markdownPath)
+			if err != nil {
+				safeOutputActionsLog.Printf("Warning: failed to read local action.yml for %q at %s: %v", actionName, ref.LocalPath, err)
+			}
 		}
 		resolvedRef = config.Uses // local paths stay as-is
 	} else {
-		// Pin the action ref and fetch the action.yml
+		// Pin the action ref for security.
 		pinned, pinErr := GetActionPinWithData(ref.Repo, ref.Ref, data)
 		var fetchRef string
 		if pinErr != nil {
@@ -185,15 +213,22 @@ func (c *Compiler) fetchAndParseActionYAML(actionName string, config *SafeOutput
 			}
 		}
 
-		actionYAML, err = fetchRemoteActionYAML(ref.Repo, ref.Subdir, fetchRef)
-		if err != nil {
-			safeOutputActionsLog.Printf("Warning: failed to fetch action.yml for %q (%s): %v", actionName, config.Uses, err)
+		// Only fetch action.yml when inputs were not specified in the frontmatter.
+		// Skipping the fetch ensures that compilation is deterministic regardless of
+		// network availability.
+		if !inputsFromFrontmatter {
+			actionYAML, err = fetchRemoteActionYAML(ref.Repo, ref.Subdir, fetchRef)
+			if err != nil {
+				safeOutputActionsLog.Printf("Warning: failed to fetch action.yml for %q (%s): %v", actionName, config.Uses, err)
+			}
 		}
 	}
 
 	config.ResolvedRef = resolvedRef
 
-	if actionYAML != nil {
+	// Only overwrite Inputs/ActionDescription from action.yml when the inputs were
+	// not already provided via frontmatter.
+	if !inputsFromFrontmatter && actionYAML != nil {
 		config.Inputs = actionYAML.Inputs
 		config.ActionDescription = actionYAML.Description
 	}
