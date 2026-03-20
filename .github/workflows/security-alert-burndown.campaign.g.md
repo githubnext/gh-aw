@@ -16,6 +16,10 @@ engine: claude
 safe-outputs:
   add-comment:
     max: 3
+  close-issue:
+    required-title-prefix: "Security Alert Burndown"
+    target: "*"
+    max: 5
   create-issue:
     max: 1
   create-project-status-update:
@@ -229,11 +233,22 @@ and synchronizing campaign state into a GitHub Project board.
 
 **On every run, before other steps:**
 
-1) **Check for existing Epic issue** by searching the repository for:
-   - An open issue with label `epic` or `type:epic`
-   - Body text containing: `campaign_id: security-alert-burndown`
+1) **Check for existing Epic issue** by searching the repository for open issues using the canonical title as the primary criterion:
+   - Use the GitHub search query: `is:issue is:open in:title "Security Alert Burndown" repo:${{ github.repository }}`
+   - Additionally accept issues that have label `epic` or `type:epic` **and** body text containing `campaign_id: security-alert-burndown`, even if the title differs slightly.
 
-2) **If no Epic issue exists**, create it using `create-issue`:
+2) **If multiple open issues are found** matching either criterion:
+   - Keep the **oldest** issue (lowest issue number / earliest `created_at`) as the canonical Epic
+   - Close all newer duplicates using `close-issue` with a comment explaining the consolidation. Example for closing issue #456 when #123 is the canonical one:
+     ```
+     Closing this duplicate Epic issue. The canonical Security Alert Burndown tracking issue is #123. All future updates will be posted there.
+     ```
+     (Replace 123 with the actual oldest issue number)
+   - Use the oldest issue as the Epic going forward
+
+3) **If exactly one open issue** matching either criterion is found, use that as the Epic. Do NOT create a new one.
+
+4) **If no matching open issue exists**, create it using `create-issue`:
    ```yaml
    create-issue:
      title: "Security Alert Burndown"
@@ -256,7 +271,7 @@ and synchronizing campaign state into a GitHub Project board.
        - type:epic
    ```
 
-3) **After creating the Epic** (or if Epic exists but not on board), add it to the project board:
+5) **After creating the Epic** (or if Epic exists but not on board), add it to the project board:
    ```yaml
    update-project:
      project: "https://github.com/orgs/githubnext/projects/122"
@@ -274,9 +289,9 @@ and synchronizing campaign state into a GitHub Project board.
        end_date: "<TODAY_YYYY-MM-DD>"
    ```
 
-4) **Record the Epic issue number** in repo-memory for reference (e.g., in cursor file or metadata).
+6) **Record the Epic issue number** in repo-memory for reference (e.g., in cursor file or metadata).
 
-**Note:** This step typically runs only on the first orchestrator execution. On subsequent runs, verify the Epic exists and is on the board, but do not recreate it.
+**Note:** This step ensures exactly ONE open Epic issue exists at all times. On each run, verify the single canonical Epic exists and is on the board. Duplicates are closed immediately upon detection.
 
 ---
 

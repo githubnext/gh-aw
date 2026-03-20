@@ -22,7 +22,7 @@
 #
 # Orchestrator workflow for campaign 'security-alert-burndown'
 #
-# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"95c604b0da56636c5697a678a5a3be8ec94c72422e416485321e10fa43001f3e","strict":true,"agent_id":"claude"}
+# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"79896ab0746e53d46323af45201a97cfc4f793932ea061b6203b5111c7ae609b","strict":true,"agent_id":"claude"}
 
 name: "Security Alert Burndown"
 "on":
@@ -139,7 +139,7 @@ jobs:
           cat "${RUNNER_TEMP}/gh-aw/prompts/safe_outputs_prompt.md"
           cat << 'GH_AW_PROMPT_EOF'
           <safe-output-tools>
-          Tools: add_comment, create_issue, update_project, create_project_status_update, missing_tool, missing_data, noop
+          Tools: add_comment, create_issue, close_issue, update_project, create_project_status_update, missing_tool, missing_data, noop
           </safe-output-tools>
           <github-context>
           The following GitHub context information is available for this workflow:
@@ -182,6 +182,7 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
+          GH_AW_GITHUB_REPOSITORY: ${{ github.repository }}
         with:
           script: |
             const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');
@@ -377,7 +378,7 @@ jobs:
           mkdir -p /tmp/gh-aw/safeoutputs
           mkdir -p /tmp/gh-aw/mcp-logs/safeoutputs
           cat > ${RUNNER_TEMP}/gh-aw/safeoutputs/config.json << 'GH_AW_SAFE_OUTPUTS_CONFIG_EOF'
-          {"add_comment":{"max":3},"create_issue":{"max":1},"create_project_status_update":{"max":1},"missing_data":{},"missing_tool":{},"noop":{"max":1},"push_repo_memory":{"memories":[{"dir":"/tmp/gh-aw/repo-memory/campaigns","id":"campaigns","max_file_count":100,"max_file_size":10240,"max_patch_size":10240}]},"update_project":{"max":10}}
+          {"add_comment":{"max":3},"close_issue":{"max":5,"required_title_prefix":"Security Alert Burndown","target":"*"},"create_issue":{"max":1},"create_project_status_update":{"max":1},"missing_data":{},"missing_tool":{},"noop":{"max":1},"push_repo_memory":{"memories":[{"dir":"/tmp/gh-aw/repo-memory/campaigns","id":"campaigns","max_file_count":100,"max_file_size":10240,"max_patch_size":10240}]},"update_project":{"max":10}}
           GH_AW_SAFE_OUTPUTS_CONFIG_EOF
       - name: Write Safe Outputs Tools
         run: |
@@ -385,6 +386,7 @@ jobs:
           {
             "description_suffixes": {
               "add_comment": " CONSTRAINTS: Maximum 3 comment(s) can be added.",
+              "close_issue": " CONSTRAINTS: Maximum 5 issue(s) can be closed. Target: *. Only issues with title prefix \"Security Alert Burndown\" can be closed.",
               "create_issue": " CONSTRAINTS: Maximum 1 issue(s) can be created.",
               "create_project_status_update": " CONSTRAINTS: Maximum 1 status update(s) can be created. Default project URL: \"https://github.com/orgs/githubnext/projects/122\".",
               "update_project": " CONSTRAINTS: Maximum 10 project operation(s) can be performed. Default project URL: \"https://github.com/orgs/githubnext/projects/122\"."
@@ -406,6 +408,24 @@ jobs:
                 },
                 "item_number": {
                   "issueOrPRNumber": true
+                },
+                "repo": {
+                  "type": "string",
+                  "maxLength": 256
+                }
+              }
+            },
+            "close_issue": {
+              "defaultMax": 1,
+              "fields": {
+                "body": {
+                  "required": true,
+                  "type": "string",
+                  "sanitize": true,
+                  "maxLength": 65000
+                },
+                "issue_number": {
+                  "optionalPositiveInteger": true
                 },
                 "repo": {
                   "type": "string",
@@ -1312,7 +1332,7 @@ jobs:
           GH_AW_ALLOWED_DOMAINS: "*.githubusercontent.com,anthropic.com,api.anthropic.com,api.github.com,api.snapcraft.io,archive.ubuntu.com,azure.archive.ubuntu.com,cdn.playwright.dev,codeload.github.com,crl.geotrust.com,crl.globalsign.com,crl.identrust.com,crl.sectigo.com,crl.thawte.com,crl.usertrust.com,crl.verisign.com,crl3.digicert.com,crl4.digicert.com,crls.ssl.com,files.pythonhosted.org,ghcr.io,github-cloud.githubusercontent.com,github-cloud.s3.amazonaws.com,github.com,host.docker.internal,json-schema.org,json.schemastore.org,keyserver.ubuntu.com,lfs.github.com,objects.githubusercontent.com,ocsp.digicert.com,ocsp.geotrust.com,ocsp.globalsign.com,ocsp.identrust.com,ocsp.sectigo.com,ocsp.ssl.com,ocsp.thawte.com,ocsp.usertrust.com,ocsp.verisign.com,packagecloud.io,packages.cloud.google.com,packages.microsoft.com,playwright.download.prss.microsoft.com,ppa.launchpad.net,pypi.org,raw.githubusercontent.com,registry.npmjs.org,s.symcb.com,s.symcd.com,security.ubuntu.com,sentry.io,statsig.anthropic.com,ts-crl.ws.symantec.com,ts-ocsp.ws.symantec.com,www.googleapis.com"
           GITHUB_SERVER_URL: ${{ github.server_url }}
           GITHUB_API_URL: ${{ github.api_url }}
-          GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG: "{\"add_comment\":{\"max\":3},\"create_issue\":{\"max\":1},\"create_project_status_update\":{\"max\":1,\"project\":\"https://github.com/orgs/githubnext/projects/122\"},\"missing_data\":{},\"missing_tool\":{},\"noop\":{\"max\":1,\"report-as-issue\":\"true\"},\"update_project\":{\"max\":10,\"project\":\"https://github.com/orgs/githubnext/projects/122\"}}"
+          GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG: "{\"add_comment\":{\"max\":3},\"close_issue\":{\"max\":5,\"required_title_prefix\":\"Security Alert Burndown\",\"target\":\"*\"},\"create_issue\":{\"max\":1},\"create_project_status_update\":{\"max\":1,\"project\":\"https://github.com/orgs/githubnext/projects/122\"},\"missing_data\":{},\"missing_tool\":{},\"noop\":{\"max\":1,\"report-as-issue\":\"true\"},\"update_project\":{\"max\":10,\"project\":\"https://github.com/orgs/githubnext/projects/122\"}}"
           GH_AW_PROJECT_URL: "https://github.com/orgs/githubnext/projects/122"
           GH_AW_PROJECT_GITHUB_TOKEN: ${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}
         with:
