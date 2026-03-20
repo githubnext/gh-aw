@@ -197,8 +197,13 @@ func TestDeriveSafeOutputsGuardPolicyFromGitHub(t *testing.T) {
 			githubTool: map[string]any{
 				"min-integrity": "approved",
 			},
-			expectNil:   true,
-			description: "No repos means no guard-policy for safeoutputs",
+			expectedPolicies: map[string]any{
+				"write-sink": map[string]any{
+					"accept": []string{"*"},
+				},
+			},
+			expectNil:   false,
+			description: "No repos defaults to all, which means accept=[*] for safeoutputs",
 		},
 		{
 			name: "no guard policy at all",
