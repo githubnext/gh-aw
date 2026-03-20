@@ -139,6 +139,45 @@ func containsStatusFunc(node ConditionNode) bool {
 	return false
 }
 
+// collectOrTerms recursively flattens a chain of OrNode / DisjunctionNode into
+// a flat slice of leaf terms. This allows the DisjunctionNode optimiser (which
+// already performs dedup, false-filtering and true short-circuit) to operate on
+// the entire or-chain in a single pass.
+func collectOrTerms(node ConditionNode) []ConditionNode {
+	switch n := node.(type) {
+	case *OrNode:
+		return append(collectOrTerms(n.Left), collectOrTerms(n.Right)...)
+	case *DisjunctionNode:
+		terms := make([]ConditionNode, 0, len(n.Terms))
+		for _, t := range n.Terms {
+			terms = append(terms, collectOrTerms(t)...)
+		}
+		return terms
+	}
+	return []ConditionNode{node}
+}
+
+// collectAndTerms recursively flattens a chain of AndNode into a flat slice of
+// leaf terms so that cross-chain deduplication can be performed in a single pass.
+func collectAndTerms(node ConditionNode) []ConditionNode {
+	if and, ok := node.(*AndNode); ok {
+		return append(collectAndTerms(and.Left), collectAndTerms(and.Right)...)
+	}
+	return []ConditionNode{node}
+}
+
+// rebuildAndChain assembles a left-folded AndNode chain from a non-empty slice.
+func rebuildAndChain(terms []ConditionNode) ConditionNode {
+	if len(terms) == 1 {
+		return terms[0]
+	}
+	result := ConditionNode(&AndNode{Left: terms[0], Right: terms[1]})
+	for _, t := range terms[2:] {
+		result = &AndNode{Left: result, Right: t}
+	}
+	return result
+}
+
 // --- node-specific optimisers ------------------------------------------------
 
 func optimizeAndNode(n *AndNode) ConditionNode {
@@ -146,46 +185,87 @@ func optimizeAndNode(n *AndNode) ConditionNode {
 	left := optimizeNode(n.Left)
 	right := optimizeNode(n.Right)
 
-	// Annihilation: A && false → false
+	// Annihilation: A && false → false  (before flattening for early exit).
 	if isBoolLiteral(left, false) || isBoolLiteral(right, false) {
 		expressionOptimizerLog.Printf("AND annihilation: %s && %s → false", left.Render(), right.Render())
 		return &BooleanLiteralNode{Value: false}
 	}
 
-	// Identity: A && true → A  (guard: do not remove status functions)
-	if isBoolLiteral(right, true) && !isStatusFunc(left) {
-		expressionOptimizerLog.Printf("AND identity (right true): %s && true → %s", left.Render(), left.Render())
-		return left
-	}
-	if isBoolLiteral(left, true) && !isStatusFunc(right) {
-		expressionOptimizerLog.Printf("AND identity (left true): true && %s → %s", right.Render(), right.Render())
-		return right
+	// Flatten the entire AND chain so that rules can operate across nesting levels.
+	// e.g. A && (A && B) → [A, A, B] → dedup → [A, B] → A && B
+	terms := collectAndTerms(&AndNode{Left: left, Right: right})
+
+	// Annihilation within the flat list (covers cases after child optimisation).
+	for _, t := range terms {
+		if isBoolLiteral(t, false) {
+			expressionOptimizerLog.Printf("AND annihilation (flatten): false term → false")
+			return &BooleanLiteralNode{Value: false}
+		}
 	}
 
-	// Skip idempotent / complement rules when status functions are present.
-	if containsStatusFunc(left) || containsStatusFunc(right) {
-		return &AndNode{Left: left, Right: right}
+	// Identity: filter out `true` literals, but keep them when any term is a
+	// status function (to preserve status-function semantics).
+	hasStatusFuncInTerms := slices.ContainsFunc(terms, containsStatusFunc)
+	filtered := make([]ConditionNode, 0, len(terms))
+	for _, t := range terms {
+		if isBoolLiteral(t, true) && !hasStatusFuncInTerms {
+			expressionOptimizerLog.Printf("AND identity (flatten): removed true literal")
+			continue
+		}
+		filtered = append(filtered, t)
+	}
+	if len(filtered) == 0 {
+		return &BooleanLiteralNode{Value: true}
 	}
 
-	// Idempotent: A && A → A
-	if nodesEqual(left, right) {
-		expressionOptimizerLog.Printf("AND idempotent: %s && %s → %s", left.Render(), right.Render(), left.Render())
-		return left
+	// Deduplicate terms by rendered form (safe even for status functions).
+	seen := make(map[string]struct{}, len(filtered))
+	deduped := make([]ConditionNode, 0, len(filtered))
+	for _, t := range filtered {
+		key := t.Render()
+		if _, exists := seen[key]; !exists {
+			seen[key] = struct{}{}
+			deduped = append(deduped, t)
+		} else {
+			expressionOptimizerLog.Printf("AND dedup: removing duplicate term %q", key)
+		}
+	}
+	if len(deduped) == 1 {
+		return deduped[0]
 	}
 
-	// Complement: A && !A → false
-	if isNegationOf(left, right) {
-		expressionOptimizerLog.Printf("AND complement: %s && %s → false", left.Render(), right.Render())
-		return &BooleanLiteralNode{Value: false}
+	// Complement: A && !A → false (skip when status functions present).
+	if !hasStatusFuncInTerms {
+		for i := range deduped {
+			for j := i + 1; j < len(deduped); j++ {
+				if isNegationOf(deduped[i], deduped[j]) {
+					expressionOptimizerLog.Printf("AND complement (flatten): %s && %s → false", deduped[i].Render(), deduped[j].Render())
+					return &BooleanLiteralNode{Value: false}
+				}
+			}
+		}
 	}
 
-	return &AndNode{Left: left, Right: right}
+	return rebuildAndChain(deduped)
 }
 
 func optimizeOrNode(n *OrNode) ConditionNode {
 	// Bottom-up: optimise children first.
 	left := optimizeNode(n.Left)
 	right := optimizeNode(n.Right)
+
+	// Flatten OR chains: when either child is already an OrNode or DisjunctionNode,
+	// collect all terms and delegate to the DisjunctionNode optimiser, which
+	// performs dedup, false-filtering and true short-circuit across the whole chain.
+	_, leftIsOr := left.(*OrNode)
+	_, leftIsDisj := left.(*DisjunctionNode)
+	_, rightIsOr := right.(*OrNode)
+	_, rightIsDisj := right.(*DisjunctionNode)
+	if leftIsOr || leftIsDisj || rightIsOr || rightIsDisj {
+		terms := append(collectOrTerms(left), collectOrTerms(right)...)
+		expressionOptimizerLog.Printf("OR flatten: collected %d terms", len(terms))
+		return optimizeDisjunctionNode(&DisjunctionNode{Terms: terms})
+	}
 
 	// Annihilation: A || true → true
 	if isBoolLiteral(left, true) || isBoolLiteral(right, true) {

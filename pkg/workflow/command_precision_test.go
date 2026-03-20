@@ -39,7 +39,7 @@ tools:
 ---`,
 			filename: "command-issues-precision.md",
 			shouldContain: []string{
-				"(github.event_name == 'issues') && ((startsWith(github.event.issue.body, '/test-bot ')",
+				"github.event_name == 'issues' && (startsWith(github.event.issue.body, '/test-bot ')",
 				"github.event.issue.body == '/test-bot'",
 			},
 			shouldNotContain: []string{
@@ -60,7 +60,7 @@ tools:
 ---`,
 			filename: "command-issue-comment-precision.md",
 			shouldContain: []string{
-				"(github.event_name == 'issue_comment')",
+				"github.event_name == 'issue_comment'",
 				"startsWith(github.event.comment.body, '/test-bot ')",
 				"github.event.comment.body == '/test-bot'",
 				"github.event.issue.pull_request == null",
@@ -83,7 +83,7 @@ tools:
 ---`,
 			filename: "command-pr-precision.md",
 			shouldContain: []string{
-				"(github.event_name == 'pull_request') && ((startsWith(github.event.pull_request.body, '/test-bot ')",
+				"github.event_name == 'pull_request' && (startsWith(github.event.pull_request.body, '/test-bot ')",
 				"github.event.pull_request.body == '/test-bot'",
 			},
 			shouldNotContain: []string{
@@ -104,7 +104,7 @@ tools:
 ---`,
 			filename: "command-pr-comment-precision.md",
 			shouldContain: []string{
-				"(github.event_name == 'issue_comment')",
+				"github.event_name == 'issue_comment'",
 				"startsWith(github.event.comment.body, '/test-bot ')",
 				"github.event.comment.body == '/test-bot'",
 				"github.event.issue.pull_request != null",
@@ -127,7 +127,7 @@ tools:
 ---`,
 			filename: "command-pr-review-comment-precision.md",
 			shouldContain: []string{
-				"(github.event_name == 'pull_request_review_comment') && ((startsWith(github.event.comment.body, '/test-bot ')",
+				"github.event_name == 'pull_request_review_comment' && (startsWith(github.event.comment.body, '/test-bot ')",
 				"github.event.comment.body == '/test-bot'",
 			},
 			shouldNotContain: []string{
@@ -148,12 +148,12 @@ tools:
 ---`,
 			filename: "command-multiple-precision.md",
 			shouldContain: []string{
-				"(github.event_name == 'issues') && ((startsWith(github.event.issue.body, '/test-bot ')",
+				"github.event_name == 'issues' && (startsWith(github.event.issue.body, '/test-bot ')",
 				"github.event.issue.body == '/test-bot'",
-				"(github.event_name == 'issue_comment')",
+				"github.event_name == 'issue_comment'",
 				"startsWith(github.event.comment.body, '/test-bot ')",
 				"github.event.comment.body == '/test-bot'",
-				"(github.event_name == 'pull_request') && ((startsWith(github.event.pull_request.body, '/test-bot ')",
+				"github.event_name == 'pull_request' && (startsWith(github.event.pull_request.body, '/test-bot ')",
 				"github.event.pull_request.body == '/test-bot'",
 			},
 		},
@@ -172,9 +172,9 @@ tools:
 ---`,
 			filename: "command-with-push-precision.md",
 			shouldContain: []string{
-				"(github.event_name == 'issues') && ((startsWith(github.event.issue.body, '/test-bot ')",
+				"github.event_name == 'issues' && (startsWith(github.event.issue.body, '/test-bot ')",
 				"github.event.issue.body == '/test-bot'",
-				"(github.event_name == 'issue_comment')",
+				"github.event_name == 'issue_comment'",
 				"startsWith(github.event.comment.body, '/test-bot ')",
 				"github.event.comment.body == '/test-bot'",
 			},

@@ -441,11 +441,12 @@ func TestOptimizeOr_StatusFunc_NotEliminated(t *testing.T) {
 }
 
 func TestOptimizeAnd_StatusFunc_Idempotent_Skipped(t *testing.T) {
-	// always() && always() — idempotent rule must NOT fire
+	// always() && always() — with AND chain dedup, this now simplifies to always()
+	// since deduplication applies even to status function terms.
 	always := fn("always")
 	node := and2(always, always)
 	rendered := OptimizeExpression(node).Render()
-	assert.Contains(t, rendered, "always()", "always() && always() must not be simplified")
+	assert.Contains(t, rendered, "always()", "always() && always() must still contain always()")
 }
 
 // ---------------------------------------------------------------------------
@@ -627,6 +628,122 @@ func TestRenderCondition_PreservesStatusFunc(t *testing.T) {
 	condition := expr("steps.run.outcome == 'success'")
 	result := RenderCondition(and2(always, condition))
 	assert.Contains(t, result, "always()", "RenderCondition must preserve status functions")
+}
+
+// ---------------------------------------------------------------------------
+// Smart parenthesisation (needsParensAsAndOperand)
+// ---------------------------------------------------------------------------
+
+func TestAndNode_Render_FunctionCallNoParens(t *testing.T) {
+	// FunctionCallNode (non-NOT) as AND operand should not be wrapped in parens.
+	node := and2(fn("contains", prop("x"), str("y")), cmp(prop("a"), "==", str("b")))
+	assert.Equal(t, "contains(x, 'y') && a == 'b'", OptimizeExpression(node).Render(), "FunctionCallNode not wrapped in AND")
+}
+
+func TestAndNode_Render_ComparisonNoParens(t *testing.T) {
+	// ComparisonNode as AND operand should not be wrapped in parens.
+	node := and2(cmp(prop("a"), "!=", str("b")), cmp(prop("c"), "==", str("d")))
+	assert.Equal(t, "a != 'b' && c == 'd'", OptimizeExpression(node).Render(), "ComparisonNode not wrapped in AND")
+}
+
+func TestAndNode_Render_OrNodeWrapped(t *testing.T) {
+	// OrNode as AND operand MUST be wrapped to preserve precedence.
+	a := cmp(prop("a"), "==", str("1"))
+	b := cmp(prop("b"), "==", str("2"))
+	c := cmp(prop("c"), "==", str("3"))
+	node := and2(or2(a, b), c)
+	rendered := OptimizeExpression(node).Render()
+	assert.Equal(t, "(a == '1' || b == '2') && c == '3'", rendered, "OrNode operand must be wrapped in AND")
+}
+
+func TestOrNode_Render_NoWrapping(t *testing.T) {
+	// OrNode never wraps typed children in parens.
+	a := cmp(prop("a"), "==", str("1"))
+	b := cmp(prop("b"), "==", str("2"))
+	node := or2(a, b)
+	assert.Equal(t, "a == '1' || b == '2'", OptimizeExpression(node).Render(), "OrNode should not add parens")
+}
+
+func TestOrNode_Render_AndChildNoParens(t *testing.T) {
+	// && has higher precedence than ||, so AndNode child of OrNode does NOT need parens.
+	a := cmp(prop("a"), "==", str("1"))
+	b := cmp(prop("b"), "==", str("2"))
+	c := cmp(prop("c"), "==", str("3"))
+	node := or2(and2(a, b), c)
+	assert.Equal(t, "a == '1' && b == '2' || c == '3'", OptimizeExpression(node).Render(), "AndNode in OR does not need parens")
+}
+
+// ---------------------------------------------------------------------------
+// AND chain flattening and deduplication
+// ---------------------------------------------------------------------------
+
+func TestOptimizeAndChain_Dedup(t *testing.T) {
+	// A && (A && B) should deduplicate A → A && B
+	a := cmp(prop("a"), "==", str("1"))
+	b := cmp(prop("b"), "==", str("2"))
+	node := and2(a, and2(a, b))
+	assertRender(t, "a == '1' && b == '2'", node, "A && (A && B) → A && B via chain dedup")
+}
+
+func TestOptimizeAndChain_ThreeDedup(t *testing.T) {
+	// A && B && A → A && B
+	a := cmp(prop("a"), "==", str("1"))
+	b := cmp(prop("b"), "==", str("2"))
+	node := and2(and2(a, b), a)
+	assertRender(t, "a == '1' && b == '2'", node, "(A && B) && A → A && B via chain dedup")
+}
+
+// ---------------------------------------------------------------------------
+// OR chain flattening
+// ---------------------------------------------------------------------------
+
+func TestOptimizeOrChain_Flatten(t *testing.T) {
+	// OrNode{OrNode{A,B}, C} → DisjunctionNode{A,B,C} (dedup step, no dups here)
+	a := cmp(prop("a"), "==", str("1"))
+	b := cmp(prop("b"), "==", str("2"))
+	c := cmp(prop("c"), "==", str("3"))
+	node := or2(or2(a, b), c)
+	result := OptimizeExpression(node)
+	rendered := result.Render()
+	assert.Equal(t, "a == '1' || b == '2' || c == '3'", rendered, "OR chain should be flattened")
+}
+
+func TestOptimizeOrChain_FlattenAndDedup(t *testing.T) {
+	// OrNode{OrNode{A,B}, A} → DisjunctionNode{A,B} (A is deduped)
+	a := cmp(prop("a"), "==", str("1"))
+	b := cmp(prop("b"), "==", str("2"))
+	node := or2(or2(a, b), a)
+	assertRender(t, "a == '1' || b == '2'", node, "OR chain with duplicate should dedup")
+}
+
+// ---------------------------------------------------------------------------
+// Real-world rendered pattern improvements
+// ---------------------------------------------------------------------------
+
+func TestRealWorld_AlwaysWithConditionRenderedCleanly(t *testing.T) {
+	// always() && X should render WITHOUT extra parens around always()
+	always := fn("always")
+	guard := cmp(prop("steps.guard.outputs.run"), "==", str("true"))
+	result := RenderCondition(and2(always, guard))
+	assert.Equal(t, "always() && steps.guard.outputs.run == 'true'", result, "always() && X should render without extra parens")
+}
+
+func TestRealWorld_CancelledWithConditionRenderedCleanly(t *testing.T) {
+	// !cancelled() && X: NotNode is wrapped in parens as AND operand to avoid YAML ! tag issue.
+	notCancelled := not1(fn("cancelled"))
+	skipped := cmp(prop("needs.agent.result"), "!=", str("skipped"))
+	result := RenderCondition(and2(notCancelled, skipped))
+	assert.Equal(t, "(!cancelled()) && needs.agent.result != 'skipped'", result, "!cancelled() wrapped in AND for YAML safety")
+}
+
+func TestRealWorld_NestedAndFlatRendering(t *testing.T) {
+	// (!cancelled()) && (A != B) && (C == D) should flatten to: (!cancelled()) && A != B && C == D
+	notCancelled := not1(fn("cancelled"))
+	agentNotSkipped := cmp(prop("needs.agent.result"), "!=", str("skipped"))
+	detectionSuccess := cmp(prop("needs.agent.outputs.detection_success"), "==", str("true"))
+	node := and2(and2(notCancelled, agentNotSkipped), detectionSuccess)
+	result := RenderCondition(node)
+	assert.Equal(t, "(!cancelled()) && needs.agent.result != 'skipped' && needs.agent.outputs.detection_success == 'true'", result)
 }
 
 // ---------------------------------------------------------------------------

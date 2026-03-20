@@ -29,8 +29,29 @@ type AndNode struct {
 	Left, Right ConditionNode
 }
 
+// needsParensAsAndOperand returns true when child must be wrapped in parentheses
+// when it appears as an operand of an && expression.  Or-level nodes and opaque
+// ExpressionNodes must be wrapped to preserve operator precedence.
+// NotNode is also wrapped to prevent the leading ! from becoming a YAML type-tag
+// indicator when the full expression is placed in an `if:` YAML value.
+func needsParensAsAndOperand(child ConditionNode) bool {
+	switch child.(type) {
+	case *OrNode, *DisjunctionNode, *ExpressionNode, *NotNode:
+		return true
+	}
+	return false
+}
+
 func (a *AndNode) Render() string {
-	return fmt.Sprintf("(%s) && (%s)", a.Left.Render(), a.Right.Render())
+	leftStr := a.Left.Render()
+	if needsParensAsAndOperand(a.Left) {
+		leftStr = "(" + leftStr + ")"
+	}
+	rightStr := a.Right.Render()
+	if needsParensAsAndOperand(a.Right) {
+		rightStr = "(" + rightStr + ")"
+	}
+	return leftStr + " && " + rightStr
 }
 
 // OrNode represents an OR operation between two conditions
@@ -38,8 +59,10 @@ type OrNode struct {
 	Left, Right ConditionNode
 }
 
+// || has the lowest precedence of any boolean operator, so no child of an OR
+// expression ever needs explicit parentheses to preserve evaluation order.
 func (o *OrNode) Render() string {
-	return fmt.Sprintf("(%s) || (%s)", o.Left.Render(), o.Right.Render())
+	return o.Left.Render() + " || " + o.Right.Render()
 }
 
 // NotNode represents a NOT operation on a condition
