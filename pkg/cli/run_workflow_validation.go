@@ -22,18 +22,11 @@ import (
 
 var validationLog = logger.New("cli:run_workflow_validation")
 
-// getLockFilePath converts a markdown workflow path to its compiled lock file path,
-// preferring an existing .lock.yaml file over the default .lock.yml.
-// Example: "/path/to/workflow.md" -> "/path/to/workflow.lock.yml" (or .lock.yaml if it exists)
-func getLockFilePath(markdownPath string) string {
-	return stringutil.MarkdownToLockFileOnDisk(markdownPath)
-}
-
 // IsRunnable checks if a workflow can be run (has schedule or workflow_dispatch trigger)
 // This function checks the compiled .lock.yml file because that's what GitHub Actions uses.
 func IsRunnable(markdownPath string) (bool, error) {
 	// Convert markdown path to lock file path
-	lockPath := getLockFilePath(markdownPath)
+	lockPath := stringutil.MarkdownToLockFileOnDisk(markdownPath)
 	cleanLockPath := filepath.Clean(lockPath)
 
 	validationLog.Printf("Checking if workflow is runnable: markdown=%s, lock=%s", markdownPath, lockPath)
@@ -86,7 +79,7 @@ func IsRunnable(markdownPath string) (bool, error) {
 // This function checks the .lock.yml file because that's what GitHub Actions uses.
 func getWorkflowInputs(markdownPath string) (map[string]*workflow.InputDefinition, error) {
 	// Convert markdown path to lock file path
-	lockPath := getLockFilePath(markdownPath)
+	lockPath := stringutil.MarkdownToLockFileOnDisk(markdownPath)
 	cleanLockPath := filepath.Clean(lockPath)
 
 	validationLog.Printf("Extracting workflow inputs from lock file: %s", lockPath)
