@@ -595,7 +595,7 @@ jobs:
       - name: Clean git credentials
         continue-on-error: true
         run: bash ${RUNNER_TEMP}/gh-aw/actions/clean_git_credentials.sh
-      - name: Execute Codex
+      - name: Execute Codex CLI
         run: |
           set -o pipefail
           mkdir -p "$CODEX_HOME/logs" && touch /tmp/gh-aw/agent-step-summary.md
@@ -781,7 +781,7 @@ jobs:
         run: |
           mkdir -p /tmp/gh-aw/threat-detection
           touch /tmp/gh-aw/threat-detection/detection.log
-      - name: Execute Codex
+      - name: Execute Codex CLI
         if: always() && steps.detection_guard.outputs.run_detection == 'true'
         run: |
           set -o pipefail

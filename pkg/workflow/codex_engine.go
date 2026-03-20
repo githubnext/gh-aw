@@ -365,7 +365,7 @@ mkdir -p "$CODEX_HOME/logs"
 	}
 
 	// Generate the step for Codex execution
-	stepName := "Execute Codex"
+	stepName := "Execute Codex CLI"
 	var stepLines []string
 
 	stepLines = append(stepLines, "      - name: "+stepName)
