@@ -593,7 +593,9 @@ func TestEnginesUseSameHelperLogic(t *testing.T) {
 
 // TestBuildAgentOutputDownloadSteps verifies the agent output download steps
 // include directory creation to handle cases where artifact doesn't exist,
-// and that GH_AW_AGENT_OUTPUT is only set when the artifact download succeeds.
+// that GH_AW_AGENT_OUTPUT is only set when the artifact download succeeds,
+// and that the path is resolved dynamically via find to handle nested artifact
+// directory structures (e.g. /tmp/gh-aw/gh-aw/agent_output.json).
 func TestBuildAgentOutputDownloadSteps(t *testing.T) {
 	steps := buildAgentOutputDownloadSteps("")
 	stepsStr := strings.Join(steps, "")
@@ -610,13 +612,20 @@ func TestBuildAgentOutputDownloadSteps(t *testing.T) {
 		"if: steps.download-agent-output.outcome == 'success'",
 		"mkdir -p /tmp/gh-aw/",
 		"find \"/tmp/gh-aw/\" -type f -print",
-		"GH_AW_AGENT_OUTPUT=/tmp/gh-aw/agent_output.json",
+		// Dynamic find-based path resolution (handles nested artifact directories)
+		`FOUND_FILE=$(find "/tmp/gh-aw/" -name "agent_output.json" -type f 2>/dev/null | head -1)`,
+		`echo "GH_AW_AGENT_OUTPUT=$FOUND_FILE" >> "$GITHUB_ENV"`,
 	}
 
 	for _, expected := range expectedComponents {
 		if !strings.Contains(stepsStr, expected) {
 			t.Errorf("Expected step to contain %q, but it was not found.\nGenerated steps:\n%s", expected, stepsStr)
 		}
+	}
+
+	// Verify the hardcoded path is NOT used (regression guard)
+	if strings.Contains(stepsStr, "GH_AW_AGENT_OUTPUT=/tmp/gh-aw/agent_output.json") {
+		t.Error("Step must not hardcode GH_AW_AGENT_OUTPUT path; it must use dynamic find resolution")
 	}
 
 	// Verify mkdir comes before find to ensure directory exists
