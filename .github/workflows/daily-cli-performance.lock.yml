@@ -27,13 +27,36 @@
 #     - shared/go-make.md
 #     - shared/reporting.md
 #
-# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"e7e3b3a6b265000f859ec090406ed8efb58befbb910edb62f60f014ea9f7495c","strict":true,"agent_id":"copilot"}
+# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"3feebaa45781ef8c51d8580de0df4919ec85f5cea1fa63fc089455cf1668de3e","strict":true,"agent_id":"copilot"}
 
 name: "Daily CLI Performance Agent"
 "on":
+  # permissions: # Permissions applied to pre-activation job
+    # contents: read
   schedule:
   - cron: "20 14 * * *"
     # Friendly format: daily (scattered)
+  # steps: # Steps injected into pre-activation job
+  # - id: changes
+    # name: Detect recent compilation-related changes
+    # uses: actions/github-script@v8
+    # with:
+      # script: |
+        # const { owner, repo } = context.repo;
+        # const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+        # // Check commits touching Go source, go.mod/go.sum, or Makefile in last 24h
+        # const checkPaths = ['go.mod', 'go.sum', 'Makefile', 'pkg', 'cmd'];
+        # let hasChanges = false;
+        # for (const path of checkPaths) {
+          # const resp = await github.rest.repos.listCommits({ owner, repo, since, path, per_page: 1 });
+          # if (resp.data.length > 0) {
+            # core.info(`Found recent compilation-related change via path: ${path}`);
+            # hasChanges = true;
+            # break;
+          # }
+        # }
+        # core.info(`has_changes=${hasChanges}`);
+        # core.setOutput('has_changes', hasChanges ? 'true' : 'false');
   workflow_dispatch:
 
 permissions: {}
@@ -45,6 +68,10 @@ run-name: "Daily CLI Performance Agent"
 
 jobs:
   activation:
+    needs: pre_activation
+    if: >
+      (needs.pre_activation.outputs.activated == 'true') && (needs.pre_activation.outputs.has_changes == 'true' ||
+      github.event_name == 'workflow_dispatch')
     runs-on: ubuntu-slim
     permissions:
       contents: read
@@ -208,10 +235,11 @@ jobs:
           GH_AW_GITHUB_SERVER_URL: ${{ github.server_url }}
           GH_AW_GITHUB_WORKSPACE: ${{ github.workspace }}
           GH_AW_MEMORY_BRANCH_NAME: 'memory/cli-performance'
-          GH_AW_MEMORY_CONSTRAINTS: "\n\n**Constraints:**\n- **Allowed Files**: Only files matching patterns: memory/cli-performance/*.json, memory/cli-performance/*.jsonl, memory/cli-performance/*.txt\n- **Max File Size**: 512000 bytes (0.49 MB) per file\n- **Max File Count**: 100 files per commit\n- **Max Patch Size**: 10240 bytes (10 KB) total per push (max: 100 KB)\n"
+          GH_AW_MEMORY_CONSTRAINTS: "\n\n**Constraints:**\n- **Allowed Files**: Only files matching patterns: memory/cli-performance/*.json, memory/cli-performance/*.jsonl, memory/cli-performance/*.txt\n- **Max File Size**: 131072 bytes (0.12 MB) per file\n- **Max File Count**: 100 files per commit\n- **Max Patch Size**: 10240 bytes (10 KB) total per push (max: 100 KB)\n"
           GH_AW_MEMORY_DESCRIPTION: ' Historical CLI compilation performance benchmark results'
           GH_AW_MEMORY_DIR: '/tmp/gh-aw/repo-memory/default/'
           GH_AW_MEMORY_TARGET_REPO: ' of the current repository'
+          GH_AW_NEEDS_PRE_ACTIVATION_OUTPUTS_ACTIVATED: ${{ needs.pre_activation.outputs.activated }}
           GH_AW_WIKI_NOTE: ''
         with:
           script: |
@@ -238,6 +266,7 @@ jobs:
                 GH_AW_MEMORY_DESCRIPTION: process.env.GH_AW_MEMORY_DESCRIPTION,
                 GH_AW_MEMORY_DIR: process.env.GH_AW_MEMORY_DIR,
                 GH_AW_MEMORY_TARGET_REPO: process.env.GH_AW_MEMORY_TARGET_REPO,
+                GH_AW_NEEDS_PRE_ACTIVATION_OUTPUTS_ACTIVATED: process.env.GH_AW_NEEDS_PRE_ACTIVATION_OUTPUTS_ACTIVATED,
                 GH_AW_WIKI_NOTE: process.env.GH_AW_WIKI_NOTE
               }
             });
@@ -372,7 +401,7 @@ jobs:
           mkdir -p /tmp/gh-aw/safeoutputs
           mkdir -p /tmp/gh-aw/mcp-logs/safeoutputs
           cat > ${RUNNER_TEMP}/gh-aw/safeoutputs/config.json << 'GH_AW_SAFE_OUTPUTS_CONFIG_EOF'
-          {"add_comment":{"max":5},"create_issue":{"expires":48,"group":true,"max":3},"missing_data":{},"missing_tool":{},"noop":{"max":1},"push_repo_memory":{"memories":[{"dir":"/tmp/gh-aw/repo-memory/default","id":"default","max_file_count":100,"max_file_size":512000,"max_patch_size":10240}]}}
+          {"add_comment":{"max":5},"create_issue":{"expires":48,"group":true,"max":3},"missing_data":{},"missing_tool":{},"noop":{"max":1},"push_repo_memory":{"memories":[{"dir":"/tmp/gh-aw/repo-memory/default","id":"default","max_file_count":100,"max_file_size":131072,"max_patch_size":10240}]}}
           GH_AW_SAFE_OUTPUTS_CONFIG_EOF
       - name: Write Safe Outputs Tools
         run: |
@@ -1187,6 +1216,60 @@ jobs:
             const { main } = require('${{ runner.temp }}/gh-aw/actions/handle_noop_message.cjs');
             await main();
 
+  pre_activation:
+    runs-on: ubuntu-slim
+    permissions:
+      contents: read
+    outputs:
+      activated: ${{ steps.check_membership.outputs.is_team_member == 'true' }}
+      changes_result: ${{ steps.changes.outcome }}
+      has_changes: ${{ steps.changes.outputs.has_changes }}
+      matched_command: ''
+    steps:
+      - name: Checkout actions folder
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          repository: github/gh-aw
+          sparse-checkout: |
+            actions
+          persist-credentials: false
+      - name: Setup Scripts
+        uses: ./actions/setup
+        with:
+          destination: ${{ runner.temp }}/gh-aw/actions
+      - name: Check team membership for workflow
+        id: check_membership
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        env:
+          GH_AW_REQUIRED_ROLES: admin,maintainer,write
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');
+            setupGlobals(core, github, context, exec, io);
+            const { main } = require('${{ runner.temp }}/gh-aw/actions/check_membership.cjs');
+            await main();
+      - name: Detect recent compilation-related changes
+        id: changes
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const { owner, repo } = context.repo;
+            const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+            // Check commits touching Go source, go.mod/go.sum, or Makefile in last 24h
+            const checkPaths = ['go.mod', 'go.sum', 'Makefile', 'pkg', 'cmd'];
+            let hasChanges = false;
+            for (const path of checkPaths) {
+              const resp = await github.rest.repos.listCommits({ owner, repo, since, path, per_page: 1 });
+              if (resp.data.length > 0) {
+                core.info(`Found recent compilation-related change via path: ${path}`);
+                hasChanges = true;
+                break;
+              }
+            }
+            core.info(`has_changes=${hasChanges}`);
+            core.setOutput('has_changes', hasChanges ? 'true' : 'false');
+
   push_repo_memory:
     needs: agent
     if: always() && needs.agent.outputs.detection_success == 'true'
@@ -1247,7 +1330,7 @@ jobs:
           MEMORY_ID: default
           TARGET_REPO: ${{ github.repository }}
           BRANCH_NAME: memory/cli-performance
-          MAX_FILE_SIZE: 512000
+          MAX_FILE_SIZE: 131072
           MAX_FILE_COUNT: 100
           MAX_PATCH_SIZE: 10240
           ALLOWED_EXTENSIONS: '[]'
