@@ -458,6 +458,56 @@ func BreakAtParentheses(expression string) []string {
 	return lines
 }
 
+// hasNewlineInStringLiteral returns true if s contains an actual newline character (\n)
+// that appears inside a single-quoted GitHub Actions expression string literal.
+// This is used to determine whether the YAML `if:` value needs special encoding to
+// preserve the newline (e.g. for matching bot comments that append metadata after a newline).
+func hasNewlineInStringLiteral(s string) bool {
+	inString := false
+	i := 0
+	for i < len(s) {
+		ch := s[i]
+		if ch == '\'' {
+			// Handle escaped single-quote inside a string: ''
+			if inString && i+1 < len(s) && s[i+1] == '\'' {
+				i += 2 // skip both quotes, stay in string
+				continue
+			}
+			inString = !inString
+		} else if ch == '\n' && inString {
+			return true
+		}
+		i++
+	}
+	return false
+}
+
+// escapeForYAMLDoubleQuoted escapes a string so it can be safely placed inside a YAML
+// double-quoted scalar (i.e. wrapped with "...").  YAML double-quoted scalars interpret
+// \n, \r, \t, \\ and \" escape sequences, so we convert the corresponding actual characters
+// to their two-character backslash representations.  After YAML parsing, the values are
+// restored, so GitHub Actions receives the expression with the real characters intact.
+func escapeForYAMLDoubleQuoted(s string) string {
+	var b strings.Builder
+	for i := range len(s) {
+		switch s[i] {
+		case '\\':
+			b.WriteString(`\\`)
+		case '"':
+			b.WriteString(`\"`)
+		case '\n':
+			b.WriteString(`\n`)
+		case '\r':
+			b.WriteString(`\r`)
+		case '\t':
+			b.WriteString(`\t`)
+		default:
+			b.WriteByte(s[i])
+		}
+	}
+	return b.String()
+}
+
 // NormalizeExpressionForComparison normalizes an expression by removing extra spaces and newlines
 // This is used for comparing multiline expressions with their single-line equivalents
 func NormalizeExpressionForComparison(expression string) string {

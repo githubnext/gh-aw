@@ -1742,3 +1742,164 @@ func TestLabelTriggerShorthandPreprocessingErrors(t *testing.T) {
 		}
 	})
 }
+
+// TestScheduleTimezoneField verifies that the optional timezone field in schedule items
+// is validated and preserved in the output, supporting the GitHub Actions on.schedule timezone syntax.
+func TestScheduleTimezoneField(t *testing.T) {
+	tests := []struct {
+		name             string
+		frontmatter      map[string]any
+		expectedCron     string
+		expectedTimezone string
+		expectedError    bool
+		errorSubstring   string
+	}{
+		{
+			name: "schedule with valid IANA timezone",
+			frontmatter: map[string]any{
+				"on": map[string]any{
+					"schedule": []any{
+						map[string]any{
+							"cron":     "30 5 * * 1-5",
+							"timezone": "America/New_York",
+						},
+					},
+				},
+			},
+			expectedCron:     "30 5 * * 1-5",
+			expectedTimezone: "America/New_York",
+		},
+		{
+			name: "schedule with UTC timezone",
+			frontmatter: map[string]any{
+				"on": map[string]any{
+					"schedule": []any{
+						map[string]any{
+							"cron":     "0 2 * * *",
+							"timezone": "UTC",
+						},
+					},
+				},
+			},
+			expectedCron:     "0 2 * * *",
+			expectedTimezone: "UTC",
+		},
+		{
+			name: "schedule without timezone (backward compatible)",
+			frontmatter: map[string]any{
+				"on": map[string]any{
+					"schedule": []any{
+						map[string]any{
+							"cron": "0 9 * * 1",
+						},
+					},
+				},
+			},
+			expectedCron:     "0 9 * * 1",
+			expectedTimezone: "",
+		},
+		{
+			name: "multiple schedules with mixed timezone usage",
+			frontmatter: map[string]any{
+				"on": map[string]any{
+					"schedule": []any{
+						map[string]any{
+							"cron":     "30 5 * * 1-4",
+							"timezone": "America/New_York",
+						},
+						map[string]any{
+							"cron":     "30 17 * * 2,4",
+							"timezone": "Europe/London",
+						},
+					},
+				},
+			},
+			// Second schedule item checked separately in the test body below
+			expectedCron:     "30 5 * * 1-4",
+			expectedTimezone: "America/New_York",
+		},
+		{
+			name: "timezone field must be a string - non-string rejected",
+			frontmatter: map[string]any{
+				"on": map[string]any{
+					"schedule": []any{
+						map[string]any{
+							"cron":     "0 2 * * *",
+							"timezone": 123,
+						},
+					},
+				},
+			},
+			expectedError:  true,
+			errorSubstring: "'timezone' field must be a string",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			compiler := NewCompiler()
+			compiler.SetWorkflowIdentifier("test-workflow.md")
+
+			err := compiler.preprocessScheduleFields(tt.frontmatter, "", "")
+
+			if tt.expectedError {
+				if err == nil {
+					t.Errorf("expected error containing '%s', got nil", tt.errorSubstring)
+					return
+				}
+				if !strings.Contains(err.Error(), tt.errorSubstring) {
+					t.Errorf("expected error containing '%s', got '%s'", tt.errorSubstring, err.Error())
+				}
+				return
+			}
+
+			if err != nil {
+				t.Errorf("unexpected error: %v", err)
+				return
+			}
+
+			onMap := tt.frontmatter["on"].(map[string]any)
+			scheduleArray := onMap["schedule"].([]any)
+			firstSchedule := scheduleArray[0].(map[string]any)
+
+			actualCron, ok := firstSchedule["cron"].(string)
+			if !ok {
+				t.Errorf("expected cron to be string, got %T", firstSchedule["cron"])
+				return
+			}
+			if actualCron != tt.expectedCron {
+				t.Errorf("expected cron '%s', got '%s'", tt.expectedCron, actualCron)
+			}
+
+			if tt.expectedTimezone != "" {
+				actualTimezone, ok := firstSchedule["timezone"].(string)
+				if !ok {
+					t.Errorf("expected timezone field to be preserved as string, got %T", firstSchedule["timezone"])
+					return
+				}
+				if actualTimezone != tt.expectedTimezone {
+					t.Errorf("expected timezone '%s', got '%s'", tt.expectedTimezone, actualTimezone)
+				}
+			} else {
+				if _, hasTimezone := firstSchedule["timezone"]; hasTimezone {
+					t.Errorf("expected no timezone field, but it was present: %v", firstSchedule["timezone"])
+				}
+			}
+
+			// Verify second schedule item for mixed timezone test
+			if tt.name == "multiple schedules with mixed timezone usage" && len(scheduleArray) > 1 {
+				secondSchedule, ok := scheduleArray[1].(map[string]any)
+				if !ok {
+					t.Errorf("expected second schedule to be map, got %T", scheduleArray[1])
+					return
+				}
+				if cron, ok := secondSchedule["cron"].(string); !ok || cron != "30 17 * * 2,4" {
+					t.Errorf("expected second cron '30 17 * * 2,4', got '%v'", secondSchedule["cron"])
+				}
+				if tz, ok := secondSchedule["timezone"].(string); !ok || tz != "Europe/London" {
+					t.Errorf("expected second timezone 'Europe/London', got '%v'", secondSchedule["timezone"])
+				}
+			}
+		})
+	}
+}

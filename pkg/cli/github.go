@@ -36,13 +36,20 @@ func getGitHubHost() string {
 }
 
 // getGitHubHostForRepo returns the GitHub host URL for a specific repository.
-// The gh-aw repository (github/gh-aw) always uses public GitHub (https://github.com)
-// regardless of enterprise GitHub host settings, since gh-aw itself is only available
-// on public GitHub. For all other repositories, it uses getGitHubHost().
+// The gh-aw repository (github/gh-aw) and the agentics workflow library
+// (githubnext/agentics) always use public GitHub (https://github.com)
+// regardless of enterprise GitHub host settings, since these repositories are
+// only available on public GitHub. For all other repositories, it uses getGitHubHost().
 func getGitHubHostForRepo(repo string) string {
 	// The gh-aw repository is always on public GitHub
 	if repo == "github/gh-aw" || strings.HasPrefix(repo, "github/gh-aw/") {
 		githubLog.Print("Using public GitHub host for github/gh-aw repository")
+		return string(constants.PublicGitHubHost)
+	}
+
+	// The agentics workflow library is always on public GitHub
+	if repo == "githubnext/agentics" || strings.HasPrefix(repo, "githubnext/agentics/") {
+		githubLog.Print("Using public GitHub host for githubnext/agentics repository")
 		return string(constants.PublicGitHubHost)
 	}
 

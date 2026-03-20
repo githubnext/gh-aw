@@ -50,10 +50,7 @@ run-name: "Documentation Unbloat"
 jobs:
   activation:
     needs: pre_activation
-    if: >
-      (needs.pre_activation.outputs.activated == 'true') && (((github.event_name == 'issue_comment') && ((github.event_name == 'issue_comment') &&
-      (((startsWith(github.event.comment.body, '/unbloat ')) || (github.event.comment.body == '/unbloat')) &&
-      (github.event.issue.pull_request != null)))) || (!(github.event_name == 'issue_comment')))
+    if: "(needs.pre_activation.outputs.activated == 'true') && (((github.event_name == 'issue_comment') && ((github.event_name == 'issue_comment') && ((((startsWith(github.event.comment.body, '/unbloat ')) || (startsWith(github.event.comment.body, '/unbloat\n'))) || (github.event.comment.body == '/unbloat')) && (github.event.issue.pull_request != null)))) || (!(github.event_name == 'issue_comment')))"
     runs-on: ubuntu-slim
     permissions:
       contents: read
@@ -1447,9 +1444,7 @@ jobs:
             await main();
 
   pre_activation:
-    if: >
-      ((github.event_name == 'issue_comment') && ((github.event_name == 'issue_comment') && (((startsWith(github.event.comment.body, '/unbloat ')) ||
-      (github.event.comment.body == '/unbloat')) && (github.event.issue.pull_request != null)))) || (!(github.event_name == 'issue_comment'))
+    if: "((github.event_name == 'issue_comment') && ((github.event_name == 'issue_comment') && ((((startsWith(github.event.comment.body, '/unbloat ')) || (startsWith(github.event.comment.body, '/unbloat\n'))) || (github.event.comment.body == '/unbloat')) && (github.event.issue.pull_request != null)))) || (!(github.event_name == 'issue_comment'))"
     runs-on: ubuntu-slim
     permissions:
       contents: read
