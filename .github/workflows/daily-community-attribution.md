@@ -201,11 +201,12 @@ Write the updated content back to
 
 ### 3. Build the Community Contributions Section
 
-Produce a concise section of attributed community contributors for
-`README.md`, grouped by author and wrapped in a `<details>` element.
-Use GitHub issue references (`#N`) so that GitHub automatically expands
-them with the issue title — do **not** use full URLs or explicit issue
-titles as link text (GitHub renders the title for you):
+Produce a compact section of attributed community contributors for
+`README.md`, wrapped in a `<details>` element. Use **one list item per
+author** with all their issues listed inline. Use GitHub issue references
+(`#N`) so that GitHub automatically expands them with the issue title —
+do **not** use full URLs or explicit issue titles as link text (GitHub
+renders the title for you):
 
 ```markdown
 ## 🌍 Community Contributions
@@ -213,15 +214,8 @@ titles as link text (GitHub renders the title for you):
 <details>
 <summary>Thank you to the community members whose issue reports were resolved in this project! This list is updated automatically and reflects all attributed contributions.</summary>
 
-### @author
-
-- #N _(direct issue)_
-- #N
-- #N _(via follow-up #M)_
-
-### @author2
-
-- #N
+- @author: #N _(direct issue)_, #N, #N _(via follow-up #M)_
+- @author2: #N, #N
 
 </details>
 
@@ -230,8 +224,8 @@ titles as link text (GitHub renders the title for you):
 **Important**: always leave a blank line after `</details>` (as shown
 above) so that the next markdown header renders correctly.
 
-- Group entries by author (alphabetical order)
-- Within each author section, sort by issue number descending (newest first)
+- One bullet per author, sorted alphabetically by username
+- Within each author's entry, list issues in descending order (newest first), comma-separated
 - **`_(direct issue)_`** (Tier 0): issue closed as `COMPLETED`, no PR linkage
 - _(no suffix)_ (Tier 1/2): PR closes the issue via native close reference or keyword
 - **`_(via follow-up #M)_`** (Tier 3): indirect chain through a follow-up issue
