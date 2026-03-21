@@ -203,8 +203,9 @@ Write the updated content back to
 
 Produce a concise section of attributed community contributors for
 `README.md`, grouped by author and wrapped in a `<details>` element.
-Use full GitHub issue URLs (e.g. `https://github.com/OWNER/REPO/issues/N`) and
-issue titles as link text:
+Use GitHub issue references (`#N`) so that GitHub automatically expands
+them with the issue title — do **not** use full URLs or explicit issue
+titles as link text (GitHub renders the title for you):
 
 ```markdown
 ## 🌍 Community Contributions
@@ -214,16 +215,20 @@ issue titles as link text:
 
 ### @author
 
-- [Issue title](https://github.com/OWNER/REPO/issues/N) _(direct issue)_
-- [Issue title](https://github.com/OWNER/REPO/issues/N)
-- [Issue title](https://github.com/OWNER/REPO/issues/N) _(via follow-up #M)_
+- #N _(direct issue)_
+- #N
+- #N _(via follow-up #M)_
 
 ### @author2
 
-- [Issue title](https://github.com/OWNER/REPO/issues/N)
+- #N
 
 </details>
+
 ```
+
+**Important**: always leave a blank line after `</details>` (as shown
+above) so that the next markdown header renders correctly.
 
 - Group entries by author (alphabetical order)
 - Within each author section, sort by issue number descending (newest first)
@@ -232,7 +237,7 @@ issue titles as link text:
 - **`_(via follow-up #M)_`** (Tier 3): indirect chain through a follow-up issue
 - Omit issues that cannot be attributed (see Attribution Candidates section below)
 
-If there are unattributed candidates (Tier 4), append after the `</details>` tag:
+If there are unattributed candidates (Tier 4), append after the `</details>` blank line:
 
 ```markdown
 ### ⚠️ Attribution Candidates Need Review
