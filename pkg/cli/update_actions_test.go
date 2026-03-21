@@ -57,17 +57,25 @@ func TestActionKeyVersionConsistency(t *testing.T) {
 }
 
 func TestActionKeyVersionConsistencyInJSON(t *testing.T) {
-	// This test ensures that when actions-lock.json is loaded and saved,
-	// there are no key/version mismatches.
+	// This test ensures that when actions-lock.json is saved to disk and reloaded,
+	// there are no key/version mismatches between the map key and the entry's Version field.
 
-	// Build the cache from programmatic entries to avoid JSON parsing of the old type.
 	tmpDir := testutil.TempDir(t, "test-*")
 	cache := workflow.NewActionCache(tmpDir)
 	cache.Set("actions/checkout", "v5.0.1", "93cb6efe18208431cddfb8368fd83d5badbf9bfd")
 	cache.Set("actions/setup-node", "v6.1.0", "395ad3262231945c25e8478fd5baf05154b1d79f")
 
-	// Verify all entries have matching key and version
-	for key, entry := range cache.Entries {
+	// Save to disk and reload to exercise the JSON round-trip.
+	if err := cache.Save(); err != nil {
+		t.Fatalf("Failed to save cache: %v", err)
+	}
+	reloaded := workflow.NewActionCache(tmpDir)
+	if err := reloaded.Load(); err != nil {
+		t.Fatalf("Failed to reload cache: %v", err)
+	}
+
+	// Verify all entries have matching key and version after a round-trip.
+	for key, entry := range reloaded.Entries {
 		// Extract version from key (format: "repo@version")
 		atIndex := len(key)
 		for i := len(key) - 1; i >= 0; i-- {
@@ -122,8 +130,15 @@ func TestUpdateActions_SafeOutputsInputsPreserved(t *testing.T) {
 	}
 
 	// Run UpdateActions from tmpDir
-	wd, _ := os.Getwd()
-	defer os.Chdir(wd)
+	wd, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("failed to get working directory: %v", err)
+	}
+	t.Cleanup(func() {
+		if err := os.Chdir(wd); err != nil {
+			t.Errorf("failed to restore working directory: %v", err)
+		}
+	})
 	if err := os.Chdir(tmpDir); err != nil {
 		t.Fatalf("failed to chdir: %v", err)
 	}

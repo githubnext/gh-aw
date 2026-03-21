@@ -110,9 +110,10 @@ func UpdateActions(allowMajor, verbose, disableReleaseBump bool) error {
 		updateLog.Printf("Updating %s from %s (%s) to %s (%s)", entry.Repo, entry.Version, oldSHAStr, latestVersion, newSHAStr)
 		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Updated %s from %s to %s", entry.Repo, entry.Version, latestVersion)))
 
-		// Remove the old key when the version changes (the key includes the version).
+		// Remove the old key when the version changes, using the original map key from
+		// the snapshot to handle any key/version mismatches in the stored cache file.
 		if latestVersion != entry.Version {
-			actionCache.Delete(entry.Repo, entry.Version)
+			actionCache.DeleteByKey(s.key)
 		}
 		// Set the new entry; ActionCache.Set handles inputs/description preservation.
 		actionCache.Set(entry.Repo, latestVersion, latestSHA)
