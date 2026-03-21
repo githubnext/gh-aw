@@ -39,7 +39,7 @@ safe-outputs:
     title-prefix: "[community] "
     labels: [community, automation]
     reviewers: []
-    draft: false
+    draft: true
 
 imports:
   - shared/community-attribution.md
