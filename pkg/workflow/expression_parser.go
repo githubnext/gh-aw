@@ -329,7 +329,7 @@ func BreakLongExpression(expression string) []string {
 	expressionsLog.Printf("Breaking long expression: length=%d", len(expression))
 
 	var lines []string
-	current := ""
+	var current strings.Builder
 	i := 0
 
 	for i < len(expression) {
@@ -339,13 +339,12 @@ func BreakLongExpression(expression string) []string {
 		// Support single quotes ('), double quotes ("), and backticks (`)
 		if char == '\'' || char == '"' || char == '`' {
 			quote := char
-			current += string(char)
+			current.WriteByte(char)
 			i++
 
 			// Continue until closing quote
-			var sb strings.Builder
 			for i < len(expression) {
-				sb.WriteByte(expression[i])
+				current.WriteByte(expression[i])
 				if expression[i] == quote {
 					i++
 					break
@@ -353,12 +352,11 @@ func BreakLongExpression(expression string) []string {
 				if expression[i] == '\\' && i+1 < len(expression) {
 					i++ // Skip escaped character
 					if i < len(expression) {
-						sb.WriteByte(expression[i])
+						current.WriteByte(expression[i])
 					}
 				}
 				i++
 			}
-			current += sb.String()
 			continue
 		}
 
@@ -366,13 +364,13 @@ func BreakLongExpression(expression string) []string {
 		if i+2 <= len(expression) {
 			next2 := expression[i : i+2]
 			if next2 == "||" || next2 == "&&" {
-				current += next2
+				current.WriteString(next2)
 				i += 2
 
 				// If the current line is getting long (>ExpressionBreakThreshold chars), break here
-				if len(strings.TrimSpace(current)) > int(constants.ExpressionBreakThreshold) {
-					lines = append(lines, strings.TrimSpace(current))
-					current = ""
+				if len(strings.TrimSpace(current.String())) > int(constants.ExpressionBreakThreshold) {
+					lines = append(lines, strings.TrimSpace(current.String()))
+					current.Reset()
 					// Skip whitespace after operator
 					for i < len(expression) && (expression[i] == ' ' || expression[i] == '\t') {
 						i++
@@ -383,13 +381,13 @@ func BreakLongExpression(expression string) []string {
 			}
 		}
 
-		current += string(char)
+		current.WriteByte(char)
 		i++
 	}
 
 	// Add the remaining part
-	if strings.TrimSpace(current) != "" {
-		lines = append(lines, strings.TrimSpace(current))
+	if strings.TrimSpace(current.String()) != "" {
+		lines = append(lines, strings.TrimSpace(current.String()))
 	}
 
 	// If we still have very long lines, try to break at parentheses
@@ -413,12 +411,12 @@ func BreakAtParentheses(expression string) []string {
 	}
 
 	var lines []string
-	current := ""
+	var current strings.Builder
 	parenDepth := 0
 
 	for i := 0; i < len(expression); i++ {
 		char := expression[i]
-		current += string(char)
+		current.WriteByte(char)
 
 		switch char {
 		case '(':
@@ -427,7 +425,7 @@ func BreakAtParentheses(expression string) []string {
 			parenDepth--
 
 			// If we're back to zero depth and the line is getting long, consider a break
-			if parenDepth == 0 && len(current) > 80 && i < len(expression)-1 {
+			if parenDepth == 0 && current.Len() > 80 && i < len(expression)-1 {
 				// Look ahead to see if there's a logical operator
 				j := i + 1
 				for j < len(expression) && (expression[j] == ' ' || expression[j] == '\t') {
@@ -436,9 +434,9 @@ func BreakAtParentheses(expression string) []string {
 
 				if j+1 < len(expression) && (expression[j:j+2] == "||" || expression[j:j+2] == "&&") {
 					// Add the operator to current line and break
-					current += expression[i+1 : j+2]
-					lines = append(lines, strings.TrimSpace(current))
-					current = ""
+					current.WriteString(expression[i+1 : j+2])
+					lines = append(lines, strings.TrimSpace(current.String()))
+					current.Reset()
 					i = j + 2 - 1 // Set to j+2-1 so the loop increment makes i = j+2
 
 					// Skip whitespace after operator
@@ -451,8 +449,8 @@ func BreakAtParentheses(expression string) []string {
 	}
 
 	// Add remaining part
-	if strings.TrimSpace(current) != "" {
-		lines = append(lines, strings.TrimSpace(current))
+	if strings.TrimSpace(current.String()) != "" {
+		lines = append(lines, strings.TrimSpace(current.String()))
 	}
 
 	return lines
