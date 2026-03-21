@@ -299,7 +299,7 @@ func TestRequiredStateIgnoresCommitStatusFailures(t *testing.T) {
 	assert.Equal(t, CheckStateFailed, aggregate, "aggregate state should be failed when commit status fails")
 
 	// required_state excludes non-policy commit statuses.
-	required := classifyCheckState(runs, policyStatuses(statuses))
+	required := classifyCheckState(runs, filterCommitStatusesToPolicyChecks(statuses))
 	assert.Equal(t, CheckStateSuccess, required, "required_state should be success when check runs all pass and only Vercel fails")
 }
 
@@ -314,7 +314,7 @@ func TestRequiredStateNetlifyDeployFailure(t *testing.T) {
 	aggregate := classifyCheckState(runs, statuses)
 	assert.Equal(t, CheckStateFailed, aggregate, "aggregate state should be failed for Netlify failure")
 
-	required := classifyCheckState(runs, policyStatuses(statuses))
+	required := classifyCheckState(runs, filterCommitStatusesToPolicyChecks(statuses))
 	assert.Equal(t, CheckStateSuccess, required, "required_state should be success when only Netlify fails")
 }
 
@@ -331,7 +331,7 @@ func TestRequiredStateCheckRunFailureStillFails(t *testing.T) {
 	aggregate := classifyCheckState(runs, statuses)
 	assert.Equal(t, CheckStateFailed, aggregate, "aggregate state should be failed when check run fails")
 
-	required := classifyCheckState(runs, policyStatuses(statuses))
+	required := classifyCheckState(runs, filterCommitStatusesToPolicyChecks(statuses))
 	assert.Equal(t, CheckStateFailed, required, "required_state should be failed when a check run fails")
 }
 
@@ -346,7 +346,7 @@ func TestRequiredStateNoCheckRunsOnlyCommitStatus(t *testing.T) {
 	aggregate := classifyCheckState(nil, statuses)
 	assert.Equal(t, CheckStateSuccess, aggregate, "aggregate state should be success")
 
-	required := classifyCheckState(nil, policyStatuses(statuses))
+	required := classifyCheckState(nil, filterCommitStatusesToPolicyChecks(statuses))
 	assert.Equal(t, CheckStateNoChecks, required, "required_state should be no_checks when there are no check runs and no policy statuses")
 }
 
@@ -362,12 +362,12 @@ func TestRequiredStatePolicyCommitStatusStillSurfaced(t *testing.T) {
 	}
 
 	// required_state should be policy_blocked (not success), because the policy gate failed.
-	required := classifyCheckState(runs, policyStatuses(statuses))
+	required := classifyCheckState(runs, filterCommitStatusesToPolicyChecks(statuses))
 	assert.Equal(t, CheckStatePolicyBlocked, required, "required_state should be policy_blocked when a policy commit status fails")
 }
 
 // ---------------------------------------------------------------------------
-// policyStatuses – filter helper tests
+// filterCommitStatusesToPolicyChecks – filter helper tests
 // ---------------------------------------------------------------------------
 
 func TestPolicyStatuses_FiltersNonPolicy(t *testing.T) {
@@ -376,14 +376,14 @@ func TestPolicyStatuses_FiltersNonPolicy(t *testing.T) {
 		{Context: "netlify/deploy", State: "failure"},
 		{Context: "branch protection rule check", State: "failure"},
 	}
-	filtered := policyStatuses(statuses)
+	filtered := filterCommitStatusesToPolicyChecks(statuses)
 	require.Len(t, filtered, 1, "should retain only policy statuses")
 	assert.Equal(t, "branch protection rule check", filtered[0].Context)
 }
 
 func TestPolicyStatuses_EmptyInput(t *testing.T) {
-	assert.Nil(t, policyStatuses(nil), "nil input should return nil")
-	assert.Nil(t, policyStatuses([]PRCommitStatus{}), "empty input should return nil")
+	assert.Nil(t, filterCommitStatusesToPolicyChecks(nil), "nil input should return nil")
+	assert.Nil(t, filterCommitStatusesToPolicyChecks([]PRCommitStatus{}), "empty input should return nil")
 }
 
 func TestClassifyGHAPIError_NotFound(t *testing.T) {
