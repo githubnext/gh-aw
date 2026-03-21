@@ -20,9 +20,10 @@ const (
 
 // ActionCacheEntry represents a cached action pin resolution.
 type ActionCacheEntry struct {
-	Repo    string `json:"repo"`
-	Version string `json:"version"`
-	SHA     string `json:"sha"`
+	Repo    string                      `json:"repo"`
+	Version string                      `json:"version"`
+	SHA     string                      `json:"sha"`
+	Inputs  map[string]*ActionYAMLInput `json:"inputs,omitempty"` // cached inputs from action.yml
 }
 
 // ActionCache manages cached action pin resolutions.
@@ -189,7 +190,7 @@ func (c *ActionCache) FindEntryBySHA(repo, sha string) (ActionCacheEntry, bool) 
 	return ActionCacheEntry{}, false
 }
 
-// Set stores a new cache entry
+// Set stores a new cache entry, preserving any already-cached inputs for the same key.
 func (c *ActionCache) Set(repo, version, sha string) {
 	key := formatActionCacheKey(repo, version)
 
@@ -208,12 +209,47 @@ func (c *ActionCache) Set(repo, version, sha string) {
 	}
 
 	actionCacheLog.Printf("Setting cache entry: key=%s, sha=%s", key, sha)
+
+	// Preserve any previously-cached inputs so that SetInputs calls are not lost
+	// when Set is called later (e.g. when the SHA is refreshed from the network).
+	// When no entry exists, `existing` is the zero value and existing.Inputs is nil,
+	// so the new entry simply has no cached inputs — which is the correct behavior.
+	existing := c.Entries[key]
 	c.Entries[key] = ActionCacheEntry{
 		Repo:    repo,
 		Version: version,
 		SHA:     sha,
+		Inputs:  existing.Inputs,
 	}
 	c.dirty = true // Mark cache as modified
+}
+
+// GetInputs retrieves the cached action inputs for the given repo and version.
+// Returns the inputs map and true if cached inputs exist, otherwise nil and false.
+func (c *ActionCache) GetInputs(repo, version string) (map[string]*ActionYAMLInput, bool) {
+	key := formatActionCacheKey(repo, version)
+	entry, exists := c.Entries[key]
+	if !exists || entry.Inputs == nil {
+		actionCacheLog.Printf("No cached inputs for key=%s", key)
+		return nil, false
+	}
+	actionCacheLog.Printf("Cache hit for inputs: key=%s, inputs=%d", key, len(entry.Inputs))
+	return entry.Inputs, true
+}
+
+// SetInputs stores the action inputs in the cache entry for the given repo and version.
+// If no cache entry exists for the key, this call is a no-op.
+func (c *ActionCache) SetInputs(repo, version string, inputs map[string]*ActionYAMLInput) {
+	key := formatActionCacheKey(repo, version)
+	entry, exists := c.Entries[key]
+	if !exists {
+		actionCacheLog.Printf("No cache entry for key=%s, skipping SetInputs", key)
+		return
+	}
+	entry.Inputs = inputs
+	c.Entries[key] = entry
+	c.dirty = true
+	actionCacheLog.Printf("Cached inputs for key=%s, inputs=%d", key, len(inputs))
 }
 
 // GetCachePath returns the path to the cache file

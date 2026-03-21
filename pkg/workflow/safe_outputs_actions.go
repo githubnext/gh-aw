@@ -164,9 +164,12 @@ func parseActionUsesField(uses string) (*actionRef, error) {
 // for each configured action. Results are stored in the action config's computed fields.
 // This function should be called before tool generation and step generation.
 //
-// If inputs were already specified in the frontmatter (config.Inputs != nil), the
-// action.yml network fetch is skipped to ensure deterministic compilation.  The action
-// reference is still pinned to a commit SHA for security.
+// Resolution priority (highest wins):
+//  1. Inputs already specified in the frontmatter (config.Inputs != nil)
+//  2. Inputs cached in the ActionCache (actions-lock.json)
+//  3. Inputs fetched from the remote action.yml (result cached for future runs)
+//
+// The action reference is always pinned to a commit SHA for security.
 func (c *Compiler) fetchAndParseActionYAML(actionName string, config *SafeOutputActionConfig, markdownPath string, data *WorkflowData) {
 	if config.Uses == "" {
 		return
@@ -178,8 +181,8 @@ func (c *Compiler) fetchAndParseActionYAML(actionName string, config *SafeOutput
 		return
 	}
 
-	// Remember whether inputs were provided via frontmatter so we can skip the
-	// action.yml fetch below (preventing non-deterministic compilation).
+	// Remember whether inputs were provided via frontmatter so we can skip lower-
+	// priority resolution paths.
 	inputsFromFrontmatter := config.Inputs != nil
 
 	var actionYAML *actionYAMLFile
@@ -213,13 +216,30 @@ func (c *Compiler) fetchAndParseActionYAML(actionName string, config *SafeOutput
 			}
 		}
 
-		// Only fetch action.yml when inputs were not specified in the frontmatter.
-		// Skipping the fetch ensures that compilation is deterministic regardless of
-		// network availability.
 		if !inputsFromFrontmatter {
-			actionYAML, err = fetchRemoteActionYAML(ref.Repo, ref.Subdir, fetchRef)
-			if err != nil {
-				safeOutputActionsLog.Printf("Warning: failed to fetch action.yml for %q (%s): %v", actionName, config.Uses, err)
+			// Check the ActionCache for previously-fetched inputs before going to the network.
+			// The cache key uses the original version tag from the `uses:` field (ref.Ref, e.g.
+			// "v1") which matches the key stored in actions-lock.json.
+			if data.ActionCache != nil {
+				if cachedInputs, ok := data.ActionCache.GetInputs(ref.Repo, ref.Ref); ok {
+					safeOutputActionsLog.Printf("Using cached inputs for %q (%s@%s)", actionName, ref.Repo, ref.Ref)
+					config.Inputs = cachedInputs
+					// Skip the remote fetch; inputs are already populated.
+				}
+			}
+
+			// If inputs are still not resolved, fetch action.yml from the network and
+			// store the result in the cache to make future compilations deterministic.
+			if config.Inputs == nil {
+				actionYAML, err = fetchRemoteActionYAML(ref.Repo, ref.Subdir, fetchRef)
+				if err != nil {
+					safeOutputActionsLog.Printf("Warning: failed to fetch action.yml for %q (%s): %v", actionName, config.Uses, err)
+				}
+				// Cache the fetched inputs so subsequent compilations are deterministic
+				// even when the network is unavailable.
+				if actionYAML != nil && data.ActionCache != nil && actionYAML.Inputs != nil {
+					data.ActionCache.SetInputs(ref.Repo, ref.Ref, actionYAML.Inputs)
+				}
 			}
 		}
 	}
@@ -227,8 +247,8 @@ func (c *Compiler) fetchAndParseActionYAML(actionName string, config *SafeOutput
 	config.ResolvedRef = resolvedRef
 
 	// Only overwrite Inputs/ActionDescription from action.yml when the inputs were
-	// not already provided via frontmatter.
-	if !inputsFromFrontmatter && actionYAML != nil {
+	// not already provided via frontmatter or cache.
+	if !inputsFromFrontmatter && config.Inputs == nil && actionYAML != nil {
 		config.Inputs = actionYAML.Inputs
 		config.ActionDescription = actionYAML.Description
 	}
