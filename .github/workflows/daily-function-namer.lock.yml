@@ -20,14 +20,14 @@
 #
 # For more information: https://github.github.com/gh-aw/introduction/overview/
 #
-# Analyzes up to 3 Go files daily using Serena to extract function names and suggest renames that improve agent discoverability, using round-robin via cache-memory
+# Analyzes Go files daily using Serena to extract function names and suggest renames that improve agent discoverability, using round-robin via cache-memory with a dynamic function budget
 #
 # Resolved workflow manifest:
 #   Imports:
 #     - shared/mcp/serena-go.md
 #     - shared/reporting.md
 #
-# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"1a6466ede70a1acc29fec0024f6f6bb615a33432fc93c08c7eb36bea1bcfa648","strict":true,"agent_id":"claude"}
+# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"742c1c681dddcb1a547b0ad46c561cc348635bd807021ccbb7729495c3eeefb4","strict":true,"agent_id":"claude"}
 
 name: "Daily Go Function Namer"
 "on":
@@ -881,7 +881,7 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           WORKFLOW_NAME: "Daily Go Function Namer"
-          WORKFLOW_DESCRIPTION: "Analyzes up to 3 Go files daily using Serena to extract function names and suggest renames that improve agent discoverability, using round-robin via cache-memory"
+          WORKFLOW_DESCRIPTION: "Analyzes Go files daily using Serena to extract function names and suggest renames that improve agent discoverability, using round-robin via cache-memory with a dynamic function budget"
           HAS_PATCH: ${{ steps.collect_output.outputs.has_patch }}
         with:
           script: |

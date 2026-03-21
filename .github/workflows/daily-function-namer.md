@@ -1,6 +1,6 @@
 ---
 name: Daily Go Function Namer
-description: Analyzes up to 3 Go files daily using Serena to extract function names and suggest renames that improve agent discoverability, using round-robin via cache-memory
+description: Analyzes Go files daily using Serena to extract function names and suggest renames that improve agent discoverability, using round-robin via cache-memory with a dynamic function budget
 on:
   schedule: daily
   workflow_dispatch:
@@ -43,7 +43,7 @@ You are an AI agent that analyzes Go functions daily to improve their names for 
 
 ## Mission
 
-Each day, analyze up to **3 Go source files** using round-robin rotation across all non-test Go files in `pkg/`. For each file:
+Each day, analyze up to **6 Go source files** using round-robin rotation across all non-test Go files in `pkg/`, driven by a **dynamic function budget** of 25 functions per run. For each file:
 
 1. Extract all function and method names using Serena
 2. Evaluate each name's clarity and intent
@@ -92,15 +92,45 @@ find pkg -name '*.go' ! -name '*_test.go' -type f | sort
 
 Record the total file count for wrap-around calculations.
 
-## Step 3: Select the Next 3 Files
+## Step 3: Build Candidate Pool and Apply Function Budget
 
-Using `last_index` from the cache:
+### 3.1 Select 8 Candidate Files
 
-- Select files at positions `last_index`, `last_index + 1`, `last_index + 2`
+Using `last_index` from the cache, select the next **8 files** as candidates:
+
+- Select files at positions `last_index`, `last_index + 1`, …, `last_index + 7`
 - Wrap around using modulo: `index % total_files`
-- Example: If there are 50 files and `last_index` is 49, select indices 49, 0, 1
+- Example: If there are 50 files and `last_index` is 47, select indices 47, 48, 49, 0, 1, 2, 3, 4
 
-The new `last_index` for the next run is `(last_index + 3) % total_files`.
+### 3.2 Quick-Scan All 8 Candidates
+
+For each candidate file, run a quick symbol overview to count its functions and methods:
+
+```
+Tool: get_symbols_overview
+Args: { "file_path": "<relative/path/to/file.go>" }
+```
+
+Record the function/method count for each candidate.
+
+### 3.3 Greedy Selection (25-Function Budget, 6-File Cap)
+
+Greedily add candidates to the session in round-robin order until:
+
+- The cumulative function count reaches or exceeds **25**, **or**
+- **6 files** have been selected
+
+Example outcomes:
+
+| Files | Functions each | Selected | Total functions |
+|---|---|---|---|
+| 8 tiny files (2 fn) | 2 | 6 files | 12 |
+| 1 massive file (30 fn) | 30 | 1 file | 30 |
+| Mixed (5, 3, 8, 10, …) | varies | until budget | up to 25 |
+
+Let `selected_count` be the number of files actually selected (1–6).
+
+The new `last_index` for the next run is `(last_index + selected_count) % total_files`.
 
 ## Step 4: Activate Serena
 
@@ -111,9 +141,9 @@ Tool: activate_project
 Args: { "path": "${{ github.workspace }}" }
 ```
 
-## Step 5: Analyze Each File with Serena
+## Step 5: Analyze Each Selected File with Serena
 
-For each of the 3 selected files, perform a full function name analysis.
+For each of the selected files (1–6, determined in Step 3), perform a full function name analysis.
 
 ### 5.1 Get All Symbols
 
@@ -126,7 +156,7 @@ This returns all functions, methods, and types defined in the file.
 
 ### 5.2 Read Function Implementations
 
-For each function identified in 6.1, read enough of the implementation to understand its behavior:
+For each function identified in 5.1, read enough of the implementation to understand its behavior:
 
 ```
 Tool: read_file
@@ -191,12 +221,13 @@ cat > /tmp/gh-aw/cache-memory/function-namer-state.json << 'CACHE_EOF'
   "analyzed_files": [
     <previous entries, pruned to last 90>,
     {"file": "pkg/workflow/compiler.go", "analyzed_at": "2026-03-13"},
-    {"file": "pkg/workflow/cache.go", "analyzed_at": "2026-03-13"},
-    {"file": "pkg/workflow/mcp_renderer.go", "analyzed_at": "2026-03-13"}
+    {"file": "pkg/workflow/cache.go", "analyzed_at": "2026-03-13"}
   ]
 }
 CACHE_EOF
 ```
+
+Where `<new_index>` is `(last_index + selected_count) % total_files`, and the `analyzed_files` list contains one entry per file actually analyzed (not all 8 candidates).
 
 Use relative paths (e.g., `pkg/workflow/compiler.go`) matching the output of the `find pkg` command.
 
@@ -204,28 +235,29 @@ Prune `analyzed_files` to the most recent 90 entries to prevent unbounded growth
 
 ## Step 7: Create Issue with Agentic Plan
 
-If any rename suggestions were found across the 3 files, create a GitHub issue.
+If any rename suggestions were found across the analyzed files, create a GitHub issue.
 
 If **no improvements were found**, emit `noop` and exit:
 
 ```json
-{"noop": {"message": "No rename suggestions found for <file1>, <file2>, <file3>. All analyzed functions have clear, descriptive names."}}
+{"noop": {"message": "No rename suggestions found for <file1>, …, <fileN>. All analyzed functions have clear, descriptive names."}}
 ```
 
 Otherwise, create an issue with this structure:
 
 ---
 
-**Title**: `Go function rename plan: <basename1>, <basename2>, <basename3>` (e.g., `Go function rename plan: compiler.go, cache.go, mcp_renderer.go`)
+**Title**: `Go function rename plan: <basename1>, <basename2>, …` (e.g., `Go function rename plan: compiler.go, cache.go, mcp_renderer.go`)
 
 **Body**:
 
 ```markdown
 # 🏷️ Go Function Rename Plan
 
-**Files Analyzed**: `<file1>`, `<file2>`, `<file3>`
+**Files Analyzed**: `<file1>`, `<file2>`, …
 **Analysis Date**: <YYYY-MM-DD>
 **Round-Robin Position**: files <start_index>–<end_index> of <total> total
+**Function Budget**: <total_functions_analyzed> functions across <selected_count> files
 
 ### Why This Matters
 
@@ -249,9 +281,9 @@ that an agent will find the right function instead of reimplementing existing lo
 
 <!-- Same structure, or: "No renames needed for this file." -->
 
-#### `<file3>`
+#### `<fileN>`
 
-<!-- Same structure, or: "No renames needed for this file." -->
+<!-- Repeat for each analyzed file. -->
 
 ---
 
@@ -373,5 +405,5 @@ Only include a rename suggestion if you are confident it would measurably improv
 **Important**: If no action is needed after completing your analysis, you **MUST** call the `noop` safe-output tool. Failing to call any safe-output tool is the most common cause of workflow failures.
 
 ```json
-{"noop": {"message": "No rename suggestions found for <file1>, <file2>, <file3>. All analyzed functions already have clear, descriptive names that support agent discoverability."}}
+{"noop": {"message": "No rename suggestions found for <file1>, …, <fileN>. All analyzed functions already have clear, descriptive names that support agent discoverability."}}
 ```
