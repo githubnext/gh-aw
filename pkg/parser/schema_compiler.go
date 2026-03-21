@@ -82,7 +82,8 @@ func getParsedSchemaDoc(schemaJSON string) (any, error) {
 		return parsedMcpConfigSchemaDocVal, parsedMcpConfigSchemaDocErr
 	default:
 		var doc any
-		return doc, json.Unmarshal([]byte(schemaJSON), &doc)
+		err := json.Unmarshal([]byte(schemaJSON), &doc)
+		return doc, err
 	}
 }
 
