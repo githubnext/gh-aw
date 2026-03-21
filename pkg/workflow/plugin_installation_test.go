@@ -38,30 +38,6 @@ func TestGeneratePluginInstallationSteps(t *testing.T) {
 			expectCmds:   []string{"copilot plugin install github/test-plugin"},
 			expectTokens: []string{"${{ secrets.CUSTOM_TOKEN }}"},
 		},
-		{
-			name:        "Multiple plugins for Claude with custom token",
-			plugins:     []string{"github/plugin1", "acme/plugin2"},
-			engineID:    "claude",
-			githubToken: "${{ secrets.CUSTOM_TOKEN }}",
-			expectSteps: 2,
-			expectCmds: []string{
-				"claude plugin install github/plugin1",
-				"claude plugin install acme/plugin2",
-			},
-			expectTokens: []string{
-				"${{ secrets.CUSTOM_TOKEN }}",
-				"${{ secrets.CUSTOM_TOKEN }}",
-			},
-		},
-		{
-			name:         "Plugin for Codex with cascading token fallback",
-			plugins:      []string{"org/codex-plugin"},
-			engineID:     "codex",
-			githubToken:  "",
-			expectSteps:  1,
-			expectCmds:   []string{"codex plugin install org/codex-plugin"},
-			expectTokens: []string{"${{ secrets.GH_AW_PLUGINS_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}"}, // Cascading fallback
-		},
 	}
 
 	for _, tt := range tests {
@@ -252,6 +228,38 @@ func TestPluginTokenCascading(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			result := getEffectivePluginGitHubToken(tt.customToken)
 			assert.Equal(t, tt.expectedToken, result, "Token resolution should match expected")
+		})
+	}
+}
+
+func TestEnginePluginSupport(t *testing.T) {
+	// Verify which engines support plugin installation
+	tests := []struct {
+		name            string
+		engine          CodingAgentEngine
+		supportsPlugins bool
+	}{
+		{
+			name:            "Copilot supports plugins",
+			engine:          NewCopilotEngine(),
+			supportsPlugins: true,
+		},
+		{
+			name:            "Claude does not support plugins",
+			engine:          NewClaudeEngine(),
+			supportsPlugins: false,
+		},
+		{
+			name:            "Codex does not support plugins",
+			engine:          NewCodexEngine(),
+			supportsPlugins: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.supportsPlugins, tt.engine.SupportsPlugins(),
+				"Engine plugin support should match expected value")
 		})
 	}
 }
