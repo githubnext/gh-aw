@@ -92,13 +92,13 @@ func TestAwInfoResolutionWithoutFlattening(t *testing.T) {
 	// Error patterns have been removed - no error/warning detection
 }
 
-// TestMultipleArtifactFlattening tests that all files from unified agent-artifacts are flattened
+// TestMultipleArtifactFlattening tests that all files from unified agent are flattened
 func TestMultipleArtifactFlattening(t *testing.T) {
 	tempDir := t.TempDir()
 
-	// Create unified agent-artifacts structure as it would be downloaded
-	// All artifacts are now in a single agent-artifacts/tmp/gh-aw/ directory
-	nestedPath := filepath.Join(tempDir, "agent-artifacts", "tmp", "gh-aw")
+	// Create unified agent structure as it would be downloaded
+	// All artifacts are now in a single agent/tmp/gh-aw/ directory
+	nestedPath := filepath.Join(tempDir, "agent", "tmp", "gh-aw")
 	err := os.MkdirAll(nestedPath, 0755)
 	require.NoError(t, err)
 
@@ -133,8 +133,8 @@ func TestMultipleArtifactFlattening(t *testing.T) {
 		require.NoError(t, err, "File %s should exist at root", file)
 	}
 
-	// Verify agent-artifacts directory is removed
-	agentArtifactsDir := filepath.Join(tempDir, "agent-artifacts")
+	// Verify agent directory is removed
+	agentArtifactsDir := filepath.Join(tempDir, "agent")
 	_, err = os.Stat(agentArtifactsDir)
-	assert.True(t, os.IsNotExist(err), "agent-artifacts directory should be removed")
+	assert.True(t, os.IsNotExist(err), "agent directory should be removed")
 }

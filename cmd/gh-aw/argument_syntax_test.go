@@ -24,9 +24,9 @@ func TestArgumentSyntaxConsistency(t *testing.T) {
 	}{
 		// Commands with required arguments (using angle brackets <>)
 		{
-			name:           "audit command requires run-id",
+			name:           "audit command requires run-id-or-url",
 			command:        cli.NewAuditCommand(),
-			expectedUse:    "audit <run-id>",
+			expectedUse:    "audit <run-id-or-url>",
 			argsValidator:  "ExactArgs(1)",
 			shouldValidate: func(cmd *cobra.Command) error { return cmd.Args(cmd, []string{"123456"}) },
 		},

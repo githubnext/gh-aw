@@ -33,9 +33,10 @@ func formatActionCacheKey(repo, version string) string {
 
 // ActionPin represents a pinned GitHub Action with its commit SHA
 type ActionPin struct {
-	Repo    string `json:"repo"`    // e.g., "actions/checkout"
-	Version string `json:"version"` // e.g., "v5" - the golden/default version
-	SHA     string `json:"sha"`     // Full commit SHA for the pinned version
+	Repo    string                      `json:"repo"`             // e.g., "actions/checkout"
+	Version string                      `json:"version"`          // e.g., "v5" - the golden/default version
+	SHA     string                      `json:"sha"`              // Full commit SHA for the pinned version
+	Inputs  map[string]*ActionYAMLInput `json:"inputs,omitempty"` // optional cached inputs (not used for SHA pinning)
 }
 
 // ActionPinsData represents the structure of the embedded JSON file

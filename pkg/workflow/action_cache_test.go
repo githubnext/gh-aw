@@ -545,3 +545,70 @@ func TestActionCacheFindEntryBySHA(t *testing.T) {
 		t.Error("Expected not to find entry for different repo")
 	}
 }
+
+// TestActionCacheInputs tests caching and retrieving action inputs
+func TestActionCacheInputs(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "test-*")
+	cache := NewActionCache(tmpDir)
+	cache.Set("owner/repo", "v1", "abc123sha456789012345678901234567890123")
+
+	// Initially no inputs cached
+	inputs, ok := cache.GetInputs("owner/repo", "v1")
+	if ok {
+		t.Error("Expected no cached inputs, got some")
+	}
+	if inputs != nil {
+		t.Error("Expected nil inputs, got non-nil")
+	}
+
+	// Store inputs
+	toCache := map[string]*ActionYAMLInput{
+		"labels": {Description: "Labels to add.", Required: true},
+		"number": {Description: "PR number."},
+	}
+	cache.SetInputs("owner/repo", "v1", toCache)
+
+	// Retrieve inputs
+	inputs, ok = cache.GetInputs("owner/repo", "v1")
+	if !ok {
+		t.Fatal("Expected cached inputs to exist")
+	}
+	if len(inputs) != 2 {
+		t.Errorf("Expected 2 inputs, got %d", len(inputs))
+	}
+	if inputs["labels"] == nil || !inputs["labels"].Required {
+		t.Error("Expected 'labels' input to be required")
+	}
+
+	// Set with the SAME SHA - inputs must be preserved
+	cache.Set("owner/repo", "v1", "abc123sha456789012345678901234567890123")
+	inputs, ok = cache.GetInputs("owner/repo", "v1")
+	if !ok {
+		t.Error("Expected inputs to survive Set() with same SHA")
+	}
+	if len(inputs) != 2 {
+		t.Errorf("Expected inputs to be preserved after Set() with same SHA, got %d", len(inputs))
+	}
+
+	// Set with a NEW SHA - inputs must be cleared (stale inputs no longer match pinned commit)
+	cache.Set("owner/repo", "v1", "newsha456789012345678901234567890123456")
+	inputs, ok = cache.GetInputs("owner/repo", "v1")
+	if ok {
+		t.Error("Expected inputs to be cleared after Set() with new SHA")
+	}
+	if inputs != nil {
+		t.Error("Expected nil inputs after SHA change, got non-nil")
+	}
+
+	// SetInputs on a missing key now creates a new entry
+	cache.SetInputs("owner/repo", "v99", map[string]*ActionYAMLInput{
+		"x": {Description: "x"},
+	})
+	inputs, ok = cache.GetInputs("owner/repo", "v99")
+	if !ok {
+		t.Error("Expected SetInputs on missing key to create entry")
+	}
+	if len(inputs) != 1 || inputs["x"] == nil {
+		t.Error("Expected created entry to have the given inputs")
+	}
+}

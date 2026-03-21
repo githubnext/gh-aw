@@ -100,11 +100,6 @@ func (c *Compiler) parsePullRequestsConfig(outputMap map[string]any) *CreatePull
 		config = CreatePullRequestsConfig{}
 	}
 
-	// Validate target-repo (wildcard "*" is not allowed)
-	if validateTargetRepoSlug(config.TargetRepoSlug, createPRLog) {
-		return nil // Invalid configuration, return nil to cause validation error
-	}
-
 	// Log expires if configured
 	if config.Expires > 0 {
 		createPRLog.Printf("Pull request expiration configured: %d hours", config.Expires)

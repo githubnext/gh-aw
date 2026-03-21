@@ -35,6 +35,17 @@ var (
 
 	mainWorkflowSchemaError error
 	mcpConfigSchemaError    error
+
+	// Cached parsed schema documents (as any) for suggestion generation.
+	// Parsing the large JSON schema on every error call is expensive; these caches
+	// ensure the schema is parsed at most once per process lifetime.
+	parsedMainWorkflowSchemaDocOnce sync.Once
+	parsedMainWorkflowSchemaDocVal  any
+	parsedMainWorkflowSchemaDocErr  error
+
+	parsedMcpConfigSchemaDocOnce sync.Once
+	parsedMcpConfigSchemaDocVal  any
+	parsedMcpConfigSchemaDocErr  error
 )
 
 // getCompiledMainWorkflowSchema returns the compiled main workflow schema, compiling it once and caching
@@ -51,6 +62,29 @@ func getCompiledMcpConfigSchema() (*jsonschema.Schema, error) {
 		compiledMcpConfigSchema, mcpConfigSchemaError = compileSchema(mcpConfigSchema, "http://contoso.com/mcp-config-schema.json")
 	})
 	return compiledMcpConfigSchema, mcpConfigSchemaError
+}
+
+// getParsedSchemaDoc returns the parsed (any) representation of a known schema JSON string.
+// For the two well-known schemas (mainWorkflowSchema, mcpConfigSchema) the result is cached
+// so the expensive json.Unmarshal is only ever performed once per process lifetime.
+// Unknown schema strings fall back to an uncached parse.
+func getParsedSchemaDoc(schemaJSON string) (any, error) {
+	switch schemaJSON {
+	case mainWorkflowSchema:
+		parsedMainWorkflowSchemaDocOnce.Do(func() {
+			parsedMainWorkflowSchemaDocErr = json.Unmarshal([]byte(mainWorkflowSchema), &parsedMainWorkflowSchemaDocVal)
+		})
+		return parsedMainWorkflowSchemaDocVal, parsedMainWorkflowSchemaDocErr
+	case mcpConfigSchema:
+		parsedMcpConfigSchemaDocOnce.Do(func() {
+			parsedMcpConfigSchemaDocErr = json.Unmarshal([]byte(mcpConfigSchema), &parsedMcpConfigSchemaDocVal)
+		})
+		return parsedMcpConfigSchemaDocVal, parsedMcpConfigSchemaDocErr
+	default:
+		var doc any
+		err := json.Unmarshal([]byte(schemaJSON), &doc)
+		return doc, err
+	}
 }
 
 // compileSchema compiles a JSON schema from a JSON string
@@ -100,10 +134,14 @@ var safeOutputMetaFields = map[string]bool{
 func GetSafeOutputTypeKeys() ([]string, error) {
 	schemaCompilerLog.Print("Extracting safe output type keys from main workflow schema")
 
-	// Parse the embedded schema JSON
-	var schemaDoc map[string]any
-	if err := json.Unmarshal([]byte(mainWorkflowSchema), &schemaDoc); err != nil {
+	// Use the cached parsed schema document to avoid re-parsing on every call.
+	rawDoc, err := getParsedSchemaDoc(mainWorkflowSchema)
+	if err != nil {
 		return nil, fmt.Errorf("failed to parse main workflow schema: %w", err)
+	}
+	schemaDoc, ok := rawDoc.(map[string]any)
+	if !ok {
+		return nil, errors.New("schema root is not an object")
 	}
 
 	// Navigate to properties.safe-outputs.properties

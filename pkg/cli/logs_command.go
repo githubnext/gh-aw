@@ -68,9 +68,9 @@ Examples:
   ` + string(constants.CLIExtensionPrefix) + ` logs --engine copilot          # Filter logs by copilot engine
   ` + string(constants.CLIExtensionPrefix) + ` logs --firewall                # Filter logs with firewall enabled
   ` + string(constants.CLIExtensionPrefix) + ` logs --no-firewall             # Filter logs without firewall
-  ` + string(constants.CLIExtensionPrefix) + ` logs --safe-output missing-tool     # Filter logs with missing_tool messages
-  ` + string(constants.CLIExtensionPrefix) + ` logs --safe-output missing-data     # Filter logs with missing_data messages
-  ` + string(constants.CLIExtensionPrefix) + ` logs --safe-output create-issue     # Filter logs with create_issue messages
+  ` + string(constants.CLIExtensionPrefix) + ` logs --safe-output missing-tool     # Filter logs with missing-tool messages
+  ` + string(constants.CLIExtensionPrefix) + ` logs --safe-output missing-data     # Filter logs with missing-data messages
+  ` + string(constants.CLIExtensionPrefix) + ` logs --safe-output create-issue     # Filter logs with create-issue messages
   ` + string(constants.CLIExtensionPrefix) + ` logs --ref main                # Filter logs by branch or tag
   ` + string(constants.CLIExtensionPrefix) + ` logs --ref feature-xyz         # Filter logs by feature branch
   ` + string(constants.CLIExtensionPrefix) + ` logs --filtered-integrity      # Filter logs with DIFC integrity-filtered items in gateway logs

@@ -39,7 +39,7 @@ func GetAllCodemods() []Codemod {
 		getMCPModeToTypeCodemod(),
 		getInstallScriptURLCodemod(),
 		getBashAnonymousRemovalCodemod(),      // Replace bash: with bash: false
-		getActivationOutputsCodemod(),         // Transform needs.activation.outputs.* to steps.sanitized.outputs.*
+		newActivationOutputsCodemod(),         // Transform needs.activation.outputs.* to steps.sanitized.outputs.*
 		getRolesToOnRolesCodemod(),            // Move top-level roles to on.roles
 		getBotsToOnBotsCodemod(),              // Move top-level bots to on.bots
 		getEngineStepsToTopLevelCodemod(),     // Move engine.steps to top-level steps
@@ -49,6 +49,7 @@ func GetAllCodemods() []Codemod {
 		getSerenaLocalModeCodemod(),           // Replace tools.serena mode: local with mode: docker
 		getGitHubAppCodemod(),                 // Rename deprecated 'app' to 'github-app'
 		getSafeInputsToMCPScriptsCodemod(),    // Rename safe-inputs to mcp-scripts
+		getPluginsToDependenciesCodemod(),     // Migrate plugins to dependencies (plugins removed in favour of APM)
 	}
 	fixCodemodsLog.Printf("Loaded codemod registry: %d codemods available", len(codemods))
 	return codemods

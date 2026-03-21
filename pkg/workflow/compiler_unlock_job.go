@@ -55,7 +55,7 @@ func (c *Compiler) buildUnlockJob(data *WorkflowData, threatDetectionEnabled boo
 
 	steps = append(steps, "      - name: Unlock issue after agent workflow\n")
 	steps = append(steps, "        id: unlock-issue\n")
-	steps = append(steps, fmt.Sprintf("        if: %s\n", unlockCondition.Render()))
+	steps = append(steps, fmt.Sprintf("        if: %s\n", RenderCondition(unlockCondition)))
 	steps = append(steps, fmt.Sprintf("        uses: %s\n", GetActionPin("actions/github-script")))
 	steps = append(steps, "        with:\n")
 	steps = append(steps, "          script: |\n")
@@ -93,7 +93,7 @@ func (c *Compiler) buildUnlockJob(data *WorkflowData, threatDetectionEnabled boo
 	job := &Job{
 		Name:           "unlock",
 		Needs:          needs,
-		If:             alwaysFunc.Render(),
+		If:             RenderCondition(alwaysFunc),
 		RunsOn:         c.formatSafeOutputsRunsOn(data.SafeOutputs),
 		Permissions:    permissions,
 		Steps:          steps,

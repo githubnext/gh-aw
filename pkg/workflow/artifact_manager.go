@@ -26,7 +26,7 @@ type ArtifactManager struct {
 
 // ArtifactUpload represents an artifact upload operation
 type ArtifactUpload struct {
-	// Name is the artifact name (e.g., "agent-artifacts")
+	// Name is the artifact name (e.g., "agent")
 	Name string
 
 	// Paths are the file/directory paths being uploaded

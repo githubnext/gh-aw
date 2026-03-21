@@ -493,7 +493,7 @@ func (c *Compiler) combineJobIfConditions(existingCondition, workflowRunRepoSafe
 	safetyNode := &ExpressionNode{Expression: unwrappedSafety}
 
 	combinedExpr := BuildAnd(existingNode, safetyNode)
-	return combinedExpr.Render()
+	return RenderCondition(combinedExpr)
 }
 
 // extractSkipRoles extracts the 'skip-roles' field from the 'on:' section of frontmatter

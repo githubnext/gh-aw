@@ -154,32 +154,41 @@ func extractRunBlocks(data any) []string {
 	return runBlocks
 }
 
-// removeHeredocContent removes heredoc sections from shell commands
-// Heredocs (e.g., cat > file << 'EOF' ... EOF) are safe for template expressions
-// because the content is written to files, not executed in the shell
-func removeHeredocContent(content string) string {
-	// Match common heredoc patterns with known delimiter suffixes
-	// Since Go regex doesn't support backreferences, we match common heredoc delimiter suffixes explicitly
-	// Matches both exact delimiters (EOF) and prefixed delimiters (GH_AW_SAFE_OUTPUTS_CONFIG_EOF)
-	commonDelimiterSuffixes := []string{"EOF", "EOL", "END", "HEREDOC", "JSON", "YAML", "SQL"}
+// heredocPattern holds pre-compiled regexp patterns for a single heredoc delimiter suffix.
+type heredocPattern struct {
+	quoted   *regexp.Regexp
+	unquoted *regexp.Regexp
+}
 
-	result := content
-	for _, suffix := range commonDelimiterSuffixes {
+// heredocPatterns are compiled once at program start for performance.
+// Each entry covers one of the common delimiter suffixes used by heredocs in shell scripts.
+// Since Go regex doesn't support backreferences, we match common heredoc delimiter suffixes explicitly.
+// Matches both exact delimiters (EOF) and prefixed delimiters (GH_AW_SAFE_OUTPUTS_CONFIG_EOF).
+var heredocPatterns = func() []heredocPattern {
+	suffixes := []string{"EOF", "EOL", "END", "HEREDOC", "JSON", "YAML", "SQL"}
+	patterns := make([]heredocPattern, len(suffixes))
+	for i, suffix := range suffixes {
 		// Pattern for quoted delimiter ending with suffix: << 'PREFIX_SUFFIX' or << "PREFIX_SUFFIX"
-		// The pattern matches any prefix followed by the suffix (e.g., GH_AW_CONFIG_EOF)
 		// \w* matches zero or more word characters (allowing both exact match and prefixes)
 		// (?ms) enables multiline and dotall modes, .*? is non-greedy
 		// \s*\w*%s\s*$ allows for leading/trailing whitespace on the closing delimiter
-		quotedPattern := fmt.Sprintf(`(?ms)<<\s*['"]\w*%s['"].*?\n\s*\w*%s\s*$`, suffix, suffix)
-		quotedRegex := regexp.MustCompile(quotedPattern)
-		result = quotedRegex.ReplaceAllString(result, "# heredoc removed")
-
-		// Pattern for unquoted delimiter ending with suffix: << PREFIX_SUFFIX
-		unquotedPattern := fmt.Sprintf(`(?ms)<<\s*\w*%s.*?\n\s*\w*%s\s*$`, suffix, suffix)
-		unquotedRegex := regexp.MustCompile(unquotedPattern)
-		result = unquotedRegex.ReplaceAllString(result, "# heredoc removed")
+		patterns[i] = heredocPattern{
+			quoted:   regexp.MustCompile(fmt.Sprintf(`(?ms)<<\s*['"]\w*%s['"].*?\n\s*\w*%s\s*$`, suffix, suffix)),
+			unquoted: regexp.MustCompile(fmt.Sprintf(`(?ms)<<\s*\w*%s.*?\n\s*\w*%s\s*$`, suffix, suffix)),
+		}
 	}
+	return patterns
+}()
 
+// removeHeredocContent removes heredoc sections from shell commands.
+// Heredocs (e.g., cat > file << 'EOF' ... EOF) are safe for template expressions
+// because the content is written to files, not executed in the shell.
+func removeHeredocContent(content string) string {
+	result := content
+	for _, p := range heredocPatterns {
+		result = p.quoted.ReplaceAllString(result, "# heredoc removed")
+		result = p.unquoted.ReplaceAllString(result, "# heredoc removed")
+	}
 	return result
 }
 

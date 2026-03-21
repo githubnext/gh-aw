@@ -508,7 +508,7 @@ func TestGenerateAPMPackStepWithGitHubApp(t *testing.T) {
 		assert.Contains(t, combined, "- acme-org/acme-skills/plugins/dev-tools", "Should list dependency")
 	})
 
-	t.Run("Pack step has no env section without github-app", func(t *testing.T) {
+	t.Run("Pack step uses cascading fallback GITHUB_TOKEN without github-app", func(t *testing.T) {
 		apmDeps := &APMDependenciesInfo{
 			Packages: []string{"microsoft/apm-sample-package"},
 		}
@@ -518,7 +518,9 @@ func TestGenerateAPMPackStepWithGitHubApp(t *testing.T) {
 		require.NotEmpty(t, step, "Step should not be empty")
 		combined := combineStepLines(step)
 
-		assert.NotContains(t, combined, "GITHUB_TOKEN:", "Should not have GITHUB_TOKEN without github-app")
+		assert.Contains(t, combined, "GITHUB_TOKEN:", "Should have GITHUB_TOKEN with cascading fallback")
+		assert.Contains(t, combined, "GH_AW_PLUGINS_TOKEN", "Should reference cascading token")
+		assert.Contains(t, combined, "GH_AW_GITHUB_TOKEN", "Should reference cascading token")
 		assert.NotContains(t, combined, "apm-app-token", "Should not reference app token without github-app")
 	})
 }
@@ -693,7 +695,7 @@ func TestExtractAPMDependenciesEnv(t *testing.T) {
 }
 
 func TestGenerateAPMPackStepWithEnv(t *testing.T) {
-	t.Run("Pack step includes user env vars", func(t *testing.T) {
+	t.Run("Pack step includes user env vars and cascading GITHUB_TOKEN", func(t *testing.T) {
 		apmDeps := &APMDependenciesInfo{
 			Packages: []string{"microsoft/apm-sample-package"},
 			Env: map[string]string{
@@ -710,7 +712,8 @@ func TestGenerateAPMPackStepWithEnv(t *testing.T) {
 		assert.Contains(t, combined, "env:", "Should have env section")
 		assert.Contains(t, combined, "MY_TOKEN: ${{ secrets.MY_TOKEN }}", "Should include MY_TOKEN env var")
 		assert.Contains(t, combined, "REGISTRY: https://registry.example.com", "Should include REGISTRY env var")
-		assert.NotContains(t, combined, "GITHUB_TOKEN:", "Should not have GITHUB_TOKEN without github-app")
+		assert.Contains(t, combined, "GITHUB_TOKEN:", "Should have GITHUB_TOKEN with cascading fallback")
+		assert.Contains(t, combined, "GH_AW_PLUGINS_TOKEN", "Cascading fallback should include GH_AW_PLUGINS_TOKEN")
 	})
 
 	t.Run("Pack step with env vars and github-app includes both", func(t *testing.T) {
@@ -781,5 +784,106 @@ func TestGenerateAPMPackStepWithEnv(t *testing.T) {
 		assert.Contains(t, combined, "OTHER_VAR: kept", "Other user env vars should be present")
 		count := strings.Count(combined, "GITHUB_TOKEN:")
 		assert.Equal(t, 1, count, "GITHUB_TOKEN should appear exactly once")
+	})
+}
+
+func TestExtractAPMDependenciesGitHubToken(t *testing.T) {
+	t.Run("Object format with github-token extracts token", func(t *testing.T) {
+		frontmatter := map[string]any{
+			"dependencies": map[string]any{
+				"packages":     []any{"microsoft/apm-sample-package"},
+				"github-token": "${{ secrets.MY_TOKEN }}",
+			},
+		}
+		result, err := extractAPMDependenciesFromFrontmatter(frontmatter)
+		require.NoError(t, err, "Should not return an error")
+		require.NotNil(t, result, "Should return non-nil APMDependenciesInfo")
+		assert.Equal(t, "${{ secrets.MY_TOKEN }}", result.GitHubToken, "Should extract github-token")
+	})
+
+	t.Run("Object format without github-token has empty GitHubToken", func(t *testing.T) {
+		frontmatter := map[string]any{
+			"dependencies": map[string]any{
+				"packages": []any{"microsoft/apm-sample-package"},
+			},
+		}
+		result, err := extractAPMDependenciesFromFrontmatter(frontmatter)
+		require.NoError(t, err, "Should not return an error")
+		require.NotNil(t, result, "Should return non-nil APMDependenciesInfo")
+		assert.Empty(t, result.GitHubToken, "GitHubToken should be empty when not specified")
+	})
+
+	t.Run("Array format has empty GitHubToken", func(t *testing.T) {
+		frontmatter := map[string]any{
+			"dependencies": []any{"microsoft/apm-sample-package"},
+		}
+		result, err := extractAPMDependenciesFromFrontmatter(frontmatter)
+		require.NoError(t, err, "Should not return an error")
+		require.NotNil(t, result, "Should return non-nil APMDependenciesInfo")
+		assert.Empty(t, result.GitHubToken, "GitHubToken should be empty for array format")
+	})
+}
+
+func TestGetEffectiveAPMGitHubToken(t *testing.T) {
+	t.Run("Custom token is used as-is", func(t *testing.T) {
+		result := getEffectiveAPMGitHubToken("${{ secrets.MY_CUSTOM_TOKEN }}")
+		assert.Equal(t, "${{ secrets.MY_CUSTOM_TOKEN }}", result, "Custom token should be returned unchanged")
+	})
+
+	t.Run("Empty token returns cascading fallback", func(t *testing.T) {
+		result := getEffectiveAPMGitHubToken("")
+		assert.Contains(t, result, "GH_AW_PLUGINS_TOKEN", "Fallback should include GH_AW_PLUGINS_TOKEN")
+		assert.Contains(t, result, "GH_AW_GITHUB_TOKEN", "Fallback should include GH_AW_GITHUB_TOKEN")
+		assert.Contains(t, result, "GITHUB_TOKEN", "Fallback should include GITHUB_TOKEN")
+	})
+}
+
+func TestGenerateAPMPackStepWithGitHubToken(t *testing.T) {
+	t.Run("Pack step uses custom github-token when specified", func(t *testing.T) {
+		apmDeps := &APMDependenciesInfo{
+			Packages:    []string{"microsoft/apm-sample-package"},
+			GitHubToken: "${{ secrets.MY_TOKEN }}",
+		}
+		data := &WorkflowData{Name: "test-workflow"}
+		step := GenerateAPMPackStep(apmDeps, "copilot", data)
+
+		require.NotEmpty(t, step, "Step should not be empty")
+		combined := combineStepLines(step)
+
+		assert.Contains(t, combined, "GITHUB_TOKEN: ${{ secrets.MY_TOKEN }}", "Should use custom token directly")
+		assert.NotContains(t, combined, "apm-app-token", "Should not reference app token")
+	})
+
+	t.Run("Pack step uses cascading fallback when no github-token specified", func(t *testing.T) {
+		apmDeps := &APMDependenciesInfo{
+			Packages: []string{"microsoft/apm-sample-package"},
+		}
+		data := &WorkflowData{Name: "test-workflow"}
+		step := GenerateAPMPackStep(apmDeps, "copilot", data)
+
+		require.NotEmpty(t, step, "Step should not be empty")
+		combined := combineStepLines(step)
+
+		assert.Contains(t, combined, "GITHUB_TOKEN:", "Should have GITHUB_TOKEN")
+		assert.Contains(t, combined, "GH_AW_PLUGINS_TOKEN", "Should include GH_AW_PLUGINS_TOKEN in cascade")
+	})
+
+	t.Run("github-app takes priority over github-token", func(t *testing.T) {
+		apmDeps := &APMDependenciesInfo{
+			Packages:    []string{"microsoft/apm-sample-package"},
+			GitHubToken: "${{ secrets.MY_TOKEN }}",
+			GitHubApp: &GitHubAppConfig{
+				AppID:      "${{ vars.APP_ID }}",
+				PrivateKey: "${{ secrets.APP_PRIVATE_KEY }}",
+			},
+		}
+		data := &WorkflowData{Name: "test-workflow"}
+		step := GenerateAPMPackStep(apmDeps, "copilot", data)
+
+		require.NotEmpty(t, step, "Step should not be empty")
+		combined := combineStepLines(step)
+
+		assert.Contains(t, combined, "GITHUB_TOKEN: ${{ steps.apm-app-token.outputs.token }}", "github-app token should take priority")
+		assert.NotContains(t, combined, "secrets.MY_TOKEN", "Custom github-token should not appear when github-app is configured")
 	})
 }

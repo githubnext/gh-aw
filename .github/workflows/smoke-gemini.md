@@ -67,11 +67,19 @@ timeout-minutes: 10
 
 ## Output
 
-Add a **very brief** comment (max 5-10 lines) to the current pull request with:
+**ALWAYS create an issue** with a summary of the smoke test run:
+- Title: "Smoke Test: Gemini - ${{ github.run_id }}"
+- Body should include:
+  - Test results (✅ or ❌ for each test)
+  - Overall status: PASS or FAIL
+  - Run URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+  - Timestamp
+
+**Only if this workflow was triggered by a pull_request event**: Use the `add_comment` tool to add a **very brief** comment (max 5-10 lines) to the triggering pull request (omit the `item_number` parameter to auto-target the triggering PR) with:
 - ✅ or ❌ for each test result
 - Overall status: PASS or FAIL
 
-If all tests pass, use the `add_labels` safe-output tool to add the label `smoke-gemini` to the pull request.
+If all tests pass and this workflow was triggered by a pull_request event, use the `add_labels` safe-output tool to add the label `smoke-gemini` to the pull request (omit the `item_number` parameter to auto-target the triggering PR).
 
 **Important**: If no action is needed after completing your analysis, you **MUST** call the `noop` safe-output tool with a brief explanation. Failing to call any safe-output tool is the most common cause of safe-output workflow failures.
 

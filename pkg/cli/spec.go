@@ -293,16 +293,31 @@ func parseWorkflowSpec(spec string) (*WorkflowSpec, error) {
 		return nil, fmt.Errorf("invalid workflow specification: '%s/%s' does not look like a valid GitHub repository", owner, repo)
 	}
 
+	repoSlug := fmt.Sprintf("%s/%s", owner, repo)
+
+	// Determine the API host for this repo. getGitHubHostForRepo returns the canonical
+	// host, which for well-known public-only repos (githubnext/agentics, github/gh-aw)
+	// is always public GitHub regardless of GHE configuration. If the repo's canonical
+	// host differs from the configured host, record the explicit hostname so API fetches
+	// target the correct server.
+	var explicitHost string
+	if repoHost := getGitHubHostForRepo(repoSlug); repoHost != getGitHubHost() {
+		if u, parseErr := url.Parse(repoHost); parseErr == nil && u.Host != "" {
+			explicitHost = u.Host
+		}
+	}
+
 	// Check if this is a wildcard specification (owner/repo/*)
 	if workflowPath == "*" {
 		return &WorkflowSpec{
 			RepoSpec: RepoSpec{
-				RepoSlug: fmt.Sprintf("%s/%s", owner, repo),
+				RepoSlug: repoSlug,
 				Version:  version,
 			},
 			WorkflowPath: "*",
 			WorkflowName: "*",
 			IsWildcard:   true,
+			Host:         explicitHost,
 		}, nil
 	}
 
@@ -321,11 +336,12 @@ func parseWorkflowSpec(spec string) (*WorkflowSpec, error) {
 
 	return &WorkflowSpec{
 		RepoSpec: RepoSpec{
-			RepoSlug: fmt.Sprintf("%s/%s", owner, repo),
+			RepoSlug: repoSlug,
 			Version:  version,
 		},
 		WorkflowPath: workflowPath,
 		WorkflowName: strings.TrimSuffix(filepath.Base(workflowPath), ".md"),
+		Host:         explicitHost,
 	}, nil
 }
 

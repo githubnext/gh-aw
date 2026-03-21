@@ -178,22 +178,6 @@ The YAML frontmatter supports these fields:
   - Key names limited to 64 characters
   - Values limited to 1024 characters
   - Example: `metadata: { team: "platform", priority: "high" }`
-- **`plugins:`** - Plugin installation configuration (array or object)
-  - **⚠️ Experimental Feature**: Plugin support is experimental and emits a compilation warning
-  - Array format (simple): `plugins: [github/test-plugin, acme/custom-tools]`
-  - Object format (with custom token):
-    ```yaml
-    plugins:
-      repos: [github/test-plugin, acme/custom-tools]
-      github-token: ${{ secrets.CUSTOM_PLUGIN_TOKEN }}
-    ```
-  - Token precedence (highest to lowest):
-    1. Custom `plugins.github-token`
-    2. `${{ secrets.GH_AW_PLUGINS_TOKEN }}`
-    3. `${{ secrets.GH_AW_GITHUB_TOKEN }}`
-    4. `${{ secrets.GITHUB_TOKEN }}` (default)
-  - Each plugin repo must use `org/repo` format
-  - Plugins install after engine CLI setup but before workflow execution
 - **`github-token:`** - Default GitHub token for workflow (must use `${{ secrets.* }}` syntax)
 - **`on.roles:`** - Repository access roles that can trigger workflow (array or "all")
   - Default: `[admin, maintainer, write]`
@@ -355,7 +339,7 @@ The YAML frontmatter supports these fields:
           level_group: 1
     ```
   - **Note**: The `version`, `model`, `max-turns`, and `max-concurrency` fields have sensible defaults and can typically be omitted unless you need specific customization.
-  - **`gemini` engine**: Google Gemini CLI. Requires `GEMINI_API_KEY` secret. Does not support `max-turns`, `web-fetch`, `web-search`, or plugins. Supports AWF firewall and LLM gateway.
+  - **`gemini` engine**: Google Gemini CLI. Requires `GEMINI_API_KEY` secret. Does not support `max-turns`, `web-fetch`, or `web-search`. Supports AWF firewall and LLM gateway.
 
 - **`network:`** - Network access control for AI engines (top-level field)
   - String format: `"defaults"` (curated allow-list of development domains)
@@ -1043,6 +1027,18 @@ The YAML frontmatter supports these fields:
             });
     ```
     Unlike `jobs:` (which create separate GitHub Actions jobs), scripts execute in-process alongside built-in handlers. Write only the handler body — the compiler generates the outer wrapper with config input destructuring and `async function handleX(item, resolvedTemporaryIds) { ... }`. Script names with dashes are normalized to underscores (e.g., `post-slack-message` → `post_slack_message`). The handler receives `item` (runtime message with input values) and `resolvedTemporaryIds` (map of temporary IDs).
+
+  - `actions:` - Custom GitHub Actions mounted as MCP tools for the AI agent (resolved at compile time)
+    ```yaml
+    safe-outputs:
+      actions:
+        my-action:
+          uses: owner/repo/path@ref         # Required: GitHub Action reference (tag, SHA, or branch)
+          description: "Custom description" # Optional: override action's description from action.yml
+          env:
+            API_KEY: ${{ secrets.API_KEY }} # Optional: environment variables for the injected step
+    ```
+    Actions are resolved at compile time — the compiler fetches `action.yml` and parses inputs automatically, exposing them as MCP tool parameters. The agent calls the action by its normalized name (dashes converted to underscores). Each action runs as an injected step in the safe-outputs job. Local actions (`./path/to/action`) are also supported.
 
   **Global Safe Output Configuration:**
   - `github-token:` - Custom GitHub token for all safe output jobs

@@ -5,8 +5,7 @@
 // The renderer subsystem is split across focused files for maintainability:
 //
 //   - mcp_renderer.go         — Factory (NewMCPConfigRenderer), custom-tool switch handler
-//     (HandleCustomMCPToolInSwitch), top-level JSON orchestrator (RenderJSONMCPConfig),
-//     and shared utility (sortedMapKeys).
+//     (HandleCustomMCPToolInSwitch), top-level JSON orchestrator (RenderJSONMCPConfig).
 //   - mcp_renderer_types.go   — All struct and func-type definitions (MCPRendererOptions,
 //     MCPConfigRendererUnified, RenderCustomMCPToolConfigHandler, MCPToolRenderers,
 //     JSONMCPConfigOptions, GitHubMCPDockerOptions, GitHubMCPRemoteOptions).
@@ -48,24 +47,12 @@ package workflow
 import (
 	"fmt"
 	"os"
-	"sort"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/logger"
 )
 
 var mcpRendererLog = logger.New("workflow:mcp_renderer")
-
-// sortedMapKeys returns the keys of a map[string]string in sorted order.
-// Used to produce deterministic output when writing environment variables.
-func sortedMapKeys(m map[string]string) []string {
-	keys := make([]string, 0, len(m))
-	for k := range m {
-		keys = append(keys, k)
-	}
-	sort.Strings(keys)
-	return keys
-}
 
 // NewMCPConfigRenderer creates a new unified MCP config renderer with the specified options
 func NewMCPConfigRenderer(opts MCPRendererOptions) *MCPConfigRendererUnified {

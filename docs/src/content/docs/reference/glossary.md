@@ -59,6 +59,10 @@ A standardized protocol that allows AI agents to securely connect to external to
 
 A transparent proxy service that enables unified HTTP access to multiple MCP servers using different transport mechanisms (stdio, HTTP). Provides protocol translation, server isolation, authentication, and health monitoring, allowing clients to interact with multiple backends through a single HTTP endpoint.
 
+### Trusted Bots (`sandbox.mcp.trusted-bots`)
+
+A frontmatter field that passes additional GitHub bot identity strings to the [MCP Gateway](#mcp-gateway). The gateway merges these with its built-in trusted identity list to determine which bot identities are permitted. This field is additive — it can only extend the gateway's internal list, not remove built-in entries. Configured under `sandbox.mcp:` and compiled into the `trustedBots` array in the generated gateway configuration. Example entries: `github-actions[bot]`, `copilot-swe-agent[bot]`. See [MCP Gateway Reference](/gh-aw/reference/mcp-gateway/).
+
 ### MCP Server
 
 A service that implements the Model Context Protocol to provide specific capabilities to AI agents. Examples include the GitHub MCP server (for GitHub API operations), Playwright MCP server (for browser automation), or custom MCP servers for specialized tools. See [Playwright Reference](/gh-aw/reference/playwright/) for browser automation configuration.
@@ -172,6 +176,10 @@ A recognized "magic" repository secret name that GitHub Agentic Workflows automa
 ### Custom Safe Outputs
 
 An extension mechanism for safe outputs that enables integration with third-party services beyond built-in GitHub operations. Defined under `safe-outputs.jobs:`, custom safe outputs separate read and write operations: agents use read-only MCP tools for queries, while custom jobs execute write operations with secret access after agent completion. Supports services like Slack, Notion, Jira, or any external API. See [Custom Safe Outputs](/gh-aw/reference/custom-safe-outputs/).
+
+### Safe Output Actions
+
+A mechanism for mounting any public GitHub Action as a once-callable MCP tool within the consolidated safe-outputs job. Defined under `safe-outputs.actions:`, each action is specified with a `uses` field (matching GitHub Actions syntax) and an optional `description` override. At compile time, `gh aw compile` fetches the action's `action.yml` to resolve its inputs and pins the reference to a specific SHA. Unlike [Custom Safe Outputs](#custom-safe-outputs) (separate jobs) and [Safe Output Scripts](#safe-output-scripts) (inline JavaScript), actions run as steps inside the safe-outputs job with full secret access via `env:`. Useful for reusing existing marketplace actions as agent tools. See [Custom Safe Outputs](/gh-aw/reference/custom-safe-outputs/#github-action-wrappers-safe-outputsactions).
 
 ### Safe Output Scripts
 

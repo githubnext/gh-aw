@@ -506,5 +506,45 @@ describe("repo_helpers", () => {
       expect(result.allowedRepos.has("org/repo-2")).toBe(true);
       expect(result.allowedRepos.has("org/repo-3")).toBe(true);
     });
+
+    it('should pass through wildcard "*" as defaultTargetRepo', async () => {
+      const { resolveTargetRepoConfig } = await import("./repo_helpers.cjs");
+      const config = { "target-repo": "*" };
+
+      const result = resolveTargetRepoConfig(config);
+
+      expect(result.defaultTargetRepo).toBe("*");
+      expect(result.allowedRepos.size).toBe(0);
+    });
+  });
+
+  describe('resolveAndValidateRepo with wildcard target-repo "*"', () => {
+    it("should allow any valid owner/repo slug when defaultTargetRepo is *", async () => {
+      const { resolveAndValidateRepo } = await import("./repo_helpers.cjs");
+      const result = resolveAndValidateRepo({ repo: "any-org/any-repo" }, "*", new Set(), "test");
+
+      expect(result.success).toBe(true);
+      expect(result.repo).toBe("any-org/any-repo");
+      expect(result.repoParts).toEqual({ owner: "any-org", repo: "any-repo" });
+    });
+
+    it("should use item.repo when defaultTargetRepo is * and no repo in item", async () => {
+      const { resolveAndValidateRepo } = await import("./repo_helpers.cjs");
+      // When item has no repo and defaultTargetRepo is "*", itemRepo becomes "*"
+      // which fails parseRepoSlug — so the caller should always supply item.repo with *
+      const result = resolveAndValidateRepo({}, "*", new Set(), "test");
+
+      // "*" is not a valid owner/repo slug (no slash with two parts)
+      expect(result.success).toBe(false);
+    });
+
+    it("should reject bare repo name (no slash) when defaultTargetRepo is *", async () => {
+      const { resolveAndValidateRepo } = await import("./repo_helpers.cjs");
+      const result = resolveAndValidateRepo({ repo: "bare-repo" }, "*", new Set(), "test");
+
+      // bare-repo qualifies using defaultRepo's org, but "*" has no org → falls back to bare name
+      // which is invalid as owner/repo
+      expect(result.success).toBe(false);
+    });
   });
 });

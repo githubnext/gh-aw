@@ -84,6 +84,62 @@ func TestUsesPatchesAndCheckouts(t *testing.T) {
 			},
 			expected: true,
 		},
+		{
+			name: "returns false when CreatePullRequests is globally staged",
+			safeOutputs: &SafeOutputsConfig{
+				Staged:             true,
+				CreatePullRequests: &CreatePullRequestsConfig{},
+			},
+			expected: false,
+		},
+		{
+			name: "returns false when PushToPullRequestBranch is globally staged",
+			safeOutputs: &SafeOutputsConfig{
+				Staged:                  true,
+				PushToPullRequestBranch: &PushToPullRequestBranchConfig{},
+			},
+			expected: false,
+		},
+		{
+			name: "returns false when both PR handlers are globally staged",
+			safeOutputs: &SafeOutputsConfig{
+				Staged:                  true,
+				CreatePullRequests:      &CreatePullRequestsConfig{},
+				PushToPullRequestBranch: &PushToPullRequestBranchConfig{},
+			},
+			expected: false,
+		},
+		{
+			name: "returns false when CreatePullRequests is per-handler staged",
+			safeOutputs: &SafeOutputsConfig{
+				CreatePullRequests: &CreatePullRequestsConfig{BaseSafeOutputConfig: BaseSafeOutputConfig{Staged: true}},
+			},
+			expected: false,
+		},
+		{
+			name: "returns false when both PR handlers are per-handler staged",
+			safeOutputs: &SafeOutputsConfig{
+				CreatePullRequests:      &CreatePullRequestsConfig{BaseSafeOutputConfig: BaseSafeOutputConfig{Staged: true}},
+				PushToPullRequestBranch: &PushToPullRequestBranchConfig{BaseSafeOutputConfig: BaseSafeOutputConfig{Staged: true}},
+			},
+			expected: false,
+		},
+		{
+			name: "returns true when CreatePullRequests is not staged but PushToPullRequestBranch is staged",
+			safeOutputs: &SafeOutputsConfig{
+				CreatePullRequests:      &CreatePullRequestsConfig{},
+				PushToPullRequestBranch: &PushToPullRequestBranchConfig{BaseSafeOutputConfig: BaseSafeOutputConfig{Staged: true}},
+			},
+			expected: true,
+		},
+		{
+			name: "returns true when PushToPullRequestBranch is not staged but CreatePullRequests is staged",
+			safeOutputs: &SafeOutputsConfig{
+				CreatePullRequests:      &CreatePullRequestsConfig{BaseSafeOutputConfig: BaseSafeOutputConfig{Staged: true}},
+				PushToPullRequestBranch: &PushToPullRequestBranchConfig{},
+			},
+			expected: true,
+		},
 	}
 
 	for _, tt := range tests {

@@ -98,6 +98,7 @@ const ALLOWED_EXPRESSIONS = [
   "github.event.pull_request.head.sha",
   "github.event.pull_request.base.sha",
   "github.actor",
+  "github.event_name",
   "github.job",
   "github.owner",
   "github.repository",
@@ -291,6 +292,7 @@ function evaluateExpression(expr) {
       const evalContext = {
         github: {
           actor: context.actor,
+          event_name: context.eventName,
           job: context.job,
           owner: context.repo.owner,
           repository: `${context.repo.owner}/${context.repo.repo}`,

@@ -8,7 +8,7 @@ import (
 	"github.com/github/gh-aw/pkg/parser"
 )
 
-var yamlUtilsLog = logger.New("cli:codemod_yaml_utils")
+var yamlUtilsLog = logger.New("cli:yaml_frontmatter_utils")
 
 // reconstructContent rebuilds the full markdown content from frontmatter lines and body
 func reconstructContent(frontmatterLines []string, markdown string) string {
@@ -87,6 +87,7 @@ func findAndReplaceInLine(line, oldKey, newKey string) (string, bool) {
 		return line, false
 	}
 
+	yamlUtilsLog.Printf("Replacing frontmatter key %q with %q", oldKey, newKey)
 	valueAndComment := parts[1]
 	return fmt.Sprintf("%s%s:%s", leadingSpace, newKey, valueAndComment), true
 }
@@ -106,6 +107,7 @@ func applyFrontmatterLineTransform(content string, transform func([]string) ([]s
 		return content, false, nil
 	}
 
+	yamlUtilsLog.Print("Frontmatter transformation applied successfully")
 	return reconstructContent(result, markdown), true, nil
 }
 

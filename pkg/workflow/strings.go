@@ -76,6 +76,7 @@
 package workflow
 
 import (
+	"fmt"
 	"regexp"
 	"slices"
 	"strings"
@@ -284,4 +285,42 @@ func GenerateHeredocDelimiter(name string) string {
 		return "GH_AW_EOF"
 	}
 	return "GH_AW_" + strings.ToUpper(name) + "_EOF"
+}
+
+// PrettifyToolName removes "mcp__" prefix and formats tool names nicely
+func PrettifyToolName(toolName string) string {
+	// Handle MCP tools: "mcp__github__search_issues" -> "github_search_issues"
+	// Avoid colons and leave underscores as-is
+	if strings.HasPrefix(toolName, "mcp__") {
+		parts := strings.Split(toolName, "__")
+		if len(parts) >= 3 {
+			provider := parts[1]
+			method := strings.Join(parts[2:], "_")
+			return fmt.Sprintf("%s_%s", provider, method)
+		}
+		// If format is unexpected, just remove the mcp__ prefix
+		return strings.TrimPrefix(toolName, "mcp__")
+	}
+
+	// Handle bash specially - keep as "bash"
+	if strings.ToLower(toolName) == "bash" {
+		return "bash"
+	}
+
+	// Return other tool names as-is
+	return toolName
+}
+
+// formatList formats a list of strings as a comma-separated list with natural language conjunction
+func formatList(items []string) string {
+	if len(items) == 0 {
+		return ""
+	}
+	if len(items) == 1 {
+		return items[0]
+	}
+	if len(items) == 2 {
+		return items[0] + " and " + items[1]
+	}
+	return fmt.Sprintf("%s, and %s", formatList(items[:len(items)-1]), items[len(items)-1])
 }

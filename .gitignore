@@ -149,7 +149,6 @@ test-runs/
 gosec-report.json
 gosec-results.sarif
 govulncheck-results.sarif
-trivy-results.sarif
 
 # Generated action files - kept in .gitignore as build artifacts
 # Note: If workflows fail due to missing js/ files, these may need to be committed

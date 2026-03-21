@@ -77,11 +77,6 @@ func (c *Compiler) parseIssuesConfig(outputMap map[string]any) *CreateIssuesConf
 		config.Max = defaultIntStr(1)
 	}
 
-	// Validate target-repo (wildcard "*" is not allowed)
-	if validateTargetRepoSlug(config.TargetRepoSlug, createIssueLog) {
-		return nil // Invalid configuration, return nil to cause validation error
-	}
-
 	// Log expires if configured or explicitly disabled
 	if expiresDisabled {
 		createIssueLog.Print("Issue expiration explicitly disabled")

@@ -30,15 +30,17 @@ func TestAddCommentsConfigTargetRepo(t *testing.T) {
 			shouldBeNil:    false,
 		},
 		{
-			name: "target-repo with wildcard should be rejected",
+			name: "target-repo with wildcard is allowed",
 			configMap: map[string]any{
 				"add-comment": map[string]any{
-					"max":         5,
-					"target":      "123",
+					"max":         1,
+					"target":      "*",
 					"target-repo": "*",
 				},
 			},
-			shouldBeNil: true, // Configuration should be nil due to validation
+			expectedTarget: "*",
+			expectedRepo:   "*",
+			shouldBeNil:    false, // Wildcard "*" is a valid target-repo for add-comment
 		},
 		{
 			name: "target-repo without target field",

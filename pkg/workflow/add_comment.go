@@ -67,11 +67,6 @@ func (c *Compiler) parseCommentsConfig(outputMap map[string]any) *AddCommentsCon
 		config.Max = defaultIntStr(1)
 	}
 
-	// Validate target-repo (wildcard "*" is not allowed)
-	if validateTargetRepoSlug(config.TargetRepoSlug, addCommentLog) {
-		return nil // Invalid configuration, return nil to cause validation error
-	}
-
 	// Validate discussion field - must be true if present
 	if config.Discussion != nil && !*config.Discussion {
 		addCommentLog.Print("Invalid discussion: must be true if present")

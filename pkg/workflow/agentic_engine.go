@@ -116,10 +116,6 @@ type CapabilityProvider interface {
 	// SupportsWebSearch returns true if this engine has built-in support for the web-search tool
 	SupportsWebSearch() bool
 
-	// SupportsPlugins returns true if this engine supports plugin installation
-	// When true, plugins can be installed using the engine's plugin install command
-	SupportsPlugins() bool
-
 	// SupportsMaxContinuations returns true if this engine supports the max-continuations feature
 	// When true, max-continuations > 1 enables autopilot/multi-run mode for the engine
 	SupportsMaxContinuations() bool
@@ -257,7 +253,6 @@ type BaseEngine struct {
 	supportsMaxContinuations bool
 	supportsWebFetch         bool
 	supportsWebSearch        bool
-	supportsPlugins          bool
 	llmGatewayPort           int
 }
 
@@ -291,10 +286,6 @@ func (e *BaseEngine) SupportsWebFetch() bool {
 
 func (e *BaseEngine) SupportsWebSearch() bool {
 	return e.supportsWebSearch
-}
-
-func (e *BaseEngine) SupportsPlugins() bool {
-	return e.supportsPlugins
 }
 
 func (e *BaseEngine) SupportsMaxContinuations() bool {

@@ -598,6 +598,48 @@ describe("close_issue", () => {
       expect(updateCalls[0].repo).toBe("gh-aw");
     });
 
+    it("should close issue in any repo when target-repo is wildcard *", async () => {
+      const handler = await main({
+        max: 10,
+        "target-repo": "*",
+      });
+      const updateCalls = [];
+
+      mockGithub.rest.issues.get = async params => ({
+        data: {
+          number: params.issue_number,
+          title: "Test Issue",
+          labels: [],
+          html_url: `https://github.com/${params.owner}/${params.repo}/issues/${params.issue_number}`,
+          state: "open",
+        },
+      });
+
+      mockGithub.rest.issues.update = async params => {
+        updateCalls.push(params);
+        return {
+          data: {
+            number: params.issue_number,
+            title: "Test Issue",
+            html_url: `https://github.com/${params.owner}/${params.repo}/issues/${params.issue_number}`,
+          },
+        };
+      };
+
+      const result = await handler(
+        {
+          issue_number: 200,
+          repo: "any-org/any-repo",
+          body: "Closing",
+        },
+        {}
+      );
+
+      expect(result.success).toBe(true);
+      expect(updateCalls[0].owner).toBe("any-org");
+      expect(updateCalls[0].repo).toBe("any-repo");
+    });
+
     it("should use default state_reason 'COMPLETED' when not specified", async () => {
       const handler = await main({ max: 10 });
       const updateCalls = [];

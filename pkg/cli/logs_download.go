@@ -608,7 +608,7 @@ func downloadRunArtifacts(runID int64, outputDir string, verbose bool, owner, re
 		return fmt.Errorf("failed to flatten activation artifact: %w", err)
 	}
 
-	// Flatten unified agent-artifacts directory structure
+	// Flatten unified agent directory structure
 	if err := flattenUnifiedArtifact(outputDir, verbose); err != nil {
 		return fmt.Errorf("failed to flatten unified artifact: %w", err)
 	}

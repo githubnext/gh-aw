@@ -26,7 +26,7 @@
 #   Imports:
 #     - shared/activation-app.md
 #
-# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"a1502fd29140535ef817c99dcabf36cb3592da3e418b6ad4d660e4e629896735","strict":true,"agent_id":"copilot","agent_model":"gpt-5.1-codex-mini"}
+# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"810d295f3ec4eadebaf8a208dc5c623ac79ed44e3a0ac78f15876712044f5328","strict":true,"agent_id":"copilot","agent_model":"gpt-5.1-codex-mini"}
 
 name: "Issue Monster"
 "on":
@@ -165,14 +165,35 @@ name: "Issue Monster"
           # core.info(`Found ${response.data.total_count} total issues matching basic criteria`);
           # 
           # // Fetch full details for each issue to get labels, assignees, sub-issues, and linked PRs
-          # const issuesWithDetails = await Promise.all(
+          # // Track integrity-filtered issues to emit a diagnostic summary
+          # const integrityFilteredIssues = [];
+          # const issuesWithDetails = (await Promise.all(
             # response.data.items.map(async (issue) => {
-              # const fullIssue = await github.rest.issues.get({
-                # owner,
-                # repo,
-                # issue_number: issue.number
-              # });
-              # 
+              # // Fetch full issue details — some issues may be blocked by integrity policy
+              # let fullIssue;
+              # try {
+                # fullIssue = await github.rest.issues.get({
+                  # owner,
+                  # repo,
+                  # issue_number: issue.number
+                # });
+              # } catch (fetchError) {
+                # // Integrity-filtered issues (403/451) or other transient errors should be
+                # // skipped individually rather than failing the entire batch
+                # const status = fetchError.status || fetchError.response?.status;
+                # // 403 = Forbidden (integrity policy), 451 = Unavailable For Legal Reasons
+                # const isIntegrityBlock = status === 403 || status === 451 ||
+                  # /\bintegrity\b/i.test(fetchError.message || '');
+                # const errorSummary = (fetchError.message || String(fetchError)).slice(0, 120);
+                # if (isIntegrityBlock) {
+                  # integrityFilteredIssues.push(issue.number);
+                  # core.warning(`⚠️ Skipping issue #${issue.number}: blocked by integrity policy (HTTP ${status || 'unknown'}): ${errorSummary}`);
+                # } else {
+                  # core.warning(`⚠️ Skipping issue #${issue.number}: could not fetch details (HTTP ${status || 'unknown'}): ${errorSummary}`);
+                # }
+                # return null;
+              # }
+        # 
               # // Check if this issue has sub-issues and linked PRs using GraphQL
               # let subIssuesCount = 0;
               # let linkedPRs = [];
@@ -236,7 +257,12 @@ name: "Issue Monster"
                 # linkedPRs
               # };
             # })
-          # );
+          # )).filter(Boolean); // Remove null entries (integrity-filtered or otherwise skipped)
+        # 
+          # // Emit diagnostic summary for integrity-filtered issues
+          # if (integrityFilteredIssues.length > 0) {
+            # core.warning(`🛡️ Integrity filter diagnostic: ${integrityFilteredIssues.length} issue(s) were skipped due to integrity policy: #${integrityFilteredIssues.join(', #')}. These issues will be excluded from this run.`);
+          # }
           # 
           # // Filter and score issues
           # const scoredIssues = issuesWithDetails
@@ -374,7 +400,7 @@ run-name: "Issue Monster"
 jobs:
   activation:
     needs: pre_activation
-    if: (needs.pre_activation.outputs.activated == 'true') && (needs.pre_activation.outputs.has_issues == 'true')
+    if: needs.pre_activation.outputs.activated == 'true' && (needs.pre_activation.outputs.has_issues == 'true')
     runs-on: ubuntu-slim
     permissions:
       contents: read
@@ -591,7 +617,7 @@ jobs:
         run: bash ${RUNNER_TEMP}/gh-aw/actions/print_prompt_summary.sh
       - name: Upload activation artifact
         if: success()
-        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7
         with:
           name: activation
           path: |
@@ -664,7 +690,7 @@ jobs:
       - name: Checkout PR branch
         id: checkout-pr
         if: |
-          (github.event.pull_request) || (github.event.issue.pull_request)
+          github.event.pull_request || github.event.issue.pull_request
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           GH_TOKEN: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
@@ -682,7 +708,7 @@ jobs:
       - name: Install AWF binary
         run: bash ${RUNNER_TEMP}/gh-aw/actions/install_awf_binary.sh v0.24.5
       - name: Download container images
-        run: bash ${RUNNER_TEMP}/gh-aw/actions/download_docker_images.sh ghcr.io/github/gh-aw-firewall/agent:0.24.5 ghcr.io/github/gh-aw-firewall/api-proxy:0.24.5 ghcr.io/github/gh-aw-firewall/squid:0.24.5 ghcr.io/github/gh-aw-mcpg:v0.1.19 ghcr.io/github/github-mcp-server:v0.32.0 node:lts-alpine
+        run: bash ${RUNNER_TEMP}/gh-aw/actions/download_docker_images.sh ghcr.io/github/gh-aw-firewall/agent:0.24.5 ghcr.io/github/gh-aw-firewall/api-proxy:0.24.5 ghcr.io/github/gh-aw-firewall/squid:0.24.5 ghcr.io/github/gh-aw-mcpg:v0.1.20 ghcr.io/github/github-mcp-server:v0.32.0 node:lts-alpine
       - name: Write Safe Outputs Config
         run: |
           mkdir -p ${RUNNER_TEMP}/gh-aw/safeoutputs
@@ -869,7 +895,7 @@ jobs:
           export DEBUG="*"
           
           export GH_AW_ENGINE="copilot"
-          export MCP_GATEWAY_DOCKER_COMMAND='docker run -i --rm --network host -v /var/run/docker.sock:/var/run/docker.sock -e MCP_GATEWAY_PORT -e MCP_GATEWAY_DOMAIN -e MCP_GATEWAY_API_KEY -e MCP_GATEWAY_PAYLOAD_DIR -e MCP_GATEWAY_PAYLOAD_SIZE_THRESHOLD -e DEBUG -e MCP_GATEWAY_LOG_DIR -e GH_AW_MCP_LOG_DIR -e GH_AW_SAFE_OUTPUTS -e GH_AW_SAFE_OUTPUTS_CONFIG_PATH -e GH_AW_SAFE_OUTPUTS_TOOLS_PATH -e GH_AW_ASSETS_BRANCH -e GH_AW_ASSETS_MAX_SIZE_KB -e GH_AW_ASSETS_ALLOWED_EXTS -e DEFAULT_BRANCH -e GITHUB_MCP_SERVER_TOKEN -e GITHUB_MCP_GUARD_MIN_INTEGRITY -e GITHUB_MCP_GUARD_REPOS -e GITHUB_REPOSITORY -e GITHUB_SERVER_URL -e GITHUB_SHA -e GITHUB_WORKSPACE -e GITHUB_TOKEN -e GITHUB_RUN_ID -e GITHUB_RUN_NUMBER -e GITHUB_RUN_ATTEMPT -e GITHUB_JOB -e GITHUB_ACTION -e GITHUB_EVENT_NAME -e GITHUB_EVENT_PATH -e GITHUB_ACTOR -e GITHUB_ACTOR_ID -e GITHUB_TRIGGERING_ACTOR -e GITHUB_WORKFLOW -e GITHUB_WORKFLOW_REF -e GITHUB_WORKFLOW_SHA -e GITHUB_REF -e GITHUB_REF_NAME -e GITHUB_REF_TYPE -e GITHUB_HEAD_REF -e GITHUB_BASE_REF -e GH_AW_SAFE_OUTPUTS_PORT -e GH_AW_SAFE_OUTPUTS_API_KEY -v /tmp/gh-aw/mcp-payloads:/tmp/gh-aw/mcp-payloads:rw -v /opt:/opt:ro -v /tmp:/tmp:rw -v '"${GITHUB_WORKSPACE}"':'"${GITHUB_WORKSPACE}"':rw ghcr.io/github/gh-aw-mcpg:v0.1.19'
+          export MCP_GATEWAY_DOCKER_COMMAND='docker run -i --rm --network host -v /var/run/docker.sock:/var/run/docker.sock -e MCP_GATEWAY_PORT -e MCP_GATEWAY_DOMAIN -e MCP_GATEWAY_API_KEY -e MCP_GATEWAY_PAYLOAD_DIR -e MCP_GATEWAY_PAYLOAD_SIZE_THRESHOLD -e DEBUG -e MCP_GATEWAY_LOG_DIR -e GH_AW_MCP_LOG_DIR -e GH_AW_SAFE_OUTPUTS -e GH_AW_SAFE_OUTPUTS_CONFIG_PATH -e GH_AW_SAFE_OUTPUTS_TOOLS_PATH -e GH_AW_ASSETS_BRANCH -e GH_AW_ASSETS_MAX_SIZE_KB -e GH_AW_ASSETS_ALLOWED_EXTS -e DEFAULT_BRANCH -e GITHUB_MCP_SERVER_TOKEN -e GITHUB_MCP_GUARD_MIN_INTEGRITY -e GITHUB_MCP_GUARD_REPOS -e GITHUB_REPOSITORY -e GITHUB_SERVER_URL -e GITHUB_SHA -e GITHUB_WORKSPACE -e GITHUB_TOKEN -e GITHUB_RUN_ID -e GITHUB_RUN_NUMBER -e GITHUB_RUN_ATTEMPT -e GITHUB_JOB -e GITHUB_ACTION -e GITHUB_EVENT_NAME -e GITHUB_EVENT_PATH -e GITHUB_ACTOR -e GITHUB_ACTOR_ID -e GITHUB_TRIGGERING_ACTOR -e GITHUB_WORKFLOW -e GITHUB_WORKFLOW_REF -e GITHUB_WORKFLOW_SHA -e GITHUB_REF -e GITHUB_REF_NAME -e GITHUB_REF_TYPE -e GITHUB_HEAD_REF -e GITHUB_BASE_REF -e GH_AW_SAFE_OUTPUTS_PORT -e GH_AW_SAFE_OUTPUTS_API_KEY -v /tmp/gh-aw/mcp-payloads:/tmp/gh-aw/mcp-payloads:rw -v /opt:/opt:ro -v /tmp:/tmp:rw -v '"${GITHUB_WORKSPACE}"':'"${GITHUB_WORKSPACE}"':rw ghcr.io/github/gh-aw-mcpg:v0.1.20'
           
           mkdir -p /home/runner/.copilot
           cat << GH_AW_MCP_CONFIG_EOF | bash ${RUNNER_TEMP}/gh-aw/actions/start_mcp_gateway.sh
@@ -1073,7 +1099,7 @@ jobs:
       - name: Upload agent artifacts
         if: always()
         continue-on-error: true
-        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7
         with:
           name: agent
           path: |
@@ -1186,7 +1212,7 @@ jobs:
             await main();
       - name: Upload threat detection log
         if: always() && steps.detection_guard.outputs.run_detection == 'true'
-        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7
         with:
           name: detection
           path: /tmp/gh-aw/threat-detection/detection.log
@@ -1217,7 +1243,7 @@ jobs:
       - activation
       - agent
       - safe_outputs
-    if: (always()) && ((needs.agent.result != 'skipped') || (needs.activation.outputs.lockdown_check_failed == 'true'))
+    if: always() && (needs.agent.result != 'skipped' || needs.activation.outputs.lockdown_check_failed == 'true')
     runs-on: ubuntu-slim
     permissions:
       contents: read
@@ -1335,7 +1361,7 @@ jobs:
       issues: read
       pull-requests: read
     outputs:
-      activated: ${{ ((steps.check_membership.outputs.is_team_member == 'true') && (steps.check_skip_if_match.outputs.skip_check_ok == 'true')) && (steps.check_skip_if_no_match.outputs.skip_no_match_check_ok == 'true') }}
+      activated: ${{ steps.check_membership.outputs.is_team_member == 'true' && steps.check_skip_if_match.outputs.skip_check_ok == 'true' && steps.check_skip_if_no_match.outputs.skip_no_match_check_ok == 'true' }}
       has_issues: ${{ steps.search.outputs.has_issues }}
       issue_count: ${{ steps.search.outputs.issue_count }}
       issue_list: ${{ steps.search.outputs.issue_list }}
@@ -1516,13 +1542,34 @@ jobs:
               core.info(`Found ${response.data.total_count} total issues matching basic criteria`);
 
               // Fetch full details for each issue to get labels, assignees, sub-issues, and linked PRs
-              const issuesWithDetails = await Promise.all(
+              // Track integrity-filtered issues to emit a diagnostic summary
+              const integrityFilteredIssues = [];
+              const issuesWithDetails = (await Promise.all(
                 response.data.items.map(async (issue) => {
-                  const fullIssue = await github.rest.issues.get({
-                    owner,
-                    repo,
-                    issue_number: issue.number
-                  });
+                  // Fetch full issue details — some issues may be blocked by integrity policy
+                  let fullIssue;
+                  try {
+                    fullIssue = await github.rest.issues.get({
+                      owner,
+                      repo,
+                      issue_number: issue.number
+                    });
+                  } catch (fetchError) {
+                    // Integrity-filtered issues (403/451) or other transient errors should be
+                    // skipped individually rather than failing the entire batch
+                    const status = fetchError.status || fetchError.response?.status;
+                    // 403 = Forbidden (integrity policy), 451 = Unavailable For Legal Reasons
+                    const isIntegrityBlock = status === 403 || status === 451 ||
+                      /\bintegrity\b/i.test(fetchError.message || '');
+                    const errorSummary = (fetchError.message || String(fetchError)).slice(0, 120);
+                    if (isIntegrityBlock) {
+                      integrityFilteredIssues.push(issue.number);
+                      core.warning(`⚠️ Skipping issue #${issue.number}: blocked by integrity policy (HTTP ${status || 'unknown'}): ${errorSummary}`);
+                    } else {
+                      core.warning(`⚠️ Skipping issue #${issue.number}: could not fetch details (HTTP ${status || 'unknown'}): ${errorSummary}`);
+                    }
+                    return null;
+                  }
 
                   // Check if this issue has sub-issues and linked PRs using GraphQL
                   let subIssuesCount = 0;
@@ -1587,7 +1634,12 @@ jobs:
                     linkedPRs
                   };
                 })
-              );
+              )).filter(Boolean); // Remove null entries (integrity-filtered or otherwise skipped)
+
+              // Emit diagnostic summary for integrity-filtered issues
+              if (integrityFilteredIssues.length > 0) {
+                core.warning(`🛡️ Integrity filter diagnostic: ${integrityFilteredIssues.length} issue(s) were skipped due to integrity policy: #${integrityFilteredIssues.join(', #')}. These issues will be excluded from this run.`);
+              }
 
               // Filter and score issues
               const scoredIssues = issuesWithDetails
@@ -1716,7 +1768,7 @@ jobs:
 
   safe_outputs:
     needs: agent
-    if: ((!cancelled()) && (needs.agent.result != 'skipped')) && (needs.agent.outputs.detection_success == 'true')
+    if: (!cancelled()) && needs.agent.result != 'skipped' && needs.agent.outputs.detection_success == 'true'
     runs-on: ubuntu-slim
     permissions:
       contents: read
@@ -1794,7 +1846,7 @@ jobs:
             await main();
       - name: Assign to Agent
         id: assign_to_agent
-        if: ((!cancelled()) && (needs.agent.result != 'skipped')) && (contains(needs.agent.outputs.output_types, 'assign_to_agent'))
+        if: (!cancelled()) && needs.agent.result != 'skipped' && contains(needs.agent.outputs.output_types, 'assign_to_agent')
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
@@ -1810,7 +1862,7 @@ jobs:
             await main();
       - name: Upload safe output items
         if: always()
-        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7
         with:
           name: safe-output-items
           path: /tmp/gh-aw/safe-output-items.jsonl

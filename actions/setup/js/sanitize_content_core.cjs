@@ -315,6 +315,186 @@ function neutralizeAllMentions(s) {
 }
 
 /**
+ * Returns the character ranges [start, end) of fenced code blocks in markdown content.
+ * Fenced code blocks are delimited by lines starting with 3+ backticks or 3+ tildes.
+ * The returned ranges span from the first character of the opening fence line through
+ * the last character of the closing fence line (inclusive of any trailing newline).
+ *
+ * @param {string} s - Markdown content to scan
+ * @returns {Array<[number, number]>} Array of [start, end) character positions
+ */
+function getFencedCodeRanges(s) {
+  /** @type {Array<[number, number]>} */
+  const ranges = [];
+  const lines = s.split("\n");
+  let pos = 0;
+  let inBlock = false;
+  let blockStart = -1;
+  let fenceChar = "";
+  let fenceLen = 0;
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    const trimmed = line.trim();
+    // Character position of the end of this line's content (not including the newline separator)
+    const lineContentEnd = pos + line.length;
+    // Character position after the newline separator (or same as lineContentEnd for the last line)
+    const lineEnd = i < lines.length - 1 ? lineContentEnd + 1 : lineContentEnd;
+
+    if (!inBlock) {
+      const m = trimmed.match(/^(`{3,}|~{3,})/);
+      if (m) {
+        inBlock = true;
+        blockStart = pos;
+        fenceChar = m[1][0];
+        fenceLen = m[1].length;
+      }
+    } else {
+      // A closing fence: same character, at least as long, only whitespace after
+      const fc = fenceChar === "`" ? "\\`" : "~";
+      const closingRegex = new RegExp(`^[${fc}]{${fenceLen},}\\s*$`);
+      if (closingRegex.test(trimmed)) {
+        ranges.push([blockStart, lineEnd]);
+        inBlock = false;
+        blockStart = -1;
+        fenceChar = "";
+        fenceLen = 0;
+      }
+    }
+
+    pos = lineEnd;
+  }
+
+  // Unclosed fence – treat the rest as code (safer fallback)
+  if (inBlock && blockStart !== -1) {
+    ranges.push([blockStart, s.length]);
+  }
+
+  return ranges;
+}
+
+/**
+ * Applies a transformation function to a text segment while skipping inline code spans
+ * (backtick-delimited sequences).  The transformation is applied to each run of
+ * non-code text; inline code spans are preserved verbatim.
+ *
+ * @param {string} text - The text to process (should not contain fenced code blocks)
+ * @param {function(string): string} fn - Transformation to apply to non-code portions
+ * @returns {string} The processed text
+ */
+function applyFnOutsideInlineCode(text, fn) {
+  if (!text) return fn(text || "");
+
+  const parts = [];
+  let i = 0;
+  let textStart = 0;
+
+  while (i < text.length) {
+    if (text[i] !== "`") {
+      i++;
+      continue;
+    }
+
+    // Count consecutive backticks at the current position
+    const btStart = i;
+    let btCount = 0;
+    while (i < text.length && text[i] === "`") {
+      btCount++;
+      i++;
+    }
+    // i is now past the opening backtick sequence
+
+    // Look for the matching closing sequence of exactly btCount backticks
+    let closeIdx = -1;
+    let j = i;
+    while (j < text.length) {
+      if (text[j] === "`") {
+        let closeCount = 0;
+        const jStart = j;
+        while (j < text.length && text[j] === "`") {
+          closeCount++;
+          j++;
+        }
+        if (closeCount === btCount) {
+          closeIdx = jStart;
+          break;
+        }
+        // Different length – keep scanning (j already advanced past these backticks)
+      } else {
+        j++;
+      }
+    }
+
+    if (closeIdx !== -1) {
+      // Valid inline code span found: apply fn to the text before it, then keep the code span
+      if (textStart < btStart) {
+        parts.push(fn(text.slice(textStart, btStart)));
+      }
+      parts.push(text.slice(btStart, closeIdx + btCount));
+      textStart = closeIdx + btCount;
+      i = textStart;
+    }
+    // If no matching close was found, the backticks are treated as regular text (i already advanced)
+  }
+
+  // Apply fn to any remaining non-code text
+  if (textStart < text.length) {
+    parts.push(fn(text.slice(textStart)));
+  }
+
+  return parts.join("");
+}
+
+/**
+ * Applies a transformation function only to the non-code regions of markdown content.
+ * Skips both fenced code blocks (``` / ~~~ delimited) and inline code spans (backtick
+ * delimited) so that the transformation is not applied to code content.
+ *
+ * Falls back to applying fn to the entire string if any parsing error occurs.
+ *
+ * @param {string} s - Markdown content to process
+ * @param {function(string): string} fn - Transformation to apply outside code regions
+ * @returns {string} The content with the transformation applied only outside code regions
+ */
+function applyToNonCodeRegions(s, fn) {
+  if (!s || typeof s !== "string") {
+    return s || "";
+  }
+
+  try {
+    const codeRanges = getFencedCodeRanges(s);
+
+    if (codeRanges.length === 0) {
+      // No fenced code blocks – still protect inline code spans
+      return applyFnOutsideInlineCode(s, fn);
+    }
+
+    const parts = [];
+    let pos = 0;
+
+    for (const [start, end] of codeRanges) {
+      if (pos < start) {
+        // Non-code text before this code block: protect inline code spans
+        parts.push(applyFnOutsideInlineCode(s.slice(pos, start), fn));
+      }
+      // Fenced code block: preserve verbatim
+      parts.push(s.slice(start, end));
+      pos = end;
+    }
+
+    // Non-code text after the last code block
+    if (pos < s.length) {
+      parts.push(applyFnOutsideInlineCode(s.slice(pos), fn));
+    }
+
+    return parts.join("");
+  } catch (_e) {
+    // Fallback: apply fn to the entire string (conservative – redacts more, never less)
+    return fn(s);
+  }
+}
+
+/**
  * Removes XML comments from content
  * @param {string} s - The string to process
  * @returns {string} The string with XML comments removed
@@ -783,11 +963,12 @@ function sanitizeContentCore(content, maxLength, maxBotMentions) {
   // Neutralize ALL @mentions (no filtering in core version)
   sanitized = neutralizeAllMentions(sanitized);
 
-  // Remove XML comments first
-  sanitized = removeXmlComments(sanitized);
+  // Remove XML comments – skip code blocks and inline code to avoid altering code content
+  sanitized = applyToNonCodeRegions(sanitized, removeXmlComments);
 
-  // Convert XML tags to parentheses format to prevent injection
-  sanitized = convertXmlTags(sanitized);
+  // Convert XML tags to parentheses format – skip code blocks and inline code so that
+  // type parameters (e.g. VBuffer<float32>) and code containing angle brackets are preserved
+  sanitized = applyToNonCodeRegions(sanitized, convertXmlTags);
 
   // URI filtering - replace non-https protocols with "(redacted)"
   sanitized = sanitizeUrlProtocols(sanitized);
@@ -834,6 +1015,7 @@ module.exports = {
   neutralizeGitHubReferences,
   removeXmlComments,
   convertXmlTags,
+  applyToNonCodeRegions,
   neutralizeBotTriggers,
   MAX_BOT_TRIGGER_REFERENCES,
   neutralizeTemplateDelimiters,

@@ -210,7 +210,9 @@ var disableCmd = &cobra.Command{
 	Use:   "disable [workflow]...",
 	Short: "Disable agentic workflows",
 	Long: `Disable one or more workflows by ID, or all workflows if no IDs are provided.
+
 Any in-progress runs will be cancelled before disabling.
+
 ` + cli.WorkflowIDExplanation + `
 
 Examples:

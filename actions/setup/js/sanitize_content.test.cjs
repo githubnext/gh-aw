@@ -484,6 +484,81 @@ describe("sanitize_content.cjs", () => {
     });
   });
 
+  describe("XML/HTML tag conversion: code-region awareness", () => {
+    it("should preserve angle brackets inside fenced code blocks (backticks)", () => {
+      const input = "Before\n```\nVBuffer<float32> x;\n```\nAfter";
+      const result = sanitizeContent(input);
+      expect(result).toContain("VBuffer<float32>");
+      expect(result).not.toContain("VBuffer(float32)");
+    });
+
+    it("should preserve angle brackets inside fenced code blocks (tildes)", () => {
+      const input = "Before\n~~~\nfoo<int> bar;\n~~~\nAfter";
+      const result = sanitizeContent(input);
+      expect(result).toContain("foo<int>");
+      expect(result).not.toContain("foo(int)");
+    });
+
+    it("should preserve angle brackets inside inline code spans", () => {
+      const result = sanitizeContent("Use `VBuffer<float32>` for vectors");
+      expect(result).toContain("`VBuffer<float32>`");
+      expect(result).not.toContain("VBuffer(float32)");
+    });
+
+    it("should still convert angle brackets in regular text", () => {
+      const result = sanitizeContent("Watch out for <script>alert(1)</script> here");
+      expect(result).toContain("(script)");
+      expect(result).not.toContain("<script>");
+    });
+
+    it("should handle mixed content: code block with tags and regular text with tags", () => {
+      const input = "Normal: <div>bad</div>\n```\n<div>safe code</div>\n```\nNormal again: <img src=x>";
+      const result = sanitizeContent(input);
+      // Regular text: tags converted
+      expect(result).toContain("(div)bad(/div)");
+      // Code block: tags preserved
+      expect(result).toContain("<div>safe code</div>");
+      // Regular text after block: tags converted
+      expect(result).toContain("(img src=x)");
+    });
+
+    it("should handle a fenced block with a language specifier", () => {
+      const input = "```typescript\nconst arr: Array<string> = [];\n```";
+      const result = sanitizeContent(input);
+      expect(result).toContain("Array<string>");
+      expect(result).not.toContain("Array(string)");
+    });
+
+    it("should preserve XML comments inside fenced code blocks", () => {
+      const input = "```xml\n<!-- comment -->\n<tag>value</tag>\n```";
+      const result = sanitizeContent(input);
+      expect(result).toContain("<!-- comment -->");
+      expect(result).toContain("<tag>value</tag>");
+    });
+
+    it("should still remove XML comments outside code blocks", () => {
+      const result = sanitizeContent("text <!-- remove me --> end");
+      expect(result).not.toContain("<!-- remove me -->");
+      expect(result).toContain("text");
+      expect(result).toContain("end");
+    });
+
+    it("should preserve inline code with multiple backticks", () => {
+      const result = sanitizeContent("Use ``VBuffer<float32>`` inline");
+      expect(result).toContain("``VBuffer<float32>``");
+      expect(result).not.toContain("VBuffer(float32)");
+    });
+
+    it("should handle issue title example: VBuffer<float32>", () => {
+      // Simulates a title where type parameters are in inline code
+      const result = sanitizeContent("Support for `VBuffer<float32>` and `VBuffer<float>`");
+      expect(result).toContain("`VBuffer<float32>`");
+      expect(result).toContain("`VBuffer<float>`");
+      expect(result).not.toContain("VBuffer(float32)");
+      expect(result).not.toContain("VBuffer(float)");
+    });
+  });
+
   describe("ANSI escape sequence removal", () => {
     it("should remove ANSI color codes", () => {
       const result = sanitizeContent("\x1b[31mred text\x1b[0m");

@@ -33,8 +33,6 @@ type importAccumulator struct {
 	mcpScripts               []string
 	bots                     []string
 	botsSet                  map[string]bool
-	plugins                  []string
-	pluginsSet               map[string]bool
 	labels                   []string
 	labelsSet                map[string]bool
 	skipRoles                []string
@@ -55,12 +53,11 @@ type importAccumulator struct {
 }
 
 // newImportAccumulator creates and initializes a new importAccumulator.
-// Maps (botsSet, pluginsSet, etc.) are explicitly initialized to prevent nil map panics
+// Maps (botsSet, etc.) are explicitly initialized to prevent nil map panics
 // during deduplication. Slices are left as nil, which is valid for append operations.
 func newImportAccumulator() *importAccumulator {
 	return &importAccumulator{
 		botsSet:      make(map[string]bool),
-		pluginsSet:   make(map[string]bool),
 		labelsSet:    make(map[string]bool),
 		skipRolesSet: make(map[string]bool),
 		skipBotsSet:  make(map[string]bool),
@@ -71,7 +68,7 @@ func newImportAccumulator() *importAccumulator {
 // extractAllImportFields extracts all frontmatter fields from a single imported file
 // and accumulates the results. Handles tools, engines, mcp-servers, safe-outputs,
 // mcp-scripts, steps, runtimes, services, network, permissions, secret-masking, bots,
-// skip-roles, skip-bots, plugins, post-steps, labels, cache, and features.
+// skip-roles, skip-bots, post-steps, labels, cache, and features.
 func (acc *importAccumulator) extractAllImportFields(content []byte, item importQueueItem, visited map[string]bool) error {
 	log.Printf("Extracting all import fields: path=%s, section=%s, inputs=%d, content_size=%d bytes", item.fullPath, item.sectionName, len(item.inputs), len(content))
 	// Extract tools from imported file
@@ -238,34 +235,6 @@ func (acc *importAccumulator) extractAllImportFields(content []byte, item import
 		}
 	}
 
-	// Extract and merge plugins from imported file (merge into set to avoid duplicates).
-	// Handles both simple string format and object format with MCP configs.
-	pluginsContent, err := extractFrontmatterField(string(content), "plugins", "[]")
-	if err == nil && pluginsContent != "" && pluginsContent != "[]" {
-		var pluginsRaw []any
-		if jsonErr := json.Unmarshal([]byte(pluginsContent), &pluginsRaw); jsonErr == nil {
-			for _, plugin := range pluginsRaw {
-				// Handle string format: "org/repo"
-				if pluginStr, ok := plugin.(string); ok {
-					if !acc.pluginsSet[pluginStr] {
-						acc.pluginsSet[pluginStr] = true
-						acc.plugins = append(acc.plugins, pluginStr)
-					}
-				} else if pluginObj, ok := plugin.(map[string]any); ok {
-					// Handle object format: { "id": "org/repo", "mcp": {...} }
-					if idVal, hasID := pluginObj["id"]; hasID {
-						if pluginID, ok := idVal.(string); ok && !acc.pluginsSet[pluginID] {
-							acc.pluginsSet[pluginID] = true
-							acc.plugins = append(acc.plugins, pluginID)
-							// Note: MCP configs from imports are currently not merged
-							// They would need to be handled at a higher level in compiler_orchestrator_tools.go
-						}
-					}
-				}
-			}
-		}
-	}
-
 	// Extract post-steps from imported file (append in order)
 	postStepsContent, err := extractPostStepsFromContent(string(content))
 	if err == nil && postStepsContent != "" {
@@ -308,8 +277,8 @@ func (acc *importAccumulator) extractAllImportFields(content []byte, item import
 // toImportsResult converts the accumulated state to a final ImportsResult.
 // topologicalOrder is the result from topologicalSortImports.
 func (acc *importAccumulator) toImportsResult(topologicalOrder []string) *ImportsResult {
-	log.Printf("Building ImportsResult: importedFiles=%d, importPaths=%d, engines=%d, bots=%d, plugins=%d, labels=%d",
-		len(topologicalOrder), len(acc.importPaths), len(acc.engines), len(acc.bots), len(acc.plugins), len(acc.labels))
+	log.Printf("Building ImportsResult: importedFiles=%d, importPaths=%d, engines=%d, bots=%d, labels=%d",
+		len(topologicalOrder), len(acc.importPaths), len(acc.engines), len(acc.bots), len(acc.labels))
 	return &ImportsResult{
 		MergedTools:                 acc.toolsBuilder.String(),
 		MergedMCPServers:            acc.mcpServersBuilder.String(),
@@ -326,7 +295,6 @@ func (acc *importAccumulator) toImportsResult(topologicalOrder []string) *Import
 		MergedPermissions:           acc.permissionsBuilder.String(),
 		MergedSecretMasking:         acc.secretMaskingBuilder.String(),
 		MergedBots:                  acc.bots,
-		MergedPlugins:               acc.plugins,
 		MergedSkipRoles:             acc.skipRoles,
 		MergedSkipBots:              acc.skipBots,
 		MergedPostSteps:             acc.postStepsBuilder.String(),

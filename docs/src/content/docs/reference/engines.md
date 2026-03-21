@@ -96,6 +96,8 @@ Environment variables can also be defined at workflow, job, step, and other scop
 
 The `api-target` field specifies a custom API endpoint hostname for the agentic engine. Use this when running workflows against GitHub Enterprise Cloud (GHEC), GitHub Enterprise Server (GHES), or any custom AI endpoint.
 
+For a complete setup and debugging walkthrough for GHE Cloud with data residency, see [Debugging GHE Cloud with Data Residency](/gh-aw/troubleshooting/debug-ghe/).
+
 ```yaml wrap
 engine:
   id: copilot

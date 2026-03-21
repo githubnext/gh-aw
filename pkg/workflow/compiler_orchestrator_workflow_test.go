@@ -38,7 +38,6 @@ func TestBuildInitialWorkflowData_BasicFields(t *testing.T) {
 		markdownContent:      "Full markdown content",
 		tools:                map[string]any{"bash": []string{"echo"}},
 		runtimes:             map[string]any{"node": "18"},
-		pluginInfo:           &PluginInfo{Plugins: []string{"test-plugin"}},
 		toolsTimeout:         300,
 		toolsStartupTimeout:  60,
 		needsTextOutput:      true,
@@ -1407,7 +1406,6 @@ func TestBuildInitialWorkflowData_FieldMapping(t *testing.T) {
 		allIncludedFiles:     []string{"/file1"},
 		tools:                map[string]any{"tool1": "config1"},
 		runtimes:             map[string]any{"runtime1": "v1"},
-		pluginInfo:           &PluginInfo{Plugins: []string{"plugin1"}},
 		safeOutputs:          &SafeOutputsConfig{},
 		secretMasking:        &SecretMaskingConfig{},
 		parsedFrontmatter:    &FrontmatterConfig{},
@@ -1441,7 +1439,6 @@ func TestBuildInitialWorkflowData_FieldMapping(t *testing.T) {
 	assert.Equal(t, "copilot", workflowData.AI)
 	assert.NotNil(t, workflowData.Tools)
 	assert.NotNil(t, workflowData.Runtimes)
-	assert.NotNil(t, workflowData.PluginInfo)
 	assert.NotNil(t, workflowData.EngineConfig)
 	assert.NotNil(t, workflowData.NetworkPermissions)
 	assert.NotNil(t, workflowData.SandboxConfig)

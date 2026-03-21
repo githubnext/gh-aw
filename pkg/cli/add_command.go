@@ -74,7 +74,7 @@ Workflow specifications:
 
 The -n flag allows you to specify a custom name for the workflow file (only applies to the first workflow when adding multiple).
 The --dir flag allows you to specify a subdirectory under .github/workflows/ where the workflow will be added.
-The --create-pull-request flag (or --pr) creates a pull request with the workflow changes.
+The --create-pull-request flag creates a pull request with the workflow changes.
 The --force flag overwrites existing workflow files.
 
 Note: To create a new workflow from scratch, use the 'new' command instead.

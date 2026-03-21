@@ -10,6 +10,7 @@ import (
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/fileutil"
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/parser"
 )
 
 var commandsLog = logger.New("cli:commands")
@@ -115,19 +116,7 @@ permissions:
 # Network access
 network: defaults
 
-# Outputs - what APIs and tools can the AI use?
-safe-outputs:
-  create-issue:          # Creates issues (default max: 1)
-    max: 5               # Optional: specify maximum number
-  # create-agent-session:   # Creates GitHub Copilot coding agent sessions (max: 1)
-  # create-pull-request: # Creates exactly one pull request
-  # add-comment:         # Adds comments (default max: 1)
-  #   max: 2             # Optional: specify maximum number
-  # add-labels:
-  # update-issue:
-  # create-discussion:
-  # push-to-pull-request-branch:
-
+` + buildSafeOutputsSection() + `
 ---
 
 # ` + workflowName + `
@@ -149,4 +138,29 @@ Be clear and specific about what the AI should accomplish.
 - Run ` + "`" + string(constants.CLIExtensionPrefix) + " compile`" + ` to generate the GitHub Actions workflow
 - See https://github.github.com/gh-aw/ for complete configuration options and tools documentation
 `
+}
+
+// buildSafeOutputsSection generates the safe-outputs section of the workflow template.
+// It uses the JSON schema to derive the valid safe output type names, ensuring the
+// template is always consistent with what the schema accepts.
+func buildSafeOutputsSection() string {
+	keys, err := parser.GetSafeOutputTypeKeys()
+	if err != nil {
+		commandsLog.Printf("Failed to get safe output type keys from schema: %v", err)
+		// Fallback to a minimal static section
+		return "# Outputs - what APIs and tools can the AI use?\nsafe-outputs:\n  create-issue:  # Creates issues (default max: 1)\n"
+	}
+
+	var sb strings.Builder
+	sb.WriteString("# Outputs - what APIs and tools can the AI use?\n")
+	sb.WriteString("safe-outputs:\n")
+	sb.WriteString("  create-issue:          # Creates issues (default max: 1)\n")
+	sb.WriteString("    max: 5               # Optional: specify maximum number\n")
+	for _, key := range keys {
+		if key == "create-issue" {
+			continue
+		}
+		sb.WriteString("  # " + key + ":\n")
+	}
+	return sb.String()
 }

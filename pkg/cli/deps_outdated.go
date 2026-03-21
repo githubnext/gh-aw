@@ -166,6 +166,7 @@ func getLatestVersion(modulePath, currentVersion string, verbose bool) (string, 
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
+		_, _ = io.Copy(io.Discard, resp.Body)
 		return "", 0, fmt.Errorf("proxy returned status %d", resp.StatusCode)
 	}
 

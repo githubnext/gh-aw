@@ -3,10 +3,12 @@
 package cli
 
 import (
-	"encoding/json"
+	"os"
 	"testing"
 
 	"github.com/github/gh-aw/pkg/gitutil"
+	"github.com/github/gh-aw/pkg/testutil"
+	"github.com/github/gh-aw/pkg/workflow"
 )
 
 func TestActionKeyVersionConsistency(t *testing.T) {
@@ -14,39 +16,30 @@ func TestActionKeyVersionConsistency(t *testing.T) {
 	// is updated to match the new version, preventing key/version mismatches
 	// that would cause version comments to change on each build.
 
-	// Simulate the actions-lock.json structure
-	actionsLock := actionsLockFile{
-		Entries: map[string]actionsLockEntry{
-			"actions/checkout@v5.0.0": {
-				Repo:    "actions/checkout",
-				Version: "v5.0.0",
-				SHA:     "oldsha1234567890123456789012345678901234",
-			},
-		},
-	}
+	// Simulate the actions-lock.json structure using ActionCache
+	tmpDir := testutil.TempDir(t, "test-*")
+	cache := workflow.NewActionCache(tmpDir)
+	cache.Set("actions/checkout", "v5.0.0", "oldsha1234567890123456789012345678901234")
 
 	// Simulate an update to a newer version
-	oldKey := "actions/checkout@v5.0.0"
-	entry := actionsLock.Entries[oldKey]
+	oldVersion := "v5.0.0"
 	latestVersion := "v5.0.1"
 	latestSHA := "newsha1234567890123456789012345678901234"
 
-	// Apply the update logic from UpdateActions
-	delete(actionsLock.Entries, oldKey)
-	newKey := entry.Repo + "@" + latestVersion
-	actionsLock.Entries[newKey] = actionsLockEntry{
-		Repo:    entry.Repo,
-		Version: latestVersion,
-		SHA:     latestSHA,
-	}
+	// Apply the update logic from UpdateActions: delete old key, set new entry
+	cache.Delete("actions/checkout", oldVersion)
+	cache.Set("actions/checkout", latestVersion, latestSHA)
+
+	oldKey := "actions/checkout@v5.0.0"
+	newKey := "actions/checkout@v5.0.1"
 
 	// Verify the old key is gone
-	if _, exists := actionsLock.Entries[oldKey]; exists {
+	if _, exists := cache.Entries[oldKey]; exists {
 		t.Errorf("Old key %q should have been deleted", oldKey)
 	}
 
 	// Verify the new key exists
-	updatedEntry, exists := actionsLock.Entries[newKey]
+	updatedEntry, exists := cache.Entries[newKey]
 	if !exists {
 		t.Errorf("New key %q should exist", newKey)
 	}
@@ -64,31 +57,25 @@ func TestActionKeyVersionConsistency(t *testing.T) {
 }
 
 func TestActionKeyVersionConsistencyInJSON(t *testing.T) {
-	// This test ensures that when actions-lock.json is loaded and saved,
-	// there are no key/version mismatches
+	// This test ensures that when actions-lock.json is saved to disk and reloaded,
+	// there are no key/version mismatches between the map key and the entry's Version field.
 
-	jsonData := `{
-		"entries": {
-			"actions/checkout@v5.0.1": {
-				"repo": "actions/checkout",
-				"version": "v5.0.1",
-				"sha": "93cb6efe18208431cddfb8368fd83d5badbf9bfd"
-			},
-			"actions/setup-node@v6.1.0": {
-				"repo": "actions/setup-node",
-				"version": "v6.1.0",
-				"sha": "395ad3262231945c25e8478fd5baf05154b1d79f"
-			}
-		}
-	}`
+	tmpDir := testutil.TempDir(t, "test-*")
+	cache := workflow.NewActionCache(tmpDir)
+	cache.Set("actions/checkout", "v5.0.1", "93cb6efe18208431cddfb8368fd83d5badbf9bfd")
+	cache.Set("actions/setup-node", "v6.1.0", "395ad3262231945c25e8478fd5baf05154b1d79f")
 
-	var actionsLock actionsLockFile
-	if err := json.Unmarshal([]byte(jsonData), &actionsLock); err != nil {
-		t.Fatalf("Failed to unmarshal: %v", err)
+	// Save to disk and reload to exercise the JSON round-trip.
+	if err := cache.Save(); err != nil {
+		t.Fatalf("Failed to save cache: %v", err)
+	}
+	reloaded := workflow.NewActionCache(tmpDir)
+	if err := reloaded.Load(); err != nil {
+		t.Fatalf("Failed to reload cache: %v", err)
 	}
 
-	// Verify all entries have matching key and version
-	for key, entry := range actionsLock.Entries {
+	// Verify all entries have matching key and version after a round-trip.
+	for key, entry := range reloaded.Entries {
 		// Extract version from key (format: "repo@version")
 		atIndex := len(key)
 		for i := len(key) - 1; i >= 0; i-- {
@@ -105,6 +92,84 @@ func TestActionKeyVersionConsistencyInJSON(t *testing.T) {
 					key, keyVersion, entry.Version)
 			}
 		}
+	}
+}
+
+// TestUpdateActions_SafeOutputsInputsPreserved verifies that cached inputs and descriptions
+// for safe-outputs.actions entries are preserved in actions-lock.json when other (unrelated)
+// actions are updated. Previously, actionsLockEntry lacked Inputs/ActionDescription fields,
+// causing them to be silently dropped whenever the file was rewritten.
+func TestUpdateActions_SafeOutputsInputsPreserved(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "test-*")
+
+	// Stub the release-fetch function so no network calls are made.
+	// actions/checkout gets a bump; owner/my-safe-action is already at latest.
+	orig := getLatestActionReleaseFn
+	defer func() { getLatestActionReleaseFn = orig }()
+	getLatestActionReleaseFn = func(repo, currentVersion string, allowMajor, verbose bool) (string, string, error) {
+		switch repo {
+		case "actions/checkout":
+			return "v5", "newcheckoutsha1234567890123456789012345", nil
+		case "owner/my-safe-action":
+			// Same version/SHA → no update needed
+			return "v1", "mysafesha12345678901234567890123456789012", nil
+		default:
+			return currentVersion, "", nil
+		}
+	}
+
+	// Build actions-lock.json with a regular action and a safe-outputs action (with cached inputs).
+	cache := workflow.NewActionCache(tmpDir)
+	cache.Set("actions/checkout", "v4", "oldcheckoutsha234567890123456789012345678")
+	cache.Set("owner/my-safe-action", "v1", "mysafesha12345678901234567890123456789012")
+	cache.SetInputs("owner/my-safe-action", "v1", map[string]*workflow.ActionYAMLInput{
+		"foo": {Description: "Foo input", Required: true},
+	})
+	if err := cache.Save(); err != nil {
+		t.Fatalf("failed to save initial cache: %v", err)
+	}
+
+	// Run UpdateActions from tmpDir
+	wd, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("failed to get working directory: %v", err)
+	}
+	t.Cleanup(func() {
+		if err := os.Chdir(wd); err != nil {
+			t.Errorf("failed to restore working directory: %v", err)
+		}
+	})
+	if err := os.Chdir(tmpDir); err != nil {
+		t.Fatalf("failed to chdir: %v", err)
+	}
+
+	if err := UpdateActions(false, false, false); err != nil {
+		t.Fatalf("UpdateActions() error = %v", err)
+	}
+
+	// Reload the saved cache and verify safe-outputs inputs were preserved.
+	saved := workflow.NewActionCache(tmpDir)
+	if err := saved.Load(); err != nil {
+		t.Fatalf("failed to reload cache: %v", err)
+	}
+
+	// actions/checkout should have been updated to v5
+	checkoutEntry, ok := saved.Entries["actions/checkout@v5"]
+	if !ok {
+		t.Error("expected actions/checkout@v5 entry after update")
+	} else if checkoutEntry.SHA != "newcheckoutsha1234567890123456789012345" {
+		t.Errorf("actions/checkout SHA = %q, want newcheckoutsha...", checkoutEntry.SHA)
+	}
+
+	// safe-outputs action inputs must still be present
+	safeEntry, ok := saved.Entries["owner/my-safe-action@v1"]
+	if !ok {
+		t.Fatal("expected owner/my-safe-action@v1 entry to be present after update")
+	}
+	if safeEntry.Inputs == nil {
+		t.Error("safe-outputs action inputs were lost after update (expected to be preserved)")
+	} else if _, hasFoo := safeEntry.Inputs["foo"]; !hasFoo {
+		t.Errorf("safe-outputs action inputs missing 'foo' key; got %v", safeEntry.Inputs)
 	}
 }
 

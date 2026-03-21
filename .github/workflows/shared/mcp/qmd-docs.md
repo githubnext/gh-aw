@@ -19,7 +19,7 @@ steps:
   - name: Install QMD
     run: npm install -g @tobilu/qmd
   - name: Restore QMD index cache
-    uses: actions/cache/restore@v5.0.3
+    uses: actions/cache/restore@v5.0.4
     with:
       path: ~/.cache/qmd
       key: qmd-docs-${{ hashFiles('docs/src/content/docs/**', '.github/agents/**', '.github/aw/**') }}

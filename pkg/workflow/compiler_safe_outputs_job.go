@@ -406,7 +406,7 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 
 	job := &Job{
 		Name:           "safe_outputs",
-		If:             jobCondition.Render(),
+		If:             RenderCondition(jobCondition),
 		RunsOn:         c.formatSafeOutputsRunsOn(data.SafeOutputs),
 		Environment:    c.indentYAMLLines(safeOutputsEnvironment, "    "),
 		Permissions:    permissions.RenderToYAML(),

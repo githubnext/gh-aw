@@ -973,6 +973,56 @@ describe("Safe Output Handler Manager", () => {
       expect(result.codePushFailures).toHaveLength(0);
     });
 
+    it("should NOT cancel subsequent messages when push_to_pull_request_branch returns skipped (if_no_changes: warn)", async () => {
+      const messages = [{ type: "push_to_pull_request_branch" }, { type: "create_issue", title: "Issue" }, { type: "add_comment", body: "Done!" }];
+
+      // Simulates push handler returning { success: false, skipped: true } for if_no_changes: warn/ignore
+      const codePushHandler = vi.fn().mockResolvedValue({ success: false, error: "No patch file found - cannot push without changes", skipped: true });
+      const issueHandler = vi.fn().mockResolvedValue({ repo: "owner/repo", number: 42 });
+      const commentHandler = vi.fn().mockResolvedValue([{ _tracking: null }]);
+
+      const handlers = new Map([
+        ["push_to_pull_request_branch", codePushHandler],
+        ["create_issue", issueHandler],
+        ["add_comment", commentHandler],
+      ]);
+
+      const result = await processMessages(handlers, messages);
+
+      expect(result.success).toBe(true);
+      // Skipped code-push should NOT be recorded as a codePushFailure
+      expect(result.codePushFailures).toHaveLength(0);
+      // First result: skipped (not failed)
+      expect(result.results[0].success).toBe(false);
+      expect(result.results[0].skipped).toBe(true);
+      expect(result.results[0].error).toContain("No patch file found");
+      // Subsequent results: NOT cancelled — handlers were called
+      expect(result.results[1].cancelled).toBeUndefined();
+      expect(result.results[2].cancelled).toBeUndefined();
+      expect(issueHandler).toHaveBeenCalled();
+      expect(commentHandler).toHaveBeenCalled();
+    });
+
+    it("should NOT cancel subsequent messages when create_pull_request returns skipped", async () => {
+      const messages = [{ type: "create_pull_request" }, { type: "add_comment", body: "Done!" }];
+
+      const codePushHandler = vi.fn().mockResolvedValue({ success: false, error: "No patch file found - cannot push without changes", skipped: true });
+      const commentHandler = vi.fn().mockResolvedValue([{ _tracking: null }]);
+
+      const handlers = new Map([
+        ["create_pull_request", codePushHandler],
+        ["add_comment", commentHandler],
+      ]);
+
+      const result = await processMessages(handlers, messages);
+
+      expect(result.success).toBe(true);
+      expect(result.codePushFailures).toHaveLength(0);
+      expect(result.results[0].skipped).toBe(true);
+      expect(result.results[1].cancelled).toBeUndefined();
+      expect(commentHandler).toHaveBeenCalled();
+    });
+
     it("should prepend fallback note to add_comment body when create_pull_request falls back to issue", async () => {
       const messages = [
         {

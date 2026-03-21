@@ -488,11 +488,7 @@ Create a comprehensive discussion report with:
 **Report Template**:
 
 ```markdown
-# 🔬 Copilot Agent Prompt Clustering Analysis - [DATE]
-
-Daily NLP-based clustering analysis of copilot agent task prompts.
-
-## Summary
+### Summary
 
 **Analysis Period**: Last 30 days
 **Total Tasks Analyzed**: [count]
@@ -500,18 +496,18 @@ Daily NLP-based clustering analysis of copilot agent task prompts.
 **Overall Success Rate**: [percentage]%
 
 <details>
-<summary>Full Analysis Report</summary>
+<summary><b>Full Analysis Report</b></summary>
 
-## General Insights
+### General Insights
 
 - **Most Common Task Type**: [cluster description]
 - **Highest Success Rate**: [cluster with best success rate]
 - **Most Complex Tasks**: [cluster with most turns/highest complexity]
 - **Outliers**: [number of outlier tasks identified]
 
-## Cluster Analysis
+### Cluster Analysis
 
-### Cluster 1: [Theme/Description]
+#### Cluster 1: [Theme/Description]
 - **Size**: X tasks ([percentage]% of total)
 - **Success Rate**: [percentage]%
 - **Average Turns**: [number]
@@ -523,10 +519,10 @@ Daily NLP-based clustering analysis of copilot agent task prompts.
 
 ---
 
-### Cluster 2: [Theme/Description]
+#### Cluster 2: [Theme/Description]
 ...
 
-## Success Rate by Cluster
+### Success Rate by Cluster
 
 | Cluster | Tasks | Success Rate | Avg Turns | Top Keywords |
 |---------|-------|--------------|-----------|--------------|
@@ -534,7 +530,7 @@ Daily NLP-based clustering analysis of copilot agent task prompts.
 | 2       | 12    | 75%          | 4.1       | bug, fix, error |
 | 3       | 8     | 100%         | 2.5       | docs, update |
 
-## Full Data Table
+### Full Data Table
 
 | PR # | Title | Cluster | Outcome | Turns | Keywords |
 |------|-------|---------|---------|-------|----------|
@@ -542,13 +538,13 @@ Daily NLP-based clustering analysis of copilot agent task prompts.
 | 124  | Update docs | 3 | Merged | 2 | docs, update |
 | 125  | Refactor logger | 1 | Merged | 3 | refactor, logger |
 
-## Key Findings
+### Key Findings
 
 1. **[Finding 1]**: [Description and data supporting this finding]
 2. **[Finding 2]**: [Description and data supporting this finding]
 3. **[Finding 3]**: [Description and data supporting this finding]
 
-## Recommendations
+### Recommendations
 
 Based on clustering analysis:
 

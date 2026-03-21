@@ -19,6 +19,7 @@ const {
   neutralizeGitHubReferences,
   removeXmlComments,
   convertXmlTags,
+  applyToNonCodeRegions,
   neutralizeBotTriggers,
   applyTruncation,
   hardenUnicodeText,
@@ -90,11 +91,11 @@ function sanitizeContent(content, maxLengthOrOptions) {
   // Neutralize @mentions with selective filtering (custom logic for allowed aliases)
   sanitized = neutralizeMentions(sanitized, allowedAliasesLowercase);
 
-  // Remove XML comments
-  sanitized = removeXmlComments(sanitized);
+  // Remove XML comments – skip code blocks and inline code
+  sanitized = applyToNonCodeRegions(sanitized, removeXmlComments);
 
-  // Convert XML tags
-  sanitized = convertXmlTags(sanitized);
+  // Convert XML tags – skip code blocks and inline code
+  sanitized = applyToNonCodeRegions(sanitized, convertXmlTags);
 
   // URI filtering (shared with core)
   sanitized = sanitizeUrlProtocols(sanitized);

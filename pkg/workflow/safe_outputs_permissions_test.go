@@ -570,3 +570,172 @@ func TestComputePermissionsForSafeOutputs_IDToken(t *testing.T) {
 		})
 	}
 }
+
+func TestComputePermissionsForSafeOutputs_Staged(t *testing.T) {
+	tests := []struct {
+		name        string
+		safeOutputs *SafeOutputsConfig
+		expected    map[PermissionScope]PermissionLevel
+	}{
+		{
+			name: "global staged=true - no permissions for any handler",
+			safeOutputs: &SafeOutputsConfig{
+				Staged:            true,
+				CreateIssues:      &CreateIssuesConfig{},
+				CreateDiscussions: &CreateDiscussionsConfig{},
+				AddLabels:         &AddLabelsConfig{},
+			},
+			expected: map[PermissionScope]PermissionLevel{},
+		},
+		{
+			name: "per-handler staged=true - staged handler contributes no permissions",
+			safeOutputs: &SafeOutputsConfig{
+				CreateIssues: &CreateIssuesConfig{
+					BaseSafeOutputConfig: BaseSafeOutputConfig{Staged: true},
+				},
+				AddLabels: &AddLabelsConfig{},
+			},
+			// create-issue is staged so it contributes nothing; add-labels is not staged
+			expected: map[PermissionScope]PermissionLevel{
+				PermissionContents:     PermissionRead,
+				PermissionIssues:       PermissionWrite,
+				PermissionPullRequests: PermissionWrite,
+			},
+		},
+		{
+			name: "all handlers per-handler staged - no permissions",
+			safeOutputs: &SafeOutputsConfig{
+				CreateIssues: &CreateIssuesConfig{
+					BaseSafeOutputConfig: BaseSafeOutputConfig{Staged: true},
+				},
+				CreateDiscussions: &CreateDiscussionsConfig{
+					BaseSafeOutputConfig: BaseSafeOutputConfig{Staged: true},
+				},
+			},
+			expected: map[PermissionScope]PermissionLevel{},
+		},
+		{
+			name: "global staged=true overrides per-handler staged=false",
+			safeOutputs: &SafeOutputsConfig{
+				Staged: true,
+				CreatePullRequests: &CreatePullRequestsConfig{
+					BaseSafeOutputConfig: BaseSafeOutputConfig{Staged: false},
+				},
+				DispatchWorkflow: &DispatchWorkflowConfig{},
+			},
+			expected: map[PermissionScope]PermissionLevel{},
+		},
+		{
+			name: "global staged=false, one handler staged=true",
+			safeOutputs: &SafeOutputsConfig{
+				Staged: false,
+				CreatePullRequests: &CreatePullRequestsConfig{
+					BaseSafeOutputConfig: BaseSafeOutputConfig{Staged: true},
+				},
+				CloseIssues: &CloseIssuesConfig{},
+			},
+			// create-pull-request is staged; close-issue is not
+			expected: map[PermissionScope]PermissionLevel{
+				PermissionContents: PermissionRead,
+				PermissionIssues:   PermissionWrite,
+			},
+		},
+		{
+			name: "global staged=true - upload-asset staged, no contents:write",
+			safeOutputs: &SafeOutputsConfig{
+				Staged:       true,
+				UploadAssets: &UploadAssetsConfig{},
+			},
+			expected: map[PermissionScope]PermissionLevel{},
+		},
+		{
+			name: "pr review operations - all staged via global flag",
+			safeOutputs: &SafeOutputsConfig{
+				Staged:                          true,
+				CreatePullRequestReviewComments: &CreatePullRequestReviewCommentsConfig{},
+				SubmitPullRequestReview:         &SubmitPullRequestReviewConfig{},
+			},
+			expected: map[PermissionScope]PermissionLevel{},
+		},
+		{
+			name: "pr review operations - one staged, one not",
+			safeOutputs: &SafeOutputsConfig{
+				CreatePullRequestReviewComments: &CreatePullRequestReviewCommentsConfig{
+					BaseSafeOutputConfig: BaseSafeOutputConfig{Staged: true},
+				},
+				SubmitPullRequestReview: &SubmitPullRequestReviewConfig{},
+			},
+			// submit-pull-request-review is not staged, so PR write permissions are added
+			expected: map[PermissionScope]PermissionLevel{
+				PermissionContents:     PermissionRead,
+				PermissionPullRequests: PermissionWrite,
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			permissions := ComputePermissionsForSafeOutputs(tt.safeOutputs)
+			require.NotNil(t, permissions, "Permissions should not be nil")
+
+			// Check that all expected permissions are present
+			for scope, expectedLevel := range tt.expected {
+				actualLevel, exists := permissions.Get(scope)
+				assert.True(t, exists, "Permission scope %s should exist", scope)
+				assert.Equal(t, expectedLevel, actualLevel, "Permission level for %s should match", scope)
+			}
+
+			// Check that no unexpected permissions are present
+			for scope := range permissions.permissions {
+				_, expected := tt.expected[scope]
+				assert.True(t, expected, "Unexpected permission scope: %s", scope)
+			}
+		})
+	}
+}
+
+// TestComputePermissionsForSafeOutputs_StagedYAMLRendering validates that fully-staged
+// safe output configurations produce explicit "permissions: {}" in YAML rendering,
+// rather than an empty string that would cause the job to inherit workflow-level permissions.
+func TestComputePermissionsForSafeOutputs_StagedYAMLRendering(t *testing.T) {
+	tests := []struct {
+		name             string
+		safeOutputs      *SafeOutputsConfig
+		expectedRendered string
+	}{
+		{
+			name: "globally staged - renders permissions: {}",
+			safeOutputs: &SafeOutputsConfig{
+				Staged:       true,
+				CreateIssues: &CreateIssuesConfig{},
+				AddLabels:    &AddLabelsConfig{},
+			},
+			expectedRendered: "permissions: {}",
+		},
+		{
+			name: "all per-handler staged - renders permissions: {}",
+			safeOutputs: &SafeOutputsConfig{
+				CreateIssues: &CreateIssuesConfig{BaseSafeOutputConfig: BaseSafeOutputConfig{Staged: true}},
+				AddLabels:    &AddLabelsConfig{BaseSafeOutputConfig: BaseSafeOutputConfig{Staged: true}},
+			},
+			expectedRendered: "permissions: {}",
+		},
+		{
+			name: "staged PR handlers - renders permissions: {}",
+			safeOutputs: &SafeOutputsConfig{
+				Staged:             true,
+				CreatePullRequests: &CreatePullRequestsConfig{},
+			},
+			expectedRendered: "permissions: {}",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			permissions := ComputePermissionsForSafeOutputs(tt.safeOutputs)
+			require.NotNil(t, permissions, "Permissions should not be nil")
+			rendered := permissions.RenderToYAML()
+			assert.Equal(t, tt.expectedRendered, rendered, "Fully-staged safe-outputs must render explicit empty permissions block")
+		})
+	}
+}

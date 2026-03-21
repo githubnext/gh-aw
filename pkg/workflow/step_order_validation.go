@@ -178,8 +178,10 @@ func (t *StepOrderTracker) findUnscannablePaths(artifactUploads []StepRecord) []
 // isPathScannedBySecretRedaction checks if a path would be scanned by the secret redaction step
 // or is otherwise safe to upload (known engine-controlled diagnostic paths).
 func isPathScannedBySecretRedaction(path string) bool {
-	// Paths must be under /tmp/gh-aw/ or ${RUNNER_TEMP}/gh-aw/ to be scanned
-	// Accept both literal paths and environment variable references
+	// Paths must be under /tmp/gh-aw/ or ${RUNNER_TEMP}/gh-aw/ to be scanned.
+	// Accept both literal paths and environment variable references.
+	// Engines that produce output outside /tmp/gh-aw/ must move their files into /tmp/gh-aw/
+	// via GetPreBundleSteps before the unified artifact upload (see gemini_engine.go).
 	if !strings.HasPrefix(path, "/tmp/gh-aw/") && !strings.HasPrefix(path, "${RUNNER_TEMP}/gh-aw/") {
 		// Check if it's an environment variable that might resolve to /tmp/gh-aw/ or ${RUNNER_TEMP}/gh-aw/
 		// For now, we'll allow ${{ env.* }} patterns through as we can't resolve them at compile time
@@ -187,20 +189,6 @@ func isPathScannedBySecretRedaction(path string) bool {
 		// This is a conservative assumption - in practice these are controlled by the compiler
 		if strings.Contains(path, "${{ env.") {
 			return true
-		}
-
-		// Allow wildcard paths under /tmp/ with a known-safe extension.
-		// These are engine-declared diagnostic output files that have not yet been relocated.
-		// NOTE: The Gemini engine now moves its error reports into /tmp/gh-aw/ via
-		// GetPreBundleSteps before the upload, so they are covered by the /tmp/gh-aw/ branch
-		// above. This exception is kept for any future engine that may produce wildcard
-		// diagnostic files directly under /tmp/.
-		if strings.HasPrefix(path, "/tmp/") && strings.Contains(path, "*") {
-			ext := filepath.Ext(path)
-			safeExtensions := []string{".txt", ".json", ".log", ".jsonl"}
-			if slices.Contains(safeExtensions, ext) {
-				return true
-			}
 		}
 
 		return false

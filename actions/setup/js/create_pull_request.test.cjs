@@ -893,3 +893,114 @@ describe("create_pull_request - configured reviewers", () => {
     expect(global.github.rest.pulls.requestReviewers).toHaveBeenCalledWith(expect.objectContaining({ reviewers: ["user1", "user2"] }));
   });
 });
+
+describe("create_pull_request - wildcard target-repo", () => {
+  let tempDir;
+  let originalEnv;
+
+  beforeEach(() => {
+    originalEnv = { ...process.env };
+    process.env.GH_AW_WORKFLOW_ID = "test-workflow";
+    process.env.GITHUB_REPOSITORY = "test-owner/test-repo";
+    process.env.GITHUB_BASE_REF = "main";
+    tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "create-pr-wildcard-test-"));
+
+    global.core = {
+      info: vi.fn(),
+      warning: vi.fn(),
+      error: vi.fn(),
+      debug: vi.fn(),
+      setFailed: vi.fn(),
+      setOutput: vi.fn(),
+      startGroup: vi.fn(),
+      endGroup: vi.fn(),
+      summary: {
+        addRaw: vi.fn().mockReturnThis(),
+        write: vi.fn().mockResolvedValue(undefined),
+      },
+    };
+    global.github = {
+      rest: {
+        pulls: {
+          create: vi.fn().mockResolvedValue({ data: { number: 99, html_url: "https://github.com/any-org/any-repo/pull/99", node_id: "PR_99" } }),
+          requestReviewers: vi.fn().mockResolvedValue({}),
+        },
+        repos: {
+          get: vi.fn().mockResolvedValue({ data: { default_branch: "main" } }),
+        },
+        issues: {
+          addLabels: vi.fn().mockResolvedValue({}),
+        },
+      },
+      graphql: vi.fn(),
+    };
+    global.context = {
+      eventName: "workflow_dispatch",
+      repo: { owner: "test-owner", repo: "test-repo" },
+      payload: {},
+    };
+    global.exec = {
+      exec: vi.fn().mockResolvedValue(0),
+      getExecOutput: vi.fn().mockResolvedValue({ exitCode: 0, stdout: "", stderr: "" }),
+    };
+
+    delete require.cache[require.resolve("./create_pull_request.cjs")];
+  });
+
+  afterEach(() => {
+    for (const key of Object.keys(process.env)) {
+      if (!(key in originalEnv)) {
+        delete process.env[key];
+      }
+    }
+    Object.assign(process.env, originalEnv);
+
+    if (tempDir && fs.existsSync(tempDir)) {
+      fs.rmSync(tempDir, { recursive: true, force: true });
+    }
+
+    delete global.core;
+    delete global.github;
+    delete global.context;
+    delete global.exec;
+    vi.clearAllMocks();
+  });
+
+  it('should create PR in any repo when target-repo is "*"', async () => {
+    const { main } = require("./create_pull_request.cjs");
+    const handler = await main({ "target-repo": "*", allow_empty: true });
+
+    const result = await handler(
+      {
+        title: "Test PR",
+        body: "Test body",
+        repo: "any-org/any-repo",
+      },
+      {}
+    );
+
+    expect(result.success).toBe(true);
+    expect(global.github.rest.pulls.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        owner: "any-org",
+        repo: "any-repo",
+      })
+    );
+  });
+
+  it('should reject invalid repo slug when target-repo is "*"', async () => {
+    const { main } = require("./create_pull_request.cjs");
+    const handler = await main({ "target-repo": "*", allow_empty: true });
+
+    const result = await handler(
+      {
+        title: "Test PR",
+        body: "Test body",
+        repo: "not-a-valid-slug",
+      },
+      {}
+    );
+
+    expect(result.success).toBe(false);
+  });
+});

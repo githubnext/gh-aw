@@ -211,51 +211,6 @@ runtimes:
 	assert.NotEmpty(t, result.runtimes, "Runtimes should be extracted")
 }
 
-// TestProcessToolsAndMarkdown_PluginExtraction tests plugin extraction
-func TestProcessToolsAndMarkdown_PluginExtraction(t *testing.T) {
-	tmpDir := testutil.TempDir(t, "tools-plugins")
-
-	testContent := `---
-on: push
-engine: copilot
-plugins:
-  - owner/repo
----
-
-# Test Workflow
-`
-
-	testFile := filepath.Join(tmpDir, "test.md")
-	require.NoError(t, os.WriteFile(testFile, []byte(testContent), 0644))
-
-	compiler := NewCompiler()
-
-	frontmatterResult, err := parser.ExtractFrontmatterFromContent(testContent)
-	require.NoError(t, err)
-
-	agenticEngine, err := compiler.getAgenticEngine("copilot")
-	require.NoError(t, err)
-
-	importsResult := &parser.ImportsResult{}
-
-	result, err := compiler.processToolsAndMarkdown(
-		frontmatterResult,
-		testFile,
-		tmpDir,
-		agenticEngine,
-		"copilot",
-		importsResult,
-	)
-
-	require.NoError(t, err)
-	require.NotNil(t, result)
-
-	assert.NotNil(t, result.pluginInfo, "PluginInfo should be extracted")
-	if result.pluginInfo != nil {
-		assert.NotEmpty(t, result.pluginInfo.Plugins, "Plugins should be extracted")
-	}
-}
-
 // TestProcessToolsAndMarkdown_ToolsTimeout tests tools timeout extraction
 func TestProcessToolsAndMarkdown_ToolsTimeout(t *testing.T) {
 	tmpDir := testutil.TempDir(t, "tools-timeout")

@@ -410,7 +410,6 @@ type WorkflowData struct {
 	CacheMemoryConfig           *CacheMemoryConfig   // parsed cache-memory configuration
 	RepoMemoryConfig            *RepoMemoryConfig    // parsed repo-memory configuration
 	Runtimes                    map[string]any       // runtime version overrides from frontmatter
-	PluginInfo                  *PluginInfo          // Consolidated plugin information (plugins, custom token, MCP configs)
 	APMDependencies             *APMDependenciesInfo // APM (Agent Package Manager) dependency packages to install
 	ToolsTimeout                int                  // timeout in seconds for tool/MCP operations (0 = use engine default)
 	ToolsStartupTimeout         int                  // timeout in seconds for MCP server startup (0 = use engine default)

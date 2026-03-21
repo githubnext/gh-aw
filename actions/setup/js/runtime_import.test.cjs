@@ -87,6 +87,7 @@ describe("runtime_import", () => {
         expect(isSafeExpression("github.actor")).toBe(!0);
         expect(isSafeExpression("github.repository")).toBe(!0);
         expect(isSafeExpression("github.event.issue.number")).toBe(!0);
+        expect(isSafeExpression("github.event_name")).toBe(!0);
       });
       it("should allow dynamic patterns", () => {
         expect(isSafeExpression("needs.job-id.outputs.result")).toBe(!0);
@@ -256,6 +257,7 @@ describe("runtime_import", () => {
         // Mock the global context object
         global.context = {
           actor: "testuser",
+          eventName: "issues",
           job: "test-job",
           repo: { owner: "testorg", repo: "testrepo" },
           runId: 12345,
@@ -270,6 +272,7 @@ describe("runtime_import", () => {
       it("should evaluate basic expressions", () => {
         expect(evaluateExpression("github.actor")).toBe("testuser");
         expect(evaluateExpression("github.repository")).toBe("testorg/testrepo");
+        expect(evaluateExpression("github.event_name")).toBe("issues");
       });
       it("should evaluate OR with literal fallback when left is undefined", () => {
         expect(evaluateExpression("inputs.missing || 'default'")).toBe("default");
@@ -702,6 +705,7 @@ describe("runtime_import", () => {
       beforeEach(() => {
         global.context = {
           actor: "testuser",
+          eventName: "issues",
           job: "test-job",
           repo: { owner: "testorg", repo: "testrepo" },
           runId: 12345,
@@ -727,6 +731,7 @@ describe("runtime_import", () => {
           expect(isSafeExpression("github.repository")).toBe(true);
           expect(isSafeExpression("github.event.issue.number")).toBe(true);
           expect(isSafeExpression("github.event.pull_request.title")).toBe(true);
+          expect(isSafeExpression("github.event_name")).toBe(true);
         });
 
         it("should allow dynamic patterns", () => {
@@ -755,6 +760,7 @@ describe("runtime_import", () => {
           expect(evaluateExpression("github.actor")).toBe("testuser");
           expect(evaluateExpression("github.repository")).toBe("testorg/testrepo");
           expect(evaluateExpression("github.run_id")).toBe("12345");
+          expect(evaluateExpression("github.event_name")).toBe("issues");
         });
 
         it("should evaluate nested event properties", () => {

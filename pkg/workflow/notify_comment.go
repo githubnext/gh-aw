@@ -459,7 +459,7 @@ func (c *Compiler) buildConclusionJob(data *WorkflowData, mainJobName string, sa
 
 	job := &Job{
 		Name:        "conclusion",
-		If:          condition.Render(),
+		If:          RenderCondition(condition),
 		RunsOn:      c.formatSafeOutputsRunsOn(data.SafeOutputs),
 		Environment: c.indentYAMLLines(resolveSafeOutputsEnvironment(data), "    "),
 		Permissions: permissions.RenderToYAML(),

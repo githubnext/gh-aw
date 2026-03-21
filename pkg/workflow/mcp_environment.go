@@ -80,11 +80,11 @@ func collectMCPEnvironmentVariables(tools map[string]any, mcpTools []string, wor
 		}
 
 		// Add guard policy env vars if the determine-automatic-lockdown step will be generated.
-		// Skip when a GitHub App is configured or when guard policy is already explicitly set —
-		// in those cases, the determine-automatic-lockdown step is not generated.
+		// Skip only when guard policy is already explicitly set — in that case, the
+		// determine-automatic-lockdown step is not generated.
 		// Security: Pass step outputs through environment variables to prevent template injection.
 		guardPoliciesExplicit := len(getGitHubGuardPolicies(githubTool)) > 0
-		if !guardPoliciesExplicit && !appConfigured {
+		if !guardPoliciesExplicit {
 			envVars["GITHUB_MCP_GUARD_MIN_INTEGRITY"] = "${{ steps.determine-automatic-lockdown.outputs.min_integrity }}"
 			envVars["GITHUB_MCP_GUARD_REPOS"] = "${{ steps.determine-automatic-lockdown.outputs.repos }}"
 		}
@@ -115,9 +115,9 @@ func collectMCPEnvironmentVariables(tools map[string]any, mcpTools []string, wor
 		maps.Copy(envVars, mcpScriptsSecrets)
 	}
 
-	// Check for safe-outputs env vars
-	// Only add env vars if safe-outputs is actually enabled
-	// This prevents referencing step outputs that don't exist when safe-outputs isn't used
+	// Add safe-outputs server connection env vars (port and API key for MCP tools)
+	// Only add if safe-outputs is actually enabled — avoids referencing step outputs
+	// that don't exist when safe-outputs isn't used.
 	if workflowData != nil && HasSafeOutputsEnabled(workflowData.SafeOutputs) {
 		// Add server configuration env vars from step outputs
 		envVars["GH_AW_SAFE_OUTPUTS_PORT"] = "${{ steps.safe-outputs-start.outputs.port }}"
@@ -182,20 +182,6 @@ func collectMCPEnvironmentVariables(tools map[string]any, mcpTools []string, wor
 				envExprs := ExtractEnvExpressionsFromMap(mcpConfig.Env)
 				mcpEnvironmentLog.Printf("Extracted %d env expressions from env section of MCP server '%s'", len(envExprs), toolName)
 				maps.Copy(envVars, envExprs)
-			}
-		}
-	}
-
-	// Extract environment variables from plugin MCP configurations
-	// Plugins can define MCP servers with environment variables that need to be available during gateway setup
-	// We need to pass ALL env vars (not just secrets) since plugins may need configuration values
-	if workflowData != nil && workflowData.PluginInfo != nil && len(workflowData.PluginInfo.MCPConfigs) > 0 {
-		mcpEnvironmentLog.Printf("Extracting environment variables from %d plugin MCP configurations", len(workflowData.PluginInfo.MCPConfigs))
-		for pluginID, mcpConfig := range workflowData.PluginInfo.MCPConfigs {
-			if mcpConfig != nil && len(mcpConfig.Env) > 0 {
-				mcpEnvironmentLog.Printf("Adding %d environment variables from plugin '%s' MCP configuration", len(mcpConfig.Env), pluginID)
-				// Add ALL environment variables from plugin MCP config (not just secrets)
-				maps.Copy(envVars, mcpConfig.Env)
 			}
 		}
 	}

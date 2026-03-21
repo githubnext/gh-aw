@@ -534,7 +534,7 @@ These resources contain workflow patterns, best practices, safe outputs, and per
 4. **Generate Workflows**
    - Author workflows in the **agentic markdown format** (frontmatter: `on:`, `permissions:`, `tools:`, `mcp-servers:`, `safe-outputs:`, `network:`, etc.).
    - Compile with `gh aw compile` to produce `.github/workflows/<name>.lock.yml`.
-   - 💡 If the task benefits from **caching** (repeated model calls, large context reuse), suggest top-level **`cache-memory:`** (see [filename safety note](#cache-memory-filename-safety) below).
+   - 💡 If the task benefits from **persistent state** (deduplication, incremental processing, repeated model calls, large context reuse), use **`cache-memory:`** — it is the canonical persistence tool. For a full comparison of `cache-memory`, `repo-memory`, and `repo-memory` with wiki, consult `.github/aw/memory.md`. See also [filename safety note](#cache-memory-filename-safety) below.
    - ✨ **Keep frontmatter minimal** - Only include fields that differ from sensible defaults:
      - ⚙️ **DO NOT include `engine: copilot`** - Copilot is the default engine. Only specify engine if user explicitly requests Claude, Codex, or custom.
      - ⏱️ **DO NOT include `timeout-minutes:`** unless user needs a specific timeout - the default is sensible.

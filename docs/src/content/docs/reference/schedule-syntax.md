@@ -129,6 +129,26 @@ on:
 
 Each workflow gets a deterministic time that repeats every 14 or 21 days, scattered across the full period to distribute load.
 
+## IANA Timezone Field
+
+For cron-based schedule items, use the optional `timezone` field to interpret the cron expression in a specific timezone rather than UTC:
+
+```yaml
+on:
+  schedule:
+    - cron: "30 9 * * 1-5"
+      timezone: "America/New_York"   # 9:30 AM EST/EDT Mon-Fri
+    - cron: "0 14 * * *"
+      timezone: "Asia/Tokyo"         # 2:00 PM JST daily
+    - cron: "0 8 * * 1"
+      timezone: "Europe/London"      # 8:00 AM GMT/BST on Mondays
+```
+
+The `timezone` field accepts any [IANA timezone identifier](https://en.wikipedia.org/wiki/List_of_tz_database_time_zones) (e.g., `America/New_York`, `Europe/London`, `Asia/Tokyo`, `UTC`). The compiler converts the cron expression to UTC using the specified timezone rules, including automatic daylight saving time handling.
+
+> [!NOTE]
+> The `timezone` field applies only to cron-based schedule items (`- cron: "..."`) in the list form. For fuzzy schedules written as strings (e.g., `daily around 9am`), use the inline `utc+N` / `utc-N` offset syntax instead.
+
 ## UTC Offset Support
 
 Use `utc+N` or `utc-N` (or `utc+HH:MM`) to convert local times to UTC:

@@ -125,34 +125,6 @@ metadata:
 
 Metadata provides a flexible way to add descriptive information to workflows without affecting execution.
 
-### Plugins (`plugins:`)
-
-:::caution[Experimental Feature]
-Plugin support is experimental and may change in future releases. Using plugins will emit a compilation warning.
-:::
-
-Specifies plugins to install before workflow execution. Plugins are installed using engine-specific CLI commands (`copilot plugin install`, `claude plugin install`, `codex plugin install`).
-
-**Array format** (simple):
-
-```yaml wrap
-plugins:
-  - github/test-plugin
-  - acme/custom-tools
-```
-
-**Object format** (with custom token):
-
-```yaml wrap
-plugins:
-  repos:
-    - github/test-plugin
-    - acme/custom-tools
-  github-token: ${{ secrets.CUSTOM_PLUGIN_TOKEN }}
-```
-
-Each plugin repository must be specified in `org/repo` format. The compiler generates installation steps that run after the engine CLI is installed but before workflow execution begins.
-
 ### APM Dependencies (`dependencies:`)
 
 Specifies [APM (Agent Package Manager)](https://microsoft.github.io/apm/) packages to install before workflow execution. APM manages AI agent primitives such as skills, prompts, instructions, agents, hooks, and plugins (including the Claude `plugin.json` format). When present, the compiler runs `apm pack` in the activation job and `apm unpack` in the agent job for faster, deterministic startup.

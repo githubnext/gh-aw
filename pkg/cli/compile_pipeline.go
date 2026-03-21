@@ -34,7 +34,7 @@ import (
 	"github.com/github/gh-aw/pkg/workflow"
 )
 
-var compileOrchestrationLog = logger.New("cli:compile_orchestration")
+var compileOrchestrationLog = logger.New("cli:compile_pipeline")
 
 // compileSpecificFiles compiles a specific list of workflow files
 func compileSpecificFiles(
