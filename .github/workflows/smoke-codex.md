@@ -96,18 +96,22 @@ checkout:
 
 ## Output
 
-Add a **very brief** comment (max 5-10 lines) to the current pull request with:
-- PR titles only (no descriptions)
-- ✅ or ❌ for each test result
-- Overall status: PASS or FAIL
+**Check `${{ github.event_name }}` to determine the correct output action:**
 
-If all tests pass:
-- Use the `add_labels` safe-output tool to add the label `smoke-codex` to the pull request
-- Use the `remove_labels` safe-output tool to remove the label `smoke` from the pull request
-- Use the `unassign_from_user` safe-output tool to unassign the user `githubactionagent` from the pull request (this is a fictitious user used for testing)
+- **If `${{ github.event_name }}` is `pull_request`**: Use the `add_comment` safe-output tool to add a **very brief** comment (max 5-10 lines) to the triggering pull request, specifying `item_number: ${{ github.event.pull_request.number }}` (use this exact number — do NOT search GitHub for a PR):
+  - PR titles only (no descriptions)
+  - ✅ or ❌ for each test result
+  - Overall status: PASS or FAIL
+
+- **If `${{ github.event_name }}` is `schedule` or `workflow_dispatch`**: Call the `noop` safe-output tool with a brief summary of the test results (there is no pull request to comment on for scheduled or manually triggered runs).
+
+If all tests pass and this workflow was triggered by a `pull_request` event:
+- Use the `add_labels` safe-output tool to add the label `smoke-codex` to the pull request (use `item_number: ${{ github.event.pull_request.number }}`)
+- Use the `remove_labels` safe-output tool to remove the label `smoke` from the pull request (use `item_number: ${{ github.event.pull_request.number }}`)
+- Use the `unassign_from_user` safe-output tool to unassign the user `githubactionagent` from the pull request (this is a fictitious user used for testing; use `item_number: ${{ github.event.pull_request.number }}`)
 - Use the `add_smoked_label` safe-output action tool to add the label `smoked` to the pull request (call it with `{"labels": "smoked", "number": "${{ github.event.pull_request.number }}"}`)
 
-**Important**: If no action is needed after completing your analysis, you **MUST** call the `noop` safe-output tool with a brief explanation. Failing to call any safe-output tool is the most common cause of safe-output workflow failures.
+**Important**: You **MUST** always call exactly one safe-output tool. Failing to call any safe-output tool is the most common cause of safe-output workflow failures.
 
 ```json
 {"noop": {"message": "No action needed: [brief explanation of what was analyzed and why]"}}
