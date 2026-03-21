@@ -7895,7 +7895,8 @@
                       },
                       "additionalProperties": false
                     }
-                  }
+                  },
+                  "additionalProperties": false
                 }
               },
               "required": ["uses"],

@@ -7,7 +7,6 @@
       "inputs": {
         "github-token": {
           "description": "The GitHub token for authentication.",
-          "required": false,
           "default": "${{ github.token }}"
         },
         "labels": {
@@ -15,15 +14,14 @@
           "required": true
         },
         "number": {
-          "description": "The number of the issue or pull request.",
-          "required": false
+          "description": "The number of the issue or pull request."
         },
         "repo": {
           "description": "The owner and name of the repository. Defaults to the current repository.",
-          "required": false,
           "default": "${{ github.repository }}"
         }
-      }
+      },
+      "action_description": "A GitHub Action to add GitHub labels to pull requests and issues"
     },
     "actions/ai-inference@v2.0.7": {
       "repo": "actions/ai-inference",

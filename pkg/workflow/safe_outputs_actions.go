@@ -34,9 +34,9 @@ type SafeOutputActionConfig struct {
 
 // ActionYAMLInput holds an input definition parsed from a GitHub Action's action.yml.
 type ActionYAMLInput struct {
-	Description string `yaml:"description,omitempty"`
-	Required    bool   `yaml:"required,omitempty"`
-	Default     string `yaml:"default,omitempty"`
+	Description string `yaml:"description,omitempty" json:"description,omitempty"`
+	Required    bool   `yaml:"required,omitempty"    json:"required,omitempty"`
+	Default     string `yaml:"default,omitempty"     json:"default,omitempty"`
 }
 
 // actionYAMLFile is the parsed structure of a GitHub Action's action.yml.
@@ -169,7 +169,8 @@ func parseActionUsesField(uses string) (*actionRef, error) {
 //  2. Inputs cached in the ActionCache (actions-lock.json)
 //  3. Inputs fetched from the remote action.yml (result cached for future runs)
 //
-// The action reference is always pinned to a commit SHA for security.
+// When available, the action reference is pinned to a commit SHA for security;
+// if no pin is available, later step generation falls back to the original config.Uses.
 func (c *Compiler) fetchAndParseActionYAML(actionName string, config *SafeOutputActionConfig, markdownPath string, data *WorkflowData) {
 	if config.Uses == "" {
 		return
@@ -224,7 +225,9 @@ func (c *Compiler) fetchAndParseActionYAML(actionName string, config *SafeOutput
 				if cachedInputs, ok := data.ActionCache.GetInputs(ref.Repo, ref.Ref); ok {
 					safeOutputActionsLog.Printf("Using cached inputs for %q (%s@%s)", actionName, ref.Repo, ref.Ref)
 					config.Inputs = cachedInputs
-					// Skip the remote fetch; inputs are already populated.
+				}
+				if cachedDesc, ok := data.ActionCache.GetActionDescription(ref.Repo, ref.Ref); ok {
+					config.ActionDescription = cachedDesc
 				}
 			}
 
@@ -235,10 +238,13 @@ func (c *Compiler) fetchAndParseActionYAML(actionName string, config *SafeOutput
 				if err != nil {
 					safeOutputActionsLog.Printf("Warning: failed to fetch action.yml for %q (%s): %v", actionName, config.Uses, err)
 				}
-				// Cache the fetched inputs so subsequent compilations are deterministic
-				// even when the network is unavailable.
-				if actionYAML != nil && data.ActionCache != nil && actionYAML.Inputs != nil {
-					data.ActionCache.SetInputs(ref.Repo, ref.Ref, actionYAML.Inputs)
+				// Cache the fetched inputs and description so subsequent compilations are
+				// deterministic even when the network is unavailable.
+				if actionYAML != nil && data.ActionCache != nil {
+					if actionYAML.Inputs != nil {
+						data.ActionCache.SetInputs(ref.Repo, ref.Ref, actionYAML.Inputs)
+					}
+					data.ActionCache.SetActionDescription(ref.Repo, ref.Ref, actionYAML.Description)
 				}
 			}
 		}
