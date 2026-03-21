@@ -334,7 +334,9 @@ func parsePlaywrightTool(val any) *PlaywrightToolConfig {
 }
 
 // parseQmdTool converts raw qmd tool configuration to QmdToolConfig.
-// The qmd tool requires a list of glob patterns (docs field) to specify which files to index.
+// The qmd tool supports two forms:
+//   - Simple: docs field with a list of glob patterns (single collection, current repo)
+//   - Extended: collections field with named collections, each optionally with a checkout
 func parseQmdTool(val any) *QmdToolConfig {
 	if val == nil {
 		toolsParserLog.Print("qmd tool enabled with empty docs configuration")
@@ -344,7 +346,24 @@ func parseQmdTool(val any) *QmdToolConfig {
 	if configMap, ok := val.(map[string]any); ok {
 		config := &QmdToolConfig{}
 
-		// Handle docs field - list of glob patterns
+		// Handle collections field - list of named collections with optional checkout
+		if collectionsValue, ok := configMap["collections"]; ok {
+			if arr, ok := collectionsValue.([]any); ok {
+				config.Collections = make([]*QmdDocCollection, 0, len(arr))
+				for i, item := range arr {
+					itemMap, ok := item.(map[string]any)
+					if !ok {
+						continue
+					}
+					col := parseQmdDocCollection(itemMap, i)
+					config.Collections = append(config.Collections, col)
+				}
+				toolsParserLog.Printf("qmd tool parsed %d collections", len(config.Collections))
+				return config
+			}
+		}
+
+		// Handle docs field - simple glob list (backward-compatible single collection)
 		if docsValue, ok := configMap["docs"]; ok {
 			if arr, ok := docsValue.([]any); ok {
 				config.Docs = make([]string, 0, len(arr))
@@ -362,6 +381,43 @@ func parseQmdTool(val any) *QmdToolConfig {
 	}
 
 	return &QmdToolConfig{}
+}
+
+// parseQmdDocCollection converts a raw map to a QmdDocCollection.
+// The index parameter is used to generate a default name when none is provided.
+func parseQmdDocCollection(m map[string]any, index int) *QmdDocCollection {
+	col := &QmdDocCollection{}
+
+	if name, ok := m["name"].(string); ok && name != "" {
+		col.Name = name
+	} else {
+		col.Name = fmt.Sprintf("docs-%d", index)
+	}
+
+	if docsValue, ok := m["docs"]; ok {
+		if arr, ok := docsValue.([]any); ok {
+			col.Docs = make([]string, 0, len(arr))
+			for _, item := range arr {
+				if str, ok := item.(string); ok {
+					col.Docs = append(col.Docs, str)
+				}
+			}
+		} else if arr, ok := docsValue.([]string); ok {
+			col.Docs = arr
+		}
+	}
+
+	if checkoutValue, ok := m["checkout"]; ok {
+		if checkoutMap, ok := checkoutValue.(map[string]any); ok {
+			if cfg, err := checkoutConfigFromMap(checkoutMap); err == nil {
+				col.Checkout = cfg
+			} else {
+				toolsParserLog.Printf("qmd collection %q: ignoring invalid checkout config: %v", col.Name, err)
+			}
+		}
+	}
+
+	return col
 }
 
 // parseSerenaTool converts raw serena tool configuration to SerenaToolConfig

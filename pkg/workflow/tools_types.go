@@ -311,14 +311,39 @@ type PlaywrightToolConfig struct {
 	Args    []string `yaml:"args,omitempty"`
 }
 
+// QmdDocCollection represents a named documentation collection for the qmd tool.
+// Each collection indexes its own set of files and can optionally target a different
+// repository via its own checkout configuration.
+type QmdDocCollection struct {
+	// Name is the collection identifier used in the qmd index.
+	// Defaults to "docs" for single-collection configs or "docs-<index>" for multiple collections.
+	Name string `yaml:"name,omitempty"`
+
+	// Docs is the list of glob patterns for files to include in this collection.
+	// Example: ["docs/**/*.md", ".github/**/*.md"]
+	Docs []string `yaml:"docs"`
+
+	// Checkout configures which repository to check out for this collection.
+	// Uses the same syntax as the top-level checkout configuration.
+	// Defaults to the current repository if not set.
+	Checkout *CheckoutConfig `yaml:"checkout,omitempty"`
+}
+
 // QmdToolConfig represents the configuration for the qmd documentation search tool.
 // qmd (https://github.com/tobi/qmd) provides local vector search over documentation files.
 // The index is built in the activation job and downloaded by the agent job, so no
 // contents:read permission is needed in the agent job.
 type QmdToolConfig struct {
 	// Docs is the list of glob patterns for files to include in the search index.
+	// Shorthand for a single default collection targeting the current repository.
+	// Mutually exclusive with Collections.
 	// Example: ["docs/**/*.md", ".github/**/*.md"]
-	Docs []string `yaml:"docs"`
+	Docs []string `yaml:"docs,omitempty"`
+
+	// Collections is the list of named documentation collections.
+	// Each collection can specify its own checkout to target a different repository.
+	// When both Docs and Collections are set, Collections takes precedence and Docs is ignored.
+	Collections []*QmdDocCollection `yaml:"collections,omitempty"`
 }
 
 // SerenaToolConfig represents the configuration for the Serena MCP tool

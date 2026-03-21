@@ -66,11 +66,111 @@ func hasQmdTool(parsedTools *Tools) bool {
 	return parsedTools.Qmd != nil
 }
 
+// resolvedQmdCollection is an internal representation of a qmd collection
+// with its working directory resolved.
+type resolvedQmdCollection struct {
+	name    string
+	docs    []string
+	workdir string // absolute path within the runner (e.g. ${GITHUB_WORKSPACE} or /tmp/gh-aw/qmd-checkout-<name>)
+}
+
+// resolveQmdCollections converts a QmdToolConfig into a list of resolvedQmdCollections.
+// Collections that require a custom checkout will have their workdir set to a temporary
+// path under /tmp/gh-aw/.
+func resolveQmdCollections(qmdConfig *QmdToolConfig) []resolvedQmdCollection {
+	// Extended form: explicit collections list
+	if len(qmdConfig.Collections) > 0 {
+		resolved := make([]resolvedQmdCollection, 0, len(qmdConfig.Collections))
+		for _, col := range qmdConfig.Collections {
+			name := col.Name
+			if name == "" {
+				name = "docs"
+			}
+			workdir := "${GITHUB_WORKSPACE}"
+			if col.Checkout != nil {
+				if col.Checkout.Path != "" {
+					// Checkout path is relative to GITHUB_WORKSPACE; strip leading "./" for cleanliness
+					checkoutPath := strings.TrimPrefix(col.Checkout.Path, "./")
+					workdir = "${GITHUB_WORKSPACE}/" + checkoutPath
+				} else {
+					// No explicit path → use an isolated temp directory
+					workdir = "/tmp/gh-aw/qmd-checkout-" + name
+				}
+			}
+			resolved = append(resolved, resolvedQmdCollection{
+				name:    name,
+				docs:    col.Docs,
+				workdir: workdir,
+			})
+		}
+		return resolved
+	}
+
+	// Simple form: docs shorthand → single default collection
+	docs := qmdConfig.Docs
+	if len(docs) == 0 {
+		docs = []string{"**/*.md"}
+	}
+	return []resolvedQmdCollection{{
+		name:    "docs",
+		docs:    docs,
+		workdir: "${GITHUB_WORKSPACE}",
+	}}
+}
+
+// generateQmdCollectionCheckoutStep generates a checkout step YAML string for a qmd
+// collection that targets a non-default repository.  Returns an empty string when the
+// collection uses the current repository (no checkout needed).
+func generateQmdCollectionCheckoutStep(col *QmdDocCollection) string {
+	if col.Checkout == nil {
+		return ""
+	}
+	cfg := col.Checkout
+
+	// Determine checkout path used in the runner filesystem
+	checkoutPath := cfg.Path
+	if checkoutPath == "" {
+		checkoutPath = "/tmp/gh-aw/qmd-checkout-" + col.Name
+	}
+
+	var sb strings.Builder
+	fmt.Fprintf(&sb, "      - name: Checkout %s for qmd\n", col.Name)
+	fmt.Fprintf(&sb, "        uses: %s\n", GetActionPin("actions/checkout"))
+	sb.WriteString("        with:\n")
+	sb.WriteString("          persist-credentials: false\n")
+	if cfg.Repository != "" {
+		fmt.Fprintf(&sb, "          repository: %s\n", cfg.Repository)
+	}
+	if cfg.Ref != "" {
+		fmt.Fprintf(&sb, "          ref: %s\n", cfg.Ref)
+	}
+	fmt.Fprintf(&sb, "          path: %s\n", checkoutPath)
+	if cfg.GitHubToken != "" {
+		fmt.Fprintf(&sb, "          token: %s\n", cfg.GitHubToken)
+	}
+	if cfg.FetchDepth != nil {
+		fmt.Fprintf(&sb, "          fetch-depth: %d\n", *cfg.FetchDepth)
+	}
+	if cfg.SparseCheckout != "" {
+		sb.WriteString("          sparse-checkout: |\n")
+		for line := range strings.SplitSeq(strings.TrimRight(cfg.SparseCheckout, "\n"), "\n") {
+			fmt.Fprintf(&sb, "            %s\n", strings.TrimSpace(line))
+		}
+	}
+	if cfg.Submodules != "" {
+		fmt.Fprintf(&sb, "          submodules: %s\n", cfg.Submodules)
+	}
+	if cfg.LFS {
+		sb.WriteString("          lfs: true\n")
+	}
+	return sb.String()
+}
+
 // generateQmdIndexSteps generates the activation job steps that install qmd, register
 // collections for each configured doc glob, and build the vector search index.
 // The index is stored at /tmp/gh-aw/qmd-index and uploaded as the qmd-index artifact.
 func generateQmdIndexSteps(qmdConfig *QmdToolConfig, data *WorkflowData) []string {
-	qmdLog.Printf("Generating qmd index steps: docs=%v", qmdConfig.Docs)
+	qmdLog.Printf("Generating qmd index steps: docs=%v collections=%d", qmdConfig.Docs, len(qmdConfig.Collections))
 
 	version := string(constants.DefaultQmdVersion)
 	var steps []string
@@ -86,24 +186,41 @@ func generateQmdIndexSteps(qmdConfig *QmdToolConfig, data *WorkflowData) []strin
 	steps = append(steps, "        run: |\n")
 	steps = append(steps, fmt.Sprintf("          npm install -g @tobilu/qmd@%s\n", version))
 
+	// Emit a checkout step for each collection that needs its own repo
+	if len(qmdConfig.Collections) > 0 {
+		for _, col := range qmdConfig.Collections {
+			if checkoutStep := generateQmdCollectionCheckoutStep(col); checkoutStep != "" {
+				steps = append(steps, checkoutStep)
+			}
+		}
+	}
+
 	// Build the index: register collections and index docs
 	steps = append(steps, "      - name: Build qmd index\n")
 	steps = append(steps, "        run: |\n")
 	steps = append(steps, "          set -e\n")
 	steps = append(steps, "          mkdir -p /tmp/gh-aw/qmd-index\n")
 
-	// Register collections based on configured globs.
-	// Each pattern is POSIX-single-quote escaped to prevent shell injection;
+	// Register each resolved collection.
+	// Each glob pattern is POSIX-single-quote escaped to prevent shell injection;
 	// single-quote wrapping means $, `, \, and ; are all treated as literals.
-	if len(qmdConfig.Docs) > 0 {
-		globArg := shellSingleQuote(strings.Join(qmdConfig.Docs, ","))
+	// The workdir is double-quoted to preserve ${GITHUB_WORKSPACE} variable expansion
+	// while still guarding against word-splitting on paths that contain spaces.
+	// The name and glob args come from user input so they are single-quoted.
+	collections := resolveQmdCollections(qmdConfig)
+	for _, col := range collections {
+		var globArg string
+		if len(col.docs) > 0 {
+			globArg = shellSingleQuote(strings.Join(col.docs, ","))
+		} else {
+			globArg = "'**/*.md'"
+		}
 		steps = append(steps, fmt.Sprintf(
-			"          QMD_CACHE_DIR=/tmp/gh-aw/qmd-index qmd collection add \"${GITHUB_WORKSPACE}\" --name docs --glob %s\n",
+			"          QMD_CACHE_DIR=/tmp/gh-aw/qmd-index qmd collection add \"%s\" --name %s --glob %s\n",
+			col.workdir,
+			shellSingleQuote(col.name),
 			globArg,
 		))
-	} else {
-		// Default: index all markdown files in the workspace
-		steps = append(steps, "          QMD_CACHE_DIR=/tmp/gh-aw/qmd-index qmd collection add \"${GITHUB_WORKSPACE}\" --name docs --glob '**/*.md'\n")
 	}
 
 	// Upload qmd index as a separate artifact for the agent job
