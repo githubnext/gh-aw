@@ -744,11 +744,19 @@ func (c *Compiler) extractAdditionalConfigurations(
 	workflowData.SafeOutputs = safeOutputs
 
 	// Extract mcp-scripts configuration
-	workflowData.MCPScripts = c.extractMCPScriptsConfig(frontmatter)
+	mcpScripts, err := c.extractMCPScriptsConfig(frontmatter)
+	if err != nil {
+		return fmt.Errorf("mcp-scripts: %w", err)
+	}
+	workflowData.MCPScripts = mcpScripts
 
 	// Merge mcp-scripts from imports
 	if len(importsResult.MergedMCPScripts) > 0 {
-		workflowData.MCPScripts = c.mergeMCPScripts(workflowData.MCPScripts, importsResult.MergedMCPScripts)
+		merged, mergeErr := c.mergeMCPScripts(workflowData.MCPScripts, importsResult.MergedMCPScripts)
+		if mergeErr != nil {
+			return fmt.Errorf("mcp-scripts (imported): %w", mergeErr)
+		}
+		workflowData.MCPScripts = merged
 	}
 
 	// Extract safe-jobs from safe-outputs.jobs location

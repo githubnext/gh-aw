@@ -563,20 +563,32 @@ jobs:
           chmod +x ${RUNNER_TEMP}/gh-aw/mcp-scripts/mcp-server.cjs
           
       - name: Setup MCP Scripts Tool Files
+        env:
+          GH_AW_MCP_SCRIPTS_DIR: "${{ runner.temp }}/gh-aw/mcp-scripts"
+          GH_AW_SCRIPT_COUNT: "1"
+          GH_AW_SCRIPT_0_NAME: "qmd-query"
+          GH_AW_SCRIPT_0_EXT: "sh"
+          GH_AW_SCRIPT_0_EXEC: "true"
+          GH_AW_SCRIPT_0_B64: "IyEvYmluL2Jhc2gKIyBBdXRvLWdlbmVyYXRlZCBtY3Atc2NyaXB0IHRvb2w6IHFtZC1xdWVyeQojIEZpbmQgcmVsZXZhbnQgZmlsZSBwYXRocyBpbiBwcm9qZWN0IGRvY3VtZW50YXRpb24gdXNpbmcgdmVjdG9yIHNpbWlsYXJpdHkgc2VhcmNoLiBSZXR1cm5zIGZpbGUgcGF0aHMgYW5kIHNjb3Jlcy4KCnNldCAtZXVvIHBpcGVmYWlsCgpzZXQgLWUKcW1kIHZzZWFyY2ggIiRJTlBVVF9RVUVSWSIgLS1maWxlcyAtLW1pbi1zY29yZSAiJHtJTlBVVF9NSU5fU0NPUkU6LTAuNH0iCgo="
         run: |
-          cat > ${RUNNER_TEMP}/gh-aw/mcp-scripts/qmd-query.sh << 'GH_AW_MCP_SCRIPTS_SH_QMD-QUERY_EOF'
-          #!/bin/bash
-          # Auto-generated mcp-script tool: qmd-query
-          # Find relevant file paths in project documentation using vector similarity search. Returns file paths and scores.
-          
-          set -euo pipefail
-          
-          set -e
-          qmd vsearch "$INPUT_QUERY" --files --min-score "${INPUT_MIN_SCORE:-0.4}"
-          
-          
-          GH_AW_MCP_SCRIPTS_SH_QMD-QUERY_EOF
-          chmod +x ${RUNNER_TEMP}/gh-aw/mcp-scripts/qmd-query.sh
+          node << 'GH_AW_MCP_SCRIPTS_WRITER_EOF'
+          const fs = require('fs');
+          const path = require('path');
+          const dir = process.env.GH_AW_MCP_SCRIPTS_DIR;
+          const count = parseInt(process.env.GH_AW_SCRIPT_COUNT || '0', 10);
+          for (let i = 0; i < count; i++) {
+            const name = process.env['GH_AW_SCRIPT_' + i + '_NAME'];
+            const ext = process.env['GH_AW_SCRIPT_' + i + '_EXT'];
+            const exec = process.env['GH_AW_SCRIPT_' + i + '_EXEC'] === 'true';
+            const b64 = process.env['GH_AW_SCRIPT_' + i + '_B64'];
+            if (!name || !ext || !b64) continue;
+            if (!/^[a-zA-Z][a-zA-Z0-9_-]{0,63}$/.test(name)) throw new Error('Invalid tool name: ' + name);
+            const content = Buffer.from(b64, 'base64').toString('utf8');
+            const filePath = path.join(dir, name + '.' + ext);
+            fs.writeFileSync(filePath, content, 'utf8');
+            if (exec) { fs.chmodSync(filePath, 0o755); }
+          }
+          GH_AW_MCP_SCRIPTS_WRITER_EOF
           
       - name: Generate MCP Scripts Server Config
         id: mcp-scripts-config

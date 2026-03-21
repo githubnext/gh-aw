@@ -62,6 +62,7 @@
 package workflow
 
 import (
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"slices"
@@ -360,56 +361,79 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 		yaml.WriteString("          chmod +x ${RUNNER_TEMP}/gh-aw/mcp-scripts/mcp-server.cjs\n")
 		yaml.WriteString("          \n")
 
-		// Step 2: Generate tool files (js/py/sh)
+		// Step 2: Generate tool files (js/py/sh) using Node.js with env vars.
+		// Passing tool names and content through environment variables prevents shell injection:
+		// the tool name never appears in the shell command itself.
 		yaml.WriteString("      - name: Setup MCP Scripts Tool Files\n")
-		yaml.WriteString("        run: |\n")
+		yaml.WriteString("        env:\n")
+		yaml.WriteString("          GH_AW_MCP_SCRIPTS_DIR: \"${{ runner.temp }}/gh-aw/mcp-scripts\"\n")
 
 		// Generate individual tool files (sorted by name for stable code generation)
 		mcpScriptToolNames := sliceutil.MapToSlice(workflowData.MCPScripts.Tools)
 		sort.Strings(mcpScriptToolNames)
 
-		for _, toolName := range mcpScriptToolNames {
+		fmt.Fprintf(yaml, "          GH_AW_SCRIPT_COUNT: \"%d\"\n", len(mcpScriptToolNames))
+
+		for i, toolName := range mcpScriptToolNames {
 			toolConfig := workflowData.MCPScripts.Tools[toolName]
+			var toolScript string
+			var ext string
+			var exec bool
 			if toolConfig.Script != "" {
-				// JavaScript tool
-				toolScript := generateMCPScriptJavaScriptToolScript(toolConfig)
-				jsDelimiter := GenerateHeredocDelimiter("MCP_SCRIPTS_JS_" + strings.ToUpper(toolName))
-				fmt.Fprintf(yaml, "          cat > ${RUNNER_TEMP}/gh-aw/mcp-scripts/%s.cjs << '%s'\n", toolName, jsDelimiter)
-				for _, line := range FormatJavaScriptForYAML(toolScript) {
-					yaml.WriteString(line)
-				}
-				fmt.Fprintf(yaml, "          %s\n", jsDelimiter)
+				toolScript = generateMCPScriptJavaScriptToolScript(toolConfig)
+				ext = "cjs"
+				exec = false
 			} else if toolConfig.Run != "" {
-				// Shell script tool
-				toolScript := generateMCPScriptShellToolScript(toolConfig)
-				shDelimiter := GenerateHeredocDelimiter("MCP_SCRIPTS_SH_" + strings.ToUpper(toolName))
-				fmt.Fprintf(yaml, "          cat > ${RUNNER_TEMP}/gh-aw/mcp-scripts/%s.sh << '%s'\n", toolName, shDelimiter)
-				for line := range strings.SplitSeq(toolScript, "\n") {
-					yaml.WriteString("          " + line + "\n")
-				}
-				fmt.Fprintf(yaml, "          %s\n", shDelimiter)
-				fmt.Fprintf(yaml, "          chmod +x ${RUNNER_TEMP}/gh-aw/mcp-scripts/%s.sh\n", toolName)
+				toolScript = generateMCPScriptShellToolScript(toolConfig)
+				ext = "sh"
+				exec = true
 			} else if toolConfig.Py != "" {
-				// Python script tool
-				toolScript := generateMCPScriptPythonToolScript(toolConfig)
-				pyDelimiter := GenerateHeredocDelimiter("MCP_SCRIPTS_PY_" + strings.ToUpper(toolName))
-				fmt.Fprintf(yaml, "          cat > ${RUNNER_TEMP}/gh-aw/mcp-scripts/%s.py << '%s'\n", toolName, pyDelimiter)
-				for line := range strings.SplitSeq(toolScript, "\n") {
-					yaml.WriteString("          " + line + "\n")
-				}
-				fmt.Fprintf(yaml, "          %s\n", pyDelimiter)
-				fmt.Fprintf(yaml, "          chmod +x ${RUNNER_TEMP}/gh-aw/mcp-scripts/%s.py\n", toolName)
+				toolScript = generateMCPScriptPythonToolScript(toolConfig)
+				ext = "py"
+				exec = true
 			} else if toolConfig.Go != "" {
-				// Go script tool
-				toolScript := generateMCPScriptGoToolScript(toolConfig)
-				goDelimiter := GenerateHeredocDelimiter("MCP_SCRIPTS_GO_" + strings.ToUpper(toolName))
-				fmt.Fprintf(yaml, "          cat > ${RUNNER_TEMP}/gh-aw/mcp-scripts/%s.go << '%s'\n", toolName, goDelimiter)
-				for line := range strings.SplitSeq(toolScript, "\n") {
-					yaml.WriteString("          " + line + "\n")
-				}
-				fmt.Fprintf(yaml, "          %s\n", goDelimiter)
+				toolScript = generateMCPScriptGoToolScript(toolConfig)
+				ext = "go"
+				exec = false
 			}
+
+			execStr := "false"
+			if exec {
+				execStr = "true"
+			}
+
+			// Base64-encode the script content so it can be safely embedded in a YAML
+			// environment variable without heredoc quoting or newline escaping issues.
+			encodedContent := base64.StdEncoding.EncodeToString([]byte(toolScript))
+			fmt.Fprintf(yaml, "          GH_AW_SCRIPT_%d_NAME: %q\n", i, toolName)
+			fmt.Fprintf(yaml, "          GH_AW_SCRIPT_%d_EXT: %q\n", i, ext)
+			fmt.Fprintf(yaml, "          GH_AW_SCRIPT_%d_EXEC: %q\n", i, execStr)
+			fmt.Fprintf(yaml, "          GH_AW_SCRIPT_%d_B64: %q\n", i, encodedContent)
 		}
+
+		// The Node.js writer script is fully static — no user-provided data appears in
+		// the shell command.  Tool names are validated by Node.js as a defence-in-depth
+		// measure before they are used as file-system paths.
+		writerDelimiter := GenerateHeredocDelimiter("MCP_SCRIPTS_WRITER")
+		yaml.WriteString("        run: |\n")
+		fmt.Fprintf(yaml, "          node << '%s'\n", writerDelimiter)
+		yaml.WriteString("          const fs = require('fs');\n")
+		yaml.WriteString("          const path = require('path');\n")
+		yaml.WriteString("          const dir = process.env.GH_AW_MCP_SCRIPTS_DIR;\n")
+		yaml.WriteString("          const count = parseInt(process.env.GH_AW_SCRIPT_COUNT || '0', 10);\n")
+		yaml.WriteString("          for (let i = 0; i < count; i++) {\n")
+		yaml.WriteString("            const name = process.env['GH_AW_SCRIPT_' + i + '_NAME'];\n")
+		yaml.WriteString("            const ext = process.env['GH_AW_SCRIPT_' + i + '_EXT'];\n")
+		yaml.WriteString("            const exec = process.env['GH_AW_SCRIPT_' + i + '_EXEC'] === 'true';\n")
+		yaml.WriteString("            const b64 = process.env['GH_AW_SCRIPT_' + i + '_B64'];\n")
+		yaml.WriteString("            if (!name || !ext || !b64) continue;\n")
+		yaml.WriteString("            if (!/^[a-zA-Z][a-zA-Z0-9_-]{0,63}$/.test(name)) throw new Error('Invalid tool name: ' + name);\n")
+		yaml.WriteString("            const content = Buffer.from(b64, 'base64').toString('utf8');\n")
+		yaml.WriteString("            const filePath = path.join(dir, name + '.' + ext);\n")
+		yaml.WriteString("            fs.writeFileSync(filePath, content, 'utf8');\n")
+		yaml.WriteString("            if (exec) { fs.chmodSync(filePath, 0o755); }\n")
+		yaml.WriteString("          }\n")
+		fmt.Fprintf(yaml, "          %s\n", writerDelimiter)
 		yaml.WriteString("          \n")
 
 		// Step 3: Generate API key and choose port for HTTP server

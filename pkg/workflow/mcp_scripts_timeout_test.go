@@ -102,7 +102,10 @@ func TestMCPScriptsTimeoutParsing(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			config := (&Compiler{}).extractMCPScriptsConfig(tt.frontmatter)
+			config, err := (&Compiler{}).extractMCPScriptsConfig(tt.frontmatter)
+			if err != nil {
+				t.Fatalf("Unexpected error: %v", err)
+			}
 			if config == nil {
 				t.Fatalf("Expected config, got nil")
 			}
@@ -208,7 +211,10 @@ func TestMCPScriptsMergePreservesTimeout(t *testing.T) {
 		}
 	}`
 
-	merged := compiler.mergeMCPScripts(main, []string{importedJSON})
+	merged, err := compiler.mergeMCPScripts(main, []string{importedJSON})
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
 
 	// Verify main tool timeout is preserved
 	if merged.Tools["main-tool"].Timeout != 90 {
@@ -237,7 +243,10 @@ func TestMCPScriptsDefaultTimeoutWhenMerging(t *testing.T) {
 		}
 	}`
 
-	merged := compiler.mergeMCPScripts(main, []string{importedJSON})
+	merged, err := compiler.mergeMCPScripts(main, []string{importedJSON})
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
 
 	// Verify default timeout is used
 	if merged.Tools["imported-tool"].Timeout != 60 {

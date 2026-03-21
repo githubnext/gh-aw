@@ -3,9 +3,25 @@ package workflow
 import (
 	"encoding/json"
 	"fmt"
+	"regexp"
 
 	"github.com/github/gh-aw/pkg/logger"
 )
+
+// mcpScriptToolNameRe is the validation pattern for mcp-script tool names.
+// Tool names must start with a letter and contain only letters, digits, underscores,
+// or hyphens, with a maximum length of 64 characters.
+var mcpScriptToolNameRe = regexp.MustCompile(`^[a-zA-Z][a-zA-Z0-9_-]{0,63}$`)
+
+// validateMCPScriptToolName returns an error if name is not a valid mcp-script tool name.
+// Valid names match ^[a-zA-Z][a-zA-Z0-9_-]{0,63}$ — no shell metacharacters, no path
+// separators, and no leading digits.
+func validateMCPScriptToolName(name string) error {
+	if !mcpScriptToolNameRe.MatchString(name) {
+		return fmt.Errorf("invalid mcp-script tool name %q: must match ^[a-zA-Z][a-zA-Z0-9_-]{0,63}$", name)
+	}
+	return nil
+}
 
 var mcpScriptsLog = logger.New("workflow:mcp_scripts")
 
@@ -58,8 +74,8 @@ func IsMCPScriptsEnabled(mcpScripts *MCPScriptsConfig, workflowData *WorkflowDat
 
 // parseMCPScriptsMap parses mcp-scripts configuration from a map.
 // This is the shared implementation used by both ParseMCPScripts and extractMCPScriptsConfig.
-// Returns the config and a boolean indicating whether any tools were found.
-func parseMCPScriptsMap(mcpScriptsMap map[string]any) (*MCPScriptsConfig, bool) {
+// Returns the config, a boolean indicating whether any tools were found, and any validation error.
+func parseMCPScriptsMap(mcpScriptsMap map[string]any) (*MCPScriptsConfig, bool, error) {
 	config := &MCPScriptsConfig{
 		Mode:  "http", // Only HTTP mode is supported
 		Tools: make(map[string]*MCPScriptToolConfig),
@@ -72,6 +88,11 @@ func parseMCPScriptsMap(mcpScriptsMap map[string]any) (*MCPScriptsConfig, bool) 
 		// Skip the "mode" field as it's not a tool definition
 		if toolName == "mode" {
 			continue
+		}
+
+		// Validate tool name before use — rejects shell metacharacters and path traversal
+		if err := validateMCPScriptToolName(toolName); err != nil {
+			return nil, false, err
 		}
 
 		toolMap, ok := toolValue.(map[string]any)
@@ -187,34 +208,37 @@ func parseMCPScriptsMap(mcpScriptsMap map[string]any) (*MCPScriptsConfig, bool) 
 		config.Tools[toolName] = toolConfig
 	}
 
-	return config, len(config.Tools) > 0
+	return config, len(config.Tools) > 0, nil
 }
 
 // extractMCPScriptsConfig extracts mcp-scripts configuration from frontmatter
-func (c *Compiler) extractMCPScriptsConfig(frontmatter map[string]any) *MCPScriptsConfig {
+func (c *Compiler) extractMCPScriptsConfig(frontmatter map[string]any) (*MCPScriptsConfig, error) {
 	mcpScriptsLog.Print("Extracting mcp-scripts configuration from frontmatter")
 
 	mcpScripts, exists := frontmatter["mcp-scripts"]
 	if !exists {
-		return nil
+		return nil, nil
 	}
 
 	mcpScriptsMap, ok := mcpScripts.(map[string]any)
 	if !ok {
-		return nil
+		return nil, nil
 	}
 
-	config, hasTools := parseMCPScriptsMap(mcpScriptsMap)
+	config, hasTools, err := parseMCPScriptsMap(mcpScriptsMap)
+	if err != nil {
+		return nil, err
+	}
 	if !hasTools {
-		return nil
+		return nil, nil
 	}
 
 	mcpScriptsLog.Printf("Extracted %d mcp-script tools", len(config.Tools))
-	return config
+	return config, nil
 }
 
 // mergeMCPScripts merges mcp-scripts configuration from imports into the main configuration
-func (c *Compiler) mergeMCPScripts(main *MCPScriptsConfig, importedConfigs []string) *MCPScriptsConfig {
+func (c *Compiler) mergeMCPScripts(main *MCPScriptsConfig, importedConfigs []string) (*MCPScriptsConfig, error) {
 	if main == nil {
 		main = &MCPScriptsConfig{
 			Mode:  "http", // Default to HTTP mode
@@ -242,6 +266,11 @@ func (c *Compiler) mergeMCPScripts(main *MCPScriptsConfig, importedConfigs []str
 			// Skip mode field as it's already handled
 			if toolName == "mode" {
 				continue
+			}
+
+			// Validate tool name before use — rejects shell metacharacters and path traversal
+			if err := validateMCPScriptToolName(toolName); err != nil {
+				return nil, err
 			}
 
 			// Skip if tool already exists in main config (main takes precedence)
@@ -360,5 +389,5 @@ func (c *Compiler) mergeMCPScripts(main *MCPScriptsConfig, importedConfigs []str
 		}
 	}
 
-	return main
+	return main, nil
 }

@@ -660,20 +660,32 @@ jobs:
           chmod +x ${RUNNER_TEMP}/gh-aw/mcp-scripts/mcp-server.cjs
           
       - name: Setup MCP Scripts Tool Files
+        env:
+          GH_AW_MCP_SCRIPTS_DIR: "${{ runner.temp }}/gh-aw/mcp-scripts"
+          GH_AW_SCRIPT_COUNT: "1"
+          GH_AW_SCRIPT_0_NAME: "gh"
+          GH_AW_SCRIPT_0_EXT: "sh"
+          GH_AW_SCRIPT_0_EXEC: "true"
+          GH_AW_SCRIPT_0_B64: "IyEvYmluL2Jhc2gKIyBBdXRvLWdlbmVyYXRlZCBtY3Atc2NyaXB0IHRvb2w6IGdoCiMgRXhlY3V0ZSBhbnkgZ2ggQ0xJIGNvbW1hbmQuIFRoaXMgdG9vbCBpcyBhY2Nlc3NpYmxlIGFzICdtY3BzY3JpcHRzLWdoJy4gUHJvdmlkZSB0aGUgZnVsbCBjb21tYW5kIGFmdGVyICdnaCcgKGUuZy4sIGFyZ3M6ICdwciBsaXN0IC0tbGltaXQgNScpLiBUaGUgdG9vbCB3aWxsIHJ1bjogZ2ggPGFyZ3M+LiBVc2Ugc2luZ2xlIHF1b3RlcyAnIGZvciBjb21wbGV4IGFyZ3MgdG8gYXZvaWQgc2hlbGwgaW50ZXJwcmV0YXRpb24gaXNzdWVzLgoKc2V0IC1ldW8gcGlwZWZhaWwKCmVjaG8gImdoICRJTlBVVF9BUkdTIgplY2hvICIgIHRva2VuOiAke0dIX0FXX0dIX1RPS0VOOjA6Nn0uLi4iCkdIX1RPS0VOPSIkR0hfQVdfR0hfVE9LRU4iIGdoICRJTlBVVF9BUkdTCg=="
         run: |
-          cat > ${RUNNER_TEMP}/gh-aw/mcp-scripts/gh.sh << 'GH_AW_MCP_SCRIPTS_SH_GH_EOF'
-          #!/bin/bash
-          # Auto-generated mcp-script tool: gh
-          # Execute any gh CLI command. This tool is accessible as 'mcpscripts-gh'. Provide the full command after 'gh' (e.g., args: 'pr list --limit 5'). The tool will run: gh <args>. Use single quotes ' for complex args to avoid shell interpretation issues.
-          
-          set -euo pipefail
-          
-          echo "gh $INPUT_ARGS"
-          echo "  token: ${GH_AW_GH_TOKEN:0:6}..."
-          GH_TOKEN="$GH_AW_GH_TOKEN" gh $INPUT_ARGS
-          
-          GH_AW_MCP_SCRIPTS_SH_GH_EOF
-          chmod +x ${RUNNER_TEMP}/gh-aw/mcp-scripts/gh.sh
+          node << 'GH_AW_MCP_SCRIPTS_WRITER_EOF'
+          const fs = require('fs');
+          const path = require('path');
+          const dir = process.env.GH_AW_MCP_SCRIPTS_DIR;
+          const count = parseInt(process.env.GH_AW_SCRIPT_COUNT || '0', 10);
+          for (let i = 0; i < count; i++) {
+            const name = process.env['GH_AW_SCRIPT_' + i + '_NAME'];
+            const ext = process.env['GH_AW_SCRIPT_' + i + '_EXT'];
+            const exec = process.env['GH_AW_SCRIPT_' + i + '_EXEC'] === 'true';
+            const b64 = process.env['GH_AW_SCRIPT_' + i + '_B64'];
+            if (!name || !ext || !b64) continue;
+            if (!/^[a-zA-Z][a-zA-Z0-9_-]{0,63}$/.test(name)) throw new Error('Invalid tool name: ' + name);
+            const content = Buffer.from(b64, 'base64').toString('utf8');
+            const filePath = path.join(dir, name + '.' + ext);
+            fs.writeFileSync(filePath, content, 'utf8');
+            if (exec) { fs.chmodSync(filePath, 0o755); }
+          }
+          GH_AW_MCP_SCRIPTS_WRITER_EOF
           
       - name: Generate MCP Scripts Server Config
         id: mcp-scripts-config

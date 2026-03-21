@@ -632,32 +632,36 @@ jobs:
           chmod +x ${RUNNER_TEMP}/gh-aw/mcp-scripts/mcp-server.cjs
           
       - name: Setup MCP Scripts Tool Files
+        env:
+          GH_AW_MCP_SCRIPTS_DIR: "${{ runner.temp }}/gh-aw/mcp-scripts"
+          GH_AW_SCRIPT_COUNT: "2"
+          GH_AW_SCRIPT_0_NAME: "go"
+          GH_AW_SCRIPT_0_EXT: "sh"
+          GH_AW_SCRIPT_0_EXEC: "true"
+          GH_AW_SCRIPT_0_B64: "IyEvYmluL2Jhc2gKIyBBdXRvLWdlbmVyYXRlZCBtY3Atc2NyaXB0IHRvb2w6IGdvCiMgRXhlY3V0ZSBhbnkgR28gY29tbWFuZC4gVGhpcyB0b29sIGlzIGFjY2Vzc2libGUgYXMgJ21jcHNjcmlwdHMtZ28nLiBQcm92aWRlIHRoZSBmdWxsIGNvbW1hbmQgYWZ0ZXIgJ2dvJyAoZS5nLiwgYXJnczogJ3Rlc3QgLi8uLi4nKS4gVGhlIHRvb2wgd2lsbCBydW46IGdvIDxhcmdzPi4gVXNlIHNpbmdsZSBxdW90ZXMgJyBmb3IgY29tcGxleCBhcmdzIHRvIGF2b2lkIHNoZWxsIGludGVycHJldGF0aW9uIGlzc3Vlcy4KCnNldCAtZXVvIHBpcGVmYWlsCgplY2hvICJnbyAkSU5QVVRfQVJHUyIKZ28gJElOUFVUX0FSR1MKCg=="
+          GH_AW_SCRIPT_1_NAME: "make"
+          GH_AW_SCRIPT_1_EXT: "sh"
+          GH_AW_SCRIPT_1_EXEC: "true"
+          GH_AW_SCRIPT_1_B64: "IyEvYmluL2Jhc2gKIyBBdXRvLWdlbmVyYXRlZCBtY3Atc2NyaXB0IHRvb2w6IG1ha2UKIyBFeGVjdXRlIGFueSBNYWtlIHRhcmdldC4gVGhpcyB0b29sIGlzIGFjY2Vzc2libGUgYXMgJ21jcHNjcmlwdHMtbWFrZScuIFByb3ZpZGUgdGhlIHRhcmdldCBuYW1lKHMpIChlLmcuLCBhcmdzOiAnYnVpbGQnKS4gVGhlIHRvb2wgd2lsbCBydW46IG1ha2UgPGFyZ3M+LiBVc2Ugc2luZ2xlIHF1b3RlcyAnIGZvciBjb21wbGV4IGFyZ3MgdG8gYXZvaWQgc2hlbGwgaW50ZXJwcmV0YXRpb24gaXNzdWVzLgoKc2V0IC1ldW8gcGlwZWZhaWwKCmVjaG8gIm1ha2UgJElOUFVUX0FSR1MiCm1ha2UgJElOUFVUX0FSR1MK"
         run: |
-          cat > ${RUNNER_TEMP}/gh-aw/mcp-scripts/go.sh << 'GH_AW_MCP_SCRIPTS_SH_GO_EOF'
-          #!/bin/bash
-          # Auto-generated mcp-script tool: go
-          # Execute any Go command. This tool is accessible as 'mcpscripts-go'. Provide the full command after 'go' (e.g., args: 'test ./...'). The tool will run: go <args>. Use single quotes ' for complex args to avoid shell interpretation issues.
-          
-          set -euo pipefail
-          
-          echo "go $INPUT_ARGS"
-          go $INPUT_ARGS
-          
-          
-          GH_AW_MCP_SCRIPTS_SH_GO_EOF
-          chmod +x ${RUNNER_TEMP}/gh-aw/mcp-scripts/go.sh
-          cat > ${RUNNER_TEMP}/gh-aw/mcp-scripts/make.sh << 'GH_AW_MCP_SCRIPTS_SH_MAKE_EOF'
-          #!/bin/bash
-          # Auto-generated mcp-script tool: make
-          # Execute any Make target. This tool is accessible as 'mcpscripts-make'. Provide the target name(s) (e.g., args: 'build'). The tool will run: make <args>. Use single quotes ' for complex args to avoid shell interpretation issues.
-          
-          set -euo pipefail
-          
-          echo "make $INPUT_ARGS"
-          make $INPUT_ARGS
-          
-          GH_AW_MCP_SCRIPTS_SH_MAKE_EOF
-          chmod +x ${RUNNER_TEMP}/gh-aw/mcp-scripts/make.sh
+          node << 'GH_AW_MCP_SCRIPTS_WRITER_EOF'
+          const fs = require('fs');
+          const path = require('path');
+          const dir = process.env.GH_AW_MCP_SCRIPTS_DIR;
+          const count = parseInt(process.env.GH_AW_SCRIPT_COUNT || '0', 10);
+          for (let i = 0; i < count; i++) {
+            const name = process.env['GH_AW_SCRIPT_' + i + '_NAME'];
+            const ext = process.env['GH_AW_SCRIPT_' + i + '_EXT'];
+            const exec = process.env['GH_AW_SCRIPT_' + i + '_EXEC'] === 'true';
+            const b64 = process.env['GH_AW_SCRIPT_' + i + '_B64'];
+            if (!name || !ext || !b64) continue;
+            if (!/^[a-zA-Z][a-zA-Z0-9_-]{0,63}$/.test(name)) throw new Error('Invalid tool name: ' + name);
+            const content = Buffer.from(b64, 'base64').toString('utf8');
+            const filePath = path.join(dir, name + '.' + ext);
+            fs.writeFileSync(filePath, content, 'utf8');
+            if (exec) { fs.chmodSync(filePath, 0o755); }
+          }
+          GH_AW_MCP_SCRIPTS_WRITER_EOF
           
       - name: Generate MCP Scripts Server Config
         id: mcp-scripts-config

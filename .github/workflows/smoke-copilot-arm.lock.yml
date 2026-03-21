@@ -961,325 +961,44 @@ jobs:
           chmod +x ${RUNNER_TEMP}/gh-aw/mcp-scripts/mcp-server.cjs
           
       - name: Setup MCP Scripts Tool Files
+        env:
+          GH_AW_MCP_SCRIPTS_DIR: "${{ runner.temp }}/gh-aw/mcp-scripts"
+          GH_AW_SCRIPT_COUNT: "4"
+          GH_AW_SCRIPT_0_NAME: "gh"
+          GH_AW_SCRIPT_0_EXT: "sh"
+          GH_AW_SCRIPT_0_EXEC: "true"
+          GH_AW_SCRIPT_0_B64: "IyEvYmluL2Jhc2gKIyBBdXRvLWdlbmVyYXRlZCBtY3Atc2NyaXB0IHRvb2w6IGdoCiMgRXhlY3V0ZSBhbnkgZ2ggQ0xJIGNvbW1hbmQuIFRoaXMgdG9vbCBpcyBhY2Nlc3NpYmxlIGFzICdtY3BzY3JpcHRzLWdoJy4gUHJvdmlkZSB0aGUgZnVsbCBjb21tYW5kIGFmdGVyICdnaCcgKGUuZy4sIGFyZ3M6ICdwciBsaXN0IC0tbGltaXQgNScpLiBUaGUgdG9vbCB3aWxsIHJ1bjogZ2ggPGFyZ3M+LiBVc2Ugc2luZ2xlIHF1b3RlcyAnIGZvciBjb21wbGV4IGFyZ3MgdG8gYXZvaWQgc2hlbGwgaW50ZXJwcmV0YXRpb24gaXNzdWVzLgoKc2V0IC1ldW8gcGlwZWZhaWwKCmVjaG8gImdoICRJTlBVVF9BUkdTIgplY2hvICIgIHRva2VuOiAke0dIX0FXX0dIX1RPS0VOOjA6Nn0uLi4iCkdIX1RPS0VOPSIkR0hfQVdfR0hfVE9LRU4iIGdoICRJTlBVVF9BUkdTCg=="
+          GH_AW_SCRIPT_1_NAME: "github-discussion-query"
+          GH_AW_SCRIPT_1_EXT: "sh"
+          GH_AW_SCRIPT_1_EXEC: "true"
+          GH_AW_SCRIPT_1_B64: "IyEvYmluL2Jhc2gKIyBBdXRvLWdlbmVyYXRlZCBtY3Atc2NyaXB0IHRvb2w6IGdpdGh1Yi1kaXNjdXNzaW9uLXF1ZXJ5CiMgUXVlcnkgR2l0SHViIGRpc2N1c3Npb25zIHdpdGgganEgZmlsdGVyaW5nIHN1cHBvcnQuIFdpdGhvdXQgLS1qcSwgcmV0dXJucyBzY2hlbWEgYW5kIGRhdGEgc2l6ZSBpbmZvLiBVc2UgLS1qcSAnLicgdG8gZ2V0IGFsbCBkYXRhLCBvciBzcGVjaWZpYyBqcSBleHByZXNzaW9ucyB0byBmaWx0ZXIuCgpzZXQgLWV1byBwaXBlZmFpbAoKc2V0IC1lCgojIERlZmF1bHQgdmFsdWVzClJFUE89IiR7SU5QVVRfUkVQTzotfSIKTElNSVQ9IiR7SU5QVVRfTElNSVQ6LTMwfSIKSlFfRklMVEVSPSIke0lOUFVUX0pROi19IgoKIyBQYXJzZSByZXBvc2l0b3J5IG93bmVyIGFuZCBuYW1lCmlmIFtbIC1uICIkUkVQTyIgXV07IHRoZW4KICBPV05FUj0kKGVjaG8gIiRSRVBPIiB8IGN1dCAtZCcvJyAtZjEpCiAgTkFNRT0kKGVjaG8gIiRSRVBPIiB8IGN1dCAtZCcvJyAtZjIpCmVsc2UKICAjIEdldCBjdXJyZW50IHJlcG9zaXRvcnkgZnJvbSBHaXRIdWIgY29udGV4dAogIE9XTkVSPSIke0dJVEhVQl9SRVBPU0lUT1JZX09XTkVSOi19IgogIE5BTUU9JChlY2hvICIke0dJVEhVQl9SRVBPU0lUT1JZOi19IiB8IGN1dCAtZCcvJyAtZjIpCmZpCgojIFZhbGlkYXRlIG93bmVyIGFuZCBuYW1lCmlmIFtbIC16ICIkT1dORVIiIHx8IC16ICIkTkFNRSIgXV07IHRoZW4KICBlY2hvICJFcnJvcjogQ291bGQgbm90IGRldGVybWluZSByZXBvc2l0b3J5IG93bmVyIGFuZCBuYW1lIiA+JjIKICBleGl0IDEKZmkKCiMgQnVpbGQgR3JhcGhRTCBxdWVyeSBmb3IgZGlzY3Vzc2lvbnMKR1JBUEhRTF9RVUVSWT0kKGNhdCA8PFFVRVJZCnsKICByZXBvc2l0b3J5KG93bmVyOiAiJE9XTkVSIiwgbmFtZTogIiROQU1FIikgewogICAgZGlzY3Vzc2lvbnMoZmlyc3Q6ICRMSU1JVCwgb3JkZXJCeToge2ZpZWxkOiBDUkVBVEVEX0FULCBkaXJlY3Rpb246IERFU0N9KSB7CiAgICAgIG5vZGVzIHsKICAgICAgICBudW1iZXIKICAgICAgICB0aXRsZQogICAgICAgIGF1dGhvciB7CiAgICAgICAgICBsb2dpbgogICAgICAgIH0KICAgICAgICBjcmVhdGVkQXQKICAgICAgICB1cGRhdGVkQXQKICAgICAgICBib2R5CiAgICAgICAgY2F0ZWdvcnkgewogICAgICAgICAgbmFtZQogICAgICAgIH0KICAgICAgICBsYWJlbHMoZmlyc3Q6IDEwKSB7CiAgICAgICAgICBub2RlcyB7CiAgICAgICAgICAgIG5hbWUKICAgICAgICAgIH0KICAgICAgICB9CiAgICAgICAgY29tbWVudHMgewogICAgICAgICAgdG90YWxDb3VudAogICAgICAgIH0KICAgICAgICBhbnN3ZXIgewogICAgICAgICAgaWQKICAgICAgICB9CiAgICAgICAgdXJsCiAgICAgIH0KICAgIH0KICB9Cn0KUVVFUlkKKQoKIyBFeGVjdXRlIEdyYXBoUUwgcXVlcnkgdmlhIGdoIGFwaQpHUkFQSFFMX09VVFBVVD0kKGdoIGFwaSBncmFwaHFsIC1mIHF1ZXJ5PSIkR1JBUEhRTF9RVUVSWSIpCgojIFRyYW5zZm9ybSBHcmFwaFFMIG91dHB1dCB0byBtYXRjaCBnaCBkaXNjdXNzaW9uIGxpc3QgZm9ybWF0Ck9VVFBVVD0kKGVjaG8gIiRHUkFQSFFMX09VVFBVVCIgfCBqcSAnWy5kYXRhLnJlcG9zaXRvcnkuZGlzY3Vzc2lvbnMubm9kZXNbXSB8IHsKICBudW1iZXI6IC5udW1iZXIsCiAgdGl0bGU6IC50aXRsZSwKICBhdXRob3I6IC5hdXRob3IsCiAgY3JlYXRlZEF0OiAuY3JlYXRlZEF0LAogIHVwZGF0ZWRBdDogLnVwZGF0ZWRBdCwKICBib2R5OiAuYm9keSwKICBjYXRlZ29yeTogLmNhdGVnb3J5LAogIGxhYmVsczogLmxhYmVscy5ub2RlcywKICBjb21tZW50czogLmNvbW1lbnRzLAogIGFuc3dlcjogLmFuc3dlciwKICB1cmw6IC51cmwKfV0nKQoKIyBBcHBseSBqcSBmaWx0ZXIgaWYgc3BlY2lmaWVkCmlmIFtbIC1uICIkSlFfRklMVEVSIiBdXTsgdGhlbgogIGpxICIkSlFfRklMVEVSIiA8PDwgIiRPVVRQVVQiCmVsc2UKICAjIFJldHVybiBzY2hlbWEgYW5kIHNpemUgaW5zdGVhZCBvZiBmdWxsIGRhdGEKICBJVEVNX0NPVU5UPSQoanEgJ2xlbmd0aCcgPDw8ICIkT1VUUFVUIikKICBEQVRBX1NJWkU9JHsjT1VUUFVUfQogIAogICMgVmFsaWRhdGUgdmFsdWVzIGFyZSBudW1lcmljCiAgaWYgISBbWyAiJElURU1fQ09VTlQiID1+IF5bMC05XSskIF1dOyB0aGVuCiAgICBJVEVNX0NPVU5UPTAKICBmaQogIGlmICEgW1sgIiREQVRBX1NJWkUiID1+IF5bMC05XSskIF1dOyB0aGVuCiAgICBEQVRBX1NJWkU9MAogIGZpCiAgCiAgY2F0IDw8IEVPRgp7CiAgIm1lc3NhZ2UiOiAiTm8gLS1qcSBmaWx0ZXIgcHJvdmlkZWQuIFVzZSAtLWpxIHRvIGZpbHRlciBhbmQgcmV0cmlldmUgZGF0YS4iLAogICJpdGVtX2NvdW50IjogJElURU1fQ09VTlQsCiAgImRhdGFfc2l6ZV9ieXRlcyI6ICREQVRBX1NJWkUsCiAgInNjaGVtYSI6IHsKICAgICJ0eXBlIjogImFycmF5IiwKICAgICJkZXNjcmlwdGlvbiI6ICJBcnJheSBvZiBkaXNjdXNzaW9uIG9iamVjdHMiLAogICAgIml0ZW1fZmllbGRzIjogewogICAgICAibnVtYmVyIjogImludGVnZXIgLSBEaXNjdXNzaW9uIG51bWJlciIsCiAgICAgICJ0aXRsZSI6ICJzdHJpbmcgLSBEaXNjdXNzaW9uIHRpdGxlIiwKICAgICAgImF1dGhvciI6ICJvYmplY3QgLSBBdXRob3IgaW5mbyB3aXRoIGxvZ2luIGZpZWxkIiwKICAgICAgImNyZWF0ZWRBdCI6ICJzdHJpbmcgLSBJU08gdGltZXN0YW1wIG9mIGNyZWF0aW9uIiwKICAgICAgInVwZGF0ZWRBdCI6ICJzdHJpbmcgLSBJU08gdGltZXN0YW1wIG9mIGxhc3QgdXBkYXRlIiwKICAgICAgImJvZHkiOiAic3RyaW5nIC0gRGlzY3Vzc2lvbiBib2R5IGNvbnRlbnQiLAogICAgICAiY2F0ZWdvcnkiOiAib2JqZWN0IC0gQ2F0ZWdvcnkgaW5mbyB3aXRoIG5hbWUgZmllbGQiLAogICAgICAibGFiZWxzIjogImFycmF5IC0gQXJyYXkgb2YgbGFiZWwgb2JqZWN0cyB3aXRoIG5hbWUgZmllbGQiLAogICAgICAiY29tbWVudHMiOiAib2JqZWN0IC0gQ29tbWVudHMgaW5mbyB3aXRoIHRvdGFsQ291bnQgZmllbGQiLAogICAgICAiYW5zd2VyIjogIm9iamVjdHxudWxsIC0gQWNjZXB0ZWQgYW5zd2VyIGlmIGV4aXN0cyIsCiAgICAgICJ1cmwiOiAic3RyaW5nIC0gRGlzY3Vzc2lvbiBVUkwiCiAgICB9CiAgfSwKICAic3VnZ2VzdGVkX3F1ZXJpZXMiOiBbCiAgICB7ImRlc2NyaXB0aW9uIjogIkdldCBhbGwgZGF0YSIsICJxdWVyeSI6ICIuIn0sCiAgICB7ImRlc2NyaXB0aW9uIjogIkdldCBkaXNjdXNzaW9uIG51bWJlcnMgYW5kIHRpdGxlcyIsICJxdWVyeSI6ICIuW10gfCB7bnVtYmVyLCB0aXRsZX0ifSwKICAgIHsiZGVzY3JpcHRpb24iOiAiR2V0IGRpc2N1c3Npb25zIGJ5IGF1dGhvciIsICJxdWVyeSI6ICIuW10gfCBzZWxlY3QoLmF1dGhvci5sb2dpbiA9PSBcIlVTRVJOQU1FXCIpIn0sCiAgICB7ImRlc2NyaXB0aW9uIjogIkdldCBkaXNjdXNzaW9ucyBpbiBjYXRlZ29yeSIsICJxdWVyeSI6ICIuW10gfCBzZWxlY3QoLmNhdGVnb3J5Lm5hbWUgPT0gXCJJZGVhc1wiKSJ9LAogICAgeyJkZXNjcmlwdGlvbiI6ICJHZXQgYW5zd2VyZWQgZGlzY3Vzc2lvbnMiLCAicXVlcnkiOiAiLltdIHwgc2VsZWN0KC5hbnN3ZXIgIT0gbnVsbCkifSwKICAgIHsiZGVzY3JpcHRpb24iOiAiR2V0IHVuYW5zd2VyZWQgZGlzY3Vzc2lvbnMiLCAicXVlcnkiOiAiLltdIHwgc2VsZWN0KC5hbnN3ZXIgPT0gbnVsbCkgfCB7bnVtYmVyLCB0aXRsZSwgY2F0ZWdvcnk6IC5jYXRlZ29yeS5uYW1lfSJ9LAogICAgeyJkZXNjcmlwdGlvbiI6ICJDb3VudCBieSBjYXRlZ29yeSIsICJxdWVyeSI6ICJncm91cF9ieSguY2F0ZWdvcnkubmFtZSkgfCBtYXAoe2NhdGVnb3J5OiAuWzBdLmNhdGVnb3J5Lm5hbWUsIGNvdW50OiBsZW5ndGh9KSJ9CiAgXQp9CkVPRgpmaQo="
+          GH_AW_SCRIPT_2_NAME: "github-issue-query"
+          GH_AW_SCRIPT_2_EXT: "sh"
+          GH_AW_SCRIPT_2_EXEC: "true"
+          GH_AW_SCRIPT_2_B64: "IyEvYmluL2Jhc2gKIyBBdXRvLWdlbmVyYXRlZCBtY3Atc2NyaXB0IHRvb2w6IGdpdGh1Yi1pc3N1ZS1xdWVyeQojIFF1ZXJ5IEdpdEh1YiBpc3N1ZXMgd2l0aCBqcSBmaWx0ZXJpbmcgc3VwcG9ydC4gV2l0aG91dCAtLWpxLCByZXR1cm5zIHNjaGVtYSBhbmQgZGF0YSBzaXplIGluZm8uIFVzZSAtLWpxICcuJyB0byBnZXQgYWxsIGRhdGEsIG9yIHNwZWNpZmljIGpxIGV4cHJlc3Npb25zIHRvIGZpbHRlci4KCnNldCAtZXVvIHBpcGVmYWlsCgpzZXQgLWUKCiMgRGVmYXVsdCB2YWx1ZXMKUkVQTz0iJHtJTlBVVF9SRVBPOi19IgpTVEFURT0iJHtJTlBVVF9TVEFURTotb3Blbn0iCkxJTUlUPSIke0lOUFVUX0xJTUlUOi0zMH0iCkpRX0ZJTFRFUj0iJHtJTlBVVF9KUTotfSIKCiMgSlNPTiBmaWVsZHMgdG8gZmV0Y2gKSlNPTl9GSUVMRFM9Im51bWJlcix0aXRsZSxzdGF0ZSxhdXRob3IsY3JlYXRlZEF0LHVwZGF0ZWRBdCxjbG9zZWRBdCxib2R5LGxhYmVscyxhc3NpZ25lZXMsY29tbWVudHMsbWlsZXN0b25lLHVybCIKCiMgQnVpbGQgYW5kIGV4ZWN1dGUgZ2ggY29tbWFuZAppZiBbWyAtbiAiJFJFUE8iIF1dOyB0aGVuCiAgT1VUUFVUPSQoZ2ggaXNzdWUgbGlzdCAtLXN0YXRlICIkU1RBVEUiIC0tbGltaXQgIiRMSU1JVCIgLS1qc29uICIkSlNPTl9GSUVMRFMiIC0tcmVwbyAiJFJFUE8iKQplbHNlCiAgT1VUUFVUPSQoZ2ggaXNzdWUgbGlzdCAtLXN0YXRlICIkU1RBVEUiIC0tbGltaXQgIiRMSU1JVCIgLS1qc29uICIkSlNPTl9GSUVMRFMiKQpmaQoKIyBBcHBseSBqcSBmaWx0ZXIgaWYgc3BlY2lmaWVkCmlmIFtbIC1uICIkSlFfRklMVEVSIiBdXTsgdGhlbgogIGpxICIkSlFfRklMVEVSIiA8PDwgIiRPVVRQVVQiCmVsc2UKICAjIFJldHVybiBzY2hlbWEgYW5kIHNpemUgaW5zdGVhZCBvZiBmdWxsIGRhdGEKICBJVEVNX0NPVU5UPSQoanEgJ2xlbmd0aCcgPDw8ICIkT1VUUFVUIikKICBEQVRBX1NJWkU9JHsjT1VUUFVUfQogIAogICMgVmFsaWRhdGUgdmFsdWVzIGFyZSBudW1lcmljCiAgaWYgISBbWyAiJElURU1fQ09VTlQiID1+IF5bMC05XSskIF1dOyB0aGVuCiAgICBJVEVNX0NPVU5UPTAKICBmaQogIGlmICEgW1sgIiREQVRBX1NJWkUiID1+IF5bMC05XSskIF1dOyB0aGVuCiAgICBEQVRBX1NJWkU9MAogIGZpCiAgCiAgY2F0IDw8IEVPRgp7CiAgIm1lc3NhZ2UiOiAiTm8gLS1qcSBmaWx0ZXIgcHJvdmlkZWQuIFVzZSAtLWpxIHRvIGZpbHRlciBhbmQgcmV0cmlldmUgZGF0YS4iLAogICJpdGVtX2NvdW50IjogJElURU1fQ09VTlQsCiAgImRhdGFfc2l6ZV9ieXRlcyI6ICREQVRBX1NJWkUsCiAgInNjaGVtYSI6IHsKICAgICJ0eXBlIjogImFycmF5IiwKICAgICJkZXNjcmlwdGlvbiI6ICJBcnJheSBvZiBpc3N1ZSBvYmplY3RzIiwKICAgICJpdGVtX2ZpZWxkcyI6IHsKICAgICAgIm51bWJlciI6ICJpbnRlZ2VyIC0gSXNzdWUgbnVtYmVyIiwKICAgICAgInRpdGxlIjogInN0cmluZyAtIElzc3VlIHRpdGxlIiwKICAgICAgInN0YXRlIjogInN0cmluZyAtIElzc3VlIHN0YXRlIChPUEVOLCBDTE9TRUQpIiwKICAgICAgImF1dGhvciI6ICJvYmplY3QgLSBBdXRob3IgaW5mbyB3aXRoIGxvZ2luIGZpZWxkIiwKICAgICAgImNyZWF0ZWRBdCI6ICJzdHJpbmcgLSBJU08gdGltZXN0YW1wIG9mIGNyZWF0aW9uIiwKICAgICAgInVwZGF0ZWRBdCI6ICJzdHJpbmcgLSBJU08gdGltZXN0YW1wIG9mIGxhc3QgdXBkYXRlIiwKICAgICAgImNsb3NlZEF0IjogInN0cmluZ3xudWxsIC0gSVNPIHRpbWVzdGFtcCBvZiBjbG9zZSIsCiAgICAgICJib2R5IjogInN0cmluZyAtIElzc3VlIGJvZHkgY29udGVudCIsCiAgICAgICJsYWJlbHMiOiAiYXJyYXkgLSBBcnJheSBvZiBsYWJlbCBvYmplY3RzIHdpdGggbmFtZSBmaWVsZCIsCiAgICAgICJhc3NpZ25lZXMiOiAiYXJyYXkgLSBBcnJheSBvZiBhc3NpZ25lZSBvYmplY3RzIHdpdGggbG9naW4gZmllbGQiLAogICAgICAiY29tbWVudHMiOiAib2JqZWN0IC0gQ29tbWVudHMgaW5mbyB3aXRoIHRvdGFsQ291bnQgZmllbGQiLAogICAgICAibWlsZXN0b25lIjogIm9iamVjdHxudWxsIC0gTWlsZXN0b25lIGluZm8gd2l0aCB0aXRsZSBmaWVsZCIsCiAgICAgICJ1cmwiOiAic3RyaW5nIC0gSXNzdWUgVVJMIgogICAgfQogIH0sCiAgInN1Z2dlc3RlZF9xdWVyaWVzIjogWwogICAgeyJkZXNjcmlwdGlvbiI6ICJHZXQgYWxsIGRhdGEiLCAicXVlcnkiOiAiLiJ9LAogICAgeyJkZXNjcmlwdGlvbiI6ICJHZXQgaXNzdWUgbnVtYmVycyBhbmQgdGl0bGVzIiwgInF1ZXJ5IjogIi5bXSB8IHtudW1iZXIsIHRpdGxlfSJ9LAogICAgeyJkZXNjcmlwdGlvbiI6ICJHZXQgb3BlbiBpc3N1ZXMgb25seSIsICJxdWVyeSI6ICIuW10gfCBzZWxlY3QoLnN0YXRlID09IFwiT1BFTlwiKSJ9LAogICAgeyJkZXNjcmlwdGlvbiI6ICJHZXQgaXNzdWVzIGJ5IGF1dGhvciIsICJxdWVyeSI6ICIuW10gfCBzZWxlY3QoLmF1dGhvci5sb2dpbiA9PSBcIlVTRVJOQU1FXCIpIn0sCiAgICB7ImRlc2NyaXB0aW9uIjogIkdldCBpc3N1ZXMgd2l0aCBsYWJlbCIsICJxdWVyeSI6ICIuW10gfCBzZWxlY3QoLmxhYmVscyB8IG1hcCgubmFtZSkgfCBpbmRleChcImJ1Z1wiKSkifSwKICAgIHsiZGVzY3JpcHRpb24iOiAiR2V0IGlzc3VlcyB3aXRoIG1hbnkgY29tbWVudHMiLCAicXVlcnkiOiAiLltdIHwgc2VsZWN0KC5jb21tZW50cy50b3RhbENvdW50ID4gNSkgfCB7bnVtYmVyLCB0aXRsZSwgY29tbWVudHM6IC5jb21tZW50cy50b3RhbENvdW50fSJ9LAogICAgeyJkZXNjcmlwdGlvbiI6ICJDb3VudCBieSBzdGF0ZSIsICJxdWVyeSI6ICJncm91cF9ieSguc3RhdGUpIHwgbWFwKHtzdGF0ZTogLlswXS5zdGF0ZSwgY291bnQ6IGxlbmd0aH0pIn0KICBdCn0KRU9GCmZpCgo="
+          GH_AW_SCRIPT_3_NAME: "github-pr-query"
+          GH_AW_SCRIPT_3_EXT: "sh"
+          GH_AW_SCRIPT_3_EXEC: "true"
+          GH_AW_SCRIPT_3_B64: "IyEvYmluL2Jhc2gKIyBBdXRvLWdlbmVyYXRlZCBtY3Atc2NyaXB0IHRvb2w6IGdpdGh1Yi1wci1xdWVyeQojIFF1ZXJ5IEdpdEh1YiBwdWxsIHJlcXVlc3RzIHdpdGgganEgZmlsdGVyaW5nIHN1cHBvcnQuIFdpdGhvdXQgLS1qcSwgcmV0dXJucyBzY2hlbWEgYW5kIGRhdGEgc2l6ZSBpbmZvLiBVc2UgLS1qcSAnLicgdG8gZ2V0IGFsbCBkYXRhLCBvciBzcGVjaWZpYyBqcSBleHByZXNzaW9ucyB0byBmaWx0ZXIuCgpzZXQgLWV1byBwaXBlZmFpbAoKc2V0IC1lCgojIERlZmF1bHQgdmFsdWVzClJFUE89IiR7SU5QVVRfUkVQTzotfSIKU1RBVEU9IiR7SU5QVVRfU1RBVEU6LW9wZW59IgpMSU1JVD0iJHtJTlBVVF9MSU1JVDotMzB9IgpKUV9GSUxURVI9IiR7SU5QVVRfSlE6LX0iCgojIEpTT04gZmllbGRzIHRvIGZldGNoCkpTT05fRklFTERTPSJudW1iZXIsdGl0bGUsc3RhdGUsYXV0aG9yLGNyZWF0ZWRBdCx1cGRhdGVkQXQsbWVyZ2VkQXQsY2xvc2VkQXQsaGVhZFJlZk5hbWUsYmFzZVJlZk5hbWUsaXNEcmFmdCxyZXZpZXdEZWNpc2lvbixhZGRpdGlvbnMsZGVsZXRpb25zLGNoYW5nZWRGaWxlcyxsYWJlbHMsYXNzaWduZWVzLHJldmlld1JlcXVlc3RzLHVybCIKCiMgQnVpbGQgYW5kIGV4ZWN1dGUgZ2ggY29tbWFuZAppZiBbWyAtbiAiJFJFUE8iIF1dOyB0aGVuCiAgT1VUUFVUPSQoZ2ggcHIgbGlzdCAtLXN0YXRlICIkU1RBVEUiIC0tbGltaXQgIiRMSU1JVCIgLS1qc29uICIkSlNPTl9GSUVMRFMiIC0tcmVwbyAiJFJFUE8iKQplbHNlCiAgT1VUUFVUPSQoZ2ggcHIgbGlzdCAtLXN0YXRlICIkU1RBVEUiIC0tbGltaXQgIiRMSU1JVCIgLS1qc29uICIkSlNPTl9GSUVMRFMiKQpmaQoKIyBBcHBseSBqcSBmaWx0ZXIgaWYgc3BlY2lmaWVkCmlmIFtbIC1uICIkSlFfRklMVEVSIiBdXTsgdGhlbgogIGpxICIkSlFfRklMVEVSIiA8PDwgIiRPVVRQVVQiCmVsc2UKICAjIFJldHVybiBzY2hlbWEgYW5kIHNpemUgaW5zdGVhZCBvZiBmdWxsIGRhdGEKICBJVEVNX0NPVU5UPSQoanEgJ2xlbmd0aCcgPDw8ICIkT1VUUFVUIikKICBEQVRBX1NJWkU9JHsjT1VUUFVUfQogIAogICMgVmFsaWRhdGUgdmFsdWVzIGFyZSBudW1lcmljCiAgaWYgISBbWyAiJElURU1fQ09VTlQiID1+IF5bMC05XSskIF1dOyB0aGVuCiAgICBJVEVNX0NPVU5UPTAKICBmaQogIGlmICEgW1sgIiREQVRBX1NJWkUiID1+IF5bMC05XSskIF1dOyB0aGVuCiAgICBEQVRBX1NJWkU9MAogIGZpCiAgCiAgY2F0IDw8IEVPRgp7CiAgIm1lc3NhZ2UiOiAiTm8gLS1qcSBmaWx0ZXIgcHJvdmlkZWQuIFVzZSAtLWpxIHRvIGZpbHRlciBhbmQgcmV0cmlldmUgZGF0YS4iLAogICJpdGVtX2NvdW50IjogJElURU1fQ09VTlQsCiAgImRhdGFfc2l6ZV9ieXRlcyI6ICREQVRBX1NJWkUsCiAgInNjaGVtYSI6IHsKICAgICJ0eXBlIjogImFycmF5IiwKICAgICJkZXNjcmlwdGlvbiI6ICJBcnJheSBvZiBwdWxsIHJlcXVlc3Qgb2JqZWN0cyIsCiAgICAiaXRlbV9maWVsZHMiOiB7CiAgICAgICJudW1iZXIiOiAiaW50ZWdlciAtIFBSIG51bWJlciIsCiAgICAgICJ0aXRsZSI6ICJzdHJpbmcgLSBQUiB0aXRsZSIsCiAgICAgICJzdGF0ZSI6ICJzdHJpbmcgLSBQUiBzdGF0ZSAoT1BFTiwgQ0xPU0VELCBNRVJHRUQpIiwKICAgICAgImF1dGhvciI6ICJvYmplY3QgLSBBdXRob3IgaW5mbyB3aXRoIGxvZ2luIGZpZWxkIiwKICAgICAgImNyZWF0ZWRBdCI6ICJzdHJpbmcgLSBJU08gdGltZXN0YW1wIG9mIGNyZWF0aW9uIiwKICAgICAgInVwZGF0ZWRBdCI6ICJzdHJpbmcgLSBJU08gdGltZXN0YW1wIG9mIGxhc3QgdXBkYXRlIiwKICAgICAgIm1lcmdlZEF0IjogInN0cmluZ3xudWxsIC0gSVNPIHRpbWVzdGFtcCBvZiBtZXJnZSIsCiAgICAgICJjbG9zZWRBdCI6ICJzdHJpbmd8bnVsbCAtIElTTyB0aW1lc3RhbXAgb2YgY2xvc2UiLAogICAgICAiaGVhZFJlZk5hbWUiOiAic3RyaW5nIC0gU291cmNlIGJyYW5jaCBuYW1lIiwKICAgICAgImJhc2VSZWZOYW1lIjogInN0cmluZyAtIFRhcmdldCBicmFuY2ggbmFtZSIsCiAgICAgICJpc0RyYWZ0IjogImJvb2xlYW4gLSBXaGV0aGVyIFBSIGlzIGEgZHJhZnQiLAogICAgICAicmV2aWV3RGVjaXNpb24iOiAic3RyaW5nfG51bGwgLSBSZXZpZXcgZGVjaXNpb24gKEFQUFJPVkVELCBDSEFOR0VTX1JFUVVFU1RFRCwgUkVWSUVXX1JFUVVJUkVEKSIsCiAgICAgICJhZGRpdGlvbnMiOiAiaW50ZWdlciAtIExpbmVzIGFkZGVkIiwKICAgICAgImRlbGV0aW9ucyI6ICJpbnRlZ2VyIC0gTGluZXMgZGVsZXRlZCIsCiAgICAgICJjaGFuZ2VkRmlsZXMiOiAiaW50ZWdlciAtIE51bWJlciBvZiBmaWxlcyBjaGFuZ2VkIiwKICAgICAgImxhYmVscyI6ICJhcnJheSAtIEFycmF5IG9mIGxhYmVsIG9iamVjdHMgd2l0aCBuYW1lIGZpZWxkIiwKICAgICAgImFzc2lnbmVlcyI6ICJhcnJheSAtIEFycmF5IG9mIGFzc2lnbmVlIG9iamVjdHMgd2l0aCBsb2dpbiBmaWVsZCIsCiAgICAgICJyZXZpZXdSZXF1ZXN0cyI6ICJhcnJheSAtIEFycmF5IG9mIHJldmlldyByZXF1ZXN0IG9iamVjdHMiLAogICAgICAidXJsIjogInN0cmluZyAtIFBSIFVSTCIKICAgIH0KICB9LAogICJzdWdnZXN0ZWRfcXVlcmllcyI6IFsKICAgIHsiZGVzY3JpcHRpb24iOiAiR2V0IGFsbCBkYXRhIiwgInF1ZXJ5IjogIi4ifSwKICAgIHsiZGVzY3JpcHRpb24iOiAiR2V0IFBSIG51bWJlcnMgYW5kIHRpdGxlcyIsICJxdWVyeSI6ICIuW10gfCB7bnVtYmVyLCB0aXRsZX0ifSwKICAgIHsiZGVzY3JpcHRpb24iOiAiR2V0IG9wZW4gUFJzIG9ubHkiLCAicXVlcnkiOiAiLltdIHwgc2VsZWN0KC5zdGF0ZSA9PSBcIk9QRU5cIikifSwKICAgIHsiZGVzY3JpcHRpb24iOiAiR2V0IG1lcmdlZCBQUnMiLCAicXVlcnkiOiAiLltdIHwgc2VsZWN0KC5tZXJnZWRBdCAhPSBudWxsKSJ9LAogICAgeyJkZXNjcmlwdGlvbiI6ICJHZXQgUFJzIGJ5IGF1dGhvciIsICJxdWVyeSI6ICIuW10gfCBzZWxlY3QoLmF1dGhvci5sb2dpbiA9PSBcIlVTRVJOQU1FXCIpIn0sCiAgICB7ImRlc2NyaXB0aW9uIjogIkdldCBsYXJnZSBQUnMiLCAicXVlcnkiOiAiLltdIHwgc2VsZWN0KC5jaGFuZ2VkRmlsZXMgPiAxMCkgfCB7bnVtYmVyLCB0aXRsZSwgY2hhbmdlZEZpbGVzfSJ9LAogICAgeyJkZXNjcmlwdGlvbiI6ICJDb3VudCBieSBzdGF0ZSIsICJxdWVyeSI6ICJncm91cF9ieSguc3RhdGUpIHwgbWFwKHtzdGF0ZTogLlswXS5zdGF0ZSwgY291bnQ6IGxlbmd0aH0pIn0KICBdCn0KRU9GCmZpCgo="
         run: |
-          cat > ${RUNNER_TEMP}/gh-aw/mcp-scripts/gh.sh << 'GH_AW_MCP_SCRIPTS_SH_GH_EOF'
-          #!/bin/bash
-          # Auto-generated mcp-script tool: gh
-          # Execute any gh CLI command. This tool is accessible as 'mcpscripts-gh'. Provide the full command after 'gh' (e.g., args: 'pr list --limit 5'). The tool will run: gh <args>. Use single quotes ' for complex args to avoid shell interpretation issues.
-          
-          set -euo pipefail
-          
-          echo "gh $INPUT_ARGS"
-          echo "  token: ${GH_AW_GH_TOKEN:0:6}..."
-          GH_TOKEN="$GH_AW_GH_TOKEN" gh $INPUT_ARGS
-          
-          GH_AW_MCP_SCRIPTS_SH_GH_EOF
-          chmod +x ${RUNNER_TEMP}/gh-aw/mcp-scripts/gh.sh
-          cat > ${RUNNER_TEMP}/gh-aw/mcp-scripts/github-discussion-query.sh << 'GH_AW_MCP_SCRIPTS_SH_GITHUB-DISCUSSION-QUERY_EOF'
-          #!/bin/bash
-          # Auto-generated mcp-script tool: github-discussion-query
-          # Query GitHub discussions with jq filtering support. Without --jq, returns schema and data size info. Use --jq '.' to get all data, or specific jq expressions to filter.
-          
-          set -euo pipefail
-          
-          set -e
-          
-          # Default values
-          REPO="${INPUT_REPO:-}"
-          LIMIT="${INPUT_LIMIT:-30}"
-          JQ_FILTER="${INPUT_JQ:-}"
-          
-          # Parse repository owner and name
-          if [[ -n "$REPO" ]]; then
-            OWNER=$(echo "$REPO" | cut -d'/' -f1)
-            NAME=$(echo "$REPO" | cut -d'/' -f2)
-          else
-            # Get current repository from GitHub context
-            OWNER="${GITHUB_REPOSITORY_OWNER:-}"
-            NAME=$(echo "${GITHUB_REPOSITORY:-}" | cut -d'/' -f2)
-          fi
-          
-          # Validate owner and name
-          if [[ -z "$OWNER" || -z "$NAME" ]]; then
-            echo "Error: Could not determine repository owner and name" >&2
-            exit 1
-          fi
-          
-          # Build GraphQL query for discussions
-          GRAPHQL_QUERY=$(cat <<QUERY
-          {
-            repository(owner: "$OWNER", name: "$NAME") {
-              discussions(first: $LIMIT, orderBy: {field: CREATED_AT, direction: DESC}) {
-                nodes {
-                  number
-                  title
-                  author {
-                    login
-                  }
-                  createdAt
-                  updatedAt
-                  body
-                  category {
-                    name
-                  }
-                  labels(first: 10) {
-                    nodes {
-                      name
-                    }
-                  }
-                  comments {
-                    totalCount
-                  }
-                  answer {
-                    id
-                  }
-                  url
-                }
-              }
-            }
+          node << 'GH_AW_MCP_SCRIPTS_WRITER_EOF'
+          const fs = require('fs');
+          const path = require('path');
+          const dir = process.env.GH_AW_MCP_SCRIPTS_DIR;
+          const count = parseInt(process.env.GH_AW_SCRIPT_COUNT || '0', 10);
+          for (let i = 0; i < count; i++) {
+            const name = process.env['GH_AW_SCRIPT_' + i + '_NAME'];
+            const ext = process.env['GH_AW_SCRIPT_' + i + '_EXT'];
+            const exec = process.env['GH_AW_SCRIPT_' + i + '_EXEC'] === 'true';
+            const b64 = process.env['GH_AW_SCRIPT_' + i + '_B64'];
+            if (!name || !ext || !b64) continue;
+            if (!/^[a-zA-Z][a-zA-Z0-9_-]{0,63}$/.test(name)) throw new Error('Invalid tool name: ' + name);
+            const content = Buffer.from(b64, 'base64').toString('utf8');
+            const filePath = path.join(dir, name + '.' + ext);
+            fs.writeFileSync(filePath, content, 'utf8');
+            if (exec) { fs.chmodSync(filePath, 0o755); }
           }
-          QUERY
-          )
-          
-          # Execute GraphQL query via gh api
-          GRAPHQL_OUTPUT=$(gh api graphql -f query="$GRAPHQL_QUERY")
-          
-          # Transform GraphQL output to match gh discussion list format
-          OUTPUT=$(echo "$GRAPHQL_OUTPUT" | jq '[.data.repository.discussions.nodes[] | {
-            number: .number,
-            title: .title,
-            author: .author,
-            createdAt: .createdAt,
-            updatedAt: .updatedAt,
-            body: .body,
-            category: .category,
-            labels: .labels.nodes,
-            comments: .comments,
-            answer: .answer,
-            url: .url
-          }]')
-          
-          # Apply jq filter if specified
-          if [[ -n "$JQ_FILTER" ]]; then
-            jq "$JQ_FILTER" <<< "$OUTPUT"
-          else
-            # Return schema and size instead of full data
-            ITEM_COUNT=$(jq 'length' <<< "$OUTPUT")
-            DATA_SIZE=${#OUTPUT}
-            
-            # Validate values are numeric
-            if ! [[ "$ITEM_COUNT" =~ ^[0-9]+$ ]]; then
-              ITEM_COUNT=0
-            fi
-            if ! [[ "$DATA_SIZE" =~ ^[0-9]+$ ]]; then
-              DATA_SIZE=0
-            fi
-            
-            cat << EOF
-          {
-            "message": "No --jq filter provided. Use --jq to filter and retrieve data.",
-            "item_count": $ITEM_COUNT,
-            "data_size_bytes": $DATA_SIZE,
-            "schema": {
-              "type": "array",
-              "description": "Array of discussion objects",
-              "item_fields": {
-                "number": "integer - Discussion number",
-                "title": "string - Discussion title",
-                "author": "object - Author info with login field",
-                "createdAt": "string - ISO timestamp of creation",
-                "updatedAt": "string - ISO timestamp of last update",
-                "body": "string - Discussion body content",
-                "category": "object - Category info with name field",
-                "labels": "array - Array of label objects with name field",
-                "comments": "object - Comments info with totalCount field",
-                "answer": "object|null - Accepted answer if exists",
-                "url": "string - Discussion URL"
-              }
-            },
-            "suggested_queries": [
-              {"description": "Get all data", "query": "."},
-              {"description": "Get discussion numbers and titles", "query": ".[] | {number, title}"},
-              {"description": "Get discussions by author", "query": ".[] | select(.author.login == \"USERNAME\")"},
-              {"description": "Get discussions in category", "query": ".[] | select(.category.name == \"Ideas\")"},
-              {"description": "Get answered discussions", "query": ".[] | select(.answer != null)"},
-              {"description": "Get unanswered discussions", "query": ".[] | select(.answer == null) | {number, title, category: .category.name}"},
-              {"description": "Count by category", "query": "group_by(.category.name) | map({category: .[0].category.name, count: length})"}
-            ]
-          }
-          EOF
-          fi
-          
-          GH_AW_MCP_SCRIPTS_SH_GITHUB-DISCUSSION-QUERY_EOF
-          chmod +x ${RUNNER_TEMP}/gh-aw/mcp-scripts/github-discussion-query.sh
-          cat > ${RUNNER_TEMP}/gh-aw/mcp-scripts/github-issue-query.sh << 'GH_AW_MCP_SCRIPTS_SH_GITHUB-ISSUE-QUERY_EOF'
-          #!/bin/bash
-          # Auto-generated mcp-script tool: github-issue-query
-          # Query GitHub issues with jq filtering support. Without --jq, returns schema and data size info. Use --jq '.' to get all data, or specific jq expressions to filter.
-          
-          set -euo pipefail
-          
-          set -e
-          
-          # Default values
-          REPO="${INPUT_REPO:-}"
-          STATE="${INPUT_STATE:-open}"
-          LIMIT="${INPUT_LIMIT:-30}"
-          JQ_FILTER="${INPUT_JQ:-}"
-          
-          # JSON fields to fetch
-          JSON_FIELDS="number,title,state,author,createdAt,updatedAt,closedAt,body,labels,assignees,comments,milestone,url"
-          
-          # Build and execute gh command
-          if [[ -n "$REPO" ]]; then
-            OUTPUT=$(gh issue list --state "$STATE" --limit "$LIMIT" --json "$JSON_FIELDS" --repo "$REPO")
-          else
-            OUTPUT=$(gh issue list --state "$STATE" --limit "$LIMIT" --json "$JSON_FIELDS")
-          fi
-          
-          # Apply jq filter if specified
-          if [[ -n "$JQ_FILTER" ]]; then
-            jq "$JQ_FILTER" <<< "$OUTPUT"
-          else
-            # Return schema and size instead of full data
-            ITEM_COUNT=$(jq 'length' <<< "$OUTPUT")
-            DATA_SIZE=${#OUTPUT}
-            
-            # Validate values are numeric
-            if ! [[ "$ITEM_COUNT" =~ ^[0-9]+$ ]]; then
-              ITEM_COUNT=0
-            fi
-            if ! [[ "$DATA_SIZE" =~ ^[0-9]+$ ]]; then
-              DATA_SIZE=0
-            fi
-            
-            cat << EOF
-          {
-            "message": "No --jq filter provided. Use --jq to filter and retrieve data.",
-            "item_count": $ITEM_COUNT,
-            "data_size_bytes": $DATA_SIZE,
-            "schema": {
-              "type": "array",
-              "description": "Array of issue objects",
-              "item_fields": {
-                "number": "integer - Issue number",
-                "title": "string - Issue title",
-                "state": "string - Issue state (OPEN, CLOSED)",
-                "author": "object - Author info with login field",
-                "createdAt": "string - ISO timestamp of creation",
-                "updatedAt": "string - ISO timestamp of last update",
-                "closedAt": "string|null - ISO timestamp of close",
-                "body": "string - Issue body content",
-                "labels": "array - Array of label objects with name field",
-                "assignees": "array - Array of assignee objects with login field",
-                "comments": "object - Comments info with totalCount field",
-                "milestone": "object|null - Milestone info with title field",
-                "url": "string - Issue URL"
-              }
-            },
-            "suggested_queries": [
-              {"description": "Get all data", "query": "."},
-              {"description": "Get issue numbers and titles", "query": ".[] | {number, title}"},
-              {"description": "Get open issues only", "query": ".[] | select(.state == \"OPEN\")"},
-              {"description": "Get issues by author", "query": ".[] | select(.author.login == \"USERNAME\")"},
-              {"description": "Get issues with label", "query": ".[] | select(.labels | map(.name) | index(\"bug\"))"},
-              {"description": "Get issues with many comments", "query": ".[] | select(.comments.totalCount > 5) | {number, title, comments: .comments.totalCount}"},
-              {"description": "Count by state", "query": "group_by(.state) | map({state: .[0].state, count: length})"}
-            ]
-          }
-          EOF
-          fi
-          
-          
-          GH_AW_MCP_SCRIPTS_SH_GITHUB-ISSUE-QUERY_EOF
-          chmod +x ${RUNNER_TEMP}/gh-aw/mcp-scripts/github-issue-query.sh
-          cat > ${RUNNER_TEMP}/gh-aw/mcp-scripts/github-pr-query.sh << 'GH_AW_MCP_SCRIPTS_SH_GITHUB-PR-QUERY_EOF'
-          #!/bin/bash
-          # Auto-generated mcp-script tool: github-pr-query
-          # Query GitHub pull requests with jq filtering support. Without --jq, returns schema and data size info. Use --jq '.' to get all data, or specific jq expressions to filter.
-          
-          set -euo pipefail
-          
-          set -e
-          
-          # Default values
-          REPO="${INPUT_REPO:-}"
-          STATE="${INPUT_STATE:-open}"
-          LIMIT="${INPUT_LIMIT:-30}"
-          JQ_FILTER="${INPUT_JQ:-}"
-          
-          # JSON fields to fetch
-          JSON_FIELDS="number,title,state,author,createdAt,updatedAt,mergedAt,closedAt,headRefName,baseRefName,isDraft,reviewDecision,additions,deletions,changedFiles,labels,assignees,reviewRequests,url"
-          
-          # Build and execute gh command
-          if [[ -n "$REPO" ]]; then
-            OUTPUT=$(gh pr list --state "$STATE" --limit "$LIMIT" --json "$JSON_FIELDS" --repo "$REPO")
-          else
-            OUTPUT=$(gh pr list --state "$STATE" --limit "$LIMIT" --json "$JSON_FIELDS")
-          fi
-          
-          # Apply jq filter if specified
-          if [[ -n "$JQ_FILTER" ]]; then
-            jq "$JQ_FILTER" <<< "$OUTPUT"
-          else
-            # Return schema and size instead of full data
-            ITEM_COUNT=$(jq 'length' <<< "$OUTPUT")
-            DATA_SIZE=${#OUTPUT}
-            
-            # Validate values are numeric
-            if ! [[ "$ITEM_COUNT" =~ ^[0-9]+$ ]]; then
-              ITEM_COUNT=0
-            fi
-            if ! [[ "$DATA_SIZE" =~ ^[0-9]+$ ]]; then
-              DATA_SIZE=0
-            fi
-            
-            cat << EOF
-          {
-            "message": "No --jq filter provided. Use --jq to filter and retrieve data.",
-            "item_count": $ITEM_COUNT,
-            "data_size_bytes": $DATA_SIZE,
-            "schema": {
-              "type": "array",
-              "description": "Array of pull request objects",
-              "item_fields": {
-                "number": "integer - PR number",
-                "title": "string - PR title",
-                "state": "string - PR state (OPEN, CLOSED, MERGED)",
-                "author": "object - Author info with login field",
-                "createdAt": "string - ISO timestamp of creation",
-                "updatedAt": "string - ISO timestamp of last update",
-                "mergedAt": "string|null - ISO timestamp of merge",
-                "closedAt": "string|null - ISO timestamp of close",
-                "headRefName": "string - Source branch name",
-                "baseRefName": "string - Target branch name",
-                "isDraft": "boolean - Whether PR is a draft",
-                "reviewDecision": "string|null - Review decision (APPROVED, CHANGES_REQUESTED, REVIEW_REQUIRED)",
-                "additions": "integer - Lines added",
-                "deletions": "integer - Lines deleted",
-                "changedFiles": "integer - Number of files changed",
-                "labels": "array - Array of label objects with name field",
-                "assignees": "array - Array of assignee objects with login field",
-                "reviewRequests": "array - Array of review request objects",
-                "url": "string - PR URL"
-              }
-            },
-            "suggested_queries": [
-              {"description": "Get all data", "query": "."},
-              {"description": "Get PR numbers and titles", "query": ".[] | {number, title}"},
-              {"description": "Get open PRs only", "query": ".[] | select(.state == \"OPEN\")"},
-              {"description": "Get merged PRs", "query": ".[] | select(.mergedAt != null)"},
-              {"description": "Get PRs by author", "query": ".[] | select(.author.login == \"USERNAME\")"},
-              {"description": "Get large PRs", "query": ".[] | select(.changedFiles > 10) | {number, title, changedFiles}"},
-              {"description": "Count by state", "query": "group_by(.state) | map({state: .[0].state, count: length})"}
-            ]
-          }
-          EOF
-          fi
-          
-          
-          GH_AW_MCP_SCRIPTS_SH_GITHUB-PR-QUERY_EOF
-          chmod +x ${RUNNER_TEMP}/gh-aw/mcp-scripts/github-pr-query.sh
+          GH_AW_MCP_SCRIPTS_WRITER_EOF
           
       - name: Generate MCP Scripts Server Config
         id: mcp-scripts-config
