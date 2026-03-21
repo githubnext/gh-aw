@@ -96,7 +96,7 @@ function generateDifcFilteredSection(filteredEvents) {
   section += `> <details>\n`;
   section += `> <summary>🔒 Integrity filter blocked ${count} ${itemWord}</summary>\n`;
   section += `>\n`;
-  section += `> The following ${itemWord} were blocked because they don't meet the workflow's [\`min-integrity\`](https://github.github.com/gh-aw/reference/integrity/) level.\n`;
+  section += `> The following ${itemWord} were blocked because they don't meet the GitHub [\`min-integrity\`](https://github.github.com/gh-aw/reference/integrity/) level.\n`;
   section += `>\n`;
 
   const maxItems = 16;
@@ -122,15 +122,12 @@ function generateDifcFilteredSection(filteredEvents) {
   }
 
   section += `>\n`;
-  section += `> To allow these resources, lower \`min-integrity\` in your workflow frontmatter:\n`;
-  section += `>\n`;
-  section += `> \`\`\`yaml\n`;
-  section += `> tools:\n`;
-  section += `>   github:\n`;
-  section += `>     min-integrity: approved  # merged | approved | unapproved | none\n`;
-  section += `> \`\`\`\n`;
-  section += `>\n`;
-  section += `> See [Integrity Filtering](https://github.github.com/gh-aw/reference/integrity/) for more information.\n`;
+  const promptsDir = process.env.GH_AW_PROMPTS_DIR || `${process.env.RUNNER_TEMP}/gh-aw/prompts`;
+  const remediationPath = `${promptsDir}/integrity_filter_remediation.md`;
+  const remediationText = fs.readFileSync(remediationPath, "utf8");
+  for (const line of remediationText.trimEnd().split("\n")) {
+    section += line ? `> ${line}\n` : `>\n`;
+  }
   section += `>\n`;
   section += `> </details>\n`;
 

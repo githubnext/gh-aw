@@ -8,11 +8,20 @@ describe("gateway_difc_filtered.cjs", () => {
   let getDifcFilteredEvents;
   let generateDifcFilteredSection;
   let testDir;
+  let originalEnv;
 
   beforeEach(async () => {
     // Create a temporary directory for test files
     testDir = path.join(os.tmpdir(), `gh-aw-test-difc-${Date.now()}`);
     fs.mkdirSync(testDir, { recursive: true });
+
+    // Set up prompts directory with the remediation md file
+    const promptsDir = path.join(testDir, "prompts");
+    fs.mkdirSync(promptsDir, { recursive: true });
+    const remediationSrc = path.resolve(path.dirname(new URL(import.meta.url).pathname), "../md/integrity_filter_remediation.md");
+    fs.copyFileSync(remediationSrc, path.join(promptsDir, "integrity_filter_remediation.md"));
+    originalEnv = process.env.GH_AW_PROMPTS_DIR;
+    process.env.GH_AW_PROMPTS_DIR = promptsDir;
 
     // Dynamic import to get fresh module state
     const module = await import("./gateway_difc_filtered.cjs");
@@ -22,6 +31,12 @@ describe("gateway_difc_filtered.cjs", () => {
   });
 
   afterEach(() => {
+    // Restore environment
+    if (originalEnv !== undefined) {
+      process.env.GH_AW_PROMPTS_DIR = originalEnv;
+    } else {
+      delete process.env.GH_AW_PROMPTS_DIR;
+    }
     // Clean up test directory
     if (testDir && fs.existsSync(testDir)) {
       fs.rmSync(testDir, { recursive: true, force: true });
