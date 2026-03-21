@@ -257,6 +257,7 @@ func parseBashTool(val any) *BashToolConfig {
 	if val == nil {
 		// nil is no longer supported - return nil to indicate invalid configuration
 		// The compiler will handle this as a validation error
+		toolsParserLog.Print("Bash tool configured with nil value (unsupported)")
 		return nil
 	}
 
@@ -264,9 +265,11 @@ func parseBashTool(val any) *BashToolConfig {
 	if boolVal, ok := val.(bool); ok {
 		if boolVal {
 			// bash: true means all commands allowed
+			toolsParserLog.Print("Bash tool enabled with all commands allowed")
 			return &BashToolConfig{}
 		}
 		// bash: false means explicitly disabled
+		toolsParserLog.Print("Bash tool explicitly disabled")
 		return &BashToolConfig{
 			AllowedCommands: []string{}, // Empty slice indicates explicitly disabled
 		}
@@ -292,8 +295,10 @@ func parseBashTool(val any) *BashToolConfig {
 // parsePlaywrightTool converts raw playwright tool configuration to PlaywrightToolConfig
 func parsePlaywrightTool(val any) *PlaywrightToolConfig {
 	if val == nil {
+		toolsParserLog.Print("Playwright tool enabled with default configuration")
 		return &PlaywrightToolConfig{}
 	}
+	toolsParserLog.Print("Parsing playwright tool configuration")
 
 	if configMap, ok := val.(map[string]any); ok {
 		config := &PlaywrightToolConfig{}
@@ -332,11 +337,13 @@ func parsePlaywrightTool(val any) *PlaywrightToolConfig {
 // parseSerenaTool converts raw serena tool configuration to SerenaToolConfig
 func parseSerenaTool(val any) *SerenaToolConfig {
 	if val == nil {
+		toolsParserLog.Print("Serena tool enabled with default configuration")
 		return &SerenaToolConfig{}
 	}
 
 	// Handle array format (short syntax): ["go", "typescript"]
 	if langArray, ok := val.([]any); ok {
+		toolsParserLog.Printf("Parsing Serena tool with short-syntax language list: %d languages", len(langArray))
 		config := &SerenaToolConfig{
 			ShortSyntax: make([]string, 0, len(langArray)),
 		}
