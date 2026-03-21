@@ -97,7 +97,7 @@ func (c *Compiler) applyPullRequestDraftFilter(data *WorkflowData, frontmatter m
 	// Build condition tree and render
 	existingCondition := data.If
 	conditionTree := BuildConditionTree(existingCondition, draftCondition.Render())
-	data.If = conditionTree.Render()
+	data.If = RenderCondition(conditionTree)
 }
 
 // applyPullRequestForkFilter applies fork filter conditions for pull_request triggers
@@ -189,7 +189,7 @@ func (c *Compiler) applyPullRequestForkFilter(data *WorkflowData, frontmatter ma
 	// Build condition tree and render
 	existingCondition := data.If
 	conditionTree := BuildConditionTree(existingCondition, forkCondition.Render())
-	data.If = conditionTree.Render()
+	data.If = RenderCondition(conditionTree)
 }
 
 // applyLabelFilter applies label name filter conditions for labeled/unlabeled triggers
@@ -428,6 +428,6 @@ func (c *Compiler) applyLabelFilter(data *WorkflowData, frontmatter map[string]a
 		// Build condition tree and render
 		existingCondition := data.If
 		conditionTree := BuildConditionTree(existingCondition, finalCondition.Render())
-		data.If = conditionTree.Render()
+		data.If = RenderCondition(conditionTree)
 	}
 }

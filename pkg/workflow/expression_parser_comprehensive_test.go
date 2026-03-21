@@ -33,7 +33,7 @@ func TestParseExpressionComprehensive(t *testing.T) {
 		{
 			name:     "simple OR operation",
 			input:    "a || b",
-			expected: "(a) || (b)",
+			expected: "a || b",
 			wantErr:  false,
 		},
 		{
@@ -47,13 +47,13 @@ func TestParseExpressionComprehensive(t *testing.T) {
 		{
 			name:     "AND has higher precedence than OR",
 			input:    "a || b && c",
-			expected: "(a) || ((b) && (c))",
+			expected: "a || (b) && (c)",
 			wantErr:  false,
 		},
 		{
 			name:     "multiple AND with OR",
 			input:    "a && b || c && d",
-			expected: "((a) && (b)) || ((c) && (d))",
+			expected: "(a) && (b) || (c) && (d)",
 			wantErr:  false,
 		},
 		{
@@ -65,7 +65,7 @@ func TestParseExpressionComprehensive(t *testing.T) {
 		{
 			name:     "NOT with OR",
 			input:    "!a || b",
-			expected: "(!(a)) || (b)",
+			expected: "!(a) || b",
 			wantErr:  false,
 		},
 		{
@@ -77,7 +77,7 @@ func TestParseExpressionComprehensive(t *testing.T) {
 		{
 			name:     "NOT with AND and OR",
 			input:    "!a && b || c",
-			expected: "((!(a)) && (b)) || (c)",
+			expected: "(!(a)) && (b) || c",
 			wantErr:  false,
 		},
 
@@ -91,13 +91,13 @@ func TestParseExpressionComprehensive(t *testing.T) {
 		{
 			name:     "parentheses override precedence",
 			input:    "(a || b) && c",
-			expected: "((a) || (b)) && (c)",
+			expected: "(a || b) && (c)",
 			wantErr:  false,
 		},
 		{
 			name:     "nested parentheses",
 			input:    "((a && b) || (c && d))",
-			expected: "((a) && (b)) || ((c) && (d))",
+			expected: "(a) && (b) || (c) && (d)",
 			wantErr:  false,
 		},
 		{
@@ -109,7 +109,7 @@ func TestParseExpressionComprehensive(t *testing.T) {
 		{
 			name:     "complex nested expression",
 			input:    "((a || b) && (c || d)) || ((e && f) || (g && h))",
-			expected: "(((a) || (b)) && ((c) || (d))) || (((e) && (f)) || ((g) && (h)))",
+			expected: "(a || b) && (c || d) || (e) && (f) || (g) && (h)",
 			wantErr:  false,
 		},
 
@@ -129,7 +129,7 @@ func TestParseExpressionComprehensive(t *testing.T) {
 		{
 			name:     "complex NOT expression",
 			input:    "!(a && (b || !c))",
-			expected: "!((a) && ((b) || (!(c))))",
+			expected: "!((a) && (b || !(c)))",
 			wantErr:  false,
 		},
 
@@ -149,7 +149,7 @@ func TestParseExpressionComprehensive(t *testing.T) {
 		{
 			name:     "GitHub Actions condition - multiple checks",
 			input:    "(github.workflow && github.repository) || (github.run_id && github.actor)",
-			expected: "((github.workflow) && (github.repository)) || ((github.run_id) && (github.actor))",
+			expected: "(github.workflow) && (github.repository) || (github.run_id) && (github.actor)",
 			wantErr:  false,
 		},
 
@@ -163,7 +163,7 @@ func TestParseExpressionComprehensive(t *testing.T) {
 		{
 			name:     "nested function calls",
 			input:    "contains(labels, 'urgent') || (contains(labels, 'critical') && !contains(labels, 'wip'))",
-			expected: "(contains(labels, 'urgent')) || ((contains(labels, 'critical')) && (!(contains(labels, 'wip'))))",
+			expected: "contains(labels, 'urgent') || (contains(labels, 'critical')) && (!(contains(labels, 'wip')))",
 			wantErr:  false,
 		},
 
@@ -171,7 +171,7 @@ func TestParseExpressionComprehensive(t *testing.T) {
 		{
 			name:     "string with operators inside",
 			input:    "github.workflow == 'Fix && improve' || github.repository == 'done'",
-			expected: "(github.workflow == 'Fix && improve') || (github.repository == 'done')",
+			expected: "github.workflow == 'Fix && improve' || github.repository == 'done'",
 			wantErr:  false,
 		},
 		{
@@ -183,7 +183,7 @@ func TestParseExpressionComprehensive(t *testing.T) {
 		{
 			name:     "string with NOT operator inside",
 			input:    "github.workflow == '!important note' || github.repository",
-			expected: "(github.workflow == '!important note') || (github.repository)",
+			expected: "github.workflow == '!important note' || github.repository",
 			wantErr:  false,
 		},
 
@@ -191,43 +191,43 @@ func TestParseExpressionComprehensive(t *testing.T) {
 		{
 			name:     "OR with single-quoted literal",
 			input:    "inputs.repository || 'FStarLang/FStar'",
-			expected: "(inputs.repository) || ('FStarLang/FStar')",
+			expected: "inputs.repository || 'FStarLang/FStar'",
 			wantErr:  false,
 		},
 		{
 			name:     "OR with double-quoted literal",
 			input:    `inputs.name || "default-name"`,
-			expected: `(inputs.name) || ("default-name")`,
+			expected: `inputs.name || "default-name"`,
 			wantErr:  false,
 		},
 		{
 			name:     "OR with backtick literal",
 			input:    "inputs.config || `default-config`",
-			expected: "(inputs.config) || (`default-config`)",
+			expected: "inputs.config || `default-config`",
 			wantErr:  false,
 		},
 		{
 			name:     "OR with number literal",
 			input:    "inputs.count || 42",
-			expected: "(inputs.count) || (42)",
+			expected: "inputs.count || 42",
 			wantErr:  false,
 		},
 		{
 			name:     "OR with boolean literal",
 			input:    "inputs.flag || true",
-			expected: "(inputs.flag) || (true)",
+			expected: "inputs.flag || true",
 			wantErr:  false,
 		},
 		{
 			name:     "complex OR with literal and parentheses",
 			input:    "(inputs.value || 'default') && github.actor",
-			expected: "((inputs.value) || ('default')) && (github.actor)",
+			expected: "(inputs.value || 'default') && (github.actor)",
 			wantErr:  false,
 		},
 		{
 			name:     "multiple OR with mixed literals",
 			input:    "inputs.a || 'default-a' || inputs.b || 'default-b'",
-			expected: "(((inputs.a) || ('default-a')) || (inputs.b)) || ('default-b')",
+			expected: "inputs.a || 'default-a' || inputs.b || 'default-b'",
 			wantErr:  false,
 		},
 
@@ -235,19 +235,19 @@ func TestParseExpressionComprehensive(t *testing.T) {
 		{
 			name:     "expression with extra whitespace",
 			input:    "  a  &&  b  ||  c  ",
-			expected: "((a) && (b)) || (c)",
+			expected: "(a) && (b) || c",
 			wantErr:  false,
 		},
 		{
 			name:     "expression with tabs and newlines",
 			input:    "a\t&&\tb\n||\nc",
-			expected: "((a) && (b)) || (c)",
+			expected: "(a) && (b) || c",
 			wantErr:  false,
 		},
 		{
 			name:     "whitespace in parentheses",
 			input:    "( a && b ) || ( c )",
-			expected: "((a) && (b)) || (c)",
+			expected: "(a) && (b) || c",
 			wantErr:  false,
 		},
 
@@ -351,7 +351,7 @@ func TestParseExpressionComprehensive(t *testing.T) {
 		{
 			name:     "double quotes with operators",
 			input:    "github.workflow == \"Fix && Improve\" || github.repository",
-			expected: "(github.workflow == \"Fix && Improve\") || (github.repository)",
+			expected: "github.workflow == \"Fix && Improve\" || github.repository",
 			wantErr:  false,
 		},
 
@@ -359,13 +359,13 @@ func TestParseExpressionComprehensive(t *testing.T) {
 		{
 			name:     "very complex expression",
 			input:    "((github.workflow == 'issues' || github.repository == 'issue_comment') && (github.actor == 'opened' || github.run_id == 'created')) || (github.workflow == 'pull_request' && !github.repository && (github.actor == 'opened' || github.run_id == 'synchronize'))",
-			expected: "(((github.workflow == 'issues') || (github.repository == 'issue_comment')) && ((github.actor == 'opened') || (github.run_id == 'created'))) || (((github.workflow == 'pull_request') && (!(github.repository))) && ((github.actor == 'opened') || (github.run_id == 'synchronize')))",
+			expected: "(github.workflow == 'issues' || github.repository == 'issue_comment') && (github.actor == 'opened' || github.run_id == 'created') || (github.workflow == 'pull_request') && (!(github.repository)) && (github.actor == 'opened' || github.run_id == 'synchronize')",
 			wantErr:  false,
 		},
 		{
 			name:     "expression with mixed function calls",
 			input:    "(contains(github.workflow, 'bug') || contains(github.repository, 'enhancement')) && !contains(github.actor, 'wontfix')",
-			expected: "((contains(github.workflow, 'bug')) || (contains(github.repository, 'enhancement'))) && (!(contains(github.actor, 'wontfix')))",
+			expected: "(contains(github.workflow, 'bug') || contains(github.repository, 'enhancement')) && (!(contains(github.actor, 'wontfix')))",
 			wantErr:  false,
 		},
 	}

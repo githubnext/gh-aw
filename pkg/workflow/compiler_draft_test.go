@@ -43,7 +43,7 @@ tools:
   github:
     allowed: [issue_read]
 ---`,
-			expectedIf:   "(github.event_name != 'pull_request') || (github.event.pull_request.draft == false)",
+			expectedIf:   "github.event_name != 'pull_request' || github.event.pull_request.draft == false",
 			shouldHaveIf: true,
 		},
 		{
@@ -64,7 +64,7 @@ tools:
   github:
     allowed: [issue_read]
 ---`,
-			expectedIf:   "(github.event_name != 'pull_request') || (github.event.pull_request.draft == true)",
+			expectedIf:   "github.event_name != 'pull_request' || github.event.pull_request.draft == true",
 			shouldHaveIf: true,
 		},
 		{
@@ -106,7 +106,7 @@ tools:
   github:
     allowed: [issue_read]
 ---`,
-			expectedIf:   "(github.actor != 'dependabot[bot]') && ((github.event_name != 'pull_request') || (github.event.pull_request.draft == false))",
+			expectedIf:   "(github.actor != 'dependabot[bot]') && (github.event_name != 'pull_request' || github.event.pull_request.draft == false)",
 			shouldHaveIf: true,
 		},
 		{
@@ -129,7 +129,7 @@ tools:
   github:
     allowed: [issue_read]
 ---`,
-			expectedIf:   "(github.actor != 'dependabot[bot]') && ((github.event_name != 'pull_request') || (github.event.pull_request.draft == true))",
+			expectedIf:   "(github.actor != 'dependabot[bot]') && (github.event_name != 'pull_request' || github.event.pull_request.draft == true)",
 			shouldHaveIf: true,
 		},
 		{

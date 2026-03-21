@@ -53,7 +53,7 @@ run-name: "Tidy"
 jobs:
   activation:
     needs: pre_activation
-    if: "(needs.pre_activation.outputs.activated == 'true') && (((github.event_name == 'issue_comment') && ((github.event_name == 'issue_comment') && ((((startsWith(github.event.comment.body, '/tidy ')) || (startsWith(github.event.comment.body, '/tidy\n'))) || (github.event.comment.body == '/tidy')) && (github.event.issue.pull_request != null)))) || (!(github.event_name == 'issue_comment')))"
+    if: "needs.pre_activation.outputs.activated == 'true' && (github.event_name == 'issue_comment' && (startsWith(github.event.comment.body, '/tidy ') || startsWith(github.event.comment.body, '/tidy\n') || github.event.comment.body == '/tidy') && github.event.issue.pull_request != null || !(github.event_name == 'issue_comment'))"
     runs-on: ubuntu-slim
     permissions:
       contents: read
@@ -110,7 +110,7 @@ jobs:
             await main(core, context);
       - name: Add eyes reaction for immediate feedback
         id: react
-        if: github.event_name == 'issues' || github.event_name == 'issue_comment' || github.event_name == 'pull_request_review_comment' || github.event_name == 'discussion' || github.event_name == 'discussion_comment' || (github.event_name == 'pull_request') && (github.event.pull_request.head.repo.id == github.repository_id)
+        if: github.event_name == 'issues' || github.event_name == 'issue_comment' || github.event_name == 'pull_request_review_comment' || github.event_name == 'discussion' || github.event_name == 'discussion_comment' || github.event_name == 'pull_request' && github.event.pull_request.head.repo.id == github.repository_id
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           GH_AW_REACTION: "eyes"
@@ -156,7 +156,7 @@ jobs:
             await main();
       - name: Add comment with workflow run link
         id: add-comment
-        if: github.event_name == 'issues' || github.event_name == 'issue_comment' || github.event_name == 'pull_request_review_comment' || github.event_name == 'discussion' || github.event_name == 'discussion_comment' || (github.event_name == 'pull_request') && (github.event.pull_request.head.repo.id == github.repository_id)
+        if: github.event_name == 'issues' || github.event_name == 'issue_comment' || github.event_name == 'pull_request_review_comment' || github.event_name == 'discussion' || github.event_name == 'discussion_comment' || github.event_name == 'pull_request' && github.event.pull_request.head.repo.id == github.repository_id
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           GH_AW_WORKFLOW_NAME: "Tidy"
@@ -383,7 +383,7 @@ jobs:
       - name: Checkout PR branch
         id: checkout-pr
         if: |
-          (github.event.pull_request) || (github.event.issue.pull_request)
+          github.event.pull_request || github.event.issue.pull_request
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           GH_TOKEN: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
@@ -987,7 +987,7 @@ jobs:
       - activation
       - agent
       - safe_outputs
-    if: (always()) && ((needs.agent.result != 'skipped') || (needs.activation.outputs.lockdown_check_failed == 'true'))
+    if: always() && (needs.agent.result != 'skipped' || needs.activation.outputs.lockdown_check_failed == 'true')
     runs-on: ubuntu-slim
     permissions:
       contents: write
@@ -1131,12 +1131,12 @@ jobs:
             await main();
 
   pre_activation:
-    if: "((github.event_name == 'issue_comment') && ((github.event_name == 'issue_comment') && ((((startsWith(github.event.comment.body, '/tidy ')) || (startsWith(github.event.comment.body, '/tidy\n'))) || (github.event.comment.body == '/tidy')) && (github.event.issue.pull_request != null)))) || (!(github.event_name == 'issue_comment'))"
+    if: "github.event_name == 'issue_comment' && (startsWith(github.event.comment.body, '/tidy ') || startsWith(github.event.comment.body, '/tidy\n') || github.event.comment.body == '/tidy') && github.event.issue.pull_request != null || !(github.event_name == 'issue_comment')"
     runs-on: ubuntu-slim
     permissions:
       contents: read
     outputs:
-      activated: ${{ (steps.check_membership.outputs.is_team_member == 'true') && (steps.check_command_position.outputs.command_position_ok == 'true') }}
+      activated: ${{ steps.check_membership.outputs.is_team_member == 'true' && steps.check_command_position.outputs.command_position_ok == 'true' }}
       matched_command: ${{ steps.check_command_position.outputs.matched_command }}
     steps:
       - name: Checkout actions folder
@@ -1178,7 +1178,7 @@ jobs:
     needs:
       - activation
       - agent
-    if: ((!cancelled()) && (needs.agent.result != 'skipped')) && (needs.agent.outputs.detection_success == 'true')
+    if: (!cancelled()) && needs.agent.result != 'skipped' && needs.agent.outputs.detection_success == 'true'
     runs-on: ubuntu-slim
     permissions:
       contents: write
@@ -1233,7 +1233,7 @@ jobs:
           name: agent
           path: /tmp/gh-aw/
       - name: Checkout repository
-        if: (((!cancelled()) && (needs.agent.result != 'skipped')) && (contains(needs.agent.outputs.output_types, 'create_pull_request'))) || (((!cancelled()) && (needs.agent.result != 'skipped')) && (contains(needs.agent.outputs.output_types, 'push_to_pull_request_branch')))
+        if: (!cancelled()) && needs.agent.result != 'skipped' && contains(needs.agent.outputs.output_types, 'create_pull_request') || (!cancelled()) && needs.agent.result != 'skipped' && contains(needs.agent.outputs.output_types, 'push_to_pull_request_branch')
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           ref: ${{ github.base_ref || github.event.pull_request.base.ref || github.ref_name || github.event.repository.default_branch }}
@@ -1241,7 +1241,7 @@ jobs:
           persist-credentials: false
           fetch-depth: 1
       - name: Configure Git credentials
-        if: (((!cancelled()) && (needs.agent.result != 'skipped')) && (contains(needs.agent.outputs.output_types, 'create_pull_request'))) || (((!cancelled()) && (needs.agent.result != 'skipped')) && (contains(needs.agent.outputs.output_types, 'push_to_pull_request_branch')))
+        if: (!cancelled()) && needs.agent.result != 'skipped' && contains(needs.agent.outputs.output_types, 'create_pull_request') || (!cancelled()) && needs.agent.result != 'skipped' && contains(needs.agent.outputs.output_types, 'push_to_pull_request_branch')
         env:
           REPO_NAME: ${{ github.repository }}
           SERVER_URL: ${{ github.server_url }}
