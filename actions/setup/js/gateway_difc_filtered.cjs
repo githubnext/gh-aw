@@ -94,10 +94,9 @@ function generateDifcFilteredSection(filteredEvents) {
 
   let section = "\n\n> [!NOTE]\n";
   section += `> <details>\n`;
-  section += `> <summary>🔒 Integrity filtering filtered ${count} ${itemWord}</summary>\n`;
+  section += `> <summary>🔒 Integrity filter blocked ${count} ${itemWord}</summary>\n`;
   section += `>\n`;
-  section += `> Integrity filtering activated and filtered the following ${itemWord} during workflow execution.\n`;
-  section += `> This happens when a tool call accesses a resource that does not meet the required integrity or secrecy level of the workflow.\n`;
+  section += `> The following ${itemWord} were blocked because they don't meet the GitHub [\`min-integrity\`](https://github.github.com/gh-aw/reference/integrity/) level.\n`;
   section += `>\n`;
 
   const maxItems = 16;
@@ -110,17 +109,25 @@ function generateDifcFilteredSection(filteredEvents) {
       const label = event.number ? `#${event.number}` : event.html_url;
       reference = `[${label}](${event.html_url})`;
     } else {
-      reference = event.description || (event.tool_name ? `\`${event.tool_name}\`` : "-");
+      const desc = event.description ? event.description.replace(/^[a-z-]+:(?!\/\/)/i, "") : null;
+      reference = desc || (event.tool_name ? `\`${event.tool_name}\`` : "-");
     }
     const tool = event.tool_name ? `\`${event.tool_name}\`` : "-";
     const reason = (event.reason || "-").replace(/^Resource '[^']*' /, "").replace(/\n/g, " ");
-    section += `> - ${reference} (${tool}: ${reason})\n`;
+    section += `> - ${reference} ${tool}: ${reason}\n`;
   }
 
   if (remainingCount > 0) {
     section += `> - ... and ${remainingCount} more ${remainingCount === 1 ? "item" : "items"}\n`;
   }
 
+  section += `>\n`;
+  const promptsDir = process.env.GH_AW_PROMPTS_DIR || `${process.env.RUNNER_TEMP}/gh-aw/prompts`;
+  const remediationPath = `${promptsDir}/integrity_filter_remediation.md`;
+  const remediationText = fs.readFileSync(remediationPath, "utf8");
+  for (const line of remediationText.trimEnd().split("\n")) {
+    section += line ? `> ${line}\n` : `>\n`;
+  }
   section += `>\n`;
   section += `> </details>\n`;
 

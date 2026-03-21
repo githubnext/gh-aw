@@ -18,6 +18,19 @@ Three shared workflows provide Python charting capabilities. Choose based on you
 
 **Default recommendation**: Use `shared/trending-charts-simple.md` for most new workflows.
 
+**Importing from githubnext/agentics**: These shared workflows are also published in the [githubnext/agentics](https://github.com/githubnext/agentics) project. If your repository does not already have the local shared files, import them using `gh aw add`:
+
+```bash
+gh aw add githubnext/agentics/python-dataviz
+```
+
+After importing, reference the workflow in your frontmatter as usual:
+
+```yaml
+imports:
+  - shared/python-dataviz.md
+```
+
 ---
 
 ## Option A: Trending Charts (Simple)

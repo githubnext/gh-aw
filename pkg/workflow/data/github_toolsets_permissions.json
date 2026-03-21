@@ -22,7 +22,7 @@
     },
     "dependabot": {
       "description": "Dependabot alerts",
-      "read_permissions": ["security-events"],
+      "read_permissions": ["security-events", "vulnerability-alerts"],
       "write_permissions": [],
       "tools": ["get_dependabot_alert", "list_dependabot_alerts"]
     },

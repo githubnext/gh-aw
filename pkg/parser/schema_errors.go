@@ -214,7 +214,7 @@ func findFrontmatterBounds(lines []string) (startIdx int, endIdx int, frontmatte
 var knownFieldValidValues = map[string]string{
 	// This list mirrors permissions.oneOf[1].properties in main_workflow_schema.json.
 	// Update both when the schema changes.
-	"/permissions": "Valid permission scopes: actions, all, attestations, checks, contents, deployments, discussions, id-token, issues, metadata, models, organization-projects, packages, pages, pull-requests, repository-projects, security-events, statuses",
+	"/permissions": "Valid permission scopes: actions, all, attestations, checks, contents, deployments, discussions, id-token, issues, metadata, models, organization-projects, packages, pages, pull-requests, repository-projects, security-events, statuses, vulnerability-alerts",
 }
 
 // appendKnownFieldValidValuesHint appends a "Valid values: …" hint to message when the

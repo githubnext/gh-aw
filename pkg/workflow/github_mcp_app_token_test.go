@@ -309,3 +309,54 @@ Test that determine-automatic-lockdown is generated even when app is configured.
 	assert.Contains(t, lockContent, "id: github-mcp-app-token", "GitHub App token step should still be generated")
 	assert.Contains(t, lockContent, "GITHUB_MCP_SERVER_TOKEN: ${{ steps.github-mcp-app-token.outputs.token }}", "App token should be used for MCP server")
 }
+
+// TestGitHubMCPAppTokenWithDependabotToolset tests that permission-vulnerability-alerts is included
+// when the dependabot toolset is configured with a GitHub App.
+// The correct GitHub App permission for Dependabot alerts is "vulnerability_alerts"
+// (see https://docs.github.com/en/rest/apps/apps#create-an-installation-access-token-for-an-app),
+// which maps to "permission-vulnerability-alerts" in actions/create-github-app-token.
+func TestGitHubMCPAppTokenWithDependabotToolset(t *testing.T) {
+	compiler := NewCompilerWithVersion("1.0.0")
+
+	markdown := `---
+on: issues
+permissions:
+  contents: read
+  security-events: read
+  vulnerability-alerts: read
+strict: false
+tools:
+  github:
+    mode: local
+    toolsets: [dependabot]
+    github-app:
+      app-id: ${{ vars.APP_ID }}
+      private-key: ${{ secrets.APP_PRIVATE_KEY }}
+---
+
+# Test Workflow
+
+Test that permission-vulnerability-alerts is emitted in the App token minting step.
+`
+
+	tmpDir := t.TempDir()
+	testFile := filepath.Join(tmpDir, "test.md")
+	err := os.WriteFile(testFile, []byte(markdown), 0644)
+	require.NoError(t, err, "Failed to write test file")
+
+	err = compiler.CompileWorkflow(testFile)
+	require.NoError(t, err, "Failed to compile workflow")
+
+	lockFile := strings.TrimSuffix(testFile, ".md") + ".lock.yml"
+	content, err := os.ReadFile(lockFile)
+	require.NoError(t, err, "Failed to read lock file")
+	lockContent := string(content)
+
+	// Verify the vulnerability-alerts permission is passed to the App token minting step
+	// This is the correct GitHub App permission name for Dependabot alerts
+	assert.Contains(t, lockContent, "permission-vulnerability-alerts: read", "Should include vulnerability-alerts read permission in App token")
+	// Verify that security-events is also still passed through
+	assert.Contains(t, lockContent, "permission-security-events: read", "Should also include security-events read permission in App token")
+	// Verify the token minting step is present
+	assert.Contains(t, lockContent, "id: github-mcp-app-token", "GitHub App token step should be generated")
+}

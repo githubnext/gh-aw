@@ -2,8 +2,8 @@
 description: Scans AI-generated discussions to extract actionable code quality improvement tasks
 on:
   schedule:
-    # Every 4 hours (fuzzy time distribution)
-    - cron: every 4h
+    # Every 6 hours (fuzzy time distribution)
+    - cron: every 6h
   workflow_dispatch:
 
 permissions:
@@ -159,7 +159,7 @@ For each discussion, extract the full content including:
 
 ### Step 4: Filter and Prioritize Tasks
 
-From all identified tasks, select the **top 3-5 highest-value tasks** based on:
+From all identified tasks, select the **top 5 highest-value tasks** based on:
 1. **Impact**: How much does this improve code quality?
 2. **Effort**: Is it achievable in 1-3 days?
 3. **Clarity**: Is the task well-defined?
@@ -269,7 +269,7 @@ All tasks focus on code quality improvements and are ready for assignment to age
 ## Output Requirements
 
 ### Issue Creation
-- Create **3-5 issues maximum** per run (respects rate limits)
+- Create **exactly 5 issues** per run (respects rate limits)
 - Each issue expires after 1 day if not addressed
 - All issues tagged with `code-quality`, `automation`, `task-mining`
 - Issues include clear acceptance criteria and file paths
@@ -323,6 +323,7 @@ Good examples of discussions to mine:
 ❌ Forgetting to update repo-memory
 ❌ Not linking back to source discussion
 ❌ Creating more than 5 issues per run
+❌ Creating issues already tracked in processed-discussions.json or extracted-tasks.json
 
 **Important**: If no action is needed after completing your analysis, you **MUST** call the `noop` safe-output tool with a brief explanation. Failing to call any safe-output tool is the most common cause of safe-output workflow failures.
 
