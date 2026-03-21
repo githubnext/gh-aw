@@ -311,7 +311,7 @@ describe("firewall_blocked_domains.cjs", () => {
       expect(result).toContain("> [!WARNING]");
       expect(result).toContain("> <details>");
       expect(result).toContain("> </details>");
-      expect(result).toContain("> <summary>⚠️ Firewall blocked 1 domain</summary>");
+      expect(result).toContain("> <summary>**⚠️ Firewall blocked 1 domain**</summary>");
       expect(result).toContain("> - `blocked.example.com`");
       expect(result).toContain("> The following domain was blocked by the firewall during workflow execution:");
       expect(result).toContain('> ```yaml\n> network:\n>   allowed:\n>     - defaults\n>     - "blocked.example.com"\n> ```');
@@ -325,7 +325,7 @@ describe("firewall_blocked_domains.cjs", () => {
       expect(result).toContain("> [!WARNING]");
       expect(result).toContain("> <details>");
       expect(result).toContain("> </details>");
-      expect(result).toContain("> <summary>⚠️ Firewall blocked 3 domains</summary>");
+      expect(result).toContain("> <summary>**⚠️ Firewall blocked 3 domains**</summary>");
       expect(result).toContain("> - `alpha.example.com`");
       expect(result).toContain("> - `beta.example.com`");
       expect(result).toContain("> - `gamma.example.com`");
