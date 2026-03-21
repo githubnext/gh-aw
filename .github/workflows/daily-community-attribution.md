@@ -170,52 +170,69 @@ component) and mark it as **confirmed**, **confirmed (via follow-up)**, or
 Read the existing wiki page at
 `/tmp/gh-aw/repo-memory-default/Community-Contributors.md` (empty/missing on
 first run).  Merge all confirmed attributions — both newly found ones and all
-previously recorded ones — without duplicating rows.
+previously recorded ones — without duplicating entries.
+
+The wiki page uses issue numbers as link text for quick scanning, while `README.md`
+uses issue titles. Both use full GitHub issue URLs.
 
 The wiki page format:
 
 ```markdown
 # Community Contributors
 
-| Issue | Title | Author | Closed | Attribution |
-|-------|-------|--------|--------|-------------|
-| [#N](url) | Issue title | `@author` | YYYY-MM-DD | direct issue |
-| [#N](url) | Issue title | `@author` | YYYY-MM-DD | resolved by #PR |
+### @author
+
+- [#N](https://github.com/OWNER/REPO/issues/N) Issue title — YYYY-MM-DD — direct issue
+- [#N](https://github.com/OWNER/REPO/issues/N) Issue title — YYYY-MM-DD — resolved by #PR
+
+### @author2
+
+- [#N](https://github.com/OWNER/REPO/issues/N) Issue title — YYYY-MM-DD — direct issue
 ```
 
+- Group entries by author (alphabetical order)
+- Within each author section, sort by issue number descending (newest first)
 - **`direct issue`** — Tier 0: closed as `COMPLETED`, no PR linkage
 - **`resolved by #PR`** — Tiers 1–3: attributed to a specific merged PR
-- Sort by issue number descending (newest first)
-- Do not add rows for unresolved or ambiguous candidates (Tier 4)
+- Do not add entries for unresolved or ambiguous candidates (Tier 4)
 
 Write the updated content back to
 `/tmp/gh-aw/repo-memory-default/Community-Contributors.md` using the edit tool.
 
-### 3. Build the Community Contributions Table
+### 3. Build the Community Contributions Section
 
-Produce a concise, sorted table of attributed community contributors for
-`README.md`:
+Produce a concise section of attributed community contributors for
+`README.md`, grouped by author and wrapped in a `<details>` element.
+Use full GitHub issue URLs (e.g. `https://github.com/OWNER/REPO/issues/N`) and
+issue titles as link text:
 
 ```markdown
 ## 🌍 Community Contributions
 
-Thank you to the community members whose issue reports were resolved in this project!
-This list is updated automatically and reflects all attributed contributions.
+<details>
+<summary>Thank you to the community members whose issue reports were resolved in this project! This list is updated automatically and reflects all attributed contributions.</summary>
 
-| Issue | Title | Author | Resolved By | Attribution |
-|-------|-------|--------|-------------|-------------|
-| [#N](url) | Issue title | @author | — | direct issue |
-| [#N](url) | Issue title | @author | [#PR](url) | direct |
-| [#N](url) | Issue title | @author | [#PR](url) via [#M](url) | follow-up |
+### @author
+
+- [Issue title](https://github.com/OWNER/REPO/issues/N) _(direct issue)_
+- [Issue title](https://github.com/OWNER/REPO/issues/N)
+- [Issue title](https://github.com/OWNER/REPO/issues/N) _(via follow-up #M)_
+
+### @author2
+
+- [Issue title](https://github.com/OWNER/REPO/issues/N)
+
+</details>
 ```
 
-- Sort by issue number descending (newest first)
-- **`direct issue`** (Tier 0): `Resolved By` column shows `—` (no PR)
-- **`direct`** (Tier 1/2): PR URL in `Resolved By`
-- **`via follow-up #M`** (Tier 3): PR URL plus follow-up chain
+- Group entries by author (alphabetical order)
+- Within each author section, sort by issue number descending (newest first)
+- **`_(direct issue)_`** (Tier 0): issue closed as `COMPLETED`, no PR linkage
+- _(no suffix)_ (Tier 1/2): PR closes the issue via native close reference or keyword
+- **`_(via follow-up #M)_`** (Tier 3): indirect chain through a follow-up issue
 - Omit issues that cannot be attributed (see Attribution Candidates section below)
 
-If there are unattributed candidates (Tier 4), append:
+If there are unattributed candidates (Tier 4), append after the `</details>` tag:
 
 ```markdown
 ### ⚠️ Attribution Candidates Need Review
