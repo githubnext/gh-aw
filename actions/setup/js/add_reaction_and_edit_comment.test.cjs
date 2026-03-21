@@ -477,6 +477,54 @@ describe("add_reaction_and_edit_comment.cjs", () => {
     });
   });
 
+  describe("issue_comment event - missing issue number", () => {
+    it("should fail when issue number is missing for issue_comment event", async () => {
+      global.context = {
+        ...global.context,
+        eventName: "issue_comment",
+        payload: {
+          comment: { id: 789 },
+          // No issue field
+        },
+      };
+
+      const { main } = await loadModule();
+      await main();
+
+      expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining(`${ERR_NOT_FOUND}: Issue number not found`));
+    });
+  });
+
+  describe("pull_request_review_comment event - missing PR number", () => {
+    it("should fail when PR number is missing for pull_request_review_comment event", async () => {
+      global.context = {
+        ...global.context,
+        eventName: "pull_request_review_comment",
+        payload: {
+          comment: { id: 555 },
+          // No pull_request field
+        },
+      };
+
+      const { main } = await loadModule();
+      await main();
+
+      expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining(`${ERR_NOT_FOUND}: Pull request number not found`));
+    });
+  });
+
+  describe("addCommentWithWorkflowLink() - error handling", () => {
+    it("should warn (not fail) when comment creation throws", async () => {
+      mockGithub.request.mockRejectedValueOnce(new Error("Network failure"));
+
+      const { addCommentWithWorkflowLink } = await loadModule();
+      await addCommentWithWorkflowLink("/repos/testowner/testrepo/issues/123/comments", "https://github.com/testowner/testrepo/actions/runs/12345", "issues");
+
+      expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("Failed to create comment with workflow link"));
+      expect(mockCore.setFailed).not.toHaveBeenCalled();
+    });
+  });
+
   describe("addReaction()", () => {
     it("should add reaction via REST API and set output", async () => {
       mockGithub.request.mockResolvedValueOnce({ data: { id: 789 } });
