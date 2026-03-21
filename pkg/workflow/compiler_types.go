@@ -292,12 +292,6 @@ func (c *Compiler) getSharedActionResolver() (*ActionCache, *ActionResolver) {
 	return c.actionCache, c.actionResolver
 }
 
-// GetSharedActionResolverForTest exposes the shared action resolver for testing purposes
-// This should only be used in tests
-func (c *Compiler) GetSharedActionResolverForTest() (*ActionCache, *ActionResolver) {
-	return c.getSharedActionResolver()
-}
-
 // getSharedImportCache returns the shared import cache, initializing it on first use
 // This ensures all workflows compiled by this compiler instance share the same import cache
 func (c *Compiler) getSharedImportCache() *parser.ImportCache {
