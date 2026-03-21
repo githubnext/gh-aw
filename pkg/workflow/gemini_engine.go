@@ -18,16 +18,17 @@ type GeminiEngine struct {
 func NewGeminiEngine() *GeminiEngine {
 	return &GeminiEngine{
 		BaseEngine: BaseEngine{
-			id:                     "gemini",
-			displayName:            "Google Gemini CLI",
-			description:            "Google Gemini CLI with headless mode and LLM gateway support",
-			experimental:           false,
-			supportsToolsAllowlist: true,
-			supportsMaxTurns:       false,
-			supportsWebFetch:       false,
-			supportsWebSearch:      false,
-			supportsPlugins:        false,
-			llmGatewayPort:         constants.GeminiLLMGatewayPort,
+			id:                       "gemini",
+			displayName:              "Google Gemini CLI",
+			description:              "Google Gemini CLI with headless mode and LLM gateway support",
+			experimental:             false,
+			supportsToolsAllowlist:   true,
+			supportsMaxTurns:         false,
+			supportsMaxContinuations: false, // Gemini CLI does not support --max-autopilot-continues-style continuation mode
+			supportsWebFetch:         false,
+			supportsWebSearch:        false,
+			supportsPlugins:          false,
+			llmGatewayPort:           constants.GeminiLLMGatewayPort,
 		},
 	}
 }

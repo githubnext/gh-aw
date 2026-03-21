@@ -33,16 +33,17 @@ type CodexEngine struct {
 func NewCodexEngine() *CodexEngine {
 	return &CodexEngine{
 		BaseEngine: BaseEngine{
-			id:                     "codex",
-			displayName:            "Codex",
-			description:            "Uses OpenAI Codex CLI with MCP server support",
-			experimental:           false,
-			supportsToolsAllowlist: true,
-			supportsMaxTurns:       false, // Codex does not support max-turns feature
-			supportsWebFetch:       false, // Codex does not have built-in web-fetch support
-			supportsWebSearch:      true,  // Codex has built-in web-search support
-			supportsPlugins:        false, // Codex CLI does not support plugin installation
-			llmGatewayPort:         constants.CodexLLMGatewayPort,
+			id:                       "codex",
+			displayName:              "Codex",
+			description:              "Uses OpenAI Codex CLI with MCP server support",
+			experimental:             false,
+			supportsToolsAllowlist:   true,
+			supportsMaxTurns:         false, // Codex does not support max-turns feature
+			supportsMaxContinuations: false, // Codex does not support --max-autopilot-continues-style continuation mode
+			supportsWebFetch:         false, // Codex does not have built-in web-fetch support
+			supportsWebSearch:        true,  // Codex has built-in web-search support
+			supportsPlugins:          false, // Codex CLI does not support plugin installation
+			llmGatewayPort:           constants.CodexLLMGatewayPort,
 		},
 	}
 }
