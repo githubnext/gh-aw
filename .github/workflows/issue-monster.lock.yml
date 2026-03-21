@@ -26,7 +26,7 @@
 #   Imports:
 #     - shared/activation-app.md
 #
-# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"810d295f3ec4eadebaf8a208dc5c623ac79ed44e3a0ac78f15876712044f5328","strict":true,"agent_id":"copilot","agent_model":"gpt-5.1-codex-mini"}
+# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"63afdaac1752140d8711c7d98008cf7fe4c77ca5c4fc412ffe1111a45ad46206","strict":true,"agent_id":"copilot","agent_model":"gpt-5.1-codex-mini"}
 
 name: "Issue Monster"
 "on":
@@ -912,7 +912,7 @@ jobs:
                 },
                 "guard-policies": {
                   "allow-only": {
-                    "min-integrity": "approved",
+                    "min-integrity": "none",
                     "repos": "all"
                   }
                 }
