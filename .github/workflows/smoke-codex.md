@@ -64,7 +64,7 @@ safe-outputs:
       run-failure: "🌑 The shadows whisper... [{workflow_name}]({run_url}) {status}. The oracle requires further meditation..."
     actions:
       add-smoked-label:
-        uses: actions-ecosystem/action-add-labels@v1
+        uses: actions-ecosystem/action-add-labels@v1.1.3
         description: Add the 'smoked' label to the current pull request
         env:
           GITHUB_TOKEN: ${{ github.token }}

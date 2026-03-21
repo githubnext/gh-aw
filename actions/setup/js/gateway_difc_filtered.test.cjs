@@ -8,11 +8,20 @@ describe("gateway_difc_filtered.cjs", () => {
   let getDifcFilteredEvents;
   let generateDifcFilteredSection;
   let testDir;
+  let originalEnv;
 
   beforeEach(async () => {
     // Create a temporary directory for test files
     testDir = path.join(os.tmpdir(), `gh-aw-test-difc-${Date.now()}`);
     fs.mkdirSync(testDir, { recursive: true });
+
+    // Set up prompts directory with the remediation md file
+    const promptsDir = path.join(testDir, "prompts");
+    fs.mkdirSync(promptsDir, { recursive: true });
+    const remediationSrc = path.resolve(path.dirname(new URL(import.meta.url).pathname), "../md/integrity_filter_remediation.md");
+    fs.copyFileSync(remediationSrc, path.join(promptsDir, "integrity_filter_remediation.md"));
+    originalEnv = process.env.GH_AW_PROMPTS_DIR;
+    process.env.GH_AW_PROMPTS_DIR = promptsDir;
 
     // Dynamic import to get fresh module state
     const module = await import("./gateway_difc_filtered.cjs");
@@ -22,6 +31,12 @@ describe("gateway_difc_filtered.cjs", () => {
   });
 
   afterEach(() => {
+    // Restore environment
+    if (originalEnv !== undefined) {
+      process.env.GH_AW_PROMPTS_DIR = originalEnv;
+    } else {
+      delete process.env.GH_AW_PROMPTS_DIR;
+    }
     // Clean up test directory
     if (testDir && fs.existsSync(testDir)) {
       fs.rmSync(testDir, { recursive: true, force: true });
@@ -160,7 +175,7 @@ describe("gateway_difc_filtered.cjs", () => {
       expect(result).toContain("> [!NOTE]");
       expect(result).toContain("> <details>");
       expect(result).toContain("> </details>");
-      expect(result).toContain("> <summary>🔒 Integrity filtering filtered 1 item</summary>");
+      expect(result).toContain("> <summary>🔒 Integrity filter blocked 1 item</summary>");
       expect(result).toContain("[#42](https://github.com/org/repo/issues/42)");
       expect(result).toContain("`list_issues`");
       expect(result).toContain("Integrity check failed");
@@ -187,7 +202,7 @@ describe("gateway_difc_filtered.cjs", () => {
       const result = generateDifcFilteredSection(events);
 
       expect(result).toContain("> [!NOTE]");
-      expect(result).toContain("> <summary>🔒 Integrity filtering filtered 2 items</summary>");
+      expect(result).toContain("> <summary>🔒 Integrity filter blocked 2 items</summary>");
       expect(result).toContain("[#42](https://github.com/org/repo/issues/42)");
       expect(result).toContain("[#99](https://github.com/org/repo/issues/99)");
     });
@@ -204,7 +219,9 @@ describe("gateway_difc_filtered.cjs", () => {
 
       const result = generateDifcFilteredSection(events);
 
-      expect(result).toContain("resource:list_issues");
+      // type prefix "resource:" should be stripped from the description label
+      expect(result).toContain("list_issues");
+      expect(result).not.toContain("resource:list_issues");
       expect(result).not.toContain("[#");
     });
 
@@ -242,8 +259,34 @@ describe("gateway_difc_filtered.cjs", () => {
       const events = [{ type: "DIFC_FILTERED", tool_name: "tool", reason: "reason" }];
       const result = generateDifcFilteredSection(events);
 
-      expect(result).toContain("Integrity filtering activated");
-      expect(result).toContain("integrity or secrecy level");
+      expect(result).toContain("blocked because they don't meet");
+      expect(result).toContain("min-integrity");
+    });
+
+    it("should include frontmatter yaml sample for adjusting min-integrity", () => {
+      const events = [{ type: "DIFC_FILTERED", tool_name: "tool", reason: "reason" }];
+      const result = generateDifcFilteredSection(events);
+
+      expect(result).toContain("```yaml");
+      expect(result).toContain("min-integrity:");
+      expect(result).toContain("Integrity Filtering");
+    });
+
+    it("should render item lines without parentheses around tool and reason", () => {
+      const events = [
+        {
+          type: "DIFC_FILTERED",
+          tool_name: "list_issues",
+          reason: "Integrity check failed",
+          html_url: "https://github.com/org/repo/issues/42",
+          number: "42",
+        },
+      ];
+
+      const result = generateDifcFilteredSection(events);
+
+      expect(result).toContain("`list_issues`: Integrity check failed");
+      expect(result).not.toMatch(/\(`list_issues`/);
     });
 
     it("should start with double newline and note alert", () => {
@@ -276,7 +319,7 @@ describe("gateway_difc_filtered.cjs", () => {
 
       const result = generateDifcFilteredSection(events);
 
-      expect(result).toContain("> <summary>🔒 Integrity filtering filtered 2 items</summary>");
+      expect(result).toContain("> <summary>🔒 Integrity filter blocked 2 items</summary>");
       expect(result).toContain("[#42](https://github.com/org/repo/issues/42)");
       expect(result).toContain("[#99](https://github.com/org/repo/issues/99)");
     });
@@ -304,8 +347,9 @@ describe("gateway_difc_filtered.cjs", () => {
       // Resource prefix should be stripped from the reason
       expect(result).not.toContain("Resource 'issue:github/gh-aw#21982'");
       expect(result).toContain("has lower integrity than agent requires");
-      // The description (reference) should still be present
-      expect(result).toContain("issue:github/gh-aw#21982");
+      // The type prefix "issue:" should be stripped from the description label
+      expect(result).toContain("github/gh-aw#21982");
+      expect(result).not.toContain("issue:github/gh-aw#21982");
     });
 
     it("should show at most 16 items and ellipse the rest", () => {
@@ -320,7 +364,7 @@ describe("gateway_difc_filtered.cjs", () => {
       const result = generateDifcFilteredSection(events);
 
       // Summary still shows the total count
-      expect(result).toContain("> <summary>🔒 Integrity filtering filtered 20 items</summary>");
+      expect(result).toContain("> <summary>🔒 Integrity filter blocked 20 items</summary>");
       // First 16 items rendered
       expect(result).toContain("[#1](https://github.com/org/repo/issues/1)");
       expect(result).toContain("[#16](https://github.com/org/repo/issues/16)");

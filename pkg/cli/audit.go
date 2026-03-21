@@ -420,6 +420,7 @@ func AuditWorkflowRun(ctx context.Context, runID int64, owner, repo, hostname st
 		MissingData:             missingData,
 		Noops:                   noops,
 		MCPFailures:             mcpFailures,
+		MCPToolUsage:            mcpToolUsage,
 		ArtifactsList:           artifacts,
 		JobDetails:              jobDetails,
 	}

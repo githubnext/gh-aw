@@ -769,6 +769,11 @@ func buildToolCallsFromRPCMessages(logPath string) ([]MCPToolCall, error) {
 		return nil, fmt.Errorf("error reading rpc-messages.jsonl: %w", err)
 	}
 
+	// Second pass: build MCPToolCall records.
+	// Declared before first pass so requests without IDs can be appended immediately.
+	var toolCalls []MCPToolCall
+	processedKeys := make(map[string]bool)
+
 	// First pass: index outgoing tool-call requests by (serverID, id)
 	for i := range entries {
 		e := &entries[i]
@@ -783,6 +788,15 @@ func buildToolCallsFromRPCMessages(logPath string) ([]MCPToolCall, error) {
 			continue
 		}
 		if e.req.ID == nil {
+			// Requests without an ID cannot be matched to responses.
+			// Emit the tool call immediately with "unknown" status so it appears
+			// in the tool_calls list (same as parseRPCMessages counts it in the summary).
+			toolCalls = append(toolCalls, MCPToolCall{
+				Timestamp:  e.entry.Timestamp,
+				ServerName: e.entry.ServerID,
+				ToolName:   params.Name,
+				Status:     "unknown",
+			})
 			continue
 		}
 		t, err := time.Parse(time.RFC3339Nano, e.entry.Timestamp)
@@ -797,9 +811,7 @@ func buildToolCallsFromRPCMessages(logPath string) ([]MCPToolCall, error) {
 		}
 	}
 
-	// Second pass: build MCPToolCall records
-	var toolCalls []MCPToolCall
-	processedKeys := make(map[string]bool)
+	// Second pass: pair responses with pending requests to compute durations
 
 	for i := range entries {
 		e := &entries[i]

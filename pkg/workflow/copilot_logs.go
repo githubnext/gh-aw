@@ -49,6 +49,7 @@ func (e *CopilotEngine) parseSessionJSONL(logContent string, verbose bool) (LogM
 	toolCallMap := make(map[string]*ToolCallInfo)
 	var currentSequence []string
 	turns := 0
+	assistantMessageCount := 0 // fallback: count assistant messages when num_turns is absent
 
 	lines := strings.Split(logContent, "\n")
 	foundSessionEntry := false
@@ -78,6 +79,9 @@ func (e *CopilotEngine) parseSessionJSONL(logContent string, verbose bool) (LogM
 			}
 
 		case "assistant":
+			// Each assistant message represents one LLM turn
+			assistantMessageCount++
+
 			// Assistant message with potential tool calls
 			if entry.Message != nil {
 				for _, content := range entry.Message.Content {
@@ -151,6 +155,14 @@ func (e *CopilotEngine) parseSessionJSONL(logContent string, verbose bool) (LogM
 				}
 			}
 		}
+	}
+
+	// If turns was not set from num_turns (0 or absent), fall back to counting assistant messages.
+	// The Copilot CLI may omit num_turns from the result entry; each assistant message represents
+	// one LLM conversation turn.
+	if turns == 0 && assistantMessageCount > 0 {
+		turns = assistantMessageCount
+		copilotLogsLog.Printf("num_turns not available in result entry, using assistant message count as turns: %d", turns)
 	}
 
 	// If we found no session entries, return false to indicate fallback needed
@@ -227,6 +239,15 @@ func (e *CopilotEngine) ParseLogMetrics(logContent string, verbose bool) LogMetr
 		if strings.Contains(line, "[DEBUG] data:") {
 			inDataBlock = true
 			currentJSONLines = []string{}
+			// Each API response data block represents one LLM conversation turn.
+			// Copilot CLI debug logs don't have "User:"/"Human:" patterns, so we
+			// count turns based on the number of API responses (data blocks).
+			turns++
+			// Save previous sequence before starting new turn
+			if len(currentSequence) > 0 {
+				metrics.ToolSequences = append(metrics.ToolSequences, currentSequence)
+				currentSequence = []string{}
+			}
 			continue
 		}
 
@@ -282,17 +303,10 @@ func (e *CopilotEngine) ParseLogMetrics(logContent string, verbose bool) LogMetr
 			}
 		}
 
-		// Count turns based on interaction patterns (adjust based on actual Copilot CLI output)
-		if strings.Contains(line, "User:") || strings.Contains(line, "Human:") || strings.Contains(line, "Query:") {
-			turns++
-			// Start of a new turn, save previous sequence if any
-			if len(currentSequence) > 0 {
-				metrics.ToolSequences = append(metrics.ToolSequences, currentSequence)
-				currentSequence = []string{}
-			}
-		}
-
-		// Extract tool calls and add to sequence (adjust based on actual Copilot CLI output format)
+		// Extract tool calls and add to sequence and toolCallMap
+		// "Executing tool: <name>" lines confirm tool execution and are used to populate
+		// both the tool sequence and tool call statistics. This handles the common case where
+		// Copilot CLI JSON blocks have empty tool_calls arrays but emit execution log lines.
 		if toolName := e.parseCopilotToolCallsWithSequence(line, toolCallMap); toolName != "" {
 			currentSequence = append(currentSequence, toolName)
 		}
@@ -403,19 +417,29 @@ func (e *CopilotEngine) processToolCalls(toolCalls []any, toolCallMap map[string
 	}
 }
 
-// parseCopilotToolCallsWithSequence extracts tool call information from Copilot CLI log lines and returns tool name
+// parseCopilotToolCallsWithSequence extracts tool call information from Copilot CLI log lines and returns tool name.
+// It also updates toolCallMap with the tool execution count for statistics tracking.
 func (e *CopilotEngine) parseCopilotToolCallsWithSequence(line string, toolCallMap map[string]*ToolCallInfo) string {
-	// This method handles simple tool execution log lines for sequence tracking
-	// Tool size extraction is now handled by extractToolCallSizes which parses JSON
-
 	// Look for "Executing tool:" pattern in Copilot logs
 	if strings.Contains(line, "Executing tool:") {
 		// Extract tool name from "Executing tool: <name>" format
 		parts := strings.Split(line, "Executing tool:")
 		if len(parts) > 1 {
 			toolName := strings.TrimSpace(parts[1])
-			// Return the tool name for sequence tracking
-			// Size information is handled separately by extractToolCallSizes
+			if toolName == "" {
+				return ""
+			}
+			// Update toolCallMap: this captures tool calls from execution log lines.
+			// This is the primary source of tool call data in the Copilot CLI debug log
+			// format, since JSON response blocks often have empty tool_calls arrays.
+			if toolInfo, exists := toolCallMap[toolName]; exists {
+				toolInfo.CallCount++
+			} else {
+				toolCallMap[toolName] = &ToolCallInfo{
+					Name:      toolName,
+					CallCount: 1,
+				}
+			}
 			return toolName
 		}
 	}

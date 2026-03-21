@@ -216,3 +216,54 @@ func TestCopilotSessionJSONLToolSizes(t *testing.T) {
 		t.Error("Expected MaxInputSize to be tracked")
 	}
 }
+
+// TestCopilotSessionJSONLMissingNumTurns verifies that turns are counted from assistant
+// messages when the result entry does not include num_turns (or has num_turns=0).
+// This is a regression test for the bug where Turns was always 0 in run summaries
+// because the Copilot CLI sometimes omits num_turns from the result entry.
+func TestCopilotSessionJSONLMissingNumTurns(t *testing.T) {
+	// Session JSONL where the result entry omits num_turns entirely
+	logContent := `{"type":"system","subtype":"init","session_id":"copilot-no-turns","tools":["Bash"],"model":"gpt-4"}
+{"type":"assistant","message":{"content":[{"type":"tool_use","id":"tool_1","name":"Bash","input":{"command":"ls"}}]}}
+{"type":"user","message":{"content":[{"type":"tool_result","tool_use_id":"tool_1","content":"file.txt"}]}}
+{"type":"assistant","message":{"content":[{"type":"tool_use","id":"tool_2","name":"Bash","input":{"command":"cat file.txt"}}]}}
+{"type":"user","message":{"content":[{"type":"tool_result","tool_use_id":"tool_2","content":"contents"}]}}
+{"type":"result","usage":{"input_tokens":500,"output_tokens":50}}`
+
+	engine := NewCopilotEngine()
+	metrics := engine.ParseLogMetrics(logContent, false)
+
+	// Tokens should still be extracted
+	if metrics.TokenUsage != 550 {
+		t.Errorf("Expected 550 tokens, got %d", metrics.TokenUsage)
+	}
+
+	// Turns should fall back to assistant message count (2 assistant entries)
+	if metrics.Turns != 2 {
+		t.Errorf("Expected 2 turns (from assistant message count fallback), got %d", metrics.Turns)
+	}
+
+	// Tool calls should be extracted from assistant entries
+	if len(metrics.ToolCalls) == 0 {
+		t.Error("Expected tool calls to be extracted")
+	}
+}
+
+// TestCopilotSessionJSONLZeroNumTurns verifies that turns fall back to assistant count
+// when num_turns is explicitly 0 in the result entry.
+func TestCopilotSessionJSONLZeroNumTurns(t *testing.T) {
+	// Session JSONL where num_turns is explicitly 0
+	logContent := `{"type":"system","subtype":"init","session_id":"copilot-zero-turns","tools":["Bash"],"model":"gpt-4"}
+{"type":"assistant","message":{"content":[{"type":"tool_use","id":"tool_1","name":"Bash","input":{"command":"echo hi"}}]}}
+{"type":"user","message":{"content":[{"type":"tool_result","tool_use_id":"tool_1","content":"hi"}]}}
+{"type":"assistant","message":{"content":[{"type":"text","text":"Task complete."}]}}
+{"type":"result","usage":{"input_tokens":300,"output_tokens":30},"num_turns":0}`
+
+	engine := NewCopilotEngine()
+	metrics := engine.ParseLogMetrics(logContent, false)
+
+	// Turns should fall back to assistant message count (2 assistant entries)
+	if metrics.Turns != 2 {
+		t.Errorf("Expected 2 turns (fallback from zero num_turns), got %d", metrics.Turns)
+	}
+}

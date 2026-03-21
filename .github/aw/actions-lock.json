@@ -1,12 +1,12 @@
 {
   "entries": {
-    "actions-ecosystem/action-add-labels@v1": {
+    "actions-ecosystem/action-add-labels@v1.1.3": {
       "repo": "actions-ecosystem/action-add-labels",
-      "version": "v1",
-      "sha": "18f1af5e3544586314bbe15c0273249c770b2daf",
+      "version": "v1.1.3",
+      "sha": "c96b68fec76a0987cd93957189e9abd0b9a72ff1",
       "inputs": {
-        "github-token": {
-          "description": "The GitHub token for authentication.",
+        "github_token": {
+          "description": "A GitHub token.",
           "default": "${{ github.token }}"
         },
         "labels": {
@@ -17,56 +17,46 @@
           "description": "The number of the issue or pull request."
         },
         "repo": {
-          "description": "The owner and name of the repository. Defaults to the current repository.",
+          "description": "The owner and repository name. e.g.) Codertocat/Hello-World",
           "default": "${{ github.repository }}"
         }
       },
-      "action_description": "A GitHub Action to add GitHub labels to pull requests and issues"
+      "action_description": "Add labels to an issue or a pull request."
     },
-    "actions/ai-inference@v2.0.7": {
+    "actions/ai-inference@v2.0.8": {
       "repo": "actions/ai-inference",
-      "version": "v2.0.7",
-      "sha": "e09e65981758de8b2fdab13c2bfb7c7d5493b0b6"
+      "version": "v2.0.8",
+      "sha": "af6ad2c4ac4edf01884054fc3a6caa6d2567c13a"
     },
     "actions/attest-build-provenance@v4.1.0": {
       "repo": "actions/attest-build-provenance",
       "version": "v4.1.0",
       "sha": "a2bbfa25375fe432b6a289bc6b6cd05ecd0c4c32"
     },
-    "actions/cache/restore@v4": {
+    "actions/cache/restore@v5.0.4": {
       "repo": "actions/cache/restore",
-      "version": "v4",
-      "sha": "0057852bfaa89a56745cba8c7296529d2fc39830"
+      "version": "v5.0.4",
+      "sha": "668228422ae6a00e4ad889ee87cd7109ec5666a7"
     },
-    "actions/cache/restore@v5.0.3": {
-      "repo": "actions/cache/restore",
-      "version": "v5.0.3",
-      "sha": "cdf6c1fa76f9f475f3d7449005a359c84ca0f306"
-    },
-    "actions/cache/save@v4": {
+    "actions/cache/save@v5.0.4": {
       "repo": "actions/cache/save",
-      "version": "v4",
-      "sha": "0057852bfaa89a56745cba8c7296529d2fc39830"
+      "version": "v5.0.4",
+      "sha": "668228422ae6a00e4ad889ee87cd7109ec5666a7"
     },
-    "actions/cache/save@v5.0.3": {
-      "repo": "actions/cache/save",
-      "version": "v5.0.3",
-      "sha": "cdf6c1fa76f9f475f3d7449005a359c84ca0f306"
-    },
-    "actions/cache@v5.0.3": {
+    "actions/cache@v5.0.4": {
       "repo": "actions/cache",
-      "version": "v5.0.3",
-      "sha": "cdf6c1fa76f9f475f3d7449005a359c84ca0f306"
+      "version": "v5.0.4",
+      "sha": "668228422ae6a00e4ad889ee87cd7109ec5666a7"
     },
     "actions/checkout@v6.0.2": {
       "repo": "actions/checkout",
       "version": "v6.0.2",
       "sha": "de0fac2e4500dabe0009e67214ff5f5447ce83dd"
     },
-    "actions/create-github-app-token@v3.0.0-beta.4": {
+    "actions/create-github-app-token@v3": {
       "repo": "actions/create-github-app-token",
-      "version": "v3.0.0-beta.4",
-      "sha": "a7f885bf4560200d03183ed941cb6fb072e4b343"
+      "version": "v3",
+      "sha": "f8d387b68d61c58ab83c6c016672934102569859"
     },
     "actions/download-artifact@v8.0.1": {
       "repo": "actions/download-artifact",
@@ -93,11 +83,6 @@
       "version": "v5.2.0",
       "sha": "be666c2fcd27ec809703dec50e508c2fdc7f6654"
     },
-    "actions/setup-node@v4": {
-      "repo": "actions/setup-node",
-      "version": "v4",
-      "sha": "49933ea5288caeca8642d1e84afbd3f7d6820020"
-    },
     "actions/setup-node@v6.3.0": {
       "repo": "actions/setup-node",
       "version": "v6.3.0",
@@ -108,70 +93,75 @@
       "version": "v6.2.0",
       "sha": "a309ff8b426b58ec0e2a45f0f869d46889d02405"
     },
-    "actions/upload-artifact@v7.0.0": {
+    "actions/upload-artifact@v7": {
       "repo": "actions/upload-artifact",
-      "version": "v7.0.0",
+      "version": "v7",
       "sha": "bbbca2ddaa5d8feaa63e36b76fdaad77386f024f"
     },
-    "anchore/sbom-action@v0.23.1": {
+    "anchore/sbom-action@v0.24.0": {
       "repo": "anchore/sbom-action",
-      "version": "v0.23.1",
-      "sha": "57aae528053a48a3f6235f2d9461b05fbcb7366d"
+      "version": "v0.24.0",
+      "sha": "e22c389904149dbc22b58101806040fa8d37a610"
     },
-    "astral-sh/setup-uv@v7.5.0": {
+    "astral-sh/setup-uv@v7.6": {
       "repo": "astral-sh/setup-uv",
-      "version": "v7.5.0",
-      "sha": "e06108dd0aef18192324c70427afc47652e63a82"
+      "version": "v7.6",
+      "sha": "29b21a839666e60d6a2015b4010b35b7911d3590"
     },
     "cli/gh-extension-precompile@v2.1.0": {
       "repo": "cli/gh-extension-precompile",
       "version": "v2.1.0",
       "sha": "9e2237c30f869ad3bcaed6a4be2cd43564dd421b"
     },
-    "denoland/setup-deno@v2": {
+    "denoland/setup-deno@v2.0.4": {
       "repo": "denoland/setup-deno",
-      "version": "v2.0.3",
-      "sha": "e95548e56dfa95d4e1a28d6f422fafe75c4c26fb"
+      "version": "v2.0.4",
+      "sha": "667a34cdef165d8d2b2e98dde39547c9daac7282"
     },
-    "docker/build-push-action@v7.0.0": {
+    "docker/build-push-action@v7": {
       "repo": "docker/build-push-action",
-      "version": "v7.0.0",
+      "version": "v7",
       "sha": "d08e5c354a6adb9ed34480a06d141179aa583294"
     },
-    "docker/login-action@v4.0.0": {
+    "docker/login-action@v4": {
       "repo": "docker/login-action",
-      "version": "v4.0.0",
+      "version": "v4",
       "sha": "b45d80f862d83dbcd57f89517bcf500b2ab88fb2"
     },
-    "docker/metadata-action@v6.0.0": {
+    "docker/metadata-action@v6": {
       "repo": "docker/metadata-action",
-      "version": "v6.0.0",
+      "version": "v6",
       "sha": "030e881283bb7a6894de51c315a6bfe6a94e05cf"
     },
-    "docker/setup-buildx-action@v4.0.0": {
+    "docker/setup-buildx-action@v4": {
       "repo": "docker/setup-buildx-action",
-      "version": "v4.0.0",
+      "version": "v4",
       "sha": "4d04d5d9486b7bd6fa91e7baf45bbb4f8b9deedd"
     },
-    "erlef/setup-beam@v1.22.0": {
+    "erlef/setup-beam@v1.23": {
       "repo": "erlef/setup-beam",
-      "version": "v1.22.0",
-      "sha": "9d5b75ddfda22fb979d2270283237aef8aa68d6b"
+      "version": "v1.23",
+      "sha": "0746fcd48ba6a83e481a252550ff4d8db926b333"
     },
-    "github/codeql-action/upload-sarif@v4.32.6": {
+    "github/codeql-action/upload-sarif@v4.34.1": {
       "repo": "github/codeql-action/upload-sarif",
-      "version": "v4.32.6",
-      "sha": "fb0994ef1c058010acf1efccff928b0a83b1ed54"
+      "version": "v4.34.1",
+      "sha": "cb06a0a8527b2c6970741b3a0baa15231dc74a4c"
     },
     "github/gh-aw-actions/setup@v0": {
       "repo": "github/gh-aw-actions/setup",
       "version": "v0",
-      "sha": "c303e453d96fe6789ee8cb3d63033c710eac347a"
+      "sha": "50f4fc16883c6c6672d8879affa8fd15d5cc79a4"
     },
-    "github/stale-repos@v9.0.2": {
+    "github/gh-aw-actions/setup@v0.62.5": {
+      "repo": "github/gh-aw-actions/setup",
+      "version": "v0.62.5",
+      "sha": "dc50be57c94373431b49d3d0927f318ac2bb5c4c"
+    },
+    "github/stale-repos@v9.0.4": {
       "repo": "github/stale-repos",
-      "version": "v9.0.2",
-      "sha": "f592689f914c623d9fb51a0372f15d05f9849b09"
+      "version": "v9.0.4",
+      "sha": "0e231e85d356a17e8c0f8425df366b8e9daeb739"
     },
     "haskell-actions/setup@v2.10.3": {
       "repo": "haskell-actions/setup",
@@ -183,15 +173,15 @@
       "version": "v1.3.4",
       "sha": "83d54a6c7941049210433b16c8dfac573665b12a"
     },
-    "oven-sh/setup-bun@v2.1.3": {
+    "oven-sh/setup-bun@v2.2.0": {
       "repo": "oven-sh/setup-bun",
-      "version": "v2.1.3",
-      "sha": "ecf28ddc73e819eb6fa29df6b34ef8921c743461"
+      "version": "v2.2.0",
+      "sha": "0c5077e51419868618aeaa5fe8019c62421857d6"
     },
-    "ruby/setup-ruby@v1.292.0": {
+    "ruby/setup-ruby@v1.295.0": {
       "repo": "ruby/setup-ruby",
-      "version": "v1.292.0",
-      "sha": "4eb9f110bac952a8b68ecf92e3b5c7a987594ba6"
+      "version": "v1.295.0",
+      "sha": "319994f95fa847cf3fb3cd3dbe89f6dcde9f178f"
     },
     "super-linter/super-linter@v8.5.0": {
       "repo": "super-linter/super-linter",

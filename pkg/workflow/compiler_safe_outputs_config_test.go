@@ -666,6 +666,67 @@ func TestAddHandlerManagerConfigEnvVar(t *testing.T) {
 			checkJSON:    true,
 			expectedKeys: []string{"noop"},
 		},
+		{
+			name: "assign_to_user config",
+			safeOutputs: &SafeOutputsConfig{
+				AssignToUser: &AssignToUserConfig{
+					BaseSafeOutputConfig: BaseSafeOutputConfig{
+						Max: strPtr("5"),
+					},
+					Allowed: []string{"user1", "user2"},
+				},
+			},
+			checkContains: []string{
+				"GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG",
+			},
+			checkJSON:    true,
+			expectedKeys: []string{"assign_to_user"},
+		},
+		{
+			name: "unassign_from_user config",
+			safeOutputs: &SafeOutputsConfig{
+				UnassignFromUser: &UnassignFromUserConfig{
+					BaseSafeOutputConfig: BaseSafeOutputConfig{
+						Max: strPtr("5"),
+					},
+				},
+			},
+			checkContains: []string{
+				"GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG",
+			},
+			checkJSON:    true,
+			expectedKeys: []string{"unassign_from_user"},
+		},
+		{
+			name: "missing_tool config",
+			safeOutputs: &SafeOutputsConfig{
+				MissingTool: &MissingToolConfig{
+					BaseSafeOutputConfig: BaseSafeOutputConfig{
+						Max: strPtr("5"),
+					},
+				},
+			},
+			checkContains: []string{
+				"GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG",
+			},
+			checkJSON:    true,
+			expectedKeys: []string{"missing_tool"},
+		},
+		{
+			name: "missing_data config",
+			safeOutputs: &SafeOutputsConfig{
+				MissingData: &MissingDataConfig{
+					BaseSafeOutputConfig: BaseSafeOutputConfig{
+						Max: strPtr("5"),
+					},
+				},
+			},
+			checkContains: []string{
+				"GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG",
+			},
+			checkJSON:    true,
+			expectedKeys: []string{"missing_data"},
+		},
 	}
 
 	for _, tt := range tests {

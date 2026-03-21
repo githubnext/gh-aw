@@ -163,7 +163,7 @@ func FetchChecksResult(repoOverride string, prNumber string) (*ChecksResult, err
 	}
 
 	state := classifyCheckState(checkRuns, statuses)
-	requiredState := classifyCheckState(checkRuns, policyStatuses(statuses))
+	requiredState := classifyCheckState(checkRuns, filterCommitStatusesToPolicyChecks(statuses))
 
 	return &ChecksResult{
 		State:         state,
@@ -318,10 +318,10 @@ func isPolicyCheck(name string) bool {
 	return false
 }
 
-// policyStatuses returns only the commit statuses whose context matches a policy/account-gate
+// filterCommitStatusesToPolicyChecks returns only the commit statuses whose context matches a policy/account-gate
 // pattern. Used to compute required_state, which excludes optional third-party commit statuses
 // (e.g. Vercel, Netlify deployments) but still surfaces policy_blocked when policy gates fail.
-func policyStatuses(statuses []PRCommitStatus) []PRCommitStatus {
+func filterCommitStatusesToPolicyChecks(statuses []PRCommitStatus) []PRCommitStatus {
 	if len(statuses) == 0 {
 		return nil
 	}
