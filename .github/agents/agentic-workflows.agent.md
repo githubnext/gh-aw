@@ -19,6 +19,7 @@ This is a **dispatcher agent** that routes your request to the appropriate speci
 - **Creating shared components**: Routes to `create-shared-agentic-workflow` prompt
 - **Fixing Dependabot PRs**: Routes to `dependabot` prompt — use this when Dependabot opens PRs that modify generated manifest files (`.github/workflows/package.json`, `.github/workflows/requirements.txt`, `.github/workflows/go.mod`). Never merge those PRs directly; instead update the source `.md` files and rerun `gh aw compile --dependabot` to bundle all fixes
 - **Analyzing test coverage**: Routes to `test-coverage` prompt — consult this whenever the workflow reads, analyzes, or reports on test coverage data from PRs or CI runs
+- **Adding data visualization / charts**: Routes to `charts` prompt — consult this whenever the workflow generates charts, trend graphs, or Python-based visualizations using Matplotlib or Seaborn
 
 Workflows may optionally include:
 
@@ -128,6 +129,16 @@ When you interact with this agent, it will:
 - "Create a workflow that comments coverage on PRs"
 - "Analyze coverage trends over time"
 - "Add a coverage gate that blocks PRs below a threshold"
+
+### Add Data Visualization / Charts
+**Load when**: The workflow generates charts, trend graphs, or any Python-based data visualization — using Matplotlib, Seaborn, or scientific libraries to produce PNG images from data. Always consult this prompt before choosing a shared import or designing the chart strategy.
+
+**Prompt file**: https://github.com/github/gh-aw/blob/main/.github/aw/charts.md
+
+**Use cases**:
+- "Add a trend chart to the weekly report"
+- "Generate charts showing issue activity over time"
+- "Create a workflow that visualizes build metrics with Python"
 
 ## Instructions
 
