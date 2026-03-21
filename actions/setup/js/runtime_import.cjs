@@ -648,10 +648,11 @@ function wrapExpressionsInTemplateConditionals(content) {
     }
 
     // Only wrap expressions that look like GitHub Actions expressions
-    // GitHub Actions expressions typically contain dots (e.g., github.actor, github.event.issue.number)
-    // or specific keywords (true, false, null)
+    // GitHub Actions expressions typically start with a letter and contain dots
+    // (e.g., github.actor, github.event.issue.number) or specific keywords (true, false, null).
+    // Expressions starting with non-alphabetic characters (e.g., "...") are NOT GitHub expressions.
     const looksLikeGitHubExpr =
-      trimmed.includes(".") ||
+      (/^[a-zA-Z]/.test(trimmed) && trimmed.includes(".")) ||
       trimmed === "true" ||
       trimmed === "false" ||
       trimmed === "null" ||

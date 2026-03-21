@@ -427,6 +427,13 @@ describe("runtime_import", () => {
           const result = await processRuntimeImport("with-conditionals.md", !1, tempDir);
           expect(result).toBe(content);
         }),
+        it("should preserve {{#if ...}} as literal text without converting to a placeholder", async () => {
+          const content = "- **Conditional blocks not handled**: `{{#if ...}}` blocks are left in output";
+          fs.writeFileSync(path.join(workflowsDir, "with-dots-if.md"), content);
+          const result = await processRuntimeImport("with-dots-if.md", !1, tempDir);
+          expect(result).toBe(content);
+          expect(result).not.toContain("__GH_AW_");
+        }),
         it("should support .github/workflows/ prefix in path", async () => {
           const content = "Test with .github/workflows prefix";
           fs.writeFileSync(path.join(workflowsDir, "test-prefix.md"), content);
