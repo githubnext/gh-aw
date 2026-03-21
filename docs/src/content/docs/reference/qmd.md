@@ -18,6 +18,8 @@ The `qmd:` tool integrates [tobi/qmd](https://github.com/tobi/qmd) as a built-in
 1. **Activation job** — installs `@tobilu/qmd`, registers documentation collections from configured checkouts and/or GitHub searches, builds the vector index, and uploads it as the `qmd-index` artifact.
 2. **Agent job** — downloads the `qmd-index` artifact and starts qmd as an MCP server (`npx @tobilu/qmd serve-mcp`). The agent can call the `search` tool to find relevant documentation files by natural language query.
 
+The embedding models used to build and query the index are automatically cached in both jobs via `actions/cache` (keyed by OS at `~/.cache/qmd/models/`), so models are only downloaded once per runner OS.
+
 ## Quick start
 
 ```aw wrap

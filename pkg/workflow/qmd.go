@@ -91,6 +91,21 @@ func qmdHasSources(qmdConfig *QmdToolConfig) bool {
 	return len(qmdConfig.Checkouts) > 0 || len(qmdConfig.Searches) > 0 || len(qmdConfig.Docs) > 0
 }
 
+// generateQmdModelsCacheStep generates a step that caches the qmd embedding models directory
+// (~/.cache/qmd/models/).  It uses the combined actions/cache action (restore + post-save),
+// keyed by OS so that the cached models are compatible with the runner architecture.
+// This step should be emitted in both the activation job (before index building) and the
+// agent job (before the qmd MCP server starts) to avoid re-downloading models on each run.
+func generateQmdModelsCacheStep() string {
+	var sb strings.Builder
+	sb.WriteString("      - name: Cache qmd models\n")
+	fmt.Fprintf(&sb, "        uses: %s\n", GetActionPin("actions/cache"))
+	sb.WriteString("        with:\n")
+	sb.WriteString("          path: ~/.cache/qmd/models/\n")
+	sb.WriteString("          key: qmd-models-${{ runner.os }}\n")
+	return sb.String()
+}
+
 // generateQmdCacheRestoreStep generates an activation-job step that restores the qmd index
 // from GitHub Actions cache.  The step ID is "qmd-cache-restore" so that subsequent steps
 // can check cache-hit via steps.qmd-cache-restore.outputs.cache-hit.
@@ -302,6 +317,9 @@ func generateQmdIndexSteps(qmdConfig *QmdToolConfig, data *WorkflowData) []strin
 	if qmdConfig.CacheKey != "" {
 		steps = append(steps, generateQmdCacheRestoreStep(qmdConfig.CacheKey))
 	}
+
+	// Always cache qmd embedding models to avoid re-downloading on each run
+	steps = append(steps, generateQmdModelsCacheStep())
 
 	// Cache-only mode: no indexing at all — just use the restored cache
 	if isCacheOnlyMode {
