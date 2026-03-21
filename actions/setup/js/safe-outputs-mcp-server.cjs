@@ -26,9 +26,12 @@ logger.debug("Successfully required safe_outputs_mcp_server_http.cjs");
 // - GH_AW_SAFE_OUTPUTS_API_KEY
 // Log directory is configured via GH_AW_MCP_LOG_DIR environment variable
 //
-// NOTE: The server runs in stateless mode (no session management) because
-// the MCP gateway doesn't perform the MCP protocol initialization handshake.
-// It directly calls methods like tools/list without the Mcp-Session-Id header.
+// NOTE: The server runs in stateless mode (no session management).
+// The MCP gateway manages sessions on behalf of clients (e.g. the Copilot CLI).
+// The safe-outputs HTTP server itself does not track sessions — each POST request
+// is handled independently. Session lifecycle (including SSE keepalive pings to
+// prevent the 5-minute idle timeout) is handled by the MCP gateway configuration
+// via the sseKeepAliveInterval gateway option.
 if (require.main === module) {
   logger.debug("In require.main === module block");
   const port = parseInt(process.env.GH_AW_SAFE_OUTPUTS_PORT || "3001", 10);

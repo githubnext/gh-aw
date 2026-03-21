@@ -233,6 +233,7 @@ func TestBuildMCPGatewayConfig(t *testing.T) {
 				APIKey:               "${MCP_GATEWAY_API_KEY}",
 				PayloadDir:           "${MCP_GATEWAY_PAYLOAD_DIR}",
 				PayloadSizeThreshold: constants.DefaultMCPGatewayPayloadSizeThreshold,
+				SseKeepAliveInterval: constants.DefaultMCPGatewaySSEKeepAliveInterval,
 			},
 		},
 		{
@@ -244,6 +245,7 @@ func TestBuildMCPGatewayConfig(t *testing.T) {
 				APIKey:               "${MCP_GATEWAY_API_KEY}",
 				PayloadDir:           "${MCP_GATEWAY_PAYLOAD_DIR}",
 				PayloadSizeThreshold: constants.DefaultMCPGatewayPayloadSizeThreshold,
+				SseKeepAliveInterval: constants.DefaultMCPGatewaySSEKeepAliveInterval,
 			},
 		},
 		{
@@ -261,6 +263,7 @@ func TestBuildMCPGatewayConfig(t *testing.T) {
 				APIKey:               "${MCP_GATEWAY_API_KEY}",
 				PayloadDir:           "${MCP_GATEWAY_PAYLOAD_DIR}",
 				PayloadSizeThreshold: constants.DefaultMCPGatewayPayloadSizeThreshold,
+				SseKeepAliveInterval: constants.DefaultMCPGatewaySSEKeepAliveInterval,
 			},
 		},
 		{
@@ -279,6 +282,7 @@ func TestBuildMCPGatewayConfig(t *testing.T) {
 				PayloadDir:           "${MCP_GATEWAY_PAYLOAD_DIR}",
 				PayloadPathPrefix:    "/workspace/payloads",
 				PayloadSizeThreshold: constants.DefaultMCPGatewayPayloadSizeThreshold,
+				SseKeepAliveInterval: constants.DefaultMCPGatewaySSEKeepAliveInterval,
 			},
 		},
 		{
@@ -296,6 +300,7 @@ func TestBuildMCPGatewayConfig(t *testing.T) {
 				APIKey:               "${MCP_GATEWAY_API_KEY}",
 				PayloadDir:           "${MCP_GATEWAY_PAYLOAD_DIR}",
 				PayloadSizeThreshold: 1048576,
+				SseKeepAliveInterval: constants.DefaultMCPGatewaySSEKeepAliveInterval,
 			},
 		},
 		{
@@ -313,6 +318,7 @@ func TestBuildMCPGatewayConfig(t *testing.T) {
 				APIKey:               "${MCP_GATEWAY_API_KEY}",
 				PayloadDir:           "${MCP_GATEWAY_PAYLOAD_DIR}",
 				PayloadSizeThreshold: constants.DefaultMCPGatewayPayloadSizeThreshold,
+				SseKeepAliveInterval: constants.DefaultMCPGatewaySSEKeepAliveInterval,
 			},
 		},
 		{
@@ -331,6 +337,25 @@ func TestBuildMCPGatewayConfig(t *testing.T) {
 				PayloadDir:           "${MCP_GATEWAY_PAYLOAD_DIR}",
 				PayloadSizeThreshold: constants.DefaultMCPGatewayPayloadSizeThreshold,
 				TrustedBots:          []string{"github-actions[bot]", "copilot-swe-agent[bot]"},
+				SseKeepAliveInterval: constants.DefaultMCPGatewaySSEKeepAliveInterval,
+			},
+		},
+		{
+			name: "uses custom sseKeepAliveInterval from frontmatter config",
+			workflowData: &WorkflowData{
+				SandboxConfig: &SandboxConfig{
+					MCP: &MCPGatewayRuntimeConfig{
+						SseKeepAliveInterval: 60, // 60 seconds
+					},
+				},
+			},
+			expected: &MCPGatewayRuntimeConfig{
+				Port:                 int(DefaultMCPGatewayPort),
+				Domain:               "${MCP_GATEWAY_DOMAIN}",
+				APIKey:               "${MCP_GATEWAY_API_KEY}",
+				PayloadDir:           "${MCP_GATEWAY_PAYLOAD_DIR}",
+				PayloadSizeThreshold: constants.DefaultMCPGatewayPayloadSizeThreshold,
+				SseKeepAliveInterval: 60,
 			},
 		},
 	}
@@ -349,6 +374,7 @@ func TestBuildMCPGatewayConfig(t *testing.T) {
 				assert.Equal(t, tt.expected.PayloadPathPrefix, result.PayloadPathPrefix, "PayloadPathPrefix should match")
 				assert.Equal(t, tt.expected.PayloadSizeThreshold, result.PayloadSizeThreshold, "PayloadSizeThreshold should match")
 				assert.Equal(t, tt.expected.TrustedBots, result.TrustedBots, "TrustedBots should match")
+				assert.Equal(t, tt.expected.SseKeepAliveInterval, result.SseKeepAliveInterval, "SseKeepAliveInterval should match")
 			}
 		})
 	}

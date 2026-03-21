@@ -130,6 +130,13 @@ func buildMCPGatewayConfig(workflowData *WorkflowData) *MCPGatewayRuntimeConfig 
 	// Return gateway config with required fields populated
 	// Use ${...} syntax for environment variable references that will be resolved by the gateway at runtime
 	// Per MCP Gateway Specification v1.0.0 section 4.2, variable expressions use "${VARIABLE_NAME}" syntax
+
+	// Use the configured SSE keepalive interval or the default
+	sseKeepAliveInterval := workflowData.SandboxConfig.MCP.SseKeepAliveInterval
+	if sseKeepAliveInterval == 0 {
+		sseKeepAliveInterval = constants.DefaultMCPGatewaySSEKeepAliveInterval
+	}
+
 	return &MCPGatewayRuntimeConfig{
 		Port:                 int(DefaultMCPGatewayPort),                       // Will be formatted as "${MCP_GATEWAY_PORT}" in renderer
 		Domain:               "${MCP_GATEWAY_DOMAIN}",                          // Gateway variable expression
@@ -138,6 +145,7 @@ func buildMCPGatewayConfig(workflowData *WorkflowData) *MCPGatewayRuntimeConfig 
 		PayloadPathPrefix:    workflowData.SandboxConfig.MCP.PayloadPathPrefix, // Optional path prefix for agent containers
 		PayloadSizeThreshold: payloadSizeThreshold,                             // Size threshold in bytes
 		TrustedBots:          workflowData.SandboxConfig.MCP.TrustedBots,       // Additional trusted bot identities from frontmatter
+		SseKeepAliveInterval: sseKeepAliveInterval,                             // SSE keepalive interval to prevent session expiry
 	}
 }
 

@@ -383,20 +383,21 @@ type MCPServerConfig struct {
 // Per MCP Gateway Specification v1.0.0: All stdio-based MCP servers MUST be containerized.
 // Direct command execution is not supported.
 type MCPGatewayRuntimeConfig struct {
-	Container            string            `yaml:"container,omitempty"`              // Container image for the gateway (required)
-	Version              string            `yaml:"version,omitempty"`                // Optional version/tag for the container
-	Entrypoint           string            `yaml:"entrypoint,omitempty"`             // Optional entrypoint override for the container
-	Args                 []string          `yaml:"args,omitempty"`                   // Arguments for docker run
-	EntrypointArgs       []string          `yaml:"entrypointArgs,omitempty"`         // Arguments passed to container entrypoint
-	Env                  map[string]string `yaml:"env,omitempty"`                    // Environment variables for the gateway
-	Port                 int               `yaml:"port,omitempty"`                   // Port for the gateway HTTP server (default: 8080)
-	APIKey               string            `yaml:"api-key,omitempty"`                // API key for gateway authentication
-	Domain               string            `yaml:"domain,omitempty"`                 // Domain for gateway URL (localhost or host.docker.internal)
-	Mounts               []string          `yaml:"mounts,omitempty"`                 // Volume mounts for the gateway container (format: "source:dest:mode")
-	PayloadDir           string            `yaml:"payload-dir,omitempty"`            // Directory path for storing large payload JSON files (must be absolute path)
-	PayloadPathPrefix    string            `yaml:"payload-path-prefix,omitempty"`    // Path prefix to remap payload paths for agent containers (e.g., /workspace/payloads)
-	PayloadSizeThreshold int               `yaml:"payload-size-threshold,omitempty"` // Size threshold in bytes for storing payloads to disk (default: 524288 = 512KB)
-	TrustedBots          []string          `yaml:"trusted-bots,omitempty"`           // Additional bot identity strings to pass to the gateway, merged with its built-in list
+	Container            string            `yaml:"container,omitempty"`               // Container image for the gateway (required)
+	Version              string            `yaml:"version,omitempty"`                 // Optional version/tag for the container
+	Entrypoint           string            `yaml:"entrypoint,omitempty"`              // Optional entrypoint override for the container
+	Args                 []string          `yaml:"args,omitempty"`                    // Arguments for docker run
+	EntrypointArgs       []string          `yaml:"entrypointArgs,omitempty"`          // Arguments passed to container entrypoint
+	Env                  map[string]string `yaml:"env,omitempty"`                     // Environment variables for the gateway
+	Port                 int               `yaml:"port,omitempty"`                    // Port for the gateway HTTP server (default: 8080)
+	APIKey               string            `yaml:"api-key,omitempty"`                 // API key for gateway authentication
+	Domain               string            `yaml:"domain,omitempty"`                  // Domain for gateway URL (localhost or host.docker.internal)
+	Mounts               []string          `yaml:"mounts,omitempty"`                  // Volume mounts for the gateway container (format: "source:dest:mode")
+	PayloadDir           string            `yaml:"payload-dir,omitempty"`             // Directory path for storing large payload JSON files (must be absolute path)
+	PayloadPathPrefix    string            `yaml:"payload-path-prefix,omitempty"`     // Path prefix to remap payload paths for agent containers (e.g., /workspace/payloads)
+	PayloadSizeThreshold int               `yaml:"payload-size-threshold,omitempty"`  // Size threshold in bytes for storing payloads to disk (default: 524288 = 512KB)
+	TrustedBots          []string          `yaml:"trusted-bots,omitempty"`            // Additional bot identity strings to pass to the gateway, merged with its built-in list
+	SseKeepAliveInterval int               `yaml:"sse-keep-alive-interval,omitempty"` // Interval in seconds for SSE keepalive pings to prevent session expiry (default: 30)
 }
 
 // HasTool checks if a tool is present in the configuration

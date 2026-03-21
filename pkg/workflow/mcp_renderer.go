@@ -190,6 +190,9 @@ func RenderJSONMCPConfig(
 			}
 			configBuilder.WriteString("]")
 		}
+		if options.GatewayConfig.SseKeepAliveInterval > 0 {
+			fmt.Fprintf(&configBuilder, ",\n              \"sseKeepAliveInterval\": %d", options.GatewayConfig.SseKeepAliveInterval)
+		}
 		configBuilder.WriteString("\n")
 		configBuilder.WriteString("            }\n")
 	} else {

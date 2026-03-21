@@ -379,6 +379,14 @@ const DefaultMCPGatewayPayloadDir = "/tmp/gh-aw/mcp-payloads"
 // This prevents agent looping issues when payloadPath is not accessible in agent containers.
 const DefaultMCPGatewayPayloadSizeThreshold = 524288
 
+// DefaultMCPGatewaySSEKeepAliveInterval is the default interval in seconds for SSE keepalive pings.
+// The MCP gateway sends periodic SSE comment messages (": ping") to clients at this interval to
+// prevent idle SSE connections from being closed. This is critical for long-running workflows where
+// certain MCP servers (e.g., safe-outputs) may not receive tool calls for extended periods. Without
+// keepalive pings, the 5-minute idle timeout in the MCP Streamable HTTP Transport causes sessions to
+// expire, resulting in "session not found" (HTTP 404) errors when the agent eventually calls those tools.
+const DefaultMCPGatewaySSEKeepAliveInterval = 30
+
 // DefaultFirewallRegistry is the container image registry for AWF (gh-aw-firewall) Docker images
 const DefaultFirewallRegistry = "ghcr.io/github/gh-aw-firewall"
 

@@ -249,6 +249,7 @@ The `gateway` section is required and configures gateway-specific behavior:
 | `payloadPathPrefix` | string | No | Path prefix to remap payload paths for agent containers (e.g., /workspace/payloads) |
 | `payloadSizeThreshold` | integer | No | Size threshold in bytes for storing payloads to disk (default: 524288 = 512KB) |
 | `trustedBots` | array[string] | No | Additional GitHub bot identity strings (e.g., `github-actions[bot]`) passed to the gateway and merged with its built-in trusted identity list. This field is additive — it extends the internal list but cannot remove built-in entries. |
+| `sseKeepAliveInterval` | integer | No | Interval in seconds for SSE keepalive ping comments sent to connected clients (default: 30). Prevents idle SSE connections from being closed and sessions from expiring during long-running workflows where some MCP servers may not receive tool calls for extended periods. Set to 0 to disable keepalive pings. |
 
 #### 4.1.3.1 Payload Directory Path Validation
 
@@ -843,6 +844,27 @@ The gateway SHOULD enforce `toolTimeout` for individual tool invocations:
 2. Wait for complete response
 3. If timeout expires, return timeout error to client
 4. Log timeout with server name, method, and elapsed time
+
+### 5.3.3 SSE Keepalive
+
+Long-running agentic workflows may not call certain MCP tools for extended periods (e.g., a workflow that calls safe-outputs tools only at the end of an hour-long run). The MCP Streamable HTTP Transport uses a session-based model where sessions expire after a period of idle SSE activity (typically 5 minutes by default). When a session expires, subsequent tool calls with the stale session ID return HTTP 404 "session not found", preventing the agent from completing its task.
+
+The `sseKeepAliveInterval` configuration option addresses this by instructing the gateway to send periodic SSE comment messages (`: ping`) to all connected clients at the configured interval. These comment messages:
+
+- Are defined in the SSE specification as a valid message type that carries no data
+- Reset the idle timer on client-side SSE connections
+- Prevent the 5-minute idle session expiry from triggering
+- Have negligible performance impact (comment-only messages are ignored by MCP clients)
+
+**Behavior when `sseKeepAliveInterval` is configured:**
+
+1. After each successful response is sent on an SSE connection, the gateway starts (or resets) a keepalive timer
+2. If no other message is sent within `sseKeepAliveInterval` seconds, the gateway writes `: ping\n\n` on the SSE stream
+3. The keepalive timer resets after each ping
+4. The process continues for the lifetime of the SSE connection
+5. Setting `sseKeepAliveInterval` to 0 disables keepalive pings
+
+**Default behavior:** The gateway SHOULD default to a keepalive interval of 30 seconds if `sseKeepAliveInterval` is not configured, to ensure reliable operation with long-running workflows.
 
 ### 5.4 Stdout Configuration Output
 
@@ -1607,6 +1629,11 @@ Content-Type: application/json
 - **Updated**: Stdout configuration output documentation (Section 5.4)
   - Added guidance that `tools` field MAY be included in output to preserve tool filtering
   - Updated example to show tools field in gateway output configuration
+- **Added**: `sseKeepAliveInterval` gateway configuration field (Sections 4.1.3, 5.3.3)
+  - New optional integer field controlling the SSE ping interval in seconds (default: 30)
+  - Prevents session expiry during long-running workflows where certain MCP servers receive no tool calls for extended periods
+  - Gateway sends `: ping` SSE comment messages at the configured interval to keep client connections alive
+  - Setting to 0 disables keepalive pings
 
 ### Version 1.4.0 (Draft)
 

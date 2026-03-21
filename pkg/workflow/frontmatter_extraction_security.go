@@ -495,6 +495,27 @@ func (c *Compiler) extractMCPGatewayConfig(mcpVal any) *MCPGatewayRuntimeConfig 
 		}
 	}
 
+	// Extract sseKeepAliveInterval / sse-keep-alive-interval (SSE keepalive interval in seconds)
+	for _, key := range []string{"sseKeepAliveInterval", "sse-keep-alive-interval"} {
+		if sseKeepAliveVal, hasSseKeepAlive := mcpObj[key]; hasSseKeepAlive {
+			switch v := sseKeepAliveVal.(type) {
+			case int:
+				mcpConfig.SseKeepAliveInterval = v
+			case int64:
+				mcpConfig.SseKeepAliveInterval = int(v)
+			case uint:
+				mcpConfig.SseKeepAliveInterval = int(v)
+			case uint64:
+				mcpConfig.SseKeepAliveInterval = int(v)
+			case float64:
+				mcpConfig.SseKeepAliveInterval = int(v)
+			}
+			if mcpConfig.SseKeepAliveInterval != 0 {
+				break
+			}
+		}
+	}
+
 	return mcpConfig
 }
 

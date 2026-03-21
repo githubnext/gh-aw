@@ -140,6 +140,36 @@ mcp-servers:
       API_KEY: "${{ secrets.MCP_API_KEY }}"
 ```
 
+### Safe Outputs Tool Returns "Session Not Found"
+
+**Symptoms:**
+
+- The agent runs for a long time (more than 5 minutes) before calling any `safe-outputs` tool
+- The safe-outputs tool call fails silently or the agent reports it cannot complete its task
+- Gateway logs show `status=404` and `session not found` for `/mcp/safeoutputs` requests
+
+**Cause:** The MCP gateway uses the MCP Streamable HTTP Transport, which expires idle sessions after 5 minutes by default. In long-running workflows, the agent may not call safe-outputs tools for an extended period (e.g., it spends most of the run using GitHub tools to research, then tries to create an issue at the end). Without SSE keepalive pings, the gateway closes idle SSE connections and invalidates sessions. The Copilot CLI then fails to use safe-outputs with the stale session ID.
+
+**Diagnosis:** In the gateway logs (MCP Gateway log step in the agent job), look for:
+
+```text
+server:sdk-frontend <<< SDK Response [routed:safeoutputs] status=200 duration=5m1.029331606s (empty body)
+server:routed [INFO] server session disconnected session_id=L7PODOEYZ...
+...later...
+server:sdk-frontend <<< SDK Response [routed:safeoutputs] status=404 duration=3.088131ms (non-JSON or stream)
+server:sdk-frontend     Raw response: session not found
+```
+
+**Solution:** This is fixed by default in recent versions of the MCP gateway, which send SSE keepalive pings every 30 seconds. If you are using an older gateway version, upgrade to the latest by ensuring your workflow does not pin a specific gateway version, or add the `sseKeepAliveInterval` option to the sandbox MCP configuration:
+
+```yaml
+sandbox:
+  mcp:
+    sse-keep-alive-interval: 30  # Send SSE pings every 30 seconds (default)
+```
+
+Setting `sse-keep-alive-interval: 0` disables keepalive pings (not recommended for long-running workflows).
+
 ### Playwright Network Access Denied
 
 Add domains to `network.allowed`:
