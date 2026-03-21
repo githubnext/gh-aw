@@ -30,8 +30,7 @@ tools:
   cache-memory: true
   github:
     toolsets: [default, issues]
-  bash:
-    - "find pkg -name '*.go' ! -name '*_test.go' -type f | sort"
+  bash: true
 
 timeout-minutes: 30
 strict: true
@@ -57,82 +56,71 @@ Each day, analyze up to **6 Go source files** using round-robin rotation across 
 - **Workspace**: ${{ github.workspace }}
 - **Cache**: `/tmp/gh-aw/cache-memory/`
 
-## Step 1: Load Round-Robin State from Cache
+## Step 1: Compute File Selection with Code
 
-Read the current rotation position from cache:
-
-```bash
-cat /tmp/gh-aw/cache-memory/function-namer-state.json
-```
-
-Expected format:
-
-```json
-{
-  "last_index": 0,
-  "analyzed_files": [
-    {"file": "pkg/workflow/compiler.go", "analyzed_at": "2026-03-12"}
-  ]
-}
-```
-
-All file paths are relative to the repository root (e.g., `pkg/workflow/compiler.go`),
-matching the output of the `find pkg` command in Step 3.
-
-If the cache file does not exist or is empty, start fresh with `last_index = 0` and an
-empty `analyzed_files` list.
-
-## Step 2: Get All Go Files
-
-Enumerate all non-test Go source files in sorted order:
+Run this script to load the round-robin state, enumerate all Go files, and compute which files to analyze this run using the dynamic function budget:
 
 ```bash
-find pkg -name '*.go' ! -name '*_test.go' -type f | sort
+# Load last_index from cache (default 0 if cache absent/empty)
+LAST_INDEX=$(python3 -c "
+import sys, json, os
+p = '/tmp/gh-aw/cache-memory/function-namer-state.json'
+if os.path.exists(p):
+    try:
+        d = json.load(open(p))
+        print(d.get('last_index', 0))
+    except Exception:
+        print(0)
+else:
+    print(0)
+")
+
+# Enumerate all non-test Go source files in sorted order
+mapfile -t ALL_FILES < <(find pkg -name '*.go' ! -name '*_test.go' -type f | sort)
+TOTAL=${#ALL_FILES[@]}
+
+echo "total_files=${TOTAL}"
+echo "last_index=${LAST_INDEX}"
+
+# Greedy selection: up to 8 candidates, budget=25 functions, cap=6 files
+SELECTED=()
+TOTAL_FNS=0
+BUDGET=25
+CAP=6
+
+for i in $(seq 0 7); do
+  if [ ${#SELECTED[@]} -ge $CAP ]; then
+    break
+  fi
+  idx=$(( (LAST_INDEX + i) % TOTAL ))
+  f="${ALL_FILES[$idx]}"
+  COUNT=$(grep -c "^func " "$f" 2>/dev/null || echo 0)
+  SELECTED+=("$f")
+  TOTAL_FNS=$((TOTAL_FNS + COUNT))
+  if [ $TOTAL_FNS -ge $BUDGET ]; then
+    break
+  fi
+done
+
+SELECTED_COUNT=${#SELECTED[@]}
+NEW_INDEX=$(( (LAST_INDEX + SELECTED_COUNT) % TOTAL ))
+
+echo "selected_count=${SELECTED_COUNT}"
+echo "new_last_index=${NEW_INDEX}"
+echo "total_functions_approx=${TOTAL_FNS}"
+echo "--- selected files ---"
+printf '%s\n' "${SELECTED[@]}"
 ```
 
-Record the total file count for wrap-around calculations.
+The script outputs:
+- `selected_count` — number of files to analyze this run (1–6)
+- `new_last_index` — value to write back to cache after the run
+- `total_functions_approx` — estimated function count across selected files
+- The list of selected file paths (one per line, after `--- selected files ---`)
 
-## Step 3: Build Candidate Pool and Apply Function Budget
+Use these values directly for the rest of the workflow. Do **not** re-derive or re-compute them manually.
 
-### 3.1 Select 8 Candidate Files
-
-Using `last_index` from the cache, select the next **8 files** as candidates:
-
-- Select files at positions `last_index`, `last_index + 1`, …, `last_index + 7`
-- Wrap around using modulo: `index % total_files`
-- Example: If there are 50 files and `last_index` is 47, select indices 47, 48, 49, 0, 1, 2, 3, 4
-
-### 3.2 Quick-Scan All 8 Candidates
-
-For each candidate file, run a quick symbol overview to count its functions and methods:
-
-```
-Tool: get_symbols_overview
-Args: { "file_path": "<relative/path/to/file.go>" }
-```
-
-Record the function/method count for each candidate.
-
-### 3.3 Greedy Selection (25-Function Budget, 6-File Cap)
-
-Greedily add candidates to the session in round-robin order until:
-
-- The cumulative function count reaches or exceeds **25**, **or**
-- **6 files** have been selected
-
-Example outcomes:
-
-| Files | Functions each | Selected | Total functions |
-|---|---|---|---|
-| 8 tiny files (2 fn) | 2 | 6 files | 12 |
-| 1 massive file (30 fn) | 30 | 1 file | 30 |
-| Mixed (5, 3, 8, 10, …) | varies | until budget | up to 25 |
-
-Let `selected_count` be the number of files actually selected (1–6).
-
-The new `last_index` for the next run is `(last_index + selected_count) % total_files`.
-
-## Step 4: Activate Serena
+## Step 2: Activate Serena
 
 Activate the Serena project to enable Go semantic analysis:
 
@@ -141,11 +129,11 @@ Tool: activate_project
 Args: { "path": "${{ github.workspace }}" }
 ```
 
-## Step 5: Analyze Each Selected File with Serena
+## Step 3: Analyze Each Selected File with Serena
 
-For each of the selected files (1–6, determined in Step 3), perform a full function name analysis.
+For each of the selected files output by Step 1, perform a full function name analysis.
 
-### 5.1 Get All Symbols
+### 3.1 Get All Symbols
 
 ```
 Tool: get_symbols_overview
@@ -154,9 +142,9 @@ Args: { "file_path": "<relative/path/to/file.go>" }
 
 This returns all functions, methods, and types defined in the file.
 
-### 5.2 Read Function Implementations
+### 3.2 Read Function Implementations
 
-For each function identified in 5.1, read enough of the implementation to understand its behavior:
+For each function identified in 3.1, read enough of the implementation to understand its behavior:
 
 ```
 Tool: read_file
@@ -169,7 +157,7 @@ For small files you may read the entire file:
 cat <path/to/file.go>
 ```
 
-### 5.3 Evaluate Function Names
+### 3.3 Evaluate Function Names
 
 For each function, assess its name against these criteria:
 
@@ -186,7 +174,7 @@ For each function, assess its name against these criteria:
 - Constructors following Go convention: `NewCompiler()`, `NewMCPConfig()`
 - Short unexported names used as closures or immediately-invoked helpers
 
-### 5.4 Propose Renames
+### 3.4 Propose Renames
 
 For each function that would benefit from a clearer name:
 
@@ -210,9 +198,9 @@ Args: { "symbol_name": "<currentName>", "file_path": "pkg/..." }
 
 **Only suggest renames where the improvement is clear and meaningful.** Quality over quantity — two well-justified suggestions are better than ten marginal ones.
 
-## Step 6: Update Cache State
+## Step 4: Update Cache State
 
-After completing the analysis, save the updated round-robin position. Use a filesystem-safe timestamp format (`YYYY-MM-DD` is fine for daily granularity):
+After completing the analysis, save the updated round-robin position. Use the `new_last_index` value from Step 1 and a filesystem-safe timestamp (`YYYY-MM-DD`):
 
 ```bash
 cat > /tmp/gh-aw/cache-memory/function-namer-state.json << 'CACHE_EOF'
@@ -227,13 +215,13 @@ cat > /tmp/gh-aw/cache-memory/function-namer-state.json << 'CACHE_EOF'
 CACHE_EOF
 ```
 
-Where `<new_index>` is `(last_index + selected_count) % total_files`, and the `analyzed_files` list contains one entry per file actually analyzed (not all 8 candidates).
+Where `<new_index>` is the `new_last_index` value output by Step 1, and the `analyzed_files` list contains one entry per file actually analyzed.
 
 Use relative paths (e.g., `pkg/workflow/compiler.go`) matching the output of the `find pkg` command.
 
 Prune `analyzed_files` to the most recent 90 entries to prevent unbounded growth.
 
-## Step 7: Create Issue with Agentic Plan
+## Step 5: Create Issue with Agentic Plan
 
 If any rename suggestions were found across the analyzed files, create a GitHub issue.
 
