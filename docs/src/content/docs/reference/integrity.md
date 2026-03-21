@@ -9,7 +9,7 @@ Integrity filtering controls which GitHub content an agent can access during a w
 
 ## How It Works
 
-The MCP gateway intercepts tool calls to GitHub and applies integrity checks to each piece of content returned. If an item's integrity level is below the configured minimum, the gateway discards it before the AI engine sees it. This happens transparently — the agent never receives filtered content, and filtered items are logged as `DIFC_FILTERED` events for later inspection.
+The MCP gateway intercepts tool calls to GitHub and applies integrity checks to each piece of content returned. If an item's integrity level is below the configured minimum, the gateway removes it before the AI engine sees it. This happens transparently — the agent receives a reduced result set, and filtered items are logged as `DIFC_FILTERED` events for later inspection.
 
 ## Configuration
 
@@ -32,22 +32,69 @@ tools:
 
 ## Integrity Levels
 
-| Level | What passes through |
-|-------|---------------------|
-| `merged` | Objects reachable from the main branch (any author) |
-| `approved` | Objects authored by `OWNER`, `MEMBER`, or `COLLABORATOR` |
+| Level | What qualifies at this level |
+|-------|------------------------------|
+| `merged` | Pull requests that have been merged, and commits reachable from the default branch (any author) |
+| `approved` | Objects authored by `OWNER`, `MEMBER`, or `COLLABORATOR`; non-fork PRs on public repos; all items in private repos; trusted platform bots (e.g., dependabot) |
 | `unapproved` | Objects authored by `CONTRIBUTOR` or `FIRST_TIME_CONTRIBUTOR` |
 | `none` | All objects, including `FIRST_TIMER` and users with no association (`NONE`) |
 
-Levels are ordered from most restrictive to least. Setting `min-integrity: approved` means only `approved` and `merged` content reaches the agent. `unapproved` and `none` content is filtered out.
+Levels are cumulative and ordered from most restrictive to least. Setting `min-integrity: approved` means only items at `approved` level **or higher** (`merged`) reach the agent. Items at `unapproved` or `none` are filtered out.
 
-**`merged`** is the strictest level. An item qualifies as `merged` when it is reachable from the default branch, regardless of who authored it. This is useful for workflows that should only act on production content.
+**`merged`** is the strictest level. A pull request qualifies as `merged` when it has been merged into the target branch. Commits qualify when they are reachable from the default branch. This is useful for workflows that should only act on production content.
 
-**`approved`** corresponds to users who have a formal trust relationship with the repository: owners, members, and collaborators. This is the most common choice for public repository workflows.
+**`approved`** corresponds to users who have a formal trust relationship with the repository: owners, members, and collaborators. Items in private repositories are automatically elevated to `approved` (since only collaborators can access them). Recognized platform bots such as dependabot and github-actions also receive `approved` integrity. This is the most common choice for public repository workflows.
 
 **`unapproved`** includes contributors who have had code merged before, as well as first-time contributors. Appropriate when community participation is welcome and the workflow's outputs are reviewed before being applied.
 
 **`none`** allows all content through. Use this deliberately, with appropriate safeguards, for workflows designed to process untrusted input — such as triage bots or spam detection.
+
+## Adjusting Integrity Per-Item
+
+Beyond setting a minimum level, you can override integrity for specific authors or labels.
+
+### Blocking specific users
+
+`blocked-users` unconditionally blocks content from listed GitHub usernames, regardless of `min-integrity` or any labels. Blocked items receive an effective integrity of `blocked` (below `none`) and are always denied.
+
+```aw wrap
+tools:
+  github:
+    min-integrity: none
+    blocked-users:
+      - "spam-bot"
+      - "compromised-account"
+```
+
+Use this to suppress content from known-bad accounts — automated bots, compromised users, or external contributors pending security review.
+
+### Promoting items via labels
+
+`approval-labels` promotes items bearing any listed GitHub label to `approved` integrity, enabling human-review workflows where a trusted reviewer labels content to signal it is safe for the agent.
+
+```aw wrap
+tools:
+  github:
+    min-integrity: approved
+    approval-labels:
+      - "human-reviewed"
+      - "safe-for-agent"
+```
+
+This is useful when a workflow's `min-integrity` would normally filter out external contributions, but a maintainer can label specific items to let them through.
+
+Promotion only raises integrity — it never lowers it. An item already at `merged` stays at `merged`. Blocked-user exclusion always takes precedence: a blocked user's items remain blocked even if they carry an approval label.
+
+### Effective integrity computation
+
+The gateway computes each item's effective integrity in this order:
+
+1. **Start** with the base integrity level from GitHub metadata (author association, merge status, repo visibility).
+2. **If the author is in `blocked-users`**: effective integrity → `blocked` (always denied).
+3. **Else if the item has a label in `approval-labels`**: effective integrity → max(base, `approved`).
+4. **Else**: effective integrity → base.
+
+The `min-integrity` threshold check is applied after this computation.
 
 ## Default Behavior
 
@@ -115,6 +162,27 @@ tools:
     min-integrity: approved
 ```
 
+**Block specific users while allowing all other content:**
+
+```aw wrap
+tools:
+  github:
+    min-integrity: none
+    blocked-users:
+      - "known-spam-bot"
+```
+
+**Human-review gate for external contributions:**
+
+```aw wrap
+tools:
+  github:
+    min-integrity: approved
+    approval-labels:
+      - "agent-approved"
+      - "human-reviewed"
+```
+
 ## In Logs and Reports
 
 When an item is filtered by the integrity check, the MCP gateway records a `DIFC_FILTERED` event in the run's `gateway.jsonl` log. Each event includes:
@@ -129,14 +197,14 @@ When an item is filtered by the integrity check, the MCP gateway records a `DIFC
 When gateway metrics are displayed, filtered events appear in a **DIFC Filtered Events** table alongside the standard server usage table:
 
 ```text
-┌─────────────────────────────────────────────────────────────────────────────────────┐
-│ DIFC Filtered Events                                                                │
-├────────────────┬───────────────┬───────────────┬─────────────────────────────────-─┤
-│ Server         │ Tool          │ User          │ Reason                             │
-├────────────────┼───────────────┼───────────────┼────────────────────────────────────┤
-│ github         │ list_issues   │ new-user      │ Resource has lower integrity than  │
-│                │               │               │ agent requires.                    │
-└────────────────┴───────────────┴───────────────┴────────────────────────────────────┘
+┌────────────────────────────────────────────────────────────────────────────────────┐
+│ DIFC Filtered Events                                                               │
+├────────────────┬───────────────┬───────────────┬──────────────────────────────────-┤
+│ Server         │ Tool          │ User          │ Reason                            │
+├────────────────┼───────────────┼───────────────┼───────────────────────────────────┤
+│ github         │ list_issues   │ new-user      │ Resource has lower integrity than │
+│                │               │               │ agent requires.                   │
+└────────────────┴───────────────┴───────────────┴───────────────────────────────────┘
 ```
 
 The `Total DIFC Filtered` count in the summary line shows how many items were suppressed during the run.
