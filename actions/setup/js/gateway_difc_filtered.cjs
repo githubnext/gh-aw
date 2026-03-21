@@ -96,7 +96,7 @@ function generateDifcFilteredSection(filteredEvents) {
   section += `> <details>\n`;
   section += `> <summary>🔒 Integrity filter blocked ${count} ${itemWord}</summary>\n`;
   section += `>\n`;
-  section += `> The following ${itemWord} were blocked because they don't meet the workflow's \`min-integrity\` level.\n`;
+  section += `> The following ${itemWord} were blocked because they don't meet the workflow's [\`min-integrity\`](https://github.github.com/gh-aw/reference/integrity/) level.\n`;
   section += `>\n`;
 
   const maxItems = 16;
