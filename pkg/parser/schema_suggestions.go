@@ -35,9 +35,9 @@ type schemaFieldLocation struct {
 // frontmatterContent is the raw YAML frontmatter text, used to extract the user's typed value for enum suggestions.
 func generateSchemaBasedSuggestions(schemaJSON, errorMessage, jsonPath, frontmatterContent string) string {
 	schemaSuggestionsLog.Printf("Generating schema suggestions: path=%s, schema_size=%d bytes", jsonPath, len(schemaJSON))
-	// Parse the schema to extract information for suggestions
-	var schemaDoc any
-	if err := json.Unmarshal([]byte(schemaJSON), &schemaDoc); err != nil {
+	// Use the cached parsed schema document to avoid re-parsing on every error call.
+	schemaDoc, err := getParsedSchemaDoc(schemaJSON)
+	if err != nil {
 		schemaSuggestionsLog.Printf("Failed to parse schema JSON: %v", err)
 		return "" // Can't parse schema, no suggestions
 	}
