@@ -87,8 +87,8 @@ This workflow has a stop-after configuration.
 
 		// Verify pre_activation job outputs "activated" as a direct expression combining both checks
 		// Since workflow_dispatch requires permission checks by default, AND has stop-time
-		// The expression builder adds parentheses around each condition
-		expectedActivated := "activated: ${{ (steps.check_membership.outputs.is_team_member == 'true') && (steps.check_stop_time.outputs.stop_time_ok == 'true') }}"
+		// ComparisonNode children of AndNode are not wrapped in extra parens
+		expectedActivated := "activated: ${{ steps.check_membership.outputs.is_team_member == 'true' && steps.check_stop_time.outputs.stop_time_ok == 'true' }}"
 		if !strings.Contains(lockContentStr, expectedActivated) {
 			t.Error("Expected pre_activation job to have combined 'activated' output expression")
 		}
@@ -246,8 +246,8 @@ This workflow has both membership check and stop-after.
 		}
 
 		// Verify the activated output combines both membership and stop-time checks
-		// The expression builder adds parentheses around each condition
-		expectedActivated := "activated: ${{ (steps.check_membership.outputs.is_team_member == 'true') && (steps.check_stop_time.outputs.stop_time_ok == 'true') }}"
+		// ComparisonNode children of AndNode are not wrapped in extra parens
+		expectedActivated := "activated: ${{ steps.check_membership.outputs.is_team_member == 'true' && steps.check_stop_time.outputs.stop_time_ok == 'true' }}"
 		if !strings.Contains(lockContentStr, expectedActivated) {
 			t.Error("Expected activated output to combine both membership and stop-time checks")
 		}

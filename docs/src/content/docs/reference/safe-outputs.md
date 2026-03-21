@@ -1343,10 +1343,12 @@ safe-outputs:
 
 Most safe outputs support cross-repository operations:
 
-- **`target-repo`**: Set a default target repository for all operations of this type
-- **`allowed-repos`**: Allow the agent to dynamically choose which repository to target (from an allowlist)
+- **`target-repo`**: Set a fixed target repository (`owner/repo` format), or use `"*"` as a wildcard to let the agent supply any repository at runtime.
+- **`allowed-repos`**: Allow the agent to dynamically choose from an allowlist of repositories (supports glob patterns, e.g. `org/*`).
 
-See [Cross-Repository Operations](/gh-aw/reference/cross-repository/) technical details.
+Using `target-repo: "*"` enables fully dynamic routing — the agent provides the `repo` field in each tool call. Note that `create-pull-request-review-comment`, `reply-to-pull-request-review-comment`, `submit-pull-request-review`, `create-agent-session`, and `manage-project-items` do not support the wildcard; use an explicit repository or `allowed-repos` for those types.
+
+See [Cross-Repository Operations](/gh-aw/reference/cross-repository/) for comprehensive documentation.
 
 ## Global Configuration Options
 

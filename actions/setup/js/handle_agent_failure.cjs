@@ -608,16 +608,9 @@ function buildTimeoutContext(isTimedOut, timeoutMinutes) {
   const currentMinutes = parseInt(timeoutMinutes || "20", 10);
   const suggestedMinutes = currentMinutes + 10;
 
-  let ctx = "\n**⏱️ Agent Timed Out**: The agent job exceeded the maximum allowed execution time";
-  ctx += ` (${currentMinutes} minutes).`;
-  ctx += "\n\nTo increase the timeout, add or update the `timeout-minutes` setting in your workflow's frontmatter:\n\n";
-  ctx += "```yaml\n";
-  ctx += "---\n";
-  ctx += `timeout-minutes: ${suggestedMinutes}\n`;
-  ctx += "---\n";
-  ctx += "```\n\n";
-
-  return ctx;
+  const templatePath = `${process.env.RUNNER_TEMP}/gh-aw/prompts/agent_timeout.md`;
+  const template = fs.readFileSync(templatePath, "utf8");
+  return "\n" + renderTemplate(template, { current_minutes: currentMinutes, suggested_minutes: suggestedMinutes });
 }
 
 /**
@@ -1169,4 +1162,4 @@ async function main() {
   }
 }
 
-module.exports = { main, buildCodePushFailureContext, buildPushRepoMemoryFailureContext, buildAppTokenMintingFailedContext, buildLockdownCheckFailedContext };
+module.exports = { main, buildCodePushFailureContext, buildPushRepoMemoryFailureContext, buildAppTokenMintingFailedContext, buildLockdownCheckFailedContext, buildTimeoutContext };

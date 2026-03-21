@@ -17,7 +17,7 @@ func (c *Compiler) buildConsolidatedSafeOutputStep(data *WorkflowData, config Sa
 	// Build step condition if provided
 	var conditionStr string
 	if config.Condition != nil {
-		conditionStr = config.Condition.Render()
+		conditionStr = RenderCondition(config.Condition)
 	}
 
 	// Step name and metadata
@@ -143,7 +143,7 @@ func (c *Compiler) buildSharedPRCheckoutSteps(data *WorkflowData) []string {
 
 	// Step 1: Checkout repository with conditional execution
 	steps = append(steps, "      - name: Checkout repository\n")
-	steps = append(steps, fmt.Sprintf("        if: %s\n", condition.Render()))
+	steps = append(steps, fmt.Sprintf("        if: %s\n", RenderCondition(condition)))
 	steps = append(steps, fmt.Sprintf("        uses: %s\n", GetActionPin("actions/checkout")))
 	steps = append(steps, "        with:\n")
 
@@ -171,7 +171,7 @@ func (c *Compiler) buildSharedPRCheckoutSteps(data *WorkflowData) []string {
 
 	gitConfigSteps := []string{
 		"      - name: Configure Git credentials\n",
-		fmt.Sprintf("        if: %s\n", condition.Render()),
+		fmt.Sprintf("        if: %s\n", RenderCondition(condition)),
 		"        env:\n",
 		fmt.Sprintf("          REPO_NAME: %s\n", repoNameValue),
 		"          SERVER_URL: ${{ github.server_url }}\n",

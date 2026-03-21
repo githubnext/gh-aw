@@ -289,6 +289,13 @@ func (c *Compiler) preprocessScheduleFields(frontmatter map[string]any, markdown
 			return fmt.Errorf("schedule item %d 'cron' field must be a string", i)
 		}
 
+		// Validate optional timezone field (IANA timezone string)
+		if tzValue, hasTimezone := itemMap["timezone"]; hasTimezone {
+			if _, ok := tzValue.(string); !ok {
+				return fmt.Errorf("schedule item %d 'timezone' field must be a string (IANA timezone, e.g. \"America/New_York\")", i)
+			}
+		}
+
 		// Try to parse as human-friendly schedule
 		parsedCron, original, err := c.normalizeScheduleString(cronStr, i)
 		if err != nil {

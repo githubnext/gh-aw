@@ -209,7 +209,13 @@ func (jm *JobManager) renderJob(job *Job) string {
 		}
 
 		// Check if expression is multiline or longer than MaxExpressionLineLength characters
-		if strings.Contains(job.If, "\n") || len(job.If) > int(constants.MaxExpressionLineLength) {
+		if hasNewlineInStringLiteral(job.If) {
+			// The condition contains a literal newline inside a GitHub Actions expression string literal
+			// (e.g. startsWith(body, '/command\n') for matching bot comments with attribution metadata).
+			// Use a YAML double-quoted scalar so the \n escape is preserved as a real newline after
+			// YAML parsing, which GitHub Actions then evaluates correctly.
+			fmt.Fprintf(&yaml, "    if: \"%s\"\n", escapeForYAMLDoubleQuoted(job.If))
+		} else if strings.Contains(job.If, "\n") || len(job.If) > int(constants.MaxExpressionLineLength) {
 			// Use YAML folded style for multiline expressions or long expressions
 			yaml.WriteString("    if: >\n")
 

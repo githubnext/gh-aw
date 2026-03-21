@@ -20,6 +20,20 @@ const EVENT_TYPE_DESCRIPTIONS = {
   discussion_comment: "discussion comment",
 };
 
+/**
+ * Maps reaction emoji names to GitHub's GraphQL ReactionContent enum values
+ */
+const DISCUSSION_REACTION_MAP = {
+  "+1": "THUMBS_UP",
+  "-1": "THUMBS_DOWN",
+  laugh: "LAUGH",
+  confused: "CONFUSED",
+  heart: "HEART",
+  hooray: "HOORAY",
+  rocket: "ROCKET",
+  eyes: "EYES",
+};
+
 async function main() {
   const reaction = process.env.GH_AW_REACTION || "eyes";
   const command = process.env.GH_AW_COMMAND; // Only present for command workflows
@@ -207,19 +221,7 @@ async function addReaction(endpoint, reaction) {
  * @param {string} reaction - The reaction type to add (mapped to GitHub's ReactionContent enum)
  */
 async function addDiscussionReaction(subjectId, reaction) {
-  // Map reaction names to GitHub's GraphQL ReactionContent enum
-  const reactionMap = {
-    "+1": "THUMBS_UP",
-    "-1": "THUMBS_DOWN",
-    laugh: "LAUGH",
-    confused: "CONFUSED",
-    heart: "HEART",
-    hooray: "HOORAY",
-    rocket: "ROCKET",
-    eyes: "EYES",
-  };
-
-  const reactionContent = reactionMap[reaction];
+  const reactionContent = DISCUSSION_REACTION_MAP[reaction];
   if (!reactionContent) {
     throw new Error(`${ERR_VALIDATION}: Invalid reaction type for GraphQL: ${reaction}`);
   }

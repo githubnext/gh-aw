@@ -151,6 +151,7 @@ func querySecurityAdvisories(depVersions map[string]string, verbose bool) ([]Sec
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
+		_, _ = io.Copy(io.Discard, resp.Body)
 		return nil, fmt.Errorf("GitHub API returned status %d", resp.StatusCode)
 	}
 

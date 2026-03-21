@@ -34,9 +34,9 @@ type SafeOutputActionConfig struct {
 
 // ActionYAMLInput holds an input definition parsed from a GitHub Action's action.yml.
 type ActionYAMLInput struct {
-	Description string `yaml:"description,omitempty"`
-	Required    bool   `yaml:"required,omitempty"`
-	Default     string `yaml:"default,omitempty"`
+	Description string `yaml:"description,omitempty" json:"description,omitempty"`
+	Required    bool   `yaml:"required,omitempty"    json:"required,omitempty"`
+	Default     string `yaml:"default,omitempty"     json:"default,omitempty"`
 }
 
 // actionYAMLFile is the parsed structure of a GitHub Action's action.yml.
@@ -92,6 +92,24 @@ func parseActionsConfig(actionsMap map[string]any) map[string]*SafeOutputActionC
 				}
 			}
 		}
+		if inputsMap, ok := actionConfigMap["inputs"].(map[string]any); ok {
+			actionConfig.Inputs = make(map[string]*ActionYAMLInput, len(inputsMap))
+			for inputName, inputValue := range inputsMap {
+				inputDef := &ActionYAMLInput{}
+				if inputDefMap, ok := inputValue.(map[string]any); ok {
+					if desc, ok := inputDefMap["description"].(string); ok {
+						inputDef.Description = desc
+					}
+					if req, ok := inputDefMap["required"].(bool); ok {
+						inputDef.Required = req
+					}
+					if def, ok := inputDefMap["default"].(string); ok {
+						inputDef.Default = def
+					}
+				}
+				actionConfig.Inputs[inputName] = inputDef
+			}
+		}
 
 		if actionConfig.Uses == "" {
 			safeOutputActionsLog.Printf("Warning: action %q is missing required 'uses' field, skipping", actionName)
@@ -145,6 +163,14 @@ func parseActionUsesField(uses string) (*actionRef, error) {
 // fetchAndParseActionYAML resolves the inputs and description from the action.yml
 // for each configured action. Results are stored in the action config's computed fields.
 // This function should be called before tool generation and step generation.
+//
+// Resolution priority (highest wins):
+//  1. Inputs already specified in the frontmatter (config.Inputs != nil)
+//  2. Inputs cached in the ActionCache (actions-lock.json)
+//  3. Inputs fetched from the remote action.yml (result cached for future runs)
+//
+// When available, the action reference is pinned to a commit SHA for security;
+// if no pin is available, later step generation falls back to the original config.Uses.
 func (c *Compiler) fetchAndParseActionYAML(actionName string, config *SafeOutputActionConfig, markdownPath string, data *WorkflowData) {
 	if config.Uses == "" {
 		return
@@ -156,17 +182,23 @@ func (c *Compiler) fetchAndParseActionYAML(actionName string, config *SafeOutput
 		return
 	}
 
+	// Remember whether inputs were provided via frontmatter so we can skip lower-
+	// priority resolution paths.
+	inputsFromFrontmatter := config.Inputs != nil
+
 	var actionYAML *actionYAMLFile
 	var resolvedRef string
 
 	if ref.IsLocal {
-		actionYAML, err = readLocalActionYAML(ref.LocalPath, markdownPath)
-		if err != nil {
-			safeOutputActionsLog.Printf("Warning: failed to read local action.yml for %q at %s: %v", actionName, ref.LocalPath, err)
+		if !inputsFromFrontmatter {
+			actionYAML, err = readLocalActionYAML(ref.LocalPath, markdownPath)
+			if err != nil {
+				safeOutputActionsLog.Printf("Warning: failed to read local action.yml for %q at %s: %v", actionName, ref.LocalPath, err)
+			}
 		}
 		resolvedRef = config.Uses // local paths stay as-is
 	} else {
-		// Pin the action ref and fetch the action.yml
+		// Pin the action ref for security.
 		pinned, pinErr := GetActionPinWithData(ref.Repo, ref.Ref, data)
 		var fetchRef string
 		if pinErr != nil {
@@ -185,15 +217,44 @@ func (c *Compiler) fetchAndParseActionYAML(actionName string, config *SafeOutput
 			}
 		}
 
-		actionYAML, err = fetchRemoteActionYAML(ref.Repo, ref.Subdir, fetchRef)
-		if err != nil {
-			safeOutputActionsLog.Printf("Warning: failed to fetch action.yml for %q (%s): %v", actionName, config.Uses, err)
+		if !inputsFromFrontmatter {
+			// Check the ActionCache for previously-fetched inputs before going to the network.
+			// The cache key uses the original version tag from the `uses:` field (ref.Ref, e.g.
+			// "v1") which matches the key stored in actions-lock.json.
+			if data.ActionCache != nil {
+				if cachedInputs, ok := data.ActionCache.GetInputs(ref.Repo, ref.Ref); ok {
+					safeOutputActionsLog.Printf("Using cached inputs for %q (%s@%s)", actionName, ref.Repo, ref.Ref)
+					config.Inputs = cachedInputs
+				}
+				if cachedDesc, ok := data.ActionCache.GetActionDescription(ref.Repo, ref.Ref); ok {
+					config.ActionDescription = cachedDesc
+				}
+			}
+
+			// If inputs are still not resolved, fetch action.yml from the network and
+			// store the result in the cache to make future compilations deterministic.
+			if config.Inputs == nil {
+				actionYAML, err = fetchRemoteActionYAML(ref.Repo, ref.Subdir, fetchRef)
+				if err != nil {
+					safeOutputActionsLog.Printf("Warning: failed to fetch action.yml for %q (%s): %v", actionName, config.Uses, err)
+				}
+				// Cache the fetched inputs and description so subsequent compilations are
+				// deterministic even when the network is unavailable.
+				if actionYAML != nil && data.ActionCache != nil {
+					if actionYAML.Inputs != nil {
+						data.ActionCache.SetInputs(ref.Repo, ref.Ref, actionYAML.Inputs)
+					}
+					data.ActionCache.SetActionDescription(ref.Repo, ref.Ref, actionYAML.Description)
+				}
+			}
 		}
 	}
 
 	config.ResolvedRef = resolvedRef
 
-	if actionYAML != nil {
+	// Only overwrite Inputs/ActionDescription from action.yml when the inputs were
+	// not already provided via frontmatter or cache.
+	if !inputsFromFrontmatter && config.Inputs == nil && actionYAML != nil {
 		config.Inputs = actionYAML.Inputs
 		config.ActionDescription = actionYAML.Description
 	}

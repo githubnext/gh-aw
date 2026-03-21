@@ -178,6 +178,24 @@ safe-outputs:
 
 Without `target-repo`, safe outputs operate on the repository where the workflow is running.
 
+### Wildcard Target Repository (`target-repo: "*"`)
+
+Set `target-repo: "*"` to allow the agent to dynamically target any repository at runtime. When configured, the agent receives a `repo` parameter in its tool call where it supplies the target repository in `owner/repo` format:
+
+```yaml wrap
+safe-outputs:
+  github-token: ${{ secrets.CROSS_REPO_PAT }}
+  create-issue:
+    target-repo: "*"
+    title-prefix: "[component] "
+```
+
+Use this when the target repository is not known at workflow authoring time — for example, when building a workflow that routes issues to different repositories based on labels or content.
+
+:::caution
+The following safe-output types do **not** support `target-repo: "*"`: `create-pull-request-review-comment`, `reply-to-pull-request-review-comment`, `submit-pull-request-review`, `create-agent-session`, and `manage-project-items`. Use an explicit `owner/repo` value or `allowed-repos` for these types.
+:::
+
 ### Allowed Repositories (`allowed-repos`)
 
 Allow the agent to dynamically select from multiple repositories:

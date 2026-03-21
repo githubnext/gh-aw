@@ -389,4 +389,57 @@ describe("handle_agent_failure", () => {
       expect(result).toContain("gh aw compile --strict");
     });
   });
+
+  // ──────────────────────────────────────────────────────
+  // buildTimeoutContext
+  // ──────────────────────────────────────────────────────
+
+  describe("buildTimeoutContext", () => {
+    let buildTimeoutContext;
+    const fs = require("fs");
+    const path = require("path");
+    const templateContent = fs.readFileSync(path.join(__dirname, "../md/agent_timeout.md"), "utf8");
+    const originalReadFileSync = fs.readFileSync.bind(fs);
+
+    beforeEach(() => {
+      vi.resetModules();
+      // Stub readFileSync so the runtime path resolves to the source-tree template
+      fs.readFileSync = (filePath, encoding) => {
+        if (typeof filePath === "string" && filePath.includes("agent_timeout.md")) {
+          return templateContent;
+        }
+        return originalReadFileSync(filePath, encoding);
+      };
+      ({ buildTimeoutContext } = require("./handle_agent_failure.cjs"));
+    });
+
+    afterEach(() => {
+      fs.readFileSync = originalReadFileSync;
+    });
+
+    it("returns empty string when not timed out", () => {
+      expect(buildTimeoutContext(false, "20")).toBe("");
+      expect(buildTimeoutContext(false, "")).toBe("");
+    });
+
+    it("returns formatted error message when timed out", () => {
+      const result = buildTimeoutContext(true, "20");
+      expect(result).toContain("Agent Timed Out");
+      expect(result).toContain("20");
+      expect(result).toContain("30");
+      expect(result).toContain("timeout-minutes");
+    });
+
+    it("uses default of 20 minutes when timeoutMinutes is empty", () => {
+      const result = buildTimeoutContext(true, "");
+      expect(result).toContain("20");
+      expect(result).toContain("30");
+    });
+
+    it("suggests current + 10 minutes", () => {
+      const result = buildTimeoutContext(true, "45");
+      expect(result).toContain("45");
+      expect(result).toContain("55");
+    });
+  });
 });

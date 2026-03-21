@@ -6,3 +6,8 @@
 <allowed-paths>
 Do NOT attempt to edit files outside these directories as you do not have the necessary permissions.
 </file-editing>
+<environment-limitations>
+<docker>
+Docker in Docker is not supported.
+</docker>
+</environment-limitations>

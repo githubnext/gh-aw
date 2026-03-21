@@ -1044,6 +1044,18 @@ The YAML frontmatter supports these fields:
     ```
     Unlike `jobs:` (which create separate GitHub Actions jobs), scripts execute in-process alongside built-in handlers. Write only the handler body — the compiler generates the outer wrapper with config input destructuring and `async function handleX(item, resolvedTemporaryIds) { ... }`. Script names with dashes are normalized to underscores (e.g., `post-slack-message` → `post_slack_message`). The handler receives `item` (runtime message with input values) and `resolvedTemporaryIds` (map of temporary IDs).
 
+  - `actions:` - Custom GitHub Actions mounted as MCP tools for the AI agent (resolved at compile time)
+    ```yaml
+    safe-outputs:
+      actions:
+        my-action:
+          uses: owner/repo/path@ref         # Required: GitHub Action reference (tag, SHA, or branch)
+          description: "Custom description" # Optional: override action's description from action.yml
+          env:
+            API_KEY: ${{ secrets.API_KEY }} # Optional: environment variables for the injected step
+    ```
+    Actions are resolved at compile time — the compiler fetches `action.yml` and parses inputs automatically, exposing them as MCP tool parameters. The agent calls the action by its normalized name (dashes converted to underscores). Each action runs as an injected step in the safe-outputs job. Local actions (`./path/to/action`) are also supported.
+
   **Global Safe Output Configuration:**
   - `github-token:` - Custom GitHub token for all safe output jobs
     ```yaml

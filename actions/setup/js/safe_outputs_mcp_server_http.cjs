@@ -19,21 +19,18 @@ moduleLogger.debug("Module is being loaded");
  * This module extends the safe-outputs MCP server to support HTTP transport
  * using the StreamableHTTPServerTransport from the MCP SDK.
  *
- * It provides both stateful and stateless HTTP modes, as well as SSE streaming.
+ * The server runs in stateless mode (no session management) because the MCP
+ * gateway does not perform the MCP protocol initialization handshake and
+ * directly calls methods like tools/list without an Mcp-Session-Id header.
  *
  * Usage:
- *   node safe_outputs_mcp_server_http.cjs [--port 3000] [--stateless]
+ *   node safe_outputs_mcp_server_http.cjs [--port 3000]
  *
  * Options:
  *   --port <number>    Port to listen on (default: 3000)
- *   --stateless        Run in stateless mode (no session management)
  *   --log-dir <path>   Directory for log files
  */
 
-const http = require("http");
-moduleLogger.debug("Loaded http");
-const { randomUUID } = require("crypto");
-moduleLogger.debug("Loaded crypto");
 const { MCPServer, MCPHTTPTransport } = require("./mcp_http_transport.cjs");
 moduleLogger.debug("Loaded mcp_http_transport.cjs");
 const { createLogger: createMCPLogger } = require("./mcp_logger.cjs");
@@ -47,6 +44,7 @@ moduleLogger.debug("Loaded safe_outputs_handlers.cjs");
 const { attachHandlers, registerPredefinedTools, registerDynamicTools } = require("./safe_outputs_tools_loader.cjs");
 moduleLogger.debug("Loaded safe_outputs_tools_loader.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
+const { runHttpServer, logStartupError } = require("./mcp_http_server_runner.cjs");
 moduleLogger.debug("All modules loaded successfully");
 
 /**
@@ -222,22 +220,19 @@ function createMCPServer(options = {}) {
  * Start the HTTP server with MCP protocol support
  * @param {Object} options - Server options
  * @param {number} [options.port] - Port to listen on (default: 3000)
- * @param {boolean} [options.stateless] - Run in stateless mode (default: false)
  * @param {string} [options.logDir] - Override log directory from config
  */
 async function startHttpServer(options = {}) {
   const port = options.port || 3000;
-  const stateless = options.stateless || false;
 
   const logger = createMCPLogger("safe-outputs-startup");
 
-  logger.debug(`startHttpServer called with port=${port}, stateless=${stateless}`);
+  logger.debug(`startHttpServer called with port=${port}`);
   logger.debug(`=== Starting Safe Outputs MCP HTTP Server ===`);
   logger.debug(`Port: ${port}`);
-  logger.debug(`Mode: ${stateless ? "stateless" : "stateful"}`);
+  logger.debug(`Mode: stateless`);
   logger.debug(`Environment: NODE_VERSION=${process.version}, PLATFORM=${process.platform}`);
 
-  // Create the MCP server
   try {
     logger.debug(`About to call createMCPServer...`);
     const { server, config, logger: mcpLogger } = createMCPServer({ logDir: options.logDir });
@@ -251,179 +246,43 @@ async function startHttpServer(options = {}) {
     logger.debug(`Tools configured: ${Object.keys(config).filter(k => config[k]).length}`);
 
     logger.debug(`Creating HTTP transport...`);
-    // Create the HTTP transport
+    // Create the HTTP transport in stateless mode (no session management)
     const transport = new MCPHTTPTransport({
-      sessionIdGenerator: stateless ? undefined : () => randomUUID(),
+      sessionIdGenerator: undefined,
       enableJsonResponse: true,
       enableDnsRebindingProtection: false, // Disable for local development
     });
     logger.debug(`HTTP transport created`);
 
-    // Connect server to transport
     logger.debug(`Connecting server to transport...`);
     logger.debug(`About to call server.connect(transport)...`);
     await server.connect(transport);
     logger.debug(`server.connect(transport) completed successfully`);
     logger.debug(`Server connected to transport successfully`);
 
-    // Create HTTP server
     logger.debug(`Creating HTTP server...`);
-    const httpServer = http.createServer(async (req, res) => {
-      // Set CORS headers for development
-      res.setHeader("Access-Control-Allow-Origin", "*");
-      res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
-      res.setHeader("Access-Control-Allow-Headers", "Content-Type, Accept");
-
-      // Handle OPTIONS preflight
-      if (req.method === "OPTIONS") {
-        res.writeHead(200);
-        res.end();
-        return;
-      }
-
-      // Handle GET /health endpoint for health checks
-      if (req.method === "GET" && req.url === "/health") {
-        res.writeHead(200, { "Content-Type": "application/json" });
-        res.end(
-          JSON.stringify({
-            status: "ok",
-            server: "safeoutputs",
-            version: "1.0.0",
-            tools: Object.keys(config).filter(k => config[k]).length,
-          })
-        );
-        return;
-      }
-
-      // Only handle POST requests for MCP protocol
-      if (req.method !== "POST") {
-        res.writeHead(405, { "Content-Type": "application/json" });
-        res.end(JSON.stringify({ error: "Method not allowed" }));
-        return;
-      }
-
-      try {
-        // Parse request body for POST requests
-        let body = null;
-        if (req.method === "POST") {
-          const chunks = [];
-          for await (const chunk of req) {
-            chunks.push(chunk);
-          }
-          const bodyStr = Buffer.concat(chunks).toString();
-          try {
-            body = bodyStr ? JSON.parse(bodyStr) : null;
-          } catch (parseError) {
-            res.writeHead(400, { "Content-Type": "application/json" });
-            res.end(
-              JSON.stringify({
-                jsonrpc: "2.0",
-                error: {
-                  code: -32700,
-                  message: "Parse error: Invalid JSON in request body",
-                },
-                id: null,
-              })
-            );
-            return;
-          }
-        }
-
-        // Let the transport handle the request
-        await transport.handleRequest(req, res, body);
-      } catch (error) {
-        // Log the full error with stack trace on the server for debugging
-        logger.debugError("Error handling request: ", error);
-
-        if (!res.headersSent) {
-          res.writeHead(500, { "Content-Type": "application/json" });
-          res.end(
-            JSON.stringify({
-              jsonrpc: "2.0",
-              error: {
-                code: -32603,
-                message: "Internal server error",
-              },
-              id: null,
-            })
-          );
-        }
-      }
+    return await runHttpServer({
+      transport,
+      port,
+      getHealthPayload: () => ({
+        status: "ok",
+        server: "safeoutputs",
+        version: "1.0.0",
+        tools: Object.keys(config).filter(k => config[k]).length,
+      }),
+      logger,
+      serverLabel: "Safe Outputs MCP",
+      configureServer: httpServer => {
+        // Disable all HTTP server timeouts to prevent idle connections from being dropped
+        // during long agent runs where safe-output tools may not be called for several minutes.
+        httpServer.timeout = 0;
+        httpServer.keepAliveTimeout = 0;
+        httpServer.headersTimeout = 0;
+        httpServer.requestTimeout = 0;
+      },
     });
-
-    // Disable all HTTP server timeouts to prevent idle connections from being dropped
-    // during long agent runs where safe-output tools may not be called for several minutes.
-    httpServer.timeout = 0;
-    httpServer.keepAliveTimeout = 0;
-    httpServer.headersTimeout = 0;
-    httpServer.requestTimeout = 0;
-
-    // Start listening
-    logger.debug(`Attempting to bind to port ${port}...`);
-    httpServer.listen(port, () => {
-      logger.debug(`=== Safe Outputs MCP HTTP Server Started Successfully ===`);
-      logger.debug(`HTTP server listening on http://localhost:${port}`);
-      logger.debug(`MCP endpoint: POST http://localhost:${port}/`);
-      logger.debug(`Server name: safeoutputs`);
-      logger.debug(`Server version: 1.0.0`);
-      logger.debug(`Tools available: ${Object.keys(config).filter(k => config[k]).length}`);
-      logger.debug(`Server is ready to accept requests`);
-    });
-
-    // Handle bind errors
-    httpServer.on("error", error => {
-      /** @type {NodeJS.ErrnoException} */
-      const errnoError = error;
-      if (errnoError.code === "EADDRINUSE") {
-        logger.debugError(`ERROR: Port ${port} is already in use. `, error);
-      } else if (errnoError.code === "EACCES") {
-        logger.debugError(`ERROR: Permission denied to bind to port ${port}. `, error);
-      } else {
-        logger.debugError(`ERROR: Failed to start HTTP server: `, error);
-      }
-      process.exit(1);
-    });
-
-    // Handle shutdown gracefully
-    process.on("SIGINT", () => {
-      logger.debug("Received SIGINT, shutting down...");
-      httpServer.close(() => {
-        logger.debug("HTTP server closed");
-        process.exit(0);
-      });
-    });
-
-    process.on("SIGTERM", () => {
-      logger.debug("Received SIGTERM, shutting down...");
-      httpServer.close(() => {
-        logger.debug("HTTP server closed");
-        process.exit(0);
-      });
-    });
-
-    return httpServer;
   } catch (error) {
-    // Log detailed error information for startup failures
-    const errorLogger = createLogger("safe-outputs-startup-error");
-    errorLogger.debug(`=== FATAL ERROR: Failed to start Safe Outputs MCP HTTP Server ===`);
-    if (error && typeof error === "object") {
-      if ("constructor" in error && error.constructor) {
-        errorLogger.debug(`Error type: ${error.constructor.name}`);
-      }
-      if ("message" in error) {
-        errorLogger.debug(`Error message: ${error.message}`);
-      }
-      if ("stack" in error && error.stack) {
-        errorLogger.debug(`Stack trace:\n${error.stack}`);
-      }
-      if ("code" in error && error.code) {
-        errorLogger.debug(`Error code: ${error.code}`);
-      }
-    }
-    errorLogger.debug(`Port: ${port}`);
-
-    // Re-throw the error to be caught by the caller
-    throw error;
+    logStartupError(error, "safe-outputs-startup-error", { Port: port });
   }
 }
 
@@ -433,7 +292,6 @@ if (require.main === module) {
 
   const options = {
     port: 3000,
-    stateless: false,
     /** @type {string | undefined} */
     logDir: undefined,
   };
@@ -443,8 +301,6 @@ if (require.main === module) {
     if (args[i] === "--port" && args[i + 1]) {
       options.port = parseInt(args[i + 1], 10);
       i++;
-    } else if (args[i] === "--stateless") {
-      options.stateless = true;
     } else if (args[i] === "--log-dir" && args[i + 1]) {
       options.logDir = args[i + 1];
       i++;

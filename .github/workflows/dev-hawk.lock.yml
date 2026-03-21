@@ -47,9 +47,9 @@ jobs:
     needs: pre_activation
     # zizmor: ignore[dangerous-triggers] - workflow_run trigger is secured with role and fork validation
     if: >
-      ((needs.pre_activation.outputs.activated == 'true') && (github.event.workflow_run.event == 'workflow_dispatch')) &&
-      ((github.event_name != 'workflow_run') || ((github.event.workflow_run.repository.id == github.repository_id) &&
-      (!(github.event.workflow_run.repository.fork))))
+      (needs.pre_activation.outputs.activated == 'true' && (github.event.workflow_run.event == 'workflow_dispatch')) &&
+      (github.event_name != 'workflow_run' || github.event.workflow_run.repository.id == github.repository_id &&
+      (!(github.event.workflow_run.repository.fork)))
     runs-on: ubuntu-slim
     permissions:
       contents: read
@@ -364,7 +364,7 @@ jobs:
       - name: Checkout PR branch
         id: checkout-pr
         if: |
-          (github.event.pull_request) || (github.event.issue.pull_request)
+          github.event.pull_request || github.event.issue.pull_request
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           GH_TOKEN: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
@@ -964,7 +964,7 @@ jobs:
       - activation
       - agent
       - safe_outputs
-    if: (always()) && ((needs.agent.result != 'skipped') || (needs.activation.outputs.lockdown_check_failed == 'true'))
+    if: always() && (needs.agent.result != 'skipped' || needs.activation.outputs.lockdown_check_failed == 'true')
     runs-on: ubuntu-slim
     permissions:
       contents: read
@@ -1107,7 +1107,7 @@ jobs:
 
   safe_outputs:
     needs: agent
-    if: ((!cancelled()) && (needs.agent.result != 'skipped')) && (needs.agent.outputs.detection_success == 'true')
+    if: (!cancelled()) && needs.agent.result != 'skipped' && needs.agent.outputs.detection_success == 'true'
     runs-on: ubuntu-slim
     permissions:
       contents: read

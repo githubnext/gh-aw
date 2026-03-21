@@ -166,6 +166,18 @@ func TestIsPathScannedBySecretRedaction_UnscannableFiles(t *testing.T) {
 			path:     "/tmp/gh-aw/data.bin",
 			expected: false,
 		},
+		{
+			// Wildcard paths outside /tmp/gh-aw/ are rejected - engines must move files
+			// into /tmp/gh-aw/ via GetPreBundleSteps (e.g. gemini_engine.go)
+			name:     "Wildcard JSON under /tmp/ (not /tmp/gh-aw/)",
+			path:     "/tmp/gemini-client-error-*.json",
+			expected: false,
+		},
+		{
+			name:     "Wildcard log under /tmp/ (not /tmp/gh-aw/)",
+			path:     "/tmp/some-engine-*.log",
+			expected: false,
+		},
 	}
 
 	for _, tt := range tests {

@@ -19,16 +19,12 @@ const { startHttpServer } = require("./safe_outputs_mcp_server_http.cjs");
 
 logger.debug("Successfully required safe_outputs_mcp_server_http.cjs");
 
-// Start the HTTP server
+// If run directly, start the HTTP server
 // The server reads configuration from ${RUNNER_TEMP}/gh-aw/safeoutputs/config.json
 // Port and API key are configured via environment variables:
 // - GH_AW_SAFE_OUTPUTS_PORT
 // - GH_AW_SAFE_OUTPUTS_API_KEY
 // Log directory is configured via GH_AW_MCP_LOG_DIR environment variable
-//
-// NOTE: The server runs in stateless mode (no session management) because
-// the MCP gateway doesn't perform the MCP protocol initialization handshake.
-// It directly calls methods like tools/list without the Mcp-Session-Id header.
 if (require.main === module) {
   logger.debug("In require.main === module block");
   const port = parseInt(process.env.GH_AW_SAFE_OUTPUTS_PORT || "3001", 10);
@@ -36,7 +32,7 @@ if (require.main === module) {
   logger.debug(`Port: ${port}, LogDir: ${logDir}`);
   logger.debug("Calling startHttpServer...");
 
-  startHttpServer({ port, logDir, stateless: true }).catch(error => {
+  startHttpServer({ port, logDir }).catch(error => {
     logger.debugError("Failed to start safe-outputs HTTP server: ", error);
     process.exit(1);
   });

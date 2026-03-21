@@ -67,6 +67,7 @@ func downloadAgentFileFromGitHub(verbose bool) (string, error) {
 				agentDownloadLog.Printf("gh CLI fallback failed: %v", ghErr)
 			}
 		}
+		_, _ = io.Copy(io.Discard, resp.Body)
 		return "", fmt.Errorf("failed to download agent file: HTTP %d", resp.StatusCode)
 	}
 

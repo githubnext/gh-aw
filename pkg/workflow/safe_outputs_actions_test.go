@@ -442,7 +442,42 @@ func TestParseActionsConfigWithEnv(t *testing.T) {
 	assert.Equal(t, "other-value", myTool.Env["OTHER_VAR"], "OTHER_VAR should match")
 }
 
-// TestBuildActionStepsWithEnv verifies that env vars are emitted in generated steps
+// TestParseActionsConfigWithInputs verifies parsing of inputs field in actions config
+func TestParseActionsConfigWithInputs(t *testing.T) {
+	actionsMap := map[string]any{
+		"add-label": map[string]any{
+			"uses": "actions-ecosystem/action-add-labels@v1",
+			"inputs": map[string]any{
+				"labels": map[string]any{
+					"description": "The labels' name to be added.",
+					"required":    true,
+				},
+				"number": map[string]any{
+					"description": "The number of the issue or pull request.",
+				},
+			},
+		},
+	}
+
+	result := parseActionsConfig(actionsMap)
+	require.Len(t, result, 1, "Should have one action")
+
+	tool := result["add-label"]
+	require.NotNil(t, tool, "Should have add-label")
+	require.NotNil(t, tool.Inputs, "Should have inputs populated from frontmatter")
+	require.Len(t, tool.Inputs, 2, "Should have 2 inputs")
+
+	labelsInput := tool.Inputs["labels"]
+	require.NotNil(t, labelsInput, "Should have labels input")
+	assert.Equal(t, "The labels' name to be added.", labelsInput.Description, "Labels description should match")
+	assert.True(t, labelsInput.Required, "Labels should be required")
+
+	numberInput := tool.Inputs["number"]
+	require.NotNil(t, numberInput, "Should have number input")
+	assert.Equal(t, "The number of the issue or pull request.", numberInput.Description, "Number description should match")
+	assert.False(t, numberInput.Required, "Number should not be required")
+}
+
 func TestBuildActionStepsWithEnv(t *testing.T) {
 	compiler := NewCompiler()
 	data := &WorkflowData{

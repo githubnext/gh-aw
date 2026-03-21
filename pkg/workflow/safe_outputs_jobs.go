@@ -139,7 +139,7 @@ func (c *Compiler) buildSafeOutputJob(data *WorkflowData, config SafeOutputJobCo
 	// Create the job with standard configuration
 	job := &Job{
 		Name:           config.JobName,
-		If:             jobCondition.Render(),
+		If:             RenderCondition(jobCondition),
 		RunsOn:         c.formatSafeOutputsRunsOn(data.SafeOutputs),
 		Environment:    c.indentYAMLLines(resolveSafeOutputsEnvironment(data), "    "),
 		Permissions:    config.Permissions.RenderToYAML(),

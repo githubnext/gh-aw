@@ -47,8 +47,8 @@ jobs:
   activation:
     needs: pre_activation
     if: >
-      (needs.pre_activation.outputs.activated == 'true') && (((github.event_name != 'pull_request') || (github.event.pull_request.head.repo.id == github.repository_id)) &&
-      ((github.event_name != 'pull_request') || ((github.event.action != 'labeled') || (github.event.label.name == 'smoke-create-cross-repo-pr'))))
+      needs.pre_activation.outputs.activated == 'true' && ((github.event_name != 'pull_request' || github.event.pull_request.head.repo.id == github.repository_id) &&
+      (github.event_name != 'pull_request' || github.event.action != 'labeled' || github.event.label.name == 'smoke-create-cross-repo-pr'))
     runs-on: ubuntu-slim
     permissions:
       contents: read
@@ -131,7 +131,7 @@ jobs:
             await main();
       - name: Add comment with workflow run link
         id: add-comment
-        if: github.event_name == 'issues' || github.event_name == 'issue_comment' || github.event_name == 'pull_request_review_comment' || github.event_name == 'discussion' || github.event_name == 'discussion_comment' || (github.event_name == 'pull_request') && (github.event.pull_request.head.repo.id == github.repository_id)
+        if: github.event_name == 'issues' || github.event_name == 'issue_comment' || github.event_name == 'pull_request_review_comment' || github.event_name == 'discussion' || github.event_name == 'discussion_comment' || github.event_name == 'pull_request' && github.event.pull_request.head.repo.id == github.repository_id
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           GH_AW_WORKFLOW_NAME: "Smoke Create Cross-Repo PR"
@@ -352,7 +352,7 @@ jobs:
       - name: Checkout PR branch
         id: checkout-pr
         if: |
-          (github.event.pull_request) || (github.event.issue.pull_request)
+          github.event.pull_request || github.event.issue.pull_request
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           GH_TOKEN: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
@@ -965,7 +965,7 @@ jobs:
       - activation
       - agent
       - safe_outputs
-    if: (always()) && ((needs.agent.result != 'skipped') || (needs.activation.outputs.lockdown_check_failed == 'true'))
+    if: always() && (needs.agent.result != 'skipped' || needs.activation.outputs.lockdown_check_failed == 'true')
     runs-on: ubuntu-slim
     permissions:
       contents: write
@@ -1110,8 +1110,8 @@ jobs:
 
   pre_activation:
     if: >
-      ((github.event_name != 'pull_request') || (github.event.pull_request.head.repo.id == github.repository_id)) &&
-      ((github.event_name != 'pull_request') || ((github.event.action != 'labeled') || (github.event.label.name == 'smoke-create-cross-repo-pr')))
+      (github.event_name != 'pull_request' || github.event.pull_request.head.repo.id == github.repository_id) &&
+      (github.event_name != 'pull_request' || github.event.action != 'labeled' || github.event.label.name == 'smoke-create-cross-repo-pr')
     runs-on: ubuntu-slim
     permissions:
       contents: read
@@ -1147,7 +1147,7 @@ jobs:
     needs:
       - activation
       - agent
-    if: ((!cancelled()) && (needs.agent.result != 'skipped')) && (needs.agent.outputs.detection_success == 'true')
+    if: (!cancelled()) && needs.agent.result != 'skipped' && needs.agent.outputs.detection_success == 'true'
     runs-on: ubuntu-slim
     permissions:
       contents: write
@@ -1207,7 +1207,7 @@ jobs:
           name: agent
           path: /tmp/gh-aw/
       - name: Checkout repository
-        if: ((!cancelled()) && (needs.agent.result != 'skipped')) && (contains(needs.agent.outputs.output_types, 'create_pull_request'))
+        if: (!cancelled()) && needs.agent.result != 'skipped' && contains(needs.agent.outputs.output_types, 'create_pull_request')
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           repository: githubnext/gh-aw-side-repo
@@ -1216,7 +1216,7 @@ jobs:
           persist-credentials: false
           fetch-depth: 1
       - name: Configure Git credentials
-        if: ((!cancelled()) && (needs.agent.result != 'skipped')) && (contains(needs.agent.outputs.output_types, 'create_pull_request'))
+        if: (!cancelled()) && needs.agent.result != 'skipped' && contains(needs.agent.outputs.output_types, 'create_pull_request')
         env:
           REPO_NAME: "githubnext/gh-aw-side-repo"
           SERVER_URL: ${{ github.server_url }}

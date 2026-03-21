@@ -152,9 +152,9 @@ func (c *Compiler) applyDefaults(data *WorkflowData, markdownPath string) error 
 						return fmt.Errorf("failed to build combined label-command condition: %w", err)
 					}
 					combined := &OrNode{Left: commandConditionTree, Right: labelConditionTree}
-					data.If = combined.Render()
+					data.If = RenderCondition(combined)
 				} else {
-					data.If = commandConditionTree.Render()
+					data.If = RenderCondition(commandConditionTree)
 				}
 			}
 		} else if isLabelCommandTrigger {
@@ -234,7 +234,7 @@ func (c *Compiler) applyDefaults(data *WorkflowData, markdownPath string) error 
 			}
 
 			if data.If == "" {
-				data.If = labelConditionTree.Render()
+				data.If = RenderCondition(labelConditionTree)
 			}
 		} else {
 			data.On = `on:

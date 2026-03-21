@@ -20,9 +20,11 @@ const (
 
 // ActionCacheEntry represents a cached action pin resolution.
 type ActionCacheEntry struct {
-	Repo    string `json:"repo"`
-	Version string `json:"version"`
-	SHA     string `json:"sha"`
+	Repo              string                      `json:"repo"`
+	Version           string                      `json:"version"`
+	SHA               string                      `json:"sha"`
+	Inputs            map[string]*ActionYAMLInput `json:"inputs,omitempty"`             // cached inputs from action.yml
+	ActionDescription string                      `json:"action_description,omitempty"` // cached description from action.yml
 }
 
 // ActionCache manages cached action pin resolutions.
@@ -189,7 +191,9 @@ func (c *ActionCache) FindEntryBySHA(repo, sha string) (ActionCacheEntry, bool) 
 	return ActionCacheEntry{}, false
 }
 
-// Set stores a new cache entry
+// Set stores a new cache entry, preserving any already-cached inputs when the SHA
+// is unchanged. If the SHA changes (e.g. a moving tag points to a new commit),
+// cached inputs are cleared to stay consistent with the newly-pinned commit.
 func (c *ActionCache) Set(repo, version, sha string) {
 	key := formatActionCacheKey(repo, version)
 
@@ -208,12 +212,99 @@ func (c *ActionCache) Set(repo, version, sha string) {
 	}
 
 	actionCacheLog.Printf("Setting cache entry: key=%s, sha=%s", key, sha)
+
+	// Preserve previously-cached inputs only when the SHA is unchanged. If the SHA
+	// changes (e.g. for a moving tag that now points to a new commit), drop any
+	// existing inputs so they stay consistent with the pinned commit.
+	existing := c.Entries[key]
+	var inputs map[string]*ActionYAMLInput
+	var description string
+	if existing.SHA == sha {
+		inputs = existing.Inputs
+		description = existing.ActionDescription
+	} else if existing.SHA != "" {
+		// Log when an existing entry's SHA is being changed (covers both the case
+		// where cached inputs exist and where they don't, for consistent observability).
+		actionCacheLog.Printf("Clearing cached inputs for key=%s due to SHA change (%s -> %s)", key, existing.SHA, sha)
+	}
 	c.Entries[key] = ActionCacheEntry{
-		Repo:    repo,
-		Version: version,
-		SHA:     sha,
+		Repo:              repo,
+		Version:           version,
+		SHA:               sha,
+		Inputs:            inputs,
+		ActionDescription: description,
 	}
 	c.dirty = true // Mark cache as modified
+}
+
+// GetInputs retrieves the cached action inputs for the given repo and version.
+// Returns the inputs map and true if cached inputs exist, otherwise nil and false.
+func (c *ActionCache) GetInputs(repo, version string) (map[string]*ActionYAMLInput, bool) {
+	key := formatActionCacheKey(repo, version)
+	entry, exists := c.Entries[key]
+	if !exists || entry.Inputs == nil {
+		actionCacheLog.Printf("No cached inputs for key=%s", key)
+		return nil, false
+	}
+	actionCacheLog.Printf("Cache hit for inputs: key=%s, inputs=%d", key, len(entry.Inputs))
+	return entry.Inputs, true
+}
+
+// SetInputs stores the action inputs in the cache entry for the given repo and version.
+// If no cache entry exists for the key, a new entry is created with an empty SHA so that
+// inputs fetched from the network are persisted even before the SHA is resolved.
+func (c *ActionCache) SetInputs(repo, version string, inputs map[string]*ActionYAMLInput) {
+	key := formatActionCacheKey(repo, version)
+	entry, exists := c.Entries[key]
+	if !exists {
+		actionCacheLog.Printf("No cache entry for key=%s, creating new entry to store inputs", key)
+		entry = ActionCacheEntry{
+			Repo:    repo,
+			Version: version,
+		}
+	}
+	entry.Inputs = inputs
+	c.Entries[key] = entry
+	c.dirty = true
+	actionCacheLog.Printf("Cached inputs for key=%s, inputs=%d", key, len(inputs))
+}
+
+// GetActionDescription retrieves the cached action description for the given repo and version.
+// Returns the description and true if a non-empty description is cached, otherwise "" and false.
+func (c *ActionCache) GetActionDescription(repo, version string) (string, bool) {
+	key := formatActionCacheKey(repo, version)
+	entry, exists := c.Entries[key]
+	if !exists || entry.ActionDescription == "" {
+		return "", false
+	}
+	return entry.ActionDescription, true
+}
+
+// SetActionDescription stores the action description in the cache entry for the given repo and version.
+// If no cache entry exists for the key, a new entry is created.
+// Empty descriptions are not stored; actions without a description string are treated the same as
+// actions whose description has not yet been fetched, so we avoid caching an empty string that
+// would prevent a later fetch from populating the field.
+func (c *ActionCache) SetActionDescription(repo, version, description string) {
+	if description == "" {
+		// Skip persisting empty descriptions; callers that want to distinguish
+		// "no description fetched" from "action has no description" should use
+		// a sentinel value. For our use case (action.yml display text), omitting
+		// empty values is intentional to keep the cache file tidy.
+		return
+	}
+	key := formatActionCacheKey(repo, version)
+	entry, exists := c.Entries[key]
+	if !exists {
+		entry = ActionCacheEntry{
+			Repo:    repo,
+			Version: version,
+		}
+	}
+	entry.ActionDescription = description
+	c.Entries[key] = entry
+	c.dirty = true
+	actionCacheLog.Printf("Cached description for key=%s", key)
 }
 
 // GetCachePath returns the path to the cache file

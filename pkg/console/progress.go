@@ -6,8 +6,8 @@ import (
 	"fmt"
 
 	"charm.land/bubbles/v2/progress"
-	lipgloss "charm.land/lipgloss/v2"
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/styles"
 )
 
 var progressLog = logger.New("console:progress")
@@ -20,7 +20,7 @@ var progressLog = logger.New("console:progress")
 //   - Indeterminate: When total size is unknown (shows activity indicator)
 //
 // Visual Features:
-//   - Scaled color blend effect from purple (#BD93F9) to cyan (#8BE9FD)
+//   - Scaled color blend effect from purple to cyan (adaptive for light/dark terminals)
 //   - Smooth color transitions using bubbles v2 blend capabilities
 //   - Blend scales with filled portion for enhanced visual feedback
 //   - Works well in both light and dark terminal themes
@@ -47,17 +47,17 @@ func NewProgressBar(total int64) *ProgressBar {
 	// visual feedback.
 	//
 	// Color choices:
-	// - Start (0%): #BD93F9 (purple) - vibrant, attention-grabbing
-	// - End (100%): #8BE9FD (cyan) - cool, completion feeling
-	// These colors work well in both light and dark terminal themes
+	// - Start (0%): ColorPurple - vibrant, attention-grabbing (adaptive for light/dark terminals)
+	// - End (100%): ColorInfo - cool, completion feeling (adaptive for light/dark terminals)
+	// These colors adapt to both light and dark terminal themes
 	prog := progress.New(
-		progress.WithColors(lipgloss.Color("#BD93F9"), lipgloss.Color("#8BE9FD")),
+		progress.WithColors(styles.ColorPurple, styles.ColorInfo),
 		progress.WithScaled(true),
 		progress.WithWidth(40),
 	)
 
 	// Use muted color for empty portion to maintain focus on progress
-	prog.EmptyColor = lipgloss.Color("#6272A4") // Muted purple-gray
+	prog.EmptyColor = styles.ColorComment
 
 	return &ProgressBar{
 		progress:      prog,

@@ -3,7 +3,25 @@
     "actions-ecosystem/action-add-labels@v1": {
       "repo": "actions-ecosystem/action-add-labels",
       "version": "v1",
-      "sha": "18f1af5e3544586314bbe15c0273249c770b2daf"
+      "sha": "18f1af5e3544586314bbe15c0273249c770b2daf",
+      "inputs": {
+        "github-token": {
+          "description": "The GitHub token for authentication.",
+          "default": "${{ github.token }}"
+        },
+        "labels": {
+          "description": "The labels' name to be added. Must be separated with line breaks if there're multiple labels.",
+          "required": true
+        },
+        "number": {
+          "description": "The number of the issue or pull request."
+        },
+        "repo": {
+          "description": "The owner and name of the repository. Defaults to the current repository.",
+          "default": "${{ github.repository }}"
+        }
+      },
+      "action_description": "A GitHub Action to add GitHub labels to pull requests and issues"
     },
     "actions/ai-inference@v2.0.7": {
       "repo": "actions/ai-inference",

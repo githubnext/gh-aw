@@ -428,7 +428,7 @@ jobs:
       - name: Checkout PR branch
         id: checkout-pr
         if: |
-          (github.event.pull_request) || (github.event.issue.pull_request)
+          github.event.pull_request || github.event.issue.pull_request
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           GH_TOKEN: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
@@ -1377,7 +1377,7 @@ jobs:
       - post_to_slack_channel
       - safe_outputs
       - update_cache_memory
-    if: (always()) && ((needs.agent.result != 'skipped') || (needs.activation.outputs.lockdown_check_failed == 'true'))
+    if: always() && (needs.agent.result != 'skipped' || needs.activation.outputs.lockdown_check_failed == 'true')
     runs-on: ubuntu-slim
     permissions:
       contents: read
@@ -1488,8 +1488,7 @@ jobs:
 
   notion_add_comment:
     needs: agent
-    if: >
-      ((!cancelled()) && (needs.agent.result != 'skipped')) && (contains(needs.agent.outputs.output_types, 'notion_add_comment'))
+    if: (!cancelled()) && needs.agent.result != 'skipped' && contains(needs.agent.outputs.output_types, 'notion_add_comment')
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -1616,8 +1615,7 @@ jobs:
 
   post_to_slack_channel:
     needs: agent
-    if: >
-      ((!cancelled()) && (needs.agent.result != 'skipped')) && (contains(needs.agent.outputs.output_types, 'post_to_slack_channel'))
+    if: (!cancelled()) && needs.agent.result != 'skipped' && contains(needs.agent.outputs.output_types, 'post_to_slack_channel')
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -1758,7 +1756,7 @@ jobs:
 
   safe_outputs:
     needs: agent
-    if: ((!cancelled()) && (needs.agent.result != 'skipped')) && (needs.agent.outputs.detection_success == 'true')
+    if: (!cancelled()) && needs.agent.result != 'skipped' && needs.agent.outputs.detection_success == 'true'
     runs-on: ubuntu-slim
     permissions:
       contents: read

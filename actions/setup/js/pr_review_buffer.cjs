@@ -211,12 +211,8 @@ function createReviewBuffer() {
     let body = reviewMetadata ? reviewMetadata.body : "";
 
     // Determine if we should add footer based on footer mode
-    let shouldAddFooter = false;
-    if (footerMode === "always") {
-      shouldAddFooter = true;
-    } else if (footerMode === "none") {
-      shouldAddFooter = false;
-    } else if (footerMode === "if-body") {
+    let shouldAddFooter = footerMode === "always";
+    if (footerMode === "if-body") {
       // Only add footer if body is non-empty (has meaningful content)
       shouldAddFooter = body.trim().length > 0;
       core.info(`Footer mode "if-body": body is ${body.trim().length > 0 ? "non-empty" : "empty"}, ${shouldAddFooter ? "adding" : "skipping"} footer`);
