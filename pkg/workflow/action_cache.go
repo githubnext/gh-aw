@@ -166,6 +166,17 @@ func (c *ActionCache) marshalSorted() ([]byte, error) {
 	return result, nil
 }
 
+// Delete removes the cache entry for the given repo and version.
+// It is a no-op if the entry does not exist.
+func (c *ActionCache) Delete(repo, version string) {
+	key := formatActionCacheKey(repo, version)
+	if _, exists := c.Entries[key]; exists {
+		delete(c.Entries, key)
+		c.dirty = true
+		actionCacheLog.Printf("Deleted cache entry: key=%s", key)
+	}
+}
+
 // Get retrieves a cached entry if it exists
 func (c *ActionCache) Get(repo, version string) (string, bool) {
 	key := formatActionCacheKey(repo, version)
