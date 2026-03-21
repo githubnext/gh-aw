@@ -255,9 +255,6 @@ func convertPermissionsToAppTokenFields(permissions *Permissions) map[string]str
 	if level, ok := permissions.GetExplicit(PermissionAdministration); ok {
 		fields["permission-administration"] = string(level)
 	}
-	if level, ok := permissions.GetExplicit(PermissionDependabotAlerts); ok {
-		fields["permission-dependabot-alerts"] = string(level)
-	}
 	if level, ok := permissions.GetExplicit(PermissionEnvironments); ok {
 		fields["permission-environments"] = string(level)
 	}

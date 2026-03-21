@@ -310,8 +310,11 @@ Test that determine-automatic-lockdown is generated even when app is configured.
 	assert.Contains(t, lockContent, "GITHUB_MCP_SERVER_TOKEN: ${{ steps.github-mcp-app-token.outputs.token }}", "App token should be used for MCP server")
 }
 
-// TestGitHubMCPAppTokenWithDependabotToolset tests that permission-dependabot-alerts is included
+// TestGitHubMCPAppTokenWithDependabotToolset tests that permission-vulnerability-alerts is included
 // when the dependabot toolset is configured with a GitHub App.
+// The correct GitHub App permission for Dependabot alerts is "vulnerability_alerts"
+// (see https://docs.github.com/en/rest/apps/apps#create-an-installation-access-token-for-an-app),
+// which maps to "permission-vulnerability-alerts" in actions/create-github-app-token.
 func TestGitHubMCPAppTokenWithDependabotToolset(t *testing.T) {
 	compiler := NewCompilerWithVersion("1.0.0")
 
@@ -320,7 +323,7 @@ on: issues
 permissions:
   contents: read
   security-events: read
-  dependabot-alerts: read
+  vulnerability-alerts: read
 strict: false
 tools:
   github:
@@ -333,7 +336,7 @@ tools:
 
 # Test Workflow
 
-Test that permission-dependabot-alerts is emitted in the App token minting step.
+Test that permission-vulnerability-alerts is emitted in the App token minting step.
 `
 
 	tmpDir := t.TempDir()
@@ -349,8 +352,9 @@ Test that permission-dependabot-alerts is emitted in the App token minting step.
 	require.NoError(t, err, "Failed to read lock file")
 	lockContent := string(content)
 
-	// Verify the dependabot-alerts permission is passed to the App token minting step
-	assert.Contains(t, lockContent, "permission-dependabot-alerts: read", "Should include dependabot-alerts read permission in App token")
+	// Verify the vulnerability-alerts permission is passed to the App token minting step
+	// This is the correct GitHub App permission name for Dependabot alerts
+	assert.Contains(t, lockContent, "permission-vulnerability-alerts: read", "Should include vulnerability-alerts read permission in App token")
 	// Verify that security-events is also still passed through
 	assert.Contains(t, lockContent, "permission-security-events: read", "Should also include security-events read permission in App token")
 	// Verify the token minting step is present

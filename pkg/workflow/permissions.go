@@ -53,8 +53,6 @@ func convertStringToPermissionScope(key string) PermissionScope {
 		return PermissionOrganizationProj
 	case "administration":
 		return PermissionAdministration
-	case "dependabot-alerts":
-		return PermissionDependabotAlerts
 	case "members":
 		return PermissionMembers
 	case "organization-administration":
@@ -164,7 +162,6 @@ const (
 
 	// Repository-level GitHub App permissions
 	PermissionAdministration             PermissionScope = "administration"
-	PermissionDependabotAlerts           PermissionScope = "dependabot-alerts"
 	PermissionEnvironments               PermissionScope = "environments"
 	PermissionGitSigning                 PermissionScope = "git-signing"
 	PermissionVulnerabilityAlerts        PermissionScope = "vulnerability-alerts"
@@ -231,7 +228,6 @@ func GetAllGitHubAppOnlyScopes() []PermissionScope {
 	return []PermissionScope{
 		// Repository-level GitHub App permissions
 		PermissionAdministration,
-		PermissionDependabotAlerts,
 		PermissionEnvironments,
 		PermissionGitSigning,
 		PermissionVulnerabilityAlerts,
