@@ -4,6 +4,8 @@ package styles
 
 import (
 	"github.com/charmbracelet/huh"
+	// huh v0.8.0 depends on charmbracelet/lipgloss v1, not charm.land/lipgloss/v2.
+	// This file intentionally uses the v1 import to match huh's type expectations.
 	"github.com/charmbracelet/lipgloss"
 )
 
