@@ -232,6 +232,7 @@ func TestIsGitHubAppOnlyScope(t *testing.T) {
 		{PermissionOrganizationProj, true},
 		// GitHub App-only scopes - should return true
 		{PermissionAdministration, true},
+		{PermissionDependabotAlerts, true},
 		{PermissionMembers, true},
 		{PermissionOrganizationAdministration, true},
 		{PermissionEnvironments, true},
@@ -268,6 +269,7 @@ func TestGetAllGitHubAppOnlyScopes(t *testing.T) {
 	// Verify some key scopes are included
 	keyScopes := []PermissionScope{
 		PermissionAdministration,
+		PermissionDependabotAlerts,
 		PermissionMembers,
 		PermissionOrganizationAdministration,
 		PermissionEnvironments,
@@ -435,6 +437,17 @@ func TestConvertPermissionsToAppTokenFields_GitHubAppOnly(t *testing.T) {
 			}(),
 			expectedFields: map[string]string{
 				"permission-vulnerability-alerts": "read",
+			},
+		},
+		{
+			name: "dependabot-alerts maps to permission-dependabot-alerts",
+			permissions: func() *Permissions {
+				p := NewPermissions()
+				p.Set(PermissionDependabotAlerts, PermissionRead)
+				return p
+			}(),
+			expectedFields: map[string]string{
+				"permission-dependabot-alerts": "read",
 			},
 		},
 		{

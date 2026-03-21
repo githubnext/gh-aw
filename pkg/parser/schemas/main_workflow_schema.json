@@ -1861,6 +1861,11 @@
               "enum": ["read", "write", "none"],
               "description": "Permission level for commit statuses (read/write/none). Controls access to create and update commit status checks."
             },
+            "dependabot-alerts": {
+              "type": "string",
+              "enum": ["read", "none"],
+              "description": "Permission level for Dependabot alerts (read/none). GitHub App-only permission: controls access to view Dependabot vulnerability alerts. Requires a GitHub App token — the GITHUB_TOKEN does not have this permission."
+            },
             "all": {
               "type": "string",
               "enum": ["read"],

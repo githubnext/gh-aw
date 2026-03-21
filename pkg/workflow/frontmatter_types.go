@@ -80,6 +80,7 @@ type GitHubAppPermissionsConfig struct {
 	OrganizationCodespaces              string `json:"organization-codespaces,omitempty"`
 	// Repository-level permissions
 	Administration             string `json:"administration,omitempty"`
+	DependabotAlerts           string `json:"dependabot-alerts,omitempty"`
 	Environments               string `json:"environments,omitempty"`
 	GitSigning                 string `json:"git-signing,omitempty"`
 	VulnerabilityAlerts        string `json:"vulnerability-alerts,omitempty"`
@@ -439,6 +440,8 @@ func parsePermissionsConfig(permissions map[string]any) (*PermissionsConfig, err
 			// GitHub App-only permission scopes
 			case "administration":
 				config.Administration = levelStr
+			case "dependabot-alerts":
+				config.DependabotAlerts = levelStr
 			case "environments":
 				config.Environments = levelStr
 			case "git-signing":
@@ -925,6 +928,9 @@ func permissionsConfigToMap(config *PermissionsConfig) map[string]any {
 	// GitHub App-only permission scopes - repository-level
 	if config.Administration != "" {
 		result["administration"] = config.Administration
+	}
+	if config.DependabotAlerts != "" {
+		result["dependabot-alerts"] = config.DependabotAlerts
 	}
 	if config.Environments != "" {
 		result["environments"] = config.Environments
