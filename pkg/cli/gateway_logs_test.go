@@ -764,3 +764,34 @@ func TestBuildToolCallsFromRPCMessages(t *testing.T) {
 	assert.Equal(t, "error", getRepo.Status, "status should be error")
 	assert.Equal(t, "rate limit", getRepo.Error, "error message should be set")
 }
+
+// TestBuildToolCallsFromRPCMessagesNullID verifies that requests with a null/missing ID
+// are still included in the tool_calls output (regression test for mcp_tool_usage.tool_calls
+// always being null when parseRPCMessages counted tool calls in the summary but
+// buildToolCallsFromRPCMessages skipped null-ID requests).
+func TestBuildToolCallsFromRPCMessagesNullID(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	// Requests with null ID (id:null) - these are counted in the summary by parseRPCMessages
+	// but were previously skipped by buildToolCallsFromRPCMessages, causing tool_calls=null.
+	rpcContent := `{"timestamp":"2024-01-12T10:00:00.000000000Z","direction":"OUT","type":"REQUEST","server_id":"github","payload":{"jsonrpc":"2.0","id":null,"method":"tools/call","params":{"name":"list_issues","arguments":{}}}}
+{"timestamp":"2024-01-12T10:00:01.000000000Z","direction":"OUT","type":"REQUEST","server_id":"github","payload":{"jsonrpc":"2.0","id":null,"method":"tools/call","params":{"name":"issue_read","arguments":{}}}}
+`
+	logPath := filepath.Join(tmpDir, "rpc-messages.jsonl")
+	require.NoError(t, os.WriteFile(logPath, []byte(rpcContent), 0644))
+
+	calls, err := buildToolCallsFromRPCMessages(logPath)
+	require.NoError(t, err, "should build tool calls without error")
+
+	// Both requests should produce tool call records even without IDs
+	assert.Len(t, calls, 2, "null-ID requests should still produce tool call records")
+
+	toolNames := make(map[string]bool)
+	for _, c := range calls {
+		toolNames[c.ToolName] = true
+		assert.Equal(t, "github", c.ServerName, "server name should be set")
+		assert.Equal(t, "unknown", c.Status, "status should be 'unknown' for null-ID requests")
+	}
+	assert.True(t, toolNames["list_issues"], "should include list_issues")
+	assert.True(t, toolNames["issue_read"], "should include issue_read")
+}
