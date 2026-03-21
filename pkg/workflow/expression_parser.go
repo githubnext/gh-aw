@@ -368,8 +368,8 @@ func BreakLongExpression(expression string) []string {
 				i += 2
 
 				// If the current line is getting long (>ExpressionBreakThreshold chars), break here
-				if len(strings.TrimSpace(current.String())) > int(constants.ExpressionBreakThreshold) {
-					lines = append(lines, strings.TrimSpace(current.String()))
+				if trimmed := strings.TrimSpace(current.String()); len(trimmed) > int(constants.ExpressionBreakThreshold) {
+					lines = append(lines, trimmed)
 					current.Reset()
 					// Skip whitespace after operator
 					for i < len(expression) && (expression[i] == ' ' || expression[i] == '\t') {
@@ -386,8 +386,8 @@ func BreakLongExpression(expression string) []string {
 	}
 
 	// Add the remaining part
-	if strings.TrimSpace(current.String()) != "" {
-		lines = append(lines, strings.TrimSpace(current.String()))
+	if trimmed := strings.TrimSpace(current.String()); trimmed != "" {
+		lines = append(lines, trimmed)
 	}
 
 	// If we still have very long lines, try to break at parentheses
@@ -449,8 +449,8 @@ func BreakAtParentheses(expression string) []string {
 	}
 
 	// Add remaining part
-	if strings.TrimSpace(current.String()) != "" {
-		lines = append(lines, strings.TrimSpace(current.String()))
+	if trimmed := strings.TrimSpace(current.String()); trimmed != "" {
+		lines = append(lines, trimmed)
 	}
 
 	return lines
