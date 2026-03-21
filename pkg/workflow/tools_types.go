@@ -73,6 +73,7 @@ type ToolsConfig struct {
 	WebSearch        *WebSearchToolConfig        `yaml:"web-search,omitempty"`
 	Edit             *EditToolConfig             `yaml:"edit,omitempty"`
 	Playwright       *PlaywrightToolConfig       `yaml:"playwright,omitempty"`
+	Qmd              *QmdToolConfig              `yaml:"qmd,omitempty"`
 	Serena           *SerenaToolConfig           `yaml:"serena,omitempty"`
 	AgenticWorkflows *AgenticWorkflowsToolConfig `yaml:"agentic-workflows,omitempty"`
 	CacheMemory      *CacheMemoryToolConfig      `yaml:"cache-memory,omitempty"`
@@ -199,6 +200,9 @@ func (t *ToolsConfig) ToMap() map[string]any {
 	if t.Playwright != nil {
 		result["playwright"] = t.Playwright
 	}
+	if t.Qmd != nil {
+		result["qmd"] = t.Qmd
+	}
 	if t.Serena != nil {
 		// Convert back based on whether it was short syntax or object
 		if len(t.Serena.ShortSyntax) > 0 {
@@ -305,6 +309,16 @@ type GitHubToolConfig struct {
 type PlaywrightToolConfig struct {
 	Version string   `yaml:"version,omitempty"`
 	Args    []string `yaml:"args,omitempty"`
+}
+
+// QmdToolConfig represents the configuration for the qmd documentation search tool.
+// qmd (https://github.com/tobi/qmd) provides local vector search over documentation files.
+// The index is built in the activation job and downloaded by the agent job, so no
+// contents:read permission is needed in the agent job.
+type QmdToolConfig struct {
+	// Docs is the list of glob patterns for files to include in the search index.
+	// Example: ["docs/**/*.md", ".github/**/*.md"]
+	Docs []string `yaml:"docs"`
 }
 
 // SerenaToolConfig represents the configuration for the Serena MCP tool
@@ -420,6 +434,8 @@ func (t *Tools) HasTool(name string) bool {
 		return t.Edit != nil
 	case "playwright":
 		return t.Playwright != nil
+	case "qmd":
+		return t.Qmd != nil
 	case "serena":
 		return t.Serena != nil
 	case "agentic-workflows":
@@ -464,6 +480,9 @@ func (t *Tools) GetToolNames() []string {
 	}
 	if t.Playwright != nil {
 		names = append(names, "playwright")
+	}
+	if t.Qmd != nil {
+		names = append(names, "qmd")
 	}
 	if t.Serena != nil {
 		names = append(names, "serena")

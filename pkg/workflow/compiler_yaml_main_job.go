@@ -279,6 +279,13 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 		}
 	}
 
+	// Download qmd index artifact if qmd tool is configured.
+	// The index was built in the activation job to avoid needing contents:read in the agent job.
+	if data.QmdConfig != nil {
+		compilerYamlLog.Print("Adding qmd index download step")
+		yaml.WriteString(generateQmdDownloadStep(data))
+	}
+
 	// GH_AW_SAFE_OUTPUTS is now set at job level, no setup step needed
 
 	// Add GitHub MCP lockdown detection step if needed

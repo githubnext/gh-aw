@@ -721,6 +721,11 @@ func (c *Compiler) extractAdditionalConfigurations(
 	}
 	workflowData.RepoMemoryConfig = repoMemoryConfig
 
+	// Extract qmd config from parsed tools
+	if toolsConfig.Qmd != nil {
+		workflowData.QmdConfig = toolsConfig.Qmd
+	}
+
 	// Extract and process mcp-scripts and safe-outputs
 	workflowData.Command, workflowData.CommandEvents = c.extractCommandConfig(frontmatter)
 	workflowData.LabelCommand, workflowData.LabelCommandEvents, workflowData.LabelCommandRemoveLabel = c.extractLabelCommandConfig(frontmatter)

@@ -412,6 +412,9 @@ const DefaultAPMVersion Version = "v0.8.2"
 // DefaultPlaywrightMCPVersion is the default version of the @playwright/mcp package
 const DefaultPlaywrightMCPVersion Version = "0.0.68"
 
+// DefaultQmdVersion is the default version of the @tobilu/qmd npm package
+const DefaultQmdVersion Version = "0.0.16"
+
 // DefaultPlaywrightBrowserVersion is the default version of the Playwright browser Docker image
 const DefaultPlaywrightBrowserVersion Version = "v1.58.2"
 
@@ -647,6 +650,9 @@ const ActivationArtifactName = "activation"
 
 // APMArtifactName is the artifact name for the APM (Agent Package Manager) bundle.
 const APMArtifactName = "apm"
+
+// QmdArtifactName is the artifact name for the qmd documentation index built in the activation job.
+const QmdArtifactName = "qmd-index"
 
 // SafeOutputItemsArtifactName is the artifact name for the safe output items manifest.
 // This artifact contains the JSONL manifest of all items created by safe output handlers

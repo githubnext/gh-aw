@@ -73,6 +73,92 @@ func (r *MCPConfigRendererUnified) renderPlaywrightTOML(yaml *strings.Builder, p
 	yaml.WriteString("          mounts = [\"/tmp/gh-aw/mcp-logs:/tmp/gh-aw/mcp-logs:rw\"]\n")
 }
 
+// RenderQmdMCP generates the qmd documentation search MCP server configuration.
+// qmd uses a Node.js container running @tobilu/qmd serve-mcp and mounts the pre-built index
+// that was downloaded from the activation job artifact.
+func (r *MCPConfigRendererUnified) RenderQmdMCP(yaml *strings.Builder, qmdTool any) {
+	mcpRendererLog.Printf("Rendering qmd MCP: format=%s, inline_args=%t", r.options.Format, r.options.InlineArgs)
+
+	if r.options.Format == "toml" {
+		r.renderQmdTOML(yaml)
+		return
+	}
+
+	// JSON format
+	renderQmdMCPConfigWithOptions(yaml, r.options.IsLast, r.options.IncludeCopilotFields, r.options.InlineArgs)
+}
+
+// renderQmdTOML generates qmd MCP configuration in TOML format.
+// Per MCP Gateway Specification v1.0.0 section 3.2.1, stdio-based MCP servers MUST be containerized.
+func (r *MCPConfigRendererUnified) renderQmdTOML(yaml *strings.Builder) {
+	mcpRendererBuiltinLog.Print("Rendering qmd MCP in TOML format")
+
+	yaml.WriteString("          \n")
+	yaml.WriteString("          [mcp_servers.qmd]\n")
+	yaml.WriteString("          container = \"" + string(constants.DefaultNodeAlpineLTSImage) + "\"\n")
+
+	// Entrypoint for qmd MCP server
+	yaml.WriteString("          entrypoint = \"npx\"\n")
+	yaml.WriteString("          entrypointArgs = [\n")
+	yaml.WriteString("            \"@tobilu/qmd@" + string(constants.DefaultQmdVersion) + "\",\n")
+	yaml.WriteString("            \"serve-mcp\",\n")
+	yaml.WriteString("          ]\n")
+
+	// Mount the pre-built index (downloaded from activation artifact)
+	yaml.WriteString("          mounts = [\"/tmp/gh-aw/qmd-index:/tmp/gh-aw/qmd-index:ro\"]\n")
+	yaml.WriteString("          env_vars = [\"QMD_CACHE_DIR\"]\n")
+}
+
+// renderQmdMCPConfigWithOptions generates the qmd MCP server configuration in JSON format.
+func renderQmdMCPConfigWithOptions(yaml *strings.Builder, isLast bool, includeCopilotFields bool, inlineArgs bool) {
+	yaml.WriteString("              \"qmd\": {\n")
+
+	if includeCopilotFields {
+		yaml.WriteString("                \"type\": \"stdio\",\n")
+	}
+
+	yaml.WriteString("                \"container\": \"" + string(constants.DefaultNodeAlpineLTSImage) + "\",\n")
+	yaml.WriteString("                \"entrypoint\": \"npx\",\n")
+
+	entrypointArgs := []string{
+		"@tobilu/qmd@" + string(constants.DefaultQmdVersion),
+		"serve-mcp",
+	}
+
+	if inlineArgs {
+		yaml.WriteString("                \"entrypointArgs\": [")
+		for i, arg := range entrypointArgs {
+			if i > 0 {
+				yaml.WriteString(", ")
+			}
+			yaml.WriteString("\"" + arg + "\"")
+		}
+		yaml.WriteString("],\n")
+	} else {
+		yaml.WriteString("                \"entrypointArgs\": [\n")
+		for i, arg := range entrypointArgs {
+			yaml.WriteString("                  \"" + arg + "\"")
+			if i < len(entrypointArgs)-1 {
+				yaml.WriteString(",")
+			}
+			yaml.WriteString("\n")
+		}
+		yaml.WriteString("                ],\n")
+	}
+
+	// Mount the pre-built index read-only; pass QMD_CACHE_DIR so the server finds it
+	yaml.WriteString("                \"mounts\": [\"/tmp/gh-aw/qmd-index:/tmp/gh-aw/qmd-index:ro\"],\n")
+	yaml.WriteString("                \"env\": {\n")
+	yaml.WriteString("                  \"QMD_CACHE_DIR\": \"/tmp/gh-aw/qmd-index\"\n")
+	yaml.WriteString("                }\n")
+
+	if isLast {
+		yaml.WriteString("              }\n")
+	} else {
+		yaml.WriteString("              },\n")
+	}
+}
+
 // RenderSerenaMCP generates Serena MCP server configuration
 func (r *MCPConfigRendererUnified) RenderSerenaMCP(yaml *strings.Builder, serenaTool any) {
 	mcpRendererLog.Printf("Rendering Serena MCP: format=%s, inline_args=%t", r.options.Format, r.options.InlineArgs)

@@ -485,6 +485,15 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 		}
 	}
 
+	// Generate qmd index steps if the qmd tool is configured.
+	// The index is built here in the activation job (which has contents:read) so the agent job
+	// does not need contents:read permission to search documentation.
+	if data.QmdConfig != nil {
+		compilerActivationJobLog.Printf("Adding qmd index build steps: docs=%v", data.QmdConfig.Docs)
+		qmdSteps := generateQmdIndexSteps(data.QmdConfig, data)
+		steps = append(steps, qmdSteps...)
+	}
+
 	// Upload aw_info.json and prompt.txt as the activation artifact for the agent job to download.
 	// In workflow_call context the artifact is prefixed to avoid name clashes when multiple callers
 	// invoke the same reusable workflow within the same parent workflow run.

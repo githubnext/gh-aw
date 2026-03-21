@@ -101,6 +101,9 @@ func NewTools(toolsMap map[string]any) *Tools {
 	if val, exists := toolsMap["playwright"]; exists {
 		tools.Playwright = parsePlaywrightTool(val)
 	}
+	if val, exists := toolsMap["qmd"]; exists {
+		tools.Qmd = parseQmdTool(val)
+	}
 	if val, exists := toolsMap["serena"]; exists {
 		tools.Serena = parseSerenaTool(val)
 	}
@@ -128,6 +131,7 @@ func NewTools(toolsMap map[string]any) *Tools {
 		"web-search":        true,
 		"edit":              true,
 		"playwright":        true,
+		"qmd":               true,
 		"serena":            true,
 		"agentic-workflows": true,
 		"cache-memory":      true,
@@ -145,7 +149,7 @@ func NewTools(toolsMap map[string]any) *Tools {
 		}
 	}
 
-	toolsParserLog.Printf("Parsed tools: github=%v, bash=%v, playwright=%v, serena=%v, custom=%d", tools.GitHub != nil, tools.Bash != nil, tools.Playwright != nil, tools.Serena != nil, customCount)
+	toolsParserLog.Printf("Parsed tools: github=%v, bash=%v, playwright=%v, qmd=%v, serena=%v, custom=%d", tools.GitHub != nil, tools.Bash != nil, tools.Playwright != nil, tools.Qmd != nil, tools.Serena != nil, customCount)
 	return tools
 }
 
@@ -327,6 +331,37 @@ func parsePlaywrightTool(val any) *PlaywrightToolConfig {
 	}
 
 	return &PlaywrightToolConfig{}
+}
+
+// parseQmdTool converts raw qmd tool configuration to QmdToolConfig.
+// The qmd tool requires a list of glob patterns (docs field) to specify which files to index.
+func parseQmdTool(val any) *QmdToolConfig {
+	if val == nil {
+		toolsParserLog.Print("qmd tool enabled with empty docs configuration")
+		return &QmdToolConfig{}
+	}
+
+	if configMap, ok := val.(map[string]any); ok {
+		config := &QmdToolConfig{}
+
+		// Handle docs field - list of glob patterns
+		if docsValue, ok := configMap["docs"]; ok {
+			if arr, ok := docsValue.([]any); ok {
+				config.Docs = make([]string, 0, len(arr))
+				for _, item := range arr {
+					if str, ok := item.(string); ok {
+						config.Docs = append(config.Docs, str)
+					}
+				}
+			} else if arr, ok := docsValue.([]string); ok {
+				config.Docs = arr
+			}
+		}
+
+		return config
+	}
+
+	return &QmdToolConfig{}
 }
 
 // parseSerenaTool converts raw serena tool configuration to SerenaToolConfig

@@ -136,6 +136,15 @@ func (c *Compiler) collectPromptSections(data *WorkflowData) []PromptSection {
 		})
 	}
 
+	// 3a. qmd instructions (if qmd tool is enabled)
+	if hasQmdTool(data.ParsedTools) {
+		unifiedPromptLog.Print("Adding qmd section")
+		sections = append(sections, PromptSection{
+			Content: qmdPromptFile,
+			IsFile:  true,
+		})
+	}
+
 	// 4. Agentic Workflows MCP guide (if agentic-workflows tool is enabled)
 	if hasAgenticWorkflowsTool(data.ParsedTools) {
 		unifiedPromptLog.Print("Adding agentic-workflows guide section")

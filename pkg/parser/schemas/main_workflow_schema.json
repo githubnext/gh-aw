@@ -3359,6 +3359,27 @@
           ],
           "examples": [true, null]
         },
+        "qmd": {
+          "description": "qmd documentation search tool (https://github.com/tobi/qmd). Builds a local vector search index of documentation files during the activation job and mounts a search MCP server in the agent job. The agent job does not need contents:read permission since the index is pre-built.",
+          "type": "object",
+          "properties": {
+            "docs": {
+              "type": "array",
+              "description": "List of glob patterns for documentation files to include in the search index.",
+              "items": {
+                "type": "string"
+              },
+              "examples": [["docs/**/*.md", ".github/**/*.md"]]
+            }
+          },
+          "required": ["docs"],
+          "additionalProperties": false,
+          "examples": [
+            {
+              "docs": ["docs/**/*.md", ".github/**/*.md"]
+            }
+          ]
+        },
         "cache-memory": {
           "description": "Cache memory MCP configuration for persistent memory storage",
           "oneOf": [
