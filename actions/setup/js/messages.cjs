@@ -28,7 +28,7 @@
  */
 
 // Re-export core utilities
-const { getMessages, renderTemplate } = require("./messages_core.cjs");
+const { getMessages, renderTemplate, renderTemplateFromFile } = require("./messages_core.cjs");
 
 // Re-export footer messages
 const { getFooterMessage, getFooterInstallMessage, getFooterAgentFailureIssueMessage, getFooterAgentFailureCommentMessage, generateFooterWithMessages, generateXMLMarker } = require("./messages_footer.cjs");
@@ -45,6 +45,7 @@ const { getCloseOlderDiscussionMessage } = require("./messages_close_discussion.
 module.exports = {
   getMessages,
   renderTemplate,
+  renderTemplateFromFile,
   getFooterMessage,
   getFooterInstallMessage,
   getFooterAgentFailureIssueMessage,

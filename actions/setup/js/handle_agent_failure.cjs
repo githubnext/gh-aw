@@ -4,7 +4,7 @@
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { sanitizeContent } = require("./sanitize_content.cjs");
 const { getFooterAgentFailureIssueMessage, getFooterAgentFailureCommentMessage, generateXMLMarker } = require("./messages.cjs");
-const { renderTemplate } = require("./messages_core.cjs");
+const { renderTemplate, renderTemplateFromFile } = require("./messages_core.cjs");
 const { getCurrentBranch } = require("./get_current_branch.cjs");
 const { createExpirationLine, generateFooterWithExpiration } = require("./ephemerals.cjs");
 const { MAX_SUB_ISSUES, getSubIssueCount } = require("./sub_issue_helpers.cjs");
@@ -609,8 +609,7 @@ function buildTimeoutContext(isTimedOut, timeoutMinutes) {
   const suggestedMinutes = currentMinutes + 10;
 
   const templatePath = `${process.env.RUNNER_TEMP}/gh-aw/prompts/agent_timeout.md`;
-  const template = fs.readFileSync(templatePath, "utf8");
-  return "\n" + renderTemplate(template, { current_minutes: currentMinutes, suggested_minutes: suggestedMinutes });
+  return "\n" + renderTemplateFromFile(templatePath, { current_minutes: currentMinutes, suggested_minutes: suggestedMinutes });
 }
 
 /**
@@ -639,8 +638,7 @@ function buildAppTokenMintingFailedContext(hasAppTokenMintingFailed) {
   }
 
   const templatePath = "/opt/gh-aw/prompts/app_token_minting_failed.md";
-  const template = fs.readFileSync(templatePath, "utf8");
-  return "\n" + renderTemplate(template, {});
+  return "\n" + renderTemplateFromFile(templatePath, {});
 }
 
 /**
