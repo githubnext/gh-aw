@@ -30,7 +30,7 @@ network:
     - "github.github.com"
 tools:
   github:
-    mode: "remote"
+    mode: "local"
     toolsets: [issues, pull_requests]
 safe-outputs:
   update-release:
