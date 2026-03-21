@@ -39,17 +39,17 @@ func validateCommandTriggerConflicts(frontmatter map[string]any) error {
 
 	schemaTriggersLog.Print("Validating command trigger conflicts")
 
-	// List of conflicting events - but we'll check if issues/pull_request are label-only
+	// List of conflicting events - but we'll check if issues/pull_request are label-only or ready_for_review
 	conflictingEvents := []string{"issues", "issue_comment", "pull_request", "pull_request_review_comment"}
 
 	// Check for conflicts
 	var foundConflicts []string
 	for _, eventName := range conflictingEvents {
 		if eventValue, hasEvent := onMap[eventName]; hasEvent && eventValue != nil {
-			// Special case: allow issues/pull_request events if they only have labeled/unlabeled types
+			// Special case: allow issues/pull_request events with non-conflicting types (labeled/unlabeled/ready_for_review)
 			if eventName == "issues" || eventName == "pull_request" {
-				if IsLabelOnlyEvent(eventValue) {
-					schemaTriggersLog.Printf("Allowing label-only %s event with command trigger", eventName)
+				if IsNonConflictingCommandEvent(eventValue) {
+					schemaTriggersLog.Printf("Allowing non-conflicting %s event with command trigger", eventName)
 					continue // Allow this - it doesn't conflict with command triggers
 				}
 			}
@@ -100,6 +100,48 @@ func IsLabelOnlyEvent(eventValue any) bool {
 			return false
 		}
 		if typeStr != "labeled" && typeStr != "unlabeled" {
+			return false
+		}
+	}
+
+	return true
+}
+
+// IsNonConflictingCommandEvent checks if a pull_request/issues event configuration
+// only contains types that do not conflict with command (slash_command/command) triggers.
+// Allowed types: labeled, unlabeled, ready_for_review
+func IsNonConflictingCommandEvent(eventValue any) bool {
+	// Event can be a map with types field
+	eventMap, isMap := eventValue.(map[string]any)
+	if !isMap {
+		return false
+	}
+
+	// Get the types field
+	typesValue, hasTypes := eventMap["types"]
+	if !hasTypes {
+		return false
+	}
+
+	// Types should be an array
+	typesArray, isArray := typesValue.([]any)
+	if !isArray {
+		return false
+	}
+
+	if len(typesArray) == 0 {
+		return false
+	}
+
+	for _, typeValue := range typesArray {
+		typeStr, isString := typeValue.(string)
+		if !isString {
+			return false
+		}
+		switch typeStr {
+		case "labeled", "unlabeled", "ready_for_review":
+			// allowed
+		default:
 			return false
 		}
 	}

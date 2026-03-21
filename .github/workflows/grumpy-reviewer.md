@@ -4,10 +4,12 @@ on:
   slash_command:
     name: grumpy
     events: [pull_request_comment, pull_request_review_comment]
+  pull_request:
+    types: [ready_for_review]
 permissions:
   contents: read
   pull-requests: read
-engine: copilot
+engine: codex
 tools:
   cache-memory: true
   github:
