@@ -454,6 +454,7 @@ The YAML frontmatter supports these fields:
         group: true                     # Optional: group as sub-issues under a parent issue (default: false)
         close-older-issues: true        # Optional: close previous issues from same workflow (default: false)
         target-repo: "owner/repo"       # Optional: cross-repository
+        allowed-repos: [owner/other]    # Optional: additional repos agent can target (agent uses `repo` field in output)
     ```
 
     **Auto-Expiration**: The `expires` field auto-closes issues after a time period. Supports integers (days) or relative formats (2h, 7d, 2w, 1m, 1y). Generates `agentics-maintenance.yml` workflow that runs at minimum required frequency based on shortest expiration time: 1 day or less → every 2 hours, 2 days → every 6 hours, 3-4 days → every 12 hours, 5+ days → daily.
@@ -486,6 +487,7 @@ The YAML frontmatter supports these fields:
         expires: 7                      # Optional: auto-close after 7 days (supports: 2h, 7d, 2w, 1m, 1y, or false)
         fallback-to-issue: true         # Optional: create issue if discussion creation fails (default: true)
         target-repo: "owner/repo"       # Optional: cross-repository
+        allowed-repos: [owner/other]    # Optional: additional repos agent can target (agent uses `repo` field in output)
     ```
     The `category` field is optional and can be specified by name (e.g., "General"), slug (e.g., "general"), or ID (e.g., "DIC_kwDOGFsHUM4BsUn3"). If not specified, discussions will be created in the first available category. Category resolution tries ID first, then name, then slug.
 
@@ -517,6 +519,7 @@ The YAML frontmatter supports these fields:
         pull-requests: true             # Optional: set false to exclude pull-requests:write permission (default: true)
         footer: true                    # Optional: when false, omits visible footer but preserves XML markers (default: true)
         target-repo: "owner/repo"       # Optional: cross-repository
+        allowed-repos: [owner/other]    # Optional: additional repos agent can target (agent uses `repo` field in output)
     ```
 
     **Hide Older Comments**: Set `hide-older-comments: true` to minimize previous comments from the same workflow before posting new ones. Useful for status updates. Allowed reasons: `spam`, `abuse`, `off_topic`, `outdated` (default), `resolved`.
