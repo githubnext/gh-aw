@@ -63,22 +63,20 @@ permissions:
   contents: read
   issues: read
   pull-requests: read
-engine:
-  id: copilot
-  max-turns: 5
-mcp-servers:
+  actions: read
+engine: copilot
+tools:
   github:
     mode: remote
     toolsets: [default, actions]
-network:
-  allowed:
-    - defaults
-    - python
-tools:
   edit:
   bash:
     - "git status"
     - "git diff"
+network:
+  allowed:
+    - defaults
+    - python
 safe-outputs:
   create-pull-request:
     title-prefix: "[ai] "
@@ -98,7 +96,7 @@ Review the pull request: ${{ github.event.pull_request.number }}
 		b.Fatal(err)
 	}
 
-	compiler := NewCompiler()
+	compiler := NewCompiler(WithNoEmit(true))
 
 	b.ReportAllocs()
 	for b.Loop() {
@@ -120,17 +118,16 @@ on: pull_request
 permissions:
   contents: read
   pull-requests: read
+  actions: read
 engine: copilot
-mcp-servers:
+tools:
   github:
     mode: remote
     toolsets: [default, actions, discussions]
   playwright:
-    container: "mcr.microsoft.com/playwright:v1.41.0"
-    allowed-domains: ["github.com"]
+    version: "v1.41.0"
   cache-memory:
     key: pr-${{ github.run_id }}
-tools:
   edit:
   bash: ["git status", "git diff"]
 timeout-minutes: 15
@@ -146,7 +143,7 @@ Review and test the pull request with multiple tools.
 		b.Fatal(err)
 	}
 
-	compiler := NewCompiler()
+	compiler := NewCompiler(WithNoEmit(true))
 
 	b.ReportAllocs()
 	for b.Loop() {
@@ -171,15 +168,14 @@ permissions:
   contents: read
   pull-requests: read
 engine: copilot
-mcp-servers:
+tools:
   github:
     mode: remote
     toolsets: [default]
-network:
-  allowed: [defaults]
-tools:
   edit:
   bash: ["git status"]
+network:
+  allowed: [defaults]
 safe-outputs:
   add-comment:
     max: 2
@@ -196,7 +192,7 @@ Standard workflow for memory profiling.
 		b.Fatal(err)
 	}
 
-	compiler := NewCompiler()
+	compiler := NewCompiler(WithNoEmit(true))
 
 	b.ReportAllocs()
 
@@ -256,13 +252,12 @@ permissions:
   contents: read
   pull-requests: read
 engine: copilot
-mcp-servers:
+tools:
   github:
     mode: remote
     toolsets: [default]
-strict: true
-tools:
   bash: ["git status"]
+strict: true
 timeout-minutes: 10
 ---
 
@@ -276,7 +271,7 @@ Test validation performance.
 		b.Fatal(err)
 	}
 
-	compiler := NewCompiler()
+	compiler := NewCompiler(WithNoEmit(true))
 	compiler.SetStrictMode(true)
 
 	b.ReportAllocs()

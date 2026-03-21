@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/github/gh-aw/pkg/testutil"
+	"github.com/github/gh-aw/pkg/workflow"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -721,32 +722,30 @@ func TestUpdateWorkflow_NoMergeMode(t *testing.T) {
 }
 
 // TestMarshalActionsLockSorted tests that the actions lock marshaling produces sorted output
+// using the ActionCache.Save helper.
 func TestMarshalActionsLockSorted(t *testing.T) {
-	actionsLock := &actionsLockFile{
-		Entries: make(map[string]actionsLockEntry),
-	}
+	tmpDir := testutil.TempDir(t, "test-*")
+
+	cache := workflow.NewActionCache(tmpDir)
 
 	// Add entries in non-alphabetical order
-	actionsLock.Entries["zebra/action@v1"] = actionsLockEntry{
-		Repo:    "zebra/action",
-		Version: "v1",
-		SHA:     "abc123",
+	cache.Set("zebra/action", "v1", "abc123")
+	cache.Set("actions/checkout", "v5", "def456")
+
+	// Save to disk
+	if err := cache.Save(); err != nil {
+		t.Fatalf("Expected no error saving cache, got: %v", err)
 	}
 
-	actionsLock.Entries["actions/checkout@v5"] = actionsLockEntry{
-		Repo:    "actions/checkout",
-		Version: "v5",
-		SHA:     "def456",
-	}
-
-	data, err := marshalActionsLockSorted(actionsLock)
+	// Read the file back
+	data, err := os.ReadFile(filepath.Join(tmpDir, ".github", "aw", "actions-lock.json"))
 	if err != nil {
-		t.Fatalf("Expected no error, got: %v", err)
+		t.Fatalf("Expected to read saved file, got: %v", err)
 	}
 
 	result := string(data)
 
-	// Check that actions/checkout comes before zebra/action
+	// Check that actions/checkout comes before zebra/action (sorted output)
 	checkoutIdx := strings.Index(result, "actions/checkout")
 	zebraIdx := strings.Index(result, "zebra/action")
 

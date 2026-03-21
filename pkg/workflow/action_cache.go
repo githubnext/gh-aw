@@ -166,6 +166,50 @@ func (c *ActionCache) marshalSorted() ([]byte, error) {
 	return result, nil
 }
 
+// Delete removes the cache entry for the given repo and version.
+// It first tries the canonical formatted key, then falls back to scanning all
+// entries for a matching repo+version pair to handle key/version mismatches.
+// It is a no-op if no matching entry is found.
+func (c *ActionCache) Delete(repo, version string) {
+	key := formatActionCacheKey(repo, version)
+
+	deleted := false
+
+	// First, try deleting by the canonical formatted key.
+	if _, exists := c.Entries[key]; exists {
+		delete(c.Entries, key)
+		deleted = true
+		actionCacheLog.Printf("Deleted cache entry: key=%s", key)
+	}
+
+	// Also delete any entries whose stored fields match repo and version,
+	// in case the map key does not exactly match formatActionCacheKey
+	// (key/version mismatch in the cache file).
+	for k, entry := range c.Entries {
+		if entry.Repo == repo && entry.Version == version {
+			delete(c.Entries, k)
+			deleted = true
+			actionCacheLog.Printf("Deleted cache entry with mismatched key: key=%s, repo=%s, version=%s", k, repo, version)
+		}
+	}
+
+	if deleted {
+		c.dirty = true
+	}
+}
+
+// DeleteByKey removes the cache entry with the given raw map key.
+// This is useful when the caller already holds the exact key from iterating
+// the Entries map, avoiding recomputation and handling key/version mismatches.
+// It is a no-op if the key does not exist.
+func (c *ActionCache) DeleteByKey(key string) {
+	if _, exists := c.Entries[key]; exists {
+		delete(c.Entries, key)
+		c.dirty = true
+		actionCacheLog.Printf("Deleted cache entry by key: key=%s", key)
+	}
+}
+
 // Get retrieves a cached entry if it exists
 func (c *ActionCache) Get(repo, version string) (string, bool) {
 	key := formatActionCacheKey(repo, version)
