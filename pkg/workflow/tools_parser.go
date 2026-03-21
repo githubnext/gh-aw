@@ -334,36 +334,81 @@ func parsePlaywrightTool(val any) *PlaywrightToolConfig {
 }
 
 // parseQmdTool converts raw qmd tool configuration to QmdToolConfig.
-// The qmd tool supports two forms:
-//   - Simple: docs field with a list of glob patterns (single collection, current repo)
-//   - Extended: collections field with named collections, each optionally with a checkout
+// Supported forms (from most to least preferred):
+//
+//  1. New structured form:
+//     checkouts: list of named collections (with optional checkout per entry)
+//     searches:  list of GitHub search queries
+//
+//  2. Legacy extended form (backward-compatible):
+//     collections: list of named collections (treated as checkouts)
+//
+//  3. Legacy simple form (backward-compatible):
+//     docs: list of glob patterns (single collection, current repository)
 func parseQmdTool(val any) *QmdToolConfig {
 	if val == nil {
-		toolsParserLog.Print("qmd tool enabled with empty docs configuration")
+		toolsParserLog.Print("qmd tool enabled with empty configuration")
 		return &QmdToolConfig{}
 	}
 
 	if configMap, ok := val.(map[string]any); ok {
 		config := &QmdToolConfig{}
 
-		// Handle collections field - list of named collections with optional checkout
-		if collectionsValue, ok := configMap["collections"]; ok {
-			if arr, ok := collectionsValue.([]any); ok {
-				config.Collections = make([]*QmdDocCollection, 0, len(arr))
+		// Handle checkouts field (new structured form)
+		if checkoutsValue, ok := configMap["checkouts"]; ok {
+			if arr, ok := checkoutsValue.([]any); ok {
+				config.Checkouts = make([]*QmdDocCollection, 0, len(arr))
 				for i, item := range arr {
 					itemMap, ok := item.(map[string]any)
 					if !ok {
 						continue
 					}
 					col := parseQmdDocCollection(itemMap, i)
-					config.Collections = append(config.Collections, col)
+					config.Checkouts = append(config.Checkouts, col)
 				}
-				toolsParserLog.Printf("qmd tool parsed %d collections", len(config.Collections))
+				toolsParserLog.Printf("qmd tool parsed %d checkouts", len(config.Checkouts))
+			}
+		}
+
+		// Handle searches field (new structured form)
+		if searchesValue, ok := configMap["searches"]; ok {
+			if arr, ok := searchesValue.([]any); ok {
+				config.Searches = make([]*QmdSearchEntry, 0, len(arr))
+				for _, item := range arr {
+					itemMap, ok := item.(map[string]any)
+					if !ok {
+						continue
+					}
+					entry := parseQmdSearchEntry(itemMap)
+					config.Searches = append(config.Searches, entry)
+				}
+				toolsParserLog.Printf("qmd tool parsed %d searches", len(config.Searches))
+			}
+		}
+
+		// If either new key was found, return now (new form takes precedence)
+		if len(config.Checkouts) > 0 || len(config.Searches) > 0 {
+			return config
+		}
+
+		// Legacy: handle collections field (treated as checkouts for backward compat)
+		if collectionsValue, ok := configMap["collections"]; ok {
+			if arr, ok := collectionsValue.([]any); ok {
+				config.Checkouts = make([]*QmdDocCollection, 0, len(arr))
+				for i, item := range arr {
+					itemMap, ok := item.(map[string]any)
+					if !ok {
+						continue
+					}
+					col := parseQmdDocCollection(itemMap, i)
+					config.Checkouts = append(config.Checkouts, col)
+				}
+				toolsParserLog.Printf("qmd tool parsed %d legacy collections (mapped to checkouts)", len(config.Checkouts))
 				return config
 			}
 		}
 
-		// Handle docs field - simple glob list (backward-compatible single collection)
+		// Legacy: handle docs field - simple glob list (single collection, current repo)
 		if docsValue, ok := configMap["docs"]; ok {
 			if arr, ok := docsValue.([]any); ok {
 				config.Docs = make([]string, 0, len(arr))
@@ -418,6 +463,47 @@ func parseQmdDocCollection(m map[string]any, index int) *QmdDocCollection {
 	}
 
 	return col
+}
+
+// parseQmdSearchEntry converts a raw map to a QmdSearchEntry.
+func parseQmdSearchEntry(m map[string]any) *QmdSearchEntry {
+	entry := &QmdSearchEntry{}
+
+	if q, ok := m["query"].(string); ok {
+		entry.Query = q
+	}
+	entry.Min = parseYAMLInt(m["min"])
+	entry.Max = parseYAMLInt(m["max"])
+
+	if token, ok := m["github-token"].(string); ok {
+		entry.GitHubToken = token
+	}
+
+	if appMap, ok := m["github-app"].(map[string]any); ok {
+		entry.GitHubApp = parseAppConfig(appMap)
+	}
+
+	return entry
+}
+
+// parseYAMLInt converts a YAML-unmarshaled numeric value to int.
+// goccy/go-yaml unmarshals integers as uint64; standard yaml/v3 uses int.
+// float64 is also handled for completeness.
+func parseYAMLInt(v any) int {
+	if v == nil {
+		return 0
+	}
+	switch n := v.(type) {
+	case int:
+		return n
+	case int64:
+		return int(n)
+	case uint64:
+		return int(n)
+	case float64:
+		return int(n)
+	}
+	return 0
 }
 
 // parseSerenaTool converts raw serena tool configuration to SerenaToolConfig

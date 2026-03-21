@@ -3360,12 +3360,28 @@
           "examples": [true, null]
         },
         "qmd": {
-          "description": "qmd documentation search tool (https://github.com/tobi/qmd). Builds a local vector search index of documentation files during the activation job and mounts a search MCP server in the agent job. The agent job does not need contents:read permission since the index is pre-built.",
+          "description": "qmd documentation search tool (https://github.com/tobi/qmd). Builds a local vector search index during the activation job and mounts a search MCP server in the agent job. The agent job does not need contents:read permission since the index is pre-built.",
           "type": "object",
           "properties": {
+            "checkouts": {
+              "type": "array",
+              "description": "List of named documentation collections built from checked-out repositories. Each entry can optionally specify its own checkout configuration to target a different repository.",
+              "items": {
+                "$ref": "#/$defs/qmdCollection"
+              },
+              "minItems": 1
+            },
+            "searches": {
+              "type": "array",
+              "description": "List of GitHub search queries whose results are downloaded and added to the qmd index.",
+              "items": {
+                "$ref": "#/$defs/qmdSearchEntry"
+              },
+              "minItems": 1
+            },
             "docs": {
               "type": "array",
-              "description": "List of glob patterns for documentation files to include in the search index. Shorthand for a single collection targeting the current repository. Mutually exclusive with collections.",
+              "description": "Legacy shorthand: list of glob patterns for a single collection targeting the current repository. Use checkouts for more control.",
               "items": {
                 "type": "string"
               },
@@ -3373,7 +3389,7 @@
             },
             "collections": {
               "type": "array",
-              "description": "List of named documentation collections, each optionally targeting a different repository via its own checkout configuration. Mutually exclusive with docs.",
+              "description": "Legacy: use checkouts instead. List of named documentation collections (backward compatible).",
               "items": {
                 "$ref": "#/$defs/qmdCollection"
               },
@@ -3386,7 +3402,7 @@
               "docs": ["docs/**/*.md", ".github/**/*.md"]
             },
             {
-              "collections": [
+              "checkouts": [
                 {
                   "name": "current-docs",
                   "docs": ["docs/**/*.md"]
@@ -3398,6 +3414,31 @@
                     "repository": "owner/other-repo",
                     "path": "./other-repo"
                   }
+                }
+              ]
+            },
+            {
+              "searches": [
+                {
+                  "query": "repo:owner/repo language:Markdown path:docs/",
+                  "min": 1,
+                  "max": 30,
+                  "github-token": "${{ secrets.GITHUB_TOKEN }}"
+                }
+              ]
+            },
+            {
+              "checkouts": [
+                {
+                  "name": "local-docs",
+                  "docs": ["docs/**/*.md"]
+                }
+              ],
+              "searches": [
+                {
+                  "query": "org:myorg language:Markdown",
+                  "max": 50,
+                  "github-token": "${{ secrets.GITHUB_TOKEN }}"
                 }
               ]
             }
@@ -9235,7 +9276,7 @@
     },
     "qmdCollection": {
       "type": "object",
-      "description": "A named documentation collection for the qmd tool. Each collection can optionally target a different repository via its own checkout configuration.",
+      "description": "A named documentation collection for the qmd tool, built from a checked-out repository. Each collection can optionally target a different repository via its own checkout configuration.",
       "required": ["docs"],
       "additionalProperties": false,
       "properties": {
@@ -9255,6 +9296,39 @@
         "checkout": {
           "$ref": "#/$defs/checkoutConfig",
           "description": "Optional checkout configuration for this collection. When set, the specified repository is checked out and its files are indexed. Defaults to the current repository if not set."
+        }
+      }
+    },
+    "qmdSearchEntry": {
+      "type": "object",
+      "description": "A GitHub search query entry for the qmd tool. The search is executed during the activation job and the matching files are downloaded and added to the qmd index.",
+      "required": ["query"],
+      "additionalProperties": false,
+      "properties": {
+        "query": {
+          "type": "string",
+          "description": "GitHub code search query string. See https://docs.github.com/en/search-github/searching-on-github/searching-code for syntax.",
+          "examples": ["repo:owner/repo language:Markdown path:docs/", "org:myorg language:Markdown"]
+        },
+        "min": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Minimum number of results required. If fewer results are returned the activation job fails."
+        },
+        "max": {
+          "type": "integer",
+          "minimum": 1,
+          "default": 30,
+          "description": "Maximum number of search results to download. Defaults to 30."
+        },
+        "github-token": {
+          "type": "string",
+          "description": "GitHub token used to authenticate the search API request. Mutually exclusive with github-app.",
+          "examples": ["${{ secrets.GITHUB_TOKEN }}", "${{ secrets.MY_PAT }}"]
+        },
+        "github-app": {
+          "$ref": "#/$defs/github_app",
+          "description": "GitHub App configuration used to mint a token for the search API request. Mutually exclusive with github-token."
         }
       }
     }

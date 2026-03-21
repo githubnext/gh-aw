@@ -329,21 +329,58 @@ type QmdDocCollection struct {
 	Checkout *CheckoutConfig `yaml:"checkout,omitempty"`
 }
 
+// QmdSearchEntry represents a single GitHub search query whose results are
+// downloaded and added to the qmd index as individual files.
+type QmdSearchEntry struct {
+	// Query is the GitHub code/content search query string.
+	// Example: "repo:owner/repo language:Markdown path:docs/"
+	Query string `yaml:"query"`
+
+	// Min is the minimum number of search results required. If fewer results
+	// are returned the step fails with an error.
+	Min int `yaml:"min,omitempty"`
+
+	// Max is the maximum number of search results to download.
+	// Defaults to 30 when not set.
+	Max int `yaml:"max,omitempty"`
+
+	// GitHubToken overrides the default GITHUB_TOKEN used to authenticate
+	// the GitHub search API request.
+	// Mutually exclusive with GitHubApp.
+	GitHubToken string `yaml:"github-token,omitempty"`
+
+	// GitHubApp configures GitHub App-based authentication for the search request.
+	// Mutually exclusive with GitHubToken.
+	GitHubApp *GitHubAppConfig `yaml:"github-app,omitempty"`
+}
+
 // QmdToolConfig represents the configuration for the qmd documentation search tool.
 // qmd (https://github.com/tobi/qmd) provides local vector search over documentation files.
 // The index is built in the activation job and downloaded by the agent job, so no
 // contents:read permission is needed in the agent job.
+//
+// Two sources can contribute to the index:
+//
+//  1. checkouts – glob-based collections from checked-out repositories
+//  2. searches  – GitHub search queries whose results are downloaded as files
+//
+// Legacy shorthand: docs and collections fields are still accepted for backward
+// compatibility and are treated as-if under checkouts.
 type QmdToolConfig struct {
-	// Docs is the list of glob patterns for files to include in the search index.
+	// Docs is the legacy list of glob patterns for files to include in the search index.
 	// Shorthand for a single default collection targeting the current repository.
-	// Mutually exclusive with Collections.
+	// When Checkouts is also set, Docs is ignored.
 	// Example: ["docs/**/*.md", ".github/**/*.md"]
 	Docs []string `yaml:"docs,omitempty"`
 
-	// Collections is the list of named documentation collections.
+	// Checkouts is the list of named documentation collections.
 	// Each collection can specify its own checkout to target a different repository.
-	// When both Docs and Collections are set, Collections takes precedence and Docs is ignored.
-	Collections []*QmdDocCollection `yaml:"collections,omitempty"`
+	// When set, Docs is ignored.
+	Checkouts []*QmdDocCollection `yaml:"checkouts,omitempty"`
+
+	// Searches is the list of GitHub search queries whose results are downloaded
+	// and added to the qmd index.
+	Searches []*QmdSearchEntry `yaml:"searches,omitempty"`
 }
 
 // SerenaToolConfig represents the configuration for the Serena MCP tool

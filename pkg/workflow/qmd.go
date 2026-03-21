@@ -7,9 +7,9 @@
 //
 // The integration has two phases:
 //
-//  1. Activation job: builds the search index from configured doc globs and uploads it as
-//     the "qmd-index" artifact. This step runs in the activation job which already has
-//     contents:read permission, so the agent job does NOT need contents:read to search docs.
+//  1. Activation job: builds the search index from configured checkouts and/or GitHub searches
+//     and uploads it as the "qmd-index" artifact. This step runs in the activation job which
+//     already has contents:read permission, so the agent job does NOT need contents:read.
 //
 //  2. Agent job: downloads the "qmd-index" artifact and mounts the qmd MCP server pointing
 //     at the pre-built index. The MCP server exposes a search tool that the agent can use
@@ -17,13 +17,25 @@
 //
 // # Configuration
 //
+// Two sources can populate the index:
+//
+//   - checkouts: glob-based collections from checked-out repositories (each optionally with
+//     its own checkout config to target a different repo)
+//   - searches: GitHub search queries whose results are downloaded and added to the index
+//
 // Example frontmatter:
 //
 //	tools:
 //	  qmd:
-//	    docs:
-//	      - docs/**/*.md
-//	      - .github/**/*.md
+//	    checkouts:
+//	      - name: docs
+//	        docs:
+//	          - docs/**/*.md
+//	    searches:
+//	      - query: "repo:owner/repo language:Markdown path:docs/"
+//	        min: 1
+//	        max: 30
+//	        github-token: ${{ secrets.GITHUB_TOKEN }}
 //
 // # Artifact lifecycle
 //
@@ -31,8 +43,8 @@
 // via the "qmd-index" artifact.  Retention is 1 day (same as the activation artifact).
 //
 // Related files:
-//   - tools_types.go: QmdToolConfig type
-//   - tools_parser.go: parseQmdTool function
+//   - tools_types.go: QmdToolConfig, QmdDocCollection, QmdSearchEntry types
+//   - tools_parser.go: parseQmdTool / parseQmdDocCollection / parseQmdSearchEntry
 //   - mcp_renderer_builtin.go: RenderQmdMCP method
 //   - compiler_activation_job.go: activation job qmd index steps
 //   - compiler_yaml_main_job.go: agent job qmd artifact download
@@ -74,14 +86,13 @@ type resolvedQmdCollection struct {
 	workdir string // absolute path within the runner (e.g. ${GITHUB_WORKSPACE} or /tmp/gh-aw/qmd-checkout-<name>)
 }
 
-// resolveQmdCollections converts a QmdToolConfig into a list of resolvedQmdCollections.
-// Collections that require a custom checkout will have their workdir set to a temporary
-// path under /tmp/gh-aw/.
-func resolveQmdCollections(qmdConfig *QmdToolConfig) []resolvedQmdCollection {
-	// Extended form: explicit collections list
-	if len(qmdConfig.Collections) > 0 {
-		resolved := make([]resolvedQmdCollection, 0, len(qmdConfig.Collections))
-		for _, col := range qmdConfig.Collections {
+// resolveQmdCheckouts converts the checkouts (or legacy docs) portion of a QmdToolConfig
+// into a list of resolvedQmdCollections.
+func resolveQmdCheckouts(qmdConfig *QmdToolConfig) []resolvedQmdCollection {
+	// Structured form: explicit checkouts list
+	if len(qmdConfig.Checkouts) > 0 {
+		resolved := make([]resolvedQmdCollection, 0, len(qmdConfig.Checkouts))
+		for _, col := range qmdConfig.Checkouts {
 			name := col.Name
 			if name == "" {
 				name = "docs"
@@ -106,16 +117,20 @@ func resolveQmdCollections(qmdConfig *QmdToolConfig) []resolvedQmdCollection {
 		return resolved
 	}
 
-	// Simple form: docs shorthand → single default collection
+	// Legacy form: docs shorthand → single default collection
 	docs := qmdConfig.Docs
-	if len(docs) == 0 {
+	if len(docs) == 0 && len(qmdConfig.Searches) == 0 {
+		// No explicit docs and no searches → default to all markdown
 		docs = []string{"**/*.md"}
 	}
-	return []resolvedQmdCollection{{
-		name:    "docs",
-		docs:    docs,
-		workdir: "${GITHUB_WORKSPACE}",
-	}}
+	if len(docs) > 0 {
+		return []resolvedQmdCollection{{
+			name:    "docs",
+			docs:    docs,
+			workdir: "${GITHUB_WORKSPACE}",
+		}}
+	}
+	return nil
 }
 
 // generateQmdCollectionCheckoutStep generates a checkout step YAML string for a qmd
@@ -166,11 +181,69 @@ func generateQmdCollectionCheckoutStep(col *QmdDocCollection) string {
 	return sb.String()
 }
 
+// generateQmdSearchStep generates an activation-job step that runs a GitHub search query,
+// downloads the matching files, and adds them as a qmd collection named after the search index.
+// The step uses the gh CLI to execute the search.
+func generateQmdSearchStep(entry *QmdSearchEntry, index int) string {
+	collectionName := fmt.Sprintf("search-%d", index)
+	searchDir := fmt.Sprintf("/tmp/gh-aw/qmd-search-%d", index)
+
+	maxResults := entry.Max
+	if maxResults <= 0 {
+		maxResults = 30
+	}
+
+	// Build the GH_TOKEN env override if a custom token is provided
+	var tokenEnv string
+	if entry.GitHubToken != "" {
+		tokenEnv = fmt.Sprintf("GH_TOKEN=%s ", entry.GitHubToken)
+	}
+
+	var sb strings.Builder
+	fmt.Fprintf(&sb, "      - name: Search GitHub for qmd collection %q\n", collectionName)
+	sb.WriteString("        run: |\n")
+	sb.WriteString("          set -e\n")
+	fmt.Fprintf(&sb, "          mkdir -p %s\n", searchDir)
+
+	// Execute gh search code, download each result file, then register the collection
+	sb.WriteString("          # Download search results and add them to the qmd index\n")
+	fmt.Fprintf(&sb, "          %sgh search code %s --limit %d --json path,repository | \\\n",
+		tokenEnv,
+		shellSingleQuote(entry.Query),
+		maxResults,
+	)
+	// Use jq to extract repo+path pairs and download each file via gh api
+	fmt.Fprintf(&sb, "            jq -r '.[] | .repository.fullName + \" \" + .path' | \\\n")
+	fmt.Fprintf(&sb, "            while IFS=' ' read -r repo file_path; do\n")
+	fmt.Fprintf(&sb, "              dest=%s/\"${repo//\\//-}\"-\"${file_path//\\//-}\"\n", searchDir)
+	fmt.Fprintf(&sb, "              %sgh api \"repos/$repo/contents/$file_path\" --jq '.content' | base64 -d > \"$dest\" 2>/dev/null || true\n", tokenEnv)
+	fmt.Fprintf(&sb, "            done\n")
+
+	// Enforce minimum count
+	if entry.Min > 0 {
+		fmt.Fprintf(&sb, "          count=$(find %s -type f | wc -l)\n", searchDir)
+		fmt.Fprintf(&sb, "          if [ \"$count\" -lt %d ]; then\n", entry.Min)
+		fmt.Fprintf(&sb, "            echo \"qmd search %q returned $count results, minimum is %d\" >&2\n", collectionName, entry.Min)
+		sb.WriteString("            exit 1\n")
+		sb.WriteString("          fi\n")
+	}
+
+	// Add the downloaded files as a qmd collection
+	fmt.Fprintf(&sb, "          QMD_CACHE_DIR=/tmp/gh-aw/qmd-index qmd collection add %s --name %s --glob %s\n",
+		shellSingleQuote(searchDir),
+		shellSingleQuote(collectionName),
+		"'**/*'",
+	)
+
+	return sb.String()
+}
+
 // generateQmdIndexSteps generates the activation job steps that install qmd, register
-// collections for each configured doc glob, and build the vector search index.
+// collections for each configured checkout and/or search, and build the vector search index.
 // The index is stored at /tmp/gh-aw/qmd-index and uploaded as the qmd-index artifact.
 func generateQmdIndexSteps(qmdConfig *QmdToolConfig, data *WorkflowData) []string {
-	qmdLog.Printf("Generating qmd index steps: docs=%v collections=%d", qmdConfig.Docs, len(qmdConfig.Collections))
+	qmdLog.Printf("Generating qmd index steps: docs=%v checkouts=%d searches=%d",
+		qmdConfig.Docs, len(qmdConfig.Checkouts), len(qmdConfig.Searches))
 
 	version := string(constants.DefaultQmdVersion)
 	var steps []string
@@ -186,29 +259,24 @@ func generateQmdIndexSteps(qmdConfig *QmdToolConfig, data *WorkflowData) []strin
 	steps = append(steps, "        run: |\n")
 	steps = append(steps, fmt.Sprintf("          npm install -g @tobilu/qmd@%s\n", version))
 
-	// Emit a checkout step for each collection that needs its own repo
-	if len(qmdConfig.Collections) > 0 {
-		for _, col := range qmdConfig.Collections {
-			if checkoutStep := generateQmdCollectionCheckoutStep(col); checkoutStep != "" {
-				steps = append(steps, checkoutStep)
-			}
+	// Emit a checkout step for each checkout-based collection that needs its own repo
+	for _, col := range qmdConfig.Checkouts {
+		if checkoutStep := generateQmdCollectionCheckoutStep(col); checkoutStep != "" {
+			steps = append(steps, checkoutStep)
 		}
 	}
 
-	// Build the index: register collections and index docs
+	// Build the index: create the cache dir and register all collections
 	steps = append(steps, "      - name: Build qmd index\n")
 	steps = append(steps, "        run: |\n")
 	steps = append(steps, "          set -e\n")
 	steps = append(steps, "          mkdir -p /tmp/gh-aw/qmd-index\n")
 
-	// Register each resolved collection.
-	// Each glob pattern is POSIX-single-quote escaped to prevent shell injection;
-	// single-quote wrapping means $, `, \, and ; are all treated as literals.
-	// The workdir is double-quoted to preserve ${GITHUB_WORKSPACE} variable expansion
-	// while still guarding against word-splitting on paths that contain spaces.
-	// The name and glob args come from user input so they are single-quoted.
-	collections := resolveQmdCollections(qmdConfig)
-	for _, col := range collections {
+	// Register each checkout-based collection.
+	// The workdir is double-quoted to preserve ${GITHUB_WORKSPACE} variable expansion.
+	// User-provided names and globs are POSIX single-quoted to prevent shell injection.
+	checkouts := resolveQmdCheckouts(qmdConfig)
+	for _, col := range checkouts {
 		var globArg string
 		if len(col.docs) > 0 {
 			globArg = shellSingleQuote(strings.Join(col.docs, ","))
@@ -221,6 +289,11 @@ func generateQmdIndexSteps(qmdConfig *QmdToolConfig, data *WorkflowData) []strin
 			shellSingleQuote(col.name),
 			globArg,
 		))
+	}
+
+	// Emit a step per GitHub search entry
+	for i, search := range qmdConfig.Searches {
+		steps = append(steps, generateQmdSearchStep(search, i))
 	}
 
 	// Upload qmd index as a separate artifact for the agent job
