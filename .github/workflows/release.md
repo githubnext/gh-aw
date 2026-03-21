@@ -419,20 +419,6 @@ steps:
         echo "✓ Fetched $PR_COUNT pull requests"
       fi
       
-      # Fetch community-labeled issues (include createdAt for timeline correlation)
-      echo "Fetching issues with 'community' label..."
-      if ! gh issue list \
-        --label "community" \
-        --state all \
-        --limit 500 \
-        --json number,title,author,labels,closedAt,createdAt,url \
-        > /tmp/gh-aw/release-data/community_issues.json; then
-        echo "[]" > /tmp/gh-aw/release-data/community_issues.json
-      fi
-      
-      COMMUNITY_COUNT=$(jq length "/tmp/gh-aw/release-data/community_issues.json")
-      echo "✓ Fetched $COMMUNITY_COUNT community-labeled issues"
-      
       # Build closing references index from GitHub-native closingIssuesReferences
       # Maps each closed issue number -> list of PR numbers that directly close it
       echo "Building closing references index from GitHub-native PR links..."
@@ -446,6 +432,9 @@ steps:
       ' /tmp/gh-aw/release-data/pull_requests.json \
         > /tmp/gh-aw/release-data/closing_refs_by_issue.json 2>/dev/null \
         || echo "{}" > /tmp/gh-aw/release-data/closing_refs_by_issue.json
+      # Also expose to community-data dir so shared attribution strategy can reference it
+      cp /tmp/gh-aw/release-data/closing_refs_by_issue.json /tmp/gh-aw/community-data/closing_refs_by_issue.json
+      cp /tmp/gh-aw/release-data/pull_requests.json /tmp/gh-aw/community-data/pull_requests.json
       
       DIRECT_CLOSE_COUNT=$(jq 'keys | length' /tmp/gh-aw/release-data/closing_refs_by_issue.json)
       echo "✓ Found $DIRECT_CLOSE_COUNT issues with GitHub-native closing PR references"
@@ -454,7 +443,7 @@ steps:
       if [ -n "$PREV_PUBLISHED_AT" ]; then
         jq --arg prev "$PREV_PUBLISHED_AT" --arg curr "$CURR_PUBLISHED_AT" \
           '[.[] | select(.closedAt != null and .closedAt >= $prev and .closedAt <= $curr)]' \
-          /tmp/gh-aw/release-data/community_issues.json \
+          /tmp/gh-aw/community-data/community_issues.json \
           > /tmp/gh-aw/release-data/community_issues_closed_in_window.json 2>/dev/null \
           || echo "[]" > /tmp/gh-aw/release-data/community_issues_closed_in_window.json
         
@@ -473,10 +462,12 @@ steps:
       # List documentation files for linking
       find docs -type f -name "*.md" 2>/dev/null > /tmp/gh-aw/release-data/docs_files.txt || echo "No docs directory found"
       
-      echo "✓ Setup complete. Data available in /tmp/gh-aw/release-data/"
-      echo "  Files: current_release.json, pull_requests.json, community_issues.json,"
-      echo "         closing_refs_by_issue.json, community_issues_closed_in_window.json,"
-      echo "         CHANGELOG.md (if exists), docs_files.txt"
+      echo "✓ Setup complete."
+      echo "  Release data: /tmp/gh-aw/release-data/ (current_release.json, pull_requests.json,"
+      echo "    closing_refs_by_issue.json, community_issues_closed_in_window.json,"
+      echo "    CHANGELOG.md (if exists), docs_files.txt)"
+      echo "  Community data: /tmp/gh-aw/community-data/ (community_issues.json,"
+      echo "    closing_refs_by_issue.json, pull_requests.json)"
 ---
 
 # Release Highlights Generator
@@ -487,14 +478,18 @@ Generate an engaging release highlights summary for **${{ github.repository }}**
 
 ## Data Available
 
-All data is pre-fetched in `/tmp/gh-aw/release-data/`:
+Release-specific data is pre-fetched in `/tmp/gh-aw/release-data/`:
 - `current_release.json` - Release metadata (tag, name, dates, existing body)
 - `pull_requests.json` - PRs merged between `${PREV_RELEASE_TAG}` and `${RELEASE_TAG}` (includes `closingIssuesReferences` for each PR; empty array if first release)
-- `community_issues.json` - All issues labeled `community` (issue number, title, author, closedAt, createdAt, url)
 - `closing_refs_by_issue.json` - Map of `{issue_number: [pr_numbers]}` built from GitHub-native closing references in merged PRs
 - `community_issues_closed_in_window.json` - Community issues whose `closedAt` falls within this release window (attribution candidates)
 - `CHANGELOG.md` - Full changelog for context (if exists)
 - `docs_files.txt` - Available documentation files for linking
+
+Community data is pre-fetched in `/tmp/gh-aw/community-data/` (by the shared community-attribution step):
+- `community_issues.json` - All issues labeled `community` (issue number, title, author, closedAt, createdAt, url)
+- `closing_refs_by_issue.json` - Same closing references index, mirrored for the shared attribution strategy
+- `pull_requests.json` - Same PR list, mirrored for the shared attribution strategy
 
 ## Output Requirements
 
@@ -516,27 +511,8 @@ cat /tmp/gh-aw/release-data/current_release.json | jq
 # List PRs (empty if first release)
 cat /tmp/gh-aw/release-data/pull_requests.json | jq -r '.[] | "- #\(.number): \(.title) by @\(.author.login)"'
 
-# List community issues
-cat /tmp/gh-aw/release-data/community_issues.json | jq -r '.[] | "- #\(.number): \(.title) by @\(.author.login)"'
-
-# Check CHANGELOG context
-head -100 /tmp/gh-aw/release-data/CHANGELOG.md 2>/dev/null || echo "No CHANGELOG"
-
-# View available docs
-cat /tmp/gh-aw/release-data/docs_files.txt
-```
-
-### 1. Load Data
-
-```bash
-# View release metadata
-cat /tmp/gh-aw/release-data/current_release.json | jq
-
-# List PRs (empty if first release)
-cat /tmp/gh-aw/release-data/pull_requests.json | jq -r '.[] | "- #\(.number): \(.title) by @\(.author.login)"'
-
-# List community issues
-cat /tmp/gh-aw/release-data/community_issues.json | jq -r '.[] | "- #\(.number): \(.title) by @\(.author.login)"'
+# List community issues (fetched by shared community-attribution step)
+cat /tmp/gh-aw/community-data/community_issues.json | jq -r '.[] | "- #\(.number): \(.title) by @\(.author.login)"'
 
 # View GitHub-native closing references (issue -> [PRs])
 cat /tmp/gh-aw/release-data/closing_refs_by_issue.json | jq
@@ -553,58 +529,12 @@ cat /tmp/gh-aw/release-data/docs_files.txt
 
 ### 2. Identify Community Contributions
 
-Cross-reference `community_issues.json` with `pull_requests.json` to find which community issues are resolved in this release. Use a **tiered approach** — work through all tiers before concluding attribution, and do **not** silently omit ambiguous cases.
-
-#### Tier 1 — GitHub-native closing references (primary)
-
-`closing_refs_by_issue.json` contains GitHub's own link metadata: the set of issues that each merged PR is marked as "closing" via the native GitHub close-with-keyword feature. This is the most reliable signal.
-
-```bash
-# Get all community issue numbers
-COMMUNITY_NUMBERS=$(jq '[.[].number]' /tmp/gh-aw/release-data/community_issues.json)
-
-# Find community issues that have a GitHub-native closing PR in this release
-jq --argjson community "$COMMUNITY_NUMBERS" \
-  'to_entries | map(select((.key | tonumber) as $n | $community | any(. == $n))) | from_entries' \
-  /tmp/gh-aw/release-data/closing_refs_by_issue.json
-```
-
-For each matched issue, record it as **confirmed** attribution.
-
-#### Tier 2 — PR body keyword parsing (secondary fallback)
-
-For community issues **not yet matched** in Tier 1, search PR bodies for closing keywords. This covers cases where authors used keywords but GitHub's native link was not established (e.g., fully-qualified repo references).
-
-```bash
-# Supports both bare (#123) and fully-qualified (org/repo#123) references
-cat /tmp/gh-aw/release-data/pull_requests.json | jq -r '.[].body // ""' | \
-  grep -oP '(?i)(?:close[sd]?|fix(?:e[sd])?|resolve[sd]?)\s*(?:github/gh-aw#|#)\K[0-9]+' | sort -u
-```
-
-Add any newly matched community issues to the **confirmed** list.
-
-#### Tier 3 — GitHub MCP cross-reference lookup (deep investigation for follow-up chains)
-
-For community issues **still unmatched** after Tiers 1 and 2, use the GitHub MCP `issue_read` tool to check whether the issue is linked to a follow-up or split issue whose fix shipped in this release. This handles the case where a community report was routed through a separate tracking issue.
-
-For each unmatched community issue that was closed during this release window (from `community_issues_closed_in_window.json`):
-
-1. Use `issue_read` with `method: "get_comments"` to scan the issue body and comments for references to other issues or PRs.
-2. Check whether any referenced issue number appears as a closing target in `closing_refs_by_issue.json` or in the PR bodies already scanned.
-3. If a transitive chain is found (community issue → follow-up issue → merged PR), record it as **confirmed (via follow-up)** attribution and note the chain (e.g., "via follow-up #N").
-
-#### Tier 4 — Surface ambiguous attribution candidates for review
-
-After all three active tiers, check `community_issues_closed_in_window.json` for any community issues that were closed during this release window but **could not be linked** to a specific merged PR through any tier. These should **not be silently dropped** — instead surface them in a dedicated review section.
-
-```bash
-# Check for community issues closed in window but not yet attributed
-cat /tmp/gh-aw/release-data/community_issues_closed_in_window.json | jq 'length'
-```
-
-If any unlinked candidates exist, add them to the **"⚠️ Attribution Candidates Need Review"** subsection (see output format below).
-
-For each community issue resolved in this release, note the **issue author** from `community_issues.json`. These are the community contributors to celebrate.
+The `community` label is the **primary attribution signal** — apply the
+four-tier Community Attribution Strategy from the imported shared component
+(`shared/community-attribution.md`) to attribute all community-labeled issues
+that were closed in this release window.  Use `/tmp/gh-aw/release-data/community_issues_closed_in_window.json`
+as the set of candidates and `/tmp/gh-aw/release-data/closing_refs_by_issue.json`
+as the attribution index.
 
 ### 3. Categorize & Prioritize
 
