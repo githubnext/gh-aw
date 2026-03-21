@@ -43,7 +43,6 @@ func NewCopilotEngine() *CopilotEngine {
 			supportsMaxContinuations: true,  // Copilot CLI supports --autopilot with --max-autopilot-continues
 			supportsWebFetch:         true,  // Copilot CLI has built-in web-fetch support
 			supportsWebSearch:        false, // Copilot CLI does not have built-in web-search support
-			supportsPlugins:          true,  // Copilot supports plugin installation
 			llmGatewayPort:           constants.CopilotLLMGatewayPort,
 		},
 	}

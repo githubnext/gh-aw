@@ -29,7 +29,6 @@ type ImportsResult struct {
 	MergedPermissions           string           // Merged permissions configuration from all imports
 	MergedSecretMasking         string           // Merged secret-masking steps from all imports
 	MergedBots                  []string         // Merged bots list from all imports (union of bot names)
-	MergedPlugins               []string         // Merged plugins list from all imports (union of plugin repos)
 	MergedSkipRoles             []string         // Merged skip-roles list from all imports (union of role names)
 	MergedSkipBots              []string         // Merged skip-bots list from all imports (union of usernames)
 	MergedActivationGitHubToken string           // GitHub token from on.github-token in first imported workflow that defines it

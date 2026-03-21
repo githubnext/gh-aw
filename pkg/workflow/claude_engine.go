@@ -26,10 +26,9 @@ func NewClaudeEngine() *ClaudeEngine {
 			description:            "Uses Claude Code with full MCP tool support and allow-listing",
 			experimental:           false,
 			supportsToolsAllowlist: true,
-			supportsMaxTurns:       true,  // Claude supports max-turns feature
-			supportsWebFetch:       true,  // Claude has built-in WebFetch support
-			supportsWebSearch:      true,  // Claude has built-in WebSearch support
-			supportsPlugins:        false, // Claude Code does not support plugin installation; use 'tools.mcp' for MCP server integration instead
+			supportsMaxTurns:       true, // Claude supports max-turns feature
+			supportsWebFetch:       true, // Claude has built-in WebFetch support
+			supportsWebSearch:      true, // Claude has built-in WebSearch support
 			llmGatewayPort:         constants.ClaudeLLMGatewayPort,
 		},
 	}

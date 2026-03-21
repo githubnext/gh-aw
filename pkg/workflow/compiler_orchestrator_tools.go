@@ -18,7 +18,6 @@ var orchestratorToolsLog = logger.New("workflow:compiler_orchestrator_tools")
 type toolsProcessingResult struct {
 	tools                 map[string]any
 	runtimes              map[string]any
-	pluginInfo            *PluginInfo          // Consolidated plugin information
 	apmDependencies       *APMDependenciesInfo // APM (Agent Package Manager) dependencies
 	toolsTimeout          int
 	toolsStartupTimeout   int
@@ -156,54 +155,6 @@ func (c *Compiler) processToolsAndMarkdown(result *parser.FrontmatterResult, cle
 	if err != nil {
 		orchestratorToolsLog.Printf("Runtimes merge failed: %v", err)
 		return nil, fmt.Errorf("failed to merge runtimes: %w", err)
-	}
-
-	// Extract plugins from frontmatter
-	pluginInfo := extractPluginsFromFrontmatter(result.Frontmatter)
-	if pluginInfo != nil && len(pluginInfo.Plugins) > 0 {
-		orchestratorToolsLog.Printf("Extracted %d plugins from frontmatter (custom_token=%v, mcp_configs=%d)",
-			len(pluginInfo.Plugins), pluginInfo.CustomToken != "", len(pluginInfo.MCPConfigs))
-	}
-
-	// Merge plugins from imports with top-level plugins
-	if len(importsResult.MergedPlugins) > 0 {
-		if pluginInfo == nil {
-			pluginInfo = &PluginInfo{
-				MCPConfigs: make(map[string]*PluginMCPConfig),
-			}
-		}
-
-		orchestratorToolsLog.Printf("Merging %d plugins from imports", len(importsResult.MergedPlugins))
-		// Create a set to track unique plugins
-		pluginsSet := make(map[string]bool)
-
-		// Add imported plugins first (imports have lower priority)
-		for _, plugin := range importsResult.MergedPlugins {
-			pluginsSet[plugin] = true
-		}
-
-		// Add top-level plugins (these override/supplement imports)
-		for _, plugin := range pluginInfo.Plugins {
-			pluginsSet[plugin] = true
-		}
-
-		// Convert set back to slice
-		mergedPlugins := make([]string, 0, len(pluginsSet))
-		for plugin := range pluginsSet {
-			mergedPlugins = append(mergedPlugins, plugin)
-		}
-
-		// Sort for deterministic output
-		sort.Strings(mergedPlugins)
-		pluginInfo.Plugins = mergedPlugins
-
-		orchestratorToolsLog.Printf("Merged plugins: %d total unique plugins", len(pluginInfo.Plugins))
-	}
-
-	// Validate plugin support for the current engine
-	if err := c.validatePluginSupport(pluginInfo, agenticEngine); err != nil {
-		orchestratorToolsLog.Printf("Plugin support validation failed: %v", err)
-		return nil, err
 	}
 
 	// Extract APM dependencies from frontmatter
@@ -344,7 +295,6 @@ func (c *Compiler) processToolsAndMarkdown(result *parser.FrontmatterResult, cle
 	return &toolsProcessingResult{
 		tools:                 tools,
 		runtimes:              runtimes,
-		pluginInfo:            pluginInfo,
 		apmDependencies:       apmDependencies,
 		toolsTimeout:          toolsTimeout,
 		toolsStartupTimeout:   toolsStartupTimeout,

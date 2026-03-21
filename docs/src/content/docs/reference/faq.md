@@ -88,6 +88,36 @@ tools:
 
 See [Getting Started with MCP](/gh-aw/guides/getting-started-mcp/) and [MCP Servers](/gh-aw/guides/mcps/) for configuration guides.
 
+### The `plugins:` field I was using is gone - how do I install agent plugins now?
+
+The `plugins:` frontmatter field has been removed in favour of the `dependencies:` field backed by [Microsoft APM (Agent Package Manager)](https://microsoft.github.io/apm/). APM provides cross-agent support for all agent primitives – skills, prompts, instructions, hooks, and plugins (including the Copilot `plugin.json` format and the Claude `plugin.json` format).
+
+Run `gh aw fix --write` to automatically migrate your existing `plugins:` fields to `dependencies:`.
+
+Use the `dependencies:` field in your workflow frontmatter to install plugins:
+
+```yaml wrap
+# Simple list (public or same-org packages)
+dependencies:
+  - github/my-copilot-plugin
+  - github/awesome-copilot/plugins/context-engineering
+```
+
+For cross-org private packages, use `github-app:` authentication:
+
+```yaml wrap
+dependencies:
+  github-app:
+    app-id: ${{ vars.APP_ID }}
+    private-key: ${{ secrets.APP_PRIVATE_KEY }}
+  packages:
+    - acme-org/acme-plugins
+```
+
+The `dependencies:` approach works with all supported engines (Copilot, Claude, Codex, Gemini), whereas the old `plugins:` field was limited to the Copilot engine only.
+
+See [APM Dependencies](/gh-aw/reference/dependencies/) for full configuration options.
+
 ### Can I use Claude plugins with APM dependencies?
 
 Yes! [APM (Agent Package Manager)](https://microsoft.github.io/apm/) supports Claude plugins in the `plugin.json` format alongside other agent primitives (skills, prompts, instructions). Install them via the `dependencies:` field in your workflow frontmatter:

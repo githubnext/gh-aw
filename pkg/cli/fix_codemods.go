@@ -49,6 +49,7 @@ func GetAllCodemods() []Codemod {
 		getSerenaLocalModeCodemod(),           // Replace tools.serena mode: local with mode: docker
 		getGitHubAppCodemod(),                 // Rename deprecated 'app' to 'github-app'
 		getSafeInputsToMCPScriptsCodemod(),    // Rename safe-inputs to mcp-scripts
+		getPluginsToDependenciesCodemod(),     // Migrate plugins to dependencies (plugins removed in favour of APM)
 	}
 	fixCodemodsLog.Printf("Loaded codemod registry: %d codemods available", len(codemods))
 	return codemods

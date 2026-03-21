@@ -26,7 +26,6 @@ func NewGeminiEngine() *GeminiEngine {
 			supportsMaxTurns:       false,
 			supportsWebFetch:       false,
 			supportsWebSearch:      false,
-			supportsPlugins:        false,
 			llmGatewayPort:         constants.GeminiLLMGatewayPort,
 		},
 	}
