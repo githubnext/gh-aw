@@ -110,8 +110,9 @@ plugins:
 	assert.Contains(t, result, "dependencies:", "dependencies key should be present")
 	assert.Contains(t, result, "github/test-plugin", "first plugin should be preserved")
 	assert.Contains(t, result, "acme/custom-tools", "second plugin should be preserved")
-	assert.NotContains(t, result, "github-token:", "github-token should be dropped")
-	assert.NotContains(t, result, "repos:", "repos sub-key should be removed")
+	assert.Contains(t, result, "github-token:", "github-token should be preserved")
+	assert.Contains(t, result, "packages:", "repos should be renamed to packages")
+	assert.NotContains(t, result, "repos:", "repos sub-key should be renamed")
 }
 
 func TestPluginsToDependenciesCodemod_SkipsWhenDepsExist(t *testing.T) {

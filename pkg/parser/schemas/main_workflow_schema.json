@@ -8194,6 +8194,11 @@
               "additionalProperties": {
                 "type": "string"
               }
+            },
+            "github-token": {
+              "type": "string",
+              "description": "GitHub token expression to authenticate APM with private package repositories. Uses cascading fallback (GH_AW_PLUGINS_TOKEN → GH_AW_GITHUB_TOKEN → GITHUB_TOKEN) when not specified. Takes effect unless github-app is also configured (which takes precedence).",
+              "examples": ["${{ secrets.MY_TOKEN }}", "${{ secrets.GH_AW_GITHUB_TOKEN }}"]
             }
           },
           "required": ["packages"],

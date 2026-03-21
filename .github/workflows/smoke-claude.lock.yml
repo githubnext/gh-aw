@@ -651,6 +651,8 @@ jobs:
       - name: Install and pack APM dependencies
         id: apm_pack
         uses: microsoft/apm-action@83d54a6c7941049210433b16c8dfac573665b12a # v1.3.4
+        env:
+          GITHUB_TOKEN: ${{ secrets.GH_AW_PLUGINS_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
         with:
           dependencies: |
             - microsoft/apm-sample-package

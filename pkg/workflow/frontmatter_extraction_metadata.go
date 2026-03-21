@@ -245,7 +245,7 @@ func extractRuntimesFromFrontmatter(frontmatter map[string]any) map[string]any {
 // extractAPMDependenciesFromFrontmatter extracts APM (Agent Package Manager) dependency
 // configuration from frontmatter. Supports two formats:
 //   - Array format: ["org/pkg1", "org/pkg2"]
-//   - Object format: {packages: ["org/pkg1", "org/pkg2"], isolated: true, github-app: {...}, version: "v0.8.0"}
+//   - Object format: {packages: ["org/pkg1", "org/pkg2"], isolated: true, github-app: {...}, github-token: "...", version: "v0.8.0"}
 //
 // Returns nil if no dependencies field is present or if the field contains no packages.
 func extractAPMDependenciesFromFrontmatter(frontmatter map[string]any) (*APMDependenciesInfo, error) {
@@ -257,6 +257,7 @@ func extractAPMDependenciesFromFrontmatter(frontmatter map[string]any) (*APMDepe
 	var packages []string
 	var isolated bool
 	var githubApp *GitHubAppConfig
+	var githubToken string
 	var version string
 	var env map[string]string
 
@@ -269,7 +270,7 @@ func extractAPMDependenciesFromFrontmatter(frontmatter map[string]any) (*APMDepe
 			}
 		}
 	case map[string]any:
-		// Object format: dependencies: {packages: [...], isolated: true, github-app: {...}, version: "v0.8.0"}
+		// Object format: dependencies: {packages: [...], isolated: true, github-app: {...}, github-token: "...", version: "v0.8.0"}
 		if pkgsAny, ok := v["packages"]; ok {
 			if pkgsArray, ok := pkgsAny.([]any); ok {
 				for _, item := range pkgsArray {
@@ -291,6 +292,12 @@ func extractAPMDependenciesFromFrontmatter(frontmatter map[string]any) (*APMDepe
 					frontmatterMetadataLog.Print("dependencies.github-app missing required app-id or private-key; ignoring")
 					githubApp = nil
 				}
+			}
+		}
+		if tokenAny, ok := v["github-token"]; ok {
+			if tokenStr, ok := tokenAny.(string); ok && tokenStr != "" {
+				githubToken = tokenStr
+				frontmatterMetadataLog.Printf("Extracted dependencies.github-token: custom token configured")
 			}
 		}
 		if versionAny, ok := v["version"]; ok {
@@ -321,6 +328,6 @@ func extractAPMDependenciesFromFrontmatter(frontmatter map[string]any) (*APMDepe
 		return nil, nil
 	}
 
-	frontmatterMetadataLog.Printf("Extracted %d APM dependency packages from frontmatter (isolated=%v, github-app=%v, version=%s, env=%d)", len(packages), isolated, githubApp != nil, version, len(env))
-	return &APMDependenciesInfo{Packages: packages, Isolated: isolated, GitHubApp: githubApp, Version: version, Env: env}, nil
+	frontmatterMetadataLog.Printf("Extracted %d APM dependency packages from frontmatter (isolated=%v, github-app=%v, github-token=%v, version=%s, env=%d)", len(packages), isolated, githubApp != nil, githubToken != "", version, len(env))
+	return &APMDependenciesInfo{Packages: packages, Isolated: isolated, GitHubApp: githubApp, GitHubToken: githubToken, Version: version, Env: env}, nil
 }

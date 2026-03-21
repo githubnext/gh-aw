@@ -12,6 +12,21 @@ var apmDepsLog = logger.New("workflow:apm_dependencies")
 // apmAppTokenStepID is the step ID for the GitHub App token mint step used by APM dependencies.
 const apmAppTokenStepID = "apm-app-token"
 
+// getEffectiveAPMGitHubToken returns the GitHub token expression to use for APM pack authentication.
+// Priority (highest to lowest):
+//  1. Custom token from dependencies.github-token field
+//  2. secrets.GH_AW_PLUGINS_TOKEN (token dedicated for plugin/package operations)
+//  3. secrets.GH_AW_GITHUB_TOKEN (general-purpose gh-aw token)
+//  4. secrets.GITHUB_TOKEN (default GitHub Actions token)
+func getEffectiveAPMGitHubToken(customToken string) string {
+	if customToken != "" {
+		apmDepsLog.Print("Using custom APM GitHub token (from dependencies.github-token)")
+		return customToken
+	}
+	apmDepsLog.Print("Using cascading APM GitHub token (GH_AW_PLUGINS_TOKEN || GH_AW_GITHUB_TOKEN || GITHUB_TOKEN)")
+	return "${{ secrets.GH_AW_PLUGINS_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}"
+}
+
 // buildAPMAppTokenMintStep generates the step to mint a GitHub App installation access token
 // for use by the APM pack step to access cross-org private repositories.
 //
@@ -124,31 +139,35 @@ func GenerateAPMPackStep(apmDeps *APMDependenciesInfo, target string, data *Work
 		"        uses: " + actionRef,
 	}
 
-	// Build env block: GitHub App token (if configured) + user-provided env vars.
+	// Build env block: always add GITHUB_TOKEN (app token takes priority over cascading fallback)
+	// plus any user-provided env vars.
 	// If github-app is configured, GITHUB_TOKEN is set from the minted app token, so any
 	// user-supplied GITHUB_TOKEN key is skipped to avoid a duplicate / conflicting entry.
 	hasGitHubAppToken := apmDeps.GitHubApp != nil
 	hasUserEnv := len(apmDeps.Env) > 0
-	if hasGitHubAppToken || hasUserEnv {
-		lines = append(lines, "        env:")
-		if hasGitHubAppToken {
-			lines = append(lines,
-				fmt.Sprintf("          GITHUB_TOKEN: ${{ steps.%s.outputs.token }}", apmAppTokenStepID),
-			)
+	lines = append(lines, "        env:")
+	if hasGitHubAppToken {
+		lines = append(lines,
+			fmt.Sprintf("          GITHUB_TOKEN: ${{ steps.%s.outputs.token }}", apmAppTokenStepID),
+		)
+	} else {
+		// No github-app: use cascading token fallback (custom token or GH_AW_PLUGINS_TOKEN cascade)
+		lines = append(lines,
+			"          GITHUB_TOKEN: "+getEffectiveAPMGitHubToken(apmDeps.GitHubToken),
+		)
+	}
+	if hasUserEnv {
+		keys := make([]string, 0, len(apmDeps.Env))
+		for k := range apmDeps.Env {
+			// Skip GITHUB_TOKEN when github-app provides it to avoid duplicate keys
+			if hasGitHubAppToken && k == "GITHUB_TOKEN" {
+				continue
+			}
+			keys = append(keys, k)
 		}
-		if hasUserEnv {
-			keys := make([]string, 0, len(apmDeps.Env))
-			for k := range apmDeps.Env {
-				// Skip GITHUB_TOKEN when github-app provides it to avoid duplicate keys
-				if hasGitHubAppToken && k == "GITHUB_TOKEN" {
-					continue
-				}
-				keys = append(keys, k)
-			}
-			sort.Strings(keys)
-			for _, k := range keys {
-				lines = append(lines, fmt.Sprintf("          %s: %s", k, apmDeps.Env[k]))
-			}
+		sort.Strings(keys)
+		for _, k := range keys {
+			lines = append(lines, fmt.Sprintf("          %s: %s", k, apmDeps.Env[k]))
 		}
 	}
 
