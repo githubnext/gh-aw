@@ -19,21 +19,20 @@ moduleLogger.debug("Module is being loaded");
  * This module extends the safe-outputs MCP server to support HTTP transport
  * using the StreamableHTTPServerTransport from the MCP SDK.
  *
- * It provides both stateful and stateless HTTP modes, as well as SSE streaming.
+ * The server runs in stateless mode (no session management) because the MCP
+ * gateway does not perform the MCP protocol initialization handshake and
+ * directly calls methods like tools/list without an Mcp-Session-Id header.
  *
  * Usage:
- *   node safe_outputs_mcp_server_http.cjs [--port 3000] [--stateless]
+ *   node safe_outputs_mcp_server_http.cjs [--port 3000]
  *
  * Options:
  *   --port <number>    Port to listen on (default: 3000)
- *   --stateless        Run in stateless mode (no session management)
  *   --log-dir <path>   Directory for log files
  */
 
 const http = require("http");
 moduleLogger.debug("Loaded http");
-const { randomUUID } = require("crypto");
-moduleLogger.debug("Loaded crypto");
 const { MCPServer, MCPHTTPTransport } = require("./mcp_http_transport.cjs");
 moduleLogger.debug("Loaded mcp_http_transport.cjs");
 const { createLogger: createMCPLogger } = require("./mcp_logger.cjs");
@@ -222,19 +221,17 @@ function createMCPServer(options = {}) {
  * Start the HTTP server with MCP protocol support
  * @param {Object} options - Server options
  * @param {number} [options.port] - Port to listen on (default: 3000)
- * @param {boolean} [options.stateless] - Run in stateless mode (default: false)
  * @param {string} [options.logDir] - Override log directory from config
  */
 async function startHttpServer(options = {}) {
   const port = options.port || 3000;
-  const stateless = options.stateless || false;
 
   const logger = createMCPLogger("safe-outputs-startup");
 
-  logger.debug(`startHttpServer called with port=${port}, stateless=${stateless}`);
+  logger.debug(`startHttpServer called with port=${port}`);
   logger.debug(`=== Starting Safe Outputs MCP HTTP Server ===`);
   logger.debug(`Port: ${port}`);
-  logger.debug(`Mode: ${stateless ? "stateless" : "stateful"}`);
+  logger.debug(`Mode: stateless`);
   logger.debug(`Environment: NODE_VERSION=${process.version}, PLATFORM=${process.platform}`);
 
   // Create the MCP server
@@ -251,9 +248,9 @@ async function startHttpServer(options = {}) {
     logger.debug(`Tools configured: ${Object.keys(config).filter(k => config[k]).length}`);
 
     logger.debug(`Creating HTTP transport...`);
-    // Create the HTTP transport
+    // Create the HTTP transport in stateless mode (no session management)
     const transport = new MCPHTTPTransport({
-      sessionIdGenerator: stateless ? undefined : () => randomUUID(),
+      sessionIdGenerator: undefined,
       enableJsonResponse: true,
       enableDnsRebindingProtection: false, // Disable for local development
     });
@@ -433,7 +430,6 @@ if (require.main === module) {
 
   const options = {
     port: 3000,
-    stateless: false,
     /** @type {string | undefined} */
     logDir: undefined,
   };
@@ -443,8 +439,6 @@ if (require.main === module) {
     if (args[i] === "--port" && args[i + 1]) {
       options.port = parseInt(args[i + 1], 10);
       i++;
-    } else if (args[i] === "--stateless") {
-      options.stateless = true;
     } else if (args[i] === "--log-dir" && args[i + 1]) {
       options.logDir = args[i + 1];
       i++;
