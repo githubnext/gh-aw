@@ -26,7 +26,7 @@
 #   Imports:
 #     - shared/community-attribution.md
 #
-# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"c44a6a762f1295539c44e0e18976497d6ae9d82fa1e86d280ea40b71087c0511","strict":true,"agent_id":"copilot"}
+# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"53ad451269810399fa9802e325cf7e29e33bd559463f521e6b78b8f814bf0369","strict":true,"agent_id":"copilot"}
 
 name: "Release"
 "on":
@@ -548,7 +548,7 @@ jobs:
                   "GITHUB_HOST": "\${GITHUB_SERVER_URL}",
                   "GITHUB_PERSONAL_ACCESS_TOKEN": "\${GITHUB_MCP_SERVER_TOKEN}",
                   "GITHUB_READ_ONLY": "1",
-                  "GITHUB_TOOLSETS": "issues,pull_requests"
+                  "GITHUB_TOOLSETS": "context,repos,issues,pull_requests"
                 },
                 "guard-policies": {
                   "allow-only": {

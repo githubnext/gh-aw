@@ -28,10 +28,6 @@ network:
     - defaults
     - node
     - "github.github.com"
-tools:
-  github:
-    mode: "local"
-    toolsets: [issues, pull_requests]
 safe-outputs:
   update-release:
 imports:
