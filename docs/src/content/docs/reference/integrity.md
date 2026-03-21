@@ -32,22 +32,33 @@ tools:
 
 ## Integrity Levels
 
+The full integrity hierarchy, from highest to lowest:
+
+```text
+merged > approved > unapproved > none > blocked
+```
+
 | Level | What qualifies at this level |
 |-------|------------------------------|
 | `merged` | Pull requests that have been merged, and commits reachable from the default branch (any author) |
 | `approved` | Objects authored by `OWNER`, `MEMBER`, or `COLLABORATOR`; non-fork PRs on public repos; all items in private repos; trusted platform bots (e.g., dependabot) |
 | `unapproved` | Objects authored by `CONTRIBUTOR` or `FIRST_TIME_CONTRIBUTOR` |
 | `none` | All objects, including `FIRST_TIMER` and users with no association (`NONE`) |
+| `blocked` | Items authored by users in `blocked-users` — always denied, cannot be promoted |
 
-Levels are cumulative and ordered from most restrictive to least. Setting `min-integrity: approved` means only items at `approved` level **or higher** (`merged`) reach the agent. Items at `unapproved` or `none` are filtered out.
+The four configurable levels (`merged`, `approved`, `unapproved`, `none`) are cumulative and ordered from most restrictive to least. Setting `min-integrity: approved` means only items at `approved` level **or higher** (`merged`) reach the agent. Items at `unapproved` or `none` are filtered out.
 
-**`merged`** is the strictest level. A pull request qualifies as `merged` when it has been merged into the target branch. Commits qualify when they are reachable from the default branch. This is useful for workflows that should only act on production content.
+`blocked` is not a configurable `min-integrity` value — it is assigned automatically to items from users in the `blocked-users` list and is always denied regardless of the configured threshold.
+
+**`merged`** is the strictest configurable level. A pull request qualifies as `merged` when it has been merged into the target branch. Commits qualify when they are reachable from the default branch. This is useful for workflows that should only act on production content.
 
 **`approved`** corresponds to users who have a formal trust relationship with the repository: owners, members, and collaborators. Items in private repositories are automatically elevated to `approved` (since only collaborators can access them). Recognized platform bots such as dependabot and github-actions also receive `approved` integrity. This is the most common choice for public repository workflows.
 
 **`unapproved`** includes contributors who have had code merged before, as well as first-time contributors. Appropriate when community participation is welcome and the workflow's outputs are reviewed before being applied.
 
 **`none`** allows all content through. Use this deliberately, with appropriate safeguards, for workflows designed to process untrusted input — such as triage bots or spam detection.
+
+**`blocked`** sits below `none` and represents an explicit negative trust decision. Items at this level are unconditionally denied — even `min-integrity: none` does not allow them through. See [Blocking specific users](#blocking-specific-users) below.
 
 ## Adjusting Integrity Per-Item
 
