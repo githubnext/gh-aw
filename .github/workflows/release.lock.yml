@@ -26,7 +26,7 @@
 #   Imports:
 #     - shared/community-attribution.md
 #
-# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"77776679e0e3d2842bfd82b1429abeb6ba6d1005274257fe7a5753d84431c8aa","strict":true,"agent_id":"copilot"}
+# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"a72dabb6fd69c2b04cc7b24de28546dd9574e26a8d4c0f02088d672e94e9b20e","strict":true,"agent_id":"copilot"}
 
 name: "Release"
 "on":
@@ -314,7 +314,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         name: Fetch community-labeled issues
-        run: "mkdir -p /tmp/gh-aw/community-data\n\n# The \"community\" label is the **primary attribution signal**: a maintainer\n# explicitly tagged the issue as community-authored, making it a strong and\n# intentional marker that does not rely on free-text heuristics.\necho \"Fetching issues with 'community' label (primary attribution signal)...\"\nif ! gh issue list \\\n  --label \"community\" \\\n  --state all \\\n  --limit 500 \\\n  --json number,title,author,labels,closedAt,createdAt,url \\\n  > /tmp/gh-aw/community-data/community_issues.json; then\n  echo \"[]\" > /tmp/gh-aw/community-data/community_issues.json\nfi\n\nCOMMUNITY_COUNT=$(jq length \"/tmp/gh-aw/community-data/community_issues.json\")\necho \"✓ Fetched $COMMUNITY_COUNT community-labeled issues\"\necho \"  Data: /tmp/gh-aw/community-data/community_issues.json\""
+        run: "mkdir -p /tmp/gh-aw/community-data\n\n# The \"community\" label is the **primary attribution signal**: a maintainer\n# explicitly tagged the issue as community-authored, making it a strong and\n# intentional marker that does not rely on free-text heuristics.\necho \"Fetching issues with 'community' label (primary attribution signal)...\"\nif ! gh issue list \\\n  --label \"community\" \\\n  --state all \\\n  --limit 500 \\\n  --json number,title,author,labels,closedAt,createdAt,url,stateReason \\\n  > /tmp/gh-aw/community-data/community_issues.json; then\n  echo \"[]\" > /tmp/gh-aw/community-data/community_issues.json\nfi\n\nCOMMUNITY_COUNT=$(jq length \"/tmp/gh-aw/community-data/community_issues.json\")\necho \"✓ Fetched $COMMUNITY_COUNT community-labeled issues\"\necho \"  Data: /tmp/gh-aw/community-data/community_issues.json\""
       - env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           RELEASE_ID: ${{ needs.release.outputs.release_id }}
