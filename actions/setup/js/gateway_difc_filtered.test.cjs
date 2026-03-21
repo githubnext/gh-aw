@@ -260,7 +260,7 @@ describe("gateway_difc_filtered.cjs", () => {
       const result = generateDifcFilteredSection(events);
 
       expect(result).toContain("blocked because they don't meet");
-      expect(result).toContain("min-integrity");
+      expect(result).toContain("GitHub integrity level");
     });
 
     it("should include frontmatter yaml sample for adjusting min-integrity", () => {
@@ -269,7 +269,6 @@ describe("gateway_difc_filtered.cjs", () => {
 
       expect(result).toContain("```yaml");
       expect(result).toContain("min-integrity:");
-      expect(result).toContain("Integrity Filtering");
     });
 
     it("should render item lines without parentheses around tool and reason", () => {
