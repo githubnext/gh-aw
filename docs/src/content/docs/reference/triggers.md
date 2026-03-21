@@ -115,13 +115,15 @@ on:
 
 The compiler assigns each workflow a unique, deterministic execution time based on the file path, ensuring load distribution and consistency across recompiles. UTC offsets are supported on any time expression (e.g., `daily between 9am and 5pm utc-5`).
 
-For a fixed time, use standard cron syntax:
+For a fixed time, use standard cron syntax. Add an optional `timezone` field to interpret the cron in a specific IANA timezone instead of UTC:
 
 ```yaml wrap
 on:
   schedule:
     - cron: "30 6 * * 1"  # Monday at 06:30 UTC
     - cron: "0 9 15 * *"  # 15th of month at 09:00 UTC
+    - cron: "30 9 * * 1-5"
+      timezone: "America/New_York"  # 9:30 AM EST/EDT Mon-Fri
 ```
 
 | Format | Example | Result | Notes |
