@@ -324,6 +324,7 @@ function neutralizeAllMentions(s) {
  * @returns {Array<[number, number]>} Array of [start, end) character positions
  */
 function getFencedCodeRanges(s) {
+  /** @type {Array<[number, number]>} */
   const ranges = [];
   const lines = s.split("\n");
   let pos = 0;
