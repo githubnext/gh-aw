@@ -249,12 +249,6 @@ func (c *Compiler) validateWorkflowData(workflowData *WorkflowData, markdownPath
 		c.IncrementWarningCount()
 	}
 
-	// Emit experimental warning for mcp-scripts feature
-	if IsMCPScriptsEnabled(workflowData.MCPScripts, workflowData) {
-		fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Using experimental feature: mcp-scripts"))
-		c.IncrementWarningCount()
-	}
-
 	// Emit experimental warning for dependencies (APM) feature
 	if workflowData.APMDependencies != nil && len(workflowData.APMDependencies.Packages) > 0 {
 		fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Using experimental feature: dependencies (APM)"))
