@@ -90,20 +90,6 @@ func validateMountStringFormat(mount string) (source, dest, mode string, err err
 	return parts[0], parts[1], parts[2], nil
 }
 
-// formatList formats a list of strings as a comma-separated list with natural language conjunction
-func formatList(items []string) string {
-	if len(items) == 0 {
-		return ""
-	}
-	if len(items) == 1 {
-		return items[0]
-	}
-	if len(items) == 2 {
-		return items[0] + " and " + items[1]
-	}
-	return fmt.Sprintf("%s, and %s", formatList(items[:len(items)-1]), items[len(items)-1])
-}
-
 // validateStringEnumField checks that a config field, if present, contains one
 // of the allowed string values. Non-string values and unrecognised strings are
 // removed from the map (treated as absent) and a warning is logged. Use this

@@ -19,9 +19,12 @@
 // Type Conversion:
 //   - parseIntValue() - Safely parse numeric types to int with truncation warnings
 //   - safeUint64ToInt() - Convert uint64 to int, returning 0 on overflow
+//   - ConvertToInt() - Safely convert any value (int/int64/float64/string) to int
+//   - ConvertToFloat() - Safely convert any value (float64/int/int64/string) to float64
 //
 // Map Operations:
 //   - filterMapKeys() - Create new map excluding specified keys
+//   - sortedMapKeys() - Return sorted keys of a map[string]string
 //
 // These utilities handle common type conversion and map manipulation patterns that
 // occur frequently during YAML-to-struct parsing and configuration processing.
@@ -30,6 +33,8 @@ package workflow
 
 import (
 	"math"
+	"sort"
+	"strconv"
 
 	"github.com/github/gh-aw/pkg/logger"
 )
@@ -86,4 +91,54 @@ func filterMapKeys(original map[string]any, excludeKeys ...string) map[string]an
 		}
 	}
 	return result
+}
+
+// sortedMapKeys returns the keys of a map[string]string in sorted order.
+// Used to produce deterministic output when writing environment variables.
+func sortedMapKeys(m map[string]string) []string {
+	keys := make([]string, 0, len(m))
+	for k := range m {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	return keys
+}
+
+// ConvertToInt safely converts any to int
+func ConvertToInt(val any) int {
+	switch v := val.(type) {
+	case int:
+		return v
+	case int64:
+		return int(v)
+	case float64:
+		intVal := int(v)
+		// Warn if truncation occurs (value has fractional part)
+		if v != float64(intVal) {
+			mapHelpersLog.Printf("Float value %.2f truncated to integer %d", v, intVal)
+		}
+		return intVal
+	case string:
+		if i, err := strconv.Atoi(v); err == nil {
+			return i
+		}
+	}
+	return 0
+}
+
+// ConvertToFloat safely converts any to float64
+func ConvertToFloat(val any) float64 {
+	switch v := val.(type) {
+	case float64:
+		return v
+	case int:
+		return float64(v)
+	case int64:
+		return float64(v)
+	case string:
+		if f, err := strconv.ParseFloat(v, 64); err == nil {
+			return f
+		}
+	}
+	return 0
 }
