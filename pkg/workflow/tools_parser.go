@@ -339,6 +339,7 @@ func parsePlaywrightTool(val any) *PlaywrightToolConfig {
 //  1. New structured form:
 //     checkouts: list of named collections (with optional checkout per entry)
 //     searches:  list of GitHub search queries
+//     cache-key: optional GitHub Actions cache key
 //
 //  2. Legacy extended form (backward-compatible):
 //     collections: list of named collections (treated as checkouts)
@@ -353,6 +354,12 @@ func parseQmdTool(val any) *QmdToolConfig {
 
 	if configMap, ok := val.(map[string]any); ok {
 		config := &QmdToolConfig{}
+
+		// Handle cache-key field (applies to all forms)
+		if cacheKey, ok := configMap["cache-key"].(string); ok && cacheKey != "" {
+			config.CacheKey = cacheKey
+			toolsParserLog.Printf("qmd tool cache-key: %s", cacheKey)
+		}
 
 		// Handle checkouts field (new structured form)
 		if checkoutsValue, ok := configMap["checkouts"]; ok {
@@ -388,6 +395,11 @@ func parseQmdTool(val any) *QmdToolConfig {
 
 		// If either new key was found, return now (new form takes precedence)
 		if len(config.Checkouts) > 0 || len(config.Searches) > 0 {
+			return config
+		}
+
+		// Return early if cache-key-only (read-only mode — no indexing sources)
+		if config.CacheKey != "" {
 			return config
 		}
 

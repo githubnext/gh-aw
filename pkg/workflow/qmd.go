@@ -23,6 +23,11 @@
 //     its own checkout config to target a different repo)
 //   - searches: GitHub search queries whose results are downloaded and added to the index
 //
+// Optionally, a cache-key can be set to persist the index in GitHub Actions cache:
+//
+//   - cache-key only (read-only mode): the index is restored from cache; no indexing steps run
+//   - cache-key + sources: index is built if cache miss, then saved to cache for future runs
+//
 // Example frontmatter:
 //
 //	tools:
@@ -36,6 +41,7 @@
 //	        min: 1
 //	        max: 30
 //	        github-token: ${{ secrets.GITHUB_TOKEN }}
+//	    cache-key: "qmd-index-${{ hashFiles('docs/**') }}"
 //
 // # Artifact lifecycle
 //
@@ -76,6 +82,40 @@ func hasQmdTool(parsedTools *Tools) bool {
 		return false
 	}
 	return parsedTools.Qmd != nil
+}
+
+// qmdHasSources reports whether the qmd config has any indexing sources
+// (checkouts, searches, or legacy docs).  When false and a cache-key is set,
+// qmd operates in read-only mode: the index is restored from cache only.
+func qmdHasSources(qmdConfig *QmdToolConfig) bool {
+	return len(qmdConfig.Checkouts) > 0 || len(qmdConfig.Searches) > 0 || len(qmdConfig.Docs) > 0
+}
+
+// generateQmdCacheRestoreStep generates an activation-job step that restores the qmd index
+// from GitHub Actions cache.  The step ID is "qmd-cache-restore" so that subsequent steps
+// can check cache-hit via steps.qmd-cache-restore.outputs.cache-hit.
+func generateQmdCacheRestoreStep(cacheKey string) string {
+	var sb strings.Builder
+	sb.WriteString("      - name: Restore qmd index from cache\n")
+	sb.WriteString("        id: qmd-cache-restore\n")
+	fmt.Fprintf(&sb, "        uses: %s\n", GetActionPin("actions/cache/restore"))
+	sb.WriteString("        with:\n")
+	fmt.Fprintf(&sb, "          key: %s\n", cacheKey)
+	sb.WriteString("          path: /tmp/gh-aw/qmd-index/\n")
+	return sb.String()
+}
+
+// generateQmdCacheSaveStep generates an activation-job step that saves the qmd index to
+// GitHub Actions cache.  It only runs when the preceding cache-restore step was a miss.
+func generateQmdCacheSaveStep(cacheKey string) string {
+	var sb strings.Builder
+	sb.WriteString("      - name: Save qmd index to cache\n")
+	sb.WriteString("        if: steps.qmd-cache-restore.outputs.cache-hit != 'true'\n")
+	fmt.Fprintf(&sb, "        uses: %s\n", GetActionPin("actions/cache/save"))
+	sb.WriteString("        with:\n")
+	fmt.Fprintf(&sb, "          key: %s\n", cacheKey)
+	sb.WriteString("          path: /tmp/gh-aw/qmd-index/\n")
+	return sb.String()
 }
 
 // resolvedQmdCollection is an internal representation of a qmd collection
@@ -241,59 +281,100 @@ func generateQmdSearchStep(entry *QmdSearchEntry, index int) string {
 // generateQmdIndexSteps generates the activation job steps that install qmd, register
 // collections for each configured checkout and/or search, and build the vector search index.
 // The index is stored at /tmp/gh-aw/qmd-index and uploaded as the qmd-index artifact.
+//
+// When qmdConfig.CacheKey is set:
+//   - A cache restore step is always emitted first.
+//   - In read-only mode (no sources): only the cache restore + artifact upload are emitted;
+//     Node.js, qmd installation, and indexing steps are skipped entirely.
+//   - In build mode (sources present): indexing steps are guarded by
+//     `if: steps.qmd-cache-restore.outputs.cache-hit != 'true'`, so they are skipped on a
+//     cache hit.  A cache save step follows the indexing steps.
 func generateQmdIndexSteps(qmdConfig *QmdToolConfig, data *WorkflowData) []string {
-	qmdLog.Printf("Generating qmd index steps: docs=%v checkouts=%d searches=%d",
-		qmdConfig.Docs, len(qmdConfig.Checkouts), len(qmdConfig.Searches))
+	hasSources := qmdHasSources(qmdConfig)
+	isCacheOnlyMode := qmdConfig.CacheKey != "" && !hasSources
+	qmdLog.Printf("Generating qmd index steps: docs=%v checkouts=%d searches=%d cacheKey=%q cacheOnly=%v",
+		qmdConfig.Docs, len(qmdConfig.Checkouts), len(qmdConfig.Searches), qmdConfig.CacheKey, isCacheOnlyMode)
 
 	version := string(constants.DefaultQmdVersion)
 	var steps []string
 
-	// Setup Node.js (required to run npm/npx)
-	steps = append(steps, "      - name: Setup Node.js for qmd\n")
-	steps = append(steps, fmt.Sprintf("        uses: %s\n", GetActionPin("actions/setup-node")))
-	steps = append(steps, "        with:\n")
-	steps = append(steps, fmt.Sprintf("          node-version: \"%s\"\n", string(constants.DefaultNodeVersion)))
-
-	// Install qmd globally
-	steps = append(steps, "      - name: Install qmd\n")
-	steps = append(steps, "        run: |\n")
-	steps = append(steps, fmt.Sprintf("          npm install -g @tobilu/qmd@%s\n", version))
-
-	// Emit a checkout step for each checkout-based collection that needs its own repo
-	for _, col := range qmdConfig.Checkouts {
-		if checkoutStep := generateQmdCollectionCheckoutStep(col); checkoutStep != "" {
-			steps = append(steps, checkoutStep)
-		}
+	// If a cache-key is set, always restore first (both cache-only and build modes)
+	if qmdConfig.CacheKey != "" {
+		steps = append(steps, generateQmdCacheRestoreStep(qmdConfig.CacheKey))
 	}
 
-	// Build the index: create the cache dir and register all collections
-	steps = append(steps, "      - name: Build qmd index\n")
-	steps = append(steps, "        run: |\n")
-	steps = append(steps, "          set -e\n")
-	steps = append(steps, "          mkdir -p /tmp/gh-aw/qmd-index\n")
-
-	// Register each checkout-based collection.
-	// The workdir is double-quoted to preserve ${GITHUB_WORKSPACE} variable expansion.
-	// User-provided names and globs are POSIX single-quoted to prevent shell injection.
-	checkouts := resolveQmdCheckouts(qmdConfig)
-	for _, col := range checkouts {
-		var globArg string
-		if len(col.docs) > 0 {
-			globArg = shellSingleQuote(strings.Join(col.docs, ","))
-		} else {
-			globArg = "'**/*.md'"
+	// Cache-only mode: no indexing at all — just use the restored cache
+	if isCacheOnlyMode {
+		qmdLog.Print("qmd cache-only mode: skipping indexing, using cache only")
+		// Fall through to artifact upload below
+	} else {
+		// Conditional prefix for build steps when cache-key is set (skip on cache hit)
+		var ifCacheMiss string
+		if qmdConfig.CacheKey != "" {
+			ifCacheMiss = "        if: steps.qmd-cache-restore.outputs.cache-hit != 'true'\n"
 		}
-		steps = append(steps, fmt.Sprintf(
-			"          QMD_CACHE_DIR=/tmp/gh-aw/qmd-index qmd collection add \"%s\" --name %s --glob %s\n",
-			col.workdir,
-			shellSingleQuote(col.name),
-			globArg,
-		))
-	}
 
-	// Emit a step per GitHub search entry
-	for i, search := range qmdConfig.Searches {
-		steps = append(steps, generateQmdSearchStep(search, i))
+		// Setup Node.js (required to run npm/npx)
+		steps = append(steps, "      - name: Setup Node.js for qmd\n")
+		if ifCacheMiss != "" {
+			steps = append(steps, ifCacheMiss)
+		}
+		steps = append(steps, fmt.Sprintf("        uses: %s\n", GetActionPin("actions/setup-node")))
+		steps = append(steps, "        with:\n")
+		steps = append(steps, fmt.Sprintf("          node-version: \"%s\"\n", string(constants.DefaultNodeVersion)))
+
+		// Install qmd globally
+		steps = append(steps, "      - name: Install qmd\n")
+		if ifCacheMiss != "" {
+			steps = append(steps, ifCacheMiss)
+		}
+		steps = append(steps, "        run: |\n")
+		steps = append(steps, fmt.Sprintf("          npm install -g @tobilu/qmd@%s\n", version))
+
+		// Emit a checkout step for each checkout-based collection that needs its own repo
+		for _, col := range qmdConfig.Checkouts {
+			if checkoutStep := generateQmdCollectionCheckoutStep(col); checkoutStep != "" {
+				steps = append(steps, checkoutStep)
+			}
+		}
+
+		// Build the index: create the cache dir and register all collections
+		steps = append(steps, "      - name: Build qmd index\n")
+		if ifCacheMiss != "" {
+			steps = append(steps, ifCacheMiss)
+		}
+		steps = append(steps, "        run: |\n")
+		steps = append(steps, "          set -e\n")
+		steps = append(steps, "          mkdir -p /tmp/gh-aw/qmd-index\n")
+
+		// Register each checkout-based collection.
+		// The workdir is double-quoted to preserve ${GITHUB_WORKSPACE} variable expansion.
+		// User-provided names and globs are POSIX single-quoted to prevent shell injection.
+		checkouts := resolveQmdCheckouts(qmdConfig)
+		for _, col := range checkouts {
+			var globArg string
+			if len(col.docs) > 0 {
+				globArg = shellSingleQuote(strings.Join(col.docs, ","))
+			} else {
+				globArg = "'**/*.md'"
+			}
+			steps = append(steps, fmt.Sprintf(
+				"          QMD_CACHE_DIR=/tmp/gh-aw/qmd-index qmd collection add \"%s\" --name %s --glob %s\n",
+				col.workdir,
+				shellSingleQuote(col.name),
+				globArg,
+			))
+		}
+
+		// Emit a step per GitHub search entry
+		for i, search := range qmdConfig.Searches {
+			steps = append(steps, generateQmdSearchStep(search, i))
+		}
+
+		// If cache-key is set, save the freshly-built index to cache (skipped on hit)
+		if qmdConfig.CacheKey != "" {
+			steps = append(steps, generateQmdCacheSaveStep(qmdConfig.CacheKey))
+		}
 	}
 
 	// Upload qmd index as a separate artifact for the agent job

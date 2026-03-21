@@ -364,6 +364,10 @@ type QmdSearchEntry struct {
 //  1. checkouts – glob-based collections from checked-out repositories
 //  2. searches  – GitHub search queries whose results are downloaded as files
 //
+// Optionally, the index can be cached in GitHub Actions cache using the cache-key field.
+// When cache-key is set without any sources (checkouts/searches/docs), qmd operates in
+// read-only mode: it restores the index from cache and skips all indexing steps.
+//
 // Legacy shorthand: docs and collections fields are still accepted for backward
 // compatibility and are treated as-if under checkouts.
 type QmdToolConfig struct {
@@ -381,6 +385,16 @@ type QmdToolConfig struct {
 	// Searches is the list of GitHub search queries whose results are downloaded
 	// and added to the qmd index.
 	Searches []*QmdSearchEntry `yaml:"searches,omitempty"`
+
+	// CacheKey is an optional GitHub Actions cache key used to persist the qmd index
+	// across workflow runs. When set:
+	//   - If sources (checkouts/searches/docs) are also configured: the index is built
+	//     normally and then saved to the cache. On subsequent runs, the cached index is
+	//     restored and the build steps are skipped if the cache hit is exact.
+	//   - If no sources are configured (read-only mode): the index is restored directly
+	//     from cache without any indexing steps.
+	// Example: "qmd-index-${{ hashFiles('docs/**') }}"
+	CacheKey string `yaml:"cache-key,omitempty"`
 }
 
 // SerenaToolConfig represents the configuration for the Serena MCP tool

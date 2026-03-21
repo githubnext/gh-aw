@@ -3394,6 +3394,11 @@
                 "$ref": "#/$defs/qmdCollection"
               },
               "minItems": 1
+            },
+            "cache-key": {
+              "type": "string",
+              "description": "GitHub Actions cache key used to persist the qmd index across workflow runs. When set without any indexing sources (checkouts/searches/docs), qmd operates in read-only mode: the index is restored from cache and all indexing steps are skipped.",
+              "examples": ["qmd-index-${{ hashFiles('docs/**') }}", "qmd-index-v1"]
             }
           },
           "additionalProperties": false,
@@ -3441,6 +3446,18 @@
                   "github-token": "${{ secrets.GITHUB_TOKEN }}"
                 }
               ]
+            },
+            {
+              "cache-key": "qmd-index-${{ hashFiles('docs/**') }}"
+            },
+            {
+              "checkouts": [
+                {
+                  "name": "docs",
+                  "docs": ["docs/**/*.md"]
+                }
+              ],
+              "cache-key": "qmd-index-${{ hashFiles('docs/**') }}"
             }
           ]
         },
