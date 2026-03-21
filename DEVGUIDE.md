@@ -139,7 +139,7 @@ make clean  # Remove binaries, coverage files, security reports, etc.
 
 #### Run security scans
 ```bash
-make security-scan  # Run gosec, govulncheck, and trivy
+make security-scan  # Run gosec and govulncheck
 ```
 **When to use**: Before releases or when checking for vulnerabilities.
 
@@ -815,20 +815,18 @@ The project includes automated security scanning to detect vulnerabilities, code
 ### Running Security Scans Locally
 
 ```bash
-# Run all security scans (gosec, govulncheck, trivy)
+# Run all security scans (gosec, govulncheck)
 make security-scan
 
 # Run individual scans
 make security-gosec      # Go security linter
 make security-govulncheck # Go vulnerability database check
-make security-trivy       # Filesystem/dependency scanner (requires trivy)
 ```
 
 ### Security Scan Tools
 
 - **gosec**: Static analysis tool for Go that detects security issues in source code
 - **govulncheck**: Official Go tool that checks for known vulnerabilities in dependencies
-- **trivy**: Comprehensive scanner for filesystem vulnerabilities, misconfigurations, and secrets
 
 ### Interpreting Results
 
@@ -841,11 +839,6 @@ make security-trivy       # Filesystem/dependency scanner (requires trivy)
 - Shows vulnerabilities in direct and indirect dependencies
 - Indicates if vulnerable code paths are actually called
 - Update affected dependencies to resolve issues
-
-#### Trivy Results
-- Displays HIGH and CRITICAL severity findings
-- Covers Go dependencies, npm packages, and configuration files
-- Shows CVE details and available fix versions
 
 ### Suppressing False Positives
 
@@ -863,13 +856,6 @@ secret := "example" // Known test value
 #### Govulncheck
 - No inline suppression available
 - Update dependencies or document accepted risks in security review
-
-#### Trivy
-- Use `.trivyignore` file to exclude specific CVEs:
-```text
-# .trivyignore
-CVE-2023-XXXXX  # False positive: not exploitable in our usage
-```
 
 ### CI/CD Integration
 
