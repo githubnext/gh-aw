@@ -173,14 +173,14 @@ func TestFlattenSingleFileArtifactsInvalidDirectory(t *testing.T) {
 
 func TestFlattenSingleFileArtifactsWithAuditFiles(t *testing.T) {
 	// Test that flattening works correctly for typical audit artifact files
-	// This test uses unified agent-artifacts structure
+	// This test uses unified agent structure
 	tmpDir := testutil.TempDir(t, "test-*")
 
-	// Create unified agent-artifacts structure as it would be downloaded by gh run download
-	// All single-file artifacts are now in agent-artifacts/tmp/gh-aw/
-	nestedPath := filepath.Join(tmpDir, "agent-artifacts", "tmp", "gh-aw")
+	// Create unified agent structure as it would be downloaded by gh run download
+	// All single-file artifacts are now in agent/tmp/gh-aw/
+	nestedPath := filepath.Join(tmpDir, "agent", "tmp", "gh-aw")
 	if err := os.MkdirAll(nestedPath, 0755); err != nil {
-		t.Fatalf("Failed to create agent-artifacts directory: %v", err)
+		t.Fatalf("Failed to create agent directory: %v", err)
 	}
 
 	unifiedArtifacts := map[string]string{
@@ -267,20 +267,20 @@ func TestFlattenSingleFileArtifactsWithAuditFiles(t *testing.T) {
 		}
 	}
 
-	// Verify agent-artifacts directory is removed
-	agentArtifactsDir := filepath.Join(tmpDir, "agent-artifacts")
+	// Verify agent directory is removed
+	agentArtifactsDir := filepath.Join(tmpDir, "agent")
 	if _, err := os.Stat(agentArtifactsDir); err == nil {
-		t.Errorf("agent-artifacts directory should be removed after flattening")
+		t.Errorf("agent directory should be removed after flattening")
 	}
 }
 
 func TestAuditCanFindFlattenedArtifacts(t *testing.T) {
 	// Simulate what the audit command does - check that it can find artifacts after flattening
-	// This test uses unified agent-artifacts structure
+	// This test uses unified agent structure
 	tmpDir := testutil.TempDir(t, "test-*")
 
 	// Create realistic unified artifact structure before flattening
-	nestedPath := filepath.Join(tmpDir, "agent-artifacts", "tmp", "gh-aw")
+	nestedPath := filepath.Join(tmpDir, "agent", "tmp", "gh-aw")
 	if err := os.MkdirAll(nestedPath, 0755); err != nil {
 		t.Fatalf("Setup failed: %v", err)
 	}
@@ -352,8 +352,8 @@ func TestFlattenUnifiedArtifact(t *testing.T) {
 		{
 			name: "unified artifact with nested structure gets flattened",
 			setup: func(dir string) error {
-				// Create the structure: agent-artifacts/tmp/gh-aw/...
-				nestedPath := filepath.Join(dir, "agent-artifacts", "tmp", "gh-aw")
+				// Create the structure: agent/tmp/gh-aw/...
+				nestedPath := filepath.Join(dir, "agent", "tmp", "gh-aw")
 				if err := os.MkdirAll(nestedPath, 0755); err != nil {
 					return err
 				}
@@ -387,16 +387,16 @@ func TestFlattenUnifiedArtifact(t *testing.T) {
 				"aw-prompts",
 				"mcp-logs",
 			},
-			unexpectedDirs: []string{"agent-artifacts", "tmp", "gh-aw"},
+			unexpectedDirs: []string{"agent", "tmp", "gh-aw"},
 			unexpectedFiles: []string{
-				"agent-artifacts/tmp/gh-aw/aw_info.json",
+				"agent/tmp/gh-aw/aw_info.json",
 				"tmp/gh-aw/aw_info.json",
 			},
 		},
 		{
-			name: "no agent-artifacts directory - no-op",
+			name: "no agent directory - no-op",
 			setup: func(dir string) error {
-				// Create a regular file structure without agent-artifacts
+				// Create a regular file structure without agent
 				return os.WriteFile(filepath.Join(dir, "regular.txt"), []byte("test"), 0644)
 			},
 			expectedFiles: []string{"regular.txt"},
@@ -430,14 +430,14 @@ func TestFlattenUnifiedArtifact(t *testing.T) {
 			unexpectedFiles: []string{"agent/agent_output.json"},
 		},
 		{
-			name: "agent-artifacts without tmp/gh-aw structure - flatten directly",
+			name: "agent without tmp/gh-aw structure - flatten directly",
 			setup: func(dir string) error {
-				// Create agent-artifacts with new structure (files directly in agent-artifacts/)
-				artifactDir := filepath.Join(dir, "agent-artifacts")
+				// Create agent with new structure (files directly in agent/)
+				artifactDir := filepath.Join(dir, "agent")
 				if err := os.MkdirAll(artifactDir, 0755); err != nil {
 					return err
 				}
-				// Create file directly in agent-artifacts (new structure)
+				// Create file directly in agent (new structure)
 				if err := os.WriteFile(filepath.Join(artifactDir, "file.txt"), []byte("test"), 0644); err != nil {
 					return err
 				}
@@ -450,7 +450,7 @@ func TestFlattenUnifiedArtifact(t *testing.T) {
 			},
 			expectedDirs:    []string{"subdir"},
 			expectedFiles:   []string{"file.txt", "subdir/nested.txt"},
-			unexpectedFiles: []string{"agent-artifacts/file.txt"},
+			unexpectedFiles: []string{"agent/file.txt"},
 		},
 		{
 			name: "new 'agent' artifact takes precedence over legacy 'agent-artifacts'",
@@ -572,7 +572,7 @@ func TestFlattenArtifactTreeNestedDirs(t *testing.T) {
 func TestFlattenArtifactTreeDifferentSourceAndArtifactDir(t *testing.T) {
 	// Covers the old-structure unified artifact case where sourceDir is a subdirectory of artifactDir.
 	outputDir := t.TempDir()
-	artifactDir := filepath.Join(outputDir, "agent-artifacts")
+	artifactDir := filepath.Join(outputDir, "agent")
 	sourceDir := filepath.Join(artifactDir, "tmp", "gh-aw")
 	require.NoError(t, os.MkdirAll(sourceDir, 0750), "setup: create old-structure sourceDir")
 	require.NoError(t, os.WriteFile(filepath.Join(sourceDir, "session.json"), []byte(`{}`), 0600), "setup: write file")

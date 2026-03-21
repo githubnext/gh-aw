@@ -17,12 +17,12 @@ To apply the patch after review:
 
 ```sh
 # Download the artifact from the workflow run
-gh run download {run_id} -n agent-artifacts -D /tmp/agent-artifacts-{run_id}
+gh run download {run_id} -n agent -D /tmp/agent-{run_id}
 
 # Apply the patch to the pull request branch
 git fetch origin {branch_name}
 git checkout {branch_name}
-git am --3way /tmp/agent-artifacts-{run_id}/{patch_file_name}
+git am --3way /tmp/agent-{run_id}/{patch_file_name}
 git push origin {branch_name}
 ```
 

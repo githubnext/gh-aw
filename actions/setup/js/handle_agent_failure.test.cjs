@@ -225,7 +225,7 @@ describe("handle_agent_failure", () => {
       const result = buildCodePushFailureContext(errors, null, runUrl);
       expect(result).toContain("🔀 Patch Apply Failed");
       expect(result).toContain("gh run download 12345678");
-      expect(result).toContain("agent-artifacts");
+      expect(result).toContain("agent");
       expect(result).toContain("git am --3way");
       expect(result).toContain(runUrl);
     });

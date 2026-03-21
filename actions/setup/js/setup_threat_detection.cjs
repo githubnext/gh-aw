@@ -32,7 +32,7 @@ async function main() {
   }
   const templateContent = fs.readFileSync(templatePath, "utf-8");
   // Check if prompt file exists
-  // The agent-artifacts artifact is downloaded to /tmp/gh-aw/threat-detection/
+  // The agent artifact is downloaded to /tmp/gh-aw/threat-detection/
   // GitHub Actions preserves the directory structure from the uploaded artifact
   // (stripping the common /tmp/gh-aw/ prefix from the uploaded paths)
   // So /tmp/gh-aw/aw-prompts/prompt.txt becomes /tmp/gh-aw/threat-detection/aw-prompts/prompt.txt
@@ -52,7 +52,7 @@ async function main() {
 
   // Check if patch file(s) exist
   // Patches are now named aw-{branch}.patch (one per branch)
-  // The agent-artifacts artifact is downloaded to /tmp/gh-aw/threat-detection/
+  // The agent artifact is downloaded to /tmp/gh-aw/threat-detection/
   const hasPatch = process.env.HAS_PATCH === "true";
   const patchFiles = [];
   try {

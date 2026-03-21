@@ -815,19 +815,19 @@ async function main(config = {}) {
 >
 > **Workflow Run:** [View run details and download patch artifact](${runUrl})
 >
-> The patch file is available in the \`agent-artifacts\` artifact in the workflow run linked above.
+> The patch file is available in the \`agent\` artifact in the workflow run linked above.
 
 To create a pull request with the changes:
 
 \`\`\`sh
 # Download the artifact from the workflow run
-gh run download ${runId} -n agent-artifacts -D /tmp/agent-artifacts-${runId}
+gh run download ${runId} -n agent -D /tmp/agent-${runId}
 
 # Create a new branch
 git checkout -b ${branchName}
 
 # Apply the patch (--3way handles cross-repo patches where files may already exist)
-git am --3way /tmp/agent-artifacts-${runId}/${patchFileName}
+git am --3way /tmp/agent-${runId}/${patchFileName}
 
 # Push the branch to origin
 git push origin ${branchName}

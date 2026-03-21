@@ -423,16 +423,16 @@ function buildCodePushFailureContext(codePushFailureErrors, pullRequest = null, 
     if (runId) {
       context += `\`\`\`sh
 # Download the patch artifact from the workflow run
-gh run download ${runId} -n agent-artifacts -D /tmp/agent-artifacts-${runId}
+gh run download ${runId} -n agent -D /tmp/agent-${runId}
 
 # List available patches
-ls /tmp/agent-artifacts-${runId}/*.patch
+ls /tmp/agent-${runId}/*.patch
 
 # Create a new branch (adjust as needed)
 git checkout -b aw/manual-apply
 
 # Apply the patch (--3way handles cross-repo patches)
-git am --3way /tmp/agent-artifacts-${runId}/YOUR_PATCH_FILE.patch
+git am --3way /tmp/agent-${runId}/YOUR_PATCH_FILE.patch
 
 # If there are conflicts, resolve them and continue (or abort):
 # git am --continue

@@ -481,7 +481,6 @@ func downloadFileViaRawURL(owner, repo, filePath, ref string) ([]byte, error) {
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		_, _ = io.Copy(io.Discard, resp.Body)
 		return nil, fmt.Errorf("raw URL returned HTTP %d for %s", resp.StatusCode, rawURL)
 	}
 
