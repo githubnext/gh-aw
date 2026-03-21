@@ -27,13 +27,13 @@
 #     - shared/jqschema.md
 #     - shared/reporting.md
 #
-# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"f5057b3a4f178522df84399056d6c5b0ff879f4c069ea0a78f6d76ed467649f7","strict":true,"agent_id":"copilot"}
+# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"1692a982ce60065f7838d39b0c98b431d17e8b703b78d58f4bf5c7d5ff15e918","strict":true,"agent_id":"copilot"}
 
 name: "Discussion Task Miner - Code Quality Improvement Agent"
 "on":
   schedule:
-  - cron: "55 */4 * * *"
-    # Friendly format: every 4h (scattered)
+  - cron: "55 */6 * * *"
+    # Friendly format: every 6h (scattered)
   workflow_dispatch:
 
 permissions: {}
