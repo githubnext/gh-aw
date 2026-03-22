@@ -218,9 +218,13 @@ If additional authentication is required, one way is to create a fine-grained PA
      - Issues: Read (for toolset: issues)
      - Pull requests: Read (for toolset: pull_requests)
      - Projects: Read (for toolset: projects)
+     - Security Events: Read (for toolset: dependabot, code_security, secret_protection, security_advisories)
      - Lockdown mode: no additional permissions required
      - Remote mode: no additional permissions required
      - Adjust based on the toolsets you configure in your workflow
+
+   > [!NOTE]
+   > The `dependabot` toolset also requires the `vulnerability-alerts` GitHub App permission. If you are using a GitHub App (rather than a PAT), add `vulnerability-alerts: read` to your workflow's `permissions:` field and ensure the GitHub App is configured with this permission. See [GitHub App-Only Permissions](/gh-aw/reference/permissions/#github-app-only-permissions).
    - **Organization permissions** (if accessing org-level info):
      - Members: Read (for org member info in context)
      - Teams: Read (for team info in context)
