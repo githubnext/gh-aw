@@ -403,6 +403,17 @@ type QmdToolConfig struct {
 	//     from cache without any indexing steps.
 	// Example: "qmd-index-${{ hashFiles('docs/**') }}"
 	CacheKey string `yaml:"cache-key,omitempty"`
+
+	// GPU controls whether node-llama-cpp (used by @tobilu/qmd internally) may use
+	// GPU acceleration. Defaults to false: NODE_LLAMA_CPP_GPU=false is injected into
+	// the indexing step so that GPU auto-detection is skipped on CPU-only runners.
+	// Set to true only when the indexing runner has a GPU.
+	GPU bool `yaml:"gpu,omitempty"`
+
+	// RunsOn overrides the runner image for the indexing job.
+	// Defaults to the same runner as the agent job (ubuntu-latest or as configured).
+	// Example: "ubuntu-latest-gpu" or ["self-hosted", "gpu"]
+	RunsOn string `yaml:"runs-on,omitempty"`
 }
 
 // SerenaToolConfig represents the configuration for the Serena MCP tool

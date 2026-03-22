@@ -3383,6 +3383,16 @@
               "type": "string",
               "description": "GitHub Actions cache key used to persist the qmd index across workflow runs. When set without any indexing sources (checkouts/searches), qmd operates in read-only mode: the index is restored from cache and all indexing steps are skipped.",
               "examples": ["qmd-index-${{ hashFiles('docs/**') }}", "qmd-index-v1"]
+            },
+            "gpu": {
+              "type": "boolean",
+              "description": "Enable GPU acceleration for the embedding model (node-llama-cpp). Defaults to false: NODE_LLAMA_CPP_GPU=false is injected into the indexing step so GPU probing is skipped on CPU-only runners. Set to true only when the indexing runner has a GPU.",
+              "default": false
+            },
+            "runs-on": {
+              "type": "string",
+              "description": "Override the runner image for the qmd indexing job. Defaults to the same runner as the agent job. Use this when the indexing job requires a different runner (e.g. a GPU runner).",
+              "examples": ["ubuntu-latest", "ubuntu-latest-gpu", "self-hosted"]
             }
           },
           "additionalProperties": false,

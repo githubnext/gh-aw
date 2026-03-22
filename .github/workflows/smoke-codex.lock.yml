@@ -1546,6 +1546,7 @@ jobs:
         env:
           QMD_CONFIG_JSON: |
             {"dbPath":"/tmp/gh-aw/qmd-index","checkouts":[{"name":"docs","path":"${GITHUB_WORKSPACE}","patterns":["docs/src/**/*.md","docs/src/**/*.mdx"],"context":"gh-aw project documentation"}],"searches":[{"name":"issues","type":"issues","max":500,"tokenEnvVar":"QMD_SEARCH_TOKEN_0"}]}
+          NODE_LLAMA_CPP_GPU: "false"
           QMD_SEARCH_TOKEN_0: ${{ secrets.GITHUB_TOKEN }}
         with:
           github-token: ${{ github.token }}

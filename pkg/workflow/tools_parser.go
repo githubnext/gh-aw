@@ -339,6 +339,8 @@ func parsePlaywrightTool(val any) *PlaywrightToolConfig {
 //   - checkouts: list of named collections (with optional checkout per entry)
 //   - searches:  list of GitHub search queries
 //   - cache-key: optional GitHub Actions cache key
+//   - gpu:       enable GPU acceleration for node-llama-cpp (default: false)
+//   - runs-on:   override runner image for the indexing job
 func parseQmdTool(val any) *QmdToolConfig {
 	if val == nil {
 		toolsParserLog.Print("qmd tool enabled with empty configuration")
@@ -352,6 +354,22 @@ func parseQmdTool(val any) *QmdToolConfig {
 		if cacheKey, ok := configMap["cache-key"].(string); ok && cacheKey != "" {
 			config.CacheKey = cacheKey
 			toolsParserLog.Printf("qmd tool cache-key: %s", cacheKey)
+		}
+
+		// Handle gpu field (defaults to false — GPU disabled by default)
+		if gpuVal, exists := configMap["gpu"]; exists {
+			if gpuBool, ok := gpuVal.(bool); ok {
+				config.GPU = gpuBool
+				toolsParserLog.Printf("qmd tool gpu: %v", gpuBool)
+			}
+		}
+
+		// Handle runs-on field (override runner image for the indexing job)
+		if runsOnVal, exists := configMap["runs-on"]; exists {
+			if runsOnStr, ok := runsOnVal.(string); ok && runsOnStr != "" {
+				config.RunsOn = runsOnStr
+				toolsParserLog.Printf("qmd tool runs-on: %s", runsOnStr)
+			}
 		}
 
 		// Handle checkouts field

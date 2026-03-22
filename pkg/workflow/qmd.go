@@ -430,6 +430,11 @@ func generateQmdIndexSteps(qmdConfig *QmdToolConfig, data *WorkflowData) []strin
 		// Pass the config JSON as an env var; the YAML literal block avoids quoting issues
 		scriptSB.WriteString("          QMD_CONFIG_JSON: |\n")
 		fmt.Fprintf(&scriptSB, "            %s\n", string(cfgJSON))
+		// Disable GPU acceleration by default; only enable when the user explicitly opts in.
+		// This prevents node-llama-cpp from spending time probing GPU drivers on CPU runners.
+		if !qmdConfig.GPU {
+			scriptSB.WriteString("          NODE_LLAMA_CPP_GPU: \"false\"\n")
+		}
 		// Add per-search custom token env vars
 		for i, s := range qmdConfig.Searches {
 			if s.GitHubToken != "" {
@@ -532,9 +537,16 @@ func (c *Compiler) buildQmdIndexingJob(data *WorkflowData) (*Job, error) {
 		PermissionContents: PermissionRead,
 	})
 
+	// Determine the runner for the indexing job.
+	// The user can override via qmd.runs-on; otherwise fall back to the safe-outputs runner.
+	indexingRunsOn := c.formatSafeOutputsRunsOn(data.SafeOutputs)
+	if data.QmdConfig.RunsOn != "" {
+		indexingRunsOn = "runs-on: " + data.QmdConfig.RunsOn
+	}
+
 	job := &Job{
 		Name:           string(constants.IndexingJobName),
-		RunsOn:         c.formatSafeOutputsRunsOn(data.SafeOutputs),
+		RunsOn:         indexingRunsOn,
 		Permissions:    perms.RenderToYAML(),
 		Steps:          steps,
 		Needs:          needs,
