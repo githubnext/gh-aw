@@ -249,12 +249,6 @@ func (c *Compiler) validateWorkflowData(workflowData *WorkflowData, markdownPath
 		c.IncrementWarningCount()
 	}
 
-	// Emit experimental warning for mcp-scripts feature
-	if IsMCPScriptsEnabled(workflowData.MCPScripts, workflowData) {
-		fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Using experimental feature: mcp-scripts"))
-		c.IncrementWarningCount()
-	}
-
 	// Emit experimental warning for qmd documentation search feature
 	if workflowData.QmdConfig != nil {
 		fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Using experimental feature: qmd"))

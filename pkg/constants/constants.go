@@ -655,9 +655,6 @@ const ActivationArtifactName = "activation"
 // APMArtifactName is the artifact name for the APM (Agent Package Manager) bundle.
 const APMArtifactName = "apm"
 
-// QmdArtifactName is the artifact name for the qmd documentation index built in the activation job.
-const QmdArtifactName = "qmd-index"
-
 // SafeOutputItemsArtifactName is the artifact name for the safe output items manifest.
 // This artifact contains the JSONL manifest of all items created by safe output handlers
 // and is uploaded by the safe_outputs job to avoid conflicting with the "agent" artifact

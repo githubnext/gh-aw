@@ -11,12 +11,12 @@ import { Aside } from "@astrojs/starlight/components";
   The `qmd` tool is experimental and its API may change without notice.
 </Aside>
 
-The `qmd:` tool integrates [tobi/qmd](https://github.com/tobi/qmd) as a built-in MCP server that performs **vector similarity search** over documentation files. The search index is built in the activation job (which already has `contents: read`) and shared with the agent job via a GitHub Actions artifact, so the agent job does not need `contents: read`.
+The `qmd:` tool integrates [tobi/qmd](https://github.com/tobi/qmd) as a built-in MCP server that performs **vector similarity search** over documentation files. The search index is built in a dedicated `indexing` job (which has `contents: read`) and shared with the agent job via `actions/cache`, so the agent job does not need `contents: read`.
 
 ## How it works
 
-1. **Activation job** — installs `@tobilu/qmd`, registers documentation collections from configured checkouts and/or GitHub searches, builds the vector index, and uploads it as the `qmd-index` artifact.
-2. **Agent job** — downloads the `qmd-index` artifact and starts qmd as an MCP server (`npx @tobilu/qmd serve-mcp`). The agent can call the `search` tool to find relevant documentation files by natural language query.
+1. **Indexing job** — installs `@tobilu/qmd`, registers documentation collections from configured checkouts and/or GitHub searches, builds the vector index, and saves it to `actions/cache`.
+2. **Agent job** — restores the qmd cache (index and models) and starts qmd as an MCP server (`qmd mcp --http`). The agent can call the `search` tool to find relevant documentation files by natural language query.
 
 The embedding models used to build and query the index are automatically cached in both jobs via `actions/cache` (keyed by OS at `~/.cache/qmd/models/`), so models are only downloaded once per runner OS.
 

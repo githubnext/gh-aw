@@ -63,16 +63,6 @@ func collectDockerImages(tools map[string]any, workflowData *WorkflowData, actio
 		}
 	}
 
-	// Check for qmd tool (uses node:lts-alpine container for the MCP server)
-	if _, hasQmd := tools["qmd"]; hasQmd {
-		image := constants.DefaultNodeAlpineLTSImage
-		if !imageSet[image] {
-			images = append(images, image)
-			imageSet[image] = true
-			dockerLog.Printf("Added qmd MCP server container: %s", image)
-		}
-	}
-
 	// Check for agentic-workflows tool
 	// In dev mode, the image is built locally in the workflow, so don't add to pull list
 	// In release/script mode, use alpine:latest which needs to be pulled

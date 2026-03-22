@@ -172,7 +172,7 @@ func generateQmdIndexCacheRestoreExactStep(qmdConfig *QmdToolConfig) string {
 // If the user specified an explicit cache-key, that is returned as-is.
 // Otherwise a per-run key is generated using the GitHub workflow run ID so that
 // the index built in the indexing job is always persisted to cache and the agent
-// job can restore it without needing a separate artifact download on every run.
+// job can restore it from the cache without needing a separate artifact download on every run.
 //
 // The default key format is: gh-aw-qmd-<version>-<run_id>
 // (e.g. "gh-aw-qmd-2.0.1-12345678")
@@ -546,7 +546,7 @@ func generateQmdStartServerStep(qmdConfig *QmdToolConfig) string {
 //  4. Installs @tobilu/qmd and @actions/github and runs qmd_index.cjs via actions/github-script
 //  5. Saves the resulting index to GitHub Actions cache
 //
-// The agent job declares a needs dependency on this "indexing" job and downloads the artifact.
+// The agent job declares a needs dependency on this "indexing" job and restores the index from cache.
 func (c *Compiler) buildQmdIndexingJob(data *WorkflowData) (*Job, error) {
 	qmdLog.Printf("Building qmd indexing job: checkouts=%d searches=%d cacheKey=%q",
 		len(data.QmdConfig.Checkouts), len(data.QmdConfig.Searches), data.QmdConfig.CacheKey)

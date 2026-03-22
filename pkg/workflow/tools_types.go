@@ -316,7 +316,7 @@ type PlaywrightToolConfig struct {
 // repository via its own checkout configuration.
 type QmdDocCollection struct {
 	// Name is the collection identifier used in the qmd index.
-	// Defaults to "docs" for single-collection configs or "docs-<index>" for multiple collections.
+	// Defaults to "docs-<index>" when not provided (e.g. "docs-0", "docs-1").
 	Name string `yaml:"name,omitempty"`
 
 	// Paths is the list of glob patterns for files to include in this collection.
@@ -374,7 +374,7 @@ type QmdSearchEntry struct {
 
 // QmdToolConfig represents the configuration for the qmd documentation search tool.
 // qmd (https://github.com/tobi/qmd) provides local vector search over documentation files.
-// The index is built in the activation job and downloaded by the agent job, so no
+// The index is built in a dedicated indexing job and shared via GitHub Actions cache, so no
 // contents:read permission is needed in the agent job.
 //
 // Two sources can contribute to the index:

@@ -102,13 +102,14 @@ See **[Repo Memory Reference](/gh-aw/reference/repo-memory/)** for complete conf
 
 ### QMD Documentation Search (`qmd:`) — Experimental
 
-Build a local vector search index over documentation files and expose it as an MCP search tool. The index is built in the activation job (no `contents: read` needed in the agent job):
+Build a local vector search index over documentation files and expose it as an MCP search tool. The index is built in a dedicated indexing job (no `contents: read` needed in the agent job):
 
 ```yaml wrap
 tools:
   qmd:
-    docs:
-      - docs/**/*.md
+    checkouts:
+      - paths:
+          - docs/**/*.md
 ```
 
 See **[QMD Reference](/gh-aw/reference/qmd/)** for complete configuration options, checkout support, GitHub search integration, and cache key usage.
