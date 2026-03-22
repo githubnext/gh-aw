@@ -214,6 +214,43 @@ Imports are processed in breadth-first order: direct imports first, then nested 
 
 Remote imports are cached by commit SHA in `.github/aw/imports/`. Keep import chains shallow, use shared workflows for reusable configurations, and consolidate related imports. Every compilation records imports in the lock file manifest for dependency tracking.
 
+
+## Using Imports in Repository Rulesets (`inlined-imports: true`)
+
+When a workflow is configured as a **required status check** in a [repository ruleset](https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/managing-rulesets/about-rulesets), it runs in a restricted context that does not have access to other files in the repository. Shared files imported with the `imports:` field are loaded at runtime from the repository checkout, but this checkout is not available in the ruleset context, producing an error such as:
+
+```
+ERR_SYSTEM: Runtime import file not found: workflows/shared/file.md
+```
+
+The fix is to enable `inlined-imports: true` in your workflow frontmatter. This causes the compiler to bundle all imported content directly into the compiled `.lock.yml` at compile time, so no file system access is needed at runtime:
+
+```aw wrap
+---
+on: pull_request
+engine: copilot
+inlined-imports: true
+imports:
+  - shared/common-tools.md
+  - shared/security-setup.md
+---
+
+# My Workflow
+
+Workflow instructions here.
+```
+
+After adding `inlined-imports: true`, recompile the workflow:
+
+```bash
+gh aw compile my-workflow
+```
+
+> [!NOTE]
+> With `inlined-imports: true`, any change to an imported file requires recompiling the workflow to take effect. The compiled `.lock.yml` must be committed and pushed for the updated content to run.
+>
+> `inlined-imports: true` cannot be combined with agent file imports (`.github/agents/` files). If your workflow imports a custom agent file, remove it before enabling inlined imports.
+
 ## Best Practices
 
 **Layer configurations by scope**: Create base configurations with core tools, then extend with specialized imports. Use nested imports to build layered configurations.
