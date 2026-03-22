@@ -55,6 +55,7 @@ var safeOutputFieldMapping = map[string]string{
 	"LinkSubIssue":                    "link_sub_issue",
 	"HideComment":                     "hide_comment",
 	"DispatchWorkflow":                "dispatch_workflow",
+	"DispatchRepository":              "dispatch_repository",
 	"CallWorkflow":                    "call_workflow",
 	"MissingTool":                     "missing_tool",
 	"MissingData":                     "missing_data",

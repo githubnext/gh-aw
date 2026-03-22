@@ -621,6 +621,9 @@ func buildSafeOutputsSections(safeOutputs *SafeOutputsConfig) []PromptSection {
 	if safeOutputs.DispatchWorkflow != nil {
 		tools = append(tools, "dispatch_workflow")
 	}
+	if safeOutputs.DispatchRepository != nil {
+		tools = append(tools, "dispatch_repository")
+	}
 	if safeOutputs.CallWorkflow != nil {
 		tools = append(tools, "call_workflow")
 	}

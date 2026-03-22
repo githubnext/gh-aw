@@ -6854,6 +6854,103 @@
           ],
           "description": "Dispatch workflow_dispatch events to other workflows. Used by orchestrators to delegate work to worker workflows with controlled maximum dispatch count."
         },
+        "dispatch_repository": {
+          "type": "object",
+          "description": "Dispatch repository_dispatch events to external repositories. Each sub-key defines a named dispatch tool with its own event_type, target repository, input schema, and execution limits.",
+          "additionalProperties": {
+            "type": "object",
+            "description": "Configuration for a single repository dispatch tool",
+            "properties": {
+              "description": {
+                "type": "string",
+                "description": "Human-readable description of what this dispatch tool does"
+              },
+              "workflow": {
+                "type": "string",
+                "description": "Target workflow name (for traceability and inclusion in client_payload)",
+                "minLength": 1
+              },
+              "event_type": {
+                "type": "string",
+                "description": "The repository_dispatch event_type string sent to the target repository",
+                "minLength": 1
+              },
+              "repository": {
+                "type": "string",
+                "description": "Target repository in 'owner/repo' format. Dispatches to this repository when no 'allowed_repositories' list is given.",
+                "pattern": "^[a-zA-Z0-9._-]+/[a-zA-Z0-9._-]+$|^\\$\\{\\{.*\\}\\}$"
+              },
+              "allowed_repositories": {
+                "type": "array",
+                "description": "List of allowed target repositories (owner/repo). Supports glob patterns like 'org/*'.",
+                "items": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "minItems": 1
+              },
+              "inputs": {
+                "type": "object",
+                "description": "Input schema for the dispatch tool. Inputs are validated and compiled into client_payload.",
+                "additionalProperties": {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "enum": ["string", "number", "boolean", "choice", "environment"],
+                      "description": "Input type"
+                    },
+                    "description": {
+                      "type": "string",
+                      "description": "Input description"
+                    },
+                    "required": {
+                      "type": "boolean",
+                      "description": "Whether this input is required"
+                    },
+                    "default": {
+                      "description": "Default value for this input"
+                    },
+                    "options": {
+                      "type": "array",
+                      "description": "Allowed options for 'choice' type inputs",
+                      "items": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                }
+              },
+              "max": {
+                "description": "Maximum number of dispatch executions for this tool per run (default: 1, max: 50). Supports integer or GitHub Actions expression.",
+                "oneOf": [
+                  {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 50,
+                    "default": 1
+                  },
+                  {
+                    "type": "string",
+                    "pattern": "^\\$\\{\\{.*\\}\\}$",
+                    "description": "GitHub Actions expression that resolves to an integer at runtime"
+                  }
+                ]
+              },
+              "github-token": {
+                "$ref": "#/$defs/github_token",
+                "description": "GitHub token to use for dispatching. Overrides global github-token if specified."
+              },
+              "staged": {
+                "type": "boolean",
+                "description": "If true, emit step summary messages instead of making GitHub API calls (preview mode)",
+                "examples": [true, false]
+              }
+            },
+            "required": ["workflow", "event_type"],
+            "additionalProperties": false
+          }
+        },
         "call-workflow": {
           "oneOf": [
             {

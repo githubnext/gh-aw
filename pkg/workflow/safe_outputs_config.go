@@ -299,6 +299,12 @@ func (c *Compiler) extractSafeOutputsConfig(frontmatter map[string]any) *SafeOut
 				config.DispatchWorkflow = dispatchWorkflowConfig
 			}
 
+			// Handle dispatch_repository
+			dispatchRepositoryConfig := c.parseDispatchRepositoryConfig(outputMap)
+			if dispatchRepositoryConfig != nil {
+				config.DispatchRepository = dispatchRepositoryConfig
+			}
+
 			// Handle call-workflow
 			callWorkflowConfig := c.parseCallWorkflowConfig(outputMap)
 			if callWorkflowConfig != nil {

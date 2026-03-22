@@ -339,6 +339,24 @@ func generateFilteredToolsJSON(data *WorkflowData, markdownPath string) (string,
 		}
 	}
 
+	// Add dynamic dispatch_repository tools
+	if data.SafeOutputs.DispatchRepository != nil && len(data.SafeOutputs.DispatchRepository.Tools) > 0 {
+		safeOutputsConfigLog.Printf("Adding %d dispatch_repository tools", len(data.SafeOutputs.DispatchRepository.Tools))
+
+		// Sort tool keys for deterministic output
+		toolKeys := make([]string, 0, len(data.SafeOutputs.DispatchRepository.Tools))
+		for toolKey := range data.SafeOutputs.DispatchRepository.Tools {
+			toolKeys = append(toolKeys, toolKey)
+		}
+		sort.Strings(toolKeys)
+
+		for _, toolKey := range toolKeys {
+			toolConfig := data.SafeOutputs.DispatchRepository.Tools[toolKey]
+			tool := generateDispatchRepositoryTool(toolKey, toolConfig)
+			filteredTools = append(filteredTools, tool)
+		}
+	}
+
 	// Add dynamic call_workflow tools
 	if data.SafeOutputs.CallWorkflow != nil && len(data.SafeOutputs.CallWorkflow.Workflows) > 0 {
 		safeOutputsConfigLog.Printf("Adding %d call_workflow tools", len(data.SafeOutputs.CallWorkflow.Workflows))
@@ -853,6 +871,23 @@ func generateDynamicTools(data *WorkflowData, markdownPath string) ([]map[string
 			}
 
 			dynamicTools = append(dynamicTools, generateDispatchWorkflowTool(workflowName, workflowInputs))
+		}
+	}
+
+	// Add dynamic dispatch_repository tools
+	if data.SafeOutputs.DispatchRepository != nil && len(data.SafeOutputs.DispatchRepository.Tools) > 0 {
+		safeOutputsConfigLog.Printf("Adding %d dispatch_repository tools to dynamic tools", len(data.SafeOutputs.DispatchRepository.Tools))
+
+		// Sort tool keys for deterministic output
+		toolKeys := make([]string, 0, len(data.SafeOutputs.DispatchRepository.Tools))
+		for toolKey := range data.SafeOutputs.DispatchRepository.Tools {
+			toolKeys = append(toolKeys, toolKey)
+		}
+		sort.Strings(toolKeys)
+
+		for _, toolKey := range toolKeys {
+			toolConfig := data.SafeOutputs.DispatchRepository.Tools[toolKey]
+			dynamicTools = append(dynamicTools, generateDispatchRepositoryTool(toolKey, toolConfig))
 		}
 	}
 
