@@ -1378,6 +1378,295 @@ When done, call add_label with the appropriate label.
 	}
 }
 
+// TestCompileDispatchRepository verifies that a workflow with a dispatch_repository
+// safe-output compiles successfully and produces the expected lock file content:
+//   - dispatch_repository appears in the Tools prompt hint
+//   - Each tool's _dispatch_repository_tool metadata is present in the tools JSON
+//   - GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG contains the dispatch_repository config
+//   - The handler config includes workflow, event_type, and repository fields
+func TestCompileDispatchRepository(t *testing.T) {
+	setup := setupIntegrationTest(t)
+	defer setup.cleanup()
+
+	testWorkflow := `---
+name: Test Dispatch Repository
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+engine: copilot
+safe-outputs:
+  dispatch_repository:
+    trigger_ci:
+      description: Trigger CI in another repository
+      workflow: ci.yml
+      event_type: ci_trigger
+      repository: org/target-repo
+      max: 1
+---
+
+# Test Dispatch Repository
+
+Call trigger_ci to trigger CI in the target repository.
+`
+	testWorkflowPath := filepath.Join(setup.workflowsDir, "test-dispatch-repo.md")
+	if err := os.WriteFile(testWorkflowPath, []byte(testWorkflow), 0644); err != nil {
+		t.Fatalf("Failed to write test workflow file: %v", err)
+	}
+
+	cmd := exec.Command(setup.binaryPath, "compile", testWorkflowPath)
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("CLI compile command failed: %v\nOutput: %s", err, string(output))
+	}
+
+	lockFilePath := filepath.Join(setup.workflowsDir, "test-dispatch-repo.lock.yml")
+	lockContent, err := os.ReadFile(lockFilePath)
+	if err != nil {
+		t.Fatalf("Failed to read lock file: %v", err)
+	}
+	lockContentStr := string(lockContent)
+
+	// Verify dispatch_repository appears in the Tools prompt hint
+	if !strings.Contains(lockContentStr, "dispatch_repository") {
+		t.Errorf("Lock file should contain 'dispatch_repository'\nLock file content:\n%s", lockContentStr)
+	}
+
+	// Verify the tool definition has _dispatch_repository_tool metadata
+	if !strings.Contains(lockContentStr, `"_dispatch_repository_tool": "trigger_ci"`) {
+		t.Errorf("Lock file should contain _dispatch_repository_tool metadata for trigger_ci\nLock file content:\n%s", lockContentStr)
+	}
+
+	// Verify the tool name is normalized correctly
+	if !strings.Contains(lockContentStr, `"name": "trigger_ci"`) {
+		t.Errorf("Lock file should contain the trigger_ci tool definition\nLock file content:\n%s", lockContentStr)
+	}
+
+	// Verify GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG contains dispatch_repository
+	if !strings.Contains(lockContentStr, "GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG") {
+		t.Errorf("Lock file should contain GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG\nLock file content:\n%s", lockContentStr)
+	}
+	if !strings.Contains(lockContentStr, `"dispatch_repository"`) {
+		t.Errorf("GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG should contain 'dispatch_repository'\nLock file content:\n%s", lockContentStr)
+	}
+
+	// Verify required fields are in the handler config
+	if !strings.Contains(lockContentStr, `"workflow":"ci.yml"`) {
+		t.Errorf("Handler config should contain 'workflow':'ci.yml'\nLock file content:\n%s", lockContentStr)
+	}
+	if !strings.Contains(lockContentStr, `"event_type":"ci_trigger"`) {
+		t.Errorf("Handler config should contain 'event_type':'ci_trigger'\nLock file content:\n%s", lockContentStr)
+	}
+	if !strings.Contains(lockContentStr, `"repository":"org/target-repo"`) {
+		t.Errorf("Handler config should contain 'repository':'org/target-repo'\nLock file content:\n%s", lockContentStr)
+	}
+}
+
+// TestCompileDispatchRepositoryMultipleTools verifies that dispatch_repository with
+// multiple tools compiles correctly and all tools appear in the output with their
+// correct configurations (repository and allowed_repositories).
+func TestCompileDispatchRepositoryMultipleTools(t *testing.T) {
+	setup := setupIntegrationTest(t)
+	defer setup.cleanup()
+
+	testWorkflow := `---
+name: Test Dispatch Repository Multiple Tools
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+engine: copilot
+safe-outputs:
+  dispatch_repository:
+    trigger_ci:
+      description: Trigger CI pipeline
+      workflow: ci.yml
+      event_type: ci_trigger
+      repository: org/target-repo
+      inputs:
+        environment:
+          type: choice
+          options:
+            - staging
+            - production
+          default: staging
+      max: 1
+    notify_service:
+      description: Notify external service
+      workflow: notify.yml
+      event_type: notify_event
+      allowed_repositories:
+        - org/service-repo
+        - org/backup-repo
+      inputs:
+        message:
+          type: string
+          description: Notification message
+      max: 2
+---
+
+# Test Dispatch Repository Multiple Tools
+
+Dispatch trigger_ci and notify_service as appropriate.
+`
+	testWorkflowPath := filepath.Join(setup.workflowsDir, "test-dispatch-repo-multi.md")
+	if err := os.WriteFile(testWorkflowPath, []byte(testWorkflow), 0644); err != nil {
+		t.Fatalf("Failed to write test workflow file: %v", err)
+	}
+
+	cmd := exec.Command(setup.binaryPath, "compile", testWorkflowPath)
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("CLI compile command failed: %v\nOutput: %s", err, string(output))
+	}
+
+	lockFilePath := filepath.Join(setup.workflowsDir, "test-dispatch-repo-multi.lock.yml")
+	lockContent, err := os.ReadFile(lockFilePath)
+	if err != nil {
+		t.Fatalf("Failed to read lock file: %v", err)
+	}
+	lockContentStr := string(lockContent)
+
+	// Both tools must have _dispatch_repository_tool metadata
+	if !strings.Contains(lockContentStr, `"_dispatch_repository_tool": "trigger_ci"`) {
+		t.Errorf("Lock file should contain _dispatch_repository_tool metadata for trigger_ci\nLock file content:\n%s", lockContentStr)
+	}
+	if !strings.Contains(lockContentStr, `"_dispatch_repository_tool": "notify_service"`) {
+		t.Errorf("Lock file should contain _dispatch_repository_tool metadata for notify_service\nLock file content:\n%s", lockContentStr)
+	}
+
+	// Both tool names must appear in tool definitions
+	if !strings.Contains(lockContentStr, `"name": "trigger_ci"`) {
+		t.Errorf("Lock file should contain trigger_ci tool\nLock file content:\n%s", lockContentStr)
+	}
+	if !strings.Contains(lockContentStr, `"name": "notify_service"`) {
+		t.Errorf("Lock file should contain notify_service tool\nLock file content:\n%s", lockContentStr)
+	}
+
+	// Handler config must include both tools with their settings
+	if !strings.Contains(lockContentStr, `"workflow":"ci.yml"`) {
+		t.Errorf("Handler config should contain trigger_ci workflow\nLock file content:\n%s", lockContentStr)
+	}
+	if !strings.Contains(lockContentStr, `"workflow":"notify.yml"`) {
+		t.Errorf("Handler config should contain notify_service workflow\nLock file content:\n%s", lockContentStr)
+	}
+
+	// allowed_repositories must be serialized in the handler config
+	if !strings.Contains(lockContentStr, "org/service-repo") {
+		t.Errorf("Handler config should contain allowed_repositories entry org/service-repo\nLock file content:\n%s", lockContentStr)
+	}
+	if !strings.Contains(lockContentStr, "org/backup-repo") {
+		t.Errorf("Handler config should contain allowed_repositories entry org/backup-repo\nLock file content:\n%s", lockContentStr)
+	}
+
+	// Input schemas must be reflected in tool properties
+	if !strings.Contains(lockContentStr, `"environment"`) {
+		t.Errorf("Lock file should contain the environment input property for trigger_ci\nLock file content:\n%s", lockContentStr)
+	}
+	if !strings.Contains(lockContentStr, `"message"`) {
+		t.Errorf("Lock file should contain the message input property for notify_service\nLock file content:\n%s", lockContentStr)
+	}
+}
+
+// TestCompileDispatchRepositoryValidationFailure verifies that a workflow with
+// an invalid dispatch_repository configuration (missing required 'workflow' field)
+// fails compilation with a descriptive error message.
+func TestCompileDispatchRepositoryValidationFailure(t *testing.T) {
+	setup := setupIntegrationTest(t)
+	defer setup.cleanup()
+
+	testWorkflow := `---
+name: Test Dispatch Repository Validation Failure
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+engine: copilot
+safe-outputs:
+  dispatch_repository:
+    trigger_ci:
+      event_type: ci_trigger
+      repository: org/target-repo
+---
+
+# Test Dispatch Repository Validation Failure
+
+This workflow is intentionally missing the required 'workflow' field.
+`
+	testWorkflowPath := filepath.Join(setup.workflowsDir, "test-dispatch-repo-fail.md")
+	if err := os.WriteFile(testWorkflowPath, []byte(testWorkflow), 0644); err != nil {
+		t.Fatalf("Failed to write test workflow file: %v", err)
+	}
+
+	cmd := exec.Command(setup.binaryPath, "compile", testWorkflowPath)
+	output, err := cmd.CombinedOutput()
+	outputStr := string(output)
+
+	// Compilation must fail
+	if err == nil {
+		t.Fatalf("Compilation should have failed due to missing 'workflow' field, but succeeded\nOutput: %s", outputStr)
+	}
+
+	// Error message must mention dispatch_repository and the missing field
+	if !strings.Contains(outputStr, "dispatch_repository") {
+		t.Errorf("Error output should mention 'dispatch_repository'\nOutput: %s", outputStr)
+	}
+	if !strings.Contains(outputStr, "workflow") {
+		t.Errorf("Error output should mention the missing 'workflow' field\nOutput: %s", outputStr)
+	}
+}
+
+// TestCompileDispatchRepositoryWorkflowFile compiles the canonical test workflow
+// from pkg/cli/workflows/test-copilot-dispatch-repository.md and verifies that it
+// produces a valid lock file with the expected dispatch_repository configuration.
+func TestCompileDispatchRepositoryWorkflowFile(t *testing.T) {
+	setup := setupIntegrationTest(t)
+	defer setup.cleanup()
+
+	// Copy the canonical workflow file into the test's .github/workflows dir
+	srcPath := filepath.Join(projectRoot, "pkg/cli/workflows/test-copilot-dispatch-repository.md")
+	dstPath := filepath.Join(setup.workflowsDir, "test-copilot-dispatch-repository.md")
+
+	srcContent, err := os.ReadFile(srcPath)
+	if err != nil {
+		t.Fatalf("Failed to read source workflow file %s: %v", srcPath, err)
+	}
+	if err := os.WriteFile(dstPath, srcContent, 0644); err != nil {
+		t.Fatalf("Failed to write workflow to test dir: %v", err)
+	}
+
+	cmd := exec.Command(setup.binaryPath, "compile", dstPath)
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("CLI compile command failed for canonical workflow: %v\nOutput: %s", err, string(output))
+	}
+
+	lockFilePath := filepath.Join(setup.workflowsDir, "test-copilot-dispatch-repository.lock.yml")
+	lockContent, err := os.ReadFile(lockFilePath)
+	if err != nil {
+		t.Fatalf("Failed to read lock file: %v", err)
+	}
+	lockContentStr := string(lockContent)
+
+	// Verify both tools are present in the compiled output
+	if !strings.Contains(lockContentStr, `"_dispatch_repository_tool": "trigger_ci"`) {
+		t.Errorf("Lock file should contain trigger_ci tool metadata\nLock file content:\n%s", lockContentStr)
+	}
+	if !strings.Contains(lockContentStr, `"_dispatch_repository_tool": "notify_service"`) {
+		t.Errorf("Lock file should contain notify_service tool metadata\nLock file content:\n%s", lockContentStr)
+	}
+
+	// Verify handler config is correctly serialized
+	if !strings.Contains(lockContentStr, "GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG") {
+		t.Errorf("Lock file should contain GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG\nLock file content:\n%s", lockContentStr)
+	}
+	if !strings.Contains(lockContentStr, `"dispatch_repository"`) {
+		t.Errorf("GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG should contain dispatch_repository config\nLock file content:\n%s", lockContentStr)
+	}
+
+	t.Logf("Canonical dispatch_repository workflow compiled successfully to %s", lockFilePath)
+}
+
 // TestCompileSafeOutputsActionsMultiple verifies that multiple actions in safe-outputs.actions
 // all generate separate action steps and all appear in GH_AW_SAFE_OUTPUT_ACTIONS.
 func TestCompileSafeOutputsActionsMultiple(t *testing.T) {
