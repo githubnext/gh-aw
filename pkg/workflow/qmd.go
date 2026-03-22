@@ -343,7 +343,7 @@ func generateQmdIndexSteps(qmdConfig *QmdToolConfig, data *WorkflowData) []strin
 			npmInstall += ifCacheMiss
 		}
 		npmInstall += "        run: |\n"
-		npmInstall += fmt.Sprintf("          npm install --prefix \"${{ runner.temp }}/gh-aw/actions\" @tobilu/qmd@%s\n", version)
+		npmInstall += fmt.Sprintf("          npm install --prefix \"${{ runner.temp }}/gh-aw/actions\" @tobilu/qmd@%s @actions/github\n", version)
 		steps = append(steps, npmInstall)
 
 		// Emit a checkout step for each collection that targets a non-default repository

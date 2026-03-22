@@ -320,7 +320,7 @@ jobs:
           node-version: "24"
       - name: Install @tobilu/qmd SDK
         run: |
-          npm install --prefix "${{ runner.temp }}/gh-aw/actions" @tobilu/qmd@2.0.1
+          npm install --prefix "${{ runner.temp }}/gh-aw/actions" @tobilu/qmd@2.0.1 @actions/github
       - name: Build qmd index
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
