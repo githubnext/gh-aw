@@ -3,7 +3,6 @@ on:
   workflow_dispatch:
   schedule:
     - cron: '0 9 * * *'  # Daily at 9 AM UTC
-  label_command: dev
 name: Dev
 description: Daily status report for gh-aw project
 timeout-minutes: 30
