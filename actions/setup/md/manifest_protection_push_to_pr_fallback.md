@@ -10,7 +10,7 @@
 ---
 
 <details>
-<summary>📋 Apply the patch after review</summary>
+<summary><b>📋 Apply the patch after review</b></summary>
 
 The patch is available in the workflow run artifacts:
 

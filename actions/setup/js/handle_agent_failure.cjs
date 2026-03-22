@@ -369,7 +369,7 @@ function buildCodePushFailureContext(codePushFailureErrors, pullRequest = null, 
       yamlSnippet += `  ${yamlKey}:\n    protected-files: fallback-to-issue\n`;
     }
     yamlSnippet += "```\n";
-    context += "\n<details>\n<summary>⚙️ Configure <code>protected-files: fallback-to-issue</code></summary>\n\n";
+    context += "\n<details>\n<summary><b>⚙️ Configure <code>protected-files: fallback-to-issue</code></b></summary>\n\n";
     context += yamlSnippet;
     context += "</details>\n";
   }
