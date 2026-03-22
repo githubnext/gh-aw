@@ -89,18 +89,7 @@ function generateDifcFilteredSection(filteredEvents) {
     return true;
   });
 
-  // Filter out #unknown references — these are unresolvable GitHub entities and not valid entries
-  const validEvents = uniqueEvents.filter(event => {
-    if (event.html_url) return true;
-    const desc = event.description ? event.description.replace(/^[a-z-]+:(?!\/\/)/i, "") : null;
-    return desc !== "#unknown";
-  });
-
-  if (validEvents.length === 0) {
-    return "";
-  }
-
-  const count = validEvents.length;
+  const count = uniqueEvents.length;
   const itemWord = count === 1 ? "item" : "items";
 
   let section = "\n\n> [!NOTE]\n";
@@ -111,8 +100,8 @@ function generateDifcFilteredSection(filteredEvents) {
   section += `>\n`;
 
   const maxItems = 16;
-  const visibleEvents = validEvents.slice(0, maxItems);
-  const remainingCount = validEvents.length - visibleEvents.length;
+  const visibleEvents = uniqueEvents.slice(0, maxItems);
+  const remainingCount = uniqueEvents.length - visibleEvents.length;
 
   for (const event of visibleEvents) {
     let reference;
@@ -121,7 +110,8 @@ function generateDifcFilteredSection(filteredEvents) {
       reference = `[${label}](${event.html_url})`;
     } else {
       const desc = event.description ? event.description.replace(/^[a-z-]+:(?!\/\/)/i, "") : null;
-      reference = desc || (event.tool_name ? `\`${event.tool_name}\`` : "-");
+      const validDesc = desc && desc !== "#unknown" ? desc : null;
+      reference = validDesc || (event.tool_name ? `\`${event.tool_name}\`` : "-");
     }
     const tool = event.tool_name ? `\`${event.tool_name}\`` : "-";
     const reason = (event.reason || "-").replace(/^Resource '[^']*' /, "").replace(/\n/g, " ");

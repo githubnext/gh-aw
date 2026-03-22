@@ -398,7 +398,7 @@ describe("gateway_difc_filtered.cjs", () => {
       expect(result).not.toContain("... and 1 more items");
     });
 
-    it("should hide events with #unknown description (not valid GitHub entries)", () => {
+    it("should show events with #unknown description using tool_name instead", () => {
       const events = [
         {
           type: "DIFC_FILTERED",
@@ -417,13 +417,14 @@ describe("gateway_difc_filtered.cjs", () => {
 
       const result = generateDifcFilteredSection(events);
 
-      // #unknown entry should be filtered out; only the valid item remains
-      expect(result).toContain("> <summary><b>🔒 Integrity filter blocked 1 item</b></summary>");
+      // Both entries should be shown; #unknown text hidden, tool_name used instead
+      expect(result).toContain("> <summary><b>🔒 Integrity filter blocked 2 items</b></summary>");
       expect(result).not.toContain("#unknown");
+      expect(result).toContain("`search_issues`");
       expect(result).toContain("[#42](https://github.com/org/repo/issues/42)");
     });
 
-    it("should return empty string when all events are #unknown", () => {
+    it("should show entry using tool_name when description is #unknown", () => {
       const events = [
         {
           type: "DIFC_FILTERED",
@@ -433,7 +434,11 @@ describe("gateway_difc_filtered.cjs", () => {
         },
       ];
 
-      expect(generateDifcFilteredSection(events)).toBe("");
+      const result = generateDifcFilteredSection(events);
+
+      expect(result).toContain("> <summary><b>🔒 Integrity filter blocked 1 item</b></summary>");
+      expect(result).toContain("`search_issues`");
+      expect(result).not.toContain("#unknown");
     });
   });
 });
