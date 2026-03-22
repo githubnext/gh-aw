@@ -237,7 +237,7 @@ const (
 	DefaultMCPInspectorPort = 3001
 
 	// DefaultQmdPort is the default HTTP port for the qmd MCP server
-	DefaultQmdPort = 3002
+	DefaultQmdPort = 37842
 
 	// MinNetworkPort is the minimum valid network port number
 	MinNetworkPort = 1

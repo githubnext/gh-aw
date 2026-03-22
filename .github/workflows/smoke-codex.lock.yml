@@ -441,7 +441,7 @@ jobs:
       - name: Start qmd MCP HTTP server
         id: qmd-server-start
         env:
-          GH_AW_QMD_PORT: "3002"
+          GH_AW_QMD_PORT: "37842"
           INDEX_PATH: /tmp/gh-aw/qmd-index/index.sqlite
           GH_AW_QMD_VERSION: "2.0.1"
           NODE_LLAMA_CPP_GPU: "false"
