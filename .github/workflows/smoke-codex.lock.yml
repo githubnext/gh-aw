@@ -428,6 +428,11 @@ jobs:
         with:
           name: qmd-index
           path: /tmp/gh-aw/qmd-index/
+      - name: Restore qmd index from cache
+        uses: actions/cache/restore@668228422ae6a00e4ad889ee87cd7109ec5666a7 # v5.0.4
+        with:
+          key: gh-aw-qmd-${{ github.run_id }}
+          path: /tmp/gh-aw/qmd-index/
       - name: Restore qmd models cache
         uses: actions/cache/restore@668228422ae6a00e4ad889ee87cd7109ec5666a7 # v5.0.4
         with:
@@ -1494,6 +1499,7 @@ jobs:
     runs-on: ubuntu-slim
     permissions:
       contents: read
+    timeout-minutes: 60
     steps:
       - name: Checkout actions folder
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
@@ -1510,19 +1516,28 @@ jobs:
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           persist-credentials: false
+      - name: Restore qmd index from cache
+        id: qmd-cache-restore
+        uses: actions/cache/restore@668228422ae6a00e4ad889ee87cd7109ec5666a7 # v5.0.4
+        with:
+          key: gh-aw-qmd-${{ github.run_id }}
+          path: /tmp/gh-aw/qmd-index/
       - name: Cache qmd models
         uses: actions/cache@668228422ae6a00e4ad889ee87cd7109ec5666a7 # v5.0.4
         with:
           path: ~/.cache/qmd/models/
           key: qmd-models-${{ runner.os }}
       - name: Setup Node.js for qmd
+        if: steps.qmd-cache-restore.outputs.cache-hit != 'true'
         uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6.3.0
         with:
           node-version: "24"
       - name: Install @tobilu/qmd SDK
+        if: steps.qmd-cache-restore.outputs.cache-hit != 'true'
         run: |
           npm install --prefix "${{ runner.temp }}/gh-aw/actions" @tobilu/qmd@2.0.1 @actions/github
       - name: Build qmd index
+        if: steps.qmd-cache-restore.outputs.cache-hit != 'true'
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           QMD_CONFIG_JSON: |
@@ -1535,6 +1550,12 @@ jobs:
             setupGlobals(core, github, context, exec, io);
             const { main } = require('${{ runner.temp }}/gh-aw/actions/qmd_index.cjs');
             await main();
+      - name: Save qmd index to cache
+        if: steps.qmd-cache-restore.outputs.cache-hit != 'true'
+        uses: actions/cache/save@668228422ae6a00e4ad889ee87cd7109ec5666a7 # v5.0.4
+        with:
+          key: gh-aw-qmd-${{ github.run_id }}
+          path: /tmp/gh-aw/qmd-index/
       - name: Upload qmd index artifact
         if: success()
         uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7

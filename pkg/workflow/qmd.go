@@ -107,7 +107,7 @@ func generateQmdModelsCacheStep() string {
 // generateQmdModelsCacheRestoreStep generates a read-only step that restores the qmd embedding
 // models directory (~/.cache/qmd/models/) from GitHub Actions cache.  It uses
 // actions/cache/restore (restore-only, no post-save) so the agent job never writes to the
-// shared cache — that is the activation job's responsibility.
+// shared cache — that is the indexing job's responsibility.
 func generateQmdModelsCacheRestoreStep() string {
 	var sb strings.Builder
 	sb.WriteString("      - name: Restore qmd models cache\n")
@@ -118,9 +118,34 @@ func generateQmdModelsCacheRestoreStep() string {
 	return sb.String()
 }
 
-// generateQmdCacheRestoreStep generates an activation-job step that restores the qmd index
-// from GitHub Actions cache.  The step ID is "qmd-cache-restore" so that subsequent steps
-// can check cache-hit via steps.qmd-cache-restore.outputs.cache-hit.
+// generateQmdIndexCacheRestoreStep generates a read-only restore step for the agent job that
+// restores the qmd search index from the Actions cache.  It uses the same resolved cache key
+// as the indexing job so that the index is available even if the artifact has already expired.
+func generateQmdIndexCacheRestoreStep(qmdConfig *QmdToolConfig) string {
+	cacheKey := resolveQmdCacheKey(qmdConfig)
+	var sb strings.Builder
+	sb.WriteString("      - name: Restore qmd index from cache\n")
+	fmt.Fprintf(&sb, "        uses: %s\n", GetActionPin("actions/cache/restore"))
+	sb.WriteString("        with:\n")
+	fmt.Fprintf(&sb, "          key: %s\n", cacheKey)
+	sb.WriteString("          path: /tmp/gh-aw/qmd-index/\n")
+	return sb.String()
+}
+
+// resolveQmdCacheKey returns the effective cache key for the qmd index.
+// If the user specified an explicit cache-key, that is returned as-is.
+// Otherwise a per-run key is generated using the GitHub workflow run ID so that
+// the index built in the indexing job is always persisted to cache and the agent
+// job can restore it without needing a separate artifact download on every run.
+//
+// The default key format is: gh-aw-qmd-<run_id>
+// (e.g. "gh-aw-qmd-12345678")
+func resolveQmdCacheKey(qmdConfig *QmdToolConfig) string {
+	if qmdConfig.CacheKey != "" {
+		return qmdConfig.CacheKey
+	}
+	return "gh-aw-qmd-${{ github.run_id }}"
+}
 func generateQmdCacheRestoreStep(cacheKey string) string {
 	var sb strings.Builder
 	sb.WriteString("      - name: Restore qmd index from cache\n")
@@ -285,7 +310,7 @@ func generateQmdCollectionCheckoutStep(col *QmdDocCollection) string {
 	return sb.String()
 }
 
-// generateQmdIndexSteps generates the activation job steps that install the @tobilu/qmd SDK,
+// generateQmdIndexSteps generates the indexing job steps that install the @tobilu/qmd SDK,
 // run the qmd_index.cjs JavaScript script to build the vector search index, and upload it
 // as the qmd-index artifact.
 //
@@ -295,26 +320,28 @@ func generateQmdCollectionCheckoutStep(col *QmdDocCollection) string {
 //  2. Fetch GitHub search/issue results and register them as collections
 //  3. Call store.update() and store.embed() to index and embed all documents
 //
-// When qmdConfig.CacheKey is set:
-//   - A cache restore step is always emitted first.
-//   - In read-only mode (no sources): only the cache restore + artifact upload are emitted;
-//     Node.js, qmd SDK installation, and indexing steps are skipped entirely.
-//   - In build mode (sources present): indexing steps are guarded by
+// A cache restore step is always emitted first using the resolved cache key (user-provided
+// or the default per-run key gh-aw-qmd-${{ github.run_id }}).  When qmdConfig.CacheKey is
+// not set, the default run-scoped key means the cache is ephemeral (only used within a
+// single workflow run).  When qmdConfig.CacheKey IS set, the cache is durable across runs.
+//
+// Modes:
+//   - Read-only mode (cache-key set, no sources): only cache restore + artifact upload.
+//   - Build mode (sources present): indexing steps are guarded by
 //     `if: steps.qmd-cache-restore.outputs.cache-hit != 'true'`, so they are skipped on a
-//     cache hit.  A cache save step follows the indexing steps.
+//     cache hit.  A cache save step always follows.
 func generateQmdIndexSteps(qmdConfig *QmdToolConfig, data *WorkflowData) []string {
 	hasSources := qmdHasSources(qmdConfig)
 	isCacheOnlyMode := qmdConfig.CacheKey != "" && !hasSources
+	cacheKey := resolveQmdCacheKey(qmdConfig)
 	qmdLog.Printf("Generating qmd index steps: checkouts=%d searches=%d cacheKey=%q cacheOnly=%v",
-		len(qmdConfig.Checkouts), len(qmdConfig.Searches), qmdConfig.CacheKey, isCacheOnlyMode)
+		len(qmdConfig.Checkouts), len(qmdConfig.Searches), cacheKey, isCacheOnlyMode)
 
 	version := string(constants.DefaultQmdVersion)
 	var steps []string
 
-	// If a cache-key is set, always restore first (both cache-only and build modes)
-	if qmdConfig.CacheKey != "" {
-		steps = append(steps, generateQmdCacheRestoreStep(qmdConfig.CacheKey))
-	}
+	// Always restore from cache first; the step ID lets subsequent steps detect cache-hit.
+	steps = append(steps, generateQmdCacheRestoreStep(cacheKey))
 
 	// Always cache qmd embedding models to avoid re-downloading on each run
 	steps = append(steps, generateQmdModelsCacheStep())
@@ -323,17 +350,12 @@ func generateQmdIndexSteps(qmdConfig *QmdToolConfig, data *WorkflowData) []strin
 	if isCacheOnlyMode {
 		qmdLog.Print("qmd cache-only mode: skipping indexing, using cache only")
 	} else {
-		// Conditional prefix for build steps when cache-key is set (skip on cache hit)
-		ifCacheMiss := ""
-		if qmdConfig.CacheKey != "" {
-			ifCacheMiss = "        if: steps.qmd-cache-restore.outputs.cache-hit != 'true'\n"
-		}
+		// Build steps are skipped when the cache was already populated on a previous run.
+		ifCacheMiss := "        if: steps.qmd-cache-restore.outputs.cache-hit != 'true'\n"
 
 		// Setup Node.js (required to run the qmd SDK)
 		nodeSetup := "      - name: Setup Node.js for qmd\n"
-		if ifCacheMiss != "" {
-			nodeSetup += ifCacheMiss
-		}
+		nodeSetup += ifCacheMiss
 		nodeSetup += fmt.Sprintf("        uses: %s\n", GetActionPin("actions/setup-node"))
 		nodeSetup += "        with:\n"
 		nodeSetup += fmt.Sprintf("          node-version: \"%s\"\n", string(constants.DefaultNodeVersion))
@@ -342,9 +364,7 @@ func generateQmdIndexSteps(qmdConfig *QmdToolConfig, data *WorkflowData) []strin
 		// Install the @tobilu/qmd SDK into the gh-aw actions directory so qmd_index.cjs
 		// can require('@tobilu/qmd') via the adjacent node_modules folder.
 		npmInstall := "      - name: Install @tobilu/qmd SDK\n"
-		if ifCacheMiss != "" {
-			npmInstall += ifCacheMiss
-		}
+		npmInstall += ifCacheMiss
 		npmInstall += "        run: |\n"
 		npmInstall += fmt.Sprintf("          npm install --prefix \"${{ runner.temp }}/gh-aw/actions\" @tobilu/qmd@%s @actions/github\n", version)
 		steps = append(steps, npmInstall)
@@ -367,9 +387,7 @@ func generateQmdIndexSteps(qmdConfig *QmdToolConfig, data *WorkflowData) []strin
 		// Generate the github-script step that runs qmd_index.cjs
 		var scriptSB strings.Builder
 		scriptSB.WriteString("      - name: Build qmd index\n")
-		if ifCacheMiss != "" {
-			scriptSB.WriteString(ifCacheMiss)
-		}
+		scriptSB.WriteString(ifCacheMiss)
 		fmt.Fprintf(&scriptSB, "        uses: %s\n", GetActionPin("actions/github-script"))
 		scriptSB.WriteString("        env:\n")
 		// Pass the config JSON as an env var; the YAML literal block avoids quoting issues
@@ -390,10 +408,8 @@ func generateQmdIndexSteps(qmdConfig *QmdToolConfig, data *WorkflowData) []strin
 		scriptSB.WriteString("            await main();\n")
 		steps = append(steps, scriptSB.String())
 
-		// If cache-key is set, save the freshly-built index to cache (skipped on hit)
-		if qmdConfig.CacheKey != "" {
-			steps = append(steps, generateQmdCacheSaveStep(qmdConfig.CacheKey))
-		}
+		// Always save to cache (on build; skipped on cache hit by the save step condition).
+		steps = append(steps, generateQmdCacheSaveStep(cacheKey))
 	}
 
 	// Upload qmd index as a separate artifact for the agent job
@@ -480,11 +496,12 @@ func (c *Compiler) buildQmdIndexingJob(data *WorkflowData) (*Job, error) {
 	})
 
 	job := &Job{
-		Name:        string(constants.IndexingJobName),
-		RunsOn:      c.formatSafeOutputsRunsOn(data.SafeOutputs),
-		Permissions: perms.RenderToYAML(),
-		Steps:       steps,
-		Needs:       needs,
+		Name:           string(constants.IndexingJobName),
+		RunsOn:         c.formatSafeOutputsRunsOn(data.SafeOutputs),
+		Permissions:    perms.RenderToYAML(),
+		Steps:          steps,
+		Needs:          needs,
+		TimeoutMinutes: 60, // building the qmd index can take a while for large doc sets
 	}
 
 	return job, nil

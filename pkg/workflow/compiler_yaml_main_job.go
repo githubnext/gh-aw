@@ -280,10 +280,14 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 	}
 
 	// Download qmd index artifact if qmd tool is configured.
-	// The index was built in the activation job to avoid needing contents:read in the agent job.
+	// The index was built in the indexing job (which has contents:read).
+	// In addition to the artifact, the agent also restores from the Actions cache so that
+	// the index is available even if the artifact has expired.
 	if data.QmdConfig != nil {
 		compilerYamlLog.Print("Adding qmd index download step")
 		yaml.WriteString(generateQmdDownloadStep(data))
+		compilerYamlLog.Print("Adding qmd index cache restore step (read-only)")
+		yaml.WriteString(generateQmdIndexCacheRestoreStep(data.QmdConfig))
 		compilerYamlLog.Print("Adding qmd models cache restore step (read-only)")
 		yaml.WriteString(generateQmdModelsCacheRestoreStep())
 	}
