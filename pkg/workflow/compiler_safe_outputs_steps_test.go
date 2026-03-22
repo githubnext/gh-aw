@@ -283,7 +283,29 @@ func TestBuildSharedPRCheckoutSteps(t *testing.T) {
 			},
 		},
 		{
-			name: "push-to-pull-request-branch cross-repo with create-pr target-repo takes precedence",
+			name: "both safe outputs with same target-repo are deduplicated to one checkout",
+			safeOutputs: &SafeOutputsConfig{
+				CreatePullRequests: &CreatePullRequestsConfig{
+					BaseSafeOutputConfig: BaseSafeOutputConfig{
+						GitHubToken: "${{ secrets.CROSS_REPO_PAT }}",
+					},
+					TargetRepoSlug: "githubnext/gh-aw-side-repo",
+				},
+				PushToPullRequestBranch: &PushToPullRequestBranchConfig{
+					BaseSafeOutputConfig: BaseSafeOutputConfig{
+						GitHubToken: "${{ secrets.CROSS_REPO_PAT }}",
+					},
+					TargetRepoSlug: "githubnext/gh-aw-side-repo",
+				},
+			},
+			checkContains: []string{
+				// Deduplication: same repo registered by both outputs → exactly one checkout
+				"repository: githubnext/gh-aw-side-repo",
+				`REPO_NAME: "githubnext/gh-aw-side-repo"`,
+			},
+		},
+		{
+			name: "both safe outputs with different target-repos: create-pr repo is used (registered first)",
 			safeOutputs: &SafeOutputsConfig{
 				CreatePullRequests: &CreatePullRequestsConfig{
 					BaseSafeOutputConfig: BaseSafeOutputConfig{

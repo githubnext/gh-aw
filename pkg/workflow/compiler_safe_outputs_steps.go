@@ -68,35 +68,39 @@ func (c *Compiler) buildConsolidatedSafeOutputStep(data *WorkflowData, config Sa
 	return steps
 }
 
-// buildSafeOutputsCheckoutManager creates a CheckoutManager populated with the
-// checkout configuration derived from safe-output configurations.
+// buildSafeOutputsCheckoutManager creates a CheckoutManager by having each
+// enabled PR safe output independently register its checkout requirement.
+// CheckoutManager deduplicates registrations that share the same repository,
+// so two outputs targeting the same repo result in a single checkout step.
 //
-// The target repository is selected using the following priority chain:
-//  1. create-pull-request target-repo
-//  2. push-to-pull-request-branch target-repo
-//  3. trial mode logical repo
-//  4. default workflow repo (empty CheckoutManager, no repository override)
+// Registration order determines which repo GenerateSafeOutputsCheckoutStep
+// uses when multiple unique repos are present (create-pull-request registers
+// before push-to-pull-request-branch).
 //
-// The resulting manager exposes GetPrimaryTargetRepo() and
-// GenerateSafeOutputsCheckoutStep() for use by buildSharedPRCheckoutSteps.
+// The trial-mode override is applied only when no safe output registered a
+// cross-repo checkout, preserving default-repo checkout behaviour for the
+// common same-repo case.
 func (c *Compiler) buildSafeOutputsCheckoutManager(safeOutputs *SafeOutputsConfig) *CheckoutManager {
-	var cfg *CheckoutConfig
-
-	if safeOutputs.CreatePullRequests != nil && safeOutputs.CreatePullRequests.TargetRepoSlug != "" {
-		cfg = &CheckoutConfig{Repository: safeOutputs.CreatePullRequests.TargetRepoSlug}
-		consolidatedSafeOutputsStepsLog.Printf("buildSafeOutputsCheckoutManager: using target-repo from create-pull-request: %s", cfg.Repository)
-	} else if safeOutputs.PushToPullRequestBranch != nil && safeOutputs.PushToPullRequestBranch.TargetRepoSlug != "" {
-		cfg = &CheckoutConfig{Repository: safeOutputs.PushToPullRequestBranch.TargetRepoSlug}
-		consolidatedSafeOutputsStepsLog.Printf("buildSafeOutputsCheckoutManager: using target-repo from push-to-pull-request-branch: %s", cfg.Repository)
-	} else if c.trialMode && c.trialLogicalRepoSlug != "" {
-		cfg = &CheckoutConfig{Repository: c.trialLogicalRepoSlug}
-		consolidatedSafeOutputsStepsLog.Printf("buildSafeOutputsCheckoutManager: using trialLogicalRepoSlug: %s", cfg.Repository)
-	}
-
 	var configs []*CheckoutConfig
-	if cfg != nil {
-		configs = []*CheckoutConfig{cfg}
+
+	// Each safe output independently registers the checkout it needs.
+	// CheckoutManager deduplicates entries with the same (repository, path) key,
+	// so two outputs targeting the same cross-repo destination produce one step.
+	if safeOutputs.CreatePullRequests != nil && safeOutputs.CreatePullRequests.TargetRepoSlug != "" {
+		configs = append(configs, &CheckoutConfig{Repository: safeOutputs.CreatePullRequests.TargetRepoSlug})
+		consolidatedSafeOutputsStepsLog.Printf("buildSafeOutputsCheckoutManager: create-pull-request registered checkout for %s", safeOutputs.CreatePullRequests.TargetRepoSlug)
 	}
+	if safeOutputs.PushToPullRequestBranch != nil && safeOutputs.PushToPullRequestBranch.TargetRepoSlug != "" {
+		configs = append(configs, &CheckoutConfig{Repository: safeOutputs.PushToPullRequestBranch.TargetRepoSlug})
+		consolidatedSafeOutputsStepsLog.Printf("buildSafeOutputsCheckoutManager: push-to-pull-request-branch registered checkout for %s", safeOutputs.PushToPullRequestBranch.TargetRepoSlug)
+	}
+
+	// Trial mode: apply override only when no safe output registered a cross-repo checkout.
+	if len(configs) == 0 && c.trialMode && c.trialLogicalRepoSlug != "" {
+		configs = append(configs, &CheckoutConfig{Repository: c.trialLogicalRepoSlug})
+		consolidatedSafeOutputsStepsLog.Printf("buildSafeOutputsCheckoutManager: trial mode registered checkout for %s", c.trialLogicalRepoSlug)
+	}
+
 	return NewCheckoutManager(configs)
 }
 
