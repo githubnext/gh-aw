@@ -89,19 +89,30 @@ function generateDifcFilteredSection(filteredEvents) {
     return true;
   });
 
-  const count = uniqueEvents.length;
+  // Filter out #unknown references — these are unresolvable GitHub entities and not valid entries
+  const validEvents = uniqueEvents.filter(event => {
+    if (event.html_url) return true;
+    const desc = event.description ? event.description.replace(/^[a-z-]+:(?!\/\/)/i, "") : null;
+    return desc !== "#unknown";
+  });
+
+  if (validEvents.length === 0) {
+    return "";
+  }
+
+  const count = validEvents.length;
   const itemWord = count === 1 ? "item" : "items";
 
   let section = "\n\n> [!NOTE]\n";
   section += `> <details>\n`;
-  section += `> <summary>**🔒 Integrity filter blocked ${count} ${itemWord}**</summary>\n`;
+  section += `> <summary><b>🔒 Integrity filter blocked ${count} ${itemWord}</b></summary>\n`;
   section += `>\n`;
   section += `> The following ${itemWord} were blocked because they don't meet the GitHub integrity level.\n`;
   section += `>\n`;
 
   const maxItems = 16;
-  const visibleEvents = uniqueEvents.slice(0, maxItems);
-  const remainingCount = uniqueEvents.length - visibleEvents.length;
+  const visibleEvents = validEvents.slice(0, maxItems);
+  const remainingCount = validEvents.length - visibleEvents.length;
 
   for (const event of visibleEvents) {
     let reference;
