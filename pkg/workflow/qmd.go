@@ -90,8 +90,9 @@ func qmdHasSources(qmdConfig *QmdToolConfig) bool {
 }
 
 // generateQmdModelsCacheStep generates a step that caches the qmd embedding models directory
-// (~/.cache/qmd/models/).  It uses the combined actions/cache action (restore + post-save),
-// keyed by OS so that the cached models are compatible with the runner architecture.
+// (~/.cache/qmd/models/) and the node-llama-cpp downloaded binaries (~/.cache/node-llama-cpp/).
+// It uses the combined actions/cache action (restore + post-save), keyed by OS so that the
+// cached models and binaries are compatible with the runner architecture.
 // This step should be emitted in the activation job (before index building) to populate
 // the cache. For the agent job, use generateQmdModelsCacheRestoreStep instead.
 func generateQmdModelsCacheStep() string {
@@ -99,13 +100,16 @@ func generateQmdModelsCacheStep() string {
 	sb.WriteString("      - name: Cache qmd models\n")
 	fmt.Fprintf(&sb, "        uses: %s\n", GetActionPin("actions/cache"))
 	sb.WriteString("        with:\n")
-	sb.WriteString("          path: ~/.cache/qmd/models/\n")
+	sb.WriteString("          path: |\n")
+	sb.WriteString("            ~/.cache/qmd/models/\n")
+	sb.WriteString("            ~/.cache/node-llama-cpp/\n")
 	sb.WriteString("          key: qmd-models-${{ runner.os }}\n")
 	return sb.String()
 }
 
 // generateQmdModelsCacheRestoreStep generates a read-only step that restores the qmd embedding
-// models directory (~/.cache/qmd/models/) from GitHub Actions cache.  It uses
+// models directory (~/.cache/qmd/models/) and node-llama-cpp downloaded binaries
+// (~/.cache/node-llama-cpp/) from GitHub Actions cache.  It uses
 // actions/cache/restore (restore-only, no post-save) so the agent job never writes to the
 // shared cache — that is the indexing job's responsibility.
 func generateQmdModelsCacheRestoreStep() string {
@@ -113,7 +117,9 @@ func generateQmdModelsCacheRestoreStep() string {
 	sb.WriteString("      - name: Restore qmd models cache\n")
 	fmt.Fprintf(&sb, "        uses: %s\n", GetActionPin("actions/cache/restore"))
 	sb.WriteString("        with:\n")
-	sb.WriteString("          path: ~/.cache/qmd/models/\n")
+	sb.WriteString("          path: |\n")
+	sb.WriteString("            ~/.cache/qmd/models/\n")
+	sb.WriteString("            ~/.cache/node-llama-cpp/\n")
 	sb.WriteString("          key: qmd-models-${{ runner.os }}\n")
 	return sb.String()
 }
