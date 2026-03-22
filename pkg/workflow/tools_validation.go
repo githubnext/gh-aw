@@ -61,15 +61,17 @@ func validateGitHubToolConfig(tools *Tools, workflowName string) error {
 }
 
 // validateGitHubGuardPolicy validates the GitHub guard policy configuration.
-// Guard policy fields (repos, min-integrity) are specified flat under github:.
-// If repos is not specified but min-integrity is, repos defaults to "all".
+// Guard policy fields (allowed-repos, min-integrity) are specified flat under github:.
+// Note: 'repos' is a deprecated alias for 'allowed-repos'.
+// If allowed-repos (or deprecated alias repos) is not specified but min-integrity is, allowed-repos defaults to "all".
 func validateGitHubGuardPolicy(tools *Tools, workflowName string) error {
 	if tools == nil || tools.GitHub == nil {
 		return nil
 	}
 
 	github := tools.GitHub
-	hasRepos := github.Repos != nil
+	// AllowedRepos is populated from either 'allowed-repos' (preferred) or deprecated 'repos' during parsing
+	hasRepos := github.AllowedRepos != nil
 	hasMinIntegrity := github.MinIntegrity != ""
 
 	// No guard policy fields present - nothing to validate
@@ -77,14 +79,14 @@ func validateGitHubGuardPolicy(tools *Tools, workflowName string) error {
 		return nil
 	}
 
-	// Default repos to "all" when not specified
+	// Default allowed-repos to "all" when not specified
 	if !hasRepos {
-		toolsValidationLog.Printf("Defaulting repos to 'all' in guard policy for workflow: %s", workflowName)
-		github.Repos = "all"
+		toolsValidationLog.Printf("Defaulting allowed-repos (repos) to 'all' in guard policy for workflow: %s", workflowName)
+		github.AllowedRepos = "all"
 	}
 
 	// Validate repos format
-	if err := validateReposScope(github.Repos, workflowName); err != nil {
+	if err := validateReposScope(github.AllowedRepos, workflowName); err != nil {
 		return err
 	}
 
@@ -116,7 +118,7 @@ func validateReposScope(repos any, workflowName string) error {
 	if reposStr, ok := repos.(string); ok {
 		if reposStr != "all" && reposStr != "public" {
 			toolsValidationLog.Printf("Invalid repos string '%s' in workflow: %s", reposStr, workflowName)
-			return errors.New("invalid guard policy: 'github.repos' string must be 'all' or 'public'. Got: '" + reposStr + "'")
+			return errors.New("invalid guard policy: 'github.allowed-repos' string must be 'all' or 'public'. Got: '" + reposStr + "'")
 		}
 		return nil
 	}
@@ -125,14 +127,14 @@ func validateReposScope(repos any, workflowName string) error {
 	if reposArray, ok := repos.([]any); ok {
 		if len(reposArray) == 0 {
 			toolsValidationLog.Printf("Empty repos array in workflow: %s", workflowName)
-			return errors.New("invalid guard policy: 'github.repos' array cannot be empty. Provide at least one repository pattern")
+			return errors.New("invalid guard policy: 'github.allowed-repos' array cannot be empty. Provide at least one repository pattern")
 		}
 
 		for i, item := range reposArray {
 			pattern, ok := item.(string)
 			if !ok {
 				toolsValidationLog.Printf("Non-string item in repos array at index %d in workflow: %s", i, workflowName)
-				return errors.New("invalid guard policy: 'github.repos' array must contain only strings")
+				return errors.New("invalid guard policy: 'github.allowed-repos' array must contain only strings")
 			}
 
 			if err := validateRepoPattern(pattern, workflowName); err != nil {
@@ -147,7 +149,7 @@ func validateReposScope(repos any, workflowName string) error {
 	if reposArray, ok := repos.([]string); ok {
 		if len(reposArray) == 0 {
 			toolsValidationLog.Printf("Empty repos array in workflow: %s", workflowName)
-			return errors.New("invalid guard policy: 'github.repos' array cannot be empty. Provide at least one repository pattern")
+			return errors.New("invalid guard policy: 'github.allowed-repos' array cannot be empty. Provide at least one repository pattern")
 		}
 
 		for _, pattern := range reposArray {
@@ -161,7 +163,7 @@ func validateReposScope(repos any, workflowName string) error {
 
 	// Invalid type
 	toolsValidationLog.Printf("Invalid repos type in workflow: %s", workflowName)
-	return errors.New("invalid guard policy: 'github.repos' must be 'all', 'public', or an array of repository patterns")
+	return errors.New("invalid guard policy: 'github.allowed-repos' must be 'all', 'public', or an array of repository patterns")
 }
 
 // validateRepoPattern validates a single repository pattern

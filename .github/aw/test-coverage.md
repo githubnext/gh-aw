@@ -31,7 +31,6 @@ on:
   pull_request:
     types: [opened, synchronize]
 permissions:
-  pull-requests: write  # post coverage comment
   actions: read         # download artifacts
 network: defaults
 tools:
