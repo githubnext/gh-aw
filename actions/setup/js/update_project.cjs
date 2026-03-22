@@ -1237,7 +1237,7 @@ async function main(config = {}, githubClient = null) {
   const { defaultTargetRepo, allowedRepos } = resolveTargetRepoConfig(config);
 
   // Check if we're in staged mode
-  const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true";
+  const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true" || config.staged === true;
 
   if (configuredViews.length > 0) {
     core.info(`Found ${configuredViews.length} configured view(s) in frontmatter`);

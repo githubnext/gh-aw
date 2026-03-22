@@ -298,7 +298,7 @@ async function main(config = {}, githubClient = null) {
   const configuredViews = Array.isArray(config.views) ? config.views : [];
 
   // Check if we're in staged mode
-  const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true";
+  const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true" || config.staged === true;
 
   // Use the provided github client, or fall back to the global github object
   // The global github object is available when running via github-script action

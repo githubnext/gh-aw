@@ -34,7 +34,7 @@ async function main(config = {}) {
   const maxCount = config.max || 10;
   const replyTarget = config.target || "triggering";
   const includeFooter = parseBoolTemplatable(config.footer, true);
-  const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true";
+  const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true" || config.staged === true;
   const { defaultTargetRepo, allowedRepos } = resolveTargetRepoConfig(config);
   const githubClient = await createAuthenticatedGitHubClient(config);
 

@@ -28,7 +28,7 @@ const { buildWorkflowRunUrl } = require("./workflow_metadata_helpers.cjs");
  */
 async function main(config = {}) {
   // Check if we're in staged mode
-  const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true";
+  const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true" || config.staged === true;
   const workflowName = process.env.GH_AW_WORKFLOW_NAME || "GitHub Agentic Workflow";
   const includeFooter = parseBoolTemplatable(config.footer, true);
   const githubClient = await createAuthenticatedGitHubClient(config);

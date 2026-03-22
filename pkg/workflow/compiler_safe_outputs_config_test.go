@@ -1721,6 +1721,113 @@ func TestHandlerConfigStagedMode(t *testing.T) {
 			},
 			handlerKey: "close_pull_request",
 		},
+		{
+			name: "create_issue staged",
+			safeOutputs: &SafeOutputsConfig{
+				CreateIssues: &CreateIssuesConfig{
+					BaseSafeOutputConfig: BaseSafeOutputConfig{
+						Staged: true,
+					},
+				},
+			},
+			handlerKey: "create_issue",
+		},
+		{
+			name: "add_comment staged",
+			safeOutputs: &SafeOutputsConfig{
+				AddComments: &AddCommentsConfig{
+					BaseSafeOutputConfig: BaseSafeOutputConfig{
+						Staged: true,
+					},
+				},
+			},
+			handlerKey: "add_comment",
+		},
+		{
+			name: "create_pull_request staged",
+			safeOutputs: &SafeOutputsConfig{
+				CreatePullRequests: &CreatePullRequestsConfig{
+					BaseSafeOutputConfig: BaseSafeOutputConfig{
+						Staged: true,
+					},
+				},
+			},
+			handlerKey: "create_pull_request",
+		},
+		{
+			name: "update_issue staged",
+			safeOutputs: &SafeOutputsConfig{
+				UpdateIssues: &UpdateIssuesConfig{
+					UpdateEntityConfig: UpdateEntityConfig{
+						BaseSafeOutputConfig: BaseSafeOutputConfig{
+							Staged: true,
+						},
+					},
+				},
+			},
+			handlerKey: "update_issue",
+		},
+		{
+			name: "update_pull_request staged",
+			safeOutputs: &SafeOutputsConfig{
+				UpdatePullRequests: &UpdatePullRequestsConfig{
+					UpdateEntityConfig: UpdateEntityConfig{
+						BaseSafeOutputConfig: BaseSafeOutputConfig{
+							Staged: true,
+						},
+					},
+				},
+			},
+			handlerKey: "update_pull_request",
+		},
+		{
+			name: "update_discussion staged",
+			safeOutputs: &SafeOutputsConfig{
+				UpdateDiscussions: &UpdateDiscussionsConfig{
+					UpdateEntityConfig: UpdateEntityConfig{
+						BaseSafeOutputConfig: BaseSafeOutputConfig{
+							Staged: true,
+						},
+					},
+				},
+			},
+			handlerKey: "update_discussion",
+		},
+		{
+			name: "add_labels staged",
+			safeOutputs: &SafeOutputsConfig{
+				AddLabels: &AddLabelsConfig{
+					BaseSafeOutputConfig: BaseSafeOutputConfig{
+						Staged: true,
+					},
+				},
+			},
+			handlerKey: "add_labels",
+		},
+		{
+			name: "dispatch_workflow staged",
+			safeOutputs: &SafeOutputsConfig{
+				DispatchWorkflow: &DispatchWorkflowConfig{
+					BaseSafeOutputConfig: BaseSafeOutputConfig{
+						Staged: true,
+					},
+					Workflows: []string{"my-workflow"},
+				},
+			},
+			handlerKey: "dispatch_workflow",
+		},
+		{
+			name: "call_workflow staged",
+			safeOutputs: &SafeOutputsConfig{
+				CallWorkflow: &CallWorkflowConfig{
+					BaseSafeOutputConfig: BaseSafeOutputConfig{
+						Staged: true,
+					},
+					Workflows: []string{"my-workflow"},
+				},
+			},
+			handlerKey: "call_workflow",
+		},
 	}
 
 	for _, tt := range tests {

@@ -103,7 +103,7 @@ async function main(config = {}) {
   const triggeringPRNumber = getPRNumber(context.payload);
 
   // Check if we're in staged mode
-  const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true";
+  const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true" || config.staged === true;
 
   core.info(`Resolve PR review thread configuration: max=${maxCount}, target=${resolveTarget}, triggeringPR=${triggeringPRNumber || "none"}`);
   core.info(`Default target repo: ${defaultTargetRepo}`);

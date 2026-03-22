@@ -19,7 +19,7 @@ const HANDLER_TYPE = "autofix_code_scanning_alert";
 async function main(config = {}) {
   // Extract configuration
   const maxCount = config.max || 10;
-  const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true";
+  const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true" || config.staged === true;
 
   core.info(`Add code scanning autofix configuration: max=${maxCount}`);
   if (isStaged) logStagedPreviewInfo("no changes will be written");

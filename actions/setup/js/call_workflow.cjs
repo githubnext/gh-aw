@@ -9,6 +9,7 @@
 const HANDLER_TYPE = "call_workflow";
 
 const { getErrorMessage } = require("./error_helpers.cjs");
+const { logStagedPreviewInfo } = require("./staged_preview.cjs");
 
 /**
  * Main handler factory for call_workflow.
@@ -31,6 +32,7 @@ async function main(config = {}) {
 
   // Track how many items we've processed for max limit
   let processedCount = 0;
+  const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true" || config.staged === true;
 
   /**
    * Message handler function that processes a single call_workflow message.
@@ -84,6 +86,17 @@ async function main(config = {}) {
       /** @type {Record<string, unknown>} */
       const inputs = message.inputs && typeof message.inputs === "object" ? message.inputs : {};
       const payloadJson = JSON.stringify(inputs);
+
+      // If in staged mode, preview the workflow call without executing it
+      if (isStaged) {
+        logStagedPreviewInfo(`Would call workflow: ${workflowName} with payload: ${payloadJson}`);
+        return {
+          success: true,
+          staged: true,
+          workflow_name: workflowName,
+          payload: payloadJson,
+        };
+      }
 
       // Set the step outputs that the conditional `uses:` jobs check
       core.setOutput("call_workflow_name", workflowName);
