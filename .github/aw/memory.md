@@ -156,15 +156,15 @@ tools:
     allowed-extensions: [".json", ".md"]
     max-file-size: 10240              # bytes
     max-file-count: 100
-permissions:
-  contents: write                     # Required: repo-memory writes to the repo
 ```
+
+The compiler automatically creates a separate `push_repo_memory` job with `contents: write` permission. The main agent job retains read-only permissions.
 
 ### Tradeoffs
 
 | ✅ Pros | ❌ Cons |
 |---|---|
-| Persists indefinitely (no expiry) | Requires `contents: write` permission |
+| Persists indefinitely (no expiry) | Produces Git commits — repository noise |
 | Auditable: Git history shows every change | Produces Git commits — repository noise |
 | Survives cache invalidation | Slower: requires Git clone + push |
 | Human-readable via GitHub branch UI | Not available for Copilot engine (requires GitHub tools) |
@@ -189,9 +189,9 @@ tools:
   repo-memory:
     wiki: true
     allowed-extensions: [".md"]
-permissions:
-  contents: write   # Required: wiki writes via push
 ```
+
+The compiler automatically creates a separate `push_repo_memory` job with `contents: write` permission. The main agent job retains read-only permissions.
 
 Files follow GitHub Wiki Markdown conventions: use `[[Page Name]]` syntax for internal links, name files with hyphens instead of spaces.
 
@@ -199,7 +199,7 @@ Files follow GitHub Wiki Markdown conventions: use `[[Page Name]]` syntax for in
 
 | ✅ Pros | ❌ Cons |
 |---|---|
-| Browsable in the GitHub Wiki UI | Requires `contents: write` permission |
+| Browsable in the GitHub Wiki UI | Produces Git commits to wiki repo |
 | Great for human-readable knowledge bases | Produces Git commits to wiki repo |
 | Standard Markdown with wiki link syntax | Restricted to `.md` files in practice |
 | Separate from main repo history | Less suitable for structured JSON state |
@@ -213,7 +213,7 @@ Files follow GitHub Wiki Markdown conventions: use `[[Page Name]]` syntax for in
 | **First choice** | ✅ Yes | No | No |
 | **Storage backend** | GitHub Actions cache | Git branch | GitHub Wiki |
 | **Persistence** | Up to 90 days | Indefinite | Indefinite |
-| **Requires `contents: write`** | No | Yes | Yes |
+| **Compiler adds `contents: write`** | No | Yes (push job) | Yes (push job) |
 | **Repository noise** | None | Git commits | Wiki commits |
 | **Human-readable in GitHub** | No | Via branch UI | Via Wiki UI |
 | **Structured data (JSON)** | ✅ Ideal | Possible | Not recommended |

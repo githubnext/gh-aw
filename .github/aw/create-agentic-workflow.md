@@ -603,7 +603,6 @@ on:
   label_command: deploy
 permissions:
   contents: read
-  pull-requests: write  # Required for automatic label removal
 safe-outputs:
   add-comment:
     max: 1
