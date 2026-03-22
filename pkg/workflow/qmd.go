@@ -483,6 +483,34 @@ func generateQmdDownloadStep(data *WorkflowData) string {
 	return sb.String()
 }
 
+// generateQmdStartServerStep generates the agent job step that starts the qmd MCP server
+// with HTTP transport. The server is started before the MCP gateway so that node-llama-cpp
+// has time to download llama.cpp binaries and embedding model weights if needed — this can
+// take several minutes on the first run. A health probe loop in start_qmd_server.sh waits
+// up to 10 minutes for the server to become ready before the agent starts.
+//
+// The step id is "qmd-server-start" and it emits a "port" output used by downstream steps.
+func generateQmdStartServerStep(qmdConfig *QmdToolConfig) string {
+	var sb strings.Builder
+	sb.WriteString("      - name: Start qmd MCP HTTP server\n")
+	sb.WriteString("        id: qmd-server-start\n")
+	sb.WriteString("        env:\n")
+	fmt.Fprintf(&sb, "          GH_AW_QMD_PORT: \"%d\"\n", constants.DefaultQmdPort)
+	sb.WriteString("          QMD_CACHE_DIR: /tmp/gh-aw/qmd-index\n")
+	// Disable GPU by default; only enable when the user explicitly opts in.
+	if !qmdConfig.GPU {
+		sb.WriteString("          NODE_LLAMA_CPP_GPU: \"false\"\n")
+	}
+	sb.WriteString("        run: |\n")
+	sb.WriteString("          export GH_AW_QMD_PORT\n")
+	sb.WriteString("          export QMD_CACHE_DIR\n")
+	if !qmdConfig.GPU {
+		sb.WriteString("          export NODE_LLAMA_CPP_GPU\n")
+	}
+	sb.WriteString("          bash ${RUNNER_TEMP}/gh-aw/actions/start_qmd_server.sh\n")
+	return sb.String()
+}
+
 // buildQmdIndexingJob builds a standalone "indexing" job that depends on the activation job
 // and builds the qmd documentation search index.
 //

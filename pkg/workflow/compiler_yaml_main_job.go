@@ -290,6 +290,8 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 		yaml.WriteString(generateQmdIndexCacheRestoreStep(data.QmdConfig))
 		compilerYamlLog.Print("Adding qmd models cache restore step (read-only)")
 		yaml.WriteString(generateQmdModelsCacheRestoreStep())
+		compilerYamlLog.Print("Adding qmd MCP server start step")
+		yaml.WriteString(generateQmdStartServerStep(data.QmdConfig))
 	}
 
 	// GH_AW_SAFE_OUTPUTS is now set at job level, no setup step needed

@@ -124,6 +124,12 @@ func collectMCPEnvironmentVariables(tools map[string]any, mcpTools []string, wor
 		envVars["GH_AW_SAFE_OUTPUTS_API_KEY"] = "${{ steps.safe-outputs-start.outputs.api_key }}"
 	}
 
+	// Add qmd server port env var if qmd tool is configured.
+	// The port is emitted by the "Start qmd MCP HTTP server" step (id: qmd-server-start).
+	if workflowData != nil && workflowData.QmdConfig != nil {
+		envVars["GH_AW_QMD_PORT"] = "${{ steps.qmd-server-start.outputs.port }}"
+	}
+
 	// Check for agentic-workflows GITHUB_TOKEN
 	if hasAgenticWorkflows {
 		envVars["GITHUB_TOKEN"] = "${{ secrets.GITHUB_TOKEN }}"
