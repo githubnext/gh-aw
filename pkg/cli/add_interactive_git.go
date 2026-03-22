@@ -186,17 +186,6 @@ func (c *AddInteractiveConfig) createWorkflowPRAndConfigureSecret(ctx context.Co
 		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Secret '%s' added", secretName)))
 	}
 
-	// Step 8d: Update local branch with merged changes from GitHub.
-	// Switch to the default branch and pull so that workflow files are available
-	// locally for the subsequent "run workflow" step.
-	if err := c.updateLocalBranch(); err != nil {
-		// Non-fatal - warn the user and continue; the workflow exists on GitHub
-		// even if we can't update the local branch.
-		addInteractiveLog.Printf("Failed to update local branch: %v", err)
-		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Could not update local branch: %v", err)))
-		fmt.Fprintln(os.Stderr, "You may need to switch to your repository's default branch (for example 'main') and run 'git pull' manually before running the workflow.")
-	}
-
 	return nil
 }
 
