@@ -265,6 +265,45 @@ func TestBuildSharedPRCheckoutSteps(t *testing.T) {
 			},
 		},
 		{
+			name: "push-to-pull-request-branch cross-repo uses target-repo for checkout",
+			safeOutputs: &SafeOutputsConfig{
+				PushToPullRequestBranch: &PushToPullRequestBranchConfig{
+					BaseSafeOutputConfig: BaseSafeOutputConfig{
+						GitHubToken: "${{ secrets.GH_AW_SIDE_REPO_PAT }}",
+					},
+					TargetRepoSlug: "githubnext/gh-aw-side-repo",
+					Target:         "1",
+				},
+			},
+			checkContains: []string{
+				"repository: githubnext/gh-aw-side-repo",
+				"token: ${{ secrets.GH_AW_SIDE_REPO_PAT }}",
+				"GIT_TOKEN: ${{ secrets.GH_AW_SIDE_REPO_PAT }}",
+				`REPO_NAME: "githubnext/gh-aw-side-repo"`,
+			},
+		},
+		{
+			name: "push-to-pull-request-branch cross-repo with create-pr target-repo takes precedence",
+			safeOutputs: &SafeOutputsConfig{
+				CreatePullRequests: &CreatePullRequestsConfig{
+					BaseSafeOutputConfig: BaseSafeOutputConfig{
+						GitHubToken: "${{ secrets.CREATE_PR_PAT }}",
+					},
+					TargetRepoSlug: "org/create-pr-repo",
+				},
+				PushToPullRequestBranch: &PushToPullRequestBranchConfig{
+					BaseSafeOutputConfig: BaseSafeOutputConfig{
+						GitHubToken: "${{ secrets.PUSH_BRANCH_PAT }}",
+					},
+					TargetRepoSlug: "org/push-branch-repo",
+				},
+			},
+			checkContains: []string{
+				"repository: org/create-pr-repo",
+				`REPO_NAME: "org/create-pr-repo"`,
+			},
+		},
+		{
 			name: "both operations with create-pr token takes precedence",
 			safeOutputs: &SafeOutputsConfig{
 				CreatePullRequests: &CreatePullRequestsConfig{
