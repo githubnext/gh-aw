@@ -26,7 +26,7 @@
 #   Imports:
 #     - shared/mcp/qmd-docs.md
 #
-# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"5facce64914a7d06bb8d04f2a39910364eb7c2fc900ebe24f55cafe987360607","strict":true,"agent_id":"copilot"}
+# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"d3616bebf0ca05293c233c906b37d0bc28fbdbd038a6a39e1bf2750cb4742515","strict":true,"agent_id":"copilot"}
 
 name: "Weekly Blog Post Writer"
 "on":

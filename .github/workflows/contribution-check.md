@@ -15,7 +15,7 @@ env:
 tools:
   github:
     toolsets: [default]
-    repos: all
+    allowed-repos: all
     min-integrity: none
 safe-outputs:
   create-issue:

@@ -16,7 +16,7 @@ strict: true
 tools:
   github:
     mode: local
-    repos: "all"
+    allowed-repos: "all"
     min-integrity: none
 network:
   allowed:
