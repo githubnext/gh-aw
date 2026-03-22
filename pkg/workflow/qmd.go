@@ -566,8 +566,8 @@ func (c *Compiler) buildQmdIndexingJob(data *WorkflowData) (*Job, error) {
 	})
 
 	// Determine the runner for the indexing job.
-	// The user can override via qmd.runs-on; otherwise fall back to the safe-outputs runner.
-	indexingRunsOn := c.formatSafeOutputsRunsOn(data.SafeOutputs)
+	// Default to ubuntu-latest; user can override via qmd.runs-on.
+	indexingRunsOn := "runs-on: ubuntu-latest"
 	if data.QmdConfig.RunsOn != "" {
 		indexingRunsOn = "runs-on: " + data.QmdConfig.RunsOn
 	}

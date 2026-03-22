@@ -428,13 +428,6 @@ jobs:
         with:
           name: qmd-index
           path: /tmp/gh-aw/qmd-index/
-      - name: Restore qmd index from cache
-        uses: actions/cache/restore@668228422ae6a00e4ad889ee87cd7109ec5666a7 # v5.0.4
-        with:
-          key: gh-aw-qmd-${{ github.run_id }}
-          path: /tmp/gh-aw/qmd-index/
-          restore-keys: |
-            gh-aw-qmd-
       - name: Restore qmd models cache
         uses: actions/cache/restore@668228422ae6a00e4ad889ee87cd7109ec5666a7 # v5.0.4
         with:
@@ -1496,7 +1489,7 @@ jobs:
 
   indexing:
     needs: activation
-    runs-on: ubuntu-slim
+    runs-on: ubuntu-latest
     permissions:
       contents: read
     timeout-minutes: 60
