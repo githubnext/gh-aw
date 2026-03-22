@@ -431,10 +431,13 @@ jobs:
       - name: Restore qmd models cache
         uses: actions/cache/restore@668228422ae6a00e4ad889ee87cd7109ec5666a7 # v5.0.4
         with:
-          path: |
-            ~/.cache/qmd/models/
-            ~/.cache/node-llama-cpp/
+          path: ~/.cache/qmd/models/
           key: qmd-models-${{ runner.os }}
+      - name: Restore node-llama-cpp cache
+        uses: actions/cache/restore@668228422ae6a00e4ad889ee87cd7109ec5666a7 # v5.0.4
+        with:
+          path: ~/.cache/node-llama-cpp/
+          key: node-llama-cpp-${{ runner.os }}-${{ runner.arch }}
       - name: Start qmd MCP HTTP server
         id: qmd-server-start
         env:
@@ -1522,10 +1525,13 @@ jobs:
       - name: Cache qmd models
         uses: actions/cache@668228422ae6a00e4ad889ee87cd7109ec5666a7 # v5.0.4
         with:
-          path: |
-            ~/.cache/qmd/models/
-            ~/.cache/node-llama-cpp/
+          path: ~/.cache/qmd/models/
           key: qmd-models-${{ runner.os }}
+      - name: Cache node-llama-cpp binaries
+        uses: actions/cache@668228422ae6a00e4ad889ee87cd7109ec5666a7 # v5.0.4
+        with:
+          path: ~/.cache/node-llama-cpp/
+          key: node-llama-cpp-${{ runner.os }}-${{ runner.arch }}
       - name: Setup Node.js for qmd
         if: steps.qmd-cache-restore.outputs.cache-hit != 'true'
         uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6.3.0

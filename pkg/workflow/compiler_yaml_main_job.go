@@ -287,6 +287,8 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 		yaml.WriteString(generateQmdIndexCacheRestoreExactStep(data.QmdConfig))
 		compilerYamlLog.Print("Adding qmd models cache restore step (read-only)")
 		yaml.WriteString(generateQmdModelsCacheRestoreStep())
+		compilerYamlLog.Print("Adding node-llama-cpp cache restore step (read-only)")
+		yaml.WriteString(generateQmdNodeLlamaCppCacheRestoreStep())
 		compilerYamlLog.Print("Adding qmd MCP server start step")
 		yaml.WriteString(generateQmdStartServerStep(data.QmdConfig))
 	}

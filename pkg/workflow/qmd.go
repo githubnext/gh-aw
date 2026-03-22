@@ -91,26 +91,37 @@ func qmdHasSources(qmdConfig *QmdToolConfig) bool {
 }
 
 // generateQmdModelsCacheStep generates a step that caches the qmd embedding models directory
-// (~/.cache/qmd/models/) and the node-llama-cpp downloaded binaries (~/.cache/node-llama-cpp/).
-// It uses the combined actions/cache action (restore + post-save), keyed by OS so that the
-// cached models and binaries are compatible with the runner architecture.
-// This step should be emitted in the activation job (before index building) to populate
+// (~/.cache/qmd/models/) using the actions/cache action (restore + post-save), keyed by OS.
+// This step should be emitted in the indexing job (before index building) to populate
 // the cache. For the agent job, use generateQmdModelsCacheRestoreStep instead.
 func generateQmdModelsCacheStep() string {
 	var sb strings.Builder
 	sb.WriteString("      - name: Cache qmd models\n")
 	fmt.Fprintf(&sb, "        uses: %s\n", GetActionPin("actions/cache"))
 	sb.WriteString("        with:\n")
-	sb.WriteString("          path: |\n")
-	sb.WriteString("            ~/.cache/qmd/models/\n")
-	sb.WriteString("            ~/.cache/node-llama-cpp/\n")
+	sb.WriteString("          path: ~/.cache/qmd/models/\n")
 	sb.WriteString("          key: qmd-models-${{ runner.os }}\n")
 	return sb.String()
 }
 
+// generateQmdNodeLlamaCppCacheStep generates a step that caches the node-llama-cpp downloaded
+// binaries (~/.cache/node-llama-cpp/) using the actions/cache action (restore + post-save).
+// The cache key includes both OS and CPU architecture because the node-llama-cpp binaries are
+// compiled native code that must match the exact runner image platform.
+// This step should be emitted in the indexing job. For the agent job, use
+// generateQmdNodeLlamaCppCacheRestoreStep instead.
+func generateQmdNodeLlamaCppCacheStep() string {
+	var sb strings.Builder
+	sb.WriteString("      - name: Cache node-llama-cpp binaries\n")
+	fmt.Fprintf(&sb, "        uses: %s\n", GetActionPin("actions/cache"))
+	sb.WriteString("        with:\n")
+	sb.WriteString("          path: ~/.cache/node-llama-cpp/\n")
+	sb.WriteString("          key: node-llama-cpp-${{ runner.os }}-${{ runner.arch }}\n")
+	return sb.String()
+}
+
 // generateQmdModelsCacheRestoreStep generates a read-only step that restores the qmd embedding
-// models directory (~/.cache/qmd/models/) and node-llama-cpp downloaded binaries
-// (~/.cache/node-llama-cpp/) from GitHub Actions cache.  It uses
+// models directory (~/.cache/qmd/models/) from GitHub Actions cache.  It uses
 // actions/cache/restore (restore-only, no post-save) so the agent job never writes to the
 // shared cache — that is the indexing job's responsibility.
 func generateQmdModelsCacheRestoreStep() string {
@@ -118,10 +129,23 @@ func generateQmdModelsCacheRestoreStep() string {
 	sb.WriteString("      - name: Restore qmd models cache\n")
 	fmt.Fprintf(&sb, "        uses: %s\n", GetActionPin("actions/cache/restore"))
 	sb.WriteString("        with:\n")
-	sb.WriteString("          path: |\n")
-	sb.WriteString("            ~/.cache/qmd/models/\n")
-	sb.WriteString("            ~/.cache/node-llama-cpp/\n")
+	sb.WriteString("          path: ~/.cache/qmd/models/\n")
 	sb.WriteString("          key: qmd-models-${{ runner.os }}\n")
+	return sb.String()
+}
+
+// generateQmdNodeLlamaCppCacheRestoreStep generates a read-only step that restores the
+// node-llama-cpp downloaded binaries (~/.cache/node-llama-cpp/) from GitHub Actions cache.
+// It uses actions/cache/restore (restore-only, no post-save) so the agent job never writes
+// to the shared cache — that is the indexing job's responsibility.
+// The cache key includes both OS and CPU architecture to ensure binary compatibility.
+func generateQmdNodeLlamaCppCacheRestoreStep() string {
+	var sb strings.Builder
+	sb.WriteString("      - name: Restore node-llama-cpp cache\n")
+	fmt.Fprintf(&sb, "        uses: %s\n", GetActionPin("actions/cache/restore"))
+	sb.WriteString("        with:\n")
+	sb.WriteString("          path: ~/.cache/node-llama-cpp/\n")
+	sb.WriteString("          key: node-llama-cpp-${{ runner.os }}-${{ runner.arch }}\n")
 	return sb.String()
 }
 
@@ -381,7 +405,11 @@ func generateQmdIndexSteps(qmdConfig *QmdToolConfig) []string {
 	steps = append(steps, generateQmdCacheRestoreStep(qmdConfig))
 
 	// Always cache qmd embedding models to avoid re-downloading on each run
+	// Cache qmd models and node-llama-cpp binaries in separate caches so they can be
+	// invalidated independently. The node-llama-cpp key also includes the CPU architecture
+	// because those binaries are compiled native code that must match the runner platform.
 	steps = append(steps, generateQmdModelsCacheStep())
+	steps = append(steps, generateQmdNodeLlamaCppCacheStep())
 
 	// Cache-only mode: no indexing at all — just use the restored cache
 	if isCacheOnlyMode {
