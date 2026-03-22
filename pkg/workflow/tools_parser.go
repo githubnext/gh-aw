@@ -437,6 +437,12 @@ func parseQmdDocCollection(m map[string]any, index int) *QmdDocCollection {
 func parseQmdSearchEntry(m map[string]any) *QmdSearchEntry {
 	entry := &QmdSearchEntry{}
 
+	if n, ok := m["name"].(string); ok {
+		entry.Name = n
+	}
+	if t, ok := m["type"].(string); ok {
+		entry.Type = t
+	}
 	if q, ok := m["query"].(string); ok {
 		entry.Query = q
 	}

@@ -27,7 +27,7 @@
 #     - shared/gh.md
 #     - shared/reporting.md
 #
-# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"0f4668b9ab1badf192f489c4a66a16cdaa218a0f31d7ad325ec26159e0d7e4d8","strict":true,"agent_id":"codex"}
+# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"338f7f38ce542d6b99d8013d5aff53a4148ff2d6cb6cb63423c91b6def49b84e","strict":true,"agent_id":"codex"}
 
 name: "Smoke Codex"
 "on":
@@ -190,6 +190,7 @@ jobs:
           cat "${RUNNER_TEMP}/gh-aw/prompts/temp_folder_prompt.md"
           cat "${RUNNER_TEMP}/gh-aw/prompts/markdown.md"
           cat "${RUNNER_TEMP}/gh-aw/prompts/playwright_prompt.md"
+          cat "${RUNNER_TEMP}/gh-aw/prompts/qmd_prompt.md"
           cat "${RUNNER_TEMP}/gh-aw/prompts/cache_memory_prompt.md"
           cat "${RUNNER_TEMP}/gh-aw/prompts/safe_outputs_prompt.md"
           cat << 'GH_AW_PROMPT_EOF'
@@ -308,6 +309,58 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: bash ${RUNNER_TEMP}/gh-aw/actions/print_prompt_summary.sh
+      - name: Cache qmd models
+        uses: actions/cache@668228422ae6a00e4ad889ee87cd7109ec5666a7 # v5.0.4
+        with:
+          path: ~/.cache/qmd/models/
+          key: qmd-models-${{ runner.os }}
+      - name: Setup Node.js for qmd
+        uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6.3.0
+        with:
+          node-version: "24"
+      - name: Install qmd
+        run: |
+          npm install -g @tobilu/qmd@0.0.16
+      - name: Build qmd index
+        run: |
+          set -e
+          mkdir -p /tmp/gh-aw/qmd-index
+          QMD_CACHE_DIR=/tmp/gh-aw/qmd-index qmd collection add "${GITHUB_WORKSPACE}" --name 'docs' --glob 'docs/src/**/*.md,docs/src/**/*.mdx' --context 'gh-aw project documentation'
+      - name: Fetch GitHub issues for qmd collection "issues"
+        run: |
+          set -e
+          mkdir -p /tmp/gh-aw/qmd-search-0
+          # Fetch open issues and save each as a markdown file
+          GH_TOKEN=${{ secrets.GITHUB_TOKEN }} gh issue list --repo '${{ github.repository }}' --state open --limit 500 --json number,title,body | \
+            jq -r '.[] | "## " + (.number | tostring) + ": " + .title + "\n\n" + (.body // "") | @text' | \
+            awk 'BEGIN{n=0} /^## [0-9]+:/{n++; file="/tmp/gh-aw/qmd-search-0/issue-" n ".md"} {print > file}'
+          QMD_CACHE_DIR=/tmp/gh-aw/qmd-index qmd collection add '/tmp/gh-aw/qmd-search-0' --name 'issues' --glob '**/*'
+      - name: Summarize qmd index
+        if: always()
+        run: |
+          {
+            echo '## qmd documentation index'
+            echo ''
+            echo '### Collections'
+            echo ''
+            echo '| Name | Paths | Context |'
+            echo '| --- | --- | --- |'
+            echo '| docs | docs/src/**/*.md, docs/src/**/*.mdx | gh-aw project documentation |'
+            echo ''
+            echo '### Searches'
+            echo ''
+            echo '| Query | Min | Max |'
+            echo '| --- | --- | --- |'
+            echo '|  | - | 500 |'
+            echo ''
+          } >> $GITHUB_STEP_SUMMARY
+      - name: Upload qmd index artifact
+        if: success()
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7
+        with:
+          name: qmd-index
+          path: /tmp/gh-aw/qmd-index/
+          retention-days: 1
       - name: Upload activation artifact
         if: success()
         uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7
@@ -420,6 +473,16 @@ jobs:
         run: npm install -g @openai/codex@latest
       - name: Install AWF binary
         run: bash ${RUNNER_TEMP}/gh-aw/actions/install_awf_binary.sh v0.24.5
+      - name: Download qmd index artifact
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: qmd-index
+          path: /tmp/gh-aw/qmd-index/
+      - name: Restore qmd models cache
+        uses: actions/cache/restore@668228422ae6a00e4ad889ee87cd7109ec5666a7 # v5.0.4
+        with:
+          path: ~/.cache/qmd/models/
+          key: qmd-models-${{ runner.os }}
       - name: Determine automatic lockdown mode for GitHub MCP Server
         id: determine-automatic-lockdown
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
@@ -892,6 +955,16 @@ jobs:
           [mcp_servers.playwright."guard-policies".write-sink]
           accept = ["*"]
           
+          [mcp_servers.qmd]
+          container = "node:lts-alpine"
+          entrypoint = "npx"
+          entrypointArgs = [
+            "@tobilu/qmd@0.0.16",
+            "serve-mcp",
+          ]
+          mounts = ["/tmp/gh-aw/qmd-index:/tmp/gh-aw/qmd-index:ro"]
+          env_vars = ["QMD_CACHE_DIR"]
+          
           [mcp_servers.safeoutputs]
           type = "http"
           url = "http://host.docker.internal:$GH_AW_SAFE_OUTPUTS_PORT"
@@ -989,6 +1062,18 @@ jobs:
                       "*"
                     ]
                   }
+                }
+              },
+              "qmd": {
+                "container": "node:lts-alpine",
+                "entrypoint": "npx",
+                "entrypointArgs": [
+                  "@tobilu/qmd@0.0.16",
+                  "serve-mcp"
+                ],
+                "mounts": ["/tmp/gh-aw/qmd-index:/tmp/gh-aw/qmd-index:ro"],
+                "env": {
+                  "QMD_CACHE_DIR": "/tmp/gh-aw/qmd-index"
                 }
               },
               "safeoutputs": {

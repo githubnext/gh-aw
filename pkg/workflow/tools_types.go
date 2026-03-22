@@ -333,27 +333,41 @@ type QmdDocCollection struct {
 	Checkout *CheckoutConfig `yaml:"checkout,omitempty"`
 }
 
-// QmdSearchEntry represents a single GitHub search query whose results are
+// QmdSearchEntry represents a single GitHub search entry whose results are
 // downloaded and added to the qmd index as individual files.
 type QmdSearchEntry struct {
-	// Query is the GitHub code/content search query string.
-	// Example: "repo:owner/repo language:Markdown path:docs/"
-	Query string `yaml:"query"`
+	// Name is an optional name for the resulting qmd collection.
+	// When empty, the collection is named "search-{index}".
+	Name string `yaml:"name,omitempty"`
 
-	// Min is the minimum number of search results required. If fewer results
-	// are returned the step fails with an error.
+	// Type controls the search backend. Supported values:
+	//   "code"   (default) – uses `gh search code` to find repository files
+	//   "issues"           – uses `gh issue list` to fetch open issues from
+	//                        a repository and save each as a markdown file
+	// When type is "issues", Query is the repository slug ("owner/repo").
+	// If Query is empty for an issue search, ${{ github.repository }} is used.
+	Type string `yaml:"type,omitempty"`
+
+	// Query is the GitHub code search query string (type "code") or the
+	// repository slug "owner/repo" (type "issues").
+	// Example (code):   "repo:owner/repo language:Markdown path:docs/"
+	// Example (issues): "owner/repo"  (or empty to use current repository)
+	Query string `yaml:"query,omitempty"`
+
+	// Min is the minimum number of results required. If fewer are found
+	// the activation step fails.
 	Min int `yaml:"min,omitempty"`
 
-	// Max is the maximum number of search results to download.
-	// Defaults to 30 when not set.
+	// Max is the maximum number of results to download.
+	// Defaults to 30 (type "code") or 500 (type "issues") when not set.
 	Max int `yaml:"max,omitempty"`
 
 	// GitHubToken overrides the default GITHUB_TOKEN used to authenticate
-	// the GitHub search API request.
+	// the GitHub API request.
 	// Mutually exclusive with GitHubApp.
 	GitHubToken string `yaml:"github-token,omitempty"`
 
-	// GitHubApp configures GitHub App-based authentication for the search request.
+	// GitHubApp configures GitHub App-based authentication for the API request.
 	// Mutually exclusive with GitHubToken.
 	GitHubApp *GitHubAppConfig `yaml:"github-app,omitempty"`
 }

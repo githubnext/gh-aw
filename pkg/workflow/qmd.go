@@ -238,11 +238,74 @@ func generateQmdCollectionCheckoutStep(col *QmdDocCollection) string {
 	return sb.String()
 }
 
-// generateQmdSearchStep generates an activation-job step that runs a GitHub search query,
-// downloads the matching files, and adds them as a qmd collection named after the search index.
-// The step uses the gh CLI to execute the search.
+// generateQmdSearchStep generates an activation-job step that runs a GitHub search or issue
+// list, saves the results as individual files, and adds them as a named qmd collection.
+// When entry.Type is "issues", it uses `gh issue list` to fetch open issues from the
+// repository and formats each as a markdown file. Otherwise (default "code" type) it uses
+// `gh search code` to find repository files.
 func generateQmdSearchStep(entry *QmdSearchEntry, index int) string {
-	collectionName := fmt.Sprintf("search-%d", index)
+	collectionName := entry.Name
+	if collectionName == "" {
+		collectionName = fmt.Sprintf("search-%d", index)
+	}
+
+	if entry.Type == "issues" {
+		return generateQmdIssueListStep(entry, collectionName, index)
+	}
+	return generateQmdCodeSearchStep(entry, collectionName, index)
+}
+
+// generateQmdIssueListStep generates a step that fetches open GitHub issues from a
+// repository using `gh issue list` and saves each issue as a markdown file so they
+// can be indexed by qmd.
+func generateQmdIssueListStep(entry *QmdSearchEntry, collectionName string, index int) string {
+	searchDir := fmt.Sprintf("/tmp/gh-aw/qmd-search-%d", index)
+
+	maxResults := entry.Max
+	if maxResults <= 0 {
+		maxResults = 500
+	}
+
+	repo := entry.Query
+	if repo == "" {
+		repo = "${{ github.repository }}"
+	}
+
+	var tokenEnv string
+	if entry.GitHubToken != "" {
+		tokenEnv = fmt.Sprintf("GH_TOKEN=%s ", entry.GitHubToken)
+	}
+
+	var sb strings.Builder
+	fmt.Fprintf(&sb, "      - name: Fetch GitHub issues for qmd collection %q\n", collectionName)
+	sb.WriteString("        run: |\n")
+	sb.WriteString("          set -e\n")
+	fmt.Fprintf(&sb, "          mkdir -p %s\n", searchDir)
+	sb.WriteString("          # Fetch open issues and save each as a markdown file\n")
+	fmt.Fprintf(&sb, "          %sgh issue list --repo %s --state open --limit %d --json number,title,body | \\\n",
+		tokenEnv, shellSingleQuote(repo), maxResults)
+	fmt.Fprintf(&sb, "            jq -r '.[] | \"## \" + (.number | tostring) + \": \" + .title + \"\\n\\n\" + (.body // \"\") | @text' | \\\n")
+	fmt.Fprintf(&sb, "            awk 'BEGIN{n=0} /^## [0-9]+:/{n++; file=\"%s/issue-\" n \".md\"} {print > file}'\n", searchDir)
+
+	if entry.Min > 0 {
+		fmt.Fprintf(&sb, "          count=$(find %s -type f | wc -l)\n", searchDir)
+		fmt.Fprintf(&sb, "          if [ \"$count\" -lt %d ]; then\n", entry.Min)
+		fmt.Fprintf(&sb, "            echo \"qmd issue list %q returned $count results, minimum is %d\" >&2\n", collectionName, entry.Min)
+		sb.WriteString("            exit 1\n")
+		sb.WriteString("          fi\n")
+	}
+
+	fmt.Fprintf(&sb, "          QMD_CACHE_DIR=/tmp/gh-aw/qmd-index qmd collection add %s --name %s --glob %s\n",
+		shellSingleQuote(searchDir),
+		shellSingleQuote(collectionName),
+		"'**/*'",
+	)
+	return sb.String()
+}
+
+// generateQmdCodeSearchStep generates an activation-job step that runs a GitHub code
+// search query, downloads the matching files, and adds them as a named qmd collection.
+func generateQmdCodeSearchStep(entry *QmdSearchEntry, collectionName string, index int) string {
 	searchDir := fmt.Sprintf("/tmp/gh-aw/qmd-search-%d", index)
 
 	maxResults := entry.Max

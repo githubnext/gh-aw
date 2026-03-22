@@ -9303,14 +9303,23 @@
     },
     "qmdSearchEntry": {
       "type": "object",
-      "description": "A GitHub search query entry for the qmd tool. The search is executed during the activation job and the matching files are downloaded and added to the qmd index.",
-      "required": ["query"],
+      "description": "A GitHub search entry for the qmd tool. Supports code search (type: code, default) and GitHub issue list (type: issues). Results are downloaded and indexed as qmd collections.",
       "additionalProperties": false,
       "properties": {
+        "name": {
+          "type": "string",
+          "description": "Optional name for the qmd collection. Defaults to \"search-{index}\" when not set."
+        },
+        "type": {
+          "type": "string",
+          "enum": ["code", "issues"],
+          "default": "code",
+          "description": "Search backend type. \"code\" (default) uses gh search code to find repository files. \"issues\" uses gh issue list to fetch open GitHub issues and index them as markdown files."
+        },
         "query": {
           "type": "string",
-          "description": "GitHub code search query string. See https://docs.github.com/en/search-github/searching-on-github/searching-code for syntax.",
-          "examples": ["repo:owner/repo language:Markdown path:docs/", "org:myorg language:Markdown"]
+          "description": "For type \"code\": GitHub code search query string. For type \"issues\": repository slug (\"owner/repo\"); defaults to the current repository when empty.",
+          "examples": ["repo:owner/repo language:Markdown path:docs/", "org:myorg language:Markdown", "owner/repo"]
         },
         "min": {
           "type": "integer",
