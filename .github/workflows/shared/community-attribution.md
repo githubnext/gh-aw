@@ -137,16 +137,29 @@ cat /tmp/gh-aw/community-data/community_issues_closed_in_window.json | \
 
 **Confirmed attributions → Community Contributions**
 
+Use full GitHub issue URLs (e.g. `https://github.com/OWNER/REPO/issues/N`) and
+issue titles as link text:
+
 ```markdown
 ### 🌍 Community Contributions
 
-A huge thank you to the community members who reported issues that were
-resolved in this release:
+<details>
+<summary>A huge thank you to the community members who reported issues that were resolved in this release!</summary>
 
-- **@author** for Issue title ([#N](url)) _(direct issue)_
-- **@author** for Issue title ([#N](url))
-- **@author** for Issue title ([#N](url)) _(via follow-up #M)_
+### @author
+
+- [Issue title](https://github.com/OWNER/REPO/issues/N) _(direct issue)_
+- [Another issue title](https://github.com/OWNER/REPO/issues/N)
+
+### @author2
+
+- [Issue title](https://github.com/OWNER/REPO/issues/N) _(via follow-up #M)_
+
+</details>
 ```
+
+- Group entries by author (alphabetical order)
+- Within each author section, sort by issue number descending (newest first)
 
 Attribution type suffixes:
 - `_(direct issue)_` — Tier 0: issue closed as `COMPLETED`, no PR linkage needed

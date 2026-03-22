@@ -11,6 +11,7 @@
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { updateBody } = require("./update_pr_description_helpers.cjs");
 const { logStagedPreviewInfo } = require("./staged_preview.cjs");
+const { isStagedMode } = require("./safe_output_helpers.cjs");
 const { ERR_API, ERR_CONFIG, ERR_VALIDATION } = require("./error_codes.cjs");
 const { parseBoolTemplatable } = require("./templatable.cjs");
 const { createAuthenticatedGitHubClient } = require("./handler_auth.cjs");
@@ -28,7 +29,7 @@ const { buildWorkflowRunUrl } = require("./workflow_metadata_helpers.cjs");
  */
 async function main(config = {}) {
   // Check if we're in staged mode
-  const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true";
+  const isStaged = isStagedMode(config);
   const workflowName = process.env.GH_AW_WORKFLOW_NAME || "GitHub Agentic Workflow";
   const includeFooter = parseBoolTemplatable(config.footer, true);
   const githubClient = await createAuthenticatedGitHubClient(config);

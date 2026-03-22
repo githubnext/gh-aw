@@ -21,6 +21,7 @@
 
 const { generateFooterWithMessages } = require("./messages_footer.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
+const { isStagedMode } = require("./safe_output_helpers.cjs");
 
 /**
  * @typedef {Object} BufferedComment
@@ -68,6 +69,8 @@ function createReviewBuffer() {
   /** @type {string} Footer mode: "always" (default), "none", or "if-body" */
   let footerMode = "always";
 
+  /** @type {boolean} Staged mode: when true, preview review without submitting (set via setStaged(), reset on buffer clear) */
+  let stagedMode = false;
   /**
    * Add a validated comment to the buffer.
    * Rejects comments targeting a different repo/PR than the first comment.
@@ -154,6 +157,18 @@ function createReviewBuffer() {
     } else {
       core.warning(`Invalid footer mode type: ${typeof value}. Using default "always".`);
       footerMode = "always";
+    }
+  }
+
+  /**
+   * Set staged mode for the review buffer.
+   * When staged, submitReview() will preview the review without actually submitting.
+   * @param {boolean} value - Whether staged mode is enabled
+   */
+  function setStaged(value) {
+    stagedMode = value;
+    if (value) {
+      core.info("PR review buffer staged mode enabled");
     }
   }
 
@@ -261,7 +276,7 @@ function createReviewBuffer() {
     core.info(`Submitting PR review on ${repo}#${pullRequestNumber}: event=${event}, comments=${comments.length}, bodyLength=${body.length}`);
 
     // If in staged mode, preview the review without submitting
-    const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true";
+    const isStaged = isStagedMode({ staged: stagedMode });
     if (isStaged) {
       let summaryContent = "## 🎭 Staged Mode: PR Review Preview\n\n";
       summaryContent += "The following PR review would be submitted if staged mode was disabled:\n\n";
@@ -396,6 +411,7 @@ function createReviewBuffer() {
     reviewContext = null;
     footerContext = null;
     footerMode = "always";
+    stagedMode = false;
   }
 
   return {
@@ -406,6 +422,7 @@ function createReviewBuffer() {
     setFooterContext,
     setFooterMode,
     setIncludeFooter: setFooterMode, // Backward compatibility alias
+    setStaged,
     hasBufferedComments,
     hasReviewMetadata,
     getBufferedCount,

@@ -1,7 +1,7 @@
 # Developer Instructions
 
-**Version**: 3.9
-**Last Updated**: 2026-03-18
+**Version**: 4.0
+**Last Updated**: 2026-03-21
 **Purpose**: Consolidated development guidelines for GitHub Agentic Workflows
 
 This document consolidates specifications from the scratchpad directory into unified developer instructions. It provides architecture patterns, security guidelines, code organization rules, and testing practices.
@@ -796,6 +796,27 @@ core.setFailed(`${ERR_CONFIG}: GH_AW_PROMPT environment variable is not set`);
 
 Error messages prefixed with these codes allow monitoring tools to categorize failures without parsing free-form text.
 
+### Message Module Architecture
+
+Safe output messages are implemented in modular JavaScript files in `actions/setup/js/` to reduce bundle bloat:
+
+| Module | Purpose |
+|--------|---------|
+| `messages_core.cjs` | Shared utilities: `getMessages`, `renderTemplate`, `toSnakeCase` |
+| `messages_footer.cjs` | AI attribution footers: `getFooterMessage`, `generateFooterWithMessages` |
+| `messages_staged.cjs` | Staged mode previews: `getStagedTitle`, `getStagedDescription` |
+| `messages_run_status.cjs` | Run status notifications: `getRunStartedMessage`, `getRunSuccessMessage` |
+| `messages_close_discussion.cjs` | Discussion closing: `getCloseOlderDiscussionMessage` |
+| `messages.cjs` | Barrel file (backward compatibility re-exports) |
+
+For new code, import directly from specific modules to reduce bundle size:
+```javascript
+const { generateFooterWithMessages } = require("./messages_footer.cjs");
+const { getRunSuccessMessage } = require("./messages_run_status.cjs");
+```
+
+Staged mode uses the 🎭 emoji consistently to distinguish previews from live operations. See `scratchpad/safe-output-messages.md` for full message patterns and rendered examples.
+
 ### Safe Outputs Prompt Templates
 
 Safe output tool guidance is sourced from markdown template files in `actions/setup/md/` rather than embedded as inline strings. This approach reduces token usage and simplifies maintenance.
@@ -825,8 +846,10 @@ When adding per-tool guidance, create a dedicated template file in `actions/setu
 
 **Test File Naming**:
 - Unit tests: `feature_test.go`
-- Integration tests: `feature_integration_test.go`
+- Integration tests: `feature_integration_test.go` (marked `//go:build integration`)
 - Scenario tests: `feature_scenario_test.go`
+- Security regression tests: `feature_security_regression_test.go`
+- Fuzz tests: `feature_fuzz_test.go`
 - Backward compatibility: `feature_backward_compat_test.go`
 
 **Test Categories**:
@@ -834,7 +857,46 @@ When adding per-tool guidance, create a dedicated template file in `actions/setu
 1. **Unit Tests** - Test individual functions in isolation
 2. **Integration Tests** - Test component interactions
 3. **End-to-End Tests** - Test full workflows via GitHub Actions
-4. **Visual Regression Tests** - Test terminal output rendering
+4. **Security Regression Tests** - Prevent reintroduction of security vulnerabilities
+5. **Fuzz Tests** - Discover edge cases and injection attacks with randomly generated inputs
+6. **Visual Regression Tests** - Test terminal output rendering
+
+### Assert vs Require
+
+Use **testify** assertions appropriately:
+
+- **`require.*`** — For critical setup steps; stops test execution immediately on failure. Use for: creating test files, parsing input, setting up test data.
+- **`assert.*`** — For actual test validations; allows test to continue checking other conditions. Use for: verifying behavior, checking output values, testing multiple conditions.
+
+```go
+func TestFeature(t *testing.T) {
+    // Setup — use require (critical for test to proceed)
+    tmpDir := t.TempDir()
+    err := os.WriteFile(filepath.Join(tmpDir, "test.md"), []byte(content), 0644)
+    require.NoError(t, err, "Failed to write test file")
+
+    // Assertions — use assert (actual validations)
+    result, err := ProcessFile(filepath.Join(tmpDir, "test.md"))
+    assert.NoError(t, err, "Should process valid file")
+    assert.Equal(t, expected, result.Field, "Field value should match")
+}
+```
+
+The project enforces this rule via `testifylint` in golangci-lint.
+
+**No mocks, no test suites**: The codebase intentionally avoids mocking frameworks (tests verify real component interactions) and testify/suite (standard Go tests run in parallel by default, no lifecycle overhead).
+
+### Running Tests
+
+```bash
+make test-unit       # Fast unit tests only (~25s)
+make test            # All tests including integration (~30s)
+make test-security   # Security regression tests only
+make test-coverage   # Generate coverage report
+make bench           # Performance benchmarks (~6s, uses -benchtime=3x)
+make fuzz            # Fuzz tests for 30 seconds
+make agent-finish    # Full validation: build, test, recompile, fmt, lint
+```
 
 ### Unit Test Patterns
 
@@ -973,6 +1035,101 @@ gh aw <command> [flags] [arguments]
 - **Workflow Management**: `run`, `compile`, `validate`
 - **Safe Outputs**: `safe-outputs`
 - **Utilities**: `version`, `help`
+
+### Logger Namespace Convention
+
+All CLI commands create a logger with the `cli:command_name` namespace format:
+
+```go
+// ✅ Correct namespace format
+var auditLog = logger.New("cli:audit")
+var compileLog = logger.New("cli:compile_command")
+var statusLog = logger.New("cli:status_command")
+
+// ❌ Incorrect — missing cli: prefix
+var log = logger.New("audit")
+var logger = logger.New("compile")  // conflicts with package name
+```
+
+### Console Output Convention
+
+**All output goes to stderr** (except JSON data):
+
+```go
+import "github.com/github/gh-aw/pkg/console"
+
+// Success messages
+fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Workflow compiled successfully"))
+
+// Info messages
+fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Fetching workflow status..."))
+
+// Warning messages
+fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Workflow has unstaged changes"))
+
+// Error messages
+fmt.Fprintln(os.Stderr, console.FormatErrorMessage(err.Error()))
+
+// Progress messages (operations in progress)
+fmt.Fprintln(os.Stderr, console.FormatProgressMessage("Downloading artifacts..."))
+
+// Command messages (CLI commands being executed)
+fmt.Fprintln(os.Stderr, console.FormatCommandMessage("gh workflow run workflow.yml"))
+
+// Verbose messages (only shown with --verbose)
+if verbose {
+    fmt.Fprintln(os.Stderr, console.FormatVerboseMessage("Detailed debug info"))
+}
+
+// JSON output goes to stdout
+if jsonOutput {
+    jsonBytes, _ := json.MarshalIndent(data, "", "  ")
+    fmt.Println(string(jsonBytes))
+}
+```
+
+**Key rules**:
+- Never use plain `fmt.Println()` for user-facing messages
+- Never use `fmt.Fprintln(os.Stdout, ...)` for status/error messages
+- Only JSON output uses stdout
+
+### Configuration Struct Naming
+
+Configuration structs must end with `Config`:
+
+```go
+// ✅ Correct
+type CompileConfig struct { WorkflowFile string; OutputDir string; Verbose bool }
+type AuditConfig struct { RunID int64; Verbose bool }
+
+// ❌ Incorrect
+type CompileOptions struct { ... }  // Use Config suffix
+type AuditParams struct { ... }     // Use Config suffix
+```
+
+### Standard Short Flags
+
+Reserve these short flags for consistent meanings across all commands:
+
+| Short Flag | Meaning | Long Flag |
+|-----------|---------|-----------|
+| `-v` | Verbose output | `--verbose` |
+| `-e` | Engine selection | `--engine` |
+| `-r` | Repository | `--repo` |
+| `-o` | Output directory | `--output` |
+| `-j` | JSON output | `--json` |
+| `-f` | Force/file | `--force`/`--file` |
+| `-w` | Watch mode | `--watch` |
+
+Flag completions should be registered for better UX:
+
+```go
+RegisterDirFlagCompletion(cmd, "output")                          // Directory completion
+RegisterFileFlagCompletion(cmd, "file", "*.md")                   // File completion
+cmd.RegisterFlagCompletionFunc("engine", func(...) ([]string, cobra.ShellCompDirective) {
+    return []string{"copilot", "claude", "codex", "custom"}, cobra.ShellCompDirectiveNoFileComp
+})
+```
 
 ### Command Implementation Pattern
 
@@ -1915,6 +2072,60 @@ func GetMCPLogLevel() string {
 
 ## Go Type Patterns
 
+### Semantic Type Aliases
+
+Semantic type aliases provide meaningful names for primitive types, improving code clarity and preventing mistakes through type safety. They are defined in `pkg/constants/constants.go`.
+
+**Pattern**:
+```go
+// LineLength represents a line length in characters for expression formatting
+type LineLength int
+
+func (l LineLength) String() string { return fmt.Sprintf("%d", l) }
+func (l LineLength) IsValid() bool  { return l > 0 }
+
+const MaxExpressionLineLength LineLength = 120
+```
+
+**Semantic types in the codebase**:
+
+| Domain | Type | Examples |
+|--------|------|---------|
+| Measurements | `LineLength` | `MaxExpressionLineLength`, `ExpressionBreakThreshold` |
+| Versions | `Version` | `DefaultCopilotVersion`, `DefaultClaudeCodeVersion` |
+| Workflows | `WorkflowID` | User-provided workflow identifiers |
+| AI Engines | `EngineName` | `CopilotEngine`, `ClaudeEngine`, `CodexEngine`, `CustomEngine` |
+| Tool names | `GitHubToolName`, `GitHubToolset` | Typed tool/toolset names |
+| Feature flags | Named string constants | `MCPGatewayFeatureFlag`, `SafeInputsFeatureFlag` |
+
+**When to use semantic type aliases**:
+- Multiple unrelated concepts share the same primitive type
+- The concept appears frequently across the codebase (workflow IDs, engine names)
+- Future validation logic might be needed
+- Type safety prevents mixing incompatible values
+
+**Typed Slices** for collections of semantic types:
+```go
+type GitHubAllowedTools []GitHubToolName
+func (g GitHubAllowedTools) ToStringSlice() []string { ... }
+
+type GitHubToolsets []GitHubToolset
+func (g GitHubToolsets) ToStringSlice() []string { ... }
+```
+
+**Use `any` instead of `interface{}`** (Go 1.18+ standard):
+```go
+// ✅ Modern
+func Process(data any) error { ... }
+
+// ❌ Legacy — do not use in new code
+func Process(data interface{}) error { ... }
+```
+
+**Dynamic YAML/JSON handling**: Use `map[string]any` when structure is unknown at compile time (frontmatter parsing, external tool configs). Always validate and convert to typed structures as early as possible.
+
+See `scratchpad/go-type-patterns.md` for the full type reference, typed slice patterns, and dynamic YAML handling examples.
+
 ### Type Safety Guidelines
 
 **Use Strongly-Typed Structs**:
@@ -2320,6 +2531,10 @@ These files are loaded automatically by compatible AI tools (e.g., GitHub Copilo
 - [Validation Refactoring Guide](./validation-refactoring.md) - Step-by-step process for splitting large validation files into focused single-responsibility validators
 - [String Sanitization vs Normalization](./string-sanitization-normalization.md) - Distinction between sanitize and normalize patterns; function reference and decision tree
 - [Serena Tools Quick Reference](./serena-tools-quick-reference.md) - Tool usage statistics and efficiency analysis for Serena MCP integration
+- [CLI Command Patterns](./cli-command-patterns.md) - CLI command structure, logger namespaces, console output conventions, flag patterns, help text standards, and command development checklist
+- [Go Type Patterns](./go-type-patterns.md) - Semantic type aliases (LineLength, Version, WorkflowID, EngineName), typed slices, dynamic YAML/JSON handling, and `any` vs `interface{}` guidance
+- [Safe Output Messages](./safe-output-messages.md) - Safe output message design system: attribution footers, staged mode previews, patch previews, fallback messages, and message module architecture
+- [Testing Guidelines](./testing.md) - Testing framework: assert vs require, fuzz tests, security regression tests, benchmarks, and `make` test commands
 
 ### External References
 
@@ -2331,6 +2546,7 @@ These files are loaded automatically by compatible AI tools (e.g., GitHub Copilo
 ---
 
 **Document History**:
+- v4.0 (2026-03-22): Integrated 4 new spec files. CLI Command Patterns: added logger namespace convention (`cli:command_name`), console output rules (all to stderr via `console.FormatXxxMessage()`), config struct naming (`Config` suffix), standard short flags table, flag completion helpers. Go Type Patterns: added Semantic Type Aliases section (LineLength, Version, WorkflowID, EngineName, GitHubToolName, typed slices), dynamic YAML/JSON handling pattern, `any` vs `interface{}` standard (Go 1.18+). Testing: added Assert vs Require distinction with examples, security regression tests and fuzz tests file naming, running tests commands (`make test-unit`, `make test-security`, `make bench`, `make agent-finish`), no-mocks/no-suites rationale. Safe Outputs: added Message Module Architecture section with module table and import guidance. Related Documentation: added 4 new links. Coverage: 65 spec files.
 - v3.9 (2026-03-18): Added 5 previously uncovered spec files: Repo Memory section (from `repo-memory.md`: git-backed persistent storage, path conventions, configuration, validation limits), Release Management section (from `changesets.md`: changeset CLI, release workflow), Validation File Refactoring subsection (from `validation-refactoring.md`: complexity thresholds, naming conventions, process steps), String Processing subsection in Code Organization (from `string-sanitization-normalization.md`: sanitize vs normalize decision rule), and 7 new Related Documentation links. Coverage: 68 spec files (5 new).
 - v3.8 (2026-03-06): Fixed 2 tone issues — "Extreme Simplicity" heading → "Minimal Configuration Model" (mdflow.md:199), "Deep analysis" → "Detailed analysis" (README.md:40). Coverage: 63 spec files (62 spec + 1 test artifact).
 - v3.7 (2026-03-06): Fixed 3 tone issues — removed "intuitive way" (guard-policies-specification.md:17), replaced "User-friendly: Intuitive frontmatter syntax" with "Consistent syntax: Follows existing frontmatter conventions" (guard-policies-specification.md:303), and replaced "significantly improves the developer experience" with precise language (engine-architecture-review.md:312). Coverage: 63 spec files (62 spec + 1 test artifact).

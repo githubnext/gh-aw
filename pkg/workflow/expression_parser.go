@@ -285,6 +285,7 @@ func (p *ExpressionParser) advance() {
 // for each ExpressionNode (literal expression) found in the tree
 func VisitExpressionTree(node ConditionNode, visitor func(expr *ExpressionNode) error) error {
 	if node == nil {
+		expressionsLog.Print("VisitExpressionTree called with nil node")
 		return nil
 	}
 
@@ -409,6 +410,8 @@ func BreakAtParentheses(expression string) []string {
 	if len(expression) <= int(constants.MaxExpressionLineLength) {
 		return []string{expression}
 	}
+
+	expressionsLog.Printf("Breaking expression at parentheses: length=%d", len(expression))
 
 	var lines []string
 	var current strings.Builder

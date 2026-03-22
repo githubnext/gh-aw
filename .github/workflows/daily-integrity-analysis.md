@@ -120,7 +120,7 @@ with open(f"{DATA_DIR}/all-events.json") as f:
 
 if not events:
     print("No events to analyze.")
-    summary = {"total": 0, "by_tool": {}, "by_server": {}, "by_reason": {}, "by_hour": {}, "by_day": {}, "by_workflow": {}}
+    summary = {"total": 0, "by_tool": {}, "by_server": {}, "by_reason": {}, "by_hour": {}, "by_day": {}, "by_workflow": {}, "by_user": {}}
     with open(f"{DATA_DIR}/summary.json", "w") as f:
         json.dump(summary, f, indent=2)
     exit(0)
@@ -137,6 +137,7 @@ by_tool      = Counter(e["tool_name"]   for e in events if e.get("tool_name"))
 by_server    = Counter(e["server_id"]   for e in events if e.get("server_id"))
 by_reason    = Counter(e["reason"]      for e in events if e.get("reason"))
 by_workflow  = Counter(e.get("workflow_name", "unknown") for e in events)
+by_user      = Counter(e.get("author_login", "unknown") for e in events)
 
 # Time-based buckets
 by_hour = Counter()
@@ -161,6 +162,7 @@ summary = {
     "by_server":         dict(by_server.most_common()),
     "by_reason":         dict(by_reason.most_common()),
     "by_workflow":       dict(by_workflow.most_common()),
+    "by_user":           dict(by_user.most_common()),
     "by_hour":           dict(sorted(by_hour.items())),
     "by_day":            dict(sorted(by_day.items())),
     "integrity_tags":    dict(all_integrity_tags.most_common()),
@@ -335,12 +337,58 @@ print("Chart 3 saved.")
 
 Run: `python3 /tmp/gh-aw/integrity/chart_reasons.py`
 
+### Chart 4: Per-User Filtered Events (Horizontal Bar)
+
+Create `/tmp/gh-aw/integrity/chart_users.py`:
+
+```python
+#!/usr/bin/env python3
+"""Chart 4: Top users that trigger DIFC filtering."""
+import json, os
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+DATA_DIR   = "/tmp/gh-aw/integrity"
+CHARTS_DIR = f"{DATA_DIR}/charts"
+BAR_COLOR  = "#4CAF50"
+os.makedirs(CHARTS_DIR, exist_ok=True)
+
+with open(f"{DATA_DIR}/summary.json") as f:
+    summary = json.load(f)
+
+by_user = summary.get("by_user", {})
+if not by_user:
+    print("No user data; skipping chart 4.")
+    exit(0)
+
+items   = sorted(by_user.items(), key=lambda x: x[1], reverse=True)[:20]
+users   = [i[0] for i in items]
+counts  = [i[1] for i in items]
+
+sns.set_style("whitegrid")
+fig, ax = plt.subplots(figsize=(12, max(5, len(users) * 0.55)), dpi=300)
+bars = ax.barh(users[::-1], counts[::-1], color=BAR_COLOR, edgecolor="white", linewidth=0.8)
+for bar, val in zip(bars, counts[::-1]):
+    ax.text(bar.get_width() + 0.1, bar.get_y() + bar.get_height() / 2,
+            str(val), va="center", fontsize=11, fontweight="bold")
+ax.set_title("Top Users Triggering DIFC Filtering (Top 20)", fontsize=16, fontweight="bold", pad=14)
+ax.set_xlabel("Event Count", fontsize=13)
+ax.set_ylabel("Author Login", fontsize=13)
+ax.grid(True, axis="x", alpha=0.4)
+plt.tight_layout()
+plt.savefig(f"{CHARTS_DIR}/top_users.png", dpi=300, bbox_inches="tight", facecolor="white")
+print("Chart 4 saved.")
+```
+
+Run: `python3 /tmp/gh-aw/integrity/chart_users.py`
+
 ## Step 3: Upload Charts
 
 Upload each generated chart using the `upload asset` tool and collect the returned URLs:
 1. Upload `/tmp/gh-aw/integrity/charts/events_timeline.png`
 2. Upload `/tmp/gh-aw/integrity/charts/top_tools.png`
 3. Upload `/tmp/gh-aw/integrity/charts/reasons_tags.png`
+4. Upload `/tmp/gh-aw/integrity/charts/top_users.png`
 
 ## Step 4: Generate Tuning Recommendations
 
@@ -410,6 +458,21 @@ In the last 7 days, **[N]** DIFC integrity-filtered events were detected across 
 [one row per server sorted by count descending]
 
 </details>
+
+<details>
+<summary><b>👤 Per-User Breakdown</b></summary>
+
+| Author Login | Filtered Events |
+|--------------|----------------|
+[one row per user sorted by count descending]
+
+</details>
+
+### 🔍 Per-User Analysis
+
+![Per-User Filtered Events](URL_CHART_4)
+
+[Analysis of per-user filtering: identify whether spikes are driven by automated actors (e.g., `github-actions[bot]`, Copilot agents) or human contributors. Highlight any single user or bot account responsible for a disproportionate share of filtered events and suggest whether this indicates expected automation behaviour or warrants investigation.]
 
 ### 💡 Tuning Recommendations
 

@@ -2,9 +2,8 @@
 /// <reference types="@actions/github-script" />
 
 const { getErrorMessage } = require("./error_helpers.cjs");
-const { renderTemplate } = require("./messages_core.cjs");
+const { renderTemplateFromFile } = require("./messages_core.cjs");
 const { generateFooterWithExpiration } = require("./ephemerals.cjs");
-const fs = require("fs");
 const { sanitizeContent } = require("./sanitize_content.cjs");
 
 /**
@@ -111,9 +110,6 @@ function buildMissingIssueHandler(options) {
           // No existing issue, create a new one
           core.info("No existing issue found, creating a new one");
 
-          // Load issue template
-          const issueTemplate = fs.readFileSync(templatePath, "utf8");
-
           // Build items list for template
           const issueListLines = [];
           items.forEach((item, index) => {
@@ -129,8 +125,8 @@ function buildMissingIssueHandler(options) {
             [templateListKey]: issueListLines.join("\n"),
           };
 
-          // Render the issue template
-          const issueBodyContent = renderTemplate(issueTemplate, templateContext);
+          // Load and render the issue template
+          const issueBodyContent = renderTemplateFromFile(templatePath, templateContext);
 
           // Add expiration marker (1 week from now) in a quoted section using helper
           const footer = generateFooterWithExpiration({

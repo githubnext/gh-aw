@@ -9,11 +9,12 @@
 
 ---
 
+<details>
+<summary><b>📋 Apply the patch after review</b></summary>
+
 The patch is available in the workflow run artifacts:
 
 **Workflow Run:** [View run details and download patch artifact]({run_url})
-
-To apply the patch after review:
 
 ```sh
 # Download the artifact from the workflow run
@@ -25,5 +26,7 @@ git checkout {branch_name}
 git am --3way /tmp/agent-{run_id}/{patch_file_name}
 git push origin {branch_name}
 ```
+
+</details>
 
 To route changes like this to a review issue instead of blocking, configure `protected-files: fallback-to-issue` in your workflow configuration.

@@ -8,6 +8,7 @@
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { getPRNumber } = require("./update_context_helpers.cjs");
 const { logStagedPreviewInfo } = require("./staged_preview.cjs");
+const { isStagedMode } = require("./safe_output_helpers.cjs");
 const { createAuthenticatedGitHubClient } = require("./handler_auth.cjs");
 const { resolveTargetRepoConfig, validateTargetRepo } = require("./repo_helpers.cjs");
 
@@ -103,7 +104,7 @@ async function main(config = {}) {
   const triggeringPRNumber = getPRNumber(context.payload);
 
   // Check if we're in staged mode
-  const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true";
+  const isStaged = isStagedMode(config);
 
   core.info(`Resolve PR review thread configuration: max=${maxCount}, target=${resolveTarget}, triggeringPR=${triggeringPRNumber || "none"}`);
   core.info(`Default target repo: ${defaultTargetRepo}`);

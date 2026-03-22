@@ -268,13 +268,21 @@ network:
 
 See [Network Permissions](/gh-aw/reference/network/) for complete configuration options.
 
-### What is GitHub lockdown mode and when is it enabled?
+### How does integrity filtering protect my workflow?
 
-[GitHub lockdown mode](/gh-aw/reference/lockdown-mode/) is a security feature that filters content in public repositories to only show issues, pull requests, and comments from users with push access. This protects workflows from processing potentially malicious input from untrusted users.
+[Integrity filtering](/gh-aw/reference/integrity/) controls which GitHub content the agent can see, filtering by **author trust** and **merge status**. The MCP gateway silently removes content below the configured `min-integrity` threshold before the AI engine sees it.
 
-Lockdown mode is **automatically enabled** for public repositories if [Additional Authentication for GitHub Tools](/gh-aw/reference/github-tools/#additional-authentication-for-github-tools) is configured. It is not in effect for private or internal repositories.
+For **public repositories**, `min-integrity: approved` is automatically applied at runtime — restricting content to owners, members, and collaborators — even without additional authentication.
 
-In addition, for **public repositories** where the GitHub MCP server is not explicitly configured with `lockdown` or `min-integrity`, `min-integrity: approved` is automatically applied at runtime. This provides equivalent protection — restricting content to owners, members, and collaborators — even without additional authentication.
+For triage or spam-detection workflows that need to process content from all users, set `min-integrity: none` explicitly:
+
+```yaml wrap
+tools:
+  github:
+    min-integrity: none
+```
+
+See [Integrity Filtering](/gh-aw/reference/integrity/) for available levels, user blocking, and approval labels.
 
 ## Configuration & Setup
 
@@ -384,44 +392,9 @@ See [Footer Control](/gh-aw/reference/footers/) for complete documentation inclu
 
 ### My workflow fails with "Runtime import file not found" when used in a repository ruleset
 
-When a workflow is configured as a **required status check** in a [repository ruleset](https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/managing-rulesets/about-rulesets), it runs in a restricted context that does not have access to other files in the repository. Shared files imported with the `imports:` field are loaded at runtime from the repository checkout, but this checkout is not available in the ruleset context.
+This happens because workflows configured as required status checks run in a restricted context without access to the repository file system, so runtime imports cannot be resolved.
 
-This produces an error such as:
-
-```
-ERR_SYSTEM: Runtime import file not found: workflows/shared/file.md
-```
-
-The fix is to enable `inlined-imports: true` in your workflow frontmatter. This causes the compiler to bundle all imported content directly into the compiled `.lock.yml` at compile time, so no file system access is needed at runtime:
-
-```aw wrap
----
-on: pull_request
-engine: copilot
-inlined-imports: true
-imports:
-  - shared/common-tools.md
-  - shared/security-setup.md
----
-
-# My Workflow
-
-Workflow instructions here.
-```
-
-After adding `inlined-imports: true`, recompile the workflow:
-
-```bash
-gh aw compile my-workflow
-```
-
-> [!NOTE]
-> With `inlined-imports: true`, any change to an imported file requires recompiling the workflow to take effect. The compiled `.lock.yml` must be committed and pushed for the updated content to run.
-
-> [!NOTE]
-> `inlined-imports: true` cannot be combined with agent file imports (`.github/agents/` files). If your workflow imports a custom agent file, remove it before enabling inlined imports.
-
-See [Imports](/gh-aw/reference/imports/) for full documentation on the `imports:` field.
+The fix is to enable `inlined-imports: true` in your workflow frontmatter so the compiler bundles all imported content into the compiled `.lock.yml` at compile time. See [Using Imports in Repository Rulesets](/gh-aw/reference/imports/#using-imports-in-repository-rulesets-inlined-imports-true) for the full details.
 
 ### My workflow checkout is very slow because my repository is a large monorepo. How can I speed it up?
 
@@ -451,7 +424,7 @@ checkout:
       defaults/
 ```
 
-The `sparse-checkout` field accepts newline-separated path patterns compatible with `actions/checkout`. See [Cross-Repository Operations](/gh-aw/reference/cross-repository/#checkout-configuration-options) for the full list of checkout configuration options.
+The `sparse-checkout` field accepts newline-separated path patterns compatible with `actions/checkout`. See [GitHub Repository Checkout](/gh-aw/reference/checkout/#configuration-options) for the full list of checkout configuration options.
 
 ## Workflow Design
 

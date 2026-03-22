@@ -55,15 +55,17 @@ on:
     types: [completed]
 permissions:
   contents: read
-  issues: write
+
 tools:
   github:
     toolsets: [issues, pull-requests]
   bash:
     commands: [git, jq]
+
 network:
   allowed:
     - "api.github.com"
+
 safe_outputs:
   create_issue:
     title_prefix: "[CI Doctor]"

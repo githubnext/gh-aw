@@ -643,5 +643,28 @@ describe("safe_outputs_handlers", () => {
       // The nested file path should appear correctly
       expect(data.error).toContain("exceeds the allowed limit");
     });
+
+    it("should exclude .git directory from size calculation", () => {
+      // Simulate the real scenario: memory directory is a git clone.
+      // The .git directory can accumulate pack files across runs.
+      // With max_patch_size = 500 bytes (effective limit = 600 bytes), actual memory
+      // files are small but .git directory content is large — must not count toward limit.
+      const h = makeHandlersWithMemory({ max_patch_size: 500, max_file_size: 1024 * 1024 });
+      fs.mkdirSync(memoryDir, { recursive: true });
+      // Small memory files (well within limit)
+      fs.writeFileSync(path.join(memoryDir, "memory.json"), "x".repeat(100));
+      fs.writeFileSync(path.join(memoryDir, "state.json"), "x".repeat(100));
+      // Simulate a large .git directory (pack files accumulate with each run)
+      const gitDir = path.join(memoryDir, ".git");
+      const packDir = path.join(gitDir, "objects", "pack");
+      fs.mkdirSync(packDir, { recursive: true });
+      fs.writeFileSync(path.join(packDir, "pack-abc123.pack"), "x".repeat(30000));
+      // Total without .git: 200 bytes (within 600 byte limit)
+      // Total with .git: 30200 bytes (would exceed limit if .git were included)
+      const result = h.pushRepoMemoryHandler({ memory_id: "default" });
+      const data = JSON.parse(result.content[0].text);
+      expect(data.result).toBe("success");
+      expect(data.message).toContain("validation passed");
+    });
   });
 });

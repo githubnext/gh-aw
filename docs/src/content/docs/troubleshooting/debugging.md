@@ -39,6 +39,7 @@ Debug this workflow run: https://github.com/OWNER/REPO/actions/runs/RUN_ID
 ```
 
 Copilot will:
+
 - Download and audit the run logs
 - Identify the root cause (missing tools, permission errors, network blocks, etc.)
 - Suggest targeted fixes or open a pull request with the fix
@@ -95,6 +96,7 @@ gh aw audit 12345678 --parse
 ```
 
 Audit output includes:
+
 - **Failure analysis** with error summary and root cause
 - **Tool usage** — which tools were called, which failed, and why
 - **MCP server status** — connection failures, timeout errors
@@ -159,12 +161,15 @@ Your GitHub token may be invalid, expired, or lacking the required permissions.
 **Cause**: The Copilot token is missing, expired, or lacks required permissions.
 
 **Fix**:
+
 1. Verify you have an active Copilot subscription
 2. Check that the token has the **Copilot Requests** permission (for fine-grained PATs)
 3. If using a custom `COPILOT_GITHUB_TOKEN`, verify it's valid:
+
    ```bash
    gh auth status
    ```
+
 4. See [Authentication Reference](/gh-aw/reference/auth/) for token setup details
 
 ### "Tool not found" or Missing Tool Calls
@@ -172,6 +177,7 @@ Your GitHub token may be invalid, expired, or lacking the required permissions.
 **Cause**: The workflow references a tool that isn't configured or the MCP server failed to connect.
 
 **Fix**:
+
 1. Run `gh aw mcp inspect my-workflow` to verify tool configuration
 2. Check that the MCP server version is compatible
 3. Ensure `tools:` section in frontmatter includes the required tool
@@ -211,28 +217,34 @@ See [Network Configuration](/gh-aw/guides/network-configuration/) for common dom
 **Cause**: The safe-outputs job failed, the agent didn't produce the expected output, or permissions are missing.
 
 **Fix**:
+
 1. Run `gh aw audit <run-id>` and check the safe-outputs section
-2. Verify the workflow has `permissions: issues: write` (or the relevant permission)
-3. Check that `GH_AW_GITHUB_TOKEN` or `GITHUB_TOKEN` has write access
-4. See [Safe Outputs Reference](/gh-aw/reference/safe-outputs/) for configuration details
+2. See [Safe Outputs Reference](/gh-aw/reference/safe-outputs/) for configuration details
 
 ### Compilation Errors
 
 **Cause**: The workflow frontmatter has schema validation errors or unsupported fields.
 
 **Fix**:
+
 1. Run the compiler with verbose output:
+
    ```bash
    gh aw compile my-workflow --verbose
    ```
+
 2. Run the fixer for auto-correctable issues:
+
    ```bash
    gh aw fix --write
    ```
+
 3. Validate without compiling:
+
    ```bash
    gh aw compile --validate
    ```
+
 4. See [Error Reference](/gh-aw/troubleshooting/errors/) for specific error messages
 
 ## Advanced Debugging

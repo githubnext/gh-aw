@@ -143,7 +143,7 @@ tools:
 ```
 
 > [!IMPORTANT]
-> When reading from repositories other than the workflow's repository, you must configure additional authentication. The default `GITHUB_TOKEN` only has access to the current repository. Use a PAT, GitHub App token, or the magic secret `GH_AW_GITHUB_MCP_SERVER_TOKEN`. See [GitHub Tools Reference](/gh-aw/reference/github-tools/#cross-repository-reading) for details.
+> When reading from repositories other than the workflow's repository, you must configure additional authentication. The default `GITHUB_TOKEN` only has access to the current repository. Use a PAT, GitHub App token, or the magic secret `GH_AW_GITHUB_MCP_SERVER_TOKEN`. See [GitHub Tools Reference](/gh-aw/reference/cross-repository/#cross-repository-reading) for details.
 
 Agent instructions can reference remote repositories:
 

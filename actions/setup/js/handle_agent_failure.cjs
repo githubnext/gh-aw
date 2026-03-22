@@ -4,7 +4,7 @@
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { sanitizeContent } = require("./sanitize_content.cjs");
 const { getFooterAgentFailureIssueMessage, getFooterAgentFailureCommentMessage, generateXMLMarker } = require("./messages.cjs");
-const { renderTemplate } = require("./messages_core.cjs");
+const { renderTemplate, renderTemplateFromFile } = require("./messages_core.cjs");
 const { getCurrentBranch } = require("./get_current_branch.cjs");
 const { createExpirationLine, generateFooterWithExpiration } = require("./ephemerals.cjs");
 const { MAX_SUB_ISSUES, getSubIssueCount } = require("./sub_issue_helpers.cjs");
@@ -369,8 +369,9 @@ function buildCodePushFailureContext(codePushFailureErrors, pullRequest = null, 
       yamlSnippet += `  ${yamlKey}:\n    protected-files: fallback-to-issue\n`;
     }
     yamlSnippet += "```\n";
-    context += "\nTo review and apply these changes manually, configure `protected-files: fallback-to-issue` — the agent will create a review issue with instructions instead of blocking:\n";
+    context += "\n<details>\n<summary><b>⚙️ Configure <code>protected-files: fallback-to-issue</code></b></summary>\n\n";
     context += yamlSnippet;
+    context += "</details>\n";
   }
 
   // Patch size exceeded section
@@ -609,8 +610,7 @@ function buildTimeoutContext(isTimedOut, timeoutMinutes) {
   const suggestedMinutes = currentMinutes + 10;
 
   const templatePath = `${process.env.RUNNER_TEMP}/gh-aw/prompts/agent_timeout.md`;
-  const template = fs.readFileSync(templatePath, "utf8");
-  return "\n" + renderTemplate(template, { current_minutes: currentMinutes, suggested_minutes: suggestedMinutes });
+  return "\n" + renderTemplateFromFile(templatePath, { current_minutes: currentMinutes, suggested_minutes: suggestedMinutes });
 }
 
 /**
@@ -639,8 +639,7 @@ function buildAppTokenMintingFailedContext(hasAppTokenMintingFailed) {
   }
 
   const templatePath = "/opt/gh-aw/prompts/app_token_minting_failed.md";
-  const template = fs.readFileSync(templatePath, "utf8");
-  return "\n" + renderTemplate(template, {});
+  return "\n" + renderTemplateFromFile(templatePath, {});
 }
 
 /**

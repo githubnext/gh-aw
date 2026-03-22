@@ -27,11 +27,6 @@ func WithCustomOutput(path string) CompilerOption {
 	return func(c *Compiler) { c.customOutput = path }
 }
 
-// WithVersion overrides the auto-detected version
-func WithVersion(version string) CompilerOption {
-	return func(c *Compiler) { c.version = version }
-}
-
 // WithSkipValidation configures whether to skip schema validation
 func WithSkipValidation(skip bool) CompilerOption {
 	return func(c *Compiler) { c.skipValidation = skip }
@@ -109,7 +104,7 @@ type Compiler struct {
 
 // NewCompiler creates a new workflow compiler with functional options.
 // By default, it auto-detects the version and action mode.
-// Common options: WithVerbose, WithEngineOverride, WithCustomOutput, WithVersion, WithActionMode
+// Common options: WithVerbose, WithEngineOverride, WithNoEmit, WithSkipValidation
 func NewCompiler(opts ...CompilerOption) *Compiler {
 	// Get default version
 	version := defaultVersion
@@ -150,9 +145,10 @@ func NewCompiler(opts ...CompilerOption) *Compiler {
 // Deprecated: Use NewCompiler with functional options instead.
 // This function is kept for backward compatibility during migration.
 func NewCompilerWithVersion(version string) *Compiler {
-	return NewCompiler(
-		WithVersion(version),
-	)
+	c := NewCompiler()
+	c.version = version
+	c.actionMode = DetectActionMode(c.version)
+	return c
 }
 
 // SetSkipValidation configures whether to skip schema validation

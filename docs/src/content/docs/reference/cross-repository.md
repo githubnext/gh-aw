@@ -7,146 +7,36 @@ sidebar:
 
 Cross-repository operations enable workflows to access code from multiple repositories and create resources (issues, PRs, comments) in external repositories. This page documents all declarative frontmatter features for cross-repository workflows.
 
-## Overview
-
 Cross-repository features fall into three categories:
 
-1. **Code access** - Check out code from multiple repositories into the workflow workspace using the `checkout:` frontmatter field
-2. **GitHub tools** - Read information from other repositories using GitHub Tools with additional authentication
-3. **Safe outputs** - Create issues, PRs, comments, and other resources in external repositories using `target-repo` and `allowed-repos` in safe outputs
+1. **Cross-Repository Checkout** - Check out code from other repositories
+2. **Cross-Repository Reading** - Read issues, pull requests and other information from other repositories
+3. **Cross-Repository Safe Outputs** - Create issues, PRs, comments, and other resources in external repositories using `target-repo` and `allowed-repos` in safe outputs
 
-All require authentication beyond the default `GITHUB_TOKEN`, which is scoped to the current repository only.
+All require additional authentication.
 
-## Cross-repository Checkout (`checkout:`)
+## Cross-Repository Checkout (`checkout:`)
 
-The `checkout:` frontmatter field controls how `actions/checkout` is invoked in the agent job. Configure custom checkout settings, check out multiple repositories, or disable checkout entirely.
+The `checkout:` frontmatter field controls how `actions/checkout` is invoked in the agent job. Use it to check out one or more repositories, override fetch depth or sparse-checkout settings, fetch additional refs (e.g., all open PR branches), or disable checkout entirely with `checkout: false`.
 
-### Disabling Checkout (`checkout: false`)
-
-Set `checkout: false` to suppress the default `actions/checkout` step entirely. Use this for workflows that access repositories through MCP servers or other mechanisms that do not require a local clone:
-
-```yaml wrap
-checkout: false
-```
-
-This is equivalent to omitting the checkout step from the agent job. Custom dev-mode steps (such as "Checkout actions folder") are unaffected.
-
-### Custom Checkout Settings
-
-If only using the current repository, you can use `checkout:` to override default checkout settings (e.g., fetch depth, sparse checkout) without needing to define a custom job:
+For multi-repository workflows, list multiple entries to clone several repos into the workspace. Mark the agent's primary target with `current: true` when working from a central repository that targets a different repo.
 
 ```yaml wrap
 checkout:
-  fetch-depth: 0                              # Full git history
-  github-token: ${{ secrets.MY_TOKEN }}        # Custom authentication
+  - fetch-depth: 0                 # checkout this repository with full history
+    fetch: ["refs/pulls/open/*"]   # fetch all open PR branches after checkout
+  - repository: owner/other-repo   # another repository to check out
+    path: ./libs/other             # path within workspace to check out to
+    github-token: ${{ secrets.CROSS_REPO_PAT }} # additional auth for cross-repo access
 ```
 
-Or use GitHub App authentication:
+See [GitHub Repository Checkout](/gh-aw/reference/checkout/) for the full configuration reference, including fetch options, sparse checkout, merging rules, and examples.
 
-```yaml wrap
-checkout:
-  fetch-depth: 0
-  github-app:
-    app-id: ${{ vars.APP_ID }}
-    private-key: ${{ secrets.APP_PRIVATE_KEY }}
-```
+## Cross-Repository Reading
 
-You can also use `checkout:` to check out additional repositories alongside the main repository:
+The [GitHub Tools](/gh-aw/reference/github-tools/) are used to read information such as issues and pull requests from repositories. By default, these tools can access the current repository and all public repositories (if permitted by the network firewall). This set can be further restricted by using [GitHub Repository Access Restrictions](/gh-aw/reference/github-tools/#github-repository-access-restrictions-toolsgithubrepos).
 
-```yaml wrap
-checkout:
-  - fetch-depth: 0
-  - repository: owner/other-repo
-    path: ./libs/other
-    ref: main
-    github-token: ${{ secrets.CROSS_REPO_PAT }}
-```
-
-### Checkout Configuration Options
-
-| Field | Type | Description |
-|-------|------|-------------|
-| `repository` | string | Repository in `owner/repo` format. Defaults to the current repository. |
-| `ref` | string | Branch, tag, or SHA to checkout. Defaults to the triggering ref. |
-| `path` | string | Path within `GITHUB_WORKSPACE` to place the checkout. Defaults to workspace root. |
-| `github-token` | string | Token for authentication. Use `${{ secrets.MY_TOKEN }}` syntax. |
-| `app` | object | GitHub App credentials (`app-id`, `private-key`, optional `owner`, `repositories`). Mutually exclusive with `github-token`. |
-| `fetch-depth` | integer | Commits to fetch. `0` = full history, `1` = shallow clone (default). |
-| `fetch` | string \| string[] | Additional Git refs to fetch after checkout. See [Fetching Additional Refs](#fetching-additional-refs). |
-| `sparse-checkout` | string | Newline-separated patterns for sparse checkout (e.g., `.github/\nsrc/`). |
-| `submodules` | string/bool | Submodule handling: `"recursive"`, `"true"`, or `"false"`. |
-| `lfs` | boolean | Download Git LFS objects. |
-| `current` | boolean | Marks this checkout as the primary working repository. The agent uses this as the default target for all GitHub operations. Only one checkout may set `current: true`; the compiler rejects workflows where multiple checkouts enable it. |
-
-### Fetching Additional Refs
-
-By default, `actions/checkout` performs a shallow clone (`fetch-depth: 1`) of a single ref. For workflows that need to work with other branches — for example, a scheduled workflow that must push changes to open pull-request branches — use the `fetch:` option to retrieve additional refs after the checkout step.
-
-A dedicated git fetch step is emitted after the `actions/checkout` step. Authentication re-uses the checkout token (or falls back to `github.token`) via a transient `http.extraheader` credential — no credentials are persisted to disk, consistent with the enforced `persist-credentials: false` policy.
-
-| Value | Description |
-|-------|-------------|
-| `"*"` | All remote branches. |
-| `"refs/pulls/open/*"` | All open pull-request head refs (GH-AW shorthand). |
-| `"main"` | A specific branch name. |
-| `"feature/*"` | A glob pattern matching branch names. |
-
-```yaml wrap
-checkout:
-  - fetch: ["*"]                 # fetch all branches (default checkout)
-    fetch-depth: 0               # fetch full history to ensure we can see all commits and PR details
-```
-
-```yaml wrap
-checkout:
-  - repository: githubnext/gh-aw-side-repo
-    github-token: ${{ secrets.GH_AW_SIDE_REPO_PAT }}
-    fetch: ["refs/pulls/open/*"]      # fetch all open PR refs after checkout
-    fetch-depth: 0               # fetch full history to ensure we can see all commits and PR details
-```
-
-```yaml wrap
-checkout:
-  - repository: org/target-repo
-    github-token: ${{ secrets.CROSS_REPO_PAT }}
-    fetch: ["main", "feature/*"] # fetch specific branches
-    fetch-depth: 0               # fetch full history to ensure we can see all commits and PR details
-```
-
-:::note
-If a branch you need is not available after checkout and is not covered by a `fetch:` pattern, and you're in a private or internal repo, then the agent cannot access its Git history except inefficiently, file by file, via the GitHub MCP. For private repositories, it will be unable to fetch or explore additional branches. If the branch is required and unavailable, configure the appropriate pattern in `fetch:` (e.g., `fetch: ["*"]` for all branches, or `fetch: ["refs/pulls/open/*"]` for PR branches) and recompile the workflow.
-:::
-
-### Checkout Merging
-
-Multiple `checkout:` configurations can target the same path and repository. This is useful for monorepos where different parts of the repository must be merged into the same workspace directory with different settings (e.g., sparse checkout for some paths, full checkout for others).
-
-When multiple `checkout:` entries target the same repository and path, their configurations are merged with the following rules:
-
-- **Fetch depth**: Deepest value wins (`0` = full history always takes precedence)
-- **Fetch refs**: Merged (union of all patterns; duplicates are removed)
-- **Sparse patterns**: Merged (union of all patterns)
-- **LFS**: OR-ed (if any config enables `lfs`, the merged configuration enables it)
-- **Submodules**: First non-empty value wins for each `(repository, path)`; once set, later values are ignored
-- **Ref/Token/App**: First-seen wins
-
-### Marking a Primary Repository (`current: true`)
-
-When a workflow running from a central repository targets a different repository, use `current: true` to tell the agent which repository to treat as its primary working target. The agent uses this as the default for all GitHub operations (creating issues, opening PRs, reading content) unless the prompt instructs otherwise. When omitted, the agent defaults to the repository where the workflow is running.
-
-```yaml wrap
-checkout:
-  - repository: org/target-repo
-    path: ./target
-    github-token: ${{ secrets.CROSS_REPO_PAT }}
-    current: true                                    # agent's primary target
-```
-
-## GitHub Tools - Reading Other Repositories
-
-When using [GitHub Tools](/gh-aw/reference/github-tools/) to read information from repositories other than the one where the workflow is running, you must configure additional authorization. The default `GITHUB_TOKEN` is scoped to the current repository only and cannot access other repositories.
-
-Configure the additional authentication in your GitHub Tools configuration. For example, using a PAT:
+To read from other private repositories, you must configure additional authorization. Configure a PAT or GitHub App in your GitHub Tools configuration:
 
 ```yaml wrap
 tools:
@@ -155,10 +45,14 @@ tools:
     github-token: ${{ secrets.CROSS_REPO_PAT }}
 ```
 
+This enables operations like:
 
-See [GitHub Tools Reference](/gh-aw/reference/github-tools/#cross-repository-reading) for complete details on configuring cross-repository read access for GitHub Tools.
+- Reading files and searching code in external repositories dynamically, even if the repository is not checked out
+- Querying issues and pull requests from other repos
+- Accessing commits, releases, and workflow runs across repositories
+- Reading organization-level information
 
-This authentication is for **reading** information from GitHub. Authorization for **writing** to other repositories (creating issues, PRs, comments) is configured separately, see below.
+See [Additional Authentication for GitHub Tools](/gh-aw/reference/github-tools/#additional-authentication-for-github-tools) for full details on creating a PAT, using a GitHub App, or using the magic secret `GH_AW_GITHUB_MCP_SERVER_TOKEN`.
 
 ## Cross-Repository Safe Outputs
 
@@ -384,6 +278,7 @@ updates to each PR branch.
 
 ## Related Documentation
 
+- [GitHub Repository Checkout](/gh-aw/reference/checkout/) - Full checkout configuration reference
 - [MultiRepoOps Pattern](/gh-aw/patterns/multi-repo-ops/) - Cross-repository workflow pattern
 - [CentralRepoOps Pattern](/gh-aw/patterns/central-repo-ops/) - Central control plane pattern
 - [GitHub Tools Reference](/gh-aw/reference/github-tools/) - Complete GitHub Tools configuration

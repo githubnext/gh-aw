@@ -82,6 +82,7 @@ Contemporary AI-powered software workflows require actionable outcomes beyond in
 - **Credential surface expansion**: Write-capable tokens become high-value targets, increasing attack surface
 
 Traditional mitigation strategies prove inadequate:
+
 - **Full prohibition** eliminates automation benefits, relegating agents to advisory roles
 - **Manual approval gates** create bottlenecks, defeating automation's purpose
 - **Overly-permissive grants** accept unacceptable risk for convenience
@@ -215,6 +216,7 @@ Conformance MAY be demonstrated through:
 **Method M1: Functional Testing**
 
 Systematic verification that all required operations produce specified outcomes under normal and edge-case conditions. Test coverage SHOULD include:
+
 - Each safe output type with valid inputs
 - Constraint enforcement (max limits, domain filtering)
 - Error handling (invalid inputs, exceeded limits)
@@ -223,6 +225,7 @@ Systematic verification that all required operations produce specified outcomes 
 **Method M2: Security Testing**
 
 Demonstration that security properties hold under adversarial conditions. Security test suite SHOULD include:
+
 - Prompt injection scenarios (malicious inputs attempting unauthorized operations)
 - Constraint evasion attempts (trying to exceed max limits)
 - Content injection (URLs to forbidden domains, command injection)
@@ -231,6 +234,7 @@ Demonstration that security properties hold under adversarial conditions. Securi
 **Method M3: Protocol Compliance**
 
 Validation that MCP exchange patterns conform to requirements. Protocol tests SHOULD verify:
+
 - HTTP request/response format correctness
 - JSON Schema validation enforcement
 - NDJSON format adherence
@@ -239,6 +243,7 @@ Validation that MCP exchange patterns conform to requirements. Protocol tests SH
 **Method M4: Configuration Validation**
 
 Verification that configuration parsing, validation, and enforcement match specifications. Configuration tests SHOULD check:
+
 - Valid configuration acceptance
 - Invalid configuration rejection with clear errors
 - Inheritance rules (type-specific overriding global)
@@ -301,12 +306,14 @@ The Safe Outputs MCP Gateway implements defense-in-depth through strict architec
 Agents MUST execute without GitHub write permissions. Only read-level tokens SHALL be accessible to agent processes. Write-capable tokens MUST reside exclusively in safe output job contexts.
 
 **Verification**:
+
 - **Method**: Automated workflow file parsing and static analysis
 - **Tool**: `check_privilege_separation()` in conformance checker (`scripts/check-safe-outputs-conformance.sh`)
 - **Criteria**: No agent job has `issues: write`, `pull-requests: write`, `contents: write`, or other write-level permissions
 - **Manual Check**: Inspect agent job permission declarations in compiled `.lock.yml` files
 
 **Formal Definition**:
+
 ```
 ∀ workflow ∈ Workflows:
   permissions(workflow.jobs.agent) ∩ {issues:write, pull-requests:write, contents:write, ...} = ∅
@@ -319,12 +326,14 @@ Agent-to-processor communication MUST occur through GitHub Actions artifact stor
 *Rationale*: Artifact storage provides tamper-evidence, audit logging, and access control. Alternative channels lack these properties.
 
 **Verification**:
+
 - **Method**: Code review and architecture inspection
 - **Tool**: Manual inspection of workflow compilation code in `pkg/workflow/`
 - **Criteria**: Operations are written to NDJSON files, uploaded as artifacts, and downloaded by safe output jobs
 - **Manual Check**: Verify workflow structure includes `actions/upload-artifact@v4` and `actions/download-artifact@v4` steps between agent and safe output jobs
 
 **Formal Definition**:
+
 ```
 ∀ operation ∈ Operations:
   transmission(operation) = artifact_storage
@@ -338,12 +347,14 @@ Agent-to-processor communication MUST occur through GitHub Actions artifact stor
 Each safe output job MUST request minimal permissions. Jobs SHOULD specialize by operation type, requesting only required permissions. For example, an issue-creation job requests `issues:write` but not `pull-requests:write`.
 
 **Verification**:
+
 - **Method**: Automated permission computation analysis and code review
 - **Tool**: `computePermissionsForSafeOutputs()` in `pkg/workflow/safe_outputs_permissions.go` and `check_permission_computation()` in conformance checker
 - **Criteria**: Each safe output job requests only the minimum permissions required for its operation types
 - **Manual Check**: Review generated workflow YAML to verify job permissions match operation requirements
 
 *Example*:
+
 ```yaml
 jobs:
   safe-output-create-issue:
@@ -353,6 +364,7 @@ jobs:
 ```
 
 **Formal Definition**:
+
 ```
 ∀ job ∈ SafeOutputJobs:
   permissions(job) = minimal_set(operations(job))
@@ -364,12 +376,14 @@ jobs:
 Agent execution context MUST NOT gain access to safe output job credentials through any mechanism (environment variables, file leaks, API endpoints, etc.).
 
 **Verification**:
+
 - **Method**: Manual security audit and code review
 - **Tool**: Security review of workflow structure and GitHub Actions architecture
 - **Criteria**: No GITHUB_TOKEN or credentials are accessible from agent job context; tokens only exist in safe output job contexts
 - **Manual Check**: Audit all communication channels (artifacts, environment variables, network, filesystem) to confirm no credential leakage
 
 **Formal Definition**:
+
 ```
 ∀ t ∈ [agent_start, agent_end]:
   accessible_credentials(agent_context, t) ∩ safe_output_credentials = ∅
@@ -384,6 +398,7 @@ This specification addresses five primary threat scenarios:
 *Attack Vector*: Adversary crafts inputs (issue descriptions, comments, file contents) causing agent to misinterpret intent and declare harmful operations.
 
 *Examples*:
+
 - Mass issue creation (spam)
 - Malicious content injection (phishing URLs)
 - Inappropriate label application
@@ -406,6 +421,7 @@ This specification addresses five primary threat scenarios:
 *Attack Vector*: Adversary modifies workflow YAML between compilation and execution, disabling security features (removing max limits, disabling sanitization).
 
 *Examples*:
+
 - Changing `max: 1` to `max: -1` (unlimited)
 - Removing `allowed-domains` configuration
 - Disabling `footer` attribution
@@ -426,6 +442,7 @@ This specification addresses five primary threat scenarios:
 *Attack Vector*: Agent inadvertently includes secrets (API keys, passwords, tokens) in created content or logs.
 
 *Examples*:
+
 - Secrets in issue descriptions
 - Tokens in PR comments
 - Keys in log output
@@ -446,6 +463,7 @@ This specification addresses five primary threat scenarios:
 *Attack Vector*: Malicious or buggy agent attempts to consume excessive resources (API quotas, storage, execution time).
 
 *Examples*:
+
 - Creating maximum-permitted issues repeatedly
 - Uploading large files to asset branches
 - Triggering workflow dispatch cascades
@@ -466,6 +484,7 @@ This specification addresses five primary threat scenarios:
 *Attack Vector*: Agent targets unauthorized repositories through cross-repository safe output operations.
 
 *Examples*:
+
 - Creating issues in private repositories
 - Commenting on PRs in sensitive repositories
 - Adding labels to upstream project issues
@@ -486,6 +505,7 @@ This specification addresses five primary threat scenarios:
 **Repository Reference Format**
 
 Target repositories MUST be specified in `owner/repo` format. Implementations MUST validate:
+
 - Format matches regex: `^[a-zA-Z0-9_.-]+/[a-zA-Z0-9_.-]+$`
 - Owner and repo components are non-empty
 - No protocol prefix (https://, git://, etc.)
@@ -518,6 +538,7 @@ When evaluating cross-repository operations, implementations MUST apply these ru
 **Property SP6: Cross-Repository Containment**
 
 For all cross-repository operations:
+
 ```
 ∀ op ∈ operations:
   op.target_repo ≠ null ⇒ 
@@ -526,6 +547,7 @@ For all cross-repository operations:
 ```
 
 **Verification**:
+
 - **Method**: Code review and integration testing
 - **Tool**: `check_cross_repo()` in conformance checker (SEC-005) and handler unit tests
 - **Criteria**: All handlers with `target-repo` parameter validate against allowlists; operations to non-allowlisted repos are rejected with E004
@@ -535,12 +557,14 @@ For all cross-repository operations:
 **Property SP7: Deny-by-Default**
 
 Without explicit allowlist configuration:
+
 ```
 allowed_repos = null ∧ allowed_github_references = null ⇒
   ∀ op ∈ operations: op.target_repo = workflow.repository
 ```
 
 **Verification**:
+
 - **Method**: Integration testing
 - **Tool**: Handler unit tests for cross-repository validation
 - **Criteria**: Without allowlist configuration, only same-repository operations are permitted; cross-repository operations are rejected with E004
@@ -575,12 +599,14 @@ Conforming implementations MUST maintain these security invariants:
 *Statement*: At all times during agent execution, the agent process SHALL NOT possess tokens or credentials permitting GitHub write operations.
 
 **Formal Definition**:
+
 ```
 ∀ t ∈ [agent_start, agent_end]:
   permissions(agent_process, t) ∩ {issues:write, pull-requests:write, ...} = ∅
 ```
 
 **Verification**:
+
 - **Method**: Static analysis and runtime inspection
 - **Tool**: `check_privilege_separation()` in conformance checker (SEC-001)
 - **Criteria**: Agent job declares only read permissions; no write-level permissions in agent context
@@ -592,12 +618,14 @@ Conforming implementations MUST maintain these security invariants:
 *Statement*: For all safe output operations, validation logic MUST execute before any GitHub API invocation. Invalid operations MUST be rejected without side effects.
 
 **Formal Definition**:
+
 ```
 ∀ op ∈ operations:
   valid(op) = false ⇒ github_api_call(op) never executes
 ```
 
 **Verification**:
+
 - **Method**: Code review and unit testing
 - **Tool**: `check_validation_ordering()` in conformance checker (SEC-002) and handler unit tests
 - **Criteria**: All validation stages (1-6) complete before Stage 7 (API invocation)
@@ -609,42 +637,49 @@ Conforming implementations MUST maintain these security invariants:
 Implementations MUST execute validation steps in this exact sequence for all safe output operations:
 
 **Stage 1: Schema Validation (REQUIRED)**
+
 - Input: Raw MCP tool arguments
 - Check: JSON schema validation against type-specific schema
 - On failure: Reject immediately with E001 (INVALID_SCHEMA) error
 - Output: Schema-validated operation data
 
 **Stage 2: Limit Enforcement (REQUIRED)**
+
 - Input: Count of operations of each type in current batch
 - Check: Compare count against configured `max` for each type
 - On failure: Reject entire batch with E002 (LIMIT_EXCEEDED) error
 - Output: Limit-validated operation set
 
 **Stage 3: Content Sanitization (REQUIRED)**
+
 - Input: All text fields (title, body, description, etc.)
 - Transform: Apply sanitization pipeline (see Section 9.2)
 - On failure: Reject with E008 (SANITIZATION_FAILED) if unsafe content cannot be sanitized
 - Output: Sanitized operation data
 
 **Stage 4: Domain Filtering (CONDITIONAL)**
+
 - Input: All URLs in markdown links and images
 - Check: Validate against `allowed-domains` if configured
 - Transform: Redact unauthorized URLs
 - Output: Domain-filtered operation data
 
 **Stage 5: Cross-Repository Validation (CONDITIONAL)**
+
 - Input: `target-repo` parameter if present
 - Check: Validate against `allowed-repos` or `allowed-github-references`
 - On failure: Reject with E004 (INVALID_TARGET_REPO)
 - Output: Authorized target repository
 
 **Stage 6: Dependency Resolution (CONDITIONAL)**
+
 - Input: Temporary IDs, parent references
 - Check: Resolve references to actual GitHub resource numbers
 - On failure: Reject with E005 (MISSING_PARENT)
 - Output: Fully-resolved operation data
 
 **Stage 7: GitHub API Invocation (EXECUTION)**
+
 - Input: Validated, sanitized, authorized operation data
 - Action: Execute GitHub API calls
 - On failure: Return E007 (API_ERROR) with details
@@ -660,6 +695,7 @@ For single-operation types (max=1), validation failure MUST prevent any API call
 **Requirement VL3: Error Propagation**
 
 Validation errors MUST include:
+
 - Error code (E001-E008)
 - Human-readable message
 - Operation index (for batch operations)
@@ -670,12 +706,14 @@ Validation errors MUST include:
 *Statement*: For all configured max limits, implementations MUST prevent exceeding the limit. Attempts to exceed limits SHALL result in operation rejection.
 
 **Formal Definition**:
+
 ```
 ∀ type ∈ safe_output_types:
   count(operations[type]) > config[type].max ⇒ reject(operations[type])
 ```
 
 **Verification**:
+
 - **Method**: Integration testing and limit enforcement validation
 - **Tool**: `check_max_limits()` in conformance checker (SEC-003) and handler unit tests
 - **Criteria**: Operations exceeding configured `max` are rejected with E002 (LIMIT_EXCEEDED) error
@@ -687,12 +725,14 @@ Validation errors MUST include:
 *Statement*: All user-provided content MUST undergo sanitization. Sanitization MUST occur after agent output and before GitHub API invocation.
 
 **Formal Definition**:
+
 ```
 ∀ content ∈ user_provided_fields:
   github_api_call(content) ⇒ ∃ sanitized_content = sanitize(content) ∧ passed(sanitized_content)
 ```
 
 **Verification**:
+
 - **Method**: Code review and unit testing
 - **Tool**: `check_sanitization()` in conformance checker (SEC-004) and sanitization unit tests
 - **Criteria**: All handlers with body/content fields invoke sanitization functions before API calls
@@ -704,12 +744,14 @@ Validation errors MUST include:
 *Statement*: All created GitHub resources MUST include provenance metadata identifying workflow source and run.
 
 **Formal Definition**:
+
 ```
 ∀ resource ∈ created_resources:
   ∃ provenance_data ∈ resource ∧ provenance_data.workflow_run_url ≠ null
 ```
 
 **Verification**:
+
 - **Method**: Manual inspection and automated footer validation
 - **Tool**: `check_footers()` in conformance checker (USE-002) and handler code review
 - **Criteria**: All created resources include footer attribution with workflow run URL when footer is configured
@@ -722,8 +764,6 @@ Validation errors MUST include:
 
 (Continuing with Section 4 and remaining sections, but due to length limits, I'll create the file now with the content we have)
 
-
-
 ### 4.1 Component Topology
 
 The Safe Outputs MCP Gateway system comprises three distinct components operating in different phases:
@@ -733,6 +773,7 @@ The Safe Outputs MCP Gateway system comprises three distinct components operatin
 *Input*: Markdown workflow files with YAML frontmatter  
 *Output*: Compiled GitHub Actions YAML workflows  
 *Key Responsibilities*:
+
 - Parse and validate `safe-outputs:` configuration blocks
 - Generate JSON schemas for enabled safe output types
 - Synthesize dedicated jobs for each safe output type with minimal permissions
@@ -746,6 +787,7 @@ The Safe Outputs MCP Gateway system comprises three distinct components operatin
 *Input*: MCP tool invocation requests over HTTP
 *Output*: NDJSON file recording operation declarations  
 *Key Responsibilities*:
+
 - Start HTTP server on port 3001 (configurable)
 - Load tool schemas from `/opt/gh-aw/safeoutputs/config.json`
 - Register MCP tools matching enabled safe output types
@@ -760,6 +802,7 @@ The Safe Outputs MCP Gateway system comprises three distinct components operatin
 *Input*: NDJSON artifact from agent job  
 *Output*: GitHub resources (issues, PRs, comments, labels)  
 *Key Responsibilities*:
+
 - Download agent output artifact from GitHub Actions storage
 - Parse NDJSON entries and group by type
 - Apply content sanitization to all text fields
@@ -777,6 +820,7 @@ Operations flow through the system following this precise sequence:
 **Phase 1: Configuration Declaration** (Development Time)
 
 Workflow author writes configuration in frontmatter:
+
 ```yaml
 safe-outputs:
   create-issue:
@@ -788,6 +832,7 @@ safe-outputs:
 **Phase 2: Schema Synthesis** (Compilation Time)
 
 Compiler generates tool schemas:
+
 ```json
 {
   "tools": {
@@ -818,6 +863,7 @@ Compiler generates tool schemas:
 **Phase 3: Runtime Initialization** (Agent Job Start)
 
 MCP Gateway server reads configuration:
+
 ```javascript
 const config = JSON.parse(fs.readFileSync('/opt/gh-aw/safeoutputs/config.json'));
 const tools = config.tools;
@@ -831,6 +877,7 @@ for (const [name, schema] of Object.entries(tools)) {
 **Phase 4: Operation Declaration** (Agent Execution)
 
 Agent invokes MCP tool:
+
 ```http
 POST http://127.0.0.1:3001/tools/call
 Content-Type: application/json
@@ -851,6 +898,7 @@ Content-Type: application/json
 **Phase 5: Validation and Recording** (Gateway Processing)
 
 Gateway validates and appends to NDJSON:
+
 ```javascript
 // Schema validation
 const valid = validate(schema, arguments);
@@ -869,6 +917,7 @@ return {result: {content: [{type: "text", text: '{"result":"success"}'}]}};
 **Phase 6: Artifact Transfer** (Job Transition)
 
 Agent job uploads NDJSON artifact:
+
 ```yaml
 - name: Upload agent output
   uses: actions/upload-artifact@v4
@@ -878,6 +927,7 @@ Agent job uploads NDJSON artifact:
 ```
 
 Safe output job downloads artifact:
+
 ```yaml
 - name: Download agent output
   uses: actions/download-artifact@v4
@@ -889,6 +939,7 @@ Safe output job downloads artifact:
 **Phase 7: Batch Processing** (Safe Output Execution)
 
 Processor reads, validates, and executes:
+
 ```javascript
 const operations = fs.readFileSync(artifact, 'utf8')
   .split('\n')
@@ -914,6 +965,7 @@ for (const op of issueOps) {
 Configuration flows from author intent to runtime enforcement:
 
 **Authoring Layer**:
+
 ```yaml
 # Workflow .md file
 safe-outputs:
@@ -923,6 +975,7 @@ safe-outputs:
 ```
 
 **Compilation Layer**:
+
 ```go
 // Compiler parses and validates
 config := extractSafeOutputsConfig(frontmatter)
@@ -932,6 +985,7 @@ jobs := synthesizeJobs(config)
 ```
 
 **Deployment Layer**:
+
 ```yaml
 # Compiled .lock.yml
 jobs:
@@ -944,6 +998,7 @@ jobs:
 ```
 
 **Runtime Layer**:
+
 ```javascript
 // MCP server loads at startup
 const config = JSON.parse(fs.readFileSync('/opt/gh-aw/safeoutputs/config.json'));
@@ -951,6 +1006,7 @@ const config = JSON.parse(fs.readFileSync('/opt/gh-aw/safeoutputs/config.json'))
 ```
 
 **Execution Layer**:
+
 ```javascript
 // Safe output processor enforces
 const maxAllowed = config.create_issue.max;
@@ -967,6 +1023,7 @@ const allowedLabels = config.create_issue.allowed_labels;
 Safe output configuration employs a two-level hierarchy: global parameters affecting all types, and type-specific blocks customizing individual operation categories.
 
 **General Form**:
+
 ```yaml
 safe-outputs:
   # Global parameters
@@ -978,6 +1035,7 @@ safe-outputs:
 ```
 
 **Namespace Separation**:
+
 - Global parameters have unreserved names (footer, staged, allowed-domains)
 - Type-specific blocks use hyphenated safe output type names (create-issue, add-comment)
 - Parameter inheritance flows from global to type-specific (type overrides global)
@@ -1008,19 +1066,21 @@ When `footer: true`, implementations MUST append this structure:
 ```
 
 **Template Variables**:
+
 - `<workflow-name>`: Workflow display name (from frontmatter `name:` or filename)
-- `<run-url>`: Complete URL to workflow run (https://github.com/{owner}/{repo}/actions/runs/{id})
+- `<run-url>`: Complete URL to workflow run (<https://github.com/{owner}/{repo}/actions/runs/{id}>)
 - `<context>`: Optional triggering context:
-  - ` for #123` when triggered by issue #123
-  - ` for #456` when triggered by PR #456
-  - ` for discussion #789` when triggered by discussion #789
+  - `for #123` when triggered by issue #123
+  - `for #456` when triggered by PR #456
+  - `for discussion #789` when triggered by discussion #789
   - Omitted when no specific trigger
 - `<source>`: Workflow source path (owner/repo/path@ref, e.g., github/gh-aw/.github/workflows/triage@main)
-- `<url>`: Documentation URL (typically https://github.github.com/gh-aw/setup/cli/)
+- `<url>`: Documentation URL (typically <https://github.github.com/gh-aw/setup/cli/>)
 
 **Installation Instructions**:
 
 The second paragraph (installation command) is OPTIONAL. It SHOULD be included when:
+
 1. Workflow source location is known (not local development)
 2. Workflow is publicly accessible
 3. Workflow is intended for redistribution
@@ -1028,12 +1088,14 @@ The second paragraph (installation command) is OPTIONAL. It SHOULD be included w
 **Conformance Requirements**:
 
 MUST satisfy:
+
 - Footer appears at end of content, not beginning
 - Horizontal rule (`---`) separates footer from user content
 - Clickable links for workflow run URL
 - Context matches actual trigger type
 
 MUST NOT:
+
 - Include footer when `footer: false`
 - Modify user content to insert footer mid-content
 - Include broken or invalid URLs
@@ -1051,6 +1113,7 @@ MUST NOT:
 **Preview Mode Behavior**:
 
 When `staged: true`, implementations MUST:
+
 1. Skip all GitHub API write operations
 2. Generate detailed preview summaries
 3. Use 🎭 emoji prefix consistently in preview messages
@@ -1086,6 +1149,7 @@ The following <count> <type> operation(s) would be performed if staged mode was 
 **Use Cases**:
 
 Staged mode is RECOMMENDED for:
+
 - Testing new workflows before production deployment
 - Validating agent behavior in safe environment
 - Demonstrating workflow capabilities without side effects
@@ -1094,12 +1158,14 @@ Staged mode is RECOMMENDED for:
 **Conformance Requirements**:
 
 MUST satisfy:
+
 - No permanent GitHub resources created in staged mode
 - Preview shows sufficient detail for correctness evaluation
 - Emoji 🎭 appears in all staged mode headings
 - Clear indication that operations are preview-only
 
 MUST NOT:
+
 - Execute API write operations in staged mode
 - Create partial resources (e.g., issue without closing it)
 - Omit critical operation details from previews
@@ -1134,6 +1200,7 @@ MUST NOT:
 **Pattern Validation**:
 
 Implementations MUST validate patterns at compilation time. Valid patterns match:
+
 ```regex
 ^(\*\.)?[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(\.[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$
 ```
@@ -1143,6 +1210,7 @@ Or are recognized ecosystem identifiers (no dots, no `://`).
 **Redaction Behavior**:
 
 When URL domain does not match any allowlist pattern:
+
 1. Extract full URL from content
 2. Replace with `[URL redacted: unauthorized domain]`
 3. Preserve surrounding context
@@ -1161,6 +1229,7 @@ safe-outputs:
 **Example Redaction**:
 
 Input content:
+
 ```markdown
 See documentation at https://github.com/owner/repo
 Also check https://malicious.example.com/phishing
@@ -1168,6 +1237,7 @@ Reference: https://docs.github.io/guide
 ```
 
 With `allowed-domains: [github.com, "*.github.io"]`, output:
+
 ```markdown
 See documentation at https://github.com/owner/repo
 Also check [URL redacted: unauthorized domain]
@@ -1177,6 +1247,7 @@ Reference: https://docs.github.io/guide
 **Conformance Requirements**:
 
 MUST satisfy:
+
 - Domain extraction handles all valid URL formats
 - Wildcard matching follows specified semantics
 - Case-insensitive comparison
@@ -1184,6 +1255,7 @@ MUST satisfy:
 - Redaction log created when domains filtered
 
 MUST NOT:
+
 - Allow non-allowlisted domains when allowlist configured
 - Break valid URLs matching allowlist
 - Lose content surrounding redacted URLs
@@ -1201,6 +1273,7 @@ MUST NOT:
 Each entry MUST match pattern: `^[a-zA-Z0-9_-]+/[a-zA-Z0-9_.-]+$`
 
 Examples:
+
 - `github/gh-aw`
 - `microsoft/vscode`
 - `owner-name/repo.name`
@@ -1208,6 +1281,7 @@ Examples:
 **Validation Behavior**:
 
 When safe output operation includes `target-repo` configuration:
+
 1. Extract target repository from configuration
 2. Check if target matches any entry in `allowed-github-references`
 3. If no match, reject operation with clear error
@@ -1234,6 +1308,7 @@ safe-outputs:
 **Error Message Format**:
 
 When target repository not in allowlist:
+
 ```
 Cross-repository operation rejected: target repository not in allowed-github-references
 
@@ -1251,12 +1326,14 @@ To permit this operation, add target to allowed-github-references:
 **Conformance Requirements**:
 
 MUST satisfy:
+
 - Repository reference format validation
 - Allowlist checking before API operations
 - Clear error messages on rejection
 - Same-repository operations always permitted
 
 MUST NOT:
+
 - Allow non-allowlisted cross-repository operations
 - Block same-repository operations
 - Silently ignore allowlist configuration
@@ -1276,6 +1353,7 @@ Every safe output type supports these parameters:
 This field is **templatable**: in addition to integer literals and `-1`, it accepts GitHub Actions expression strings (e.g., `${{ inputs.max-issues }}`). When a GitHub Actions expression is supplied, the limit is evaluated at runtime. See Section 5.5 for details.
 
 **Special Values**:
+
 - Positive integer: Strict limit (e.g., `max: 3` allows up to 3 operations)
 - `-1`: Unlimited operations (use with caution)
 - `null` or omitted: Use type's default max
@@ -1308,6 +1386,7 @@ function enforceMaxLimit(operations, type, config) {
 **Error Reporting**:
 
 When limit exceeded:
+
 ```
 Safe output limit exceeded for create_issue
 
@@ -1330,12 +1409,14 @@ To increase limit, update workflow configuration:
 **Conformance Requirements**:
 
 MUST satisfy:
+
 - Count operations per type independently
 - Reject ALL operations when limit exceeded (not just excess)
 - Provide clear error with count and limit
 - Never silently truncate operations
 
 MUST NOT:
+
 - Accept `max: 0` (invalid; disable type instead)
 - Accept negative values except `-1`
 - Allow partial execution when limit exceeded
@@ -1351,6 +1432,7 @@ MUST NOT:
 This field is **templatable**: in addition to literal `true`/`false`, it accepts GitHub Actions expression strings (e.g., `${{ inputs.enable-footer }}`). See Section 5.5 for details.
 
 **Inheritance Precedence**:
+
 1. Type-specific `footer` (highest priority)
 2. Global `safe-outputs.footer`
 3. Default value `true` (lowest priority)
@@ -1369,6 +1451,7 @@ safe-outputs:
 ```
 
 Result:
+
 - Issues created without footers
 - Comments created with footers
 
@@ -1396,6 +1479,7 @@ safe-outputs:
 ```
 
 Result:
+
 - Pull requests previewed without creation
 - Labels applied normally
 
@@ -1406,6 +1490,7 @@ Beyond common parameters, individual safe output types support specialized confi
 **Representative Examples**:
 
 **Issue Creation Extensions**:
+
 ```yaml
 create-issue:
   title-prefix: "[AI] "          # Prepend to all titles
@@ -1420,6 +1505,7 @@ create-issue:
 ```
 
 **Comment Extensions**:
+
 ```yaml
 add-comment:
   target: "issue" | "pull_request" | "discussion" | "*"
@@ -1430,6 +1516,7 @@ add-comment:
 ```
 
 **Submit PR Review Extensions**:
+
 ```yaml
 submit-pull-request-review:
   target: "triggering" | "*" | <PR number>   # Required when not in pull_request trigger
@@ -1439,6 +1526,7 @@ submit-pull-request-review:
 ```
 
 **Pull Request Extensions**:
+
 ```yaml
 create-pull-request:
   base-branch: main              # Target branch (default: repo default)
@@ -1449,6 +1537,7 @@ create-pull-request:
 ```
 
 **Asset Upload Extensions**:
+
 ```yaml
 upload-asset:
   branch: assets                 # Target branch name
@@ -1457,6 +1546,7 @@ upload-asset:
 ```
 
 **Discussion Extensions**:
+
 ```yaml
 create-discussion:
   category: "General"            # Discussion category (name/slug/ID)
@@ -1488,6 +1578,7 @@ max: ${{ inputs.max-issues }}
 ```
 
 **Conformance requirements**:
+
 - Implementations MUST accept literal integers and GitHub Actions expressions for templatable integer fields.
 - When a GitHub Actions expression is supplied as `max`, implementations MUST evaluate it at runtime and treat the result as an integer.
 - A non-integer runtime value for a templatable integer field MUST cause the operation to fail with a descriptive error.
@@ -1509,13 +1600,13 @@ group: ${{ inputs.group-issues }}
 ```
 
 **Conformance requirements**:
+
 - Implementations MUST accept literal booleans and GitHub Actions expressions for templatable boolean fields.
 - A free-form string that is not a GitHub Actions expression (i.e., does not match `${{ ... }}`) MUST be rejected with a descriptive error at compile time.
 - When a GitHub Actions expression is supplied, implementations MUST evaluate it at runtime and treat the result as a boolean.
 - A non-boolean runtime value for a templatable boolean field MUST be treated as `false`.
 
 ---
-
 
 ## 6. Universal Feature Interpretation
 
@@ -1538,6 +1629,7 @@ This section defines precise semantics for features that apply across multiple s
 **Requirement MR3**: Rejection MUST occur before any GitHub API invocations for the type.
 
 **Requirement MR4**: Error messages MUST include:
+
 - Safe output type name
 - Attempted operation count
 - Configured max limit
@@ -1549,21 +1641,25 @@ This section defines precise semantics for features that apply across multiple s
 **Conformance Verification**:
 
 Test Case 1: Exact Limit
+
 - Configure `max: 3`
 - Declare exactly 3 operations
 - Expected: All 3 execute successfully
 
 Test Case 2: Exceeded Limit
+
 - Configure `max: 3`
 - Declare 4 operations
 - Expected: All 4 rejected with clear error
 
 Test Case 3: Under Limit
+
 - Configure `max: 5`
 - Declare 2 operations
 - Expected: Both execute successfully
 
 Test Case 4: Unlimited
+
 - Configure `max: -1`
 - Declare any count
 - Expected: All execute (with warning)
@@ -1580,6 +1676,7 @@ Test Case 4: Unlimited
 **Requirement SM1**: In staged mode, implementations MUST NOT invoke GitHub API write methods. Read operations for validation are permitted.
 
 **Requirement SM2**: Implementations MUST generate preview summaries containing:
+
 - Operation type and count
 - Complete operation details (all fields)
 - Formatted representation of content
@@ -1605,15 +1702,18 @@ The following <N> <type> operation(s) would be performed if staged mode was disa
 **Conformance Verification**:
 
 Test Case 1: Global Staged
+
 - Configure global `staged: true`
 - Declare operations of multiple types
 - Expected: All types previewed
 
 Test Case 2: Type-Specific Override
+
 - Configure global `staged: false`, type `staged: true`
 - Expected: Type previewed, others execute
 
 Test Case 3: Preview Content
+
 - Enable staged mode
 - Declare operation with all fields
 - Expected: Preview shows all fields with proper formatting
@@ -1633,11 +1733,13 @@ Test Case 3: Preview Content
 **Requirement FA3**: Footer MUST include workflow name and clickable run URL.
 
 **Requirement FA4**: When workflow triggered by specific item, footer SHOULD include context reference matching trigger type:
+
 - Issue trigger: `for #<number>`
 - PR trigger: `for #<number>`
 - Discussion trigger: `for discussion #<number>`
 
 **Requirement FA5**: Installation instructions are OPTIONAL but RECOMMENDED when:
+
 - Workflow source is known and public
 - Workflow is intended for reuse
 
@@ -1655,25 +1757,29 @@ Test Case 3: Preview Content
 ```
 
 Where:
+
 - `<workflow_name>`: From frontmatter `name:` or derived from filename
 - `<run_url>`: `https://github.com/<owner>/<repo>/actions/runs/<run_id>`
-- `<context>`: Optional: ` for #<N>` or ` for discussion #<N>`
+- `<context>`: Optional: `for #<N>` or `for discussion #<N>`
 - `<source_path>`: `<owner>/<repo>/<path>@<ref>`
 - `<docs_url>`: Documentation URL (typically project docs)
 
 **Conformance Verification**:
 
 Test Case 1: Footer Enabled
+
 - Configure `footer: true`
 - Create issue
 - Expected: Issue body contains footer with all required elements
 
 Test Case 2: Footer Disabled
+
 - Configure `footer: false`
 - Create issue
 - Expected: Issue body contains only user content, no footer
 
 Test Case 3: Context Inclusion
+
 - Configure `footer: true`
 - Trigger workflow from issue #42
 - Create comment
@@ -1689,6 +1795,7 @@ Test Case 3: Context Inclusion
 **Requirement CS1**: ALL user-provided text content MUST undergo sanitization before GitHub API invocation.
 
 **Requirement CS2**: Sanitization MUST apply transformations in this order:
+
 1. Unicode normalization
 2. Protocol filtering
 3. Domain filtering (if configured)
@@ -1704,6 +1811,7 @@ Test Case 3: Context Inclusion
 **Transformation T1: Unicode Normalization**
 
 Requirements:
+
 - Apply NFC (Canonical Decomposition + Canonical Composition)
 - Remove zero-width characters: U+200B, U+200C, U+200D, U+FEFF
 - Remove control characters: U+0000-U+001F, U+007F
@@ -1712,11 +1820,13 @@ Requirements:
 **Transformation T2: Protocol Filtering**
 
 Allowed protocols:
+
 - `http://`
 - `https://`
 - `mailto:`
 
 Requirements:
+
 - Extract URLs via pattern matching
 - Check protocol against allowlist
 - Replace disallowed protocols: `[URL removed: unauthorized protocol]`
@@ -1725,6 +1835,7 @@ Requirements:
 **Transformation T3: Domain Filtering** (when `allowed-domains` configured)
 
 Requirements:
+
 - Extract domain from each URL
 - Compare against allowed-domains list (case-insensitive)
 - Wildcard handling: `*.example.com` matches `sub.example.com` but NOT `example.com`
@@ -1734,6 +1845,7 @@ Requirements:
 **Transformation T4: Command Neutralization**
 
 Requirements:
+
 - Detect slash commands at content start: `^/[a-zA-Z0-9_-]+`
 - Escape slash: `/command` becomes `\/command`
 - Preserve commands in code blocks
@@ -1741,6 +1853,7 @@ Requirements:
 **Transformation T5: Mention Filtering**
 
 Requirements:
+
 - Detect @mentions: `@[a-zA-Z0-9_-]+`
 - Check against allowed-aliases list
 - Neutralize unauthorized: `@user` becomes `@ user` (add space)
@@ -1749,6 +1862,7 @@ Requirements:
 **Transformation T6: Markdown Safety**
 
 Requirements:
+
 - Remove XML comments: `<!-- ... -->`
 - Balance code fences: Ensure all ``` blocks properly closed
 - Convert unsafe XML tags to text representation
@@ -1756,6 +1870,7 @@ Requirements:
 **Transformation T7: Truncation**
 
 Requirements:
+
 - Default max length: 524,288 characters
 - Truncate at character boundary (not mid-multibyte character)
 - Append truncation notice: `\n\n[Content truncated at character limit]`
@@ -1763,19 +1878,23 @@ Requirements:
 **Conformance Verification**:
 
 Test Case 1: Protocol Filtering
+
 - Input: `javascript:alert(1)`
 - Expected: `[URL removed: unauthorized protocol]`
 
 Test Case 2: Domain Filtering
+
 - Config: `allowed-domains: [github.com]`
 - Input: `https://github.com/x https://evil.com/y`
 - Expected: `https://github.com/x [URL redacted: unauthorized domain]`
 
 Test Case 3: Command Neutralization
+
 - Input: `/close this issue`
 - Expected: `\/close this issue`
 
 Test Case 4: Mention Filtering
+
 - Config: `allowed-aliases: [copilot]`
 - Input: `@copilot @attacker`
 - Expected: `@copilot @ attacker`
@@ -1830,6 +1949,7 @@ This section provides complete normative definitions for all safe output types. 
 5. **Cross-Repository**: When `target-repo` configured, created in that repository (must be in `allowed-repos`).
 
 **Configuration Parameters**:
+
 - `max`: Operation limit (default: 1)
 - `title-prefix`: Prepend to titles
 - `labels`: Auto-apply labels
@@ -1844,6 +1964,7 @@ This section provides complete normative definitions for all safe output types. 
 - `staged`: Staged mode override
 
 **Security Requirements**:
+
 - Title and body undergo full sanitization
 - Label validation before creation
 - Cross-repo validation against allowed-repos
@@ -1852,14 +1973,17 @@ This section provides complete normative definitions for all safe output types. 
 **Required Permissions**:
 
 *GitHub Actions Token*:
+
 - `contents: read` - Repository metadata and file access
 - `issues: write` - Issue creation and modification
 
 *GitHub App* (if using `safe-outputs.app` configuration):
+
 - `issues: write` - Issue creation and modification  
 - `metadata: read` - Repository metadata (automatically granted)
 
 **Notes**:
+
 - Both permission modes require the same write scopes
 - GitHub App permissions enable cross-repository operations beyond `allowed-repos` when properly configured
 - The `contents: read` permission is always included for repository context access
@@ -1917,6 +2041,7 @@ This section provides complete normative definitions for all safe output types. 
 **Note**: The 65536 character limit applies to the final comment text including the automatically appended footer. Users should leave approximately 200-500 characters of headroom to accommodate the footer, which contains workflow attribution and installation instructions.
 
 **Configuration Parameters**:
+
 - `max`: Operation limit (default: 1)
 - `target`: Filter by type ("issue", "pull_request", "discussion", "*")
 - `hide-older-comments`: Hide previous workflow comments
@@ -1927,12 +2052,14 @@ This section provides complete normative definitions for all safe output types. 
 **Required Permissions**:
 
 *GitHub Actions Token*:
+
 - `contents: read` - Repository metadata and file access
 - `issues: write` - Comment creation on issues
 - `pull-requests: write` - Comment creation on pull requests
 - `discussions: write` - Comment creation on discussions (when `discussions: true` or omitted)
 
 *GitHub App* (if using `safe-outputs.app` configuration):
+
 - `issues: write` - Comment creation on issues
 - `pull-requests: write` - Comment creation on pull requests
 - `discussions: write` - Comment creation on discussions (when `discussions: true` or omitted)
@@ -1961,6 +2088,7 @@ safe-outputs:
 ```
 
 **Notes**:
+
 - By default, requires write permissions for all three entity types (issues, PRs, discussions) since comments can be added to any type
 - When `discussions: false`, the workflow only requests `issues:write` and `pull-requests:write` permissions
 - Discussion-related safe outputs (`create-discussion`, `close-discussion`, `update-discussion`) independently add `discussions:write` permission when configured
@@ -2007,6 +2135,7 @@ safe-outputs:
 5. **Reviewer Assignment**: Auto-requests reviewers if configured.
 
 **Configuration Parameters**:
+
 - `max`: Operation limit (default: 1)
 - `base-branch`: Target branch
 - `draft`: Draft status
@@ -2017,6 +2146,7 @@ safe-outputs:
 - `footer`: Footer override
 
 **Security Requirements**:
+
 - Branch name sanitization (prevent injection)
 - Patch content validation
 - Size limits on commits
@@ -2024,26 +2154,31 @@ safe-outputs:
 **Required Permissions**:
 
 *GitHub Actions Token*:
+
 - `contents: write` - Branch creation and commit operations
 - `pull-requests: write` - Pull request creation
 
 **With `fallback-as-issue: true`** (default):
+
 - `contents: write` - Branch creation and commit operations
 - `issues: write` - Issue creation fallback when PR creation fails
 - `pull-requests: write` - Pull request creation
 
 *GitHub App* (if using `safe-outputs.app` configuration):
+
 - `contents: write` - Branch creation and commit operations
 - `pull-requests: write` - Pull request creation
 - `metadata: read` - Repository metadata (automatically granted)
 
 **With `fallback-as-issue: true`** (default):
+
 - `contents: write` - Branch creation and commit operations
 - `issues: write` - Issue creation fallback when PR creation fails
 - `pull-requests: write` - Pull request creation
 - `metadata: read` - Repository metadata (automatically granted)
 
 **Notes**:
+
 - Permission requirements vary based on `fallback-as-issue` configuration
 - When `fallback-as-issue: true` (default), requires `issues: write` for fallback issue creation if PR creation fails
 - When `fallback-as-issue: false`, only requires `contents: write` and `pull-requests: write`
@@ -2085,10 +2220,12 @@ safe-outputs:
 4. **Transparency**: Provides clear indication of normal completion vs. error states.
 
 **Configuration Parameters**:
+
 - `max`: Operation limit (always 1; noop is registered as a singleton type)
 - `message`: Default completion message (overridden by agent-provided message at invocation time)
 
 **Security Requirements**:
+
 - The `message` field MUST undergo content sanitization to prevent log injection
 - The handler MUST NOT make any GitHub API calls
 - The handler MUST NOT modify any workflow state or create side effects
@@ -2096,12 +2233,15 @@ safe-outputs:
 **Required Permissions**:
 
 *GitHub Actions Token*:
+
 - No additional permissions required beyond base workflow permissions
 
 *GitHub App* (if using `safe-outputs.app` configuration):
+
 - No additional permissions required beyond base app installation
 
 **Notes**:
+
 - The `noop` type performs no GitHub API operations and requires no special permissions
 - Only logs completion message to workflow output
 - Always available regardless of permission configuration
@@ -2156,12 +2296,14 @@ This section provides complete definitions for all remaining safe output types. 
 5. **Cross-Repository**: When `target-repo` is configured, operates on that repository (must be in `allowed-repos`).
 
 **Configuration Parameters**:
+
 - `max`: Operation limit (default: 1)
 - `target-repo`: Cross-repository target
 - `allowed-repos`: Cross-repo allowlist
 - `staged`: Staged mode override
 
 **Security Requirements**:
+
 - Title and body MUST undergo full content sanitization before modification
 - Label values MUST be validated against repository labels before application
 - Cross-repository targets MUST be validated against the `allowed-repos` allowlist
@@ -2170,14 +2312,17 @@ This section provides complete definitions for all remaining safe output types. 
 **Required Permissions**:
 
 *GitHub Actions Token*:
+
 - `contents: read` - Repository metadata and context
 - `issues: write` - Issue modification operations
 
 *GitHub App*:
+
 - `issues: write` - Issue modification operations
 - `metadata: read` - Repository metadata (automatically granted)
 
 **Notes**:
+
 - Only specified fields are updated; unspecified fields remain unchanged
 - Same permissions as `create_issue`
 
@@ -2221,6 +2366,7 @@ This section provides complete definitions for all remaining safe output types. 
 5. **Footer Injection**: Appends attribution footer to the closing comment when configured.
 
 **Configuration Parameters**:
+
 - `max`: Operation limit (default: 1)
 - `target-repo`: Cross-repository target
 - `allowed-repos`: Cross-repo allowlist
@@ -2228,6 +2374,7 @@ This section provides complete definitions for all remaining safe output types. 
 - `staged`: Staged mode override
 
 **Security Requirements**:
+
 - The closing comment body MUST undergo full content sanitization
 - Issue number MUST be validated as a positive integer belonging to the target repository
 - Cross-repository targets MUST be validated against the `allowed-repos` allowlist
@@ -2236,10 +2383,12 @@ This section provides complete definitions for all remaining safe output types. 
 **Required Permissions**:
 
 *GitHub Actions Token*:
+
 - `contents: read` - Repository metadata and context
 - `issues: write` - Issue state modification and comment creation
 
 *GitHub App*:
+
 - `issues: write` - Issue state modification and comment creation
 - `metadata: read` - Repository metadata (automatically granted)
 
@@ -2286,10 +2435,12 @@ This section provides complete definitions for all remaining safe output types. 
 5. **Same Repository Only**: Cross-repository sub-issue linking is not supported.
 
 **Configuration Parameters**:
+
 - `max`: Operation limit (default: 1)
 - `staged`: Staged mode override
 
 **Security Requirements**:
+
 - Both `parent_issue_number` and `sub_issue_number` MUST be validated as positive integers
 - Both issue numbers MUST exist in the target repository before modification
 - The handler MUST enforce the maximum sub-issue count limit to prevent unbounded growth
@@ -2298,14 +2449,17 @@ This section provides complete definitions for all remaining safe output types. 
 **Required Permissions**:
 
 *GitHub Actions Token*:
+
 - `contents: read` - Repository metadata and context
 - `issues: write` - Issue body modification for task list entries
 
 *GitHub App*:
+
 - `issues: write` - Issue body modification for task list entries
 - `metadata: read` - Repository metadata (automatically granted)
 
 **Notes**:
+
 - Creates bidirectional navigation links between parent and child issues
 - Enforces maximum sub-issue count limit (default: 50)
 
@@ -2350,6 +2504,7 @@ This section provides complete definitions for all remaining safe output types. 
 5. **Temporary ID Support**: Supports `temporary_id` field for referencing before creation.
 
 **Configuration Parameters**:
+
 - `max`: Operation limit (default: 1)
 - `category`: Default discussion category
 - `target-repo`: Cross-repository target
@@ -2358,6 +2513,7 @@ This section provides complete definitions for all remaining safe output types. 
 - `staged`: Staged mode override
 
 **Security Requirements**:
+
 - Title and body MUST undergo full content sanitization before creation
 - Category MUST be validated as an existing category in the target repository
 - Cross-repository targets MUST be validated against the `allowed-repos` allowlist
@@ -2365,16 +2521,19 @@ This section provides complete definitions for all remaining safe output types. 
 **Required Permissions**:
 
 *GitHub Actions Token*:
+
 - `contents: read` - Repository metadata and context
 - `issues: write` - Fallback issue creation when discussion creation fails
 - `discussions: write` - Discussion creation operations
 
 *GitHub App*:
+
 - `discussions: write` - Discussion creation operations
 - `issues: write` - Fallback issue creation when discussion creation fails
 - `metadata: read` - Repository metadata (automatically granted)
 
 **Notes**:
+
 - Includes `issues: write` for fallback-to-issue functionality
 - If discussion categories are not enabled, may fall back to creating an issue
 
@@ -2417,12 +2576,14 @@ This section provides complete definitions for all remaining safe output types. 
 4. **GraphQL-Based**: Uses GitHub GraphQL API for discussion updates as the REST API does not support discussion modification.
 
 **Configuration Parameters**:
+
 - `max`: Operation limit (default: 1)
 - `target-repo`: Cross-repository target
 - `allowed-repos`: Cross-repo allowlist
 - `staged`: Staged mode override
 
 **Security Requirements**:
+
 - Title and body MUST undergo full content sanitization before modification
 - Discussion number MUST be validated as a positive integer belonging to the target repository
 - Cross-repository targets MUST be validated against the `allowed-repos` allowlist
@@ -2431,10 +2592,12 @@ This section provides complete definitions for all remaining safe output types. 
 **Required Permissions**:
 
 *GitHub Actions Token*:
+
 - `contents: read` - Repository metadata and context
 - `discussions: write` - Discussion modification operations
 
 *GitHub App*:
+
 - `discussions: write` - Discussion modification operations
 - `metadata: read` - Repository metadata (automatically granted)
 
@@ -2483,6 +2646,7 @@ This section provides complete definitions for all remaining safe output types. 
 5. **Cross-Repository**: When `target-repo` is configured, operates on that repository (must be in `allowed-repos`).
 
 **Configuration Parameters**:
+
 - `max`: Operation limit (default: 1)
 - `target-repo`: Cross-repository target
 - `allowed-repos`: Cross-repo allowlist
@@ -2490,6 +2654,7 @@ This section provides complete definitions for all remaining safe output types. 
 - `staged`: Staged mode override
 
 **Security Requirements**:
+
 - The closing comment body MUST undergo full content sanitization
 - Discussion number MUST be validated as a positive integer belonging to the target repository
 - Cross-repository targets MUST be validated against the `allowed-repos` allowlist
@@ -2498,10 +2663,12 @@ This section provides complete definitions for all remaining safe output types. 
 **Required Permissions**:
 
 *GitHub Actions Token*:
+
 - `contents: read` - Repository metadata and context
 - `discussions: write` - Discussion state modification and comment creation
 
 *GitHub App*:
+
 - `discussions: write` - Discussion state modification and comment creation
 - `metadata: read` - Repository metadata (automatically granted)
 
@@ -2518,14 +2685,17 @@ This section provides complete definitions for all remaining safe output types. 
 **Required Permissions**:
 
 *GitHub Actions Token*:
+
 - `contents: read` - Repository metadata and context
 - `pull-requests: write` - Pull request modification operations
 
 *GitHub App*:
+
 - `pull-requests: write` - Pull request modification operations
 - `metadata: read` - Repository metadata (automatically granted)
 
 **Notes**:
+
 - Only specified fields are updated; unspecified fields remain unchanged
 - Base branch changes are validated for safety
 
@@ -2542,14 +2712,17 @@ This section provides complete definitions for all remaining safe output types. 
 **Required Permissions**:
 
 *GitHub Actions Token*:
+
 - `contents: read` - Repository metadata and context
 - `pull-requests: write` - Pull request state modification and comment creation
 
 *GitHub App*:
+
 - `pull-requests: write` - Pull request state modification and comment creation
 - `metadata: read` - Repository metadata (automatically granted)
 
 **Notes**:
+
 - Higher default max (10) enables bulk PR cleanup operations
 - Does NOT merge changes - use GitHub's merge functionality for that
 
@@ -2566,10 +2739,12 @@ This section provides complete definitions for all remaining safe output types. 
 **Required Permissions**:
 
 *GitHub Actions Token*:
+
 - `contents: read` - Repository metadata and context
 - `pull-requests: write` - Pull request draft status modification
 
 *GitHub App*:
+
 - `pull-requests: write` - Pull request draft status modification
 - `metadata: read` - Repository metadata (automatically granted)
 
@@ -2586,17 +2761,20 @@ This section provides complete definitions for all remaining safe output types. 
 **Required Permissions**:
 
 *GitHub Actions Token*:
+
 - `contents: write` - Branch push operations and commit creation
 - `issues: write` - Comment creation for push notifications
 - `pull-requests: write` - Pull request metadata access
 
 *GitHub App*:
+
 - `contents: write` - Branch push operations and commit creation
 - `issues: write` - Comment creation for push notifications  
 - `pull-requests: write` - Pull request metadata access
 - `metadata: read` - Repository metadata (automatically granted)
 
 **Notes**:
+
 - Requires `contents: write` for git push operations
 - Enforces maximum patch size limit (default: 10 KB, range: 1–100 KB)
 - Validates changes don't exceed size limits before pushing
@@ -2614,14 +2792,17 @@ This section provides complete definitions for all remaining safe output types. 
 **Required Permissions**:
 
 *GitHub Actions Token*:
+
 - `contents: read` - Repository metadata and diff access
 - `pull-requests: write` - Review comment creation
 
 *GitHub App*:
+
 - `pull-requests: write` - Review comment creation
 - `metadata: read` - Repository metadata (automatically granted)
 
 **Notes**:
+
 - Comments buffered via PR review buffer for batch submission
 - Higher default max (10) enables comprehensive code review
 
@@ -2638,14 +2819,17 @@ This section provides complete definitions for all remaining safe output types. 
 **Required Permissions**:
 
 *GitHub Actions Token*:
+
 - `contents: read` - Repository metadata and context
 - `pull-requests: write` - Review submission operations
 
 *GitHub App*:
+
 - `pull-requests: write` - Review submission operations
 - `metadata: read` - Repository metadata (automatically granted)
 
 **Notes**:
+
 - Submits all buffered review comments from `create_pull_request_review_comment`
 - Review status affects PR merge requirements
 - **Target**: `target` accepts `"triggering"` (default), `"*"` (use `pull_request_number` from message), or an explicit PR number (e.g. `${{ github.event.inputs.pr_number }}`). Required when the workflow is not triggered by a pull request (e.g. `workflow_dispatch`).
@@ -2665,14 +2849,17 @@ This section provides complete definitions for all remaining safe output types. 
 **Required Permissions**:
 
 *GitHub Actions Token*:
+
 - `contents: read` - Repository metadata and context
 - `pull-requests: write` - Review thread resolution operations
 
 *GitHub App*:
+
 - `pull-requests: write` - Review thread resolution operations
 - `metadata: read` - Repository metadata (automatically granted)
 
 **Notes**:
+
 - Higher default max (10) enables resolving multiple threads per review cycle
 
 ---
@@ -2688,14 +2875,17 @@ This section provides complete definitions for all remaining safe output types. 
 **Required Permissions**:
 
 *GitHub Actions Token*:
+
 - `contents: read` - Repository metadata and context
 - `pull-requests: write` - Review comment reply creation
 
 *GitHub App*:
+
 - `pull-requests: write` - Review comment reply creation
 - `metadata: read` - Repository metadata (automatically granted)
 
 **Notes**:
+
 - Higher default max (10) enables responding to multiple review comments per cycle
 - Replies scoped to triggering PR by default; `target: "*"` requires explicit `pull_request_number` per message
 - Footer attribution appended by default; configurable via `footer: false`
@@ -2713,16 +2903,19 @@ This section provides complete definitions for all remaining safe output types. 
 **Required Permissions**:
 
 *GitHub Actions Token*:
+
 - `contents: read` - Repository metadata and context
 - `issues: write` - Label addition to issues
 - `pull-requests: write` - Label addition to pull requests
 
 *GitHub App*:
+
 - `issues: write` - Label addition to issues
 - `pull-requests: write` - Label addition to pull requests
 - `metadata: read` - Repository metadata (automatically granted)
 
 **Notes**:
+
 - Requires both `issues: write` and `pull-requests: write` to support labeling both entity types
 - Labels must exist in repository; non-existent labels generate warnings
 
@@ -2739,16 +2932,19 @@ This section provides complete definitions for all remaining safe output types. 
 **Required Permissions**:
 
 *GitHub Actions Token*:
+
 - `contents: read` - Repository metadata and context
 - `issues: write` - Label removal from issues
 - `pull-requests: write` - Label removal from pull requests
 
 *GitHub App*:
+
 - `issues: write` - Label removal from issues
 - `pull-requests: write` - Label removal from pull requests
 - `metadata: read` - Repository metadata (automatically granted)
 
 **Notes**:
+
 - Same permissions as `add_labels`
 - Missing labels are silently ignored (no error)
 
@@ -2765,14 +2961,17 @@ This section provides complete definitions for all remaining safe output types. 
 **Required Permissions**:
 
 *GitHub Actions Token*:
+
 - `contents: read` - Repository metadata and context
 - `pull-requests: write` - Reviewer assignment operations
 
 *GitHub App*:
+
 - `pull-requests: write` - Reviewer assignment operations
 - `metadata: read` - Repository metadata (automatically granted)
 
 **Notes**:
+
 - Teams are expanded to individual members based on repository configuration
 - Invalid reviewers generate warnings but don't fail the operation
 
@@ -2789,14 +2988,17 @@ This section provides complete definitions for all remaining safe output types. 
 **Required Permissions**:
 
 *GitHub Actions Token*:
+
 - `contents: read` - Repository metadata and context
 - `issues: write` - Milestone assignment operations
 
 *GitHub App*:
+
 - `issues: write` - Milestone assignment operations
 - `metadata: read` - Repository metadata (automatically granted)
 
 **Notes**:
+
 - Milestone must exist in repository
 - Replaces any existing milestone assignment
 
@@ -2813,14 +3015,17 @@ This section provides complete definitions for all remaining safe output types. 
 **Required Permissions**:
 
 *GitHub Actions Token*:
+
 - `contents: read` - Repository metadata and context
 - `issues: write` - Agent assignment operations
 
 *GitHub App*:
+
 - `issues: write` - Agent assignment operations
 - `metadata: read` - Repository metadata (automatically granted)
 
 **Notes**:
+
 - Uses special assignee syntax for Copilot coding agent assignment
 - Agent must be enabled in repository settings
 
@@ -2835,20 +3040,24 @@ This section provides complete definitions for all remaining safe output types. 
 **Mandatory**: No
 
 **Configuration Options**:
+
 - `unassign-first` (boolean, default: false): If true, unassigns all current assignees before assigning new ones. Useful for reassigning issues from one user to another.
 
 **Required Permissions**:
 
 *GitHub Actions Token*:
+
 - `contents: read` - Repository metadata and context
 - `issues: write` - User assignment operations (for issues)
 - `pull-requests: write` - User assignment operations (for pull requests)
 
 *GitHub App*:
+
 - `issues: write` - User assignment operations
 - `metadata: read` - Repository metadata (automatically granted)
 
 **Notes**:
+
 - Users must have repository access to be assigned
 - Invalid users generate warnings
 - When `unassign-first` is enabled, the handler fetches current assignees and removes them before adding new ones
@@ -2866,10 +3075,12 @@ This section provides complete definitions for all remaining safe output types. 
 **Required Permissions**:
 
 *GitHub Actions Token*:
+
 - `contents: read` - Repository metadata and context
 - `issues: write` - User unassignment operations
 
 *GitHub App*:
+
 - `issues: write` - User unassignment operations
 - `metadata: read` - Repository metadata (automatically granted)
 
@@ -2884,6 +3095,7 @@ This section provides complete definitions for all remaining safe output types. 
 **Mandatory**: No
 
 **Configuration Parameters**:
+
 - `max`: Operation limit (default: 5)
 - `discussions`: Control `discussions:write` permission (default: true)
 - `target-repo`: Cross-repository target
@@ -2893,12 +3105,14 @@ This section provides complete definitions for all remaining safe output types. 
 **Required Permissions**:
 
 *GitHub Actions Token*:
+
 - `contents: read` - Repository metadata and context
 - `issues: write` - Comment hiding on issues
 - `pull-requests: write` - Comment hiding on pull requests
 - `discussions: write` - Comment hiding on discussions (when `discussions: true` or omitted)
 
 *GitHub App*:
+
 - `issues: write` - Comment hiding on issues
 - `pull-requests: write` - Comment hiding on pull requests
 - `discussions: write` - Comment hiding on discussions (when `discussions: true` or omitted)
@@ -2927,6 +3141,7 @@ safe-outputs:
 ```
 
 **Notes**:
+
 - By default, requires all three write permissions to support hiding comments across all entity types
 - When `discussions: false`, the workflow only requests `issues:write` and `pull-requests:write` permissions
 - Discussion-related safe outputs independently add `discussions:write` permission when configured
@@ -2945,14 +3160,17 @@ safe-outputs:
 **Required Permissions**:
 
 *GitHub Actions Token*:
+
 - `contents: read` - Repository metadata and context
 - `organization-projects: write` - Project creation operations (note: only valid for GitHub Apps)
 
 *GitHub App*:
+
 - `organization-projects: write` - Project creation operations
 - `metadata: read` - Repository metadata (automatically granted)
 
 **Notes**:
+
 - `organization-projects` permission is ONLY available for GitHub App tokens, not standard GitHub Actions tokens
 - GitHub Actions workflows should use GitHub App authentication for project operations
 - Projects can be created at organization or user level based on app installation
@@ -2970,14 +3188,17 @@ safe-outputs:
 **Required Permissions**:
 
 *GitHub Actions Token*:
+
 - `contents: read` - Repository metadata and context
 - `organization-projects: write` - Project management operations (note: only valid for GitHub Apps)
 
 *GitHub App*:
+
 - `organization-projects: write` - Project management operations
 - `metadata: read` - Repository metadata (automatically granted)
 
 **Notes**:
+
 - Same permission requirements as `create_project`
 - Higher default max (10) enables batch project board updates
 - Cross-repo support uses `target_repo` in agent output to resolve issues/PRs from other repos; the `allowed-repos` configuration option controls which repos are permitted
@@ -2995,14 +3216,17 @@ safe-outputs:
 **Required Permissions**:
 
 *GitHub Actions Token*:
+
 - `contents: read` - Repository metadata and context
 - `organization-projects: write` - Project status update operations (note: only valid for GitHub Apps)
 
 *GitHub App*:
+
 - `organization-projects: write` - Project status update operations
 - `metadata: read` - Repository metadata (automatically granted)
 
 **Notes**:
+
 - Same permission requirements as `create_project` and `update_project`
 
 ---
@@ -3018,13 +3242,16 @@ safe-outputs:
 **Required Permissions**:
 
 *GitHub Actions Token*:
+
 - `contents: write` - Release modification operations
 
 *GitHub App*:
+
 - `contents: write` - Release modification operations
 - `metadata: read` - Repository metadata (automatically granted)
 
 **Notes**:
+
 - Only updates release notes and metadata; does NOT modify release assets
 - Release must already exist (identified by tag name)
 
@@ -3041,13 +3268,16 @@ safe-outputs:
 **Required Permissions**:
 
 *GitHub Actions Token*:
+
 - `contents: write` - Branch creation, commit operations, and file uploads
 
 *GitHub App*:
+
 - `contents: write` - Branch creation, commit operations, and file uploads
 - `metadata: read` - Repository metadata (automatically granted)
 
 **Notes**:
+
 - Creates or updates orphaned branch for asset storage
 - Enforces maximum file size limit (default: 10 MB = 10240 KB)
 - Files accessible via raw.githubusercontent.com URLs
@@ -3065,13 +3295,16 @@ safe-outputs:
 **Required Permissions**:
 
 *GitHub Actions Token*:
+
 - `actions: write` - Workflow dispatch operations
 
 *GitHub App*:
+
 - `actions: write` - Workflow dispatch operations
 - `metadata: read` - Repository metadata (automatically granted)
 
 **Configuration Parameters**:
+
 - `max`: Operation limit (default: 3)
 - `workflows`: Allowlist of workflow names that may be dispatched
 - `target-repo`: Cross-repository target (owner/repo)
@@ -3079,6 +3312,7 @@ safe-outputs:
 - `allowed-repos`: Cross-repo allowlist (supports wildcards, e.g. `org/*`)
 
 **Notes**:
+
 - Requires ONLY `actions: write` permission (no `contents: read` needed)
 - Target workflow must support `workflow_dispatch` trigger
 - Workflow inputs are validated against target workflow's input schema
@@ -3098,14 +3332,17 @@ safe-outputs:
 **Required Permissions**:
 
 *GitHub Actions Token*:
+
 - `contents: read` - Repository metadata and context
 - `security-events: write` - SARIF report upload and alert creation
 
 *GitHub App*:
+
 - `security-events: write` - SARIF report upload and alert creation
 - `metadata: read` - Repository metadata (automatically granted)
 
 **Notes**:
+
 - Unlimited max enables comprehensive security scanning
 - Alerts appear in repository Security tab
 - SARIF format validation performed before upload
@@ -3123,11 +3360,13 @@ safe-outputs:
 **Required Permissions**:
 
 *GitHub Actions Token*:
+
 - `contents: read` - Repository metadata and context
 - `security-events: write` - Alert metadata access
 - `actions: read` - Workflow run metadata for alert correlation
 
 *GitHub App*:
+
 - `security-events: write` - Alert metadata access
 - `contents: write` - Pull request branch creation
 - `pull-requests: write` - Pull request creation
@@ -3135,6 +3374,7 @@ safe-outputs:
 - `metadata: read` - Repository metadata (automatically granted)
 
 **Notes**:
+
 - Most complex permission set - requires security-events, contents, pull-requests, and actions scopes
 - Creates pull request with proposed fix referencing the alert
 - Alert must exist and be fixable
@@ -3152,14 +3392,17 @@ safe-outputs:
 **Required Permissions**:
 
 *GitHub Actions Token*:
+
 - `contents: read` - Repository metadata and context
 - `issues: write` - Issue creation and agent assignment
 
 *GitHub App*:
+
 - `issues: write` - Issue creation and agent assignment
 - `metadata: read` - Repository metadata (automatically granted)
 
 **Notes**:
+
 - Creates issue with special agent assignment that triggers Copilot coding agent
 - Agent must be enabled in repository settings
 
@@ -3176,14 +3419,17 @@ safe-outputs:
 **Required Permissions**:
 
 *GitHub Actions Token*:
+
 - No additional permissions required beyond base workflow permissions
 - When `create-issue: true` configured, requires `issues: write` for issue creation
 
 *GitHub App*:
+
 - No additional permissions required beyond base app installation
 - When `create-issue: true` configured, requires `issues: write` for issue creation
 
 **Notes**:
+
 - Base functionality requires no permissions (logging only)
 - Optional issue creation requires `issues: write` when `create-issue: true`
 - Always enabled to capture AI's unmet capability requests
@@ -3201,14 +3447,17 @@ safe-outputs:
 **Required Permissions**:
 
 *GitHub Actions Token*:
+
 - No additional permissions required beyond base workflow permissions
 - When `create-issue: true` configured, requires `issues: write` for issue creation
 
 *GitHub App*:
+
 - No additional permissions required beyond base app installation
 - When `create-issue: true` configured, requires `issues: write` for issue creation
 
 **Notes**:
+
 - Same permission model as `missing_tool`
 - Base functionality requires no permissions (logging only)
 - Optional issue creation requires `issues: write` when `create-issue: true`
@@ -3225,12 +3474,14 @@ safe-outputs:
 **Operation Mode**: Stateless (no session management)
 
 **Endpoints**:
+
 - `POST /tools/list` - List available tools
 - `POST /tools/call` - Invoke tool
 
 ### 8.2 Tool Invocation Protocol
 
 **Request Format**:
+
 ```http
 POST /tools/call HTTP/1.1
 Host: 127.0.0.1:3001
@@ -3246,6 +3497,7 @@ Content-Type: application/json
 ```
 
 **Success Response**:
+
 ```http
 HTTP/1.1 200 OK
 Content-Type: application/json
@@ -3261,6 +3513,7 @@ Content-Type: application/json
 ```
 
 **Validation Error**:
+
 ```http
 HTTP/1.1 200 OK
 Content-Type: application/json
@@ -3366,6 +3619,7 @@ async function processAddComment(operation) {
 Constraint limits defined in MCP tool descriptions MUST match the enforcement logic in both the MCP server and safe output processor implementations. Inconsistent limits between these components violate the specification.
 
 **Verification**:
+
 - **Method**: Code review and integration testing
 - **Tool**: Automated tests comparing tool descriptions to handler enforcement code
 - **Criteria**: All constraint limits are identical across tool schema, MCP server, and processor
@@ -3393,11 +3647,13 @@ Constraint limits defined in MCP tool descriptions MUST match the enforcement lo
 **Encoding**: UTF-8
 
 **Entry Structure**:
+
 ```json
 {"type":"<safe_output_type>","<param1>":"<value1>"}
 ```
 
 **Parsing**:
+
 - Read line-by-line
 - Parse each line independently
 - Ignore empty lines
@@ -3412,12 +3668,14 @@ Constraint limits defined in MCP tool descriptions MUST match the enforcement lo
 All tool invocations MUST validate against JSON Schema Draft 7.
 
 **Validation Process**:
+
 1. Parse invocation arguments
 2. Load tool schema
 3. Validate against schema
 4. Report all errors with paths
 
 **Error Format**:
+
 ```json
 {
   "error": {
@@ -3435,6 +3693,7 @@ All tool invocations MUST validate against JSON Schema Draft 7.
 ### 9.2 Cross-Field Validation
 
 Some validations span multiple fields:
+
 - Conditional requirements (e.g., `discussion_number` required when target is "*")
 - Range constraints (e.g., `start_line < line` in review comments)
 - Mutual exclusivity checks
@@ -3442,6 +3701,7 @@ Some validations span multiple fields:
 ### 9.3 Repository Feature Validation
 
 Operations requiring repository features must validate availability:
+
 - Issues enabled
 - Discussions enabled
 - Projects enabled
@@ -3453,6 +3713,7 @@ Validation occurs during execution, not tool invocation.
 **Applicability**
 
 Content sanitization MUST be applied to all user-provided text fields in safe output operations. Text fields include:
+
 - `title` (issues, PRs, discussions, projects)
 - `body` (issues, PRs, discussions, comments)
 - `description` (projects, status updates)
@@ -3463,10 +3724,12 @@ Content sanitization MUST be applied to all user-provided text fields in safe ou
 Implementations MUST apply these transformations in order:
 
 **S1: Null Byte Removal**
+
 - Remove all null bytes (`\0`, `\x00`) from strings
 - Rationale: Prevents string truncation attacks
 
 **S2: Markdown Link Validation**
+
 - Pattern: `[text](url)` and `<url>`
 - For each URL:
   - Extract domain
@@ -3476,6 +3739,7 @@ Implementations MUST apply these transformations in order:
   - Log redacted URLs to `/tmp/gh-aw/safeoutputs/redacted-domains.log`
 
 **S3: Markdown Image Validation**
+
 - Pattern: `![alt](url)`
 - For each image URL:
   - Extract domain
@@ -3484,6 +3748,7 @@ Implementations MUST apply these transformations in order:
     - If not allowed: Replace with `![alt]([Image URL redacted: unauthorized domain])`
 
 **S4: HTML Tag Filtering** (Optional, depends on field type)
+
 - Remove potentially dangerous tags:
   - `<script>`, `</script>`
   - `<iframe>`, `</iframe>`
@@ -3495,6 +3760,7 @@ Implementations MUST apply these transformations in order:
   - `<details>`, `<summary>`, `<sub>`, `<sup>`, `<kbd>`
 
 **S5: Command Injection Prevention**
+
 - Do NOT execute or interpret code blocks
 - Do NOT evaluate template expressions
 - Preserve code blocks verbatim (no escaping needed in markdown)
@@ -3502,6 +3768,7 @@ Implementations MUST apply these transformations in order:
 **Excluded Content**
 
 The following content MUST NOT be sanitized:
+
 - Code blocks (` ``` `)
 - Inline code (`` `code` ``)
 - System-generated footers
@@ -3559,12 +3826,14 @@ All errors MUST conform to this JSON structure:
 ```
 
 **Required Fields**:
+
 - `code`: Error code from table above (E001-E010)
 - `name`: Error name from table above
 - `message`: Human-readable description
 - `timestamp`: ISO 8601 timestamp
 
 **Optional Fields**:
+
 - `details`: Type-specific error context (operation_index, field names, etc.)
 - `workflow_run`: URL to workflow run for provenance
 
@@ -3577,6 +3846,7 @@ Validation errors (E001-E006) MUST be detected before any GitHub API calls are m
 **Requirement EH2: Clear Error Messages**
 
 Error messages MUST:
+
 - Clearly state what went wrong
 - Include enough context to debug (field names, values)
 - Suggest remediation when possible
@@ -3584,6 +3854,7 @@ Error messages MUST:
 **Requirement EH3: Error Logging**
 
 All errors MUST be logged to:
+
 - GitHub Actions step output (visible in workflow run)
 - Job summary (visible in workflow run summary)
 - STDERR (for local development)
@@ -3601,6 +3872,7 @@ All errors MUST be logged to:
 ### 10.2 Ordering
 
 Operations execute in:
+
 1. NDJSON file order
 2. Type grouping (same type together)
 3. System types last (noop)
@@ -3608,11 +3880,13 @@ Operations execute in:
 ### 10.3 Idempotency
 
 **Idempotent Operations**:
+
 - add_labels (adding present label)
 - remove_labels (removing absent label)
 - hide_comment (hiding hidden comment)
 
 **Non-Idempotent Operations**:
+
 - create_issue
 - create_discussion
 - add_comment
@@ -3632,6 +3906,7 @@ This section defines required behavior for unusual or boundary conditions.
 *Scenario*: NDJSON artifact contains zero operations
 
 *Behavior*:
+
 - Safe output job MUST succeed (exit code 0)
 - Job summary SHOULD display: "✅ No operations to process"
 - No GitHub API calls are made
@@ -3644,11 +3919,14 @@ This section defines required behavior for unusual or boundary conditions.
 *Scenario*: Configuration specifies `max: 0` for a safe output type
 
 *Behavior*:
+
 - Type is DISABLED (MCP tool is not registered)
 - Attempts to invoke disabled type MUST return MCP error:
+
   ```json
   {"error": {"code": -32601, "message": "Method not found"}}
   ```
+
 - No configuration is generated for disabled types
 
 *Rationale*: `max: 0` is an explicit disable signal.
@@ -3658,6 +3936,7 @@ This section defines required behavior for unusual or boundary conditions.
 *Scenario*: GitHub API returns 429 (rate limit exceeded) or 403 with X-RateLimit-Remaining: 0
 
 *Behavior*:
+
 - Processor MUST retry with exponential backoff:
   - 1st retry: After 60 seconds
   - 2nd retry: After 120 seconds  
@@ -3672,6 +3951,7 @@ This section defines required behavior for unusual or boundary conditions.
 *Scenario*: Workflow is manually cancelled during agent execution
 
 *Behavior*:
+
 - Safe output job MUST NOT execute if artifact upload was interrupted
 - Partial NDJSON artifacts MUST NOT be processed
 - GitHub Actions automatically handles cleanup
@@ -3684,6 +3964,7 @@ This section defines required behavior for unusual or boundary conditions.
 *Scenario*: Multiple workflow runs execute concurrently for the same workflow
 
 *Behavior*:
+
 - Each run operates independently
 - Max limits are per-run (NOT global across runs)
 - No coordination or locking between runs
@@ -3696,6 +3977,7 @@ This section defines required behavior for unusual or boundary conditions.
 *Scenario*: NDJSON artifact contains invalid JSON on one or more lines
 
 *Behavior*:
+
 - Parser MUST skip invalid lines with warning
 - Valid lines MUST be processed
 - Job summary MUST show: "⚠️ Skipped N malformed entries"
@@ -3708,6 +3990,7 @@ This section defines required behavior for unusual or boundary conditions.
 *Scenario*: Safe output job cannot download artifact (artifact not found)
 
 *Behavior*:
+
 - Job MUST fail with clear error message
 - Error MUST suggest checking agent job completion
 - Exit code MUST be non-zero
@@ -3719,6 +4002,7 @@ This section defines required behavior for unusual or boundary conditions.
 *Scenario*: Multiple operations use the same `temporary_id`
 
 *Behavior*:
+
 - First operation using the ID succeeds and establishes mapping
 - Subsequent operations using the same ID MUST reference the first operation's result
 - If this creates ambiguity (e.g., two issues both want to be "aw_parent"), MUST reject with E005
@@ -3775,11 +4059,13 @@ This section defines required behavior for unusual or boundary conditions.
 ### Attack Surface Analysis
 
 **Entry Points**:
+
 1. Agent-provided tool arguments
 2. Configuration in frontmatter
 3. GitHub API responses
 
 **Trust Boundaries**:
+
 - Agent context (untrusted)
 - MCP Gateway (semi-trusted)
 - Safe output processor (trusted)
@@ -3820,8 +4106,8 @@ Detailed threat analysis and mitigation effectiveness assessment for all five pr
 
 ## Appendix E: Informative References
 
-- **GitHub REST API**: https://docs.github.com/rest
-- **GitHub Actions**: https://docs.github.com/actions
+- **GitHub REST API**: <https://docs.github.com/rest>
+- **GitHub Actions**: <https://docs.github.com/actions>
 - **MCP Gateway Specification**: /gh-aw/reference/mcp-gateway/
 
 ---
@@ -4015,23 +4301,28 @@ safe-outputs:
 ### Best Practices
 
 **Start Conservative**:
+
 - Begin with low `max` values
 - Enable `staged: true` for testing
 - Use explicit `allowed-repos` lists
 
 **Use Domain Filtering**:
+
 - Always configure `allowed-domains` when agents process external input
 - Include only trusted domains
 
 **Enable Footers**:
+
 - Keep `footer: true` (default) for transparency
 - Only disable when absolutely necessary
 
 **Temporary Resources**:
+
 - Use `expires` for transient issues
 - Clean up with `close-older-issues` for superseded content
 
 **Cross-Repository Security**:
+
 - Use type-specific `allowed-repos` for fine-grained control
 - Prefer explicit lists over broad permissions
 
@@ -4040,12 +4331,14 @@ safe-outputs:
 ## Appendix F: Document History
 
 **Version 1.14.0** (2026-02-22):
+
 - **Added**: Section 5.5 "Templatable Fields" documenting support for GitHub Actions expressions in integer and boolean configuration fields
 - **Updated**: GP1 (`footer` global), TS1 (`max`), and TS2 (`footer` type-specific) syntax to document expression support
 - **Clarified**: Templatable integer fields (`max`) and templatable boolean fields (`footer`, `group`, `close-older-issues`, `hide-older-comments`, `close-older-discussions`, `draft`, `allow-empty`, `auto-merge`, `report-as-issue`, `unassign-first`) accept `${{ ... }}` GitHub Actions expressions in addition to literal values
 - **Added**: Conformance requirements for runtime evaluation of templatable fields
 
 **Version 1.13.0** (2026-02-18):
+
 - **Added**: Optional `discussions` field for `add-comment` and `hide-comment` safe output types to control `discussions:write` permission
 - **Enhanced**: Permission documentation for `add-comment` and `hide-comment` to explain conditional `discussions:write` inclusion
 - **Added**: Configuration examples demonstrating `discussions: false` usage for GitHub Apps without Discussions permission
@@ -4054,6 +4347,7 @@ safe-outputs:
 - **Opt-out behavior**: `discussions: false` excludes `discussions:write` permission for GitHub Apps without Discussions permission
 
 **Version 1.12.0** (2026-02-16):
+
 - **Implemented**: MCE1 (Early Validation) for add_comment tool with MCP server constraint enforcement
 - **Added**: Runtime validation in safe_outputs_handlers.cjs that enforces comment limits during tool invocation
 - **Verified**: Dual enforcement pattern now operational - MCP server validates during Phase 4, safe output processor validates during Phase 6
@@ -4061,6 +4355,7 @@ safe-outputs:
 - **Tested**: Comprehensive test suite (16 test cases) validates E006/E007/E008 error handling and MCP error format compliance
 
 **Version 1.11.0** (2026-02-15):
+
 - **Added**: Section 8.3 "MCP Server Constraint Enforcement" specifying requirements for early validation during tool invocation (MCE1-MCE5)
 - **Enhanced**: Tool descriptions to surface operational constraints to the LLM (e.g., add_comment mention/link/length limits)
 - **Clarified**: Dual enforcement pattern requiring validation at both MCP server and safe output processor layers
@@ -4069,10 +4364,12 @@ safe-outputs:
 - **Updated**: add_comment tool description in safe_outputs_tools.json to include explicit constraint documentation
 
 **Version 1.10.0** (2026-02-14):
+
 - **Added**: `reply_to_pull_request_review_comment` safe output type definition (Section 7.3)
 - **Updated**: Pattern 8 (Review Comment Workflow) to include reply-to-review-comment in example configuration
 
 **Version 1.9.0** (2026-02-14):
+
 - Added comprehensive validation pipeline ordering (7 stages)
 - Added cross-repository security model with explicit allowlist rules
 - Added content sanitization pipeline specification (5 stages)
@@ -4083,6 +4380,7 @@ safe-outputs:
 - Improved requirements testability
 
 **Version 1.8.0** (2025-02-14):
+
 - Initial W3C-style specification release
 - Complete security model documentation
 - Comprehensive safe output type catalog
@@ -4091,6 +4389,7 @@ safe-outputs:
 - Operational guarantees formalization
 
 **Future Work**:
+
 - Formal conformance test suite
 - Extended threat modeling
 - Performance benchmarks

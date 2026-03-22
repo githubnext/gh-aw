@@ -22,7 +22,6 @@ func TestFirewallDisableIntegration(t *testing.T) {
 		}
 
 		compiler := NewCompiler(
-			WithVersion("test"),
 			WithSkipValidation(true),
 		)
 

@@ -36,14 +36,14 @@ const { resolveTargetRepoConfig, resolveAndValidateRepo } = require("./repo_help
 const { createAuthenticatedGitHubClient } = require("./handler_auth.cjs");
 const { removeDuplicateTitleFromDescription } = require("./remove_duplicate_title.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
-const { renderTemplate } = require("./messages_core.cjs");
+const { renderTemplateFromFile } = require("./messages_core.cjs");
 const { createExpirationLine, addExpirationToFooter } = require("./ephemerals.cjs");
 const { MAX_SUB_ISSUES, getSubIssueCount } = require("./sub_issue_helpers.cjs");
 const { closeOlderIssues } = require("./close_older_issues.cjs");
 const { parseBoolTemplatable } = require("./templatable.cjs");
 const { tryEnforceArrayLimit } = require("./limit_enforcement_helpers.cjs");
-const fs = require("fs");
 const { logStagedPreviewInfo } = require("./staged_preview.cjs");
+const { isStagedMode } = require("./safe_output_helpers.cjs");
 const { buildWorkflowRunUrl } = require("./workflow_metadata_helpers.cjs");
 const { MAX_LABELS, MAX_ASSIGNEES } = require("./constants.cjs");
 
@@ -167,10 +167,6 @@ function createParentIssueTemplate(groupId, titlePrefix, workflowName, workflowS
   // Use applyTitlePrefix to ensure proper spacing after prefix
   const title = applyTitlePrefix(`${groupId} - Issue Group`, titlePrefix);
 
-  // Load issue template
-  const issueTemplatePath = `${process.env.RUNNER_TEMP}/gh-aw/prompts/issue_group_parent.md`;
-  const issueTemplate = fs.readFileSync(issueTemplatePath, "utf8");
-
   // Create template context
   const templateContext = {
     group_id: groupId,
@@ -178,8 +174,9 @@ function createParentIssueTemplate(groupId, titlePrefix, workflowName, workflowS
     workflow_source_url: workflowSourceURL || "#",
   };
 
-  // Render the issue template
-  let body = renderTemplate(issueTemplate, templateContext);
+  // Load and render the issue template
+  const issueTemplatePath = `${process.env.RUNNER_TEMP}/gh-aw/prompts/issue_group_parent.md`;
+  let body = renderTemplateFromFile(issueTemplatePath, templateContext);
 
   // Add footer with workflow information
   const footer = `\n\n> Workflow: [${workflowName}](${workflowSourceURL})`;
@@ -222,7 +219,7 @@ async function main(config = {}) {
   const assignCopilot = process.env.GH_AW_ASSIGN_COPILOT === "true";
 
   // Check if we're in staged mode
-  const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true";
+  const isStaged = isStagedMode(config);
 
   core.info(`Default target repo: ${defaultTargetRepo}`);
   if (allowedRepos.size > 0) {

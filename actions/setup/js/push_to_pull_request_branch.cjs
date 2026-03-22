@@ -4,6 +4,7 @@
 /** @type {typeof import("fs")} */
 const fs = require("fs");
 const { generateStagedPreview } = require("./staged_preview.cjs");
+const { isStagedMode } = require("./safe_output_helpers.cjs");
 const { pushSignedCommits } = require("./push_signed_commits.cjs");
 const { updateActivationCommentWithCommit, updateActivationComment } = require("./update_activation_comment.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
@@ -14,7 +15,7 @@ const { resolveTargetRepoConfig, resolveAndValidateRepo } = require("./repo_help
 const { createAuthenticatedGitHubClient } = require("./handler_auth.cjs");
 const { checkFileProtection } = require("./manifest_file_helpers.cjs");
 const { buildWorkflowRunUrl } = require("./workflow_metadata_helpers.cjs");
-const { renderTemplate } = require("./messages_core.cjs");
+const { renderTemplateFromFile } = require("./messages_core.cjs");
 const { getGitAuthEnv } = require("./git_helpers.cjs");
 
 /**
@@ -56,7 +57,7 @@ async function main(config = {}) {
   const configBaseBranch = config.base_branch || null;
 
   // Check if we're in staged mode (either globally or per-handler config)
-  const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true" || config.staged === true;
+  const isStaged = isStagedMode(config);
 
   core.info(`Target: ${target}`);
   if (configBaseBranch) {
@@ -338,8 +339,7 @@ async function main(config = {}) {
       const prUrl = `${githubServer}/${repoParts.owner}/${repoParts.repo}/pull/${pullNumber}`;
       const issueTitle = `[gh-aw] Protected Files: ${prTitle || `PR #${pullNumber}`}`;
       const templatePath = `${process.env.RUNNER_TEMP}/gh-aw/prompts/manifest_protection_push_to_pr_fallback.md`;
-      const template = fs.readFileSync(templatePath, "utf8");
-      const issueBody = renderTemplate(template, {
+      const issueBody = renderTemplateFromFile(templatePath, {
         files: protectedFilesForFallback.map(f => `\`${f}\``).join(", "),
         pull_number: pullNumber,
         pr_url: prUrl,

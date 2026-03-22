@@ -296,7 +296,7 @@ gh aw trial ./workflow.md --host-repo owner/repo   # Run directly in repository
 gh aw trial ./workflow.md --dry-run                # Preview without executing
 ```
 
-**Options:** `-e`, `--engine`, `--auto-merge-prs`, `--repeat`, `--delete-host-repo-after`, `--logical-repo`, `--clone-repo`, `--trigger-context`, `--host-repo`, `--dry-run`
+**Options:** `-e`, `--engine`, `--repeat`, `--delete-host-repo-after`, `--logical-repo`, `--clone-repo`, `--trigger-context`, `--host-repo`, `--dry-run`
 
 **Secret Handling:** API keys required for the selected engine are automatically checked. If missing from the target repository, they are prompted for interactively and uploaded.
 
@@ -313,7 +313,7 @@ gh aw run workflow --push --ref main        # Push to specific branch
 gh aw run workflow --json                   # Output triggered workflow results as JSON
 ```
 
-**Options:** `--repeat`, `--push` (see [--push flag](#the---push-flag)), `--ref`, `--auto-merge-prs`, `--enable-if-needed`, `--json/-j`
+**Options:** `--repeat`, `--push` (see [--push flag](#the---push-flag)), `--ref`, `--enable-if-needed`, `--json/-j`
 
 When `--json` is set, a JSON array of triggered workflow results is written to stdout.
 
@@ -394,7 +394,7 @@ gh aw audit 12345678 --repo owner/repo                    # Specify repository f
 
 The `--repo` flag accepts `owner/repo` format and is required when passing a bare numeric run ID without a full URL, allowing the command to locate the correct repository.
 
-Logs are saved to `logs/run-{id}/` with filenames indicating the extraction level. Pre-agent failures (lockdown validation, missing secrets, binary install) surface the actual error in `failure_analysis.error_summary`. Invalid run IDs return a human-readable error.
+Logs are saved to `logs/run-{id}/` with filenames indicating the extraction level. Pre-agent failures (integrity filtering, missing secrets, binary install) surface the actual error in `failure_analysis.error_summary`. Invalid run IDs return a human-readable error.
 
 #### `health`
 

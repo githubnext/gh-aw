@@ -558,6 +558,12 @@ function createHandlers(server, appendSafeOutput, config = {}) {
     function scanDir(dirPath, relativePath) {
       const entries = fs.readdirSync(dirPath, { withFileTypes: true });
       for (const entry of entries) {
+        // Skip .git directory to avoid counting git metadata as memory content.
+        // The memory directory is a git clone, so .git may contain pack files that
+        // grow with each commit and must not be counted toward the memory size limit.
+        if (entry.isDirectory() && entry.name === ".git") {
+          continue;
+        }
         const fullPath = path.join(dirPath, entry.name);
         const relPath = relativePath ? path.join(relativePath, entry.name) : entry.name;
         if (entry.isDirectory()) {

@@ -46,16 +46,9 @@ The `target` parameter determines which issue or PR to assign the agent to:
 
 ## Cross-Repository PR Creation
 
-The `pull-request-repo` parameter allows you to create pull requests in a different repository than where the issue lives. This is useful when:
+Use `pull-request-repo` to create pull requests in a different repository than where the issue lives — useful when issues are tracked centrally but code lives elsewhere. The issue repository is determined by `target-repo` or defaults to the workflow's repository.
 
-- Issues are tracked in a central repository but code lives in separate repositories
-- You want to separate issue tracking from code repositories
-
-When `pull-request-repo` is configured, Copilot will create the pull request in the specified repository instead of the issue's repository. The issue repository is determined by `target-repo` or defaults to the workflow's repository.
-
-The repository specified by `pull-request-repo` is automatically allowed - you don't need to list it in `allowed-pull-request-repos`. Use `allowed-pull-request-repos` to specify additional repositories where PRs can be created.
-
-Use `base-branch` to specify which branch in the target repository the pull request should target. When omitted, the target repository's actual default branch is used automatically. Only relevant when `pull-request-repo` is configured.
+`pull-request-repo` is automatically included in the allowed list; use `allowed-pull-request-repos` for additional repositories. Use `base-branch` to target a specific branch (defaults to the target repo's default branch).
 
 ## Assignee Filtering
 
@@ -69,25 +62,10 @@ This safe output requires a fine-grained PAT to authenticate the agent assignmen
 
 The required token type and permissions depend on whether you own the repository or an organization owns it.
 
-1. **Create the PAT**:
+1. **Create the PAT** with **Repository permissions**: Actions, Contents, Issues, Pull requests (all Write).
 
-   For User-owned Repositories, [create a fine-grained PAT](https://github.com/settings/personal-access-tokens/new?name=GH_AW_AGENT_TOKEN&description=GitHub+Agentic+Workflows+-+Agent+assignment&actions=write&contents=write&issues=write&pull_requests=write) (this link pre-fills the token name, description, and permissions) with:
-   - **Resource owner**: Your user account
-   - **Repository access**: "Public repositories" or select specific repos
-   - **Repository permissions**:
-     - Actions: Write
-     - Contents: Write
-     - Issues: Write
-     - Pull requests: Write
-
-   For Organization-owned Repositories: [create a fine-grained PAT](https://github.com/settings/personal-access-tokens/new?name=GH_AW_AGENT_TOKEN&description=GitHub+Agentic+Workflows+-+Agent+assignment&actions=write&contents=write&issues=write&pull_requests=write) (this link pre-fills the token name, description, and permissions) with:
-   - **Resource owner**: The organization that owns the repository
-   - **Repository access**: Select the specific repositories that will use the workflow
-   - **Repository permissions**:
-     - Actions: Write
-     - Contents: Write
-     - Issues: Write
-     - Pull requests: Write
+   - [User-owned repositories](https://github.com/settings/personal-access-tokens/new?name=GH_AW_AGENT_TOKEN&description=GitHub+Agentic+Workflows+-+Agent+assignment&actions=write&contents=write&issues=write&pull_requests=write): Resource owner = your user account; Repository access = "Public repositories" or specific repos
+   - [Organization-owned repositories](https://github.com/settings/personal-access-tokens/new?name=GH_AW_AGENT_TOKEN&description=GitHub+Agentic+Workflows+-+Agent+assignment&actions=write&contents=write&issues=write&pull_requests=write): Resource owner = the organization; Repository access = specific repositories that will use the workflow
 
 2. Add to repository secrets:
 
@@ -98,9 +76,7 @@ The required token type and permissions depend on whether you own the repository
 ### Using a GitHub App
 
 :::caution[GitHub App tokens are not supported for Copilot assignment]
-The Copilot assignment API only accepts fine-grained PATs. GitHub App installation tokens are rejected with "not available as an assignee" regardless of the permissions granted to the App.
-
-When `github-app:` is configured in `safe-outputs`, `assign-to-agent` will not use the GitHub App installation token. It first looks for an explicit `github-token:` in the `assign-to-agent` config, then for `github-token:` configured at the `safe-outputs` level, and only then falls back to the magic secret chain (`GH_AW_AGENT_TOKEN || GH_AW_GITHUB_TOKEN || GITHUB_TOKEN`). Make sure `GH_AW_AGENT_TOKEN` is set as a repository secret with the required PAT permissions, or specify an explicit `github-token:` in your `assign-to-agent` config.
+The Copilot assignment API only accepts fine-grained PATs — GitHub App installation tokens are rejected regardless of permissions. When `github-app:` is configured in `safe-outputs`, `assign-to-agent` falls back to: explicit `github-token:` in `assign-to-agent`, then `github-token:` at the `safe-outputs` level, then the magic secret chain (`GH_AW_AGENT_TOKEN || GH_AW_GITHUB_TOKEN || GITHUB_TOKEN`).
 :::
 
 ### Using a magic secret

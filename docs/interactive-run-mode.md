@@ -51,7 +51,6 @@ All standard `run` command flags work in interactive mode:
 - `--repo owner/repo` - Target a different repository
 - `--ref branch` - Run on a specific branch
 - `--engine copilot` - Override AI engine
-- `--auto-merge-prs` - Auto-merge created PRs
 - `--push` - Push changes before running
 
 ## Limitations

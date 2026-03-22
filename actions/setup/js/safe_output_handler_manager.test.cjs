@@ -21,6 +21,7 @@ describe("Safe Output Handler Manager", () => {
     delete process.env.GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG;
     delete process.env.GH_AW_TRACKER_LABEL;
     delete process.env.GH_AW_SAFE_OUTPUT_JOBS;
+    delete process.env.GH_AW_SAFE_OUTPUT_SCRIPTS;
   });
 
   describe("loadConfig", () => {
@@ -110,6 +111,102 @@ describe("Safe Output Handler Manager", () => {
       // Note: Actual integration testing requires real handler modules
       // This test documents the expected behavior for validation
       expect(true).toBe(true);
+    });
+  });
+
+  describe("loadHandlers - path traversal sanitization", () => {
+    // These tests exercise the path traversal sanitization added to protect against
+    // malicious scriptFilename values in GH_AW_SAFE_OUTPUT_SCRIPTS.
+    // The sanitization runs BEFORE require(), so no real file needs to exist.
+
+    it("should reject scriptFilename with a leading ../", async () => {
+      process.env.GH_AW_SAFE_OUTPUT_SCRIPTS = JSON.stringify({
+        evil: "../evil.cjs",
+      });
+
+      const handlers = await loadHandlers({}, {});
+
+      expect(handlers.has("evil")).toBe(false);
+      expect(core.error).toHaveBeenCalledWith(expect.stringContaining('path traversal detected in "../evil.cjs"'));
+    });
+
+    it("should reject scriptFilename with an embedded directory separator", async () => {
+      process.env.GH_AW_SAFE_OUTPUT_SCRIPTS = JSON.stringify({
+        evil: "subdir/evil.cjs",
+      });
+
+      const handlers = await loadHandlers({}, {});
+
+      expect(handlers.has("evil")).toBe(false);
+      expect(core.error).toHaveBeenCalledWith(expect.stringContaining('path traversal detected in "subdir/evil.cjs"'));
+    });
+
+    it("should reject scriptFilename with an absolute Unix path", async () => {
+      process.env.GH_AW_SAFE_OUTPUT_SCRIPTS = JSON.stringify({
+        evil: "/etc/passwd",
+      });
+
+      const handlers = await loadHandlers({}, {});
+
+      expect(handlers.has("evil")).toBe(false);
+      expect(core.error).toHaveBeenCalledWith(expect.stringContaining('path traversal detected in "/etc/passwd"'));
+    });
+
+    it("should reject scriptFilename with multiple levels of path traversal", async () => {
+      process.env.GH_AW_SAFE_OUTPUT_SCRIPTS = JSON.stringify({
+        evil: "../../etc/shadow",
+      });
+
+      const handlers = await loadHandlers({}, {});
+
+      expect(handlers.has("evil")).toBe(false);
+      expect(core.error).toHaveBeenCalledWith(expect.stringContaining('path traversal detected in "../../etc/shadow"'));
+    });
+
+    it("should reject scriptFilename that is just '..'", async () => {
+      process.env.GH_AW_SAFE_OUTPUT_SCRIPTS = JSON.stringify({
+        evil: "..",
+      });
+
+      const handlers = await loadHandlers({}, {});
+
+      expect(handlers.has("evil")).toBe(false);
+      expect(core.error).toHaveBeenCalledWith(expect.stringContaining("evil"));
+    });
+
+    it("should skip rejected entry but continue loading other valid scripts", async () => {
+      process.env.GH_AW_SAFE_OUTPUT_SCRIPTS = JSON.stringify({
+        evil: "../evil.cjs",
+        // This valid name will attempt require() which will fail (file doesn't exist),
+        // and that failure is caught as a non-fatal warning — so the handler is absent
+        // but no core.error is called for path traversal.
+        safe_script: "safe_output_script_safe_script.cjs",
+      });
+
+      const handlers = await loadHandlers({}, {});
+
+      // The evil entry must be rejected with core.error (path traversal)
+      expect(core.error).toHaveBeenCalledWith(expect.stringContaining('path traversal detected in "../evil.cjs"'));
+      // The safe entry should NOT trigger a path traversal error
+      expect(core.error).not.toHaveBeenCalledWith(expect.stringContaining('path traversal detected in "safe_output_script_safe_script.cjs"'));
+      // Neither handler is loaded (safe one fails because the file doesn't exist in test env)
+      expect(handlers.has("evil")).toBe(false);
+    });
+
+    it("should accept a plain filename with no path components", async () => {
+      // A well-formed filename — require() will fail because the file doesn't exist in
+      // the test environment, but NO core.error for path traversal should be logged.
+      process.env.GH_AW_SAFE_OUTPUT_SCRIPTS = JSON.stringify({
+        my_script: "safe_output_script_my_script.cjs",
+      });
+
+      const handlers = await loadHandlers({}, {});
+
+      // No path traversal error should have been emitted
+      expect(core.error).not.toHaveBeenCalledWith(expect.stringContaining("path traversal detected"));
+      expect(core.error).not.toHaveBeenCalledWith(expect.stringContaining("Script path outside expected directory"));
+      // Handler is absent only because the file doesn't exist in the test env (warning, not error)
+      expect(handlers.has("my_script")).toBe(false);
     });
   });
 

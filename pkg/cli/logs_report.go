@@ -310,6 +310,7 @@ func isValidToolName(toolName string) bool {
 // buildToolUsageSummary aggregates tool usage across all runs
 // Filters out invalid tool names that appear to be fragments or garbage
 func buildToolUsageSummary(processedRuns []ProcessedRun) []ToolUsageSummary {
+	reportLog.Printf("Building tool usage summary from %d processed runs", len(processedRuns))
 	toolStats := make(map[string]*ToolUsageSummary)
 
 	for _, pr := range processedRuns {
@@ -419,6 +420,7 @@ func aggregateSummaryItems[TItem any, TSummary any](
 
 // buildMissingToolsSummary aggregates missing tools across all runs
 func buildMissingToolsSummary(processedRuns []ProcessedRun) []MissingToolSummary {
+	reportLog.Printf("Building missing tools summary from %d processed runs", len(processedRuns))
 	result := aggregateSummaryItems(
 		processedRuns,
 		// getItems: extract missing tools from each run
@@ -462,6 +464,7 @@ func buildMissingToolsSummary(processedRuns []ProcessedRun) []MissingToolSummary
 
 // buildMissingDataSummary aggregates missing data across all runs
 func buildMissingDataSummary(processedRuns []ProcessedRun) []MissingDataSummary {
+	reportLog.Printf("Building missing data summary from %d processed runs", len(processedRuns))
 	result := aggregateSummaryItems(
 		processedRuns,
 		// getItems: extract missing data from each run
@@ -505,6 +508,7 @@ func buildMissingDataSummary(processedRuns []ProcessedRun) []MissingDataSummary 
 
 // buildMCPFailuresSummary aggregates MCP failures across all runs
 func buildMCPFailuresSummary(processedRuns []ProcessedRun) []MCPFailureSummary {
+	reportLog.Printf("Building MCP failures summary from %d processed runs", len(processedRuns))
 	result := aggregateSummaryItems(
 		processedRuns,
 		// getItems: extract MCP failures from each run

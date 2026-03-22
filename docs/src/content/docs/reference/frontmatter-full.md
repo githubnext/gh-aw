@@ -1277,31 +1277,6 @@ sandbox:
     # (optional)
     domain: "localhost"
 
-# ⚠️  EXPERIMENTAL: Plugin configuration for installing plugins before workflow
-# execution. Supports array format (list of repos/plugin configs) and object
-# format (repos + custom token). Note: Plugin support is experimental and may
-# change in future releases.
-# (optional)
-# This field supports multiple formats (oneOf):
-
-# Option 1: List of plugins to install. Each item can be either a repository slug
-# string (e.g., 'org/repo') or an object with id and optional MCP configuration.
-plugins: []
-  # Array items: undefined
-
-# Option 2: Plugin configuration with custom GitHub token. Repos can be either
-# strings or objects with MCP configuration.
-plugins:
-  # List of plugins to install. Each item can be either a repository slug string or
-  # an object with id and optional MCP configuration.
-  repos: []
-
-  # Custom GitHub token expression to use for plugin installation. Overrides the
-  # default cascading token resolution (GH_AW_PLUGINS_TOKEN -> GH_AW_GITHUB_TOKEN ->
-  # GITHUB_TOKEN).
-  # (optional)
-  github-token: "${{ secrets.GITHUB_TOKEN }}"
-
 # Conditional execution expression
 # (optional)
 if: "example-value"
@@ -1697,8 +1672,9 @@ tools:
     # (optional)
     read-only: true
 
-    # Enable lockdown mode to limit content surfaced from public repositories (only
-    # items authored by users with push access). Default: false
+    # DEPRECATED: Use 'min-integrity: approved' instead. Enable lockdown mode to limit
+    # content surfaced from public repositories (only items authored by users with push
+    # access). Default: false
     # (optional)
     lockdown: true
 
@@ -1713,14 +1689,7 @@ tools:
     toolsets: []
       # Array of Toolset name
 
-    # Volume mounts for the containerized GitHub MCP server (format:
-    # 'host:container:mode' where mode is 'ro' for read-only or 'rw' for read-write).
-    # Applies to local mode only. Example: '/data:/data:ro'
-    # (optional)
-    mounts: []
-      # Array of Mount specification in format 'host:container:mode'
-
-    # Guard policy: repository access configuration. Restricts which repositories the
+    # GitHub Tools repository access configuration. Restricts which repositories the
     # agent can access. Use 'all' to allow all repos, 'public' for public repositories
     # only, or an array of repository patterns (e.g., 'owner/repo', 'owner/*',
     # 'owner/prefix*').
@@ -1737,7 +1706,7 @@ tools:
       # Array items: Repository pattern in the format 'owner/repo', 'owner/*' (all repos
       # under owner), or 'owner/prefix*' (repos with name prefix)
 
-    # Guard policy: minimum required integrity level for repository access. Restricts
+    # GitHub Tools minimum required integrity level for repository access. Restricts
     # the agent to users with at least the specified permission level.
     # (optional)
     min-integrity: "none"
@@ -2191,13 +2160,12 @@ safe-outputs:
     # Array of strings
 
   # Enable AI agents to create GitHub issues from workflow output. Supports title
-  # prefixes, automatic labeling, assignees, and cross-repository creation. Does not
-  # require 'issues: write' permission.
+  # prefixes, automatic labeling, assignees, and cross-repository creation.
   # (optional)
   # This field supports multiple formats (oneOf):
 
   # Option 1: Configuration for automatically creating GitHub issues from AI
-  # workflow output. The main job does not need 'issues: write' permission.
+  # workflow output.
   create-issue:
     # Optional prefix to add to the beginning of the issue title (e.g., '[ai] ' or
     # '[analysis] ')

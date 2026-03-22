@@ -94,7 +94,7 @@ function generateDifcFilteredSection(filteredEvents) {
 
   let section = "\n\n> [!NOTE]\n";
   section += `> <details>\n`;
-  section += `> <summary>**🔒 Integrity filter blocked ${count} ${itemWord}**</summary>\n`;
+  section += `> <summary><b>🔒 Integrity filter blocked ${count} ${itemWord}</b></summary>\n`;
   section += `>\n`;
   section += `> The following ${itemWord} were blocked because they don't meet the GitHub integrity level.\n`;
   section += `>\n`;
@@ -110,7 +110,8 @@ function generateDifcFilteredSection(filteredEvents) {
       reference = `[${label}](${event.html_url})`;
     } else {
       const desc = event.description ? event.description.replace(/^[a-z-]+:(?!\/\/)/i, "") : null;
-      reference = desc || (event.tool_name ? `\`${event.tool_name}\`` : "-");
+      const validDesc = desc && desc !== "#unknown" ? desc : null;
+      reference = validDesc || (event.tool_name ? `\`${event.tool_name}\`` : "-");
     }
     const tool = event.tool_name ? `\`${event.tool_name}\`` : "-";
     const reason = (event.reason || "-").replace(/^Resource '[^']*' /, "").replace(/\n/g, " ");
