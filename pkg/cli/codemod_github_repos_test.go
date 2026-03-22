@@ -147,6 +147,37 @@ tools:
 		assert.Equal(t, content, result, "Content should be unchanged")
 	})
 
+	t.Run("does not rename repos when allowed-repos already present", func(t *testing.T) {
+		content := `---
+engine: copilot
+tools:
+  github:
+    toolsets: [default]
+    allowed-repos: "all"
+    repos: "all"
+    min-integrity: approved
+---
+
+# Test Workflow
+`
+		frontmatter := map[string]any{
+			"engine": "copilot",
+			"tools": map[string]any{
+				"github": map[string]any{
+					"toolsets":      []any{"default"},
+					"allowed-repos": "all",
+					"repos":         "all",
+					"min-integrity": "approved",
+				},
+			},
+		}
+
+		result, applied, err := codemod.Apply(content, frontmatter)
+		require.NoError(t, err, "Should not error")
+		assert.False(t, applied, "Should not apply codemod when allowed-repos already present alongside repos")
+		assert.Equal(t, content, result, "Content should be unchanged")
+	})
+
 	t.Run("does not rename repos in toolsets list", func(t *testing.T) {
 		content := `---
 engine: copilot

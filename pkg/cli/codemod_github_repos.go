@@ -29,7 +29,8 @@ func getGitHubReposToAllowedReposCodemod() Codemod {
 	}
 }
 
-// hasDeprecatedGitHubReposField returns true if tools.github has a deprecated 'repos' field.
+// hasDeprecatedGitHubReposField returns true if tools.github has a deprecated 'repos' field
+// and does not already have an 'allowed-repos' field.
 func hasDeprecatedGitHubReposField(frontmatter map[string]any) bool {
 	toolsAny, hasTools := frontmatter["tools"]
 	if !hasTools {
@@ -48,10 +49,11 @@ func hasDeprecatedGitHubReposField(frontmatter map[string]any) bool {
 		return false
 	}
 	_, hasRepos := githubMap["repos"]
-	if hasRepos {
+	_, hasAllowedRepos := githubMap["allowed-repos"] // only check existence, not value
+	if hasRepos && !hasAllowedRepos {
 		githubReposCodemodLog.Print("Deprecated 'repos' field found in tools.github")
 	}
-	return hasRepos
+	return hasRepos && !hasAllowedRepos
 }
 
 // renameGitHubReposToAllowedRepos renames 'repos:' to 'allowed-repos:' within the

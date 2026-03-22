@@ -5363,7 +5363,7 @@ checkout: []
 
 # Option 3: Set to false to disable the default checkout step. The agent job will
 # not check out any repository (dev-mode checkouts are unaffected).
-checkout: true
+checkout: false
 
 # APM package references to install. Supports array format (list of package slugs)
 # or object format with packages and isolated fields.

@@ -61,8 +61,9 @@ func validateGitHubToolConfig(tools *Tools, workflowName string) error {
 }
 
 // validateGitHubGuardPolicy validates the GitHub guard policy configuration.
-// Guard policy fields (allowed-repos/repos, min-integrity) are specified flat under github:.
-// If allowed-repos/repos is not specified but min-integrity is, repos defaults to "all".
+// Guard policy fields (allowed-repos, min-integrity) are specified flat under github:.
+// Note: 'repos' is a deprecated alias for 'allowed-repos'.
+// If allowed-repos (or deprecated alias repos) is not specified but min-integrity is, allowed-repos defaults to "all".
 func validateGitHubGuardPolicy(tools *Tools, workflowName string) error {
 	if tools == nil || tools.GitHub == nil {
 		return nil
@@ -78,9 +79,9 @@ func validateGitHubGuardPolicy(tools *Tools, workflowName string) error {
 		return nil
 	}
 
-	// Default repos to "all" when not specified
+	// Default allowed-repos to "all" when not specified
 	if !hasRepos {
-		toolsValidationLog.Printf("Defaulting repos to 'all' in guard policy for workflow: %s", workflowName)
+		toolsValidationLog.Printf("Defaulting allowed-repos (repos) to 'all' in guard policy for workflow: %s", workflowName)
 		github.AllowedRepos = "all"
 	}
 
