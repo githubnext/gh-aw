@@ -261,6 +261,12 @@ func (c *Compiler) validateWorkflowData(workflowData *WorkflowData, markdownPath
 		c.IncrementWarningCount()
 	}
 
+	// Emit experimental warning for dispatch_repository feature
+	if workflowData.SafeOutputs != nil && workflowData.SafeOutputs.DispatchRepository != nil {
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Using experimental feature: dispatch_repository"))
+		c.IncrementWarningCount()
+	}
+
 	// Validate workflow_run triggers have branch restrictions
 	log.Printf("Validating workflow_run triggers for branch restrictions")
 	if err := c.validateWorkflowRunBranches(workflowData, markdownPath); err != nil {
