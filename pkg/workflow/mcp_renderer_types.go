@@ -82,8 +82,6 @@ type GitHubMCPDockerOptions struct {
 	AllowedTools []string
 	// EffectiveToken is the GitHub token to use (Claude uses this, Copilot uses env passthrough)
 	EffectiveToken string
-	// Mounts specifies volume mounts for the GitHub MCP server container (format: "host:container:mode")
-	Mounts []string
 	// GuardPolicies specifies access control policies for the MCP gateway (e.g., allow-only repos/integrity)
 	GuardPolicies map[string]any
 }

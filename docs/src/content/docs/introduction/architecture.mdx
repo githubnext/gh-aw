@@ -522,9 +522,7 @@ The URI filtering mechanism applies strict validation:
 - ❌ **Blocked**: Data URLs, javascript: URLs
 - ❌ **Blocked**: URLs from untrusted domains → replaced with `(redacted)`
 
-<Aside type="note" title="Why URLs are redacted">
 URLs appearing as `(redacted)` indicate the domain was not in the allowed list. This prevents potential data exfiltration through untrusted domains. The allowed domains list is derived from the workflow's `network:` configuration and includes GitHub domains by default.
-</Aside>
 
 **Configuring Additional Domains:**
 
@@ -550,19 +548,13 @@ XML and HTML tags are converted to a safe parentheses format to prevent injectio
 <!-- hidden comment -->        →  (!-- hidden comment --)
 ```
 
-<Aside type="caution">
-Workflows should use `${{ needs.activation.outputs.text }}` instead of raw `github.event` fields to ensure proper sanitization of user-provided content.
-</Aside>
-
 ## Integrity Filtering
 
 Integrity filtering controls which GitHub content an agent can access during a workflow run, based on **author trust** and **merge status** rather than push access alone. The MCP gateway intercepts tool calls and filters content below the configured `min-integrity` threshold before the AI engine sees it — items from blocked users or below the minimum trust level are removed transparently.
 
 For public repositories, `min-integrity: approved` is applied automatically — restricting content to owners, members, and collaborators — even without additional authentication. The four configurable levels (`merged`, `approved`, `unapproved`, `none`) are cumulative from most to least restrictive. Individual users can be blocked unconditionally, and trusted reviewers can promote specific items via approval labels.
 
-<Aside type="tip">
 See [Integrity Filtering Reference](/gh-aw/reference/integrity/) for configuration options, integrity levels, and examples.
-</Aside>
 
 ## Secret Redaction
 
@@ -625,9 +617,7 @@ secret-masking:
         find /tmp/gh-aw -type f -exec sed -i 's/password123/REDACTED/g' {} +
 ```
 
-<Aside type="tip">
 Secret redaction executes with `if: always()` to ensure secrets are never leaked, even if the workflow fails at an earlier stage.
-</Aside>
 
 ## Job Execution Flow
 
