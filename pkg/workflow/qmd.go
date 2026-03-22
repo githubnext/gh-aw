@@ -10,6 +10,8 @@
 //  1. Activation job: builds the search index from configured checkouts and/or GitHub searches
 //     and uploads it as the "qmd-index" artifact. This step runs in the activation job which
 //     already has contents:read permission, so the agent job does NOT need contents:read.
+//     The index is built by a single actions/github-script step that runs qmd_index.cjs,
+//     which uses the @tobilu/qmd JavaScript SDK to build the collections.
 //
 //  2. Agent job: downloads the "qmd-index" artifact and mounts the qmd MCP server pointing
 //     at the pre-built index. The MCP server exposes a search tool that the agent can use
@@ -54,12 +56,13 @@
 //   - mcp_renderer_builtin.go: RenderQmdMCP method
 //   - compiler_activation_job.go: activation job qmd index steps
 //   - compiler_yaml_main_job.go: agent job qmd artifact download
+//   - actions/setup/js/qmd_index.cjs: JavaScript SDK implementation
 
 package workflow
 
 import (
+	"encoding/json"
 	"fmt"
-	"strconv"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/constants"
@@ -67,15 +70,6 @@ import (
 )
 
 var qmdLog = logger.New("workflow:qmd")
-
-// shellSingleQuote wraps s in POSIX single quotes, escaping any embedded single
-// quotes via the '"'"' idiom.  The result is safe to interpolate directly into
-// a shell command: no shell metacharacters ($, `, \, ;, |, etc.) are
-// interpreted inside single-quoted strings.
-func shellSingleQuote(s string) string {
-	// Replace each ' with '\'' (end-quote, literal-apostrophe, re-open-quote)
-	return "'" + strings.ReplaceAll(s, "'", `'\''`) + "'"
-}
 
 // hasQmdTool checks if the qmd tool is enabled in the tools configuration.
 func hasQmdTool(parsedTools *Tools) bool {
@@ -148,46 +142,96 @@ func generateQmdCacheSaveStep(cacheKey string) string {
 	return sb.String()
 }
 
-// resolvedQmdCollection is an internal representation of a qmd collection
-// with its working directory resolved.
-type resolvedQmdCollection struct {
-	name    string
-	paths   []string
-	context string
-	workdir string // absolute path within the runner (e.g. ${GITHUB_WORKSPACE} or /tmp/gh-aw/qmd-checkout-<name>)
+// qmdCheckoutEntry is the JSON representation of a checkout-based collection
+// passed to qmd_index.cjs via the QMD_CONFIG_JSON environment variable.
+type qmdCheckoutEntry struct {
+	Name     string   `json:"name"`
+	Path     string   `json:"path"`
+	Patterns []string `json:"patterns,omitempty"`
+	Context  string   `json:"context,omitempty"`
 }
 
-// resolveQmdCheckouts converts the checkouts portion of a QmdToolConfig
-// into a list of resolvedQmdCollections.
-func resolveQmdCheckouts(qmdConfig *QmdToolConfig) []resolvedQmdCollection {
-	if len(qmdConfig.Checkouts) == 0 {
-		return nil
+// qmdSearchEntry is the JSON representation of a search entry passed to qmd_index.cjs.
+type qmdSearchEntry struct {
+	Name        string `json:"name,omitempty"`
+	Type        string `json:"type,omitempty"`        // "code" (default) or "issues"
+	Query       string `json:"query,omitempty"`       // for "code" type
+	Repo        string `json:"repo,omitempty"`        // for "issues" type; blank = github.repository
+	Min         int    `json:"min,omitempty"`         // minimum result count (0 = no minimum)
+	Max         int    `json:"max,omitempty"`         // maximum result count (0 = use default)
+	TokenEnvVar string `json:"tokenEnvVar,omitempty"` // env var holding custom GitHub token
+}
+
+// qmdBuildConfig is the top-level JSON config serialised into QMD_CONFIG_JSON
+// and consumed by actions/setup/js/qmd_index.cjs.
+type qmdBuildConfig struct {
+	DBPath    string             `json:"dbPath"`
+	Checkouts []qmdCheckoutEntry `json:"checkouts,omitempty"`
+	Searches  []qmdSearchEntry   `json:"searches,omitempty"`
+}
+
+// resolveQmdWorkdir returns the working directory path for a checkout-based collection.
+// Returns "${GITHUB_WORKSPACE}" for the default (current) repository, or the path
+// specified / derived from the checkout config for external repositories.
+func resolveQmdWorkdir(col *QmdDocCollection) string {
+	if col.Checkout == nil {
+		return "${GITHUB_WORKSPACE}"
 	}
-	resolved := make([]resolvedQmdCollection, 0, len(qmdConfig.Checkouts))
+	if col.Checkout.Path != "" {
+		checkoutPath := strings.TrimPrefix(col.Checkout.Path, "./")
+		return "${GITHUB_WORKSPACE}/" + checkoutPath
+	}
+	name := col.Name
+	if name == "" {
+		name = "docs"
+	}
+	return "/tmp/gh-aw/qmd-checkout-" + name
+}
+
+// buildQmdConfig constructs the qmdBuildConfig from the user-provided QmdToolConfig.
+func buildQmdConfig(qmdConfig *QmdToolConfig) qmdBuildConfig {
+	cfg := qmdBuildConfig{
+		DBPath: "/tmp/gh-aw/qmd-index",
+	}
+
 	for _, col := range qmdConfig.Checkouts {
 		name := col.Name
 		if name == "" {
 			name = "docs"
 		}
-		workdir := "${GITHUB_WORKSPACE}"
-		if col.Checkout != nil {
-			if col.Checkout.Path != "" {
-				// Checkout path is relative to GITHUB_WORKSPACE; strip leading "./" for cleanliness
-				checkoutPath := strings.TrimPrefix(col.Checkout.Path, "./")
-				workdir = "${GITHUB_WORKSPACE}/" + checkoutPath
-			} else {
-				// No explicit path → use an isolated temp directory
-				workdir = "/tmp/gh-aw/qmd-checkout-" + name
-			}
+		entry := qmdCheckoutEntry{
+			Name:    name,
+			Path:    resolveQmdWorkdir(col),
+			Context: col.Context,
 		}
-		resolved = append(resolved, resolvedQmdCollection{
-			name:    name,
-			paths:   col.Paths,
-			context: col.Context,
-			workdir: workdir,
-		})
+		if len(col.Paths) > 0 {
+			entry.Patterns = col.Paths
+		}
+		cfg.Checkouts = append(cfg.Checkouts, entry)
 	}
-	return resolved
+
+	for i, s := range qmdConfig.Searches {
+		name := s.Name
+		if name == "" {
+			name = fmt.Sprintf("search-%d", i)
+		}
+		entry := qmdSearchEntry{
+			Name:  name,
+			Type:  s.Type,
+			Query: s.Query,
+			Min:   s.Min,
+			Max:   s.Max,
+		}
+		if s.Type == "issues" && s.Query != "" {
+			entry.Repo = s.Query
+		}
+		if s.GitHubToken != "" {
+			entry.TokenEnvVar = fmt.Sprintf("QMD_SEARCH_TOKEN_%d", i)
+		}
+		cfg.Searches = append(cfg.Searches, entry)
+	}
+
+	return cfg
 }
 
 // generateQmdCollectionCheckoutStep generates a checkout step YAML string for a qmd
@@ -238,134 +282,20 @@ func generateQmdCollectionCheckoutStep(col *QmdDocCollection) string {
 	return sb.String()
 }
 
-// generateQmdSearchStep generates an activation-job step that runs a GitHub search or issue
-// list, saves the results as individual files, and adds them as a named qmd collection.
-// When entry.Type is "issues", it uses `gh issue list` to fetch open issues from the
-// repository and formats each as a markdown file. Otherwise (default "code" type) it uses
-// `gh search code` to find repository files.
-func generateQmdSearchStep(entry *QmdSearchEntry, index int) string {
-	collectionName := entry.Name
-	if collectionName == "" {
-		collectionName = fmt.Sprintf("search-%d", index)
-	}
-
-	if entry.Type == "issues" {
-		return generateQmdIssueListStep(entry, collectionName, index)
-	}
-	return generateQmdCodeSearchStep(entry, collectionName, index)
-}
-
-// generateQmdIssueListStep generates a step that fetches open GitHub issues from a
-// repository using `gh issue list` and saves each issue as a markdown file so they
-// can be indexed by qmd.
-func generateQmdIssueListStep(entry *QmdSearchEntry, collectionName string, index int) string {
-	searchDir := fmt.Sprintf("/tmp/gh-aw/qmd-search-%d", index)
-
-	maxResults := entry.Max
-	if maxResults <= 0 {
-		maxResults = 500
-	}
-
-	repo := entry.Query
-	if repo == "" {
-		repo = "${{ github.repository }}"
-	}
-
-	var tokenEnv string
-	if entry.GitHubToken != "" {
-		tokenEnv = fmt.Sprintf("GH_TOKEN=%s ", entry.GitHubToken)
-	}
-
-	var sb strings.Builder
-	fmt.Fprintf(&sb, "      - name: Fetch GitHub issues for qmd collection %q\n", collectionName)
-	sb.WriteString("        run: |\n")
-	sb.WriteString("          set -e\n")
-	fmt.Fprintf(&sb, "          mkdir -p %s\n", searchDir)
-	sb.WriteString("          # Fetch open issues and save each as a markdown file\n")
-	fmt.Fprintf(&sb, "          %sgh issue list --repo %s --state open --limit %d --json number,title,body | \\\n",
-		tokenEnv, shellSingleQuote(repo), maxResults)
-	fmt.Fprintf(&sb, "            jq -r '.[] | \"## \" + (.number | tostring) + \": \" + .title + \"\\n\\n\" + (.body // \"\") | @text' | \\\n")
-	fmt.Fprintf(&sb, "            awk 'BEGIN{n=0} /^## [0-9]+:/{n++; file=\"%s/issue-\" n \".md\"} {print > file}'\n", searchDir)
-
-	if entry.Min > 0 {
-		fmt.Fprintf(&sb, "          count=$(find %s -type f | wc -l)\n", searchDir)
-		fmt.Fprintf(&sb, "          if [ \"$count\" -lt %d ]; then\n", entry.Min)
-		fmt.Fprintf(&sb, "            echo \"qmd issue list %q returned $count results, minimum is %d\" >&2\n", collectionName, entry.Min)
-		sb.WriteString("            exit 1\n")
-		sb.WriteString("          fi\n")
-	}
-
-	fmt.Fprintf(&sb, "          QMD_CACHE_DIR=/tmp/gh-aw/qmd-index qmd collection add %s --name %s --glob %s\n",
-		shellSingleQuote(searchDir),
-		shellSingleQuote(collectionName),
-		"'**/*'",
-	)
-	return sb.String()
-}
-
-// generateQmdCodeSearchStep generates an activation-job step that runs a GitHub code
-// search query, downloads the matching files, and adds them as a named qmd collection.
-func generateQmdCodeSearchStep(entry *QmdSearchEntry, collectionName string, index int) string {
-	searchDir := fmt.Sprintf("/tmp/gh-aw/qmd-search-%d", index)
-
-	maxResults := entry.Max
-	if maxResults <= 0 {
-		maxResults = 30
-	}
-
-	// Build the GH_TOKEN env override if a custom token is provided
-	var tokenEnv string
-	if entry.GitHubToken != "" {
-		tokenEnv = fmt.Sprintf("GH_TOKEN=%s ", entry.GitHubToken)
-	}
-
-	var sb strings.Builder
-	fmt.Fprintf(&sb, "      - name: Search GitHub for qmd collection %q\n", collectionName)
-	sb.WriteString("        run: |\n")
-	sb.WriteString("          set -e\n")
-	fmt.Fprintf(&sb, "          mkdir -p %s\n", searchDir)
-
-	// Execute gh search code, download each result file, then register the collection
-	sb.WriteString("          # Download search results and add them to the qmd index\n")
-	fmt.Fprintf(&sb, "          %sgh search code %s --limit %d --json path,repository | \\\n",
-		tokenEnv,
-		shellSingleQuote(entry.Query),
-		maxResults,
-	)
-	// Use jq to extract repo+path pairs and download each file via gh api
-	fmt.Fprintf(&sb, "            jq -r '.[] | .repository.fullName + \" \" + .path' | \\\n")
-	fmt.Fprintf(&sb, "            while IFS=' ' read -r repo file_path; do\n")
-	fmt.Fprintf(&sb, "              dest=%s/\"${repo//\\//-}\"-\"${file_path//\\//-}\"\n", searchDir)
-	fmt.Fprintf(&sb, "              %sgh api \"repos/$repo/contents/$file_path\" --jq '.content' | base64 -d > \"$dest\" 2>/dev/null || true\n", tokenEnv)
-	fmt.Fprintf(&sb, "            done\n")
-
-	// Enforce minimum count
-	if entry.Min > 0 {
-		fmt.Fprintf(&sb, "          count=$(find %s -type f | wc -l)\n", searchDir)
-		fmt.Fprintf(&sb, "          if [ \"$count\" -lt %d ]; then\n", entry.Min)
-		fmt.Fprintf(&sb, "            echo \"qmd search %q returned $count results, minimum is %d\" >&2\n", collectionName, entry.Min)
-		sb.WriteString("            exit 1\n")
-		sb.WriteString("          fi\n")
-	}
-
-	// Add the downloaded files as a qmd collection
-	fmt.Fprintf(&sb, "          QMD_CACHE_DIR=/tmp/gh-aw/qmd-index qmd collection add %s --name %s --glob %s\n",
-		shellSingleQuote(searchDir),
-		shellSingleQuote(collectionName),
-		"'**/*'",
-	)
-
-	return sb.String()
-}
-
-// generateQmdIndexSteps generates the activation job steps that install qmd, register
-// collections for each configured checkout and/or search, and build the vector search index.
-// The index is stored at /tmp/gh-aw/qmd-index and uploaded as the qmd-index artifact.
+// generateQmdIndexSteps generates the activation job steps that install the @tobilu/qmd SDK,
+// run the qmd_index.cjs JavaScript script to build the vector search index, and upload it
+// as the qmd-index artifact.
+//
+// The configuration is serialised to JSON and passed via the QMD_CONFIG_JSON environment
+// variable to the github-script step. qmd_index.cjs uses the @tobilu/qmd SDK to:
+//  1. Register checkout-based collections
+//  2. Fetch GitHub search/issue results and register them as collections
+//  3. Call store.update() and store.embed() to index and embed all documents
 //
 // When qmdConfig.CacheKey is set:
 //   - A cache restore step is always emitted first.
 //   - In read-only mode (no sources): only the cache restore + artifact upload are emitted;
-//     Node.js, qmd installation, and indexing steps are skipped entirely.
+//     Node.js, qmd SDK installation, and indexing steps are skipped entirely.
 //   - In build mode (sources present): indexing steps are guarded by
 //     `if: steps.qmd-cache-restore.outputs.cache-hit != 'true'`, so they are skipped on a
 //     cache hit.  A cache save step follows the indexing steps.
@@ -389,88 +319,78 @@ func generateQmdIndexSteps(qmdConfig *QmdToolConfig, data *WorkflowData) []strin
 	// Cache-only mode: no indexing at all — just use the restored cache
 	if isCacheOnlyMode {
 		qmdLog.Print("qmd cache-only mode: skipping indexing, using cache only")
-		// Fall through to artifact upload below
 	} else {
 		// Conditional prefix for build steps when cache-key is set (skip on cache hit)
-		var ifCacheMiss string
+		ifCacheMiss := ""
 		if qmdConfig.CacheKey != "" {
 			ifCacheMiss = "        if: steps.qmd-cache-restore.outputs.cache-hit != 'true'\n"
 		}
 
-		// Setup Node.js (required to run npm/npx)
-		steps = append(steps, "      - name: Setup Node.js for qmd\n")
+		// Setup Node.js (required to run the qmd SDK)
+		nodeSetup := "      - name: Setup Node.js for qmd\n"
 		if ifCacheMiss != "" {
-			steps = append(steps, ifCacheMiss)
+			nodeSetup += ifCacheMiss
 		}
-		steps = append(steps, fmt.Sprintf("        uses: %s\n", GetActionPin("actions/setup-node")))
-		steps = append(steps, "        with:\n")
-		steps = append(steps, fmt.Sprintf("          node-version: \"%s\"\n", string(constants.DefaultNodeVersion)))
+		nodeSetup += fmt.Sprintf("        uses: %s\n", GetActionPin("actions/setup-node"))
+		nodeSetup += "        with:\n"
+		nodeSetup += fmt.Sprintf("          node-version: \"%s\"\n", string(constants.DefaultNodeVersion))
+		steps = append(steps, nodeSetup)
 
-		// Install qmd globally
-		steps = append(steps, "      - name: Install qmd\n")
+		// Install the @tobilu/qmd SDK into the gh-aw actions directory so qmd_index.cjs
+		// can require('@tobilu/qmd') via the adjacent node_modules folder.
+		npmInstall := "      - name: Install @tobilu/qmd SDK\n"
 		if ifCacheMiss != "" {
-			steps = append(steps, ifCacheMiss)
+			npmInstall += ifCacheMiss
 		}
-		steps = append(steps, "        run: |\n")
-		steps = append(steps, fmt.Sprintf("          npm install -g @tobilu/qmd@%s\n", version))
+		npmInstall += "        run: |\n"
+		npmInstall += fmt.Sprintf("          npm install --prefix \"${{ runner.temp }}/gh-aw/actions\" @tobilu/qmd@%s\n", version)
+		steps = append(steps, npmInstall)
 
-		// Emit a checkout step for each checkout-based collection that needs its own repo
+		// Emit a checkout step for each collection that targets a non-default repository
 		for _, col := range qmdConfig.Checkouts {
 			if checkoutStep := generateQmdCollectionCheckoutStep(col); checkoutStep != "" {
 				steps = append(steps, checkoutStep)
 			}
 		}
 
-		// Build the index: create the cache dir and register all collections
-		steps = append(steps, "      - name: Build qmd index\n")
+		// Build the JSON configuration for qmd_index.cjs
+		cfg := buildQmdConfig(qmdConfig)
+		cfgJSON, err := json.Marshal(cfg)
+		if err != nil {
+			qmdLog.Printf("Failed to marshal qmd config: %v", err)
+			cfgJSON = []byte("{}")
+		}
+
+		// Generate the github-script step that runs qmd_index.cjs
+		var scriptSB strings.Builder
+		scriptSB.WriteString("      - name: Build qmd index\n")
 		if ifCacheMiss != "" {
-			steps = append(steps, ifCacheMiss)
+			scriptSB.WriteString(ifCacheMiss)
 		}
-		steps = append(steps, "        run: |\n")
-		steps = append(steps, "          set -e\n")
-		steps = append(steps, "          mkdir -p /tmp/gh-aw/qmd-index\n")
-
-		// Register each checkout-based collection.
-		// The workdir is double-quoted to preserve ${GITHUB_WORKSPACE} variable expansion.
-		// User-provided names, globs, and context are POSIX single-quoted to prevent shell injection.
-		checkouts := resolveQmdCheckouts(qmdConfig)
-		for _, col := range checkouts {
-			var globArg string
-			if len(col.paths) > 0 {
-				globArg = shellSingleQuote(strings.Join(col.paths, ","))
-			} else {
-				globArg = "'**/*.md'"
-			}
-			if col.context != "" {
-				steps = append(steps, fmt.Sprintf(
-					"          QMD_CACHE_DIR=/tmp/gh-aw/qmd-index qmd collection add \"%s\" --name %s --glob %s --context %s\n",
-					col.workdir,
-					shellSingleQuote(col.name),
-					globArg,
-					shellSingleQuote(col.context),
-				))
-			} else {
-				steps = append(steps, fmt.Sprintf(
-					"          QMD_CACHE_DIR=/tmp/gh-aw/qmd-index qmd collection add \"%s\" --name %s --glob %s\n",
-					col.workdir,
-					shellSingleQuote(col.name),
-					globArg,
-				))
+		fmt.Fprintf(&scriptSB, "        uses: %s\n", GetActionPin("actions/github-script"))
+		scriptSB.WriteString("        env:\n")
+		// Pass the config JSON as an env var; the YAML literal block avoids quoting issues
+		scriptSB.WriteString("          QMD_CONFIG_JSON: |\n")
+		fmt.Fprintf(&scriptSB, "            %s\n", string(cfgJSON))
+		// Add per-search custom token env vars
+		for i, s := range qmdConfig.Searches {
+			if s.GitHubToken != "" {
+				fmt.Fprintf(&scriptSB, "          QMD_SEARCH_TOKEN_%d: %s\n", i, s.GitHubToken)
 			}
 		}
-
-		// Emit a step per GitHub search entry
-		for i, search := range qmdConfig.Searches {
-			steps = append(steps, generateQmdSearchStep(search, i))
-		}
+		scriptSB.WriteString("        with:\n")
+		scriptSB.WriteString("          github-token: ${{ github.token }}\n")
+		scriptSB.WriteString("          script: |\n")
+		fmt.Fprintf(&scriptSB, "            const { setupGlobals } = require('%s/setup_globals.cjs');\n", SetupActionDestination)
+		scriptSB.WriteString("            setupGlobals(core, github, context, exec, io);\n")
+		fmt.Fprintf(&scriptSB, "            const { main } = require('%s/qmd_index.cjs');\n", SetupActionDestination)
+		scriptSB.WriteString("            await main();\n")
+		steps = append(steps, scriptSB.String())
 
 		// If cache-key is set, save the freshly-built index to cache (skipped on hit)
 		if qmdConfig.CacheKey != "" {
 			steps = append(steps, generateQmdCacheSaveStep(qmdConfig.CacheKey))
 		}
-
-		// Write a summary of all indexed collections to the step summary
-		steps = append(steps, generateQmdSummaryStep(qmdConfig))
 	}
 
 	// Upload qmd index as a separate artifact for the agent job
@@ -485,80 +405,6 @@ func generateQmdIndexSteps(qmdConfig *QmdToolConfig, data *WorkflowData) []strin
 	steps = append(steps, "          retention-days: 1\n")
 
 	return steps
-}
-
-// generateQmdSummaryStep generates a step that writes a Markdown summary of the qmd
-// documentation collections to $GITHUB_STEP_SUMMARY so reviewers can see what was indexed.
-// The table lists each checkout collection (name, paths, context) and each search entry (query).
-func generateQmdSummaryStep(qmdConfig *QmdToolConfig) string {
-	var sb strings.Builder
-	sb.WriteString("      - name: Summarize qmd index\n")
-	sb.WriteString("        if: always()\n")
-	sb.WriteString("        run: |\n")
-	sb.WriteString("          {\n")
-	sb.WriteString("            echo '## qmd documentation index'\n")
-	sb.WriteString("            echo ''\n")
-
-	// Checkout-based collections
-	checkouts := resolveQmdCheckouts(qmdConfig)
-	if len(checkouts) > 0 {
-		sb.WriteString("            echo '### Collections'\n")
-		sb.WriteString("            echo ''\n")
-		sb.WriteString("            echo '| Name | Paths | Context |'\n")
-		sb.WriteString("            echo '| --- | --- | --- |'\n")
-		for _, col := range checkouts {
-			pathsStr := strings.Join(col.paths, ", ")
-			if pathsStr == "" {
-				pathsStr = "**/*.md"
-			}
-			contextStr := col.context
-			if contextStr == "" {
-				contextStr = "-"
-			}
-			fmt.Fprintf(&sb, "            echo '| %s | %s | %s |'\n",
-				shellSingleQuoteInRun(col.name),
-				shellSingleQuoteInRun(pathsStr),
-				shellSingleQuoteInRun(contextStr),
-			)
-		}
-		sb.WriteString("            echo ''\n")
-	}
-
-	// Search entries
-	if len(qmdConfig.Searches) > 0 {
-		sb.WriteString("            echo '### Searches'\n")
-		sb.WriteString("            echo ''\n")
-		sb.WriteString("            echo '| Query | Min | Max |'\n")
-		sb.WriteString("            echo '| --- | --- | --- |'\n")
-		for _, s := range qmdConfig.Searches {
-			minStr := "-"
-			if s.Min > 0 {
-				minStr = strconv.Itoa(s.Min)
-			}
-			maxStr := "30"
-			if s.Max > 0 {
-				maxStr = strconv.Itoa(s.Max)
-			}
-			fmt.Fprintf(&sb, "            echo '| %s | %s | %s |'\n",
-				shellSingleQuoteInRun(s.Query),
-				minStr,
-				maxStr,
-			)
-		}
-		sb.WriteString("            echo ''\n")
-	}
-
-	sb.WriteString("          } >> $GITHUB_STEP_SUMMARY\n")
-	return sb.String()
-}
-
-// shellSingleQuoteInRun escapes a string for safe embedding inside an already-single-quoted
-// shell echo argument used in run: blocks. Pipes (|) are escaped to prevent Markdown table
-// column breaks and single quotes are neutralized via the '"'"' idiom.
-func shellSingleQuoteInRun(s string) string {
-	s = strings.ReplaceAll(s, "|", "\\|")
-	s = strings.ReplaceAll(s, "'", `'"'"'`)
-	return s
 }
 
 // generateQmdDownloadStep generates the agent job step that downloads the qmd-index artifact.

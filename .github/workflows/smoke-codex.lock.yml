@@ -318,42 +318,22 @@ jobs:
         uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6.3.0
         with:
           node-version: "24"
-      - name: Install qmd
+      - name: Install @tobilu/qmd SDK
         run: |
-          npm install -g @tobilu/qmd@2.0.1
+          npm install --prefix "${{ runner.temp }}/gh-aw/actions" @tobilu/qmd@2.0.1
       - name: Build qmd index
-        run: |
-          set -e
-          mkdir -p /tmp/gh-aw/qmd-index
-          QMD_CACHE_DIR=/tmp/gh-aw/qmd-index qmd collection add "${GITHUB_WORKSPACE}" --name 'docs' --glob 'docs/src/**/*.md,docs/src/**/*.mdx' --context 'gh-aw project documentation'
-      - name: Fetch GitHub issues for qmd collection "issues"
-        run: |
-          set -e
-          mkdir -p /tmp/gh-aw/qmd-search-0
-          # Fetch open issues and save each as a markdown file
-          GH_TOKEN=${{ secrets.GITHUB_TOKEN }} gh issue list --repo '${{ github.repository }}' --state open --limit 500 --json number,title,body | \
-            jq -r '.[] | "## " + (.number | tostring) + ": " + .title + "\n\n" + (.body // "") | @text' | \
-            awk 'BEGIN{n=0} /^## [0-9]+:/{n++; file="/tmp/gh-aw/qmd-search-0/issue-" n ".md"} {print > file}'
-          QMD_CACHE_DIR=/tmp/gh-aw/qmd-index qmd collection add '/tmp/gh-aw/qmd-search-0' --name 'issues' --glob '**/*'
-      - name: Summarize qmd index
-        if: always()
-        run: |
-          {
-            echo '## qmd documentation index'
-            echo ''
-            echo '### Collections'
-            echo ''
-            echo '| Name | Paths | Context |'
-            echo '| --- | --- | --- |'
-            echo '| docs | docs/src/**/*.md, docs/src/**/*.mdx | gh-aw project documentation |'
-            echo ''
-            echo '### Searches'
-            echo ''
-            echo '| Query | Min | Max |'
-            echo '| --- | --- | --- |'
-            echo '|  | - | 500 |'
-            echo ''
-          } >> $GITHUB_STEP_SUMMARY
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        env:
+          QMD_CONFIG_JSON: |
+            {"dbPath":"/tmp/gh-aw/qmd-index","checkouts":[{"name":"docs","path":"${GITHUB_WORKSPACE}","patterns":["docs/src/**/*.md","docs/src/**/*.mdx"],"context":"gh-aw project documentation"}],"searches":[{"name":"issues","type":"issues","max":500,"tokenEnvVar":"QMD_SEARCH_TOKEN_0"}]}
+          QMD_SEARCH_TOKEN_0: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          github-token: ${{ github.token }}
+          script: |
+            const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');
+            setupGlobals(core, github, context, exec, io);
+            const { main } = require('${{ runner.temp }}/gh-aw/actions/qmd_index.cjs');
+            await main();
       - name: Upload qmd index artifact
         if: success()
         uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7
