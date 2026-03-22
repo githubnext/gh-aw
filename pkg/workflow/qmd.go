@@ -86,10 +86,10 @@ func hasQmdTool(parsedTools *Tools) bool {
 }
 
 // qmdHasSources reports whether the qmd config has any indexing sources
-// (checkouts, searches, or legacy docs).  When false and a cache-key is set,
+// (checkouts or searches).  When false and a cache-key is set,
 // qmd operates in read-only mode: the index is restored from cache only.
 func qmdHasSources(qmdConfig *QmdToolConfig) bool {
-	return len(qmdConfig.Checkouts) > 0 || len(qmdConfig.Searches) > 0 || len(qmdConfig.Docs) > 0
+	return len(qmdConfig.Checkouts) > 0 || len(qmdConfig.Searches) > 0
 }
 
 // generateQmdModelsCacheStep generates a step that caches the qmd embedding models directory
@@ -143,52 +143,37 @@ type resolvedQmdCollection struct {
 	workdir string // absolute path within the runner (e.g. ${GITHUB_WORKSPACE} or /tmp/gh-aw/qmd-checkout-<name>)
 }
 
-// resolveQmdCheckouts converts the checkouts (or legacy docs) portion of a QmdToolConfig
+// resolveQmdCheckouts converts the checkouts portion of a QmdToolConfig
 // into a list of resolvedQmdCollections.
 func resolveQmdCheckouts(qmdConfig *QmdToolConfig) []resolvedQmdCollection {
-	// Structured form: explicit checkouts list
-	if len(qmdConfig.Checkouts) > 0 {
-		resolved := make([]resolvedQmdCollection, 0, len(qmdConfig.Checkouts))
-		for _, col := range qmdConfig.Checkouts {
-			name := col.Name
-			if name == "" {
-				name = "docs"
-			}
-			workdir := "${GITHUB_WORKSPACE}"
-			if col.Checkout != nil {
-				if col.Checkout.Path != "" {
-					// Checkout path is relative to GITHUB_WORKSPACE; strip leading "./" for cleanliness
-					checkoutPath := strings.TrimPrefix(col.Checkout.Path, "./")
-					workdir = "${GITHUB_WORKSPACE}/" + checkoutPath
-				} else {
-					// No explicit path → use an isolated temp directory
-					workdir = "/tmp/gh-aw/qmd-checkout-" + name
-				}
-			}
-			resolved = append(resolved, resolvedQmdCollection{
-				name:    name,
-				paths:   col.Paths,
-				context: col.Context,
-				workdir: workdir,
-			})
+	if len(qmdConfig.Checkouts) == 0 {
+		return nil
+	}
+	resolved := make([]resolvedQmdCollection, 0, len(qmdConfig.Checkouts))
+	for _, col := range qmdConfig.Checkouts {
+		name := col.Name
+		if name == "" {
+			name = "docs"
 		}
-		return resolved
+		workdir := "${GITHUB_WORKSPACE}"
+		if col.Checkout != nil {
+			if col.Checkout.Path != "" {
+				// Checkout path is relative to GITHUB_WORKSPACE; strip leading "./" for cleanliness
+				checkoutPath := strings.TrimPrefix(col.Checkout.Path, "./")
+				workdir = "${GITHUB_WORKSPACE}/" + checkoutPath
+			} else {
+				// No explicit path → use an isolated temp directory
+				workdir = "/tmp/gh-aw/qmd-checkout-" + name
+			}
+		}
+		resolved = append(resolved, resolvedQmdCollection{
+			name:    name,
+			paths:   col.Paths,
+			context: col.Context,
+			workdir: workdir,
+		})
 	}
-
-	// Legacy form: docs shorthand → single default collection
-	docs := qmdConfig.Docs
-	if len(docs) == 0 && len(qmdConfig.Searches) == 0 {
-		// No explicit docs and no searches → default to all markdown
-		docs = []string{"**/*.md"}
-	}
-	if len(docs) > 0 {
-		return []resolvedQmdCollection{{
-			name:    "docs",
-			paths:   docs,
-			workdir: "${GITHUB_WORKSPACE}",
-		}}
-	}
-	return nil
+	return resolved
 }
 
 // generateQmdCollectionCheckoutStep generates a checkout step YAML string for a qmd
@@ -310,8 +295,8 @@ func generateQmdSearchStep(entry *QmdSearchEntry, index int) string {
 func generateQmdIndexSteps(qmdConfig *QmdToolConfig, data *WorkflowData) []string {
 	hasSources := qmdHasSources(qmdConfig)
 	isCacheOnlyMode := qmdConfig.CacheKey != "" && !hasSources
-	qmdLog.Printf("Generating qmd index steps: docs=%v checkouts=%d searches=%d cacheKey=%q cacheOnly=%v",
-		qmdConfig.Docs, len(qmdConfig.Checkouts), len(qmdConfig.Searches), qmdConfig.CacheKey, isCacheOnlyMode)
+	qmdLog.Printf("Generating qmd index steps: checkouts=%d searches=%d cacheKey=%q cacheOnly=%v",
+		len(qmdConfig.Checkouts), len(qmdConfig.Searches), qmdConfig.CacheKey, isCacheOnlyMode)
 
 	version := string(constants.DefaultQmdVersion)
 	var steps []string

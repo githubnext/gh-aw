@@ -334,18 +334,11 @@ func parsePlaywrightTool(val any) *PlaywrightToolConfig {
 }
 
 // parseQmdTool converts raw qmd tool configuration to QmdToolConfig.
-// Supported forms (from most to least preferred):
+// Supported fields:
 //
-//  1. New structured form:
-//     checkouts: list of named collections (with optional checkout per entry)
-//     searches:  list of GitHub search queries
-//     cache-key: optional GitHub Actions cache key
-//
-//  2. Legacy extended form (backward-compatible):
-//     collections: list of named collections (treated as checkouts)
-//
-//  3. Legacy simple form (backward-compatible):
-//     docs: list of glob patterns (single collection, current repository)
+//   - checkouts: list of named collections (with optional checkout per entry)
+//   - searches:  list of GitHub search queries
+//   - cache-key: optional GitHub Actions cache key
 func parseQmdTool(val any) *QmdToolConfig {
 	if val == nil {
 		toolsParserLog.Print("qmd tool enabled with empty configuration")
@@ -355,13 +348,13 @@ func parseQmdTool(val any) *QmdToolConfig {
 	if configMap, ok := val.(map[string]any); ok {
 		config := &QmdToolConfig{}
 
-		// Handle cache-key field (applies to all forms)
+		// Handle cache-key field
 		if cacheKey, ok := configMap["cache-key"].(string); ok && cacheKey != "" {
 			config.CacheKey = cacheKey
 			toolsParserLog.Printf("qmd tool cache-key: %s", cacheKey)
 		}
 
-		// Handle checkouts field (new structured form)
+		// Handle checkouts field
 		if checkoutsValue, ok := configMap["checkouts"]; ok {
 			if arr, ok := checkoutsValue.([]any); ok {
 				config.Checkouts = make([]*QmdDocCollection, 0, len(arr))
@@ -377,7 +370,7 @@ func parseQmdTool(val any) *QmdToolConfig {
 			}
 		}
 
-		// Handle searches field (new structured form)
+		// Handle searches field
 		if searchesValue, ok := configMap["searches"]; ok {
 			if arr, ok := searchesValue.([]any); ok {
 				config.Searches = make([]*QmdSearchEntry, 0, len(arr))
@@ -390,47 +383,6 @@ func parseQmdTool(val any) *QmdToolConfig {
 					config.Searches = append(config.Searches, entry)
 				}
 				toolsParserLog.Printf("qmd tool parsed %d searches", len(config.Searches))
-			}
-		}
-
-		// If either new key was found, return now (new form takes precedence)
-		if len(config.Checkouts) > 0 || len(config.Searches) > 0 {
-			return config
-		}
-
-		// Return early if cache-key-only (read-only mode — no indexing sources)
-		if config.CacheKey != "" {
-			return config
-		}
-
-		// Legacy: handle collections field (treated as checkouts for backward compat)
-		if collectionsValue, ok := configMap["collections"]; ok {
-			if arr, ok := collectionsValue.([]any); ok {
-				config.Checkouts = make([]*QmdDocCollection, 0, len(arr))
-				for i, item := range arr {
-					itemMap, ok := item.(map[string]any)
-					if !ok {
-						continue
-					}
-					col := parseQmdDocCollection(itemMap, i)
-					config.Checkouts = append(config.Checkouts, col)
-				}
-				toolsParserLog.Printf("qmd tool parsed %d legacy collections (mapped to checkouts)", len(config.Checkouts))
-				return config
-			}
-		}
-
-		// Legacy: handle docs field - simple glob list (single collection, current repo)
-		if docsValue, ok := configMap["docs"]; ok {
-			if arr, ok := docsValue.([]any); ok {
-				config.Docs = make([]string, 0, len(arr))
-				for _, item := range arr {
-					if str, ok := item.(string); ok {
-						config.Docs = append(config.Docs, str)
-					}
-				}
-			} else if arr, ok := docsValue.([]string); ok {
-				config.Docs = arr
 			}
 		}
 
@@ -451,14 +403,7 @@ func parseQmdDocCollection(m map[string]any, index int) *QmdDocCollection {
 		col.Name = fmt.Sprintf("docs-%d", index)
 	}
 
-	// Accept "paths" (new canonical key) and "docs" (legacy key, backward compat)
-	var pathsValue any
-	if v, ok := m["paths"]; ok {
-		pathsValue = v
-	} else if v, ok := m["docs"]; ok {
-		pathsValue = v
-	}
-	if pathsValue != nil {
+	if pathsValue, ok := m["paths"]; ok {
 		if arr, ok := pathsValue.([]any); ok {
 			col.Paths = make([]string, 0, len(arr))
 			for _, item := range arr {

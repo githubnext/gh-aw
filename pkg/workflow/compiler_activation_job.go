@@ -489,7 +489,7 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 	// The index is built here in the activation job (which has contents:read) so the agent job
 	// does not need contents:read permission to search documentation.
 	if data.QmdConfig != nil {
-		compilerActivationJobLog.Printf("Adding qmd index build steps: docs=%v", data.QmdConfig.Docs)
+		compilerActivationJobLog.Printf("Adding qmd index build steps: checkouts=%d searches=%d", len(data.QmdConfig.Checkouts), len(data.QmdConfig.Searches))
 		qmdSteps := generateQmdIndexSteps(data.QmdConfig, data)
 		steps = append(steps, qmdSteps...)
 	}

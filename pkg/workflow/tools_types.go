@@ -321,7 +321,6 @@ type QmdDocCollection struct {
 
 	// Paths is the list of glob patterns for files to include in this collection.
 	// Example: ["docs/**/*.md", ".github/**/*.md"]
-	// The legacy key "docs" is still accepted for backward compatibility.
 	Paths []string `yaml:"paths"`
 
 	// Context is optional extra context injected into the qmd collection,
@@ -370,21 +369,11 @@ type QmdSearchEntry struct {
 //  2. searches  – GitHub search queries whose results are downloaded as files
 //
 // Optionally, the index can be cached in GitHub Actions cache using the cache-key field.
-// When cache-key is set without any sources (checkouts/searches/docs), qmd operates in
+// When cache-key is set without any sources (checkouts/searches), qmd operates in
 // read-only mode: it restores the index from cache and skips all indexing steps.
-//
-// Legacy shorthand: docs and collections fields are still accepted for backward
-// compatibility and are treated as-if under checkouts.
 type QmdToolConfig struct {
-	// Docs is the legacy list of glob patterns for files to include in the search index.
-	// Shorthand for a single default collection targeting the current repository.
-	// When Checkouts is also set, Docs is ignored.
-	// Example: ["docs/**/*.md", ".github/**/*.md"]
-	Docs []string `yaml:"docs,omitempty"`
-
 	// Checkouts is the list of named documentation collections.
 	// Each collection can specify its own checkout to target a different repository.
-	// When set, Docs is ignored.
 	Checkouts []*QmdDocCollection `yaml:"checkouts,omitempty"`
 
 	// Searches is the list of GitHub search queries whose results are downloaded
@@ -393,7 +382,7 @@ type QmdToolConfig struct {
 
 	// CacheKey is an optional GitHub Actions cache key used to persist the qmd index
 	// across workflow runs. When set:
-	//   - If sources (checkouts/searches/docs) are also configured: the index is built
+	//   - If sources (checkouts/searches) are also configured: the index is built
 	//     normally and then saved to the cache. On subsequent runs, the cached index is
 	//     restored and the build steps are skipped if the cache hit is exact.
 	//   - If no sources are configured (read-only mode): the index is restored directly

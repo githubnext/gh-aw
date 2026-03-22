@@ -3379,33 +3379,14 @@
               },
               "minItems": 1
             },
-            "docs": {
-              "type": "array",
-              "description": "Legacy shorthand: list of glob patterns for a single collection targeting the current repository. Use checkouts for more control.",
-              "items": {
-                "type": "string"
-              },
-              "examples": [["docs/**/*.md", ".github/**/*.md"]]
-            },
-            "collections": {
-              "type": "array",
-              "description": "Legacy: use checkouts instead. List of named documentation collections (backward compatible).",
-              "items": {
-                "$ref": "#/$defs/qmdCollection"
-              },
-              "minItems": 1
-            },
             "cache-key": {
               "type": "string",
-              "description": "GitHub Actions cache key used to persist the qmd index across workflow runs. When set without any indexing sources (checkouts/searches/docs), qmd operates in read-only mode: the index is restored from cache and all indexing steps are skipped.",
+              "description": "GitHub Actions cache key used to persist the qmd index across workflow runs. When set without any indexing sources (checkouts/searches), qmd operates in read-only mode: the index is restored from cache and all indexing steps are skipped.",
               "examples": ["qmd-index-${{ hashFiles('docs/**') }}", "qmd-index-v1"]
             }
           },
           "additionalProperties": false,
           "examples": [
-            {
-              "docs": ["docs/**/*.md", ".github/**/*.md"]
-            },
             {
               "checkouts": [
                 {
@@ -9299,20 +9280,11 @@
       "properties": {
         "name": {
           "type": "string",
-          "description": "Collection identifier used in the qmd index. Defaults to 'docs' for single-collection configs or 'docs-<index>' for multiple collections."
+          "description": "Collection identifier used in the qmd index. Defaults to 'docs-<index>' for multiple collections."
         },
         "paths": {
           "type": "array",
           "description": "List of glob patterns for documentation files to include in this collection.",
-          "items": {
-            "type": "string"
-          },
-          "minItems": 1,
-          "examples": [["docs/**/*.md", ".github/**/*.md"]]
-        },
-        "docs": {
-          "type": "array",
-          "description": "Deprecated: use 'paths' instead. List of glob patterns for documentation files to include in this collection.",
           "items": {
             "type": "string"
           },

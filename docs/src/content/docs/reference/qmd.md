@@ -26,27 +26,17 @@ The embedding models used to build and query the index are automatically cached 
 ---
 tools:
   qmd:
-    docs:
-      - docs/**/*.md
-      - .github/**/*.md
+    checkouts:
+      - name: docs
+        paths:
+          - docs/**/*.md
+          - .github/**/*.md
 ---
 ```
 
 This indexes all markdown files under `docs/` and `.github/` in the current repository.
 
 ## Configuration
-
-### Simple form
-
-Index files from the current repository using glob patterns:
-
-```yaml wrap
-tools:
-  qmd:
-    docs:
-      - docs/**/*.md
-      - "**/*.mdx"
-```
 
 ### Checkouts form
 
@@ -117,7 +107,7 @@ tools:
 
 #### Read-only mode
 
-When `cache-key` is set without any indexing sources (`checkouts`, `searches`, or `docs`), the tool operates in **read-only mode**: the activation job restores the index from cache (failing silently if the cache does not exist yet) and skips all Node.js, npm, and qmd build steps entirely. This is useful for maintaining a shared, pre-built documentation database:
+When `cache-key` is set without any indexing sources (`checkouts` or `searches`), the tool operates in **read-only mode**: the activation job restores the index from cache (failing silently if the cache does not exist yet) and skips all Node.js, npm, and qmd build steps entirely. This is useful for maintaining a shared, pre-built documentation database:
 
 ```yaml wrap
 tools:
@@ -155,7 +145,6 @@ tools:
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
-| `docs` | `string[]` | No | Glob patterns for files in the current repository. Shorthand for a single default collection; ignored when `checkouts` is set. |
 | `checkouts` | `QmdDocCollection[]` | No | Named collections, each with optional per-collection checkout. |
 | `searches` | `QmdSearchEntry[]` | No | GitHub code search queries whose results are downloaded and indexed. |
 | `cache-key` | `string` | No | GitHub Actions cache key for persisting the index across runs. When set without sources, enables read-only mode. |
@@ -164,8 +153,8 @@ tools:
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
-| `name` | `string` | No | Collection identifier (defaults to `"docs"`). |
-| `paths` | `string[]` | No | Glob patterns for files to include (defaults to `**/*.md`). The legacy key `docs` is also accepted. |
+| `name` | `string` | No | Collection identifier (defaults to `"docs-<index>"`). |
+| `paths` | `string[]` | No | Glob patterns for files to include (defaults to `**/*.md`). |
 | `context` | `string` | No | Optional context hint for the agent about this collection's content (e.g. `"GitHub Actions documentation"`). |
 | `checkout` | `CheckoutConfig` | No | Repository checkout options — same syntax as the top-level [`checkout:`](/gh-aw/reference/frontmatter/#checkout) field. Defaults to the current repository. |
 
