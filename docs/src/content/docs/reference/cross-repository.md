@@ -36,7 +36,7 @@ See [GitHub Repository Checkout](/gh-aw/reference/checkout/) for the full config
 
 The [GitHub Tools](/gh-aw/reference/github-tools/) are used to read information such as issues and pull requests from repositories. By default, these tools can access the current repository and all public repositories (if permitted by the network firewall). This set can be further restricted by using [GitHub Repository Access Restrictions](/gh-aw/reference/github-tools/#github-repository-access-restrictions-toolsgithubrepos).
 
-To read from other private repositories, you must configure additional authorization.Configure a PAT or GitHub App in your GitHub Tools configuration:
+To read from other private repositories, you must configure additional authorization. Configure a PAT or GitHub App in your GitHub Tools configuration:
 
 ```yaml wrap
 tools:
