@@ -413,7 +413,7 @@ const DefaultAPMVersion Version = "v0.8.2"
 const DefaultPlaywrightMCPVersion Version = "0.0.68"
 
 // DefaultQmdVersion is the default version of the @tobilu/qmd npm package
-const DefaultQmdVersion Version = "0.0.16"
+const DefaultQmdVersion Version = "2.0.1"
 
 // DefaultPlaywrightBrowserVersion is the default version of the Playwright browser Docker image
 const DefaultPlaywrightBrowserVersion Version = "v1.58.2"

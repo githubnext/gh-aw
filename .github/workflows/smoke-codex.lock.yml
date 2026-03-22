@@ -320,7 +320,7 @@ jobs:
           node-version: "24"
       - name: Install qmd
         run: |
-          npm install -g @tobilu/qmd@0.0.16
+          npm install -g @tobilu/qmd@2.0.1
       - name: Build qmd index
         run: |
           set -e
@@ -959,7 +959,7 @@ jobs:
           container = "node:lts-alpine"
           entrypoint = "npx"
           entrypointArgs = [
-            "@tobilu/qmd@0.0.16",
+            "@tobilu/qmd@2.0.1",
             "serve-mcp",
           ]
           mounts = ["/tmp/gh-aw/qmd-index:/tmp/gh-aw/qmd-index:ro"]
@@ -1068,7 +1068,7 @@ jobs:
                 "container": "node:lts-alpine",
                 "entrypoint": "npx",
                 "entrypointArgs": [
-                  "@tobilu/qmd@0.0.16",
+                  "@tobilu/qmd@2.0.1",
                   "serve-mcp"
                 ],
                 "mounts": ["/tmp/gh-aw/qmd-index:/tmp/gh-aw/qmd-index:ro"],
