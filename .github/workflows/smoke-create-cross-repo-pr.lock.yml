@@ -20,9 +20,9 @@
 #
 # For more information: https://github.github.com/gh-aw/introduction/overview/
 #
-# Smoke test validating cross-repo pull request creation in githubnext/gh-aw-side-repo
+# Smoke test validating cross-repo pull request creation in github/gh-aw-side-repo
 #
-# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"23144cc5cfaff8c43f78aeac9193fc954d2391a4d6fc0207772ebb4127c0ad56","strict":true,"agent_id":"copilot"}
+# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"65c1c88218bd8753bc2cf126b203276b895f77cab886d5e031b4f7a9fae628aa","strict":true,"agent_id":"copilot"}
 
 name: "Smoke Create Cross-Repo PR"
 "on":
@@ -135,7 +135,7 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           GH_AW_WORKFLOW_NAME: "Smoke Create Cross-Repo PR"
-          GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 🔬 *Cross-repo smoke test by [{workflow_name}]({run_url})*{history_link}\",\"runStarted\":\"🔬 [{workflow_name}]({run_url}) is testing cross-repo PR creation in githubnext/gh-aw-side-repo...\",\"runSuccess\":\"✅ [{workflow_name}]({run_url}) successfully created a cross-repo PR in githubnext/gh-aw-side-repo!\",\"runFailure\":\"❌ [{workflow_name}]({run_url}) failed to create a cross-repo PR: {status}\"}"
+          GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 🔬 *Cross-repo smoke test by [{workflow_name}]({run_url})*{history_link}\",\"runStarted\":\"🔬 [{workflow_name}]({run_url}) is testing cross-repo PR creation in github/gh-aw-side-repo...\",\"runSuccess\":\"✅ [{workflow_name}]({run_url}) successfully created a cross-repo PR in github/gh-aw-side-repo!\",\"runFailure\":\"❌ [{workflow_name}]({run_url}) failed to create a cross-repo PR: {status}\"}"
         with:
           script: |
             const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');
@@ -199,7 +199,7 @@ jobs:
           - **workflow-run-id**: __GH_AW_GITHUB_RUN_ID__
           {{/if}}
           - **checkouts**: The following repositories have been checked out and are available in the workspace:
-            - `$GITHUB_WORKSPACE` → `githubnext/gh-aw-side-repo` (cwd) [shallow clone, fetch-depth=1 (default)]
+            - `$GITHUB_WORKSPACE` → `github/gh-aw-side-repo` (cwd) [shallow clone, fetch-depth=1 (default)]
             - **Note**: If a branch you need is not in the list above and is not listed as an additional fetched ref, it has NOT been checked out. For private repositories you cannot fetch it without proper authentication. If the branch is required and not available, exit with an error and ask the user to add it to the `fetch:` option of the `checkout:` configuration (e.g., `fetch: ["refs/pulls/open/*"]` for all open PR refs, or `fetch: ["main", "feature/my-branch"]` for specific branches).
           </github-context>
           
@@ -325,11 +325,11 @@ jobs:
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           persist-credentials: false
-      - name: Checkout githubnext/gh-aw-side-repo
+      - name: Checkout github/gh-aw-side-repo
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           persist-credentials: false
-          repository: githubnext/gh-aw-side-repo
+          repository: github/gh-aw-side-repo
           token: ${{ secrets.GH_AW_SIDE_REPO_PAT }}
       - name: Create gh-aw temp directory
         run: bash ${RUNNER_TEMP}/gh-aw/actions/create_gh_aw_tmp_dir.sh
@@ -387,7 +387,7 @@ jobs:
           mkdir -p /tmp/gh-aw/safeoutputs
           mkdir -p /tmp/gh-aw/mcp-logs/safeoutputs
           cat > ${RUNNER_TEMP}/gh-aw/safeoutputs/config.json << 'GH_AW_SAFE_OUTPUTS_CONFIG_EOF'
-          {"add_comment":{"max":2},"create_issue":{"expires":2,"max":1},"create_pull_request":{"draft":true,"expires":24,"fallback_as_issue":false,"max":1,"target-repo":"githubnext/gh-aw-side-repo","title_prefix":"[smoke] "},"missing_data":{},"missing_tool":{},"noop":{"max":1}}
+          {"add_comment":{"max":2},"create_issue":{"expires":2,"max":1},"create_pull_request":{"draft":true,"expires":24,"fallback_as_issue":false,"max":1,"target-repo":"github/gh-aw-side-repo","title_prefix":"[smoke] "},"missing_data":{},"missing_tool":{},"noop":{"max":1}}
           GH_AW_SAFE_OUTPUTS_CONFIG_EOF
       - name: Write Safe Outputs Tools
         run: |
@@ -871,7 +871,7 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           WORKFLOW_NAME: "Smoke Create Cross-Repo PR"
-          WORKFLOW_DESCRIPTION: "Smoke test validating cross-repo pull request creation in githubnext/gh-aw-side-repo"
+          WORKFLOW_DESCRIPTION: "Smoke test validating cross-repo pull request creation in github/gh-aw-side-repo"
           HAS_PATCH: ${{ steps.collect_output.outputs.has_patch }}
         with:
           script: |
@@ -1046,7 +1046,7 @@ jobs:
           GH_AW_CODE_PUSH_FAILURE_ERRORS: ${{ needs.safe_outputs.outputs.code_push_failure_errors }}
           GH_AW_CODE_PUSH_FAILURE_COUNT: ${{ needs.safe_outputs.outputs.code_push_failure_count }}
           GH_AW_LOCKDOWN_CHECK_FAILED: ${{ needs.activation.outputs.lockdown_check_failed }}
-          GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 🔬 *Cross-repo smoke test by [{workflow_name}]({run_url})*{history_link}\",\"runStarted\":\"🔬 [{workflow_name}]({run_url}) is testing cross-repo PR creation in githubnext/gh-aw-side-repo...\",\"runSuccess\":\"✅ [{workflow_name}]({run_url}) successfully created a cross-repo PR in githubnext/gh-aw-side-repo!\",\"runFailure\":\"❌ [{workflow_name}]({run_url}) failed to create a cross-repo PR: {status}\"}"
+          GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 🔬 *Cross-repo smoke test by [{workflow_name}]({run_url})*{history_link}\",\"runStarted\":\"🔬 [{workflow_name}]({run_url}) is testing cross-repo PR creation in github/gh-aw-side-repo...\",\"runSuccess\":\"✅ [{workflow_name}]({run_url}) successfully created a cross-repo PR in github/gh-aw-side-repo!\",\"runFailure\":\"❌ [{workflow_name}]({run_url}) failed to create a cross-repo PR: {status}\"}"
           GH_AW_GROUP_REPORTS: "false"
           GH_AW_FAILURE_REPORT_AS_ISSUE: "true"
           GH_AW_TIMEOUT_MINUTES: "10"
@@ -1099,7 +1099,7 @@ jobs:
           GH_AW_WORKFLOW_NAME: "Smoke Create Cross-Repo PR"
           GH_AW_AGENT_CONCLUSION: ${{ needs.agent.result }}
           GH_AW_DETECTION_CONCLUSION: ${{ needs.agent.outputs.detection_conclusion }}
-          GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 🔬 *Cross-repo smoke test by [{workflow_name}]({run_url})*{history_link}\",\"runStarted\":\"🔬 [{workflow_name}]({run_url}) is testing cross-repo PR creation in githubnext/gh-aw-side-repo...\",\"runSuccess\":\"✅ [{workflow_name}]({run_url}) successfully created a cross-repo PR in githubnext/gh-aw-side-repo!\",\"runFailure\":\"❌ [{workflow_name}]({run_url}) failed to create a cross-repo PR: {status}\"}"
+          GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 🔬 *Cross-repo smoke test by [{workflow_name}]({run_url})*{history_link}\",\"runStarted\":\"🔬 [{workflow_name}]({run_url}) is testing cross-repo PR creation in github/gh-aw-side-repo...\",\"runSuccess\":\"✅ [{workflow_name}]({run_url}) successfully created a cross-repo PR in github/gh-aw-side-repo!\",\"runFailure\":\"❌ [{workflow_name}]({run_url}) failed to create a cross-repo PR: {status}\"}"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -1158,7 +1158,7 @@ jobs:
     env:
       GH_AW_CALLER_WORKFLOW_ID: "${{ github.repository }}/smoke-create-cross-repo-pr"
       GH_AW_ENGINE_ID: "copilot"
-      GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 🔬 *Cross-repo smoke test by [{workflow_name}]({run_url})*{history_link}\",\"runStarted\":\"🔬 [{workflow_name}]({run_url}) is testing cross-repo PR creation in githubnext/gh-aw-side-repo...\",\"runSuccess\":\"✅ [{workflow_name}]({run_url}) successfully created a cross-repo PR in githubnext/gh-aw-side-repo!\",\"runFailure\":\"❌ [{workflow_name}]({run_url}) failed to create a cross-repo PR: {status}\"}"
+      GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 🔬 *Cross-repo smoke test by [{workflow_name}]({run_url})*{history_link}\",\"runStarted\":\"🔬 [{workflow_name}]({run_url}) is testing cross-repo PR creation in github/gh-aw-side-repo...\",\"runSuccess\":\"✅ [{workflow_name}]({run_url}) successfully created a cross-repo PR in github/gh-aw-side-repo!\",\"runFailure\":\"❌ [{workflow_name}]({run_url}) failed to create a cross-repo PR: {status}\"}"
       GH_AW_WORKFLOW_ID: "smoke-create-cross-repo-pr"
       GH_AW_WORKFLOW_NAME: "Smoke Create Cross-Repo PR"
     outputs:
@@ -1210,7 +1210,7 @@ jobs:
         if: (!cancelled()) && needs.agent.result != 'skipped' && contains(needs.agent.outputs.output_types, 'create_pull_request')
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
-          repository: githubnext/gh-aw-side-repo
+          repository: github/gh-aw-side-repo
           ref: ${{ github.base_ref || github.event.pull_request.base.ref || github.ref_name || github.event.repository.default_branch }}
           token: ${{ secrets.GH_AW_SIDE_REPO_PAT }}
           persist-credentials: false
@@ -1218,7 +1218,7 @@ jobs:
       - name: Configure Git credentials
         if: (!cancelled()) && needs.agent.result != 'skipped' && contains(needs.agent.outputs.output_types, 'create_pull_request')
         env:
-          REPO_NAME: "githubnext/gh-aw-side-repo"
+          REPO_NAME: "github/gh-aw-side-repo"
           SERVER_URL: ${{ github.server_url }}
           GIT_TOKEN: ${{ secrets.GH_AW_SIDE_REPO_PAT }}
         run: |
@@ -1245,7 +1245,7 @@ jobs:
           GH_AW_ALLOWED_DOMAINS: "*.githubusercontent.com,127.0.0.1,::1,api.business.githubcopilot.com,api.enterprise.githubcopilot.com,api.github.com,api.githubcopilot.com,api.individual.githubcopilot.com,api.snapcraft.io,app.renovatebot.com,appveyor.com,archive.ubuntu.com,azure.archive.ubuntu.com,badgen.net,circleci.com,codacy.com,codeclimate.com,codecov.io,codeload.github.com,coveralls.io,crl.geotrust.com,crl.globalsign.com,crl.identrust.com,crl.sectigo.com,crl.thawte.com,crl.usertrust.com,crl.verisign.com,crl3.digicert.com,crl4.digicert.com,crls.ssl.com,deepsource.io,docs.github.com,drone.io,github-cloud.githubusercontent.com,github-cloud.s3.amazonaws.com,github.blog,github.com,github.githubassets.com,host.docker.internal,img.shields.io,json-schema.org,json.schemastore.org,keyserver.ubuntu.com,lfs.github.com,localhost,objects.githubusercontent.com,ocsp.digicert.com,ocsp.geotrust.com,ocsp.globalsign.com,ocsp.identrust.com,ocsp.sectigo.com,ocsp.ssl.com,ocsp.thawte.com,ocsp.usertrust.com,ocsp.verisign.com,packagecloud.io,packages.cloud.google.com,packages.microsoft.com,ppa.launchpad.net,raw.githubusercontent.com,readthedocs.io,readthedocs.org,registry.npmjs.org,renovatebot.com,s.symcb.com,s.symcd.com,security.ubuntu.com,semaphoreci.com,shields.io,snyk.io,sonarcloud.io,sonarqube.com,telemetry.enterprise.githubcopilot.com,travis-ci.com,ts-crl.ws.symantec.com,ts-ocsp.ws.symantec.com,www.googleapis.com"
           GITHUB_SERVER_URL: ${{ github.server_url }}
           GITHUB_API_URL: ${{ github.api_url }}
-          GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG: "{\"add_comment\":{\"hide_older_comments\":true,\"max\":2},\"create_issue\":{\"close_older_issues\":true,\"expires\":2,\"labels\":[\"automation\",\"testing\"],\"max\":1},\"create_pull_request\":{\"draft\":true,\"expires\":24,\"fallback_as_issue\":false,\"github-token\":\"${{ secrets.GH_AW_SIDE_REPO_PAT }}\",\"if_no_changes\":\"error\",\"labels\":[\"smoke-test\"],\"max\":1,\"max_patch_size\":1024,\"protected_files\":[\"package.json\",\"bun.lockb\",\"bunfig.toml\",\"deno.json\",\"deno.jsonc\",\"deno.lock\",\"global.json\",\"NuGet.Config\",\"Directory.Packages.props\",\"mix.exs\",\"mix.lock\",\"go.mod\",\"go.sum\",\"stack.yaml\",\"stack.yaml.lock\",\"pom.xml\",\"build.gradle\",\"build.gradle.kts\",\"settings.gradle\",\"settings.gradle.kts\",\"gradle.properties\",\"package-lock.json\",\"yarn.lock\",\"pnpm-lock.yaml\",\"npm-shrinkwrap.json\",\"requirements.txt\",\"Pipfile\",\"Pipfile.lock\",\"pyproject.toml\",\"setup.py\",\"setup.cfg\",\"Gemfile\",\"Gemfile.lock\",\"uv.lock\",\"AGENTS.md\"],\"protected_path_prefixes\":[\".github/\",\".agents/\"],\"target-repo\":\"githubnext/gh-aw-side-repo\",\"title_prefix\":\"[smoke] \"},\"missing_data\":{},\"missing_tool\":{},\"noop\":{\"max\":1,\"report-as-issue\":\"true\"}}"
+          GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG: "{\"add_comment\":{\"hide_older_comments\":true,\"max\":2},\"create_issue\":{\"close_older_issues\":true,\"expires\":2,\"labels\":[\"automation\",\"testing\"],\"max\":1},\"create_pull_request\":{\"draft\":true,\"expires\":24,\"fallback_as_issue\":false,\"github-token\":\"${{ secrets.GH_AW_SIDE_REPO_PAT }}\",\"if_no_changes\":\"error\",\"labels\":[\"smoke-test\"],\"max\":1,\"max_patch_size\":1024,\"protected_files\":[\"package.json\",\"bun.lockb\",\"bunfig.toml\",\"deno.json\",\"deno.jsonc\",\"deno.lock\",\"global.json\",\"NuGet.Config\",\"Directory.Packages.props\",\"mix.exs\",\"mix.lock\",\"go.mod\",\"go.sum\",\"stack.yaml\",\"stack.yaml.lock\",\"pom.xml\",\"build.gradle\",\"build.gradle.kts\",\"settings.gradle\",\"settings.gradle.kts\",\"gradle.properties\",\"package-lock.json\",\"yarn.lock\",\"pnpm-lock.yaml\",\"npm-shrinkwrap.json\",\"requirements.txt\",\"Pipfile\",\"Pipfile.lock\",\"pyproject.toml\",\"setup.py\",\"setup.cfg\",\"Gemfile\",\"Gemfile.lock\",\"uv.lock\",\"AGENTS.md\"],\"protected_path_prefixes\":[\".github/\",\".agents/\"],\"target-repo\":\"github/gh-aw-side-repo\",\"title_prefix\":\"[smoke] \"},\"missing_data\":{},\"missing_tool\":{},\"noop\":{\"max\":1,\"report-as-issue\":\"true\"}}"
           GH_AW_CI_TRIGGER_TOKEN: ${{ secrets.GH_AW_CI_TRIGGER_TOKEN }}
           GITHUB_TOKEN: ${{ secrets.GH_AW_SIDE_REPO_PAT }}
         with:

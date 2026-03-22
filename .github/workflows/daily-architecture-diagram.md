@@ -22,10 +22,10 @@ safe-outputs:
     title-prefix: "🏗️ Architecture Diagram:"
     labels: [architecture, diagram]
     close-older-issues: true
-    expires: 7
+    expires: 7d
     max: 1
   create-pull-request:
-    expires: 7
+    expires: 7d
     title-prefix: "[architecture] "
     labels: [architecture, diagram, documentation]
   noop:
