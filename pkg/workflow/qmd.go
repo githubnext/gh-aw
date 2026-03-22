@@ -95,12 +95,26 @@ func qmdHasSources(qmdConfig *QmdToolConfig) bool {
 // generateQmdModelsCacheStep generates a step that caches the qmd embedding models directory
 // (~/.cache/qmd/models/).  It uses the combined actions/cache action (restore + post-save),
 // keyed by OS so that the cached models are compatible with the runner architecture.
-// This step should be emitted in both the activation job (before index building) and the
-// agent job (before the qmd MCP server starts) to avoid re-downloading models on each run.
+// This step should be emitted in the activation job (before index building) to populate
+// the cache. For the agent job, use generateQmdModelsCacheRestoreStep instead.
 func generateQmdModelsCacheStep() string {
 	var sb strings.Builder
 	sb.WriteString("      - name: Cache qmd models\n")
 	fmt.Fprintf(&sb, "        uses: %s\n", GetActionPin("actions/cache"))
+	sb.WriteString("        with:\n")
+	sb.WriteString("          path: ~/.cache/qmd/models/\n")
+	sb.WriteString("          key: qmd-models-${{ runner.os }}\n")
+	return sb.String()
+}
+
+// generateQmdModelsCacheRestoreStep generates a read-only step that restores the qmd embedding
+// models directory (~/.cache/qmd/models/) from GitHub Actions cache.  It uses
+// actions/cache/restore (restore-only, no post-save) so the agent job never writes to the
+// shared cache — that is the activation job's responsibility.
+func generateQmdModelsCacheRestoreStep() string {
+	var sb strings.Builder
+	sb.WriteString("      - name: Restore qmd models cache\n")
+	fmt.Fprintf(&sb, "        uses: %s\n", GetActionPin("actions/cache/restore"))
 	sb.WriteString("        with:\n")
 	sb.WriteString("          path: ~/.cache/qmd/models/\n")
 	sb.WriteString("          key: qmd-models-${{ runner.os }}\n")
