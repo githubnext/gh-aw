@@ -433,6 +433,8 @@ jobs:
         with:
           key: gh-aw-qmd-${{ github.run_id }}
           path: /tmp/gh-aw/qmd-index/
+          restore-keys: |
+            gh-aw-qmd-
       - name: Restore qmd models cache
         uses: actions/cache/restore@668228422ae6a00e4ad889ee87cd7109ec5666a7 # v5.0.4
         with:
@@ -1522,6 +1524,8 @@ jobs:
         with:
           key: gh-aw-qmd-${{ github.run_id }}
           path: /tmp/gh-aw/qmd-index/
+          restore-keys: |
+            gh-aw-qmd-
       - name: Cache qmd models
         uses: actions/cache@668228422ae6a00e4ad889ee87cd7109ec5666a7 # v5.0.4
         with:

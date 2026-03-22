@@ -121,14 +121,22 @@ func generateQmdModelsCacheRestoreStep() string {
 // generateQmdIndexCacheRestoreStep generates a read-only restore step for the agent job that
 // restores the qmd search index from the Actions cache.  It uses the same resolved cache key
 // as the indexing job so that the index is available even if the artifact has already expired.
+// restore-keys are included so the agent can fall back to a cached index from a previous run.
 func generateQmdIndexCacheRestoreStep(qmdConfig *QmdToolConfig) string {
 	cacheKey := resolveQmdCacheKey(qmdConfig)
+	restoreKeys := resolveQmdRestoreKeys(qmdConfig)
 	var sb strings.Builder
 	sb.WriteString("      - name: Restore qmd index from cache\n")
 	fmt.Fprintf(&sb, "        uses: %s\n", GetActionPin("actions/cache/restore"))
 	sb.WriteString("        with:\n")
 	fmt.Fprintf(&sb, "          key: %s\n", cacheKey)
 	sb.WriteString("          path: /tmp/gh-aw/qmd-index/\n")
+	if len(restoreKeys) > 0 {
+		sb.WriteString("          restore-keys: |\n")
+		for _, rk := range restoreKeys {
+			fmt.Fprintf(&sb, "            %s\n", rk)
+		}
+	}
 	return sb.String()
 }
 
@@ -146,7 +154,30 @@ func resolveQmdCacheKey(qmdConfig *QmdToolConfig) string {
 	}
 	return "gh-aw-qmd-${{ github.run_id }}"
 }
-func generateQmdCacheRestoreStep(cacheKey string) string {
+
+// resolveQmdRestoreKeys returns the restore-keys prefix list for the qmd index cache.
+// The restore keys allow a workflow run to reuse the most recently cached index
+// (from a previous run) even when the exact key is not found, so the index can
+// be updated incrementally rather than built from scratch every time.
+//
+// The prefix is derived by stripping the last ${{ ... }} expression from the cache key:
+//
+//	"gh-aw-qmd-${{ github.run_id }}"        → ["gh-aw-qmd-"]
+//	"qmd-index-${{ hashFiles('docs/**') }}" → ["qmd-index-"]
+//
+// When the key contains no expression suffix, no restore-keys are emitted.
+func resolveQmdRestoreKeys(qmdConfig *QmdToolConfig) []string {
+	key := resolveQmdCacheKey(qmdConfig)
+	idx := strings.LastIndex(key, "${{")
+	if idx > 0 {
+		return []string{key[:idx]}
+	}
+	return nil
+}
+
+func generateQmdCacheRestoreStep(qmdConfig *QmdToolConfig) string {
+	cacheKey := resolveQmdCacheKey(qmdConfig)
+	restoreKeys := resolveQmdRestoreKeys(qmdConfig)
 	var sb strings.Builder
 	sb.WriteString("      - name: Restore qmd index from cache\n")
 	sb.WriteString("        id: qmd-cache-restore\n")
@@ -154,6 +185,12 @@ func generateQmdCacheRestoreStep(cacheKey string) string {
 	sb.WriteString("        with:\n")
 	fmt.Fprintf(&sb, "          key: %s\n", cacheKey)
 	sb.WriteString("          path: /tmp/gh-aw/qmd-index/\n")
+	if len(restoreKeys) > 0 {
+		sb.WriteString("          restore-keys: |\n")
+		for _, rk := range restoreKeys {
+			fmt.Fprintf(&sb, "            %s\n", rk)
+		}
+	}
 	return sb.String()
 }
 
@@ -341,7 +378,7 @@ func generateQmdIndexSteps(qmdConfig *QmdToolConfig, data *WorkflowData) []strin
 	var steps []string
 
 	// Always restore from cache first; the step ID lets subsequent steps detect cache-hit.
-	steps = append(steps, generateQmdCacheRestoreStep(cacheKey))
+	steps = append(steps, generateQmdCacheRestoreStep(qmdConfig))
 
 	// Always cache qmd embedding models to avoid re-downloading on each run
 	steps = append(steps, generateQmdModelsCacheStep())
