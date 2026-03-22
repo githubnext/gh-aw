@@ -4,6 +4,7 @@
 /** @type {typeof import("fs")} */
 const fs = require("fs");
 const { generateStagedPreview } = require("./staged_preview.cjs");
+const { isStagedMode } = require("./safe_output_helpers.cjs");
 const { pushSignedCommits } = require("./push_signed_commits.cjs");
 const { updateActivationCommentWithCommit, updateActivationComment } = require("./update_activation_comment.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
@@ -56,7 +57,7 @@ async function main(config = {}) {
   const configBaseBranch = config.base_branch || null;
 
   // Check if we're in staged mode (either globally or per-handler config)
-  const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true" || config.staged === true;
+  const isStaged = isStagedMode(config);
 
   core.info(`Target: ${target}`);
   if (configBaseBranch) {

@@ -21,6 +21,7 @@
 
 const { generateFooterWithMessages } = require("./messages_footer.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
+const { isStagedMode } = require("./safe_output_helpers.cjs");
 
 /**
  * @typedef {Object} BufferedComment
@@ -275,7 +276,7 @@ function createReviewBuffer() {
     core.info(`Submitting PR review on ${repo}#${pullRequestNumber}: event=${event}, comments=${comments.length}, bodyLength=${body.length}`);
 
     // If in staged mode, preview the review without submitting
-    const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true" || stagedMode;
+    const isStaged = isStagedMode({ staged: stagedMode });
     if (isStaged) {
       let summaryContent = "## 🎭 Staged Mode: PR Review Preview\n\n";
       summaryContent += "The following PR review would be submitted if staged mode was disabled:\n\n";

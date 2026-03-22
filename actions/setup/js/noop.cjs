@@ -2,6 +2,7 @@
 /// <reference types="@actions/github-script" />
 
 const { loadAgentOutput } = require("./load_agent_output.cjs");
+const { isStagedMode } = require("./safe_output_helpers.cjs");
 
 /**
  * Main function to handle noop safe output
@@ -10,7 +11,7 @@ const { loadAgentOutput } = require("./load_agent_output.cjs");
  */
 async function main() {
   // Check if we're in staged mode
-  const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true";
+  const isStaged = isStagedMode();
 
   const result = loadAgentOutput();
   if (!result.success) {

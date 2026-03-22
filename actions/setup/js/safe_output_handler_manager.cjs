@@ -20,7 +20,7 @@ const { getIssuesToAssignCopilot } = require("./create_issue.cjs");
 const { createReviewBuffer } = require("./pr_review_buffer.cjs");
 const { sanitizeContent } = require("./sanitize_content.cjs");
 const { createManifestLogger, ensureManifestExists, extractCreatedItemFromResult } = require("./safe_output_manifest.cjs");
-const { loadCustomSafeOutputJobTypes, loadCustomSafeOutputScriptHandlers, loadCustomSafeOutputActionHandlers } = require("./safe_output_helpers.cjs");
+const { loadCustomSafeOutputJobTypes, loadCustomSafeOutputScriptHandlers, loadCustomSafeOutputActionHandlers, isStagedMode } = require("./safe_output_helpers.cjs");
 const { emitSafeOutputActionOutputs } = require("./safe_outputs_action_outputs.cjs");
 const nodePath = require("path");
 
@@ -960,7 +960,7 @@ async function processSyntheticUpdates(github, context, trackedOutputs, temporar
 async function main() {
   // Detect staged mode before try/finally so it's accessible in the finally block.
   // In staged mode (🎭 Staged Mode Preview) no real items are created in GitHub so no manifest should be emitted.
-  const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true";
+  const isStaged = isStagedMode();
 
   try {
     core.info("Safe Output Handler Manager starting...");

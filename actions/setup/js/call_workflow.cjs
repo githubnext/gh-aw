@@ -10,6 +10,7 @@ const HANDLER_TYPE = "call_workflow";
 
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { logStagedPreviewInfo } = require("./staged_preview.cjs");
+const { isStagedMode } = require("./safe_output_helpers.cjs");
 
 /**
  * Main handler factory for call_workflow.
@@ -32,7 +33,7 @@ async function main(config = {}) {
 
   // Track how many items we've processed for max limit
   let processedCount = 0;
-  const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true" || config.staged === true;
+  const isStaged = isStagedMode(config);
 
   /**
    * Message handler function that processes a single call_workflow message.

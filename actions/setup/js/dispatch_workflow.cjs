@@ -12,6 +12,7 @@ const { getErrorMessage } = require("./error_helpers.cjs");
 const { createAuthenticatedGitHubClient } = require("./handler_auth.cjs");
 const { resolveTargetRepoConfig, parseRepoSlug, validateTargetRepo } = require("./repo_helpers.cjs");
 const { logStagedPreviewInfo } = require("./staged_preview.cjs");
+const { isStagedMode } = require("./safe_output_helpers.cjs");
 
 /**
  * Main handler factory for dispatch_workflow
@@ -74,7 +75,7 @@ async function main(config = {}) {
   // Track how many items we've processed for max limit
   let processedCount = 0;
   let lastDispatchTime = 0;
-  const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true" || config.staged === true;
+  const isStaged = isStagedMode(config);
 
   // Helper function to get the default branch of the dispatch target repository
   const getDefaultBranchRef = async () => {

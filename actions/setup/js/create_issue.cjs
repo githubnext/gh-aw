@@ -43,6 +43,7 @@ const { closeOlderIssues } = require("./close_older_issues.cjs");
 const { parseBoolTemplatable } = require("./templatable.cjs");
 const { tryEnforceArrayLimit } = require("./limit_enforcement_helpers.cjs");
 const { logStagedPreviewInfo } = require("./staged_preview.cjs");
+const { isStagedMode } = require("./safe_output_helpers.cjs");
 const { buildWorkflowRunUrl } = require("./workflow_metadata_helpers.cjs");
 const { MAX_LABELS, MAX_ASSIGNEES } = require("./constants.cjs");
 
@@ -218,7 +219,7 @@ async function main(config = {}) {
   const assignCopilot = process.env.GH_AW_ASSIGN_COPILOT === "true";
 
   // Check if we're in staged mode
-  const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true" || config.staged === true;
+  const isStaged = isStagedMode(config);
 
   core.info(`Default target repo: ${defaultTargetRepo}`);
   if (allowedRepos.size > 0) {

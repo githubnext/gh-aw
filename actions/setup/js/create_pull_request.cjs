@@ -27,6 +27,7 @@ const { buildWorkflowRunUrl } = require("./workflow_metadata_helpers.cjs");
 const { checkFileProtection } = require("./manifest_file_helpers.cjs");
 const { renderTemplateFromFile } = require("./messages_core.cjs");
 const { COPILOT_REVIEWER_BOT, FAQ_CREATE_PR_PERMISSIONS_URL } = require("./constants.cjs");
+const { isStagedMode } = require("./safe_output_helpers.cjs");
 
 /**
  * @typedef {import('./types/handler-factory').HandlerFactoryFunction} HandlerFactoryFunction
@@ -160,7 +161,7 @@ async function main(config = {}) {
   const triggeringIssueNumber = typeof context !== "undefined" && context.payload?.issue?.number && !context.payload?.issue?.pull_request ? context.payload.issue.number : undefined;
 
   // Check if we're in staged mode
-  const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true" || config.staged === true;
+  const isStaged = isStagedMode(config);
 
   core.info(`Base branch: ${configBaseBranch || "(dynamic - resolved per target repo)"}`);
   core.info(`Default target repo: ${defaultTargetRepo}`);

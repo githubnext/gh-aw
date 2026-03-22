@@ -7,6 +7,7 @@
 
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { logStagedPreviewInfo } = require("./staged_preview.cjs");
+const { isStagedMode } = require("./safe_output_helpers.cjs");
 const fs = require("fs");
 const path = require("path");
 
@@ -30,7 +31,7 @@ async function main(config = {}) {
 
   // Track how many items we've processed for max limit
   let processedCount = 0;
-  const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true" || config.staged === true;
+  const isStaged = isStagedMode(config);
 
   // Collect valid findings across all messages
   const validFindings = [];

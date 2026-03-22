@@ -8,6 +8,7 @@ const { getRepositoryUrl } = require("./get_repository_url.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { sanitizeContent } = require("./sanitize_content.cjs");
 const { buildWorkflowRunUrl } = require("./workflow_metadata_helpers.cjs");
+const { isStagedMode } = require("./safe_output_helpers.cjs");
 
 /**
  * @typedef {'issue' | 'pull_request'} EntityType
@@ -212,7 +213,7 @@ function escapeMarkdownTitle(title) {
  */
 async function processCloseEntityItems(config, callbacks, handlerConfig = {}) {
   // Check if we're in staged mode
-  const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true";
+  const isStaged = isStagedMode(handlerConfig);
 
   const result = loadAgentOutput();
   if (!result.success) {
