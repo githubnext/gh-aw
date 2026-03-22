@@ -2359,7 +2359,7 @@ safe-outputs:
     expires: "example-value"
 
     # Option 3: Set to false to explicitly disable expiration
-    expires: true
+    expires: false
 
     # If true, group issues as sub-issues under a parent issue. The workflow ID is
     # used as the group identifier. Parent issues are automatically created and
@@ -2860,7 +2860,7 @@ safe-outputs:
     expires: "example-value"
 
     # Option 3: Set to false to explicitly disable expiration
-    expires: true
+    expires: false
 
     # GitHub token to use for this specific output type. Overrides global github-token
     # if specified.
@@ -5318,7 +5318,7 @@ checkout: []
 
 # Option 3: Set to false to disable the default checkout step. The agent job will
 # not check out any repository (dev-mode checkouts are unaffected).
-checkout: true
+checkout: false
 
 # APM package references to install. Supports array format (list of package slugs)
 # or object format with packages and isolated fields.

@@ -2864,7 +2864,6 @@
                   "description": "Gateway domain for URL generation (default: 'host.docker.internal' when agent is enabled, 'localhost' when disabled)"
                 }
               },
-              "required": ["container"],
               "additionalProperties": false
             }
           },
