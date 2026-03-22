@@ -497,13 +497,13 @@ These resources contain workflow patterns, best practices, safe outputs, and per
      - `unapproved` — Include contributors and first-time contributors
      - `none` — Include all content regardless of author association
    - **Both fields are required** when either is specified (you cannot use one without the other)
-   - **Automatic protection** - When neither `repos` nor `min-integrity` is configured, public repositories automatically get `min-integrity: approved` applied at runtime
+   - **Automatic protection** - When neither `allowed-repos` nor `min-integrity` is configured, public repositories automatically get `min-integrity: approved` applied at runtime
    - **Example**:
      ```yaml
      tools:
        github:
          toolsets: [default]
-         repos: "all"
+         allowed-repos: "all"
          min-integrity: approved  # Only content from trusted collaborators
      ```
    - **Documentation**: See https://github.github.com/gh-aw/reference/github-tools/#guard-policies for complete guidance

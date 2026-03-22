@@ -40,11 +40,11 @@ Some toolsets requuire [additional authentication](#additional-authentication-fo
 
 Sets the minimum integrity level required for content the agent can access. For public repositories, `min-integrity: approved` is applied automatically. See [Integrity Filtering](/gh-aw/reference/integrity/) for levels, examples, user blocking, and approval labels.
 
-## GitHub Repository Access Restrictions (`tools.github.repos`)
+## GitHub Repository Access Restrictions (`tools.github.allowed-repos`)
 
 You can configure the GitHub Tools to be restricted in which repositories can be accessed via the GitHub tools during AI engine execution.
 
-The setting `tools.github.repos` specifies which repositories the agent can access through GitHub tools:
+The setting `tools.github.allowed-repos` specifies which repositories the agent can access through GitHub tools:
 
 - `"all"` — All repositories accessible by the configured token
 - `"public"` — Public repositories only
@@ -62,12 +62,16 @@ tools:
   github:
     mode: remote
     toolsets: [default]
-    repos:
+    allowed-repos:
       - "myorg/*"
       - "partner/shared-repo"
       - "myorg/api-*"
     min-integrity: approved
 ```
+
+:::note
+The `repos` field was renamed to `allowed-repos` to better reflect its purpose. If you have existing workflows using `repos`, run `gh aw fix` to automatically migrate them to `allowed-repos`.
+:::
 
 ### GitHub Cross-Repository Reading
 

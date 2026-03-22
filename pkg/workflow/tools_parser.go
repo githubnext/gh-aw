@@ -53,8 +53,10 @@ package workflow
 import (
 	"fmt"
 	"maps"
+	"os"
 	"strconv"
 
+	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/logger"
 )
 
@@ -236,9 +238,13 @@ func parseGitHubTool(val any) *GitHubToolConfig {
 			}
 		}
 
-		// Parse guard policy fields (flat syntax: repos and min-integrity directly under github:)
-		if repos, ok := configMap["repos"]; ok {
-			config.Repos = repos // Store as-is, validation will happen later
+		// Parse guard policy fields (flat syntax: allowed-repos/repos and min-integrity directly under github:)
+		if allowedRepos, ok := configMap["allowed-repos"]; ok {
+			config.AllowedRepos = allowedRepos // Store as-is, validation will happen later
+		} else if repos, ok := configMap["repos"]; ok {
+			// Deprecated: use 'allowed-repos' instead of 'repos'
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage("'tools.github.repos' is deprecated. Use 'tools.github.allowed-repos' instead. Run 'gh aw fix' to automatically migrate."))
+			config.AllowedRepos = repos // Populate canonical field for validation
 		}
 		if integrity, ok := configMap["min-integrity"].(string); ok {
 			config.MinIntegrity = GitHubIntegrityLevel(integrity)

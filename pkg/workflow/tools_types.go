@@ -294,8 +294,10 @@ type GitHubToolConfig struct {
 	GitHubApp   *GitHubAppConfig   `yaml:"github-app,omitempty"` // GitHub App configuration for token minting
 
 	// Guard policy fields (flat syntax under github:)
-	// Repos defines the access scope for policy enforcement.
+	// AllowedRepos defines the access scope for policy enforcement.
 	// Supports: "all", "public", or an array of patterns ["owner/repo", "owner/*"] (lowercase)
+	AllowedRepos GitHubReposScope `yaml:"allowed-repos,omitempty"`
+	// Repos is deprecated. Use AllowedRepos (yaml:"allowed-repos") instead.
 	Repos GitHubReposScope `yaml:"repos,omitempty"`
 	// MinIntegrity defines the minimum integrity level required: "none", "reader", "writer", "merged"
 	MinIntegrity GitHubIntegrityLevel `yaml:"min-integrity,omitempty"`
