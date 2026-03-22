@@ -79,7 +79,7 @@ The YAML frontmatter supports these fields:
 - **`on:`** - Workflow triggers (required)
   - String: `"push"`, `"issues"`, etc.
   - Object: Complex trigger configuration
-  - Special: `slash_command:` for /mention triggers (replaces deprecated `command:`)
+  - Special: `slash_command:` for /mention triggers
   - **`forks:`** - Fork allowlist for `pull_request` triggers (array or string). By default, workflows block all forks and only allow same-repo PRs. Use `["*"]` to allow all forks, or specify patterns like `["org/*", "user/repo"]`
   - **`stop-after:`** - Can be included in the `on:` object to set a deadline for workflow execution. Supports absolute timestamps ("YYYY-MM-DD HH:MM:SS") or relative time deltas (+25h, +3d, +1d12h). The minimum unit for relative deltas is hours (h). Uses precise date calculations that account for varying month lengths.
   - **`reaction:`** - Add emoji reactions to triggering items
@@ -186,7 +186,6 @@ The YAML frontmatter supports these fields:
 - **`on.roles:`** - Repository access roles that can trigger workflow (array or "all")
   - Default: `[admin, maintainer, write]`
   - Available roles: `admin`, `maintainer`, `write`, `read`, `all`
-  - **Note**: The top-level `roles:` field is deprecated. Use `on.roles:` instead. Run `gh aw fix --write` to migrate.
 - **`bots:`** - Bot identifiers allowed to trigger workflow regardless of role permissions (array)
   - Example: `bots: [dependabot[bot], renovate[bot], github-actions[bot]]`
   - Bot must be active (installed) on repository to trigger workflow
@@ -941,7 +940,7 @@ The YAML frontmatter supports these fields:
         target-repo: "owner/repo"       # Optional: cross-repository
     ```
 
-    Requires PAT as `COPILOT_GITHUB_TOKEN`. Note: `create-agent-task` is deprecated (use `create-agent-session`).
+    Requires PAT as `COPILOT_GITHUB_TOKEN`.
   - `assign-to-agent:` - Assign Copilot coding agent to issues
 
     ```yaml
@@ -1319,7 +1318,7 @@ The YAML frontmatter supports these fields:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     ```
 
-- **`slash_command:`** - Command trigger configuration for /mention workflows (replaces deprecated `command:`)
+- **`slash_command:`** - Command trigger configuration for /mention workflows
 - **`cache:`** - Cache configuration for workflow dependencies (object or array)
 - **`cache-memory:`** - Memory MCP server with persistent cache storage (boolean or object)
 - **`repo-memory:`** - Repository-specific memory storage (boolean)
@@ -1588,8 +1587,6 @@ on:
   slash_command:
     name: my-bot  # Responds to /my-bot in issues/comments
 ```
-
-**Note**: The `command:` trigger field is deprecated. Use `slash_command:` instead. The old syntax still works but may show deprecation warnings.
 
 This automatically creates conditions to match `/my-bot` mentions in issue bodies and comments.
 
@@ -1987,103 +1984,6 @@ safe-outputs:
 - **Permission Management**: Safe-outputs jobs automatically receive required permissions
 - **Audit Trail**: Clear separation between AI processing and GitHub API interactions
 
-### Direct Issue Management Pattern (Not Recommended)
-
-```yaml
-permissions:
-  contents: read
-  issues: write         # Avoid when possible - use safe-outputs instead
-```
-
-**Note**: Direct write permissions should only be used when safe-outputs cannot meet your workflow requirements. Always prefer the Output Processing Pattern with `safe-outputs` configuration.
-
-## Output Processing Examples
-
-### Automatic GitHub Issue Creation
-
-Use the `safe-outputs.create-issue` configuration to automatically create GitHub issues from coding agent output:
-
-```aw
----
-on: push
-permissions:
-  contents: read      # Main job only needs minimal permissions
-  actions: read
-safe-outputs:
-  create-issue:
-    title-prefix: "[analysis] "
-    labels: [automation, ai-generated]
----
-
-# Code Analysis Agent
-
-Analyze the latest code changes and provide insights.
-Create an issue with your final analysis.
-```
-
-**Key Benefits:**
-
-- **Permission Separation**: The main job doesn't need `issues: write` permission
-- **Automatic Processing**: AI output is automatically parsed and converted to GitHub issues
-- **Job Dependencies**: Issue creation only happens after the coding agent completes successfully
-- **Output Variables**: The safe-outputs job emits named step outputs for the first successful result of each type:
-  - `create-issue` → `created_issue_number`, `created_issue_url`
-  - `create-pull-request` → `created_pr_number`, `created_pr_url`
-  - `add-comment` → `comment_id`, `comment_url`
-  - `push-to-pull-request-branch` → `push_commit_sha`, `push_commit_url`
-
-### Automatic Pull Request Creation
-
-Use the `safe-outputs.create-pull-request` configuration to automatically create pull requests from coding agent output:
-
-```aw
----
-on: push
-permissions:
-  actions: read       # Main job only needs minimal permissions
-safe-outputs:
-  create-pull-request:
-    title-prefix: "[bot] "
-    labels: [automation, ai-generated]
-    draft: false                        # Create non-draft PR for immediate review
----
-
-# Code Improvement Agent
-
-Analyze the latest code and suggest improvements.
-Create a pull request with your changes.
-```
-
-**Key Features:**
-
-- **Secure Branch Naming**: Uses cryptographic random hex instead of user-provided titles
-- **Git CLI Integration**: Leverages git CLI commands for branch creation and patch application
-- **Environment-based Configuration**: Resolves base branch from GitHub Action context
-- **Fail-Fast Error Handling**: Validates required environment variables and patch file existence
-
-### Automatic Comment Creation
-
-Use the `safe-outputs.add-comment` configuration to automatically create an issue or pull request comment from coding agent output:
-
-```aw
----
-on:
-  issues:
-    types: [opened]
-permissions:
-  contents: read      # Main job only needs minimal permissions
-  actions: read
-safe-outputs:
-  add-comment:
-    max: 3                # Optional: create multiple comments (default: 1)
----
-
-# Issue Analysis Agent
-
-Analyze the issue and provide feedback.
-Add a comment to the issue with your analysis.
-```
-
 ## Common Workflow Patterns
 
 ### Issue Triage Bot
@@ -2102,10 +2002,6 @@ safe-outputs:
   add-labels:
     allowed: [bug, enhancement, question, documentation]
   add-comment:
-
-tools:
-  github:
-    min-integrity: none # allow read-only access to issue content for triage analysis
 
 timeout-minutes: 5
 ---
