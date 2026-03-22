@@ -185,9 +185,7 @@ Analyze the issue with strict validation enabled.
 		b.Fatal(err)
 	}
 
-	compiler := NewCompiler(
-		WithVersion("test"),
-	)
+	compiler := NewCompiler()
 	compiler.SetStrictMode(true)
 
 	for b.Loop() {
@@ -294,7 +292,6 @@ Analyze repository commits.
 	}
 
 	compiler := NewCompiler(
-		WithVersion("test"),
 		WithNoEmit(true), // Don't write files
 	)
 
@@ -380,7 +377,6 @@ Debug mode: ${{ github.event.inputs.debug }}
 	}
 
 	compiler := NewCompiler(
-		WithVersion("test"),
 		WithNoEmit(true), // Don't write files
 	)
 

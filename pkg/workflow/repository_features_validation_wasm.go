@@ -7,8 +7,6 @@ type RepositoryFeatures struct {
 	HasIssues      bool
 }
 
-func ClearRepositoryFeaturesCache() {}
-
 func (c *Compiler) validateRepositoryFeatures(workflowData *WorkflowData) error {
 	return nil
 }

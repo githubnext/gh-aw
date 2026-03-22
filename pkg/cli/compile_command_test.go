@@ -383,7 +383,6 @@ This is a test workflow.
 
 	// Create compiler with noEmit flag
 	compiler := workflow.NewCompiler(
-		workflow.WithVersion("test"),
 		workflow.WithNoEmit(true),
 	)
 

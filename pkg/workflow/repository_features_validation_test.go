@@ -217,9 +217,6 @@ func TestCheckRepositoryHasIssuesUncachedWithInvalidRepo(t *testing.T) {
 
 func TestCheckRepositoryHasIssuesWithCaching(t *testing.T) {
 	// Test that caching works correctly with the REST client
-	// Clear cache first to ensure clean state
-	ClearRepositoryFeaturesCache()
-
 	repo := "github/gh-aw"
 
 	// First call - should fetch from API
