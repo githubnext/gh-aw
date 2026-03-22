@@ -57,11 +57,13 @@ tools:
   qmd:
     checkouts:
       - name: current-docs
-        docs:
+        paths:
           - docs/**/*.md
+        context: "Project documentation"
       - name: other-repo-docs
-        docs:
+        paths:
           - docs/**/*.md
+        context: "Documentation for owner/other-repo"
         checkout:
           repository: owner/other-repo
           ref: main
@@ -69,6 +71,8 @@ tools:
 ```
 
 Each `checkout:` entry accepts the same options as the top-level [`checkout:`](/gh-aw/reference/frontmatter/#checkout) field: `repository`, `ref`, `path`, `token`, `fetch-depth`, `sparse-checkout`, `submodules`, and `lfs`.
+
+The optional `context:` field provides additional hints to the agent about the collection's content (e.g. product area, audience, or version).
 
 ### Searches form
 
@@ -107,7 +111,7 @@ tools:
   qmd:
     checkouts:
       - name: docs
-        docs: [docs/**/*.md]
+        paths: [docs/**/*.md]
     cache-key: "qmd-index-${{ hashFiles('docs/**') }}"
 ```
 
@@ -130,9 +134,11 @@ tools:
   qmd:
     checkouts:
       - name: local-docs
-        docs: [docs/**/*.md]
+        paths: [docs/**/*.md]
+        context: "Project documentation"
       - name: sdk-docs
-        docs: [README.md, docs/**/*.md]
+        paths: [README.md, docs/**/*.md]
+        context: "SDK reference"
         checkout:
           repository: owner/sdk
           path: ./sdk
@@ -159,7 +165,8 @@ tools:
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
 | `name` | `string` | No | Collection identifier (defaults to `"docs"`). |
-| `docs` | `string[]` | No | Glob patterns for files to include (defaults to `**/*.md`). |
+| `paths` | `string[]` | No | Glob patterns for files to include (defaults to `**/*.md`). The legacy key `docs` is also accepted. |
+| `context` | `string` | No | Optional context hint for the agent about this collection's content (e.g. `"GitHub Actions documentation"`). |
 | `checkout` | `CheckoutConfig` | No | Repository checkout options — same syntax as the top-level [`checkout:`](/gh-aw/reference/frontmatter/#checkout) field. Defaults to the current repository. |
 
 ### `QmdSearchEntry` fields

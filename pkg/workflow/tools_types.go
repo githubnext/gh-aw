@@ -319,9 +319,14 @@ type QmdDocCollection struct {
 	// Defaults to "docs" for single-collection configs or "docs-<index>" for multiple collections.
 	Name string `yaml:"name,omitempty"`
 
-	// Docs is the list of glob patterns for files to include in this collection.
+	// Paths is the list of glob patterns for files to include in this collection.
 	// Example: ["docs/**/*.md", ".github/**/*.md"]
-	Docs []string `yaml:"docs"`
+	// The legacy key "docs" is still accepted for backward compatibility.
+	Paths []string `yaml:"paths"`
+
+	// Context is optional extra context injected into the qmd collection,
+	// providing the agent with additional hints about the content (e.g. "GitHub Actions documentation").
+	Context string `yaml:"context,omitempty"`
 
 	// Checkout configures which repository to check out for this collection.
 	// Uses the same syntax as the top-level checkout configuration.

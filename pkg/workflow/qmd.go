@@ -34,7 +34,7 @@
 //	  qmd:
 //	    checkouts:
 //	      - name: docs
-//	        docs:
+//	        paths:
 //	          - docs/**/*.md
 //	    searches:
 //	      - query: "repo:owner/repo language:Markdown path:docs/"
@@ -59,6 +59,7 @@ package workflow
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/constants"
@@ -137,7 +138,8 @@ func generateQmdCacheSaveStep(cacheKey string) string {
 // with its working directory resolved.
 type resolvedQmdCollection struct {
 	name    string
-	docs    []string
+	paths   []string
+	context string
 	workdir string // absolute path within the runner (e.g. ${GITHUB_WORKSPACE} or /tmp/gh-aw/qmd-checkout-<name>)
 }
 
@@ -165,7 +167,8 @@ func resolveQmdCheckouts(qmdConfig *QmdToolConfig) []resolvedQmdCollection {
 			}
 			resolved = append(resolved, resolvedQmdCollection{
 				name:    name,
-				docs:    col.Docs,
+				paths:   col.Paths,
+				context: col.Context,
 				workdir: workdir,
 			})
 		}
@@ -181,7 +184,7 @@ func resolveQmdCheckouts(qmdConfig *QmdToolConfig) []resolvedQmdCollection {
 	if len(docs) > 0 {
 		return []resolvedQmdCollection{{
 			name:    "docs",
-			docs:    docs,
+			paths:   docs,
 			workdir: "${GITHUB_WORKSPACE}",
 		}}
 	}
@@ -367,21 +370,31 @@ func generateQmdIndexSteps(qmdConfig *QmdToolConfig, data *WorkflowData) []strin
 
 		// Register each checkout-based collection.
 		// The workdir is double-quoted to preserve ${GITHUB_WORKSPACE} variable expansion.
-		// User-provided names and globs are POSIX single-quoted to prevent shell injection.
+		// User-provided names, globs, and context are POSIX single-quoted to prevent shell injection.
 		checkouts := resolveQmdCheckouts(qmdConfig)
 		for _, col := range checkouts {
 			var globArg string
-			if len(col.docs) > 0 {
-				globArg = shellSingleQuote(strings.Join(col.docs, ","))
+			if len(col.paths) > 0 {
+				globArg = shellSingleQuote(strings.Join(col.paths, ","))
 			} else {
 				globArg = "'**/*.md'"
 			}
-			steps = append(steps, fmt.Sprintf(
-				"          QMD_CACHE_DIR=/tmp/gh-aw/qmd-index qmd collection add \"%s\" --name %s --glob %s\n",
-				col.workdir,
-				shellSingleQuote(col.name),
-				globArg,
-			))
+			if col.context != "" {
+				steps = append(steps, fmt.Sprintf(
+					"          QMD_CACHE_DIR=/tmp/gh-aw/qmd-index qmd collection add \"%s\" --name %s --glob %s --context %s\n",
+					col.workdir,
+					shellSingleQuote(col.name),
+					globArg,
+					shellSingleQuote(col.context),
+				))
+			} else {
+				steps = append(steps, fmt.Sprintf(
+					"          QMD_CACHE_DIR=/tmp/gh-aw/qmd-index qmd collection add \"%s\" --name %s --glob %s\n",
+					col.workdir,
+					shellSingleQuote(col.name),
+					globArg,
+				))
+			}
 		}
 
 		// Emit a step per GitHub search entry
@@ -393,6 +406,9 @@ func generateQmdIndexSteps(qmdConfig *QmdToolConfig, data *WorkflowData) []strin
 		if qmdConfig.CacheKey != "" {
 			steps = append(steps, generateQmdCacheSaveStep(qmdConfig.CacheKey))
 		}
+
+		// Write a summary of all indexed collections to the step summary
+		steps = append(steps, generateQmdSummaryStep(qmdConfig))
 	}
 
 	// Upload qmd index as a separate artifact for the agent job
@@ -407,6 +423,80 @@ func generateQmdIndexSteps(qmdConfig *QmdToolConfig, data *WorkflowData) []strin
 	steps = append(steps, "          retention-days: 1\n")
 
 	return steps
+}
+
+// generateQmdSummaryStep generates a step that writes a Markdown summary of the qmd
+// documentation collections to $GITHUB_STEP_SUMMARY so reviewers can see what was indexed.
+// The table lists each checkout collection (name, paths, context) and each search entry (query).
+func generateQmdSummaryStep(qmdConfig *QmdToolConfig) string {
+	var sb strings.Builder
+	sb.WriteString("      - name: Summarize qmd index\n")
+	sb.WriteString("        if: always()\n")
+	sb.WriteString("        run: |\n")
+	sb.WriteString("          {\n")
+	sb.WriteString("            echo '## qmd documentation index'\n")
+	sb.WriteString("            echo ''\n")
+
+	// Checkout-based collections
+	checkouts := resolveQmdCheckouts(qmdConfig)
+	if len(checkouts) > 0 {
+		sb.WriteString("            echo '### Collections'\n")
+		sb.WriteString("            echo ''\n")
+		sb.WriteString("            echo '| Name | Paths | Context |'\n")
+		sb.WriteString("            echo '| --- | --- | --- |'\n")
+		for _, col := range checkouts {
+			pathsStr := strings.Join(col.paths, ", ")
+			if pathsStr == "" {
+				pathsStr = "**/*.md"
+			}
+			contextStr := col.context
+			if contextStr == "" {
+				contextStr = "-"
+			}
+			fmt.Fprintf(&sb, "            echo '| %s | %s | %s |'\n",
+				shellSingleQuoteInRun(col.name),
+				shellSingleQuoteInRun(pathsStr),
+				shellSingleQuoteInRun(contextStr),
+			)
+		}
+		sb.WriteString("            echo ''\n")
+	}
+
+	// Search entries
+	if len(qmdConfig.Searches) > 0 {
+		sb.WriteString("            echo '### Searches'\n")
+		sb.WriteString("            echo ''\n")
+		sb.WriteString("            echo '| Query | Min | Max |'\n")
+		sb.WriteString("            echo '| --- | --- | --- |'\n")
+		for _, s := range qmdConfig.Searches {
+			minStr := "-"
+			if s.Min > 0 {
+				minStr = strconv.Itoa(s.Min)
+			}
+			maxStr := "30"
+			if s.Max > 0 {
+				maxStr = strconv.Itoa(s.Max)
+			}
+			fmt.Fprintf(&sb, "            echo '| %s | %s | %s |'\n",
+				shellSingleQuoteInRun(s.Query),
+				minStr,
+				maxStr,
+			)
+		}
+		sb.WriteString("            echo ''\n")
+	}
+
+	sb.WriteString("          } >> $GITHUB_STEP_SUMMARY\n")
+	return sb.String()
+}
+
+// shellSingleQuoteInRun escapes a string for safe embedding inside an already-single-quoted
+// shell echo argument used in run: blocks. Pipes (|) are escaped to prevent Markdown table
+// column breaks and single quotes are neutralized via the '"'"' idiom.
+func shellSingleQuoteInRun(s string) string {
+	s = strings.ReplaceAll(s, "|", "\\|")
+	s = strings.ReplaceAll(s, "'", `'"'"'`)
+	return s
 }
 
 // generateQmdDownloadStep generates the agent job step that downloads the qmd-index artifact.

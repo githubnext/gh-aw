@@ -3410,11 +3410,12 @@
               "checkouts": [
                 {
                   "name": "current-docs",
-                  "docs": ["docs/**/*.md"]
+                  "paths": ["docs/**/*.md"]
                 },
                 {
                   "name": "other-docs",
-                  "docs": ["docs/**/*.md"],
+                  "paths": ["docs/**/*.md"],
+                  "context": "Documentation for owner/other-repo",
                   "checkout": {
                     "repository": "owner/other-repo",
                     "path": "./other-repo"
@@ -3436,7 +3437,7 @@
               "checkouts": [
                 {
                   "name": "local-docs",
-                  "docs": ["docs/**/*.md"]
+                  "paths": ["docs/**/*.md"]
                 }
               ],
               "searches": [
@@ -3454,7 +3455,7 @@
               "checkouts": [
                 {
                   "name": "docs",
-                  "docs": ["docs/**/*.md"]
+                  "paths": ["docs/**/*.md"]
                 }
               ],
               "cache-key": "qmd-index-${{ hashFiles('docs/**') }}"
@@ -9294,14 +9295,13 @@
     "qmdCollection": {
       "type": "object",
       "description": "A named documentation collection for the qmd tool, built from a checked-out repository. Each collection can optionally target a different repository via its own checkout configuration.",
-      "required": ["docs"],
       "additionalProperties": false,
       "properties": {
         "name": {
           "type": "string",
           "description": "Collection identifier used in the qmd index. Defaults to 'docs' for single-collection configs or 'docs-<index>' for multiple collections."
         },
-        "docs": {
+        "paths": {
           "type": "array",
           "description": "List of glob patterns for documentation files to include in this collection.",
           "items": {
@@ -9309,6 +9309,19 @@
           },
           "minItems": 1,
           "examples": [["docs/**/*.md", ".github/**/*.md"]]
+        },
+        "docs": {
+          "type": "array",
+          "description": "Deprecated: use 'paths' instead. List of glob patterns for documentation files to include in this collection.",
+          "items": {
+            "type": "string"
+          },
+          "minItems": 1,
+          "examples": [["docs/**/*.md", ".github/**/*.md"]]
+        },
+        "context": {
+          "type": "string",
+          "description": "Optional context injected into the qmd collection, providing the agent with additional hints about the content (e.g. 'GitHub Actions documentation')."
         },
         "checkout": {
           "$ref": "#/$defs/checkoutConfig",

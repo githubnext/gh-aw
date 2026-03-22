@@ -451,17 +451,28 @@ func parseQmdDocCollection(m map[string]any, index int) *QmdDocCollection {
 		col.Name = fmt.Sprintf("docs-%d", index)
 	}
 
-	if docsValue, ok := m["docs"]; ok {
-		if arr, ok := docsValue.([]any); ok {
-			col.Docs = make([]string, 0, len(arr))
+	// Accept "paths" (new canonical key) and "docs" (legacy key, backward compat)
+	var pathsValue any
+	if v, ok := m["paths"]; ok {
+		pathsValue = v
+	} else if v, ok := m["docs"]; ok {
+		pathsValue = v
+	}
+	if pathsValue != nil {
+		if arr, ok := pathsValue.([]any); ok {
+			col.Paths = make([]string, 0, len(arr))
 			for _, item := range arr {
 				if str, ok := item.(string); ok {
-					col.Docs = append(col.Docs, str)
+					col.Paths = append(col.Paths, str)
 				}
 			}
-		} else if arr, ok := docsValue.([]string); ok {
-			col.Docs = arr
+		} else if arr, ok := pathsValue.([]string); ok {
+			col.Paths = arr
 		}
+	}
+
+	if context, ok := m["context"].(string); ok {
+		col.Context = context
 	}
 
 	if checkoutValue, ok := m["checkout"]; ok {
