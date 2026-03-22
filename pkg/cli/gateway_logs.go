@@ -617,39 +617,28 @@ func renderGatewayMetricsTable(metrics *GatewayMetrics, verbose bool) string {
 			if server.RequestCount > 0 {
 				avgTime = server.TotalDuration / float64(server.RequestCount)
 			}
-			if hasFiltered {
-				serverRows = append(serverRows, []string{
-					serverName,
-					strconv.Itoa(server.RequestCount),
-					strconv.Itoa(server.ToolCallCount),
-					fmt.Sprintf("%.0fms", avgTime),
-					strconv.Itoa(server.ErrorCount),
-					strconv.Itoa(server.FilteredCount),
-				})
-			} else {
-				serverRows = append(serverRows, []string{
-					serverName,
-					strconv.Itoa(server.RequestCount),
-					strconv.Itoa(server.ToolCallCount),
-					fmt.Sprintf("%.0fms", avgTime),
-					strconv.Itoa(server.ErrorCount),
-				})
+			row := []string{
+				serverName,
+				strconv.Itoa(server.RequestCount),
+				strconv.Itoa(server.ToolCallCount),
+				fmt.Sprintf("%.0fms", avgTime),
+				strconv.Itoa(server.ErrorCount),
 			}
+			if hasFiltered {
+				row = append(row, strconv.Itoa(server.FilteredCount))
+			}
+			serverRows = append(serverRows, row)
 		}
 
+		headers := []string{"Server", "Requests", "Tool Calls", "Avg Time", "Errors"}
 		if hasFiltered {
-			output.WriteString(console.RenderTable(console.TableConfig{
-				Title:   "Server Usage",
-				Headers: []string{"Server", "Requests", "Tool Calls", "Avg Time", "Errors", "Filtered"},
-				Rows:    serverRows,
-			}))
-		} else {
-			output.WriteString(console.RenderTable(console.TableConfig{
-				Title:   "Server Usage",
-				Headers: []string{"Server", "Requests", "Tool Calls", "Avg Time", "Errors"},
-				Rows:    serverRows,
-			}))
+			headers = append(headers, "Filtered")
 		}
+		output.WriteString(console.RenderTable(console.TableConfig{
+			Title:   "Server Usage",
+			Headers: headers,
+			Rows:    serverRows,
+		}))
 	}
 
 	// DIFC filtered events table
