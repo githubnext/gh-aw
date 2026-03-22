@@ -146,6 +146,9 @@ func TestBuildSharedPRCheckoutSteps(t *testing.T) {
 		trialMode     bool
 		trialRepo     string
 		checkContains []string
+		// checkCounts maps a substring to the exact number of times it must
+		// appear in the generated YAML. Use this to verify deduplication.
+		checkCounts map[string]int
 	}{
 		{
 			name: "create pull request only",
@@ -299,9 +302,13 @@ func TestBuildSharedPRCheckoutSteps(t *testing.T) {
 				},
 			},
 			checkContains: []string{
-				// Deduplication: same repo registered by both outputs → exactly one checkout
 				"repository: githubnext/gh-aw-side-repo",
 				`REPO_NAME: "githubnext/gh-aw-side-repo"`,
+			},
+			checkCounts: map[string]int{
+				// Both outputs register the same repo → CheckoutManager deduplicates
+				// to exactly one checkout step.
+				"repository: githubnext/gh-aw-side-repo": 1,
 			},
 		},
 		{
@@ -400,6 +407,11 @@ func TestBuildSharedPRCheckoutSteps(t *testing.T) {
 
 			for _, expected := range tt.checkContains {
 				assert.Contains(t, stepsContent, expected, "Expected to find: "+expected)
+			}
+
+			for substr, wantCount := range tt.checkCounts {
+				gotCount := strings.Count(stepsContent, substr)
+				assert.Equal(t, wantCount, gotCount, "Expected %q to appear %d time(s)", substr, wantCount)
 			}
 		})
 	}

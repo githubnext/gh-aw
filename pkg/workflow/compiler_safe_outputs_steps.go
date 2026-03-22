@@ -70,8 +70,9 @@ func (c *Compiler) buildConsolidatedSafeOutputStep(data *WorkflowData, config Sa
 
 // buildSafeOutputsCheckoutManager creates a CheckoutManager by having each
 // enabled PR safe output independently register its checkout requirement.
-// CheckoutManager deduplicates registrations that share the same repository,
-// so two outputs targeting the same repo result in a single checkout step.
+// CheckoutManager deduplicates registrations that share the same (repository, path)
+// pair, and safe_outputs always use the workspace root path. As a result, two
+// outputs targeting the same repo result in a single checkout step.
 //
 // Registration order determines which repo GenerateSafeOutputsCheckoutStep
 // uses when multiple unique repos are present (create-pull-request registers
