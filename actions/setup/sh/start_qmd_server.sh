@@ -8,7 +8,9 @@
 #
 # Required environment variables:
 #   GH_AW_QMD_PORT     - Port to listen on (e.g. 3002)
-#   QMD_CACHE_DIR      - Path to the pre-built qmd index (e.g. /tmp/gh-aw/qmd-index)
+#   GH_AW_QMD_VERSION  - @tobilu/qmd package version to use (e.g. 2.0.1)
+#   INDEX_PATH         - Path to the pre-built qmd index SQLite file
+#                        (e.g. /tmp/gh-aw/qmd-index/index.sqlite)
 #
 # Optional environment variables:
 #   NODE_LLAMA_CPP_GPU - Set to "false" to disable GPU probing (default: "false")
@@ -17,7 +19,7 @@ set -e
 
 echo "Starting qmd MCP HTTP server..."
 echo "  Port:      ${GH_AW_QMD_PORT}"
-echo "  Cache dir: ${QMD_CACHE_DIR}"
+echo "  Index:     ${INDEX_PATH}"
 echo "  GPU:       ${NODE_LLAMA_CPP_GPU:-auto}"
 
 # Ensure logs directory exists
@@ -32,11 +34,11 @@ mkdir -p /tmp/gh-aw/mcp-logs/qmd
 } > /tmp/gh-aw/mcp-logs/qmd/server.log
 
 # Start the qmd MCP server with HTTP transport in the background.
-# QMD_CACHE_DIR tells qmd where the pre-built vector index lives.
+# INDEX_PATH tells qmd where the pre-built vector index SQLite file lives.
 # NODE_LLAMA_CPP_GPU controls GPU probing; "false" disables it on CPU runners.
-QMD_CACHE_DIR="${QMD_CACHE_DIR}" \
+INDEX_PATH="${INDEX_PATH}" \
 NODE_LLAMA_CPP_GPU="${NODE_LLAMA_CPP_GPU:-false}" \
-  npx --package=@tobilu/qmd serve-mcp --http --port "${GH_AW_QMD_PORT}" \
+  npx --package="@tobilu/qmd@${GH_AW_QMD_VERSION}" qmd mcp --http --port "${GH_AW_QMD_PORT}" \
     >> /tmp/gh-aw/mcp-logs/qmd/server.log 2>&1 &
 
 SERVER_PID=$!

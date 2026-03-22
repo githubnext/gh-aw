@@ -91,32 +91,34 @@ func qmdHasSources(qmdConfig *QmdToolConfig) bool {
 }
 
 // generateQmdModelsCacheStep generates a step that caches the qmd embedding models directory
-// (~/.cache/qmd/models/) using the actions/cache action (restore + post-save), keyed by OS.
-// This step should be emitted in the indexing job (before index building) to populate
-// the cache. For the agent job, use generateQmdModelsCacheRestoreStep instead.
+// (~/.cache/qmd/models/) using the actions/cache action (restore + post-save), keyed by OS
+// and qmd version. This step should be emitted in the indexing job (before index building) to
+// populate the cache. For the agent job, use generateQmdModelsCacheRestoreStep instead.
 func generateQmdModelsCacheStep() string {
+	version := string(constants.DefaultQmdVersion)
 	var sb strings.Builder
 	sb.WriteString("      - name: Cache qmd models\n")
 	fmt.Fprintf(&sb, "        uses: %s\n", GetActionPin("actions/cache"))
 	sb.WriteString("        with:\n")
 	sb.WriteString("          path: ~/.cache/qmd/models/\n")
-	sb.WriteString("          key: qmd-models-${{ runner.os }}\n")
+	fmt.Fprintf(&sb, "          key: qmd-models-%s-${{ runner.os }}\n", version)
 	return sb.String()
 }
 
 // generateQmdNodeLlamaCppCacheStep generates a step that caches the node-llama-cpp downloaded
 // binaries (~/.cache/node-llama-cpp/) using the actions/cache action (restore + post-save).
-// The cache key includes both OS and CPU architecture because the node-llama-cpp binaries are
-// compiled native code that must match the exact runner image platform.
+// The cache key includes the qmd version, OS, CPU architecture, and runner image ID because
+// node-llama-cpp binaries are compiled native code that must match the exact runner image platform.
 // This step should be emitted in the indexing job. For the agent job, use
 // generateQmdNodeLlamaCppCacheRestoreStep instead.
 func generateQmdNodeLlamaCppCacheStep() string {
+	version := string(constants.DefaultQmdVersion)
 	var sb strings.Builder
 	sb.WriteString("      - name: Cache node-llama-cpp binaries\n")
 	fmt.Fprintf(&sb, "        uses: %s\n", GetActionPin("actions/cache"))
 	sb.WriteString("        with:\n")
 	sb.WriteString("          path: ~/.cache/node-llama-cpp/\n")
-	sb.WriteString("          key: node-llama-cpp-${{ runner.os }}-${{ runner.arch }}\n")
+	fmt.Fprintf(&sb, "          key: node-llama-cpp-%s-${{ runner.os }}-${{ runner.arch }}-${{ runner.imageid }}\n", version)
 	return sb.String()
 }
 
@@ -125,12 +127,13 @@ func generateQmdNodeLlamaCppCacheStep() string {
 // actions/cache/restore (restore-only, no post-save) so the agent job never writes to the
 // shared cache — that is the indexing job's responsibility.
 func generateQmdModelsCacheRestoreStep() string {
+	version := string(constants.DefaultQmdVersion)
 	var sb strings.Builder
 	sb.WriteString("      - name: Restore qmd models cache\n")
 	fmt.Fprintf(&sb, "        uses: %s\n", GetActionPin("actions/cache/restore"))
 	sb.WriteString("        with:\n")
 	sb.WriteString("          path: ~/.cache/qmd/models/\n")
-	sb.WriteString("          key: qmd-models-${{ runner.os }}\n")
+	fmt.Fprintf(&sb, "          key: qmd-models-%s-${{ runner.os }}\n", version)
 	return sb.String()
 }
 
@@ -138,14 +141,15 @@ func generateQmdModelsCacheRestoreStep() string {
 // node-llama-cpp downloaded binaries (~/.cache/node-llama-cpp/) from GitHub Actions cache.
 // It uses actions/cache/restore (restore-only, no post-save) so the agent job never writes
 // to the shared cache — that is the indexing job's responsibility.
-// The cache key includes both OS and CPU architecture to ensure binary compatibility.
+// The cache key includes the qmd version, OS, CPU architecture, and runner image ID.
 func generateQmdNodeLlamaCppCacheRestoreStep() string {
+	version := string(constants.DefaultQmdVersion)
 	var sb strings.Builder
 	sb.WriteString("      - name: Restore node-llama-cpp cache\n")
 	fmt.Fprintf(&sb, "        uses: %s\n", GetActionPin("actions/cache/restore"))
 	sb.WriteString("        with:\n")
 	sb.WriteString("          path: ~/.cache/node-llama-cpp/\n")
-	sb.WriteString("          key: node-llama-cpp-${{ runner.os }}-${{ runner.arch }}\n")
+	fmt.Fprintf(&sb, "          key: node-llama-cpp-%s-${{ runner.os }}-${{ runner.arch }}-${{ runner.imageid }}\n", version)
 	return sb.String()
 }
 
@@ -170,13 +174,13 @@ func generateQmdIndexCacheRestoreExactStep(qmdConfig *QmdToolConfig) string {
 // the index built in the indexing job is always persisted to cache and the agent
 // job can restore it without needing a separate artifact download on every run.
 //
-// The default key format is: gh-aw-qmd-<run_id>
-// (e.g. "gh-aw-qmd-12345678")
+// The default key format is: gh-aw-qmd-<version>-<run_id>
+// (e.g. "gh-aw-qmd-2.0.1-12345678")
 func resolveQmdCacheKey(qmdConfig *QmdToolConfig) string {
 	if qmdConfig.CacheKey != "" {
 		return qmdConfig.CacheKey
 	}
-	return "gh-aw-qmd-${{ github.run_id }}"
+	return fmt.Sprintf("gh-aw-qmd-%s-${{ github.run_id }}", string(constants.DefaultQmdVersion))
 }
 
 // resolveQmdRestoreKeys returns the restore-keys prefix list for the qmd index cache.
@@ -492,20 +496,27 @@ func generateQmdIndexSteps(qmdConfig *QmdToolConfig) []string {
 // up to 10 minutes for the server to become ready before the agent starts.
 //
 // The step id is "qmd-server-start" and it emits a "port" output used by downstream steps.
+//
+// The qmd CLI uses INDEX_PATH to locate the pre-built SQLite database.
+// GH_AW_QMD_VERSION is passed to start_qmd_server.sh to pin the npx package version.
 func generateQmdStartServerStep(qmdConfig *QmdToolConfig) string {
 	var sb strings.Builder
 	sb.WriteString("      - name: Start qmd MCP HTTP server\n")
 	sb.WriteString("        id: qmd-server-start\n")
 	sb.WriteString("        env:\n")
 	fmt.Fprintf(&sb, "          GH_AW_QMD_PORT: \"%d\"\n", constants.DefaultQmdPort)
-	sb.WriteString("          QMD_CACHE_DIR: /tmp/gh-aw/qmd-index\n")
+	// INDEX_PATH overrides getDefaultDbPath() in the qmd CLI so it reads the
+	// pre-built index restored from cache rather than ~/.cache/qmd/index.sqlite.
+	sb.WriteString("          INDEX_PATH: /tmp/gh-aw/qmd-index/index.sqlite\n")
+	fmt.Fprintf(&sb, "          GH_AW_QMD_VERSION: \"%s\"\n", string(constants.DefaultQmdVersion))
 	// Disable GPU by default; only enable when the user explicitly opts in.
 	if !qmdConfig.GPU {
 		sb.WriteString("          NODE_LLAMA_CPP_GPU: \"false\"\n")
 	}
 	sb.WriteString("        run: |\n")
 	sb.WriteString("          export GH_AW_QMD_PORT\n")
-	sb.WriteString("          export QMD_CACHE_DIR\n")
+	sb.WriteString("          export INDEX_PATH\n")
+	sb.WriteString("          export GH_AW_QMD_VERSION\n")
 	if !qmdConfig.GPU {
 		sb.WriteString("          export NODE_LLAMA_CPP_GPU\n")
 	}

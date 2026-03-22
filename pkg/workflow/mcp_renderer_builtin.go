@@ -74,8 +74,8 @@ func (r *MCPConfigRendererUnified) renderPlaywrightTOML(yaml *strings.Builder, p
 }
 
 // RenderQmdMCP generates the qmd documentation search MCP server configuration.
-// qmd uses a Node.js container running @tobilu/qmd serve-mcp and mounts the pre-built index
-// that was downloaded from the activation job artifact.
+// qmd uses HTTP transport (qmd mcp --http) to serve the pre-built index over a local port.
+// The qmd server is started before the MCP gateway and the agent connects via HTTP.
 func (r *MCPConfigRendererUnified) RenderQmdMCP(yaml *strings.Builder, qmdTool any) {
 	mcpRendererLog.Printf("Rendering qmd MCP: format=%s, inline_args=%t", r.options.Format, r.options.InlineArgs)
 

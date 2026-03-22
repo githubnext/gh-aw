@@ -228,9 +228,6 @@ async function main() {
   // ── Create store and build index ─────────────────────────────────────────
   core.info(`Creating qmd store at ${dbPath}…`);
 
-  // Set QMD_CACHE_DIR so the SDK stores model weights in the index directory.
-  process.env.QMD_CACHE_DIR = config.dbPath;
-
   const store = await createStore({ dbPath, config: { collections } });
 
   let updateResult = null;
