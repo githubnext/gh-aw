@@ -188,7 +188,8 @@ function generateVariants(prop, propName, indent = 0, required = []) {
           lines.push(formatComment(`Array items: ${variant.items.description || variant.items.type}`, indent + 2));
         }
       } else if (variant.type === "boolean") {
-        lines.push(`${indentStr}${propName}: true`);
+        const boolExample = getExampleValue(variant, propName);
+        lines.push(`${indentStr}${propName}: ${boolExample}`);
       } else if (variant.type === "null") {
         lines.push(`${indentStr}${propName}: null`);
       } else if (variant.type === "number" || variant.type === "integer") {
@@ -274,11 +275,16 @@ function generateProperties(properties, required = [], indent = 0) {
       return;
     }
 
+    // Skip internal-only properties (marked with "x-internal": true in the schema).
+    // These are implementation/debugging details not intended for end users.
+    // Required fields are still rendered so that generated YAML examples remain schema-valid.
+    const isRequired = required.includes(propName);
+    if (resolvedProp["x-internal"] === true && !isRequired) {
+      return;
+    }
     if (addedCount > 0) {
       lines.push("");
     }
-
-    const isRequired = required.includes(propName);
 
     // Check if property has variants
     if (resolvedProp.oneOf || resolvedProp.anyOf) {

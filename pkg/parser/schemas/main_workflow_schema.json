@@ -2651,10 +2651,12 @@
                     },
                     "command": {
                       "type": "string",
+                      "x-internal": true,
                       "description": "Custom command to replace the default AWF installation. For AWF: 'docker run my-custom-awf-image'"
                     },
                     "args": {
                       "type": "array",
+                      "x-internal": true,
                       "description": "Additional arguments to append to the command (applies to AWF, for standard and custom commands)",
                       "items": {
                         "type": "string"
@@ -2662,6 +2664,7 @@
                     },
                     "env": {
                       "type": "object",
+                      "x-internal": true,
                       "description": "Environment variables to set on the execution step (applies to AWF)",
                       "additionalProperties": {
                         "type": "string"
@@ -2792,21 +2795,25 @@
               "properties": {
                 "container": {
                   "type": "string",
+                  "x-internal": true,
                   "pattern": "^[a-zA-Z0-9][a-zA-Z0-9/:_.-]*$",
                   "description": "Container image for the MCP gateway executable (required)"
                 },
                 "version": {
                   "type": ["string", "number"],
+                  "x-internal": true,
                   "description": "Optional version/tag for the container image (e.g., 'latest', 'v1.0.0')",
                   "examples": ["latest", "v1.0.0"]
                 },
                 "entrypoint": {
                   "type": "string",
+                  "x-internal": true,
                   "description": "Optional custom entrypoint for the MCP gateway container. Overrides the container's default entrypoint.",
                   "examples": ["/bin/bash", "/custom/start.sh", "/usr/bin/env"]
                 },
                 "args": {
                   "type": "array",
+                  "x-internal": true,
                   "items": {
                     "type": "string"
                   },
@@ -2814,6 +2821,7 @@
                 },
                 "entrypointArgs": {
                   "type": "array",
+                  "x-internal": true,
                   "items": {
                     "type": "string"
                   },
@@ -2856,7 +2864,6 @@
                   "description": "Gateway domain for URL generation (default: 'host.docker.internal' when agent is enabled, 'localhost' when disabled)"
                 }
               },
-              "required": ["container"],
               "additionalProperties": false
             }
           },
