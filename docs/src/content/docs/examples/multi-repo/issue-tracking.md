@@ -222,7 +222,6 @@ on:
     types: [opened]
 permissions:
   contents: read
-  issues: write
   actions: read
 tools:
   github:

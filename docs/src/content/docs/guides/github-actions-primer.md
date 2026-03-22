@@ -97,7 +97,7 @@ GitHub Actions uses the **principle of least privilege** with explicit permissio
 
 ```yaml
 permissions:
-  contents: read        # Read repository contents
+  contents: read       # Read repository contents
   issues: write        # Create/modify issues
   pull-requests: write # Create/modify PRs
 
@@ -107,6 +107,8 @@ jobs:
     steps:
       - run: echo "Job has specified permissions only"
 ```
+
+With GItHub Agentic Workflows, **write permissions are not used explicitly**. Instead much more restricted capabilities to write to GitHub are delared through **safe outputs**, which validate, constrain and sanitize all GitHub API interactions.
 
 ### Secret Management
 

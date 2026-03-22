@@ -41,8 +41,6 @@ When triggered, the matched command is available as `needs.activation.outputs.sl
 on:
   slash_command:
     name: ["summarize", "summary", "tldr"]
-permissions:
-  issues: write
 ---
 
 # Multi-Command Handler
@@ -105,8 +103,6 @@ Using object format:
 on:
   slash_command:
     name: summarize-issue
-permissions:
-  issues: write
 tools:
   github:
     toolsets: [issues]
@@ -130,7 +126,6 @@ on:
     events: [pull_request, pull_request_comment]
 permissions:
   contents: read
-  pull-requests: write
 tools:
   github:
     toolsets: [pull_requests]

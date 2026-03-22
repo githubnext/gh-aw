@@ -20,6 +20,7 @@ const { generateWorkflowIdMarker, generateWorkflowCallIdMarker, generateCloseKey
 const { sanitizeLabelContent } = require("./sanitize_label_content.cjs");
 const { tryEnforceArrayLimit } = require("./limit_enforcement_helpers.cjs");
 const { logStagedPreviewInfo } = require("./staged_preview.cjs");
+const { isStagedMode } = require("./safe_output_helpers.cjs");
 const { closeOlderDiscussions: closeOlderDiscussionsFunc } = require("./close_older_discussions.cjs");
 const { parseBoolTemplatable } = require("./templatable.cjs");
 const { buildWorkflowRunUrl } = require("./workflow_metadata_helpers.cjs");
@@ -318,7 +319,7 @@ async function main(config = {}) {
   const githubClient = await createAuthenticatedGitHubClient(config);
 
   // Check if we're in staged mode
-  const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true";
+  const isStaged = isStagedMode(config);
 
   // Parse labels from config
   const labelsConfig = config.labels || [];

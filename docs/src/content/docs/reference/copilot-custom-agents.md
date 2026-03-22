@@ -120,7 +120,6 @@ imports:
   - acme-org/workflow-library/shared/config/security-policies.md@v1.0.0
 permissions:
   contents: read
-  pull-requests: write
 safe-outputs:
   create-pull-request-review-comment:
     max: 10

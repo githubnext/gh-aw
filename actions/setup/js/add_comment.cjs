@@ -12,7 +12,7 @@ const { replaceTemporaryIdReferences, loadTemporaryIdMapFromResolved, resolveRep
 const { getTrackerID } = require("./get_tracker_id.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { parseBoolTemplatable } = require("./templatable.cjs");
-const { resolveTarget } = require("./safe_output_helpers.cjs");
+const { resolveTarget, isStagedMode } = require("./safe_output_helpers.cjs");
 const { resolveTargetRepoConfig, resolveAndValidateRepo } = require("./repo_helpers.cjs");
 const { createAuthenticatedGitHubClient } = require("./handler_auth.cjs");
 const { getMissingInfoSections } = require("./missing_messages_helper.cjs");
@@ -312,7 +312,7 @@ async function main(config = {}) {
   const githubClient = await createAuthenticatedGitHubClient(config);
 
   // Check if we're in staged mode
-  const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true";
+  const isStaged = isStagedMode(config);
 
   // Check if append-only-comments is enabled in messages config
   const messagesConfig = getMessages();

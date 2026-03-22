@@ -3,10 +3,14 @@
  *
  * Tests for the core message utilities module including:
  * - Template rendering with placeholder replacement
+ * - Template rendering from file
  * - Snake_case conversion with camelCase compatibility
  * - Messages config parsing from environment variable
  */
 import { describe, it, expect, beforeEach, vi } from "vitest";
+import fs from "fs";
+import os from "os";
+import path from "path";
 
 const mockCore = {
   debug: vi.fn(),
@@ -75,6 +79,60 @@ describe("messages_core.cjs", () => {
       const { renderTemplate } = await import("./messages_core.cjs?" + Date.now());
       const result = renderTemplate("", { key: "value" });
       expect(result).toBe("");
+    });
+  });
+
+  describe("renderTemplateFromFile", () => {
+    it("should read a file and render its contents as a template", async () => {
+      const { renderTemplateFromFile } = await import("./messages_core.cjs?" + Date.now());
+      const tmpFile = path.join(os.tmpdir(), `msg-core-test-${Date.now()}.md`);
+      fs.writeFileSync(tmpFile, "Hello, {name}!", "utf8");
+      try {
+        const result = renderTemplateFromFile(tmpFile, { name: "World" });
+        expect(result).toBe("Hello, World!");
+      } finally {
+        fs.unlinkSync(tmpFile);
+      }
+    });
+
+    it("should replace multiple placeholders from a file", async () => {
+      const { renderTemplateFromFile } = await import("./messages_core.cjs?" + Date.now());
+      const tmpFile = path.join(os.tmpdir(), `msg-core-test-${Date.now()}.md`);
+      fs.writeFileSync(tmpFile, "{greeting}, {name}! Run: {run_url}", "utf8");
+      try {
+        const result = renderTemplateFromFile(tmpFile, {
+          greeting: "Hello",
+          name: "Alice",
+          run_url: "https://github.com/actions/runs/123",
+        });
+        expect(result).toBe("Hello, Alice! Run: https://github.com/actions/runs/123");
+      } finally {
+        fs.unlinkSync(tmpFile);
+      }
+    });
+
+    it("should leave unknown placeholders unchanged", async () => {
+      const { renderTemplateFromFile } = await import("./messages_core.cjs?" + Date.now());
+      const tmpFile = path.join(os.tmpdir(), `msg-core-test-${Date.now()}.md`);
+      fs.writeFileSync(tmpFile, "Hello, {name}! {unknown}", "utf8");
+      try {
+        const result = renderTemplateFromFile(tmpFile, { name: "World" });
+        expect(result).toBe("Hello, World! {unknown}");
+      } finally {
+        fs.unlinkSync(tmpFile);
+      }
+    });
+
+    it("should return file contents unchanged when context is empty", async () => {
+      const { renderTemplateFromFile } = await import("./messages_core.cjs?" + Date.now());
+      const tmpFile = path.join(os.tmpdir(), `msg-core-test-${Date.now()}.md`);
+      fs.writeFileSync(tmpFile, "No placeholders here.", "utf8");
+      try {
+        const result = renderTemplateFromFile(tmpFile, {});
+        expect(result).toBe("No placeholders here.");
+      } finally {
+        fs.unlinkSync(tmpFile);
+      }
     });
   });
 

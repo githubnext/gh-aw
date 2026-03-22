@@ -38,6 +38,15 @@ function loadTools(server) {
       });
     }
 
+    // Log details about dispatch_repository tools for debugging
+    const dispatchRepositoryTools = tools.filter(t => t._dispatch_repository_tool);
+    if (dispatchRepositoryTools.length > 0) {
+      server.debug(`  Found ${dispatchRepositoryTools.length} dispatch_repository tools:`);
+      dispatchRepositoryTools.forEach(t => {
+        server.debug(`    - ${t.name} (tool: ${t._dispatch_repository_tool})`);
+      });
+    }
+
     // Log details about call_workflow tools for debugging
     const callWorkflowTools = tools.filter(t => t._call_workflow_name);
     if (callWorkflowTools.length > 0) {
@@ -86,6 +95,17 @@ function attachHandlers(tools, handlers) {
         return handlers.defaultHandler("dispatch_workflow")({
           inputs: args,
           workflow_name: workflowName,
+        });
+      };
+    }
+
+    // Check if this is a dispatch_repository tool (dynamic tool with dispatch_repository metadata)
+    if (tool._dispatch_repository_tool) {
+      const toolKey = tool._dispatch_repository_tool;
+      tool.handler = args => {
+        return handlers.defaultHandler("dispatch_repository")({
+          inputs: args,
+          tool_name: toolKey,
         });
       };
     }
@@ -158,6 +178,21 @@ function registerPredefinedTools(server, tools, config, registerTool, normalizeT
         server.debug(`  WARNING: dispatch_workflow config is missing or falsy - tool will NOT be registered`);
         server.debug(`  Config keys: ${Object.keys(config).join(", ")}`);
         server.debug(`  config.dispatch_workflow value: ${JSON.stringify(config.dispatch_workflow)}`);
+      }
+    }
+
+    // Check if this is a dispatch_repository tool (has _dispatch_repository_tool metadata)
+    // These tools are dynamically generated with tool-specific names
+    if (tool._dispatch_repository_tool) {
+      server.debug(`Found dispatch_repository tool: ${tool.name} (_dispatch_repository_tool: ${tool._dispatch_repository_tool})`);
+      if (config.dispatch_repository) {
+        server.debug(`  dispatch_repository config exists, registering tool`);
+        registerTool(server, tool);
+        return;
+      } else {
+        server.debug(`  WARNING: dispatch_repository config is missing or falsy - tool will NOT be registered`);
+        server.debug(`  Config keys: ${Object.keys(config).join(", ")}`);
+        server.debug(`  config.dispatch_repository value: ${JSON.stringify(config.dispatch_repository)}`);
       }
     }
 

@@ -54,7 +54,6 @@ This workflow has an invalid container image.
 
 	// Create compiler with validation enabled (default behavior)
 	compiler := NewCompiler(
-		WithVersion("test"),
 		WithSkipValidation(false), // Ensure validation is enabled
 	)
 

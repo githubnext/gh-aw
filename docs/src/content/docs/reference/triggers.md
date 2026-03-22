@@ -182,7 +182,6 @@ on:
     lock-for-agent: true
 permissions:
   contents: read
-  issues: write
 safe-outputs:
   add-comment:
     max: 3

@@ -13,30 +13,28 @@ import (
 	"github.com/github/gh-aw/pkg/testutil"
 )
 
-// TestMCPScriptsExperimentalWarning tests that the mcp-scripts feature
+// TestDispatchRepositoryExperimentalWarning tests that the dispatch_repository feature
 // emits an experimental warning when enabled.
-func TestMCPScriptsExperimentalWarning(t *testing.T) {
+func TestDispatchRepositoryExperimentalWarning(t *testing.T) {
 	tests := []struct {
 		name          string
 		content       string
 		expectWarning bool
 	}{
 		{
-			name: "mcp-scripts enabled produces experimental warning",
+			name: "dispatch_repository enabled produces experimental warning",
 			content: `---
 on: workflow_dispatch
 engine: copilot
-mcp-scripts:
-  greet-user:
-    description: "Greet a user by name"
-    inputs:
-      name:
-        type: string
-        required: true
-    script: |
-      return { message: 'Hello, ' + name + '!' };
 permissions:
   contents: read
+safe-outputs:
+  dispatch_repository:
+    trigger_ci:
+      description: Trigger CI
+      workflow: ci.yml
+      event_type: ci_trigger
+      repository: org/target-repo
 ---
 
 # Test Workflow
@@ -44,7 +42,7 @@ permissions:
 			expectWarning: true,
 		},
 		{
-			name: "no mcp-scripts does not produce experimental warning",
+			name: "no dispatch_repository does not produce experimental warning",
 			content: `---
 on: workflow_dispatch
 engine: copilot
@@ -57,55 +55,20 @@ permissions:
 			expectWarning: false,
 		},
 		{
-			name: "empty mcp-scripts does not produce experimental warning",
+			name: "dispatch_repository with allowed_repositories produces experimental warning",
 			content: `---
 on: workflow_dispatch
 engine: copilot
-mcp-scripts: {}
 permissions:
   contents: read
----
-
-# Test Workflow
-`,
-			expectWarning: false,
-		},
-		{
-			name: "mcp-scripts with shell tool produces experimental warning",
-			content: `---
-on: workflow_dispatch
-engine: copilot
-mcp-scripts:
-  list-files:
-    description: "List files in current directory"
-    run: |
-      ls -la
-permissions:
-  contents: read
----
-
-# Test Workflow
-`,
-			expectWarning: true,
-		},
-		{
-			name: "mcp-scripts with python tool produces experimental warning",
-			content: `---
-on: workflow_dispatch
-engine: copilot
-mcp-scripts:
-  analyze-data:
-    description: "Analyze data with Python"
-    inputs:
-      numbers:
-        type: string
-        required: true
-    py: |
-      import json
-      numbers_str = inputs.get('numbers', '')
-      print(json.dumps({"count": len(numbers_str.split(','))}))
-permissions:
-  contents: read
+safe-outputs:
+  dispatch_repository:
+    notify_service:
+      workflow: notify.yml
+      event_type: notify_event
+      allowed_repositories:
+        - org/service-repo
+        - org/backup-repo
 ---
 
 # Test Workflow
@@ -116,7 +79,7 @@ permissions:
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			tmpDir := testutil.TempDir(t, "mcp-scripts-experimental-warning-test")
+			tmpDir := testutil.TempDir(t, "dispatch-repository-experimental-warning-test")
 
 			testFile := filepath.Join(tmpDir, "test-workflow.md")
 			if err := os.WriteFile(testFile, []byte(tt.content), 0644); err != nil {
@@ -144,7 +107,7 @@ permissions:
 				return
 			}
 
-			expectedMessage := "Using experimental feature: mcp-scripts"
+			expectedMessage := "Using experimental feature: dispatch_repository"
 
 			if tt.expectWarning {
 				if !strings.Contains(stderrOutput, expectedMessage) {
@@ -156,7 +119,7 @@ permissions:
 				}
 			}
 
-			// Verify warning count includes mcp-scripts warning
+			// Verify warning count includes dispatch_repository warning
 			if tt.expectWarning {
 				warningCount := compiler.GetWarningCount()
 				if warningCount == 0 {

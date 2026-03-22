@@ -195,11 +195,8 @@ async function main() {
 
         // Validate file name patterns if filter is set
         if (fileGlobFilter) {
-          const patterns = fileGlobFilter
-            .trim()
-            .split(/\s+/)
-            .filter(Boolean)
-            .map(pattern => globPatternToRegex(pattern));
+          const patternStrs = fileGlobFilter.trim().split(/\s+/).filter(Boolean);
+          const patterns = patternStrs.map(pattern => globPatternToRegex(pattern));
 
           // Test patterns against the relative file path within the memory directory
           // Patterns are specified relative to the memory artifact directory, not the branch path
@@ -212,8 +209,7 @@ async function main() {
 
           const matchResults = patterns.map((pattern, idx) => {
             const matches = pattern.test(normalizedRelPath);
-            const patternStr = fileGlobFilter.trim().split(/\s+/).filter(Boolean)[idx];
-            core.debug(`  Pattern ${idx + 1}: "${patternStr}" -> ${pattern.source} -> ${matches ? "✓ MATCH" : "✗ NO MATCH"}`);
+            core.debug(`  Pattern ${idx + 1}: "${patternStrs[idx]}" -> ${pattern.source} -> ${matches ? "✓ MATCH" : "✗ NO MATCH"}`);
             return matches;
           });
 
@@ -222,7 +218,6 @@ async function main() {
             core.warning(`Skipping file that does not match allowed patterns: ${normalizedRelPath}`);
             core.info(`  File path being tested (relative to artifact): ${normalizedRelPath}`);
             core.info(`  Configured patterns: ${fileGlobFilter}`);
-            const patternStrs = fileGlobFilter.trim().split(/\s+/).filter(Boolean);
             patterns.forEach((pattern, idx) => {
               core.info(`    Pattern: "${patternStrs[idx]}" -> Regex: ${pattern.source} -> ${matchResults[idx] ? "✅ MATCH" : "❌ NO MATCH"}`);
             });

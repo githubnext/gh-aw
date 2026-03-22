@@ -5,6 +5,7 @@ const { loadAgentOutput } = require("./load_agent_output.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { loadTemporaryIdMapFromResolved, resolveIssueNumber, isTemporaryId, normalizeTemporaryId } = require("./temporary_id.cjs");
 const { logStagedPreviewInfo } = require("./staged_preview.cjs");
+const { isStagedMode } = require("./safe_output_helpers.cjs");
 const { ERR_API, ERR_CONFIG, ERR_NOT_FOUND, ERR_PARSE, ERR_VALIDATION } = require("./error_codes.cjs");
 const { parseRepoSlug, resolveTargetRepoConfig, isRepoAllowed } = require("./repo_helpers.cjs");
 
@@ -1237,7 +1238,7 @@ async function main(config = {}, githubClient = null) {
   const { defaultTargetRepo, allowedRepos } = resolveTargetRepoConfig(config);
 
   // Check if we're in staged mode
-  const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true";
+  const isStaged = isStagedMode(config);
 
   if (configuredViews.length > 0) {
     core.info(`Found ${configuredViews.length} configured view(s) in frontmatter`);

@@ -979,10 +979,9 @@ func TestAddWorkflowWithDispatchWorkflowFromSharedImport(t *testing.T) {
 	// workflow). The fetcher falls back to .yml when .md is 404, so both the main
 	// workflow and the dispatch-workflow dependency are written to disk.
 	//
-	// Note: pinned to a specific commit SHA from the branch that renamed
-	// allowed-url-domains → allowed-domains (schema change). Update to @main once
-	// that change has been merged.
-	workflowSpec := "github/gh-aw/.github/workflows/smoke-copilot.md@c93eec8"
+	// Note: pinned to a specific commit SHA that includes strict: false in smoke-copilot.md
+	// (required since sandbox.mcp.container is now blocked in strict mode).
+	workflowSpec := "github/gh-aw/.github/workflows/smoke-copilot.md@c40d97c"
 
 	cmd := exec.Command(setup.binaryPath, "add", workflowSpec, "--verbose")
 	cmd.Dir = setup.tempDir

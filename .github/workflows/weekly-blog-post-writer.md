@@ -19,7 +19,7 @@ tools:
   bash: ["*"]
   github:
     lockdown: false
-    repos:
+    allowed-repos:
       - github/gh-aw
     min-integrity: approved
     toolsets:

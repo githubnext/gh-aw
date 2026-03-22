@@ -21,7 +21,6 @@ on:
   label_command: deploy
 permissions:
   contents: read
-  actions: write
 safe-outputs:
   add-comment:
     max: 1
@@ -67,7 +66,7 @@ on:
     remove_label: false
 ```
 
-The `remove_label` field (boolean, default `true`) controls whether the matched label is removed after the workflow activates. Set it to `false` when the label represents a persistent state rather than a transient command — for example, to mark that an item is currently being processed without consuming the label. When `remove_label: false`, the `issues: write` / `pull-requests: write` permissions for label removal are not required.
+The `remove_label` field (boolean, default `true`) controls whether the matched label is removed after the workflow activates. Set it to `false` when the label represents a persistent state rather than a transient command — for example, to mark that an item is currently being processed without consuming the label. When `remove_label: false`.
 
 The compiler generates `issues`, `pull_request`, and/or `discussion` events with `types: [labeled]`, filtered to the named labels. It also adds a `workflow_dispatch` trigger with an `item_number` input so you can test the workflow manually without applying a real label.
 
@@ -94,9 +93,6 @@ on:
 ```
 
 This lets a workflow be triggered both by a `/deploy` comment and by applying a `deploy` label, sharing the same agent logic.
-
-> [!NOTE]
-> The automatic label removal requires `issues: write` or `pull-requests: write` permission (depending on item type). Add the relevant permission to your frontmatter when using `label_command`.
 
 ## Label Filtering
 

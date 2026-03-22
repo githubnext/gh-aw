@@ -114,7 +114,6 @@ network:
     - "docs.example.com"
 
 permissions:
-  issues: write
   contents: read
 
 safe-outputs:
@@ -155,7 +154,6 @@ network:
     - github
 
 permissions:
-  pull-requests: write
   contents: read
 
 safe-outputs:

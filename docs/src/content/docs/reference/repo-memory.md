@@ -64,7 +64,7 @@ Mounts at `/tmp/gh-aw/repo-memory-{id}/` during workflow execution. Required `id
 
 ## Behavior
 
-Branches auto-create as orphans (default) or clone with `--depth 1`. Changes auto-commit after validation (`file-glob`, `max-file-size`, `max-file-count`), pull with `-X ours` (your changes win), and push when changes detected and threat detection passes. Auto-adds `contents: write` permission.
+Branches auto-create as orphans (default) or clone with `--depth 1`. Changes auto-commit after validation (`file-glob`, `max-file-size`, `max-file-count`), pull with `-X ours` (your changes win), and push when changes detected and threat detection passes.
 
 ## Comparison with Cache Memory
 
@@ -82,7 +82,6 @@ For fast 7-day caching without version control, see [Cache Memory](/gh-aw/refere
 ## Troubleshooting
 
 - **Branch not created**: Ensure `create-orphan: true` or create manually.
-- **Permission denied**: Compiler auto-adds `contents: write`.
 - **Validation failures**: Match `file-glob`, stay under `max-file-size` (10KB default), `max-file-count` (100 default), and `max-patch-size` (10KB default).
 - **Patch too large**: If the total diff exceeds `max-patch-size` (default 10KB), the push is rejected. Reduce the number or size of changes, or increase `max-patch-size` in the configuration.
 - **Changes not persisting**: Check directory path, workflow completion, push errors in logs.

@@ -3,6 +3,7 @@
 
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { logStagedPreviewInfo } = require("./staged_preview.cjs");
+const { isStagedMode } = require("./safe_output_helpers.cjs");
 
 /**
  * @typedef {import('./types/handler-factory').HandlerFactoryFunction} HandlerFactoryFunction
@@ -19,7 +20,7 @@ const HANDLER_TYPE = "autofix_code_scanning_alert";
 async function main(config = {}) {
   // Extract configuration
   const maxCount = config.max || 10;
-  const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true";
+  const isStaged = isStagedMode(config);
 
   core.info(`Add code scanning autofix configuration: max=${maxCount}`);
   if (isStaged) logStagedPreviewInfo("no changes will be written");

@@ -5,6 +5,7 @@ const { loadAgentOutput } = require("./load_agent_output.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { sanitizeContent } = require("./sanitize_content.cjs");
 const { logStagedPreviewInfo } = require("./staged_preview.cjs");
+const { isStagedMode } = require("./safe_output_helpers.cjs");
 const { isTemporaryId, normalizeTemporaryId } = require("./temporary_id.cjs");
 const { ERR_CONFIG, ERR_NOT_FOUND, ERR_PARSE, ERR_VALIDATION } = require("./error_codes.cjs");
 
@@ -288,7 +289,7 @@ async function main(config = {}, githubClient = null) {
   const maxCount = config.max || 10;
 
   // Check if we're in staged mode
-  const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true";
+  const isStaged = isStagedMode(config);
 
   // Use the provided github client, or fall back to the global github object
   // @ts-ignore - global.github is set by setupGlobals() from github-script context

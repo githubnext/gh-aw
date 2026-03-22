@@ -111,6 +111,7 @@ func buildConnectionString(config parser.MCPServerConfig) string {
 
 // connectToMCPServer establishes a connection to the MCP server and queries its capabilities
 func connectToMCPServer(config parser.MCPServerConfig, verbose bool) (*parser.MCPServerInfo, error) {
+	mcpInspectServerLog.Printf("Connecting to MCP server: name=%s, type=%s", config.Name, config.Type)
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
@@ -129,6 +130,7 @@ func connectToMCPServer(config parser.MCPServerConfig, verbose bool) (*parser.MC
 
 // connectStdioMCPServer connects to a stdio-based MCP server using the Go SDK
 func connectStdioMCPServer(ctx context.Context, config parser.MCPServerConfig, verbose bool) (*parser.MCPServerInfo, error) {
+	mcpInspectServerLog.Printf("Connecting to stdio MCP server: command=%s, args=%d", config.Command, len(config.Args))
 	if verbose {
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Starting stdio MCP server: %s %s", config.Command, strings.Join(config.Args, " "))))
 	}
@@ -340,6 +342,7 @@ func extractRootsFromResources(resources []*mcp.Resource) []*mcp.Root {
 
 // displayServerCapabilities shows the server's tools, resources, and roots in formatted tables
 func displayServerCapabilities(info *parser.MCPServerInfo, toolFilter string) {
+	mcpInspectServerLog.Printf("Displaying server capabilities: tools=%d, resources=%d, toolFilter=%q", len(info.Tools), len(info.Resources), toolFilter)
 	// Display tools with allowed/not allowed status
 	if len(info.Tools) > 0 {
 		// If a specific tool is requested, show detailed information

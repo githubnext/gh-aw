@@ -4,7 +4,18 @@ import path from "path";
 import os from "os";
 const core = { info: vi.fn(), warning: vi.fn(), debug: vi.fn(), setFailed: vi.fn() };
 global.core = core;
-const { processRuntimeImports, processRuntimeImport, hasFrontMatter, removeXMLComments, hasGitHubActionsMacros, isSafeExpression, evaluateExpression } = require("./runtime_import.cjs");
+const {
+  processRuntimeImports,
+  processRuntimeImport,
+  hasFrontMatter,
+  removeXMLComments,
+  hasGitHubActionsMacros,
+  isSafeExpression,
+  evaluateExpression,
+  wrapExpressionsInTemplateConditionals,
+  extractAndReplacePlaceholders,
+  generatePlaceholderName,
+} = require("./runtime_import.cjs");
 describe("runtime_import", () => {
   let tempDir;
   let githubDir;
@@ -426,6 +437,13 @@ describe("runtime_import", () => {
           fs.writeFileSync(path.join(workflowsDir, "with-conditionals.md"), content);
           const result = await processRuntimeImport("with-conditionals.md", !1, tempDir);
           expect(result).toBe(content);
+        }),
+        it("should preserve {{#if ...}} as literal text without converting to a placeholder", async () => {
+          const content = "- **Conditional blocks not handled**: `{{#if ...}}` blocks are left in output";
+          fs.writeFileSync(path.join(workflowsDir, "with-dots-if.md"), content);
+          const result = await processRuntimeImport("with-dots-if.md", !1, tempDir);
+          expect(result).toBe(content);
+          expect(result).not.toContain("__GH_AW_");
         }),
         it("should support .github/workflows/ prefix in path", async () => {
           const content = "Test with .github/workflows prefix";
@@ -1342,4 +1360,149 @@ describe("runtime_import", () => {
         });
       });
     }));
+
+  describe("wrapExpressionsInTemplateConditionals", () => {
+    describe("non-GitHub expressions — must be left unchanged", () => {
+      it("should leave {{#if .}} unchanged (single dot)", () => {
+        expect(wrapExpressionsInTemplateConditionals("{{#if .}}body{{/if}}")).toBe("{{#if .}}body{{/if}}");
+      });
+      it("should leave {{#if ..}} unchanged (double dot)", () => {
+        expect(wrapExpressionsInTemplateConditionals("{{#if ..}}body{{/if}}")).toBe("{{#if ..}}body{{/if}}");
+      });
+      it("should leave {{#if ...}} unchanged (triple dot — regression)", () => {
+        expect(wrapExpressionsInTemplateConditionals("{{#if ...}}body{{/if}}")).toBe("{{#if ...}}body{{/if}}");
+      });
+      it("should leave {{#if 1.5}} unchanged (starts with digit)", () => {
+        expect(wrapExpressionsInTemplateConditionals("{{#if 1.5}}body{{/if}}")).toBe("{{#if 1.5}}body{{/if}}");
+      });
+      it("should leave plain identifier {{#if condition}} unchanged (no dot)", () => {
+        expect(wrapExpressionsInTemplateConditionals("{{#if condition}}body{{/if}}")).toBe("{{#if condition}}body{{/if}}");
+      });
+    });
+
+    describe("GitHub Actions expressions — must be wrapped", () => {
+      it("should wrap {{#if github.actor}}", () => {
+        expect(wrapExpressionsInTemplateConditionals("{{#if github.actor}}body{{/if}}")).toBe("{{#if ${{ github.actor }} }}body{{/if}}");
+      });
+      it("should wrap {{#if needs.activation.outputs.text}}", () => {
+        expect(wrapExpressionsInTemplateConditionals("{{#if needs.activation.outputs.text}}body{{/if}}")).toBe("{{#if ${{ needs.activation.outputs.text }} }}body{{/if}}");
+      });
+      it("should wrap {{#if steps.foo.outputs.bar}}", () => {
+        expect(wrapExpressionsInTemplateConditionals("{{#if steps.foo.outputs.bar}}body{{/if}}")).toBe("{{#if ${{ steps.foo.outputs.bar }} }}body{{/if}}");
+      });
+      it("should wrap {{#if true}}", () => {
+        expect(wrapExpressionsInTemplateConditionals("{{#if true}}body{{/if}}")).toBe("{{#if ${{ true }} }}body{{/if}}");
+      });
+      it("should wrap {{#if false}}", () => {
+        expect(wrapExpressionsInTemplateConditionals("{{#if false}}body{{/if}}")).toBe("{{#if ${{ false }} }}body{{/if}}");
+      });
+      it("should wrap {{#if null}}", () => {
+        expect(wrapExpressionsInTemplateConditionals("{{#if null}}body{{/if}}")).toBe("{{#if ${{ null }} }}body{{/if}}");
+      });
+    });
+
+    describe("already-processed expressions — must be left unchanged", () => {
+      it("should leave already-wrapped ${{ }} expression unchanged", () => {
+        const input = "{{#if ${{ github.actor }} }}body{{/if}}";
+        expect(wrapExpressionsInTemplateConditionals(input)).toBe(input);
+      });
+      it("should leave __PLACEHOLDER__ reference unchanged", () => {
+        const input = "{{#if __GH_AW_GITHUB_ACTOR__ }}body{{/if}}";
+        expect(wrapExpressionsInTemplateConditionals(input)).toBe(input);
+      });
+      it("should leave ${ENV_VAR} reference unchanged", () => {
+        const input = "{{#if ${MY_VAR}}}body{{/if}}";
+        expect(wrapExpressionsInTemplateConditionals(input)).toBe(input);
+      });
+    });
+
+    it("should handle multiple conditionals in one string", () => {
+      const input = "{{#if github.actor}}A{{/if}} and {{#if ...}}B{{/if}}";
+      const result = wrapExpressionsInTemplateConditionals(input);
+      expect(result).toContain("{{#if ${{ github.actor }} }}");
+      expect(result).toContain("{{#if ...}}");
+    });
+  });
+
+  describe("extractAndReplacePlaceholders", () => {
+    it("should convert {{#if ${{ github.actor }} }} to __GH_AW_GITHUB_ACTOR__", () => {
+      const input = "{{#if ${{ github.actor }} }}body{{/if}}";
+      expect(extractAndReplacePlaceholders(input)).toBe("{{#if __GH_AW_GITHUB_ACTOR__ }}body{{/if}}");
+    });
+    it("should convert nested expression github.event.issue.number", () => {
+      const input = "{{#if ${{ github.event.issue.number }} }}body{{/if}}";
+      expect(extractAndReplacePlaceholders(input)).toBe("{{#if __GH_AW_GITHUB_EVENT_ISSUE_NUMBER__ }}body{{/if}}");
+    });
+    it("should convert needs.activation.outputs.text", () => {
+      const input = "{{#if ${{ needs.activation.outputs.text }} }}body{{/if}}";
+      expect(extractAndReplacePlaceholders(input)).toBe("{{#if __GH_AW_NEEDS_ACTIVATION_OUTPUTS_TEXT__ }}body{{/if}}");
+    });
+    it("should leave content without wrapped expressions unchanged", () => {
+      const input = "{{#if __GH_AW_GITHUB_ACTOR__ }}body{{/if}}";
+      expect(extractAndReplacePlaceholders(input)).toBe(input);
+    });
+  });
+
+  describe("generatePlaceholderName", () => {
+    it("should generate GH_AW_GITHUB_ACTOR from github.actor", () => {
+      expect(generatePlaceholderName("github.actor")).toBe("GH_AW_GITHUB_ACTOR");
+    });
+    it("should generate GH_AW_GITHUB_EVENT_ISSUE_NUMBER from github.event.issue.number", () => {
+      expect(generatePlaceholderName("github.event.issue.number")).toBe("GH_AW_GITHUB_EVENT_ISSUE_NUMBER");
+    });
+    it("should generate GH_AW_NEEDS_FOO_OUTPUTS_BAR from needs.foo.outputs.bar", () => {
+      expect(generatePlaceholderName("needs.foo.outputs.bar")).toBe("GH_AW_NEEDS_FOO_OUTPUTS_BAR");
+    });
+    it("should return GH_AW_TRUE for true", () => {
+      expect(generatePlaceholderName("true")).toBe("GH_AW_TRUE");
+    });
+    it("should return GH_AW_FALSE for false", () => {
+      expect(generatePlaceholderName("false")).toBe("GH_AW_FALSE");
+    });
+    it("should return GH_AW_NULL for null", () => {
+      expect(generatePlaceholderName("null")).toBe("GH_AW_NULL");
+    });
+  });
+
+  describe("processRuntimeImport — expression wrapping integration", () => {
+    let tempDir2;
+    let workflowsDir2;
+    beforeEach(() => {
+      tempDir2 = fs.mkdtempSync(path.join(os.tmpdir(), "ri-wrap-test-"));
+      workflowsDir2 = path.join(tempDir2, ".github", "workflows");
+      fs.mkdirSync(workflowsDir2, { recursive: true });
+    });
+    afterEach(() => {
+      fs.rmSync(tempDir2, { recursive: true, force: true });
+    });
+
+    it("should preserve {{#if .}} when imported (dot-only, not a GitHub expression)", async () => {
+      const content = "{{#if .}}present{{/if}}";
+      fs.writeFileSync(path.join(workflowsDir2, "dot.md"), content);
+      const result = await processRuntimeImport("dot.md", false, tempDir2);
+      expect(result).toBe(content);
+      expect(result).not.toContain("__GH_AW_");
+    });
+    it("should preserve {{#if 1.5}} when imported (digit-start, not a GitHub expression)", async () => {
+      const content = "{{#if 1.5}}present{{/if}}";
+      fs.writeFileSync(path.join(workflowsDir2, "digit.md"), content);
+      const result = await processRuntimeImport("digit.md", false, tempDir2);
+      expect(result).toBe(content);
+      expect(result).not.toContain("__GH_AW_");
+    });
+    it("should convert {{#if github.actor}} to __GH_AW_GITHUB_ACTOR__ placeholder when imported", async () => {
+      const content = "{{#if github.actor}}present{{/if}}";
+      fs.writeFileSync(path.join(workflowsDir2, "actor.md"), content);
+      const result = await processRuntimeImport("actor.md", false, tempDir2);
+      expect(result).toContain("__GH_AW_GITHUB_ACTOR__");
+      expect(result).not.toContain("{{#if github.actor}}");
+    });
+    it("should preserve inline doc text containing {{#if ...}} exactly (regression test)", async () => {
+      const content = "- **Conditional blocks not handled**: `{{#if ...}}` blocks are left in output → fix template processing";
+      fs.writeFileSync(path.join(workflowsDir2, "doc.md"), content);
+      const result = await processRuntimeImport("doc.md", false, tempDir2);
+      expect(result).toBe(content);
+      expect(result).not.toContain("__GH_AW_");
+    });
+  });
 });

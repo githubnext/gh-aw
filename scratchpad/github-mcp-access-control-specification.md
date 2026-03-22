@@ -252,7 +252,7 @@ tools:
       - "get_repository"
       - "list_issues"
     # Access Control Extensions (this specification)
-    repos:                    # OPTIONAL: Repository allowlist
+    allowed-repos:            # OPTIONAL: Repository allowlist (formerly 'repos', which is deprecated)
       - "owner/repo"                  # Exact match
       - "owner/*"                     # Wildcard: all repos in owner
       - "*/infrastructure"            # Wildcard: repos named infrastructure
@@ -800,7 +800,7 @@ The GitHub MCP server configuration combines tool selection (`toolsets` and `too
 tools:
   github:
     toolsets: [repos, issues]           # Agent can use repo and issue tools
-    repos: ["myorg/*"]                  # But only on myorg repositories
+    allowed-repos: ["myorg/*"]          # But only on myorg repositories
     roles: ["write", "admin"]           # And only where user has write/admin
     private-repos: false                # And only public repositories
     min-integrity: "approved"           # And only approved/merged content items

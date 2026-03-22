@@ -57,7 +57,7 @@ The `preserve-branch-name` field, when set to `true`, omits the random hex salt 
 
 The `draft` field is a **configuration policy**, not a default. Whatever value is set in the workflow frontmatter is always used — the agent cannot override it at runtime.
 
-PR creation may fail if "Allow GitHub Actions to create and approve pull requests" is disabled in Organization Settings. By default (`fallback-as-issue: true`), fallback creates an issue with branch link and requires `issues: write` permission. Set `fallback-as-issue: false` to disable fallback and only require `contents: write` + `pull-requests: write`.
+PR creation may fail if "Allow GitHub Actions to create and approve pull requests" is disabled in Organization Settings. By default (`fallback-as-issue: true`), fallback creates an issue with branch link. Set `fallback-as-issue: false` to disable fallback.
 
 When `create-pull-request` is configured, git commands (`checkout`, `branch`, `switch`, `add`, `rm`, `commit`, `merge`) are automatically enabled.
 

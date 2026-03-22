@@ -228,6 +228,7 @@ func AddResolvedWorkflows(workflowStrings []string, resolved *ResolvedWorkflows,
 
 // addWorkflows handles workflow addition using pre-fetched content
 func addWorkflows(workflows []*ResolvedWorkflow, opts AddOptions) error {
+	addLog.Printf("Adding %d workflow(s) to repository", len(workflows))
 	// Create file tracker for all operations
 	tracker, err := NewFileTracker()
 	if err != nil {
@@ -242,6 +243,7 @@ func addWorkflows(workflows []*ResolvedWorkflow, opts AddOptions) error {
 
 // addWorkflows handles workflow addition using pre-fetched content
 func addWorkflowsWithTracking(workflows []*ResolvedWorkflow, tracker *FileTracker, opts AddOptions) error {
+	addLog.Printf("Adding %d workflow(s) with tracking: force=%v, disableSecurityScanner=%v", len(workflows), opts.Force, opts.DisableSecurityScanner)
 	// Ensure .gitattributes is configured unless flag is set
 	if !opts.NoGitattributes {
 		addLog.Print("Configuring .gitattributes")
@@ -283,6 +285,8 @@ func addWorkflowWithTracking(resolved *ResolvedWorkflow, tracker *FileTracker, o
 	workflowSpec := resolved.Spec
 	sourceContent := resolved.Content
 	sourceInfo := resolved.SourceInfo
+
+	addLog.Printf("Adding workflow: name=%s, content_size=%d bytes", workflowSpec.WorkflowName, len(sourceContent))
 
 	if opts.Verbose {
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Adding workflow: "+workflowSpec.String()))

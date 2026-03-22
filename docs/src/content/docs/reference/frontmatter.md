@@ -222,32 +222,7 @@ runtimes:
 
 ### Permissions (`permissions:`)
 
-The `permissions:` section uses standard GitHub Actions permissions syntax to specify the permissions relevant to the agentic (natural language) part of the execution of the workflow. See [GitHub Actions permissions documentation](https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions#permissions).
-
-```yaml wrap
-# Specific permissions
-permissions:
-  issues: write
-  contents: read
-  pull-requests: write
-
-# All permissions
-permissions: write-all
-permissions: read-all
-
-# No permissions
-permissions: {}
-```
-
-If you specify any permission, unspecified ones are set to `none`.
-
-#### Permission Validation
-
-The compiler validates workflows have sufficient permissions for their configured tools.
-
-**Non-strict mode** (default): Emits warnings with suggestions to add missing permissions or reduce toolset requirements.
-
-**Strict mode** (`gh aw compile --strict`): Treats under-provisioned permissions as compilation errors. Use for production workflows requiring enhanced security validation.
+The `permissions:` section uses a syntax similar to standard GitHub Actions permissions syntax to specify the GitHub read permissions relevant to the agentic (natural language) part of the execution of the workflow. See [GitHub Tools Read Permissions](/gh-aw/reference/permissions/).
 
 ### Repository Access Roles (`on.roles:`)
 

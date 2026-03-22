@@ -119,9 +119,6 @@ Any changes to the frontmatter configuration between `---` markers:
 on:
   issues:
     types: [opened]
-
-permissions:
-  issues: write
 ---
 ```
 
@@ -131,9 +128,6 @@ permissions:
 on:
   issues:
     types: [opened]
-
-permissions:
-  issues: write
 
 tools:
   github:
@@ -184,7 +178,7 @@ Use `steps.sanitized.outputs.text` for sanitized user input instead.
 | **Conditional logic** | "If bug, then..." | ❌ No | GitHub.com or any editor |
 | **GitHub expressions** | Add `${{ github.actor }}` | ❌ No | GitHub.com or any editor |
 | **Tools** | Add GitHub toolset | ✅ Yes | Local + compile |
-| **Permissions** | Add `contents: write` | ✅ Yes | Local + compile |
+| **Permissions** | Add a read permission | ✅ Yes | Local + compile |
 | **Triggers** | Add `schedule:` | ✅ Yes | Local + compile |
 | **Network rules** | Add allowed domain | ✅ Yes | Local + compile |
 | **Safe outputs** | Add `create-issue:` | ✅ Yes | Local + compile |

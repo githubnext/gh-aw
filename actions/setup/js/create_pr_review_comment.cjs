@@ -46,6 +46,11 @@ async function main(config = {}) {
     core.info(`Allowed repos: ${Array.from(allowedRepos).join(", ")}`);
   }
 
+  // Propagate per-handler staged flag to the shared PR review buffer
+  if (config.staged === true) {
+    buffer.setStaged(true);
+  }
+
   // Track how many items we've processed for max limit
   let processedCount = 0;
 

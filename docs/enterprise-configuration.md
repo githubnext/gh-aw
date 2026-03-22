@@ -109,8 +109,6 @@ on:
   workflow_dispatch:
 permissions:
   contents: read
-  issues: write
-  pull-requests: write
 engine:
   id: copilot
   api-target: api.acme.ghe.com
@@ -139,7 +137,6 @@ on:
     types: [created]
 permissions:
   contents: read
-  issues: write
 engine:
   id: copilot
   api-target: api.enterprise.githubcopilot.com

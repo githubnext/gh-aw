@@ -1,11 +1,11 @@
 ---
-title: Integrity Filtering
+title: GitHub Integrity Filtering
 description: How integrity filtering restricts agent access to GitHub content based on author trust and merge status, and how filtered events appear in logs.
 sidebar:
   order: 680
 ---
 
-Integrity filtering controls which GitHub content an agent can access during a workflow run. Rather than filtering by permissions, it filters by **trust**: the author association of an issue, pull request, or comment, and whether that content has been merged into the main branch.
+Integrity filtering (`tools.github.min-integrity`) controls which GitHub content an agent can access during a workflow run. Rather than filtering by permissions, it filters by **trust**: the author association of an issue, pull request, or comment, and whether that content has been merged into the main branch.
 
 ## How It Works
 
@@ -109,7 +109,7 @@ The `min-integrity` threshold check is applied after this computation.
 
 ## Default Behavior
 
-For **public repositories**, if no `min-integrity` or `lockdown` is configured, the runtime automatically applies `min-integrity: approved`. This protects public workflows even when additional authentication has not been set up. See [Automatic Minimum-Integrity Protection](/gh-aw/reference/lockdown-mode/#automatic-minimum-integrity-protection) for details.
+For **public repositories**, if no `min-integrity` is configured, the runtime automatically applies `min-integrity: approved`. This protects public workflows even when additional authentication has not been set up.
 
 For **private and internal repositories**, no guard policy is applied automatically. Content from all users is accessible by default.
 
@@ -122,8 +122,8 @@ The right level depends on who you want the agent to see content from:
 - **Community triage or planning workflows**: `unapproved` — allow contributor input while excluding anonymous or first-time interactions.
 - **Public-data workflows or spam detection**: `none` — see all activity, but ensure the workflow's outputs are not directly applied without review.
 
-> [!WARNING]
-> Setting `min-integrity: none` on a public repository disables the automatic protection. Only use it when the workflow is explicitly designed to handle untrusted input.
+> [!NOTE]
+> Setting `min-integrity: none` on a public repository disables the automatic protection. Only use it when the workflow is designed to handle untrusted input.
 
 ## Examples
 
@@ -152,7 +152,7 @@ tools:
     min-integrity: unapproved
 ```
 
-**Explicitly disable filtering on a public repository:**
+**Explicitly disable filtering on a public repository, apart from blocked users:**
 
 ```aw wrap
 tools:
@@ -230,18 +230,8 @@ gh aw logs --filtered-integrity
 
 This is useful when investigating whether your `min-integrity` configuration is filtering expected content or when tuning the level after observing real traffic patterns.
 
-## Relationship to Lockdown Mode
-
-[Lockdown Mode](/gh-aw/reference/lockdown-mode/) is a separate but related feature of the GitHub MCP server. It filters content to users with push access. The two features can coexist:
-
-- `lockdown: true` filters using the GitHub MCP server's own content filter (based on push access).
-- `min-integrity` filters using the MCP gateway's DIFC mechanism (based on author association and merge status).
-
-For most public repository workflows, `min-integrity: approved` provides equivalent protection to lockdown mode without requiring additional authentication.
-
 ## Related Documentation
 
-- [GitHub Tools Reference](/gh-aw/reference/github-tools/) — Full `tools.github` configuration including `repos` and guard policies
-- [Lockdown Mode](/gh-aw/reference/lockdown-mode/) — GitHub MCP server content filtering for public repositories
+- [GitHub Tools Reference](/gh-aw/reference/github-tools/) — Full `tools.github` configuration
 - [MCP Gateway](/gh-aw/reference/mcp-gateway/) — Gateway architecture and log format
 - [CLI Reference: logs](/gh-aw/setup/cli/#logs) — Downloading and analyzing workflow run logs

@@ -339,7 +339,7 @@ func TestValidateGitHubGuardPolicy(t *testing.T) {
 				},
 			},
 			shouldError: true,
-			errorMsg:    "'github.repos' string must be 'all' or 'public'",
+			errorMsg:    "'github.allowed-repos' string must be 'all' or 'public'",
 		},
 		{
 			name: "empty repos array",
@@ -350,7 +350,7 @@ func TestValidateGitHubGuardPolicy(t *testing.T) {
 				},
 			},
 			shouldError: true,
-			errorMsg:    "'github.repos' array cannot be empty",
+			errorMsg:    "'github.allowed-repos' array cannot be empty",
 		},
 		{
 			name: "repos array with uppercase pattern",

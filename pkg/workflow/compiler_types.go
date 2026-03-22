@@ -27,11 +27,6 @@ func WithCustomOutput(path string) CompilerOption {
 	return func(c *Compiler) { c.customOutput = path }
 }
 
-// WithVersion overrides the auto-detected version
-func WithVersion(version string) CompilerOption {
-	return func(c *Compiler) { c.version = version }
-}
-
 // WithSkipValidation configures whether to skip schema validation
 func WithSkipValidation(skip bool) CompilerOption {
 	return func(c *Compiler) { c.skipValidation = skip }
@@ -109,7 +104,7 @@ type Compiler struct {
 
 // NewCompiler creates a new workflow compiler with functional options.
 // By default, it auto-detects the version and action mode.
-// Common options: WithVerbose, WithEngineOverride, WithCustomOutput, WithVersion, WithActionMode
+// Common options: WithVerbose, WithEngineOverride, WithNoEmit, WithSkipValidation
 func NewCompiler(opts ...CompilerOption) *Compiler {
 	// Get default version
 	version := defaultVersion
@@ -150,9 +145,10 @@ func NewCompiler(opts ...CompilerOption) *Compiler {
 // Deprecated: Use NewCompiler with functional options instead.
 // This function is kept for backward compatibility during migration.
 func NewCompilerWithVersion(version string) *Compiler {
-	return NewCompiler(
-		WithVersion(version),
-	)
+	c := NewCompiler()
+	c.version = version
+	c.actionMode = DetectActionMode(c.version)
+	return c
 }
 
 // SetSkipValidation configures whether to skip schema validation
@@ -290,12 +286,6 @@ func (c *Compiler) getSharedActionResolver() (*ActionCache, *ActionResolver) {
 		c.actionCacheCleared = true
 	}
 	return c.actionCache, c.actionResolver
-}
-
-// GetSharedActionResolverForTest exposes the shared action resolver for testing purposes
-// This should only be used in tests
-func (c *Compiler) GetSharedActionResolverForTest() (*ActionCache, *ActionResolver) {
-	return c.getSharedActionResolver()
 }
 
 // getSharedImportCache returns the shared import cache, initializing it on first use
@@ -476,6 +466,7 @@ type SafeOutputsConfig struct {
 	HideComment                     *HideCommentConfig                     `yaml:"hide-comment,omitempty"`                 // Hide comments
 	SetIssueType                    *SetIssueTypeConfig                    `yaml:"set-issue-type,omitempty"`               // Set the type of an issue (empty string clears the type)
 	DispatchWorkflow                *DispatchWorkflowConfig                `yaml:"dispatch-workflow,omitempty"`            // Dispatch workflow_dispatch events to other workflows
+	DispatchRepository              *DispatchRepositoryConfig              `yaml:"dispatch_repository,omitempty"`          // Dispatch repository_dispatch events to external repositories
 	CallWorkflow                    *CallWorkflowConfig                    `yaml:"call-workflow,omitempty"`                // Call reusable workflows via workflow_call fan-out
 	MissingTool                     *MissingToolConfig                     `yaml:"missing-tool,omitempty"`                 // Optional for reporting missing functionality
 	MissingData                     *MissingDataConfig                     `yaml:"missing-data,omitempty"`                 // Optional for reporting missing data required to achieve goals

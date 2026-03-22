@@ -240,7 +240,8 @@ jobs:
 
   safe-outputs: needs[agent] # isolated container
     run: gh issue comment add ...
-    permissions: issues: write
+    permissions:
+      issues: write
 ```
 
 > Markdown workflows compiled to GitHub Actions YAML for auditability
@@ -538,7 +539,7 @@ External services accessed only through proxies — multiple controls before rea
 | **Network** | Proxy/firewall at every layer, domain allowlisting |
 | **Permissions** | Read-only default, safe outputs for writes |
 | **Supply Chain** | Pinned action SHAs, protected CI/CD files |
-| **GitHub Guard** | `min-integrity`, secrecy & integrity metadata |
+| **Integrity** | `min-integrity`, access & integrity metadata |
 | **Monitoring** | Threat detection, audit logs, run analysis |
 
 ---

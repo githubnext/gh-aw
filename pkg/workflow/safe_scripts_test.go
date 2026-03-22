@@ -460,3 +460,96 @@ func TestHasNonBuiltinSafeOutputsEnabledWithScripts(t *testing.T) {
 	}
 	assert.True(t, hasNonBuiltinSafeOutputsEnabled(config), "Scripts should count as non-builtin safe outputs")
 }
+
+// TestIsSafeScriptName verifies path traversal detection in script names
+func TestIsSafeScriptName(t *testing.T) {
+	tests := []struct {
+		name  string
+		input string
+		want  bool
+	}{
+		// Valid names
+		{"plain name", "my_handler", true},
+		{"name with numbers", "handler_v2", true},
+		{"single word", "handler", true},
+		{"dot in name", "handler.name", true},
+		// Invalid — path separators and traversal sequences
+		{"forward slash", "sub/handler", false},
+		{"backslash", `sub\handler`, false},
+		{"double dot", "handler..", false},
+		{"leading dot-dot", "../evil", false},
+		{"double dot only", "..", false},
+		{"traversal chain", "../../etc/shadow", false},
+		{"dot-dot at end", "handler/../../", false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := isSafeScriptName(tt.input)
+			assert.Equal(t, tt.want, got, "isSafeScriptName(%q) should be %v", tt.input, tt.want)
+		})
+	}
+}
+
+// TestBuildCustomSafeOutputScriptsJSONPathTraversal verifies path traversal names are rejected
+func TestBuildCustomSafeOutputScriptsJSONPathTraversal(t *testing.T) {
+	adversarialInputs := []struct {
+		name      string
+		scriptKey string
+	}{
+		{"forward slash in name", "sub/evil"},
+		{"backslash in name", `sub\evil`},
+		{"double dot traversal", "../evil"},
+		{"double dot only", ".."},
+		{"multi-level traversal", "../../etc/shadow"},
+	}
+
+	for _, tt := range adversarialInputs {
+		t.Run(tt.name, func(t *testing.T) {
+			data := &WorkflowData{
+				SafeOutputs: &SafeOutputsConfig{
+					Scripts: map[string]*SafeScriptConfig{
+						tt.scriptKey: {
+							Script: "return async (m) => ({ success: true });",
+						},
+					},
+				},
+			}
+
+			jsonStr := buildCustomSafeOutputScriptsJSON(data)
+
+			// The adversarial script name must not appear in the output JSON.
+			// (An empty JSON object `{}` or empty string are both acceptable outputs.)
+			assert.NotContains(t, jsonStr, "evil", "Path traversal name %q should not appear in output JSON", tt.scriptKey)
+			assert.NotContains(t, jsonStr, "shadow", "Path traversal name %q should not appear in output JSON", tt.scriptKey)
+			assert.NotContains(t, jsonStr, "..", "Double-dot must not appear in output JSON for %q", tt.scriptKey)
+		})
+	}
+}
+
+// TestBuildCustomSafeOutputScriptsJSONPathTraversalMixedWithSafe verifies unsafe names
+// are dropped while safe names in the same map are still included.
+func TestBuildCustomSafeOutputScriptsJSONPathTraversalMixedWithSafe(t *testing.T) {
+	data := &WorkflowData{
+		SafeOutputs: &SafeOutputsConfig{
+			Scripts: map[string]*SafeScriptConfig{
+				"good_handler": {Script: "return async (m) => ({ success: true });"},
+				"../evil":      {Script: "return async (m) => ({ success: true });"},
+			},
+		},
+	}
+
+	jsonStr := buildCustomSafeOutputScriptsJSON(data)
+	require.NotEmpty(t, jsonStr, "Safe name should still produce output")
+
+	var mapping map[string]string
+	err := json.Unmarshal([]byte(jsonStr), &mapping)
+	require.NoError(t, err, "JSON should be valid")
+
+	assert.Contains(t, mapping, "good_handler", "Safe name should be present")
+	// The traversal name should be absent — NormalizeSafeOutputIdentifier converts - to _ but
+	// keeps .. and /, so the key would contain path characters and be filtered out.
+	for key := range mapping {
+		assert.NotContains(t, key, "..", "Traversal key must not appear in output: %q", key)
+		assert.NotContains(t, key, "/", "Key with slash must not appear in output: %q", key)
+	}
+}

@@ -11,6 +11,7 @@ const { generateFooterWithMessages } = require("./messages_footer.cjs");
 const { sanitizeContent } = require("./sanitize_content.cjs");
 const { getPRNumber } = require("./update_context_helpers.cjs");
 const { logStagedPreviewInfo } = require("./staged_preview.cjs");
+const { isStagedMode } = require("./safe_output_helpers.cjs");
 const { parseBoolTemplatable } = require("./templatable.cjs");
 const { createAuthenticatedGitHubClient } = require("./handler_auth.cjs");
 const { buildWorkflowRunUrl } = require("./workflow_metadata_helpers.cjs");
@@ -34,7 +35,7 @@ async function main(config = {}) {
   const maxCount = config.max || 10;
   const replyTarget = config.target || "triggering";
   const includeFooter = parseBoolTemplatable(config.footer, true);
-  const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true";
+  const isStaged = isStagedMode(config);
   const { defaultTargetRepo, allowedRepos } = resolveTargetRepoConfig(config);
   const githubClient = await createAuthenticatedGitHubClient(config);
 

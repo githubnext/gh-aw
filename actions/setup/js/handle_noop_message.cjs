@@ -6,7 +6,7 @@ const { getErrorMessage } = require("./error_helpers.cjs");
 const { ERR_API } = require("./error_codes.cjs");
 const { sanitizeContent } = require("./sanitize_content.cjs");
 const { generateFooterWithExpiration } = require("./ephemerals.cjs");
-const { renderTemplate } = require("./messages_core.cjs");
+const { renderTemplateFromFile } = require("./messages_core.cjs");
 
 /**
  * Search for or create the parent issue for all agentic workflow no-op runs
@@ -139,12 +139,9 @@ async function main() {
       return;
     }
 
-    // Load comment template from file
+    // Load and render comment template from file
     const commentTemplatePath = `${process.env.RUNNER_TEMP}/gh-aw/prompts/noop_comment.md`;
-    const commentTemplate = fs.readFileSync(commentTemplatePath, "utf8");
-
-    // Build the comment body by replacing template variables
-    const commentBody = renderTemplate(commentTemplate, {
+    const commentBody = renderTemplateFromFile(commentTemplatePath, {
       workflow_name: workflowName,
       message: noopMessage,
       run_url: runUrl,

@@ -148,9 +148,7 @@ sandbox:
 			t.Fatal(err)
 		}
 
-		compiler := NewCompiler(
-			WithVersion("test"),
-		)
+		compiler := NewCompiler()
 		err = compiler.CompileWorkflow(testFile)
 		if err != nil {
 			t.Fatalf("Compilation failed: %v", err)
@@ -219,9 +217,7 @@ sandbox:
 			t.Fatal(err)
 		}
 
-		compiler := NewCompiler(
-			WithVersion("test"),
-		)
+		compiler := NewCompiler()
 		err = compiler.CompileWorkflow(testFile)
 		if err != nil {
 			t.Fatalf("Compilation failed: %v", err)
@@ -258,6 +254,7 @@ sandbox:
 on:
   workflow_dispatch:
 engine: copilot
+strict: false
 sandbox:
   agent:
     id: awf
@@ -279,9 +276,7 @@ sandbox:
 			t.Fatal(err)
 		}
 
-		compiler := NewCompiler(
-			WithVersion("test"),
-		)
+		compiler := NewCompiler()
 		err = compiler.CompileWorkflow(testFile)
 		if err != nil {
 			t.Fatalf("Compilation failed: %v", err)

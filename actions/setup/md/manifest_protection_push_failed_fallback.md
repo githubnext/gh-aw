@@ -9,7 +9,8 @@
 >
 > The push was rejected because GitHub Actions does not have `workflows` permission to push these changes, and is never allowed to make such changes, or other authorization being used does not have this permission. A human must create the pull request manually.
 
-To create a pull request with the changes:
+<details>
+<summary><b>📋 Create the pull request manually</b></summary>
 
 ```sh
 # Download the patch from the workflow run
@@ -25,5 +26,7 @@ git am --3way /tmp/agent-{run_id}/{patch_file}
 git push origin {branch_name}
 gh pr create --title '{title}' --base {base_branch} --head {branch_name} --repo {repo}
 ```
+
+</details>
 
 {footer}

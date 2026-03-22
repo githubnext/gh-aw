@@ -25,8 +25,9 @@ const { getBaseBranch } = require("./get_base_branch.cjs");
 const { createAuthenticatedGitHubClient } = require("./handler_auth.cjs");
 const { buildWorkflowRunUrl } = require("./workflow_metadata_helpers.cjs");
 const { checkFileProtection } = require("./manifest_file_helpers.cjs");
-const { renderTemplate } = require("./messages_core.cjs");
+const { renderTemplateFromFile } = require("./messages_core.cjs");
 const { COPILOT_REVIEWER_BOT, FAQ_CREATE_PR_PERMISSIONS_URL } = require("./constants.cjs");
+const { isStagedMode } = require("./safe_output_helpers.cjs");
 
 /**
  * @typedef {import('./types/handler-factory').HandlerFactoryFunction} HandlerFactoryFunction
@@ -160,7 +161,7 @@ async function main(config = {}) {
   const triggeringIssueNumber = typeof context !== "undefined" && context.payload?.issue?.number && !context.payload?.issue?.pull_request ? context.payload.issue.number : undefined;
 
   // Check if we're in staged mode
-  const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true";
+  const isStaged = isStagedMode(config);
 
   core.info(`Base branch: ${configBaseBranch || "(dynamic - resolved per target repo)"}`);
   core.info(`Default target repo: ${defaultTargetRepo}`);
@@ -985,8 +986,7 @@ ${patchPreview}`;
         const runId = context.runId;
         const patchFileName = patchFilePath ? patchFilePath.replace("/tmp/gh-aw/", "") : "aw-unknown.patch";
         const pushFailedTemplatePath = `${process.env.RUNNER_TEMP}/gh-aw/prompts/manifest_protection_push_failed_fallback.md`;
-        const pushFailedTemplate = fs.readFileSync(pushFailedTemplatePath, "utf8");
-        fallbackBody = renderTemplate(pushFailedTemplate, {
+        fallbackBody = renderTemplateFromFile(pushFailedTemplatePath, {
           main_body: mainBodyContent,
           footer: footerContent,
           files: filesFormatted,
@@ -1004,8 +1004,7 @@ ${patchPreview}`;
         const encodedHead = branchName.split("/").map(encodeURIComponent).join("/");
         const createPrUrl = `${githubServer}/${repoParts.owner}/${repoParts.repo}/compare/${encodedBase}...${encodedHead}?expand=1&title=${encodeURIComponent(title)}`;
         const templatePath = `${process.env.RUNNER_TEMP}/gh-aw/prompts/manifest_protection_create_pr_fallback.md`;
-        const template = fs.readFileSync(templatePath, "utf8");
-        fallbackBody = renderTemplate(template, {
+        fallbackBody = renderTemplateFromFile(templatePath, {
           main_body: mainBodyContent,
           footer: footerContent,
           files: filesFormatted,
@@ -1188,8 +1187,7 @@ ${patchPreview}`;
         }
 
         const fallbackTemplatePath = `${process.env.RUNNER_TEMP}/gh-aw/prompts/pr_permission_denied_fallback.md`;
-        const fallbackTemplate = fs.readFileSync(fallbackTemplatePath, "utf8");
-        const fallbackBody = renderTemplate(fallbackTemplate, {
+        const fallbackBody = renderTemplateFromFile(fallbackTemplatePath, {
           body,
           branch_name: branchName,
           create_pr_url: createPrUrl,

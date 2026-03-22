@@ -15,7 +15,7 @@ env:
 tools:
   github:
     toolsets: [default]
-    repos: all
+    allowed-repos: all
     min-integrity: none
 safe-outputs:
   create-issue:
@@ -23,7 +23,7 @@ safe-outputs:
     labels:
       - contribution-report
     close-older-issues: true
-    expires: 1
+    expires: 1d
   add-labels:
     allowed: [spam, needs-work, outdated, lgtm]
     max: 4

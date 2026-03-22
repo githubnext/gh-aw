@@ -22,6 +22,7 @@
  */
 
 const { getErrorMessage } = require("./error_helpers.cjs");
+const fs = require("fs");
 
 /**
  * @typedef {Object} SafeOutputMessages
@@ -79,6 +80,18 @@ function renderTemplate(template, context) {
 }
 
 /**
+ * Read a template file and render it with the given context.
+ * Combines file loading and template rendering into a single helper.
+ * @param {string} templatePath - Absolute path to the template file
+ * @param {Record<string, string|number|boolean|undefined>} context - Key-value pairs for replacement
+ * @returns {string} Rendered template with placeholders replaced
+ */
+function renderTemplateFromFile(templatePath, context) {
+  const template = fs.readFileSync(templatePath, "utf8");
+  return renderTemplate(template, context);
+}
+
+/**
  * Convert context object keys to snake_case for template rendering.
  * Also keeps original camelCase keys for backwards compatibility.
  * @param {Record<string, any>} obj - Object with camelCase keys
@@ -101,5 +114,6 @@ function toSnakeCase(obj) {
 module.exports = {
   getMessages,
   renderTemplate,
+  renderTemplateFromFile,
   toSnakeCase,
 };

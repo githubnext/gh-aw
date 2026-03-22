@@ -6,12 +6,15 @@ description: How to configure the runs-on field to target self-hosted runners in
 Use the `runs-on` frontmatter field to target a self-hosted runner instead of the default `ubuntu-latest`.
 
 > [!NOTE]
-> Runners must be Linux with Docker support. macOS and Windows are not supported — agentic workflows require container jobs for the [sandbox](/gh-aw/reference/sandbox/).
-
-> [!WARNING]
-> Self-hosted runners must allow `sudo` for agentic workflows. This is a deliberate security requirement. AWF (Agentic Workflow Firewall) applies host-level `iptables` rules to the Linux kernel `DOCKER-USER` chain to enforce network egress filtering for all agent containers on the AWF bridge network. This outer security boundary requires root UID.
+> Runners must be Linux with Docker support. macOS and Windows are not supported.
 >
-> Container-level `iptables`, Squid proxy ACLs, and capability drops add defense in depth, but they do not replace host-level filtering. A non-sudo mode is not supported, including ARC configurations with `allowPrivilegeEscalation: false`.
+> Self-hosted runners must allow `sudo` for agentic workflows. This is a requirement to allow all GH-AW security features to be enabled. Specific technical needs are:
+>
+> - AWF (Agentic Workflow Firewall) applies host-level `iptables` rules to the Linux kernel `DOCKER-USER` chain to enforce network egress filtering for all agent containers on the AWF bridge network. This outer security boundary requires root UID.
+>
+> - Container-level `iptables`, Squid proxy ACLs, and capability drops add additional defense in depth, but they do not replace host-level filtering.
+>
+For these reasons, a non-sudo mode is not supported, including ARC configurations with `allowPrivilegeEscalation: false`.
 
 ## runs-on formats
 

@@ -150,8 +150,6 @@ tools:
 ```yaml wrap
 ---
 engine: claude
-permissions:
-  contents: write
 tools:
   serena: ["python"]
   edit:

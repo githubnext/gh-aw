@@ -393,6 +393,18 @@ function loadCustomSafeOutputActionHandlers() {
   }
 }
 
+/**
+ * Returns true when the current execution is in staged mode.
+ * Staged mode is active when either the global GH_AW_SAFE_OUTPUTS_STAGED
+ * environment variable is "true" or when the per-handler config has staged: true.
+ * Use this helper in all handlers to ensure consistent staged mode detection.
+ * @param {Object} [config] - Handler configuration object (may have staged: true)
+ * @returns {boolean}
+ */
+function isStagedMode(config) {
+  return process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true" || (config != null && config.staged === true);
+}
+
 module.exports = {
   parseAllowedItems,
   parseMaxCount,
@@ -404,4 +416,5 @@ module.exports = {
   extractAssignees,
   matchesBlockedPattern,
   isUsernameBlocked,
+  isStagedMode,
 };

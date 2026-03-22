@@ -8,7 +8,7 @@
 const { processItems } = require("./safe_output_processor.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { resolveTargetRepoConfig, resolveAndValidateRepo } = require("./repo_helpers.cjs");
-const { resolveIssueNumber, extractAssignees } = require("./safe_output_helpers.cjs");
+const { resolveIssueNumber, extractAssignees, isStagedMode } = require("./safe_output_helpers.cjs");
 const { logStagedPreviewInfo } = require("./staged_preview.cjs");
 const { parseBoolTemplatable } = require("./templatable.cjs");
 const { createAuthenticatedGitHubClient } = require("./handler_auth.cjs");
@@ -31,7 +31,7 @@ async function main(config = {}) {
   const githubClient = await createAuthenticatedGitHubClient(config);
 
   // Check if we're in staged mode
-  const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true";
+  const isStaged = isStagedMode(config);
 
   core.info(`Assign to user configuration: max=${maxCount}, unassign_first=${unassignFirst}`);
   if (allowedAssignees.length > 0) {

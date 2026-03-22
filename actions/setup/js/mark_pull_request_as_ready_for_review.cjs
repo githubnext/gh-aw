@@ -9,6 +9,7 @@ const { generateFooterWithMessages } = require("./messages_footer.cjs");
 const { sanitizeContent } = require("./sanitize_content.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { logStagedPreviewInfo } = require("./staged_preview.cjs");
+const { isStagedMode } = require("./safe_output_helpers.cjs");
 const { ERR_NOT_FOUND } = require("./error_codes.cjs");
 const { createAuthenticatedGitHubClient } = require("./handler_auth.cjs");
 const { buildWorkflowRunUrl } = require("./workflow_metadata_helpers.cjs");
@@ -88,7 +89,7 @@ async function main(config = {}) {
   const githubClient = await createAuthenticatedGitHubClient(config);
 
   // Check if we're in staged mode
-  const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true";
+  const isStaged = isStagedMode(config);
 
   core.info(`Mark pull request as ready for review configuration: max=${maxCount}`);
 

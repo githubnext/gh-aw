@@ -536,6 +536,35 @@ func generateSafeOutputsConfig(data *WorkflowData) string {
 		}
 	}
 
+	// Add dispatch_repository configuration
+	if data.SafeOutputs.DispatchRepository != nil && len(data.SafeOutputs.DispatchRepository.Tools) > 0 {
+		tools := make(map[string]any, len(data.SafeOutputs.DispatchRepository.Tools))
+		for toolKey, tool := range data.SafeOutputs.DispatchRepository.Tools {
+			toolCfg := map[string]any{
+				"workflow":   tool.Workflow,
+				"event_type": tool.EventType,
+				"max":        resolveMaxForConfig(tool.Max, 1),
+			}
+			if tool.Repository != "" {
+				toolCfg["repository"] = tool.Repository
+			}
+			if len(tool.AllowedRepositories) > 0 {
+				toolCfg["allowed_repositories"] = tool.AllowedRepositories
+			}
+			if tool.GitHubToken != "" {
+				toolCfg["github-token"] = tool.GitHubToken
+			}
+			if tool.Staged {
+				toolCfg["staged"] = true
+			}
+			if tool.Description != "" {
+				toolCfg["description"] = tool.Description
+			}
+			tools[toolKey] = toolCfg
+		}
+		safeOutputsConfig["dispatch_repository"] = map[string]any{"tools": tools}
+	}
+
 	// Add call-workflow configuration
 	if data.SafeOutputs.CallWorkflow != nil {
 		callWorkflowConfig := map[string]any{}

@@ -245,6 +245,7 @@ func TestMCPGatewayVersionParsedFromSource(t *testing.T) {
 			frontmatter: `---
 on: issues
 engine: claude
+strict: false
 sandbox:
   mcp:
     container: ghcr.io/github/gh-aw-mcpg
@@ -281,6 +282,7 @@ Test workflow without sandbox.mcp.version specified.`,
 			frontmatter: `---
 on: issues
 engine: claude
+strict: false
 sandbox:
   mcp:
     container: ghcr.io/github/gh-aw-mcpg
@@ -301,6 +303,7 @@ Test workflow with version: latest.`,
 			frontmatter: `---
 on: issues
 engine: claude
+strict: false
 sandbox:
   mcp:
     container: ghcr.io/github/gh-aw-mcpg
@@ -321,6 +324,7 @@ Test workflow with version 1.2.3.`,
 			frontmatter: `---
 on: issues
 engine: claude
+strict: false
 sandbox:
   mcp:
     container: ghcr.io/custom/gateway

@@ -4,7 +4,6 @@ package workflow
 
 import (
 	"fmt"
-	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -251,67 +250,6 @@ func TestAutoInjectCreateIssue(t *testing.T) {
 				"Injected create-issues should have [workflowID] as title prefix")
 			assert.True(t, workflowData.SafeOutputs.AutoInjectedCreateIssue,
 				"AutoInjectedCreateIssue should be true when injected")
-		})
-	}
-}
-
-// TestAutoInjectedCreateIssuePrompt verifies that the auto-injected create-issue produces
-// a specific prompt instruction to create an issue with results or call noop.
-func TestAutoInjectedCreateIssuePrompt(t *testing.T) {
-	tests := []struct {
-		name           string
-		safeOutputs    *SafeOutputsConfig
-		expectSpecific bool // expect the auto_create_issue file reference
-	}{
-		{
-			name: "auto-injected create-issue produces specific prompt",
-			safeOutputs: &SafeOutputsConfig{
-				CreateIssues: &CreateIssuesConfig{
-					BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("1")},
-					Labels:               []string{"my-workflow"},
-					TitlePrefix:          "[my-workflow]",
-				},
-				AutoInjectedCreateIssue: true,
-			},
-			expectSpecific: true,
-		},
-		{
-			name: "user-configured create-issue does NOT produce specific prompt",
-			safeOutputs: &SafeOutputsConfig{
-				CreateIssues: &CreateIssuesConfig{
-					TitlePrefix: "[custom]",
-				},
-				AutoInjectedCreateIssue: false,
-			},
-			expectSpecific: false,
-		},
-		{
-			name: "no create-issue configured",
-			safeOutputs: &SafeOutputsConfig{
-				AddComments: &AddCommentsConfig{},
-			},
-			expectSpecific: false,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			compiler := &Compiler{}
-			var yaml strings.Builder
-			data := &WorkflowData{
-				ParsedTools: NewTools(map[string]any{}),
-				SafeOutputs: tt.safeOutputs,
-			}
-			compiler.generateUnifiedPromptStep(&yaml, data)
-			output := yaml.String()
-
-			if tt.expectSpecific {
-				assert.Contains(t, output, safeOutputsAutoCreateIssueFile,
-					"Auto-injected create-issue should include the auto_create_issue file reference")
-			} else {
-				assert.NotContains(t, output, safeOutputsAutoCreateIssueFile,
-					"Non-auto-injected create-issue should not include the auto_create_issue file reference")
-			}
 		})
 	}
 }

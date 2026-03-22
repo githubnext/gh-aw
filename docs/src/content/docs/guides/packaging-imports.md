@@ -120,7 +120,6 @@ tools:
     toolsets: [issues]
 permissions:
   contents: read
-  issues: write
 ---
 
 # Research Agent
@@ -138,13 +137,13 @@ Workflow and import specifications require minimum 3 parts (owner/repo/path) for
 - Repository: `owner/repo[@version]`
 - Short workflow: `owner/repo/workflow[@version]` (adds `workflows/` prefix and `.md`)
 - Explicit workflow: `owner/repo/path/to/workflow.md[@version]`
-- Agent file import: `owner/repo/.github/agents/agent-name.md[@version]`
 - Shared import: `owner/repo/shared/tools/config.md[@version]`
+- Copilot agent file import: `owner/repo/.github/agents/agent-name.md[@version]`
 - GitHub URL: `https://github.com/owner/repo/blob/main/workflows/ci-doctor.md`
 - Raw URL: `https://raw.githubusercontent.com/owner/repo/refs/heads/main/workflows/ci-doctor.md`
 
 ## Best Practices
 
-Use semantic versioning for stable workflows and agent files, branches for development, and commit SHAs for immutability. Organize reusable components in `shared/` directories and agent files in `.github/agents/` with descriptive names. Review updates with `--verbose` before applying, test on branches, and keep local modifications minimal to reduce merge conflicts.
+Use semantic versioning for stable workflows and agent files, branches for development, and commit SHAs for immutability.
 
 **Related:** [CLI Commands](/gh-aw/setup/cli/) | [Workflow Structure](/gh-aw/reference/workflow-structure/) | [Frontmatter](/gh-aw/reference/frontmatter/) | [Imports](/gh-aw/reference/imports/) | [Copilot Agent Files](/gh-aw/reference/copilot-custom-agents/)

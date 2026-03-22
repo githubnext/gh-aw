@@ -93,7 +93,8 @@ describe("checkout_pr_branch.cjs", () => {
       }
       if (module === "./messages_core.cjs") {
         return {
-          renderTemplate: (template, context) => {
+          renderTemplateFromFile: (templatePath, context) => {
+            const template = mockRequire("fs").readFileSync(templatePath, "utf8");
             return template.replace(/\{(\w+)\}/g, (match, key) => {
               const value = context[key];
               return value !== undefined && value !== null ? String(value) : match;

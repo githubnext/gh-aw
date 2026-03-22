@@ -20,8 +20,9 @@ const { getIssuesToAssignCopilot } = require("./create_issue.cjs");
 const { createReviewBuffer } = require("./pr_review_buffer.cjs");
 const { sanitizeContent } = require("./sanitize_content.cjs");
 const { createManifestLogger, ensureManifestExists, extractCreatedItemFromResult } = require("./safe_output_manifest.cjs");
-const { loadCustomSafeOutputJobTypes, loadCustomSafeOutputScriptHandlers, loadCustomSafeOutputActionHandlers } = require("./safe_output_helpers.cjs");
+const { loadCustomSafeOutputJobTypes, loadCustomSafeOutputScriptHandlers, loadCustomSafeOutputActionHandlers, isStagedMode } = require("./safe_output_helpers.cjs");
 const { emitSafeOutputActionOutputs } = require("./safe_outputs_action_outputs.cjs");
+const nodePath = require("path");
 
 /**
  * Handler map configuration
@@ -57,6 +58,7 @@ const HANDLER_MAP = {
   create_code_scanning_alert: "./create_code_scanning_alert.cjs",
   autofix_code_scanning_alert: "./autofix_code_scanning_alert.cjs",
   dispatch_workflow: "./dispatch_workflow.cjs",
+  dispatch_repository: "./dispatch_repository.cjs",
   call_workflow: "./call_workflow.cjs",
   create_missing_tool_issue: "./create_missing_tool_issue.cjs",
   missing_tool: "./missing_tool.cjs",
@@ -167,8 +169,23 @@ async function loadHandlers(config, prReviewBuffer) {
   const customScriptHandlers = loadCustomSafeOutputScriptHandlers();
   if (customScriptHandlers.size > 0) {
     core.info(`Loading ${customScriptHandlers.size} custom script handler(s): ${[...customScriptHandlers.keys()].join(", ")}`);
+    const scriptBaseDir = nodePath.join(process.env.RUNNER_TEMP || "/tmp", "gh-aw", "actions");
     for (const [scriptType, scriptFilename] of customScriptHandlers) {
-      const scriptPath = require("path").join(process.env.RUNNER_TEMP || "/tmp", "gh-aw", "actions", scriptFilename);
+      // Sanitize scriptFilename to prevent path traversal attacks: only the basename
+      // (no directory separators or ".." sequences) is allowed.
+      const safeFilename = nodePath.basename(scriptFilename);
+      if (safeFilename !== scriptFilename) {
+        core.error(`Invalid script filename for ${scriptType}: path traversal detected in "${scriptFilename}" — skipping`);
+        continue;
+      }
+      const scriptPath = nodePath.join(scriptBaseDir, safeFilename);
+      // Defense-in-depth: verify the resolved path remains within the expected directory.
+      // Use path.relative() to check containment robustly across all platforms.
+      const relativeToBase = nodePath.relative(scriptBaseDir, scriptPath);
+      if (relativeToBase.startsWith("..") || nodePath.isAbsolute(relativeToBase)) {
+        core.error(`Script path outside expected directory for ${scriptType}: "${scriptPath}" — skipping`);
+        continue;
+      }
       try {
         const scriptModule = require(scriptPath);
         if (scriptModule && typeof scriptModule.main === "function") {
@@ -944,7 +961,7 @@ async function processSyntheticUpdates(github, context, trackedOutputs, temporar
 async function main() {
   // Detect staged mode before try/finally so it's accessible in the finally block.
   // In staged mode (🎭 Staged Mode Preview) no real items are created in GitHub so no manifest should be emitted.
-  const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true";
+  const isStaged = isStagedMode();
 
   try {
     core.info("Safe Output Handler Manager starting...");

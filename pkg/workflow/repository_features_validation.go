@@ -77,31 +77,6 @@ var (
 	currentRepositoryCache        currentRepositoryCacheState
 )
 
-// ClearRepositoryFeaturesCache clears the repository features cache.
-// This is useful for testing or when repository settings might have changed.
-func ClearRepositoryFeaturesCache() {
-	// Clear the features cache
-	repositoryFeaturesCache.Range(func(key, value any) bool {
-		repositoryFeaturesCache.Delete(key)
-		return true
-	})
-
-	// Clear the logged cache
-	repositoryFeaturesLoggedCache.Range(func(key, value any) bool {
-		repositoryFeaturesLoggedCache.Delete(key)
-		return true
-	})
-
-	// Reset the current repository cache
-	currentRepositoryCache.mu.Lock()
-	currentRepositoryCache.result = ""
-	currentRepositoryCache.err = nil
-	currentRepositoryCache.done = false
-	currentRepositoryCache.mu.Unlock()
-
-	repositoryFeaturesLog.Print("Repository features and current repository caches cleared")
-}
-
 // validateRepositoryFeatures validates that required repository features are enabled
 // when safe-outputs are configured that depend on them (discussions, issues)
 func (c *Compiler) validateRepositoryFeatures(workflowData *WorkflowData) error {

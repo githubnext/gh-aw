@@ -8,6 +8,7 @@
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { sanitizeContent } = require("./sanitize_content.cjs");
 const { logStagedPreviewInfo } = require("./staged_preview.cjs");
+const { isStagedMode } = require("./safe_output_helpers.cjs");
 const { createAuthenticatedGitHubClient } = require("./handler_auth.cjs");
 const { ERR_NOT_FOUND } = require("./error_codes.cjs");
 
@@ -163,7 +164,7 @@ async function main(config = {}) {
   const githubClient = await createAuthenticatedGitHubClient(config);
 
   // Check if we're in staged mode
-  const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true";
+  const isStaged = isStagedMode(config);
 
   core.info(`Close discussion configuration: max=${maxCount}`);
   if (requiredLabels.length > 0) {

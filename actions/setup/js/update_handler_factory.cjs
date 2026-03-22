@@ -6,7 +6,7 @@
  */
 
 const { getErrorMessage } = require("./error_helpers.cjs");
-const { resolveTarget } = require("./safe_output_helpers.cjs");
+const { resolveTarget, isStagedMode } = require("./safe_output_helpers.cjs");
 const { logStagedPreviewInfo } = require("./staged_preview.cjs");
 const { createAuthenticatedGitHubClient } = require("./handler_auth.cjs");
 const { resolveTargetRepoConfig, resolveAndValidateRepo } = require("./repo_helpers.cjs");
@@ -113,7 +113,7 @@ function createUpdateHandlerFactory(handlerConfig) {
     const { defaultTargetRepo, allowedRepos } = resolveTargetRepoConfig(config);
 
     // Check if we're in staged mode
-    const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true";
+    const isStaged = isStagedMode(config);
 
     // Build configuration log message
     const configParts = [`max=${maxCount}`, `target=${updateTarget}`];

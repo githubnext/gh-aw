@@ -18,9 +18,6 @@ on:
   issues:
     types: [opened]
 
-permissions:
-  issues: write
-
 tools:
   github:
     toolsets: [issues]
