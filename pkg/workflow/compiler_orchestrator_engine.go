@@ -294,6 +294,14 @@ func (c *Compiler) setupEngineAndImports(result *parser.FrontmatterResult, clean
 		return nil, err
 	}
 
+	// Validate that internal sandbox customization fields are not used in strict mode
+	orchestratorEngineLog.Printf("Validating strict sandbox customization (strict=%v)", c.strictMode)
+	if err := c.validateStrictSandboxCustomization(sandboxConfig); err != nil {
+		orchestratorEngineLog.Printf("Strict sandbox customization validation failed: %v", err)
+		c.strictMode = initialStrictModeForFirewall
+		return nil, err
+	}
+
 	// Check if the engine supports network restrictions when they are defined
 	if err := c.checkNetworkSupport(agenticEngine, networkPermissions); err != nil {
 		orchestratorEngineLog.Printf("Network support check failed: %v", err)

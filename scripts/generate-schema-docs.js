@@ -274,6 +274,11 @@ function generateProperties(properties, required = [], indent = 0) {
       return;
     }
 
+    // Skip internal-only properties (marked with "x-internal": true in the schema).
+    // These are implementation/debugging details not intended for end users.
+    if (resolvedProp["x-internal"] === true) {
+      return;
+    }
     if (addedCount > 0) {
       lines.push("");
     }

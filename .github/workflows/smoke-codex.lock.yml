@@ -27,7 +27,7 @@
 #     - shared/gh.md
 #     - shared/reporting.md
 #
-# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"0f4668b9ab1badf192f489c4a66a16cdaa218a0f31d7ad325ec26159e0d7e4d8","strict":true,"agent_id":"codex"}
+# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"8ccab7e12d1831d3a6e67bf289dbda8640b9254de4657fc2b2d8cfc3f33fcfb9","agent_id":"codex"}
 
 name: "Smoke Codex"
 "on":
@@ -99,7 +99,7 @@ jobs:
           GH_AW_INFO_AWF_VERSION: "v0.24.5"
           GH_AW_INFO_AWMG_VERSION: ""
           GH_AW_INFO_FIREWALL_TYPE: "squid"
-          GH_AW_COMPILED_STRICT: "true"
+          GH_AW_COMPILED_STRICT: "false"
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         with:
           script: |

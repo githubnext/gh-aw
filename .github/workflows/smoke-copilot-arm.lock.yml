@@ -28,7 +28,7 @@
 #     - shared/github-queries-mcp-script.md
 #     - shared/reporting.md
 #
-# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"7d98a942c43c77f4d9757066e1492cdd3c197fb6272337d072c67412dfa07e95","strict":true,"agent_id":"copilot"}
+# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"b8c52bb25dd5e53dd4cd9c19582e7759a58d025d7218306c34c3789d82c383e9","agent_id":"copilot"}
 
 name: "Smoke Copilot ARM64"
 "on":
@@ -98,7 +98,7 @@ jobs:
           GH_AW_INFO_AWF_VERSION: "v0.24.5"
           GH_AW_INFO_AWMG_VERSION: ""
           GH_AW_INFO_FIREWALL_TYPE: "squid"
-          GH_AW_COMPILED_STRICT: "true"
+          GH_AW_COMPILED_STRICT: "false"
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         with:
           script: |

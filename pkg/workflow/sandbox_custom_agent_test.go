@@ -254,6 +254,7 @@ sandbox:
 on:
   workflow_dispatch:
 engine: copilot
+strict: false
 sandbox:
   agent:
     id: awf

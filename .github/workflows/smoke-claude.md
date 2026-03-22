@@ -19,7 +19,7 @@ name: Smoke Claude
 engine:
   id: claude
   max-turns: 100
-strict: true
+strict: false
 inlined-imports: true
 imports:
   - shared/mcp-pagination.md
