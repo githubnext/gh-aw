@@ -489,6 +489,18 @@ func generateQmdIndexSteps(qmdConfig *QmdToolConfig) []string {
 	return steps
 }
 
+// generateQmdSetupNodeStep generates the agent job step that sets up Node.js before the
+// qmd MCP server is started. The qmd CLI requires a recent Node.js version (24) to run;
+// the default Node.js on GitHub-hosted runners may be older, so we explicitly configure it.
+func generateQmdSetupNodeStep() string {
+	var sb strings.Builder
+	sb.WriteString("      - name: Setup Node.js for qmd MCP server\n")
+	sb.WriteString(fmt.Sprintf("        uses: %s\n", GetActionPin("actions/setup-node")))
+	sb.WriteString("        with:\n")
+	sb.WriteString(fmt.Sprintf("          node-version: \"%s\"\n", string(constants.DefaultNodeVersion)))
+	return sb.String()
+}
+
 // generateQmdStartServerStep generates the agent job step that starts the qmd MCP server
 // with HTTP transport. The server is started before the MCP gateway so that node-llama-cpp
 // has time to download llama.cpp binaries and embedding model weights if needed — this can

@@ -390,6 +390,10 @@ jobs:
         with:
           path: ~/.cache/node-llama-cpp/
           key: node-llama-cpp-2.0.1-${{ runner.os }}-${{ runner.arch }}-${{ runner.imageid }}
+      - name: Setup Node.js for qmd MCP server
+        uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6.3.0
+        with:
+          node-version: "24"
       - name: Start qmd MCP HTTP server
         id: qmd-server-start
         env:
