@@ -5,17 +5,20 @@
 // This file handles the qmd (https://github.com/tobi/qmd) builtin tool integration.
 // qmd provides local vector search over documentation files using the @tobilu/qmd npm package.
 //
-// The integration has two phases:
+// The integration has three phases:
 //
-//  1. Activation job: builds the search index from configured checkouts and/or GitHub searches
-//     and uploads it as the "qmd-index" artifact. This step runs in the activation job which
-//     already has contents:read permission, so the agent job does NOT need contents:read.
+//  1. Activation job: runs the normal activation steps (timestamp check, prompt, reactions, etc.).
+//     Does NOT build the qmd index.
+//
+//  2. Indexing job (new): runs after activation, builds the search index from configured
+//     checkouts and/or GitHub searches, and uploads it as the "qmd-index" artifact.
+//     This job has contents:read permission so the agent job does NOT need it.
 //     The index is built by a single actions/github-script step that runs qmd_index.cjs,
 //     which uses the @tobilu/qmd JavaScript SDK to build the collections.
 //
-//  2. Agent job: downloads the "qmd-index" artifact and mounts the qmd MCP server pointing
-//     at the pre-built index. The MCP server exposes a search tool that the agent can use
-//     to find relevant documentation files.
+//  3. Agent job: depends on BOTH the activation job (for its outputs) and the indexing job
+//     (for the qmd-index artifact). Downloads the pre-built index and mounts the qmd MCP
+//     server pointing at it.
 //
 // # Configuration
 //
@@ -47,14 +50,14 @@
 //
 // # Artifact lifecycle
 //
-// The index is built once per activation job run and shared with the agent job
+// The index is built once per indexing job run and shared with the agent job
 // via the "qmd-index" artifact.  Retention is 1 day (same as the activation artifact).
 //
 // Related files:
 //   - tools_types.go: QmdToolConfig, QmdDocCollection, QmdSearchEntry types
 //   - tools_parser.go: parseQmdTool / parseQmdDocCollection / parseQmdSearchEntry
 //   - mcp_renderer_builtin.go: RenderQmdMCP method
-//   - compiler_activation_job.go: activation job qmd index steps
+//   - compiler_jobs.go: buildQmdIndexingJobWrapper
 //   - compiler_yaml_main_job.go: agent job qmd artifact download
 //   - actions/setup/js/qmd_index.cjs: JavaScript SDK implementation
 
@@ -395,7 +398,9 @@ func generateQmdIndexSteps(qmdConfig *QmdToolConfig, data *WorkflowData) []strin
 
 	// Upload qmd index as a separate artifact for the agent job
 	qmdLog.Print("Adding qmd index artifact upload step")
-	qmdArtifactName := artifactPrefixExprForActivationJob(data) + constants.QmdArtifactName
+	// The upload runs in the indexing job (a downstream job from activation), so use the
+	// downstream prefix expression which references needs.activation.outputs.artifact_prefix.
+	qmdArtifactName := artifactPrefixExprForDownstreamJob(data) + constants.QmdArtifactName
 	steps = append(steps, "      - name: Upload qmd index artifact\n")
 	steps = append(steps, "        if: success()\n")
 	steps = append(steps, fmt.Sprintf("        uses: %s\n", GetActionPin("actions/upload-artifact")))
@@ -418,4 +423,69 @@ func generateQmdDownloadStep(data *WorkflowData) string {
 	fmt.Fprintf(&sb, "          name: %s\n", qmdArtifactName)
 	sb.WriteString("          path: /tmp/gh-aw/qmd-index/\n")
 	return sb.String()
+}
+
+// buildQmdIndexingJob builds a standalone "indexing" job that depends on the activation job
+// and builds the qmd documentation search index.
+//
+// The job:
+//  1. Checks out the actions folder (for the setup action scripts)
+//  2. Runs the setup action to copy qmd_index.cjs and setup_globals.cjs to the runner
+//  3. Optionally checks out the workspace for checkout-based collections
+//  4. Installs @tobilu/qmd and @actions/github and runs qmd_index.cjs via actions/github-script
+//  5. Uploads the resulting index as the qmd-index artifact
+//
+// The agent job declares a needs dependency on this "indexing" job and downloads the artifact.
+func (c *Compiler) buildQmdIndexingJob(data *WorkflowData) (*Job, error) {
+	qmdLog.Printf("Building qmd indexing job: checkouts=%d searches=%d cacheKey=%q",
+		len(data.QmdConfig.Checkouts), len(data.QmdConfig.Searches), data.QmdConfig.CacheKey)
+
+	var steps []string
+
+	// Check out the actions folder so the setup action scripts are available on the runner.
+	steps = append(steps, c.generateCheckoutActionsFolder(data)...)
+
+	// Run the setup action to copy qmd_index.cjs and setup_globals.cjs to SetupActionDestination.
+	setupActionRef := c.resolveActionReference("./actions/setup", data)
+	steps = append(steps, c.generateSetupStep(setupActionRef, SetupActionDestination, false)...)
+
+	// Check out the repository workspace if any checkout-based collection uses the default repo
+	// (i.e., no per-collection checkout config, meaning it relies on ${GITHUB_WORKSPACE}).
+	needsWorkspaceCheckout := false
+	for _, col := range data.QmdConfig.Checkouts {
+		if col.Checkout == nil {
+			needsWorkspaceCheckout = true
+			break
+		}
+	}
+	if needsWorkspaceCheckout {
+		var sb strings.Builder
+		sb.WriteString("      - name: Checkout repository for qmd indexing\n")
+		fmt.Fprintf(&sb, "        uses: %s\n", GetActionPin("actions/checkout"))
+		sb.WriteString("        with:\n")
+		sb.WriteString("          persist-credentials: false\n")
+		steps = append(steps, sb.String())
+	}
+
+	// Generate all qmd index-building steps (cache restore/save, Node.js, SDK install, github-script, artifact upload).
+	qmdSteps := generateQmdIndexSteps(data.QmdConfig, data)
+	steps = append(steps, qmdSteps...)
+
+	// The indexing job runs after the activation job to inherit the artifact prefix output.
+	needs := []string{string(constants.ActivationJobName)}
+
+	// Permissions: contents:read is required to checkout files for index building.
+	perms := NewPermissionsFromMap(map[PermissionScope]PermissionLevel{
+		PermissionContents: PermissionRead,
+	})
+
+	job := &Job{
+		Name:        string(constants.IndexingJobName),
+		RunsOn:      c.formatSafeOutputsRunsOn(data.SafeOutputs),
+		Permissions: perms.RenderToYAML(),
+		Steps:       steps,
+		Needs:       needs,
+	}
+
+	return job, nil
 }
