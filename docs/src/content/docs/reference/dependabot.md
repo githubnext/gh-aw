@@ -1,5 +1,5 @@
 ---
-title: Dependabot Support
+title: Dependabot Manifest Generation
 description: Automatic dependency manifest generation for tracking runtime dependencies in agentic workflows, enabling Dependabot to detect and update outdated tools.
 sidebar:
   order: 750

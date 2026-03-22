@@ -1672,8 +1672,9 @@ tools:
     # (optional)
     read-only: true
 
-    # Enable lockdown mode to limit content surfaced from public repositories (only
-    # items authored by users with push access). Default: false
+    # DEPRECATED: Use 'min-integrity: approved' instead. Enable lockdown mode to limit
+    # content surfaced from public repositories (only items authored by users with push
+    # access). Default: false
     # (optional)
     lockdown: true
 
@@ -1695,7 +1696,7 @@ tools:
     mounts: []
       # Array of Mount specification in format 'host:container:mode'
 
-    # Guard policy: repository access configuration. Restricts which repositories the
+    # GitHub Tools repository access configuration. Restricts which repositories the
     # agent can access. Use 'all' to allow all repos, 'public' for public repositories
     # only, or an array of repository patterns (e.g., 'owner/repo', 'owner/*',
     # 'owner/prefix*').
@@ -1712,7 +1713,7 @@ tools:
       # Array items: Repository pattern in the format 'owner/repo', 'owner/*' (all repos
       # under owner), or 'owner/prefix*' (repos with name prefix)
 
-    # Guard policy: minimum required integrity level for repository access. Restricts
+    # GitHub Tools minimum required integrity level for repository access. Restricts
     # the agent to users with at least the specified permission level.
     # (optional)
     min-integrity: "none"

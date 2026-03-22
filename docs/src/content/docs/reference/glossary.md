@@ -7,10 +7,6 @@ sidebar:
 
 This glossary provides definitions for key technical terms and concepts used in GitHub Agentic Workflows.
 
-> [!TIP]
-> New to GitHub Agentic Workflows?
-> Technical terms throughout the documentation link to their definitions here. Click any glossary link to understand unfamiliar concepts. Bookmark this page for quick reference!
-
 ## Core Concepts
 
 ### Agentic
@@ -71,10 +67,6 @@ A service that implements the Model Context Protocol to provide specific capabil
 
 Capabilities that an AI agent can use during workflow execution. Tools are configured in the frontmatter and include GitHub operations ([`github:`](/gh-aw/reference/github-tools/)), file editing (`edit:`), web access (`web-fetch:`, `web-search:`), shell commands (`bash:`), browser automation ([`playwright:`](/gh-aw/reference/playwright/)), and custom MCP servers.
 
-### Guard Policy
-
-An access control configuration for the GitHub MCP server that restricts which repositories and content integrity levels the agent can read. Configured via `tools.github.repos` (repository scope: `"all"`, `"public"`, or a list of patterns) and `tools.github.min-integrity` (minimum required integrity level). `min-integrity` can be specified alone; `repos` defaults to `"all"` when omitted. Integrity levels by trust: `merged` (content reachable from the main branch) > `approved` (owners, members, collaborators) > `unapproved` (contributors) > `none` (first-time users). See [GitHub Tools Reference](/gh-aw/reference/github-tools/#guard-policies).
-
 ## Security and Outputs
 
 ### MCP Scripts
@@ -85,10 +77,6 @@ Custom MCP tools defined inline in workflow frontmatter using JavaScript or shel
 
 Static Analysis Results Interchange Format - a standardized JSON format for reporting results from static analysis tools. Used by GitHub Code Scanning to display security vulnerabilities and code quality issues. Workflows can generate SARIF files using the `create-code-scanning-alert` safe output.
 
-### SBOM
-
-Software Bill of Materials - a comprehensive inventory of all components, libraries, and dependencies in a software project. Used for security auditing, vulnerability tracking, and compliance. Common formats include SPDX and CycloneDX.
-
 ### Safe Outputs
 
 Pre-approved actions the AI can take without elevated permissions. The AI generates structured output describing what to create (issues, comments, pull requests), processed by separate permission-controlled jobs. Configured via `safe-outputs:` section, letting AI agents create GitHub content without direct write access.
@@ -97,31 +85,17 @@ Pre-approved actions the AI can take without elevated permissions. The AI genera
 
 Automated security analysis that scans agent output and code changes for potential security issues before application. When safe outputs are configured, a threat detection job automatically runs between the agent job and safe output processing to identify prompt injection attempts, secret leaks, and malicious code patches. See [Threat Detection Reference](/gh-aw/reference/threat-detection/).
 
-### Secrecy
-
-An optional field on safe output tool calls indicating the confidentiality level of the message content. Accepted values include `"public"`, `"internal"`, and `"private"`. Used alongside [`integrity`](#integrity) as security metadata displayed in safe output step summaries and available to [Threat Detection](#threat-detection) scanning.
-
 ### Staged Mode
 
 A preview mode where workflows simulate actions without making changes. The AI generates output showing what would happen, but no GitHub API write operations are performed. Use for testing before production runs. See [Staged Mode](/gh-aw/reference/staged-mode/) for details.
 
-### Integrity
+### Integrity Filtering
 
-An optional field on safe output tool calls indicating the trustworthiness level of the message source. Accepted values include `"low"`, `"medium"`, and `"high"`. Used alongside [`secrecy`](#secrecy) as security metadata displayed in safe output step summaries and available to [Threat Detection](#threat-detection) scanning.
-
-### Lockdown Mode
-
-A security feature of the GitHub MCP server that filters content in public repositories to only surface items (issues, pull requests, comments, discussions) from users with push access. Protects agentic workflows from processing potentially malicious or misleading content submitted by untrusted users.
-
-For **public repositories**, `min-integrity: approved` is automatically applied at runtime when no explicit `lockdown` or `min-integrity` guard policy is configured — providing the same filtering level as lockdown without requiring additional authentication. Explicit `lockdown: true` requires a custom `github-token` and is automatically enabled for public repositories when one is configured. Set `min-integrity: none` or `lockdown: false` to disable for workflows designed to process content from all users. See [Lockdown Mode](/gh-aw/reference/lockdown-mode/).
+A guardrail feature that controls which GitHub content an agent can access, filtering by author trust and merge status. Content below the configured `min-integrity` threshold is silently removed before the AI engine sees it. The four levels are `merged`, `approved`, `unapproved`, and `none` (most to least restrictive). For public repositories, `min-integrity: approved` is applied automatically — restricting content to owners, members, and collaborators — even without additional authentication. Set `min-integrity: none` to allow all content through for workflows designed to process untrusted input (e.g., triage bots). See [Integrity Filtering](/gh-aw/reference/integrity/).
 
 ### Status Comment
 
 A comment posted on the triggering issue or pull request that shows workflow run status (started and completed). Configured via `status-comment: true` in `safe-outputs`. Must be explicitly enabled — it is not automatically bundled with `ai-reaction`.
-
-### XPIA (Cross-Prompt Injection Attack)
-
-A security attack where malicious instructions embedded in external data (issue bodies, PR descriptions, file contents) attempt to hijack an AI agent's behavior. GitHub Agentic Workflows mitigates XPIA through system prompt hardening and [Threat Detection](#threat-detection) scanning. See also [Lockdown Mode](#lockdown-mode).
 
 ### Permissions
 

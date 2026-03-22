@@ -554,17 +554,14 @@ XML and HTML tags are converted to a safe parentheses format to prevent injectio
 Workflows should use `${{ needs.activation.outputs.text }}` instead of raw `github.event` fields to ensure proper sanitization of user-provided content.
 </Aside>
 
-## GitHub Lockdown Mode
+## Integrity Filtering
 
-GitHub lockdown mode is a security feature of the GitHub MCP server that filters content in public repositories to only surface items from users with push access. This protects workflows from processing potentially malicious or misleading input from untrusted users.
+Integrity filtering controls which GitHub content an agent can access during a workflow run, based on **author trust** and **merge status** rather than push access alone. The MCP gateway intercepts tool calls and filters content below the configured `min-integrity` threshold before the AI engine sees it — items from blocked users or below the minimum trust level are removed transparently.
 
-When **lockdown mode is enabled**, the GitHub MCP server:
-- Only returns issues, PRs, comments, and discussions from users with push, maintain, or admin access
-- Blocks coding agent from seeing content from other users
-- Has no particular effect for private or internal repos
+For public repositories, `min-integrity: approved` is applied automatically — restricting content to owners, members, and collaborators — even without additional authentication. The four configurable levels (`merged`, `approved`, `unapproved`, `none`) are cumulative from most to least restrictive. Individual users can be blocked unconditionally, and trusted reviewers can promote specific items via approval labels.
 
 <Aside type="tip">
-See [Lockdown Mode Reference](/gh-aw/reference/lockdown-mode/) for complete configuration guidance, use cases, and security considerations.
+See [Integrity Filtering Reference](/gh-aw/reference/integrity/) for configuration options, integrity levels, and examples.
 </Aside>
 
 ## Secret Redaction
@@ -797,7 +794,7 @@ gh aw status
 | **Configuration** | Action SHA pinning | Supply chain attacks, tag hijacking |
 | **Configuration** | Security scanners (actionlint, zizmor, poutine) | Privilege escalation, misconfigurations, supply chain risks |
 | **Configuration** | Pre-activation checks (role/permission) | Unauthorized users, expired workflows |
-| **Plan** | GitHub lockdown mode | Untrusted user input, context poisoning, social engineering |
+| **Plan** | Integrity filtering (`min-integrity`) | Untrusted user input, context poisoning, social engineering |
 | **Plan** | Content sanitization | @mention abuse, bot triggers |
 | **Plan** | Secret redaction | Credential leakage in logs/artifacts |
 | **Plan** | Threat detection | Malicious patches, secret leaks |
@@ -807,7 +804,7 @@ gh aw status
 
 ## Related Documentation
 
-- [Lockdown Mode](/gh-aw/reference/lockdown-mode/) - GitHub content filtering for public repositories
+- [Integrity Filtering](/gh-aw/reference/integrity/) - Author-trust and merge-status content filtering
 - [Threat Detection Guide](/gh-aw/reference/threat-detection/) - Configuring threat analysis
 - [Network Permissions](/gh-aw/reference/network/) - Network access control
 - [Safe Outputs Reference](/gh-aw/reference/safe-outputs/) - Output processing configuration

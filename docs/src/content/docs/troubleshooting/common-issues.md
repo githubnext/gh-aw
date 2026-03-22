@@ -472,9 +472,9 @@ tools:
     key: memory-${{ github.workflow }}-${{ github.run_id }}
 ```
 
-## GitHub Lockdown Mode Blocking Expected Content
+## Integrity Filtering Blocking Expected Content
 
-Lockdown mode filters public repository content to show only items from users with push access.
+Integrity filtering controls which content the agent can see, based on author trust and merge status.
 
 ### Symptoms
 
@@ -482,27 +482,27 @@ Workflows can't see issues/PRs/comments from external contributors, status repor
 
 ### Cause
 
-Lockdown is enabled by default for public repositories to protect against untrusted input.
+For public repositories, `min-integrity: approved` is applied automatically, restricting visibility to owners, members, and collaborators.
 
 ### Solution
 
-**Option 1: Keep Lockdown Enabled (Recommended)**
+**Option 1: Keep the default level (Recommended)**
 
 For sensitive operations (code generation, repository updates, web access), use separate workflows, manual triggers, or approval stages.
 
-**Option 2: Disable Lockdown (Safe Public Workflows Only)**
+**Option 2: Lower the integrity level (For workflows processing all users)**
 
-Disable only if your workflow validates input, uses restrictive safe outputs, and doesn't access secrets:
+Lower the level only if your workflow validates input, uses restrictive safe outputs, and doesn't access secrets:
 
 ```yaml wrap
 tools:
   github:
-    lockdown: false
+    min-integrity: none
 ```
 
-Safe use cases: issue triage, spam detection, public dashboards with permission verification.
+For community triage workflows that need contributor input but not anonymous users, `min-integrity: unapproved` is a useful middle ground.
 
-See [Lockdown Mode](/gh-aw/reference/lockdown-mode/) for details.
+See [Integrity Filtering](/gh-aw/reference/integrity/) for details.
 
 ## Workflow Failures and Debugging
 

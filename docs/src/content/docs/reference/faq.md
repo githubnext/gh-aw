@@ -268,13 +268,21 @@ network:
 
 See [Network Permissions](/gh-aw/reference/network/) for complete configuration options.
 
-### What is GitHub lockdown mode and when is it enabled?
+### How does integrity filtering protect my workflow?
 
-[GitHub lockdown mode](/gh-aw/reference/lockdown-mode/) is a security feature that filters content in public repositories to only show issues, pull requests, and comments from users with push access. This protects workflows from processing potentially malicious input from untrusted users.
+[Integrity filtering](/gh-aw/reference/integrity/) controls which GitHub content the agent can see, filtering by **author trust** and **merge status**. The MCP gateway silently removes content below the configured `min-integrity` threshold before the AI engine sees it.
 
-Lockdown mode is **automatically enabled** for public repositories if [Additional Authentication for GitHub Tools](/gh-aw/reference/github-tools/#additional-authentication-for-github-tools) is configured. It is not in effect for private or internal repositories.
+For **public repositories**, `min-integrity: approved` is automatically applied at runtime — restricting content to owners, members, and collaborators — even without additional authentication.
 
-In addition, for **public repositories** where the GitHub MCP server is not explicitly configured with `lockdown` or `min-integrity`, `min-integrity: approved` is automatically applied at runtime. This provides equivalent protection — restricting content to owners, members, and collaborators — even without additional authentication.
+For triage or spam-detection workflows that need to process content from all users, set `min-integrity: none` explicitly:
+
+```yaml wrap
+tools:
+  github:
+    min-integrity: none
+```
+
+See [Integrity Filtering](/gh-aw/reference/integrity/) for available levels, user blocking, and approval labels.
 
 ## Configuration & Setup
 
@@ -451,7 +459,7 @@ checkout:
       defaults/
 ```
 
-The `sparse-checkout` field accepts newline-separated path patterns compatible with `actions/checkout`. See [Cross-Repository Operations](/gh-aw/reference/cross-repository/#checkout-configuration-options) for the full list of checkout configuration options.
+The `sparse-checkout` field accepts newline-separated path patterns compatible with `actions/checkout`. See [Cross-Repository Operations](/gh-aw/reference/checkout/#configuration-options) for the full list of checkout configuration options.
 
 ## Workflow Design
 

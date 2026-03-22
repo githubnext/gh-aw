@@ -1,25 +1,17 @@
 ---
-title: GitHub Tools
-description: Configure GitHub API operations, toolsets, modes, and authentication for your agentic workflows
+title: GitHub Tools (for reading from GitHub)
+description: Configure reading information from GitHub, including integrity filtering, repository access restrictions, cross-repository access, remote mode, and additional authentication.
 sidebar:
   order: 710
 ---
 
-Configure GitHub API operations available to your workflow through the Model Context Protocol (MCP).
+The GitHub Tools (`tools.github`) allow the agentic step of your workflow to read information such as issues and pull requests from GitHub.
 
-```yaml wrap
-tools:
-  github:                                      # Default read-only access (always enforced)
-  github:
-    toolsets: [repos, issues, pull_requests]   # Recommended: toolset groups
-    mode: remote                               # "local" (Docker) or "remote" (hosted)
-    read-only: true                            # Always true; false is not permitted
-    github-token: "${{ secrets.CUSTOM_PAT }}"  # Custom token
-```
+In most workflows, no configuration of the GitHub Tools is necessary since they are included by default with the default toolsets. By default, this provides access to the current repository and all public repositories (if permitted by the network firewall).
 
 ## GitHub Toolsets
 
-Enable specific API groups to improve tool selection and reduce context size:
+You can enable specific API groups to increase the available tools or narrow the default selection:
 
 ```yaml wrap
 tools:
@@ -31,50 +23,28 @@ tools:
 
 **Default**: `context`, `repos`, `issues`, `pull_requests`, `users`
 
-Note `toolsets: [default]` expands to `[context, repos, issues, pull_requests]` (excluding `users`) since `GITHUB_TOKEN` lacks user permissions. Use a PAT for the full default set.
+Some key toolsets are:
 
-Key toolsets: **context** (user/team info), **repos** (repository operations, code search, commits, releases), **issues** (issue management, comments, reactions), **pull_requests** (PR operations), **actions** (workflows, runs, artifacts), **code_security** (scanning alerts), **discussions**, **labels**.
+- `context` (user/team info)
+- `repos` (repository operations, code search, commits, releases)
+- `issues` (issue management, comments, reactions)
+- `pull_requests` (PR operations)
+- `actions` (workflows, runs, artifacts)
+- `code_security` (scanning alerts)
+- `discussions` (discussions and comments)
+- `labels` (labels management)
 
-## Remote vs Local Mode
+Some toolsets requuire [additional authentication](#additional-authentication-for-github-tools).
 
-**Remote Mode**: Use hosted MCP server for faster startup (no Docker). Requires [Additional Authentication for GitHub Tools](/gh-aw/reference/github-tools/#additional-authentication-for-github-tools):
+## GitHub Integrity Filtering (`tools.github.min-integrity`)
 
-```yaml wrap
-tools:
-  github:
-    mode: remote  # Default: "local" (Docker)
-    github-token: ${{ secrets.CUSTOM_PAT }}  # Required for remote mode
-```
+Sets the minimum integrity level required for content the agent can access. For public repositories, `min-integrity: approved` is applied automatically. See [Integrity Filtering](/gh-aw/reference/integrity/) for levels, examples, user blocking, and approval labels.
 
-**Local Mode**: Use Docker container for isolation. Requires `docker` tool and appropriate permissions:
+## GitHub Repository Access Restrictions (`tools.github.repos`)
 
-```yaml wrap
-tools:
-  docker:
-  github:
-    mode: local
-```
+You can configure the GitHub Tools to be restricted in which repositories can be accessed via the GitHub tools during AI engine execution.
 
-## Guard Policies
-
-Restrict which repositories and integrity levels the GitHub MCP server can access during agent execution. Guard policies apply fine-grained access control at the MCP gateway level.
-
-For **public repositories** without explicit guard policy configuration, `min-integrity: approved` is applied automatically at runtime, ensuring content is filtered to owners, members, and collaborators even without additional authentication. See [Automatic Minimum-Integrity Protection](/gh-aw/reference/lockdown-mode/#automatic-minimum-integrity-protection) for details.
-
-```yaml wrap
-tools:
-  github:
-    mode: remote
-    toolsets: [default]
-    repos: "all"
-    min-integrity: unapproved
-```
-
-`min-integrity` can be specified alone; `repos` defaults to `"all"` when omitted. If `repos` is also specified, both fields must be valid.
-
-### `repos`
-
-Specifies which repositories the agent can access through GitHub tools:
+The setting `tools.github.repos` specifies which repositories the agent can access through GitHub tools:
 
 - `"all"` — All repositories accessible by the configured token
 - `"public"` — Public repositories only
@@ -83,7 +53,9 @@ Specifies which repositories the agent can access through GitHub tools:
   - `"owner/*"` — All repositories under an owner
   - `"owner/prefix*"` — Repositories with a name prefix under an owner
 
-Patterns must be lowercase. Wildcards are only permitted at the end of the repository name component.
+This defaults to `"all"` when omitted. Patterns must be lowercase. Wildcards are only permitted at the end of the repository name component.
+
+For example:
 
 ```yaml wrap
 tools:
@@ -97,98 +69,19 @@ tools:
     min-integrity: approved
 ```
 
-### `min-integrity`
+### GitHub Cross-Repository Reading
 
-Sets the minimum integrity level required for repository access.
+By default, the GitHub Tools can read from the current repository and all public repositories (if permitted by the network firewall). To read from other private repositories, you must configure additional authentication. See [Cross-Repository Operations](/gh-aw/reference/cross-repository/) for details and examples.
 
-#### Integrity Level Definitions
+## GitHub Tools Remote Mode
 
-Integrity levels are determined based on the combination of the `author_association` field associated with GitHub objects (issues, pull requests, comments, etc.) and whether an object is reachable from the main branch:
-
-| Level | Criteria |
-|-------|----------|
-| `merged` | Objects reachable from the main branch (regardless of authorship) |
-| `approved` | Objects with `author_association` of `OWNER`, `MEMBER`, or `COLLABORATOR` |
-| `unapproved` | Objects with `author_association` of `CONTRIBUTOR` or `FIRST_TIME_CONTRIBUTOR` |
-| `none` | Objects with `author_association` of `FIRST_TIMER` or `NONE` |
-
-**How it works:**
-- **Merged content** has the highest integrity because it has been reviewed and merged into the main branch
-- **Approved contributors** (owners, members, collaborators) have established trust relationships with the repository
-- **Unapproved contributors** have made contributions but lack formal repository access
-- **None level** includes first-time interactions and users with no prior contribution history
-
-### Examples
-
-**Restrict to public repositories only:**
+By default the GitHub Tools run in "local mode", where the GitHub MCP Server runs within the GitHub Actions VM hosting your agentic workflow. You can switch to "remote mode", which uses a hosted MCP server managed by GitHub. Remote mode requires [additional authentication](#additional-authentication-for-github-tools) and enables additional filtering and capabilities.
 
 ```yaml wrap
 tools:
   github:
-    repos: "public"
-    min-integrity: none
-```
-
-**Restrict to repositories in multiple organizations:**
-
-```yaml wrap
-tools:
-  github:
-    mode: remote
-    toolsets: [repos, issues]
-    repos:
-      - "frontend-org/*"
-      - "backend-org/*"
-    min-integrity: approved
-```
-
-### Non-GitHub MCP Server Integration
-
-When you configure `repos` in the GitHub guard policy, the compiler automatically derives a linked write-sink guard-policy for **all non-GitHub MCP servers** — including [safe outputs](/gh-aw/reference/safe-outputs/), playwright, serena, mcp-scripts, agentic-workflows, web-fetch, and any custom tools. This ensures that as guard policies are applied to GitHub inputs, the corresponding write operations to non-GitHub servers are permitted.
-
-The transformation rules are:
-
-- **`repos: "all"` or `repos: "public"`**: Creates a write-sink policy with `accept: ["*"]` to allow all write operations
-- **`repos: [patterns]`**: Each entry is transformed and added as an accept entry:
-  - `"owner/*"` → `"private:owner"` (owner wildcard → strip wildcard)
-  - `"owner/prefix*"` → `"private:owner/prefix*"` (prefix wildcard → keep as-is)
-  - `"owner/repo"` → `"private:owner/repo"` (specific repo → keep as-is)
-
-This derivation happens at compile time and requires no additional configuration, allowing the MCP gateway to read repository data through the GitHub tools and write outputs to any configured non-GitHub MCP server.
-
-```yaml wrap
-tools:
-  github:
-    mode: remote
-    toolsets: [default]
-    repos: "public"          # Creates write-sink with accept: ["*"]
-    min-integrity: approved
-safe-outputs:
-  create-issue:              # safe outputs can write with accept: ["*"]
-```
-
-```yaml wrap
-tools:
-  github:
-    mode: remote
-    toolsets: [default]
-    repos:
-      - "myorg/private-repo"   # → accept: ["private:myorg/private-repo"]
-      - "myorg/another-repo"   # → accept: ["private:myorg/another-repo"]
-    min-integrity: approved
-safe-outputs:
-  create-issue:                # safe outputs can write to the guard-policy repos
-```
-
-## Lockdown Mode for Public Repositories
-
-Lockdown Mode is a security feature that filters public repository content to only show issues, PRs, and comments from users with push access. Automatically enabled for public repositories when using custom tokens. See [Lockdown Mode](/gh-aw/reference/lockdown-mode/) for complete documentation.
-
-```yaml wrap
-tools:
-  github:
-    lockdown: true   # Force enable (automatic for public repos)
-    lockdown: false  # Disable (for workflows processing all user input)
+    mode: remote  # Default: "local" (Docker)
+    github-token: ${{ secrets.CUSTOM_PAT }}  # Required for remote mode
 ```
 
 ## Additional Authentication for GitHub Tools
@@ -202,8 +95,7 @@ This is required when your workflow requires any of the following:
 - Read access to GitHub org or user information
 - Read access to other private repos
 - Read access to projects
-- GitHub tools [Lockdown Mode](/gh-aw/reference/lockdown-mode/)
-- GitHub tools [Remote Mode](#remote-vs-local-mode)
+- GitHub tools [Remote Mode](#github-tools-remote-mode)
 
 ### Using a Personal Access Token (PAT)
 
@@ -219,12 +111,8 @@ If additional authentication is required, one way is to create a fine-grained PA
      - Pull requests: Read (for toolset: pull_requests)
      - Projects: Read (for toolset: projects)
      - Security Events: Read (for toolset: dependabot, code_security, secret_protection, security_advisories)
-     - Lockdown mode: no additional permissions required
      - Remote mode: no additional permissions required
      - Adjust based on the toolsets you configure in your workflow
-
-   > [!NOTE]
-   > The `dependabot` toolset also requires the `vulnerability-alerts` GitHub App permission. If you are using a GitHub App (rather than a PAT), add `vulnerability-alerts: read` to your workflow's `permissions:` field and ensure the GitHub App is configured with this permission. See [GitHub App-Only Permissions](/gh-aw/reference/permissions/#github-app-only-permissions).
    - **Organization permissions** (if accessing org-level info):
      - Members: Read (for org member info in context)
      - Teams: Read (for team info in context)
@@ -256,33 +144,13 @@ Alternatively, you can set the magic secret `GH_AW_GITHUB_MCP_SERVER_TOKEN` to a
 gh aw secrets set GH_AW_GITHUB_MCP_SERVER_TOKEN --value "<your-pat-token>"
 ```
 
-## Cross-Repository Reading
+### Using the `dependabot` toolset
 
-When GitHub Tools need to read information from repositories other than the one where the workflow is running, additional authorization is required. The default `GITHUB_TOKEN` only has access to the current repository.
-
-Configure cross-repository read access using the same authentication methods described above:
-
-```yaml wrap
-tools:
-  github:
-    toolsets: [repos, issues, pull_requests]
-    github-token: ${{ secrets.CROSS_REPO_PAT }}
-```
-
-This enables operations like:
-- Reading files and searching code in external repositories
-- Querying issues and pull requests from other repos
-- Accessing commits, releases, and workflow runs across repositories
-- Reading organization-level information
-
-> [!NOTE]
-> This authorization is for **reading** from GitHub. For **writing** to other repositories (creating issues, PRs, comments), configure authentication separately through [Safe Outputs](/gh-aw/reference/safe-outputs/) with cross-repository operations.
-
-For complete cross-repository workflow patterns and examples, see [Cross-Repository Operations](/gh-aw/reference/cross-repository/).
+The `dependabot` toolset can only be used if authenticating with a PAT or GitHub Ap and also requires the `vulnerability-alerts` GitHub App permission. If you are using a GitHub App (rather than a PAT), add `vulnerability-alerts: read` to your workflow's `permissions:` field and ensure the GitHub App is configured with this permission. See [GitHub App-Only Permissions](/gh-aw/reference/permissions/#github-app-only-permissions).
 
 ## Related Documentation
 
 - [Tools Reference](/gh-aw/reference/tools/) - All tool configurations
 - [Authentication Reference](/gh-aw/reference/auth/) - Token setup and permissions
-- [Lockdown Mode](/gh-aw/reference/lockdown-mode/) - Public repository security
+- [Integrity Filtering](/gh-aw/reference/integrity/) - Public repository content filtering
 - [MCPs Guide](/gh-aw/guides/mcps/) - Model Context Protocol setup

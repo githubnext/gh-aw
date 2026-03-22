@@ -173,7 +173,7 @@ Here are our tips!
 - Allow manual override
 - Track triage accuracy
 - Update classification rules based on feedback
-- **For public repos**: Consider if you need to [disable lockdown mode](/gh-aw/reference/faq/#what-is-github-lockdown-mode-and-when-is-it-enabled) to process issues from all users (this is one of the rare safe use cases - see [Lockdown Mode](/gh-aw/reference/lockdown-mode/) for security guidance)
+- **For public repos**: By default, `min-integrity: approved` restricts agent visibility to owners, members, and collaborators. For triage workflows that need to process issues from all users, set `min-integrity: none` explicitly — see [Integrity Filtering](/gh-aw/reference/integrity/) for guidance.
 
 **Learn more**: [IssueOps Examples](https://github.github.com/gh-aw/patterns/issue-ops/)
 
