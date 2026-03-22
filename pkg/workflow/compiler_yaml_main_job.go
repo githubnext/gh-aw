@@ -279,12 +279,12 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 		}
 	}
 
-	// Download qmd index artifact if qmd tool is configured.
-	// The index was built in the indexing job (which has contents:read) and is
-	// available via the downloaded artifact; no additional cache restore is needed.
+	// Restore qmd index from cache if qmd tool is configured.
+	// The index was built and cached in the indexing job; we restore it using the precise
+	// cache key so we always get the index from the current workflow run.
 	if data.QmdConfig != nil {
-		compilerYamlLog.Print("Adding qmd index download step")
-		yaml.WriteString(generateQmdDownloadStep(data))
+		compilerYamlLog.Print("Adding qmd index exact-key cache restore step")
+		yaml.WriteString(generateQmdIndexCacheRestoreExactStep(data.QmdConfig))
 		compilerYamlLog.Print("Adding qmd models cache restore step (read-only)")
 		yaml.WriteString(generateQmdModelsCacheRestoreStep())
 		compilerYamlLog.Print("Adding qmd MCP server start step")

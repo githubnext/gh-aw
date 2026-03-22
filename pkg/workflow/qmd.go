@@ -11,14 +11,14 @@
 //     Does NOT build the qmd index.
 //
 //  2. Indexing job (new): runs after activation, builds the search index from configured
-//     checkouts and/or GitHub searches, and uploads it as the "qmd-index" artifact.
+//     checkouts and/or GitHub searches, and saves it to GitHub Actions cache.
 //     This job has contents:read permission so the agent job does NOT need it.
 //     The index is built by a single actions/github-script step that runs qmd_index.cjs,
 //     which uses the @tobilu/qmd JavaScript SDK to build the collections.
 //
 //  3. Agent job: depends on BOTH the activation job (for its outputs) and the indexing job
-//     (for the qmd-index artifact). Downloads the pre-built index and mounts the qmd MCP
-//     server pointing at it.
+//     (for the qmd index cache). Restores the pre-built index from cache using the precise
+//     cache key and mounts the qmd MCP server pointing at it.
 //
 // # Configuration
 //
@@ -48,17 +48,18 @@
 //	        github-token: ${{ secrets.GITHUB_TOKEN }}
 //	    cache-key: "qmd-index-${{ hashFiles('docs/**') }}"
 //
-// # Artifact lifecycle
+// # Cache lifecycle
 //
-// The index is built once per indexing job run and shared with the agent job
-// via the "qmd-index" artifact.  Retention is 1 day (same as the activation artifact).
+// The index is always stored in GitHub Actions cache.  The default cache key is
+// gh-aw-qmd-${{ github.run_id }} (ephemeral per run).  The agent job restores from
+// the exact same key that the indexing job saved, so no artifact upload/download is needed.
 //
 // Related files:
 //   - tools_types.go: QmdToolConfig, QmdDocCollection, QmdSearchEntry types
 //   - tools_parser.go: parseQmdTool / parseQmdDocCollection / parseQmdSearchEntry
 //   - mcp_renderer_builtin.go: RenderQmdMCP method
 //   - compiler_jobs.go: buildQmdIndexingJobWrapper
-//   - compiler_yaml_main_job.go: agent job qmd artifact download
+//   - compiler_yaml_main_job.go: agent job qmd cache restore
 //   - actions/setup/js/qmd_index.cjs: JavaScript SDK implementation
 
 package workflow
@@ -124,25 +125,18 @@ func generateQmdModelsCacheRestoreStep() string {
 	return sb.String()
 }
 
-// generateQmdIndexCacheRestoreStep generates a read-only restore step for the agent job that
-// restores the qmd search index from the Actions cache.  It uses the same resolved cache key
-// as the indexing job so that the index is available even if the artifact has already expired.
-// restore-keys are included so the agent can fall back to a cached index from a previous run.
-func generateQmdIndexCacheRestoreStep(qmdConfig *QmdToolConfig) string {
+// generateQmdIndexCacheRestoreExactStep generates a read-only restore step for the agent job
+// that restores the qmd search index from Actions cache using the PRECISE cache key.
+// No restore-keys fallback is used — the agent job must get the exact index that the
+// indexing job saved in the current workflow run.
+func generateQmdIndexCacheRestoreExactStep(qmdConfig *QmdToolConfig) string {
 	cacheKey := resolveQmdCacheKey(qmdConfig)
-	restoreKeys := resolveQmdRestoreKeys(qmdConfig)
 	var sb strings.Builder
 	sb.WriteString("      - name: Restore qmd index from cache\n")
 	fmt.Fprintf(&sb, "        uses: %s\n", GetActionPin("actions/cache/restore"))
 	sb.WriteString("        with:\n")
 	fmt.Fprintf(&sb, "          key: %s\n", cacheKey)
 	sb.WriteString("          path: /tmp/gh-aw/qmd-index/\n")
-	if len(restoreKeys) > 0 {
-		sb.WriteString("          restore-keys: |\n")
-		for _, rk := range restoreKeys {
-			fmt.Fprintf(&sb, "            %s\n", rk)
-		}
-	}
 	return sb.String()
 }
 
@@ -354,8 +348,8 @@ func generateQmdCollectionCheckoutStep(col *QmdDocCollection) string {
 }
 
 // generateQmdIndexSteps generates the indexing job steps that install the @tobilu/qmd SDK,
-// run the qmd_index.cjs JavaScript script to build the vector search index, and upload it
-// as the qmd-index artifact.
+// run the qmd_index.cjs JavaScript script to build the vector search index, and save it
+// to GitHub Actions cache.
 //
 // The configuration is serialised to JSON and passed via the QMD_CONFIG_JSON environment
 // variable to the github-script step. qmd_index.cjs uses the @tobilu/qmd SDK to:
@@ -369,11 +363,11 @@ func generateQmdCollectionCheckoutStep(col *QmdDocCollection) string {
 // single workflow run).  When qmdConfig.CacheKey IS set, the cache is durable across runs.
 //
 // Modes:
-//   - Read-only mode (cache-key set, no sources): only cache restore + artifact upload.
+//   - Read-only mode (cache-key set, no sources): only cache restore + cache save (skipped on hit).
 //   - Build mode (sources present): indexing steps are guarded by
 //     `if: steps.qmd-cache-restore.outputs.cache-hit != 'true'`, so they are skipped on a
 //     cache hit.  A cache save step always follows.
-func generateQmdIndexSteps(qmdConfig *QmdToolConfig, data *WorkflowData) []string {
+func generateQmdIndexSteps(qmdConfig *QmdToolConfig) []string {
 	hasSources := qmdHasSources(qmdConfig)
 	isCacheOnlyMode := qmdConfig.CacheKey != "" && !hasSources
 	cacheKey := resolveQmdCacheKey(qmdConfig)
@@ -460,33 +454,7 @@ func generateQmdIndexSteps(qmdConfig *QmdToolConfig, data *WorkflowData) []strin
 		steps = append(steps, generateQmdCacheSaveStep(cacheKey))
 	}
 
-	// Upload qmd index as a separate artifact for the agent job
-	qmdLog.Print("Adding qmd index artifact upload step")
-	// The upload runs in the indexing job (a downstream job from activation), so use the
-	// downstream prefix expression which references needs.activation.outputs.artifact_prefix.
-	qmdArtifactName := artifactPrefixExprForDownstreamJob(data) + constants.QmdArtifactName
-	steps = append(steps, "      - name: Upload qmd index artifact\n")
-	steps = append(steps, "        if: success()\n")
-	steps = append(steps, fmt.Sprintf("        uses: %s\n", GetActionPin("actions/upload-artifact")))
-	steps = append(steps, "        with:\n")
-	steps = append(steps, fmt.Sprintf("          name: %s\n", qmdArtifactName))
-	steps = append(steps, "          path: /tmp/gh-aw/qmd-index/\n")
-	steps = append(steps, "          retention-days: 1\n")
-
 	return steps
-}
-
-// generateQmdDownloadStep generates the agent job step that downloads the qmd-index artifact.
-// Returns the steps as a YAML string slice ready to be appended to the agent job steps.
-func generateQmdDownloadStep(data *WorkflowData) string {
-	qmdArtifactName := artifactPrefixExprForDownstreamJob(data) + constants.QmdArtifactName
-	var sb strings.Builder
-	sb.WriteString("      - name: Download qmd index artifact\n")
-	fmt.Fprintf(&sb, "        uses: %s\n", GetActionPin("actions/download-artifact"))
-	sb.WriteString("        with:\n")
-	fmt.Fprintf(&sb, "          name: %s\n", qmdArtifactName)
-	sb.WriteString("          path: /tmp/gh-aw/qmd-index/\n")
-	return sb.String()
 }
 
 // generateQmdStartServerStep generates the agent job step that starts the qmd MCP server
@@ -525,7 +493,7 @@ func generateQmdStartServerStep(qmdConfig *QmdToolConfig) string {
 //  2. Runs the setup action to copy qmd_index.cjs and setup_globals.cjs to the runner
 //  3. Optionally checks out the workspace for checkout-based collections
 //  4. Installs @tobilu/qmd and @actions/github and runs qmd_index.cjs via actions/github-script
-//  5. Uploads the resulting index as the qmd-index artifact
+//  5. Saves the resulting index to GitHub Actions cache
 //
 // The agent job declares a needs dependency on this "indexing" job and downloads the artifact.
 func (c *Compiler) buildQmdIndexingJob(data *WorkflowData) (*Job, error) {
@@ -559,8 +527,8 @@ func (c *Compiler) buildQmdIndexingJob(data *WorkflowData) (*Job, error) {
 		steps = append(steps, sb.String())
 	}
 
-	// Generate all qmd index-building steps (cache restore/save, Node.js, SDK install, github-script, artifact upload).
-	qmdSteps := generateQmdIndexSteps(data.QmdConfig, data)
+	// Generate all qmd index-building steps (cache restore/save, Node.js, SDK install, github-script).
+	qmdSteps := generateQmdIndexSteps(data.QmdConfig)
 	steps = append(steps, qmdSteps...)
 
 	// The indexing job runs after the activation job to inherit the artifact prefix output.

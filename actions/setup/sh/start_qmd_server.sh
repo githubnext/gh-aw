@@ -36,7 +36,7 @@ mkdir -p /tmp/gh-aw/mcp-logs/qmd
 # NODE_LLAMA_CPP_GPU controls GPU probing; "false" disables it on CPU runners.
 QMD_CACHE_DIR="${QMD_CACHE_DIR}" \
 NODE_LLAMA_CPP_GPU="${NODE_LLAMA_CPP_GPU:-false}" \
-  npx "@tobilu/qmd" serve-mcp --http --port "${GH_AW_QMD_PORT}" \
+  npx --package=@tobilu/qmd serve-mcp --http --port "${GH_AW_QMD_PORT}" \
     >> /tmp/gh-aw/mcp-logs/qmd/server.log 2>&1 &
 
 SERVER_PID=$!
