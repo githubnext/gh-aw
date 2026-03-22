@@ -328,7 +328,6 @@ export default defineConfig({
 						{ label: 'Safe Outputs (Staged Mode)', link: '/reference/staged-mode/' },
 						{ label: 'Sandbox', link: '/reference/sandbox/' },
 						{ label: 'Schedule Syntax', link: '/reference/schedule-syntax/' },
-						{ label: 'Staged Mode', link: '/reference/staged-mode/' },
 						{ label: 'Templating', link: '/reference/templating/' },
 						{ label: 'Threat Detection', link: '/reference/threat-detection/' },
 						{ label: 'Tools', link: '/reference/tools/' },
