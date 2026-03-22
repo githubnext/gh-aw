@@ -52,7 +52,10 @@ func (c *Compiler) generateGitHubMCPLockdownDetectionStep(yaml *strings.Builder,
 		if v, exists := toolConfig["min-integrity"]; exists {
 			configuredMinIntegrity = fmt.Sprintf("%v", v)
 		}
-		if v, exists := toolConfig["repos"]; exists {
+		// Support both 'allowed-repos' (preferred) and deprecated 'repos'
+		if v, exists := toolConfig["allowed-repos"]; exists {
+			configuredRepos = fmt.Sprintf("%v", v)
+		} else if v, exists := toolConfig["repos"]; exists {
 			configuredRepos = fmt.Sprintf("%v", v)
 		}
 	}
