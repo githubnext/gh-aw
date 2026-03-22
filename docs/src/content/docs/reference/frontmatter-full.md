@@ -252,6 +252,65 @@ on:
     # (optional)
     remove_label: true
 
+  # On Label Command trigger: fires when a specific label is added to an issue, pull
+  # request, or discussion. The triggering label is automatically removed at
+  # workflow start so it can be applied again to re-trigger. Use the 'events' field
+  # to restrict which item types (issues, pull_request, discussion) activate the
+  # trigger.
+  # (optional)
+  # This field supports multiple formats (oneOf):
+
+  # Option 1: Label name as a string (shorthand format). The workflow fires when
+  # this label is added to any supported item type (issue, pull request, or
+  # discussion).
+  label_command: "example-value"
+
+  # Option 2: Label command configuration object with label name(s) and optional
+  # event filtering.
+  label_command:
+    # Label name(s) that trigger the workflow when added to an issue, pull request, or
+    # discussion.
+    # (optional)
+    # This field supports multiple formats (oneOf):
+
+    # Option 1: Single label name that acts as a command (e.g., 'deploy' triggers the
+    # workflow when the 'deploy' label is added).
+    name: "My Workflow"
+
+    # Option 2: Array of label names — any of these labels will trigger the workflow.
+    name: []
+      # Array items: A label name
+
+    # Alternative to 'name': label name(s) that trigger the workflow.
+    # (optional)
+    # This field supports multiple formats (oneOf):
+
+    # Option 1: Single label name.
+    names: "example-value"
+
+    # Option 2: Array of label names — any of these labels will trigger the workflow.
+    names: []
+      # Array items: A label name
+
+    # Item types where the label-command trigger should be active. Default is all
+    # supported types: issues, pull_request, discussion.
+    # (optional)
+    # This field supports multiple formats (oneOf):
+
+    # Option 1: Single item type or '*' for all types.
+    events: "*"
+
+    # Option 2: Array of item types where the trigger is active.
+    events: []
+      # Array items: Item type.
+
+    # Whether to automatically remove the triggering label after the workflow starts.
+    # Defaults to true. Set to false to keep the label on the item and skip the
+    # label-removal step. When false, the issues:write and discussions:write
+    # permissions required for label removal are also omitted.
+    # (optional)
+    remove_label: true
+
   # Push event trigger that runs the workflow when code is pushed to the repository
   # (optional)
   # This field supports multiple formats (oneOf):
@@ -1282,22 +1341,6 @@ sandbox:
     # (optional)
     type: "awf"
 
-    # Custom command to replace the default AWF installation. For AWF: 'docker run
-    # my-custom-awf-image'
-    # (optional)
-    command: "example-value"
-
-    # Additional arguments to append to the command (applies to AWF, for standard and
-    # custom commands)
-    # (optional)
-    args: []
-      # Array of strings
-
-    # Environment variables to set on the execution step (applies to AWF)
-    # (optional)
-    env:
-      {}
-
     # Container mounts to add when using AWF. Each mount is specified using Docker
     # mount syntax: 'source:destination:mode' where mode can be 'ro' (read-only) or
     # 'rw' (read-write). Example: '/host/path:/container/path:ro'
@@ -1384,28 +1427,6 @@ sandbox:
   # Specification v1.0.0: Only container-based execution is supported.
   # (optional)
   mcp:
-    # Container image for the MCP gateway executable (required)
-    container: "example-value"
-
-    # Optional version/tag for the container image (e.g., 'latest', 'v1.0.0')
-    # (optional)
-    version: null
-
-    # Optional custom entrypoint for the MCP gateway container. Overrides the
-    # container's default entrypoint.
-    # (optional)
-    entrypoint: "example-value"
-
-    # Arguments for docker run
-    # (optional)
-    args: []
-      # Array of strings
-
-    # Arguments to add after the container image (container entrypoint arguments)
-    # (optional)
-    entrypointArgs: []
-      # Array of strings
-
     # Volume mounts for the MCP gateway container. Each mount is specified using
     # Docker mount syntax: 'source:destination:mode' where mode can be 'ro'
     # (read-only) or 'rw' (read-write). Example: '/host/data:/container/data:ro'
@@ -1843,14 +1864,7 @@ tools:
     toolsets: []
       # Array of Toolset name
 
-    # Volume mounts for the containerized GitHub MCP server (format:
-    # 'host:container:mode' where mode is 'ro' for read-only or 'rw' for read-write).
-    # Applies to local mode only. Example: '/data:/data:ro'
-    # (optional)
-    mounts: []
-      # Array of Mount specification in format 'host:container:mode'
-
-    # Guard policy: repository access configuration. Restricts which repositories the
+    # GitHub Tools repository access configuration. Restricts which repositories the
     # agent can access. Use 'all' to allow all repos, 'public' for public repositories
     # only, or an array of repository patterns (e.g., 'owner/repo', 'owner/*',
     # 'owner/prefix*').
@@ -2404,7 +2418,7 @@ safe-outputs:
     expires: "example-value"
 
     # Option 3: Set to false to explicitly disable expiration
-    expires: true
+    expires: false
 
     # If true, group issues as sub-issues under a parent issue. The workflow ID is
     # used as the group identifier. Parent issues are automatically created and
@@ -2905,7 +2919,7 @@ safe-outputs:
     expires: "example-value"
 
     # Option 3: Set to false to explicitly disable expiration
-    expires: true
+    expires: false
 
     # GitHub token to use for this specific output type. Overrides global github-token
     # if specified.

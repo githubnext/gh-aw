@@ -19,6 +19,7 @@ func TestMCPGatewayEntrypointE2E(t *testing.T) {
 	markdown := `---
 on: workflow_dispatch
 engine: copilot
+strict: false
 sandbox:
   mcp:
     container: ghcr.io/github/gh-aw-mcpg
@@ -74,6 +75,7 @@ func TestMCPGatewayMountsE2E(t *testing.T) {
 	markdown := `---
 on: workflow_dispatch
 engine: copilot
+strict: false
 sandbox:
   mcp:
     container: ghcr.io/github/gh-aw-mcpg
@@ -121,6 +123,7 @@ func TestMCPGatewayEntrypointAndMountsE2E(t *testing.T) {
 	markdown := `---
 on: workflow_dispatch
 engine: copilot
+strict: false
 sandbox:
   mcp:
     container: ghcr.io/github/gh-aw-mcpg
@@ -223,6 +226,7 @@ func TestMCPGatewayEntrypointWithSpecialCharacters(t *testing.T) {
 	markdown := `---
 on: workflow_dispatch
 engine: copilot
+strict: false
 sandbox:
   mcp:
     container: ghcr.io/github/gh-aw-mcpg
@@ -274,6 +278,7 @@ func TestMCPGatewayMountsWithVariables(t *testing.T) {
 	markdown := `---
 on: workflow_dispatch
 engine: copilot
+strict: false
 sandbox:
   mcp:
     container: ghcr.io/github/gh-aw-mcpg

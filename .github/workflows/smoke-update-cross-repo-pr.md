@@ -1,6 +1,6 @@
 ---
 name: Smoke Update Cross-Repo PR
-description: Smoke test validating cross-repo pull request updates in githubnext/gh-aw-side-repo by adding lines from Homer's Odyssey to the README
+description: Smoke test validating cross-repo pull request updates in github/gh-aw-side-repo by adding lines from Homer's Odyssey to the README
 
 on:
   schedule: every 12h
@@ -21,7 +21,7 @@ network:
     - github
 
 checkout:
-  - repository: githubnext/gh-aw-side-repo
+  - repository: github/gh-aw-side-repo
     github-token: ${{ secrets.GH_AW_SIDE_REPO_PAT }}
     fetch: ["main", "refs/pulls/open/*"]      # fetch all open PR refs after checkout
     fetch-depth: 0               # fetch full history to ensure we can see all commits and PR details
@@ -45,13 +45,13 @@ safe-outputs:
     hide-older-comments: true
     max: 2
   push-to-pull-request-branch:
-    target-repo: "githubnext/gh-aw-side-repo"
+    target-repo: "github/gh-aw-side-repo"
     github-token: ${{ secrets.GH_AW_SIDE_REPO_PAT }}
     if-no-changes: "error"
     target: "1" # PR #1
   messages:
     footer: "> 📜 *Cross-repo PR update smoke test by [{workflow_name}]({run_url})*{history_link}"
-    run-started: "📜 [{workflow_name}]({run_url}) is adding the next Odyssey line to githubnext/gh-aw-side-repo PR #1..."
+    run-started: "📜 [{workflow_name}]({run_url}) is adding the next Odyssey line to github/gh-aw-side-repo PR #1..."
     run-success: "✅ [{workflow_name}]({run_url}) successfully updated the cross-repo PR with a new Odyssey line!"
     run-failure: "❌ [{workflow_name}]({run_url}) failed to update the cross-repo PR: {status}"
 
