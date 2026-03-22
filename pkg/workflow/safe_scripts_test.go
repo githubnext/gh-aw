@@ -549,7 +549,7 @@ func TestBuildCustomSafeOutputScriptsJSONPathTraversalMixedWithSafe(t *testing.T
 	// The traversal name should be absent — NormalizeSafeOutputIdentifier converts - to _ but
 	// keeps .. and /, so the key would contain path characters and be filtered out.
 	for key := range mapping {
-		assert.False(t, strings.Contains(key, ".."), "Traversal key must not appear in output: %q", key)
-		assert.False(t, strings.Contains(key, "/"), "Key with slash must not appear in output: %q", key)
+		assert.NotContains(t, key, "..", "Traversal key must not appear in output: %q", key)
+		assert.NotContains(t, key, "/", "Key with slash must not appear in output: %q", key)
 	}
 }
