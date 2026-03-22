@@ -265,6 +265,52 @@ func (cm *CheckoutManager) add(cfg *CheckoutConfig) {
 	}
 }
 
+// GetPrimaryTargetRepo returns the repository of the first checkout entry in the manager,
+// or an empty string if no checkouts are configured.
+//
+// Used by the safe_outputs job to determine the git remote target for PR operations
+// when a cross-repo target is configured (e.g. via push-to-pull-request-branch or
+// create-pull-request target-repo settings).
+func (cm *CheckoutManager) GetPrimaryTargetRepo() string {
+	if len(cm.ordered) == 0 {
+		return ""
+	}
+	return cm.ordered[0].key.repository
+}
+
+// GenerateSafeOutputsCheckoutStep generates an actions/checkout YAML step for PR
+// operations in the safe_outputs job.
+//
+// Parameters:
+//   - condition: optional step condition (if nil the if: line is omitted)
+//   - ref: Git ref expression to checkout (e.g. base branch expression)
+//   - token: GitHub token for authentication
+//   - getActionPin: resolves action references to pinned SHA form
+//
+// The step checks out GetPrimaryTargetRepo() when a target repository is configured,
+// or the current repository when none is set.
+// Returns a slice of YAML lines (each ending with \n).
+func (cm *CheckoutManager) GenerateSafeOutputsCheckoutStep(condition ConditionNode, ref, token string, getActionPin func(string) string) []string {
+	targetRepo := cm.GetPrimaryTargetRepo()
+	checkoutManagerLog.Printf("Generating safe-outputs checkout step: targetRepo=%q ref=%q", targetRepo, ref)
+
+	var steps []string
+	steps = append(steps, "      - name: Checkout repository\n")
+	if condition != nil {
+		steps = append(steps, fmt.Sprintf("        if: %s\n", RenderCondition(condition)))
+	}
+	steps = append(steps, fmt.Sprintf("        uses: %s\n", getActionPin("actions/checkout")))
+	steps = append(steps, "        with:\n")
+	if targetRepo != "" {
+		steps = append(steps, fmt.Sprintf("          repository: %s\n", targetRepo))
+	}
+	steps = append(steps, fmt.Sprintf("          ref: %s\n", ref))
+	steps = append(steps, fmt.Sprintf("          token: %s\n", token))
+	steps = append(steps, "          persist-credentials: false\n")
+	steps = append(steps, "          fetch-depth: 1\n")
+	return steps
+}
+
 // GetDefaultCheckoutOverride returns the resolved checkout for the default workspace
 // (empty path, empty repository). Returns nil if the user did not configure one.
 func (cm *CheckoutManager) GetDefaultCheckoutOverride() *resolvedCheckout {

@@ -68,6 +68,38 @@ func (c *Compiler) buildConsolidatedSafeOutputStep(data *WorkflowData, config Sa
 	return steps
 }
 
+// buildSafeOutputsCheckoutManager creates a CheckoutManager populated with the
+// checkout configuration derived from safe-output configurations.
+//
+// The target repository is selected using the following priority chain:
+//  1. create-pull-request target-repo
+//  2. push-to-pull-request-branch target-repo
+//  3. trial mode logical repo
+//  4. default workflow repo (empty CheckoutManager, no repository override)
+//
+// The resulting manager exposes GetPrimaryTargetRepo() and
+// GenerateSafeOutputsCheckoutStep() for use by buildSharedPRCheckoutSteps.
+func (c *Compiler) buildSafeOutputsCheckoutManager(safeOutputs *SafeOutputsConfig) *CheckoutManager {
+	var cfg *CheckoutConfig
+
+	if safeOutputs.CreatePullRequests != nil && safeOutputs.CreatePullRequests.TargetRepoSlug != "" {
+		cfg = &CheckoutConfig{Repository: safeOutputs.CreatePullRequests.TargetRepoSlug}
+		consolidatedSafeOutputsStepsLog.Printf("buildSafeOutputsCheckoutManager: using target-repo from create-pull-request: %s", cfg.Repository)
+	} else if safeOutputs.PushToPullRequestBranch != nil && safeOutputs.PushToPullRequestBranch.TargetRepoSlug != "" {
+		cfg = &CheckoutConfig{Repository: safeOutputs.PushToPullRequestBranch.TargetRepoSlug}
+		consolidatedSafeOutputsStepsLog.Printf("buildSafeOutputsCheckoutManager: using target-repo from push-to-pull-request-branch: %s", cfg.Repository)
+	} else if c.trialMode && c.trialLogicalRepoSlug != "" {
+		cfg = &CheckoutConfig{Repository: c.trialLogicalRepoSlug}
+		consolidatedSafeOutputsStepsLog.Printf("buildSafeOutputsCheckoutManager: using trialLogicalRepoSlug: %s", cfg.Repository)
+	}
+
+	var configs []*CheckoutConfig
+	if cfg != nil {
+		configs = []*CheckoutConfig{cfg}
+	}
+	return NewCheckoutManager(configs)
+}
+
 // buildSharedPRCheckoutSteps builds checkout and git configuration steps that are shared
 // between create-pull-request and push-to-pull-request-branch operations.
 // These steps are added once with a combined condition to avoid duplication.
@@ -75,10 +107,13 @@ func (c *Compiler) buildSharedPRCheckoutSteps(data *WorkflowData) []string {
 	consolidatedSafeOutputsStepsLog.Print("Building shared PR checkout steps")
 	var steps []string
 
+	// Build a CheckoutManager from safe-output configurations to determine
+	// the target repository for PR operations.
+	cm := c.buildSafeOutputsCheckoutManager(data.SafeOutputs)
+
 	// Determine which token to use for checkout
 	// Uses computeEffectivePRCheckoutToken for consistent token resolution (GitHub App or PAT chain)
 	checkoutToken, _ := computeEffectivePRCheckoutToken(data.SafeOutputs)
-	gitRemoteToken := checkoutToken
 
 	// Build combined condition: execute if either create_pull_request or push_to_pull_request_branch will run
 	var condition ConditionNode
@@ -94,20 +129,6 @@ func (c *Compiler) buildSharedPRCheckoutSteps(data *WorkflowData) []string {
 	} else {
 		// Only push_to_pull_request_branch
 		condition = BuildSafeOutputType("push_to_pull_request_branch")
-	}
-
-	// Determine target repository for checkout and git config
-	// Priority: create-pull-request target-repo > push-to-pull-request-branch target-repo > trialLogicalRepoSlug > default (source repo)
-	var targetRepoSlug string
-	if data.SafeOutputs.CreatePullRequests != nil && data.SafeOutputs.CreatePullRequests.TargetRepoSlug != "" {
-		targetRepoSlug = data.SafeOutputs.CreatePullRequests.TargetRepoSlug
-		consolidatedSafeOutputsStepsLog.Printf("Using target-repo from create-pull-request: %s", targetRepoSlug)
-	} else if data.SafeOutputs.PushToPullRequestBranch != nil && data.SafeOutputs.PushToPullRequestBranch.TargetRepoSlug != "" {
-		targetRepoSlug = data.SafeOutputs.PushToPullRequestBranch.TargetRepoSlug
-		consolidatedSafeOutputsStepsLog.Printf("Using target-repo from push-to-pull-request-branch: %s", targetRepoSlug)
-	} else if c.trialMode && c.trialLogicalRepoSlug != "" {
-		targetRepoSlug = c.trialLogicalRepoSlug
-		consolidatedSafeOutputsStepsLog.Printf("Using trialLogicalRepoSlug: %s", targetRepoSlug)
 	}
 
 	// Determine the ref (branch) to checkout
@@ -132,7 +153,7 @@ func (c *Compiler) buildSharedPRCheckoutSteps(data *WorkflowData) []string {
 	// * event trigger context
 	// * ideally repository context too
 	// So safe outputs are "self-describing" and already know which base branch, repository etc. they're
-	// targeting.  Then a lot of this gnarly event code will be only on the "front end" (prepping the
+	// targeting.  Then a lot of this gnarly event code will be only on the "front end" (prepping the
 	// coding agent) not the "backend" (applying the safe outputs)
 	const baseBranchFallbackExpr = "${{ github.base_ref || github.event.pull_request.base.ref || github.ref_name || github.event.repository.default_branch }}"
 	var checkoutRef string
@@ -144,32 +165,17 @@ func (c *Compiler) buildSharedPRCheckoutSteps(data *WorkflowData) []string {
 		consolidatedSafeOutputsStepsLog.Printf("Using fallback base branch expression for checkout ref")
 	}
 
-	// Step 1: Checkout repository with conditional execution
-	steps = append(steps, "      - name: Checkout repository\n")
-	steps = append(steps, fmt.Sprintf("        if: %s\n", RenderCondition(condition)))
-	steps = append(steps, fmt.Sprintf("        uses: %s\n", GetActionPin("actions/checkout")))
-	steps = append(steps, "        with:\n")
-
-	// Set repository parameter if checking out a different repository
-	if targetRepoSlug != "" {
-		steps = append(steps, fmt.Sprintf("          repository: %s\n", targetRepoSlug))
-		consolidatedSafeOutputsStepsLog.Printf("Added repository parameter: %s", targetRepoSlug)
-	}
-
-	// Set ref to checkout the base branch, not github.sha
-	steps = append(steps, fmt.Sprintf("          ref: %s\n", checkoutRef))
-	steps = append(steps, fmt.Sprintf("          token: %s\n", checkoutToken))
-	steps = append(steps, "          persist-credentials: false\n")
-	steps = append(steps, "          fetch-depth: 1\n")
+	// Step 1: Checkout repository with conditional execution (delegated to CheckoutManager)
+	steps = append(steps, cm.GenerateSafeOutputsCheckoutStep(condition, checkoutRef, checkoutToken, GetActionPin)...)
 
 	// Step 2: Configure Git credentials with conditional execution
 	// Security: Pass GitHub token through environment variable to prevent template injection
 
 	// Determine REPO_NAME value based on target repository
 	repoNameValue := "${{ github.repository }}"
-	if targetRepoSlug != "" {
-		repoNameValue = fmt.Sprintf("%q", targetRepoSlug)
-		consolidatedSafeOutputsStepsLog.Printf("Using target repo for REPO_NAME: %s", targetRepoSlug)
+	if targetRepo := cm.GetPrimaryTargetRepo(); targetRepo != "" {
+		repoNameValue = fmt.Sprintf("%q", targetRepo)
+		consolidatedSafeOutputsStepsLog.Printf("Using target repo for REPO_NAME: %s", targetRepo)
 	}
 
 	gitConfigSteps := []string{
@@ -178,7 +184,7 @@ func (c *Compiler) buildSharedPRCheckoutSteps(data *WorkflowData) []string {
 		"        env:\n",
 		fmt.Sprintf("          REPO_NAME: %s\n", repoNameValue),
 		"          SERVER_URL: ${{ github.server_url }}\n",
-		fmt.Sprintf("          GIT_TOKEN: %s\n", gitRemoteToken),
+		fmt.Sprintf("          GIT_TOKEN: %s\n", checkoutToken),
 		"        run: |\n",
 		"          git config --global user.email \"github-actions[bot]@users.noreply.github.com\"\n",
 		"          git config --global user.name \"github-actions[bot]\"\n",
