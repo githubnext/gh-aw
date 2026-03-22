@@ -74,8 +74,8 @@ func (r *MCPConfigRendererUnified) renderPlaywrightTOML(yaml *strings.Builder, p
 }
 
 // RenderQmdMCP generates the qmd documentation search MCP server configuration.
-// qmd uses HTTP transport (qmd mcp --http) to serve the pre-built index over a local port.
-// The qmd server is started before the MCP gateway and the agent connects via HTTP.
+// qmd runs as a containerized stdio MCP server started by the gateway, with the
+// pre-built index and embedding models mounted from the host via Actions cache.
 func (r *MCPConfigRendererUnified) RenderQmdMCP(yaml *strings.Builder, qmdTool any) {
 	mcpRendererLog.Printf("Rendering qmd MCP: format=%s, inline_args=%t", r.options.Format, r.options.InlineArgs)
 
@@ -88,27 +88,141 @@ func (r *MCPConfigRendererUnified) RenderQmdMCP(yaml *strings.Builder, qmdTool a
 	renderQmdMCPConfigWithOptions(yaml, r.options.IsLast, r.options.IncludeCopilotFields, r.options.InlineArgs)
 }
 
-// renderQmdTOML generates qmd MCP configuration in TOML format using HTTP transport.
-// The qmd MCP server is started separately in the agent job by start_qmd_server.sh and
-// listens on GH_AW_QMD_PORT. Using HTTP transport (instead of stdio+container) allows
-// the server to boot once and be probed for health before the gateway starts.
+// renderQmdTOML generates qmd MCP configuration in TOML format using a containerized stdio server.
+// The gateway starts the container, mounting the pre-built index (/tmp/gh-aw/qmd-index/) and
+// embedding models (${HOME}/.cache/qmd/) from the host. INDEX_PATH and HOME env vars are
+// forwarded to the container so qmd and node-llama-cpp locate the correct files.
 func (r *MCPConfigRendererUnified) renderQmdTOML(yaml *strings.Builder) {
-	mcpRendererBuiltinLog.Print("Rendering qmd MCP in TOML format (HTTP transport)")
+	mcpRendererBuiltinLog.Print("Rendering qmd MCP in TOML format (container stdio)")
+
+	version := string(constants.DefaultQmdVersion)
 
 	yaml.WriteString("          \n")
 	yaml.WriteString("          [mcp_servers.qmd]\n")
-	yaml.WriteString("          type = \"http\"\n")
-	yaml.WriteString("          url = \"http://host.docker.internal:$GH_AW_QMD_PORT\"\n")
+	yaml.WriteString("          container = \"node:24\"\n")
+	yaml.WriteString("          entrypoint = \"npx\"\n")
+	yaml.WriteString("          entrypointArgs = [\n")
+	yaml.WriteString("            \"--yes\",\n")
+	yaml.WriteString("            \"--package\",\n")
+	yaml.WriteString("            \"@tobilu/qmd@" + version + "\",\n")
+	yaml.WriteString("            \"qmd\",\n")
+	yaml.WriteString("            \"mcp\",\n")
+	yaml.WriteString("          ]\n")
+	yaml.WriteString("          args = [\n")
+	yaml.WriteString("            \"--network\",\n")
+	yaml.WriteString("            \"host\",\n")
+	yaml.WriteString("          ]\n")
+	// Mount the qmd index (under /tmp/gh-aw/) and the embedding models cache.
+	// The node-llama-cpp binary cache is not mounted; the container downloads the
+	// appropriate prebuilt binary for its own OS on first use.
+	yaml.WriteString("          mounts = [\n")
+	yaml.WriteString("            \"/tmp/gh-aw:/tmp/gh-aw:rw\",\n")
+	yaml.WriteString("            \"${HOME}/.cache/qmd:${HOME}/.cache/qmd:rw\",\n")
+	yaml.WriteString("          ]\n")
+	// Forward INDEX_PATH (location of the SQLite index) and HOME (so node-llama-cpp
+	// and qmd resolve ~/.cache/ paths correctly inside the container).
+	// NODE_LLAMA_CPP_GPU is forwarded so GPU probing can be disabled on CPU-only runners.
+	yaml.WriteString("          env_vars = [\"INDEX_PATH\", \"HOME\", \"NODE_LLAMA_CPP_GPU\"]\n")
 }
 
 // renderQmdMCPConfigWithOptions generates the qmd MCP server configuration in JSON format.
-// qmd is exposed via HTTP transport — the server was started (and health-probed) before
-// the gateway by the "Start qmd MCP HTTP server" step.
-// _includeCopilotFields and _inlineArgs are unused after the HTTP transport migration.
-func renderQmdMCPConfigWithOptions(yaml *strings.Builder, isLast bool, _includeCopilotFields bool, _inlineArgs bool) {
+// qmd uses a containerized stdio server started by the MCP gateway, with mounts for
+// the pre-built index and embedding models.
+func renderQmdMCPConfigWithOptions(yaml *strings.Builder, isLast bool, includeCopilotFields bool, inlineArgs bool) {
+	version := string(constants.DefaultQmdVersion)
+	qmdArgs := []string{"--yes", "--package", "@tobilu/qmd@" + version, "qmd", "mcp"}
+	dockerArgs := []string{"--network", "host"}
+	mounts := []string{"/tmp/gh-aw:/tmp/gh-aw:rw", "${HOME}/.cache/qmd:${HOME}/.cache/qmd:rw"}
+	envVars := []string{"INDEX_PATH", "HOME", "NODE_LLAMA_CPP_GPU"}
+
 	yaml.WriteString("              \"qmd\": {\n")
-	yaml.WriteString("                \"type\": \"http\",\n")
-	yaml.WriteString("                \"url\": \"http://host.docker.internal:$GH_AW_QMD_PORT\"\n")
+
+	if includeCopilotFields {
+		yaml.WriteString("                \"type\": \"stdio\",\n")
+	}
+
+	yaml.WriteString("                \"container\": \"node:24\",\n")
+	yaml.WriteString("                \"entrypoint\": \"npx\",\n")
+
+	if inlineArgs {
+		// Entrypoint args inline
+		yaml.WriteString("                \"entrypointArgs\": [")
+		for i, arg := range qmdArgs {
+			if i > 0 {
+				yaml.WriteString(", ")
+			}
+			yaml.WriteString("\"" + arg + "\"")
+		}
+		yaml.WriteString("],\n")
+		// Docker args inline
+		yaml.WriteString("                \"args\": [")
+		for i, arg := range dockerArgs {
+			if i > 0 {
+				yaml.WriteString(", ")
+			}
+			yaml.WriteString("\"" + arg + "\"")
+		}
+		yaml.WriteString("],\n")
+		// Mounts inline
+		yaml.WriteString("                \"mounts\": [")
+		for i, m := range mounts {
+			if i > 0 {
+				yaml.WriteString(", ")
+			}
+			yaml.WriteString("\"" + m + "\"")
+		}
+		yaml.WriteString("],\n")
+		// Env vars inline
+		yaml.WriteString("                \"env_vars\": [")
+		for i, ev := range envVars {
+			if i > 0 {
+				yaml.WriteString(", ")
+			}
+			yaml.WriteString("\"" + ev + "\"")
+		}
+		yaml.WriteString("]\n")
+	} else {
+		// Entrypoint args multi-line
+		yaml.WriteString("                \"entrypointArgs\": [\n")
+		for i, arg := range qmdArgs {
+			if i < len(qmdArgs)-1 {
+				yaml.WriteString("                  \"" + arg + "\",\n")
+			} else {
+				yaml.WriteString("                  \"" + arg + "\"\n")
+			}
+		}
+		yaml.WriteString("                ],\n")
+		// Docker args multi-line
+		yaml.WriteString("                \"args\": [\n")
+		for i, arg := range dockerArgs {
+			if i < len(dockerArgs)-1 {
+				yaml.WriteString("                  \"" + arg + "\",\n")
+			} else {
+				yaml.WriteString("                  \"" + arg + "\"\n")
+			}
+		}
+		yaml.WriteString("                ],\n")
+		// Mounts multi-line
+		yaml.WriteString("                \"mounts\": [\n")
+		for i, m := range mounts {
+			if i < len(mounts)-1 {
+				yaml.WriteString("                  \"" + m + "\",\n")
+			} else {
+				yaml.WriteString("                  \"" + m + "\"\n")
+			}
+		}
+		yaml.WriteString("                ],\n")
+		// Env vars multi-line
+		yaml.WriteString("                \"env_vars\": [\n")
+		for i, ev := range envVars {
+			if i < len(envVars)-1 {
+				yaml.WriteString("                  \"" + ev + "\",\n")
+			} else {
+				yaml.WriteString("                  \"" + ev + "\"\n")
+			}
+		}
+		yaml.WriteString("                ]\n")
+	}
 
 	if isLast {
 		yaml.WriteString("              }\n")

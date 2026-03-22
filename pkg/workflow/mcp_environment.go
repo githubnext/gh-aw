@@ -20,6 +20,7 @@
 //   - Safe Outputs: GH_AW_SAFE_OUTPUTS_*, GH_AW_ASSETS_*
 //   - MCP Scripts: GH_AW_MCP_SCRIPTS_PORT, GH_AW_MCP_SCRIPTS_API_KEY
 //   - Serena: GH_AW_SERENA_PORT (local mode only)
+//   - qmd: INDEX_PATH, NODE_LLAMA_CPP_GPU (forwarded to the gateway-managed container)
 //   - Playwright: Secrets from custom args expressions
 //   - HTTP MCP: Custom secrets from headers and env sections
 //
@@ -124,10 +125,14 @@ func collectMCPEnvironmentVariables(tools map[string]any, mcpTools []string, wor
 		envVars["GH_AW_SAFE_OUTPUTS_API_KEY"] = "${{ steps.safe-outputs-start.outputs.api_key }}"
 	}
 
-	// Add qmd server port env var if qmd tool is configured.
-	// The port is emitted by the "Start qmd MCP HTTP server" step (id: qmd-server-start).
+	// Add qmd env vars if qmd tool is configured.
+	// INDEX_PATH tells the containerized qmd MCP server where to find the pre-built SQLite index.
+	// NODE_LLAMA_CPP_GPU controls GPU probing in node-llama-cpp inside the container.
 	if workflowData != nil && workflowData.QmdConfig != nil {
-		envVars["GH_AW_QMD_PORT"] = "${{ steps.qmd-server-start.outputs.port }}"
+		envVars["INDEX_PATH"] = "/tmp/gh-aw/qmd-index/index.sqlite"
+		if !workflowData.QmdConfig.GPU {
+			envVars["NODE_LLAMA_CPP_GPU"] = "false"
+		}
 	}
 
 	// Check for agentic-workflows GITHUB_TOKEN

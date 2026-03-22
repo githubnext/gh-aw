@@ -137,22 +137,6 @@ func generateQmdModelsCacheRestoreStep() string {
 	return sb.String()
 }
 
-// generateQmdNodeLlamaCppCacheRestoreStep generates a read-only step that restores the
-// node-llama-cpp downloaded binaries (~/.cache/node-llama-cpp/) from GitHub Actions cache.
-// It uses actions/cache/restore (restore-only, no post-save) so the agent job never writes
-// to the shared cache — that is the indexing job's responsibility.
-// The cache key includes the qmd version, OS, CPU architecture, and runner image ID.
-func generateQmdNodeLlamaCppCacheRestoreStep() string {
-	version := string(constants.DefaultQmdVersion)
-	var sb strings.Builder
-	sb.WriteString("      - name: Restore node-llama-cpp cache\n")
-	fmt.Fprintf(&sb, "        uses: %s\n", GetActionPin("actions/cache/restore"))
-	sb.WriteString("        with:\n")
-	sb.WriteString("          path: ~/.cache/node-llama-cpp/\n")
-	fmt.Fprintf(&sb, "          key: node-llama-cpp-%s-${{ runner.os }}-${{ runner.arch }}-${{ runner.imageid }}\n", version)
-	return sb.String()
-}
-
 // generateQmdIndexCacheRestoreExactStep generates a read-only restore step for the agent job
 // that restores the qmd search index from Actions cache using the PRECISE cache key.
 // No restore-keys fallback is used — the agent job must get the exact index that the
@@ -487,53 +471,6 @@ func generateQmdIndexSteps(qmdConfig *QmdToolConfig) []string {
 	}
 
 	return steps
-}
-
-// generateQmdSetupNodeStep generates the agent job step that sets up Node.js before the
-// qmd MCP server is started. The qmd CLI requires a recent Node.js version (24) to run;
-// the default Node.js on GitHub-hosted runners may be older, so we explicitly configure it.
-func generateQmdSetupNodeStep() string {
-	var sb strings.Builder
-	sb.WriteString("      - name: Setup Node.js for qmd MCP server\n")
-	sb.WriteString(fmt.Sprintf("        uses: %s\n", GetActionPin("actions/setup-node")))
-	sb.WriteString("        with:\n")
-	sb.WriteString(fmt.Sprintf("          node-version: \"%s\"\n", string(constants.DefaultNodeVersion)))
-	return sb.String()
-}
-
-// generateQmdStartServerStep generates the agent job step that starts the qmd MCP server
-// with HTTP transport. The server is started before the MCP gateway so that node-llama-cpp
-// has time to download llama.cpp binaries and embedding model weights if needed — this can
-// take several minutes on the first run. A health probe loop in start_qmd_server.sh waits
-// up to 10 minutes for the server to become ready before the agent starts.
-//
-// The step id is "qmd-server-start" and it emits a "port" output used by downstream steps.
-//
-// The qmd CLI uses INDEX_PATH to locate the pre-built SQLite database.
-// GH_AW_QMD_VERSION is passed to start_qmd_server.sh to pin the npx package version.
-func generateQmdStartServerStep(qmdConfig *QmdToolConfig) string {
-	var sb strings.Builder
-	sb.WriteString("      - name: Start qmd MCP HTTP server\n")
-	sb.WriteString("        id: qmd-server-start\n")
-	sb.WriteString("        env:\n")
-	fmt.Fprintf(&sb, "          GH_AW_QMD_PORT: \"%d\"\n", constants.DefaultQmdPort)
-	// INDEX_PATH overrides getDefaultDbPath() in the qmd CLI so it reads the
-	// pre-built index restored from cache rather than ~/.cache/qmd/index.sqlite.
-	sb.WriteString("          INDEX_PATH: /tmp/gh-aw/qmd-index/index.sqlite\n")
-	fmt.Fprintf(&sb, "          GH_AW_QMD_VERSION: \"%s\"\n", string(constants.DefaultQmdVersion))
-	// Disable GPU by default; only enable when the user explicitly opts in.
-	if !qmdConfig.GPU {
-		sb.WriteString("          NODE_LLAMA_CPP_GPU: \"false\"\n")
-	}
-	sb.WriteString("        run: |\n")
-	sb.WriteString("          export GH_AW_QMD_PORT\n")
-	sb.WriteString("          export INDEX_PATH\n")
-	sb.WriteString("          export GH_AW_QMD_VERSION\n")
-	if !qmdConfig.GPU {
-		sb.WriteString("          export NODE_LLAMA_CPP_GPU\n")
-	}
-	sb.WriteString("          bash ${RUNNER_TEMP}/gh-aw/actions/start_qmd_server.sh\n")
-	return sb.String()
 }
 
 // buildQmdIndexingJob builds a standalone "indexing" job that depends on the activation job
