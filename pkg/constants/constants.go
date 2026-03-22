@@ -363,7 +363,7 @@ const AWFProxyLogsDir = "/tmp/gh-aw/sandbox/firewall/logs"
 const AWFDefaultLogLevel = "info"
 
 // DefaultMCPGatewayVersion is the default version of the MCP Gateway (gh-aw-mcpg) Docker image
-const DefaultMCPGatewayVersion Version = "v0.1.20"
+const DefaultMCPGatewayVersion Version = "v0.1.22"
 
 // DefaultMCPGatewayContainer is the default container image for the MCP Gateway
 const DefaultMCPGatewayContainer = "ghcr.io/github/gh-aw-mcpg"
@@ -407,7 +407,7 @@ var SerenaLanguageSupport = map[string][]string{
 }
 
 // DefaultAPMVersion is the default version of the microsoft/APM (Agent Package Manager) CLI
-const DefaultAPMVersion Version = "v0.8.2"
+const DefaultAPMVersion Version = "v0.8.3"
 
 // DefaultPlaywrightMCPVersion is the default version of the @playwright/mcp package
 const DefaultPlaywrightMCPVersion Version = "0.0.68"
