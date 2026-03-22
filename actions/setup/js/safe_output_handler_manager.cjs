@@ -22,6 +22,7 @@ const { sanitizeContent } = require("./sanitize_content.cjs");
 const { createManifestLogger, ensureManifestExists, extractCreatedItemFromResult } = require("./safe_output_manifest.cjs");
 const { loadCustomSafeOutputJobTypes, loadCustomSafeOutputScriptHandlers, loadCustomSafeOutputActionHandlers } = require("./safe_output_helpers.cjs");
 const { emitSafeOutputActionOutputs } = require("./safe_outputs_action_outputs.cjs");
+const nodePath = require("path");
 
 /**
  * Handler map configuration
@@ -167,7 +168,6 @@ async function loadHandlers(config, prReviewBuffer) {
   const customScriptHandlers = loadCustomSafeOutputScriptHandlers();
   if (customScriptHandlers.size > 0) {
     core.info(`Loading ${customScriptHandlers.size} custom script handler(s): ${[...customScriptHandlers.keys()].join(", ")}`);
-    const nodePath = require("path");
     const scriptBaseDir = nodePath.join(process.env.RUNNER_TEMP || "/tmp", "gh-aw", "actions");
     for (const [scriptType, scriptFilename] of customScriptHandlers) {
       // Sanitize scriptFilename to prevent path traversal attacks: only the basename
