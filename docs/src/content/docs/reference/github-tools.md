@@ -146,7 +146,7 @@ gh aw secrets set GH_AW_GITHUB_MCP_SERVER_TOKEN --value "<your-pat-token>"
 
 ### Using the `dependabot` toolset
 
-The `dependabot` toolset can only be used if authenticating with a PAT or GitHub Ap and also requires the `vulnerability-alerts` GitHub App permission. If you are using a GitHub App (rather than a PAT), add `vulnerability-alerts: read` to your workflow's `permissions:` field and ensure the GitHub App is configured with this permission. See [GitHub App-Only Permissions](/gh-aw/reference/permissions/#github-app-only-permissions).
+The `dependabot` toolset can only be used if authenticating with a PAT or GitHub App and also requires the `vulnerability-alerts` GitHub App permission. If you are using a GitHub App (rather than a PAT), add `vulnerability-alerts: read` to your workflow's `permissions:` field and ensure the GitHub App is configured with this permission. See [GitHub App-Only Permissions](/gh-aw/reference/permissions/#github-app-only-permissions).
 
 ## Related Documentation
 
