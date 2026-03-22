@@ -1860,3 +1860,123 @@ Call pin_pr to pin the pull request.
 		t.Errorf("Lock file should contain step 'id: action_pin_pr'\nLock file content:\n%s", lockContentStr)
 	}
 }
+
+// TestCompileDispatchRepositoryGitHubActionsExpression verifies that GitHub Actions
+// expressions are accepted without format validation errors in the 'repository' field.
+// Expressions like "${{ inputs.target_repo }}" or "${{ vars.CI_REPO }}" must compile
+// successfully because their values are only known at workflow runtime.
+func TestCompileDispatchRepositoryGitHubActionsExpression(t *testing.T) {
+	setup := setupIntegrationTest(t)
+	defer setup.cleanup()
+
+	testWorkflow := `---
+name: Test Dispatch Repository GitHub Expression
+on:
+  workflow_dispatch:
+    inputs:
+      target_repo:
+        description: Target repository for dispatch
+        required: true
+        type: string
+permissions:
+  contents: read
+engine: copilot
+safe-outputs:
+  dispatch_repository:
+    trigger_ci:
+      description: Trigger CI using a runtime-resolved repository
+      workflow: ci.yml
+      event_type: ci_trigger
+      repository: ${{ inputs.target_repo }}
+      max: 1
+---
+
+# Test Dispatch Repository GitHub Expression
+
+Call trigger_ci to dispatch a repository_dispatch event.
+`
+	testWorkflowPath := filepath.Join(setup.workflowsDir, "test-dispatch-repo-expr.md")
+	if err := os.WriteFile(testWorkflowPath, []byte(testWorkflow), 0644); err != nil {
+		t.Fatalf("Failed to write test workflow file: %v", err)
+	}
+
+	cmd := exec.Command(setup.binaryPath, "compile", testWorkflowPath)
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("CLI compile command failed for workflow with GitHub Actions expression in 'repository': %v\nOutput: %s", err, string(output))
+	}
+
+	lockFilePath := filepath.Join(setup.workflowsDir, "test-dispatch-repo-expr.lock.yml")
+	lockContent, err := os.ReadFile(lockFilePath)
+	if err != nil {
+		t.Fatalf("Failed to read lock file: %v", err)
+	}
+	lockContentStr := string(lockContent)
+
+	// The expression must be preserved verbatim in the handler config
+	if !strings.Contains(lockContentStr, `inputs.target_repo`) {
+		t.Errorf("Lock file should preserve the GitHub Actions expression in handler config\nLock file content:\n%s", lockContentStr)
+	}
+
+	// GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG must be present
+	if !strings.Contains(lockContentStr, "GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG") {
+		t.Errorf("Lock file should contain GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG\nLock file content:\n%s", lockContentStr)
+	}
+}
+
+// TestCompileDispatchRepositoryGitHubActionsExpressionAllowedRepos verifies that
+// GitHub Actions expressions are accepted in 'allowed_repositories' entries.
+// Mixed lists (static slugs alongside expressions) must also compile successfully.
+func TestCompileDispatchRepositoryGitHubActionsExpressionAllowedRepos(t *testing.T) {
+	setup := setupIntegrationTest(t)
+	defer setup.cleanup()
+
+	testWorkflow := `---
+name: Test Dispatch Repository Expression in AllowedRepos
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+engine: copilot
+safe-outputs:
+  dispatch_repository:
+    notify_dynamic:
+      description: Notify a dynamically-resolved set of repositories
+      workflow: notify.yml
+      event_type: notify_event
+      allowed_repositories:
+        - org/static-repo
+        - ${{ vars.DYNAMIC_REPO }}
+      max: 2
+---
+
+# Test Dispatch Repository Expression in AllowedRepos
+
+Call notify_dynamic to send notifications.
+`
+	testWorkflowPath := filepath.Join(setup.workflowsDir, "test-dispatch-repo-expr-allowed.md")
+	if err := os.WriteFile(testWorkflowPath, []byte(testWorkflow), 0644); err != nil {
+		t.Fatalf("Failed to write test workflow file: %v", err)
+	}
+
+	cmd := exec.Command(setup.binaryPath, "compile", testWorkflowPath)
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("CLI compile command failed for workflow with GitHub Actions expression in 'allowed_repositories': %v\nOutput: %s", err, string(output))
+	}
+
+	lockFilePath := filepath.Join(setup.workflowsDir, "test-dispatch-repo-expr-allowed.lock.yml")
+	lockContent, err := os.ReadFile(lockFilePath)
+	if err != nil {
+		t.Fatalf("Failed to read lock file: %v", err)
+	}
+	lockContentStr := string(lockContent)
+
+	// Both the static slug and the expression must appear in the handler config
+	if !strings.Contains(lockContentStr, "org/static-repo") {
+		t.Errorf("Lock file should contain the static allowed_repositories entry\nLock file content:\n%s", lockContentStr)
+	}
+	if !strings.Contains(lockContentStr, "vars.DYNAMIC_REPO") {
+		t.Errorf("Lock file should preserve the GitHub Actions expression in allowed_repositories\nLock file content:\n%s", lockContentStr)
+	}
+}
