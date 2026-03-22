@@ -24,11 +24,11 @@ function resolveEnvVars(p) {
 /**
  * Returns an Octokit client for the given token env var, or the default github client.
  * @param {string | undefined} tokenEnvVar
- * @returns {typeof github}
+ * @returns {Promise<typeof github>}
  */
-function getClient(tokenEnvVar) {
+async function getClient(tokenEnvVar) {
   if (tokenEnvVar && process.env[tokenEnvVar]) {
-    const { getOctokit } = require("@actions/github");
+    const { getOctokit } = await import("@actions/github");
     return getOctokit(process.env[tokenEnvVar]);
   }
   return github;
@@ -147,7 +147,7 @@ async function main() {
     const searchDir = `/tmp/gh-aw/qmd-search-${i}`;
     fs.mkdirSync(searchDir, { recursive: true });
 
-    const client = getClient(search.tokenEnvVar);
+    const client = await getClient(search.tokenEnvVar);
 
     if (search.type === "issues") {
       const repoSlug = search.repo || process.env.GITHUB_REPOSITORY || "";
