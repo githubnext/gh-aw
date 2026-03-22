@@ -115,7 +115,7 @@ Based on the scope (daily or weekly):
 - Get detailed commit information using `get_commit` for commits that might introduce new terminology
 - Search for merged pull requests using `search_pull_requests`
 
-**Look for new terminology in `docs/**/*.md` (and nowhere else)**
+**Look for new terminology in `docs/**/*.{md,mdx}` (and nowhere else)**
 - New configuration fields in frontmatter (YAML keys)
 - New CLI commands or flags
 - New tool names or MCP servers
@@ -177,7 +177,7 @@ Based on your scan of recent changes, create a list of:
 - The term requires explanation (not self-evident)
 - The term is specific to GitHub Agentic Workflows
 - The term is likely to confuse users without a definition
-- The term is used somewhere in `docs/**/*.md` files
+- The term is used somewhere in `docs/**/*.{md,mdx}` files
 
 **Do NOT add:**
 - Generic programming terms (unless used in a specific way)
