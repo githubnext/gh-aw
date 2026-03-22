@@ -1,6 +1,7 @@
 ---
 on:
   workflow_dispatch:
+  label_command: dev
   schedule:
     - cron: '0 9 * * *'  # Daily at 9 AM UTC
 name: Dev
