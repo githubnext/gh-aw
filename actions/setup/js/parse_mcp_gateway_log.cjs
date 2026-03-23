@@ -86,6 +86,119 @@ function generateDifcFilteredSummary(filteredEvents) {
 }
 
 /**
+ * Parses rpc-messages.jsonl content and returns entries categorized by type.
+ * DIFC_FILTERED entries are excluded here because they are handled separately
+ * by parseGatewayJsonlForDifcFiltered.
+ * @param {string} jsonlContent - The rpc-messages.jsonl file content
+ * @returns {{requests: Array<Object>, responses: Array<Object>, other: Array<Object>}}
+ */
+function parseRpcMessagesJsonl(jsonlContent) {
+  const requests = [];
+  const responses = [];
+  const other = [];
+
+  const lines = jsonlContent.split("\n");
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (!trimmed) continue;
+    try {
+      const entry = JSON.parse(trimmed);
+      if (!entry || typeof entry !== "object" || !entry.type) continue;
+
+      if (entry.type === "REQUEST") {
+        requests.push(entry);
+      } else if (entry.type === "RESPONSE") {
+        responses.push(entry);
+      } else if (entry.type !== "DIFC_FILTERED") {
+        other.push(entry);
+      }
+    } catch {
+      // skip malformed lines
+    }
+  }
+
+  return { requests, responses, other };
+}
+
+/**
+ * Extracts a human-readable label for an MCP REQUEST entry.
+ * For tools/call requests, returns the tool name; for other methods, returns the method name.
+ * @param {Object} entry - REQUEST entry from rpc-messages.jsonl
+ * @returns {string} Display label for the request
+ */
+function getRpcRequestLabel(entry) {
+  const payload = entry.payload;
+  if (!payload) return "unknown";
+  const method = payload.method;
+  if (method === "tools/call") {
+    const toolName = payload.params && payload.params.name;
+    return toolName || method;
+  }
+  return method || "unknown";
+}
+
+/**
+ * Generates a markdown step summary for rpc-messages.jsonl entries (mcpg v0.2.0+ format).
+ * Shows a table of REQUEST entries (tool calls), a count of RESPONSE entries, any other
+ * message types, and the DIFC_FILTERED section if there are blocked events.
+ * @param {{requests: Array<Object>, responses: Array<Object>, other: Array<Object>}} entries
+ * @param {Array<Object>} difcFilteredEvents - DIFC_FILTERED events parsed separately
+ * @returns {string} Markdown summary, or empty string if nothing to show
+ */
+function generateRpcMessagesSummary(entries, difcFilteredEvents) {
+  const { requests, responses, other } = entries;
+  const blockedCount = difcFilteredEvents ? difcFilteredEvents.length : 0;
+  const totalMessages = requests.length + responses.length + other.length + blockedCount;
+
+  if (totalMessages === 0) return "";
+
+  const parts = [];
+
+  // Tool calls / requests table
+  if (requests.length > 0) {
+    const blockedNote = blockedCount > 0 ? `, ${blockedCount} blocked` : "";
+    const callLines = [];
+    callLines.push("<details>");
+    callLines.push(`<summary>MCP Gateway Activity (${requests.length} request${requests.length !== 1 ? "s" : ""}${blockedNote})</summary>\n`);
+    callLines.push("");
+    callLines.push("| Time | Server | Tool / Method |");
+    callLines.push("|------|--------|---------------|");
+
+    for (const req of requests) {
+      const time = req.timestamp ? req.timestamp.replace("T", " ").replace(/\.\d+Z$/, "Z") : "-";
+      const server = req.server_id || "-";
+      const label = getRpcRequestLabel(req);
+      callLines.push(`| ${time} | ${server} | \`${label}\` |`);
+    }
+
+    callLines.push("");
+    callLines.push("</details>\n");
+    parts.push(callLines.join("\n"));
+  } else if (blockedCount > 0) {
+    // No requests, but there are DIFC_FILTERED events — add a minimal header
+    parts.push(`<details>\n<summary>MCP Gateway Activity (${blockedCount} blocked)</summary>\n\n*All tool calls were blocked by the integrity filter.*\n\n</details>\n`);
+  }
+
+  // Other message types (not REQUEST, RESPONSE, DIFC_FILTERED)
+  if (other.length > 0) {
+    /** @type {Record<string, number>} */
+    const typeCounts = {};
+    for (const entry of other) {
+      typeCounts[entry.type] = (typeCounts[entry.type] || 0) + 1;
+    }
+    const otherLines = Object.entries(typeCounts).map(([type, count]) => `- **${type}**: ${count} message${count !== 1 ? "s" : ""}`);
+    parts.push("<details>\n<summary>Other Gateway Messages</summary>\n\n" + otherLines.join("\n") + "\n\n</details>\n");
+  }
+
+  // DIFC_FILTERED section (re-uses existing table renderer)
+  if (blockedCount > 0) {
+    parts.push(generateDifcFilteredSummary(difcFilteredEvents));
+  }
+
+  return parts.join("\n");
+}
+
+/**
  * Main function to parse and display MCP gateway logs
  */
 async function main() {
@@ -102,6 +215,7 @@ async function main() {
     // Parse DIFC_FILTERED events from gateway.jsonl (preferred) or rpc-messages.jsonl (fallback).
     // Both files use the same JSONL format with DIFC_FILTERED entries interleaved.
     let difcFilteredEvents = [];
+    let rpcMessagesContent = null;
     if (fs.existsSync(gatewayJsonlPath)) {
       const jsonlContent = fs.readFileSync(gatewayJsonlPath, "utf8");
       core.info(`Found gateway.jsonl (${jsonlContent.length} bytes)`);
@@ -110,9 +224,9 @@ async function main() {
         core.info(`Found ${difcFilteredEvents.length} DIFC_FILTERED event(s) in gateway.jsonl`);
       }
     } else if (fs.existsSync(rpcMessagesPath)) {
-      const jsonlContent = fs.readFileSync(rpcMessagesPath, "utf8");
-      core.info(`No gateway.jsonl found; scanning rpc-messages.jsonl (${jsonlContent.length} bytes) for DIFC_FILTERED events`);
-      difcFilteredEvents = parseGatewayJsonlForDifcFiltered(jsonlContent);
+      rpcMessagesContent = fs.readFileSync(rpcMessagesPath, "utf8");
+      core.info(`Found rpc-messages.jsonl (${rpcMessagesContent.length} bytes)`);
+      difcFilteredEvents = parseGatewayJsonlForDifcFiltered(rpcMessagesContent);
       if (difcFilteredEvents.length > 0) {
         core.info(`Found ${difcFilteredEvents.length} DIFC_FILTERED event(s) in rpc-messages.jsonl`);
       }
@@ -140,6 +254,25 @@ async function main() {
       }
     } else {
       core.info(`No gateway.md found at: ${gatewayMdPath}, falling back to log files`);
+    }
+
+    // When no gateway.md exists, check if rpc-messages.jsonl is available (mcpg v0.2.0+ unified format).
+    // In this format, all message types (REQUEST, RESPONSE, DIFC_FILTERED, etc.) are written to a
+    // single rpc-messages.jsonl file instead of separate gateway.md / gateway.log streams.
+    if (rpcMessagesContent !== null) {
+      const rpcEntries = parseRpcMessagesJsonl(rpcMessagesContent);
+      const totalMessages = rpcEntries.requests.length + rpcEntries.responses.length + rpcEntries.other.length;
+      core.info(`rpc-messages.jsonl: ${rpcEntries.requests.length} request(s), ${rpcEntries.responses.length} response(s), ${rpcEntries.other.length} other, ${difcFilteredEvents.length} DIFC_FILTERED`);
+
+      if (totalMessages > 0 || difcFilteredEvents.length > 0) {
+        const rpcSummary = generateRpcMessagesSummary(rpcEntries, difcFilteredEvents);
+        if (rpcSummary.length > 0) {
+          core.summary.addRaw(rpcSummary).write();
+        }
+      } else {
+        core.info("rpc-messages.jsonl is present but contains no renderable messages");
+      }
+      return;
     }
 
     // Fallback to legacy log files
@@ -298,6 +431,9 @@ if (typeof module !== "undefined" && module.exports) {
     generatePlainTextLegacySummary,
     parseGatewayJsonlForDifcFiltered,
     generateDifcFilteredSummary,
+    parseRpcMessagesJsonl,
+    getRpcRequestLabel,
+    generateRpcMessagesSummary,
     printAllGatewayFiles,
   };
 }

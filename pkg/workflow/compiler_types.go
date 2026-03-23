@@ -81,6 +81,7 @@ type Compiler struct {
 	markdownPath            string              // Path to the markdown file being compiled (for context in dynamic tool generation)
 	actionMode              ActionMode          // Mode for generating JavaScript steps (inline vs custom actions)
 	actionTag               string              // Override action SHA or tag for actions/setup (when set, overrides actionMode to release)
+	actionsRepo             string              // Override the external actions repository (default: github/gh-aw-actions)
 	jobManager              *JobManager         // Manages jobs and dependencies
 	engineRegistry          *EngineRegistry     // Registry of available agentic engines
 	engineCatalog           *EngineCatalog      // Catalog of engine definitions backed by the registry
@@ -214,6 +215,26 @@ func (c *Compiler) SetActionTag(tag string) {
 // GetActionTag returns the action tag override (empty if not set)
 func (c *Compiler) GetActionTag() string {
 	return c.actionTag
+}
+
+// SetActionsRepo sets the external actions repository override.
+// When set, this overrides the default "github/gh-aw-actions" repository used in action mode.
+func (c *Compiler) SetActionsRepo(repo string) {
+	c.actionsRepo = repo
+}
+
+// GetActionsRepo returns the external actions repository override (empty if not set)
+func (c *Compiler) GetActionsRepo() string {
+	return c.actionsRepo
+}
+
+// effectiveActionsRepo returns the actions repository to use for action mode references.
+// Returns the override if set, otherwise returns the default GitHubActionsOrgRepo constant.
+func (c *Compiler) effectiveActionsRepo() string {
+	if c.actionsRepo != "" {
+		return c.actionsRepo
+	}
+	return GitHubActionsOrgRepo
 }
 
 // GetVersion returns the version string used by the compiler

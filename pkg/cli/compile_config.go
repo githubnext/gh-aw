@@ -32,6 +32,7 @@ type CompileConfig struct {
 	JSONOutput             bool     // Output validation results as JSON
 	ActionMode             string   // Action script inlining mode: inline, dev, or release
 	ActionTag              string   // Override action SHA or tag for actions/setup (overrides action-mode to release)
+	ActionsRepo            string   // Override the external actions repository (default: github/gh-aw-actions)
 	Stats                  bool     // Display statistics table sorted by file size
 	FailFast               bool     // Stop at first error instead of collecting all errors
 }

@@ -68,7 +68,7 @@ jobs:
       issues: write
       pull-requests: write
     env:
-      GH_AW_INFO_APM_VERSION: v0.8.3
+      GH_AW_INFO_APM_VERSION: v0.8.4
     outputs:
       body: ${{ steps.sanitized.outputs.body }}
       comment_id: ${{ steps.add-comment.outputs.comment-id }}
@@ -107,7 +107,7 @@ jobs:
           GH_AW_INFO_FIREWALL_ENABLED: "true"
           GH_AW_INFO_AWF_VERSION: "v0.24.5"
           GH_AW_INFO_AWMG_VERSION: ""
-          GH_AW_INFO_APM_VERSION: "v0.8.3"
+          GH_AW_INFO_APM_VERSION: "v0.8.4"
           GH_AW_INFO_FIREWALL_TYPE: "squid"
           GH_AW_COMPILED_STRICT: "false"
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
@@ -650,7 +650,7 @@ jobs:
         run: bash ${RUNNER_TEMP}/gh-aw/actions/print_prompt_summary.sh
       - name: Install and pack APM dependencies
         id: apm_pack
-        uses: microsoft/apm-action@83d54a6c7941049210433b16c8dfac573665b12a # v1.3.4
+        uses: microsoft/apm-action@cc84c04bc73e19e35527f1efa34ea003be9f037f # v1.4.0
         env:
           GITHUB_TOKEN: ${{ secrets.GH_AW_PLUGINS_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
         with:
@@ -693,7 +693,7 @@ jobs:
       GH_AW_ASSETS_ALLOWED_EXTS: ""
       GH_AW_ASSETS_BRANCH: ""
       GH_AW_ASSETS_MAX_SIZE_KB: 0
-      GH_AW_INFO_APM_VERSION: v0.8.3
+      GH_AW_INFO_APM_VERSION: v0.8.4
       GH_AW_MCP_LOG_DIR: /tmp/gh-aw/mcp-logs/safeoutputs
       GH_AW_WORKFLOW_ID_SANITIZED: smokeclaude
     outputs:
@@ -819,7 +819,7 @@ jobs:
           name: apm
           path: /tmp/gh-aw/apm-bundle
       - name: Restore APM dependencies
-        uses: microsoft/apm-action@83d54a6c7941049210433b16c8dfac573665b12a # v1.3.4
+        uses: microsoft/apm-action@cc84c04bc73e19e35527f1efa34ea003be9f037f # v1.4.0
         with:
           bundle: /tmp/gh-aw/apm-bundle/*.tar.gz
           apm-version: ${{ env.GH_AW_INFO_APM_VERSION }}
