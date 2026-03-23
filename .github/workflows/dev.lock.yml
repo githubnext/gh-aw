@@ -549,26 +549,25 @@ jobs:
           
           bash ${RUNNER_TEMP}/gh-aw/actions/start_safe_outputs_server.sh
           
+      - name: Setup Node.js for qmd MCP server
+        uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6.3.0
+        with:
+          node-version: "24"
       - name: Start QMD MCP Server
         id: qmd-mcp-start
         env:
+          INDEX_PATH: /tmp/gh-aw/qmd-index/index.sqlite
           NO_COLOR: '1'
-          QMD_NODE_LLAMA_CPP_GPU: 'false'
+          NODE_LLAMA_CPP_GPU: 'false'
         run: |
-          # Start qmd MCP server in HTTP mode (avoids stdout/JSON-RPC conflicts).
-          # node-llama-cpp writes dot-progress directly to process.stdout which
-          # would corrupt the stdio JSON-RPC stream; HTTP transport avoids this.
-          docker run -d --rm \
-            --name qmd-mcp-server \
-            --network host \
-            -v /tmp/gh-aw:/tmp/gh-aw:ro \
-            -v "${HOME}/.cache/qmd:${HOME}/.cache/qmd:rw" \
-            -e INDEX_PATH=/tmp/gh-aw/qmd-index/index.sqlite \
-            -e "HOME=${HOME}" \
-            -e "NO_COLOR=${NO_COLOR}" \
-            -e "NODE_LLAMA_CPP_GPU=${QMD_NODE_LLAMA_CPP_GPU}" \
-            node:24 \
-            npx --yes --package @tobilu/qmd@2.0.1 qmd mcp --http --port 8181
+          # Start qmd MCP server natively in HTTP mode.
+          # qmd must run on the host VM (not in Docker) because node-llama-cpp
+          # requires platform-native binaries that cannot run in a generic container.
+          # HTTP transport keeps MCP traffic on TCP, fully separate from stdout.
+          npx --yes --package @tobilu/qmd@2.0.1 qmd mcp --http --port 8181 \
+            >> /tmp/qmd-mcp.log 2>&1 &
+          # Save PID for logs; the GitHub Actions runner terminates all processes at job end.
+          echo $! > /tmp/qmd-mcp.pid
           
           # Wait up to 120 s for the server to accept requests
           echo 'Waiting for QMD MCP server on port 8181...'
@@ -579,7 +578,7 @@ jobs:
             fi
             if [ "$i" -eq 60 ]; then
               echo 'ERROR: QMD MCP server failed to start within 120 s' >&2
-              docker logs qmd-mcp-server 2>&1 || true
+              cat /tmp/qmd-mcp.log 2>&1 || true
               exit 1
             fi
             sleep 2

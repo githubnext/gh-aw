@@ -467,10 +467,9 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 		yaml.WriteString("          \n")
 	}
 
-	// Start the qmd MCP HTTP server if qmd is configured.
-	// qmd runs in HTTP mode (docker run --network host ... qmd mcp --http) before the gateway
-	// so the gateway connects to it via HTTP. This avoids node-llama-cpp's process.stdout
-	// writes (dot-progress during model loading) from corrupting the stdio JSON-RPC stream.
+	// Start the qmd MCP HTTP server natively if qmd is configured.
+	// qmd must run on the host VM (not in Docker) because node-llama-cpp compiles
+	// platform-native binaries. HTTP mode keeps MCP traffic on TCP, separate from stdout.
 	if workflowData != nil && workflowData.QmdConfig != nil {
 		yaml.WriteString(generateQmdStartStep(workflowData.QmdConfig))
 	}

@@ -92,8 +92,11 @@ func qmdHasSources(qmdConfig *QmdToolConfig) bool {
 	return len(qmdConfig.Checkouts) > 0 || len(qmdConfig.Searches) > 0
 }
 
-// generateQmdStartStep generates a GitHub Actions step that starts the qmd MCP server
-// in HTTP mode as a background Docker container before the MCP gateway.
+// generateQmdStartStep generates two GitHub Actions steps that set up and start the qmd MCP
+// server in HTTP mode natively on the runner VM, before the MCP gateway.
+//
+// qmd must run natively (not in Docker) because node-llama-cpp compiles platform-specific
+// binaries that must match the runner's CPU/OS and cannot run inside a generic Docker image.
 //
 // Using HTTP transport (qmd mcp --http) avoids node-llama-cpp's direct process.stdout writes
 // (e.g. dot-progress characters during model loading) from being mixed into the stdio
@@ -101,52 +104,54 @@ func qmdHasSources(qmdConfig *QmdToolConfig) bool {
 // parse errors in the gateway. With HTTP transport the MCP protocol travels over TCP, so
 // qmd's stdout/stderr are completely independent of the protocol channel.
 //
-// The container mounts:
-//   - /tmp/gh-aw (read-only): qmd index SQLite file restored by the cache-restore step
-//   - ${HOME}/.cache/qmd (read-write): embedding model GGUF files and node-llama-cpp state
+// The two steps are:
+//  1. Setup Node.js – ensures node v24 is available before running npx.
+//  2. Start QMD MCP Server – installs @tobilu/qmd via npx, starts the HTTP server as a
+//     background process, and polls /health (up to 120 s) before continuing.
 //
-// A curl health-check polls /health every 2 s (up to 120 s) before returning, ensuring
-// the gateway starts only after qmd is accepting requests.
+// The gateway then connects to http://localhost:{port}/mcp.
 func generateQmdStartStep(qmdConfig *QmdToolConfig) string {
 	version := string(constants.DefaultQmdVersion)
 	port := constants.DefaultQmdMCPPort
+	portStr := strconv.Itoa(port)
 
 	var sb strings.Builder
+
+	// Step 1: Setup Node.js (node:24 required by @tobilu/qmd)
+	sb.WriteString("      - name: Setup Node.js for qmd MCP server\n")
+	fmt.Fprintf(&sb, "        uses: %s\n", GetActionPin("actions/setup-node"))
+	sb.WriteString("        with:\n")
+	fmt.Fprintf(&sb, "          node-version: \"%s\"\n", string(constants.DefaultNodeVersion))
+
+	// Step 2: Start qmd natively
 	sb.WriteString("      - name: Start QMD MCP Server\n")
 	sb.WriteString("        id: qmd-mcp-start\n")
 	sb.WriteString("        env:\n")
+	sb.WriteString("          INDEX_PATH: /tmp/gh-aw/qmd-index/index.sqlite\n")
 	sb.WriteString("          NO_COLOR: '1'\n")
 	if !qmdConfig.GPU {
-		sb.WriteString("          QMD_NODE_LLAMA_CPP_GPU: 'false'\n")
+		sb.WriteString("          NODE_LLAMA_CPP_GPU: 'false'\n")
 	}
 	sb.WriteString("        run: |\n")
-	sb.WriteString("          # Start qmd MCP server in HTTP mode (avoids stdout/JSON-RPC conflicts).\n")
-	sb.WriteString("          # node-llama-cpp writes dot-progress directly to process.stdout which\n")
-	sb.WriteString("          # would corrupt the stdio JSON-RPC stream; HTTP transport avoids this.\n")
-	sb.WriteString("          docker run -d --rm \\\n")
-	sb.WriteString("            --name qmd-mcp-server \\\n")
-	sb.WriteString("            --network host \\\n")
-	sb.WriteString("            -v /tmp/gh-aw:/tmp/gh-aw:ro \\\n")
-	sb.WriteString("            -v \"${HOME}/.cache/qmd:${HOME}/.cache/qmd:rw\" \\\n")
-	sb.WriteString("            -e INDEX_PATH=/tmp/gh-aw/qmd-index/index.sqlite \\\n")
-	sb.WriteString("            -e \"HOME=${HOME}\" \\\n")
-	sb.WriteString("            -e \"NO_COLOR=${NO_COLOR}\" \\\n")
-	if !qmdConfig.GPU {
-		sb.WriteString("            -e \"NODE_LLAMA_CPP_GPU=${QMD_NODE_LLAMA_CPP_GPU}\" \\\n")
-	}
-	sb.WriteString("            node:24 \\\n")
-	sb.WriteString("            npx --yes --package @tobilu/qmd@" + version + " qmd mcp --http --port " + strconv.Itoa(port) + "\n")
+	sb.WriteString("          # Start qmd MCP server natively in HTTP mode.\n")
+	sb.WriteString("          # qmd must run on the host VM (not in Docker) because node-llama-cpp\n")
+	sb.WriteString("          # requires platform-native binaries that cannot run in a generic container.\n")
+	sb.WriteString("          # HTTP transport keeps MCP traffic on TCP, fully separate from stdout.\n")
+	sb.WriteString("          npx --yes --package @tobilu/qmd@" + version + " qmd mcp --http --port " + portStr + " \\\n")
+	sb.WriteString("            >> /tmp/qmd-mcp.log 2>&1 &\n")
+	sb.WriteString("          # Save PID for logs; the GitHub Actions runner terminates all processes at job end.\n")
+	sb.WriteString("          echo $! > /tmp/qmd-mcp.pid\n")
 	sb.WriteString("          \n")
 	sb.WriteString("          # Wait up to 120 s for the server to accept requests\n")
-	sb.WriteString("          echo 'Waiting for QMD MCP server on port " + strconv.Itoa(port) + "...'\n")
+	sb.WriteString("          echo 'Waiting for QMD MCP server on port " + portStr + "...'\n")
 	sb.WriteString("          for i in $(seq 1 60); do\n")
-	sb.WriteString("            if curl -sf http://localhost:" + strconv.Itoa(port) + "/health > /dev/null 2>&1; then\n")
+	sb.WriteString("            if curl -sf http://localhost:" + portStr + "/health > /dev/null 2>&1; then\n")
 	sb.WriteString("              echo 'QMD MCP server is ready'\n")
 	sb.WriteString("              break\n")
 	sb.WriteString("            fi\n")
 	sb.WriteString("            if [ \"$i\" -eq 60 ]; then\n")
 	sb.WriteString("              echo 'ERROR: QMD MCP server failed to start within 120 s' >&2\n")
-	sb.WriteString("              docker logs qmd-mcp-server 2>&1 || true\n")
+	sb.WriteString("              cat /tmp/qmd-mcp.log 2>&1 || true\n")
 	sb.WriteString("              exit 1\n")
 	sb.WriteString("            fi\n")
 	sb.WriteString("            sleep 2\n")

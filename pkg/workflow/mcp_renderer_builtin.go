@@ -74,7 +74,7 @@ func (r *MCPConfigRendererUnified) renderPlaywrightTOML(yaml *strings.Builder, p
 }
 
 // RenderQmdMCP generates the qmd documentation search MCP server configuration.
-// qmd is started as a separate Docker container (node:24) with HTTP transport by the
+// qmd runs natively on the host VM with HTTP transport, started by the
 // "Start QMD MCP Server" step before the gateway, so the gateway connects via HTTP.
 // Using HTTP transport avoids node-llama-cpp's direct process.stdout writes (dot-progress
 // during model loading) from corrupting the stdio JSON-RPC stream.
@@ -96,7 +96,7 @@ func (r *MCPConfigRendererUnified) RenderQmdMCP(yaml *strings.Builder, qmdTool a
 }
 
 // resolveQmdHost returns the hostname the gateway should use to reach the qmd HTTP server.
-// qmd starts with --network host, so port DefaultQmdMCPPort is bound on the host network.
+// qmd runs natively on the host VM, so port DefaultQmdMCPPort is bound on the host network.
 // When the agent sandbox is enabled (default), the gateway runs inside a Docker container
 // with its own network namespace and must reach the host via host.docker.internal.
 // When the agent sandbox is disabled (agent.disabled: true), the gateway also runs on
@@ -116,7 +116,7 @@ func qmdMCPURL(workflowData *WorkflowData) string {
 }
 
 // renderQmdTOML generates qmd MCP configuration in TOML format using HTTP transport.
-// qmd is started as a separate Docker container before the gateway (see generateQmdStartStep),
+// qmd is started natively before the gateway (see generateQmdStartStep),
 // and the gateway connects to the qmd HTTP MCP server at DefaultQmdMCPPort/mcp.
 func (r *MCPConfigRendererUnified) renderQmdTOML(yaml *strings.Builder, workflowData *WorkflowData) {
 	mcpRendererBuiltinLog.Print("Rendering qmd MCP in TOML format (HTTP transport)")
