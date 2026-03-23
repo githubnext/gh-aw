@@ -331,7 +331,7 @@ jobs:
           package-manager-cache: false
       - name: Install gh-aw extension
         run: curl -fsSL https://raw.githubusercontent.com/github/gh-aw/refs/heads/main/install-gh-aw.sh | bash
-      - name: Install JavaScript dependencies
+      - name: Install npm dependencies
         run: cd actions/setup/js && npm ci
       - name: Install development dependencies
         run: make deps-dev
