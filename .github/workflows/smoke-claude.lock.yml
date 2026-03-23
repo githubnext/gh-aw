@@ -39,17 +39,13 @@
 name: "Smoke Claude"
 "on":
   pull_request:
+    # names: # Label filtering applied via job conditions
+    # - smoke # Label filtering applied via job conditions
     types:
     - labeled
   schedule:
   - cron: "10 */12 * * *"
-  workflow_dispatch:
-    inputs:
-      aw_context:
-        default: ""
-        description: (Internal) JSON context injected by the calling agentic workflow. Not intended for direct user input.
-        required: false
-        type: string
+  workflow_dispatch: null
 
 permissions: {}
 

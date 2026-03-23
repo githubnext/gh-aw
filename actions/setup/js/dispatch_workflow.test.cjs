@@ -58,6 +58,7 @@ describe("dispatch_workflow handler factory", () => {
       workflow_files: {
         "test-workflow": ".lock.yml",
       },
+      aw_context_workflows: ["test-workflow"],
       max: 5,
     };
     const handler = await main(config);
@@ -102,6 +103,7 @@ describe("dispatch_workflow handler factory", () => {
     const config = {
       workflows: ["test-workflow"],
       workflow_files: { "test-workflow": ".lock.yml" },
+      aw_context_workflows: ["test-workflow"],
       max: 5,
     };
     const handler = await main(config);
@@ -223,6 +225,7 @@ describe("dispatch_workflow handler factory", () => {
       workflow_files: {
         "test-workflow": ".lock.yml",
       },
+      aw_context_workflows: ["test-workflow"],
     };
     const handler = await main(config);
 
@@ -262,6 +265,7 @@ describe("dispatch_workflow handler factory", () => {
       workflow_files: {
         "no-inputs-workflow": ".lock.yml",
       },
+      aw_context_workflows: ["no-inputs-workflow"],
     };
     const handler = await main(config);
 
@@ -337,6 +341,7 @@ describe("dispatch_workflow handler factory", () => {
       workflow_files: {
         "test-workflow": ".lock.yml",
       },
+      aw_context_workflows: ["test-workflow"],
     };
     const handler = await main(config);
 
@@ -368,6 +373,7 @@ describe("dispatch_workflow handler factory", () => {
       workflow_files: {
         "test-workflow": ".lock.yml",
       },
+      aw_context_workflows: ["test-workflow"],
     };
     const handler = await main(config);
 
@@ -399,6 +405,7 @@ describe("dispatch_workflow handler factory", () => {
       workflow_files: {
         "test-workflow": ".lock.yml",
       },
+      aw_context_workflows: ["test-workflow"],
     };
     const handler = await main(config);
 
@@ -432,6 +439,7 @@ describe("dispatch_workflow handler factory", () => {
       workflow_files: {
         "test-workflow": ".lock.yml",
       },
+      aw_context_workflows: ["test-workflow"],
     };
     const handler = await main(config);
 
@@ -471,6 +479,7 @@ describe("dispatch_workflow handler factory", () => {
       workflow_files: {
         "test-workflow": ".lock.yml",
       },
+      aw_context_workflows: ["test-workflow"],
     };
     const handler = await main(config);
 
@@ -543,6 +552,7 @@ describe("dispatch_workflow handler factory", () => {
     const config = {
       workflows: ["test-workflow"],
       workflow_files: { "test-workflow": ".lock.yml" },
+      aw_context_workflows: ["test-workflow"],
     };
     const handler = await main(config);
 

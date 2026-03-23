@@ -33,13 +33,9 @@ name: "Multi-Device Docs Tester"
 "on":
   schedule:
   - cron: "6 2 * * *"
+    # Friendly format: daily (scattered)
   workflow_dispatch:
     inputs:
-      aw_context:
-        default: ""
-        description: (Internal) JSON context injected by the calling agentic workflow. Not intended for direct user input.
-        required: false
-        type: string
       devices:
         default: mobile,tablet,desktop
         description: "Device types to test (comma-separated: mobile,tablet,desktop)"

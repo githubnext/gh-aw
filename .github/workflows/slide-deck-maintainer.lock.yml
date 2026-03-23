@@ -32,13 +32,9 @@ name: "Slide Deck Maintainer"
 "on":
   schedule:
   - cron: "0 16 * * 1-5"
+  # skip-if-match: is:pr is:open in:title "[slides]" # Skip-if-match processed as search check in pre-activation job
   workflow_dispatch:
     inputs:
-      aw_context:
-        default: ""
-        description: (Internal) JSON context injected by the calling agentic workflow. Not intended for direct user input.
-        required: false
-        type: string
       focus:
         default: global-sweep
         description: Focus area (feature-deep-dive or global-sweep)
