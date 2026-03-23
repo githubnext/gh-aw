@@ -481,7 +481,7 @@ jobs:
         run: bash ${RUNNER_TEMP}/gh-aw/actions/install_awf_binary.sh v0.24.5
       - name: Install Claude Code CLI
         run: npm install -g @anthropic-ai/claude-code@latest
-      - name: Parse guard list variables
+      - name: Parse integrity filter lists
         id: parse-guard-vars
         env:
           GH_AW_BLOCKED_USERS_VAR: ${{ vars.GH_AW_GITHUB_BLOCKED_USERS || '' }}

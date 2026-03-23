@@ -10,17 +10,14 @@ permissions:
   contents: read
   pull-requests: read
 engine: codex
+imports:
+  - shared/pr-code-review-config.md
 tools:
-  cache-memory: true
   github:
     min-integrity: approved
-    toolsets: [pull_requests, repos]
 safe-outputs:
   create-pull-request-review-comment:
     max: 5
-    side: "RIGHT"
-  submit-pull-request-review:
-    max: 1
   messages:
     footer: "> 😤 *Reluctantly reviewed by [{workflow_name}]({run_url})*{history_link}"
     run-started: "😤 *sigh* [{workflow_name}]({run_url}) is begrudgingly looking at this {event_type}... This better be worth my time."
