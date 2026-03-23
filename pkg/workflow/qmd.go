@@ -598,8 +598,8 @@ func (c *Compiler) buildQmdIndexingJob(data *WorkflowData) (*Job, error) {
 	})
 
 	// Determine the runner for the indexing job.
-	// Default to ubuntu-latest; user can override via qmd.runs-on.
-	indexingRunsOn := "runs-on: ubuntu-latest"
+	// Default to aw-gpu-runner-T4 for GPU-accelerated embedding; user can override via qmd.runs-on.
+	indexingRunsOn := "runs-on: " + constants.DefaultQmdIndexingRunnerImage
 	if data.QmdConfig.RunsOn != "" {
 		indexingRunsOn = "runs-on: " + data.QmdConfig.RunsOn
 	}

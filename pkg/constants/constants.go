@@ -433,6 +433,10 @@ const DefaultPlaywrightMCPVersion Version = "0.0.68"
 // DefaultQmdVersion is the default version of the @tobilu/qmd npm package
 const DefaultQmdVersion Version = "2.0.1"
 
+// DefaultQmdIndexingRunnerImage is the default runner image for the qmd indexing job.
+// Uses the GPU-enabled T4 runner image so node-llama-cpp can leverage the GPU during embedding.
+const DefaultQmdIndexingRunnerImage = "aw-gpu-runner-T4"
+
 // DefaultPlaywrightBrowserVersion is the default version of the Playwright browser Docker image
 const DefaultPlaywrightBrowserVersion Version = "v1.58.2"
 
