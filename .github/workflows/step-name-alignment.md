@@ -14,6 +14,7 @@ permissions:
 
 engine:
   id: claude
+  max-turns: 30
 
 network:
   allowed:
@@ -394,6 +395,20 @@ After completing your analysis, provide a brief summary:
 - Note that naming is consistent
 - Update cache with review timestamp
 - Exit gracefully without creating issues
+
+## Token Budget Guidelines
+
+To keep token consumption predictable:
+
+- **Limit scope**: Scan all lock files but identify at most the top **5 most impactful issues** internally. Skip minor style preferences.
+- **Limit issues created**: Create at most **2 GitHub issues per run**. Batch related findings into a single issue rather than one issue per finding.
+- **Avoid redundant reads**: Load the glossary once; do not re-read it during analysis.
+- **Concise responses**: Keep internal reasoning brief. Spend turns on actions, not explanations.
+- **Early stop**: Once you have created your issues (or confirmed none are needed) and updated cache memory, stop immediately — do not produce a lengthy summary if no further action is required.
+- **Skip recently reviewed**: If cache memory shows a workflow was reviewed in the last 3 days, skip it in the current run to avoid re-scanning unchanged files.
+
+**Target tokens/run**: 300K–500K  
+**Alert threshold**: >800K tokens
 
 ## Guidelines
 
