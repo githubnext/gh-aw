@@ -24,9 +24,10 @@
 #
 # Resolved workflow manifest:
 #   Imports:
+#     - shared/agentic-workflows-mcp.md
 #     - shared/mcp/serena-go.md
 #
-# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"609515be5110d6a17b7ad026f4d597ae062e31fd08db93c60194846614f83f2f","strict":true,"agent_id":"copilot"}
+# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"68067cb0e4048ac267dfd4036d0a6b2a8f7ceec8419e71a9ee11a6b0ab32fa84","strict":true,"agent_id":"copilot"}
 
 name: "Q"
 "on":
@@ -254,6 +255,9 @@ jobs:
           fi
           cat << 'GH_AW_PROMPT_EOF'
           </system>
+          GH_AW_PROMPT_EOF
+          cat << 'GH_AW_PROMPT_EOF'
+          {{#runtime-import .github/workflows/shared/agentic-workflows-mcp.md}}
           GH_AW_PROMPT_EOF
           cat << 'GH_AW_PROMPT_EOF'
           {{#runtime-import .github/workflows/shared/mcp/serena-go.md}}

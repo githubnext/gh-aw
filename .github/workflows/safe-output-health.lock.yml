@@ -24,10 +24,11 @@
 #
 # Resolved workflow manifest:
 #   Imports:
+#     - shared/agentic-workflows-mcp.md
 #     - shared/jqschema.md
 #     - shared/reporting.md
 #
-# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"00020e00cf1cd2251ab99ac78f281500ee26b1c69695f71ec416769285c291a9","strict":true,"agent_id":"claude"}
+# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"a80acf1223c8c9fa8cc0269b265fdc48f413b17c225fbd8c03be4fa4259b54d8","strict":true,"agent_id":"claude"}
 
 name: "Safe Output Health Monitor"
 "on":
@@ -175,6 +176,9 @@ jobs:
           cat "${RUNNER_TEMP}/gh-aw/prompts/github_mcp_tools_with_safeoutputs_prompt.md"
           cat << 'GH_AW_PROMPT_EOF'
           </system>
+          GH_AW_PROMPT_EOF
+          cat << 'GH_AW_PROMPT_EOF'
+          {{#runtime-import .github/workflows/shared/agentic-workflows-mcp.md}}
           GH_AW_PROMPT_EOF
           cat << 'GH_AW_PROMPT_EOF'
           {{#runtime-import .github/workflows/shared/jqschema.md}}

@@ -17,7 +17,6 @@ engine: claude
 strict: true
 
 tools:
-  agentic-workflows:
   cache-memory: true
   bash:
     - "ls*"
@@ -45,6 +44,7 @@ safe-outputs:
 timeout-minutes: 30
 
 imports:
+  - shared/agentic-workflows-mcp.md
   - shared/activation-app.md
   - shared/reporting.md
 ---
@@ -70,8 +70,6 @@ Each day:
 - **Workspace**: ${{ github.workspace }}
 
 ## Phase 0: Setup
-
-DO NOT USE `gh aw` CLI directly for GitHub API operations — it is not authenticated in this environment. Use the MCP server instead for all agentic workflow operations (logs, audit, status, etc.).
 
 Verify the agentic-workflows MCP server is operational:
 ```

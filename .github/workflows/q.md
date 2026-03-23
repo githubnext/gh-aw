@@ -15,9 +15,9 @@ permissions:
   discussions: read
 engine: copilot
 imports:
+  - shared/agentic-workflows-mcp.md
   - shared/mcp/serena-go.md
 tools:
-  agentic-workflows:
   github:
     min-integrity: none
     toolsets:
@@ -115,8 +115,6 @@ This workflow was triggered from a comment on discussion #${{ github.event.discu
 ## Investigation Protocol
 
 ### Phase 0: Setup and Context Analysis
-
-**DO NOT ATTEMPT TO USE GH AW DIRECTLY** - it is not authenticated. Use the MCP server instead.
 
 1. **Verify MCP Server**: Run the `status` tool of `gh-aw` MCP server to verify configuration
 2. **Analyze Trigger Context**: Parse the triggering content to understand what needs improvement:

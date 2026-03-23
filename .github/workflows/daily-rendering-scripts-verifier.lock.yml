@@ -25,9 +25,10 @@
 # Resolved workflow manifest:
 #   Imports:
 #     - shared/activation-app.md
+#     - shared/agentic-workflows-mcp.md
 #     - shared/reporting.md
 #
-# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"e83213cb560f5219f2e59efc98dffe9b3dbee56b617882e1948b04ba4a2f5690","strict":true,"agent_id":"claude"}
+# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"24fff1544c2b13adf8f3492569974377425072c94504e4e11230cda92176ba5a","strict":true,"agent_id":"claude"}
 
 name: "Daily Rendering Scripts Verifier"
 "on":
@@ -181,6 +182,9 @@ jobs:
           cat "${RUNNER_TEMP}/gh-aw/prompts/github_mcp_tools_with_safeoutputs_prompt.md"
           cat << 'GH_AW_PROMPT_EOF'
           </system>
+          GH_AW_PROMPT_EOF
+          cat << 'GH_AW_PROMPT_EOF'
+          {{#runtime-import .github/workflows/shared/agentic-workflows-mcp.md}}
           GH_AW_PROMPT_EOF
           cat << 'GH_AW_PROMPT_EOF'
           {{#runtime-import .github/workflows/shared/activation-app.md}}

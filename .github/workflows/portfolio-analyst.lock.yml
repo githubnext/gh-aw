@@ -24,11 +24,12 @@
 #
 # Resolved workflow manifest:
 #   Imports:
+#     - shared/agentic-workflows-mcp.md
 #     - shared/jqschema.md
 #     - shared/reporting.md
 #     - shared/trending-charts-simple.md
 #
-# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"5ce7de38be10ce6c0508b9539cac1a60934fd8a5c24645a3bc0c86a00940cad7","strict":true,"agent_id":"copilot"}
+# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"f8eb3d4745818ae8cd5b72534d98431a1fb6253039c5373403a163c61868e729","strict":true,"agent_id":"copilot"}
 
 name: "Automated Portfolio Analyst"
 "on":
@@ -178,6 +179,9 @@ jobs:
           cat "${RUNNER_TEMP}/gh-aw/prompts/github_mcp_tools_with_safeoutputs_prompt.md"
           cat << 'GH_AW_PROMPT_EOF'
           </system>
+          GH_AW_PROMPT_EOF
+          cat << 'GH_AW_PROMPT_EOF'
+          {{#runtime-import .github/workflows/shared/agentic-workflows-mcp.md}}
           GH_AW_PROMPT_EOF
           cat << 'GH_AW_PROMPT_EOF'
           {{#runtime-import .github/workflows/shared/reporting.md}}

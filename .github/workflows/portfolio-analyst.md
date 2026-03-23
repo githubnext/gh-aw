@@ -13,7 +13,6 @@ engine: copilot
 network:
   allowed: [python]
 tools:
-  agentic-workflows:
   github:
     toolsets: [default]
   bash: ["*"]
@@ -33,6 +32,7 @@ safe-outputs:
   upload-asset:
 timeout-minutes: 20
 imports:
+  - shared/agentic-workflows-mcp.md
   - shared/reporting.md
   - shared/jqschema.md
   - shared/trending-charts-simple.md
@@ -49,7 +49,7 @@ You are an expert workflow portfolio analyst focused on identifying cost reducti
 - **JSON Summary**: `/tmp/portfolio-logs/summary.json` - Contains all metrics and run data you need
 - **Run Logs**: `/tmp/portfolio-logs/run-{database-id}/` - Individual run logs (if needed for detailed analysis)
 
-**DO NOT call `gh aw logs` or any GitHub CLI commands** - they will not work in your environment. All data you need is in the summary.json file.
+Read from these files instead of using the MCP tools to fetch data again.
 
 ## Mission
 
@@ -122,8 +122,6 @@ daily_costs.to_csv('/tmp/gh-aw/python/data/daily_costs.csv')
 ## Analysis Framework
 
 ### Phase 0: Important Setup Notes
-
-**DO NOT CALL `gh aw logs` OR ANY `gh` COMMANDS** - These commands will not work in your environment and will fail.
 
 The workflow logs have already been downloaded for you in the previous step. The data is available at:
 - **JSON Summary File**: `/tmp/portfolio-logs/summary.json` (contains all metrics and run data)
@@ -468,7 +466,6 @@ Example minimal data report format:
 ```
 
 ### Use Real Data, Not Guesswork
-- **DO NOT call `gh aw logs` or any `gh` commands** - they will not work in your environment
 - **Read from the pre-downloaded JSON file `/tmp/portfolio-logs/summary.json`** - all workflow data is in this single file
 - **Use calculated costs** - the `estimated_cost` field in each run contains costs calculated from actual token usage
 - **Parse JSON with jq** - extract precise metrics from the summary.json file
@@ -574,7 +571,7 @@ print("✅ All charts generated")
 ✅ Healthy workflows are briefly mentioned but not analyzed
 ✅ All dollar amounts are from actual workflow execution data
 
-Begin your analysis now. **FIRST**: Generate all 4 required charts from `/tmp/portfolio-logs/summary.json` and upload them as assets. **THEN**: Create the dashboard-style discussion with embedded chart URLs. Read from the pre-downloaded JSON file at `/tmp/portfolio-logs/summary.json` to get real execution data for all workflows. This file contains everything you need: summary metrics and individual run data. DO NOT attempt to call `gh aw logs` or any `gh` commands - they will not work. Move fast, focus on high-impact issues, deliver actionable recommendations based on actual costs, and make the report visual and scannable.
+Begin your analysis now. **FIRST**: Generate all 4 required charts from `/tmp/portfolio-logs/summary.json` and upload them as assets. **THEN**: Create the dashboard-style discussion with embedded chart URLs. Read from the pre-downloaded JSON file at `/tmp/portfolio-logs/summary.json` to get real execution data for all workflows. This file contains everything you need: summary metrics and individual run data. Move fast, focus on high-impact issues, deliver actionable recommendations based on actual costs, and make the report visual and scannable.
 
 **Important**: If no action is needed after completing your analysis, you **MUST** call the `noop` safe-output tool with a brief explanation. Failing to call any safe-output tool is the most common cause of safe-output workflow failures.
 

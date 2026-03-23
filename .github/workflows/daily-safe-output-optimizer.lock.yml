@@ -25,10 +25,11 @@
 # Resolved workflow manifest:
 #   Imports:
 #     - shared/activation-app.md
+#     - shared/agentic-workflows-mcp.md
 #     - shared/jqschema.md
 #     - shared/reporting.md
 #
-# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"bcc2740b0a5a5d52061fe8fa76d674e640a58ca034bd8f1a3e7402f8869074ea","strict":true,"agent_id":"claude"}
+# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"210a8306dfbbe2671e9b450505c5df658126e6976d6e4f6a101f8dc02d72f537","strict":true,"agent_id":"claude"}
 
 name: "Daily Safe Output Tool Optimizer"
 "on":
@@ -179,6 +180,9 @@ jobs:
           cat "${RUNNER_TEMP}/gh-aw/prompts/github_mcp_tools_with_safeoutputs_prompt.md"
           cat << 'GH_AW_PROMPT_EOF'
           </system>
+          GH_AW_PROMPT_EOF
+          cat << 'GH_AW_PROMPT_EOF'
+          {{#runtime-import .github/workflows/shared/agentic-workflows-mcp.md}}
           GH_AW_PROMPT_EOF
           cat << 'GH_AW_PROMPT_EOF'
           {{#runtime-import .github/workflows/shared/activation-app.md}}

@@ -24,9 +24,10 @@
 #
 # Resolved workflow manifest:
 #   Imports:
+#     - shared/agentic-workflows-mcp.md
 #     - shared/reporting.md
 #
-# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"b9a8666bdce8efad76dc16f0410edce4380322e346d19a697bcb9a2695b93e26","strict":true,"agent_id":"copilot"}
+# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"10e1722bd16b9d28610fc9ebb315e3b6e4e40f19e7e48c4963fa7898a0bc3876","strict":true,"agent_id":"copilot"}
 
 name: "Daily CLI Tools Exploratory Tester"
 "on":
@@ -173,6 +174,9 @@ jobs:
           cat "${RUNNER_TEMP}/gh-aw/prompts/github_mcp_tools_with_safeoutputs_prompt.md"
           cat << 'GH_AW_PROMPT_EOF'
           </system>
+          GH_AW_PROMPT_EOF
+          cat << 'GH_AW_PROMPT_EOF'
+          {{#runtime-import .github/workflows/shared/agentic-workflows-mcp.md}}
           GH_AW_PROMPT_EOF
           cat << 'GH_AW_PROMPT_EOF'
           {{#runtime-import .github/workflows/shared/reporting.md}}
