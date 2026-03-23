@@ -32,7 +32,7 @@ name: "Smoke Multi PR"
     types:
     - labeled
   schedule:
-  - cron: "45 */24 * * *"
+  - cron: "20 */24 * * *"
   workflow_dispatch: null
 
 permissions: {}

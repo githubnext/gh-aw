@@ -32,7 +32,7 @@ name: "Agent Container Smoke Test"
     types:
     - labeled
   schedule:
-  - cron: "29 */12 * * *"
+  - cron: "44 */12 * * *"
   workflow_dispatch: null
 
 permissions: {}

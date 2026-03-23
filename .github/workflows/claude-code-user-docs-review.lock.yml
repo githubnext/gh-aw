@@ -31,7 +31,7 @@
 name: "Claude Code User Documentation Review"
 "on":
   schedule:
-  - cron: "18 22 * * *"
+  - cron: "13 17 * * *"
     # Friendly format: daily (scattered)
   workflow_dispatch:
 

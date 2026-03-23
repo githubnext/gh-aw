@@ -32,7 +32,7 @@
 name: "Daily Documentation Healer"
 "on":
   schedule:
-  - cron: "59 18 * * *"
+  - cron: "24 8 * * *"
     # Friendly format: daily (scattered)
   workflow_dispatch:
 

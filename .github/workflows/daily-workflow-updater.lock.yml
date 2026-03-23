@@ -27,7 +27,7 @@
 name: "Daily Workflow Updater"
 "on":
   schedule:
-  - cron: "12 9 * * *"
+  - cron: "17 6 * * *"
     # Friendly format: daily (scattered)
   workflow_dispatch:
 

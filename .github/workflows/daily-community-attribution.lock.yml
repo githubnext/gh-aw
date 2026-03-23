@@ -31,7 +31,7 @@
 name: "Daily Community Attribution Updater"
 "on":
   schedule:
-  - cron: "32 13 * * *"
+  - cron: "37 6 * * *"
     # Friendly format: daily (scattered)
   workflow_dispatch:
 
