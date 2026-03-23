@@ -117,12 +117,15 @@ func expandLabelTriggerShorthand(entityType string, labelNames []string) map[str
 	}
 	triggerConfig["names"] = namesAny
 
-	// Create workflow_dispatch with item_number input
+	// Create workflow_dispatch with item_number input (not required so the workflow can be
+	// triggered manually without providing a value; the activation job will fall back to
+	// the event payload when item_number is not supplied).
 	workflowDispatchConfig := map[string]any{
 		"inputs": map[string]any{
 			"item_number": map[string]any{
 				"description": "The number of the " + getItemTypeName(entityType),
-				"required":    true,
+				"required":    false,
+				"default":     "",
 				"type":        "string",
 			},
 		},

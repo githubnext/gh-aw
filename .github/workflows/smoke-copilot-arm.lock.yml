@@ -28,7 +28,7 @@
 #     - shared/github-queries-mcp-script.md
 #     - shared/reporting.md
 #
-# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"b8c52bb25dd5e53dd4cd9c19582e7759a58d025d7218306c34c3789d82c383e9","agent_id":"copilot"}
+# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"3d0ce3db1a07629a0c6da7a8917991c662b5f4c888048bdf03e56364dce8bad6","agent_id":"copilot"}
 
 name: "Smoke Copilot ARM64"
 "on":
@@ -489,7 +489,7 @@ jobs:
           mkdir -p /tmp/gh-aw/safeoutputs
           mkdir -p /tmp/gh-aw/mcp-logs/safeoutputs
           cat > ${RUNNER_TEMP}/gh-aw/safeoutputs/config.json << 'GH_AW_SAFE_OUTPUTS_CONFIG_EOF'
-          {"add_comment":{"allowed_repos":["github/gh-aw"],"max":2},"add_labels":{"allowed":["smoke-copilot-arm"],"allowed_repos":["github/gh-aw"],"max":3},"create_discussion":{"expires":2,"max":1},"create_issue":{"expires":2,"group":true,"max":1},"create_pull_request_review_comment":{"max":5},"dispatch_workflow":{"max":1,"workflow_files":{"haiku-printer":".yml"},"workflows":["haiku-printer"]},"missing_data":{},"missing_tool":{},"noop":{"max":1},"remove_labels":{"allowed":["smoke"],"max":3},"send-slack-message":{"description":"Send a message to Slack (stub for testing)","inputs":{"message":{"default":null,"description":"The message to send","required":true,"type":"string"}},"output":"Slack message stub executed!"},"submit_pull_request_review":{"max":1}}
+          {"add_comment":{"allowed_repos":["github/gh-aw"],"max":2},"add_labels":{"allowed":["smoke-copilot-arm"],"allowed_repos":["github/gh-aw"],"max":3},"create_discussion":{"expires":2,"max":1},"create_issue":{"expires":2,"group":true,"max":1},"create_pull_request_review_comment":{"max":5},"dispatch_workflow":{"max":1,"workflow_files":{"haiku-printer":".yml"},"workflows":["haiku-printer"]},"missing_data":{},"missing_tool":{},"noop":{"max":1},"remove_labels":{"allowed":["smoke"],"max":3},"send-slack-message":{"description":"Send a message to Slack (stub for testing)","inputs":{"message":{"description":"The message to send","required":false,"type":"string"}},"output":"Slack message stub executed!"},"submit_pull_request_review":{"max":1}}
           GH_AW_SAFE_OUTPUTS_CONFIG_EOF
       - name: Write Safe Outputs Tools
         run: |
@@ -521,13 +521,11 @@ jobs:
                   "additionalProperties": false,
                   "properties": {
                     "message": {
+                      "default": "",
                       "description": "The message to send",
                       "type": "string"
                     }
                   },
-                  "required": [
-                    "message"
-                  ],
                   "type": "object"
                 },
                 "name": "send_slack_message"

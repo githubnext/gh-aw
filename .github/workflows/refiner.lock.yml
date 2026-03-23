@@ -34,8 +34,9 @@ name: "Code Refiner"
   workflow_dispatch:
     inputs:
       item_number:
+        default: ""
         description: The number of the pull request
-        required: true
+        required: false
         type: string
 
 permissions: {}

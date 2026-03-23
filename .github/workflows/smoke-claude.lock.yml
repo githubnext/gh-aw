@@ -34,7 +34,7 @@
 #
 # inlined-imports: true
 #
-# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"fe699b7701341977425ab709b5fa92bd1ca9d99e83fc3f6472e7749dbfe01e02","agent_id":"claude"}
+# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"8f9bc9e256d1dc711cd46dec1bebe5d1145368d1255dae6f14fc9b440d2adacf","agent_id":"claude"}
 
 name: "Smoke Claude"
 "on":
@@ -865,7 +865,7 @@ jobs:
           mkdir -p /tmp/gh-aw/safeoutputs
           mkdir -p /tmp/gh-aw/mcp-logs/safeoutputs
           cat > ${RUNNER_TEMP}/gh-aw/safeoutputs/config.json << 'GH_AW_SAFE_OUTPUTS_CONFIG_EOF'
-          {"add_comment":{"max":2},"add_labels":{"allowed":["smoke-claude"],"max":3},"add_reviewer":{"max":2},"close_pull_request":{"max":1,"staged":true},"create_issue":{"expires":2,"group":true,"max":1},"create_pull_request_review_comment":{"max":5},"missing_data":{},"missing_tool":{},"noop":{"max":1},"post_slack_message":{"description":"Post a message to a fictitious Slack channel (smoke test only — no real Slack integration)","inputs":{"channel":{"default":null,"description":"Slack channel name to post to","required":true,"type":"string"},"message":{"default":null,"description":"Message text to post","required":true,"type":"string"}}},"push_to_pull_request_branch":{"max":1,"target":"*"},"resolve_pull_request_review_thread":{"max":5},"submit_pull_request_review":{"max":1},"update_pull_request":{"max":1}}
+          {"add_comment":{"max":2},"add_labels":{"allowed":["smoke-claude"],"max":3},"add_reviewer":{"max":2},"close_pull_request":{"max":1,"staged":true},"create_issue":{"expires":2,"group":true,"max":1},"create_pull_request_review_comment":{"max":5},"missing_data":{},"missing_tool":{},"noop":{"max":1},"post_slack_message":{"description":"Post a message to a fictitious Slack channel (smoke test only — no real Slack integration)","inputs":{"channel":{"default":"#general","description":"Slack channel name to post to","required":false,"type":"string"},"message":{"description":"Message text to post","required":false,"type":"string"}}},"push_to_pull_request_branch":{"max":1,"target":"*"},"resolve_pull_request_review_thread":{"max":5},"submit_pull_request_review":{"max":1},"update_pull_request":{"max":1}}
           GH_AW_SAFE_OUTPUTS_CONFIG_EOF
       - name: Write Safe Outputs Tools
         run: |
@@ -890,18 +890,16 @@ jobs:
                   "additionalProperties": false,
                   "properties": {
                     "channel": {
+                      "default": "#general",
                       "description": "Slack channel name to post to",
                       "type": "string"
                     },
                     "message": {
+                      "default": "",
                       "description": "Message text to post",
                       "type": "string"
                     }
                   },
-                  "required": [
-                    "channel",
-                    "message"
-                  ],
                   "type": "object"
                 },
                 "name": "post_slack_message"
