@@ -11,9 +11,13 @@ permissions:
   discussions: read
   issues: read
   security-events: read
+  vulnerability-alerts: read
 tools:
   github:
     toolsets: [all]
+    github-app:
+      app-id: ${{ vars.APP_ID }}
+      private-key: ${{ secrets.APP_PRIVATE_KEY }}
   agentic-workflows:
   bash: ["*"]
   edit:

@@ -257,6 +257,13 @@ func (c *Compiler) buildMainJob(data *WorkflowData, activationJobCreated bool) (
 			}
 		}
 	}
+	// Filter out GitHub App-only permissions from the job-level permissions block.
+	// GitHub App-only scopes (e.g. vulnerability-alerts) are not valid GITHUB_TOKEN scopes
+	// and must not appear in the job-level permissions block; they are handled separately
+	// via GitHub App installation access token minting.
+	if permissions != "" {
+		permissions = filterAppOnlyScopesFromPermissions(permissions)
+	}
 
 	job := &Job{
 		Name:        string(constants.AgentJobName),

@@ -305,3 +305,40 @@ func (p *Permissions) RenderToYAML() string {
 
 	return strings.Join(lines, "\n")
 }
+
+// filterAppOnlyScopesFromPermissions removes GitHub App-only permission scopes from a
+// raw permissions YAML string (in "permissions:\n  key: value" format).
+// GitHub App-only scopes are not valid GITHUB_TOKEN scopes and must not appear in the
+// job-level permissions block. The input format uses 2-space indentation; the output
+// preserves this format with App-only scopes removed.
+// Returns "permissions: {}" if all scopes are App-only or the string if no App-only scopes exist.
+func filterAppOnlyScopesFromPermissions(rawPerms string) string {
+if rawPerms == "" {
+return rawPerms
+}
+perms := NewPermissionsParser(rawPerms).ToPermissions()
+if perms == nil {
+return rawPerms
+}
+// Check if there are any App-only scopes present; if not, skip the round-trip.
+hasAppOnly := false
+for _, scope := range GetAllGitHubAppOnlyScopes() {
+if _, exists := perms.GetExplicit(scope); exists {
+hasAppOnly = true
+break
+}
+}
+if !hasAppOnly {
+return rawPerms
+}
+// Re-render with RenderToYAML (6-space format), then adjust back to 2-space format
+// to match the data.Permissions convention used throughout the compiler.
+rendered := perms.RenderToYAML()
+lines := strings.Split(rendered, "\n")
+for i := 1; i < len(lines); i++ {
+if strings.HasPrefix(lines[i], "      ") {
+lines[i] = "  " + lines[i][6:]
+}
+}
+return strings.Join(lines, "\n")
+}

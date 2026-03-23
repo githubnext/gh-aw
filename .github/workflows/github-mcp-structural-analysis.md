@@ -12,6 +12,7 @@ permissions:
   pull-requests: read
   discussions: read
   security-events: read
+  vulnerability-alerts: read
 engine: claude
 strict: true
 tools:
@@ -19,6 +20,9 @@ tools:
     mode: local
     read-only: true
     toolsets: [all]
+    github-app:
+      app-id: ${{ vars.APP_ID }}
+      private-key: ${{ secrets.APP_PRIVATE_KEY }}
   cache-memory:
     key: mcp-response-analysis-${{ github.workflow }}
 safe-outputs:

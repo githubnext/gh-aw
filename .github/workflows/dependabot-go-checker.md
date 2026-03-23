@@ -14,6 +14,7 @@ permissions:
   issues: read
   pull-requests: read
   security-events: read
+  vulnerability-alerts: read
 
 network: defaults
 
@@ -32,6 +33,9 @@ safe-outputs:
 tools:
   github:
     toolsets: [default, dependabot]
+    github-app:
+      app-id: ${{ vars.APP_ID }}
+      private-key: ${{ secrets.APP_PRIVATE_KEY }}
   web-fetch:
   bash: [":*"]
 

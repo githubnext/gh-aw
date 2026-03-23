@@ -13,6 +13,7 @@ permissions:
   pull-requests: read
   discussions: read
   security-events: read
+  vulnerability-alerts: read
 
 tracker-id: daily-firewall-report
 timeout-minutes: 45
@@ -30,6 +31,9 @@ tools:
   github:
     toolsets:
       - all
+    github-app:
+      app-id: ${{ vars.APP_ID }}
+      private-key: ${{ secrets.APP_PRIVATE_KEY }}
   bash:
     - "*"
   edit:

@@ -10,11 +10,15 @@ permissions:
   issues: read
   pull-requests: read
   security-events: read
+  vulnerability-alerts: read
 engine: claude
 tools:
   github:
     mode: "remote"
     toolsets: [all]
+    github-app:
+      app-id: ${{ vars.APP_ID }}
+      private-key: ${{ secrets.APP_PRIVATE_KEY }}
   cache-memory: true
   edit:
 safe-outputs:
