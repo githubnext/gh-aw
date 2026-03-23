@@ -299,8 +299,14 @@ type GitHubToolConfig struct {
 	AllowedRepos GitHubReposScope `yaml:"allowed-repos,omitempty"`
 	// Repos is deprecated. Use AllowedRepos (yaml:"allowed-repos") instead.
 	Repos GitHubReposScope `yaml:"repos,omitempty"`
-	// MinIntegrity defines the minimum integrity level required: "none", "reader", "writer", "merged"
+	// MinIntegrity defines the minimum integrity level required: "none", "unapproved", "approved", "merged"
 	MinIntegrity GitHubIntegrityLevel `yaml:"min-integrity,omitempty"`
+	// BlockedUsers is an optional list of GitHub usernames whose content is unconditionally blocked.
+	// Items from these users receive "blocked" integrity (below "none") and are always denied.
+	BlockedUsers []string `yaml:"blocked-users,omitempty"`
+	// ApprovalLabels is an optional list of GitHub label names that promote a content item's
+	// effective integrity to "approved" when present. Does not override BlockedUsers.
+	ApprovalLabels []string `yaml:"approval-labels,omitempty"`
 }
 
 // PlaywrightToolConfig represents the configuration for the Playwright tool

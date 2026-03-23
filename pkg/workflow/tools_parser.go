@@ -249,6 +249,26 @@ func parseGitHubTool(val any) *GitHubToolConfig {
 		if integrity, ok := configMap["min-integrity"].(string); ok {
 			config.MinIntegrity = GitHubIntegrityLevel(integrity)
 		}
+		if blockedUsers, ok := configMap["blocked-users"].([]any); ok {
+			config.BlockedUsers = make([]string, 0, len(blockedUsers))
+			for _, item := range blockedUsers {
+				if str, ok := item.(string); ok {
+					config.BlockedUsers = append(config.BlockedUsers, str)
+				}
+			}
+		} else if blockedUsers, ok := configMap["blocked-users"].([]string); ok {
+			config.BlockedUsers = blockedUsers
+		}
+		if approvalLabels, ok := configMap["approval-labels"].([]any); ok {
+			config.ApprovalLabels = make([]string, 0, len(approvalLabels))
+			for _, item := range approvalLabels {
+				if str, ok := item.(string); ok {
+					config.ApprovalLabels = append(config.ApprovalLabels, str)
+				}
+			}
+		} else if approvalLabels, ok := configMap["approval-labels"].([]string); ok {
+			config.ApprovalLabels = approvalLabels
+		}
 
 		return config
 	}

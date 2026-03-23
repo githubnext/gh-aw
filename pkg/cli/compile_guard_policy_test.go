@@ -188,3 +188,52 @@ This workflow uses min-integrity without specifying repos.
 	assert.Contains(t, lockFileContent, `"guard-policies": {`+"\n"+`                  "allow-only": {`+"\n"+`                    "min-integrity": "approved",`+"\n"+`                    "repos": "all"`,
 		"Compiled lock file must include repos=all and min-integrity=approved in the guard-policies allow-only block")
 }
+
+// TestGuardPolicyBlockedUsersApprovalLabelsCompiledOutput verifies that blocked-users and
+// approval-labels are written into the compiled guard-policies allow-only block.
+func TestGuardPolicyBlockedUsersApprovalLabelsCompiledOutput(t *testing.T) {
+	workflowContent := `---
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+engine: copilot
+tools:
+  github:
+    allowed-repos:
+      - myorg/myrepo
+    min-integrity: approved
+    blocked-users:
+      - spam-bot
+      - compromised-user
+    approval-labels:
+      - human-reviewed
+      - safe-for-agent
+---
+
+# Guard Policy Test
+
+This workflow uses blocked-users and approval-labels.
+`
+
+	tmpDir := t.TempDir()
+	workflowPath := filepath.Join(tmpDir, "test-guard-policy-blocked.md")
+	err := os.WriteFile(workflowPath, []byte(workflowContent), 0644)
+	require.NoError(t, err, "Failed to write workflow file")
+
+	compiler := workflow.NewCompiler()
+	err = CompileWorkflowWithValidation(compiler, workflowPath, false, false, false, false, false, false)
+	require.NoError(t, err, "Expected compilation to succeed")
+
+	lockFilePath := filepath.Join(tmpDir, "test-guard-policy-blocked.lock.yml")
+	lockFileBytes, err := os.ReadFile(lockFilePath)
+	require.NoError(t, err, "Failed to read compiled lock file")
+
+	lockFileContent := string(lockFileBytes)
+	assert.Contains(t, lockFileContent, `"blocked-users"`, "Compiled lock file must include blocked-users in the guard-policies allow-only block")
+	assert.Contains(t, lockFileContent, `"spam-bot"`, "Compiled lock file must include spam-bot in blocked-users")
+	assert.Contains(t, lockFileContent, `"compromised-user"`, "Compiled lock file must include compromised-user in blocked-users")
+	assert.Contains(t, lockFileContent, `"approval-labels"`, "Compiled lock file must include approval-labels in the guard-policies allow-only block")
+	assert.Contains(t, lockFileContent, `"human-reviewed"`, "Compiled lock file must include human-reviewed in approval-labels")
+	assert.Contains(t, lockFileContent, `"safe-for-agent"`, "Compiled lock file must include safe-for-agent in approval-labels")
+}
