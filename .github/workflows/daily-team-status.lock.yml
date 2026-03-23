@@ -39,7 +39,7 @@
 name: "Daily Team Status"
 "on":
   schedule:
-  - cron: 0 9 * * 1-5
+  - cron: "0 9 * * 1-5"
   workflow_dispatch:
     inputs:
       aw_context:
