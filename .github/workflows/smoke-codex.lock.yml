@@ -429,6 +429,16 @@ jobs:
         run: npm install -g @openai/codex@latest
       - name: Install AWF binary
         run: bash ${RUNNER_TEMP}/gh-aw/actions/install_awf_binary.sh v0.25.0
+      - name: Restore qmd index from cache
+        uses: actions/cache/restore@668228422ae6a00e4ad889ee87cd7109ec5666a7 # v5.0.4
+        with:
+          key: gh-aw-qmd-2.0.1-${{ github.run_id }}
+          path: /tmp/gh-aw/qmd-index/
+      - name: Restore qmd models cache
+        uses: actions/cache/restore@668228422ae6a00e4ad889ee87cd7109ec5666a7 # v5.0.4
+        with:
+          path: ~/.cache/qmd/models/
+          key: qmd-models-2.0.1-${{ runner.os }}
       - name: Determine automatic lockdown mode for GitHub MCP Server
         id: determine-automatic-lockdown
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
