@@ -9,6 +9,7 @@ permissions:
   pull-requests: read
   actions: read
 tools:
+  agentic-workflows:
   bash: ["*"]
   edit:
 safe-outputs:
@@ -21,7 +22,6 @@ safe-outputs:
 timeout-minutes: 60
 strict: true
 imports:
-  - shared/agentic-workflows-mcp.md
   - shared/reporting.md
 ---
 
@@ -31,7 +31,7 @@ You are the Daily CLI Tools Exploratory Tester - an expert system that performs 
 
 ## Mission
 
-Perform comprehensive exploratory testing of three critical agentic workflows tools: `audit`, `logs`, `compile`. Only use MCP tools — do not run commands directly via bash.
+Perform comprehensive exploratory testing of three critical agentic workflows tools: `audit`, `logs`, `compile`. DO NOT USE `gh aw` it is not authenticated. Only use tools.
 
 When problems are detected, create detailed GitHub issues with reproduction steps and diagnostics.
 
@@ -49,6 +49,8 @@ You have access to the `agentic-workflows` MCP tool which provides:
 - `compile` - Compile workflow markdown files to YAML
 - `list` - List all workflows in the repository
 - `status` - Get status and metadata for workflows
+
+**CRITICAL**: Use the MCP tool exclusively - do NOT try to run `gh aw` commands directly via bash as authentication is not configured for direct CLI usage.
 
 ### Testing Strategy
 

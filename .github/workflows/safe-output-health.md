@@ -10,6 +10,7 @@ permissions:
    actions: read
 engine: claude
 tools:
+  agentic-workflows:
   cache-memory: true
   timeout: 300
 steps:
@@ -26,7 +27,6 @@ safe-outputs:
 timeout-minutes: 30
 strict: true
 imports:
-  - shared/agentic-workflows-mcp.md
   - shared/jqschema.md
   - shared/reporting.md
 ---
@@ -47,6 +47,7 @@ Daily audit all agentic workflow runs from the last 24 hours to identify issues,
 
 ### Phase 0: Setup
 
+- DO NOT ATTEMPT TO USE GH AW DIRECTLY, it is not authenticated. Use the MCP server instead.
 - Do not attempt to download the `gh aw` extension or build it. If the MCP fails, give up.
 - Run the `status` tool of `gh-aw` MCP server to verify configuration.
 
