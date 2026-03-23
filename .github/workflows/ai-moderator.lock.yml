@@ -21,7 +21,7 @@
 # For more information: https://github.github.com/gh-aw/introduction/overview/
 #
 #
-# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"84dc6484402345ed9710ec3cab04ff2100d41aedab7f617b2184e9afce576731","strict":true,"agent_id":"codex"}
+# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"24097d612ed4ae81b5abe15c49498e86d1950121b61fe31cf393cfeae9051f88","strict":true,"agent_id":"codex"}
 
 name: "AI Moderator"
 "on":
@@ -41,6 +41,10 @@ name: "AI Moderator"
   # skip-bots: # Skip-bots processed as bot check in pre-activation job
   # - github-actions # Skip-bots processed as bot check in pre-activation job
   # - copilot # Skip-bots processed as bot check in pre-activation job
+  # - dependabot # Skip-bots processed as bot check in pre-activation job
+  # - renovate # Skip-bots processed as bot check in pre-activation job
+  # - github-copilot-enterprise # Skip-bots processed as bot check in pre-activation job
+  # - copilot-swe-agent # Skip-bots processed as bot check in pre-activation job
   # skip-roles: # Skip-roles processed as role check in pre-activation job
   # - admin # Skip-roles processed as role check in pre-activation job
   # - maintainer # Skip-roles processed as role check in pre-activation job
@@ -951,7 +955,7 @@ jobs:
         id: check_skip_bots
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
-          GH_AW_SKIP_BOTS: github-actions,copilot
+          GH_AW_SKIP_BOTS: github-actions,copilot,dependabot,renovate,github-copilot-enterprise,copilot-swe-agent
           GH_AW_WORKFLOW_NAME: "AI Moderator"
         with:
           script: |
