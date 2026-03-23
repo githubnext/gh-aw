@@ -128,9 +128,11 @@ func (r *MCPConfigRendererUnified) renderQmdTOML(yaml *strings.Builder) {
 	// and qmd resolve ~/.cache/ paths correctly inside the container).
 	// NODE_LLAMA_CPP_GPU is forwarded so GPU probing can be disabled on CPU-only runners.
 	// NO_COLOR=1 disables ANSI escape codes in qmd output so the JSON-RPC stream is clean.
+	// CI=1 suppresses interactive progress output from node-llama-cpp during inference
+	// (prevents ANSI codes from corrupting the JSON-RPC stdout stream on first tool call).
 	// Use \${VAR} so the shell heredoc does not expand them; the gateway resolves them.
 	// HOME is not in the gateway env so it is expanded by the heredoc shell instead.
-	yaml.WriteString("          env = { \"INDEX_PATH\" = \"\\${INDEX_PATH}\", \"HOME\" = \"${HOME}\", \"NO_COLOR\" = \"1\", \"NODE_LLAMA_CPP_GPU\" = \"\\${NODE_LLAMA_CPP_GPU}\" }\n")
+	yaml.WriteString("          env = { \"CI\" = \"1\", \"INDEX_PATH\" = \"\\${INDEX_PATH}\", \"HOME\" = \"${HOME}\", \"NO_COLOR\" = \"1\", \"NODE_LLAMA_CPP_GPU\" = \"\\${NODE_LLAMA_CPP_GPU}\" }\n")
 }
 
 // renderQmdMCPConfigWithOptions generates the qmd MCP server configuration in JSON format.
@@ -145,7 +147,10 @@ func renderQmdMCPConfigWithOptions(yaml *strings.Builder, isLast bool, includeCo
 	// the gateway resolves them from its own environment (passed via -e flags in DOCKER_COMMAND).
 	// HOME is not in the gateway env, so ${HOME} is expanded by the heredoc shell to /home/runner.
 	// NO_COLOR=1 disables ANSI escape codes in qmd output so the JSON-RPC stream is clean.
+	// CI=1 suppresses interactive progress output from node-llama-cpp during inference
+	// (prevents ANSI codes from corrupting the JSON-RPC stdout stream on first tool call).
 	envValues := map[string]string{
+		"CI":                 "1",
 		"INDEX_PATH":         "\\${INDEX_PATH}",
 		"HOME":               "${HOME}",
 		"NO_COLOR":           "1",

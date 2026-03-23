@@ -925,7 +925,7 @@ jobs:
             "/tmp/gh-aw:/tmp/gh-aw:rw",
             "${HOME}/.cache/qmd:${HOME}/.cache/qmd:rw",
           ]
-          env = { "INDEX_PATH" = "\${INDEX_PATH}", "HOME" = "${HOME}", "NO_COLOR" = "1", "NODE_LLAMA_CPP_GPU" = "\${NODE_LLAMA_CPP_GPU}" }
+          env = { "CI" = "1", "INDEX_PATH" = "\${INDEX_PATH}", "HOME" = "${HOME}", "NO_COLOR" = "1", "NODE_LLAMA_CPP_GPU" = "\${NODE_LLAMA_CPP_GPU}" }
           
           [mcp_servers.qmd."guard-policies"]
           
@@ -1050,6 +1050,7 @@ jobs:
                   "${HOME}/.cache/qmd:${HOME}/.cache/qmd:rw"
                 ],
                 "env": {
+                  "CI": "1",
                   "HOME": "${HOME}",
                   "INDEX_PATH": "\${INDEX_PATH}",
                   "NODE_LLAMA_CPP_GPU": "\${NODE_LLAMA_CPP_GPU}",
