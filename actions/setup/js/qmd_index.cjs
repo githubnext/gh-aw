@@ -44,11 +44,12 @@ async function writeSummary(config, updateResult, embedResult) {
   try {
     let md = "## qmd documentation index\n\n";
 
-    if ((config.checkouts || []).length > 0) {
+    const checkouts = config.checkouts ?? [];
+    if (checkouts.length > 0) {
       md += "### Collections\n\n";
       md += "| Name | Patterns | Context |\n";
       md += "| --- | --- | --- |\n";
-      for (const col of config.checkouts) {
+      for (const col of checkouts) {
         const patterns = (col.patterns || ["**/*.md"]).join(", ");
         const ctx = col.context || "-";
         md += `| ${col.name} | ${patterns} | ${ctx} |\n`;
@@ -56,16 +57,17 @@ async function writeSummary(config, updateResult, embedResult) {
       md += "\n";
     }
 
-    if ((config.searches || []).length > 0) {
+    const searches = config.searches ?? [];
+    if (searches.length > 0) {
       md += "### Searches\n\n";
       md += "| Name | Type | Query / Repo | Min | Max |\n";
       md += "| --- | --- | --- | --- | --- |\n";
-      for (const s of config.searches) {
+      for (const s of searches) {
         const name = s.name || "-";
         const type = s.type || "code";
         const ref = (s.query || s.repo || "-").replace(/\|/g, "\\|");
-        const min = s.min > 0 ? String(s.min) : "-";
-        const max = String(s.max > 0 ? s.max : type === "issues" ? 500 : 30);
+        const min = s.min && s.min > 0 ? String(s.min) : "-";
+        const max = String(s.max && s.max > 0 ? s.max : type === "issues" ? 500 : 30);
         md += `| ${name} | ${type} | ${ref} | ${min} | ${max} |\n`;
       }
       md += "\n";
@@ -141,8 +143,9 @@ async function main() {
   }
 
   // ── Process search entries ───────────────────────────────────────────────
-  for (let i = 0; i < (config.searches || []).length; i++) {
-    const search = config.searches[i];
+  const searchEntries = config.searches ?? [];
+  for (let i = 0; i < searchEntries.length; i++) {
+    const search = searchEntries[i];
     const collectionName = search.name || `search-${i}`;
     const searchDir = `/tmp/gh-aw/qmd-search-${i}`;
     fs.mkdirSync(searchDir, { recursive: true });
@@ -157,7 +160,7 @@ async function main() {
         return;
       }
       const [owner, repo] = slugParts;
-      const maxCount = search.max > 0 ? search.max : 500;
+      const maxCount = search.max && search.max > 0 ? search.max : 500;
 
       core.info(`Fetching issues from ${repoSlug} (max: ${maxCount})…`);
 
@@ -177,7 +180,7 @@ async function main() {
       core.info(`Saved ${slice.length} issues to ${searchDir}`);
     } else {
       // Code search: download matching files via GitHub REST API.
-      const maxCount = search.max > 0 ? search.max : 30;
+      const maxCount = search.max && search.max > 0 ? search.max : 30;
       core.info(`Searching GitHub code: "${search.query}" (max: ${maxCount})…`);
 
       const response = await client.rest.search.code({
@@ -211,10 +214,11 @@ async function main() {
     }
 
     // Enforce minimum result count.
-    if (search.min > 0) {
+    const minCount = search.min ?? 0;
+    if (minCount > 0) {
       const fileCount = fs.readdirSync(searchDir).length;
-      if (fileCount < search.min) {
-        core.setFailed(`qmd search "${collectionName}" returned ${fileCount} results, minimum is ${search.min}`);
+      if (fileCount < minCount) {
+        core.setFailed(`qmd search "${collectionName}" returned ${fileCount} results, minimum is ${minCount}`);
         return;
       }
     }
