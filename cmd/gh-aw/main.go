@@ -745,10 +745,10 @@ Use "` + string(constants.CLIExtensionPrefix) + ` help all" to show help for all
 	compileCmd.GroupID = "development"
 	validateCmd.GroupID = "development"
 	mcpCmd.GroupID = "development"
-	statusCmd.GroupID = "development"
-	listCmd.GroupID = "development"
 	fixCmd.GroupID = "development"
 	domainsCmd.GroupID = "development"
+	statusCmd.GroupID = "analysis"
+	listCmd.GroupID = "analysis"
 
 	// Execution Commands
 	runCmd.GroupID = "execution"
