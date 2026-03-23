@@ -614,11 +614,12 @@ func TestBuildAgentOutputDownloadSteps(t *testing.T) {
 		"name: agent",
 		"path: /tmp/gh-aw/",
 		"- name: Setup agent output environment variable",
+		"id: setup-agent-output-env",
 		"if: steps.download-agent-output.outcome == 'success'",
 		"mkdir -p /tmp/gh-aw/",
 		`find "/tmp/gh-aw/" -type f -print`,
 		// Hardcoded path is correct because GetPreBundleSteps ensures LCA is /tmp/gh-aw/
-		`echo "GH_AW_AGENT_OUTPUT=/tmp/gh-aw/agent_output.json" >> "$GITHUB_ENV"`,
+		`echo "GH_AW_AGENT_OUTPUT=/tmp/gh-aw/agent_output.json" >> "$GITHUB_OUTPUT"`,
 	}
 
 	for _, expected := range expectedComponents {

@@ -335,15 +335,17 @@ func (c *Compiler) generateSetupStep(setupActionRef string, destination string, 
 }
 
 // generateSetRuntimePathsStep generates a step that sets RUNNER_TEMP-based env vars
-// via $GITHUB_ENV. These cannot be set in job-level env: because the runner context
-// is not available there.
+// via $GITHUB_OUTPUT. These cannot be set in job-level env: because the runner context
+// is not available there (only in step-level env: and run: blocks).
+// The step ID "set-runtime-paths" is referenced by downstream steps that consume these outputs.
 func (c *Compiler) generateSetRuntimePathsStep() []string {
 	return []string{
 		"      - name: Set runtime paths\n",
+		"        id: set-runtime-paths\n",
 		"        run: |\n",
-		"          echo \"GH_AW_SAFE_OUTPUTS=${RUNNER_TEMP}/gh-aw/safeoutputs/outputs.jsonl\" >> \"$GITHUB_ENV\"\n",
-		"          echo \"GH_AW_SAFE_OUTPUTS_CONFIG_PATH=${RUNNER_TEMP}/gh-aw/safeoutputs/config.json\" >> \"$GITHUB_ENV\"\n",
-		"          echo \"GH_AW_SAFE_OUTPUTS_TOOLS_PATH=${RUNNER_TEMP}/gh-aw/safeoutputs/tools.json\" >> \"$GITHUB_ENV\"\n",
+		"          echo \"GH_AW_SAFE_OUTPUTS=${RUNNER_TEMP}/gh-aw/safeoutputs/outputs.jsonl\" >> \"$GITHUB_OUTPUT\"\n",
+		"          echo \"GH_AW_SAFE_OUTPUTS_CONFIG_PATH=${RUNNER_TEMP}/gh-aw/safeoutputs/config.json\" >> \"$GITHUB_OUTPUT\"\n",
+		"          echo \"GH_AW_SAFE_OUTPUTS_TOOLS_PATH=${RUNNER_TEMP}/gh-aw/safeoutputs/tools.json\" >> \"$GITHUB_OUTPUT\"\n",
 	}
 }
 
