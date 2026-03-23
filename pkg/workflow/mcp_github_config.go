@@ -260,8 +260,6 @@ func getGitHubGuardPolicies(githubTool any) map[string]any {
 			repos, hasRepos = toolConfig["repos"]
 		}
 		integrity, hasIntegrity := toolConfig["min-integrity"]
-		blockedUsers := toolConfig["blocked-users"]
-		approvalLabels := toolConfig["approval-labels"]
 		if hasRepos || hasIntegrity {
 			policy := map[string]any{}
 			if hasRepos {
@@ -274,67 +272,17 @@ func getGitHubGuardPolicies(githubTool any) map[string]any {
 			if hasIntegrity {
 				policy["min-integrity"] = integrity
 			}
-			// Always union blocked-users with the GH_AW_GITHUB_BLOCKED_USERS org/repo variable so
-			// that a centrally-configured variable extends the per-workflow list.
-			policy["blocked-users"] = unionWithEnvFallback(blockedUsers, constants.EnvVarGitHubBlockedUsers)
-			// Always union approval-labels with the GH_AW_GITHUB_APPROVAL_LABELS org/repo variable.
-			policy["approval-labels"] = unionWithEnvFallback(approvalLabels, constants.EnvVarGitHubApprovalLabels)
+			// blocked-users and approval-labels are parsed at runtime by the parse-guard-vars step.
+			// The step outputs proper JSON arrays (split on comma/newline, validated, jq-encoded)
+			// from both the compile-time static values and the GH_AW_GITHUB_* org/repo variables.
+			policy["blocked-users"] = guardExprSentinel + "${{ steps.parse-guard-vars.outputs.blocked_users }}"
+			policy["approval-labels"] = guardExprSentinel + "${{ steps.parse-guard-vars.outputs.approval_labels }}"
 			return map[string]any{
 				"allow-only": policy,
 			}
 		}
 	}
 	return nil
-}
-
-// unionWithEnvFallback builds a JSON-safe value that unions any explicitly configured
-// blocked-users / approval-labels values with an org/repo variable fallback.
-//
-// For the fallback expression, the returned string is prefixed with guardExprSentinel so
-// that renderGuardPoliciesJSON can strip the surrounding JSON string quotes and emit the
-// toJSON() expression verbatim. At runtime, GitHub Actions evaluates toJSON() which properly
-// JSON-encodes the variable value, preventing JSON injection even if the value contains
-// double quotes or backslashes.
-//
-//   - nil / not set → sentinel-prefixed toJSON fallback expression (rendered without quotes)
-//   - []any or []string → JSON array of static string values with the sentinel fallback as last element
-//   - string expression → JSON array of [expression, sentinel fallback]
-func unionWithEnvFallback(existing any, envVar string) any {
-	// The sentinel prefix tells renderGuardPoliciesJSON to un-quote this value and emit the
-	// toJSON() expression verbatim. toJSON() ensures the variable value is properly
-	// JSON-encoded at runtime.
-	fallback := guardExprSentinel + fmt.Sprintf(`${{ toJSON(vars.%s || '') }}`, envVar)
-
-	switch v := existing.(type) {
-	case []any:
-		parts := make([]any, 0, len(v)+1)
-		for _, item := range v {
-			if str, ok := item.(string); ok && str != "" {
-				parts = append(parts, str)
-			}
-		}
-		parts = append(parts, fallback)
-		return parts
-	case []string:
-		parts := make([]any, 0, len(v)+1)
-		for _, s := range v {
-			if s != "" {
-				parts = append(parts, s)
-			}
-		}
-		parts = append(parts, fallback)
-		return parts
-	case string:
-		if v != "" {
-			// User-provided expression (e.g. "${{ vars.CUSTOM }}") unioned with the fallback.
-			return []any{v, fallback}
-		}
-		// Fallback only: sentinel-prefixed toJSON expression (no surrounding string quotes).
-		return fallback
-	default:
-		// Fallback only.
-		return fallback
-	}
 }
 
 // deriveSafeOutputsGuardPolicyFromGitHub generates a safeoutputs guard-policy from GitHub guard-policy.

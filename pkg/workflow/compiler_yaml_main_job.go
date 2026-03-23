@@ -284,6 +284,9 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 	// Add GitHub MCP lockdown detection step if needed
 	c.generateGitHubMCPLockdownDetectionStep(yaml, data)
 
+	// Add step to parse blocked-users and approval-labels guard variables into JSON arrays
+	c.generateParseGuardVarsStep(yaml, data)
+
 	// Add GitHub MCP app token minting step if configured
 	c.generateGitHubMCPAppTokenMintingStep(yaml, data)
 

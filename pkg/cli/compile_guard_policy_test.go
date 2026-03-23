@@ -189,12 +189,13 @@ This workflow uses min-integrity without specifying repos.
 	assert.Contains(t, lockFileContent, `"allow-only"`, "Compiled lock file must include allow-only policy")
 	assert.Contains(t, lockFileContent, `"min-integrity": "approved"`, "Compiled lock file must include min-integrity=approved")
 	assert.Contains(t, lockFileContent, `"repos": "all"`, "Compiled lock file must default repos to 'all'")
-	// Fallback expressions for blocked-users and approval-labels should be injected automatically
-	// using toJSON() to ensure proper JSON encoding at runtime.
-	assert.Contains(t, lockFileContent, `"blocked-users": ${{ toJSON(vars.GH_AW_GITHUB_BLOCKED_USERS || '') }}`,
-		"Compiled lock file must inject blocked-users toJSON fallback expression")
-	assert.Contains(t, lockFileContent, `"approval-labels": ${{ toJSON(vars.GH_AW_GITHUB_APPROVAL_LABELS || '') }}`,
-		"Compiled lock file must inject approval-labels toJSON fallback expression")
+	// The parse-guard-vars step is injected to parse variables into JSON arrays at runtime.
+	assert.Contains(t, lockFileContent, `id: parse-guard-vars`, "Compiled lock file must include parse-guard-vars step")
+	assert.Contains(t, lockFileContent, `steps.parse-guard-vars.outputs.blocked_users`, "Compiled lock file must reference blocked_users step output")
+	assert.Contains(t, lockFileContent, `steps.parse-guard-vars.outputs.approval_labels`, "Compiled lock file must reference approval_labels step output")
+	// The step must include the fallback variable env vars.
+	assert.Contains(t, lockFileContent, `GH_AW_BLOCKED_USERS_VAR`, "Compiled lock file must pass GH_AW_BLOCKED_USERS_VAR to parse step")
+	assert.Contains(t, lockFileContent, `GH_AW_APPROVAL_LABELS_VAR`, "Compiled lock file must pass GH_AW_APPROVAL_LABELS_VAR to parse step")
 }
 
 // TestGuardPolicyBlockedUsersApprovalLabelsCompiledOutput verifies that blocked-users and
@@ -238,16 +239,18 @@ This workflow uses blocked-users and approval-labels.
 	require.NoError(t, err, "Failed to read compiled lock file")
 
 	lockFileContent := string(lockFileBytes)
-	// With union semantics, blocked-users and approval-labels are rendered as a JSON array
-	// containing the explicit values and a toJSON() fallback expression as the last element.
+	// The parse-guard-vars step receives static values via GH_AW_BLOCKED_USERS_EXTRA and
+	// GH_AW_APPROVAL_LABELS_EXTRA at compile time, and parses the GH_AW_GITHUB_* fallback
+	// variables at runtime to produce proper JSON arrays.
+	assert.Contains(t, lockFileContent, `id: parse-guard-vars`, "Compiled lock file must include parse-guard-vars step")
+	assert.Contains(t, lockFileContent, `GH_AW_BLOCKED_USERS_EXTRA: spam-bot,compromised-user`, "Compiled lock file must include static blocked-users in step env")
+	assert.Contains(t, lockFileContent, `GH_AW_BLOCKED_USERS_VAR`, "Compiled lock file must include GH_AW_BLOCKED_USERS_VAR in step env")
+	assert.Contains(t, lockFileContent, `GH_AW_APPROVAL_LABELS_EXTRA: human-reviewed,safe-for-agent`, "Compiled lock file must include static approval-labels in step env")
+	assert.Contains(t, lockFileContent, `GH_AW_APPROVAL_LABELS_VAR`, "Compiled lock file must include GH_AW_APPROVAL_LABELS_VAR in step env")
 	assert.Contains(t, lockFileContent, `"blocked-users"`, "Compiled lock file must include blocked-users in the guard-policies allow-only block")
-	assert.Contains(t, lockFileContent, `spam-bot`, "Compiled lock file must include spam-bot in blocked-users")
-	assert.Contains(t, lockFileContent, `compromised-user`, "Compiled lock file must include compromised-user in blocked-users")
-	assert.Contains(t, lockFileContent, `toJSON(vars.GH_AW_GITHUB_BLOCKED_USERS`, "Compiled lock file must include blocked-users toJSON fallback")
+	assert.Contains(t, lockFileContent, `steps.parse-guard-vars.outputs.blocked_users`, "Compiled lock file must reference blocked_users step output")
 	assert.Contains(t, lockFileContent, `"approval-labels"`, "Compiled lock file must include approval-labels in the guard-policies allow-only block")
-	assert.Contains(t, lockFileContent, `human-reviewed`, "Compiled lock file must include human-reviewed in approval-labels")
-	assert.Contains(t, lockFileContent, `safe-for-agent`, "Compiled lock file must include safe-for-agent in approval-labels")
-	assert.Contains(t, lockFileContent, `toJSON(vars.GH_AW_GITHUB_APPROVAL_LABELS`, "Compiled lock file must include approval-labels toJSON fallback")
+	assert.Contains(t, lockFileContent, `steps.parse-guard-vars.outputs.approval_labels`, "Compiled lock file must reference approval_labels step output")
 }
 
 // TestGuardPolicyBlockedUsersExpressionCompiledOutput verifies that blocked-users as a GitHub
@@ -286,14 +289,17 @@ This workflow passes blocked-users and approval-labels as expressions.
 	require.NoError(t, err, "Failed to read compiled lock file")
 
 	lockFileContent := string(lockFileBytes)
-	// Expressions should be unioned with the GH_AW_GITHUB_* fallback in an array.
-	// The fallback uses toJSON() for proper JSON encoding.
+	// The parse-guard-vars step receives user-provided expressions via GH_AW_BLOCKED_USERS_EXTRA
+	// and GH_AW_APPROVAL_LABELS_EXTRA; GitHub Actions evaluates the expressions at runtime.
+	assert.Contains(t, lockFileContent, `id: parse-guard-vars`, "Compiled lock file must include parse-guard-vars step")
+	assert.Contains(t, lockFileContent, `GH_AW_BLOCKED_USERS_EXTRA: ${{ vars.BLOCKED_USERS }}`, "Compiled lock file must pass user expression to blocked_users extra")
+	assert.Contains(t, lockFileContent, `GH_AW_BLOCKED_USERS_VAR`, "Compiled lock file must include GH_AW_BLOCKED_USERS_VAR in step env")
+	assert.Contains(t, lockFileContent, `GH_AW_APPROVAL_LABELS_EXTRA: ${{ vars.APPROVAL_LABELS }}`, "Compiled lock file must pass user expression to approval_labels extra")
+	assert.Contains(t, lockFileContent, `GH_AW_APPROVAL_LABELS_VAR`, "Compiled lock file must include GH_AW_APPROVAL_LABELS_VAR in step env")
 	assert.Contains(t, lockFileContent, `"blocked-users"`, "Compiled lock file must include blocked-users")
-	assert.Contains(t, lockFileContent, `vars.BLOCKED_USERS`, "Compiled lock file must preserve the blocked-users expression")
-	assert.Contains(t, lockFileContent, `toJSON(vars.GH_AW_GITHUB_BLOCKED_USERS`, "Compiled lock file must union blocked-users with toJSON fallback")
+	assert.Contains(t, lockFileContent, `steps.parse-guard-vars.outputs.blocked_users`, "Compiled lock file must reference blocked_users step output")
 	assert.Contains(t, lockFileContent, `"approval-labels"`, "Compiled lock file must include approval-labels")
-	assert.Contains(t, lockFileContent, `vars.APPROVAL_LABELS`, "Compiled lock file must preserve the approval-labels expression")
-	assert.Contains(t, lockFileContent, `toJSON(vars.GH_AW_GITHUB_APPROVAL_LABELS`, "Compiled lock file must union approval-labels with toJSON fallback")
+	assert.Contains(t, lockFileContent, `steps.parse-guard-vars.outputs.approval_labels`, "Compiled lock file must reference approval_labels step output")
 }
 
 // TestGuardPolicyBlockedUsersCommaSeparatedCompiledOutput verifies that a static
@@ -331,10 +337,11 @@ This workflow passes blocked-users as a comma-separated string.
 	require.NoError(t, err, "Failed to read compiled lock file")
 
 	lockFileContent := string(lockFileBytes)
-	// With union semantics, static comma-separated strings are split and then combined with
-	// the GH_AW_GITHUB_BLOCKED_USERS toJSON fallback into a JSON array.
+	// Static comma-separated values are passed to the parse step via GH_AW_BLOCKED_USERS_EXTRA
+	// at compile time; the step parses them at runtime into a JSON array.
+	assert.Contains(t, lockFileContent, `id: parse-guard-vars`, "Compiled lock file must include parse-guard-vars step")
+	assert.Contains(t, lockFileContent, `GH_AW_BLOCKED_USERS_EXTRA: spam-bot,compromised-user`, "Compiled lock file must include parsed static items in step env")
+	assert.Contains(t, lockFileContent, `GH_AW_BLOCKED_USERS_VAR`, "Compiled lock file must include GH_AW_BLOCKED_USERS_VAR in step env")
 	assert.Contains(t, lockFileContent, `"blocked-users"`, "Compiled lock file must include blocked-users")
-	assert.Contains(t, lockFileContent, `spam-bot`, "Compiled lock file must split spam-bot from comma-separated string")
-	assert.Contains(t, lockFileContent, `compromised-user`, "Compiled lock file must split compromised-user from comma-separated string")
-	assert.Contains(t, lockFileContent, `toJSON(vars.GH_AW_GITHUB_BLOCKED_USERS`, "Compiled lock file must union with blocked-users toJSON fallback")
+	assert.Contains(t, lockFileContent, `steps.parse-guard-vars.outputs.blocked_users`, "Compiled lock file must reference blocked_users step output")
 }

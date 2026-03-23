@@ -132,3 +132,70 @@ func (c *Compiler) generateGitHubMCPAppTokenInvalidationStep(yaml *strings.Build
 		yaml.WriteString(modifiedStep)
 	}
 }
+
+// generateParseGuardVarsStep generates a step that parses the blocked-users and
+// approval-labels variables at runtime into proper JSON arrays.
+//
+// The step is only emitted when explicit guard policies are configured (min-integrity or
+// allowed-repos set), because only then does the guard-policies block reference
+// `steps.parse-guard-vars.outputs.*`.
+//
+// The step runs parse_guard_list.sh which:
+//   - Accepts GH_AW_BLOCKED_USERS_EXTRA / GH_AW_APPROVAL_LABELS_EXTRA for compile-time
+//     static items or user-provided expressions.
+//   - Accepts GH_AW_BLOCKED_USERS_VAR / GH_AW_APPROVAL_LABELS_VAR for the
+//     GH_AW_GITHUB_* org/repo variable fallbacks.
+//   - Splits all inputs on commas and newlines, trims whitespace, removes empty entries.
+//   - Outputs `blocked_users` and `approval_labels` as JSON arrays via $GITHUB_OUTPUT.
+//   - Fails the step if any item is invalid.
+func (c *Compiler) generateParseGuardVarsStep(yaml *strings.Builder, data *WorkflowData) {
+	githubTool, hasGitHub := data.Tools["github"]
+	if !hasGitHub || githubTool == false {
+		return
+	}
+
+	// Only generate the step when guard policies are configured.
+	if len(getGitHubGuardPolicies(githubTool)) == 0 {
+		return
+	}
+
+	githubConfigLog.Print("Generating parse-guard-vars step for blocked-users and approval-labels")
+
+	// Determine the compile-time static values (or user expression) for each field.
+	// These come from the parsed tools config so we don't lose data from the raw map.
+	var blockedUsersExtra, approvalLabelsExtra string
+
+	if data.ParsedTools != nil && data.ParsedTools.GitHub != nil {
+		gh := data.ParsedTools.GitHub
+		switch {
+		case len(gh.BlockedUsers) > 0:
+			// Static list from frontmatter — join as comma-separated for the env var.
+			blockedUsersExtra = strings.Join(gh.BlockedUsers, ",")
+		case gh.BlockedUsersExpr != "":
+			// User-provided GitHub Actions expression — passed verbatim; GHA evaluates it.
+			blockedUsersExtra = gh.BlockedUsersExpr
+		}
+		switch {
+		case len(gh.ApprovalLabels) > 0:
+			approvalLabelsExtra = strings.Join(gh.ApprovalLabels, ",")
+		case gh.ApprovalLabelsExpr != "":
+			approvalLabelsExtra = gh.ApprovalLabelsExpr
+		}
+	}
+
+	yaml.WriteString("      - name: Parse guard list variables\n")
+	yaml.WriteString("        id: parse-guard-vars\n")
+	yaml.WriteString("        env:\n")
+
+	if blockedUsersExtra != "" {
+		fmt.Fprintf(yaml, "          GH_AW_BLOCKED_USERS_EXTRA: %s\n", blockedUsersExtra)
+	}
+	fmt.Fprintf(yaml, "          GH_AW_BLOCKED_USERS_VAR: ${{ vars.%s || '' }}\n", constants.EnvVarGitHubBlockedUsers)
+
+	if approvalLabelsExtra != "" {
+		fmt.Fprintf(yaml, "          GH_AW_APPROVAL_LABELS_EXTRA: %s\n", approvalLabelsExtra)
+	}
+	fmt.Fprintf(yaml, "          GH_AW_APPROVAL_LABELS_VAR: ${{ vars.%s || '' }}\n", constants.EnvVarGitHubApprovalLabels)
+
+	yaml.WriteString("        run: bash ${RUNNER_TEMP}/gh-aw/actions/parse_guard_list.sh\n")
+}
