@@ -13,6 +13,7 @@ import (
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/stringutil"
+	"github.com/goccy/go-yaml"
 )
 
 var log = logger.New("workflow:compiler")
@@ -426,29 +427,62 @@ func (c *Compiler) generateAndValidateYAML(workflowData *WorkflowData, markdownP
 		return "", formattedErr
 	}
 
-	// Validate for template injection vulnerabilities - detect unsafe expression usage in run: commands
-	log.Print("Validating for template injection vulnerabilities")
-	if err := validateNoTemplateInjection(yamlContent); err != nil {
-		// Store error first so we can write invalid YAML before returning
-		formattedErr := formatCompilerError(markdownPath, "error", err.Error(), err)
-		// Write the invalid YAML to a .invalid.yml file for inspection
-		invalidFile := strings.TrimSuffix(lockFile, ".lock.yml") + ".invalid.yml"
-		if writeErr := os.WriteFile(invalidFile, []byte(yamlContent), 0644); writeErr == nil {
-			fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Workflow with template injection risks written to: "+console.ToRelativePath(invalidFile)))
+	// Template injection validation and GitHub Actions schema validation both require a
+	// parsed representation of the compiled YAML.  Parse it once here and share the
+	// result between the two validators to avoid redundant yaml.Unmarshal calls.
+	//
+	// Fast-path: if the YAML contains no unsafe context expressions we can skip the
+	// parse (and template-injection check) entirely for the common case.
+	needsTemplateCheck := unsafeContextRegex.MatchString(yamlContent)
+	needsSchemaCheck := !c.skipValidation
+
+	var parsedWorkflow map[string]any
+	if needsTemplateCheck || needsSchemaCheck {
+		log.Print("Parsing compiled YAML for validation")
+		if parseErr := yaml.Unmarshal([]byte(yamlContent), &parsedWorkflow); parseErr != nil {
+			// If parsing fails here the subsequent validators would also fail; keep going
+			// so we surface the root error from the right validator.
+			parsedWorkflow = nil
 		}
-		return "", formattedErr
+	}
+
+	// Validate for template injection vulnerabilities - detect unsafe expression usage in run: commands
+	if needsTemplateCheck {
+		log.Print("Validating for template injection vulnerabilities")
+		var templateErr error
+		if parsedWorkflow != nil {
+			templateErr = validateNoTemplateInjectionFromParsed(parsedWorkflow)
+		} else {
+			templateErr = validateNoTemplateInjection(yamlContent)
+		}
+		if templateErr != nil {
+			// Store error first so we can write invalid YAML before returning
+			formattedErr := formatCompilerError(markdownPath, "error", templateErr.Error(), templateErr)
+			// Write the invalid YAML to a .invalid.yml file for inspection
+			invalidFile := strings.TrimSuffix(lockFile, ".lock.yml") + ".invalid.yml"
+			if writeErr := os.WriteFile(invalidFile, []byte(yamlContent), 0644); writeErr == nil {
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Workflow with template injection risks written to: "+console.ToRelativePath(invalidFile)))
+			}
+			return "", formattedErr
+		}
 	}
 
 	// Validate against GitHub Actions schema (unless skipped)
-	if !c.skipValidation {
+	if needsSchemaCheck {
 		log.Print("Validating workflow against GitHub Actions schema")
-		if err := c.validateGitHubActionsSchema(yamlContent); err != nil {
+		var schemaErr error
+		if parsedWorkflow != nil {
+			schemaErr = c.validateGitHubActionsSchemaFromParsed(parsedWorkflow)
+		} else {
+			schemaErr = c.validateGitHubActionsSchema(yamlContent)
+		}
+		if schemaErr != nil {
 			// Try to point at the exact line of the failing field in the source markdown.
 			// extractSchemaErrorField unwraps the error chain to find the top-level field
 			// name (e.g. "timeout-minutes"), which findFrontmatterFieldLine then locates in
 			// the source frontmatter so the error is IDE-navigable.
 			fieldLine := 1
-			if fieldName := extractSchemaErrorField(err); fieldName != "" {
+			if fieldName := extractSchemaErrorField(schemaErr); fieldName != "" {
 				frontmatterLines := strings.Split(workflowData.FrontmatterYAML, "\n")
 				if line := findFrontmatterFieldLine(frontmatterLines, 2, fieldName); line > 0 {
 					fieldLine = line
@@ -456,7 +490,7 @@ func (c *Compiler) generateAndValidateYAML(workflowData *WorkflowData, markdownP
 			}
 			// Store error first so we can write invalid YAML before returning
 			formattedErr := formatCompilerErrorWithPosition(markdownPath, fieldLine, 1, "error",
-				fmt.Sprintf("invalid workflow: %v", err), err)
+				fmt.Sprintf("invalid workflow: %v", schemaErr), schemaErr)
 			// Write the invalid YAML to a .invalid.yml file for inspection
 			invalidFile := strings.TrimSuffix(lockFile, ".lock.yml") + ".invalid.yml"
 			if writeErr := os.WriteFile(invalidFile, []byte(yamlContent), 0644); writeErr == nil {
