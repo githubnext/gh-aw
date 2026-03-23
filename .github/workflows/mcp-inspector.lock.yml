@@ -46,9 +46,14 @@
 name: "MCP Inspector Agent"
 "on":
   schedule:
-  - cron: "35 18 * * 1"
-    # Friendly format: weekly on monday around 18:00 (scattered)
+  - cron: 35 18 * * 1
   workflow_dispatch:
+    inputs:
+      aw_context:
+        default: ""
+        description: (Internal) JSON context injected by the calling agentic workflow. Not intended for direct user input.
+        required: false
+        type: string
 
 permissions: {}
 

@@ -85,9 +85,40 @@ describe("dispatch_workflow handler factory", () => {
       inputs: {
         param1: "value1",
         param2: "42",
+        aw_context: expect.any(String),
       },
       return_run_details: true,
     });
+  });
+
+  it("should inject aw_context with correct fields", async () => {
+    const config = {
+      workflows: ["test-workflow"],
+      workflow_files: { "test-workflow": ".lock.yml" },
+      max: 5,
+    };
+    const handler = await main(config);
+
+    const result = await handler({ type: "dispatch_workflow", workflow_name: "test-workflow", inputs: {} }, {});
+
+    expect(result.success).toBe(true);
+    const callArgs = github.rest.actions.createWorkflowDispatch.mock.calls[0][0];
+    const awContextRaw = callArgs.inputs["aw_context"];
+    expect(awContextRaw).toBeDefined();
+
+    const awContext = JSON.parse(awContextRaw);
+    expect(awContext).toHaveProperty("repo");
+    expect(awContext).toHaveProperty("run_id");
+    expect(awContext).toHaveProperty("workflow_id");
+    expect(awContext).toHaveProperty("workflow_call_id");
+    expect(awContext).toHaveProperty("time");
+    expect(awContext).toHaveProperty("actor");
+    expect(awContext).toHaveProperty("event_type");
+    // Validate time is a valid ISO 8601 timestamp
+    expect(() => new Date(awContext.time)).not.toThrow();
+    expect(new Date(awContext.time).toISOString()).toBe(awContext.time);
+    // repo should match mocked context
+    expect(awContext.repo).toBe("test-owner/test-repo");
   });
 
   it("should reject workflows not in allowed list", async () => {
@@ -201,14 +232,15 @@ describe("dispatch_workflow handler factory", () => {
 
     expect(github.rest.actions.createWorkflowDispatch).toHaveBeenCalledWith(
       expect.objectContaining({
-        inputs: {
+        inputs: expect.objectContaining({
           string: "hello",
           number: "42",
           boolean: "true",
           object: '{"key":"value"}',
           null: "",
           undefined: "",
-        },
+          aw_context: expect.any(String),
+        }),
       })
     );
   });
@@ -236,7 +268,9 @@ describe("dispatch_workflow handler factory", () => {
       repo: "test-repo",
       workflow_id: "no-inputs-workflow.lock.yml",
       ref: expect.any(String),
-      inputs: {}, // Should pass empty object even when inputs property is missing
+      inputs: expect.objectContaining({
+        aw_context: expect.any(String),
+      }),
       return_run_details: true,
     });
   });
@@ -309,7 +343,7 @@ describe("dispatch_workflow handler factory", () => {
       repo: "test-repo",
       workflow_id: "test-workflow.lock.yml",
       ref: "refs/heads/feature-branch",
-      inputs: {},
+      inputs: expect.objectContaining({ aw_context: expect.any(String) }),
       return_run_details: true,
     });
   });
@@ -340,7 +374,7 @@ describe("dispatch_workflow handler factory", () => {
       repo: "test-repo",
       workflow_id: "test-workflow.lock.yml",
       ref: "refs/heads/main",
-      inputs: {},
+      inputs: expect.objectContaining({ aw_context: expect.any(String) }),
       return_run_details: true,
     });
   });
@@ -371,7 +405,7 @@ describe("dispatch_workflow handler factory", () => {
       repo: "test-repo",
       workflow_id: "test-workflow.lock.yml",
       ref: "refs/heads/feature/add-new-feature",
-      inputs: {},
+      inputs: expect.objectContaining({ aw_context: expect.any(String) }),
       return_run_details: true,
     });
   });
@@ -404,7 +438,7 @@ describe("dispatch_workflow handler factory", () => {
       repo: "test-repo",
       workflow_id: "test-workflow.lock.yml",
       ref: "refs/heads/develop",
-      inputs: {},
+      inputs: expect.objectContaining({ aw_context: expect.any(String) }),
       return_run_details: true,
     });
   });
@@ -448,7 +482,7 @@ describe("dispatch_workflow handler factory", () => {
       repo: "test-repo",
       workflow_id: "test-workflow.lock.yml",
       ref: "refs/heads/staging",
-      inputs: {},
+      inputs: expect.objectContaining({ aw_context: expect.any(String) }),
       return_run_details: true,
     });
   });
@@ -512,7 +546,7 @@ describe("dispatch_workflow handler factory", () => {
       repo: "test-repo",
       workflow_id: "test-workflow.lock.yml",
       ref: "refs/heads/main",
-      inputs: {},
+      inputs: expect.objectContaining({ aw_context: expect.any(String) }),
       return_run_details: true,
     });
 
@@ -522,7 +556,7 @@ describe("dispatch_workflow handler factory", () => {
       repo: "test-repo",
       workflow_id: "test-workflow.lock.yml",
       ref: "refs/heads/main",
-      inputs: {},
+      inputs: expect.objectContaining({ aw_context: expect.any(String) }),
     });
 
     expect(github.rest.actions.createWorkflowDispatch).toHaveBeenCalledTimes(2);

@@ -27,14 +27,17 @@
 name: "The Great Escapi"
 "on":
   pull_request:
-    # names: # Label filtering applied via job conditions
-    # - firewall-escape-test # Label filtering applied via job conditions
     types:
     - labeled
   schedule:
-  - cron: "7 17 * * *"
-    # Friendly format: daily (scattered)
+  - cron: 7 17 * * *
   workflow_dispatch:
+    inputs:
+      aw_context:
+        default: ""
+        description: (Internal) JSON context injected by the calling agentic workflow. Not intended for direct user input.
+        required: false
+        type: string
 
 permissions: {}
 

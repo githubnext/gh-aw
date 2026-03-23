@@ -31,9 +31,14 @@
 name: "Agent Persona Explorer"
 "on":
   schedule:
-  - cron: "51 0 * * *"
-    # Friendly format: daily (scattered)
+  - cron: 51 0 * * *
   workflow_dispatch:
+    inputs:
+      aw_context:
+        default: ""
+        description: (Internal) JSON context injected by the calling agentic workflow. Not intended for direct user input.
+        required: false
+        type: string
 
 permissions: {}
 

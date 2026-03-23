@@ -188,6 +188,20 @@ async function main(config = {}) {
         }
       }
 
+      // Inject aw_context: caller metadata passed to the dispatched workflow.
+      // This allows the receiving workflow to trace back to its caller via
+      // github.event.inputs.aw_context in its activation job.
+      const awContext = {
+        repo: `${context.repo.owner}/${context.repo.repo}`,
+        run_id: String(context.runId ?? ""),
+        workflow_id: process.env.GITHUB_WORKFLOW ?? "",
+        workflow_call_id: process.env.GITHUB_WORKFLOW_REF ?? "",
+        time: new Date().toISOString(),
+        actor: context.actor ?? "",
+        event_type: context.eventName ?? "",
+      };
+      inputs["aw_context"] = JSON.stringify(awContext);
+
       // Get the workflow file extension from compile-time resolution
       const extension = workflowFiles[workflowName];
       if (!extension) {

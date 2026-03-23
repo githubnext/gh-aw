@@ -32,9 +32,14 @@
 name: "Daily Go Function Namer"
 "on":
   schedule:
-  - cron: "17 0 * * *"
-    # Friendly format: daily (scattered)
+  - cron: 17 0 * * *
   workflow_dispatch:
+    inputs:
+      aw_context:
+        default: ""
+        description: (Internal) JSON context injected by the calling agentic workflow. Not intended for direct user input.
+        required: false
+        type: string
 
 permissions: {}
 

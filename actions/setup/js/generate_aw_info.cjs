@@ -92,6 +92,19 @@ async function main(core, ctx) {
     awInfo.apm_version = apmVersion;
   }
 
+  // Include aw_context when the workflow was triggered via workflow_dispatch with
+  // the aw_context input set by a calling agentic workflow's dispatch_workflow handler.
+  // Validates JSON format and populates the context key in aw_info.json.
+  const awContextRaw = ctx.payload?.inputs?.aw_context;
+  if (awContextRaw && typeof awContextRaw === "string" && awContextRaw.trim() !== "") {
+    try {
+      const parsed = JSON.parse(awContextRaw);
+      awInfo.context = parsed;
+    } catch {
+      core.warning(`Failed to parse aw_context input as JSON: ${awContextRaw}`);
+    }
+  }
+
   // Write to /tmp/gh-aw directory to avoid inclusion in PR
   fs.mkdirSync(TMP_GH_AW_PATH, { recursive: true });
   const tmpPath = TMP_GH_AW_PATH + "/aw_info.json";

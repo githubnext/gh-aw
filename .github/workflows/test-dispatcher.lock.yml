@@ -26,6 +26,12 @@
 name: "Test Dispatcher Workflow"
 "on":
   workflow_dispatch:
+    inputs:
+      aw_context:
+        default: ""
+        description: (Internal) JSON context injected by the calling agentic workflow. Not intended for direct user input.
+        required: false
+        type: string
 
 permissions: {}
 
@@ -344,6 +350,11 @@ jobs:
                 "inputSchema": {
                   "additionalProperties": false,
                   "properties": {
+                    "aw_context": {
+                      "default": "",
+                      "description": "(Internal) JSON context injected by the calling agentic workflow. Not intended for direct user input.",
+                      "type": "string"
+                    },
                     "test_param": {
                       "description": "Question from the dispatcher workflow",
                       "type": "string"

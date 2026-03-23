@@ -36,9 +36,14 @@ name: "Smoke Copilot"
     types:
     - labeled
   schedule:
-  - cron: "47 */12 * * *"
+  - cron: 47 */12 * * *
   workflow_dispatch:
     inputs:
+      aw_context:
+        default: ""
+        description: (Internal) JSON context injected by the calling agentic workflow. Not intended for direct user input.
+        required: false
+        type: string
       item_number:
         default: ""
         description: The number of the issue, pull request, or discussion

@@ -34,10 +34,14 @@
 name: "Daily Testify Uber Super Expert"
 "on":
   schedule:
-  - cron: "53 14 * * *"
-    # Friendly format: daily (scattered)
-  # skip-if-match: is:issue is:open in:title "[testify-expert]" # Skip-if-match processed as search check in pre-activation job
+  - cron: 53 14 * * *
   workflow_dispatch:
+    inputs:
+      aw_context:
+        default: ""
+        description: (Internal) JSON context injected by the calling agentic workflow. Not intended for direct user input.
+        required: false
+        type: string
 
 permissions: {}
 

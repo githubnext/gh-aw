@@ -27,13 +27,17 @@
 name: "Smoke Create Cross-Repo PR"
 "on":
   pull_request:
-    # names: # Label filtering applied via job conditions
-    # - smoke-create-cross-repo-pr # Label filtering applied via job conditions
     types:
     - labeled
   schedule:
-  - cron: "44 */12 * * *"
-  workflow_dispatch: null
+  - cron: 44 */12 * * *
+  workflow_dispatch:
+    inputs:
+      aw_context:
+        default: ""
+        description: (Internal) JSON context injected by the calling agentic workflow. Not intended for direct user input.
+        required: false
+        type: string
 
 permissions: {}
 

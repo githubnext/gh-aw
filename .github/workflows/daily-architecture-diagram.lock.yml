@@ -31,9 +31,14 @@
 name: "Architecture Diagram Generator"
 "on":
   schedule:
-  - cron: "38 8 * * *"
-    # Friendly format: daily around 08:00 (scattered)
+  - cron: 38 8 * * *
   workflow_dispatch:
+    inputs:
+      aw_context:
+        default: ""
+        description: (Internal) JSON context injected by the calling agentic workflow. Not intended for direct user input.
+        required: false
+        type: string
 
 permissions: {}
 

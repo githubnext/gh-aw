@@ -34,9 +34,14 @@
 name: "Copilot Agent PR Analysis"
 "on":
   schedule:
-  - cron: "24 20 * * *"
-    # Friendly format: daily (scattered)
+  - cron: 24 20 * * *
   workflow_dispatch:
+    inputs:
+      aw_context:
+        default: ""
+        description: (Internal) JSON context injected by the calling agentic workflow. Not intended for direct user input.
+        required: false
+        type: string
 
 permissions: {}
 

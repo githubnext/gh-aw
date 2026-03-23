@@ -33,9 +33,14 @@
 name: "Daily Project Performance Summary Generator (Using MCP Scripts)"
 "on":
   schedule:
-  - cron: "26 19 * * *"
-    # Friendly format: daily (scattered)
+  - cron: 26 19 * * *
   workflow_dispatch:
+    inputs:
+      aw_context:
+        default: ""
+        description: (Internal) JSON context injected by the calling agentic workflow. Not intended for direct user input.
+        required: false
+        type: string
 
 permissions: {}
 

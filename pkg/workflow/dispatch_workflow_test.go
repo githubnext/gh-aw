@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -589,4 +590,114 @@ safe-outputs:
 	errStr := err.Error()
 	assert.Contains(t, errStr, "self-reference", "Should contain first error")
 	assert.NotContains(t, errStr, "Found 2", "Should not have multiple error header in fail-fast mode")
+}
+
+// TestInjectAwContextIntoOnYAML_NoWorkflowDispatch verifies that injectAwContextIntoOnYAML is
+// a no-op when there is no workflow_dispatch trigger.
+func TestInjectAwContextIntoOnYAML_NoWorkflowDispatch(t *testing.T) {
+	onYAML := `"on":
+  push:`
+	result := injectAwContextIntoOnYAML(onYAML)
+	assert.YAMLEq(t, onYAML, result, "Should return unchanged YAML when workflow_dispatch is absent")
+	assert.NotContains(t, result, "aw_context", "aw_context should not appear without workflow_dispatch")
+}
+
+// TestInjectAwContextIntoOnYAML_BareWorkflowDispatch verifies that aw_context is injected
+// into a bare workflow_dispatch trigger (no existing inputs).
+func TestInjectAwContextIntoOnYAML_BareWorkflowDispatch(t *testing.T) {
+	onYAML := `"on":
+  workflow_dispatch:`
+	result := injectAwContextIntoOnYAML(onYAML)
+	assert.Contains(t, result, "aw_context:", "aw_context input should be injected")
+	assert.Contains(t, result, "workflow_dispatch:", "workflow_dispatch section should still be present")
+	assert.Contains(t, result, "type: string", "aw_context type should be string")
+	assert.Contains(t, result, "required: false", "aw_context should not be required")
+}
+
+// TestInjectAwContextIntoOnYAML_ExistingInputs verifies that aw_context is appended without
+// disturbing existing workflow_dispatch inputs.
+func TestInjectAwContextIntoOnYAML_ExistingInputs(t *testing.T) {
+	onYAML := `"on":
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: Deployment environment
+        required: true
+        type: string`
+	result := injectAwContextIntoOnYAML(onYAML)
+	assert.Contains(t, result, "environment:", "Existing 'environment' input should be preserved")
+	assert.Contains(t, result, "aw_context:", "aw_context should be added")
+}
+
+// TestInjectAwContextIntoOnYAML_Idempotent verifies that calling injectAwContextIntoOnYAML twice
+// does not duplicate the aw_context entry.
+func TestInjectAwContextIntoOnYAML_Idempotent(t *testing.T) {
+	onYAML := `"on":
+  workflow_dispatch:`
+	once := injectAwContextIntoOnYAML(onYAML)
+	twice := injectAwContextIntoOnYAML(once)
+	assert.Equal(t, once, twice, "Second injection should be a no-op")
+	assert.Equal(t, 1, strings.Count(twice, "aw_context:"), "aw_context should appear exactly once")
+}
+
+// TestInjectAwContextIntoOnYAML_WithOtherTriggers verifies that aw_context is injected
+// even when other triggers are present alongside workflow_dispatch.
+func TestInjectAwContextIntoOnYAML_WithOtherTriggers(t *testing.T) {
+	onYAML := `"on":
+  pull_request:
+    types:
+    - labeled
+  workflow_dispatch:
+    inputs:
+      item_number:
+        description: The number of the issue
+        required: false
+        default: ""
+        type: string`
+	result := injectAwContextIntoOnYAML(onYAML)
+	assert.Contains(t, result, "pull_request:", "pull_request trigger should be preserved")
+	assert.Contains(t, result, "item_number:", "item_number input should be preserved")
+	assert.Contains(t, result, "aw_context:", "aw_context should be added alongside item_number")
+}
+
+// TestInjectAwContextIntoOnYAML_CompiledOutput verifies that a workflow with workflow_dispatch
+// trigger produces aw_context in the compiled lock file on section.
+func TestInjectAwContextIntoOnYAML_CompiledOutput(t *testing.T) {
+	compiler := NewCompilerWithVersion("1.0.0")
+
+	tmpDir := t.TempDir()
+	workflowsDir := filepath.Join(tmpDir, ".github", "workflows")
+	require.NoError(t, os.MkdirAll(workflowsDir, 0755))
+
+	workflowMD := `---
+on:
+  workflow_dispatch:
+    inputs:
+      env:
+        description: "Target environment"
+        required: false
+        type: string
+engine: copilot
+permissions:
+  contents: read
+---
+
+# Test Workflow
+Run tests.
+`
+	mdFile := filepath.Join(workflowsDir, "test.md")
+	require.NoError(t, os.WriteFile(mdFile, []byte(workflowMD), 0644))
+
+	err := compiler.CompileWorkflow(mdFile)
+	require.NoError(t, err, "Compilation should succeed")
+
+	lockFile := filepath.Join(workflowsDir, "test.lock.yml")
+	content, err := os.ReadFile(lockFile)
+	require.NoError(t, err, "Lock file should be generated")
+
+	lockStr := string(content)
+	assert.Contains(t, lockStr, "aw_context:", "Compiled output should include aw_context input")
+	assert.Contains(t, lockStr, "Internal", "aw_context description should mention internal usage")
+	// Existing user input should still be present
+	assert.Contains(t, lockStr, "env:", "Existing user input should be preserved in compiled output")
 }

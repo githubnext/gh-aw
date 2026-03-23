@@ -32,9 +32,14 @@
 name: "Daily DIFC Integrity-Filtered Events Analyzer"
 "on":
   schedule:
-  - cron: "19 8 * * *"
-    # Friendly format: daily (scattered)
+  - cron: 19 8 * * *
   workflow_dispatch:
+    inputs:
+      aw_context:
+        default: ""
+        description: (Internal) JSON context injected by the calling agentic workflow. Not intended for direct user input.
+        required: false
+        type: string
 
 permissions: {}
 

@@ -32,10 +32,14 @@
 name: "Code Simplifier"
 "on":
   schedule:
-  - cron: "35 18 * * *"
-    # Friendly format: daily (scattered)
-  # skip-if-match: is:pr is:open in:title "[code-simplifier]" # Skip-if-match processed as search check in pre-activation job
+  - cron: 35 18 * * *
   workflow_dispatch:
+    inputs:
+      aw_context:
+        default: ""
+        description: (Internal) JSON context injected by the calling agentic workflow. Not intended for direct user input.
+        required: false
+        type: string
 
 permissions: {}
 

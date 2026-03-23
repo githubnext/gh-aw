@@ -32,9 +32,14 @@
 name: "Semantic Function Refactoring"
 "on":
   schedule:
-  - cron: "59 16 * * *"
-    # Friendly format: daily (scattered)
+  - cron: 59 16 * * *
   workflow_dispatch:
+    inputs:
+      aw_context:
+        default: ""
+        description: (Internal) JSON context injected by the calling agentic workflow. Not intended for direct user input.
+        required: false
+        type: string
 
 permissions: {}
 

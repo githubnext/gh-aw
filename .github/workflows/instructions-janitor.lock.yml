@@ -27,9 +27,14 @@
 name: "Instructions Janitor"
 "on":
   schedule:
-  - cron: "44 23 * * *"
-    # Friendly format: daily (scattered)
+  - cron: 44 23 * * *
   workflow_dispatch:
+    inputs:
+      aw_context:
+        default: ""
+        description: (Internal) JSON context injected by the calling agentic workflow. Not intended for direct user input.
+        required: false
+        type: string
 
 permissions: {}
 

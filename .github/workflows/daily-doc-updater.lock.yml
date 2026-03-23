@@ -31,9 +31,14 @@
 name: "Daily Documentation Updater"
 "on":
   schedule:
-  - cron: "33 3 * * *"
-    # Friendly format: daily (scattered)
+  - cron: 33 3 * * *
   workflow_dispatch:
+    inputs:
+      aw_context:
+        default: ""
+        description: (Internal) JSON context injected by the calling agentic workflow. Not intended for direct user input.
+        required: false
+        type: string
 
 permissions: {}
 

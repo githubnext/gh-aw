@@ -33,9 +33,14 @@
 name: "Agentic Workflow Audit Agent"
 "on":
   schedule:
-  - cron: "27 5 * * *"
-    # Friendly format: daily (scattered)
+  - cron: 27 5 * * *
   workflow_dispatch:
+    inputs:
+      aw_context:
+        default: ""
+        description: (Internal) JSON context injected by the calling agentic workflow. Not intended for direct user input.
+        required: false
+        type: string
 
 permissions: {}
 

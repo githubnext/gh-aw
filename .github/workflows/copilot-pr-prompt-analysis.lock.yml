@@ -34,9 +34,14 @@
 name: "Copilot PR Prompt Pattern Analysis"
 "on":
   schedule:
-  - cron: "26 4 * * *"
-    # Friendly format: daily (scattered)
+  - cron: 26 4 * * *
   workflow_dispatch:
+    inputs:
+      aw_context:
+        default: ""
+        description: (Internal) JSON context injected by the calling agentic workflow. Not intended for direct user input.
+        required: false
+        type: string
 
 permissions: {}
 

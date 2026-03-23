@@ -27,9 +27,14 @@
 name: "Step Name Alignment"
 "on":
   schedule:
-  - cron: "5 12 * * *"
-    # Friendly format: daily (scattered)
+  - cron: 5 12 * * *
   workflow_dispatch:
+    inputs:
+      aw_context:
+        default: ""
+        description: (Internal) JSON context injected by the calling agentic workflow. Not intended for direct user input.
+        required: false
+        type: string
 
 permissions: {}
 

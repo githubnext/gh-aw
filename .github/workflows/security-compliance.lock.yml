@@ -31,6 +31,11 @@ name: "Security Compliance Campaign"
       audit_date:
         description: Audit deadline (YYYY-MM-DD)
         required: true
+      aw_context:
+        default: ""
+        description: (Internal) JSON context injected by the calling agentic workflow. Not intended for direct user input.
+        required: false
+        type: string
       max_issues:
         default: "500"
         description: Maximum vulnerabilities to process

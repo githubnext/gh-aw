@@ -27,6 +27,11 @@ name: "Test Workflow"
 "on":
   workflow_dispatch:
     inputs:
+      aw_context:
+        default: ""
+        description: (Internal) JSON context injected by the calling agentic workflow. Not intended for direct user input.
+        required: false
+        type: string
       test_param:
         description: Question from the dispatcher workflow
         required: true

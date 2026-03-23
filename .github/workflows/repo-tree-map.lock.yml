@@ -31,9 +31,14 @@
 name: "Repository Tree Map Generator"
 "on":
   schedule:
-  - cron: "55 15 * * 1"
-    # Friendly format: weekly on monday around 15:00 (scattered)
+  - cron: 55 15 * * 1
   workflow_dispatch:
+    inputs:
+      aw_context:
+        default: ""
+        description: (Internal) JSON context injected by the calling agentic workflow. Not intended for direct user input.
+        required: false
+        type: string
 
 permissions: {}
 

@@ -32,6 +32,11 @@ name: "Video Analysis Agent"
 "on":
   workflow_dispatch:
     inputs:
+      aw_context:
+        default: ""
+        description: (Internal) JSON context injected by the calling agentic workflow. Not intended for direct user input.
+        required: false
+        type: string
       video_url:
         description: URL to video file to analyze (must be publicly accessible)
         required: true
