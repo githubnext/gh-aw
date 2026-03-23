@@ -81,11 +81,16 @@ func (r *MCPConfigRendererUnified) RenderQmdMCP(yaml *strings.Builder, qmdTool a
 
 	if r.options.Format == "toml" {
 		r.renderQmdTOML(yaml)
+		// Add guard policies for TOML format as a separate section
+		if len(r.options.WriteSinkGuardPolicies) > 0 {
+			mcpRendererLog.Print("Adding guard-policies to qmd TOML (derived from GitHub guard-policy)")
+			renderGuardPoliciesToml(yaml, r.options.WriteSinkGuardPolicies, "qmd")
+		}
 		return
 	}
 
 	// JSON format
-	renderQmdMCPConfigWithOptions(yaml, r.options.IsLast, r.options.IncludeCopilotFields, r.options.InlineArgs)
+	renderQmdMCPConfigWithOptions(yaml, r.options.IsLast, r.options.IncludeCopilotFields, r.options.InlineArgs, r.options.WriteSinkGuardPolicies)
 }
 
 // renderQmdTOML generates qmd MCP configuration in TOML format using a containerized stdio server.
@@ -122,15 +127,16 @@ func (r *MCPConfigRendererUnified) renderQmdTOML(yaml *strings.Builder) {
 	// Forward INDEX_PATH (location of the SQLite index) and HOME (so node-llama-cpp
 	// and qmd resolve ~/.cache/ paths correctly inside the container).
 	// NODE_LLAMA_CPP_GPU is forwarded so GPU probing can be disabled on CPU-only runners.
+	// NO_COLOR=1 disables ANSI escape codes in qmd output so the JSON-RPC stream is clean.
 	// Use \${VAR} so the shell heredoc does not expand them; the gateway resolves them.
 	// HOME is not in the gateway env so it is expanded by the heredoc shell instead.
-	yaml.WriteString("          env = { \"INDEX_PATH\" = \"\\${INDEX_PATH}\", \"HOME\" = \"${HOME}\", \"NODE_LLAMA_CPP_GPU\" = \"\\${NODE_LLAMA_CPP_GPU}\" }\n")
+	yaml.WriteString("          env = { \"INDEX_PATH\" = \"\\${INDEX_PATH}\", \"HOME\" = \"${HOME}\", \"NO_COLOR\" = \"1\", \"NODE_LLAMA_CPP_GPU\" = \"\\${NODE_LLAMA_CPP_GPU}\" }\n")
 }
 
 // renderQmdMCPConfigWithOptions generates the qmd MCP server configuration in JSON format.
 // qmd uses a containerized stdio server started by the MCP gateway, with mounts for
 // the pre-built index and embedding models.
-func renderQmdMCPConfigWithOptions(yaml *strings.Builder, isLast bool, includeCopilotFields bool, inlineArgs bool) {
+func renderQmdMCPConfigWithOptions(yaml *strings.Builder, isLast bool, includeCopilotFields bool, inlineArgs bool, guardPolicies map[string]any) {
 	version := string(constants.DefaultQmdVersion)
 	qmdArgs := []string{"--yes", "--package", "@tobilu/qmd@" + version, "qmd", "mcp"}
 	dockerArgs := []string{"--network", "host"}
@@ -138,9 +144,11 @@ func renderQmdMCPConfigWithOptions(yaml *strings.Builder, isLast bool, includeCo
 	// env uses \${VAR} so the heredoc shell does not expand INDEX_PATH and NODE_LLAMA_CPP_GPU;
 	// the gateway resolves them from its own environment (passed via -e flags in DOCKER_COMMAND).
 	// HOME is not in the gateway env, so ${HOME} is expanded by the heredoc shell to /home/runner.
+	// NO_COLOR=1 disables ANSI escape codes in qmd output so the JSON-RPC stream is clean.
 	envValues := map[string]string{
 		"INDEX_PATH":         "\\${INDEX_PATH}",
 		"HOME":               "${HOME}",
+		"NO_COLOR":           "1",
 		"NODE_LLAMA_CPP_GPU": "\\${NODE_LLAMA_CPP_GPU}",
 	}
 	envKeys := sortedMapKeys(envValues)
@@ -183,14 +191,26 @@ func renderQmdMCPConfigWithOptions(yaml *strings.Builder, isLast bool, includeCo
 		}
 		yaml.WriteString("],\n")
 		// Env object inline
-		yaml.WriteString("                \"env\": {")
-		for i, key := range envKeys {
-			if i > 0 {
-				yaml.WriteString(", ")
+		if len(guardPolicies) > 0 {
+			yaml.WriteString("                \"env\": {")
+			for i, key := range envKeys {
+				if i > 0 {
+					yaml.WriteString(", ")
+				}
+				yaml.WriteString("\"" + key + "\": \"" + envValues[key] + "\"")
 			}
-			yaml.WriteString("\"" + key + "\": \"" + envValues[key] + "\"")
+			yaml.WriteString("},\n")
+			renderGuardPoliciesJSON(yaml, guardPolicies, "                ")
+		} else {
+			yaml.WriteString("                \"env\": {")
+			for i, key := range envKeys {
+				if i > 0 {
+					yaml.WriteString(", ")
+				}
+				yaml.WriteString("\"" + key + "\": \"" + envValues[key] + "\"")
+			}
+			yaml.WriteString("}\n")
 		}
-		yaml.WriteString("}\n")
 	} else {
 		// Entrypoint args multi-line
 		yaml.WriteString("                \"entrypointArgs\": [\n")
@@ -223,15 +243,28 @@ func renderQmdMCPConfigWithOptions(yaml *strings.Builder, isLast bool, includeCo
 		}
 		yaml.WriteString("                ],\n")
 		// Env object multi-line
-		yaml.WriteString("                \"env\": {\n")
-		for i, key := range envKeys {
-			if i < len(envKeys)-1 {
-				yaml.WriteString("                  \"" + key + "\": \"" + envValues[key] + "\",\n")
-			} else {
-				yaml.WriteString("                  \"" + key + "\": \"" + envValues[key] + "\"\n")
+		if len(guardPolicies) > 0 {
+			yaml.WriteString("                \"env\": {\n")
+			for i, key := range envKeys {
+				if i < len(envKeys)-1 {
+					yaml.WriteString("                  \"" + key + "\": \"" + envValues[key] + "\",\n")
+				} else {
+					yaml.WriteString("                  \"" + key + "\": \"" + envValues[key] + "\"\n")
+				}
 			}
+			yaml.WriteString("                },\n")
+			renderGuardPoliciesJSON(yaml, guardPolicies, "                ")
+		} else {
+			yaml.WriteString("                \"env\": {\n")
+			for i, key := range envKeys {
+				if i < len(envKeys)-1 {
+					yaml.WriteString("                  \"" + key + "\": \"" + envValues[key] + "\",\n")
+				} else {
+					yaml.WriteString("                  \"" + key + "\": \"" + envValues[key] + "\"\n")
+				}
+			}
+			yaml.WriteString("                }\n")
 		}
-		yaml.WriteString("                }\n")
 	}
 
 	if isLast {

@@ -925,7 +925,12 @@ jobs:
             "/tmp/gh-aw:/tmp/gh-aw:rw",
             "${HOME}/.cache/qmd:${HOME}/.cache/qmd:rw",
           ]
-          env = { "INDEX_PATH" = "\${INDEX_PATH}", "HOME" = "${HOME}", "NODE_LLAMA_CPP_GPU" = "\${NODE_LLAMA_CPP_GPU}" }
+          env = { "INDEX_PATH" = "\${INDEX_PATH}", "HOME" = "${HOME}", "NO_COLOR" = "1", "NODE_LLAMA_CPP_GPU" = "\${NODE_LLAMA_CPP_GPU}" }
+          
+          [mcp_servers.qmd."guard-policies"]
+          
+          [mcp_servers.qmd."guard-policies".write-sink]
+          accept = ["*"]
           
           [mcp_servers.safeoutputs]
           type = "http"
@@ -1047,7 +1052,15 @@ jobs:
                 "env": {
                   "HOME": "${HOME}",
                   "INDEX_PATH": "\${INDEX_PATH}",
-                  "NODE_LLAMA_CPP_GPU": "\${NODE_LLAMA_CPP_GPU}"
+                  "NODE_LLAMA_CPP_GPU": "\${NODE_LLAMA_CPP_GPU}",
+                  "NO_COLOR": "1"
+                },
+                "guard-policies": {
+                  "write-sink": {
+                    "accept": [
+                      "*"
+                    ]
+                  }
                 }
               },
               "safeoutputs": {
