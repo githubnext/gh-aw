@@ -30,7 +30,7 @@ func (c *Compiler) buildConsolidatedSafeOutputStep(data *WorkflowData, config Sa
 
 	// Environment variables section
 	steps = append(steps, "        env:\n")
-	steps = append(steps, "          GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}\n")
+	steps = append(steps, "          GH_AW_AGENT_OUTPUT: ${{ steps.setup-agent-output-env.outputs.GH_AW_AGENT_OUTPUT }}\n")
 	steps = append(steps, config.CustomEnvVars...)
 
 	// Add custom safe output env vars
@@ -206,7 +206,7 @@ func (c *Compiler) buildHandlerManagerStep(data *WorkflowData) []string {
 
 	// Environment variables
 	steps = append(steps, "        env:\n")
-	steps = append(steps, "          GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}\n")
+	steps = append(steps, "          GH_AW_AGENT_OUTPUT: ${{ steps.setup-agent-output-env.outputs.GH_AW_AGENT_OUTPUT }}\n")
 
 	// Add allowed domains configuration for URL sanitization in safe output handlers.
 	// Without this, sanitizeContent() in safe_output_handler_manager.cjs only allows

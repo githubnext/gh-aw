@@ -236,6 +236,12 @@ const (
 	// DefaultMCPInspectorPort is the default port for the MCP inspector (safe-outputs server)
 	DefaultMCPInspectorPort = 3001
 
+	// DefaultQmdMCPPort is the TCP port for the qmd HTTP MCP server started in the agent job.
+	// qmd runs as a Docker container (node:24) with `qmd mcp --http --port PORT`; using HTTP
+	// transport avoids node-llama-cpp's direct process.stdout writes (dot-progress during model
+	// loading) from corrupting the stdio JSON-RPC stream.
+	DefaultQmdMCPPort = 8181
+
 	// MinNetworkPort is the minimum valid network port number
 	MinNetworkPort = 1
 
@@ -361,7 +367,7 @@ const DefaultGitHubMCPServerVersion Version = "v0.32.0"
 const DefaultGitHubLockdown = false
 
 // DefaultFirewallVersion is the default version of the gh-aw-firewall (AWF) binary
-const DefaultFirewallVersion Version = "v0.24.5"
+const DefaultFirewallVersion Version = "v0.25.0"
 
 // AWF (Agentic Workflow Firewall) constants
 
@@ -375,7 +381,7 @@ const AWFProxyLogsDir = "/tmp/gh-aw/sandbox/firewall/logs"
 const AWFDefaultLogLevel = "info"
 
 // DefaultMCPGatewayVersion is the default version of the MCP Gateway (gh-aw-mcpg) Docker image
-const DefaultMCPGatewayVersion Version = "v0.2.1"
+const DefaultMCPGatewayVersion Version = "v0.2.2"
 
 // DefaultMCPGatewayContainer is the default container image for the MCP Gateway
 const DefaultMCPGatewayContainer = "ghcr.io/github/gh-aw-mcpg"
@@ -423,6 +429,13 @@ const DefaultAPMVersion Version = "v0.8.4"
 
 // DefaultPlaywrightMCPVersion is the default version of the @playwright/mcp package
 const DefaultPlaywrightMCPVersion Version = "0.0.68"
+
+// DefaultQmdVersion is the default version of the @tobilu/qmd npm package
+const DefaultQmdVersion Version = "2.0.1"
+
+// DefaultQmdIndexingRunnerImage is the default runner image for the qmd indexing job.
+// Users can override this with the runs-on: field in the qmd config.
+const DefaultQmdIndexingRunnerImage = "ubuntu-latest"
 
 // DefaultPlaywrightBrowserVersion is the default version of the Playwright browser Docker image
 const DefaultPlaywrightBrowserVersion Version = "v1.58.2"
@@ -624,6 +637,7 @@ var DangerousPropertyNames = []string{
 
 const AgentJobName JobName = "agent"
 const ActivationJobName JobName = "activation"
+const IndexingJobName JobName = "indexing"
 const PreActivationJobName JobName = "pre_activation"
 const DetectionJobName JobName = "detection"
 const SafeOutputArtifactName = "safe-output"

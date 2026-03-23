@@ -485,6 +485,10 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 		}
 	}
 
+	// qmd indexing is handled by the separate "indexing" job that depends on activation.
+	// That job builds the index and saves/restores it via the GitHub Actions cache, and the agent job
+	// restores the index using actions/cache/restore.
+
 	// Upload aw_info.json and prompt.txt as the activation artifact for the agent job to download.
 	// In workflow_call context the artifact is prefixed to avoid name clashes when multiple callers
 	// invoke the same reusable workflow within the same parent workflow run.

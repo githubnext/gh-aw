@@ -34,6 +34,18 @@ tools:
     languages:
       go: {}
   web-fetch:
+  qmd:
+    checkouts:
+      - name: docs
+        paths:
+          - docs/src/**/*.md
+          - docs/src/**/*.mdx
+        context: "gh-aw project documentation"
+    searches:
+      - name: issues
+        type: issues
+        max: 500
+        github-token: ${{ secrets.GITHUB_TOKEN }}
 runtimes:
   go:
     version: "1.25"

@@ -12,7 +12,7 @@ on:
     types: [opened]
     forks: "*"
   skip-roles: [admin, maintainer, write, triage]
-  skip-bots: [github-actions, copilot]
+  skip-bots: [github-actions, copilot, dependabot, renovate, github-copilot-enterprise, copilot-swe-agent]
 rate-limit:
   max: 5
   window: 60

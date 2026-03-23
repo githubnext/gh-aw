@@ -78,6 +78,15 @@ func (c *Compiler) buildMainJob(data *WorkflowData, activationJobCreated bool) (
 		depends = []string{string(constants.ActivationJobName)} // Depend on the activation job only if it exists
 	}
 
+	// When the qmd tool is configured, the agent also depends on the indexing job (which builds
+	// the qmd search index). The indexing job depends on activation, but GitHub Actions only
+	// exposes outputs from DIRECT dependencies, so we must keep activation in needs too so that
+	// needs.activation.outputs.* expressions resolve correctly.
+	if data.QmdConfig != nil {
+		depends = append(depends, string(constants.IndexingJobName))
+		compilerMainJobLog.Print("Agent job depends on indexing job (qmd tool configured)")
+	}
+
 	// Add custom jobs as dependencies only if they don't depend on pre_activation or agent
 	// Custom jobs that depend on pre_activation are now dependencies of activation,
 	// so the agent job gets them transitively through activation

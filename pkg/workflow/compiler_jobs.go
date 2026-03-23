@@ -212,6 +212,15 @@ func (c *Compiler) buildJobs(data *WorkflowData, markdownPath string) error {
 		return err
 	}
 
+	// Build qmd indexing job if the qmd tool is configured.
+	// This separate job depends on activation and builds the documentation search index.
+	// The agent job then depends on this indexing job to download the pre-built index.
+	if data.QmdConfig != nil {
+		if err := c.buildQmdIndexingJobWrapper(data); err != nil {
+			return err
+		}
+	}
+
 	// Build main workflow job
 	if err := c.buildMainJobWrapper(data, activationJobCreated); err != nil {
 		return err
@@ -303,6 +312,20 @@ func (c *Compiler) buildMainJobWrapper(data *WorkflowData, activationJobCreated 
 		return fmt.Errorf("failed to add main job: %w", err)
 	}
 	compilerJobsLog.Printf("Successfully added main job: %s", string(constants.AgentJobName))
+	return nil
+}
+
+// buildQmdIndexingJobWrapper builds the qmd indexing job and adds it to the job manager.
+func (c *Compiler) buildQmdIndexingJobWrapper(data *WorkflowData) error {
+	compilerJobsLog.Print("Building qmd indexing job")
+	indexingJob, err := c.buildQmdIndexingJob(data)
+	if err != nil {
+		return fmt.Errorf("failed to build indexing job: %w", err)
+	}
+	if err := c.jobManager.AddJob(indexingJob); err != nil {
+		return fmt.Errorf("failed to add indexing job: %w", err)
+	}
+	compilerJobsLog.Printf("Successfully added indexing job: %s", string(constants.IndexingJobName))
 	return nil
 }
 
@@ -727,6 +750,15 @@ func (c *Compiler) buildCustomJobs(data *WorkflowData, activationJobCreated bool
 								typedStep, err := MapToStep(stepMap)
 								if err != nil {
 									return fmt.Errorf("failed to convert step to typed step for job '%s': %w", jobName, err)
+								}
+
+								// Inject GH_HOST from the ghes-host-config step output so user steps
+								// have access to it for gh CLI commands (previously available via GITHUB_ENV).
+								if typedStep.Env == nil {
+									typedStep.Env = make(map[string]string)
+								}
+								if _, exists := typedStep.Env["GH_HOST"]; !exists {
+									typedStep.Env["GH_HOST"] = "${{ steps.ghes-host-config.outputs.GH_HOST }}"
 								}
 
 								// Apply action pinning using type-safe version

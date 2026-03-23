@@ -236,26 +236,48 @@ func (c *Compiler) buildSafeJobs(data *WorkflowData, threatDetectionEnabled bool
 
 		// Add environment variables step with GH_AW_AGENT_OUTPUT and job-specific env vars
 		steps = append(steps, "      - name: Setup Safe Job Environment Variables\n")
+		steps = append(steps, "        id: setup-safe-job-env\n")
 		steps = append(steps, "        run: |\n")
 		steps = append(steps, "          find \"${RUNNER_TEMP}/gh-aw/safe-jobs/\" -type f -print\n")
 		// Configure GH_AW_AGENT_OUTPUT to point to downloaded artifact file
-		steps = append(steps, fmt.Sprintf("          echo \"GH_AW_AGENT_OUTPUT=%s\" >> \"$GITHUB_ENV\"\n", agentOutputArtifactFilename))
+		steps = append(steps, fmt.Sprintf("          echo \"GH_AW_AGENT_OUTPUT=%s\" >> \"$GITHUB_OUTPUT\"\n", agentOutputArtifactFilename))
 
 		// Add job-specific environment variables
 		if jobConfig.Env != nil {
 			for key, value := range jobConfig.Env {
-				steps = append(steps, fmt.Sprintf("          echo \"%s=%s\" >> \"$GITHUB_ENV\"\n", key, value))
+				steps = append(steps, fmt.Sprintf("          echo \"%s=%s\" >> \"$GITHUB_OUTPUT\"\n", key, value))
 			}
 		}
 
-		// Add custom steps from the job configuration
+		// Add custom steps from the job configuration, injecting env vars from the
+		// "Setup Safe Job Environment Variables" step output so user steps can access them.
 		if len(jobConfig.Steps) > 0 {
+			// Build the env vars that were set in the setup step so we can inject them.
+			setupEnvVars := map[string]string{
+				"GH_AW_AGENT_OUTPUT": "${{ steps.setup-safe-job-env.outputs.GH_AW_AGENT_OUTPUT }}",
+			}
+			if jobConfig.Env != nil {
+				for key := range jobConfig.Env {
+					setupEnvVars[key] = fmt.Sprintf("${{ steps.setup-safe-job-env.outputs.%s }}", key)
+				}
+			}
 			for _, step := range jobConfig.Steps {
 				if stepMap, ok := step.(map[string]any); ok {
 					// Convert to typed step for action pinning
 					typedStep, err := MapToStep(stepMap)
 					if err != nil {
 						return nil, fmt.Errorf("failed to convert step to typed step for safe job %s: %w", jobName, err)
+					}
+
+					// Inject setup env vars so user steps can access GH_AW_AGENT_OUTPUT
+					// and job-specific env vars (previously available via GITHUB_ENV).
+					if typedStep.Env == nil {
+						typedStep.Env = make(map[string]string)
+					}
+					for k, v := range setupEnvVars {
+						if _, exists := typedStep.Env[k]; !exists {
+							typedStep.Env[k] = v
+						}
 					}
 
 					// Apply action pinning using type-safe version

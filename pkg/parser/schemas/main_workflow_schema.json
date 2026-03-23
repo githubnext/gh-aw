@@ -322,7 +322,7 @@
                         {
                           "type": "array",
                           "minItems": 1,
-                          "description": "Array of label names — any of these labels will trigger the workflow.",
+                          "description": "Array of label names \u2014 any of these labels will trigger the workflow.",
                           "items": {
                             "type": "string",
                             "minLength": 1,
@@ -343,7 +343,7 @@
                         {
                           "type": "array",
                           "minItems": 1,
-                          "description": "Array of label names — any of these labels will trigger the workflow.",
+                          "description": "Array of label names \u2014 any of these labels will trigger the workflow.",
                           "items": {
                             "type": "string",
                             "minLength": 1,
@@ -1506,12 +1506,12 @@
               "description": "Skip workflow execution for specific GitHub users. Useful for preventing workflows from running for specific accounts (e.g., bots, specific team members)."
             },
             "roles": {
-              "description": "Repository access roles required to trigger agentic workflows. Defaults to ['admin', 'maintainer', 'write'] for security. Use 'all' to allow any authenticated user (⚠️ security consideration).",
+              "description": "Repository access roles required to trigger agentic workflows. Defaults to ['admin', 'maintainer', 'write'] for security. Use 'all' to allow any authenticated user (\u26a0\ufe0f security consideration).",
               "oneOf": [
                 {
                   "type": "string",
                   "enum": ["all"],
-                  "description": "Allow any authenticated user to trigger the workflow (⚠️ disables permission checking entirely - use with caution)"
+                  "description": "Allow any authenticated user to trigger the workflow (\u26a0\ufe0f disables permission checking entirely - use with caution)"
                 },
                 {
                   "type": "array",
@@ -1864,7 +1864,7 @@
             "vulnerability-alerts": {
               "type": "string",
               "enum": ["read", "write", "none"],
-              "description": "Permission level for Dependabot vulnerability alerts (read/write/none). GitHub App-only permission: required to access Dependabot alerts via the GitHub MCP server. The GITHUB_TOKEN does not have this permission — a GitHub App must be configured."
+              "description": "Permission level for Dependabot vulnerability alerts (read/write/none). GitHub App-only permission: required to access Dependabot alerts via the GitHub MCP server. The GITHUB_TOKEN does not have this permission \u2014 a GitHub App must be configured."
             },
             "all": {
               "type": "string",
@@ -2491,7 +2491,7 @@
     },
     "network": {
       "$comment": "Strict mode requirements: When strict=true, the 'network' field must be present (not null/undefined) and cannot contain standalone wildcard '*' in allowed domains (but patterns like '*.example.com' ARE allowed). This is validated in Go code (pkg/workflow/strict_mode_validation.go) via validateStrictNetwork().",
-      "description": "Network access control for AI engines using ecosystem identifiers and domain allowlists. Supports wildcard patterns like '*.example.com' to match any subdomain. Controls web fetch and search capabilities. IMPORTANT: For workflows that build/install/test code, always include the language ecosystem identifier alongside 'defaults' — 'defaults' alone only covers basic infrastructure, not package registries. Key ecosystem identifiers by runtime: 'dotnet' (.NET/NuGet), 'python' (pip/PyPI), 'node' (npm/yarn), 'go' (go modules), 'java' (Maven/Gradle), 'ruby' (Bundler), 'rust' (Cargo), 'swift' (Swift PM). Example: a .NET project needs network: { allowed: [defaults, dotnet] }.",
+      "description": "Network access control for AI engines using ecosystem identifiers and domain allowlists. Supports wildcard patterns like '*.example.com' to match any subdomain. Controls web fetch and search capabilities. IMPORTANT: For workflows that build/install/test code, always include the language ecosystem identifier alongside 'defaults' \u2014 'defaults' alone only covers basic infrastructure, not package registries. Key ecosystem identifiers by runtime: 'dotnet' (.NET/NuGet), 'python' (pip/PyPI), 'node' (npm/yarn), 'go' (go modules), 'java' (Maven/Gradle), 'ruby' (Bundler), 'rust' (Cargo), 'swift' (Swift PM). Example: a .NET project needs network: { allowed: [defaults, dotnet] }.",
       "examples": [
         "defaults",
         {
@@ -2967,7 +2967,7 @@
             [
               {
                 "name": "Verify Post-Steps Execution",
-                "run": "echo \"✅ Post-steps are executing correctly\"\necho \"This step runs after the AI agent completes\"\n"
+                "run": "echo \"\u2705 Post-steps are executing correctly\"\necho \"This step runs after the AI agent completes\"\n"
               },
               {
                 "name": "Upload Test Results",
@@ -3421,6 +3421,100 @@
             }
           ],
           "examples": [true, null]
+        },
+        "qmd": {
+          "description": "qmd documentation search tool (https://github.com/tobi/qmd). Builds a local vector search index in a dedicated indexing job and shares it with the agent job via GitHub Actions cache. The agent job mounts a search MCP server over the pre-built index and does not need contents:read permission.",
+          "type": "object",
+          "properties": {
+            "checkouts": {
+              "type": "array",
+              "description": "List of named documentation collections built from checked-out repositories. Each entry can optionally specify its own checkout configuration to target a different repository.",
+              "items": {
+                "$ref": "#/$defs/qmdCollection"
+              },
+              "minItems": 1
+            },
+            "searches": {
+              "type": "array",
+              "description": "List of GitHub search queries whose results are downloaded and added to the qmd index.",
+              "items": {
+                "$ref": "#/$defs/qmdSearchEntry"
+              },
+              "minItems": 1
+            },
+            "cache-key": {
+              "type": "string",
+              "description": "GitHub Actions cache key used to persist the qmd index across workflow runs. When set without any indexing sources (checkouts/searches), qmd operates in read-only mode: the index is restored from cache and all indexing steps are skipped.",
+              "examples": ["qmd-index-${{ hashFiles('docs/**') }}", "qmd-index-v1"]
+            },
+            "gpu": {
+              "type": "boolean",
+              "description": "Enable GPU acceleration for the embedding model (node-llama-cpp). Defaults to false: NODE_LLAMA_CPP_GPU=false is injected into the indexing step so GPU probing is skipped on CPU-only runners. Set to true only when the indexing runner has a GPU.",
+              "default": false
+            },
+            "runs-on": {
+              "type": "string",
+              "description": "Override the runner image for the qmd indexing job. Defaults to the same runner as the agent job. Use this when the indexing job requires a different runner (e.g. a GPU runner).",
+              "examples": ["ubuntu-latest", "ubuntu-latest-gpu", "self-hosted"]
+            }
+          },
+          "additionalProperties": false,
+          "examples": [
+            {
+              "checkouts": [
+                {
+                  "name": "current-docs",
+                  "paths": ["docs/**/*.md"]
+                },
+                {
+                  "name": "other-docs",
+                  "paths": ["docs/**/*.md"],
+                  "context": "Documentation for owner/other-repo",
+                  "checkout": {
+                    "repository": "owner/other-repo",
+                    "path": "./other-repo"
+                  }
+                }
+              ]
+            },
+            {
+              "searches": [
+                {
+                  "query": "repo:owner/repo language:Markdown path:docs/",
+                  "min": 1,
+                  "max": 30,
+                  "github-token": "${{ secrets.GITHUB_TOKEN }}"
+                }
+              ]
+            },
+            {
+              "checkouts": [
+                {
+                  "name": "local-docs",
+                  "paths": ["docs/**/*.md"]
+                }
+              ],
+              "searches": [
+                {
+                  "query": "org:myorg language:Markdown",
+                  "max": 50,
+                  "github-token": "${{ secrets.GITHUB_TOKEN }}"
+                }
+              ]
+            },
+            {
+              "cache-key": "qmd-index-${{ hashFiles('docs/**') }}"
+            },
+            {
+              "checkouts": [
+                {
+                  "name": "docs",
+                  "paths": ["docs/**/*.md"]
+                }
+              ],
+              "cache-key": "qmd-index-${{ hashFiles('docs/**') }}"
+            }
+          ]
         },
         "cache-memory": {
           "description": "Cache memory MCP configuration for persistent memory storage",
@@ -5582,7 +5676,7 @@
                   "items": {
                     "type": "string"
                   },
-                  "description": "Exclusive allowlist of glob patterns. When set, every file in the patch must match at least one pattern — files outside the list are always refused, including normal source files. This is a restriction, not an exception: setting allowed-files: [\".github/workflows/*\"] blocks all other files. To allow multiple sets of files, list all patterns explicitly. Acts independently of the protected-files policy; both checks must pass. To modify a protected file, it must both match allowed-files and be permitted by protected-files (e.g. protected-files: allowed). Supports * (any characters except /) and ** (any characters including /)."
+                  "description": "Exclusive allowlist of glob patterns. When set, every file in the patch must match at least one pattern \u2014 files outside the list are always refused, including normal source files. This is a restriction, not an exception: setting allowed-files: [\".github/workflows/*\"] blocks all other files. To allow multiple sets of files, list all patterns explicitly. Acts independently of the protected-files policy; both checks must pass. To modify a protected file, it must both match allowed-files and be permitted by protected-files (e.g. protected-files: allowed). Supports * (any characters except /) and ** (any characters including /)."
                 },
                 "preserve-branch-name": {
                   "type": "boolean",
@@ -5817,7 +5911,7 @@
           "oneOf": [
             {
               "type": "object",
-              "description": "Configuration for resolving review threads on pull requests. Resolution is scoped to the triggering PR only — threads on other PRs cannot be resolved.",
+              "description": "Configuration for resolving review threads on pull requests. Resolution is scoped to the triggering PR only \u2014 threads on other PRs cannot be resolved.",
               "properties": {
                 "max": {
                   "description": "Maximum number of review threads to resolve (default: 10) Supports integer or GitHub Actions expression (e.g. '${{ inputs.max }}').",
@@ -6731,7 +6825,7 @@
                   "items": {
                     "type": "string"
                   },
-                  "description": "Exclusive allowlist of glob patterns. When set, every file in the patch must match at least one pattern — files outside the list are always refused, including normal source files. This is a restriction, not an exception: setting allowed-files: [\".github/workflows/*\"] blocks all other files. To allow multiple sets of files, list all patterns explicitly. Acts independently of the protected-files policy; both checks must pass. To modify a protected file, it must both match allowed-files and be permitted by protected-files (e.g. protected-files: allowed). Supports * (any characters except /) and ** (any characters including /)."
+                  "description": "Exclusive allowlist of glob patterns. When set, every file in the patch must match at least one pattern \u2014 files outside the list are always refused, including normal source files. This is a restriction, not an exception: setting allowed-files: [\".github/workflows/*\"] blocks all other files. To allow multiple sets of files, list all patterns explicitly. Acts independently of the protected-files policy; both checks must pass. To modify a protected file, it must both match allowed-files and be permitted by protected-files (e.g. protected-files: allowed). Supports * (any characters except /) and ** (any characters including /)."
                 },
                 "excluded-files": {
                   "type": "array",
@@ -7597,7 +7691,7 @@
         },
         "scripts": {
           "type": "object",
-          "description": "Inline JavaScript script handlers that run inside the consolidated safe-outputs job handler loop. Unlike 'jobs' (which create separate GitHub Actions jobs), scripts execute in-process alongside the built-in handlers. Users write only the body of the main function — the compiler wraps it with 'async function main(config = {}) { ... }' and 'module.exports = { main };' automatically. Script names containing dashes will be automatically normalized to underscores (e.g., 'post-slack-message' becomes 'post_slack_message').",
+          "description": "Inline JavaScript script handlers that run inside the consolidated safe-outputs job handler loop. Unlike 'jobs' (which create separate GitHub Actions jobs), scripts execute in-process alongside the built-in handlers. Users write only the body of the main function \u2014 the compiler wraps it with 'async function main(config = {}) { ... }' and 'module.exports = { main };' automatically. Script names containing dashes will be automatically normalized to underscores (e.g., 'post-slack-message' becomes 'post_slack_message').",
           "patternProperties": {
             "^[a-zA-Z_][a-zA-Z0-9_-]*$": {
               "type": "object",
@@ -7655,7 +7749,7 @@
                 },
                 "script": {
                   "type": "string",
-                  "description": "JavaScript handler body. Write only the code that runs inside the handler for each item — the compiler generates the full outer wrapper including config input destructuring (`const { channel, message } = config;`) and the handler function (`return async function handleX(item, resolvedTemporaryIds) { ... }`). The body has access to `item` (runtime message with input values), `resolvedTemporaryIds` (map of temporary IDs), and config-destructured local variables for each declared input."
+                  "description": "JavaScript handler body. Write only the code that runs inside the handler for each item \u2014 the compiler generates the full outer wrapper including config input destructuring (`const { channel, message } = config;`) and the handler function (`return async function handleX(item, resolvedTemporaryIds) { ... }`). The body has access to `item` (runtime message with input values), `resolvedTemporaryIds` (map of temporary IDs), and config-destructured local variables for each declared input."
                 }
               },
               "required": ["script"],
@@ -7690,8 +7784,8 @@
             },
             "staged-title": {
               "type": "string",
-              "description": "Custom title template for staged mode preview. Available placeholders: {operation}. Example: '🎭 Preview: {operation}'",
-              "examples": ["🎭 Preview: {operation}", "## Staged Mode: {operation}"]
+              "description": "Custom title template for staged mode preview. Available placeholders: {operation}. Example: '\ud83c\udfad Preview: {operation}'",
+              "examples": ["\ud83c\udfad Preview: {operation}", "## Staged Mode: {operation}"]
             },
             "staged-description": {
               "type": "string",
@@ -7705,18 +7799,18 @@
             },
             "run-success": {
               "type": "string",
-              "description": "Custom message template for successful workflow completion. Available placeholders: {workflow_name}, {run_url}. Default: '✅ Agentic [{workflow_name}]({run_url}) completed successfully.'",
-              "examples": ["✅ Agentic [{workflow_name}]({run_url}) completed successfully.", "✅ [{workflow_name}]({run_url}) finished."]
+              "description": "Custom message template for successful workflow completion. Available placeholders: {workflow_name}, {run_url}. Default: '\u2705 Agentic [{workflow_name}]({run_url}) completed successfully.'",
+              "examples": ["\u2705 Agentic [{workflow_name}]({run_url}) completed successfully.", "\u2705 [{workflow_name}]({run_url}) finished."]
             },
             "run-failure": {
               "type": "string",
-              "description": "Custom message template for failed workflow. Available placeholders: {workflow_name}, {run_url}, {status}. Default: '❌ Agentic [{workflow_name}]({run_url}) {status} and wasn't able to produce a result.'",
-              "examples": ["❌ Agentic [{workflow_name}]({run_url}) {status} and wasn't able to produce a result.", "❌ [{workflow_name}]({run_url}) {status}."]
+              "description": "Custom message template for failed workflow. Available placeholders: {workflow_name}, {run_url}, {status}. Default: '\u274c Agentic [{workflow_name}]({run_url}) {status} and wasn't able to produce a result.'",
+              "examples": ["\u274c Agentic [{workflow_name}]({run_url}) {status} and wasn't able to produce a result.", "\u274c [{workflow_name}]({run_url}) {status}."]
             },
             "detection-failure": {
               "type": "string",
-              "description": "Custom message template for detection job failure. Available placeholders: {workflow_name}, {run_url}. Default: '⚠️ Security scanning failed for [{workflow_name}]({run_url}). Review the logs for details.'",
-              "examples": ["⚠️ Security scanning failed for [{workflow_name}]({run_url}). Review the logs for details.", "⚠️ Detection job failed in [{workflow_name}]({run_url})."]
+              "description": "Custom message template for detection job failure. Available placeholders: {workflow_name}, {run_url}. Default: '\u26a0\ufe0f Security scanning failed for [{workflow_name}]({run_url}). Review the logs for details.'",
+              "examples": ["\u26a0\ufe0f Security scanning failed for [{workflow_name}]({run_url}). Review the logs for details.", "\u26a0\ufe0f Detection job failed in [{workflow_name}]({run_url})."]
             },
             "agent-failure-issue": {
               "type": "string",
@@ -8362,7 +8456,7 @@
             },
             "github-token": {
               "type": "string",
-              "description": "GitHub token expression to authenticate APM with private package repositories. Uses cascading fallback (GH_AW_PLUGINS_TOKEN → GH_AW_GITHUB_TOKEN → GITHUB_TOKEN) when not specified. Takes effect unless github-app is also configured (which takes precedence).",
+              "description": "GitHub token expression to authenticate APM with private package repositories. Uses cascading fallback (GH_AW_PLUGINS_TOKEN \u2192 GH_AW_GITHUB_TOKEN \u2192 GITHUB_TOKEN) when not specified. Takes effect unless github-app is also configured (which takes precedence).",
               "examples": ["${{ secrets.MY_TOKEN }}", "${{ secrets.GH_AW_GITHUB_TOKEN }}"]
             }
           },
@@ -8938,7 +9032,7 @@
             },
             "auth": {
               "type": "array",
-              "description": "Authentication bindings — maps logical roles (e.g. 'api-key') to GitHub Actions secret names",
+              "description": "Authentication bindings \u2014 maps logical roles (e.g. 'api-key') to GitHub Actions secret names",
               "items": {
                 "type": "object",
                 "properties": {
@@ -9346,6 +9440,76 @@
           ],
           "description": "Additional Git refs to fetch after the checkout. Supported values: \"*\" (all branches), \"refs/pulls/open/*\" (all open pull-request refs), branch names (e.g. \"main\"), or glob patterns (e.g. \"feature/*\").",
           "examples": [["*"], ["refs/pulls/open/*"], ["main", "feature/my-branch"], ["feature/*"]]
+        }
+      }
+    },
+    "qmdCollection": {
+      "type": "object",
+      "description": "A named documentation collection for the qmd tool, built from a checked-out repository. Each collection can optionally target a different repository via its own checkout configuration.",
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Collection identifier used in the qmd index. Defaults to 'docs-<index>' for multiple collections."
+        },
+        "paths": {
+          "type": "array",
+          "description": "List of glob patterns for documentation files to include in this collection.",
+          "items": {
+            "type": "string"
+          },
+          "minItems": 1,
+          "examples": [["docs/**/*.md", ".github/**/*.md"]]
+        },
+        "context": {
+          "type": "string",
+          "description": "Optional context injected into the qmd collection, providing the agent with additional hints about the content (e.g. 'GitHub Actions documentation')."
+        },
+        "checkout": {
+          "$ref": "#/$defs/checkoutConfig",
+          "description": "Optional checkout configuration for this collection. When set, the specified repository is checked out and its files are indexed. Defaults to the current repository if not set."
+        }
+      }
+    },
+    "qmdSearchEntry": {
+      "type": "object",
+      "description": "A GitHub search entry for the qmd tool. Supports code search (type: code, default) and GitHub issue list (type: issues). Results are downloaded and indexed as qmd collections.",
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Optional name for the qmd collection. Defaults to \"search-{index}\" when not set."
+        },
+        "type": {
+          "type": "string",
+          "enum": ["code", "issues"],
+          "default": "code",
+          "description": "Search backend type. \"code\" (default) uses gh search code to find repository files. \"issues\" uses gh issue list to fetch open GitHub issues and index them as markdown files."
+        },
+        "query": {
+          "type": "string",
+          "description": "For type \"code\": GitHub code search query string. For type \"issues\": repository slug (\"owner/repo\"); defaults to the current repository when empty.",
+          "examples": ["repo:owner/repo language:Markdown path:docs/", "org:myorg language:Markdown", "owner/repo"]
+        },
+        "min": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Minimum number of results required. If fewer results are returned the activation job fails."
+        },
+        "max": {
+          "type": "integer",
+          "minimum": 1,
+          "default": 30,
+          "description": "Maximum number of search results to download. Defaults to 30."
+        },
+        "github-token": {
+          "type": "string",
+          "description": "GitHub token used to authenticate the search API request. Mutually exclusive with github-app.",
+          "examples": ["${{ secrets.GITHUB_TOKEN }}", "${{ secrets.MY_PAT }}"]
+        },
+        "github-app": {
+          "$ref": "#/$defs/github_app",
+          "description": "GitHub App configuration used to mint a token for the search API request. Mutually exclusive with github-token."
         }
       }
     }

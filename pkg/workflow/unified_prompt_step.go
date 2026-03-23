@@ -136,6 +136,15 @@ func (c *Compiler) collectPromptSections(data *WorkflowData) []PromptSection {
 		})
 	}
 
+	// 3a. qmd instructions (if qmd tool is enabled)
+	if hasQmdTool(data.ParsedTools) {
+		unifiedPromptLog.Print("Adding qmd section")
+		sections = append(sections, PromptSection{
+			Content: qmdPromptFile,
+			IsFile:  true,
+		})
+	}
+
 	// 4. Agentic Workflows MCP guide (if agentic-workflows tool is enabled)
 	if hasAgenticWorkflowsTool(data.ParsedTools) {
 		unifiedPromptLog.Print("Adding agentic-workflows guide section")
@@ -345,7 +354,7 @@ func (c *Compiler) generateUnifiedPromptCreationStep(yaml *strings.Builder, buil
 	yaml.WriteString("          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt\n")
 
 	if data.SafeOutputs != nil {
-		yaml.WriteString("          GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}\n")
+		yaml.WriteString("          GH_AW_SAFE_OUTPUTS: ${{ runner.temp }}/gh-aw/safeoutputs/outputs.jsonl\n")
 	}
 
 	// Add all environment variables in sorted order for consistency

@@ -52,6 +52,9 @@ func (e *CodexEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]an
 		case "playwright":
 			playwrightTool := expandedTools["playwright"]
 			renderer.RenderPlaywrightMCP(yaml, playwrightTool)
+		case "qmd":
+			qmdTool := expandedTools["qmd"]
+			renderer.RenderQmdMCP(yaml, qmdTool, workflowData)
 		case "serena":
 			serenaTool := expandedTools["serena"]
 			renderer.RenderSerenaMCP(yaml, serenaTool)

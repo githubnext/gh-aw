@@ -95,7 +95,7 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 			continue
 		}
 		// Standard MCP tools
-		if toolName == "github" || toolName == "playwright" || toolName == "serena" || toolName == "cache-memory" || toolName == "agentic-workflows" {
+		if toolName == "github" || toolName == "playwright" || toolName == "qmd" || toolName == "serena" || toolName == "cache-memory" || toolName == "agentic-workflows" {
 			mcpTools = append(mcpTools, toolName)
 		} else if mcpConfig, ok := toolValue.(map[string]any); ok {
 			// Check if it's explicitly marked as MCP type in the new format
@@ -465,6 +465,13 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 		// Call the bundled shell script to start the server
 		yaml.WriteString("          bash ${RUNNER_TEMP}/gh-aw/actions/start_mcp_scripts_server.sh\n")
 		yaml.WriteString("          \n")
+	}
+
+	// Start the qmd MCP HTTP server natively if qmd is configured.
+	// qmd must run on the host VM (not in Docker) because node-llama-cpp compiles
+	// platform-native binaries. HTTP mode keeps MCP traffic on TCP, separate from stdout.
+	if workflowData != nil && workflowData.QmdConfig != nil {
+		yaml.WriteString(generateQmdStartStep(workflowData.QmdConfig))
 	}
 
 	// The MCP gateway is always enabled, even when agent sandbox is disabled

@@ -721,6 +721,11 @@ func (c *Compiler) extractAdditionalConfigurations(
 	}
 	workflowData.RepoMemoryConfig = repoMemoryConfig
 
+	// Extract qmd config from parsed tools
+	if toolsConfig.Qmd != nil {
+		workflowData.QmdConfig = toolsConfig.Qmd
+	}
+
 	// Extract and process mcp-scripts and safe-outputs
 	workflowData.Command, workflowData.CommandEvents = c.extractCommandConfig(frontmatter)
 	workflowData.LabelCommand, workflowData.LabelCommandEvents, workflowData.LabelCommandRemoveLabel = c.extractLabelCommandConfig(frontmatter)
@@ -865,6 +870,24 @@ func (c *Compiler) processOnSectionAndFilters(
 	if err != nil {
 		return err
 	}
+
+	// Apply action pinning to on.steps
+	if len(onSteps) > 0 {
+		anySteps := make([]any, len(onSteps))
+		for i, s := range onSteps {
+			anySteps[i] = s
+		}
+		typedSteps, convErr := SliceToSteps(anySteps)
+		if convErr == nil {
+			typedSteps = ApplyActionPinsToTypedSteps(typedSteps, workflowData)
+			for i, s := range typedSteps {
+				onSteps[i] = s.ToMap()
+			}
+		} else {
+			orchestratorWorkflowLog.Printf("Failed to convert on.steps to typed steps for action pinning: %v", convErr)
+		}
+	}
+
 	workflowData.OnSteps = onSteps
 
 	// Extract on.permissions for pre-activation job permissions

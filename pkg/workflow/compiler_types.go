@@ -415,6 +415,7 @@ type WorkflowData struct {
 	RateLimit                   *RateLimitConfig     // rate limiting configuration for workflow triggers
 	CacheMemoryConfig           *CacheMemoryConfig   // parsed cache-memory configuration
 	RepoMemoryConfig            *RepoMemoryConfig    // parsed repo-memory configuration
+	QmdConfig                   *QmdToolConfig       // parsed qmd tool configuration (docs globs)
 	Runtimes                    map[string]any       // runtime version overrides from frontmatter
 	APMDependencies             *APMDependenciesInfo // APM (Agent Package Manager) dependency packages to install
 	ToolsTimeout                int                  // timeout in seconds for tool/MCP operations (0 = use engine default)
