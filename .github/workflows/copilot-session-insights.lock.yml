@@ -36,7 +36,7 @@
 name: "Copilot Session Insights"
 "on":
   schedule:
-  - cron: "47 21 * * *"
+  - cron: "14 11 * * *"
     # Friendly format: daily (scattered)
   workflow_dispatch:
 

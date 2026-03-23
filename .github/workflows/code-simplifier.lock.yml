@@ -32,7 +32,7 @@
 name: "Code Simplifier"
 "on":
   schedule:
-  - cron: "30 17 * * *"
+  - cron: "37 5 * * *"
     # Friendly format: daily (scattered)
   # skip-if-match: is:pr is:open in:title "[code-simplifier]" # Skip-if-match processed as search check in pre-activation job
   workflow_dispatch:

@@ -27,7 +27,7 @@
 name: "Draft PR Cleanup"
 "on":
   schedule:
-  - cron: "31 19 * * *"
+  - cron: "51 21 * * *"
     # Friendly format: daily (scattered)
   workflow_dispatch:
 

@@ -31,7 +31,7 @@
 name: "Daily Team Evolution Insights"
 "on":
   schedule:
-  - cron: "31 9 * * *"
+  - cron: "34 10 * * *"
     # Friendly format: daily (scattered)
   workflow_dispatch:
 

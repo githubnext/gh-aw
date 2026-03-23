@@ -31,7 +31,7 @@
 name: "Daily Security Red Team Agent"
 "on":
   schedule:
-  - cron: "34 12 * * *"
+  - cron: "19 10 * * *"
     # Friendly format: daily (scattered)
   workflow_dispatch:
 

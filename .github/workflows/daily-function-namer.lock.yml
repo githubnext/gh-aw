@@ -32,7 +32,7 @@
 name: "Daily Go Function Namer"
 "on":
   schedule:
-  - cron: "12 5 * * *"
+  - cron: "53 10 * * *"
     # Friendly format: daily (scattered)
   workflow_dispatch:
 
