@@ -229,6 +229,8 @@ async function main() {
         issue_number: item.issue_number || null,
         pull_number: item.pull_number || null,
         agent: agentName,
+        owner: null,
+        repo: null,
         success: false,
         error: repoResult.error,
       });
@@ -248,6 +250,8 @@ async function main() {
           issue_number: item.issue_number,
           pull_number: item.pull_number ?? null,
           agent: agentName,
+          owner: effectiveOwner,
+          repo: effectiveRepo,
           success: false,
           error: resolvedTarget.errorMessage || `Failed to resolve issue target: ${item.issue_number}`,
         });
@@ -286,6 +290,8 @@ async function main() {
             issue_number: item.issue_number || null,
             pull_number: item.pull_number || null,
             agent: agentName,
+            owner: effectiveOwner,
+            repo: effectiveRepo,
             success: false,
             error: pullRequestRepoValidation.error,
           });
@@ -310,6 +316,8 @@ async function main() {
             issue_number: item.issue_number || null,
             pull_number: item.pull_number || null,
             agent: agentName,
+            owner: effectiveOwner,
+            repo: effectiveRepo,
             success: false,
             error: `Failed to fetch pull request repository ID for ${itemPullRequestRepo}`,
           });
@@ -338,6 +346,8 @@ async function main() {
           issue_number: item.issue_number || null,
           pull_number: item.pull_number || null,
           agent: agentName,
+          owner: effectiveOwner,
+          repo: effectiveRepo,
           success: false,
           error: targetResult.error,
         });
@@ -359,6 +369,8 @@ async function main() {
         issue_number: issueNumber,
         pull_number: pullNumber,
         agent: agentName,
+        owner: effectiveOwner,
+        repo: effectiveRepo,
         success: false,
         error: `Invalid ${type} number: ${number}`,
       });
@@ -372,6 +384,8 @@ async function main() {
         issue_number: issueNumber,
         pull_number: pullNumber,
         agent: agentName,
+        owner: effectiveOwner,
+        repo: effectiveRepo,
         success: false,
         error: `Unsupported agent: ${agentName}`,
       });
@@ -385,6 +399,8 @@ async function main() {
         issue_number: issueNumber,
         pull_number: pullNumber,
         agent: agentName,
+        owner: effectiveOwner,
+        repo: effectiveRepo,
         success: false,
         error: `Agent not allowed: ${agentName}`,
       });
@@ -438,6 +454,8 @@ async function main() {
           issue_number: issueNumber,
           pull_number: pullNumber,
           agent: agentName,
+          owner: effectiveOwner,
+          repo: effectiveRepo,
           success: true,
         });
         continue;
@@ -471,6 +489,8 @@ async function main() {
         issue_number: issueNumber,
         pull_number: pullNumber,
         agent: agentName,
+        owner: effectiveOwner,
+        repo: effectiveRepo,
         success: true,
       });
     } catch (error) {
@@ -487,6 +507,8 @@ async function main() {
           issue_number: issueNumber,
           pull_number: pullNumber,
           agent: agentName,
+          owner: effectiveOwner,
+          repo: effectiveRepo,
           success: true, // Treat as success when ignored
           skipped: true,
         });
@@ -509,6 +531,8 @@ async function main() {
         issue_number: issueNumber,
         pull_number: pullNumber,
         agent: agentName,
+        owner: effectiveOwner,
+        repo: effectiveRepo,
         success: false,
         error: errorMessage,
       });
@@ -572,6 +596,30 @@ async function main() {
   }
 
   await core.summary.addRaw(summaryContent).write();
+
+  // Post failure comments on each issue/PR that failed assignment.
+  // This is needed because the agent may have already posted an "assigned to agent" comment
+  // before the assignment step runs. If assignment fails, users need to see the actual failure
+  // status directly on their issue/PR, not just in the general failure tracking issue.
+  for (const r of results) {
+    if (r.success || r.skipped || !r.owner || !r.repo || (!r.issue_number && !r.pull_number)) {
+      continue;
+    }
+    const failedNumber = r.issue_number || r.pull_number;
+    const failedType = r.issue_number ? "issue" : "pull request";
+    try {
+      await github.rest.issues.createComment({
+        owner: r.owner,
+        repo: r.repo,
+        issue_number: failedNumber,
+        body: `⚠️ **Assignment failed**: Failed to assign ${r.agent} coding agent to this ${failedType}.\n\nError: ${r.error}`,
+      });
+      core.info(`Posted failure comment on ${failedType} #${failedNumber} in ${r.owner}/${r.repo}`);
+    } catch (commentError) {
+      // Best-effort: log but don't fail the step if we can't post the comment
+      core.warning(`Failed to post failure comment on ${failedType} #${failedNumber}: ${getErrorMessage(commentError)}`);
+    }
+  }
 
   // Set outputs
   const assignedAgents = results
