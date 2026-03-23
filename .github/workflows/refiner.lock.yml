@@ -33,6 +33,10 @@ name: "Code Refiner"
     - labeled
   workflow_dispatch:
     inputs:
+      aw_context:
+        description: "Internal: contextual dispatch information (JSON). Do not provide manually."
+        required: false
+        type: string
       item_number:
         default: ""
         description: The number of the pull request

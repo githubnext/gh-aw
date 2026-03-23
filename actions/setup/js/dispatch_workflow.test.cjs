@@ -77,17 +77,19 @@ describe("dispatch_workflow handler factory", () => {
     expect(result.workflow_name).toBe("test-workflow");
     expect(result.run_id).toBe(123456);
     // Should use the extension from config
-    expect(github.rest.actions.createWorkflowDispatch).toHaveBeenCalledWith({
-      owner: "test-owner",
-      repo: "test-repo",
-      workflow_id: "test-workflow.lock.yml",
-      ref: expect.any(String),
-      inputs: {
-        param1: "value1",
-        param2: "42",
-      },
-      return_run_details: true,
-    });
+    expect(github.rest.actions.createWorkflowDispatch).toHaveBeenCalledWith(
+      expect.objectContaining({
+        owner: "test-owner",
+        repo: "test-repo",
+        workflow_id: "test-workflow.lock.yml",
+        ref: expect.any(String),
+        inputs: expect.objectContaining({
+          param1: "value1",
+          param2: "42",
+        }),
+        return_run_details: true,
+      })
+    );
   });
 
   it("should reject workflows not in allowed list", async () => {
@@ -201,14 +203,14 @@ describe("dispatch_workflow handler factory", () => {
 
     expect(github.rest.actions.createWorkflowDispatch).toHaveBeenCalledWith(
       expect.objectContaining({
-        inputs: {
+        inputs: expect.objectContaining({
           string: "hello",
           number: "42",
           boolean: "true",
           object: '{"key":"value"}',
           null: "",
           undefined: "",
-        },
+        }),
       })
     );
   });
@@ -231,14 +233,16 @@ describe("dispatch_workflow handler factory", () => {
     const result = await handler(message, {});
 
     expect(result.success).toBe(true);
-    expect(github.rest.actions.createWorkflowDispatch).toHaveBeenCalledWith({
-      owner: "test-owner",
-      repo: "test-repo",
-      workflow_id: "no-inputs-workflow.lock.yml",
-      ref: expect.any(String),
-      inputs: {}, // Should pass empty object even when inputs property is missing
-      return_run_details: true,
-    });
+    expect(github.rest.actions.createWorkflowDispatch).toHaveBeenCalledWith(
+      expect.objectContaining({
+        owner: "test-owner",
+        repo: "test-repo",
+        workflow_id: "no-inputs-workflow.lock.yml",
+        ref: expect.any(String),
+        inputs: expect.objectContaining({ aw_context: expect.any(String) }),
+        return_run_details: true,
+      })
+    );
   });
 
   it("should delay 5 seconds between dispatches", async () => {
@@ -304,14 +308,16 @@ describe("dispatch_workflow handler factory", () => {
     await handler(message, {});
 
     // Should use the PR branch ref, not the merge ref
-    expect(github.rest.actions.createWorkflowDispatch).toHaveBeenCalledWith({
-      owner: "test-owner",
-      repo: "test-repo",
-      workflow_id: "test-workflow.lock.yml",
-      ref: "refs/heads/feature-branch",
-      inputs: {},
-      return_run_details: true,
-    });
+    expect(github.rest.actions.createWorkflowDispatch).toHaveBeenCalledWith(
+      expect.objectContaining({
+        owner: "test-owner",
+        repo: "test-repo",
+        workflow_id: "test-workflow.lock.yml",
+        ref: "refs/heads/feature-branch",
+        inputs: expect.objectContaining({ aw_context: expect.any(String) }),
+        return_run_details: true,
+      })
+    );
   });
 
   it("should use GITHUB_REF when not in PR context", async () => {
@@ -335,14 +341,16 @@ describe("dispatch_workflow handler factory", () => {
     await handler(message, {});
 
     // Should use GITHUB_REF directly
-    expect(github.rest.actions.createWorkflowDispatch).toHaveBeenCalledWith({
-      owner: "test-owner",
-      repo: "test-repo",
-      workflow_id: "test-workflow.lock.yml",
-      ref: "refs/heads/main",
-      inputs: {},
-      return_run_details: true,
-    });
+    expect(github.rest.actions.createWorkflowDispatch).toHaveBeenCalledWith(
+      expect.objectContaining({
+        owner: "test-owner",
+        repo: "test-repo",
+        workflow_id: "test-workflow.lock.yml",
+        ref: "refs/heads/main",
+        inputs: expect.objectContaining({ aw_context: expect.any(String) }),
+        return_run_details: true,
+      })
+    );
   });
 
   it("should handle PR context with slashes in branch names", async () => {
@@ -366,14 +374,16 @@ describe("dispatch_workflow handler factory", () => {
     await handler(message, {});
 
     // Should correctly handle branch names with slashes
-    expect(github.rest.actions.createWorkflowDispatch).toHaveBeenCalledWith({
-      owner: "test-owner",
-      repo: "test-repo",
-      workflow_id: "test-workflow.lock.yml",
-      ref: "refs/heads/feature/add-new-feature",
-      inputs: {},
-      return_run_details: true,
-    });
+    expect(github.rest.actions.createWorkflowDispatch).toHaveBeenCalledWith(
+      expect.objectContaining({
+        owner: "test-owner",
+        repo: "test-repo",
+        workflow_id: "test-workflow.lock.yml",
+        ref: "refs/heads/feature/add-new-feature",
+        inputs: expect.objectContaining({ aw_context: expect.any(String) }),
+        return_run_details: true,
+      })
+    );
   });
 
   it("should use repository default branch when no GITHUB_REF is set", async () => {
@@ -399,14 +409,16 @@ describe("dispatch_workflow handler factory", () => {
     await handler(message, {});
 
     // Should use the repository's default branch from context
-    expect(github.rest.actions.createWorkflowDispatch).toHaveBeenCalledWith({
-      owner: "test-owner",
-      repo: "test-repo",
-      workflow_id: "test-workflow.lock.yml",
-      ref: "refs/heads/develop",
-      inputs: {},
-      return_run_details: true,
-    });
+    expect(github.rest.actions.createWorkflowDispatch).toHaveBeenCalledWith(
+      expect.objectContaining({
+        owner: "test-owner",
+        repo: "test-repo",
+        workflow_id: "test-workflow.lock.yml",
+        ref: "refs/heads/develop",
+        inputs: expect.objectContaining({ aw_context: expect.any(String) }),
+        return_run_details: true,
+      })
+    );
   });
 
   it("should fall back to API when context payload is missing", async () => {
@@ -443,14 +455,16 @@ describe("dispatch_workflow handler factory", () => {
       repo: "test-repo",
     });
 
-    expect(github.rest.actions.createWorkflowDispatch).toHaveBeenCalledWith({
-      owner: "test-owner",
-      repo: "test-repo",
-      workflow_id: "test-workflow.lock.yml",
-      ref: "refs/heads/staging",
-      inputs: {},
-      return_run_details: true,
-    });
+    expect(github.rest.actions.createWorkflowDispatch).toHaveBeenCalledWith(
+      expect.objectContaining({
+        owner: "test-owner",
+        repo: "test-repo",
+        workflow_id: "test-workflow.lock.yml",
+        ref: "refs/heads/staging",
+        inputs: expect.objectContaining({ aw_context: expect.any(String) }),
+        return_run_details: true,
+      })
+    );
   });
 
   it("should return run_id when API returns workflow_run_id", async () => {
@@ -507,23 +521,29 @@ describe("dispatch_workflow handler factory", () => {
     expect(result.run_id).toBeUndefined();
 
     // First call should include return_run_details: true
-    expect(github.rest.actions.createWorkflowDispatch).toHaveBeenNthCalledWith(1, {
-      owner: "test-owner",
-      repo: "test-repo",
-      workflow_id: "test-workflow.lock.yml",
-      ref: "refs/heads/main",
-      inputs: {},
-      return_run_details: true,
-    });
+    expect(github.rest.actions.createWorkflowDispatch).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({
+        owner: "test-owner",
+        repo: "test-repo",
+        workflow_id: "test-workflow.lock.yml",
+        ref: "refs/heads/main",
+        inputs: expect.objectContaining({ aw_context: expect.any(String) }),
+        return_run_details: true,
+      })
+    );
 
     // Second call should retry without return_run_details
-    expect(github.rest.actions.createWorkflowDispatch).toHaveBeenNthCalledWith(2, {
-      owner: "test-owner",
-      repo: "test-repo",
-      workflow_id: "test-workflow.lock.yml",
-      ref: "refs/heads/main",
-      inputs: {},
-    });
+    expect(github.rest.actions.createWorkflowDispatch).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({
+        owner: "test-owner",
+        repo: "test-repo",
+        workflow_id: "test-workflow.lock.yml",
+        ref: "refs/heads/main",
+        inputs: expect.objectContaining({ aw_context: expect.any(String) }),
+      })
+    );
 
     expect(github.rest.actions.createWorkflowDispatch).toHaveBeenCalledTimes(2);
   });
@@ -804,5 +824,36 @@ describe("dispatch_workflow handler factory", () => {
         repo: "test-repo",
       })
     );
+  });
+
+  it("should inject aw_context with caller metadata into dispatch inputs", async () => {
+    process.env.GITHUB_REF = "refs/heads/main";
+    global.context.runId = 9999;
+    global.context.actor = "test-actor";
+    global.context.eventName = "workflow_dispatch";
+
+    const config = {
+      workflows: ["ci"],
+      workflow_files: { ci: ".lock.yml" },
+      max: 1,
+    };
+    const handler = await main(config);
+
+    await handler({ type: "dispatch_workflow", workflow_name: "ci", inputs: { param: "value" } }, {});
+
+    const callArgs = github.rest.actions.createWorkflowDispatch.mock.calls[0][0];
+    expect(callArgs.inputs).toHaveProperty("aw_context");
+
+    const awContext = JSON.parse(callArgs.inputs.aw_context);
+    expect(awContext.repo).toBe("test-owner/test-repo");
+    expect(awContext.run_id).toBe(9999);
+    expect(awContext.workflow_id).toBe("ci.lock.yml");
+    expect(awContext.workflow_call_id).toBe(9999);
+    expect(awContext.actor).toBe("test-actor");
+    expect(awContext.event_type).toBe("workflow_dispatch");
+    expect(awContext.time).toBeTruthy();
+
+    // User-supplied inputs are preserved alongside aw_context
+    expect(callArgs.inputs.param).toBe("value");
   });
 });

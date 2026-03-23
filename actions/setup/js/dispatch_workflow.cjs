@@ -200,6 +200,20 @@ async function main(config = {}) {
       const workflowFile = `${workflowName}${extension}`;
       core.info(`Dispatching workflow: ${workflowFile}`);
 
+      // Append aw_context as the final input: carries caller metadata so the
+      // dispatched workflow can record its origin in aw_info.json.
+      const awContextPayload = {
+        repo: resolvedRepoSlug,
+        run_id: context.runId,
+        workflow_id: workflowFile,
+        workflow_call_id: context.runId,
+        time: new Date().toUTCString(),
+        actor: context.actor,
+        event_type: context.eventName,
+      };
+      inputs["aw_context"] = JSON.stringify(awContextPayload);
+      core.info(`Injecting aw_context into dispatch inputs for ${workflowFile}`);
+
       // If in staged mode, preview the dispatch without executing it
       if (isStaged) {
         logStagedPreviewInfo(`Would dispatch workflow: ${workflowFile} in ${resolvedRepoSlug} with ref: ${ref}`);

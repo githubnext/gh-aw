@@ -36,6 +36,11 @@ name: "Automated Portfolio Analyst"
   - cron: "50 8 * * 1"
     # Friendly format: weekly on monday around 09:00 (scattered)
   workflow_dispatch:
+    inputs:
+      aw_context:
+        description: "Internal: contextual dispatch information (JSON). Do not provide manually."
+        required: false
+        type: string
 
 permissions: {}
 

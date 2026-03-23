@@ -35,6 +35,11 @@ name: "Ubuntu Actions Image Analyzer"
     # Friendly format: weekly (scattered)
   # skip-if-match: is:pr is:open in:title "[ubuntu-image]" # Skip-if-match processed as search check in pre-activation job
   workflow_dispatch:
+    inputs:
+      aw_context:
+        description: "Internal: contextual dispatch information (JSON). Do not provide manually."
+        required: false
+        type: string
 
 permissions: {}
 

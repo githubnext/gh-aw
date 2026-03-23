@@ -34,6 +34,11 @@ name: "Daily Observability Report for AWF Firewall and MCP Gateway"
   - cron: "29 7 * * *"
     # Friendly format: daily (scattered)
   workflow_dispatch:
+    inputs:
+      aw_context:
+        description: "Internal: contextual dispatch information (JSON). Do not provide manually."
+        required: false
+        type: string
 
 permissions: {}
 

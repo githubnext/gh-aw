@@ -29,6 +29,11 @@ name: "Constraint Solving — Problem of the Day"
   - cron: "47 13 * * *"
     # Friendly format: daily (scattered)
   workflow_dispatch:
+    inputs:
+      aw_context:
+        description: "Internal: contextual dispatch information (JSON). Do not provide manually."
+        required: false
+        type: string
 
 permissions: {}
 

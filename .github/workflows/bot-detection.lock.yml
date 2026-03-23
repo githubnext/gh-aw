@@ -29,6 +29,11 @@ name: "Bot Detection"
   schedule:
   - cron: "0 */6 * * *"
   workflow_dispatch:
+    inputs:
+      aw_context:
+        description: "Internal: contextual dispatch information (JSON). Do not provide manually."
+        required: false
+        type: string
 
 permissions: {}
 

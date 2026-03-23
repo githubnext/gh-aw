@@ -36,6 +36,11 @@ name: "DeepReport - Intelligence Gathering Agent"
   schedule:
   - cron: "0 15 * * 1-5"
   workflow_dispatch:
+    inputs:
+      aw_context:
+        description: "Internal: contextual dispatch information (JSON). Do not provide manually."
+        required: false
+        type: string
 
 permissions: {}
 

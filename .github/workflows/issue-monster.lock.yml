@@ -389,6 +389,11 @@ name: "Issue Monster"
           # core.setOutput('has_issues', 'false');
         # }
   workflow_dispatch:
+    inputs:
+      aw_context:
+        description: "Internal: contextual dispatch information (JSON). Do not provide manually."
+        required: false
+        type: string
 
 permissions: {}
 

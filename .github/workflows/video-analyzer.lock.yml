@@ -32,6 +32,10 @@ name: "Video Analysis Agent"
 "on":
   workflow_dispatch:
     inputs:
+      aw_context:
+        description: "Internal: contextual dispatch information (JSON). Do not provide manually."
+        required: false
+        type: string
       video_url:
         description: URL to video file to analyze (must be publicly accessible)
         required: true

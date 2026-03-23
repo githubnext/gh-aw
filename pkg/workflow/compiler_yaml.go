@@ -199,6 +199,8 @@ func (c *Compiler) generateWorkflowBody(yaml *strings.Builder, data *WorkflowDat
 	if data.SafeOutputs != nil {
 		onSection = c.injectWorkflowCallOutputs(onSection, data.SafeOutputs)
 	}
+	// Inject aw_context as an optional internal input for every workflow_dispatch trigger.
+	onSection = injectAwContextInput(onSection)
 	yaml.WriteString(onSection + "\n\n")
 
 	// Note: GitHub Actions doesn't support workflow-level if conditions

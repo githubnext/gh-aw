@@ -35,6 +35,11 @@ name: "Daily Documentation Healer"
   - cron: "59 18 * * *"
     # Friendly format: daily (scattered)
   workflow_dispatch:
+    inputs:
+      aw_context:
+        description: "Internal: contextual dispatch information (JSON). Do not provide manually."
+        required: false
+        type: string
 
 permissions: {}
 

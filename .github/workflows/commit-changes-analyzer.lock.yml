@@ -32,6 +32,10 @@ name: "Commit Changes Analyzer"
 "on":
   workflow_dispatch:
     inputs:
+      aw_context:
+        description: "Internal: contextual dispatch information (JSON). Do not provide manually."
+        required: false
+        type: string
       commit_url:
         description: GitHub commit URL to analyze changes since (e.g., https://github.com/owner/repo/commit/abc123)
         required: true

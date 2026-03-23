@@ -33,7 +33,12 @@ name: "Smoke Create Cross-Repo PR"
     - labeled
   schedule:
   - cron: "44 */12 * * *"
-  workflow_dispatch: null
+  workflow_dispatch:
+    inputs:
+      aw_context:
+        description: "Internal: contextual dispatch information (JSON). Do not provide manually."
+        required: false
+        type: string
 
 permissions: {}
 

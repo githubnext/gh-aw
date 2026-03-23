@@ -30,6 +30,11 @@ name: "Weekly Safe Outputs Specification Review"
   - cron: "38 22 * * 1"
     # Friendly format: weekly on monday (scattered)
   workflow_dispatch:
+    inputs:
+      aw_context:
+        description: "Internal: contextual dispatch information (JSON). Do not provide manually."
+        required: false
+        type: string
 
 permissions: {}
 

@@ -29,6 +29,11 @@ name: "Layout Specification Maintainer"
   schedule:
   - cron: "0 7 * * 1"
   workflow_dispatch:
+    inputs:
+      aw_context:
+        description: "Internal: contextual dispatch information (JSON). Do not provide manually."
+        required: false
+        type: string
 
 permissions: {}
 

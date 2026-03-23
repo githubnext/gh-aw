@@ -30,6 +30,11 @@ name: "Schema Feature Coverage Checker"
   - cron: "24 6 * * 1"
     # Friendly format: weekly on monday around 07:00 (scattered)
   workflow_dispatch:
+    inputs:
+      aw_context:
+        description: "Internal: contextual dispatch information (JSON). Do not provide manually."
+        required: false
+        type: string
 
 permissions: {}
 

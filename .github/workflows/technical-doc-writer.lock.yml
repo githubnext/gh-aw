@@ -34,6 +34,10 @@ name: "Rebuild the documentation after making changes"
 "on":
   workflow_dispatch:
     inputs:
+      aw_context:
+        description: "Internal: contextual dispatch information (JSON). Do not provide manually."
+        required: false
+        type: string
       topic:
         description: Documentation topic to review
         required: true

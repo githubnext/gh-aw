@@ -188,4 +188,74 @@ describe("generate_aw_info.cjs", () => {
     expect(mockCore.summary.addRaw).toHaveBeenCalled();
     expect(mockCore.summary.write).toHaveBeenCalled();
   });
+
+  it("should include aw_context in awInfo when workflow_dispatch input is valid JSON object", async () => {
+    const contextWithAwContext = {
+      ...mockContext,
+      payload: {
+        inputs: {
+          aw_context: JSON.stringify({
+            repo: "caller/repo",
+            run_id: 42,
+            workflow_id: "caller.lock.yml",
+            workflow_call_id: 42,
+            time: "Mon, 01 Jan 2026 00:00:00 GMT",
+            actor: "octocat",
+            event_type: "workflow_dispatch",
+          }),
+        },
+      },
+    };
+
+    await main(mockCore, contextWithAwContext);
+
+    const awInfo = JSON.parse(fs.readFileSync(awInfoPath, "utf8"));
+    expect(awInfo.context).toBeDefined();
+    expect(awInfo.context.repo).toBe("caller/repo");
+    expect(awInfo.context.run_id).toBe(42);
+    expect(awInfo.context.workflow_id).toBe("caller.lock.yml");
+    expect(awInfo.context.actor).toBe("octocat");
+    expect(awInfo.context.event_type).toBe("workflow_dispatch");
+  });
+
+  it("should warn and omit context when aw_context input is invalid JSON", async () => {
+    const contextWithBadAwContext = {
+      ...mockContext,
+      payload: {
+        inputs: {
+          aw_context: "not-valid-json",
+        },
+      },
+    };
+
+    await main(mockCore, contextWithBadAwContext);
+
+    expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("Failed to parse aw_context as JSON"));
+    const awInfo = JSON.parse(fs.readFileSync(awInfoPath, "utf8"));
+    expect(awInfo.context).toBeUndefined();
+  });
+
+  it("should warn and omit context when aw_context input is a JSON array, not an object", async () => {
+    const contextWithArrayAwContext = {
+      ...mockContext,
+      payload: {
+        inputs: {
+          aw_context: JSON.stringify(["not", "an", "object"]),
+        },
+      },
+    };
+
+    await main(mockCore, contextWithArrayAwContext);
+
+    expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("aw_context input is not a JSON object"));
+    const awInfo = JSON.parse(fs.readFileSync(awInfoPath, "utf8"));
+    expect(awInfo.context).toBeUndefined();
+  });
+
+  it("should not set context when no aw_context input is present", async () => {
+    await main(mockCore, mockContext);
+
+    const awInfo = JSON.parse(fs.readFileSync(awInfoPath, "utf8"));
+    expect(awInfo.context).toBeUndefined();
+  });
 });

@@ -37,6 +37,11 @@ name: "Daily News"
   schedule:
   - cron: "0 9 * * 1-5"
   workflow_dispatch:
+    inputs:
+      aw_context:
+        description: "Internal: contextual dispatch information (JSON). Do not provide manually."
+        required: false
+        type: string
 
 permissions: {}
 

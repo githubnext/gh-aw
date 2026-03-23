@@ -30,6 +30,11 @@ name: "Weekly Editors Health Check"
   - cron: "43 21 * * 1"
     # Friendly format: weekly (scattered)
   workflow_dispatch:
+    inputs:
+      aw_context:
+        description: "Internal: contextual dispatch information (JSON). Do not provide manually."
+        required: false
+        type: string
 
 permissions: {}
 

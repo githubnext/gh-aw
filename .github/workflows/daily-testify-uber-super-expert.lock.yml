@@ -38,6 +38,11 @@ name: "Daily Testify Uber Super Expert"
     # Friendly format: daily (scattered)
   # skip-if-match: is:issue is:open in:title "[testify-expert]" # Skip-if-match processed as search check in pre-activation job
   workflow_dispatch:
+    inputs:
+      aw_context:
+        description: "Internal: contextual dispatch information (JSON). Do not provide manually."
+        required: false
+        type: string
 
 permissions: {}
 

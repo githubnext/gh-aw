@@ -27,6 +27,11 @@
 name: "Codex GitHub Remote MCP Test"
 "on":
   workflow_dispatch:
+    inputs:
+      aw_context:
+        description: "Internal: contextual dispatch information (JSON). Do not provide manually."
+        required: false
+        type: string
 
 permissions: {}
 
