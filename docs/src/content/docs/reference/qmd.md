@@ -60,7 +60,7 @@ tools:
           path: ./other-repo       # optional; defaults to /tmp/gh-aw/qmd-checkout-<name>
 ```
 
-Each `checkout:` entry accepts the same options as the top-level [`checkout:`](/gh-aw/reference/frontmatter/#checkout) field: `repository`, `ref`, `path`, `token`, `fetch-depth`, `sparse-checkout`, `submodules`, and `lfs`.
+Each `checkout:` entry accepts the same options as the top-level [`checkout:`](/gh-aw/reference/frontmatter/#repository-checkout-checkout) field: `repository`, `ref`, `path`, `token`, `fetch-depth`, `sparse-checkout`, `submodules`, and `lfs`.
 
 The optional `context:` field provides additional hints to the agent about the collection's content (e.g. product area, audience, or version).
 
@@ -156,7 +156,7 @@ tools:
 | `name` | `string` | No | Collection identifier (defaults to `"docs-<index>"`). |
 | `paths` | `string[]` | No | Glob patterns for files to include (defaults to `**/*.md`). |
 | `context` | `string` | No | Optional context hint for the agent about this collection's content (e.g. `"GitHub Actions documentation"`). |
-| `checkout` | `CheckoutConfig` | No | Repository checkout options — same syntax as the top-level [`checkout:`](/gh-aw/reference/frontmatter/#checkout) field. Defaults to the current repository. |
+| `checkout` | `CheckoutConfig` | No | Repository checkout options — same syntax as the top-level [`checkout:`](/gh-aw/reference/frontmatter/#repository-checkout-checkout) field. Defaults to the current repository. |
 
 ### `QmdSearchEntry` fields
 
@@ -191,6 +191,6 @@ The tool returns file paths ranked by relevance. Use standard file reading to fe
 ## Related Documentation
 
 - [Tools](/gh-aw/reference/tools/) - Overview of all built-in tools
-- [Frontmatter](/gh-aw/reference/frontmatter/#checkout) - Top-level checkout configuration
+- [Frontmatter](/gh-aw/reference/frontmatter/#repository-checkout-checkout) - Top-level checkout configuration
 - [Permissions](/gh-aw/reference/permissions/) - GitHub Actions permission configuration
 - [Dependabot](/gh-aw/reference/dependabot/) - Automatic dependency updates (tracks `@tobilu/qmd` version)
