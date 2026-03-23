@@ -287,41 +287,52 @@ func getGitHubGuardPolicies(githubTool any) map[string]any {
 	return nil
 }
 
-// unionWithEnvFallback builds a newline-separated string that combines any explicitly
-// configured blocked-users / approval-labels values with an org/repo variable fallback.
-// The MCP Gateway splits the string on newlines (and commas) at runtime and ignores empty
-// entries, so the fallback being an empty string when the variable is unset is harmless.
+// unionWithEnvFallback builds a JSON-safe value that unions any explicitly configured
+// blocked-users / approval-labels values with an org/repo variable fallback.
 //
-//   - nil / not set → just the fallback expression
-//   - []any or []string → each element joined by "\n", then the fallback appended
-//   - string expression → the expression string, then the fallback appended
-func unionWithEnvFallback(existing any, envVar string) string {
-	fallback := fmt.Sprintf("${{ vars.%s || '' }}", envVar)
+// For the fallback expression, the returned string is prefixed with guardExprSentinel so
+// that renderGuardPoliciesJSON can strip the surrounding JSON string quotes and emit the
+// toJSON() expression verbatim. At runtime, GitHub Actions evaluates toJSON() which properly
+// JSON-encodes the variable value, preventing JSON injection even if the value contains
+// double quotes or backslashes.
+//
+//   - nil / not set → sentinel-prefixed toJSON fallback expression (rendered without quotes)
+//   - []any or []string → JSON array of static string values with the sentinel fallback as last element
+//   - string expression → JSON array of [expression, sentinel fallback]
+func unionWithEnvFallback(existing any, envVar string) any {
+	// The sentinel prefix tells renderGuardPoliciesJSON to un-quote this value and emit the
+	// toJSON() expression verbatim. toJSON() ensures the variable value is properly
+	// JSON-encoded at runtime.
+	fallback := guardExprSentinel + fmt.Sprintf(`${{ toJSON(vars.%s || '') }}`, envVar)
+
 	switch v := existing.(type) {
 	case []any:
-		parts := make([]string, 0, len(v)+1)
+		parts := make([]any, 0, len(v)+1)
 		for _, item := range v {
 			if str, ok := item.(string); ok && str != "" {
 				parts = append(parts, str)
 			}
 		}
 		parts = append(parts, fallback)
-		return strings.Join(parts, "\n")
+		return parts
 	case []string:
-		parts := make([]string, 0, len(v)+1)
+		parts := make([]any, 0, len(v)+1)
 		for _, s := range v {
 			if s != "" {
 				parts = append(parts, s)
 			}
 		}
 		parts = append(parts, fallback)
-		return strings.Join(parts, "\n")
+		return parts
 	case string:
 		if v != "" {
-			return v + "\n" + fallback
+			// User-provided expression (e.g. "${{ vars.CUSTOM }}") unioned with the fallback.
+			return []any{v, fallback}
 		}
+		// Fallback only: sentinel-prefixed toJSON expression (no surrounding string quotes).
 		return fallback
 	default:
+		// Fallback only.
 		return fallback
 	}
 }
