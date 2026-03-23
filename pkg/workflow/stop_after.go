@@ -404,7 +404,110 @@ func (c *Compiler) processSkipIfNoMatchConfiguration(frontmatter map[string]any,
 	return nil
 }
 
-// extractSkipIfScope extracts the optional scope field from a skip-if-match or skip-if-no-match
+// extractSkipIfCheckFailedFromOn extracts the skip-if-check-failed value from the on: section
+func (c *Compiler) extractSkipIfCheckFailedFromOn(frontmatter map[string]any, workflowData ...*WorkflowData) (*SkipIfCheckFailedConfig, error) {
+	// Use cached On field from ParsedFrontmatter if available (when workflowData is provided)
+	var onSection any
+	var exists bool
+	if len(workflowData) > 0 && workflowData[0] != nil && workflowData[0].ParsedFrontmatter != nil && workflowData[0].ParsedFrontmatter.On != nil {
+		onSection = workflowData[0].ParsedFrontmatter.On
+		exists = true
+	} else {
+		onSection, exists = frontmatter["on"]
+	}
+
+	if !exists {
+		return nil, nil
+	}
+
+	// Handle different formats of the on: section
+	switch on := onSection.(type) {
+	case string:
+		// Simple string format like "on: push" - no skip-if-check-failed possible
+		return nil, nil
+	case map[string]any:
+		// Complex object format - look for skip-if-check-failed
+		if skipIfCheckFailed, exists := on["skip-if-check-failed"]; exists {
+			switch skip := skipIfCheckFailed.(type) {
+			case bool:
+				// Simple boolean format: skip-if-check-failed: true
+				if !skip {
+					return nil, errors.New("skip-if-check-failed: false is not valid; remove the field to disable the check")
+				}
+				return &SkipIfCheckFailedConfig{}, nil
+			case map[string]any:
+				// Object format: skip-if-check-failed: { include: [...], exclude: [...], branch: "..." }
+				config := &SkipIfCheckFailedConfig{}
+
+				// Extract include list (optional)
+				if includeRaw, hasInclude := skip["include"]; hasInclude {
+					includeSlice, ok := includeRaw.([]any)
+					if !ok {
+						return nil, errors.New("skip-if-check-failed 'include' field must be a list of strings. Example:\n  skip-if-check-failed:\n    include:\n      - build\n      - test")
+					}
+					for _, item := range includeSlice {
+						s, ok := item.(string)
+						if !ok {
+							return nil, fmt.Errorf("skip-if-check-failed 'include' list items must be strings, got %T", item)
+						}
+						config.Include = append(config.Include, s)
+					}
+				}
+
+				// Extract exclude list (optional)
+				if excludeRaw, hasExclude := skip["exclude"]; hasExclude {
+					excludeSlice, ok := excludeRaw.([]any)
+					if !ok {
+						return nil, errors.New("skip-if-check-failed 'exclude' field must be a list of strings. Example:\n  skip-if-check-failed:\n    exclude:\n      - lint")
+					}
+					for _, item := range excludeSlice {
+						s, ok := item.(string)
+						if !ok {
+							return nil, fmt.Errorf("skip-if-check-failed 'exclude' list items must be strings, got %T", item)
+						}
+						config.Exclude = append(config.Exclude, s)
+					}
+				}
+
+				// Extract branch (optional)
+				if branchRaw, hasBranch := skip["branch"]; hasBranch {
+					branchStr, ok := branchRaw.(string)
+					if !ok {
+						return nil, fmt.Errorf("skip-if-check-failed 'branch' field must be a string, got %T. Example: branch: main", branchRaw)
+					}
+					config.Branch = branchStr
+				}
+
+				return config, nil
+			default:
+				return nil, fmt.Errorf("skip-if-check-failed value must be true or an object, got %T. Examples:\n  skip-if-check-failed: true\n  skip-if-check-failed:\n    include:\n      - build\n    branch: main", skipIfCheckFailed)
+			}
+		}
+		return nil, nil
+	default:
+		return nil, errors.New("invalid on: section format")
+	}
+}
+
+// processSkipIfCheckFailedConfiguration extracts and processes skip-if-check-failed configuration from frontmatter
+func (c *Compiler) processSkipIfCheckFailedConfiguration(frontmatter map[string]any, workflowData *WorkflowData) error {
+	skipIfCheckFailedConfig, err := c.extractSkipIfCheckFailedFromOn(frontmatter, workflowData)
+	if err != nil {
+		return err
+	}
+	workflowData.SkipIfCheckFailed = skipIfCheckFailedConfig
+
+	if workflowData.SkipIfCheckFailed != nil {
+		stopAfterLog.Printf("Skip-if-check-failed configured: include=%v, exclude=%v, branch=%q",
+			workflowData.SkipIfCheckFailed.Include,
+			workflowData.SkipIfCheckFailed.Exclude,
+			workflowData.SkipIfCheckFailed.Branch,
+		)
+	}
+
+	return nil
+}
+
 // object configuration. Auth fields (github-token, github-app) are configured at the top-level
 // on: section and are no longer accepted inside skip-if blocks.
 // conditionName is used only for error messages (e.g. "skip-if-match").

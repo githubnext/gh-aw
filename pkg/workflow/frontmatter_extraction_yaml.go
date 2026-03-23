@@ -134,6 +134,7 @@ func (c *Compiler) commentOutProcessedFieldsInOnSection(yamlStr string, frontmat
 	inForksArray := false
 	inSkipIfMatch := false
 	inSkipIfNoMatch := false
+	inSkipIfCheckFailed := false
 	inSkipRolesArray := false
 	inSkipBotsArray := false
 	inRolesArray := false
@@ -269,6 +270,15 @@ func (c *Compiler) commentOutProcessedFieldsInOnSection(yamlStr string, frontmat
 			}
 		}
 
+		// Check if we're entering skip-if-check-failed object
+		if !inPullRequest && !inIssues && !inDiscussion && !inIssueComment && !inSkipIfCheckFailed {
+			// Check both uncommented and commented forms
+			if trimmedLine == "skip-if-check-failed:" ||
+				(strings.HasPrefix(trimmedLine, "# skip-if-check-failed:") && strings.Contains(trimmedLine, "pre-activation job")) {
+				inSkipIfCheckFailed = true
+			}
+		}
+
 		// Check if we're entering github-app object
 		if !inPullRequest && !inIssues && !inDiscussion && !inIssueComment && !inGitHubApp {
 			// Check both uncommented and commented forms
@@ -301,6 +311,19 @@ func (c *Compiler) commentOutProcessedFieldsInOnSection(yamlStr string, frontmat
 			// If this is a field at same level as skip-if-no-match (2 spaces) and not a comment, we're out of skip-if-no-match
 			if lineIndent == 2 && !strings.HasPrefix(trimmedLine, "#") {
 				inSkipIfNoMatch = false
+			}
+		}
+
+		// Check if we're leaving skip-if-check-failed object (encountering another top-level field)
+		// Skip this check if we just entered skip-if-check-failed on this line
+		if inSkipIfCheckFailed && strings.TrimSpace(line) != "" &&
+			!strings.HasPrefix(trimmedLine, "skip-if-check-failed:") &&
+			!strings.HasPrefix(trimmedLine, "# skip-if-check-failed:") {
+			// Get the indentation of the current line
+			lineIndent := len(line) - len(strings.TrimLeft(line, " \t"))
+			// If this is a field at same level as skip-if-check-failed (2 spaces) and not a comment, we're out
+			if lineIndent == 2 && !strings.HasPrefix(trimmedLine, "#") {
+				inSkipIfCheckFailed = false
 			}
 		}
 
@@ -415,6 +438,13 @@ func (c *Compiler) commentOutProcessedFieldsInOnSection(yamlStr string, frontmat
 				commentReason = " # Skip-if-no-match processed as search check in pre-activation job"
 			} else if inSkipIfNoMatch && (strings.HasPrefix(trimmedLine, "query:") || strings.HasPrefix(trimmedLine, "min:") || strings.HasPrefix(trimmedLine, "scope:")) {
 				// Comment out nested fields in skip-if-no-match object
+				shouldComment = true
+				commentReason = ""
+			} else if strings.HasPrefix(trimmedLine, "skip-if-check-failed:") {
+				shouldComment = true
+				commentReason = " # Skip-if-check-failed processed as check status gate in pre-activation job"
+			} else if inSkipIfCheckFailed && (strings.HasPrefix(trimmedLine, "include:") || strings.HasPrefix(trimmedLine, "exclude:") || strings.HasPrefix(trimmedLine, "branch:") || strings.HasPrefix(trimmedLine, "-")) {
+				// Comment out nested fields and list items in skip-if-check-failed object
 				shouldComment = true
 				commentReason = ""
 			} else if strings.HasPrefix(trimmedLine, "skip-roles:") {
