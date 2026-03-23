@@ -8,8 +8,123 @@
 const { isDiscussionContext, getDiscussionNumber } = require("./update_context_helpers.cjs");
 const { createUpdateHandlerFactory, createStandardFormatResult } = require("./update_handler_factory.cjs");
 const { sanitizeTitle } = require("./sanitize_title.cjs");
+const { validateLabels } = require("./safe_output_validator.cjs");
+const { tryEnforceArrayLimit } = require("./limit_enforcement_helpers.cjs");
+const { getErrorMessage } = require("./error_helpers.cjs");
 const { ERR_NOT_FOUND } = require("./error_codes.cjs");
 const { parseBoolTemplatable } = require("./templatable.cjs");
+const { MAX_LABELS } = require("./constants.cjs");
+
+/**
+ * Fetches label node IDs for the given label names from a repository
+ * @param {any} githubClient - GitHub API client
+ * @param {string} owner - Repository owner
+ * @param {string} repo - Repository name
+ * @param {string[]} labelNames - Array of label names to resolve
+ * @returns {Promise<Array<{name: string, id: string}>>} Array of matched label objects with name and ID
+ */
+async function fetchLabelIds(githubClient, owner, repo, labelNames) {
+  if (!labelNames || labelNames.length === 0) {
+    return [];
+  }
+
+  try {
+    const labelsQuery = `
+      query($owner: String!, $repo: String!) {
+        repository(owner: $owner, name: $repo) {
+          labels(first: 100) {
+            nodes {
+              id
+              name
+            }
+          }
+        }
+      }
+    `;
+
+    const queryResult = await githubClient.graphql(labelsQuery, { owner, repo });
+    const repoLabels = queryResult?.repository?.labels?.nodes || [];
+    const labelMap = new Map(repoLabels.map(/** @param {any} l */ l => [l.name.toLowerCase(), l]));
+
+    const matchedLabels = [];
+    const unmatchedLabels = [];
+
+    for (const requestedLabel of labelNames) {
+      const matched = labelMap.get(requestedLabel.toLowerCase());
+      if (matched) {
+        matchedLabels.push({ name: matched.name, id: matched.id });
+      } else {
+        unmatchedLabels.push(requestedLabel);
+      }
+    }
+
+    if (unmatchedLabels.length > 0) {
+      core.warning(`Could not find label IDs for: ${unmatchedLabels.join(", ")}`);
+      core.info(`These labels may not exist in the repository. Available: ${repoLabels.map(/** @param {any} l */ l => l.name).join(", ")}`);
+    }
+
+    return matchedLabels;
+  } catch (error) {
+    core.warning(`Failed to fetch label IDs: ${getErrorMessage(error)}`);
+    return [];
+  }
+}
+
+/**
+ * Removes labels from a discussion using GraphQL
+ * @param {any} githubClient - GitHub API client
+ * @param {string} discussionId - Discussion node ID
+ * @param {string[]} labelIds - Label node IDs to remove
+ * @returns {Promise<void>}
+ */
+async function removeLabelsFromDiscussion(githubClient, discussionId, labelIds) {
+  if (!labelIds || labelIds.length === 0) {
+    return;
+  }
+
+  const mutation = `
+    mutation($labelableId: ID!, $labelIds: [ID!]!) {
+      removeLabelsFromLabelable(input: {
+        labelableId: $labelableId,
+        labelIds: $labelIds
+      }) {
+        labelable {
+          ... on Discussion { id }
+        }
+      }
+    }
+  `;
+
+  await githubClient.graphql(mutation, { labelableId: discussionId, labelIds });
+}
+
+/**
+ * Adds labels to a discussion using GraphQL
+ * @param {any} githubClient - GitHub API client
+ * @param {string} discussionId - Discussion node ID
+ * @param {string[]} labelIds - Label node IDs to add
+ * @returns {Promise<void>}
+ */
+async function addLabelsToDiscussion(githubClient, discussionId, labelIds) {
+  if (!labelIds || labelIds.length === 0) {
+    return;
+  }
+
+  const mutation = `
+    mutation($labelableId: ID!, $labelIds: [ID!]!) {
+      addLabelsToLabelable(input: {
+        labelableId: $labelableId,
+        labelIds: $labelIds
+      }) {
+        labelable {
+          ... on Discussion { id }
+        }
+      }
+    }
+  `;
+
+  await githubClient.graphql(mutation, { labelableId: discussionId, labelIds });
+}
 
 /**
  * Execute the discussion update API call using GraphQL
@@ -20,7 +135,7 @@ const { parseBoolTemplatable } = require("./templatable.cjs");
  * @returns {Promise<any>} Updated discussion
  */
 async function executeDiscussionUpdate(github, context, discussionNumber, updateData) {
-  // First, fetch the discussion node ID
+  // Fetch the discussion node ID and current labels in one query
   const getDiscussionQuery = `
     query($owner: String!, $repo: String!, $number: Int!) {
       repository(owner: $owner, name: $repo) {
@@ -29,6 +144,12 @@ async function executeDiscussionUpdate(github, context, discussionNumber, update
           title
           body
           url
+          labels(first: 100) {
+            nodes {
+              id
+              name
+            }
+          }
         }
       }
     }
@@ -45,28 +166,62 @@ async function executeDiscussionUpdate(github, context, discussionNumber, update
     throw new Error(`${ERR_NOT_FOUND}: Discussion #${discussionNumber} not found`);
   }
 
-  // Build mutation for updating discussion
-  let mutation = `
-    mutation($discussionId: ID!, $title: String, $body: String) {
-      updateDiscussion(input: { discussionId: $discussionId, title: $title, body: $body }) {
-        discussion {
-          id
-          title
-          body
-          url
+  // Update title and/or body if provided
+  if (updateData.title !== undefined || updateData.body !== undefined) {
+    const mutation = `
+      mutation($discussionId: ID!, $title: String, $body: String) {
+        updateDiscussion(input: { discussionId: $discussionId, title: $title, body: $body }) {
+          discussion {
+            id
+            title
+            body
+            url
+          }
         }
       }
+    `;
+
+    const variables = {
+      discussionId: discussion.id,
+      title: updateData.title || discussion.title,
+      body: updateData.body || discussion.body,
+    };
+
+    const mutationResult = await github.graphql(mutation, variables);
+    // Merge updated title/body back into discussion for return value
+    const updated = mutationResult.updateDiscussion.discussion;
+    discussion.title = updated.title;
+    discussion.body = updated.body;
+    discussion.url = updated.url;
+  }
+
+  // Handle label replacement if labels were provided
+  if (updateData.labels !== undefined) {
+    const currentLabels = discussion.labels?.nodes || [];
+    const currentLabelIds = new Set(currentLabels.map(/** @param {any} l */ l => l.id));
+
+    // Look up node IDs for the requested labels
+    const requestedLabelData = await fetchLabelIds(github, context.repo.owner, context.repo.repo, updateData.labels);
+    const requestedLabelIdSet = new Set(requestedLabelData.map(/** @param {any} l */ l => l.id));
+
+    // Compute add/remove sets
+    const labelsToAdd = requestedLabelData.filter(l => !currentLabelIds.has(l.id)).map(/** @param {any} l */ l => l.id);
+    const labelsToRemove = currentLabels.filter(/** @param {any} l */ l => !requestedLabelIdSet.has(l.id)).map(/** @param {any} l */ l => l.id);
+
+    if (labelsToAdd.length > 0) {
+      core.info(`Adding ${labelsToAdd.length} label(s) to discussion #${discussionNumber}`);
+      await addLabelsToDiscussion(github, discussion.id, labelsToAdd);
     }
-  `;
+    if (labelsToRemove.length > 0) {
+      core.info(`Removing ${labelsToRemove.length} label(s) from discussion #${discussionNumber}`);
+      await removeLabelsFromDiscussion(github, discussion.id, labelsToRemove);
+    }
+    if (labelsToAdd.length === 0 && labelsToRemove.length === 0) {
+      core.info(`Labels unchanged for discussion #${discussionNumber}`);
+    }
+  }
 
-  const variables = {
-    discussionId: discussion.id,
-    title: updateData.title || discussion.title,
-    body: updateData.body || discussion.body,
-  };
-
-  const mutationResult = await github.graphql(mutation, variables);
-  return mutationResult.updateDiscussion.discussion;
+  return discussion;
 }
 
 /**
@@ -134,6 +289,38 @@ function buildDiscussionUpdateData(item, config) {
   }
   if (item.body !== undefined) {
     updateData.body = item.body;
+  }
+
+  // Handle labels if enabled by config
+  const canUpdateLabels = config.allow_labels === true;
+  if (item.labels !== undefined && canUpdateLabels) {
+    const allowedLabels = config.allowed_labels || [];
+
+    // Enforce max label count
+    const labelsLimitResult = tryEnforceArrayLimit(item.labels, MAX_LABELS, "labels");
+    if (!labelsLimitResult.success) {
+      core.warning(`Discussion label update limit exceeded: ${labelsLimitResult.error}`);
+      return { success: false, error: labelsLimitResult.error };
+    }
+
+    // Validate and sanitize labels against allowed list.
+    // An empty allowed_labels array means no restriction (pass undefined to validateLabels).
+    // A non-empty allowed_labels array restricts which labels may be set.
+    const effectiveAllowedLabels = allowedLabels.length > 0 ? allowedLabels : undefined;
+    const labelsResult = validateLabels(item.labels, effectiveAllowedLabels);
+    if (!labelsResult.valid) {
+      if (labelsResult.error?.includes("No valid labels")) {
+        // All labels were filtered out (e.g. none in allowed list) - treat as empty set
+        updateData.labels = [];
+      } else {
+        core.warning(`Label validation failed: ${labelsResult.error}`);
+        return { success: false, error: labelsResult.error ?? "Invalid labels" };
+      }
+    } else {
+      updateData.labels = labelsResult.value ?? [];
+    }
+  } else if (item.labels !== undefined && !canUpdateLabels) {
+    core.warning("Label update not allowed by safe-outputs configuration");
   }
 
   // Pass footer config to executeUpdate (default to true)
