@@ -112,7 +112,7 @@ describe("update_discussion.cjs - label support", () => {
       });
 
       const { main } = require("./update_discussion.cjs");
-      const handler = await main({ target: "triggering", max: 1, allow_labels: true });
+      const handler = await main({ target: "triggering", max: 1 });
       const result = await handler({ labels: ["bug"] }, {});
 
       expect(result.success).toBe(true);
@@ -136,7 +136,7 @@ describe("update_discussion.cjs - label support", () => {
       });
 
       const { main } = require("./update_discussion.cjs");
-      const handler = await main({ target: "triggering", max: 1, allow_labels: true });
+      const handler = await main({ target: "triggering", max: 1 });
       const result = await handler({ labels: ["bug"] }, {});
 
       expect(result.success).toBe(true);
@@ -160,7 +160,7 @@ describe("update_discussion.cjs - label support", () => {
       });
 
       const { main } = require("./update_discussion.cjs");
-      const handler = await main({ target: "triggering", max: 1, allow_labels: true });
+      const handler = await main({ target: "triggering", max: 1 });
       const result = await handler({ labels: ["bug", "idea"] }, {});
 
       expect(result.success).toBe(true);
@@ -182,7 +182,7 @@ describe("update_discussion.cjs - label support", () => {
       });
 
       const { main } = require("./update_discussion.cjs");
-      const handler = await main({ target: "triggering", max: 1, allow_labels: true });
+      const handler = await main({ target: "triggering", max: 1 });
       const result = await handler({ labels: ["bug"] }, {});
 
       expect(result.success).toBe(true);
@@ -209,7 +209,6 @@ describe("update_discussion.cjs - label support", () => {
       const handler = await main({
         target: "triggering",
         max: 1,
-        allow_labels: true,
         allowed_labels: ["bug", "idea"],
       });
       // "other" is not in allowed_labels and should be filtered out
@@ -223,7 +222,7 @@ describe("update_discussion.cjs - label support", () => {
       expect(addCall[1].labelIds).toEqual(["LA_bug"]);
     });
 
-    it("should not update labels when allow_labels is false", async () => {
+    it("should update labels regardless of allow_labels config (consistent with update_issue)", async () => {
       mockGithub.graphql = buildGraphqlMock({
         currentLabelIds: [],
         currentLabelNames: [],
@@ -231,16 +230,15 @@ describe("update_discussion.cjs - label support", () => {
       });
 
       const { main } = require("./update_discussion.cjs");
-      // allow_labels not set (undefined) - labels update disabled; title update still works
-      const handler = await main({ target: "triggering", max: 1, allow_title: true });
-      const result = await handler({ title: "Updated Title", labels: ["bug"] }, {});
+      // No allow_labels in config - labels are still processed (consistent with update_issue behavior)
+      const handler = await main({ target: "triggering", max: 1 });
+      const result = await handler({ labels: ["bug"] }, {});
 
       expect(result.success).toBe(true);
-      // Labels should not be updated (allow_labels not set)
+      // Labels should be updated even without explicit allow_labels flag
       const addCall = mockGithub.graphql.mock.calls.find(c => c[0].includes("addLabelsToLabelable"));
-      expect(addCall).toBeUndefined();
-      // A warning should have been logged
-      expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("Label update not allowed"));
+      expect(addCall).toBeDefined();
+      expect(addCall[1].labelIds).toEqual(["LA_bug"]);
     });
 
     it("should update labels in combination with title", async () => {
@@ -251,7 +249,7 @@ describe("update_discussion.cjs - label support", () => {
       });
 
       const { main } = require("./update_discussion.cjs");
-      const handler = await main({ target: "triggering", max: 1, allow_title: true, allow_labels: true });
+      const handler = await main({ target: "triggering", max: 1 });
       const result = await handler({ title: "New Title", labels: ["bug"] }, {});
 
       expect(result.success).toBe(true);
@@ -274,7 +272,7 @@ describe("update_discussion.cjs - label support", () => {
       });
 
       const { main } = require("./update_discussion.cjs");
-      const handler = await main({ target: "triggering", max: 1, allow_labels: true });
+      const handler = await main({ target: "triggering", max: 1 });
       const result = await handler({ labels: ["idea"] }, {});
 
       expect(result.success).toBe(true);

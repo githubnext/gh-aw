@@ -291,9 +291,9 @@ function buildDiscussionUpdateData(item, config) {
     updateData.body = item.body;
   }
 
-  // Handle labels if enabled by config
-  const canUpdateLabels = config.allow_labels === true;
-  if (item.labels !== undefined && canUpdateLabels) {
+  // Handle labels - consistent with update_issue: labels are always processed when provided.
+  // Optional allowed_labels config restricts which labels may be set.
+  if (item.labels !== undefined) {
     const allowedLabels = config.allowed_labels || [];
 
     // Enforce max label count
@@ -303,24 +303,18 @@ function buildDiscussionUpdateData(item, config) {
       return { success: false, error: labelsLimitResult.error };
     }
 
-    // Validate and sanitize labels against allowed list.
-    // An empty allowed_labels array means no restriction (pass undefined to validateLabels).
-    // A non-empty allowed_labels array restricts which labels may be set.
-    const effectiveAllowedLabels = allowedLabels.length > 0 ? allowedLabels : undefined;
-    const labelsResult = validateLabels(item.labels, effectiveAllowedLabels);
-    if (!labelsResult.valid) {
-      if (labelsResult.error?.includes("No valid labels")) {
+    if (allowedLabels.length > 0) {
+      // Filter to allowed labels only; if none remain treat as an empty set
+      const labelsResult = validateLabels(item.labels, allowedLabels);
+      if (!labelsResult.valid) {
         // All labels were filtered out (e.g. none in allowed list) - treat as empty set
         updateData.labels = [];
       } else {
-        core.warning(`Label validation failed: ${labelsResult.error}`);
-        return { success: false, error: labelsResult.error ?? "Invalid labels" };
+        updateData.labels = labelsResult.value ?? [];
       }
     } else {
-      updateData.labels = labelsResult.value ?? [];
+      updateData.labels = item.labels;
     }
-  } else if (item.labels !== undefined && !canUpdateLabels) {
-    core.warning("Label update not allowed by safe-outputs configuration");
   }
 
   // Pass footer config to executeUpdate (default to true)
