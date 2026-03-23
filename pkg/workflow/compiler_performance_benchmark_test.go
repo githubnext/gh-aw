@@ -206,14 +206,11 @@ Standard workflow for memory profiling.
 
 	compiler := NewCompiler(WithNoEmit(true))
 
-	// Warm up: run once before timing to initialize one-time caches
-	// (schema compilation, regex caches) so they don't skew per-op metrics.
+	// Warm up: run once before timing to prime one-time caches (schema compilation, etc.)
 	_ = compiler.CompileWorkflow(testFile)
 
 	b.ResetTimer()
 	b.ReportAllocs()
-
-	// Track memory allocations
 	for b.Loop() {
 		_ = compiler.CompileWorkflow(testFile)
 	}
@@ -249,7 +246,7 @@ Test parsing performance.
 
 	compiler := NewCompiler()
 
-	// Warm up: prime the schema compilation cache before timed measurement.
+	// Warm up: run once before timing to prime one-time caches (schema compilation, etc.)
 	_, _ = compiler.ParseWorkflowFile(testFile)
 
 	b.ResetTimer()
@@ -295,7 +292,7 @@ Test validation performance.
 	compiler := NewCompiler(WithNoEmit(true))
 	compiler.SetStrictMode(true)
 
-	// Warm up: prime the schema compilation cache before timed measurement.
+	// Warm up: run once before timing to prime one-time caches (schema compilation, etc.)
 	_ = compiler.CompileWorkflow(testFile)
 
 	b.ResetTimer()
@@ -335,6 +332,10 @@ Test YAML generation.
 	compiler := NewCompiler()
 	compiler.SetNoEmit(true)
 
+	// Warm up: run once before timing to prime one-time caches (schema compilation, etc.)
+	_ = compiler.CompileWorkflow(testFile)
+
+	b.ResetTimer()
 	b.ReportAllocs()
 	for b.Loop() {
 		_ = compiler.CompileWorkflow(testFile)
