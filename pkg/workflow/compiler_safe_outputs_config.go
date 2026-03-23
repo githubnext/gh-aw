@@ -7,6 +7,28 @@ import (
 	"github.com/github/gh-aw/pkg/logger"
 )
 
+// ========================================
+// Handler Manager Config Generation
+// ========================================
+//
+// This file produces the GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG env var consumed
+// by the handler manager at runtime, using the handlerRegistry and the fluent
+// handlerConfigBuilder API.
+//
+// # Dual Config Generation Systems
+//
+// There are two code paths that generate safe-output handler configuration:
+//
+//  1. generateSafeOutputsConfig() in safe_outputs_config_generation.go — produces
+//     GH_AW_SAFE_OUTPUTS_CONFIG_PATH (config.json) consumed by the MCP server at startup.
+//
+//  2. addHandlerManagerConfigEnvVar() (this file) — produces GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG
+//     consumed by the handler manager at runtime. This is the authoritative field contract:
+//     the handlerRegistry entries here define which fields each handler accepts.
+//
+// When adding a new handler field, update both this file AND safe_outputs_config_generation.go
+// to keep the two paths in sync.
+
 var compilerSafeOutputsConfigLog = logger.New("workflow:compiler_safe_outputs_config")
 
 // getEffectiveFooterForTemplatable returns the effective footer as a templatable string.
