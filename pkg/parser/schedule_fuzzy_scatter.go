@@ -90,25 +90,28 @@ func avoidHourBoundary(minute int) int {
 	return minute
 }
 
-// avoidPeakMinutes shifts minute values that fall within known high-traffic windows:
+// avoidPeakMinutes shifts minute values that fall within 3 minutes of known high-traffic
+// peak minutes during busy UTC hours:
 //
-//   - EU morning peak (06:00–09:59 UTC): avoids :30 minute (shifted to :31)
-//   - US business hours (14:00–18:59 UTC): avoids :15 and :45 minutes (shifted to :16 / :46)
+//   - EU morning peak (06:00–09:59 UTC): avoids minutes [27, 33] (±3 around :30),
+//     shifting any value in that window to 34 (first minute clearly outside the window)
+//   - US business hours (14:00–18:59 UTC): avoids minutes [12, 18] (±3 around :15)
+//     and [42, 48] (±3 around :45), shifting to 19 and 49 respectively
 //
 // All replacement values stay within [5, 54]. This is applied after avoidHourBoundary
 // for targeted-scatter patterns where the hour is determined by a user-specified target.
 func avoidPeakMinutes(hour, minute int) int {
-	// EU morning peak: avoid :30 in hours 06–09
-	if hour >= 6 && hour <= 9 && minute == 30 {
-		return 31
+	// EU morning peak: stay 3 minutes away from :30 in hours 06–09
+	if hour >= 6 && hour <= 9 && minute >= 27 && minute <= 33 {
+		return 34
 	}
-	// US business hours (moderate): avoid :15 and :45 in hours 14–18
+	// US business hours (moderate): stay 3 minutes away from :15 and :45 in hours 14–18
 	if hour >= 14 && hour <= 18 {
-		if minute == 15 {
-			return 16
+		if minute >= 12 && minute <= 18 {
+			return 19
 		}
-		if minute == 45 {
-			return 46
+		if minute >= 42 && minute <= 48 {
+			return 49
 		}
 	}
 	return minute

@@ -692,7 +692,8 @@ func TestScatterScheduleAvoidsHourBoundary(t *testing.T) {
 }
 
 // TestScatterScheduleAvoidsEUMorningPeak verifies that targeted-scatter patterns
-// never produce minute :30 during EU morning peak hours (06:00–09:59 UTC).
+// never produce a minute within 3 of :30 (i.e. minutes 27–33) during EU morning
+// peak hours (06:00–09:59 UTC).
 func TestScatterScheduleAvoidsEUMorningPeak(t *testing.T) {
 	workflowIDs := []string{
 		"workflow-a.md", "workflow-b.md", "workflow-c.md",
@@ -736,9 +737,10 @@ func TestScatterScheduleAvoidsEUMorningPeak(t *testing.T) {
 					return
 				}
 
-				if hour >= 6 && hour <= 9 && minute == 30 {
-					t.Errorf("pattern=%q wfID=%q: cron %q schedules at :30 during EU morning peak (hours 06-09 UTC)",
-						pattern, wfID, result)
+				// Must stay 3 minutes away from :30 in hours 06-09
+				if hour >= 6 && hour <= 9 && minute >= 27 && minute <= 33 {
+					t.Errorf("pattern=%q wfID=%q: cron %q schedules at :%02d during EU morning peak (must stay 3 min from :30 in hours 06-09 UTC)",
+						pattern, wfID, result, minute)
 				}
 			})
 		}
@@ -746,7 +748,8 @@ func TestScatterScheduleAvoidsEUMorningPeak(t *testing.T) {
 }
 
 // TestScatterScheduleAvoidsUSBusinessHours verifies that targeted-scatter patterns
-// never produce :15 or :45 minutes during US business hours (14:00–18:59 UTC).
+// never produce a minute within 3 of :15 or :45 (i.e. [12,18] or [42,48]) during
+// US business hours (14:00–18:59 UTC).
 func TestScatterScheduleAvoidsUSBusinessHours(t *testing.T) {
 	workflowIDs := []string{
 		"workflow-a.md", "workflow-b.md", "workflow-c.md",
@@ -791,9 +794,16 @@ func TestScatterScheduleAvoidsUSBusinessHours(t *testing.T) {
 					return
 				}
 
-				if hour >= 14 && hour <= 18 && (minute == 15 || minute == 45) {
-					t.Errorf("pattern=%q wfID=%q: cron %q schedules at :%02d during US business hours (hours 14-18 UTC)",
-						pattern, wfID, result, minute)
+				// Must stay 3 minutes away from :15 and :45 in hours 14-18
+				if hour >= 14 && hour <= 18 {
+					if minute >= 12 && minute <= 18 {
+						t.Errorf("pattern=%q wfID=%q: cron %q schedules at :%02d during US business hours (must stay 3 min from :15 in hours 14-18 UTC)",
+							pattern, wfID, result, minute)
+					}
+					if minute >= 42 && minute <= 48 {
+						t.Errorf("pattern=%q wfID=%q: cron %q schedules at :%02d during US business hours (must stay 3 min from :45 in hours 14-18 UTC)",
+							pattern, wfID, result, minute)
+					}
 				}
 			})
 		}
