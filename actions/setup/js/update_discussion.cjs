@@ -12,7 +12,6 @@ const { validateLabels } = require("./safe_output_validator.cjs");
 const { tryEnforceArrayLimit } = require("./limit_enforcement_helpers.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { ERR_NOT_FOUND } = require("./error_codes.cjs");
-const { parseBoolTemplatable } = require("./templatable.cjs");
 const { MAX_LABELS } = require("./constants.cjs");
 
 /**
@@ -317,9 +316,6 @@ function buildDiscussionUpdateData(item, config) {
     }
   }
 
-  // Pass footer config to executeUpdate (default to true)
-  updateData._includeFooter = parseBoolTemplatable(config.footer, true);
-
   return { success: true, data: updateData };
 }
 
@@ -348,4 +344,4 @@ const main = createUpdateHandlerFactory({
   formatSuccessResult: formatDiscussionSuccessResult,
 });
 
-module.exports = { main };
+module.exports = { main, buildDiscussionUpdateData };
