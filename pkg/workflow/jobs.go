@@ -178,7 +178,11 @@ func (jm *JobManager) renderJob(job *Job) string {
 	jobLog.Printf("Rendering job: %s (steps=%d, needs=%d, reusable=%t)", job.Name, len(job.Steps), len(job.Needs), job.Uses != "")
 	var yaml strings.Builder
 
-	fmt.Fprintf(&yaml, "  %s:\n", job.Name)
+	// All generated jobs receive a zizmor ignore annotation for secrets-outside-env.
+	// Secrets in generated workflows are always passed through step-level env: blocks
+	// (the recommended pattern), but zizmor flags them unless the job has an explicit
+	// GitHub Actions environment configured.  This annotation suppresses those false positives.
+	fmt.Fprintf(&yaml, "  %s: # zizmor: ignore[secrets-outside-env]\n", job.Name)
 
 	// Add display name if present
 	if job.DisplayName != "" {

@@ -72,9 +72,11 @@ func renderSharedMCPConfig(yaml *strings.Builder, toolName string, toolConfig ma
 		)
 	}
 
-	// Extract secrets from headers for HTTP MCP tools (copilot engine only)
+	// Extract secrets from headers for all HTTP MCP tools.
+	// Secrets are passed via step env: blocks and replaced with shell variable references
+	// in the generated config to avoid secrets-outside-env zizmor findings.
 	var headerSecrets map[string]string
-	if mcpConfig.Type == "http" && renderer.RequiresCopilotFields {
+	if mcpConfig.Type == "http" {
 		headerSecrets = ExtractSecretsFromMap(mcpConfig.Headers)
 	}
 
@@ -355,12 +357,7 @@ func renderSharedMCPConfig(yaml *strings.Builder, toolName string, toolConfig ma
 						yaml.WriteString(", ")
 					}
 					// Replace template expressions with environment variable references for TOML
-					envValue := mcpConfig.Env[envKey]
-					// For TOML, we use direct shell variable syntax without backslash
-					envValue = strings.ReplaceAll(envValue, "${{ secrets.", "${")
-					envValue = strings.ReplaceAll(envValue, "${{ env.", "${")
-					envValue = strings.ReplaceAll(envValue, "${{ github.workspace }}", "${GITHUB_WORKSPACE}")
-					envValue = strings.ReplaceAll(envValue, " }}", "}")
+					envValue := replaceExpressionsWithShellVars(mcpConfig.Env[envKey])
 					fmt.Fprintf(yaml, "\"%s\" = \"%s\"", envKey, envValue)
 				}
 				yaml.WriteString(" }\n")
@@ -440,7 +437,9 @@ func renderSharedMCPConfig(yaml *strings.Builder, toolName string, toolConfig ma
 					if i > 0 {
 						yaml.WriteString(", ")
 					}
-					fmt.Fprintf(yaml, "\"%s\" = \"%s\"", headerKey, mcpConfig.Headers[headerKey])
+					// Replace secret expressions with ${VAR} for shell expansion in unquoted heredoc
+					headerValue := replaceExpressionsWithShellVars(mcpConfig.Headers[headerKey])
+					fmt.Fprintf(yaml, "\"%s\" = \"%s\"", headerKey, headerValue)
 				}
 				yaml.WriteString(" }\n")
 			}
@@ -459,10 +458,20 @@ func renderSharedMCPConfig(yaml *strings.Builder, toolName string, toolConfig ma
 					headerComma = ""
 				}
 
-				// Replace secret expressions with env var references for copilot
+				// Replace secret expressions with env var references for all engines.
+				// Secrets must be passed via step env: blocks; the config uses shell variable
+				// syntax so the shell heredoc expands them at runtime.
 				headerValue := mcpConfig.Headers[headerKey]
-				if renderer.RequiresCopilotFields && len(headerSecrets) > 0 {
-					headerValue = ReplaceSecretsWithEnvVars(headerValue, headerSecrets)
+				if len(headerSecrets) > 0 {
+					if renderer.RequiresCopilotFields {
+						// Copilot: use \${VAR} – backslash escapes $ in the heredoc so the
+						// shell writes "${VAR}" literally; the Copilot MCP framework resolves it.
+						headerValue = ReplaceSecretsWithEnvVars(headerValue, headerSecrets)
+					} else {
+						// Other engines (Claude, Gemini, etc.): use ${VAR} – the unquoted
+						// heredoc lets the shell expand the env var set in the step's env: block.
+						headerValue = replaceExpressionsWithShellVars(headerValue)
+					}
 				}
 
 				fmt.Fprintf(yaml, "%s  \"%s\": \"%s\"%s\n", renderer.IndentLevel, headerKey, headerValue, headerComma)
@@ -534,6 +543,22 @@ func collectHTTPMCPHeaderSecrets(tools map[string]any) map[string]string {
 	}
 
 	return allSecrets
+}
+
+// replaceExpressionsWithShellVars replaces GitHub Actions template expressions with shell
+// variable references for use in unquoted heredocs.
+// The shell expands ${VAR} using env vars set in the step's env: block at runtime.
+// Examples:
+//   - "${{ secrets.DD_API_KEY }}" -> "${DD_API_KEY}"
+//   - "${{ env.SENTRY_HOST }}" -> "${SENTRY_HOST}"
+//   - "${{ github.workspace }}" -> "${GITHUB_WORKSPACE}"
+func replaceExpressionsWithShellVars(value string) string {
+	result := value
+	result = strings.ReplaceAll(result, "${{ secrets.", "${")
+	result = strings.ReplaceAll(result, "${{ env.", "${")
+	result = strings.ReplaceAll(result, "${{ github.workspace }}", "${GITHUB_WORKSPACE}")
+	result = strings.ReplaceAll(result, " }}", "}")
+	return result
 }
 
 // getMCPConfig extracts MCP configuration from a tool config and returns a structured MCPServerConfig

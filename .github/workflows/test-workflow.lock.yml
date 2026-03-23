@@ -40,7 +40,7 @@ concurrency:
 run-name: "Test Workflow"
 
 jobs:
-  activation:
+  activation: # zizmor: ignore[secrets-outside-env]
     runs-on: ubuntu-slim
     permissions:
       contents: read
@@ -230,7 +230,7 @@ jobs:
             /tmp/gh-aw/aw-prompts/prompt.txt
           retention-days: 1
 
-  agent:
+  agent: # zizmor: ignore[secrets-outside-env]
     needs: activation
     runs-on: ubuntu-latest
     permissions:

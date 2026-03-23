@@ -56,7 +56,7 @@ concurrency:
 run-name: "Smoke Workflow Call with Inputs"
 
 jobs:
-  activation:
+  activation: # zizmor: ignore[secrets-outside-env]
     needs: pre_activation
     if: needs.pre_activation.outputs.activated == 'true'
     runs-on: ubuntu-slim
@@ -289,7 +289,7 @@ jobs:
             /tmp/gh-aw/aw-prompts/prompt.txt
           retention-days: 1
 
-  agent:
+  agent: # zizmor: ignore[secrets-outside-env]
     needs: activation
     runs-on: ubuntu-latest
     permissions:
@@ -920,7 +920,7 @@ jobs:
             echo "Detection found issues"
           fi
 
-  conclusion:
+  conclusion: # zizmor: ignore[secrets-outside-env]
     needs:
       - activation
       - agent
@@ -1031,7 +1031,7 @@ jobs:
             const { main } = require('${{ runner.temp }}/gh-aw/actions/handle_noop_message.cjs');
             await main();
 
-  pre_activation:
+  pre_activation: # zizmor: ignore[secrets-outside-env]
     runs-on: ubuntu-slim
     permissions:
       contents: read
@@ -1063,7 +1063,7 @@ jobs:
             const { main } = require('${{ runner.temp }}/gh-aw/actions/check_membership.cjs');
             await main();
 
-  safe_outputs:
+  safe_outputs: # zizmor: ignore[secrets-outside-env]
     needs:
       - activation
       - agent

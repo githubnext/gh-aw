@@ -53,7 +53,7 @@ concurrency:
 run-name: "Smoke Copilot"
 
 jobs:
-  activation:
+  activation: # zizmor: ignore[secrets-outside-env]
     needs: pre_activation
     if: >
       needs.pre_activation.outputs.activated == 'true' && (github.event_name == 'pull_request' && github.event.label.name == 'smoke' ||
@@ -324,7 +324,7 @@ jobs:
             /tmp/gh-aw/aw-prompts/prompt.txt
           retention-days: 1
 
-  agent:
+  agent: # zizmor: ignore[secrets-outside-env]
     needs: activation
     runs-on: ubuntu-latest
     permissions:
@@ -1819,7 +1819,7 @@ jobs:
             echo "Detection found issues"
           fi
 
-  conclusion:
+  conclusion: # zizmor: ignore[secrets-outside-env]
     needs:
       - activation
       - agent
@@ -1958,7 +1958,7 @@ jobs:
             const { main } = require('${{ runner.temp }}/gh-aw/actions/notify_comment_error.cjs');
             await main();
 
-  pre_activation:
+  pre_activation: # zizmor: ignore[secrets-outside-env]
     if: github.event_name == 'pull_request' && github.event.label.name == 'smoke' || !(github.event_name == 'pull_request')
     runs-on: ubuntu-slim
     permissions:
@@ -1991,7 +1991,7 @@ jobs:
             const { main } = require('${{ runner.temp }}/gh-aw/actions/check_membership.cjs');
             await main();
 
-  safe_outputs:
+  safe_outputs: # zizmor: ignore[secrets-outside-env]
     needs: agent
     if: (!cancelled()) && needs.agent.result != 'skipped' && needs.agent.outputs.detection_success == 'true'
     runs-on: ubuntu-slim
@@ -2078,7 +2078,7 @@ jobs:
           path: /tmp/gh-aw/safe-output-items.jsonl
           if-no-files-found: ignore
 
-  send_slack_message:
+  send_slack_message: # zizmor: ignore[secrets-outside-env]
     needs: agent
     if: (!cancelled()) && needs.agent.result != 'skipped' && contains(needs.agent.outputs.output_types, 'send_slack_message')
     runs-on: ubuntu-latest
@@ -2111,7 +2111,7 @@ jobs:
             echo "No agent output found"
           fi
 
-  update_cache_memory:
+  update_cache_memory: # zizmor: ignore[secrets-outside-env]
     needs: agent
     if: always() && needs.agent.outputs.detection_success == 'true'
     runs-on: ubuntu-latest

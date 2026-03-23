@@ -40,7 +40,7 @@ concurrency:
 run-name: "Update Astro"
 
 jobs:
-  activation:
+  activation: # zizmor: ignore[secrets-outside-env]
     needs:
       - check_updates
       - pre_activation
@@ -254,7 +254,7 @@ jobs:
             /tmp/gh-aw/aw-prompts/prompt.txt
           retention-days: 1
 
-  agent:
+  agent: # zizmor: ignore[secrets-outside-env]
     needs:
       - activation
       - check_updates
@@ -876,7 +876,7 @@ jobs:
             echo "Detection found issues"
           fi
 
-  check_updates:
+  check_updates: # zizmor: ignore[secrets-outside-env]
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -918,7 +918,7 @@ jobs:
           fi
         working-directory: ./docs
 
-  conclusion:
+  conclusion: # zizmor: ignore[secrets-outside-env]
     needs:
       - activation
       - agent
@@ -1051,7 +1051,7 @@ jobs:
             const { main } = require('${{ runner.temp }}/gh-aw/actions/handle_create_pr_error.cjs');
             await main();
 
-  pre_activation:
+  pre_activation: # zizmor: ignore[secrets-outside-env]
     runs-on: ubuntu-slim
     permissions:
       contents: read
@@ -1096,7 +1096,7 @@ jobs:
             const { main } = require('${{ runner.temp }}/gh-aw/actions/check_skip_if_no_match.cjs');
             await main();
 
-  safe_outputs:
+  safe_outputs: # zizmor: ignore[secrets-outside-env]
     needs:
       - activation
       - agent

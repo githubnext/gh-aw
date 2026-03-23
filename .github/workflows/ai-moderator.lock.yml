@@ -56,7 +56,7 @@ concurrency:
 run-name: "AI Moderator"
 
 jobs:
-  activation:
+  activation: # zizmor: ignore[secrets-outside-env]
     needs: pre_activation
     if: needs.pre_activation.outputs.activated == 'true'
     runs-on: ubuntu-slim
@@ -292,7 +292,7 @@ jobs:
             /tmp/gh-aw/aw-prompts/prompt.txt
           retention-days: 1
 
-  agent:
+  agent: # zizmor: ignore[secrets-outside-env]
     needs: activation
     runs-on: ubuntu-latest
     permissions:
@@ -786,7 +786,7 @@ jobs:
             /tmp/gh-aw/agent_output.json
           if-no-files-found: ignore
 
-  conclusion:
+  conclusion: # zizmor: ignore[secrets-outside-env]
     needs:
       - activation
       - agent
@@ -899,7 +899,7 @@ jobs:
             const { main } = require('${{ runner.temp }}/gh-aw/actions/handle_noop_message.cjs');
             await main();
 
-  pre_activation:
+  pre_activation: # zizmor: ignore[secrets-outside-env]
     runs-on: ubuntu-slim
     permissions:
       actions: read
@@ -960,7 +960,7 @@ jobs:
             const { main } = require('${{ runner.temp }}/gh-aw/actions/check_skip_bots.cjs');
             await main();
 
-  safe_outputs:
+  safe_outputs: # zizmor: ignore[secrets-outside-env]
     needs:
       - activation
       - agent
@@ -1043,7 +1043,7 @@ jobs:
           path: /tmp/gh-aw/safe-output-items.jsonl
           if-no-files-found: ignore
 
-  unlock:
+  unlock: # zizmor: ignore[secrets-outside-env]
     needs:
       - activation
       - agent

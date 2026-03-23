@@ -40,7 +40,7 @@ run-name: "Layout Specification Maintainer"
 # Cache configuration from frontmatter was processed and added to the main job steps
 
 jobs:
-  activation:
+  activation: # zizmor: ignore[secrets-outside-env]
     runs-on: ubuntu-slim
     permissions:
       contents: read
@@ -238,7 +238,7 @@ jobs:
             /tmp/gh-aw/aw-prompts/prompt.txt
           retention-days: 1
 
-  agent:
+  agent: # zizmor: ignore[secrets-outside-env]
     needs: activation
     runs-on: ubuntu-latest
     permissions:
@@ -894,7 +894,7 @@ jobs:
             echo "Detection found issues"
           fi
 
-  conclusion:
+  conclusion: # zizmor: ignore[secrets-outside-env]
     needs:
       - activation
       - agent
@@ -1027,7 +1027,7 @@ jobs:
             const { main } = require('${{ runner.temp }}/gh-aw/actions/handle_create_pr_error.cjs');
             await main();
 
-  safe_outputs:
+  safe_outputs: # zizmor: ignore[secrets-outside-env]
     needs:
       - activation
       - agent

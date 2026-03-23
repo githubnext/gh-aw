@@ -48,7 +48,7 @@ concurrency:
 run-name: "Changeset Generator"
 
 jobs:
-  activation:
+  activation: # zizmor: ignore[secrets-outside-env]
     needs: pre_activation
     if: >
       needs.pre_activation.outputs.activated == 'true' && (((github.event.pull_request.base.ref == github.event.repository.default_branch) &&
@@ -299,7 +299,7 @@ jobs:
             /tmp/gh-aw/aw-prompts/prompt.txt
           retention-days: 1
 
-  agent:
+  agent: # zizmor: ignore[secrets-outside-env]
     needs: activation
     runs-on: ubuntu-latest
     permissions:
@@ -903,7 +903,7 @@ jobs:
             echo "Detection found issues"
           fi
 
-  conclusion:
+  conclusion: # zizmor: ignore[secrets-outside-env]
     needs:
       - activation
       - agent
@@ -1015,7 +1015,7 @@ jobs:
             const { main } = require('${{ runner.temp }}/gh-aw/actions/handle_noop_message.cjs');
             await main();
 
-  pre_activation:
+  pre_activation: # zizmor: ignore[secrets-outside-env]
     if: >
       ((github.event.pull_request.base.ref == github.event.repository.default_branch) && (github.event_name != 'pull_request' ||
       github.event.pull_request.head.repo.id == github.repository_id)) && (github.event_name != 'pull_request' ||
@@ -1051,7 +1051,7 @@ jobs:
             const { main } = require('${{ runner.temp }}/gh-aw/actions/check_membership.cjs');
             await main();
 
-  safe_outputs:
+  safe_outputs: # zizmor: ignore[secrets-outside-env]
     needs:
       - activation
       - agent

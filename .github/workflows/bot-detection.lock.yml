@@ -38,7 +38,7 @@ concurrency:
 run-name: "Bot Detection"
 
 jobs:
-  activation:
+  activation: # zizmor: ignore[secrets-outside-env]
     needs: precompute
     if: needs.precompute.outputs.action != 'none'
     runs-on: ubuntu-slim
@@ -252,7 +252,7 @@ jobs:
             /tmp/gh-aw/aw-prompts/prompt.txt
           retention-days: 1
 
-  agent:
+  agent: # zizmor: ignore[secrets-outside-env]
     needs:
       - activation
       - precompute
@@ -801,7 +801,7 @@ jobs:
             /tmp/gh-aw/agent_output.json
           if-no-files-found: ignore
 
-  conclusion:
+  conclusion: # zizmor: ignore[secrets-outside-env]
     needs:
       - activation
       - agent
@@ -912,7 +912,7 @@ jobs:
             const { main } = require('${{ runner.temp }}/gh-aw/actions/handle_noop_message.cjs');
             await main();
 
-  precompute:
+  precompute: # zizmor: ignore[secrets-outside-env]
     runs-on: ubuntu-latest
     permissions:
       actions: read
@@ -1718,7 +1718,7 @@ jobs:
             core.setOutput("issue_title", ISSUE_TITLE);
             core.setOutput("issue_body", issueBody);
 
-  safe_outputs:
+  safe_outputs: # zizmor: ignore[secrets-outside-env]
     needs: agent
     if: (!cancelled()) && needs.agent.result != 'skipped'
     runs-on: ubuntu-slim

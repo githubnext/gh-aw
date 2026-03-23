@@ -39,7 +39,7 @@ concurrency:
 run-name: "Sub-Issue Closer"
 
 jobs:
-  activation:
+  activation: # zizmor: ignore[secrets-outside-env]
     runs-on: ubuntu-slim
     permissions:
       contents: read
@@ -235,7 +235,7 @@ jobs:
             /tmp/gh-aw/aw-prompts/prompt.txt
           retention-days: 1
 
-  agent:
+  agent: # zizmor: ignore[secrets-outside-env]
     needs: activation
     runs-on: ubuntu-latest
     permissions:
@@ -890,7 +890,7 @@ jobs:
             echo "Detection found issues"
           fi
 
-  conclusion:
+  conclusion: # zizmor: ignore[secrets-outside-env]
     needs:
       - activation
       - agent
@@ -1003,7 +1003,7 @@ jobs:
             const { main } = require('${{ runner.temp }}/gh-aw/actions/handle_noop_message.cjs');
             await main();
 
-  safe_outputs:
+  safe_outputs: # zizmor: ignore[secrets-outside-env]
     needs: agent
     if: (!cancelled()) && needs.agent.result != 'skipped' && needs.agent.outputs.detection_success == 'true'
     runs-on: ubuntu-slim

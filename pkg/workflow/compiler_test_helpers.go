@@ -53,9 +53,14 @@ func extractJobSection(yamlContent, jobName string) string {
 		}
 
 		if inJob {
-			// If we hit another job at the same level (starts with "  " and ends with ":"), stop
-			if strings.HasPrefix(line, "  ") && strings.HasSuffix(line, ":") && !strings.HasPrefix(line, "    ") {
-				break
+			// If we hit another job at the same level (starts with "  " and ends with ":" or ": #"),
+			// stop. Job lines now may have inline comments (e.g. "  job: # annotation").
+			if strings.HasPrefix(line, "  ") && !strings.HasPrefix(line, "    ") {
+				// Extract the part before any comment to check for job name
+				lineWithoutComment, _, _ := strings.Cut(line, " #")
+				if strings.HasSuffix(strings.TrimSpace(lineWithoutComment), ":") {
+					break
+				}
 			}
 			// If we hit the end of jobs section, stop
 			if strings.HasPrefix(line, "jobs:") && i > 0 {

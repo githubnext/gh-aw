@@ -163,12 +163,12 @@ This workflow tests that job-level environment variables are properly set for sa
 	t.Logf("Generated lock file content:\n%s", lockContentStr)
 
 	// Check that the agent job has an env section
-	if !strings.Contains(lockContentStr, "  agent:\n") {
+	if !strings.Contains(lockContentStr, "  agent:") {
 		t.Fatal("Expected 'agent' job to be present")
 	}
 
 	// Check that the env section exists at job level
-	agentJobStart := strings.Index(lockContentStr, "  agent:\n")
+	agentJobStart := strings.Index(lockContentStr, "  agent:")
 	if agentJobStart == -1 {
 		t.Fatal("Could not find agent job")
 	}
@@ -177,7 +177,9 @@ This workflow tests that job-level environment variables are properly set for sa
 	nextJobStart := len(lockContentStr) // Default to end of file
 	lines := strings.Split(lockContentStr[agentJobStart:], "\n")
 	for _, line := range lines[1:] { // Skip the "agent:" line
-		if strings.HasPrefix(line, "  ") && strings.HasSuffix(line, ":") && !strings.HasPrefix(line, "    ") {
+		// Job lines may now have inline comments: strip them before checking for trailing ":"
+		lineWithoutComment, _, _ := strings.Cut(line, " #")
+		if strings.HasPrefix(line, "  ") && strings.HasSuffix(strings.TrimSpace(lineWithoutComment), ":") && !strings.HasPrefix(line, "    ") {
 			nextJobStart = agentJobStart + strings.Index(lockContentStr[agentJobStart:], line)
 			break
 		}

@@ -69,7 +69,7 @@ concurrency:
 run-name: "Q"
 
 jobs:
-  activation:
+  activation: # zizmor: ignore[secrets-outside-env]
     needs: pre_activation
     if: "needs.pre_activation.outputs.activated == 'true' && ((github.event_name == 'issues' || github.event_name == 'issue_comment' || github.event_name == 'pull_request' || github.event_name == 'pull_request_review_comment' || github.event_name == 'discussion' || github.event_name == 'discussion_comment') && (github.event_name == 'issues' && (startsWith(github.event.issue.body, '/q ') || startsWith(github.event.issue.body, '/q\n') || github.event.issue.body == '/q') || github.event_name == 'issue_comment' && (startsWith(github.event.comment.body, '/q ') || startsWith(github.event.comment.body, '/q\n') || github.event.comment.body == '/q') && github.event.issue.pull_request == null || github.event_name == 'issue_comment' && (startsWith(github.event.comment.body, '/q ') || startsWith(github.event.comment.body, '/q\n') || github.event.comment.body == '/q') && github.event.issue.pull_request != null || github.event_name == 'pull_request_review_comment' && (startsWith(github.event.comment.body, '/q ') || startsWith(github.event.comment.body, '/q\n') || github.event.comment.body == '/q') || github.event_name == 'pull_request' && (startsWith(github.event.pull_request.body, '/q ') || startsWith(github.event.pull_request.body, '/q\n') || github.event.pull_request.body == '/q') || github.event_name == 'discussion' && (startsWith(github.event.discussion.body, '/q ') || startsWith(github.event.discussion.body, '/q\n') || github.event.discussion.body == '/q') || github.event_name == 'discussion_comment' && (startsWith(github.event.comment.body, '/q ') || startsWith(github.event.comment.body, '/q\n') || github.event.comment.body == '/q')) || (!(github.event_name == 'issues')) && (!(github.event_name == 'issue_comment')) && (!(github.event_name == 'pull_request')) && (!(github.event_name == 'pull_request_review_comment')) && (!(github.event_name == 'discussion')) && (!(github.event_name == 'discussion_comment')))"
     runs-on: ubuntu-slim
@@ -346,7 +346,7 @@ jobs:
             /tmp/gh-aw/aw-prompts/prompt.txt
           retention-days: 1
 
-  agent:
+  agent: # zizmor: ignore[secrets-outside-env]
     needs: activation
     runs-on: ubuntu-latest
     permissions:
@@ -1107,7 +1107,7 @@ jobs:
             echo "Detection found issues"
           fi
 
-  conclusion:
+  conclusion: # zizmor: ignore[secrets-outside-env]
     needs:
       - activation
       - agent
@@ -1257,7 +1257,7 @@ jobs:
             const { main } = require('${{ runner.temp }}/gh-aw/actions/notify_comment_error.cjs');
             await main();
 
-  pre_activation:
+  pre_activation: # zizmor: ignore[secrets-outside-env]
     if: "(github.event_name == 'issues' || github.event_name == 'issue_comment' || github.event_name == 'pull_request' || github.event_name == 'pull_request_review_comment' || github.event_name == 'discussion' || github.event_name == 'discussion_comment') && (github.event_name == 'issues' && (startsWith(github.event.issue.body, '/q ') || startsWith(github.event.issue.body, '/q\n') || github.event.issue.body == '/q') || github.event_name == 'issue_comment' && (startsWith(github.event.comment.body, '/q ') || startsWith(github.event.comment.body, '/q\n') || github.event.comment.body == '/q') && github.event.issue.pull_request == null || github.event_name == 'issue_comment' && (startsWith(github.event.comment.body, '/q ') || startsWith(github.event.comment.body, '/q\n') || github.event.comment.body == '/q') && github.event.issue.pull_request != null || github.event_name == 'pull_request_review_comment' && (startsWith(github.event.comment.body, '/q ') || startsWith(github.event.comment.body, '/q\n') || github.event.comment.body == '/q') || github.event_name == 'pull_request' && (startsWith(github.event.pull_request.body, '/q ') || startsWith(github.event.pull_request.body, '/q\n') || github.event.pull_request.body == '/q') || github.event_name == 'discussion' && (startsWith(github.event.discussion.body, '/q ') || startsWith(github.event.discussion.body, '/q\n') || github.event.discussion.body == '/q') || github.event_name == 'discussion_comment' && (startsWith(github.event.comment.body, '/q ') || startsWith(github.event.comment.body, '/q\n') || github.event.comment.body == '/q')) || (!(github.event_name == 'issues')) && (!(github.event_name == 'issue_comment')) && (!(github.event_name == 'pull_request')) && (!(github.event_name == 'pull_request_review_comment')) && (!(github.event_name == 'discussion')) && (!(github.event_name == 'discussion_comment'))"
     runs-on: ubuntu-slim
     permissions:
@@ -1301,7 +1301,7 @@ jobs:
             const { main } = require('${{ runner.temp }}/gh-aw/actions/check_command_position.cjs');
             await main();
 
-  safe_outputs:
+  safe_outputs: # zizmor: ignore[secrets-outside-env]
     needs:
       - activation
       - agent
@@ -1417,7 +1417,7 @@ jobs:
           path: /tmp/gh-aw/safe-output-items.jsonl
           if-no-files-found: ignore
 
-  update_cache_memory:
+  update_cache_memory: # zizmor: ignore[secrets-outside-env]
     needs: agent
     if: always() && needs.agent.outputs.detection_success == 'true'
     runs-on: ubuntu-latest

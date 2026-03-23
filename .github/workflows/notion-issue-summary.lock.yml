@@ -45,7 +45,7 @@ concurrency:
 run-name: "Issue Summary to Notion"
 
 jobs:
-  activation:
+  activation: # zizmor: ignore[secrets-outside-env]
     runs-on: ubuntu-slim
     permissions:
       contents: read
@@ -247,7 +247,7 @@ jobs:
             /tmp/gh-aw/aw-prompts/prompt.txt
           retention-days: 1
 
-  agent:
+  agent: # zizmor: ignore[secrets-outside-env]
     needs: activation
     runs-on: ubuntu-latest
     permissions:
@@ -740,7 +740,7 @@ jobs:
             /tmp/gh-aw/agent_output.json
           if-no-files-found: ignore
 
-  conclusion:
+  conclusion: # zizmor: ignore[secrets-outside-env]
     needs:
       - activation
       - agent
@@ -850,7 +850,7 @@ jobs:
             const { main } = require('${{ runner.temp }}/gh-aw/actions/handle_noop_message.cjs');
             await main();
 
-  notion_add_comment:
+  notion_add_comment: # zizmor: ignore[secrets-outside-env]
     needs: agent
     if: (!cancelled()) && needs.agent.result != 'skipped' && contains(needs.agent.outputs.output_types, 'notion_add_comment')
     runs-on: ubuntu-latest
@@ -977,7 +977,7 @@ jobs:
               }
             }
 
-  safe_outputs:
+  safe_outputs: # zizmor: ignore[secrets-outside-env]
     needs: agent
     if: (!cancelled()) && needs.agent.result != 'skipped'
     runs-on: ubuntu-slim

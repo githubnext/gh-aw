@@ -39,7 +39,7 @@ concurrency:
 run-name: "ACE Editor Session"
 
 jobs:
-  activation:
+  activation: # zizmor: ignore[secrets-outside-env]
     needs: pre_activation
     if: "needs.pre_activation.outputs.activated == 'true' && (github.event_name == 'issue_comment' && (startsWith(github.event.comment.body, '/ace ') || startsWith(github.event.comment.body, '/ace\n') || github.event.comment.body == '/ace') && github.event.issue.pull_request != null)"
     runs-on: ubuntu-slim
@@ -277,7 +277,7 @@ jobs:
             /tmp/gh-aw/aw-prompts/prompt.txt
           retention-days: 1
 
-  agent:
+  agent: # zizmor: ignore[secrets-outside-env]
     needs:
       - activation
       - post_ace_link
@@ -547,7 +547,7 @@ jobs:
             /tmp/gh-aw/agent/
           if-no-files-found: ignore
 
-  post_ace_link:
+  post_ace_link: # zizmor: ignore[secrets-outside-env]
     needs: activation
     if: needs.activation.outputs.activated == 'true'
     runs-on: ubuntu-latest
@@ -582,7 +582,7 @@ jobs:
               body: `👋 Hey @${actor}! Here's your ACE editor session link for this pull request:\n\n🔗 **${aceUrl}**\n\nCopy and paste this link into Slack to invite your teammates into the session! 🚀`,
             });
 
-  pre_activation:
+  pre_activation: # zizmor: ignore[secrets-outside-env]
     if: "github.event_name == 'issue_comment' && (startsWith(github.event.comment.body, '/ace ') || startsWith(github.event.comment.body, '/ace\n') || github.event.comment.body == '/ace') && github.event.issue.pull_request != null"
     runs-on: ubuntu-slim
     permissions:

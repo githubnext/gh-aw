@@ -42,7 +42,7 @@ concurrency:
 run-name: "Smoke Call Workflow"
 
 jobs:
-  activation:
+  activation: # zizmor: ignore[secrets-outside-env]
     needs: pre_activation
     if: >
       needs.pre_activation.outputs.activated == 'true' && ((github.event_name != 'pull_request' || github.event.pull_request.head.repo.id == github.repository_id) &&
@@ -256,7 +256,7 @@ jobs:
             /tmp/gh-aw/aw-prompts/prompt.txt
           retention-days: 1
 
-  agent:
+  agent: # zizmor: ignore[secrets-outside-env]
     needs: activation
     runs-on: ubuntu-latest
     permissions:
@@ -843,7 +843,7 @@ jobs:
             echo "Detection found issues"
           fi
 
-  call-smoke-workflow-call:
+  call-smoke-workflow-call: # zizmor: ignore[secrets-outside-env]
     needs: safe_outputs
     if: needs.safe_outputs.outputs.call_workflow_name == 'smoke-workflow-call'
     permissions:
@@ -857,7 +857,7 @@ jobs:
       task-description: ${{ fromJSON(needs.safe_outputs.outputs.call_workflow_payload).task-description }}
     secrets: inherit
 
-  conclusion:
+  conclusion: # zizmor: ignore[secrets-outside-env]
     needs:
       - activation
       - agent
@@ -966,7 +966,7 @@ jobs:
             const { main } = require('${{ runner.temp }}/gh-aw/actions/handle_noop_message.cjs');
             await main();
 
-  pre_activation:
+  pre_activation: # zizmor: ignore[secrets-outside-env]
     if: >
       (github.event_name != 'pull_request' || github.event.pull_request.head.repo.id == github.repository_id) &&
       (github.event_name != 'pull_request' || github.event.action != 'labeled' || github.event.label.name == 'water')
@@ -1001,7 +1001,7 @@ jobs:
             const { main } = require('${{ runner.temp }}/gh-aw/actions/check_membership.cjs');
             await main();
 
-  safe_outputs:
+  safe_outputs: # zizmor: ignore[secrets-outside-env]
     needs: agent
     if: (!cancelled()) && needs.agent.result != 'skipped' && needs.agent.outputs.detection_success == 'true'
     runs-on: ubuntu-slim

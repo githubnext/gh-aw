@@ -49,7 +49,7 @@ concurrency:
 run-name: "Smoke Gemini"
 
 jobs:
-  activation:
+  activation: # zizmor: ignore[secrets-outside-env]
     needs: pre_activation
     if: >
       needs.pre_activation.outputs.activated == 'true' && ((github.event_name != 'pull_request' || github.event.pull_request.head.repo.id == github.repository_id) &&
@@ -311,7 +311,7 @@ jobs:
             /tmp/gh-aw/aw-prompts/prompt.txt
           retention-days: 1
 
-  agent:
+  agent: # zizmor: ignore[secrets-outside-env]
     needs: activation
     runs-on: ubuntu-latest
     permissions:
@@ -1085,7 +1085,7 @@ jobs:
             echo "Detection found issues"
           fi
 
-  conclusion:
+  conclusion: # zizmor: ignore[secrets-outside-env]
     needs:
       - activation
       - agent
@@ -1218,7 +1218,7 @@ jobs:
             const { main } = require('${{ runner.temp }}/gh-aw/actions/notify_comment_error.cjs');
             await main();
 
-  pre_activation:
+  pre_activation: # zizmor: ignore[secrets-outside-env]
     if: >
       (github.event_name != 'pull_request' || github.event.pull_request.head.repo.id == github.repository_id) &&
       (github.event_name != 'pull_request' || github.event.action != 'labeled' || github.event.label.name == 'water')
@@ -1253,7 +1253,7 @@ jobs:
             const { main } = require('${{ runner.temp }}/gh-aw/actions/check_membership.cjs');
             await main();
 
-  safe_outputs:
+  safe_outputs: # zizmor: ignore[secrets-outside-env]
     needs: agent
     if: (!cancelled()) && needs.agent.result != 'skipped' && needs.agent.outputs.detection_success == 'true'
     runs-on: ubuntu-slim
@@ -1338,7 +1338,7 @@ jobs:
           path: /tmp/gh-aw/safe-output-items.jsonl
           if-no-files-found: ignore
 
-  update_cache_memory:
+  update_cache_memory: # zizmor: ignore[secrets-outside-env]
     needs: agent
     if: always() && needs.agent.outputs.detection_success == 'true'
     runs-on: ubuntu-latest

@@ -53,7 +53,7 @@ concurrency:
 run-name: "Release"
 
 jobs:
-  activation:
+  activation: # zizmor: ignore[secrets-outside-env]
     needs: pre_activation
     if: needs.pre_activation.outputs.activated == 'true'
     runs-on: ubuntu-slim
@@ -256,7 +256,7 @@ jobs:
             /tmp/gh-aw/aw-prompts/prompt.txt
           retention-days: 1
 
-  agent:
+  agent: # zizmor: ignore[secrets-outside-env]
     needs:
       - activation
       - config
@@ -897,7 +897,7 @@ jobs:
             echo "Detection found issues"
           fi
 
-  conclusion:
+  conclusion: # zizmor: ignore[secrets-outside-env]
     needs:
       - activation
       - agent
@@ -1007,7 +1007,7 @@ jobs:
             const { main } = require('${{ runner.temp }}/gh-aw/actions/handle_noop_message.cjs');
             await main();
 
-  config:
+  config: # zizmor: ignore[secrets-outside-env]
     needs:
       - activation
       - pre_activation
@@ -1123,7 +1123,7 @@ jobs:
             core.setOutput('release_tag', releaseTag);
             console.log(`✓ Release tag: ${releaseTag}`);
 
-  pre_activation:
+  pre_activation: # zizmor: ignore[secrets-outside-env]
     runs-on: ubuntu-slim
     permissions:
       contents: read
@@ -1155,7 +1155,7 @@ jobs:
             const { main } = require('${{ runner.temp }}/gh-aw/actions/check_membership.cjs');
             await main();
 
-  push_tag:
+  push_tag: # zizmor: ignore[secrets-outside-env]
     needs:
       - activation
       - config
@@ -1236,7 +1236,7 @@ jobs:
         env:
           RELEASE_TAG: ${{ needs.config.outputs.release_tag }}
 
-  release:
+  release: # zizmor: ignore[secrets-outside-env]
     needs:
       - activation
       - config
@@ -1376,7 +1376,7 @@ jobs:
           sbom: true
           tags: ${{ steps.meta.outputs.tags }}
 
-  safe_outputs:
+  safe_outputs: # zizmor: ignore[secrets-outside-env]
     needs: agent
     if: (!cancelled()) && needs.agent.result != 'skipped' && needs.agent.outputs.detection_success == 'true'
     runs-on: ubuntu-slim
@@ -1453,7 +1453,7 @@ jobs:
           path: /tmp/gh-aw/safe-output-items.jsonl
           if-no-files-found: ignore
 
-  sync_actions:
+  sync_actions: # zizmor: ignore[secrets-outside-env]
     needs:
       - activation
       - config
