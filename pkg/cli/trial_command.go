@@ -177,7 +177,7 @@ Trial results are saved both locally (in trials/ directory) and in the host repo
 	}
 
 	// Add flags
-	cmd.Flags().StringP("logical-repo", "s", "", "The repo we're simulating the execution for, as if the workflow was installed in that repo (defaults to current repository)")
+	cmd.Flags().StringP("logical-repo", "l", "", "The repo we're simulating the execution for, as if the workflow was installed in that repo (defaults to current repository)")
 	cmd.Flags().String("clone-repo", "", "Alternative to --logical-repo: clone the contents of the specified repo into the host repo instead of using logical repository simulation")
 
 	cmd.Flags().String("host-repo", "", "Custom host repository slug (defaults to '<username>/gh-aw-trial'). Use '.' for current repository")

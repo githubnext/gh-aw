@@ -151,7 +151,7 @@ gh aw add-wizard https://github.com/org/repo/blob/main/workflows/my-workflow.md
 gh aw add-wizard githubnext/agentics/ci-doctor --skip-secret  # Skip secret prompt
 ```
 
-**Options:** `--skip-secret` (bypass the API key prompt when the secret is already configured at org or repo level)
+**Options:** `--skip-secret`, `--dir/-d`, `--engine/-e`, `--no-gitattributes`, `--no-stop-after`, `--stop-after`
 
 #### `add`
 
@@ -164,7 +164,7 @@ gh aw add ci-doctor --dir shared                  # Organize in subdirectory
 gh aw add ci-doctor --create-pull-request        # Create PR instead of commit
 ```
 
-**Options:** `--dir`, `--create-pull-request`, `--no-gitattributes`
+**Options:** `--dir/-d`, `--repo/-r`, `--create-pull-request`, `--no-gitattributes`, `--append`, `--disable-security-scanner`, `--engine/-e`, `--force/-f`, `--name/-n`, `--no-stop-after`, `--stop-after`
 
 #### `new`
 
@@ -296,7 +296,7 @@ gh aw trial ./workflow.md --host-repo owner/repo   # Run directly in repository
 gh aw trial ./workflow.md --dry-run                # Preview without executing
 ```
 
-**Options:** `-e`, `--engine`, `--repeat`, `--delete-host-repo-after`, `--logical-repo`, `--clone-repo`, `--trigger-context`, `--host-repo`, `--dry-run`
+**Options:** `-e/--engine`, `--repeat`, `--delete-host-repo-after`, `--logical-repo/-l`, `--clone-repo`, `--trigger-context`, `--host-repo`, `--dry-run`, `--append`, `--auto-merge-prs`, `--disable-security-scanner`, `--force-delete-host-repo-before`, `--timeout`, `--yes/-y`
 
 **Secret Handling:** API keys required for the selected engine are automatically checked. If missing from the target repository, they are prompted for interactively and uploaded.
 
@@ -313,7 +313,7 @@ gh aw run workflow --push --ref main        # Push to specific branch
 gh aw run workflow --json                   # Output triggered workflow results as JSON
 ```
 
-**Options:** `--repeat`, `--push` (see [--push flag](#the---push-flag)), `--ref`, `--enable-if-needed`, `--json/-j`
+**Options:** `--repeat`, `--push` (see [--push flag](#the---push-flag)), `--ref`, `--enable-if-needed`, `--json/-j`, `--auto-merge-prs`, `--dry-run`, `--engine/-e`, `--raw-field/-F`, `--repo/-r`
 
 When `--json` is set, a JSON array of triggered workflow results is written to stdout.
 
@@ -494,7 +494,7 @@ gh aw upgrade --audit                      # Run dependency health audit
 gh aw upgrade --audit --json               # Dependency audit in JSON format
 ```
 
-**Options:** `--dir`, `--no-fix`, `--no-actions`, `--create-pull-request`, `--audit`, `--json`
+**Options:** `--dir/-d`, `--no-fix`, `--no-actions`, `--no-compile`, `--create-pull-request`, `--audit`, `--json/-j`
 
 ### Advanced
 
