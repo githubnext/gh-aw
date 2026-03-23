@@ -172,6 +172,18 @@ func getInstallationVersion(data *WorkflowData, engine CodingAgentEngine) string
 	}
 }
 
+// getDefaultAgentModel returns the model display value to use when no explicit model is configured.
+// Returns "auto" for known engines whose model is dynamically determined by the AI provider
+// (i.e. the provider chooses the model automatically), or empty string for custom/unknown engines.
+func getDefaultAgentModel(engineID string) string {
+	switch engineID {
+	case "copilot", "claude", "codex", "gemini":
+		return "auto"
+	default:
+		return ""
+	}
+}
+
 // versionToGitRef converts a compiler version string to a valid git ref for use
 // in actions/checkout ref: fields.
 //
