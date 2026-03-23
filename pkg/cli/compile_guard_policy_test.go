@@ -183,10 +183,17 @@ This workflow uses min-integrity without specifying repos.
 	require.NoError(t, err, "Failed to read compiled lock file")
 
 	lockFileContent := string(lockFileBytes)
-	// Check that the guard-policies allow-only block contains both repos=all and min-integrity=approved
-	// in the correct JSON structure expected by the MCP Gateway.
-	assert.Contains(t, lockFileContent, `"guard-policies": {`+"\n"+`                  "allow-only": {`+"\n"+`                    "min-integrity": "approved",`+"\n"+`                    "repos": "all"`,
-		"Compiled lock file must include repos=all and min-integrity=approved in the guard-policies allow-only block")
+	// Check that the guard-policies allow-only block contains the required fields.
+	// The MCP Gateway requires repos to be present in the allow-only policy.
+	assert.Contains(t, lockFileContent, `"guard-policies"`, "Compiled lock file must include guard-policies block")
+	assert.Contains(t, lockFileContent, `"allow-only"`, "Compiled lock file must include allow-only policy")
+	assert.Contains(t, lockFileContent, `"min-integrity": "approved"`, "Compiled lock file must include min-integrity=approved")
+	assert.Contains(t, lockFileContent, `"repos": "all"`, "Compiled lock file must default repos to 'all'")
+	// Fallback expressions for blocked-users and approval-labels should be injected automatically.
+	assert.Contains(t, lockFileContent, `"blocked-users": "${{ vars.GH_AW_GITHUB_BLOCKED_USERS || '' }}"`,
+		"Compiled lock file must inject blocked-users fallback expression")
+	assert.Contains(t, lockFileContent, `"approval-labels": "${{ vars.GH_AW_GITHUB_APPROVAL_LABELS || '' }}"`,
+		"Compiled lock file must inject approval-labels fallback expression")
 }
 
 // TestGuardPolicyBlockedUsersApprovalLabelsCompiledOutput verifies that blocked-users and

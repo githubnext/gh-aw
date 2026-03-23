@@ -248,6 +248,9 @@ func getGitHubAllowedTools(githubTool any) []string {
 // Gateway requires repos to be present in the allow-only policy.
 // Note: repos-only (without min-integrity) is rejected earlier by validateGitHubGuardPolicy,
 // so this function will never be called with repos but without min-integrity in practice.
+// When blocked-users or approval-labels are not set, org/repo variable fallback expressions
+// are injected so that GH_AW_GITHUB_BLOCKED_USERS and GH_AW_GITHUB_APPROVAL_LABELS can be
+// configured centrally without editing each workflow.
 // Returns nil if no guard policies are configured.
 func getGitHubGuardPolicies(githubTool any) map[string]any {
 	if toolConfig, ok := githubTool.(map[string]any); ok {
@@ -273,9 +276,17 @@ func getGitHubGuardPolicies(githubTool any) map[string]any {
 			}
 			if hasBlockedUsers {
 				policy["blocked-users"] = blockedUsers
+			} else {
+				// Inject org/repo variable fallback so GH_AW_GITHUB_BLOCKED_USERS can be set
+				// centrally without editing every workflow.
+				policy["blocked-users"] = fmt.Sprintf("${{ vars.%s || '' }}", constants.EnvVarGitHubBlockedUsers)
 			}
 			if hasApprovalLabels {
 				policy["approval-labels"] = approvalLabels
+			} else {
+				// Inject org/repo variable fallback so GH_AW_GITHUB_APPROVAL_LABELS can be set
+				// centrally without editing every workflow.
+				policy["approval-labels"] = fmt.Sprintf("${{ vars.%s || '' }}", constants.EnvVarGitHubApprovalLabels)
 			}
 			return map[string]any{
 				"allow-only": policy,

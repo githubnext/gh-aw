@@ -332,6 +332,18 @@ const (
 
 	// EnvVarGitHubToken is the GitHub token for repository access
 	EnvVarGitHubToken = "GH_AW_GITHUB_TOKEN"
+
+	// EnvVarGitHubBlockedUsers is the fallback variable for the tools.github.blocked-users guard policy field.
+	// When blocked-users is not explicitly set in the workflow frontmatter, this variable is used as
+	// a comma- or newline-separated list of GitHub usernames to block. Set as an org or repo variable
+	// to apply a consistent block list across all workflows.
+	EnvVarGitHubBlockedUsers = "GH_AW_GITHUB_BLOCKED_USERS"
+
+	// EnvVarGitHubApprovalLabels is the fallback variable for the tools.github.approval-labels guard policy field.
+	// When approval-labels is not explicitly set in the workflow frontmatter, this variable is used as
+	// a comma- or newline-separated list of GitHub label names that promote content to "approved" integrity.
+	// Set as an org or repo variable to apply a consistent approval label list across all workflows.
+	EnvVarGitHubApprovalLabels = "GH_AW_GITHUB_APPROVAL_LABELS"
 )
 
 // DefaultCodexVersion is the default version of the OpenAI Codex CLI
