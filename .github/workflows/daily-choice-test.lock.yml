@@ -1023,6 +1023,7 @@ jobs:
     env:
       GH_AW_CALLER_WORKFLOW_ID: "${{ github.repository }}/daily-choice-test"
       GH_AW_ENGINE_ID: "claude"
+      GH_AW_ENGINE_MODEL: ${{ needs.agent.outputs.model }}
       GH_AW_SAFE_OUTPUTS_STAGED: "true"
       GH_AW_TRACKER_ID: "daily-choice-test"
       GH_AW_WORKFLOW_ID: "daily-choice-test"

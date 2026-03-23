@@ -1070,6 +1070,7 @@ jobs:
     env:
       GH_AW_CALLER_WORKFLOW_ID: "${{ github.repository }}/cli-version-checker"
       GH_AW_ENGINE_ID: "claude"
+      GH_AW_ENGINE_MODEL: ${{ needs.agent.outputs.model }}
       GH_AW_WORKFLOW_ID: "cli-version-checker"
       GH_AW_WORKFLOW_NAME: "CLI Version Checker"
     outputs:

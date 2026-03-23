@@ -975,6 +975,7 @@ jobs:
     env:
       GH_AW_CALLER_WORKFLOW_ID: "${{ github.repository }}/artifacts-summary"
       GH_AW_ENGINE_ID: "copilot"
+      GH_AW_ENGINE_MODEL: ${{ needs.agent.outputs.model }}
       GH_AW_WORKFLOW_ID: "artifacts-summary"
       GH_AW_WORKFLOW_NAME: "Artifacts Summary"
     outputs:

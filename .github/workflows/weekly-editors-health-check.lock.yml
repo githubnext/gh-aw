@@ -1075,6 +1075,7 @@ jobs:
     env:
       GH_AW_CALLER_WORKFLOW_ID: "${{ github.repository }}/weekly-editors-health-check"
       GH_AW_ENGINE_ID: "copilot"
+      GH_AW_ENGINE_MODEL: ${{ needs.agent.outputs.model }}
       GH_AW_TRACKER_ID: "weekly-editors-health-check"
       GH_AW_WORKFLOW_ID: "weekly-editors-health-check"
       GH_AW_WORKFLOW_NAME: "Weekly Editors Health Check"
@@ -1247,6 +1248,7 @@ jobs:
           GH_AW_WORKFLOW_NAME: "Weekly Editors Health Check"
           GH_AW_TRACKER_ID: "weekly-editors-health-check"
           GH_AW_ENGINE_ID: "copilot"
+          GH_AW_ENGINE_MODEL: ${{ needs.agent.outputs.model }}
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |

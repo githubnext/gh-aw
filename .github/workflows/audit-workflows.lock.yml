@@ -1309,6 +1309,7 @@ jobs:
     env:
       GH_AW_CALLER_WORKFLOW_ID: "${{ github.repository }}/audit-workflows"
       GH_AW_ENGINE_ID: "claude"
+      GH_AW_ENGINE_MODEL: ${{ needs.agent.outputs.model }}
       GH_AW_TRACKER_ID: "audit-workflows-daily"
       GH_AW_WORKFLOW_ID: "audit-workflows"
       GH_AW_WORKFLOW_NAME: "Agentic Workflow Audit Agent"
@@ -1493,6 +1494,7 @@ jobs:
           GH_AW_WORKFLOW_NAME: "Agentic Workflow Audit Agent"
           GH_AW_TRACKER_ID: "audit-workflows-daily"
           GH_AW_ENGINE_ID: "claude"
+          GH_AW_ENGINE_MODEL: ${{ needs.agent.outputs.model }}
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |

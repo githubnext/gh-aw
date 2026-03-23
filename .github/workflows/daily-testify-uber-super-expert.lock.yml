@@ -1188,6 +1188,7 @@ jobs:
     env:
       GH_AW_CALLER_WORKFLOW_ID: "${{ github.repository }}/daily-testify-uber-super-expert"
       GH_AW_ENGINE_ID: "copilot"
+      GH_AW_ENGINE_MODEL: ${{ needs.agent.outputs.model }}
       GH_AW_TRACKER_ID: "daily-testify-uber-super-expert"
       GH_AW_WORKFLOW_ID: "daily-testify-uber-super-expert"
       GH_AW_WORKFLOW_NAME: "Daily Testify Uber Super Expert"
