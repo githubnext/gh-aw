@@ -12,6 +12,10 @@
  * strict mode enabled (GH_AW_COMPILED_STRICT=true). This ensures that public
  * repository workflows meet the security requirements enforced by strict mode.
  *
+ * Finally, the pull_request_target event is disallowed on public repositories
+ * to prevent "pwn request" attacks where a fork can trigger workflows with access
+ * to repository secrets.
+ *
  * This validation runs at the start of the workflow to fail fast if requirements
  * are not met, providing clear guidance to the user.
  *
@@ -91,6 +95,29 @@ function validateLockdownRequirements(core) {
 
   if (isPublic && isStrict) {
     core.info("✓ Strict mode requirements validated: Public repository compiled with strict mode");
+  }
+
+  // Disallow pull_request_target event in public repositories.
+  // The pull_request_target event runs workflows in the context of the base repository
+  // with access to secrets, even when triggered from a fork. This creates a significant
+  // security risk in public repositories where anyone can open a pull request from a fork
+  // and potentially exfiltrate secrets or cause unintended side effects.
+  const eventName = process.env.GITHUB_EVENT_NAME;
+  if (isPublic && eventName === "pull_request_target") {
+    const errorMessage =
+      "This workflow is triggered by the pull_request_target event on a public repository.\\n" +
+      "\\n" +
+      "The pull_request_target event is not allowed on public repositories because it runs\\n" +
+      "workflows with access to repository secrets even when triggered from a fork, which\\n" +
+      'creates a significant security risk (known as a "pwn request").\\n' +
+      "\\n" +
+      "To fix this, use the pull_request event instead, or migrate to a private repository.\\n" +
+      "\\n" +
+      "See: https://github.com/github/gh-aw/blob/main/docs/src/content/docs/reference/security.mdx";
+
+    core.setOutput("lockdown_check_failed", "true");
+    core.setFailed(errorMessage);
+    throw new Error(errorMessage);
   }
 }
 

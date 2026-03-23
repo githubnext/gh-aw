@@ -102,6 +102,13 @@ func (c *Compiler) validateGitHubActionsSchema(yamlContent string) error {
 		return fmt.Errorf("failed to parse YAML for schema validation: %w", err)
 	}
 
+	return c.validateGitHubActionsSchemaFromParsed(workflowData)
+}
+
+// validateGitHubActionsSchemaFromParsed validates pre-parsed workflow data against the
+// GitHub Actions schema.  Callers that already hold a parsed representation of the
+// compiled YAML should use this variant to avoid an extra yaml.Unmarshal call.
+func (c *Compiler) validateGitHubActionsSchemaFromParsed(workflowData any) error {
 	// Get the cached compiled schema
 	schema, err := getCompiledSchema()
 	if err != nil {

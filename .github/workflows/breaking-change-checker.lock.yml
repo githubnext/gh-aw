@@ -341,7 +341,7 @@ jobs:
             const determineAutomaticLockdown = require('${{ runner.temp }}/gh-aw/actions/determine_automatic_lockdown.cjs');
             await determineAutomaticLockdown(github, context, core);
       - name: Download container images
-        run: bash ${RUNNER_TEMP}/gh-aw/actions/download_docker_images.sh ghcr.io/github/gh-aw-firewall/agent:0.24.5 ghcr.io/github/gh-aw-firewall/api-proxy:0.24.5 ghcr.io/github/gh-aw-firewall/squid:0.24.5 ghcr.io/github/gh-aw-mcpg:v0.1.26 ghcr.io/github/github-mcp-server:v0.32.0 node:lts-alpine
+        run: bash ${RUNNER_TEMP}/gh-aw/actions/download_docker_images.sh ghcr.io/github/gh-aw-firewall/agent:0.24.5 ghcr.io/github/gh-aw-firewall/api-proxy:0.24.5 ghcr.io/github/gh-aw-firewall/squid:0.24.5 ghcr.io/github/gh-aw-mcpg:v0.2.0 ghcr.io/github/github-mcp-server:v0.32.0 node:lts-alpine
       - name: Write Safe Outputs Config
         run: |
           mkdir -p ${RUNNER_TEMP}/gh-aw/safeoutputs
@@ -519,7 +519,7 @@ jobs:
           export DEBUG="*"
           
           export GH_AW_ENGINE="copilot"
-          export MCP_GATEWAY_DOCKER_COMMAND='docker run -i --rm --network host -v /var/run/docker.sock:/var/run/docker.sock -e MCP_GATEWAY_PORT -e MCP_GATEWAY_DOMAIN -e MCP_GATEWAY_API_KEY -e MCP_GATEWAY_PAYLOAD_DIR -e MCP_GATEWAY_PAYLOAD_SIZE_THRESHOLD -e DEBUG -e MCP_GATEWAY_LOG_DIR -e GH_AW_MCP_LOG_DIR -e GH_AW_SAFE_OUTPUTS -e GH_AW_SAFE_OUTPUTS_CONFIG_PATH -e GH_AW_SAFE_OUTPUTS_TOOLS_PATH -e GH_AW_ASSETS_BRANCH -e GH_AW_ASSETS_MAX_SIZE_KB -e GH_AW_ASSETS_ALLOWED_EXTS -e DEFAULT_BRANCH -e GITHUB_MCP_SERVER_TOKEN -e GITHUB_MCP_GUARD_MIN_INTEGRITY -e GITHUB_MCP_GUARD_REPOS -e GITHUB_REPOSITORY -e GITHUB_SERVER_URL -e GITHUB_SHA -e GITHUB_WORKSPACE -e GITHUB_TOKEN -e GITHUB_RUN_ID -e GITHUB_RUN_NUMBER -e GITHUB_RUN_ATTEMPT -e GITHUB_JOB -e GITHUB_ACTION -e GITHUB_EVENT_NAME -e GITHUB_EVENT_PATH -e GITHUB_ACTOR -e GITHUB_ACTOR_ID -e GITHUB_TRIGGERING_ACTOR -e GITHUB_WORKFLOW -e GITHUB_WORKFLOW_REF -e GITHUB_WORKFLOW_SHA -e GITHUB_REF -e GITHUB_REF_NAME -e GITHUB_REF_TYPE -e GITHUB_HEAD_REF -e GITHUB_BASE_REF -e GH_AW_SAFE_OUTPUTS_PORT -e GH_AW_SAFE_OUTPUTS_API_KEY -v /tmp/gh-aw/mcp-payloads:/tmp/gh-aw/mcp-payloads:rw -v /opt:/opt:ro -v /tmp:/tmp:rw -v '"${GITHUB_WORKSPACE}"':'"${GITHUB_WORKSPACE}"':rw ghcr.io/github/gh-aw-mcpg:v0.1.26'
+          export MCP_GATEWAY_DOCKER_COMMAND='docker run -i --rm --network host -v /var/run/docker.sock:/var/run/docker.sock -e MCP_GATEWAY_PORT -e MCP_GATEWAY_DOMAIN -e MCP_GATEWAY_API_KEY -e MCP_GATEWAY_PAYLOAD_DIR -e MCP_GATEWAY_PAYLOAD_SIZE_THRESHOLD -e DEBUG -e MCP_GATEWAY_LOG_DIR -e GH_AW_MCP_LOG_DIR -e GH_AW_SAFE_OUTPUTS -e GH_AW_SAFE_OUTPUTS_CONFIG_PATH -e GH_AW_SAFE_OUTPUTS_TOOLS_PATH -e GH_AW_ASSETS_BRANCH -e GH_AW_ASSETS_MAX_SIZE_KB -e GH_AW_ASSETS_ALLOWED_EXTS -e DEFAULT_BRANCH -e GITHUB_MCP_SERVER_TOKEN -e GITHUB_MCP_GUARD_MIN_INTEGRITY -e GITHUB_MCP_GUARD_REPOS -e GITHUB_REPOSITORY -e GITHUB_SERVER_URL -e GITHUB_SHA -e GITHUB_WORKSPACE -e GITHUB_TOKEN -e GITHUB_RUN_ID -e GITHUB_RUN_NUMBER -e GITHUB_RUN_ATTEMPT -e GITHUB_JOB -e GITHUB_ACTION -e GITHUB_EVENT_NAME -e GITHUB_EVENT_PATH -e GITHUB_ACTOR -e GITHUB_ACTOR_ID -e GITHUB_TRIGGERING_ACTOR -e GITHUB_WORKFLOW -e GITHUB_WORKFLOW_REF -e GITHUB_WORKFLOW_SHA -e GITHUB_REF -e GITHUB_REF_NAME -e GITHUB_REF_TYPE -e GITHUB_HEAD_REF -e GITHUB_BASE_REF -e GH_AW_SAFE_OUTPUTS_PORT -e GH_AW_SAFE_OUTPUTS_API_KEY -v /tmp/gh-aw/mcp-payloads:/tmp/gh-aw/mcp-payloads:rw -v /opt:/opt:ro -v /tmp:/tmp:rw -v '"${GITHUB_WORKSPACE}"':'"${GITHUB_WORKSPACE}"':rw ghcr.io/github/gh-aw-mcpg:v0.2.0'
           
           mkdir -p /home/runner/.copilot
           cat << GH_AW_MCP_CONFIG_EOF | bash ${RUNNER_TEMP}/gh-aw/actions/start_mcp_gateway.sh
@@ -967,6 +967,8 @@ jobs:
           GH_AW_WORKFLOW_ID: "breaking-change-checker"
           GH_AW_CHECKOUT_PR_SUCCESS: ${{ needs.agent.outputs.checkout_pr_success }}
           GH_AW_INFERENCE_ACCESS_ERROR: ${{ needs.agent.outputs.inference_access_error }}
+          GH_AW_ASSIGN_COPILOT_FAILURE_COUNT: ${{ needs.safe_outputs.outputs.assign_copilot_failure_count }}
+          GH_AW_ASSIGN_COPILOT_ERRORS: ${{ needs.safe_outputs.outputs.assign_copilot_errors }}
           GH_AW_LOCKDOWN_CHECK_FAILED: ${{ needs.activation.outputs.lockdown_check_failed }}
           GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e ⚠️ *Compatibility report by [{workflow_name}]({run_url})*{history_link}\",\"footerWorkflowRecompile\":\"\\u003e 🛠️ *Workflow maintenance by [{workflow_name}]({run_url}) for {repository}*\",\"runStarted\":\"🔬 Breaking Change Checker online! [{workflow_name}]({run_url}) is analyzing API compatibility on this {event_type}...\",\"runSuccess\":\"✅ Analysis complete! [{workflow_name}]({run_url}) has reviewed all changes. Compatibility verdict delivered! 📋\",\"runFailure\":\"🔬 Analysis interrupted! [{workflow_name}]({run_url}) {status}. Compatibility status unknown...\"}"
           GH_AW_GROUP_REPORTS: "false"
@@ -1059,6 +1061,8 @@ jobs:
       GH_AW_WORKFLOW_ID: "breaking-change-checker"
       GH_AW_WORKFLOW_NAME: "Breaking Change Checker"
     outputs:
+      assign_copilot_errors: ${{ steps.assign_copilot_to_created_issues.outputs.assign_copilot_errors }}
+      assign_copilot_failure_count: ${{ steps.assign_copilot_to_created_issues.outputs.assign_copilot_failure_count }}
       code_push_failure_count: ${{ steps.process_safe_outputs.outputs.code_push_failure_count }}
       code_push_failure_errors: ${{ steps.process_safe_outputs.outputs.code_push_failure_errors }}
       create_discussion_error_count: ${{ steps.process_safe_outputs.outputs.create_discussion_error_count }}
@@ -1118,7 +1122,9 @@ jobs:
             const { main } = require('${{ runner.temp }}/gh-aw/actions/safe_output_handler_manager.cjs');
             await main();
       - name: Assign Copilot to created issues
+        id: assign_copilot_to_created_issues
         if: steps.process_safe_outputs.outputs.issues_to_assign_copilot != ''
+        continue-on-error: true
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           GH_AW_ISSUES_TO_ASSIGN_COPILOT: ${{ steps.process_safe_outputs.outputs.issues_to_assign_copilot }}

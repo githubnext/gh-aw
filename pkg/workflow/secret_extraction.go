@@ -14,6 +14,14 @@ var secretLog = logger.New("workflow:secret_extraction")
 // Matches: ${{ secrets.SECRET_NAME }} or ${{ secrets.SECRET_NAME || 'default' }}
 var secretExprPattern = regexp.MustCompile(`\$\{\{\s*secrets\.([A-Z_][A-Z0-9_]*)\s*(?:\|\|.*?)?\s*\}\}`)
 
+// Pre-compiled regex patterns for ExtractSecretsFromValue (performance optimization)
+var (
+	// secretsExprFindPattern matches all ${{ ... }} expressions in a value
+	secretsExprFindPattern = regexp.MustCompile(`\$\{\{[^}]+\}\}`)
+	// secretsNamePattern extracts the secret variable name from an expression
+	secretsNamePattern = regexp.MustCompile(`secrets\.([A-Z_][A-Z0-9_]*)`)
+)
+
 // SecretExpression represents a parsed secret expression
 type SecretExpression struct {
 	VarName  string // The secret variable name (e.g., "DD_API_KEY")
@@ -47,15 +55,13 @@ func ExtractSecretsFromValue(value string) map[string]string {
 
 	// Find all ${{ ... }} expressions in the value
 	// Pattern matches from ${{ to }} allowing nested content
-	exprPattern := regexp.MustCompile(`\$\{\{[^}]+\}\}`)
-	expressions := exprPattern.FindAllString(value, -1)
+	expressions := secretsExprFindPattern.FindAllString(value, -1)
 
 	// For each expression, check if it contains secrets.VARIABLE_NAME
 	// This handles both simple cases like "${{ secrets.TOKEN }}"
 	// and complex sub-expressions like "${{ github.workflow && secrets.TOKEN }}"
-	secretPattern := regexp.MustCompile(`secrets\.([A-Z_][A-Z0-9_]*)`)
 	for _, expr := range expressions {
-		matches := secretPattern.FindAllStringSubmatch(expr, -1)
+		matches := secretsNamePattern.FindAllStringSubmatch(expr, -1)
 		for _, match := range matches {
 			if len(match) >= 2 {
 				varName := match[1]

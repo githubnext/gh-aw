@@ -21,6 +21,7 @@ describe("validate_lockdown_requirements", () => {
     delete process.env.CUSTOM_GITHUB_TOKEN;
     delete process.env.GITHUB_REPOSITORY_VISIBILITY;
     delete process.env.GH_AW_COMPILED_STRICT;
+    delete process.env.GITHUB_EVENT_NAME;
 
     // Import the module
     validateLockdownRequirements = (await import("./validate_lockdown_requirements.cjs")).default;
@@ -223,6 +224,84 @@ describe("validate_lockdown_requirements", () => {
 
       // Strict mode error should not be reached since lockdown check throws first
       expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("Lockdown mode is enabled"));
+    });
+  });
+
+  // pull_request_target event enforcement for public repositories
+  describe("pull_request_target event enforcement for public repositories", () => {
+    it("should fail when repository is public and event is pull_request_target", () => {
+      process.env.GITHUB_REPOSITORY_VISIBILITY = "public";
+      process.env.GH_AW_COMPILED_STRICT = "true";
+      process.env.GITHUB_EVENT_NAME = "pull_request_target";
+
+      expect(() => {
+        validateLockdownRequirements(mockCore);
+      }).toThrow("pull_request_target");
+
+      expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("pull_request_target event on a public repository"));
+      expect(mockCore.setOutput).toHaveBeenCalledWith("lockdown_check_failed", "true");
+    });
+
+    it("should pass when repository is public but event is pull_request (not pull_request_target)", () => {
+      process.env.GITHUB_REPOSITORY_VISIBILITY = "public";
+      process.env.GH_AW_COMPILED_STRICT = "true";
+      process.env.GITHUB_EVENT_NAME = "pull_request";
+
+      validateLockdownRequirements(mockCore);
+
+      expect(mockCore.setFailed).not.toHaveBeenCalled();
+    });
+
+    it("should pass when repository is private and event is pull_request_target", () => {
+      process.env.GITHUB_REPOSITORY_VISIBILITY = "private";
+      process.env.GITHUB_EVENT_NAME = "pull_request_target";
+
+      validateLockdownRequirements(mockCore);
+
+      expect(mockCore.setFailed).not.toHaveBeenCalled();
+    });
+
+    it("should pass when repository is internal and event is pull_request_target", () => {
+      process.env.GITHUB_REPOSITORY_VISIBILITY = "internal";
+      process.env.GITHUB_EVENT_NAME = "pull_request_target";
+
+      validateLockdownRequirements(mockCore);
+
+      expect(mockCore.setFailed).not.toHaveBeenCalled();
+    });
+
+    it("should pass when event is pull_request_target but visibility is unknown", () => {
+      // GITHUB_REPOSITORY_VISIBILITY not set
+      process.env.GITHUB_EVENT_NAME = "pull_request_target";
+
+      validateLockdownRequirements(mockCore);
+
+      expect(mockCore.setFailed).not.toHaveBeenCalled();
+    });
+
+    it("should include security documentation link in pull_request_target error message", () => {
+      process.env.GITHUB_REPOSITORY_VISIBILITY = "public";
+      process.env.GH_AW_COMPILED_STRICT = "true";
+      process.env.GITHUB_EVENT_NAME = "pull_request_target";
+
+      expect(() => {
+        validateLockdownRequirements(mockCore);
+      }).toThrow();
+
+      expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("https://github.com/github/gh-aw/blob/main/docs/src/content/docs/reference/security.mdx"));
+    });
+
+    it("should fail on strict mode check before pull_request_target check when both fail", () => {
+      process.env.GITHUB_REPOSITORY_VISIBILITY = "public";
+      process.env.GH_AW_COMPILED_STRICT = "false";
+      process.env.GITHUB_EVENT_NAME = "pull_request_target";
+
+      expect(() => {
+        validateLockdownRequirements(mockCore);
+      }).toThrow("not compiled with strict mode");
+
+      // pull_request_target error should not be reached since strict mode check throws first
+      expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("not compiled with strict mode"));
     });
   });
 });

@@ -90,12 +90,19 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/goccy/go-yaml"
 )
 
 var yamlLog = logger.New("workflow:yaml")
+
+// yamlNullPattern matches `: null` at the end of a line (pre-compiled for performance)
+var yamlNullPattern = regexp.MustCompile(`:\s*null\s*$`)
+
+// unquoteYAMLKeyCache caches compiled regexes for UnquoteYAMLKey by key name
+var unquoteYAMLKeyCache sync.Map
 
 // UnquoteYAMLKey removes quotes from a YAML key at the start of a line.
 //
@@ -131,9 +138,14 @@ func UnquoteYAMLKey(yamlStr string, key string) string {
 	// Pattern: (start of line or newline) + (optional whitespace) + quoted key + colon
 	pattern := `(^|\n)([ \t]*)"` + regexp.QuoteMeta(key) + `":`
 
-	// Replacement: keep the line start and whitespace, but remove quotes from the key
-	// Need to use ReplaceAllStringFunc to properly construct the replacement
-	re := regexp.MustCompile(pattern)
+	// Use cached compiled regex to avoid recompiling on every call
+	var re *regexp.Regexp
+	if cached, ok := unquoteYAMLKeyCache.Load(key); ok {
+		re = cached.(*regexp.Regexp)
+	} else {
+		re = regexp.MustCompile(pattern)
+		unquoteYAMLKeyCache.Store(key, re)
+	}
 	return re.ReplaceAllStringFunc(yamlStr, func(match string) string {
 		// Find the submatch groups
 		submatches := re.FindStringSubmatch(match)
@@ -296,14 +308,10 @@ func OrderMapFields(data map[string]any, priorityFields []string) yaml.MapSlice 
 func CleanYAMLNullValues(yamlStr string) string {
 	yamlLog.Print("Cleaning null values from YAML")
 
-	// Create a regex pattern that matches `: null` at the end of a line
-	// Pattern: colon + optional whitespace + "null" + optional whitespace + end of line
-	pattern := regexp.MustCompile(`:\s*null\s*$`)
-
 	// Split into lines, process each line, and rejoin
 	lines := strings.Split(yamlStr, "\n")
 	for i, line := range lines {
-		lines[i] = pattern.ReplaceAllString(line, ":")
+		lines[i] = yamlNullPattern.ReplaceAllString(line, ":")
 	}
 
 	return strings.Join(lines, "\n")

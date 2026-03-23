@@ -163,9 +163,15 @@ async function main() {
 
   await core.summary.addRaw(summaryContent).write();
 
-  // Fail if any assignments failed
+  // Set outputs for the conclusion job to report failures in the agent failure issue/comment
+  const assignCopilotErrors = failedResults.map(r => `issue:${r.issue_number}:copilot:${r.error}`).join("\n");
+  core.setOutput("assign_copilot_failure_count", failureCount.toString());
+  core.setOutput("assign_copilot_errors", assignCopilotErrors);
+
+  // Warn instead of failing so the conclusion job can propagate the failure details
+  // to the agent failure issue/comment with a clear explanatory note
   if (failureCount > 0) {
-    core.setFailed(`${ERR_API}: Failed to assign copilot to ${failureCount} issue(s)`);
+    core.warning(`Failed to assign copilot to ${failureCount} issue(s) - errors will be reported in conclusion job`);
   }
 }
 

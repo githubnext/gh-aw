@@ -189,7 +189,9 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 		if data.SafeOutputs.CreateIssues != nil && hasCopilotAssignee(data.SafeOutputs.CreateIssues.Assignees) {
 			consolidatedSafeOutputsJobLog.Print("Adding copilot assignment step for created issues")
 			steps = append(steps, "      - name: Assign Copilot to created issues\n")
+			steps = append(steps, "        id: assign_copilot_to_created_issues\n")
 			steps = append(steps, "        if: steps.process_safe_outputs.outputs.issues_to_assign_copilot != ''\n")
+			steps = append(steps, "        continue-on-error: true\n")
 			steps = append(steps, fmt.Sprintf("        uses: %s\n", GetActionPin("actions/github-script")))
 			steps = append(steps, "        env:\n")
 			steps = append(steps, "          GH_AW_ISSUES_TO_ASSIGN_COPILOT: ${{ steps.process_safe_outputs.outputs.issues_to_assign_copilot }}\n")
@@ -197,6 +199,9 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 			c.addSafeOutputAgentGitHubTokenForConfig(&steps, data, data.SafeOutputs.CreateIssues.GitHubToken)
 			steps = append(steps, "          script: |\n")
 			steps = append(steps, generateGitHubScriptWithRequire("assign_copilot_to_created_issues.cjs"))
+
+			outputs["assign_copilot_failure_count"] = "${{ steps.assign_copilot_to_created_issues.outputs.assign_copilot_failure_count }}"
+			outputs["assign_copilot_errors"] = "${{ steps.assign_copilot_to_created_issues.outputs.assign_copilot_errors }}"
 		}
 	}
 

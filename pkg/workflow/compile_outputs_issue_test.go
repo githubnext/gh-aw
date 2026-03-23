@@ -339,10 +339,19 @@ This workflow tests that copilot assignment is wired in consolidated safe output
 	if !strings.Contains(lockContent, "name: Assign Copilot to created issues") {
 		t.Error("Expected copilot assignment step in consolidated safe_outputs job")
 	}
+	if !strings.Contains(lockContent, "id: assign_copilot_to_created_issues") {
+		t.Error("Expected copilot assignment step to have id: assign_copilot_to_created_issues")
+	}
+	if !strings.Contains(lockContent, "continue-on-error: true") {
+		t.Error("Expected copilot assignment step to have continue-on-error: true so failures propagate as outputs")
+	}
 	if !strings.Contains(lockContent, "GH_AW_ISSUES_TO_ASSIGN_COPILOT") || !strings.Contains(lockContent, "steps.process_safe_outputs.outputs.issues_to_assign_copilot") {
 		t.Error("Expected assignment step to consume issues_to_assign_copilot from process_safe_outputs")
 	}
 	if !strings.Contains(lockContent, "assign_copilot_to_created_issues.cjs") {
 		t.Error("Expected assignment step to require assign_copilot_to_created_issues.cjs")
+	}
+	if !strings.Contains(lockContent, "assign_copilot_failure_count") || !strings.Contains(lockContent, "assign_copilot_errors") {
+		t.Error("Expected safe_outputs job to export assign_copilot_failure_count and assign_copilot_errors outputs for failure propagation")
 	}
 }

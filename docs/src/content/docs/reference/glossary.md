@@ -91,7 +91,9 @@ A preview mode where workflows simulate actions without making changes. The AI g
 
 ### Integrity Filtering
 
-A guardrail feature that controls which GitHub content an agent can access, filtering by author trust and merge status. Content below the configured `min-integrity` threshold is silently removed before the AI engine sees it. The four levels are `merged`, `approved`, `unapproved`, and `none` (most to least restrictive). For public repositories, `min-integrity: approved` is applied automatically — restricting content to owners, members, and collaborators — even without additional authentication. Set `min-integrity: none` to allow all content through for workflows designed to process untrusted input (e.g., triage bots). See [Integrity Filtering](/gh-aw/reference/integrity/).
+A guardrail feature that controls which GitHub content an agent can access, filtering by author trust and merge status. Content below the configured `min-integrity` threshold is silently removed before the AI engine sees it. The four levels are `merged`, `approved`, `unapproved`, and `none` (most to least restrictive). For public repositories, `min-integrity: approved` is applied automatically — restricting content to owners, members, and collaborators — even without additional authentication. Set `min-integrity: none` to allow all content through for workflows designed to process untrusted input (e.g., triage bots).
+
+Two additional fields extend integrity filtering beyond the level threshold: `blocked-users` unconditionally denies content from listed GitHub usernames regardless of level, and `approval-labels` promotes items bearing any listed label to `approved` integrity, enabling human-review workflows. See [Integrity Filtering](/gh-aw/reference/integrity/).
 
 ### Status Comment
 
@@ -150,6 +152,10 @@ A recognized "magic" repository secret name that GitHub Agentic Workflows automa
 ### Custom Safe Outputs
 
 An extension mechanism for safe outputs that enables integration with third-party services beyond built-in GitHub operations. Defined under `safe-outputs.jobs:`, custom safe outputs separate read and write operations: agents use read-only MCP tools for queries, while custom jobs execute write operations with secret access after agent completion. Supports services like Slack, Notion, Jira, or any external API. See [Custom Safe Outputs](/gh-aw/reference/custom-safe-outputs/).
+
+### Dispatch Repository (`dispatch_repository`)
+
+An experimental safe output type that triggers `repository_dispatch` events in external repositories for cross-repository orchestration. Each key under `safe-outputs.dispatch_repository:` defines a named tool exposed to the agent. A tool requires a `workflow` identifier (forwarded in `client_payload` for routing), an `event_type`, and either a static `repository` slug or an `allowed_repositories` list. GitHub Actions expressions (`${{ ... }}`) are supported in repository fields and are passed through without format validation. At compile time the compiler emits a warning: `Using experimental feature: dispatch_repository`. See [Safe Outputs Reference](/gh-aw/reference/safe-outputs/#repository-dispatch-dispatch_repository).
 
 ### Safe Output Actions
 

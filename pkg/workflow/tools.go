@@ -170,12 +170,15 @@ func (c *Compiler) applyDefaults(data *WorkflowData, markdownPath string) error 
 				}
 			}
 
-			// Add workflow_dispatch with item_number input for manual testing
+			// Add workflow_dispatch with item_number input for manual testing.
+			// Not required so the workflow can be triggered without providing a value;
+			// the activation job falls back to the event payload when item_number is omitted.
 			labelEventsMap["workflow_dispatch"] = map[string]any{
 				"inputs": map[string]any{
 					"item_number": map[string]any{
 						"description": "The number of the issue, pull request, or discussion",
-						"required":    true,
+						"required":    false,
+						"default":     "",
 						"type":        "string",
 					},
 				},
