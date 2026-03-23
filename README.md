@@ -190,6 +190,7 @@ For development setup and contribution guidelines, see [CONTRIBUTING.md](CONTRIB
 
 ### @dsyme
 
+- #22340 _(direct issue)_
 - #20953 _(direct issue)_
 - #20952 _(direct issue)_
 - #20950 _(direct issue)_
@@ -332,6 +333,10 @@ For development setup and contribution guidelines, see [CONTRIBUTING.md](CONTRIB
 
 - #18488 _(direct issue)_
 
+### @lpcox
+
+- #22281 _(direct issue)_
+
 ### @lupinthe14th
 
 - #18712 _(direct issue)_
@@ -454,7 +459,7 @@ For development setup and contribution guidelines, see [CONTRIBUTING.md](CONTRIB
 - #21304 _(direct issue)_
 - #20035 _(direct issue)_
 - #20031 _(direct issue)_
-- [`on.bots` matching is exact-string only and fails for `<slug>` vs `<slug>[bot]` GitHub App identities](https://github.com/github/gh-aw/issues/20030) _(direct issue)_
+- #20030 _(direct issue)_
 - #19605 _(direct issue)_
 - #19476 _(direct issue)_
 - #19475 _(direct issue)_

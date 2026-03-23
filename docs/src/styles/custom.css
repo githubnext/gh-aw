@@ -95,26 +95,29 @@
   animation: light-glow-move 20s ease-in-out infinite;
 }
 
-/* Skip to Content Link - Enhanced Accessibility */
-/* Override Starlight's default skip link styles for better visibility */
-a[href*="#"][href$="_top"]:focus,
-a[href*="#overview"]:focus:first-child {
-  clip: auto !important;
-  clip-path: none !important;
-  position: fixed !important;
-  top: 1rem !important;
-  left: 1rem !important;
-  z-index: 9999 !important;
-  padding: 1rem 1.5rem !important;
-  background-color: var(--sl-color-accent) !important;
-  color: var(--sl-color-text-invert) !important;
-  text-decoration: none !important;
-  font-weight: 600 !important;
-  font-size: 1rem !important;
-  border-radius: 0.5rem !important;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3) !important;
-  outline: 3px solid var(--sl-color-accent-high) !important;
-  outline-offset: 2px !important;
+/* Skip to Content Link - Enhanced Accessibility (WCAG 2.4.1) */
+/* The .skip-link is visually hidden until focused via keyboard, then revealed. */
+.skip-link {
+  position: absolute;
+  top: -9999px;
+  left: 0;
+  z-index: 9999;
+  padding: 1rem 1.5rem;
+  background-color: var(--sl-color-accent);
+  color: var(--sl-color-text-invert);
+  text-decoration: none;
+  font-weight: 600;
+  font-size: 1rem;
+  border-radius: 0.5rem;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  outline: 3px solid var(--sl-color-accent-high);
+  outline-offset: 2px;
+  white-space: nowrap;
+}
+
+.skip-link:focus {
+  top: 1rem;
+  left: 1rem;
 }
 
 /* Mermaid diagram colors
@@ -1629,7 +1632,7 @@ main,
 /* Mobile-specific: Additional touch target improvements for remaining elements */
 @media (max-width: 768px) {
   /* Skip to content link - accessibility feature */
-  a[href="#_top"],
+  .skip-link,
   a[class*="skip"] {
     min-height: 44px !important;
     min-width: 44px !important;

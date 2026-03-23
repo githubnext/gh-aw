@@ -584,14 +584,15 @@ func (c *Compiler) generateCreateAwInfo(yaml *strings.Builder, data *WorkflowDat
 		}
 	}
 
-	// Version information (from engine config, kept for backwards compatibility)
-	version := ""
+	// Agent version - use the actual installation version (includes defaults)
+	agentVersion := getInstallationVersion(data, engine)
+
+	// Version: prefer explicit engine config version, fall back to the installation version
+	// so the run details always show the version being used rather than "(none)".
+	version := agentVersion
 	if data.EngineConfig != nil && data.EngineConfig.Version != "" {
 		version = data.EngineConfig.Version
 	}
-
-	// Agent version - use the actual installation version (includes defaults)
-	agentVersion := getInstallationVersion(data, engine)
 
 	// Staged value from safe-outputs configuration
 	stagedValue := "false"
@@ -650,7 +651,14 @@ func (c *Compiler) generateCreateAwInfo(yaml *strings.Builder, data *WorkflowDat
 	if modelConfigured {
 		fmt.Fprintf(yaml, "          GH_AW_INFO_MODEL: \"%s\"\n", data.EngineConfig.Model)
 	} else {
-		fmt.Fprintf(yaml, "          GH_AW_INFO_MODEL: ${{ vars.%s || '' }}\n", modelEnvVar)
+		// Use the engine's default model as fallback when neither explicit model nor
+		// model variable is configured, so the run details show "auto" rather than "(none)".
+		defaultModel := getDefaultAgentModel(engineID)
+		if defaultModel != "" {
+			fmt.Fprintf(yaml, "          GH_AW_INFO_MODEL: ${{ vars.%s || '%s' }}\n", modelEnvVar, defaultModel)
+		} else {
+			fmt.Fprintf(yaml, "          GH_AW_INFO_MODEL: ${{ vars.%s || '' }}\n", modelEnvVar)
+		}
 	}
 	fmt.Fprintf(yaml, "          GH_AW_INFO_VERSION: \"%s\"\n", version)
 	fmt.Fprintf(yaml, "          GH_AW_INFO_AGENT_VERSION: \"%s\"\n", agentVersion)

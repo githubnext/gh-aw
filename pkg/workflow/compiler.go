@@ -13,7 +13,7 @@ import (
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/stringutil"
-	"github.com/goccy/go-yaml"
+	"go.yaml.in/yaml/v3"
 )
 
 var log = logger.New("workflow:compiler")

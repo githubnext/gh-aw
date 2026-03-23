@@ -9,7 +9,6 @@ import (
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/parser"
-	"github.com/goccy/go-yaml"
 )
 
 var orchestratorToolsLog = logger.New("workflow:compiler_orchestrator_tools")
@@ -254,7 +253,8 @@ func (c *Compiler) processToolsAndMarkdown(result *parser.FrontmatterResult, cle
 	if c.contentOverride != "" {
 		workflowName, err = parser.ExtractWorkflowNameFromContent(c.contentOverride, cleanPath)
 	} else {
-		workflowName, err = parser.ExtractWorkflowNameFromMarkdown(cleanPath)
+		// Use the already-parsed markdown body to avoid a redundant file read and YAML parse.
+		workflowName, err = parser.ExtractWorkflowNameFromMarkdownBody(result.Markdown, cleanPath)
 	}
 	if err != nil {
 		return nil, fmt.Errorf("failed to extract workflow name: %w", err)
@@ -338,47 +338,36 @@ func (c *Compiler) hasContentContext(frontmatter map[string]any) bool {
 		return false
 	}
 
-	// Convert the "on" field to YAML string for parsing
-	onYAML, err := yaml.Marshal(onField)
-	if err != nil {
-		orchestratorToolsLog.Printf("Failed to marshal 'on' field: %v", err)
+	// Only the map form of the "on" field contains individually-keyed event triggers.
+	// String ("on: issues") and array ("on: [issues]") forms are not inspected because
+	// GitHub Actions treats them as default-activity-type triggers and the original
+	// implementation only detected events that appeared as YAML map keys (i.e. "event:").
+	onMap, ok := onField.(map[string]any)
+	if !ok {
+		orchestratorToolsLog.Printf("No content context detected: 'on' is not a map")
 		return false
 	}
 
-	onStr := string(onYAML)
-
-	// Check for content-related event types that provide text/title/body
-	// These are the same events supported by compute_text.cjs
-	contentEvents := []string{
-		"issues:",
-		"pull_request:",
-		"pull_request_target:",
-		"issue_comment:",
-		"pull_request_review_comment:",
-		"pull_request_review:",
-		"discussion:",
-		"discussion_comment:",
+	// Content-related event types that provide text/title/body outputs via the sanitized step.
+	// These are the same events supported by compute_text.cjs.
+	// Note: "issues", "pull_request", and "discussion" are included here, which also covers
+	// workflows using "labeled"/"unlabeled" activity types on those events — any trigger that
+	// declares one of these events as a map key is treated as having content context.
+	contentEventKeys := map[string]bool{
+		"issues":                      true,
+		"pull_request":                true,
+		"pull_request_target":         true,
+		"issue_comment":               true,
+		"pull_request_review_comment": true,
+		"pull_request_review":         true,
+		"discussion":                  true,
+		"discussion_comment":          true,
+		"slash_command":               true,
 	}
 
-	for _, event := range contentEvents {
-		if strings.Contains(onStr, event) {
-			orchestratorToolsLog.Printf("Detected content context: workflow triggered by %s", strings.TrimSuffix(event, ":"))
-			return true
-		}
-	}
-
-	// Check for slash_command trigger (works with comment events that have content)
-	if strings.Contains(onStr, "slash_command:") {
-		orchestratorToolsLog.Printf("Detected content context: workflow triggered by slash_command")
-		return true
-	}
-
-	// Check for labeled activity type on issues, pull_request, or discussion
-	// These events provide text content when labeled/unlabeled
-	if strings.Contains(onStr, "labeled") {
-		// Ensure it's in the context of an issue, PR, or discussion event
-		if strings.Contains(onStr, "issues:") || strings.Contains(onStr, "pull_request:") || strings.Contains(onStr, "discussion:") {
-			orchestratorToolsLog.Printf("Detected content context: workflow triggered by labeled activity type")
+	for eventName := range onMap {
+		if contentEventKeys[eventName] {
+			orchestratorToolsLog.Printf("Detected content context: workflow triggered by %s", eventName)
 			return true
 		}
 	}

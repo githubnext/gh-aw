@@ -95,12 +95,15 @@ func TestAgentVersionInAwInfo(t *testing.T) {
 					tt.description, expectedLine, output)
 			}
 
-			// Also verify that the GH_AW_INFO_VERSION field matches (for non-custom engines with explicit versions)
-			if tt.explicitVersion != "" {
-				expectedVersionLine := `GH_AW_INFO_VERSION: "` + tt.explicitVersion + `"`
-				if !strings.Contains(output, expectedVersionLine) {
-					t.Errorf("Expected output to contain version '%s'", expectedVersionLine)
-				}
+			// GH_AW_INFO_VERSION should always be set: explicit version takes priority,
+			// otherwise the installation version (same as GH_AW_INFO_AGENT_VERSION) is used.
+			expectedVersion := tt.explicitVersion
+			if expectedVersion == "" {
+				expectedVersion = tt.expectedAgentVersion
+			}
+			expectedVersionLine := `GH_AW_INFO_VERSION: "` + expectedVersion + `"`
+			if !strings.Contains(output, expectedVersionLine) {
+				t.Errorf("Expected output to contain version '%s', got:\n%s", expectedVersionLine, output)
 			}
 		})
 	}

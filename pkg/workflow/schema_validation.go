@@ -45,8 +45,8 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/goccy/go-yaml"
 	"github.com/santhosh-tekuri/jsonschema/v6"
+	"go.yaml.in/yaml/v3"
 )
 
 var schemaValidationLog = newValidationLogger("schema")

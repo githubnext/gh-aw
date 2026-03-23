@@ -146,17 +146,9 @@ func UnquoteYAMLKey(yamlStr string, key string) string {
 		re = regexp.MustCompile(pattern)
 		unquoteYAMLKeyCache.Store(key, re)
 	}
-	return re.ReplaceAllStringFunc(yamlStr, func(match string) string {
-		// Find the submatch groups
-		submatches := re.FindStringSubmatch(match)
-		if len(submatches) >= 3 {
-			// submatches[0] is the full match
-			// submatches[1] is the line start (^ or \n)
-			// submatches[2] is the whitespace
-			return submatches[1] + submatches[2] + key + ":"
-		}
-		return match
-	})
+	// Use ReplaceAllString with capture group references for a single-pass replacement.
+	// ${1} = line start (^ or \n), ${2} = optional whitespace
+	return re.ReplaceAllString(yamlStr, "${1}${2}"+key+":")
 }
 
 // MarshalWithFieldOrder marshals a map to YAML with fields in a specific order.

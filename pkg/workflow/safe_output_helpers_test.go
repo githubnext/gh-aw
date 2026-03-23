@@ -487,6 +487,7 @@ func TestBuildEngineMetadataEnvVars(t *testing.T) {
 			},
 			expected: []string{
 				"          GH_AW_ENGINE_ID: \"copilot\"\n",
+				"          GH_AW_ENGINE_MODEL: ${{ needs.agent.outputs.model }}\n",
 			},
 		},
 		{
@@ -511,6 +512,7 @@ func TestBuildEngineMetadataEnvVars(t *testing.T) {
 			expected: []string{
 				"          GH_AW_ENGINE_ID: \"claude\"\n",
 				"          GH_AW_ENGINE_VERSION: \"2.0.0\"\n",
+				"          GH_AW_ENGINE_MODEL: ${{ needs.agent.outputs.model }}\n",
 			},
 		},
 		{
@@ -527,7 +529,9 @@ func TestBuildEngineMetadataEnvVars(t *testing.T) {
 		{
 			name:         "empty engine config",
 			engineConfig: &EngineConfig{},
-			expected:     []string{},
+			expected: []string{
+				"          GH_AW_ENGINE_MODEL: ${{ needs.agent.outputs.model }}\n",
+			},
 		},
 	}
 

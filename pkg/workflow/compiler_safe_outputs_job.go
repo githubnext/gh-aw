@@ -468,8 +468,12 @@ func (c *Compiler) buildJobLevelSafeOutputEnvVars(data *WorkflowData, workflowID
 		if data.EngineConfig.Version != "" {
 			envVars["GH_AW_ENGINE_VERSION"] = fmt.Sprintf("%q", data.EngineConfig.Version)
 		}
+		// Prefer explicit compile-time model; fall back to the runtime model captured by the
+		// activation job so footers always show the actual model used for auditability.
 		if data.EngineConfig.Model != "" {
 			envVars["GH_AW_ENGINE_MODEL"] = fmt.Sprintf("%q", data.EngineConfig.Model)
+		} else {
+			envVars["GH_AW_ENGINE_MODEL"] = fmt.Sprintf("${{ needs.%s.outputs.model }}", constants.AgentJobName)
 		}
 	}
 

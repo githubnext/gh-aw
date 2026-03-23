@@ -407,6 +407,36 @@ func TestExtractTopLevelYAMLSectionWithOrdering(t *testing.T) {
 	}
 }
 
+// BenchmarkUnquoteYAMLKey measures single-pass regex replacement performance.
+// This benchmark guards against regressions where the implementation calls
+// FindStringSubmatch inside a ReplaceAllStringFunc callback (double regex pass).
+func BenchmarkUnquoteYAMLKey(b *testing.B) {
+	// A realistic workflow YAML with the "on" key quoted by the marshaler
+	yamlStr := `"on":
+  push:
+    branches:
+    - main
+  pull_request:
+    types:
+    - opened
+    - synchronize
+  issues:
+    types:
+    - opened
+  workflow_dispatch:
+jobs:
+  agent:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Run
+      run: echo hello
+`
+	b.ReportAllocs()
+	for b.Loop() {
+		_ = UnquoteYAMLKey(yamlStr, "on")
+	}
+}
+
 func TestFormatYAMLValue(t *testing.T) {
 	tests := []struct {
 		name     string

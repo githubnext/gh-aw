@@ -5,6 +5,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
 )
 
@@ -182,9 +183,13 @@ func buildEngineMetadataEnvVars(engineConfig *EngineConfig) []string {
 		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_ENGINE_VERSION: %q\n", engineConfig.Version))
 	}
 
-	// Add engine model if present
+	// Add engine model: prefer explicit compile-time config; fall back to the runtime model
+	// captured by the activation job so safe-output footers can show the actual model used
+	// (e.g. the value of the GH_AW_MODEL_AGENT_* variable) rather than showing nothing.
 	if engineConfig.Model != "" {
 		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_ENGINE_MODEL: %q\n", engineConfig.Model))
+	} else {
+		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_ENGINE_MODEL: ${{ needs.%s.outputs.model }}\n", string(constants.AgentJobName)))
 	}
 
 	return customEnvVars
