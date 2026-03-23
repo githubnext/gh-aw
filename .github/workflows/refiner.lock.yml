@@ -568,6 +568,8 @@ jobs:
                 },
                 "guard-policies": {
                   "allow-only": {
+                    "approval-labels": "${{ vars.GH_AW_GITHUB_APPROVAL_LABELS || '' }}",
+                    "blocked-users": "${{ vars.GH_AW_GITHUB_BLOCKED_USERS || '' }}",
                     "min-integrity": "approved",
                     "repos": "all"
                   }

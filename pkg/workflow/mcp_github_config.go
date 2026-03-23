@@ -248,9 +248,9 @@ func getGitHubAllowedTools(githubTool any) []string {
 // Gateway requires repos to be present in the allow-only policy.
 // Note: repos-only (without min-integrity) is rejected earlier by validateGitHubGuardPolicy,
 // so this function will never be called with repos but without min-integrity in practice.
-// When blocked-users or approval-labels are not set, org/repo variable fallback expressions
-// are injected so that GH_AW_GITHUB_BLOCKED_USERS and GH_AW_GITHUB_APPROVAL_LABELS can be
-// configured centrally without editing each workflow.
+// When blocked-users or approval-labels are set, their values are unioned with the org/repo
+// variable fallback expressions (GH_AW_GITHUB_BLOCKED_USERS / GH_AW_GITHUB_APPROVAL_LABELS)
+// so that a centrally-configured variable extends the per-workflow list rather than replacing it.
 // Returns nil if no guard policies are configured.
 func getGitHubGuardPolicies(githubTool any) map[string]any {
 	if toolConfig, ok := githubTool.(map[string]any); ok {
@@ -260,8 +260,8 @@ func getGitHubGuardPolicies(githubTool any) map[string]any {
 			repos, hasRepos = toolConfig["repos"]
 		}
 		integrity, hasIntegrity := toolConfig["min-integrity"]
-		blockedUsers, hasBlockedUsers := toolConfig["blocked-users"]
-		approvalLabels, hasApprovalLabels := toolConfig["approval-labels"]
+		blockedUsers := toolConfig["blocked-users"]
+		approvalLabels := toolConfig["approval-labels"]
 		if hasRepos || hasIntegrity {
 			policy := map[string]any{}
 			if hasRepos {
@@ -274,26 +274,56 @@ func getGitHubGuardPolicies(githubTool any) map[string]any {
 			if hasIntegrity {
 				policy["min-integrity"] = integrity
 			}
-			if hasBlockedUsers {
-				policy["blocked-users"] = blockedUsers
-			} else {
-				// Inject org/repo variable fallback so GH_AW_GITHUB_BLOCKED_USERS can be set
-				// centrally without editing every workflow.
-				policy["blocked-users"] = fmt.Sprintf("${{ vars.%s || '' }}", constants.EnvVarGitHubBlockedUsers)
-			}
-			if hasApprovalLabels {
-				policy["approval-labels"] = approvalLabels
-			} else {
-				// Inject org/repo variable fallback so GH_AW_GITHUB_APPROVAL_LABELS can be set
-				// centrally without editing every workflow.
-				policy["approval-labels"] = fmt.Sprintf("${{ vars.%s || '' }}", constants.EnvVarGitHubApprovalLabels)
-			}
+			// Always union blocked-users with the GH_AW_GITHUB_BLOCKED_USERS org/repo variable so
+			// that a centrally-configured variable extends the per-workflow list.
+			policy["blocked-users"] = unionWithEnvFallback(blockedUsers, constants.EnvVarGitHubBlockedUsers)
+			// Always union approval-labels with the GH_AW_GITHUB_APPROVAL_LABELS org/repo variable.
+			policy["approval-labels"] = unionWithEnvFallback(approvalLabels, constants.EnvVarGitHubApprovalLabels)
 			return map[string]any{
 				"allow-only": policy,
 			}
 		}
 	}
 	return nil
+}
+
+// unionWithEnvFallback builds a newline-separated string that combines any explicitly
+// configured blocked-users / approval-labels values with an org/repo variable fallback.
+// The MCP Gateway splits the string on newlines (and commas) at runtime and ignores empty
+// entries, so the fallback being an empty string when the variable is unset is harmless.
+//
+//   - nil / not set → just the fallback expression
+//   - []any or []string → each element joined by "\n", then the fallback appended
+//   - string expression → the expression string, then the fallback appended
+func unionWithEnvFallback(existing any, envVar string) string {
+	fallback := fmt.Sprintf("${{ vars.%s || '' }}", envVar)
+	switch v := existing.(type) {
+	case []any:
+		parts := make([]string, 0, len(v)+1)
+		for _, item := range v {
+			if str, ok := item.(string); ok && str != "" {
+				parts = append(parts, str)
+			}
+		}
+		parts = append(parts, fallback)
+		return strings.Join(parts, "\n")
+	case []string:
+		parts := make([]string, 0, len(v)+1)
+		for _, s := range v {
+			if s != "" {
+				parts = append(parts, s)
+			}
+		}
+		parts = append(parts, fallback)
+		return strings.Join(parts, "\n")
+	case string:
+		if v != "" {
+			return v + "\n" + fallback
+		}
+		return fallback
+	default:
+		return fallback
+	}
 }
 
 // deriveSafeOutputsGuardPolicyFromGitHub generates a safeoutputs guard-policy from GitHub guard-policy.
