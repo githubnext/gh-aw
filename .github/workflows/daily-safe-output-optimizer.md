@@ -13,17 +13,6 @@ permissions:
   actions: read
 
 engine: claude
-tools:
-  agentic-workflows:
-  cache-memory: true
-  timeout: 300
-
-steps:
-  - name: Download logs from last 24 hours
-    env:
-      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-    run: ./gh-aw logs --start-date -1d -o /tmp/gh-aw/aw-mcp/logs
-
 safe-outputs:
   create-issue:
     expires: 2d
@@ -35,6 +24,7 @@ timeout-minutes: 30
 strict: true
 
 imports:
+  - shared/aw-logs-24h-fetch.md
   - shared/activation-app.md
   - shared/jqschema.md
   - shared/reporting.md
