@@ -12,7 +12,6 @@ permissions:
   issues: read
   security-events: read
 tools:
-  cache-memory: true
   github:
     toolsets: [all]
   agentic-workflows:
@@ -22,15 +21,14 @@ tools:
 safe-outputs:
   create-pull-request-review-comment:
     max: 10
-    side: "RIGHT"
-  submit-pull-request-review:
-    max: 1
   messages:
     footer: "> 🔒 *Security review by [{workflow_name}]({run_url})*{history_link}"
     run-started: "🔍 [{workflow_name}]({run_url}) is analyzing this {event_type} for security implications..."
     run-success: "🔒 [{workflow_name}]({run_url}) completed the security review."
     run-failure: "⚠️ [{workflow_name}]({run_url}) {status} during security review."
 timeout-minutes: 15
+imports:
+  - shared/pr-code-review-config.md
 ---
 
 # Security Review Agent 🔒
