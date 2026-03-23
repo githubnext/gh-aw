@@ -6,11 +6,6 @@ on:
         description: 'Message to print'
         type: string
         required: true
-      aw_context:
-        description: '(Internal) JSON context injected by the calling agentic workflow. Not intended for direct user input.'
-        type: string
-        required: false
-        default: ''
 permissions:
   contents: read
 jobs:
