@@ -237,3 +237,87 @@ This workflow uses blocked-users and approval-labels.
 	assert.Contains(t, lockFileContent, `"human-reviewed"`, "Compiled lock file must include human-reviewed in approval-labels")
 	assert.Contains(t, lockFileContent, `"safe-for-agent"`, "Compiled lock file must include safe-for-agent in approval-labels")
 }
+
+// TestGuardPolicyBlockedUsersExpressionCompiledOutput verifies that blocked-users as a GitHub
+// Actions expression is passed through as a string in the compiled guard-policies block.
+func TestGuardPolicyBlockedUsersExpressionCompiledOutput(t *testing.T) {
+	workflowContent := `---
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+engine: copilot
+tools:
+  github:
+    allowed-repos: all
+    min-integrity: unapproved
+    blocked-users: "${{ vars.BLOCKED_USERS }}"
+    approval-labels: "${{ vars.APPROVAL_LABELS }}"
+---
+
+# Guard Policy Test
+
+This workflow passes blocked-users and approval-labels as expressions.
+`
+
+	tmpDir := t.TempDir()
+	workflowPath := filepath.Join(tmpDir, "test-guard-policy-expr.md")
+	err := os.WriteFile(workflowPath, []byte(workflowContent), 0644)
+	require.NoError(t, err, "Failed to write workflow file")
+
+	compiler := workflow.NewCompiler()
+	err = CompileWorkflowWithValidation(compiler, workflowPath, false, false, false, false, false, false)
+	require.NoError(t, err, "Expected compilation to succeed")
+
+	lockFilePath := filepath.Join(tmpDir, "test-guard-policy-expr.lock.yml")
+	lockFileBytes, err := os.ReadFile(lockFilePath)
+	require.NoError(t, err, "Failed to read compiled lock file")
+
+	lockFileContent := string(lockFileBytes)
+	// Expressions should be passed through as string values in the JSON config.
+	assert.Contains(t, lockFileContent, `"blocked-users"`, "Compiled lock file must include blocked-users")
+	assert.Contains(t, lockFileContent, `vars.BLOCKED_USERS`, "Compiled lock file must preserve the blocked-users expression")
+	assert.Contains(t, lockFileContent, `"approval-labels"`, "Compiled lock file must include approval-labels")
+	assert.Contains(t, lockFileContent, `vars.APPROVAL_LABELS`, "Compiled lock file must preserve the approval-labels expression")
+}
+
+// TestGuardPolicyBlockedUsersCommaSeparatedCompiledOutput verifies that a static
+// comma-separated blocked-users string is split at compile time.
+func TestGuardPolicyBlockedUsersCommaSeparatedCompiledOutput(t *testing.T) {
+	workflowContent := `---
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+engine: copilot
+tools:
+  github:
+    allowed-repos: all
+    min-integrity: unapproved
+    blocked-users: "spam-bot, compromised-user"
+---
+
+# Guard Policy Test
+
+This workflow passes blocked-users as a comma-separated string.
+`
+
+	tmpDir := t.TempDir()
+	workflowPath := filepath.Join(tmpDir, "test-guard-policy-csv.md")
+	err := os.WriteFile(workflowPath, []byte(workflowContent), 0644)
+	require.NoError(t, err, "Failed to write workflow file")
+
+	compiler := workflow.NewCompiler()
+	err = CompileWorkflowWithValidation(compiler, workflowPath, false, false, false, false, false, false)
+	require.NoError(t, err, "Expected compilation to succeed")
+
+	lockFilePath := filepath.Join(tmpDir, "test-guard-policy-csv.lock.yml")
+	lockFileBytes, err := os.ReadFile(lockFilePath)
+	require.NoError(t, err, "Failed to read compiled lock file")
+
+	lockFileContent := string(lockFileBytes)
+	// Static comma-separated strings should be split into a JSON array at compile time.
+	assert.Contains(t, lockFileContent, `"blocked-users"`, "Compiled lock file must include blocked-users")
+	assert.Contains(t, lockFileContent, `"spam-bot"`, "Compiled lock file must split spam-bot from comma-separated string")
+	assert.Contains(t, lockFileContent, `"compromised-user"`, "Compiled lock file must split compromised-user from comma-separated string")
+}

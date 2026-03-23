@@ -463,6 +463,60 @@ func TestValidateGitHubGuardPolicy(t *testing.T) {
 			shouldError: true,
 			errorMsg:    "'github.blocked-users' and 'github.approval-labels' require 'github.min-integrity'",
 		},
+		{
+			name: "blocked-users as GitHub Actions expression is valid",
+			toolsMap: map[string]any{
+				"github": map[string]any{
+					"allowed-repos": "all",
+					"min-integrity": "unapproved",
+					"blocked-users": "${{ vars.BLOCKED_USERS }}",
+				},
+			},
+			shouldError: false,
+		},
+		{
+			name: "blocked-users as comma-separated static string is valid",
+			toolsMap: map[string]any{
+				"github": map[string]any{
+					"allowed-repos": "all",
+					"min-integrity": "unapproved",
+					"blocked-users": "spam-bot, compromised-user",
+				},
+			},
+			shouldError: false,
+		},
+		{
+			name: "blocked-users as newline-separated static string is valid",
+			toolsMap: map[string]any{
+				"github": map[string]any{
+					"allowed-repos": "all",
+					"min-integrity": "unapproved",
+					"blocked-users": "spam-bot\ncompromised-user",
+				},
+			},
+			shouldError: false,
+		},
+		{
+			name: "blocked-users expression without min-integrity fails",
+			toolsMap: map[string]any{
+				"github": map[string]any{
+					"blocked-users": "${{ vars.BLOCKED_USERS }}",
+				},
+			},
+			shouldError: true,
+			errorMsg:    "'github.blocked-users' and 'github.approval-labels' require 'github.min-integrity'",
+		},
+		{
+			name: "approval-labels as GitHub Actions expression is valid",
+			toolsMap: map[string]any{
+				"github": map[string]any{
+					"allowed-repos":   "all",
+					"min-integrity":   "approved",
+					"approval-labels": "${{ vars.APPROVAL_LABELS }}",
+				},
+			},
+			shouldError: false,
+		},
 	}
 
 	for _, tt := range tests {

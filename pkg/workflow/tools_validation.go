@@ -73,8 +73,10 @@ func validateGitHubGuardPolicy(tools *Tools, workflowName string) error {
 	// AllowedRepos is populated from either 'allowed-repos' (preferred) or deprecated 'repos' during parsing
 	hasRepos := github.AllowedRepos != nil
 	hasMinIntegrity := github.MinIntegrity != ""
-	hasBlockedUsers := len(github.BlockedUsers) > 0
-	hasApprovalLabels := len(github.ApprovalLabels) > 0
+	// blocked-users / approval-labels can be an array (BlockedUsers/ApprovalLabels) or a
+	// GitHub Actions expression string (BlockedUsersExpr/ApprovalLabelsExpr).
+	hasBlockedUsers := len(github.BlockedUsers) > 0 || github.BlockedUsersExpr != ""
+	hasApprovalLabels := len(github.ApprovalLabels) > 0 || github.ApprovalLabelsExpr != ""
 
 	// blocked-users and approval-labels require a guard policy (min-integrity)
 	if (hasBlockedUsers || hasApprovalLabels) && !hasMinIntegrity {
@@ -117,7 +119,7 @@ func validateGitHubGuardPolicy(tools *Tools, workflowName string) error {
 		return errors.New("invalid guard policy: 'github.min-integrity' must be one of: 'none', 'unapproved', 'approved', 'merged'. Got: '" + string(github.MinIntegrity) + "'")
 	}
 
-	// Validate blocked-users (must be non-empty strings)
+	// Validate blocked-users (must be non-empty strings; expressions are accepted as-is)
 	for i, user := range github.BlockedUsers {
 		if user == "" {
 			toolsValidationLog.Printf("Empty blocked-users entry at index %d in workflow: %s", i, workflowName)
@@ -125,7 +127,7 @@ func validateGitHubGuardPolicy(tools *Tools, workflowName string) error {
 		}
 	}
 
-	// Validate approval-labels (must be non-empty strings)
+	// Validate approval-labels (must be non-empty strings; expressions are accepted as-is)
 	for i, label := range github.ApprovalLabels {
 		if label == "" {
 			toolsValidationLog.Printf("Empty approval-labels entry at index %d in workflow: %s", i, workflowName)
