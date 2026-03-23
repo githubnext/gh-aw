@@ -108,69 +108,79 @@ func (acc *importAccumulator) extractAllImportFields(content []byte, item import
 		}
 	}
 
+	// Parse frontmatter once to avoid redundant YAML parsing for each field extraction.
+	// All subsequent field extractions use the pre-parsed result.
+	parsed, err := ExtractFrontmatterFromContent(string(content))
+	var fm map[string]any
+	if err == nil {
+		fm = parsed.Frontmatter
+	} else {
+		fm = make(map[string]any)
+	}
+
 	// Extract engines from imported file
-	engineContent, err := extractFrontmatterField(string(content), "engine", "")
+	engineContent, err := extractFieldJSONFromMap(fm, "engine", "")
 	if err == nil && engineContent != "" {
 		log.Printf("Found engine config in import: %s", item.fullPath)
 		acc.engines = append(acc.engines, engineContent)
 	}
 
 	// Extract mcp-servers from imported file
-	mcpServersContent, err := extractFrontmatterField(string(content), "mcp-servers", "{}")
+	mcpServersContent, err := extractFieldJSONFromMap(fm, "mcp-servers", "{}")
 	if err == nil && mcpServersContent != "" && mcpServersContent != "{}" {
 		acc.mcpServersBuilder.WriteString(mcpServersContent + "\n")
 	}
 
 	// Extract safe-outputs from imported file
-	safeOutputsContent, err := extractFrontmatterField(string(content), "safe-outputs", "{}")
+	safeOutputsContent, err := extractFieldJSONFromMap(fm, "safe-outputs", "{}")
 	if err == nil && safeOutputsContent != "" && safeOutputsContent != "{}" {
 		acc.safeOutputs = append(acc.safeOutputs, safeOutputsContent)
 	}
 
 	// Extract mcp-scripts from imported file
-	mcpScriptsContent, err := extractFrontmatterField(string(content), "mcp-scripts", "{}")
+	mcpScriptsContent, err := extractFieldJSONFromMap(fm, "mcp-scripts", "{}")
 	if err == nil && mcpScriptsContent != "" && mcpScriptsContent != "{}" {
 		acc.mcpScripts = append(acc.mcpScripts, mcpScriptsContent)
 	}
 
 	// Extract steps from imported file
-	stepsContent, err := extractStepsFromContent(string(content))
+	stepsContent, err := extractYAMLFieldFromMap(fm, "steps")
 	if err == nil && stepsContent != "" {
 		acc.stepsBuilder.WriteString(stepsContent + "\n")
 	}
 
 	// Extract runtimes from imported file
-	runtimesContent, err := extractFrontmatterField(string(content), "runtimes", "{}")
+	runtimesContent, err := extractFieldJSONFromMap(fm, "runtimes", "{}")
 	if err == nil && runtimesContent != "" && runtimesContent != "{}" {
 		acc.runtimesBuilder.WriteString(runtimesContent + "\n")
 	}
 
 	// Extract services from imported file
-	servicesContent, err := extractServicesFromContent(string(content))
+	servicesContent, err := extractYAMLFieldFromMap(fm, "services")
 	if err == nil && servicesContent != "" {
 		acc.servicesBuilder.WriteString(servicesContent + "\n")
 	}
 
 	// Extract network from imported file
-	networkContent, err := extractFrontmatterField(string(content), "network", "{}")
+	networkContent, err := extractFieldJSONFromMap(fm, "network", "{}")
 	if err == nil && networkContent != "" && networkContent != "{}" {
 		acc.networkBuilder.WriteString(networkContent + "\n")
 	}
 
 	// Extract permissions from imported file
-	permissionsContent, err := ExtractPermissionsFromContent(string(content))
+	permissionsContent, err := extractFieldJSONFromMap(fm, "permissions", "{}")
 	if err == nil && permissionsContent != "" && permissionsContent != "{}" {
 		acc.permissionsBuilder.WriteString(permissionsContent + "\n")
 	}
 
 	// Extract secret-masking from imported file
-	secretMaskingContent, err := extractFrontmatterField(string(content), "secret-masking", "{}")
+	secretMaskingContent, err := extractFieldJSONFromMap(fm, "secret-masking", "{}")
 	if err == nil && secretMaskingContent != "" && secretMaskingContent != "{}" {
 		acc.secretMaskingBuilder.WriteString(secretMaskingContent + "\n")
 	}
 
 	// Extract and merge bots from imported file (merge into set to avoid duplicates)
-	botsContent, err := extractFrontmatterField(string(content), "bots", "[]")
+	botsContent, err := extractFieldJSONFromMap(fm, "bots", "[]")
 	if err == nil && botsContent != "" && botsContent != "[]" {
 		var importedBots []string
 		if jsonErr := json.Unmarshal([]byte(botsContent), &importedBots); jsonErr == nil {
@@ -184,7 +194,7 @@ func (acc *importAccumulator) extractAllImportFields(content []byte, item import
 	}
 
 	// Extract and merge skip-roles from imported file (merge into set to avoid duplicates)
-	skipRolesContent, err := extractOnSectionField(string(content), "skip-roles")
+	skipRolesContent, err := extractOnSectionFieldFromMap(fm, "skip-roles")
 	if err == nil && skipRolesContent != "" && skipRolesContent != "[]" {
 		var importedSkipRoles []string
 		if jsonErr := json.Unmarshal([]byte(skipRolesContent), &importedSkipRoles); jsonErr == nil {
@@ -198,7 +208,7 @@ func (acc *importAccumulator) extractAllImportFields(content []byte, item import
 	}
 
 	// Extract and merge skip-bots from imported file (merge into set to avoid duplicates)
-	skipBotsContent, err := extractOnSectionField(string(content), "skip-bots")
+	skipBotsContent, err := extractOnSectionFieldFromMap(fm, "skip-bots")
 	if err == nil && skipBotsContent != "" && skipBotsContent != "[]" {
 		var importedSkipBots []string
 		if jsonErr := json.Unmarshal([]byte(skipBotsContent), &importedSkipBots); jsonErr == nil {
@@ -213,36 +223,43 @@ func (acc *importAccumulator) extractAllImportFields(content []byte, item import
 
 	// Extract on.github-token from imported file (first-wins: only set if not yet populated)
 	if acc.activationGitHubToken == "" {
-		if token := extractOnGitHubToken(string(content)); token != "" {
-			acc.activationGitHubToken = token
-			log.Printf("Extracted on.github-token from import: %s", item.fullPath)
+		if tokenJSON, tokenErr := extractOnSectionAnyFieldFromMap(fm, "github-token"); tokenErr == nil && tokenJSON != "" && tokenJSON != "null" {
+			var token string
+			if jsonErr := json.Unmarshal([]byte(tokenJSON), &token); jsonErr == nil && token != "" {
+				acc.activationGitHubToken = token
+				log.Printf("Extracted on.github-token from import: %s", item.fullPath)
+			}
 		}
 	}
 
 	// Extract on.github-app from imported file (first-wins: only set if not yet populated)
 	if acc.activationGitHubApp == "" {
-		if appJSON := extractOnGitHubApp(string(content)); appJSON != "" {
-			acc.activationGitHubApp = appJSON
-			log.Printf("Extracted on.github-app from import: %s", item.fullPath)
+		if appJSON, appErr := extractOnSectionAnyFieldFromMap(fm, "github-app"); appErr == nil {
+			if validated := validateGitHubAppJSON(appJSON); validated != "" {
+				acc.activationGitHubApp = validated
+				log.Printf("Extracted on.github-app from import: %s", item.fullPath)
+			}
 		}
 	}
 
 	// Extract top-level github-app from imported file (first-wins: only set if not yet populated)
 	if acc.topLevelGitHubApp == "" {
-		if appJSON := extractTopLevelGitHubApp(string(content)); appJSON != "" {
-			acc.topLevelGitHubApp = appJSON
-			log.Printf("Extracted top-level github-app from import: %s", item.fullPath)
+		if appJSON, appErr := extractFieldJSONFromMap(fm, "github-app", ""); appErr == nil {
+			if validated := validateGitHubAppJSON(appJSON); validated != "" {
+				acc.topLevelGitHubApp = validated
+				log.Printf("Extracted top-level github-app from import: %s", item.fullPath)
+			}
 		}
 	}
 
 	// Extract post-steps from imported file (append in order)
-	postStepsContent, err := extractPostStepsFromContent(string(content))
+	postStepsContent, err := extractYAMLFieldFromMap(fm, "post-steps")
 	if err == nil && postStepsContent != "" {
 		acc.postStepsBuilder.WriteString(postStepsContent + "\n")
 	}
 
 	// Extract labels from imported file (merge into set to avoid duplicates)
-	labelsContent, err := extractFrontmatterField(string(content), "labels", "[]")
+	labelsContent, err := extractFieldJSONFromMap(fm, "labels", "[]")
 	if err == nil && labelsContent != "" && labelsContent != "[]" {
 		var importedLabels []string
 		if jsonErr := json.Unmarshal([]byte(labelsContent), &importedLabels); jsonErr == nil {
@@ -256,13 +273,13 @@ func (acc *importAccumulator) extractAllImportFields(content []byte, item import
 	}
 
 	// Extract cache from imported file (append to list of caches)
-	cacheContent, err := extractFrontmatterField(string(content), "cache", "{}")
+	cacheContent, err := extractFieldJSONFromMap(fm, "cache", "{}")
 	if err == nil && cacheContent != "" && cacheContent != "{}" {
 		acc.caches = append(acc.caches, cacheContent)
 	}
 
 	// Extract features from imported file (parse as map structure)
-	featuresContent, err := extractFrontmatterField(string(content), "features", "{}")
+	featuresContent, err := extractFieldJSONFromMap(fm, "features", "{}")
 	if err == nil && featuresContent != "" && featuresContent != "{}" {
 		var featuresMap map[string]any
 		if jsonErr := json.Unmarshal([]byte(featuresContent), &featuresMap); jsonErr == nil {
@@ -335,20 +352,6 @@ func computeImportRelPath(fullPath, importPath string) string {
 	return importPath
 }
 
-// extractOnGitHubToken returns the on.github-token string value from workflow content.
-// Returns "" if the field is absent or not a non-empty string.
-func extractOnGitHubToken(content string) string {
-	tokenJSON, err := extractOnSectionAnyField(content, "github-token")
-	if err != nil || tokenJSON == "" || tokenJSON == "null" {
-		return ""
-	}
-	var token string
-	if err := json.Unmarshal([]byte(tokenJSON), &token); err != nil {
-		return ""
-	}
-	return token
-}
-
 // validateGitHubAppJSON validates that a JSON-encoded GitHub App configuration has the required
 // fields (app-id and private-key). Returns the input JSON if valid, or "" otherwise.
 func validateGitHubAppJSON(appJSON string) string {
@@ -366,24 +369,4 @@ func validateGitHubAppJSON(appJSON string) string {
 		return ""
 	}
 	return appJSON
-}
-
-// extractOnGitHubApp returns the JSON-encoded on.github-app object from workflow content.
-// Returns "" if the field is absent, not a valid object, or missing required fields.
-func extractOnGitHubApp(content string) string {
-	appJSON, err := extractOnSectionAnyField(content, "github-app")
-	if err != nil {
-		return ""
-	}
-	return validateGitHubAppJSON(appJSON)
-}
-
-// extractTopLevelGitHubApp returns the JSON-encoded top-level github-app object from workflow content.
-// Returns "" if the field is absent, not a valid object, or missing required fields.
-func extractTopLevelGitHubApp(content string) string {
-	appJSON, err := extractFrontmatterField(content, "github-app", "")
-	if err != nil {
-		return ""
-	}
-	return validateGitHubAppJSON(appJSON)
 }
