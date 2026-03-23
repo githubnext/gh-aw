@@ -148,11 +148,6 @@
       "version": "v4.34.1",
       "sha": "cb06a0a8527b2c6970741b3a0baa15231dc74a4c"
     },
-    "github/gh-aw-actions/setup@v0": {
-      "repo": "github/gh-aw-actions/setup",
-      "version": "v0",
-      "sha": "50f4fc16883c6c6672d8879affa8fd15d5cc79a4"
-    },
     "github/gh-aw-actions/setup@v0.62.5": {
       "repo": "github/gh-aw-actions/setup",
       "version": "v0.62.5",
@@ -168,10 +163,10 @@
       "version": "v2.10.3",
       "sha": "9cd1b7bf3f36d5a3c3b17abc3545bfb5481912ea"
     },
-    "microsoft/apm-action@v1.3.4": {
+    "microsoft/apm-action@v1.4.0": {
       "repo": "microsoft/apm-action",
-      "version": "v1.3.4",
-      "sha": "83d54a6c7941049210433b16c8dfac573665b12a"
+      "version": "v1.4.0",
+      "sha": "cc84c04bc73e19e35527f1efa34ea003be9f037f"
     },
     "oven-sh/setup-bun@v2.2.0": {
       "repo": "oven-sh/setup-bun",
