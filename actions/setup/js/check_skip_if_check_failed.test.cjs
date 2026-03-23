@@ -234,4 +234,48 @@ describe("check_skip_if_check_failed.cjs", () => {
     expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("Rate limit exceeded"));
     expect(mockCore.setOutput).not.toHaveBeenCalled();
   });
+
+  it("should ignore deployment gate checks from github-deployments app", async () => {
+    mockGithub.paginate.mockResolvedValue([
+      // Regular CI check that passes
+      { name: "build", status: "completed", conclusion: "success", started_at: "2024-01-01T00:00:00Z", app: { slug: "github-actions" } },
+      // Deployment gate (waiting for approval) — should be ignored even if it shows as failing
+      { name: "production", status: "completed", conclusion: "failure", started_at: "2024-01-01T00:00:00Z", app: { slug: "github-deployments" } },
+    ]);
+
+    const { main } = await import("./check_skip_if_check_failed.cjs");
+    await main();
+
+    // Deployment gate is ignored, build passed → allow
+    expect(mockCore.setOutput).toHaveBeenCalledWith("skip_if_check_failed_ok", "true");
+    expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Skipping 1 deployment gate check(s)"));
+  });
+
+  it("should allow workflow when only deployment checks are failing", async () => {
+    mockGithub.paginate.mockResolvedValue([
+      { name: "staging", status: "completed", conclusion: "cancelled", started_at: "2024-01-01T00:00:00Z", app: { slug: "github-deployments" } },
+      { name: "production", status: "completed", conclusion: "failure", started_at: "2024-01-01T00:00:00Z", app: { slug: "github-deployments" } },
+    ]);
+
+    const { main } = await import("./check_skip_if_check_failed.cjs");
+    await main();
+
+    // All checks are deployment gates → no CI checks to evaluate → allow
+    expect(mockCore.setOutput).toHaveBeenCalledWith("skip_if_check_failed_ok", "true");
+    expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Skipping 2 deployment gate check(s)"));
+  });
+
+  it("should still cancel when a non-deployment check fails alongside a deployment gate", async () => {
+    mockGithub.paginate.mockResolvedValue([
+      { name: "build", status: "completed", conclusion: "failure", started_at: "2024-01-01T00:00:00Z", app: { slug: "github-actions" } },
+      { name: "production", status: "completed", conclusion: "failure", started_at: "2024-01-01T00:00:00Z", app: { slug: "github-deployments" } },
+    ]);
+
+    const { main } = await import("./check_skip_if_check_failed.cjs");
+    await main();
+
+    // build failed (not a deployment gate) → cancel
+    expect(mockCore.setOutput).toHaveBeenCalledWith("skip_if_check_failed_ok", "false");
+    expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("build"));
+  });
 });

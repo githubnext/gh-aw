@@ -52,6 +52,22 @@ function parseListEnv(envValue) {
   }
 }
 
+/**
+ * Returns true for check runs that represent deployment environment gates rather
+ * than CI checks. These should be ignored by default so that a pending deployment
+ * approval does not falsely block the agentic workflow.
+ *
+ * Deployment gate checks are identified by the GitHub App that created them:
+ *   - "github-deployments" – the built-in GitHub Deployments service
+ *
+ * @param {object} run - A check run object from the GitHub API
+ * @returns {boolean}
+ */
+function isDeploymentCheck(run) {
+  const slug = run.app?.slug;
+  return slug === "github-deployments";
+}
+
 async function main() {
   const includeEnv = process.env.GH_AW_SKIP_CHECK_INCLUDE;
   const excludeEnv = process.env.GH_AW_SKIP_CHECK_EXCLUDE;
@@ -86,10 +102,16 @@ async function main() {
 
     core.info(`Found ${checkRuns.length} check run(s) on ref "${ref}"`);
 
-    // Filter to the latest run per check name (GitHub may have multiple runs per name)
-    /** @type {Map<string, import("@octokit/types").Endpoints["GET /repos/{owner}/{repo}/commits/{ref}/check-runs"]["response"]["data"]["check_runs"][number]>} */
+    // Filter to the latest run per check name (GitHub may have multiple runs per name).
+    // Deployment gate checks are silently skipped here so they never influence the gate.
+    /** @type {Map<string, object>} */
     const latestByName = new Map();
+    let deploymentCheckCount = 0;
     for (const run of checkRuns) {
+      if (isDeploymentCheck(run)) {
+        deploymentCheckCount++;
+        continue;
+      }
       const name = run.name;
       const existing = latestByName.get(name);
       if (!existing || new Date(run.started_at ?? 0) > new Date(existing.started_at ?? 0)) {
@@ -97,7 +119,11 @@ async function main() {
       }
     }
 
-    // Apply include/exclude filtering
+    if (deploymentCheckCount > 0) {
+      core.info(`Skipping ${deploymentCheckCount} deployment gate check(s) (app: github-deployments)`);
+    }
+
+    // Apply user-defined include/exclude filtering
     const relevant = [];
     for (const [name, run] of latestByName) {
       if (includeList && includeList.length > 0 && !includeList.includes(name)) {
