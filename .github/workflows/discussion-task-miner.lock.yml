@@ -32,7 +32,7 @@
 name: "Discussion Task Miner - Code Quality Improvement Agent"
 "on":
   schedule:
-  - cron: "55 */6 * * *"
+  - cron: "40 */6 * * *"
     # Friendly format: every 6h (scattered)
   workflow_dispatch:
 

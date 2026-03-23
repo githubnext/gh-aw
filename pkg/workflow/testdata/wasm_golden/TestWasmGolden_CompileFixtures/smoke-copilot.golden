@@ -7,7 +7,7 @@ name: "Smoke Copilot"
     - labeled
   # reaction: eyes # Reaction processed as activation job step
   schedule:
-  - cron: "19 */12 * * *"
+  - cron: "14 */12 * * *"
     # Friendly format: every 12h (scattered)
   status-comment: true
   workflow_dispatch:

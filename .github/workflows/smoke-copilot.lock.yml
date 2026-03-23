@@ -36,7 +36,7 @@ name: "Smoke Copilot"
     types:
     - labeled
   schedule:
-  - cron: "47 */12 * * *"
+  - cron: "32 */12 * * *"
   workflow_dispatch:
     inputs:
       item_number:

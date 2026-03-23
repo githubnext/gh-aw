@@ -3,6 +3,7 @@
 package parser
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 )
@@ -616,5 +617,76 @@ func TestScatterScheduleWeekdays(t *testing.T) {
 				t.Errorf("expected day-of-week field to be '1-5', got '%s'", fields[4])
 			}
 		})
+	}
+}
+
+// TestScatterScheduleAvoidsHourBoundary verifies that all fuzzy schedule patterns
+// produce a minute value in [5, 54], never within 5 minutes of an hour boundary.
+// This avoids peak usage times on GitHub Actions (especially 00:00 UTC and
+// the 5-minute windows before/after each hour).
+func TestScatterScheduleAvoidsHourBoundary(t *testing.T) {
+	// Use a diverse set of workflow identifiers to exercise different hash outcomes.
+	workflowIDs := []string{
+		"workflow-a.md",
+		"workflow-b.md",
+		"repo/workflow-c.md",
+		"test-workflow",
+		"daily-security-scan",
+		"weekly-report",
+		"hourly-checker",
+		"my-org/my-repo/my-workflow.md",
+	}
+
+	patterns := []string{
+		"FUZZY:DAILY * * *",
+		"FUZZY:DAILY_WEEKDAYS * * *",
+		"FUZZY:HOURLY/1 * * *",
+		"FUZZY:HOURLY/2 * * *",
+		"FUZZY:HOURLY/6 * * *",
+		"FUZZY:HOURLY_WEEKDAYS/1 * * *",
+		"FUZZY:HOURLY_WEEKDAYS/4 * * *",
+		"FUZZY:DAILY_AROUND:9:0 * * *",
+		"FUZZY:DAILY_AROUND:0:0 * * *",
+		"FUZZY:DAILY_AROUND:23:30 * * *",
+		"FUZZY:DAILY_AROUND_WEEKDAYS:14:0 * * *",
+		"FUZZY:DAILY_BETWEEN:9:0:17:0 * * *",
+		"FUZZY:DAILY_BETWEEN:22:0:2:0 * * *",
+		"FUZZY:DAILY_BETWEEN_WEEKDAYS:8:30:18:0 * * *",
+		"FUZZY:WEEKLY * * *",
+		"FUZZY:WEEKLY:1 * * *",
+		"FUZZY:WEEKLY:5 * * *",
+		"FUZZY:WEEKLY_AROUND:1:9:0 * * *",
+		"FUZZY:WEEKLY_AROUND:0:0:0 * * *",
+		"FUZZY:BI_WEEKLY * * *",
+		"FUZZY:TRI_WEEKLY * * *",
+	}
+
+	for _, pattern := range patterns {
+		for _, wfID := range workflowIDs {
+			t.Run(pattern+"/"+wfID, func(t *testing.T) {
+				result, err := ScatterSchedule(pattern, wfID)
+				if err != nil {
+					t.Fatalf("unexpected error: %v", err)
+				}
+
+				fields := strings.Fields(result)
+				if len(fields) != 5 {
+					t.Fatalf("expected 5 cron fields, got %d: %s", len(fields), result)
+				}
+
+				// The minute field is the first field in a cron expression.
+				// Parse the raw minute number.
+				minuteStr := fields[0]
+				var minute int
+				if _, scanErr := fmt.Sscanf(minuteStr, "%d", &minute); scanErr != nil {
+					t.Fatalf("could not parse minute from cron %q: %v", result, scanErr)
+				}
+
+				if minute < 5 || minute > 54 {
+					t.Errorf("pattern=%q wfID=%q: minute %d is within 5 minutes of an hour boundary (must be in [5, 54]); cron=%q",
+						pattern, wfID, minute, result)
+				}
+			})
+		}
 	}
 }

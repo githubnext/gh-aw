@@ -33,7 +33,7 @@
 name: "Daily Project Performance Summary Generator (Using MCP Scripts)"
 "on":
   schedule:
-  - cron: "26 19 * * *"
+  - cron: "51 8 * * *"
     # Friendly format: daily (scattered)
   workflow_dispatch:
 

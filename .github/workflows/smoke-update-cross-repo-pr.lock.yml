@@ -32,7 +32,7 @@ name: "Smoke Update Cross-Repo PR"
     types:
     - labeled
   schedule:
-  - cron: "39 */12 * * *"
+  - cron: "34 */12 * * *"
   workflow_dispatch: null
 
 permissions: {}

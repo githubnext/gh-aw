@@ -27,7 +27,7 @@
 name: "Weekly Editors Health Check"
 "on":
   schedule:
-  - cron: "43 21 * * 1"
+  - cron: "8 2 * * 5"
     # Friendly format: weekly (scattered)
   workflow_dispatch:
 

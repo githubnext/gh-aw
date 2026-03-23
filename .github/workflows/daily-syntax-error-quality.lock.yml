@@ -31,7 +31,7 @@
 name: "Daily Syntax Error Quality Check"
 "on":
   schedule:
-  - cron: "43 17 * * *"
+  - cron: "38 11 * * *"
     # Friendly format: daily (scattered)
   workflow_dispatch:
 

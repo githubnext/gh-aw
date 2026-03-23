@@ -31,7 +31,7 @@
 name: "Dead Code Removal Agent"
 "on":
   schedule:
-  - cron: "50 17 * * *"
+  - cron: "25 21 * * *"
     # Friendly format: daily (scattered)
   # skip-if-match: is:pr is:open in:title "[dead-code] " # Skip-if-match processed as search check in pre-activation job
   workflow_dispatch:
