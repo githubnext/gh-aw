@@ -140,6 +140,7 @@ export default defineConfig({
 			},
 			components: {
 				Head: './src/components/CustomHead.astro',
+				SkipLink: './src/components/SkipLink.astro',
 				SocialIcons: './src/components/CustomHeader.astro',
 				ThemeSelect: './src/components/ThemeToggle.astro',
 				Footer: './src/components/CustomFooter.astro',
