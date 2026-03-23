@@ -36,7 +36,7 @@ func TestBuildGitHubScriptStep(t *testing.T) {
 				"id: test_step",
 				"uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd",
 				"env:",
-				"GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}",
+				"GH_AW_AGENT_OUTPUT: ${{ steps.setup-agent-output-env.outputs.GH_AW_AGENT_OUTPUT }}",
 				"with:",
 				"script: |",
 				"console.log('test');",
@@ -64,7 +64,7 @@ func TestBuildGitHubScriptStep(t *testing.T) {
 				"- name: Create Issue",
 				"id: create_issue",
 				"uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd",
-				"GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}",
+				"GH_AW_AGENT_OUTPUT: ${{ steps.setup-agent-output-env.outputs.GH_AW_AGENT_OUTPUT }}",
 				"GH_AW_ISSUE_TITLE_PREFIX: \"[bot] \"",
 				"GH_AW_ISSUE_LABELS: \"automation,ai\"",
 				"const issue = true;",
@@ -93,7 +93,7 @@ func TestBuildGitHubScriptStep(t *testing.T) {
 				"- name: Setup agent output environment variable",
 				"- name: Process Output",
 				"id: process",
-				"GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}",
+				"GH_AW_AGENT_OUTPUT: ${{ steps.setup-agent-output-env.outputs.GH_AW_AGENT_OUTPUT }}",
 				"CUSTOM_VAR_1: value1",
 				"CUSTOM_VAR_2: value2",
 			},
@@ -226,7 +226,7 @@ func TestApplySafeOutputEnvToMap(t *testing.T) {
 				SafeOutputs: &SafeOutputsConfig{},
 			},
 			expected: map[string]string{
-				"GH_AW_SAFE_OUTPUTS": "${{ env.GH_AW_SAFE_OUTPUTS }}",
+				"GH_AW_SAFE_OUTPUTS": "${{ steps.set-runtime-paths.outputs.GH_AW_SAFE_OUTPUTS }}",
 			},
 		},
 		{
@@ -237,7 +237,7 @@ func TestApplySafeOutputEnvToMap(t *testing.T) {
 				},
 			},
 			expected: map[string]string{
-				"GH_AW_SAFE_OUTPUTS":        "${{ env.GH_AW_SAFE_OUTPUTS }}",
+				"GH_AW_SAFE_OUTPUTS":        "${{ steps.set-runtime-paths.outputs.GH_AW_SAFE_OUTPUTS }}",
 				"GH_AW_SAFE_OUTPUTS_STAGED": "true",
 			},
 		},
@@ -249,7 +249,7 @@ func TestApplySafeOutputEnvToMap(t *testing.T) {
 				SafeOutputs:      &SafeOutputsConfig{},
 			},
 			expected: map[string]string{
-				"GH_AW_SAFE_OUTPUTS":        "${{ env.GH_AW_SAFE_OUTPUTS }}",
+				"GH_AW_SAFE_OUTPUTS":        "${{ steps.set-runtime-paths.outputs.GH_AW_SAFE_OUTPUTS }}",
 				"GH_AW_SAFE_OUTPUTS_STAGED": "true",
 				"GH_AW_TARGET_REPO_SLUG":    "owner/repo",
 			},
@@ -266,7 +266,7 @@ func TestApplySafeOutputEnvToMap(t *testing.T) {
 				},
 			},
 			expected: map[string]string{
-				"GH_AW_SAFE_OUTPUTS":        "${{ env.GH_AW_SAFE_OUTPUTS }}",
+				"GH_AW_SAFE_OUTPUTS":        "${{ steps.set-runtime-paths.outputs.GH_AW_SAFE_OUTPUTS }}",
 				"GH_AW_ASSETS_BRANCH":       "\"gh-aw-assets\"",
 				"GH_AW_ASSETS_MAX_SIZE_KB":  "10240",
 				"GH_AW_ASSETS_ALLOWED_EXTS": "\".png,.jpg,.jpeg\"",
@@ -614,11 +614,12 @@ func TestBuildAgentOutputDownloadSteps(t *testing.T) {
 		"name: agent",
 		"path: /tmp/gh-aw/",
 		"- name: Setup agent output environment variable",
+		"id: setup-agent-output-env",
 		"if: steps.download-agent-output.outcome == 'success'",
 		"mkdir -p /tmp/gh-aw/",
 		`find "/tmp/gh-aw/" -type f -print`,
 		// Hardcoded path is correct because GetPreBundleSteps ensures LCA is /tmp/gh-aw/
-		`echo "GH_AW_AGENT_OUTPUT=/tmp/gh-aw/agent_output.json" >> "$GITHUB_ENV"`,
+		`echo "GH_AW_AGENT_OUTPUT=/tmp/gh-aw/agent_output.json" >> "$GITHUB_OUTPUT"`,
 	}
 
 	for _, expected := range expectedComponents {

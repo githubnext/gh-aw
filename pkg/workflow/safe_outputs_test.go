@@ -863,7 +863,7 @@ func TestBuildGitHubScriptStepWithoutDownload(t *testing.T) {
 				"id: test_step",
 				"uses: actions/github-script@",
 				"env:",
-				"GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}",
+				"GH_AW_AGENT_OUTPUT: ${{ steps.setup-agent-output-env.outputs.GH_AW_AGENT_OUTPUT }}",
 				"with:",
 				"script: |",
 				"console.log('test');",

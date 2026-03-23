@@ -24,7 +24,7 @@ func applySafeOutputEnvToMap(env map[string]string, data *WorkflowData) {
 
 	safeOutputsEnvLog.Printf("Applying safe output env vars: trial_mode=%t, staged=%t", data.TrialMode, data.SafeOutputs.Staged)
 
-	env["GH_AW_SAFE_OUTPUTS"] = "${{ env.GH_AW_SAFE_OUTPUTS }}"
+	env["GH_AW_SAFE_OUTPUTS"] = "${{ steps.set-runtime-paths.outputs.GH_AW_SAFE_OUTPUTS }}"
 
 	// Add staged flag if specified
 	if data.TrialMode || data.SafeOutputs.Staged {

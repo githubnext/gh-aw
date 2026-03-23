@@ -557,15 +557,18 @@ jobs:
 
     steps:
       - name: Configure GH_HOST for enterprise compatibility
+        id: ghes-host-config
         shell: bash
         run: |
           # Derive GH_HOST from GITHUB_SERVER_URL so the gh CLI targets the correct
           # GitHub instance (GHES/GHEC). On github.com this is a harmless no-op.
           GH_HOST="${GITHUB_SERVER_URL#https://}"
           GH_HOST="${GH_HOST#http://}"
-          echo "GH_HOST=${GH_HOST}" >> "$GITHUB_ENV"
+          echo "GH_HOST=${GH_HOST}" >> "$GITHUB_OUTPUT"
       - name: Post ACE editor session link
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        env:
+          GH_HOST: ${{ steps.ghes-host-config.outputs.GH_HOST }}
         with:
           script: |-
             const prNumber = context.payload.issue.number;

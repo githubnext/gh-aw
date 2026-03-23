@@ -164,8 +164,8 @@ func TestClaudeEngineWithOutput(t *testing.T) {
 	executionStep := steps[0]
 	stepContent := strings.Join([]string(executionStep), "\n")
 
-	// Should include GH_AW_SAFE_OUTPUTS when hasOutput=true in environment section
-	if !strings.Contains(stepContent, "GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}") {
+	// Should include GH_AW_SAFE_OUTPUTS when hasOutput=true in environment section (via step output)
+	if !strings.Contains(stepContent, "GH_AW_SAFE_OUTPUTS: ${{ steps.set-runtime-paths.outputs.GH_AW_SAFE_OUTPUTS }}") {
 		t.Errorf("Expected GH_AW_SAFE_OUTPUTS in env section when hasOutput=true in step content:\n%s", stepContent)
 	}
 }
