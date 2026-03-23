@@ -1,7 +1,7 @@
 # Developer Instructions
 
-**Version**: 4.0
-**Last Updated**: 2026-03-21
+**Version**: 4.1
+**Last Updated**: 2026-03-22
 **Purpose**: Consolidated development guidelines for GitHub Agentic Workflows
 
 This document consolidates specifications from the scratchpad directory into unified developer instructions. It provides architecture patterns, security guidelines, code organization rules, and testing practices.
@@ -1924,11 +1924,11 @@ tools:
   github:
     mode: remote
     toolsets: [default]
-    repos: "all"            # "all", "public", or array of patterns
+    allowed-repos: "all"    # "all", "public", or array of patterns
     min-integrity: unapproved   # none | unapproved | approved | merged
 ```
 
-`min-integrity` is required when using GitHub guard policies. `repos` defaults to `"all"` if not specified.
+`min-integrity` is required when using GitHub guard policies. `allowed-repos` defaults to `"all"` if not specified. Note: `repos` is a deprecated alias for `allowed-repos`; run `gh aw fix` to migrate automatically.
 
 **Repository Pattern Options**:
 - `"all"` — All repositories accessible by the token
@@ -2525,7 +2525,8 @@ These files are loaded automatically by compatible AI tools (e.g., GitHub Copilo
 - [Template Syntax Sanitization](./template-syntax-sanitization.md) - T24: template delimiter neutralization
 - [YAML Version Gotchas](./yaml-version-gotchas.md) - YAML 1.1 vs 1.2 parser compatibility: `on:` key behavior, false positive prevention
 - [Architecture Diagram](./architecture.md) - Package structure and dependency diagram for the `gh-aw` codebase
-- [Guard Policies Specification](./guard-policies-specification.md) - GitHub MCP guard policies: `repos` scope and `min-integrity` access control
+- [Guard Policies Specification](./guard-policies-specification.md) - GitHub MCP guard policies: `allowed-repos` scope and `min-integrity` access control
+- [GitHub MCP Access Control Specification](./github-mcp-access-control-specification.md) - Formal specification for GitHub MCP Server access control: repository scoping (`allowed-repos`), role-based filtering, private repository controls, and integrity-level enforcement
 - [Repo Memory Specification](./repo-memory.md) - Persistent git-backed storage: configuration, path conventions, campaign mode, and cross-layer testing
 - [Changesets CLI](./changesets.md) - Version release management: changeset file format, release workflow, and CLI commands
 - [Validation Refactoring Guide](./validation-refactoring.md) - Step-by-step process for splitting large validation files into focused single-responsibility validators
@@ -2546,6 +2547,7 @@ These files are loaded automatically by compatible AI tools (e.g., GitHub Copilo
 ---
 
 **Document History**:
+- v4.1 (2026-03-22): Updated `repos` → `allowed-repos` in GitHub MCP Guard Policies section (reflects PR #22331 codemod; `repos` is now a deprecated alias). Added deprecation migration note (`gh aw fix`). Added Related Documentation link for GitHub MCP Access Control Specification. Coverage: 66 spec files.
 - v4.0 (2026-03-22): Integrated 4 new spec files. CLI Command Patterns: added logger namespace convention (`cli:command_name`), console output rules (all to stderr via `console.FormatXxxMessage()`), config struct naming (`Config` suffix), standard short flags table, flag completion helpers. Go Type Patterns: added Semantic Type Aliases section (LineLength, Version, WorkflowID, EngineName, GitHubToolName, typed slices), dynamic YAML/JSON handling pattern, `any` vs `interface{}` standard (Go 1.18+). Testing: added Assert vs Require distinction with examples, security regression tests and fuzz tests file naming, running tests commands (`make test-unit`, `make test-security`, `make bench`, `make agent-finish`), no-mocks/no-suites rationale. Safe Outputs: added Message Module Architecture section with module table and import guidance. Related Documentation: added 4 new links. Coverage: 65 spec files.
 - v3.9 (2026-03-18): Added 5 previously uncovered spec files: Repo Memory section (from `repo-memory.md`: git-backed persistent storage, path conventions, configuration, validation limits), Release Management section (from `changesets.md`: changeset CLI, release workflow), Validation File Refactoring subsection (from `validation-refactoring.md`: complexity thresholds, naming conventions, process steps), String Processing subsection in Code Organization (from `string-sanitization-normalization.md`: sanitize vs normalize decision rule), and 7 new Related Documentation links. Coverage: 68 spec files (5 new).
 - v3.8 (2026-03-06): Fixed 2 tone issues — "Extreme Simplicity" heading → "Minimal Configuration Model" (mdflow.md:199), "Deep analysis" → "Detailed analysis" (README.md:40). Coverage: 63 spec files (62 spec + 1 test artifact).

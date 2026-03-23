@@ -900,6 +900,32 @@ The YAML frontmatter supports these fields:
     ```
 
     Triggers other agentic workflows in the same repository using workflow_dispatch. Agent output includes `workflow_name` (without .md extension) and optional `inputs` (key-value pairs). Not supported for cross-repository operations.
+  - `dispatch_repository:` - Dispatch `repository_dispatch` events to external repositories (experimental)
+
+    ```yaml
+    safe-outputs:
+      dispatch_repository:
+        trigger_ci:                              # Tool name (normalized to MCP tool: trigger_ci)
+          description: "Trigger CI in target repo"
+          workflow: ci.yml                       # Required: target workflow name (for traceability)
+          event_type: ci_trigger                 # Required: repository_dispatch event_type
+          repository: org/target-repo           # Required: target repo (or use allowed_repositories)
+          # allowed_repositories:               # Alternative: allow multiple target repos
+          #   - org/repo1
+          #   - org/repo2
+          inputs:                               # Optional: input schema for agent
+            environment:
+              type: string
+              description: "Deployment environment"
+              required: true
+          max: 1                                # Optional: max dispatches (templatable)
+          github-token: ${{ secrets.MY_PAT }}   # Optional: override token
+          staged: false                         # Optional: preview-only mode
+    ```
+
+    Accepts both `dispatch_repository` (underscore, preferred) and `dispatch-repository` (dash). Each key in the config defines a named MCP tool. Requires a token with `repo` scope since `GITHUB_TOKEN` cannot trigger `repository_dispatch` in external repositories. Use `github-token` or set a PAT as `GH_AW_SAFE_OUTPUTS_TOKEN`.
+
+    **⚠️ Experimental**: Compilation emits a warning when this feature is used.
   - `call-workflow:` - Call reusable workflows via workflow_call fan-out (orchestrator pattern)
 
     ```yaml

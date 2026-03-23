@@ -113,6 +113,10 @@ function createMCPServer(options = {}) {
     // The _workflow_name should be a non-empty string
     const isDispatchWorkflowTool = tool._workflow_name && typeof tool._workflow_name === "string" && tool._workflow_name.length > 0;
 
+    // Check if this is a dispatch_repository tool (has _dispatch_repository_tool metadata)
+    // These tools are dynamically generated with tool-specific names
+    const isDispatchRepositoryTool = tool._dispatch_repository_tool && typeof tool._dispatch_repository_tool === "string" && tool._dispatch_repository_tool.length > 0;
+
     // Check if this is a call_workflow tool (has _call_workflow_name metadata)
     // These tools are dynamically generated with workflow-specific names
     // The _call_workflow_name should be a non-empty string
@@ -127,6 +131,15 @@ function createMCPServer(options = {}) {
         continue;
       }
       logger.debug(`  dispatch_workflow config exists, registering tool`);
+    } else if (isDispatchRepositoryTool) {
+      logger.debug(`Found dispatch_repository tool: ${tool.name} (_dispatch_repository_tool: ${tool._dispatch_repository_tool})`);
+      if (!safeOutputsConfig.dispatch_repository) {
+        logger.debug(`  WARNING: dispatch_repository config is missing or falsy - tool will NOT be registered`);
+        logger.debug(`  Config keys: ${Object.keys(safeOutputsConfig).join(", ")}`);
+        logger.debug(`  config.dispatch_repository value: ${JSON.stringify(safeOutputsConfig.dispatch_repository)}`);
+        continue;
+      }
+      logger.debug(`  dispatch_repository config exists, registering tool`);
     } else if (isCallWorkflowTool) {
       logger.debug(`Found call_workflow tool: ${tool.name} (_call_workflow_name: ${tool._call_workflow_name})`);
       if (!safeOutputsConfig.call_workflow) {
@@ -140,7 +153,14 @@ function createMCPServer(options = {}) {
       // Check if regular tool is enabled in configuration
       if (!enabledTools.has(tool.name)) {
         // Log tool metadata to help diagnose registration issues
-        const toolMeta = tool._workflow_name !== undefined ? ` (_workflow_name: ${JSON.stringify(tool._workflow_name)})` : tool._call_workflow_name !== undefined ? ` (_call_workflow_name: ${JSON.stringify(tool._call_workflow_name)})` : "";
+        let toolMeta = "";
+        if (tool._workflow_name !== undefined) {
+          toolMeta = ` (_workflow_name: ${JSON.stringify(tool._workflow_name)})`;
+        } else if (tool._dispatch_repository_tool !== undefined) {
+          toolMeta = ` (_dispatch_repository_tool: ${JSON.stringify(tool._dispatch_repository_tool)})`;
+        } else if (tool._call_workflow_name !== undefined) {
+          toolMeta = ` (_call_workflow_name: ${JSON.stringify(tool._call_workflow_name)})`;
+        }
         logger.debug(`Skipping tool ${tool.name}${toolMeta} - not enabled in config (tool has ${Object.keys(tool).length} properties: ${Object.keys(tool).join(", ")})`);
         continue;
       }

@@ -267,6 +267,12 @@ func (c *Compiler) validateWorkflowData(workflowData *WorkflowData, markdownPath
 		c.IncrementWarningCount()
 	}
 
+	// Emit experimental warning for dispatch_repository feature
+	if workflowData.SafeOutputs != nil && workflowData.SafeOutputs.DispatchRepository != nil {
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Using experimental feature: dispatch_repository"))
+		c.IncrementWarningCount()
+	}
+
 	// Validate workflow_run triggers have branch restrictions
 	log.Printf("Validating workflow_run triggers for branch restrictions")
 	if err := c.validateWorkflowRunBranches(workflowData, markdownPath); err != nil {
@@ -386,6 +392,12 @@ Ensure proper audience validation and trust policies are configured.`
 	log.Print("Validating dispatch-workflow configuration")
 	if err := c.validateDispatchWorkflow(workflowData, markdownPath); err != nil {
 		return formatCompilerError(markdownPath, "error", fmt.Sprintf("dispatch-workflow validation failed: %v", err), err)
+	}
+
+	// Validate dispatch_repository configuration (independent of agentic-workflows tool)
+	log.Print("Validating dispatch_repository configuration")
+	if err := c.validateDispatchRepository(workflowData, markdownPath); err != nil {
+		return formatCompilerError(markdownPath, "error", fmt.Sprintf("dispatch_repository validation failed: %v", err), err)
 	}
 
 	// Validate call-workflow configuration (independent of agentic-workflows tool)

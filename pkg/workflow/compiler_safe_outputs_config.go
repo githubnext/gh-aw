@@ -610,6 +610,26 @@ var handlerRegistry = map[string]handlerBuilder{
 		builder.AddIfTrue("staged", c.Staged)
 		return builder.Build()
 	},
+	"dispatch_repository": func(cfg *SafeOutputsConfig) map[string]any {
+		if cfg.DispatchRepository == nil || len(cfg.DispatchRepository.Tools) == 0 {
+			return nil
+		}
+		// Serialize each tool as a sub-map
+		tools := make(map[string]any, len(cfg.DispatchRepository.Tools))
+		for toolKey, tool := range cfg.DispatchRepository.Tools {
+			toolConfig := newHandlerConfigBuilder().
+				AddIfNotEmpty("workflow", tool.Workflow).
+				AddIfNotEmpty("event_type", tool.EventType).
+				AddIfNotEmpty("repository", tool.Repository).
+				AddStringSlice("allowed_repositories", tool.AllowedRepositories).
+				AddTemplatableInt("max", tool.Max).
+				AddIfNotEmpty("github-token", tool.GitHubToken).
+				AddIfTrue("staged", tool.Staged).
+				Build()
+			tools[toolKey] = toolConfig
+		}
+		return map[string]any{"tools": tools}
+	},
 	"call_workflow": func(cfg *SafeOutputsConfig) map[string]any {
 		if cfg.CallWorkflow == nil {
 			return nil

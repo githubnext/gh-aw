@@ -16,7 +16,7 @@ strict: true
 tools:
   github:
     mode: local
-    repos:
+    allowed-repos:
       - "github/gh-aw"
       - "github/*"
     min-integrity: approved

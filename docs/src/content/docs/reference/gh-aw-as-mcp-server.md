@@ -5,9 +5,7 @@ sidebar:
   order: 400
 ---
 
-The `gh aw mcp-server` command exposes the GitHub Agentic Workflows CLI commands (status, compile, logs, audit, update, add, mcp-inspect) as tools to AI agents through the Model Context Protocol.
-
-This allows your chat system or other workflows to interact with GitHub Agentic Workflows, check their status, download logs, and perform audits programmatically, all while respecting repository permissions and security best practices.
+The `gh aw mcp-server` command exposes GitHub Agentic Workflows CLI commands as MCP tools, allowing chat systems and workflows to manage agentic workflows programmatically.
 
 Start the server:
 
@@ -40,29 +38,7 @@ Control access to logs and audit tools based on repository permissions using `--
 gh aw mcp-server --validate-actor
 ```
 
-When actor validation is enabled:
-
-- Logs and audit tools require write, maintain, or admin repository access
-- The server reads `GITHUB_ACTOR` and `GITHUB_REPOSITORY` environment variables to determine actor permissions
-- Permission checks are performed at runtime using the GitHub API
-- Results are cached for 1 hour to minimize API calls
-
-When actor validation is disabled (default):
-
-- All tools are available without permission checks
-- Backward compatible with existing configurations
-
-**Environment Variables:**
-
-- `GITHUB_ACTOR`: GitHub username of the current actor (required when validation enabled)
-- `GITHUB_REPOSITORY`: Repository in `owner/repo` format (optional, improves performance)
-
-**Permission Requirements:**
-
-Restricted tools (logs, audit) require:
-
-- Minimum role: write, maintain, or admin
-- Permission check via GitHub API: `GET /repos/{owner}/{repo}/collaborators/{username}/permission`
+When enabled, the logs and audit tools require write/maintain/admin repository access. The server reads `GITHUB_ACTOR` and `GITHUB_REPOSITORY` env vars and caches permission check results for 1 hour. Without validation (default), all tools are available without checks.
 
 ## Configuring with GitHub Copilot Agent
 
@@ -135,40 +111,22 @@ The MCP server exposes the following tools for workflow management:
 
 Show status of agentic workflow files and workflows.
 
-**Parameters:**
-
 - `pattern` (optional): Filter workflows by name pattern
 - `jq` (optional): Apply jq filter to JSON output
 
-**Returns:** JSON array with workflow information including:
-
-- `workflow`: Name of the workflow file
-- `agent`: AI engine used (e.g., "copilot", "claude", "codex")
-- `compiled`: Compilation status ("Yes", "No", or "N/A")
-- `status`: GitHub workflow status ("active", "disabled", "Unknown")
-- `time_remaining`: Time remaining until workflow deadline (if applicable)
+Returns a JSON array with `workflow`, `agent`, `compiled`, `status`, and `time_remaining` fields.
 
 ### `compile`
 
 Compile Markdown workflows to GitHub Actions YAML with optional static analysis.
 
-**Parameters:**
-
 - `workflows` (optional): Array of workflow files to compile (empty for all)
 - `strict` (optional): Enforce strict mode validation (default: true)
 - `fix` (optional): Apply automatic codemod fixes before compiling
-- `zizmor` (optional): Run zizmor security scanner
-- `poutine` (optional): Run poutine security scanner
-- `actionlint` (optional): Run actionlint linter
+- `zizmor`, `poutine`, `actionlint` (optional): Run security scanners/linters
 - `jq` (optional): Apply jq filter to JSON output
 
-**Returns:** JSON array with validation results:
-
-- `workflow`: Name of the workflow file
-- `valid`: Boolean indicating compilation success
-- `errors`: Array of error objects with type, message, and line number
-- `warnings`: Array of warning objects
-- `compiled_file`: Path to generated `.lock.yml` file
+Returns a JSON array with `workflow`, `valid`, `errors`, `warnings`, and `compiled_file` fields.
 
 > [!NOTE]
 > The `actionlint`, `zizmor`, and `poutine` scanners use Docker images that download on first use. If images are still being pulled, the tool returns a "Docker images are being downloaded. Please wait and retry the compile command." message. Wait 15–30 seconds, then retry the request.
@@ -177,124 +135,65 @@ Compile Markdown workflows to GitHub Actions YAML with optional static analysis.
 
 Download and analyze workflow logs with timeout handling and size guardrails.
 
-**Parameters:**
-
-- `workflow_name` (optional): Workflow name to download logs for (empty for all)
-- `count` (optional): Number of workflow runs to download (default: 100)
-- `start_date` (optional): Filter runs after this date (YYYY-MM-DD or delta like -1d, -1w, -1mo)
-- `end_date` (optional): Filter runs before this date
-- `engine` (optional): Filter by agentic engine type (claude, codex, copilot)
-- `firewall` (optional): Filter to only runs with firewall enabled
-- `no_firewall` (optional): Filter to only runs without firewall
-- `branch` (optional): Filter runs by branch name
-- `after_run_id` (optional): Filter runs after this database ID
-- `before_run_id` (optional): Filter runs before this database ID
-- `timeout` (optional): Maximum time in seconds to download logs (default: 50)
-- `max_tokens` (optional): Maximum output tokens before guardrail triggers (default: 12000)
+- `workflow_name` (optional): Workflow name (empty for all)
+- `count` (optional): Number of runs to download (default: 100)
+- `start_date`, `end_date` (optional): Date range filter (YYYY-MM-DD or delta like `-1w`)
+- `engine`, `firewall`, `no_firewall`, `branch` (optional): Run filters
+- `after_run_id`, `before_run_id` (optional): Pagination by run ID
+- `timeout` (optional): Max seconds to download (default: 50)
+- `max_tokens` (optional): Output token guardrail (default: 12000)
 - `jq` (optional): Apply jq filter to JSON output
 
-**Returns:** JSON with workflow run data and metrics, or continuation parameters if timeout occurred.
+Returns JSON with workflow run data and metrics, or continuation parameters if timeout occurred.
 
 ### `audit`
 
 Investigate a workflow run, job, or specific step and generate a detailed report.
 
-**Parameters:**
-
-- `run_id_or_url` (required): One of:
-  - Numeric run ID: `1234567890`
-  - Run URL: `https://github.com/owner/repo/actions/runs/1234567890`
-  - Job URL: `https://github.com/owner/repo/actions/runs/1234567890/job/9876543210`
-  - Job URL with step: `https://github.com/owner/repo/actions/runs/1234567890/job/9876543210#step:7:1`
+- `run_id_or_url` (required): Numeric run ID, run URL, job URL, or step URL
 - `jq` (optional): Apply jq filter to JSON output
 
-**Returns:** JSON with comprehensive audit data:
-
-- `overview`: Basic run information (run_id, workflow_name, status, conclusion, duration, url, logs_path)
-- `metrics`: Execution metrics (token_usage, estimated_cost, turns, error_count, warning_count)
-- `jobs`: List of job details (name, status, conclusion, duration)
-- `downloaded_files`: List of artifact files with descriptions
-- `missing_tools`: Tools requested but not available
-- `mcp_failures`: MCP server failures
-- `errors`: Error details with file, line, type, and message
-- `warnings`: Warning details
-- `tool_usage`: Tool usage statistics
-- `firewall_analysis`: Network firewall analysis if available
+Returns JSON with `overview`, `metrics`, `jobs`, `downloaded_files`, `missing_tools`, `mcp_failures`, `errors`, `warnings`, `tool_usage`, and `firewall_analysis`.
 
 ### `mcp-inspect`
 
 Inspect MCP servers in workflows and list available tools, resources, and roots.
 
-**Parameters:**
-
 - `workflow_file` (optional): Workflow file to inspect (empty to list all workflows with MCP servers)
 - `server` (optional): Filter to specific MCP server
-- `tool` (optional): Show detailed information about a specific tool (requires server parameter)
+- `tool` (optional): Show detailed info about a specific tool (requires `server`)
 
-**Returns:** Formatted text output showing:
-
-- Available MCP servers in the workflow
-- Tools, resources, and roots exposed by each server
-- Secret availability status (if GitHub token available)
-- Detailed tool information when tool parameter specified
+Returns formatted text listing MCP servers, their tools/resources/roots, secret availability, and detailed tool info when `tool` is specified.
 
 ### `add`
 
 Add workflows from remote repositories to `.github/workflows`.
 
-**Parameters:**
-
-- `workflows` (required): Array of workflow specifications
-  - Format: `owner/repo/workflow-name` or `owner/repo/workflow-name@version`
+- `workflows` (required): Array of workflow specs in `owner/repo/workflow-name[@version]` format
 - `number` (optional): Create multiple numbered copies
-- `name` (optional): Specify name for added workflow (without .md extension)
-
-**Returns:** Formatted text output showing added workflows.
+- `name` (optional): Name for added workflow (without `.md` extension)
 
 ### `update`
 
 Update workflows from their source repositories and check for gh-aw updates.
 
-**Parameters:**
-
 - `workflows` (optional): Array of workflow IDs to update (empty for all)
-- `major` (optional): Allow major version updates when updating tagged releases
+- `major` (optional): Allow major version updates
 - `force` (optional): Force update even if no changes detected
-
-**Returns:** Formatted text output showing:
-
-- Extension update status
-- Updated workflows with new versions
-- Compilation status for each workflow
 
 ### `fix`
 
 Apply automatic codemod-style fixes to workflow files.
 
-**Parameters:**
-
 - `workflows` (optional): Array of workflow IDs to fix (empty for all)
 - `write` (optional): Write changes to files (default is dry-run)
-- `list_codemods` (optional): List all available codemods and exit
+- `list_codemods` (optional): List available codemods and exit
 
-**Available Codemods:**
-
-- `timeout-minutes-migration`: Replaces `timeout_minutes` with `timeout-minutes`
-- `network-firewall-migration`: Removes deprecated `network.firewall` field
-- `sandbox-agent-false-removal`: Removes `sandbox.agent: false` (firewall now mandatory)
-- `mcp-scripts-mode-removal`: Removes deprecated `mcp-scripts.mode` field
-
-**Returns:** Formatted text output showing:
-
-- List of workflow files processed
-- Which codemods were applied to each file
-- Summary of fixes applied
+Available codemods: `timeout-minutes-migration`, `network-firewall-migration`, `sandbox-agent-false-removal`, `mcp-scripts-mode-removal`.
 
 ## Using GH-AW as an MCP from an Agentic Workflow
 
-It is possible to use the GH-AW MCP server from within an agentic workflow to enable self-management capabilities. For example, you can allow an agent to check the status of workflows, compile changes, or download logs for analysis.
-
-Enable in workflow frontmatter:
+Use the GH-AW MCP server from within a workflow to enable self-management (status checks, compilation, log analysis):
 
 ```yaml wrap
 ---
