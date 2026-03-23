@@ -26,7 +26,7 @@
 #   Imports:
 #     - shared/activation-app.md
 #
-# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"810d295f3ec4eadebaf8a208dc5c623ac79ed44e3a0ac78f15876712044f5328","strict":true,"agent_id":"copilot","agent_model":"gpt-5.1-codex-mini"}
+# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"14a42ae61df626b64b8c5391217ca864b39ae4c44095803408d55588a495203c","strict":true,"agent_id":"copilot","agent_model":"gpt-5.1-codex-mini"}
 
 name: "Issue Monster"
 "on":
@@ -36,6 +36,7 @@ name: "Issue Monster"
   schedule:
   - cron: "*/30 * * * *"
     # Friendly format: every 30m
+  # skip-if-check-failed: # Skip-if-check-failed processed as check status gate in pre-activation job
   # skip-if-match: # Skip-if-match processed as search check in pre-activation job
     # max: 5
     # query: is:pr is:open is:draft author:app/copilot-swe-agent
@@ -1363,7 +1364,7 @@ jobs:
       issues: read
       pull-requests: read
     outputs:
-      activated: ${{ steps.check_membership.outputs.is_team_member == 'true' && steps.check_skip_if_match.outputs.skip_check_ok == 'true' && steps.check_skip_if_no_match.outputs.skip_no_match_check_ok == 'true' }}
+      activated: ${{ steps.check_membership.outputs.is_team_member == 'true' && steps.check_skip_if_match.outputs.skip_check_ok == 'true' && steps.check_skip_if_no_match.outputs.skip_no_match_check_ok == 'true' && steps.check_skip_if_check_failed.outputs.skip_if_check_failed_ok == 'true' }}
       has_issues: ${{ steps.search.outputs.has_issues }}
       issue_count: ${{ steps.search.outputs.issue_count }}
       issue_list: ${{ steps.search.outputs.issue_list }}
@@ -1419,6 +1420,15 @@ jobs:
             const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');
             setupGlobals(core, github, context, exec, io);
             const { main } = require('${{ runner.temp }}/gh-aw/actions/check_skip_if_no_match.cjs');
+            await main();
+      - name: Check skip-if-check-failed
+        id: check_skip_if_check_failed
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        with:
+          script: |
+            const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');
+            setupGlobals(core, github, context, exec, io);
+            const { main } = require('${{ runner.temp }}/gh-aw/actions/check_skip_if_check_failed.cjs');
             await main();
       - name: Search for candidate issues
         id: search

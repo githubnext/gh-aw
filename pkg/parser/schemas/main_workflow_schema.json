@@ -1474,6 +1474,10 @@
             "skip-if-check-failed": {
               "oneOf": [
                 {
+                  "type": "null",
+                  "description": "Bare key with no value — equivalent to true. Skips workflow execution if any CI checks on the target branch are currently failing."
+                },
+                {
                   "type": "boolean",
                   "enum": [true],
                   "description": "Skip workflow execution if any CI checks on the target branch are currently failing. For pull_request events, checks the base branch. For other events, checks the current ref."

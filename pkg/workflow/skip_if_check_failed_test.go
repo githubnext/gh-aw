@@ -273,4 +273,55 @@ Skips if non-spelling checks fail.
 			t.Error("Expected no GH_AW_SKIP_BRANCH when branch not specified")
 		}
 	})
+
+	t.Run("skip_if_check_failed_null_value_treated_as_true", func(t *testing.T) {
+		// skip-if-check-failed: (no value / YAML null) should behave identically to skip-if-check-failed: true
+		workflowContent := `---
+on:
+  pull_request:
+    types: [opened, synchronize]
+  skip-if-check-failed:
+engine: claude
+---
+
+# Skip If Check Failed Null Value
+
+This workflow uses the bare null form of skip-if-check-failed.
+`
+		workflowFile := filepath.Join(tmpDir, "skip-if-check-failed-null-workflow.md")
+		if err := os.WriteFile(workflowFile, []byte(workflowContent), 0644); err != nil {
+			t.Fatal(err)
+		}
+
+		err := compiler.CompileWorkflow(workflowFile)
+		if err != nil {
+			t.Fatalf("Compilation failed: %v", err)
+		}
+
+		lockFile := stringutil.MarkdownToLockFile(workflowFile)
+		lockContent, err := os.ReadFile(lockFile)
+		if err != nil {
+			t.Fatalf("Failed to read lock file: %v", err)
+		}
+
+		lockContentStr := string(lockContent)
+
+		// Should produce the check step, just like skip-if-check-failed: true
+		if !strings.Contains(lockContentStr, "Check skip-if-check-failed") {
+			t.Error("Expected skip-if-check-failed check step to be present")
+		}
+		if !strings.Contains(lockContentStr, "id: check_skip_if_check_failed") {
+			t.Error("Expected check_skip_if_check_failed step ID")
+		}
+		// No env vars since no include/exclude/branch
+		if strings.Contains(lockContentStr, "GH_AW_SKIP_CHECK_INCLUDE") {
+			t.Error("Expected no GH_AW_SKIP_CHECK_INCLUDE for bare null form")
+		}
+		if strings.Contains(lockContentStr, "GH_AW_SKIP_CHECK_EXCLUDE") {
+			t.Error("Expected no GH_AW_SKIP_CHECK_EXCLUDE for bare null form")
+		}
+		if strings.Contains(lockContentStr, "GH_AW_SKIP_BRANCH") {
+			t.Error("Expected no GH_AW_SKIP_BRANCH for bare null form")
+		}
+	})
 }

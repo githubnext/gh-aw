@@ -429,6 +429,9 @@ func (c *Compiler) extractSkipIfCheckFailedFromOn(frontmatter map[string]any, wo
 		// Complex object format - look for skip-if-check-failed
 		if skipIfCheckFailed, exists := on["skip-if-check-failed"]; exists {
 			switch skip := skipIfCheckFailed.(type) {
+			case nil:
+				// Null value (bare key with no value): skip-if-check-failed:
+				return &SkipIfCheckFailedConfig{}, nil
 			case bool:
 				// Simple boolean format: skip-if-check-failed: true
 				if !skip {
@@ -480,7 +483,7 @@ func (c *Compiler) extractSkipIfCheckFailedFromOn(frontmatter map[string]any, wo
 
 				return config, nil
 			default:
-				return nil, fmt.Errorf("skip-if-check-failed value must be true or an object, got %T. Examples:\n  skip-if-check-failed: true\n  skip-if-check-failed:\n    include:\n      - build\n    branch: main", skipIfCheckFailed)
+				return nil, fmt.Errorf("skip-if-check-failed value must be true or an object, got %T. Examples:\n  skip-if-check-failed:\n  skip-if-check-failed: true\n  skip-if-check-failed:\n    include:\n      - build\n    branch: main", skipIfCheckFailed)
 			}
 		}
 		return nil, nil
