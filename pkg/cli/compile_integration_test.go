@@ -1980,3 +1980,96 @@ Call notify_dynamic to send notifications.
 		t.Errorf("Lock file should preserve the GitHub Actions expression in allowed_repositories\nLock file content:\n%s", lockContentStr)
 	}
 }
+
+// TestCompileWithActionsRepoFlag verifies that the --actions-repo flag causes the
+// custom repository to be used in action mode instead of the default github/gh-aw-actions.
+func TestCompileWithActionsRepoFlag(t *testing.T) {
+	setup := setupIntegrationTest(t)
+	defer setup.cleanup()
+
+	// Use the canonical test workflow fixture
+	srcPath := filepath.Join(projectRoot, "pkg/cli/workflows/test-actions-repo.md")
+	dstPath := filepath.Join(setup.workflowsDir, "test-actions-repo.md")
+
+	srcContent, err := os.ReadFile(srcPath)
+	if err != nil {
+		t.Fatalf("Failed to read source workflow file %s: %v", srcPath, err)
+	}
+	if err := os.WriteFile(dstPath, srcContent, 0644); err != nil {
+		t.Fatalf("Failed to write workflow to test dir: %v", err)
+	}
+
+	cmd := exec.Command(setup.binaryPath, "compile",
+		"--action-mode", "action",
+		"--actions-repo", "myorg/custom-aw-actions",
+		"--action-tag", "v9.9.9",
+		dstPath,
+	)
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("CLI compile command failed: %v\nOutput: %s", err, string(output))
+	}
+
+	lockFilePath := filepath.Join(setup.workflowsDir, "test-actions-repo.lock.yml")
+	lockContent, err := os.ReadFile(lockFilePath)
+	if err != nil {
+		t.Fatalf("Failed to read lock file: %v", err)
+	}
+	lockContentStr := string(lockContent)
+
+	// The custom repo should appear in the lock file
+	if !strings.Contains(lockContentStr, "myorg/custom-aw-actions") {
+		t.Errorf("Lock file should contain the custom actions repo 'myorg/custom-aw-actions'\nLock file content:\n%s", lockContentStr)
+	}
+
+	// The default repo should NOT appear
+	if strings.Contains(lockContentStr, "github/gh-aw-actions") {
+		t.Errorf("Lock file should NOT contain the default 'github/gh-aw-actions' when overridden\nLock file content:\n%s", lockContentStr)
+	}
+
+	t.Logf("Actions repo flag test passed - custom repo baked into lock file: %s", lockFilePath)
+}
+
+// TestCompileWithActionsRepoDefaultFallback verifies that without --actions-repo, the default
+// github/gh-aw-actions repository is used in the lock file when action mode is set.
+func TestCompileWithActionsRepoDefaultFallback(t *testing.T) {
+	setup := setupIntegrationTest(t)
+	defer setup.cleanup()
+
+	// Use the canonical test workflow fixture
+	srcPath := filepath.Join(projectRoot, "pkg/cli/workflows/test-actions-repo.md")
+	dstPath := filepath.Join(setup.workflowsDir, "test-actions-repo.md")
+
+	srcContent, err := os.ReadFile(srcPath)
+	if err != nil {
+		t.Fatalf("Failed to read source workflow file %s: %v", srcPath, err)
+	}
+	if err := os.WriteFile(dstPath, srcContent, 0644); err != nil {
+		t.Fatalf("Failed to write workflow to test dir: %v", err)
+	}
+
+	// No --actions-repo flag; action mode with a tag
+	cmd := exec.Command(setup.binaryPath, "compile",
+		"--action-mode", "action",
+		"--action-tag", "v9.9.9",
+		dstPath,
+	)
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("CLI compile command failed: %v\nOutput: %s", err, string(output))
+	}
+
+	lockFilePath := filepath.Join(setup.workflowsDir, "test-actions-repo.lock.yml")
+	lockContent, err := os.ReadFile(lockFilePath)
+	if err != nil {
+		t.Fatalf("Failed to read lock file: %v", err)
+	}
+	lockContentStr := string(lockContent)
+
+	// Default repo should appear in the lock file
+	if !strings.Contains(lockContentStr, "github/gh-aw-actions") {
+		t.Errorf("Lock file should contain the default 'github/gh-aw-actions' when no override is specified\nLock file content:\n%s", lockContentStr)
+	}
+
+	t.Logf("Default actions repo test passed - default repo baked into lock file: %s", lockFilePath)
+}
