@@ -18,6 +18,22 @@ import (
 // normalized JSON configuration objects consumed by the safe-outputs MCP server.
 //
 // Helper functions for building per-tool config maps are in safe_outputs_config_helpers.go.
+//
+// # Dual Config-Generation Architecture
+//
+// There are two parallel code paths that produce safe-output handler configuration:
+//
+//  1. generateSafeOutputsConfig() — THIS FILE
+//     Output:   GH_AW_SAFE_OUTPUTS_CONFIG_PATH (a config.json file on disk)
+//     Approach: ad-hoc per-handler blocks using generateMax*Config() helpers
+//
+//  2. addHandlerManagerConfigEnvVar() — compiler_safe_outputs_config.go
+//     Output:   GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG (an env var)
+//     Approach: handlerRegistry + fluent handlerConfigBuilder
+//
+// When adding a new handler field, update BOTH files so the two paths stay in
+// sync. See compiler_safe_outputs_config.go for the canonical list of fields
+// each handler supports.
 
 // generateSafeOutputsConfig transforms workflow safe-outputs configuration into a
 // JSON string consumed by the safe-outputs MCP server at runtime.
@@ -47,13 +63,20 @@ func generateSafeOutputsConfig(data *WorkflowData) string {
 			if data.SafeOutputs.CreateIssues.Expires > 0 {
 				config["expires"] = data.SafeOutputs.CreateIssues.Expires
 			}
+			if data.SafeOutputs.CreateIssues.Staged {
+				config["staged"] = true
+			}
 			safeOutputsConfig["create_issue"] = config
 		}
 		if data.SafeOutputs.CreateAgentSessions != nil {
-			safeOutputsConfig["create_agent_session"] = generateMaxConfig(
+			config := generateMaxConfig(
 				data.SafeOutputs.CreateAgentSessions.Max,
 				1, // default max
 			)
+			if data.SafeOutputs.CreateAgentSessions.Staged {
+				config["staged"] = true
+			}
+			safeOutputsConfig["create_agent_session"] = config
 		}
 		if data.SafeOutputs.AddComments != nil {
 			additionalFields := make(map[string]any)
@@ -63,6 +86,9 @@ func generateSafeOutputsConfig(data *WorkflowData) string {
 				Target:         data.SafeOutputs.AddComments.Target,
 				TargetRepoSlug: data.SafeOutputs.AddComments.TargetRepoSlug,
 				AllowedRepos:   data.SafeOutputs.AddComments.AllowedRepos,
+			}
+			if data.SafeOutputs.AddComments.Staged {
+				additionalFields["staged"] = true
 			}
 			safeOutputsConfig["add_comment"] = generateTargetConfigWithRepos(
 				targetConfig,
@@ -81,16 +107,23 @@ func generateSafeOutputsConfig(data *WorkflowData) string {
 			if data.SafeOutputs.CreateDiscussions.Expires > 0 {
 				config["expires"] = data.SafeOutputs.CreateDiscussions.Expires
 			}
+			if data.SafeOutputs.CreateDiscussions.Staged {
+				config["staged"] = true
+			}
 			safeOutputsConfig["create_discussion"] = config
 		}
 		if data.SafeOutputs.CloseDiscussions != nil {
-			safeOutputsConfig["close_discussion"] = generateMaxWithDiscussionFieldsConfig(
+			config := generateMaxWithDiscussionFieldsConfig(
 				data.SafeOutputs.CloseDiscussions.Max,
 				1, // default max
 				data.SafeOutputs.CloseDiscussions.RequiredCategory,
 				data.SafeOutputs.CloseDiscussions.RequiredLabels,
 				data.SafeOutputs.CloseDiscussions.RequiredTitlePrefix,
 			)
+			if data.SafeOutputs.CloseDiscussions.Staged {
+				config["staged"] = true
+			}
+			safeOutputsConfig["close_discussion"] = config
 		}
 		if data.SafeOutputs.CloseIssues != nil {
 			additionalFields := make(map[string]any)
@@ -99,6 +132,9 @@ func generateSafeOutputsConfig(data *WorkflowData) string {
 			}
 			if data.SafeOutputs.CloseIssues.RequiredTitlePrefix != "" {
 				additionalFields["required_title_prefix"] = data.SafeOutputs.CloseIssues.RequiredTitlePrefix
+			}
+			if data.SafeOutputs.CloseIssues.Staged {
+				additionalFields["staged"] = true
 			}
 			safeOutputsConfig["close_issue"] = generateTargetConfigWithRepos(
 				data.SafeOutputs.CloseIssues.SafeOutputTargetConfig,
@@ -129,27 +165,42 @@ func generateSafeOutputsConfig(data *WorkflowData) string {
 			)
 		}
 		if data.SafeOutputs.CreatePullRequests != nil {
-			safeOutputsConfig["create_pull_request"] = generatePullRequestConfig(
+			config := generatePullRequestConfig(
 				data.SafeOutputs.CreatePullRequests,
 				1, // default max
 			)
+			if data.SafeOutputs.CreatePullRequests.Staged {
+				config["staged"] = true
+			}
+			safeOutputsConfig["create_pull_request"] = config
 		}
 		if data.SafeOutputs.CreatePullRequestReviewComments != nil {
-			safeOutputsConfig["create_pull_request_review_comment"] = generateMaxConfig(
+			config := generateMaxConfig(
 				data.SafeOutputs.CreatePullRequestReviewComments.Max,
 				10, // default max
 			)
+			if data.SafeOutputs.CreatePullRequestReviewComments.Staged {
+				config["staged"] = true
+			}
+			safeOutputsConfig["create_pull_request_review_comment"] = config
 		}
 		if data.SafeOutputs.SubmitPullRequestReview != nil {
-			safeOutputsConfig["submit_pull_request_review"] = generateMaxConfig(
+			config := generateMaxConfig(
 				data.SafeOutputs.SubmitPullRequestReview.Max,
 				1, // default max
 			)
+			if data.SafeOutputs.SubmitPullRequestReview.Staged {
+				config["staged"] = true
+			}
+			safeOutputsConfig["submit_pull_request_review"] = config
 		}
 		if data.SafeOutputs.ReplyToPullRequestReviewComment != nil {
 			additionalFields := newHandlerConfigBuilder().
 				AddTemplatableBool("footer", data.SafeOutputs.ReplyToPullRequestReviewComment.Footer).
 				Build()
+			if data.SafeOutputs.ReplyToPullRequestReviewComment.Staged {
+				additionalFields["staged"] = true
+			}
 			safeOutputsConfig["reply_to_pull_request_review_comment"] = generateTargetConfigWithRepos(
 				data.SafeOutputs.ReplyToPullRequestReviewComment.SafeOutputTargetConfig,
 				data.SafeOutputs.ReplyToPullRequestReviewComment.Max,
@@ -158,22 +209,34 @@ func generateSafeOutputsConfig(data *WorkflowData) string {
 			)
 		}
 		if data.SafeOutputs.ResolvePullRequestReviewThread != nil {
-			safeOutputsConfig["resolve_pull_request_review_thread"] = generateMaxConfig(
+			config := generateMaxConfig(
 				data.SafeOutputs.ResolvePullRequestReviewThread.Max,
 				10, // default max
 			)
+			if data.SafeOutputs.ResolvePullRequestReviewThread.Staged {
+				config["staged"] = true
+			}
+			safeOutputsConfig["resolve_pull_request_review_thread"] = config
 		}
 		if data.SafeOutputs.CreateCodeScanningAlerts != nil {
-			safeOutputsConfig["create_code_scanning_alert"] = generateMaxConfig(
+			config := generateMaxConfig(
 				data.SafeOutputs.CreateCodeScanningAlerts.Max,
 				0, // default: unlimited
 			)
+			if data.SafeOutputs.CreateCodeScanningAlerts.Staged {
+				config["staged"] = true
+			}
+			safeOutputsConfig["create_code_scanning_alert"] = config
 		}
 		if data.SafeOutputs.AutofixCodeScanningAlert != nil {
-			safeOutputsConfig["autofix_code_scanning_alert"] = generateMaxConfig(
+			config := generateMaxConfig(
 				data.SafeOutputs.AutofixCodeScanningAlert.Max,
 				10, // default max
 			)
+			if data.SafeOutputs.AutofixCodeScanningAlert.Staged {
+				config["staged"] = true
+			}
+			safeOutputsConfig["autofix_code_scanning_alert"] = config
 		}
 		if data.SafeOutputs.AddLabels != nil {
 			additionalFields := make(map[string]any)
@@ -183,6 +246,9 @@ func generateSafeOutputsConfig(data *WorkflowData) string {
 			if len(data.SafeOutputs.AddLabels.Blocked) > 0 {
 				additionalFields["blocked"] = data.SafeOutputs.AddLabels.Blocked
 			}
+			if data.SafeOutputs.AddLabels.Staged {
+				additionalFields["staged"] = true
+			}
 			safeOutputsConfig["add_labels"] = generateTargetConfigWithRepos(
 				data.SafeOutputs.AddLabels.SafeOutputTargetConfig,
 				data.SafeOutputs.AddLabels.Max,
@@ -191,88 +257,136 @@ func generateSafeOutputsConfig(data *WorkflowData) string {
 			)
 		}
 		if data.SafeOutputs.RemoveLabels != nil {
-			safeOutputsConfig["remove_labels"] = generateMaxWithAllowedConfig(
+			config := generateMaxWithAllowedConfig(
 				data.SafeOutputs.RemoveLabels.Max,
 				3, // default max
 				data.SafeOutputs.RemoveLabels.Allowed,
 			)
+			if data.SafeOutputs.RemoveLabels.Staged {
+				config["staged"] = true
+			}
+			safeOutputsConfig["remove_labels"] = config
 		}
 		if data.SafeOutputs.AddReviewer != nil {
-			safeOutputsConfig["add_reviewer"] = generateMaxWithReviewersConfig(
+			config := generateMaxWithReviewersConfig(
 				data.SafeOutputs.AddReviewer.Max,
 				3, // default max
 				data.SafeOutputs.AddReviewer.Reviewers,
 			)
+			if data.SafeOutputs.AddReviewer.Staged {
+				config["staged"] = true
+			}
+			safeOutputsConfig["add_reviewer"] = config
 		}
 		if data.SafeOutputs.AssignMilestone != nil {
-			safeOutputsConfig["assign_milestone"] = generateMaxWithAllowedConfig(
+			config := generateMaxWithAllowedConfig(
 				data.SafeOutputs.AssignMilestone.Max,
 				1, // default max
 				data.SafeOutputs.AssignMilestone.Allowed,
 			)
+			if data.SafeOutputs.AssignMilestone.Staged {
+				config["staged"] = true
+			}
+			safeOutputsConfig["assign_milestone"] = config
 		}
 		if data.SafeOutputs.AssignToAgent != nil {
-			safeOutputsConfig["assign_to_agent"] = generateAssignToAgentConfig(
+			config := generateAssignToAgentConfig(
 				data.SafeOutputs.AssignToAgent.Max,
 				1, // default max
 				data.SafeOutputs.AssignToAgent.DefaultAgent,
 				data.SafeOutputs.AssignToAgent.Target,
 				data.SafeOutputs.AssignToAgent.Allowed,
 			)
+			if data.SafeOutputs.AssignToAgent.Staged {
+				config["staged"] = true
+			}
+			safeOutputsConfig["assign_to_agent"] = config
 		}
 		if data.SafeOutputs.AssignToUser != nil {
-			safeOutputsConfig["assign_to_user"] = generateMaxWithAllowedAndBlockedConfig(
+			config := generateMaxWithAllowedAndBlockedConfig(
 				data.SafeOutputs.AssignToUser.Max,
 				1, // default max
 				data.SafeOutputs.AssignToUser.Allowed,
 				data.SafeOutputs.AssignToUser.Blocked,
 			)
+			if data.SafeOutputs.AssignToUser.Staged {
+				config["staged"] = true
+			}
+			safeOutputsConfig["assign_to_user"] = config
 		}
 		if data.SafeOutputs.UnassignFromUser != nil {
-			safeOutputsConfig["unassign_from_user"] = generateMaxWithAllowedAndBlockedConfig(
+			config := generateMaxWithAllowedAndBlockedConfig(
 				data.SafeOutputs.UnassignFromUser.Max,
 				1, // default max
 				data.SafeOutputs.UnassignFromUser.Allowed,
 				data.SafeOutputs.UnassignFromUser.Blocked,
 			)
+			if data.SafeOutputs.UnassignFromUser.Staged {
+				config["staged"] = true
+			}
+			safeOutputsConfig["unassign_from_user"] = config
 		}
 		if data.SafeOutputs.UpdateIssues != nil {
-			safeOutputsConfig["update_issue"] = generateMaxConfig(
+			config := generateMaxConfig(
 				data.SafeOutputs.UpdateIssues.Max,
 				1, // default max
 			)
+			if data.SafeOutputs.UpdateIssues.Staged {
+				config["staged"] = true
+			}
+			safeOutputsConfig["update_issue"] = config
 		}
 		if data.SafeOutputs.UpdateDiscussions != nil {
-			safeOutputsConfig["update_discussion"] = generateMaxWithAllowedLabelsConfig(
+			config := generateMaxWithAllowedLabelsConfig(
 				data.SafeOutputs.UpdateDiscussions.Max,
 				1, // default max
 				data.SafeOutputs.UpdateDiscussions.AllowedLabels,
 			)
+			if data.SafeOutputs.UpdateDiscussions.Staged {
+				config["staged"] = true
+			}
+			safeOutputsConfig["update_discussion"] = config
 		}
 		if data.SafeOutputs.UpdatePullRequests != nil {
-			safeOutputsConfig["update_pull_request"] = generateMaxConfig(
+			config := generateMaxConfig(
 				data.SafeOutputs.UpdatePullRequests.Max,
 				1, // default max
 			)
+			if data.SafeOutputs.UpdatePullRequests.Staged {
+				config["staged"] = true
+			}
+			safeOutputsConfig["update_pull_request"] = config
 		}
 		if data.SafeOutputs.MarkPullRequestAsReadyForReview != nil {
-			safeOutputsConfig["mark_pull_request_as_ready_for_review"] = generateMaxConfig(
+			config := generateMaxConfig(
 				data.SafeOutputs.MarkPullRequestAsReadyForReview.Max,
 				10, // default max
 			)
+			if data.SafeOutputs.MarkPullRequestAsReadyForReview.Staged {
+				config["staged"] = true
+			}
+			safeOutputsConfig["mark_pull_request_as_ready_for_review"] = config
 		}
 		if data.SafeOutputs.PushToPullRequestBranch != nil {
-			safeOutputsConfig["push_to_pull_request_branch"] = generateMaxWithTargetConfig(
+			config := generateMaxWithTargetConfig(
 				data.SafeOutputs.PushToPullRequestBranch.Max,
 				1, // default max: 1
 				data.SafeOutputs.PushToPullRequestBranch.Target,
 			)
+			if data.SafeOutputs.PushToPullRequestBranch.Staged {
+				config["staged"] = true
+			}
+			safeOutputsConfig["push_to_pull_request_branch"] = config
 		}
 		if data.SafeOutputs.UploadAssets != nil {
-			safeOutputsConfig["upload_asset"] = generateMaxConfig(
+			config := generateMaxConfig(
 				data.SafeOutputs.UploadAssets.Max,
 				0, // default: unlimited
 			)
+			if data.SafeOutputs.UploadAssets.Staged {
+				config["staged"] = true
+			}
+			safeOutputsConfig["upload_asset"] = config
 		}
 		if data.SafeOutputs.MissingTool != nil {
 			// Generate config for missing_tool with issue creation support
@@ -299,6 +413,9 @@ func generateSafeOutputsConfig(data *WorkflowData) string {
 				safeOutputsConfig["create_missing_tool_issue"] = createIssueConfig
 			}
 
+			if data.SafeOutputs.MissingTool.Staged {
+				missingToolConfig["staged"] = true
+			}
 			safeOutputsConfig["missing_tool"] = missingToolConfig
 		}
 		if data.SafeOutputs.MissingData != nil {
@@ -326,9 +443,16 @@ func generateSafeOutputsConfig(data *WorkflowData) string {
 				safeOutputsConfig["create_missing_data_issue"] = createIssueConfig
 			}
 
+			if data.SafeOutputs.MissingData.Staged {
+				missingDataConfig["staged"] = true
+			}
 			safeOutputsConfig["missing_data"] = missingDataConfig
 		}
 		if data.SafeOutputs.UpdateProjects != nil {
+			additionalFields := make(map[string]any)
+			if data.SafeOutputs.UpdateProjects.Staged {
+				additionalFields["staged"] = true
+			}
 			safeOutputsConfig["update_project"] = generateTargetConfigWithRepos(
 				SafeOutputTargetConfig{
 					TargetRepoSlug: data.SafeOutputs.UpdateProjects.TargetRepoSlug,
@@ -336,14 +460,18 @@ func generateSafeOutputsConfig(data *WorkflowData) string {
 				},
 				data.SafeOutputs.UpdateProjects.Max,
 				10, // default max
-				nil,
+				additionalFields,
 			)
 		}
 		if data.SafeOutputs.CreateProjectStatusUpdates != nil {
-			safeOutputsConfig["create_project_status_update"] = generateMaxConfig(
+			config := generateMaxConfig(
 				data.SafeOutputs.CreateProjectStatusUpdates.Max,
 				10, // default max
 			)
+			if data.SafeOutputs.CreateProjectStatusUpdates.Staged {
+				config["staged"] = true
+			}
+			safeOutputsConfig["create_project_status_update"] = config
 		}
 		if data.SafeOutputs.CreateProjects != nil {
 			config := generateMaxConfig(
@@ -358,37 +486,59 @@ func generateSafeOutputsConfig(data *WorkflowData) string {
 			if data.SafeOutputs.CreateProjects.TitlePrefix != "" {
 				config["title_prefix"] = data.SafeOutputs.CreateProjects.TitlePrefix
 			}
+			if data.SafeOutputs.CreateProjects.Staged {
+				config["staged"] = true
+			}
 			safeOutputsConfig["create_project"] = config
 		}
 		if data.SafeOutputs.UpdateRelease != nil {
-			safeOutputsConfig["update_release"] = generateMaxConfig(
+			config := generateMaxConfig(
 				data.SafeOutputs.UpdateRelease.Max,
 				1, // default max
 			)
+			if data.SafeOutputs.UpdateRelease.Staged {
+				config["staged"] = true
+			}
+			safeOutputsConfig["update_release"] = config
 		}
 		if data.SafeOutputs.LinkSubIssue != nil {
-			safeOutputsConfig["link_sub_issue"] = generateMaxConfig(
+			config := generateMaxConfig(
 				data.SafeOutputs.LinkSubIssue.Max,
 				5, // default max
 			)
+			if data.SafeOutputs.LinkSubIssue.Staged {
+				config["staged"] = true
+			}
+			safeOutputsConfig["link_sub_issue"] = config
 		}
 		if data.SafeOutputs.NoOp != nil {
-			safeOutputsConfig["noop"] = generateMaxConfig(
+			config := generateMaxConfig(
 				data.SafeOutputs.NoOp.Max,
 				1, // default max
 			)
+			if data.SafeOutputs.NoOp.Staged {
+				config["staged"] = true
+			}
+			safeOutputsConfig["noop"] = config
 		}
 		if data.SafeOutputs.HideComment != nil {
-			safeOutputsConfig["hide_comment"] = generateHideCommentConfig(
+			config := generateHideCommentConfig(
 				data.SafeOutputs.HideComment.Max,
 				5, // default max
 				data.SafeOutputs.HideComment.AllowedReasons,
 			)
+			if data.SafeOutputs.HideComment.Staged {
+				config["staged"] = true
+			}
+			safeOutputsConfig["hide_comment"] = config
 		}
 		if data.SafeOutputs.SetIssueType != nil {
 			additionalFields := make(map[string]any)
 			if len(data.SafeOutputs.SetIssueType.Allowed) > 0 {
 				additionalFields["allowed"] = data.SafeOutputs.SetIssueType.Allowed
+			}
+			if data.SafeOutputs.SetIssueType.Staged {
+				additionalFields["staged"] = true
 			}
 			safeOutputsConfig["set_issue_type"] = generateTargetConfigWithRepos(
 				data.SafeOutputs.SetIssueType.SafeOutputTargetConfig,
@@ -530,6 +680,10 @@ func generateSafeOutputsConfig(data *WorkflowData) string {
 		// Include max count
 		dispatchWorkflowConfig["max"] = resolveMaxForConfig(data.SafeOutputs.DispatchWorkflow.Max, 1)
 
+		if data.SafeOutputs.DispatchWorkflow.Staged {
+			dispatchWorkflowConfig["staged"] = true
+		}
+
 		// Only add if it has fields
 		if len(dispatchWorkflowConfig) > 0 {
 			safeOutputsConfig["dispatch_workflow"] = dispatchWorkflowConfig
@@ -581,6 +735,10 @@ func generateSafeOutputsConfig(data *WorkflowData) string {
 
 		// Include max count
 		callWorkflowConfig["max"] = resolveMaxForConfig(data.SafeOutputs.CallWorkflow.Max, 1)
+
+		if data.SafeOutputs.CallWorkflow.Staged {
+			callWorkflowConfig["staged"] = true
+		}
 
 		// Only add if it has fields
 		if len(callWorkflowConfig) > 0 {

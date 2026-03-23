@@ -19,6 +19,7 @@
 // Type Conversion:
 //   - parseIntValue() - Safely parse numeric types to int with truncation warnings
 //   - safeUint64ToInt() - Convert uint64 to int, returning 0 on overflow
+//   - safeUintToInt() - Convert uint to int (thin adapter over safeUint64ToInt)
 //   - ConvertToInt() - Safely convert any value (int/int64/float64/string) to int
 //   - ConvertToFloat() - Safely convert any value (float64/int/int64/string) to float64
 //
@@ -41,8 +42,16 @@ import (
 
 var mapHelpersLog = logger.New("workflow:map_helpers")
 
-// parseIntValue safely parses various numeric types to int
-// This is a common utility used across multiple parsing functions
+// parseIntValue safely parses various numeric types to int.
+// Returns (value, true) on success, (0, false) on unsupported type or overflow.
+//
+// Supported input types: int, int64, uint64, float64.
+// Strings are NOT supported — use ConvertToInt for string-to-int conversion.
+// On float64 input, truncation is allowed but logged as a warning.
+//
+// Use parseIntValue when you need explicit success/failure signalling (the bool
+// return) and do not need string parsing. Prefer ConvertToInt when a silent
+// fallback to 0 is acceptable or when the input may be a string.
 func parseIntValue(value any) (int, bool) {
 	switch v := value.(type) {
 	case int:
@@ -77,6 +86,10 @@ func safeUint64ToInt(u uint64) int {
 	return int(u)
 }
 
+// safeUintToInt safely converts uint to int, returning 0 if overflow would occur.
+// This is a thin adapter over safeUint64ToInt for callers that hold a uint value.
+func safeUintToInt(u uint) int { return safeUint64ToInt(uint64(u)) }
+
 // filterMapKeys creates a new map excluding the specified keys
 func filterMapKeys(original map[string]any, excludeKeys ...string) map[string]any {
 	excludeSet := make(map[string]bool)
@@ -104,7 +117,17 @@ func sortedMapKeys(m map[string]string) []string {
 	return keys
 }
 
-// ConvertToInt safely converts any to int
+// ConvertToInt safely converts any value to int, returning 0 on failure.
+// Supported input types: int, int64, float64, string (parsed via strconv.Atoi).
+//
+// Unlike parseIntValue, ConvertToInt:
+//   - Accepts string inputs (parsed with strconv.Atoi)
+//   - Returns 0 silently on failure (no bool return)
+//   - Does NOT handle uint64 — use parseIntValue for uint64 overflow-safe conversion
+//
+// Use ConvertToInt when a silent fallback to 0 is acceptable or when the input
+// may be a numeric string from YAML/JSON. Prefer parseIntValue when you need
+// explicit success/failure signalling or when the input may be uint64.
 func ConvertToInt(val any) int {
 	switch v := val.(type) {
 	case int:

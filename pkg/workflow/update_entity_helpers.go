@@ -64,6 +64,16 @@
 // For create/close operations, see:
 //   - create_*.go files for entity creation logic
 //   - close_entity_helpers.go for entity close logic
+//
+// # Future Refactoring Consideration
+//
+// Entity-specific parser functions (parseUpdateIssuesConfig, parseUpdateDiscussionsConfig,
+// parseUpdatePullRequestsConfig) could be moved into their respective entity files
+// (update_issue.go, update_discussion.go, update_pull_request.go) — following the
+// pattern used in update_release.go. The generic helpers (parseUpdateEntityConfig,
+// parseUpdateEntityBase, parseUpdateEntityBoolField, etc.) would remain here.
+// This refactoring is low-priority since shared helpers make the file coherent;
+// consider splitting only if per-entity complexity grows significantly.
 
 package workflow
 

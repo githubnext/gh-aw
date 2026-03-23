@@ -7,6 +7,28 @@ import (
 	"github.com/github/gh-aw/pkg/logger"
 )
 
+// ========================================
+// Safe Output Handler Config (New Path)
+// ========================================
+//
+// This file builds the GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG environment variable
+// consumed by the safe-outputs handler manager at runtime.
+//
+// # Dual Config-Generation Architecture
+//
+// There are two parallel code paths that produce safe-output handler configuration:
+//
+//  1. generateSafeOutputsConfig() — safe_outputs_config_generation.go
+//     Output:   GH_AW_SAFE_OUTPUTS_CONFIG_PATH (a config.json file on disk)
+//     Approach: ad-hoc per-handler blocks using generateMax*Config() helpers
+//
+//  2. addHandlerManagerConfigEnvVar() — THIS FILE
+//     Output:   GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG (an env var)
+//     Approach: handlerRegistry + fluent handlerConfigBuilder
+//
+// When adding a new handler field, update BOTH files so the two paths stay in
+// sync. See safe_outputs_config_generation.go for the legacy field set.
+
 var compilerSafeOutputsConfigLog = logger.New("workflow:compiler_safe_outputs_config")
 
 // getEffectiveFooterForTemplatable returns the effective footer as a templatable string.
