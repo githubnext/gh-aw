@@ -63,8 +63,8 @@ This workflow tests the agentic output collection functionality.
 
 	// Verify GH_AW_SAFE_OUTPUTS is set via the "Set runtime paths" step (not job-level env,
 	// because runner context is unavailable in job-level env: blocks).
-	if !strings.Contains(lockContent, `echo "GH_AW_SAFE_OUTPUTS=${RUNNER_TEMP}/gh-aw/safeoutputs/outputs.jsonl" >> "$GITHUB_ENV"`) {
-		t.Error("Expected GH_AW_SAFE_OUTPUTS to be set via 'Set runtime paths' step using $GITHUB_ENV")
+	if !strings.Contains(lockContent, `echo "GH_AW_SAFE_OUTPUTS=${RUNNER_TEMP}/gh-aw/safeoutputs/outputs.jsonl" >> "$GITHUB_OUTPUT"`) {
+		t.Error("Expected GH_AW_SAFE_OUTPUTS to be set via 'Set runtime paths' step using $GITHUB_OUTPUT")
 	}
 
 	if !strings.Contains(lockContent, "- name: Ingest agent output") {
@@ -96,9 +96,9 @@ This workflow tests the agentic output collection functionality.
 		t.Error("Expected job output declaration for 'has_patch'")
 	}
 
-	// Verify GH_AW_SAFE_OUTPUTS is passed to Claude
-	if !strings.Contains(lockContent, "GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}") {
-		t.Error("Expected GH_AW_SAFE_OUTPUTS environment variable to be passed to engine")
+	// Verify GH_AW_SAFE_OUTPUTS is passed to Claude (via step output, not GITHUB_ENV)
+	if !strings.Contains(lockContent, "GH_AW_SAFE_OUTPUTS: ${{ steps.set-runtime-paths.outputs.GH_AW_SAFE_OUTPUTS }}") {
+		t.Error("Expected GH_AW_SAFE_OUTPUTS environment variable to be passed to engine via step output")
 	}
 
 	// NOTE: Safe outputs instructions are now provided via the MCP server tool discovery,
@@ -173,7 +173,7 @@ This workflow tests that Codex engine gets GH_AW_SAFE_OUTPUTS but not engine out
 
 	// Verify that Codex workflow DOES have GH_AW_SAFE_OUTPUTS functionality via "Set runtime paths" step
 	// (not job-level env, because runner context is unavailable in job-level env: blocks).
-	if !strings.Contains(lockContent, `echo "GH_AW_SAFE_OUTPUTS=${RUNNER_TEMP}/gh-aw/safeoutputs/outputs.jsonl" >> "$GITHUB_ENV"`) {
+	if !strings.Contains(lockContent, `echo "GH_AW_SAFE_OUTPUTS=${RUNNER_TEMP}/gh-aw/safeoutputs/outputs.jsonl" >> "$GITHUB_OUTPUT"`) {
 		t.Error("Codex workflow should set GH_AW_SAFE_OUTPUTS via 'Set runtime paths' step (GH_AW_SAFE_OUTPUTS functionality)")
 	}
 

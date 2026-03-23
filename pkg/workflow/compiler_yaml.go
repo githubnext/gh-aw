@@ -716,6 +716,8 @@ func (c *Compiler) generateOutputCollectionStep(yaml *strings.Builder, data *Wor
 	// unified agent artifact together with all other /tmp/gh-aw/ outputs.
 	yaml.WriteString("      - name: Copy Safe Outputs\n")
 	yaml.WriteString("        if: always()\n")
+	yaml.WriteString("        env:\n")
+	yaml.WriteString("          GH_AW_SAFE_OUTPUTS: ${{ steps.set-runtime-paths.outputs.GH_AW_SAFE_OUTPUTS }}\n")
 	yaml.WriteString("        run: |\n")
 	fmt.Fprintf(yaml, "          mkdir -p /tmp/gh-aw\n")
 	fmt.Fprintf(yaml, "          cp \"$GH_AW_SAFE_OUTPUTS\" /tmp/gh-aw/%s 2>/dev/null || true\n", constants.SafeOutputsFilename)
@@ -727,7 +729,7 @@ func (c *Compiler) generateOutputCollectionStep(yaml *strings.Builder, data *Wor
 
 	// Add environment variables for JSONL validation
 	yaml.WriteString("        env:\n")
-	yaml.WriteString("          GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}\n")
+	yaml.WriteString("          GH_AW_SAFE_OUTPUTS: ${{ steps.set-runtime-paths.outputs.GH_AW_SAFE_OUTPUTS }}\n")
 
 	// Config is written to file, not passed as env var
 
