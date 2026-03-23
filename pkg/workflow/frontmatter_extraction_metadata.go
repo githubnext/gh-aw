@@ -142,9 +142,6 @@ func buildSourceURL(source string) string {
 	return url
 }
 
-// safeUintToInt safely converts uint to int, returning 0 if overflow would occur
-func safeUintToInt(u uint) int { return safeUint64ToInt(uint64(u)) }
-
 // extractToolsTimeout extracts the timeout setting from tools
 // Returns 0 if not set (engines will use their own defaults)
 // Returns error if timeout is explicitly set but invalid (< 1)

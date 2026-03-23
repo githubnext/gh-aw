@@ -41,6 +41,14 @@ func resolveMaxForConfig(max *string, defaultMax int) any {
 	return defaultMax
 }
 
+// addStagedIfTrue sets config["staged"] = true when staged is true.
+// Used by generateSafeOutputsConfig to propagate per-handler staged flags into config.json.
+func addStagedIfTrue(config map[string]any, staged bool) {
+	if staged {
+		config["staged"] = true
+	}
+}
+
 // generateMaxConfig creates a simple config map with just a max value
 func generateMaxConfig(max *string, defaultMax int) map[string]any {
 	config := make(map[string]any)
