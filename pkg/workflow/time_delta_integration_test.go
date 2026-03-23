@@ -181,6 +181,10 @@ on:
 					}
 
 					timestamp := strings.TrimSpace(parts[1])
+					// The value is YAML-quoted (e.g. "2026-03-24 21:18:46") because the
+					// compiler uses %q to prevent YAML from interpreting the time string as
+					// a date type. Strip the surrounding double-quotes before parsing.
+					timestamp = strings.Trim(timestamp, `"`)
 
 					// Parse as timestamp to verify it's valid
 					_, err := time.Parse("2006-01-02 15:04:05", timestamp)

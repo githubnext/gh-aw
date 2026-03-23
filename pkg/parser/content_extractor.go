@@ -54,75 +54,9 @@ func extractToolsFromContent(content string) (string, error) {
 	return strings.TrimSpace(string(extractedJSON)), nil
 }
 
-// extractStepsFromContent extracts steps section from frontmatter as YAML string
-func extractStepsFromContent(content string) (string, error) {
-	result, err := ExtractFrontmatterFromContent(content)
-	if err != nil {
-		return "", nil // Return empty string on error
-	}
-
-	// Extract steps section
-	steps, exists := result.Frontmatter["steps"]
-	if !exists {
-		return "", nil
-	}
-
-	// Convert to YAML string (similar to how CustomSteps are handled in compiler)
-	stepsYAML, err := yaml.Marshal(steps)
-	if err != nil {
-		return "", nil
-	}
-
-	return strings.TrimSpace(string(stepsYAML)), nil
-}
-
-// extractServicesFromContent extracts services section from frontmatter as YAML string
-func extractServicesFromContent(content string) (string, error) {
-	result, err := ExtractFrontmatterFromContent(content)
-	if err != nil {
-		return "", nil // Return empty string on error
-	}
-
-	// Extract services section
-	services, exists := result.Frontmatter["services"]
-	if !exists {
-		return "", nil
-	}
-
-	// Convert to YAML string (similar to how steps are handled)
-	servicesYAML, err := yaml.Marshal(services)
-	if err != nil {
-		return "", nil
-	}
-
-	return strings.TrimSpace(string(servicesYAML)), nil
-}
-
 // ExtractPermissionsFromContent extracts permissions section from frontmatter as JSON string
 func ExtractPermissionsFromContent(content string) (string, error) {
 	return extractFrontmatterField(content, "permissions", "{}")
-}
-
-// extractPostStepsFromContent extracts post-steps section from frontmatter as YAML string
-func extractPostStepsFromContent(content string) (string, error) {
-	result, err := ExtractFrontmatterFromContent(content)
-	if err != nil {
-		return "", nil // Return empty string on error
-	}
-
-	// Extract post-steps section
-	postSteps, exists := result.Frontmatter["post-steps"]
-	if !exists {
-		return "", nil
-	}
-
-	// Convert to YAML string (similar to how steps are handled)
-	postStepsYAML, err := yaml.Marshal(postSteps)
-	if err != nil {
-		return "", nil
-	}
-
-	return strings.TrimSpace(string(postStepsYAML)), nil
 }
 
 // extractFrontmatterField extracts a specific field from frontmatter as JSON string
@@ -134,8 +68,16 @@ func extractFrontmatterField(content, fieldName, emptyValue string) (string, err
 		return emptyValue, nil // Return empty value on error
 	}
 
+	return extractFieldJSONFromMap(result.Frontmatter, fieldName, emptyValue)
+}
+
+// extractFieldJSONFromMap extracts a specific field from an already-parsed frontmatter map as a JSON string.
+// This avoids re-parsing YAML when the frontmatter has already been parsed.
+func extractFieldJSONFromMap(frontmatter map[string]any, fieldName, emptyValue string) (string, error) {
+	contentExtractorLog.Printf("Extracting field from map: %s", fieldName)
+
 	// Extract the requested field
-	fieldValue, exists := result.Frontmatter[fieldName]
+	fieldValue, exists := frontmatter[fieldName]
 	if !exists {
 		contentExtractorLog.Printf("Field %s not found in frontmatter", fieldName)
 		return emptyValue, nil
@@ -152,79 +94,75 @@ func extractFrontmatterField(content, fieldName, emptyValue string) (string, err
 	return strings.TrimSpace(string(fieldJSON)), nil
 }
 
-// extractOnSectionField extracts a specific field from the on: section in frontmatter as JSON string
-func extractOnSectionField(content, fieldName string) (string, error) {
-	contentExtractorLog.Printf("Extracting on: section field: %s", fieldName)
-	result, err := ExtractFrontmatterFromContent(content)
-	if err != nil {
-		contentExtractorLog.Printf("Failed to extract frontmatter for field %s: %v", fieldName, err)
-		return "[]", nil // Return empty array on error
-	}
+// extractYAMLFieldFromMap extracts a specific field from an already-parsed frontmatter map as a YAML string.
+// This avoids re-parsing YAML when the frontmatter has already been parsed.
+func extractYAMLFieldFromMap(frontmatter map[string]any, fieldName string) (string, error) {
+	contentExtractorLog.Printf("Extracting YAML field from map: %s", fieldName)
 
-	// Extract the "on" section
-	onValue, exists := result.Frontmatter["on"]
+	fieldValue, exists := frontmatter[fieldName]
 	if !exists {
-		contentExtractorLog.Printf("Field 'on' not found in frontmatter")
-		return "[]", nil
+		return "", nil
 	}
 
-	// The on: section should be a map
-	onMap, ok := onValue.(map[string]any)
-	if !ok {
-		contentExtractorLog.Printf("Field 'on' is not a map: %T", onValue)
-		return "[]", nil
-	}
-
-	// Extract the requested field from the on: section
-	fieldValue, exists := onMap[fieldName]
-	if !exists {
-		contentExtractorLog.Printf("Field %s not found in 'on' section", fieldName)
-		return "[]", nil
-	}
-
-	// Normalize field value to an array
-	var normalizedValue []any
-	switch v := fieldValue.(type) {
-	case string:
-		// Single string value
-		if v != "" {
-			normalizedValue = []any{v}
-		}
-	case []any:
-		// Already an array
-		normalizedValue = v
-	case []string:
-		// String array - convert to []any
-		for _, s := range v {
-			normalizedValue = append(normalizedValue, s)
-		}
-	default:
-		contentExtractorLog.Printf("Unexpected type for field %s: %T", fieldName, fieldValue)
-		return "[]", nil
-	}
-
-	// Return JSON string
-	jsonData, err := json.Marshal(normalizedValue)
-	if err != nil {
-		contentExtractorLog.Printf("Failed to marshal field %s to JSON: %v", fieldName, err)
-		return "[]", nil
-	}
-
-	contentExtractorLog.Printf("Successfully extracted field %s from on: section: %d bytes", fieldName, len(jsonData))
-	return string(jsonData), nil
-}
-
-// extractOnSectionAnyField extracts a specific field from the on: section in frontmatter as
-// a JSON string, handling any value type (string, object, array, etc.).
-// Returns "" when the field is absent or an error occurs.
-func extractOnSectionAnyField(content, fieldName string) (string, error) {
-	contentExtractorLog.Printf("Extracting on: section field (any): %s", fieldName)
-	result, err := ExtractFrontmatterFromContent(content)
+	fieldYAML, err := yaml.Marshal(fieldValue)
 	if err != nil {
 		return "", nil
 	}
 
-	onValue, exists := result.Frontmatter["on"]
+	return strings.TrimSpace(string(fieldYAML)), nil
+}
+
+// extractOnSectionFieldFromMap extracts a specific field from the on: section in an already-parsed
+// frontmatter map as a JSON string. This avoids re-parsing YAML when the frontmatter has already been parsed.
+func extractOnSectionFieldFromMap(frontmatter map[string]any, fieldName string) (string, error) {
+	contentExtractorLog.Printf("Extracting on: section field from map: %s", fieldName)
+
+	onValue, exists := frontmatter["on"]
+	if !exists {
+		return "[]", nil
+	}
+
+	onMap, ok := onValue.(map[string]any)
+	if !ok {
+		return "[]", nil
+	}
+
+	fieldValue, exists := onMap[fieldName]
+	if !exists {
+		return "[]", nil
+	}
+
+	var normalizedValue []any
+	switch v := fieldValue.(type) {
+	case string:
+		if v != "" {
+			normalizedValue = []any{v}
+		}
+	case []any:
+		normalizedValue = v
+	case []string:
+		for _, s := range v {
+			normalizedValue = append(normalizedValue, s)
+		}
+	default:
+		return "[]", nil
+	}
+
+	jsonData, err := json.Marshal(normalizedValue)
+	if err != nil {
+		return "[]", nil
+	}
+
+	return string(jsonData), nil
+}
+
+// extractOnSectionAnyFieldFromMap extracts a specific field from the on: section in an already-parsed
+// frontmatter map as a JSON string, handling any value type.
+// This avoids re-parsing YAML when the frontmatter has already been parsed.
+func extractOnSectionAnyFieldFromMap(frontmatter map[string]any, fieldName string) (string, error) {
+	contentExtractorLog.Printf("Extracting on: section field (any) from map: %s", fieldName)
+
+	onValue, exists := frontmatter["on"]
 	if !exists {
 		return "", nil
 	}
@@ -244,6 +182,5 @@ func extractOnSectionAnyField(content, fieldName string) (string, error) {
 		return "", nil
 	}
 
-	contentExtractorLog.Printf("Successfully extracted on.%s: %d bytes", fieldName, len(jsonData))
 	return string(jsonData), nil
 }
