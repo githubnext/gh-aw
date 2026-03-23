@@ -1,7 +1,17 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
 
-const { generateGatewayLogSummary, generatePlainTextGatewaySummary, generatePlainTextLegacySummary, parseGatewayJsonlForDifcFiltered, generateDifcFilteredSummary, printAllGatewayFiles } = require("./parse_mcp_gateway_log.cjs");
+const {
+  generateGatewayLogSummary,
+  generatePlainTextGatewaySummary,
+  generatePlainTextLegacySummary,
+  parseGatewayJsonlForDifcFiltered,
+  generateDifcFilteredSummary,
+  parseRpcMessagesJsonl,
+  getRpcRequestLabel,
+  generateRpcMessagesSummary,
+  printAllGatewayFiles,
+} = require("./parse_mcp_gateway_log.cjs");
 
 describe("parse_mcp_gateway_log", () => {
   // Note: The main() function now checks for gateway.md first before falling back to log files.
@@ -721,6 +731,159 @@ Some content here.`;
       ];
       const summary = generateDifcFilteredSummary(multiEvents);
       expect(summary).toContain("DIFC Filtered Events (3)");
+    });
+  });
+
+  describe("parseRpcMessagesJsonl", () => {
+    test("returns empty arrays for empty content", () => {
+      const result = parseRpcMessagesJsonl("");
+      expect(result.requests).toHaveLength(0);
+      expect(result.responses).toHaveLength(0);
+      expect(result.other).toHaveLength(0);
+    });
+
+    test("categorizes REQUEST entries", () => {
+      const content = [
+        JSON.stringify({ timestamp: "2026-01-18T11:10:49Z", direction: "OUT", type: "REQUEST", server_id: "github", payload: { jsonrpc: "2.0", id: 1, method: "tools/call", params: { name: "list_issues", arguments: {} } } }),
+        JSON.stringify({ timestamp: "2026-01-18T11:10:50Z", direction: "IN", type: "RESPONSE", server_id: "github", payload: { jsonrpc: "2.0", id: 1, result: {} } }),
+      ].join("\n");
+
+      const result = parseRpcMessagesJsonl(content);
+      expect(result.requests).toHaveLength(1);
+      expect(result.responses).toHaveLength(1);
+      expect(result.other).toHaveLength(0);
+      expect(result.requests[0].server_id).toBe("github");
+    });
+
+    test("excludes DIFC_FILTERED entries (handled separately)", () => {
+      const content = [
+        JSON.stringify({ type: "REQUEST", server_id: "github", payload: { method: "tools/call", params: { name: "list_issues" } } }),
+        JSON.stringify({ type: "DIFC_FILTERED", server_id: "github", tool_name: "get_issue", reason: "blocked" }),
+      ].join("\n");
+
+      const result = parseRpcMessagesJsonl(content);
+      expect(result.requests).toHaveLength(1);
+      expect(result.other).toHaveLength(0);
+    });
+
+    test("captures unknown message types in other array", () => {
+      const content = [
+        JSON.stringify({ type: "SESSION_START", server_id: "github" }),
+        JSON.stringify({ type: "SESSION_END", server_id: "github" }),
+        JSON.stringify({ type: "REQUEST", server_id: "github", payload: { method: "initialize" } }),
+      ].join("\n");
+
+      const result = parseRpcMessagesJsonl(content);
+      expect(result.requests).toHaveLength(1);
+      expect(result.other).toHaveLength(2);
+    });
+
+    test("skips malformed JSON lines", () => {
+      const content = ["not valid json", JSON.stringify({ type: "REQUEST", server_id: "github", payload: { method: "tools/call", params: { name: "list_issues" } } }), "{broken}"].join("\n");
+
+      const result = parseRpcMessagesJsonl(content);
+      expect(result.requests).toHaveLength(1);
+    });
+
+    test("skips entries without a type field", () => {
+      const content = [JSON.stringify({ server_id: "github" }), JSON.stringify({ type: "REQUEST", server_id: "ok", payload: { method: "tools/list" } })].join("\n");
+
+      const result = parseRpcMessagesJsonl(content);
+      expect(result.requests).toHaveLength(1);
+      expect(result.other).toHaveLength(0);
+    });
+  });
+
+  describe("getRpcRequestLabel", () => {
+    test("returns tool name for tools/call requests", () => {
+      const entry = { type: "REQUEST", payload: { method: "tools/call", params: { name: "list_issues" } } };
+      expect(getRpcRequestLabel(entry)).toBe("list_issues");
+    });
+
+    test("returns method name for non-tools/call requests", () => {
+      const entry = { type: "REQUEST", payload: { method: "tools/list" } };
+      expect(getRpcRequestLabel(entry)).toBe("tools/list");
+    });
+
+    test("returns tools/call as fallback when params.name is missing", () => {
+      const entry = { type: "REQUEST", payload: { method: "tools/call" } };
+      expect(getRpcRequestLabel(entry)).toBe("tools/call");
+    });
+
+    test("returns unknown when payload is missing", () => {
+      const entry = { type: "REQUEST" };
+      expect(getRpcRequestLabel(entry)).toBe("unknown");
+    });
+
+    test("returns unknown when method is missing", () => {
+      const entry = { type: "REQUEST", payload: {} };
+      expect(getRpcRequestLabel(entry)).toBe("unknown");
+    });
+  });
+
+  describe("generateRpcMessagesSummary", () => {
+    const sampleRequests = [
+      { timestamp: "2026-01-18T11:10:49Z", direction: "OUT", type: "REQUEST", server_id: "github", payload: { method: "tools/call", params: { name: "list_issues" } } },
+      { timestamp: "2026-01-18T11:10:51Z", direction: "OUT", type: "REQUEST", server_id: "safeoutputs", payload: { method: "tools/call", params: { name: "add_comment" } } },
+    ];
+    const sampleResponses = [{ timestamp: "2026-01-18T11:10:50Z", direction: "IN", type: "RESPONSE", server_id: "github", payload: { jsonrpc: "2.0", result: {} } }];
+
+    test("returns empty string for no messages", () => {
+      expect(generateRpcMessagesSummary({ requests: [], responses: [], other: [] }, [])).toBe("");
+    });
+
+    test("generates details/summary with request count", () => {
+      const summary = generateRpcMessagesSummary({ requests: sampleRequests, responses: sampleResponses, other: [] }, []);
+      expect(summary).toContain("<details>");
+      expect(summary).toContain("MCP Gateway Activity (2 requests)");
+      expect(summary).toContain("</details>");
+    });
+
+    test("renders request table with time, server, and tool columns", () => {
+      const summary = generateRpcMessagesSummary({ requests: sampleRequests, responses: [], other: [] }, []);
+      expect(summary).toContain("| Time | Server | Tool / Method |");
+      expect(summary).toContain("`list_issues`");
+      expect(summary).toContain("`add_comment`");
+      expect(summary).toContain("github");
+      expect(summary).toContain("safeoutputs");
+    });
+
+    test("formats ISO timestamp as readable date-time", () => {
+      const summary = generateRpcMessagesSummary({ requests: sampleRequests, responses: [], other: [] }, []);
+      expect(summary).toContain("2026-01-18 11:10:49Z");
+    });
+
+    test("shows blocked count in summary when DIFC events present", () => {
+      const difcEvents = [{ type: "DIFC_FILTERED", tool_name: "get_issue", reason: "blocked" }];
+      const summary = generateRpcMessagesSummary({ requests: sampleRequests, responses: [], other: [] }, difcEvents);
+      expect(summary).toContain("1 blocked");
+    });
+
+    test("includes DIFC_FILTERED table when events are present", () => {
+      const difcEvents = [{ type: "DIFC_FILTERED", tool_name: "get_issue", server_id: "github", reason: "Integrity check failed", author_login: "user1", author_association: "MEMBER" }];
+      const summary = generateRpcMessagesSummary({ requests: sampleRequests, responses: [], other: [] }, difcEvents);
+      expect(summary).toContain("DIFC Filtered Events");
+      expect(summary).toContain("`get_issue`");
+    });
+
+    test("renders other message types section", () => {
+      const other = [
+        { type: "SESSION_START", server_id: "github" },
+        { type: "SESSION_START", server_id: "github" },
+        { type: "SESSION_END", server_id: "github" },
+      ];
+      const summary = generateRpcMessagesSummary({ requests: [], responses: [], other }, []);
+      expect(summary).toContain("Other Gateway Messages");
+      expect(summary).toContain("SESSION_START");
+      expect(summary).toContain("SESSION_END");
+      expect(summary).toContain("2 messages");
+    });
+
+    test("shows minimal header when only DIFC events exist (no requests)", () => {
+      const difcEvents = [{ type: "DIFC_FILTERED", tool_name: "list_issues", reason: "blocked" }];
+      const summary = generateRpcMessagesSummary({ requests: [], responses: [], other: [] }, difcEvents);
+      expect(summary).toContain("1 blocked");
+      expect(summary).toContain("All tool calls were blocked");
     });
   });
 });
