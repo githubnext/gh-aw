@@ -72,8 +72,8 @@ jobs:
         env:
           GH_AW_INFO_ENGINE_ID: "codex"
           GH_AW_INFO_ENGINE_NAME: "Codex"
-          GH_AW_INFO_MODEL: ${{ vars.GH_AW_MODEL_AGENT_CODEX || '' }}
-          GH_AW_INFO_VERSION: ""
+          GH_AW_INFO_MODEL: ${{ vars.GH_AW_MODEL_AGENT_CODEX || 'auto' }}
+          GH_AW_INFO_VERSION: "latest"
           GH_AW_INFO_AGENT_VERSION: "latest"
           GH_AW_INFO_WORKFLOW_NAME: "DeepReport - Intelligence Gathering Agent"
           GH_AW_INFO_EXPERIMENTAL: "false"
@@ -1277,6 +1277,7 @@ jobs:
     env:
       GH_AW_CALLER_WORKFLOW_ID: "${{ github.repository }}/deep-report"
       GH_AW_ENGINE_ID: "codex"
+      GH_AW_ENGINE_MODEL: ${{ needs.agent.outputs.model }}
       GH_AW_TRACKER_ID: "deep-report-intel-agent"
       GH_AW_WORKFLOW_ID: "deep-report"
       GH_AW_WORKFLOW_NAME: "DeepReport - Intelligence Gathering Agent"
@@ -1463,6 +1464,7 @@ jobs:
           GH_AW_WORKFLOW_NAME: "DeepReport - Intelligence Gathering Agent"
           GH_AW_TRACKER_ID: "deep-report-intel-agent"
           GH_AW_ENGINE_ID: "codex"
+          GH_AW_ENGINE_MODEL: ${{ needs.agent.outputs.model }}
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |

@@ -81,8 +81,8 @@ jobs:
         env:
           GH_AW_INFO_ENGINE_ID: "copilot"
           GH_AW_INFO_ENGINE_NAME: "GitHub Copilot CLI"
-          GH_AW_INFO_MODEL: ${{ vars.GH_AW_MODEL_AGENT_COPILOT || '' }}
-          GH_AW_INFO_VERSION: ""
+          GH_AW_INFO_MODEL: ${{ vars.GH_AW_MODEL_AGENT_COPILOT || 'auto' }}
+          GH_AW_INFO_VERSION: "latest"
           GH_AW_INFO_AGENT_VERSION: "latest"
           GH_AW_INFO_WORKFLOW_NAME: "Smoke Create Cross-Repo PR"
           GH_AW_INFO_EXPERIMENTAL: "false"
@@ -1158,6 +1158,7 @@ jobs:
     env:
       GH_AW_CALLER_WORKFLOW_ID: "${{ github.repository }}/smoke-create-cross-repo-pr"
       GH_AW_ENGINE_ID: "copilot"
+      GH_AW_ENGINE_MODEL: ${{ needs.agent.outputs.model }}
       GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 🔬 *Cross-repo smoke test by [{workflow_name}]({run_url})*{history_link}\",\"runStarted\":\"🔬 [{workflow_name}]({run_url}) is testing cross-repo PR creation in github/gh-aw-side-repo...\",\"runSuccess\":\"✅ [{workflow_name}]({run_url}) successfully created a cross-repo PR in github/gh-aw-side-repo!\",\"runFailure\":\"❌ [{workflow_name}]({run_url}) failed to create a cross-repo PR: {status}\"}"
       GH_AW_WORKFLOW_ID: "smoke-create-cross-repo-pr"
       GH_AW_WORKFLOW_NAME: "Smoke Create Cross-Repo PR"

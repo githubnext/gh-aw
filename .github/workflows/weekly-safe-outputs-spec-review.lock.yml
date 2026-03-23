@@ -66,8 +66,8 @@ jobs:
         env:
           GH_AW_INFO_ENGINE_ID: "copilot"
           GH_AW_INFO_ENGINE_NAME: "GitHub Copilot CLI"
-          GH_AW_INFO_MODEL: ${{ vars.GH_AW_MODEL_AGENT_COPILOT || '' }}
-          GH_AW_INFO_VERSION: ""
+          GH_AW_INFO_MODEL: ${{ vars.GH_AW_MODEL_AGENT_COPILOT || 'auto' }}
+          GH_AW_INFO_VERSION: "latest"
           GH_AW_INFO_AGENT_VERSION: "latest"
           GH_AW_INFO_WORKFLOW_NAME: "Weekly Safe Outputs Specification Review"
           GH_AW_INFO_EXPERIMENTAL: "false"
@@ -999,6 +999,7 @@ jobs:
     env:
       GH_AW_CALLER_WORKFLOW_ID: "${{ github.repository }}/weekly-safe-outputs-spec-review"
       GH_AW_ENGINE_ID: "copilot"
+      GH_AW_ENGINE_MODEL: ${{ needs.agent.outputs.model }}
       GH_AW_TRACKER_ID: "weekly-safe-outputs-spec-review"
       GH_AW_WORKFLOW_ID: "weekly-safe-outputs-spec-review"
       GH_AW_WORKFLOW_NAME: "Weekly Safe Outputs Specification Review"

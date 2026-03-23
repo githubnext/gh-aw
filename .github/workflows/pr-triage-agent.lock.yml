@@ -65,8 +65,8 @@ jobs:
         env:
           GH_AW_INFO_ENGINE_ID: "copilot"
           GH_AW_INFO_ENGINE_NAME: "GitHub Copilot CLI"
-          GH_AW_INFO_MODEL: ${{ vars.GH_AW_MODEL_AGENT_COPILOT || '' }}
-          GH_AW_INFO_VERSION: ""
+          GH_AW_INFO_MODEL: ${{ vars.GH_AW_MODEL_AGENT_COPILOT || 'auto' }}
+          GH_AW_INFO_VERSION: "latest"
           GH_AW_INFO_AGENT_VERSION: "latest"
           GH_AW_INFO_WORKFLOW_NAME: "PR Triage Agent"
           GH_AW_INFO_EXPERIMENTAL: "false"
@@ -1123,6 +1123,7 @@ jobs:
     env:
       GH_AW_CALLER_WORKFLOW_ID: "${{ github.repository }}/pr-triage-agent"
       GH_AW_ENGINE_ID: "copilot"
+      GH_AW_ENGINE_MODEL: ${{ needs.agent.outputs.model }}
       GH_AW_SAFE_OUTPUT_MESSAGES: "{\"runStarted\":\"🔍 Starting PR triage analysis... [{workflow_name}]({run_url}) is categorizing and prioritizing agent-created PRs\",\"runSuccess\":\"✅ PR triage complete! [{workflow_name}]({run_url}) has analyzed and categorized PRs. Check the issue for detailed report.\",\"runFailure\":\"❌ PR triage failed! [{workflow_name}]({run_url}) {status}. Some PRs may not be triaged.\"}"
       GH_AW_WORKFLOW_ID: "pr-triage-agent"
       GH_AW_WORKFLOW_NAME: "PR Triage Agent"

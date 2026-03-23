@@ -72,8 +72,8 @@ jobs:
         env:
           GH_AW_INFO_ENGINE_ID: "copilot"
           GH_AW_INFO_ENGINE_NAME: "GitHub Copilot CLI"
-          GH_AW_INFO_MODEL: ${{ vars.GH_AW_MODEL_AGENT_COPILOT || '' }}
-          GH_AW_INFO_VERSION: ""
+          GH_AW_INFO_MODEL: ${{ vars.GH_AW_MODEL_AGENT_COPILOT || 'auto' }}
+          GH_AW_INFO_VERSION: "latest"
           GH_AW_INFO_AGENT_VERSION: "latest"
           GH_AW_INFO_WORKFLOW_NAME: "Daily News"
           GH_AW_INFO_EXPERIMENTAL: "false"
@@ -1268,6 +1268,7 @@ jobs:
     env:
       GH_AW_CALLER_WORKFLOW_ID: "${{ github.repository }}/daily-news"
       GH_AW_ENGINE_ID: "copilot"
+      GH_AW_ENGINE_MODEL: ${{ needs.agent.outputs.model }}
       GH_AW_TRACKER_ID: "daily-news-weekday"
       GH_AW_WORKFLOW_ID: "daily-news"
       GH_AW_WORKFLOW_NAME: "Daily News"
@@ -1452,6 +1453,7 @@ jobs:
           GH_AW_WORKFLOW_NAME: "Daily News"
           GH_AW_TRACKER_ID: "daily-news-weekday"
           GH_AW_ENGINE_ID: "copilot"
+          GH_AW_ENGINE_MODEL: ${{ needs.agent.outputs.model }}
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |

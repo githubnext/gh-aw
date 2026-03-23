@@ -83,8 +83,8 @@ jobs:
         env:
           GH_AW_INFO_ENGINE_ID: "codex"
           GH_AW_INFO_ENGINE_NAME: "Codex"
-          GH_AW_INFO_MODEL: ${{ vars.GH_AW_MODEL_AGENT_CODEX || '' }}
-          GH_AW_INFO_VERSION: ""
+          GH_AW_INFO_MODEL: ${{ vars.GH_AW_MODEL_AGENT_CODEX || 'auto' }}
+          GH_AW_INFO_VERSION: "latest"
           GH_AW_INFO_AGENT_VERSION: "latest"
           GH_AW_INFO_WORKFLOW_NAME: "Grumpy Code Reviewer 🔥"
           GH_AW_INFO_EXPERIMENTAL: "false"
@@ -1133,6 +1133,7 @@ jobs:
     env:
       GH_AW_CALLER_WORKFLOW_ID: "${{ github.repository }}/grumpy-reviewer"
       GH_AW_ENGINE_ID: "codex"
+      GH_AW_ENGINE_MODEL: ${{ needs.agent.outputs.model }}
       GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 😤 *Reluctantly reviewed by [{workflow_name}]({run_url})*{history_link}\",\"runStarted\":\"😤 *sigh* [{workflow_name}]({run_url}) is begrudgingly looking at this {event_type}... This better be worth my time.\",\"runSuccess\":\"😤 Fine. [{workflow_name}]({run_url}) finished the review. It wasn't completely terrible. I guess. 🙄\",\"runFailure\":\"😤 Great. [{workflow_name}]({run_url}) {status}. As if my day couldn't get any worse...\"}"
       GH_AW_WORKFLOW_ID: "grumpy-reviewer"
       GH_AW_WORKFLOW_NAME: "Grumpy Code Reviewer 🔥"

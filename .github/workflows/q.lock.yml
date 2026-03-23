@@ -106,8 +106,8 @@ jobs:
         env:
           GH_AW_INFO_ENGINE_ID: "copilot"
           GH_AW_INFO_ENGINE_NAME: "GitHub Copilot CLI"
-          GH_AW_INFO_MODEL: ${{ vars.GH_AW_MODEL_AGENT_COPILOT || '' }}
-          GH_AW_INFO_VERSION: ""
+          GH_AW_INFO_MODEL: ${{ vars.GH_AW_MODEL_AGENT_COPILOT || 'auto' }}
+          GH_AW_INFO_VERSION: "latest"
           GH_AW_INFO_AGENT_VERSION: "latest"
           GH_AW_INFO_WORKFLOW_NAME: "Q"
           GH_AW_INFO_EXPERIMENTAL: "false"
@@ -1316,6 +1316,7 @@ jobs:
     env:
       GH_AW_CALLER_WORKFLOW_ID: "${{ github.repository }}/q"
       GH_AW_ENGINE_ID: "copilot"
+      GH_AW_ENGINE_MODEL: ${{ needs.agent.outputs.model }}
       GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 🎩 *Equipped by [{workflow_name}]({run_url})*{history_link}\",\"runStarted\":\"🔧 Pay attention, 007! [{workflow_name}]({run_url}) is preparing your gadgets for this {event_type}...\",\"runSuccess\":\"🎩 Mission equipment ready! [{workflow_name}]({run_url}) has optimized your workflow. Use wisely, 007! 🔫\",\"runFailure\":\"🔧 Technical difficulties! [{workflow_name}]({run_url}) {status}. Even Q Branch has bad days...\"}"
       GH_AW_WORKFLOW_ID: "q"
       GH_AW_WORKFLOW_NAME: "Q"

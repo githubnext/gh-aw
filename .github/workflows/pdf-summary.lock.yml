@@ -96,8 +96,8 @@ jobs:
         env:
           GH_AW_INFO_ENGINE_ID: "copilot"
           GH_AW_INFO_ENGINE_NAME: "GitHub Copilot CLI"
-          GH_AW_INFO_MODEL: ${{ vars.GH_AW_MODEL_AGENT_COPILOT || '' }}
-          GH_AW_INFO_VERSION: ""
+          GH_AW_INFO_MODEL: ${{ vars.GH_AW_MODEL_AGENT_COPILOT || 'auto' }}
+          GH_AW_INFO_VERSION: "latest"
           GH_AW_INFO_AGENT_VERSION: "latest"
           GH_AW_INFO_WORKFLOW_NAME: "Resource Summarizer Agent"
           GH_AW_INFO_EXPERIMENTAL: "false"
@@ -1188,6 +1188,7 @@ jobs:
     env:
       GH_AW_CALLER_WORKFLOW_ID: "${{ github.repository }}/pdf-summary"
       GH_AW_ENGINE_ID: "copilot"
+      GH_AW_ENGINE_MODEL: ${{ needs.agent.outputs.model }}
       GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 📄 *Summary compiled by [{workflow_name}]({run_url})*{history_link}\",\"runStarted\":\"📖 Page by page! [{workflow_name}]({run_url}) is reading through this {event_type}...\",\"runSuccess\":\"📚 TL;DR ready! [{workflow_name}]({run_url}) has distilled the essence. Knowledge condensed! ✨\",\"runFailure\":\"📖 Reading interrupted! [{workflow_name}]({run_url}) {status}. The document remains unsummarized...\"}"
       GH_AW_WORKFLOW_ID: "pdf-summary"
       GH_AW_WORKFLOW_NAME: "Resource Summarizer Agent"

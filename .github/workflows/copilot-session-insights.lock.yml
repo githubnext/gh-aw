@@ -75,8 +75,8 @@ jobs:
         env:
           GH_AW_INFO_ENGINE_ID: "claude"
           GH_AW_INFO_ENGINE_NAME: "Claude Code"
-          GH_AW_INFO_MODEL: ${{ vars.GH_AW_MODEL_AGENT_CLAUDE || '' }}
-          GH_AW_INFO_VERSION: ""
+          GH_AW_INFO_MODEL: ${{ vars.GH_AW_MODEL_AGENT_CLAUDE || 'auto' }}
+          GH_AW_INFO_VERSION: "latest"
           GH_AW_INFO_AGENT_VERSION: "latest"
           GH_AW_INFO_WORKFLOW_NAME: "Copilot Session Insights"
           GH_AW_INFO_EXPERIMENTAL: "false"
@@ -1252,6 +1252,7 @@ jobs:
     env:
       GH_AW_CALLER_WORKFLOW_ID: "${{ github.repository }}/copilot-session-insights"
       GH_AW_ENGINE_ID: "claude"
+      GH_AW_ENGINE_MODEL: ${{ needs.agent.outputs.model }}
       GH_AW_WORKFLOW_ID: "copilot-session-insights"
       GH_AW_WORKFLOW_NAME: "Copilot Session Insights"
     outputs:
@@ -1434,6 +1435,7 @@ jobs:
           GH_AW_ASSETS_ALLOWED_EXTS: ".png,.jpg,.jpeg"
           GH_AW_WORKFLOW_NAME: "Copilot Session Insights"
           GH_AW_ENGINE_ID: "claude"
+          GH_AW_ENGINE_MODEL: ${{ needs.agent.outputs.model }}
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |

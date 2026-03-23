@@ -79,8 +79,8 @@ jobs:
         env:
           GH_AW_INFO_ENGINE_ID: "copilot"
           GH_AW_INFO_ENGINE_NAME: "GitHub Copilot CLI"
-          GH_AW_INFO_MODEL: ${{ vars.GH_AW_MODEL_AGENT_COPILOT || '' }}
-          GH_AW_INFO_VERSION: ""
+          GH_AW_INFO_MODEL: ${{ vars.GH_AW_MODEL_AGENT_COPILOT || 'auto' }}
+          GH_AW_INFO_VERSION: "latest"
           GH_AW_INFO_AGENT_VERSION: "latest"
           GH_AW_INFO_WORKFLOW_NAME: "Brave Web Search Agent"
           GH_AW_INFO_EXPERIMENTAL: "false"
@@ -1110,6 +1110,7 @@ jobs:
     env:
       GH_AW_CALLER_WORKFLOW_ID: "${{ github.repository }}/brave"
       GH_AW_ENGINE_ID: "copilot"
+      GH_AW_ENGINE_MODEL: ${{ needs.agent.outputs.model }}
       GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 🦁 *Search results brought to you by [{workflow_name}]({run_url})*{history_link}\",\"footerWorkflowRecompile\":\"\\u003e 🔄 *Maintenance report by [{workflow_name}]({run_url}) for {repository}*\",\"runStarted\":\"🔍 Brave Search activated! [{workflow_name}]({run_url}) is venturing into the web on this {event_type}...\",\"runSuccess\":\"🦁 Mission accomplished! [{workflow_name}]({run_url}) has returned with the findings. Knowledge acquired! 🏆\",\"runFailure\":\"🔍 Search interrupted! [{workflow_name}]({run_url}) {status}. The web remains unexplored...\"}"
       GH_AW_WORKFLOW_ID: "brave"
       GH_AW_WORKFLOW_NAME: "Brave Web Search Agent"
