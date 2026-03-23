@@ -85,6 +85,23 @@ The CLI validates three permission layers. Fix restrictions in Repository Settin
 
 ## Workflow Compilation Issues
 
+### Frontmatter Field Not Taking Effect
+
+If a frontmatter setting appears to be silently ignored, the field name may be misspelled. The compiler does not warn about unknown field names — they are silently discarded.
+
+> [!WARNING]
+> Common frontmatter field name mistakes:
+>
+> | Wrong | Correct |
+> |-------|---------|
+> | `agent:` | `engine:` |
+> | `mcp-servers:` | `tools:` (under which MCP servers are configured) |
+> | `tool-sets:` | `toolsets:` (under `tools.github:`) |
+> | `allowed_repos:` | `allowed-repos:` (under `tools.github:`) |
+> | `timeout:` | `timeout-minutes:` |
+>
+> Run `gh aw compile --verbose` to confirm which settings were parsed. If your setting is missing from the output, check the [Frontmatter Reference](/gh-aw/reference/frontmatter/) for the correct field name.
+
 ### Workflow Won't Compile
 
 Check YAML frontmatter syntax (indentation, colons with spaces), verify required fields (`on:`), and ensure types match the schema. Use `gh aw compile --verbose` for details.

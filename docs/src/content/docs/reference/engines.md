@@ -20,6 +20,26 @@ Set `engine:` in your workflow frontmatter and configure the corresponding secre
 
 Copilot CLI is the default — `engine:` can be omitted when using Copilot. See the linked authentication docs for secret setup instructions.
 
+## Engine Feature Comparison
+
+Not all features are available across all engines. The table below summarizes per-engine support for commonly used workflow options:
+
+| Feature | Copilot | Claude | Codex | Gemini |
+|---------|:-------:|:------:|:-----:|:------:|
+| `max-turns` | ❌ | ✅ | ❌ | ❌ |
+| `max-continuations` | ✅ | ❌ | ❌ | ❌ |
+| `tools.web-fetch` | ✅ | ✅ | ✅ | ✅ |
+| `tools.web-search` | via MCP | via MCP | ✅ (opt-in) | via MCP |
+| `engine.agent` (custom agent file) | ✅ | ❌ | ❌ | ❌ |
+| `engine.api-target` (custom endpoint) | ✅ | ✅ | ✅ | ✅ |
+| Tools allowlist | ✅ | ✅ | ✅ | ✅ |
+
+**Notes:**
+- `max-turns` limits the number of AI chat iterations per run (Claude only).
+- `max-continuations` enables autopilot mode with multiple consecutive runs (Copilot only).
+- `web-search` for Codex is disabled by default; add `tools: web-search:` to enable it. Other engines use a third-party MCP server — see [Using Web Search](/gh-aw/guides/web-search/).
+- `engine.agent` references a `.github/agents/` file for custom Copilot agent behavior. See [Copilot Custom Configuration](#copilot-custom-configuration).
+
 ## Extended Coding Agent Configuration
 
 Workflows can specify extended configuration for the coding agent:

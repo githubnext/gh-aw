@@ -64,6 +64,7 @@ The agent requests issue creation; a separate job with `issues: write` creates i
 
 - [**Dispatch Workflow**](#workflow-dispatch-dispatch-workflow) (`dispatch-workflow`) - Trigger other workflows with inputs (max: 3, same-repo only)
 - [**Call Workflow**](#workflow-call-call-workflow) (`call-workflow`) - Call reusable workflows via compile-time fan-out (max: 1, same-repo only)
+- [**Dispatch Repository Event**](#repository-dispatch-dispatch_repository) (`dispatch_repository`) - Trigger `repository_dispatch` events in external repositories, experimental (cross-repo)
 - [**Code Scanning Alerts**](#code-scanning-alerts-create-code-scanning-alert) (`create-code-scanning-alert`) - Generate SARIF security advisories (max: unlimited, same-repo only)
 - [**Autofix Code Scanning Alerts**](#autofix-code-scanning-alerts-autofix-code-scanning-alert) (`autofix-code-scanning-alert`) - Create automated fixes for code scanning alerts (max: 10, same-repo only)
 - [**Create Agent Session**](#agent-session-creation-create-agent-session) (`create-agent-session`) - Create Copilot coding agent sessions (max: 1)
@@ -1268,6 +1269,55 @@ Use `call-workflow` for deterministic fan-out where actor attribution and zero A
 - **Same-repository only** - Workers must live in the same repository as the gateway.
 - **Allowlist enforcement** - Only workflows listed in `workflows` can be called; unlisted names are rejected at runtime.
 - **Compile-time validation** - Misconfiguration is caught before the workflow runs.
+
+### Repository Dispatch (`dispatch_repository`)
+
+> [!CAUTION]
+> This is an experimental feature. Compiling a workflow with `dispatch_repository` emits a warning: `Using experimental feature: dispatch_repository`. The API may change in future releases.
+
+Triggers [`repository_dispatch`](https://docs.github.com/en/actions/writing-workflows/choosing-when-your-workflow-runs/events-that-trigger-workflows#repository_dispatch) events in external repositories. Unlike `dispatch-workflow` (same-repo only), `dispatch_repository` is designed for cross-repository orchestration.
+
+Each key under `dispatch_repository:` defines a named tool exposed to the agent:
+
+```yaml wrap
+safe-outputs:
+  dispatch_repository:
+    trigger_ci:
+      description: Trigger CI in another repository
+      workflow: ci.yml
+      event_type: ci_trigger
+      repository: ${{ inputs.target_repo }}   # GitHub Actions expressions supported
+      inputs:
+        environment:
+          type: choice
+          options: [staging, production]
+          default: staging
+      max: 1
+    notify_service:
+      workflow: notify.yml
+      event_type: notify_event
+      allowed_repositories:
+        - org/service-repo
+        - ${{ vars.DYNAMIC_REPO }}             # Expressions bypass slug format validation
+      inputs:
+        message:
+          type: string
+```
+
+#### Configuration Fields (per tool)
+
+- **`workflow`** (required) — Identifier forwarded in `client_payload.workflow` so the receiving workflow can route by job type.
+- **`event_type`** (required) — The `event_type` sent with the `repository_dispatch` event.
+- **`repository`** (required, unless `allowed_repositories` is set) — Static `owner/repo` slug or a GitHub Actions expression (`${{ ... }}`). Expressions are passed through without format validation.
+- **`allowed_repositories`** (required, unless `repository` is set) — List of allowed `owner/repo` slugs or expressions. The agent selects the target from this list at runtime.
+- **`inputs`** (optional) — Structured input schema forwarded in `client_payload`. Supports `type: string`, `type: choice` (with `options`), and `default` values.
+- **`description`** (optional) — Human-readable description of the tool shown to the agent.
+- **`max`** (optional) — Maximum number of dispatches allowed per run (default: 1).
+
+#### Security
+
+- **Cross-repo allowlist** — At runtime the handler validates the target repository against the configured `repository` or `allowed_repositories` before calling the API (SEC-005).
+- **Staged mode** — Supports `staged: true` for preview without dispatching.
 
 ### Agent Session Creation (`create-agent-session:`)
 
