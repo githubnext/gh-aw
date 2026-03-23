@@ -27,32 +27,14 @@
 #     - shared/pr-code-review-config.md
 #     - shared/reporting.md
 #
-# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"7ef95d3950a08b270d3339bc5457cf95be6ef0cb3fe4eebe189f547880de9226","strict":true,"agent_id":"copilot"}
+# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"1c5afbcc15ccde9b0714225f3bbbfb1579751480ac6e9b3e0c46a2e34cbfec5c","strict":true,"agent_id":"copilot"}
 
 name: "PR Nitpick Reviewer 🔍"
 "on":
-  discussion:
-    types:
-    - created
-    - edited
-  discussion_comment:
-    types:
-    - created
-    - edited
   issue_comment:
     types:
     - created
     - edited
-  issues:
-    types:
-    - opened
-    - edited
-    - reopened
-  pull_request:
-    types:
-    - opened
-    - edited
-    - reopened
   pull_request_review_comment:
     types:
     - created
@@ -68,7 +50,7 @@ run-name: "PR Nitpick Reviewer 🔍"
 jobs:
   activation:
     needs: pre_activation
-    if: "needs.pre_activation.outputs.activated == 'true' && (github.event_name == 'issues' && (startsWith(github.event.issue.body, '/nit ') || startsWith(github.event.issue.body, '/nit\n') || github.event.issue.body == '/nit') || github.event_name == 'issue_comment' && (startsWith(github.event.comment.body, '/nit ') || startsWith(github.event.comment.body, '/nit\n') || github.event.comment.body == '/nit') && github.event.issue.pull_request == null || github.event_name == 'issue_comment' && (startsWith(github.event.comment.body, '/nit ') || startsWith(github.event.comment.body, '/nit\n') || github.event.comment.body == '/nit') && github.event.issue.pull_request != null || github.event_name == 'pull_request_review_comment' && (startsWith(github.event.comment.body, '/nit ') || startsWith(github.event.comment.body, '/nit\n') || github.event.comment.body == '/nit') || github.event_name == 'pull_request' && (startsWith(github.event.pull_request.body, '/nit ') || startsWith(github.event.pull_request.body, '/nit\n') || github.event.pull_request.body == '/nit') || github.event_name == 'discussion' && (startsWith(github.event.discussion.body, '/nit ') || startsWith(github.event.discussion.body, '/nit\n') || github.event.discussion.body == '/nit') || github.event_name == 'discussion_comment' && (startsWith(github.event.comment.body, '/nit ') || startsWith(github.event.comment.body, '/nit\n') || github.event.comment.body == '/nit'))"
+    if: "needs.pre_activation.outputs.activated == 'true' && (github.event_name == 'issue_comment' && (startsWith(github.event.comment.body, '/nit ') || startsWith(github.event.comment.body, '/nit\n') || github.event.comment.body == '/nit') && github.event.issue.pull_request != null || github.event_name == 'pull_request_review_comment' && (startsWith(github.event.comment.body, '/nit ') || startsWith(github.event.comment.body, '/nit\n') || github.event.comment.body == '/nit'))"
     runs-on: ubuntu-slim
     permissions:
       contents: read
@@ -1154,7 +1136,7 @@ jobs:
             await main();
 
   pre_activation:
-    if: "github.event_name == 'issues' && (startsWith(github.event.issue.body, '/nit ') || startsWith(github.event.issue.body, '/nit\n') || github.event.issue.body == '/nit') || github.event_name == 'issue_comment' && (startsWith(github.event.comment.body, '/nit ') || startsWith(github.event.comment.body, '/nit\n') || github.event.comment.body == '/nit') && github.event.issue.pull_request == null || github.event_name == 'issue_comment' && (startsWith(github.event.comment.body, '/nit ') || startsWith(github.event.comment.body, '/nit\n') || github.event.comment.body == '/nit') && github.event.issue.pull_request != null || github.event_name == 'pull_request_review_comment' && (startsWith(github.event.comment.body, '/nit ') || startsWith(github.event.comment.body, '/nit\n') || github.event.comment.body == '/nit') || github.event_name == 'pull_request' && (startsWith(github.event.pull_request.body, '/nit ') || startsWith(github.event.pull_request.body, '/nit\n') || github.event.pull_request.body == '/nit') || github.event_name == 'discussion' && (startsWith(github.event.discussion.body, '/nit ') || startsWith(github.event.discussion.body, '/nit\n') || github.event.discussion.body == '/nit') || github.event_name == 'discussion_comment' && (startsWith(github.event.comment.body, '/nit ') || startsWith(github.event.comment.body, '/nit\n') || github.event.comment.body == '/nit')"
+    if: "github.event_name == 'issue_comment' && (startsWith(github.event.comment.body, '/nit ') || startsWith(github.event.comment.body, '/nit\n') || github.event.comment.body == '/nit') && github.event.issue.pull_request != null || github.event_name == 'pull_request_review_comment' && (startsWith(github.event.comment.body, '/nit ') || startsWith(github.event.comment.body, '/nit\n') || github.event.comment.body == '/nit')"
     runs-on: ubuntu-slim
     permissions:
       contents: read
