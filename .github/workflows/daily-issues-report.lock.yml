@@ -36,7 +36,7 @@
 name: "Daily Issues Report Generator"
 "on":
   schedule:
-  - cron: "20 1 * * *"
+  - cron: "45 20 * * *"
     # Friendly format: daily (scattered)
   workflow_dispatch:
 

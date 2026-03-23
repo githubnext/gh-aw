@@ -32,7 +32,7 @@
 name: "Daily DIFC Integrity-Filtered Events Analyzer"
 "on":
   schedule:
-  - cron: "19 8 * * *"
+  - cron: "54 9 * * *"
     # Friendly format: daily (scattered)
   workflow_dispatch:
 

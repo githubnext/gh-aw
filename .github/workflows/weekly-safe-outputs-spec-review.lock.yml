@@ -27,7 +27,7 @@
 name: "Weekly Safe Outputs Specification Review"
 "on":
   schedule:
-  - cron: "38 22 * * 1"
+  - cron: "13 3 * * 1"
     # Friendly format: weekly on monday (scattered)
   workflow_dispatch:
 

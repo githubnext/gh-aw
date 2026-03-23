@@ -37,7 +37,7 @@ name: "Smoke Gemini"
     types:
     - labeled
   schedule:
-  - cron: "22 */12 * * *"
+  - cron: "27 */12 * * *"
   workflow_dispatch: null
 
 permissions: {}
