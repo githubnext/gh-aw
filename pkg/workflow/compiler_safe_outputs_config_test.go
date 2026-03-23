@@ -1828,6 +1828,190 @@ func TestHandlerConfigStagedMode(t *testing.T) {
 			},
 			handlerKey: "call_workflow",
 		},
+		{
+			name: "close_issue staged",
+			safeOutputs: &SafeOutputsConfig{
+				CloseIssues: &CloseEntityConfig{
+					BaseSafeOutputConfig: BaseSafeOutputConfig{
+						Staged: true,
+					},
+				},
+			},
+			handlerKey: "close_issue",
+		},
+		{
+			name: "close_discussion staged",
+			safeOutputs: &SafeOutputsConfig{
+				CloseDiscussions: &CloseEntityConfig{
+					BaseSafeOutputConfig: BaseSafeOutputConfig{
+						Staged: true,
+					},
+				},
+			},
+			handlerKey: "close_discussion",
+		},
+		{
+			name: "create_discussion staged",
+			safeOutputs: &SafeOutputsConfig{
+				CreateDiscussions: &CreateDiscussionsConfig{
+					BaseSafeOutputConfig: BaseSafeOutputConfig{
+						Staged: true,
+					},
+				},
+			},
+			handlerKey: "create_discussion",
+		},
+		{
+			name: "hide_comment staged",
+			safeOutputs: &SafeOutputsConfig{
+				HideComment: &HideCommentConfig{
+					BaseSafeOutputConfig: BaseSafeOutputConfig{
+						Staged: true,
+					},
+				},
+			},
+			handlerKey: "hide_comment",
+		},
+		{
+			name: "add_reviewer staged",
+			safeOutputs: &SafeOutputsConfig{
+				AddReviewer: &AddReviewerConfig{
+					BaseSafeOutputConfig: BaseSafeOutputConfig{
+						Staged: true,
+					},
+				},
+			},
+			handlerKey: "add_reviewer",
+		},
+		{
+			name: "update_release staged",
+			safeOutputs: &SafeOutputsConfig{
+				UpdateRelease: &UpdateReleaseConfig{
+					UpdateEntityConfig: UpdateEntityConfig{
+						BaseSafeOutputConfig: BaseSafeOutputConfig{
+							Staged: true,
+						},
+					},
+				},
+			},
+			handlerKey: "update_release",
+		},
+		{
+			name: "remove_labels staged",
+			safeOutputs: &SafeOutputsConfig{
+				RemoveLabels: &RemoveLabelsConfig{
+					BaseSafeOutputConfig: BaseSafeOutputConfig{
+						Staged: true,
+					},
+				},
+			},
+			handlerKey: "remove_labels",
+		},
+		{
+			name: "assign_to_user staged",
+			safeOutputs: &SafeOutputsConfig{
+				AssignToUser: &AssignToUserConfig{
+					BaseSafeOutputConfig: BaseSafeOutputConfig{
+						Staged: true,
+					},
+				},
+			},
+			handlerKey: "assign_to_user",
+		},
+		{
+			name: "unassign_from_user staged",
+			safeOutputs: &SafeOutputsConfig{
+				UnassignFromUser: &UnassignFromUserConfig{
+					BaseSafeOutputConfig: BaseSafeOutputConfig{
+						Staged: true,
+					},
+				},
+			},
+			handlerKey: "unassign_from_user",
+		},
+		{
+			name: "create_code_scanning_alert staged",
+			safeOutputs: &SafeOutputsConfig{
+				CreateCodeScanningAlerts: &CreateCodeScanningAlertsConfig{
+					BaseSafeOutputConfig: BaseSafeOutputConfig{
+						Staged: true,
+					},
+				},
+			},
+			handlerKey: "create_code_scanning_alert",
+		},
+		{
+			name: "autofix_code_scanning_alert staged",
+			safeOutputs: &SafeOutputsConfig{
+				AutofixCodeScanningAlert: &AutofixCodeScanningAlertConfig{
+					BaseSafeOutputConfig: BaseSafeOutputConfig{
+						Staged: true,
+					},
+				},
+			},
+			handlerKey: "autofix_code_scanning_alert",
+		},
+		{
+			name: "link_sub_issue staged",
+			safeOutputs: &SafeOutputsConfig{
+				LinkSubIssue: &LinkSubIssueConfig{
+					BaseSafeOutputConfig: BaseSafeOutputConfig{
+						Staged: true,
+					},
+				},
+			},
+			handlerKey: "link_sub_issue",
+		},
+		{
+			name: "assign_milestone staged",
+			safeOutputs: &SafeOutputsConfig{
+				AssignMilestone: &AssignMilestoneConfig{
+					BaseSafeOutputConfig: BaseSafeOutputConfig{
+						Staged: true,
+					},
+				},
+			},
+			handlerKey: "assign_milestone",
+		},
+		{
+			name: "set_issue_type staged",
+			safeOutputs: &SafeOutputsConfig{
+				SetIssueType: &SetIssueTypeConfig{
+					BaseSafeOutputConfig: BaseSafeOutputConfig{
+						Staged: true,
+					},
+				},
+			},
+			handlerKey: "set_issue_type",
+		},
+		{
+			name: "mark_pull_request_as_ready_for_review staged",
+			safeOutputs: &SafeOutputsConfig{
+				MarkPullRequestAsReadyForReview: &MarkPullRequestAsReadyForReviewConfig{
+					BaseSafeOutputConfig: BaseSafeOutputConfig{
+						Staged: true,
+					},
+				},
+			},
+			handlerKey: "mark_pull_request_as_ready_for_review",
+		},
+		{
+			name: "update_discussion staged with target-repo (cross-repo config)",
+			safeOutputs: &SafeOutputsConfig{
+				UpdateDiscussions: &UpdateDiscussionsConfig{
+					UpdateEntityConfig: UpdateEntityConfig{
+						BaseSafeOutputConfig: BaseSafeOutputConfig{
+							Staged: true,
+						},
+						SafeOutputTargetConfig: SafeOutputTargetConfig{
+							Target:         "*",
+							TargetRepoSlug: "mona/discussions",
+						},
+					},
+				},
+			},
+			handlerKey: "update_discussion",
+		},
 	}
 
 	for _, tt := range tests {

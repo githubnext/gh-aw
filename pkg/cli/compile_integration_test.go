@@ -1980,3 +1980,78 @@ Call notify_dynamic to send notifications.
 		t.Errorf("Lock file should preserve the GitHub Actions expression in allowed_repositories\nLock file content:\n%s", lockContentStr)
 	}
 }
+
+// TestCompileStagedSafeOutputsUpdateDiscussionWithTargetRepo verifies that the exact
+// issue scenario from GitHub issue "staged: true does not work within individual safe outputs"
+// compiles correctly: update-discussion with staged: true, target-repo, and additional options
+// must include staged: true in GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG and exclude discussions: write.
+func TestCompileStagedSafeOutputsUpdateDiscussionWithTargetRepo(t *testing.T) {
+	setup := setupIntegrationTest(t)
+	defer setup.cleanup()
+
+	testWorkflow := `---
+name: Staged Update Discussion
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+engine: copilot
+safe-outputs:
+  github-token: ${{ secrets.READ_DISCUSSIONS_TOKEN }}
+  allowed-github-references: [mona/lisa]
+  create-issue:
+    github-token: ${{ secrets.WRITE_ISSUE_TOKEN }}
+    title-prefix: "[MonaLisa]"
+    close-older-issues: true
+    expires: 7d
+  update-discussion:
+    staged: true
+    target: "*"
+    target-repo: mona/discussions
+    max: 120
+    labels:
+    allowed-labels:
+      - Label1
+      - Label2
+---
+
+Test that per-handler staged mode for update-discussion with cross-repo config compiles correctly.
+`
+	testWorkflowPath := filepath.Join(setup.workflowsDir, "staged-update-discussion.md")
+	if err := os.WriteFile(testWorkflowPath, []byte(testWorkflow), 0644); err != nil {
+		t.Fatalf("Failed to write test workflow file: %v", err)
+	}
+
+	cmd := exec.Command(setup.binaryPath, "compile", testWorkflowPath)
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("CLI compile command failed: %v\nOutput: %s", err, string(output))
+	}
+
+	lockFilePath := filepath.Join(setup.workflowsDir, "staged-update-discussion.lock.yml")
+	lockContent, err := os.ReadFile(lockFilePath)
+	if err != nil {
+		t.Fatalf("Failed to read lock file: %v", err)
+	}
+	lockContentStr := string(lockContent)
+
+	// GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG must include staged: true for update_discussion
+	if !strings.Contains(lockContentStr, `\"staged\":true`) {
+		t.Errorf("GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG should include staged:true for update_discussion\nLock file content:\n%s", lockContentStr)
+	}
+
+	// update-discussion is staged, so discussions: write must NOT be in safe_outputs job permissions
+	if strings.Contains(lockContentStr, "discussions: write") {
+		t.Errorf("Lock file should NOT contain 'discussions: write' when update-discussion is staged\nLock file content:\n%s", lockContentStr)
+	}
+
+	// create-issue is NOT staged, so issues: write must be present
+	if !strings.Contains(lockContentStr, "issues: write") {
+		t.Errorf("Lock file should contain 'issues: write' for non-staged create-issue\nLock file content:\n%s", lockContentStr)
+	}
+
+	// Global GH_AW_SAFE_OUTPUTS_STAGED must NOT be set (only individual handler is staged)
+	if strings.Contains(lockContentStr, `GH_AW_SAFE_OUTPUTS_STAGED: "true"`) {
+		t.Errorf("Lock file should NOT set global GH_AW_SAFE_OUTPUTS_STAGED when only individual handlers are staged\nLock file content:\n%s", lockContentStr)
+	}
+}
