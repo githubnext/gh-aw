@@ -92,6 +92,13 @@ describe("dispatch_workflow handler factory", () => {
   });
 
   it("should inject aw_context with correct fields", async () => {
+    process.env.GITHUB_WORKFLOW_REF = "test-owner/test-repo/.github/workflows/dispatcher.yml@refs/heads/main";
+    process.env.GITHUB_RUN_ID = "99999";
+    process.env.GITHUB_RUN_ATTEMPT = "2";
+    global.context.runId = 99999;
+    global.context.actor = "octocat";
+    global.context.eventName = "issues";
+
     const config = {
       workflows: ["test-workflow"],
       workflow_files: { "test-workflow": ".lock.yml" },
@@ -119,6 +126,10 @@ describe("dispatch_workflow handler factory", () => {
     expect(new Date(awContext.time).toISOString()).toBe(awContext.time);
     // repo should match mocked context
     expect(awContext.repo).toBe("test-owner/test-repo");
+    // workflow_id uses GITHUB_WORKFLOW_REF (full workflow file path)
+    expect(awContext.workflow_id).toBe("test-owner/test-repo/.github/workflows/dispatcher.yml@refs/heads/main");
+    // workflow_call_id combines run_id and run_attempt for uniqueness
+    expect(awContext.workflow_call_id).toBe("99999-2");
   });
 
   it("should reject workflows not in allowed list", async () => {

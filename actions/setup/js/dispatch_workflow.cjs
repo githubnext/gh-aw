@@ -194,8 +194,12 @@ async function main(config = {}) {
       const awContext = {
         repo: `${context.repo.owner}/${context.repo.repo}`,
         run_id: String(context.runId ?? ""),
-        workflow_id: process.env.GITHUB_WORKFLOW ?? "",
-        workflow_call_id: process.env.GITHUB_WORKFLOW_REF ?? "",
+        // GITHUB_WORKFLOW_REF provides the full workflow file path including the ref,
+        // e.g. "owner/repo/.github/workflows/dispatcher.yml@refs/heads/main"
+        workflow_id: process.env.GITHUB_WORKFLOW_REF ?? "",
+        // workflow_call_id uniquely identifies this specific call attempt:
+        // combine run_id with run_attempt (GITHUB_RUN_ATTEMPT) so re-runs produce different IDs.
+        workflow_call_id: `${process.env.GITHUB_RUN_ID ?? context.runId ?? ""}-${process.env.GITHUB_RUN_ATTEMPT ?? "1"}`,
         time: new Date().toISOString(),
         actor: context.actor ?? "",
         event_type: context.eventName ?? "",
