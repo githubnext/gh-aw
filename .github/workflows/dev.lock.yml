@@ -22,7 +22,7 @@
 #
 # Daily status report for gh-aw project
 #
-# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"21d621c104cb8cd6dc46e5c3d530d0bc829d4b18e456f220fc72512c2c933219","agent_id":"copilot"}
+# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"c8101abd859c9c5f5184918f1f1c3e4318f6ea629be65c3426b1136b97c65904","agent_id":"copilot"}
 
 name: "Dev"
 "on":
@@ -559,7 +559,6 @@ jobs:
         env:
           INDEX_PATH: /tmp/gh-aw/qmd-index/index.sqlite
           NO_COLOR: '1'
-          NODE_LLAMA_CPP_GPU: 'false'
         run: |
           # Start qmd MCP server natively in HTTP mode.
           # qmd must run on the host VM (not in Docker) because node-llama-cpp
@@ -1148,7 +1147,6 @@ jobs:
         env:
           QMD_CONFIG_JSON: |
             {"dbPath":"/tmp/gh-aw/qmd-index","checkouts":[{"name":"docs","path":"${GITHUB_WORKSPACE}","patterns":["docs/src/**/*.md","docs/src/**/*.mdx"],"context":"gh-aw project documentation"}],"searches":[{"name":"issues","type":"issues","max":500,"tokenEnvVar":"QMD_SEARCH_TOKEN_0"}]}
-          NODE_LLAMA_CPP_GPU: "false"
           QMD_SEARCH_TOKEN_0: ${{ secrets.GITHUB_TOKEN }}
         with:
           github-token: ${{ github.token }}

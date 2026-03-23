@@ -18,6 +18,7 @@ permissions:
 tools:
   qmd:
     runs-on: aw-gpu-runner-T4
+    gpu: true
     checkouts:
       - name: docs
         paths:
