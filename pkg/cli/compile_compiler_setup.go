@@ -104,6 +104,12 @@ func createAndConfigureCompiler(config CompileConfig) *workflow.Compiler {
 	// Set up action mode
 	setupActionMode(compiler, config.ActionMode, config.ActionTag)
 
+	// Set up actions repository override if specified
+	if config.ActionsRepo != "" {
+		compiler.SetActionsRepo(config.ActionsRepo)
+		compileCompilerSetupLog.Printf("Actions repository overridden: %s (default: %s)", config.ActionsRepo, workflow.GitHubActionsOrgRepo)
+	}
+
 	// Set up repository context
 	setupRepositoryContext(compiler)
 
@@ -153,12 +159,21 @@ func configureCompilerFlags(compiler *workflow.Compiler, config CompileConfig) {
 func setupActionMode(compiler *workflow.Compiler, actionMode string, actionTag string) {
 	compileCompilerSetupLog.Printf("Setting up action mode: %s, actionTag: %s", actionMode, actionTag)
 
-	// If actionTag is specified, override to release mode
+	// If actionTag is specified, it pins the version used in action/release references.
+	// When --action-mode action is explicitly set alongside --action-tag, honour the explicit
+	// action mode so that the external actions repo (--actions-repo) is also respected.
+	// Without an explicit action mode, --action-tag still defaults to release mode (original behaviour).
 	if actionTag != "" {
-		compileCompilerSetupLog.Printf("--action-tag specified (%s), overriding to release mode", actionTag)
-		compiler.SetActionMode(workflow.ActionModeRelease)
 		compiler.SetActionTag(actionTag)
-		compileCompilerSetupLog.Printf("Action mode set to: release with tag/SHA: %s", actionTag)
+		if actionMode == string(workflow.ActionModeAction) {
+			compileCompilerSetupLog.Printf("--action-tag specified (%s) with --action-mode action, using action mode", actionTag)
+			compiler.SetActionMode(workflow.ActionModeAction)
+			compileCompilerSetupLog.Printf("Action mode set to: action with tag/SHA: %s", actionTag)
+		} else {
+			compileCompilerSetupLog.Printf("--action-tag specified (%s), overriding to release mode", actionTag)
+			compiler.SetActionMode(workflow.ActionModeRelease)
+			compileCompilerSetupLog.Printf("Action mode set to: release with tag/SHA: %s", actionTag)
+		}
 		return
 	}
 
