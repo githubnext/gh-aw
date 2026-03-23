@@ -92,6 +92,40 @@ async function main(core, ctx) {
     awInfo.apm_version = apmVersion;
   }
 
+  // Include aw_context when the workflow was triggered via workflow_dispatch with
+  // the aw_context input set by a calling agentic workflow's dispatch_workflow handler.
+  // Validates JSON format and structure before populating the context key in aw_info.json.
+  const awContextRaw = ctx.payload?.inputs?.aw_context;
+  if (awContextRaw && typeof awContextRaw === "string" && awContextRaw.trim() !== "") {
+    try {
+      const parsed = JSON.parse(awContextRaw);
+
+      // Validate: must be a plain non-null object (not an array or primitive)
+      if (parsed === null || typeof parsed !== "object" || Array.isArray(parsed)) {
+        core.warning(`aw_context must be a JSON object, got: ${typeof parsed}`);
+      } else {
+        // Validate: no nested objects (all values must be primitives)
+        const nestedKeys = Object.entries(parsed)
+          .filter(([, v]) => v !== null && typeof v === "object")
+          .map(([k]) => k);
+        if (nestedKeys.length > 0) {
+          core.warning(`aw_context contains nested objects for keys: ${nestedKeys.join(", ")}. Ignoring aw_context.`);
+        } else {
+          // Validate: required fields must be present
+          const requiredFields = ["run_id", "repo", "workflow_id"];
+          const missingFields = requiredFields.filter(f => !(f in parsed));
+          if (missingFields.length > 0) {
+            core.warning(`aw_context is missing required fields: ${missingFields.join(", ")}. Ignoring aw_context.`);
+          } else {
+            awInfo.context = parsed;
+          }
+        }
+      }
+    } catch {
+      core.warning(`Failed to parse aw_context input as JSON: ${awContextRaw}`);
+    }
+  }
+
   // Write to /tmp/gh-aw directory to avoid inclusion in PR
   fs.mkdirSync(TMP_GH_AW_PATH, { recursive: true });
   const tmpPath = TMP_GH_AW_PATH + "/aw_info.json";

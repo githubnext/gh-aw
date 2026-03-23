@@ -41,6 +41,11 @@ name: "Resource Summarizer Agent"
     - reopened
   workflow_dispatch:
     inputs:
+      aw_context:
+        default: ""
+        description: (Internal) JSON context injected by the calling agentic workflow. Not intended for direct user input.
+        required: false
+        type: string
       query:
         default: summarize in the context of this repository
         description: Query or question to answer about the resource(s)

@@ -68,6 +68,11 @@ name: "Scout"
   # - write # Roles processed as role check in pre-activation job
   workflow_dispatch:
     inputs:
+      aw_context:
+        default: ""
+        description: (Internal) JSON context injected by the calling agentic workflow. Not intended for direct user input.
+        required: false
+        type: string
       history:
         default: shallow
         description: "Git history to fetch: shallow (default) or full"

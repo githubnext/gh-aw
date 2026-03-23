@@ -141,7 +141,9 @@ Test workflow with choice input`,
 				t.Fatalf("Expected 'inputs' to be a map, got %T", workflowDispatch["inputs"])
 			}
 
-			// Get the first (and only) input
+			// Get the first (and only) user-defined input
+			// (aw_context is automatically injected by the compiler and should be filtered out)
+			delete(inputs, "aw_context")
 			if len(inputs) != 1 {
 				t.Fatalf("Expected 1 input, got %d", len(inputs))
 			}
@@ -414,9 +416,10 @@ Test workflow with all input types`
 	inputs := workflowDispatch["inputs"].(map[string]any)
 
 	// Verify all inputs exist
+	// (aw_context is automatically injected by the compiler)
 	expectedInputs := []string{"message", "debug", "count", "environment", "deploy_target"}
-	if len(inputs) != len(expectedInputs) {
-		t.Fatalf("Expected %d inputs, got %d", len(expectedInputs), len(inputs))
+	if len(inputs) != len(expectedInputs)+1 {
+		t.Fatalf("Expected %d inputs (including aw_context), got %d", len(expectedInputs)+1, len(inputs))
 	}
 
 	for _, inputName := range expectedInputs {

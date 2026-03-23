@@ -32,6 +32,11 @@ name: "Commit Changes Analyzer"
 "on":
   workflow_dispatch:
     inputs:
+      aw_context:
+        default: ""
+        description: (Internal) JSON context injected by the calling agentic workflow. Not intended for direct user input.
+        required: false
+        type: string
       commit_url:
         description: GitHub commit URL to analyze changes since (e.g., https://github.com/owner/repo/commit/abc123)
         required: true

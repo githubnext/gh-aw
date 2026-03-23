@@ -13,6 +13,7 @@ const { createAuthenticatedGitHubClient } = require("./handler_auth.cjs");
 const { resolveTargetRepoConfig, parseRepoSlug, validateTargetRepo } = require("./repo_helpers.cjs");
 const { logStagedPreviewInfo } = require("./staged_preview.cjs");
 const { isStagedMode } = require("./safe_output_helpers.cjs");
+const { buildAwContext } = require("./aw_context.cjs");
 
 /**
  * Main handler factory for dispatch_workflow
@@ -24,6 +25,7 @@ async function main(config = {}) {
   const allowedWorkflows = config.workflows || [];
   const maxCount = config.max || 1;
   const workflowFiles = config.workflow_files || {}; // Map of workflow name to file extension
+  const awContextWorkflows = new Set(config.aw_context_workflows || []); // Workflows that accept aw_context input
   const githubClient = await createAuthenticatedGitHubClient(config);
   const { defaultTargetRepo, allowedRepos } = resolveTargetRepoConfig(config);
 
@@ -186,6 +188,12 @@ async function main(config = {}) {
             inputs[key] = String(value);
           }
         }
+      }
+
+      // Inject aw_context if the target workflow declares it as an input.
+      // Only workflows listed in aw_context_workflows (populated at compile time) support this.
+      if (awContextWorkflows.has(workflowName)) {
+        inputs["aw_context"] = JSON.stringify(buildAwContext());
       }
 
       // Get the workflow file extension from compile-time resolution

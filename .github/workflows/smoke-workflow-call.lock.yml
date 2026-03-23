@@ -45,6 +45,11 @@ name: "Smoke Workflow Call"
         value: ${{ jobs.safe_outputs.outputs.comment_url }}
   workflow_dispatch:
     inputs:
+      aw_context:
+        default: ""
+        description: (Internal) JSON context injected by the calling agentic workflow. Not intended for direct user input.
+        required: false
+        type: string
       task-description:
         default: validate workflow_call checkout
         description: Short description of the validation task to include in the output comment

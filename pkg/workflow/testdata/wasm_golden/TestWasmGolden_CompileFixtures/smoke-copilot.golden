@@ -11,6 +11,12 @@ name: "Smoke Copilot"
     # Friendly format: every 12h (scattered)
   status-comment: true
   workflow_dispatch:
+    inputs:
+      aw_context:
+        default: ""
+        description: (Internal) JSON context injected by the calling agentic workflow. Not intended for direct user input.
+        required: false
+        type: string
 
 permissions: {}
 

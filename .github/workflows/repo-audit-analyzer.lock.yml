@@ -32,6 +32,11 @@ name: "Repository Audit & Agentic Workflow Opportunity Analyzer"
 "on":
   workflow_dispatch:
     inputs:
+      aw_context:
+        default: ""
+        description: (Internal) JSON context injected by the calling agentic workflow. Not intended for direct user input.
+        required: false
+        type: string
       repository:
         default: FStarLang/FStar
         description: Target repository to audit (e.g., FStarLang/FStar)

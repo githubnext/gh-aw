@@ -9,8 +9,6 @@ import (
 	"testing"
 )
 
-// Test ExtractWorkflowNameFromMarkdown function
-
 func TestProcessIncludedFileWithNameAndDescription(t *testing.T) {
 	tempDir := t.TempDir()
 	docsDir := filepath.Join(tempDir, "docs")

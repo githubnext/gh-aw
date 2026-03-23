@@ -199,6 +199,10 @@ func (c *Compiler) generateWorkflowBody(yaml *strings.Builder, data *WorkflowDat
 	if data.SafeOutputs != nil {
 		onSection = c.injectWorkflowCallOutputs(onSection, data.SafeOutputs)
 	}
+	// Inject aw_context input into workflow_dispatch triggers so dispatched workflows
+	// can receive caller metadata (repo, run_id, actor, etc.) from dispatch_workflow.
+	// String-based injection preserves existing YAML comments and formatting.
+	onSection = injectAwContextIntoOnYAML(onSection)
 	yaml.WriteString(onSection + "\n\n")
 
 	// Note: GitHub Actions doesn't support workflow-level if conditions

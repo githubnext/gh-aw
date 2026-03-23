@@ -35,6 +35,11 @@ name: "Release"
   # - maintainer # Roles processed as role check in pre-activation job
   workflow_dispatch:
     inputs:
+      aw_context:
+        default: ""
+        description: (Internal) JSON context injected by the calling agentic workflow. Not intended for direct user input.
+        required: false
+        type: string
       release_type:
         default: patch
         description: Release type (patch, minor, or major)

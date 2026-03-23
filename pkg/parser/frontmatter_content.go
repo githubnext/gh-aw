@@ -5,7 +5,6 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	"os"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -147,35 +146,6 @@ func ExtractMarkdownContent(content string) (string, error) {
 	return result.Markdown, nil
 }
 
-// ExtractWorkflowNameFromMarkdown extracts workflow name from first H1 header
-// This matches the bash extract_workflow_name_from_markdown function exactly
-func ExtractWorkflowNameFromMarkdown(filePath string) (string, error) {
-	log.Printf("Extracting workflow name from markdown: file=%s", filePath)
-
-	// First extract markdown content (excluding frontmatter)
-	markdownContent, err := ExtractMarkdown(filePath)
-	if err != nil {
-		return "", err
-	}
-
-	// Look for first H1 header (line starting with "# ")
-	scanner := bufio.NewScanner(strings.NewReader(markdownContent))
-	for scanner.Scan() {
-		line := strings.TrimSpace(scanner.Text())
-		if strings.HasPrefix(line, "# ") {
-			// Extract text after "# "
-			workflowName := strings.TrimSpace(line[2:])
-			log.Printf("Found workflow name from H1 header: %s", workflowName)
-			return workflowName, nil
-		}
-	}
-
-	// No H1 header found, generate default name from filename
-	defaultName := generateDefaultWorkflowName(filePath)
-	log.Printf("No H1 header found, using default name: %s", defaultName)
-	return defaultName, nil
-}
-
 // ExtractWorkflowNameFromMarkdownBody extracts the workflow name from an already-extracted
 // markdown body (i.e. the content after the frontmatter has been stripped). This is more
 // efficient than ExtractWorkflowNameFromMarkdown or ExtractWorkflowNameFromContent because it
@@ -244,15 +214,4 @@ func generateDefaultWorkflowName(filePath string) string {
 	}
 
 	return strings.Join(words, " ")
-}
-
-// ExtractMarkdown extracts markdown content from a file (excluding frontmatter)
-// This matches the bash extract_markdown function
-func ExtractMarkdown(filePath string) (string, error) {
-	content, err := os.ReadFile(filePath)
-	if err != nil {
-		return "", fmt.Errorf("failed to read file %s: %w", filePath, err)
-	}
-
-	return ExtractMarkdownContent(string(content))
 }

@@ -58,6 +58,12 @@ name: "Daily CLI Performance Agent"
         # core.info(`has_changes=${hasChanges}`);
         # core.setOutput('has_changes', hasChanges ? 'true' : 'false');
   workflow_dispatch:
+    inputs:
+      aw_context:
+        default: ""
+        description: (Internal) JSON context injected by the calling agentic workflow. Not intended for direct user input.
+        required: false
+        type: string
 
 permissions: {}
 
@@ -1251,7 +1257,7 @@ jobs:
             await main();
       - name: Detect recent compilation-related changes
         id: changes
-        uses: actions/github-script@v8
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         with:
           script: |
             const { owner, repo } = context.repo;

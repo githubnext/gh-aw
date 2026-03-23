@@ -32,6 +32,12 @@ name: "Code Scanning Fixer"
 "on":
   # skip-if-match: is:pr is:open in:title "[code-scanning-fix]" # Skip-if-match processed as search check in pre-activation job
   workflow_dispatch:
+    inputs:
+      aw_context:
+        default: ""
+        description: (Internal) JSON context injected by the calling agentic workflow. Not intended for direct user input.
+        required: false
+        type: string
 
 permissions: {}
 

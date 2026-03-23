@@ -29,6 +29,12 @@ name: "Contribution Check"
   - cron: "49 */4 * * *"
     # Friendly format: every 4 hours (scattered)
   workflow_dispatch:
+    inputs:
+      aw_context:
+        default: ""
+        description: (Internal) JSON context injected by the calling agentic workflow. Not intended for direct user input.
+        required: false
+        type: string
 
 permissions: {}
 

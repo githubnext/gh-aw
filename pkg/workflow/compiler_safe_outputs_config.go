@@ -627,6 +627,11 @@ var handlerRegistry = map[string]handlerBuilder{
 			builder.AddDefault("workflow_files", c.WorkflowFiles)
 		}
 
+		// Add aw_context_workflows list if it has entries
+		if len(c.AwContextWorkflows) > 0 {
+			builder.AddStringSlice("aw_context_workflows", c.AwContextWorkflows)
+		}
+
 		builder.AddIfNotEmpty("target-ref", c.TargetRef)
 		builder.AddIfNotEmpty("github-token", c.GitHubToken)
 		builder.AddIfTrue("staged", c.Staged)
