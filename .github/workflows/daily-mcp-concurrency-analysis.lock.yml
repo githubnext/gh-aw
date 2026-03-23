@@ -32,7 +32,7 @@
 name: "Daily MCP Tool Concurrency Analysis"
 "on":
   schedule:
-  - cron: 0 9 * * 1-5
+  - cron: "0 9 * * 1-5"
   workflow_dispatch:
     inputs:
       aw_context:

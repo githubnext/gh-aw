@@ -27,7 +27,7 @@
 name: "Update Astro"
 "on":
   schedule:
-  - cron: 2 9 * * *
+  - cron: "37 15 * * *"
   workflow_dispatch:
     inputs:
       aw_context:

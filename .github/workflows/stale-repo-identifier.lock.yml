@@ -34,7 +34,7 @@
 name: "Stale Repository Identifier"
 "on":
   schedule:
-  - cron: 0 9 1 * *
+  - cron: "0 9 1 * *"
   workflow_dispatch:
     inputs:
       aw_context:

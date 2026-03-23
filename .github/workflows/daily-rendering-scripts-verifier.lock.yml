@@ -32,7 +32,7 @@
 name: "Daily Rendering Scripts Verifier"
 "on":
   schedule:
-  - cron: 13 11 * * *
+  - cron: "38 8 * * *"
   workflow_dispatch:
     inputs:
       aw_context:

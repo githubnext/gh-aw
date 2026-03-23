@@ -31,7 +31,7 @@
 name: "Weekly Workflow Analysis"
 "on":
   schedule:
-  - cron: 12 9 * * 1
+  - cron: "12 9 * * 1"
   workflow_dispatch:
     inputs:
       aw_context:

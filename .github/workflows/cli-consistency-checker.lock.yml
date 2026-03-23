@@ -27,7 +27,7 @@
 name: "CLI Consistency Checker"
 "on":
   schedule:
-  - cron: 0 13 * * 1-5
+  - cron: "0 13 * * 1-5"
   workflow_dispatch:
     inputs:
       aw_context:

@@ -176,6 +176,29 @@ func ExtractWorkflowNameFromMarkdown(filePath string) (string, error) {
 	return defaultName, nil
 }
 
+// ExtractWorkflowNameFromMarkdownBody extracts the workflow name from an already-extracted
+// markdown body (i.e. the content after the frontmatter has been stripped). This is more
+// efficient than ExtractWorkflowNameFromMarkdown or ExtractWorkflowNameFromContent because it
+// avoids the redundant file-read and YAML-parse that those functions perform when the caller
+// already holds the parsed FrontmatterResult.
+func ExtractWorkflowNameFromMarkdownBody(markdownBody string, virtualPath string) (string, error) {
+	log.Printf("Extracting workflow name from markdown body: virtualPath=%s, size=%d bytes", virtualPath, len(markdownBody))
+
+	scanner := bufio.NewScanner(strings.NewReader(markdownBody))
+	for scanner.Scan() {
+		line := strings.TrimSpace(scanner.Text())
+		if strings.HasPrefix(line, "# ") {
+			workflowName := strings.TrimSpace(line[2:])
+			log.Printf("Found workflow name from H1 header: %s", workflowName)
+			return workflowName, nil
+		}
+	}
+
+	defaultName := generateDefaultWorkflowName(virtualPath)
+	log.Printf("No H1 header found, using default name: %s", defaultName)
+	return defaultName, nil
+}
+
 // ExtractWorkflowNameFromContent extracts the workflow name from markdown content string.
 // This is the in-memory equivalent of ExtractWorkflowNameFromMarkdown, used by Wasm builds
 // where filesystem access is unavailable.

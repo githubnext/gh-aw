@@ -31,7 +31,7 @@
 name: "Architecture Diagram Generator"
 "on":
   schedule:
-  - cron: 38 8 * * *
+  - cron: "38 8 * * *"
   workflow_dispatch:
     inputs:
       aw_context:

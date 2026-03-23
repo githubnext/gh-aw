@@ -32,7 +32,7 @@
 name: "Daily CLI Performance Agent"
 "on":
   schedule:
-  - cron: 20 14 * * *
+  - cron: "5 22 * * *"
   workflow_dispatch:
     inputs:
       aw_context:

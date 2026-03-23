@@ -34,7 +34,7 @@
 name: "Glossary Maintainer"
 "on":
   schedule:
-  - cron: 0 10 * * 1-5
+  - cron: "0 10 * * 1-5"
   workflow_dispatch:
     inputs:
       aw_context:

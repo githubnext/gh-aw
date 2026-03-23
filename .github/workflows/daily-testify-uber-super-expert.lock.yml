@@ -34,7 +34,7 @@
 name: "Daily Testify Uber Super Expert"
 "on":
   schedule:
-  - cron: 53 14 * * *
+  - cron: "48 17 * * *"
   workflow_dispatch:
     inputs:
       aw_context:

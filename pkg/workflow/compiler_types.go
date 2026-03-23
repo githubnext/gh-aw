@@ -223,11 +223,6 @@ func (c *Compiler) SetActionsRepo(repo string) {
 	c.actionsRepo = repo
 }
 
-// GetActionsRepo returns the external actions repository override (empty if not set)
-func (c *Compiler) GetActionsRepo() string {
-	return c.actionsRepo
-}
-
 // effectiveActionsRepo returns the actions repository to use for action mode references.
 // Returns the override if set, otherwise returns the default GitHubActionsOrgRepo constant.
 func (c *Compiler) effectiveActionsRepo() string {

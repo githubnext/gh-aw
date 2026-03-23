@@ -31,7 +31,7 @@
 name: "Daily CLI Tools Exploratory Tester"
 "on":
   schedule:
-  - cron: 39 23 * * *
+  - cron: "24 4 * * *"
   workflow_dispatch:
     inputs:
       aw_context:

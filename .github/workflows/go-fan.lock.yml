@@ -32,7 +32,7 @@
 name: "Go Fan"
 "on":
   schedule:
-  - cron: 0 7 * * 1-5
+  - cron: "0 7 * * 1-5"
   workflow_dispatch:
     inputs:
       aw_context:

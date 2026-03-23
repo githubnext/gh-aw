@@ -27,7 +27,7 @@
 name: "Draft PR Cleanup"
 "on":
   schedule:
-  - cron: 16 12 * * *
+  - cron: "31 19 * * *"
   workflow_dispatch:
     inputs:
       aw_context:

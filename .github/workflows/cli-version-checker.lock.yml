@@ -32,7 +32,7 @@
 name: "CLI Version Checker"
 "on":
   schedule:
-  - cron: 40 9 * * *
+  - cron: "45 6 * * *"
   workflow_dispatch:
     inputs:
       aw_context:

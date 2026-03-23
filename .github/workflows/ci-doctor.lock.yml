@@ -20,18 +20,27 @@
 #
 # For more information: https://github.github.com/gh-aw/introduction/overview/
 #
-# Investigates failed CI workflows to identify root causes and patterns, creating issues with diagnostic information
+# Investigates failed CI workflows to identify root causes and patterns, creating issues with diagnostic information; also reviews PR check failures when the ci-doctor label is applied
 #
 # Source: githubnext/agentics/workflows/ci-doctor.md@ea350161ad5dcc9624cf510f134c6a9e39a6f94d
 #
-# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"fcaeacfaaa62a6775511b360ff105863e4d913c99f71eab55489bcd96db114f0","stop_time":"2026-03-03 16:27:58","strict":true,"agent_id":"copilot","agent_model":"gpt-5.1-codex-mini"}
+# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"56001ce273a9f7d7963037a40b21e5f07aa6b7887525c27a2a71ace5b03d8c81","stop_time":"2026-03-03 16:27:58","strict":true,"agent_id":"copilot","agent_model":"gpt-5.1-codex-mini"}
 #
 # Effective stop-time: 2026-03-03 16:27:58
 
 name: "CI Failure Doctor"
 "on":
+  pull_request:
+    types:
+    - labeled
+  workflow_dispatch:
+    inputs:
+      item_number:
+        default: ""
+        description: The number of the issue, pull request, or discussion
+        required: false
+        type: string
   workflow_run:
-    # zizmor: ignore[dangerous-triggers] - workflow_run trigger is secured with role and fork validation
     branches:
     - main
     types:
@@ -42,7 +51,7 @@ name: "CI Failure Doctor"
 permissions: {}
 
 concurrency:
-  group: "gh-aw-${{ github.workflow }}"
+  group: "gh-aw-${{ github.workflow }}-${{ github.event.issue.number || github.event.pull_request.number || github.run_id }}"
 
 run-name: "CI Failure Doctor"
 
@@ -51,15 +60,20 @@ jobs:
     needs: pre_activation
     # zizmor: ignore[dangerous-triggers] - workflow_run trigger is secured with role and fork validation
     if: >
-      (needs.pre_activation.outputs.activated == 'true' && (github.event.workflow_run.conclusion == 'failure')) &&
-      (github.event_name != 'workflow_run' || github.event.workflow_run.repository.id == github.repository_id &&
+      (needs.pre_activation.outputs.activated == 'true' && ((github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'failure') ||
+      github.event_name == 'pull_request')) && (github.event_name != 'workflow_run' || github.event.workflow_run.repository.id == github.repository_id &&
       (!(github.event.workflow_run.repository.fork)))
     runs-on: ubuntu-slim
     permissions:
       contents: read
+      discussions: write
+      issues: write
+      pull-requests: write
     outputs:
-      comment_id: ""
-      comment_repo: ""
+      comment_id: ${{ steps.add-comment.outputs.comment-id }}
+      comment_repo: ${{ steps.add-comment.outputs.comment-repo }}
+      comment_url: ${{ steps.add-comment.outputs.comment-url }}
+      label_command: ${{ steps.remove_trigger_label.outputs.label_name }}
       lockdown_check_failed: ${{ steps.generate_aw_info.outputs.lockdown_check_failed == 'true' }}
       model: ${{ steps.generate_aw_info.outputs.model }}
       secret_verification_result: ${{ steps.validate-secret.outputs.verification_result }}
@@ -100,6 +114,19 @@ jobs:
             setupGlobals(core, github, context, exec, io);
             const { main } = require('${{ runner.temp }}/gh-aw/actions/generate_aw_info.cjs');
             await main(core, context);
+      - name: Add eyes reaction for immediate feedback
+        id: react
+        if: github.event_name == 'issues' || github.event_name == 'issue_comment' || github.event_name == 'pull_request_review_comment' || github.event_name == 'discussion' || github.event_name == 'discussion_comment' || github.event_name == 'pull_request' && github.event.pull_request.head.repo.id == github.repository_id
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        env:
+          GH_AW_REACTION: "eyes"
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');
+            setupGlobals(core, github, context, exec, io);
+            const { main } = require('${{ runner.temp }}/gh-aw/actions/add_reaction.cjs');
+            await main();
       - name: Validate COPILOT_GITHUB_TOKEN secret
         id: validate-secret
         run: ${RUNNER_TEMP}/gh-aw/actions/validate_multi_secret.sh COPILOT_GITHUB_TOKEN 'GitHub Copilot CLI' https://github.github.com/gh-aw/reference/engines/#github-copilot-default
@@ -124,6 +151,30 @@ jobs:
             setupGlobals(core, github, context, exec, io);
             const { main } = require('${{ runner.temp }}/gh-aw/actions/check_workflow_timestamp_api.cjs');
             await main();
+      - name: Add comment with workflow run link
+        id: add-comment
+        if: github.event_name == 'issues' || github.event_name == 'issue_comment' || github.event_name == 'pull_request_review_comment' || github.event_name == 'discussion' || github.event_name == 'discussion_comment' || github.event_name == 'pull_request' && github.event.pull_request.head.repo.id == github.repository_id
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        env:
+          GH_AW_WORKFLOW_NAME: "CI Failure Doctor"
+          GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 🩺 *Diagnosis provided by [{workflow_name}]({run_url})*{history_link}\",\"runStarted\":\"🏥 CI Doctor reporting for duty! [{workflow_name}]({run_url}) is examining the patient on this {event_type}...\",\"runSuccess\":\"🩺 Examination complete! [{workflow_name}]({run_url}) has delivered the diagnosis. Prescription issued! 💊\",\"runFailure\":\"🏥 Medical emergency! [{workflow_name}]({run_url}) {status}. Doctor needs assistance...\"}"
+        with:
+          script: |
+            const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');
+            setupGlobals(core, github, context, exec, io);
+            const { main } = require('${{ runner.temp }}/gh-aw/actions/add_workflow_run_comment.cjs');
+            await main();
+      - name: Remove trigger label
+        id: remove_trigger_label
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        env:
+          GH_AW_LABEL_NAMES: '["ci-doctor"]'
+        with:
+          script: |
+            const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');
+            setupGlobals(core, github, context, exec, io);
+            const { main } = require('${{ runner.temp }}/gh-aw/actions/remove_trigger_label.cjs');
+            await main();
       - name: Create prompt with built-in context
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
@@ -132,7 +183,9 @@ jobs:
           GH_AW_GITHUB_EVENT_COMMENT_ID: ${{ github.event.comment.id }}
           GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER: ${{ github.event.discussion.number }}
           GH_AW_GITHUB_EVENT_ISSUE_NUMBER: ${{ github.event.issue.number }}
-          GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER: ${{ github.event.pull_request.number }}
+          GH_AW_GITHUB_EVENT_PULL_REQUEST_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          GH_AW_GITHUB_EVENT_PULL_REQUEST_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER: ${{ github.event.pull_request.number || inputs.item_number }}
           GH_AW_GITHUB_EVENT_WORKFLOW_RUN_CONCLUSION: ${{ github.event.workflow_run.conclusion }}
           GH_AW_GITHUB_EVENT_WORKFLOW_RUN_EVENT: ${{ github.event.workflow_run.event }}
           GH_AW_GITHUB_EVENT_WORKFLOW_RUN_HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
@@ -198,6 +251,10 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
+          GH_AW_GITHUB_ACTOR: ${{ github.actor }}
+          GH_AW_GITHUB_EVENT_PULL_REQUEST_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          GH_AW_GITHUB_EVENT_PULL_REQUEST_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER: ${{ github.event.pull_request.number || inputs.item_number }}
           GH_AW_GITHUB_EVENT_WORKFLOW_RUN_CONCLUSION: ${{ github.event.workflow_run.conclusion }}
           GH_AW_GITHUB_EVENT_WORKFLOW_RUN_EVENT: ${{ github.event.workflow_run.event }}
           GH_AW_GITHUB_EVENT_WORKFLOW_RUN_HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
@@ -222,7 +279,9 @@ jobs:
           GH_AW_GITHUB_EVENT_COMMENT_ID: ${{ github.event.comment.id }}
           GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER: ${{ github.event.discussion.number }}
           GH_AW_GITHUB_EVENT_ISSUE_NUMBER: ${{ github.event.issue.number }}
-          GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER: ${{ github.event.pull_request.number }}
+          GH_AW_GITHUB_EVENT_PULL_REQUEST_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          GH_AW_GITHUB_EVENT_PULL_REQUEST_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER: ${{ github.event.pull_request.number || inputs.item_number }}
           GH_AW_GITHUB_EVENT_WORKFLOW_RUN_CONCLUSION: ${{ github.event.workflow_run.conclusion }}
           GH_AW_GITHUB_EVENT_WORKFLOW_RUN_EVENT: ${{ github.event.workflow_run.event }}
           GH_AW_GITHUB_EVENT_WORKFLOW_RUN_HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
@@ -251,6 +310,8 @@ jobs:
                 GH_AW_GITHUB_EVENT_COMMENT_ID: process.env.GH_AW_GITHUB_EVENT_COMMENT_ID,
                 GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER: process.env.GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER,
                 GH_AW_GITHUB_EVENT_ISSUE_NUMBER: process.env.GH_AW_GITHUB_EVENT_ISSUE_NUMBER,
+                GH_AW_GITHUB_EVENT_PULL_REQUEST_BASE_SHA: process.env.GH_AW_GITHUB_EVENT_PULL_REQUEST_BASE_SHA,
+                GH_AW_GITHUB_EVENT_PULL_REQUEST_HEAD_SHA: process.env.GH_AW_GITHUB_EVENT_PULL_REQUEST_HEAD_SHA,
                 GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER: process.env.GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER,
                 GH_AW_GITHUB_EVENT_WORKFLOW_RUN_CONCLUSION: process.env.GH_AW_GITHUB_EVENT_WORKFLOW_RUN_CONCLUSION,
                 GH_AW_GITHUB_EVENT_WORKFLOW_RUN_EVENT: process.env.GH_AW_GITHUB_EVENT_WORKFLOW_RUN_EVENT,
@@ -287,11 +348,10 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       actions: read
+      checks: read
       contents: read
       issues: read
       pull-requests: read
-    concurrency:
-      group: "gh-aw-copilot-${{ github.workflow }}"
     env:
       DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
       GH_AW_ASSETS_ALLOWED_EXTS: ""
@@ -339,8 +399,17 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           REPO: ${{ github.repository }}
           RUN_ID: ${{ github.event.workflow_run.id }}
+        if: github.event_name == 'workflow_run'
         name: Download CI failure logs and artifacts
         run: "set -e\nLOG_DIR=\"/tmp/ci-doctor/logs\"\nARTIFACT_DIR=\"/tmp/ci-doctor/artifacts\"\nFILTERED_DIR=\"/tmp/ci-doctor/filtered\"\nmkdir -p \"$LOG_DIR\" \"$ARTIFACT_DIR\" \"$FILTERED_DIR\"\n\necho \"=== CI Doctor: Pre-downloading logs and artifacts for run $RUN_ID ===\"\n\n# Get failed jobs and their failed steps\ngh api \"repos/$REPO/actions/runs/$RUN_ID/jobs\" \\\n  --jq '[.jobs[] | select(.conclusion == \"failed\" or .conclusion == \"cancelled\") | {id:.id, name:.name, failed_steps:[.steps[]? | select(.conclusion==\"failed\") | .name]}]' \\\n  > \"$LOG_DIR/failed-jobs.json\"\n\nFAILED_COUNT=$(jq 'length' \"$LOG_DIR/failed-jobs.json\")\necho \"Found $FAILED_COUNT failed job(s)\"\n\nif [ \"$FAILED_COUNT\" -eq 0 ]; then\n  echo \"No failed jobs found, skipping log download\"\n  exit 0\nfi\n\necho \"Failed jobs:\"\ncat \"$LOG_DIR/failed-jobs.json\"\n\n# Download logs for each failed job and apply generic error heuristics\njq -r '.[].id' \"$LOG_DIR/failed-jobs.json\" | while read -r JOB_ID; do\n  LOG_FILE=\"$LOG_DIR/job-${JOB_ID}.log\"\n  echo \"Downloading log for job $JOB_ID...\"\n  gh api \"repos/$REPO/actions/jobs/$JOB_ID/logs\" > \"$LOG_FILE\" 2>/dev/null \\\n    || echo \"(log download failed)\" > \"$LOG_FILE\"\n  echo \"  -> Saved $(wc -l < \"$LOG_FILE\") lines to $LOG_FILE\"\n\n  # Apply generic heuristics: find lines with common error indicators\n  HINTS_FILE=\"$FILTERED_DIR/job-${JOB_ID}-hints.txt\"\n  grep -n -iE \"(error[: ]|ERROR|FAIL|panic:|fatal[: ]|undefined[: ]|exception|exit status [^0])\" \\\n    \"$LOG_FILE\" | head -30 > \"$HINTS_FILE\" 2>/dev/null || true\n\n  if [ -s \"$HINTS_FILE\" ]; then\n    echo \"  -> Pre-located $(wc -l < \"$HINTS_FILE\") hint line(s) in $HINTS_FILE\"\n  else\n    echo \"  -> No error hints found in $LOG_FILE\"\n  fi\ndone\n\n# Download and unpack all artifacts from the failed run\necho \"\"\necho \"=== Downloading artifacts for run $RUN_ID ===\"\ngh run download \"$RUN_ID\" --repo \"$REPO\" --dir \"$ARTIFACT_DIR\" 2>/dev/null \\\n  || echo \"No artifacts available or download failed\"\n\n# Apply heuristics to artifact text files\nfind \"$ARTIFACT_DIR\" -type f \\( \\\n  -name \"*.txt\" -o -name \"*.log\" -o -name \"*.json\" \\\n  -o -name \"*.xml\" -o -name \"*.out\" -o -name \"*.err\" \\\n\\) | while read -r ARTIFACT_FILE; do\n  REL_PATH=\"${ARTIFACT_FILE#\"$ARTIFACT_DIR\"/}\"\n  SAFE_NAME=$(echo \"$REL_PATH\" | tr '/' '_')\n  HINTS_FILE=\"$FILTERED_DIR/artifact-${SAFE_NAME}-hints.txt\"\n  grep -n -iE \"(error[: ]|ERROR|FAIL|panic:|fatal[: ]|undefined[: ]|exception|exit status [^0])\" \\\n    \"$ARTIFACT_FILE\" | head -30 > \"$HINTS_FILE\" 2>/dev/null || true\n  if [ -s \"$HINTS_FILE\" ]; then\n    echo \"  -> Artifact hints: $HINTS_FILE ($(wc -l < \"$HINTS_FILE\") lines from $ARTIFACT_FILE)\"\n  fi\ndone\n\n# Write summary for the agent\nSUMMARY_FILE=\"/tmp/ci-doctor/summary.txt\"\n{\n  echo \"=== CI Doctor Pre-Analysis ===\"\n  echo \"Run ID: $RUN_ID\"\n  echo \"\"\n  echo \"Failed jobs (details in $LOG_DIR/failed-jobs.json):\"\n  jq -r '.[] | \"  Job \\(.id): \\(.name)\\n    Failed steps: \\(.failed_steps | join(\", \"))\"' \\\n    \"$LOG_DIR/failed-jobs.json\"\n  echo \"\"\n  echo \"Downloaded log files ($LOG_DIR):\"\n  for LOG_FILE in \"$LOG_DIR\"/job-*.log; do\n    [ -f \"$LOG_FILE\" ] || continue\n    echo \"  $LOG_FILE ($(wc -l < \"$LOG_FILE\") lines)\"\n  done\n  echo \"\"\n  echo \"Downloaded artifact files ($ARTIFACT_DIR):\"\n  find \"$ARTIFACT_DIR\" -type f | while read -r f; do\n    echo \"  $f\"\n  done\n  echo \"\"\n  echo \"Filtered hint files ($FILTERED_DIR):\"\n  for HINTS_FILE in \"$FILTERED_DIR\"/*-hints.txt; do\n    [ -s \"$HINTS_FILE\" ] || continue\n    echo \"  $HINTS_FILE ($(wc -l < \"$HINTS_FILE\") matches)\"\n    head -3 \"$HINTS_FILE\" | sed 's/^/    /'\n  done\n} | tee \"$SUMMARY_FILE\"\n\necho \"\"\necho \"✅ Pre-analysis complete. Agent should start with $SUMMARY_FILE\"\n"
+      - env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          REPO: ${{ github.repository }}
+        if: github.event_name == 'pull_request'
+        name: Fetch PR check run status
+        run: "set -e\nPR_DIR=\"/tmp/ci-doctor/pr\"\nmkdir -p \"$PR_DIR\"\n\necho \"=== CI Doctor: Fetching check runs for PR #$PR_NUMBER (SHA: $HEAD_SHA) ===\"\n\n# Fetch all check runs for the PR head commit\ngh api \"repos/$REPO/commits/$HEAD_SHA/check-runs\" \\\n  --jq '[.check_runs[] | {id:.id, name:.name, status:.status, conclusion:.conclusion, html_url:.html_url}]' \\\n  > \"$PR_DIR/check-runs.json\"\n\nTOTAL=$(jq 'length' \"$PR_DIR/check-runs.json\")\nFAILED=$(jq '[.[] | select(.conclusion == \"failure\" or .conclusion == \"cancelled\" or .conclusion == \"timed_out\")] | length' \"$PR_DIR/check-runs.json\")\necho \"Found $TOTAL check run(s), $FAILED failing\"\n\n# Isolate the failing check runs\njq '[.[] | select(.conclusion == \"failure\" or .conclusion == \"cancelled\" or .conclusion == \"timed_out\")]' \\\n  \"$PR_DIR/check-runs.json\" > \"$PR_DIR/failed-checks.json\"\n\n# Write a human-readable summary\nSUMMARY_FILE=\"$PR_DIR/summary.txt\"\n{\n  echo \"=== CI Doctor PR Pre-Analysis ===\"\n  echo \"PR: #$PR_NUMBER\"\n  echo \"HEAD SHA: $HEAD_SHA\"\n  echo \"Total check runs: $TOTAL\"\n  echo \"Failing check runs: $FAILED\"\n  echo \"\"\n  echo \"All checks ($PR_DIR/check-runs.json):\"\n  jq -r '.[] | \"  \\(.conclusion // .status): \\(.name)\"' \"$PR_DIR/check-runs.json\"\n  echo \"\"\n  if [ \"$FAILED\" -gt 0 ]; then\n    echo \"Failing checks ($PR_DIR/failed-checks.json):\"\n    jq -r '.[] | \"  - \\(.name) [\\(.conclusion)]: \\(.html_url)\"' \"$PR_DIR/failed-checks.json\"\n  fi\n} | tee \"$SUMMARY_FILE\"\n\necho \"\"\necho \"✅ PR pre-analysis complete. Agent should start with $SUMMARY_FILE\"\n"
 
       # Cache memory file share configuration from frontmatter processed below
       - name: Create cache-memory directory
@@ -908,7 +977,7 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           WORKFLOW_NAME: "CI Failure Doctor"
-          WORKFLOW_DESCRIPTION: "Investigates failed CI workflows to identify root causes and patterns, creating issues with diagnostic information"
+          WORKFLOW_DESCRIPTION: "Investigates failed CI workflows to identify root causes and patterns, creating issues with diagnostic information; also reviews PR check failures when the ci-doctor label is applied"
           HAS_PATCH: ${{ steps.collect_output.outputs.has_patch }}
         with:
           script: |
@@ -1118,9 +1187,30 @@ jobs:
             setupGlobals(core, github, context, exec, io);
             const { main } = require('${{ runner.temp }}/gh-aw/actions/handle_noop_message.cjs');
             await main();
+      - name: Update reaction comment with completion status
+        id: conclusion
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        env:
+          GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
+          GH_AW_COMMENT_ID: ${{ needs.activation.outputs.comment_id }}
+          GH_AW_COMMENT_REPO: ${{ needs.activation.outputs.comment_repo }}
+          GH_AW_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          GH_AW_WORKFLOW_NAME: "CI Failure Doctor"
+          GH_AW_AGENT_CONCLUSION: ${{ needs.agent.result }}
+          GH_AW_DETECTION_CONCLUSION: ${{ needs.agent.outputs.detection_conclusion }}
+          GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 🩺 *Diagnosis provided by [{workflow_name}]({run_url})*{history_link}\",\"runStarted\":\"🏥 CI Doctor reporting for duty! [{workflow_name}]({run_url}) is examining the patient on this {event_type}...\",\"runSuccess\":\"🩺 Examination complete! [{workflow_name}]({run_url}) has delivered the diagnosis. Prescription issued! 💊\",\"runFailure\":\"🏥 Medical emergency! [{workflow_name}]({run_url}) {status}. Doctor needs assistance...\"}"
+        with:
+          github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
+          script: |
+            const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');
+            setupGlobals(core, github, context, exec, io);
+            const { main } = require('${{ runner.temp }}/gh-aw/actions/notify_comment_error.cjs');
+            await main();
 
   pre_activation:
-    if: ${{ github.event.workflow_run.conclusion == 'failure' }}
+    if: >
+      (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'failure') ||
+      github.event_name == 'pull_request'
     runs-on: ubuntu-slim
     permissions:
       contents: read
@@ -1235,7 +1325,7 @@ jobs:
           GH_AW_ALLOWED_DOMAINS: "api.business.githubcopilot.com,api.enterprise.githubcopilot.com,api.github.com,api.githubcopilot.com,api.individual.githubcopilot.com,api.snapcraft.io,archive.ubuntu.com,azure.archive.ubuntu.com,crl.geotrust.com,crl.globalsign.com,crl.identrust.com,crl.sectigo.com,crl.thawte.com,crl.usertrust.com,crl.verisign.com,crl3.digicert.com,crl4.digicert.com,crls.ssl.com,github.com,host.docker.internal,json-schema.org,json.schemastore.org,keyserver.ubuntu.com,ocsp.digicert.com,ocsp.geotrust.com,ocsp.globalsign.com,ocsp.identrust.com,ocsp.sectigo.com,ocsp.ssl.com,ocsp.thawte.com,ocsp.usertrust.com,ocsp.verisign.com,packagecloud.io,packages.cloud.google.com,packages.microsoft.com,ppa.launchpad.net,raw.githubusercontent.com,registry.npmjs.org,s.symcb.com,s.symcd.com,security.ubuntu.com,telemetry.enterprise.githubcopilot.com,ts-crl.ws.symantec.com,ts-ocsp.ws.symantec.com,www.googleapis.com"
           GITHUB_SERVER_URL: ${{ github.server_url }}
           GITHUB_API_URL: ${{ github.api_url }}
-          GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG: "{\"add_comment\":{\"max\":1},\"create_issue\":{\"close_older_issues\":true,\"expires\":24,\"labels\":[\"cookie\"],\"max\":1,\"title_prefix\":\"[CI Failure Doctor] \"},\"missing_data\":{},\"missing_tool\":{},\"noop\":{\"max\":1,\"report-as-issue\":\"true\"},\"update_issue\":{\"allow_body\":true,\"max\":1}}"
+          GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG: "{\"add_comment\":{\"hide_older_comments\":true,\"max\":1},\"create_issue\":{\"close_older_issues\":true,\"expires\":24,\"labels\":[\"cookie\"],\"max\":1,\"title_prefix\":\"[CI Failure Doctor] \"},\"missing_data\":{},\"missing_tool\":{},\"noop\":{\"max\":1,\"report-as-issue\":\"true\"},\"update_issue\":{\"allow_body\":true,\"max\":1}}"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |

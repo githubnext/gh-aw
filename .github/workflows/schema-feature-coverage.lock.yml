@@ -27,7 +27,7 @@
 name: "Schema Feature Coverage Checker"
 "on":
   schedule:
-  - cron: 24 6 * * 1
+  - cron: "24 6 * * 1"
   workflow_dispatch:
     inputs:
       aw_context:

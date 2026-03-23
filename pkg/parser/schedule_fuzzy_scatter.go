@@ -14,6 +14,24 @@ var scheduleFuzzyScatterLog = logger.New("parser:schedule_fuzzy_scatter")
 // This file contains fuzzy schedule scattering logic that deterministically
 // distributes workflow execution times based on workflow identifiers.
 
+// avoidHourBoundary remaps a minute value to avoid the 5-minute window before
+// and after each hour (minutes 0–4 and 55–59). These windows are subject to
+// usage peaks on GitHub Actions, especially at 00:00 UTC.
+// Minutes [0, 4] are shifted to [5, 9] and minutes [55, 59] are shifted to [50, 54],
+// keeping all results within [5, 54].
+//
+// The input is expected to be in the range [0, 59] (a valid minute value).
+// Values outside this range are not remapped.
+func avoidHourBoundary(minute int) int {
+	if minute < 5 {
+		return minute + 5
+	}
+	if minute > 54 {
+		return minute - 5
+	}
+	return minute
+}
+
 // stableHash returns a deterministic hash value in the range [0, modulo)
 // using FNV-1a hash algorithm, which is stable across platforms and Go versions.
 func stableHash(s string, modulo int) int {
@@ -85,7 +103,7 @@ func ScatterSchedule(fuzzyCron, workflowIdentifier string) (string, error) {
 		}
 
 		hour := scatteredMinutes / 60
-		minute := scatteredMinutes % 60
+		minute := avoidHourBoundary(scatteredMinutes % 60)
 
 		result := fmt.Sprintf("%d %d * * 1-5", minute, hour)
 		scheduleFuzzyScatterLog.Printf("FUZZY:DAILY_AROUND_WEEKDAYS scattered: original=%d:%d, scattered=%d:%d, result=%s", targetHour, targetMinute, hour, minute, result)
@@ -154,7 +172,7 @@ func ScatterSchedule(fuzzyCron, workflowIdentifier string) (string, error) {
 		}
 
 		hour := scatteredMinutes / 60
-		minute := scatteredMinutes % 60
+		minute := avoidHourBoundary(scatteredMinutes % 60)
 
 		result := fmt.Sprintf("%d %d * * 1-5", minute, hour)
 		scheduleFuzzyScatterLog.Printf("FUZZY:DAILY_BETWEEN_WEEKDAYS scattered: start=%d:%d, end=%d:%d, scattered=%d:%d, result=%s", startHour, startMinute, endHour, endMinute, hour, minute, result)
@@ -211,7 +229,7 @@ func ScatterSchedule(fuzzyCron, workflowIdentifier string) (string, error) {
 		}
 
 		hour := scatteredMinutes / 60
-		minute := scatteredMinutes % 60
+		minute := avoidHourBoundary(scatteredMinutes % 60)
 
 		result := fmt.Sprintf("%d %d * * *", minute, hour)
 		scheduleFuzzyScatterLog.Printf("FUZZY:DAILY_AROUND scattered: original=%d:%d, scattered=%d:%d, result=%s", targetHour, targetMinute, hour, minute, result)
@@ -280,7 +298,7 @@ func ScatterSchedule(fuzzyCron, workflowIdentifier string) (string, error) {
 		}
 
 		hour := scatteredMinutes / 60
-		minute := scatteredMinutes % 60
+		minute := avoidHourBoundary(scatteredMinutes % 60)
 
 		result := fmt.Sprintf("%d %d * * *", minute, hour)
 		scheduleFuzzyScatterLog.Printf("FUZZY:DAILY_BETWEEN scattered: start=%d:%d, end=%d:%d, scattered=%d:%d, result=%s", startHour, startMinute, endHour, endMinute, hour, minute, result)
@@ -290,11 +308,12 @@ func ScatterSchedule(fuzzyCron, workflowIdentifier string) (string, error) {
 
 	// For FUZZY:DAILY_WEEKDAYS * * *, we scatter across 24 hours on weekdays only
 	if strings.HasPrefix(fuzzyCron, "FUZZY:DAILY_WEEKDAYS") {
-		// Use a stable hash of the workflow identifier to get a deterministic time
-		hash := stableHash(workflowIdentifier, 1440) // Total minutes in a day
+		// Use 24*50 slots (50 valid minutes per hour, avoiding the 5-minute
+		// window around each hour boundary) to get a deterministic time.
+		hash := stableHash(workflowIdentifier, 24*50)
 
-		hour := hash / 60
-		minute := hash % 60
+		hour := hash / 50
+		minute := (hash % 50) + 5 // minutes in [5, 54]
 
 		result := fmt.Sprintf("%d %d * * 1-5", minute, hour)
 		scheduleFuzzyScatterLog.Printf("FUZZY:DAILY_WEEKDAYS scattered: hash=%d, result=%s", hash, result)
@@ -304,11 +323,12 @@ func ScatterSchedule(fuzzyCron, workflowIdentifier string) (string, error) {
 
 	// For FUZZY:DAILY * * *, we scatter across 24 hours
 	if strings.HasPrefix(fuzzyCron, "FUZZY:DAILY") {
-		// Use a stable hash of the workflow identifier to get a deterministic time
-		hash := stableHash(workflowIdentifier, 1440) // Total minutes in a day
+		// Use 24*50 slots (50 valid minutes per hour, avoiding the 5-minute
+		// window around each hour boundary) to get a deterministic time.
+		hash := stableHash(workflowIdentifier, 24*50)
 
-		hour := hash / 60
-		minute := hash % 60
+		hour := hash / 50
+		minute := (hash % 50) + 5 // minutes in [5, 54]
 
 		result := fmt.Sprintf("%d %d * * *", minute, hour)
 		scheduleFuzzyScatterLog.Printf("FUZZY:DAILY scattered: hash=%d, result=%s", hash, result)
@@ -331,8 +351,9 @@ func ScatterSchedule(fuzzyCron, workflowIdentifier string) (string, error) {
 			return "", fmt.Errorf("invalid interval in fuzzy hourly weekdays pattern: %s", fuzzyCron)
 		}
 
-		// Use a stable hash to get a deterministic minute offset (0-59)
-		minute := stableHash(workflowIdentifier, 60)
+		// Use 50 valid minutes per hour (avoiding the 5-minute window around each
+		// hour boundary) to get a deterministic minute offset in [5, 54].
+		minute := stableHash(workflowIdentifier, 50) + 5
 
 		result := fmt.Sprintf("%d */%d * * 1-5", minute, interval)
 		scheduleFuzzyScatterLog.Printf("FUZZY:HOURLY_WEEKDAYS/%d scattered: minute=%d, result=%s", interval, minute, result)
@@ -355,8 +376,9 @@ func ScatterSchedule(fuzzyCron, workflowIdentifier string) (string, error) {
 			return "", fmt.Errorf("invalid interval in fuzzy hourly pattern: %s", fuzzyCron)
 		}
 
-		// Use a stable hash to get a deterministic minute offset (0-59)
-		minute := stableHash(workflowIdentifier, 60)
+		// Use 50 valid minutes per hour (avoiding the 5-minute window around each
+		// hour boundary) to get a deterministic minute offset in [5, 54].
+		minute := stableHash(workflowIdentifier, 50) + 5
 
 		result := fmt.Sprintf("%d */%d * * *", minute, interval)
 		scheduleFuzzyScatterLog.Printf("FUZZY:HOURLY/%d scattered: minute=%d, result=%s", interval, minute, result)
@@ -414,7 +436,7 @@ func ScatterSchedule(fuzzyCron, workflowIdentifier string) (string, error) {
 		}
 
 		hour := scatteredMinutes / 60
-		minute := scatteredMinutes % 60
+		minute := avoidHourBoundary(scatteredMinutes % 60)
 
 		result := fmt.Sprintf("%d %d * * %s", minute, hour, weekday)
 		scheduleFuzzyScatterLog.Printf("FUZZY:WEEKLY_AROUND scattered: weekday=%s, target=%d:%d, scattered=%d:%d, result=%s", weekday, targetHour, targetMinute, hour, minute, result)
@@ -433,11 +455,12 @@ func ScatterSchedule(fuzzyCron, workflowIdentifier string) (string, error) {
 		weekdayPart := strings.TrimPrefix(parts[0], "FUZZY:WEEKLY:")
 		weekday := weekdayPart
 
-		// Use a stable hash of the workflow identifier to get a deterministic time
-		hash := stableHash(workflowIdentifier, 1440) // Total minutes in a day
+		// Use 24*50 slots (50 valid minutes per hour, avoiding the 5-minute
+		// window around each hour boundary) to get a deterministic time.
+		hash := stableHash(workflowIdentifier, 24*50)
 
-		hour := hash / 60
-		minute := hash % 60
+		hour := hash / 50
+		minute := (hash % 50) + 5 // minutes in [5, 54]
 
 		result := fmt.Sprintf("%d %d * * %s", minute, hour, weekday)
 		scheduleFuzzyScatterLog.Printf("FUZZY:WEEKLY:%s scattered: hash=%d, result=%s", weekday, hash, result)
@@ -447,15 +470,15 @@ func ScatterSchedule(fuzzyCron, workflowIdentifier string) (string, error) {
 
 	// For FUZZY:WEEKLY * * *, we scatter across all weekdays and times
 	if strings.HasPrefix(fuzzyCron, "FUZZY:WEEKLY") {
-		// Use a stable hash of the workflow identifier to get a deterministic weekday and time
-		// Total possibilities: 7 days * 1440 minutes = 10080 minutes in a week
-		hash := stableHash(workflowIdentifier, 10080)
+		// Use 7 * 24 * 50 slots (50 valid minutes per hour, avoiding the 5-minute
+		// window around each hour boundary) to get a deterministic weekday and time.
+		hash := stableHash(workflowIdentifier, 7*24*50)
 
-		// Extract weekday (0-6) and time within that day
-		weekday := hash / 1440      // Which day of the week (0-6)
-		minutesInDay := hash % 1440 // Which minute of that day (0-1439)
-		hour := minutesInDay / 60
-		minute := minutesInDay % 60
+		// Each "day block" contains 24*50 = 1200 slots.
+		weekday := hash / (24 * 50)   // Which day of the week (0-6)
+		slotInDay := hash % (24 * 50) // Which slot of that day (0-1199)
+		hour := slotInDay / 50
+		minute := (slotInDay % 50) + 5 // minutes in [5, 54]
 
 		result := fmt.Sprintf("%d %d * * %d", minute, hour, weekday)
 		scheduleFuzzyScatterLog.Printf("FUZZY:WEEKLY scattered: weekday=%d, time=%d:%d, result=%s", weekday, hour, minute, result)
@@ -465,14 +488,14 @@ func ScatterSchedule(fuzzyCron, workflowIdentifier string) (string, error) {
 
 	// For FUZZY:BI_WEEKLY * * *, we scatter across 2 weeks (14 days)
 	if strings.HasPrefix(fuzzyCron, "FUZZY:BI_WEEKLY") {
-		// Use a stable hash of the workflow identifier to get a deterministic day and time
-		// Total possibilities: 14 days * 1440 minutes = 20160 minutes in 2 weeks
-		hash := stableHash(workflowIdentifier, 20160)
+		// Use 14 * 24 * 50 slots (50 valid minutes per hour, avoiding the 5-minute
+		// window around each hour boundary) to get a deterministic time.
+		hash := stableHash(workflowIdentifier, 14*24*50)
 
-		// Extract time within a day (scatter across 2 weeks)
-		minutesInDay := hash % 1440 // Which minute of that day (0-1439)
-		hour := minutesInDay / 60
-		minute := minutesInDay % 60
+		// Extract time within a day using 50-slot per hour mapping.
+		slotInDay := hash % (24 * 50) // Which slot of the day (0-1199)
+		hour := slotInDay / 50
+		minute := (slotInDay % 50) + 5 // minutes in [5, 54]
 
 		result := fmt.Sprintf("%d %d */%d * *", minute, hour, 14)
 		scheduleFuzzyScatterLog.Printf("FUZZY:BI_WEEKLY scattered: time=%d:%d, result=%s", hour, minute, result)
@@ -483,14 +506,14 @@ func ScatterSchedule(fuzzyCron, workflowIdentifier string) (string, error) {
 
 	// For FUZZY:TRI_WEEKLY * * *, we scatter across 3 weeks (21 days)
 	if strings.HasPrefix(fuzzyCron, "FUZZY:TRI_WEEKLY") {
-		// Use a stable hash of the workflow identifier to get a deterministic day and time
-		// Total possibilities: 21 days * 1440 minutes = 30240 minutes in 3 weeks
-		hash := stableHash(workflowIdentifier, 30240)
+		// Use 21 * 24 * 50 slots (50 valid minutes per hour, avoiding the 5-minute
+		// window around each hour boundary) to get a deterministic time.
+		hash := stableHash(workflowIdentifier, 21*24*50)
 
-		// Extract time within a day (scatter across 3 weeks)
-		minutesInDay := hash % 1440 // Which minute of that day (0-1439)
-		hour := minutesInDay / 60
-		minute := minutesInDay % 60
+		// Extract time within a day using 50-slot per hour mapping.
+		slotInDay := hash % (24 * 50) // Which slot of the day (0-1199)
+		hour := slotInDay / 50
+		minute := (slotInDay % 50) + 5 // minutes in [5, 54]
 
 		result := fmt.Sprintf("%d %d */%d * *", minute, hour, 21)
 		scheduleFuzzyScatterLog.Printf("FUZZY:TRI_WEEKLY scattered: time=%d:%d, result=%s", hour, minute, result)

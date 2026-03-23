@@ -27,7 +27,7 @@
 name: "Layout Specification Maintainer"
 "on":
   schedule:
-  - cron: 0 7 * * 1
+  - cron: "0 7 * * 1"
   workflow_dispatch:
     inputs:
       aw_context:

@@ -46,7 +46,7 @@
 name: "MCP Inspector Agent"
 "on":
   schedule:
-  - cron: 35 18 * * 1
+  - cron: "35 18 * * 1"
   workflow_dispatch:
     inputs:
       aw_context:

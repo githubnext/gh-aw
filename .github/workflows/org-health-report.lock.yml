@@ -33,7 +33,7 @@
 name: "Organization Health Report"
 "on":
   schedule:
-  - cron: 11 8 * * 1
+  - cron: "11 8 * * 1"
   workflow_dispatch:
     inputs:
       aw_context:

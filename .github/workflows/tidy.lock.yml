@@ -39,7 +39,7 @@ name: "Tidy"
     - "**/*.cjs"
     - "**/*.ts"
   schedule:
-  - cron: 0 7 * * *
+  - cron: "0 7 * * *"
   workflow_dispatch:
     inputs:
       aw_context:

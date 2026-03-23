@@ -33,7 +33,7 @@
 name: "Automated Portfolio Analyst"
 "on":
   schedule:
-  - cron: 50 8 * * 1
+  - cron: "50 8 * * 1"
   workflow_dispatch:
     inputs:
       aw_context:

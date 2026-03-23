@@ -31,7 +31,7 @@
 name: "Ubuntu Actions Image Analyzer"
 "on":
   schedule:
-  - cron: 35 7 * * 5
+  - cron: "50 13 * * 3"
   workflow_dispatch:
     inputs:
       aw_context:

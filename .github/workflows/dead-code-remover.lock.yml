@@ -31,7 +31,7 @@
 name: "Dead Code Removal Agent"
 "on":
   schedule:
-  - cron: 50 17 * * *
+  - cron: "25 21 * * *"
   workflow_dispatch:
     inputs:
       aw_context:

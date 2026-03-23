@@ -32,7 +32,7 @@
 name: "Code Simplifier"
 "on":
   schedule:
-  - cron: 35 18 * * *
+  - cron: "30 17 * * *"
   workflow_dispatch:
     inputs:
       aw_context:

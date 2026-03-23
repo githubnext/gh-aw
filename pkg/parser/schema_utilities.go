@@ -23,6 +23,19 @@ func filterIgnoredFields(frontmatter map[string]any) map[string]any {
 		return frontmatter
 	}
 
+	// Check whether any ignored field is actually present before allocating a copy.
+	// In the common case none of them are present, so we can return as-is.
+	hasIgnored := false
+	for _, field := range constants.IgnoredFrontmatterFields {
+		if _, exists := frontmatter[field]; exists {
+			hasIgnored = true
+			break
+		}
+	}
+	if !hasIgnored {
+		return frontmatter
+	}
+
 	schemaUtilitiesLog.Printf("Filtering ignored frontmatter fields: checking %d ignored field(s) against %d frontmatter keys", len(constants.IgnoredFrontmatterFields), len(frontmatter))
 
 	// Create a copy of the frontmatter map without ignored fields

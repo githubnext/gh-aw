@@ -31,7 +31,7 @@
 name: "Blog Auditor"
 "on":
   schedule:
-  - cron: 26 11 * * 3
+  - cron: "26 11 * * 3"
   workflow_dispatch:
     inputs:
       aw_context:

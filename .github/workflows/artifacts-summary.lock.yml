@@ -32,7 +32,7 @@
 name: "Artifacts Summary"
 "on":
   schedule:
-  - cron: 33 5 * * 0
+  - cron: "33 5 * * 0"
   workflow_dispatch:
     inputs:
       aw_context:

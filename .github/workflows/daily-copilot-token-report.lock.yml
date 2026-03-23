@@ -33,7 +33,7 @@
 name: "Daily Copilot Token Consumption Report"
 "on":
   schedule:
-  - cron: 0 11 * * 1-5
+  - cron: "0 11 * * 1-5"
   workflow_dispatch:
     inputs:
       aw_context:

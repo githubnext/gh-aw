@@ -33,7 +33,7 @@
 name: "Daily Safe Output Tool Optimizer"
 "on":
   schedule:
-  - cron: 26 15 * * *
+  - cron: "11 4 * * *"
   workflow_dispatch:
     inputs:
       aw_context:
