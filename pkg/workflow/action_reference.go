@@ -35,6 +35,17 @@ const (
 //   - For action mode without resolver: "github/gh-aw-actions/setup@<version>" (tag-based, SHA resolved later)
 //   - Falls back to local path if version is invalid in release/action mode
 func ResolveSetupActionReference(actionMode ActionMode, version string, actionTag string, resolver ActionSHAResolver) string {
+	return resolveSetupActionRef(actionMode, version, actionTag, resolver, "")
+}
+
+// resolveSetupActionRef is the internal implementation of ResolveSetupActionReference
+// that accepts an optional actionsOrgRepo override. When actionsOrgRepo is empty,
+// GitHubActionsOrgRepo is used.
+func resolveSetupActionRef(actionMode ActionMode, version string, actionTag string, resolver ActionSHAResolver, actionsOrgRepo string) string {
+	if actionsOrgRepo == "" {
+		actionsOrgRepo = GitHubActionsOrgRepo
+	}
+
 	localPath := "./actions/setup"
 
 	// Dev mode - return local path
@@ -57,8 +68,8 @@ func ResolveSetupActionReference(actionMode ActionMode, version string, actionTa
 			return localPath
 		}
 
-		// Construct the remote reference: github/gh-aw-actions/setup@tag
-		actionRepo := GitHubActionsOrgRepo + "/setup"
+		// Construct the remote reference: <actionsOrgRepo>/setup@tag
+		actionRepo := actionsOrgRepo + "/setup"
 		remoteRef := fmt.Sprintf("%s@%s", actionRepo, tag)
 
 		// If a resolver is available, try to resolve the SHA
@@ -152,13 +163,13 @@ func (c *Compiler) resolveActionReference(localActionPath string, data *Workflow
 			resolver = data.ActionResolver
 		}
 		if c.actionTag != "" {
-			return ResolveSetupActionReference(c.actionMode, c.version, c.actionTag, resolver)
+			return resolveSetupActionRef(c.actionMode, c.version, c.actionTag, resolver, c.effectiveActionsRepo())
 		}
 		if !hasActionTag {
-			return ResolveSetupActionReference(c.actionMode, c.version, "", resolver)
+			return resolveSetupActionRef(c.actionMode, c.version, "", resolver, c.effectiveActionsRepo())
 		}
 		// hasActionTag is true and no compiler actionTag: use action mode with the frontmatter tag
-		return ResolveSetupActionReference(ActionModeAction, c.version, frontmatterActionTag, resolver)
+		return resolveSetupActionRef(ActionModeAction, c.version, frontmatterActionTag, resolver, c.effectiveActionsRepo())
 	}
 
 	// Action mode - use external gh-aw-actions repository
@@ -292,8 +303,8 @@ func (c *Compiler) convertToExternalActionsRef(localPath string, data *WorkflowD
 		}
 	}
 
-	// Construct the external actions reference: github/gh-aw-actions/action-name@tag
-	actionRepo := fmt.Sprintf("%s/%s", GitHubActionsOrgRepo, actionName)
+	// Construct the external actions reference: <actionsRepo>/action-name@tag
+	actionRepo := fmt.Sprintf("%s/%s", c.effectiveActionsRepo(), actionName)
 	remoteRef := fmt.Sprintf("%s@%s", actionRepo, tag)
 
 	// Try to resolve the SHA using action pins

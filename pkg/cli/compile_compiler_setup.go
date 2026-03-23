@@ -104,6 +104,12 @@ func createAndConfigureCompiler(config CompileConfig) *workflow.Compiler {
 	// Set up action mode
 	setupActionMode(compiler, config.ActionMode, config.ActionTag)
 
+	// Set up actions repository override if specified
+	if config.ActionsRepo != "" {
+		compiler.SetActionsRepo(config.ActionsRepo)
+		compileCompilerSetupLog.Printf("Actions repository overridden: %s (default: %s)", config.ActionsRepo, workflow.GitHubActionsOrgRepo)
+	}
+
 	// Set up repository context
 	setupRepositoryContext(compiler)
 
