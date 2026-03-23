@@ -576,6 +576,19 @@ safeoutputs/add_comment(item_number=<issue_number>, body="🍪 **Issue Monster h
 
 **Important**: You must specify the `item_number` parameter with the issue number you're commenting on. This workflow runs on a schedule without a triggering issue, so the target must be explicitly specified.
 
+## Token Budget Guidelines
+
+Issue Monster runs frequently (every 30 minutes), so keeping each run lean is critical to avoid unbounded token spend.
+
+- **Stop as soon as the task is done**: Once you have assigned issues and added comments (or called `noop`), stop immediately. Do not produce additional analysis, summaries, or commentary.
+- **Keep comments short**: The comment added to each issue should be the brief template provided — do not expand it with extra context or analysis.
+- **Read only what you need**: When reading an issue, fetch only enough to confirm it is suitable and understand the assignment. Do not read every comment thread unless needed to resolve a conflict.
+- **Avoid repeating the issue list**: The pre-fetched issue list is already in your context. Do not make additional API calls to fetch the list again, and do not generate a summary of the entire list.
+- **One tool call per action**: Assign and comment in two calls per issue. Do not make extra verification calls after a successful assignment.
+
+**Target tokens/run**: 50K–150K  
+**Alert threshold**: >300K tokens
+
 ## Important Guidelines
 
 - ✅ **Up to three at a time**: Assign up to three issues per run, but only if they are completely separate in topic

@@ -258,6 +258,18 @@ integration:
 *Proposed by CI Coach workflow run #${{ github.run_number }}*
 ```
 
+## Token Budget Guidelines
+
+- **Cap analysis depth**: Focus on the **top 3 highest-impact opportunities** only. Do not perform exhaustive investigation of every possible metric.
+- **Early exit on no-op**: If Phase 1 (CI job health) and Phase 2 (test coverage) show no issues, skip Phases 3–5 and call `noop` immediately.
+- **Concise PR descriptions**: Keep PR descriptions under 600 words. Use `<details>` tags for any extended examples or comparisons.
+- **Reuse pre-downloaded data**: All data is already available under `/tmp`. Do not download anything twice or request data not referenced in the Data Available section.
+- **Limit validation scope**: Run only `make lint && make build && make test-unit && make recompile`. Do not add extra validation steps.
+- **Stop after PR**: Once a PR is created (or `noop` is called), stop — do not generate additional commentary.
+
+**Target tokens/run**: 300K–600K  
+**Alert threshold**: >1M tokens
+
 ## Important Guidelines
 
 ### Test Code Integrity (CRITICAL)
