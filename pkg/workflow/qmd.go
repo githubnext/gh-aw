@@ -58,6 +58,7 @@
 //   - tools_types.go: QmdToolConfig, QmdDocCollection, QmdSearchEntry types
 //   - tools_parser.go: parseQmdTool / parseQmdDocCollection / parseQmdSearchEntry
 //   - mcp_renderer_builtin.go: RenderQmdMCP method
+//   - mcp_setup_generator.go: generateQmdStartStep (agent job HTTP server startup)
 //   - compiler_jobs.go: buildQmdIndexingJobWrapper
 //   - compiler_yaml_main_job.go: agent job qmd cache restore
 //   - actions/setup/js/qmd_index.cjs: JavaScript SDK implementation
@@ -67,6 +68,7 @@ package workflow
 import (
 	"encoding/json"
 	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/constants"
@@ -88,6 +90,69 @@ func hasQmdTool(parsedTools *Tools) bool {
 // qmd operates in read-only mode: the index is restored from cache only.
 func qmdHasSources(qmdConfig *QmdToolConfig) bool {
 	return len(qmdConfig.Checkouts) > 0 || len(qmdConfig.Searches) > 0
+}
+
+// generateQmdStartStep generates a GitHub Actions step that starts the qmd MCP server
+// in HTTP mode as a background Docker container before the MCP gateway.
+//
+// Using HTTP transport (qmd mcp --http) avoids node-llama-cpp's direct process.stdout writes
+// (e.g. dot-progress characters during model loading) from being mixed into the stdio
+// JSON-RPC stream and causing "invalid character '\x1b' looking for beginning of value"
+// parse errors in the gateway. With HTTP transport the MCP protocol travels over TCP, so
+// qmd's stdout/stderr are completely independent of the protocol channel.
+//
+// The container mounts:
+//   - /tmp/gh-aw (read-only): qmd index SQLite file restored by the cache-restore step
+//   - ${HOME}/.cache/qmd (read-write): embedding model GGUF files and node-llama-cpp state
+//
+// A curl health-check polls /health every 2 s (up to 120 s) before returning, ensuring
+// the gateway starts only after qmd is accepting requests.
+func generateQmdStartStep(qmdConfig *QmdToolConfig) string {
+	version := string(constants.DefaultQmdVersion)
+	port := constants.DefaultQmdMCPPort
+
+	var sb strings.Builder
+	sb.WriteString("      - name: Start QMD MCP Server\n")
+	sb.WriteString("        id: qmd-mcp-start\n")
+	sb.WriteString("        env:\n")
+	sb.WriteString("          NO_COLOR: '1'\n")
+	if !qmdConfig.GPU {
+		sb.WriteString("          QMD_NODE_LLAMA_CPP_GPU: 'false'\n")
+	}
+	sb.WriteString("        run: |\n")
+	sb.WriteString("          # Start qmd MCP server in HTTP mode (avoids stdout/JSON-RPC conflicts).\n")
+	sb.WriteString("          # node-llama-cpp writes dot-progress directly to process.stdout which\n")
+	sb.WriteString("          # would corrupt the stdio JSON-RPC stream; HTTP transport avoids this.\n")
+	sb.WriteString("          docker run -d --rm \\\n")
+	sb.WriteString("            --name qmd-mcp-server \\\n")
+	sb.WriteString("            --network host \\\n")
+	sb.WriteString("            -v /tmp/gh-aw:/tmp/gh-aw:ro \\\n")
+	sb.WriteString("            -v \"${HOME}/.cache/qmd:${HOME}/.cache/qmd:rw\" \\\n")
+	sb.WriteString("            -e INDEX_PATH=/tmp/gh-aw/qmd-index/index.sqlite \\\n")
+	sb.WriteString("            -e \"HOME=${HOME}\" \\\n")
+	sb.WriteString("            -e \"NO_COLOR=${NO_COLOR}\" \\\n")
+	if !qmdConfig.GPU {
+		sb.WriteString("            -e \"NODE_LLAMA_CPP_GPU=${QMD_NODE_LLAMA_CPP_GPU}\" \\\n")
+	}
+	sb.WriteString("            node:24 \\\n")
+	sb.WriteString("            npx --yes --package @tobilu/qmd@" + version + " qmd mcp --http --port " + strconv.Itoa(port) + "\n")
+	sb.WriteString("          \n")
+	sb.WriteString("          # Wait up to 120 s for the server to accept requests\n")
+	sb.WriteString("          echo 'Waiting for QMD MCP server on port " + strconv.Itoa(port) + "...'\n")
+	sb.WriteString("          for i in $(seq 1 60); do\n")
+	sb.WriteString("            if curl -sf http://localhost:" + strconv.Itoa(port) + "/health > /dev/null 2>&1; then\n")
+	sb.WriteString("              echo 'QMD MCP server is ready'\n")
+	sb.WriteString("              break\n")
+	sb.WriteString("            fi\n")
+	sb.WriteString("            if [ \"$i\" -eq 60 ]; then\n")
+	sb.WriteString("              echo 'ERROR: QMD MCP server failed to start within 120 s' >&2\n")
+	sb.WriteString("              docker logs qmd-mcp-server 2>&1 || true\n")
+	sb.WriteString("              exit 1\n")
+	sb.WriteString("            fi\n")
+	sb.WriteString("            sleep 2\n")
+	sb.WriteString("          done\n")
+	sb.WriteString("          \n")
+	return sb.String()
 }
 
 // generateQmdModelsCacheStep generates a step that caches the qmd embedding models directory

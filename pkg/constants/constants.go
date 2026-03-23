@@ -236,6 +236,12 @@ const (
 	// DefaultMCPInspectorPort is the default port for the MCP inspector (safe-outputs server)
 	DefaultMCPInspectorPort = 3001
 
+	// DefaultQmdMCPPort is the TCP port for the qmd HTTP MCP server started in the agent job.
+	// qmd runs as a Docker container (node:24) with `qmd mcp --http --port PORT`; using HTTP
+	// transport avoids node-llama-cpp's direct process.stdout writes (dot-progress during model
+	// loading) from corrupting the stdio JSON-RPC stream.
+	DefaultQmdMCPPort = 8181
+
 	// MinNetworkPort is the minimum valid network port number
 	MinNetworkPort = 1
 

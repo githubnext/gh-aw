@@ -20,7 +20,7 @@
 //   - Safe Outputs: GH_AW_SAFE_OUTPUTS_*, GH_AW_ASSETS_*
 //   - MCP Scripts: GH_AW_MCP_SCRIPTS_PORT, GH_AW_MCP_SCRIPTS_API_KEY
 //   - Serena: GH_AW_SERENA_PORT (local mode only)
-//   - qmd: INDEX_PATH, NODE_LLAMA_CPP_GPU (forwarded to the gateway-managed container)
+//   - qmd: env vars are set directly in the "Start QMD MCP Server" Docker step (not via gateway)
 //   - Playwright: Secrets from custom args expressions
 //   - HTTP MCP: Custom secrets from headers and env sections
 //
@@ -125,15 +125,10 @@ func collectMCPEnvironmentVariables(tools map[string]any, mcpTools []string, wor
 		envVars["GH_AW_SAFE_OUTPUTS_API_KEY"] = "${{ steps.safe-outputs-start.outputs.api_key }}"
 	}
 
-	// Add qmd env vars if qmd tool is configured.
-	// INDEX_PATH tells the containerized qmd MCP server where to find the pre-built SQLite index.
-	// NODE_LLAMA_CPP_GPU controls GPU probing in node-llama-cpp inside the container.
-	if workflowData != nil && workflowData.QmdConfig != nil {
-		envVars["INDEX_PATH"] = "/tmp/gh-aw/qmd-index/index.sqlite"
-		if !workflowData.QmdConfig.GPU {
-			envVars["NODE_LLAMA_CPP_GPU"] = "false"
-		}
-	}
+	// qmd env vars (INDEX_PATH, NODE_LLAMA_CPP_GPU) are no longer added to the gateway
+	// environment. qmd now runs as a separate Docker container started by the
+	// "Start QMD MCP Server" step (see qmd.go:generateQmdStartStep), and the gateway
+	// connects to it via HTTP. The env vars are set directly in that Docker start step.
 
 	// Check for agentic-workflows GITHUB_TOKEN
 	if hasAgenticWorkflows {

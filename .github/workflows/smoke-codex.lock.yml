@@ -826,6 +826,42 @@ jobs:
           
           bash ${RUNNER_TEMP}/gh-aw/actions/start_mcp_scripts_server.sh
           
+      - name: Start QMD MCP Server
+        id: qmd-mcp-start
+        env:
+          NO_COLOR: '1'
+          QMD_NODE_LLAMA_CPP_GPU: 'false'
+        run: |
+          # Start qmd MCP server in HTTP mode (avoids stdout/JSON-RPC conflicts).
+          # node-llama-cpp writes dot-progress directly to process.stdout which
+          # would corrupt the stdio JSON-RPC stream; HTTP transport avoids this.
+          docker run -d --rm \
+            --name qmd-mcp-server \
+            --network host \
+            -v /tmp/gh-aw:/tmp/gh-aw:ro \
+            -v "${HOME}/.cache/qmd:${HOME}/.cache/qmd:rw" \
+            -e INDEX_PATH=/tmp/gh-aw/qmd-index/index.sqlite \
+            -e "HOME=${HOME}" \
+            -e "NO_COLOR=${NO_COLOR}" \
+            -e "NODE_LLAMA_CPP_GPU=${QMD_NODE_LLAMA_CPP_GPU}" \
+            node:24 \
+            npx --yes --package @tobilu/qmd@2.0.1 qmd mcp --http --port 8181
+          
+          # Wait up to 120 s for the server to accept requests
+          echo 'Waiting for QMD MCP server on port 8181...'
+          for i in $(seq 1 60); do
+            if curl -sf http://localhost:8181/health > /dev/null 2>&1; then
+              echo 'QMD MCP server is ready'
+              break
+            fi
+            if [ "$i" -eq 60 ]; then
+              echo 'ERROR: QMD MCP server failed to start within 120 s' >&2
+              docker logs qmd-mcp-server 2>&1 || true
+              exit 1
+            fi
+            sleep 2
+          done
+          
       - name: Start MCP Gateway
         id: start-mcp-gateway
         env:
@@ -839,8 +875,6 @@ jobs:
           GITHUB_MCP_GUARD_MIN_INTEGRITY: ${{ steps.determine-automatic-lockdown.outputs.min_integrity }}
           GITHUB_MCP_GUARD_REPOS: ${{ steps.determine-automatic-lockdown.outputs.repos }}
           GITHUB_MCP_SERVER_TOKEN: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
-          INDEX_PATH: /tmp/gh-aw/qmd-index/index.sqlite
-          NODE_LLAMA_CPP_GPU: false
         run: |
           set -eo pipefail
           mkdir -p /tmp/gh-aw/mcp-config
@@ -858,7 +892,7 @@ jobs:
           export DEBUG="*"
           
           export GH_AW_ENGINE="codex"
-          export MCP_GATEWAY_DOCKER_COMMAND='docker run -i --rm --network host -v /var/run/docker.sock:/var/run/docker.sock -e MCP_GATEWAY_PORT -e MCP_GATEWAY_DOMAIN -e MCP_GATEWAY_API_KEY -e MCP_GATEWAY_PAYLOAD_DIR -e MCP_GATEWAY_PAYLOAD_SIZE_THRESHOLD -e DEBUG -e MCP_GATEWAY_LOG_DIR -e GH_AW_MCP_LOG_DIR -e GH_AW_SAFE_OUTPUTS -e GH_AW_SAFE_OUTPUTS_CONFIG_PATH -e GH_AW_SAFE_OUTPUTS_TOOLS_PATH -e GH_AW_ASSETS_BRANCH -e GH_AW_ASSETS_MAX_SIZE_KB -e GH_AW_ASSETS_ALLOWED_EXTS -e DEFAULT_BRANCH -e GITHUB_MCP_SERVER_TOKEN -e GITHUB_MCP_GUARD_MIN_INTEGRITY -e GITHUB_MCP_GUARD_REPOS -e GITHUB_REPOSITORY -e GITHUB_SERVER_URL -e GITHUB_SHA -e GITHUB_WORKSPACE -e GITHUB_TOKEN -e GITHUB_RUN_ID -e GITHUB_RUN_NUMBER -e GITHUB_RUN_ATTEMPT -e GITHUB_JOB -e GITHUB_ACTION -e GITHUB_EVENT_NAME -e GITHUB_EVENT_PATH -e GITHUB_ACTOR -e GITHUB_ACTOR_ID -e GITHUB_TRIGGERING_ACTOR -e GITHUB_WORKFLOW -e GITHUB_WORKFLOW_REF -e GITHUB_WORKFLOW_SHA -e GITHUB_REF -e GITHUB_REF_NAME -e GITHUB_REF_TYPE -e GITHUB_HEAD_REF -e GITHUB_BASE_REF -e GH_AW_MCP_SCRIPTS_PORT -e GH_AW_MCP_SCRIPTS_API_KEY -e GH_AW_SAFE_OUTPUTS_PORT -e GH_AW_SAFE_OUTPUTS_API_KEY -e GH_AW_GH_TOKEN -e GH_DEBUG -e INDEX_PATH -e NODE_LLAMA_CPP_GPU -v /tmp/gh-aw/mcp-payloads:/tmp/gh-aw/mcp-payloads:rw -v /opt:/opt:ro -v /tmp:/tmp:rw -v '"${GITHUB_WORKSPACE}"':'"${GITHUB_WORKSPACE}"':rw ghcr.io/github/gh-aw-mcpg:v0.1.26'
+          export MCP_GATEWAY_DOCKER_COMMAND='docker run -i --rm --network host -v /var/run/docker.sock:/var/run/docker.sock -e MCP_GATEWAY_PORT -e MCP_GATEWAY_DOMAIN -e MCP_GATEWAY_API_KEY -e MCP_GATEWAY_PAYLOAD_DIR -e MCP_GATEWAY_PAYLOAD_SIZE_THRESHOLD -e DEBUG -e MCP_GATEWAY_LOG_DIR -e GH_AW_MCP_LOG_DIR -e GH_AW_SAFE_OUTPUTS -e GH_AW_SAFE_OUTPUTS_CONFIG_PATH -e GH_AW_SAFE_OUTPUTS_TOOLS_PATH -e GH_AW_ASSETS_BRANCH -e GH_AW_ASSETS_MAX_SIZE_KB -e GH_AW_ASSETS_ALLOWED_EXTS -e DEFAULT_BRANCH -e GITHUB_MCP_SERVER_TOKEN -e GITHUB_MCP_GUARD_MIN_INTEGRITY -e GITHUB_MCP_GUARD_REPOS -e GITHUB_REPOSITORY -e GITHUB_SERVER_URL -e GITHUB_SHA -e GITHUB_WORKSPACE -e GITHUB_TOKEN -e GITHUB_RUN_ID -e GITHUB_RUN_NUMBER -e GITHUB_RUN_ATTEMPT -e GITHUB_JOB -e GITHUB_ACTION -e GITHUB_EVENT_NAME -e GITHUB_EVENT_PATH -e GITHUB_ACTOR -e GITHUB_ACTOR_ID -e GITHUB_TRIGGERING_ACTOR -e GITHUB_WORKFLOW -e GITHUB_WORKFLOW_REF -e GITHUB_WORKFLOW_SHA -e GITHUB_REF -e GITHUB_REF_NAME -e GITHUB_REF_TYPE -e GITHUB_HEAD_REF -e GITHUB_BASE_REF -e GH_AW_MCP_SCRIPTS_PORT -e GH_AW_MCP_SCRIPTS_API_KEY -e GH_AW_SAFE_OUTPUTS_PORT -e GH_AW_SAFE_OUTPUTS_API_KEY -e GH_AW_GH_TOKEN -e GH_DEBUG -v /tmp/gh-aw/mcp-payloads:/tmp/gh-aw/mcp-payloads:rw -v /opt:/opt:ro -v /tmp:/tmp:rw -v '"${GITHUB_WORKSPACE}"':'"${GITHUB_WORKSPACE}"':rw ghcr.io/github/gh-aw-mcpg:v0.1.26'
           
           cat > /tmp/gh-aw/mcp-config/config.toml << GH_AW_MCP_CONFIG_EOF
           [history]
@@ -908,24 +942,8 @@ jobs:
           accept = ["*"]
           
           [mcp_servers.qmd]
-          container = "node:24"
-          entrypoint = "npx"
-          entrypointArgs = [
-            "--yes",
-            "--package",
-            "@tobilu/qmd@2.0.1",
-            "qmd",
-            "mcp",
-          ]
-          args = [
-            "--network",
-            "host",
-          ]
-          mounts = [
-            "/tmp/gh-aw:/tmp/gh-aw:rw",
-            "${HOME}/.cache/qmd:${HOME}/.cache/qmd:rw",
-          ]
-          env = { "CI" = "1", "INDEX_PATH" = "\${INDEX_PATH}", "HOME" = "${HOME}", "NO_COLOR" = "1", "NODE_LLAMA_CPP_GPU" = "\${NODE_LLAMA_CPP_GPU}" }
+          type = "http"
+          url = "http://host.docker.internal:8181/mcp"
           
           [mcp_servers.qmd."guard-policies"]
           
@@ -1032,30 +1050,8 @@ jobs:
                 }
               },
               "qmd": {
-                "container": "node:24",
-                "entrypoint": "npx",
-                "entrypointArgs": [
-                  "--yes",
-                  "--package",
-                  "@tobilu/qmd@2.0.1",
-                  "qmd",
-                  "mcp"
-                ],
-                "args": [
-                  "--network",
-                  "host"
-                ],
-                "mounts": [
-                  "/tmp/gh-aw:/tmp/gh-aw:rw",
-                  "${HOME}/.cache/qmd:${HOME}/.cache/qmd:rw"
-                ],
-                "env": {
-                  "CI": "1",
-                  "HOME": "${HOME}",
-                  "INDEX_PATH": "\${INDEX_PATH}",
-                  "NODE_LLAMA_CPP_GPU": "\${NODE_LLAMA_CPP_GPU}",
-                  "NO_COLOR": "1"
-                },
+                "type": "http",
+                "url": "http://host.docker.internal:8181/mcp",
                 "guard-policies": {
                   "write-sink": {
                     "accept": [

@@ -467,6 +467,14 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 		yaml.WriteString("          \n")
 	}
 
+	// Start the qmd MCP HTTP server if qmd is configured.
+	// qmd runs in HTTP mode (docker run --network host ... qmd mcp --http) before the gateway
+	// so the gateway connects to it via HTTP. This avoids node-llama-cpp's process.stdout
+	// writes (dot-progress during model loading) from corrupting the stdio JSON-RPC stream.
+	if workflowData != nil && workflowData.QmdConfig != nil {
+		yaml.WriteString(generateQmdStartStep(workflowData.QmdConfig))
+	}
+
 	// The MCP gateway is always enabled, even when agent sandbox is disabled
 	// Use the engine's RenderMCPConfig method
 	yaml.WriteString("      - name: Start MCP Gateway\n")

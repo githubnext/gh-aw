@@ -147,7 +147,7 @@ func RenderJSONMCPConfig(
 		case "qmd":
 			qmdTool := tools["qmd"]
 			if options.Renderers.RenderQmd != nil {
-				options.Renderers.RenderQmd(&configBuilder, qmdTool, isLast)
+				options.Renderers.RenderQmd(&configBuilder, qmdTool, isLast, workflowData)
 			}
 		case "serena":
 			serenaTool := tools["serena"]
