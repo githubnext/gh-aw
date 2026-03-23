@@ -109,7 +109,7 @@ function validateLockdownRequirements(core) {
       "\\n" +
       "The pull_request_target event is not allowed on public repositories because it runs\\n" +
       "workflows with access to repository secrets even when triggered from a fork, which\\n" +
-      'creates a significant security risk (known as a \\"pwn request\\").\\n' +
+      'creates a significant security risk (known as a "pwn request").\\n' +
       "\\n" +
       "To fix this, use the pull_request event instead, or migrate to a private repository.\\n" +
       "\\n" +
