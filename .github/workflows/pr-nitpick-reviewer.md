@@ -1,16 +1,14 @@
 ---
 description: Provides detailed nitpicky code review focusing on style, best practices, and minor improvements
 on:
-  slash_command: "nit"
+  slash_command:
+    name: nit
+    events: [pull_request_comment, pull_request_review_comment]
 permissions:
   contents: read
   pull-requests: read
   actions: read
 engine: copilot
-tools:
-  cache-memory: true
-  github:
-    toolsets: [pull_requests, repos]
 safe-outputs:
   create-discussion:
     expires: 1d
@@ -19,9 +17,6 @@ safe-outputs:
     max: 1
   create-pull-request-review-comment:
     max: 10
-    side: "RIGHT"
-  submit-pull-request-review:
-    max: 1
   messages:
     footer: "> 🔍 *Meticulously inspected by [{workflow_name}]({run_url})*{history_link}"
     run-started: "🔬 Adjusting monocle... [{workflow_name}]({run_url}) is scrutinizing every pixel of this {event_type}..."
@@ -29,6 +24,7 @@ safe-outputs:
     run-failure: "🔬 Lens cracked! [{workflow_name}]({run_url}) {status}. Some nitpicks remain undetected..."
 timeout-minutes: 15
 imports:
+  - shared/pr-code-review-config.md
   - shared/reporting.md
 ---
 

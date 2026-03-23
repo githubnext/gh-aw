@@ -93,7 +93,7 @@ func collectMCPEnvironmentVariables(tools map[string]any, mcpTools []string, wor
 	// Check for safe-outputs env vars
 	hasSafeOutputs := slices.Contains(mcpTools, "safe-outputs")
 	if hasSafeOutputs {
-		envVars["GH_AW_SAFE_OUTPUTS"] = "${{ env.GH_AW_SAFE_OUTPUTS }}"
+		envVars["GH_AW_SAFE_OUTPUTS"] = "${{ steps.set-runtime-paths.outputs.GH_AW_SAFE_OUTPUTS }}"
 		// Only add upload-assets env vars if upload-assets is configured
 		if workflowData.SafeOutputs.UploadAssets != nil {
 			envVars["GH_AW_ASSETS_BRANCH"] = "${{ env.GH_AW_ASSETS_BRANCH }}"

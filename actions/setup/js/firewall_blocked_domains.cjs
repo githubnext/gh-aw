@@ -197,7 +197,7 @@ function generateBlockedDomainsSection(blockedDomains) {
 
   let section = "\n\n> [!WARNING]\n";
   section += `> <details>\n`;
-  section += `> <summary>**⚠️ Firewall blocked ${domainCount} ${domainWord}**</summary>\n`;
+  section += `> <summary><strong>⚠️ Firewall blocked ${domainCount} ${domainWord}</strong></summary>\n`;
   section += `>\n`;
   section += `> The following ${domainWord} ${domainCount === 1 ? "was" : "were"} blocked by the firewall during workflow execution:\n`;
   section += `>\n`;

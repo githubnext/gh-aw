@@ -17,9 +17,14 @@
 // # Key Functions
 //
 // Type Conversion:
-//   - parseIntValue() - Safely parse numeric types to int with truncation warnings
+//   - parseIntValue() - Strictly parse numeric types to int; returns (value, ok). Use when
+//     the caller needs to distinguish "missing/invalid" from a zero value, or when string
+//     inputs are not expected (e.g. YAML config field parsing).
 //   - safeUint64ToInt() - Convert uint64 to int, returning 0 on overflow
-//   - ConvertToInt() - Safely convert any value (int/int64/float64/string) to int
+//   - safeUintToInt() - Convert uint to int, returning 0 on overflow (thin wrapper around safeUint64ToInt)
+//   - ConvertToInt() - Leniently convert any value (int/int64/float64/string) to int, returning 0
+//     on failure. Use when the input may come from heterogeneous sources such as JSON metrics,
+//     log parsing, or user-provided strings where a zero default on failure is acceptable.
 //   - ConvertToFloat() - Safely convert any value (float64/int/int64/string) to float64
 //
 // Map Operations:
@@ -41,8 +46,15 @@ import (
 
 var mapHelpersLog = logger.New("workflow:map_helpers")
 
-// parseIntValue safely parses various numeric types to int
-// This is a common utility used across multiple parsing functions
+// parseIntValue strictly parses numeric types to int, returning (value, true) on success
+// and (0, false) for any unrecognized or non-numeric type.
+//
+// Use this when the caller needs to distinguish a missing/invalid value from a legitimate
+// zero, or when string inputs are not expected (e.g. YAML config field parsing where the
+// YAML library has already produced a typed numeric value).
+//
+// For lenient conversion that also handles string inputs and returns 0 on failure, use
+// ConvertToInt instead.
 func parseIntValue(value any) (int, bool) {
 	switch v := value.(type) {
 	case int:
@@ -77,6 +89,10 @@ func safeUint64ToInt(u uint64) int {
 	return int(u)
 }
 
+// safeUintToInt safely converts uint to int, returning 0 if overflow would occur.
+// This is a thin wrapper around safeUint64ToInt that widens the uint argument first.
+func safeUintToInt(u uint) int { return safeUint64ToInt(uint64(u)) }
+
 // filterMapKeys creates a new map excluding the specified keys
 func filterMapKeys(original map[string]any, excludeKeys ...string) map[string]any {
 	excludeSet := make(map[string]bool)
@@ -104,7 +120,15 @@ func sortedMapKeys(m map[string]string) []string {
 	return keys
 }
 
-// ConvertToInt safely converts any to int
+// ConvertToInt leniently converts any value to int, returning 0 on failure.
+//
+// Unlike parseIntValue, this function also handles string inputs via strconv.Atoi,
+// making it suitable for heterogeneous sources such as JSON metrics, log-parsed data,
+// or user-provided configuration where a zero default on failure is acceptable and
+// the caller does not need to distinguish "invalid" from a genuine zero.
+//
+// For strict numeric-only parsing where the caller must distinguish missing/invalid
+// values from zero, use parseIntValue instead.
 func ConvertToInt(val any) int {
 	switch v := val.(type) {
 	case int:

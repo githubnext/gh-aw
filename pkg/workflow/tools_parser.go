@@ -55,12 +55,38 @@ import (
 	"maps"
 	"os"
 	"strconv"
+	"strings"
 
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/logger"
 )
 
 var toolsParserLog = logger.New("workflow:tools_parser")
+
+// parseCommaSeparatedOrNewlineList splits a string by commas and/or newlines,
+// trims surrounding whitespace from each item, and discards empty items.
+func parseCommaSeparatedOrNewlineList(s string) []string {
+	// Normalize newlines to commas, then split on comma.
+	normalized := strings.ReplaceAll(s, "\n", ",")
+	parts := strings.Split(normalized, ",")
+	result := make([]string, 0, len(parts))
+	for _, p := range parts {
+		p = strings.TrimSpace(p)
+		if p != "" {
+			result = append(result, p)
+		}
+	}
+	return result
+}
+
+// toAnySlice converts a []string to []any for storage in a map[string]any.
+func toAnySlice(ss []string) []any {
+	out := make([]any, len(ss))
+	for i, s := range ss {
+		out[i] = s
+	}
+	return out
+}
 
 // NewTools creates a new Tools instance from a map
 func NewTools(toolsMap map[string]any) *Tools {
@@ -248,6 +274,46 @@ func parseGitHubTool(val any) *GitHubToolConfig {
 		}
 		if integrity, ok := configMap["min-integrity"].(string); ok {
 			config.MinIntegrity = GitHubIntegrityLevel(integrity)
+		}
+		if blockedUsers, ok := configMap["blocked-users"].([]any); ok {
+			config.BlockedUsers = make([]string, 0, len(blockedUsers))
+			for _, item := range blockedUsers {
+				if str, ok := item.(string); ok {
+					config.BlockedUsers = append(config.BlockedUsers, str)
+				}
+			}
+		} else if blockedUsers, ok := configMap["blocked-users"].([]string); ok {
+			config.BlockedUsers = blockedUsers
+		} else if blockedUsersStr, ok := configMap["blocked-users"].(string); ok {
+			if isGitHubActionsExpression(blockedUsersStr) {
+				// GitHub Actions expression: store as-is; raw map retains the string for JSON rendering.
+				config.BlockedUsersExpr = blockedUsersStr
+			} else {
+				// Static comma/newline-separated string: parse at compile time.
+				parsed := parseCommaSeparatedOrNewlineList(blockedUsersStr)
+				config.BlockedUsers = parsed
+				configMap["blocked-users"] = toAnySlice(parsed) // normalize raw map for JSON rendering
+			}
+		}
+		if approvalLabels, ok := configMap["approval-labels"].([]any); ok {
+			config.ApprovalLabels = make([]string, 0, len(approvalLabels))
+			for _, item := range approvalLabels {
+				if str, ok := item.(string); ok {
+					config.ApprovalLabels = append(config.ApprovalLabels, str)
+				}
+			}
+		} else if approvalLabels, ok := configMap["approval-labels"].([]string); ok {
+			config.ApprovalLabels = approvalLabels
+		} else if approvalLabelsStr, ok := configMap["approval-labels"].(string); ok {
+			if isGitHubActionsExpression(approvalLabelsStr) {
+				// GitHub Actions expression: store as-is; raw map retains the string for JSON rendering.
+				config.ApprovalLabelsExpr = approvalLabelsStr
+			} else {
+				// Static comma/newline-separated string: parse at compile time.
+				parsed := parseCommaSeparatedOrNewlineList(approvalLabelsStr)
+				config.ApprovalLabels = parsed
+				configMap["approval-labels"] = toAnySlice(parsed) // normalize raw map for JSON rendering
+			}
 		}
 
 		return config

@@ -746,7 +746,7 @@ sbom:
 
 # Agent should run this task before finishing its turns
 .PHONY: agent-finish
-agent-finish: deps-dev fmt lint build test-all fix recompile dependabot generate-schema-docs generate-agent-factory security-scan
+agent-finish: deps-dev fmt lint build build-wasm test-all fix recompile dependabot generate-schema-docs generate-agent-factory security-scan
 	@echo "Agent finished tasks successfully."
 
 # Help target

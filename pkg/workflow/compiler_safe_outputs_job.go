@@ -96,6 +96,14 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 			if err != nil {
 				return nil, nil, fmt.Errorf("failed to convert safe-outputs step at index %d to typed step: %w", i, err)
 			}
+			// Inject GH_HOST from the ghes-host-config step output so user steps
+			// have access to it for gh CLI commands (previously available via GITHUB_ENV).
+			if typedStep.Env == nil {
+				typedStep.Env = make(map[string]string)
+			}
+			if _, exists := typedStep.Env["GH_HOST"]; !exists {
+				typedStep.Env["GH_HOST"] = "${{ steps.ghes-host-config.outputs.GH_HOST }}"
+			}
 			pinnedStep := ApplyActionPinToTypedStep(typedStep, data)
 			stepYAML, err := c.convertStepToYAML(pinnedStep.ToMap())
 			if err != nil {
@@ -189,7 +197,9 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 		if data.SafeOutputs.CreateIssues != nil && hasCopilotAssignee(data.SafeOutputs.CreateIssues.Assignees) {
 			consolidatedSafeOutputsJobLog.Print("Adding copilot assignment step for created issues")
 			steps = append(steps, "      - name: Assign Copilot to created issues\n")
+			steps = append(steps, "        id: assign_copilot_to_created_issues\n")
 			steps = append(steps, "        if: steps.process_safe_outputs.outputs.issues_to_assign_copilot != ''\n")
+			steps = append(steps, "        continue-on-error: true\n")
 			steps = append(steps, fmt.Sprintf("        uses: %s\n", GetActionPin("actions/github-script")))
 			steps = append(steps, "        env:\n")
 			steps = append(steps, "          GH_AW_ISSUES_TO_ASSIGN_COPILOT: ${{ steps.process_safe_outputs.outputs.issues_to_assign_copilot }}\n")
@@ -197,6 +207,9 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 			c.addSafeOutputAgentGitHubTokenForConfig(&steps, data, data.SafeOutputs.CreateIssues.GitHubToken)
 			steps = append(steps, "          script: |\n")
 			steps = append(steps, generateGitHubScriptWithRequire("assign_copilot_to_created_issues.cjs"))
+
+			outputs["assign_copilot_failure_count"] = "${{ steps.assign_copilot_to_created_issues.outputs.assign_copilot_failure_count }}"
+			outputs["assign_copilot_errors"] = "${{ steps.assign_copilot_to_created_issues.outputs.assign_copilot_errors }}"
 		}
 	}
 
@@ -463,8 +476,12 @@ func (c *Compiler) buildJobLevelSafeOutputEnvVars(data *WorkflowData, workflowID
 		if data.EngineConfig.Version != "" {
 			envVars["GH_AW_ENGINE_VERSION"] = fmt.Sprintf("%q", data.EngineConfig.Version)
 		}
+		// Prefer explicit compile-time model; fall back to the runtime model captured by the
+		// activation job so footers always show the actual model used for auditability.
 		if data.EngineConfig.Model != "" {
 			envVars["GH_AW_ENGINE_MODEL"] = fmt.Sprintf("%q", data.EngineConfig.Model)
+		} else {
+			envVars["GH_AW_ENGINE_MODEL"] = fmt.Sprintf("${{ needs.%s.outputs.model }}", constants.AgentJobName)
 		}
 	}
 

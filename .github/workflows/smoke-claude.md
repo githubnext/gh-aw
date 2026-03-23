@@ -102,11 +102,13 @@ safe-outputs:
         inputs:
           channel:
             description: Slack channel name to post to
-            required: true
+            required: false
+            default: "#general"
             type: string
           message:
             description: Message text to post
-            required: true
+            required: false
+            default: ""
             type: string
         script: |
           const targetChannel = item.channel || "#general";

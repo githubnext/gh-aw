@@ -332,6 +332,18 @@ const (
 
 	// EnvVarGitHubToken is the GitHub token for repository access
 	EnvVarGitHubToken = "GH_AW_GITHUB_TOKEN"
+
+	// EnvVarGitHubBlockedUsers is the fallback variable for the tools.github.blocked-users guard policy field.
+	// When blocked-users is not explicitly set in the workflow frontmatter, this variable is used as
+	// a comma- or newline-separated list of GitHub usernames to block. Set as an org or repo variable
+	// to apply a consistent block list across all workflows.
+	EnvVarGitHubBlockedUsers = "GH_AW_GITHUB_BLOCKED_USERS"
+
+	// EnvVarGitHubApprovalLabels is the fallback variable for the tools.github.approval-labels guard policy field.
+	// When approval-labels is not explicitly set in the workflow frontmatter, this variable is used as
+	// a comma- or newline-separated list of GitHub label names that promote content to "approved" integrity.
+	// Set as an org or repo variable to apply a consistent approval label list across all workflows.
+	EnvVarGitHubApprovalLabels = "GH_AW_GITHUB_APPROVAL_LABELS"
 )
 
 // DefaultCodexVersion is the default version of the OpenAI Codex CLI
@@ -349,7 +361,7 @@ const DefaultGitHubMCPServerVersion Version = "v0.32.0"
 const DefaultGitHubLockdown = false
 
 // DefaultFirewallVersion is the default version of the gh-aw-firewall (AWF) binary
-const DefaultFirewallVersion Version = "v0.24.5"
+const DefaultFirewallVersion Version = "v0.25.0"
 
 // AWF (Agentic Workflow Firewall) constants
 
@@ -363,7 +375,7 @@ const AWFProxyLogsDir = "/tmp/gh-aw/sandbox/firewall/logs"
 const AWFDefaultLogLevel = "info"
 
 // DefaultMCPGatewayVersion is the default version of the MCP Gateway (gh-aw-mcpg) Docker image
-const DefaultMCPGatewayVersion Version = "v0.1.25"
+const DefaultMCPGatewayVersion Version = "v0.2.1"
 
 // DefaultMCPGatewayContainer is the default container image for the MCP Gateway
 const DefaultMCPGatewayContainer = "ghcr.io/github/gh-aw-mcpg"
@@ -407,7 +419,7 @@ var SerenaLanguageSupport = map[string][]string{
 }
 
 // DefaultAPMVersion is the default version of the microsoft/APM (Agent Package Manager) CLI
-const DefaultAPMVersion Version = "v0.8.3"
+const DefaultAPMVersion Version = "v0.8.4"
 
 // DefaultPlaywrightMCPVersion is the default version of the @playwright/mcp package
 const DefaultPlaywrightMCPVersion Version = "0.0.68"

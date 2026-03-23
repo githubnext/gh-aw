@@ -426,8 +426,13 @@ func TestExpandLabelTriggerShorthand(t *testing.T) {
 			}
 
 			required, ok := itemNumber["required"].(bool)
-			if !ok || !required {
-				t.Errorf("expandLabelTriggerShorthand() required = %v, want true", required)
+			if !ok || required {
+				t.Errorf("expandLabelTriggerShorthand() required = %v, want false", required)
+			}
+
+			defaultVal, ok := itemNumber["default"].(string)
+			if !ok || defaultVal != "" {
+				t.Errorf("expandLabelTriggerShorthand() default = %v, want empty string", defaultVal)
 			}
 
 			inputType, ok := itemNumber["type"].(string)

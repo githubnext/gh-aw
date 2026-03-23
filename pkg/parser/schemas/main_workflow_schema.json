@@ -3206,6 +3206,42 @@
                   "description": "Guard policy: minimum required integrity level for repository access. Restricts the agent to users with at least the specified permission level.",
                   "enum": ["none", "unapproved", "approved", "merged"]
                 },
+                "blocked-users": {
+                  "description": "Guard policy: GitHub usernames whose content is unconditionally blocked. Items from these users receive 'blocked' integrity (below 'none') and are always denied, even when 'min-integrity' is 'none'. Cannot be overridden by 'approval-labels'. Requires 'min-integrity' to be set. Accepts an array of usernames, a comma-separated string, a newline-separated string, or a GitHub Actions expression (e.g. '${{ vars.BLOCKED_USERS }}').",
+                  "oneOf": [
+                    {
+                      "type": "array",
+                      "description": "Array of GitHub usernames to block",
+                      "items": {
+                        "type": "string",
+                        "description": "GitHub username to block"
+                      },
+                      "minItems": 1
+                    },
+                    {
+                      "type": "string",
+                      "description": "Comma- or newline-separated list of usernames, or a GitHub Actions expression resolving to such a list (e.g. '${{ vars.BLOCKED_USERS }}')"
+                    }
+                  ]
+                },
+                "approval-labels": {
+                  "description": "Guard policy: GitHub label names that promote a content item's effective integrity to 'approved' when present. Enables human-review gates where a maintainer labels an item to allow it through. Uses max(base, approved) so it never lowers integrity. Does not override 'blocked-users'. Requires 'min-integrity' to be set. Accepts an array of label names, a comma-separated string, a newline-separated string, or a GitHub Actions expression (e.g. '${{ vars.APPROVAL_LABELS }}').",
+                  "oneOf": [
+                    {
+                      "type": "array",
+                      "description": "Array of GitHub label names",
+                      "items": {
+                        "type": "string",
+                        "description": "GitHub label name"
+                      },
+                      "minItems": 1
+                    },
+                    {
+                      "type": "string",
+                      "description": "Comma- or newline-separated list of label names, or a GitHub Actions expression resolving to such a list (e.g. '${{ vars.APPROVAL_LABELS }}')"
+                    }
+                  ]
+                },
                 "github-app": {
                   "$ref": "#/$defs/github_app",
                   "description": "GitHub App configuration for token minting. When configured, a GitHub App installation access token is minted at workflow start and used instead of the default token. This token overrides any custom github-token setting and provides fine-grained permissions matching the agent job requirements.",

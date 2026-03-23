@@ -24,6 +24,11 @@ const mockContext = {
 
 const mockGithub = {
   graphql: vi.fn(),
+  rest: {
+    issues: {
+      createComment: vi.fn().mockResolvedValue({ data: { id: 12345 } }),
+    },
+  },
 };
 
 global.core = mockCore;
@@ -46,6 +51,9 @@ describe("assign_to_agent", () => {
 
     // Reset mockGithub.graphql to ensure no lingering mock implementations
     mockGithub.graphql = vi.fn();
+
+    // Reset mockGithub.rest.issues.createComment
+    mockGithub.rest.issues.createComment = vi.fn().mockResolvedValue({ data: { id: 12345 } });
 
     delete process.env.GH_AW_AGENT_OUTPUT;
     delete process.env.GH_AW_SAFE_OUTPUTS_STAGED;
@@ -929,6 +937,16 @@ describe("assign_to_agent", () => {
     // Should error and fail
     expect(mockCore.error).toHaveBeenCalledWith(expect.stringContaining("Failed to assign agent"));
     expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("Failed to assign 1 agent(s)"));
+
+    // Should post a failure comment on the issue with all required properties
+    expect(mockGithub.rest.issues.createComment).toHaveBeenCalledWith(
+      expect.objectContaining({
+        owner: "test-owner",
+        repo: "test-repo",
+        issue_number: 42,
+        body: expect.stringMatching(/Assignment failed.*Bad credentials/s),
+      })
+    );
   });
 
   it("should handle ignore-if-error when 'Resource not accessible' error", async () => {
@@ -977,6 +995,119 @@ describe("assign_to_agent", () => {
     // Should error and fail (not skipped because it's not an auth error)
     expect(mockCore.error).toHaveBeenCalledWith(expect.stringContaining("Failed to assign agent"));
     expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("Failed to assign 1 agent(s)"));
+  });
+
+  it("should not post failure comment on success", async () => {
+    setAgentOutput({
+      items: [
+        {
+          type: "assign_to_agent",
+          issue_number: 42,
+          agent: "copilot",
+        },
+      ],
+      errors: [],
+    });
+
+    mockGithub.graphql
+      .mockResolvedValueOnce({
+        repository: {
+          suggestedActors: {
+            nodes: [{ login: "copilot-swe-agent", id: "MDQ6VXNlcjE=" }],
+          },
+        },
+      })
+      .mockResolvedValueOnce({
+        repository: {
+          issue: {
+            id: "I_abc123",
+            assignees: { nodes: [] },
+          },
+        },
+      })
+      .mockResolvedValueOnce({
+        replaceActorsForAssignable: { __typename: "ReplaceActorsForAssignablePayload" },
+      });
+
+    await eval(`(async () => { ${assignToAgentScript}; await main(); })()`);
+
+    // Should NOT post a failure comment on success
+    expect(mockGithub.rest.issues.createComment).not.toHaveBeenCalled();
+  });
+
+  it("should post failure comment on single failed assignment", async () => {
+    setAgentOutput({
+      items: [{ type: "assign_to_agent", issue_number: 11, agent: "copilot" }],
+      errors: [],
+    });
+
+    // Fail all assignments with auth error
+    const authError = new Error("Bad credentials");
+    mockGithub.graphql.mockRejectedValue(authError);
+
+    await eval(`(async () => { ${assignToAgentScript}; await main(); })()`);
+
+    // Should post a failure comment for the failed issue with all required properties
+    expect(mockGithub.rest.issues.createComment).toHaveBeenCalledTimes(1);
+    expect(mockGithub.rest.issues.createComment).toHaveBeenCalledWith(
+      expect.objectContaining({
+        owner: "test-owner",
+        repo: "test-repo",
+        issue_number: 11,
+        body: expect.stringMatching(/Assignment failed.*Bad credentials/s),
+      })
+    );
+  });
+
+  it("should not post failure comment when ignore-if-error skips the assignment", async () => {
+    process.env.GH_AW_AGENT_IGNORE_IF_ERROR = "true";
+    setAgentOutput({
+      items: [
+        {
+          type: "assign_to_agent",
+          issue_number: 42,
+          agent: "copilot",
+        },
+      ],
+      errors: [],
+    });
+
+    // Simulate authentication error (will be skipped by ignore-if-error)
+    const authError = new Error("Bad credentials");
+    mockGithub.graphql.mockRejectedValue(authError);
+
+    await eval(`(async () => { ${assignToAgentScript}; await main(); })()`);
+
+    // Should NOT post a failure comment since it was skipped
+    expect(mockGithub.rest.issues.createComment).not.toHaveBeenCalled();
+  });
+
+  it("should still set outputs and log warning when failure comment post fails", async () => {
+    setAgentOutput({
+      items: [
+        {
+          type: "assign_to_agent",
+          issue_number: 42,
+          agent: "copilot",
+        },
+      ],
+      errors: [],
+    });
+
+    const authError = new Error("Bad credentials");
+    mockGithub.graphql.mockRejectedValue(authError);
+
+    // Simulate failure to post comment
+    mockGithub.rest.issues.createComment.mockRejectedValue(new Error("Could not post comment"));
+
+    await eval(`(async () => { ${assignToAgentScript}; await main(); })()`);
+
+    // Should still set the assignment_error outputs even if comment fails
+    expect(mockCore.setOutput).toHaveBeenCalledWith("assignment_error_count", "1");
+    expect(mockCore.setOutput).toHaveBeenCalledWith("assignment_errors", expect.stringContaining("Bad credentials"));
+
+    // Should warn about failure to post comment (best-effort)
+    expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("Failed to post failure comment"));
   });
 
   it.skip("should add 10-second delay between multiple agent assignments", async () => {

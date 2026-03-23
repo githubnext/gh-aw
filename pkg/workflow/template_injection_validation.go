@@ -73,6 +73,16 @@ var (
 func validateNoTemplateInjection(yamlContent string) error {
 	templateInjectionValidationLog.Print("Validating compiled YAML for template injection risks")
 
+	// Fast-path: if the YAML contains no unsafe context expressions at all, skip the
+	// expensive full YAML parse.  The unsafe patterns we detect are:
+	//   ${{ github.event.* }}, ${{ steps.*.outputs.* }}, ${{ inputs.* }}
+	// If none of those strings appear anywhere in the compiled YAML, there can be
+	// no violations.
+	if !unsafeContextRegex.MatchString(yamlContent) {
+		templateInjectionValidationLog.Print("No unsafe context expressions found – skipping template injection check")
+		return nil
+	}
+
 	// Parse YAML to walk the tree and extract run fields
 	var workflow map[string]any
 	if err := yaml.Unmarshal([]byte(yamlContent), &workflow); err != nil {
@@ -82,6 +92,14 @@ func validateNoTemplateInjection(yamlContent string) error {
 		return nil
 	}
 
+	return validateNoTemplateInjectionFromParsed(workflow)
+}
+
+// validateNoTemplateInjectionFromParsed checks a pre-parsed workflow map for template
+// injection vulnerabilities.  It is called by validateNoTemplateInjection (which
+// handles the YAML parse) and may also be called directly when the caller already
+// holds a parsed representation of the compiled YAML, avoiding a redundant parse.
+func validateNoTemplateInjectionFromParsed(workflow map[string]any) error {
 	// Extract all run blocks from the workflow
 	runBlocks := extractRunBlocks(workflow)
 	templateInjectionValidationLog.Printf("Found %d run blocks to scan", len(runBlocks))

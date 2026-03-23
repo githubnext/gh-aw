@@ -299,8 +299,22 @@ type GitHubToolConfig struct {
 	AllowedRepos GitHubReposScope `yaml:"allowed-repos,omitempty"`
 	// Repos is deprecated. Use AllowedRepos (yaml:"allowed-repos") instead.
 	Repos GitHubReposScope `yaml:"repos,omitempty"`
-	// MinIntegrity defines the minimum integrity level required: "none", "reader", "writer", "merged"
+	// MinIntegrity defines the minimum integrity level required: "none", "unapproved", "approved", "merged"
 	MinIntegrity GitHubIntegrityLevel `yaml:"min-integrity,omitempty"`
+	// BlockedUsers is an optional list of GitHub usernames whose content is unconditionally blocked.
+	// Items from these users receive "blocked" integrity (below "none") and are always denied.
+	BlockedUsers []string `yaml:"blocked-users,omitempty"`
+	// BlockedUsersExpr holds a GitHub Actions expression (e.g. "${{ vars.BLOCKED_USERS }}") that
+	// resolves at runtime to a comma- or newline-separated list of blocked usernames.
+	// Set when the blocked-users field is a string expression rather than a literal array.
+	BlockedUsersExpr string `yaml:"-"`
+	// ApprovalLabels is an optional list of GitHub label names that promote a content item's
+	// effective integrity to "approved" when present. Does not override BlockedUsers.
+	ApprovalLabels []string `yaml:"approval-labels,omitempty"`
+	// ApprovalLabelsExpr holds a GitHub Actions expression (e.g. "${{ vars.APPROVAL_LABELS }}") that
+	// resolves at runtime to a comma- or newline-separated list of approval label names.
+	// Set when the approval-labels field is a string expression rather than a literal array.
+	ApprovalLabelsExpr string `yaml:"-"`
 }
 
 // PlaywrightToolConfig represents the configuration for the Playwright tool

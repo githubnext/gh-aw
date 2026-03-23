@@ -197,7 +197,7 @@ func TestCopilotEngineExecutionStepsWithOutput(t *testing.T) {
 	stepContent := strings.Join([]string(steps[0]), "\n")
 
 	// Test that GH_AW_SAFE_OUTPUTS is present when SafeOutputs is not nil
-	if !strings.Contains(stepContent, "GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}") {
+	if !strings.Contains(stepContent, "GH_AW_SAFE_OUTPUTS: ${{ steps.set-runtime-paths.outputs.GH_AW_SAFE_OUTPUTS }}") {
 		t.Errorf("Expected GH_AW_SAFE_OUTPUTS environment variable when SafeOutputs is not nil in step content:\n%s", stepContent)
 	}
 }

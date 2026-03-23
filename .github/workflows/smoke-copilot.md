@@ -89,7 +89,8 @@ safe-outputs:
         inputs:
           message:
             description: "The message to send"
-            required: true
+            required: false
+            default: ""
             type: string
         permissions:
           contents: read

@@ -374,6 +374,149 @@ func TestValidateGitHubGuardPolicy(t *testing.T) {
 			shouldError: true,
 			errorMsg:    "must be in format",
 		},
+		{
+			name: "valid guard policy with blocked-users",
+			toolsMap: map[string]any{
+				"github": map[string]any{
+					"allowed-repos": "all",
+					"min-integrity": "unapproved",
+					"blocked-users": []string{"spam-bot", "compromised-user"},
+				},
+			},
+			shouldError: false,
+		},
+		{
+			name: "valid guard policy with approval-labels",
+			toolsMap: map[string]any{
+				"github": map[string]any{
+					"allowed-repos":   "all",
+					"min-integrity":   "approved",
+					"approval-labels": []string{"human-reviewed", "safe-for-agent"},
+				},
+			},
+			shouldError: false,
+		},
+		{
+			name: "valid guard policy with both blocked-users and approval-labels",
+			toolsMap: map[string]any{
+				"github": map[string]any{
+					"allowed-repos":   []any{"myorg/*"},
+					"min-integrity":   "approved",
+					"blocked-users":   []string{"spam-bot"},
+					"approval-labels": []string{"human-reviewed"},
+				},
+			},
+			shouldError: false,
+		},
+		{
+			name: "blocked-users without min-integrity fails",
+			toolsMap: map[string]any{
+				"github": map[string]any{
+					"blocked-users": []string{"spam-bot"},
+				},
+			},
+			shouldError: true,
+			errorMsg:    "'github.blocked-users' and 'github.approval-labels' require 'github.min-integrity'",
+		},
+		{
+			name: "approval-labels without min-integrity fails",
+			toolsMap: map[string]any{
+				"github": map[string]any{
+					"approval-labels": []string{"human-reviewed"},
+				},
+			},
+			shouldError: true,
+			errorMsg:    "'github.blocked-users' and 'github.approval-labels' require 'github.min-integrity'",
+		},
+		{
+			name: "blocked-users with empty string entry fails",
+			toolsMap: map[string]any{
+				"github": map[string]any{
+					"allowed-repos": "all",
+					"min-integrity": "unapproved",
+					"blocked-users": []string{"valid-user", ""},
+				},
+			},
+			shouldError: true,
+			errorMsg:    "'github.blocked-users' entries must not be empty strings",
+		},
+		{
+			name: "approval-labels with empty string entry fails",
+			toolsMap: map[string]any{
+				"github": map[string]any{
+					"allowed-repos":   "all",
+					"min-integrity":   "approved",
+					"approval-labels": []string{""},
+				},
+			},
+			shouldError: true,
+			errorMsg:    "'github.approval-labels' entries must not be empty strings",
+		},
+		{
+			name: "blocked-users with allowed-repos but without min-integrity fails",
+			toolsMap: map[string]any{
+				"github": map[string]any{
+					"allowed-repos": "all",
+					"blocked-users": []string{"spam-bot"},
+				},
+			},
+			shouldError: true,
+			errorMsg:    "'github.blocked-users' and 'github.approval-labels' require 'github.min-integrity'",
+		},
+		{
+			name: "blocked-users as GitHub Actions expression is valid",
+			toolsMap: map[string]any{
+				"github": map[string]any{
+					"allowed-repos": "all",
+					"min-integrity": "unapproved",
+					"blocked-users": "${{ vars.BLOCKED_USERS }}",
+				},
+			},
+			shouldError: false,
+		},
+		{
+			name: "blocked-users as comma-separated static string is valid",
+			toolsMap: map[string]any{
+				"github": map[string]any{
+					"allowed-repos": "all",
+					"min-integrity": "unapproved",
+					"blocked-users": "spam-bot, compromised-user",
+				},
+			},
+			shouldError: false,
+		},
+		{
+			name: "blocked-users as newline-separated static string is valid",
+			toolsMap: map[string]any{
+				"github": map[string]any{
+					"allowed-repos": "all",
+					"min-integrity": "unapproved",
+					"blocked-users": "spam-bot\ncompromised-user",
+				},
+			},
+			shouldError: false,
+		},
+		{
+			name: "blocked-users expression without min-integrity fails",
+			toolsMap: map[string]any{
+				"github": map[string]any{
+					"blocked-users": "${{ vars.BLOCKED_USERS }}",
+				},
+			},
+			shouldError: true,
+			errorMsg:    "'github.blocked-users' and 'github.approval-labels' require 'github.min-integrity'",
+		},
+		{
+			name: "approval-labels as GitHub Actions expression is valid",
+			toolsMap: map[string]any{
+				"github": map[string]any{
+					"allowed-repos":   "all",
+					"min-integrity":   "approved",
+					"approval-labels": "${{ vars.APPROVAL_LABELS }}",
+				},
+			},
+			shouldError: false,
+		},
 	}
 
 	for _, tt := range tests {

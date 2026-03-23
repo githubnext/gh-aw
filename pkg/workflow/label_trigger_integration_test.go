@@ -88,8 +88,8 @@ func TestLabelTriggerIntegrationSimple(t *testing.T) {
 	}
 
 	required, ok := itemNumber["required"].(bool)
-	if !ok || !required {
-		t.Errorf("item_number.required = %v, want true", required)
+	if !ok || required {
+		t.Errorf("item_number.required = %v, want false", required)
 	}
 }
 

@@ -73,6 +73,16 @@ func validateGitHubGuardPolicy(tools *Tools, workflowName string) error {
 	// AllowedRepos is populated from either 'allowed-repos' (preferred) or deprecated 'repos' during parsing
 	hasRepos := github.AllowedRepos != nil
 	hasMinIntegrity := github.MinIntegrity != ""
+	// blocked-users / approval-labels can be an array (BlockedUsers/ApprovalLabels) or a
+	// GitHub Actions expression string (BlockedUsersExpr/ApprovalLabelsExpr).
+	hasBlockedUsers := len(github.BlockedUsers) > 0 || github.BlockedUsersExpr != ""
+	hasApprovalLabels := len(github.ApprovalLabels) > 0 || github.ApprovalLabelsExpr != ""
+
+	// blocked-users and approval-labels require a guard policy (min-integrity)
+	if (hasBlockedUsers || hasApprovalLabels) && !hasMinIntegrity {
+		toolsValidationLog.Printf("blocked-users/approval-labels without guard policy in workflow: %s", workflowName)
+		return errors.New("invalid guard policy: 'github.blocked-users' and 'github.approval-labels' require 'github.min-integrity' to be set")
+	}
 
 	// No guard policy fields present - nothing to validate
 	if !hasRepos && !hasMinIntegrity {
@@ -107,6 +117,22 @@ func validateGitHubGuardPolicy(tools *Tools, workflowName string) error {
 	if !validIntegrityLevels[github.MinIntegrity] {
 		toolsValidationLog.Printf("Invalid min-integrity level '%s' in workflow: %s", github.MinIntegrity, workflowName)
 		return errors.New("invalid guard policy: 'github.min-integrity' must be one of: 'none', 'unapproved', 'approved', 'merged'. Got: '" + string(github.MinIntegrity) + "'")
+	}
+
+	// Validate blocked-users (must be non-empty strings; expressions are accepted as-is)
+	for i, user := range github.BlockedUsers {
+		if user == "" {
+			toolsValidationLog.Printf("Empty blocked-users entry at index %d in workflow: %s", i, workflowName)
+			return errors.New("invalid guard policy: 'github.blocked-users' entries must not be empty strings")
+		}
+	}
+
+	// Validate approval-labels (must be non-empty strings; expressions are accepted as-is)
+	for i, label := range github.ApprovalLabels {
+		if label == "" {
+			toolsValidationLog.Printf("Empty approval-labels entry at index %d in workflow: %s", i, workflowName)
+			return errors.New("invalid guard policy: 'github.approval-labels' entries must not be empty strings")
+		}
 	}
 
 	return nil

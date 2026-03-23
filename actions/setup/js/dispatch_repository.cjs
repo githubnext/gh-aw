@@ -13,6 +13,7 @@ const { createAuthenticatedGitHubClient } = require("./handler_auth.cjs");
 const { parseRepoSlug, validateTargetRepo, parseAllowedRepos } = require("./repo_helpers.cjs");
 const { logStagedPreviewInfo } = require("./staged_preview.cjs");
 const { isStagedMode } = require("./safe_output_helpers.cjs");
+const { buildAwContext } = require("./aw_context.cjs");
 
 /**
  * Main handler factory for dispatch_repository
@@ -124,6 +125,9 @@ async function main(config = {}) {
         clientPayload[key] = value;
       }
     }
+
+    // Inject aw_context so the receiving repository can trace the dispatch back to its caller.
+    clientPayload["aw_context"] = buildAwContext();
 
     const eventType = toolConfig.event_type || toolConfig.eventType || "";
     if (!eventType) {
