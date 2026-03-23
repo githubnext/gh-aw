@@ -13,26 +13,26 @@ import (
 	"github.com/github/gh-aw/pkg/testutil"
 )
 
-// TestSkipIfCheckFailedPreActivationJob tests that skip-if-check-failed check is created correctly in pre-activation job
-func TestSkipIfCheckFailedPreActivationJob(t *testing.T) {
-	tmpDir := testutil.TempDir(t, "skip-if-check-failed-test")
+// TestSkipIfCheckFailingPreActivationJob tests that skip-if-check-failing check is created correctly in pre-activation job
+func TestSkipIfCheckFailingPreActivationJob(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "skip-if-check-failing-test")
 
 	compiler := NewCompiler()
 
-	t.Run("pre_activation_job_created_with_skip_if_check_failed_boolean", func(t *testing.T) {
+	t.Run("pre_activation_job_created_with_skip_if_check_failing_boolean", func(t *testing.T) {
 		workflowContent := `---
 on:
   pull_request:
     types: [opened, synchronize]
-  skip-if-check-failed: true
+  skip-if-check-failing: true
 engine: claude
 ---
 
-# Skip If Check Failed Workflow
+# Skip If Check Failing Workflow
 
-This workflow has a skip-if-check-failed configuration.
+This workflow has a skip-if-check-failing configuration.
 `
-		workflowFile := filepath.Join(tmpDir, "skip-if-check-failed-workflow.md")
+		workflowFile := filepath.Join(tmpDir, "skip-if-check-failing-workflow.md")
 		if err := os.WriteFile(workflowFile, []byte(workflowContent), 0644); err != nil {
 			t.Fatal(err)
 		}
@@ -55,37 +55,37 @@ This workflow has a skip-if-check-failed configuration.
 			t.Error("Expected pre_activation job to be created")
 		}
 
-		// Verify skip-if-check-failed check step is present
-		if !strings.Contains(lockContentStr, "Check skip-if-check-failed") {
-			t.Error("Expected skip-if-check-failed check step to be present")
+		// Verify skip-if-check-failing check step is present
+		if !strings.Contains(lockContentStr, "Check skip-if-check-failing") {
+			t.Error("Expected skip-if-check-failing check step to be present")
 		}
 
 		// Verify the step ID is set
-		if !strings.Contains(lockContentStr, "id: check_skip_if_check_failed") {
-			t.Error("Expected check_skip_if_check_failed step ID")
+		if !strings.Contains(lockContentStr, "id: check_skip_if_check_failing") {
+			t.Error("Expected check_skip_if_check_failing step ID")
 		}
 
 		// Verify the activated output includes the check condition
-		if !strings.Contains(lockContentStr, "steps.check_skip_if_check_failed.outputs.skip_if_check_failed_ok") {
-			t.Error("Expected activated output to include skip_if_check_failed_ok condition")
+		if !strings.Contains(lockContentStr, "steps.check_skip_if_check_failing.outputs.skip_if_check_failing_ok") {
+			t.Error("Expected activated output to include skip_if_check_failing_ok condition")
 		}
 
-		// Verify skip-if-check-failed is commented out in the frontmatter
-		if !strings.Contains(lockContentStr, "# skip-if-check-failed:") {
-			t.Error("Expected skip-if-check-failed to be commented out in lock file")
+		// Verify skip-if-check-failing is commented out in the frontmatter
+		if !strings.Contains(lockContentStr, "# skip-if-check-failing:") {
+			t.Error("Expected skip-if-check-failing to be commented out in lock file")
 		}
 
-		if !strings.Contains(lockContentStr, "Skip-if-check-failed processed as check status gate in pre-activation job") {
-			t.Error("Expected comment explaining skip-if-check-failed processing")
+		if !strings.Contains(lockContentStr, "Skip-if-check-failing processed as check status gate in pre-activation job") {
+			t.Error("Expected comment explaining skip-if-check-failing processing")
 		}
 	})
 
-	t.Run("pre_activation_job_created_with_skip_if_check_failed_object_with_include_and_exclude", func(t *testing.T) {
+	t.Run("pre_activation_job_created_with_skip_if_check_failing_object_with_include_and_exclude", func(t *testing.T) {
 		workflowContent := `---
 on:
   pull_request:
     types: [opened, synchronize]
-  skip-if-check-failed:
+  skip-if-check-failing:
     include:
       - build
       - test
@@ -95,11 +95,11 @@ on:
 engine: claude
 ---
 
-# Skip If Check Failed Object Form
+# Skip If Check Failing Object Form
 
-This workflow uses the object form of skip-if-check-failed.
+This workflow uses the object form of skip-if-check-failing.
 `
-		workflowFile := filepath.Join(tmpDir, "skip-if-check-failed-object-workflow.md")
+		workflowFile := filepath.Join(tmpDir, "skip-if-check-failing-object-workflow.md")
 		if err := os.WriteFile(workflowFile, []byte(workflowContent), 0644); err != nil {
 			t.Fatal(err)
 		}
@@ -117,9 +117,9 @@ This workflow uses the object form of skip-if-check-failed.
 
 		lockContentStr := string(lockContent)
 
-		// Verify skip-if-check-failed check step is present
-		if !strings.Contains(lockContentStr, "Check skip-if-check-failed") {
-			t.Error("Expected skip-if-check-failed check step to be present")
+		// Verify skip-if-check-failing check step is present
+		if !strings.Contains(lockContentStr, "Check skip-if-check-failing") {
+			t.Error("Expected skip-if-check-failing check step to be present")
 		}
 
 		// Verify include list is passed as JSON env var
@@ -138,17 +138,17 @@ This workflow uses the object form of skip-if-check-failed.
 		}
 
 		// Verify condition is in activated output
-		if !strings.Contains(lockContentStr, "steps.check_skip_if_check_failed.outputs.skip_if_check_failed_ok") {
-			t.Error("Expected activated output to include skip_if_check_failed_ok condition")
+		if !strings.Contains(lockContentStr, "steps.check_skip_if_check_failing.outputs.skip_if_check_failing_ok") {
+			t.Error("Expected activated output to include skip_if_check_failing_ok condition")
 		}
 	})
 
-	t.Run("skip_if_check_failed_no_env_vars_when_bare_true", func(t *testing.T) {
+	t.Run("skip_if_check_failing_no_env_vars_when_bare_true", func(t *testing.T) {
 		workflowContent := `---
 on:
   schedule:
     - cron: "*/30 * * * *"
-  skip-if-check-failed: true
+  skip-if-check-failing: true
 engine: claude
 ---
 
@@ -156,7 +156,7 @@ engine: claude
 
 Skips if any checks fail on the default branch.
 `
-		workflowFile := filepath.Join(tmpDir, "skip-if-check-failed-bare-workflow.md")
+		workflowFile := filepath.Join(tmpDir, "skip-if-check-failing-bare-workflow.md")
 		if err := os.WriteFile(workflowFile, []byte(workflowContent), 0644); err != nil {
 			t.Fatal(err)
 		}
@@ -186,13 +186,13 @@ Skips if any checks fail on the default branch.
 		}
 	})
 
-	t.Run("skip_if_check_failed_combined_with_other_gates", func(t *testing.T) {
+	t.Run("skip_if_check_failing_combined_with_other_gates", func(t *testing.T) {
 		workflowContent := `---
 on:
   pull_request:
     types: [opened, synchronize]
   skip-if-match: "is:pr is:open label:blocked"
-  skip-if-check-failed:
+  skip-if-check-failing:
     include:
       - build
   roles: [admin, maintainer]
@@ -228,17 +228,17 @@ This workflow combines multiple gate types.
 		if !strings.Contains(lockContentStr, "steps.check_skip_if_match.outputs.skip_check_ok == 'true'") {
 			t.Error("Expected skip_check_ok condition in activated output")
 		}
-		if !strings.Contains(lockContentStr, "steps.check_skip_if_check_failed.outputs.skip_if_check_failed_ok == 'true'") {
-			t.Error("Expected skip_if_check_failed_ok condition in activated output")
+		if !strings.Contains(lockContentStr, "steps.check_skip_if_check_failing.outputs.skip_if_check_failing_ok == 'true'") {
+			t.Error("Expected skip_if_check_failing_ok condition in activated output")
 		}
 	})
 
-	t.Run("skip_if_check_failed_object_without_branch", func(t *testing.T) {
+	t.Run("skip_if_check_failing_object_without_branch", func(t *testing.T) {
 		workflowContent := `---
 on:
   pull_request:
     types: [opened]
-  skip-if-check-failed:
+  skip-if-check-failing:
     exclude:
       - spelling
 engine: claude
@@ -248,7 +248,7 @@ engine: claude
 
 Skips if non-spelling checks fail.
 `
-		workflowFile := filepath.Join(tmpDir, "skip-if-check-failed-no-branch.md")
+		workflowFile := filepath.Join(tmpDir, "skip-if-check-failing-no-branch.md")
 		if err := os.WriteFile(workflowFile, []byte(workflowContent), 0644); err != nil {
 			t.Fatal(err)
 		}
@@ -274,21 +274,21 @@ Skips if non-spelling checks fail.
 		}
 	})
 
-	t.Run("skip_if_check_failed_null_value_treated_as_true", func(t *testing.T) {
-		// skip-if-check-failed: (no value / YAML null) should behave identically to skip-if-check-failed: true
+	t.Run("skip_if_check_failing_null_value_treated_as_true", func(t *testing.T) {
+		// skip-if-check-failing: (no value / YAML null) should behave identically to skip-if-check-failing: true
 		workflowContent := `---
 on:
   pull_request:
     types: [opened, synchronize]
-  skip-if-check-failed:
+  skip-if-check-failing:
 engine: claude
 ---
 
-# Skip If Check Failed Null Value
+# Skip If Check Failing Null Value
 
-This workflow uses the bare null form of skip-if-check-failed.
+This workflow uses the bare null form of skip-if-check-failing.
 `
-		workflowFile := filepath.Join(tmpDir, "skip-if-check-failed-null-workflow.md")
+		workflowFile := filepath.Join(tmpDir, "skip-if-check-failing-null-workflow.md")
 		if err := os.WriteFile(workflowFile, []byte(workflowContent), 0644); err != nil {
 			t.Fatal(err)
 		}
@@ -306,12 +306,12 @@ This workflow uses the bare null form of skip-if-check-failed.
 
 		lockContentStr := string(lockContent)
 
-		// Should produce the check step, just like skip-if-check-failed: true
-		if !strings.Contains(lockContentStr, "Check skip-if-check-failed") {
-			t.Error("Expected skip-if-check-failed check step to be present")
+		// Should produce the check step, just like skip-if-check-failing: true
+		if !strings.Contains(lockContentStr, "Check skip-if-check-failing") {
+			t.Error("Expected skip-if-check-failing check step to be present")
 		}
-		if !strings.Contains(lockContentStr, "id: check_skip_if_check_failed") {
-			t.Error("Expected check_skip_if_check_failed step ID")
+		if !strings.Contains(lockContentStr, "id: check_skip_if_check_failing") {
+			t.Error("Expected check_skip_if_check_failing step ID")
 		}
 		// No env vars since no include/exclude/branch
 		if strings.Contains(lockContentStr, "GH_AW_SKIP_CHECK_INCLUDE") {

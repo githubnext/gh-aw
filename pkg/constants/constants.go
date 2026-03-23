@@ -718,7 +718,7 @@ const GetTriggerLabelStepID StepID = "get_trigger_label"
 const CheckRateLimitStepID StepID = "check_rate_limit"
 const CheckSkipRolesStepID StepID = "check_skip_roles"
 const CheckSkipBotsStepID StepID = "check_skip_bots"
-const CheckSkipIfCheckFailedStepID StepID = "check_skip_if_check_failed"
+const CheckSkipIfCheckFailingStepID StepID = "check_skip_if_check_failing"
 
 // PreActivationAppTokenStepID is the step ID for the unified GitHub App token mint step
 // emitted in the pre-activation job when on.github-app is configured alongside skip-if checks.
@@ -734,7 +734,7 @@ const MatchedCommandOutput = "matched_command"
 const RateLimitOkOutput = "rate_limit_ok"
 const SkipRolesOkOutput = "skip_roles_ok"
 const SkipBotsOkOutput = "skip_bots_ok"
-const SkipIfCheckFailedOkOutput = "skip_if_check_failed_ok"
+const SkipIfCheckFailingOkOutput = "skip_if_check_failing_ok"
 const ActivatedOutput = "activated"
 
 // Rate limit defaults

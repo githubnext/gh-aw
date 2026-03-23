@@ -134,7 +134,7 @@ func (c *Compiler) commentOutProcessedFieldsInOnSection(yamlStr string, frontmat
 	inForksArray := false
 	inSkipIfMatch := false
 	inSkipIfNoMatch := false
-	inSkipIfCheckFailed := false
+	inSkipIfCheckFailing := false
 	inSkipRolesArray := false
 	inSkipBotsArray := false
 	inRolesArray := false
@@ -270,12 +270,12 @@ func (c *Compiler) commentOutProcessedFieldsInOnSection(yamlStr string, frontmat
 			}
 		}
 
-		// Check if we're entering skip-if-check-failed object
-		if !inPullRequest && !inIssues && !inDiscussion && !inIssueComment && !inSkipIfCheckFailed {
+		// Check if we're entering skip-if-check-failing object
+		if !inPullRequest && !inIssues && !inDiscussion && !inIssueComment && !inSkipIfCheckFailing {
 			// Check both uncommented and commented forms
-			if trimmedLine == "skip-if-check-failed:" ||
-				(strings.HasPrefix(trimmedLine, "# skip-if-check-failed:") && strings.Contains(trimmedLine, "pre-activation job")) {
-				inSkipIfCheckFailed = true
+			if trimmedLine == "skip-if-check-failing:" ||
+				(strings.HasPrefix(trimmedLine, "# skip-if-check-failing:") && strings.Contains(trimmedLine, "pre-activation job")) {
+				inSkipIfCheckFailing = true
 			}
 		}
 
@@ -314,16 +314,16 @@ func (c *Compiler) commentOutProcessedFieldsInOnSection(yamlStr string, frontmat
 			}
 		}
 
-		// Check if we're leaving skip-if-check-failed object (encountering another top-level field)
-		// Skip this check if we just entered skip-if-check-failed on this line
-		if inSkipIfCheckFailed && strings.TrimSpace(line) != "" &&
-			!strings.HasPrefix(trimmedLine, "skip-if-check-failed:") &&
-			!strings.HasPrefix(trimmedLine, "# skip-if-check-failed:") {
+		// Check if we're leaving skip-if-check-failing object (encountering another top-level field)
+		// Skip this check if we just entered skip-if-check-failing on this line
+		if inSkipIfCheckFailing && strings.TrimSpace(line) != "" &&
+			!strings.HasPrefix(trimmedLine, "skip-if-check-failing:") &&
+			!strings.HasPrefix(trimmedLine, "# skip-if-check-failing:") {
 			// Get the indentation of the current line
 			lineIndent := len(line) - len(strings.TrimLeft(line, " \t"))
-			// If this is a field at same level as skip-if-check-failed (2 spaces) and not a comment, we're out
+			// If this is a field at same level as skip-if-check-failing (2 spaces) and not a comment, we're out
 			if lineIndent == 2 && !strings.HasPrefix(trimmedLine, "#") {
-				inSkipIfCheckFailed = false
+				inSkipIfCheckFailing = false
 			}
 		}
 
@@ -440,11 +440,11 @@ func (c *Compiler) commentOutProcessedFieldsInOnSection(yamlStr string, frontmat
 				// Comment out nested fields in skip-if-no-match object
 				shouldComment = true
 				commentReason = ""
-			} else if strings.HasPrefix(trimmedLine, "skip-if-check-failed:") {
+			} else if strings.HasPrefix(trimmedLine, "skip-if-check-failing:") {
 				shouldComment = true
-				commentReason = " # Skip-if-check-failed processed as check status gate in pre-activation job"
-			} else if inSkipIfCheckFailed && (strings.HasPrefix(trimmedLine, "include:") || strings.HasPrefix(trimmedLine, "exclude:") || strings.HasPrefix(trimmedLine, "branch:") || strings.HasPrefix(trimmedLine, "-")) {
-				// Comment out nested fields and list items in skip-if-check-failed object
+				commentReason = " # Skip-if-check-failing processed as check status gate in pre-activation job"
+			} else if inSkipIfCheckFailing && (strings.HasPrefix(trimmedLine, "include:") || strings.HasPrefix(trimmedLine, "exclude:") || strings.HasPrefix(trimmedLine, "branch:") || strings.HasPrefix(trimmedLine, "-")) {
+				// Comment out nested fields and list items in skip-if-check-failing object
 				shouldComment = true
 				commentReason = ""
 			} else if strings.HasPrefix(trimmedLine, "skip-roles:") {

@@ -836,8 +836,8 @@ func (c *Compiler) processOnSectionAndFilters(
 		return err
 	}
 
-	// Process skip-if-check-failed configuration from the on: section
-	if err := c.processSkipIfCheckFailedConfiguration(frontmatter, workflowData); err != nil {
+	// Process skip-if-check-failing configuration from the on: section
+	if err := c.processSkipIfCheckFailingConfiguration(frontmatter, workflowData); err != nil {
 		return err
 	}
 

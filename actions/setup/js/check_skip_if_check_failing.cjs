@@ -3,32 +3,22 @@
 
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { ERR_API } = require("./error_codes.cjs");
+const { getBaseBranch } = require("./get_base_branch.cjs");
 
 /**
  * Determines the ref to check for CI status.
- * Uses GH_AW_SKIP_BRANCH if set, otherwise falls back to the PR base branch
- * (for pull_request events) or the current ref.
+ * Uses GH_AW_SKIP_BRANCH if set as an explicit override, otherwise delegates
+ * to the shared getBaseBranch() helper which handles PR base branch, issue_comment
+ * on PR, and repository default branch resolution.
  *
- * @returns {string} The ref to use for the check run query
+ * @returns {Promise<string>} The ref to use for the check run query
  */
-function resolveRef() {
+async function resolveRef() {
   const explicitBranch = process.env.GH_AW_SKIP_BRANCH;
   if (explicitBranch) {
     return explicitBranch;
   }
-
-  // For pull_request events, default to the base (target) branch
-  const payload = context.payload;
-  if (payload && payload.pull_request && payload.pull_request.base && payload.pull_request.base.ref) {
-    return payload.pull_request.base.ref;
-  }
-
-  // Fall back to the triggering ref, stripping the "refs/heads/" prefix if present
-  const ref = context.ref;
-  if (ref && ref.startsWith("refs/heads/")) {
-    return ref.slice("refs/heads/".length);
-  }
-  return ref;
+  return getBaseBranch();
 }
 
 /**
@@ -46,7 +36,16 @@ function parseListEnv(envValue) {
     if (!Array.isArray(parsed)) {
       return null;
     }
-    return parsed.filter(item => typeof item === "string");
+    // Trim, filter out empty strings, and remove duplicates
+    const filtered = [
+      ...new Set(
+        parsed
+          .filter(item => typeof item === "string")
+          .map(item => item.trim())
+          .filter(item => item !== "")
+      ),
+    ];
+    return filtered.length > 0 ? filtered : null;
   } catch {
     return null;
   }
@@ -75,9 +74,9 @@ async function main() {
   const includeList = parseListEnv(includeEnv);
   const excludeList = parseListEnv(excludeEnv);
 
-  const ref = resolveRef();
+  const ref = await resolveRef();
   if (!ref) {
-    core.setFailed("skip-if-check-failed: could not determine the ref to check.");
+    core.setFailed("skip-if-check-failing: could not determine the ref to check.");
     return;
   }
 
@@ -145,12 +144,12 @@ async function main() {
     if (failingChecks.length > 0) {
       const names = failingChecks.map(r => `${r.name} (${r.conclusion})`).join(", ");
       core.warning(`⚠️ Failing CI checks detected on "${ref}": ${names}. Workflow execution will be prevented by activation job.`);
-      core.setOutput("skip_if_check_failed_ok", "false");
+      core.setOutput("skip_if_check_failing_ok", "false");
       return;
     }
 
     core.info(`✓ No failing checks found on "${ref}", workflow can proceed`);
-    core.setOutput("skip_if_check_failed_ok", "true");
+    core.setOutput("skip_if_check_failing_ok", "true");
   } catch (error) {
     core.setFailed(`${ERR_API}: Failed to fetch check runs for ref "${ref}": ${getErrorMessage(error)}`);
   }

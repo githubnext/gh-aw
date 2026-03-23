@@ -404,8 +404,8 @@ func (c *Compiler) processSkipIfNoMatchConfiguration(frontmatter map[string]any,
 	return nil
 }
 
-// extractSkipIfCheckFailedFromOn extracts the skip-if-check-failed value from the on: section
-func (c *Compiler) extractSkipIfCheckFailedFromOn(frontmatter map[string]any, workflowData ...*WorkflowData) (*SkipIfCheckFailedConfig, error) {
+// extractSkipIfCheckFailingFromOn extracts the skip-if-check-failing value from the on: section
+func (c *Compiler) extractSkipIfCheckFailingFromOn(frontmatter map[string]any, workflowData ...*WorkflowData) (*SkipIfCheckFailingConfig, error) {
 	// Use cached On field from ParsedFrontmatter if available (when workflowData is provided)
 	var onSection any
 	var exists bool
@@ -423,35 +423,35 @@ func (c *Compiler) extractSkipIfCheckFailedFromOn(frontmatter map[string]any, wo
 	// Handle different formats of the on: section
 	switch on := onSection.(type) {
 	case string:
-		// Simple string format like "on: push" - no skip-if-check-failed possible
+		// Simple string format like "on: push" - no skip-if-check-failing possible
 		return nil, nil
 	case map[string]any:
-		// Complex object format - look for skip-if-check-failed
-		if skipIfCheckFailed, exists := on["skip-if-check-failed"]; exists {
-			switch skip := skipIfCheckFailed.(type) {
+		// Complex object format - look for skip-if-check-failing
+		if skipIfCheckFailing, exists := on["skip-if-check-failing"]; exists {
+			switch skip := skipIfCheckFailing.(type) {
 			case nil:
-				// Null value (bare key with no value): skip-if-check-failed:
-				return &SkipIfCheckFailedConfig{}, nil
+				// Null value (bare key with no value): skip-if-check-failing:
+				return &SkipIfCheckFailingConfig{}, nil
 			case bool:
-				// Simple boolean format: skip-if-check-failed: true
+				// Simple boolean format: skip-if-check-failing: true
 				if !skip {
-					return nil, errors.New("skip-if-check-failed: false is not valid; remove the field to disable the check")
+					return nil, errors.New("skip-if-check-failing: false is not valid; remove the field to disable the check")
 				}
-				return &SkipIfCheckFailedConfig{}, nil
+				return &SkipIfCheckFailingConfig{}, nil
 			case map[string]any:
-				// Object format: skip-if-check-failed: { include: [...], exclude: [...], branch: "..." }
-				config := &SkipIfCheckFailedConfig{}
+				// Object format: skip-if-check-failing: { include: [...], exclude: [...], branch: "..." }
+				config := &SkipIfCheckFailingConfig{}
 
 				// Extract include list (optional)
 				if includeRaw, hasInclude := skip["include"]; hasInclude {
 					includeSlice, ok := includeRaw.([]any)
 					if !ok {
-						return nil, errors.New("skip-if-check-failed 'include' field must be a list of strings. Example:\n  skip-if-check-failed:\n    include:\n      - build\n      - test")
+						return nil, errors.New("skip-if-check-failing 'include' field must be a list of strings. Example:\n  skip-if-check-failing:\n    include:\n      - build\n      - test")
 					}
 					for _, item := range includeSlice {
 						s, ok := item.(string)
 						if !ok {
-							return nil, fmt.Errorf("skip-if-check-failed 'include' list items must be strings, got %T", item)
+							return nil, fmt.Errorf("skip-if-check-failing 'include' list items must be strings, got %T", item)
 						}
 						config.Include = append(config.Include, s)
 					}
@@ -461,12 +461,12 @@ func (c *Compiler) extractSkipIfCheckFailedFromOn(frontmatter map[string]any, wo
 				if excludeRaw, hasExclude := skip["exclude"]; hasExclude {
 					excludeSlice, ok := excludeRaw.([]any)
 					if !ok {
-						return nil, errors.New("skip-if-check-failed 'exclude' field must be a list of strings. Example:\n  skip-if-check-failed:\n    exclude:\n      - lint")
+						return nil, errors.New("skip-if-check-failing 'exclude' field must be a list of strings. Example:\n  skip-if-check-failing:\n    exclude:\n      - lint")
 					}
 					for _, item := range excludeSlice {
 						s, ok := item.(string)
 						if !ok {
-							return nil, fmt.Errorf("skip-if-check-failed 'exclude' list items must be strings, got %T", item)
+							return nil, fmt.Errorf("skip-if-check-failing 'exclude' list items must be strings, got %T", item)
 						}
 						config.Exclude = append(config.Exclude, s)
 					}
@@ -476,14 +476,14 @@ func (c *Compiler) extractSkipIfCheckFailedFromOn(frontmatter map[string]any, wo
 				if branchRaw, hasBranch := skip["branch"]; hasBranch {
 					branchStr, ok := branchRaw.(string)
 					if !ok {
-						return nil, fmt.Errorf("skip-if-check-failed 'branch' field must be a string, got %T. Example: branch: main", branchRaw)
+						return nil, fmt.Errorf("skip-if-check-failing 'branch' field must be a string, got %T. Example: branch: main", branchRaw)
 					}
 					config.Branch = branchStr
 				}
 
 				return config, nil
 			default:
-				return nil, fmt.Errorf("skip-if-check-failed value must be true or an object, got %T. Examples:\n  skip-if-check-failed:\n  skip-if-check-failed: true\n  skip-if-check-failed:\n    include:\n      - build\n    branch: main", skipIfCheckFailed)
+				return nil, fmt.Errorf("skip-if-check-failing value must be true or an object, got %T. Examples:\n  skip-if-check-failing:\n  skip-if-check-failing: true\n  skip-if-check-failing:\n    include:\n      - build\n    branch: main", skipIfCheckFailing)
 			}
 		}
 		return nil, nil
@@ -492,19 +492,19 @@ func (c *Compiler) extractSkipIfCheckFailedFromOn(frontmatter map[string]any, wo
 	}
 }
 
-// processSkipIfCheckFailedConfiguration extracts and processes skip-if-check-failed configuration from frontmatter
-func (c *Compiler) processSkipIfCheckFailedConfiguration(frontmatter map[string]any, workflowData *WorkflowData) error {
-	skipIfCheckFailedConfig, err := c.extractSkipIfCheckFailedFromOn(frontmatter, workflowData)
+// processSkipIfCheckFailingConfiguration extracts and processes skip-if-check-failing configuration from frontmatter
+func (c *Compiler) processSkipIfCheckFailingConfiguration(frontmatter map[string]any, workflowData *WorkflowData) error {
+	skipIfCheckFailingConfig, err := c.extractSkipIfCheckFailingFromOn(frontmatter, workflowData)
 	if err != nil {
 		return err
 	}
-	workflowData.SkipIfCheckFailed = skipIfCheckFailedConfig
+	workflowData.SkipIfCheckFailing = skipIfCheckFailingConfig
 
-	if workflowData.SkipIfCheckFailed != nil {
-		stopAfterLog.Printf("Skip-if-check-failed configured: include=%v, exclude=%v, branch=%q",
-			workflowData.SkipIfCheckFailed.Include,
-			workflowData.SkipIfCheckFailed.Exclude,
-			workflowData.SkipIfCheckFailed.Branch,
+	if workflowData.SkipIfCheckFailing != nil {
+		stopAfterLog.Printf("Skip-if-check-failing configured: include=%v, exclude=%v, branch=%q",
+			workflowData.SkipIfCheckFailing.Include,
+			workflowData.SkipIfCheckFailing.Exclude,
+			workflowData.SkipIfCheckFailing.Branch,
 		)
 	}
 

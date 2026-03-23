@@ -1471,7 +1471,7 @@
               ],
               "description": "Conditionally skip workflow execution when a GitHub search query has no matches (or fewer than minimum). Can be a string (query only, implies min=1) or an object with 'query', optional 'min', and 'scope' fields. Use top-level on.github-token or on.github-app for custom authentication."
             },
-            "skip-if-check-failed": {
+            "skip-if-check-failing": {
               "oneOf": [
                 {
                   "type": "null",
@@ -1505,7 +1505,7 @@
                     }
                   },
                   "additionalProperties": false,
-                  "description": "Skip-if-check-failed configuration object with optional include/exclude filter lists and an optional branch name."
+                  "description": "Skip-if-check-failing configuration object with optional include/exclude filter lists and an optional branch name."
                 }
               ],
               "description": "Skip workflow execution if any CI checks on the target branch are failing. Accepts true (check all) or an object to filter specific checks by name and optionally specify a branch."
