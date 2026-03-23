@@ -181,7 +181,10 @@ func ExtractStopTimeFromLockFile(lockFilePath string) string {
 			if strings.Contains(line, "GH_AW_STOP_TIME:") {
 				prefix := "GH_AW_STOP_TIME:"
 				if _, after, ok := strings.Cut(line, prefix); ok {
-					return strings.TrimSpace(after)
+					extracted := strings.TrimSpace(after)
+					// Strip surrounding quotes added by newer compiler versions
+					extracted = strings.Trim(extracted, "\"")
+					return extracted
 				}
 			}
 		}

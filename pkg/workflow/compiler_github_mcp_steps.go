@@ -183,7 +183,7 @@ func (c *Compiler) generateParseGuardVarsStep(yaml *strings.Builder, data *Workf
 		}
 	}
 
-	yaml.WriteString("      - name: Parse guard list variables\n")
+	yaml.WriteString("      - name: Parse integrity filter lists\n")
 	yaml.WriteString("        id: parse-guard-vars\n")
 	yaml.WriteString("        env:\n")
 

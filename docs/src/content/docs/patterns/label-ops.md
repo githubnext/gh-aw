@@ -7,10 +7,6 @@ sidebar:
 
 LabelOps uses GitHub labels as workflow triggers, metadata, and state markers. GitHub Agentic Workflows supports two distinct approaches to label-based triggers: `label_command` for command-style one-shot activation, and `names:` filtering for persistent label-state awareness.
 
-## When to Use LabelOps
-
-Use LabelOps for priority-based workflows (run checks when `priority: high` is added), stage transitions (trigger actions when moving between workflow states), specialized processing (different workflows for different label categories), and team coordination (automate handoffs between teams using labels).
-
 ## Label Command Trigger
 
 The `label_command` trigger treats a label as a one-shot command: applying the label fires the workflow, and the label is **automatically removed** so it can be re-applied to re-trigger. This is the right choice when you want a label to mean "do this now" rather than "this item has this property."
@@ -144,27 +140,25 @@ The `names` field accepts a single label (`names: urgent`) or an array (`names: 
 
 ## Common LabelOps Patterns
 
-**Priority Escalation**: Trigger workflows when high-priority labels (`P0`, `critical`, `urgent`) are added. The AI analyzes severity, notifies team leads, and provides escalation guidance with SLA compliance requirements.
-
-**Label-Based Triage**: Respond to triage label changes (`needs-triage`, `triaged`) by analyzing issues and suggesting appropriate categorization, priority levels, affected components, and whether more information is needed.
-
-**Security Automation**: When security labels are applied, automatically check for sensitive information disclosure, trigger security review processes, and ensure compliance with responsible disclosure policies.
-
-**Release Management**: Track release-blocking issues by analyzing timeline impact, identifying blockers, generating release note content, and assessing testing requirements when release labels are applied.
+| Pattern | Trigger Labels | Agent Response |
+|---------|---------------|----------------|
+| **Priority Escalation** | `P0`, `critical`, `urgent` | Analyze severity, notify leads, provide SLA guidance |
+| **Label-Based Triage** | `needs-triage`, `triaged` | Suggest categorization, priority, affected components |
+| **Security Automation** | Security labels | Check disclosure risks, trigger review process |
+| **Release Management** | Release labels | Analyze timeline, identify blockers, draft release notes |
 
 ## AI-Powered LabelOps
 
-**Automatic Label Suggestions**: AI analyzes new issues to suggest and apply appropriate labels for issue type, priority level, affected components, and special categories. Configure allowed labels in `safe-outputs` to control which labels can be automatically applied.
-
-**Component-Based Auto-Labeling**: Automatically identify affected components by analyzing file paths, features, API endpoints, and UI elements mentioned in issues, then apply relevant component labels.
-
-**Label Consolidation**: Schedule periodic label audits to identify duplicates, unused labels, inconsistent naming, and consolidation opportunities. AI analyzes label usage patterns and creates recommendations for cleanup and standardization.
+- **Automatic Label Suggestions**: Analyze issues and apply labels for type, priority, and component. Use `safe-outputs.add-labels.allowed` to restrict which labels can be applied automatically.
+- **Component Auto-Labeling**: Identify affected components from file paths, APIs, and UI elements, then apply relevant component labels.
+- **Label Consolidation**: Schedule audits to identify duplicate, unused, and inconsistently named labels.
 
 ## Best Practices
 
-Use specific label names in filters to avoid unwanted triggers (prefer `ready-for-review` over generic `ready`). Combine with safe outputs to maintain security while automating label-based workflows. Document label meanings in a LABELS.md file or use GitHub label descriptions. Limit automation scope by filtering for explicit labels like `automation-enabled`.
-
-Address label explosion with AI-powered periodic audits for consolidation. Prevent ambiguous labels through AI suggestions and clear descriptions. Reduce manual upkeep by implementing AI-powered automatic labeling on issue creation and updates.
+- Use specific label names (`ready-for-review` not `ready`) to avoid unintended triggers.
+- Document label meanings in a LABELS.md file or GitHub label descriptions.
+- Limit automation scope with opt-in labels like `automation-enabled`.
+- Use safe outputs for all write operations to maintain security.
 
 ## Additional Resources
 

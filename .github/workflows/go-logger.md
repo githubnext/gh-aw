@@ -31,7 +31,7 @@ steps:
     with:
       go-version-file: go.mod
       cache: true
-  - name: Install JavaScript dependencies
+  - name: Install npm dependencies
     run: npm ci
     working-directory: ./actions/setup/js
 
