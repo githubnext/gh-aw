@@ -26,7 +26,7 @@
 #   Imports:
 #     - shared/go-make.md
 #
-# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"5268b7fc056175f083f2516c9c13dd14c030065e643e38fb162586ac0a01ef93","strict":true,"agent_id":"claude"}
+# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"23349ed9cc27c80f8c17f926bb421a4f6d870aee7e26d16ed979d017c018c103","strict":true,"agent_id":"claude"}
 
 name: "Go Logger Enhancement"
 "on":
@@ -314,7 +314,7 @@ jobs:
         with:
           cache: true
           go-version-file: go.mod
-      - name: Install JavaScript dependencies
+      - name: Install npm dependencies
         run: npm ci
         working-directory: ./actions/setup/js
 

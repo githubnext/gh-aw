@@ -90,7 +90,7 @@ func (c *Compiler) buildPreActivationJob(data *WorkflowData, needsPermissionChec
 		steps = append(steps, "        env:\n")
 		// Strip ANSI escape codes from stop-time value
 		cleanStopTime := stringutil.StripANSI(data.StopTime)
-		steps = append(steps, fmt.Sprintf("          GH_AW_STOP_TIME: %s\n", cleanStopTime))
+		steps = append(steps, fmt.Sprintf("          GH_AW_STOP_TIME: %q\n", cleanStopTime))
 		steps = append(steps, fmt.Sprintf("          GH_AW_WORKFLOW_NAME: %q\n", workflowName))
 		steps = append(steps, "        with:\n")
 		steps = append(steps, "          script: |\n")

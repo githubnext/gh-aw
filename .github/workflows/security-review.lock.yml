@@ -22,7 +22,11 @@
 #
 # Security-focused AI agent that reviews pull requests to identify changes that could weaken security posture or extend AWF boundaries
 #
-# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"d5881d67be07fecc7e9406368eba2019fc2dc659a2db705ea58278f705731b16","strict":true,"agent_id":"copilot"}
+# Resolved workflow manifest:
+#   Imports:
+#     - shared/pr-code-review-config.md
+#
+# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"6ae73a1972b16e068d3bf5d532df795942fdfaa62d38c4b824caefa098c81b60","strict":true,"agent_id":"copilot"}
 
 name: "Security Review Agent 🔒"
 "on":
@@ -224,6 +228,9 @@ jobs:
           fi
           cat << 'GH_AW_PROMPT_EOF'
           </system>
+          GH_AW_PROMPT_EOF
+          cat << 'GH_AW_PROMPT_EOF'
+          {{#runtime-import .github/workflows/shared/pr-code-review-config.md}}
           GH_AW_PROMPT_EOF
           cat << 'GH_AW_PROMPT_EOF'
           {{#runtime-import .github/workflows/security-review.md}}
@@ -701,7 +708,7 @@ jobs:
                   "GITHUB_HOST": "\${GITHUB_SERVER_URL}",
                   "GITHUB_PERSONAL_ACCESS_TOKEN": "\${GITHUB_MCP_SERVER_TOKEN}",
                   "GITHUB_READ_ONLY": "1",
-                  "GITHUB_TOOLSETS": "all"
+                  "GITHUB_TOOLSETS": "all,pull_requests,repos"
                 },
                 "guard-policies": {
                   "allow-only": {
