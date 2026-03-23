@@ -40,6 +40,10 @@ Analyze the issue: ${{ steps.sanitized.outputs.text }}
 
 	compiler := NewCompiler()
 
+	// Warm up: run once before timing to prime one-time caches (schema compilation, etc.)
+	_ = compiler.CompileWorkflow(testFile)
+
+	b.ResetTimer()
 	b.ReportAllocs()
 	for b.Loop() {
 		_ = compiler.CompileWorkflow(testFile)
@@ -98,6 +102,10 @@ Review the pull request: ${{ github.event.pull_request.number }}
 
 	compiler := NewCompiler(WithNoEmit(true))
 
+	// Warm up: run once before timing to prime one-time caches (schema compilation, etc.)
+	_ = compiler.CompileWorkflow(testFile)
+
+	b.ResetTimer()
 	b.ReportAllocs()
 	for b.Loop() {
 		_ = compiler.CompileWorkflow(testFile)
@@ -145,6 +153,10 @@ Review and test the pull request with multiple tools.
 
 	compiler := NewCompiler(WithNoEmit(true))
 
+	// Warm up: run once before timing to prime one-time caches (schema compilation, etc.)
+	_ = compiler.CompileWorkflow(testFile)
+
+	b.ResetTimer()
 	b.ReportAllocs()
 	for b.Loop() {
 		_ = compiler.CompileWorkflow(testFile)
@@ -194,6 +206,11 @@ Standard workflow for memory profiling.
 
 	compiler := NewCompiler(WithNoEmit(true))
 
+	// Warm up: run once before timing to initialize one-time caches
+	// (schema compilation, regex caches) so they don't skew per-op metrics.
+	_ = compiler.CompileWorkflow(testFile)
+
+	b.ResetTimer()
 	b.ReportAllocs()
 
 	// Track memory allocations
@@ -232,6 +249,10 @@ Test parsing performance.
 
 	compiler := NewCompiler()
 
+	// Warm up: prime the schema compilation cache before timed measurement.
+	_, _ = compiler.ParseWorkflowFile(testFile)
+
+	b.ResetTimer()
 	b.ReportAllocs()
 	for b.Loop() {
 		_, _ = compiler.ParseWorkflowFile(testFile)
@@ -274,6 +295,10 @@ Test validation performance.
 	compiler := NewCompiler(WithNoEmit(true))
 	compiler.SetStrictMode(true)
 
+	// Warm up: prime the schema compilation cache before timed measurement.
+	_ = compiler.CompileWorkflow(testFile)
+
+	b.ResetTimer()
 	b.ReportAllocs()
 	for b.Loop() {
 		_ = compiler.CompileWorkflow(testFile)
