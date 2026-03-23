@@ -31,6 +31,12 @@ name: "Update Astro"
     # Friendly format: daily (scattered)
   # skip-if-no-match: is:pr is:open author:app/dependabot label:dependencies # Skip-if-no-match processed as search check in pre-activation job
   workflow_dispatch:
+    inputs:
+      aw_context:
+        default: ""
+        description: (Internal) JSON context injected by the calling agentic workflow. Not intended for direct user input.
+        required: false
+        type: string
 
 permissions: {}
 

@@ -30,6 +30,12 @@ name: "Weekly Safe Outputs Specification Review"
   - cron: "13 3 * * 1"
     # Friendly format: weekly on monday (scattered)
   workflow_dispatch:
+    inputs:
+      aw_context:
+        default: ""
+        description: (Internal) JSON context injected by the calling agentic workflow. Not intended for direct user input.
+        required: false
+        type: string
 
 permissions: {}
 

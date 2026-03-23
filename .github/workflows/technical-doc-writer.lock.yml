@@ -34,6 +34,11 @@ name: "Rebuild the documentation after making changes"
 "on":
   workflow_dispatch:
     inputs:
+      aw_context:
+        default: ""
+        description: (Internal) JSON context injected by the calling agentic workflow. Not intended for direct user input.
+        required: false
+        type: string
       topic:
         description: Documentation topic to review
         required: true

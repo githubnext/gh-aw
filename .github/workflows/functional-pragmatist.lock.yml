@@ -33,6 +33,12 @@ name: "Functional Pragmatist"
   schedule:
   - cron: "0 9 * * 2,4"
   workflow_dispatch:
+    inputs:
+      aw_context:
+        default: ""
+        description: (Internal) JSON context injected by the calling agentic workflow. Not intended for direct user input.
+        required: false
+        type: string
 
 permissions: {}
 

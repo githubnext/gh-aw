@@ -37,6 +37,11 @@ name: "Stale Repository Identifier"
   - cron: "0 9 1 * *"
   workflow_dispatch:
     inputs:
+      aw_context:
+        default: ""
+        description: (Internal) JSON context injected by the calling agentic workflow. Not intended for direct user input.
+        required: false
+        type: string
       organization:
         default: github
         description: GitHub organization to scan for stale repositories

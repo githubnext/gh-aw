@@ -40,6 +40,11 @@ name: "Poem Bot - A Creative Agentic Workflow"
   # - maintainer # Roles processed as role check in pre-activation job
   workflow_dispatch:
     inputs:
+      aw_context:
+        default: ""
+        description: (Internal) JSON context injected by the calling agentic workflow. Not intended for direct user input.
+        required: false
+        type: string
       poem_theme:
         default: technology and automation
         description: Theme for the generated poem

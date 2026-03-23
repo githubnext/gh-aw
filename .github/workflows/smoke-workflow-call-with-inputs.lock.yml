@@ -42,6 +42,11 @@ name: "Smoke Workflow Call with Inputs"
         value: ${{ jobs.safe_outputs.outputs.created_issue_url }}
   workflow_dispatch:
     inputs:
+      aw_context:
+        default: ""
+        description: (Internal) JSON context injected by the calling agentic workflow. Not intended for direct user input.
+        required: false
+        type: string
       task-description:
         default: generic task
         description: Short description of what this invocation should do

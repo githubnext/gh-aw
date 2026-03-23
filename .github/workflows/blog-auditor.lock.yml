@@ -34,6 +34,12 @@ name: "Blog Auditor"
   - cron: "26 11 * * 3"
     # Friendly format: weekly on wednesday around 12:00 (scattered)
   workflow_dispatch:
+    inputs:
+      aw_context:
+        default: ""
+        description: (Internal) JSON context injected by the calling agentic workflow. Not intended for direct user input.
+        required: false
+        type: string
 
 permissions: {}
 

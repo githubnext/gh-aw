@@ -29,6 +29,12 @@ name: "Bot Detection"
   schedule:
   - cron: "0 */6 * * *"
   workflow_dispatch:
+    inputs:
+      aw_context:
+        default: ""
+        description: (Internal) JSON context injected by the calling agentic workflow. Not intended for direct user input.
+        required: false
+        type: string
 
 permissions: {}
 
