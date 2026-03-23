@@ -120,6 +120,7 @@ Review all captured responses and identify:
 ### Improvement Opportunities (top 3 only)
 - What additional guidance could help the agent?
 - Should certain patterns be more strongly recommended?
+- **Important**: Any documentation recommendations must target `.github/aw/*.md` files (e.g., `github-agentic-workflows.md`, `create-agentic-workflow.md`). Do **not** reference or suggest changes to `AGENTS.md` — that file is Go developer documentation for the `gh-aw` codebase and is unrelated to agentic workflow instructions.
 
 ## Phase 5: Document and Publish Findings (1 minute)
 
@@ -179,7 +180,7 @@ Example:
 </details>
 
 ### Recommendations (Top 3 only)
-1. [Most important actionable recommendation]
+1. [Most important actionable recommendation — if documentation-related, reference `.github/aw/*.md` files, NOT `AGENTS.md`]
 2. [Second priority suggestion]
 3. [Third priority idea]
 ```
