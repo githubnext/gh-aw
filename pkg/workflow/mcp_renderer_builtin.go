@@ -122,7 +122,9 @@ func (r *MCPConfigRendererUnified) renderQmdTOML(yaml *strings.Builder) {
 	// Forward INDEX_PATH (location of the SQLite index) and HOME (so node-llama-cpp
 	// and qmd resolve ~/.cache/ paths correctly inside the container).
 	// NODE_LLAMA_CPP_GPU is forwarded so GPU probing can be disabled on CPU-only runners.
-	yaml.WriteString("          env_vars = [\"INDEX_PATH\", \"HOME\", \"NODE_LLAMA_CPP_GPU\"]\n")
+	// Use \${VAR} so the shell heredoc does not expand them; the gateway resolves them.
+	// HOME is not in the gateway env so it is expanded by the heredoc shell instead.
+	yaml.WriteString("          env = { \"INDEX_PATH\" = \"\\${INDEX_PATH}\", \"HOME\" = \"${HOME}\", \"NODE_LLAMA_CPP_GPU\" = \"\\${NODE_LLAMA_CPP_GPU}\" }\n")
 }
 
 // renderQmdMCPConfigWithOptions generates the qmd MCP server configuration in JSON format.
@@ -133,7 +135,15 @@ func renderQmdMCPConfigWithOptions(yaml *strings.Builder, isLast bool, includeCo
 	qmdArgs := []string{"--yes", "--package", "@tobilu/qmd@" + version, "qmd", "mcp"}
 	dockerArgs := []string{"--network", "host"}
 	mounts := []string{"/tmp/gh-aw:/tmp/gh-aw:rw", "${HOME}/.cache/qmd:${HOME}/.cache/qmd:rw"}
-	envVars := []string{"INDEX_PATH", "HOME", "NODE_LLAMA_CPP_GPU"}
+	// env uses \${VAR} so the heredoc shell does not expand INDEX_PATH and NODE_LLAMA_CPP_GPU;
+	// the gateway resolves them from its own environment (passed via -e flags in DOCKER_COMMAND).
+	// HOME is not in the gateway env, so ${HOME} is expanded by the heredoc shell to /home/runner.
+	envValues := map[string]string{
+		"INDEX_PATH":         "\\${INDEX_PATH}",
+		"HOME":               "${HOME}",
+		"NODE_LLAMA_CPP_GPU": "\\${NODE_LLAMA_CPP_GPU}",
+	}
+	envKeys := sortedMapKeys(envValues)
 
 	yaml.WriteString("              \"qmd\": {\n")
 
@@ -172,15 +182,15 @@ func renderQmdMCPConfigWithOptions(yaml *strings.Builder, isLast bool, includeCo
 			yaml.WriteString("\"" + m + "\"")
 		}
 		yaml.WriteString("],\n")
-		// Env vars inline
-		yaml.WriteString("                \"env_vars\": [")
-		for i, ev := range envVars {
+		// Env object inline
+		yaml.WriteString("                \"env\": {")
+		for i, key := range envKeys {
 			if i > 0 {
 				yaml.WriteString(", ")
 			}
-			yaml.WriteString("\"" + ev + "\"")
+			yaml.WriteString("\"" + key + "\": \"" + envValues[key] + "\"")
 		}
-		yaml.WriteString("]\n")
+		yaml.WriteString("}\n")
 	} else {
 		// Entrypoint args multi-line
 		yaml.WriteString("                \"entrypointArgs\": [\n")
@@ -212,16 +222,16 @@ func renderQmdMCPConfigWithOptions(yaml *strings.Builder, isLast bool, includeCo
 			}
 		}
 		yaml.WriteString("                ],\n")
-		// Env vars multi-line
-		yaml.WriteString("                \"env_vars\": [\n")
-		for i, ev := range envVars {
-			if i < len(envVars)-1 {
-				yaml.WriteString("                  \"" + ev + "\",\n")
+		// Env object multi-line
+		yaml.WriteString("                \"env\": {\n")
+		for i, key := range envKeys {
+			if i < len(envKeys)-1 {
+				yaml.WriteString("                  \"" + key + "\": \"" + envValues[key] + "\",\n")
 			} else {
-				yaml.WriteString("                  \"" + ev + "\"\n")
+				yaml.WriteString("                  \"" + key + "\": \"" + envValues[key] + "\"\n")
 			}
 		}
-		yaml.WriteString("                ]\n")
+		yaml.WriteString("                }\n")
 	}
 
 	if isLast {

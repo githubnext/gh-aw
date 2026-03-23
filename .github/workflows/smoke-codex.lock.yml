@@ -925,7 +925,7 @@ jobs:
             "/tmp/gh-aw:/tmp/gh-aw:rw",
             "${HOME}/.cache/qmd:${HOME}/.cache/qmd:rw",
           ]
-          env_vars = ["INDEX_PATH", "HOME", "NODE_LLAMA_CPP_GPU"]
+          env = { "INDEX_PATH" = "\${INDEX_PATH}", "HOME" = "${HOME}", "NODE_LLAMA_CPP_GPU" = "\${NODE_LLAMA_CPP_GPU}" }
           
           [mcp_servers.safeoutputs]
           type = "http"
@@ -1044,11 +1044,11 @@ jobs:
                   "/tmp/gh-aw:/tmp/gh-aw:rw",
                   "${HOME}/.cache/qmd:${HOME}/.cache/qmd:rw"
                 ],
-                "env_vars": [
-                  "INDEX_PATH",
-                  "HOME",
-                  "NODE_LLAMA_CPP_GPU"
-                ]
+                "env": {
+                  "HOME": "${HOME}",
+                  "INDEX_PATH": "\${INDEX_PATH}",
+                  "NODE_LLAMA_CPP_GPU": "\${NODE_LLAMA_CPP_GPU}"
+                }
               },
               "safeoutputs": {
                 "type": "http",

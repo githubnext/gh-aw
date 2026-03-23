@@ -605,7 +605,7 @@ jobs:
                 "entrypointArgs": ["--yes", "--package", "@tobilu/qmd@2.0.1", "qmd", "mcp"],
                 "args": ["--network", "host"],
                 "mounts": ["/tmp/gh-aw:/tmp/gh-aw:rw", "${HOME}/.cache/qmd:${HOME}/.cache/qmd:rw"],
-                "env_vars": ["INDEX_PATH", "HOME", "NODE_LLAMA_CPP_GPU"]
+                "env": {"HOME": "${HOME}", "INDEX_PATH": "\${INDEX_PATH}", "NODE_LLAMA_CPP_GPU": "\${NODE_LLAMA_CPP_GPU}"}
               },
               "safeoutputs": {
                 "type": "http",
