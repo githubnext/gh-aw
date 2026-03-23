@@ -163,6 +163,12 @@ func (c *Compiler) buildConclusionJob(data *WorkflowData, mainJobName string, sa
 		agentFailureEnvVars = append(agentFailureEnvVars, "          GH_AW_ASSIGNMENT_ERROR_COUNT: ${{ needs.safe_outputs.outputs.assign_to_agent_assignment_error_count }}\n")
 	}
 
+	// Pass copilot assignment failure outputs from safe_outputs job if create-issue with copilot assignee is configured
+	if data.SafeOutputs != nil && data.SafeOutputs.CreateIssues != nil && hasCopilotAssignee(data.SafeOutputs.CreateIssues.Assignees) {
+		agentFailureEnvVars = append(agentFailureEnvVars, "          GH_AW_ASSIGN_COPILOT_FAILURE_COUNT: ${{ needs.safe_outputs.outputs.assign_copilot_failure_count }}\n")
+		agentFailureEnvVars = append(agentFailureEnvVars, "          GH_AW_ASSIGN_COPILOT_ERRORS: ${{ needs.safe_outputs.outputs.assign_copilot_errors }}\n")
+	}
+
 	// Pass create_discussion error outputs from safe_outputs job if create-discussions is configured
 	if data.SafeOutputs != nil && data.SafeOutputs.CreateDiscussions != nil {
 		agentFailureEnvVars = append(agentFailureEnvVars, "          GH_AW_CREATE_DISCUSSION_ERRORS: ${{ needs.safe_outputs.outputs.create_discussion_errors }}\n")

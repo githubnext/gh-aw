@@ -967,6 +967,8 @@ jobs:
           GH_AW_WORKFLOW_ID: "breaking-change-checker"
           GH_AW_CHECKOUT_PR_SUCCESS: ${{ needs.agent.outputs.checkout_pr_success }}
           GH_AW_INFERENCE_ACCESS_ERROR: ${{ needs.agent.outputs.inference_access_error }}
+          GH_AW_ASSIGN_COPILOT_FAILURE_COUNT: ${{ needs.safe_outputs.outputs.assign_copilot_failure_count }}
+          GH_AW_ASSIGN_COPILOT_ERRORS: ${{ needs.safe_outputs.outputs.assign_copilot_errors }}
           GH_AW_LOCKDOWN_CHECK_FAILED: ${{ needs.activation.outputs.lockdown_check_failed }}
           GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e ⚠️ *Compatibility report by [{workflow_name}]({run_url})*{history_link}\",\"footerWorkflowRecompile\":\"\\u003e 🛠️ *Workflow maintenance by [{workflow_name}]({run_url}) for {repository}*\",\"runStarted\":\"🔬 Breaking Change Checker online! [{workflow_name}]({run_url}) is analyzing API compatibility on this {event_type}...\",\"runSuccess\":\"✅ Analysis complete! [{workflow_name}]({run_url}) has reviewed all changes. Compatibility verdict delivered! 📋\",\"runFailure\":\"🔬 Analysis interrupted! [{workflow_name}]({run_url}) {status}. Compatibility status unknown...\"}"
           GH_AW_GROUP_REPORTS: "false"
@@ -1059,6 +1061,8 @@ jobs:
       GH_AW_WORKFLOW_ID: "breaking-change-checker"
       GH_AW_WORKFLOW_NAME: "Breaking Change Checker"
     outputs:
+      assign_copilot_errors: ${{ steps.assign_copilot_to_created_issues.outputs.assign_copilot_errors }}
+      assign_copilot_failure_count: ${{ steps.assign_copilot_to_created_issues.outputs.assign_copilot_failure_count }}
       code_push_failure_count: ${{ steps.process_safe_outputs.outputs.code_push_failure_count }}
       code_push_failure_errors: ${{ steps.process_safe_outputs.outputs.code_push_failure_errors }}
       create_discussion_error_count: ${{ steps.process_safe_outputs.outputs.create_discussion_error_count }}
@@ -1118,7 +1122,9 @@ jobs:
             const { main } = require('${{ runner.temp }}/gh-aw/actions/safe_output_handler_manager.cjs');
             await main();
       - name: Assign Copilot to created issues
+        id: assign_copilot_to_created_issues
         if: steps.process_safe_outputs.outputs.issues_to_assign_copilot != ''
+        continue-on-error: true
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           GH_AW_ISSUES_TO_ASSIGN_COPILOT: ${{ steps.process_safe_outputs.outputs.issues_to_assign_copilot }}

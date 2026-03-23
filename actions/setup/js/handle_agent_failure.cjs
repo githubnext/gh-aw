@@ -658,6 +658,35 @@ function buildLockdownCheckFailedContext(hasLockdownCheckFailed) {
 }
 
 /**
+ * Build a context string when assigning the Copilot coding agent to created issues failed.
+ * @param {boolean} hasAssignCopilotFailures - Whether any copilot assignments failed
+ * @param {string} assignCopilotErrors - Newline-separated list of "issue:number:copilot:error" entries
+ * @returns {string} Formatted context string, or empty string if no failures
+ */
+function buildAssignCopilotFailureContext(hasAssignCopilotFailures, assignCopilotErrors) {
+  if (!hasAssignCopilotFailures) {
+    return "";
+  }
+
+  // Build a list of failed issue assignments
+  let issueList = "";
+  if (assignCopilotErrors) {
+    const errorLines = assignCopilotErrors.split("\n").filter(line => line.trim());
+    for (const errorLine of errorLines) {
+      const parts = errorLine.split(":");
+      if (parts.length >= 4) {
+        const number = parts[1];
+        const error = parts.slice(3).join(":"); // Rest is the error message
+        issueList += `- Issue #${number}: ${error}\n`;
+      }
+    }
+  }
+
+  const templatePath = `${process.env.RUNNER_TEMP}/gh-aw/prompts/assign_copilot_to_created_issues_failure.md`;
+  return "\n" + renderTemplateFromFile(templatePath, { issues: issueList });
+}
+
+/**
  * Handle agent job failure by creating or updating a failure tracking issue
  * This script is called from the conclusion job when the agent job has failed
  * or when the agent succeeded but produced no safe outputs
@@ -674,6 +703,8 @@ async function main() {
     const secretVerificationResult = process.env.GH_AW_SECRET_VERIFICATION_RESULT || "";
     const assignmentErrors = process.env.GH_AW_ASSIGNMENT_ERRORS || "";
     const assignmentErrorCount = process.env.GH_AW_ASSIGNMENT_ERROR_COUNT || "0";
+    const assignCopilotErrors = process.env.GH_AW_ASSIGN_COPILOT_ERRORS || "";
+    const assignCopilotFailureCount = process.env.GH_AW_ASSIGN_COPILOT_FAILURE_COUNT || "0";
     const createDiscussionErrors = process.env.GH_AW_CREATE_DISCUSSION_ERRORS || "";
     const createDiscussionErrorCount = process.env.GH_AW_CREATE_DISCUSSION_ERROR_COUNT || "0";
     const codePushFailureErrors = process.env.GH_AW_CODE_PUSH_FAILURE_ERRORS || "";
@@ -719,6 +750,7 @@ async function main() {
     core.info(`Workflow ID: ${workflowID}`);
     core.info(`Secret verification result: ${secretVerificationResult}`);
     core.info(`Assignment error count: ${assignmentErrorCount}`);
+    core.info(`Assign copilot failure count: ${assignCopilotFailureCount}`);
     core.info(`Create discussion error count: ${createDiscussionErrorCount}`);
     core.info(`Code push failure count: ${codePushFailureCount}`);
     core.info(`Checkout PR success: ${checkoutPRSuccess}`);
@@ -732,6 +764,9 @@ async function main() {
 
     // Check if there are assignment errors (regardless of agent job status)
     const hasAssignmentErrors = parseInt(assignmentErrorCount, 10) > 0;
+
+    // Check if there are copilot assignment failures for created issues (regardless of agent job status)
+    const hasAssignCopilotFailures = parseInt(assignCopilotFailureCount, 10) > 0;
 
     // Check if there are create_discussion errors (regardless of agent job status)
     const hasCreateDiscussionErrors = parseInt(createDiscussionErrorCount, 10) > 0;
@@ -764,12 +799,13 @@ async function main() {
 
     // Only proceed if the agent job actually failed OR timed out OR there are assignment errors OR
     // create_discussion errors OR code-push failures OR push_repo_memory failed OR missing safe outputs
-    // OR a GitHub App token minting step failed OR the lockdown check failed.
+    // OR a GitHub App token minting step failed OR the lockdown check failed OR copilot assignment failed.
     // BUT skip if we only have noop outputs (that's a successful no-action scenario)
     if (
       agentConclusion !== "failure" &&
       !isTimedOut &&
       !hasAssignmentErrors &&
+      !hasAssignCopilotFailures &&
       !hasCreateDiscussionErrors &&
       !hasCodePushFailures &&
       !hasPushRepoMemoryFailure &&
@@ -947,6 +983,9 @@ async function main() {
         // Build lockdown check failure context
         const lockdownCheckFailedContext = buildLockdownCheckFailedContext(hasLockdownCheckFailed);
 
+        // Build copilot assignment failure context for created issues
+        const assignCopilotFailureContext = buildAssignCopilotFailureContext(hasAssignCopilotFailures, assignCopilotErrors);
+
         // Create template context
         const templateContext = {
           run_url: runUrl,
@@ -960,6 +999,7 @@ async function main() {
               ? "\n**⚠️ Secret Verification Failed**: The workflow's secret validation step failed. Please check that the required secrets are configured in your repository settings.\n\nFor more information on configuring tokens, see: https://github.github.com/gh-aw/reference/engines/\n"
               : "",
           assignment_errors_context: assignmentErrorsContext,
+          assign_copilot_failure_context: assignCopilotFailureContext,
           create_discussion_errors_context: createDiscussionErrorsContext,
           code_push_failure_context: codePushFailureContext,
           repo_memory_validation_context: repoMemoryValidationContext,
@@ -1080,6 +1120,9 @@ async function main() {
         // Build lockdown check failure context
         const lockdownCheckFailedContext = buildLockdownCheckFailedContext(hasLockdownCheckFailed);
 
+        // Build copilot assignment failure context for created issues
+        const assignCopilotFailureContext = buildAssignCopilotFailureContext(hasAssignCopilotFailures, assignCopilotErrors);
+
         // Create template context with sanitized workflow name
         const templateContext = {
           workflow_name: sanitizedWorkflowName,
@@ -1094,6 +1137,7 @@ async function main() {
               ? "\n**⚠️ Secret Verification Failed**: The workflow's secret validation step failed. Please check that the required secrets are configured in your repository settings.\n\nFor more information on configuring tokens, see: https://github.github.com/gh-aw/reference/engines/\n"
               : "",
           assignment_errors_context: assignmentErrorsContext,
+          assign_copilot_failure_context: assignCopilotFailureContext,
           create_discussion_errors_context: createDiscussionErrorsContext,
           code_push_failure_context: codePushFailureContext,
           repo_memory_validation_context: repoMemoryValidationContext,
@@ -1161,4 +1205,4 @@ async function main() {
   }
 }
 
-module.exports = { main, buildCodePushFailureContext, buildPushRepoMemoryFailureContext, buildAppTokenMintingFailedContext, buildLockdownCheckFailedContext, buildTimeoutContext };
+module.exports = { main, buildCodePushFailureContext, buildPushRepoMemoryFailureContext, buildAppTokenMintingFailedContext, buildLockdownCheckFailedContext, buildTimeoutContext, buildAssignCopilotFailureContext };

@@ -982,6 +982,8 @@ jobs:
           GH_AW_WORKFLOW_ID: "duplicate-code-detector"
           GH_AW_SECRET_VERIFICATION_RESULT: ${{ needs.activation.outputs.secret_verification_result }}
           GH_AW_CHECKOUT_PR_SUCCESS: ${{ needs.agent.outputs.checkout_pr_success }}
+          GH_AW_ASSIGN_COPILOT_FAILURE_COUNT: ${{ needs.safe_outputs.outputs.assign_copilot_failure_count }}
+          GH_AW_ASSIGN_COPILOT_ERRORS: ${{ needs.safe_outputs.outputs.assign_copilot_errors }}
           GH_AW_LOCKDOWN_CHECK_FAILED: ${{ needs.activation.outputs.lockdown_check_failed }}
           GH_AW_GROUP_REPORTS: "false"
           GH_AW_FAILURE_REPORT_AS_ISSUE: "true"
@@ -1025,6 +1027,8 @@ jobs:
       GH_AW_WORKFLOW_ID: "duplicate-code-detector"
       GH_AW_WORKFLOW_NAME: "Duplicate Code Detector"
     outputs:
+      assign_copilot_errors: ${{ steps.assign_copilot_to_created_issues.outputs.assign_copilot_errors }}
+      assign_copilot_failure_count: ${{ steps.assign_copilot_to_created_issues.outputs.assign_copilot_failure_count }}
       code_push_failure_count: ${{ steps.process_safe_outputs.outputs.code_push_failure_count }}
       code_push_failure_errors: ${{ steps.process_safe_outputs.outputs.code_push_failure_errors }}
       create_discussion_error_count: ${{ steps.process_safe_outputs.outputs.create_discussion_error_count }}
@@ -1084,7 +1088,9 @@ jobs:
             const { main } = require('${{ runner.temp }}/gh-aw/actions/safe_output_handler_manager.cjs');
             await main();
       - name: Assign Copilot to created issues
+        id: assign_copilot_to_created_issues
         if: steps.process_safe_outputs.outputs.issues_to_assign_copilot != ''
+        continue-on-error: true
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           GH_AW_ISSUES_TO_ASSIGN_COPILOT: ${{ steps.process_safe_outputs.outputs.issues_to_assign_copilot }}
