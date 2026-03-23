@@ -49,7 +49,7 @@ You are an expert workflow portfolio analyst focused on identifying cost reducti
 - **JSON Summary**: `/tmp/portfolio-logs/summary.json` - Contains all metrics and run data you need
 - **Run Logs**: `/tmp/portfolio-logs/run-{database-id}/` - Individual run logs (if needed for detailed analysis)
 
-Read from these files instead of using the MCP tools to fetch data again.
+Read from these files instead of calling `gh aw logs` directly. Use the MCP server tools only if you need additional workflow data not in the pre-downloaded files.
 
 ## Mission
 
