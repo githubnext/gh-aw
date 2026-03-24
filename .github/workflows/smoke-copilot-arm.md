@@ -51,6 +51,7 @@ safe-outputs:
       expires: 2h
       group: true
       close-older-issues: true
+      close-older-key: "smoke-copilot-arm"
       labels: [automation, testing]
     create-discussion:
       category: announcements

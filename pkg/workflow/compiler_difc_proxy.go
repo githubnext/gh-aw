@@ -15,8 +15,9 @@ package workflow
 // is running. Only gh CLI calls that honour GH_HOST are actually filtered.
 //
 // Note: qmd indexing GitHub API calls are made via actions/github-script (@actions/github
-// Octokit), which uses GITHUB_API_URL / GITHUB_GRAPHQL_URL rather than GH_HOST. The proxy
-// does not intercept those calls, so no proxy wrapping is injected into the qmd indexing job.
+// Octokit). The proxy sets GITHUB_API_URL, GITHUB_GRAPHQL_URL, and NODE_EXTRA_CA_CERTS in
+// addition to GH_HOST, so it intercepts Octokit calls as well. Proxy wrapping is therefore
+// also injected around qmd indexing steps when DIFC guards are configured.
 //
 // The proxy uses the same container image as the MCP gateway (gh-aw-mcpg)
 // but runs in "proxy" mode with --guards-mode filter (graceful degradation)
@@ -24,14 +25,22 @@ package workflow
 //
 // Injection conditions:
 //
-//	Main job: GitHub tool has explicit guard policies (min-integrity set) AND
-//	          custom steps set GH_TOKEN
+//	Main job:     GitHub tool has explicit guard policies (min-integrity set) AND
+//	              custom steps set GH_TOKEN
+//	Indexing job: GitHub tool has explicit guard policies (min-integrity set)
 //
 // Proxy lifecycle within the main job:
 //  1. Start proxy — after "Configure gh CLI" step, before custom steps
-//  2. Custom steps run with GH_HOST=localhost:18443 (set via $GITHUB_ENV)
+//  2. Custom steps run with GH_HOST=localhost:18443, GITHUB_API_URL, GITHUB_GRAPHQL_URL,
+//     and NODE_EXTRA_CA_CERTS set (via $GITHUB_ENV)
 //  3. Stop proxy — before MCP gateway starts (generateMCPSetup); always runs
 //     even if earlier steps failed (if: always(), continue-on-error: true)
+//
+// Proxy lifecycle within the indexing job:
+//  1. Start proxy — before qmd index-building steps
+//  2. qmd steps run with all proxy env vars set (GH_HOST, GITHUB_API_URL, GITHUB_GRAPHQL_URL,
+//     NODE_EXTRA_CA_CERTS); Octokit calls in actions/github-script are intercepted
+//  3. Stop proxy — after qmd steps; always runs (if: always(), continue-on-error: true)
 //
 // Guard policy note:
 //

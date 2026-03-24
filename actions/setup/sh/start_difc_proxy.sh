@@ -66,8 +66,17 @@ for i in $(seq 1 30); do
     fi
     if curl -sf "https://localhost:18443/api/v3/health" -o /dev/null 2>/dev/null; then
       echo "DIFC proxy ready on port 18443"
+      # Route gh CLI calls through the proxy.
       echo "GH_HOST=localhost:18443" >> "$GITHUB_ENV"
       git remote add proxy "https://localhost:18443/${GITHUB_REPOSITORY}.git" || true
+      # Route actions/github-script Octokit calls through the proxy.
+      # Save the originals so stop_difc_proxy.sh can restore them.
+      echo "GH_AW_ORIGINAL_GITHUB_API_URL=${GITHUB_API_URL:-}" >> "$GITHUB_ENV"
+      echo "GH_AW_ORIGINAL_GITHUB_GRAPHQL_URL=${GITHUB_GRAPHQL_URL:-}" >> "$GITHUB_ENV"
+      echo "GITHUB_API_URL=https://localhost:18443/api/v3" >> "$GITHUB_ENV"
+      echo "GITHUB_GRAPHQL_URL=https://localhost:18443/api/graphql" >> "$GITHUB_ENV"
+      # Trust the proxy TLS certificate from Node.js (used by actions/github-script).
+      echo "NODE_EXTRA_CA_CERTS=$PROXY_LOG_DIR/proxy-tls/ca.crt" >> "$GITHUB_ENV"
       PROXY_READY=true
       break
     fi

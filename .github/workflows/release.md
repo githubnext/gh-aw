@@ -418,12 +418,16 @@ steps:
       # Build closing references index from GitHub-native closingIssuesReferences
       # Maps each closed issue number -> list of PR numbers that directly close it
       echo "Building closing references index from GitHub-native PR links..."
+      # Use a nested reduce so the outer body always returns the accumulator,
+      # even when closingIssuesReferences is empty (avoids jq setting acc to null).
       jq '
         reduce .[] as $pr (
           {};
-          $pr.closingIssuesReferences[]? as $issue |
-          ($issue.number | tostring) as $key |
-          .[$key] = (.[$key] // []) + [$pr.number]
+          reduce ($pr.closingIssuesReferences // [])[] as $issue (
+            .;
+            ($issue.number | tostring) as $key |
+            .[$key] = (.[$key] // []) + [$pr.number]
+          )
         )
       ' /tmp/gh-aw/release-data/pull_requests.json \
         > /tmp/gh-aw/release-data/closing_refs_by_issue.json 2>/dev/null \

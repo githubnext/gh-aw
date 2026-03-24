@@ -61,6 +61,7 @@ safe-outputs:
       expires: 2h
       group: true
       close-older-issues: true
+      close-older-key: "smoke-claude"
       labels: [automation, testing]
     add-labels:
       allowed: [smoke-claude]

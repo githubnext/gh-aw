@@ -109,7 +109,7 @@ Examples:
 	}
 
 	cmd.Flags().StringP("dir", "d", "", "Workflow directory (default: .github/workflows)")
-	cmd.Flags().Bool("no-fix", false, "Skip applying codemods, action updates, and compiling workflows (only update agent files)")
+	cmd.Flags().Bool("no-fix", false, "Skip codemods, action updates, and workflow compilation (only update agent files)")
 	cmd.Flags().Bool("no-actions", false, "Skip updating GitHub Actions versions")
 	cmd.Flags().Bool("no-compile", false, "Skip recompiling workflows (do not modify lock files)")
 	cmd.Flags().Bool("create-pull-request", false, "Create a pull request with the upgrade changes")

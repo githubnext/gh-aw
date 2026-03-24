@@ -591,14 +591,23 @@ func (c *Compiler) buildQmdIndexingJob(data *WorkflowData) (*Job, error) {
 	// Generate all qmd index-building steps (cache restore/save, Node.js, SDK install, github-script).
 	qmdSteps := generateQmdIndexSteps(data.QmdConfig)
 
-	// Note: qmd indexing GitHub API calls are made via actions/github-script (@actions/github
-	// Octokit), which uses GITHUB_API_URL / GITHUB_GRAPHQL_URL rather than GH_HOST.
-	// The DIFC proxy started by buildStartDIFCProxyStepYAML() only sets GH_HOST, so it does
-	// not intercept qmd's traffic. We therefore do not wrap qmd indexing steps with the proxy.
+	// Wrap qmd indexing steps with the DIFC proxy when guard policies are configured.
+	// The proxy now sets GITHUB_API_URL, GITHUB_GRAPHQL_URL, and NODE_EXTRA_CA_CERTS in
+	// addition to GH_HOST, so it intercepts Octokit calls made by actions/github-script
+	// during qmd indexing.
 	if hasDIFCGuardsConfigured(data) {
-		qmdLog.Print("DIFC guards configured; qmd indexing steps are not wrapped with GH_HOST-based DIFC proxy")
+		qmdLog.Print("DIFC guards configured; wrapping qmd indexing steps with DIFC proxy")
+		startStep := c.buildStartDIFCProxyStepYAML(data)
+		if startStep != "" {
+			steps = append(steps, startStep)
+			steps = append(steps, qmdSteps...)
+			steps = append(steps, buildStopDIFCProxyStepYAML())
+		} else {
+			steps = append(steps, qmdSteps...)
+		}
+	} else {
+		steps = append(steps, qmdSteps...)
 	}
-	steps = append(steps, qmdSteps...)
 
 	// The indexing job runs after the activation job to inherit the artifact prefix output.
 	needs := []string{string(constants.ActivationJobName)}
