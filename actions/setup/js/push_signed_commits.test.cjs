@@ -437,6 +437,48 @@ describe("push_signed_commits integration tests", () => {
       expect(secondCallArg.expectedHeadOid).toBe("signed-oid-first");
       expect(secondCallArg.message.headline).toBe("Add beta.txt");
     });
+
+    it("should continue with signed commits when createRef returns 422 (concurrent branch creation)", async () => {
+      execGit(["checkout", "-b", "race-condition-branch"], { cwd: workDir });
+      fs.writeFileSync(path.join(workDir, "race.txt"), "Race content\n");
+      execGit(["add", "race.txt"], { cwd: workDir });
+      execGit(["commit", "-m", "Race commit"], { cwd: workDir });
+
+      const expectedParentOid = execGit(["rev-parse", "HEAD^"], { cwd: workDir }).stdout.trim();
+
+      global.exec = makeRealExec(workDir);
+
+      // Simulate concurrent branch creation: createRef throws 422 (GitHub API exact format)
+      const concurrentError = Object.assign(new Error("Reference refs/heads/race-condition-branch already exists"), { status: 422 });
+      const githubClient = {
+        graphql: vi.fn(async () => ({ createCommitOnBranch: { commit: { oid: "signed-oid-race" } } })),
+        rest: {
+          git: {
+            createRef: vi.fn(async () => {
+              throw concurrentError;
+            }),
+          },
+        },
+      };
+
+      await pushSignedCommits({
+        githubClient,
+        owner: "test-owner",
+        repo: "test-repo",
+        branch: "race-condition-branch",
+        baseRef: "origin/main",
+        cwd: workDir,
+      });
+
+      // createRef was attempted but threw 422 – should continue, not fall back
+      expect(githubClient.rest.git.createRef).toHaveBeenCalledTimes(1);
+      expect(githubClient.graphql).toHaveBeenCalledTimes(1);
+      const callArg = githubClient.graphql.mock.calls[0][1].input;
+      expect(callArg.expectedHeadOid).toBe(expectedParentOid);
+      expect(callArg.message.headline).toBe("Race commit");
+      // Should log the concurrent-creation info message
+      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("created concurrently"));
+    });
   });
 
   // ──────────────────────────────────────────────────────

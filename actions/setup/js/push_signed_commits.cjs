@@ -25,7 +25,7 @@ const path = require("path");
  * Falls back to `git push` if the GraphQL approach fails (e.g. on GHES).
  *
  * @param {object} opts
- * @param {any} opts.githubClient - Authenticated Octokit client with .graphql()
+ * @param {any} opts.githubClient - Authenticated Octokit client with `.graphql()` and `.rest.git.createRef()`
  * @param {string} opts.owner - Repository owner
  * @param {string} opts.repo - Repository name
  * @param {string} opts.branch - Target branch name
@@ -76,13 +76,27 @@ async function pushSignedCommits({ githubClient, owner, repo, branch, baseRef, c
             throw new Error(`Could not resolve OID for new branch ${branch}`);
           }
           core.info(`pushSignedCommits: creating remote branch ${branch} at parent OID ${expectedHeadOid}`);
-          await githubClient.rest.git.createRef({
-            owner,
-            repo,
-            ref: `refs/heads/${branch}`,
-            sha: expectedHeadOid,
-          });
-          core.info(`pushSignedCommits: remote branch ${branch} created successfully`);
+          try {
+            await githubClient.rest.git.createRef({
+              owner,
+              repo,
+              ref: `refs/heads/${branch}`,
+              sha: expectedHeadOid,
+            });
+            core.info(`pushSignedCommits: remote branch ${branch} created successfully`);
+          } catch (createRefError) {
+            /** @type {any} */
+            const err = createRefError;
+            const status = err && typeof err === "object" ? err.status : undefined;
+            const message = err && typeof err === "object" ? String(err.message || "") : "";
+            // If the branch was created concurrently between our ls-remote check and this call,
+            // GitHub returns 422 "Reference refs/heads/<branch> already exists". Treat that as success and continue.
+            if (status === 422 && /reference.*already exists/i.test(message)) {
+              core.info(`pushSignedCommits: remote branch ${branch} was created concurrently (422 Reference already exists); continuing with signed commits`);
+            } else {
+              throw createRefError;
+            }
+          }
         } else {
           core.info(`pushSignedCommits: using remote HEAD OID from ls-remote: ${expectedHeadOid}`);
         }
