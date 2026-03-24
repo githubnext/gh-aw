@@ -236,6 +236,12 @@ func listWorkflowRunsWithPagination(opts ListWorkflowRunsOptions) ([]WorkflowRun
 			return nil, 0, fmt.Errorf("invalid field in JSON query (exit code %d): %s", exitCode, string(output))
 		}
 
+		// Ignore 403 errors (e.g. rate limit exceeded) – treat as no results.
+		if strings.Contains(combinedMsgLower, "http 403") {
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage("GitHub API returned 403, skipping: "+strings.TrimSpace(outputMsg)))
+			return nil, 0, nil
+		}
+
 		// Check for authentication errors.
 		// "exit status 1" is intentionally omitted: gh exits 1 for many non-auth
 		// errors (e.g. unsupported JSON fields), so matching it caused misleading

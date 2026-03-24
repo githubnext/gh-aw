@@ -50,6 +50,7 @@ func TestListWorkflowRunsErrorHandling(t *testing.T) {
 		outputMsg        string
 		wantInvalidField bool
 		wantAuth         bool
+		want403          bool
 	}{
 		{
 			name:             "unknown JSON field (capital U, as gh CLI emits)",
@@ -96,6 +97,18 @@ func TestListWorkflowRunsErrorHandling(t *testing.T) {
 			outputMsg: "not logged into any GitHub hosts",
 			wantAuth:  true,
 		},
+		{
+			name:      "HTTP 403 rate limit is ignored (not an error)",
+			errMsg:    "exit status 1",
+			outputMsg: "HTTP 403: API rate limit exceeded for installation.",
+			want403:   true,
+		},
+		{
+			name:      "HTTP 403 Forbidden is ignored",
+			errMsg:    "exit status 1",
+			outputMsg: "HTTP 403: Forbidden",
+			want403:   true,
+		},
 	}
 
 	for _, tt := range tests {
@@ -109,7 +122,8 @@ func TestListWorkflowRunsErrorHandling(t *testing.T) {
 				strings.Contains(combinedMsgLower, "unknown json") ||
 				strings.Contains(combinedMsgLower, "field not found") ||
 				strings.Contains(combinedMsgLower, "no such field")
-			isAuth := !isInvalidField && (strings.Contains(combinedMsg, "exit status 4") ||
+			is403 := strings.Contains(combinedMsgLower, "http 403")
+			isAuth := !isInvalidField && !is403 && (strings.Contains(combinedMsg, "exit status 4") ||
 				strings.Contains(combinedMsg, "not logged into any GitHub hosts") ||
 				strings.Contains(combinedMsg, "To use GitHub CLI in a GitHub Actions workflow") ||
 				strings.Contains(combinedMsg, "authentication required") ||
@@ -118,14 +132,21 @@ func TestListWorkflowRunsErrorHandling(t *testing.T) {
 			if tt.wantInvalidField {
 				assert.True(t, isInvalidField, "expected invalid-field classification")
 				assert.False(t, isAuth, "invalid-field errors must not be classified as auth errors")
+				assert.False(t, is403, "invalid-field errors must not be classified as 403 errors")
 			}
 			if tt.wantAuth {
 				assert.False(t, isInvalidField, "auth errors must not be classified as invalid-field errors")
 				assert.True(t, isAuth, "expected auth classification")
 			}
-			if !tt.wantInvalidField && !tt.wantAuth {
+			if tt.want403 {
+				assert.True(t, is403, "expected 403 classification")
+				assert.False(t, isAuth, "403 errors must not be classified as auth errors")
+				assert.False(t, isInvalidField, "403 errors must not be classified as invalid-field errors")
+			}
+			if !tt.wantInvalidField && !tt.wantAuth && !tt.want403 {
 				assert.False(t, isInvalidField, "should not be invalid-field")
 				assert.False(t, isAuth, "should not be auth")
+				assert.False(t, is403, "should not be 403")
 			}
 		})
 	}
