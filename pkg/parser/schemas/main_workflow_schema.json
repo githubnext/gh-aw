@@ -66,45 +66,139 @@
       ]
     },
     "imports": {
-      "type": "array",
-      "description": "Optional array of workflow specifications to import (similar to @include directives but defined in frontmatter). Format: owner/repo/path@ref (e.g., githubnext/agentics/workflows/shared/common.md@v1.0.0). Can be strings or objects with path and inputs. Any markdown files under .github/agents directory are treated as custom agent files and only one agent file is allowed per workflow.",
-      "items": {
-        "oneOf": [
-          {
-            "type": "string",
-            "description": "Workflow specification in format owner/repo/path@ref. Markdown files under .github/agents/ are treated as agent configuration files."
-          },
-          {
-            "type": "object",
-            "description": "Import specification with path and optional inputs",
-            "required": ["path"],
-            "additionalProperties": false,
-            "properties": {
-              "path": {
+      "description": "Workflow specifications to import. Supports array form (list of paths) or object form with 'aw' (agentic workflow paths) and 'apm-packages' (APM packages) subfields.",
+      "oneOf": [
+        {
+          "type": "array",
+          "description": "Array of workflow specifications to import (similar to @include directives but defined in frontmatter). Format: owner/repo/path@ref (e.g., githubnext/agentics/workflows/shared/common.md@v1.0.0). Can be strings or objects with path and inputs. Any markdown files under .github/agents directory are treated as custom agent files and only one agent file is allowed per workflow.",
+          "items": {
+            "oneOf": [
+              {
                 "type": "string",
                 "description": "Workflow specification in format owner/repo/path@ref. Markdown files under .github/agents/ are treated as agent configuration files."
               },
-              "inputs": {
+              {
                 "type": "object",
-                "description": "Input values to pass to the imported workflow. Keys are input names declared in the imported workflow's inputs section, values can be strings or expressions.",
-                "additionalProperties": {
-                  "oneOf": [
-                    {
-                      "type": "string"
-                    },
-                    {
-                      "type": "number"
-                    },
-                    {
-                      "type": "boolean"
+                "description": "Import specification with path and optional inputs",
+                "required": ["path"],
+                "additionalProperties": false,
+                "properties": {
+                  "path": {
+                    "type": "string",
+                    "description": "Workflow specification in format owner/repo/path@ref. Markdown files under .github/agents/ are treated as agent configuration files."
+                  },
+                  "inputs": {
+                    "type": "object",
+                    "description": "Input values to pass to the imported workflow. Keys are input names declared in the imported workflow's inputs section, values can be strings or expressions.",
+                    "additionalProperties": {
+                      "oneOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "number"
+                        },
+                        {
+                          "type": "boolean"
+                        }
+                      ]
                     }
-                  ]
+                  }
                 }
               }
+            ]
+          }
+        },
+        {
+          "type": "object",
+          "description": "Object form of imports with 'aw' subfield for shared agentic workflow paths and 'apm-packages' subfield for APM packages.",
+          "additionalProperties": false,
+          "properties": {
+            "aw": {
+              "type": "array",
+              "description": "Array of shared agentic workflow specifications to import. Format: owner/repo/path@ref or relative paths.",
+              "items": {
+                "oneOf": [
+                  {
+                    "type": "string",
+                    "description": "Workflow specification in format owner/repo/path@ref. Markdown files under .github/agents/ are treated as agent configuration files."
+                  },
+                  {
+                    "type": "object",
+                    "description": "Import specification with path and optional inputs",
+                    "required": ["path"],
+                    "additionalProperties": false,
+                    "properties": {
+                      "path": {
+                        "type": "string",
+                        "description": "Workflow specification in format owner/repo/path@ref."
+                      },
+                      "inputs": {
+                        "type": "object",
+                        "description": "Input values to pass to the imported workflow.",
+                        "additionalProperties": {
+                          "oneOf": [{ "type": "string" }, { "type": "number" }, { "type": "boolean" }]
+                        }
+                      }
+                    }
+                  }
+                ]
+              }
+            },
+            "apm-packages": {
+              "description": "APM package references to install. Supports array format (list of package slugs) or object format with packages and configuration fields. Replaces the top-level 'dependencies' field.",
+              "oneOf": [
+                {
+                  "type": "array",
+                  "description": "Simple array of APM package references.",
+                  "items": {
+                    "type": "string",
+                    "pattern": "^[a-zA-Z0-9_-]+/[a-zA-Z0-9_./-]+$",
+                    "description": "APM package reference in the format 'org/repo' or 'org/repo/path/to/skill'"
+                  }
+                },
+                {
+                  "type": "object",
+                  "description": "Object format with packages and optional configuration.",
+                  "properties": {
+                    "packages": {
+                      "type": "array",
+                      "description": "List of APM package references to install.",
+                      "items": {
+                        "type": "string",
+                        "pattern": "^[a-zA-Z0-9_-]+/[a-zA-Z0-9_./-]+$",
+                        "description": "APM package reference in the format 'org/repo' or 'org/repo/path/to/skill'"
+                      }
+                    },
+                    "isolated": {
+                      "type": "boolean",
+                      "description": "If true, agent restore step clears primitive dirs before unpacking."
+                    },
+                    "github-app": {
+                      "$ref": "#/$defs/github_app",
+                      "description": "GitHub App credentials for minting installation access tokens used by APM to access cross-org private repositories."
+                    },
+                    "env": {
+                      "type": "object",
+                      "description": "Environment variables to set on the APM pack step.",
+                      "additionalProperties": {
+                        "type": "string"
+                      }
+                    },
+                    "github-token": {
+                      "type": "string",
+                      "description": "GitHub token expression to authenticate APM with private package repositories.",
+                      "examples": ["${{ secrets.MY_TOKEN }}", "${{ secrets.GH_AW_GITHUB_TOKEN }}"]
+                    }
+                  },
+                  "required": ["packages"],
+                  "additionalProperties": false
+                }
+              ]
             }
           }
-        ]
-      },
+        }
+      ],
       "examples": [
         ["shared/jqschema.md", "shared/reporting.md"],
         ["shared/mcp/gh-aw.md", "shared/jqschema.md", "shared/reporting.md"],
@@ -117,7 +211,20 @@
               "count": 50
             }
           }
-        ]
+        ],
+        {
+          "aw": ["shared/common-tools.md", "shared/mcp/tavily.md"],
+          "apm-packages": ["microsoft/apm-sample-package"]
+        },
+        {
+          "apm-packages": {
+            "packages": ["microsoft/apm-sample-package"],
+            "github-app": {
+              "app-id": "${{ vars.APP_ID }}",
+              "private-key": "${{ secrets.APP_PRIVATE_KEY }}"
+            }
+          }
+        }
       ]
     },
     "resources": {

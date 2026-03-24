@@ -259,26 +259,25 @@ func collectImports(workflowPath string, files map[string]bool, visited map[stri
 	}
 	runPushLog.Printf("Found imports field in %s", workflowPath)
 
-	// Parse imports field - can be array of strings or objects with path
+	// Parse imports field - can be array of strings or objects with path,
+	// or an object with 'aw' subfield for agentic workflow paths.
 	workflowDir := filepath.Dir(workflowPath)
 	runPushLog.Printf("Workflow directory: %s", workflowDir)
 	var imports []string
 
-	switch v := importsField.(type) {
-	case []any:
-		runPushLog.Printf("Parsing imports as []any with %d items", len(v))
-		for i, item := range v {
+	// extractPathsFromArray extracts file paths from a []any import list.
+	extractPathsFromArray := func(items []any) []string {
+		var paths []string
+		for i, item := range items {
 			switch importItem := item.(type) {
 			case string:
-				// Simple string import
 				runPushLog.Printf("Import %d: string format: %s", i, importItem)
-				imports = append(imports, importItem)
+				paths = append(paths, importItem)
 			case map[string]any:
-				// Object import with path field
 				if pathValue, hasPath := importItem["path"]; hasPath {
 					if pathStr, ok := pathValue.(string); ok {
 						runPushLog.Printf("Import %d: object format with path: %s", i, pathStr)
-						imports = append(imports, pathStr)
+						paths = append(paths, pathStr)
 					} else {
 						runPushLog.Printf("Import %d: object has path but not string type", i)
 					}
@@ -289,9 +288,29 @@ func collectImports(workflowPath string, files map[string]bool, visited map[stri
 				runPushLog.Printf("Import %d: unknown type: %T", i, importItem)
 			}
 		}
+		return paths
+	}
+
+	switch v := importsField.(type) {
+	case []any:
+		runPushLog.Printf("Parsing imports as []any with %d items", len(v))
+		imports = extractPathsFromArray(v)
 	case []string:
 		runPushLog.Printf("Parsing imports as []string with %d items", len(v))
 		imports = v
+	case map[string]any:
+		// Object form: extract paths from the 'aw' subfield.
+		// The 'apm-packages' subfield contains package names, not file paths.
+		if awAny, hasAW := v["aw"]; hasAW {
+			switch aw := awAny.(type) {
+			case []any:
+				runPushLog.Printf("Parsing imports.aw as []any with %d items", len(aw))
+				imports = extractPathsFromArray(aw)
+			case []string:
+				runPushLog.Printf("Parsing imports.aw as []string with %d items", len(aw))
+				imports = aw
+			}
+		}
 	default:
 		runPushLog.Printf("Imports field has unexpected type: %T", v)
 	}
