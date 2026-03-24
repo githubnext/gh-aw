@@ -29,7 +29,7 @@
 #     - shared/mcp/qmd-docs.md
 #     - shared/mcp/serena-go.md
 #
-# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"47e3b17f44c458a779f7d5490b17eb1950c8164fa9daad52bee5e2dba654fbab","strict":true,"agent_id":"copilot"}
+# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"a5bdc251c3aad2bc78d92e15ae17cdd3779267847819379ca5c3106b8566e06c","strict":true,"agent_id":"copilot"}
 
 name: "Glossary Maintainer"
 "on":
@@ -1230,7 +1230,7 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           QMD_CONFIG_JSON: |
-            {"dbPath":"/tmp/gh-aw/qmd-index","checkouts":[{"name":"gh-aw","path":"${GITHUB_WORKSPACE}","patterns":["docs/src/content/docs/**",".github/agents/**",".github/aw/**"],"context":"gh-aw project documentation, agent definitions, and workflow authoring instructions"}]}
+            {"dbPath":"/tmp/gh-aw/qmd-index","checkouts":[{"name":"gh-aw","path":"${GITHUB_WORKSPACE}","pattern":"**","context":"gh-aw project documentation, agent definitions, and workflow authoring instructions"}]}
         with:
           github-token: ${{ github.token }}
           script: |

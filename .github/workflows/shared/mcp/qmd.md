@@ -14,10 +14,7 @@ tools:
     gpu: true
     checkouts:
       - name: gh-aw
-        paths:
-          - docs/src/content/docs/**
-          - .github/agents/**
-          - .github/aw/**
+        pattern: "**"
         context: "gh-aw project documentation, agent definitions, and workflow authoring instructions"
 
 ---

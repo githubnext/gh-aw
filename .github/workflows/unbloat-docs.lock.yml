@@ -28,7 +28,7 @@
 #     - shared/mcp/qmd-docs.md
 #     - shared/reporting.md
 #
-# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"b7c20ff52120c2c16aac5840e967abfc541237b1a432fdfab78f8b2bdaf89940","strict":true,"agent_id":"claude"}
+# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"7097ddbe7c989659ac7c1e3e4b7f6dab7a4e74e9a8a965f5e80d046bd5927168","strict":true,"agent_id":"claude"}
 
 name: "Documentation Unbloat"
 "on":
@@ -1445,7 +1445,7 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           QMD_CONFIG_JSON: |
-            {"dbPath":"/tmp/gh-aw/qmd-index","checkouts":[{"name":"gh-aw","path":"${GITHUB_WORKSPACE}","patterns":["docs/src/content/docs/**",".github/agents/**",".github/aw/**"],"context":"gh-aw project documentation, agent definitions, and workflow authoring instructions"}]}
+            {"dbPath":"/tmp/gh-aw/qmd-index","checkouts":[{"name":"gh-aw","path":"${GITHUB_WORKSPACE}","pattern":"**","context":"gh-aw project documentation, agent definitions, and workflow authoring instructions"}]}
         with:
           github-token: ${{ github.token }}
           script: |

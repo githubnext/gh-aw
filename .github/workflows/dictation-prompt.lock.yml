@@ -27,7 +27,7 @@
 #     - shared/mcp/qmd-docs.md
 #     - shared/reporting.md
 #
-# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"b4168ffd78ff821c188b34a9a18020ea527c48c89aad43789745ba68535bbb84","strict":true,"agent_id":"copilot"}
+# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"ff155427c477ad1546145ced78c0d088dfa386a79797863224d9364516bf4e54","strict":true,"agent_id":"copilot"}
 
 name: "Dictation Prompt Generator"
 "on":
@@ -1128,7 +1128,7 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           QMD_CONFIG_JSON: |
-            {"dbPath":"/tmp/gh-aw/qmd-index","checkouts":[{"name":"gh-aw","path":"${GITHUB_WORKSPACE}","patterns":["docs/src/content/docs/**",".github/agents/**",".github/aw/**"],"context":"gh-aw project documentation, agent definitions, and workflow authoring instructions"}]}
+            {"dbPath":"/tmp/gh-aw/qmd-index","checkouts":[{"name":"gh-aw","path":"${GITHUB_WORKSPACE}","pattern":"**","context":"gh-aw project documentation, agent definitions, and workflow authoring instructions"}]}
         with:
           github-token: ${{ github.token }}
           script: |

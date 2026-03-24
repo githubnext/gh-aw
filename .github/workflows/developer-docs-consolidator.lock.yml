@@ -28,7 +28,7 @@
 #     - shared/mcp/serena-go.md
 #     - shared/reporting.md
 #
-# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"68e584f60e5ed953e63f7a8b4b124ef023ad3b0759e7f3b33098120f159cfd7e","strict":true,"agent_id":"claude"}
+# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"4cef3776ff016656aafada3fe04b706816bc20c8418719f89c5fe235512672fe","strict":true,"agent_id":"claude"}
 
 name: "Developer Documentation Consolidator"
 "on":
@@ -1338,7 +1338,7 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           QMD_CONFIG_JSON: |
-            {"dbPath":"/tmp/gh-aw/qmd-index","checkouts":[{"name":"gh-aw","path":"${GITHUB_WORKSPACE}","patterns":["docs/src/content/docs/**",".github/agents/**",".github/aw/**"],"context":"gh-aw project documentation, agent definitions, and workflow authoring instructions"}]}
+            {"dbPath":"/tmp/gh-aw/qmd-index","checkouts":[{"name":"gh-aw","path":"${GITHUB_WORKSPACE}","pattern":"**","context":"gh-aw project documentation, agent definitions, and workflow authoring instructions"}]}
         with:
           github-token: ${{ github.token }}
           script: |
