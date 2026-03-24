@@ -42,7 +42,7 @@ async function getClient(tokenEnvVar) {
  */
 async function writeSummary(config, updateResult, embedResult) {
   try {
-    let md = "## qmd documentation index\n\n";
+    let md = "<details open>\n<summary>qmd documentation index</summary>\n\n";
 
     const checkouts = config.checkouts ?? [];
     if (checkouts.length > 0) {
@@ -85,6 +85,8 @@ async function writeSummary(config, updateResult, embedResult) {
         md += `| Embedded | ${embedResult.embedded} |\n`;
       }
     }
+
+    md += "\n</details>\n";
 
     await core.summary.addRaw(md).write();
   } catch (/** @type {any} */ err) {

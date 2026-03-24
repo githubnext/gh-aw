@@ -430,6 +430,9 @@ describe("qmd_index.cjs", () => {
     });
 
     const summaryText = mockCore.summary.addRaw.mock.calls.flat().join("\n");
+    expect(summaryText).toContain("<details open>");
+    expect(summaryText).toContain("<summary>qmd documentation index</summary>");
+    expect(summaryText).toContain("</details>");
     expect(summaryText).toContain("### Collections");
     expect(summaryText).toContain("| docs | **/*.md, **/*.mdx | Project docs |");
     expect(mockCore.summary.write).toHaveBeenCalledOnce();
@@ -445,6 +448,9 @@ describe("qmd_index.cjs", () => {
     });
 
     const summaryText = mockCore.summary.addRaw.mock.calls.flat().join("\n");
+    expect(summaryText).toContain("<details open>");
+    expect(summaryText).toContain("<summary>qmd documentation index</summary>");
+    expect(summaryText).toContain("</details>");
     expect(summaryText).toContain("### Searches");
     expect(summaryText).toContain("| api-docs | code | repo:owner/repo language:Markdown |");
   });
@@ -462,6 +468,9 @@ describe("qmd_index.cjs", () => {
     });
 
     const summaryText = mockCore.summary.addRaw.mock.calls.flat().join("\n");
+    expect(summaryText).toContain("<details open>");
+    expect(summaryText).toContain("<summary>qmd documentation index</summary>");
+    expect(summaryText).toContain("</details>");
     expect(summaryText).toContain("### Index stats");
     expect(summaryText).toContain("| Indexed | 7 |");
     expect(summaryText).toContain("| Embedded | 9 |");
