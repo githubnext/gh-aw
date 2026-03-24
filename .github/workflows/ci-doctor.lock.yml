@@ -24,9 +24,7 @@
 #
 # Source: githubnext/agentics/workflows/ci-doctor.md@ea350161ad5dcc9624cf510f134c6a9e39a6f94d
 #
-# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"56001ce273a9f7d7963037a40b21e5f07aa6b7887525c27a2a71ace5b03d8c81","stop_time":"2026-03-03 16:27:58","strict":true,"agent_id":"copilot","agent_model":"gpt-5.1-codex-mini"}
-#
-# Effective stop-time: 2026-03-03 16:27:58
+# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"76488d1c98ff8a029614585515c2231f113caf73d72ac1b7793546fe6cad43d7","strict":true,"agent_id":"copilot","agent_model":"gpt-5.1-codex-mini"}
 
 name: "CI Failure Doctor"
 "on":
@@ -37,7 +35,7 @@ name: "CI Failure Doctor"
     inputs:
       aw_context:
         default: ""
-        description: (Internal) JSON context injected by the calling agentic workflow. Not intended for direct user input.
+        description: Agent caller context (used internally by Agentic Workflows).
         required: false
         type: string
       item_number:
@@ -45,13 +43,6 @@ name: "CI Failure Doctor"
         description: The number of the issue, pull request, or discussion
         required: false
         type: string
-  workflow_run:
-    branches:
-    - main
-    types:
-    - completed
-    workflows:
-    - CI
 
 permissions: {}
 
@@ -63,11 +54,8 @@ run-name: "CI Failure Doctor"
 jobs:
   activation:
     needs: pre_activation
-    # zizmor: ignore[dangerous-triggers] - workflow_run trigger is secured with role and fork validation
     if: >
-      (needs.pre_activation.outputs.activated == 'true' && ((github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'failure') ||
-      github.event_name == 'pull_request')) && (github.event_name != 'workflow_run' || github.event.workflow_run.repository.id == github.repository_id &&
-      (!(github.event.workflow_run.repository.fork)))
+      needs.pre_activation.outputs.activated == 'true' && (github.event_name == 'pull_request' && github.event.label.name == 'ci-doctor')
     runs-on: ubuntu-slim
     permissions:
       contents: read
@@ -200,6 +188,7 @@ jobs:
           GH_AW_GITHUB_REPOSITORY: ${{ github.repository }}
           GH_AW_GITHUB_RUN_ID: ${{ github.run_id }}
           GH_AW_GITHUB_WORKSPACE: ${{ github.workspace }}
+        # poutine:ignore untrusted_checkout_exec
         run: |
           bash ${RUNNER_TEMP}/gh-aw/actions/create_prompt_first.sh
           {
@@ -333,10 +322,12 @@ jobs:
       - name: Validate prompt placeholders
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
+        # poutine:ignore untrusted_checkout_exec
         run: bash ${RUNNER_TEMP}/gh-aw/actions/validate_prompt_placeholders.sh
       - name: Print prompt
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
+        # poutine:ignore untrusted_checkout_exec
         run: bash ${RUNNER_TEMP}/gh-aw/actions/print_prompt_summary.sh
       - name: Upload activation artifact
         if: success()
@@ -1230,14 +1221,12 @@ jobs:
             await main();
 
   pre_activation:
-    if: >
-      (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'failure') ||
-      github.event_name == 'pull_request'
+    if: github.event_name == 'pull_request' && github.event.label.name == 'ci-doctor'
     runs-on: ubuntu-slim
     permissions:
       contents: read
     outputs:
-      activated: ${{ steps.check_membership.outputs.is_team_member == 'true' && steps.check_stop_time.outputs.stop_time_ok == 'true' }}
+      activated: ${{ steps.check_membership.outputs.is_team_member == 'true' }}
       matched_command: ''
     steps:
       - name: Checkout actions folder
@@ -1262,18 +1251,6 @@ jobs:
             const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');
             setupGlobals(core, github, context, exec, io);
             const { main } = require('${{ runner.temp }}/gh-aw/actions/check_membership.cjs');
-            await main();
-      - name: Check stop-time limit
-        id: check_stop_time
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
-        env:
-          GH_AW_STOP_TIME: "2026-03-03 16:27:58"
-          GH_AW_WORKFLOW_NAME: "CI Failure Doctor"
-        with:
-          script: |
-            const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');
-            setupGlobals(core, github, context, exec, io);
-            const { main } = require('${{ runner.temp }}/gh-aw/actions/check_stop_time.cjs');
             await main();
 
   safe_outputs:

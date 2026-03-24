@@ -110,6 +110,30 @@ make golint-incremental BASE_REF=origin/main  # 50-75% faster on PRs
 ```
 **When to use**: Testing individual workflow compilation.
 
+#### Compile against a different actions repository
+
+When developing changes to `github/gh-aw-actions`, compile workflows against your fork or branch before the changes are released:
+
+```bash
+# Compile against a fork with a specific branch or SHA
+./gh-aw compile --action-mode action \
+  --actions-repo myorg/my-aw-actions \
+  --action-tag my-feature-branch \
+  .github/workflows/my-workflow.md
+
+# Compile against the default repo pinned to a specific SHA
+./gh-aw compile --action-mode action \
+  --action-tag abc123def456 \
+  .github/workflows/my-workflow.md
+```
+
+Flags:
+- `--action-mode action` — Required when using `--actions-repo`. References actions as GitHub Actions from the external repository instead of inlining scripts locally.
+- `--actions-repo <owner/repo>` — Override the default `github/gh-aw-actions` repository (e.g., a personal fork).
+- `--action-tag <tag-or-sha>` — Pin action references to a specific tag, branch, or commit SHA.
+
+**When to use**: Validating workflow compilation against a feature branch in `github/gh-aw-actions` before a release.
+
 #### Watch and auto-compile workflows on changes
 ```bash
 make watch  # Or: ./gh-aw compile --watch
