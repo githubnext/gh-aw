@@ -290,8 +290,6 @@ async function main(config = {}) {
       };
     }
 
-    processedCount++;
-
     // Merge external resolved temp IDs with our local map
     if (resolvedTemporaryIds) {
       for (const [tempId, resolved] of Object.entries(resolvedTemporaryIds)) {
@@ -490,13 +488,13 @@ async function main(config = {}) {
     // Group-by-day check: if enabled, search for an existing open issue created today.
     // When found, post the new content as a comment on the existing issue instead of
     // creating a duplicate. This groups multiple same-day runs into a single issue.
-    // NOTE: processedCount was already incremented above. If we post as a comment, we undo
-    // the increment here so the max-count slot is not consumed.
+    // The max-count slot is NOT consumed when posting as a comment (processedCount is
+    // only incremented below, just before actual issue creation).
     if (groupByDayEnabled && (closeOlderKey || workflowId)) {
       const today = new Date().toISOString().split("T")[0]; // YYYY-MM-DD (UTC)
       try {
         const existingIssues = await searchOlderIssues(
-          github,
+          githubClient,
           repoParts.owner,
           repoParts.repo,
           workflowId,
@@ -510,10 +508,8 @@ async function main(config = {}) {
         });
         if (todayIssue) {
           core.info(`Group-by-day: found open issue #${todayIssue.number} created today (${today}) — posting new content as a comment`);
-          const comment = await addIssueComment(github, repoParts.owner, repoParts.repo, todayIssue.number, body);
+          const comment = await addIssueComment(githubClient, repoParts.owner, repoParts.repo, todayIssue.number, body);
           core.info(`Posted content as comment ${comment.html_url} on issue #${todayIssue.number}`);
-          // Undo the processedCount increment so the max limit is not consumed
-          processedCount--;
           return {
             success: true,
             grouped: true,
@@ -527,6 +523,10 @@ async function main(config = {}) {
         core.warning(`Group-by-day pre-check failed: ${getErrorMessage(error)} — proceeding with issue creation`);
       }
     }
+
+    // Increment processed count only when we are about to create an issue
+    // (group-by-day comment paths return above without consuming a slot)
+    processedCount++;
 
     core.info(`Creating issue in ${qualifiedItemRepo} with title: ${title}`);
     core.info(`Labels: ${labels.join(", ")}`);
