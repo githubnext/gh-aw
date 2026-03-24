@@ -329,9 +329,9 @@ func (c *Compiler) buildConclusionJob(data *WorkflowData, mainJobName string, sa
 	}
 	customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_AGENT_CONCLUSION: ${{ needs.%s.result }}\n", mainJobName))
 
-	// Pass detection conclusion if threat detection is enabled (inline in agent job)
+	// Pass detection conclusion if threat detection is enabled (in separate detection job)
 	if data.SafeOutputs.ThreatDetection != nil {
-		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_DETECTION_CONCLUSION: ${{ needs.%s.outputs.detection_conclusion }}\n", mainJobName))
+		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_DETECTION_CONCLUSION: ${{ needs.%s.outputs.detection_conclusion }}\n", constants.DetectionJobName))
 		notifyCommentLog.Print("Added detection conclusion environment variable to conclusion job")
 	}
 
@@ -436,8 +436,12 @@ func (c *Compiler) buildConclusionJob(data *WorkflowData, mainJobName string, sa
 	needs := []string{mainJobName, string(constants.ActivationJobName)}
 	needs = append(needs, safeOutputJobNames...)
 
-	// Detection is now inline in the agent job — no separate dependency needed.
-	// The conclusion job accesses detection_conclusion via needs.agent.outputs.detection_conclusion.
+	// When threat detection is enabled, the conclusion job also depends on the detection job
+	// so that needs.detection.outputs.detection_conclusion is accessible.
+	if data.SafeOutputs.ThreatDetection != nil {
+		needs = append(needs, string(constants.DetectionJobName))
+		notifyCommentLog.Print("Added detection job dependency to conclusion job")
+	}
 
 	notifyCommentLog.Printf("Job built successfully: dependencies_count=%d", len(needs))
 

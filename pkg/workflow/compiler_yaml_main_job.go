@@ -536,15 +536,6 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 		c.generateFirewallAuditLogsUploadStep(yaml, agentArtifactPrefix)
 	}
 
-	// Add inline threat detection steps after all agent artifact uploads.
-	// Detection runs inside the agent job using sandbox.agent with fully blocked network.
-	if data.SafeOutputs != nil && data.SafeOutputs.ThreatDetection != nil {
-		detectionSteps := c.buildInlineDetectionSteps(data)
-		for _, line := range detectionSteps {
-			yaml.WriteString(line)
-		}
-	}
-
 	// Add GitHub MCP app token invalidation step if configured (runs always, even on failure)
 	c.generateGitHubMCPAppTokenInvalidationStep(yaml, data)
 

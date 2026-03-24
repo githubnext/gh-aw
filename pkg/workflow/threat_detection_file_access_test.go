@@ -210,7 +210,7 @@ func TestBuildThreatDetectionAnalysisStep_ConfiguresEnvironment(t *testing.T) {
 			name: "includes HAS_PATCH env var",
 			data: createTestWorkflowData(t, &ThreatDetectionConfig{}),
 			checkStep: func(t *testing.T, stepsString string) {
-				assert.Contains(t, stepsString, "HAS_PATCH: ${{ steps.collect_output.outputs.has_patch }}", "should include HAS_PATCH env var from collect_output step")
+				assert.Contains(t, stepsString, "HAS_PATCH: ${{ needs.agent.outputs.has_patch }}", "should include HAS_PATCH env var from agent job output")
 			},
 		},
 	}

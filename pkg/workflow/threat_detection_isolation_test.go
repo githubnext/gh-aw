@@ -49,28 +49,31 @@ Test workflow`
 
 	yamlStr := string(result)
 
-	// Detection is now inline in the agent job - no separate detection job
+	// Detection is now a separate detection job - agent job should NOT contain inline detection steps
 	agentSection := extractJobSection(yamlStr, "agent")
 	if agentSection == "" {
 		t.Fatal("Agent job not found in compiled workflow")
 	}
 
-	// Test 1: Agent job should contain inline detection steps
-	if !strings.Contains(agentSection, "detection_guard") {
-		t.Error("Agent job should contain detection_guard step for inline detection")
+	// Test 1: Detection job should exist as a separate job
+	detectionSection := extractJobSection(yamlStr, "detection")
+	if detectionSection == "" {
+		t.Error("Detection job should exist as a separate job")
 	}
-	if !strings.Contains(agentSection, "parse_detection_results") {
-		t.Error("Agent job should contain parse_detection_results step for inline detection")
+	if !strings.Contains(detectionSection, "detection_guard") {
+		t.Error("Detection job should contain detection_guard step")
+	}
+	if !strings.Contains(detectionSection, "parse_detection_results") {
+		t.Error("Detection job should contain parse_detection_results step")
 	}
 
 	// Test 2: Detection engine step should use limited tools (no --allow-all-tools)
 	// The detection copilot invocation uses only shell tools for analysis
-	if !strings.Contains(agentSection, "parse_threat_detection_results.cjs") {
-		t.Error("Agent job should contain parse_threat_detection_results.cjs for detection")
+	if !strings.Contains(detectionSection, "parse_threat_detection_results.cjs") {
+		t.Error("Detection job should contain parse_threat_detection_results.cjs for detection")
 	}
 
 	// Test 3: Main agent job should still have --allow-tool or --allow-all-tools for the main agent execution
-	// (before the detection steps)
 	if !strings.Contains(agentSection, "--allow-tool") && !strings.Contains(agentSection, "--allow-all-tools") {
 		t.Error("Main agent job should have --allow-tool or --allow-all-tools arguments")
 	}
@@ -80,8 +83,8 @@ Test workflow`
 		t.Error("Main agent job should have MCP setup step")
 	}
 
-	// Test 5: No separate detection job should exist
-	if strings.Contains(yamlStr, "\n  detection:\n") {
-		t.Error("Separate detection job should NOT exist (detection is now inline in agent job)")
+	// Test 5: A separate detection job should exist
+	if !strings.Contains(yamlStr, "  detection:") {
+		t.Error("Separate detection job should exist")
 	}
 }

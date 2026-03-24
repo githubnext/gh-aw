@@ -658,7 +658,7 @@ const AgentOutputArtifactName = "agent-output"
 const AgentArtifactName = "agent"
 
 // DetectionArtifactName is the artifact name for the threat detection log.
-const DetectionArtifactName = "detection"
+const DetectionArtifactName = "detection-artifact"
 
 // LegacyDetectionArtifactName is the old artifact name used before the rename.
 // Kept for backward compatibility when downloading artifacts from older workflow runs.
