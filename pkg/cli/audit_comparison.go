@@ -137,15 +137,20 @@ func buildAuditComparison(current auditComparisonSnapshot, baselineRun *Workflow
 
 	if current.Turns > baseline.Turns {
 		reasonCodes = append(reasonCodes, "turns_increase")
+	} else if current.Turns < baseline.Turns {
+		reasonCodes = append(reasonCodes, "turns_decrease")
 	}
 	if baseline.Posture != current.Posture {
 		reasonCodes = append(reasonCodes, "posture_changed")
 	}
 	if current.BlockedRequests > baseline.BlockedRequests {
 		reasonCodes = append(reasonCodes, "blocked_requests_increase")
+	} else if current.BlockedRequests < baseline.BlockedRequests {
+		reasonCodes = append(reasonCodes, "blocked_requests_decrease")
 	}
 
 	newMCPFailure := len(baseline.MCPFailures) == 0 && len(current.MCPFailures) > 0
+	mcpFailuresResolved := len(baseline.MCPFailures) > 0 && len(current.MCPFailures) == 0
 	if newMCPFailure || len(baseline.MCPFailures) > 0 || len(current.MCPFailures) > 0 {
 		delta.MCPFailure = &AuditComparisonMCPFailureDelta{
 			Before:       baseline.MCPFailures,
@@ -155,6 +160,8 @@ func buildAuditComparison(current auditComparisonSnapshot, baselineRun *Workflow
 	}
 	if newMCPFailure {
 		reasonCodes = append(reasonCodes, "new_mcp_failure")
+	} else if mcpFailuresResolved {
+		reasonCodes = append(reasonCodes, "mcp_failures_resolved")
 	}
 
 	label := "stable"
@@ -165,6 +172,12 @@ func buildAuditComparison(current auditComparisonSnapshot, baselineRun *Workflow
 		label = "risky"
 	case current.BlockedRequests > baseline.BlockedRequests:
 		label = "risky"
+	case delta.Posture.Before != "" && delta.Posture.After != "" && delta.Posture.Before != delta.Posture.After:
+		label = "changed"
+	case mcpFailuresResolved:
+		label = "changed"
+	case current.BlockedRequests < baseline.BlockedRequests:
+		label = "changed"
 	case len(reasonCodes) > 0:
 		label = "changed"
 	}

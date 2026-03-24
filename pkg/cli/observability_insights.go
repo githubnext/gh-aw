@@ -317,10 +317,14 @@ func renderObservabilityInsights(insights []ObservabilityInsight) {
 	for _, insight := range insights {
 		icon := "[info]"
 		switch insight.Severity {
+		case "critical":
+			icon = "[critical]"
 		case "high":
 			icon = "[high]"
 		case "medium":
 			icon = "[medium]"
+		case "low":
+			icon = "[low]"
 		}
 
 		fmt.Fprintf(os.Stderr, "  %s %s [%s]\n", icon, insight.Title, insight.Category)

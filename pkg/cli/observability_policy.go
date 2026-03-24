@@ -1,5 +1,7 @@
 package cli
 
+import "fmt"
+
 type ObservabilityPolicy struct {
 	SchemaVersion string                    `json:"schema_version"`
 	Rules         []ObservabilityPolicyRule `json:"rules"`
@@ -114,7 +116,7 @@ func evaluateObservabilityPolicyRule(rule ObservabilityPolicyRule, payload Obser
 			return ObservabilityPolicyViolation{}, false
 		}
 		matched = true
-		evidenceParts = append(evidenceParts, "blocked_requests_gte")
+		evidenceParts = append(evidenceParts, fmt.Sprintf("blocked_requests_gte=%d actual=%d", rule.Match.MinBlockedRequests, blocked))
 	}
 
 	if len(rule.Match.InsightSeverities) > 0 {

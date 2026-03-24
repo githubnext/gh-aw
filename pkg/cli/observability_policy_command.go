@@ -225,6 +225,8 @@ func renderObservabilityPolicyEvaluation(evaluation ObservabilityPolicyEvaluatio
 			fmt.Fprintln(os.Stderr, console.FormatErrorMessage(message))
 		case "gate":
 			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(message))
+		case "warn":
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(message))
 		default:
 			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(message))
 		}

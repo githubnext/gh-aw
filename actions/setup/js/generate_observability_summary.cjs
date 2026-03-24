@@ -20,27 +20,27 @@ function readJSONIfExists(path) {
 }
 
 function countBlockedRequests() {
+  let total = 0;
+
   for (const path of gatewayEventPaths) {
     if (!fs.existsSync(path)) {
       continue;
     }
 
-    const content = fs.readFileSync(path, "utf8");
-    return content
-      .split("\n")
-      .map(line => line.trim())
-      .filter(Boolean)
-      .reduce((count, line) => {
-        try {
-          const entry = JSON.parse(line);
-          return entry && entry.type === "DIFC_FILTERED" ? count + 1 : count;
-        } catch {
-          return count;
-        }
-      }, 0);
+    const lines = fs.readFileSync(path, "utf8").split("\n");
+    for (const raw of lines) {
+      const line = raw.trim();
+      if (!line) continue;
+      try {
+        const entry = JSON.parse(line);
+        if (entry && entry.type === "DIFC_FILTERED") total++;
+      } catch {
+        // skip malformed lines
+      }
+    }
   }
 
-  return 0;
+  return total;
 }
 
 function uniqueCreatedItemTypes(items) {
