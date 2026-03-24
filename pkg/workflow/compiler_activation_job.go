@@ -443,47 +443,9 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 	compilerActivationJobLog.Print("Generating prompt in activation job")
 	c.generatePromptInActivationJob(&steps, data, preActivationJobCreated, customJobsBeforeActivation)
 
-	// Generate APM pack step if dependencies are specified.
-	// The pack step runs after prompt generation and uploads as a separate "apm" artifact.
-	if data.APMDependencies != nil && len(data.APMDependencies.Packages) > 0 {
-		// Mint a GitHub App token before the pack step if a github-app is configured for APM.
-		// This allows APM to access cross-org private repositories.
-		if data.APMDependencies.GitHubApp != nil {
-			compilerActivationJobLog.Print("Adding APM GitHub App token mint step for cross-org access")
-			// In workflow_call relay workflows the activation job contains a resolve-host-repo step
-			// that identifies the platform (host) repository. Use its output as the fallback
-			// repositories value so the minted token is scoped to the host repo's NAME rather than
-			// github.event.repository.name (the caller repo in cross-repo workflow_call scenarios).
-			var apmFallbackRepoExpr string
-			if hasWorkflowCallTrigger(data.On) && !data.InlinedImports {
-				apmFallbackRepoExpr = "${{ steps.resolve-host-repo.outputs.target_repo_name }}"
-			}
-			steps = append(steps, buildAPMAppTokenMintStep(data.APMDependencies.GitHubApp, apmFallbackRepoExpr)...)
-		}
-		compilerActivationJobLog.Printf("Adding APM pack step: %d packages", len(data.APMDependencies.Packages))
-		apmTarget := engine.GetAPMTarget()
-		apmPackStep := GenerateAPMPackStep(data.APMDependencies, apmTarget, data)
-		for _, line := range apmPackStep {
-			steps = append(steps, line+"\n")
-		}
-		// Upload the packed APM bundle as a separate artifact for the agent job to download.
-		// The path comes from the apm_pack step output `bundle-path`, which microsoft/apm-action
-		// sets to the location of the packed .tar.gz archive.
-		compilerActivationJobLog.Print("Adding APM bundle artifact upload step")
-		apmArtifactName := artifactPrefixExprForActivationJob(data) + constants.APMArtifactName
-		steps = append(steps, "      - name: Upload APM bundle artifact\n")
-		steps = append(steps, "        if: success()\n")
-		steps = append(steps, fmt.Sprintf("        uses: %s\n", GetActionPin("actions/upload-artifact")))
-		steps = append(steps, "        with:\n")
-		steps = append(steps, fmt.Sprintf("          name: %s\n", apmArtifactName))
-		steps = append(steps, "          path: ${{ steps.apm_pack.outputs.bundle-path }}\n")
-		steps = append(steps, "          retention-days: 1\n")
-		// Invalidate the APM GitHub App token after use to enforce least-privilege token lifecycle.
-		if data.APMDependencies.GitHubApp != nil {
-			compilerActivationJobLog.Print("Adding APM GitHub App token invalidation step")
-			steps = append(steps, buildAPMAppTokenInvalidationStep()...)
-		}
-	}
+	// APM packaging is handled by the separate "apm" job that depends on activation.
+	// That job packs the bundle and uploads it as an artifact; the agent job then
+	// depends on the apm job to download and restore it.
 
 	// qmd indexing is handled by the separate "indexing" job that depends on activation.
 	// That job builds the index and saves/restores it via the GitHub Actions cache, and the agent job
@@ -558,19 +520,6 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 		environment = "environment: " + cleanManualApproval
 	}
 
-	// Set job-level GH_AW_INFO_APM_VERSION so the apm_pack step can reference it
-	// via ${{ env.GH_AW_INFO_APM_VERSION }} in its with: block
-	var activationJobEnv map[string]string
-	if data.APMDependencies != nil && len(data.APMDependencies.Packages) > 0 {
-		apmVersion := data.APMDependencies.Version
-		if apmVersion == "" {
-			apmVersion = string(constants.DefaultAPMVersion)
-		}
-		activationJobEnv = map[string]string{
-			"GH_AW_INFO_APM_VERSION": apmVersion,
-		}
-	}
-
 	job := &Job{
 		Name:                       string(constants.ActivationJobName),
 		If:                         activationCondition,
@@ -578,7 +527,6 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 		RunsOn:                     c.formatSafeOutputsRunsOn(data.SafeOutputs),
 		Permissions:                permissions,
 		Environment:                environment,
-		Env:                        activationJobEnv,
 		Steps:                      steps,
 		Outputs:                    outputs,
 		Needs:                      activationNeeds, // Depend on pre-activation job if it exists

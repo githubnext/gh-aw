@@ -73,8 +73,6 @@ jobs:
       discussions: write
       issues: write
       pull-requests: write
-    env:
-      GH_AW_INFO_APM_VERSION: v0.8.5
     outputs:
       body: ${{ steps.sanitized.outputs.body }}
       comment_id: ${{ steps.add-comment.outputs.comment-id }}
@@ -657,27 +655,6 @@ jobs:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         # poutine:ignore untrusted_checkout_exec
         run: bash ${RUNNER_TEMP}/gh-aw/actions/print_prompt_summary.sh
-      - name: Install and pack APM dependencies
-        id: apm_pack
-        uses: microsoft/apm-action@cc84c04bc73e19e35527f1efa34ea003be9f037f # v1.4.0
-        env:
-          GITHUB_TOKEN: ${{ secrets.GH_AW_PLUGINS_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
-        with:
-          dependencies: |
-            - microsoft/apm-sample-package
-          isolated: 'true'
-          pack: 'true'
-          archive: 'true'
-          target: claude
-          working-directory: /tmp/gh-aw/apm-workspace
-          apm-version: ${{ env.GH_AW_INFO_APM_VERSION }}
-      - name: Upload APM bundle artifact
-        if: success()
-        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7
-        with:
-          name: apm
-          path: ${{ steps.apm_pack.outputs.bundle-path }}
-          retention-days: 1
       - name: Upload activation artifact
         if: success()
         uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7
@@ -689,7 +666,9 @@ jobs:
           retention-days: 1
 
   agent:
-    needs: activation
+    needs:
+      - activation
+      - apm
     runs-on: ubuntu-latest
     permissions:
       actions: read
@@ -2384,6 +2363,35 @@ jobs:
             echo "success=false" >> "$GITHUB_OUTPUT"
             echo "Detection found issues"
           fi
+
+  apm:
+    needs: activation
+    runs-on: ubuntu-slim
+    permissions: {}
+    env:
+      GH_AW_INFO_APM_VERSION: v0.8.5
+    steps:
+      - name: Install and pack APM dependencies
+        id: apm_pack
+        uses: microsoft/apm-action@cc84c04bc73e19e35527f1efa34ea003be9f037f # v1.4.0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GH_AW_PLUGINS_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
+        with:
+          dependencies: |
+            - microsoft/apm-sample-package
+          isolated: 'true'
+          pack: 'true'
+          archive: 'true'
+          target: claude
+          working-directory: /tmp/gh-aw/apm-workspace
+          apm-version: ${{ env.GH_AW_INFO_APM_VERSION }}
+      - name: Upload APM bundle artifact
+        if: success()
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7
+        with:
+          name: apm
+          path: ${{ steps.apm_pack.outputs.bundle-path }}
+          retention-days: 1
 
   conclusion:
     needs:
