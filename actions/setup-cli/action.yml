@@ -23,7 +23,8 @@ runs:
       env:
         INPUT_VERSION: ${{ inputs.version }}
         GH_TOKEN: ${{ inputs.github-token }}
-      run: ${{ github.action_path }}/install.sh
+        ACTION_PATH: ${{ github.action_path }}
+      run: "$ACTION_PATH/install.sh"
 
 branding:
   icon: 'download'

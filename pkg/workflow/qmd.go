@@ -113,6 +113,7 @@ func generateQmdStartStep(qmdConfig *QmdToolConfig) string {
 	version := string(constants.DefaultQmdVersion)
 	port := constants.DefaultQmdMCPPort
 	portStr := strconv.Itoa(port)
+	qmdLog.Printf("Generating qmd start step: version=%s, port=%d, gpu=%v", version, port, qmdConfig.GPU)
 
 	var sb strings.Builder
 
@@ -231,9 +232,12 @@ func generateQmdIndexCacheRestoreExactStep(qmdConfig *QmdToolConfig) string {
 // (e.g. "gh-aw-qmd-2.0.1-12345678")
 func resolveQmdCacheKey(qmdConfig *QmdToolConfig) string {
 	if qmdConfig.CacheKey != "" {
+		qmdLog.Printf("Using custom qmd cache key: %s", qmdConfig.CacheKey)
 		return qmdConfig.CacheKey
 	}
-	return fmt.Sprintf("gh-aw-qmd-%s-${{ github.run_id }}", string(constants.DefaultQmdVersion))
+	key := fmt.Sprintf("gh-aw-qmd-%s-${{ github.run_id }}", string(constants.DefaultQmdVersion))
+	qmdLog.Printf("Using default qmd cache key: %s", key)
+	return key
 }
 
 // resolveQmdRestoreKeys returns the restore-keys prefix list for the qmd index cache.
@@ -337,6 +341,7 @@ func resolveQmdWorkdir(col *QmdDocCollection) string {
 
 // buildQmdConfig constructs the qmdBuildConfig from the user-provided QmdToolConfig.
 func buildQmdConfig(qmdConfig *QmdToolConfig) qmdBuildConfig {
+	qmdLog.Printf("Building qmd config: checkouts=%d, searches=%d", len(qmdConfig.Checkouts), len(qmdConfig.Searches))
 	cfg := qmdBuildConfig{
 		DBPath: "/tmp/gh-aw/qmd-index",
 	}

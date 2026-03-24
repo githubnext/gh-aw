@@ -29,7 +29,7 @@ We assume the adversary does not compromise the underlying hardware or cryptogra
 
 ### Layer 1: Substrate-Level Trust
 
-AWs run on a GitHub Actions runner virtual machine (VM) and trust Actions' hardware and kernel-level enforcement mechanisms, including the CPU, MMU, kernel, and container runtime. AWs also rely on three privileged containers: (1) a network firewall that is trusted to configure connectivity for other components via 'iptables' and launch the agent container, (2) an API proxy that holds authentication tokens so that they do not need to be shared with the agent container (when supported), and (3) an MCP Gateway that is trusted to configure and spawn isolated MCP-server containers. Collectively, the substrate level ensures memory isolation between components, CPU and resource isolation, mediation of privileged operations and system calls, and explicit, kernel-enforced communication boundaries. These guarantees hold even if an untrusted user-level component is fully compromised and executes arbitrary code. Trust violations at the substrate level require vulnerabilities in the firewall, MCP Gateway, container runtime, kernel, hypervisor, or hardware. If this layer fails, higher-level security guarantees may not hold.
+AWs run on a GitHub Actions runner virtual machine (VM) and trust Actions' hardware and kernel-level enforcement mechanisms, including the CPU, MMU, kernel, and container runtime. AWs also rely on three privileged containers: (1) a network firewall that is trusted to configure connectivity for other components via `iptables` and launch the agent container, (2) an API proxy that routes model traffic and may hold endpoint-specific credentials or routing configuration for supported engines, and (3) an MCP Gateway that is trusted to configure and spawn isolated MCP-server containers. Collectively, the substrate level ensures memory isolation between components, CPU and resource isolation, mediation of privileged operations and system calls, and explicit, kernel-enforced communication boundaries. These guarantees hold even if an untrusted user-level component is fully compromised and executes arbitrary code. Trust violations at the substrate level require vulnerabilities in the firewall, MCP Gateway, container runtime, kernel, hypervisor, or hardware. If this layer fails, higher-level security guarantees may not hold.
 
 ---
 
@@ -260,7 +260,7 @@ flowchart LR
 2. The agent container can only egress through Squid. To reach the gateway, it uses `host.docker.internal:80` (Docker's host alias). This hostname must be included in the firewall's allowed list.
 3. The `gh-aw-mcpg` container publishes host port 80 mapped to container port 8000. It uses the Docker socket to spawn MCP server containers.
 4. All MCP traffic remains within the host boundary: AWF restricts egress, and the gateway routes requests to sandboxed MCP servers.
-5. When supported by an agent, AWF creates a trusted `api-proxy` that holds the agent's authentication token. The proxy keeps tokens out of the agent container so that they cannot be exfiltrated in a prompt-injection attack.
+5. When supported by an agent, AWF creates a trusted `api-proxy` that routes model traffic on the agent's behalf while keeping that traffic behind AWF's network controls. This proxy should not be treated as a separate caller-authentication boundary for arbitrary code already running inside the agent container.
 
 ## MCP Server Sandboxing
 

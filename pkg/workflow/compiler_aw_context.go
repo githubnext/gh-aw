@@ -2,7 +2,11 @@ package workflow
 
 import (
 	"strings"
+
+	"github.com/github/gh-aw/pkg/logger"
 )
+
+var awContextLog = logger.New("workflow:compiler_aw_context")
 
 // awContextInputDescription is the description for the aw_context workflow_dispatch input.
 // It signals to users that this input is managed internally by the agentic workflow system.
@@ -19,12 +23,15 @@ const awContextInputDescription = "Agent caller context (used internally by Agen
 // The function is idempotent: calling it twice produces the same result.
 func injectAwContextIntoOnYAML(onSection string) string {
 	if !strings.Contains(onSection, "workflow_dispatch") {
+		awContextLog.Print("No workflow_dispatch trigger found, skipping aw_context injection")
 		return onSection
 	}
 	// Idempotency: skip if already injected
 	if strings.Contains(onSection, "aw_context:") {
+		awContextLog.Print("aw_context already injected, skipping")
 		return onSection
 	}
+	awContextLog.Print("Injecting aw_context input into workflow_dispatch trigger")
 
 	lines := strings.Split(onSection, "\n")
 
@@ -45,8 +52,10 @@ func injectAwContextIntoOnYAML(onSection string) string {
 	}
 
 	if wdLineIdx == -1 {
+		awContextLog.Print("No bare workflow_dispatch: line found, skipping aw_context injection")
 		return onSection
 	}
+	awContextLog.Printf("Found workflow_dispatch at line %d (indent=%d), injecting aw_context", wdLineIdx, wdIndent)
 
 	// Look for an "inputs:" key directly inside workflow_dispatch (at wdIndent+2 depth).
 	// Only the first non-empty, non-comment line after wdLineIdx matters.
