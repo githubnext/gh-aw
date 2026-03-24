@@ -232,17 +232,18 @@ type AwInfoSteps struct {
 
 // AwInfo represents the structure of aw_info.json files
 type AwInfo struct {
-	EngineID        string      `json:"engine_id"`
-	EngineName      string      `json:"engine_name"`
-	Model           string      `json:"model"`
-	Version         string      `json:"version"`
-	CLIVersion      string      `json:"cli_version,omitempty"` // gh-aw CLI version
-	WorkflowName    string      `json:"workflow_name"`
-	Staged          bool        `json:"staged"`
-	AwfVersion      string      `json:"awf_version,omitempty"`      // AWF firewall version (new name)
-	FirewallVersion string      `json:"firewall_version,omitempty"` // AWF firewall version (old name, for backward compatibility)
-	Steps           AwInfoSteps `json:"steps,omitzero"`             // Steps metadata
-	CreatedAt       string      `json:"created_at"`
+	EngineID        string         `json:"engine_id"`
+	EngineName      string         `json:"engine_name"`
+	Model           string         `json:"model"`
+	Version         string         `json:"version"`
+	CLIVersion      string         `json:"cli_version,omitempty"` // gh-aw CLI version
+	WorkflowName    string         `json:"workflow_name"`
+	Staged          bool           `json:"staged"`
+	AwfVersion      string         `json:"awf_version,omitempty"`      // AWF firewall version (new name)
+	FirewallVersion string         `json:"firewall_version,omitempty"` // AWF firewall version (old name, for backward compatibility)
+	Steps           AwInfoSteps    `json:"steps,omitzero"`             // Steps metadata
+	CreatedAt       string         `json:"created_at"`
+	Context         map[string]any `json:"context,omitempty"` // aw_context data passed via workflow_dispatch inputs
 	// Additional fields that might be present
 	RunID      any    `json:"run_id,omitempty"`
 	RunNumber  any    `json:"run_number,omitempty"`

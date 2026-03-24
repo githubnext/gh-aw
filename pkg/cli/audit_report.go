@@ -67,18 +67,19 @@ type PerformanceMetrics struct {
 
 // OverviewData contains basic information about the workflow run
 type OverviewData struct {
-	RunID        int64     `json:"run_id" console:"header:Run ID"`
-	WorkflowName string    `json:"workflow_name" console:"header:Workflow"`
-	Status       string    `json:"status" console:"header:Status"`
-	Conclusion   string    `json:"conclusion,omitempty" console:"header:Conclusion,omitempty"`
-	CreatedAt    time.Time `json:"created_at" console:"header:Created At"`
-	StartedAt    time.Time `json:"started_at,omitzero" console:"header:Started At,omitempty"`
-	UpdatedAt    time.Time `json:"updated_at,omitzero" console:"header:Updated At,omitempty"`
-	Duration     string    `json:"duration,omitempty" console:"header:Duration,omitempty"`
-	Event        string    `json:"event" console:"header:Event"`
-	Branch       string    `json:"branch" console:"header:Branch"`
-	URL          string    `json:"url" console:"header:URL"`
-	LogsPath     string    `json:"logs_path,omitempty" console:"header:Files,omitempty"`
+	RunID        int64          `json:"run_id" console:"header:Run ID"`
+	WorkflowName string         `json:"workflow_name" console:"header:Workflow"`
+	Status       string         `json:"status" console:"header:Status"`
+	Conclusion   string         `json:"conclusion,omitempty" console:"header:Conclusion,omitempty"`
+	CreatedAt    time.Time      `json:"created_at" console:"header:Created At"`
+	StartedAt    time.Time      `json:"started_at,omitzero" console:"header:Started At,omitempty"`
+	UpdatedAt    time.Time      `json:"updated_at,omitzero" console:"header:Updated At,omitempty"`
+	Duration     string         `json:"duration,omitempty" console:"header:Duration,omitempty"`
+	Event        string         `json:"event" console:"header:Event"`
+	Branch       string         `json:"branch" console:"header:Branch"`
+	URL          string         `json:"url" console:"header:URL"`
+	LogsPath     string         `json:"logs_path,omitempty" console:"header:Files,omitempty"`
+	AwContext    map[string]any `json:"aw_context,omitempty" console:"-"` // aw_context data from aw_info.json
 }
 
 // MetricsData contains execution metrics
@@ -213,6 +214,14 @@ func buildAuditData(processedRun ProcessedRun, metrics LogMetrics, mcpToolUsage 
 
 	if run.LogsPath != "" {
 		overview.LogsPath = run.LogsPath
+	}
+
+	// Parse aw_info.json to extract aw_context if present
+	if run.LogsPath != "" {
+		awInfoPath := filepath.Join(run.LogsPath, "aw_info.json")
+		if info, err := parseAwInfo(awInfoPath, false); err == nil && info != nil {
+			overview.AwContext = info.Context
+		}
 	}
 
 	if run.Duration > 0 {
