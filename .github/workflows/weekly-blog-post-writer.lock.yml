@@ -1220,6 +1220,11 @@ jobs:
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           persist-credentials: false
+      - name: Start DIFC proxy for pre-agent gh calls
+        env:
+          GH_TOKEN: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
+        run: |
+          bash ${RUNNER_TEMP}/gh-aw/actions/start_difc_proxy.sh '{"allow-only":{"min-integrity":"approved","repos":["github/gh-aw"]}}' 'ghcr.io/github/gh-aw-mcpg:v0.2.4'
       - name: Restore qmd index from cache
         id: qmd-cache-restore
         uses: actions/cache/restore@668228422ae6a00e4ad889ee87cd7109ec5666a7 # v5.0.4
@@ -1266,6 +1271,10 @@ jobs:
         with:
           key: gh-aw-qmd-2.0.1-${{ github.run_id }}
           path: /tmp/gh-aw/qmd-index/
+      - name: Stop DIFC proxy
+        if: always()
+        continue-on-error: true
+        run: bash ${RUNNER_TEMP}/gh-aw/actions/stop_difc_proxy.sh
 
   push_repo_memory:
     needs: agent

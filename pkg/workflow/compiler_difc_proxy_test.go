@@ -579,4 +579,57 @@ func TestDIFCProxyInjectedInIndexingJob(t *testing.T) {
 		assert.Contains(t, stopStep, "Stop DIFC proxy")
 		assert.Contains(t, stopStep, "stop_difc_proxy.sh")
 	})
+
+	t.Run("buildQmdIndexingJob wraps steps with proxy when guard policy configured", func(t *testing.T) {
+		data := &WorkflowData{
+			Tools: map[string]any{
+				"github": map[string]any{"min-integrity": "approved"},
+			},
+			QmdConfig: &QmdToolConfig{
+				Searches: []*QmdSearchEntry{{Query: "repo:owner/repo language:Markdown"}},
+				CacheKey: "qmd-test",
+			},
+			SandboxConfig: &SandboxConfig{},
+		}
+		ensureDefaultMCPGatewayConfig(data)
+
+		job, err := c.buildQmdIndexingJob(data)
+		require.NoError(t, err, "buildQmdIndexingJob should succeed")
+		require.NotNil(t, job, "job should not be nil")
+
+		allSteps := strings.Join(job.Steps, "\n")
+		require.Contains(t, allSteps, "Start DIFC proxy for pre-agent gh calls",
+			"indexing job should include proxy start step when guard policy is configured")
+		require.Contains(t, allSteps, "Stop DIFC proxy",
+			"indexing job should include proxy stop step when guard policy is configured")
+
+		// Proxy start must come before the qmd index step and proxy stop must come after.
+		startIdx := strings.Index(allSteps, "Start DIFC proxy for pre-agent gh calls")
+		stopIdx := strings.Index(allSteps, "Stop DIFC proxy")
+		assert.Less(t, startIdx, stopIdx, "Start proxy must come before Stop proxy in indexing job")
+	})
+
+	t.Run("buildQmdIndexingJob has no proxy steps without guard policy", func(t *testing.T) {
+		data := &WorkflowData{
+			Tools: map[string]any{
+				"github": map[string]any{"toolsets": []string{"default"}},
+			},
+			QmdConfig: &QmdToolConfig{
+				Searches: []*QmdSearchEntry{{Query: "repo:owner/repo language:Markdown"}},
+				CacheKey: "qmd-test",
+			},
+			SandboxConfig: &SandboxConfig{},
+		}
+		ensureDefaultMCPGatewayConfig(data)
+
+		job, err := c.buildQmdIndexingJob(data)
+		require.NoError(t, err, "buildQmdIndexingJob should succeed")
+		require.NotNil(t, job, "job should not be nil")
+
+		allSteps := strings.Join(job.Steps, "\n")
+		assert.NotContains(t, allSteps, "Start DIFC proxy",
+			"indexing job should NOT include proxy start step without guard policy")
+		assert.NotContains(t, allSteps, "Stop DIFC proxy",
+			"indexing job should NOT include proxy stop step without guard policy")
+	})
 }
