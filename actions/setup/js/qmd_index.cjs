@@ -133,8 +133,20 @@ async function main() {
   const collections = {};
 
   for (const checkout of config.checkouts || []) {
-    const resolvedPath = resolveEnvVars(checkout.path);
-    const pattern = (checkout.patterns || ["**/*.md"]).join(",");
+    const rawPath = checkout.path;
+    const resolvedPath = resolveEnvVars(rawPath);
+    const patterns = checkout.patterns || ["**/*.md"];
+    const pattern = patterns.join(",");
+
+    core.info(`Collection "${checkout.name}": path="${rawPath}" -> "${resolvedPath}" pattern="${pattern}"`);
+
+    const pathExists = fs.existsSync(resolvedPath);
+    if (!pathExists) {
+      core.warning(`Collection "${checkout.name}": path "${resolvedPath}" does not exist — no files will be indexed`);
+    } else {
+      core.info(`Collection "${checkout.name}": path exists`);
+    }
+
     collections[checkout.name] = {
       path: resolvedPath,
       pattern,
@@ -230,6 +242,12 @@ async function main() {
   }
 
   // ── Create store and build index ─────────────────────────────────────────
+  const collectionNames = Object.keys(collections);
+  core.info(`Registering ${collectionNames.length} collection(s): ${collectionNames.join(", ")}`);
+  for (const [name, col] of Object.entries(collections)) {
+    core.info(`  [${name}] path="${col.path}" pattern="${col.pattern || "(default)"}"`);
+  }
+
   core.info(`Creating qmd store at ${dbPath}…`);
 
   const store = await createStore({ dbPath, config: { collections } });
@@ -247,6 +265,18 @@ async function main() {
       },
     });
     core.info(`Update complete: ${updateResult.indexed} indexed, ${updateResult.updated} updated, ` + `${updateResult.unchanged} unchanged, ${updateResult.removed} removed`);
+
+    const totalFiles = updateResult.indexed + updateResult.updated + updateResult.unchanged;
+    if (totalFiles === 0) {
+      core.warning(
+        "No files were indexed. Possible causes:\n" +
+          "  - The checkout path does not exist or was not checked out\n" +
+          "  - The glob patterns do not match any files (check for dotfile exclusions in patterns starting with '.')\n" +
+          "  - The pattern uses a comma-separated list that the qmd SDK does not support\n" +
+          "  - The checkout path resolves to an empty string (check ${ENV_VAR} placeholders in 'path')\n" +
+          "Review the collection log lines above for the resolved path and pattern."
+      );
+    }
 
     core.info("Generating embeddings (embed)…");
     embedResult = await store.embed({
