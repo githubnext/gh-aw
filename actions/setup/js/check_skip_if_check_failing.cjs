@@ -67,6 +67,41 @@ function isDeploymentCheck(run) {
   return slug === "github-deployments";
 }
 
+/**
+ * Fetches the check run IDs for all jobs in the current workflow run.
+ * These IDs are used to filter out the current workflow's own checks
+ * when evaluating the skip-if-check-failing condition, so that a workflow
+ * does not block itself due to its own in-progress jobs.
+ *
+ * @param {string} owner
+ * @param {string} repo
+ * @param {string | undefined} runId - The current workflow run ID (GITHUB_RUN_ID)
+ * @returns {Promise<Set<number>>} Set of check run IDs belonging to the current run
+ */
+async function getCurrentRunCheckRunIds(owner, repo, runId) {
+  if (!runId) return new Set();
+  const numericRunId = parseInt(runId, 10);
+  if (isNaN(numericRunId)) return new Set();
+  try {
+    const jobs = await github.paginate(github.rest.actions.listJobsForWorkflowRun, {
+      owner,
+      repo,
+      run_id: numericRunId,
+      per_page: 100,
+    });
+    const ids = new Set();
+    for (const job of jobs) {
+      if (typeof job.id === "number") {
+        ids.add(job.id);
+      }
+    }
+    return ids;
+  } catch (error) {
+    core.warning(`Could not fetch jobs for current workflow run (run_id=${numericRunId}): ${getErrorMessage(error)}. Current workflow's checks will not be filtered.`);
+    return new Set();
+  }
+}
+
 async function main() {
   const includeEnv = process.env.GH_AW_SKIP_CHECK_INCLUDE;
   const excludeEnv = process.env.GH_AW_SKIP_CHECK_EXCLUDE;
@@ -105,14 +140,25 @@ async function main() {
 
     core.info(`Found ${checkRuns.length} check run(s) on ref "${ref}"`);
 
+    // Fetch check run IDs for the current workflow run so we can exclude them.
+    // This prevents a workflow from blocking itself due to its own in-progress jobs
+    // appearing as failing checks on the ref.
+    const currentRunCheckRunIds = await getCurrentRunCheckRunIds(owner, repo, process.env.GITHUB_RUN_ID);
+
     // Filter to the latest run per check name (GitHub may have multiple runs per name).
-    // Deployment gate checks are silently skipped here so they never influence the gate.
+    // Deployment gate checks and the current run's own checks are silently skipped here
+    // so they never influence the gate.
     /** @type {Map<string, object>} */
     const latestByName = new Map();
     let deploymentCheckCount = 0;
+    let currentRunFilterCount = 0;
     for (const run of checkRuns) {
       if (isDeploymentCheck(run)) {
         deploymentCheckCount++;
+        continue;
+      }
+      if (currentRunCheckRunIds.has(run.id)) {
+        currentRunFilterCount++;
         continue;
       }
       const name = run.name;
@@ -124,6 +170,9 @@ async function main() {
 
     if (deploymentCheckCount > 0) {
       core.info(`Skipping ${deploymentCheckCount} deployment gate check(s) (app: github-deployments)`);
+    }
+    if (currentRunFilterCount > 0) {
+      core.info(`Skipping ${currentRunFilterCount} check run(s) from the current workflow run`);
     }
 
     // Apply user-defined include/exclude filtering

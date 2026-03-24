@@ -9,6 +9,12 @@ on:
     max: 5
   skip-if-no-match: "is:issue is:open"
   skip-if-check-failing:
+    include:
+      - build
+      - test
+      - lint-go
+      - lint-js
+    allow-pending: true
   permissions:
     issues: read
     pull-requests: read

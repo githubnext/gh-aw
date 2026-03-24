@@ -19,6 +19,9 @@ describe("check_skip_if_check_failing.cjs", () => {
         checks: {
           listForRef: vi.fn(),
         },
+        actions: {
+          listJobsForWorkflowRun: vi.fn(),
+        },
       },
       paginate: vi.fn(),
     };
@@ -46,6 +49,7 @@ describe("check_skip_if_check_failing.cjs", () => {
     delete process.env.GH_AW_SKIP_CHECK_EXCLUDE;
     delete process.env.GITHUB_BASE_REF;
     delete process.env.GH_AW_SKIP_CHECK_ALLOW_PENDING;
+    delete process.env.GITHUB_RUN_ID;
   });
 
   it("should allow workflow when all checks pass", async () => {
@@ -317,5 +321,92 @@ describe("check_skip_if_check_failing.cjs", () => {
     // build failed (not a deployment gate) → cancel
     expect(mockCore.setOutput).toHaveBeenCalledWith("skip_if_check_failing_ok", "false");
     expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("build"));
+  });
+
+  it("should filter out check runs from the current workflow run", async () => {
+    process.env.GITHUB_RUN_ID = "99999";
+
+    // paginate is called twice: first for listForRef (check runs), then for listJobsForWorkflowRun (current run jobs)
+    mockGithub.paginate
+      .mockResolvedValueOnce([
+        // current run's own pre_activation job (in_progress) — should be filtered
+        { id: 1001, name: "pre_activation", status: "in_progress", conclusion: null, started_at: "2024-01-01T00:00:00Z" },
+        // regular CI check that passed
+        { id: 2001, name: "build", status: "completed", conclusion: "success", started_at: "2024-01-01T00:00:00Z" },
+      ])
+      .mockResolvedValueOnce([
+        // jobs of the current workflow run
+        { id: 1001 },
+      ]);
+
+    const { main } = await import("./check_skip_if_check_failing.cjs");
+    await main();
+
+    // pre_activation from current run is filtered out; build passed → allow
+    expect(mockCore.setOutput).toHaveBeenCalledWith("skip_if_check_failing_ok", "true");
+    expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Skipping 1 check run(s) from the current workflow run"));
+  });
+
+  it("should allow workflow when all in-progress checks belong to the current run", async () => {
+    process.env.GITHUB_RUN_ID = "99999";
+
+    mockGithub.paginate
+      .mockResolvedValueOnce([
+        { id: 1001, name: "pre_activation", status: "in_progress", conclusion: null, started_at: "2024-01-01T00:00:00Z" },
+        { id: 1002, name: "agent", status: "in_progress", conclusion: null, started_at: "2024-01-01T00:00:00Z" },
+      ])
+      .mockResolvedValueOnce([{ id: 1001 }, { id: 1002 }]);
+
+    const { main } = await import("./check_skip_if_check_failing.cjs");
+    await main();
+
+    // all checks belong to current run → filtered out → no checks to evaluate → allow
+    expect(mockCore.setOutput).toHaveBeenCalledWith("skip_if_check_failing_ok", "true");
+    expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Skipping 2 check run(s) from the current workflow run"));
+  });
+
+  it("should still cancel when a non-current-run check fails", async () => {
+    process.env.GITHUB_RUN_ID = "99999";
+
+    mockGithub.paginate
+      .mockResolvedValueOnce([
+        { id: 1001, name: "pre_activation", status: "in_progress", conclusion: null, started_at: "2024-01-01T00:00:00Z" },
+        { id: 2001, name: "build", status: "completed", conclusion: "failure", started_at: "2024-01-01T00:00:00Z" },
+      ])
+      .mockResolvedValueOnce([{ id: 1001 }]);
+
+    const { main } = await import("./check_skip_if_check_failing.cjs");
+    await main();
+
+    // pre_activation filtered (current run); build failed → cancel
+    expect(mockCore.setOutput).toHaveBeenCalledWith("skip_if_check_failing_ok", "false");
+    expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("build"));
+  });
+
+  it("should not call listJobsForWorkflowRun when GITHUB_RUN_ID is not set", async () => {
+    // GITHUB_RUN_ID is not set (already cleared in afterEach)
+    mockGithub.paginate.mockResolvedValue([{ name: "build", status: "completed", conclusion: "success", started_at: "2024-01-01T00:00:00Z" }]);
+
+    const { main } = await import("./check_skip_if_check_failing.cjs");
+    await main();
+
+    expect(mockCore.setOutput).toHaveBeenCalledWith("skip_if_check_failing_ok", "true");
+    // Only one paginate call (listForRef), not two
+    expect(mockGithub.paginate).toHaveBeenCalledTimes(1);
+  });
+
+  it("should continue gracefully when listJobsForWorkflowRun API call fails", async () => {
+    process.env.GITHUB_RUN_ID = "99999";
+
+    mockGithub.paginate.mockResolvedValueOnce([{ id: 2001, name: "build", status: "completed", conclusion: "success", started_at: "2024-01-01T00:00:00Z" }]).mockRejectedValueOnce(new Error("API error fetching jobs"));
+
+    const { main } = await import("./check_skip_if_check_failing.cjs");
+    await main();
+
+    // API error for current run jobs → warning emitted, but workflow still evaluates remaining checks
+    expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("Could not fetch jobs for current workflow run"));
+    // build passed → allow
+    expect(mockCore.setOutput).toHaveBeenCalledWith("skip_if_check_failing_ok", "true");
+    expect(mockCore.setFailed).not.toHaveBeenCalled();
   });
 });

@@ -167,12 +167,12 @@ Some content here.`;
       const summary = generateGatewayLogSummary(gatewayLogContent, stderrLogContent);
 
       // Check gateway.log section
-      expect(summary).toContain("<summary>MCP Gateway Log (gateway.log)</summary>");
+      expect(summary).toContain("<summary><b>MCP Gateway Log (gateway.log)</b></summary>");
       expect(summary).toContain("Gateway started");
       expect(summary).toContain("Server listening on port 8080");
 
       // Check stderr.log section
-      expect(summary).toContain("<summary>MCP Gateway Log (stderr.log)</summary>");
+      expect(summary).toContain("<summary><b>MCP Gateway Log (stderr.log)</b></summary>");
       expect(summary).toContain("Debug: connection accepted");
       expect(summary).toContain("Debug: request processed");
 
@@ -188,9 +188,9 @@ Some content here.`;
 
       const summary = generateGatewayLogSummary(gatewayLogContent, stderrLogContent);
 
-      expect(summary).toContain("<summary>MCP Gateway Log (gateway.log)</summary>");
+      expect(summary).toContain("<summary><b>MCP Gateway Log (gateway.log)</b></summary>");
       expect(summary).toContain("Gateway started");
-      expect(summary).not.toContain("<summary>MCP Gateway Log (stderr.log)</summary>");
+      expect(summary).not.toContain("<summary><b>MCP Gateway Log (stderr.log)</b></summary>");
     });
 
     test("generates summary with only stderr.log content", () => {
@@ -199,8 +199,8 @@ Some content here.`;
 
       const summary = generateGatewayLogSummary(gatewayLogContent, stderrLogContent);
 
-      expect(summary).not.toContain("<summary>MCP Gateway Log (gateway.log)</summary>");
-      expect(summary).toContain("<summary>MCP Gateway Log (stderr.log)</summary>");
+      expect(summary).not.toContain("<summary><b>MCP Gateway Log (gateway.log)</b></summary>");
+      expect(summary).toContain("<summary><b>MCP Gateway Log (stderr.log)</b></summary>");
       expect(summary).toContain("Error: connection failed");
     });
 
@@ -709,6 +709,13 @@ Some content here.`;
       const events = [{ type: "DIFC_FILTERED", tool_name: "my_tool", description: "resource:my_tool" }];
       const summary = generateDifcFilteredSummary(events);
       expect(summary).toContain("resource:my_tool");
+    });
+
+    test("shows dash instead of #unknown when description resolves to #unknown", () => {
+      const events = [{ type: "DIFC_FILTERED", tool_name: "search_issues", description: "github:#unknown", reason: "has lower integrity" }];
+      const summary = generateDifcFilteredSummary(events);
+      expect(summary).not.toContain("#unknown");
+      expect(summary).toContain("| - |");
     });
 
     test("escapes pipe characters in reason", () => {

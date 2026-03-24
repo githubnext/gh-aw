@@ -31,6 +31,10 @@ safe-outputs:
     labels: [unbloat, automation]
     draft: true
     if-no-changes: "ignore"
+network:
+  allowed:
+    - proxy.golang.org
+    - sum.golang.org
 timeout-minutes: 20
 strict: true
 ---
