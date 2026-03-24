@@ -3,6 +3,7 @@
 package workflow
 
 import (
+	"strings"
 	"testing"
 )
 
@@ -598,6 +599,99 @@ func TestPermissions_AllRead(t *testing.T) {
 			}
 			if level != tt.expected {
 				t.Errorf("Get(%s) = %v, want %v", tt.scope, level, tt.expected)
+			}
+		})
+	}
+}
+
+func TestFilterJobLevelPermissions(t *testing.T) {
+	tests := []struct {
+		name        string
+		input       string
+		expectEmpty bool
+		contains    []string
+		excludes    []string
+	}{
+		{
+			name:        "empty input returns empty",
+			input:       "",
+			expectEmpty: true,
+			contains:    []string{},
+			excludes:    []string{},
+		},
+		{
+			name:  "standard permissions are preserved",
+			input: "permissions:\n  contents: read\n  issues: write",
+			contains: []string{
+				"permissions:",
+				"  contents: read",
+				"  issues: write",
+			},
+			excludes: []string{},
+		},
+		{
+			name:  "vulnerability-alerts is filtered out",
+			input: "permissions:\n  contents: read\n  pull-requests: read\n  security-events: read\n  vulnerability-alerts: read",
+			contains: []string{
+				"permissions:",
+				"  contents: read",
+				"  pull-requests: read",
+				"  security-events: read",
+			},
+			excludes: []string{"vulnerability-alerts"},
+		},
+		{
+			name:  "multiple GitHub App-only scopes are filtered out",
+			input: "permissions:\n  contents: read\n  issues: write\n  administration: read\n  members: read\n  vulnerability-alerts: read",
+			contains: []string{
+				"permissions:",
+				"  contents: read",
+				"  issues: write",
+			},
+			excludes: []string{"administration", "members", "vulnerability-alerts"},
+		},
+		{
+			name:        "only GitHub App-only scopes returns empty string",
+			input:       "permissions:\n  vulnerability-alerts: read\n  members: read",
+			expectEmpty: true,
+			contains:    []string{},
+			excludes:    []string{"vulnerability-alerts", "members"},
+		},
+		{
+			name:     "shorthand read-all is preserved unchanged",
+			input:    "permissions: read-all",
+			contains: []string{"permissions: read-all"},
+			excludes: []string{},
+		},
+		{
+			name:     "shorthand write-all is preserved unchanged",
+			input:    "permissions: write-all",
+			contains: []string{"permissions: write-all"},
+			excludes: []string{},
+		},
+		{
+			name:     "shorthand none is preserved unchanged",
+			input:    "permissions: none",
+			contains: []string{"permissions: none"},
+			excludes: []string{},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := filterJobLevelPermissions(tt.input)
+			if tt.expectEmpty && result != "" {
+				t.Errorf("filterJobLevelPermissions() should return empty string, but got:\n%q", result)
+			}
+			for _, expected := range tt.contains {
+				if !strings.Contains(result, expected) {
+					t.Errorf("filterJobLevelPermissions() should contain %q, but got:\n%q", expected, result)
+				}
+			}
+			for _, excluded := range tt.excludes {
+				if strings.Contains(result, excluded) {
+					t.Errorf("filterJobLevelPermissions() should NOT contain %q, but got:\n%q", excluded, result)
+				}
 			}
 		})
 	}
