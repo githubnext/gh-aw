@@ -88,7 +88,7 @@ type RunData struct {
 	LogsPath         string         `json:"logs_path" console:"header:Logs Path"`
 	Event            string         `json:"event" console:"-"`
 	Branch           string         `json:"branch" console:"-"`
-	AwContext        map[string]any `json:"aw_context,omitempty" console:"-"` // aw_context data from aw_info.json
+	AwContext        map[string]any `json:"context,omitempty" console:"-"` // aw_context data from aw_info.json
 }
 
 // ToolUsageSummary contains aggregated tool usage statistics

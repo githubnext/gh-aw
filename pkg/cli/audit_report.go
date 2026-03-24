@@ -79,7 +79,7 @@ type OverviewData struct {
 	Branch       string         `json:"branch" console:"header:Branch"`
 	URL          string         `json:"url" console:"header:URL"`
 	LogsPath     string         `json:"logs_path,omitempty" console:"header:Files,omitempty"`
-	AwContext    map[string]any `json:"aw_context,omitempty" console:"-"` // aw_context data from aw_info.json
+	AwContext    map[string]any `json:"context,omitempty" console:"-"` // aw_context data from aw_info.json
 }
 
 // MetricsData contains execution metrics
