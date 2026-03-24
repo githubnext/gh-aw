@@ -1,7 +1,7 @@
 # Developer Instructions
 
-**Version**: 4.1
-**Last Updated**: 2026-03-22
+**Version**: 4.2
+**Last Updated**: 2026-03-24
 **Purpose**: Consolidated development guidelines for GitHub Agentic Workflows
 
 This document consolidates specifications from the scratchpad directory into unified developer instructions. It provides architecture patterns, security guidelines, code organization rules, and testing practices.
@@ -242,6 +242,10 @@ CodingAgentEngine (composite)
 ```
 
 `BaseEngine` provides default implementations for `CapabilityProvider`, `LogParser`, and `SecurityProvider`. New engines embed `BaseEngine` and override only the methods they need to customize.
+
+**Engine-specific capability notes**:
+- `max-turns` (`SupportsMaxTurns`): Supported by Claude and Custom engines only. **Not supported by Copilot.** For Copilot workflows, use prompt optimization and `timeout-minutes` controls instead.
+- `firewall` (`SupportsFirewall`): Supported by Claude, Copilot, Codex, and Custom engines.
 
 **Engine Registry**: `EngineRegistry` provides centralized registration, lookup by ID or prefix, and plugin-support validation. Use it rather than direct struct instantiation.
 
@@ -2536,6 +2540,8 @@ These files are loaded automatically by compatible AI tools (e.g., GitHub Copilo
 - [Go Type Patterns](./go-type-patterns.md) - Semantic type aliases (LineLength, Version, WorkflowID, EngineName), typed slices, dynamic YAML/JSON handling, and `any` vs `interface{}` guidance
 - [Safe Output Messages](./safe-output-messages.md) - Safe output message design system: attribution footers, staged mode previews, patch previews, fallback messages, and message module architecture
 - [Testing Guidelines](./testing.md) - Testing framework: assert vs require, fuzz tests, security regression tests, benchmarks, and `make` test commands
+- [Token Budget Guidelines](./token-budget-guidelines.md) - Token budget targets and optimization strategies: `max-turns` engine restrictions (Claude/Custom only), `timeout-minutes` configuration, and prompt optimization patterns for Copilot workflows
+- [Custom GitHub Actions Build System](./actions.md) - Custom Go-based actions build system: directory structure (`actions/`), build tooling (`pkg/cli/actions_build_command.go`), action modes (standard vs dev), and CI integration
 
 ### External References
 
@@ -2547,6 +2553,7 @@ These files are loaded automatically by compatible AI tools (e.g., GitHub Copilo
 ---
 
 **Document History**:
+- v4.2 (2026-03-24): Added engine-specific capability notes to Engine Interface Architecture section (`max-turns` is Claude/Custom only, not Copilot; `firewall` support matrix). Added Related Documentation links for `token-budget-guidelines.md` (max-turns restrictions, timeout-minutes config, Copilot prompt optimization) and `actions.md` (custom Go-based actions build system). Coverage: 62 spec files.
 - v4.1 (2026-03-22): Updated `repos` → `allowed-repos` in GitHub MCP Guard Policies section (reflects PR #22331 codemod; `repos` is now a deprecated alias). Added deprecation migration note (`gh aw fix`). Added Related Documentation link for GitHub MCP Access Control Specification. Coverage: 66 spec files.
 - v4.0 (2026-03-22): Integrated 4 new spec files. CLI Command Patterns: added logger namespace convention (`cli:command_name`), console output rules (all to stderr via `console.FormatXxxMessage()`), config struct naming (`Config` suffix), standard short flags table, flag completion helpers. Go Type Patterns: added Semantic Type Aliases section (LineLength, Version, WorkflowID, EngineName, GitHubToolName, typed slices), dynamic YAML/JSON handling pattern, `any` vs `interface{}` standard (Go 1.18+). Testing: added Assert vs Require distinction with examples, security regression tests and fuzz tests file naming, running tests commands (`make test-unit`, `make test-security`, `make bench`, `make agent-finish`), no-mocks/no-suites rationale. Safe Outputs: added Message Module Architecture section with module table and import guidance. Related Documentation: added 4 new links. Coverage: 65 spec files.
 - v3.9 (2026-03-18): Added 5 previously uncovered spec files: Repo Memory section (from `repo-memory.md`: git-backed persistent storage, path conventions, configuration, validation limits), Release Management section (from `changesets.md`: changeset CLI, release workflow), Validation File Refactoring subsection (from `validation-refactoring.md`: complexity thresholds, naming conventions, process steps), String Processing subsection in Code Organization (from `string-sanitization-normalization.md`: sanitize vs normalize decision rule), and 7 new Related Documentation links. Coverage: 68 spec files (5 new).
