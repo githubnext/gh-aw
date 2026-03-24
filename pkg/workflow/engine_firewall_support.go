@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/github/gh-aw/pkg/console"
+	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
 )
 
@@ -113,6 +114,26 @@ func generateSquidLogsUploadStep(workflowName string) GitHubActionStep {
 	}
 
 	return GitHubActionStep(stepLines)
+}
+
+// generateFirewallAuditLogsUploadStep creates a dedicated GitHub Actions step to upload AWF structured
+// audit/observability logs as a named artifact. It is unconditionally added to every firewall-enabled
+// agentic workflow so users can inspect network activity, policy decisions, and blocked domains.
+// The prefix is prepended to the artifact name to avoid clashes in workflow_call context.
+func (c *Compiler) generateFirewallAuditLogsUploadStep(yaml *strings.Builder, prefix string) {
+	firewallLogsDir := constants.AWFProxyLogsDir + "/"
+	artifactName := prefix + string(constants.FirewallAuditArtifactName)
+
+	compilerYamlArtifactsLog.Printf("Generating firewall audit logs upload step with artifact name: %s", artifactName)
+
+	yaml.WriteString("      - name: Upload firewall audit logs\n")
+	yaml.WriteString("        if: always()\n")
+	yaml.WriteString("        continue-on-error: true\n")
+	fmt.Fprintf(yaml, "        uses: %s\n", GetActionPin("actions/upload-artifact"))
+	yaml.WriteString("        with:\n")
+	fmt.Fprintf(yaml, "          name: %s\n", artifactName)
+	fmt.Fprintf(yaml, "          path: %s\n", firewallLogsDir)
+	yaml.WriteString("          if-no-files-found: ignore\n")
 }
 
 // generateFirewallLogParsingStep creates a GitHub Actions step to parse firewall logs and create step summary.

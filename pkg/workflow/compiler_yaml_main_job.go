@@ -446,36 +446,13 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 	// The MCP gateway is always enabled, even when agent sandbox is disabled
 	c.generateMCPGatewayLogParsing(yaml)
 
-	// Add firewall log parsing steps (but not upload - collected for unified upload)
-	// For Copilot, Codex, and Claude engines
-	if _, ok := engine.(*CopilotEngine); ok {
-		if isFirewallEnabled(data) {
-			firewallLogParsing := generateFirewallLogParsingStep(data.Name)
-			for _, line := range firewallLogParsing {
-				yaml.WriteString(line + "\n")
-			}
-			// Collect firewall logs path for unified upload
-			artifactPaths = append(artifactPaths, "/tmp/gh-aw/sandbox/firewall/logs/")
-		}
-	}
-	if _, ok := engine.(*CodexEngine); ok {
-		if isFirewallEnabled(data) {
-			firewallLogParsing := generateFirewallLogParsingStep(data.Name)
-			for _, line := range firewallLogParsing {
-				yaml.WriteString(line + "\n")
-			}
-			// Collect firewall logs path for unified upload
-			artifactPaths = append(artifactPaths, "/tmp/gh-aw/sandbox/firewall/logs/")
-		}
-	}
-	if _, ok := engine.(*ClaudeEngine); ok {
-		if isFirewallEnabled(data) {
-			firewallLogParsing := generateFirewallLogParsingStep(data.Name)
-			for _, line := range firewallLogParsing {
-				yaml.WriteString(line + "\n")
-			}
-			// Collect firewall logs path for unified upload
-			artifactPaths = append(artifactPaths, "/tmp/gh-aw/sandbox/firewall/logs/")
+	// Add firewall log parsing and dedicated audit upload for all firewall-enabled engines.
+	// This replaces the previous per-engine blocks (Copilot, Codex, Claude) and extends
+	// support to all engines (including Gemini) so every agentic workflow uploads audit logs.
+	if isFirewallEnabled(data) {
+		firewallLogParsing := generateFirewallLogParsingStep(data.Name)
+		for _, line := range firewallLogParsing {
+			yaml.WriteString(line + "\n")
 		}
 	}
 
@@ -534,6 +511,12 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 	// In workflow_call context, apply the per-invocation prefix to avoid name clashes.
 	agentArtifactPrefix := artifactPrefixExprForDownstreamJob(data)
 	c.generateUnifiedArtifactUpload(yaml, artifactPaths, agentArtifactPrefix)
+
+	// Upload firewall audit logs as a dedicated artifact so users can inspect network
+	// activity, policy decisions, and blocked domains after the run (AWF v0.25.0+).
+	if isFirewallEnabled(data) {
+		c.generateFirewallAuditLogsUploadStep(yaml, agentArtifactPrefix)
+	}
 
 	// Add inline threat detection steps after all agent artifact uploads.
 	// Detection runs inside the agent job using sandbox.agent with fully blocked network.

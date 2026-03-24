@@ -377,6 +377,10 @@ const AWFDefaultCommand = "sudo -E awf"
 // AWFProxyLogsDir is the default directory for AWF proxy logs
 const AWFProxyLogsDir = "/tmp/gh-aw/sandbox/firewall/logs"
 
+// FirewallAuditArtifactName is the artifact name used for dedicated firewall audit log uploads.
+// All compiled agentic workflows upload the AWF structured audit/observability logs under this name.
+const FirewallAuditArtifactName = "firewall-audit-logs"
+
 // AWFDefaultLogLevel is the default log level for AWF
 const AWFDefaultLogLevel = "info"
 
