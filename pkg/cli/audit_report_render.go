@@ -33,9 +33,27 @@ func renderConsole(data AuditData, logsPath string) {
 	renderOverview(data.Overview)
 
 	if data.Comparison != nil {
-		fmt.Fprintln(os.Stderr, console.FormatSectionHeader("Comparison To Last Successful Run"))
+		fmt.Fprintln(os.Stderr, console.FormatSectionHeader("Comparison To Similar Successful Run"))
 		fmt.Fprintln(os.Stderr)
 		renderAuditComparison(data.Comparison)
+	}
+
+	if data.TaskDomain != nil {
+		fmt.Fprintln(os.Stderr, console.FormatSectionHeader("Detected Task Domain"))
+		fmt.Fprintln(os.Stderr)
+		renderTaskDomain(data.TaskDomain)
+	}
+
+	if data.BehaviorFingerprint != nil {
+		fmt.Fprintln(os.Stderr, console.FormatSectionHeader("Behavioral Fingerprint"))
+		fmt.Fprintln(os.Stderr)
+		renderBehaviorFingerprint(data.BehaviorFingerprint)
+	}
+
+	if len(data.AgenticAssessments) > 0 {
+		fmt.Fprintln(os.Stderr, console.FormatSectionHeader("Agentic Assessment"))
+		fmt.Fprintln(os.Stderr)
+		renderAgenticAssessments(data.AgenticAssessments)
 	}
 
 	// Key Findings Section - NEW
@@ -198,7 +216,7 @@ func renderAuditComparison(comparison *AuditComparisonData) {
 	}
 
 	if !comparison.BaselineFound || comparison.Baseline == nil || comparison.Delta == nil || comparison.Classification == nil {
-		fmt.Fprintln(os.Stderr, "  No previous successful run was available for baseline comparison.")
+		fmt.Fprintln(os.Stderr, "  No suitable successful run was available for baseline comparison.")
 		fmt.Fprintln(os.Stderr)
 		return
 	}
@@ -208,6 +226,12 @@ func renderAuditComparison(comparison *AuditComparisonData) {
 		fmt.Fprintf(os.Stderr, " (%s)", comparison.Baseline.Conclusion)
 	}
 	fmt.Fprintln(os.Stderr)
+	if comparison.Baseline.Selection != "" {
+		fmt.Fprintf(os.Stderr, "  Selection: %s\n", strings.ReplaceAll(comparison.Baseline.Selection, "_", " "))
+	}
+	if len(comparison.Baseline.MatchedOn) > 0 {
+		fmt.Fprintf(os.Stderr, "  Matched on: %s\n", strings.Join(comparison.Baseline.MatchedOn, ", "))
+	}
 	fmt.Fprintf(os.Stderr, "  Classification: %s\n", comparison.Classification.Label)
 	fmt.Fprintln(os.Stderr, "  Changes:")
 
@@ -224,7 +248,7 @@ func renderAuditComparison(comparison *AuditComparisonData) {
 		fmt.Fprintf(os.Stderr, "    - New MCP failure: %s\n", strings.Join(comparison.Delta.MCPFailure.After, ", "))
 	}
 	if len(comparison.Classification.ReasonCodes) == 0 {
-		fmt.Fprintln(os.Stderr, "    - No meaningful behavior change from the last successful baseline")
+		fmt.Fprintln(os.Stderr, "    - No meaningful behavior change from the selected successful baseline")
 	}
 	if comparison.Recommendation != nil && comparison.Recommendation.Action != "" {
 		fmt.Fprintf(os.Stderr, "  Recommended action: %s\n", comparison.Recommendation.Action)
@@ -257,6 +281,56 @@ func renderOverview(overview OverviewData) {
 // renderMetrics renders the metrics section using the new rendering system
 func renderMetrics(metrics MetricsData) {
 	fmt.Fprint(os.Stderr, console.RenderStruct(metrics))
+}
+
+type taskDomainDisplay struct {
+	Domain string `console:"header:Domain"`
+	Reason string `console:"header:Reason"`
+}
+
+type behaviorFingerprintDisplay struct {
+	Execution string `console:"header:Execution"`
+	Tools     string `console:"header:Tools"`
+	Actuation string `console:"header:Actuation"`
+	Resource  string `console:"header:Resources"`
+	Dispatch  string `console:"header:Dispatch"`
+}
+
+func renderTaskDomain(domain *TaskDomainInfo) {
+	if domain == nil {
+		return
+	}
+	fmt.Fprint(os.Stderr, console.RenderStruct(taskDomainDisplay{
+		Domain: domain.Label,
+		Reason: domain.Reason,
+	}))
+}
+
+func renderBehaviorFingerprint(fingerprint *BehaviorFingerprint) {
+	if fingerprint == nil {
+		return
+	}
+	fmt.Fprint(os.Stderr, console.RenderStruct(behaviorFingerprintDisplay{
+		Execution: fingerprint.ExecutionStyle,
+		Tools:     fingerprint.ToolBreadth,
+		Actuation: fingerprint.ActuationStyle,
+		Resource:  fingerprint.ResourceProfile,
+		Dispatch:  fingerprint.DispatchMode,
+	}))
+}
+
+func renderAgenticAssessments(assessments []AgenticAssessment) {
+	for _, assessment := range assessments {
+		severity := strings.ToUpper(assessment.Severity)
+		fmt.Fprintf(os.Stderr, "  [%s] %s\n", severity, assessment.Summary)
+		if assessment.Evidence != "" {
+			fmt.Fprintf(os.Stderr, "     Evidence: %s\n", assessment.Evidence)
+		}
+		if assessment.Recommendation != "" {
+			fmt.Fprintf(os.Stderr, "     Recommendation: %s\n", assessment.Recommendation)
+		}
+		fmt.Fprintln(os.Stderr)
+	}
 }
 
 // renderJobsTable renders the jobs as a table using console.RenderTable

@@ -354,9 +354,14 @@ func AuditWorkflowRun(ctx context.Context, runID int64, owner, repo, hostname st
 		MCPFailures:             mcpFailures,
 		JobDetails:              jobDetails,
 	}
+	awContext, _, _, taskDomain, behaviorFingerprint, agenticAssessments := deriveRunAgenticAnalysis(processedRun, metrics)
+	processedRun.AwContext = awContext
+	processedRun.TaskDomain = taskDomain
+	processedRun.BehaviorFingerprint = behaviorFingerprint
+	processedRun.AgenticAssessments = agenticAssessments
 
 	currentSnapshot := buildAuditComparisonSnapshot(processedRun, currentCreatedItems)
-	comparison := buildAuditComparisonForRun(run, currentSnapshot, runOutputDir, owner, repo, hostname, verbose)
+	comparison := buildAuditComparisonForRun(processedRun, currentSnapshot, runOutputDir, owner, repo, hostname, verbose)
 
 	// Build structured audit data
 	auditData := buildAuditData(processedRun, metrics, mcpToolUsage)
@@ -420,6 +425,10 @@ func AuditWorkflowRun(ctx context.Context, runID int64, owner, repo, hostname st
 		ProcessedAt:             time.Now(),
 		Run:                     run,
 		Metrics:                 metrics,
+		AwContext:               processedRun.AwContext,
+		TaskDomain:              processedRun.TaskDomain,
+		BehaviorFingerprint:     processedRun.BehaviorFingerprint,
+		AgenticAssessments:      processedRun.AgenticAssessments,
 		AccessAnalysis:          accessAnalysis,
 		FirewallAnalysis:        firewallAnalysis,
 		RedactedDomainsAnalysis: redactedDomainsAnalysis,

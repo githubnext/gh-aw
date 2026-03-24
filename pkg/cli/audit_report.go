@@ -13,7 +13,6 @@ import (
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/sliceutil"
 	"github.com/github/gh-aw/pkg/timeutil"
-	"github.com/github/gh-aw/pkg/workflow"
 )
 
 var auditReportLog = logger.New("cli:audit_report")
@@ -22,6 +21,9 @@ var auditReportLog = logger.New("cli:audit_report")
 type AuditData struct {
 	Overview                OverviewData             `json:"overview"`
 	Comparison              *AuditComparisonData     `json:"comparison,omitempty"`
+	TaskDomain              *TaskDomainInfo          `json:"task_domain,omitempty"`
+	BehaviorFingerprint     *BehaviorFingerprint     `json:"behavior_fingerprint,omitempty"`
+	AgenticAssessments      []AgenticAssessment      `json:"agentic_assessments,omitempty"`
 	Metrics                 MetricsData              `json:"metrics"`
 	KeyFindings             []Finding                `json:"key_findings,omitempty"`
 	Recommendations         []Recommendation         `json:"recommendations,omitempty"`
@@ -219,14 +221,6 @@ func buildAuditData(processedRun ProcessedRun, metrics LogMetrics, mcpToolUsage 
 		overview.LogsPath = run.LogsPath
 	}
 
-	// Parse aw_info.json to extract aw_context if present
-	if run.LogsPath != "" {
-		awInfoPath := filepath.Join(run.LogsPath, "aw_info.json")
-		if info, err := parseAwInfo(awInfoPath, false); err == nil && info != nil {
-			overview.AwContext = info.Context
-		}
-	}
-
 	if run.Duration > 0 {
 		overview.Duration = timeutil.FormatDuration(run.Duration)
 	}
@@ -268,49 +262,16 @@ func buildAuditData(processedRun ProcessedRun, metrics LogMetrics, mcpToolUsage 
 		}
 	}
 
-	// Build tool usage
-	var toolUsage []ToolUsageInfo
-	toolStats := make(map[string]*ToolUsageInfo)
-	for _, toolCall := range metrics.ToolCalls {
-		displayKey := workflow.PrettifyToolName(toolCall.Name)
-		if existing, exists := toolStats[displayKey]; exists {
-			existing.CallCount += toolCall.CallCount
-			if toolCall.MaxInputSize > existing.MaxInputSize {
-				existing.MaxInputSize = toolCall.MaxInputSize
-			}
-			if toolCall.MaxOutputSize > existing.MaxOutputSize {
-				existing.MaxOutputSize = toolCall.MaxOutputSize
-			}
-			if toolCall.MaxDuration > 0 {
-				maxDur := timeutil.FormatDuration(toolCall.MaxDuration)
-				if existing.MaxDuration == "" || toolCall.MaxDuration > parseDurationString(existing.MaxDuration) {
-					existing.MaxDuration = maxDur
-				}
-			}
-		} else {
-			info := &ToolUsageInfo{
-				Name:          displayKey,
-				CallCount:     toolCall.CallCount,
-				MaxInputSize:  toolCall.MaxInputSize,
-				MaxOutputSize: toolCall.MaxOutputSize,
-			}
-			if toolCall.MaxDuration > 0 {
-				info.MaxDuration = timeutil.FormatDuration(toolCall.MaxDuration)
-			}
-			toolStats[displayKey] = info
-		}
-	}
-	for _, info := range toolStats {
-		toolUsage = append(toolUsage, *info)
-	}
-
-	createdItems := extractCreatedItemsFromManifest(run.LogsPath)
+	awContext, toolUsage, createdItems, taskDomain, behaviorFingerprint, agenticAssessments := deriveRunAgenticAnalysis(processedRun, metrics)
+	overview.AwContext = awContext
 
 	// Generate key findings
 	findings := generateFindings(processedRun, metricsData, errors, warnings)
+	findings = append(findings, generateAgenticAssessmentFindings(agenticAssessments)...)
 
 	// Generate recommendations
 	recommendations := generateRecommendations(processedRun, metricsData, findings)
+	recommendations = append(recommendations, generateAgenticAssessmentRecommendations(agenticAssessments)...)
 
 	observabilityInsights := buildAuditObservabilityInsights(processedRun, metricsData, toolUsage, createdItems)
 
@@ -324,6 +285,9 @@ func buildAuditData(processedRun ProcessedRun, metrics LogMetrics, mcpToolUsage 
 
 	return AuditData{
 		Overview:                overview,
+		TaskDomain:              taskDomain,
+		BehaviorFingerprint:     behaviorFingerprint,
+		AgenticAssessments:      agenticAssessments,
 		Metrics:                 metricsData,
 		KeyFindings:             findings,
 		Recommendations:         recommendations,

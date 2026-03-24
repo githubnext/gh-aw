@@ -5,6 +5,8 @@ description: Use GitHub Projects + safe-outputs to track and monitor workflow wo
 
 Use this pattern when you want a durable “source of truth” for what your agentic workflows discovered, decided, and did.
 
+This page is about composing a custom monitoring layer with GitHub Projects and safe outputs. If the goal is to add a ready-made weekly reporting workflow for run behavior, use the [agentic observability kit](/gh-aw/guides/agentic-observability-kit/).
+
 ## What this pattern is
 
 - **Projects** are the dashboard: a GitHub Projects v2 board holds issues/PRs and custom fields.
@@ -111,5 +113,7 @@ See the full reference: [/reference/safe-outputs/#no-op-logging-noop](/gh-aw/ref
 
 - Use `gh aw status` to see which workflows are enabled and their latest run state.
 - Use `gh aw logs` and `gh aw audit` to inspect tool usage, errors, MCP failures, and network patterns.
+
+Use the [agentic observability kit](/gh-aw/guides/agentic-observability-kit/) when you want a supported starter workflow that turns recent `gh aw logs` and `gh aw audit` signals into recurring reports and warning issues. Stay on this page when you need a custom board, status-update workflow, or issue/project correlation model.
 
 See: [/setup/cli/](/gh-aw/setup/cli/)

@@ -65,3 +65,73 @@ func TestBuildAuditComparison_StableRun(t *testing.T) {
 	assert.Empty(t, comparison.Classification.ReasonCodes, "stable runs should have no reason codes")
 	assert.Contains(t, comparison.Recommendation.Action, "No action needed", "stable runs should produce a no-op recommendation")
 }
+
+func TestSelectAuditComparisonBaselinePrefersCohortMatchOverRecency(t *testing.T) {
+	current := ProcessedRun{
+		Run: WorkflowRun{
+			Event: "issues",
+		},
+		TaskDomain: &TaskDomainInfo{Name: "triage", Label: "Triage"},
+		BehaviorFingerprint: &BehaviorFingerprint{
+			ExecutionStyle:  "directed",
+			ToolBreadth:     "narrow",
+			ActuationStyle:  "read_only",
+			ResourceProfile: "lean",
+			DispatchMode:    "standalone",
+		},
+	}
+
+	candidates := []auditComparisonCandidate{
+		{
+			Run: WorkflowRun{
+				DatabaseID: 200,
+				CreatedAt:  time.Date(2026, 3, 23, 12, 0, 0, 0, time.UTC),
+				Event:      "push",
+			},
+			TaskDomain: &TaskDomainInfo{Name: "release_ops", Label: "Release / Ops"},
+			BehaviorFingerprint: &BehaviorFingerprint{
+				ExecutionStyle:  "adaptive",
+				ToolBreadth:     "moderate",
+				ActuationStyle:  "selective_write",
+				ResourceProfile: "moderate",
+				DispatchMode:    "standalone",
+			},
+		},
+		{
+			Run: WorkflowRun{
+				DatabaseID: 150,
+				CreatedAt:  time.Date(2026, 3, 22, 12, 0, 0, 0, time.UTC),
+				Event:      "issues",
+			},
+			TaskDomain: &TaskDomainInfo{Name: "triage", Label: "Triage"},
+			BehaviorFingerprint: &BehaviorFingerprint{
+				ExecutionStyle:  "directed",
+				ToolBreadth:     "narrow",
+				ActuationStyle:  "read_only",
+				ResourceProfile: "lean",
+				DispatchMode:    "standalone",
+			},
+		},
+	}
+
+	selected := selectAuditComparisonBaseline(current, candidates)
+	require.NotNil(t, selected, "baseline should be selected")
+	assert.Equal(t, int64(150), selected.Run.DatabaseID, "cohort-matching run should beat the more recent but behaviorally different run")
+	assert.Equal(t, "cohort_match", selected.Selection)
+	assert.Contains(t, selected.MatchedOn, "task_domain")
+	assert.Contains(t, selected.MatchedOn, "resource_profile")
+	assert.Positive(t, selected.Score, "cohort match should have a positive score")
+}
+
+func TestScoreAuditComparisonCandidateFallsBackToLatestSuccess(t *testing.T) {
+	current := ProcessedRun{Run: WorkflowRun{Event: "issues"}}
+	candidate := auditComparisonCandidate{
+		Run: WorkflowRun{DatabaseID: 300, CreatedAt: time.Date(2026, 3, 21, 12, 0, 0, 0, time.UTC), Event: "push"},
+	}
+
+	scoreAuditComparisonCandidate(current, &candidate)
+
+	assert.Equal(t, 0, candidate.Score)
+	assert.Equal(t, "latest_success", candidate.Selection)
+	assert.Nil(t, candidate.MatchedOn)
+}
