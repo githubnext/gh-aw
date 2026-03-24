@@ -1,6 +1,7 @@
 package workflow
 
 import (
+	"errors"
 	"fmt"
 	"maps"
 	"os"
@@ -269,10 +270,10 @@ func extractAPMDependenciesFromFrontmatter(frontmatter map[string]any) (*APMDepe
 
 	// It is an error to specify both sources simultaneously.
 	if hasImportsAPM && hasDependencies {
-		return nil, fmt.Errorf(
-			"cannot use both 'imports.apm-packages' and 'dependencies' simultaneously. " +
-				"Remove 'dependencies' and use 'imports.apm-packages' exclusively. " +
-				"Run 'gh aw fix --write' to automatically migrate.",
+		return nil, errors.New(
+			"cannot use both 'imports.apm-packages' and 'dependencies' simultaneously; " +
+				"remove 'dependencies' and use 'imports.apm-packages' exclusively; " +
+				"run 'gh aw fix --write' to automatically migrate",
 		)
 	}
 
