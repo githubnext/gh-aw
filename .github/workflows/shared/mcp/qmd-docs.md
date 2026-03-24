@@ -14,7 +14,10 @@ tools:
     gpu: true
     checkouts:
       - name: gh-aw
-        pattern: "docs/**/*.md"
+        pattern: "**/*.{md,mdx}"
+        ignore:
+          - ".git/**"
+          - "node_modules/**"
         context: "gh-aw project documentation, agent definitions, and workflow authoring instructions"
 
 ---

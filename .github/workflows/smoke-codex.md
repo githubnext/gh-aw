@@ -37,7 +37,7 @@ tools:
   qmd:
     checkouts:
       - name: docs
-        pattern: "docs/src/**"
+        pattern: "docs/src/**/*.{md,mdx}"
         context: "gh-aw project documentation"
     searches:
       - name: issues

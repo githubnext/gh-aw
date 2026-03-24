@@ -13,9 +13,12 @@ tools:
     runs-on: aw-gpu-runner-T4
     gpu: true
     checkouts:
-      - name: gh-aw
-        pattern: "docs/**/*.md"
-        context: "gh-aw project documentation, agent definitions, and workflow authoring instructions"
+      - name: gh-aw-docs
+        pattern: "docs/src/content/docs/**/*.mdx"
+        context: "gh-aw project documentation"
+      - name: gh-aw-workflows
+        pattern: ".github/**/*.md"
+        context: "gh-aw agent definitions and workflow authoring instructions"
 
 ---
 

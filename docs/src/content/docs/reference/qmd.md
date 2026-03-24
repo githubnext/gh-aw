@@ -136,7 +136,7 @@ tools:
         pattern: "docs/**/*.md"
         context: "Project documentation"
       - name: sdk-docs
-        pattern: "docs/**/*.md"
+        pattern: "{README.md,docs/**/*.md}"
         context: "SDK reference"
         checkout:
           repository: owner/sdk

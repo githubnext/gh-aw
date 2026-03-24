@@ -28,7 +28,7 @@
 #     - ../skills/documentation/SKILL.md
 #     - shared/mcp/qmd-docs.md
 #
-# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"f3edb0277cce3c8ed72604bb1b95388767bdd780ed23edb31faa79264d8473cd","strict":true,"agent_id":"copilot"}
+# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"9a2125b6b29c640be238a06857299a766c4894e2a4d01609b8f17aec6e4d3279","strict":true,"agent_id":"copilot"}
 
 name: "Rebuild the documentation after making changes"
 "on":
@@ -1279,7 +1279,7 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           QMD_CONFIG_JSON: |
-            {"dbPath":"/tmp/gh-aw/qmd-index","checkouts":[{"name":"gh-aw","path":"${GITHUB_WORKSPACE}","pattern":"docs/**/*.md","context":"gh-aw project documentation, agent definitions, and workflow authoring instructions"}]}
+            {"dbPath":"/tmp/gh-aw/qmd-index","checkouts":[{"name":"gh-aw","path":"${GITHUB_WORKSPACE}","pattern":"**/*.{md,mdx}","ignore":[".git/**","node_modules/**"],"context":"gh-aw project documentation, agent definitions, and workflow authoring instructions"}]}
         with:
           github-token: ${{ github.token }}
           script: |
