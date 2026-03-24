@@ -21,7 +21,7 @@ tools:
     gpu: true
     checkouts:
       - name: docs
-        pattern: "docs/src/**"
+        pattern: "docs/src/**/*.md"
         context: "gh-aw project documentation"
     searches:
       - name: issues
