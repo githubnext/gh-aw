@@ -1,6 +1,10 @@
 package cli
 
-import "fmt"
+import (
+	"fmt"
+	"slices"
+	"strings"
+)
 
 type ObservabilityPolicy struct {
 	SchemaVersion string                    `json:"schema_version"`
@@ -231,22 +235,9 @@ func firstMatch(allowed []string, actual []string) string {
 }
 
 func containsString(items []string, target string) bool {
-	for _, item := range items {
-		if item == target {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(items, target)
 }
 
 func joinEvidence(parts []string) string {
-	if len(parts) == 0 {
-		return ""
-	}
-
-	result := parts[0]
-	for i := 1; i < len(parts); i++ {
-		result += " " + parts[i]
-	}
-	return result
+	return strings.Join(parts, " ")
 }

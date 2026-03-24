@@ -2,6 +2,7 @@ package cli
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 
@@ -98,10 +99,10 @@ Examples:
 // RunObservabilityPolicyEval executes observability policy evaluation.
 func RunObservabilityPolicyEval(config ObservabilityPolicyEvalConfig) error {
 	if config.PolicyPath == "" {
-		return fmt.Errorf("policy path is required")
+		return errors.New("policy path is required")
 	}
 	if config.ReportPath == "" {
-		return fmt.Errorf("report path is required")
+		return errors.New("report path is required")
 	}
 
 	policy, err := readObservabilityPolicyFile(config.PolicyPath)
