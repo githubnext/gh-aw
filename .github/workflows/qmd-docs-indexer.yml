@@ -20,7 +20,7 @@ permissions:
 
 jobs:
   index:
-    runs-on: ubuntu-latest
+    runs-on: aw-gpu-runner-T4
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6.0.2

@@ -1547,7 +1547,7 @@ jobs:
 
   indexing:
     needs: activation
-    runs-on: ubuntu-latest
+    runs-on: aw-gpu-runner-T4
     permissions:
       contents: read
     timeout-minutes: 60
