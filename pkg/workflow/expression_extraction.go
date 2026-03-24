@@ -82,7 +82,7 @@ func (e *ExpressionExtractor) ExtractExpressions(markdown string) ([]*Expression
 		// Emit deprecation warning once per unique deprecated expression
 		if transformedContent != strings.TrimSpace(match[1]) {
 			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(
-				fmt.Sprintf("Deprecated expression '${{ %s }}': use '${{ %s }}' instead.", strings.TrimSpace(match[1]), transformedContent),
+				fmt.Sprintf("Deprecated expression ${{ %s }}: use ${{ %s }} instead.", strings.TrimSpace(match[1]), transformedContent),
 			))
 		}
 
