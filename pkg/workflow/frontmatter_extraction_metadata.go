@@ -242,9 +242,11 @@ func extractRuntimesFromFrontmatter(frontmatter map[string]any) map[string]any {
 }
 
 // extractAPMDependenciesFromFrontmatter extracts APM (Agent Package Manager) dependency
-// configuration from frontmatter. Checks two sources in priority order:
-//  1. imports.apm-packages (new preferred location)
-//  2. dependencies (deprecated, emits a deprecation warning)
+// configuration from frontmatter. Supports two sources:
+//   - imports.apm-packages (preferred location)
+//   - dependencies (deprecated; emits a deprecation warning when used alone)
+//
+// It is an error to specify both sources simultaneously.
 //
 // Each source supports:
 //   - Array format: ["org/pkg1", "org/pkg2"]
@@ -252,19 +254,35 @@ func extractRuntimesFromFrontmatter(frontmatter map[string]any) map[string]any {
 //
 // Returns nil if neither source is present or if the resolved source contains no packages.
 func extractAPMDependenciesFromFrontmatter(frontmatter map[string]any) (*APMDependenciesInfo, error) {
-	// Check imports.apm-packages first (new preferred location)
+	hasImportsAPM := false
+	var importsAPMValue any
 	if importsAny, hasImports := frontmatter["imports"]; hasImports {
 		if importsMap, ok := importsAny.(map[string]any); ok {
 			if apmAny, hasAPM := importsMap["apm-packages"]; hasAPM {
-				frontmatterMetadataLog.Print("Extracting APM dependencies from imports.apm-packages")
-				return extractAPMDependenciesFromValue(apmAny, "imports.apm-packages")
+				hasImportsAPM = true
+				importsAPMValue = apmAny
 			}
 		}
 	}
 
+	_, hasDependencies := frontmatter["dependencies"]
+
+	// It is an error to specify both sources simultaneously.
+	if hasImportsAPM && hasDependencies {
+		return nil, fmt.Errorf(
+			"cannot use both 'imports.apm-packages' and 'dependencies' simultaneously. " +
+				"Remove 'dependencies' and use 'imports.apm-packages' exclusively. " +
+				"Run 'gh aw fix --write' to automatically migrate.",
+		)
+	}
+
+	if hasImportsAPM {
+		frontmatterMetadataLog.Print("Extracting APM dependencies from imports.apm-packages")
+		return extractAPMDependenciesFromValue(importsAPMValue, "imports.apm-packages")
+	}
+
 	// Fall back to top-level dependencies field (deprecated)
-	value, exists := frontmatter["dependencies"]
-	if !exists {
+	if !hasDependencies {
 		return nil, nil
 	}
 
@@ -276,7 +294,7 @@ func extractAPMDependenciesFromFrontmatter(frontmatter map[string]any) (*APMDepe
 	))
 	frontmatterMetadataLog.Print("Extracting APM dependencies from deprecated 'dependencies' field")
 
-	return extractAPMDependenciesFromValue(value, "dependencies")
+	return extractAPMDependenciesFromValue(frontmatter["dependencies"], "dependencies")
 }
 
 // extractAPMDependenciesFromValue extracts APM dependency configuration from a frontmatter value.

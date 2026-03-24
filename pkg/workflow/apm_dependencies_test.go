@@ -944,7 +944,7 @@ func TestExtractAPMDependenciesFromImportsAPMPackages(t *testing.T) {
 		assert.Equal(t, "${{ secrets.APP_PRIVATE_KEY }}", result.GitHubApp.PrivateKey)
 	})
 
-	t.Run("imports.apm-packages takes priority over top-level dependencies", func(t *testing.T) {
+	t.Run("mixing imports.apm-packages and top-level dependencies is an error", func(t *testing.T) {
 		frontmatter := map[string]any{
 			"imports": map[string]any{
 				"apm-packages": []any{"microsoft/from-imports"},
@@ -952,9 +952,10 @@ func TestExtractAPMDependenciesFromImportsAPMPackages(t *testing.T) {
 			"dependencies": []any{"microsoft/from-dependencies"},
 		}
 		result, err := extractAPMDependenciesFromFrontmatter(frontmatter)
-		require.NoError(t, err, "Should not return an error")
-		require.NotNil(t, result, "Should return non-nil APMDependenciesInfo")
-		assert.Equal(t, []string{"microsoft/from-imports"}, result.Packages, "imports.apm-packages should take priority")
+		assert.Error(t, err, "Should return an error when both imports.apm-packages and dependencies are present")
+		assert.Nil(t, result, "Should return nil result on error")
+		assert.Contains(t, err.Error(), "imports.apm-packages", "Error should mention imports.apm-packages")
+		assert.Contains(t, err.Error(), "dependencies", "Error should mention dependencies")
 	})
 
 	t.Run("imports.apm-packages and aw subfield coexist", func(t *testing.T) {
