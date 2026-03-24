@@ -99,6 +99,33 @@ func TestDomainMatchesRule(t *testing.T) {
 			},
 			expected: false,
 		},
+		{
+			name: "regex match - IP pattern",
+			host: "192.168.1.1",
+			rule: PolicyRule{
+				ACLName: "dst_ipv4_regex",
+				Domains: []string{`^192\.168\.`},
+			},
+			expected: true,
+		},
+		{
+			name: "regex match - metachar detection",
+			host: "test.example.com",
+			rule: PolicyRule{
+				ACLName: "some_acl",
+				Domains: []string{`^.*\.example\.com$`},
+			},
+			expected: true,
+		},
+		{
+			name: "regex no match",
+			host: "other.com",
+			rule: PolicyRule{
+				ACLName: "dst_ipv4_regex",
+				Domains: []string{`^192\.168\.`},
+			},
+			expected: false,
+		},
 	}
 
 	for _, tt := range tests {
@@ -112,50 +139,148 @@ func TestDomainMatchesRule(t *testing.T) {
 func TestFindMatchingRule(t *testing.T) {
 	rules := []PolicyRule{
 		{
-			ID:      "allow-github",
-			Order:   1,
-			Action:  "allow",
-			Domains: []string{".github.com"},
+			ID:       "allow-github",
+			Order:    1,
+			Action:   "allow",
+			ACLName:  "allowed_domains",
+			Protocol: "both",
+			Domains:  []string{".github.com"},
 		},
 		{
-			ID:      "allow-npm",
-			Order:   2,
-			Action:  "allow",
-			Domains: []string{"registry.npmjs.org"},
+			ID:       "allow-npm",
+			Order:    2,
+			Action:   "allow",
+			ACLName:  "npm_domains",
+			Protocol: "both",
+			Domains:  []string{"registry.npmjs.org"},
 		},
 		{
-			ID:      "deny-all",
-			Order:   3,
-			Action:  "deny",
-			Domains: []string{"."},
+			ID:       "deny-all",
+			Order:    3,
+			Action:   "deny",
+			ACLName:  "all",
+			Protocol: "both",
+			Domains:  []string{},
 		},
 	}
 
-	t.Run("matches first rule", func(t *testing.T) {
-		rule := findMatchingRule("api.github.com:443", rules)
+	t.Run("matches first rule - allowed HTTPS", func(t *testing.T) {
+		entry := AuditLogEntry{Host: "api.github.com:443", Method: "CONNECT", Status: 200, Decision: "TCP_TUNNEL"}
+		rule := findMatchingRule(entry, rules)
 		require.NotNil(t, rule, "Should find a matching rule")
 		assert.Equal(t, "allow-github", rule.ID, "Should match allow-github rule")
 	})
 
 	t.Run("matches second rule", func(t *testing.T) {
-		rule := findMatchingRule("registry.npmjs.org:443", rules)
+		entry := AuditLogEntry{Host: "registry.npmjs.org:443", Method: "CONNECT", Status: 200, Decision: "TCP_TUNNEL"}
+		rule := findMatchingRule(entry, rules)
 		require.NotNil(t, rule, "Should find a matching rule")
 		assert.Equal(t, "allow-npm", rule.ID, "Should match allow-npm rule")
 	})
 
-	t.Run("no match returns nil", func(t *testing.T) {
-		// evil.com does not match any of the specific rules, and the deny-all
-		// rule has domain "." which won't match via our matching logic
-		rule := findMatchingRule("evil.com:443", rules[:2])
-		assert.Nil(t, rule, "Should not find a matching rule for unlisted domain")
+	t.Run("aclName all catches unmatched denied traffic", func(t *testing.T) {
+		entry := AuditLogEntry{Host: "evil.com:443", Method: "CONNECT", Status: 403, Decision: "NONE_NONE"}
+		rule := findMatchingRule(entry, rules)
+		require.NotNil(t, rule, "Should find the catch-all deny rule")
+		assert.Equal(t, "deny-all", rule.ID, "Should match deny-all rule via aclName 'all'")
+	})
+
+	t.Run("aclName all skipped for allowed traffic", func(t *testing.T) {
+		// If a domain doesn't match specific rules but traffic was allowed,
+		// the deny-all rule should NOT match (action mismatch)
+		entry := AuditLogEntry{Host: "unknown.com:443", Method: "CONNECT", Status: 200, Decision: "TCP_TUNNEL"}
+		rule := findMatchingRule(entry, rules)
+		assert.Nil(t, rule, "deny-all rule should not match allowed traffic")
 	})
 
 	t.Run("first matching rule wins", func(t *testing.T) {
-		// github.com matches both allow-github (.github.com) and potentially others
-		rule := findMatchingRule("github.com:443", rules)
+		entry := AuditLogEntry{Host: "github.com:443", Method: "CONNECT", Status: 200, Decision: "TCP_TUNNEL"}
+		rule := findMatchingRule(entry, rules)
 		require.NotNil(t, rule, "Should find a matching rule")
 		assert.Equal(t, "allow-github", rule.ID, "First matching rule should win")
 	})
+
+	t.Run("observed-decision validation - allow rule skipped for denied traffic", func(t *testing.T) {
+		// Domain matches allow-github, but traffic was denied — allow rule shouldn't be credited
+		entry := AuditLogEntry{Host: "api.github.com:443", Method: "CONNECT", Status: 403, Decision: "NONE_NONE"}
+		rule := findMatchingRule(entry, rules)
+		// Falls through to deny-all since allow-github action doesn't match observed denial
+		require.NotNil(t, rule, "Should fall through to deny-all")
+		assert.Equal(t, "deny-all", rule.ID, "Should match deny-all, not allow-github")
+	})
+}
+
+func TestProtocolMatching(t *testing.T) {
+	rules := []PolicyRule{
+		{
+			ID:       "allow-https-only",
+			Order:    1,
+			Action:   "allow",
+			ACLName:  "https_domains",
+			Protocol: "https",
+			Domains:  []string{".github.com"},
+		},
+		{
+			ID:       "deny-all",
+			Order:    2,
+			Action:   "deny",
+			ACLName:  "all",
+			Protocol: "both",
+			Domains:  []string{},
+		},
+	}
+
+	t.Run("HTTPS rule matches CONNECT request", func(t *testing.T) {
+		entry := AuditLogEntry{Host: "api.github.com:443", Method: "CONNECT", Status: 200, Decision: "TCP_TUNNEL"}
+		rule := findMatchingRule(entry, rules)
+		require.NotNil(t, rule, "Should match HTTPS rule")
+		assert.Equal(t, "allow-https-only", rule.ID, "HTTPS rule should match CONNECT request")
+	})
+
+	t.Run("HTTPS rule skipped for HTTP request", func(t *testing.T) {
+		entry := AuditLogEntry{Host: "api.github.com:80", Method: "GET", Status: 403, Decision: "NONE_NONE"}
+		rule := findMatchingRule(entry, rules)
+		// HTTPS-only rule skipped for GET → falls through to deny-all
+		require.NotNil(t, rule, "Should fall through to deny-all")
+		assert.Equal(t, "deny-all", rule.ID, "HTTPS rule should not match HTTP GET request")
+	})
+}
+
+func TestIsEntryHTTPS(t *testing.T) {
+	assert.True(t, isEntryHTTPS(AuditLogEntry{Method: "CONNECT"}), "CONNECT should be HTTPS")
+	assert.True(t, isEntryHTTPS(AuditLogEntry{Method: "connect"}), "connect (lowercase) should be HTTPS")
+	assert.False(t, isEntryHTTPS(AuditLogEntry{Method: "GET"}), "GET should not be HTTPS")
+	assert.False(t, isEntryHTTPS(AuditLogEntry{Method: ""}), "Empty method should not be HTTPS")
+}
+
+func TestIsEntryAllowed(t *testing.T) {
+	tests := []struct {
+		name     string
+		entry    AuditLogEntry
+		expected bool
+	}{
+		{"status 200 is allowed", AuditLogEntry{Status: 200}, true},
+		{"status 206 is allowed", AuditLogEntry{Status: 206}, true},
+		{"status 304 is allowed", AuditLogEntry{Status: 304}, true},
+		{"status 403 is denied", AuditLogEntry{Status: 403}, false},
+		{"status 407 is denied", AuditLogEntry{Status: 407}, false},
+		{"TCP_TUNNEL decision is allowed", AuditLogEntry{Status: 0, Decision: "TCP_TUNNEL:HIER_DIRECT"}, true},
+		{"NONE_NONE decision is denied", AuditLogEntry{Status: 0, Decision: "NONE_NONE:HIER_NONE"}, false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.expected, isEntryAllowed(tt.entry), "isEntryAllowed should return %v", tt.expected)
+		})
+	}
+}
+
+func TestContainsRegexMeta(t *testing.T) {
+	assert.True(t, containsRegexMeta(`^192\.168`), "Should detect caret")
+	assert.True(t, containsRegexMeta(`foo.*bar`), "Should detect asterisk")
+	assert.True(t, containsRegexMeta(`[0-9]+`), "Should detect brackets")
+	assert.False(t, containsRegexMeta("github.com"), "Plain domain should not be regex")
+	assert.False(t, containsRegexMeta(".github.com"), "Dot-prefix domain should not be regex")
 }
 
 func TestLoadPolicyManifest(t *testing.T) {
@@ -187,6 +312,29 @@ func TestLoadPolicyManifest(t *testing.T) {
 		// Rules should be sorted by order
 		assert.Equal(t, "rule-a", loaded.Rules[0].ID, "First rule should be rule-a (order 1)")
 		assert.Equal(t, "rule-b", loaded.Rules[1].ID, "Second rule should be rule-b (order 2)")
+	})
+
+	t.Run("manifest with hostAccessEnabled and allowHostPorts", func(t *testing.T) {
+		dir := t.TempDir()
+		manifestPath := filepath.Join(dir, "policy-manifest.json")
+
+		ports := "8080,9090"
+		manifest := PolicyManifest{
+			Version:           1,
+			Rules:             []PolicyRule{},
+			HostAccessEnabled: true,
+			AllowHostPorts:    &ports,
+		}
+
+		data, err := json.Marshal(manifest)
+		require.NoError(t, err, "Should marshal manifest with extra fields")
+		require.NoError(t, os.WriteFile(manifestPath, data, 0644))
+
+		loaded, err := loadPolicyManifest(manifestPath)
+		require.NoError(t, err, "Should load manifest")
+		assert.True(t, loaded.HostAccessEnabled, "HostAccessEnabled should be true")
+		require.NotNil(t, loaded.AllowHostPorts, "AllowHostPorts should not be nil")
+		assert.Equal(t, "8080,9090", *loaded.AllowHostPorts, "AllowHostPorts should match")
 	})
 
 	t.Run("missing file", func(t *testing.T) {
@@ -275,6 +423,7 @@ func TestEnrichWithPolicyRules(t *testing.T) {
 				Order:       1,
 				Action:      "allow",
 				ACLName:     "allowed_domains",
+				Protocol:    "both",
 				Domains:     []string{".github.com"},
 				Description: "Allow GitHub and subdomains",
 			},
@@ -283,6 +432,7 @@ func TestEnrichWithPolicyRules(t *testing.T) {
 				Order:       2,
 				Action:      "allow",
 				ACLName:     "npm_domains",
+				Protocol:    "both",
 				Domains:     []string{"registry.npmjs.org"},
 				Description: "Allow npm registry",
 			},
@@ -290,8 +440,9 @@ func TestEnrichWithPolicyRules(t *testing.T) {
 				ID:          "deny-all",
 				Order:       3,
 				Action:      "deny",
-				ACLName:     "blocked_all",
-				Domains:     []string{"."},
+				ACLName:     "all",
+				Protocol:    "both",
+				Domains:     []string{},
 				Description: "Deny all other traffic",
 			},
 		},
@@ -300,10 +451,10 @@ func TestEnrichWithPolicyRules(t *testing.T) {
 	}
 
 	entries := []AuditLogEntry{
-		{Timestamp: 1761074374.646, Host: "api.github.com:443", Status: 200},
-		{Timestamp: 1761074375.100, Host: "github.com:443", Status: 200},
-		{Timestamp: 1761074376.200, Host: "registry.npmjs.org:443", Status: 200},
-		{Timestamp: 1761074377.300, Host: "evil.com:443", Status: 403},
+		{Timestamp: 1761074374.646, Host: "api.github.com:443", Method: "CONNECT", Status: 200, Decision: "TCP_TUNNEL"},
+		{Timestamp: 1761074375.100, Host: "github.com:443", Method: "CONNECT", Status: 200, Decision: "TCP_TUNNEL"},
+		{Timestamp: 1761074376.200, Host: "registry.npmjs.org:443", Method: "CONNECT", Status: 200, Decision: "TCP_TUNNEL"},
+		{Timestamp: 1761074377.300, Host: "evil.com:443", Method: "CONNECT", Status: 403, Decision: "NONE_NONE"},
 	}
 
 	analysis := enrichWithPolicyRules(entries, manifest)
@@ -329,24 +480,37 @@ func TestEnrichWithPolicyRules(t *testing.T) {
 		assert.Equal(t, 2, analysis.RuleHits[0].Hits, "allow-github should have 2 hits")
 		assert.Equal(t, "allow-npm", analysis.RuleHits[1].Rule.ID, "Second rule should be allow-npm")
 		assert.Equal(t, 1, analysis.RuleHits[1].Hits, "allow-npm should have 1 hit")
+		assert.Equal(t, "deny-all", analysis.RuleHits[2].Rule.ID, "Third rule should be deny-all")
+		assert.Equal(t, 1, analysis.RuleHits[2].Hits, "deny-all should have 1 hit (evil.com)")
 	})
 
-	t.Run("denied requests", func(t *testing.T) {
-		// evil.com does not match any specific rule's domains; it gets implicit deny
+	t.Run("denied requests attributed to deny-all rule", func(t *testing.T) {
 		require.Len(t, analysis.DeniedRequests, 1, "Should have 1 denied request")
 		assert.Equal(t, "evil.com:443", analysis.DeniedRequests[0].Host, "Denied request host should match")
 		assert.Equal(t, "deny", analysis.DeniedRequests[0].Action, "Action should be deny")
+		assert.Equal(t, "deny-all", analysis.DeniedRequests[0].RuleID, "Should be attributed to deny-all rule")
 	})
 
 	t.Run("entries with empty host skipped", func(t *testing.T) {
 		emptyEntries := []AuditLogEntry{
 			{Timestamp: 1.0, Host: "", Status: 200},
 			{Timestamp: 2.0, Host: "-", Status: 200},
-			{Timestamp: 3.0, Host: "valid.com:443", Status: 200},
+			{Timestamp: 3.0, Host: "valid.com:443", Method: "CONNECT", Status: 403, Decision: "NONE_NONE"},
 		}
 		result := enrichWithPolicyRules(emptyEntries, manifest)
-		// valid.com doesn't match any rule, gets implicit deny
+		// valid.com is denied → matches deny-all via aclName "all"
 		assert.Equal(t, 1, result.TotalRequests, "Only valid entries should be counted")
+		require.Len(t, result.DeniedRequests, 1, "Should have 1 denied request")
+		assert.Equal(t, "deny-all", result.DeniedRequests[0].RuleID, "Should match deny-all rule")
+	})
+
+	t.Run("error:transaction-end-before-headers entries filtered", func(t *testing.T) {
+		squidEntries := []AuditLogEntry{
+			{Timestamp: 1.0, Host: "api.github.com:443", Method: "CONNECT", Status: 200, Decision: "TCP_TUNNEL", URL: "api.github.com:443"},
+			{Timestamp: 2.0, Host: "api.github.com:443", Method: "CONNECT", Status: 0, Decision: "NONE_NONE", URL: "error:transaction-end-before-headers"},
+		}
+		result := enrichWithPolicyRules(squidEntries, manifest)
+		assert.Equal(t, 1, result.TotalRequests, "Squid error entries should be filtered out")
 	})
 }
 
@@ -400,8 +564,8 @@ func TestAnalyzeFirewallPolicy(t *testing.T) {
 			Version:     1,
 			GeneratedAt: "2026-01-01T00:00:00Z",
 			Rules: []PolicyRule{
-				{ID: "allow-github", Order: 1, Action: "allow", Domains: []string{".github.com"}, Description: "Allow GitHub"},
-				{ID: "deny-blocked", Order: 2, Action: "deny", Domains: []string{".evil.com"}, Description: "Block evil domains"},
+				{ID: "allow-github", Order: 1, Action: "allow", ACLName: "allowed_domains", Protocol: "both", Domains: []string{".github.com"}, Description: "Allow GitHub"},
+				{ID: "deny-all", Order: 2, Action: "deny", ACLName: "all", Protocol: "both", Domains: []string{}, Description: "Block all other traffic"},
 			},
 		}
 		manifestData, err := json.Marshal(manifest)
@@ -409,8 +573,8 @@ func TestAnalyzeFirewallPolicy(t *testing.T) {
 		require.NoError(t, os.WriteFile(filepath.Join(auditDir, "policy-manifest.json"), manifestData, 0644))
 
 		// Write audit JSONL
-		jsonl := `{"ts":1.0,"host":"api.github.com:443","status":200}
-{"ts":2.0,"host":"evil.com:443","status":403}
+		jsonl := `{"ts":1.0,"host":"api.github.com:443","method":"CONNECT","status":200,"decision":"TCP_TUNNEL"}
+{"ts":2.0,"host":"evil.com:443","method":"CONNECT","status":403,"decision":"NONE_NONE"}
 `
 		require.NoError(t, os.WriteFile(filepath.Join(auditDir, "audit.jsonl"), []byte(jsonl), 0644))
 
@@ -421,7 +585,8 @@ func TestAnalyzeFirewallPolicy(t *testing.T) {
 		assert.Equal(t, 2, analysis.TotalRequests, "Should have 2 total requests")
 		assert.Equal(t, 1, analysis.AllowedCount, "Should have 1 allowed request")
 		assert.Equal(t, 1, analysis.DeniedCount, "Should have 1 denied request")
-		assert.Len(t, analysis.DeniedRequests, 1, "Should have 1 denied request detail")
+		require.Len(t, analysis.DeniedRequests, 1, "Should have 1 denied request detail")
+		assert.Equal(t, "deny-all", analysis.DeniedRequests[0].RuleID, "Denied request should be attributed to deny-all")
 	})
 
 	t.Run("manifest only - no audit.jsonl", func(t *testing.T) {
