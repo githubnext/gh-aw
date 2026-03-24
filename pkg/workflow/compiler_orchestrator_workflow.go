@@ -841,6 +841,11 @@ func (c *Compiler) processOnSectionAndFilters(
 		return err
 	}
 
+	// Process skip-if-check-failing configuration from the on: section
+	if err := c.processSkipIfCheckFailingConfiguration(frontmatter, workflowData); err != nil {
+		return err
+	}
+
 	// Process manual-approval configuration from the on: section
 	if err := c.processManualApprovalConfiguration(frontmatter, workflowData); err != nil {
 		return err

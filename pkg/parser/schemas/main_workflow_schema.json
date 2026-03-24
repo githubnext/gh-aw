@@ -1471,6 +1471,49 @@
               ],
               "description": "Conditionally skip workflow execution when a GitHub search query has no matches (or fewer than minimum). Can be a string (query only, implies min=1) or an object with 'query', optional 'min', and 'scope' fields. Use top-level on.github-token or on.github-app for custom authentication."
             },
+            "skip-if-check-failing": {
+              "oneOf": [
+                {
+                  "type": "null",
+                  "description": "Bare key with no value — equivalent to true. Skips workflow execution if any CI checks on the target branch are currently failing."
+                },
+                {
+                  "type": "boolean",
+                  "enum": [true],
+                  "description": "Skip workflow execution if any CI checks on the target branch are currently failing. For pull_request events, checks the base branch. For other events, checks the current ref."
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "include": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      },
+                      "description": "List of check names to evaluate. When specified, only these named checks are considered. If omitted, all checks are evaluated."
+                    },
+                    "exclude": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      },
+                      "description": "List of check names to ignore. Checks in this list are not considered when determining whether to skip the workflow."
+                    },
+                    "branch": {
+                      "type": "string",
+                      "description": "Branch name to check for failing CI checks. When omitted, defaults to the base branch of a pull_request event or the current ref for other events."
+                    },
+                    "allow-pending": {
+                      "type": "boolean",
+                      "description": "When true, pending or in-progress checks are not treated as failing. By default (false), any check that has not yet completed is treated as failing and will block the workflow."
+                    }
+                  },
+                  "additionalProperties": false,
+                  "description": "Skip-if-check-failing configuration object with optional include/exclude filter lists, an optional branch name, and an allow-pending flag."
+                }
+              ],
+              "description": "Skip workflow execution if any CI checks on the target branch are failing or pending. Accepts true (check all) or an object to filter specific checks by name and optionally specify a branch or allow pending checks."
+            },
             "skip-roles": {
               "oneOf": [
                 {

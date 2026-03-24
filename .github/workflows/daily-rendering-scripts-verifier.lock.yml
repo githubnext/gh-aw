@@ -927,12 +927,19 @@ jobs:
           path: |
             /tmp/gh-aw/aw-prompts/prompt.txt
             /tmp/gh-aw/mcp-logs/
-            /tmp/gh-aw/sandbox/firewall/logs/
             /tmp/gh-aw/agent-stdio.log
             /tmp/gh-aw/agent/
             /tmp/gh-aw/safeoutputs.jsonl
             /tmp/gh-aw/agent_output.json
             /tmp/gh-aw/aw-*.patch
+          if-no-files-found: ignore
+      - name: Upload firewall audit logs
+        if: always()
+        continue-on-error: true
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7
+        with:
+          name: firewall-audit-logs
+          path: /tmp/gh-aw/sandbox/firewall/logs/
           if-no-files-found: ignore
       # --- Threat Detection (inline) ---
       - name: Check if detection needed

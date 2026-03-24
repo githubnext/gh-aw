@@ -151,6 +151,33 @@ func (c *Compiler) buildPreActivationJob(data *WorkflowData, needsPermissionChec
 		steps = append(steps, generateGitHubScriptWithRequire("check_skip_if_no_match.cjs"))
 	}
 
+	// Add skip-if-check-failing check if configured
+	if data.SkipIfCheckFailing != nil {
+		steps = append(steps, "      - name: Check skip-if-check-failing\n")
+		steps = append(steps, fmt.Sprintf("        id: %s\n", constants.CheckSkipIfCheckFailingStepID))
+		steps = append(steps, fmt.Sprintf("        uses: %s\n", GetActionPin("actions/github-script")))
+		if len(data.SkipIfCheckFailing.Include) > 0 || len(data.SkipIfCheckFailing.Exclude) > 0 || data.SkipIfCheckFailing.Branch != "" || data.SkipIfCheckFailing.AllowPending {
+			steps = append(steps, "        env:\n")
+			if len(data.SkipIfCheckFailing.Include) > 0 {
+				includeJSON, _ := json.Marshal(data.SkipIfCheckFailing.Include)
+				steps = append(steps, fmt.Sprintf("          GH_AW_SKIP_CHECK_INCLUDE: %q\n", string(includeJSON)))
+			}
+			if len(data.SkipIfCheckFailing.Exclude) > 0 {
+				excludeJSON, _ := json.Marshal(data.SkipIfCheckFailing.Exclude)
+				steps = append(steps, fmt.Sprintf("          GH_AW_SKIP_CHECK_EXCLUDE: %q\n", string(excludeJSON)))
+			}
+			if data.SkipIfCheckFailing.Branch != "" {
+				steps = append(steps, fmt.Sprintf("          GH_AW_SKIP_BRANCH: %q\n", data.SkipIfCheckFailing.Branch))
+			}
+			if data.SkipIfCheckFailing.AllowPending {
+				steps = append(steps, "          GH_AW_SKIP_CHECK_ALLOW_PENDING: \"true\"\n")
+			}
+		}
+		steps = append(steps, "        with:\n")
+		steps = append(steps, "          script: |\n")
+		steps = append(steps, generateGitHubScriptWithRequire("check_skip_if_check_failing.cjs"))
+	}
+
 	// Add skip-roles check if configured
 	if len(data.SkipRoles) > 0 {
 		// Extract workflow name for the skip-roles check
@@ -265,6 +292,16 @@ func (c *Compiler) buildPreActivationJob(data *WorkflowData, needsPermissionChec
 			BuildStringLiteral("true"),
 		)
 		conditions = append(conditions, skipNoMatchCheckOk)
+	}
+
+	if data.SkipIfCheckFailing != nil {
+		// Add skip-if-check-failing check condition
+		skipIfCheckFailingOk := BuildComparison(
+			BuildPropertyAccess(fmt.Sprintf("steps.%s.outputs.%s", constants.CheckSkipIfCheckFailingStepID, constants.SkipIfCheckFailingOkOutput)),
+			"==",
+			BuildStringLiteral("true"),
+		)
+		conditions = append(conditions, skipIfCheckFailingOk)
 	}
 
 	if len(data.SkipRoles) > 0 {

@@ -343,7 +343,13 @@ type SkipIfNoMatchConfig struct {
 	// Auth (github-token / github-app) is taken from on.github-token / on.github-app at the top level.
 }
 
-// WorkflowData holds all the data needed to generate a GitHub Actions workflow
+// SkipIfCheckFailingConfig holds the configuration for skip-if-check-failing conditions
+type SkipIfCheckFailingConfig struct {
+	Include      []string // check names to include (empty = all checks)
+	Exclude      []string // check names to exclude
+	Branch       string   // optional branch name to check (defaults to triggering ref or PR base branch)
+	AllowPending bool     // if true, pending/in-progress checks are not treated as failing (default: treat pending as failing)
+}
 type WorkflowData struct {
 	Name                        string
 	WorkflowID                  string         // workflow identifier derived from markdown filename (basename without extension)
@@ -383,60 +389,61 @@ type WorkflowData struct {
 	AgentImportSpec             string        // Original import specification for agent file (e.g., "owner/repo/path@ref")
 	RepositoryImports           []string      // Repository-only imports (format: "owner/repo@ref") for .github folder merging
 	StopTime                    string
-	SkipIfMatch                 *SkipIfMatchConfig   // skip-if-match configuration with query and max threshold
-	SkipIfNoMatch               *SkipIfNoMatchConfig // skip-if-no-match configuration with query and min threshold
-	SkipRoles                   []string             // roles to skip workflow for (e.g., [admin, maintainer, write])
-	SkipBots                    []string             // users to skip workflow for (e.g., [user1, user2])
-	OnSteps                     []map[string]any     // steps to inject into the pre-activation job from on.steps
-	OnPermissions               *Permissions         // additional permissions for the pre-activation job from on.permissions
-	ManualApproval              string               // environment name for manual approval from on: section
-	Command                     []string             // for /command trigger support - multiple command names
-	CommandEvents               []string             // events where command should be active (nil = all events)
-	CommandOtherEvents          map[string]any       // for merging command with other events
-	LabelCommand                []string             // for label-command trigger support - label names that act as commands
-	LabelCommandEvents          []string             // events where label-command should be active (nil = all: issues, pull_request, discussion)
-	LabelCommandOtherEvents     map[string]any       // for merging label-command with other events
-	LabelCommandRemoveLabel     bool                 // whether to automatically remove the triggering label (default: true)
-	AIReaction                  string               // AI reaction type like "eyes", "heart", etc.
-	StatusComment               *bool                // whether to post status comments (default: true when ai-reaction is set, false otherwise)
-	ActivationGitHubToken       string               // custom github token from on.github-token for reactions/comments
-	ActivationGitHubApp         *GitHubAppConfig     // github app config from on.github-app for minting activation tokens
-	TopLevelGitHubApp           *GitHubAppConfig     // top-level github-app fallback for all nested github-app token minting operations
-	LockForAgent                bool                 // whether to lock the issue during agent workflow execution
-	Jobs                        map[string]any       // custom job configurations with dependencies
-	Cache                       string               // cache configuration
-	NeedsTextOutput             bool                 // whether the workflow uses ${{ needs.task.outputs.text }}
-	NetworkPermissions          *NetworkPermissions  // parsed network permissions
-	SandboxConfig               *SandboxConfig       // parsed sandbox configuration (AWF or SRT)
-	SafeOutputs                 *SafeOutputsConfig   // output configuration for automatic output routes
-	MCPScripts                  *MCPScriptsConfig    // mcp-scripts configuration for custom MCP tools
-	Roles                       []string             // permission levels required to trigger workflow
-	Bots                        []string             // allow list of bot identifiers that can trigger workflow
-	RateLimit                   *RateLimitConfig     // rate limiting configuration for workflow triggers
-	CacheMemoryConfig           *CacheMemoryConfig   // parsed cache-memory configuration
-	RepoMemoryConfig            *RepoMemoryConfig    // parsed repo-memory configuration
-	QmdConfig                   *QmdToolConfig       // parsed qmd tool configuration (docs globs)
-	Runtimes                    map[string]any       // runtime version overrides from frontmatter
-	APMDependencies             *APMDependenciesInfo // APM (Agent Package Manager) dependency packages to install
-	ToolsTimeout                int                  // timeout in seconds for tool/MCP operations (0 = use engine default)
-	ToolsStartupTimeout         int                  // timeout in seconds for MCP server startup (0 = use engine default)
-	Features                    map[string]any       // feature flags and configuration options from frontmatter (supports bool and string values)
-	ActionCache                 *ActionCache         // cache for action pin resolutions
-	ActionResolver              *ActionResolver      // resolver for action pins
-	StrictMode                  bool                 // strict mode for action pinning
-	SecretMasking               *SecretMaskingConfig // secret masking configuration
-	ParsedFrontmatter           *FrontmatterConfig   // cached parsed frontmatter configuration (for performance optimization)
-	RawFrontmatter              map[string]any       // raw parsed frontmatter map (for passing to hash functions without re-parsing)
-	ActionPinWarnings           map[string]bool      // cache of already-warned action pin failures (key: "repo@version")
-	ActionMode                  ActionMode           // action mode for workflow compilation (dev, release, script)
-	HasExplicitGitHubTool       bool                 // true if tools.github was explicitly configured in frontmatter
-	InlinedImports              bool                 // if true, inline all imports at compile time (from inlined-imports frontmatter field)
-	CheckoutConfigs             []*CheckoutConfig    // user-configured checkout settings from frontmatter
-	CheckoutDisabled            bool                 // true when checkout: false is set in frontmatter
-	HasDispatchItemNumber       bool                 // true when workflow_dispatch has item_number input (generated by label trigger shorthand)
-	ConcurrencyJobDiscriminator string               // optional discriminator expression appended to job-level concurrency groups (from concurrency.job-discriminator)
-	IsDetectionRun              bool                 // true when this WorkflowData is used for inline threat detection (not the main agent run)
-	EngineConfigSteps           []map[string]any     // steps returned by engine.RenderConfig — prepended before execution steps
+	SkipIfMatch                 *SkipIfMatchConfig        // skip-if-match configuration with query and max threshold
+	SkipIfNoMatch               *SkipIfNoMatchConfig      // skip-if-no-match configuration with query and min threshold
+	SkipIfCheckFailing          *SkipIfCheckFailingConfig // skip-if-check-failing configuration
+	SkipRoles                   []string                  // roles to skip workflow for (e.g., [admin, maintainer, write])
+	SkipBots                    []string                  // users to skip workflow for (e.g., [user1, user2])
+	OnSteps                     []map[string]any          // steps to inject into the pre-activation job from on.steps
+	OnPermissions               *Permissions              // additional permissions for the pre-activation job from on.permissions
+	ManualApproval              string                    // environment name for manual approval from on: section
+	Command                     []string                  // for /command trigger support - multiple command names
+	CommandEvents               []string                  // events where command should be active (nil = all events)
+	CommandOtherEvents          map[string]any            // for merging command with other events
+	LabelCommand                []string                  // for label-command trigger support - label names that act as commands
+	LabelCommandEvents          []string                  // events where label-command should be active (nil = all: issues, pull_request, discussion)
+	LabelCommandOtherEvents     map[string]any            // for merging label-command with other events
+	LabelCommandRemoveLabel     bool                      // whether to automatically remove the triggering label (default: true)
+	AIReaction                  string                    // AI reaction type like "eyes", "heart", etc.
+	StatusComment               *bool                     // whether to post status comments (default: true when ai-reaction is set, false otherwise)
+	ActivationGitHubToken       string                    // custom github token from on.github-token for reactions/comments
+	ActivationGitHubApp         *GitHubAppConfig          // github app config from on.github-app for minting activation tokens
+	TopLevelGitHubApp           *GitHubAppConfig          // top-level github-app fallback for all nested github-app token minting operations
+	LockForAgent                bool                      // whether to lock the issue during agent workflow execution
+	Jobs                        map[string]any            // custom job configurations with dependencies
+	Cache                       string                    // cache configuration
+	NeedsTextOutput             bool                      // whether the workflow uses ${{ needs.task.outputs.text }}
+	NetworkPermissions          *NetworkPermissions       // parsed network permissions
+	SandboxConfig               *SandboxConfig            // parsed sandbox configuration (AWF or SRT)
+	SafeOutputs                 *SafeOutputsConfig        // output configuration for automatic output routes
+	MCPScripts                  *MCPScriptsConfig         // mcp-scripts configuration for custom MCP tools
+	Roles                       []string                  // permission levels required to trigger workflow
+	Bots                        []string                  // allow list of bot identifiers that can trigger workflow
+	RateLimit                   *RateLimitConfig          // rate limiting configuration for workflow triggers
+	CacheMemoryConfig           *CacheMemoryConfig        // parsed cache-memory configuration
+	RepoMemoryConfig            *RepoMemoryConfig         // parsed repo-memory configuration
+	QmdConfig                   *QmdToolConfig            // parsed qmd tool configuration (docs globs)
+	Runtimes                    map[string]any            // runtime version overrides from frontmatter
+	APMDependencies             *APMDependenciesInfo      // APM (Agent Package Manager) dependency packages to install
+	ToolsTimeout                int                       // timeout in seconds for tool/MCP operations (0 = use engine default)
+	ToolsStartupTimeout         int                       // timeout in seconds for MCP server startup (0 = use engine default)
+	Features                    map[string]any            // feature flags and configuration options from frontmatter (supports bool and string values)
+	ActionCache                 *ActionCache              // cache for action pin resolutions
+	ActionResolver              *ActionResolver           // resolver for action pins
+	StrictMode                  bool                      // strict mode for action pinning
+	SecretMasking               *SecretMaskingConfig      // secret masking configuration
+	ParsedFrontmatter           *FrontmatterConfig        // cached parsed frontmatter configuration (for performance optimization)
+	RawFrontmatter              map[string]any            // raw parsed frontmatter map (for passing to hash functions without re-parsing)
+	ActionPinWarnings           map[string]bool           // cache of already-warned action pin failures (key: "repo@version")
+	ActionMode                  ActionMode                // action mode for workflow compilation (dev, release, script)
+	HasExplicitGitHubTool       bool                      // true if tools.github was explicitly configured in frontmatter
+	InlinedImports              bool                      // if true, inline all imports at compile time (from inlined-imports frontmatter field)
+	CheckoutConfigs             []*CheckoutConfig         // user-configured checkout settings from frontmatter
+	CheckoutDisabled            bool                      // true when checkout: false is set in frontmatter
+	HasDispatchItemNumber       bool                      // true when workflow_dispatch has item_number input (generated by label trigger shorthand)
+	ConcurrencyJobDiscriminator string                    // optional discriminator expression appended to job-level concurrency groups (from concurrency.job-discriminator)
+	IsDetectionRun              bool                      // true when this WorkflowData is used for inline threat detection (not the main agent run)
+	EngineConfigSteps           []map[string]any          // steps returned by engine.RenderConfig — prepended before execution steps
 }
 
 // BaseSafeOutputConfig holds common configuration fields for all safe output types
