@@ -688,8 +688,10 @@ function buildAssignCopilotFailureContext(hasAssignCopilotFailures, assignCopilo
 }
 
 /**
- * Extract terminal error messages from agent-stdio.log to surface engine failures
- * when agent_output.json was not written (e.g. quota exceeded, auth failure).
+ * Extract terminal error messages from agent-stdio.log to surface engine failures.
+ * First tries to match known error patterns (ERROR:, Error:, Fatal:, panic:, Reconnecting...).
+ * Falls back to the last non-empty lines of the log when no patterns match, so that
+ * even timeout or unexpected-termination failures include the final agent output.
  * The log file is available in the conclusion job after the agent artifact is downloaded.
  * @returns {string} Formatted context string, or empty string if no engine failure found
  */
@@ -720,6 +722,27 @@ function buildEngineFailureContext() {
         continue;
       }
 
+      // Node.js / generic: "Error: <message>" at the start of a line
+      const errorCapMatch = line.match(/^Error:\s*(.+)$/);
+      if (errorCapMatch) {
+        errorMessages.add(errorCapMatch[1].trim());
+        continue;
+      }
+
+      // Fatal errors: "Fatal: <message>" or "FATAL: <message>"
+      const fatalMatch = line.match(/^(?:FATAL|Fatal):\s*(.+)$/);
+      if (fatalMatch) {
+        errorMessages.add(fatalMatch[1].trim());
+        continue;
+      }
+
+      // Go runtime panic: "panic: <message>"
+      const panicMatch = line.match(/^panic:\s*(.+)$/);
+      if (panicMatch) {
+        errorMessages.add(panicMatch[1].trim());
+        continue;
+      }
+
       // Reconnect-style lines that embed the error reason: "Reconnecting... N/M (reason)"
       const reconnectMatch = line.match(/^Reconnecting\.\.\.\s+\d+\/\d+\s*\((.+)\)$/);
       if (reconnectMatch) {
@@ -727,17 +750,31 @@ function buildEngineFailureContext() {
       }
     }
 
-    if (errorMessages.size === 0) {
+    if (errorMessages.size > 0) {
+      core.info(`Found ${errorMessages.size} engine error message(s) in agent-stdio.log`);
+
+      let context = "\n**⚠️ Engine Failure**: The AI engine terminated before producing output.\n\n**Error details:**\n";
+      for (const message of errorMessages) {
+        context += `- ${message}\n`;
+      }
+      context += "\n";
+      return context;
+    }
+
+    // Fallback: no known error patterns found — include the last non-empty lines so that
+    // failures caused by timeouts or unexpected terminations still surface useful context.
+    const TAIL_LINES = 10;
+    const nonEmptyLines = lines.filter(l => l.trim());
+    if (nonEmptyLines.length === 0) {
       return "";
     }
 
-    core.info(`Found ${errorMessages.size} engine error message(s) in agent-stdio.log`);
+    const tailLines = nonEmptyLines.slice(-TAIL_LINES);
+    core.info(`No specific error patterns found; including last ${tailLines.length} line(s) of agent-stdio.log as fallback`);
 
-    let context = "\n**⚠️ Engine Failure**: The AI engine terminated before producing output.\n\n**Error details:**\n";
-    for (const message of errorMessages) {
-      context += `- ${message}\n`;
-    }
-    context += "\n";
+    let context = "\n**⚠️ Engine Failure**: The AI engine terminated unexpectedly.\n\n**Last agent output:**\n```\n";
+    context += tailLines.join("\n");
+    context += "\n```\n\n";
     return context;
   } catch (error) {
     core.info(`Failed to read agent-stdio.log for engine failure context: ${getErrorMessage(error)}`);
@@ -1272,4 +1309,4 @@ async function main() {
   }
 }
 
-module.exports = { main, buildCodePushFailureContext, buildPushRepoMemoryFailureContext, buildAppTokenMintingFailedContext, buildLockdownCheckFailedContext, buildTimeoutContext, buildAssignCopilotFailureContext };
+module.exports = { main, buildCodePushFailureContext, buildPushRepoMemoryFailureContext, buildAppTokenMintingFailedContext, buildLockdownCheckFailedContext, buildTimeoutContext, buildAssignCopilotFailureContext, buildEngineFailureContext };
