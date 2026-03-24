@@ -1,0 +1,8 @@
+name: gh-aw
+version: 1.0.0
+description: APM project for gh-aw
+author: copilot-swe-agent[bot]
+dependencies:
+  apm: []
+  mcp: []
+scripts: {}
