@@ -141,7 +141,7 @@ jobs:
           cat "${RUNNER_TEMP}/gh-aw/prompts/safe_outputs_prompt.md"
           cat << 'GH_AW_PROMPT_EOF'
           <safe-output-tools>
-          Tools: create_pull_request, upload_asset, missing_tool, missing_data, noop
+          Tools: create_pull_request, upload_asset(max:5), missing_tool, missing_data, noop
           GH_AW_PROMPT_EOF
           cat "${RUNNER_TEMP}/gh-aw/prompts/safe_outputs_create_pull_request.md"
           cat << 'GH_AW_PROMPT_EOF'

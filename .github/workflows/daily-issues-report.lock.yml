@@ -153,7 +153,7 @@ jobs:
           cat "${RUNNER_TEMP}/gh-aw/prompts/safe_outputs_prompt.md"
           cat << 'GH_AW_PROMPT_EOF'
           <safe-output-tools>
-          Tools: create_discussion, close_discussion, upload_asset, missing_tool, missing_data, noop
+          Tools: create_discussion, close_discussion(max:10), upload_asset, missing_tool, missing_data, noop
           
           upload_asset: provide a file path; returns a URL; assets are published after the workflow completes (safeoutputs).
           </safe-output-tools>

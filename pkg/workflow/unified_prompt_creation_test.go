@@ -952,3 +952,95 @@ Actor: ${{ github.actor }}`
 	assert.Contains(t, lockStr, "Substitute placeholders", "Should have substitution step")
 	assert.Contains(t, lockStr, "substitute_placeholders.cjs", "Should use substitution script")
 }
+
+// TestToolWithMaxBudget tests the toolWithMaxBudget helper formats tool names correctly.
+func TestToolWithMaxBudget(t *testing.T) {
+	one := "1"
+	five := "5"
+	expr := "${{ inputs.max }}"
+
+	tests := []struct {
+		name     string
+		toolName string
+		max      *string
+		want     string
+	}{
+		{
+			name:     "nil max returns plain name",
+			toolName: "create_issue",
+			max:      nil,
+			want:     "create_issue",
+		},
+		{
+			name:     "max=1 returns plain name",
+			toolName: "create_issue",
+			max:      &one,
+			want:     "create_issue",
+		},
+		{
+			name:     "max>1 returns annotated name",
+			toolName: "create_issue",
+			max:      &five,
+			want:     "create_issue(max:5)",
+		},
+		{
+			name:     "GitHub Actions expression preserved",
+			toolName: "add_comment",
+			max:      &expr,
+			want:     "add_comment(max:${{ inputs.max }})",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := toolWithMaxBudget(tt.toolName, tt.max)
+			assert.Equal(t, tt.want, got, "toolWithMaxBudget(%q, max) should return %q", tt.toolName, tt.want)
+		})
+	}
+}
+
+// TestUnifiedPromptCreation_SafeOutputsMaxBudgetInTools tests that compiled workflows
+// include per-tool max annotations in the tools list when max > 1.
+func TestUnifiedPromptCreation_SafeOutputsMaxBudgetInTools(t *testing.T) {
+	testWorkflow := `---
+on: issue_comment
+engine: claude
+safe-outputs:
+  create-issue:
+    max: 20
+  add-comment:
+    max: 5
+  close-issue:
+    max: 1
+---
+
+# Multi-Write Workflow
+
+Process issues with multiple outputs.`
+
+	tmpDir := t.TempDir()
+	workflowFile := tmpDir + "/multi-write.md"
+	err := os.WriteFile(workflowFile, []byte(testWorkflow), 0644)
+	require.NoError(t, err)
+
+	compiler := NewCompiler()
+	err = compiler.CompileWorkflow(workflowFile)
+	require.NoError(t, err)
+
+	lockFile := strings.Replace(workflowFile, ".md", ".lock.yml", 1)
+	lockContent, err := os.ReadFile(lockFile)
+	require.NoError(t, err)
+
+	lockStr := string(lockContent)
+
+	// Tools with max > 1 should show budget annotation
+	assert.Contains(t, lockStr, "create_issue(max:20)", "create_issue with max:20 should show budget annotation")
+	assert.Contains(t, lockStr, "add_comment(max:5)", "add_comment with max:5 should show budget annotation")
+
+	// Tool with max=1 should not show annotation (default behavior)
+	assert.Contains(t, lockStr, "close_issue", "close_issue should be present")
+	assert.NotContains(t, lockStr, "close_issue(max:1)", "close_issue with max:1 should not show annotation")
+
+	// Prompt should use "at least one" not "exactly one"
+	assert.NotContains(t, lockStr, "exactly one", "Prompt should not say 'exactly one'")
+}

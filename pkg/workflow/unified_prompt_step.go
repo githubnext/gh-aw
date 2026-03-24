@@ -507,6 +507,19 @@ func (c *Compiler) generateUnifiedPromptCreationStep(yaml *strings.Builder, buil
 
 var safeOutputsPromptLog = logger.New("workflow:safe_outputs_prompt")
 
+// toolWithMaxBudget formats a tool name with a per-call budget annotation when the
+// configured maximum is greater than 1. This helps agents understand that multiple
+// calls to the same tool are allowed for the current workflow.
+//
+// Returns "toolname" when max is nil or "1" (default single-call behavior).
+// Returns "toolname(max:N)" when max > 1 so agents know the real action budget.
+func toolWithMaxBudget(name string, max *string) string {
+	if max == nil || *max == "1" {
+		return name
+	}
+	return fmt.Sprintf("%s(max:%s)", name, *max)
+}
+
 // buildSafeOutputsSections returns the PromptSections that form the <safe-output-tools> block.
 // The block contains:
 //  1. An inline opening tag with a compact Tools list (dynamic, depends on which tools are enabled).
@@ -523,129 +536,130 @@ func buildSafeOutputsSections(safeOutputs *SafeOutputsConfig) []PromptSection {
 
 	safeOutputsPromptLog.Print("Building safe outputs sections")
 
-	// Build compact list of enabled tool names
+	// Build compact list of enabled tool names, annotated with max budget when > 1.
 	var tools []string
 	if safeOutputs.AddComments != nil {
-		tools = append(tools, "add_comment")
+		tools = append(tools, toolWithMaxBudget("add_comment", safeOutputs.AddComments.Max))
 	}
 	if safeOutputs.CreateIssues != nil {
-		tools = append(tools, "create_issue")
+		tools = append(tools, toolWithMaxBudget("create_issue", safeOutputs.CreateIssues.Max))
 	}
 	if safeOutputs.CloseIssues != nil {
-		tools = append(tools, "close_issue")
+		tools = append(tools, toolWithMaxBudget("close_issue", safeOutputs.CloseIssues.Max))
 	}
 	if safeOutputs.UpdateIssues != nil {
-		tools = append(tools, "update_issue")
+		tools = append(tools, toolWithMaxBudget("update_issue", safeOutputs.UpdateIssues.Max))
 	}
 	if safeOutputs.CreateDiscussions != nil {
-		tools = append(tools, "create_discussion")
+		tools = append(tools, toolWithMaxBudget("create_discussion", safeOutputs.CreateDiscussions.Max))
 	}
 	if safeOutputs.UpdateDiscussions != nil {
-		tools = append(tools, "update_discussion")
+		tools = append(tools, toolWithMaxBudget("update_discussion", safeOutputs.UpdateDiscussions.Max))
 	}
 	if safeOutputs.CloseDiscussions != nil {
-		tools = append(tools, "close_discussion")
+		tools = append(tools, toolWithMaxBudget("close_discussion", safeOutputs.CloseDiscussions.Max))
 	}
 	if safeOutputs.CreateAgentSessions != nil {
-		tools = append(tools, "create_agent_session")
+		tools = append(tools, toolWithMaxBudget("create_agent_session", safeOutputs.CreateAgentSessions.Max))
 	}
 	if safeOutputs.CreatePullRequests != nil {
-		tools = append(tools, "create_pull_request")
+		tools = append(tools, toolWithMaxBudget("create_pull_request", safeOutputs.CreatePullRequests.Max))
 	}
 	if safeOutputs.ClosePullRequests != nil {
-		tools = append(tools, "close_pull_request")
+		tools = append(tools, toolWithMaxBudget("close_pull_request", safeOutputs.ClosePullRequests.Max))
 	}
 	if safeOutputs.UpdatePullRequests != nil {
-		tools = append(tools, "update_pull_request")
+		tools = append(tools, toolWithMaxBudget("update_pull_request", safeOutputs.UpdatePullRequests.Max))
 	}
 	if safeOutputs.MarkPullRequestAsReadyForReview != nil {
-		tools = append(tools, "mark_pull_request_as_ready_for_review")
+		tools = append(tools, toolWithMaxBudget("mark_pull_request_as_ready_for_review", safeOutputs.MarkPullRequestAsReadyForReview.Max))
 	}
 	if safeOutputs.CreatePullRequestReviewComments != nil {
-		tools = append(tools, "create_pull_request_review_comment")
+		tools = append(tools, toolWithMaxBudget("create_pull_request_review_comment", safeOutputs.CreatePullRequestReviewComments.Max))
 	}
 	if safeOutputs.SubmitPullRequestReview != nil {
-		tools = append(tools, "submit_pull_request_review")
+		tools = append(tools, toolWithMaxBudget("submit_pull_request_review", safeOutputs.SubmitPullRequestReview.Max))
 	}
 	if safeOutputs.ReplyToPullRequestReviewComment != nil {
-		tools = append(tools, "reply_to_pull_request_review_comment")
+		tools = append(tools, toolWithMaxBudget("reply_to_pull_request_review_comment", safeOutputs.ReplyToPullRequestReviewComment.Max))
 	}
 	if safeOutputs.ResolvePullRequestReviewThread != nil {
-		tools = append(tools, "resolve_pull_request_review_thread")
+		tools = append(tools, toolWithMaxBudget("resolve_pull_request_review_thread", safeOutputs.ResolvePullRequestReviewThread.Max))
 	}
 	if safeOutputs.AddLabels != nil {
-		tools = append(tools, "add_labels")
+		tools = append(tools, toolWithMaxBudget("add_labels", safeOutputs.AddLabels.Max))
 	}
 	if safeOutputs.RemoveLabels != nil {
-		tools = append(tools, "remove_labels")
+		tools = append(tools, toolWithMaxBudget("remove_labels", safeOutputs.RemoveLabels.Max))
 	}
 	if safeOutputs.AddReviewer != nil {
-		tools = append(tools, "add_reviewer")
+		tools = append(tools, toolWithMaxBudget("add_reviewer", safeOutputs.AddReviewer.Max))
 	}
 	if safeOutputs.AssignMilestone != nil {
-		tools = append(tools, "assign_milestone")
+		tools = append(tools, toolWithMaxBudget("assign_milestone", safeOutputs.AssignMilestone.Max))
 	}
 	if safeOutputs.AssignToAgent != nil {
-		tools = append(tools, "assign_to_agent")
+		tools = append(tools, toolWithMaxBudget("assign_to_agent", safeOutputs.AssignToAgent.Max))
 	}
 	if safeOutputs.AssignToUser != nil {
-		tools = append(tools, "assign_to_user")
+		tools = append(tools, toolWithMaxBudget("assign_to_user", safeOutputs.AssignToUser.Max))
 	}
 	if safeOutputs.UnassignFromUser != nil {
-		tools = append(tools, "unassign_from_user")
+		tools = append(tools, toolWithMaxBudget("unassign_from_user", safeOutputs.UnassignFromUser.Max))
 	}
 	if safeOutputs.PushToPullRequestBranch != nil {
-		tools = append(tools, "push_to_pull_request_branch")
+		tools = append(tools, toolWithMaxBudget("push_to_pull_request_branch", safeOutputs.PushToPullRequestBranch.Max))
 	}
 	if safeOutputs.CreateCodeScanningAlerts != nil {
-		tools = append(tools, "create_code_scanning_alert")
+		tools = append(tools, toolWithMaxBudget("create_code_scanning_alert", safeOutputs.CreateCodeScanningAlerts.Max))
 	}
 	if safeOutputs.AutofixCodeScanningAlert != nil {
-		tools = append(tools, "autofix_code_scanning_alert")
+		tools = append(tools, toolWithMaxBudget("autofix_code_scanning_alert", safeOutputs.AutofixCodeScanningAlert.Max))
 	}
 	if safeOutputs.UploadAssets != nil {
-		tools = append(tools, "upload_asset")
+		tools = append(tools, toolWithMaxBudget("upload_asset", safeOutputs.UploadAssets.Max))
 	}
 	if safeOutputs.UpdateRelease != nil {
-		tools = append(tools, "update_release")
+		tools = append(tools, toolWithMaxBudget("update_release", safeOutputs.UpdateRelease.Max))
 	}
 	if safeOutputs.UpdateProjects != nil {
-		tools = append(tools, "update_project")
+		tools = append(tools, toolWithMaxBudget("update_project", safeOutputs.UpdateProjects.Max))
 	}
 	if safeOutputs.CreateProjects != nil {
-		tools = append(tools, "create_project")
+		tools = append(tools, toolWithMaxBudget("create_project", safeOutputs.CreateProjects.Max))
 	}
 	if safeOutputs.CreateProjectStatusUpdates != nil {
-		tools = append(tools, "create_project_status_update")
+		tools = append(tools, toolWithMaxBudget("create_project_status_update", safeOutputs.CreateProjectStatusUpdates.Max))
 	}
 	if safeOutputs.LinkSubIssue != nil {
-		tools = append(tools, "link_sub_issue")
+		tools = append(tools, toolWithMaxBudget("link_sub_issue", safeOutputs.LinkSubIssue.Max))
 	}
 	if safeOutputs.HideComment != nil {
-		tools = append(tools, "hide_comment")
+		tools = append(tools, toolWithMaxBudget("hide_comment", safeOutputs.HideComment.Max))
 	}
 	if safeOutputs.SetIssueType != nil {
-		tools = append(tools, "set_issue_type")
+		tools = append(tools, toolWithMaxBudget("set_issue_type", safeOutputs.SetIssueType.Max))
 	}
 	if safeOutputs.DispatchWorkflow != nil {
-		tools = append(tools, "dispatch_workflow")
+		tools = append(tools, toolWithMaxBudget("dispatch_workflow", safeOutputs.DispatchWorkflow.Max))
 	}
 	if safeOutputs.DispatchRepository != nil {
+		// dispatch_repository uses per-tool max values (map-of-tools pattern); no top-level max.
 		tools = append(tools, "dispatch_repository")
 	}
 	if safeOutputs.CallWorkflow != nil {
-		tools = append(tools, "call_workflow")
+		tools = append(tools, toolWithMaxBudget("call_workflow", safeOutputs.CallWorkflow.Max))
 	}
 	if safeOutputs.MissingTool != nil {
-		tools = append(tools, "missing_tool")
+		tools = append(tools, toolWithMaxBudget("missing_tool", safeOutputs.MissingTool.Max))
 	}
 	if safeOutputs.MissingData != nil {
-		tools = append(tools, "missing_data")
+		tools = append(tools, toolWithMaxBudget("missing_data", safeOutputs.MissingData.Max))
 	}
 	// noop is always included: it is auto-injected by extractSafeOutputsConfig and
 	// must always appear in the tools list so agents can signal no-op completion.
 	if safeOutputs.NoOp != nil {
-		tools = append(tools, "noop")
+		tools = append(tools, toolWithMaxBudget("noop", safeOutputs.NoOp.Max))
 	}
 
 	if len(tools) == 0 {

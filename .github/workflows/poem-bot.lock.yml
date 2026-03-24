@@ -202,7 +202,7 @@ jobs:
           cat "${RUNNER_TEMP}/gh-aw/prompts/safe_outputs_prompt.md"
           cat << 'GH_AW_PROMPT_EOF'
           <safe-output-tools>
-          Tools: add_comment, create_issue, update_issue, create_discussion, create_agent_session, create_pull_request, close_pull_request, create_pull_request_review_comment, add_labels, push_to_pull_request_branch, upload_asset, link_sub_issue, missing_tool, missing_data, noop
+          Tools: add_comment(max:3), create_issue(max:2), update_issue(max:2), create_discussion(max:2), create_agent_session, create_pull_request, close_pull_request(max:2), create_pull_request_review_comment(max:2), add_labels(max:5), push_to_pull_request_branch, upload_asset, link_sub_issue(max:3), missing_tool, missing_data, noop
           GH_AW_PROMPT_EOF
           cat "${RUNNER_TEMP}/gh-aw/prompts/safe_outputs_create_pull_request.md"
           cat "${RUNNER_TEMP}/gh-aw/prompts/safe_outputs_push_to_pr_branch.md"
