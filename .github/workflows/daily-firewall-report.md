@@ -397,10 +397,10 @@ Show aggregated rule hit counts across all analyzed runs:
 ```markdown
 | Rule | Action | Description | Total Hits |
 |------|--------|-------------|------------|
-| allow-github | allow | Allow GitHub domains | 523 |
-| allow-npm | allow | Allow npm registry | 187 |
-| deny-blocked-plain | deny | Deny all other HTTP/HTTPS | 12 |
-| deny-default | deny | Default deny | 3 |
+| allow-github | 🟢 allow | Allow GitHub domains | 523 |
+| allow-npm | 🟢 allow | Allow npm registry | 187 |
+| deny-blocked-plain | 🔴 deny | Deny all other HTTP/HTTPS | 12 |
+| deny-default | 🔴 deny | Default deny | 3 |
 ```
 
 - Sort by hits (descending)
