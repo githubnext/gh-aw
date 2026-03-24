@@ -81,6 +81,7 @@ func (c *Compiler) buildPreActivationJob(data *WorkflowData, needsPermissionChec
 
 	// Add stop-time check if configured
 	if data.StopTime != "" {
+		compilerActivationJobsLog.Printf("Adding stop-time check step: stop_time=%s", data.StopTime)
 		// Extract workflow name for the stop-time check
 		workflowName := data.Name
 
@@ -109,6 +110,7 @@ func (c *Compiler) buildPreActivationJob(data *WorkflowData, needsPermissionChec
 
 	// Add skip-if-match check if configured
 	if data.SkipIfMatch != nil {
+		compilerActivationJobsLog.Printf("Adding skip-if-match check step: query=%s, max=%d", data.SkipIfMatch.Query, data.SkipIfMatch.Max)
 		workflowName := data.Name
 
 		steps = append(steps, "      - name: Check skip-if-match query\n")
@@ -131,6 +133,7 @@ func (c *Compiler) buildPreActivationJob(data *WorkflowData, needsPermissionChec
 
 	// Add skip-if-no-match check if configured
 	if data.SkipIfNoMatch != nil {
+		compilerActivationJobsLog.Printf("Adding skip-if-no-match check step: query=%s, min=%d", data.SkipIfNoMatch.Query, data.SkipIfNoMatch.Min)
 		workflowName := data.Name
 
 		steps = append(steps, "      - name: Check skip-if-no-match query\n")
@@ -153,6 +156,7 @@ func (c *Compiler) buildPreActivationJob(data *WorkflowData, needsPermissionChec
 
 	// Add skip-if-check-failing check if configured
 	if data.SkipIfCheckFailing != nil {
+		compilerActivationJobsLog.Printf("Adding skip-if-check-failing check step: include=%v, exclude=%v", data.SkipIfCheckFailing.Include, data.SkipIfCheckFailing.Exclude)
 		steps = append(steps, "      - name: Check skip-if-check-failing\n")
 		steps = append(steps, fmt.Sprintf("        id: %s\n", constants.CheckSkipIfCheckFailingStepID))
 		steps = append(steps, fmt.Sprintf("        uses: %s\n", GetActionPin("actions/github-script")))

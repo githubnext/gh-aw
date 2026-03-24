@@ -237,7 +237,6 @@ function generateProperty(propName, prop, indent = 0, isRequired = false) {
       lines.push(`${indentStr}  {}`);
     }
   } else if (prop.type === "array") {
-    const example = getExampleValue(prop, propName);
     lines.push(`${indentStr}${propName}: []`);
     if (prop.items) {
       if (prop.items.type === "string") {
