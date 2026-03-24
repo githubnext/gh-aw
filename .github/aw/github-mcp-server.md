@@ -32,12 +32,13 @@ X-MCP-Readonly: true
 ```yaml
 tools:
   github:
-    mode: "remote"          # or "local"
     toolsets: [default]     # or specific toolsets
     # Optional: GitHub App authentication
     app-id: ${{ vars.APP_ID }}
     private-key: ${{ secrets.APP_PRIVATE_KEY }}
 ```
+
+> ⚠️ **Do NOT use `mode: remote`** in GitHub Actions workflows. Remote mode does not work with the GitHub Actions token (`GITHUB_TOKEN`) — it requires a special PAT or GitHub App token with MCP access. The default `mode: local` (Docker-based) works with `GITHUB_TOKEN` and should always be used.
 
 ### Toolset Options
 

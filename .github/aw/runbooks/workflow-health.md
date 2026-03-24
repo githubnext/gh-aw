@@ -94,7 +94,6 @@ Check if the workflow has proper MCP server configuration:
 ---
 tools:
   github:
-    mode: remote          # or "local" for Docker-based
     toolsets: [default]   # Enables repos, issues, pull_requests
 ---
 ```
@@ -145,7 +144,6 @@ Common permission requirements:
 ---
 tools:
   github:
-    mode: remote
     toolsets: [default]
 ---
 ```
@@ -183,7 +181,6 @@ permissions:
 engine: copilot
 tools:
   github:
-    mode: remote
     toolsets: [default]
 ---
 
@@ -244,7 +241,6 @@ permissions:
 engine: copilot
 tools:
   github:
-    mode: remote
     toolsets: [default]
 mcp-scripts:
   issue:
@@ -335,7 +331,6 @@ Added GitHub MCP server configuration:
 ```aw
 tools:
   github:
-    mode: remote
     toolsets: [default]
 ```
 
@@ -391,7 +386,6 @@ permissions:
   issues: read
 tools:
   github:
-    mode: remote
     toolsets: [default]
 ---
 ```
@@ -411,7 +405,6 @@ mcp-scripts:
     body: ${{ github.event.issue.body }}
 tools:
   github:
-    mode: remote
     toolsets: [default]
 ---
 ```
@@ -430,7 +423,6 @@ safe-outputs:
     category: "general"
 tools:
   github:
-    mode: remote
     toolsets: [default]
 ---
 ```
