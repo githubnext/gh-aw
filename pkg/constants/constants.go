@@ -438,8 +438,8 @@ const DefaultPlaywrightMCPVersion Version = "0.0.68"
 const DefaultQmdVersion Version = "2.0.1"
 
 // DefaultQmdIndexingRunnerImage is the default runner image for the qmd indexing job.
-// Uses aw-gpu-runner-T4 for GPU-accelerated embedding; users can override with the runs-on: field in the qmd config.
-const DefaultQmdIndexingRunnerImage = "aw-gpu-runner-T4"
+// Users can override this with the runs-on: field in the qmd config.
+const DefaultQmdIndexingRunnerImage = "ubuntu-latest"
 
 // DefaultPlaywrightBrowserVersion is the default version of the Playwright browser Docker image
 const DefaultPlaywrightBrowserVersion Version = "v1.58.2"
