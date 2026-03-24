@@ -953,6 +953,149 @@ jobs:
             echo "✨ Live API test completed successfully" >> $GITHUB_STEP_SUMMARY
           fi
 
+  js-apm-unpack-integration:
+    name: APM Pack/Unpack Integration (Python vs JS)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: validate-yaml
+    permissions:
+      contents: read
+    concurrency:
+      group: ci-${{ github.ref }}-js-apm-unpack-integration
+      cancel-in-progress: true
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Set up Python
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version: "3.12"
+
+      - name: Install APM CLI
+        run: pip install --quiet apm-cli
+
+      - name: Set up Node.js
+        id: setup-node
+        uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f # v6
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: actions/setup/js/package-lock.json
+
+      - name: Install npm dependencies
+        run: cd actions/setup/js && npm ci
+
+      - name: Create minimal APM test project
+        run: |
+          set -e
+          APM_PROJECT=/tmp/apm-test-project
+          mkdir -p "$APM_PROJECT"
+          cd "$APM_PROJECT"
+
+          # apm.yml — required by the packer for name/version
+          cat > apm.yml << 'APMEOF'
+          name: gh-aw-test-package
+          version: 1.0.0
+          APMEOF
+
+          # apm.lock.yaml — two dependencies, mixed files and a directory entry
+          cat > apm.lock.yaml << 'APMEOF'
+          lockfile_version: '1'
+          apm_version: '0.8.5'
+          dependencies:
+          - repo_url: https://github.com/test-owner/skill-a
+            resolved_commit: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+            resolved_ref: main
+            virtual_path: null
+            is_local: false
+            deployed_files:
+            - .github/skills/skill-a/
+            - .github/copilot-instructions.md
+          - repo_url: https://github.com/test-owner/skill-b
+            resolved_commit: bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+            resolved_ref: v2.0.0
+            virtual_path: null
+            is_local: false
+            deployed_files:
+            - .github/skills/skill-b/skill.md
+            - .github/agents.md
+          APMEOF
+
+          # Create files referenced by deployed_files
+          mkdir -p .github/skills/skill-a
+          printf '# Skill A\nThis is skill A content.\n' > .github/skills/skill-a/skill.md
+          printf 'Skill A helper notes.\n' > .github/skills/skill-a/notes.txt
+          printf '# Copilot Instructions\nFollow these rules.\n' > .github/copilot-instructions.md
+          mkdir -p .github/skills/skill-b
+          printf '# Skill B\nThis is skill B.\n' > .github/skills/skill-b/skill.md
+          printf '# Agents\nAgent configuration.\n' > .github/agents.md
+
+          echo "✅ APM test project created at $APM_PROJECT"
+          find "$APM_PROJECT" -type f | sort
+
+      - name: Pack APM bundle
+        run: |
+          set -e
+          cd /tmp/apm-test-project
+          mkdir -p /tmp/apm-bundle
+          apm pack --archive -o /tmp/apm-bundle
+          echo ""
+          echo "✅ Bundle created:"
+          ls -lh /tmp/apm-bundle/*.tar.gz
+
+      - name: Unpack with Python (microsoft/apm reference)
+        run: |
+          set -e
+          mkdir -p /tmp/apm-out-python
+          BUNDLE=$(ls /tmp/apm-bundle/*.tar.gz)
+          apm unpack "$BUNDLE" -o /tmp/apm-out-python
+          echo ""
+          echo "=== Python unpack result ==="
+          find /tmp/apm-out-python -type f | sort
+
+      - name: Unpack with JavaScript (apm_unpack.cjs)
+        env:
+          APM_BUNDLE_DIR: /tmp/apm-bundle
+          OUTPUT_DIR: /tmp/apm-out-js
+        run: |
+          set -e
+          mkdir -p /tmp/apm-out-js
+          node actions/setup/js/run_apm_unpack.cjs
+          echo ""
+          echo "=== JavaScript unpack result ==="
+          find /tmp/apm-out-js -type f | sort
+
+      - name: Compare Python vs JavaScript unpack outputs
+        run: |
+          set -e
+          echo "## APM Unpack Integration Test" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          echo "### Files unpacked by Python (reference)" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          find /tmp/apm-out-python -type f | sort | sed "s|/tmp/apm-out-python/||" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+
+          echo "### Files unpacked by JavaScript" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          find /tmp/apm-out-js -type f | sort | sed "s|/tmp/apm-out-js/||" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+
+          if diff -rq /tmp/apm-out-python /tmp/apm-out-js > /tmp/apm-diff.txt 2>&1; then
+            echo "### ✅ Outputs are identical" >> $GITHUB_STEP_SUMMARY
+            echo "✅ Python and JavaScript unpack results match"
+          else
+            echo "### ❌ Outputs differ" >> $GITHUB_STEP_SUMMARY
+            echo '```diff' >> $GITHUB_STEP_SUMMARY
+            diff -r /tmp/apm-out-python /tmp/apm-out-js >> $GITHUB_STEP_SUMMARY 2>&1 || true
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            echo "❌ Python and JavaScript unpack results differ:"
+            cat /tmp/apm-diff.txt
+            diff -r /tmp/apm-out-python /tmp/apm-out-js || true
+            exit 1
+          fi
+
   bench:
     # Only run benchmarks on main branch for performance tracking
     if: github.ref == 'refs/heads/main'
