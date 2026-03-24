@@ -383,7 +383,7 @@ The YAML frontmatter supports these fields:
 - **`tools:`** - Tool configuration for coding agent
   - `github:` - GitHub API tools
     - `allowed:` - Array of allowed GitHub API functions
-    - `mode:` - "local" (Docker, default) or "remote" (hosted)
+    - `mode:` - "local" (Docker, default) — **do NOT use "remote"** as it does not work with the GitHub Actions token
     - `version:` - MCP server version (local mode only)
     - `args:` - Additional command-line arguments (local mode only)
     - `read-only:` - The GitHub MCP server always operates in read-only mode; this field is accepted but has no effect

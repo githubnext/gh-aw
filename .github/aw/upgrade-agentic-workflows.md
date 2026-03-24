@@ -150,10 +150,9 @@ If compilation fails, work through errors systematically:
      github:
        mode: remote
    
-   # New format
+   # New format (do NOT include mode: remote - it does not work with GitHub Actions token)
    tools:
      github:
-       mode: remote
        toolsets: [default]
    ```
 
