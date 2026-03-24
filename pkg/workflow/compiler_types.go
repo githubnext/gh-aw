@@ -345,9 +345,10 @@ type SkipIfNoMatchConfig struct {
 
 // SkipIfCheckFailingConfig holds the configuration for skip-if-check-failing conditions
 type SkipIfCheckFailingConfig struct {
-	Include []string // check names to include (empty = all checks)
-	Exclude []string // check names to exclude
-	Branch  string   // optional branch name to check (defaults to triggering ref or PR base branch)
+	Include      []string // check names to include (empty = all checks)
+	Exclude      []string // check names to exclude
+	Branch       string   // optional branch name to check (defaults to triggering ref or PR base branch)
+	AllowPending bool     // if true, pending/in-progress checks are not treated as failing (default: treat pending as failing)
 }
 type WorkflowData struct {
 	Name                        string

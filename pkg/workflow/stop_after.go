@@ -439,7 +439,7 @@ func (c *Compiler) extractSkipIfCheckFailingFromOn(frontmatter map[string]any, w
 				}
 				return &SkipIfCheckFailingConfig{}, nil
 			case map[string]any:
-				// Object format: skip-if-check-failing: { include: [...], exclude: [...], branch: "..." }
+				// Object format: skip-if-check-failing: { include: [...], exclude: [...], branch: "...", allow-pending: true }
 				config := &SkipIfCheckFailingConfig{}
 
 				// Extract include list (optional)
@@ -481,9 +481,18 @@ func (c *Compiler) extractSkipIfCheckFailingFromOn(frontmatter map[string]any, w
 					config.Branch = branchStr
 				}
 
+				// Extract allow-pending (optional, defaults to false — pending counts as failing)
+				if allowPendingRaw, hasAllowPending := skip["allow-pending"]; hasAllowPending {
+					allowPending, ok := allowPendingRaw.(bool)
+					if !ok {
+						return nil, fmt.Errorf("skip-if-check-failing 'allow-pending' field must be a boolean, got %T. Example: allow-pending: true", allowPendingRaw)
+					}
+					config.AllowPending = allowPending
+				}
+
 				return config, nil
 			default:
-				return nil, fmt.Errorf("skip-if-check-failing value must be true or an object, got %T. Examples:\n  skip-if-check-failing:\n  skip-if-check-failing: true\n  skip-if-check-failing:\n    include:\n      - build\n    branch: main", skipIfCheckFailing)
+				return nil, fmt.Errorf("skip-if-check-failing value must be true or an object, got %T. Examples:\n  skip-if-check-failing:\n  skip-if-check-failing: true\n  skip-if-check-failing:\n    include:\n      - build\n    branch: main\n    allow-pending: true", skipIfCheckFailing)
 			}
 		}
 		return nil, nil
@@ -501,10 +510,11 @@ func (c *Compiler) processSkipIfCheckFailingConfiguration(frontmatter map[string
 	workflowData.SkipIfCheckFailing = skipIfCheckFailingConfig
 
 	if workflowData.SkipIfCheckFailing != nil {
-		stopAfterLog.Printf("Skip-if-check-failing configured: include=%v, exclude=%v, branch=%q",
+		stopAfterLog.Printf("Skip-if-check-failing configured: include=%v, exclude=%v, branch=%q, allow-pending=%v",
 			workflowData.SkipIfCheckFailing.Include,
 			workflowData.SkipIfCheckFailing.Exclude,
 			workflowData.SkipIfCheckFailing.Branch,
+			workflowData.SkipIfCheckFailing.AllowPending,
 		)
 	}
 

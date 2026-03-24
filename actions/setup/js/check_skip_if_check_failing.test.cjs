@@ -45,6 +45,7 @@ describe("check_skip_if_check_failing.cjs", () => {
     delete process.env.GH_AW_SKIP_CHECK_INCLUDE;
     delete process.env.GH_AW_SKIP_CHECK_EXCLUDE;
     delete process.env.GITHUB_BASE_REF;
+    delete process.env.GH_AW_SKIP_CHECK_ALLOW_PENDING;
   });
 
   it("should allow workflow when all checks pass", async () => {
@@ -93,13 +94,50 @@ describe("check_skip_if_check_failing.cjs", () => {
     expect(mockCore.setOutput).toHaveBeenCalledWith("skip_if_check_failing_ok", "false");
   });
 
-  it("should allow workflow when checks are still in progress", async () => {
+  it("should cancel workflow when checks are still in progress (pending treated as failing by default)", async () => {
+    mockGithub.paginate.mockResolvedValue([{ name: "build", status: "in_progress", conclusion: null, started_at: "2024-01-01T00:00:00Z" }]);
+
+    const { main } = await import("./check_skip_if_check_failing.cjs");
+    await main();
+
+    expect(mockCore.setOutput).toHaveBeenCalledWith("skip_if_check_failing_ok", "false");
+    expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("build (in_progress)"));
+  });
+
+  it("should cancel workflow when checks are queued (pending treated as failing by default)", async () => {
+    mockGithub.paginate.mockResolvedValue([{ name: "test", status: "queued", conclusion: null, started_at: null }]);
+
+    const { main } = await import("./check_skip_if_check_failing.cjs");
+    await main();
+
+    expect(mockCore.setOutput).toHaveBeenCalledWith("skip_if_check_failing_ok", "false");
+    expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("test (queued)"));
+  });
+
+  it("should allow workflow when checks are in progress and allow-pending is true", async () => {
+    process.env.GH_AW_SKIP_CHECK_ALLOW_PENDING = "true";
     mockGithub.paginate.mockResolvedValue([{ name: "build", status: "in_progress", conclusion: null, started_at: "2024-01-01T00:00:00Z" }]);
 
     const { main } = await import("./check_skip_if_check_failing.cjs");
     await main();
 
     expect(mockCore.setOutput).toHaveBeenCalledWith("skip_if_check_failing_ok", "true");
+    expect(mockCore.setFailed).not.toHaveBeenCalled();
+  });
+
+  it("should cancel when a completed check fails even with allow-pending true", async () => {
+    process.env.GH_AW_SKIP_CHECK_ALLOW_PENDING = "true";
+    mockGithub.paginate.mockResolvedValue([
+      { name: "build", status: "in_progress", conclusion: null, started_at: "2024-01-01T00:00:00Z" },
+      { name: "lint", status: "completed", conclusion: "failure", started_at: "2024-01-01T00:00:00Z" },
+    ]);
+
+    const { main } = await import("./check_skip_if_check_failing.cjs");
+    await main();
+
+    // lint failed → cancel; build pending but ignored due to allow-pending
+    expect(mockCore.setOutput).toHaveBeenCalledWith("skip_if_check_failing_ok", "false");
+    expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("lint"));
   });
 
   it("should allow workflow when no checks exist", async () => {

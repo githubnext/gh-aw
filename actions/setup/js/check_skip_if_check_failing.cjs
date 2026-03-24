@@ -70,6 +70,7 @@ function isDeploymentCheck(run) {
 async function main() {
   const includeEnv = process.env.GH_AW_SKIP_CHECK_INCLUDE;
   const excludeEnv = process.env.GH_AW_SKIP_CHECK_EXCLUDE;
+  const allowPending = process.env.GH_AW_SKIP_CHECK_ALLOW_PENDING === "true";
 
   const includeList = parseListEnv(includeEnv);
   const excludeList = parseListEnv(excludeEnv);
@@ -88,6 +89,9 @@ async function main() {
   }
   if (excludeList && excludeList.length > 0) {
     core.info(`Excluding checks: ${excludeList.join(", ")}`);
+  }
+  if (allowPending) {
+    core.info("Pending/in-progress checks will be ignored (allow-pending: true)");
   }
 
   try {
@@ -136,13 +140,21 @@ async function main() {
 
     core.info(`Evaluating ${relevant.length} check run(s) after filtering`);
 
-    // A check is considered "failed" if it has completed with a non-success conclusion
+    // A check is "failing" if it either:
+    //   1. Completed with a non-success conclusion (failure, cancelled, timed_out), OR
+    //   2. Is still pending/in-progress — unless allow-pending is set
     const failedConclusions = new Set(["failure", "cancelled", "timed_out"]);
 
-    const failingChecks = relevant.filter(run => run.status === "completed" && run.conclusion != null && failedConclusions.has(run.conclusion));
+    const failingChecks = relevant.filter(run => {
+      if (run.status === "completed") {
+        return run.conclusion != null && failedConclusions.has(run.conclusion);
+      }
+      // Pending/queued/in_progress: treat as failing unless allow-pending is true
+      return !allowPending;
+    });
 
     if (failingChecks.length > 0) {
-      const names = failingChecks.map(r => `${r.name} (${r.conclusion})`).join(", ");
+      const names = failingChecks.map(r => (r.status === "completed" ? `${r.name} (${r.conclusion})` : `${r.name} (${r.status})`)).join(", ");
       core.warning(`⚠️ Failing CI checks detected on "${ref}": ${names}. Workflow execution will be prevented by activation job.`);
       core.setOutput("skip_if_check_failing_ok", "false");
       return;

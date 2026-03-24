@@ -1502,13 +1502,17 @@
                     "branch": {
                       "type": "string",
                       "description": "Branch name to check for failing CI checks. When omitted, defaults to the base branch of a pull_request event or the current ref for other events."
+                    },
+                    "allow-pending": {
+                      "type": "boolean",
+                      "description": "When true, pending or in-progress checks are not treated as failing. By default (false), any check that has not yet completed is treated as failing and will block the workflow."
                     }
                   },
                   "additionalProperties": false,
-                  "description": "Skip-if-check-failing configuration object with optional include/exclude filter lists and an optional branch name."
+                  "description": "Skip-if-check-failing configuration object with optional include/exclude filter lists, an optional branch name, and an allow-pending flag."
                 }
               ],
-              "description": "Skip workflow execution if any CI checks on the target branch are failing. Accepts true (check all) or an object to filter specific checks by name and optionally specify a branch."
+              "description": "Skip workflow execution if any CI checks on the target branch are failing or pending. Accepts true (check all) or an object to filter specific checks by name and optionally specify a branch or allow pending checks."
             },
             "skip-roles": {
               "oneOf": [

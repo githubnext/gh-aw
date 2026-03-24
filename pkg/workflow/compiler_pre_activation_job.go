@@ -156,7 +156,7 @@ func (c *Compiler) buildPreActivationJob(data *WorkflowData, needsPermissionChec
 		steps = append(steps, "      - name: Check skip-if-check-failing\n")
 		steps = append(steps, fmt.Sprintf("        id: %s\n", constants.CheckSkipIfCheckFailingStepID))
 		steps = append(steps, fmt.Sprintf("        uses: %s\n", GetActionPin("actions/github-script")))
-		if len(data.SkipIfCheckFailing.Include) > 0 || len(data.SkipIfCheckFailing.Exclude) > 0 || data.SkipIfCheckFailing.Branch != "" {
+		if len(data.SkipIfCheckFailing.Include) > 0 || len(data.SkipIfCheckFailing.Exclude) > 0 || data.SkipIfCheckFailing.Branch != "" || data.SkipIfCheckFailing.AllowPending {
 			steps = append(steps, "        env:\n")
 			if len(data.SkipIfCheckFailing.Include) > 0 {
 				includeJSON, _ := json.Marshal(data.SkipIfCheckFailing.Include)
@@ -168,6 +168,9 @@ func (c *Compiler) buildPreActivationJob(data *WorkflowData, needsPermissionChec
 			}
 			if data.SkipIfCheckFailing.Branch != "" {
 				steps = append(steps, fmt.Sprintf("          GH_AW_SKIP_BRANCH: %q\n", data.SkipIfCheckFailing.Branch))
+			}
+			if data.SkipIfCheckFailing.AllowPending {
+				steps = append(steps, "          GH_AW_SKIP_CHECK_ALLOW_PENDING: \"true\"\n")
 			}
 		}
 		steps = append(steps, "        with:\n")

@@ -324,4 +324,51 @@ This workflow uses the bare null form of skip-if-check-failing.
 			t.Error("Expected no GH_AW_SKIP_BRANCH for bare null form")
 		}
 	})
+
+	t.Run("skip_if_check_failing_allow_pending_sets_env_var", func(t *testing.T) {
+		workflowContent := `---
+on:
+  pull_request:
+    types: [opened, synchronize]
+  skip-if-check-failing:
+    allow-pending: true
+engine: claude
+---
+
+# Skip If Check Failing Allow Pending
+
+This workflow allows pending checks.
+`
+		workflowFile := filepath.Join(tmpDir, "skip-if-check-failing-allow-pending.md")
+		if err := os.WriteFile(workflowFile, []byte(workflowContent), 0644); err != nil {
+			t.Fatal(err)
+		}
+
+		err := compiler.CompileWorkflow(workflowFile)
+		if err != nil {
+			t.Fatalf("Compilation failed: %v", err)
+		}
+
+		lockFile := stringutil.MarkdownToLockFile(workflowFile)
+		lockContent, err := os.ReadFile(lockFile)
+		if err != nil {
+			t.Fatalf("Failed to read lock file: %v", err)
+		}
+
+		lockContentStr := string(lockContent)
+
+		if !strings.Contains(lockContentStr, "Check skip-if-check-failing") {
+			t.Error("Expected skip-if-check-failing check step to be present")
+		}
+		if !strings.Contains(lockContentStr, `GH_AW_SKIP_CHECK_ALLOW_PENDING: "true"`) {
+			t.Error("Expected GH_AW_SKIP_CHECK_ALLOW_PENDING env var when allow-pending: true")
+		}
+		// No include/exclude/branch since only allow-pending was set
+		if strings.Contains(lockContentStr, "GH_AW_SKIP_CHECK_INCLUDE") {
+			t.Error("Expected no GH_AW_SKIP_CHECK_INCLUDE")
+		}
+		if strings.Contains(lockContentStr, "GH_AW_SKIP_CHECK_EXCLUDE") {
+			t.Error("Expected no GH_AW_SKIP_CHECK_EXCLUDE")
+		}
+	})
 }

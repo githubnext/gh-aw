@@ -443,7 +443,7 @@ func (c *Compiler) commentOutProcessedFieldsInOnSection(yamlStr string, frontmat
 			} else if strings.HasPrefix(trimmedLine, "skip-if-check-failing:") {
 				shouldComment = true
 				commentReason = " # Skip-if-check-failing processed as check status gate in pre-activation job"
-			} else if inSkipIfCheckFailing && (strings.HasPrefix(trimmedLine, "include:") || strings.HasPrefix(trimmedLine, "exclude:") || strings.HasPrefix(trimmedLine, "branch:") || strings.HasPrefix(trimmedLine, "-")) {
+			} else if inSkipIfCheckFailing && (strings.HasPrefix(trimmedLine, "include:") || strings.HasPrefix(trimmedLine, "exclude:") || strings.HasPrefix(trimmedLine, "branch:") || strings.HasPrefix(trimmedLine, "allow-pending:") || strings.HasPrefix(trimmedLine, "-")) {
 				// Comment out nested fields and list items in skip-if-check-failing object
 				shouldComment = true
 				commentReason = ""
