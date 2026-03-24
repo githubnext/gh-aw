@@ -153,7 +153,7 @@ describe("qmd_index.cjs", () => {
   // ── Error path: missing config ─────────────────────────────────────────────
   it("fails when QMD_CONFIG_JSON is not set", async () => {
     await runMain(undefined);
-    expect(mockCore.setFailed).toHaveBeenCalledWith("QMD_CONFIG_JSON environment variable not set");
+    expect(mockCore.setFailed).toHaveBeenCalledWith("ERR_CONFIG: QMD_CONFIG_JSON environment variable not set");
     expect(mockStore.update).not.toHaveBeenCalled();
   });
 
