@@ -348,10 +348,10 @@ describe("create_discussion double-posting prevention", () => {
       if (query.includes("createDiscussion")) {
         // Simulate @octokit/graphql GraphqlResponseError: discussion was
         // persisted but the API also returned an error in the response.
-        const err = new Error("Request failed due to following response errors:\n - Resource not accessible by integration");
+        const err = /** @type {any} */ new Error("Request failed due to following response errors:\n - Resource not accessible by integration");
         // Attach partial data the way @octokit/graphql does:
         // err.data = response.data (the full response body's "data" field)
-        /** @type {{ createDiscussion: { discussion: { id: string, number: number, title: string, url: string } } }} */ /** @type {any} */ err.data = {
+        err.data = {
           createDiscussion: {
             discussion: {
               id: "D_test456",

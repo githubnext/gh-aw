@@ -697,8 +697,10 @@ async function main(config = {}) {
       //
       // In either case we must NOT fall back to creating an issue, as that would
       // result in both a discussion and a fallback issue existing at the same time.
+      // prettier-ignore
+      const errorAny = /** @type {any} */ (error);
       /** @type {{id: string, number: number, title: string, url: string} | null | undefined} */
-      const partialDiscussion = /** @type {any} */ error?.data?.createDiscussion?.discussion;
+      const partialDiscussion = errorAny?.data?.createDiscussion?.discussion;
       const resolvedDiscussion = createdDiscussion || partialDiscussion;
       if (resolvedDiscussion) {
         core.warning(`Discussion ${qualifiedItemRepo}#${resolvedDiscussion.number} was created but a post-creation operation failed: ${errorMessage}`);
