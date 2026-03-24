@@ -103,12 +103,12 @@ If there's a previous run's data, load it to understand historical context:
 
 ### 1. Identify All Markdown Files
 
-Use `qmd-query` to discover relevant documentation and spec files before listing files with bash:
+Use `search` to discover relevant documentation and spec files before listing files with bash:
 
 ```bash
-# Use qmd-query first to find semantically relevant files
-# Example: qmd-query("developer instructions code organization")
-# Example: qmd-query("project architecture patterns")
+# Use search first to find semantically relevant files
+# Example: search("developer instructions code organization")
+# Example: search("project architecture patterns")
 # Then read the returned file paths to get full content
 ```
 

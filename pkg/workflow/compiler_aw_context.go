@@ -6,7 +6,7 @@ import (
 
 // awContextInputDescription is the description for the aw_context workflow_dispatch input.
 // It signals to users that this input is managed internally by the agentic workflow system.
-const awContextInputDescription = "(Internal) JSON context injected by the calling agentic workflow. Not intended for direct user input."
+const awContextInputDescription = "Agent caller context (used internally by Agentic Workflows)."
 
 // injectAwContextIntoOnYAML adds the aw_context input to the workflow_dispatch trigger
 // in the given on-section YAML string, if workflow_dispatch is present.

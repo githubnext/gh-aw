@@ -137,8 +137,8 @@ Pay special attention to:
 
 Review the documentation in the `docs/src/content/docs/` directory:
 
-**First, use `qmd-query` to search for existing documentation** related to each identified change — this is faster and more accurate than browsing files manually:
-- For each new feature or change, run a targeted query: e.g., `qmd-query("engine configuration options")` or `qmd-query("permissions frontmatter field")`
+**First, use `search` to search for existing documentation** related to each identified change — this is faster and more accurate than browsing files manually:
+- For each new feature or change, run a targeted query: e.g., `search("engine configuration options")` or `search("permissions frontmatter field")`
 - Read the returned file paths to check if documentation already exists
 - Only resort to `find` for exhaustive listing when you need a complete inventory
 

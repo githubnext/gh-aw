@@ -131,9 +131,9 @@ Read the current glossary:
 cat docs/src/content/docs/reference/glossary.md
 ```
 
-**For each candidate term, use `qmd-query` to find documentation that describes it** — this provides authoritative context for writing accurate definitions and reveals whether any documentation page already explains the term:
-- e.g., `qmd-query("safe-outputs create-pull-request")` to find pages describing that feature
-- e.g., `qmd-query("engine configuration copilot")` to find all documentation on engines
+**For each candidate term, use `search` to find documentation that describes it** — this provides authoritative context for writing accurate definitions and reveals whether any documentation page already explains the term:
+- e.g., `search("safe-outputs create-pull-request")` to find pages describing that feature
+- e.g., `search("engine configuration copilot")` to find all documentation on engines
 - Read the returned file paths for full context before writing definitions
 
 **Check for:**
