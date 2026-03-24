@@ -808,10 +808,15 @@ jobs:
           name: apm
           path: /tmp/gh-aw/apm-bundle
       - name: Restore APM dependencies
-        uses: microsoft/apm-action@cc84c04bc73e19e35527f1efa34ea003be9f037f # v1.4.0
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        env:
+          APM_BUNDLE_DIR: /tmp/gh-aw/apm-bundle
         with:
-          bundle: /tmp/gh-aw/apm-bundle/*.tar.gz
-          apm-version: ${{ env.GH_AW_INFO_APM_VERSION }}
+          script: |
+            const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');
+            setupGlobals(core, github, context, exec, io);
+            const { main } = require('${{ runner.temp }}/gh-aw/actions/apm_unpack.cjs');
+            await main();
       - name: Determine automatic lockdown mode for GitHub MCP Server
         id: determine-automatic-lockdown
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8

@@ -74,8 +74,10 @@ Test with a single APM dependency
 		"Lock file should download APM bundle in agent job")
 	assert.Contains(t, lockContent, "Restore APM dependencies",
 		"Lock file should contain APM restore step in agent job")
-	assert.Contains(t, lockContent, "bundle: /tmp/gh-aw/apm-bundle/*.tar.gz",
-		"Lock file should restore from bundle path")
+	assert.Contains(t, lockContent, "APM_BUNDLE_DIR: /tmp/gh-aw/apm-bundle",
+		"Lock file should configure bundle directory for JS unpacker")
+	assert.Contains(t, lockContent, "apm_unpack.cjs",
+		"Lock file should use JS unpacker script")
 
 	// Old install step should NOT appear
 	assert.NotContains(t, lockContent, "Install APM dependencies",
@@ -200,9 +202,9 @@ Test with isolated APM dependencies
 		"Lock file should contain APM pack step")
 	assert.Contains(t, lockContent, "Restore APM dependencies",
 		"Lock file should contain APM restore step")
-	// Restore step should include isolated: true because frontmatter says so
-	assert.Contains(t, lockContent, "isolated: 'true'",
-		"Lock file restore step should include isolated flag")
+	// Restore step uses the JS unpacker (isolated flag not required for JS implementation)
+	assert.Contains(t, lockContent, "apm_unpack.cjs",
+		"Lock file restore step should use the JS unpacker")
 }
 
 func TestAPMDependenciesCompilationClaudeEngineTarget(t *testing.T) {
