@@ -26,7 +26,7 @@
 #   Imports:
 #     - shared/mcp/qmd-docs.md
 #
-# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"d3616bebf0ca05293c233c906b37d0bc28fbdbd038a6a39e1bf2750cb4742515","strict":true,"agent_id":"copilot"}
+# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"8748bf4a123a24b70955e1e122f97a59072d8402fcde66d488ec24283da0b1dc","strict":true,"agent_id":"copilot"}
 
 name: "Weekly Blog Post Writer"
 "on":
@@ -142,6 +142,7 @@ jobs:
           cat "${RUNNER_TEMP}/gh-aw/prompts/xpia.md"
           cat "${RUNNER_TEMP}/gh-aw/prompts/temp_folder_prompt.md"
           cat "${RUNNER_TEMP}/gh-aw/prompts/markdown.md"
+          cat "${RUNNER_TEMP}/gh-aw/prompts/qmd_prompt.md"
           cat "${RUNNER_TEMP}/gh-aw/prompts/agentic_workflows_guide.md"
           cat "${RUNNER_TEMP}/gh-aw/prompts/repo_memory_prompt.md"
           cat "${RUNNER_TEMP}/gh-aw/prompts/safe_outputs_prompt.md"
@@ -271,7 +272,9 @@ jobs:
           retention-days: 1
 
   agent:
-    needs: activation
+    needs:
+      - activation
+      - indexing
     runs-on: ubuntu-latest
     permissions:
       actions: read
@@ -347,29 +350,12 @@ jobs:
           tags: localhost/gh-aw:dev
           build-args: |
             BINARY=dist/gh-aw-linux-amd64
-      - name: Setup Node.js
-        uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6.3.0
-        with:
-          node-version: '24'
-          package-manager-cache: false
       - name: Create gh-aw temp directory
         run: bash ${RUNNER_TEMP}/gh-aw/actions/create_gh_aw_tmp_dir.sh
       - name: Configure gh CLI for GitHub Enterprise
         run: bash ${RUNNER_TEMP}/gh-aw/actions/configure_gh_for_ghe.sh
         env:
           GH_TOKEN: ${{ github.token }}
-      - name: Install QMD
-        run: npm install -g @tobilu/qmd
-      - name: Restore QMD index cache
-        uses: actions/cache/restore@668228422ae6a00e4ad889ee87cd7109ec5666a7 # v5.0.4
-        with:
-          key: qmd-docs-${{ hashFiles('docs/src/content/docs/**', '.github/agents/**', '.github/aw/**') }}
-          path: ~/.cache/qmd
-          restore-keys: qmd-docs-
-      - name: Register QMD collections
-        run: |
-          qmd collection add "${GITHUB_WORKSPACE}" --name gh-aw --glob "docs/src/content/docs/**,.github/agents/**,.github/aw/**" 2>/dev/null || true
-
       # Repo memory git-based storage configuration from frontmatter processed below
       - name: Clone wiki-memory branch (default)
         env:
@@ -412,6 +398,16 @@ jobs:
           GH_HOST: github.com
       - name: Install AWF binary
         run: bash ${RUNNER_TEMP}/gh-aw/actions/install_awf_binary.sh v0.25.0
+      - name: Restore qmd index from cache
+        uses: actions/cache/restore@668228422ae6a00e4ad889ee87cd7109ec5666a7 # v5.0.4
+        with:
+          key: gh-aw-qmd-2.0.1-${{ github.run_id }}
+          path: /tmp/gh-aw/qmd-index/
+      - name: Restore qmd models cache
+        uses: actions/cache/restore@668228422ae6a00e4ad889ee87cd7109ec5666a7 # v5.0.4
+        with:
+          path: ~/.cache/qmd/models/
+          key: qmd-models-2.0.1-${{ runner.os }}
       - name: Parse integrity filter lists
         id: parse-guard-vars
         env:
@@ -599,111 +595,43 @@ jobs:
           
           bash ${RUNNER_TEMP}/gh-aw/actions/start_safe_outputs_server.sh
           
-      - name: Setup MCP Scripts Config
-        run: |
-          mkdir -p ${RUNNER_TEMP}/gh-aw/mcp-scripts/logs
-          cat > ${RUNNER_TEMP}/gh-aw/mcp-scripts/tools.json << 'GH_AW_MCP_SCRIPTS_TOOLS_EOF'
-          {
-            "serverName": "mcpscripts",
-            "version": "1.0.0",
-            "logDir": "${RUNNER_TEMP}/gh-aw/mcp-scripts/logs",
-            "tools": [
-              {
-                "name": "qmd-query",
-                "description": "Find relevant file paths in project documentation using vector similarity search. Returns file paths and scores.",
-                "inputSchema": {
-                  "properties": {
-                    "min_score": {
-                      "default": 0.4,
-                      "description": "Minimum relevance score threshold (0–1)",
-                      "type": "number"
-                    },
-                    "query": {
-                      "description": "Natural language search query",
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "query"
-                  ],
-                  "type": "object"
-                },
-                "handler": "qmd-query.sh",
-                "timeout": 60
-              }
-            ]
-          }
-          GH_AW_MCP_SCRIPTS_TOOLS_EOF
-          cat > ${RUNNER_TEMP}/gh-aw/mcp-scripts/mcp-server.cjs << 'GH_AW_MCP_SCRIPTS_SERVER_EOF'
-            const path = require("path");
-            const { startHttpServer } = require("./mcp_scripts_mcp_server_http.cjs");
-            const configPath = path.join(__dirname, "tools.json");
-            const port = parseInt(process.env.GH_AW_MCP_SCRIPTS_PORT || "3000", 10);
-            const apiKey = process.env.GH_AW_MCP_SCRIPTS_API_KEY || "";
-            startHttpServer(configPath, {
-              port: port,
-              stateless: true,
-              logDir: "${RUNNER_TEMP}/gh-aw/mcp-scripts/logs"
-            }).catch(error => {
-              console.error("Failed to start mcp-scripts HTTP server:", error);
-              process.exit(1);
-            });
-          GH_AW_MCP_SCRIPTS_SERVER_EOF
-          chmod +x ${RUNNER_TEMP}/gh-aw/mcp-scripts/mcp-server.cjs
-          
-      - name: Setup MCP Scripts Tool Files
-        run: |
-          cat > ${RUNNER_TEMP}/gh-aw/mcp-scripts/qmd-query.sh << 'GH_AW_MCP_SCRIPTS_SH_QMD-QUERY_EOF'
-          #!/bin/bash
-          # Auto-generated mcp-script tool: qmd-query
-          # Find relevant file paths in project documentation using vector similarity search. Returns file paths and scores.
-          
-          set -euo pipefail
-          
-          set -e
-          qmd vsearch "$INPUT_QUERY" --files --min-score "${INPUT_MIN_SCORE:-0.4}"
-          
-          
-          GH_AW_MCP_SCRIPTS_SH_QMD-QUERY_EOF
-          chmod +x ${RUNNER_TEMP}/gh-aw/mcp-scripts/qmd-query.sh
-          
-      - name: Generate MCP Scripts Server Config
-        id: mcp-scripts-config
-        run: |
-          # Generate a secure random API key (360 bits of entropy, 40+ chars)
-          # Mask immediately to prevent timing vulnerabilities
-          API_KEY=$(openssl rand -base64 45 | tr -d '/+=')
-          echo "::add-mask::${API_KEY}"
-          
-          PORT=3000
-          
-          # Set outputs for next steps
-          {
-            echo "mcp_scripts_api_key=${API_KEY}"
-            echo "mcp_scripts_port=${PORT}"
-          } >> "$GITHUB_OUTPUT"
-          
-          echo "MCP Scripts server will run on port ${PORT}"
-          
-      - name: Start MCP Scripts HTTP Server
-        id: mcp-scripts-start
+      - name: Setup Node.js for qmd MCP server
+        uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6.3.0
+        with:
+          node-version: "24"
+      - name: Start QMD MCP Server
+        id: qmd-mcp-start
         env:
-          DEBUG: '*'
-          GH_AW_MCP_SCRIPTS_PORT: ${{ steps.mcp-scripts-config.outputs.mcp_scripts_port }}
-          GH_AW_MCP_SCRIPTS_API_KEY: ${{ steps.mcp-scripts-config.outputs.mcp_scripts_api_key }}
+          INDEX_PATH: /tmp/gh-aw/qmd-index/index.sqlite
+          NO_COLOR: '1'
         run: |
-          # Environment variables are set above to prevent template injection
-          export DEBUG
-          export GH_AW_MCP_SCRIPTS_PORT
-          export GH_AW_MCP_SCRIPTS_API_KEY
+          # Start qmd MCP server natively in HTTP mode.
+          # qmd must run on the host VM (not in Docker) because node-llama-cpp
+          # requires platform-native binaries that cannot run in a generic container.
+          # HTTP transport keeps MCP traffic on TCP, fully separate from stdout.
+          npx --yes --package @tobilu/qmd@2.0.1 qmd mcp --http --port 8181 \
+            >> /tmp/qmd-mcp.log 2>&1 &
+          # Save PID for logs; the GitHub Actions runner terminates all processes at job end.
+          echo $! > /tmp/qmd-mcp.pid
           
-          bash ${RUNNER_TEMP}/gh-aw/actions/start_mcp_scripts_server.sh
+          # Wait up to 120 s for the server to accept requests
+          echo 'Waiting for QMD MCP server on port 8181...'
+          for i in $(seq 1 60); do
+            if curl -sf http://localhost:8181/health > /dev/null 2>&1; then
+              echo 'QMD MCP server is ready'
+              break
+            fi
+            if [ "$i" -eq 60 ]; then
+              echo 'ERROR: QMD MCP server failed to start within 120 s' >&2
+              cat /tmp/qmd-mcp.log 2>&1 || true
+              exit 1
+            fi
+            sleep 2
+          done
           
       - name: Start MCP Gateway
         id: start-mcp-gateway
         env:
-          GH_AW_MCP_SCRIPTS_API_KEY: ${{ steps.mcp-scripts-start.outputs.api_key }}
-          GH_AW_MCP_SCRIPTS_PORT: ${{ steps.mcp-scripts-start.outputs.port }}
           GH_AW_SAFE_OUTPUTS: ${{ steps.set-runtime-paths.outputs.GH_AW_SAFE_OUTPUTS }}
           GH_AW_SAFE_OUTPUTS_API_KEY: ${{ steps.safe-outputs-start.outputs.api_key }}
           GH_AW_SAFE_OUTPUTS_PORT: ${{ steps.safe-outputs-start.outputs.port }}
@@ -725,7 +653,7 @@ jobs:
           export DEBUG="*"
           
           export GH_AW_ENGINE="copilot"
-          export MCP_GATEWAY_DOCKER_COMMAND='docker run -i --rm --network host -v /var/run/docker.sock:/var/run/docker.sock -e MCP_GATEWAY_PORT -e MCP_GATEWAY_DOMAIN -e MCP_GATEWAY_API_KEY -e MCP_GATEWAY_PAYLOAD_DIR -e MCP_GATEWAY_PAYLOAD_SIZE_THRESHOLD -e DEBUG -e MCP_GATEWAY_LOG_DIR -e GH_AW_MCP_LOG_DIR -e GH_AW_SAFE_OUTPUTS -e GH_AW_SAFE_OUTPUTS_CONFIG_PATH -e GH_AW_SAFE_OUTPUTS_TOOLS_PATH -e GH_AW_ASSETS_BRANCH -e GH_AW_ASSETS_MAX_SIZE_KB -e GH_AW_ASSETS_ALLOWED_EXTS -e DEFAULT_BRANCH -e GITHUB_MCP_SERVER_TOKEN -e GITHUB_MCP_GUARD_MIN_INTEGRITY -e GITHUB_MCP_GUARD_REPOS -e GITHUB_REPOSITORY -e GITHUB_SERVER_URL -e GITHUB_SHA -e GITHUB_WORKSPACE -e GITHUB_TOKEN -e GITHUB_RUN_ID -e GITHUB_RUN_NUMBER -e GITHUB_RUN_ATTEMPT -e GITHUB_JOB -e GITHUB_ACTION -e GITHUB_EVENT_NAME -e GITHUB_EVENT_PATH -e GITHUB_ACTOR -e GITHUB_ACTOR_ID -e GITHUB_TRIGGERING_ACTOR -e GITHUB_WORKFLOW -e GITHUB_WORKFLOW_REF -e GITHUB_WORKFLOW_SHA -e GITHUB_REF -e GITHUB_REF_NAME -e GITHUB_REF_TYPE -e GITHUB_HEAD_REF -e GITHUB_BASE_REF -e GH_AW_MCP_SCRIPTS_PORT -e GH_AW_MCP_SCRIPTS_API_KEY -e GH_AW_SAFE_OUTPUTS_PORT -e GH_AW_SAFE_OUTPUTS_API_KEY -v /tmp/gh-aw/mcp-payloads:/tmp/gh-aw/mcp-payloads:rw -v /opt:/opt:ro -v /tmp:/tmp:rw -v '"${GITHUB_WORKSPACE}"':'"${GITHUB_WORKSPACE}"':rw ghcr.io/github/gh-aw-mcpg:v0.2.3'
+          export MCP_GATEWAY_DOCKER_COMMAND='docker run -i --rm --network host -v /var/run/docker.sock:/var/run/docker.sock -e MCP_GATEWAY_PORT -e MCP_GATEWAY_DOMAIN -e MCP_GATEWAY_API_KEY -e MCP_GATEWAY_PAYLOAD_DIR -e MCP_GATEWAY_PAYLOAD_SIZE_THRESHOLD -e DEBUG -e MCP_GATEWAY_LOG_DIR -e GH_AW_MCP_LOG_DIR -e GH_AW_SAFE_OUTPUTS -e GH_AW_SAFE_OUTPUTS_CONFIG_PATH -e GH_AW_SAFE_OUTPUTS_TOOLS_PATH -e GH_AW_ASSETS_BRANCH -e GH_AW_ASSETS_MAX_SIZE_KB -e GH_AW_ASSETS_ALLOWED_EXTS -e DEFAULT_BRANCH -e GITHUB_MCP_SERVER_TOKEN -e GITHUB_MCP_GUARD_MIN_INTEGRITY -e GITHUB_MCP_GUARD_REPOS -e GITHUB_REPOSITORY -e GITHUB_SERVER_URL -e GITHUB_SHA -e GITHUB_WORKSPACE -e GITHUB_TOKEN -e GITHUB_RUN_ID -e GITHUB_RUN_NUMBER -e GITHUB_RUN_ATTEMPT -e GITHUB_JOB -e GITHUB_ACTION -e GITHUB_EVENT_NAME -e GITHUB_EVENT_PATH -e GITHUB_ACTOR -e GITHUB_ACTOR_ID -e GITHUB_TRIGGERING_ACTOR -e GITHUB_WORKFLOW -e GITHUB_WORKFLOW_REF -e GITHUB_WORKFLOW_SHA -e GITHUB_REF -e GITHUB_REF_NAME -e GITHUB_REF_TYPE -e GITHUB_HEAD_REF -e GITHUB_BASE_REF -e GH_AW_SAFE_OUTPUTS_PORT -e GH_AW_SAFE_OUTPUTS_API_KEY -v /tmp/gh-aw/mcp-payloads:/tmp/gh-aw/mcp-payloads:rw -v /opt:/opt:ro -v /tmp:/tmp:rw -v '"${GITHUB_WORKSPACE}"':'"${GITHUB_WORKSPACE}"':rw ghcr.io/github/gh-aw-mcpg:v0.2.3'
           
           mkdir -p /home/runner/.copilot
           cat << GH_AW_MCP_CONFIG_EOF | bash ${RUNNER_TEMP}/gh-aw/actions/start_mcp_gateway.sh
@@ -770,12 +698,9 @@ jobs:
                   }
                 }
               },
-              "mcpscripts": {
+              "qmd": {
                 "type": "http",
-                "url": "http://host.docker.internal:$GH_AW_MCP_SCRIPTS_PORT",
-                "headers": {
-                  "Authorization": "\${GH_AW_MCP_SCRIPTS_API_KEY}"
-                },
+                "url": "http://host.docker.internal:8181/mcp",
                 "guard-policies": {
                   "write-sink": {
                     "accept": [
@@ -941,15 +866,6 @@ jobs:
             setupGlobals(core, github, context, exec, io);
             const { main } = require('${{ runner.temp }}/gh-aw/actions/parse_copilot_log.cjs');
             await main();
-      - name: Parse MCP Scripts logs for step summary
-        if: always()
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
-        with:
-          script: |
-            const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');
-            setupGlobals(core, github, context, exec, io);
-            const { main } = require('${{ runner.temp }}/gh-aw/actions/parse_mcp_scripts_logs.cjs');
-            await main();
       - name: Parse MCP Gateway logs for step summary
         if: always()
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
@@ -1001,7 +917,6 @@ jobs:
             /tmp/gh-aw/redacted-urls.log
             /tmp/gh-aw/mcp-logs/
             /tmp/gh-aw/proxy-logs/
-            /tmp/gh-aw/mcp-scripts/logs/
             /tmp/gh-aw/agent-stdio.log
             /tmp/gh-aw/agent/
             /tmp/gh-aw/safeoutputs.jsonl
@@ -1279,6 +1194,75 @@ jobs:
             setupGlobals(core, github, context, exec, io);
             const { main } = require('${{ runner.temp }}/gh-aw/actions/handle_create_pr_error.cjs');
             await main();
+
+  indexing:
+    needs: activation
+    runs-on: aw-gpu-runner-T4
+    permissions:
+      contents: read
+    timeout-minutes: 60
+    steps:
+      - name: Checkout actions folder
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          repository: github/gh-aw
+          sparse-checkout: |
+            actions
+          persist-credentials: false
+      - name: Setup Scripts
+        uses: ./actions/setup
+        with:
+          destination: ${{ runner.temp }}/gh-aw/actions
+      - name: Checkout repository for qmd indexing
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+      - name: Restore qmd index from cache
+        id: qmd-cache-restore
+        uses: actions/cache/restore@668228422ae6a00e4ad889ee87cd7109ec5666a7 # v5.0.4
+        with:
+          key: gh-aw-qmd-2.0.1-${{ github.run_id }}
+          path: /tmp/gh-aw/qmd-index/
+          restore-keys: |
+            gh-aw-qmd-2.0.1-
+      - name: Cache qmd models
+        uses: actions/cache@668228422ae6a00e4ad889ee87cd7109ec5666a7 # v5.0.4
+        with:
+          path: ~/.cache/qmd/models/
+          key: qmd-models-2.0.1-${{ runner.os }}
+      - name: Cache node-llama-cpp binaries
+        uses: actions/cache@668228422ae6a00e4ad889ee87cd7109ec5666a7 # v5.0.4
+        with:
+          path: ~/.cache/node-llama-cpp/
+          key: node-llama-cpp-2.0.1-${{ runner.os }}-${{ runner.arch }}-${{ runner.imageid }}
+      - name: Setup Node.js for qmd
+        if: steps.qmd-cache-restore.outputs.cache-hit != 'true'
+        uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6.3.0
+        with:
+          node-version: "24"
+      - name: Install @tobilu/qmd SDK
+        if: steps.qmd-cache-restore.outputs.cache-hit != 'true'
+        run: |
+          npm install --prefix "${{ runner.temp }}/gh-aw/actions" @tobilu/qmd@2.0.1 @actions/github
+      - name: Build qmd index
+        if: steps.qmd-cache-restore.outputs.cache-hit != 'true'
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        env:
+          QMD_CONFIG_JSON: |
+            {"dbPath":"/tmp/gh-aw/qmd-index","checkouts":[{"name":"gh-aw","path":"${GITHUB_WORKSPACE}","patterns":["docs/src/content/docs/**",".github/agents/**",".github/aw/**"],"context":"gh-aw project documentation, agent definitions, and workflow authoring instructions"}]}
+        with:
+          github-token: ${{ github.token }}
+          script: |
+            const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');
+            setupGlobals(core, github, context, exec, io);
+            const { main } = require('${{ runner.temp }}/gh-aw/actions/qmd_index.cjs');
+            await main();
+      - name: Save qmd index to cache
+        if: steps.qmd-cache-restore.outputs.cache-hit != 'true'
+        uses: actions/cache/save@668228422ae6a00e4ad889ee87cd7109ec5666a7 # v5.0.4
+        with:
+          key: gh-aw-qmd-2.0.1-${{ github.run_id }}
+          path: /tmp/gh-aw/qmd-index/
 
   push_repo_memory:
     needs: agent

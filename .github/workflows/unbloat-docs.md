@@ -152,10 +152,10 @@ This will help you avoid re-cleaning files that were recently processed.
 
 ### 2. Find Documentation Files
 
-Use `qmd-query` to semantically search for documentation files that may contain bloat (verbose descriptions, repetitive patterns, excessive bullet points). This is faster and more targeted than listing all files:
+Use `search` to semantically search for documentation files that may contain bloat (verbose descriptions, repetitive patterns, excessive bullet points). This is faster and more targeted than listing all files:
 
-- Query for areas known to accumulate bloat: `qmd-query("verbose documentation long examples repeated patterns")`
-- Query for specific topics recently added: `qmd-query("recently added feature documentation")`
+- Query for areas known to accumulate bloat: `search("verbose documentation long examples repeated patterns")`
+- Query for specific topics recently added: `search("recently added feature documentation")`
 - Read the returned file paths to assess their content
 
 Then scan the `docs/` directory for all markdown files, excluding code-generated files and blog posts:
