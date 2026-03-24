@@ -797,6 +797,12 @@ jobs:
           else
             echo 'AWF binary not installed, skipping firewall log summary'
           fi
+      - name: Write agent output placeholder if missing
+        if: always()
+        run: |
+          if [ ! -f /tmp/gh-aw/agent_output.json ]; then
+            echo '{"items":[]}' > /tmp/gh-aw/agent_output.json
+          fi
       - name: Upload agent artifacts
         if: always()
         continue-on-error: true

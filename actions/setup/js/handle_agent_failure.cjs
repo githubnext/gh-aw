@@ -11,6 +11,7 @@ const { MAX_SUB_ISSUES, getSubIssueCount } = require("./sub_issue_helpers.cjs");
 const { formatMissingData } = require("./missing_info_formatter.cjs");
 const { generateHistoryUrl } = require("./generate_history_link.cjs");
 const fs = require("fs");
+const path = require("path");
 
 /**
  * Attempt to find a pull request for the current branch
@@ -687,6 +688,64 @@ function buildAssignCopilotFailureContext(hasAssignCopilotFailures, assignCopilo
 }
 
 /**
+ * Extract terminal error messages from agent-stdio.log to surface engine failures
+ * when agent_output.json was not written (e.g. quota exceeded, auth failure).
+ * The log file is available in the conclusion job after the agent artifact is downloaded.
+ * @returns {string} Formatted context string, or empty string if no engine failure found
+ */
+function buildEngineFailureContext() {
+  // Derive agent-stdio.log path from the agent output file path (same directory)
+  const agentOutputFile = process.env.GH_AW_AGENT_OUTPUT;
+  const stdioLogPath = agentOutputFile ? path.join(path.dirname(agentOutputFile), "agent-stdio.log") : "/tmp/gh-aw/agent-stdio.log";
+
+  try {
+    if (!fs.existsSync(stdioLogPath)) {
+      core.info(`agent-stdio.log not found at ${stdioLogPath}, skipping engine failure context`);
+      return "";
+    }
+
+    const logContent = fs.readFileSync(stdioLogPath, "utf8");
+    if (!logContent.trim()) {
+      return "";
+    }
+
+    const lines = logContent.split("\n");
+    const errorMessages = new Set();
+
+    for (const line of lines) {
+      // Codex / generic CLI: "ERROR: <message>" at the start of a line
+      const errorPrefixMatch = line.match(/^ERROR:\s*(.+)$/);
+      if (errorPrefixMatch) {
+        errorMessages.add(errorPrefixMatch[1].trim());
+        continue;
+      }
+
+      // Reconnect-style lines that embed the error reason: "Reconnecting... N/M (reason)"
+      const reconnectMatch = line.match(/^Reconnecting\.\.\.\s+\d+\/\d+\s*\((.+)\)$/);
+      if (reconnectMatch) {
+        errorMessages.add(reconnectMatch[1].trim());
+      }
+    }
+
+    if (errorMessages.size === 0) {
+      return "";
+    }
+
+    core.info(`Found ${errorMessages.size} engine error message(s) in agent-stdio.log`);
+
+    let context = "\n**⚠️ Engine Failure**: The AI engine terminated before producing output.\n\n**Error details:**\n";
+    for (const message of errorMessages) {
+      context += `- ${message}\n`;
+    }
+    context += "\n";
+    return context;
+  } catch (error) {
+    core.info(`Failed to read agent-stdio.log for engine failure context: ${getErrorMessage(error)}`);
+    return "";
+  }
+}
+
+/**
  * Handle agent job failure by creating or updating a failure tracking issue
  * This script is called from the conclusion job when the agent job has failed
  * or when the agent succeeded but produced no safe outputs
@@ -971,6 +1030,9 @@ async function main() {
         // Build fork context hint
         const forkContext = buildForkContextHint();
 
+        // Build engine failure context (surfaces terminal errors from agent-stdio.log)
+        const engineFailureContext = agentConclusion === "failure" ? buildEngineFailureContext() : "";
+
         // Build timeout context
         const timeoutContext = buildTimeoutContext(isTimedOut, timeoutMinutes);
 
@@ -1006,6 +1068,7 @@ async function main() {
           push_repo_memory_failure_context: pushRepoMemoryFailureContext,
           missing_data_context: missingDataContext,
           missing_safe_outputs_context: missingSafeOutputsContext,
+          engine_failure_context: engineFailureContext,
           timeout_context: timeoutContext,
           fork_context: forkContext,
           inference_access_error_context: inferenceAccessErrorContext,
@@ -1108,6 +1171,9 @@ async function main() {
         // Build fork context hint
         const forkContext = buildForkContextHint();
 
+        // Build engine failure context (surfaces terminal errors from agent-stdio.log)
+        const engineFailureContext = agentConclusion === "failure" ? buildEngineFailureContext() : "";
+
         // Build timeout context
         const timeoutContext = buildTimeoutContext(isTimedOut, timeoutMinutes);
 
@@ -1144,6 +1210,7 @@ async function main() {
           push_repo_memory_failure_context: pushRepoMemoryFailureContext,
           missing_data_context: missingDataContext,
           missing_safe_outputs_context: missingSafeOutputsContext,
+          engine_failure_context: engineFailureContext,
           timeout_context: timeoutContext,
           fork_context: forkContext,
           inference_access_error_context: inferenceAccessErrorContext,

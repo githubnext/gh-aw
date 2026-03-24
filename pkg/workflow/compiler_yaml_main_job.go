@@ -471,6 +471,12 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 		artifactPaths = append(artifactPaths, "/tmp/gh-aw/"+constants.SafeOutputsFilename)
 		// Processed agent output JSON produced by collect_ndjson_output.cjs
 		artifactPaths = append(artifactPaths, "/tmp/gh-aw/"+constants.AgentOutputFilename)
+
+		// Write a minimal agent_output.json placeholder when the engine fails before
+		// producing any safe outputs, so downstream safe_outputs and conclusion jobs
+		// receive a valid (empty) JSON file instead of an ENOENT error.
+		// The placeholder is only written if the engine did not already write the file.
+		c.generateAgentOutputPlaceholderStep(yaml)
 	}
 
 	// Add post-execution cleanup step for Copilot engine

@@ -112,6 +112,22 @@ func (c *Compiler) generateStopMCPGateway(yaml *strings.Builder, data *WorkflowD
 	yaml.WriteString("          bash ${RUNNER_TEMP}/gh-aw/actions/stop_mcp_gateway.sh \"$GATEWAY_PID\"\n")
 }
 
+// generateAgentOutputPlaceholderStep generates a step that writes a minimal {"items":[]}
+// placeholder to agent_output.json when the engine exits before producing any safe outputs.
+// This prevents downstream safe_outputs and conclusion jobs from receiving an ENOENT error
+// when loading the agent output file, making it easier to surface the real engine failure
+// reason (e.g. quota exceeded) instead of an unhelpful file-not-found message.
+func (c *Compiler) generateAgentOutputPlaceholderStep(yaml *strings.Builder) {
+	compilerYamlLog.Print("Generating agent output placeholder step")
+
+	yaml.WriteString("      - name: Write agent output placeholder if missing\n")
+	yaml.WriteString("        if: always()\n")
+	yaml.WriteString("        run: |\n")
+	yaml.WriteString("          if [ ! -f /tmp/gh-aw/agent_output.json ]; then\n")
+	yaml.WriteString("            echo '{\"items\":[]}' > /tmp/gh-aw/agent_output.json\n")
+	yaml.WriteString("          fi\n")
+}
+
 // generateAgentStepSummaryAppend generates a step that appends the agent's GITHUB_STEP_SUMMARY
 // file to the real $GITHUB_STEP_SUMMARY. This runs after secret redaction so the content
 // is already sanitised before being published to the workflow step summary.
