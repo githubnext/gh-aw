@@ -45,6 +45,7 @@ func generateDefaultCacheKey(cacheID string) string {
 
 // parseCacheMemoryEntry parses a single cache-memory entry from a map
 func parseCacheMemoryEntry(cacheMap map[string]any, defaultID string) (CacheMemoryEntry, error) {
+	cacheLog.Printf("Parsing cache-memory entry: defaultID=%s", defaultID)
 	entry := CacheMemoryEntry{
 		ID:  defaultID,
 		Key: generateDefaultCacheKey(defaultID),
@@ -137,6 +138,7 @@ func parseCacheMemoryEntry(cacheMap map[string]any, defaultID string) (CacheMemo
 		entry.AllowedExtensions = constants.DefaultAllowedMemoryExtensions
 	}
 
+	cacheLog.Printf("Parsed cache-memory entry: id=%s, scope=%s, restore-only=%v, retention-days=%v", entry.ID, entry.Scope, entry.RestoreOnly, entry.RetentionDays)
 	return entry, nil
 }
 
@@ -235,6 +237,8 @@ func generateCacheSteps(builder *strings.Builder, data *WorkflowData, verbose bo
 		return
 	}
 
+	cacheLog.Print("Generating cache steps from frontmatter cache configuration")
+
 	// Add comment indicating cache configuration was processed
 	builder.WriteString("      # Cache configuration from frontmatter processed below\n")
 
@@ -262,6 +266,7 @@ func generateCacheSteps(builder *strings.Builder, data *WorkflowData, verbose bo
 	// Handle both single cache object and array of caches
 	if cacheArray, isArray := cacheConfig.([]any); isArray {
 		// Multiple caches
+		cacheLog.Printf("Processing %d cache entries (array format)", len(cacheArray))
 		for _, cacheItem := range cacheArray {
 			if cacheMap, ok := cacheItem.(map[string]any); ok {
 				caches = append(caches, cacheMap)
@@ -269,6 +274,7 @@ func generateCacheSteps(builder *strings.Builder, data *WorkflowData, verbose bo
 		}
 	} else if cacheMap, isMap := cacheConfig.(map[string]any); isMap {
 		// Single cache
+		cacheLog.Print("Processing single cache entry (object format)")
 		caches = append(caches, cacheMap)
 	}
 
