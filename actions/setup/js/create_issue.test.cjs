@@ -29,7 +29,12 @@ describe("create_issue", () => {
               title: "Test Issue",
             },
           }),
-          createComment: vi.fn().mockResolvedValue({}),
+          createComment: vi.fn().mockResolvedValue({
+            data: {
+              id: 456,
+              html_url: "https://github.com/owner/repo/issues/99#issuecomment-456",
+            },
+          }),
         },
         search: {
           issuesAndPullRequests: vi.fn().mockResolvedValue({
@@ -467,8 +472,8 @@ describe("create_issue", () => {
     });
   });
 
-  describe("idempotent mode", () => {
-    it("should skip creation if an open issue was already created today", async () => {
+  describe("group-by-day mode", () => {
+    it("should post new content as a comment if an open issue was already created today", async () => {
       const today = new Date().toISOString().split("T")[0];
       mockGithub.rest.search.issuesAndPullRequests.mockResolvedValueOnce({
         data: {
@@ -487,14 +492,14 @@ describe("create_issue", () => {
         },
       });
 
-      const handler = await main({ idempotent: true, close_older_issues: true });
+      const handler = await main({ group_by_day: true, close_older_issues: true });
       const result = await handler({ title: "Test Issue", body: "Test body" });
 
       expect(result.success).toBe(true);
-      expect(result.skipped).toBe(true);
-      expect(result.reason).toContain("idempotent");
-      expect(result.reason).toContain("99");
+      expect(result.grouped).toBe(true);
+      expect(result.existingIssueNumber).toBe(99);
       expect(mockGithub.rest.issues.create).not.toHaveBeenCalled();
+      expect(mockGithub.rest.issues.createComment).toHaveBeenCalledWith(expect.objectContaining({ issue_number: 99 }));
     });
 
     it("should create issue if no open issue was created today", async () => {
@@ -516,11 +521,11 @@ describe("create_issue", () => {
         },
       });
 
-      const handler = await main({ idempotent: true, close_older_issues: true });
+      const handler = await main({ group_by_day: true, close_older_issues: true });
       const result = await handler({ title: "Test Issue", body: "Test body" });
 
       expect(result.success).toBe(true);
-      expect(result.skipped).toBeUndefined();
+      expect(result.grouped).toBeUndefined();
       expect(mockGithub.rest.issues.create).toHaveBeenCalledOnce();
     });
 
@@ -529,27 +534,27 @@ describe("create_issue", () => {
         data: { total_count: 0, items: [] },
       });
 
-      const handler = await main({ idempotent: true, close_older_issues: true });
+      const handler = await main({ group_by_day: true, close_older_issues: true });
       const result = await handler({ title: "Test Issue", body: "Test body" });
 
       expect(result.success).toBe(true);
-      expect(result.skipped).toBeUndefined();
+      expect(result.grouped).toBeUndefined();
       expect(mockGithub.rest.issues.create).toHaveBeenCalledOnce();
     });
 
-    it("should proceed with creation if idempotent pre-check throws", async () => {
+    it("should proceed with creation if group-by-day pre-check throws", async () => {
       mockGithub.rest.search.issuesAndPullRequests.mockRejectedValueOnce(new Error("Search API error"));
 
-      const handler = await main({ idempotent: true, close_older_issues: true });
+      const handler = await main({ group_by_day: true, close_older_issues: true });
       const result = await handler({ title: "Test Issue", body: "Test body" });
 
       expect(result.success).toBe(true);
-      expect(result.skipped).toBeUndefined();
+      expect(result.grouped).toBeUndefined();
       expect(mockGithub.rest.issues.create).toHaveBeenCalledOnce();
-      expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("Idempotent pre-check failed"));
+      expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("Group-by-day pre-check failed"));
     });
 
-    it("should not skip if idempotent is false even with today's issue", async () => {
+    it("should not group if group-by-day is false even with today's issue", async () => {
       const today = new Date().toISOString().split("T")[0];
       mockGithub.rest.search.issuesAndPullRequests.mockResolvedValue({
         data: {
@@ -568,16 +573,16 @@ describe("create_issue", () => {
         },
       });
 
-      // idempotent is false (default) — creation should NOT be skipped
+      // group_by_day is false (default) — creation should NOT be grouped
       const handler = await main({ close_older_issues: false });
       const result = await handler({ title: "Test Issue", body: "Test body" });
 
       expect(result.success).toBe(true);
-      expect(result.skipped).toBeUndefined();
+      expect(result.grouped).toBeUndefined();
       expect(mockGithub.rest.issues.create).toHaveBeenCalledOnce();
     });
 
-    it("should not consume max count slot when skipped due to idempotency", async () => {
+    it("should not consume max count slot when grouped", async () => {
       const today = new Date().toISOString().split("T")[0];
       mockGithub.rest.search.issuesAndPullRequests.mockResolvedValue({
         data: {
@@ -596,15 +601,15 @@ describe("create_issue", () => {
         },
       });
 
-      const handler = await main({ idempotent: true, close_older_issues: true, max: 1 });
+      const handler = await main({ group_by_day: true, close_older_issues: true, max: 1 });
 
-      // First call is skipped due to idempotency — max slot should not be consumed
+      // First call is grouped — max slot should not be consumed
       const result1 = await handler({ title: "First Issue", body: "Body" });
-      expect(result1.skipped).toBe(true);
+      expect(result1.grouped).toBe(true);
 
-      // Reset search mock so second call also finds a today issue — also skipped
+      // Second call also finds today's issue — also grouped
       const result2 = await handler({ title: "Second Issue", body: "Body" });
-      expect(result2.skipped).toBe(true);
+      expect(result2.grouped).toBe(true);
 
       // Neither call should have created an issue
       expect(mockGithub.rest.issues.create).not.toHaveBeenCalled();
