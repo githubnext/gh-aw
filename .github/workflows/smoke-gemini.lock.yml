@@ -827,13 +827,15 @@ jobs:
         run: |
           mkdir -p "$GITHUB_WORKSPACE/.gemini"
           SETTINGS="$GITHUB_WORKSPACE/.gemini/settings.json"
-          BASE_CONFIG='{"context":{"includeDirectories":["/tmp/"]},"tools":{"core":["glob","grep_search","list_directory","read_file","read_many_files","replace","run_shell_command","write_file"]}}'
+          BASE_CONFIG="$GH_AW_GEMINI_BASE_CONFIG"
           if [ -f "$SETTINGS" ]; then
             MERGED=$(jq -n --argjson base "$BASE_CONFIG" --argjson existing "$(cat "$SETTINGS")" '$existing * $base')
             echo "$MERGED" > "$SETTINGS"
           else
             echo "$BASE_CONFIG" > "$SETTINGS"
           fi
+        env:
+          GH_AW_GEMINI_BASE_CONFIG: {"context":{"includeDirectories":["/tmp/"]},"tools":{"core":["glob","grep_search","list_directory","read_file","read_many_files","replace","run_shell_command","write_file"]}}
       - name: Execute Gemini CLI
         id: agentic_execution
         run: |
@@ -1060,13 +1062,15 @@ jobs:
         run: |
           mkdir -p "$GITHUB_WORKSPACE/.gemini"
           SETTINGS="$GITHUB_WORKSPACE/.gemini/settings.json"
-          BASE_CONFIG='{"context":{"includeDirectories":["/tmp/"]},"tools":{"core":["glob","grep_search","list_directory","read_file","read_many_files","run_shell_command(cat)","run_shell_command(grep)","run_shell_command(head)","run_shell_command(jq)","run_shell_command(ls)","run_shell_command(tail)","run_shell_command(wc)"]}}'
+          BASE_CONFIG="$GH_AW_GEMINI_BASE_CONFIG"
           if [ -f "$SETTINGS" ]; then
             MERGED=$(jq -n --argjson base "$BASE_CONFIG" --argjson existing "$(cat "$SETTINGS")" '$existing * $base')
             echo "$MERGED" > "$SETTINGS"
           else
             echo "$BASE_CONFIG" > "$SETTINGS"
           fi
+        env:
+          GH_AW_GEMINI_BASE_CONFIG: {"context":{"includeDirectories":["/tmp/"]},"tools":{"core":["glob","grep_search","list_directory","read_file","read_many_files","run_shell_command(cat)","run_shell_command(grep)","run_shell_command(head)","run_shell_command(jq)","run_shell_command(ls)","run_shell_command(tail)","run_shell_command(wc)"]}}
       - name: Execute Gemini CLI
         if: always() && steps.detection_guard.outputs.run_detection == 'true'
         id: detection_agentic_execution
