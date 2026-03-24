@@ -123,7 +123,7 @@ func renderConsole(data AuditData, logsPath string) {
 	}
 
 	// Firewall Policy Analysis Section (enriched with rule attribution)
-	if data.PolicyAnalysis != nil && len(data.PolicyAnalysis.RuleHits) > 0 {
+	if data.PolicyAnalysis != nil && (len(data.PolicyAnalysis.RuleHits) > 0 || data.PolicyAnalysis.PolicySummary != "") {
 		fmt.Fprintln(os.Stderr, console.FormatSectionHeader("Firewall Policy Analysis"))
 		fmt.Fprintln(os.Stderr)
 		renderPolicyAnalysis(data.PolicyAnalysis)
