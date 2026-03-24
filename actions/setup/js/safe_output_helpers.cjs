@@ -8,6 +8,7 @@
 
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { matchesSimpleGlob } = require("./glob_pattern_helpers.cjs");
+const { logStagedPreviewInfo } = require("./staged_preview.cjs");
 
 /**
  * Parse a comma-separated list of allowed items from environment variable
@@ -417,4 +418,5 @@ module.exports = {
   matchesBlockedPattern,
   isUsernameBlocked,
   isStagedMode,
+  logStagedPreviewInfo,
 };
