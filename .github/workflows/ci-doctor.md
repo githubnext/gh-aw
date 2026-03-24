@@ -1,21 +1,9 @@
 ---
 description: Investigates failed CI workflows to identify root causes and patterns, creating issues with diagnostic information; also reviews PR check failures when the ci-doctor label is applied
 on:
-  workflow_run:
-    workflows: ["CI"]  # Monitor the CI workflow specifically
-    types:
-      - completed
-    branches:
-      - main
-    # This will trigger only when the CI workflow completes with failure
-    # The condition is handled in the workflow body
   label_command:
     name: ci-doctor
     events: [pull_request]
-  stop-after: +1mo
-
-# Allow both CI failure runs and PR label-command triggers
-if: (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'failure') || github.event_name == 'pull_request'
 
 permissions:
   actions: read         # To query workflow runs, jobs, and logs
