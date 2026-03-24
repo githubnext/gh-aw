@@ -577,20 +577,20 @@ func renderPerformanceMetrics(metrics *PerformanceMetrics) {
 func renderPolicyAnalysis(analysis *PolicyAnalysis) {
 	auditReportLog.Printf("Rendering policy analysis: rules=%d, denied=%d", len(analysis.RuleHits), analysis.DeniedCount)
 
-	// Policy summary
-	fmt.Fprintf(os.Stderr, "  Policy: %s\n", analysis.PolicySummary)
-	fmt.Fprintln(os.Stderr)
-
-	// Summary statistics
-	fmt.Fprintf(os.Stderr, "  Total Requests  : %d\n", analysis.TotalRequests)
-	fmt.Fprintf(os.Stderr, "  Allowed         : %d\n", analysis.AllowedCount)
-	fmt.Fprintf(os.Stderr, "  Denied          : %d\n", analysis.DeniedCount)
-	fmt.Fprintf(os.Stderr, "  Unique Domains  : %d\n", analysis.UniqueDomains)
+	// Policy summary using RenderStruct
+	display := PolicySummaryDisplay{
+		Policy:        analysis.PolicySummary,
+		TotalRequests: analysis.TotalRequests,
+		Allowed:       analysis.AllowedCount,
+		Denied:        analysis.DeniedCount,
+		UniqueDomains: analysis.UniqueDomains,
+	}
+	fmt.Fprint(os.Stderr, console.RenderStruct(display))
 	fmt.Fprintln(os.Stderr)
 
 	// Rule hit table
 	if len(analysis.RuleHits) > 0 {
-		fmt.Fprintln(os.Stderr, "  Policy Rules:")
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Policy Rules:"))
 		fmt.Fprintln(os.Stderr)
 
 		ruleConfig := console.TableConfig{
@@ -614,7 +614,7 @@ func renderPolicyAnalysis(analysis *PolicyAnalysis) {
 
 	// Denied requests detail
 	if len(analysis.DeniedRequests) > 0 {
-		fmt.Fprintf(os.Stderr, "  Denied Requests (%d):\n", len(analysis.DeniedRequests))
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Denied Requests (%d):", len(analysis.DeniedRequests))))
 		fmt.Fprintln(os.Stderr)
 
 		deniedConfig := console.TableConfig{

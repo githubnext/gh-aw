@@ -183,6 +183,15 @@ type MCPServerStats struct {
 	ErrorCount      int    `json:"error_count,omitempty" console:"header:Errors,omitempty"`
 }
 
+// PolicySummaryDisplay is a display-optimized version of PolicyAnalysis for console rendering
+type PolicySummaryDisplay struct {
+	Policy        string `console:"header:Policy"`
+	TotalRequests int    `console:"header:Total Requests"`
+	Allowed       int    `console:"header:Allowed"`
+	Denied        int    `console:"header:Denied"`
+	UniqueDomains int    `console:"header:Unique Domains"`
+}
+
 // OverviewDisplay is a display-optimized version of OverviewData for console rendering
 type OverviewDisplay struct {
 	RunID    int64  `console:"header:Run ID"`

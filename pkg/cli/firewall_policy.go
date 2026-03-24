@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"sort"
 	"strings"
 
@@ -161,12 +162,7 @@ func domainMatchesRule(host string, rule PolicyRule) bool {
 	// Detect regex-based rules: aclName contains "regex" or domains contain regex metacharacters
 	isRegex := strings.Contains(strings.ToLower(rule.ACLName), "regex")
 	if !isRegex {
-		for _, d := range rule.Domains {
-			if containsRegexMeta(d) {
-				isRegex = true
-				break
-			}
-		}
+		isRegex = slices.ContainsFunc(rule.Domains, containsRegexMeta)
 	}
 
 	if isRegex {
