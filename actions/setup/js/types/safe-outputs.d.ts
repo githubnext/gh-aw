@@ -62,6 +62,8 @@ interface UpdateDiscussionItem extends BaseSafeOutputItem {
   title?: string;
   /** Optional new discussion body */
   body?: string;
+  /** Optional labels to set on the discussion (replaces existing labels) */
+  labels?: string[];
   /** Optional discussion number for target "*" */
   discussion_number?: number | string;
 }
