@@ -158,6 +158,11 @@ describe("push_signed_commits integration tests", () => {
         capturedGraphQLCalls.push({ oid, query });
         return { createCommitOnBranch: { commit: { oid } } };
       }),
+      rest: {
+        git: {
+          createRef: vi.fn(async () => ({ data: {} })),
+        },
+      },
     };
   }
 
@@ -342,7 +347,7 @@ describe("push_signed_commits integration tests", () => {
   // ──────────────────────────────────────────────────────
 
   describe("new branch (does not exist on remote)", () => {
-    it("should use parent OID when branch is not yet on remote (single commit)", async () => {
+    it("should create remote branch via REST and use parent OID for first commit (single commit)", async () => {
       // Create a local branch with one commit but do NOT push it
       execGit(["checkout", "-b", "new-unpushed-branch"], { cwd: workDir });
       fs.writeFileSync(path.join(workDir, "new-file.txt"), "New file content\n");
@@ -364,6 +369,15 @@ describe("push_signed_commits integration tests", () => {
         cwd: workDir,
       });
 
+      // Branch must be created via REST before the GraphQL mutation
+      expect(githubClient.rest.git.createRef).toHaveBeenCalledTimes(1);
+      expect(githubClient.rest.git.createRef).toHaveBeenCalledWith({
+        owner: "test-owner",
+        repo: "test-repo",
+        ref: "refs/heads/new-unpushed-branch",
+        sha: expectedParentOid,
+      });
+
       expect(githubClient.graphql).toHaveBeenCalledTimes(1);
       const callArg = githubClient.graphql.mock.calls[0][1].input;
       // expectedHeadOid must be the parent commit OID, not empty
@@ -374,7 +388,7 @@ describe("push_signed_commits integration tests", () => {
       expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("not yet on the remote"));
     });
 
-    it("should chain GraphQL OIDs for multiple commits on a new branch", async () => {
+    it("should create remote branch once then chain GraphQL OIDs for multiple commits on a new branch", async () => {
       // Create a local branch with two commits but do NOT push it
       execGit(["checkout", "-b", "new-multi-commit-branch"], { cwd: workDir });
 
@@ -400,6 +414,15 @@ describe("push_signed_commits integration tests", () => {
         branch: "new-multi-commit-branch",
         baseRef: "origin/main",
         cwd: workDir,
+      });
+
+      // Branch must be created via REST only once (for the first commit)
+      expect(githubClient.rest.git.createRef).toHaveBeenCalledTimes(1);
+      expect(githubClient.rest.git.createRef).toHaveBeenCalledWith({
+        owner: "test-owner",
+        repo: "test-repo",
+        ref: "refs/heads/new-multi-commit-branch",
+        sha: expectedParentOid,
       });
 
       expect(githubClient.graphql).toHaveBeenCalledTimes(2);

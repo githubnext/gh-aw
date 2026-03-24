@@ -65,15 +65,24 @@ async function pushSignedCommits({ githubClient, owner, repo, branch, baseRef, c
         const { stdout: oidOut } = await exec.getExecOutput("git", ["ls-remote", "origin", `refs/heads/${branch}`], { cwd });
         expectedHeadOid = oidOut.trim().split(/\s+/)[0];
         if (!expectedHeadOid) {
-          // Branch does not exist on the remote yet – createCommitOnBranch will create it.
-          // Use the local parent commit OID as the expected base.
+          // Branch does not exist on the remote yet.
+          // createCommitOnBranch requires the branch to already exist – it does NOT auto-create branches.
+          // Resolve the parent OID, create the branch on the remote via the REST API,
+          // then proceed with the signed-commit mutation as normal.
           core.info(`pushSignedCommits: branch ${branch} not yet on the remote, resolving parent OID for first commit`);
           const { stdout: parentOut } = await exec.getExecOutput("git", ["rev-parse", `${sha}^`], { cwd });
           expectedHeadOid = parentOut.trim();
           if (!expectedHeadOid) {
             throw new Error(`Could not resolve OID for new branch ${branch}`);
           }
-          core.info(`pushSignedCommits: using parent OID for new branch: ${expectedHeadOid}`);
+          core.info(`pushSignedCommits: creating remote branch ${branch} at parent OID ${expectedHeadOid}`);
+          await githubClient.rest.git.createRef({
+            owner,
+            repo,
+            ref: `refs/heads/${branch}`,
+            sha: expectedHeadOid,
+          });
+          core.info(`pushSignedCommits: remote branch ${branch} created successfully`);
         } else {
           core.info(`pushSignedCommits: using remote HEAD OID from ls-remote: ${expectedHeadOid}`);
         }
