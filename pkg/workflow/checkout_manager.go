@@ -3,7 +3,6 @@ package workflow
 import (
 	"errors"
 	"fmt"
-	"math"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/logger"
@@ -598,11 +597,7 @@ func mergeSparsePatterns(existing []string, newPatterns string) []string {
 // mergeFetchRefs unions two sets of fetch ref patterns preserving insertion order.
 func mergeFetchRefs(existing []string, newRefs []string) []string {
 	seen := make(map[string]bool, len(existing))
-	capacity := len(existing)
-	if len(newRefs) <= math.MaxInt-len(existing) {
-		capacity += len(newRefs)
-	}
-	result := make([]string, 0, capacity)
+	result := make([]string, 0)
 	for _, r := range existing {
 		r = strings.TrimSpace(r)
 		if r != "" && !seen[r] {
