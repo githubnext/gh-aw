@@ -525,19 +525,23 @@ func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData, pre
 	}
 
 	// Validate that all placeholders have been substituted
-	yaml.WriteString("      - name: Validate prompt placeholders\n")
-	yaml.WriteString("        env:\n")
-	yaml.WriteString("          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt\n")
-	yaml.WriteString("        # poutine:ignore untrusted_checkout_exec\n")
-	yaml.WriteString("        run: bash ${RUNNER_TEMP}/gh-aw/actions/validate_prompt_placeholders.sh\n")
+	writePromptBashStep(yaml, "Validate prompt placeholders", "validate_prompt_placeholders.sh")
 
 	// Print prompt (merged into prompt generation)
-	yaml.WriteString("      - name: Print prompt\n")
+	writePromptBashStep(yaml, "Print prompt", "print_prompt_summary.sh")
+}
+
+// writePromptBashStep writes a YAML step that runs a bash script from the gh-aw actions directory
+// with the GH_AW_PROMPT env var set. The poutine:ignore suppression is included to address
+// untrusted_checkout_exec findings for scripts executed from RUNNER_TEMP.
+func writePromptBashStep(yaml *strings.Builder, name, script string) {
+	fmt.Fprintf(yaml, "      - name: %s\n", name)
 	yaml.WriteString("        env:\n")
 	yaml.WriteString("          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt\n")
 	yaml.WriteString("        # poutine:ignore untrusted_checkout_exec\n")
-	yaml.WriteString("        run: bash ${RUNNER_TEMP}/gh-aw/actions/print_prompt_summary.sh\n")
+	fmt.Fprintf(yaml, "        run: bash ${RUNNER_TEMP}/gh-aw/actions/%s\n", script)
 }
+
 func (c *Compiler) generatePostSteps(yaml *strings.Builder, data *WorkflowData) {
 	if data.PostSteps != "" {
 		// Remove "post-steps:" line and adjust indentation, similar to CustomSteps processing
