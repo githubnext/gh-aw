@@ -528,12 +528,14 @@ func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData, pre
 	yaml.WriteString("      - name: Validate prompt placeholders\n")
 	yaml.WriteString("        env:\n")
 	yaml.WriteString("          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt\n")
+	yaml.WriteString("        # poutine:ignore untrusted_checkout_exec\n")
 	yaml.WriteString("        run: bash ${RUNNER_TEMP}/gh-aw/actions/validate_prompt_placeholders.sh\n")
 
 	// Print prompt (merged into prompt generation)
 	yaml.WriteString("      - name: Print prompt\n")
 	yaml.WriteString("        env:\n")
 	yaml.WriteString("          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt\n")
+	yaml.WriteString("        # poutine:ignore untrusted_checkout_exec\n")
 	yaml.WriteString("        run: bash ${RUNNER_TEMP}/gh-aw/actions/print_prompt_summary.sh\n")
 }
 func (c *Compiler) generatePostSteps(yaml *strings.Builder, data *WorkflowData) {
