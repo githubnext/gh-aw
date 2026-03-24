@@ -952,7 +952,7 @@ func TestExtractAPMDependenciesFromImportsAPMPackages(t *testing.T) {
 			"dependencies": []any{"microsoft/from-dependencies"},
 		}
 		result, err := extractAPMDependenciesFromFrontmatter(frontmatter)
-		assert.Error(t, err, "Should return an error when both imports.apm-packages and dependencies are present")
+		require.Error(t, err, "Should return an error when both imports.apm-packages and dependencies are present")
 		assert.Nil(t, result, "Should return nil result on error")
 		assert.Contains(t, err.Error(), "imports.apm-packages", "Error should mention imports.apm-packages")
 		assert.Contains(t, err.Error(), "dependencies", "Error should mention dependencies")
