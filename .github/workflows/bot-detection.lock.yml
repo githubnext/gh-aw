@@ -133,6 +133,7 @@ jobs:
           GH_AW_NEEDS_PRECOMPUTE_OUTPUTS_ISSUE_BODY: ${{ needs.precompute.outputs.issue_body }}
           GH_AW_NEEDS_PRECOMPUTE_OUTPUTS_ISSUE_NUMBER: ${{ needs.precompute.outputs.issue_number }}
           GH_AW_NEEDS_PRECOMPUTE_OUTPUTS_ISSUE_TITLE: ${{ needs.precompute.outputs.issue_title }}
+        # poutine:ignore untrusted_checkout_exec
         run: |
           bash ${RUNNER_TEMP}/gh-aw/actions/create_prompt_first.sh
           {
@@ -243,10 +244,12 @@ jobs:
       - name: Validate prompt placeholders
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
+        # poutine:ignore untrusted_checkout_exec
         run: bash ${RUNNER_TEMP}/gh-aw/actions/validate_prompt_placeholders.sh
       - name: Print prompt
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
+        # poutine:ignore untrusted_checkout_exec
         run: bash ${RUNNER_TEMP}/gh-aw/actions/print_prompt_summary.sh
       - name: Upload activation artifact
         if: success()
