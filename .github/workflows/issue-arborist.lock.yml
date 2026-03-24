@@ -373,7 +373,7 @@ jobs:
           mkdir -p /tmp/gh-aw/safeoutputs
           mkdir -p /tmp/gh-aw/mcp-logs/safeoutputs
           cat > ${RUNNER_TEMP}/gh-aw/safeoutputs/config.json << 'GH_AW_SAFE_OUTPUTS_CONFIG_EOF'
-          {"create_discussion":{"expires":24,"max":1},"create_issue":{"expires":48,"group":true,"max":5},"link_sub_issue":{"max":50},"missing_data":{},"missing_tool":{},"noop":{"max":1}}
+          {"create_discussion":{"category":"audits","close_older_discussions":true,"expires":24,"fallback_to_issue":true,"max":1,"title_prefix":"[Issue Arborist] "},"create_issue":{"expires":48,"group":true,"max":5,"title_prefix":"[Parent] "},"link_sub_issue":{"max":50},"missing_data":{},"missing_tool":{},"noop":{"max":1,"report-as-issue":"true"}}
           GH_AW_SAFE_OUTPUTS_CONFIG_EOF
       - name: Write Safe Outputs Tools
         run: |

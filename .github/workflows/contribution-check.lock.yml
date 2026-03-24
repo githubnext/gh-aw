@@ -349,7 +349,7 @@ jobs:
           mkdir -p /tmp/gh-aw/safeoutputs
           mkdir -p /tmp/gh-aw/mcp-logs/safeoutputs
           cat > ${RUNNER_TEMP}/gh-aw/safeoutputs/config.json << 'GH_AW_SAFE_OUTPUTS_CONFIG_EOF'
-          {"add_comment":{"max":10,"target":"*","target-repo":"${{ vars.TARGET_REPOSITORY }}"},"add_labels":{"allowed":["spam","needs-work","outdated","lgtm"],"max":4,"target":"*","target-repo":"${{ vars.TARGET_REPOSITORY }}"},"create_issue":{"expires":24,"max":1},"missing_data":{},"missing_tool":{},"noop":{"max":1}}
+          {"add_comment":{"hide_older_comments":true,"max":10,"target":"*","target-repo":"${{ vars.TARGET_REPOSITORY }}"},"add_labels":{"allowed":["spam","needs-work","outdated","lgtm"],"max":4,"target":"*","target-repo":"${{ vars.TARGET_REPOSITORY }}"},"create_issue":{"close_older_issues":true,"expires":24,"labels":["contribution-report"],"max":1,"title_prefix":"[Contribution Check Report]"},"missing_data":{},"missing_tool":{},"noop":{"max":1,"report-as-issue":"true"}}
           GH_AW_SAFE_OUTPUTS_CONFIG_EOF
       - name: Write Safe Outputs Tools
         run: |

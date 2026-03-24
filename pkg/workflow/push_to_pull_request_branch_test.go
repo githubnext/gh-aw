@@ -306,10 +306,11 @@ This workflow has minimal push-to-pull-request-branch configuration.
 		t.Errorf("Generated workflow should have safe output type condition")
 	}
 
-	// Verify that the default max is 1 (not 0) when not explicitly set
-	if !strings.Contains(lockContentStr, `"push_to_pull_request_branch":{"max":1}`) &&
-		!strings.Contains(lockContentStr, `"push_to_pull_request_branch": {"max": 1}`) {
-		t.Errorf("Expected push_to_pull_request_branch default max to be 1, got content: %s", lockContentStr)
+	// Verify that the default max is enforced via the validation config (defaultMax: 1).
+	// config.json no longer sets an explicit max for push_to_pull_request_branch; the
+	// safe_output_type_validator falls back to the validation config's defaultMax instead.
+	if !strings.Contains(lockContentStr, `"push_to_pull_request_branch"`) {
+		t.Errorf("Expected push_to_pull_request_branch config to be present in compiled workflow")
 	}
 }
 

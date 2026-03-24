@@ -427,7 +427,7 @@ jobs:
           mkdir -p /tmp/gh-aw/safeoutputs
           mkdir -p /tmp/gh-aw/mcp-logs/safeoutputs
           cat > ${RUNNER_TEMP}/gh-aw/safeoutputs/config.json << 'GH_AW_SAFE_OUTPUTS_CONFIG_EOF'
-          {"add_comment":{"max":1,"target":"*"},"missing_data":{},"missing_tool":{},"noop":{"max":1}}
+          {"add_comment":{"max":1,"target":"*"},"missing_data":{},"missing_tool":{},"noop":{"max":1,"report-as-issue":"true"}}
           GH_AW_SAFE_OUTPUTS_CONFIG_EOF
       - name: Write Safe Outputs Tools
         run: |

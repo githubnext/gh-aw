@@ -395,7 +395,7 @@ jobs:
           mkdir -p /tmp/gh-aw/safeoutputs
           mkdir -p /tmp/gh-aw/mcp-logs/safeoutputs
           cat > ${RUNNER_TEMP}/gh-aw/safeoutputs/config.json << 'GH_AW_SAFE_OUTPUTS_CONFIG_EOF'
-          {"add_comment":{"max":2},"create_issue":{"expires":2,"group":true,"max":5},"link_sub_issue":{"max":3},"missing_data":{},"missing_tool":{},"noop":{"max":1}}
+          {"add_comment":{"hide_older_comments":true,"max":2},"create_issue":{"close_older_issues":true,"expires":2,"group":true,"labels":["ai-generated","automation","testing"],"max":5,"title_prefix":"[smoke-temporary-id] "},"link_sub_issue":{"max":3},"missing_data":{},"missing_tool":{},"noop":{"max":1,"report-as-issue":"true"}}
           GH_AW_SAFE_OUTPUTS_CONFIG_EOF
       - name: Write Safe Outputs Tools
         run: |

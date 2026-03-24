@@ -399,7 +399,7 @@ jobs:
           mkdir -p /tmp/gh-aw/safeoutputs
           mkdir -p /tmp/gh-aw/mcp-logs/safeoutputs
           cat > ${RUNNER_TEMP}/gh-aw/safeoutputs/config.json << 'GH_AW_SAFE_OUTPUTS_CONFIG_EOF'
-          {"add_comment":{"max":2},"add_labels":{"allowed":["smoke-project"],"max":3},"create_issue":{"expires":2,"group":true,"max":1},"create_project_status_update":{"max":1},"create_pull_request":{"expires":2,"max":1,"title_prefix":"[smoke-project] "},"missing_data":{},"missing_tool":{},"noop":{"max":1},"remove_labels":{"allowed":["smoke-project"],"max":3},"update_project":{"max":20}}
+          {"add_comment":{"hide_older_comments":true,"max":2},"add_labels":{"allowed":["smoke-project"]},"create_issue":{"close_older_issues":true,"expires":2,"group":true,"labels":["ai-generated","automation","testing"],"max":1},"create_project_status_update":{"github-token":"${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}","max":1,"project":"https://github.com/orgs/github/projects/24068"},"create_pull_request":{"expires":2,"if_no_changes":"warn","labels":["ai-generated"],"max":1,"max_patch_size":1024,"protected_files":["package.json","bun.lockb","bunfig.toml","deno.json","deno.jsonc","deno.lock","global.json","NuGet.Config","Directory.Packages.props","mix.exs","mix.lock","go.mod","go.sum","stack.yaml","stack.yaml.lock","pom.xml","build.gradle","build.gradle.kts","settings.gradle","settings.gradle.kts","gradle.properties","package-lock.json","yarn.lock","pnpm-lock.yaml","npm-shrinkwrap.json","requirements.txt","Pipfile","Pipfile.lock","pyproject.toml","setup.py","setup.cfg","Gemfile","Gemfile.lock","uv.lock"],"protected_path_prefixes":[".github/",".agents/"],"title_prefix":"[smoke-project] "},"missing_data":{},"missing_tool":{},"noop":{"max":1,"report-as-issue":"true"},"remove_labels":{"allowed":["smoke-project"]},"update_project":{"github-token":"${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}","max":20,"project":"https://github.com/orgs/github/projects/24068","views":[{"name":"Smoke Test Board","layout":"board","filter":"is:open"}]}}
           GH_AW_SAFE_OUTPUTS_CONFIG_EOF
       - name: Write Safe Outputs Tools
         run: |
@@ -888,10 +888,11 @@ jobs:
             const { main } = require('${{ runner.temp }}/gh-aw/actions/redact_secrets.cjs');
             await main();
         env:
-          GH_AW_SECRET_NAMES: 'COPILOT_GITHUB_TOKEN,GH_AW_GITHUB_MCP_SERVER_TOKEN,GH_AW_GITHUB_TOKEN,GITHUB_TOKEN'
+          GH_AW_SECRET_NAMES: 'COPILOT_GITHUB_TOKEN,GH_AW_GITHUB_MCP_SERVER_TOKEN,GH_AW_GITHUB_TOKEN,GH_AW_PROJECT_GITHUB_TOKEN,GITHUB_TOKEN'
           SECRET_COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
           SECRET_GH_AW_GITHUB_MCP_SERVER_TOKEN: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN }}
           SECRET_GH_AW_GITHUB_TOKEN: ${{ secrets.GH_AW_GITHUB_TOKEN }}
+          SECRET_GH_AW_PROJECT_GITHUB_TOKEN: ${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}
           SECRET_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Append agent step summary
         if: always()

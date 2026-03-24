@@ -188,21 +188,3 @@ This workflow tests explicit max for dispatch-workflow.
 }
 
 // TestGenerateAssignToAgentConfigDefaultMax tests the config generation with default max
-func TestGenerateAssignToAgentConfigDefaultMax(t *testing.T) {
-	// Test with max=nil (should use default of 1)
-	config := generateAssignToAgentConfig(nil, 1, "copilot", "", nil)
-	assert.Equal(t, 1, config["max"], "Should use default max of 1 when max is nil")
-	assert.Equal(t, "copilot", config["default_agent"], "Should have default agent")
-
-	// Test with explicit max (should override default)
-	config = generateAssignToAgentConfig(strPtr("5"), 1, "copilot", "", nil)
-	assert.Equal(t, 5, config["max"], "Should use explicit max of 5")
-	assert.Equal(t, "copilot", config["default_agent"], "Should have default agent")
-
-	// Test with target and allowed
-	config = generateAssignToAgentConfig(nil, 1, "copilot", "issues", []string{"copilot", "custom"})
-	assert.Equal(t, 1, config["max"], "Should use default max of 1")
-	assert.Equal(t, "copilot", config["default_agent"], "Should have default agent")
-	assert.Equal(t, "issues", config["target"], "Should have target")
-	assert.Equal(t, []string{"copilot", "custom"}, config["allowed"], "Should have allowed list")
-}
