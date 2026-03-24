@@ -4,8 +4,11 @@ package workflow
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"os"
 	"os/exec"
+	"strings"
 
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/logger"
@@ -73,6 +76,26 @@ func ExecGHContext(ctx context.Context, args ...string) *exec.Cmd {
 	return setupGHCommand(ctx, args...)
 }
 
+// enrichGHError enriches an error returned from a gh CLI command with the
+// stderr output captured in *exec.ExitError. When cmd.Output() (stdout-only
+// capture) fails, Go populates ExitError.Stderr with the command's stderr,
+// which typically contains the human-readable error message from gh.
+// This function appends that message to the error so callers see useful
+// diagnostics instead of a bare "exit status 1".
+func enrichGHError(err error) error {
+	if err == nil {
+		return nil
+	}
+	var exitErr *exec.ExitError
+	if errors.As(err, &exitErr) && len(exitErr.Stderr) > 0 {
+		stderr := strings.TrimSpace(string(exitErr.Stderr))
+		if stderr != "" {
+			return fmt.Errorf("%w: %s", err, stderr)
+		}
+	}
+	return err
+}
+
 // runGHWithSpinnerContext executes a gh CLI command with context support, a spinner,
 // and returns the output. This is the core implementation for RunGHContext.
 func runGHWithSpinnerContext(ctx context.Context, spinnerMessage string, combined bool, args ...string) ([]byte, error) {
@@ -88,6 +111,7 @@ func runGHWithSpinnerContext(ctx context.Context, spinnerMessage string, combine
 			output, err = cmd.CombinedOutput()
 		} else {
 			output, err = cmd.Output()
+			err = enrichGHError(err)
 		}
 		spinner.Stop()
 		return output, err
@@ -96,7 +120,8 @@ func runGHWithSpinnerContext(ctx context.Context, spinnerMessage string, combine
 	if combined {
 		return cmd.CombinedOutput()
 	}
-	return cmd.Output()
+	output, err := cmd.Output()
+	return output, enrichGHError(err)
 }
 
 // runGHWithSpinner executes a gh CLI command with a spinner and returns the output.
@@ -114,6 +139,7 @@ func runGHWithSpinner(spinnerMessage string, combined bool, args ...string) ([]b
 			output, err = cmd.CombinedOutput()
 		} else {
 			output, err = cmd.Output()
+			err = enrichGHError(err)
 		}
 		spinner.Stop()
 		return output, err
@@ -122,7 +148,8 @@ func runGHWithSpinner(spinnerMessage string, combined bool, args ...string) ([]b
 	if combined {
 		return cmd.CombinedOutput()
 	}
-	return cmd.Output()
+	output, err := cmd.Output()
+	return output, enrichGHError(err)
 }
 
 // RunGH executes a gh CLI command with a spinner and returns the stdout output.

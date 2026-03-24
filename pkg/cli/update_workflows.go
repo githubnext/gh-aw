@@ -324,7 +324,8 @@ func updateWorkflow(wf *workflowWithSource, allowMajor, force, verbose bool, eng
 	updateLog.Printf("Updating workflow: name=%s, source=%s, force=%v, noMerge=%v", wf.Name, wf.SourceSpec, force, noMerge)
 
 	if verbose {
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("\nUpdating workflow: "+wf.Name))
+		fmt.Fprintln(os.Stderr, "")
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Updating workflow: "+wf.Name))
 		fmt.Fprintln(os.Stderr, console.FormatVerboseMessage("Source: "+wf.SourceSpec))
 	}
 
