@@ -343,10 +343,11 @@ async function main(config = {}) {
         // Successful response means branch protection rules exist
         isBranchProtected = true;
       } catch (protectionError) {
-        if (protectionError.status === 404) {
+        const protectionStatus = protectionError && typeof protectionError === "object" && "status" in protectionError ? protectionError.status : undefined;
+        if (protectionStatus === 404) {
           // 404 means no protection rules – safe to proceed
           core.info(`Branch "${branchName}" has no protection rules`);
-        } else if (protectionError.status === 403) {
+        } else if (protectionStatus === 403) {
           // 403 means the token lacks permission to read branch protection rules.
           // The GitHub platform will still enforce branch protection at push time,
           // so warn and allow the push to proceed.
