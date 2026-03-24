@@ -253,6 +253,9 @@ Pre-activation runs checks sequentially. Any failure sets `activated=false`, pre
 | `gh aw compile --actionlint --zizmor --poutine` | Run security scanners |
 | `gh aw compile --purge` | Remove orphaned `.lock.yml` files |
 | `gh aw compile --output /path/to/output` | Custom output directory |
+| `gh aw compile --action-mode action --actions-repo owner/repo` | Compile using a custom actions repository (requires `--action-mode action`) |
+| `gh aw compile --action-mode action --actions-repo owner/repo --action-tag branch-or-sha` | Compile against a specific branch or SHA in a fork |
+| `gh aw compile --action-tag v1.2.3` | Pin action references to a specific tag or SHA (implies release mode) |
 | `gh aw validate` | Validate all workflows (compile + all linters, no file output) |
 | `gh aw validate my-workflow` | Validate a specific workflow |
 | `gh aw validate --json` | Validate and output results in JSON format |
@@ -260,6 +263,9 @@ Pre-activation runs checks sequentially. Any failure sets `activated=false`, pre
 
 > [!TIP]
 > Compilation is only required when changing **frontmatter configuration**. The **markdown body** (AI instructions) is loaded at runtime and can be edited without recompilation. See [Editing Workflows](/gh-aw/guides/editing-workflows/) for details.
+
+> [!NOTE]
+> The `--actions-repo` flag overrides the default `github/gh-aw-actions` repository used when `--action-mode action` is set. Use it together with `--action-tag` to compile against a branch or fork during development.
 
 ## Debugging Compilation
 
