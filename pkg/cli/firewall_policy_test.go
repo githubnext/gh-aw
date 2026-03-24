@@ -512,6 +512,42 @@ func TestEnrichWithPolicyRules(t *testing.T) {
 		result := enrichWithPolicyRules(squidEntries, manifest)
 		assert.Equal(t, 1, result.TotalRequests, "Squid error entries should be filtered out")
 	})
+
+	t.Run("unattributed-allow for allowed traffic with no matching rule", func(t *testing.T) {
+		// Manifest without a catch-all rule — allowed traffic that doesn't match
+		// any allow rule should be classified as (unattributed-allow), not (implicit-deny)
+		limitedManifest := &PolicyManifest{
+			Version: 1,
+			Rules: []PolicyRule{
+				{ID: "allow-github", Order: 1, Action: "allow", ACLName: "allowed_domains", Protocol: "both", Domains: []string{".github.com"}, Description: "Allow GitHub"},
+			},
+		}
+		unattribEntries := []AuditLogEntry{
+			// Allowed request that matches the allow-github rule
+			{Timestamp: 1.0, Host: "api.github.com:443", Method: "CONNECT", Status: 200, Decision: "TCP_TUNNEL"},
+			// Allowed request that does NOT match any rule — should be (unattributed-allow)
+			{Timestamp: 2.0, Host: "unknown.example.com:443", Method: "CONNECT", Status: 200, Decision: "TCP_TUNNEL"},
+			// Denied request that does NOT match any rule — should be (implicit-deny)
+			{Timestamp: 3.0, Host: "evil.com:443", Method: "CONNECT", Status: 403, Decision: "NONE_NONE"},
+		}
+		result := enrichWithPolicyRules(unattribEntries, limitedManifest)
+		assert.Equal(t, 3, result.TotalRequests, "Should process all 3 entries")
+		assert.Equal(t, 2, result.AllowedCount, "Should have 2 allowed (1 attributed + 1 unattributed)")
+		assert.Equal(t, 1, result.DeniedCount, "Should have 1 denied (implicit)")
+		require.Len(t, result.DeniedRequests, 1, "Should have 1 denied request")
+		assert.Equal(t, "(implicit-deny)", result.DeniedRequests[0].RuleID, "Denied should be implicit-deny")
+		assert.Equal(t, "evil.com:443", result.DeniedRequests[0].Host, "Denied host should match")
+	})
+
+	t.Run("unique domains case normalized", func(t *testing.T) {
+		caseEntries := []AuditLogEntry{
+			{Timestamp: 1.0, Host: "API.GITHUB.COM:443", Method: "CONNECT", Status: 200, Decision: "TCP_TUNNEL"},
+			{Timestamp: 2.0, Host: "api.github.com:443", Method: "CONNECT", Status: 200, Decision: "TCP_TUNNEL"},
+			{Timestamp: 3.0, Host: "Api.GitHub.com:443", Method: "CONNECT", Status: 200, Decision: "TCP_TUNNEL"},
+		}
+		result := enrichWithPolicyRules(caseEntries, manifest)
+		assert.Equal(t, 1, result.UniqueDomains, "Mixed-case hosts for same domain should count as 1 unique domain")
+	})
 }
 
 func TestDetectFirewallAuditArtifacts(t *testing.T) {

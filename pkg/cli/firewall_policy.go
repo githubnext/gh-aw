@@ -319,12 +319,12 @@ func enrichWithPolicyRules(entries []AuditLogEntry, manifest *PolicyManifest) *P
 			continue
 		}
 
-		// Strip port for domain tracking
+		// Strip port for domain tracking and normalize case
 		domain := host
 		if idx := strings.LastIndex(host, ":"); idx != -1 {
 			domain = host[:idx]
 		}
-		uniqueDomains[domain] = true
+		uniqueDomains[strings.ToLower(domain)] = true
 
 		rule := findMatchingRule(entry, manifest.Rules)
 
@@ -346,12 +346,19 @@ func enrichWithPolicyRules(entries []AuditLogEntry, manifest *PolicyManifest) *P
 				allowedCount++
 			}
 		} else {
-			// No matching rule — implicit deny
-			enriched.RuleID = "(implicit-deny)"
-			enriched.Action = "deny"
-			enriched.Reason = "No matching policy rule"
-			deniedRequests = append(deniedRequests, enriched)
-			deniedCount++
+			// No matching rule — derive outcome from observed entry decision
+			if isEntryAllowed(entry) {
+				enriched.RuleID = "(unattributed-allow)"
+				enriched.Action = "allow"
+				enriched.Reason = "Allowed (rule not identified)"
+				allowedCount++
+			} else {
+				enriched.RuleID = "(implicit-deny)"
+				enriched.Action = "deny"
+				enriched.Reason = "No matching policy rule"
+				deniedRequests = append(deniedRequests, enriched)
+				deniedCount++
+			}
 		}
 	}
 
