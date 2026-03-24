@@ -23,6 +23,7 @@ safe-outputs:
     labels:
       - contribution-report
     close-older-issues: true
+    group-by-day: true
     expires: 1d
   add-labels:
     allowed: [spam, needs-work, outdated, lgtm]

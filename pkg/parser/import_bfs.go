@@ -25,44 +25,42 @@ func processImportsFromFrontmatterWithManifestAndSource(frontmatter map[string]a
 
 	log.Print("Processing imports from frontmatter with recursive BFS")
 
-	// Parse imports field - can be array of strings or objects with path and inputs
+	// Parse imports field - can be array of strings or objects with path and inputs,
+	// or an object with 'aw' (agentic workflow paths) and 'apm-packages' subfields.
 	var importSpecs []ImportSpec
 	switch v := importsField.(type) {
 	case []any:
-		for _, item := range v {
-			switch importItem := item.(type) {
-			case string:
-				// Simple string import
-				importSpecs = append(importSpecs, ImportSpec{Path: importItem})
-			case map[string]any:
-				// Object import with path and optional inputs
-				pathValue, hasPath := importItem["path"]
-				if !hasPath {
-					return nil, errors.New("import object must have a 'path' field")
-				}
-				pathStr, ok := pathValue.(string)
-				if !ok {
-					return nil, errors.New("import 'path' must be a string")
-				}
-				var inputs map[string]any
-				if inputsValue, hasInputs := importItem["inputs"]; hasInputs {
-					if inputsMap, ok := inputsValue.(map[string]any); ok {
-						inputs = inputsMap
-					} else {
-						return nil, errors.New("import 'inputs' must be an object")
-					}
-				}
-				importSpecs = append(importSpecs, ImportSpec{Path: pathStr, Inputs: inputs})
-			default:
-				return nil, errors.New("import item must be a string or an object with 'path' field")
-			}
+		specs, err := parseImportSpecsFromArray(v)
+		if err != nil {
+			return nil, err
 		}
+		importSpecs = specs
 	case []string:
 		for _, s := range v {
 			importSpecs = append(importSpecs, ImportSpec{Path: s})
 		}
+	case map[string]any:
+		// Object form: {aw: [...], apm-packages: [...]}
+		// Extract 'aw' subfield for agentic workflow imports.
+		// The 'apm-packages' subfield is handled separately by extractAPMDependenciesFromFrontmatter.
+		if awAny, hasAW := v["aw"]; hasAW {
+			switch awVal := awAny.(type) {
+			case []any:
+				specs, err := parseImportSpecsFromArray(awVal)
+				if err != nil {
+					return nil, fmt.Errorf("imports.aw: %w", err)
+				}
+				importSpecs = specs
+			case []string:
+				for _, s := range awVal {
+					importSpecs = append(importSpecs, ImportSpec{Path: s})
+				}
+			default:
+				return nil, errors.New("imports.aw must be an array of strings or objects")
+			}
+		}
 	default:
-		return nil, errors.New("imports field must be an array of strings or objects")
+		return nil, errors.New("imports field must be an array or an object with 'aw'/'apm-packages' subfields")
 	}
 
 	if len(importSpecs) == 0 {
@@ -412,4 +410,38 @@ func processImportsFromFrontmatterWithManifestAndSource(frontmatter map[string]a
 	log.Printf("Sorted imports in topological order: %v", topologicalOrder)
 
 	return acc.toImportsResult(topologicalOrder), nil
+}
+
+// parseImportSpecsFromArray parses an []any slice into a list of ImportSpec values.
+// Each element must be a string (simple path) or a map with a required "path" key
+// and an optional "inputs" map.
+func parseImportSpecsFromArray(items []any) ([]ImportSpec, error) {
+	var specs []ImportSpec
+	for _, item := range items {
+		switch importItem := item.(type) {
+		case string:
+			specs = append(specs, ImportSpec{Path: importItem})
+		case map[string]any:
+			pathValue, hasPath := importItem["path"]
+			if !hasPath {
+				return nil, errors.New("import object must have a 'path' field")
+			}
+			pathStr, ok := pathValue.(string)
+			if !ok {
+				return nil, errors.New("import 'path' must be a string")
+			}
+			var inputs map[string]any
+			if inputsValue, hasInputs := importItem["inputs"]; hasInputs {
+				if inputsMap, ok := inputsValue.(map[string]any); ok {
+					inputs = inputsMap
+				} else {
+					return nil, errors.New("import 'inputs' must be an object")
+				}
+			}
+			specs = append(specs, ImportSpec{Path: pathStr, Inputs: inputs})
+		default:
+			return nil, errors.New("import item must be a string or an object with 'path' field")
+		}
+	}
+	return specs, nil
 }

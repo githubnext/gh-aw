@@ -161,6 +161,26 @@ When enabled:
 - Maximum 10 older issues will be closed
 - Only runs if the new issue creation succeeds
 
+#### Group By Day
+
+The `group-by-day` field (default: `false`) groups multiple same-day workflow runs into a single issue. When enabled, the handler searches for an existing open issue created **today (UTC)** with the same workflow-id marker (or `close-older-key` if set). If found, the new content is posted as a **comment** on that existing issue instead of creating a new one.
+
+```yaml wrap
+safe-outputs:
+  create-issue:
+    title-prefix: "[Contribution Check Report]"
+    labels: [report]
+    close-older-issues: true
+    group-by-day: true
+```
+
+This is useful for scheduled workflows (e.g. every 4 hours) that produce recurring daily reports: all runs on the same day contribute to one issue, eliminating duplicate open/closed issues.
+
+- Performs a pre-creation search for open issues matching the workflow-id or `close-older-key`
+- If a matching issue was created today (UTC), new content is posted as a comment on it
+- The max-count slot is not consumed when posting as a comment
+- On failure of the pre-check, normal issue creation proceeds as a fallback
+
 #### Searching for Workflow-Created Items
 
 All items created by workflows (issues, pull requests, discussions, and comments) include a hidden **workflow-id marker** in their body:

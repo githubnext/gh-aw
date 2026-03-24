@@ -29,7 +29,7 @@ const API_DELAY_MS = 500;
  * @param {string} [closeOlderKey] - Optional explicit deduplication key. When set, the
  *   `gh-aw-close-key` marker is used as the primary search term and exact filter instead
  *   of the workflow-id / workflow-call-id markers.
- * @returns {Promise<Array<{number: number, title: string, html_url: string, labels: Array<{name: string}>}>>} Matching issues
+ * @returns {Promise<Array<{number: number, title: string, html_url: string, labels: Array<{name: string}>, created_at: string}>>} Matching issues
  */
 async function searchOlderIssues(github, owner, repo, workflowId, excludeNumber, callerWorkflowId, closeOlderKey) {
   core.info(`Starting search for older issues in ${owner}/${repo}`);
@@ -121,6 +121,7 @@ async function searchOlderIssues(github, owner, repo, workflowId, excludeNumber,
       title: item.title,
       html_url: item.html_url,
       labels: item.labels || [],
+      created_at: item.created_at,
     }));
 
   core.info(`Filtering complete:`);

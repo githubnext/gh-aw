@@ -357,6 +357,7 @@ func isStringFormEngine(frontmatter map[string]any) bool {
 // addImportToFrontmatter appends importPath to the "imports" slice in frontmatter.
 // It handles the case where "imports" may be absent, a []any, a []string, or a
 // single string (which is converted to a two-element slice preserving the original value).
+// When "imports" is an object (map) with an "aw" subfield, the path is appended to "aw".
 // Any other unexpected type is left unchanged and importPath is not injected.
 func addImportToFrontmatter(frontmatter map[string]any, importPath string) {
 	existing, hasImports := frontmatter["imports"]
@@ -377,6 +378,24 @@ func addImportToFrontmatter(frontmatter map[string]any, importPath string) {
 	case string:
 		// Single string import — preserve it and append the new one.
 		frontmatter["imports"] = []any{v, importPath}
+	case map[string]any:
+		// Object form — append to the "aw" subfield.
+		if awAny, hasAW := v["aw"]; hasAW {
+			switch aw := awAny.(type) {
+			case []any:
+				v["aw"] = append(aw, importPath)
+			case []string:
+				newSlice := make([]any, len(aw)+1)
+				for i, s := range aw {
+					newSlice[i] = s
+				}
+				newSlice[len(aw)] = importPath
+				v["aw"] = newSlice
+			}
+		} else {
+			// No "aw" subfield yet — create it.
+			v["aw"] = []any{importPath}
+		}
 		// For any other unexpected type, leave the field untouched so the
 		// downstream parser can still report its own error for the invalid value.
 	}

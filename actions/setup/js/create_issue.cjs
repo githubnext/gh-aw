@@ -40,7 +40,7 @@ const { ERR_VALIDATION } = require("./error_codes.cjs");
 const { renderTemplateFromFile } = require("./messages_core.cjs");
 const { createExpirationLine, addExpirationToFooter } = require("./ephemerals.cjs");
 const { MAX_SUB_ISSUES, getSubIssueCount } = require("./sub_issue_helpers.cjs");
-const { closeOlderIssues } = require("./close_older_issues.cjs");
+const { closeOlderIssues, searchOlderIssues, addIssueComment } = require("./close_older_issues.cjs");
 const { parseBoolTemplatable } = require("./templatable.cjs");
 const { tryEnforceArrayLimit } = require("./limit_enforcement_helpers.cjs");
 const { logStagedPreviewInfo } = require("./staged_preview.cjs");
@@ -205,6 +205,7 @@ async function main(config = {}) {
   const { defaultTargetRepo, allowedRepos } = resolveTargetRepoConfig(config);
   const groupEnabled = parseBoolTemplatable(config.group, false);
   const closeOlderIssuesEnabled = parseBoolTemplatable(config.close_older_issues, false);
+  const groupByDayEnabled = parseBoolTemplatable(config.group_by_day, false);
   const rawCloseOlderKey = config.close_older_key ? String(config.close_older_key) : "";
   const closeOlderKey = rawCloseOlderKey ? normalizeCloseOlderKey(rawCloseOlderKey) : "";
   if (rawCloseOlderKey && !closeOlderKey) {
@@ -248,6 +249,12 @@ async function main(config = {}) {
       core.info(`  Using explicit close-older-key: "${closeOlderKey}"`);
     }
   }
+  if (groupByDayEnabled) {
+    core.info(`Group-by-day mode enabled: if an open issue was already created today, new content will be posted as a comment`);
+    if (!closeOlderKey && !process.env.GH_AW_WORKFLOW_ID) {
+      core.warning(`Group-by-day mode has no effect: neither close-older-key nor GH_AW_WORKFLOW_ID is set — issues cannot be searched`);
+    }
+  }
 
   // Track how many items we've processed for max limit
   let processedCount = 0;
@@ -282,8 +289,6 @@ async function main(config = {}) {
         error: `Max count of ${maxCount} reached`,
       };
     }
-
-    processedCount++;
 
     // Merge external resolved temp IDs with our local map
     if (resolvedTemporaryIds) {
@@ -479,6 +484,49 @@ async function main(config = {}) {
 
     bodyLines.push("");
     const body = bodyLines.join("\n").trim();
+
+    // Group-by-day check: if enabled, search for an existing open issue created today.
+    // When found, post the new content as a comment on the existing issue instead of
+    // creating a duplicate. This groups multiple same-day runs into a single issue.
+    // The max-count slot is NOT consumed when posting as a comment (processedCount is
+    // only incremented below, just before actual issue creation).
+    if (groupByDayEnabled && (closeOlderKey || workflowId)) {
+      const today = new Date().toISOString().split("T")[0]; // YYYY-MM-DD (UTC)
+      try {
+        const existingIssues = await searchOlderIssues(
+          githubClient,
+          repoParts.owner,
+          repoParts.repo,
+          workflowId,
+          0, // no issue to exclude — this is a pre-creation check
+          callerWorkflowId,
+          closeOlderKey
+        );
+        const todayIssue = existingIssues.find(issue => {
+          const createdDate = issue.created_at ? String(issue.created_at).split("T")[0] : "";
+          return createdDate === today;
+        });
+        if (todayIssue) {
+          core.info(`Group-by-day: found open issue #${todayIssue.number} created today (${today}) — posting new content as a comment`);
+          const comment = await addIssueComment(githubClient, repoParts.owner, repoParts.repo, todayIssue.number, body);
+          core.info(`Posted content as comment ${comment.html_url} on issue #${todayIssue.number}`);
+          return {
+            success: true,
+            grouped: true,
+            existingIssueNumber: todayIssue.number,
+            existingIssueUrl: todayIssue.html_url,
+            commentUrl: comment.html_url,
+          };
+        }
+      } catch (error) {
+        // Log but do not abort — fall through to normal creation
+        core.warning(`Group-by-day pre-check failed: ${getErrorMessage(error)} — proceeding with issue creation`);
+      }
+    }
+
+    // Increment processed count only when we are about to create an issue
+    // (group-by-day comment paths return above without consuming a slot)
+    processedCount++;
 
     core.info(`Creating issue in ${qualifiedItemRepo} with title: ${title}`);
     core.info(`Labels: ${labels.join(", ")}`);
