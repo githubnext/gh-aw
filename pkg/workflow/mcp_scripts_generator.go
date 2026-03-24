@@ -31,8 +31,8 @@ type MCPScriptsConfigJSON struct {
 	Tools      []MCPScriptsToolJSON `json:"tools"`
 }
 
-// generateMCPScriptsToolsConfig generates the tools.json configuration for the mcp-scripts MCP server
-func generateMCPScriptsToolsConfig(mcpScripts *MCPScriptsConfig) string {
+// GenerateMCPScriptsToolsConfig generates the tools.json configuration for the mcp-scripts MCP server
+func GenerateMCPScriptsToolsConfig(mcpScripts *MCPScriptsConfig) string {
 	mcpScriptsGeneratorLog.Printf("Generating mcp-scripts tools.json config: tool_count=%d", len(mcpScripts.Tools))
 
 	config := MCPScriptsConfigJSON{
@@ -139,9 +139,9 @@ func generateMCPScriptsToolsConfig(mcpScripts *MCPScriptsConfig) string {
 	return string(jsonBytes)
 }
 
-// generateMCPScriptsMCPServerScript generates the entry point script for the mcp-scripts MCP server
+// GenerateMCPScriptsMCPServerScript generates the entry point script for the mcp-scripts MCP server
 // This script uses HTTP transport exclusively
-func generateMCPScriptsMCPServerScript(mcpScripts *MCPScriptsConfig) string {
+func GenerateMCPScriptsMCPServerScript(mcpScripts *MCPScriptsConfig) string {
 	mcpScriptsGeneratorLog.Print("Generating mcp-scripts MCP server entry point script")
 	var sb strings.Builder
 
@@ -180,11 +180,11 @@ func formatMultiLineComment(description, prefix string) string {
 	return prefix + strings.ReplaceAll(strings.TrimRight(description, "\n"), "\n", "\n"+prefix) + "\n"
 }
 
-// generateMCPScriptJavaScriptToolScript generates the JavaScript tool file for a mcp-script tool
+// GenerateMCPScriptJavaScriptToolScript generates the JavaScript tool file for a mcp-script tool
 // The user's script code is automatically wrapped in a function with module.exports,
 // so users can write simple code without worrying about exports.
 // Input parameters are destructured and available as local variables.
-func generateMCPScriptJavaScriptToolScript(toolConfig *MCPScriptToolConfig) string {
+func GenerateMCPScriptJavaScriptToolScript(toolConfig *MCPScriptToolConfig) string {
 	mcpScriptsLog.Printf("Generating JavaScript tool script: tool=%s, input_count=%d", toolConfig.Name, len(toolConfig.Inputs))
 	var sb strings.Builder
 
@@ -237,8 +237,8 @@ func generateMCPScriptJavaScriptToolScript(toolConfig *MCPScriptToolConfig) stri
 	return sb.String()
 }
 
-// generateMCPScriptShellToolScript generates the shell script for a mcp-script tool
-func generateMCPScriptShellToolScript(toolConfig *MCPScriptToolConfig) string {
+// GenerateMCPScriptShellToolScript generates the shell script for a mcp-script tool
+func GenerateMCPScriptShellToolScript(toolConfig *MCPScriptToolConfig) string {
 	mcpScriptsLog.Printf("Generating shell tool script: tool=%s", toolConfig.Name)
 	var sb strings.Builder
 
@@ -251,13 +251,13 @@ func generateMCPScriptShellToolScript(toolConfig *MCPScriptToolConfig) string {
 	return sb.String()
 }
 
-// generateMCPScriptPythonToolScript generates the Python script for a mcp-script tool
+// GenerateMCPScriptPythonToolScript generates the Python script for a mcp-script tool
 // Python scripts receive inputs as a dictionary (parsed from JSON stdin):
 // - Input parameters are available as a pre-parsed 'inputs' dictionary
 // - Individual parameters can be destructured: param = inputs.get('param', default)
 // - Outputs are printed to stdout as JSON
 // - Environment variables from env: field are available via os.environ
-func generateMCPScriptPythonToolScript(toolConfig *MCPScriptToolConfig) string {
+func GenerateMCPScriptPythonToolScript(toolConfig *MCPScriptToolConfig) string {
 	mcpScriptsLog.Printf("Generating Python tool script: tool=%s, input_count=%d", toolConfig.Name, len(toolConfig.Inputs))
 	var sb strings.Builder
 
@@ -303,12 +303,12 @@ func generateMCPScriptPythonToolScript(toolConfig *MCPScriptToolConfig) string {
 	return sb.String()
 }
 
-// generateMCPScriptGoToolScript generates the Go script for a mcp-script tool
+// GenerateMCPScriptGoToolScript generates the Go script for a mcp-script tool
 // Go scripts receive inputs as JSON via stdin and output JSON to stdout:
 // - Input parameters are decoded from stdin into a map[string]any
 // - Outputs are printed to stdout as JSON
 // - Environment variables from env: field are available via os.Getenv()
-func generateMCPScriptGoToolScript(toolConfig *MCPScriptToolConfig) string {
+func GenerateMCPScriptGoToolScript(toolConfig *MCPScriptToolConfig) string {
 	mcpScriptsLog.Printf("Generating Go tool script: tool=%s, input_count=%d", toolConfig.Name, len(toolConfig.Inputs))
 	var sb strings.Builder
 
@@ -358,36 +358,4 @@ func generateMCPScriptGoToolScript(toolConfig *MCPScriptToolConfig) string {
 	sb.WriteString("}\n")
 
 	return sb.String()
-}
-
-// Public wrapper functions for CLI use
-
-// GenerateMCPScriptsToolsConfigForInspector generates the tools.json configuration for the mcp-scripts MCP server
-// This is a public wrapper for use by the CLI inspector command
-func GenerateMCPScriptsToolsConfigForInspector(mcpScripts *MCPScriptsConfig) string {
-	return generateMCPScriptsToolsConfig(mcpScripts)
-}
-
-// GenerateMCPScriptsMCPServerScriptForInspector generates the MCP server entry point script
-// This is a public wrapper for use by the CLI inspector command
-func GenerateMCPScriptsMCPServerScriptForInspector(mcpScripts *MCPScriptsConfig) string {
-	return generateMCPScriptsMCPServerScript(mcpScripts)
-}
-
-// GenerateMCPScriptJavaScriptToolScriptForInspector generates a JavaScript tool handler script
-// This is a public wrapper for use by the CLI inspector command
-func GenerateMCPScriptJavaScriptToolScriptForInspector(toolConfig *MCPScriptToolConfig) string {
-	return generateMCPScriptJavaScriptToolScript(toolConfig)
-}
-
-// GenerateMCPScriptShellToolScriptForInspector generates a shell script tool handler
-// This is a public wrapper for use by the CLI inspector command
-func GenerateMCPScriptShellToolScriptForInspector(toolConfig *MCPScriptToolConfig) string {
-	return generateMCPScriptShellToolScript(toolConfig)
-}
-
-// GenerateMCPScriptPythonToolScriptForInspector generates a Python script tool handler
-// This is a public wrapper for use by the CLI inspector command
-func GenerateMCPScriptPythonToolScriptForInspector(toolConfig *MCPScriptToolConfig) string {
-	return generateMCPScriptPythonToolScript(toolConfig)
 }

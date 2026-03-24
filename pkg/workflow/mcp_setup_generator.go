@@ -341,7 +341,7 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 		yaml.WriteString("          mkdir -p ${RUNNER_TEMP}/gh-aw/mcp-scripts/logs\n")
 
 		// Generate the tools.json configuration file
-		toolsJSON := generateMCPScriptsToolsConfig(workflowData.MCPScripts)
+		toolsJSON := GenerateMCPScriptsToolsConfig(workflowData.MCPScripts)
 		toolsDelimiter := GenerateHeredocDelimiter("MCP_SCRIPTS_TOOLS")
 		yaml.WriteString("          cat > ${RUNNER_TEMP}/gh-aw/mcp-scripts/tools.json << '" + toolsDelimiter + "'\n")
 		for line := range strings.SplitSeq(toolsJSON, "\n") {
@@ -350,7 +350,7 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 		yaml.WriteString("          " + toolsDelimiter + "\n")
 
 		// Generate the MCP server entry point
-		mcpScriptsMCPServer := generateMCPScriptsMCPServerScript(workflowData.MCPScripts)
+		mcpScriptsMCPServer := GenerateMCPScriptsMCPServerScript(workflowData.MCPScripts)
 		serverDelimiter := GenerateHeredocDelimiter("MCP_SCRIPTS_SERVER")
 		yaml.WriteString("          cat > ${RUNNER_TEMP}/gh-aw/mcp-scripts/mcp-server.cjs << '" + serverDelimiter + "'\n")
 		for _, line := range FormatJavaScriptForYAML(mcpScriptsMCPServer) {
@@ -372,7 +372,7 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 			toolConfig := workflowData.MCPScripts.Tools[toolName]
 			if toolConfig.Script != "" {
 				// JavaScript tool
-				toolScript := generateMCPScriptJavaScriptToolScript(toolConfig)
+				toolScript := GenerateMCPScriptJavaScriptToolScript(toolConfig)
 				jsDelimiter := GenerateHeredocDelimiter("MCP_SCRIPTS_JS_" + strings.ToUpper(toolName))
 				fmt.Fprintf(yaml, "          cat > ${RUNNER_TEMP}/gh-aw/mcp-scripts/%s.cjs << '%s'\n", toolName, jsDelimiter)
 				for _, line := range FormatJavaScriptForYAML(toolScript) {
@@ -381,7 +381,7 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 				fmt.Fprintf(yaml, "          %s\n", jsDelimiter)
 			} else if toolConfig.Run != "" {
 				// Shell script tool
-				toolScript := generateMCPScriptShellToolScript(toolConfig)
+				toolScript := GenerateMCPScriptShellToolScript(toolConfig)
 				shDelimiter := GenerateHeredocDelimiter("MCP_SCRIPTS_SH_" + strings.ToUpper(toolName))
 				fmt.Fprintf(yaml, "          cat > ${RUNNER_TEMP}/gh-aw/mcp-scripts/%s.sh << '%s'\n", toolName, shDelimiter)
 				for line := range strings.SplitSeq(toolScript, "\n") {
@@ -391,7 +391,7 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 				fmt.Fprintf(yaml, "          chmod +x ${RUNNER_TEMP}/gh-aw/mcp-scripts/%s.sh\n", toolName)
 			} else if toolConfig.Py != "" {
 				// Python script tool
-				toolScript := generateMCPScriptPythonToolScript(toolConfig)
+				toolScript := GenerateMCPScriptPythonToolScript(toolConfig)
 				pyDelimiter := GenerateHeredocDelimiter("MCP_SCRIPTS_PY_" + strings.ToUpper(toolName))
 				fmt.Fprintf(yaml, "          cat > ${RUNNER_TEMP}/gh-aw/mcp-scripts/%s.py << '%s'\n", toolName, pyDelimiter)
 				for line := range strings.SplitSeq(toolScript, "\n") {
@@ -401,7 +401,7 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 				fmt.Fprintf(yaml, "          chmod +x ${RUNNER_TEMP}/gh-aw/mcp-scripts/%s.py\n", toolName)
 			} else if toolConfig.Go != "" {
 				// Go script tool
-				toolScript := generateMCPScriptGoToolScript(toolConfig)
+				toolScript := GenerateMCPScriptGoToolScript(toolConfig)
 				goDelimiter := GenerateHeredocDelimiter("MCP_SCRIPTS_GO_" + strings.ToUpper(toolName))
 				fmt.Fprintf(yaml, "          cat > ${RUNNER_TEMP}/gh-aw/mcp-scripts/%s.go << '%s'\n", toolName, goDelimiter)
 				for line := range strings.SplitSeq(toolScript, "\n") {

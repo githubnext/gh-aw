@@ -62,7 +62,7 @@ func TestGenerateMCPScriptsMCPServerScript(t *testing.T) {
 	}
 
 	// Test the entry point script
-	script := generateMCPScriptsMCPServerScript(config)
+	script := GenerateMCPScriptsMCPServerScript(config)
 
 	// Check for HTTP server entry point structure
 	if !strings.Contains(script, "mcp_scripts_mcp_server_http.cjs") {
@@ -90,7 +90,7 @@ func TestGenerateMCPScriptsMCPServerScript(t *testing.T) {
 	}
 
 	// Test the tools configuration JSON
-	toolsJSON := generateMCPScriptsToolsConfig(config)
+	toolsJSON := GenerateMCPScriptsToolsConfig(config)
 
 	if !strings.Contains(toolsJSON, `"serverName": "mcpscripts"`) {
 		t.Error("Tools config should contain server name 'safeinputs'")
@@ -163,7 +163,7 @@ func TestGenerateMCPScriptsToolsConfigWithEnv(t *testing.T) {
 		},
 	}
 
-	toolsJSON := generateMCPScriptsToolsConfig(config)
+	toolsJSON := GenerateMCPScriptsToolsConfig(config)
 
 	// Verify that env field is present in tools.json
 	if !strings.Contains(toolsJSON, `"env"`) {
@@ -208,7 +208,7 @@ func TestGenerateMCPScriptJavaScriptToolScript(t *testing.T) {
 		},
 	}
 
-	script := generateMCPScriptJavaScriptToolScript(config)
+	script := GenerateMCPScriptJavaScriptToolScript(config)
 
 	if !strings.Contains(script, "test-tool") {
 		t.Error("Script should contain tool name")
@@ -242,7 +242,7 @@ func TestGenerateMCPScriptShellToolScript(t *testing.T) {
 		Run:         "echo $INPUT_MESSAGE",
 	}
 
-	script := generateMCPScriptShellToolScript(config)
+	script := GenerateMCPScriptShellToolScript(config)
 
 	if !strings.Contains(script, "#!/bin/bash") {
 		t.Error("Script should have bash shebang")
@@ -284,7 +284,7 @@ func TestGenerateMCPScriptShellToolScriptMultiLineDescription(t *testing.T) {
 				Run:         "echo hello",
 			}
 
-			script := generateMCPScriptShellToolScript(config)
+			script := GenerateMCPScriptShellToolScript(config)
 
 			if !strings.Contains(script, "# First line of description.") {
 				t.Error("Script should have first description line prefixed with #")
@@ -316,7 +316,7 @@ func TestGenerateMCPScriptPythonToolScript(t *testing.T) {
 		},
 	}
 
-	script := generateMCPScriptPythonToolScript(config)
+	script := GenerateMCPScriptPythonToolScript(config)
 
 	if !strings.Contains(script, "#!/usr/bin/env python3") {
 		t.Error("Script should have python3 shebang")
@@ -375,7 +375,7 @@ func TestGenerateMCPScriptPythonToolScriptMultiLineDescription(t *testing.T) {
 				Py:          "print('hello')",
 			}
 
-			script := generateMCPScriptPythonToolScript(config)
+			script := GenerateMCPScriptPythonToolScript(config)
 
 			if !strings.Contains(script, "# First line of description.") {
 				t.Error("Script should have first description line prefixed with #")
@@ -432,13 +432,13 @@ func TestMCPScriptsStableCodeGeneration(t *testing.T) {
 	entryScripts := make([]string, iterations)
 
 	for i := range iterations {
-		entryScripts[i] = generateMCPScriptsMCPServerScript(config)
+		entryScripts[i] = GenerateMCPScriptsMCPServerScript(config)
 	}
 
 	// All entry point script iterations should produce identical output
 	for i := 1; i < iterations; i++ {
 		if entryScripts[i] != entryScripts[0] {
-			t.Errorf("generateMCPScriptsMCPServerScript produced different output on iteration %d", i+1)
+			t.Errorf("GenerateMCPScriptsMCPServerScript produced different output on iteration %d", i+1)
 		}
 	}
 
@@ -446,13 +446,13 @@ func TestMCPScriptsStableCodeGeneration(t *testing.T) {
 	toolsConfigs := make([]string, iterations)
 
 	for i := range iterations {
-		toolsConfigs[i] = generateMCPScriptsToolsConfig(config)
+		toolsConfigs[i] = GenerateMCPScriptsToolsConfig(config)
 	}
 
 	// All tools config iterations should produce identical output
 	for i := 1; i < iterations; i++ {
 		if toolsConfigs[i] != toolsConfigs[0] {
-			t.Errorf("generateMCPScriptsToolsConfig produced different output on iteration %d", i+1)
+			t.Errorf("GenerateMCPScriptsToolsConfig produced different output on iteration %d", i+1)
 			// Find first difference for debugging
 			for j := 0; j < len(toolsConfigs[0]) && j < len(toolsConfigs[i]); j++ {
 				if toolsConfigs[0][j] != toolsConfigs[i][j] {
@@ -483,12 +483,12 @@ func TestMCPScriptsStableCodeGeneration(t *testing.T) {
 	// Test JavaScript tool script stability
 	jsScripts := make([]string, iterations)
 	for i := range iterations {
-		jsScripts[i] = generateMCPScriptJavaScriptToolScript(config.Tools["alpha-tool"])
+		jsScripts[i] = GenerateMCPScriptJavaScriptToolScript(config.Tools["alpha-tool"])
 	}
 
 	for i := 1; i < iterations; i++ {
 		if jsScripts[i] != jsScripts[0] {
-			t.Errorf("generateMCPScriptJavaScriptToolScript produced different output on iteration %d", i+1)
+			t.Errorf("GenerateMCPScriptJavaScriptToolScript produced different output on iteration %d", i+1)
 		}
 	}
 
@@ -522,7 +522,7 @@ func TestGenerateMCPScriptGoToolScript(t *testing.T) {
 		},
 	}
 
-	script := generateMCPScriptGoToolScript(config)
+	script := GenerateMCPScriptGoToolScript(config)
 
 	if !strings.Contains(script, "package main") {
 		t.Error("Script should have package main declaration")
@@ -589,7 +589,7 @@ func TestGenerateMCPScriptGoToolScriptMultiLineDescription(t *testing.T) {
 				Go:          "fmt.Println(\"hello\")",
 			}
 
-			script := generateMCPScriptGoToolScript(config)
+			script := GenerateMCPScriptGoToolScript(config)
 
 			if !strings.Contains(script, "// First line of description.") {
 				t.Error("Script should have first description line prefixed with //")
