@@ -660,17 +660,21 @@ function buildLockdownCheckFailedContext(hasLockdownCheckFailed) {
 
 /**
  * Build a context string when assigning the Copilot coding agent to created issues failed.
+ * Uses progressive disclosure via <details> sections to present actionable information.
  * @param {boolean} hasAssignCopilotFailures - Whether any copilot assignments failed
  * @param {string} assignCopilotErrors - Newline-separated list of "issue:number:copilot:error" entries
+ * @param {string} [runUrl] - URL of the current workflow run for the footer link
  * @returns {string} Formatted context string, or empty string if no failures
  */
-function buildAssignCopilotFailureContext(hasAssignCopilotFailures, assignCopilotErrors) {
+function buildAssignCopilotFailureContext(hasAssignCopilotFailures, assignCopilotErrors, runUrl = "") {
   if (!hasAssignCopilotFailures) {
     return "";
   }
 
-  // Build a list of failed issue assignments
-  let issueList = "";
+  // Parse and categorize errors
+  const failedIssues = [];
+  let hasAvailabilityErrors = false;
+  let hasPermissionErrors = false;
   if (assignCopilotErrors) {
     const errorLines = assignCopilotErrors.split("\n").filter(line => line.trim());
     for (const errorLine of errorLines) {
@@ -678,13 +682,76 @@ function buildAssignCopilotFailureContext(hasAssignCopilotFailures, assignCopilo
       if (parts.length >= 4) {
         const number = parts[1];
         const error = parts.slice(3).join(":"); // Rest is the error message
-        issueList += `- Issue #${number}: ${error}\n`;
+        failedIssues.push({ number, error });
+        if (error.includes("not available") || error.includes("ERR_PERMISSION")) {
+          hasAvailabilityErrors = true;
+        }
+        if (error.includes("Forbidden") || error.includes("Insufficient permissions") || error.includes("Resource not accessible")) {
+          hasPermissionErrors = true;
+        }
       }
     }
   }
 
-  const templatePath = `${process.env.RUNNER_TEMP}/gh-aw/prompts/assign_copilot_to_created_issues_failure.md`;
-  return "\n" + renderTemplateFromFile(templatePath, { issues: issueList });
+  const agentLogin = "copilot-swe-agent";
+  const failureCount = failedIssues.length || 1; // Fallback to 1 if parsing produced no items
+
+  let context = `\n**⚠️ Copilot Agent Assignment Failed**: Could not assign the Copilot coding agent to ${failureCount} issue(s).\n`;
+
+  // Progressive disclosure: failed assignments list
+  if (failedIssues.length > 0) {
+    context += `\n<details>\n<summary>📋 ${failureCount} failed assignment(s)</summary>\n\n`;
+    for (const { number, error } of failedIssues) {
+      context += `- Issue #${number}: \`${error}\`\n`;
+    }
+    context += "\n</details>\n";
+  }
+
+  // Manual assignment instructions
+  context += `\n<details>\n<summary>🔧 Assign manually</summary>\n\nOpen each affected issue and assign \`@${agentLogin}\` as the assignee, or use the GitHub CLI:\n\n`;
+  context += "```bash\n";
+  if (failedIssues.length > 0) {
+    for (const { number } of failedIssues) {
+      context += `gh issue edit ${number} --add-assignee ${agentLogin}\n`;
+    }
+  } else {
+    context += `gh issue edit <issue-number> --add-assignee ${agentLogin}\n`;
+  }
+  context += "```\n\n</details>\n";
+
+  // Error-specific guidance
+  context += "\n<details>\n<summary>💡 Possible causes</summary>\n\n";
+  if (hasAvailabilityErrors) {
+    context += `**Copilot coding agent not available** (\`@${agentLogin}\` was not found as an assignable actor):\n\n`;
+    context += "- Copilot coding agent may not be enabled for this repository\n";
+    context += "- The `GH_AW_AGENT_TOKEN` may belong to an account without a Copilot subscription\n\n";
+    context += "Go to **Settings → Copilot** in your repository to enable the Copilot coding agent.\n\n";
+  }
+  if (hasPermissionErrors) {
+    context += "**Permission error** — the token may lack required access:\n\n";
+    context += "- Verify `GH_AW_AGENT_TOKEN` is set in repository secrets\n";
+    context += "- The token must have `issues: write` permission\n";
+    context += "- The token must belong to a user with an active Copilot subscription\n\n";
+    context += '```bash\ngh aw secrets set GH_AW_AGENT_TOKEN --value "YOUR_TOKEN"\n```\n\n';
+  }
+  if (!hasAvailabilityErrors && !hasPermissionErrors) {
+    context += "Common causes:\n\n";
+    context += "- The `GH_AW_AGENT_TOKEN` secret is missing or expired\n";
+    context += "- The Copilot coding agent is not enabled for this repository\n";
+    context += "- The token lacks `issues: write` permission\n";
+    context += "- GitHub API rate limiting\n\n";
+  }
+  context += "See: [gh-aw authentication reference](https://github.com/github/gh-aw/blob/main/docs/src/content/docs/reference/auth.mdx)\n\n";
+  context += "</details>\n";
+
+  // Footer link to the workflow run
+  if (runUrl) {
+    const runIdMatch = runUrl.match(/\/actions\/runs\/(\d+)/);
+    const runId = runIdMatch ? runIdMatch[1] : "";
+    context += `\n> [View workflow run${runId ? ` #${runId}` : ""}](${runUrl})\n`;
+  }
+
+  return context;
 }
 
 /**
@@ -1046,7 +1113,7 @@ async function main() {
         const lockdownCheckFailedContext = buildLockdownCheckFailedContext(hasLockdownCheckFailed);
 
         // Build copilot assignment failure context for created issues
-        const assignCopilotFailureContext = buildAssignCopilotFailureContext(hasAssignCopilotFailures, assignCopilotErrors);
+        const assignCopilotFailureContext = buildAssignCopilotFailureContext(hasAssignCopilotFailures, assignCopilotErrors, runUrl);
 
         // Create template context
         const templateContext = {
@@ -1187,7 +1254,7 @@ async function main() {
         const lockdownCheckFailedContext = buildLockdownCheckFailedContext(hasLockdownCheckFailed);
 
         // Build copilot assignment failure context for created issues
-        const assignCopilotFailureContext = buildAssignCopilotFailureContext(hasAssignCopilotFailures, assignCopilotErrors);
+        const assignCopilotFailureContext = buildAssignCopilotFailureContext(hasAssignCopilotFailures, assignCopilotErrors, runUrl);
 
         // Create template context with sanitized workflow name
         const templateContext = {

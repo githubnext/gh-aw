@@ -8,6 +8,7 @@ const require = createRequire(import.meta.url);
 describe("handle_agent_failure", () => {
   let buildCodePushFailureContext;
   let buildPushRepoMemoryFailureContext;
+  let buildAssignCopilotFailureContext;
 
   beforeEach(() => {
     // Provide minimal GitHub Actions globals expected by require-time code
@@ -24,7 +25,7 @@ describe("handle_agent_failure", () => {
 
     // Reset module registry so each test gets a fresh require
     vi.resetModules();
-    ({ buildCodePushFailureContext, buildPushRepoMemoryFailureContext } = require("./handle_agent_failure.cjs"));
+    ({ buildCodePushFailureContext, buildPushRepoMemoryFailureContext, buildAssignCopilotFailureContext } = require("./handle_agent_failure.cjs"));
   });
 
   afterEach(() => {
@@ -441,6 +442,110 @@ describe("handle_agent_failure", () => {
       const result = buildTimeoutContext(true, "45");
       expect(result).toContain("45");
       expect(result).toContain("55");
+    });
+  });
+
+  // ──────────────────────────────────────────────────────
+  // buildAssignCopilotFailureContext
+  // ──────────────────────────────────────────────────────
+
+  describe("buildAssignCopilotFailureContext", () => {
+    it("returns empty string when no failures", () => {
+      expect(buildAssignCopilotFailureContext(false, "")).toBe("");
+      expect(buildAssignCopilotFailureContext(false, null)).toBe("");
+      expect(buildAssignCopilotFailureContext(false, "issue:42:copilot:some error")).toBe("");
+    });
+
+    it("returns formatted message when there are failures", () => {
+      const result = buildAssignCopilotFailureContext(true, "issue:42:copilot:some error");
+      expect(result).toContain("Copilot Agent Assignment Failed");
+      expect(result).toContain("#42");
+    });
+
+    it("includes failed assignment details in a collapsible section", () => {
+      const result = buildAssignCopilotFailureContext(true, "issue:42:copilot:some error");
+      expect(result).toContain("<details>");
+      expect(result).toContain("<summary>");
+      expect(result).toContain("failed assignment");
+      expect(result).toContain("#42");
+      expect(result).toContain("some error");
+    });
+
+    it("includes manual assignment instructions with copilot-swe-agent login", () => {
+      const result = buildAssignCopilotFailureContext(true, "issue:42:copilot:some error");
+      expect(result).toContain("copilot-swe-agent");
+      expect(result).toContain("gh issue edit");
+      expect(result).toContain("--add-assignee");
+    });
+
+    it("includes possible causes section", () => {
+      const result = buildAssignCopilotFailureContext(true, "issue:42:copilot:some error");
+      expect(result).toContain("Possible causes");
+      expect(result).toContain("GH_AW_AGENT_TOKEN");
+    });
+
+    it("shows availability error guidance when agent is not available", () => {
+      const errors = "issue:42:copilot:ERR_PERMISSION: copilot coding agent is not available for this repository";
+      const result = buildAssignCopilotFailureContext(true, errors);
+      expect(result).toContain("not available");
+      expect(result).toContain("Settings → Copilot");
+    });
+
+    it("shows permission error guidance when token has insufficient permissions", () => {
+      const errors = "issue:42:copilot:Forbidden";
+      const result = buildAssignCopilotFailureContext(true, errors);
+      expect(result).toContain("Permission error");
+      expect(result).toContain("issues: write");
+      expect(result).toContain("gh aw secrets set GH_AW_AGENT_TOKEN");
+    });
+
+    it("shows permission error guidance for Resource not accessible error", () => {
+      const errors = "issue:42:copilot:Resource not accessible by integration";
+      const result = buildAssignCopilotFailureContext(true, errors);
+      expect(result).toContain("Permission error");
+    });
+
+    it("shows generic causes for unrecognized errors", () => {
+      const errors = "issue:42:copilot:ERR_API: Failed to get issue details";
+      const result = buildAssignCopilotFailureContext(true, errors);
+      expect(result).toContain("Common causes");
+      expect(result).toContain("rate limiting");
+    });
+
+    it("includes a link to the authentication reference docs", () => {
+      const result = buildAssignCopilotFailureContext(true, "issue:42:copilot:some error");
+      expect(result).toContain("gh-aw authentication reference");
+    });
+
+    it("includes a footer link when runUrl is provided", () => {
+      const result = buildAssignCopilotFailureContext(true, "issue:42:copilot:some error", "https://github.com/owner/repo/actions/runs/12345678");
+      expect(result).toContain("https://github.com/owner/repo/actions/runs/12345678");
+      expect(result).toContain("#12345678");
+    });
+
+    it("includes footer link without run ID when URL does not contain a run ID", () => {
+      const result = buildAssignCopilotFailureContext(true, "issue:42:copilot:some error", "https://example.com/run");
+      expect(result).toContain("https://example.com/run");
+      expect(result).toContain("View workflow run");
+    });
+
+    it("omits footer link when runUrl is not provided", () => {
+      const result = buildAssignCopilotFailureContext(true, "issue:42:copilot:some error");
+      expect(result).not.toContain("View workflow run");
+    });
+
+    it("handles multiple failed issues", () => {
+      const errors = ["issue:42:copilot:some error", "issue:99:copilot:another error"].join("\n");
+      const result = buildAssignCopilotFailureContext(true, errors);
+      expect(result).toContain("#42");
+      expect(result).toContain("#99");
+      expect(result).toContain("2 failed assignment");
+    });
+
+    it("handles hasAssignCopilotFailures=true with empty errors string", () => {
+      const result = buildAssignCopilotFailureContext(true, "");
+      expect(result).toContain("Copilot Agent Assignment Failed");
+      expect(result).toContain("copilot-swe-agent");
     });
   });
 });
