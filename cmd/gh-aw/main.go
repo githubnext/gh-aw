@@ -361,8 +361,6 @@ The workflows must have been added as actions and compiled.
 This command only works with workflows that have workflow_dispatch triggers.
 It executes 'gh workflow run <workflow-lock-file>' to trigger each workflow on GitHub Actions.
 
-By default, workflows are run on the current branch. Use --ref to specify a different branch or tag.
-
 ` + cli.WorkflowIDExplanation + `
 
 Examples:
@@ -648,7 +646,7 @@ Use "` + string(constants.CLIExtensionPrefix) + ` help all" to show help for all
 	compileCmd.Flags().StringP("engine", "e", "", "Override AI engine (claude, codex, copilot, custom)")
 	compileCmd.Flags().String("action-mode", "", "Action script inlining mode (inline, dev, release). Auto-detected if not specified")
 	compileCmd.Flags().String("action-tag", "", "Override action SHA or tag for actions/setup (overrides action-mode to release). Accepts full SHA or tag name")
-	compileCmd.Flags().String("actions-repo", "", "Override the external actions repository used in action mode (default: github/gh-aw-actions). Example: --actions-repo myorg/my-aw-actions")
+	compileCmd.Flags().String("actions-repo", "", "Override the external actions repository used in action mode (default: github/gh-aw-actions)")
 	compileCmd.Flags().Bool("validate", false, "Enable GitHub Actions workflow schema validation, container image validation, and action SHA validation")
 	compileCmd.Flags().BoolP("watch", "w", false, "Watch for changes to workflow files and recompile automatically")
 	compileCmd.Flags().StringP("dir", "d", "", "Workflow directory (default: .github/workflows)")

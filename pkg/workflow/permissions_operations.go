@@ -42,6 +42,13 @@ func filterJobLevelPermissions(rawPermissionsYAML string) string {
 	filtered := NewPermissionsParser(rawPermissionsYAML).ToPermissions()
 	rendered := filtered.RenderToYAML()
 	if rendered == "" {
+		// If the raw permissions YAML was an explicit empty block (permissions: {}), preserve
+		// it at the job level. Without this check, "permissions: {}" would be silently dropped,
+		// leaving the job without any permissions block and causing it to inherit the workflow-
+		// level permissions instead of having its own explicit empty block.
+		if strings.TrimSpace(rawPermissionsYAML) == "permissions: {}" {
+			return "permissions: {}"
+		}
 		return ""
 	}
 
