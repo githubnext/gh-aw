@@ -27,7 +27,7 @@
     "starlight-changelogs": "^0.5.0",
     "starlight-links-validator": "^0.20.1",
     "starlight-llms-txt": "^0.8.0",
-    "yaml": "^2.8.2"
+    "yaml": "^2.8.3"
   },
   "devDependencies": {
     "@marp-team/marp-cli": "^4.3.1",
