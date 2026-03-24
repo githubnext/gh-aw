@@ -440,6 +440,12 @@ async function main(config = {}) {
 
         if (!targetResult.success) {
           core.warning(targetResult.error);
+          // When shouldFail is false, the context is simply not applicable (e.g. "triggering"
+          // target in a schedule run with no issue/PR). Treat as a skip, not a failure, so
+          // the safe_outputs job does not fail in these cases.
+          if (!targetResult.shouldFail) {
+            return { success: false, skipped: true, error: targetResult.error };
+          }
           return {
             success: false,
             error: targetResult.error,

@@ -97,9 +97,12 @@ func (c *Compiler) buildSharedPRCheckoutSteps(data *WorkflowData) []string {
 	}
 
 	// Determine target repository for checkout and git config
-	// Priority: create-pull-request target-repo > trialLogicalRepoSlug > default (source repo)
+	// Priority: push-to-pull-request-branch target-repo > create-pull-request target-repo > trialLogicalRepoSlug > default (source repo)
 	var targetRepoSlug string
-	if data.SafeOutputs.CreatePullRequests != nil && data.SafeOutputs.CreatePullRequests.TargetRepoSlug != "" {
+	if data.SafeOutputs.PushToPullRequestBranch != nil && data.SafeOutputs.PushToPullRequestBranch.TargetRepoSlug != "" {
+		targetRepoSlug = data.SafeOutputs.PushToPullRequestBranch.TargetRepoSlug
+		consolidatedSafeOutputsStepsLog.Printf("Using target-repo from push-to-pull-request-branch: %s", targetRepoSlug)
+	} else if data.SafeOutputs.CreatePullRequests != nil && data.SafeOutputs.CreatePullRequests.TargetRepoSlug != "" {
 		targetRepoSlug = data.SafeOutputs.CreatePullRequests.TargetRepoSlug
 		consolidatedSafeOutputsStepsLog.Printf("Using target-repo from create-pull-request: %s", targetRepoSlug)
 	} else if c.trialMode && c.trialLogicalRepoSlug != "" {

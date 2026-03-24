@@ -49,7 +49,8 @@ function createStandardResolveNumber(config) {
     });
 
     if (!targetResult.success) {
-      return { success: false, error: targetResult.error };
+      // Propagate shouldFail so callers can decide whether to skip or fail
+      return { success: false, error: targetResult.error, shouldFail: targetResult.shouldFail };
     }
 
     return { success: true, number: targetResult.number };
@@ -175,6 +176,11 @@ function createUpdateHandlerFactory(handlerConfig) {
 
       if (!itemNumberResult.success) {
         core.warning(itemNumberResult.error);
+        // When shouldFail is false, the context is simply not applicable (e.g. "triggering"
+        // target in a schedule run with no issue/PR). Treat as a skip, not a failure.
+        if (itemNumberResult.shouldFail === false) {
+          return { success: false, skipped: true, error: itemNumberResult.error };
+        }
         return {
           success: false,
           error: itemNumberResult.error,

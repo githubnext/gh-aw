@@ -265,6 +265,23 @@ func TestBuildSharedPRCheckoutSteps(t *testing.T) {
 			},
 		},
 		{
+			name: "push-to-pull-request-branch with cross-repo target",
+			safeOutputs: &SafeOutputsConfig{
+				PushToPullRequestBranch: &PushToPullRequestBranchConfig{
+					BaseSafeOutputConfig: BaseSafeOutputConfig{
+						GitHubToken: "${{ secrets.SIDE_REPO_PAT }}",
+					},
+					TargetRepoSlug: "org/side-repo",
+				},
+			},
+			checkContains: []string{
+				"repository: org/side-repo",
+				"token: ${{ secrets.SIDE_REPO_PAT }}",
+				"GIT_TOKEN: ${{ secrets.SIDE_REPO_PAT }}",
+				`REPO_NAME: "org/side-repo"`,
+			},
+		},
+		{
 			name: "both operations with create-pr token takes precedence",
 			safeOutputs: &SafeOutputsConfig{
 				CreatePullRequests: &CreatePullRequestsConfig{

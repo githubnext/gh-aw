@@ -319,6 +319,28 @@ describe("add_comment", () => {
       expect(capturedOwner).toBe("other-org");
       expect(capturedRepo).toBe("other-repo");
     });
+
+    it("should skip (not fail) when target is 'triggering' but workflow runs on schedule (no PR/issue context)", async () => {
+      const addCommentScript = fs.readFileSync(path.join(__dirname, "add_comment.cjs"), "utf8");
+
+      // Simulate a schedule-triggered workflow context (no issue or PR)
+      mockContext.eventName = "schedule";
+      mockContext.payload = {};
+
+      const handler = await eval(`(async () => { ${addCommentScript}; return await main({ target: 'triggering' }); })()`);
+
+      const message = {
+        type: "add_comment",
+        body: "This should be skipped, not failed",
+      };
+
+      const result = await handler(message, {});
+
+      // Must be skipped (not a hard failure) so the safe_outputs job does not fail
+      expect(result.success).toBe(false);
+      expect(result.skipped).toBe(true);
+      expect(result.error).toMatch(/not running in issue or pull request context/i);
+    });
   });
 
   describe("discussion support", () => {
