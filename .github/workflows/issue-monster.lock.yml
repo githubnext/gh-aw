@@ -26,7 +26,7 @@
 #   Imports:
 #     - shared/activation-app.md
 #
-# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"05a9cf1fdb06143030aaf12d29c1c7e2d5dfb4a7557e227e44c4be97cd73e332","strict":true,"agent_id":"copilot","agent_model":"gpt-5.1-codex-mini"}
+# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"19b8330a2613e4324b1dcd2142962666f9312f81dc5e579f7f3b79a213e5e4a9","strict":true,"agent_id":"copilot","agent_model":"gpt-5.1-codex-mini"}
 
 name: "Issue Monster"
 "on":
@@ -37,6 +37,12 @@ name: "Issue Monster"
   - cron: "*/30 * * * *"
     # Friendly format: every 30m
   # skip-if-check-failing: # Skip-if-check-failing processed as check status gate in pre-activation job
+    # allow-pending: true
+    # include:
+    # - build
+    # - test
+    # - lint-go
+    # - lint-js
   # skip-if-match: # Skip-if-match processed as search check in pre-activation job
     # max: 5
     # query: is:pr is:open is:draft author:app/copilot-swe-agent
@@ -1442,6 +1448,9 @@ jobs:
       - name: Check skip-if-check-failing
         id: check_skip_if_check_failing
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        env:
+          GH_AW_SKIP_CHECK_INCLUDE: "[\"build\",\"test\",\"lint-go\",\"lint-js\"]"
+          GH_AW_SKIP_CHECK_ALLOW_PENDING: "true"
         with:
           script: |
             const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');
