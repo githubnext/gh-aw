@@ -7,6 +7,7 @@ import (
 	"github.com/charmbracelet/huh"
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/constants"
+	"github.com/github/gh-aw/pkg/sliceutil"
 	"github.com/github/gh-aw/pkg/styles"
 	"github.com/github/gh-aw/pkg/workflow"
 )
@@ -85,8 +86,7 @@ func (c *AddInteractiveConfig) selectAIEngineAndKey() error {
 	// Build engine options with notes about existing secrets and workflow specification.
 	// The list of engines is derived from the catalog to ensure all registered engines appear.
 	catalog := workflow.NewEngineCatalog(workflow.NewEngineRegistry())
-	var engineOptions []huh.Option[string]
-	for _, def := range catalog.All() {
+	engineOptions := sliceutil.Map(catalog.All(), func(def *workflow.EngineDefinition) huh.Option[string] {
 		opt := constants.GetEngineOption(def.ID)
 		label := fmt.Sprintf("%s - %s", def.DisplayName, def.Description)
 		// Add markers for secret availability and workflow specification.
@@ -100,8 +100,8 @@ func (c *AddInteractiveConfig) selectAIEngineAndKey() error {
 		if def.ID == workflowSpecifiedEngine {
 			label += " [specified in workflow]"
 		}
-		engineOptions = append(engineOptions, huh.NewOption(label, def.ID))
-	}
+		return huh.NewOption(label, def.ID)
+	})
 
 	var selectedEngine string
 

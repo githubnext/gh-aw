@@ -295,12 +295,8 @@ func parseFirewallLog(logPath string, verbose bool) (*FirewallAnalysis, error) {
 	}
 
 	// Convert sets to sorted slices
-	for domain := range allowedDomainsSet {
-		analysis.AllowedDomains = append(analysis.AllowedDomains, domain)
-	}
-	for domain := range blockedDomainsSet {
-		analysis.BlockedDomains = append(analysis.BlockedDomains, domain)
-	}
+	analysis.AllowedDomains = sliceutil.MapToSlice(allowedDomainsSet)
+	analysis.BlockedDomains = sliceutil.MapToSlice(blockedDomainsSet)
 
 	sort.Strings(analysis.AllowedDomains)
 	sort.Strings(analysis.BlockedDomains)
