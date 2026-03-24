@@ -328,7 +328,7 @@ engine: copilot  # sensible defaults
 # GitHub MCP (recommended: use toolsets)
 tools:
   github:
-    toolsets: [default]  # context, repos, issues, pull_requests, users
+    toolsets: [default]  # context, repos, issues, pull_requests
 
 # Custom MCP servers
 mcp-servers:
