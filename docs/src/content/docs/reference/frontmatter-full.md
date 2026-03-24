@@ -2504,6 +2504,14 @@ safe-outputs:
     # (optional)
     close-older-key: "example-value"
 
+    # When true, skip issue creation if an open issue with the same close-older-key
+    # (or workflow-id marker when no key is set) was already created today (UTC).
+    # Prevents same-day duplicate issues when the workflow is re-run (e.g. a scheduled
+    # workflow that runs every few hours). Works best when combined with
+    # close-older-issues: true.
+    # (optional)
+    idempotent: true
+
     # Controls whether AI-generated footer is added to the issue. When false, the
     # visible footer content is omitted but XML markers (workflow-id, tracker-id,
     # metadata) are still included for searchability. Defaults to true.

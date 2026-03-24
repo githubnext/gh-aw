@@ -466,4 +466,148 @@ describe("create_issue", () => {
       expect(result.error).toContain("received 6");
     });
   });
+
+  describe("idempotent mode", () => {
+    it("should skip creation if an open issue was already created today", async () => {
+      const today = new Date().toISOString().split("T")[0];
+      mockGithub.rest.search.issuesAndPullRequests.mockResolvedValueOnce({
+        data: {
+          total_count: 1,
+          items: [
+            {
+              number: 99,
+              title: "[Contribution Check Report] Contribution Check",
+              html_url: "https://github.com/test-owner/test-repo/issues/99",
+              body: "<!-- gh-aw-workflow-id: test-workflow -->",
+              created_at: `${today}T10:00:00Z`,
+              state: "open",
+              pull_request: undefined,
+            },
+          ],
+        },
+      });
+
+      const handler = await main({ idempotent: true, close_older_issues: true });
+      const result = await handler({ title: "Test Issue", body: "Test body" });
+
+      expect(result.success).toBe(true);
+      expect(result.skipped).toBe(true);
+      expect(result.reason).toContain("idempotent");
+      expect(result.reason).toContain("99");
+      expect(mockGithub.rest.issues.create).not.toHaveBeenCalled();
+    });
+
+    it("should create issue if no open issue was created today", async () => {
+      const yesterday = new Date(Date.now() - 86400000).toISOString().split("T")[0];
+      mockGithub.rest.search.issuesAndPullRequests.mockResolvedValueOnce({
+        data: {
+          total_count: 1,
+          items: [
+            {
+              number: 50,
+              title: "[Contribution Check Report] Contribution Check",
+              html_url: "https://github.com/test-owner/test-repo/issues/50",
+              body: "<!-- gh-aw-workflow-id: test-workflow -->",
+              created_at: `${yesterday}T10:00:00Z`,
+              state: "open",
+              pull_request: undefined,
+            },
+          ],
+        },
+      });
+
+      const handler = await main({ idempotent: true, close_older_issues: true });
+      const result = await handler({ title: "Test Issue", body: "Test body" });
+
+      expect(result.success).toBe(true);
+      expect(result.skipped).toBeUndefined();
+      expect(mockGithub.rest.issues.create).toHaveBeenCalledOnce();
+    });
+
+    it("should create issue if no existing issues are found", async () => {
+      mockGithub.rest.search.issuesAndPullRequests.mockResolvedValueOnce({
+        data: { total_count: 0, items: [] },
+      });
+
+      const handler = await main({ idempotent: true, close_older_issues: true });
+      const result = await handler({ title: "Test Issue", body: "Test body" });
+
+      expect(result.success).toBe(true);
+      expect(result.skipped).toBeUndefined();
+      expect(mockGithub.rest.issues.create).toHaveBeenCalledOnce();
+    });
+
+    it("should proceed with creation if idempotent pre-check throws", async () => {
+      mockGithub.rest.search.issuesAndPullRequests.mockRejectedValueOnce(new Error("Search API error"));
+
+      const handler = await main({ idempotent: true, close_older_issues: true });
+      const result = await handler({ title: "Test Issue", body: "Test body" });
+
+      expect(result.success).toBe(true);
+      expect(result.skipped).toBeUndefined();
+      expect(mockGithub.rest.issues.create).toHaveBeenCalledOnce();
+      expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("Idempotent pre-check failed"));
+    });
+
+    it("should not skip if idempotent is false even with today's issue", async () => {
+      const today = new Date().toISOString().split("T")[0];
+      mockGithub.rest.search.issuesAndPullRequests.mockResolvedValue({
+        data: {
+          total_count: 1,
+          items: [
+            {
+              number: 77,
+              title: "Existing Issue",
+              html_url: "https://github.com/test-owner/test-repo/issues/77",
+              body: "<!-- gh-aw-workflow-id: test-workflow -->",
+              created_at: `${today}T10:00:00Z`,
+              state: "open",
+              pull_request: undefined,
+            },
+          ],
+        },
+      });
+
+      // idempotent is false (default) — creation should NOT be skipped
+      const handler = await main({ close_older_issues: false });
+      const result = await handler({ title: "Test Issue", body: "Test body" });
+
+      expect(result.success).toBe(true);
+      expect(result.skipped).toBeUndefined();
+      expect(mockGithub.rest.issues.create).toHaveBeenCalledOnce();
+    });
+
+    it("should not consume max count slot when skipped due to idempotency", async () => {
+      const today = new Date().toISOString().split("T")[0];
+      mockGithub.rest.search.issuesAndPullRequests.mockResolvedValue({
+        data: {
+          total_count: 1,
+          items: [
+            {
+              number: 88,
+              title: "Existing Issue",
+              html_url: "https://github.com/test-owner/test-repo/issues/88",
+              body: "<!-- gh-aw-workflow-id: test-workflow -->",
+              created_at: `${today}T10:00:00Z`,
+              state: "open",
+              pull_request: undefined,
+            },
+          ],
+        },
+      });
+
+      const handler = await main({ idempotent: true, close_older_issues: true, max: 1 });
+
+      // First call is skipped due to idempotency — max slot should not be consumed
+      const result1 = await handler({ title: "First Issue", body: "Body" });
+      expect(result1.skipped).toBe(true);
+
+      // Reset search mock so second call also finds a today issue — also skipped
+      const result2 = await handler({ title: "Second Issue", body: "Body" });
+      expect(result2.skipped).toBe(true);
+
+      // Neither call should have created an issue
+      expect(mockGithub.rest.issues.create).not.toHaveBeenCalled();
+    });
+  });
 });

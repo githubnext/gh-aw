@@ -40,7 +40,7 @@ const { ERR_VALIDATION } = require("./error_codes.cjs");
 const { renderTemplateFromFile } = require("./messages_core.cjs");
 const { createExpirationLine, addExpirationToFooter } = require("./ephemerals.cjs");
 const { MAX_SUB_ISSUES, getSubIssueCount } = require("./sub_issue_helpers.cjs");
-const { closeOlderIssues } = require("./close_older_issues.cjs");
+const { closeOlderIssues, searchOlderIssues } = require("./close_older_issues.cjs");
 const { parseBoolTemplatable } = require("./templatable.cjs");
 const { tryEnforceArrayLimit } = require("./limit_enforcement_helpers.cjs");
 const { logStagedPreviewInfo } = require("./staged_preview.cjs");
@@ -205,6 +205,7 @@ async function main(config = {}) {
   const { defaultTargetRepo, allowedRepos } = resolveTargetRepoConfig(config);
   const groupEnabled = parseBoolTemplatable(config.group, false);
   const closeOlderIssuesEnabled = parseBoolTemplatable(config.close_older_issues, false);
+  const idempotentEnabled = parseBoolTemplatable(config.idempotent, false);
   const rawCloseOlderKey = config.close_older_key ? String(config.close_older_key) : "";
   const closeOlderKey = rawCloseOlderKey ? normalizeCloseOlderKey(rawCloseOlderKey) : "";
   if (rawCloseOlderKey && !closeOlderKey) {
@@ -246,6 +247,12 @@ async function main(config = {}) {
     core.info(`Close older issues enabled: older issues with same workflow-id marker will be closed`);
     if (closeOlderKey) {
       core.info(`  Using explicit close-older-key: "${closeOlderKey}"`);
+    }
+  }
+  if (idempotentEnabled) {
+    core.info(`Idempotent mode enabled: creation will be skipped if an open issue was already created today`);
+    if (!closeOlderKey && !process.env.GH_AW_WORKFLOW_ID) {
+      core.warning(`Idempotent mode has no effect: neither close-older-key nor GH_AW_WORKFLOW_ID is set — issues cannot be searched`);
     }
   }
 
@@ -479,6 +486,43 @@ async function main(config = {}) {
 
     bodyLines.push("");
     const body = bodyLines.join("\n").trim();
+
+    // Idempotency check: if enabled, search for an existing open issue created today
+    // before attempting to create a new one. This prevents same-day duplicate issues
+    // when the workflow reruns (e.g. scheduled every 4 hours, two runs on the same day).
+    // NOTE: processedCount was already incremented above. If we skip creation, we undo
+    // the increment here so the max-count slot is not consumed for idempotent skips.
+    if (idempotentEnabled && (closeOlderKey || workflowId)) {
+      const today = new Date().toISOString().split("T")[0]; // YYYY-MM-DD (UTC)
+      try {
+        const existingIssues = await searchOlderIssues(
+          github,
+          repoParts.owner,
+          repoParts.repo,
+          workflowId,
+          0, // no issue to exclude — this is a pre-creation check
+          callerWorkflowId,
+          closeOlderKey
+        );
+        const todayIssue = existingIssues.find(issue => {
+          const createdDate = issue.created_at ? String(issue.created_at).split("T")[0] : "";
+          return createdDate === today;
+        });
+        if (todayIssue) {
+          core.info(`Idempotent: skipping issue creation — open issue #${todayIssue.number} was already created today (${today}): ${todayIssue.html_url}`);
+          // Undo the processedCount increment so the max limit is not consumed
+          processedCount--;
+          return {
+            success: true,
+            skipped: true,
+            reason: `idempotent: open issue #${todayIssue.number} already created today`,
+          };
+        }
+      } catch (error) {
+        // Log but do not abort — fall through to normal creation
+        core.warning(`Idempotent pre-check failed: ${getErrorMessage(error)} — proceeding with issue creation`);
+      }
+    }
 
     core.info(`Creating issue in ${qualifiedItemRepo} with title: ${title}`);
     core.info(`Labels: ${labels.join(", ")}`);

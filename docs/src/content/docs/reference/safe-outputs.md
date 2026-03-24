@@ -161,6 +161,26 @@ When enabled:
 - Maximum 10 older issues will be closed
 - Only runs if the new issue creation succeeds
 
+#### Idempotent Issue Creation
+
+The `idempotent` field (default: `false`) prevents same-day duplicate issues when a workflow reruns. When enabled, the handler searches for an existing open issue created **today (UTC)** with the same workflow-id marker (or `close-older-key` if set) before creating a new one. If a matching issue already exists, creation is silently skipped.
+
+```yaml wrap
+safe-outputs:
+  create-issue:
+    title-prefix: "[Contribution Check Report]"
+    labels: [report]
+    close-older-issues: true
+    idempotent: true
+```
+
+This is useful for scheduled workflows (e.g. every 4 hours) that produce recurring daily reports: only one report issue is created per day, eliminating duplicate open/closed issues from multiple same-day runs.
+
+- Performs a pre-creation search for open issues matching the workflow-id or `close-older-key`
+- If a matching issue was created on today's UTC date, creation is skipped
+- The max-count slot is not consumed when a creation is skipped
+- On failure of the pre-check, creation proceeds normally as a fallback
+
 #### Searching for Workflow-Created Items
 
 All items created by workflows (issues, pull requests, discussions, and comments) include a hidden **workflow-id marker** in their body:

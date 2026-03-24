@@ -121,6 +121,7 @@ async function searchOlderIssues(github, owner, repo, workflowId, excludeNumber,
       title: item.title,
       html_url: item.html_url,
       labels: item.labels || [],
+      created_at: item.created_at,
     }));
 
   core.info(`Filtering complete:`);
