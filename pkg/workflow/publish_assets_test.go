@@ -150,8 +150,8 @@ func TestUploadAssetsJobUsesFileInput(t *testing.T) {
 	}
 
 	// Verify the correct environment variable is used (file path, not JSON payload)
-	if !strings.Contains(stepsStr, "GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}") {
-		t.Error("Expected GH_AW_AGENT_OUTPUT to use env.GH_AW_AGENT_OUTPUT (file path)")
+	if !strings.Contains(stepsStr, "GH_AW_AGENT_OUTPUT: ${{ steps.setup-agent-output-env.outputs.GH_AW_AGENT_OUTPUT }}") {
+		t.Error("Expected GH_AW_AGENT_OUTPUT to use step output (file path)")
 	}
 
 	// Verify it does NOT use the old pattern (JSON payload)

@@ -51,7 +51,7 @@ func (c *Compiler) buildCustomActionStep(data *WorkflowData, config GitHubScript
 
 	// Environment variables section
 	steps = append(steps, "        env:\n")
-	steps = append(steps, "          GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}\n")
+	steps = append(steps, "          GH_AW_AGENT_OUTPUT: ${{ steps.setup-agent-output-env.outputs.GH_AW_AGENT_OUTPUT }}\n")
 	steps = append(steps, config.CustomEnvVars...)
 	c.addCustomSafeOutputEnvVars(&steps, data)
 
@@ -163,7 +163,7 @@ func (c *Compiler) buildGitHubScriptStep(data *WorkflowData, config GitHubScript
 
 	// Read GH_AW_AGENT_OUTPUT from environment (set by artifact download step)
 	// instead of directly from job outputs which may be masked by GitHub Actions
-	steps = append(steps, "          GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}\n")
+	steps = append(steps, "          GH_AW_AGENT_OUTPUT: ${{ steps.setup-agent-output-env.outputs.GH_AW_AGENT_OUTPUT }}\n")
 
 	// Add custom environment variables specific to this safe output type
 	steps = append(steps, config.CustomEnvVars...)
@@ -220,7 +220,7 @@ func (c *Compiler) buildGitHubScriptStepWithoutDownload(data *WorkflowData, conf
 
 	// Read GH_AW_AGENT_OUTPUT from environment (set by artifact download step)
 	// instead of directly from job outputs which may be masked by GitHub Actions
-	steps = append(steps, "          GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}\n")
+	steps = append(steps, "          GH_AW_AGENT_OUTPUT: ${{ steps.setup-agent-output-env.outputs.GH_AW_AGENT_OUTPUT }}\n")
 
 	// Add custom environment variables specific to this safe output type
 	steps = append(steps, config.CustomEnvVars...)

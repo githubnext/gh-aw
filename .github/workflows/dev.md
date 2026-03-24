@@ -1,6 +1,7 @@
 ---
 on:
   workflow_dispatch:
+  label_command: dev
   schedule:
     - cron: '0 9 * * *'  # Daily at 9 AM UTC
 name: Dev
@@ -14,6 +15,22 @@ permissions:
   issues: read
   pull-requests: read
 
+tools:
+  qmd:
+    runs-on: aw-gpu-runner-T4
+    gpu: true
+    checkouts:
+      - name: docs
+        paths:
+          - docs/src/**/*.md
+          - docs/src/**/*.mdx
+        context: "gh-aw project documentation"
+    searches:
+      - name: issues
+        type: issues
+        max: 500
+        github-token: ${{ secrets.GITHUB_TOKEN }}
+
 safe-outputs:
   create-issue:
     expires: 7d
@@ -24,14 +41,21 @@ features:
 
 # Daily Status Report
 
-Generate a daily status report for the gh-aw project.
+Generate a daily status report for the gh-aw project, focusing on documentation quality.
 
 **Requirements:**
-1. Analyze the current state of the repository
-2. Check for recent commits, pull requests, and issues
-3. Identify any potential issues or areas needing attention
-4. Create a comprehensive daily status report
-5. Post the report as an issue with the date in the title
+
+1. **Find documentation problems reported in issues**: Use the `qmd` search tool to query the indexed issues collection for issues that mention documentation bugs, unclear instructions, missing documentation, or incorrect documentation. Look for patterns like "docs", "documentation", "unclear", "wrong", "missing", "broken", "outdated".
+
+2. **Cross-reference with current documentation**: For each documentation problem found in issues, use the `qmd` search tool to query the indexed docs collection to find the relevant documentation section that the issue is referencing or that could answer the question raised.
+
+3. **Compile a report** summarizing:
+   - Issues that report documentation problems (with issue numbers and titles)
+   - The corresponding documentation sections that may need updating
+   - Any issues where the documentation actually already contains the answer (and the issue could be closed with a pointer)
+   - Gaps where no documentation exists for a reported problem
+
+4. Post the report as an issue with the date in the title.
 
 Keep the report informative but concise.
 

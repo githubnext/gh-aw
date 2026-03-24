@@ -73,6 +73,84 @@ func (r *MCPConfigRendererUnified) renderPlaywrightTOML(yaml *strings.Builder, p
 	yaml.WriteString("          mounts = [\"/tmp/gh-aw/mcp-logs:/tmp/gh-aw/mcp-logs:rw\"]\n")
 }
 
+// RenderQmdMCP generates the qmd documentation search MCP server configuration.
+// qmd runs natively on the host VM with HTTP transport, started by the
+// "Start QMD MCP Server" step before the gateway, so the gateway connects via HTTP.
+// Using HTTP transport avoids node-llama-cpp's direct process.stdout writes (dot-progress
+// during model loading) from corrupting the stdio JSON-RPC stream.
+func (r *MCPConfigRendererUnified) RenderQmdMCP(yaml *strings.Builder, qmdTool any, workflowData *WorkflowData) {
+	mcpRendererLog.Printf("Rendering qmd MCP: format=%s, inline_args=%t", r.options.Format, r.options.InlineArgs)
+
+	if r.options.Format == "toml" {
+		r.renderQmdTOML(yaml, workflowData)
+		// Add guard policies for TOML format as a separate section
+		if len(r.options.WriteSinkGuardPolicies) > 0 {
+			mcpRendererLog.Print("Adding guard-policies to qmd TOML (derived from GitHub guard-policy)")
+			renderGuardPoliciesToml(yaml, r.options.WriteSinkGuardPolicies, "qmd")
+		}
+		return
+	}
+
+	// JSON format
+	renderQmdMCPConfigWithOptions(yaml, r.options.IsLast, r.options.IncludeCopilotFields, r.options.WriteSinkGuardPolicies, workflowData)
+}
+
+// resolveQmdHost returns the hostname the gateway should use to reach the qmd HTTP server.
+// qmd runs natively on the host VM, so port DefaultQmdMCPPort is bound on the host network.
+// When the agent sandbox is enabled (default), the gateway runs inside a Docker container
+// with its own network namespace and must reach the host via host.docker.internal.
+// When the agent sandbox is disabled (agent.disabled: true), the gateway also runs on
+// the host, so localhost is sufficient.
+func resolveQmdHost(workflowData *WorkflowData) string {
+	if workflowData != nil && workflowData.SandboxConfig != nil &&
+		workflowData.SandboxConfig.Agent != nil && workflowData.SandboxConfig.Agent.Disabled {
+		return "localhost"
+	}
+	return "host.docker.internal"
+}
+
+// qmdMCPURL returns the full HTTP MCP URL for the qmd server.
+func qmdMCPURL(workflowData *WorkflowData) string {
+	host := resolveQmdHost(workflowData)
+	return "http://" + host + ":" + strconv.Itoa(constants.DefaultQmdMCPPort) + "/mcp"
+}
+
+// renderQmdTOML generates qmd MCP configuration in TOML format using HTTP transport.
+// qmd is started natively before the gateway (see generateQmdStartStep),
+// and the gateway connects to the qmd HTTP MCP server at DefaultQmdMCPPort/mcp.
+func (r *MCPConfigRendererUnified) renderQmdTOML(yaml *strings.Builder, workflowData *WorkflowData) {
+	mcpRendererBuiltinLog.Print("Rendering qmd MCP in TOML format (HTTP transport)")
+
+	url := qmdMCPURL(workflowData)
+
+	yaml.WriteString("          \n")
+	yaml.WriteString("          [mcp_servers.qmd]\n")
+	yaml.WriteString("          type = \"http\"\n")
+	yaml.WriteString("          url = \"" + url + "\"\n")
+}
+
+// renderQmdMCPConfigWithOptions generates the qmd MCP server configuration in JSON format.
+// qmd uses HTTP transport (server started before the gateway), so only the URL is needed.
+func renderQmdMCPConfigWithOptions(yaml *strings.Builder, isLast bool, includeCopilotFields bool, guardPolicies map[string]any, workflowData *WorkflowData) {
+	url := qmdMCPURL(workflowData)
+
+	yaml.WriteString("              \"qmd\": {\n")
+	yaml.WriteString("                \"type\": \"http\",\n")
+
+	if len(guardPolicies) > 0 {
+		yaml.WriteString("                \"url\": \"" + url + "\",\n")
+		renderGuardPoliciesJSON(yaml, guardPolicies, "                ")
+	} else {
+		yaml.WriteString("                \"url\": \"" + url + "\"\n")
+	}
+
+	if isLast {
+		yaml.WriteString("              }\n")
+	} else {
+		yaml.WriteString("              },\n")
+	}
+}
+
 // RenderSerenaMCP generates Serena MCP server configuration
 func (r *MCPConfigRendererUnified) RenderSerenaMCP(yaml *strings.Builder, serenaTool any) {
 	mcpRendererLog.Printf("Rendering Serena MCP: format=%s, inline_args=%t", r.options.Format, r.options.InlineArgs)

@@ -78,6 +78,9 @@ func buildStandardJSONMCPRenderers(
 		RenderPlaywright: func(yaml *strings.Builder, playwrightTool any, isLast bool) {
 			createRenderer(isLast).RenderPlaywrightMCP(yaml, playwrightTool)
 		},
+		RenderQmd: func(yaml *strings.Builder, qmdTool any, isLast bool, workflowData *WorkflowData) {
+			createRenderer(isLast).RenderQmdMCP(yaml, qmdTool, workflowData)
+		},
 		RenderSerena: func(yaml *strings.Builder, serenaTool any, isLast bool) {
 			createRenderer(isLast).RenderSerenaMCP(yaml, serenaTool)
 		},

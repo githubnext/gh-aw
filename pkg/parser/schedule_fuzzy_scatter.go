@@ -14,6 +14,64 @@ var scheduleFuzzyScatterLog = logger.New("parser:schedule_fuzzy_scatter")
 // This file contains fuzzy schedule scattering logic that deterministically
 // distributes workflow execution times based on workflow identifiers.
 
+// timeSlot represents a specific (hour, minute) pair used in the weighted daily pool.
+type timeSlot struct {
+	hour   int
+	minute int
+}
+
+// bestDailyMinutes are the "odd" minutes preferred during the BEST tier (02:00–05:59 UTC).
+// These low-traffic minutes reduce scheduling collisions with other cron jobs.
+var bestDailyMinutes = []int{7, 13, 23, 37, 43, 53}
+
+// buildWeightedDailyPool constructs the weighted pool of (hour, minute) time slots
+// used for full-day scatter patterns. The pool reflects the following distribution:
+//
+//   - BEST  (weight 3): 02:00–05:59 UTC at odd minutes (07,13,23,37,43,53)
+//   - GOOD  (weight 2): 10:00–12:59 UTC (gap between EU/US peaks), minutes [5,54]
+//   - OK    (weight 1): 19:00–23:59 UTC (evening hours), minutes [5,54]
+//
+// Using weights means a randomly selected slot is 3× more likely to land in the
+// BEST window than the OK window.
+func buildWeightedDailyPool() []timeSlot {
+	var pool []timeSlot
+
+	// BEST: hours 02–05 at specified odd minutes, weight 3 (appear 3 times each)
+	for h := 2; h <= 5; h++ {
+		for _, m := range bestDailyMinutes {
+			pool = append(pool, timeSlot{h, m}, timeSlot{h, m}, timeSlot{h, m})
+		}
+	}
+
+	// GOOD: hours 10–12, all valid minutes [5,54], weight 2 (appear 2 times each)
+	for h := 10; h <= 12; h++ {
+		for m := 5; m <= 54; m++ {
+			pool = append(pool, timeSlot{h, m}, timeSlot{h, m})
+		}
+	}
+
+	// OK: hours 19–23, all valid minutes [5,54], weight 1
+	for h := 19; h <= 23; h++ {
+		for m := 5; m <= 54; m++ {
+			pool = append(pool, timeSlot{h, m})
+		}
+	}
+
+	return pool
+}
+
+// weightedDailyPool is the pre-computed weighted pool of daily time slots.
+// Pool size: 4×6×3 (BEST) + 3×50×2 (GOOD) + 5×50×1 (OK) = 72 + 300 + 250 = 622 slots.
+var weightedDailyPool = buildWeightedDailyPool()
+
+// weightedDailyTimeSlot returns a deterministic (hour, minute) pair sampled from the
+// weighted daily time slot pool for the given workflow identifier.
+// All returned slots are already within the preferred windows and have valid minutes.
+func weightedDailyTimeSlot(identifier string) (int, int) {
+	slot := weightedDailyPool[stableHash(identifier, len(weightedDailyPool))]
+	return slot.hour, slot.minute
+}
+
 // avoidHourBoundary remaps a minute value to avoid the 5-minute window before
 // and after each hour (minutes 0–4 and 55–59). These windows are subject to
 // usage peaks on GitHub Actions, especially at 00:00 UTC.
@@ -28,6 +86,33 @@ func avoidHourBoundary(minute int) int {
 	}
 	if minute > 54 {
 		return minute - 5
+	}
+	return minute
+}
+
+// avoidPeakMinutes shifts minute values that fall within 3 minutes of known high-traffic
+// peak minutes during busy UTC hours:
+//
+//   - EU morning peak (06:00–09:59 UTC): avoids minutes [27, 33] (±3 around :30),
+//     shifting any value in that window to 34 (first minute clearly outside the window)
+//   - US business hours (14:00–18:59 UTC): avoids minutes [12, 18] (±3 around :15)
+//     and [42, 48] (±3 around :45), shifting to 19 and 49 respectively
+//
+// All replacement values stay within [5, 54]. This is applied after avoidHourBoundary
+// for targeted-scatter patterns where the hour is determined by a user-specified target.
+func avoidPeakMinutes(hour, minute int) int {
+	// EU morning peak: stay 3 minutes away from :30 in hours 06–09
+	if hour >= 6 && hour <= 9 && minute >= 27 && minute <= 33 {
+		return 34
+	}
+	// US business hours (moderate): stay 3 minutes away from :15 and :45 in hours 14–18
+	if hour >= 14 && hour <= 18 {
+		if minute >= 12 && minute <= 18 {
+			return 19
+		}
+		if minute >= 42 && minute <= 48 {
+			return 49
+		}
 	}
 	return minute
 }
@@ -103,7 +188,7 @@ func ScatterSchedule(fuzzyCron, workflowIdentifier string) (string, error) {
 		}
 
 		hour := scatteredMinutes / 60
-		minute := avoidHourBoundary(scatteredMinutes % 60)
+		minute := avoidPeakMinutes(hour, avoidHourBoundary(scatteredMinutes%60))
 
 		result := fmt.Sprintf("%d %d * * 1-5", minute, hour)
 		scheduleFuzzyScatterLog.Printf("FUZZY:DAILY_AROUND_WEEKDAYS scattered: original=%d:%d, scattered=%d:%d, result=%s", targetHour, targetMinute, hour, minute, result)
@@ -172,7 +257,7 @@ func ScatterSchedule(fuzzyCron, workflowIdentifier string) (string, error) {
 		}
 
 		hour := scatteredMinutes / 60
-		minute := avoidHourBoundary(scatteredMinutes % 60)
+		minute := avoidPeakMinutes(hour, avoidHourBoundary(scatteredMinutes%60))
 
 		result := fmt.Sprintf("%d %d * * 1-5", minute, hour)
 		scheduleFuzzyScatterLog.Printf("FUZZY:DAILY_BETWEEN_WEEKDAYS scattered: start=%d:%d, end=%d:%d, scattered=%d:%d, result=%s", startHour, startMinute, endHour, endMinute, hour, minute, result)
@@ -229,7 +314,7 @@ func ScatterSchedule(fuzzyCron, workflowIdentifier string) (string, error) {
 		}
 
 		hour := scatteredMinutes / 60
-		minute := avoidHourBoundary(scatteredMinutes % 60)
+		minute := avoidPeakMinutes(hour, avoidHourBoundary(scatteredMinutes%60))
 
 		result := fmt.Sprintf("%d %d * * *", minute, hour)
 		scheduleFuzzyScatterLog.Printf("FUZZY:DAILY_AROUND scattered: original=%d:%d, scattered=%d:%d, result=%s", targetHour, targetMinute, hour, minute, result)
@@ -298,7 +383,7 @@ func ScatterSchedule(fuzzyCron, workflowIdentifier string) (string, error) {
 		}
 
 		hour := scatteredMinutes / 60
-		minute := avoidHourBoundary(scatteredMinutes % 60)
+		minute := avoidPeakMinutes(hour, avoidHourBoundary(scatteredMinutes%60))
 
 		result := fmt.Sprintf("%d %d * * *", minute, hour)
 		scheduleFuzzyScatterLog.Printf("FUZZY:DAILY_BETWEEN scattered: start=%d:%d, end=%d:%d, scattered=%d:%d, result=%s", startHour, startMinute, endHour, endMinute, hour, minute, result)
@@ -306,32 +391,22 @@ func ScatterSchedule(fuzzyCron, workflowIdentifier string) (string, error) {
 		return result, nil
 	}
 
-	// For FUZZY:DAILY_WEEKDAYS * * *, we scatter across 24 hours on weekdays only
+	// For FUZZY:DAILY_WEEKDAYS * * *, scatter across the preferred daily time windows on weekdays
 	if strings.HasPrefix(fuzzyCron, "FUZZY:DAILY_WEEKDAYS") {
-		// Use 24*50 slots (50 valid minutes per hour, avoiding the 5-minute
-		// window around each hour boundary) to get a deterministic time.
-		hash := stableHash(workflowIdentifier, 24*50)
-
-		hour := hash / 50
-		minute := (hash % 50) + 5 // minutes in [5, 54]
+		hour, minute := weightedDailyTimeSlot(workflowIdentifier)
 
 		result := fmt.Sprintf("%d %d * * 1-5", minute, hour)
-		scheduleFuzzyScatterLog.Printf("FUZZY:DAILY_WEEKDAYS scattered: hash=%d, result=%s", hash, result)
+		scheduleFuzzyScatterLog.Printf("FUZZY:DAILY_WEEKDAYS scattered: result=%s", result)
 		// Return scattered daily cron with weekday restriction: minute hour * * 1-5
 		return result, nil
 	}
 
-	// For FUZZY:DAILY * * *, we scatter across 24 hours
+	// For FUZZY:DAILY * * *, scatter across the preferred daily time windows
 	if strings.HasPrefix(fuzzyCron, "FUZZY:DAILY") {
-		// Use 24*50 slots (50 valid minutes per hour, avoiding the 5-minute
-		// window around each hour boundary) to get a deterministic time.
-		hash := stableHash(workflowIdentifier, 24*50)
-
-		hour := hash / 50
-		minute := (hash % 50) + 5 // minutes in [5, 54]
+		hour, minute := weightedDailyTimeSlot(workflowIdentifier)
 
 		result := fmt.Sprintf("%d %d * * *", minute, hour)
-		scheduleFuzzyScatterLog.Printf("FUZZY:DAILY scattered: hash=%d, result=%s", hash, result)
+		scheduleFuzzyScatterLog.Printf("FUZZY:DAILY scattered: result=%s", result)
 		// Return scattered daily cron: minute hour * * *
 		return result, nil
 	}
@@ -436,7 +511,7 @@ func ScatterSchedule(fuzzyCron, workflowIdentifier string) (string, error) {
 		}
 
 		hour := scatteredMinutes / 60
-		minute := avoidHourBoundary(scatteredMinutes % 60)
+		minute := avoidPeakMinutes(hour, avoidHourBoundary(scatteredMinutes%60))
 
 		result := fmt.Sprintf("%d %d * * %s", minute, hour, weekday)
 		scheduleFuzzyScatterLog.Printf("FUZZY:WEEKLY_AROUND scattered: weekday=%s, target=%d:%d, scattered=%d:%d, result=%s", weekday, targetHour, targetMinute, hour, minute, result)
@@ -455,30 +530,19 @@ func ScatterSchedule(fuzzyCron, workflowIdentifier string) (string, error) {
 		weekdayPart := strings.TrimPrefix(parts[0], "FUZZY:WEEKLY:")
 		weekday := weekdayPart
 
-		// Use 24*50 slots (50 valid minutes per hour, avoiding the 5-minute
-		// window around each hour boundary) to get a deterministic time.
-		hash := stableHash(workflowIdentifier, 24*50)
-
-		hour := hash / 50
-		minute := (hash % 50) + 5 // minutes in [5, 54]
+		hour, minute := weightedDailyTimeSlot(workflowIdentifier)
 
 		result := fmt.Sprintf("%d %d * * %s", minute, hour, weekday)
-		scheduleFuzzyScatterLog.Printf("FUZZY:WEEKLY:%s scattered: hash=%d, result=%s", weekday, hash, result)
+		scheduleFuzzyScatterLog.Printf("FUZZY:WEEKLY:%s scattered: result=%s", weekday, result)
 		// Return scattered weekly cron: minute hour * * DOW
 		return result, nil
 	}
 
-	// For FUZZY:WEEKLY * * *, we scatter across all weekdays and times
+	// For FUZZY:WEEKLY * * *, scatter the weekday deterministically and pick a
+	// preferred time from the weighted daily pool.
 	if strings.HasPrefix(fuzzyCron, "FUZZY:WEEKLY") {
-		// Use 7 * 24 * 50 slots (50 valid minutes per hour, avoiding the 5-minute
-		// window around each hour boundary) to get a deterministic weekday and time.
-		hash := stableHash(workflowIdentifier, 7*24*50)
-
-		// Each "day block" contains 24*50 = 1200 slots.
-		weekday := hash / (24 * 50)   // Which day of the week (0-6)
-		slotInDay := hash % (24 * 50) // Which slot of that day (0-1199)
-		hour := slotInDay / 50
-		minute := (slotInDay % 50) + 5 // minutes in [5, 54]
+		weekday := stableHash(workflowIdentifier, 7) // Which day of the week (0-6)
+		hour, minute := weightedDailyTimeSlot(workflowIdentifier)
 
 		result := fmt.Sprintf("%d %d * * %d", minute, hour, weekday)
 		scheduleFuzzyScatterLog.Printf("FUZZY:WEEKLY scattered: weekday=%d, time=%d:%d, result=%s", weekday, hour, minute, result)
@@ -486,16 +550,9 @@ func ScatterSchedule(fuzzyCron, workflowIdentifier string) (string, error) {
 		return result, nil
 	}
 
-	// For FUZZY:BI_WEEKLY * * *, we scatter across 2 weeks (14 days)
+	// For FUZZY:BI_WEEKLY * * *, schedule every 14 days at a preferred time
 	if strings.HasPrefix(fuzzyCron, "FUZZY:BI_WEEKLY") {
-		// Use 14 * 24 * 50 slots (50 valid minutes per hour, avoiding the 5-minute
-		// window around each hour boundary) to get a deterministic time.
-		hash := stableHash(workflowIdentifier, 14*24*50)
-
-		// Extract time within a day using 50-slot per hour mapping.
-		slotInDay := hash % (24 * 50) // Which slot of the day (0-1199)
-		hour := slotInDay / 50
-		minute := (slotInDay % 50) + 5 // minutes in [5, 54]
+		hour, minute := weightedDailyTimeSlot(workflowIdentifier)
 
 		result := fmt.Sprintf("%d %d */%d * *", minute, hour, 14)
 		scheduleFuzzyScatterLog.Printf("FUZZY:BI_WEEKLY scattered: time=%d:%d, result=%s", hour, minute, result)
@@ -504,16 +561,9 @@ func ScatterSchedule(fuzzyCron, workflowIdentifier string) (string, error) {
 		return result, nil
 	}
 
-	// For FUZZY:TRI_WEEKLY * * *, we scatter across 3 weeks (21 days)
+	// For FUZZY:TRI_WEEKLY * * *, schedule every 21 days at a preferred time
 	if strings.HasPrefix(fuzzyCron, "FUZZY:TRI_WEEKLY") {
-		// Use 21 * 24 * 50 slots (50 valid minutes per hour, avoiding the 5-minute
-		// window around each hour boundary) to get a deterministic time.
-		hash := stableHash(workflowIdentifier, 21*24*50)
-
-		// Extract time within a day using 50-slot per hour mapping.
-		slotInDay := hash % (24 * 50) // Which slot of the day (0-1199)
-		hour := slotInDay / 50
-		minute := (slotInDay % 50) + 5 // minutes in [5, 54]
+		hour, minute := weightedDailyTimeSlot(workflowIdentifier)
 
 		result := fmt.Sprintf("%d %d */%d * *", minute, hour, 21)
 		scheduleFuzzyScatterLog.Printf("FUZZY:TRI_WEEKLY scattered: time=%d:%d, result=%s", hour, minute, result)

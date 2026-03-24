@@ -73,6 +73,7 @@ type ToolsConfig struct {
 	WebSearch        *WebSearchToolConfig        `yaml:"web-search,omitempty"`
 	Edit             *EditToolConfig             `yaml:"edit,omitempty"`
 	Playwright       *PlaywrightToolConfig       `yaml:"playwright,omitempty"`
+	Qmd              *QmdToolConfig              `yaml:"qmd,omitempty"`
 	Serena           *SerenaToolConfig           `yaml:"serena,omitempty"`
 	AgenticWorkflows *AgenticWorkflowsToolConfig `yaml:"agentic-workflows,omitempty"`
 	CacheMemory      *CacheMemoryToolConfig      `yaml:"cache-memory,omitempty"`
@@ -199,6 +200,9 @@ func (t *ToolsConfig) ToMap() map[string]any {
 	if t.Playwright != nil {
 		result["playwright"] = t.Playwright
 	}
+	if t.Qmd != nil {
+		result["qmd"] = t.Qmd
+	}
 	if t.Serena != nil {
 		// Convert back based on whether it was short syntax or object
 		if len(t.Serena.ShortSyntax) > 0 {
@@ -323,6 +327,111 @@ type PlaywrightToolConfig struct {
 	Args    []string `yaml:"args,omitempty"`
 }
 
+// QmdDocCollection represents a named documentation collection for the qmd tool.
+// Each collection indexes its own set of files and can optionally target a different
+// repository via its own checkout configuration.
+type QmdDocCollection struct {
+	// Name is the collection identifier used in the qmd index.
+	// Defaults to "docs-<index>" when not provided (e.g. "docs-0", "docs-1").
+	Name string `yaml:"name,omitempty"`
+
+	// Paths is the list of glob patterns for files to include in this collection.
+	// Example: ["docs/**/*.md", ".github/**/*.md"]
+	Paths []string `yaml:"paths"`
+
+	// Context is optional extra context injected into the qmd collection,
+	// providing the agent with additional hints about the content (e.g. "GitHub Actions documentation").
+	Context string `yaml:"context,omitempty"`
+
+	// Checkout configures which repository to check out for this collection.
+	// Uses the same syntax as the top-level checkout configuration.
+	// Defaults to the current repository if not set.
+	Checkout *CheckoutConfig `yaml:"checkout,omitempty"`
+}
+
+// QmdSearchEntry represents a single GitHub search entry whose results are
+// downloaded and added to the qmd index as individual files.
+type QmdSearchEntry struct {
+	// Name is an optional name for the resulting qmd collection.
+	// When empty, the collection is named "search-{index}".
+	Name string `yaml:"name,omitempty"`
+
+	// Type controls the search backend. Supported values:
+	//   "code"   (default) – uses `gh search code` to find repository files
+	//   "issues"           – uses `gh issue list` to fetch open issues from
+	//                        a repository and save each as a markdown file
+	// When type is "issues", Query is the repository slug ("owner/repo").
+	// If Query is empty for an issue search, ${{ github.repository }} is used.
+	Type string `yaml:"type,omitempty"`
+
+	// Query is the GitHub code search query string (type "code") or the
+	// repository slug "owner/repo" (type "issues").
+	// Example (code):   "repo:owner/repo language:Markdown path:docs/"
+	// Example (issues): "owner/repo"  (or empty to use current repository)
+	Query string `yaml:"query,omitempty"`
+
+	// Min is the minimum number of results required. If fewer are found
+	// the activation step fails.
+	Min int `yaml:"min,omitempty"`
+
+	// Max is the maximum number of results to download.
+	// Defaults to 30 (type "code") or 500 (type "issues") when not set.
+	Max int `yaml:"max,omitempty"`
+
+	// GitHubToken overrides the default GITHUB_TOKEN used to authenticate
+	// the GitHub API request.
+	// Mutually exclusive with GitHubApp.
+	GitHubToken string `yaml:"github-token,omitempty"`
+
+	// GitHubApp configures GitHub App-based authentication for the API request.
+	// Mutually exclusive with GitHubToken.
+	GitHubApp *GitHubAppConfig `yaml:"github-app,omitempty"`
+}
+
+// QmdToolConfig represents the configuration for the qmd documentation search tool.
+// qmd (https://github.com/tobi/qmd) provides local vector search over documentation files.
+// The index is built in a dedicated indexing job and shared via GitHub Actions cache, so no
+// contents:read permission is needed in the agent job.
+//
+// Two sources can contribute to the index:
+//
+//  1. checkouts – glob-based collections from checked-out repositories
+//  2. searches  – GitHub search queries whose results are downloaded as files
+//
+// Optionally, the index can be cached in GitHub Actions cache using the cache-key field.
+// When cache-key is set without any sources (checkouts/searches), qmd operates in
+// read-only mode: it restores the index from cache and skips all indexing steps.
+type QmdToolConfig struct {
+	// Checkouts is the list of named documentation collections.
+	// Each collection can specify its own checkout to target a different repository.
+	Checkouts []*QmdDocCollection `yaml:"checkouts,omitempty"`
+
+	// Searches is the list of GitHub search queries whose results are downloaded
+	// and added to the qmd index.
+	Searches []*QmdSearchEntry `yaml:"searches,omitempty"`
+
+	// CacheKey is an optional GitHub Actions cache key used to persist the qmd index
+	// across workflow runs. When set:
+	//   - If sources (checkouts/searches) are also configured: the index is built
+	//     normally and then saved to the cache. On subsequent runs, the cached index is
+	//     restored and the build steps are skipped if the cache hit is exact.
+	//   - If no sources are configured (read-only mode): the index is restored directly
+	//     from cache without any indexing steps.
+	// Example: "qmd-index-${{ hashFiles('docs/**') }}"
+	CacheKey string `yaml:"cache-key,omitempty"`
+
+	// GPU controls whether node-llama-cpp (used by @tobilu/qmd internally) may use
+	// GPU acceleration. Defaults to false: NODE_LLAMA_CPP_GPU=false is injected into
+	// the indexing step so that GPU auto-detection is skipped on CPU-only runners.
+	// Set to true only when the indexing runner has a GPU.
+	GPU bool `yaml:"gpu,omitempty"`
+
+	// RunsOn overrides the runner image for the indexing job.
+	// Defaults to the same runner as the agent job (ubuntu-latest or as configured).
+	// Example: "ubuntu-latest-gpu" or ["self-hosted", "gpu"]
+	RunsOn string `yaml:"runs-on,omitempty"`
+}
+
 // SerenaToolConfig represents the configuration for the Serena MCP tool
 type SerenaToolConfig struct {
 	Version   string                       `yaml:"version,omitempty"`
@@ -436,6 +545,8 @@ func (t *Tools) HasTool(name string) bool {
 		return t.Edit != nil
 	case "playwright":
 		return t.Playwright != nil
+	case "qmd":
+		return t.Qmd != nil
 	case "serena":
 		return t.Serena != nil
 	case "agentic-workflows":
@@ -480,6 +591,9 @@ func (t *Tools) GetToolNames() []string {
 	}
 	if t.Playwright != nil {
 		names = append(names, "playwright")
+	}
+	if t.Qmd != nil {
+		names = append(names, "qmd")
 	}
 	if t.Serena != nil {
 		names = append(names, "serena")

@@ -279,6 +279,20 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 		}
 	}
 
+	// Restore qmd index and models cache if qmd tool is configured.
+	// The index was built and cached in the indexing job; we restore it using the precise
+	// cache key so we always get the index from the current workflow run.
+	// The models cache restores the embedding model weights (cross-platform GGUF files) that
+	// the gateway-managed qmd container mounts from ${HOME}/.cache/qmd/.
+	// Note: the node-llama-cpp binary cache is NOT restored here; the container downloads
+	// the appropriate prebuilt binary for its own OS on first use.
+	if data.QmdConfig != nil {
+		compilerYamlLog.Print("Adding qmd index exact-key cache restore step")
+		yaml.WriteString(generateQmdIndexCacheRestoreExactStep(data.QmdConfig))
+		compilerYamlLog.Print("Adding qmd models cache restore step (read-only)")
+		yaml.WriteString(generateQmdModelsCacheRestoreStep())
+	}
+
 	// GH_AW_SAFE_OUTPUTS is now set at job level, no setup step needed
 
 	// Add GitHub MCP lockdown detection step if needed

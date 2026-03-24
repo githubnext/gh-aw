@@ -96,6 +96,14 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 			if err != nil {
 				return nil, nil, fmt.Errorf("failed to convert safe-outputs step at index %d to typed step: %w", i, err)
 			}
+			// Inject GH_HOST from the ghes-host-config step output so user steps
+			// have access to it for gh CLI commands (previously available via GITHUB_ENV).
+			if typedStep.Env == nil {
+				typedStep.Env = make(map[string]string)
+			}
+			if _, exists := typedStep.Env["GH_HOST"]; !exists {
+				typedStep.Env["GH_HOST"] = "${{ steps.ghes-host-config.outputs.GH_HOST }}"
+			}
 			pinnedStep := ApplyActionPinToTypedStep(typedStep, data)
 			stepYAML, err := c.convertStepToYAML(pinnedStep.ToMap())
 			if err != nil {

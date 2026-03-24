@@ -250,6 +250,12 @@ func (c *Compiler) validateWorkflowData(workflowData *WorkflowData, markdownPath
 		c.IncrementWarningCount()
 	}
 
+	// Emit experimental warning for qmd documentation search feature
+	if workflowData.QmdConfig != nil {
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Using experimental feature: qmd"))
+		c.IncrementWarningCount()
+	}
+
 	// Emit experimental warning for dependencies (APM) feature
 	if workflowData.APMDependencies != nil && len(workflowData.APMDependencies.Packages) > 0 {
 		fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Using experimental feature: dependencies (APM)"))
