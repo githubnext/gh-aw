@@ -53,9 +53,16 @@ PROXY_READY=false
 for i in $(seq 1 30); do
   if [ -f "$PROXY_LOG_DIR/proxy-tls/ca.crt" ]; then
     if [ "$CA_INSTALLED" = "false" ]; then
-      sudo cp "$PROXY_LOG_DIR/proxy-tls/ca.crt" /usr/local/share/ca-certificates/awmg-proxy.crt
-      sudo update-ca-certificates
-      CA_INSTALLED=true
+      if command -v sudo >/dev/null 2>&1 && command -v update-ca-certificates >/dev/null 2>&1; then
+        if sudo cp "$PROXY_LOG_DIR/proxy-tls/ca.crt" /usr/local/share/ca-certificates/awmg-proxy-difc.crt && \
+           sudo update-ca-certificates; then
+          CA_INSTALLED=true
+        else
+          echo "::warning::Failed to install DIFC proxy CA into system trust store; continuing without system CA update"
+        fi
+      else
+        echo "::warning::Cannot install DIFC proxy CA (missing sudo or update-ca-certificates); continuing without system CA update"
+      fi
     fi
     if curl -sf "https://localhost:18443/api/v3/health" -o /dev/null 2>/dev/null; then
       echo "DIFC proxy ready on port 18443"

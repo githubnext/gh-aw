@@ -90,8 +90,8 @@ func TestHasDIFCProxyNeeded(t *testing.T) {
 					Memories: []RepoMemoryEntry{{ID: "memory"}},
 				},
 			},
-			expected: true,
-			desc:     "guard policy + repo-memory (which uses GH_TOKEN) should trigger proxy",
+			expected: false,
+			desc:     "guard policy + repo-memory should NOT trigger proxy: repo-memory clones use direct git URLs, not GH_HOST",
 		},
 		{
 			name: "guard policy with allowed-repos + custom steps with GH_TOKEN",
@@ -155,7 +155,9 @@ func TestHasPreAgentStepsWithGHToken(t *testing.T) {
 					Memories: []RepoMemoryEntry{{ID: "memory"}},
 				},
 			},
-			expected: true,
+			expected: false,
+			// repo-memory clone steps use direct "git clone https://x-access-token:${GH_TOKEN}@..."
+			// URLs derived from GITHUB_SERVER_URL, not GH_HOST, so the proxy does not intercept them.
 		},
 		{
 			name: "repo-memory with empty memories (no clone steps generated)",

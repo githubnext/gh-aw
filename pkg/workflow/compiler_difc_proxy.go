@@ -6,14 +6,17 @@ package workflow
 //
 // When DIFC guards are configured (min-integrity set), the compiler injects
 // a temporary proxy (awmg-proxy) that routes pre-agent gh CLI calls through
-// integrity filtering. This ensures that steps like fetching issues for task
-// weighting and cloning repo-memory branches see DIFC-filtered API responses,
-// matching the integrity guarantees the agent itself operates under.
+// integrity filtering. This ensures that custom steps referencing GH_TOKEN see
+// DIFC-filtered API responses, matching the integrity guarantees the agent
+// itself operates under.
 //
-// The proxy is also injected into the qmd indexing job when DIFC guards are
-// configured, wrapping the index-building steps so that any GitHub API calls
-// made during indexing (via github-token or search tokens) are routed through
-// the proxy.
+// Note: repo-memory clone steps use a direct "git clone https://x-access-token:${GH_TOKEN}@..."
+// URL derived from GITHUB_SERVER_URL, not GH_HOST, so they bypass the proxy even when it
+// is running. Only gh CLI calls that honour GH_HOST are actually filtered.
+//
+// Note: qmd indexing GitHub API calls are made via actions/github-script (@actions/github
+// Octokit), which uses GITHUB_API_URL / GITHUB_GRAPHQL_URL rather than GH_HOST. The proxy
+// does not intercept those calls, so no proxy wrapping is injected into the qmd indexing job.
 //
 // The proxy uses the same container image as the MCP gateway (gh-aw-mcpg)
 // but runs in "proxy" mode with --guards-mode filter (graceful degradation)
@@ -22,20 +25,13 @@ package workflow
 // Injection conditions:
 //
 //	Main job: GitHub tool has explicit guard policies (min-integrity set) AND
-//	          pre-agent steps set GH_TOKEN (custom steps or repo-memory steps)
-//
-//	Indexing job: GitHub tool has explicit guard policies (min-integrity set)
-//	              (the indexing job always uses github-token, so no extra check needed)
+//	          custom steps set GH_TOKEN
 //
 // Proxy lifecycle within the main job:
 //  1. Start proxy — after "Configure gh CLI" step, before custom steps
-//  2. Custom steps + repo-memory steps run with GH_HOST=localhost:18443 (set via $GITHUB_ENV)
-//  3. Stop proxy — before MCP gateway starts (generateMCPSetup)
-//
-// Proxy lifecycle within the indexing job:
-//  1. Start proxy — after setup action, before qmd index-building steps
-//  2. qmd index-building steps run with GH_HOST=localhost:18443 (set via $GITHUB_ENV)
-//  3. Stop proxy — after all qmd steps
+//  2. Custom steps run with GH_HOST=localhost:18443 (set via $GITHUB_ENV)
+//  3. Stop proxy — before MCP gateway starts (generateMCPSetup); always runs
+//     even if earlier steps failed (if: always(), continue-on-error: true)
 //
 // Guard policy note:
 //
@@ -100,9 +96,11 @@ func hasDIFCProxyNeeded(data *WorkflowData) bool {
 
 // hasPreAgentStepsWithGHToken returns true if there are pre-agent steps that set GH_TOKEN.
 //
-// The heuristic checks:
-//   - Custom steps (from data.CustomSteps) contain the string "GH_TOKEN"
-//   - Repo-memory is configured (its clone steps always set GH_TOKEN: ${{ github.token }})
+// The heuristic checks whether custom steps (from data.CustomSteps) reference GH_TOKEN.
+//
+// Note: repo-memory clone steps use a direct "git clone https://x-access-token:${GH_TOKEN}@..."
+// URL derived from GITHUB_SERVER_URL, not GH_HOST, so they are not intercepted by the proxy
+// and are therefore not counted here.
 func hasPreAgentStepsWithGHToken(data *WorkflowData) bool {
 	if data == nil {
 		return false
@@ -111,12 +109,6 @@ func hasPreAgentStepsWithGHToken(data *WorkflowData) bool {
 	// Check if custom steps reference GH_TOKEN
 	if strings.Contains(data.CustomSteps, "GH_TOKEN") {
 		difcProxyLog.Print("Custom steps contain GH_TOKEN, proxy needed")
-		return true
-	}
-
-	// Check if repo-memory is configured (clone steps always use GH_TOKEN)
-	if data.RepoMemoryConfig != nil && len(data.RepoMemoryConfig.Memories) > 0 {
-		difcProxyLog.Print("Repo-memory configured (uses GH_TOKEN for clone), proxy needed")
 		return true
 	}
 
@@ -238,6 +230,9 @@ func (c *Compiler) generateStartDIFCProxyStep(yaml *strings.Builder, data *Workf
 // before the MCP gateway starts. The proxy must be stopped first to avoid
 // double-filtering: the gateway uses the same guard policy for the agent phase.
 //
+// The step runs even if earlier steps failed (if: always(), continue-on-error: true)
+// to ensure the proxy container and CA cert are always cleaned up.
+//
 // The step is only emitted when hasDIFCProxyNeeded returns true.
 func (c *Compiler) generateStopDIFCProxyStep(yaml *strings.Builder, data *WorkflowData) {
 	if !hasDIFCProxyNeeded(data) {
@@ -247,13 +242,18 @@ func (c *Compiler) generateStopDIFCProxyStep(yaml *strings.Builder, data *Workfl
 	difcProxyLog.Print("Generating Stop DIFC proxy step")
 
 	yaml.WriteString("      - name: Stop DIFC proxy\n")
+	yaml.WriteString("        if: always()\n")
+	yaml.WriteString("        continue-on-error: true\n")
 	yaml.WriteString("        run: bash ${RUNNER_TEMP}/gh-aw/actions/stop_difc_proxy.sh\n")
 }
 
 // buildStopDIFCProxyStepYAML returns the YAML for the "Stop DIFC proxy" step as a string.
+// The step runs even if earlier steps failed to ensure cleanup of container and CA cert.
 // Used by the indexing job which manages steps as []string.
 func buildStopDIFCProxyStepYAML() string {
 	return "      - name: Stop DIFC proxy\n" +
+		"        if: always()\n" +
+		"        continue-on-error: true\n" +
 		"        run: bash ${RUNNER_TEMP}/gh-aw/actions/stop_difc_proxy.sh\n"
 }
 
