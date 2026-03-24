@@ -260,7 +260,7 @@ flowchart LR
 2. The agent container can only egress through Squid. To reach the gateway, it uses `host.docker.internal:80` (Docker's host alias). This hostname must be included in the firewall's allowed list.
 3. The `gh-aw-mcpg` container publishes host port 80 mapped to container port 8000. It uses the Docker socket to spawn MCP server containers.
 4. All MCP traffic remains within the host boundary: AWF restricts egress, and the gateway routes requests to sandboxed MCP servers.
-5. When supported by an agent, AWF creates a trusted `api-proxy` that routes model traffic on the agent's behalf while keeping that traffic behind AWF's network controls. This proxy should not be treated as a separate caller-authentication boundary for arbitrary code already running inside the agent container: some engine integrations still receive credentials in-container for CLI compatibility.
+5. When supported by an agent, AWF creates a trusted `api-proxy` that routes model traffic on the agent's behalf while keeping that traffic behind AWF's network controls. This proxy should not be treated as a separate caller-authentication boundary for arbitrary code already running inside the agent container.
 
 ## MCP Server Sandboxing
 
