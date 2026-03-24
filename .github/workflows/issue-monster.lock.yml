@@ -26,7 +26,7 @@
 #   Imports:
 #     - shared/activation-app.md
 #
-# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"810d295f3ec4eadebaf8a208dc5c623ac79ed44e3a0ac78f15876712044f5328","strict":true,"agent_id":"copilot","agent_model":"gpt-5.1-codex-mini"}
+# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"05a9cf1fdb06143030aaf12d29c1c7e2d5dfb4a7557e227e44c4be97cd73e332","strict":true,"agent_id":"copilot","agent_model":"gpt-5.1-codex-mini"}
 
 name: "Issue Monster"
 "on":
@@ -36,6 +36,7 @@ name: "Issue Monster"
   schedule:
   - cron: "*/30 * * * *"
     # Friendly format: every 30m
+  # skip-if-check-failing: # Skip-if-check-failing processed as check status gate in pre-activation job
   # skip-if-match: # Skip-if-match processed as search check in pre-activation job
     # max: 5
     # query: is:pr is:open is:draft author:app/copilot-swe-agent
@@ -1113,11 +1114,18 @@ jobs:
             /tmp/gh-aw/redacted-urls.log
             /tmp/gh-aw/mcp-logs/
             /tmp/gh-aw/proxy-logs/
-            /tmp/gh-aw/sandbox/firewall/logs/
             /tmp/gh-aw/agent-stdio.log
             /tmp/gh-aw/agent/
             /tmp/gh-aw/safeoutputs.jsonl
             /tmp/gh-aw/agent_output.json
+          if-no-files-found: ignore
+      - name: Upload firewall audit logs
+        if: always()
+        continue-on-error: true
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7
+        with:
+          name: firewall-audit-logs
+          path: /tmp/gh-aw/sandbox/firewall/logs/
           if-no-files-found: ignore
       # --- Threat Detection (inline) ---
       - name: Check if detection needed
@@ -1368,7 +1376,7 @@ jobs:
       issues: read
       pull-requests: read
     outputs:
-      activated: ${{ steps.check_membership.outputs.is_team_member == 'true' && steps.check_skip_if_match.outputs.skip_check_ok == 'true' && steps.check_skip_if_no_match.outputs.skip_no_match_check_ok == 'true' }}
+      activated: ${{ steps.check_membership.outputs.is_team_member == 'true' && steps.check_skip_if_match.outputs.skip_check_ok == 'true' && steps.check_skip_if_no_match.outputs.skip_no_match_check_ok == 'true' && steps.check_skip_if_check_failing.outputs.skip_if_check_failing_ok == 'true' }}
       has_issues: ${{ steps.search.outputs.has_issues }}
       issue_count: ${{ steps.search.outputs.issue_count }}
       issue_list: ${{ steps.search.outputs.issue_list }}
@@ -1424,6 +1432,15 @@ jobs:
             const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');
             setupGlobals(core, github, context, exec, io);
             const { main } = require('${{ runner.temp }}/gh-aw/actions/check_skip_if_no_match.cjs');
+            await main();
+      - name: Check skip-if-check-failing
+        id: check_skip_if_check_failing
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        with:
+          script: |
+            const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');
+            setupGlobals(core, github, context, exec, io);
+            const { main } = require('${{ runner.temp }}/gh-aw/actions/check_skip_if_check_failing.cjs');
             await main();
       - name: Search for candidate issues
         id: search
