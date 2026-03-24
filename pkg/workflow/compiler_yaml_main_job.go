@@ -194,6 +194,11 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 	yaml.WriteString("        env:\n")
 	yaml.WriteString("          GH_TOKEN: ${{ github.token }}\n")
 
+	// Start DIFC proxy for pre-agent gh CLI calls (only when guard policies are configured
+	// and pre-agent steps with GH_TOKEN are present). The proxy routes gh CLI calls through
+	// integrity filtering before the agent runs. Must start before custom steps.
+	c.generateStartDIFCProxyStep(yaml, data)
+
 	// Add custom steps if present
 	if data.CustomSteps != "" {
 		if customStepsContainCheckout && len(runtimeSetupSteps) > 0 {
@@ -303,6 +308,10 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 
 	// Add GitHub MCP app token minting step if configured
 	c.generateGitHubMCPAppTokenMintingStep(yaml, data)
+
+	// Stop DIFC proxy before starting the MCP gateway. The proxy must be stopped first
+	// to avoid double-filtering: the gateway uses the same guard policy for the agent phase.
+	c.generateStopDIFCProxyStep(yaml, data)
 
 	// Add MCP setup
 	if err := c.generateMCPSetup(yaml, data.Tools, engine, data); err != nil {
@@ -428,6 +437,9 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 
 	// Collect MCP logs path if any MCP tools were used
 	artifactPaths = append(artifactPaths, "/tmp/gh-aw/mcp-logs/")
+
+	// Collect DIFC proxy logs (proxy-tls certs + container stderr) when proxy was injected
+	artifactPaths = append(artifactPaths, difcProxyLogPaths(data)...)
 
 	// Collect MCPScripts logs path if mcp-scripts is enabled
 	if IsMCPScriptsEnabled(data.MCPScripts, data) {
