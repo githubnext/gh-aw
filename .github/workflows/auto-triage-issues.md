@@ -5,6 +5,7 @@ on:
   issues:
     types: [opened, edited]
   schedule: every 6h
+  workflow_dispatch:
 rate-limit:
   max: 5
   window: 60
@@ -49,7 +50,7 @@ Reduce the percentage of unlabeled issues from 8.6% to below 5% by automatically
 
 ## Task
 
-When triggered by an issue event (opened/edited) or scheduled run, analyze issues and apply appropriate labels.
+When triggered by an issue event (opened/edited), scheduled run, or manual dispatch, analyze issues and apply appropriate labels.
 
 ### On Issue Events (opened/edited)
 
@@ -69,6 +70,15 @@ When running on schedule:
 2. **Process up to 10 unlabeled issues** (respecting safe-output limits)
 3. **Apply labels** to each issue based on classification
 4. **Create a summary report** as a discussion with statistics on processed issues
+
+### On Manual/On-Demand Runs (workflow_dispatch)
+
+When triggered manually as a backfill pass:
+
+1. **Fetch ALL open issues without any labels** using GitHub tools — do not limit to a fixed count
+2. **Process up to 10 unlabeled issues** in this run (respecting safe-output limits); if more exist, note the remainder in the report
+3. **Apply labels** to each issue based on classification rules below, using title/body heuristics and existing triage rules
+4. **Create a summary report** as a discussion listing every issue processed, the labels applied, and how many unlabeled issues (if any) still remain for the next pass
 
 ## Classification Rules
 

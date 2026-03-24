@@ -26,7 +26,7 @@
 #   Imports:
 #     - shared/reporting.md
 #
-# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"6d5ae739b2ba3b6bbba0566b0e444cf837a7639539ddad0361430acf57eee28c","strict":true,"agent_id":"copilot"}
+# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"c594a7bc386ff77ba50c32dbcc4aec764b37be1b857e8397d3a964972c888afa","strict":true,"agent_id":"copilot"}
 
 name: "Auto-Triage Issues"
 "on":
