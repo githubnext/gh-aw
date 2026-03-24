@@ -18,6 +18,59 @@ var (
 	sourceLinePattern    = regexp.MustCompile(`(?m)^(>?\s*)(\d+)(\s*\|)`)
 )
 
+// yamlErrorTranslations maps common goccy/go-yaml internal error messages to
+// user-friendly plain-language descriptions with actionable fix guidance.
+// Each pattern is matched case-insensitively against the formatted error string.
+var yamlErrorTranslations = []struct {
+	pattern     string
+	replacement string
+}{
+	{
+		"unexpected key name",
+		"missing ':' after key — YAML mapping entries require 'key: value' format",
+	},
+	{
+		"mapping value is not allowed in this context",
+		"unexpected ':' — check indentation or if this key belongs in a mapping block",
+	},
+	{
+		"string was used where mapping is expected",
+		"expected a YAML mapping (key: value pairs) but got a plain string",
+	},
+	{
+		"tab character cannot use as a map key directly",
+		"tab character in key — YAML requires spaces for indentation, not tabs",
+	},
+	{
+		"could not find expected ':'",
+		"missing ':' in key-value pair",
+	},
+	{
+		"did not find expected key",
+		"incorrect indentation or missing key in mapping",
+	},
+}
+
+// translateYAMLError translates cryptic goccy/go-yaml parser messages to user-friendly descriptions.
+// goccy/go-yaml surfaces internal YAML parser messages like "unexpected key name" that are opaque
+// to users. This function maps the most common patterns to plain-language explanations with
+// actionable fix guidance.
+func translateYAMLError(formatted string) string {
+	for _, t := range yamlErrorTranslations {
+		// All pattern strings are lowercase to match goccy/go-yaml's lowercase error messages.
+		// Case-insensitive search ensures robustness across library version changes.
+		lower := strings.ToLower(formatted)
+		if idx := strings.Index(lower, t.pattern); idx >= 0 {
+			// Slice using idx from the lowercase string. This is safe because:
+			// - All patterns are ASCII (single-byte characters).
+			// - strings.ToLower of ASCII preserves byte positions exactly.
+			yamlErrorLog.Printf("Translating YAML error pattern %q", t.pattern)
+			return formatted[:idx] + t.replacement + formatted[idx+len(t.pattern):]
+		}
+	}
+	return formatted
+}
+
 // FormatYAMLError formats a YAML error with source code context using yaml.FormatError()
 // frontmatterLineOffset is the line number where the frontmatter content begins in the document (1-based)
 // Returns the formatted error string with line numbers adjusted for frontmatter position
@@ -27,6 +80,9 @@ func FormatYAMLError(err error, frontmatterLineOffset int, sourceYAML string) st
 	// Use goccy/go-yaml's native FormatError for consistent formatting with source context
 	// colored=false to avoid ANSI escape codes, inclSource=true to include source lines
 	formatted := yaml.FormatError(err, false, true)
+
+	// Translate cryptic parser messages to user-friendly descriptions
+	formatted = translateYAMLError(formatted)
 
 	// Adjust line numbers in the formatted output to account for frontmatter position
 	if frontmatterLineOffset > 1 {
