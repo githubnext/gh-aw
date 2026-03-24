@@ -30,7 +30,7 @@ name: "Codex GitHub Remote MCP Test"
     inputs:
       aw_context:
         default: ""
-        description: (Internal) JSON context injected by the calling agentic workflow. Not intended for direct user input.
+        description: Agent caller context (used internally by Agentic Workflows).
         required: false
         type: string
 
