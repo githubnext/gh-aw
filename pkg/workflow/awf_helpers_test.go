@@ -249,6 +249,36 @@ func TestAWFCustomAPITargetFlags(t *testing.T) {
 	})
 }
 
+// TestBuildAWFArgsAuditDir tests that BuildAWFArgs always includes --audit-dir
+// pointing to the AWF audit directory for policy-manifest.json and other audit files
+func TestBuildAWFArgsAuditDir(t *testing.T) {
+	t.Run("includes --audit-dir flag with correct path", func(t *testing.T) {
+		workflowData := &WorkflowData{
+			Name: "test-workflow",
+			EngineConfig: &EngineConfig{
+				ID: "copilot",
+			},
+			NetworkPermissions: &NetworkPermissions{
+				Firewall: &FirewallConfig{
+					Enabled: true,
+				},
+			},
+		}
+
+		config := AWFCommandConfig{
+			EngineName:     "copilot",
+			WorkflowData:   workflowData,
+			AllowedDomains: "github.com",
+		}
+
+		args := BuildAWFArgs(config)
+		argsStr := strings.Join(args, " ")
+
+		assert.Contains(t, argsStr, "--audit-dir", "Should include --audit-dir flag")
+		assert.Contains(t, argsStr, "/tmp/gh-aw/sandbox/firewall/audit", "Should include the audit directory path")
+	})
+}
+
 // TestBuildAWFArgsMemoryLimit tests that BuildAWFArgs passes --memory-limit
 // when sandbox.agent.memory is configured in the workflow frontmatter
 func TestBuildAWFArgsMemoryLimit(t *testing.T) {
