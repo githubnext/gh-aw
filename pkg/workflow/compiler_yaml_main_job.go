@@ -468,6 +468,9 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 		}
 	}
 
+	// Optionally synthesize a compact observability section from runtime artifacts.
+	c.generateObservabilitySummary(yaml, data)
+
 	// Collect agent stdio logs path for unified upload
 	artifactPaths = append(artifactPaths, logFileFull)
 

@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/stringutil"
@@ -30,6 +31,12 @@ func renderConsole(data AuditData, logsPath string) {
 	fmt.Fprintln(os.Stderr)
 	renderOverview(data.Overview)
 
+	if data.Comparison != nil {
+		fmt.Fprintln(os.Stderr, console.FormatSectionHeader("Comparison To Last Successful Run"))
+		fmt.Fprintln(os.Stderr)
+		renderAuditComparison(data.Comparison)
+	}
+
 	// Key Findings Section - NEW
 	if len(data.KeyFindings) > 0 {
 		auditReportLog.Printf("Rendering %d key findings", len(data.KeyFindings))
@@ -44,6 +51,12 @@ func renderConsole(data AuditData, logsPath string) {
 		fmt.Fprintln(os.Stderr, console.FormatSectionHeader("Recommendations"))
 		fmt.Fprintln(os.Stderr)
 		renderRecommendations(data.Recommendations)
+	}
+
+	if len(data.ObservabilityInsights) > 0 {
+		fmt.Fprintln(os.Stderr, console.FormatSectionHeader("Observability Insights"))
+		fmt.Fprintln(os.Stderr)
+		renderObservabilityInsights(data.ObservabilityInsights)
 	}
 
 	// Performance Metrics Section - NEW
@@ -175,6 +188,46 @@ func renderConsole(data AuditData, logsPath string) {
 	fmt.Fprintln(os.Stderr)
 	absPath, _ := filepath.Abs(logsPath)
 	fmt.Fprintf(os.Stderr, "  %s\n", absPath)
+	fmt.Fprintln(os.Stderr)
+}
+
+func renderAuditComparison(comparison *AuditComparisonData) {
+	if comparison == nil {
+		return
+	}
+
+	if !comparison.BaselineFound || comparison.Baseline == nil || comparison.Delta == nil || comparison.Classification == nil {
+		fmt.Fprintln(os.Stderr, "  No previous successful run was available for baseline comparison.")
+		fmt.Fprintln(os.Stderr)
+		return
+	}
+
+	fmt.Fprintf(os.Stderr, "  Baseline: run %d", comparison.Baseline.RunID)
+	if comparison.Baseline.Conclusion != "" {
+		fmt.Fprintf(os.Stderr, " (%s)", comparison.Baseline.Conclusion)
+	}
+	fmt.Fprintln(os.Stderr)
+	fmt.Fprintf(os.Stderr, "  Classification: %s\n", comparison.Classification.Label)
+	fmt.Fprintln(os.Stderr, "  Changes:")
+
+	if comparison.Delta.Turns.Changed {
+		fmt.Fprintf(os.Stderr, "    - Turns: %d -> %d\n", comparison.Delta.Turns.Before, comparison.Delta.Turns.After)
+	}
+	if comparison.Delta.Posture.Changed {
+		fmt.Fprintf(os.Stderr, "    - Posture: %s -> %s\n", comparison.Delta.Posture.Before, comparison.Delta.Posture.After)
+	}
+	if comparison.Delta.BlockedRequests.Changed {
+		fmt.Fprintf(os.Stderr, "    - Blocked requests: %d -> %d\n", comparison.Delta.BlockedRequests.Before, comparison.Delta.BlockedRequests.After)
+	}
+	if comparison.Delta.MCPFailure != nil && comparison.Delta.MCPFailure.NewlyPresent {
+		fmt.Fprintf(os.Stderr, "    - New MCP failure: %s\n", strings.Join(comparison.Delta.MCPFailure.After, ", "))
+	}
+	if len(comparison.Classification.ReasonCodes) == 0 {
+		fmt.Fprintln(os.Stderr, "    - No meaningful behavior change from the last successful baseline")
+	}
+	if comparison.Recommendation != nil && comparison.Recommendation.Action != "" {
+		fmt.Fprintf(os.Stderr, "  Recommended action: %s\n", comparison.Recommendation.Action)
+	}
 	fmt.Fprintln(os.Stderr)
 }
 

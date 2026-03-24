@@ -340,6 +340,9 @@ func AuditWorkflowRun(ctx context.Context, runID int64, owner, repo, hostname st
 		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to list artifacts: %v", err)))
 	}
 
+	currentCreatedItems := extractCreatedItemsFromManifest(runOutputDir)
+	run.SafeItemsCount = len(currentCreatedItems)
+
 	// Create processed run for report generation
 	processedRun := ProcessedRun{
 		Run:                     run,
@@ -352,8 +355,12 @@ func AuditWorkflowRun(ctx context.Context, runID int64, owner, repo, hostname st
 		JobDetails:              jobDetails,
 	}
 
+	currentSnapshot := buildAuditComparisonSnapshot(processedRun, currentCreatedItems)
+	comparison := buildAuditComparisonForRun(run, currentSnapshot, runOutputDir, owner, repo, hostname, verbose)
+
 	// Build structured audit data
 	auditData := buildAuditData(processedRun, metrics, mcpToolUsage)
+	auditData.Comparison = comparison
 
 	// Render output based on format preference
 	if jsonOutput {

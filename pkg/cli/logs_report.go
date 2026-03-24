@@ -24,6 +24,7 @@ type LogsData struct {
 	Runs              []RunData                  `json:"runs" console:"title:Workflow Logs Overview"`
 	ToolUsage         []ToolUsageSummary         `json:"tool_usage,omitempty" console:"title:🛠️  Tool Usage Summary,omitempty"`
 	MCPToolUsage      *MCPToolUsageSummary       `json:"mcp_tool_usage,omitempty" console:"title:🔧 MCP Tool Usage,omitempty"`
+	Observability     []ObservabilityInsight     `json:"observability_insights,omitempty" console:"-"`
 	ErrorsAndWarnings []ErrorSummary             `json:"errors_and_warnings,omitempty" console:"title:Errors and Warnings,omitempty"`
 	MissingTools      []MissingToolSummary       `json:"missing_tools,omitempty" console:"title:🛠️  Missing Tools Summary,omitempty"`
 	MissingData       []MissingDataSummary       `json:"missing_data,omitempty" console:"title:📊 Missing Data Summary,omitempty"`
@@ -246,6 +247,8 @@ func buildLogsData(processedRuns []ProcessedRun, outputDir string, continuation 
 	// Build redacted domains summary
 	redactedDomains := buildRedactedDomainsSummary(processedRuns)
 
+	observability := buildLogsObservabilityInsights(processedRuns, toolUsage)
+
 	absOutputDir, _ := filepath.Abs(outputDir)
 
 	return LogsData{
@@ -253,6 +256,7 @@ func buildLogsData(processedRuns []ProcessedRun, outputDir string, continuation 
 		Runs:              runs,
 		ToolUsage:         toolUsage,
 		MCPToolUsage:      mcpToolUsage,
+		Observability:     observability,
 		ErrorsAndWarnings: errorsAndWarnings,
 		MissingTools:      missingTools,
 		MissingData:       missingData,
@@ -941,5 +945,12 @@ func renderLogsConsole(data LogsData) {
 		fmt.Fprintf(os.Stderr, "  %s %d unique tools used\n",
 			console.FormatInfoMessage("•"),
 			len(data.ToolUsage))
+	}
+
+	if len(data.Observability) > 0 {
+		fmt.Fprintln(os.Stderr)
+		fmt.Fprintln(os.Stderr, console.FormatSectionHeader("Observability Insights"))
+		fmt.Fprintln(os.Stderr)
+		renderObservabilityInsights(data.Observability)
 	}
 }

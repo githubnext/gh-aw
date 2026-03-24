@@ -1,0 +1,97 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://github.com/github/gh-aw/schemas/observability-policy.json",
+  "title": "GitHub Agentic Workflows Observability Policy",
+  "description": "Schema for policy rules evaluated against observability-report.json payloads. These rules convert distilled observability signals into enforcement actions such as fail, gate, or warn.",
+  "type": "object",
+  "required": ["schema_version", "rules"],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "description": "Version of the observability policy schema.",
+      "examples": ["1.0.0"]
+    },
+    "rules": {
+      "type": "array",
+      "description": "List of policy rules to evaluate against an observability payload.",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/Rule"
+      }
+    }
+  },
+  "$defs": {
+    "Rule": {
+      "type": "object",
+      "required": ["id", "action", "message", "match"],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Stable identifier for the rule."
+        },
+        "action": {
+          "type": "string",
+          "description": "Enforcement action to apply when the rule matches.",
+          "enum": ["fail", "gate", "warn"]
+        },
+        "message": {
+          "type": "string",
+          "description": "Human-readable message explaining the policy violation."
+        },
+        "match": {
+          "$ref": "#/$defs/Match"
+        }
+      }
+    },
+    "Match": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "blocked_domains": {
+          "type": "array",
+          "description": "Match if any blocked domain in the payload equals one of these domains.",
+          "items": {
+            "type": "string"
+          }
+        },
+        "min_blocked_requests": {
+          "type": "integer",
+          "description": "Match if blocked request count is greater than or equal to this threshold.",
+          "minimum": 0
+        },
+        "insight_severities": {
+          "type": "array",
+          "description": "Match if any distilled insight has one of these severities.",
+          "items": {
+            "type": "string",
+            "enum": ["critical", "high", "medium", "low", "info"]
+          }
+        },
+        "actuation_modes": {
+          "type": "array",
+          "description": "Match if the payload actuation mode is one of these values.",
+          "items": {
+            "type": "string",
+            "enum": ["read_only", "write_capable", "mixed"]
+          }
+        },
+        "mcp_failure_servers": {
+          "type": "array",
+          "description": "Match if any MCP failure references one of these server names.",
+          "items": {
+            "type": "string"
+          }
+        },
+        "created_item_types": {
+          "type": "array",
+          "description": "Match if any created item type equals one of these values.",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  }
+}

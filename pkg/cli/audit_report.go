@@ -20,9 +20,11 @@ var auditReportLog = logger.New("cli:audit_report")
 // AuditData represents the complete structured audit data for a workflow run
 type AuditData struct {
 	Overview                OverviewData             `json:"overview"`
+	Comparison              *AuditComparisonData     `json:"comparison,omitempty"`
 	Metrics                 MetricsData              `json:"metrics"`
 	KeyFindings             []Finding                `json:"key_findings,omitempty"`
 	Recommendations         []Recommendation         `json:"recommendations,omitempty"`
+	ObservabilityInsights   []ObservabilityInsight   `json:"observability_insights,omitempty"`
 	PerformanceMetrics      *PerformanceMetrics      `json:"performance_metrics,omitempty"`
 	Jobs                    []JobData                `json:"jobs,omitempty"`
 	DownloadedFiles         []FileInfo               `json:"downloaded_files"`
@@ -302,11 +304,15 @@ func buildAuditData(processedRun ProcessedRun, metrics LogMetrics, mcpToolUsage 
 		toolUsage = append(toolUsage, *info)
 	}
 
+	createdItems := extractCreatedItemsFromManifest(run.LogsPath)
+
 	// Generate key findings
 	findings := generateFindings(processedRun, metricsData, errors, warnings)
 
 	// Generate recommendations
 	recommendations := generateRecommendations(processedRun, metricsData, findings)
+
+	observabilityInsights := buildAuditObservabilityInsights(processedRun, metricsData, toolUsage, createdItems)
 
 	// Generate performance metrics
 	performanceMetrics := generatePerformanceMetrics(processedRun, metricsData, toolUsage)
@@ -321,6 +327,7 @@ func buildAuditData(processedRun ProcessedRun, metrics LogMetrics, mcpToolUsage 
 		Metrics:                 metricsData,
 		KeyFindings:             findings,
 		Recommendations:         recommendations,
+		ObservabilityInsights:   observabilityInsights,
 		PerformanceMetrics:      performanceMetrics,
 		Jobs:                    jobs,
 		DownloadedFiles:         downloadedFiles,
@@ -334,7 +341,7 @@ func buildAuditData(processedRun ProcessedRun, metrics LogMetrics, mcpToolUsage 
 		Warnings:                warnings,
 		ToolUsage:               toolUsage,
 		MCPToolUsage:            mcpToolUsage,
-		CreatedItems:            extractCreatedItemsFromManifest(run.LogsPath),
+		CreatedItems:            createdItems,
 	}
 }
 

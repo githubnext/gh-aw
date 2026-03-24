@@ -1,0 +1,601 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://github.com/github/gh-aw/schemas/observability-report.json",
+  "title": "GitHub Agentic Workflows Observability Report",
+  "description": "Schema for distilled observability payloads emitted by GitHub Agentic Workflows. This payload separates execution status from reasoning-oriented telemetry, including lineage from aw_context, correlation identifiers, tool activity, network posture, actuation outcomes, and synthesized insights.",
+  "type": "object",
+  "required": ["schema_version", "kind", "generated_at", "overview", "lineage", "execution", "insights"],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "description": "Version of this observability payload schema.",
+      "examples": ["1.0.0"]
+    },
+    "kind": {
+      "type": "string",
+      "description": "Payload scope. 'run' is for a single execution. 'fleet' is for multi-run summaries and trend aggregation.",
+      "enum": ["run", "fleet"]
+    },
+    "generated_at": {
+      "type": "string",
+      "description": "RFC 3339 timestamp when this payload was generated.",
+      "format": "date-time"
+    },
+    "overview": {
+      "$ref": "#/$defs/Overview"
+    },
+    "lineage": {
+      "$ref": "#/$defs/Lineage"
+    },
+    "execution": {
+      "$ref": "#/$defs/Execution"
+    },
+    "reasoning": {
+      "$ref": "#/$defs/Reasoning"
+    },
+    "tooling": {
+      "$ref": "#/$defs/Tooling"
+    },
+    "network": {
+      "$ref": "#/$defs/Network"
+    },
+    "actuation": {
+      "$ref": "#/$defs/Actuation"
+    },
+    "insights": {
+      "type": "array",
+      "description": "Distilled decision-oriented signals derived from the workflow run or fleet of runs.",
+      "items": {
+        "$ref": "#/$defs/Insight"
+      }
+    },
+    "findings": {
+      "type": "array",
+      "description": "Human-facing findings suitable for audit or incident review.",
+      "items": {
+        "$ref": "#/$defs/Finding"
+      }
+    },
+    "recommendations": {
+      "type": "array",
+      "description": "Actionable recommendations derived from the observability data.",
+      "items": {
+        "$ref": "#/$defs/Recommendation"
+      }
+    }
+  },
+  "$defs": {
+    "Overview": {
+      "type": "object",
+      "required": ["workflow_name", "status"],
+      "additionalProperties": false,
+      "properties": {
+        "run_id": {
+          "type": ["integer", "string"],
+          "description": "Workflow run identifier for run-scoped payloads. May be omitted for fleet summaries."
+        },
+        "workflow_name": {
+          "type": "string",
+          "description": "Human-readable workflow name."
+        },
+        "workflow_path": {
+          "type": "string",
+          "description": "Workflow file path, if known."
+        },
+        "status": {
+          "type": "string",
+          "description": "Current lifecycle status of the workflow or aggregate health state for fleet payloads.",
+          "examples": ["completed", "in_progress", "success", "degraded"]
+        },
+        "conclusion": {
+          "type": "string",
+          "description": "GitHub Actions conclusion for a completed run.",
+          "examples": ["success", "failure", "timed_out", "cancelled"]
+        },
+        "event": {
+          "type": "string",
+          "description": "Triggering GitHub event name."
+        },
+        "branch": {
+          "type": "string",
+          "description": "Head branch or reference name."
+        },
+        "url": {
+          "type": "string",
+          "description": "GitHub Actions URL for the workflow run.",
+          "format": "uri"
+        }
+      }
+    },
+    "Lineage": {
+      "type": "object",
+      "required": ["trace_id"],
+      "additionalProperties": false,
+      "properties": {
+        "trace_id": {
+          "type": "string",
+          "description": "Stable correlation identifier for this end-to-end execution lineage. Prefer workflow_call_id when aw_context is present; otherwise use a generated correlation key."
+        },
+        "span_id": {
+          "type": "string",
+          "description": "Identifier for the current report node or aggregation span."
+        },
+        "parent_trace_id": {
+          "type": "string",
+          "description": "Optional parent trace identifier when this payload was derived from another execution or aggregate report."
+        },
+        "aw_context": {
+          "$ref": "#/$defs/AwContext"
+        },
+        "engine": {
+          "$ref": "#/$defs/Engine"
+        }
+      }
+    },
+    "AwContext": {
+      "type": "object",
+      "required": ["repo", "run_id", "workflow_id"],
+      "additionalProperties": false,
+      "properties": {
+        "repo": {
+          "type": "string",
+          "description": "Calling workflow repository in owner/repo format."
+        },
+        "run_id": {
+          "type": "string",
+          "description": "GitHub Actions run ID of the calling workflow."
+        },
+        "workflow_id": {
+          "type": "string",
+          "description": "Full workflow ref of the calling workflow, including repository, path, and ref."
+        },
+        "workflow_call_id": {
+          "type": "string",
+          "description": "Unique call attempt identifier, typically composed from run_id and run_attempt."
+        },
+        "time": {
+          "type": "string",
+          "description": "RFC 3339 timestamp of the dispatch or workflow call handoff.",
+          "format": "date-time"
+        },
+        "actor": {
+          "type": "string",
+          "description": "GitHub actor that triggered the calling workflow."
+        },
+        "event_type": {
+          "type": "string",
+          "description": "GitHub event name of the calling workflow."
+        }
+      }
+    },
+    "Engine": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "engine_id": {
+          "type": "string",
+          "description": "Stable engine identifier, such as copilot, claude, codex, or gemini."
+        },
+        "engine_name": {
+          "type": "string",
+          "description": "Human-readable engine name."
+        },
+        "model": {
+          "type": "string",
+          "description": "Model or engine variant used for this run."
+        },
+        "version": {
+          "type": "string",
+          "description": "Engine or CLI version that produced the output."
+        }
+      }
+    },
+    "Execution": {
+      "type": "object",
+      "required": ["task_status"],
+      "additionalProperties": false,
+      "properties": {
+        "task_status": {
+          "type": "string",
+          "description": "Outcome-focused status distinct from reasoning telemetry.",
+          "enum": ["success", "failure", "partial", "timed_out", "cancelled", "unknown"]
+        },
+        "duration_ms": {
+          "type": "integer",
+          "description": "Total execution duration in milliseconds.",
+          "minimum": 0
+        },
+        "turns": {
+          "type": "integer",
+          "description": "Number of decision turns used by the agent.",
+          "minimum": 0
+        },
+        "token_usage": {
+          "type": "integer",
+          "description": "Total token usage for the run.",
+          "minimum": 0
+        },
+        "estimated_cost": {
+          "type": "number",
+          "description": "Estimated USD cost for the run.",
+          "minimum": 0
+        },
+        "error_count": {
+          "type": "integer",
+          "description": "Number of errors observed in the execution.",
+          "minimum": 0
+        },
+        "warning_count": {
+          "type": "integer",
+          "description": "Number of warnings observed in the execution.",
+          "minimum": 0
+        }
+      }
+    },
+    "Reasoning": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "mode": {
+          "type": "string",
+          "description": "High-level characterization of the reasoning posture.",
+          "enum": ["directed", "adaptive", "exploratory", "unknown"]
+        },
+        "reasoning_steps": {
+          "type": "array",
+          "description": "Optional coarse-grained reasoning steps that explain decision points without storing raw private chain-of-thought.",
+          "items": {
+            "$ref": "#/$defs/ReasoningStep"
+          }
+        },
+        "drift_signal": {
+          "type": "string",
+          "description": "Optional summary of execution drift compared with prior runs.",
+          "examples": ["stable", "rising_turn_count", "volatile_tool_path"]
+        }
+      }
+    },
+    "ReasoningStep": {
+      "type": "object",
+      "required": ["id", "kind", "summary"],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Stable identifier for the reasoning step within the payload."
+        },
+        "parent_id": {
+          "type": "string",
+          "description": "Optional parent step identifier for hierarchical plans."
+        },
+        "kind": {
+          "type": "string",
+          "description": "Type of reasoning step.",
+          "enum": ["plan", "observe", "decide", "act", "verify", "handoff"]
+        },
+        "summary": {
+          "type": "string",
+          "description": "Short explanation of the decision or transition."
+        },
+        "evidence": {
+          "type": "array",
+          "description": "Structured evidence references supporting the reasoning step.",
+          "items": {
+            "$ref": "#/$defs/EvidenceRef"
+          }
+        },
+        "tool_refs": {
+          "type": "array",
+          "description": "Tool calls associated with this reasoning step.",
+          "items": {
+            "type": "string"
+          }
+        },
+        "outcome": {
+          "type": "string",
+          "description": "Observed result of this reasoning step.",
+          "examples": ["confirmed", "blocked", "needs-human-review"]
+        }
+      }
+    },
+    "EvidenceRef": {
+      "type": "object",
+      "required": ["type", "value"],
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "type": "string",
+          "description": "Evidence type.",
+          "enum": ["file", "log", "tool_call", "metric", "network_domain", "safe_output", "external"]
+        },
+        "value": {
+          "type": "string",
+          "description": "Opaque identifier or locator for the evidence source."
+        },
+        "label": {
+          "type": "string",
+          "description": "Human-readable description of the evidence."
+        }
+      }
+    },
+    "Tooling": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "tool_types": {
+          "type": "integer",
+          "description": "Number of unique tool types used during the run or across the aggregation.",
+          "minimum": 0
+        },
+        "tool_calls": {
+          "type": "array",
+          "description": "Observed tool call summaries.",
+          "items": {
+            "$ref": "#/$defs/ToolCall"
+          }
+        },
+        "missing_tools": {
+          "type": "array",
+          "description": "Tools requested by the agent but not available.",
+          "items": {
+            "$ref": "#/$defs/MissingTool"
+          }
+        },
+        "mcp_failures": {
+          "type": "array",
+          "description": "MCP server failures encountered by the run.",
+          "items": {
+            "$ref": "#/$defs/MCPFailure"
+          }
+        },
+        "missing_data": {
+          "type": "array",
+          "description": "Signals that required data was missing during execution.",
+          "items": {
+            "$ref": "#/$defs/MissingData"
+          }
+        }
+      }
+    },
+    "ToolCall": {
+      "type": "object",
+      "required": ["name", "call_count"],
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Tool name."
+        },
+        "server_name": {
+          "type": "string",
+          "description": "MCP server name for MCP-hosted tools."
+        },
+        "call_count": {
+          "type": "integer",
+          "description": "Number of times the tool was called.",
+          "minimum": 0
+        },
+        "max_input_size": {
+          "type": "integer",
+          "description": "Maximum observed input size.",
+          "minimum": 0
+        },
+        "max_output_size": {
+          "type": "integer",
+          "description": "Maximum observed output size.",
+          "minimum": 0
+        },
+        "max_duration_ms": {
+          "type": "integer",
+          "description": "Maximum observed execution duration in milliseconds.",
+          "minimum": 0
+        },
+        "status": {
+          "type": "string",
+          "description": "Aggregate outcome for the tool across the observed scope.",
+          "examples": ["success", "partial", "error"]
+        }
+      }
+    },
+    "MissingTool": {
+      "type": "object",
+      "required": ["tool", "reason"],
+      "additionalProperties": false,
+      "properties": {
+        "tool": {
+          "type": "string"
+        },
+        "reason": {
+          "type": "string"
+        },
+        "alternatives": {
+          "type": "string"
+        }
+      }
+    },
+    "MCPFailure": {
+      "type": "object",
+      "required": ["server_name", "status"],
+      "additionalProperties": false,
+      "properties": {
+        "server_name": {
+          "type": "string"
+        },
+        "status": {
+          "type": "string"
+        },
+        "timestamp": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    },
+    "MissingData": {
+      "type": "object",
+      "required": ["data_type", "reason"],
+      "additionalProperties": false,
+      "properties": {
+        "data_type": {
+          "type": "string"
+        },
+        "reason": {
+          "type": "string"
+        },
+        "context": {
+          "type": "string"
+        }
+      }
+    },
+    "Network": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "total_requests": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "allowed_requests": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "blocked_requests": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "allowed_domains": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "blocked_domains": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "redacted_domains": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "Actuation": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "mode": {
+          "type": "string",
+          "description": "Whether the execution remained read-only or crossed into write-capable actions.",
+          "enum": ["read_only", "write_capable", "mixed"]
+        },
+        "safe_items_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "created_items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/CreatedItem"
+          }
+        }
+      }
+    },
+    "CreatedItem": {
+      "type": "object",
+      "required": ["type"],
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "type": "string"
+        },
+        "repo": {
+          "type": "string"
+        },
+        "number": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "url": {
+          "type": "string",
+          "format": "uri"
+        },
+        "temporary_id": {
+          "type": "string"
+        },
+        "timestamp": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    },
+    "Insight": {
+      "type": "object",
+      "required": ["category", "severity", "title", "summary"],
+      "additionalProperties": false,
+      "properties": {
+        "category": {
+          "type": "string"
+        },
+        "severity": {
+          "type": "string",
+          "enum": ["critical", "high", "medium", "low", "info"]
+        },
+        "title": {
+          "type": "string"
+        },
+        "summary": {
+          "type": "string"
+        },
+        "evidence": {
+          "type": "string"
+        }
+      }
+    },
+    "Finding": {
+      "type": "object",
+      "required": ["category", "severity", "title", "description"],
+      "additionalProperties": false,
+      "properties": {
+        "category": {
+          "type": "string"
+        },
+        "severity": {
+          "type": "string"
+        },
+        "title": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "impact": {
+          "type": "string"
+        }
+      }
+    },
+    "Recommendation": {
+      "type": "object",
+      "required": ["priority", "action", "reason"],
+      "additionalProperties": false,
+      "properties": {
+        "priority": {
+          "type": "string",
+          "enum": ["high", "medium", "low"]
+        },
+        "action": {
+          "type": "string"
+        },
+        "reason": {
+          "type": "string"
+        },
+        "example": {
+          "type": "string"
+        }
+      }
+    }
+  }
+}
