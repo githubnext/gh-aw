@@ -150,7 +150,7 @@ func TestMCPScriptsTimeoutInJSON(t *testing.T) {
 		},
 	}
 
-	jsonStr := generateMCPScriptsToolsConfig(config)
+	jsonStr := GenerateMCPScriptsToolsConfig(config)
 
 	// Parse the JSON to verify structure
 	var parsedConfig MCPScriptsConfigJSON

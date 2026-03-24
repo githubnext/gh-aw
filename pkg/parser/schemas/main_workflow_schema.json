@@ -3507,11 +3507,11 @@
               "checkouts": [
                 {
                   "name": "current-docs",
-                  "paths": ["docs/**/*.md"]
+                  "pattern": "docs/**/*.md"
                 },
                 {
                   "name": "other-docs",
-                  "paths": ["docs/**/*.md"],
+                  "pattern": "docs/**/*.md",
                   "context": "Documentation for owner/other-repo",
                   "checkout": {
                     "repository": "owner/other-repo",
@@ -3534,7 +3534,7 @@
               "checkouts": [
                 {
                   "name": "local-docs",
-                  "paths": ["docs/**/*.md"]
+                  "pattern": "docs/**/*.md"
                 }
               ],
               "searches": [
@@ -3552,7 +3552,7 @@
               "checkouts": [
                 {
                   "name": "docs",
-                  "paths": ["docs/**/*.md"]
+                  "pattern": "docs/**/*.md"
                 }
               ],
               "cache-key": "qmd-index-${{ hashFiles('docs/**') }}"
@@ -9507,14 +9507,18 @@
           "type": "string",
           "description": "Collection identifier used in the qmd index. Defaults to 'docs-<index>' for multiple collections."
         },
-        "paths": {
+        "pattern": {
+          "type": "string",
+          "description": "Glob pattern for documentation files to include in this collection.",
+          "examples": ["docs/**/*.md", "**/*.md"]
+        },
+        "ignore": {
           "type": "array",
-          "description": "List of glob patterns for documentation files to include in this collection.",
+          "description": "List of glob patterns for files to exclude from this collection.",
           "items": {
             "type": "string"
           },
-          "minItems": 1,
-          "examples": [["docs/**/*.md", ".github/**/*.md"]]
+          "examples": [["**/node_modules/**", "**/*.test.md"]]
         },
         "context": {
           "type": "string",

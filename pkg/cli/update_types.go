@@ -12,3 +12,9 @@ type updateFailure struct {
 	Name  string
 	Error string
 }
+
+// actionUpdateFailure represents a failed GitHub Action update check
+type actionUpdateFailure struct {
+	name string
+	err  string
+}

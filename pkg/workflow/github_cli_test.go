@@ -4,6 +4,7 @@ package workflow
 
 import (
 	"context"
+	"errors"
 	"os"
 	"os/exec"
 	"slices"
@@ -383,4 +384,36 @@ func TestRunGHWithSpinnerHelperExists(t *testing.T) {
 			_ = err
 		})
 	}
+}
+
+// TestEnrichGHError tests that enrichGHError appends stderr from *exec.ExitError
+func TestEnrichGHError(t *testing.T) {
+	t.Run("nil error unchanged", func(t *testing.T) {
+		assert.NoError(t, enrichGHError(nil), "nil error should remain nil")
+	})
+
+	t.Run("non-ExitError unchanged", func(t *testing.T) {
+		err := errors.New("plain error")
+		assert.Equal(t, err, enrichGHError(err), "non-ExitError should be returned unchanged")
+	})
+
+	t.Run("ExitError with no stderr unchanged", func(t *testing.T) {
+		// Run a command that exits non-zero without producing stderr
+		cmd := exec.Command("sh", "-c", "exit 1")
+		_, cmdErr := cmd.Output()
+		require.Error(t, cmdErr, "command should fail")
+		enriched := enrichGHError(cmdErr)
+		// With no stderr, the error should be equivalent to the original
+		assert.Equal(t, cmdErr.Error(), enriched.Error(), "ExitError with empty stderr should match original error message")
+	})
+
+	t.Run("ExitError with stderr gets stderr appended", func(t *testing.T) {
+		// Run a command that exits non-zero and writes to stderr
+		cmd := exec.Command("sh", "-c", "echo 'not found' >&2; exit 1")
+		_, cmdErr := cmd.Output()
+		require.Error(t, cmdErr, "command should fail")
+		enriched := enrichGHError(cmdErr)
+		assert.Contains(t, enriched.Error(), "not found", "enriched error should contain stderr output")
+		assert.Contains(t, enriched.Error(), "exit status 1", "enriched error should still contain original error")
+	})
 }

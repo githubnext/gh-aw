@@ -36,6 +36,7 @@ const { resolveTargetRepoConfig, resolveAndValidateRepo } = require("./repo_help
 const { createAuthenticatedGitHubClient } = require("./handler_auth.cjs");
 const { removeDuplicateTitleFromDescription } = require("./remove_duplicate_title.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
+const { ERR_VALIDATION } = require("./error_codes.cjs");
 const { renderTemplateFromFile } = require("./messages_core.cjs");
 const { createExpirationLine, addExpirationToFooter } = require("./ephemerals.cjs");
 const { MAX_SUB_ISSUES, getSubIssueCount } = require("./sub_issue_helpers.cjs");
@@ -207,7 +208,7 @@ async function main(config = {}) {
   const rawCloseOlderKey = config.close_older_key ? String(config.close_older_key) : "";
   const closeOlderKey = rawCloseOlderKey ? normalizeCloseOlderKey(rawCloseOlderKey) : "";
   if (rawCloseOlderKey && !closeOlderKey) {
-    throw new Error(`close-older-key "${rawCloseOlderKey}" is invalid: it must contain at least one alphanumeric character after normalization`);
+    throw new Error(`${ERR_VALIDATION}: close-older-key "${rawCloseOlderKey}" is invalid: it must contain at least one alphanumeric character after normalization`);
   }
   const includeFooter = parseBoolTemplatable(config.footer, true);
 

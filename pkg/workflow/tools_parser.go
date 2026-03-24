@@ -498,16 +498,20 @@ func parseQmdDocCollection(m map[string]any, index int) *QmdDocCollection {
 		col.Name = fmt.Sprintf("docs-%d", index)
 	}
 
-	if pathsValue, ok := m["paths"]; ok {
-		if arr, ok := pathsValue.([]any); ok {
-			col.Paths = make([]string, 0, len(arr))
+	if pattern, ok := m["pattern"].(string); ok {
+		col.Pattern = pattern
+	}
+
+	if ignoreValue, ok := m["ignore"]; ok {
+		if arr, ok := ignoreValue.([]any); ok {
+			col.Ignore = make([]string, 0, len(arr))
 			for _, item := range arr {
 				if str, ok := item.(string); ok {
-					col.Paths = append(col.Paths, str)
+					col.Ignore = append(col.Ignore, str)
 				}
 			}
-		} else if arr, ok := pathsValue.([]string); ok {
-			col.Paths = arr
+		} else if arr, ok := ignoreValue.([]string); ok {
+			col.Ignore = arr
 		}
 	}
 

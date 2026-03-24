@@ -5,9 +5,10 @@
 const fs = require("fs");
 const path = require("path");
 const { pathToFileURL } = require("url");
+const { ERR_CONFIG, ERR_VALIDATION } = require("./error_codes.cjs");
 
 /**
- * @typedef {{ name: string, path: string, patterns?: string[], context?: string }} QmdCheckout
+ * @typedef {{ name: string, path: string, pattern?: string, ignore?: string[], context?: string }} QmdCheckout
  * @typedef {{ name?: string, type?: string, query?: string, repo?: string, min?: number, max?: number, tokenEnvVar?: string }} QmdSearch
  * @typedef {{ dbPath: string, checkouts?: QmdCheckout[], searches?: QmdSearch[] }} QmdConfig
  */
@@ -47,12 +48,13 @@ async function writeSummary(config, updateResult, embedResult) {
     const checkouts = config.checkouts ?? [];
     if (checkouts.length > 0) {
       md += "### Collections\n\n";
-      md += "| Name | Patterns | Context |\n";
-      md += "| --- | --- | --- |\n";
+      md += "| Name | Pattern | Ignore | Context |\n";
+      md += "| --- | --- | --- | --- |\n";
       for (const col of checkouts) {
-        const patterns = (col.patterns || ["**/*.md"]).join(", ");
+        const pattern = col.pattern || "**/*.md";
+        const ignore = col.ignore && col.ignore.length > 0 ? col.ignore.join(", ") : "-";
         const ctx = col.context || "-";
-        md += `| ${col.name} | ${patterns} | ${ctx} |\n`;
+        md += `| ${col.name} | ${pattern} | ${ignore} | ${ctx} |\n`;
       }
       md += "\n";
     }
@@ -109,7 +111,7 @@ async function writeSummary(config, updateResult, embedResult) {
 async function main() {
   const configJson = process.env.QMD_CONFIG_JSON;
   if (!configJson) {
-    core.setFailed("QMD_CONFIG_JSON environment variable not set");
+    core.setFailed(`${ERR_CONFIG}: QMD_CONFIG_JSON environment variable not set`);
     return;
   }
 
@@ -120,7 +122,7 @@ async function main() {
   // The package is installed into the gh-aw actions directory by a prior npm-install step.
   const qmdIndexPath = path.join(__dirname, "node_modules", "@tobilu", "qmd", "dist", "index.js");
   if (!fs.existsSync(qmdIndexPath)) {
-    core.setFailed(`@tobilu/qmd not found at ${qmdIndexPath}. The 'Install @tobilu/qmd SDK' step must run first.`);
+    core.setFailed(`${ERR_CONFIG}: @tobilu/qmd not found at ${qmdIndexPath}. The 'Install @tobilu/qmd SDK' step must run first.`);
     return;
   }
 
@@ -131,15 +133,28 @@ async function main() {
   const dbPath = path.join(config.dbPath, "index.sqlite");
 
   // ── Build collections config from checkout entries ──────────────────────
-  /** @type {Record<string, { path: string, pattern?: string, context?: Record<string, string> }>} */
+  /** @type {Record<string, { path: string, pattern?: string, ignore?: string[], context?: Record<string, string> }>} */
   const collections = {};
 
   for (const checkout of config.checkouts || []) {
-    const resolvedPath = resolveEnvVars(checkout.path);
-    const pattern = (checkout.patterns || ["**/*.md"]).join(",");
+    const rawPath = checkout.path;
+    const resolvedPath = resolveEnvVars(rawPath);
+    const pattern = checkout.pattern || "**/*.md";
+    const ignoreInfo = checkout.ignore && checkout.ignore.length > 0 ? ` ignore=[${checkout.ignore.join(", ")}]` : "";
+
+    core.info(`Collection "${checkout.name}": path="${rawPath}" -> "${resolvedPath}" pattern="${pattern}"${ignoreInfo}`);
+
+    const pathExists = fs.existsSync(resolvedPath);
+    if (!pathExists) {
+      core.warning(`Collection "${checkout.name}": path "${resolvedPath}" does not exist — no files will be indexed`);
+    } else {
+      core.info(`Collection "${checkout.name}": path exists`);
+    }
+
     collections[checkout.name] = {
       path: resolvedPath,
       pattern,
+      ...(checkout.ignore && checkout.ignore.length > 0 ? { ignore: checkout.ignore } : {}),
       ...(checkout.context ? { context: { "/": checkout.context } } : {}),
     };
   }
@@ -158,7 +173,7 @@ async function main() {
       const repoSlug = search.repo || process.env.GITHUB_REPOSITORY || "";
       const slugParts = repoSlug.split("/");
       if (slugParts.length < 2 || !slugParts[0] || !slugParts[1]) {
-        core.setFailed(`qmd search "${collectionName}": invalid repository slug "${repoSlug}" (expected "owner/repo")`);
+        core.setFailed(`${ERR_VALIDATION}: qmd search "${collectionName}": invalid repository slug "${repoSlug}" (expected "owner/repo")`);
         return;
       }
       const [owner, repo] = slugParts;
@@ -220,7 +235,7 @@ async function main() {
     if (minCount > 0) {
       const fileCount = fs.readdirSync(searchDir).length;
       if (fileCount < minCount) {
-        core.setFailed(`qmd search "${collectionName}" returned ${fileCount} results, minimum is ${minCount}`);
+        core.setFailed(`${ERR_VALIDATION}: qmd search "${collectionName}" returned ${fileCount} results, minimum is ${minCount}`);
         return;
       }
     }
@@ -232,6 +247,12 @@ async function main() {
   }
 
   // ── Create store and build index ─────────────────────────────────────────
+  const collectionNames = Object.keys(collections);
+  core.info(`Registering ${collectionNames.length} collection(s): ${collectionNames.join(", ")}`);
+  for (const [name, col] of Object.entries(collections)) {
+    core.info(`  [${name}] path="${col.path}" pattern="${col.pattern || "(default)"}"`);
+  }
+
   core.info(`Creating qmd store at ${dbPath}…`);
 
   const store = await createStore({ dbPath, config: { collections } });
@@ -249,6 +270,17 @@ async function main() {
       },
     });
     core.info(`Update complete: ${updateResult.indexed} indexed, ${updateResult.updated} updated, ` + `${updateResult.unchanged} unchanged, ${updateResult.removed} removed`);
+
+    const totalFiles = updateResult.indexed + updateResult.updated + updateResult.unchanged;
+    if (totalFiles === 0) {
+      core.warning(
+        "No files were indexed. Possible causes:\n" +
+          "  - The checkout path does not exist or was not checked out\n" +
+          "  - The glob pattern does not match any files (check for dotfile exclusions in patterns starting with '.')\n" +
+          "  - The checkout path resolves to an empty string (check ${ENV_VAR} placeholders in 'path')\n" +
+          "Review the collection log lines above for the resolved path and pattern."
+      );
+    }
 
     core.info("Generating embeddings (embed)…");
     embedResult = await store.embed({

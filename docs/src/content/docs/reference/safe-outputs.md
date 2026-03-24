@@ -142,8 +142,6 @@ safe-outputs:
     group: true
 ```
 
-In this example, if the workflow creates 5 issues, all will be automatically grouped under a parent issue, making it easy to track related work items together.
-
 #### Auto-Close Older Issues
 
 The `close-older-issues` field (default: `false`) automatically closes previous open issues from the same workflow when a new issue is created. This is useful for workflows that generate recurring reports or status updates, ensuring only the latest issue remains open.
@@ -175,38 +173,16 @@ You can use this marker to find all items created by a specific workflow on GitH
 
 **Search Examples:**
 
-Find all open issues created by the `daily-team-status` workflow:
-
 ```
+# Open issues from a specific workflow
 repo:owner/repo is:issue is:open "gh-aw-workflow-id: daily-team-status" in:body
-```
 
-Find all pull requests created by the `security-audit` workflow:
-
-```
-repo:owner/repo is:pr "gh-aw-workflow-id: security-audit" in:body
-```
-
-Find all items (issues, PRs, discussions) from any workflow in your organization:
-
-```
+# All items from any workflow in an org
 org:your-org "gh-aw-workflow-id:" in:body
-```
 
-Find comments from a specific workflow:
-
-```
+# Comments from a specific workflow
 repo:owner/repo "gh-aw-workflow-id: bot-responder" in:comments
 ```
-
-> [!TIP]
-> **Search Tips for Workflow Markers**
->
-> - Use quotes around the marker text to search for the exact phrase
-> - Add `in:body` to search issue/PR descriptions, or `in:comments` for comments
-> - Combine with other filters like `is:open`, `is:closed`, `created:>2024-01-01`
-> - The workflow name in the marker is the workflow filename without the `.md` extension
-> - Use GitHub's advanced search to refine results: [Advanced search documentation](https://docs.github.com/en/search-github/searching-on-github/searching-issues-and-pull-requests)
 
 ### Close Issue (`close-issue:`)
 
@@ -426,13 +402,7 @@ safe-outputs:
 
 When using `target: "*"`, the agent must provide `pull_request_number` in the output to identify which pull request to update.
 
-**Operation Types**:
-
-- `append` (default): Adds content to the end with separator and attribution
-- `prepend`: Adds content to the start with separator and attribution
-- `replace`: Completely replaces existing body with new content and attribution
-
-Title updates always replace the existing title. Disable fields by setting to `false`.
+**Operation Types**: Same as `update-issue` above (`append`, `prepend`, `replace`). Title updates always replace the existing title. Disable fields by setting to `false`.
 
 ### Link Sub-Issue (`link-sub-issue:`)
 
@@ -534,15 +504,7 @@ safe-outputs:
         layout: roadmap
 ```
 
-**Configuration options:**
-
-- `project` (required in configuration): Default project URL shown in examples. Note: Agent output messages **must** explicitly include the `project` field - the configured value is for documentation purposes only.
-- `max`: Maximum number of operations per run (default: 10).
-- `github-token`: Custom token with Projects permissions (required for Projects v2 access).
-- `target-repo`: Default repository for cross-repo content resolution in `owner/repo` format. Wildcards (`*`) are not allowed.
-- `allowed-repos`: List of additional repositories whose issues/PRs can be resolved via `target_repo`. The `target-repo` is always implicitly allowed.
-- `views`: Optional array of project views to create automatically.
-- Exposes outputs: `project-id`, `project-number`, `project-url`, `item-id`.
+Agent output messages **must** explicitly include the `project` field — the configured value is for documentation purposes only. Exposes outputs: `project-id`, `project-number`, `project-url`, `item-id`.
 
 #### Cross-Repository Content Resolution
 
@@ -624,19 +586,7 @@ safe-outputs:
 | `filter` | string | No | Filter query (e.g., `is:issue is:open`, `label:bug`) |
 | `visible-fields` | array | No | Field IDs to display (table/board only, not roadmap) |
 
-**Layout types:**
-
-- **`table`** - List view with customizable columns for detailed tracking
-- **`board`** - Kanban-style cards grouped by status or custom field
-- **`roadmap`** - Timeline visualization with date-based swimlanes
-
-**Filter syntax examples:**
-
-- `is:issue is:open` - Open issues only
-- `is:pr` - Pull requests only  
-- `is:issue is:pr` - Both issues and PRs
-- `label:bug` - Items with bug label
-- `assignee:@me` - Items assigned to viewer
+**Layout types:** `table` (list), `board` (Kanban), `roadmap` (timeline). The `filter` field accepts standard GitHub search syntax (e.g., `is:issue is:open`, `label:bug`).
 
 Views are created automatically during workflow execution. The workflow must include at least one `update_project` operation to provide the target project URL.
 
@@ -652,12 +602,7 @@ safe-outputs:
     github-token: ${{ secrets.GH_AW_WRITE_PROJECT_TOKEN }}
 ```
 
-**Configuration options:**
-
-- `project` (required in configuration): Default project URL shown in examples. Note: Agent output messages **must** explicitly include the `project` field - the configured value is for documentation purposes only.
-- `max`: Maximum number of status updates per run (default: 1).
-- `github-token`: Custom token with Projects permissions (required for Projects v2 access).
-- Often used by scheduled workflows and orchestrator workflows to post run summaries.
+Agent output messages **must** explicitly include the `project` field. Often used by scheduled and orchestrator workflows to post run summaries.
 
 #### Required Fields
 
@@ -705,13 +650,7 @@ create-project-status-update:
     - Target 95% documentation coverage by end of month
 ```
 
-#### Status Indicators
-
-- **`ON_TRACK`**: Progressing as planned, meeting expected targets
-- **`AT_RISK`**: Potential issues identified (blocked items, slower velocity, dependencies)
-- **`OFF_TRACK`**: Behind schedule, requires intervention or re-planning
-- **`COMPLETE`**: Objectives met, no further work needed
-- **`INACTIVE`**: Paused or not actively running
+**Status values:** `ON_TRACK` (on schedule), `AT_RISK` (potential issues), `OFF_TRACK` (behind schedule), `COMPLETE` (finished), `INACTIVE` (paused).
 
 Exposes outputs: `status-update-id`, `project-id`, `status`.
 
@@ -925,13 +864,7 @@ safe-outputs:
   noop: false       # explicitly disable
 ```
 
-**When to call `noop`**: Any time the agent's analysis concludes that no GitHub action (issue, comment, PR, label, etc.) is needed. Examples:
-- No issues found during a code scan
-- No breaking changes detected in recent commits
-- Repository is already in the desired state
-- Condition for action was not met (e.g., no new issues to triage)
-
-**When NOT to call `noop`**: If the agent created an issue, posted a comment, opened a PR, or performed any other safe-output action, do NOT also call `noop`.
+**When to call `noop`**: Any time no GitHub action (issue, comment, PR, label, etc.) is needed — e.g., no issues found, no changes detected, or repository already in desired state. Do NOT call `noop` if any other safe-output action was taken.
 
 **Failure mode**: If an agent completes its analysis without calling any safe-output tool, the workflow will fail with an error like `agent did not produce any safe outputs`. This is the most common cause of safe-output workflow failures.
 
@@ -998,28 +931,7 @@ safe-outputs:
 
 #### Fallback to Issue Creation
 
-The `fallback-to-issue` field (default: `true`) automatically falls back to creating an issue when discussion creation fails due to permissions errors. This is useful in repositories where discussions are not enabled or where the workflow lacks the necessary permissions to create discussions.
-
-When fallback is triggered:
-
-- An issue is created instead of a discussion
-- A note is added to the issue body indicating it was intended to be a discussion
-- The issue includes all the same content as the intended discussion
-
-To disable fallback behavior and fail if discussions cannot be created:
-
-```yaml wrap
-safe-outputs:
-  create-discussion:
-    fallback-to-issue: false
-```
-
-Common scenarios where fallback is useful:
-
-- Repositories with discussions disabled
-- Insufficient permissions (requires `discussions: write`)
-- Organization policies restricting discussions
-- Testing workflows across different repository configurations
+The `fallback-to-issue` field (default: `true`) automatically falls back to creating an issue when discussion creation fails (e.g., discussions disabled, insufficient `discussions: write` permissions, or org policy restrictions). The issue body notes it was intended to be a discussion. Set to `false` to fail instead of falling back.
 
 ### Close Discussion (`close-discussion:`)
 
@@ -1085,29 +997,7 @@ safe-outputs:
 
 #### Validation Rules
 
-At compile time, the compiler validates:
-
-1. **Workflow existence** - Each workflow in the `workflows` list must exist as either:
-   - A markdown workflow file (`.md`)
-   - A compiled lock file (`.lock.yml`)  
-   - A standard GitHub Actions workflow (`.yml`)
-
-2. **workflow_dispatch trigger** - Each workflow must include `workflow_dispatch` in its `on:` trigger section:
-
-   ```yaml
-   on: [push, workflow_dispatch]  # or
-   on:
-     push:
-     workflow_dispatch:
-       inputs:
-         tracker_id:
-           description: "Tracker identifier"
-           required: true
-   ```
-
-3. **No self-reference** - A workflow cannot dispatch itself to prevent infinite loops.
-
-4. **File resolution** - The compiler resolves the correct file extension (`.lock.yml` or `.yml`) at compile time and embeds it in the safe output configuration, ensuring the runtime handler dispatches the correct workflow file.
+At compile time, the compiler validates that each workflow exists (`.md`, `.lock.yml`, or `.yml`), declares `workflow_dispatch` in its `on:` section, does not self-reference, and resolves the correct file extension.
 
 #### Defining Workflow Inputs
 
@@ -1145,11 +1035,7 @@ Deploys the application to the specified environment...
 
 To respect GitHub API rate limits, the handler automatically enforces a 5-second delay between consecutive workflow dispatches. The first dispatch has no delay.
 
-**Security Considerations**
-
-- **Same-repository only** - Cannot dispatch workflows in other repositories. This prevents cross-repository workflow triggering which could be a security risk.
-- **Allowlist enforcement** - Only workflows explicitly listed in the `workflows` configuration can be dispatched. Requests for unlisted workflows are rejected.
-- **Compile-time validation** - Workflows are validated at compile time to catch configuration errors early.
+**Security**: Same-repo only; only allowlisted workflows can be dispatched; compile-time validation catches errors early.
 
 ### Workflow Call (`call-workflow:`)
 
@@ -1264,11 +1150,7 @@ At compile time, the compiler validates:
 
 Use `call-workflow` for deterministic fan-out where actor attribution and zero API overhead matter. Use `dispatch-workflow` when workers need to run asynchronously or outlive the parent run.
 
-#### Security Considerations
-
-- **Same-repository only** - Workers must live in the same repository as the gateway.
-- **Allowlist enforcement** - Only workflows listed in `workflows` can be called; unlisted names are rejected at runtime.
-- **Compile-time validation** - Misconfiguration is caught before the workflow runs.
+**Security**: Same-repo only; only allowlisted workflows can be called; compile-time validation catches misconfiguration early.
 
 ### Repository Dispatch (`dispatch_repository`)
 

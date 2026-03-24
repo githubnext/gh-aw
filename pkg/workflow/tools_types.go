@@ -335,9 +335,13 @@ type QmdDocCollection struct {
 	// Defaults to "docs-<index>" when not provided (e.g. "docs-0", "docs-1").
 	Name string `yaml:"name,omitempty"`
 
-	// Paths is the list of glob patterns for files to include in this collection.
-	// Example: ["docs/**/*.md", ".github/**/*.md"]
-	Paths []string `yaml:"paths"`
+	// Pattern is the glob pattern for files to include in this collection.
+	// Example: "docs/**/*.md"
+	Pattern string `yaml:"pattern,omitempty"`
+
+	// Ignore is an optional list of glob patterns for files to exclude from the collection.
+	// Example: ["**/node_modules/**", "**/*.test.md"]
+	Ignore []string `yaml:"ignore,omitempty"`
 
 	// Context is optional extra context injected into the qmd collection,
 	// providing the agent with additional hints about the content (e.g. "GitHub Actions documentation").

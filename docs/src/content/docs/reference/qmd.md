@@ -28,9 +28,7 @@ tools:
   qmd:
     checkouts:
       - name: docs
-        paths:
-          - docs/**/*.md
-          - .github/**/*.md
+        pattern: "docs/**/*.md"
 ---
 ```
 
@@ -47,12 +45,10 @@ tools:
   qmd:
     checkouts:
       - name: current-docs
-        paths:
-          - docs/**/*.md
+        pattern: "docs/**/*.md"
         context: "Project documentation"
       - name: other-repo-docs
-        paths:
-          - docs/**/*.md
+        pattern: "docs/**/*.md"
         context: "Documentation for owner/other-repo"
         checkout:
           repository: owner/other-repo
@@ -63,6 +59,19 @@ tools:
 Each `checkout:` entry accepts the same options as the top-level [`checkout:`](/gh-aw/reference/frontmatter/#repository-checkout-checkout) field: `repository`, `ref`, `path`, `token`, `fetch-depth`, `sparse-checkout`, `submodules`, and `lfs`.
 
 The optional `context:` field provides additional hints to the agent about the collection's content (e.g. product area, audience, or version).
+
+The optional `ignore:` field specifies glob patterns for files to exclude from the collection:
+
+```yaml wrap
+tools:
+  qmd:
+    checkouts:
+      - name: docs
+        pattern: "**/*.md"
+        ignore:
+          - "**/node_modules/**"
+          - "**/*.test.md"
+```
 
 ### Searches form
 
@@ -101,7 +110,7 @@ tools:
   qmd:
     checkouts:
       - name: docs
-        paths: [docs/**/*.md]
+        pattern: "docs/**/*.md"
     cache-key: "qmd-index-${{ hashFiles('docs/**') }}"
 ```
 
@@ -124,10 +133,10 @@ tools:
   qmd:
     checkouts:
       - name: local-docs
-        paths: [docs/**/*.md]
+        pattern: "docs/**/*.md"
         context: "Project documentation"
       - name: sdk-docs
-        paths: [README.md, docs/**/*.md]
+        pattern: "{README.md,docs/**/*.md}"
         context: "SDK reference"
         checkout:
           repository: owner/sdk
@@ -154,7 +163,8 @@ tools:
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
 | `name` | `string` | No | Collection identifier (defaults to `"docs-<index>"`). |
-| `paths` | `string[]` | No | Glob patterns for files to include (defaults to `**/*.md`). |
+| `pattern` | `string` | No | Glob pattern for files to include (defaults to `**/*.md`). |
+| `ignore` | `string[]` | No | List of glob patterns for files to exclude from the collection. |
 | `context` | `string` | No | Optional context hint for the agent about this collection's content (e.g. `"GitHub Actions documentation"`). |
 | `checkout` | `CheckoutConfig` | No | Repository checkout options — same syntax as the top-level [`checkout:`](/gh-aw/reference/frontmatter/#repository-checkout-checkout) field. Defaults to the current repository. |
 

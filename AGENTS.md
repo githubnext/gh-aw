@@ -149,7 +149,6 @@ The Copilot coding agent **cannot directly access api.github.com**. When using t
 engine: copilot
 tools:
   github:
-    mode: remote           # or "local" for Docker-based
     toolsets: [default]    # Enables repos, issues, pull_requests, etc.
 ```
 
@@ -164,7 +163,7 @@ network:
 **Key points:**
 - The GitHub MCP server provides all necessary GitHub API functionality
 - Use `toolsets: [default]` for common operations, or specify toolsets like `[repos, issues, pull_requests]`
-- Both `mode: remote` (hosted) and `mode: local` (Docker) work with Copilot
+- **Never use `mode: remote`** — it does not work with the GitHub Actions token (`GITHUB_TOKEN`) and requires a special PAT or GitHub App token
 - Never rely on direct `api.github.com` access in Copilot workflows
 
 See [GitHub MCP Server Documentation](skills/github-mcp-server/SKILL.md) for complete configuration details.

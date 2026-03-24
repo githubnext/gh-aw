@@ -5,6 +5,7 @@
 const fs = require("fs");
 /** @type {typeof import("path")} */
 const path = require("path");
+const { ERR_API } = require("./error_codes.cjs");
 
 /**
  * @fileoverview Signed Commit Push Helper
@@ -73,7 +74,7 @@ async function pushSignedCommits({ githubClient, owner, repo, branch, baseRef, c
           const { stdout: parentOut } = await exec.getExecOutput("git", ["rev-parse", `${sha}^`], { cwd });
           expectedHeadOid = parentOut.trim();
           if (!expectedHeadOid) {
-            throw new Error(`Could not resolve OID for new branch ${branch}`);
+            throw new Error(`${ERR_API}: Could not resolve OID for new branch ${branch}`);
           }
           core.info(`pushSignedCommits: creating remote branch ${branch} at parent OID ${expectedHeadOid}`);
           try {
@@ -152,7 +153,7 @@ async function pushSignedCommits({ githubClient, owner, repo, branch, baseRef, c
       );
       const newOid = result && result.createCommitOnBranch && result.createCommitOnBranch.commit ? result.createCommitOnBranch.commit.oid : undefined;
       if (typeof newOid !== "string" || newOid.length === 0) {
-        throw new Error("pushSignedCommits: GraphQL createCommitOnBranch did not return a valid commit OID");
+        throw new Error(`${ERR_API}: GraphQL createCommitOnBranch did not return a valid commit OID`);
       }
       lastOid = newOid;
       core.info(`pushSignedCommits: signed commit created: ${lastOid}`);

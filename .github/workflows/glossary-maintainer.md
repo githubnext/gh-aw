@@ -43,11 +43,7 @@ tools:
   github:
     toolsets: [default]
   edit:
-  bash:
-    - "find docs -name '*.md'"
-    - "grep -r '*' docs"
-    - "git log --since='24 hours ago' --oneline"
-    - "git log --since='7 days ago' --oneline"
+  bash: true
 
 timeout-minutes: 20
 
@@ -66,6 +62,25 @@ Keep the glossary up-to-date by:
 4. Adding new terms and updating definitions based on repository changes
 
 ## Available Tools
+
+### `search` (QMD — use this first)
+
+Use the `search` tool to find relevant documentation with natural language queries — it queries a local vector database of project docs, agent definitions, and workflow files.
+
+**Always use `search` first** when you need to find, verify, or search documentation:
+- Before writing new glossary entries — check whether documentation already exists for the term
+- Before using `find` or `bash` to list files — use `search` to discover the most relevant docs
+- When identifying relevant files — use it to narrow down which pages cover a feature or concept
+- When understanding a term — query to find authoritative documentation describing it
+
+Example queries:
+- `search("safe-outputs create-pull-request options")`
+- `search("engine configuration copilot")`
+- `search("qmd documentation search tool")`
+
+Always read the returned file paths to get full content — `search` returns paths, not content.
+
+### Serena MCP server
 
 You have access to the **Serena MCP server** for advanced semantic analysis and code understanding. Serena is configured with:
 - **Active workspace**: ${{ github.workspace }}
@@ -110,6 +125,10 @@ Check your cache to avoid duplicate work:
 
 Based on the scope (daily or weekly):
 
+**Use QMD search first** — for each changed area or feature name, run `search` to discover whether existing documentation already covers it before deciding if a new glossary term is needed:
+- e.g., `search("cache-memory workflow persistence")` to check for existing docs before adding a term
+- e.g., `search("MCP server configuration tools")` to find all documentation on a concept
+
 **Use GitHub tools to:**
 - List recent commits using `list_commits` for the appropriate timeframe
 - Get detailed commit information using `get_commit` for commits that might introduce new terminology
@@ -134,6 +153,7 @@ cat docs/src/content/docs/reference/glossary.md
 **For each candidate term, use `search` to find documentation that describes it** — this provides authoritative context for writing accurate definitions and reveals whether any documentation page already explains the term:
 - e.g., `search("safe-outputs create-pull-request")` to find pages describing that feature
 - e.g., `search("engine configuration copilot")` to find all documentation on engines
+- e.g., `search("qmd documentation search tool")` to find documentation on the search tool itself
 - Read the returned file paths for full context before writing definitions
 
 **Check for:**

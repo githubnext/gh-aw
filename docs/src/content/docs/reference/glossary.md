@@ -63,6 +63,10 @@ A frontmatter field that passes additional GitHub bot identity strings to the [M
 
 A service that implements the Model Context Protocol to provide specific capabilities to AI agents. Examples include the GitHub MCP server (for GitHub API operations), Playwright MCP server (for browser automation), or custom MCP servers for specialized tools. See [Playwright Reference](/gh-aw/reference/playwright/) for browser automation configuration.
 
+### QMD Documentation Search (`qmd:`)
+
+A built-in tool that provides vector similarity search over documentation files. Configured via `tools.qmd:` in frontmatter, the `qmd` tool runs [tobi/qmd](https://github.com/tobi/qmd) as an MCP server so agents can find relevant documentation by natural language query. The search index is built in a dedicated indexing job (which has `contents: read`) and shared with the agent job via `actions/cache`, so the agent job does not need `contents: read`. Supports indexing from repository checkouts, GitHub code search queries, and cache-only read-only mode. See [QMD Documentation Search](/gh-aw/reference/qmd/).
+
 ### Tools
 
 Capabilities that an AI agent can use during workflow execution. Tools are configured in the frontmatter and include GitHub operations ([`github:`](/gh-aw/reference/github-tools/)), file editing (`edit:`), web access (`web-fetch:`, `web-search:`), shell commands (`bash:`), browser automation ([`playwright:`](/gh-aw/reference/playwright/)), and custom MCP servers.

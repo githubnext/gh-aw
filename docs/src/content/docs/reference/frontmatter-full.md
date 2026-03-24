@@ -252,65 +252,6 @@ on:
     # (optional)
     remove_label: true
 
-  # On Label Command trigger: fires when a specific label is added to an issue, pull
-  # request, or discussion. The triggering label is automatically removed at
-  # workflow start so it can be applied again to re-trigger. Use the 'events' field
-  # to restrict which item types (issues, pull_request, discussion) activate the
-  # trigger.
-  # (optional)
-  # This field supports multiple formats (oneOf):
-
-  # Option 1: Label name as a string (shorthand format). The workflow fires when
-  # this label is added to any supported item type (issue, pull request, or
-  # discussion).
-  label_command: "example-value"
-
-  # Option 2: Label command configuration object with label name(s) and optional
-  # event filtering.
-  label_command:
-    # Label name(s) that trigger the workflow when added to an issue, pull request, or
-    # discussion.
-    # (optional)
-    # This field supports multiple formats (oneOf):
-
-    # Option 1: Single label name that acts as a command (e.g., 'deploy' triggers the
-    # workflow when the 'deploy' label is added).
-    name: "My Workflow"
-
-    # Option 2: Array of label names — any of these labels will trigger the workflow.
-    name: []
-      # Array items: A label name
-
-    # Alternative to 'name': label name(s) that trigger the workflow.
-    # (optional)
-    # This field supports multiple formats (oneOf):
-
-    # Option 1: Single label name.
-    names: "example-value"
-
-    # Option 2: Array of label names — any of these labels will trigger the workflow.
-    names: []
-      # Array items: A label name
-
-    # Item types where the label-command trigger should be active. Default is all
-    # supported types: issues, pull_request, discussion.
-    # (optional)
-    # This field supports multiple formats (oneOf):
-
-    # Option 1: Single item type or '*' for all types.
-    events: "*"
-
-    # Option 2: Array of item types where the trigger is active.
-    events: []
-      # Array items: Item type.
-
-    # Whether to automatically remove the triggering label after the workflow starts.
-    # Defaults to true. Set to false to keep the label on the item and skip the
-    # label-removal step. When false, the issues:write and discussions:write
-    # permissions required for label removal are also omitted.
-    # (optional)
-    remove_label: true
-
   # Push event trigger that runs the workflow when code is pushed to the repository
   # (optional)
   # This field supports multiple formats (oneOf):
@@ -742,6 +683,48 @@ on:
     # 'repo:owner/repo' scoping, enabling org-wide or cross-repo queries.
     # (optional)
     scope: "none"
+
+  # Skip workflow execution if any CI checks on the target branch are failing or
+  # pending. Accepts true (check all) or an object to filter specific checks by name
+  # and optionally specify a branch or allow pending checks.
+  # (optional)
+  # This field supports multiple formats (oneOf):
+
+  # Option 1: Bare key with no value — equivalent to true. Skips workflow execution
+  # if any CI checks on the target branch are currently failing.
+  skip-if-check-failing: null
+
+  # Option 2: Skip workflow execution if any CI checks on the target branch are
+  # currently failing. For pull_request events, checks the base branch. For other
+  # events, checks the current ref.
+  skip-if-check-failing: true
+
+  # Option 3: Skip-if-check-failing configuration object with optional
+  # include/exclude filter lists, an optional branch name, and an allow-pending
+  # flag.
+  skip-if-check-failing:
+    # List of check names to evaluate. When specified, only these named checks are
+    # considered. If omitted, all checks are evaluated.
+    # (optional)
+    include: []
+      # Array of strings
+
+    # List of check names to ignore. Checks in this list are not considered when
+    # determining whether to skip the workflow.
+    # (optional)
+    exclude: []
+      # Array of strings
+
+    # Branch name to check for failing CI checks. When omitted, defaults to the base
+    # branch of a pull_request event or the current ref for other events.
+    # (optional)
+    branch: "example-value"
+
+    # When true, pending or in-progress checks are not treated as failing. By default
+    # (false), any check that has not yet completed is treated as failing and will
+    # block the workflow.
+    # (optional)
+    allow-pending: true
 
   # Skip workflow execution for users with specific repository roles. Useful for
   # workflows that should only run for external contributors or specific permission
@@ -1864,7 +1847,14 @@ tools:
     toolsets: []
       # Array of Toolset name
 
-    # GitHub Tools repository access configuration. Restricts which repositories the
+    # Volume mounts for the containerized GitHub MCP server (format:
+    # 'host:container:mode' where mode is 'ro' for read-only or 'rw' for read-write).
+    # Applies to local mode only. Example: '/data:/data:ro'
+    # (optional)
+    mounts: []
+      # Array of Mount specification in format 'host:container:mode'
+
+    # Guard policy: repository access configuration. Restricts which repositories the
     # agent can access. Use 'all' to allow all repos, 'public' for public repositories
     # only, or an array of repository patterns (e.g., 'owner/repo', 'owner/*',
     # 'owner/prefix*').
@@ -1885,6 +1875,41 @@ tools:
     # the agent to users with at least the specified permission level.
     # (optional)
     min-integrity: "none"
+
+    # Guard policy: GitHub usernames whose content is unconditionally blocked. Items
+    # from these users receive 'blocked' integrity (below 'none') and are always
+    # denied, even when 'min-integrity' is 'none'. Cannot be overridden by
+    # 'approval-labels'. Requires 'min-integrity' to be set. Accepts an array of
+    # usernames, a comma-separated string, a newline-separated string, or a GitHub
+    # Actions expression (e.g. '${{ vars.BLOCKED_USERS }}').
+    # (optional)
+    # This field supports multiple formats (oneOf):
+
+    # Option 1: Array of GitHub usernames to block
+    blocked-users: []
+      # Array items: GitHub username to block
+
+    # Option 2: Comma- or newline-separated list of usernames, or a GitHub Actions
+    # expression resolving to such a list (e.g. '${{ vars.BLOCKED_USERS }}')
+    blocked-users: "example-value"
+
+    # Guard policy: GitHub label names that promote a content item's effective
+    # integrity to 'approved' when present. Enables human-review gates where a
+    # maintainer labels an item to allow it through. Uses max(base, approved) so it
+    # never lowers integrity. Does not override 'blocked-users'. Requires
+    # 'min-integrity' to be set. Accepts an array of label names, a comma-separated
+    # string, a newline-separated string, or a GitHub Actions expression (e.g. '${{
+    # vars.APPROVAL_LABELS }}').
+    # (optional)
+    # This field supports multiple formats (oneOf):
+
+    # Option 1: Array of GitHub label names
+    approval-labels: []
+      # Array items: GitHub label name
+
+    # Option 2: Comma- or newline-separated list of label names, or a GitHub Actions
+    # expression resolving to such a list (e.g. '${{ vars.APPROVAL_LABELS }}')
+    approval-labels: "example-value"
 
     # GitHub App configuration for token minting. When configured, a GitHub App
     # installation access token is minted at workflow start and used instead of the
@@ -1996,6 +2021,43 @@ tools:
 
   # Option 2: Enable agentic-workflows tool with default settings (same as true)
   agentic-workflows: null
+
+  # qmd documentation search tool (https://github.com/tobi/qmd). Builds a local
+  # vector search index in a dedicated indexing job and shares it with the agent job
+  # via GitHub Actions cache. The agent job mounts a search MCP server over the
+  # pre-built index and does not need contents:read permission.
+  # (optional)
+  qmd:
+    # List of named documentation collections built from checked-out repositories.
+    # Each entry can optionally specify its own checkout configuration to target a
+    # different repository.
+    # (optional)
+    checkouts: []
+
+    # List of GitHub search queries whose results are downloaded and added to the qmd
+    # index.
+    # (optional)
+    searches: []
+
+    # GitHub Actions cache key used to persist the qmd index across workflow runs.
+    # When set without any indexing sources (checkouts/searches), qmd operates in
+    # read-only mode: the index is restored from cache and all indexing steps are
+    # skipped.
+    # (optional)
+    cache-key: "example-value"
+
+    # Enable GPU acceleration for the embedding model (node-llama-cpp). Defaults to
+    # false: NODE_LLAMA_CPP_GPU=false is injected into the indexing step so GPU
+    # probing is skipped on CPU-only runners. Set to true only when the indexing
+    # runner has a GPU.
+    # (optional)
+    gpu: true
+
+    # Override the runner image for the qmd indexing job. Defaults to the same runner
+    # as the agent job. Use this when the indexing job requires a different runner
+    # (e.g. a GPU runner).
+    # (optional)
+    runs-on: "example-value"
 
   # Cache memory MCP configuration for persistent memory storage
   # (optional)
@@ -4667,6 +4729,13 @@ safe-outputs:
   # to allow dispatching
   dispatch-workflow: []
     # Array items: string
+
+  # Dispatch repository_dispatch events to external repositories. Each sub-key
+  # defines a named dispatch tool with its own event_type, target repository, input
+  # schema, and execution limits.
+  # (optional)
+  dispatch_repository:
+    {}
 
   # Call reusable workflows via workflow_call fan-out. The compiler generates static
   # conditional jobs; the agent selects which worker to activate. Use this for

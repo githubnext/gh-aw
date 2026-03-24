@@ -153,7 +153,7 @@ describe("qmd_index.cjs", () => {
   // ── Error path: missing config ─────────────────────────────────────────────
   it("fails when QMD_CONFIG_JSON is not set", async () => {
     await runMain(undefined);
-    expect(mockCore.setFailed).toHaveBeenCalledWith("QMD_CONFIG_JSON environment variable not set");
+    expect(mockCore.setFailed).toHaveBeenCalledWith("ERR_CONFIG: QMD_CONFIG_JSON environment variable not set");
     expect(mockStore.update).not.toHaveBeenCalled();
   });
 
@@ -182,7 +182,7 @@ describe("qmd_index.cjs", () => {
 
     await runMain({
       dbPath: path.join(tmpDir, "index"),
-      checkouts: [{ name: "docs", path: docsDir, patterns: ["**/*.md"], context: "Project docs" }],
+      checkouts: [{ name: "docs", path: docsDir, pattern: "**/*.md", context: "Project docs" }],
     });
 
     expect(mockCore.setFailed).not.toHaveBeenCalled();
@@ -199,7 +199,7 @@ describe("qmd_index.cjs", () => {
 
     await runMain({
       dbPath: path.join(tmpDir, "index"),
-      checkouts: [{ name: "docs", path: "${GITHUB_WORKSPACE}", patterns: ["**/*.md"] }],
+      checkouts: [{ name: "docs", path: "${GITHUB_WORKSPACE}", pattern: "**/*.md" }],
     });
 
     expect(mockCore.setFailed).not.toHaveBeenCalled();
@@ -393,7 +393,7 @@ describe("qmd_index.cjs", () => {
 
     await runMain({
       dbPath: path.join(tmpDir, "index"),
-      checkouts: [{ name: "docs", path: docsDir, patterns: ["**/*.md"] }],
+      checkouts: [{ name: "docs", path: docsDir, pattern: "**/*.md" }],
       searches: [{ name: "issues", type: "issues", max: 50 }],
     });
 
@@ -426,7 +426,7 @@ describe("qmd_index.cjs", () => {
 
     await runMain({
       dbPath: path.join(tmpDir, "index"),
-      checkouts: [{ name: "docs", path: docsDir, patterns: ["**/*.md", "**/*.mdx"], context: "Project docs" }],
+      checkouts: [{ name: "docs", path: docsDir, pattern: "**/*.md", context: "Project docs" }],
     });
 
     const summaryText = mockCore.summary.addRaw.mock.calls.flat().join("\n");
@@ -434,7 +434,22 @@ describe("qmd_index.cjs", () => {
     expect(summaryText).toContain("<summary>qmd documentation index</summary>");
     expect(summaryText).toContain("</details>");
     expect(summaryText).toContain("### Collections");
-    expect(summaryText).toContain("| docs | **/*.md, **/*.mdx | Project docs |");
+    expect(summaryText).toContain("| docs | **/*.md | - | Project docs |");
+    expect(mockCore.summary.write).toHaveBeenCalledOnce();
+  });
+
+  // ── writeSummary: ignore patterns ────────────────────────────────────────
+  it("writes ignore patterns in the collections summary table", async () => {
+    const docsDir = path.join(tmpDir, "docs");
+    fs.mkdirSync(docsDir);
+
+    await runMain({
+      dbPath: path.join(tmpDir, "index"),
+      checkouts: [{ name: "docs", path: docsDir, pattern: "**/*.md", ignore: ["**/node_modules/**", "**/*.test.md"] }],
+    });
+
+    const summaryText = mockCore.summary.addRaw.mock.calls.flat().join("\n");
+    expect(summaryText).toContain("| docs | **/*.md | **/node_modules/**, **/*.test.md | - |");
     expect(mockCore.summary.write).toHaveBeenCalledOnce();
   });
 

@@ -50,7 +50,7 @@ func writeMCPScriptsFiles(dir string, mcpScriptsConfig *workflow.MCPScriptsConfi
 	}
 
 	// Generate and write tools.json
-	toolsJSON := workflow.GenerateMCPScriptsToolsConfigForInspector(mcpScriptsConfig)
+	toolsJSON := workflow.GenerateMCPScriptsToolsConfig(mcpScriptsConfig)
 	toolsPath := filepath.Join(dir, "tools.json")
 	if err := os.WriteFile(toolsPath, []byte(toolsJSON), 0644); err != nil {
 		errMsg := fmt.Sprintf("failed to write tools.json: %v", err)
@@ -62,7 +62,7 @@ func writeMCPScriptsFiles(dir string, mcpScriptsConfig *workflow.MCPScriptsConfi
 	}
 
 	// Generate and write mcp-server.cjs entry point
-	mcpServerScript := workflow.GenerateMCPScriptsMCPServerScriptForInspector(mcpScriptsConfig)
+	mcpServerScript := workflow.GenerateMCPScriptsMCPServerScript(mcpScriptsConfig)
 	mcpServerPath := filepath.Join(dir, "mcp-server.cjs")
 	if err := os.WriteFile(mcpServerPath, []byte(mcpServerScript), 0755); err != nil {
 		errMsg := fmt.Sprintf("failed to write mcp-server.cjs: %v", err)
@@ -79,13 +79,13 @@ func writeMCPScriptsFiles(dir string, mcpScriptsConfig *workflow.MCPScriptsConfi
 		var extension string
 
 		if toolConfig.Script != "" {
-			content = workflow.GenerateMCPScriptJavaScriptToolScriptForInspector(toolConfig)
+			content = workflow.GenerateMCPScriptJavaScriptToolScript(toolConfig)
 			extension = ".cjs"
 		} else if toolConfig.Run != "" {
-			content = workflow.GenerateMCPScriptShellToolScriptForInspector(toolConfig)
+			content = workflow.GenerateMCPScriptShellToolScript(toolConfig)
 			extension = ".sh"
 		} else if toolConfig.Py != "" {
-			content = workflow.GenerateMCPScriptPythonToolScriptForInspector(toolConfig)
+			content = workflow.GenerateMCPScriptPythonToolScript(toolConfig)
 			extension = ".py"
 		} else {
 			continue

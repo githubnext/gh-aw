@@ -11,6 +11,7 @@ import (
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/sliceutil"
 	"github.com/github/gh-aw/pkg/workflow"
 	"github.com/spf13/cobra"
 )
@@ -325,13 +326,9 @@ func filterCommitStatusesToPolicyChecks(statuses []PRCommitStatus) []PRCommitSta
 	if len(statuses) == 0 {
 		return nil
 	}
-	var filtered []PRCommitStatus
-	for _, s := range statuses {
-		if isPolicyCheck(s.Context) {
-			filtered = append(filtered, s)
-		}
-	}
-	return filtered
+	return sliceutil.Filter(statuses, func(s PRCommitStatus) bool {
+		return isPolicyCheck(s.Context)
+	})
 }
 
 // classifyCheckState derives a normalized CheckState from raw check runs and commit statuses.

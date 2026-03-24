@@ -26,7 +26,7 @@
 #   Imports:
 #     - shared/mcp/qmd-docs.md
 #
-# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"8748bf4a123a24b70955e1e122f97a59072d8402fcde66d488ec24283da0b1dc","strict":true,"agent_id":"copilot"}
+# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"1ec1bd56c492d19d31dccced2aeb83591f98989f6efecc30406af6397f392b38","strict":true,"agent_id":"copilot"}
 
 name: "Weekly Blog Post Writer"
 "on":
@@ -418,7 +418,7 @@ jobs:
           GH_AW_APPROVAL_LABELS_VAR: ${{ vars.GH_AW_GITHUB_APPROVAL_LABELS || '' }}
         run: bash ${RUNNER_TEMP}/gh-aw/actions/parse_guard_list.sh
       - name: Download container images
-        run: bash ${RUNNER_TEMP}/gh-aw/actions/download_docker_images.sh ghcr.io/github/gh-aw-firewall/agent:0.25.0 ghcr.io/github/gh-aw-firewall/api-proxy:0.25.0 ghcr.io/github/gh-aw-firewall/squid:0.25.0 ghcr.io/github/gh-aw-mcpg:v0.2.3 ghcr.io/github/github-mcp-server:v0.32.0 node:lts-alpine
+        run: bash ${RUNNER_TEMP}/gh-aw/actions/download_docker_images.sh ghcr.io/github/gh-aw-firewall/agent:0.25.0 ghcr.io/github/gh-aw-firewall/api-proxy:0.25.0 ghcr.io/github/gh-aw-firewall/squid:0.25.0 ghcr.io/github/gh-aw-mcpg:v0.2.4 ghcr.io/github/github-mcp-server:v0.32.0 node:lts-alpine
       - name: Install gh-aw extension
         env:
           GH_TOKEN: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
@@ -449,7 +449,7 @@ jobs:
           mkdir -p /tmp/gh-aw/safeoutputs
           mkdir -p /tmp/gh-aw/mcp-logs/safeoutputs
           cat > ${RUNNER_TEMP}/gh-aw/safeoutputs/config.json << 'GH_AW_SAFE_OUTPUTS_CONFIG_EOF'
-          {"create_pull_request":{"expires":168,"max":1,"reviewers":["copilot"],"title_prefix":"[blog] "},"missing_data":{},"missing_tool":{},"noop":{"max":1},"push_repo_memory":{"memories":[{"dir":"/tmp/gh-aw/repo-memory/default","id":"default","max_file_count":100,"max_file_size":10240,"max_patch_size":10240}]}}
+          {"create_pull_request":{"draft":false,"expires":168,"labels":["blog"],"max":1,"max_patch_size":1024,"protected_files":["package.json","bun.lockb","bunfig.toml","deno.json","deno.jsonc","deno.lock","global.json","NuGet.Config","Directory.Packages.props","mix.exs","mix.lock","go.mod","go.sum","stack.yaml","stack.yaml.lock","pom.xml","build.gradle","build.gradle.kts","settings.gradle","settings.gradle.kts","gradle.properties","package-lock.json","yarn.lock","pnpm-lock.yaml","npm-shrinkwrap.json","requirements.txt","Pipfile","Pipfile.lock","pyproject.toml","setup.py","setup.cfg","Gemfile","Gemfile.lock","uv.lock"],"protected_path_prefixes":[".github/",".agents/"],"reviewers":["copilot"],"title_prefix":"[blog] "},"missing_data":{},"missing_tool":{},"noop":{"max":1,"report-as-issue":"true"},"push_repo_memory":{"memories":[{"dir":"/tmp/gh-aw/repo-memory/default","id":"default","max_file_count":100,"max_file_size":10240,"max_patch_size":10240}]}}
           GH_AW_SAFE_OUTPUTS_CONFIG_EOF
       - name: Write Safe Outputs Tools
         run: |
@@ -656,7 +656,7 @@ jobs:
           export DEBUG="*"
           
           export GH_AW_ENGINE="copilot"
-          export MCP_GATEWAY_DOCKER_COMMAND='docker run -i --rm --network host -v /var/run/docker.sock:/var/run/docker.sock -e MCP_GATEWAY_PORT -e MCP_GATEWAY_DOMAIN -e MCP_GATEWAY_API_KEY -e MCP_GATEWAY_PAYLOAD_DIR -e MCP_GATEWAY_PAYLOAD_SIZE_THRESHOLD -e DEBUG -e MCP_GATEWAY_LOG_DIR -e GH_AW_MCP_LOG_DIR -e GH_AW_SAFE_OUTPUTS -e GH_AW_SAFE_OUTPUTS_CONFIG_PATH -e GH_AW_SAFE_OUTPUTS_TOOLS_PATH -e GH_AW_ASSETS_BRANCH -e GH_AW_ASSETS_MAX_SIZE_KB -e GH_AW_ASSETS_ALLOWED_EXTS -e DEFAULT_BRANCH -e GITHUB_MCP_SERVER_TOKEN -e GITHUB_MCP_GUARD_MIN_INTEGRITY -e GITHUB_MCP_GUARD_REPOS -e GITHUB_REPOSITORY -e GITHUB_SERVER_URL -e GITHUB_SHA -e GITHUB_WORKSPACE -e GITHUB_TOKEN -e GITHUB_RUN_ID -e GITHUB_RUN_NUMBER -e GITHUB_RUN_ATTEMPT -e GITHUB_JOB -e GITHUB_ACTION -e GITHUB_EVENT_NAME -e GITHUB_EVENT_PATH -e GITHUB_ACTOR -e GITHUB_ACTOR_ID -e GITHUB_TRIGGERING_ACTOR -e GITHUB_WORKFLOW -e GITHUB_WORKFLOW_REF -e GITHUB_WORKFLOW_SHA -e GITHUB_REF -e GITHUB_REF_NAME -e GITHUB_REF_TYPE -e GITHUB_HEAD_REF -e GITHUB_BASE_REF -e GH_AW_SAFE_OUTPUTS_PORT -e GH_AW_SAFE_OUTPUTS_API_KEY -v /tmp/gh-aw/mcp-payloads:/tmp/gh-aw/mcp-payloads:rw -v /opt:/opt:ro -v /tmp:/tmp:rw -v '"${GITHUB_WORKSPACE}"':'"${GITHUB_WORKSPACE}"':rw ghcr.io/github/gh-aw-mcpg:v0.2.3'
+          export MCP_GATEWAY_DOCKER_COMMAND='docker run -i --rm --network host -v /var/run/docker.sock:/var/run/docker.sock -e MCP_GATEWAY_PORT -e MCP_GATEWAY_DOMAIN -e MCP_GATEWAY_API_KEY -e MCP_GATEWAY_PAYLOAD_DIR -e MCP_GATEWAY_PAYLOAD_SIZE_THRESHOLD -e DEBUG -e MCP_GATEWAY_LOG_DIR -e GH_AW_MCP_LOG_DIR -e GH_AW_SAFE_OUTPUTS -e GH_AW_SAFE_OUTPUTS_CONFIG_PATH -e GH_AW_SAFE_OUTPUTS_TOOLS_PATH -e GH_AW_ASSETS_BRANCH -e GH_AW_ASSETS_MAX_SIZE_KB -e GH_AW_ASSETS_ALLOWED_EXTS -e DEFAULT_BRANCH -e GITHUB_MCP_SERVER_TOKEN -e GITHUB_MCP_GUARD_MIN_INTEGRITY -e GITHUB_MCP_GUARD_REPOS -e GITHUB_REPOSITORY -e GITHUB_SERVER_URL -e GITHUB_SHA -e GITHUB_WORKSPACE -e GITHUB_TOKEN -e GITHUB_RUN_ID -e GITHUB_RUN_NUMBER -e GITHUB_RUN_ATTEMPT -e GITHUB_JOB -e GITHUB_ACTION -e GITHUB_EVENT_NAME -e GITHUB_EVENT_PATH -e GITHUB_ACTOR -e GITHUB_ACTOR_ID -e GITHUB_TRIGGERING_ACTOR -e GITHUB_WORKFLOW -e GITHUB_WORKFLOW_REF -e GITHUB_WORKFLOW_SHA -e GITHUB_REF -e GITHUB_REF_NAME -e GITHUB_REF_TYPE -e GITHUB_HEAD_REF -e GITHUB_BASE_REF -e GH_AW_SAFE_OUTPUTS_PORT -e GH_AW_SAFE_OUTPUTS_API_KEY -v /tmp/gh-aw/mcp-payloads:/tmp/gh-aw/mcp-payloads:rw -v /opt:/opt:ro -v /tmp:/tmp:rw -v '"${GITHUB_WORKSPACE}"':'"${GITHUB_WORKSPACE}"':rw ghcr.io/github/gh-aw-mcpg:v0.2.4'
           
           mkdir -p /home/runner/.copilot
           cat << GH_AW_MCP_CONFIG_EOF | bash ${RUNNER_TEMP}/gh-aw/actions/start_mcp_gateway.sh
@@ -1252,7 +1252,7 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           QMD_CONFIG_JSON: |
-            {"dbPath":"/tmp/gh-aw/qmd-index","checkouts":[{"name":"gh-aw","path":"${GITHUB_WORKSPACE}","patterns":["docs/src/content/docs/**",".github/agents/**",".github/aw/**"],"context":"gh-aw project documentation, agent definitions, and workflow authoring instructions"}]}
+            {"dbPath":"/tmp/gh-aw/qmd-index","checkouts":[{"name":"gh-aw","path":"${GITHUB_WORKSPACE}","pattern":"**/*.{md,mdx}","ignore":[".git/**","node_modules/**"],"context":"gh-aw project documentation, agent definitions, and workflow authoring instructions"}]}
         with:
           github-token: ${{ github.token }}
           script: |

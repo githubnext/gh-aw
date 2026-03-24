@@ -385,7 +385,7 @@ const FirewallAuditArtifactName = "firewall-audit-logs"
 const AWFDefaultLogLevel = "info"
 
 // DefaultMCPGatewayVersion is the default version of the MCP Gateway (gh-aw-mcpg) Docker image
-const DefaultMCPGatewayVersion Version = "v0.2.3"
+const DefaultMCPGatewayVersion Version = "v0.2.4"
 
 // DefaultMCPGatewayContainer is the default container image for the MCP Gateway
 const DefaultMCPGatewayContainer = "ghcr.io/github/gh-aw-mcpg"
@@ -429,7 +429,7 @@ var SerenaLanguageSupport = map[string][]string{
 }
 
 // DefaultAPMVersion is the default version of the microsoft/APM (Agent Package Manager) CLI
-const DefaultAPMVersion Version = "v0.8.4"
+const DefaultAPMVersion Version = "v0.8.5"
 
 // DefaultPlaywrightMCPVersion is the default version of the @playwright/mcp package
 const DefaultPlaywrightMCPVersion Version = "0.0.68"

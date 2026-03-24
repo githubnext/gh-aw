@@ -108,8 +108,7 @@ Build a local vector search index over documentation files and expose it as an M
 tools:
   qmd:
     checkouts:
-      - paths:
-          - docs/**/*.md
+      - pattern: "docs/**/*.md"
 ```
 
 See **[QMD Reference](/gh-aw/reference/qmd/)** for complete configuration options, checkout support, GitHub search integration, and cache key usage.

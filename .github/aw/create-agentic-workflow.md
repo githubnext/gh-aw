@@ -267,7 +267,6 @@ These resources contain workflow patterns, best practices, safe outputs, and per
        ```yaml
        tools:
          github:
-           mode: remote
            toolsets: [default]
        ```
      - ❌ **WRONG** — Direct API access (will silently fail):
@@ -482,7 +481,7 @@ These resources contain workflow patterns, best practices, safe outputs, and per
    - **Always use `toolsets:` for GitHub tools** - Use `toolsets: [default]` instead of manually listing individual tools.
    - **Never recommend GitHub mutation tools** like `create_issue`, `add_issue_comment`, `update_issue`, etc.
    - **Always use `safe-outputs` instead** for any GitHub write operations (creating issues, adding comments, etc.)
-   - **Mode configuration** - Both `mode: local` (Docker-based, default) and `mode: remote` (hosted) are supported. Remote mode offers faster startup and no Docker requirement.
+   - **Mode configuration** - Only `mode: local` (Docker-based, default) is supported when running in GitHub Actions. **Do NOT use `mode: remote`** — it does not work with the GitHub Actions token (`GITHUB_TOKEN`) and requires a special PAT or GitHub App token with MCP access.
 
    **Guard Policies (`repos` and `min-integrity`)**:
 
