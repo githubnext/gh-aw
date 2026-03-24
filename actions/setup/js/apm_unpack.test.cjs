@@ -547,21 +547,12 @@ describe("findLockfile", () => {
     expect(mockCore.warning).not.toHaveBeenCalled();
   });
 
-  it("falls back to legacy apm.lock and emits warning", () => {
+  it("throws when apm.lock.yaml does not exist", () => {
+    expect(() => findLockfile(tempDir)).toThrow(/apm\.lock\.yaml not found/);
+  });
+
+  it("throws when only legacy apm.lock exists (not supported)", () => {
     writeFile(tempDir, "apm.lock", "content");
-    const result = findLockfile(tempDir);
-    expect(result).toBe(path.join(tempDir, "apm.lock"));
-    expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("legacy lockfile"));
-  });
-
-  it("prefers apm.lock.yaml over apm.lock when both exist", () => {
-    writeFile(tempDir, "apm.lock.yaml", "new");
-    writeFile(tempDir, "apm.lock", "old");
-    const result = findLockfile(tempDir);
-    expect(result).toBe(path.join(tempDir, "apm.lock.yaml"));
-  });
-
-  it("throws when neither lockfile exists", () => {
     expect(() => findLockfile(tempDir)).toThrow(/apm\.lock\.yaml not found/);
   });
 });
@@ -897,29 +888,18 @@ dependencies:
     expect(fs.existsSync(path.join(outputDir, ".github", "copilot-instructions.md"))).toBe(true);
   });
 
-  it("uses legacy apm.lock when apm.lock.yaml is absent", async () => {
+  it("throws when bundle contains only legacy apm.lock (not supported)", async () => {
     fs.writeFileSync(path.join(bundleBaseDir, "pkg.tar.gz"), "fake");
 
     mockExec.exec.mockImplementation(async (_cmd, args) => {
       const tempDir = args[3];
       const innerDir = path.join(tempDir, "pkg-1.0.0");
       fs.mkdirSync(innerDir, { recursive: true });
-
-      const lockfileContent = `lockfile_version: '1'
-dependencies:
-- repo_url: https://github.com/owner/legacy-pkg
-  deployed_files:
-  - .github/skills/legacy/
-`;
-      // Write legacy lockfile name
-      fs.writeFileSync(path.join(innerDir, "apm.lock"), lockfileContent);
-      fs.mkdirSync(path.join(innerDir, ".github", "skills", "legacy"), { recursive: true });
-      fs.writeFileSync(path.join(innerDir, ".github", "skills", "legacy", "skill.md"), "# Legacy");
+      // Only write the legacy lockfile — should be rejected
+      fs.writeFileSync(path.join(innerDir, "apm.lock"), "lockfile_version: '1'\ndependencies:\n");
     });
 
-    const result = await unpackBundle({ bundleDir: bundleBaseDir, outputDir });
-    expect(result.files).toContain(".github/skills/legacy/");
-    expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("legacy lockfile"));
+    await expect(unpackBundle({ bundleDir: bundleBaseDir, outputDir })).rejects.toThrow(/apm\.lock\.yaml not found/);
   });
 
   it("skips verification when skipVerify is true", async () => {

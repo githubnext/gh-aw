@@ -15,7 +15,7 @@
  *   1. Locate the tar.gz bundle in APM_BUNDLE_DIR
  *   2. Extract to a temporary directory (with path-traversal / symlink guards)
  *   3. Locate the single top-level directory inside the extracted archive
- *   4. Read apm.lock.yaml (or legacy apm.lock) from the bundle
+ *   4. Read apm.lock.yaml from the bundle
  *   5. Collect the deduplicated deployed_files list from all dependencies
  *   6. Verify that every listed file actually exists in the bundle
  *   7. Copy files (additive, never deletes) to OUTPUT_DIR
@@ -36,8 +36,6 @@ const os = require("os");
 
 /** Lockfile filename used by current APM versions. */
 const LOCKFILE_NAME = "apm.lock.yaml";
-/** Legacy lockfile filename used by older APM versions. */
-const LEGACY_LOCKFILE_NAME = "apm.lock";
 
 // ---------------------------------------------------------------------------
 // YAML parser
@@ -101,7 +99,7 @@ function unquoteYaml(raw) {
  */
 
 /**
- * Parse an APM lockfile (apm.lock.yaml or legacy apm.lock) from a YAML string.
+ * Parse an APM lockfile (apm.lock.yaml) from a YAML string.
  *
  * This is a targeted parser for the specific output produced by PyYAML's
  * safe_dump (default_flow_style=False, sort_keys=False).  The format is:
@@ -424,22 +422,17 @@ function findSourceDir(extractedDir) {
 }
 
 /**
- * Locate the lockfile inside the source directory, trying current and legacy names.
+ * Locate the lockfile inside the source directory.
  *
  * @param {string} sourceDir
  * @returns {string} Absolute path to the lockfile.
- * @throws {Error} If neither lockfile is found.
+ * @throws {Error} If the lockfile is not found.
  */
 function findLockfile(sourceDir) {
   const primary = path.join(sourceDir, LOCKFILE_NAME);
   if (fs.existsSync(primary)) {
     core.info(`[APM Unpack] Found lockfile: ${primary}`);
     return primary;
-  }
-  const legacy = path.join(sourceDir, LEGACY_LOCKFILE_NAME);
-  if (fs.existsSync(legacy)) {
-    core.warning(`[APM Unpack] Using legacy lockfile name (${LEGACY_LOCKFILE_NAME}): ${legacy}`);
-    return legacy;
   }
   // List source dir for debugging
   const entries = fs.readdirSync(sourceDir).join(", ");
