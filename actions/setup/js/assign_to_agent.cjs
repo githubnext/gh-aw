@@ -613,7 +613,7 @@ async function main() {
         owner: r.owner,
         repo: r.repo,
         issue_number: failedNumber,
-        body: sanitizeContent(`⚠️ **Assignment failed**: Failed to assign ${r.agent} coding agent to this ${failedType}.\n\nError: ${r.error}`),
+        body: sanitizeContent(`⚠️ **Assignment failed**: Failed to assign ${r.agent} coding agent to this ${failedType}.\n\nError: ${r.error}`, { maxLength: 65000 }),
       });
       core.info(`Posted failure comment on ${failedType} #${failedNumber} in ${r.owner}/${r.repo}`);
     } catch (commentError) {
