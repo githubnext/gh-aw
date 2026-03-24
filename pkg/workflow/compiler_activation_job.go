@@ -329,7 +329,7 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 		if err != nil {
 			return nil, fmt.Errorf("failed to marshal label-command names: %w", err)
 		}
-		steps = append(steps, fmt.Sprintf("          GH_AW_LABEL_NAMES: '%s'\n", string(labelNamesJSON)))
+		steps = append(steps, fmt.Sprintf("          GH_AW_LABEL_NAMES: %q\n", string(labelNamesJSON)))
 		steps = append(steps, "        with:\n")
 		// Use GitHub App or custom token if configured (avoids needing elevated GITHUB_TOKEN permissions)
 		labelToken := c.resolveActivationToken(data)
