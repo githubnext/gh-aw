@@ -556,7 +556,7 @@ func buildDetectionSuccessCondition() ConditionNode {
 // prefix is prepended to the artifact name; use empty string for non-workflow_call workflows.
 func buildSafeOutputItemsManifestUploadStep(prefix string) []string {
 	return []string{
-		"      - name: Upload safe output items\n",
+		"      - name: Upload Safe Output Items\n",
 		"        if: always()\n",
 		fmt.Sprintf("        uses: %s\n", GetActionPin("actions/upload-artifact")),
 		"        with:\n",

@@ -56,7 +56,7 @@ function generateDifcFilteredSummary(filteredEvents) {
 
   const lines = [];
   lines.push("<details>");
-  lines.push(`<summary>🔒 DIFC Filtered Events (${filteredEvents.length})</summary>\n`);
+  lines.push(`<summary><b>🔒 DIFC Filtered Events (${filteredEvents.length})</b></summary>\n`);
   lines.push("");
   lines.push("The following tool calls were blocked by DIFC integrity or secrecy checks:\n");
   lines.push("");
@@ -75,7 +75,8 @@ function generateDifcFilteredSummary(filteredEvents) {
       const label = event.number ? `#${event.number}` : lastSegment || event.html_url;
       resource = `[${label}](${event.html_url})`;
     } else {
-      resource = event.description || "-";
+      const rawDesc = event.description ? event.description.replace(/^[a-z-]+:(?!\/\/)/i, "") : null;
+      resource = rawDesc && rawDesc !== "#unknown" ? event.description : "-";
     }
     lines.push(`| ${time} | ${server} | ${tool} | ${reason} | ${user} | ${resource} |`);
   }
@@ -159,7 +160,7 @@ function generateRpcMessagesSummary(entries, difcFilteredEvents) {
     const blockedNote = blockedCount > 0 ? `, ${blockedCount} blocked` : "";
     const callLines = [];
     callLines.push("<details>");
-    callLines.push(`<summary>MCP Gateway Activity (${requests.length} request${requests.length !== 1 ? "s" : ""}${blockedNote})</summary>\n`);
+    callLines.push(`<summary><b>MCP Gateway Activity (${requests.length} request${requests.length !== 1 ? "s" : ""}${blockedNote})</b></summary>\n`);
     callLines.push("");
     callLines.push("| Time | Server | Tool / Method |");
     callLines.push("|------|--------|---------------|");
@@ -176,7 +177,7 @@ function generateRpcMessagesSummary(entries, difcFilteredEvents) {
     parts.push(callLines.join("\n"));
   } else if (blockedCount > 0) {
     // No requests, but there are DIFC_FILTERED events — add a minimal header
-    parts.push(`<details>\n<summary>MCP Gateway Activity (${blockedCount} blocked)</summary>\n\n*All tool calls were blocked by the integrity filter.*\n\n</details>\n`);
+    parts.push(`<details>\n<summary><b>MCP Gateway Activity (${blockedCount} blocked)</b></summary>\n\n*All tool calls were blocked by the integrity filter.*\n\n</details>\n`);
   }
 
   // Other message types (not REQUEST, RESPONSE, DIFC_FILTERED)
@@ -187,7 +188,7 @@ function generateRpcMessagesSummary(entries, difcFilteredEvents) {
       typeCounts[entry.type] = (typeCounts[entry.type] || 0) + 1;
     }
     const otherLines = Object.entries(typeCounts).map(([type, count]) => `- **${type}**: ${count} message${count !== 1 ? "s" : ""}`);
-    parts.push("<details>\n<summary>Other Gateway Messages</summary>\n\n" + otherLines.join("\n") + "\n\n</details>\n");
+    parts.push("<details>\n<summary><b>Other Gateway Messages</b></summary>\n\n" + otherLines.join("\n") + "\n\n</details>\n");
   }
 
   // DIFC_FILTERED section (re-uses existing table renderer)
@@ -402,7 +403,7 @@ function generateGatewayLogSummary(gatewayLogContent, stderrLogContent) {
   // Add gateway.log if it has content
   if (gatewayLogContent && gatewayLogContent.trim().length > 0) {
     summary.push("<details>");
-    summary.push("<summary>MCP Gateway Log (gateway.log)</summary>\n");
+    summary.push("<summary><b>MCP Gateway Log (gateway.log)</b></summary>\n");
     summary.push("```");
     summary.push(gatewayLogContent.trim());
     summary.push("```");
@@ -412,7 +413,7 @@ function generateGatewayLogSummary(gatewayLogContent, stderrLogContent) {
   // Add stderr.log if it has content
   if (stderrLogContent && stderrLogContent.trim().length > 0) {
     summary.push("<details>");
-    summary.push("<summary>MCP Gateway Log (stderr.log)</summary>\n");
+    summary.push("<summary><b>MCP Gateway Log (stderr.log)</b></summary>\n");
     summary.push("```");
     summary.push(stderrLogContent.trim());
     summary.push("```");

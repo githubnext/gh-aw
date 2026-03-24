@@ -952,7 +952,7 @@ jobs:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           sarif_file: ${{ steps.process_safe_outputs.outputs.sarif_file }}
           wait-for-processing: true
-      - name: Upload safe output items
+      - name: Upload Safe Output Items
         if: always()
         uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7
         with:
