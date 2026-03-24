@@ -8,8 +8,8 @@ import (
 
 var permissionsReadCodemodLog = logger.New("cli:codemod_permissions_read")
 
-// getPermissionsReadCodemod creates a codemod for converting invalid "read" and "write" shorthands
-func getPermissionsReadCodemod() Codemod {
+// getExpandPermissionsShorthandCodemod creates a codemod for converting invalid "read" and "write" shorthands
+func getExpandPermissionsShorthandCodemod() Codemod {
 	return Codemod{
 		ID:           "permissions-read-to-read-all",
 		Name:         "Convert invalid permissions shorthand",

@@ -9,8 +9,8 @@ import (
 
 var writePermissionsCodemodLog = logger.New("cli:codemod_permissions")
 
-// getWritePermissionsCodemod creates a codemod for converting write permissions to read
-func getWritePermissionsCodemod() Codemod {
+// getMigrateWritePermissionsToReadCodemod creates a codemod for converting write permissions to read
+func getMigrateWritePermissionsToReadCodemod() Codemod {
 	return Codemod{
 		ID:           "write-permissions-to-read-migration",
 		Name:         "Convert write permissions to read",
