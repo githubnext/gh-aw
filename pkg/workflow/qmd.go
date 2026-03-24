@@ -68,9 +68,11 @@ package workflow
 import (
 	"encoding/json"
 	"fmt"
+	"os"
 	"strconv"
 	"strings"
 
+	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
 )
@@ -381,6 +383,41 @@ func buildQmdConfig(qmdConfig *QmdToolConfig) qmdBuildConfig {
 	return cfg
 }
 
+// validateQmdPatterns performs compile-time validation of the glob patterns declared
+// in each qmd checkout collection and emits warnings to stderr for common mistakes:
+//
+//   - Empty patterns are useless and will not match any files.
+//   - Patterns containing a comma suggest the user intended comma-separated globs,
+//     which the qmd SDK does not support; each pattern must be listed separately.
+//
+// It also logs each checkout and its patterns at debug level so users can verify
+// the compiler saw the expected configuration.
+func validateQmdPatterns(qmdConfig *QmdToolConfig) {
+	for _, col := range qmdConfig.Checkouts {
+		name := col.Name
+		if name == "" {
+			name = "docs"
+		}
+		// Only validate explicitly-specified patterns; the runtime default ("**/*.md")
+		// is always valid and does not need compile-time checking.
+		if len(col.Paths) == 0 {
+			qmdLog.Printf("checkout %q: no paths specified, runtime will default to **/*.md", name)
+			continue
+		}
+		qmdLog.Printf("checkout %q: %d pattern(s): %v", name, len(col.Paths), col.Paths)
+		for i, p := range col.Paths {
+			if p == "" {
+				msg := fmt.Sprintf("qmd checkout %q: pattern[%d] is empty — it will not match any files; remove it or replace it with a valid glob (e.g. \"**/*.md\")", name, i)
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(msg))
+			}
+			if strings.Contains(p, ",") {
+				msg := fmt.Sprintf("qmd checkout %q: pattern[%d] %q contains a comma — list each glob pattern separately under 'paths' instead of combining them with commas", name, i, p)
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(msg))
+			}
+		}
+	}
+}
+
 // generateQmdCollectionCheckoutStep generates a checkout step YAML string for a qmd
 // collection that targets a non-default repository.  Returns an empty string when the
 // collection uses the current repository (no checkout needed).
@@ -455,6 +492,10 @@ func generateQmdIndexSteps(qmdConfig *QmdToolConfig) []string {
 	cacheKey := resolveQmdCacheKey(qmdConfig)
 	qmdLog.Printf("Generating qmd index steps: checkouts=%d searches=%d cacheKey=%q cacheOnly=%v",
 		len(qmdConfig.Checkouts), len(qmdConfig.Searches), cacheKey, isCacheOnlyMode)
+
+	// Validate patterns at compile time — warn about empty or comma-containing patterns
+	// that would silently produce an empty index at runtime.
+	validateQmdPatterns(qmdConfig)
 
 	version := string(constants.DefaultQmdVersion)
 	var steps []string

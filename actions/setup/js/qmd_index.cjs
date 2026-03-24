@@ -23,6 +23,30 @@ function resolveEnvVars(p) {
 }
 
 /**
+ * Counts files matching a glob pattern in basePath using the Node.js 22+ built-in
+ * `fs.globSync`. Returns null when the API is unavailable (older Node.js) or an error
+ * occurs, so callers can treat the count as unknown and log accordingly.
+ * @param {string} basePath
+ * @param {string} pattern
+ * @returns {number | null}
+ */
+function countGlobMatches(basePath, pattern) {
+  try {
+    const { globSync } = require("node:fs");
+    if (typeof globSync !== "function") return null;
+    const files = globSync(pattern, { cwd: basePath });
+    return Array.isArray(files) ? files.length : null;
+  } catch (/** @type {any} */ err) {
+    // Log at debug level: the count is best-effort and a failure here (e.g. invalid
+    // pattern syntax, unsupported Node.js version) should not block indexing.
+    if (typeof core !== "undefined" && typeof core.debug === "function") {
+      core.debug(`countGlobMatches("${basePath}", "${pattern}") failed: ${err.message}`);
+    }
+    return null;
+  }
+}
+
+/**
  * Returns an Octokit client for the given token env var, or the default github client.
  * @param {string | undefined} tokenEnvVar
  * @returns {Promise<typeof github>}
@@ -139,22 +163,36 @@ async function main() {
     const rawPath = checkout.path;
     const resolvedPath = resolveEnvVars(rawPath);
     const patterns = checkout.patterns || ["**/*.md"];
-    const pattern = patterns.join(",");
 
-    core.info(`Collection "${checkout.name}": path="${rawPath}" -> "${resolvedPath}" pattern="${pattern}"`);
+    core.info(`Checkout "${checkout.name}": path="${rawPath}" -> "${resolvedPath}" (${patterns.length} pattern(s))`);
 
     const pathExists = fs.existsSync(resolvedPath);
     if (!pathExists) {
-      core.warning(`Collection "${checkout.name}": path "${resolvedPath}" does not exist — no files will be indexed`);
-    } else {
-      core.info(`Collection "${checkout.name}": path exists`);
+      core.warning(`Checkout "${checkout.name}": path "${resolvedPath}" does not exist — no files will be indexed`);
     }
 
-    collections[checkout.name] = {
-      path: resolvedPath,
-      pattern,
-      ...(checkout.context ? { context: { "/": checkout.context } } : {}),
-    };
+    // Create one collection per pattern so the qmd SDK receives a single unambiguous
+    // glob expression per collection. Joining multiple patterns with commas does NOT work —
+    // the SDK treats the combined string as one literal pattern and matches nothing.
+    for (let pi = 0; pi < patterns.length; pi++) {
+      const pattern = patterns[pi];
+      // For single-pattern checkouts keep the original name; for multi-pattern checkouts
+      // append "-0", "-1", … to ensure collection names are unique in the qmd store.
+      const colName = patterns.length === 1 ? checkout.name : `${checkout.name}-${pi}`;
+
+      let hitInfo = "";
+      if (pathExists) {
+        const count = countGlobMatches(resolvedPath, pattern);
+        hitInfo = count !== null ? ` (${count} file(s) matched)` : "";
+      }
+      core.info(`  -> collection "${colName}": pattern="${pattern}"${hitInfo}`);
+
+      collections[colName] = {
+        path: resolvedPath,
+        pattern,
+        ...(checkout.context ? { context: { "/": checkout.context } } : {}),
+      };
+    }
   }
 
   // ── Process search entries ───────────────────────────────────────────────
@@ -274,10 +312,10 @@ async function main() {
       core.warning(
         "No files were indexed. Possible causes:\n" +
           "  - The checkout path does not exist or was not checked out\n" +
-          "  - The glob patterns do not match any files (check for dotfile exclusions in patterns starting with '.')\n" +
-          "  - The pattern uses a comma-separated list that the qmd SDK does not support\n" +
+          "  - The glob patterns do not match any files in the configured path\n" +
+          "  - Patterns starting with '.' require the path to exist (e.g., '.github/agents/**')\n" +
           "  - The checkout path resolves to an empty string (check ${ENV_VAR} placeholders in 'path')\n" +
-          "Review the collection log lines above for the resolved path and pattern."
+          "Review the collection log lines above for the resolved path, pattern, and file count."
       );
     }
 

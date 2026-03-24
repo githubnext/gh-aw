@@ -153,7 +153,7 @@ describe("qmd_index.cjs", () => {
   // ── Error path: missing config ─────────────────────────────────────────────
   it("fails when QMD_CONFIG_JSON is not set", async () => {
     await runMain(undefined);
-    expect(mockCore.setFailed).toHaveBeenCalledWith("QMD_CONFIG_JSON environment variable not set");
+    expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("QMD_CONFIG_JSON environment variable not set"));
     expect(mockStore.update).not.toHaveBeenCalled();
   });
 
@@ -417,6 +417,77 @@ describe("qmd_index.cjs", () => {
     ).rejects.toThrow("update failed");
 
     expect(mockStore.close).toHaveBeenCalledOnce();
+  });
+
+  // ── Checkout collection: multiple patterns create sub-collections ─────────
+  it("creates separate collections for each pattern in a multi-pattern checkout", async () => {
+    const docsDir = path.join(tmpDir, "docs");
+    fs.mkdirSync(docsDir);
+    fs.writeFileSync(path.join(docsDir, "readme.md"), "# README");
+
+    await runMain({
+      dbPath: path.join(tmpDir, "index"),
+      checkouts: [{ name: "gh-aw", path: docsDir, patterns: ["**/*.md", "**/*.mdx", "**/*.txt"] }],
+    });
+
+    expect(mockCore.setFailed).not.toHaveBeenCalled();
+    expect(mockStore.update).toHaveBeenCalledOnce();
+
+    // Each pattern must produce a separate sub-collection; commas in pattern strings
+    // are not supported by the qmd SDK and would result in 0 files being indexed.
+    const infoCalls = mockCore.info.mock.calls.flat().join("\n");
+    expect(infoCalls).toContain('collection "gh-aw-0": pattern="**/*.md"');
+    expect(infoCalls).toContain('collection "gh-aw-1": pattern="**/*.mdx"');
+    expect(infoCalls).toContain('collection "gh-aw-2": pattern="**/*.txt"');
+    // The combined comma form must not appear in any collection registration line
+    expect(infoCalls).not.toContain("**/*.md,**/*.mdx");
+    expect(infoCalls).not.toContain("**/*.md, **/*.mdx");
+  });
+
+  // ── Checkout collection: single pattern keeps original name ───────────────
+  it("keeps the original collection name when checkout has exactly one pattern", async () => {
+    const docsDir = path.join(tmpDir, "docs");
+    fs.mkdirSync(docsDir);
+
+    await runMain({
+      dbPath: path.join(tmpDir, "index"),
+      checkouts: [{ name: "docs", path: docsDir, patterns: ["**/*.md"] }],
+    });
+
+    expect(mockCore.setFailed).not.toHaveBeenCalled();
+    expect(mockStore.update).toHaveBeenCalledOnce();
+
+    // Single-pattern checkout: use the plain name "docs", not "docs-0"
+    const infoCalls = mockCore.info.mock.calls.flat().join("\n");
+    expect(infoCalls).toContain('collection "docs": pattern="**/*.md"');
+    expect(infoCalls).not.toContain('"docs-0"');
+  });
+
+  // ── Checkout collection: dotfile patterns work as sub-collections ─────────
+  it("registers dotfile patterns (e.g. .github/**) as individual collections", async () => {
+    const wsDir = path.join(tmpDir, "workspace");
+    const ghDir = path.join(wsDir, ".github", "agents");
+    fs.mkdirSync(ghDir, { recursive: true });
+    fs.writeFileSync(path.join(ghDir, "agent.md"), "# Agent");
+
+    await runMain({
+      dbPath: path.join(tmpDir, "index"),
+      checkouts: [
+        {
+          name: "repo",
+          path: wsDir,
+          patterns: ["docs/**", ".github/agents/**", ".github/aw/**"],
+        },
+      ],
+    });
+
+    expect(mockCore.setFailed).not.toHaveBeenCalled();
+    expect(mockStore.update).toHaveBeenCalledOnce();
+
+    const infoCalls = mockCore.info.mock.calls.flat().join("\n");
+    expect(infoCalls).toContain('collection "repo-0": pattern="docs/**"');
+    expect(infoCalls).toContain('collection "repo-1": pattern=".github/agents/**"');
+    expect(infoCalls).toContain('collection "repo-2": pattern=".github/aw/**"');
   });
 
   // ── writeSummary: checkouts section ──────────────────────────────────────
