@@ -45,7 +45,10 @@ describe("create_agent_session.cjs", () => {
         expect(mockCore.setOutput).toHaveBeenCalledWith("session_url", ""));
     }),
       it("should handle missing output file", async () => {
-        ((process.env.GH_AW_AGENT_OUTPUT = "/nonexistent/file.json"), await runScript(), expect(mockCore.setFailed).toHaveBeenCalled(), expect(mockCore.setFailed.mock.calls[0][0]).toContain("Error reading agent output file"));
+        ((process.env.GH_AW_AGENT_OUTPUT = "/nonexistent/file.json"),
+          await runScript(),
+          expect(mockCore.setFailed).not.toHaveBeenCalled(),
+          expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Agent output file not available")));
       }),
       it("should handle empty agent output", async () => {
         (fs.writeFileSync(testOutputFile, ""), (process.env.GH_AW_AGENT_OUTPUT = testOutputFile), await runScript(), expect(mockCore.info).toHaveBeenCalledWith("Agent output content is empty"));

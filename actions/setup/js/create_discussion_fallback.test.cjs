@@ -248,3 +248,200 @@ describe("create_discussion fallback with close_older_discussions", () => {
     );
   });
 });
+
+describe("create_discussion double-posting prevention", () => {
+  let mockGithub;
+  let mockCore;
+  let mockContext;
+  let mockExec;
+  let originalEnv;
+
+  beforeEach(() => {
+    originalEnv = { ...process.env };
+
+    resetIssuesToAssignCopilot();
+
+    // Base mock — each test overrides graphql as needed.
+    mockGithub = {
+      rest: {
+        issues: {
+          create: vi.fn().mockResolvedValue({
+            data: {
+              number: 789,
+              html_url: "https://github.com/owner/repo/issues/789",
+              title: "Fallback Issue (should NOT be created)",
+            },
+          }),
+        },
+        search: {
+          issuesAndPullRequests: vi.fn().mockResolvedValue({
+            data: { total_count: 0, items: [] },
+          }),
+        },
+      },
+      graphql: vi.fn().mockRejectedValue(new Error("graphql not configured for this test")),
+    };
+
+    mockCore = {
+      info: vi.fn(),
+      warning: vi.fn(),
+      error: vi.fn(),
+      setOutput: vi.fn(),
+    };
+
+    mockContext = {
+      repo: { owner: "test-owner", repo: "test-repo" },
+      runId: 12345,
+      payload: {
+        repository: {
+          html_url: "https://github.com/test-owner/test-repo",
+        },
+      },
+    };
+
+    mockExec = { exec: vi.fn().mockResolvedValue(0) };
+
+    global.github = mockGithub;
+    global.core = mockCore;
+    global.context = mockContext;
+    global.exec = mockExec;
+
+    process.env.GH_AW_WORKFLOW_NAME = "Daily Chronicle";
+    process.env.GH_AW_WORKFLOW_ID = "daily-chronicle";
+    process.env.GH_AW_WORKFLOW_SOURCE_URL = "https://github.com/owner/repo/blob/main/workflow.md";
+    process.env.GITHUB_SERVER_URL = "https://github.com";
+  });
+
+  afterEach(() => {
+    for (const key of Object.keys(process.env)) {
+      if (!(key in originalEnv)) {
+        delete process.env[key];
+      }
+    }
+    Object.assign(process.env, originalEnv);
+    vi.clearAllMocks();
+  });
+
+  it("should NOT create a fallback issue when the discussion was already created", async () => {
+    // This is the double-posting regression test.  The createDiscussion mutation
+    // returns BOTH discussion data AND errors (a partial-success GraphqlResponseError
+    // from @octokit/graphql).  The handler must return success for the created
+    // discussion and must NOT fall back to creating an issue.
+    mockGithub.graphql = vi.fn().mockImplementation(query => {
+      if (query.includes("discussionCategories")) {
+        return Promise.resolve({
+          repository: {
+            id: "R_test123",
+            discussionCategories: {
+              nodes: [
+                {
+                  id: "DIC_announcements",
+                  name: "Announcements",
+                  slug: "announcements",
+                  description: "Announcements",
+                },
+              ],
+            },
+          },
+        });
+      }
+      if (query.includes("createDiscussion")) {
+        // Simulate @octokit/graphql GraphqlResponseError: discussion was
+        // persisted but the API also returned an error in the response.
+        const err = /** @type {any} */ new Error("Request failed due to following response errors:\n - Resource not accessible by integration");
+        // Attach partial data the way @octokit/graphql does:
+        // err.data = response.data (the full response body's "data" field)
+        err.data = {
+          createDiscussion: {
+            discussion: {
+              id: "D_test456",
+              number: 42,
+              title: "📰 Daily Report",
+              url: "https://github.com/test-owner/test-repo/discussions/42",
+            },
+          },
+        };
+        return Promise.reject(err);
+      }
+      return Promise.reject(new Error("Unexpected GraphQL query"));
+    });
+
+    const handler = await createDiscussionMain({
+      max: 1,
+      fallback_to_issue: true,
+      close_older_discussions: true,
+      category: "announcements",
+      title_prefix: "📰 ",
+    });
+
+    const result = await handler(
+      {
+        title: "Daily Report",
+        body: "Today's report content.",
+      },
+      {}
+    );
+
+    // The discussion was created — handler must succeed
+    expect(result.success).toBe(true);
+    expect(result.number).toBe(42);
+    expect(result.url).toBe("https://github.com/test-owner/test-repo/discussions/42");
+
+    // Must NOT have fallen back to an issue
+    expect(result.fallback).toBeUndefined();
+    expect(mockGithub.rest.issues.create).not.toHaveBeenCalled();
+
+    // A warning about the post-creation failure should have been emitted
+    expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("post-creation operation failed"));
+  });
+
+  it("should still fall back to an issue when discussion creation itself fails", async () => {
+    // Override graphql so that createDiscussion also fails with a permissions error.
+    mockGithub.graphql = vi.fn().mockImplementation(query => {
+      if (query.includes("discussionCategories")) {
+        return Promise.resolve({
+          repository: {
+            id: "R_test123",
+            discussionCategories: {
+              nodes: [
+                {
+                  id: "DIC_announcements",
+                  name: "Announcements",
+                  slug: "announcements",
+                  description: "Announcements",
+                },
+              ],
+            },
+          },
+        });
+      }
+      // createDiscussion mutation fails — discussion is NOT created
+      throw new Error("Resource not accessible by integration");
+    });
+
+    const handler = await createDiscussionMain({
+      max: 1,
+      fallback_to_issue: true,
+      close_older_discussions: true,
+      category: "announcements",
+      title_prefix: "📰 ",
+    });
+
+    const result = await handler(
+      {
+        title: "Daily Report",
+        body: "Today's report content.",
+      },
+      {}
+    );
+
+    // Fallback to issue should still work when the mutation itself failed
+    expect(result.success).toBe(true);
+    expect(result.fallback).toBe("issue");
+    expect(mockGithub.rest.issues.create).toHaveBeenCalled();
+
+    // The fallback note must be present in the issue body
+    const createCallArgs = mockGithub.rest.issues.create.mock.calls[0][0];
+    expect(createCallArgs.body).toContain("This was intended to be a discussion");
+  });
+});

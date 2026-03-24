@@ -78,6 +78,24 @@ func (c *Compiler) buildMainJob(data *WorkflowData, activationJobCreated bool) (
 		depends = []string{string(constants.ActivationJobName)} // Depend on the activation job only if it exists
 	}
 
+	// When the qmd tool is configured, the agent also depends on the indexing job (which builds
+	// the qmd search index). The indexing job depends on activation, but GitHub Actions only
+	// exposes outputs from DIRECT dependencies, so we must keep activation in needs too so that
+	// needs.activation.outputs.* expressions resolve correctly.
+	if data.QmdConfig != nil {
+		depends = append(depends, string(constants.IndexingJobName))
+		compilerMainJobLog.Print("Agent job depends on indexing job (qmd tool configured)")
+	}
+
+	// When APM dependencies are configured, the agent also depends on the APM job (which packs
+	// and uploads the bundle). The APM job depends on activation, but GitHub Actions only exposes
+	// outputs from DIRECT dependencies, so we must keep activation in needs too so that
+	// needs.activation.outputs.* expressions resolve correctly.
+	if data.APMDependencies != nil && len(data.APMDependencies.Packages) > 0 {
+		depends = append(depends, string(constants.APMJobName))
+		compilerMainJobLog.Print("Agent job depends on APM job (APM dependencies configured)")
+	}
+
 	// Add custom jobs as dependencies only if they don't depend on pre_activation or agent
 	// Custom jobs that depend on pre_activation are now dependencies of activation,
 	// so the agent job gets them transitively through activation
@@ -242,7 +260,12 @@ func (c *Compiler) buildMainJob(data *WorkflowData, activationJobCreated bool) (
 	// Set up permissions for the agent job
 	// In dev/script mode, automatically add contents: read if the actions folder checkout is needed
 	// In release mode, use the permissions as specified by the user (no automatic augmentation)
-	permissions := data.Permissions
+	//
+	// GitHub App-only permissions (e.g., vulnerability-alerts) must be filtered out before
+	// rendering to the job-level permissions block. These scopes are not valid GitHub Actions
+	// workflow permissions and cause a parse error when queued. They are handled separately
+	// when minting GitHub App installation access tokens (as permission-* inputs).
+	permissions := filterJobLevelPermissions(data.Permissions)
 	needsContentsRead := (c.actionMode.IsDev() || c.actionMode.IsScript()) && len(c.generateCheckoutActionsFolder(data)) > 0
 	if needsContentsRead {
 		if permissions == "" {

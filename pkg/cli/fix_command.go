@@ -77,7 +77,7 @@ Examples:
 		},
 	}
 
-	cmd.Flags().Bool("write", false, "Write changes to files (default is dry-run)")
+	cmd.Flags().Bool("write", false, "Write changes to files (without this flag, no changes are made)")
 	cmd.Flags().Bool("list-codemods", false, "List all available codemods and exit")
 	cmd.Flags().StringP("dir", "d", "", "Workflow directory (default: .github/workflows)")
 

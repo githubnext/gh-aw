@@ -7,7 +7,7 @@ sidebar:
 
 # Fuzzy Schedule Time Syntax Specification
 
-**Version**: 1.1.0  
+**Version**: 1.2.0  
 **Status**: Draft Specification  
 **Latest Version**: [fuzzy-schedule-specification](/gh-aw/reference/fuzzy-schedule-specification/)  
 **Editor**: GitHub Agentic Workflows Team
@@ -547,18 +547,25 @@ This format ensures workflows with the same filename in different repositories r
 
 #### 6.3.1 Daily Schedule Scattering
 
-For `FUZZY:DAILY * * *`:
+For `FUZZY:DAILY * * *` and `FUZZY:DAILY_WEEKDAYS * * *`, an implementation MUST use the **weighted daily time slot pool** to select execution time:
 
-1. Calculate hash modulo 1440 (24 hours * 60 minutes)
-2. Convert result to hour and minute components
-3. Generate cron: `<minute> <hour> * * *`
+1. Construct a weighted pool of (hour, minute) time slots using three preference tiers:
+   - **BEST** (weight 3): hours 02–05 UTC, odd minutes `{7, 13, 23, 37, 43, 53}` → 72 slots
+   - **GOOD** (weight 2): hours 10–12 UTC, minutes `[5, 54]` → 300 slots
+   - **OK** (weight 1): hours 19–23 UTC, minutes `[5, 54]` → 250 slots
+   - Total pool size: 622 slots
+2. Select slot: `index = hash(workflow_identifier) % pool_size`
+3. Extract `(hour, minute)` from the selected slot
+4. Generate cron: `<minute> <hour> * * *`  (or `* * 1-5` for weekday variant)
+
+The pool is pre-computed once. Because each tier appears proportionally in the pool, a randomly selected slot is 3× more likely to land in the BEST window than in the OK window.
 
 **Example**:
 ```
-hash("github/gh-aw/workflow.md") % 1440 = 343
-hour = 343 / 60 = 5
-minute = 343 % 60 = 43
-cron = "43 5 * * *"  (5:43 AM)
+pool_size = 622
+hash("github/gh-aw/workflow.md") % 622 = 84
+slot[84] = (hour=2, minute=23)  # BEST tier
+cron = "23 2 * * *"  (2:23 AM UTC)
 ```
 
 #### 6.3.2 Daily Around Scattering
@@ -641,45 +648,90 @@ cron = "53 */2 * * *"  (runs at minute 53 every 2 hours)
 
 #### 6.3.5 Weekly Schedule Scattering
 
-For `FUZZY:WEEKLY * * *`:
+For `FUZZY:WEEKLY * * *` and `FUZZY:WEEKLY:DOW * * *`:
 
-1. Calculate hash modulo (7 * 24 * 60) = 10080 (week in minutes)
-2. Extract day-of-week: `day = (hash_result / 1440) % 7`
-3. Extract time: `time_in_minutes = hash_result % 1440`
-4. Convert time to hour and minute
-5. Generate cron: `<minute> <hour> * * <day>`
+1. Select day-of-week: `weekday = hash(workflow_identifier) % 7` (0=Sunday, 6=Saturday)  
+   For `FUZZY:WEEKLY:DOW`, the day is fixed from the expression instead.
+2. Select time from the **weighted daily time slot pool** (Section 6.3.1)
+3. Generate cron: `<minute> <hour> * * <day>`
 
-For `FUZZY:WEEKLY:DOW * * DOW`:
-
-1. Day is fixed from expression
-2. Calculate hash modulo 1440 (day in minutes)
-3. Convert to hour and minute
-4. Generate cron: `<minute> <hour> * * <day>`
+Both patterns use the same weighted pool as the daily schedule, ensuring execution times prefer the BEST/GOOD/OK tiers rather than distributing flatly across the full day.
 
 **Example**:
 ```
 weekly on monday
 day = 1 (Monday)
-hash % 1440 = 343
-hour = 5, minute = 43
-cron = "43 5 * * 1"  (Monday 5:43 AM)
+pool selection → (hour=2, minute=23)  # BEST tier
+cron = "23 2 * * 1"  (Monday 2:23 AM UTC)
 ```
 
 #### 6.3.6 Bi-weekly and Tri-weekly Scattering
 
-For `FUZZY:BI-WEEKLY * * *`:
+For `FUZZY:BI-WEEKLY * * *` and `FUZZY:TRI-WEEKLY * * *`:
 
-1. Calculate hash modulo 1440
-2. Convert to hour and minute
-3. Generate cron: `<minute> <hour> */14 * *`
+1. Select time from the **weighted daily time slot pool** (Section 6.3.1)
+2. Generate cron: `<minute> <hour> */14 * *` (bi-weekly) or `<minute> <hour> */21 * *` (tri-weekly)
 
-For `FUZZY:TRI-WEEKLY * * *`:
+Both patterns use the same weighted pool to ensure execution during preferred low-traffic windows.
 
-1. Calculate hash modulo 1440
-2. Convert to hour and minute
-3. Generate cron: `<minute> <hour> */21 * *`
+### 6.4 Peak Minutes Avoidance
 
-### 6.4 Algorithm Requirements
+To reduce scheduling collisions with other commonly-scheduled cron jobs, implementations MUST apply two minute-avoidance passes after computing the raw scattered minute value.
+
+#### 6.4.1 Hour Boundary Avoidance (`avoidHourBoundary`)
+
+Minutes near the hour boundary (0–4 and 55–59) are subject to elevated load on GitHub Actions infrastructure, especially at 00:00 UTC.
+
+An implementation MUST remap minute values as follows:
+
+| Input range | Output |
+|-------------|--------|
+| [0, 4] | minute + 5 |
+| [55, 59] | minute − 5 |
+| [5, 54] | unchanged |
+
+This ensures all generated minute values are in [5, 54].
+
+**Scope**: Applied to ALL targeted-scatter patterns (DAILY_AROUND, DAILY_BETWEEN, WEEKLY_AROUND, and their weekday variants).
+
+#### 6.4.2 Peak Minutes Avoidance (`avoidPeakMinutes`)
+
+Known high-traffic periods require avoidance of minutes that fall within ±3 of the peak minute values.
+
+An implementation MUST apply the following remapping **after** `avoidHourBoundary`:
+
+| Condition | Avoid range | Replacement |
+|-----------|-------------|-------------|
+| hour ∈ [6, 9] AND minute ∈ [27, 33] | [27, 33] | 34 |
+| hour ∈ [14, 18] AND minute ∈ [12, 18] | [12, 18] | 19 |
+| hour ∈ [14, 18] AND minute ∈ [42, 48] | [42, 48] | 49 |
+
+**Rationale**:
+- **EU morning peak** (06:00–09:59 UTC): `:30` is a commonly-used cron minute. Staying 3 minutes away (avoiding [27,33]) reduces collisions.
+- **US business hours** (14:00–18:59 UTC): `:15` and `:45` are quarter-hour marks widely used by monitoring and reporting cron jobs. Staying 3 minutes away (avoiding [12,18] and [42,48]) reduces collisions.
+
+**Application order**: `avoidHourBoundary` MUST be applied before `avoidPeakMinutes`.
+
+**Scope**: `avoidPeakMinutes` applies only to targeted-scatter patterns. Full-day scatter patterns that use the weighted pool (Section 6.3.1) already avoid peak windows by construction, since the pool does not include EU peak hours (06–09) or US peak hours (14–18).
+
+**Example**:
+```
+FUZZY:DAILY_AROUND:14:00, workflow "my-scanner"
+  Raw scattered time: 14:28
+  Step 1 (avoidHourBoundary): 28 → 28  (no change; 28 ∈ [5,54])
+  Step 2 (avoidPeakMinutes):  28 → 34  (shifted; hour ∈ [14,18], minute 28 ∈ [27,33]
+                                          — wait, hour=14, so EU rule doesn't apply;
+                                          US :15 rule: 28 ∉ [12,18]; :45 rule: 28 ∉ [42,48])
+  → no shift needed; result: 14:28
+
+FUZZY:DAILY_AROUND:15:00, workflow "my-monitor"
+  Raw scattered time: 15:13
+  Step 1 (avoidHourBoundary): 13 → 13  (no change)
+  Step 2 (avoidPeakMinutes):  13 → 19  (shifted; hour ∈ [14,18], minute 13 ∈ [12,18])
+  → result: 15:19
+```
+
+### 6.5 Algorithm Requirements
 
 An implementation MUST ensure:
 
@@ -687,6 +739,8 @@ An implementation MUST ensure:
 2. Modulo operations use consistent integer division
 3. Day wrapping uses consistent addition/subtraction rules
 4. Minute and hour extraction uses consistent division and modulo operations
+5. `avoidHourBoundary` is applied before `avoidPeakMinutes` for all targeted-scatter patterns
+6. Full-day scatter patterns use the weighted daily time slot pool (Section 6.3.1)
 
 ---
 
@@ -879,13 +933,19 @@ A conforming implementation MUST pass all Level 1 tests. Implementations claimin
 - **T-SCATTER-001**: Hash produces same output for same input
 - **T-SCATTER-002**: Different inputs produce different outputs
 - **T-SCATTER-003**: Hash value is within modulo range (0 to modulo-1)
-- **T-SCATTER-004**: Daily schedule scatters across full 24-hour period
+- **T-SCATTER-004**: Daily schedule selects time from weighted pool (BEST/GOOD/OK tiers only)
 - **T-SCATTER-005**: Around schedule stays within ±60 minute window
 - **T-SCATTER-006**: Between schedule stays within specified range
 - **T-SCATTER-007**: Midnight-crossing range handles day wrap correctly
-- **T-SCATTER-008**: Hourly schedule produces minute 0-59
+- **T-SCATTER-008**: Hourly schedule produces minute in [5, 54]
 - **T-SCATTER-009**: Weekly schedule selects valid day 0-6
 - **T-SCATTER-010**: Same workflow gets same time across compilations
+- **T-SCATTER-011**: Daily schedule lands in BEST (02–05), GOOD (10–12), or OK (19–23) window
+- **T-SCATTER-012**: Minute values in [5, 54] for all patterns (hour-boundary avoidance)
+- **T-SCATTER-013**: DAILY_AROUND scatter landing in EU peak hours (06–09) avoids minutes [27, 33]
+- **T-SCATTER-014**: DAILY_AROUND scatter landing in US business hours (14–18) avoids minutes [12, 18] and [42, 48]
+- **T-SCATTER-015**: Weekly schedule uses weighted daily time pool (preferred windows)
+- **T-SCATTER-016**: Bi-weekly and tri-weekly schedules use weighted daily time pool
 
 #### 9.2.7 Cron Generation Tests (Level 1-3)
 
@@ -921,6 +981,10 @@ A conforming implementation MUST pass all Level 1 tests. Implementations claimin
 | Parse interval schedules | T-INTERVAL-001, 002 | 3 | Required |
 | Hash determinism | T-SCATTER-001, 002 | 1 | Required |
 | Scattering distribution | T-SCATTER-004-009 | 1-3 | Required |
+| Weighted daily pool | T-SCATTER-011, 015, 016 | 1-3 | Required |
+| Peak avoidance (hour boundary) | T-SCATTER-012 | 1-3 | Required |
+| Peak avoidance (EU morning peak) | T-SCATTER-013 | 2-3 | Required |
+| Peak avoidance (US business hours) | T-SCATTER-014 | 2-3 | Required |
 | Generate valid cron | T-CRON-001-006 | 1-3 | Required |
 
 ### 9.4 Test Execution
@@ -1091,6 +1155,17 @@ Implementations MUST validate all user inputs before processing:
 ---
 
 ## Change Log
+
+### Version 1.2.0 (Draft)
+
+- **Changed**: Section 6.3.1 — Replaced flat hash-modulo-1440 daily scatter with a **622-entry weighted daily time slot pool** (BEST 02–05 UTC ×3, GOOD 10–12 UTC ×2, OK 19–23 UTC ×1)
+- **Changed**: Sections 6.3.5–6.3.6 — Weekly, bi-weekly, and tri-weekly scatter now uses the same weighted pool as the daily schedule
+- **Added**: Section 6.4 — **Peak Minutes Avoidance** documenting:
+  - `avoidHourBoundary`: shifts minutes [0,4]→[5,9] and [55,59]→[50,54]
+  - `avoidPeakMinutes`: EU peak (hours 06–09) avoids ±3 min of :30 (shifts [27,33]→34); US business hours (14–18) avoids ±3 min of :15 (shifts [12,18]→19) and ±3 min of :45 (shifts [42,48]→49)
+- **Renumbered**: Section 6.4 (Algorithm Requirements) → Section 6.5
+- **Added**: Compliance tests T-SCATTER-011 through T-SCATTER-016 covering weighted pool behaviour and peak avoidance
+- **Updated**: Compliance checklist (Section 9.3) with new required rows for weighted pool and peak avoidance
 
 ### Version 1.1.0 (Draft)
 

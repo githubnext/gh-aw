@@ -56,7 +56,8 @@ func resolveImportPath(importPath string, workflowPath string) string {
 }
 
 // processImportsWithWorkflowSpec processes imports field in frontmatter and replaces local file references
-// with workflowspec format (owner/repo/path@sha) for all imports found
+// with workflowspec format (owner/repo/path@sha) for all imports found.
+// Handles both array form and object form (with 'aw' subfield) of the imports field.
 func processImportsWithWorkflowSpec(content string, workflow *WorkflowSpec, commitSHA string, verbose bool) (string, error) {
 	importsLog.Printf("Processing imports with workflowspec: repo=%s, sha=%s", workflow.RepoSlug, commitSHA)
 	if verbose {
@@ -77,47 +78,61 @@ func processImportsWithWorkflowSpec(content string, workflow *WorkflowSpec, comm
 		return content, nil // No imports field, return original content
 	}
 
-	// Convert imports to array of strings
-	var imports []string
-	switch v := importsField.(type) {
-	case []any:
-		for _, item := range v {
+	// processImportPaths converts a list of raw import paths to workflowspec format.
+	processImportPaths := func(imports []string) []string {
+		processed := make([]string, 0, len(imports))
+		for _, importPath := range imports {
+			if isWorkflowSpecFormat(importPath) {
+				importsLog.Printf("Import already in workflowspec format: %s", importPath)
+				processed = append(processed, importPath)
+				continue
+			}
+			resolvedPath := resolveImportPath(importPath, workflow.WorkflowPath)
+			importsLog.Printf("Resolved import path: %s -> %s (workflow: %s)", importPath, resolvedPath, workflow.WorkflowPath)
+			workflowSpec := buildWorkflowSpecRef(workflow.RepoSlug, resolvedPath, commitSHA, workflow.Version)
+			importsLog.Printf("Converted import: %s -> %s", importPath, workflowSpec)
+			processed = append(processed, workflowSpec)
+		}
+		return processed
+	}
+
+	// collectStringImports extracts string paths from a []any slice.
+	collectStringImports := func(items []any) []string {
+		var paths []string
+		for _, item := range items {
 			if str, ok := item.(string); ok {
-				imports = append(imports, str)
+				paths = append(paths, str)
 			}
 		}
+		return paths
+	}
+
+	switch v := importsField.(type) {
+	case []any:
+		imports := collectStringImports(v)
+		importsLog.Printf("Found %d imports (array form) to process", len(imports))
+		result.Frontmatter["imports"] = processImportPaths(imports)
 	case []string:
-		imports = v
+		importsLog.Printf("Found %d imports ([]string form) to process", len(v))
+		result.Frontmatter["imports"] = processImportPaths(v)
+	case map[string]any:
+		// Object form: process the 'aw' subfield if present
+		if awAny, hasAW := v["aw"]; hasAW {
+			switch aw := awAny.(type) {
+			case []any:
+				awImports := collectStringImports(aw)
+				importsLog.Printf("Found %d imports (object form, aw subfield) to process", len(awImports))
+				v["aw"] = processImportPaths(awImports)
+			case []string:
+				importsLog.Printf("Found %d imports (object form, aw []string) to process", len(aw))
+				v["aw"] = processImportPaths(aw)
+			}
+		}
+		// apm-packages subfield contains package names (not file paths) — leave as-is.
 	default:
 		importsLog.Print("Invalid imports field type, skipping")
-		return content, nil // Invalid imports field, skip processing
+		return content, nil
 	}
-
-	importsLog.Printf("Found %d imports to process", len(imports))
-
-	// Process each import and replace with workflowspec format
-	processedImports := make([]string, 0, len(imports))
-	for _, importPath := range imports {
-		// Skip if already a workflowspec
-		if isWorkflowSpecFormat(importPath) {
-			importsLog.Printf("Import already in workflowspec format: %s", importPath)
-			processedImports = append(processedImports, importPath)
-			continue
-		}
-
-		// Resolve the import path relative to the workflow file's directory
-		resolvedPath := resolveImportPath(importPath, workflow.WorkflowPath)
-		importsLog.Printf("Resolved import path: %s -> %s (workflow: %s)", importPath, resolvedPath, workflow.WorkflowPath)
-
-		// Build workflowspec for this import
-		workflowSpec := buildWorkflowSpecRef(workflow.RepoSlug, resolvedPath, commitSHA, workflow.Version)
-
-		importsLog.Printf("Converted import: %s -> %s", importPath, workflowSpec)
-		processedImports = append(processedImports, workflowSpec)
-	}
-
-	// Update frontmatter with processed imports
-	result.Frontmatter["imports"] = processedImports
 
 	// Use helper function to reconstruct workflow file with proper field ordering
 	return reconstructWorkflowFileFromMap(result.Frontmatter, result.Markdown)

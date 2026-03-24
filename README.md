@@ -95,6 +95,7 @@ For development setup and contribution guidelines, see [CONTRIBUTING.md](CONTRIB
 
 ### @bbonafed
 
+- #22564 _(direct issue)_
 - #21990 _(direct issue)_
 - #20801 _(direct issue)_
 - #20378 _(direct issue)_
@@ -236,6 +237,10 @@ For development setup and contribution guidelines, see [CONTRIBUTING.md](CONTRIB
 
 - #20222 _(direct issue)_
 
+### @flatiron32
+
+- #22469 _(direct issue)_
+
 ### @fr4nc1sc0-r4m0n
 
 - #20657 _(direct issue)_
@@ -323,6 +328,7 @@ For development setup and contribution guidelines, see [CONTRIBUTING.md](CONTRIB
 
 ### @kbreit-insight
 
+- #22430 _(direct issue)_
 - #21978 _(direct issue)_
 
 ### @KGoovaer
@@ -453,6 +459,8 @@ For development setup and contribution guidelines, see [CONTRIBUTING.md](CONTRIB
 
 ### @samuelkahessay
 
+- #22380 _(direct issue)_
+- #22364 _(direct issue)_
 - #22138 _(direct issue)_
 - #21955 _(direct issue)_
 - #21501 _(direct issue)_
@@ -563,6 +571,7 @@ For development setup and contribution guidelines, see [CONTRIBUTING.md](CONTRIB
 
 ### @veverkap
 
+- #22362 _(direct issue)_
 - #21260 _(direct issue)_
 - #21257 _(direct issue)_
 

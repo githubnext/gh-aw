@@ -181,9 +181,6 @@ function runTests() {
 
     // Test 6: No changesets with explicit release type (simulate updateChangelog)
     console.log("\n=== Test 6: CHANGELOG entry for release without changesets ===");
-    // We'll test the updateChangelog function directly by requiring the module
-    const changesetModule = require(CHANGESET_SCRIPT);
-    // Since we can't easily access internal functions, we'll just verify the version command works
     // The actual changelog update behavior will be tested manually
 
     console.log("\n=== Test Results ===");

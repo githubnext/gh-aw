@@ -10,6 +10,7 @@ const { loadTemporaryIdMap, resolveRepoIssueTarget } = require("./temporary_id.c
 const { sleep } = require("./error_recovery.cjs");
 const { parseAllowedRepos, validateRepo, resolveTargetRepoConfig, resolveAndValidateRepo } = require("./repo_helpers.cjs");
 const { resolvePullRequestRepo } = require("./pr_helpers.cjs");
+const { sanitizeContent } = require("./sanitize_content.cjs");
 
 async function main() {
   const result = loadAgentOutput();
@@ -612,7 +613,7 @@ async function main() {
         owner: r.owner,
         repo: r.repo,
         issue_number: failedNumber,
-        body: `⚠️ **Assignment failed**: Failed to assign ${r.agent} coding agent to this ${failedType}.\n\nError: ${r.error}`,
+        body: sanitizeContent(`⚠️ **Assignment failed**: Failed to assign ${r.agent} coding agent to this ${failedType}.\n\nError: ${r.error}`, { maxLength: 65000 }),
       });
       core.info(`Posted failure comment on ${failedType} #${failedNumber} in ${r.owner}/${r.repo}`);
     } catch (commentError) {

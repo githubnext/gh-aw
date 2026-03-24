@@ -887,3 +887,98 @@ func TestGenerateAPMPackStepWithGitHubToken(t *testing.T) {
 		assert.NotContains(t, combined, "secrets.MY_TOKEN", "Custom github-token should not appear when github-app is configured")
 	})
 }
+
+func TestExtractAPMDependenciesFromImportsAPMPackages(t *testing.T) {
+	t.Run("Simple array form under imports.apm-packages", func(t *testing.T) {
+		frontmatter := map[string]any{
+			"imports": map[string]any{
+				"apm-packages": []any{
+					"microsoft/apm-sample-package",
+					"github/awesome-copilot/skills/review-and-refactor",
+				},
+			},
+		}
+		result, err := extractAPMDependenciesFromFrontmatter(frontmatter)
+		require.NoError(t, err, "Should not return an error")
+		require.NotNil(t, result, "Should return non-nil APMDependenciesInfo")
+		assert.Equal(t, []string{
+			"microsoft/apm-sample-package",
+			"github/awesome-copilot/skills/review-and-refactor",
+		}, result.Packages, "Should extract packages from imports.apm-packages")
+	})
+
+	t.Run("Object form under imports.apm-packages with isolated", func(t *testing.T) {
+		frontmatter := map[string]any{
+			"imports": map[string]any{
+				"apm-packages": map[string]any{
+					"packages": []any{"microsoft/apm-sample-package"},
+					"isolated": true,
+				},
+			},
+		}
+		result, err := extractAPMDependenciesFromFrontmatter(frontmatter)
+		require.NoError(t, err, "Should not return an error")
+		require.NotNil(t, result, "Should return non-nil APMDependenciesInfo")
+		assert.Equal(t, []string{"microsoft/apm-sample-package"}, result.Packages, "Should extract packages")
+		assert.True(t, result.Isolated, "Should extract isolated flag")
+	})
+
+	t.Run("Object form under imports.apm-packages with github-app", func(t *testing.T) {
+		frontmatter := map[string]any{
+			"imports": map[string]any{
+				"apm-packages": map[string]any{
+					"packages": []any{"acme-org/acme-skills/plugins/dev-tools"},
+					"github-app": map[string]any{
+						"app-id":      "${{ vars.APP_ID }}",
+						"private-key": "${{ secrets.APP_PRIVATE_KEY }}",
+					},
+				},
+			},
+		}
+		result, err := extractAPMDependenciesFromFrontmatter(frontmatter)
+		require.NoError(t, err, "Should not return an error")
+		require.NotNil(t, result, "Should return non-nil APMDependenciesInfo")
+		assert.Equal(t, []string{"acme-org/acme-skills/plugins/dev-tools"}, result.Packages)
+		require.NotNil(t, result.GitHubApp, "GitHubApp should be set")
+		assert.Equal(t, "${{ vars.APP_ID }}", result.GitHubApp.AppID)
+		assert.Equal(t, "${{ secrets.APP_PRIVATE_KEY }}", result.GitHubApp.PrivateKey)
+	})
+
+	t.Run("mixing imports.apm-packages and top-level dependencies is an error", func(t *testing.T) {
+		frontmatter := map[string]any{
+			"imports": map[string]any{
+				"apm-packages": []any{"microsoft/from-imports"},
+			},
+			"dependencies": []any{"microsoft/from-dependencies"},
+		}
+		result, err := extractAPMDependenciesFromFrontmatter(frontmatter)
+		require.Error(t, err, "Should return an error when both imports.apm-packages and dependencies are present")
+		assert.Nil(t, result, "Should return nil result on error")
+		assert.Contains(t, err.Error(), "imports.apm-packages", "Error should mention imports.apm-packages")
+		assert.Contains(t, err.Error(), "dependencies", "Error should mention dependencies")
+	})
+
+	t.Run("imports.apm-packages and aw subfield coexist", func(t *testing.T) {
+		frontmatter := map[string]any{
+			"imports": map[string]any{
+				"aw":           []any{"shared/common-tools.md"},
+				"apm-packages": []any{"microsoft/apm-sample-package"},
+			},
+		}
+		result, err := extractAPMDependenciesFromFrontmatter(frontmatter)
+		require.NoError(t, err, "Should not return an error")
+		require.NotNil(t, result, "Should return non-nil APMDependenciesInfo")
+		assert.Equal(t, []string{"microsoft/apm-sample-package"}, result.Packages)
+	})
+
+	t.Run("No imports.apm-packages and no dependencies returns nil", func(t *testing.T) {
+		frontmatter := map[string]any{
+			"imports": map[string]any{
+				"aw": []any{"shared/common-tools.md"},
+			},
+		}
+		result, err := extractAPMDependenciesFromFrontmatter(frontmatter)
+		require.NoError(t, err, "Should not return an error")
+		assert.Nil(t, result, "Should return nil when neither imports.apm-packages nor dependencies is present")
+	})
+}

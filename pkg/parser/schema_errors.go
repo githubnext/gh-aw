@@ -217,8 +217,31 @@ var knownFieldValidValues = map[string]string{
 	"/permissions": "Valid permission scopes: actions, all, attestations, checks, contents, deployments, discussions, id-token, issues, metadata, models, organization-projects, packages, pages, pull-requests, repository-projects, security-events, statuses, vulnerability-alerts",
 }
 
-// appendKnownFieldValidValuesHint appends a "Valid values: …" hint to message when the
-// jsonPath matches a well-known field and the message is an unknown-property error.
+// knownFieldScopes maps well-known JSON schema paths to a slice of valid scope names.
+// This enables spell-check ("Did you mean?") suggestions for unknown-property errors.
+//
+// The permissions scope list mirrors permissions.oneOf[1].properties in main_workflow_schema.json.
+// Update both when the schema changes.
+var knownFieldScopes = map[string][]string{
+	"/permissions": {
+		"actions", "all", "attestations", "checks", "contents", "deployments",
+		"discussions", "id-token", "issues", "metadata", "models",
+		"organization-projects", "packages", "pages", "pull-requests",
+		"repository-projects", "security-events", "statuses", "vulnerability-alerts",
+	},
+}
+
+// knownFieldDocs maps well-known JSON schema paths to documentation URLs.
+var knownFieldDocs = map[string]string{
+	"/permissions": "https://docs.github.com/en/actions/writing-workflows/choosing-what-your-workflow-does/controlling-permissions-for-github_token",
+}
+
+// unknownPropertyPattern extracts the property name(s) from a rewritten "Unknown property(ies):" message.
+var unknownPropertyPattern = regexp.MustCompile(`(?i)^Unknown propert(?:y|ies): (.+)$`)
+
+// appendKnownFieldValidValuesHint appends a "Valid values: …" hint, "Did you mean?" suggestions,
+// and a documentation link to message when the jsonPath matches a well-known field and the
+// message is an unknown-property error.
 // It returns the message unchanged for unknown paths or non-additional-properties messages.
 func appendKnownFieldValidValuesHint(message string, jsonPath string) string {
 	// Use truncated prefix "unknown propert" to match both singular ("Unknown property")
@@ -226,21 +249,77 @@ func appendKnownFieldValidValuesHint(message string, jsonPath string) string {
 	if !strings.Contains(strings.ToLower(message), "unknown propert") {
 		return message
 	}
-	hint, ok := knownFieldValidValues[jsonPath]
-	if !ok {
-		// Check if the path is nested under a known parent (e.g. /permissions/contents)
-		for path, h := range knownFieldValidValues {
+
+	// Find the best matching known path: exact match first, then the longest matching parent.
+	hint, hintOK := knownFieldValidValues[jsonPath]
+	scopes := knownFieldScopes[jsonPath]
+	docsURL := knownFieldDocs[jsonPath]
+	if !hintOK {
+		// Select the longest matching parent path deterministically to avoid
+		// random map iteration order when multiple known paths share a common prefix.
+		bestPath := ""
+		bestLen := 0
+		for path := range knownFieldValidValues {
 			if strings.HasPrefix(jsonPath, path+"/") {
-				hint = h
-				ok = true
-				break
+				if l := len(path); l > bestLen {
+					bestLen = l
+					bestPath = path
+				}
+			}
+		}
+		if bestPath != "" {
+			hint = knownFieldValidValues[bestPath]
+			scopes = knownFieldScopes[bestPath]
+			docsURL = knownFieldDocs[bestPath]
+			hintOK = true
+		}
+	}
+	if !hintOK {
+		return message
+	}
+
+	result := message + " (" + hint + ")"
+
+	// Add "Did you mean?" suggestions when the unknown property name is close to a valid scope.
+	if len(scopes) > 0 {
+		// unknownPropertyPattern has exactly one capture group, so a successful match
+		// returns [fullMatch, captureGroup1], giving len(m) == 2.
+		if m := unknownPropertyPattern.FindStringSubmatch(message); len(m) == 2 {
+			unknownProps := strings.Split(m[1], ", ")
+			var allSuggestions []string
+			for _, prop := range unknownProps {
+				prop = strings.TrimSpace(prop)
+				if prop == "" {
+					continue
+				}
+				// maxClosestMatches is defined in schema_suggestions.go in the same package.
+				closest := FindClosestMatches(prop, scopes, maxClosestMatches)
+				allSuggestions = append(allSuggestions, closest...)
+			}
+			// Deduplicate suggestions
+			seen := make(map[string]bool)
+			var unique []string
+			for _, s := range allSuggestions {
+				if !seen[s] {
+					seen[s] = true
+					unique = append(unique, s)
+				}
+			}
+			if len(unique) == 1 {
+				result = fmt.Sprintf("%s. Did you mean '%s'?", result, unique[0])
+			} else if len(unique) > 1 {
+				result = fmt.Sprintf("%s. Did you mean: %s?", result, strings.Join(unique, ", "))
 			}
 		}
 	}
-	if !ok {
-		return message
+
+	// Append documentation link on the same line to avoid breaking bullet-list formatting
+	// when this message is embedded in "Multiple schema validation failures:" output.
+	if docsURL != "" {
+		result = fmt.Sprintf("%s See: %s", result, docsURL)
 	}
-	return message + " (" + hint + ")"
+
+	return result
 }
 
 // rewriteAdditionalPropertiesError rewrites "additional properties not allowed" errors to be more user-friendly

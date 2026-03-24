@@ -15,6 +15,7 @@ const { resolveTargetRepoConfig, resolveAndValidateRepo } = require("./repo_help
 const { createAuthenticatedGitHubClient } = require("./handler_auth.cjs");
 const { removeDuplicateTitleFromDescription } = require("./remove_duplicate_title.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
+const { ERR_VALIDATION } = require("./error_codes.cjs");
 const { createExpirationLine, generateFooterWithExpiration } = require("./ephemerals.cjs");
 const { generateWorkflowIdMarker, generateWorkflowCallIdMarker, generateCloseKeyMarker, normalizeCloseOlderKey } = require("./generate_footer.cjs");
 const { sanitizeLabelContent } = require("./sanitize_label_content.cjs");
@@ -310,7 +311,7 @@ async function main(config = {}) {
   const rawCloseOlderKey = config.close_older_key ? String(config.close_older_key) : "";
   const closeOlderKey = rawCloseOlderKey ? normalizeCloseOlderKey(rawCloseOlderKey) : "";
   if (rawCloseOlderKey && !closeOlderKey) {
-    throw new Error(`close-older-key "${rawCloseOlderKey}" is invalid: it must contain at least one alphanumeric character after normalization`);
+    throw new Error(`${ERR_VALIDATION}: close-older-key "${rawCloseOlderKey}" is invalid: it must contain at least one alphanumeric character after normalization`);
   }
   const includeFooter = parseBoolTemplatable(config.footer, true);
 
@@ -578,6 +579,13 @@ async function main(config = {}) {
       };
     }
 
+    // Track whether the discussion was successfully created to guard against
+    // double-posting: if the discussion is created but a subsequent operation
+    // (e.g., close-older-discussions search) unexpectedly escapes its own
+    // try-catch and reaches the outer catch, we must NOT fall back to creating
+    // an issue — the discussion already exists.
+    let createdDiscussion = null;
+
     try {
       const createDiscussionMutation = `
         mutation($repositoryId: ID!, $categoryId: ID!, $title: String!, $body: String!) {
@@ -614,6 +622,9 @@ async function main(config = {}) {
         };
       }
 
+      // Mark the discussion as created so the outer catch won't trigger a
+      // fallback issue even if a post-creation operation fails unexpectedly.
+      createdDiscussion = discussion;
       core.info(`Created discussion ${qualifiedItemRepo}#${discussion.number}: ${discussion.url}`);
 
       // Close older discussions if enabled
@@ -669,6 +680,38 @@ async function main(config = {}) {
       };
     } catch (error) {
       const errorMessage = getErrorMessage(error);
+
+      // Guard against double-posting: detect cases where the discussion was
+      // already persisted even though an error was thrown.
+      //
+      // Two scenarios can cause this:
+      //
+      // 1. A post-creation operation (close-older-discussions, label application)
+      //    unexpectedly escaped its inner try-catch and reached this outer catch
+      //    after `createdDiscussion` was set.
+      //
+      // 2. @octokit/graphql threw a GraphqlResponseError that contains BOTH the
+      //    created discussion (partial success) AND errors — for example, when
+      //    GitHub returns `{"data": {"createDiscussion": {...}}, "errors": [...]}`.
+      //    In that case `createdDiscussion` is still null but the discussion was
+      //    already persisted in GitHub's database.
+      //
+      // In either case we must NOT fall back to creating an issue, as that would
+      // result in both a discussion and a fallback issue existing at the same time.
+      // prettier-ignore
+      const errorAny = /** @type {any} */ (error);
+      /** @type {{id: string, number: number, title: string, url: string} | null | undefined} */
+      const partialDiscussion = errorAny?.data?.createDiscussion?.discussion;
+      const resolvedDiscussion = createdDiscussion || partialDiscussion;
+      if (resolvedDiscussion) {
+        core.warning(`Discussion ${qualifiedItemRepo}#${resolvedDiscussion.number} was created but a post-creation operation failed: ${errorMessage}`);
+        return {
+          success: true,
+          repo: qualifiedItemRepo,
+          number: resolvedDiscussion.number,
+          url: resolvedDiscussion.url,
+        };
+      }
 
       // Check if this is a permissions error and fallback is enabled
       if (fallbackToIssue && createIssueHandler && isPermissionsError(errorMessage)) {

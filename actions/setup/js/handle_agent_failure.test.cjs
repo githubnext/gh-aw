@@ -443,4 +443,137 @@ describe("handle_agent_failure", () => {
       expect(result).toContain("55");
     });
   });
+
+  // ──────────────────────────────────────────────────────
+  // buildEngineFailureContext
+  // ──────────────────────────────────────────────────────
+
+  describe("buildEngineFailureContext", () => {
+    let buildEngineFailureContext;
+    const fs = require("fs");
+    const path = require("path");
+    const os = require("os");
+
+    /** @type {string} */
+    let tmpDir;
+    /** @type {string} */
+    let stdioLogPath;
+
+    beforeEach(() => {
+      vi.resetModules();
+      tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "aw-test-"));
+      stdioLogPath = path.join(tmpDir, "agent-stdio.log");
+      process.env.GH_AW_AGENT_OUTPUT = path.join(tmpDir, "agent_output.json");
+      ({ buildEngineFailureContext } = require("./handle_agent_failure.cjs"));
+    });
+
+    afterEach(() => {
+      delete process.env.GH_AW_AGENT_OUTPUT;
+      // Clean up temp dir
+      if (fs.existsSync(tmpDir)) {
+        fs.rmSync(tmpDir, { recursive: true, force: true });
+      }
+    });
+
+    it("returns empty string when log file does not exist", () => {
+      // stdioLogPath not written — file does not exist
+      expect(buildEngineFailureContext()).toBe("");
+    });
+
+    it("returns empty string when log file is empty", () => {
+      fs.writeFileSync(stdioLogPath, "");
+      expect(buildEngineFailureContext()).toBe("");
+    });
+
+    it("returns empty string when log file contains only whitespace", () => {
+      fs.writeFileSync(stdioLogPath, "   \n\n   ");
+      expect(buildEngineFailureContext()).toBe("");
+    });
+
+    it("detects ERROR: prefix pattern (Codex/generic CLI)", () => {
+      fs.writeFileSync(stdioLogPath, "ERROR: quota exceeded\n");
+      const result = buildEngineFailureContext();
+      expect(result).toContain("Engine Failure");
+      expect(result).toContain("quota exceeded");
+      expect(result).toContain("Error details:");
+    });
+
+    it("detects Error: prefix pattern (Node.js style)", () => {
+      fs.writeFileSync(stdioLogPath, "Error: connect ECONNREFUSED 127.0.0.1:8080\n");
+      const result = buildEngineFailureContext();
+      expect(result).toContain("Engine Failure");
+      expect(result).toContain("connect ECONNREFUSED 127.0.0.1:8080");
+    });
+
+    it("detects Fatal: prefix pattern", () => {
+      fs.writeFileSync(stdioLogPath, "Fatal: out of memory\n");
+      const result = buildEngineFailureContext();
+      expect(result).toContain("Engine Failure");
+      expect(result).toContain("out of memory");
+    });
+
+    it("detects FATAL: prefix pattern", () => {
+      fs.writeFileSync(stdioLogPath, "FATAL: unexpected shutdown\n");
+      const result = buildEngineFailureContext();
+      expect(result).toContain("Engine Failure");
+      expect(result).toContain("unexpected shutdown");
+    });
+
+    it("detects panic: prefix pattern (Go runtime)", () => {
+      fs.writeFileSync(stdioLogPath, "panic: runtime error: index out of range\n");
+      const result = buildEngineFailureContext();
+      expect(result).toContain("Engine Failure");
+      expect(result).toContain("runtime error: index out of range");
+    });
+
+    it("detects Reconnecting pattern", () => {
+      fs.writeFileSync(stdioLogPath, "Reconnecting... 1/3 (connection lost)\n");
+      const result = buildEngineFailureContext();
+      expect(result).toContain("Engine Failure");
+      expect(result).toContain("connection lost");
+    });
+
+    it("deduplicates repeated error messages", () => {
+      fs.writeFileSync(stdioLogPath, "ERROR: quota exceeded\nERROR: quota exceeded\nERROR: quota exceeded\n");
+      const result = buildEngineFailureContext();
+      const count = (result.match(/quota exceeded/g) || []).length;
+      expect(count).toBe(1);
+    });
+
+    it("collects multiple distinct error messages", () => {
+      fs.writeFileSync(stdioLogPath, "ERROR: quota exceeded\nERROR: auth failed\n");
+      const result = buildEngineFailureContext();
+      expect(result).toContain("quota exceeded");
+      expect(result).toContain("auth failed");
+    });
+
+    it("falls back to last lines when no known error patterns match", () => {
+      const logLines = ["Starting agent...", "Running tool: list_branches", '{"branches": ["main"]}', "Running tool: get_file_contents", "Agent interrupted"];
+      fs.writeFileSync(stdioLogPath, logLines.join("\n") + "\n");
+      const result = buildEngineFailureContext();
+      expect(result).toContain("Engine Failure");
+      expect(result).toContain("Last agent output");
+      expect(result).toContain("Agent interrupted");
+    });
+
+    it("fallback includes at most 10 non-empty lines", () => {
+      const lines = Array.from({ length: 20 }, (_, i) => `line ${i + 1}`);
+      fs.writeFileSync(stdioLogPath, lines.join("\n") + "\n");
+      const result = buildEngineFailureContext();
+      expect(result).toContain("line 20");
+      expect(result).toContain("line 11");
+      // Lines 1-10 should not appear in the tail
+      expect(result).not.toContain("line 10\n");
+      expect(result).not.toContain("line 1\n");
+    });
+
+    it("fallback ignores empty lines when counting tail", () => {
+      const lines = ["line 1", "", "line 2", "", "line 3", "", "", "line 4"];
+      fs.writeFileSync(stdioLogPath, lines.join("\n") + "\n");
+      const result = buildEngineFailureContext();
+      expect(result).toContain("Last agent output");
+      expect(result).toContain("line 4");
+      expect(result).toContain("line 1");
+    });
+  });
 });

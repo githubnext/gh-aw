@@ -690,3 +690,174 @@ func TestScatterScheduleAvoidsHourBoundary(t *testing.T) {
 		}
 	}
 }
+
+// TestScatterScheduleAvoidsEUMorningPeak verifies that targeted-scatter patterns
+// never produce a minute within 3 of :30 (i.e. minutes 27–33) during EU morning
+// peak hours (06:00–09:59 UTC).
+func TestScatterScheduleAvoidsEUMorningPeak(t *testing.T) {
+	workflowIDs := []string{
+		"workflow-a.md", "workflow-b.md", "workflow-c.md",
+		"test-workflow", "daily-security-scan", "weekly-report",
+		"my-org/my-repo/my-workflow.md", "scanner-job",
+	}
+
+	// Targeted patterns that scatter around EU morning peak hours.
+	patterns := []string{
+		"FUZZY:DAILY_AROUND:7:0 * * *",
+		"FUZZY:DAILY_AROUND:7:30 * * *",
+		"FUZZY:DAILY_AROUND:8:0 * * *",
+		"FUZZY:DAILY_AROUND:9:0 * * *",
+		"FUZZY:DAILY_AROUND_WEEKDAYS:7:0 * * *",
+		"FUZZY:DAILY_AROUND_WEEKDAYS:8:30 * * *",
+		"FUZZY:DAILY_BETWEEN:6:0:10:0 * * *",
+		"FUZZY:DAILY_BETWEEN_WEEKDAYS:6:0:10:0 * * *",
+		"FUZZY:WEEKLY_AROUND:1:7:0 * * *",
+		"FUZZY:WEEKLY_AROUND:3:8:30 * * *",
+	}
+
+	for _, pattern := range patterns {
+		for _, wfID := range workflowIDs {
+			t.Run(pattern+"/"+wfID, func(t *testing.T) {
+				result, err := ScatterSchedule(pattern, wfID)
+				if err != nil {
+					t.Fatalf("unexpected error: %v", err)
+				}
+
+				fields := strings.Fields(result)
+				if len(fields) != 5 {
+					t.Fatalf("expected 5 cron fields, got %d: %s", len(fields), result)
+				}
+
+				var minute, hour int
+				if _, scanErr := fmt.Sscanf(fields[0], "%d", &minute); scanErr != nil {
+					t.Fatalf("could not parse minute from cron %q: %v", result, scanErr)
+				}
+				if _, scanErr := fmt.Sscanf(fields[1], "%d", &hour); scanErr != nil {
+					// Hour field may be a range or wildcard for some patterns – skip check.
+					return
+				}
+
+				// Must stay 3 minutes away from :30 in hours 06-09
+				if hour >= 6 && hour <= 9 && minute >= 27 && minute <= 33 {
+					t.Errorf("pattern=%q wfID=%q: cron %q schedules at :%02d during EU morning peak (must stay 3 min from :30 in hours 06-09 UTC)",
+						pattern, wfID, result, minute)
+				}
+			})
+		}
+	}
+}
+
+// TestScatterScheduleAvoidsUSBusinessHours verifies that targeted-scatter patterns
+// never produce a minute within 3 of :15 or :45 (i.e. [12,18] or [42,48]) during
+// US business hours (14:00–18:59 UTC).
+func TestScatterScheduleAvoidsUSBusinessHours(t *testing.T) {
+	workflowIDs := []string{
+		"workflow-a.md", "workflow-b.md", "workflow-c.md",
+		"test-workflow", "daily-security-scan", "weekly-report",
+		"my-org/my-repo/my-workflow.md", "scanner-job",
+	}
+
+	// Targeted patterns that scatter around US business hours.
+	patterns := []string{
+		"FUZZY:DAILY_AROUND:14:0 * * *",
+		"FUZZY:DAILY_AROUND:15:15 * * *",
+		"FUZZY:DAILY_AROUND:16:45 * * *",
+		"FUZZY:DAILY_AROUND:17:0 * * *",
+		"FUZZY:DAILY_AROUND:18:0 * * *",
+		"FUZZY:DAILY_AROUND_WEEKDAYS:15:0 * * *",
+		"FUZZY:DAILY_AROUND_WEEKDAYS:16:45 * * *",
+		"FUZZY:DAILY_BETWEEN:14:0:19:0 * * *",
+		"FUZZY:DAILY_BETWEEN_WEEKDAYS:14:0:19:0 * * *",
+		"FUZZY:WEEKLY_AROUND:2:15:15 * * *",
+		"FUZZY:WEEKLY_AROUND:4:17:0 * * *",
+	}
+
+	for _, pattern := range patterns {
+		for _, wfID := range workflowIDs {
+			t.Run(pattern+"/"+wfID, func(t *testing.T) {
+				result, err := ScatterSchedule(pattern, wfID)
+				if err != nil {
+					t.Fatalf("unexpected error: %v", err)
+				}
+
+				fields := strings.Fields(result)
+				if len(fields) != 5 {
+					t.Fatalf("expected 5 cron fields, got %d: %s", len(fields), result)
+				}
+
+				var minute, hour int
+				if _, scanErr := fmt.Sscanf(fields[0], "%d", &minute); scanErr != nil {
+					t.Fatalf("could not parse minute from cron %q: %v", result, scanErr)
+				}
+				if _, scanErr := fmt.Sscanf(fields[1], "%d", &hour); scanErr != nil {
+					// Hour field may be a range or wildcard for some patterns – skip check.
+					return
+				}
+
+				// Must stay 3 minutes away from :15 and :45 in hours 14-18
+				if hour >= 14 && hour <= 18 {
+					if minute >= 12 && minute <= 18 {
+						t.Errorf("pattern=%q wfID=%q: cron %q schedules at :%02d during US business hours (must stay 3 min from :15 in hours 14-18 UTC)",
+							pattern, wfID, result, minute)
+					}
+					if minute >= 42 && minute <= 48 {
+						t.Errorf("pattern=%q wfID=%q: cron %q schedules at :%02d during US business hours (must stay 3 min from :45 in hours 14-18 UTC)",
+							pattern, wfID, result, minute)
+					}
+				}
+			})
+		}
+	}
+}
+
+// TestScatterScheduleUsesPreferredWindows verifies that full-day scatter patterns
+// (FUZZY:DAILY, FUZZY:DAILY_WEEKDAYS, FUZZY:WEEKLY, etc.) land exclusively in the
+// preferred time windows: BEST (02–05 UTC), GOOD (10–12 UTC), or OK (19–23 UTC).
+func TestScatterScheduleUsesPreferredWindows(t *testing.T) {
+	workflowIDs := []string{
+		"workflow-a.md", "workflow-b.md", "workflow-c.md",
+		"test-workflow", "daily-security-scan", "weekly-report",
+		"hourly-checker", "my-org/my-repo/my-workflow.md",
+		"alpha", "beta", "gamma", "delta", "epsilon",
+	}
+
+	patterns := []string{
+		"FUZZY:DAILY * * *",
+		"FUZZY:DAILY_WEEKDAYS * * *",
+		"FUZZY:WEEKLY * * *",
+		"FUZZY:WEEKLY:1 * * *",
+		"FUZZY:WEEKLY:5 * * *",
+		"FUZZY:BI_WEEKLY * * *",
+		"FUZZY:TRI_WEEKLY * * *",
+	}
+
+	isInPreferredWindow := func(hour int) bool {
+		return (hour >= 2 && hour <= 5) || (hour >= 10 && hour <= 12) || (hour >= 19 && hour <= 23)
+	}
+
+	for _, pattern := range patterns {
+		for _, wfID := range workflowIDs {
+			t.Run(pattern+"/"+wfID, func(t *testing.T) {
+				result, err := ScatterSchedule(pattern, wfID)
+				if err != nil {
+					t.Fatalf("unexpected error: %v", err)
+				}
+
+				fields := strings.Fields(result)
+				if len(fields) != 5 {
+					t.Fatalf("expected 5 cron fields, got %d: %s", len(fields), result)
+				}
+
+				var hour int
+				if _, scanErr := fmt.Sscanf(fields[1], "%d", &hour); scanErr != nil {
+					t.Fatalf("could not parse hour from cron %q: %v", result, scanErr)
+				}
+
+				if !isInPreferredWindow(hour) {
+					t.Errorf("pattern=%q wfID=%q: cron %q schedules at hour %d, which is not in a preferred window (02-05, 10-12, or 19-23 UTC)",
+						pattern, wfID, result, hour)
+				}
+			})
+		}
+	}
+}

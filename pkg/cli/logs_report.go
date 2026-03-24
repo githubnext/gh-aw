@@ -65,29 +65,30 @@ type LogsSummary struct {
 
 // RunData contains information about a single workflow run
 type RunData struct {
-	DatabaseID       int64     `json:"database_id" console:"header:Run ID"`
-	Number           int       `json:"number" console:"-"`
-	WorkflowName     string    `json:"workflow_name" console:"header:Workflow"`
-	WorkflowPath     string    `json:"workflow_path" console:"-"`
-	Agent            string    `json:"agent,omitempty" console:"header:Agent,omitempty"`
-	Status           string    `json:"status" console:"header:Status"`
-	Conclusion       string    `json:"conclusion,omitempty" console:"-"`
-	Duration         string    `json:"duration,omitempty" console:"header:Duration,omitempty"`
-	TokenUsage       int       `json:"token_usage,omitempty" console:"header:Tokens,format:number,omitempty"`
-	EstimatedCost    float64   `json:"estimated_cost,omitempty" console:"header:Cost ($),format:cost,omitempty"`
-	Turns            int       `json:"turns,omitempty" console:"header:Turns,omitempty"`
-	ErrorCount       int       `json:"error_count" console:"header:Errors"`
-	WarningCount     int       `json:"warning_count" console:"header:Warnings"`
-	MissingToolCount int       `json:"missing_tool_count" console:"header:Missing Tools"`
-	MissingDataCount int       `json:"missing_data_count" console:"header:Missing Data"`
-	SafeItemsCount   int       `json:"safe_items_count,omitempty" console:"header:Safe Items,omitempty"`
-	CreatedAt        time.Time `json:"created_at" console:"header:Created"`
-	StartedAt        time.Time `json:"started_at,omitzero" console:"-"`
-	UpdatedAt        time.Time `json:"updated_at,omitzero" console:"-"`
-	URL              string    `json:"url" console:"-"`
-	LogsPath         string    `json:"logs_path" console:"header:Logs Path"`
-	Event            string    `json:"event" console:"-"`
-	Branch           string    `json:"branch" console:"-"`
+	DatabaseID       int64      `json:"database_id" console:"header:Run ID"`
+	Number           int        `json:"number" console:"-"`
+	WorkflowName     string     `json:"workflow_name" console:"header:Workflow"`
+	WorkflowPath     string     `json:"workflow_path" console:"-"`
+	Agent            string     `json:"agent,omitempty" console:"header:Agent,omitempty"`
+	Status           string     `json:"status" console:"header:Status"`
+	Conclusion       string     `json:"conclusion,omitempty" console:"-"`
+	Duration         string     `json:"duration,omitempty" console:"header:Duration,omitempty"`
+	TokenUsage       int        `json:"token_usage,omitempty" console:"header:Tokens,format:number,omitempty"`
+	EstimatedCost    float64    `json:"estimated_cost,omitempty" console:"header:Cost ($),format:cost,omitempty"`
+	Turns            int        `json:"turns,omitempty" console:"header:Turns,omitempty"`
+	ErrorCount       int        `json:"error_count" console:"header:Errors"`
+	WarningCount     int        `json:"warning_count" console:"header:Warnings"`
+	MissingToolCount int        `json:"missing_tool_count" console:"header:Missing Tools"`
+	MissingDataCount int        `json:"missing_data_count" console:"header:Missing Data"`
+	SafeItemsCount   int        `json:"safe_items_count,omitempty" console:"header:Safe Items,omitempty"`
+	CreatedAt        time.Time  `json:"created_at" console:"header:Created"`
+	StartedAt        time.Time  `json:"started_at,omitzero" console:"-"`
+	UpdatedAt        time.Time  `json:"updated_at,omitzero" console:"-"`
+	URL              string     `json:"url" console:"-"`
+	LogsPath         string     `json:"logs_path" console:"header:Logs Path"`
+	Event            string     `json:"event" console:"-"`
+	Branch           string     `json:"branch" console:"-"`
+	AwContext        *AwContext `json:"context,omitempty" console:"-"` // aw_context data from aw_info.json
 }
 
 // ToolUsageSummary contains aggregated tool usage statistics
@@ -165,11 +166,13 @@ func buildLogsData(processedRuns []ProcessedRun, outputDir string, continuation 
 		totalMissingData += run.MissingDataCount
 		totalSafeItems += run.SafeItemsCount
 
-		// Extract agent/engine ID from aw_info.json
+		// Extract agent/engine ID and aw_context from aw_info.json
 		agentID := ""
+		var awContext *AwContext
 		awInfoPath := filepath.Join(run.LogsPath, "aw_info.json")
 		if info, err := parseAwInfo(awInfoPath, false); err == nil && info != nil {
 			agentID = info.EngineID
+			awContext = info.Context
 		}
 
 		runData := RunData{
@@ -195,6 +198,7 @@ func buildLogsData(processedRuns []ProcessedRun, outputDir string, continuation 
 			LogsPath:         run.LogsPath,
 			Event:            run.Event,
 			Branch:           run.HeadBranch,
+			AwContext:        awContext,
 		}
 		if run.Duration > 0 {
 			runData.Duration = timeutil.FormatDuration(run.Duration)

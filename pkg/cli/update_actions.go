@@ -55,7 +55,7 @@ func UpdateActions(allowMajor, verbose, disableReleaseBump bool) error {
 
 	// Track updates
 	var updatedActions []string
-	var failedActions []string
+	var failedActions []actionUpdateFailure
 	var skippedActions []string
 
 	// Snapshot entries before iteration to avoid mutating the map mid-loop.
@@ -82,7 +82,7 @@ func UpdateActions(allowMajor, verbose, disableReleaseBump bool) error {
 			if verbose {
 				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to check %s: %v", entry.Repo, err)))
 			}
-			failedActions = append(failedActions, entry.Repo)
+			failedActions = append(failedActions, actionUpdateFailure{name: entry.Repo, err: err.Error()})
 			continue
 		}
 
@@ -139,8 +139,8 @@ func UpdateActions(allowMajor, verbose, disableReleaseBump bool) error {
 
 	if len(failedActions) > 0 {
 		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to check %d action(s):", len(failedActions))))
-		for _, action := range failedActions {
-			fmt.Fprintf(os.Stderr, "  %s\n", action)
+		for _, f := range failedActions {
+			fmt.Fprintf(os.Stderr, "  %s: %s\n", f.name, f.err)
 		}
 		fmt.Fprintln(os.Stderr, "")
 	}
@@ -181,6 +181,10 @@ func getLatestActionRelease(repo, currentVersion string, allowMajor, verbose boo
 				return "", "", fmt.Errorf("failed to fetch releases via GitHub API and git: API error: %w, Git Error: %w", err, gitErr)
 			}
 			return latestRelease, latestSHA, nil
+		}
+		// Include the gh output in the error for better diagnostics
+		if trimmed := strings.TrimSpace(outputStr); trimmed != "" {
+			return "", "", fmt.Errorf("failed to fetch releases: %w: %s", err, trimmed)
 		}
 		return "", "", fmt.Errorf("failed to fetch releases: %w", err)
 	}

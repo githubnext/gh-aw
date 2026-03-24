@@ -41,9 +41,6 @@ tools:
 runtimes:
   go:
     version: "1.25"
-sandbox:
-  mcp:
-    container: "ghcr.io/github/gh-aw-mcpg"
 safe-outputs:
     allowed-domains: [default-safe-outputs]
     add-comment:
@@ -54,6 +51,7 @@ safe-outputs:
       expires: 2h
       group: true
       close-older-issues: true
+      close-older-key: "smoke-copilot-arm"
       labels: [automation, testing]
     create-discussion:
       category: announcements

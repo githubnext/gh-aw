@@ -43,9 +43,9 @@ Test with a single APM dependency
 
 	lockContent := string(content)
 
-	// Activation job should have the pack step
+	// APM job should have the pack step (not the activation job)
 	assert.Contains(t, lockContent, "Install and pack APM dependencies",
-		"Lock file should contain APM pack step in activation job")
+		"Lock file should contain APM pack step in APM job")
 	assert.Contains(t, lockContent, "microsoft/apm-action",
 		"Lock file should reference the microsoft/apm-action action")
 	assert.Contains(t, lockContent, "- microsoft/apm-sample-package",
@@ -57,11 +57,17 @@ Test with a single APM dependency
 	assert.Contains(t, lockContent, "target: copilot",
 		"Lock file should include target inferred from copilot engine")
 
-	// Separate APM artifact upload in activation job
+	// APM artifact upload in APM job
 	assert.Contains(t, lockContent, "Upload APM bundle artifact",
 		"Lock file should upload APM bundle as separate artifact")
 	assert.Contains(t, lockContent, "name: apm",
 		"Lock file should name the APM artifact 'apm'")
+
+	// APM job should exist with minimal permissions and needs activation
+	assert.Contains(t, lockContent, "apm:",
+		"Lock file should contain a dedicated APM job")
+	assert.Contains(t, lockContent, "permissions: {}",
+		"APM job should have minimal (empty) permissions")
 
 	// Agent job should have download + restore steps
 	assert.Contains(t, lockContent, "Download APM bundle artifact",

@@ -34,9 +34,6 @@ network:
     - defaults
     - github
     - playwright
-sandbox:
-  mcp:
-    container: "ghcr.io/github/gh-aw-mcpg"
 tools:
   agentic-workflows:
   cache-memory: true
@@ -64,6 +61,7 @@ safe-outputs:
       expires: 2h
       group: true
       close-older-issues: true
+      close-older-key: "smoke-claude"
       labels: [automation, testing]
     add-labels:
       allowed: [smoke-claude]

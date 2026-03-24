@@ -25,7 +25,9 @@ async function main() {
   try {
     outputContent = fs.readFileSync(agentOutputFile, "utf8");
   } catch (error) {
-    core.setFailed(`Error reading agent output file: ${getErrorMessage(error)}`);
+    // A missing agent_output.json is expected when the engine fails before writing any safe outputs.
+    // Log at info level (not a failure of this step) and exit gracefully.
+    core.info(`Agent output file not available: ${getErrorMessage(error)}`);
     return;
   }
 

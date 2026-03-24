@@ -721,6 +721,11 @@ func (c *Compiler) extractAdditionalConfigurations(
 	}
 	workflowData.RepoMemoryConfig = repoMemoryConfig
 
+	// Extract qmd config from parsed tools
+	if toolsConfig.Qmd != nil {
+		workflowData.QmdConfig = toolsConfig.Qmd
+	}
+
 	// Extract and process mcp-scripts and safe-outputs
 	workflowData.Command, workflowData.CommandEvents = c.extractCommandConfig(frontmatter)
 	workflowData.LabelCommand, workflowData.LabelCommandEvents, workflowData.LabelCommandRemoveLabel = c.extractLabelCommandConfig(frontmatter)
@@ -833,6 +838,11 @@ func (c *Compiler) processOnSectionAndFilters(
 
 	// Process skip-if-no-match configuration from the on: section
 	if err := c.processSkipIfNoMatchConfiguration(frontmatter, workflowData); err != nil {
+		return err
+	}
+
+	// Process skip-if-check-failing configuration from the on: section
+	if err := c.processSkipIfCheckFailingConfiguration(frontmatter, workflowData); err != nil {
 		return err
 	}
 

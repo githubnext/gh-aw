@@ -194,6 +194,11 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 	yaml.WriteString("        env:\n")
 	yaml.WriteString("          GH_TOKEN: ${{ github.token }}\n")
 
+	// Start DIFC proxy for pre-agent gh CLI calls (only when guard policies are configured
+	// and pre-agent steps with GH_TOKEN are present). The proxy routes gh CLI calls through
+	// integrity filtering before the agent runs. Must start before custom steps.
+	c.generateStartDIFCProxyStep(yaml, data)
+
 	// Add custom steps if present
 	if data.CustomSteps != "" {
 		if customStepsContainCheckout && len(runtimeSetupSteps) > 0 {
@@ -279,6 +284,20 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 		}
 	}
 
+	// Restore qmd index and models cache if qmd tool is configured.
+	// The index was built and cached in the indexing job; we restore it using the precise
+	// cache key so we always get the index from the current workflow run.
+	// The models cache restores the embedding model weights (cross-platform GGUF files) that
+	// the gateway-managed qmd container mounts from ${HOME}/.cache/qmd/.
+	// Note: the node-llama-cpp binary cache is NOT restored here; the container downloads
+	// the appropriate prebuilt binary for its own OS on first use.
+	if data.QmdConfig != nil {
+		compilerYamlLog.Print("Adding qmd index exact-key cache restore step")
+		yaml.WriteString(generateQmdIndexCacheRestoreExactStep(data.QmdConfig))
+		compilerYamlLog.Print("Adding qmd models cache restore step (read-only)")
+		yaml.WriteString(generateQmdModelsCacheRestoreStep())
+	}
+
 	// GH_AW_SAFE_OUTPUTS is now set at job level, no setup step needed
 
 	// Add GitHub MCP lockdown detection step if needed
@@ -289,6 +308,10 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 
 	// Add GitHub MCP app token minting step if configured
 	c.generateGitHubMCPAppTokenMintingStep(yaml, data)
+
+	// Stop DIFC proxy before starting the MCP gateway. The proxy must be stopped first
+	// to avoid double-filtering: the gateway uses the same guard policy for the agent phase.
+	c.generateStopDIFCProxyStep(yaml, data)
 
 	// Add MCP setup
 	if err := c.generateMCPSetup(yaml, data.Tools, engine, data); err != nil {
@@ -415,6 +438,9 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 	// Collect MCP logs path if any MCP tools were used
 	artifactPaths = append(artifactPaths, "/tmp/gh-aw/mcp-logs/")
 
+	// Collect DIFC proxy logs (proxy-tls certs + container stderr) when proxy was injected
+	artifactPaths = append(artifactPaths, difcProxyLogPaths(data)...)
+
 	// Collect MCPScripts logs path if mcp-scripts is enabled
 	if IsMCPScriptsEnabled(data.MCPScripts, data) {
 		artifactPaths = append(artifactPaths, "/tmp/gh-aw/mcp-scripts/logs/")
@@ -432,36 +458,13 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 	// The MCP gateway is always enabled, even when agent sandbox is disabled
 	c.generateMCPGatewayLogParsing(yaml)
 
-	// Add firewall log parsing steps (but not upload - collected for unified upload)
-	// For Copilot, Codex, and Claude engines
-	if _, ok := engine.(*CopilotEngine); ok {
-		if isFirewallEnabled(data) {
-			firewallLogParsing := generateFirewallLogParsingStep(data.Name)
-			for _, line := range firewallLogParsing {
-				yaml.WriteString(line + "\n")
-			}
-			// Collect firewall logs path for unified upload
-			artifactPaths = append(artifactPaths, "/tmp/gh-aw/sandbox/firewall/logs/")
-		}
-	}
-	if _, ok := engine.(*CodexEngine); ok {
-		if isFirewallEnabled(data) {
-			firewallLogParsing := generateFirewallLogParsingStep(data.Name)
-			for _, line := range firewallLogParsing {
-				yaml.WriteString(line + "\n")
-			}
-			// Collect firewall logs path for unified upload
-			artifactPaths = append(artifactPaths, "/tmp/gh-aw/sandbox/firewall/logs/")
-		}
-	}
-	if _, ok := engine.(*ClaudeEngine); ok {
-		if isFirewallEnabled(data) {
-			firewallLogParsing := generateFirewallLogParsingStep(data.Name)
-			for _, line := range firewallLogParsing {
-				yaml.WriteString(line + "\n")
-			}
-			// Collect firewall logs path for unified upload
-			artifactPaths = append(artifactPaths, "/tmp/gh-aw/sandbox/firewall/logs/")
+	// Add firewall log parsing and dedicated audit upload for all firewall-enabled engines.
+	// This replaces the previous per-engine blocks (Copilot, Codex, Claude) and extends
+	// support to all engines (including Gemini) so every agentic workflow uploads audit logs.
+	if isFirewallEnabled(data) {
+		firewallLogParsing := generateFirewallLogParsingStep(data.Name)
+		for _, line := range firewallLogParsing {
+			yaml.WriteString(line + "\n")
 		}
 	}
 
@@ -480,6 +483,12 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 		artifactPaths = append(artifactPaths, "/tmp/gh-aw/"+constants.SafeOutputsFilename)
 		// Processed agent output JSON produced by collect_ndjson_output.cjs
 		artifactPaths = append(artifactPaths, "/tmp/gh-aw/"+constants.AgentOutputFilename)
+
+		// Write a minimal agent_output.json placeholder when the engine fails before
+		// producing any safe outputs, so downstream safe_outputs and conclusion jobs
+		// receive a valid (empty) JSON file instead of an ENOENT error.
+		// The placeholder is only written if the engine did not already write the file.
+		c.generateAgentOutputPlaceholderStep(yaml)
 	}
 
 	// Add post-execution cleanup step for Copilot engine
@@ -520,6 +529,12 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 	// In workflow_call context, apply the per-invocation prefix to avoid name clashes.
 	agentArtifactPrefix := artifactPrefixExprForDownstreamJob(data)
 	c.generateUnifiedArtifactUpload(yaml, artifactPaths, agentArtifactPrefix)
+
+	// Upload firewall audit logs as a dedicated artifact so users can inspect network
+	// activity, policy decisions, and blocked domains after the run (AWF v0.25.0+).
+	if isFirewallEnabled(data) {
+		c.generateFirewallAuditLogsUploadStep(yaml, agentArtifactPrefix)
+	}
 
 	// Add inline threat detection steps after all agent artifact uploads.
 	// Detection runs inside the agent job using sandbox.agent with fully blocked network.

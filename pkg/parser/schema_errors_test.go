@@ -306,3 +306,75 @@ func TestRewriteAdditionalPropertiesErrorOrdering(t *testing.T) {
 		})
 	}
 }
+
+// TestAppendKnownFieldValidValuesHint tests that the hint function appends valid values,
+// "Did you mean?" suggestions, and documentation links for well-known schema paths.
+func TestAppendKnownFieldValidValuesHint(t *testing.T) {
+	tests := []struct {
+		name     string
+		message  string
+		jsonPath string
+		contains []string // substrings that must appear
+		excludes []string // substrings that must NOT appear
+	}{
+		{
+			name:     "no hint for non-unknown-property message",
+			message:  "value must be one of 'read', 'write', 'none'",
+			jsonPath: "/permissions",
+			contains: []string{"value must be one of"},
+			excludes: []string{"Valid permission scopes", "See:"},
+		},
+		{
+			name:     "hint appended for permissions path",
+			message:  "Unknown property: issuess",
+			jsonPath: "/permissions",
+			contains: []string{"Valid permission scopes", "See: https://docs.github.com"},
+		},
+		{
+			name:     "did you mean suggestion for close typo",
+			message:  "Unknown property: issuess",
+			jsonPath: "/permissions",
+			contains: []string{"Did you mean 'issues'?"},
+		},
+		{
+			name:     "did you mean suggestion for another typo",
+			message:  "Unknown property: contnets",
+			jsonPath: "/permissions",
+			contains: []string{"Did you mean 'contents'?"},
+		},
+		{
+			name:     "no did you mean for unrelated word",
+			message:  "Unknown property: completely-unknown-xyz",
+			jsonPath: "/permissions",
+			excludes: []string{"Did you mean"},
+			contains: []string{"Valid permission scopes"},
+		},
+		{
+			name:     "no hint for unknown path",
+			message:  "Unknown property: foo",
+			jsonPath: "/some-unknown-path",
+			contains: []string{"Unknown property: foo"},
+			excludes: []string{"Valid permission scopes", "See:"},
+		},
+		{
+			name:     "hint works for nested permissions path",
+			message:  "Unknown property: issuess",
+			jsonPath: "/permissions/issuess",
+			contains: []string{"Valid permission scopes", "See: https://docs.github.com"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := appendKnownFieldValidValuesHint(tt.message, tt.jsonPath)
+			for _, want := range tt.contains {
+				assert.Contains(t, result, want,
+					"appendKnownFieldValidValuesHint should contain %q\nResult: %s", want, result)
+			}
+			for _, exclude := range tt.excludes {
+				assert.NotContains(t, result, exclude,
+					"appendKnownFieldValidValuesHint should not contain %q\nResult: %s", exclude, result)
+			}
+		})
+	}
+}

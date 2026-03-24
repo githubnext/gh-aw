@@ -1059,6 +1059,29 @@ describe("assign_to_agent", () => {
     );
   });
 
+  it("should sanitize dangerous content in failure comment body", async () => {
+    setAgentOutput({
+      items: [{ type: "assign_to_agent", issue_number: 11, agent: "copilot" }],
+      errors: [],
+    });
+
+    // Simulate an error whose message contains an @mention and an HTML comment —
+    // both are potentially dangerous if posted unsanitized.
+    const dangerousError = new Error("@admin triggered <!-- inject --> error");
+    mockGithub.graphql.mockRejectedValue(dangerousError);
+
+    await eval(`(async () => { ${assignToAgentScript}; await main(); })()`);
+
+    expect(mockGithub.rest.issues.createComment).toHaveBeenCalledTimes(1);
+    const [callArg] = mockGithub.rest.issues.createComment.mock.calls[0];
+    // The body must be a string (sanitizeContent never returns undefined)
+    expect(typeof callArg.body).toBe("string");
+    // The raw @mention should be neutralized (wrapped in backticks, not bare)
+    expect(callArg.body).not.toMatch(/(?<!`)@admin(?!`)/);
+    // The HTML comment should be stripped
+    expect(callArg.body).not.toContain("<!-- inject -->");
+  });
+
   it("should not post failure comment when ignore-if-error skips the assignment", async () => {
     process.env.GH_AW_AGENT_IGNORE_IF_ERROR = "true";
     setAgentOutput({

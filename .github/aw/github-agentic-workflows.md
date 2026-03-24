@@ -383,7 +383,7 @@ The YAML frontmatter supports these fields:
 - **`tools:`** - Tool configuration for coding agent
   - `github:` - GitHub API tools
     - `allowed:` - Array of allowed GitHub API functions
-    - `mode:` - "local" (Docker, default) or "remote" (hosted)
+    - `mode:` - "local" (Docker, default) — **do NOT use "remote"** as it does not work with the GitHub Actions token
     - `version:` - MCP server version (local mode only)
     - `args:` - Additional command-line arguments (local mode only)
     - `read-only:` - The GitHub MCP server always operates in read-only mode; this field is accepted but has no effect
@@ -1054,9 +1054,12 @@ The YAML frontmatter supports these fields:
     ```yaml
     safe-outputs:
       missing-tool:
+        create-issue: true              # Optional: create issues for missing tools (default: true)
+        title-prefix: "[missing tool]"  # Optional: prefix for issue titles
+        labels: [tool-request]          # Optional: labels for created issues
     ```
 
-    The missing-tool safe-output allows agents to report when they need tools or functionality not currently available. This is automatically enabled by default and helps track feature requests from agents.
+    The missing-tool safe-output allows agents to report when they need tools or functionality not currently available. This is automatically enabled by default and helps track feature requests from agents. When `create-issue` is true, missing tool reports create or update GitHub issues for tracking.
   - `missing-data:` - Report missing data required to complete tasks (auto-enabled)
 
     ```yaml

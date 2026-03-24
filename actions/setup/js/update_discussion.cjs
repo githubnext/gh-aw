@@ -10,6 +10,104 @@ const { createUpdateHandlerFactory, createStandardFormatResult } = require("./up
 const { sanitizeTitle } = require("./sanitize_title.cjs");
 const { ERR_NOT_FOUND } = require("./error_codes.cjs");
 const { parseBoolTemplatable } = require("./templatable.cjs");
+const { validateLabels } = require("./safe_output_validator.cjs");
+const { tryEnforceArrayLimit } = require("./limit_enforcement_helpers.cjs");
+const { MAX_LABELS } = require("./constants.cjs");
+const { getErrorMessage } = require("./error_helpers.cjs");
+
+/**
+ * Fetches label node IDs for the given label names from the repository
+ * @param {any} githubClient - GitHub API client
+ * @param {string} owner - Repository owner
+ * @param {string} repo - Repository name
+ * @param {string[]} labelNames - Array of label names to fetch IDs for
+ * @returns {Promise<string[]>} Array of label node IDs
+ */
+async function fetchLabelNodeIds(githubClient, owner, repo, labelNames) {
+  if (!labelNames || labelNames.length === 0) {
+    return [];
+  }
+
+  const labelsQuery = `
+    query($owner: String!, $repo: String!) {
+      repository(owner: $owner, name: $repo) {
+        labels(first: 100) {
+          nodes {
+            id
+            name
+          }
+        }
+      }
+    }
+  `;
+
+  const queryResult = await githubClient.graphql(labelsQuery, { owner, repo });
+  const repoLabels = queryResult?.repository?.labels?.nodes || [];
+  const labelMap = new Map(repoLabels.map(/** @param {any} l */ l => [l.name.toLowerCase(), l.id]));
+
+  const labelIds = [];
+  const unmatched = [];
+  for (const name of labelNames) {
+    const id = labelMap.get(name.toLowerCase());
+    if (id) {
+      labelIds.push(id);
+    } else {
+      unmatched.push(name);
+    }
+  }
+
+  if (unmatched.length > 0) {
+    core.warning(`Could not find label IDs for: ${unmatched.join(", ")}. Ensure these labels exist in the repository.`);
+  }
+
+  return labelIds;
+}
+
+/**
+ * Replaces all labels on a discussion using GraphQL
+ * @param {any} githubClient - GitHub API client
+ * @param {string} discussionId - Discussion node ID
+ * @param {string[]} labelIds - Array of label node IDs to set
+ * @returns {Promise<void>}
+ */
+async function replaceDiscussionLabels(githubClient, discussionId, labelIds) {
+  // Fetch existing labels so we can remove them first
+  const removeQuery = `
+    query($id: ID!) {
+      node(id: $id) {
+        ... on Discussion {
+          labels(first: 100) {
+            nodes { id }
+          }
+        }
+      }
+    }
+  `;
+  const existing = await githubClient.graphql(removeQuery, { id: discussionId });
+  const existingIds = existing?.node?.labels?.nodes?.map(/** @param {any} l */ l => l.id) || [];
+
+  if (existingIds.length > 0) {
+    const removeMutation = `
+      mutation($labelableId: ID!, $labelIds: [ID!]!) {
+        removeLabelsFromLabelable(input: { labelableId: $labelableId, labelIds: $labelIds }) {
+          clientMutationId
+        }
+      }
+    `;
+    await githubClient.graphql(removeMutation, { labelableId: discussionId, labelIds: existingIds });
+  }
+
+  if (labelIds.length > 0) {
+    const addMutation = `
+      mutation($labelableId: ID!, $labelIds: [ID!]!) {
+        addLabelsToLabelable(input: { labelableId: $labelableId, labelIds: $labelIds }) {
+          clientMutationId
+        }
+      }
+    `;
+    await githubClient.graphql(addMutation, { labelableId: discussionId, labelIds });
+  }
+}
 
 /**
  * Execute the discussion update API call using GraphQL
@@ -66,7 +164,20 @@ async function executeDiscussionUpdate(github, context, discussionNumber, update
   };
 
   const mutationResult = await github.graphql(mutation, variables);
-  return mutationResult.updateDiscussion.discussion;
+  const updatedDiscussion = mutationResult.updateDiscussion.discussion;
+
+  // Handle label replacement if labels were provided
+  if (updateData.labels !== undefined) {
+    try {
+      const labelIds = await fetchLabelNodeIds(github, context.repo.owner, context.repo.repo, updateData.labels);
+      await replaceDiscussionLabels(github, discussion.id, labelIds);
+      core.info(`Successfully replaced labels on discussion #${discussionNumber}`);
+    } catch (error) {
+      core.warning(`Discussion #${discussionNumber} title/body updated successfully, but label update failed: ${getErrorMessage(error)}`);
+    }
+  }
+
+  return updatedDiscussion;
 }
 
 /**
@@ -134,6 +245,27 @@ function buildDiscussionUpdateData(item, config) {
   }
   if (item.body !== undefined) {
     updateData.body = item.body;
+  }
+
+  // Handle labels update when allowed
+  if (config.allow_labels === true && item.labels !== undefined) {
+    if (!Array.isArray(item.labels)) {
+      return { success: false, error: "Invalid labels value: must be an array" };
+    }
+
+    const limitResult = tryEnforceArrayLimit(item.labels, MAX_LABELS, "labels");
+    if (!limitResult.success) {
+      core.warning(`Discussion update label limit exceeded: ${limitResult.error}`);
+      return { success: false, error: limitResult.error };
+    }
+
+    const allowedLabels = config.allowed_labels || [];
+    const labelsResult = validateLabels(item.labels, allowedLabels.length > 0 ? allowedLabels : undefined);
+    if (!labelsResult.valid) {
+      return { success: false, error: labelsResult.error ?? "Invalid labels" };
+    }
+
+    updateData.labels = labelsResult.value ?? [];
   }
 
   // Pass footer config to executeUpdate (default to true)

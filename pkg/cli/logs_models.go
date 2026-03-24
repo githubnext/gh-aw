@@ -230,6 +230,19 @@ type AwInfoSteps struct {
 	Firewall string `json:"firewall,omitempty"` // Firewall type (e.g., "squid") or empty if no firewall
 }
 
+// AwContext represents the caller-workflow identity injected by dispatch_workflow.cjs
+// into the aw_context input, and stored under the "context" key in aw_info.json.
+// All values are strings (no nested objects) as validated by generate_aw_info.cjs.
+type AwContext struct {
+	Repo           string `json:"repo"`                       // "owner/repo" of the calling workflow
+	RunID          string `json:"run_id"`                     // GitHub Actions run ID of the calling workflow
+	WorkflowID     string `json:"workflow_id"`                // Full workflow ref, e.g. "owner/repo/.github/workflows/foo.yml@refs/heads/main"
+	WorkflowCallID string `json:"workflow_call_id,omitempty"` // Unique call attempt ID (run_id + run_attempt)
+	Time           string `json:"time,omitempty"`             // ISO 8601 timestamp of the dispatch
+	Actor          string `json:"actor,omitempty"`            // GitHub actor that triggered the calling workflow
+	EventType      string `json:"event_type,omitempty"`       // GitHub event name of the calling workflow
+}
+
 // AwInfo represents the structure of aw_info.json files
 type AwInfo struct {
 	EngineID        string      `json:"engine_id"`
@@ -243,6 +256,7 @@ type AwInfo struct {
 	FirewallVersion string      `json:"firewall_version,omitempty"` // AWF firewall version (old name, for backward compatibility)
 	Steps           AwInfoSteps `json:"steps,omitzero"`             // Steps metadata
 	CreatedAt       string      `json:"created_at"`
+	Context         *AwContext  `json:"context,omitempty"` // aw_context data passed via workflow_dispatch inputs
 	// Additional fields that might be present
 	RunID      any    `json:"run_id,omitempty"`
 	RunNumber  any    `json:"run_number,omitempty"`

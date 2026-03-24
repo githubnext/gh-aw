@@ -64,6 +64,7 @@ func ValidateMCPConfigs(tools map[string]any) error {
 	builtInTools := map[string]bool{
 		"github":            true,
 		"playwright":        true,
+		"qmd":               true,
 		"serena":            true,
 		"agentic-workflows": true,
 		"cache-memory":      true,

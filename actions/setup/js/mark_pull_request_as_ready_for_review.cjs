@@ -23,7 +23,7 @@ const HANDLER_TYPE = "mark_pull_request_as_ready_for_review";
  * @param {string} owner - Repository owner
  * @param {string} repo - Repository name
  * @param {number} prNumber - Pull request number
- * @returns {Promise<{number: number, title: string, html_url: string, draft: boolean}>} Pull request details
+ * @returns {Promise<{number: number, title: string, html_url: string, draft: boolean, node_id: string}>} Pull request details
  */
 async function getPullRequestDetails(github, owner, repo, prNumber) {
   const { data: pr } = await github.rest.pulls.get({
@@ -59,23 +59,38 @@ async function addPullRequestComment(github, owner, repo, prNumber, commentBody)
   return comment;
 }
 
-/**
- * Mark a pull request as ready for review using REST API
- * @param {any} github - GitHub REST API instance
- * @param {string} owner - Repository owner
- * @param {string} repo - Repository name
- * @param {number} prNumber - Pull request number
- * @returns {Promise<{number: number, html_url: string, title: string}>} Pull request details
- */
-async function markPullRequestAsReadyForReview(github, owner, repo, prNumber) {
-  const { data: pr } = await github.rest.pulls.update({
-    owner,
-    repo,
-    pull_number: prNumber,
-    draft: false,
-  });
+/** @type {string} GraphQL mutation to mark a pull request as ready for review */
+const MARK_PR_READY_MUTATION = /* GraphQL */ `
+  mutation ($pullRequestId: ID!) {
+    markPullRequestAsReadyForReview(input: { pullRequestId: $pullRequestId }) {
+      pullRequest {
+        number
+        isDraft
+        url
+        title
+      }
+    }
+  }
+`;
 
-  return pr;
+/**
+ * Mark a pull request as ready for review using the GraphQL API.
+ * The REST API `pulls.update` silently ignores `draft: false`, so the GraphQL
+ * mutation `markPullRequestAsReadyForReview` must be used instead.
+ * @param {any} github - GitHub GraphQL instance
+ * @param {string} pullRequestNodeId - The PR's GraphQL node ID (e.g., 'PR_kwDO...')
+ * @returns {Promise<{number: number, html_url: string, title: string, isDraft: boolean}>} Pull request details
+ */
+async function markPullRequestAsReadyForReview(github, pullRequestNodeId) {
+  const result = await github.graphql(MARK_PR_READY_MUTATION, { pullRequestId: pullRequestNodeId });
+
+  const pr = result.markPullRequestAsReadyForReview.pullRequest;
+  return {
+    number: pr.number,
+    html_url: pr.url,
+    title: pr.title,
+    isDraft: pr.isDraft,
+  };
 }
 
 /**
@@ -179,8 +194,16 @@ async function main(config = {}) {
         };
       }
 
-      // Update the PR to mark as ready for review
-      const pr = await markPullRequestAsReadyForReview(githubClient, context.repo.owner, context.repo.repo, prNumber);
+      // Update the PR to mark as ready for review using GraphQL mutation
+      const pr = await markPullRequestAsReadyForReview(githubClient, currentPR.node_id);
+
+      if (pr.isDraft) {
+        core.error(`GraphQL mutation reported success but PR #${prNumber} is still a draft`);
+        return {
+          success: false,
+          error: `Failed to mark PR #${prNumber} as ready for review: PR is still in draft state`,
+        };
+      }
 
       // Add comment with reason
       const workflowName = process.env.GH_AW_WORKFLOW_NAME || "GitHub Agentic Workflow";

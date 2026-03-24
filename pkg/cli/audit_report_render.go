@@ -8,6 +8,7 @@ import (
 	"strconv"
 
 	"github.com/github/gh-aw/pkg/console"
+	"github.com/github/gh-aw/pkg/sliceutil"
 	"github.com/github/gh-aw/pkg/stringutil"
 )
 
@@ -427,26 +428,13 @@ func renderCreatedItemsTable(items []CreatedItemReport) {
 func renderKeyFindings(findings []Finding) {
 	auditReportLog.Printf("Rendering key findings: total=%d", len(findings))
 	// Group findings by severity for better presentation
-	critical := []Finding{}
-	high := []Finding{}
-	medium := []Finding{}
-	low := []Finding{}
-	info := []Finding{}
-
-	for _, finding := range findings {
-		switch finding.Severity {
-		case "critical":
-			critical = append(critical, finding)
-		case "high":
-			high = append(high, finding)
-		case "medium":
-			medium = append(medium, finding)
-		case "low":
-			low = append(low, finding)
-		default:
-			info = append(info, finding)
-		}
-	}
+	critical := sliceutil.Filter(findings, func(f Finding) bool { return f.Severity == "critical" })
+	high := sliceutil.Filter(findings, func(f Finding) bool { return f.Severity == "high" })
+	medium := sliceutil.Filter(findings, func(f Finding) bool { return f.Severity == "medium" })
+	low := sliceutil.Filter(findings, func(f Finding) bool { return f.Severity == "low" })
+	info := sliceutil.Filter(findings, func(f Finding) bool {
+		return f.Severity != "critical" && f.Severity != "high" && f.Severity != "medium" && f.Severity != "low"
+	})
 
 	// Render critical findings first
 	for _, finding := range critical {
@@ -503,20 +491,9 @@ func renderKeyFindings(findings []Finding) {
 func renderRecommendations(recommendations []Recommendation) {
 	auditReportLog.Printf("Rendering recommendations: total=%d", len(recommendations))
 	// Group by priority
-	high := []Recommendation{}
-	medium := []Recommendation{}
-	low := []Recommendation{}
-
-	for _, rec := range recommendations {
-		switch rec.Priority {
-		case "high":
-			high = append(high, rec)
-		case "medium":
-			medium = append(medium, rec)
-		default:
-			low = append(low, rec)
-		}
-	}
+	high := sliceutil.Filter(recommendations, func(r Recommendation) bool { return r.Priority == "high" })
+	medium := sliceutil.Filter(recommendations, func(r Recommendation) bool { return r.Priority == "medium" })
+	low := sliceutil.Filter(recommendations, func(r Recommendation) bool { return r.Priority != "high" && r.Priority != "medium" })
 
 	// Render high priority first
 	for i, rec := range high {

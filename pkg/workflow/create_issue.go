@@ -19,6 +19,7 @@ type CreateIssuesConfig struct {
 	AllowedRepos         []string `yaml:"allowed-repos,omitempty"`      // List of additional repositories that issues can be created in
 	CloseOlderIssues     *string  `yaml:"close-older-issues,omitempty"` // When true, close older issues with same title prefix or labels as "not planned"
 	CloseOlderKey        string   `yaml:"close-older-key,omitempty"`    // Optional explicit deduplication key for close-older matching. When set, uses gh-aw-close-key marker instead of workflow-id markers.
+	GroupByDay           *string  `yaml:"group-by-day,omitempty"`       // When true, if an open issue was already created today (UTC), post new content as a comment on it instead of creating a duplicate. Works best with close-older-issues: true.
 	Expires              int      `yaml:"expires,omitempty"`            // Hours until the issue expires and should be automatically closed
 	Group                *string  `yaml:"group,omitempty"`              // If true, group issues as sub-issues under a parent issue (workflow ID is used as group identifier)
 	Footer               *string  `yaml:"footer,omitempty"`             // Controls whether AI-generated footer is added. When false, visible footer is omitted but XML markers are kept.
@@ -41,7 +42,7 @@ func (c *Compiler) parseIssuesConfig(outputMap map[string]any) *CreateIssuesConf
 
 	// Pre-process templatable bool fields: convert literal booleans to strings so that
 	// GitHub Actions expression strings (e.g. "${{ inputs.close-older-issues }}") are also accepted.
-	for _, field := range []string{"close-older-issues", "group", "footer"} {
+	for _, field := range []string{"close-older-issues", "group", "footer", "group-by-day"} {
 		if err := preprocessBoolFieldAsString(configData, field, createIssueLog); err != nil {
 			createIssueLog.Printf("Invalid %s value: %v", field, err)
 			return nil

@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/parser"
 )
 
 var frontmatterErrorLog = logger.New("workflow:frontmatter_error")
@@ -15,49 +16,6 @@ var (
 	lineColPattern       = regexp.MustCompile(`\[(\d+):(\d+)\]\s*(.+)`)
 	sourceContextPattern = regexp.MustCompile(`\n(\s+\d+\s*\|)`)
 )
-
-// yamlErrorTranslations maps raw goccy/go-yaml internal messages to user-friendly plain English.
-// These messages are parser internals that are not helpful to end users.
-var yamlErrorTranslations = []struct {
-	pattern     string
-	translation string
-}{
-	{
-		"non-map value is specified",
-		"Invalid YAML syntax: expected 'key: value' format (did you forget a colon after the key?)",
-	},
-	{
-		"mapping values are not allowed",
-		"Invalid YAML syntax: unexpected ':' — check your indentation",
-	},
-	{
-		"did not find expected",
-		"Invalid YAML syntax: check indentation or missing key",
-	},
-	{
-		"mapping value is not allowed in this context",
-		"Invalid YAML syntax: unexpected value — did you forget a ':' after a key?",
-	},
-	{
-		"could not find expected ':'",
-		"Invalid YAML syntax: missing ':' between key and value",
-	},
-	{
-		"found character that cannot start any token",
-		"Invalid YAML syntax: invalid character — check indentation uses spaces, not tabs",
-	},
-}
-
-// translateYAMLMessage converts raw YAML parser messages to user-friendly plain English.
-// This prevents internal library jargon from reaching the end user.
-func translateYAMLMessage(message string) string {
-	for _, t := range yamlErrorTranslations {
-		if strings.Contains(message, t.pattern) {
-			return t.translation
-		}
-	}
-	return message
-}
 
 // findFrontmatterFieldLine searches frontmatterLines for a line whose first
 // non-space key matches fieldName (e.g., "engine") and returns the 1-based
@@ -100,8 +58,9 @@ func (c *Compiler) createFrontmatterError(filePath, content string, err error, f
 			if idx := strings.Index(message, "\n"); idx != -1 {
 				message = message[:idx]
 			}
-			// Translate raw YAML parser messages to user-friendly plain English
-			message = translateYAMLMessage(message)
+			// Translate raw YAML parser messages to user-friendly plain English.
+			// Uses the shared translation table from pkg/parser to keep both code paths in sync.
+			message = parser.TranslateYAMLMessage(message)
 
 			// Format as: filename:line:column: error: message
 			// This is compatible with VSCode's problem matcher

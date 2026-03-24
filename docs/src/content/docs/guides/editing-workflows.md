@@ -5,18 +5,9 @@ sidebar:
   order: 5
 ---
 
-Agentic workflows consist of two distinct parts with different editing requirements: the **YAML frontmatter** (configuration) and the **markdown body** (AI instructions). Understanding when changes require recompilation helps you iterate quickly and efficiently.
+Agentic workflows consist of two parts: the **YAML frontmatter** (compiled into the lock file; changes require recompilation) and the **markdown body** (loaded at runtime; changes take effect immediately). This lets you iterate on AI instructions without recompilation while maintaining strict control over security-sensitive configuration.
 
 See [Creating Agentic Workflows](/gh-aw/setup/creating-workflows/) for guidance on creating workflows with AI assistance.
-
-## Overview
-
-Workflow files (`.md`) are compiled into GitHub Actions workflow files (`.lock.yml`). The compilation process:
-
-- **Embeds frontmatter** directly into the lock file (changes require recompilation)
-- **Loads the markdown body** at runtime from the source file (changes do NOT require recompilation)
-
-This design allows you to quickly iterate on AI instructions without recompilation while maintaining strict control over security-sensitive configuration.
 
 ## Editing Without Recompilation
 
@@ -25,26 +16,7 @@ This design allows you to quickly iterate on AI instructions without recompilati
 
 ### What You Can Edit
 
-The markdown body is loaded at runtime from the original `.md` file. You can freely edit:
-
-- **AI instructions**: Task descriptions, step-by-step guidance, examples
-- **Context explanations**: Project conventions, background information
-- **Output formatting**: Templates for issues, PRs, comments
-- **Conditional logic**: "If X, then do Y" instructions
-- **Documentation**: Headers, examples, clarifications
-
-### Workflow for Quick Iterations
-
-```bash
-# 1. Edit the markdown body on GitHub.com
-#    Navigate to .github/workflows/my-workflow.md
-#    Click "Edit" and modify instructions
-
-# 2. Commit changes directly to main (or create PR)
-
-# 3. Trigger the workflow
-#    Changes are immediately active - no recompilation needed!
-```
+The markdown body is loaded at runtime from the original `.md` file. You can freely edit task instructions, output templates, conditional logic ("If X, then do Y"), context explanations, and examples.
 
 ### Example: Adding Instructions
 
@@ -168,22 +140,6 @@ Run this command: ${{ github.event.comment.body }}
 ```
 
 Use `steps.sanitized.outputs.text` for sanitized user input instead.
-
-## Quick Reference
-
-| Change Type | Example | Recompilation? | Edit Location |
-|-------------|---------|----------------|---------------|
-| **AI instructions** | Add task steps | ❌ No | GitHub.com or any editor |
-| **Output templates** | Change issue format | ❌ No | GitHub.com or any editor |
-| **Conditional logic** | "If bug, then..." | ❌ No | GitHub.com or any editor |
-| **GitHub expressions** | Add `${{ github.actor }}` | ❌ No | GitHub.com or any editor |
-| **Tools** | Add GitHub toolset | ✅ Yes | Local + compile |
-| **Permissions** | Add a read permission | ✅ Yes | Local + compile |
-| **Triggers** | Add `schedule:` | ✅ Yes | Local + compile |
-| **Network rules** | Add allowed domain | ✅ Yes | Local + compile |
-| **Safe outputs** | Add `create-issue:` | ✅ Yes | Local + compile |
-| **Engine** | Change to Claude | ✅ Yes | Local + compile |
-| **Imports** | Add shared config | ✅ Yes | Local + compile |
 
 ## Related Documentation
 

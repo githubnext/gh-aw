@@ -236,6 +236,12 @@ const (
 	// DefaultMCPInspectorPort is the default port for the MCP inspector (safe-outputs server)
 	DefaultMCPInspectorPort = 3001
 
+	// DefaultQmdMCPPort is the TCP port for the qmd HTTP MCP server started in the agent job.
+	// qmd runs as a Docker container (node:24) with `qmd mcp --http --port PORT`; using HTTP
+	// transport avoids node-llama-cpp's direct process.stdout writes (dot-progress during model
+	// loading) from corrupting the stdio JSON-RPC stream.
+	DefaultQmdMCPPort = 8181
+
 	// MinNetworkPort is the minimum valid network port number
 	MinNetworkPort = 1
 
@@ -371,11 +377,20 @@ const AWFDefaultCommand = "sudo -E awf"
 // AWFProxyLogsDir is the default directory for AWF proxy logs
 const AWFProxyLogsDir = "/tmp/gh-aw/sandbox/firewall/logs"
 
+// AWFAuditDir is the directory for AWF audit files (policy-manifest.json, squid.conf, docker-compose.redacted.yml).
+// These files are written by AWF when --audit-dir is specified and provide structured policy/configuration data
+// needed by the `awf logs audit` command for enriching log entries with policy rule matching.
+const AWFAuditDir = "/tmp/gh-aw/sandbox/firewall/audit"
+
+// FirewallAuditArtifactName is the artifact name used for dedicated firewall audit log uploads.
+// All compiled agentic workflows upload the AWF structured audit/observability logs under this name.
+const FirewallAuditArtifactName = "firewall-audit-logs"
+
 // AWFDefaultLogLevel is the default log level for AWF
 const AWFDefaultLogLevel = "info"
 
 // DefaultMCPGatewayVersion is the default version of the MCP Gateway (gh-aw-mcpg) Docker image
-const DefaultMCPGatewayVersion Version = "v0.2.1"
+const DefaultMCPGatewayVersion Version = "v0.2.5"
 
 // DefaultMCPGatewayContainer is the default container image for the MCP Gateway
 const DefaultMCPGatewayContainer = "ghcr.io/github/gh-aw-mcpg"
@@ -419,10 +434,17 @@ var SerenaLanguageSupport = map[string][]string{
 }
 
 // DefaultAPMVersion is the default version of the microsoft/APM (Agent Package Manager) CLI
-const DefaultAPMVersion Version = "v0.8.4"
+const DefaultAPMVersion Version = "v0.8.5"
 
 // DefaultPlaywrightMCPVersion is the default version of the @playwright/mcp package
 const DefaultPlaywrightMCPVersion Version = "0.0.68"
+
+// DefaultQmdVersion is the default version of the @tobilu/qmd npm package
+const DefaultQmdVersion Version = "2.0.1"
+
+// DefaultQmdIndexingRunnerImage is the default runner image for the qmd indexing job.
+// Users can override this with the runs-on: field in the qmd config.
+const DefaultQmdIndexingRunnerImage = "ubuntu-latest"
 
 // DefaultPlaywrightBrowserVersion is the default version of the Playwright browser Docker image
 const DefaultPlaywrightBrowserVersion Version = "v1.58.2"
@@ -624,6 +646,8 @@ var DangerousPropertyNames = []string{
 
 const AgentJobName JobName = "agent"
 const ActivationJobName JobName = "activation"
+const APMJobName JobName = "apm"
+const IndexingJobName JobName = "indexing"
 const PreActivationJobName JobName = "pre_activation"
 const DetectionJobName JobName = "detection"
 const SafeOutputArtifactName = "safe-output"
@@ -718,6 +742,7 @@ const GetTriggerLabelStepID StepID = "get_trigger_label"
 const CheckRateLimitStepID StepID = "check_rate_limit"
 const CheckSkipRolesStepID StepID = "check_skip_roles"
 const CheckSkipBotsStepID StepID = "check_skip_bots"
+const CheckSkipIfCheckFailingStepID StepID = "check_skip_if_check_failing"
 
 // PreActivationAppTokenStepID is the step ID for the unified GitHub App token mint step
 // emitted in the pre-activation job when on.github-app is configured alongside skip-if checks.
@@ -733,6 +758,7 @@ const MatchedCommandOutput = "matched_command"
 const RateLimitOkOutput = "rate_limit_ok"
 const SkipRolesOkOutput = "skip_roles_ok"
 const SkipBotsOkOutput = "skip_bots_ok"
+const SkipIfCheckFailingOkOutput = "skip_if_check_failing_ok"
 const ActivatedOutput = "activated"
 
 // Rate limit defaults

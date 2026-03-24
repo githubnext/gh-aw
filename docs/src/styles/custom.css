@@ -1604,7 +1604,7 @@ main,
   }
 
   /* Disable heavy background animation on mobile to reduce CPU/battery usage */
-  :root[data-theme='light'] body::before {
+  body::before {
     animation: none;
   }
 }

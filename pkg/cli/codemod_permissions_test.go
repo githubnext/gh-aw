@@ -10,7 +10,7 @@ import (
 )
 
 func TestGetPermissionsReadCodemod(t *testing.T) {
-	codemod := getPermissionsReadCodemod()
+	codemod := getExpandPermissionsShorthandCodemod()
 
 	assert.Equal(t, "permissions-read-to-read-all", codemod.ID)
 	assert.Equal(t, "Convert invalid permissions shorthand", codemod.Name)
@@ -20,7 +20,7 @@ func TestGetPermissionsReadCodemod(t *testing.T) {
 }
 
 func TestPermissionsReadCodemod_Read(t *testing.T) {
-	codemod := getPermissionsReadCodemod()
+	codemod := getExpandPermissionsShorthandCodemod()
 
 	content := `---
 on: workflow_dispatch
@@ -43,7 +43,7 @@ permissions: read
 }
 
 func TestPermissionsReadCodemod_Write(t *testing.T) {
-	codemod := getPermissionsReadCodemod()
+	codemod := getExpandPermissionsShorthandCodemod()
 
 	content := `---
 on: workflow_dispatch
@@ -66,7 +66,7 @@ permissions: write
 }
 
 func TestPermissionsReadCodemod_NoChange_ReadAll(t *testing.T) {
-	codemod := getPermissionsReadCodemod()
+	codemod := getExpandPermissionsShorthandCodemod()
 
 	content := `---
 on: workflow_dispatch
@@ -88,7 +88,7 @@ permissions: read-all
 }
 
 func TestPermissionsReadCodemod_NoChange_WriteAll(t *testing.T) {
-	codemod := getPermissionsReadCodemod()
+	codemod := getExpandPermissionsShorthandCodemod()
 
 	content := `---
 on: workflow_dispatch
@@ -110,7 +110,7 @@ permissions: write-all
 }
 
 func TestPermissionsReadCodemod_NoChange_MapFormat(t *testing.T) {
-	codemod := getPermissionsReadCodemod()
+	codemod := getExpandPermissionsShorthandCodemod()
 
 	content := `---
 on: workflow_dispatch
@@ -137,7 +137,7 @@ permissions:
 }
 
 func TestPermissionsReadCodemod_NoPermissions(t *testing.T) {
-	codemod := getPermissionsReadCodemod()
+	codemod := getExpandPermissionsShorthandCodemod()
 
 	content := `---
 on: workflow_dispatch
@@ -159,7 +159,7 @@ timeout-minutes: 30
 }
 
 func TestPermissionsReadCodemod_PreservesMarkdown(t *testing.T) {
-	codemod := getPermissionsReadCodemod()
+	codemod := getExpandPermissionsShorthandCodemod()
 
 	content := `---
 on: workflow_dispatch
@@ -184,7 +184,7 @@ This workflow needs permissions.`
 }
 
 func TestGetWritePermissionsCodemod(t *testing.T) {
-	codemod := getWritePermissionsCodemod()
+	codemod := getMigrateWritePermissionsToReadCodemod()
 
 	assert.Equal(t, "write-permissions-to-read-migration", codemod.ID)
 	assert.Equal(t, "Convert write permissions to read", codemod.Name)
@@ -194,7 +194,7 @@ func TestGetWritePermissionsCodemod(t *testing.T) {
 }
 
 func TestWritePermissionsCodemod_ShorthandWriteAll(t *testing.T) {
-	codemod := getWritePermissionsCodemod()
+	codemod := getMigrateWritePermissionsToReadCodemod()
 
 	content := `---
 on: workflow_dispatch
@@ -217,7 +217,7 @@ permissions: write-all
 }
 
 func TestWritePermissionsCodemod_ShorthandWrite(t *testing.T) {
-	codemod := getWritePermissionsCodemod()
+	codemod := getMigrateWritePermissionsToReadCodemod()
 
 	content := `---
 on: workflow_dispatch
@@ -240,7 +240,7 @@ permissions: write
 }
 
 func TestWritePermissionsCodemod_MapFormat(t *testing.T) {
-	codemod := getWritePermissionsCodemod()
+	codemod := getMigrateWritePermissionsToReadCodemod()
 
 	content := `---
 on: workflow_dispatch
@@ -269,7 +269,7 @@ permissions:
 }
 
 func TestWritePermissionsCodemod_MultipleWritePermissions(t *testing.T) {
-	codemod := getWritePermissionsCodemod()
+	codemod := getMigrateWritePermissionsToReadCodemod()
 
 	content := `---
 on: workflow_dispatch
@@ -300,7 +300,7 @@ permissions:
 }
 
 func TestWritePermissionsCodemod_NoPermissionsField(t *testing.T) {
-	codemod := getWritePermissionsCodemod()
+	codemod := getMigrateWritePermissionsToReadCodemod()
 
 	content := `---
 on: workflow_dispatch
@@ -322,7 +322,7 @@ timeout-minutes: 30
 }
 
 func TestWritePermissionsCodemod_OnlyReadPermissions(t *testing.T) {
-	codemod := getWritePermissionsCodemod()
+	codemod := getMigrateWritePermissionsToReadCodemod()
 
 	content := `---
 on: workflow_dispatch
@@ -349,7 +349,7 @@ permissions:
 }
 
 func TestWritePermissionsCodemod_PreservesIndentation(t *testing.T) {
-	codemod := getWritePermissionsCodemod()
+	codemod := getMigrateWritePermissionsToReadCodemod()
 
 	content := `---
 on: workflow_dispatch
@@ -377,7 +377,7 @@ permissions:
 }
 
 func TestWritePermissionsCodemod_PreservesComments(t *testing.T) {
-	codemod := getWritePermissionsCodemod()
+	codemod := getMigrateWritePermissionsToReadCodemod()
 
 	content := `---
 on: workflow_dispatch
@@ -405,7 +405,7 @@ permissions:
 }
 
 func TestWritePermissionsCodemod_PreservesMarkdown(t *testing.T) {
-	codemod := getWritePermissionsCodemod()
+	codemod := getMigrateWritePermissionsToReadCodemod()
 
 	content := `---
 on: workflow_dispatch

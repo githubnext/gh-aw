@@ -97,8 +97,8 @@ For each issue that was NOT addressed by DDUw:
 
 1. Use `list_commits` and `get_commit` to review commits from the past 7 days.
 2. Determine whether any code change is directly related to the issue's subject matter (feature, flag, behavior described in the issue).
-3. **Use `qmd-query` to find relevant documentation files** for the feature or concept described in the issue — this is faster than using `find` and surfaces the most semantically relevant pages:
-   - e.g., `qmd-query("permissions workflow configuration")` or `qmd-query("safe-outputs create-pull-request")`
+3. **Use `search` to find relevant documentation files** for the feature or concept described in the issue — this is faster than using `find` and surfaces the most semantically relevant pages:
+   - e.g., `search("permissions workflow configuration")` or `search("safe-outputs create-pull-request")`
    - Read the returned file paths to verify the documentation gap exists today
 4. Read the identified documentation files to verify the gap exists today:
 
