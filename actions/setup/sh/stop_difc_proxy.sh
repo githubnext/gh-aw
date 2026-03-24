@@ -27,4 +27,16 @@ fi
 if [ "${GH_HOST:-}" = "localhost:18443" ]; then
   echo "GH_HOST=" >> "$GITHUB_ENV"
 fi
+
+# Restore GITHUB_API_URL and GITHUB_GRAPHQL_URL to their original values.
+if [ "${GITHUB_API_URL:-}" = "https://localhost:18443/api/v3" ]; then
+  echo "GITHUB_API_URL=${GH_AW_ORIGINAL_GITHUB_API_URL:-}" >> "$GITHUB_ENV"
+fi
+if [ "${GITHUB_GRAPHQL_URL:-}" = "https://localhost:18443/api/graphql" ]; then
+  echo "GITHUB_GRAPHQL_URL=${GH_AW_ORIGINAL_GITHUB_GRAPHQL_URL:-}" >> "$GITHUB_ENV"
+fi
+
+# Clear the Node.js CA certs override set by start_difc_proxy.sh.
+echo "NODE_EXTRA_CA_CERTS=" >> "$GITHUB_ENV"
+
 echo "DIFC proxy stopped"

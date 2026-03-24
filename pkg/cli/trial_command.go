@@ -76,7 +76,7 @@ func NewTrialCommand(validateEngine func(string) error) *cobra.Command {
 
 This command creates a temporary private repository in your GitHub space, installs the specified
 workflow(s) from their source repositories, and runs them in "trial mode" to capture safe outputs without
-making actual changes to the "simulated" host repository
+making actual changes to the "simulated" host repository.
 
 Single workflow:
   ` + string(constants.CLIExtensionPrefix) + ` trial githubnext/agentics/weekly-research
@@ -177,17 +177,17 @@ Trial results are saved both locally (in trials/ directory) and in the host repo
 	}
 
 	// Add flags
-	cmd.Flags().StringP("logical-repo", "l", "", "The repo we're simulating the execution for, as if the workflow was installed in that repo (defaults to current repository)")
+	cmd.Flags().StringP("logical-repo", "l", "", "Repository to simulate workflow execution against, as if the workflow was installed there (defaults to current repository)")
 	cmd.Flags().String("clone-repo", "", "Alternative to --logical-repo: clone the contents of the specified repo into the host repo instead of using logical repository simulation")
 
 	cmd.Flags().String("host-repo", "", "Custom host repository slug (defaults to '<username>/gh-aw-trial'). Use '.' for current repository")
 	cmd.Flags().String("repo", "", "Alias for --host-repo: the repository where workflows are installed and run (note: different semantics from --repo in other commands)")
 	_ = cmd.Flags().MarkHidden("repo") // Hide alias to avoid semantic confusion with --repo in other commands
-	cmd.Flags().Bool("delete-host-repo-after", false, "Delete the host repository after completion (default: keep)")
-	cmd.Flags().Bool("force-delete-host-repo-before", false, "Force delete the host repository before creation, if it exists before creating it")
+	cmd.Flags().Bool("delete-host-repo-after", false, "Delete the host repository after completion (kept by default)")
+	cmd.Flags().Bool("force-delete-host-repo-before", false, "Force delete the host repository before creation if it already exists")
 	cmd.Flags().BoolP("yes", "y", false, "Skip confirmation prompts")
 	cmd.Flags().Bool("dry-run", false, "Show what would be done without making any changes")
-	cmd.Flags().Int("timeout", 30, "Execution timeout in minutes (default: 30)")
+	cmd.Flags().Int("timeout", 30, "Execution timeout in minutes")
 	cmd.Flags().String("trigger-context", "", "Trigger context URL (e.g., GitHub issue URL) for issue-triggered workflows")
 	cmd.Flags().Int("repeat", 0, "Number of additional times to run after the initial execution (e.g., --repeat 3 runs 4 times total)")
 	cmd.Flags().Bool("auto-merge-prs", false, "Auto-merge any pull requests created during trial execution")

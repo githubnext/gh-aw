@@ -8,6 +8,7 @@ import (
 	"strings"
 	"testing"
 
+	goyaml "github.com/goccy/go-yaml"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -359,4 +360,28 @@ Test that permission-vulnerability-alerts is emitted in the App token minting st
 	assert.Contains(t, lockContent, "permission-security-events: read", "Should also include security-events read permission in App token")
 	// Verify the token minting step is present
 	assert.Contains(t, lockContent, "id: github-mcp-app-token", "GitHub App token step should be generated")
+	// Verify that vulnerability-alerts does NOT appear in any job-level permissions block.
+	// It is a GitHub App-only permission and not a valid GitHub Actions workflow permission;
+	// GitHub Actions rejects workflows that declare it at the job level.
+	var workflow map[string]any
+	require.NoError(t, goyaml.Unmarshal(content, &workflow), "Lock file should be valid YAML")
+	jobs, ok := workflow["jobs"].(map[string]any)
+	require.True(t, ok, "Should have jobs section")
+	for jobName, jobConfig := range jobs {
+		jobMap, ok := jobConfig.(map[string]any)
+		if !ok {
+			continue
+		}
+		perms, hasPerms := jobMap["permissions"]
+		if !hasPerms {
+			continue
+		}
+		permsMap, ok := perms.(map[string]any)
+		if !ok {
+			continue
+		}
+		if _, found := permsMap["vulnerability-alerts"]; found {
+			t.Errorf("Job %q should not have vulnerability-alerts in job-level permissions block (it is a GitHub App-only permission)", jobName)
+		}
+	}
 }
