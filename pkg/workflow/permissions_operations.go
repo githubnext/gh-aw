@@ -18,6 +18,52 @@ func SortPermissionScopes(s []PermissionScope) {
 	})
 }
 
+// filterJobLevelPermissions takes a raw permissions YAML string (as stored in WorkflowData.Permissions)
+// and returns a version suitable for use in a GitHub Actions job-level permissions block.
+//
+// GitHub App-only permission scopes (e.g., vulnerability-alerts, members, administration) are not
+// valid GitHub Actions workflow permissions and cause a parse error when GitHub Actions tries to
+// queue the workflow. Those scopes must only appear as permission-* inputs when minting GitHub App
+// installation access tokens via actions/create-github-app-token, not in the job-level block.
+//
+// RenderToYAML already skips App-only scopes; this function converts the raw YAML string through
+// the Permissions struct so that filtering is applied before job-level rendering.
+// The returned string uses 2-space indentation so that the caller's subsequent
+// indentYAMLLines("    ") call adds 4 spaces, producing the correct 6-space job-level
+// indentation in the final YAML (matching the renderJob format).
+//
+// If the input YAML is malformed or contains only App-only scopes, an empty string is returned
+// so the caller omits the permissions block entirely rather than emitting invalid YAML.
+func filterJobLevelPermissions(rawPermissionsYAML string) string {
+	if rawPermissionsYAML == "" {
+		return ""
+	}
+
+	filtered := NewPermissionsParser(rawPermissionsYAML).ToPermissions()
+	rendered := filtered.RenderToYAML()
+	if rendered == "" {
+		return ""
+	}
+
+	// RenderToYAML hard-codes 6-space indentation for permission values so that shorthand
+	// callers that embed the output directly into a job block get the right alignment:
+	//   permissions:        ← first line, 4 spaces added by renderJob's fmt.Fprintf
+	//         contents: read  ← 6 spaces from RenderToYAML → total 10 would be wrong
+	// Here we normalise back to 2-space indentation. The caller will then run
+	// indentYAMLLines("    "), adding 4 spaces to lines 1+, yielding 6 spaces total.
+	const renderYAMLIndent = 6 // spaces used by RenderToYAML for permission value lines
+	const targetIndent = 2     // spaces we want here so indentYAMLLines("    ") gives 6
+	prefix := strings.Repeat(" ", renderYAMLIndent)
+	replacement := strings.Repeat(" ", targetIndent)
+	lines := strings.Split(rendered, "\n")
+	for i := 1; i < len(lines); i++ {
+		if strings.HasPrefix(lines[i], prefix) {
+			lines[i] = replacement + lines[i][renderYAMLIndent:]
+		}
+	}
+	return strings.Join(lines, "\n")
+}
+
 // Set sets a permission for a specific scope
 func (p *Permissions) Set(scope PermissionScope, level PermissionLevel) {
 	permissionsOpsLog.Printf("Setting permission: scope=%s, level=%s", scope, level)
