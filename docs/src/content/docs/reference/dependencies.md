@@ -5,6 +5,9 @@ sidebar:
   order: 330
 ---
 
+> [!CAUTION]
+> This is an experimental feature. Compiling a workflow with `dependencies` emits a warning: `Using experimental feature: dependencies (APM)`. The API may change in future releases.
+
 The `dependencies:` frontmatter field installs [APM (Agent Package Manager)](https://microsoft.github.io/apm/) packages before workflow execution. When present, the compiler packs dependencies in the activation job and unpacks them in the agent job for faster, deterministic startup.
 
 APM manages AI agent primitives such as skills, prompts, instructions, agents, hooks, and plugins (including the Claude `plugin.json` specification). Packages can depend on other packages and APM resolves the full dependency tree.
