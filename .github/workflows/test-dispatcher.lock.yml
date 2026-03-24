@@ -356,7 +356,7 @@ jobs:
                   "properties": {
                     "aw_context": {
                       "default": "",
-                      "description": "(Internal) JSON context injected by the calling agentic workflow. Not intended for direct user input.",
+                      "description": "Agent caller context (used internally by Agentic Workflows).",
                       "type": "string"
                     },
                     "test_param": {
