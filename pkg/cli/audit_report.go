@@ -32,6 +32,7 @@ type AuditData struct {
 	Noops                   []NoopReport             `json:"noops,omitempty"`
 	MCPFailures             []MCPFailureReport       `json:"mcp_failures,omitempty"`
 	FirewallAnalysis        *FirewallAnalysis        `json:"firewall_analysis,omitempty"`
+	PolicyAnalysis          *PolicyAnalysis          `json:"policy_analysis,omitempty"`
 	RedactedDomainsAnalysis *RedactedDomainsAnalysis `json:"redacted_domains_analysis,omitempty"`
 	Errors                  []ErrorInfo              `json:"errors,omitempty"`
 	Warnings                []ErrorInfo              `json:"warnings,omitempty"`
@@ -329,6 +330,7 @@ func buildAuditData(processedRun ProcessedRun, metrics LogMetrics, mcpToolUsage 
 		Noops:                   processedRun.Noops,
 		MCPFailures:             processedRun.MCPFailures,
 		FirewallAnalysis:        processedRun.FirewallAnalysis,
+		PolicyAnalysis:          processedRun.PolicyAnalysis,
 		RedactedDomainsAnalysis: processedRun.RedactedDomainsAnalysis,
 		Errors:                  errors,
 		Warnings:                warnings,
