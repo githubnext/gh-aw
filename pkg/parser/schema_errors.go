@@ -250,19 +250,28 @@ func appendKnownFieldValidValuesHint(message string, jsonPath string) string {
 		return message
 	}
 
-	// Find the best matching known path (exact match or nearest parent).
+	// Find the best matching known path: exact match first, then the longest matching parent.
 	hint, hintOK := knownFieldValidValues[jsonPath]
 	scopes := knownFieldScopes[jsonPath]
 	docsURL := knownFieldDocs[jsonPath]
 	if !hintOK {
+		// Select the longest matching parent path deterministically to avoid
+		// random map iteration order when multiple known paths share a common prefix.
+		bestPath := ""
+		bestLen := 0
 		for path := range knownFieldValidValues {
 			if strings.HasPrefix(jsonPath, path+"/") {
-				hint = knownFieldValidValues[path]
-				scopes = knownFieldScopes[path]
-				docsURL = knownFieldDocs[path]
-				hintOK = true
-				break
+				if l := len(path); l > bestLen {
+					bestLen = l
+					bestPath = path
+				}
 			}
+		}
+		if bestPath != "" {
+			hint = knownFieldValidValues[bestPath]
+			scopes = knownFieldScopes[bestPath]
+			docsURL = knownFieldDocs[bestPath]
+			hintOK = true
 		}
 	}
 	if !hintOK {
@@ -304,9 +313,10 @@ func appendKnownFieldValidValuesHint(message string, jsonPath string) string {
 		}
 	}
 
-	// Append documentation link.
+	// Append documentation link on the same line to avoid breaking bullet-list formatting
+	// when this message is embedded in "Multiple schema validation failures:" output.
 	if docsURL != "" {
-		result = fmt.Sprintf("%s\nSee: %s", result, docsURL)
+		result = fmt.Sprintf("%s See: %s", result, docsURL)
 	}
 
 	return result

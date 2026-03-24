@@ -159,13 +159,14 @@ func TestFormatYAMLErrorAdjustment(t *testing.T) {
 }
 
 // TestTranslateYAMLError tests that cryptic goccy/go-yaml parser messages are translated
-// to user-friendly descriptions.
+// to user-friendly descriptions, and that source context lines are left untouched.
 func TestTranslateYAMLError(t *testing.T) {
 	tests := []struct {
-		name     string
-		input    string
-		contains string // expected substring in translated output
-		excludes string // must NOT appear in translated output
+		name               string
+		input              string
+		contains           string // expected substring in translated output
+		excludes           string // must NOT appear in the first (header) line
+		sourceContextCheck string // if non-empty, must appear in the source context (after first line)
 	}{
 		{
 			name:     "unexpected key name translated",
@@ -201,6 +202,13 @@ func TestTranslateYAMLError(t *testing.T) {
 			input:    "",
 			contains: "",
 		},
+		{
+			name:  "pattern in source context line is not replaced",
+			input: "[1:1] unexpected key name\n>  1 | unexpected key name: here\n       ^",
+			// The header should be translated, but source context must remain untouched.
+			contains:           "missing ':' after key",
+			sourceContextCheck: "unexpected key name: here",
+		},
 	}
 
 	for _, tt := range tests {
@@ -210,9 +218,71 @@ func TestTranslateYAMLError(t *testing.T) {
 				assert.Contains(t, result, tt.contains,
 					"translateYAMLError should contain %q\nResult: %s", tt.contains, result)
 			}
+			// Verify source context lines are preserved untouched when applicable.
+			if tt.sourceContextCheck != "" {
+				_, rest, _ := strings.Cut(result, "\n")
+				assert.Contains(t, rest, tt.sourceContextCheck,
+					"source context should be preserved unchanged\nContext: %s", rest)
+			}
+			// For cases with excludes, the pattern should not appear in the header line.
+			if tt.excludes != "" {
+				firstLine, _, _ := strings.Cut(result, "\n")
+				assert.NotContains(t, firstLine, tt.excludes,
+					"translateYAMLError header should not contain %q\nHeader: %s", tt.excludes, firstLine)
+			}
+		})
+	}
+}
+
+// TestTranslateYAMLMessage tests the exported TranslateYAMLMessage function used
+// by both the parser and workflow packages.
+func TestTranslateYAMLMessage(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		contains string
+		excludes string
+	}{
+		{
+			name:     "unexpected key name",
+			input:    "unexpected key name",
+			contains: "missing ':' after key",
+			excludes: "unexpected key name",
+		},
+		{
+			name:     "non-map value is specified",
+			input:    "non-map value is specified",
+			contains: "expected a YAML mapping",
+			excludes: "non-map value is specified",
+		},
+		{
+			name:     "found character that cannot start any token",
+			input:    "found character that cannot start any token",
+			contains: "invalid character",
+			excludes: "found character that cannot start any token",
+		},
+		{
+			name:     "unrecognized message is unchanged",
+			input:    "some other error",
+			contains: "some other error",
+		},
+		{
+			name:     "empty string is unchanged",
+			input:    "",
+			contains: "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := TranslateYAMLMessage(tt.input)
+			if tt.contains != "" {
+				assert.Contains(t, result, tt.contains,
+					"TranslateYAMLMessage should contain %q\nResult: %s", tt.contains, result)
+			}
 			if tt.excludes != "" {
 				assert.NotContains(t, result, tt.excludes,
-					"translateYAMLError should not contain %q\nResult: %s", tt.excludes, result)
+					"TranslateYAMLMessage should not contain %q\nResult: %s", tt.excludes, result)
 			}
 		})
 	}

@@ -66,7 +66,7 @@ strict: false
 Invalid YAML with bad mapping.`,
 			expectedErrorLine:   7, // Line 7 in file (line 6 in YAML content after opening ---)
 			expectedErrorColumn: 10,
-			expectedMessagePart: "Invalid YAML syntax: unexpected value",
+			expectedMessagePart: "unexpected ':'",
 			description:         "invalid mapping context should be detected",
 		},
 		{
@@ -85,7 +85,7 @@ strict: false
 Invalid YAML with bad indentation.`,
 			expectedErrorLine:   4, // Line 4 in file (line 3 in YAML content after opening ---)
 			expectedErrorColumn: 11,
-			expectedMessagePart: "Invalid YAML syntax: unexpected value",
+			expectedMessagePart: "unexpected ':'",
 			description:         "bad indentation should be detected",
 		},
 		{
@@ -169,7 +169,7 @@ strict: false
 Invalid YAML with missing colon.`,
 			expectedErrorLine:   3, // Line 3 in file (line 2 in YAML content - permissions without colon)
 			expectedErrorColumn: 1,
-			expectedMessagePart: "unexpected key name",
+			expectedMessagePart: "missing ':' after key",
 			description:         "missing colon in mapping should be detected",
 		},
 		{
@@ -365,7 +365,7 @@ engine: copilot
 
 Test content.`,
 			expectedLineCol: "[3:10]", // Line 3 in file (line 2 in YAML content)
-			expectedInError: []string{"Invalid YAML syntax: unexpected value"},
+			expectedInError: []string{"unexpected ':'"},
 			expectPointer:   true,
 			description:     "simple syntax error shows formatted output",
 		},
@@ -402,7 +402,7 @@ engine: copilot
 
 Test content.`,
 			expectedLineCol: "[3:1]", // Line 3 in file (permissions without colon)
-			expectedInError: []string{"unexpected key name", "permissions"},
+			expectedInError: []string{"missing ':' after key", "permissions"},
 			expectPointer:   true,
 			description:     "missing colon shows formatted output",
 		},
