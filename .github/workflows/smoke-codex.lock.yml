@@ -27,7 +27,7 @@
 #     - shared/gh.md
 #     - shared/reporting.md
 #
-# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"ee94928302e2744993f1609697de1da08b593abd93e7f3a190d4c0148d049ff3","agent_id":"codex"}
+# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"c7289a4176452393978ed18a396c717d46d7a76836a1868a5877d24221c02529","agent_id":"codex"}
 
 name: "Smoke Codex"
 "on":

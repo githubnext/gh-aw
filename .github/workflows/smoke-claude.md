@@ -34,9 +34,6 @@ network:
     - defaults
     - github
     - playwright
-sandbox:
-  mcp:
-    container: "ghcr.io/github/gh-aw-mcpg"
 tools:
   agentic-workflows:
   cache-memory: true

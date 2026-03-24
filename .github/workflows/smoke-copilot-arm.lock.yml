@@ -28,7 +28,7 @@
 #     - shared/github-queries-mcp-script.md
 #     - shared/reporting.md
 #
-# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"3d0ce3db1a07629a0c6da7a8917991c662b5f4c888048bdf03e56364dce8bad6","agent_id":"copilot"}
+# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"c00d6af9e4c9ebdd7dc5698437575ac024f654c3db335c2d3d4d2bbc55784046","agent_id":"copilot"}
 
 name: "Smoke Copilot ARM64"
 "on":
