@@ -54,6 +54,39 @@ You are an AI-powered moderation system that automatically detects spam, link sp
 2. Do NOT use the pre-sanitized text from the activation job - fetch fresh content to analyze the original user input
 3. **For Pull Requests**: Use `pull_request_read` with method `get_diff` to fetch the PR diff and analyze the changes for spam patterns
 
+## Degraded Mode: Integrity-Filtered Content
+
+After fetching content from GitHub, check whether the content was **integrity-filtered** by policy before proceeding with any detection.
+
+Content is considered integrity-filtered when:
+- `issue_read`, `pull_request_read`, or a related tool call returns an error mentioning "integrity", "policy", "forbidden", "filtered", or "DIFC"
+- The HTTP response status is 403 or 451
+- The returned issue or PR body is `null` or absent while the item clearly exists (e.g. the number is valid but content is empty due to policy enforcement)
+
+**When integrity filtering is detected, enter degraded mode:**
+
+1. **Do NOT call `missing_data`** — integrity filtering is expected policy enforcement, not a tool failure
+2. **Do NOT attempt moderation** on incomplete or absent content — partial analysis causes more harm than no analysis
+3. **Record structured context** and call `noop` with the following JSON payload:
+
+```json
+{
+  "noop": {
+    "message": "🛡️ Skipped moderation: content for #<number> was integrity-filtered by policy. actor=<actor> event=<event_type> filter=integrity"
+  }
+}
+```
+
+Replace `<number>` with the issue/PR number, `<actor>` with `${{ github.actor }}`, and `<event_type>` with the triggering event type (issue / pull_request / issue_comment).
+
+**Example scenarios:**
+
+- Issue body filtered: call `noop` with `"🛡️ Skipped moderation: content for #22703 was integrity-filtered by policy. actor=some-user event=issue filter=integrity"`
+- All tool calls blocked: call `noop` with `"🛡️ Skipped moderation: all reads for #22703 were integrity-filtered by policy. actor=some-user event=issue filter=integrity"`
+- Partial filtering (e.g. PR diff blocked): call `noop` with `"🛡️ Skipped moderation: PR diff for #456 was integrity-filtered by policy. actor=some-user event=pull_request filter=integrity"`
+
+After calling `noop`, stop immediately. Do not proceed with detection tasks.
+
 ## Detection Tasks
 
 Perform the following detection analyses on the content:
