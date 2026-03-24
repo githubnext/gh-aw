@@ -489,6 +489,29 @@ Quick reference:
 - `make test` - Full test suite (~30s)
 - `make agent-finish` - Complete validation before committing
 
+### Compiling against a different actions repository
+
+When working on changes that span both `github/gh-aw` and `github/gh-aw-actions`, you can compile workflows against a fork or branch of the actions repository:
+
+```bash
+# Compile against a fork with a specific branch
+./gh-aw compile --action-mode action \
+  --actions-repo myorg/my-aw-actions \
+  --action-tag my-feature-branch \
+  .github/workflows/my-workflow.md
+
+# Compile with a specific tag or SHA
+./gh-aw compile --action-mode action \
+  --action-tag abc123def456 \
+  .github/workflows/my-workflow.md
+```
+
+- `--action-mode action` — Required with `--actions-repo`. References actions as GitHub Actions from an external repository instead of inlining scripts locally.
+- `--actions-repo <owner/repo>` — Override the default `github/gh-aw-actions` repository.
+- `--action-tag <tag-or-sha>` — Pin action references to a specific tag, branch, or commit SHA.
+
+Use these flags when testing workflow behavior against a branch in `github/gh-aw-actions` before a release is cut.
+
 ## 🚫 Spam Prevention
 
 **Be nice, don't spam.** The project maintainers reserve the right to clean up spam, unsolicited promotions, or off-topic content as needed to keep discussions focused and valuable for all contributors.

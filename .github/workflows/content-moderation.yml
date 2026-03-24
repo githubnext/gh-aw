@@ -15,11 +15,11 @@ permissions:
 jobs:
   moderate:
     runs-on: ubuntu-latest
-    if: vars.BLOCKED_USERS != ''
+    if: vars.GH_AW_BLOCKED_USERS != ''
     steps:
       - uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         env:
-          BLOCKED_USERS: ${{ vars.BLOCKED_USERS || '' }}
+          BLOCKED_USERS: ${{ vars.GH_AW_BLOCKED_USERS || '' }}
         with:
           script: |
             const blocklist = (process.env.BLOCKED_USERS || '').split(',').map(u => u.trim()).filter(u => u);
