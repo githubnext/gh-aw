@@ -122,6 +122,7 @@ func generateSquidLogsUploadStep(workflowName string) GitHubActionStep {
 // The prefix is prepended to the artifact name to avoid clashes in workflow_call context.
 func (c *Compiler) generateFirewallAuditLogsUploadStep(yaml *strings.Builder, prefix string) {
 	firewallLogsDir := constants.AWFProxyLogsDir + "/"
+	firewallAuditDir := constants.AWFAuditDir + "/"
 	artifactName := prefix + string(constants.FirewallAuditArtifactName)
 
 	compilerYamlArtifactsLog.Printf("Generating firewall audit logs upload step with artifact name: %s", artifactName)
@@ -132,7 +133,9 @@ func (c *Compiler) generateFirewallAuditLogsUploadStep(yaml *strings.Builder, pr
 	fmt.Fprintf(yaml, "        uses: %s\n", GetActionPin("actions/upload-artifact"))
 	yaml.WriteString("        with:\n")
 	fmt.Fprintf(yaml, "          name: %s\n", artifactName)
-	fmt.Fprintf(yaml, "          path: %s\n", firewallLogsDir)
+	yaml.WriteString("          path: |\n")
+	fmt.Fprintf(yaml, "            %s\n", firewallLogsDir)
+	fmt.Fprintf(yaml, "            %s\n", firewallAuditDir)
 	yaml.WriteString("          if-no-files-found: ignore\n")
 }
 
