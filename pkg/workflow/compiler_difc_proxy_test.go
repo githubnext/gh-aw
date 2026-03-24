@@ -472,3 +472,109 @@ Test that DIFC proxy is NOT injected when min-integrity is not set.
 	assert.NotContains(t, result, "Stop DIFC proxy",
 		"compiled workflow should NOT contain proxy stop step without guard policy")
 }
+
+// TestHasDIFCGuardsConfigured verifies the base guard policy check.
+func TestHasDIFCGuardsConfigured(t *testing.T) {
+	tests := []struct {
+		name     string
+		data     *WorkflowData
+		expected bool
+	}{
+		{
+			name:     "nil data",
+			data:     nil,
+			expected: false,
+		},
+		{
+			name:     "no github tool",
+			data:     &WorkflowData{Tools: map[string]any{}},
+			expected: false,
+		},
+		{
+			name: "github tool without guard policy",
+			data: &WorkflowData{
+				Tools: map[string]any{
+					"github": map[string]any{"toolsets": []string{"default"}},
+				},
+			},
+			expected: false,
+		},
+		{
+			name: "github tool with min-integrity",
+			data: &WorkflowData{
+				Tools: map[string]any{
+					"github": map[string]any{"min-integrity": "approved"},
+				},
+			},
+			expected: true,
+		},
+		{
+			name: "github tool with allowed-repos and min-integrity",
+			data: &WorkflowData{
+				Tools: map[string]any{
+					"github": map[string]any{
+						"allowed-repos": "all",
+						"min-integrity": "merged",
+					},
+				},
+			},
+			expected: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := hasDIFCGuardsConfigured(tt.data)
+			assert.Equal(t, tt.expected, got, "hasDIFCGuardsConfigured: %s", tt.name)
+		})
+	}
+}
+
+// TestDIFCProxyInjectedInIndexingJob verifies that DIFC proxy steps are injected
+// around qmd index-building steps when guard policies are configured.
+func TestDIFCProxyInjectedInIndexingJob(t *testing.T) {
+	c := &Compiler{}
+
+	t.Run("no proxy when guard policy not configured", func(t *testing.T) {
+		data := &WorkflowData{
+			Tools: map[string]any{
+				"github": map[string]any{"toolsets": []string{"default"}},
+			},
+			QmdConfig:     &QmdToolConfig{},
+			SandboxConfig: &SandboxConfig{},
+		}
+		ensureDefaultMCPGatewayConfig(data)
+
+		// hasDIFCGuardsConfigured should return false
+		assert.False(t, hasDIFCGuardsConfigured(data), "no guard policy should not need DIFC proxy")
+
+		// buildStartDIFCProxyStepYAML should return empty when no guard policy
+		// (won't be called in practice, but validate the logic)
+		data.Tools["github"] = map[string]any{"toolsets": []string{"default"}}
+		result := c.buildStartDIFCProxyStepYAML(data)
+		assert.Empty(t, result, "no guard policy → no start step")
+	})
+
+	t.Run("proxy steps present when guard policy configured", func(t *testing.T) {
+		data := &WorkflowData{
+			Tools: map[string]any{
+				"github": map[string]any{"min-integrity": "approved"},
+			},
+			QmdConfig:     &QmdToolConfig{},
+			SandboxConfig: &SandboxConfig{},
+		}
+		ensureDefaultMCPGatewayConfig(data)
+
+		assert.True(t, hasDIFCGuardsConfigured(data), "guard policy configured → DIFC proxy needed in indexing")
+
+		startStep := c.buildStartDIFCProxyStepYAML(data)
+		require.NotEmpty(t, startStep, "should generate start proxy step for indexing job")
+		assert.Contains(t, startStep, "Start DIFC proxy for pre-agent gh calls")
+		assert.Contains(t, startStep, "start_difc_proxy.sh")
+		assert.Contains(t, startStep, `"allow-only"`)
+
+		stopStep := buildStopDIFCProxyStepYAML()
+		assert.Contains(t, stopStep, "Stop DIFC proxy")
+		assert.Contains(t, stopStep, "stop_difc_proxy.sh")
+	})
+}

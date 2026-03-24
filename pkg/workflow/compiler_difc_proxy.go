@@ -10,18 +10,32 @@ package workflow
 // weighting and cloning repo-memory branches see DIFC-filtered API responses,
 // matching the integrity guarantees the agent itself operates under.
 //
+// The proxy is also injected into the qmd indexing job when DIFC guards are
+// configured, wrapping the index-building steps so that any GitHub API calls
+// made during indexing (via github-token or search tokens) are routed through
+// the proxy.
+//
 // The proxy uses the same container image as the MCP gateway (gh-aw-mcpg)
 // but runs in "proxy" mode with --guards-mode filter (graceful degradation)
 // and --tls (required by the gh CLI HTTPS-only constraint).
 //
-// Injection conditions (both must be true):
-//  1. GitHub tool has explicit guard policies (min-integrity set)
-//  2. Pre-agent steps set GH_TOKEN (custom steps or repo-memory steps)
+// Injection conditions:
+//
+//	Main job: GitHub tool has explicit guard policies (min-integrity set) AND
+//	          pre-agent steps set GH_TOKEN (custom steps or repo-memory steps)
+//
+//	Indexing job: GitHub tool has explicit guard policies (min-integrity set)
+//	              (the indexing job always uses github-token, so no extra check needed)
 //
 // Proxy lifecycle within the main job:
 //  1. Start proxy — after "Configure gh CLI" step, before custom steps
 //  2. Custom steps + repo-memory steps run with GH_HOST=localhost:18443 (set via $GITHUB_ENV)
 //  3. Stop proxy — before MCP gateway starts (generateMCPSetup)
+//
+// Proxy lifecycle within the indexing job:
+//  1. Start proxy — after setup action, before qmd index-building steps
+//  2. qmd index-building steps run with GH_HOST=localhost:18443 (set via $GITHUB_ENV)
+//  3. Stop proxy — after all qmd steps
 //
 // Guard policy note:
 //
@@ -48,7 +62,20 @@ import (
 
 var difcProxyLog = logger.New("workflow:difc_proxy")
 
-// hasDIFCProxyNeeded returns true if the DIFC proxy should be injected.
+// hasDIFCGuardsConfigured returns true if the GitHub tool has explicit guard policies configured
+// (min-integrity is set). This is the base condition for DIFC proxy injection.
+func hasDIFCGuardsConfigured(data *WorkflowData) bool {
+	if data == nil {
+		return false
+	}
+	githubTool, hasGitHub := data.Tools["github"]
+	if !hasGitHub || githubTool == false {
+		return false
+	}
+	return len(getGitHubGuardPolicies(githubTool)) > 0
+}
+
+// hasDIFCProxyNeeded returns true if the DIFC proxy should be injected in the main job.
 //
 // The proxy is only needed when:
 //  1. The GitHub tool has explicit guard policies (min-integrity is set), and
@@ -56,17 +83,7 @@ var difcProxyLog = logger.New("workflow:difc_proxy")
 //     in custom steps, or by the presence of repo-memory configuration whose clone
 //     steps always set GH_TOKEN).
 func hasDIFCProxyNeeded(data *WorkflowData) bool {
-	if data == nil {
-		return false
-	}
-
-	// Check if GitHub tool has explicit guard policies (min-integrity set)
-	githubTool, hasGitHub := data.Tools["github"]
-	if !hasGitHub || githubTool == false {
-		return false
-	}
-
-	if len(getGitHubGuardPolicies(githubTool)) == 0 {
+	if !hasDIFCGuardsConfigured(data) {
 		difcProxyLog.Print("No explicit guard policies configured, skipping DIFC proxy injection")
 		return false
 	}
@@ -157,17 +174,11 @@ func getDIFCProxyPolicyJSON(githubTool any) string {
 	return string(jsonBytes)
 }
 
-// generateStartDIFCProxyStep generates a step that starts the DIFC proxy container
-// before pre-agent gh CLI steps. The proxy routes gh API calls through integrity filtering.
-//
-// The step is only emitted when hasDIFCProxyNeeded returns true.
-// The generated step calls start_difc_proxy.sh with the guard policy JSON and container image.
-func (c *Compiler) generateStartDIFCProxyStep(yaml *strings.Builder, data *WorkflowData) {
-	if !hasDIFCProxyNeeded(data) {
-		return
-	}
-
-	difcProxyLog.Print("Generating Start DIFC proxy step")
+// buildStartDIFCProxyStepYAML returns the YAML for the "Start DIFC proxy" step,
+// or an empty string if proxy injection is not needed or the policy cannot be built.
+// This is the shared implementation used by both the main job and the indexing job.
+func (c *Compiler) buildStartDIFCProxyStepYAML(data *WorkflowData) string {
+	difcProxyLog.Print("Building Start DIFC proxy step YAML")
 
 	githubTool := data.Tools["github"]
 
@@ -179,7 +190,7 @@ func (c *Compiler) generateStartDIFCProxyStep(yaml *strings.Builder, data *Workf
 	policyJSON := getDIFCProxyPolicyJSON(githubTool)
 	if policyJSON == "" {
 		difcProxyLog.Print("Could not build DIFC proxy policy JSON, skipping proxy start")
-		return
+		return ""
 	}
 
 	// Resolve the container image from the MCP gateway configuration
@@ -194,15 +205,33 @@ func (c *Compiler) generateStartDIFCProxyStep(yaml *strings.Builder, data *Workf
 		containerImage += ":" + string(constants.DefaultMCPGatewayVersion)
 	}
 
-	yaml.WriteString("      - name: Start DIFC proxy for pre-agent gh calls\n")
-	yaml.WriteString("        env:\n")
-	fmt.Fprintf(yaml, "          GH_TOKEN: %s\n", effectiveToken)
-	yaml.WriteString("        run: |\n")
+	var sb strings.Builder
+	sb.WriteString("      - name: Start DIFC proxy for pre-agent gh calls\n")
+	sb.WriteString("        env:\n")
+	fmt.Fprintf(&sb, "          GH_TOKEN: %s\n", effectiveToken)
+	sb.WriteString("        run: |\n")
 	// The policy JSON contains only static values from the workflow frontmatter
 	// (min-integrity and repos). It never contains GitHub Actions expressions (${{ }})
 	// because getDIFCProxyPolicyJSON() only includes compile-time values, making
 	// single-quoting safe here.
-	fmt.Fprintf(yaml, "          bash ${RUNNER_TEMP}/gh-aw/actions/start_difc_proxy.sh '%s' '%s'\n", policyJSON, containerImage)
+	fmt.Fprintf(&sb, "          bash ${RUNNER_TEMP}/gh-aw/actions/start_difc_proxy.sh '%s' '%s'\n", policyJSON, containerImage)
+	return sb.String()
+}
+
+// generateStartDIFCProxyStep generates a step that starts the DIFC proxy container
+// before pre-agent gh CLI steps. The proxy routes gh API calls through integrity filtering.
+//
+// The step is only emitted when hasDIFCProxyNeeded returns true.
+// The generated step calls start_difc_proxy.sh with the guard policy JSON and container image.
+func (c *Compiler) generateStartDIFCProxyStep(yaml *strings.Builder, data *WorkflowData) {
+	if !hasDIFCProxyNeeded(data) {
+		return
+	}
+
+	step := c.buildStartDIFCProxyStepYAML(data)
+	if step != "" {
+		yaml.WriteString(step)
+	}
 }
 
 // generateStopDIFCProxyStep generates a step that stops the DIFC proxy container
@@ -221,10 +250,19 @@ func (c *Compiler) generateStopDIFCProxyStep(yaml *strings.Builder, data *Workfl
 	yaml.WriteString("        run: bash ${RUNNER_TEMP}/gh-aw/actions/stop_difc_proxy.sh\n")
 }
 
+// buildStopDIFCProxyStepYAML returns the YAML for the "Stop DIFC proxy" step as a string.
+// Used by the indexing job which manages steps as []string.
+func buildStopDIFCProxyStepYAML() string {
+	return "      - name: Stop DIFC proxy\n" +
+		"        run: bash ${RUNNER_TEMP}/gh-aw/actions/stop_difc_proxy.sh\n"
+}
+
 // difcProxyLogPaths returns the artifact paths for DIFC proxy logs.
-// Returns an empty slice when the proxy is not needed.
+// Returns an empty slice when no DIFC proxy is needed or configured.
 func difcProxyLogPaths(data *WorkflowData) []string {
-	if !hasDIFCProxyNeeded(data) {
+	// Return proxy-logs path if proxy is needed in either the main job or the indexing job.
+	// hasDIFCGuardsConfigured covers the indexing job case (guard policies alone are sufficient).
+	if !hasDIFCGuardsConfigured(data) {
 		return nil
 	}
 	// proxy-logs/ contains TLS certs and container stderr from the proxy

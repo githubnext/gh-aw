@@ -587,7 +587,20 @@ func (c *Compiler) buildQmdIndexingJob(data *WorkflowData) (*Job, error) {
 
 	// Generate all qmd index-building steps (cache restore/save, Node.js, SDK install, github-script).
 	qmdSteps := generateQmdIndexSteps(data.QmdConfig)
-	steps = append(steps, qmdSteps...)
+
+	// Wrap qmd index-building steps with DIFC proxy when guard policies are configured.
+	// The proxy routes GitHub API calls (github-token searches, code/issue searches) through
+	// integrity filtering, consistent with the guard policy applied to the agent phase.
+	if hasDIFCGuardsConfigured(data) {
+		qmdLog.Print("DIFC guards configured, wrapping qmd indexing steps with proxy start/stop")
+		if startStep := c.buildStartDIFCProxyStepYAML(data); startStep != "" {
+			steps = append(steps, startStep)
+		}
+		steps = append(steps, qmdSteps...)
+		steps = append(steps, buildStopDIFCProxyStepYAML())
+	} else {
+		steps = append(steps, qmdSteps...)
+	}
 
 	// The indexing job runs after the activation job to inherit the artifact prefix output.
 	needs := []string{string(constants.ActivationJobName)}
