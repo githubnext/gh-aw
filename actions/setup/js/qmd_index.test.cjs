@@ -434,7 +434,22 @@ describe("qmd_index.cjs", () => {
     expect(summaryText).toContain("<summary>qmd documentation index</summary>");
     expect(summaryText).toContain("</details>");
     expect(summaryText).toContain("### Collections");
-    expect(summaryText).toContain("| docs | **/*.md | Project docs |");
+    expect(summaryText).toContain("| docs | **/*.md | - | Project docs |");
+    expect(mockCore.summary.write).toHaveBeenCalledOnce();
+  });
+
+  // ── writeSummary: ignore patterns ────────────────────────────────────────
+  it("writes ignore patterns in the collections summary table", async () => {
+    const docsDir = path.join(tmpDir, "docs");
+    fs.mkdirSync(docsDir);
+
+    await runMain({
+      dbPath: path.join(tmpDir, "index"),
+      checkouts: [{ name: "docs", path: docsDir, pattern: "**/*.md", ignore: ["**/node_modules/**", "**/*.test.md"] }],
+    });
+
+    const summaryText = mockCore.summary.addRaw.mock.calls.flat().join("\n");
+    expect(summaryText).toContain("| docs | **/*.md | **/node_modules/**, **/*.test.md | - |");
     expect(mockCore.summary.write).toHaveBeenCalledOnce();
   });
 

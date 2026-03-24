@@ -8,7 +8,7 @@ const { pathToFileURL } = require("url");
 const { ERR_CONFIG, ERR_VALIDATION } = require("./error_codes.cjs");
 
 /**
- * @typedef {{ name: string, path: string, pattern?: string, context?: string }} QmdCheckout
+ * @typedef {{ name: string, path: string, pattern?: string, ignore?: string[], context?: string }} QmdCheckout
  * @typedef {{ name?: string, type?: string, query?: string, repo?: string, min?: number, max?: number, tokenEnvVar?: string }} QmdSearch
  * @typedef {{ dbPath: string, checkouts?: QmdCheckout[], searches?: QmdSearch[] }} QmdConfig
  */
@@ -48,12 +48,13 @@ async function writeSummary(config, updateResult, embedResult) {
     const checkouts = config.checkouts ?? [];
     if (checkouts.length > 0) {
       md += "### Collections\n\n";
-      md += "| Name | Pattern | Context |\n";
-      md += "| --- | --- | --- |\n";
+      md += "| Name | Pattern | Ignore | Context |\n";
+      md += "| --- | --- | --- | --- |\n";
       for (const col of checkouts) {
         const pattern = col.pattern || "**/*.md";
+        const ignore = col.ignore && col.ignore.length > 0 ? col.ignore.join(", ") : "-";
         const ctx = col.context || "-";
-        md += `| ${col.name} | ${pattern} | ${ctx} |\n`;
+        md += `| ${col.name} | ${pattern} | ${ignore} | ${ctx} |\n`;
       }
       md += "\n";
     }
@@ -132,15 +133,16 @@ async function main() {
   const dbPath = path.join(config.dbPath, "index.sqlite");
 
   // ── Build collections config from checkout entries ──────────────────────
-  /** @type {Record<string, { path: string, pattern?: string, context?: Record<string, string> }>} */
+  /** @type {Record<string, { path: string, pattern?: string, ignore?: string[], context?: Record<string, string> }>} */
   const collections = {};
 
   for (const checkout of config.checkouts || []) {
     const rawPath = checkout.path;
     const resolvedPath = resolveEnvVars(rawPath);
     const pattern = checkout.pattern || "**/*.md";
+    const ignoreInfo = checkout.ignore && checkout.ignore.length > 0 ? ` ignore=[${checkout.ignore.join(", ")}]` : "";
 
-    core.info(`Collection "${checkout.name}": path="${rawPath}" -> "${resolvedPath}" pattern="${pattern}"`);
+    core.info(`Collection "${checkout.name}": path="${rawPath}" -> "${resolvedPath}" pattern="${pattern}"${ignoreInfo}`);
 
     const pathExists = fs.existsSync(resolvedPath);
     if (!pathExists) {
@@ -152,6 +154,7 @@ async function main() {
     collections[checkout.name] = {
       path: resolvedPath,
       pattern,
+      ...(checkout.ignore && checkout.ignore.length > 0 ? { ignore: checkout.ignore } : {}),
       ...(checkout.context ? { context: { "/": checkout.context } } : {}),
     };
   }

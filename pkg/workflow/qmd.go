@@ -291,10 +291,11 @@ func generateQmdCacheSaveStep(cacheKey string) string {
 // qmdCheckoutEntry is the JSON representation of a checkout-based collection
 // passed to qmd_index.cjs via the QMD_CONFIG_JSON environment variable.
 type qmdCheckoutEntry struct {
-	Name    string `json:"name"`
-	Path    string `json:"path"`
-	Pattern string `json:"pattern,omitempty"`
-	Context string `json:"context,omitempty"`
+	Name    string   `json:"name"`
+	Path    string   `json:"path"`
+	Pattern string   `json:"pattern,omitempty"`
+	Ignore  []string `json:"ignore,omitempty"`
+	Context string   `json:"context,omitempty"`
 }
 
 // qmdSearchEntry is the JSON representation of a search entry passed to qmd_index.cjs.
@@ -352,6 +353,9 @@ func buildQmdConfig(qmdConfig *QmdToolConfig) qmdBuildConfig {
 		}
 		if col.Pattern != "" {
 			entry.Pattern = col.Pattern
+		}
+		if len(col.Ignore) > 0 {
+			entry.Ignore = col.Ignore
 		}
 		cfg.Checkouts = append(cfg.Checkouts, entry)
 	}

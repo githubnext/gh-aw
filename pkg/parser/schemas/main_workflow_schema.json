@@ -9500,6 +9500,14 @@
           "description": "Glob pattern for documentation files to include in this collection.",
           "examples": ["docs/**/*.md", "**/*.md"]
         },
+        "ignore": {
+          "type": "array",
+          "description": "List of glob patterns for files to exclude from this collection.",
+          "items": {
+            "type": "string"
+          },
+          "examples": [["**/node_modules/**", "**/*.test.md"]]
+        },
         "context": {
           "type": "string",
           "description": "Optional context injected into the qmd collection, providing the agent with additional hints about the content (e.g. 'GitHub Actions documentation')."

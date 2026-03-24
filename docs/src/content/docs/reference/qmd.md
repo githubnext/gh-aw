@@ -60,6 +60,19 @@ Each `checkout:` entry accepts the same options as the top-level [`checkout:`](/
 
 The optional `context:` field provides additional hints to the agent about the collection's content (e.g. product area, audience, or version).
 
+The optional `ignore:` field specifies glob patterns for files to exclude from the collection:
+
+```yaml wrap
+tools:
+  qmd:
+    checkouts:
+      - name: docs
+        pattern: "**/*.md"
+        ignore:
+          - "**/node_modules/**"
+          - "**/*.test.md"
+```
+
 ### Searches form
 
 Download files returned by GitHub code search and add them to the index:
@@ -151,6 +164,7 @@ tools:
 |-------|------|----------|-------------|
 | `name` | `string` | No | Collection identifier (defaults to `"docs-<index>"`). |
 | `pattern` | `string` | No | Glob pattern for files to include (defaults to `**/*.md`). |
+| `ignore` | `string[]` | No | List of glob patterns for files to exclude from the collection. |
 | `context` | `string` | No | Optional context hint for the agent about this collection's content (e.g. `"GitHub Actions documentation"`). |
 | `checkout` | `CheckoutConfig` | No | Repository checkout options — same syntax as the top-level [`checkout:`](/gh-aw/reference/frontmatter/#repository-checkout-checkout) field. Defaults to the current repository. |
 

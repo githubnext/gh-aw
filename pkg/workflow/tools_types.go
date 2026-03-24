@@ -339,6 +339,10 @@ type QmdDocCollection struct {
 	// Example: "docs/**/*.md"
 	Pattern string `yaml:"pattern,omitempty"`
 
+	// Ignore is an optional list of glob patterns for files to exclude from the collection.
+	// Example: ["**/node_modules/**", "**/*.test.md"]
+	Ignore []string `yaml:"ignore,omitempty"`
+
 	// Context is optional extra context injected into the qmd collection,
 	// providing the agent with additional hints about the content (e.g. "GitHub Actions documentation").
 	Context string `yaml:"context,omitempty"`

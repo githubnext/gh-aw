@@ -502,6 +502,19 @@ func parseQmdDocCollection(m map[string]any, index int) *QmdDocCollection {
 		col.Pattern = pattern
 	}
 
+	if ignoreValue, ok := m["ignore"]; ok {
+		if arr, ok := ignoreValue.([]any); ok {
+			col.Ignore = make([]string, 0, len(arr))
+			for _, item := range arr {
+				if str, ok := item.(string); ok {
+					col.Ignore = append(col.Ignore, str)
+				}
+			}
+		} else if arr, ok := ignoreValue.([]string); ok {
+			col.Ignore = arr
+		}
+	}
+
 	if context, ok := m["context"].(string); ok {
 		col.Context = context
 	}
