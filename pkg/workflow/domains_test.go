@@ -6,6 +6,8 @@ import (
 	"slices"
 	"strings"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestGetDomainEcosystem(t *testing.T) {
@@ -369,6 +371,59 @@ func TestCopilotDefaultDomains(t *testing.T) {
 	if len(CopilotDefaultDomains) != len(expectedDomains) {
 		t.Errorf("CopilotDefaultDomains has %d domains, expected %d", len(CopilotDefaultDomains), len(expectedDomains))
 	}
+}
+
+func TestThreatDetectionDomains(t *testing.T) {
+	detectionDomains := getEcosystemDomains("threat-detection")
+
+	// Detection domains must include every required Copilot API domain
+	requiredDomains := []string{
+		"api.business.githubcopilot.com",
+		"api.enterprise.githubcopilot.com",
+		"api.github.com",
+		"api.githubcopilot.com",
+		"api.individual.githubcopilot.com",
+		"github.com",
+		"host.docker.internal",
+		"telemetry.enterprise.githubcopilot.com",
+	}
+	detectionMap := make(map[string]bool)
+	for _, d := range detectionDomains {
+		detectionMap[d] = true
+	}
+	for _, required := range requiredDomains {
+		assert.True(t, detectionMap[required], "Required domain %q not found in threat-detection ecosystem", required)
+	}
+
+	// Detection domains must NOT include the domains excluded for supply-chain reduction
+	excludedDomains := []string{
+		"registry.npmjs.org",
+		"raw.githubusercontent.com",
+	}
+	for _, excluded := range excludedDomains {
+		assert.False(t, detectionMap[excluded], "Domain %q should not be in threat-detection ecosystem (excluded to reduce supply chain surface)", excluded)
+	}
+
+	// Verify exact count — no silent additions
+	assert.Len(t, detectionDomains, len(requiredDomains),
+		"threat-detection ecosystem should have exactly %d entries", len(requiredDomains))
+}
+
+func TestGetThreatDetectionAllowedDomains(t *testing.T) {
+	// With empty network permissions the result equals the sorted detection domains
+	result := GetThreatDetectionAllowedDomains(&NetworkPermissions{Allowed: []string{}})
+	assert.NotEmpty(t, result, "GetThreatDetectionAllowedDomains should return non-empty string")
+
+	// Must include essential Copilot API domain
+	assert.Contains(t, result, "api.githubcopilot.com", "Detection domains must include Copilot API domain")
+
+	// Must NOT include npm registry or raw GitHub downloads
+	assert.NotContains(t, result, "registry.npmjs.org", "Detection domains must not include npm registry")
+	assert.NotContains(t, result, "raw.githubusercontent.com", "Detection domains must not include raw.githubusercontent.com")
+
+	// Must NOT include ecosystem-expansion domains (no tools/runtimes passed for detection)
+	assert.NotContains(t, result, "pypi.org", "Detection domains must not include Python ecosystem domains")
+	assert.NotContains(t, result, "archive.ubuntu.com", "Detection domains must not include Ubuntu apt domains")
 }
 
 func TestCodexDefaultDomains(t *testing.T) {

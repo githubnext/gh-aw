@@ -437,13 +437,17 @@ func (c *Compiler) buildDetectionEngineExecutionStep(data *WorkflowData) []strin
 		detectionEngineConfig.APITarget = data.EngineConfig.APITarget
 	}
 
-	// Create minimal WorkflowData for threat detection with network fully blocked.
+	// Create minimal WorkflowData for threat detection.
 	// SandboxConfig with AWF enabled ensures the engine runs inside the firewall.
-	// NetworkPermissions with empty Allowed list blocks all network egress.
+	// NetworkPermissions.Allowed is empty so no user-specified domains are added on top of
+	// the engine's minimal detection domain list (see GetThreatDetectionAllowedDomains).
 	// No MCP servers are configured for detection.
+	// bash: ["*"] allows all shell commands — AWF's network firewall is the primary
+	// constraint, so restricting individual bash commands inside the sandbox adds friction
+	// without meaningful security benefit.
 	threatDetectionData := &WorkflowData{
 		Tools: map[string]any{
-			"bash": []any{"cat", "head", "tail", "wc", "grep", "ls", "jq"},
+			"bash": []any{"*"},
 		},
 		SafeOutputs:    nil,
 		EngineConfig:   detectionEngineConfig,
@@ -451,7 +455,7 @@ func (c *Compiler) buildDetectionEngineExecutionStep(data *WorkflowData) []strin
 		Features:       data.Features,
 		IsDetectionRun: true, // Mark as detection run for phase tagging
 		NetworkPermissions: &NetworkPermissions{
-			Allowed: []string{}, // deny-all: no network access
+			Allowed: []string{}, // no user-specified additional domains; engine provides its own minimal set
 		},
 		SandboxConfig: &SandboxConfig{
 			Agent: &AgentSandboxConfig{

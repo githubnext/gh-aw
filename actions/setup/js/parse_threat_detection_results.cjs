@@ -46,9 +46,15 @@ function extractFromStreamJson(line) {
     // In stream-json mode, the same content appears in both; using only "result"
     // avoids double-counting.
     if (obj.type === "result" && typeof obj.result === "string") {
-      const resultStr = obj.result.trim();
-      if (resultStr.startsWith(RESULT_PREFIX)) {
-        return resultStr;
+      // The result field contains the model's full response text, which may
+      // include analysis before the THREAT_DETECTION_RESULT line.
+      // Split by newlines and find the line that starts with the prefix.
+      const resultLines = obj.result.split("\n");
+      for (const rline of resultLines) {
+        const rtrimmed = rline.trim();
+        if (rtrimmed.startsWith(RESULT_PREFIX)) {
+          return rtrimmed;
+        }
       }
     }
   } catch {
