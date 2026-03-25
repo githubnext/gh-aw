@@ -326,9 +326,11 @@ func TestEcosystemDomainExpansion(t *testing.T) {
 		domains := GetAllowedDomains(permissions)
 
 		expectedDomains := []string{
+			"bioconductor.org",
 			"cloud.r-project.org",
 			"cran.r-project.org",
 			"cran.rstudio.com",
+			"r-lib.github.io",
 		}
 
 		for _, expectedDomain := range expectedDomains {

@@ -230,7 +230,7 @@
     "index.crates.io",
     "static.crates.io"
   ],
-  "r": ["cloud.r-project.org", "cran.r-project.org", "cran.rstudio.com", "r-project.org"],
+  "r": ["bioconductor.org", "cloud.r-project.org", "cran.r-project.org", "cran.rstudio.com", "r-lib.github.io", "r-project.org"],
   "ruby": ["rubygems.org", "api.rubygems.org", "rubygems.pkg.github.com", "bundler.rubygems.org", "gems.rubyforge.org", "gems.rubyonrails.org", "index.rubygems.org", "cache.ruby-lang.org", "*.rvm.io"],
   "rust": ["crates.io", "index.crates.io", "static.crates.io", "sh.rustup.rs", "static.rust-lang.org"],
   "scala": ["repo.scala-sbt.org", "scala-ci.typesafe.com", "repo.typesafe.com", "jitpack.io", "dl.bintray.com", "scala.jfrog.io"],
