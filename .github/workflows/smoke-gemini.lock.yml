@@ -138,6 +138,7 @@ jobs:
           sparse-checkout: |
             .github
             .agents
+            actions/setup
           sparse-checkout-cone-mode: true
           fetch-depth: 1
       - name: Check workflow file timestamps
@@ -1251,7 +1252,7 @@ jobs:
             echo "$BASE_CONFIG" > "$SETTINGS"
           fi
         env:
-          GH_AW_GEMINI_BASE_CONFIG: '{"context":{"includeDirectories":["/tmp/"]},"tools":{"core":["glob","grep_search","list_directory","read_file","read_many_files","run_shell_command(cat)","run_shell_command(grep)","run_shell_command(head)","run_shell_command(jq)","run_shell_command(ls)","run_shell_command(tail)","run_shell_command(wc)"]}}'
+          GH_AW_GEMINI_BASE_CONFIG: '{"context":{"includeDirectories":["/tmp/"]},"tools":{"core":["glob","grep_search","list_directory","read_file","read_many_files","run_shell_command"]}}'
       - name: Execute Gemini CLI
         if: always() && steps.detection_guard.outputs.run_detection == 'true'
         id: detection_agentic_execution
@@ -1394,7 +1395,7 @@ jobs:
           # GitHub instance (GHES/GHEC). On github.com this is a harmless no-op.
           GH_HOST="${GITHUB_SERVER_URL#https://}"
           GH_HOST="${GH_HOST#http://}"
-          echo "GH_HOST=${GH_HOST}" >> "$GITHUB_OUTPUT"
+          echo "GH_HOST=${GH_HOST}" >> "$GITHUB_ENV"
       - name: Process Safe Outputs
         id: process_safe_outputs
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8

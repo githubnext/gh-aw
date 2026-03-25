@@ -814,15 +814,6 @@ func (c *Compiler) buildCustomJobs(data *WorkflowData, activationJobCreated bool
 									return fmt.Errorf("failed to convert step to typed step for job '%s': %w", jobName, err)
 								}
 
-								// Inject GH_HOST from the ghes-host-config step output so user steps
-								// have access to it for gh CLI commands (previously available via GITHUB_ENV).
-								if typedStep.Env == nil {
-									typedStep.Env = make(map[string]string)
-								}
-								if _, exists := typedStep.Env["GH_HOST"]; !exists {
-									typedStep.Env["GH_HOST"] = "${{ steps.ghes-host-config.outputs.GH_HOST }}"
-								}
-
 								// Apply action pinning using type-safe version
 								pinnedStep := ApplyActionPinToTypedStep(typedStep, data)
 

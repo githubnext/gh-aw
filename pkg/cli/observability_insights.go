@@ -4,7 +4,11 @@ import (
 	"fmt"
 	"os"
 	"strings"
+
+	"github.com/github/gh-aw/pkg/logger"
 )
+
+var observabilityInsightsLog = logger.New("cli:observability_insights")
 
 type ObservabilityInsight struct {
 	Category string `json:"category"`
@@ -31,6 +35,7 @@ type workflowObservabilityStats struct {
 }
 
 func buildAuditObservabilityInsights(processedRun ProcessedRun, metrics MetricsData, toolUsage []ToolUsageInfo, createdItems []CreatedItemReport) []ObservabilityInsight {
+	observabilityInsightsLog.Printf("Building audit observability insights: run_id=%d turns=%d tool_types=%d", processedRun.Run.DatabaseID, metrics.Turns, len(toolUsage))
 	insights := make([]ObservabilityInsight, 0, 5)
 	toolTypes := len(toolUsage)
 
@@ -135,6 +140,7 @@ func buildLogsObservabilityInsights(processedRuns []ProcessedRun, toolUsage []To
 		return nil
 	}
 
+	observabilityInsightsLog.Printf("Building logs observability insights: processed_runs=%d tool_usage_entries=%d", len(processedRuns), len(toolUsage))
 	insights := make([]ObservabilityInsight, 0, 6)
 	workflowStats := make(map[string]*workflowObservabilityStats)
 	writeRuns := 0

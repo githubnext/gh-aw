@@ -795,3 +795,215 @@ func TestBuildToolCallsFromRPCMessagesNullID(t *testing.T) {
 	assert.True(t, toolNames["list_issues"], "should include list_issues")
 	assert.True(t, toolNames["issue_read"], "should include issue_read")
 }
+
+func TestParseRPCMessagesGuardPolicyErrors(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	// Test rpc-messages.jsonl with guard policy error responses:
+	// - A tools/call request followed by a -32006 (integrity below minimum) error response
+	// - A tools/call request followed by a -32002 (repository not allowed) error response
+	// - A tools/call request followed by a normal success response
+	content := `{"timestamp":"2024-01-12T10:00:00.000000000Z","direction":"OUT","type":"REQUEST","server_id":"github","payload":{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"pull_request_read","arguments":{}}}}
+{"timestamp":"2024-01-12T10:00:00.100000000Z","direction":"IN","type":"RESPONSE","server_id":"github","payload":{"jsonrpc":"2.0","id":1,"error":{"code":-32006,"message":"Content integrity below minimum threshold","data":{"reason":"integrity_below_minimum","details":"Content integrity 'unapproved' is below minimum 'approved'"}}}}
+{"timestamp":"2024-01-12T10:00:01.000000000Z","direction":"OUT","type":"REQUEST","server_id":"github","payload":{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"get_file_contents","arguments":{}}}}
+{"timestamp":"2024-01-12T10:00:01.100000000Z","direction":"IN","type":"RESPONSE","server_id":"github","payload":{"jsonrpc":"2.0","id":2,"error":{"code":-32002,"message":"Repository not in allowlist","data":{"reason":"repository_not_allowed","repository":"owner/private-repo","details":"Repository 'owner/private-repo' does not match any repos patterns"}}}}
+{"timestamp":"2024-01-12T10:00:02.000000000Z","direction":"OUT","type":"REQUEST","server_id":"github","payload":{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"list_issues","arguments":{}}}}
+{"timestamp":"2024-01-12T10:00:02.200000000Z","direction":"IN","type":"RESPONSE","server_id":"github","payload":{"jsonrpc":"2.0","id":3,"result":{"content":[]}}}
+`
+	logPath := filepath.Join(tmpDir, "rpc-messages.jsonl")
+	require.NoError(t, os.WriteFile(logPath, []byte(content), 0644))
+
+	metrics, err := parseRPCMessages(logPath, false)
+	require.NoError(t, err)
+	require.NotNil(t, metrics)
+
+	// Should count 3 requests total
+	assert.Equal(t, 3, metrics.TotalRequests, "should count 3 requests")
+	assert.Equal(t, 3, metrics.TotalToolCalls, "should count 3 tool calls")
+
+	// 2 errors total (guard policy errors are also errors)
+	assert.Equal(t, 2, metrics.TotalErrors, "should count 2 errors")
+
+	// 2 guard policy blocks
+	assert.Equal(t, 2, metrics.TotalGuardBlocked, "should count 2 guard policy blocks")
+
+	// Check guard policy events
+	require.Len(t, metrics.GuardPolicyEvents, 2, "should have 2 guard policy events")
+
+	// First event: integrity below minimum
+	evt1 := metrics.GuardPolicyEvents[0]
+	assert.Equal(t, "github", evt1.ServerID)
+	assert.Equal(t, "pull_request_read", evt1.ToolName)
+	assert.Equal(t, -32006, evt1.ErrorCode)
+	assert.Equal(t, "integrity_below_minimum", evt1.Reason)
+	assert.Equal(t, "Content integrity below minimum threshold", evt1.Message)
+	assert.Contains(t, evt1.Details, "below minimum")
+
+	// Second event: repository not allowed
+	evt2 := metrics.GuardPolicyEvents[1]
+	assert.Equal(t, "github", evt2.ServerID)
+	assert.Equal(t, "get_file_contents", evt2.ToolName)
+	assert.Equal(t, -32002, evt2.ErrorCode)
+	assert.Equal(t, "repository_not_allowed", evt2.Reason)
+	assert.Equal(t, "owner/private-repo", evt2.Repository)
+
+	// Server should have GuardPolicyBlocked = 2
+	githubServer := metrics.Servers["github"]
+	require.NotNil(t, githubServer)
+	assert.Equal(t, 2, githubServer.GuardPolicyBlocked, "server should have 2 guard policy blocks")
+	assert.Equal(t, 2, githubServer.ErrorCount, "server should have 2 errors")
+}
+
+func TestParseRPCMessagesGuardPolicyWithoutData(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	// Guard policy error without the optional data field
+	content := `{"timestamp":"2024-01-12T10:00:00.000000000Z","direction":"OUT","type":"REQUEST","server_id":"github","payload":{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"issue_read","arguments":{}}}}
+{"timestamp":"2024-01-12T10:00:00.050000000Z","direction":"IN","type":"RESPONSE","server_id":"github","payload":{"jsonrpc":"2.0","id":1,"error":{"code":-32005,"message":"Content from blocked user"}}}
+`
+	logPath := filepath.Join(tmpDir, "rpc-messages.jsonl")
+	require.NoError(t, os.WriteFile(logPath, []byte(content), 0644))
+
+	metrics, err := parseRPCMessages(logPath, false)
+	require.NoError(t, err)
+	require.NotNil(t, metrics)
+
+	assert.Equal(t, 1, metrics.TotalGuardBlocked, "should count 1 guard policy block")
+	require.Len(t, metrics.GuardPolicyEvents, 1)
+
+	evt := metrics.GuardPolicyEvents[0]
+	assert.Equal(t, -32005, evt.ErrorCode)
+	assert.Equal(t, "blocked_user", evt.Reason, "should use default reason from error code")
+	assert.Equal(t, "Content from blocked user", evt.Message)
+	assert.Empty(t, evt.Details, "details should be empty without data field")
+	assert.Empty(t, evt.Repository, "repository should be empty without data field")
+}
+
+func TestIsGuardPolicyErrorCode(t *testing.T) {
+	tests := []struct {
+		code     int
+		expected bool
+	}{
+		{-32001, true},  // Access denied
+		{-32002, true},  // Repo not allowed
+		{-32003, true},  // Insufficient permissions
+		{-32004, true},  // Private repo denied
+		{-32005, true},  // Blocked user
+		{-32006, true},  // Integrity below minimum
+		{-32000, false}, // Regular JSON-RPC error
+		{-32007, false}, // Out of range
+		{0, false},
+		{-1, false},
+	}
+
+	for _, tt := range tests {
+		assert.Equal(t, tt.expected, isGuardPolicyErrorCode(tt.code),
+			"isGuardPolicyErrorCode(%d) should be %v", tt.code, tt.expected)
+	}
+}
+
+func TestGuardPolicyReasonFromCode(t *testing.T) {
+	assert.Equal(t, "access_denied", guardPolicyReasonFromCode(-32001))
+	assert.Equal(t, "repo_not_allowed", guardPolicyReasonFromCode(-32002))
+	assert.Equal(t, "insufficient_permissions", guardPolicyReasonFromCode(-32003))
+	assert.Equal(t, "private_repo_denied", guardPolicyReasonFromCode(-32004))
+	assert.Equal(t, "blocked_user", guardPolicyReasonFromCode(-32005))
+	assert.Equal(t, "integrity_below_minimum", guardPolicyReasonFromCode(-32006))
+	assert.Equal(t, "unknown", guardPolicyReasonFromCode(-32000))
+}
+
+func TestProcessGatewayLogEntryGuardPolicyBlocked(t *testing.T) {
+	metrics := &GatewayMetrics{
+		Servers: make(map[string]*GatewayServerMetrics),
+	}
+
+	entry := &GatewayLogEntry{
+		Timestamp:   "2024-01-12T10:00:00Z",
+		Type:        "GUARD_POLICY_BLOCKED",
+		ServerID:    "github",
+		ToolName:    "pull_request_read",
+		Reason:      "integrity_below_minimum",
+		Message:     "Content integrity below minimum threshold",
+		Description: "Content integrity 'unapproved' is below minimum 'approved'",
+	}
+
+	processGatewayLogEntry(entry, metrics, false)
+
+	assert.Equal(t, 0, metrics.TotalRequests, "GUARD_POLICY_BLOCKED should not increment TotalRequests")
+	assert.Equal(t, 1, metrics.TotalGuardBlocked, "should increment TotalGuardBlocked")
+	require.Len(t, metrics.GuardPolicyEvents, 1, "should record one guard policy event")
+
+	evt := metrics.GuardPolicyEvents[0]
+	assert.Equal(t, "github", evt.ServerID)
+	assert.Equal(t, "pull_request_read", evt.ToolName)
+	assert.Equal(t, "integrity_below_minimum", evt.Reason)
+	assert.Equal(t, "Content integrity below minimum threshold", evt.Message)
+	assert.Equal(t, "Content integrity 'unapproved' is below minimum 'approved'", evt.Details)
+
+	githubServer := metrics.Servers["github"]
+	require.NotNil(t, githubServer)
+	assert.Equal(t, 1, githubServer.GuardPolicyBlocked)
+}
+
+func TestBuildGuardPolicySummary(t *testing.T) {
+	metrics := &GatewayMetrics{
+		TotalGuardBlocked: 5,
+		GuardPolicyEvents: []GuardPolicyEvent{
+			// Two identical pull_request_read events to verify per-tool count aggregation
+			{ServerID: "github", ToolName: "pull_request_read", ErrorCode: guardPolicyErrorCodeIntegrityBelowMin, Reason: "integrity_below_minimum"},
+			{ServerID: "github", ToolName: "pull_request_read", ErrorCode: guardPolicyErrorCodeIntegrityBelowMin, Reason: "integrity_below_minimum"},
+			{ServerID: "github", ToolName: "get_file_contents", ErrorCode: guardPolicyErrorCodeRepoNotAllowed, Reason: "repo_not_allowed", Repository: "owner/repo"},
+			{ServerID: "github", ToolName: "issue_read", ErrorCode: guardPolicyErrorCodeBlockedUser, Reason: "blocked_user"},
+			{ServerID: "other-server", ToolName: "list_issues", ErrorCode: guardPolicyErrorCodeAccessDenied, Reason: "access_denied"},
+		},
+		Servers: make(map[string]*GatewayServerMetrics),
+	}
+
+	summary := buildGuardPolicySummary(metrics)
+	require.NotNil(t, summary)
+
+	assert.Equal(t, 5, summary.TotalBlocked)
+	assert.Equal(t, 2, summary.IntegrityBlocked, "should have 2 integrity blocks")
+	assert.Equal(t, 1, summary.RepoScopeBlocked, "should have 1 repo scope block")
+	assert.Equal(t, 1, summary.BlockedUserDenied, "should have 1 blocked user")
+	assert.Equal(t, 1, summary.AccessDenied, "should have 1 access denied")
+	assert.Equal(t, 0, summary.PermissionDenied, "should have 0 permission denied")
+	assert.Equal(t, 0, summary.PrivateRepoDenied, "should have 0 private repo denied")
+
+	// Check per-tool blocked counts
+	assert.Equal(t, 2, summary.BlockedToolCounts["pull_request_read"])
+	assert.Equal(t, 1, summary.BlockedToolCounts["get_file_contents"])
+	assert.Equal(t, 1, summary.BlockedToolCounts["issue_read"])
+	assert.Equal(t, 1, summary.BlockedToolCounts["list_issues"])
+
+	// Check per-server blocked counts
+	assert.Equal(t, 4, summary.BlockedServerCounts["github"])
+	assert.Equal(t, 1, summary.BlockedServerCounts["other-server"])
+}
+
+func TestExtractMCPToolUsageDataWithGuardPolicy(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	// Create rpc-messages.jsonl with guard policy errors
+	content := `{"timestamp":"2024-01-12T10:00:00.000000000Z","direction":"OUT","type":"REQUEST","server_id":"github","payload":{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"pull_request_read","arguments":{}}}}
+{"timestamp":"2024-01-12T10:00:00.100000000Z","direction":"IN","type":"RESPONSE","server_id":"github","payload":{"jsonrpc":"2.0","id":1,"error":{"code":-32006,"message":"Integrity below minimum","data":{"reason":"integrity_below_minimum"}}}}
+{"timestamp":"2024-01-12T10:00:01.000000000Z","direction":"OUT","type":"REQUEST","server_id":"github","payload":{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"list_issues","arguments":{}}}}
+{"timestamp":"2024-01-12T10:00:01.200000000Z","direction":"IN","type":"RESPONSE","server_id":"github","payload":{"jsonrpc":"2.0","id":2,"result":{"content":[]}}}
+`
+	// Create in mcp-logs subdirectory to test the fallback path
+	mcpLogsDir := filepath.Join(tmpDir, "mcp-logs")
+	require.NoError(t, os.MkdirAll(mcpLogsDir, 0755))
+	logPath := filepath.Join(mcpLogsDir, "rpc-messages.jsonl")
+	require.NoError(t, os.WriteFile(logPath, []byte(content), 0644))
+
+	mcpData, err := extractMCPToolUsageData(tmpDir, false)
+	require.NoError(t, err)
+	require.NotNil(t, mcpData)
+
+	// Guard policy summary should be populated
+	require.NotNil(t, mcpData.GuardPolicySummary, "guard policy summary should be populated")
+	assert.Equal(t, 1, mcpData.GuardPolicySummary.TotalBlocked)
+	assert.Equal(t, 1, mcpData.GuardPolicySummary.IntegrityBlocked)
+	require.Len(t, mcpData.GuardPolicySummary.Events, 1)
+	assert.Equal(t, "pull_request_read", mcpData.GuardPolicySummary.Events[0].ToolName)
+}
