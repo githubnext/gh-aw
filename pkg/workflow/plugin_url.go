@@ -66,16 +66,19 @@ func parseGitHubPluginURL(raw string) (marketplaceURL string, pluginID string, o
 // normalizePlugins processes a list of raw plugin entries (plain names or full
 // GitHub tree URLs) and returns:
 //
-//   - normalizedPlugins: plugin IDs ready to pass to the engine CLI install command
+//   - normalizedPlugins: plugin install arguments ready to pass to the engine CLI.
+//     Full GitHub tree URLs are kept as-is so that engine CLIs that accept URLs
+//     (e.g. `copilot plugin install <url>`) receive the original URL.
+//     Plain plugin names pass through unchanged.
 //   - inferredMarketplaces: marketplace URLs inferred from any URL entries; these
 //     must be registered before the plugins are installed
-//
-// Plain plugin names pass through unchanged.  URL entries are split into a
-// marketplace URL and a plugin path; the URL itself is replaced by the path.
 func normalizePlugins(plugins []string) (normalizedPlugins []string, inferredMarketplaces []string) {
 	for _, entry := range plugins {
-		if marketplace, pluginID, ok := parseGitHubPluginURL(entry); ok {
-			normalizedPlugins = append(normalizedPlugins, pluginID)
+		if marketplace, _, ok := parseGitHubPluginURL(entry); ok {
+			// Keep the original URL as the install argument — engine CLIs that
+			// accept full GitHub tree URLs (e.g. `copilot plugin install <url>`)
+			// work correctly with the original URL.
+			normalizedPlugins = append(normalizedPlugins, entry)
 			inferredMarketplaces = append(inferredMarketplaces, marketplace)
 		} else {
 			normalizedPlugins = append(normalizedPlugins, entry)

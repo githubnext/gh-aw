@@ -93,11 +93,13 @@ func TestNormalizePlugins(t *testing.T) {
 			wantInferredMarketplaces: nil,
 		},
 		{
-			name: "URL entry is replaced by plugin path; marketplace inferred",
+			name: "URL entry is kept as-is for install; marketplace inferred",
 			input: []string{
 				"https://github.com/github/copilot-plugins/tree/main/plugins/advanced-security/skills/secret-scanning",
 			},
-			wantNormalized:           []string{"advanced-security/skills/secret-scanning"},
+			wantNormalized: []string{
+				"https://github.com/github/copilot-plugins/tree/main/plugins/advanced-security/skills/secret-scanning",
+			},
 			wantInferredMarketplaces: []string{"https://github.com/github/copilot-plugins"},
 		},
 		{
@@ -109,7 +111,7 @@ func TestNormalizePlugins(t *testing.T) {
 			},
 			wantNormalized: []string{
 				"my-extension",
-				"advanced-security/skills/secret-scanning",
+				"https://github.com/github/copilot-plugins/tree/main/plugins/advanced-security/skills/secret-scanning",
 				"another-plugin",
 			},
 			wantInferredMarketplaces: []string{"https://github.com/github/copilot-plugins"},
@@ -127,8 +129,8 @@ func TestNormalizePlugins(t *testing.T) {
 				"https://github.com/github/copilot-plugins/tree/main/plugins/code-review/skills/review",
 			},
 			wantNormalized: []string{
-				"advanced-security/skills/secret-scanning",
-				"code-review/skills/review",
+				"https://github.com/github/copilot-plugins/tree/main/plugins/advanced-security/skills/secret-scanning",
+				"https://github.com/github/copilot-plugins/tree/main/plugins/code-review/skills/review",
 			},
 			wantInferredMarketplaces: []string{
 				"https://github.com/github/copilot-plugins",
@@ -207,6 +209,6 @@ Test builtin marketplace filtering.
 		"copilot plugin marketplace add https://github.com/github/copilot-plugins",
 		"built-in marketplace must not be re-registered")
 	assert.Contains(t, yamlStr,
-		"copilot plugin install advanced-security/skills/secret-scanning",
-		"plugin install step must still be emitted")
+		"copilot plugin install https://github.com/github/copilot-plugins/tree/main/plugins/advanced-security/skills/secret-scanning",
+		"plugin install step must still be emitted with full URL")
 }
