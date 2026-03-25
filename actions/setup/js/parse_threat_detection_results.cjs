@@ -20,10 +20,9 @@ const { ERR_SYSTEM, ERR_VALIDATION } = require("./error_codes.cjs");
 /**
  * Parse threat detection result from file content.
  * Scans lines for a `THREAT_DETECTION_RESULT:` prefix and merges the JSON
- * payload into the default verdict. Returns the default verdict (all false)
- * when no such line is present.
+ * payload into the default verdict.
  * @param {string} content - The raw file content to parse
- * @returns {{ prompt_injection: boolean, secret_leak: boolean, malicious_patch: boolean, reasons: string[] }}
+ * @returns {{ verdict: { prompt_injection: boolean, secret_leak: boolean, malicious_patch: boolean, reasons: string[] }, found: boolean }}
  */
 function parseThreatDetectionResult(content) {
   const verdict = { prompt_injection: false, secret_leak: false, malicious_patch: false, reasons: [] };
@@ -32,10 +31,12 @@ function parseThreatDetectionResult(content) {
     const trimmedLine = line.trim();
     if (trimmedLine.startsWith("THREAT_DETECTION_RESULT:")) {
       const jsonPart = trimmedLine.substring("THREAT_DETECTION_RESULT:".length);
-      return { ...verdict, ...JSON.parse(jsonPart) };
+      core.info("🔍 Found THREAT_DETECTION_RESULT line, parsing JSON payload");
+      return { verdict: { ...verdict, ...JSON.parse(jsonPart) }, found: true };
     }
   }
-  return verdict;
+  core.warning("⚠️ No THREAT_DETECTION_RESULT line found in agent output");
+  return { verdict, found: false };
 }
 
 /**
@@ -66,7 +67,13 @@ async function main() {
       return;
     }
     const outputContent = fs.readFileSync(outputPath, "utf8");
-    verdict = parseThreatDetectionResult(outputContent);
+    const { verdict: parsed, found } = parseThreatDetectionResult(outputContent);
+    if (!found) {
+      core.setOutput("success", "false");
+      core.setFailed(`${ERR_VALIDATION}: ❌ No THREAT_DETECTION_RESULT line found in agent output — threat detection result is missing`);
+      return;
+    }
+    verdict = parsed;
   } catch (error) {
     core.warning("Failed to parse threat detection results: " + getErrorMessage(error));
   }
