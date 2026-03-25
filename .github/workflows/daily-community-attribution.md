@@ -12,7 +12,7 @@ permissions:
   issues: read
 
 engine: copilot
-timeout-minutes: 30
+timeout-minutes: 45
 
 network:
   allowed:

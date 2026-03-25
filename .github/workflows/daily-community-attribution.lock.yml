@@ -26,7 +26,7 @@
 #   Imports:
 #     - shared/community-attribution.md
 #
-# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"2e37f734fc14d80c9ec89e70f43f99924d7475aaedc34b4b35478b9b2e25dce9","strict":true,"agent_id":"copilot"}
+# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"28b07658838b2c4b0f1e413770d33265fd9cfd7aeda33be0c026afb9c649ef3c","strict":true,"agent_id":"copilot"}
 
 name: "Daily Community Attribution Updater"
 "on":
@@ -649,7 +649,7 @@ jobs:
         # --allow-tool shell(wc)
         # --allow-tool shell(yq)
         # --allow-tool write
-        timeout-minutes: 30
+        timeout-minutes: 45
         run: |
           set -o pipefail
           touch /tmp/gh-aw/agent-step-summary.md
@@ -934,7 +934,7 @@ jobs:
           GH_AW_REPO_MEMORY_PATCH_SIZE_EXCEEDED_default: ${{ needs.push_repo_memory.outputs.patch_size_exceeded_default }}
           GH_AW_GROUP_REPORTS: "false"
           GH_AW_FAILURE_REPORT_AS_ISSUE: "true"
-          GH_AW_TIMEOUT_MINUTES: "30"
+          GH_AW_TIMEOUT_MINUTES: "45"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
