@@ -3,9 +3,11 @@ package cli
 import (
 	"encoding/json"
 	"fmt"
+	"math"
 	"os"
 	"path/filepath"
 	"strconv"
+	"time"
 
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/sliceutil"
@@ -118,6 +120,13 @@ func renderConsole(data AuditData, logsPath string) {
 		fmt.Fprintln(os.Stderr, console.FormatSectionHeader("Firewall Analysis"))
 		fmt.Fprintln(os.Stderr)
 		renderFirewallAnalysis(data.FirewallAnalysis)
+	}
+
+	// Firewall Policy Analysis Section (enriched with rule attribution)
+	if data.PolicyAnalysis != nil && (len(data.PolicyAnalysis.RuleHits) > 0 || data.PolicyAnalysis.PolicySummary != "") {
+		fmt.Fprintln(os.Stderr, console.FormatSectionHeader("Firewall Policy Analysis"))
+		fmt.Fprintln(os.Stderr)
+		renderPolicyAnalysis(data.PolicyAnalysis)
 	}
 
 	// Redacted Domains Section
@@ -562,4 +571,80 @@ func renderPerformanceMetrics(metrics *PerformanceMetrics) {
 	}
 
 	fmt.Fprintln(os.Stderr)
+}
+
+// renderPolicyAnalysis renders the enriched firewall policy analysis with rule attribution
+func renderPolicyAnalysis(analysis *PolicyAnalysis) {
+	auditReportLog.Printf("Rendering policy analysis: rules=%d, denied=%d", len(analysis.RuleHits), analysis.DeniedCount)
+
+	// Policy summary using RenderStruct
+	display := PolicySummaryDisplay{
+		Policy:        analysis.PolicySummary,
+		TotalRequests: analysis.TotalRequests,
+		Allowed:       analysis.AllowedCount,
+		Denied:        analysis.DeniedCount,
+		UniqueDomains: analysis.UniqueDomains,
+	}
+	fmt.Fprint(os.Stderr, console.RenderStruct(display))
+	fmt.Fprintln(os.Stderr)
+
+	// Rule hit table
+	if len(analysis.RuleHits) > 0 {
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Policy Rules:"))
+		fmt.Fprintln(os.Stderr)
+
+		ruleConfig := console.TableConfig{
+			Headers: []string{"Rule", "Action", "Description", "Hits"},
+			Rows:    make([][]string, 0, len(analysis.RuleHits)),
+		}
+
+		for _, rh := range analysis.RuleHits {
+			row := []string{
+				stringutil.Truncate(rh.Rule.ID, 30),
+				rh.Rule.Action,
+				stringutil.Truncate(rh.Rule.Description, 50),
+				strconv.Itoa(rh.Hits),
+			}
+			ruleConfig.Rows = append(ruleConfig.Rows, row)
+		}
+
+		fmt.Fprint(os.Stderr, console.RenderTable(ruleConfig))
+		fmt.Fprintln(os.Stderr)
+	}
+
+	// Denied requests detail
+	if len(analysis.DeniedRequests) > 0 {
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Denied Requests (%d):", len(analysis.DeniedRequests))))
+		fmt.Fprintln(os.Stderr)
+
+		deniedConfig := console.TableConfig{
+			Headers: []string{"Time", "Domain", "Rule", "Reason"},
+			Rows:    make([][]string, 0, len(analysis.DeniedRequests)),
+		}
+
+		for _, req := range analysis.DeniedRequests {
+			timeStr := formatUnixTimestamp(req.Timestamp)
+			row := []string{
+				timeStr,
+				stringutil.Truncate(req.Host, 40),
+				stringutil.Truncate(req.RuleID, 25),
+				stringutil.Truncate(req.Reason, 40),
+			}
+			deniedConfig.Rows = append(deniedConfig.Rows, row)
+		}
+
+		fmt.Fprint(os.Stderr, console.RenderTable(deniedConfig))
+		fmt.Fprintln(os.Stderr)
+	}
+}
+
+// formatUnixTimestamp converts a Unix timestamp (float64) to a human-readable time string (HH:MM:SS).
+func formatUnixTimestamp(ts float64) string {
+	if ts <= 0 {
+		return "-"
+	}
+	sec := int64(math.Floor(ts))
+	nsec := int64((ts - float64(sec)) * 1e9)
+	t := time.Unix(sec, nsec).UTC()
+	return t.Format("15:04:05")
 }
