@@ -42,6 +42,13 @@ describe("error_recovery", () => {
       expect(isTransientError(new Error("no server is currently available"))).toBe(true);
     });
 
+    it("should identify HTML responses (GitHub 500 Unicorn page) as transient", () => {
+      expect(isTransientError(new Error("<!DOCTYPE html><html><head><title>Unicorn!</title></head></html>"))).toBe(true);
+      expect(isTransientError(new Error("<!doctype html>\n<html>..."))).toBe(true);
+      // With leading whitespace
+      expect(isTransientError(new Error("  <!DOCTYPE html><html>..."))).toBe(true);
+    });
+
     it("should not identify validation errors as transient", () => {
       expect(isTransientError(new Error("Invalid input"))).toBe(false);
       expect(isTransientError(new Error("Field is required"))).toBe(false);

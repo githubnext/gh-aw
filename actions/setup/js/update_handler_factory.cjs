@@ -11,6 +11,7 @@ const { logStagedPreviewInfo } = require("./staged_preview.cjs");
 const { createAuthenticatedGitHubClient } = require("./handler_auth.cjs");
 const { resolveTargetRepoConfig, resolveAndValidateRepo } = require("./repo_helpers.cjs");
 const { sanitizeContent } = require("./sanitize_content.cjs");
+const { withRetry, isTransientError } = require("./error_recovery.cjs");
 
 /**
  * @typedef {Object} UpdateHandlerConfig
@@ -253,8 +254,9 @@ function createUpdateHandlerFactory(handlerConfig) {
       // Execute the update using the authenticated client and effective context.
       // githubClient uses config["github-token"] when set (for cross-repo), otherwise global github.
       // effectiveContext.repo contains the target repo owner/name for cross-repo routing.
+      // Retry on transient errors (e.g. GitHub API returning HTML instead of JSON on 500 crashes).
       try {
-        const updatedItem = await executeUpdate(githubClient, effectiveContext, itemNumber, updateData);
+        const updatedItem = await withRetry(() => executeUpdate(githubClient, effectiveContext, itemNumber, updateData), { maxRetries: 1, initialDelayMs: 2000, shouldRetry: isTransientError }, `update ${itemTypeName} #${itemNumber}`);
         core.info(`Successfully updated ${itemTypeName} #${itemNumber}: ${updatedItem.html_url || updatedItem.url}`);
 
         // Format and return success result
