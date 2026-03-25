@@ -47,6 +47,8 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 		if startStep != "" {
 			steps = append(steps, startStep)
 			difcProxyInjectedInActivation = true
+		} else {
+			compilerActivationJobLog.Print("Warning: DIFC guards configured but proxy step generation returned empty; proxy will not be started in activation job")
 		}
 	}
 
