@@ -199,12 +199,17 @@ on:
           - 'enable'
           - 'update'
           - 'upgrade'
+      run_url:
+        description: 'Run URL or run ID to replay safe outputs from (e.g. https://github.com/owner/repo/actions/runs/12345 or 12345)'
+        required: false
+        type: string
+        default: ''
 
 permissions: {}
 
 jobs:
   close-expired-entities:
-    if: ${{ !github.event.repository.fork && (github.event_name != 'workflow_dispatch' || github.event.inputs.operation == '') }}
+    if: ${{ !github.event.repository.fork && (github.event_name != 'workflow_dispatch' || (github.event.inputs.operation == '' && github.event.inputs.run_url == '')) }}
     runs-on: ubuntu-slim
     permissions:
       discussions: write
@@ -322,6 +327,54 @@ jobs:
             await main();
 `)
 
+	// Add apply_safe_outputs job for workflow_dispatch with run_url input
+	yaml.WriteString(`
+  apply_safe_outputs:
+    if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.run_url != '' && !github.event.repository.fork }}
+    runs-on: ubuntu-slim
+    permissions:
+      actions: read
+      contents: write
+      discussions: write
+      issues: write
+      pull-requests: write
+    steps:
+      - name: Checkout actions folder
+        uses: ` + GetActionPin("actions/checkout") + `
+        with:
+          sparse-checkout: |
+            actions
+          persist-credentials: false
+
+      - name: Setup Scripts
+        uses: ` + setupActionRef + `
+        with:
+          destination: ${{ runner.temp }}/gh-aw/actions
+
+      - name: Check admin/maintainer permissions
+        uses: ` + GetActionPin("actions/github-script") + `
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');
+            setupGlobals(core, github, context, exec, io);
+            const { main } = require('${{ runner.temp }}/gh-aw/actions/check_team_member.cjs');
+            await main();
+
+      - name: Apply Safe Outputs
+        uses: ` + GetActionPin("actions/github-script") + `
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_AW_RUN_URL: ${{ github.event.inputs.run_url }}
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');
+            setupGlobals(core, github, context, exec, io);
+            const { main } = require('${{ runner.temp }}/gh-aw/actions/apply_safe_outputs_replay.cjs');
+            await main();
+`)
+
 	// Add compile-workflows and zizmor-scan jobs only in dev mode
 	// These jobs are specific to the gh-aw repository and require go.mod, make build, etc.
 	// User repositories won't have these dependencies, so we skip them in release mode
@@ -329,7 +382,7 @@ jobs:
 		// Add compile-workflows job
 		yaml.WriteString(`
   compile-workflows:
-    if: ${{ !github.event.repository.fork && (github.event_name != 'workflow_dispatch' || github.event.inputs.operation == '') }}
+    if: ${{ !github.event.repository.fork && (github.event_name != 'workflow_dispatch' || (github.event.inputs.operation == '' && github.event.inputs.run_url == '')) }}
     runs-on: ubuntu-slim
     permissions:
       contents: read
@@ -366,7 +419,7 @@ jobs:
             await main();
 
   zizmor-scan:
-    if: ${{ !github.event.repository.fork && (github.event_name != 'workflow_dispatch' || github.event.inputs.operation == '') }}
+    if: ${{ !github.event.repository.fork && (github.event_name != 'workflow_dispatch' || (github.event.inputs.operation == '' && github.event.inputs.run_url == '')) }}
     runs-on: ubuntu-slim
     needs: compile-workflows
     permissions:
@@ -390,7 +443,7 @@ jobs:
           echo "✓ Zizmor security scan completed"
 
   secret-validation:
-    if: ${{ !github.event.repository.fork && (github.event_name != 'workflow_dispatch' || github.event.inputs.operation == '') }}
+    if: ${{ !github.event.repository.fork && (github.event_name != 'workflow_dispatch' || (github.event.inputs.operation == '' && github.event.inputs.run_url == '')) }}
     runs-on: ubuntu-slim
     permissions:
       contents: read

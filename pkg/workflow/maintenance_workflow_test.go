@@ -280,13 +280,15 @@ func TestGenerateMaintenanceWorkflow_OperationJobConditions(t *testing.T) {
 	}
 	yaml := string(content)
 
-	operationSkipCondition := `github.event_name != 'workflow_dispatch' || github.event.inputs.operation == ''`
+	// Updated condition now also excludes run_url to keep scheduled jobs from running during replay
+	operationSkipCondition := `github.event_name != 'workflow_dispatch' || (github.event.inputs.operation == '' && github.event.inputs.run_url == '')`
 	operationRunCondition := `github.event_name == 'workflow_dispatch' && github.event.inputs.operation != ''`
+	applySafeOutputsCondition := `github.event_name == 'workflow_dispatch' && github.event.inputs.run_url != ''`
 
 	const jobSectionSearchRange = 300
 	const runOpSectionSearchRange = 200
 
-	// Jobs that should be disabled when operation is set
+	// Jobs that should be disabled when operation or run_url is set
 	disabledJobs := []string{"close-expired-entities:", "compile-workflows:", "zizmor-scan:", "secret-validation:"}
 	for _, job := range disabledJobs {
 		// Find the if: condition for each job
@@ -314,6 +316,22 @@ func TestGenerateMaintenanceWorkflow_OperationJobConditions(t *testing.T) {
 		if !strings.Contains(runOpSection, operationRunCondition) {
 			t.Errorf("Job run_operation should have the activation condition %q", operationRunCondition)
 		}
+	}
+
+	// apply_safe_outputs job should have its own activation condition triggered by run_url
+	applyIdx := strings.Index(yaml, "\n  apply_safe_outputs:")
+	if applyIdx == -1 {
+		t.Errorf("Job apply_safe_outputs not found in generated workflow")
+	} else {
+		applySection := yaml[applyIdx : applyIdx+runOpSectionSearchRange]
+		if !strings.Contains(applySection, applySafeOutputsCondition) {
+			t.Errorf("Job apply_safe_outputs should have the activation condition %q in:\n%s", applySafeOutputsCondition, applySection)
+		}
+	}
+
+	// Verify run_url input exists in workflow_dispatch
+	if !strings.Contains(yaml, "run_url:") {
+		t.Error("workflow_dispatch should include run_url input")
 	}
 }
 
