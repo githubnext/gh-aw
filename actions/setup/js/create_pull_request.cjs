@@ -25,7 +25,7 @@ const { getBaseBranch } = require("./get_base_branch.cjs");
 const { createAuthenticatedGitHubClient } = require("./handler_auth.cjs");
 const { buildWorkflowRunUrl } = require("./workflow_metadata_helpers.cjs");
 const { checkFileProtection } = require("./manifest_file_helpers.cjs");
-const { renderTemplateFromFile, buildProtectedFileList } = require("./messages_core.cjs");
+const { renderTemplateFromFile, buildProtectedFileList, encodePathSegments } = require("./messages_core.cjs");
 const { COPILOT_REVIEWER_BOT, FAQ_CREATE_PR_PERMISSIONS_URL } = require("./constants.cjs");
 const { isStagedMode } = require("./safe_output_helpers.cjs");
 
@@ -978,8 +978,7 @@ ${patchPreview}`;
     if (manifestProtectionFallback) {
       const allFound = manifestProtectionFallback;
       const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
-      const encodedBase = baseBranch.split("/").map(encodeURIComponent).join("/");
-      const fileList = buildProtectedFileList(allFound, githubServer, repoParts.owner, repoParts.repo, encodedBase);
+      const fileList = buildProtectedFileList(allFound, githubServer, repoParts.owner, repoParts.repo, baseBranch);
 
       let fallbackBody;
       if (manifestProtectionPushFailedError) {
@@ -1001,7 +1000,8 @@ ${patchPreview}`;
         });
       } else {
         // Normal case — push succeeded, provide compare URL.
-        const encodedHead = branchName.split("/").map(encodeURIComponent).join("/");
+        const encodedBase = encodePathSegments(baseBranch);
+        const encodedHead = encodePathSegments(branchName);
         const createPrUrl = `${githubServer}/${repoParts.owner}/${repoParts.repo}/compare/${encodedBase}...${encodedHead}?expand=1&title=${encodeURIComponent(title)}`;
         const templatePath = `${process.env.RUNNER_TEMP}/gh-aw/prompts/manifest_protection_create_pr_fallback.md`;
         fallbackBody = renderTemplateFromFile(templatePath, {

@@ -112,19 +112,30 @@ function toSnakeCase(obj) {
 }
 
 /**
+ * URL-encode each segment of a slash-separated path.
+ * Preserves the slash separators while encoding special characters in each segment.
+ * @param {string} path - A slash-separated path (e.g. branch name or file path)
+ * @returns {string} Path with each segment individually URL-encoded
+ */
+function encodePathSegments(path) {
+  return path.split("/").map(encodeURIComponent).join("/");
+}
+
+/**
  * Build a markdown list of protected files with clickable GitHub URLs.
- * Each file path segment is individually URL-encoded to handle special characters.
+ * Both the branch name and each file path segment are individually URL-encoded.
  * @param {string[]} files - Array of file paths (may include subdirectories)
  * @param {string} githubServer - GitHub server URL (e.g. "https://github.com")
  * @param {string} owner - Repository owner
  * @param {string} repo - Repository name
- * @param {string} encodedBranch - Branch name with path segments already URL-encoded
+ * @param {string} branch - Branch name (will be URL-encoded internally)
  * @returns {string} Markdown list with one `- [file](url)` entry per line
  */
-function buildProtectedFileList(files, githubServer, owner, repo, encodedBranch) {
+function buildProtectedFileList(files, githubServer, owner, repo, branch) {
+  const encodedBranch = encodePathSegments(branch);
   return files
     .map(f => {
-      const encodedPath = f.split("/").map(encodeURIComponent).join("/");
+      const encodedPath = encodePathSegments(f);
       return `- [${f}](${githubServer}/${owner}/${repo}/blob/${encodedBranch}/${encodedPath})`;
     })
     .join("\n");
@@ -135,5 +146,6 @@ module.exports = {
   renderTemplate,
   renderTemplateFromFile,
   toSnakeCase,
+  encodePathSegments,
   buildProtectedFileList,
 };
