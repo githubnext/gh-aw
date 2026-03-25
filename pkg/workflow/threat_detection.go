@@ -390,7 +390,10 @@ func (c *Compiler) buildDetectionEngineExecutionStep(data *WorkflowData) []strin
 		return []string{"      # Engine not found, skipping execution\n"}
 	}
 
-	// Apply default detection model if the engine provides one and no model is specified
+	// Build a detection engine config inheriting ID, Model, Version, Env, Config, Args, APITarget.
+	// MaxTurns, Concurrency, UserAgent, Firewall, and Agent are intentionally omitted —
+	// the detection job is a simple threat-analysis invocation and must never run as a
+	// custom agent (no repo checkout, agent file unavailable).
 	detectionEngineConfig := engineConfig
 	if detectionEngineConfig == nil {
 		detectionEngineConfig = &EngineConfig{ID: engineSetting}
@@ -403,6 +406,16 @@ func (c *Compiler) buildDetectionEngineExecutionStep(data *WorkflowData) []strin
 			Config:    detectionEngineConfig.Config,
 			Args:      detectionEngineConfig.Args,
 			APITarget: detectionEngineConfig.APITarget,
+		}
+	}
+
+	// Apply the engine's default detection model when no model was explicitly configured.
+	// GetDefaultDetectionModel() returns a cost-effective model optimised for detection
+	// (e.g. "gpt-5.1-codex-mini" for Copilot). Other engines return "" (no default).
+	// This was accidentally removed in commit a93e36ea4 while fixing engine.agent propagation.
+	if detectionEngineConfig.Model == "" {
+		if defaultModel := engine.GetDefaultDetectionModel(); defaultModel != "" {
+			detectionEngineConfig.Model = defaultModel
 		}
 	}
 

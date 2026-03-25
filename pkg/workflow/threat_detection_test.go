@@ -908,14 +908,13 @@ func TestCopilotDetectionDefaultModel(t *testing.T) {
 			allSteps := strings.Join(steps, "")
 
 			if tt.shouldContainModel {
-				// For detection steps, check if either:
-				// 1. The model is set via native COPILOT_MODEL env var (for configured models)
-				// 2. The environment variable GH_AW_MODEL_DETECTION_COPILOT is used (for default/fallback)
+				// The model must be hardcoded via the native COPILOT_MODEL env var.
+				// Relying solely on the GH_AW_MODEL_DETECTION_COPILOT org variable is not
+				// acceptable — if the variable is unset the detection job would run with no
+				// model, defeating the cost-optimised default (gpt-5.1-codex-mini).
 				hasNativeEnvVar := strings.Contains(allSteps, "COPILOT_MODEL: "+tt.expectedModel)
-				hasEnvVar := strings.Contains(allSteps, "GH_AW_MODEL_DETECTION_COPILOT")
-
-				if !hasNativeEnvVar && !hasEnvVar {
-					t.Errorf("Expected steps to contain either COPILOT_MODEL: %q or GH_AW_MODEL_DETECTION_COPILOT environment variable, but neither was found.\nGenerated steps:\n%s", tt.expectedModel, allSteps)
+				if !hasNativeEnvVar {
+					t.Errorf("Expected steps to contain COPILOT_MODEL: %q (hardcoded), but it was not found.\nGenerated steps:\n%s", tt.expectedModel, allSteps)
 				}
 			}
 		})
