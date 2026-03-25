@@ -633,3 +633,151 @@ func TestDIFCProxyInjectedInIndexingJob(t *testing.T) {
 			"indexing job should NOT include proxy stop step without guard policy")
 	})
 }
+
+// TestDIFCProxyInjectedInActivationJob verifies that DIFC proxy steps are injected
+// into the activation job when guard policies are configured.
+func TestDIFCProxyInjectedInActivationJob(t *testing.T) {
+	t.Run("proxy injected in activation job when guard policy configured", func(t *testing.T) {
+		workflow := `---
+on: issues
+engine: copilot
+tools:
+  github:
+    mode: local
+    toolsets: [default]
+    min-integrity: approved
+---
+
+# Test Workflow
+
+Test that DIFC proxy is injected into the activation job when min-integrity is set.
+`
+		compiler := NewCompiler()
+		data, err := compiler.ParseWorkflowString(workflow, "test-workflow.md")
+		require.NoError(t, err, "parsing should succeed")
+
+		result, err := compiler.CompileToYAML(data, "test-workflow.md")
+		require.NoError(t, err, "compilation should succeed")
+
+		// Find the activation job section
+		activationIdx := strings.Index(result, "activation:")
+		require.Greater(t, activationIdx, -1, "activation job should be present")
+
+		// Find the agent job section (to bound our search to the activation job)
+		agentIdx := strings.Index(result, "agent:")
+		require.Greater(t, agentIdx, -1, "agent job should be present")
+
+		// Extract activation job content (before agent job)
+		activationSection := result[activationIdx:agentIdx]
+
+		// Proxy start must be present in activation job
+		assert.Contains(t, activationSection, "Start DIFC proxy for pre-agent gh calls",
+			"activation job should contain proxy start step when guard policy is configured")
+
+		// Proxy stop must be present in activation job
+		assert.Contains(t, activationSection, "Stop DIFC proxy",
+			"activation job should contain proxy stop step when guard policy is configured")
+
+		// Proxy start must come before proxy stop
+		startIdx := strings.Index(activationSection, "Start DIFC proxy for pre-agent gh calls")
+		stopIdx := strings.Index(activationSection, "Stop DIFC proxy")
+		assert.Less(t, startIdx, stopIdx, "Start proxy must come before Stop proxy in activation job")
+
+		// Proxy start must come before the first github-script step (add reaction, timestamp check, etc.)
+		// Verify start comes before the "Upload activation artifact" step
+		uploadIdx := strings.Index(activationSection, "Upload activation artifact")
+		require.Greater(t, uploadIdx, -1, "activation artifact upload step should be present")
+		assert.Less(t, stopIdx, uploadIdx, "Stop DIFC proxy must come before artifact upload")
+	})
+
+	t.Run("proxy not injected in activation job without guard policy", func(t *testing.T) {
+		workflow := `---
+on: issues
+engine: copilot
+tools:
+  github:
+    mode: local
+    toolsets: [default]
+---
+
+# Test Workflow
+
+Test that DIFC proxy is NOT injected into the activation job when min-integrity is not set.
+`
+		compiler := NewCompiler()
+		data, err := compiler.ParseWorkflowString(workflow, "test-workflow.md")
+		require.NoError(t, err, "parsing should succeed")
+
+		result, err := compiler.CompileToYAML(data, "test-workflow.md")
+		require.NoError(t, err, "compilation should succeed")
+
+		// Find the activation job section
+		activationIdx := strings.Index(result, "activation:")
+		require.Greater(t, activationIdx, -1, "activation job should be present")
+
+		agentIdx := strings.Index(result, "agent:")
+		require.Greater(t, agentIdx, -1, "agent job should be present")
+
+		activationSection := result[activationIdx:agentIdx]
+
+		assert.NotContains(t, activationSection, "Start DIFC proxy",
+			"activation job should NOT contain proxy start step without guard policy")
+		assert.NotContains(t, activationSection, "Stop DIFC proxy",
+			"activation job should NOT contain proxy stop step without guard policy")
+	})
+
+	t.Run("buildActivationJob includes proxy steps when guard policy configured", func(t *testing.T) {
+		c := NewCompiler()
+		data := &WorkflowData{
+			Name: "test-workflow",
+			Tools: map[string]any{
+				"github": map[string]any{"min-integrity": "approved"},
+			},
+			AI:            "copilot",
+			SandboxConfig: &SandboxConfig{},
+		}
+		ensureDefaultMCPGatewayConfig(data)
+
+		job, err := c.buildActivationJob(data, false, "", "test-workflow.lock.yml")
+		require.NoError(t, err, "buildActivationJob should succeed")
+		require.NotNil(t, job, "job should not be nil")
+
+		allSteps := strings.Join(job.Steps, "\n")
+		assert.Contains(t, allSteps, "Start DIFC proxy for pre-agent gh calls",
+			"activation job should include proxy start step when guard policy is configured")
+		assert.Contains(t, allSteps, "Stop DIFC proxy",
+			"activation job should include proxy stop step when guard policy is configured")
+
+		startIdx := strings.Index(allSteps, "Start DIFC proxy for pre-agent gh calls")
+		stopIdx := strings.Index(allSteps, "Stop DIFC proxy")
+		assert.Less(t, startIdx, stopIdx, "Start proxy must come before Stop proxy in activation job")
+
+		// Stop proxy must come before artifact upload
+		uploadIdx := strings.Index(allSteps, "Upload activation artifact")
+		require.Greater(t, uploadIdx, -1, "artifact upload step should be present")
+		assert.Less(t, stopIdx, uploadIdx, "Stop DIFC proxy must come before artifact upload")
+	})
+
+	t.Run("buildActivationJob has no proxy steps without guard policy", func(t *testing.T) {
+		c := NewCompiler()
+		data := &WorkflowData{
+			Name: "test-workflow",
+			Tools: map[string]any{
+				"github": map[string]any{"toolsets": []string{"default"}},
+			},
+			AI:            "copilot",
+			SandboxConfig: &SandboxConfig{},
+		}
+		ensureDefaultMCPGatewayConfig(data)
+
+		job, err := c.buildActivationJob(data, false, "", "test-workflow.lock.yml")
+		require.NoError(t, err, "buildActivationJob should succeed")
+		require.NotNil(t, job, "job should not be nil")
+
+		allSteps := strings.Join(job.Steps, "\n")
+		assert.NotContains(t, allSteps, "Start DIFC proxy",
+			"activation job should NOT include proxy start step without guard policy")
+		assert.NotContains(t, allSteps, "Stop DIFC proxy",
+			"activation job should NOT include proxy stop step without guard policy")
+	})
+}

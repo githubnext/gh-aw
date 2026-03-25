@@ -35,6 +35,21 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 	// Activation job doesn't need project support (no safe outputs processed here)
 	steps = append(steps, c.generateSetupStep(setupActionRef, SetupActionDestination, false)...)
 
+	// Start DIFC proxy early in the activation job, immediately after setup and before any
+	// actions/github-script or gh CLI step. The proxy startup script sets GITHUB_API_URL,
+	// GITHUB_GRAPHQL_URL, NODE_EXTRA_CA_CERTS, and GH_HOST via $GITHUB_ENV so all subsequent
+	// github-script Octokit calls are routed through integrity filtering automatically.
+	// We track whether the proxy was actually started so we only emit the stop step when needed.
+	var difcProxyInjectedInActivation bool
+	if hasDIFCGuardsConfigured(data) {
+		compilerActivationJobLog.Print("DIFC guards configured; injecting proxy start into activation job")
+		startStep := c.buildStartDIFCProxyStepYAML(data)
+		if startStep != "" {
+			steps = append(steps, startStep)
+			difcProxyInjectedInActivation = true
+		}
+	}
+
 	// When a workflow_call trigger is present, resolve the platform (host) repository before
 	// generating aw_info so that target_repo can be included in aw_info.json and used by
 	// the checkout step. This is necessary for event-driven relays (e.g. on: issue_comment)
@@ -450,6 +465,13 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 	// qmd indexing is handled by the separate "indexing" job that depends on activation.
 	// That job builds the index and saves/restores it via the GitHub Actions cache, and the agent job
 	// restores the index using actions/cache/restore.
+
+	// Stop DIFC proxy before artifact upload. The stop step always runs (if: always()) to
+	// ensure the container and CA cert are cleaned up even when earlier steps failed.
+	if difcProxyInjectedInActivation {
+		compilerActivationJobLog.Print("DIFC proxy was started; injecting proxy stop step into activation job")
+		steps = append(steps, buildStopDIFCProxyStepYAML())
+	}
 
 	// Upload aw_info.json and prompt.txt as the activation artifact for the agent job to download.
 	// In workflow_call context the artifact is prefixed to avoid name clashes when multiple callers

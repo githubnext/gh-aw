@@ -71,6 +71,11 @@ jobs:
         uses: ./actions/setup
         with:
           destination: ${{ runner.temp }}/gh-aw/actions
+      - name: Start DIFC proxy for pre-agent gh calls
+        env:
+          GH_TOKEN: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
+        run: |
+          bash ${RUNNER_TEMP}/gh-aw/actions/start_difc_proxy.sh '{"allow-only":{"min-integrity":"approved","repos":["github/gh-aw"]}}' 'ghcr.io/github/gh-aw-mcpg:v0.2.6'
       - name: Generate agentic run info
         id: generate_aw_info
         env:
@@ -86,7 +91,7 @@ jobs:
           GH_AW_INFO_ALLOWED_DOMAINS: '["defaults"]'
           GH_AW_INFO_FIREWALL_ENABLED: "true"
           GH_AW_INFO_AWF_VERSION: "v0.25.0"
-          GH_AW_INFO_AWMG_VERSION: ""
+          GH_AW_INFO_AWMG_VERSION: "v0.2.6"
           GH_AW_INFO_FIREWALL_TYPE: "squid"
           GH_AW_COMPILED_STRICT: "true"
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
@@ -264,6 +269,10 @@ jobs:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         # poutine:ignore untrusted_checkout_exec
         run: bash ${RUNNER_TEMP}/gh-aw/actions/print_prompt_summary.sh
+      - name: Stop DIFC proxy
+        if: always()
+        continue-on-error: true
+        run: bash ${RUNNER_TEMP}/gh-aw/actions/stop_difc_proxy.sh
       - name: Upload activation artifact
         if: success()
         uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7
