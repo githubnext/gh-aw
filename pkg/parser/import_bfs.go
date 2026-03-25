@@ -60,7 +60,7 @@ func processImportsFromFrontmatterWithManifestAndSource(frontmatter map[string]a
 			}
 		}
 	default:
-		return nil, errors.New("imports field must be an array or an object with 'aw'/'apm-packages' subfields")
+		return nil, errors.New("imports field must be an array or an object with 'aw', 'apm-packages', 'marketplaces', or 'plugins' subfields")
 	}
 
 	if len(importSpecs) == 0 {

@@ -18,6 +18,8 @@ type toolsProcessingResult struct {
 	tools                 map[string]any
 	runtimes              map[string]any
 	apmDependencies       *APMDependenciesInfo // APM (Agent Package Manager) dependencies
+	marketplaces          []string             // Marketplace URLs from imports.marketplaces
+	plugins               []string             // Plugin names from imports.plugins
 	toolsTimeout          int
 	toolsStartupTimeout   int
 	markdownContent       string
@@ -165,6 +167,24 @@ func (c *Compiler) processToolsAndMarkdown(result *parser.FrontmatterResult, cle
 		orchestratorToolsLog.Printf("Extracted %d APM dependencies from frontmatter", len(apmDependencies.Packages))
 	}
 
+	// Extract marketplace URLs from imports.marketplaces
+	marketplaces, err := extractMarketplacesFromFrontmatter(result.Frontmatter)
+	if err != nil {
+		return nil, err
+	}
+	if len(marketplaces) > 0 {
+		orchestratorToolsLog.Printf("Extracted %d marketplace(s) from frontmatter", len(marketplaces))
+	}
+
+	// Extract plugin names from imports.plugins
+	plugins, err := extractPluginsFromFrontmatter(result.Frontmatter)
+	if err != nil {
+		return nil, err
+	}
+	if len(plugins) > 0 {
+		orchestratorToolsLog.Printf("Extracted %d plugin(s) from frontmatter", len(plugins))
+	}
+
 	// Add MCP fetch server if needed (when web-fetch is requested but engine doesn't support it)
 	tools, _ = AddMCPFetchServerIfNeeded(tools, agenticEngine)
 
@@ -296,6 +316,8 @@ func (c *Compiler) processToolsAndMarkdown(result *parser.FrontmatterResult, cle
 		tools:                 tools,
 		runtimes:              runtimes,
 		apmDependencies:       apmDependencies,
+		marketplaces:          marketplaces,
+		plugins:               plugins,
 		toolsTimeout:          toolsTimeout,
 		toolsStartupTimeout:   toolsStartupTimeout,
 		markdownContent:       markdownContent,

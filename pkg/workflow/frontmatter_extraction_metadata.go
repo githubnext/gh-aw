@@ -378,3 +378,90 @@ func extractAPMDependenciesFromValue(value any, fieldName string) (*APMDependenc
 	frontmatterMetadataLog.Printf("Extracted %d APM dependency packages from %s (isolated=%v, github-app=%v, github-token=%v, version=%s, env=%d)", len(packages), fieldName, isolated, githubApp != nil, githubToken != "", version, len(env))
 	return &APMDependenciesInfo{Packages: packages, Isolated: isolated, GitHubApp: githubApp, GitHubToken: githubToken, Version: version, Env: env}, nil
 }
+
+// extractMarketplacesFromFrontmatter extracts marketplace URLs from the imports.marketplaces field.
+// Marketplaces are additional registry endpoints that the agent CLI registers before execution,
+// allowing it to discover and install tools/extensions from custom sources.
+//
+// Supported format:
+//
+//	imports:
+//	  marketplaces:
+//	    - https://marketplace.example.com
+//
+// Returns an empty slice if the field is absent.
+func extractMarketplacesFromFrontmatter(frontmatter map[string]any) ([]string, error) {
+	importsAny, hasImports := frontmatter["imports"]
+	if !hasImports {
+		return nil, nil
+	}
+	importsMap, ok := importsAny.(map[string]any)
+	if !ok {
+		return nil, nil
+	}
+	marketplacesAny, hasMarketplaces := importsMap["marketplaces"]
+	if !hasMarketplaces {
+		return nil, nil
+	}
+
+	var marketplaces []string
+	switch v := marketplacesAny.(type) {
+	case []any:
+		for _, item := range v {
+			if s, ok := item.(string); ok && s != "" {
+				marketplaces = append(marketplaces, s)
+			}
+		}
+	case []string:
+		marketplaces = append(marketplaces, v...)
+	default:
+		return nil, errors.New("imports.marketplaces must be an array of strings")
+	}
+
+	frontmatterMetadataLog.Printf("Extracted %d marketplace(s) from imports.marketplaces", len(marketplaces))
+	return marketplaces, nil
+}
+
+// extractPluginsFromFrontmatter extracts plugin names from the imports.plugins field.
+// Plugins are agent-native extensions that are installed by the agent CLI before execution,
+// enabling additional capabilities and tools within the agent's runtime.
+//
+// Supported format:
+//
+//	imports:
+//	  plugins:
+//	    - my-plugin
+//	    - another-plugin
+//
+// Returns an empty slice if the field is absent.
+func extractPluginsFromFrontmatter(frontmatter map[string]any) ([]string, error) {
+	importsAny, hasImports := frontmatter["imports"]
+	if !hasImports {
+		return nil, nil
+	}
+	importsMap, ok := importsAny.(map[string]any)
+	if !ok {
+		return nil, nil
+	}
+	pluginsAny, hasPlugins := importsMap["plugins"]
+	if !hasPlugins {
+		return nil, nil
+	}
+
+	var plugins []string
+	switch v := pluginsAny.(type) {
+	case []any:
+		for _, item := range v {
+			if s, ok := item.(string); ok && s != "" {
+				plugins = append(plugins, s)
+			}
+		}
+	case []string:
+		plugins = append(plugins, v...)
+	default:
+		return nil, errors.New("imports.plugins must be an array of strings")
+	}
+
+	frontmatterMetadataLog.Printf("Extracted %d plugin(s) from imports.plugins", len(plugins))
+	return plugins, nil
+}

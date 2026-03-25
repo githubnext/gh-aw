@@ -359,6 +359,28 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 		}
 	}
 
+	// Emit marketplace registration and plugin installation steps before agent execution.
+	// These steps use the engine's native CLI package support (ImportsProvider interface).
+	// Each step sets GITHUB_TOKEN from the GitHub Actions token for authentication.
+	if importsProvider, ok := engine.(ImportsProvider); ok {
+		if len(data.Marketplaces) > 0 {
+			compilerYamlLog.Printf("Adding %d marketplace setup step(s) for %s", len(data.Marketplaces), engine.GetID())
+			for _, step := range importsProvider.GetMarketplaceSetupSteps(data.Marketplaces, data) {
+				for _, line := range step {
+					yaml.WriteString(line + "\n")
+				}
+			}
+		}
+		if len(data.Plugins) > 0 {
+			compilerYamlLog.Printf("Adding %d plugin install step(s) for %s", len(data.Plugins), engine.GetID())
+			for _, step := range importsProvider.GetPluginInstallSteps(data.Plugins, data) {
+				for _, line := range step {
+					yaml.WriteString(line + "\n")
+				}
+			}
+		}
+	}
+
 	// Add AI execution step using the agentic engine
 	compilerYamlLog.Printf("Generating engine execution steps for %s", engine.GetID())
 	c.generateEngineExecutionSteps(yaml, data, engine, logFileFull)

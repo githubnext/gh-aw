@@ -228,6 +228,26 @@ type ConfigRenderer interface {
 	RenderConfig(target *ResolvedEngineTarget) ([]map[string]any, error)
 }
 
+// ImportsProvider is an optional interface implemented by engines that support
+// native marketplace registration and plugin installation before agent execution.
+// These setup steps run in the agent job before the main agent command, using the
+// GitHub Actions token for authentication.
+type ImportsProvider interface {
+	// GetMarketplaceSetupSteps returns GitHub Actions steps that register marketplace
+	// URLs with the agent CLI before execution. Each URL is a registry endpoint that
+	// the agent can use to discover and install additional tools or extensions.
+	// Returns an empty slice if the engine does not support marketplace registration
+	// or if the provided list is empty.
+	GetMarketplaceSetupSteps(marketplaces []string, workflowData *WorkflowData) []GitHubActionStep
+
+	// GetPluginInstallSteps returns GitHub Actions steps that install plugins/extensions
+	// via the agent's native package support before execution. Each entry is a plugin
+	// identifier (e.g. a name or slug) recognised by the agent CLI.
+	// Returns an empty slice if the engine does not support plugin installation
+	// or if the provided list is empty.
+	GetPluginInstallSteps(plugins []string, workflowData *WorkflowData) []GitHubActionStep
+}
+
 // CodingAgentEngine is a composite interface that combines all focused interfaces
 // This maintains backward compatibility with existing code while allowing more flexibility
 // Implementations can choose to implement only the interfaces they need by embedding BaseEngine
