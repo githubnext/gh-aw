@@ -63,8 +63,8 @@ Test workflow`
 	if !strings.Contains(detectionSection, "detection_guard") {
 		t.Error("Detection job should contain detection_guard step")
 	}
-	if !strings.Contains(detectionSection, "parse_detection_results") {
-		t.Error("Detection job should contain parse_detection_results step")
+	if !strings.Contains(detectionSection, "detection_conclusion") {
+		t.Error("Detection job should contain detection_conclusion step")
 	}
 
 	// Test 2: Detection engine step should use limited tools (no --allow-all-tools)
