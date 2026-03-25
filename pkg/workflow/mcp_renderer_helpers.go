@@ -1,6 +1,12 @@
 package workflow
 
-import "strings"
+import (
+	"strings"
+
+	"github.com/github/gh-aw/pkg/logger"
+)
+
+var mcpRendererHelpersLog = logger.New("workflow:mcp_renderer_helpers")
 
 // renderStandardJSONMCPConfig is a shared helper for JSON MCP config rendering used by
 // Claude, Gemini, Copilot, and Codex engines. It consolidates the repeated sequence of:
@@ -29,6 +35,7 @@ func renderStandardJSONMCPConfig(
 	renderCustom RenderCustomMCPToolConfigHandler,
 	filterTool func(string) bool,
 ) error {
+	mcpRendererHelpersLog.Printf("Rendering standard JSON MCP config: config_path=%s tools=%d mcp_tools=%d", configPath, len(tools), len(mcpTools))
 	createRenderer := buildMCPRendererFactory(workflowData, "json", includeCopilotFields, inlineArgs)
 	return RenderJSONMCPConfig(yaml, tools, mcpTools, workflowData, JSONMCPConfigOptions{
 		ConfigPath:    configPath,

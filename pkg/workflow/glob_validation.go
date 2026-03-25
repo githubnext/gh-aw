@@ -21,7 +21,11 @@ import (
 	"strings"
 	"text/scanner"
 	"unicode"
+
+	"github.com/github/gh-aw/pkg/logger"
 )
+
+var globValidationLog = logger.New("workflow:glob_validation")
 
 // invalidGlobPattern describes a single validation error within a glob pattern.
 type invalidGlobPattern struct {
@@ -217,13 +221,19 @@ func runGlobValidation(pat string, isRef bool) []invalidGlobPattern {
 // validateRefGlob validates a GitHub Actions ref filter glob (branch or tag pattern).
 // It returns a non-empty slice of invalidGlobPattern when the pattern is invalid.
 func validateRefGlob(pat string) []invalidGlobPattern {
-	return runGlobValidation(pat, true)
+	globValidationLog.Printf("Validating ref glob pattern: %s", pat)
+	errs := runGlobValidation(pat, true)
+	if len(errs) > 0 {
+		globValidationLog.Printf("Ref glob pattern invalid: %d error(s) found", len(errs))
+	}
+	return errs
 }
 
 // validatePathGlob validates a GitHub Actions path filter glob.
 // It returns a non-empty slice of invalidGlobPattern when the pattern is invalid.
 // Path patterns starting with "./" or "../" are explicitly rejected.
 func validatePathGlob(pat string) []invalidGlobPattern {
+	globValidationLog.Printf("Validating path glob pattern: %s", pat)
 	p := strings.TrimSpace(pat)
 
 	var errs []invalidGlobPattern
