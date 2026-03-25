@@ -135,6 +135,7 @@ func TestGenerateCheckoutGitHubFolderForActivation_WorkflowCall(t *testing.T) {
 			if tt.wantGitHubSparse {
 				assert.Contains(t, combined, ".github", "sparse-checkout should include .github")
 				assert.Contains(t, combined, ".agents", "sparse-checkout should include .agents")
+				assert.Contains(t, combined, "actions/setup", "sparse-checkout should include actions/setup to preserve post step")
 			}
 
 			// Verify security defaults
@@ -206,6 +207,7 @@ func TestGenerateGitHubFolderCheckoutStep(t *testing.T) {
 				"should have correct step name")
 			assert.Contains(t, combined, ".github", "should include .github in sparse-checkout")
 			assert.Contains(t, combined, ".agents", "should include .agents in sparse-checkout")
+			assert.Contains(t, combined, "actions/setup", "should include actions/setup in sparse-checkout to preserve post step")
 			assert.Contains(t, combined, "sparse-checkout-cone-mode: true",
 				"should enable cone mode for sparse checkout")
 			assert.Contains(t, combined, "fetch-depth: 1", "should use shallow clone")

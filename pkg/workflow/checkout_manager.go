@@ -380,6 +380,7 @@ func (cm *CheckoutManager) GenerateGitHubFolderCheckoutStep(repository, ref stri
 	sb.WriteString("          sparse-checkout: |\n")
 	sb.WriteString("            .github\n")
 	sb.WriteString("            .agents\n")
+	sb.WriteString("            actions/setup\n")
 	sb.WriteString("          sparse-checkout-cone-mode: true\n")
 	sb.WriteString("          fetch-depth: 1\n")
 
