@@ -271,6 +271,73 @@ func TestCompiledLockFiles_NoSpuriousWorkflowCallOutputs(t *testing.T) {
 	t.Logf("Validated no spurious workflow_call outputs for %d workflow(s)", checkedWorkflows)
 }
 
+// extractDetectionJobSection returns the text of the detection job block from a lock file.
+// The block starts at "  detection:" and extends until the next top-level job entry or EOF.
+func extractDetectionJobSection(lockContent string) string {
+	marker := "\n  detection:"
+	idx := strings.Index(lockContent, marker)
+	if idx < 0 {
+		return ""
+	}
+	rest := lockContent[idx+1:] // skip the leading newline
+	lines := strings.Split(rest, "\n")
+	var sb strings.Builder
+	for i, line := range lines {
+		if i == 0 {
+			sb.WriteString(line + "\n")
+			continue
+		}
+		// A new top-level job starts with exactly two spaces then a word char (not more spaces).
+		if len(line) > 2 && line[0] == ' ' && line[1] == ' ' && line[2] != ' ' && strings.Contains(line, ":") {
+			break
+		}
+		sb.WriteString(line + "\n")
+	}
+	return sb.String()
+}
+
+// TestCompiledLockFiles_SmokeWorkflowsHaveDetectionJobWithAgenticRunCall verifies that the
+// smoke-copilot and smoke-claude lock files each contain a detection job with the expected
+// outputs and an agentic engine execution step that uses awf.
+func TestCompiledLockFiles_SmokeWorkflowsHaveDetectionJobWithAgenticRunCall(t *testing.T) {
+	smokeWorkflows := []string{
+		"smoke-copilot.lock.yml",
+		"smoke-claude.lock.yml",
+	}
+
+	for _, lockFile := range smokeWorkflows {
+		t.Run(lockFile, func(t *testing.T) {
+			lockPath := filepath.Join(workflowsDir, lockFile)
+			lockBytes, err := os.ReadFile(lockPath)
+			require.NoError(t, err, "should read lock file %s", lockFile)
+			lockContent := string(lockBytes)
+
+			detectionJob := extractDetectionJobSection(lockContent)
+			require.NotEmpty(t, detectionJob, "lock file %s should contain a detection job", lockFile)
+
+			t.Run("HasDetectionConclusionOutput", func(t *testing.T) {
+				assert.Contains(t, detectionJob, "detection_conclusion:",
+					"detection job should expose detection_conclusion output")
+			})
+
+			t.Run("HasDetectionSuccessOutput", func(t *testing.T) {
+				assert.Contains(t, detectionJob, "detection_success:",
+					"detection job should expose detection_success output")
+			})
+
+			t.Run("HasAgenticExecutionStepID", func(t *testing.T) {
+				assert.Contains(t, detectionJob, "id: detection_agentic_execution",
+					"detection job should have an agentic execution step with id: detection_agentic_execution")
+			})
+
+			t.Run("AgenticExecutionStepUsesAWF", func(t *testing.T) {
+				assert.Contains(t, detectionJob, "sudo -E awf",
+					"detection job's agentic execution step should use awf for sandboxed execution")
+			})
+		})
+	}
+}
+
 // TestCompiledLockFiles_SmokeWorkflowCallHasExpectedOutputs is a focused test on the
 // smoke-workflow-call workflow, the canonical workflow_call example in this repo.
 func TestCompiledLockFiles_SmokeWorkflowCallHasExpectedOutputs(t *testing.T) {
