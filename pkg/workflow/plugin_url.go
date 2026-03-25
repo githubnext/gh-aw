@@ -11,7 +11,8 @@ import (
 )
 
 // parseGitHubPluginURL attempts to parse a full GitHub tree URL into a
-// (marketplaceURL, pluginID) pair.
+// (marketplaceURL, pluginSpec) pair where pluginSpec is in the
+// "plugin-name@marketplace-name" format accepted by engine CLIs.
 //
 // Expected URL shape:
 //
@@ -21,15 +22,16 @@ import (
 //
 //	https://github.com/github/copilot-plugins/tree/main/plugins/advanced-security/skills/secret-scanning
 //	→ marketplace: https://github.com/github/copilot-plugins
-//	→ pluginID:    advanced-security/skills/secret-scanning
+//	→ pluginSpec:  advanced-security/skills/secret-scanning@github/copilot-plugins
 //
 // The "plugins/" path prefix is stripped from the plugin ID because engine CLIs
 // expect the ID relative to the marketplace's plugins directory, not the full
-// path from the repo root.
+// path from the repo root. The spec uses the "plugin-name@marketplace-name"
+// format where marketplace-name is the "owner/repo" of the marketplace.
 //
 // Returns ("", "", false) when the input is not a recognisable GitHub tree URL,
 // so the caller can treat the value as a plain plugin name instead.
-func parseGitHubPluginURL(raw string) (marketplaceURL string, pluginID string, ok bool) {
+func parseGitHubPluginURL(raw string) (marketplaceURL string, pluginSpec string, ok bool) {
 	// Only consider values that look like URLs (have a scheme)
 	if !strings.HasPrefix(raw, "http://") && !strings.HasPrefix(raw, "https://") {
 		return "", "", false
@@ -60,25 +62,28 @@ func parseGitHubPluginURL(raw string) (marketplaceURL string, pluginID string, o
 	pluginPath = strings.TrimPrefix(pluginPath, "plugins/")
 
 	marketplace := u.Scheme + "://" + u.Host + "/" + owner + "/" + repo
-	return marketplace, pluginPath, true
+	// Build the plugin spec in "plugin-name@marketplace-name" format.
+	// The marketplace-name uses the "owner/repo" form, which the engine CLI
+	// uses to look up the marketplace in its registry.
+	spec := pluginPath + "@" + owner + "/" + repo
+	return marketplace, spec, true
 }
 
 // normalizePlugins processes a list of raw plugin entries (plain names or full
 // GitHub tree URLs) and returns:
 //
 //   - normalizedPlugins: plugin install arguments ready to pass to the engine CLI.
-//     Full GitHub tree URLs are kept as-is so that engine CLIs that accept URLs
-//     (e.g. `copilot plugin install <url>`) receive the original URL.
+//     Full GitHub tree URLs are converted to "plugin-name@marketplace-name" format
+//     (e.g. `advanced-security/skills/secret-scanning@github/copilot-plugins`),
+//     which is the format accepted by engine CLIs.
 //     Plain plugin names pass through unchanged.
 //   - inferredMarketplaces: marketplace URLs inferred from any URL entries; these
 //     must be registered before the plugins are installed
 func normalizePlugins(plugins []string) (normalizedPlugins []string, inferredMarketplaces []string) {
 	for _, entry := range plugins {
-		if marketplace, _, ok := parseGitHubPluginURL(entry); ok {
-			// Keep the original URL as the install argument — engine CLIs that
-			// accept full GitHub tree URLs (e.g. `copilot plugin install <url>`)
-			// work correctly with the original URL.
-			normalizedPlugins = append(normalizedPlugins, entry)
+		if marketplace, pluginSpec, ok := parseGitHubPluginURL(entry); ok {
+			// Use the "plugin-name@marketplace-name" spec format.
+			normalizedPlugins = append(normalizedPlugins, pluginSpec)
 			inferredMarketplaces = append(inferredMarketplaces, marketplace)
 		} else {
 			normalizedPlugins = append(normalizedPlugins, entry)

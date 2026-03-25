@@ -16,21 +16,21 @@ func TestParseGitHubPluginURL(t *testing.T) {
 		name            string
 		input           string
 		wantMarketplace string
-		wantPluginID    string
+		wantPluginSpec  string
 		wantOK          bool
 	}{
 		{
 			name:            "full GitHub tree URL",
 			input:           "https://github.com/github/copilot-plugins/tree/main/plugins/advanced-security/skills/secret-scanning",
 			wantMarketplace: "https://github.com/github/copilot-plugins",
-			wantPluginID:    "advanced-security/skills/secret-scanning",
+			wantPluginSpec:  "advanced-security/skills/secret-scanning@github/copilot-plugins",
 			wantOK:          true,
 		},
 		{
 			name:            "shallow plugin path",
 			input:           "https://github.com/acme/my-plugins/tree/main/tools/linter",
 			wantMarketplace: "https://github.com/acme/my-plugins",
-			wantPluginID:    "tools/linter",
+			wantPluginSpec:  "tools/linter@acme/my-plugins",
 			wantOK:          true,
 		},
 		{
@@ -62,18 +62,18 @@ func TestParseGitHubPluginURL(t *testing.T) {
 			name:            "http scheme",
 			input:           "http://github.com/org/repo/tree/main/plugins/foo",
 			wantMarketplace: "http://github.com/org/repo",
-			wantPluginID:    "foo",
+			wantPluginSpec:  "foo@org/repo",
 			wantOK:          true,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			marketplace, pluginID, ok := parseGitHubPluginURL(tt.input)
+			marketplace, pluginSpec, ok := parseGitHubPluginURL(tt.input)
 			assert.Equal(t, tt.wantOK, ok, "ok mismatch")
 			if tt.wantOK {
 				assert.Equal(t, tt.wantMarketplace, marketplace, "marketplace mismatch")
-				assert.Equal(t, tt.wantPluginID, pluginID, "pluginID mismatch")
+				assert.Equal(t, tt.wantPluginSpec, pluginSpec, "pluginSpec mismatch")
 			}
 		})
 	}
@@ -93,12 +93,12 @@ func TestNormalizePlugins(t *testing.T) {
 			wantInferredMarketplaces: nil,
 		},
 		{
-			name: "URL entry is kept as-is for install; marketplace inferred",
+			name: "URL entry is converted to plugin-name@marketplace-name spec",
 			input: []string{
 				"https://github.com/github/copilot-plugins/tree/main/plugins/advanced-security/skills/secret-scanning",
 			},
 			wantNormalized: []string{
-				"https://github.com/github/copilot-plugins/tree/main/plugins/advanced-security/skills/secret-scanning",
+				"advanced-security/skills/secret-scanning@github/copilot-plugins",
 			},
 			wantInferredMarketplaces: []string{"https://github.com/github/copilot-plugins"},
 		},
@@ -111,7 +111,7 @@ func TestNormalizePlugins(t *testing.T) {
 			},
 			wantNormalized: []string{
 				"my-extension",
-				"https://github.com/github/copilot-plugins/tree/main/plugins/advanced-security/skills/secret-scanning",
+				"advanced-security/skills/secret-scanning@github/copilot-plugins",
 				"another-plugin",
 			},
 			wantInferredMarketplaces: []string{"https://github.com/github/copilot-plugins"},
@@ -129,8 +129,8 @@ func TestNormalizePlugins(t *testing.T) {
 				"https://github.com/github/copilot-plugins/tree/main/plugins/code-review/skills/review",
 			},
 			wantNormalized: []string{
-				"https://github.com/github/copilot-plugins/tree/main/plugins/advanced-security/skills/secret-scanning",
-				"https://github.com/github/copilot-plugins/tree/main/plugins/code-review/skills/review",
+				"advanced-security/skills/secret-scanning@github/copilot-plugins",
+				"code-review/skills/review@github/copilot-plugins",
 			},
 			wantInferredMarketplaces: []string{
 				"https://github.com/github/copilot-plugins",
@@ -209,6 +209,6 @@ Test builtin marketplace filtering.
 		"copilot plugin marketplace add https://github.com/github/copilot-plugins",
 		"built-in marketplace must not be re-registered")
 	assert.Contains(t, yamlStr,
-		"copilot plugin install https://github.com/github/copilot-plugins/tree/main/plugins/advanced-security/skills/secret-scanning",
-		"plugin install step must still be emitted with full URL")
+		"copilot plugin install advanced-security/skills/secret-scanning@github/copilot-plugins",
+		"plugin install step must emit plugin-name@marketplace-name spec")
 }
