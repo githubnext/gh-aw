@@ -9,7 +9,7 @@ This document proposes an extensible guard policies framework for the MCP Gatewa
 The user requested support for guard policies in the MCP gateway configuration, with the following requirements:
 
 1. Support GitHub-specific guard policies with flat frontmatter syntax:
-   - `repos` (scope): Repository access patterns
+   - `allowed-repos` (scope): Repository access patterns
    - `min-integrity` (minintegrity): Minimum min-integrity level required
 
 2. Design an extensible system that can support future MCP servers (Jira, WorkIQ) with different policy schemas
@@ -58,7 +58,7 @@ tools:
   github:
     mode: remote
     toolsets: [default]
-    repos: "all"
+    allowed-repos: "all"
     min-integrity: unapproved
 ```
 
@@ -68,7 +68,7 @@ tools:
   github:
     mode: remote
     toolsets: [default]
-    repos:
+    allowed-repos:
       - "myorg/*"
       - "partner/shared-repo"
       - "docs/api-*"
@@ -79,25 +79,27 @@ tools:
 ```yaml
 tools:
   github:
-    repos: "public"
+    allowed-repos: "public"
     min-integrity: none
 ```
+
+> **Note**: The field was originally named `repos` and renamed to `allowed-repos` in PR #22331. The old name is retained as a deprecated alias; run `gh aw fix` to migrate automatically.
 
 ### 4. MCP Gateway Configuration Flow
 
 1. **Frontmatter Parsing** (`tools_parser.go`):
-   - Extracts `repos` and `min-integrity` directly from GitHub tool config
+   - Extracts `allowed-repos` and `min-integrity` directly from GitHub tool config
    - Stores them as fields on `GitHubToolConfig`
    - Validates structure and types
 
 2. **Validation** (`tools_validation.go`):
-   - Validates repos format (all/public or valid patterns)
+   - Validates allowed-repos format (all/public or valid patterns)
    - Validates min-integrity level (none/unapproved/approved/merged)
    - Validates repository pattern syntax (lowercase, valid characters, wildcard placement)
    - Called during workflow compilation
 
 3. **Compilation**:
-   - Guard policy fields (repos, min-integrity) included in compiled GitHub tool configuration
+   - Guard policy fields (allowed-repos, min-integrity) included in compiled GitHub tool configuration
    - Passed through to MCP Gateway configuration
 
 4. **Runtime (MCP Gateway)**:
@@ -111,8 +113,8 @@ When GitHub guard policies are configured, the compiler automatically derives a 
 
 **Derivation Rules:**
 
-- **`repos: "all"` or `repos: "public"`**: Creates `accept: ["*"]` to allow all safe output operations
-- **`repos: [patterns]`**: Each pattern is transformed and added to the accept list:
+- **`allowed-repos: "all"` or `allowed-repos: "public"`**: Creates `accept: ["*"]` to allow all safe output operations
+- **`allowed-repos: [patterns]`**: Each pattern is transformed and added to the accept list:
   - `"owner/*"` → `"private:owner"` (owner wildcard → strip wildcard)
   - `"owner/prefix*"` → `"private:owner/prefix*"` (prefix wildcard → keep as-is)
   - `"owner/repo"` → `"private:owner/repo"` (specific repo → keep as-is)
@@ -122,7 +124,7 @@ When GitHub guard policies are configured, the compiler automatically derives a 
 ```yaml
 tools:
   github:
-    repos: "public"
+    allowed-repos: "public"
     min-integrity: approved
 ```
 
@@ -140,7 +142,7 @@ Generates safeoutputs guard-policy:
 ```yaml
 tools:
   github:
-    repos:
+    allowed-repos:
       - "github/*"
       - "microsoft/copilot"
     min-integrity: approved
@@ -210,7 +212,7 @@ The design supports future MCP servers (Jira, WorkIQ) through:
    - Set `additionalProperties: true` for server-specific schemas
 
 3. **pkg/workflow/tools_parser.go**
-   - Extended `parseGitHubTool()` to extract `repos` and `min-integrity` directly
+   - Extended `parseGitHubTool()` to extract `allowed-repos` and `min-integrity` directly
 
 4. **pkg/workflow/tools_validation.go**
    - Updated `validateGitHubGuardPolicy()` function (validates flat fields)
@@ -239,7 +241,7 @@ The design supports future MCP servers (Jira, WorkIQ) through:
 
 **Required Fields:**
 - `min-integrity` is required when using GitHub guard policies
-- `repos` defaults to `"all"` if not specified
+- `allowed-repos` defaults to `"all"` if not specified
 
 ## Error Messages
 
@@ -264,7 +266,7 @@ tools:
   github:
     mode: remote
     toolsets: [default]
-    repos:
+    allowed-repos:
       - "myorg/*"
     min-integrity: unapproved
 ```
@@ -276,7 +278,7 @@ tools:
   github:
     mode: remote
     toolsets: [default]
-    repos:
+    allowed-repos:
       - "frontend-org/*"
       - "backend-org/*"
       - "shared/infrastructure"
@@ -290,7 +292,7 @@ tools:
   github:
     mode: remote
     toolsets: [repos, issues]
-    repos: "public"
+    allowed-repos: "public"
     min-integrity: none
 ```
 
@@ -301,7 +303,7 @@ tools:
   github:
     mode: remote
     toolsets: [default]
-    repos:
+    allowed-repos:
       - "myorg/api-*"     # Matches api-gateway, api-service, etc.
       - "myorg/web-*"     # Matches web-frontend, web-backend, etc.
     min-integrity: approved
