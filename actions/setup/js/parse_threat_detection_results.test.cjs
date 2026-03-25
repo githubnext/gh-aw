@@ -47,8 +47,24 @@ describe("extractFromStreamJson", () => {
     const line =
       '{"type":"result","subtype":"success","result":"**Analysis complete.**\\n\\nNo threats found.\\n\\nTHREAT_DETECTION_RESULT:{\\"prompt_injection\\":false,\\"secret_leak\\":false,\\"malicious_patch\\":false,\\"reasons\\":[]}","stop_reason":"end_turn"}';
     const result = extractFromStreamJson(line);
-    expect(result).not.toBeNull();
-    expect(result).toContain("THREAT_DETECTION_RESULT:");
+    // Ensure we extracted only the verdict line, not the preceding analysis text
+    expect(result).toMatch(/^THREAT_DETECTION_RESULT:/);
+    expect(result).not.toContain("**Analysis complete.**");
+  });
+
+  it("should allow parseDetectionLog to parse extracted verdict when analysis text precedes it", () => {
+    const line =
+      '{"type":"result","subtype":"success","result":"**Analysis complete.**\\n\\nNo threats found.\\n\\nTHREAT_DETECTION_RESULT:{\\"prompt_injection\\":false,\\"secret_leak\\":false,\\"malicious_patch\\":false,\\"reasons\\":[]}","stop_reason":"end_turn"}';
+    const extracted = extractFromStreamJson(line);
+    expect(extracted).not.toBeNull();
+    const { verdict, error } = parseDetectionLog(extracted);
+    expect(error).toBeUndefined();
+    expect(verdict).toEqual({
+      prompt_injection: false,
+      secret_leak: false,
+      malicious_patch: false,
+      reasons: [],
+    });
   });
 
   it("should return null for type:assistant JSON (not authoritative)", () => {
