@@ -168,10 +168,10 @@ func buildEpisodeData(runs []RunData, processedRuns []ProcessedRun) ([]EpisodeDa
 		if acc.duration > 0 {
 			acc.metadata.TotalDuration = timeutil.FormatDuration(acc.duration)
 		}
-		switch {
-		case acc.metadata.RiskyNodeCount == 0:
+		switch acc.metadata.RiskyNodeCount {
+		case 0:
 			acc.metadata.RiskDistribution = "none"
-		case acc.metadata.RiskyNodeCount == 1:
+		case 1:
 			acc.metadata.RiskDistribution = "concentrated"
 		default:
 			acc.metadata.RiskDistribution = "distributed"
@@ -251,7 +251,7 @@ func seedConfidenceRank(confidence string) int {
 func classifyEpisode(run RunData) (string, string, string, []string) {
 	if run.AwContext != nil {
 		if run.AwContext.WorkflowCallID != "" {
-			return fmt.Sprintf("dispatch:%s", run.AwContext.WorkflowCallID), "dispatch_workflow", "high", []string{"context.workflow_call_id"}
+			return "dispatch:" + run.AwContext.WorkflowCallID, "dispatch_workflow", "high", []string{"context.workflow_call_id"}
 		}
 		if run.AwContext.RunID != "" && run.AwContext.WorkflowID != "" {
 			return fmt.Sprintf("dispatch:%s:%s:%s", run.AwContext.Repo, run.AwContext.RunID, run.AwContext.WorkflowID), "dispatch_workflow", "medium", []string{"context.run_id", "context.workflow_id"}
