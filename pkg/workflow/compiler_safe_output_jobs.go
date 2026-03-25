@@ -22,10 +22,12 @@ func (c *Compiler) buildSafeOutputsJobs(data *WorkflowData, jobName, markdownPat
 	}
 	compilerSafeOutputJobsLog.Print("Building safe outputs jobs")
 
-	// Track whether threat detection is enabled (used for downstream job conditions)
+	// Detection is always enabled for safe-outputs workflows unless threat-detection is explicitly
+	// disabled (threat-detection: false). ThreatDetection is nil only when explicitly disabled.
 	threatDetectionEnabled := data.SafeOutputs.ThreatDetection != nil
 
-	// Build the separate detection job if threat detection is enabled.
+	// Build the separate detection job. Detection runs by default for all safe-outputs workflows
+	// and is only skipped when ThreatDetection is nil (i.e. threat-detection: false was set).
 	// The detection job runs after the agent job, downloads the agent artifact,
 	// and outputs detection_success and detection_conclusion for downstream jobs.
 	if threatDetectionEnabled {
