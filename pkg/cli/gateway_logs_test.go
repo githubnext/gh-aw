@@ -949,6 +949,7 @@ func TestBuildGuardPolicySummary(t *testing.T) {
 	metrics := &GatewayMetrics{
 		TotalGuardBlocked: 5,
 		GuardPolicyEvents: []GuardPolicyEvent{
+			// Two identical pull_request_read events to verify per-tool count aggregation
 			{ServerID: "github", ToolName: "pull_request_read", ErrorCode: guardPolicyErrorCodeIntegrityBelowMin, Reason: "integrity_below_minimum"},
 			{ServerID: "github", ToolName: "pull_request_read", ErrorCode: guardPolicyErrorCodeIntegrityBelowMin, Reason: "integrity_below_minimum"},
 			{ServerID: "github", ToolName: "get_file_contents", ErrorCode: guardPolicyErrorCodeRepoNotAllowed, Reason: "repo_not_allowed", Repository: "owner/repo"},

@@ -577,8 +577,8 @@ func renderGuardPolicySummary(summary *GuardPolicySummary) {
 		eventRows := make([][]string, 0, len(summary.Events))
 		for _, evt := range summary.Events {
 			message := evt.Message
-			if len(message) > 50 {
-				message = message[:47] + "..."
+			if len(message) > 60 {
+				message = message[:57] + "..."
 			}
 			repo := evt.Repository
 			if repo == "" {
