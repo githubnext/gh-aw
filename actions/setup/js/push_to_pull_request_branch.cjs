@@ -15,7 +15,7 @@ const { resolveTargetRepoConfig, resolveAndValidateRepo } = require("./repo_help
 const { createAuthenticatedGitHubClient } = require("./handler_auth.cjs");
 const { checkFileProtection } = require("./manifest_file_helpers.cjs");
 const { buildWorkflowRunUrl } = require("./workflow_metadata_helpers.cjs");
-const { renderTemplateFromFile } = require("./messages_core.cjs");
+const { renderTemplateFromFile, buildProtectedFileList } = require("./messages_core.cjs");
 const { getGitAuthEnv } = require("./git_helpers.cjs");
 
 /**
@@ -398,7 +398,7 @@ async function main(config = {}) {
       const prUrl = `${githubServer}/${repoParts.owner}/${repoParts.repo}/pull/${pullNumber}`;
       const issueTitle = `[gh-aw] Protected Files: ${prTitle || `PR #${pullNumber}`}`;
       const encodedBranch = branchName.split("/").map(encodeURIComponent).join("/");
-      const fileList = protectedFilesForFallback.map(f => `- [${f}](${githubServer}/${repoParts.owner}/${repoParts.repo}/blob/${encodedBranch}/${f.split("/").map(encodeURIComponent).join("/")})`).join("\n");
+      const fileList = buildProtectedFileList(protectedFilesForFallback, githubServer, repoParts.owner, repoParts.repo, encodedBranch);
       const templatePath = `${process.env.RUNNER_TEMP}/gh-aw/prompts/manifest_protection_push_to_pr_fallback.md`;
       const issueBody = renderTemplateFromFile(templatePath, {
         files: fileList,

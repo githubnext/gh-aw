@@ -25,7 +25,7 @@ const { getBaseBranch } = require("./get_base_branch.cjs");
 const { createAuthenticatedGitHubClient } = require("./handler_auth.cjs");
 const { buildWorkflowRunUrl } = require("./workflow_metadata_helpers.cjs");
 const { checkFileProtection } = require("./manifest_file_helpers.cjs");
-const { renderTemplateFromFile } = require("./messages_core.cjs");
+const { renderTemplateFromFile, buildProtectedFileList } = require("./messages_core.cjs");
 const { COPILOT_REVIEWER_BOT, FAQ_CREATE_PR_PERMISSIONS_URL } = require("./constants.cjs");
 const { isStagedMode } = require("./safe_output_helpers.cjs");
 
@@ -979,7 +979,7 @@ ${patchPreview}`;
       const allFound = manifestProtectionFallback;
       const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
       const encodedBase = baseBranch.split("/").map(encodeURIComponent).join("/");
-      const fileList = allFound.map(f => `- [${f}](${githubServer}/${repoParts.owner}/${repoParts.repo}/blob/${encodedBase}/${f.split("/").map(encodeURIComponent).join("/")})`).join("\n");
+      const fileList = buildProtectedFileList(allFound, githubServer, repoParts.owner, repoParts.repo, encodedBase);
 
       let fallbackBody;
       if (manifestProtectionPushFailedError) {

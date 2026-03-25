@@ -111,9 +111,29 @@ function toSnakeCase(obj) {
   );
 }
 
+/**
+ * Build a markdown list of protected files with clickable GitHub URLs.
+ * Each file path segment is individually URL-encoded to handle special characters.
+ * @param {string[]} files - Array of file paths (may include subdirectories)
+ * @param {string} githubServer - GitHub server URL (e.g. "https://github.com")
+ * @param {string} owner - Repository owner
+ * @param {string} repo - Repository name
+ * @param {string} encodedBranch - Branch name with path segments already URL-encoded
+ * @returns {string} Markdown list with one `- [file](url)` entry per line
+ */
+function buildProtectedFileList(files, githubServer, owner, repo, encodedBranch) {
+  return files
+    .map(f => {
+      const encodedPath = f.split("/").map(encodeURIComponent).join("/");
+      return `- [${f}](${githubServer}/${owner}/${repo}/blob/${encodedBranch}/${encodedPath})`;
+    })
+    .join("\n");
+}
+
 module.exports = {
   getMessages,
   renderTemplate,
   renderTemplateFromFile,
   toSnakeCase,
+  buildProtectedFileList,
 };
