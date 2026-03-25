@@ -80,7 +80,7 @@ Authenticates the [Codex by OpenAI](/gh-aw/reference/engines/#codex-by-openai) e
 | **Source** | OpenAI API key stored as repository secret |
 | **Required** | Yes, when using `engine: codex` |
 | **Permissions** | OpenAI API access (external service) |
-| **Fallback** | None — the Codex engine resolves `CODEX_API_KEY` first, then `OPENAI_API_KEY` (`${{ secrets.CODEX_API_KEY \|\| secrets.OPENAI_API_KEY }}`) |
+| **Fallback** | None — the Codex engine resolves `CODEX_API_KEY` first, then `OPENAI_API_KEY` (resolution order: `CODEX_API_KEY` → `OPENAI_API_KEY`) |
 | **Used by** | Codex inference step |
 
 ```bash wrap
