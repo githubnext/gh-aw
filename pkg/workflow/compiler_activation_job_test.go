@@ -135,6 +135,7 @@ func TestGenerateCheckoutGitHubFolderForActivation_WorkflowCall(t *testing.T) {
 			if tt.wantGitHubSparse {
 				assert.Contains(t, combined, ".github", "sparse-checkout should include .github")
 				assert.Contains(t, combined, ".agents", "sparse-checkout should include .agents")
+				assert.Contains(t, combined, "actions/setup", "sparse-checkout should include actions/setup to preserve post step")
 			}
 
 			// Verify security defaults
@@ -206,6 +207,7 @@ func TestGenerateGitHubFolderCheckoutStep(t *testing.T) {
 				"should have correct step name")
 			assert.Contains(t, combined, ".github", "should include .github in sparse-checkout")
 			assert.Contains(t, combined, ".agents", "should include .agents in sparse-checkout")
+			assert.NotContains(t, combined, "actions/setup", "base method should not include actions/setup without extraPaths")
 			assert.Contains(t, combined, "sparse-checkout-cone-mode: true",
 				"should enable cone mode for sparse checkout")
 			assert.Contains(t, combined, "fetch-depth: 1", "should use shallow clone")
@@ -549,4 +551,74 @@ func TestCheckoutGitHubFolderIncludesRef(t *testing.T) {
 			}
 		})
 	}
+}
+
+// TestGenerateCheckoutGitHubFolderForActivation_ActionsModeSetupPath verifies that
+// actions/setup is included in the sparse-checkout only when in dev mode, because
+// dev mode references the action via a local workspace path (./actions/setup) while
+// release/script/action modes reference it remotely (runner cache, not workspace).
+func TestGenerateCheckoutGitHubFolderForActivation_ActionsModeSetupPath(t *testing.T) {
+	tests := []struct {
+		name              string
+		mode              ActionMode
+		wantSetupInSparse bool
+	}{
+		{
+			name:              "dev mode - actions/setup must be in sparse-checkout",
+			mode:              ActionModeDev,
+			wantSetupInSparse: true,
+		},
+		{
+			name:              "release mode - actions/setup must NOT be in sparse-checkout",
+			mode:              ActionModeRelease,
+			wantSetupInSparse: false,
+		},
+		{
+			name:              "script mode - actions/setup must NOT be in sparse-checkout",
+			mode:              ActionModeScript,
+			wantSetupInSparse: false,
+		},
+		{
+			name:              "action mode - actions/setup must NOT be in sparse-checkout",
+			mode:              ActionModeAction,
+			wantSetupInSparse: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			c := NewCompilerWithVersion("dev")
+			c.SetActionMode(tt.mode)
+
+			data := &WorkflowData{
+				On: `"on":
+  issues:
+    types: [opened]`,
+			}
+
+			result := c.generateCheckoutGitHubFolderForActivation(data)
+			require.NotNil(t, result, "should return checkout steps")
+			combined := strings.Join(result, "")
+
+			if tt.wantSetupInSparse {
+				assert.Contains(t, combined, "actions/setup",
+					"dev mode should include actions/setup to preserve local action during post step")
+			} else {
+				assert.NotContains(t, combined, "actions/setup",
+					"non-dev mode should not include actions/setup (action is in runner cache, not workspace)")
+			}
+		})
+	}
+}
+
+// TestGenerateGitHubFolderCheckoutStep_ExtraPaths verifies that extraPaths are
+// correctly appended to the sparse-checkout list.
+func TestGenerateGitHubFolderCheckoutStep_ExtraPaths(t *testing.T) {
+	result := NewCheckoutManager(nil).GenerateGitHubFolderCheckoutStep("", "", GetActionPin, "actions/setup", "custom/path")
+	combined := strings.Join(result, "")
+
+	assert.Contains(t, combined, ".github", "should include .github")
+	assert.Contains(t, combined, ".agents", "should include .agents")
+	assert.Contains(t, combined, "actions/setup", "should include extra path actions/setup")
+	assert.Contains(t, combined, "custom/path", "should include extra path custom/path")
 }

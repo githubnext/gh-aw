@@ -613,6 +613,16 @@ func (c *Compiler) generateCheckoutGitHubFolderForActivation(data *WorkflowData)
 	//
 	// Skip when inlined-imports is enabled: content is embedded at compile time and no
 	// runtime-import macros are used, so the callee's .md files are not needed at runtime.
+	// In dev mode the action is referenced via a local path (./actions/setup), so its files
+	// live in the workspace. Without including actions/setup in the sparse-checkout, this second
+	// checkout would remove that directory and the runner's post-step would fail to find action.yml.
+	// In other modes (release, script, action) the action is fetched remotely into the
+	// runner's action cache and is not affected by workspace checkouts.
+	devExtraPaths := []string(nil)
+	if c.actionMode.IsDev() {
+		devExtraPaths = []string{"actions/setup"}
+	}
+
 	cm := NewCheckoutManager(nil)
 	if data != nil && hasWorkflowCallTrigger(data.On) && !data.InlinedImports {
 		compilerActivationJobLog.Print("Adding cross-repo-aware .github checkout for workflow_call trigger")
@@ -622,6 +632,7 @@ func (c *Compiler) generateCheckoutGitHubFolderForActivation(data *WorkflowData)
 			cm.GetCrossRepoTargetRepo(),
 			cm.GetCrossRepoTargetRef(),
 			GetActionPin,
+			devExtraPaths...,
 		)
 	}
 
@@ -629,5 +640,5 @@ func (c *Compiler) generateCheckoutGitHubFolderForActivation(data *WorkflowData)
 	// This is needed for runtime imports during prompt generation
 	// sparse-checkout-cone-mode: true ensures subdirectories under .github/ are recursively included
 	compilerActivationJobLog.Print("Adding .github and .agents sparse checkout in activation job")
-	return cm.GenerateGitHubFolderCheckoutStep("", "", GetActionPin)
+	return cm.GenerateGitHubFolderCheckoutStep("", "", GetActionPin, devExtraPaths...)
 }

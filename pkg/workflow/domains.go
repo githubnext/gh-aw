@@ -567,6 +567,20 @@ func GetCopilotAllowedDomainsWithToolsAndRuntimes(network *NetworkPermissions, t
 	return GetAllowedDomainsForEngine(constants.CopilotEngine, network, tools, runtimes)
 }
 
+// GetThreatDetectionAllowedDomains returns the minimal set of domains allowed for a Copilot
+// detection run. It loads the "threat-detection" ecosystem from ecosystem_domains.json, which
+// includes only the Copilot API endpoints needed for read-only threat analysis. It intentionally
+// excludes registry.npmjs.org and raw.githubusercontent.com (not needed when MCP servers are
+// disabled and the CLI binary is pre-installed).
+// Any additional user-specified network.allowed entries are merged in (typically empty for detection).
+// Returns a deduplicated, sorted, comma-separated string suitable for AWF's --allow-domains flag.
+func GetThreatDetectionAllowedDomains(network *NetworkPermissions) string {
+	detectionDomains := getEcosystemDomains("threat-detection")
+	// Pass nil tools and runtimes: detection runs with no npm/runtime ecosystem, so
+	// ecosystem domain expansion is intentionally skipped.
+	return mergeDomainsWithNetworkToolsAndRuntimes(detectionDomains, network, nil, nil)
+}
+
 // GetCodexAllowedDomainsWithToolsAndRuntimes merges Codex default domains with NetworkPermissions, HTTP MCP server domains, and runtime ecosystem domains
 // Returns a deduplicated, sorted, comma-separated string suitable for AWF's --allow-domains flag
 func GetCodexAllowedDomainsWithToolsAndRuntimes(network *NetworkPermissions, tools map[string]any, runtimes map[string]any) string {

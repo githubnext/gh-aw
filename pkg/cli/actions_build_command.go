@@ -182,12 +182,12 @@ func validateActionYml(actionPath string) error {
 		}
 	}
 
-	// Check that it's either a node20 or composite action
-	isNode20 := strings.Contains(contentStr, "using: 'node20'") || strings.Contains(contentStr, "using: \"node20\"")
+	// Check that it's a supported action runtime (nodeXX or composite)
+	isNodeJS := strings.Contains(contentStr, "using: 'node") || strings.Contains(contentStr, "using: \"node")
 	isComposite := strings.Contains(contentStr, "using: 'composite'") || strings.Contains(contentStr, "using: \"composite\"")
 
-	if !isNode20 && !isComposite {
-		return errors.New("action must use either 'node20' or 'composite' runtime")
+	if !isNodeJS && !isComposite {
+		return errors.New("action must use either a 'nodeXX' or 'composite' runtime")
 	}
 
 	return nil
