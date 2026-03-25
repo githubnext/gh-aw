@@ -11,6 +11,13 @@
 
 package workflow
 
+// GetBuiltinMarketplaces returns the marketplace URLs that are already
+// pre-registered in the Claude CLI and must not be re-registered.
+// The Claude CLI has no built-in marketplaces so this returns nil.
+func (e *ClaudeEngine) GetBuiltinMarketplaces() []string {
+	return nil
+}
+
 // GetMarketplaceSetupSteps returns GitHub Actions steps that register marketplace
 // URLs with the Claude CLI before agent execution.
 func (e *ClaudeEngine) GetMarketplaceSetupSteps(marketplaces []string, workflowData *WorkflowData) []GitHubActionStep {

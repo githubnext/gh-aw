@@ -233,6 +233,12 @@ type ConfigRenderer interface {
 // These setup steps run in the agent job before the main agent command, using the
 // GitHub Actions token for authentication.
 type ImportsProvider interface {
+	// GetBuiltinMarketplaces returns the list of marketplace URLs that are already
+	// pre-registered by the engine CLI out of the box. These URLs are filtered out
+	// before emitting marketplace setup steps to avoid "already registered" errors
+	// from the CLI. An engine with no built-in marketplaces should return nil.
+	GetBuiltinMarketplaces() []string
+
 	// GetMarketplaceSetupSteps returns GitHub Actions steps that register marketplace
 	// URLs with the agent CLI before execution. Each URL is a registry endpoint that
 	// the agent can use to discover and install additional tools or extensions.

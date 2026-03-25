@@ -1517,10 +1517,6 @@ jobs:
       - name: Clean git credentials
         continue-on-error: true
         run: bash ${RUNNER_TEMP}/gh-aw/actions/clean_git_credentials.sh
-      - name: "Register Copilot marketplace: https://github.com/github/copilot-plugins"
-        env:
-          GITHUB_TOKEN: ${{ github.token }}
-        run: copilot plugin marketplace add https://github.com/github/copilot-plugins
       - name: "Install Copilot plugin: plugins/advanced-security/skills/secret-scanning"
         env:
           GITHUB_TOKEN: ${{ github.token }}

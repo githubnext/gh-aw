@@ -207,6 +207,31 @@ func (c *Compiler) processToolsAndMarkdown(result *parser.FrontmatterResult, cle
 		}
 	}
 
+	// Filter out built-in marketplaces: if the engine already pre-registers certain
+	// marketplace URLs, attempting to add them again results in a CLI error. The
+	// ImportsProvider.GetBuiltinMarketplaces() method returns those URLs so we can
+	// exclude them from the setup steps.
+	if importsProvider, ok := agenticEngine.(ImportsProvider); ok {
+		if builtins := importsProvider.GetBuiltinMarketplaces(); len(builtins) > 0 {
+			builtinSet := make(map[string]struct{}, len(builtins))
+			for _, b := range builtins {
+				builtinSet[b] = struct{}{}
+			}
+			filtered := marketplaces[:0:0]
+			for _, m := range marketplaces {
+				if _, isBuiltin := builtinSet[m]; !isBuiltin {
+					filtered = append(filtered, m)
+				} else {
+					orchestratorToolsLog.Printf("Skipping built-in marketplace: %s", m)
+				}
+			}
+			if len(filtered) != len(marketplaces) {
+				orchestratorToolsLog.Printf("Filtered %d built-in marketplace(s); %d remain", len(marketplaces)-len(filtered), len(filtered))
+			}
+			marketplaces = filtered
+		}
+	}
+
 	// Add MCP fetch server if needed (when web-fetch is requested but engine doesn't support it)
 	tools, _ = AddMCPFetchServerIfNeeded(tools, agenticEngine)
 

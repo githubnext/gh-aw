@@ -8,8 +8,25 @@
 // CLI commands emitted:
 //   - Marketplace: copilot plugin marketplace add <url>
 //   - Plugin:      copilot plugin install <name>
+//
+// Built-in marketplaces (pre-registered by the Copilot CLI, not re-registered):
+//   - https://github.com/github/copilot-plugins
 
 package workflow
+
+// copilotBuiltinMarketplaces lists the marketplace URLs that the Copilot CLI
+// already registers by default.  Attempting to add these again with
+// "copilot plugin marketplace add" results in an error, so they are filtered
+// out before emitting marketplace setup steps.
+var copilotBuiltinMarketplaces = []string{
+	"https://github.com/github/copilot-plugins",
+}
+
+// GetBuiltinMarketplaces returns the marketplace URLs that are already
+// pre-registered in the Copilot CLI and must not be re-registered.
+func (e *CopilotEngine) GetBuiltinMarketplaces() []string {
+	return copilotBuiltinMarketplaces
+}
 
 // GetMarketplaceSetupSteps returns GitHub Actions steps that register marketplace
 // URLs with the Copilot CLI before agent execution.

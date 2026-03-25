@@ -3,9 +3,12 @@
 package workflow
 
 import (
+	"os"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestParseGitHubPluginURL(t *testing.T) {
@@ -141,4 +144,69 @@ func TestNormalizePlugins(t *testing.T) {
 			assert.Equal(t, tt.wantInferredMarketplaces, inferred, "inferred marketplaces mismatch")
 		})
 	}
+}
+
+// TestCopilotEngineGetBuiltinMarketplaces verifies that the Copilot engine
+// declares the correct built-in marketplace URLs.
+func TestCopilotEngineGetBuiltinMarketplaces(t *testing.T) {
+	engine := &CopilotEngine{}
+	builtins := engine.GetBuiltinMarketplaces()
+	require.NotEmpty(t, builtins, "Copilot engine should declare at least one built-in marketplace")
+	assert.Contains(t, builtins, "https://github.com/github/copilot-plugins",
+		"Copilot CLI pre-registers github/copilot-plugins")
+}
+
+// TestClaudeEngineGetBuiltinMarketplaces verifies that the Claude engine
+// declares no built-in marketplaces.
+func TestClaudeEngineGetBuiltinMarketplaces(t *testing.T) {
+	engine := &ClaudeEngine{}
+	builtins := engine.GetBuiltinMarketplaces()
+	assert.Empty(t, builtins, "Claude engine should have no built-in marketplaces")
+}
+
+// TestBuiltinMarketplacesFilteredFromCompilationOutput verifies that a
+// marketplace URL inferred from a plugin URL is not emitted as a setup step
+// when it matches a built-in marketplace for the engine.
+func TestBuiltinMarketplacesFilteredFromCompilationOutput(t *testing.T) {
+	// The secret-scanning skill lives in copilot-plugins, which is a built-in
+	// marketplace.  The generated lock file must NOT contain a
+	// "copilot plugin marketplace add https://github.com/github/copilot-plugins"
+	// step, but MUST contain the plugin install step.
+	tmpDir := t.TempDir()
+	workflowsDir := tmpDir + "/.github/workflows"
+	require.NoError(t, os.MkdirAll(workflowsDir, 0755), "create workflows dir")
+
+	content := `---
+name: Test Builtin Marketplace Filter
+on:
+  workflow_dispatch:
+engine: copilot
+imports:
+  plugins:
+    - https://github.com/github/copilot-plugins/tree/main/plugins/advanced-security/skills/secret-scanning
+---
+Test builtin marketplace filtering.
+`
+	workflowFile := workflowsDir + "/test-workflow.md"
+	require.NoError(t, os.WriteFile(workflowFile, []byte(content), 0600), "write workflow")
+
+	orig, err := os.Getwd()
+	require.NoError(t, err)
+	defer os.Chdir(orig) //nolint:errcheck
+	require.NoError(t, os.Chdir(tmpDir))
+
+	compiler := NewCompiler()
+	require.NoError(t, compiler.CompileWorkflow(workflowFile), "compile workflow")
+
+	lockFile := strings.Replace(workflowFile, ".md", ".lock.yml", 1)
+	lockYAML, err := os.ReadFile(lockFile)
+	require.NoError(t, err)
+
+	yamlStr := string(lockYAML)
+	assert.NotContains(t, yamlStr,
+		"copilot plugin marketplace add https://github.com/github/copilot-plugins",
+		"built-in marketplace must not be re-registered")
+	assert.Contains(t, yamlStr,
+		"copilot plugin install plugins/advanced-security/skills/secret-scanning",
+		"plugin install step must still be emitted")
 }
