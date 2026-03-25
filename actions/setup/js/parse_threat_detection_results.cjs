@@ -174,11 +174,10 @@ function parseDetectionLog(content) {
         if (extracted !== null) {
           // Successfully extracted a complete JSON object; advance past consumed lines.
           rawMatches.push(extracted);
+          // Count how many lines were consumed by this match so the loop
+          // skips past them and does not re-match continuation lines.
           const jsonPart = extracted.substring(RESULT_PREFIX.length);
-          let extraLines = 0;
-          for (let j = 0; j < jsonPart.length; j++) {
-            if (jsonPart[j] === "\n") extraLines++;
-          }
+          const extraLines = jsonPart.split("\n").length - 1;
           i += extraLines + 1;
         } else {
           // No complete {…} object found (e.g. null, [], string, truncated JSON);
@@ -388,4 +387,4 @@ async function main() {
   core.info("════════════════════════════════════════════════════════");
 }
 
-module.exports = { main, parseDetectionLog, extractFromStreamJson };
+module.exports = { main, parseDetectionLog, extractFromStreamJson, extractResultFromText };

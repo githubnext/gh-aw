@@ -33,7 +33,58 @@ const mockCore = {
 };
 global.core = mockCore;
 
-const { parseDetectionLog, extractFromStreamJson } = require("./parse_threat_detection_results.cjs");
+const { parseDetectionLog, extractFromStreamJson, extractResultFromText } = require("./parse_threat_detection_results.cjs");
+
+describe("extractResultFromText", () => {
+  it("should extract a simple JSON object", () => {
+    const text = 'THREAT_DETECTION_RESULT:{"prompt_injection":false,"reasons":[]}';
+    const result = extractResultFromText(text);
+    expect(result).toBe('THREAT_DETECTION_RESULT:{"prompt_injection":false,"reasons":[]}');
+  });
+
+  it("should stop at the matching closing brace and ignore trailing content", () => {
+    const text = 'THREAT_DETECTION_RESULT:{"prompt_injection":false,"reasons":[]}\nSome trailing text';
+    const result = extractResultFromText(text);
+    expect(result).toBe('THREAT_DETECTION_RESULT:{"prompt_injection":false,"reasons":[]}');
+    expect(result).not.toContain("trailing");
+  });
+
+  it("should handle nested objects correctly", () => {
+    const text = 'THREAT_DETECTION_RESULT:{"a":{"b":{"c":1}}}';
+    const result = extractResultFromText(text);
+    expect(result).toBe('THREAT_DETECTION_RESULT:{"a":{"b":{"c":1}}}');
+  });
+
+  it("should not count braces inside JSON string values", () => {
+    const text = 'THREAT_DETECTION_RESULT:{"reasons":["found {injection} here"]}';
+    const result = extractResultFromText(text);
+    expect(result).toBe('THREAT_DETECTION_RESULT:{"reasons":["found {injection} here"]}');
+  });
+
+  it("should handle escaped quotes inside strings", () => {
+    const text = 'THREAT_DETECTION_RESULT:{"reasons":["he said \\"hello\\""]}';
+    const result = extractResultFromText(text);
+    expect(result).toBe('THREAT_DETECTION_RESULT:{"reasons":["he said \\"hello\\""]}');
+  });
+
+  it("should handle actual newlines inside string values", () => {
+    const text = 'THREAT_DETECTION_RESULT:{"reasons":["line one\nline two"]}trailing';
+    const result = extractResultFromText(text);
+    expect(result).toBe('THREAT_DETECTION_RESULT:{"reasons":["line one\nline two"]}');
+  });
+
+  it("should return null when no opening brace found", () => {
+    expect(extractResultFromText("THREAT_DETECTION_RESULT:null")).toBeNull();
+    expect(extractResultFromText("THREAT_DETECTION_RESULT:[]")).toBeNull();
+    expect(extractResultFromText("THREAT_DETECTION_RESULT:42")).toBeNull();
+    expect(extractResultFromText("THREAT_DETECTION_RESULT:")).toBeNull();
+  });
+
+  it("should return null when closing brace is missing (truncated JSON)", () => {
+    expect(extractResultFromText('THREAT_DETECTION_RESULT:{"key":')).toBeNull();
+    expect(extractResultFromText('THREAT_DETECTION_RESULT:{"prompt_injection":true')).toBeNull();
+  });
+});
 
 describe("extractFromStreamJson", () => {
   it("should extract result from type:result JSON envelope", () => {
