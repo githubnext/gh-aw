@@ -20,9 +20,12 @@ engine:
   id: copilot
   max-continuations: 2
 imports:
-  - shared/gh.md
-  - shared/reporting.md
-  - shared/github-queries-mcp-script.md
+  aw:
+    - shared/gh.md
+    - shared/reporting.md
+    - shared/github-queries-mcp-script.md
+  plugins:
+    - https://github.com/github/copilot-plugins/tree/main/plugins/advanced-security/skills/secret-scanning
 network:
   allowed:
     - defaults

@@ -28,7 +28,7 @@
 #     - shared/github-queries-mcp-script.md
 #     - shared/reporting.md
 #
-# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"e61f4503d40b9de053152c2ae68538ce50b287317fefc7567d935a4d1499560e","agent_id":"copilot"}
+# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"f88b8901339f10f50b988e76b68374b73e5ff4f52fb4f5365dbcea92eba302bd","agent_id":"copilot"}
 
 name: "Smoke Copilot"
 "on":
@@ -1517,6 +1517,14 @@ jobs:
       - name: Clean git credentials
         continue-on-error: true
         run: bash ${RUNNER_TEMP}/gh-aw/actions/clean_git_credentials.sh
+      - name: "Register Copilot marketplace: https://github.com/github/copilot-plugins"
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: copilot plugin marketplace add https://github.com/github/copilot-plugins
+      - name: "Install Copilot plugin: plugins/advanced-security/skills/secret-scanning"
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: copilot plugin install plugins/advanced-security/skills/secret-scanning
       - name: Execute GitHub Copilot CLI
         id: agentic_execution
         # Copilot CLI tool arguments (sorted):
