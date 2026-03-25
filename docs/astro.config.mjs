@@ -326,6 +326,7 @@ export default defineConfig({
 						{ label: 'Schedule Syntax', link: '/reference/schedule-syntax/' },
 						{ label: 'Templating', link: '/reference/templating/' },
 						{ label: 'Threat Detection', link: '/reference/threat-detection/' },
+						{ label: 'Token Reference', link: '/reference/tokens/' },
 						{ label: 'Tools', link: '/reference/tools/' },
 						{ label: 'Triggering CI', link: '/reference/triggering-ci/' },
 						{ label: 'Triggers', link: '/reference/triggers/' },
