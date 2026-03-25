@@ -18,6 +18,27 @@ const { AGENT_OUTPUT_FILENAME } = require("./constants.cjs");
 const { ERR_SYSTEM, ERR_VALIDATION } = require("./error_codes.cjs");
 
 /**
+ * Parse threat detection result from file content.
+ * Scans lines for a `THREAT_DETECTION_RESULT:` prefix and merges the JSON
+ * payload into the default verdict. Returns the default verdict (all false)
+ * when no such line is present.
+ * @param {string} content - The raw file content to parse
+ * @returns {{ prompt_injection: boolean, secret_leak: boolean, malicious_patch: boolean, reasons: string[] }}
+ */
+function parseThreatDetectionResult(content) {
+  const verdict = { prompt_injection: false, secret_leak: false, malicious_patch: false, reasons: [] };
+  const lines = content.split("\n");
+  for (const line of lines) {
+    const trimmedLine = line.trim();
+    if (trimmedLine.startsWith("THREAT_DETECTION_RESULT:")) {
+      const jsonPart = trimmedLine.substring("THREAT_DETECTION_RESULT:".length);
+      return { ...verdict, ...JSON.parse(jsonPart) };
+    }
+  }
+  return verdict;
+}
+
+/**
  * Main entry point for parsing threat detection results
  * @returns {Promise<void>}
  */
@@ -45,16 +66,7 @@ async function main() {
       return;
     }
     const outputContent = fs.readFileSync(outputPath, "utf8");
-    const lines = outputContent.split("\n");
-
-    for (const line of lines) {
-      const trimmedLine = line.trim();
-      if (trimmedLine.startsWith("THREAT_DETECTION_RESULT:")) {
-        const jsonPart = trimmedLine.substring("THREAT_DETECTION_RESULT:".length);
-        verdict = { ...verdict, ...JSON.parse(jsonPart) };
-        break;
-      }
-    }
+    verdict = parseThreatDetectionResult(outputContent);
   } catch (error) {
     core.warning("Failed to parse threat detection results: " + getErrorMessage(error));
   }
@@ -80,4 +92,4 @@ async function main() {
   }
 }
 
-module.exports = { main };
+module.exports = { main, parseThreatDetectionResult };
