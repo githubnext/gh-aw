@@ -381,7 +381,7 @@ gh aw logs "ci failure doctor"             # Case-insensitive display name
 
 #### `audit`
 
-Analyze specific runs with overview, metrics, tool usage, MCP failures, firewall analysis, noops, and artifacts. Accepts run IDs, workflow run URLs, job URLs, and step-level URLs. Auto-detects Copilot coding agent runs for specialized parsing. Job URLs automatically extract specific job logs; step URLs extract specific steps; without step, extracts first failing step.
+Analyze specific runs with a rich multi-section report. Accepts run IDs, workflow run URLs, job URLs, and step-level URLs. Auto-detects Copilot coding agent runs for specialized parsing. Job URLs automatically extract specific job logs; step URLs extract specific steps; without step, extracts first failing step.
 
 ```bash wrap
 gh aw audit 12345678                                      # By run ID
@@ -397,6 +397,22 @@ gh aw audit 12345678 --repo owner/repo                    # Specify repository f
 The `--repo` flag accepts `owner/repo` format and is required when passing a bare numeric run ID without a full URL, allowing the command to locate the correct repository.
 
 Logs are saved to `logs/run-{id}/` with filenames indicating the extraction level. Pre-agent failures (integrity filtering, missing secrets, binary install) surface the actual error in `failure_analysis.error_summary`. Invalid run IDs return a human-readable error.
+
+**Report sections:**
+
+| Section | Description |
+|---------|-------------|
+| **Overview** | Run status, duration, trigger event, repository |
+| **Engine Configuration** | Engine ID, model, CLI version, firewall version, MCP servers configured |
+| **Prompt Analysis** | Prompt size and source file |
+| **Session & Agent Performance** | Wall time, turn count, average turn duration, tokens per minute, timeout detection, agent active ratio |
+| **MCP Server Health** | Per-server request counts, error rates, average latency, health status, and slowest tool calls |
+| **Safe Output Summary** | Total safe output items broken down by type (comments, PRs, issues, etc.) |
+| **Metrics** | Tool usage, token consumption, cost |
+| **MCP Failures** | Failed MCP tool calls with error details |
+| **Firewall Analysis** | Network requests blocked or allowed by the firewall |
+| **Jobs** | Status of each GitHub Actions job in the run |
+| **Artifacts** | Downloaded artifacts and their contents |
 
 #### `health`
 
