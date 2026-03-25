@@ -27,6 +27,8 @@ func TestParseAndDisplayActionlintOutput(t *testing.T) {
 ]`,
 			expectedOutput: []string{
 				".github/workflows/test.lock.yml:10:14: error: [runner-label] label \"ubuntu-slim\" is unknown",
+				"runs-on: ubuntu-slim",
+				"^~~~~~~~~~~",
 			},
 			expectError:   false,
 			expectedCount: 1,

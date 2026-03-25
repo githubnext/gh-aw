@@ -386,24 +386,10 @@ func parseAndDisplayActionlintOutput(stdout string, verbose bool) (int, map[stri
 			errorsByKind[err.Kind]++
 		}
 
-		// Read file content for context display
-		fileContent, readErr := os.ReadFile(err.Filepath)
-		var fileLines []string
-		if readErr == nil {
-			fileLines = strings.Split(string(fileContent), "\n")
-		}
-
-		// Create context lines around the error
+		// Use snippet from actionlint JSON output for context display
 		var context []string
-		if len(fileLines) > 0 && err.Line > 0 && err.Line <= len(fileLines) {
-			startLine := max(1, err.Line-2)
-			endLine := min(len(fileLines), err.Line+2)
-
-			for i := startLine; i <= endLine; i++ {
-				if i-1 < len(fileLines) {
-					context = append(context, fileLines[i-1])
-				}
-			}
+		if err.Snippet != "" {
+			context = strings.Split(err.Snippet, "\n")
 		}
 
 		// Map kind to error type
