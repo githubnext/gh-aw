@@ -7,9 +7,12 @@ import (
 	"strings"
 	"time"
 
+	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/timeutil"
 	"github.com/github/gh-aw/pkg/workflow"
 )
+
+var auditAgenticLog = logger.New("cli:audit_agentic_analysis")
 
 // TaskDomainInfo describes the dominant task type inferred for a workflow run.
 type TaskDomainInfo struct {
@@ -86,6 +89,7 @@ func buildToolUsageInfo(metrics LogMetrics) []ToolUsageInfo {
 }
 
 func deriveRunAgenticAnalysis(processedRun ProcessedRun, metrics LogMetrics) (*AwContext, []ToolUsageInfo, []CreatedItemReport, *TaskDomainInfo, *BehaviorFingerprint, []AgenticAssessment) {
+	auditAgenticLog.Printf("Deriving agentic analysis for run: id=%d workflow=%s", processedRun.Run.DatabaseID, processedRun.Run.WorkflowName)
 	var awContext *AwContext
 	if processedRun.AwContext != nil {
 		awContext = processedRun.AwContext
@@ -110,10 +114,12 @@ func deriveRunAgenticAnalysis(processedRun ProcessedRun, metrics LogMetrics) (*A
 	behaviorFingerprint := buildBehaviorFingerprint(processedRun, metricsData, toolUsage, createdItems, awContext)
 	agenticAssessments := buildAgenticAssessments(processedRun, metricsData, toolUsage, createdItems, taskDomain, behaviorFingerprint, awContext)
 
+	auditAgenticLog.Printf("Agentic analysis complete: tool_types=%d created_items=%d assessments=%d", len(toolUsage), len(createdItems), len(agenticAssessments))
 	return awContext, toolUsage, createdItems, taskDomain, behaviorFingerprint, agenticAssessments
 }
 
 func detectTaskDomain(processedRun ProcessedRun, createdItems []CreatedItemReport, toolUsage []ToolUsageInfo, awContext *AwContext) *TaskDomainInfo {
+	auditAgenticLog.Printf("Detecting task domain for run: workflow=%s event=%s", processedRun.Run.WorkflowName, processedRun.Run.Event)
 	combined := strings.ToLower(strings.Join([]string{
 		processedRun.Run.WorkflowName,
 		processedRun.Run.WorkflowPath,

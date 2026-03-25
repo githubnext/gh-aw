@@ -18,8 +18,8 @@ func TestGenerateGHESHostConfigurationStep(t *testing.T) {
 	assert.Contains(t, step, "shell: bash", "step should explicitly set shell to bash for Windows runner compatibility")
 	assert.Contains(t, step, "GITHUB_SERVER_URL", "step should reference GITHUB_SERVER_URL")
 	assert.Contains(t, step, "GH_HOST=", "step should set GH_HOST")
-	assert.Contains(t, step, "GITHUB_OUTPUT", "step should write to GITHUB_OUTPUT")
-	assert.NotContains(t, step, "GITHUB_ENV", "step should not write to GITHUB_ENV")
+	assert.Contains(t, step, "GITHUB_ENV", "step should write to GITHUB_ENV so all subsequent steps inherit GH_HOST")
+	assert.NotContains(t, step, "GITHUB_OUTPUT", "step should not write to GITHUB_OUTPUT (GITHUB_ENV makes it available to all steps)")
 	assert.Contains(t, step, "${GITHUB_SERVER_URL#https://}", "step should strip https:// prefix")
 	assert.Contains(t, step, "${GH_HOST#http://}", "step should also strip http:// prefix")
 

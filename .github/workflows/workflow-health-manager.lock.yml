@@ -1311,7 +1311,7 @@ jobs:
           # GitHub instance (GHES/GHEC). On github.com this is a harmless no-op.
           GH_HOST="${GITHUB_SERVER_URL#https://}"
           GH_HOST="${GH_HOST#http://}"
-          echo "GH_HOST=${GH_HOST}" >> "$GITHUB_OUTPUT"
+          echo "GH_HOST=${GH_HOST}" >> "$GITHUB_ENV"
       - name: Process Safe Outputs
         id: process_safe_outputs
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
