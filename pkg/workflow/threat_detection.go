@@ -123,6 +123,10 @@ func (c *Compiler) buildDetectionJobSteps(data *WorkflowData) []string {
 	// Comment separator
 	steps = append(steps, "      # --- Threat Detection ---\n")
 
+	// Step 0: Pull AWF container images - the detection engine runs inside AWF (firewall),
+	// so pre-pulling the containers speeds up execution and avoids on-demand pulls.
+	steps = append(steps, c.buildPullAWFContainersStep(data)...)
+
 	// Step 1: Detection guard - determines whether detection should run
 	steps = append(steps, c.buildDetectionGuardStep()...)
 
@@ -161,6 +165,49 @@ func (c *Compiler) buildDetectionJobSteps(data *WorkflowData) []string {
 // Deprecated: use buildDetectionJobSteps instead.
 func (c *Compiler) buildInlineDetectionSteps(data *WorkflowData) []string {
 	return c.buildDetectionJobSteps(data)
+}
+
+// buildPullAWFContainersStep creates a step that pre-pulls AWF (agent workflow firewall)
+// container images in the detection job. The detection engine runs inside AWF, which uses
+// three containers (squid, agent, api-proxy). Pre-pulling avoids on-demand pulls at runtime.
+// Only AWF images are pulled here; MCP server images are not needed for detection.
+func (c *Compiler) buildPullAWFContainersStep(data *WorkflowData) []string {
+	// Build a minimal WorkflowData that represents the detection engine context so
+	// collectDockerImages returns only the AWF firewall images (no MCP tool images).
+	engineSetting := data.AI
+	if engineSetting == "" {
+		engineSetting = "claude"
+	}
+	detectionData := &WorkflowData{
+		Tools: map[string]any{},
+		AI:    engineSetting,
+		SandboxConfig: &SandboxConfig{
+			Agent: &AgentSandboxConfig{
+				Type: SandboxTypeAWF,
+			},
+		},
+	}
+
+	images := collectDockerImages(detectionData.Tools, detectionData, c.actionMode)
+	if len(images) == 0 {
+		return nil
+	}
+
+	var b strings.Builder
+	generateDownloadDockerImagesStep(&b, images)
+	if b.Len() == 0 {
+		return nil
+	}
+
+	// Split the generated YAML into individual lines so each is a separate entry
+	lines := strings.Split(b.String(), "\n")
+	var steps []string
+	for _, line := range lines {
+		if line != "" {
+			steps = append(steps, line+"\n")
+		}
+	}
+	return steps
 }
 
 // buildDetectionGuardStep creates a guard step that checks if detection should run.
