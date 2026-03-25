@@ -43,7 +43,7 @@ func getActionlintDocsURL(kind string) string {
 	case "expression":
 		anchor = "check-syntax-expression"
 	case "syntax-check":
-		anchor = "check-syntax-expression"
+		anchor = "check-unexpected-keys"
 	default:
 		// For other kinds, try the standard "check-{kind}" pattern
 		if !strings.HasPrefix(anchor, "check-") {

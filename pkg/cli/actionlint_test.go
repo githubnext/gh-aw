@@ -299,6 +299,11 @@ func TestGetActionlintDocsURL(t *testing.T) {
 			expected: "https://github.com/rhysd/actionlint/blob/main/docs/checks.md#check-syntax-expression",
 		},
 		{
+			name:     "syntax-check kind",
+			kind:     "syntax-check",
+			expected: "https://github.com/rhysd/actionlint/blob/main/docs/checks.md#check-unexpected-keys",
+		},
+		{
 			name:     "generic kind with check- prefix",
 			kind:     "check-job-deps",
 			expected: "https://github.com/rhysd/actionlint/blob/main/docs/checks.md#check-job-deps",
