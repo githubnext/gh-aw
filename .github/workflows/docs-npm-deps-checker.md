@@ -76,7 +76,7 @@ close_issue(issue_number=123, body="Closing this issue as a new dependency check
    ```bash
    cd docs && npm outdated --json 2>/dev/null || true
    ```
-   The command exits with code 1 when outdated packages exist, so `|| true` is required to capture the output.
+   `|| true` is required because `npm outdated` exits with code 1 when outdated packages are found, and may exit with other non-zero codes on errors; this ensures the step does not fail regardless of exit code.
 
 2. Parse the JSON output. Each entry has the shape:
    ```json
