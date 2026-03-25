@@ -52,28 +52,8 @@ var lockFileOutputMappings = []lockFileOutputMapping{
 }
 
 // extractSafeOutputsJobSection returns the text of the safe_outputs job block from a lock file.
-// The block starts at "  safe_outputs:" and extends until the next top-level job entry or EOF.
 func extractSafeOutputsJobSection(lockContent string) string {
-	marker := "\n  safe_outputs:"
-	idx := strings.Index(lockContent, marker)
-	if idx < 0 {
-		return ""
-	}
-	rest := lockContent[idx+1:] // skip the leading newline
-	lines := strings.Split(rest, "\n")
-	var sb strings.Builder
-	for i, line := range lines {
-		if i == 0 {
-			sb.WriteString(line + "\n")
-			continue
-		}
-		// A new top-level job starts with exactly two spaces then a word char (not more spaces).
-		if len(line) > 2 && line[0] == ' ' && line[1] == ' ' && line[2] != ' ' && strings.Contains(line, ":") {
-			break
-		}
-		sb.WriteString(line + "\n")
-	}
-	return sb.String()
+	return extractJobSection(lockContent, "safe_outputs")
 }
 
 // extractWorkflowCallSection returns the text of the on section (up to but not including the
@@ -272,28 +252,8 @@ func TestCompiledLockFiles_NoSpuriousWorkflowCallOutputs(t *testing.T) {
 }
 
 // extractDetectionJobSection returns the text of the detection job block from a lock file.
-// The block starts at "  detection:" and extends until the next top-level job entry or EOF.
 func extractDetectionJobSection(lockContent string) string {
-	marker := "\n  detection:"
-	idx := strings.Index(lockContent, marker)
-	if idx < 0 {
-		return ""
-	}
-	rest := lockContent[idx+1:] // skip the leading newline
-	lines := strings.Split(rest, "\n")
-	var sb strings.Builder
-	for i, line := range lines {
-		if i == 0 {
-			sb.WriteString(line + "\n")
-			continue
-		}
-		// A new top-level job starts with exactly two spaces then a word char (not more spaces).
-		if len(line) > 2 && line[0] == ' ' && line[1] == ' ' && line[2] != ' ' && strings.Contains(line, ":") {
-			break
-		}
-		sb.WriteString(line + "\n")
-	}
-	return sb.String()
+	return extractJobSection(lockContent, "detection")
 }
 
 // TestCompiledLockFiles_SmokeWorkflowsHaveDetectionJobWithAgenticRunCall verifies that the
@@ -331,8 +291,20 @@ func TestCompiledLockFiles_SmokeWorkflowsHaveDetectionJobWithAgenticRunCall(t *t
 			})
 
 			t.Run("AgenticExecutionStepUsesAWF", func(t *testing.T) {
-				assert.Contains(t, detectionJob, "sudo -E awf",
-					"detection job's agentic execution step should use awf for sandboxed execution")
+				// Narrow the check to the detection_agentic_execution step block.
+				stepID := "id: detection_agentic_execution"
+				startIdx := strings.Index(detectionJob, stepID)
+				require.NotEqual(t, -1, startIdx, "detection job must contain %q", stepID)
+
+				agenticStepSection := detectionJob[startIdx:]
+
+				// Heuristically end the block at the start of the next step.
+				if nextStepIdx := strings.Index(agenticStepSection, "\n      - "); nextStepIdx != -1 {
+					agenticStepSection = agenticStepSection[:nextStepIdx]
+				}
+
+				assert.Contains(t, agenticStepSection, "sudo -E awf",
+					"detection_agentic_execution step should use awf for sandboxed execution")
 			})
 		})
 	}
