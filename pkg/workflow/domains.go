@@ -34,6 +34,27 @@ var CopilotDefaultDomains = []string{
 	"telemetry.enterprise.githubcopilot.com",
 }
 
+// CopilotDetectionDomains are the minimal domains required for Copilot CLI threat detection runs.
+// This is a strict subset of CopilotDefaultDomains that intentionally omits domains unnecessary
+// for read-only analysis:
+//   - registry.npmjs.org: the Copilot CLI binary is pre-installed on the runner; no npm packages
+//     are installed at detection runtime because MCP servers are disabled (--disable-builtin-mcps)
+//     and no npm-based tools are configured.
+//   - raw.githubusercontent.com: detection does not download scripts or configuration from GitHub;
+//     the prompt and agent output are already present as local files on the runner.
+//
+// Keeping this list small reduces the supply chain attack surface for every detection run.
+var CopilotDetectionDomains = []string{
+	"api.business.githubcopilot.com",
+	"api.enterprise.githubcopilot.com",
+	"api.github.com",
+	"api.githubcopilot.com",
+	"api.individual.githubcopilot.com",
+	"github.com",
+	"host.docker.internal",
+	"telemetry.enterprise.githubcopilot.com",
+}
+
 // CodexDefaultDomains are the minimal default domains required for Codex CLI operation
 var CodexDefaultDomains = []string{
 	"172.30.0.1", // AWF gateway IP - Codex resolves host.docker.internal to this IP for Rust DNS compatibility
@@ -565,6 +586,17 @@ func GetAllowedDomainsForEngine(engine constants.EngineName, network *NetworkPer
 // Returns a deduplicated, sorted, comma-separated string suitable for AWF's --allow-domains flag
 func GetCopilotAllowedDomainsWithToolsAndRuntimes(network *NetworkPermissions, tools map[string]any, runtimes map[string]any) string {
 	return GetAllowedDomainsForEngine(constants.CopilotEngine, network, tools, runtimes)
+}
+
+// GetCopilotDetectionAllowedDomains returns the minimal set of domains allowed for a Copilot
+// detection run. It uses CopilotDetectionDomains as the base — which excludes registry.npmjs.org
+// and raw.githubusercontent.com — and merges in any additional user-specified network.allowed
+// entries (typically empty for detection).
+// Returns a deduplicated, sorted, comma-separated string suitable for AWF's --allow-domains flag.
+func GetCopilotDetectionAllowedDomains(network *NetworkPermissions) string {
+	// Pass nil tools and runtimes: detection runs with no npm/runtime ecosystem, so
+	// ecosystem domain expansion is intentionally skipped.
+	return mergeDomainsWithNetworkToolsAndRuntimes(CopilotDetectionDomains, network, nil, nil)
 }
 
 // GetCodexAllowedDomainsWithToolsAndRuntimes merges Codex default domains with NetworkPermissions, HTTP MCP server domains, and runtime ecosystem domains
