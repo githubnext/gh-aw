@@ -50,7 +50,6 @@ type SafeOutputSummary struct {
 	TotalItems  int                    `json:"total_items" console:"header:Total Items"`
 	ItemsByType map[string]int         `json:"items_by_type"`
 	Summary     string                 `json:"summary" console:"header:Summary"`
-	Items       []CreatedItemReport    `json:"items,omitempty"`
 	TypeDetails []SafeOutputTypeDetail `json:"type_details,omitempty"`
 }
 
@@ -64,6 +63,7 @@ type SafeOutputTypeDetail struct {
 type MCPServerHealth struct {
 	TotalServers  int                     `json:"total_servers"`
 	HealthySvrs   int                     `json:"healthy_servers"`
+	DegradedSvrs  int                     `json:"degraded_servers"`
 	FailedSvrs    int                     `json:"failed_servers"`
 	Summary       string                  `json:"summary" console:"header:Summary"`
 	TotalRequests int                     `json:"total_requests" console:"header:Total Requests"`
@@ -92,13 +92,32 @@ type MCPSlowestToolCall struct {
 	Duration   string `json:"duration" console:"header:Duration"`
 }
 
+// findAwInfoPath returns the first existing aw_info.json path from known locations.
+// The activation artifact may or may not have been flattened to the root directory.
+func findAwInfoPath(logsPath string) string {
+	candidates := []string{
+		filepath.Join(logsPath, "aw_info.json"),
+		filepath.Join(logsPath, "activation", "aw_info.json"),
+	}
+	for _, p := range candidates {
+		if _, err := os.Stat(p); err == nil {
+			return p
+		}
+	}
+	return ""
+}
+
 // extractEngineConfig parses aw_info.json and returns an EngineConfig
 func extractEngineConfig(logsPath string) *EngineConfig {
 	if logsPath == "" {
 		return nil
 	}
 
-	awInfoPath := filepath.Join(logsPath, "aw_info.json")
+	awInfoPath := findAwInfoPath(logsPath)
+	if awInfoPath == "" {
+		auditExpandedLog.Printf("aw_info.json not found in %s", logsPath)
+		return nil
+	}
 	awInfo, err := parseAwInfo(awInfoPath, false)
 	if err != nil || awInfo == nil {
 		auditExpandedLog.Printf("Failed to parse aw_info.json for engine config: %v", err)
@@ -132,10 +151,13 @@ func extractPromptAnalysis(logsPath string) *PromptAnalysis {
 		return nil
 	}
 
-	// Try multiple possible locations for prompt.txt
+	// Try multiple possible locations for prompt.txt.
+	// The activation artifact may or may not have been flattened to the root.
 	promptPaths := []string{
 		filepath.Join(logsPath, "prompt.txt"),
 		filepath.Join(logsPath, "aw-prompts", "prompt.txt"),
+		filepath.Join(logsPath, "activation", "aw-prompts", "prompt.txt"),
+		filepath.Join(logsPath, "agent", "aw-prompts", "prompt.txt"),
 	}
 
 	for _, promptPath := range promptPaths {
@@ -144,12 +166,18 @@ func extractPromptAnalysis(logsPath string) *PromptAnalysis {
 			continue
 		}
 
-		analysis := &PromptAnalysis{
-			PromptSize: len(data),
-			PromptFile: promptPath,
+		// Store a stable relative path instead of machine-specific absolute path
+		relPromptPath, relErr := filepath.Rel(logsPath, promptPath)
+		if relErr != nil {
+			relPromptPath = filepath.Base(promptPath)
 		}
 
-		auditExpandedLog.Printf("Extracted prompt analysis: size=%d chars from %s", analysis.PromptSize, promptPath)
+		analysis := &PromptAnalysis{
+			PromptSize: len(data),
+			PromptFile: relPromptPath,
+		}
+
+		auditExpandedLog.Printf("Extracted prompt analysis: size=%d chars from %s", analysis.PromptSize, relPromptPath)
 		return analysis
 	}
 
@@ -212,7 +240,6 @@ func buildSafeOutputSummary(items []CreatedItemReport) *SafeOutputSummary {
 	summary := &SafeOutputSummary{
 		TotalItems:  len(items),
 		ItemsByType: make(map[string]int),
-		Items:       items,
 	}
 
 	// Count items by type
@@ -224,7 +251,7 @@ func buildSafeOutputSummary(items []CreatedItemReport) *SafeOutputSummary {
 		summary.ItemsByType[itemType]++
 	}
 
-	// Build type details sorted by count
+	// Build type details sorted by count (desc), then type name (asc) for determinism
 	for itemType, count := range summary.ItemsByType {
 		summary.TypeDetails = append(summary.TypeDetails, SafeOutputTypeDetail{
 			Type:  itemType,
@@ -232,6 +259,9 @@ func buildSafeOutputSummary(items []CreatedItemReport) *SafeOutputSummary {
 		})
 	}
 	sort.Slice(summary.TypeDetails, func(i, j int) bool {
+		if summary.TypeDetails[i].Count == summary.TypeDetails[j].Count {
+			return summary.TypeDetails[i].Type < summary.TypeDetails[j].Type
+		}
 		return summary.TypeDetails[i].Count > summary.TypeDetails[j].Count
 	})
 
@@ -346,7 +376,16 @@ func buildMCPServerHealth(mcpToolUsage *MCPToolUsageData, mcpFailures []MCPFailu
 	}
 
 	health.TotalServers = len(health.Servers)
-	health.HealthySvrs = health.TotalServers - health.FailedSvrs
+
+	// Count servers by status for accurate summary
+	degradedCount := 0
+	for _, s := range health.Servers {
+		if strings.Contains(s.Status, "degraded") {
+			degradedCount++
+		}
+	}
+	health.DegradedSvrs = degradedCount
+	health.HealthySvrs = health.TotalServers - health.FailedSvrs - health.DegradedSvrs
 
 	// Calculate overall error rate
 	if health.TotalRequests > 0 {
@@ -359,8 +398,8 @@ func buildMCPServerHealth(mcpToolUsage *MCPToolUsageData, mcpFailures []MCPFailu
 	})
 
 	// Build summary string
-	health.Summary = fmt.Sprintf("%d server(s), %d healthy, %d failed",
-		health.TotalServers, health.HealthySvrs, health.FailedSvrs)
+	health.Summary = fmt.Sprintf("%d server(s), %d healthy, %d degraded, %d failed",
+		health.TotalServers, health.HealthySvrs, health.DegradedSvrs, health.FailedSvrs)
 
 	auditExpandedLog.Printf("Built MCP server health: %s, total_requests=%d, error_rate=%.1f%%",
 		health.Summary, health.TotalRequests, health.ErrorRate)
@@ -423,7 +462,10 @@ func buildSlowestToolCalls(calls []MCPToolCall, topN int) []MCPSlowestToolCall {
 // We need to inspect the raw JSON since AwInfoSteps.MCPServers may not be
 // deserialized as a map for all formats.
 func awInfoHasMCPServers(logsPath string) ([]string, bool) {
-	awInfoPath := filepath.Join(logsPath, "aw_info.json")
+	awInfoPath := findAwInfoPath(logsPath)
+	if awInfoPath == "" {
+		return nil, false
+	}
 	data, err := os.ReadFile(awInfoPath)
 	if err != nil {
 		return nil, false

@@ -17,6 +17,7 @@ func TestExtractEngineConfig(t *testing.T) {
 	tests := []struct {
 		name           string
 		awInfoContent  string
+		awInfoSubdir   string // subdir under tmpDir to place aw_info.json
 		expectedEngine string
 		expectedModel  string
 		expectNil      bool
@@ -41,6 +42,13 @@ func TestExtractEngineConfig(t *testing.T) {
 			awInfoContent:  `{"engine_id":"copilot","awf_version":"1.2.3"}`,
 			expectedEngine: "copilot",
 		},
+		{
+			name:           "aw_info.json in activation subdirectory",
+			awInfoContent:  `{"engine_id":"claude","model":"claude-sonnet"}`,
+			awInfoSubdir:   "activation",
+			expectedEngine: "claude",
+			expectedModel:  "claude-sonnet",
+		},
 	}
 
 	for _, tt := range tests {
@@ -52,7 +60,13 @@ func TestExtractEngineConfig(t *testing.T) {
 			}
 
 			tmpDir := testutil.TempDir(t, "engine-config-*")
-			err := os.WriteFile(filepath.Join(tmpDir, "aw_info.json"), []byte(tt.awInfoContent), 0644)
+			targetDir := tmpDir
+			if tt.awInfoSubdir != "" {
+				targetDir = filepath.Join(tmpDir, tt.awInfoSubdir)
+				err := os.MkdirAll(targetDir, 0755)
+				require.NoError(t, err, "Should create subdir")
+			}
+			err := os.WriteFile(filepath.Join(targetDir, "aw_info.json"), []byte(tt.awInfoContent), 0644)
 			require.NoError(t, err, "Should write aw_info.json")
 
 			result := extractEngineConfig(tmpDir)
@@ -99,23 +113,40 @@ func TestExtractEngineConfigWithDetails(t *testing.T) {
 
 func TestExtractPromptAnalysis(t *testing.T) {
 	tests := []struct {
-		name          string
-		promptContent string
-		promptDir     string // relative path for prompt.txt
-		expectNil     bool
-		expectedSize  int
+		name            string
+		promptContent   string
+		promptDir       string // relative path for prompt.txt
+		expectNil       bool
+		expectedSize    int
+		expectedRelPath string // expected relative path in PromptFile
 	}{
 		{
-			name:          "prompt in root directory",
-			promptContent: "This is a test prompt for the AI agent",
-			promptDir:     "",
-			expectedSize:  38,
+			name:            "prompt in root directory",
+			promptContent:   "This is a test prompt for the AI agent",
+			promptDir:       "",
+			expectedSize:    38,
+			expectedRelPath: "prompt.txt",
 		},
 		{
-			name:          "prompt in aw-prompts subdirectory",
-			promptContent: "Another test prompt.",
-			promptDir:     "aw-prompts",
-			expectedSize:  20,
+			name:            "prompt in aw-prompts subdirectory",
+			promptContent:   "Another test prompt.",
+			promptDir:       "aw-prompts",
+			expectedSize:    20,
+			expectedRelPath: filepath.Join("aw-prompts", "prompt.txt"),
+		},
+		{
+			name:            "prompt in activation/aw-prompts subdirectory",
+			promptContent:   "Activation prompt content here",
+			promptDir:       filepath.Join("activation", "aw-prompts"),
+			expectedSize:    30,
+			expectedRelPath: filepath.Join("activation", "aw-prompts", "prompt.txt"),
+		},
+		{
+			name:            "prompt in agent/aw-prompts subdirectory",
+			promptContent:   "Agent prompt.",
+			promptDir:       filepath.Join("agent", "aw-prompts"),
+			expectedSize:    13,
+			expectedRelPath: filepath.Join("agent", "aw-prompts", "prompt.txt"),
 		},
 		{
 			name:      "no prompt file",
@@ -156,7 +187,7 @@ func TestExtractPromptAnalysis(t *testing.T) {
 
 			require.NotNil(t, result, "Prompt analysis should not be nil")
 			assert.Equal(t, tt.expectedSize, result.PromptSize, "Prompt size should match")
-			assert.NotEmpty(t, result.PromptFile, "Prompt file path should be set")
+			assert.Equal(t, tt.expectedRelPath, result.PromptFile, "Prompt file should be a relative path")
 		})
 	}
 }
@@ -438,6 +469,9 @@ func TestBuildMCPServerHealthErrorRate(t *testing.T) {
 
 	// Server with >10% error rate should show degraded
 	assert.Contains(t, result.Servers[0].Status, "degraded", "Server with >10% error rate should be degraded")
+	assert.Equal(t, 1, result.DegradedSvrs, "Should count 1 degraded server")
+	assert.Equal(t, 0, result.HealthySvrs, "Should count 0 healthy servers")
+	assert.Equal(t, 0, result.FailedSvrs, "Should count 0 failed servers")
 }
 
 func TestBuildSlowestToolCalls(t *testing.T) {
@@ -468,15 +502,19 @@ func TestBuildSlowestToolCallsEmpty(t *testing.T) {
 func TestBuildAuditDataWithExpandedSections(t *testing.T) {
 	tmpDir := testutil.TempDir(t, "audit-expanded-*")
 
-	// Create test aw_info.json
-	awInfoContent := `{"engine_id":"copilot","engine_name":"GitHub Copilot CLI","model":"gpt-4","version":"1.0"}`
-	err := os.WriteFile(filepath.Join(tmpDir, "aw_info.json"), []byte(awInfoContent), 0644)
-	require.NoError(t, err, "Should write aw_info.json")
+	// Create test aw_info.json in activation/ subdir (unflattened artifact structure)
+	activationDir := filepath.Join(tmpDir, "activation")
+	err := os.MkdirAll(filepath.Join(activationDir, "aw-prompts"), 0755)
+	require.NoError(t, err, "Should create activation/aw-prompts directory")
 
-	// Create test prompt.txt
+	awInfoContent := `{"engine_id":"copilot","engine_name":"GitHub Copilot CLI","model":"gpt-4","version":"1.0"}`
+	err = os.WriteFile(filepath.Join(activationDir, "aw_info.json"), []byte(awInfoContent), 0644)
+	require.NoError(t, err, "Should write aw_info.json in activation/")
+
+	// Create test prompt.txt in activation/aw-prompts/ (unflattened)
 	promptContent := "Please fix the bug in the login page."
-	err = os.WriteFile(filepath.Join(tmpDir, "prompt.txt"), []byte(promptContent), 0644)
-	require.NoError(t, err, "Should write prompt.txt")
+	err = os.WriteFile(filepath.Join(activationDir, "aw-prompts", "prompt.txt"), []byte(promptContent), 0644)
+	require.NoError(t, err, "Should write prompt.txt in activation/aw-prompts/")
 
 	// Create safe output manifest
 	manifestContent := `{"type":"create_pull_request","url":"https://github.com/org/repo/pull/1","repo":"org/repo","number":1,"timestamp":"2024-01-01T10:00:00Z"}
@@ -528,6 +566,7 @@ func TestBuildAuditDataWithExpandedSections(t *testing.T) {
 	t.Run("PromptAnalysis", func(t *testing.T) {
 		require.NotNil(t, auditData.PromptAnalysis, "Prompt analysis should be populated")
 		assert.Equal(t, len(promptContent), auditData.PromptAnalysis.PromptSize, "Prompt size should match")
+		assert.Equal(t, filepath.Join("activation", "aw-prompts", "prompt.txt"), auditData.PromptAnalysis.PromptFile, "Prompt file should be a relative path")
 	})
 
 	t.Run("SessionAnalysis", func(t *testing.T) {
@@ -588,6 +627,7 @@ func TestAwInfoHasMCPServers(t *testing.T) {
 	tests := []struct {
 		name           string
 		awInfoContent  string
+		awInfoSubdir   string
 		expectedNames  []string
 		expectedHasMCP bool
 	}{
@@ -607,12 +647,25 @@ func TestAwInfoHasMCPServers(t *testing.T) {
 			awInfoContent:  `{"engine_id":"copilot"}`,
 			expectedHasMCP: false,
 		},
+		{
+			name:           "with MCP servers in activation subdir",
+			awInfoContent:  `{"engine_id":"copilot","steps":{"mcp_servers":{"github":{}}}}`,
+			awInfoSubdir:   "activation",
+			expectedNames:  []string{"github"},
+			expectedHasMCP: true,
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			tmpDir := testutil.TempDir(t, "mcp-servers-*")
-			err := os.WriteFile(filepath.Join(tmpDir, "aw_info.json"), []byte(tt.awInfoContent), 0644)
+			targetDir := tmpDir
+			if tt.awInfoSubdir != "" {
+				targetDir = filepath.Join(tmpDir, tt.awInfoSubdir)
+				err := os.MkdirAll(targetDir, 0755)
+				require.NoError(t, err, "Should create subdir")
+			}
+			err := os.WriteFile(filepath.Join(targetDir, "aw_info.json"), []byte(tt.awInfoContent), 0644)
 			require.NoError(t, err, "Should write aw_info.json")
 
 			names, hasMCP := awInfoHasMCPServers(tmpDir)
