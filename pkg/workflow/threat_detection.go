@@ -26,6 +26,14 @@ func (td *ThreatDetectionConfig) HasRunnableDetection() bool {
 	return !td.EngineDisabled || len(td.Steps) > 0
 }
 
+// IsDetectionJobEnabled reports whether a detection job should be created for
+// the given safe-outputs configuration. This is the single source of truth
+// used by all codepaths that decide whether to create, depend on, or reference
+// the detection job.
+func IsDetectionJobEnabled(so *SafeOutputsConfig) bool {
+	return so != nil && so.ThreatDetection != nil && so.ThreatDetection.HasRunnableDetection()
+}
+
 // parseThreatDetectionConfig handles threat-detection configuration
 func (c *Compiler) parseThreatDetectionConfig(outputMap map[string]any) *ThreatDetectionConfig {
 	if configData, exists := outputMap["threat-detection"]; exists {
@@ -555,7 +563,7 @@ func (c *Compiler) buildDetectionJob(data *WorkflowData) (*Job, error) {
 	// there is nothing to run in the detection job — skip it entirely.
 	// The detection job would only create an empty detection.log and the parser
 	// would correctly fail with "No THREAT_DETECTION_RESULT found".
-	if !data.SafeOutputs.ThreatDetection.HasRunnableDetection() {
+	if !IsDetectionJobEnabled(data.SafeOutputs) {
 		threatLog.Print("Threat detection engine disabled with no custom steps, skipping detection job")
 		return nil, nil
 	}
