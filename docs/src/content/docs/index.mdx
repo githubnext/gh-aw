@@ -59,6 +59,15 @@ Developed by GitHub Next and Microsoft Research, workflows run with added guardr
 
 Workflows run with read-only permissions by default. Write operations require explicit approval through sanitized [safe outputs](/gh-aw/reference/glossary/#safe-outputs) (pre-approved GitHub operations), with sandboxed execution, tool allowlisting, and network isolation ensuring AI agents operate within controlled boundaries.
 
+Every workflow runs through a three-stage security pipeline before any write operation can occur:
+
+```mermaid
+flowchart LR
+    Agent["🤖 Agent"] --> Detection["🔍 Detection"] --> SafeOutputs["✅ Safe Outputs"]
+```
+
+See the [Security Architecture](/gh-aw/introduction/architecture/) for a full breakdown of the layered defense-in-depth model.
+
 ## Example: Daily Issues Report
 
 Here's a simple workflow that runs daily to create an upbeat status report:
