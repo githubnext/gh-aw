@@ -215,13 +215,13 @@ By caching SHA resolutions from a prior compilation (done with a user PAT or a G
 
 ## The gh-aw-actions Repository
 
-`github/gh-aw-actions` is the GitHub Actions repository containing all reusable actions that power compiled agentic workflows. When `gh aw compile` generates a `.lock.yml`, every action step references `github/gh-aw-actions` pinned to a specific commit SHA:
+`github/gh-aw-actions` is the GitHub Actions repository containing all reusable actions that power compiled agentic workflows. When `gh aw compile` generates a `.lock.yml`, every action step references `github/gh-aw-actions` using a ref (typically a commit SHA, but may be a stable version tag such as `v0` when SHA resolution is unavailable):
 
 ```yaml
-uses: github/gh-aw-actions/actions/setup@abc1234... # v1.2.3
+uses: github/gh-aw-actions/setup@abc1234...
 ```
 
-These pinned references are generated entirely by the compiler and should never be edited manually in `.lock.yml` files. To update action pins to a newer `gh-aw-actions` release, run `gh aw compile` or `gh aw update-actions`.
+These references are generated entirely by the compiler and should never be edited manually in `.lock.yml` files. To update action refs to a newer `gh-aw-actions` release, run `gh aw compile` or `gh aw update-actions`.
 
 The repository is referenced via the `--actions-repo` flag default (`github/gh-aw-actions`) when `--action-mode action` is set during compilation. See [Compilation Commands](#compilation-commands) for how to compile against a fork or specific tag during development.
 
