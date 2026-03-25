@@ -42,6 +42,14 @@ describe("extractFromStreamJson", () => {
     expect(result).toContain("THREAT_DETECTION_RESULT:");
   });
 
+  it("should extract result when analysis text precedes the verdict line", () => {
+    // The model may include explanatory text before THREAT_DETECTION_RESULT in the result field
+    const line = '{"type":"result","subtype":"success","result":"**Analysis complete.**\\n\\nNo threats found.\\n\\nTHREAT_DETECTION_RESULT:{\\"prompt_injection\\":false,\\"secret_leak\\":false,\\"malicious_patch\\":false,\\"reasons\\":[]}","stop_reason":"end_turn"}';
+    const result = extractFromStreamJson(line);
+    expect(result).not.toBeNull();
+    expect(result).toContain("THREAT_DETECTION_RESULT:");
+  });
+
   it("should return null for type:assistant JSON (not authoritative)", () => {
     const line = '{"type":"assistant","message":{"content":[{"type":"text","text":"THREAT_DETECTION_RESULT:{\\"prompt_injection\\":false}"}]}}';
     const result = extractFromStreamJson(line);
