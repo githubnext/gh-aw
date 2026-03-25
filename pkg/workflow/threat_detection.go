@@ -390,8 +390,15 @@ func (c *Compiler) buildDetectionEngineExecutionStep(data *WorkflowData) []strin
 
 	var steps []string
 
-	// Skip engine installation - engine is already installed in the agent job.
-	// Only generate execution steps.
+	// Install the engine in the detection job. The detection job runs on a separate fresh
+	// runner where the agent's installed tools are not available, so we must install them here.
+	installSteps := engine.GetInstallationSteps(threatDetectionData)
+	for _, step := range installSteps {
+		for _, line := range step {
+			steps = append(steps, line+"\n")
+		}
+	}
+
 	logFile := "/tmp/gh-aw/threat-detection/detection.log"
 	executionSteps := engine.GetExecutionSteps(threatDetectionData, logFile)
 	for _, step := range executionSteps {
