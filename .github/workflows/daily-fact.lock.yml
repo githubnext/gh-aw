@@ -901,7 +901,7 @@ jobs:
   detection:
     needs: agent
     if: always() && needs.agent.result != 'skipped'
-    runs-on: ubuntu-slim
+    runs-on: ubuntu-latest
     outputs:
       detection_conclusion: ${{ steps.detection_conclusion.outputs.conclusion }}
       detection_success: ${{ steps.detection_conclusion.outputs.success }}

@@ -535,8 +535,10 @@ func (c *Compiler) buildDetectionJob(data *WorkflowData) (*Job, error) {
 	// Detection job depends on agent job
 	needs := []string{string(constants.AgentJobName)}
 
-	// Determine runs-on: use threat detection override if set, otherwise safe-outputs runner
-	runsOn := c.formatSafeOutputsRunsOn(data.SafeOutputs)
+	// Determine runs-on: use threat detection override if set, otherwise ubuntu-latest.
+	// The detection job runs on a fresh runner separate from the agent job, so it does
+	// not need the same custom runner as safe-outputs.
+	runsOn := "runs-on: ubuntu-latest"
 	if data.SafeOutputs.ThreatDetection.RunsOn != "" {
 		runsOn = "runs-on: " + data.SafeOutputs.ThreatDetection.RunsOn
 	}
