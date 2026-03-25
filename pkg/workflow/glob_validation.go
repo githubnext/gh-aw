@@ -31,7 +31,7 @@ type invalidGlobPattern struct {
 	Column int
 }
 
-func (e *invalidGlobPattern) Error() string {
+func (e invalidGlobPattern) Error() string {
 	return fmt.Sprintf("%d: %s", e.Column, e.Message)
 }
 
@@ -93,7 +93,7 @@ func (v *globValidator) validateNext() bool {
 		case '[', '?', '*':
 			c = v.scan.Next()
 			if v.isRef {
-				v.invalidRefChar(v.scan.Peek(), "ref name cannot contain spaces, ~, ^, :, [, ?, *")
+				v.invalidRefChar(c, "ref name cannot contain spaces, ~, ^, :, [, ?, *")
 			}
 		case '+', '\\', '!':
 			c = v.scan.Next()
@@ -234,7 +234,7 @@ func validatePathGlob(pat string) []invalidGlobPattern {
 	// Reject '.', '..', './<path>', and '../<path>' (#521 in actionlint)
 	stripped := strings.TrimPrefix(p, "!")
 	if stripped == "." || stripped == ".." || strings.HasPrefix(stripped, "./") || strings.HasPrefix(stripped, "../") {
-		errs = append(errs, invalidGlobPattern{"'.' and '..' are not allowed in glob path", 0})
+		errs = append(errs, invalidGlobPattern{"'.', '..', and paths starting with './' or '../' are not allowed in glob path", 0})
 	}
 
 	if len(errs) > 0 {
