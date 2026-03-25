@@ -188,8 +188,8 @@ func TestRenderCustomToolWithoutGuardPoliciesJSON(t *testing.T) {
 	result := output.String()
 	// The tools field should be present (always included in JSON format for gateway enforcement)
 	assert.Contains(t, result, "\"tools\":", "tools field should be rendered")
-	// The tools field should be the last field (no trailing comma before end of object)
-	assert.NotContains(t, result, "\"tools\": [\n                  \"*\"\n                ],", "tools field should not have trailing comma")
+	// The tools array close bracket should not be followed by a comma (tools is the last field)
+	assert.NotContains(t, result, "],", "last field should not have trailing comma")
 	// No guard policies
 	assert.NotContains(t, result, "guard-policies", "guard-policies should not be rendered")
 }

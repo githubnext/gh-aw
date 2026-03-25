@@ -127,10 +127,12 @@ echo ""
 GATEWAY_START_TIME=$(date +%s%3N)
 # Note: MCP_GATEWAY_DOCKER_COMMAND is the full docker command with all flags, mounts, and image
 # Pass MCP_GATEWAY_LOG_DIR to the container via -e flag
+# Pre-create gateway-output.json with restricted 0600 permissions so the bearer token
+# is protected from the moment the file is created (shell redirect to a pre-existing file
+# preserves permissions, avoiding the race condition of chmod-after-create).
+install -m 0600 /dev/null /tmp/gh-aw/mcp-config/gateway-output.json
 echo "$MCP_CONFIG" | MCP_GATEWAY_LOG_DIR="$MCP_GATEWAY_LOG_DIR" $MCP_GATEWAY_DOCKER_COMMAND \
   > /tmp/gh-aw/mcp-config/gateway-output.json 2> /tmp/gh-aw/mcp-logs/stderr.log &
-# Restrict permissions immediately after creation to protect the bearer token in the output
-chmod 0600 /tmp/gh-aw/mcp-config/gateway-output.json
 
 GATEWAY_PID=$!
 echo "Gateway started with PID: $GATEWAY_PID"
