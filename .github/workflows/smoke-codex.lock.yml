@@ -1308,6 +1308,7 @@ jobs:
       - activation
       - agent
       - detection
+      - indexing
       - safe_outputs
       - update_cache_memory
     if: always() && (needs.agent.result != 'skipped' || needs.activation.outputs.lockdown_check_failed == 'true')

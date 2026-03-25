@@ -1110,6 +1110,7 @@ jobs:
       - activation
       - agent
       - detection
+      - indexing
       - safe_outputs
       - update_cache_memory
       - upload_assets

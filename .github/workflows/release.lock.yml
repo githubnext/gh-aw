@@ -801,8 +801,12 @@ jobs:
     needs:
       - activation
       - agent
+      - config
       - detection
+      - push_tag
+      - release
       - safe_outputs
+      - sync_actions
     if: always() && (needs.agent.result != 'skipped' || needs.activation.outputs.lockdown_check_failed == 'true')
     runs-on: ubuntu-slim
     permissions:

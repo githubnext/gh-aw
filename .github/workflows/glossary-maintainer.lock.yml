@@ -922,6 +922,7 @@ jobs:
       - activation
       - agent
       - detection
+      - indexing
       - push_repo_memory
       - safe_outputs
       - update_cache_memory

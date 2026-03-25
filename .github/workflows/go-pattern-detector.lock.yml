@@ -881,6 +881,7 @@ jobs:
     needs:
       - activation
       - agent
+      - ast_grep
       - detection
       - safe_outputs
     if: always() && (needs.agent.result != 'skipped' || needs.activation.outputs.lockdown_check_failed == 'true')

@@ -825,6 +825,7 @@ jobs:
       - activation
       - agent
       - detection
+      - post-issue
       - push_repo_memory
       - safe_outputs
       - update_cache_memory

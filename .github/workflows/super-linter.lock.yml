@@ -802,6 +802,7 @@ jobs:
       - agent
       - detection
       - safe_outputs
+      - super_linter
       - update_cache_memory
     if: always() && (needs.agent.result != 'skipped' || needs.activation.outputs.lockdown_check_failed == 'true')
     runs-on: ubuntu-slim

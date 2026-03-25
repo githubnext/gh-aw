@@ -2260,6 +2260,7 @@ jobs:
     needs:
       - activation
       - agent
+      - apm
       - detection
       - safe_outputs
       - update_cache_memory
