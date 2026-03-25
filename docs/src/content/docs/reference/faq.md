@@ -303,6 +303,28 @@ The cache avoids this problem: if a SHA was previously resolved (using a user PA
 
 Commit `actions-lock.json` to version control so that all contributors and automated tools (including CCA) use consistent SHA pins without needing to re-resolve them. Refresh the cache periodically with `gh aw update-actions`, or delete it and recompile to force a full re-resolution when you have an appropriate token. See [Action Pinning](/gh-aw/reference/compilation-process/#action-pinning) for details.
 
+### What is `github/gh-aw-actions`?
+
+`github/gh-aw-actions` is the GitHub Actions repository containing all reusable actions that power compiled agentic workflows. Compiled `.lock.yml` files reference these actions pinned to commit SHAs (e.g., `github/gh-aw-actions/actions/setup@<sha>`). These references are managed entirely by `gh aw compile` — never edit them manually. See [The gh-aw-actions Repository](/gh-aw/reference/compilation-process/#the-gh-aw-actions-repository) for details.
+
+### Why is Dependabot opening PRs to update `github/gh-aw-actions`?
+
+Dependabot scans `.lock.yml` files for action references and treats `github/gh-aw-actions` pins as regular dependencies to update. **Do not merge these PRs.** Action pins in compiled workflows should only be updated by running `gh aw compile` or `gh aw update-actions`.
+
+Suppress these PRs by adding an `ignore` entry in `.github/dependabot.yml`:
+
+```yaml
+updates:
+  - package-ecosystem: github-actions
+    directory: "/"
+    ignore:
+      # ignore updates to gh-aw-actions, which only appears in auto-generated *.lock.yml
+      # files managed by 'gh aw compile' and should not be touched by dependabot
+      - dependency-name: "github/gh-aw-actions"
+```
+
+See [Dependabot and gh-aw-actions](/gh-aw/reference/compilation-process/#dependabot-and-gh-aw-actions) for more details.
+
 ### Why do I need a token or key?
 
 When using **GitHub Copilot CLI**, a Personal Access Token (PAT) with "Copilot Requests" permission authenticates and associates automation work with your GitHub account. This ensures usage tracking against your subscription, appropriate AI permissions, and auditable actions. In the future, this may support organization-level association. See [Authentication](/gh-aw/reference/auth/).
