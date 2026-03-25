@@ -31,6 +31,9 @@
 // Configuration Integer Parsing:
 //   - parseExpiresFromConfig() - Extract expiration time
 //   - parseRelativeTimeSpec() - Parse relative time specifications
+//
+// Parser Scaffold:
+//   - parseConfigScaffold() - Generic safe-output config parser scaffold
 
 package workflow
 
@@ -240,4 +243,49 @@ func unmarshalConfig(m map[string]any, key string, target any, log *logger.Logge
 	}
 
 	return nil
+}
+
+// parseConfigScaffold is the generic parser scaffold for safe-output handler config parsers.
+// It implements the common four-step pattern shared across safe-output handlers:
+//  1. Key existence check – returns nil immediately if the key is absent in outputMap
+//  2. Entry log: "Parsing <key> configuration"
+//  3. Typed unmarshal via unmarshalConfig into a zero-value T
+//  4. On unmarshal error: delegate to the onError callback, which handles
+//     additional logging and returns the appropriate fallback (or nil to disable)
+//
+// The caller is responsible for any preprocessing (e.g. preprocessIntFieldAsString)
+// that must happen before YAML unmarshaling, and for any postprocessing (e.g. setting
+// default max values or computing derived fields) after a successful parse.
+//
+// Example – empty-config fallback:
+//
+//	config := parseConfigScaffold(outputMap, "add-labels", addLabelsLog,
+//	    func(err error) *AddLabelsConfig {
+//	        addLabelsLog.Printf("Failed to unmarshal config: %v", err)
+//	        addLabelsLog.Print("Using empty configuration (allows any labels)")
+//	        return &AddLabelsConfig{}
+//	    })
+//
+// Example – disable-on-error:
+//
+//	config := parseConfigScaffold(outputMap, "set-issue-type", setIssueTypeLog,
+//	    func(err error) *SetIssueTypeConfig {
+//	        setIssueTypeLog.Printf("Failed to unmarshal config, disabling handler: %v", err)
+//	        return nil
+//	    })
+func parseConfigScaffold[T any](
+	outputMap map[string]any,
+	key string,
+	log *logger.Logger,
+	onError func(err error) *T,
+) *T {
+	if _, exists := outputMap[key]; !exists {
+		return nil
+	}
+	log.Printf("Parsing %s configuration", key)
+	var config T
+	if err := unmarshalConfig(outputMap, key, &config, log); err != nil {
+		return onError(err)
+	}
+	return &config
 }

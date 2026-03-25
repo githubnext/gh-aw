@@ -18,6 +18,11 @@ var DefaultGitHubToolsets = []string{"context", "repos", "issues", "pull_request
 // Use this when the workflow will run in GitHub Actions with GITHUB_TOKEN.
 var ActionFriendlyGitHubToolsets = []string{"context", "repos", "issues", "pull_requests"}
 
+// GitHubToolsetsExcludedFromAll defines toolsets that are NOT included when "all" is specified.
+// These toolsets require GitHub App-only permissions (e.g., vulnerability-alerts) that
+// cannot be granted via GITHUB_TOKEN, so they must be opted-in to explicitly.
+var GitHubToolsetsExcludedFromAll = []string{"dependabot"}
+
 // ParseGitHubToolsets parses the toolsets string and expands "default" and "all"
 // into their constituent toolsets. It handles comma-separated lists and deduplicates.
 func ParseGitHubToolsets(toolsetsStr string) []string {
@@ -58,9 +63,17 @@ func ParseGitHubToolsets(toolsetsStr string) []string {
 				}
 			}
 		case "all":
-			// Add all toolsets from the toolset permissions map
-			toolsetsLog.Printf("Expanding 'all' to %d toolsets from permissions map", len(toolsetPermissionsMap))
+			// Add all toolsets from the toolset permissions map, excluding those that
+			// require GitHub App-only permissions (see GitHubToolsetsExcludedFromAll).
+			toolsetsLog.Printf("Expanding 'all' to toolsets from permissions map (excluding %v)", GitHubToolsetsExcludedFromAll)
+			excludedMap := make(map[string]bool, len(GitHubToolsetsExcludedFromAll))
+			for _, ex := range GitHubToolsetsExcludedFromAll {
+				excludedMap[ex] = true
+			}
 			for t := range toolsetPermissionsMap {
+				if excludedMap[t] {
+					continue
+				}
 				if !seenToolsets[t] {
 					expanded = append(expanded, t)
 					seenToolsets[t] = true

@@ -348,7 +348,7 @@ func (c *Compiler) buildQmdIndexingJobWrapper(data *WorkflowData) error {
 // buildMemoryManagementJobs builds memory management jobs (push_repo_memory and update_cache_memory).
 // These jobs handle artifact-based memory persistence to git branches and GitHub Actions cache.
 func (c *Compiler) buildMemoryManagementJobs(data *WorkflowData) error {
-	threatDetectionEnabledForSafeJobs := data.SafeOutputs != nil && data.SafeOutputs.ThreatDetection != nil
+	threatDetectionEnabledForSafeJobs := IsDetectionJobEnabled(data.SafeOutputs)
 
 	// Build push_repo_memory job if repo-memory is configured
 	pushRepoMemoryJobName, err := c.buildPushRepoMemoryJobWrapper(data, threatDetectionEnabledForSafeJobs)
@@ -814,20 +814,11 @@ func (c *Compiler) buildCustomJobs(data *WorkflowData, activationJobCreated bool
 									return fmt.Errorf("failed to convert step to typed step for job '%s': %w", jobName, err)
 								}
 
-								// Inject GH_HOST from the ghes-host-config step output so user steps
-								// have access to it for gh CLI commands (previously available via GITHUB_ENV).
-								if typedStep.Env == nil {
-									typedStep.Env = make(map[string]string)
-								}
-								if _, exists := typedStep.Env["GH_HOST"]; !exists {
-									typedStep.Env["GH_HOST"] = "${{ steps.ghes-host-config.outputs.GH_HOST }}"
-								}
-
 								// Apply action pinning using type-safe version
 								pinnedStep := ApplyActionPinToTypedStep(typedStep, data)
 
 								// Convert back to map for YAML generation
-								stepYAML, err := c.convertStepToYAML(pinnedStep.ToMap())
+								stepYAML, err := ConvertStepToYAML(pinnedStep.ToMap())
 								if err != nil {
 									return fmt.Errorf("failed to convert step to YAML for job '%s': %w", jobName, err)
 								}

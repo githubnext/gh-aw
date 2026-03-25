@@ -2,10 +2,8 @@ package workflow
 
 import (
 	"fmt"
-	"strings"
 
 	"github.com/github/gh-aw/pkg/logger"
-	"github.com/github/gh-aw/pkg/stringutil"
 )
 
 var compilerSafeOutputJobsLog = logger.New("workflow:compiler_safe_output_jobs")
@@ -23,8 +21,11 @@ func (c *Compiler) buildSafeOutputsJobs(data *WorkflowData, jobName, markdownPat
 	compilerSafeOutputJobsLog.Print("Building safe outputs jobs")
 
 	// Detection is always enabled for safe-outputs workflows unless threat-detection is explicitly
-	// disabled (threat-detection: false). ThreatDetection is nil only when explicitly disabled.
-	threatDetectionEnabled := data.SafeOutputs.ThreatDetection != nil
+	// disabled (threat-detection: false) or the engine is disabled with no custom steps
+	// (threat-detection: { engine: false } with no steps). ThreatDetection is nil only when
+	// explicitly disabled. When engine is false with no custom steps, the detection job has
+	// nothing to run so it is skipped entirely.
+	threatDetectionEnabled := IsDetectionJobEnabled(data.SafeOutputs)
 
 	// Build the separate detection job. Detection runs by default for all safe-outputs workflows
 	// and is only skipped when ThreatDetection is nil (i.e. threat-detection: false was set).
@@ -265,14 +266,4 @@ func (c *Compiler) buildCallWorkflowJobs(data *WorkflowData, markdownPath string
 	}
 
 	return jobNames, nil
-}
-
-// sanitizeJobName converts a workflow name to a valid GitHub Actions job name.
-// It delegates normalization to NormalizeSafeOutputIdentifier (which converts
-// hyphens to underscores), then converts underscores back to hyphens for
-// GitHub Actions job name conventions.
-func sanitizeJobName(workflowName string) string {
-	normalized := stringutil.NormalizeSafeOutputIdentifier(workflowName)
-	// NormalizeSafeOutputIdentifier uses underscores; convert to hyphens for job names
-	return strings.ReplaceAll(normalized, "_", "-")
 }

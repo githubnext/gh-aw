@@ -205,6 +205,44 @@ Data flows via GitHub Actions artifacts: agent writes `agent_output.json` → de
 
 All GitHub Actions are pinned to commit SHAs (e.g., `actions/checkout@b4ffde6...11 # v6`) to prevent supply chain attacks. Tags can be moved to malicious commits, but SHA commits are immutable. The resolution order mirrors Phase 4: cache (`.github/aw/actions-lock.json`) → GitHub API → embedded pins.
 
+### The actions-lock.json Cache
+
+`.github/aw/actions-lock.json` stores resolved `action@version` → SHA mappings so that compilation produces consistent results regardless of the token available. Resolving a version tag to a SHA requires querying the GitHub API, which can fail when the token has limited permissions — notably when compiling via GitHub Copilot Coding Agent (CCA), which uses a restricted token that may not have access to external repositories.
+
+By caching SHA resolutions from a prior compilation (done with a user PAT or a GitHub Actions token with broader scope), subsequent compilations reuse those SHAs without making API calls. Without the cache, compilation is unstable: it succeeds with a permissive token but fails when token access is restricted.
+
+**Commit `actions-lock.json` to version control.** This ensures all contributors and automated tools, including CCA, use the same immutable pins. Refresh it periodically with `gh aw update-actions`, or delete it and recompile with an appropriate token to force full re-resolution.
+
+## The gh-aw-actions Repository
+
+`github/gh-aw-actions` is the GitHub Actions repository containing all reusable actions that power compiled agentic workflows. When `gh aw compile` generates a `.lock.yml`, every action step references `github/gh-aw-actions` using a ref (typically a commit SHA, but may be a stable version tag such as `v0` when SHA resolution is unavailable):
+
+```yaml
+uses: github/gh-aw-actions/setup@abc1234...
+```
+
+These references are generated entirely by the compiler and should never be edited manually in `.lock.yml` files. To update action refs to a newer `gh-aw-actions` release, run `gh aw compile` or `gh aw update-actions`.
+
+The repository is referenced via the `--actions-repo` flag default (`github/gh-aw-actions`) when `--action-mode action` is set during compilation. See [Compilation Commands](#compilation-commands) for how to compile against a fork or specific tag during development.
+
+### Dependabot and gh-aw-actions
+
+Dependabot scans all `.yml` files in `.github/workflows/` for action references and may open pull requests attempting to update `github/gh-aw-actions` to a newer SHA. **Do not merge these PRs.** The correct way to update `gh-aw-actions` pins is by running `gh aw compile` (or `gh aw update-actions`), which regenerates all action pins consistently across all compiled workflows from a single coordinated release.
+
+To suppress Dependabot PRs for `github/gh-aw-actions`, add an `ignore` entry in `.github/dependabot.yml`:
+
+```yaml
+updates:
+  - package-ecosystem: github-actions
+    directory: "/"
+    ignore:
+      # ignore updates to gh-aw-actions, which only appears in auto-generated *.lock.yml
+      # files managed by 'gh aw compile' and should not be touched by dependabot
+      - dependency-name: "github/gh-aw-actions"
+```
+
+This tells Dependabot to skip version updates for `github/gh-aw-actions` while still monitoring all other GitHub Actions dependencies.
+
 ## Artifacts Created
 
 Workflows generate several artifacts during execution:

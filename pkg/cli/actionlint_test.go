@@ -27,6 +27,8 @@ func TestParseAndDisplayActionlintOutput(t *testing.T) {
 ]`,
 			expectedOutput: []string{
 				".github/workflows/test.lock.yml:10:14: error: [runner-label] label \"ubuntu-slim\" is unknown",
+				"runs-on: ubuntu-slim",
+				"^",
 			},
 			expectError:   false,
 			expectedCount: 1,
@@ -297,6 +299,11 @@ func TestGetActionlintDocsURL(t *testing.T) {
 			name:     "expression kind",
 			kind:     "expression",
 			expected: "https://github.com/rhysd/actionlint/blob/main/docs/checks.md#check-syntax-expression",
+		},
+		{
+			name:     "syntax-check kind",
+			kind:     "syntax-check",
+			expected: "https://github.com/rhysd/actionlint/blob/main/docs/checks.md#check-unexpected-keys",
 		},
 		{
 			name:     "generic kind with check- prefix",

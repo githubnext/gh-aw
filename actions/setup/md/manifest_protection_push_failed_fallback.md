@@ -5,9 +5,16 @@
 > [!WARNING]
 > 🛡️ **Protected Files — Push Permission Denied**
 >
-> This was originally intended as a pull request, but the patch modifies protected files: {files}.
->
-> The push was rejected because GitHub Actions does not have `workflows` permission to push these changes, and is never allowed to make such changes, or other authorization being used does not have this permission. A human must create the pull request manually.
+> This was originally intended as a pull request, but the patch modifies protected files. A human must create the pull request manually.
+
+<details>
+<summary>🔒 Protected files</summary>
+
+{files}
+
+The push was rejected because GitHub Actions does not have `workflows` permission to push these changes, and is never allowed to make such changes, or other authorization being used does not have this permission.
+
+</details>
 
 <details>
 <summary><b>📋 Create the pull request manually</b></summary>

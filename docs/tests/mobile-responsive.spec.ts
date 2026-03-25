@@ -3,7 +3,9 @@ import { test, expect } from '@playwright/test';
 test.describe('Mobile and Responsive Layout', () => {
   const formFactors = [
     { name: 'iPhone 16 (Mobile)', width: 393, height: 852 },
-    { name: 'Tablet 4:3 (iPad)', width: 1024, height: 768 },
+    { name: 'iPad (768px)', width: 768, height: 1024 },
+    { name: 'iPad Pro 11 (834px)', width: 834, height: 1194 },
+    { name: 'iPad Landscape (1024px)', width: 1024, height: 768 },
     { name: 'Desktop Portrait', width: 1080, height: 1920 },
     { name: 'Desktop Landscape', width: 1920, height: 1080 },
   ];
@@ -46,7 +48,7 @@ test.describe('Mobile and Responsive Layout', () => {
       }
 
       test('should have proper content spacing on mobile', async ({ page }) => {
-        if (formFactor.width <= 768) {
+        if (formFactor.width < 768) {
           await page.goto('/gh-aw/introduction/overview/');
           await page.waitForLoadState('networkidle');
 
@@ -54,9 +56,20 @@ test.describe('Mobile and Responsive Layout', () => {
           const contentPanel = page.locator('.content-panel').first();
           await expect(contentPanel).toBeVisible();
 
-          // Sidebar should be hidden on mobile
+          // Sidebar should be hidden on mobile (below 768px)
           const sidebar = page.locator('.sidebar');
           await expect(sidebar).not.toBeVisible();
+        }
+      });
+
+      test('should show persistent sidebar on tablet (WCAG W2)', async ({ page }) => {
+        if (formFactor.width >= 768) {
+          await page.goto('/gh-aw/introduction/overview/');
+          await page.waitForLoadState('networkidle');
+
+          // Sidebar should be persistently visible on tablet and desktop (768px+)
+          const sidebar = page.locator('.sidebar');
+          await expect(sidebar).toBeVisible();
         }
       });
     });

@@ -363,8 +363,10 @@ async function processMessages(messageHandlers, messages, onItemCreated = null) 
       continue;
     }
 
-    // Fail-fast: if a previous code-push operation failed, cancel non-code-push messages
-    if (codePushFailures.length > 0 && !CODE_PUSH_TYPES.has(messageType)) {
+    // Fail-fast: if a previous code-push operation failed, cancel non-code-push messages.
+    // Exception: add_comment messages are allowed through so the status comment still reaches
+    // the user — they will be annotated with a failure note (see effectiveMessage logic below).
+    if (codePushFailures.length > 0 && !CODE_PUSH_TYPES.has(messageType) && messageType !== "add_comment") {
       const cancelReason = `Cancelled: code push operation failed (${codePushFailures[0].type}: ${codePushFailures[0].error})`;
       core.info(`⏭ Message ${i + 1} (${messageType}) cancelled — ${cancelReason}`);
       results.push({
@@ -450,14 +452,26 @@ async function processMessages(messageHandlers, messages, onItemCreated = null) 
       // Record the temp ID map size before processing to detect new IDs
       const tempIdMapSizeBefore = temporaryIdMap.size;
 
-      // If a previous code-push operation fell back to a review issue, prepend a correction
-      // note to add_comment bodies so the posted comment accurately reflects the outcome.
-      // The note is placed before the AI-generated body so users see the clarification immediately.
+      // For add_comment messages: prepend any relevant correction notes before the AI-generated
+      // body so users see the clarification immediately.
       let effectiveMessage = message;
-      if (messageType === "add_comment" && codePushFallbackInfo) {
-        const fallbackNote = `\n\n---\n> [!NOTE]\n> The pull request was not created — a fallback review issue was created instead due to protected file changes: [#${codePushFallbackInfo.issueNumber}](${codePushFallbackInfo.issueUrl})\n\n`;
-        effectiveMessage = { ...message, body: fallbackNote + (message.body || "") };
-        core.info(`Prepending fallback correction note to add_comment body (fallback issue: #${codePushFallbackInfo.issueNumber})`);
+      if (messageType === "add_comment") {
+        // If a previous code-push operation fell back to a review issue, prepend a correction note
+        // so the posted comment accurately reflects the outcome.
+        if (codePushFallbackInfo) {
+          const fallbackNote = `\n\n---\n> [!NOTE]\n> The pull request was not created — a fallback review issue was created instead due to protected file changes: [#${codePushFallbackInfo.issueNumber}](${codePushFallbackInfo.issueUrl})\n\n`;
+          effectiveMessage = { ...effectiveMessage, body: fallbackNote + (effectiveMessage.body || "") };
+          core.info(`Prepending fallback correction note to add_comment body (fallback issue: #${codePushFallbackInfo.issueNumber})`);
+        }
+        // If a previous code-push operation failed outright (e.g. patch application error),
+        // prepend a failure warning so the status comment accurately reflects that the
+        // code changes were not applied.
+        if (codePushFailures.length > 0) {
+          const failure = codePushFailures[0];
+          const failureNote = `\n\n---\n> [!WARNING]\n> The \`${failure.type}\` operation failed: ${failure.error}. The code changes were not applied.\n\n`;
+          effectiveMessage = { ...effectiveMessage, body: failureNote + (effectiveMessage.body || "") };
+          core.info(`Prepending code push failure note to add_comment body (${failure.type}: ${failure.error})`);
+        }
       }
 
       // Call the message handler with the individual message and resolved temp IDs

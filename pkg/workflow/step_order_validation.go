@@ -178,6 +178,12 @@ func (t *StepOrderTracker) findUnscannablePaths(artifactUploads []StepRecord) []
 // isPathScannedBySecretRedaction checks if a path would be scanned by the secret redaction step
 // or is otherwise safe to upload (known engine-controlled diagnostic paths).
 func isPathScannedBySecretRedaction(path string) bool {
+	// Exclusion patterns (paths starting with !) are not uploaded - they tell the artifact
+	// action to skip matching files. They do not need to be scanned by secret redaction.
+	if strings.HasPrefix(path, "!") {
+		return true
+	}
+
 	// Paths must be under /tmp/gh-aw/ or ${RUNNER_TEMP}/gh-aw/ to be scanned.
 	// Accept both literal paths and environment variable references.
 	// Engines that produce output outside /tmp/gh-aw/ must move their files into /tmp/gh-aw/

@@ -964,11 +964,11 @@ describe("Safe Output Handler Manager", () => {
   });
 
   describe("code-push fail-fast behaviour", () => {
-    it("should cancel subsequent messages when push_to_pull_request_branch fails", async () => {
+    it("should cancel subsequent non-add_comment messages when push_to_pull_request_branch fails", async () => {
       const messages = [{ type: "push_to_pull_request_branch" }, { type: "add_comment", body: "Success!" }, { type: "create_issue", title: "Issue" }];
 
       const codePushHandler = vi.fn().mockResolvedValue({ success: false, error: "Branch not found" });
-      const commentHandler = vi.fn();
+      const commentHandler = vi.fn().mockResolvedValue([{ _tracking: null }]);
       const issueHandler = vi.fn();
 
       const handlers = new Map([
@@ -987,22 +987,24 @@ describe("Safe Output Handler Manager", () => {
       // First result: code-push failed
       expect(result.results[0].success).toBe(false);
       expect(result.results[0].error).toBe("Branch not found");
-      // Subsequent results: cancelled
-      expect(result.results[1].success).toBe(false);
-      expect(result.results[1].cancelled).toBe(true);
-      expect(result.results[1].reason).toContain("Cancelled");
+      // add_comment is NOT cancelled — it should be called with a failure note prepended
+      expect(result.results[1].cancelled).toBeUndefined();
+      expect(commentHandler).toHaveBeenCalledTimes(1);
+      const calledMessage = commentHandler.mock.calls[0][0];
+      expect(calledMessage.body).toContain("push_to_pull_request_branch");
+      expect(calledMessage.body).toContain("Branch not found");
+      // create_issue IS still cancelled (non-add_comment non-code-push type)
       expect(result.results[2].success).toBe(false);
       expect(result.results[2].cancelled).toBe(true);
-      // Subsequent handlers were NOT called
-      expect(commentHandler).not.toHaveBeenCalled();
+      // create_issue handler was NOT called
       expect(issueHandler).not.toHaveBeenCalled();
     });
 
-    it("should cancel subsequent messages when create_pull_request fails via exception", async () => {
+    it("should allow add_comment through when create_pull_request fails via exception", async () => {
       const messages = [{ type: "create_pull_request" }, { type: "add_comment", body: "PR created!" }];
 
       const codePushHandler = vi.fn().mockRejectedValue(new Error("API error"));
-      const commentHandler = vi.fn();
+      const commentHandler = vi.fn().mockResolvedValue([{ _tracking: null }]);
 
       const handlers = new Map([
         ["create_pull_request", codePushHandler],
@@ -1015,8 +1017,13 @@ describe("Safe Output Handler Manager", () => {
       expect(result.codePushFailures).toHaveLength(1);
       expect(result.codePushFailures[0].type).toBe("create_pull_request");
       expect(result.codePushFailures[0].error).toBe("API error");
-      expect(result.results[1].cancelled).toBe(true);
-      expect(commentHandler).not.toHaveBeenCalled();
+      // add_comment is NOT cancelled — handler is called with failure note
+      expect(result.results[1].cancelled).toBeUndefined();
+      expect(commentHandler).toHaveBeenCalledTimes(1);
+      const calledMessage = commentHandler.mock.calls[0][0];
+      expect(calledMessage.body).toContain("create_pull_request");
+      expect(calledMessage.body).toContain("API error");
+      expect(calledMessage.body).toContain("PR created!");
     });
 
     it("should NOT cancel subsequent code-push messages after a code-push failure", async () => {
@@ -1212,6 +1219,58 @@ describe("Safe Output Handler Manager", () => {
       const calledMessage = commentHandler.mock.calls[0][0];
       expect(calledMessage.body).toBe("A fix PR has been created.");
       expect(calledMessage.body).not.toContain("pull request was not created");
+    });
+
+    it("should prepend failure note to add_comment body when create_pull_request fails (e.g. patch application error)", async () => {
+      const messages = [
+        { type: "create_pull_request", title: "My Fix PR" },
+        { type: "add_comment", body: "The agent has completed its work." },
+      ];
+
+      const prHandler = vi.fn().mockResolvedValue({ success: false, error: "Failed to apply patch" });
+      const commentHandler = vi.fn().mockResolvedValue([{ _tracking: null }]);
+
+      const handlers = new Map([
+        ["create_pull_request", prHandler],
+        ["add_comment", commentHandler],
+      ]);
+
+      await processMessages(handlers, messages);
+
+      // add_comment handler must have been called (not cancelled)
+      expect(commentHandler).toHaveBeenCalledTimes(1);
+      const calledMessage = commentHandler.mock.calls[0][0];
+      // Failure note should be prepended
+      expect(calledMessage.body).toContain("create_pull_request");
+      expect(calledMessage.body).toContain("Failed to apply patch");
+      expect(calledMessage.body).toContain("The agent has completed its work.");
+      // Note should appear before the original body
+      const noteIndex = calledMessage.body.indexOf("create_pull_request");
+      const bodyIndex = calledMessage.body.indexOf("The agent has completed its work.");
+      expect(noteIndex).toBeLessThan(bodyIndex);
+    });
+
+    it("should prepend failure note to add_comment body when push_to_pull_request_branch fails", async () => {
+      const messages = [
+        { type: "push_to_pull_request_branch", branch: "fix-branch" },
+        { type: "add_comment", body: "Changes have been pushed." },
+      ];
+
+      const pushHandler = vi.fn().mockResolvedValue({ success: false, error: "Branch not found" });
+      const commentHandler = vi.fn().mockResolvedValue([{ _tracking: null }]);
+
+      const handlers = new Map([
+        ["push_to_pull_request_branch", pushHandler],
+        ["add_comment", commentHandler],
+      ]);
+
+      await processMessages(handlers, messages);
+
+      expect(commentHandler).toHaveBeenCalledTimes(1);
+      const calledMessage = commentHandler.mock.calls[0][0];
+      expect(calledMessage.body).toContain("push_to_pull_request_branch");
+      expect(calledMessage.body).toContain("Branch not found");
+      expect(calledMessage.body).toContain("Changes have been pushed.");
     });
   });
 

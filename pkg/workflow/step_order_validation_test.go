@@ -128,6 +128,16 @@ func TestIsPathScannedBySecretRedaction_ScannableFiles(t *testing.T) {
 			path:     "${{ env.GH_AW_SAFE_OUTPUTS }}",
 			expected: true,
 		},
+		{
+			name:     "Exclusion pattern (proxy-tls directory)",
+			path:     "!/tmp/gh-aw/proxy-logs/proxy-tls/",
+			expected: true,
+		},
+		{
+			name:     "Exclusion pattern (file outside /tmp/gh-aw/)",
+			path:     "!/some/other/path/file.key",
+			expected: true,
+		},
 	}
 
 	for _, tt := range tests {

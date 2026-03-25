@@ -44,6 +44,24 @@ func TestSaveAndLoadRunSummary(t *testing.T) {
 			EstimatedCost: 0.05,
 			Turns:         5,
 		},
+		TaskDomain: &TaskDomainInfo{
+			Name:  "research",
+			Label: "Research",
+		},
+		BehaviorFingerprint: &BehaviorFingerprint{
+			ExecutionStyle:  "adaptive",
+			ToolBreadth:     "moderate",
+			ActuationStyle:  "selective_write",
+			ResourceProfile: "moderate",
+			DispatchMode:    "delegated",
+		},
+		AgenticAssessments: []AgenticAssessment{
+			{
+				Kind:     "delegated_context_present",
+				Severity: "info",
+				Summary:  "The run preserved upstream dispatch context.",
+			},
+		},
 		MissingTools: []MissingToolReport{
 			{
 				Tool:   "test_tool",
@@ -85,6 +103,15 @@ func TestSaveAndLoadRunSummary(t *testing.T) {
 	}
 	if loadedSummary.Metrics.TokenUsage != testSummary.Metrics.TokenUsage {
 		t.Errorf("Metrics.TokenUsage mismatch: got %d, want %d", loadedSummary.Metrics.TokenUsage, testSummary.Metrics.TokenUsage)
+	}
+	if loadedSummary.TaskDomain == nil || loadedSummary.TaskDomain.Name != testSummary.TaskDomain.Name {
+		t.Fatalf("TaskDomain mismatch: got %+v, want %+v", loadedSummary.TaskDomain, testSummary.TaskDomain)
+	}
+	if loadedSummary.BehaviorFingerprint == nil || loadedSummary.BehaviorFingerprint.DispatchMode != testSummary.BehaviorFingerprint.DispatchMode {
+		t.Fatalf("BehaviorFingerprint mismatch: got %+v, want %+v", loadedSummary.BehaviorFingerprint, testSummary.BehaviorFingerprint)
+	}
+	if len(loadedSummary.AgenticAssessments) != len(testSummary.AgenticAssessments) {
+		t.Fatalf("AgenticAssessments length mismatch: got %d, want %d", len(loadedSummary.AgenticAssessments), len(testSummary.AgenticAssessments))
 	}
 	if len(loadedSummary.MissingTools) != len(testSummary.MissingTools) {
 		t.Errorf("MissingTools length mismatch: got %d, want %d", len(loadedSummary.MissingTools), len(testSummary.MissingTools))

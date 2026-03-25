@@ -25,7 +25,7 @@ const { getBaseBranch } = require("./get_base_branch.cjs");
 const { createAuthenticatedGitHubClient } = require("./handler_auth.cjs");
 const { buildWorkflowRunUrl } = require("./workflow_metadata_helpers.cjs");
 const { checkFileProtection } = require("./manifest_file_helpers.cjs");
-const { renderTemplateFromFile } = require("./messages_core.cjs");
+const { renderTemplateFromFile, buildProtectedFileList, encodePathSegments } = require("./messages_core.cjs");
 const { COPILOT_REVIEWER_BOT, FAQ_CREATE_PR_PERMISSIONS_URL } = require("./constants.cjs");
 const { isStagedMode } = require("./safe_output_helpers.cjs");
 
@@ -977,7 +977,11 @@ ${patchPreview}`;
     //   patch artifact download instructions instead of the compare URL.
     if (manifestProtectionFallback) {
       const allFound = manifestProtectionFallback;
-      const filesFormatted = allFound.map(f => `\`${f}\``).join(", ");
+      const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
+      // Use head branch (branchName) for links when push succeeded; fall back to baseBranch
+      // for the push-failed case where the head branch is not yet on the remote.
+      const branchForLinks = manifestProtectionPushFailedError ? baseBranch : branchName;
+      const fileList = buildProtectedFileList(allFound, githubServer, repoParts.owner, repoParts.repo, branchForLinks);
 
       let fallbackBody;
       if (manifestProtectionPushFailedError) {
@@ -989,7 +993,7 @@ ${patchPreview}`;
         fallbackBody = renderTemplateFromFile(pushFailedTemplatePath, {
           main_body: mainBodyContent,
           footer: footerContent,
-          files: filesFormatted,
+          files: fileList,
           run_id: String(runId),
           branch_name: branchName,
           base_branch: baseBranch,
@@ -999,15 +1003,14 @@ ${patchPreview}`;
         });
       } else {
         // Normal case — push succeeded, provide compare URL.
-        const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
-        const encodedBase = baseBranch.split("/").map(encodeURIComponent).join("/");
-        const encodedHead = branchName.split("/").map(encodeURIComponent).join("/");
+        const encodedBase = encodePathSegments(baseBranch);
+        const encodedHead = encodePathSegments(branchName);
         const createPrUrl = `${githubServer}/${repoParts.owner}/${repoParts.repo}/compare/${encodedBase}...${encodedHead}?expand=1&title=${encodeURIComponent(title)}`;
         const templatePath = `${process.env.RUNNER_TEMP}/gh-aw/prompts/manifest_protection_create_pr_fallback.md`;
         fallbackBody = renderTemplateFromFile(templatePath, {
           main_body: mainBodyContent,
           footer: footerContent,
-          files: filesFormatted,
+          files: fileList,
           create_pr_url: createPrUrl,
         });
       }

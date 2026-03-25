@@ -38,20 +38,20 @@ func GetAllCodemods() []Codemod {
 		getDiscussionFlagRemovalCodemod(),
 		getMCPModeToTypeCodemod(),
 		getInstallScriptURLCodemod(),
-		getBashAnonymousRemovalCodemod(),             // Replace bash: with bash: false
-		newActivationOutputsCodemod(),                // Transform needs.activation.outputs.* to steps.sanitized.outputs.*
-		getRolesToOnRolesCodemod(),                   // Move top-level roles to on.roles
-		getBotsToOnBotsCodemod(),                     // Move top-level bots to on.bots
-		getEngineStepsToTopLevelCodemod(),            // Move engine.steps to top-level steps
-		getAssignToAgentDefaultAgentCodemod(),        // Rename deprecated default-agent to name in assign-to-agent
-		getPlaywrightDomainsCodemod(),                // Migrate tools.playwright.allowed_domains to network.allowed
-		getExpiresIntegerToStringCodemod(),           // Convert expires integer (days) to string with 'd' suffix
-		getSerenaLocalModeCodemod(),                  // Replace tools.serena mode: local with mode: docker
-		getGitHubAppCodemod(),                        // Rename deprecated 'app' to 'github-app'
-		getSafeInputsToMCPScriptsCodemod(),           // Rename safe-inputs to mcp-scripts
-		getPluginsToDependenciesCodemod(),            // Migrate plugins to dependencies (plugins removed in favour of APM)
-		getGitHubReposToAllowedReposCodemod(),        // Rename deprecated tools.github.repos to tools.github.allowed-repos
-		getDependenciesToImportsAPMPackagesCodemod(), // Migrate dependencies to imports.apm-packages (dependencies deprecated)
+		getBashAnonymousRemovalCodemod(),              // Replace bash: with bash: false
+		newActivationOutputsCodemod(),                 // Transform needs.activation.outputs.* to steps.sanitized.outputs.*
+		getRolesToOnRolesCodemod(),                    // Move top-level roles to on.roles
+		getBotsToOnBotsCodemod(),                      // Move top-level bots to on.bots
+		getEngineStepsToTopLevelCodemod(),             // Move engine.steps to top-level steps
+		getAssignToAgentDefaultAgentCodemod(),         // Rename deprecated default-agent to name in assign-to-agent
+		getPlaywrightDomainsToNetworkAllowedCodemod(), // Migrate tools.playwright.allowed_domains to network.allowed
+		getExpiresIntegerToStringCodemod(),            // Convert expires integer (days) to string with 'd' suffix
+		getSerenaLocalModeCodemod(),                   // Replace tools.serena mode: local with mode: docker
+		getGitHubAppCodemod(),                         // Rename deprecated 'app' to 'github-app'
+		getSafeInputsToMCPScriptsCodemod(),            // Rename safe-inputs to mcp-scripts
+		getPluginsToDependenciesCodemod(),             // Migrate plugins to dependencies (plugins removed in favour of APM)
+		getGitHubReposToAllowedReposCodemod(),         // Rename deprecated tools.github.repos to tools.github.allowed-repos
+		getDependenciesToImportsAPMPackagesCodemod(),  // Migrate dependencies to imports.apm-packages (dependencies deprecated)
 	}
 	fixCodemodsLog.Printf("Loaded codemod registry: %d codemods available", len(codemods))
 	return codemods

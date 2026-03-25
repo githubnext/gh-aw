@@ -63,24 +63,29 @@ Create an issue.
 		t.Error("Detection job missing detection_conclusion output")
 	}
 
-	// Check that parse_detection_results step has an ID in the detection job
-	if !strings.Contains(detectionSection, "id: parse_detection_results") {
-		t.Error("Parse detection results step missing ID")
+	// Check that the combined parse-and-conclude step has ID detection_conclusion
+	if !strings.Contains(detectionSection, "id: detection_conclusion") {
+		t.Error("Combined parse-and-conclude step missing id: detection_conclusion")
 	}
 
 	// Check that the script uses require to load the parse_threat_detection_results.cjs file
 	if !strings.Contains(detectionSection, "require('${{ runner.temp }}/gh-aw/actions/parse_threat_detection_results.cjs')") {
-		t.Error("Parse results step doesn't use require to load parse_threat_detection_results.cjs")
+		t.Error("Detection conclusion step doesn't use require to load parse_threat_detection_results.cjs")
 	}
 
 	// Check that setupGlobals is called
 	if !strings.Contains(yaml, "setupGlobals(core, github, context, exec, io)") {
-		t.Error("Parse results step doesn't call setupGlobals")
+		t.Error("Detection conclusion step doesn't call setupGlobals")
 	}
 
 	// Check that main() is awaited
 	if !strings.Contains(yaml, "await main()") {
-		t.Error("Parse results step doesn't await main()")
+		t.Error("Detection conclusion step doesn't await main()")
+	}
+
+	// Verify there is no separate parse_detection_results step (it is now merged into detection_conclusion)
+	if strings.Contains(detectionSection, "id: parse_detection_results") {
+		t.Error("Separate parse_detection_results step should no longer exist; logic is consolidated in detection_conclusion")
 	}
 }
 

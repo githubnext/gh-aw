@@ -84,43 +84,14 @@ func GenerateJobConcurrencyConfig(workflowData *WorkflowData) string {
 // workflow-level concurrency handling (issues, PRs, discussions, push, command,
 // slash_command, or workflow_dispatch-only)
 func hasSpecialTriggers(workflowData *WorkflowData) bool {
-	// Check for specific trigger types that have special concurrency handling
 	on := workflowData.On
-
-	// Check for issue-related triggers
-	if isIssueWorkflow(on) {
-		return true
-	}
-
-	// Check for pull request triggers
-	if isPullRequestWorkflow(on) {
-		return true
-	}
-
-	// Check for discussion triggers
-	if isDiscussionWorkflow(on) {
-		return true
-	}
-
-	// Check for push triggers
-	if isPushWorkflow(on) {
-		return true
-	}
-
-	// Check for slash_command triggers (synthetic event that expands to issue_comment + workflow_dispatch)
-	if isSlashCommandWorkflow(on) {
-		return true
-	}
-
-	// workflow_dispatch-only workflows represent explicit user intent, so the
-	// top-level workflow concurrency group is sufficient – no engine-level group needed
-	if isWorkflowDispatchOnly(on) {
-		return true
-	}
-
-	// If none of the special triggers are detected, return false
-	// This means other generic triggers (e.g. schedule) will get default concurrency
-	return false
+	return isIssueWorkflow(on) ||
+		isPullRequestWorkflow(on) ||
+		isDiscussionWorkflow(on) ||
+		isPushWorkflow(on) ||
+		isSlashCommandWorkflow(on) ||
+		// workflow_dispatch-only represents explicit user intent — top-level concurrency is sufficient
+		isWorkflowDispatchOnly(on)
 }
 
 // isPullRequestWorkflow checks if a workflow's "on" section contains pull_request triggers

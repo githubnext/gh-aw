@@ -35,8 +35,10 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 	// Compute permissions based on configured safe outputs (principle of least privilege)
 	permissions := ComputePermissionsForSafeOutputs(data.SafeOutputs)
 
-	// Track whether threat detection job is enabled for step conditions
-	threatDetectionEnabled := data.SafeOutputs.ThreatDetection != nil
+	// Track whether threat detection job is enabled for step conditions.
+	// When the engine is explicitly disabled and there are no custom steps,
+	// the detection job is skipped entirely (see buildDetectionJob).
+	threatDetectionEnabled := IsDetectionJobEnabled(data.SafeOutputs)
 
 	// Note: GitHub App token minting step is added later (after setup/downloads)
 	// to ensure proper step ordering. See insertion logic below.
@@ -96,16 +98,8 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 			if err != nil {
 				return nil, nil, fmt.Errorf("failed to convert safe-outputs step at index %d to typed step: %w", i, err)
 			}
-			// Inject GH_HOST from the ghes-host-config step output so user steps
-			// have access to it for gh CLI commands (previously available via GITHUB_ENV).
-			if typedStep.Env == nil {
-				typedStep.Env = make(map[string]string)
-			}
-			if _, exists := typedStep.Env["GH_HOST"]; !exists {
-				typedStep.Env["GH_HOST"] = "${{ steps.ghes-host-config.outputs.GH_HOST }}"
-			}
 			pinnedStep := ApplyActionPinToTypedStep(typedStep, data)
-			stepYAML, err := c.convertStepToYAML(pinnedStep.ToMap())
+			stepYAML, err := ConvertStepToYAML(pinnedStep.ToMap())
 			if err != nil {
 				return nil, nil, fmt.Errorf("failed to convert safe-outputs step at index %d to YAML: %w", i, err)
 			}

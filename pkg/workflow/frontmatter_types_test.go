@@ -191,6 +191,27 @@ func TestParseFrontmatterConfig(t *testing.T) {
 		}
 	})
 
+	t.Run("handles observability configuration", func(t *testing.T) {
+		frontmatter := map[string]any{
+			"observability": map[string]any{
+				"job-summary": "on",
+			},
+		}
+
+		config, err := ParseFrontmatterConfig(frontmatter)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+
+		if config.Observability == nil {
+			t.Fatal("Observability should not be nil")
+		}
+
+		if config.Observability.JobSummary != "on" {
+			t.Errorf("JobSummary = %q, want %q", config.Observability.JobSummary, "on")
+		}
+	})
+
 	t.Run("handles jobs configuration", func(t *testing.T) {
 		frontmatter := map[string]any{
 			"jobs": map[string]any{
