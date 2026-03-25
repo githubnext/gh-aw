@@ -794,17 +794,13 @@ jobs:
           # GitHub instance (GHES/GHEC). On github.com this is a harmless no-op.
           GH_HOST="${GITHUB_SERVER_URL#https://}"
           GH_HOST="${GH_HOST#http://}"
-          echo "GH_HOST=${GH_HOST}" >> "$GITHUB_OUTPUT"
+          echo "GH_HOST=${GH_HOST}" >> "$GITHUB_ENV"
       - name: Checkout repository
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-        env:
-          GH_HOST: ${{ steps.ghes-host-config.outputs.GH_HOST }}
         with:
           persist-credentials: false
       - name: Setup Node.js
         uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6.3.0
-        env:
-          GH_HOST: ${{ steps.ghes-host-config.outputs.GH_HOST }}
         with:
           node-version: "24"
       - name: Check for npm updates in docs
@@ -822,8 +818,6 @@ jobs:
             echo "has_updates=false" >> "$GITHUB_OUTPUT"
             echo "No npm updates available in docs folder, skipping agent job"
           fi
-        env:
-          GH_HOST: ${{ steps.ghes-host-config.outputs.GH_HOST }}
         working-directory: ./docs
 
   conclusion:
@@ -1247,7 +1241,7 @@ jobs:
           # GitHub instance (GHES/GHEC). On github.com this is a harmless no-op.
           GH_HOST="${GITHUB_SERVER_URL#https://}"
           GH_HOST="${GH_HOST#http://}"
-          echo "GH_HOST=${GH_HOST}" >> "$GITHUB_OUTPUT"
+          echo "GH_HOST=${GH_HOST}" >> "$GITHUB_ENV"
       - name: Process Safe Outputs
         id: process_safe_outputs
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8

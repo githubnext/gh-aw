@@ -843,11 +843,9 @@ jobs:
           # GitHub instance (GHES/GHEC). On github.com this is a harmless no-op.
           GH_HOST="${GITHUB_SERVER_URL#https://}"
           GH_HOST="${GH_HOST#http://}"
-          echo "GH_HOST=${GH_HOST}" >> "$GITHUB_OUTPUT"
+          echo "GH_HOST=${GH_HOST}" >> "$GITHUB_ENV"
       - name: Checkout repository
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-        env:
-          GH_HOST: ${{ steps.ghes-host-config.outputs.GH_HOST }}
         with:
           persist-credentials: false
       - name: Install ast-grep
@@ -855,8 +853,6 @@ jobs:
           # Install ast-grep using cargo for better version control and security
           cargo install ast-grep --locked
           echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
-        env:
-          GH_HOST: ${{ steps.ghes-host-config.outputs.GH_HOST }}
       - name: Detect Go patterns
         id: detect
         run: |
@@ -875,8 +871,6 @@ jobs:
             echo "found_patterns=false" >> "$GITHUB_OUTPUT"
             echo "::notice::No Go patterns matching json:\"-\" found"
           fi
-        env:
-          GH_HOST: ${{ steps.ghes-host-config.outputs.GH_HOST }}
 
   conclusion:
     needs:
@@ -1214,7 +1208,7 @@ jobs:
           # GitHub instance (GHES/GHEC). On github.com this is a harmless no-op.
           GH_HOST="${GITHUB_SERVER_URL#https://}"
           GH_HOST="${GH_HOST#http://}"
-          echo "GH_HOST=${GH_HOST}" >> "$GITHUB_OUTPUT"
+          echo "GH_HOST=${GH_HOST}" >> "$GITHUB_ENV"
       - name: Process Safe Outputs
         id: process_safe_outputs
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
