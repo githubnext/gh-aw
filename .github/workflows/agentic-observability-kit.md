@@ -151,6 +151,8 @@ Keep these sections visible:
 4. `### Episode Regressions`
 5. `### Recommended Actions`
 
+Keep each visible section compact. Prefer short numeric summaries, 1-line judgments, and only the highest-value episodes.
+
 Include small numeric summaries such as:
 
 - workflows analyzed
@@ -178,6 +180,8 @@ For each highlighted episode or workflow, explain:
 - whether it is stable against a cohort match or only compared to latest success
 - whether the risky behavior is new, repeated, or likely intentional
 - what a team should change next
+
+Do not turn the visible summary into a full inventory. Push secondary detail into `<details>` blocks.
 
 ## Escalation Thresholds
 
