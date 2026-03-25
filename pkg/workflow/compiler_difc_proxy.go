@@ -276,5 +276,11 @@ func difcProxyLogPaths(data *WorkflowData) []string {
 	}
 	// proxy-logs/ contains TLS certs and container stderr from the proxy
 	// (mcp-logs/ is already collected as part of standard MCP logging)
-	return []string{"/tmp/gh-aw/proxy-logs/"}
+	// Exclude proxy-tls/ because it contains the TLS private key (server.key) which is
+	// created by the Docker container with root-only permissions, causing artifact upload
+	// to fail with EACCES. The private key is ephemeral and should not be uploaded.
+	return []string{
+		"/tmp/gh-aw/proxy-logs/",
+		"!/tmp/gh-aw/proxy-logs/proxy-tls/",
+	}
 }
