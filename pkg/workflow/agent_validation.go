@@ -14,6 +14,7 @@
 //   - validateMaxTurnsSupport() - Validates max-turns feature support
 //   - validateMaxContinuationsSupport() - Validates max-continuations feature support
 //   - validateWebSearchSupport() - Validates web-search feature support (warning)
+//   - validateImportsProviderSupport() - Validates marketplace/plugin support (error if unsupported)
 //   - validateWorkflowRunBranches() - Validates workflow_run has branch restrictions
 //
 // # Validation Patterns
@@ -47,6 +48,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/goccy/go-yaml"
@@ -166,7 +168,37 @@ func (c *Compiler) validateWebSearchSupport(tools map[string]any, engine CodingA
 	}
 }
 
-// validateWorkflowRunBranches validates that workflow_run triggers include branch restrictions
+// validateImportsProviderSupport validates that imports.marketplaces and imports.plugins
+// are only used with engines that implement the ImportsProvider interface.
+// Codex and Gemini do not implement ImportsProvider; specifying marketplaces or plugins
+// with those engines is an error.
+func (c *Compiler) validateImportsProviderSupport(marketplaces []string, plugins []string, engine CodingAgentEngine) error {
+	if len(marketplaces) == 0 && len(plugins) == 0 {
+		// Nothing to validate
+		return nil
+	}
+
+	agentValidationLog.Printf("Validating ImportsProvider support for engine: %s", engine.GetID())
+
+	if _, ok := engine.(ImportsProvider); ok {
+		// Engine supports marketplaces/plugins
+		return nil
+	}
+
+	// Determine which fields triggered the error for a precise message
+	var features []string
+	if len(marketplaces) > 0 {
+		features = append(features, "imports.marketplaces")
+	}
+	if len(plugins) > 0 {
+		features = append(features, "imports.plugins")
+	}
+
+	agentValidationLog.Printf("Engine %s does not support ImportsProvider (%s)", engine.GetID(), strings.Join(features, ", "))
+	return fmt.Errorf("%s not supported: engine '%s' does not support marketplace/plugin installation",
+		strings.Join(features, " and "), engine.GetID())
+}
+
 // This is a security best practice to avoid running on all branches
 func (c *Compiler) validateWorkflowRunBranches(workflowData *WorkflowData, markdownPath string) error {
 	if workflowData.On == "" {

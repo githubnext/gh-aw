@@ -535,3 +535,165 @@ imports:
 	count = strings.Count(yamlStr, "copilot plugin install common-plugin")
 	assert.Equal(t, 1, count, "Duplicate plugin name should appear only once")
 }
+
+// TestValidateImportsProviderSupport tests that engines without ImportsProvider support
+// return an error when marketplaces or plugins are specified.
+func TestValidateImportsProviderSupport(t *testing.T) {
+	compiler := NewCompiler()
+
+	tests := []struct {
+		name         string
+		engine       CodingAgentEngine
+		marketplaces []string
+		plugins      []string
+		wantErr      bool
+		errContains  string
+	}{
+		{
+			name:         "copilot with marketplace - no error",
+			engine:       &CopilotEngine{BaseEngine: BaseEngine{id: "copilot", displayName: "GitHub Copilot"}},
+			marketplaces: []string{"https://marketplace.example.com"},
+			wantErr:      false,
+		},
+		{
+			name:    "copilot with plugin - no error",
+			engine:  &CopilotEngine{BaseEngine: BaseEngine{id: "copilot", displayName: "GitHub Copilot"}},
+			plugins: []string{"my-plugin"},
+			wantErr: false,
+		},
+		{
+			name:         "claude with marketplace - no error",
+			engine:       &ClaudeEngine{BaseEngine: BaseEngine{id: "claude", displayName: "Claude"}},
+			marketplaces: []string{"https://marketplace.example.com"},
+			wantErr:      false,
+		},
+		{
+			name:    "claude with plugin - no error",
+			engine:  &ClaudeEngine{BaseEngine: BaseEngine{id: "claude", displayName: "Claude"}},
+			plugins: []string{"my-plugin"},
+			wantErr: false,
+		},
+		{
+			name:         "codex with marketplace - error",
+			engine:       &CodexEngine{BaseEngine: BaseEngine{id: "codex", displayName: "Codex"}},
+			marketplaces: []string{"https://marketplace.example.com"},
+			wantErr:      true,
+			errContains:  "imports.marketplaces",
+		},
+		{
+			name:        "codex with plugin - error",
+			engine:      &CodexEngine{BaseEngine: BaseEngine{id: "codex", displayName: "Codex"}},
+			plugins:     []string{"my-plugin"},
+			wantErr:     true,
+			errContains: "imports.plugins",
+		},
+		{
+			name:         "codex with both - error mentions both",
+			engine:       &CodexEngine{BaseEngine: BaseEngine{id: "codex", displayName: "Codex"}},
+			marketplaces: []string{"https://marketplace.example.com"},
+			plugins:      []string{"my-plugin"},
+			wantErr:      true,
+			errContains:  "imports.marketplaces",
+		},
+		{
+			name:         "gemini with marketplace - error",
+			engine:       &GeminiEngine{BaseEngine: BaseEngine{id: "gemini", displayName: "Gemini"}},
+			marketplaces: []string{"https://marketplace.example.com"},
+			wantErr:      true,
+			errContains:  "imports.marketplaces",
+		},
+		{
+			name:        "gemini with plugin - error",
+			engine:      &GeminiEngine{BaseEngine: BaseEngine{id: "gemini", displayName: "Gemini"}},
+			plugins:     []string{"my-plugin"},
+			wantErr:     true,
+			errContains: "imports.plugins",
+		},
+		{
+			name:    "any engine with empty lists - no error",
+			engine:  &CodexEngine{BaseEngine: BaseEngine{id: "codex", displayName: "Codex"}},
+			wantErr: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := compiler.validateImportsProviderSupport(tt.marketplaces, tt.plugins, tt.engine)
+			if tt.wantErr {
+				require.Error(t, err, "Expected error for engine %s", tt.engine.GetID())
+				assert.Contains(t, err.Error(), tt.errContains, "Error message should mention the unsupported field")
+				assert.Contains(t, err.Error(), tt.engine.GetID(), "Error message should mention the engine ID")
+			} else {
+				assert.NoError(t, err, "Expected no error for engine %s", tt.engine.GetID())
+			}
+		})
+	}
+}
+
+// TestCompileWorkflow_MarketplacesWithUnsupportedEngine verifies that using imports.marketplaces
+// with an engine that does not implement ImportsProvider fails with a clear error.
+func TestCompileWorkflow_MarketplacesWithUnsupportedEngine(t *testing.T) {
+	tmpDir := t.TempDir()
+	workflowFile := filepath.Join(tmpDir, ".github", "workflows", "test-workflow.md")
+	require.NoError(t, os.MkdirAll(filepath.Dir(workflowFile), 0755))
+
+	workflowContent := `---
+on: issues
+permissions:
+  contents: read
+  issues: read
+engine: codex
+imports:
+  marketplaces:
+    - https://marketplace.example.com
+---
+
+# Test Codex With Marketplace
+
+Process the issue.
+`
+	require.NoError(t, os.WriteFile(workflowFile, []byte(workflowContent), 0600))
+
+	originalDir, _ := os.Getwd()
+	defer os.Chdir(originalDir) //nolint:errcheck
+	require.NoError(t, os.Chdir(tmpDir))
+
+	compiler := NewCompiler()
+	err := compiler.CompileWorkflow(workflowFile)
+	require.Error(t, err, "Should fail when marketplaces are used with codex engine")
+	assert.Contains(t, err.Error(), "imports.marketplaces", "Error should mention the unsupported field")
+}
+
+// TestCompileWorkflow_PluginsWithUnsupportedEngine verifies that using imports.plugins
+// with an engine that does not implement ImportsProvider fails with a clear error.
+func TestCompileWorkflow_PluginsWithUnsupportedEngine(t *testing.T) {
+	tmpDir := t.TempDir()
+	workflowFile := filepath.Join(tmpDir, ".github", "workflows", "test-workflow.md")
+	require.NoError(t, os.MkdirAll(filepath.Dir(workflowFile), 0755))
+
+	workflowContent := `---
+on: issues
+permissions:
+  contents: read
+  issues: read
+engine: gemini
+imports:
+  plugins:
+    - my-plugin
+---
+
+# Test Gemini With Plugin
+
+Process the issue.
+`
+	require.NoError(t, os.WriteFile(workflowFile, []byte(workflowContent), 0600))
+
+	originalDir, _ := os.Getwd()
+	defer os.Chdir(originalDir) //nolint:errcheck
+	require.NoError(t, os.Chdir(tmpDir))
+
+	compiler := NewCompiler()
+	err := compiler.CompileWorkflow(workflowFile)
+	require.Error(t, err, "Should fail when plugins are used with gemini engine")
+	assert.Contains(t, err.Error(), "imports.plugins", "Error should mention the unsupported field")
+}

@@ -232,6 +232,11 @@ func (c *Compiler) processToolsAndMarkdown(result *parser.FrontmatterResult, cle
 	// Validate web-search support for the current engine (warning only)
 	c.validateWebSearchSupport(tools, agenticEngine)
 
+	// Validate that imports.marketplaces and imports.plugins are only used with supported engines
+	if err := c.validateImportsProviderSupport(marketplaces, plugins, agenticEngine); err != nil {
+		return nil, err
+	}
+
 	// Process @include directives in markdown content
 	markdownContent, includedMarkdownFiles, err := parser.ExpandIncludesWithManifest(result.Markdown, markdownDir, false)
 	if err != nil {
