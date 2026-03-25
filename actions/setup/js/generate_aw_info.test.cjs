@@ -257,4 +257,47 @@ describe("generate_aw_info.cjs", () => {
     expect(awInfo.context).toEqual(validContext);
     expect(mockCore.warning).not.toHaveBeenCalledWith(expect.stringContaining("aw_context"));
   });
+
+  it("should accept valid aw_context from repository_dispatch client_payload", async () => {
+    const validContext = {
+      repo: "org/repo",
+      run_id: "12345",
+      workflow_id: "org/repo/.github/workflows/dispatcher.yml@refs/heads/main",
+      workflow_call_id: "12345-1",
+      time: new Date().toISOString(),
+      actor: "octocat",
+      event_type: "repository_dispatch",
+    };
+    const contextWithClientPayload = {
+      ...mockContext,
+      payload: { client_payload: { aw_context: JSON.stringify(validContext) } },
+    };
+    await main(mockCore, contextWithClientPayload);
+    const awInfo = JSON.parse(fs.readFileSync(awInfoPath, "utf8"));
+    expect(awInfo.context).toEqual(validContext);
+    expect(mockCore.warning).not.toHaveBeenCalledWith(expect.stringContaining("aw_context"));
+  });
+
+  it("should prefer inputs.aw_context over client_payload.aw_context when both present", async () => {
+    const inputsContext = {
+      repo: "org/inputs-repo",
+      run_id: "11111",
+      workflow_id: "org/inputs-repo/.github/workflows/wf.yml@refs/heads/main",
+    };
+    const clientPayloadContext = {
+      repo: "org/client-repo",
+      run_id: "22222",
+      workflow_id: "org/client-repo/.github/workflows/wf.yml@refs/heads/main",
+    };
+    const contextWithBoth = {
+      ...mockContext,
+      payload: {
+        inputs: { aw_context: JSON.stringify(inputsContext) },
+        client_payload: { aw_context: JSON.stringify(clientPayloadContext) },
+      },
+    };
+    await main(mockCore, contextWithBoth);
+    const awInfo = JSON.parse(fs.readFileSync(awInfoPath, "utf8"));
+    expect(awInfo.context).toEqual(inputsContext);
+  });
 });

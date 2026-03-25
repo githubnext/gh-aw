@@ -127,7 +127,8 @@ async function main(config = {}) {
     }
 
     // Inject aw_context so the receiving repository can trace the dispatch back to its caller.
-    clientPayload["aw_context"] = buildAwContext();
+    // JSON.stringify for consistency with dispatch_workflow, which also passes aw_context as a string.
+    clientPayload["aw_context"] = JSON.stringify(buildAwContext());
 
     const eventType = toolConfig.event_type || toolConfig.eventType || "";
     if (!eventType) {
