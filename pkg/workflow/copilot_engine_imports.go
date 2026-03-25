@@ -21,7 +21,7 @@ func (e *CopilotEngine) GetMarketplaceSetupSteps(marketplaces []string, workflow
 	var steps []GitHubActionStep
 	for _, url := range marketplaces {
 		step := GitHubActionStep{
-			"      - name: Register Copilot marketplace: " + url,
+			`      - name: "Register Copilot marketplace: ` + url + `"`,
 			"        env:",
 			"          GITHUB_TOKEN: ${{ github.token }}",
 			"        run: copilot plugin marketplace add " + url,
@@ -41,7 +41,7 @@ func (e *CopilotEngine) GetPluginInstallSteps(plugins []string, workflowData *Wo
 	var steps []GitHubActionStep
 	for _, name := range plugins {
 		step := GitHubActionStep{
-			"      - name: Install Copilot plugin: " + name,
+			`      - name: "Install Copilot plugin: ` + name + `"`,
 			"        env:",
 			"          GITHUB_TOKEN: ${{ github.token }}",
 			"        run: copilot plugin install " + name,

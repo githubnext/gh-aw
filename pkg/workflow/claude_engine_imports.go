@@ -21,7 +21,7 @@ func (e *ClaudeEngine) GetMarketplaceSetupSteps(marketplaces []string, workflowD
 	var steps []GitHubActionStep
 	for _, url := range marketplaces {
 		step := GitHubActionStep{
-			"      - name: Register Claude marketplace: " + url,
+			`      - name: "Register Claude marketplace: ` + url + `"`,
 			"        env:",
 			"          GITHUB_TOKEN: ${{ github.token }}",
 			"        run: claude plugin marketplace add " + url,
@@ -41,7 +41,7 @@ func (e *ClaudeEngine) GetPluginInstallSteps(plugins []string, workflowData *Wor
 	var steps []GitHubActionStep
 	for _, name := range plugins {
 		step := GitHubActionStep{
-			"      - name: Install Claude plugin: " + name,
+			`      - name: "Install Claude plugin: ` + name + `"`,
 			"        env:",
 			"          GITHUB_TOKEN: ${{ github.token }}",
 			"        run: claude plugin install " + name,
