@@ -584,10 +584,10 @@ function convertXmlTags(s) {
    */
   function stripDangerousAttributes(tagContent) {
     // Match: one-or-more whitespace + (on* | style) + optional =value
-    // Value forms: "...", '...', or unquoted (no whitespace / >), or bare (no =)
-    // The [^\s>"'] unquoted form excludes >, whitespace, and quote chars so it
-    // cannot consume the closing > of the tag.
-    return tagContent.replace(/\s+(?:on\w+|style)(?:\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>"']*))?/gi, "");
+    // Value forms: "...", '...', or unquoted (no whitespace / > / quote chars), or bare (no =)
+    // The unquoted form excludes >, whitespace, and all quote characters (', ", `) so it
+    // cannot consume the closing > of the tag or straddle other attribute values.
+    return tagContent.replace(/\s+(?:on\w+|style)(?:\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>"'`]*))?/gi, "");
   }
 
   // Convert opening tags: <tag> or <tag attr="value"> to (tag) or (tag attr="value")

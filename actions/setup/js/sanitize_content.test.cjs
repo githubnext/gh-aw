@@ -548,6 +548,18 @@ describe("sanitize_content.cjs", () => {
       expect(result).toBe("<span>text</span>");
     });
 
+    it("should strip on* attribute with extra whitespace around equals sign", () => {
+      const result = sanitizeContent('<span  onclick  =  "bad()">text</span>');
+      expect(result).toBe("<span>text</span>");
+    });
+
+    it("should treat concatenated tag+attribute name as a single unknown tag (not strip attributes)", () => {
+      // <spanonclick="bad()"> is not a valid <span> tag — the tag name is "spanonclick"
+      // which is not in the allowlist, so it gets converted to parentheses entirely
+      const result = sanitizeContent('<spanonclick="bad()">text</spanonclick>');
+      expect(result).toBe('(spanonclick="bad()")text(/spanonclick)');
+    });
+
     it("should not affect disallowed tags (still converted to parentheses with attributes)", () => {
       const result = sanitizeContent('<div onclick="bad()">content</div>');
       expect(result).toBe('(div onclick="bad()")content(/div)');
