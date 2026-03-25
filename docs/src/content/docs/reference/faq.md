@@ -295,6 +295,14 @@ Both files should be committed to version control:
 - **`.md` file**: Your source - edit the prompt body freely; changes take effect at the next run without recompiling
 - **`.lock.yml` file**: The compiled workflow GitHub Actions actually runs; must be regenerated after any frontmatter changes (permissions, tools, triggers)
 
+### What is the actions-lock.json file?
+
+The `.github/aw/actions-lock.json` file is a cache of resolved `action@version` → SHA mappings. During compilation, every action reference must be pinned to an immutable commit SHA for security. Resolving a version tag to a SHA requires querying the GitHub API (scanning releases), which can fail when the available token has limited permissions — for example, when compiling via GitHub Copilot Coding Agent (CCA) where the token may not have access to external repositories.
+
+The cache avoids this problem: if a SHA was previously resolved (using a user PAT or a GitHub Actions token with broader access), the result is stored in `actions-lock.json` and reused on subsequent compilations, regardless of the current token's capabilities. Without this cache, compilation is unstable — it succeeds with a permissive token but fails when token access is restricted.
+
+Commit `actions-lock.json` to version control so that all contributors and automated tools (including CCA) use consistent SHA pins without needing to re-resolve them. Refresh the cache periodically with `gh aw update-actions`, or delete it and recompile to force a full re-resolution when you have an appropriate token. See [Action Pinning](/gh-aw/reference/compilation-process/#action-pinning) for details.
+
 ### Why do I need a token or key?
 
 When using **GitHub Copilot CLI**, a Personal Access Token (PAT) with "Copilot Requests" permission authenticates and associates automation work with your GitHub account. This ensures usage tracking against your subscription, appropriate AI permissions, and auditable actions. In the future, this may support organization-level association. See [Authentication](/gh-aw/reference/auth/).
