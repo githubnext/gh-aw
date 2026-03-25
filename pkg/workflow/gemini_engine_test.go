@@ -513,4 +513,16 @@ func TestGenerateGeminiSettingsStep(t *testing.T) {
 		assert.Contains(t, content, "write_file", "Should include write_file for edit tool")
 		assert.Contains(t, content, "replace", "Should include replace for edit tool")
 	})
+
+	t.Run("GH_AW_GEMINI_BASE_CONFIG env var is single-quoted for valid YAML", func(t *testing.T) {
+		workflowData := &WorkflowData{
+			Name:  "test-workflow",
+			Tools: map[string]any{},
+		}
+		step := engine.generateGeminiSettingsStep(workflowData)
+		content := strings.Join(step, "\n")
+
+		// The JSON value must be single-quoted so YAML doesn't treat it as an object
+		assert.Contains(t, content, "GH_AW_GEMINI_BASE_CONFIG: '", "JSON env var value must be single-quoted for valid YAML")
+	})
 }

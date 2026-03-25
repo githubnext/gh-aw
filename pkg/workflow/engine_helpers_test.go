@@ -363,3 +363,81 @@ func TestGetNpmBinPathSetup_NoGorootDoesNotBreakChain(t *testing.T) {
 		t.Errorf("Expected command chain to continue when GOROOT is empty, got: %q", result)
 	}
 }
+
+func TestYamlStringValue(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{
+			name:     "plain string unchanged",
+			input:    "hello world",
+			expected: "hello world",
+		},
+		{
+			name:     "empty string unchanged",
+			input:    "",
+			expected: "",
+		},
+		{
+			name:     "github actions expression unchanged",
+			input:    "${{ secrets.TOKEN }}",
+			expected: "${{ secrets.TOKEN }}",
+		},
+		{
+			name:     "json object gets single-quoted",
+			input:    `{"key":"value"}`,
+			expected: `'{"key":"value"}'`,
+		},
+		{
+			name:     "json array gets single-quoted",
+			input:    `["a","b"]`,
+			expected: `'["a","b"]'`,
+		},
+		{
+			name:     "json object with embedded single quote gets escaped",
+			input:    `{"key":"it's"}`,
+			expected: `'{"key":"it''s"}'`,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := yamlStringValue(tt.input)
+			if result != tt.expected {
+				t.Errorf("yamlStringValue(%q) = %q, want %q", tt.input, result, tt.expected)
+			}
+		})
+	}
+}
+
+func TestFormatStepWithCommandAndEnvYAMLSafe(t *testing.T) {
+	t.Run("json env var is single-quoted for valid YAML", func(t *testing.T) {
+		stepLines := []string{"      - name: Test step"}
+		env := map[string]string{
+			"MY_JSON": `{"key":"value","nested":{"a":1}}`,
+		}
+		result := FormatStepWithCommandAndEnv(stepLines, "echo test", env)
+		output := strings.Join(result, "\n")
+
+		// The JSON value must be single-quoted so YAML treats it as a string
+		if !strings.Contains(output, `MY_JSON: '{"key":"value","nested":{"a":1}}'`) {
+			t.Errorf("Expected single-quoted JSON in env, got:\n%s", output)
+		}
+	})
+
+	t.Run("github expression env var is not quoted", func(t *testing.T) {
+		stepLines := []string{"      - name: Test step"}
+		env := map[string]string{
+			"MY_TOKEN": "${{ secrets.TOKEN }}",
+		}
+		result := FormatStepWithCommandAndEnv(stepLines, "echo test", env)
+		output := strings.Join(result, "\n")
+
+		// GitHub Actions expressions should not be wrapped in extra quotes
+		if !strings.Contains(output, "MY_TOKEN: ${{ secrets.TOKEN }}") {
+			t.Errorf("Expected unquoted github expression in env, got:\n%s", output)
+		}
+	})
+}
