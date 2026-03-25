@@ -554,6 +554,16 @@ func (c *Compiler) buildDetectionJob(data *WorkflowData) (*Job, error) {
 		return nil, nil
 	}
 
+	// When the engine is explicitly disabled and there are no custom steps,
+	// there is nothing to run in the detection job — skip it entirely.
+	// The detection job would only create an empty detection.log and the parser
+	// would correctly fail with "No THREAT_DETECTION_RESULT found".
+	td := data.SafeOutputs.ThreatDetection
+	if td.EngineDisabled && len(td.Steps) == 0 {
+		threatLog.Print("Threat detection engine disabled with no custom steps, skipping detection job")
+		return nil, nil
+	}
+
 	var steps []string
 
 	// Add setup action steps (same as agent job - installs the agentic engine)
