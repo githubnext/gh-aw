@@ -189,10 +189,10 @@ func TestCompileCopilotImportsMarketplacesPluginsShared(t *testing.T) {
 // TestCompileCodexImportsMarketplacesPluginsError verifies that using imports.marketplaces
 // or imports.plugins with the Codex engine fails compilation with a clear error.
 func TestCompileCodexImportsMarketplacesPluginsError(t *testing.T) {
-setup := setupIntegrationTest(t)
-defer setup.cleanup()
+	setup := setupIntegrationTest(t)
+	defer setup.cleanup()
 
-const workflowContent = `---
+	const workflowContent = `---
 on: issues
 permissions:
   contents: read
@@ -209,22 +209,22 @@ imports:
 
 Process the issue.
 `
-dstPath := filepath.Join(setup.workflowsDir, "test-codex-unsupported-imports.md")
-if err := os.WriteFile(dstPath, []byte(workflowContent), 0644); err != nil {
-t.Fatalf("Failed to write workflow: %v", err)
-}
+	dstPath := filepath.Join(setup.workflowsDir, "test-codex-unsupported-imports.md")
+	if err := os.WriteFile(dstPath, []byte(workflowContent), 0644); err != nil {
+		t.Fatalf("Failed to write workflow: %v", err)
+	}
 
-cmd := exec.Command(setup.binaryPath, "compile", dstPath)
-output, err := cmd.CombinedOutput()
-outputStr := string(output)
+	cmd := exec.Command(setup.binaryPath, "compile", dstPath)
+	output, err := cmd.CombinedOutput()
+	outputStr := string(output)
 
-if err == nil {
-t.Fatalf("Expected compile to fail for Codex with imports.marketplaces/plugins, but it succeeded\nOutput: %s", outputStr)
-}
+	if err == nil {
+		t.Fatalf("Expected compile to fail for Codex with imports.marketplaces/plugins, but it succeeded\nOutput: %s", outputStr)
+	}
 
-if !strings.Contains(outputStr, "imports.marketplaces") {
-t.Errorf("Error output should mention 'imports.marketplaces'\nOutput: %s", outputStr)
-}
+	if !strings.Contains(outputStr, "imports.marketplaces") {
+		t.Errorf("Error output should mention 'imports.marketplaces'\nOutput: %s", outputStr)
+	}
 
-t.Logf("Correctly rejected Codex workflow with imports.marketplaces/plugins: %s", outputStr)
+	t.Logf("Correctly rejected Codex workflow with imports.marketplaces/plugins: %s", outputStr)
 }
