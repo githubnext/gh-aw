@@ -13,7 +13,7 @@ This page is a consolidated reference for every token and secret used by GitHub 
 |---|---|---|---|
 | [`COPILOT_GITHUB_TOKEN`](#copilot_github_token) | Copilot CLI authentication | Yes (Copilot engine) | None |
 | [`ANTHROPIC_API_KEY`](#anthropic_api_key) | Claude engine authentication | Yes (Claude engine) | None |
-| [`OPENAI_API_KEY`](#openai_api_key) | Codex engine authentication | Yes (Codex engine) | `CODEX_API_KEY` |
+| [`OPENAI_API_KEY`](#openai_api_key) | Codex engine authentication | Yes (Codex engine) | `CODEX_API_KEY` → `OPENAI_API_KEY` |
 | [`GEMINI_API_KEY`](#gemini_api_key) | Gemini engine authentication | Yes (Gemini engine) | None |
 | [`GH_AW_GITHUB_MCP_SERVER_TOKEN`](#gh_aw_github_mcp_server_token) | GitHub MCP server authentication | Optional | `GH_AW_GITHUB_TOKEN` → `GITHUB_TOKEN` |
 | [`GH_AW_GITHUB_TOKEN`](#gh_aw_github_token) | General-purpose GitHub token | Optional | `GITHUB_TOKEN` |
@@ -80,7 +80,7 @@ Authenticates the [Codex by OpenAI](/gh-aw/reference/engines/#codex-by-openai) e
 | **Source** | OpenAI API key stored as repository secret |
 | **Required** | Yes, when using `engine: codex` |
 | **Permissions** | OpenAI API access (external service) |
-| **Fallback** | `CODEX_API_KEY` (alternative secret name) |
+| **Fallback** | None — the Codex engine resolves `CODEX_API_KEY` first, then `OPENAI_API_KEY` (`${{ secrets.CODEX_API_KEY \|\| secrets.OPENAI_API_KEY }}`) |
 | **Used by** | Codex inference step |
 
 ```bash wrap
