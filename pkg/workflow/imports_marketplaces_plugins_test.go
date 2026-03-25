@@ -386,3 +386,138 @@ Register a marketplace and install a plugin before the agent runs.
 	assert.Less(t, pluginIdx, agentIdx,
 		"Plugin installation step should appear before agent execution")
 }
+
+// TestCompileWorkflow_MarketplacesAndPluginsFromSharedImport verifies that
+// imports.marketplaces and imports.plugins defined in a shared workflow file
+// are merged into the main workflow's Marketplaces and Plugins.
+func TestCompileWorkflow_MarketplacesAndPluginsFromSharedImport(t *testing.T) {
+	tmpDir, err := os.MkdirTemp("", "compile-shared-imports-test*")
+	require.NoError(t, err, "Failed to create temp directory")
+	defer os.RemoveAll(tmpDir)
+
+	workflowsDir := filepath.Join(tmpDir, ".github", "workflows")
+	err = os.MkdirAll(workflowsDir, 0755)
+	require.NoError(t, err, "Failed to create workflows directory")
+
+	// Shared workflow that defines marketplaces and plugins
+	sharedContent := `---
+imports:
+  marketplaces:
+    - https://shared-marketplace.example.com
+  plugins:
+    - shared-plugin
+---
+`
+	sharedFile := filepath.Join(workflowsDir, "shared-tools.md")
+	err = os.WriteFile(sharedFile, []byte(sharedContent), 0600)
+	require.NoError(t, err, "Failed to write shared workflow")
+
+	// Main workflow imports the shared file and adds its own marketplace/plugin
+	workflowContent := `---
+name: Test Shared Imports Merge
+on:
+  workflow_dispatch:
+engine: copilot
+imports:
+  aw:
+    - shared-tools.md
+  marketplaces:
+    - https://main-marketplace.example.com
+  plugins:
+    - main-plugin
+---
+
+# Test Shared Imports Merge
+
+Verify that marketplaces and plugins from imported workflows are merged.
+`
+	workflowFile := filepath.Join(workflowsDir, "test-workflow.md")
+	err = os.WriteFile(workflowFile, []byte(workflowContent), 0600)
+	require.NoError(t, err, "Failed to write test workflow")
+
+	originalDir, err := os.Getwd()
+	require.NoError(t, err, "Failed to get current directory")
+	defer os.Chdir(originalDir) //nolint:errcheck
+
+	err = os.Chdir(tmpDir)
+	require.NoError(t, err, "Failed to change to temp directory")
+
+	compiler := NewCompiler()
+	err = compiler.CompileWorkflow(workflowFile)
+	require.NoError(t, err, "Failed to compile workflow")
+
+	lockFile := strings.Replace(workflowFile, ".md", ".lock.yml", 1)
+	yamlOutput, err := os.ReadFile(lockFile)
+	require.NoError(t, err, "Failed to read lock file")
+
+	yamlStr := string(yamlOutput)
+
+	// Both the main workflow's and the shared workflow's marketplaces and plugins should appear
+	assert.Contains(t, yamlStr, "copilot marketplace add https://main-marketplace.example.com",
+		"Main workflow marketplace should be present")
+	assert.Contains(t, yamlStr, "copilot marketplace add https://shared-marketplace.example.com",
+		"Shared workflow marketplace should be merged in")
+	assert.Contains(t, yamlStr, "copilot extension install main-plugin",
+		"Main workflow plugin should be present")
+	assert.Contains(t, yamlStr, "copilot extension install shared-plugin",
+		"Shared workflow plugin should be merged in")
+}
+
+// TestImportAccumulatorDeduplicatesMarketplacesAndPlugins verifies that importing
+// the same marketplace URL or plugin name from multiple shared workflows does not
+// produce duplicate setup steps.
+func TestCompileWorkflow_MarketplacesAndPluginsDeduplication(t *testing.T) {
+	tmpDir, err := os.MkdirTemp("", "compile-dedup-test*")
+	require.NoError(t, err)
+	defer os.RemoveAll(tmpDir)
+
+	workflowsDir := filepath.Join(tmpDir, ".github", "workflows")
+	require.NoError(t, os.MkdirAll(workflowsDir, 0755))
+
+	// Two shared files that both declare the same marketplace/plugin
+	for _, name := range []string{"shared-a.md", "shared-b.md"} {
+		content := `---
+imports:
+  marketplaces:
+    - https://common-marketplace.example.com
+  plugins:
+    - common-plugin
+---
+`
+		require.NoError(t, os.WriteFile(filepath.Join(workflowsDir, name), []byte(content), 0600))
+	}
+
+	workflowContent := `---
+name: Test Dedup
+on:
+  workflow_dispatch:
+engine: copilot
+imports:
+  aw:
+    - shared-a.md
+    - shared-b.md
+---
+
+# Test Dedup
+`
+	workflowFile := filepath.Join(workflowsDir, "test-workflow.md")
+	require.NoError(t, os.WriteFile(workflowFile, []byte(workflowContent), 0600))
+
+	originalDir, _ := os.Getwd()
+	defer os.Chdir(originalDir) //nolint:errcheck
+	require.NoError(t, os.Chdir(tmpDir))
+
+	compiler := NewCompiler()
+	require.NoError(t, compiler.CompileWorkflow(workflowFile))
+
+	lockFile := strings.Replace(workflowFile, ".md", ".lock.yml", 1)
+	yamlOutput, err := os.ReadFile(lockFile)
+	require.NoError(t, err)
+	yamlStr := string(yamlOutput)
+
+	// Should appear exactly once despite being defined in two shared imports
+	count := strings.Count(yamlStr, "copilot marketplace add https://common-marketplace.example.com")
+	assert.Equal(t, 1, count, "Duplicate marketplace URL should appear only once")
+	count = strings.Count(yamlStr, "copilot extension install common-plugin")
+	assert.Equal(t, 1, count, "Duplicate plugin name should appear only once")
+}

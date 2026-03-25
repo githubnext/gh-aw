@@ -45,6 +45,10 @@ type importAccumulator struct {
 	agentImportSpec          string
 	repositoryImports        []string
 	importInputs             map[string]any
+	marketplaces             []string
+	marketplacesSet          map[string]bool
+	plugins                  []string
+	pluginsSet               map[string]bool
 	// First on.github-token / on.github-app found across all imported files (first-wins strategy)
 	activationGitHubToken string
 	activationGitHubApp   string // JSON-encoded GitHubAppConfig
@@ -57,11 +61,13 @@ type importAccumulator struct {
 // during deduplication. Slices are left as nil, which is valid for append operations.
 func newImportAccumulator() *importAccumulator {
 	return &importAccumulator{
-		botsSet:      make(map[string]bool),
-		labelsSet:    make(map[string]bool),
-		skipRolesSet: make(map[string]bool),
-		skipBotsSet:  make(map[string]bool),
-		importInputs: make(map[string]any),
+		botsSet:         make(map[string]bool),
+		labelsSet:       make(map[string]bool),
+		skipRolesSet:    make(map[string]bool),
+		skipBotsSet:     make(map[string]bool),
+		importInputs:    make(map[string]any),
+		marketplacesSet: make(map[string]bool),
+		pluginsSet:      make(map[string]bool),
 	}
 }
 
@@ -288,6 +294,33 @@ func (acc *importAccumulator) extractAllImportFields(content []byte, item import
 		}
 	}
 
+	// Extract imports.marketplaces from imported file (merge into set to avoid duplicates)
+	if importsAny, hasImports := fm["imports"]; hasImports {
+		if importsMap, ok := importsAny.(map[string]any); ok {
+			if marketplacesAny, hasMarketplaces := importsMap["marketplaces"]; hasMarketplaces {
+				if marketplacesArr, ok := marketplacesAny.([]any); ok {
+					for _, item := range marketplacesArr {
+						if url, ok := item.(string); ok && url != "" && !acc.marketplacesSet[url] {
+							acc.marketplacesSet[url] = true
+							acc.marketplaces = append(acc.marketplaces, url)
+						}
+					}
+				}
+			}
+			// Extract imports.plugins from imported file (merge into set to avoid duplicates)
+			if pluginsAny, hasPlugins := importsMap["plugins"]; hasPlugins {
+				if pluginsArr, ok := pluginsAny.([]any); ok {
+					for _, item := range pluginsArr {
+						if name, ok := item.(string); ok && name != "" && !acc.pluginsSet[name] {
+							acc.pluginsSet[name] = true
+							acc.plugins = append(acc.plugins, name)
+						}
+					}
+				}
+			}
+		}
+	}
+
 	return nil
 }
 
@@ -319,6 +352,8 @@ func (acc *importAccumulator) toImportsResult(topologicalOrder []string) *Import
 		MergedCaches:                acc.caches,
 		MergedJobs:                  acc.jobsBuilder.String(),
 		MergedFeatures:              acc.features,
+		MergedMarketplaces:          acc.marketplaces,
+		MergedPlugins:               acc.plugins,
 		ImportedFiles:               topologicalOrder,
 		AgentFile:                   acc.agentFile,
 		AgentImportSpec:             acc.agentImportSpec,

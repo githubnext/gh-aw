@@ -175,6 +175,11 @@ func (c *Compiler) processToolsAndMarkdown(result *parser.FrontmatterResult, cle
 	if len(marketplaces) > 0 {
 		orchestratorToolsLog.Printf("Extracted %d marketplace(s) from frontmatter", len(marketplaces))
 	}
+	// Merge marketplace URLs from imported shared workflows (union, deduplicated)
+	if len(importsResult.MergedMarketplaces) > 0 {
+		orchestratorToolsLog.Printf("Merging %d marketplace(s) from imported workflows", len(importsResult.MergedMarketplaces))
+		marketplaces = mergeUnique(marketplaces, importsResult.MergedMarketplaces...)
+	}
 
 	// Extract plugin names from imports.plugins
 	plugins, err := extractPluginsFromFrontmatter(result.Frontmatter)
@@ -183,6 +188,11 @@ func (c *Compiler) processToolsAndMarkdown(result *parser.FrontmatterResult, cle
 	}
 	if len(plugins) > 0 {
 		orchestratorToolsLog.Printf("Extracted %d plugin(s) from frontmatter", len(plugins))
+	}
+	// Merge plugin names from imported shared workflows (union, deduplicated)
+	if len(importsResult.MergedPlugins) > 0 {
+		orchestratorToolsLog.Printf("Merging %d plugin(s) from imported workflows", len(importsResult.MergedPlugins))
+		plugins = mergeUnique(plugins, importsResult.MergedPlugins...)
 	}
 
 	// Add MCP fetch server if needed (when web-fetch is requested but engine doesn't support it)
