@@ -158,6 +158,8 @@ func TestEcosystemDomainExpansion(t *testing.T) {
 			"maven.google.com",
 			"dl.google.com",
 			"repo.gradle.org",
+			"maven-central.storage-download.googleapis.com",
+			"repository.apache.org",
 		}
 
 		for _, expectedDomain := range expectedDomains {
