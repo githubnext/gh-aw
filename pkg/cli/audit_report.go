@@ -32,6 +32,7 @@ type AuditData struct {
 	Noops                   []NoopReport             `json:"noops,omitempty"`
 	MCPFailures             []MCPFailureReport       `json:"mcp_failures,omitempty"`
 	FirewallAnalysis        *FirewallAnalysis        `json:"firewall_analysis,omitempty"`
+	PolicyAnalysis          *PolicyAnalysis          `json:"policy_analysis,omitempty"`
 	RedactedDomainsAnalysis *RedactedDomainsAnalysis `json:"redacted_domains_analysis,omitempty"`
 	Errors                  []ErrorInfo              `json:"errors,omitempty"`
 	Warnings                []ErrorInfo              `json:"warnings,omitempty"`
@@ -182,6 +183,15 @@ type MCPServerStats struct {
 	ErrorCount      int    `json:"error_count,omitempty" console:"header:Errors,omitempty"`
 }
 
+// PolicySummaryDisplay is a display-optimized version of PolicyAnalysis for console rendering
+type PolicySummaryDisplay struct {
+	Policy        string `console:"header:Policy"`
+	TotalRequests int    `console:"header:Total Requests"`
+	Allowed       int    `console:"header:Allowed"`
+	Denied        int    `console:"header:Denied"`
+	UniqueDomains int    `console:"header:Unique Domains"`
+}
+
 // OverviewDisplay is a display-optimized version of OverviewData for console rendering
 type OverviewDisplay struct {
 	RunID    int64  `console:"header:Run ID"`
@@ -329,6 +339,7 @@ func buildAuditData(processedRun ProcessedRun, metrics LogMetrics, mcpToolUsage 
 		Noops:                   processedRun.Noops,
 		MCPFailures:             processedRun.MCPFailures,
 		FirewallAnalysis:        processedRun.FirewallAnalysis,
+		PolicyAnalysis:          processedRun.PolicyAnalysis,
 		RedactedDomainsAnalysis: processedRun.RedactedDomainsAnalysis,
 		Errors:                  errors,
 		Warnings:                warnings,
