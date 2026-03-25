@@ -26,7 +26,7 @@ Not all features are available across all engines. The table below summarizes pe
 
 | Feature | Copilot | Claude | Codex | Gemini |
 |---------|:-------:|:------:|:-----:|:------:|
-| `max-turns` | ✅ | ✅ | ❌ | ❌ |
+| `max-turns` | ❌ | ✅ | ❌ | ❌ |
 | `max-continuations` | ✅ | ❌ | ❌ | ❌ |
 | `tools.web-fetch` | ✅ | ✅ | ✅ | ✅ |
 | `tools.web-search` | via MCP | via MCP | ✅ (opt-in) | via MCP |
@@ -35,7 +35,7 @@ Not all features are available across all engines. The table below summarizes pe
 | Tools allowlist | ✅ | ✅ | ✅ | ✅ |
 
 **Notes:**
-- `max-turns` limits the number of AI chat iterations per run (Copilot and Claude).
+- `max-turns` limits the number of AI chat iterations per run (Claude only).
 - `max-continuations` enables autopilot mode with multiple consecutive runs (Copilot only).
 - `web-search` for Codex is disabled by default; add `tools: web-search:` to enable it. Other engines use a third-party MCP server — see [Using Web Search](/gh-aw/guides/web-search/).
 - `engine.agent` references a `.github/agents/` file for custom Copilot agent behavior. See [Copilot Custom Configuration](#copilot-custom-configuration).

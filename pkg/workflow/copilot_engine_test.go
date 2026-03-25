@@ -34,8 +34,8 @@ func TestCopilotEngine(t *testing.T) {
 		t.Error("Expected copilot engine to support tools allowlist")
 	}
 
-	if !engine.SupportsMaxTurns() {
-		t.Error("Expected copilot engine to support max-turns")
+	if engine.SupportsMaxTurns() {
+		t.Error("Expected copilot engine to not support max-turns yet")
 	}
 
 	// Test declared output files (session files are copied to logs folder)

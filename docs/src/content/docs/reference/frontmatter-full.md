@@ -1492,8 +1492,8 @@ engine:
   model: "example-value"
 
   # Maximum number of chat iterations per run. Helps prevent runaway loops and
-  # control costs. Has sensible defaults and can typically be omitted. Note:
-  # Supported by the copilot and claude engines.
+  # control costs. Has sensible defaults and can typically be omitted. Note: Only
+  # supported by the claude engine.
   # (optional)
   # This field supports multiple formats (oneOf):
 
