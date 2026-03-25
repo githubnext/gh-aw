@@ -573,13 +573,21 @@ function convertXmlTags(s) {
    * Removes on* event handler attributes (e.g. onclick, ontoggle) and style
    * attributes in all quoting forms (double-quoted, single-quoted, unquoted, bare).
    * Safe attributes such as title, class, open, lang, id, etc. are preserved.
+   *
+   * Note: `\s+` (requiring at least one whitespace before the attribute name) is
+   * intentional — HTML attributes are always separated from the tag name and from
+   * each other by at least one whitespace character. Using `\s*` would risk false
+   * matches inside tag names (e.g. matching "ong" inside "strong").
+   *
    * @param {string} tagContent - Tag content without surrounding angle brackets
    * @returns {string} Tag content with dangerous attributes removed
    */
   function stripDangerousAttributes(tagContent) {
-    // Match: optional whitespace + (on* | style) + optional =value
+    // Match: one-or-more whitespace + (on* | style) + optional =value
     // Value forms: "...", '...', or unquoted (no whitespace / >), or bare (no =)
-    return tagContent.replace(/\s+(?:on\w+|style)(?:\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]*))?/gi, "");
+    // The [^\s>"'] unquoted form excludes >, whitespace, and quote chars so it
+    // cannot consume the closing > of the tag.
+    return tagContent.replace(/\s+(?:on\w+|style)(?:\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>"']*))?/gi, "");
   }
 
   // Convert opening tags: <tag> or <tag attr="value"> to (tag) or (tag attr="value")

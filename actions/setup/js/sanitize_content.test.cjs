@@ -517,6 +517,11 @@ describe("sanitize_content.cjs", () => {
       expect(result).toBe("<span>text</span>");
     });
 
+    it("should strip style attribute with unquoted value (simple, no special chars)", () => {
+      const result = sanitizeContent("<span style=red>text</span>");
+      expect(result).toBe("<span>text</span>");
+    });
+
     it("should strip on* attributes case-insensitively (uppercase)", () => {
       const result = sanitizeContent('<span ONCLICK="bad()">text</span>');
       expect(result).toBe("<span>text</span>");
@@ -537,8 +542,8 @@ describe("sanitize_content.cjs", () => {
       expect(result).toBe('<span title="safe">text</span>');
     });
 
-    it("should strip on* event handler from closing tags (no-op but consistent)", () => {
-      // Closing tags never carry attributes in valid HTML, but verify robustness
+    it("should preserve closing tags of allowed elements unchanged", () => {
+      // Closing tags do not carry attributes in HTML; verify they pass through unmodified
       const result = sanitizeContent("<span>text</span>");
       expect(result).toBe("<span>text</span>");
     });
