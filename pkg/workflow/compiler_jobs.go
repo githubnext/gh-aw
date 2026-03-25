@@ -827,7 +827,7 @@ func (c *Compiler) buildCustomJobs(data *WorkflowData, activationJobCreated bool
 								pinnedStep := ApplyActionPinToTypedStep(typedStep, data)
 
 								// Convert back to map for YAML generation
-								stepYAML, err := c.convertStepToYAML(pinnedStep.ToMap())
+								stepYAML, err := ConvertStepToYAML(pinnedStep.ToMap())
 								if err != nil {
 									return fmt.Errorf("failed to convert step to YAML for job '%s': %w", jobName, err)
 								}

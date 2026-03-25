@@ -518,7 +518,7 @@ func (c *Compiler) buildCustomThreatDetectionSteps(steps []any) []string {
 	var result []string
 	for _, step := range steps {
 		if stepMap, ok := step.(map[string]any); ok {
-			if stepYAML, err := c.convertStepToYAML(stepMap); err == nil {
+			if stepYAML, err := ConvertStepToYAML(stepMap); err == nil {
 				result = append(result, stepYAML)
 			}
 		}

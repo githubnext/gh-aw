@@ -699,8 +699,6 @@ func (c *Compiler) CompileWorkflowData(workflowData *WorkflowData, markdownPath 
 
 // generatePostSteps generates the post-steps section that runs after AI execution
 
-// convertStepToYAML converts a step map to YAML string with proper indentation
-
 // generateEngineExecutionSteps uses the new GetExecutionSteps interface method
 
 // generateAgentVersionCapture generates a step that captures the agent version if the engine supports it

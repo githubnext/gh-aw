@@ -105,7 +105,7 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 				typedStep.Env["GH_HOST"] = "${{ steps.ghes-host-config.outputs.GH_HOST }}"
 			}
 			pinnedStep := ApplyActionPinToTypedStep(typedStep, data)
-			stepYAML, err := c.convertStepToYAML(pinnedStep.ToMap())
+			stepYAML, err := ConvertStepToYAML(pinnedStep.ToMap())
 			if err != nil {
 				return nil, nil, fmt.Errorf("failed to convert safe-outputs step at index %d to YAML: %w", i, err)
 			}

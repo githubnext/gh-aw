@@ -772,17 +772,6 @@ func (c *Compiler) generateLegacyAgentImportCheckout(yaml *strings.Builder, agen
 	compilerYamlLog.Printf("Added legacy agent checkout step: %s/%s@%s -> %s", owner, repo, ref, checkoutPath)
 }
 
-// sanitizeRefForPath sanitizes a git ref for use in a file path
-// Replaces characters that are problematic in file paths with safe alternatives
-func sanitizeRefForPath(ref string) string {
-	// Replace slashes with dashes (for refs like "feature/my-branch")
-	sanitized := strings.ReplaceAll(ref, "/", "-")
-	// Replace other problematic characters
-	sanitized = strings.ReplaceAll(sanitized, ":", "-")
-	sanitized = strings.ReplaceAll(sanitized, "\\", "-")
-	return sanitized
-}
-
 // generateDevModeCLIBuildSteps generates the steps needed to build the gh-aw CLI and Docker image in dev mode
 // These steps are injected after checkout in dev mode to create a locally built Docker image that includes
 // the gh-aw binary and all dependencies. The agentic-workflows MCP server uses this image instead of alpine:latest.
