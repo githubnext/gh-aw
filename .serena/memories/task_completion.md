@@ -1,1 +1,0 @@
-Before commit always run `make agent-finish` (or at least `make fmt` and relevant selective tests). After modifying Go files run `make fmt`; after workflow markdown changes run `make recompile`; after schema changes run `make build`; after JS changes run `make fmt-cjs` and `make lint-cjs`. Do not leave workflow markdown changes uncompiled.
