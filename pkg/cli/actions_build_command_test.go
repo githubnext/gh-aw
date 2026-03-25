@@ -196,13 +196,22 @@ description: A test action`,
 			errorContains: "missing required field 'runs'",
 		},
 		{
+			name: "valid node24 action",
+			actionYmlContent: `name: Test Action
+description: A test action
+runs:
+  using: 'node24'
+  main: 'index.js'`,
+			expectError: false,
+		},
+		{
 			name: "invalid runtime",
 			actionYmlContent: `name: Test Action
 description: A test action
 runs:
   using: 'docker'`,
 			expectError:   true,
-			errorContains: "must use either 'node20' or 'composite'",
+			errorContains: "must use either a 'nodeXX' or 'composite'",
 		},
 	}
 
