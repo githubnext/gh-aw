@@ -8,6 +8,7 @@ const fs = require("fs");
 const tmpDir = "/tmp/gh-aw";
 
 try {
+  console.log(`Cleaning up ${tmpDir}...`);
   fs.rmSync(tmpDir, { recursive: true, force: true });
   console.log(`Cleaned up ${tmpDir}`);
 } catch (err) {
