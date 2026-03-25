@@ -280,7 +280,8 @@ func TestGenerateMaintenanceWorkflow_OperationJobConditions(t *testing.T) {
 	}
 	yaml := string(content)
 
-	// Updated condition now also excludes run_url to keep scheduled jobs from running during replay
+	// Updated condition now also excludes run_url so that scheduled jobs only run when
+	// neither operation nor run_url is provided in workflow_dispatch triggers
 	operationSkipCondition := `github.event_name != 'workflow_dispatch' || (github.event.inputs.operation == '' && github.event.inputs.run_url == '')`
 	operationRunCondition := `github.event_name == 'workflow_dispatch' && github.event.inputs.operation != ''`
 	applySafeOutputsCondition := `github.event_name == 'workflow_dispatch' && github.event.inputs.run_url != ''`

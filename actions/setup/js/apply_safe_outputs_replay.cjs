@@ -56,7 +56,7 @@ function parseRunUrl(runUrl) {
     return { runId: match[3], owner: match[1], repo: match[2] };
   }
 
-  throw new Error(`${ERR_VALIDATION}: Cannot parse run ID from: ${trimmed}. ` + `Expected a plain run ID (digits only) or a GitHub Actions run URL ` + `(https://github.com/{owner}/{repo}/actions/runs/{runId}).`);
+  throw new Error(`${ERR_VALIDATION}: Cannot parse run ID from: ${trimmed}. Expected a plain run ID (digits only) or a GitHub Actions run URL (https://github.com/{owner}/{repo}/actions/runs/{runId}).`);
 }
 
 /**
@@ -84,7 +84,7 @@ async function downloadAgentArtifact(runId, destDir, repoSlug) {
 
   const outputFile = path.join(destDir, AGENT_OUTPUT_FILENAME);
   if (!fs.existsSync(outputFile)) {
-    throw new Error(`${ERR_SYSTEM}: Agent output file not found at ${outputFile} after download. ` + `Ensure run ${runId} has an "agent" artifact containing ${AGENT_OUTPUT_FILENAME}.`);
+    throw new Error(`${ERR_SYSTEM}: Agent output file not found at ${outputFile} after download. Ensure run ${runId} has an "agent" artifact containing ${AGENT_OUTPUT_FILENAME}.`);
   }
 
   core.info(`✓ Agent artifact downloaded to ${outputFile}`);
