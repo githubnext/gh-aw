@@ -80,6 +80,14 @@ const RPC_MESSAGES_PATH = `${TMP_GH_AW_PATH}/mcp-logs/rpc-messages.jsonl`;
  */
 const MANIFEST_FILE_PATH = `${TMP_GH_AW_PATH}/safe-output-items.jsonl`;
 
+/**
+ * Filename of the threat detection log written by the detection engine via tee.
+ * The detection copilot's stdout (containing THREAT_DETECTION_RESULT) is piped
+ * through `tee -a` to this file inside the threat-detection directory.
+ * @type {string}
+ */
+const DETECTION_LOG_FILENAME = "detection.log";
+
 module.exports = {
   AGENT_OUTPUT_FILENAME,
   TMP_GH_AW_PATH,
@@ -90,4 +98,5 @@ module.exports = {
   GATEWAY_JSONL_PATH,
   RPC_MESSAGES_PATH,
   MANIFEST_FILE_PATH,
+  DETECTION_LOG_FILENAME,
 };

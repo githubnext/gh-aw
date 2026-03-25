@@ -16,23 +16,14 @@ type AddLabelsConfig struct {
 
 // parseAddLabelsConfig handles add-labels configuration
 func (c *Compiler) parseAddLabelsConfig(outputMap map[string]any) *AddLabelsConfig {
-	// Check if the key exists
-	if _, exists := outputMap["add-labels"]; !exists {
-		return nil
-	}
-
-	addLabelsLog.Print("Parsing add-labels configuration")
-
-	// Unmarshal into typed config struct
-	var config AddLabelsConfig
-	if err := unmarshalConfig(outputMap, "add-labels", &config, addLabelsLog); err != nil {
+	config := parseConfigScaffold(outputMap, "add-labels", addLabelsLog, func(err error) *AddLabelsConfig {
 		addLabelsLog.Printf("Failed to unmarshal config: %v", err)
 		// Handle null case: create empty config (allows any labels)
 		addLabelsLog.Print("Using empty configuration (allows any labels)")
 		return &AddLabelsConfig{}
+	})
+	if config != nil {
+		addLabelsLog.Printf("Parsed configuration: allowed_count=%d, blocked_count=%d, target=%s", len(config.Allowed), len(config.Blocked), config.Target)
 	}
-
-	addLabelsLog.Printf("Parsed configuration: allowed_count=%d, blocked_count=%d, target=%s", len(config.Allowed), len(config.Blocked), config.Target)
-
-	return &config
+	return config
 }

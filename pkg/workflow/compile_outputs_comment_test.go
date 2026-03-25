@@ -284,7 +284,7 @@ This workflow tests the safe_outputs job generation.
 	// Verify job has conditional execution using BuildSafeOutputType combined with base condition
 	expectedConditionParts := []string{
 		"!cancelled()",
-		"needs.agent.outputs.detection_success == 'true'",
+		"needs.detection.result == 'success'",
 		"github.event.issue.number",
 		"github.event.pull_request.number",
 	}
@@ -363,7 +363,7 @@ This workflow tests that issue comment job is skipped for non-issue/PR events.
 	// Verify job has conditional execution using BuildSafeOutputType combined with base condition
 	expectedConditionParts := []string{
 		"!cancelled()",
-		"needs.agent.outputs.detection_success == 'true'",
+		"needs.detection.result == 'success'",
 		"github.event.issue.number",
 		"github.event.pull_request.number",
 	}

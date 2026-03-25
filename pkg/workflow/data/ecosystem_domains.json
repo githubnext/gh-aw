@@ -154,10 +154,12 @@
     "develocity.apache.org",
     "scans-in.gradle.com",
     "ge.spockframework.org",
-    "*.gradle-enterprise.cloud"
+    "*.gradle-enterprise.cloud",
+    "maven-central.storage-download.googleapis.com",
+    "repository.apache.org"
   ],
   "julia": ["pkg.julialang.org", "*.pkg.julialang.org", "julialang.org", "julialang-s3.julialang.org", "storage.julialang.net"],
-  "kotlin": ["ge.jetbrains.com", "packages.jetbrains.team", "kotlin.bintray.com", "maven.pkg.jetbrains.space"],
+  "kotlin": ["download.jetbrains.com", "ge.jetbrains.com", "packages.jetbrains.team", "kotlin.bintray.com", "maven.pkg.jetbrains.space"],
   "linux-distros": [
     "deb.debian.org",
     "security.debian.org",
@@ -236,5 +238,15 @@
   "scala": ["repo.scala-sbt.org", "scala-ci.typesafe.com", "repo.typesafe.com", "jitpack.io", "dl.bintray.com", "scala.jfrog.io"],
   "swift": ["download.swift.org", "swift.org", "cocoapods.org", "cdn.cocoapods.org"],
   "terraform": ["releases.hashicorp.com", "apt.releases.hashicorp.com", "yum.releases.hashicorp.com", "registry.terraform.io"],
+  "threat-detection": [
+    "api.business.githubcopilot.com",
+    "api.enterprise.githubcopilot.com",
+    "api.github.com",
+    "api.githubcopilot.com",
+    "api.individual.githubcopilot.com",
+    "github.com",
+    "host.docker.internal",
+    "telemetry.enterprise.githubcopilot.com"
+  ],
   "zig": ["ziglang.org", "pkg.machengine.org", "deps.files.ghostty.org"]
 }

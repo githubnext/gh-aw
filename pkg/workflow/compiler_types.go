@@ -52,16 +52,6 @@ type FileTracker interface {
 	TrackCreated(filePath string)
 }
 
-// defaultVersion holds the version string for compiler creation
-// This is set by the CLI package during initialization
-var defaultVersion = "dev"
-
-// SetDefaultVersion sets the default version for compiler creation
-// This should be called once during CLI initialization
-func SetDefaultVersion(version string) {
-	defaultVersion = version
-}
-
 // Compiler handles converting markdown workflows to GitHub Actions YAML
 type Compiler struct {
 	verbose                 bool
@@ -107,8 +97,8 @@ type Compiler struct {
 // By default, it auto-detects the version and action mode.
 // Common options: WithVerbose, WithEngineOverride, WithNoEmit, WithSkipValidation
 func NewCompiler(opts ...CompilerOption) *Compiler {
-	// Get default version
-	version := defaultVersion
+	// Get the current compiler version (set by SetVersion during CLI initialization)
+	version := GetVersion()
 
 	// Auto-detect git repository root for action cache path resolution
 	// This ensures actions-lock.json is created at repo root regardless of CWD

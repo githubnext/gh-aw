@@ -181,14 +181,24 @@ func init() {
 	runtimeDefLog.Printf("Built action repo to runtime mapping: total_actions=%d", len(actionRepoToRuntime))
 }
 
+// securityConfigFiles are repository security configuration files that are
+// always protected by filename regardless of their location in the repository.
+// These complement the path-prefix protection (e.g. ".github/") and ensure
+// that files placed at the repo root or in "docs/" are equally protected.
+var securityConfigFiles = []string{
+	"CODEOWNERS", // Governs required reviewers; valid at repo root, .github/, or docs/
+}
+
 // getAllManifestFiles returns the deduplicated union of all manifest file names
-// across all known runtimes, plus any additionally-provided filenames.
+// across all known runtimes, plus repository security configuration files, plus
+// any additionally-provided filenames.
 // These are matched by basename only (no path comparison).
 func getAllManifestFiles(extra ...string) []string {
 	var files []string
 	for _, runtime := range knownRuntimes {
 		files = append(files, runtime.ManifestFiles...)
 	}
+	files = append(files, securityConfigFiles...)
 	return mergeUnique(files, extra...)
 }
 
@@ -197,8 +207,10 @@ func getAllManifestFiles(extra ...string) []string {
 // path in the diff starts with one of these prefixes is considered a protected
 // file and will trigger the same manifest-file protection logic.
 //
-// ".github/" covers workflow definitions, CODEOWNERS, Dependabot config, and
-// other repository-level security-sensitive configuration.
+// ".github/" covers workflow definitions, Dependabot config, and other
+// repository-level security-sensitive configuration.  Note: CODEOWNERS is
+// additionally protected by filename (see securityConfigFiles) so that root-
+// and docs/-level placements are covered too.
 // ".agents/" covers generic agent instruction and configuration files.
 func getProtectedPathPrefixes(extra ...string) []string {
 	return mergeUnique([]string{".github/", ".agents/"}, extra...)

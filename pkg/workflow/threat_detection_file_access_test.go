@@ -90,7 +90,9 @@ func TestThreatDetectionSteps_UseFilePathReferences(t *testing.T) {
 	}
 }
 
-// TestThreatDetectionSteps_IncludeBashReadTools verifies that bash read tools are configured
+// TestThreatDetectionSteps_IncludeBashReadTools verifies that bash is configured as an
+// unrestricted tool in the detection job. The detection job uses bash: ["*"] so the
+// compiled steps reference "Bash" (no per-command restriction).
 func TestThreatDetectionSteps_IncludeBashReadTools(t *testing.T) {
 	compiler := createTestCompiler(t)
 	data := createTestWorkflowData(t, &ThreatDetectionConfig{})
@@ -98,20 +100,9 @@ func TestThreatDetectionSteps_IncludeBashReadTools(t *testing.T) {
 	steps := compiler.buildInlineDetectionSteps(data)
 	stepsString := strings.Join(steps, "")
 
-	// Verify bash tools are configured - check for the comments in the execution step
-	expectedBashTools := []string{
-		"Bash(cat)",
-		"Bash(head)",
-		"Bash(tail)",
-		"Bash(wc)",
-		"Bash(grep)",
-		"Bash(ls)",
-		"Bash(jq)",
-	}
-
-	for _, tool := range expectedBashTools {
-		assert.Contains(t, stepsString, tool, "threat detection should include bash tool: %s", tool)
-	}
+	// Detection uses bash: ["*"] — the compiled YAML lists "Bash" (unrestricted) rather
+	// than individual Bash(<cmd>) entries.
+	assert.Contains(t, stepsString, "Bash", "threat detection should include unrestricted Bash tool")
 }
 
 // TestThreatDetectionTemplate_UsesFilePathPlaceholder verifies the template markdown uses file path
@@ -210,7 +201,7 @@ func TestBuildThreatDetectionAnalysisStep_ConfiguresEnvironment(t *testing.T) {
 			name: "includes HAS_PATCH env var",
 			data: createTestWorkflowData(t, &ThreatDetectionConfig{}),
 			checkStep: func(t *testing.T, stepsString string) {
-				assert.Contains(t, stepsString, "HAS_PATCH: ${{ steps.collect_output.outputs.has_patch }}", "should include HAS_PATCH env var from collect_output step")
+				assert.Contains(t, stepsString, "HAS_PATCH: ${{ needs.agent.outputs.has_patch }}", "should include HAS_PATCH env var from agent job output")
 			},
 		},
 	}

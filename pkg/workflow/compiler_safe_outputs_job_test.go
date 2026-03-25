@@ -138,10 +138,10 @@ func TestBuildConsolidatedSafeOutputsJob(t *testing.T) {
 			assert.NotEmpty(t, job.Steps)
 			assert.NotEmpty(t, job.Env)
 
-			// Check job dependencies — detection is inline in agent, no separate dependency
+			// Check job dependencies — safe_outputs depends on agent; when detection enabled, also depends on detection
 			assert.Contains(t, job.Needs, string(constants.AgentJobName))
 			if tt.threatDetection {
-				assert.NotContains(t, job.Needs, string(constants.DetectionJobName), "safe_outputs should not depend on detection (detection is inline in agent)")
+				assert.Contains(t, job.Needs, string(constants.DetectionJobName), "safe_outputs should depend on detection job when threat detection is enabled")
 			}
 
 			// Check permissions if specified
@@ -361,10 +361,12 @@ func TestBuildDetectionSuccessCondition(t *testing.T) {
 
 	rendered := condition.Render()
 
-	// Should check agent job's detection_success output
-	assert.Contains(t, rendered, "needs."+string(constants.AgentJobName))
-	assert.Contains(t, rendered, "outputs.detection_success")
-	assert.Contains(t, rendered, "'true'")
+	// Should check detection job's result (not output variable)
+	// The detection job fails (exit 1) when threats are found, so downstream jobs
+	// check needs.detection.result == 'success' rather than output variables.
+	assert.Contains(t, rendered, "needs."+string(constants.DetectionJobName))
+	assert.Contains(t, rendered, ".result")
+	assert.Contains(t, rendered, "'success'")
 }
 
 // TestJobConditionWithThreatDetection tests job condition building with threat detection
@@ -387,12 +389,13 @@ func TestJobConditionWithThreatDetection(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, job)
 
-	// Job condition should include detection check referencing agent job
-	assert.Contains(t, job.If, "needs."+string(constants.AgentJobName))
-	assert.Contains(t, job.If, "outputs.detection_success")
+	// Job condition should include detection check referencing detection job result
+	assert.Contains(t, job.If, "needs."+string(constants.DetectionJobName))
+	assert.Contains(t, job.If, ".result")
+	assert.Contains(t, job.If, "'success'")
 
-	// Job should NOT depend on detection job (detection is inline in agent)
-	assert.NotContains(t, job.Needs, string(constants.DetectionJobName), "safe_outputs job should not depend on detection job")
+	// Job should depend on detection job (detection is in a separate job)
+	assert.Contains(t, job.Needs, string(constants.DetectionJobName), "safe_outputs job should depend on detection job when threat detection enabled")
 }
 
 // TestJobWithGitHubApp tests job building with GitHub App configuration
@@ -576,8 +579,8 @@ func TestJobDependencies(t *testing.T) {
 				ThreatDetection: &ThreatDetectionConfig{},
 				CreateIssues:    &CreateIssuesConfig{},
 			},
-			expectedNeeds:    []string{string(constants.AgentJobName)},
-			notExpectedNeeds: []string{string(constants.DetectionJobName)}, // detection is inline in agent
+			expectedNeeds:    []string{string(constants.AgentJobName), string(constants.DetectionJobName)}, // detection is a separate job
+			notExpectedNeeds: []string{},
 		},
 		{
 			name: "with create pull request",

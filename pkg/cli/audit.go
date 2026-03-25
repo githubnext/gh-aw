@@ -346,6 +346,9 @@ func AuditWorkflowRun(ctx context.Context, runID int64, owner, repo, hostname st
 		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to list artifacts: %v", err)))
 	}
 
+	currentCreatedItems := extractCreatedItemsFromManifest(runOutputDir)
+	run.SafeItemsCount = len(currentCreatedItems)
+
 	// Create processed run for report generation
 	processedRun := ProcessedRun{
 		Run:                     run,
@@ -358,9 +361,18 @@ func AuditWorkflowRun(ctx context.Context, runID int64, owner, repo, hostname st
 		MCPFailures:             mcpFailures,
 		JobDetails:              jobDetails,
 	}
+	awContext, _, _, taskDomain, behaviorFingerprint, agenticAssessments := deriveRunAgenticAnalysis(processedRun, metrics)
+	processedRun.AwContext = awContext
+	processedRun.TaskDomain = taskDomain
+	processedRun.BehaviorFingerprint = behaviorFingerprint
+	processedRun.AgenticAssessments = agenticAssessments
+
+	currentSnapshot := buildAuditComparisonSnapshot(processedRun, currentCreatedItems)
+	comparison := buildAuditComparisonForRun(processedRun, currentSnapshot, runOutputDir, owner, repo, hostname, verbose)
 
 	// Build structured audit data
 	auditData := buildAuditData(processedRun, metrics, mcpToolUsage)
+	auditData.Comparison = comparison
 
 	// Render output based on format preference
 	if jsonOutput {
@@ -420,6 +432,10 @@ func AuditWorkflowRun(ctx context.Context, runID int64, owner, repo, hostname st
 		ProcessedAt:             time.Now(),
 		Run:                     run,
 		Metrics:                 metrics,
+		AwContext:               processedRun.AwContext,
+		TaskDomain:              processedRun.TaskDomain,
+		BehaviorFingerprint:     processedRun.BehaviorFingerprint,
+		AgenticAssessments:      processedRun.AgenticAssessments,
 		AccessAnalysis:          accessAnalysis,
 		FirewallAnalysis:        firewallAnalysis,
 		PolicyAnalysis:          policyAnalysis,

@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/github/gh-aw/pkg/console"
@@ -33,6 +34,30 @@ func renderConsole(data AuditData, logsPath string) {
 	fmt.Fprintln(os.Stderr)
 	renderOverview(data.Overview)
 
+	if data.Comparison != nil {
+		fmt.Fprintln(os.Stderr, console.FormatSectionHeader("Comparison To Similar Successful Run"))
+		fmt.Fprintln(os.Stderr)
+		renderAuditComparison(data.Comparison)
+	}
+
+	if data.TaskDomain != nil {
+		fmt.Fprintln(os.Stderr, console.FormatSectionHeader("Detected Task Domain"))
+		fmt.Fprintln(os.Stderr)
+		renderTaskDomain(data.TaskDomain)
+	}
+
+	if data.BehaviorFingerprint != nil {
+		fmt.Fprintln(os.Stderr, console.FormatSectionHeader("Behavioral Fingerprint"))
+		fmt.Fprintln(os.Stderr)
+		renderBehaviorFingerprint(data.BehaviorFingerprint)
+	}
+
+	if len(data.AgenticAssessments) > 0 {
+		fmt.Fprintln(os.Stderr, console.FormatSectionHeader("Agentic Assessment"))
+		fmt.Fprintln(os.Stderr)
+		renderAgenticAssessments(data.AgenticAssessments)
+	}
+
 	// Key Findings Section - NEW
 	if len(data.KeyFindings) > 0 {
 		auditReportLog.Printf("Rendering %d key findings", len(data.KeyFindings))
@@ -49,11 +74,52 @@ func renderConsole(data AuditData, logsPath string) {
 		renderRecommendations(data.Recommendations)
 	}
 
+	if len(data.ObservabilityInsights) > 0 {
+		fmt.Fprintln(os.Stderr, console.FormatSectionHeader("Observability Insights"))
+		fmt.Fprintln(os.Stderr)
+		renderObservabilityInsights(data.ObservabilityInsights)
+	}
+
 	// Performance Metrics Section - NEW
 	if data.PerformanceMetrics != nil {
 		fmt.Fprintln(os.Stderr, console.FormatSectionHeader("Performance Metrics"))
 		fmt.Fprintln(os.Stderr)
 		renderPerformanceMetrics(data.PerformanceMetrics)
+	}
+
+	// Engine Configuration Section
+	if data.EngineConfig != nil {
+		fmt.Fprintln(os.Stderr, console.FormatSectionHeader("Engine Configuration"))
+		fmt.Fprintln(os.Stderr)
+		renderEngineConfig(data.EngineConfig)
+	}
+
+	// Prompt Analysis Section
+	if data.PromptAnalysis != nil {
+		fmt.Fprintln(os.Stderr, console.FormatSectionHeader("Prompt Analysis"))
+		fmt.Fprintln(os.Stderr)
+		renderPromptAnalysis(data.PromptAnalysis)
+	}
+
+	// Session Analysis Section
+	if data.SessionAnalysis != nil {
+		fmt.Fprintln(os.Stderr, console.FormatSectionHeader("Session & Agent Performance"))
+		fmt.Fprintln(os.Stderr)
+		renderSessionAnalysis(data.SessionAnalysis)
+	}
+
+	// MCP Server Health Section
+	if data.MCPServerHealth != nil {
+		fmt.Fprintln(os.Stderr, console.FormatSectionHeader("MCP Server Health"))
+		fmt.Fprintln(os.Stderr)
+		renderMCPServerHealth(data.MCPServerHealth)
+	}
+
+	// Safe Output Summary Section
+	if data.SafeOutputSummary != nil {
+		fmt.Fprintln(os.Stderr, console.FormatSectionHeader("Safe Output Summary"))
+		fmt.Fprintln(os.Stderr)
+		renderSafeOutputSummary(data.SafeOutputSummary)
 	}
 
 	// Metrics Section - use new rendering system
@@ -188,6 +254,52 @@ func renderConsole(data AuditData, logsPath string) {
 	fmt.Fprintln(os.Stderr)
 }
 
+func renderAuditComparison(comparison *AuditComparisonData) {
+	if comparison == nil {
+		return
+	}
+
+	if !comparison.BaselineFound || comparison.Baseline == nil || comparison.Delta == nil || comparison.Classification == nil {
+		fmt.Fprintln(os.Stderr, "  No suitable successful run was available for baseline comparison.")
+		fmt.Fprintln(os.Stderr)
+		return
+	}
+
+	fmt.Fprintf(os.Stderr, "  Baseline: run %d", comparison.Baseline.RunID)
+	if comparison.Baseline.Conclusion != "" {
+		fmt.Fprintf(os.Stderr, " (%s)", comparison.Baseline.Conclusion)
+	}
+	fmt.Fprintln(os.Stderr)
+	if comparison.Baseline.Selection != "" {
+		fmt.Fprintf(os.Stderr, "  Selection: %s\n", strings.ReplaceAll(comparison.Baseline.Selection, "_", " "))
+	}
+	if len(comparison.Baseline.MatchedOn) > 0 {
+		fmt.Fprintf(os.Stderr, "  Matched on: %s\n", strings.Join(comparison.Baseline.MatchedOn, ", "))
+	}
+	fmt.Fprintf(os.Stderr, "  Classification: %s\n", comparison.Classification.Label)
+	fmt.Fprintln(os.Stderr, "  Changes:")
+
+	if comparison.Delta.Turns.Changed {
+		fmt.Fprintf(os.Stderr, "    - Turns: %d -> %d\n", comparison.Delta.Turns.Before, comparison.Delta.Turns.After)
+	}
+	if comparison.Delta.Posture.Changed {
+		fmt.Fprintf(os.Stderr, "    - Posture: %s -> %s\n", comparison.Delta.Posture.Before, comparison.Delta.Posture.After)
+	}
+	if comparison.Delta.BlockedRequests.Changed {
+		fmt.Fprintf(os.Stderr, "    - Blocked requests: %d -> %d\n", comparison.Delta.BlockedRequests.Before, comparison.Delta.BlockedRequests.After)
+	}
+	if comparison.Delta.MCPFailure != nil && comparison.Delta.MCPFailure.NewlyPresent {
+		fmt.Fprintf(os.Stderr, "    - New MCP failure: %s\n", strings.Join(comparison.Delta.MCPFailure.After, ", "))
+	}
+	if len(comparison.Classification.ReasonCodes) == 0 {
+		fmt.Fprintln(os.Stderr, "    - No meaningful behavior change from the selected successful baseline")
+	}
+	if comparison.Recommendation != nil && comparison.Recommendation.Action != "" {
+		fmt.Fprintf(os.Stderr, "  Recommended action: %s\n", comparison.Recommendation.Action)
+	}
+	fmt.Fprintln(os.Stderr)
+}
+
 // renderOverview renders the overview section using the new rendering system
 func renderOverview(overview OverviewData) {
 	// Format Status with optional Conclusion
@@ -213,6 +325,56 @@ func renderOverview(overview OverviewData) {
 // renderMetrics renders the metrics section using the new rendering system
 func renderMetrics(metrics MetricsData) {
 	fmt.Fprint(os.Stderr, console.RenderStruct(metrics))
+}
+
+type taskDomainDisplay struct {
+	Domain string `console:"header:Domain"`
+	Reason string `console:"header:Reason"`
+}
+
+type behaviorFingerprintDisplay struct {
+	Execution string `console:"header:Execution"`
+	Tools     string `console:"header:Tools"`
+	Actuation string `console:"header:Actuation"`
+	Resource  string `console:"header:Resources"`
+	Dispatch  string `console:"header:Dispatch"`
+}
+
+func renderTaskDomain(domain *TaskDomainInfo) {
+	if domain == nil {
+		return
+	}
+	fmt.Fprint(os.Stderr, console.RenderStruct(taskDomainDisplay{
+		Domain: domain.Label,
+		Reason: domain.Reason,
+	}))
+}
+
+func renderBehaviorFingerprint(fingerprint *BehaviorFingerprint) {
+	if fingerprint == nil {
+		return
+	}
+	fmt.Fprint(os.Stderr, console.RenderStruct(behaviorFingerprintDisplay{
+		Execution: fingerprint.ExecutionStyle,
+		Tools:     fingerprint.ToolBreadth,
+		Actuation: fingerprint.ActuationStyle,
+		Resource:  fingerprint.ResourceProfile,
+		Dispatch:  fingerprint.DispatchMode,
+	}))
+}
+
+func renderAgenticAssessments(assessments []AgenticAssessment) {
+	for _, assessment := range assessments {
+		severity := strings.ToUpper(assessment.Severity)
+		fmt.Fprintf(os.Stderr, "  [%s] %s\n", severity, assessment.Summary)
+		if assessment.Evidence != "" {
+			fmt.Fprintf(os.Stderr, "     Evidence: %s\n", assessment.Evidence)
+		}
+		if assessment.Recommendation != "" {
+			fmt.Fprintf(os.Stderr, "     Recommendation: %s\n", assessment.Recommendation)
+		}
+		fmt.Fprintln(os.Stderr)
+	}
 }
 
 // renderJobsTable renders the jobs as a table using console.RenderTable
@@ -647,4 +809,153 @@ func formatUnixTimestamp(ts float64) string {
 	nsec := int64((ts - float64(sec)) * 1e9)
 	t := time.Unix(sec, nsec).UTC()
 	return t.Format("15:04:05")
+}
+
+// renderEngineConfig renders engine configuration details
+func renderEngineConfig(config *EngineConfig) {
+	if config == nil {
+		return
+	}
+	fmt.Fprintf(os.Stderr, "  Engine ID:         %s\n", config.EngineID)
+	if config.EngineName != "" {
+		fmt.Fprintf(os.Stderr, "  Engine Name:       %s\n", config.EngineName)
+	}
+	if config.Model != "" {
+		fmt.Fprintf(os.Stderr, "  Model:             %s\n", config.Model)
+	}
+	if config.Version != "" {
+		fmt.Fprintf(os.Stderr, "  Version:           %s\n", config.Version)
+	}
+	if config.CLIVersion != "" {
+		fmt.Fprintf(os.Stderr, "  CLI Version:       %s\n", config.CLIVersion)
+	}
+	if config.FirewallVersion != "" {
+		fmt.Fprintf(os.Stderr, "  Firewall Version:  %s\n", config.FirewallVersion)
+	}
+	if config.TriggerEvent != "" {
+		fmt.Fprintf(os.Stderr, "  Trigger Event:     %s\n", config.TriggerEvent)
+	}
+	if config.Repository != "" {
+		fmt.Fprintf(os.Stderr, "  Repository:        %s\n", config.Repository)
+	}
+	if len(config.MCPServers) > 0 {
+		fmt.Fprintf(os.Stderr, "  MCP Servers:       %s\n", strings.Join(config.MCPServers, ", "))
+	}
+	fmt.Fprintln(os.Stderr)
+}
+
+// renderPromptAnalysis renders prompt analysis metrics
+func renderPromptAnalysis(analysis *PromptAnalysis) {
+	if analysis == nil {
+		return
+	}
+	fmt.Fprintf(os.Stderr, "  Prompt Size:       %s chars\n", console.FormatNumber(analysis.PromptSize))
+	if analysis.PromptFile != "" {
+		fmt.Fprintf(os.Stderr, "  Prompt File:       %s\n", analysis.PromptFile)
+	}
+	fmt.Fprintln(os.Stderr)
+}
+
+// renderSessionAnalysis renders session and agent performance metrics
+func renderSessionAnalysis(session *SessionAnalysis) {
+	if session == nil {
+		return
+	}
+	if session.WallTime != "" {
+		fmt.Fprintf(os.Stderr, "  Wall Time:         %s\n", session.WallTime)
+	}
+	if session.TurnCount > 0 {
+		fmt.Fprintf(os.Stderr, "  Turn Count:        %d\n", session.TurnCount)
+	}
+	if session.AvgTurnDuration != "" {
+		fmt.Fprintf(os.Stderr, "  Avg Turn Duration: %s\n", session.AvgTurnDuration)
+	}
+	if session.TokensPerMinute > 0 {
+		fmt.Fprintf(os.Stderr, "  Tokens/Minute:     %.1f\n", session.TokensPerMinute)
+	}
+	if session.NoopCount > 0 {
+		fmt.Fprintf(os.Stderr, "  Noop Count:        %d\n", session.NoopCount)
+	}
+	if session.TimeoutDetected {
+		fmt.Fprintf(os.Stderr, "  Timeout Detected:  %s\n", console.FormatWarningMessage("Yes"))
+	} else {
+		fmt.Fprintf(os.Stderr, "  Timeout Detected:  %s\n", console.FormatSuccessMessage("No"))
+	}
+	fmt.Fprintln(os.Stderr)
+}
+
+// renderMCPServerHealth renders MCP server health summary
+func renderMCPServerHealth(health *MCPServerHealth) {
+	if health == nil {
+		return
+	}
+	fmt.Fprintf(os.Stderr, "  %s\n", health.Summary)
+	if health.TotalRequests > 0 {
+		fmt.Fprintf(os.Stderr, "  Total Requests:    %d\n", health.TotalRequests)
+		fmt.Fprintf(os.Stderr, "  Total Errors:      %d\n", health.TotalErrors)
+		fmt.Fprintf(os.Stderr, "  Error Rate:        %.1f%%\n", health.ErrorRate)
+	}
+	fmt.Fprintln(os.Stderr)
+
+	// Server health table
+	if len(health.Servers) > 0 {
+		config := console.TableConfig{
+			Headers: []string{"Server", "Requests", "Tool Calls", "Errors", "Error Rate", "Avg Latency", "Status"},
+			Rows:    make([][]string, 0, len(health.Servers)),
+		}
+		for _, server := range health.Servers {
+			row := []string{
+				server.ServerName,
+				strconv.Itoa(server.RequestCount),
+				strconv.Itoa(server.ToolCalls),
+				strconv.Itoa(server.ErrorCount),
+				server.ErrorRateStr,
+				server.AvgLatency,
+				server.Status,
+			}
+			config.Rows = append(config.Rows, row)
+		}
+		fmt.Fprint(os.Stderr, console.RenderTable(config))
+	}
+
+	// Slowest tool calls
+	if len(health.SlowestCalls) > 0 {
+		fmt.Fprintln(os.Stderr)
+		fmt.Fprintln(os.Stderr, "  Slowest Tool Calls:")
+		config := console.TableConfig{
+			Headers: []string{"Server", "Tool", "Duration"},
+			Rows:    make([][]string, 0, len(health.SlowestCalls)),
+		}
+		for _, call := range health.SlowestCalls {
+			row := []string{call.ServerName, call.ToolName, call.Duration}
+			config.Rows = append(config.Rows, row)
+		}
+		fmt.Fprint(os.Stderr, console.RenderTable(config))
+	}
+
+	fmt.Fprintln(os.Stderr)
+}
+
+// renderSafeOutputSummary renders safe output summary with type breakdown
+func renderSafeOutputSummary(summary *SafeOutputSummary) {
+	if summary == nil {
+		return
+	}
+	fmt.Fprintf(os.Stderr, "  Total Items:       %d\n", summary.TotalItems)
+	fmt.Fprintf(os.Stderr, "  Summary:           %s\n", summary.Summary)
+	fmt.Fprintln(os.Stderr)
+
+	// Type breakdown table
+	if len(summary.TypeDetails) > 0 {
+		config := console.TableConfig{
+			Headers: []string{"Type", "Count"},
+			Rows:    make([][]string, 0, len(summary.TypeDetails)),
+		}
+		for _, detail := range summary.TypeDetails {
+			row := []string{detail.Type, strconv.Itoa(detail.Count)}
+			config.Rows = append(config.Rows, row)
+		}
+		fmt.Fprint(os.Stderr, console.RenderTable(config))
+		fmt.Fprintln(os.Stderr)
+	}
 }

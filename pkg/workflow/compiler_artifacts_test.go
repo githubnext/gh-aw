@@ -316,3 +316,64 @@ This workflow should generate a unified artifact upload step that includes the p
 
 	t.Log("Unified artifact upload step verified successfully (includes prompt)")
 }
+
+func TestPatchIncludedInArtifactWhenThreatDetectionEnabled(t *testing.T) {
+	// When push-to-pull-request-branch is staged, usesPatchesAndCheckouts() returns false.
+	// But if threat detection is enabled, the detection job needs patches for security
+	// analysis, so aw-*.patch must still be included in the agent artifact.
+	tmpDir := testutil.TempDir(t, "patch-artifact-test")
+
+	testContent := `---
+on: workflow_dispatch
+permissions:
+  contents: read
+  issues: read
+  pull-requests: read
+engine: claude
+strict: false
+safe-outputs:
+  push-to-pull-request-branch:
+    staged: true
+---
+
+# Test Patch Upload
+
+Push some changes.
+`
+
+	testFile := filepath.Join(tmpDir, "test-workflow.md")
+	if err := os.WriteFile(testFile, []byte(testContent), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	compiler := NewCompiler()
+	if err := compiler.CompileWorkflow(testFile); err != nil {
+		t.Fatalf("Failed to compile workflow: %v", err)
+	}
+
+	lockFile := stringutil.MarkdownToLockFile(testFile)
+	lockContent, err := os.ReadFile(lockFile)
+	if err != nil {
+		t.Fatalf("Failed to read lock file: %v", err)
+	}
+
+	lockYAML := string(lockContent)
+
+	// Find the Upload agent artifacts step and verify aw-*.patch is in its paths
+	uploadIdx := strings.Index(lockYAML, "- name: Upload agent artifacts")
+	if uploadIdx == -1 {
+		t.Fatal("Upload agent artifacts step not found")
+	}
+
+	// Extract the section up to the next step
+	afterUpload := lockYAML[uploadIdx:]
+	nextStep := strings.Index(afterUpload[30:], "- name:")
+	if nextStep == -1 {
+		nextStep = len(afterUpload) - 30
+	}
+	uploadSection := afterUpload[:30+nextStep]
+
+	if !strings.Contains(uploadSection, "/tmp/gh-aw/aw-*.patch") {
+		t.Error("Expected '/tmp/gh-aw/aw-*.patch' in unified artifact upload when threat detection is enabled with staged push-to-pull-request-branch")
+	}
+}

@@ -13,6 +13,9 @@
 // Functions:
 //   - SanitizeName: Configurable sanitization with character preservation options
 //   - SanitizeWorkflowName: Sanitizes for artifact names and file paths (preserves dots, underscores)
+//   - SanitizeWorkflowIDForCacheKey: Sanitizes workflow ID for use in cache keys (removes hyphens)
+//   - sanitizeJobName: Sanitizes workflow name to a valid GitHub Actions job name
+//   - sanitizeRefForPath: Sanitizes a git ref for use in a file path
 //   - SanitizeIdentifier (workflow_name.go): Creates clean identifiers for user agents
 //
 // Example:
@@ -82,6 +85,7 @@ import (
 	"strings"
 
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/stringutil"
 )
 
 var stringsLog = logger.New("workflow:strings")
@@ -309,6 +313,38 @@ func PrettifyToolName(toolName string) string {
 
 	// Return other tool names as-is
 	return toolName
+}
+
+// SanitizeWorkflowIDForCacheKey sanitizes a workflow ID for use in cache keys.
+// It removes all hyphens and converts to lowercase to create a filesystem-safe identifier.
+// Example: "Smoke-Copilot" -> "smokecopilot"
+func SanitizeWorkflowIDForCacheKey(workflowID string) string {
+	// Convert to lowercase
+	sanitized := strings.ToLower(workflowID)
+	// Remove all hyphens
+	sanitized = strings.ReplaceAll(sanitized, "-", "")
+	return sanitized
+}
+
+// sanitizeJobName converts a workflow name to a valid GitHub Actions job name.
+// It delegates normalization to NormalizeSafeOutputIdentifier (which converts
+// hyphens to underscores), then converts underscores back to hyphens for
+// GitHub Actions job name conventions.
+func sanitizeJobName(workflowName string) string {
+	normalized := stringutil.NormalizeSafeOutputIdentifier(workflowName)
+	// NormalizeSafeOutputIdentifier uses underscores; convert to hyphens for job names
+	return strings.ReplaceAll(normalized, "_", "-")
+}
+
+// sanitizeRefForPath sanitizes a git ref for use in a file path.
+// Replaces characters that are problematic in file paths with safe alternatives.
+func sanitizeRefForPath(ref string) string {
+	// Replace slashes with dashes (for refs like "feature/my-branch")
+	sanitized := strings.ReplaceAll(ref, "/", "-")
+	// Replace other problematic characters
+	sanitized = strings.ReplaceAll(sanitized, ":", "-")
+	sanitized = strings.ReplaceAll(sanitized, "\\", "-")
+	return sanitized
 }
 
 // formatList formats a list of strings as a comma-separated list with natural language conjunction

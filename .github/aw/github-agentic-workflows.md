@@ -2144,6 +2144,26 @@ This example demonstrates using the agentic-workflows tool to analyze workflow e
 
 Monitor workflow execution and costs using the `logs` command:
 
+**⚠️ IMPORTANT**: When using `gh aw logs` or `gh aw audit` as steps inside a generated workflow (not from a local machine), the workflow **must**:
+
+1. Include `actions: read` in the `permissions:` block — these commands read GitHub Actions run data.
+2. Call the `setup-cli` action **before** any step that uses `gh aw` — the extension is not available by default on runners.
+
+```yaml
+permissions:
+  actions: read
+
+steps:
+  - name: Install gh-aw
+    uses: github/gh-aw/actions/setup-cli@<version>
+    with:
+      version: <version>
+  - name: Download logs
+    run: gh aw logs ...
+```
+
+Steps that call `gh aw` placed **before** the `setup-cli` install step will fail with `unknown command "aw" for "gh"`.
+
 ```bash
 # Download logs for all agentic workflows
 gh aw logs

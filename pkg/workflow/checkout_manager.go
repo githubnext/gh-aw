@@ -361,9 +361,10 @@ func (cm *CheckoutManager) GenerateAdditionalCheckoutSteps(getActionPin func(str
 //     expression such as "${{ steps.resolve-host-repo.outputs.target_ref }}".
 //     Pass an empty string to omit the ref field and use the repository's default branch.
 //   - getActionPin: resolves an action reference to a pinned SHA form.
+//   - extraPaths: additional paths to include in the sparse-checkout beyond .github and .agents.
 //
 // Returns a slice of YAML lines (each ending with \n).
-func (cm *CheckoutManager) GenerateGitHubFolderCheckoutStep(repository, ref string, getActionPin func(string) string) []string {
+func (cm *CheckoutManager) GenerateGitHubFolderCheckoutStep(repository, ref string, getActionPin func(string) string, extraPaths ...string) []string {
 	checkoutManagerLog.Printf("Generating .github/.agents folder checkout: repository=%q ref=%q", repository, ref)
 	var sb strings.Builder
 
@@ -380,6 +381,9 @@ func (cm *CheckoutManager) GenerateGitHubFolderCheckoutStep(repository, ref stri
 	sb.WriteString("          sparse-checkout: |\n")
 	sb.WriteString("            .github\n")
 	sb.WriteString("            .agents\n")
+	for _, p := range extraPaths {
+		fmt.Fprintf(&sb, "            %s\n", p)
+	}
 	sb.WriteString("          sparse-checkout-cone-mode: true\n")
 	sb.WriteString("          fetch-depth: 1\n")
 

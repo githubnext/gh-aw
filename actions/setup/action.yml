@@ -12,18 +12,14 @@ inputs:
     default: 'false'
 
 outputs:
-  files-copied:
+  files_copied:
     description: 'Number of files copied'
-  
+
 runs:
-  using: 'composite'
-  steps:
-    - name: Setup Activation Scripts
-      shell: bash
-      env:
-        INPUT_DESTINATION: ${{ inputs.destination }}
-        INPUT_SAFE_OUTPUT_CUSTOM_TOKENS: ${{ inputs.safe-output-custom-tokens }}
-      run: ${{ github.action_path }}/setup.sh
+  using: 'node24'
+  main: 'index.js'
+  post: 'post.js'
+  post-if: 'always()'
 
 branding:
   icon: 'play'

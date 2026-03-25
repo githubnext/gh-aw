@@ -341,6 +341,7 @@ export default defineConfig({
 					label: 'Troubleshooting',
 					autogenerate: { directory: 'troubleshooting' },
 				},
+				{ label: 'Agent Factory', link: '/agent-factory-status/' },
 				{ label: 'Editors', link: '/reference/editors/' },
 			],
 		}),

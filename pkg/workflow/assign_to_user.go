@@ -17,12 +17,10 @@ type AssignToUserConfig struct {
 
 // parseAssignToUserConfig handles assign-to-user configuration
 func (c *Compiler) parseAssignToUserConfig(outputMap map[string]any) *AssignToUserConfig {
-	// Check if the key exists
+	// Check key existence first so we can preprocess templatable fields before YAML unmarshaling
 	if _, exists := outputMap["assign-to-user"]; !exists {
 		return nil
 	}
-
-	assignToUserLog.Print("Parsing assign-to-user configuration")
 
 	// Get config data for pre-processing before YAML unmarshaling
 	configData, _ := outputMap["assign-to-user"].(map[string]any)
@@ -39,15 +37,16 @@ func (c *Compiler) parseAssignToUserConfig(outputMap map[string]any) *AssignToUs
 		return nil
 	}
 
-	// Unmarshal into typed config struct
-	var config AssignToUserConfig
-	if err := unmarshalConfig(outputMap, "assign-to-user", &config, assignToUserLog); err != nil {
+	config := parseConfigScaffold(outputMap, "assign-to-user", assignToUserLog, func(err error) *AssignToUserConfig {
 		assignToUserLog.Printf("Failed to unmarshal config: %v", err)
 		// For backward compatibility, use defaults
 		assignToUserLog.Print("Using default configuration")
-		config = AssignToUserConfig{
+		return &AssignToUserConfig{
 			BaseSafeOutputConfig: BaseSafeOutputConfig{Max: defaultIntStr(1)},
 		}
+	})
+	if config == nil {
+		return nil
 	}
 
 	// Set default max if not specified
@@ -57,5 +56,5 @@ func (c *Compiler) parseAssignToUserConfig(outputMap map[string]any) *AssignToUs
 
 	assignToUserLog.Printf("Parsed configuration: allowed_count=%d, target=%s", len(config.Allowed), config.Target)
 
-	return &config
+	return config
 }

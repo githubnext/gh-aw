@@ -169,8 +169,16 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 	var command string
 	if isFirewallEnabled(workflowData) {
 		// Build AWF-wrapped command using helper function - no mkdir needed, AWF handles it
-		// Get allowed domains (copilot defaults + network permissions + HTTP MCP server URLs + runtime ecosystem domains)
-		allowedDomains := GetCopilotAllowedDomainsWithToolsAndRuntimes(workflowData.NetworkPermissions, workflowData.Tools, workflowData.Runtimes)
+		// For detection runs use the minimal detection domain list (excludes registry.npmjs.org
+		// and raw.githubusercontent.com — not needed when MCP servers are disabled and the
+		// Copilot CLI binary is already installed on the runner).
+		// For normal agent runs use the full domain set (defaults + ecosystem + user-specified).
+		var allowedDomains string
+		if workflowData.IsDetectionRun {
+			allowedDomains = GetThreatDetectionAllowedDomains(workflowData.NetworkPermissions)
+		} else {
+			allowedDomains = GetCopilotAllowedDomainsWithToolsAndRuntimes(workflowData.NetworkPermissions, workflowData.Tools, workflowData.Runtimes)
+		}
 		// Add Copilot API target domains to the firewall allow-list.
 		// Resolved from engine.api-target or GITHUB_COPILOT_BASE_URL in engine.env.
 		if copilotAPITarget := GetCopilotAPITarget(workflowData); copilotAPITarget != "" {

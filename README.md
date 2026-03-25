@@ -135,6 +135,7 @@ For development setup and contribution guidelines, see [CONTRIBUTING.md](CONTRIB
 
 ### @chrizbo
 
+- #22510 _(direct issue)_
 - #21863 _(direct issue)_
 - #19347 _(direct issue)_
 
@@ -152,6 +153,7 @@ For development setup and contribution guidelines, see [CONTRIBUTING.md](CONTRIB
 
 ### @Dan-Co
 
+- #22707 _(direct issue)_
 - #17978 _(direct issue)_
 
 ### @danielmeppiel
@@ -179,6 +181,10 @@ For development setup and contribution guidelines, see [CONTRIBUTING.md](CONTRIB
 ### @DimaBir
 
 - #20483 _(direct issue)_
+
+### @DogeAmazed
+
+- #22703 _(direct issue)_
 
 ### @DrPye
 
@@ -211,6 +217,7 @@ For development setup and contribution guidelines, see [CONTRIBUTING.md](CONTRIB
 - #19104 _(direct issue)_
 - #19067 _(direct issue)_
 - #18854 _(direct issue)_
+- #18831 _(direct issue)_
 - #18574 _(direct issue)_
 - #18535 _(direct issue)_
 - #18485 _(direct issue)_
@@ -261,6 +268,10 @@ For development setup and contribution guidelines, see [CONTRIBUTING.md](CONTRIB
 - #19441 _(direct issue)_
 - #18763 _(direct issue)_
 
+### @heaversm
+
+- #18747 _(direct issue)_
+
 ### @heiskr
 
 - #20394 _(direct issue)_
@@ -287,6 +298,7 @@ For development setup and contribution guidelines, see [CONTRIBUTING.md](CONTRIB
 
 ### @jaroslawgajewski
 
+- #22647 _(direct issue)_
 - #21816 _(direct issue)_
 - #20813 _(direct issue)_
 - #20811 _(direct issue)_
@@ -372,6 +384,10 @@ For development setup and contribution guidelines, see [CONTRIBUTING.md](CONTRIB
 
 - #20592 _(direct issue)_
 
+### @mhavelock
+
+- #22110 _(direct issue)_
+
 ### @microsasa
 
 - #21098 _(direct issue)_
@@ -380,6 +396,7 @@ For development setup and contribution guidelines, see [CONTRIBUTING.md](CONTRIB
 
 ### @mnkiefer
 
+- #22409 _(direct issue)_
 - [[research] Overview of docs improver agents](https://github.com/github/gh-aw/issues/19836) _(direct issue)_
 
 ### @molson504x
@@ -417,6 +434,14 @@ For development setup and contribution guidelines, see [CONTRIBUTING.md](CONTRIB
 ### @Phonesis
 
 - #16236 _(direct issue)_
+
+### @Pierrci
+
+- #18587 _(direct issue)_
+
+### @plengauer
+
+- #18297 _(direct issue)_
 
 ### @pmalarme
 
@@ -461,7 +486,9 @@ For development setup and contribution guidelines, see [CONTRIBUTING.md](CONTRIB
 
 - #22380 _(direct issue)_
 - #22364 _(direct issue)_
+- #22161 _(direct issue)_
 - #22138 _(direct issue)_
+- #21975 _(direct issue)_
 - #21955 _(direct issue)_
 - #21501 _(direct issue)_
 - #21304 _(direct issue)_
@@ -492,6 +519,10 @@ For development setup and contribution guidelines, see [CONTRIBUTING.md](CONTRIB
 - #18745 _(direct issue)_
 - #17298 _(direct issue)_
 
+### @stacktick
+
+- #21361 _(direct issue)_
+
 ### @steliosfran
 
 - [[bug] base-branch in assign-to-agent uses customInstructions text instead of GraphQL baseRef field](https://github.com/github/gh-aw/issues/17299) _(direct issue)_
@@ -504,6 +535,7 @@ For development setup and contribution guidelines, see [CONTRIBUTING.md](CONTRIB
 
 ### @strawgate
 
+- #21157 _(direct issue)_
 - #21135 _(direct issue)_
 - #21028 _(direct issue)_
 - #20910 _(direct issue)_

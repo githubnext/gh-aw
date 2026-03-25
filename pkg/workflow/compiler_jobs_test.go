@@ -917,22 +917,26 @@ Test content`
 
 	yamlStr := string(content)
 
-	// Check that detection is inline in agent job (not a separate job)
-	if containsInNonCommentLines(yamlStr, "\n  detection:\n") {
-		t.Error("Expected detection to be inline in agent job, not a separate job")
+	// Check that detection is a separate job (not inline in agent job)
+	if !containsInNonCommentLines(yamlStr, "  detection:") {
+		t.Error("Expected detection to be a separate job, not inline in agent job")
 	}
 
-	// Check that agent job contains inline detection steps
-	if !strings.Contains(yamlStr, "detection_guard") {
-		t.Error("Expected agent job to contain detection_guard step")
+	// Check that detection job contains detection steps
+	detectionSection := extractJobSection(yamlStr, "detection")
+	if detectionSection == "" {
+		t.Fatal("Detection job not found in compiled YAML")
 	}
-	if !strings.Contains(yamlStr, "detection_conclusion") {
-		t.Error("Expected agent job to contain detection_conclusion step")
+	if !strings.Contains(detectionSection, "detection_guard") {
+		t.Error("Expected detection job to contain detection_guard step")
+	}
+	if !strings.Contains(detectionSection, "detection_conclusion") {
+		t.Error("Expected detection job to contain detection_conclusion step")
 	}
 
-	// Check that safe_outputs job references agent detection output
-	if !strings.Contains(yamlStr, "needs.agent.outputs.detection_success") {
-		t.Error("Expected safe output jobs to check needs.agent.outputs.detection_success")
+	// Check that safe_outputs job references detection job result
+	if !strings.Contains(yamlStr, "needs.detection.result == 'success'") {
+		t.Error("Expected safe output jobs to check needs.detection.result == 'success'")
 	}
 }
 
@@ -1388,12 +1392,11 @@ func TestJobsWithRepoMemoryDependencies(t *testing.T) {
 		t.Fatal("Expected push_repo_memory job to be created")
 	}
 
-	// Detection is inline in agent — no separate dependency
-	// Verify push_repo_memory does NOT depend on detection job
+	// Detection is a separate job — push_repo_memory should depend on it when enabled
 	if threatDetectionEnabledForSafeJobs {
 		hasDetectionDep := slices.Contains(pushRepoMemoryJob.Needs, string(constants.DetectionJobName))
-		if hasDetectionDep {
-			t.Error("push_repo_memory should not depend on detection job (detection is inline in agent)")
+		if !hasDetectionDep {
+			t.Error("push_repo_memory should depend on detection job (detection is now a separate job)")
 		}
 	}
 
@@ -1455,10 +1458,10 @@ func TestJobsWithCacheMemoryDependencies(t *testing.T) {
 			t.Fatal("Expected update_cache_memory job to be created when threat detection is enabled")
 		}
 
-		// Verify dependencies — detection is inline in agent, no separate dependency
+		// Verify dependencies — detection is a separate job, so should depend on it
 		hasDetectionDep := slices.Contains(updateCacheMemoryJob.Needs, string(constants.DetectionJobName))
-		if hasDetectionDep {
-			t.Error("update_cache_memory should not depend on detection job (detection is inline in agent)")
+		if !hasDetectionDep {
+			t.Error("update_cache_memory should depend on detection job (detection is now a separate job)")
 		}
 		// Should depend on agent job
 		hasAgentDep := slices.Contains(updateCacheMemoryJob.Needs, string(constants.AgentJobName))
