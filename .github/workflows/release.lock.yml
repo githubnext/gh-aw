@@ -930,19 +930,15 @@ jobs:
           # GitHub instance (GHES/GHEC). On github.com this is a harmless no-op.
           GH_HOST="${GITHUB_SERVER_URL#https://}"
           GH_HOST="${GH_HOST#http://}"
-          echo "GH_HOST=${GH_HOST}" >> "$GITHUB_OUTPUT"
+          echo "GH_HOST=${GH_HOST}" >> "$GITHUB_ENV"
       - name: Checkout repository
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-        env:
-          GH_HOST: ${{ steps.ghes-host-config.outputs.GH_HOST }}
         with:
           fetch-depth: 0
           persist-credentials: false
       - name: Compute release configuration
         id: compute_config
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
-        env:
-          GH_HOST: ${{ steps.ghes-host-config.outputs.GH_HOST }}
         with:
           script: |
             const releaseType = context.payload.inputs.release_type;
@@ -1235,11 +1231,9 @@ jobs:
           # GitHub instance (GHES/GHEC). On github.com this is a harmless no-op.
           GH_HOST="${GITHUB_SERVER_URL#https://}"
           GH_HOST="${GH_HOST#http://}"
-          echo "GH_HOST=${GH_HOST}" >> "$GITHUB_OUTPUT"
+          echo "GH_HOST=${GH_HOST}" >> "$GITHUB_ENV"
       - name: Checkout repository
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-        env:
-          GH_HOST: ${{ steps.ghes-host-config.outputs.GH_HOST }}
         with:
           fetch-depth: 0
           persist-credentials: true
@@ -1252,12 +1246,9 @@ jobs:
           git push origin "$RELEASE_TAG"
           echo "✓ Tag created: $RELEASE_TAG"
         env:
-          GH_HOST: ${{ steps.ghes-host-config.outputs.GH_HOST }}
           RELEASE_TAG: ${{ needs.config.outputs.release_tag }}
       - name: Setup Go
         uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417 # v6.3.0
-        env:
-          GH_HOST: ${{ steps.ghes-host-config.outputs.GH_HOST }}
         with:
           cache: false
           go-version-file: go.mod
@@ -1267,16 +1258,11 @@ jobs:
           bash scripts/build-release.sh "$RELEASE_TAG"
           echo "✓ Binaries built successfully"
         env:
-          GH_HOST: ${{ steps.ghes-host-config.outputs.GH_HOST }}
           RELEASE_TAG: ${{ needs.config.outputs.release_tag }}
       - name: Setup Docker Buildx (pre-validation)
         uses: docker/setup-buildx-action@4d04d5d9486b7bd6fa91e7baf45bbb4f8b9deedd # v4
-        env:
-          GH_HOST: ${{ steps.ghes-host-config.outputs.GH_HOST }}
       - name: Build Docker image (validation only)
         uses: docker/build-push-action@d08e5c354a6adb9ed34480a06d141179aa583294 # v7
-        env:
-          GH_HOST: ${{ steps.ghes-host-config.outputs.GH_HOST }}
         with:
           build-args: |
             BINARY=dist/linux-amd64
@@ -1287,8 +1273,6 @@ jobs:
           push: false
       - name: Upload release binaries
         uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7
-        env:
-          GH_HOST: ${{ steps.ghes-host-config.outputs.GH_HOST }}
         with:
           name: release-binaries-${{ needs.config.outputs.release_tag }}
           path: dist/
@@ -1309,7 +1293,6 @@ jobs:
           echo "Sync actions instructions written for release: $RELEASE_TAG"
           echo "Ensure the sync-actions job has been run and the PR merged in github/gh-aw-actions before approving."
         env:
-          GH_HOST: ${{ steps.ghes-host-config.outputs.GH_HOST }}
           RELEASE_TAG: ${{ needs.config.outputs.release_tag }}
 
   release:
@@ -1336,7 +1319,7 @@ jobs:
           # GitHub instance (GHES/GHEC). On github.com this is a harmless no-op.
           GH_HOST="${GITHUB_SERVER_URL#https://}"
           GH_HOST="${GH_HOST#http://}"
-          echo "GH_HOST=${GH_HOST}" >> "$GITHUB_OUTPUT"
+          echo "GH_HOST=${GH_HOST}" >> "$GITHUB_ENV"
       - name: Verify tag exists in gh-aw-actions
         run: |
           echo "Verifying tag $RELEASE_TAG exists in github/gh-aw-actions..."
@@ -1347,20 +1330,15 @@ jobs:
             exit 1
           fi
         env:
-          GH_HOST: ${{ steps.ghes-host-config.outputs.GH_HOST }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           RELEASE_TAG: ${{ needs.config.outputs.release_tag }}
       - name: Checkout repository
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-        env:
-          GH_HOST: ${{ steps.ghes-host-config.outputs.GH_HOST }}
         with:
           fetch-depth: 0
           persist-credentials: true
       - name: Download release binaries
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
-        env:
-          GH_HOST: ${{ steps.ghes-host-config.outputs.GH_HOST }}
         with:
           name: release-binaries-${{ needs.config.outputs.release_tag }}
           path: dist/
@@ -1381,25 +1359,18 @@ jobs:
           echo "✓ Release created: $RELEASE_TAG"
           echo "✓ Release ID: $RELEASE_ID"
         env:
-          GH_HOST: ${{ steps.ghes-host-config.outputs.GH_HOST }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           RELEASE_TAG: ${{ needs.config.outputs.release_tag }}
       - name: Download Go modules
         run: go mod download
-        env:
-          GH_HOST: ${{ steps.ghes-host-config.outputs.GH_HOST }}
       - name: Generate SBOM (SPDX format)
         uses: anchore/sbom-action@e22c389904149dbc22b58101806040fa8d37a610 # v0.24.0
-        env:
-          GH_HOST: ${{ steps.ghes-host-config.outputs.GH_HOST }}
         with:
           artifact-name: sbom.spdx.json
           format: spdx-json
           output-file: sbom.spdx.json
       - name: Generate SBOM (CycloneDX format)
         uses: anchore/sbom-action@e22c389904149dbc22b58101806040fa8d37a610 # v0.24.0
-        env:
-          GH_HOST: ${{ steps.ghes-host-config.outputs.GH_HOST }}
         with:
           artifact-name: sbom.cdx.json
           format: cyclonedx-json
@@ -1412,12 +1383,8 @@ jobs:
             exit 1
           fi
           echo "✓ No secrets detected in SBOM files"
-        env:
-          GH_HOST: ${{ steps.ghes-host-config.outputs.GH_HOST }}
       - name: Upload SBOM artifacts
         uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7
-        env:
-          GH_HOST: ${{ steps.ghes-host-config.outputs.GH_HOST }}
         with:
           name: sbom-artifacts
           path: |
@@ -1432,17 +1399,12 @@ jobs:
             sbom.cdx.json
           echo "✓ SBOM files uploaded to release"
         env:
-          GH_HOST: ${{ steps.ghes-host-config.outputs.GH_HOST }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           RELEASE_TAG: ${{ needs.config.outputs.release_tag }}
       - name: Setup Docker Buildx
         uses: docker/setup-buildx-action@4d04d5d9486b7bd6fa91e7baf45bbb4f8b9deedd # v4
-        env:
-          GH_HOST: ${{ steps.ghes-host-config.outputs.GH_HOST }}
       - name: Log in to GitHub Container Registry
         uses: docker/login-action@b45d80f862d83dbcd57f89517bcf500b2ab88fb2 # v4
-        env:
-          GH_HOST: ${{ steps.ghes-host-config.outputs.GH_HOST }}
         with:
           password: ${{ secrets.GITHUB_TOKEN }}
           registry: ghcr.io
@@ -1450,8 +1412,6 @@ jobs:
       - name: Extract metadata for Docker
         id: meta
         uses: docker/metadata-action@030e881283bb7a6894de51c315a6bfe6a94e05cf # v6
-        env:
-          GH_HOST: ${{ steps.ghes-host-config.outputs.GH_HOST }}
         with:
           images: ghcr.io/${{ github.repository }}
           tags: |
@@ -1463,8 +1423,6 @@ jobs:
       - name: Build and push Docker image (amd64)
         id: build
         uses: docker/build-push-action@d08e5c354a6adb9ed34480a06d141179aa583294 # v7
-        env:
-          GH_HOST: ${{ steps.ghes-host-config.outputs.GH_HOST }}
         with:
           build-args: |
             BINARY=dist/linux-amd64
@@ -1534,7 +1492,7 @@ jobs:
           # GitHub instance (GHES/GHEC). On github.com this is a harmless no-op.
           GH_HOST="${GITHUB_SERVER_URL#https://}"
           GH_HOST="${GH_HOST#http://}"
-          echo "GH_HOST=${GH_HOST}" >> "$GITHUB_OUTPUT"
+          echo "GH_HOST=${GH_HOST}" >> "$GITHUB_ENV"
       - name: Process Safe Outputs
         id: process_safe_outputs
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
@@ -1576,9 +1534,7 @@ jobs:
           # GitHub instance (GHES/GHEC). On github.com this is a harmless no-op.
           GH_HOST="${GITHUB_SERVER_URL#https://}"
           GH_HOST="${GH_HOST#http://}"
-          echo "GH_HOST=${GH_HOST}" >> "$GITHUB_OUTPUT"
+          echo "GH_HOST=${GH_HOST}" >> "$GITHUB_ENV"
       - name: Await manual approval
         run: echo "Manual approval received. Continuing release."
-        env:
-          GH_HOST: ${{ steps.ghes-host-config.outputs.GH_HOST }}
 

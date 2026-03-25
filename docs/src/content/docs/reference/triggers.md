@@ -604,6 +604,24 @@ on: pull_request opened affecting docs/**  # Activity type + path filter
 
 `pull` is an alias for `pull_request`. Valid activity types: `opened`, `edited`, `closed`, `reopened`, `synchronize`, `assigned`, `unassigned`, `labeled`, `unlabeled`, `review_requested`, `merged`.
 
+#### Glob Pattern Validation
+
+The compiler validates glob patterns in `branches`, `branches-ignore`, `tags`, `tags-ignore`, and `paths`/`paths-ignore` filter fields at compile time for `push`, `pull_request`, `pull_request_target`, and `workflow_run` triggers. Invalid patterns produce a compilation error:
+
+```yaml wrap
+on:
+  push:
+    paths:
+      - ./src/**/*.go   # error: invalid glob pattern "./src/**/*.go" in on.push.paths
+    branches:
+      - main branch     # error: invalid glob pattern "main branch" in on.push.branches
+```
+
+Common invalid patterns:
+- **`./`-prefixed paths** — use `src/**` not `./src/**`
+- **Spaces in ref patterns** — branch/tag names cannot contain spaces
+- **Unclosed brackets** — e.g. `feat[` without a closing `]`
+
 ### Issues and Discussions
 
 ```yaml wrap
