@@ -386,10 +386,16 @@ func parseAndDisplayActionlintOutput(stdout string, verbose bool) (int, map[stri
 			errorsByKind[err.Kind]++
 		}
 
-		// Use snippet from actionlint JSON output for context display
+		// Use snippet from actionlint JSON output for context display.
+		// actionlint's snippet includes a caret ("^~~~") pointer line; we only
+		// keep the actual source line so console.FormatError can render its own
+		// underline based on Column and keep line numbers aligned.
 		var context []string
 		if err.Snippet != "" {
-			context = strings.Split(err.Snippet, "\n")
+			lines := strings.Split(err.Snippet, "\n")
+			if len(lines) > 0 {
+				context = []string{lines[0]}
+			}
 		}
 
 		// Map kind to error type
