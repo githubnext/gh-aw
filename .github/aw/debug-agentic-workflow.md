@@ -64,6 +64,26 @@ Report back with specific findings and actionable fixes.
 - `gh aw audit <run-id> --json` → investigate a specific run with JSON output
 - `gh aw status` → show status of agentic workflows in the repository
 
+> [!IMPORTANT]
+> **When using `gh aw logs` or `gh aw audit` as steps inside a generated workflow** (not from a local machine):
+>
+> 1. Add `actions: read` to the workflow `permissions:` block — these commands need read access to GitHub Actions run data.
+> 2. Install the `gh-aw` extension **before** the step that calls `gh aw`, using the `setup-cli` action:
+>
+>    ```yaml
+>    permissions:
+>      actions: read
+>    steps:
+>      - name: Install gh-aw
+>        uses: github/gh-aw/actions/setup-cli@<version>
+>        with:
+>          version: <version>
+>      - name: Download logs
+>        run: gh aw logs ...
+>    ```
+>
+> Steps that call `gh aw` placed **before** the `setup-cli` install step will fail with `unknown command "aw" for "gh"`.
+
 > [!NOTE]
 > **Alternative: agentic-workflows Tool**
 >
