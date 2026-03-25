@@ -230,7 +230,7 @@ function parseAPMLockfile(content) {
         // deployed_files list items are at 2-space indent: "  - path"
         const fileMatch = line.match(/^  - (.+)$/);
         if (fileMatch) {
-          if (currentDep) currentDep.deployed_files.push(unquoteYaml(String(fileMatch[1].trim())));
+          if (currentDep) currentDep.deployed_files.push(String(unquoteYaml(String(fileMatch[1].trim()))));
           break;
         }
         // Any other 2-space key: back to dep_item

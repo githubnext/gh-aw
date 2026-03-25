@@ -52,11 +52,11 @@ const exec = {
 // Passing empty objects for github (GraphQL client) and context (event payload)
 // because apm_unpack does not use GitHub API or event metadata.
 setupGlobals(
-  core, // logging, outputs, inputs
-  /* github  */ {}, // @actions/github – not used by apm_unpack
-  /* context */ {}, // GitHub Actions event context – not used by apm_unpack
-  exec, // runs `tar -xzf`
-  /* io      */ {} // @actions/io    – not used by apm_unpack
+  /** @type {any} */ core, // logging, outputs, inputs
+  /** @type {any} */ {}, // @actions/github – not used by apm_unpack
+  /** @type {any} */ {}, // GitHub Actions event context – not used by apm_unpack
+  /** @type {any} */ exec, // runs `tar -xzf`
+  /** @type {any} */ {} // @actions/io    – not used by apm_unpack
 );
 
 main().catch(err => {
