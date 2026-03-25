@@ -221,6 +221,15 @@ func (c *Compiler) buildJobs(data *WorkflowData, markdownPath string) error {
 		}
 	}
 
+	// Build APM job if dependencies are specified.
+	// This separate job depends on activation, packs the APM bundle, and uploads it as
+	// an artifact. The agent job then depends on this APM job to download and restore it.
+	if data.APMDependencies != nil && len(data.APMDependencies.Packages) > 0 {
+		if err := c.buildAPMJobWrapper(data); err != nil {
+			return err
+		}
+	}
+
 	// Build main workflow job
 	if err := c.buildMainJobWrapper(data, activationJobCreated); err != nil {
 		return err

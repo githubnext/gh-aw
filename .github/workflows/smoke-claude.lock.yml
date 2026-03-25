@@ -73,8 +73,6 @@ jobs:
       discussions: write
       issues: write
       pull-requests: write
-    env:
-      GH_AW_INFO_APM_VERSION: v0.8.5
     outputs:
       body: ${{ steps.sanitized.outputs.body }}
       comment_id: ${{ steps.add-comment.outputs.comment-id }}
@@ -657,27 +655,6 @@ jobs:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         # poutine:ignore untrusted_checkout_exec
         run: bash ${RUNNER_TEMP}/gh-aw/actions/print_prompt_summary.sh
-      - name: Install and pack APM dependencies
-        id: apm_pack
-        uses: microsoft/apm-action@cc84c04bc73e19e35527f1efa34ea003be9f037f # v1.4.0
-        env:
-          GITHUB_TOKEN: ${{ secrets.GH_AW_PLUGINS_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
-        with:
-          dependencies: |
-            - microsoft/apm-sample-package
-          isolated: 'true'
-          pack: 'true'
-          archive: 'true'
-          target: claude
-          working-directory: /tmp/gh-aw/apm-workspace
-          apm-version: ${{ env.GH_AW_INFO_APM_VERSION }}
-      - name: Upload APM bundle artifact
-        if: success()
-        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7
-        with:
-          name: apm
-          path: ${{ steps.apm_pack.outputs.bundle-path }}
-          retention-days: 1
       - name: Upload activation artifact
         if: success()
         uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7
@@ -689,7 +666,9 @@ jobs:
           retention-days: 1
 
   agent:
-    needs: activation
+    needs:
+      - activation
+      - apm
     runs-on: ubuntu-latest
     permissions:
       actions: read
@@ -844,7 +823,7 @@ jobs:
             const determineAutomaticLockdown = require('${{ runner.temp }}/gh-aw/actions/determine_automatic_lockdown.cjs');
             await determineAutomaticLockdown(github, context, core);
       - name: Download container images
-        run: bash ${RUNNER_TEMP}/gh-aw/actions/download_docker_images.sh ghcr.io/github/gh-aw-firewall/agent:0.25.0 ghcr.io/github/gh-aw-firewall/api-proxy:0.25.0 ghcr.io/github/gh-aw-firewall/squid:0.25.0 ghcr.io/github/gh-aw-mcpg:v0.2.5 ghcr.io/github/github-mcp-server:v0.32.0 ghcr.io/github/serena-mcp-server:latest mcr.microsoft.com/playwright/mcp node:lts-alpine
+        run: bash ${RUNNER_TEMP}/gh-aw/actions/download_docker_images.sh ghcr.io/github/gh-aw-firewall/agent:0.25.0 ghcr.io/github/gh-aw-firewall/api-proxy:0.25.0 ghcr.io/github/gh-aw-firewall/squid:0.25.0 ghcr.io/github/gh-aw-mcpg:v0.2.6 ghcr.io/github/github-mcp-server:v0.32.0 ghcr.io/github/serena-mcp-server:latest mcr.microsoft.com/playwright/mcp node:lts-alpine
       - name: Install gh-aw extension
         env:
           GH_TOKEN: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
@@ -1829,7 +1808,7 @@ jobs:
           export DEBUG="*"
           
           export GH_AW_ENGINE="claude"
-          export MCP_GATEWAY_DOCKER_COMMAND='docker run -i --rm --network host -v /var/run/docker.sock:/var/run/docker.sock -e MCP_GATEWAY_PORT -e MCP_GATEWAY_DOMAIN -e MCP_GATEWAY_API_KEY -e MCP_GATEWAY_PAYLOAD_DIR -e MCP_GATEWAY_PAYLOAD_SIZE_THRESHOLD -e DEBUG -e MCP_GATEWAY_LOG_DIR -e GH_AW_MCP_LOG_DIR -e GH_AW_SAFE_OUTPUTS -e GH_AW_SAFE_OUTPUTS_CONFIG_PATH -e GH_AW_SAFE_OUTPUTS_TOOLS_PATH -e GH_AW_ASSETS_BRANCH -e GH_AW_ASSETS_MAX_SIZE_KB -e GH_AW_ASSETS_ALLOWED_EXTS -e DEFAULT_BRANCH -e GITHUB_MCP_SERVER_TOKEN -e GITHUB_MCP_GUARD_MIN_INTEGRITY -e GITHUB_MCP_GUARD_REPOS -e GITHUB_REPOSITORY -e GITHUB_SERVER_URL -e GITHUB_SHA -e GITHUB_WORKSPACE -e GITHUB_TOKEN -e GITHUB_RUN_ID -e GITHUB_RUN_NUMBER -e GITHUB_RUN_ATTEMPT -e GITHUB_JOB -e GITHUB_ACTION -e GITHUB_EVENT_NAME -e GITHUB_EVENT_PATH -e GITHUB_ACTOR -e GITHUB_ACTOR_ID -e GITHUB_TRIGGERING_ACTOR -e GITHUB_WORKFLOW -e GITHUB_WORKFLOW_REF -e GITHUB_WORKFLOW_SHA -e GITHUB_REF -e GITHUB_REF_NAME -e GITHUB_REF_TYPE -e GITHUB_HEAD_REF -e GITHUB_BASE_REF -e GH_AW_MCP_SCRIPTS_PORT -e GH_AW_MCP_SCRIPTS_API_KEY -e GH_AW_SAFE_OUTPUTS_PORT -e GH_AW_SAFE_OUTPUTS_API_KEY -e GH_AW_GH_TOKEN -e GH_DEBUG -e GH_TOKEN -e TAVILY_API_KEY -v /tmp/gh-aw/mcp-payloads:/tmp/gh-aw/mcp-payloads:rw -v /opt:/opt:ro -v /tmp:/tmp:rw -v '"${GITHUB_WORKSPACE}"':'"${GITHUB_WORKSPACE}"':rw ghcr.io/github/gh-aw-mcpg:v0.2.5'
+          export MCP_GATEWAY_DOCKER_COMMAND='docker run -i --rm --network host -v /var/run/docker.sock:/var/run/docker.sock -e MCP_GATEWAY_PORT -e MCP_GATEWAY_DOMAIN -e MCP_GATEWAY_API_KEY -e MCP_GATEWAY_PAYLOAD_DIR -e MCP_GATEWAY_PAYLOAD_SIZE_THRESHOLD -e DEBUG -e MCP_GATEWAY_LOG_DIR -e GH_AW_MCP_LOG_DIR -e GH_AW_SAFE_OUTPUTS -e GH_AW_SAFE_OUTPUTS_CONFIG_PATH -e GH_AW_SAFE_OUTPUTS_TOOLS_PATH -e GH_AW_ASSETS_BRANCH -e GH_AW_ASSETS_MAX_SIZE_KB -e GH_AW_ASSETS_ALLOWED_EXTS -e DEFAULT_BRANCH -e GITHUB_MCP_SERVER_TOKEN -e GITHUB_MCP_GUARD_MIN_INTEGRITY -e GITHUB_MCP_GUARD_REPOS -e GITHUB_REPOSITORY -e GITHUB_SERVER_URL -e GITHUB_SHA -e GITHUB_WORKSPACE -e GITHUB_TOKEN -e GITHUB_RUN_ID -e GITHUB_RUN_NUMBER -e GITHUB_RUN_ATTEMPT -e GITHUB_JOB -e GITHUB_ACTION -e GITHUB_EVENT_NAME -e GITHUB_EVENT_PATH -e GITHUB_ACTOR -e GITHUB_ACTOR_ID -e GITHUB_TRIGGERING_ACTOR -e GITHUB_WORKFLOW -e GITHUB_WORKFLOW_REF -e GITHUB_WORKFLOW_SHA -e GITHUB_REF -e GITHUB_REF_NAME -e GITHUB_REF_TYPE -e GITHUB_HEAD_REF -e GITHUB_BASE_REF -e GH_AW_MCP_SCRIPTS_PORT -e GH_AW_MCP_SCRIPTS_API_KEY -e GH_AW_SAFE_OUTPUTS_PORT -e GH_AW_SAFE_OUTPUTS_API_KEY -e GH_AW_GH_TOKEN -e GH_DEBUG -e GH_TOKEN -e TAVILY_API_KEY -v /tmp/gh-aw/mcp-payloads:/tmp/gh-aw/mcp-payloads:rw -v /opt:/opt:ro -v /tmp:/tmp:rw -v '"${GITHUB_WORKSPACE}"':'"${GITHUB_WORKSPACE}"':rw ghcr.io/github/gh-aw-mcpg:v0.2.6'
           
           cat << GH_AW_MCP_CONFIG_EOF | bash ${RUNNER_TEMP}/gh-aw/actions/start_mcp_gateway.sh
           {
@@ -2384,6 +2363,35 @@ jobs:
             echo "success=false" >> "$GITHUB_OUTPUT"
             echo "Detection found issues"
           fi
+
+  apm:
+    needs: activation
+    runs-on: ubuntu-slim
+    permissions: {}
+    env:
+      GH_AW_INFO_APM_VERSION: v0.8.5
+    steps:
+      - name: Install and pack APM dependencies
+        id: apm_pack
+        uses: microsoft/apm-action@cc84c04bc73e19e35527f1efa34ea003be9f037f # v1.4.0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GH_AW_PLUGINS_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
+        with:
+          dependencies: |
+            - microsoft/apm-sample-package
+          isolated: 'true'
+          pack: 'true'
+          archive: 'true'
+          target: claude
+          working-directory: /tmp/gh-aw/apm-workspace
+          apm-version: ${{ env.GH_AW_INFO_APM_VERSION }}
+      - name: Upload APM bundle artifact
+        if: success()
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7
+        with:
+          name: apm
+          path: ${{ steps.apm_pack.outputs.bundle-path }}
+          retention-days: 1
 
   conclusion:
     needs:

@@ -103,7 +103,7 @@ export function createWorkerCompiler(options = {}) {
     }
 
     // Reject all pending requests.
-    for (const [id, entry] of pending) {
+    for (const [, entry] of pending) {
       entry.reject(new Error(errorMsg));
     }
     pending.clear();
@@ -143,7 +143,7 @@ export function createWorkerCompiler(options = {}) {
     worker.terminate();
 
     // Reject anything still pending.
-    for (const [id, entry] of pending) {
+    for (const [, entry] of pending) {
       entry.reject(new Error('Compiler worker was terminated.'));
     }
     pending.clear();

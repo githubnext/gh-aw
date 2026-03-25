@@ -597,7 +597,7 @@ func mergeSparsePatterns(existing []string, newPatterns string) []string {
 // mergeFetchRefs unions two sets of fetch ref patterns preserving insertion order.
 func mergeFetchRefs(existing []string, newRefs []string) []string {
 	seen := make(map[string]bool, len(existing))
-	result := make([]string, 0, len(existing)+len(newRefs))
+	result := make([]string, 0)
 	for _, r := range existing {
 		r = strings.TrimSpace(r)
 		if r != "" && !seen[r] {

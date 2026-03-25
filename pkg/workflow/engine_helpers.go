@@ -210,11 +210,29 @@ func FormatStepWithCommandAndEnv(stepLines []string, command string, env map[str
 
 		for _, key := range envKeys {
 			value := env[key]
-			stepLines = append(stepLines, fmt.Sprintf("          %s: %s", key, value))
+			stepLines = append(stepLines, fmt.Sprintf("          %s: %s", key, yamlStringValue(value)))
 		}
 	}
 
 	return stepLines
+}
+
+// yamlStringValue returns a YAML-safe representation of a string value.
+// If the value starts with a YAML flow indicator ('{' or '[') or other characters
+// that would cause it to be misinterpreted by YAML parsers, it wraps the value
+// in single quotes. Any embedded single quotes are escaped by doubling them (' becomes ”).
+func yamlStringValue(value string) string {
+	if len(value) == 0 {
+		return value
+	}
+	// Values starting with YAML flow indicators need quoting to be treated as strings.
+	// '{' would be parsed as a YAML flow mapping, '[' as a YAML flow sequence.
+	first := value[0]
+	if first != '{' && first != '[' {
+		return value
+	}
+	// Single-quote the value, escaping any embedded single quotes by doubling them.
+	return "'" + strings.ReplaceAll(value, "'", "''") + "'"
 }
 
 // FilterEnvForSecrets filters environment variables to only include allowed secrets.

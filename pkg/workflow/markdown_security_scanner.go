@@ -478,9 +478,9 @@ func scanObfuscatedLinks(content string) []SecurityFinding {
 				})
 			}
 
-			// Check for javascript: or vbscript: protocols
+			// Check for javascript:, vbscript:, or data: protocols
 			lowerURL := strings.ToLower(strings.TrimSpace(linkURL))
-			if strings.HasPrefix(lowerURL, "javascript:") || strings.HasPrefix(lowerURL, "vbscript:") {
+			if strings.HasPrefix(lowerURL, "javascript:") || strings.HasPrefix(lowerURL, "vbscript:") || strings.HasPrefix(lowerURL, "data:") {
 				findings = append(findings, SecurityFinding{
 					Category:    CategoryObfuscatedLinks,
 					Description: "markdown link uses dangerous protocol: " + strings.SplitN(lowerURL, ":", 2)[0],

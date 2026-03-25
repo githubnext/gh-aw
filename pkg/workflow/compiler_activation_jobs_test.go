@@ -503,8 +503,8 @@ func TestBuildMainJob_EngineSpecific(t *testing.T) {
 	}
 }
 
-// TestBuildActivationJob_APMTokenInvalidation tests that the APM GitHub App token is invalidated after use
-func TestBuildActivationJob_APMTokenInvalidation(t *testing.T) {
+// TestBuildAPMJob_TokenInvalidation tests that the APM GitHub App token is invalidated after use
+func TestBuildAPMJob_TokenInvalidation(t *testing.T) {
 	compiler := NewCompiler()
 
 	t.Run("Invalidation step added when APM github-app is configured", func(t *testing.T) {
@@ -520,8 +520,8 @@ func TestBuildActivationJob_APMTokenInvalidation(t *testing.T) {
 			},
 		}
 
-		job, err := compiler.buildActivationJob(workflowData, false, "", "test.lock.yml")
-		require.NoError(t, err, "buildActivationJob should succeed")
+		job, err := compiler.buildAPMJob(workflowData)
+		require.NoError(t, err, "buildAPMJob should succeed")
 		require.NotNil(t, job)
 
 		stepsStr := strings.Join(job.Steps, "")
@@ -550,8 +550,8 @@ func TestBuildActivationJob_APMTokenInvalidation(t *testing.T) {
 			},
 		}
 
-		job, err := compiler.buildActivationJob(workflowData, false, "", "test.lock.yml")
-		require.NoError(t, err, "buildActivationJob should succeed")
+		job, err := compiler.buildAPMJob(workflowData)
+		require.NoError(t, err, "buildAPMJob should succeed")
 		require.NotNil(t, job)
 
 		stepsStr := strings.Join(job.Steps, "")
