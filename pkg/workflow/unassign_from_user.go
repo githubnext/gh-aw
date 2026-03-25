@@ -16,22 +16,16 @@ type UnassignFromUserConfig struct {
 
 // parseUnassignFromUserConfig handles unassign-from-user configuration
 func (c *Compiler) parseUnassignFromUserConfig(outputMap map[string]any) *UnassignFromUserConfig {
-	// Check if the key exists
-	if _, exists := outputMap["unassign-from-user"]; !exists {
-		return nil
-	}
-
-	unassignFromUserLog.Print("Parsing unassign-from-user configuration")
-
-	// Unmarshal into typed config struct
-	var config UnassignFromUserConfig
-	if err := unmarshalConfig(outputMap, "unassign-from-user", &config, unassignFromUserLog); err != nil {
+	config := parseConfigScaffold(outputMap, "unassign-from-user", unassignFromUserLog, func(err error) *UnassignFromUserConfig {
 		unassignFromUserLog.Printf("Failed to unmarshal config: %v", err)
 		// For backward compatibility, use defaults
 		unassignFromUserLog.Print("Using default configuration")
-		config = UnassignFromUserConfig{
+		return &UnassignFromUserConfig{
 			BaseSafeOutputConfig: BaseSafeOutputConfig{Max: defaultIntStr(1)},
 		}
+	})
+	if config == nil {
+		return nil
 	}
 
 	// Set default max if not specified
@@ -41,5 +35,5 @@ func (c *Compiler) parseUnassignFromUserConfig(outputMap map[string]any) *Unassi
 
 	unassignFromUserLog.Printf("Parsed configuration: allowed_count=%d, target=%s", len(config.Allowed), config.Target)
 
-	return &config
+	return config
 }

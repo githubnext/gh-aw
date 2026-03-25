@@ -441,5 +441,35 @@ describe("check_membership.cjs", () => {
       expect(mockCore.setOutput).toHaveBeenCalledWith("is_team_member", "true");
       expect(mockCore.setOutput).toHaveBeenCalledWith("result", "authorized_bot");
     });
+
+    it("should skip bot check when GH_AW_ALLOWED_BOTS is empty string", async () => {
+      process.env.GH_AW_ALLOWED_BOTS = "";
+
+      mockGithub.rest.repos.getCollaboratorPermissionLevel.mockResolvedValueOnce({
+        data: { permission: "none" },
+      });
+
+      await runScript();
+
+      // Only 1 API call (the permission check) — no bot status check
+      expect(mockGithub.rest.repos.getCollaboratorPermissionLevel).toHaveBeenCalledTimes(1);
+      expect(mockCore.setOutput).toHaveBeenCalledWith("is_team_member", "false");
+      expect(mockCore.setOutput).toHaveBeenCalledWith("result", "insufficient_permissions");
+    });
+
+    it("should skip bot check when GH_AW_ALLOWED_BOTS is not set", async () => {
+      delete process.env.GH_AW_ALLOWED_BOTS;
+
+      mockGithub.rest.repos.getCollaboratorPermissionLevel.mockResolvedValueOnce({
+        data: { permission: "none" },
+      });
+
+      await runScript();
+
+      // Only 1 API call (the permission check) — no bot status check
+      expect(mockGithub.rest.repos.getCollaboratorPermissionLevel).toHaveBeenCalledTimes(1);
+      expect(mockCore.setOutput).toHaveBeenCalledWith("is_team_member", "false");
+      expect(mockCore.setOutput).toHaveBeenCalledWith("result", "insufficient_permissions");
+    });
   });
 });

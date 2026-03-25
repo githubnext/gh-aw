@@ -688,8 +688,10 @@ func (c *Compiler) buildPushRepoMemoryJob(data *WorkflowData, threatDetectionEna
 	// If threat detection is enabled, only run if detection passed
 	// Otherwise, always run (even if agent job failed)
 	jobCondition := "always()"
+	jobNeeds := []string{"agent"}
 	if threatDetectionEnabled {
-		jobCondition = fmt.Sprintf("always() && needs.%s.outputs.detection_success == 'true'", constants.AgentJobName)
+		jobCondition = fmt.Sprintf("always() && needs.%s.result == 'success'", constants.DetectionJobName)
+		jobNeeds = append(jobNeeds, string(constants.DetectionJobName))
 	}
 
 	// Build outputs map for validation failures from all memory steps
@@ -713,7 +715,7 @@ func (c *Compiler) buildPushRepoMemoryJob(data *WorkflowData, threatDetectionEna
 		If:          jobCondition,
 		Permissions: "permissions:\n      contents: write",
 		Concurrency: concurrency,
-		Needs:       []string{"agent"}, // Detection dependency added by caller if needed
+		Needs:       jobNeeds,
 		Steps:       steps,
 		Outputs:     outputs,
 	}

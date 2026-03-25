@@ -69,8 +69,13 @@ type LogMetrics = workflow.LogMetrics
 // ProcessedRun represents a workflow run with its associated analysis
 type ProcessedRun struct {
 	Run                     WorkflowRun
+	AwContext               *AwContext
+	TaskDomain              *TaskDomainInfo
+	BehaviorFingerprint     *BehaviorFingerprint
+	AgenticAssessments      []AgenticAssessment
 	AccessAnalysis          *DomainAnalysis
 	FirewallAnalysis        *FirewallAnalysis
+	PolicyAnalysis          *PolicyAnalysis
 	RedactedDomainsAnalysis *RedactedDomainsAnalysis
 	MissingTools            []MissingToolReport
 	MissingData             []MissingDataReport
@@ -174,27 +179,36 @@ var ErrNoArtifacts = errors.New("no artifacts found for this run")
 // - If the CLI version in the summary doesn't match the current version, the run is reprocessed
 // - This ensures that bug fixes and improvements in log parsing are automatically applied
 type RunSummary struct {
-	CLIVersion              string                   `json:"cli_version"`               // CLI version used to process this run
-	RunID                   int64                    `json:"run_id"`                    // Workflow run database ID
-	ProcessedAt             time.Time                `json:"processed_at"`              // When this summary was created
-	Run                     WorkflowRun              `json:"run"`                       // Full workflow run metadata
-	Metrics                 LogMetrics               `json:"metrics"`                   // Extracted log metrics
-	AccessAnalysis          *DomainAnalysis          `json:"access_analysis"`           // Network access analysis
-	FirewallAnalysis        *FirewallAnalysis        `json:"firewall_analysis"`         // Firewall log analysis
-	RedactedDomainsAnalysis *RedactedDomainsAnalysis `json:"redacted_domains_analysis"` // Redacted URL domains analysis
-	MissingTools            []MissingToolReport      `json:"missing_tools"`             // Missing tool reports
-	MissingData             []MissingDataReport      `json:"missing_data"`              // Missing data reports
-	Noops                   []NoopReport             `json:"noops"`                     // Noop messages
-	MCPFailures             []MCPFailureReport       `json:"mcp_failures"`              // MCP server failures
-	MCPToolUsage            *MCPToolUsageData        `json:"mcp_tool_usage,omitempty"`  // MCP tool usage data
-	ArtifactsList           []string                 `json:"artifacts_list"`            // List of downloaded artifact files
-	JobDetails              []JobInfoWithDuration    `json:"job_details"`               // Job execution details
+	CLIVersion              string                   `json:"cli_version"`                    // CLI version used to process this run
+	RunID                   int64                    `json:"run_id"`                         // Workflow run database ID
+	ProcessedAt             time.Time                `json:"processed_at"`                   // When this summary was created
+	Run                     WorkflowRun              `json:"run"`                            // Full workflow run metadata
+	Metrics                 LogMetrics               `json:"metrics"`                        // Extracted log metrics
+	AwContext               *AwContext               `json:"context,omitempty"`              // aw_context data from aw_info.json
+	TaskDomain              *TaskDomainInfo          `json:"task_domain,omitempty"`          // Inferred workflow task domain
+	BehaviorFingerprint     *BehaviorFingerprint     `json:"behavior_fingerprint,omitempty"` // Compact execution profile
+	AgenticAssessments      []AgenticAssessment      `json:"agentic_assessments,omitempty"`  // Derived agentic judgments
+	AccessAnalysis          *DomainAnalysis          `json:"access_analysis"`                // Network access analysis
+	FirewallAnalysis        *FirewallAnalysis        `json:"firewall_analysis"`              // Firewall log analysis
+	PolicyAnalysis          *PolicyAnalysis          `json:"policy_analysis,omitempty"`      // Firewall policy rule attribution
+	RedactedDomainsAnalysis *RedactedDomainsAnalysis `json:"redacted_domains_analysis"`      // Redacted URL domains analysis
+	MissingTools            []MissingToolReport      `json:"missing_tools"`                  // Missing tool reports
+	MissingData             []MissingDataReport      `json:"missing_data"`                   // Missing data reports
+	Noops                   []NoopReport             `json:"noops"`                          // Noop messages
+	MCPFailures             []MCPFailureReport       `json:"mcp_failures"`                   // MCP server failures
+	MCPToolUsage            *MCPToolUsageData        `json:"mcp_tool_usage,omitempty"`       // MCP tool usage data
+	ArtifactsList           []string                 `json:"artifacts_list"`                 // List of downloaded artifact files
+	JobDetails              []JobInfoWithDuration    `json:"job_details"`                    // Job execution details
 }
 
 // DownloadResult represents the result of downloading and processing a workflow run
 type DownloadResult struct {
 	Run                     WorkflowRun
 	Metrics                 LogMetrics
+	AwContext               *AwContext
+	TaskDomain              *TaskDomainInfo
+	BehaviorFingerprint     *BehaviorFingerprint
+	AgenticAssessments      []AgenticAssessment
 	AccessAnalysis          *DomainAnalysis
 	FirewallAnalysis        *FirewallAnalysis
 	RedactedDomainsAnalysis *RedactedDomainsAnalysis
@@ -260,7 +274,13 @@ type AwInfo struct {
 	// Additional fields that might be present
 	RunID      any    `json:"run_id,omitempty"`
 	RunNumber  any    `json:"run_number,omitempty"`
+	RunAttempt string `json:"run_attempt,omitempty"`
 	Repository string `json:"repository,omitempty"`
+	Ref        string `json:"ref,omitempty"`
+	SHA        string `json:"sha,omitempty"`
+	Actor      string `json:"actor,omitempty"`
+	EventName  string `json:"event_name,omitempty"`
+	TargetRepo string `json:"target_repo,omitempty"`
 }
 
 // GetFirewallVersion returns the AWF firewall version, preferring the new field name

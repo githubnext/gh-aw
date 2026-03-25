@@ -37,7 +37,15 @@ const DEFAULT_RETRY_CONFIG = {
  * @returns {boolean} True if the error is transient and should be retried
  */
 function isTransientError(error) {
-  const errorMsg = getErrorMessage(error).toLowerCase();
+  const errorMsg = getErrorMessage(error);
+  const errorMsgLower = errorMsg.trimStart().toLowerCase();
+
+  // GitHub REST APIs may crash and return an HTML error page (e.g. the "Unicorn!"
+  // 500 page) instead of JSON. Detect this by checking for an HTML doctype at the
+  // start of the error message and treat it as a transient server error.
+  if (errorMsgLower.startsWith("<!doctype html")) {
+    return true;
+  }
 
   // Network-related errors that are likely transient
   const transientPatterns = [
@@ -58,7 +66,7 @@ function isTransientError(error) {
     "no server is currently available", // GitHub API server unavailability
   ];
 
-  return transientPatterns.some(pattern => errorMsg.includes(pattern));
+  return transientPatterns.some(pattern => errorMsgLower.includes(pattern));
 }
 
 /**

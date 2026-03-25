@@ -43,7 +43,7 @@ func getActionlintDocsURL(kind string) string {
 	case "expression":
 		anchor = "check-syntax-expression"
 	case "syntax-check":
-		anchor = "check-syntax-expression"
+		anchor = "check-unexpected-keys"
 	default:
 		// For other kinds, try the standard "check-{kind}" pattern
 		if !strings.HasPrefix(anchor, "check-") {
@@ -386,23 +386,15 @@ func parseAndDisplayActionlintOutput(stdout string, verbose bool) (int, map[stri
 			errorsByKind[err.Kind]++
 		}
 
-		// Read file content for context display
-		fileContent, readErr := os.ReadFile(err.Filepath)
-		var fileLines []string
-		if readErr == nil {
-			fileLines = strings.Split(string(fileContent), "\n")
-		}
-
-		// Create context lines around the error
+		// Use snippet from actionlint JSON output for context display.
+		// actionlint's snippet includes a caret ("^~~~") pointer line; we only
+		// keep the actual source line so console.FormatError can render its own
+		// underline based on Column and keep line numbers aligned.
 		var context []string
-		if len(fileLines) > 0 && err.Line > 0 && err.Line <= len(fileLines) {
-			startLine := max(1, err.Line-2)
-			endLine := min(len(fileLines), err.Line+2)
-
-			for i := startLine; i <= endLine; i++ {
-				if i-1 < len(fileLines) {
-					context = append(context, fileLines[i-1])
-				}
+		if err.Snippet != "" {
+			lines := strings.Split(err.Snippet, "\n")
+			if len(lines) > 0 {
+				context = []string{lines[0]}
 			}
 		}
 

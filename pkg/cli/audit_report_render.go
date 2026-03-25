@@ -3,9 +3,12 @@ package cli
 import (
 	"encoding/json"
 	"fmt"
+	"math"
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
+	"time"
 
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/sliceutil"
@@ -31,6 +34,30 @@ func renderConsole(data AuditData, logsPath string) {
 	fmt.Fprintln(os.Stderr)
 	renderOverview(data.Overview)
 
+	if data.Comparison != nil {
+		fmt.Fprintln(os.Stderr, console.FormatSectionHeader("Comparison To Similar Successful Run"))
+		fmt.Fprintln(os.Stderr)
+		renderAuditComparison(data.Comparison)
+	}
+
+	if data.TaskDomain != nil {
+		fmt.Fprintln(os.Stderr, console.FormatSectionHeader("Detected Task Domain"))
+		fmt.Fprintln(os.Stderr)
+		renderTaskDomain(data.TaskDomain)
+	}
+
+	if data.BehaviorFingerprint != nil {
+		fmt.Fprintln(os.Stderr, console.FormatSectionHeader("Behavioral Fingerprint"))
+		fmt.Fprintln(os.Stderr)
+		renderBehaviorFingerprint(data.BehaviorFingerprint)
+	}
+
+	if len(data.AgenticAssessments) > 0 {
+		fmt.Fprintln(os.Stderr, console.FormatSectionHeader("Agentic Assessment"))
+		fmt.Fprintln(os.Stderr)
+		renderAgenticAssessments(data.AgenticAssessments)
+	}
+
 	// Key Findings Section - NEW
 	if len(data.KeyFindings) > 0 {
 		auditReportLog.Printf("Rendering %d key findings", len(data.KeyFindings))
@@ -45,6 +72,12 @@ func renderConsole(data AuditData, logsPath string) {
 		fmt.Fprintln(os.Stderr, console.FormatSectionHeader("Recommendations"))
 		fmt.Fprintln(os.Stderr)
 		renderRecommendations(data.Recommendations)
+	}
+
+	if len(data.ObservabilityInsights) > 0 {
+		fmt.Fprintln(os.Stderr, console.FormatSectionHeader("Observability Insights"))
+		fmt.Fprintln(os.Stderr)
+		renderObservabilityInsights(data.ObservabilityInsights)
 	}
 
 	// Performance Metrics Section - NEW
@@ -120,6 +153,13 @@ func renderConsole(data AuditData, logsPath string) {
 		renderFirewallAnalysis(data.FirewallAnalysis)
 	}
 
+	// Firewall Policy Analysis Section (enriched with rule attribution)
+	if data.PolicyAnalysis != nil && (len(data.PolicyAnalysis.RuleHits) > 0 || data.PolicyAnalysis.PolicySummary != "") {
+		fmt.Fprintln(os.Stderr, console.FormatSectionHeader("Firewall Policy Analysis"))
+		fmt.Fprintln(os.Stderr)
+		renderPolicyAnalysis(data.PolicyAnalysis)
+	}
+
 	// Redacted Domains Section
 	if data.RedactedDomainsAnalysis != nil && data.RedactedDomainsAnalysis.TotalDomains > 0 {
 		fmt.Fprintln(os.Stderr, console.FormatSectionHeader("🔒 Redacted URL Domains"))
@@ -179,6 +219,52 @@ func renderConsole(data AuditData, logsPath string) {
 	fmt.Fprintln(os.Stderr)
 }
 
+func renderAuditComparison(comparison *AuditComparisonData) {
+	if comparison == nil {
+		return
+	}
+
+	if !comparison.BaselineFound || comparison.Baseline == nil || comparison.Delta == nil || comparison.Classification == nil {
+		fmt.Fprintln(os.Stderr, "  No suitable successful run was available for baseline comparison.")
+		fmt.Fprintln(os.Stderr)
+		return
+	}
+
+	fmt.Fprintf(os.Stderr, "  Baseline: run %d", comparison.Baseline.RunID)
+	if comparison.Baseline.Conclusion != "" {
+		fmt.Fprintf(os.Stderr, " (%s)", comparison.Baseline.Conclusion)
+	}
+	fmt.Fprintln(os.Stderr)
+	if comparison.Baseline.Selection != "" {
+		fmt.Fprintf(os.Stderr, "  Selection: %s\n", strings.ReplaceAll(comparison.Baseline.Selection, "_", " "))
+	}
+	if len(comparison.Baseline.MatchedOn) > 0 {
+		fmt.Fprintf(os.Stderr, "  Matched on: %s\n", strings.Join(comparison.Baseline.MatchedOn, ", "))
+	}
+	fmt.Fprintf(os.Stderr, "  Classification: %s\n", comparison.Classification.Label)
+	fmt.Fprintln(os.Stderr, "  Changes:")
+
+	if comparison.Delta.Turns.Changed {
+		fmt.Fprintf(os.Stderr, "    - Turns: %d -> %d\n", comparison.Delta.Turns.Before, comparison.Delta.Turns.After)
+	}
+	if comparison.Delta.Posture.Changed {
+		fmt.Fprintf(os.Stderr, "    - Posture: %s -> %s\n", comparison.Delta.Posture.Before, comparison.Delta.Posture.After)
+	}
+	if comparison.Delta.BlockedRequests.Changed {
+		fmt.Fprintf(os.Stderr, "    - Blocked requests: %d -> %d\n", comparison.Delta.BlockedRequests.Before, comparison.Delta.BlockedRequests.After)
+	}
+	if comparison.Delta.MCPFailure != nil && comparison.Delta.MCPFailure.NewlyPresent {
+		fmt.Fprintf(os.Stderr, "    - New MCP failure: %s\n", strings.Join(comparison.Delta.MCPFailure.After, ", "))
+	}
+	if len(comparison.Classification.ReasonCodes) == 0 {
+		fmt.Fprintln(os.Stderr, "    - No meaningful behavior change from the selected successful baseline")
+	}
+	if comparison.Recommendation != nil && comparison.Recommendation.Action != "" {
+		fmt.Fprintf(os.Stderr, "  Recommended action: %s\n", comparison.Recommendation.Action)
+	}
+	fmt.Fprintln(os.Stderr)
+}
+
 // renderOverview renders the overview section using the new rendering system
 func renderOverview(overview OverviewData) {
 	// Format Status with optional Conclusion
@@ -204,6 +290,56 @@ func renderOverview(overview OverviewData) {
 // renderMetrics renders the metrics section using the new rendering system
 func renderMetrics(metrics MetricsData) {
 	fmt.Fprint(os.Stderr, console.RenderStruct(metrics))
+}
+
+type taskDomainDisplay struct {
+	Domain string `console:"header:Domain"`
+	Reason string `console:"header:Reason"`
+}
+
+type behaviorFingerprintDisplay struct {
+	Execution string `console:"header:Execution"`
+	Tools     string `console:"header:Tools"`
+	Actuation string `console:"header:Actuation"`
+	Resource  string `console:"header:Resources"`
+	Dispatch  string `console:"header:Dispatch"`
+}
+
+func renderTaskDomain(domain *TaskDomainInfo) {
+	if domain == nil {
+		return
+	}
+	fmt.Fprint(os.Stderr, console.RenderStruct(taskDomainDisplay{
+		Domain: domain.Label,
+		Reason: domain.Reason,
+	}))
+}
+
+func renderBehaviorFingerprint(fingerprint *BehaviorFingerprint) {
+	if fingerprint == nil {
+		return
+	}
+	fmt.Fprint(os.Stderr, console.RenderStruct(behaviorFingerprintDisplay{
+		Execution: fingerprint.ExecutionStyle,
+		Tools:     fingerprint.ToolBreadth,
+		Actuation: fingerprint.ActuationStyle,
+		Resource:  fingerprint.ResourceProfile,
+		Dispatch:  fingerprint.DispatchMode,
+	}))
+}
+
+func renderAgenticAssessments(assessments []AgenticAssessment) {
+	for _, assessment := range assessments {
+		severity := strings.ToUpper(assessment.Severity)
+		fmt.Fprintf(os.Stderr, "  [%s] %s\n", severity, assessment.Summary)
+		if assessment.Evidence != "" {
+			fmt.Fprintf(os.Stderr, "     Evidence: %s\n", assessment.Evidence)
+		}
+		if assessment.Recommendation != "" {
+			fmt.Fprintf(os.Stderr, "     Recommendation: %s\n", assessment.Recommendation)
+		}
+		fmt.Fprintln(os.Stderr)
+	}
 }
 
 // renderJobsTable renders the jobs as a table using console.RenderTable
@@ -562,4 +698,80 @@ func renderPerformanceMetrics(metrics *PerformanceMetrics) {
 	}
 
 	fmt.Fprintln(os.Stderr)
+}
+
+// renderPolicyAnalysis renders the enriched firewall policy analysis with rule attribution
+func renderPolicyAnalysis(analysis *PolicyAnalysis) {
+	auditReportLog.Printf("Rendering policy analysis: rules=%d, denied=%d", len(analysis.RuleHits), analysis.DeniedCount)
+
+	// Policy summary using RenderStruct
+	display := PolicySummaryDisplay{
+		Policy:        analysis.PolicySummary,
+		TotalRequests: analysis.TotalRequests,
+		Allowed:       analysis.AllowedCount,
+		Denied:        analysis.DeniedCount,
+		UniqueDomains: analysis.UniqueDomains,
+	}
+	fmt.Fprint(os.Stderr, console.RenderStruct(display))
+	fmt.Fprintln(os.Stderr)
+
+	// Rule hit table
+	if len(analysis.RuleHits) > 0 {
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Policy Rules:"))
+		fmt.Fprintln(os.Stderr)
+
+		ruleConfig := console.TableConfig{
+			Headers: []string{"Rule", "Action", "Description", "Hits"},
+			Rows:    make([][]string, 0, len(analysis.RuleHits)),
+		}
+
+		for _, rh := range analysis.RuleHits {
+			row := []string{
+				stringutil.Truncate(rh.Rule.ID, 30),
+				rh.Rule.Action,
+				stringutil.Truncate(rh.Rule.Description, 50),
+				strconv.Itoa(rh.Hits),
+			}
+			ruleConfig.Rows = append(ruleConfig.Rows, row)
+		}
+
+		fmt.Fprint(os.Stderr, console.RenderTable(ruleConfig))
+		fmt.Fprintln(os.Stderr)
+	}
+
+	// Denied requests detail
+	if len(analysis.DeniedRequests) > 0 {
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Denied Requests (%d):", len(analysis.DeniedRequests))))
+		fmt.Fprintln(os.Stderr)
+
+		deniedConfig := console.TableConfig{
+			Headers: []string{"Time", "Domain", "Rule", "Reason"},
+			Rows:    make([][]string, 0, len(analysis.DeniedRequests)),
+		}
+
+		for _, req := range analysis.DeniedRequests {
+			timeStr := formatUnixTimestamp(req.Timestamp)
+			row := []string{
+				timeStr,
+				stringutil.Truncate(req.Host, 40),
+				stringutil.Truncate(req.RuleID, 25),
+				stringutil.Truncate(req.Reason, 40),
+			}
+			deniedConfig.Rows = append(deniedConfig.Rows, row)
+		}
+
+		fmt.Fprint(os.Stderr, console.RenderTable(deniedConfig))
+		fmt.Fprintln(os.Stderr)
+	}
+}
+
+// formatUnixTimestamp converts a Unix timestamp (float64) to a human-readable time string (HH:MM:SS).
+func formatUnixTimestamp(ts float64) string {
+	if ts <= 0 {
+		return "-"
+	}
+	sec := int64(math.Floor(ts))
+	nsec := int64((ts - float64(sec)) * 1e9)
+	t := time.Unix(sec, nsec).UTC()
+	return t.Format("15:04:05")
 }

@@ -468,6 +468,9 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 		}
 	}
 
+	// Optionally synthesize a compact observability section from runtime artifacts.
+	c.generateObservabilitySummary(yaml, data)
+
 	// Collect agent stdio logs path for unified upload
 	artifactPaths = append(artifactPaths, logFileFull)
 
@@ -534,15 +537,6 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 	// activity, policy decisions, and blocked domains after the run (AWF v0.25.0+).
 	if isFirewallEnabled(data) {
 		c.generateFirewallAuditLogsUploadStep(yaml, agentArtifactPrefix)
-	}
-
-	// Add inline threat detection steps after all agent artifact uploads.
-	// Detection runs inside the agent job using sandbox.agent with fully blocked network.
-	if data.SafeOutputs != nil && data.SafeOutputs.ThreatDetection != nil {
-		detectionSteps := c.buildInlineDetectionSteps(data)
-		for _, line := range detectionSteps {
-			yaml.WriteString(line)
-		}
 	}
 
 	// Add GitHub MCP app token invalidation step if configured (runs always, even on failure)
@@ -776,17 +770,6 @@ func (c *Compiler) generateLegacyAgentImportCheckout(yaml *strings.Builder, agen
 	yaml.WriteString("          persist-credentials: false\n")
 
 	compilerYamlLog.Printf("Added legacy agent checkout step: %s/%s@%s -> %s", owner, repo, ref, checkoutPath)
-}
-
-// sanitizeRefForPath sanitizes a git ref for use in a file path
-// Replaces characters that are problematic in file paths with safe alternatives
-func sanitizeRefForPath(ref string) string {
-	// Replace slashes with dashes (for refs like "feature/my-branch")
-	sanitized := strings.ReplaceAll(ref, "/", "-")
-	// Replace other problematic characters
-	sanitized = strings.ReplaceAll(sanitized, ":", "-")
-	sanitized = strings.ReplaceAll(sanitized, "\\", "-")
-	return sanitized
 }
 
 // generateDevModeCLIBuildSteps generates the steps needed to build the gh-aw CLI and Docker image in dev mode

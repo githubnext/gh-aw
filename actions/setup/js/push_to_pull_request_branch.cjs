@@ -15,7 +15,7 @@ const { resolveTargetRepoConfig, resolveAndValidateRepo } = require("./repo_help
 const { createAuthenticatedGitHubClient } = require("./handler_auth.cjs");
 const { checkFileProtection } = require("./manifest_file_helpers.cjs");
 const { buildWorkflowRunUrl } = require("./workflow_metadata_helpers.cjs");
-const { renderTemplateFromFile } = require("./messages_core.cjs");
+const { renderTemplateFromFile, buildProtectedFileList } = require("./messages_core.cjs");
 const { getGitAuthEnv } = require("./git_helpers.cjs");
 
 /**
@@ -309,6 +309,65 @@ async function main(config = {}) {
     core.info(`PR title: ${prTitle}`);
     core.info(`PR labels: ${prLabels.join(", ")}`);
 
+    // SECURITY: Block pushing to the repository's default branch or any branch with
+    // protection rules. PR head branches must never be default or protected branches.
+    // This prevents agents from pushing directly to branches that should only receive
+    // changes through reviewed pull requests.
+    {
+      // Check whether the branch is the repository default branch
+      let defaultBranch = null;
+      try {
+        const { data: repoData } = await githubClient.rest.repos.get({
+          owner: repoParts.owner,
+          repo: repoParts.repo,
+        });
+        defaultBranch = repoData.default_branch;
+      } catch (repoError) {
+        core.warning(`Could not check repository default branch: ${getErrorMessage(repoError)}`);
+      }
+
+      if (defaultBranch && branchName === defaultBranch) {
+        const msg = `Cannot push to branch "${branchName}": this is the repository's default branch. Agents must not push directly to the default branch.`;
+        core.error(msg);
+        return { success: false, error: msg };
+      }
+
+      // Check whether the branch has protection rules
+      let isBranchProtected = false;
+      try {
+        await githubClient.rest.repos.getBranchProtection({
+          owner: repoParts.owner,
+          repo: repoParts.repo,
+          branch: branchName,
+        });
+        // Successful response means branch protection rules exist
+        isBranchProtected = true;
+      } catch (protectionError) {
+        const protectionStatus = protectionError && typeof protectionError === "object" && "status" in protectionError ? protectionError.status : undefined;
+        if (protectionStatus === 404) {
+          // 404 means no protection rules – safe to proceed
+          core.info(`Branch "${branchName}" has no protection rules`);
+        } else if (protectionStatus === 403) {
+          // 403 means the token lacks permission to read branch protection rules.
+          // The GitHub platform will still enforce branch protection at push time,
+          // so warn and allow the push to proceed.
+          core.warning(`Could not check branch protection rules for "${branchName}" (insufficient permissions): ${getErrorMessage(protectionError)}`);
+        } else {
+          // Unexpected errors (5xx, network failures, etc.) – fail closed to
+          // avoid bypassing branch protection due to transient API issues.
+          const msg = `Cannot verify branch protection rules for "${branchName}": ${getErrorMessage(protectionError)}. Push blocked to prevent accidental writes to protected branches.`;
+          core.error(msg);
+          return { success: false, error: msg };
+        }
+      }
+
+      if (isBranchProtected) {
+        const msg = `Cannot push to branch "${branchName}": this branch has protection rules. Agents must not push directly to protected branches.`;
+        core.error(msg);
+        return { success: false, error: msg };
+      }
+    }
+
     // Validate title prefix if specified
     if (titlePrefix && !prTitle.startsWith(titlePrefix)) {
       return { success: false, error: `Pull request title "${prTitle}" does not start with required prefix "${titlePrefix}"` };
@@ -338,9 +397,10 @@ async function main(config = {}) {
       const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
       const prUrl = `${githubServer}/${repoParts.owner}/${repoParts.repo}/pull/${pullNumber}`;
       const issueTitle = `[gh-aw] Protected Files: ${prTitle || `PR #${pullNumber}`}`;
+      const fileList = buildProtectedFileList(protectedFilesForFallback, githubServer, repoParts.owner, repoParts.repo, branchName);
       const templatePath = `${process.env.RUNNER_TEMP}/gh-aw/prompts/manifest_protection_push_to_pr_fallback.md`;
       const issueBody = renderTemplateFromFile(templatePath, {
-        files: protectedFilesForFallback.map(f => `\`${f}\``).join(", "),
+        files: fileList,
         pull_number: pullNumber,
         pr_url: prUrl,
         run_url: runUrl,

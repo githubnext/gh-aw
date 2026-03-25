@@ -10,8 +10,6 @@ import (
 // TestMultilineStringHandling tests that multiline strings in with parameters
 // are correctly serialized with proper YAML indentation
 func TestMultilineStringHandling(t *testing.T) {
-	compiler := NewCompiler()
-
 	testCases := []struct {
 		name             string
 		stepMap          map[string]any
@@ -92,7 +90,7 @@ echo "Build complete"`,
 
 	for _, tt := range testCases {
 		t.Run(tt.name, func(t *testing.T) {
-			result, err := compiler.convertStepToYAML(tt.stepMap)
+			result, err := ConvertStepToYAML(tt.stepMap)
 			if err != nil {
 				t.Fatalf("convertStepToYAML failed: %v", err)
 			}

@@ -17,12 +17,13 @@ const main = createEngineLogParser({
  */
 function extractPremiumRequestCount(logContent) {
   // Try various patterns that might appear in the Copilot CLI output
-  const patterns = [/premium\s+requests?\s+consumed:?\s*(\d+)/i, /(\d+)\s+premium\s+requests?\s+consumed/i, /consumed\s+(\d+)\s+premium\s+requests?/i];
+  // Use \d+(?:\.\d+)? to match both integers and decimals (e.g., 1, 0.33, 2.5)
+  const patterns = [/premium\s+requests?\s+consumed:?\s*(\d+(?:\.\d+)?)/i, /(\d+(?:\.\d+)?)\s+premium\s+requests?\s+consumed/i, /consumed\s+(\d+(?:\.\d+)?)\s+premium\s+requests?/i];
 
   for (const pattern of patterns) {
     const match = logContent.match(pattern);
     if (match && match[1]) {
-      const count = parseInt(match[1], 10);
+      const count = parseFloat(match[1]);
       if (!isNaN(count) && count > 0) {
         return count;
       }

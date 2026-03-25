@@ -216,8 +216,14 @@ Protection covers three categories:
 
 **3. Repository security configuration** — matched by path prefix:
 
-- `.github/` — covers all GitHub Actions workflows, CODEOWNERS, Dependabot config, and other repository-level security settings.
+- `.github/` — covers all GitHub Actions workflows, Dependabot config, and other repository-level security settings.
 - `.agents/` — covers generic agent instruction and configuration files stored in the `.agents/` directory.
 
+**4. Repository access control files** — matched by filename anywhere in the repository:
+
+| File | Description |
+|------|-------------|
+| `CODEOWNERS` | Governs required code reviewers; valid at the repository root, `.github/`, or `docs/` |
+
 > [!NOTE]
-> Runtime manifests are matched by **basename only** (the filename without its directory path), so `src/package.json`, `frontend/package.json`, and `package.json` at the root are all protected. Path-prefix rules (`.github/`, `.agents/`, `.claude/`, `.codex/`) match the full relative path from the repository root.
+> Runtime manifests and access control files (`CODEOWNERS`) are matched by **basename only** (the filename without its directory path), so they are protected regardless of where they appear in the repository. Path-prefix rules (`.github/`, `.agents/`, `.claude/`, `.codex/`) match the full relative path from the repository root.

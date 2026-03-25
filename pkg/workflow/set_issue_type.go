@@ -15,21 +15,12 @@ type SetIssueTypeConfig struct {
 
 // parseSetIssueTypeConfig handles set-issue-type configuration
 func (c *Compiler) parseSetIssueTypeConfig(outputMap map[string]any) *SetIssueTypeConfig {
-	// Check if the key exists
-	if _, exists := outputMap["set-issue-type"]; !exists {
-		return nil
-	}
-
-	setIssueTypeLog.Print("Parsing set-issue-type configuration")
-
-	// Unmarshal into typed config struct
-	var config SetIssueTypeConfig
-	if err := unmarshalConfig(outputMap, "set-issue-type", &config, setIssueTypeLog); err != nil {
+	config := parseConfigScaffold(outputMap, "set-issue-type", setIssueTypeLog, func(err error) *SetIssueTypeConfig {
 		setIssueTypeLog.Printf("Failed to unmarshal set-issue-type config, disabling handler: %v", err)
 		return nil
+	})
+	if config != nil {
+		setIssueTypeLog.Printf("Parsed configuration: allowed_count=%d, target=%s", len(config.Allowed), config.Target)
 	}
-
-	setIssueTypeLog.Printf("Parsed configuration: allowed_count=%d, target=%s", len(config.Allowed), config.Target)
-
-	return &config
+	return config
 }

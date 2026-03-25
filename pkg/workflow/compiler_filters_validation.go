@@ -1,4 +1,5 @@
-// This file provides validation for GitHub Actions event filter mutual exclusivity.
+// This file provides validation for GitHub Actions event filter mutual exclusivity
+// and glob pattern validity.
 //
 // # Filter Validation
 //
@@ -7,10 +8,21 @@
 //   - branches and branches-ignore in the same event
 //   - paths and paths-ignore in the same event
 //
+// # Glob Pattern Validation
+//
+// This file also validates that glob patterns used in event filters are syntactically valid
+// according to GitHub Actions glob syntax, using the glob validator in glob_validation.go:
+//   - Branch and tag patterns use validateRefGlob
+//   - Path patterns use validatePathGlob
+//
+// A notable check is that path patterns starting with "./" are always invalid in GitHub Actions.
+//
 // # Validation Functions
 //
-//   - ValidateEventFilters() - Main entry point for filter validation
+//   - ValidateEventFilters() - Main entry point for filter mutual-exclusivity validation
+//   - ValidateGlobPatterns() - Main entry point for glob pattern syntax validation
 //   - validateFilterExclusivity() - Validates a single event's filter configuration
+//   - validateGlobList() - Validates a list of glob patterns for a given filter key
 //
 // # GitHub Actions Requirements
 //
@@ -26,6 +38,7 @@
 //   - It validates event filter configurations
 //   - It checks for GitHub Actions filter requirements
 //   - It validates mutual exclusivity of filter options
+//   - It validates glob pattern syntax in event filters
 //
 // For general validation, see validation.go.
 // For detailed documentation, see scratchpad/validation-architecture.md
@@ -33,7 +46,9 @@
 package workflow
 
 import (
+	"errors"
 	"fmt"
+	"strings"
 )
 
 var filterValidationLog = newValidationLogger("filter")
@@ -102,4 +117,112 @@ func validateFilterExclusivity(eventVal any, eventName string) error {
 
 	filterValidationLog.Printf("Event '%s' filters are valid", eventName)
 	return nil
+}
+
+// refFilterKeys are the event filter keys whose patterns must be valid Git ref globs.
+var refFilterKeys = []string{"branches", "branches-ignore", "tags", "tags-ignore"}
+
+// pathFilterKeys are the event filter keys whose patterns must be valid path globs.
+var pathFilterKeys = []string{"paths", "paths-ignore"}
+
+// globValidationEvents are the GitHub Actions event types that support branch/tag/path filters.
+var globValidationEvents = []string{"push", "pull_request", "pull_request_target", "workflow_run"}
+
+// ValidateGlobPatterns validates branch, tag, and path glob patterns in the 'on' section
+// of a workflow's frontmatter. It returns the first validation error encountered, if any.
+func ValidateGlobPatterns(frontmatter map[string]any) error {
+	filterValidationLog.Print("Validating glob patterns in event filters")
+
+	on, exists := frontmatter["on"]
+	if !exists {
+		return nil
+	}
+
+	onMap, ok := on.(map[string]any)
+	if !ok {
+		return nil
+	}
+
+	for _, eventName := range globValidationEvents {
+		eventVal, exists := onMap[eventName]
+		if !exists {
+			continue
+		}
+		eventMap, ok := eventVal.(map[string]any)
+		if !ok {
+			continue
+		}
+
+		// Validate ref globs (branches, tags, branches-ignore, tags-ignore)
+		for _, key := range refFilterKeys {
+			if err := validateGlobList(eventMap, eventName, key, false); err != nil {
+				return err
+			}
+		}
+
+		// Validate path globs (paths, paths-ignore)
+		for _, key := range pathFilterKeys {
+			if err := validateGlobList(eventMap, eventName, key, true); err != nil {
+				return err
+			}
+		}
+	}
+
+	filterValidationLog.Print("Glob pattern validation completed successfully")
+	return nil
+}
+
+// validateGlobList validates each pattern in a filter list (e.g. branches, paths).
+// When isPath is true, validatePathGlob is used; otherwise validateRefGlob.
+func validateGlobList(eventMap map[string]any, eventName, filterKey string, isPath bool) error {
+	val, exists := eventMap[filterKey]
+	if !exists {
+		return nil
+	}
+
+	patterns, err := toStringSlice(val)
+	if err != nil {
+		// Non-string-list values are skipped; schema validation handles type errors separately
+		return nil
+	}
+
+	for _, pat := range patterns {
+		var errs []invalidGlobPattern
+		if isPath {
+			errs = validatePathGlob(pat)
+		} else {
+			errs = validateRefGlob(pat)
+		}
+		if len(errs) > 0 {
+			msgs := make([]string, 0, len(errs))
+			for _, e := range errs {
+				msgs = append(msgs, e.Message)
+			}
+			filterValidationLog.Printf("ERROR: invalid glob pattern %q in %s.%s: %s", pat, eventName, filterKey, strings.Join(msgs, "; "))
+			return fmt.Errorf("invalid glob pattern %q in on.%s.%s: %s", pat, eventName, filterKey, strings.Join(msgs, "; "))
+		}
+	}
+	return nil
+}
+
+// toStringSlice converts an any value to a []string, supporting []string, []any, and string.
+func toStringSlice(val any) ([]string, error) {
+	switch v := val.(type) {
+	case []string:
+		return v, nil
+	case []any:
+		result := make([]string, 0, len(v))
+		for _, item := range v {
+			s, ok := item.(string)
+			if !ok {
+				return nil, errors.New("non-string item in list")
+			}
+			result = append(result, s)
+		}
+		return result, nil
+	case string:
+		return []string{v}, nil
+	default:
+		return nil, fmt.Errorf("unsupported type %T", val)
+	}
 }

@@ -111,9 +111,62 @@ function toSnakeCase(obj) {
   );
 }
 
+/**
+ * RFC3986-compliant encoding for individual URI components.
+ * Starts with encodeURIComponent and then additionally percent-encodes
+ * characters that are still reserved in RFC3986 (`!`, `'`, `(`, `)`, `*`).
+ * This prevents these characters from breaking Markdown link parsing.
+ * @param {string} value
+ * @returns {string}
+ */
+function encodeRFC3986URIComponent(value) {
+  return encodeURIComponent(value).replace(/[!'()*]/g, c => "%" + c.charCodeAt(0).toString(16).toUpperCase().padStart(2, "0"));
+}
+
+/**
+ * URL-encode each segment of a slash-separated path.
+ * Preserves the slash separators while encoding special characters in each segment
+ * using RFC3986-compliant encoding to avoid breaking Markdown link syntax.
+ * @param {string} path - A slash-separated path (e.g. branch name or file path)
+ * @returns {string} Path with each segment individually URL-encoded
+ */
+function encodePathSegments(path) {
+  return path.split("/").map(encodeRFC3986URIComponent).join("/");
+}
+
+/**
+ * Build a markdown list of protected files with clickable GitHub URLs.
+ * Both the branch name and each file path segment are individually URL-encoded.
+ * Basename-only entries (no slash) are rendered as code spans to avoid linking
+ * to a potentially incorrect root-level path.
+ * @param {string[]} files - Array of file paths or basenames
+ * @param {string} githubServer - GitHub server URL (e.g. "https://github.com")
+ * @param {string} owner - Repository owner
+ * @param {string} repo - Repository name
+ * @param {string} branch - Branch name (will be URL-encoded internally)
+ * @returns {string} Markdown list with one entry per line
+ */
+function buildProtectedFileList(files, githubServer, owner, repo, branch) {
+  const encodedBranch = encodePathSegments(branch);
+  return files
+    .map(f => {
+      // If the entry looks like a full path (contains a slash), render it as a blob link.
+      // Otherwise, treat it as a basename-only entry (e.g. from manifest matching) and
+      // render it as a code span to avoid linking to a potentially incorrect root path.
+      if (f.includes("/")) {
+        const encodedPath = encodePathSegments(f);
+        return `- [${f}](${githubServer}/${owner}/${repo}/blob/${encodedBranch}/${encodedPath})`;
+      }
+      return `- \`${f}\``;
+    })
+    .join("\n");
+}
+
 module.exports = {
   getMessages,
   renderTemplate,
   renderTemplateFromFile,
   toSnakeCase,
+  encodePathSegments,
+  buildProtectedFileList,
 };

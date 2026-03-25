@@ -129,6 +129,11 @@ type RateLimitConfig struct {
 	IgnoredRoles []string `json:"ignored-roles,omitempty"` // Roles that are exempt from rate limiting (e.g., ["admin", "maintainer"])
 }
 
+// ObservabilityConfig represents workflow observability options.
+type ObservabilityConfig struct {
+	JobSummary string `json:"job-summary,omitempty"`
+}
+
 // FrontmatterConfig represents the structured configuration from workflow frontmatter
 // This provides compile-time type safety and clearer error messages compared to map[string]any
 type FrontmatterConfig struct {
@@ -188,6 +193,7 @@ type FrontmatterConfig struct {
 	// Metadata
 	Metadata      map[string]string    `json:"metadata,omitempty"` // Custom metadata key-value pairs
 	SecretMasking *SecretMaskingConfig `json:"secret-masking,omitempty"`
+	Observability *ObservabilityConfig `json:"observability,omitempty"`
 
 	// Rate limiting configuration
 	RateLimit *RateLimitConfig `json:"rate-limit,omitempty"`

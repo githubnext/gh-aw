@@ -291,8 +291,15 @@ func expandToolsetsForTesting(toolsets []string) []string {
 				}
 			}
 		case "all":
-			// Add all toolsets from the permissions map
+			// Add all toolsets from the permissions map, excluding those in GitHubToolsetsExcludedFromAll
+			excludedMap := make(map[string]bool, len(GitHubToolsetsExcludedFromAll))
+			for _, ex := range GitHubToolsetsExcludedFromAll {
+				excludedMap[ex] = true
+			}
 			for t := range toolsetPermissionsMap {
+				if excludedMap[t] {
+					continue
+				}
 				if !seenToolsets[t] {
 					expanded = append(expanded, t)
 					seenToolsets[t] = true

@@ -232,6 +232,22 @@ describe("parse_copilot_log.cjs", () => {
     it("should ignore invalid numbers", () => {
       expect(extractPremiumRequestCount("Premium requests: abc")).toBe(1);
     });
+
+    it("should parse integer premium request count", () => {
+      expect(extractPremiumRequestCount("premium requests consumed: 2")).toBe(2);
+    });
+
+    it("should parse decimal premium request count (e.g. gemini-3-flash-preview)", () => {
+      expect(extractPremiumRequestCount("premium requests consumed: 0.33")).toBe(0.33);
+    });
+
+    it("should parse decimal in alternate format", () => {
+      expect(extractPremiumRequestCount("0.33 premium requests consumed")).toBe(0.33);
+    });
+
+    it("should parse decimal in consumed-first format", () => {
+      expect(extractPremiumRequestCount("consumed 0.5 premium requests")).toBe(0.5);
+    });
   });
 
   describe("main function integration", () => {

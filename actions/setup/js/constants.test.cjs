@@ -1,11 +1,15 @@
 // @ts-check
 import { describe, it, expect } from "vitest";
-const { AGENT_OUTPUT_FILENAME, TMP_GH_AW_PATH, COPILOT_REVIEWER_BOT, FAQ_CREATE_PR_PERMISSIONS_URL, MAX_LABELS, MAX_ASSIGNEES, GATEWAY_JSONL_PATH, RPC_MESSAGES_PATH, MANIFEST_FILE_PATH } = require("./constants.cjs");
+const { AGENT_OUTPUT_FILENAME, TMP_GH_AW_PATH, COPILOT_REVIEWER_BOT, FAQ_CREATE_PR_PERMISSIONS_URL, MAX_LABELS, MAX_ASSIGNEES, GATEWAY_JSONL_PATH, RPC_MESSAGES_PATH, MANIFEST_FILE_PATH, DETECTION_LOG_FILENAME } = require("./constants.cjs");
 
 describe("constants", () => {
   describe("file names", () => {
     it("should export AGENT_OUTPUT_FILENAME", () => {
       expect(AGENT_OUTPUT_FILENAME).toBe("agent_output.json");
+    });
+
+    it("should export DETECTION_LOG_FILENAME", () => {
+      expect(DETECTION_LOG_FILENAME).toBe("detection.log");
     });
   });
 
@@ -60,7 +64,18 @@ describe("constants", () => {
   describe("module exports", () => {
     it("should export all expected constants", () => {
       const exported = require("./constants.cjs");
-      const expectedKeys = ["AGENT_OUTPUT_FILENAME", "TMP_GH_AW_PATH", "COPILOT_REVIEWER_BOT", "FAQ_CREATE_PR_PERMISSIONS_URL", "MAX_LABELS", "MAX_ASSIGNEES", "GATEWAY_JSONL_PATH", "RPC_MESSAGES_PATH", "MANIFEST_FILE_PATH"];
+      const expectedKeys = [
+        "AGENT_OUTPUT_FILENAME",
+        "TMP_GH_AW_PATH",
+        "COPILOT_REVIEWER_BOT",
+        "FAQ_CREATE_PR_PERMISSIONS_URL",
+        "MAX_LABELS",
+        "MAX_ASSIGNEES",
+        "GATEWAY_JSONL_PATH",
+        "RPC_MESSAGES_PATH",
+        "MANIFEST_FILE_PATH",
+        "DETECTION_LOG_FILENAME",
+      ];
       for (const key of expectedKeys) {
         expect(exported).toHaveProperty(key);
       }

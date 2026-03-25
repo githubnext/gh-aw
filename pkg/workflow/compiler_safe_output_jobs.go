@@ -2,17 +2,15 @@ package workflow
 
 import (
 	"fmt"
-	"strings"
 
 	"github.com/github/gh-aw/pkg/logger"
-	"github.com/github/gh-aw/pkg/stringutil"
 )
 
 var compilerSafeOutputJobsLog = logger.New("workflow:compiler_safe_output_jobs")
 
 // buildSafeOutputsJobs builds all safe output jobs based on the configuration in data.SafeOutputs.
-// It creates a consolidated safe_outputs job containing all safe output operations as steps,
-// plus the threat detection job (if enabled), custom safe-jobs, and conclusion job.
+// It creates a separate detection job (if threat detection is enabled), a consolidated safe_outputs
+// job containing all safe output operations as steps, plus custom safe-jobs and the conclusion job.
 // When call-workflow is configured, it also generates conditional `uses:` fan-out jobs
 // (one per allowed worker workflow) that run after safe_outputs.
 func (c *Compiler) buildSafeOutputsJobs(data *WorkflowData, jobName, markdownPath string) error {
@@ -20,14 +18,28 @@ func (c *Compiler) buildSafeOutputsJobs(data *WorkflowData, jobName, markdownPat
 		compilerSafeOutputJobsLog.Print("No safe outputs configured, skipping safe outputs jobs")
 		return nil
 	}
-	compilerSafeOutputJobsLog.Print("Building safe outputs jobs (consolidated mode)")
+	compilerSafeOutputJobsLog.Print("Building safe outputs jobs")
 
-	// Track whether threat detection is enabled (used for downstream job conditions)
+	// Detection is always enabled for safe-outputs workflows unless threat-detection is explicitly
+	// disabled (threat-detection: false). ThreatDetection is nil only when explicitly disabled.
 	threatDetectionEnabled := data.SafeOutputs.ThreatDetection != nil
 
-	// Threat detection is now handled inline in the agent job (see compiler_yaml.go).
-	// No separate detection job is created. The agent job outputs detection_success
-	// and detection_conclusion for downstream jobs to check.
+	// Build the separate detection job. Detection runs by default for all safe-outputs workflows
+	// and is only skipped when ThreatDetection is nil (i.e. threat-detection: false was set).
+	// The detection job runs after the agent job, downloads the agent artifact,
+	// and outputs detection_success and detection_conclusion for downstream jobs.
+	if threatDetectionEnabled {
+		detectionJob, err := c.buildDetectionJob(data)
+		if err != nil {
+			return fmt.Errorf("failed to build detection job: %w", err)
+		}
+		if detectionJob != nil {
+			if err := c.jobManager.AddJob(detectionJob); err != nil {
+				return fmt.Errorf("failed to add detection job: %w", err)
+			}
+			compilerSafeOutputJobsLog.Print("Added separate detection job")
+		}
+	}
 
 	// Track safe output job names to establish dependencies for conclusion job
 	var safeOutputJobNames []string
@@ -251,14 +263,4 @@ func (c *Compiler) buildCallWorkflowJobs(data *WorkflowData, markdownPath string
 	}
 
 	return jobNames, nil
-}
-
-// sanitizeJobName converts a workflow name to a valid GitHub Actions job name.
-// It delegates normalization to NormalizeSafeOutputIdentifier (which converts
-// hyphens to underscores), then converts underscores back to hyphens for
-// GitHub Actions job name conventions.
-func sanitizeJobName(workflowName string) string {
-	normalized := stringutil.NormalizeSafeOutputIdentifier(workflowName)
-	// NormalizeSafeOutputIdentifier uses underscores; convert to hyphens for job names
-	return strings.ReplaceAll(normalized, "_", "-")
 }

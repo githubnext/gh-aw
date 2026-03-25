@@ -8,15 +8,14 @@ var (
 )
 
 func init() {
-	// Set the default version in the workflow package
-	// This allows workflow.NewCompiler() to auto-detect the version
-	workflow.SetDefaultVersion(version)
+	// Set the version in the workflow package so NewCompiler() auto-detects it
+	workflow.SetVersion(version)
 }
 
 // SetVersionInfo sets the version information for the CLI and workflow package
 func SetVersionInfo(v string) {
 	version = v
-	workflow.SetDefaultVersion(v) // Keep workflow package in sync
+	workflow.SetVersion(v) // Keep workflow package in sync
 }
 
 // GetVersion returns the current version

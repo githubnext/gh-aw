@@ -175,8 +175,14 @@ func (c *Compiler) buildSafeJobs(data *WorkflowData, threatDetectionEnabled bool
 			job.DisplayName = jobConfig.Name
 		}
 
-		// Safe-jobs depend on agent job (detection is now inline in agent job)
+		// Safe-jobs depend on agent job
 		job.Needs = append(job.Needs, string(constants.AgentJobName))
+
+		// When threat detection is enabled, safe-jobs also depend on the detection job
+		// so that the condition can gate on needs.detection.result == 'success'
+		if threatDetectionEnabled {
+			job.Needs = append(job.Needs, string(constants.DetectionJobName))
+		}
 
 		// Add any additional dependencies from the config
 		job.Needs = append(job.Needs, jobConfig.Needs...)
@@ -284,7 +290,7 @@ func (c *Compiler) buildSafeJobs(data *WorkflowData, threatDetectionEnabled bool
 					pinnedStep := ApplyActionPinToTypedStep(typedStep, data)
 
 					// Convert back to map for YAML generation
-					stepYAML, err := c.convertStepToYAML(pinnedStep.ToMap())
+					stepYAML, err := ConvertStepToYAML(pinnedStep.ToMap())
 					if err != nil {
 						return nil, fmt.Errorf("failed to convert step to YAML for safe job %s: %w", jobName, err)
 					}
