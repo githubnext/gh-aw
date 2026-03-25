@@ -977,7 +977,8 @@ ${patchPreview}`;
     //   patch artifact download instructions instead of the compare URL.
     if (manifestProtectionFallback) {
       const allFound = manifestProtectionFallback;
-      const filesFormatted = allFound.map(f => `\`${f}\``).join(", ");
+      const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
+      const fileList = allFound.map(f => `- [${f}](${githubServer}/${repoParts.owner}/${repoParts.repo}/blob/${baseBranch}/${f})`).join("\n");
 
       let fallbackBody;
       if (manifestProtectionPushFailedError) {
@@ -989,7 +990,7 @@ ${patchPreview}`;
         fallbackBody = renderTemplateFromFile(pushFailedTemplatePath, {
           main_body: mainBodyContent,
           footer: footerContent,
-          files: filesFormatted,
+          files: fileList,
           run_id: String(runId),
           branch_name: branchName,
           base_branch: baseBranch,
@@ -999,7 +1000,6 @@ ${patchPreview}`;
         });
       } else {
         // Normal case — push succeeded, provide compare URL.
-        const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
         const encodedBase = baseBranch.split("/").map(encodeURIComponent).join("/");
         const encodedHead = branchName.split("/").map(encodeURIComponent).join("/");
         const createPrUrl = `${githubServer}/${repoParts.owner}/${repoParts.repo}/compare/${encodedBase}...${encodedHead}?expand=1&title=${encodeURIComponent(title)}`;
@@ -1007,7 +1007,7 @@ ${patchPreview}`;
         fallbackBody = renderTemplateFromFile(templatePath, {
           main_body: mainBodyContent,
           footer: footerContent,
-          files: filesFormatted,
+          files: fileList,
           create_pr_url: createPrUrl,
         });
       }

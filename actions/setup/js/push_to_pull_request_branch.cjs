@@ -397,9 +397,10 @@ async function main(config = {}) {
       const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
       const prUrl = `${githubServer}/${repoParts.owner}/${repoParts.repo}/pull/${pullNumber}`;
       const issueTitle = `[gh-aw] Protected Files: ${prTitle || `PR #${pullNumber}`}`;
+      const fileList = protectedFilesForFallback.map(f => `- [${f}](${githubServer}/${repoParts.owner}/${repoParts.repo}/blob/${branchName}/${f})`).join("\n");
       const templatePath = `${process.env.RUNNER_TEMP}/gh-aw/prompts/manifest_protection_push_to_pr_fallback.md`;
       const issueBody = renderTemplateFromFile(templatePath, {
-        files: protectedFilesForFallback.map(f => `\`${f}\``).join(", "),
+        files: fileList,
         pull_number: pullNumber,
         pr_url: prUrl,
         run_url: runUrl,
