@@ -978,7 +978,8 @@ ${patchPreview}`;
     if (manifestProtectionFallback) {
       const allFound = manifestProtectionFallback;
       const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
-      const fileList = allFound.map(f => `- [${f}](${githubServer}/${repoParts.owner}/${repoParts.repo}/blob/${baseBranch}/${f})`).join("\n");
+      const encodedBase = baseBranch.split("/").map(encodeURIComponent).join("/");
+      const fileList = allFound.map(f => `- [${f}](${githubServer}/${repoParts.owner}/${repoParts.repo}/blob/${encodedBase}/${f.split("/").map(encodeURIComponent).join("/")})`).join("\n");
 
       let fallbackBody;
       if (manifestProtectionPushFailedError) {
@@ -1000,7 +1001,6 @@ ${patchPreview}`;
         });
       } else {
         // Normal case — push succeeded, provide compare URL.
-        const encodedBase = baseBranch.split("/").map(encodeURIComponent).join("/");
         const encodedHead = branchName.split("/").map(encodeURIComponent).join("/");
         const createPrUrl = `${githubServer}/${repoParts.owner}/${repoParts.repo}/compare/${encodedBase}...${encodedHead}?expand=1&title=${encodeURIComponent(title)}`;
         const templatePath = `${process.env.RUNNER_TEMP}/gh-aw/prompts/manifest_protection_create_pr_fallback.md`;
