@@ -339,6 +339,28 @@ func TestEcosystemDomainExpansion(t *testing.T) {
 		}
 	})
 
+	t.Run("kotlin ecosystem includes JetBrains and Kotlin domains", func(t *testing.T) {
+		permissions := &NetworkPermissions{
+			Allowed: []string{"kotlin"},
+		}
+		domains := GetAllowedDomains(permissions)
+
+		expectedDomains := []string{
+			"download.jetbrains.com",
+			"ge.jetbrains.com",
+			"packages.jetbrains.team",
+			"kotlin.bintray.com",
+			"maven.pkg.jetbrains.space",
+		}
+
+		for _, expectedDomain := range expectedDomains {
+			found := slices.Contains(domains, expectedDomain)
+			if !found {
+				t.Errorf("Expected domain '%s' to be included in kotlin ecosystem, but it was not found", expectedDomain)
+			}
+		}
+	})
+
 	t.Run("multiple ecosystems can be combined", func(t *testing.T) {
 		permissions := &NetworkPermissions{
 			Allowed: []string{"defaults", "dotnet", "python", "example.com"},
@@ -389,7 +411,7 @@ func TestAllEcosystemDomainFunctions(t *testing.T) {
 	// Test that all ecosystem categories return non-empty slices
 	ecosystemCategories := []string{
 		"defaults", "containers", "bazel", "dotnet", "dart", "github", "go",
-		"terraform", "haskell", "java", "julia", "linux-distros", "lua", "node",
+		"terraform", "haskell", "java", "julia", "kotlin", "linux-distros", "lua", "node",
 		"ocaml", "perl", "php", "playwright", "python", "r", "ruby", "rust", "swift",
 	}
 
@@ -414,7 +436,7 @@ func TestEcosystemDomainsUniqueness(t *testing.T) {
 	// Test that each ecosystem category returns unique domains (no duplicates)
 	ecosystemCategories := []string{
 		"defaults", "containers", "bazel", "dotnet", "dart", "github", "go",
-		"terraform", "haskell", "java", "julia", "linux-distros", "lua", "node",
+		"terraform", "haskell", "java", "julia", "kotlin", "linux-distros", "lua", "node",
 		"ocaml", "perl", "php", "playwright", "python", "r", "ruby", "rust", "swift",
 	}
 

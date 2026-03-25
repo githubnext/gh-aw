@@ -157,7 +157,7 @@
     "*.gradle-enterprise.cloud"
   ],
   "julia": ["pkg.julialang.org", "*.pkg.julialang.org", "julialang.org", "julialang-s3.julialang.org", "storage.julialang.net"],
-  "kotlin": ["ge.jetbrains.com", "packages.jetbrains.team", "kotlin.bintray.com", "maven.pkg.jetbrains.space"],
+  "kotlin": ["download.jetbrains.com", "ge.jetbrains.com", "packages.jetbrains.team", "kotlin.bintray.com", "maven.pkg.jetbrains.space"],
   "linux-distros": [
     "deb.debian.org",
     "security.debian.org",
