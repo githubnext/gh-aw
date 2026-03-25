@@ -373,17 +373,10 @@ func TestCopilotDefaultDomains(t *testing.T) {
 	}
 }
 
-func TestCopilotDetectionDomains(t *testing.T) {
-	// CopilotDetectionDomains must be a strict subset of CopilotDefaultDomains
-	defaultMap := make(map[string]bool)
-	for _, d := range CopilotDefaultDomains {
-		defaultMap[d] = true
-	}
-	for _, d := range CopilotDetectionDomains {
-		assert.True(t, defaultMap[d], "CopilotDetectionDomains entry %q is not in CopilotDefaultDomains", d)
-	}
+func TestThreatDetectionDomains(t *testing.T) {
+	detectionDomains := getEcosystemDomains("threat-detection")
 
-	// Detection domains must include the required Copilot API domains
+	// Detection domains must include every required Copilot API domain
 	requiredDomains := []string{
 		"api.business.githubcopilot.com",
 		"api.enterprise.githubcopilot.com",
@@ -395,11 +388,11 @@ func TestCopilotDetectionDomains(t *testing.T) {
 		"telemetry.enterprise.githubcopilot.com",
 	}
 	detectionMap := make(map[string]bool)
-	for _, d := range CopilotDetectionDomains {
+	for _, d := range detectionDomains {
 		detectionMap[d] = true
 	}
 	for _, required := range requiredDomains {
-		assert.True(t, detectionMap[required], "Required domain %q not found in CopilotDetectionDomains", required)
+		assert.True(t, detectionMap[required], "Required domain %q not found in threat-detection ecosystem", required)
 	}
 
 	// Detection domains must NOT include the domains excluded for supply-chain reduction
@@ -408,18 +401,18 @@ func TestCopilotDetectionDomains(t *testing.T) {
 		"raw.githubusercontent.com",
 	}
 	for _, excluded := range excludedDomains {
-		assert.False(t, detectionMap[excluded], "Domain %q should not be in CopilotDetectionDomains (excluded to reduce supply chain surface)", excluded)
+		assert.False(t, detectionMap[excluded], "Domain %q should not be in threat-detection ecosystem (excluded to reduce supply chain surface)", excluded)
 	}
 
-	// Verify exact count
-	assert.Len(t, CopilotDetectionDomains, len(requiredDomains),
-		"CopilotDetectionDomains should have exactly %d entries", len(requiredDomains))
+	// Verify exact count — no silent additions
+	assert.Len(t, detectionDomains, len(requiredDomains),
+		"threat-detection ecosystem should have exactly %d entries", len(requiredDomains))
 }
 
-func TestGetCopilotDetectionAllowedDomains(t *testing.T) {
+func TestGetThreatDetectionAllowedDomains(t *testing.T) {
 	// With empty network permissions the result equals the sorted detection domains
-	result := GetCopilotDetectionAllowedDomains(&NetworkPermissions{Allowed: []string{}})
-	assert.NotEmpty(t, result, "GetCopilotDetectionAllowedDomains should return non-empty string")
+	result := GetThreatDetectionAllowedDomains(&NetworkPermissions{Allowed: []string{}})
+	assert.NotEmpty(t, result, "GetThreatDetectionAllowedDomains should return non-empty string")
 
 	// Must include essential Copilot API domain
 	assert.Contains(t, result, "api.githubcopilot.com", "Detection domains must include Copilot API domain")

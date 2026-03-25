@@ -175,7 +175,7 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 		// For normal agent runs use the full domain set (defaults + ecosystem + user-specified).
 		var allowedDomains string
 		if workflowData.IsDetectionRun {
-			allowedDomains = GetCopilotDetectionAllowedDomains(workflowData.NetworkPermissions)
+			allowedDomains = GetThreatDetectionAllowedDomains(workflowData.NetworkPermissions)
 		} else {
 			allowedDomains = GetCopilotAllowedDomainsWithToolsAndRuntimes(workflowData.NetworkPermissions, workflowData.Tools, workflowData.Runtimes)
 		}

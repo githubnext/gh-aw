@@ -3,6 +3,16 @@
   "chrome": ["*.google.com", "*.googleapis.com", "*.gvt1.com"],
   "clojure": ["repo.clojars.org", "clojars.org"],
   "containers": ["ghcr.io", "registry.hub.docker.com", "*.docker.io", "*.docker.com", "production.cloudflare.docker.com", "dl.k8s.io", "pkgs.k8s.io", "quay.io", "mcr.microsoft.com", "gcr.io", "auth.docker.io"],
+  "threat-detection": [
+    "api.business.githubcopilot.com",
+    "api.enterprise.githubcopilot.com",
+    "api.github.com",
+    "api.githubcopilot.com",
+    "api.individual.githubcopilot.com",
+    "github.com",
+    "host.docker.internal",
+    "telemetry.enterprise.githubcopilot.com"
+  ],
   "dart": ["pub.dev", "pub.dartlang.org", "storage.googleapis.com"],
   "defaults": [
     "crl3.digicert.com",

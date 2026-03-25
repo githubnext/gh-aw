@@ -440,11 +440,14 @@ func (c *Compiler) buildDetectionEngineExecutionStep(data *WorkflowData) []strin
 	// Create minimal WorkflowData for threat detection.
 	// SandboxConfig with AWF enabled ensures the engine runs inside the firewall.
 	// NetworkPermissions.Allowed is empty so no user-specified domains are added on top of
-	// the engine's minimal detection domain list (see GetCopilotDetectionAllowedDomains).
+	// the engine's minimal detection domain list (see GetThreatDetectionAllowedDomains).
 	// No MCP servers are configured for detection.
+	// bash: ["*"] allows all shell commands — AWF's network firewall is the primary
+	// constraint, so restricting individual bash commands inside the sandbox adds friction
+	// without meaningful security benefit.
 	threatDetectionData := &WorkflowData{
 		Tools: map[string]any{
-			"bash": []any{"cat", "head", "tail", "wc", "grep", "ls", "jq"},
+			"bash": []any{"*"},
 		},
 		SafeOutputs:    nil,
 		EngineConfig:   detectionEngineConfig,
