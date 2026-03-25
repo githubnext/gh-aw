@@ -63,27 +63,40 @@ Always create a discussion with the full report. Create an escalation issue only
 - Use the `audit` tool only for up to 3 runs that need deeper inspection.
 - If there are very few runs, still produce a report and explain the limitation.
 
-## Episode And DAG Model
+## Deterministic Episode Model
 
-Treat agentic workflows as execution DAGs, not just a flat list of independent runs.
+The logs JSON now includes deterministic lineage fields:
 
-- A single run is a node.
-- Trigger, delegation, and orchestration relationships are edges.
-- A related set of runs can represent one higher-level episode of work.
-- Cost, ownership, and risk may belong to the episode, not just to one run.
+- `episodes[]` for aggregated execution episodes
+- `edges[]` for lineage edges between runs
 
-Prefer native lineage when the platform provides it:
+Treat those structures as the primary source of truth for graph shape, confidence, and episode rollups.
 
-- Treat `workflow_call` relationships as the strongest continuity signal because they preserve actor and billing attribution.
-- Treat `workflow_run` relationships as native but weaker edges that show one workflow reacting to another workflow completion.
-- Treat `dispatch-workflow` relationships as custom-correlated edges that may require `context.*` metadata to reconstruct continuity.
-
-When continuity markers are present, avoid judging delegated worker runs in isolation until you check whether they are part of a larger orchestrated episode.
+Prefer `episodes[]` and `edges[]` over reconstructing DAGs from raw runs in prompt space. Only fall back to per-run interpretation when episode data is absent or clearly incomplete.
 
 ## Signals To Use
 
 The logs JSON already contains the main agentic signals. Prefer these fields over ad hoc heuristics:
 
+- `episodes[].episode_id`
+- `episodes[].kind`
+- `episodes[].confidence`
+- `episodes[].reasons[]`
+- `episodes[].root_run_id`
+- `episodes[].run_ids[]`
+- `episodes[].workflow_names[]`
+- `episodes[].total_runs`
+- `episodes[].total_tokens`
+- `episodes[].total_estimated_cost`
+- `episodes[].total_duration`
+- `episodes[].risky_node_count`
+- `episodes[].write_capable_node_count`
+- `episodes[].mcp_failure_count`
+- `episodes[].blocked_request_count`
+- `episodes[].risk_distribution`
+- `edges[].edge_type`
+- `edges[].confidence`
+- `edges[].reasons[]`
 - `task_domain.name` and `task_domain.label`
 - `behavior_fingerprint.execution_style`
 - `behavior_fingerprint.tool_breadth`
@@ -105,16 +118,13 @@ The logs JSON already contains the main agentic signals. Prefer these fields ove
 
 Treat these values as the canonical signals for reporting.
 
-## Continuity Rules
+## Interpretation Rules
 
-Use the following rules when interpreting orchestrated or delegated runs:
-
-- Group runs into one episode when they share strong continuity markers such as `context.workflow_call_id`, or when the downstream run clearly points to the same upstream `context.run_id` and `context.workflow_id`.
-- If a run has `behavior_fingerprint.dispatch_mode == "delegated"`, treat that as evidence that the run may be one node in a larger DAG.
-- Do not over-penalize a worker run for being write-capable or resource-heavy if that behavior appears intentional within a larger orchestrator-to-worker sequence.
-- If downstream runs lost continuity markers when you would expect them, report that as an observability problem.
-- When multiple risky-looking runs appear to belong to one episode, summarize them together before escalating.
-- If lineage is ambiguous, say so explicitly instead of inventing a chain.
+- Use episode-level analysis first. Do not treat connected runs as unrelated when `episodes[]` already groups them.
+- Use per-run detail only to explain which nodes contributed to an episode-level problem.
+- If an episode has low confidence, say so explicitly and avoid overconfident causal claims.
+- If delegated workers look risky in isolation but the enclosing episode looks intentional and well-controlled, say that.
+- If the deterministic episode model appears incomplete or missing expected lineage, report that as an observability finding.
 
 ## Reporting Model
 
@@ -126,14 +136,15 @@ Keep these sections visible:
 
 1. `### Executive Summary`
 2. `### Key Metrics`
-3. `### Highest Risk Workflows`
+3. `### Highest Risk Episodes`
 4. `### Recommended Actions`
 
 Include small numeric summaries such as:
 
 - workflows analyzed
 - runs analyzed
-- inferred episodes analyzed
+- episodes analyzed
+- high-confidence episodes analyzed
 - runs with `comparison.classification.label == "risky"`
 - runs with medium or high `agentic_assessments`
 - workflows with repeated `overkill_for_agentic`
@@ -145,19 +156,20 @@ Put detailed per-workflow breakdowns inside `<details>` blocks.
 
 ### What Good Reporting Looks Like
 
-For each highlighted workflow, explain:
+For each highlighted episode or workflow, explain:
 
 - what domain it appears to belong to
 - what its behavioral fingerprint looks like
-- whether it appears to participate in an orchestrated DAG or delegated episode
+- whether the deterministic graph shows an orchestrated DAG or delegated episode
 - whether the actor, cost, and risk seem to belong to the workflow itself or to a larger chain
+- what the episode confidence level is and why
 - whether it is stable against a cohort match or only compared to latest success
 - whether the risky behavior is new, repeated, or likely intentional
 - what a team should change next
 
 ## Escalation Thresholds
 
-Use the discussion as the complete source of truth for all qualifying workflows. Only create an escalation issue when one or more workflows cross these thresholds in the last 14 days:
+Use the discussion as the complete source of truth for all qualifying workflows and episodes. Only create an escalation issue when one or more episodes or workflows cross these thresholds in the last 14 days:
 
 1. Two or more runs for the same workflow have `comparison.classification.label == "risky"`.
 2. Two or more runs for the same workflow contain `new_mcp_failure` or `blocked_requests_increase` in `comparison.classification.reason_codes`.
@@ -169,6 +181,8 @@ Do not open one issue per workflow. Create at most one escalation issue for the 
 If no workflow crosses these thresholds, do not create an escalation issue.
 
 If one or more workflows do cross these thresholds, create a single escalation issue that groups the highest-value follow-up work for repository owners. The escalation issue should summarize the workflows that need attention now, why they crossed the thresholds, and what change is recommended first.
+
+Prefer escalating at the episode level when multiple risky runs are part of one coherent DAG. Only fall back to workflow-level escalation when no broader episode can be established with acceptable confidence.
 
 ## Optimization Candidates
 
@@ -198,6 +212,7 @@ Always create one discussion that includes:
 
 - the date range analyzed
 - any important orchestrator, worker, or workflow_run chains that materially change interpretation
+- the most important inferred episodes and their confidence levels
 - all workflows that crossed the escalation thresholds
 - the workflows with the clearest repeated risk
 - the most common assessment kinds

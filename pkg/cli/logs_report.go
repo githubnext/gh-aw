@@ -22,6 +22,8 @@ var reportLog = logger.New("cli:logs_report")
 type LogsData struct {
 	Summary           LogsSummary                `json:"summary" console:"title:Workflow Logs Summary"`
 	Runs              []RunData                  `json:"runs" console:"title:Workflow Logs Overview"`
+	Episodes          []EpisodeData              `json:"episodes" console:"-"`
+	Edges             []EpisodeEdge              `json:"edges" console:"-"`
 	ToolUsage         []ToolUsageSummary         `json:"tool_usage,omitempty" console:"title:🛠️  Tool Usage Summary,omitempty"`
 	MCPToolUsage      *MCPToolUsageSummary       `json:"mcp_tool_usage,omitempty" console:"title:🔧 MCP Tool Usage,omitempty"`
 	Observability     []ObservabilityInsight     `json:"observability_insights,omitempty" console:"-"`
@@ -52,16 +54,18 @@ type ContinuationData struct {
 
 // LogsSummary contains aggregate metrics across all runs
 type LogsSummary struct {
-	TotalRuns         int     `json:"total_runs" console:"header:Total Runs"`
-	TotalDuration     string  `json:"total_duration" console:"header:Total Duration"`
-	TotalTokens       int     `json:"total_tokens" console:"header:Total Tokens,format:number"`
-	TotalCost         float64 `json:"total_cost" console:"header:Total Cost,format:cost"`
-	TotalTurns        int     `json:"total_turns" console:"header:Total Turns"`
-	TotalErrors       int     `json:"total_errors" console:"header:Total Errors"`
-	TotalWarnings     int     `json:"total_warnings" console:"header:Total Warnings"`
-	TotalMissingTools int     `json:"total_missing_tools" console:"header:Total Missing Tools"`
-	TotalMissingData  int     `json:"total_missing_data" console:"header:Total Missing Data"`
-	TotalSafeItems    int     `json:"total_safe_items" console:"header:Total Safe Items"`
+	TotalRuns              int     `json:"total_runs" console:"header:Total Runs"`
+	TotalDuration          string  `json:"total_duration" console:"header:Total Duration"`
+	TotalTokens            int     `json:"total_tokens" console:"header:Total Tokens,format:number"`
+	TotalCost              float64 `json:"total_cost" console:"header:Total Cost,format:cost"`
+	TotalTurns             int     `json:"total_turns" console:"header:Total Turns"`
+	TotalErrors            int     `json:"total_errors" console:"header:Total Errors"`
+	TotalWarnings          int     `json:"total_warnings" console:"header:Total Warnings"`
+	TotalMissingTools      int     `json:"total_missing_tools" console:"header:Total Missing Tools"`
+	TotalMissingData       int     `json:"total_missing_data" console:"header:Total Missing Data"`
+	TotalSafeItems         int     `json:"total_safe_items" console:"header:Total Safe Items"`
+	TotalEpisodes          int     `json:"total_episodes" console:"header:Total Episodes"`
+	HighConfidenceEpisodes int     `json:"high_confidence_episodes" console:"header:High Confidence Episodes"`
 }
 
 // RunData contains information about a single workflow run
@@ -233,6 +237,14 @@ func buildLogsData(processedRuns []ProcessedRun, outputDir string, continuation 
 		TotalSafeItems:    totalSafeItems,
 	}
 
+	episodes, edges := buildEpisodeData(runs, processedRuns)
+	for _, episode := range episodes {
+		summary.TotalEpisodes++
+		if episode.Confidence == "high" {
+			summary.HighConfidenceEpisodes++
+		}
+	}
+
 	// Build tool usage summary
 	toolUsage := buildToolUsageSummary(processedRuns)
 
@@ -267,6 +279,8 @@ func buildLogsData(processedRuns []ProcessedRun, outputDir string, continuation 
 	return LogsData{
 		Summary:           summary,
 		Runs:              runs,
+		Episodes:          episodes,
+		Edges:             edges,
 		ToolUsage:         toolUsage,
 		MCPToolUsage:      mcpToolUsage,
 		Observability:     observability,

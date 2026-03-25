@@ -130,10 +130,22 @@ func TestBuildLogsData(t *testing.T) {
 	if logsData.Summary.TotalMissingTools != 1 {
 		t.Errorf("Expected TotalMissingTools to be 1, got %d", logsData.Summary.TotalMissingTools)
 	}
+	if logsData.Summary.TotalEpisodes != 2 {
+		t.Errorf("Expected TotalEpisodes to be 2, got %d", logsData.Summary.TotalEpisodes)
+	}
+	if logsData.Summary.HighConfidenceEpisodes != 2 {
+		t.Errorf("Expected HighConfidenceEpisodes to be 2, got %d", logsData.Summary.HighConfidenceEpisodes)
+	}
 
 	// Verify runs data
 	if len(logsData.Runs) != 2 {
 		t.Errorf("Expected 2 runs, got %d", len(logsData.Runs))
+	}
+	if len(logsData.Episodes) != 2 {
+		t.Fatalf("Expected 2 episodes, got %d", len(logsData.Episodes))
+	}
+	if len(logsData.Edges) != 0 {
+		t.Fatalf("Expected 0 edges for standalone runs, got %d", len(logsData.Edges))
 	}
 
 	// Verify first run
@@ -185,14 +197,16 @@ func TestRenderLogsJSON(t *testing.T) {
 	// Create sample logs data
 	logsData := LogsData{
 		Summary: LogsSummary{
-			TotalRuns:         2,
-			TotalDuration:     "8m0s",
-			TotalTokens:       1500,
-			TotalCost:         0.075,
-			TotalTurns:        5,
-			TotalErrors:       1,
-			TotalWarnings:     1,
-			TotalMissingTools: 1,
+			TotalRuns:              2,
+			TotalDuration:          "8m0s",
+			TotalTokens:            1500,
+			TotalCost:              0.075,
+			TotalTurns:             5,
+			TotalErrors:            1,
+			TotalWarnings:          1,
+			TotalMissingTools:      1,
+			TotalEpisodes:          1,
+			HighConfidenceEpisodes: 1,
 		},
 		Runs: []RunData{
 			{
@@ -222,6 +236,19 @@ func TestRenderLogsJSON(t *testing.T) {
 				},
 			},
 		},
+		Episodes: []EpisodeData{
+			{
+				EpisodeID:          "standalone:12345",
+				Kind:               "standalone",
+				Confidence:         "high",
+				RunIDs:             []int64{12345},
+				WorkflowNames:      []string{"Test Workflow"},
+				TotalRuns:          1,
+				TotalTokens:        1000,
+				TotalEstimatedCost: 0.05,
+			},
+		},
+		Edges:        []EpisodeEdge{},
 		LogsLocation: tmpDir,
 	}
 
@@ -257,11 +284,97 @@ func TestRenderLogsJSON(t *testing.T) {
 	if parsedData.Summary.TotalTokens != 1500 {
 		t.Errorf("Expected TotalTokens 1500, got %d", parsedData.Summary.TotalTokens)
 	}
+	if parsedData.Summary.TotalEpisodes != 1 {
+		t.Errorf("Expected TotalEpisodes 1, got %d", parsedData.Summary.TotalEpisodes)
+	}
 	if len(parsedData.Runs) != 1 {
 		t.Errorf("Expected 1 run in JSON, got %d", len(parsedData.Runs))
 	}
 	if parsedData.Runs[0].Comparison == nil || parsedData.Runs[0].Comparison.Baseline == nil || parsedData.Runs[0].Comparison.Baseline.Selection != "cohort_match" {
 		t.Fatalf("Expected comparison metadata to survive JSON round-trip, got %+v", parsedData.Runs[0].Comparison)
+	}
+}
+
+func TestBuildLogsDataAggregatesDispatchEpisode(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "test-episode-*")
+	processedRuns := []ProcessedRun{
+		{
+			Run: WorkflowRun{
+				DatabaseID:    2001,
+				WorkflowName:  "orchestrator",
+				WorkflowPath:  ".github/workflows/orchestrator.yml",
+				Status:        "completed",
+				Conclusion:    "success",
+				Duration:      2 * time.Minute,
+				TokenUsage:    300,
+				EstimatedCost: 0.01,
+				CreatedAt:     time.Date(2024, 2, 1, 12, 0, 0, 0, time.UTC),
+				StartedAt:     time.Date(2024, 2, 1, 12, 0, 0, 0, time.UTC),
+				UpdatedAt:     time.Date(2024, 2, 1, 12, 2, 0, 0, time.UTC),
+				LogsPath:      filepath.Join(tmpDir, "run-2001"),
+			},
+		},
+		{
+			Run: WorkflowRun{
+				DatabaseID:       2002,
+				WorkflowName:     "worker",
+				WorkflowPath:     ".github/workflows/worker.yml",
+				Status:           "completed",
+				Conclusion:       "success",
+				Duration:         4 * time.Minute,
+				TokenUsage:       700,
+				EstimatedCost:    0.03,
+				MissingToolCount: 1,
+				CreatedAt:        time.Date(2024, 2, 1, 12, 3, 0, 0, time.UTC),
+				StartedAt:        time.Date(2024, 2, 1, 12, 3, 0, 0, time.UTC),
+				UpdatedAt:        time.Date(2024, 2, 1, 12, 7, 0, 0, time.UTC),
+				LogsPath:         filepath.Join(tmpDir, "run-2002"),
+			},
+			AwContext: &AwContext{
+				Repo:           "github/gh-aw",
+				RunID:          "2001",
+				WorkflowID:     "github/gh-aw/.github/workflows/orchestrator.yml@refs/heads/main",
+				WorkflowCallID: "2001-1",
+				EventType:      "workflow_dispatch",
+			},
+			BehaviorFingerprint: &BehaviorFingerprint{ActuationStyle: "selective_write"},
+			MCPFailures:         []MCPFailureReport{{ServerName: "github", Status: "failed"}},
+		},
+	}
+
+	logsData := buildLogsData(processedRuns, tmpDir, nil)
+
+	if logsData.Summary.TotalEpisodes != 1 {
+		t.Fatalf("Expected 1 episode, got %d", logsData.Summary.TotalEpisodes)
+	}
+	if logsData.Summary.HighConfidenceEpisodes != 1 {
+		t.Fatalf("Expected 1 high-confidence episode, got %d", logsData.Summary.HighConfidenceEpisodes)
+	}
+	if len(logsData.Edges) != 1 {
+		t.Fatalf("Expected 1 edge, got %d", len(logsData.Edges))
+	}
+	edge := logsData.Edges[0]
+	if edge.SourceRunID != 2001 || edge.TargetRunID != 2002 {
+		t.Fatalf("Expected edge 2001->2002, got %d->%d", edge.SourceRunID, edge.TargetRunID)
+	}
+	if edge.EdgeType != "dispatch_workflow" {
+		t.Fatalf("Expected dispatch_workflow edge, got %s", edge.EdgeType)
+	}
+	episode := logsData.Episodes[0]
+	if episode.Kind != "dispatch_workflow" {
+		t.Fatalf("Expected dispatch_workflow episode, got %s", episode.Kind)
+	}
+	if episode.TotalRuns != 2 {
+		t.Fatalf("Expected episode TotalRuns 2, got %d", episode.TotalRuns)
+	}
+	if episode.TotalTokens != 1000 {
+		t.Fatalf("Expected episode TotalTokens 1000, got %d", episode.TotalTokens)
+	}
+	if episode.MCPFailureCount != 1 {
+		t.Fatalf("Expected episode MCPFailureCount 1, got %d", episode.MCPFailureCount)
+	}
+	if episode.WriteCapableNodeCount != 1 {
+		t.Fatalf("Expected episode WriteCapableNodeCount 1, got %d", episode.WriteCapableNodeCount)
 	}
 }
 
