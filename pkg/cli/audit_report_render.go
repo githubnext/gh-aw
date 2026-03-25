@@ -879,7 +879,7 @@ func renderSessionAnalysis(session *SessionAnalysis) {
 	if session.TimeoutDetected {
 		fmt.Fprintf(os.Stderr, "  Timeout Detected:  %s\n", console.FormatWarningMessage("Yes"))
 	} else {
-		fmt.Fprintf(os.Stderr, "  Timeout Detected:  No\n")
+		fmt.Fprintf(os.Stderr, "  Timeout Detected:  %s\n", console.FormatSuccessMessage("No"))
 	}
 	fmt.Fprintln(os.Stderr)
 }

@@ -386,8 +386,10 @@ func buildSlowestToolCalls(calls []MCPToolCall, topN int) []MCPSlowestToolCall {
 		}
 		d, err := time.ParseDuration(call.Duration)
 		if err != nil {
-			// Try parsing as milliseconds (e.g., "1234ms")
-			d, err = time.ParseDuration(call.Duration + "ms")
+			// Try parsing as bare number (milliseconds) only if no unit suffix present
+			if !strings.ContainsAny(call.Duration, "smhμnuµ") {
+				d, err = time.ParseDuration(call.Duration + "ms")
+			}
 			if err != nil {
 				continue
 			}
