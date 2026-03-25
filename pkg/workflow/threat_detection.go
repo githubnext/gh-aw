@@ -19,6 +19,21 @@ type ThreatDetectionConfig struct {
 	RunsOn         string        `yaml:"runs-on,omitempty"`       // Runner override for the detection job
 }
 
+// HasRunnableDetection reports whether this config will produce a detection job
+// that actually executes. Returns false when the engine is disabled and no
+// custom steps are configured, since the job would have nothing to run.
+func (td *ThreatDetectionConfig) HasRunnableDetection() bool {
+	return !td.EngineDisabled || len(td.Steps) > 0
+}
+
+// IsDetectionJobEnabled reports whether a detection job should be created for
+// the given safe-outputs configuration. This is the single source of truth
+// used by all codepaths that decide whether to create, depend on, or reference
+// the detection job.
+func IsDetectionJobEnabled(so *SafeOutputsConfig) bool {
+	return so != nil && so.ThreatDetection != nil && so.ThreatDetection.HasRunnableDetection()
+}
+
 // parseThreatDetectionConfig handles threat-detection configuration
 func (c *Compiler) parseThreatDetectionConfig(outputMap map[string]any) *ThreatDetectionConfig {
 	if configData, exists := outputMap["threat-detection"]; exists {
@@ -541,6 +556,15 @@ func (c *Compiler) buildDetectionJob(data *WorkflowData) (*Job, error) {
 	threatLog.Print("Building separate detection job")
 	if data.SafeOutputs == nil || data.SafeOutputs.ThreatDetection == nil {
 		threatLog.Print("Threat detection not configured, skipping detection job")
+		return nil, nil
+	}
+
+	// When the engine is explicitly disabled and there are no custom steps,
+	// there is nothing to run in the detection job — skip it entirely.
+	// The detection job would only create an empty detection.log and the parser
+	// would correctly fail with "No THREAT_DETECTION_RESULT found".
+	if !IsDetectionJobEnabled(data.SafeOutputs) {
+		threatLog.Print("Threat detection engine disabled with no custom steps, skipping detection job")
 		return nil, nil
 	}
 

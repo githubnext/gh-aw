@@ -521,7 +521,12 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 	// NOTE: Git patch generation has been moved to the safe-outputs MCP server
 	// The patch is now generated when create_pull_request or push_to_pull_request_branch
 	// tools are called, providing immediate error feedback if no changes are present.
-	if usesPatchesAndCheckouts(data.SafeOutputs) {
+	// Include patches in the artifact when:
+	// 1. Safe outputs needs them for checkout (non-staged create_pull_request/push_to_pull_request_branch)
+	// 2. Threat detection is enabled (detection job needs patches for security analysis, even when the
+	//    safe-output handler is staged and doesn't need checkout itself)
+	threatDetectionNeedsPatches := IsDetectionJobEnabled(data.SafeOutputs)
+	if usesPatchesAndCheckouts(data.SafeOutputs) || threatDetectionNeedsPatches {
 		artifactPaths = append(artifactPaths, "/tmp/gh-aw/aw-*.patch")
 	}
 
