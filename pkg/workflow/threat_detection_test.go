@@ -228,11 +228,12 @@ func TestBuildInlineDetectionSteps(t *testing.T) {
 				if !strings.Contains(joined, "detection_guard") {
 					t.Error("Expected inline steps to contain detection_guard step")
 				}
-				if !strings.Contains(joined, "parse_detection_results") {
-					t.Error("Expected inline steps to contain parse_detection_results step")
-				}
 				if !strings.Contains(joined, "detection_conclusion") {
 					t.Error("Expected inline steps to contain detection_conclusion step")
+				}
+				// The combined conclusion step should call parse_threat_detection_results.cjs
+				if !strings.Contains(joined, "parse_threat_detection_results.cjs") {
+					t.Error("Expected inline steps to reference parse_threat_detection_results.cjs")
 				}
 				if !strings.Contains(joined, "Threat Detection") {
 					t.Error("Expected inline steps to contain threat detection comment separator")
@@ -312,9 +313,9 @@ func TestThreatDetectionInlineStepsDependencies(t *testing.T) {
 		t.Error("Expected inline steps to include detection_conclusion step")
 	}
 
-	// Verify parse results step exists
-	if !strings.Contains(joined, "parse_detection_results") {
-		t.Error("Expected inline steps to include parse_detection_results step")
+	// Verify the conclusion step references the parsing script (combined step)
+	if !strings.Contains(joined, "parse_threat_detection_results.cjs") {
+		t.Error("Expected inline steps to reference parse_threat_detection_results.cjs in combined conclusion step")
 	}
 }
 
@@ -447,33 +448,33 @@ func TestThreatDetectionStepsOrdering(t *testing.T) {
 
 	// Find the positions of key steps
 	customStepPos := strings.Index(stepsString, "Custom Threat Scan")
-	parseStepPos := strings.Index(stepsString, "Parse threat detection results")
+	concludeStepPos := strings.Index(stepsString, "Parse and conclude threat detection")
 	uploadStepPos := strings.Index(stepsString, "Upload threat detection log")
 
 	// Verify all steps exist
 	if customStepPos == -1 {
 		t.Error("Expected to find 'Custom Threat Scan' step")
 	}
-	if parseStepPos == -1 {
-		t.Error("Expected to find 'Parse threat detection results' step")
+	if concludeStepPos == -1 {
+		t.Error("Expected to find 'Parse and conclude threat detection' step")
 	}
 	if uploadStepPos == -1 {
 		t.Error("Expected to find 'Upload threat detection log' step")
 	}
 
-	// Verify ordering: custom steps should come before parsing step
-	if customStepPos > parseStepPos {
-		t.Errorf("Custom threat detection steps should come before 'Parse threat detection results' step. Got custom at position %d, parse at position %d", customStepPos, parseStepPos)
+	// Verify ordering: custom steps should come before upload step
+	if customStepPos > uploadStepPos {
+		t.Errorf("Custom threat detection steps should come before 'Upload threat detection log' step. Got custom at position %d, upload at position %d", customStepPos, uploadStepPos)
 	}
 
-	// Verify ordering: parsing step should come before upload step
-	if parseStepPos > uploadStepPos {
-		t.Errorf("'Parse threat detection results' step should come before 'Upload threat detection log' step. Got parse at position %d, upload at position %d", parseStepPos, uploadStepPos)
+	// Verify ordering: upload step should come before the conclude step
+	if uploadStepPos > concludeStepPos {
+		t.Errorf("'Upload threat detection log' step should come before 'Parse and conclude threat detection' step. Got upload at position %d, conclude at position %d", uploadStepPos, concludeStepPos)
 	}
 
-	// Verify the expected order: custom -> parse -> upload
-	if customStepPos >= parseStepPos || parseStepPos >= uploadStepPos {
-		t.Errorf("Expected step order: custom steps < parse results < upload log. Got positions: custom=%d, parse=%d, upload=%d", customStepPos, parseStepPos, uploadStepPos)
+	// Verify the expected order: custom -> upload -> conclude
+	if customStepPos >= uploadStepPos || uploadStepPos >= concludeStepPos {
+		t.Errorf("Expected step order: custom steps < upload log < conclude. Got positions: custom=%d, upload=%d, conclude=%d", customStepPos, uploadStepPos, concludeStepPos)
 	}
 }
 

@@ -147,13 +147,10 @@ func (c *Compiler) buildDetectionJobSteps(data *WorkflowData) []string {
 		steps = append(steps, c.buildCustomThreatDetectionSteps(data.SafeOutputs.ThreatDetection.Steps)...)
 	}
 
-	// Step 7: Parse threat detection results
-	steps = append(steps, c.buildParsingStep()...)
-
-	// Step 8: Upload detection-artifact
+	// Step 7: Upload detection-artifact
 	steps = append(steps, c.buildUploadDetectionLogStep(data)...)
 
-	// Step 9: Detection conclusion - sets final detection_success and detection_conclusion outputs
+	// Step 8: Parse results, log extensively, and set job conclusion (single JS step)
 	steps = append(steps, c.buildDetectionConclusionStep()...)
 
 	threatLog.Printf("Generated %d detection job step lines", len(steps))
@@ -264,32 +261,31 @@ func (c *Compiler) buildPrepareDetectionFilesStep() []string {
 	}
 }
 
-// buildDetectionConclusionStep creates a step that sets the final detection outputs.
-// Runs with always() to ensure outputs are set regardless of detection step outcomes.
+// buildDetectionConclusionStep creates the combined parse-and-conclude step for threat detection.
+// This single JS step consolidates what was previously two steps:
+//  1. Parsing the detection log (parse_detection_results)
+//  2. Setting the final job conclusion (detection_conclusion)
+//
+// It always runs (always()) so that job outputs are set regardless of prior step outcomes.
+// The RUN_DETECTION env var lets the script short-circuit with conclusion=skipped when
+// the detection guard determined there was no output to analyze.
 func (c *Compiler) buildDetectionConclusionStep() []string {
-	return []string{
-		"      - name: Set detection conclusion\n",
+	steps := []string{
+		"      - name: Parse and conclude threat detection\n",
 		"        id: detection_conclusion\n",
 		"        if: always()\n",
+		fmt.Sprintf("        uses: %s\n", GetActionPin("actions/github-script")),
 		"        env:\n",
 		"          RUN_DETECTION: ${{ steps.detection_guard.outputs.run_detection }}\n",
-		"          DETECTION_SUCCESS: ${{ steps.parse_detection_results.outputs.success }}\n",
-		"        run: |\n",
-		"          if [[ \"$RUN_DETECTION\" != \"true\" ]]; then\n",
-		"            echo \"conclusion=skipped\" >> \"$GITHUB_OUTPUT\"\n",
-		"            echo \"success=true\" >> \"$GITHUB_OUTPUT\"\n",
-		"            echo \"Detection was not needed, marking as skipped\"\n",
-		"          elif [[ \"$DETECTION_SUCCESS\" == \"true\" ]]; then\n",
-		"            echo \"conclusion=success\" >> \"$GITHUB_OUTPUT\"\n",
-		"            echo \"success=true\" >> \"$GITHUB_OUTPUT\"\n",
-		"            echo \"Detection passed successfully\"\n",
-		"          else\n",
-		"            echo \"conclusion=failure\" >> \"$GITHUB_OUTPUT\"\n",
-		"            echo \"success=false\" >> \"$GITHUB_OUTPUT\"\n",
-		"            echo \"Detection found issues\"\n",
-		"            exit 1\n",
-		"          fi\n",
+		"        with:\n",
+		"          script: |\n",
 	}
+
+	script := c.buildResultsParsingScriptRequire()
+	formattedScript := FormatJavaScriptForYAML(script)
+	steps = append(steps, formattedScript...)
+
+	return steps
 }
 
 // buildThreatDetectionAnalysisStep creates the main threat analysis step
@@ -461,25 +457,6 @@ func (c *Compiler) buildDetectionEngineExecutionStep(data *WorkflowData) []strin
 			}
 		}
 	}
-
-	return steps
-}
-
-// buildParsingStep creates the results parsing step
-func (c *Compiler) buildParsingStep() []string {
-	steps := []string{
-		"      - name: Parse threat detection results\n",
-		"        id: parse_detection_results\n",
-		fmt.Sprintf("        if: %s\n", detectionStepCondition),
-		fmt.Sprintf("        uses: %s\n", GetActionPin("actions/github-script")),
-		"        with:\n",
-		"          script: |\n",
-	}
-
-	// Use require() to load script from the separate .cjs file
-	parsingScript := c.buildResultsParsingScriptRequire()
-	formattedParsingScript := FormatJavaScriptForYAML(parsingScript)
-	steps = append(steps, formattedParsingScript...)
 
 	return steps
 }

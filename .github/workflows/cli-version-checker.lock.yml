@@ -1095,16 +1095,6 @@ jobs:
           GIT_COMMITTER_NAME: github-actions[bot]
           MCP_TIMEOUT: 120000
           MCP_TOOL_TIMEOUT: 60000
-      - name: Parse threat detection results
-        id: parse_detection_results
-        if: always() && steps.detection_guard.outputs.run_detection == 'true'
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
-        with:
-          script: |
-            const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');
-            setupGlobals(core, github, context, exec, io);
-            const { main } = require('${{ runner.temp }}/gh-aw/actions/parse_threat_detection_results.cjs');
-            await main();
       - name: Upload threat detection log
         if: always() && steps.detection_guard.outputs.run_detection == 'true'
         uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7
@@ -1112,27 +1102,18 @@ jobs:
           name: detection
           path: /tmp/gh-aw/threat-detection/detection.log
           if-no-files-found: ignore
-      - name: Set detection conclusion
+      - name: Parse and conclude threat detection
         id: detection_conclusion
         if: always()
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           RUN_DETECTION: ${{ steps.detection_guard.outputs.run_detection }}
-          DETECTION_SUCCESS: ${{ steps.parse_detection_results.outputs.success }}
-        run: |
-          if [[ "$RUN_DETECTION" != "true" ]]; then
-            echo "conclusion=skipped" >> "$GITHUB_OUTPUT"
-            echo "success=true" >> "$GITHUB_OUTPUT"
-            echo "Detection was not needed, marking as skipped"
-          elif [[ "$DETECTION_SUCCESS" == "true" ]]; then
-            echo "conclusion=success" >> "$GITHUB_OUTPUT"
-            echo "success=true" >> "$GITHUB_OUTPUT"
-            echo "Detection passed successfully"
-          else
-            echo "conclusion=failure" >> "$GITHUB_OUTPUT"
-            echo "success=false" >> "$GITHUB_OUTPUT"
-            echo "Detection found issues"
-            exit 1
-          fi
+        with:
+          script: |
+            const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');
+            setupGlobals(core, github, context, exec, io);
+            const { main } = require('${{ runner.temp }}/gh-aw/actions/parse_threat_detection_results.cjs');
+            await main();
 
   safe_outputs:
     needs:
