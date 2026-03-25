@@ -267,6 +267,8 @@ func buildConcurrencyGroupKeys(workflowData *WorkflowData, isCommandTrigger bool
 	}
 
 	// entityKey selects the correct concurrency key builder based on bot risk.
+	// It captures both botRisk and hasItemNumber from the outer scope, so call
+	// sites only need to supply the entity-specific parts.
 	entityKey := func(primaryParts []string, tailParts []string) string {
 		if botRisk {
 			return botIsolatedConcurrencyKey(primaryParts, tailParts, hasItemNumber)
