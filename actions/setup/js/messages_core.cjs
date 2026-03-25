@@ -120,7 +120,7 @@ function toSnakeCase(obj) {
  * @returns {string}
  */
 function encodeRFC3986URIComponent(value) {
-  return encodeURIComponent(value).replace(/[!'()*]/g, c => "%" + c.charCodeAt(0).toString(16).toUpperCase());
+  return encodeURIComponent(value).replace(/[!'()*]/g, c => "%" + c.charCodeAt(0).toString(16).toUpperCase().padStart(2, "0"));
 }
 
 /**
