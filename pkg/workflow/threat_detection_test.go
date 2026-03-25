@@ -224,7 +224,7 @@ func TestBuildInlineDetectionSteps(t *testing.T) {
 
 			if tt.expectSteps {
 				joined := strings.Join(steps, "")
-				// Verify key inline detection step components
+				// Verify key detection step components
 				if !strings.Contains(joined, "detection_guard") {
 					t.Error("Expected inline steps to contain detection_guard step")
 				}
@@ -234,7 +234,7 @@ func TestBuildInlineDetectionSteps(t *testing.T) {
 				if !strings.Contains(joined, "detection_conclusion") {
 					t.Error("Expected inline steps to contain detection_conclusion step")
 				}
-				if !strings.Contains(joined, "Threat Detection (inline)") {
+				if !strings.Contains(joined, "Threat Detection") {
 					t.Error("Expected inline steps to contain threat detection comment separator")
 				}
 			}

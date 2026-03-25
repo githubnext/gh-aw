@@ -48,7 +48,7 @@ Workflows can specify extended configuration for the coding agent:
 engine:
   id: copilot
   version: latest                       # defaults to latest
-  model: gpt-5                          # defaults to claude-sonnet-4
+  model: gpt-5                          # example override; omit to use engine default
   command: /usr/local/bin/copilot       # custom executable path
   args: ["--add-dir", "/workspace"]     # custom CLI arguments
   agent: agent-id                       # custom agent file identifier

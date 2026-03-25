@@ -334,14 +334,15 @@ safe-outputs:
 
 ### Protected Files
 
-The protection list is composed of three sources:
+The protection list is composed of four sources:
 
 1. **Runtime dependency manifests** — one entry per supported package manager (npm, Go, Python, Ruby, Java, Rust, Elixir, Haskell, .NET, Bun, Deno, uv).
 2. **Engine instruction files** — added automatically based on the active AI engine:
    - **Copilot**: `AGENTS.md`
    - **Claude**: `CLAUDE.md`; directory prefix `.claude/`
    - **Codex**: `AGENTS.md`; directory prefix `.codex/`
-3. **Repository security configuration** — the `.github/` and `.agents/` path prefixes (`.github/` covers GitHub Actions workflows, CODEOWNERS, Dependabot config; `.agents/` covers generic agent instruction and configuration files).
+3. **Repository security configuration** — the `.github/` and `.agents/` path prefixes (`.github/` covers GitHub Actions workflows, Dependabot config; `.agents/` covers generic agent instruction and configuration files).
+4. **Repository access control files** — matched by filename anywhere in the repository: `CODEOWNERS` (governs required code reviewers; valid at the repository root, `.github/`, or `docs/`).
 
 > [!TIP]
 > If your workflow is explicitly designed to update dependencies or CI configuration, set `protected-files: allowed` for that safe output. In repositories where human oversight is preferred, `protected-files: fallback-to-issue` provides a middle ground: the agent performs all other operations normally, and a review issue is created for runs that involve protected files.

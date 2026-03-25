@@ -1519,6 +1519,12 @@ a:hover {
   color: #ffffff;
 }
 
+/* Action status badges — uniform height so all rows have consistent sizing */
+table img[src*="badge.svg"] {
+  height: 20px;
+  vertical-align: middle;
+}
+
 /* Hero Styling */
 .hero {
   background: transparent;

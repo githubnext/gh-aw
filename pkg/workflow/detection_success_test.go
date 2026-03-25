@@ -13,7 +13,7 @@ import (
 	"github.com/github/gh-aw/pkg/testutil"
 )
 
-// TestDetectionJobHasSuccessOutput verifies that the agent job has detection success/conclusion outputs
+// TestDetectionJobHasSuccessOutput verifies that the detection job has detection success/conclusion outputs
 func TestDetectionJobHasSuccessOutput(t *testing.T) {
 	tmpDir := testutil.TempDir(t, "test-*")
 	workflowPath := filepath.Join(tmpDir, "test-workflow.md")
@@ -49,27 +49,27 @@ Create an issue.
 	}
 	yaml := string(yamlBytes)
 
-	// Detection is now inline in the agent job - no separate detection job
-	agentSection := extractJobSection(yaml, "agent")
-	if agentSection == "" {
-		t.Fatal("Agent job not found in compiled YAML")
+	// Detection is now in a separate detection job
+	detectionSection := extractJobSection(yaml, "detection")
+	if detectionSection == "" {
+		t.Fatal("Detection job not found in compiled YAML")
 	}
 
-	// Check that agent job outputs include detection_success and detection_conclusion
+	// Check that detection job outputs include detection_success and detection_conclusion
 	if !strings.Contains(yaml, "detection_success:") {
-		t.Error("Agent job missing detection_success output")
+		t.Error("Detection job missing detection_success output")
 	}
 	if !strings.Contains(yaml, "detection_conclusion:") {
-		t.Error("Agent job missing detection_conclusion output")
+		t.Error("Detection job missing detection_conclusion output")
 	}
 
-	// Check that parse_detection_results step has an ID
-	if !strings.Contains(agentSection, "id: parse_detection_results") {
+	// Check that parse_detection_results step has an ID in the detection job
+	if !strings.Contains(detectionSection, "id: parse_detection_results") {
 		t.Error("Parse detection results step missing ID")
 	}
 
 	// Check that the script uses require to load the parse_threat_detection_results.cjs file
-	if !strings.Contains(agentSection, "require('${{ runner.temp }}/gh-aw/actions/parse_threat_detection_results.cjs')") {
+	if !strings.Contains(detectionSection, "require('${{ runner.temp }}/gh-aw/actions/parse_threat_detection_results.cjs')") {
 		t.Error("Parse results step doesn't use require to load parse_threat_detection_results.cjs")
 	}
 
@@ -126,8 +126,9 @@ Create outputs.
 		t.Fatal("safe_outputs job not found")
 	}
 
-	// Detection is now inline in the agent job - check uses agent outputs
-	if !strings.Contains(yaml, "needs.agent.outputs.detection_success == 'true'") {
-		t.Error("Safe output jobs don't check detection result via agent outputs")
+	// Detection is now in a separate detection job - check uses detection job result
+	// (detection job fails with exit 1 when threats are found, so downstream jobs check job result)
+	if !strings.Contains(yaml, "needs.detection.result == 'success'") {
+		t.Error("Safe output jobs don't check detection result via detection job result")
 	}
 }

@@ -205,6 +205,48 @@ func entityConcurrencyKey(primaryParts []string, tailParts []string, hasItemNumb
 	return "${{ " + strings.Join(parts, " || ") + " }}"
 }
 
+// botIsolatedConcurrencyKey builds a ${{ ... }} concurrency-group expression that
+// routes GitHub App bot-triggered runs to a unique github.run_id key, preventing
+// passive bot-authored comment events from colliding with the primary run's group.
+// When contains(github.actor, '[bot]') is true, the expression short-circuits to
+// github.run_id so that bot-triggered runs never share a group with human runs.
+func botIsolatedConcurrencyKey(primaryParts []string, tailParts []string, hasItemNumber bool) string {
+	parts := make([]string, 0, len(primaryParts)+len(tailParts)+2)
+	// Prepend the bot-actor isolation check: bot runs always get a unique key
+	parts = append(parts, "contains(github.actor, '[bot]') && github.run_id")
+	parts = append(parts, primaryParts...)
+	if hasItemNumber {
+		parts = append(parts, "inputs.item_number")
+	}
+	parts = append(parts, tailParts...)
+	return "${{ " + strings.Join(parts, " || ") + " }}"
+}
+
+// hasIssueCommentTrigger returns true when the workflow has any trigger that uses
+// issue_comment events: explicit issue_comment, slash_command, or command triggers.
+// These are the only triggers where a GitHub App-authored comment on an issue can
+// re-enter the same workflow and match the primary run's workflow-level concurrency
+// group, creating the self-cancellation risk described in the issue.
+func hasIssueCommentTrigger(workflowData *WorkflowData) bool {
+	on := workflowData.On
+	return strings.Contains(on, "issue_comment") ||
+		strings.Contains(on, "slash_command") ||
+		len(workflowData.Command) > 0
+}
+
+// hasBotSelfCancelRisk returns true when the workflow's auto-generated concurrency
+// configuration can be collided with by a passive GitHub App bot-authored event.
+// The dangerous combination is: issue_comment triggers + GitHub App safe-outputs.
+// When this combination is present, App-authored comments posted by safe-outputs can
+// re-trigger the workflow and resolve to the same workflow-level concurrency group
+// as the originating run, causing cancel-in-progress to cancel the original run.
+func hasBotSelfCancelRisk(workflowData *WorkflowData) bool {
+	if workflowData.SafeOutputs == nil || workflowData.SafeOutputs.GitHubApp == nil {
+		return false
+	}
+	return hasIssueCommentTrigger(workflowData)
+}
+
 // buildConcurrencyGroupKeys builds an array of keys for the concurrency group
 func buildConcurrencyGroupKeys(workflowData *WorkflowData, isCommandTrigger bool) []string {
 	keys := []string{"gh-aw", "${{ github.workflow }}"}
@@ -214,16 +256,40 @@ func buildConcurrencyGroupKeys(workflowData *WorkflowData, isCommandTrigger bool
 	// use distinct groups and don't cancel each other.
 	hasItemNumber := workflowData.HasDispatchItemNumber
 
+	// Detect whether the workflow is at risk of bot-self-cancellation.
+	// When safe-outputs uses a GitHub App token AND the workflow has issue_comment triggers,
+	// App-authored comments can re-trigger the workflow and collide with the primary run's
+	// concurrency group. When this risk is present we use botIsolatedConcurrencyKey so that
+	// bot-triggered runs always resolve to a unique github.run_id key instead.
+	botRisk := hasBotSelfCancelRisk(workflowData)
+	if botRisk {
+		concurrencyLog.Print("Bot self-cancel risk detected: applying bot-actor isolation to concurrency group key")
+	}
+
+	// entityKey selects the correct concurrency key builder based on bot risk.
+	// It captures both botRisk and hasItemNumber from the outer scope, so call
+	// sites only need to supply the entity-specific parts.
+	entityKey := func(primaryParts []string, tailParts []string) string {
+		if botRisk {
+			return botIsolatedConcurrencyKey(primaryParts, tailParts, hasItemNumber)
+		}
+		return entityConcurrencyKey(primaryParts, tailParts, hasItemNumber)
+	}
+
 	if isCommandTrigger || isSlashCommandWorkflow(workflowData.On) {
 		// For command/slash_command workflows: use issue/PR number; fall back to run_id when
 		// neither is available (e.g. manual workflow_dispatch of the outer workflow).
-		keys = append(keys, "${{ github.event.issue.number || github.event.pull_request.number || github.run_id }}")
+		// When bot risk is detected, prepend the bot-actor isolation check.
+		if botRisk {
+			keys = append(keys, "${{ contains(github.actor, '[bot]') && github.run_id || github.event.issue.number || github.event.pull_request.number || github.run_id }}")
+		} else {
+			keys = append(keys, "${{ github.event.issue.number || github.event.pull_request.number || github.run_id }}")
+		}
 	} else if isPullRequestWorkflow(workflowData.On) && isIssueWorkflow(workflowData.On) {
 		// Mixed workflows with both issue and PR triggers
-		keys = append(keys, entityConcurrencyKey(
+		keys = append(keys, entityKey(
 			[]string{"github.event.issue.number", "github.event.pull_request.number"},
 			[]string{"github.run_id"},
-			hasItemNumber,
 		))
 	} else if isPullRequestWorkflow(workflowData.On) && isDiscussionWorkflow(workflowData.On) {
 		// Mixed workflows with PR and discussion triggers
@@ -234,10 +300,9 @@ func buildConcurrencyGroupKeys(workflowData *WorkflowData, isCommandTrigger bool
 		))
 	} else if isIssueWorkflow(workflowData.On) && isDiscussionWorkflow(workflowData.On) {
 		// Mixed workflows with issue and discussion triggers
-		keys = append(keys, entityConcurrencyKey(
+		keys = append(keys, entityKey(
 			[]string{"github.event.issue.number", "github.event.discussion.number"},
 			[]string{"github.run_id"},
-			hasItemNumber,
 		))
 	} else if isPullRequestWorkflow(workflowData.On) {
 		// PR workflows: use PR number, fall back to ref then run_id
@@ -249,10 +314,9 @@ func buildConcurrencyGroupKeys(workflowData *WorkflowData, isCommandTrigger bool
 	} else if isIssueWorkflow(workflowData.On) {
 		// Issue workflows: run_id is the fallback when no issue context is available
 		// (e.g. when a mixed-trigger workflow is started via workflow_dispatch).
-		keys = append(keys, entityConcurrencyKey(
+		keys = append(keys, entityKey(
 			[]string{"github.event.issue.number"},
 			[]string{"github.run_id"},
-			hasItemNumber,
 		))
 	} else if isDiscussionWorkflow(workflowData.On) {
 		// Discussion workflows: run_id is the fallback when no discussion context is available.

@@ -195,6 +195,10 @@ func GenerateAPMPackStep(apmDeps *APMDependenciesInfo, target string, data *Work
 // GenerateAPMRestoreStep generates the GitHub Actions step that restores APM packages
 // from a pre-packed bundle in the agent job.
 //
+// The restore step uses the JavaScript implementation in apm_unpack.cjs (actions/setup/js)
+// via actions/github-script, removing the dependency on microsoft/apm-action for
+// the unpack phase. Packing still uses microsoft/apm-action in the dedicated APM job.
+//
 // Parameters:
 //   - apmDeps: APM dependency configuration extracted from frontmatter
 //   - data:    WorkflowData used for action pin resolution
@@ -206,20 +210,19 @@ func GenerateAPMRestoreStep(apmDeps *APMDependenciesInfo, data *WorkflowData) Gi
 		return GitHubActionStep{}
 	}
 
-	apmDepsLog.Printf("Generating APM restore step (isolated=%v)", apmDeps.Isolated)
-
-	actionRef := GetActionPin("microsoft/apm-action")
+	apmDepsLog.Printf("Generating APM restore step using JS unpacker (isolated=%v)", apmDeps.Isolated)
 
 	lines := []string{
 		"      - name: Restore APM dependencies",
-		"        uses: " + actionRef,
+		"        uses: " + GetActionPin("actions/github-script"),
+		"        env:",
+		"          APM_BUNDLE_DIR: /tmp/gh-aw/apm-bundle",
 		"        with:",
-		"          bundle: /tmp/gh-aw/apm-bundle/*.tar.gz",
-		"          apm-version: ${{ env.GH_AW_INFO_APM_VERSION }}",
-	}
-
-	if apmDeps.Isolated {
-		lines = append(lines, "          isolated: 'true'")
+		"          script: |",
+		"            const { setupGlobals } = require('" + SetupActionDestination + "/setup_globals.cjs');",
+		"            setupGlobals(core, github, context, exec, io);",
+		"            const { main } = require('" + SetupActionDestination + "/apm_unpack.cjs');",
+		"            await main();",
 	}
 
 	return GitHubActionStep(lines)

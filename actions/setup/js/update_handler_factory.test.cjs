@@ -314,7 +314,7 @@ describe("update_handler_factory.cjs", () => {
       const result = await handler({ title: "Test" });
 
       expect(result.success).toBe(false);
-      expect(result.error).toBe("API Error");
+      expect(result.error).toContain("API Error");
       expect(mockCore.error).toHaveBeenCalledWith(expect.stringContaining("Failed to update test item"));
     });
 

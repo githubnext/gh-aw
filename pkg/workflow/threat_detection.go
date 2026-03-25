@@ -108,11 +108,12 @@ func (c *Compiler) parseThreatDetectionConfig(outputMap map[string]any) *ThreatD
 // Detection steps only run when the detection guard determines there's output to analyze.
 const detectionStepCondition = "always() && steps.detection_guard.outputs.run_detection == 'true'"
 
-// buildInlineDetectionSteps builds the threat detection steps to be inlined in the agent job.
-// These steps run after the output collection step (collect_output) and analyze agent output
-// for threats using the same agentic engine with sandbox.agent and fully blocked network.
-func (c *Compiler) buildInlineDetectionSteps(data *WorkflowData) []string {
-	threatLog.Print("Building inline threat detection steps for agent job")
+// buildDetectionJobSteps builds the threat detection steps to be run in the separate detection job.
+// These steps run after the agent job completes and analyze agent output for threats using the
+// same agentic engine with sandbox.agent and fully blocked network.
+// The detection job downloads the agent artifact to access the output files.
+func (c *Compiler) buildDetectionJobSteps(data *WorkflowData) []string {
+	threatLog.Print("Building threat detection steps for detection job")
 	if data.SafeOutputs == nil || data.SafeOutputs.ThreatDetection == nil {
 		return nil
 	}
@@ -120,7 +121,11 @@ func (c *Compiler) buildInlineDetectionSteps(data *WorkflowData) []string {
 	var steps []string
 
 	// Comment separator
-	steps = append(steps, "      # --- Threat Detection (inline) ---\n")
+	steps = append(steps, "      # --- Threat Detection ---\n")
+
+	// Step 0: Pull AWF container images - the detection engine runs inside AWF (firewall),
+	// so pre-pulling the containers speeds up execution and avoids on-demand pulls.
+	steps = append(steps, c.buildPullAWFContainersStep(data)...)
 
 	// Step 1: Detection guard - determines whether detection should run
 	steps = append(steps, c.buildDetectionGuardStep()...)
@@ -145,26 +150,77 @@ func (c *Compiler) buildInlineDetectionSteps(data *WorkflowData) []string {
 	// Step 7: Parse threat detection results
 	steps = append(steps, c.buildParsingStep()...)
 
-	// Step 8: Upload detection log artifact
+	// Step 8: Upload detection-artifact
 	steps = append(steps, c.buildUploadDetectionLogStep(data)...)
 
 	// Step 9: Detection conclusion - sets final detection_success and detection_conclusion outputs
 	steps = append(steps, c.buildDetectionConclusionStep()...)
 
-	threatLog.Printf("Generated %d inline detection step lines", len(steps))
+	threatLog.Printf("Generated %d detection job step lines", len(steps))
+	return steps
+}
+
+// buildInlineDetectionSteps is kept for backward compatibility but no longer inlines detection
+// into the agent job. Detection is now handled by the separate detection job.
+// Deprecated: use buildDetectionJobSteps instead.
+func (c *Compiler) buildInlineDetectionSteps(data *WorkflowData) []string {
+	return c.buildDetectionJobSteps(data)
+}
+
+// buildPullAWFContainersStep creates a step that pre-pulls AWF (agent workflow firewall)
+// container images in the detection job. The detection engine runs inside AWF, which uses
+// three containers (squid, agent, api-proxy). Pre-pulling avoids on-demand pulls at runtime.
+// Only AWF images are pulled here; MCP server images are not needed for detection.
+func (c *Compiler) buildPullAWFContainersStep(data *WorkflowData) []string {
+	// Build a minimal WorkflowData that represents the detection engine context so
+	// collectDockerImages returns only the AWF firewall images (no MCP tool images).
+	engineSetting := data.AI
+	if engineSetting == "" {
+		engineSetting = "claude"
+	}
+	detectionData := &WorkflowData{
+		Tools: map[string]any{},
+		AI:    engineSetting,
+		SandboxConfig: &SandboxConfig{
+			Agent: &AgentSandboxConfig{
+				Type: SandboxTypeAWF,
+			},
+		},
+	}
+
+	images := collectDockerImages(detectionData.Tools, detectionData, c.actionMode)
+	if len(images) == 0 {
+		return nil
+	}
+
+	var b strings.Builder
+	generateDownloadDockerImagesStep(&b, images)
+	if b.Len() == 0 {
+		return nil
+	}
+
+	// Split the generated YAML into individual lines so each is a separate entry
+	lines := strings.Split(b.String(), "\n")
+	var steps []string
+	for _, line := range lines {
+		if line != "" {
+			steps = append(steps, line+"\n")
+		}
+	}
 	return steps
 }
 
 // buildDetectionGuardStep creates a guard step that checks if detection should run.
-// Uses always() to run even if the agent step failed (collect_output also runs always()).
+// Uses always() to run even if the agent job failed (detection still analyzes whatever output exists).
+// In the separate detection job, output metadata is read from the agent job's outputs.
 func (c *Compiler) buildDetectionGuardStep() []string {
 	return []string{
 		"      - name: Check if detection needed\n",
 		"        id: detection_guard\n",
 		"        if: always()\n",
 		"        env:\n",
-		"          OUTPUT_TYPES: ${{ steps.collect_output.outputs.output_types }}\n",
-		"          HAS_PATCH: ${{ steps.collect_output.outputs.has_patch }}\n",
+		"          OUTPUT_TYPES: ${{ needs.agent.outputs.output_types }}\n",
+		"          HAS_PATCH: ${{ needs.agent.outputs.has_patch }}\n",
 		"        run: |\n",
 		"          if [[ -n \"$OUTPUT_TYPES\" || \"$HAS_PATCH\" == \"true\" ]]; then\n",
 		"            echo \"run_detection=true\" >> \"$GITHUB_OUTPUT\"\n",
@@ -176,9 +232,8 @@ func (c *Compiler) buildDetectionGuardStep() []string {
 	}
 }
 
-// buildClearMCPConfigStep creates a step that removes MCP configuration files written by
-// the main agent job. This ensures the detection engine runs without any MCP servers,
-// even if the main agent had MCP servers configured.
+// buildClearMCPConfigStep creates a step that removes MCP configuration files.
+// This ensures the detection engine runs without any MCP servers.
 func (c *Compiler) buildClearMCPConfigStep() []string {
 	return []string{
 		"      - name: Clear MCP configuration for detection\n",
@@ -192,7 +247,7 @@ func (c *Compiler) buildClearMCPConfigStep() []string {
 
 // buildPrepareDetectionFilesStep creates a step that copies agent output files
 // to the /tmp/gh-aw/threat-detection/ directory expected by the detection JS scripts.
-// Since detection now runs inline in the agent job, files are already local and just need copying.
+// In the separate detection job, files are available after downloading the agent artifact.
 func (c *Compiler) buildPrepareDetectionFilesStep() []string {
 	return []string{
 		"      - name: Prepare threat detection files\n",
@@ -232,6 +287,7 @@ func (c *Compiler) buildDetectionConclusionStep() []string {
 		"            echo \"conclusion=failure\" >> \"$GITHUB_OUTPUT\"\n",
 		"            echo \"success=false\" >> \"$GITHUB_OUTPUT\"\n",
 		"            echo \"Detection found issues\"\n",
+		"            exit 1\n",
 		"          fi\n",
 	}
 }
@@ -249,8 +305,8 @@ func (c *Compiler) buildThreatDetectionAnalysisStep(data *WorkflowData) []string
 	}...)
 	steps = append(steps, c.buildWorkflowContextEnvVars(data)...)
 
-	// Add HAS_PATCH environment variable from collect_output step (inline in agent job)
-	steps = append(steps, "          HAS_PATCH: ${{ steps.collect_output.outputs.has_patch }}\n")
+	// Add HAS_PATCH environment variable from the agent job output (detection runs in a separate job)
+	steps = append(steps, "          HAS_PATCH: ${{ needs.agent.outputs.has_patch }}\n")
 
 	// Add custom prompt instructions if configured
 	customPrompt := ""
@@ -382,8 +438,15 @@ func (c *Compiler) buildDetectionEngineExecutionStep(data *WorkflowData) []strin
 
 	var steps []string
 
-	// Skip engine installation - engine is already installed in the agent job.
-	// Only generate execution steps.
+	// Install the engine in the detection job. The detection job runs on a separate fresh
+	// runner where the agent's installed tools are not available, so we must install them here.
+	installSteps := engine.GetInstallationSteps(threatDetectionData)
+	for _, step := range installSteps {
+		for _, line := range step {
+			steps = append(steps, line+"\n")
+		}
+	}
+
 	logFile := "/tmp/gh-aw/threat-detection/detection.log"
 	executionSteps := engine.GetExecutionSteps(threatDetectionData, logFile)
 	for _, step := range executionSteps {
@@ -463,11 +526,12 @@ func (c *Compiler) buildCustomThreatDetectionSteps(steps []any) []string {
 	return result
 }
 
-// buildUploadDetectionLogStep creates the step to upload the detection log.
+// buildUploadDetectionLogStep creates the step to upload the detection-artifact.
 // In workflow_call context, the artifact name is prefixed to avoid name clashes when the
 // same reusable workflow is called multiple times within a single workflow run.
+// The prefix comes from the agent job output since the detection job depends on the agent job.
 func (c *Compiler) buildUploadDetectionLogStep(data *WorkflowData) []string {
-	detectionArtifactName := artifactPrefixExprForDownstreamJob(data) + constants.DetectionArtifactName
+	detectionArtifactName := artifactPrefixExprForAgentDownstreamJob(data) + constants.DetectionArtifactName
 	return []string{
 		"      - name: Upload threat detection log\n",
 		fmt.Sprintf("        if: %s\n", detectionStepCondition),
@@ -477,4 +541,78 @@ func (c *Compiler) buildUploadDetectionLogStep(data *WorkflowData) []string {
 		"          path: /tmp/gh-aw/threat-detection/detection.log\n",
 		"          if-no-files-found: ignore\n",
 	}
+}
+
+// buildDetectionJob creates a separate detection job that runs after the agent job.
+// The job downloads the agent artifact to access output files, then runs all threat detection
+// steps. It outputs detection_success and detection_conclusion for downstream jobs.
+// Returns nil if threat detection is not configured.
+func (c *Compiler) buildDetectionJob(data *WorkflowData) (*Job, error) {
+	threatLog.Print("Building separate detection job")
+	if data.SafeOutputs == nil || data.SafeOutputs.ThreatDetection == nil {
+		threatLog.Print("Threat detection not configured, skipping detection job")
+		return nil, nil
+	}
+
+	var steps []string
+
+	// Add setup action steps (same as agent job - installs the agentic engine)
+	setupActionRef := c.resolveActionReference("./actions/setup", data)
+	if setupActionRef != "" || c.actionMode.IsScript() {
+		// For dev mode (local action path), checkout the actions folder first
+		steps = append(steps, c.generateCheckoutActionsFolder(data)...)
+		steps = append(steps, c.generateSetupStep(setupActionRef, SetupActionDestination, false)...)
+	}
+
+	// Download agent output artifact to access output files (prompt.txt, agent_output.json, patches).
+	// Use agent-downstream prefix since this job depends on the agent job.
+	agentArtifactPrefix := artifactPrefixExprForAgentDownstreamJob(data)
+	steps = append(steps, buildAgentOutputDownloadSteps(agentArtifactPrefix)...)
+
+	// Add all threat detection steps
+	detectionStepsContent := c.buildDetectionJobSteps(data)
+	steps = append(steps, detectionStepsContent...)
+
+	// Build job outputs
+	outputs := map[string]string{
+		"detection_success":    "${{ steps.detection_conclusion.outputs.success }}",
+		"detection_conclusion": "${{ steps.detection_conclusion.outputs.conclusion }}",
+	}
+
+	// Detection job depends on agent job
+	needs := []string{string(constants.AgentJobName)}
+
+	// Determine runs-on: use threat detection override if set, otherwise ubuntu-latest.
+	// The detection job runs on a fresh runner separate from the agent job, so it does
+	// not need the same custom runner as safe-outputs.
+	runsOn := "runs-on: ubuntu-latest"
+	if data.SafeOutputs.ThreatDetection.RunsOn != "" {
+		runsOn = "runs-on: " + data.SafeOutputs.ThreatDetection.RunsOn
+	}
+
+	// Detection job condition: always run if agent job was not skipped
+	// Use always() so detection runs even if the agent job failed (to check whatever output was produced)
+	jobCondition := fmt.Sprintf("always() && needs.%s.result != 'skipped'", constants.AgentJobName)
+
+	// Determine permissions for the detection job
+	// In dev/script mode, need contents: read if the actions folder checkout is needed
+	var permissions string
+	needsContentsRead := (c.actionMode.IsDev() || c.actionMode.IsScript()) && len(c.generateCheckoutActionsFolder(data)) > 0
+	if needsContentsRead {
+		perms := NewPermissionsContentsRead()
+		permissions = perms.RenderToYAML()
+	}
+
+	job := &Job{
+		Name:        string(constants.DetectionJobName),
+		Needs:       needs,
+		If:          jobCondition,
+		RunsOn:      c.indentYAMLLines(runsOn, "    "),
+		Permissions: c.indentYAMLLines(permissions, "    "),
+		Steps:       steps,
+		Outputs:     outputs,
+	}
+
+	threatLog.Printf("Built detection job with %d steps, depends on: %v", len(steps), needs)
+	return job, nil
 }

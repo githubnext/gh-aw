@@ -253,6 +253,13 @@ func (c *Compiler) buildJobs(data *WorkflowData, markdownPath string) error {
 		return err
 	}
 
+	// Final pass: ensure conclusion job depends on ALL remaining workflow jobs.
+	// This guarantees conclusion always runs last, even for custom user-defined jobs
+	// (e.g. post-issue, super_linter) that were not explicitly added to its needs.
+	if err := c.ensureConclusionIsLastJob(); err != nil {
+		return err
+	}
+
 	compilerJobsLog.Print("Successfully built all jobs for workflow")
 	return nil
 }
@@ -381,8 +388,8 @@ func (c *Compiler) buildPushRepoMemoryJobWrapper(data *WorkflowData, threatDetec
 	}
 
 	// Add detection dependency if threat detection is enabled
-	// Detection is now inline in the agent job, so no separate dependency needed
-	// The job condition already checks needs.agent.outputs.detection_success
+	// The detection job runs after the agent job; push_repo_memory depends on detection
+	// and its condition checks needs.detection.result == 'success'
 
 	if err := c.jobManager.AddJob(pushRepoMemoryJob); err != nil {
 		return "", fmt.Errorf("failed to add push_repo_memory job: %w", err)
@@ -436,6 +443,52 @@ func (c *Compiler) updateConclusionJobDependencies(pushRepoMemoryJobName, update
 	if updateCacheMemoryJobName != "" {
 		conclusionJob.Needs = append(conclusionJob.Needs, updateCacheMemoryJobName)
 		compilerJobsLog.Printf("Added update_cache_memory dependency to conclusion job")
+	}
+
+	return nil
+}
+
+// ensureConclusionIsLastJob ensures the conclusion job depends on ALL other workflow jobs,
+// making it truly the last job to execute. This is a final-pass check that catches any
+// custom or auto-generated jobs that were not explicitly added to conclusion's needs
+// during the incremental build process (e.g. user-defined post-agent jobs).
+//
+// Jobs intentionally excluded:
+//   - "conclusion" itself
+//   - "pre_activation" / "pre-activation" – runs at the very start, before activation
+func (c *Compiler) ensureConclusionIsLastJob() error {
+	conclusionJob, exists := c.jobManager.GetJob("conclusion")
+	if !exists {
+		return nil
+	}
+
+	// Build a set of already-listed needs for O(1) lookup
+	currentNeeds := make(map[string]bool, len(conclusionJob.Needs))
+	for _, need := range conclusionJob.Needs {
+		currentNeeds[need] = true
+	}
+
+	// Jobs that must never appear in conclusion's needs
+	exclude := map[string]bool{
+		"conclusion":                           true,
+		string(constants.PreActivationJobName): true,
+		"pre-activation":                       true,
+	}
+
+	// Iterate over all jobs in alphabetical order for deterministic output
+	allJobs := c.jobManager.GetAllJobs()
+	jobNames := make([]string, 0, len(allJobs))
+	for name := range allJobs {
+		jobNames = append(jobNames, name)
+	}
+	sort.Strings(jobNames)
+
+	for _, jobName := range jobNames {
+		if exclude[jobName] || currentNeeds[jobName] {
+			continue
+		}
+		conclusionJob.Needs = append(conclusionJob.Needs, jobName)
+		compilerJobsLog.Printf("ensureConclusionIsLastJob: added %s to conclusion needs", jobName)
 	}
 
 	return nil

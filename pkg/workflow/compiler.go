@@ -224,6 +224,24 @@ func (c *Compiler) validateWorkflowData(workflowData *WorkflowData, markdownPath
 		}
 	}
 
+	// Warn when the user has specified custom workflow-level concurrency with cancel-in-progress: true
+	// AND the workflow has the bot self-cancel risk combination (issue_comment triggers + GitHub App
+	// safe-outputs). In this case the auto-generated bot-actor isolation cannot be applied because the
+	// user's concurrency expression is preserved as-is. The user must add the bot-actor isolation
+	// themselves (e.g. prepend `contains(github.actor, '[bot]') && github.run_id ||` to their group key).
+	if workflowData.Concurrency != "" &&
+		strings.Contains(workflowData.Concurrency, "cancel-in-progress: true") &&
+		hasBotSelfCancelRisk(workflowData) {
+		fmt.Fprintln(os.Stderr, formatCompilerMessage(markdownPath, "warning",
+			"Custom workflow-level concurrency with cancel-in-progress: true may cause self-cancellation.\n"+
+				"safe-outputs.github-app can post comments that re-trigger this workflow via issue_comment,\n"+
+				"and those passive bot-authored runs can collide with the primary run's concurrency group.\n"+
+				"Add `contains(github.actor, '[bot]') && github.run_id ||` at the start of your concurrency\n"+
+				"group expression to route bot-triggered runs to a unique key and prevent self-cancellation.\n"+
+				"See: https://gh.io/gh-aw/reference/concurrency for details."))
+		c.IncrementWarningCount()
+	}
+
 	// Emit warning for sandbox.agent: false (disables agent sandbox firewall)
 	if isAgentSandboxDisabled(workflowData) {
 		fmt.Fprintln(os.Stderr, console.FormatWarningMessage("⚠️  WARNING: Agent sandbox disabled (sandbox.agent: false). This removes firewall protection. The AI agent will have direct network access without firewall filtering. The MCP gateway remains enabled. Only use this for testing or in controlled environments where you trust the AI agent completely."))
