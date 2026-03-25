@@ -327,3 +327,219 @@ func TestValidateFilterExclusivity(t *testing.T) {
 		})
 	}
 }
+
+func TestValidateGlobPatterns(t *testing.T) {
+	tests := []struct {
+		name        string
+		frontmatter map[string]any
+		wantErr     bool
+		errContains string
+	}{
+		// ---- valid ref globs ----
+		{
+			name: "valid branch pattern main",
+			frontmatter: map[string]any{
+				"on": map[string]any{
+					"push": map[string]any{
+						"branches": []string{"main"},
+					},
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "valid branch wildcard",
+			frontmatter: map[string]any{
+				"on": map[string]any{
+					"push": map[string]any{
+						"branches": []string{"release/**"},
+					},
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "valid tag pattern v*",
+			frontmatter: map[string]any{
+				"on": map[string]any{
+					"push": map[string]any{
+						"tags": []string{"v*"},
+					},
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "valid semver tag pattern",
+			frontmatter: map[string]any{
+				"on": map[string]any{
+					"push": map[string]any{
+						"tags": []string{"v[0-9]+.[0-9]+.[0-9]+"},
+					},
+				},
+			},
+			wantErr: false,
+		},
+		// ---- valid path globs ----
+		{
+			name: "valid path src/**",
+			frontmatter: map[string]any{
+				"on": map[string]any{
+					"push": map[string]any{
+						"paths": []string{"src/**"},
+					},
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "valid paths-ignore docs/**",
+			frontmatter: map[string]any{
+				"on": map[string]any{
+					"push": map[string]any{
+						"paths-ignore": []string{"docs/**"},
+					},
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "valid negated path glob",
+			frontmatter: map[string]any{
+				"on": map[string]any{
+					"push": map[string]any{
+						"paths": []string{"!docs/**"},
+					},
+				},
+			},
+			wantErr: false,
+		},
+		// ---- no 'on' section ----
+		{
+			name:        "no on section",
+			frontmatter: map[string]any{},
+			wantErr:     false,
+		},
+		// ---- invalid ref glob ----
+		{
+			name: "invalid branch pattern with space",
+			frontmatter: map[string]any{
+				"on": map[string]any{
+					"push": map[string]any{
+						"branches": []string{"main branch"},
+					},
+				},
+			},
+			wantErr:     true,
+			errContains: "on.push.branches",
+		},
+		{
+			name: "invalid tag pattern with colon",
+			frontmatter: map[string]any{
+				"on": map[string]any{
+					"push": map[string]any{
+						"tags": []string{"v1:0"},
+					},
+				},
+			},
+			wantErr:     true,
+			errContains: "on.push.tags",
+		},
+		// ---- ./ prefix path glob (always invalid in GitHub Actions) ----
+		{
+			name: "invalid path glob with ./ prefix",
+			frontmatter: map[string]any{
+				"on": map[string]any{
+					"push": map[string]any{
+						"paths": []string{"./src/**/*.go"},
+					},
+				},
+			},
+			wantErr:     true,
+			errContains: "on.push.paths",
+		},
+		{
+			name: "invalid paths-ignore with ./ prefix",
+			frontmatter: map[string]any{
+				"on": map[string]any{
+					"pull_request": map[string]any{
+						"paths-ignore": []string{"./docs/**"},
+					},
+				},
+			},
+			wantErr:     true,
+			errContains: "on.pull_request.paths-ignore",
+		},
+		// ---- pull_request event ----
+		{
+			name: "valid pull_request branch pattern",
+			frontmatter: map[string]any{
+				"on": map[string]any{
+					"pull_request": map[string]any{
+						"branches": []string{"main", "release/**"},
+					},
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "invalid pull_request branch with tilde",
+			frontmatter: map[string]any{
+				"on": map[string]any{
+					"pull_request": map[string]any{
+						"branches": []string{"~invalid"},
+					},
+				},
+			},
+			wantErr:     true,
+			errContains: "on.pull_request.branches",
+		},
+		// ---- non-glob on section ----
+		{
+			name: "on section is a string (not a map)",
+			frontmatter: map[string]any{
+				"on": "push",
+			},
+			wantErr: false,
+		},
+		// ---- []any pattern list ----
+		{
+			name: "valid branch list as []any",
+			frontmatter: map[string]any{
+				"on": map[string]any{
+					"push": map[string]any{
+						"branches": []any{"main", "develop"},
+					},
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "invalid path in []any list",
+			frontmatter: map[string]any{
+				"on": map[string]any{
+					"push": map[string]any{
+						"paths": []any{"./bad/**"},
+					},
+				},
+			},
+			wantErr:     true,
+			errContains: "on.push.paths",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := ValidateGlobPatterns(tt.frontmatter)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("ValidateGlobPatterns() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if err != nil && tt.errContains != "" {
+				if !strings.Contains(err.Error(), tt.errContains) {
+					t.Errorf("ValidateGlobPatterns() error = %v, should contain %q", err, tt.errContains)
+				}
+			}
+		})
+	}
+}
