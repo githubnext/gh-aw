@@ -220,9 +220,9 @@ Test workflow verifying top-level github-app fallback for APM dependencies.
 		require.NoError(t, err)
 		compiled := string(compiledBytes)
 
-		// The activation job should have an APM app token minting step using the top-level github-app
+		// The APM job should have an APM app token minting step using the top-level github-app
 		assert.Contains(t, compiled, "id: apm-app-token",
-			"Activation job should generate an APM app token minting step using top-level github-app")
+			"APM job should generate an APM app token minting step using top-level github-app")
 		assert.Contains(t, compiled, "app-id: ${{ vars.APP_ID }}",
 			"APM token minting step should use the top-level APP_ID")
 	})

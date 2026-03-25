@@ -682,7 +682,9 @@ func (c *Compiler) extractIfCondition(frontmatter map[string]any) string {
 
 	// Convert the value to string - it should be just the expression
 	if strValue, ok := value.(string); ok {
-		return c.extractExpressionFromIfString(strValue)
+		expr := c.extractExpressionFromIfString(strValue)
+		frontmatterLog.Printf("Extracted if condition from frontmatter: %s", expr)
+		return expr
 	}
 
 	return ""
@@ -697,7 +699,9 @@ func (c *Compiler) extractExpressionFromIfString(ifString string) string {
 
 	// Check if the string starts with "if: " and strip it
 	if strings.HasPrefix(ifString, "if: ") {
-		return strings.TrimSpace(ifString[4:]) // Remove "if: " prefix
+		expr := strings.TrimSpace(ifString[4:]) // Remove "if: " prefix
+		frontmatterLog.Printf("Stripped 'if: ' prefix from if condition: %s", expr)
+		return expr
 	}
 
 	// Return the string as-is (it's just the expression)

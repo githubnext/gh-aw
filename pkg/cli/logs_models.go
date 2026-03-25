@@ -75,6 +75,7 @@ type ProcessedRun struct {
 	AgenticAssessments      []AgenticAssessment
 	AccessAnalysis          *DomainAnalysis
 	FirewallAnalysis        *FirewallAnalysis
+	PolicyAnalysis          *PolicyAnalysis
 	RedactedDomainsAnalysis *RedactedDomainsAnalysis
 	MissingTools            []MissingToolReport
 	MissingData             []MissingDataReport
@@ -189,6 +190,7 @@ type RunSummary struct {
 	AgenticAssessments      []AgenticAssessment      `json:"agentic_assessments,omitempty"`  // Derived agentic judgments
 	AccessAnalysis          *DomainAnalysis          `json:"access_analysis"`                // Network access analysis
 	FirewallAnalysis        *FirewallAnalysis        `json:"firewall_analysis"`              // Firewall log analysis
+	PolicyAnalysis          *PolicyAnalysis          `json:"policy_analysis,omitempty"` // Firewall policy rule attribution
 	RedactedDomainsAnalysis *RedactedDomainsAnalysis `json:"redacted_domains_analysis"`      // Redacted URL domains analysis
 	MissingTools            []MissingToolReport      `json:"missing_tools"`                  // Missing tool reports
 	MissingData             []MissingDataReport      `json:"missing_data"`                   // Missing data reports

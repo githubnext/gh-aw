@@ -377,6 +377,11 @@ const AWFDefaultCommand = "sudo -E awf"
 // AWFProxyLogsDir is the default directory for AWF proxy logs
 const AWFProxyLogsDir = "/tmp/gh-aw/sandbox/firewall/logs"
 
+// AWFAuditDir is the directory for AWF audit files (policy-manifest.json, squid.conf, docker-compose.redacted.yml).
+// These files are written by AWF when --audit-dir is specified and provide structured policy/configuration data
+// needed by the `awf logs audit` command for enriching log entries with policy rule matching.
+const AWFAuditDir = "/tmp/gh-aw/sandbox/firewall/audit"
+
 // FirewallAuditArtifactName is the artifact name used for dedicated firewall audit log uploads.
 // All compiled agentic workflows upload the AWF structured audit/observability logs under this name.
 const FirewallAuditArtifactName = "firewall-audit-logs"
@@ -385,7 +390,7 @@ const FirewallAuditArtifactName = "firewall-audit-logs"
 const AWFDefaultLogLevel = "info"
 
 // DefaultMCPGatewayVersion is the default version of the MCP Gateway (gh-aw-mcpg) Docker image
-const DefaultMCPGatewayVersion Version = "v0.2.5"
+const DefaultMCPGatewayVersion Version = "v0.2.6"
 
 // DefaultMCPGatewayContainer is the default container image for the MCP Gateway
 const DefaultMCPGatewayContainer = "ghcr.io/github/gh-aw-mcpg"
@@ -641,6 +646,7 @@ var DangerousPropertyNames = []string{
 
 const AgentJobName JobName = "agent"
 const ActivationJobName JobName = "activation"
+const APMJobName JobName = "apm"
 const IndexingJobName JobName = "indexing"
 const PreActivationJobName JobName = "pre_activation"
 const DetectionJobName JobName = "detection"

@@ -22,7 +22,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"sort"
-	"strings"
 
 	"github.com/github/gh-aw/pkg/logger"
 )
@@ -140,34 +139,33 @@ func (e *GeminiEngine) generateGeminiSettingsStep(workflowData *WorkflowData) Gi
 		configJSON = []byte(`{"context":{"includeDirectories":["/tmp/"]},"tools":{"core":[]}}`)
 	}
 
-	// Escape any single quotes in the JSON. The JSON we generate only contains tool
-	// names like "run_shell_command(grep)" and paths like "/tmp/", so in practice no
-	// single quotes will appear. The shell escape pattern '"'"' works by: ending the
-	// single-quoted string ('), adding a double-quoted single quote ("'"), and reopening
-	// the single-quoted string (').
-	jsonStr := strings.ReplaceAll(string(configJSON), "'", `'"'"'`)
-
 	// Generate a shell script that:
 	// - Creates the .gemini directory if needed
 	// - Merges settings into an existing settings.json (from MCP gateway setup), or
 	// - Creates a new settings.json when no MCP servers are configured
 	//
+	// The JSON config is passed via the GH_AW_GEMINI_BASE_CONFIG environment variable
+	// to avoid any shell quoting issues with special characters in the JSON.
+	//
 	// jq merge: '$existing * $base' means the RIGHT operand ($base) overrides the LEFT
 	// operand ($existing) for conflicting keys. Non-conflicting keys from $existing
 	// (e.g. mcpServers written by convert_gateway_config_gemini.sh) are preserved.
-	command := fmt.Sprintf(`mkdir -p "$GITHUB_WORKSPACE/.gemini"
+	command := `mkdir -p "$GITHUB_WORKSPACE/.gemini"
 SETTINGS="$GITHUB_WORKSPACE/.gemini/settings.json"
-BASE_CONFIG='%s'
+BASE_CONFIG="$GH_AW_GEMINI_BASE_CONFIG"
 if [ -f "$SETTINGS" ]; then
   MERGED=$(jq -n --argjson base "$BASE_CONFIG" --argjson existing "$(cat "$SETTINGS")" '$existing * $base')
   echo "$MERGED" > "$SETTINGS"
 else
   echo "$BASE_CONFIG" > "$SETTINGS"
-fi`, jsonStr)
+fi`
 
 	stepLines := []string{
 		"      - name: Write Gemini settings",
 	}
-	stepLines = FormatStepWithCommandAndEnv(stepLines, command, nil)
+	env := map[string]string{
+		"GH_AW_GEMINI_BASE_CONFIG": string(configJSON),
+	}
+	stepLines = FormatStepWithCommandAndEnv(stepLines, command, env)
 	return GitHubActionStep(stepLines)
 }

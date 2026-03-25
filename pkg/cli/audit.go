@@ -322,6 +322,12 @@ func AuditWorkflowRun(ctx context.Context, runID int64, owner, repo, hostname st
 		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to analyze firewall logs: %v", err)))
 	}
 
+	// Analyze firewall policy artifacts if available (policy-manifest.json + audit.jsonl)
+	policyAnalysis, err := analyzeFirewallPolicy(runOutputDir, verbose)
+	if err != nil && verbose {
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to analyze firewall policy: %v", err)))
+	}
+
 	// Analyze redacted domains if available
 	redactedDomainsAnalysis, err := analyzeRedactedDomains(runOutputDir, verbose)
 	if err != nil && verbose {
@@ -347,6 +353,7 @@ func AuditWorkflowRun(ctx context.Context, runID int64, owner, repo, hostname st
 	processedRun := ProcessedRun{
 		Run:                     run,
 		FirewallAnalysis:        firewallAnalysis,
+		PolicyAnalysis:          policyAnalysis,
 		RedactedDomainsAnalysis: redactedDomainsAnalysis,
 		MissingTools:            missingTools,
 		MissingData:             missingData,
@@ -431,6 +438,7 @@ func AuditWorkflowRun(ctx context.Context, runID int64, owner, repo, hostname st
 		AgenticAssessments:      processedRun.AgenticAssessments,
 		AccessAnalysis:          accessAnalysis,
 		FirewallAnalysis:        firewallAnalysis,
+		PolicyAnalysis:          policyAnalysis,
 		RedactedDomainsAnalysis: redactedDomainsAnalysis,
 		MissingTools:            missingTools,
 		MissingData:             missingData,
