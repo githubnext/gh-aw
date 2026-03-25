@@ -280,16 +280,14 @@ func TestGenerateMaintenanceWorkflow_OperationJobConditions(t *testing.T) {
 	}
 	yaml := string(content)
 
-	// Updated condition now also excludes run_url so that scheduled jobs only run when
-	// neither operation nor run_url is provided in workflow_dispatch triggers
-	operationSkipCondition := `github.event_name != 'workflow_dispatch' || (github.event.inputs.operation == '' && github.event.inputs.run_url == '')`
-	operationRunCondition := `github.event_name == 'workflow_dispatch' && github.event.inputs.operation != ''`
-	applySafeOutputsCondition := `github.event_name == 'workflow_dispatch' && github.event.inputs.run_url != ''`
+	operationSkipCondition := `github.event_name != 'workflow_dispatch' || github.event.inputs.operation == ''`
+	operationRunCondition := `github.event_name == 'workflow_dispatch' && github.event.inputs.operation != '' && github.event.inputs.operation != 'safe_outputs'`
+	applySafeOutputsCondition := `github.event_name == 'workflow_dispatch' && github.event.inputs.operation == 'safe_outputs'`
 
 	const jobSectionSearchRange = 300
 	const runOpSectionSearchRange = 200
 
-	// Jobs that should be disabled when operation or run_url is set
+	// Jobs that should be disabled when operation is set
 	disabledJobs := []string{"close-expired-entities:", "compile-workflows:", "zizmor-scan:", "secret-validation:"}
 	for _, job := range disabledJobs {
 		// Find the if: condition for each job
@@ -306,6 +304,7 @@ func TestGenerateMaintenanceWorkflow_OperationJobConditions(t *testing.T) {
 	}
 
 	// run_operation job should NOT have the skip condition but should have its own activation condition
+	// and should exclude safe_outputs
 	runOpIdx := strings.Index(yaml, "\n  run_operation:")
 	if runOpIdx == -1 {
 		t.Errorf("Job run_operation not found in generated workflow")
@@ -319,7 +318,7 @@ func TestGenerateMaintenanceWorkflow_OperationJobConditions(t *testing.T) {
 		}
 	}
 
-	// apply_safe_outputs job should have its own activation condition triggered by run_url
+	// apply_safe_outputs job should be triggered when operation == 'safe_outputs'
 	applyIdx := strings.Index(yaml, "\n  apply_safe_outputs:")
 	if applyIdx == -1 {
 		t.Errorf("Job apply_safe_outputs not found in generated workflow")
@@ -328,6 +327,11 @@ func TestGenerateMaintenanceWorkflow_OperationJobConditions(t *testing.T) {
 		if !strings.Contains(applySection, applySafeOutputsCondition) {
 			t.Errorf("Job apply_safe_outputs should have the activation condition %q in:\n%s", applySafeOutputsCondition, applySection)
 		}
+	}
+
+	// Verify safe_outputs is an option in the operation choices
+	if !strings.Contains(yaml, "- 'safe_outputs'") {
+		t.Error("workflow_dispatch operation choices should include 'safe_outputs'")
 	}
 
 	// Verify run_url input exists in workflow_dispatch

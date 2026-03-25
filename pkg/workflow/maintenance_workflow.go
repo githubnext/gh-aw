@@ -199,8 +199,9 @@ on:
           - 'enable'
           - 'update'
           - 'upgrade'
+          - 'safe_outputs'
       run_url:
-        description: 'Run URL or run ID to replay safe outputs from (e.g. https://github.com/owner/repo/actions/runs/12345 or 12345)'
+        description: 'Run URL or run ID to replay safe outputs from (e.g. https://github.com/owner/repo/actions/runs/12345 or 12345). Required when operation is safe_outputs.'
         required: false
         type: string
         default: ''
@@ -209,7 +210,7 @@ permissions: {}
 
 jobs:
   close-expired-entities:
-    if: ${{ !github.event.repository.fork && (github.event_name != 'workflow_dispatch' || (github.event.inputs.operation == '' && github.event.inputs.run_url == '')) }}
+    if: ${{ !github.event.repository.fork && (github.event_name != 'workflow_dispatch' || github.event.inputs.operation == '') }}
     runs-on: ubuntu-slim
     permissions:
       discussions: write
@@ -279,10 +280,10 @@ jobs:
             await main();
 `)
 
-	// Add unified run_operation job for all dispatch operations
+	// Add unified run_operation job for all dispatch operations except safe_outputs
 	yaml.WriteString(`
   run_operation:
-    if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.operation != '' && !github.event.repository.fork }}
+    if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.operation != '' && github.event.inputs.operation != 'safe_outputs' && !github.event.repository.fork }}
     runs-on: ubuntu-slim
     permissions:
       actions: write
@@ -327,10 +328,10 @@ jobs:
             await main();
 `)
 
-	// Add apply_safe_outputs job for workflow_dispatch with run_url input
+	// Add apply_safe_outputs job for workflow_dispatch with operation == 'safe_outputs'
 	yaml.WriteString(`
   apply_safe_outputs:
-    if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.run_url != '' && !github.event.repository.fork }}
+    if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.operation == 'safe_outputs' && !github.event.repository.fork }}
     runs-on: ubuntu-slim
     permissions:
       actions: read
@@ -382,7 +383,7 @@ jobs:
 		// Add compile-workflows job
 		yaml.WriteString(`
   compile-workflows:
-    if: ${{ !github.event.repository.fork && (github.event_name != 'workflow_dispatch' || (github.event.inputs.operation == '' && github.event.inputs.run_url == '')) }}
+    if: ${{ !github.event.repository.fork && (github.event_name != 'workflow_dispatch' || github.event.inputs.operation == '') }}
     runs-on: ubuntu-slim
     permissions:
       contents: read
@@ -419,7 +420,7 @@ jobs:
             await main();
 
   zizmor-scan:
-    if: ${{ !github.event.repository.fork && (github.event_name != 'workflow_dispatch' || (github.event.inputs.operation == '' && github.event.inputs.run_url == '')) }}
+    if: ${{ !github.event.repository.fork && (github.event_name != 'workflow_dispatch' || github.event.inputs.operation == '') }}
     runs-on: ubuntu-slim
     needs: compile-workflows
     permissions:
@@ -443,7 +444,7 @@ jobs:
           echo "✓ Zizmor security scan completed"
 
   secret-validation:
-    if: ${{ !github.event.repository.fork && (github.event_name != 'workflow_dispatch' || (github.event.inputs.operation == '' && github.event.inputs.run_url == '')) }}
+    if: ${{ !github.event.repository.fork && (github.event_name != 'workflow_dispatch' || github.event.inputs.operation == '') }}
     runs-on: ubuntu-slim
     permissions:
       contents: read
