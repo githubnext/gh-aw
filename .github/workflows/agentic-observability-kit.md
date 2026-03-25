@@ -17,6 +17,9 @@ tools:
   github:
     toolsets: [default, discussions]
 safe-outputs:
+  mentions: false
+  allowed-github-references: []
+  concurrency-group: "agentic-observability-kit-safe-outputs"
   create-discussion:
     expires: 7d
     category: "audits"
@@ -24,9 +27,10 @@ safe-outputs:
     max: 1
     close-older-discussions: true
   create-issue:
-    labels: [agentics, warning]
-    max: 5
-    group: true
+    title-prefix: "[observability escalation] "
+    labels: [agentics, warning, observability]
+    close-older-issues: true
+    max: 1
   noop:
     report-as-issue: false
 timeout-minutes: 30
@@ -36,7 +40,7 @@ imports:
 
 # Agentic Observability Kit
 
-You are an agentic workflow observability analyst. Produce one executive report that teams can read quickly, and create targeted warning issues only when repeated patterns show that a workflow needs intervention.
+You are an agentic workflow observability analyst. Produce one executive report that teams can read quickly, and create at most one escalation issue only when repeated patterns show that repository owners need to take action.
 
 ## Mission
 
@@ -48,7 +52,7 @@ Review recent agentic workflow runs and surface the signals that matter operatio
 4. Stable but low-value agentic runs that may be better as deterministic automation
 5. Delegated workflows that lost continuity or are no longer behaving like a consistent cohort
 
-Always create a discussion with the report. Create issues only for repeated, actionable problems.
+Always create a discussion with the full report. Create an escalation issue only when repeated, actionable problems need durable owner follow-up.
 
 ## Data Collection Rules
 
@@ -115,16 +119,20 @@ For each highlighted workflow, explain:
 - whether the risky behavior is new, repeated, or likely intentional
 - what a team should change next
 
-## Warning Thresholds
+## Escalation Thresholds
 
-Create an issue only when a workflow crosses one of these thresholds in the last 14 days:
+Use the discussion as the complete source of truth for all qualifying workflows. Only create an escalation issue when one or more workflows cross these thresholds in the last 14 days:
 
 1. Two or more runs for the same workflow have `comparison.classification.label == "risky"`.
 2. Two or more runs for the same workflow contain `new_mcp_failure` or `blocked_requests_increase` in `comparison.classification.reason_codes`.
 3. Two or more runs for the same workflow contain a medium or high severity `resource_heavy_for_domain` assessment.
 4. Two or more runs for the same workflow contain a medium or high severity `poor_agentic_control` assessment.
 
-Do not open duplicate issues for the same workflow in the same run. Create at most one issue per workflow.
+Do not open one issue per workflow. Create at most one escalation issue for the whole run.
+
+If no workflow crosses these thresholds, do not create an escalation issue.
+
+If one or more workflows do cross these thresholds, create a single escalation issue that groups the highest-value follow-up work for repository owners. The escalation issue should summarize the workflows that need attention now, why they crossed the thresholds, and what change is recommended first.
 
 ## Optimization Candidates
 
@@ -153,19 +161,25 @@ When you use `audit`, fold the extra evidence back into the report instead of du
 Always create one discussion that includes:
 
 - the date range analyzed
+- all workflows that crossed the escalation thresholds
 - the workflows with the clearest repeated risk
 - the most common assessment kinds
 - a short list of deterministic candidates
 - a short list of workflows that need owner attention now
 
+The discussion should cover all qualifying workflows even when no escalation issue is created.
+
 ### Issues
 
-When creating a warning issue:
+Only create an escalation issue when at least one workflow crossed the escalation thresholds. When you do:
 
-- use a concrete title naming the workflow and the repeated pattern
+- create one issue for the whole run, not one issue per workflow
+- use a concrete title that signals repository-level owner attention is needed
+- group the escalated workflows in priority order
 - explain the evidence with run counts and the specific assessment or comparison reason codes
-- include the most relevant recommendation from the comparison or assessment data
-- link up to 3 representative runs
+- include the most relevant recommendation for each escalated workflow
+- link up to 3 representative runs across the highest-priority workflows
+- make the issue concise enough to function as a backlog item, with the full detail living in the discussion
 
 ### No-op
 
