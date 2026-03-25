@@ -186,8 +186,10 @@ func TestRenderCustomToolWithoutGuardPoliciesJSON(t *testing.T) {
 	require.NoError(t, err, "renderSharedMCPConfig should succeed")
 
 	result := output.String()
-	// The url field should NOT have a trailing comma (it's the last field)
-	assert.NotContains(t, result, "\"url\": \"https://example.com/mcp\",", "url field should not have trailing comma")
+	// The tools field should be present (always included in JSON format for gateway enforcement)
+	assert.Contains(t, result, "\"tools\":", "tools field should be rendered")
+	// The tools field should be the last field (no trailing comma before end of object)
+	assert.NotContains(t, result, "\"tools\": [\n                  \"*\"\n                ],", "tools field should not have trailing comma")
 	// No guard policies
 	assert.NotContains(t, result, "guard-policies", "guard-policies should not be rendered")
 }

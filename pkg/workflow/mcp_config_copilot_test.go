@@ -82,10 +82,10 @@ func TestRenderSharedMCPConfig_CopilotFields(t *testing.T) {
 				`"entrypoint": "npx"`,
 				`"entrypointArgs": [`,
 				`"env": {`,
+				`"tools": [`, // tools field always included in JSON format
+				`"*"`,        // defaults to wildcard when no allowed specified
 			},
-			unexpectedContent: []string{
-				`"tools":`, // should NOT include tools field
-			},
+			unexpectedContent: []string{},
 		},
 		{
 			name: "Claude engine with HTTP MCP server (no copilot fields)",
@@ -105,10 +105,10 @@ func TestRenderSharedMCPConfig_CopilotFields(t *testing.T) {
 				`"type": "http"`,
 				`"url": "https://api.example.com/mcp"`,
 				`"headers": {`,
+				`"tools": [`, // tools field always included in JSON format
+				`"*"`,        // defaults to wildcard when no allowed specified
 			},
-			unexpectedContent: []string{
-				`"tools":`, // should NOT include tools field
-			},
+			unexpectedContent: []string{},
 		},
 	}
 

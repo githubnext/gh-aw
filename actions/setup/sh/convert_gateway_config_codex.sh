@@ -85,6 +85,9 @@ jq -r --arg urlPrefix "$URL_PREFIX" '
   "http_headers = { Authorization = \"\(.value.headers.Authorization)\" }\n"
 ' "$MCP_GATEWAY_OUTPUT" >> /tmp/gh-aw/mcp-config/config.toml
 
+# Restrict permissions to owner-read/write only to protect the bearer token
+chmod 0600 /tmp/gh-aw/mcp-config/config.toml
+
 echo "Codex configuration written to /tmp/gh-aw/mcp-config/config.toml"
 echo ""
 echo "Converted configuration:"

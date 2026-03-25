@@ -118,11 +118,11 @@ func renderSharedMCPConfig(yaml *strings.Builder, toolName string, toolConfig ma
 			// Include type field only for engines that require copilot fields
 			existingProperties = append(existingProperties, prop)
 		case "tools":
-			// Include tools field for JSON format when:
-			// - RequiresCopilotFields (Copilot always renders it; when Allowed is empty, the
-			//   rendering code below defaults to the "*" wildcard)
-			// - OR allowed tools are explicitly specified (pass the filter to the MCP gateway)
-			if renderer.RequiresCopilotFields || len(mcpConfig.Allowed) > 0 {
+			// Always include the tools field for JSON format to ensure the MCP gateway can
+			// enforce the tool allowlist at the gateway layer. When no specific tools are
+			// declared (Allowed is empty), the rendering code below defaults to the "*"
+			// wildcard so all tools remain accessible.
+			if renderer.Format == "json" {
 				existingProperties = append(existingProperties, prop)
 			}
 		case "container":

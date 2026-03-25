@@ -297,7 +297,7 @@ Test workflow.
 			unexpectedInServer: []string{`"tools"\s*:\s*\[\s*"\*"`},
 		},
 		{
-			name: "claude - http mcp server with no allowed field has no tools filter",
+			name: "claude - http mcp server with no allowed field defaults to wildcard tools",
 			workflowContent: `---
 on:
   workflow_dispatch:
@@ -313,9 +313,11 @@ mcp-servers:
 
 Test workflow.
 `,
-			serverName:         `"my-api"`,
-			expectedContent:    []string{`"url":`},
-			unexpectedInServer: []string{`"tools":`},
+			serverName:      `"my-api"`,
+			expectedContent: []string{`"url":`, `"*"`},
+			// Regex: "tools" key whose value array starts with "*" (ignores whitespace/indentation).
+			// guard-policies "accept": ["*"] has a different key, so it is never matched.
+			unexpectedInServer: []string{},
 		},
 	}
 

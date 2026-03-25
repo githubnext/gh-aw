@@ -82,6 +82,9 @@ jq --arg urlPrefix "$URL_PREFIX" '
   )
 ' "$MCP_GATEWAY_OUTPUT" > /home/runner/.copilot/mcp-config.json
 
+# Restrict permissions to owner-read/write only to protect the bearer token
+chmod 0600 /home/runner/.copilot/mcp-config.json
+
 echo "Copilot configuration written to /home/runner/.copilot/mcp-config.json"
 echo ""
 echo "Converted configuration:"

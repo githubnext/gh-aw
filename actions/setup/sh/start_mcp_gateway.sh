@@ -129,6 +129,8 @@ GATEWAY_START_TIME=$(date +%s%3N)
 # Pass MCP_GATEWAY_LOG_DIR to the container via -e flag
 echo "$MCP_CONFIG" | MCP_GATEWAY_LOG_DIR="$MCP_GATEWAY_LOG_DIR" $MCP_GATEWAY_DOCKER_COMMAND \
   > /tmp/gh-aw/mcp-config/gateway-output.json 2> /tmp/gh-aw/mcp-logs/stderr.log &
+# Restrict permissions immediately after creation to protect the bearer token in the output
+chmod 0600 /tmp/gh-aw/mcp-config/gateway-output.json
 
 GATEWAY_PID=$!
 echo "Gateway started with PID: $GATEWAY_PID"

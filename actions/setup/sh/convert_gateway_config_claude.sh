@@ -43,12 +43,13 @@ echo "Target domain: $MCP_GATEWAY_DOMAIN:$MCP_GATEWAY_PORT"
 #       "url": "http://domain:port/mcp/server-name",
 #       "headers": {
 #         "Authorization": "apiKey"
-#       }
+#       },
+#       "tools": ["tool1", "tool2"]
 #     }
 #   }
 # }
 #
-# Claude format (JSON with HTTP type and headers):
+# Claude format (JSON with HTTP type, headers, and tools):
 # {
 #   "mcpServers": {
 #     "server-name": {
@@ -56,14 +57,16 @@ echo "Target domain: $MCP_GATEWAY_DOMAIN:$MCP_GATEWAY_PORT"
 #       "url": "http://domain:port/mcp/server-name",
 #       "headers": {
 #         "Authorization": "apiKey"
-#       }
+#       },
+#       "tools": ["tool1", "tool2"]
 #     }
 #   }
 # }
 #
-# The main differences:
+# The main differences from the gateway output:
 # 1. Claude uses "type": "http" for HTTP-based MCP servers
-# 2. The "tools" field is removed as it's Copilot-specific
+# 2. The "tools" field is preserved (or defaulted to ["*"]) to mirror the declared tool scope
+#    and allow clients to enforce the allowlist. This field is NOT Copilot-specific.
 # 3. URLs must use the correct domain (host.docker.internal) for container access
 
 # Build the correct URL prefix using the configured domain and port
@@ -73,12 +76,17 @@ jq --arg urlPrefix "$URL_PREFIX" '
   .mcpServers |= with_entries(
     .value |= (
       (.type = "http") |
-      (del(.tools)) |
+      # Preserve the tools field from the gateway output, or default to ["*"] to mirror
+      # the declared tool scope and support gateway-layer enforcement.
+      (if .tools then . else . + {"tools": ["*"]} end) |
       # Fix the URL to use the correct domain
       .url |= (. | sub("^http://[^/]+/mcp/"; $urlPrefix + "/mcp/"))
     )
   )
 ' "$MCP_GATEWAY_OUTPUT" > /tmp/gh-aw/mcp-config/mcp-servers.json
+
+# Restrict permissions to owner-read/write only to protect the bearer token
+chmod 0600 /tmp/gh-aw/mcp-config/mcp-servers.json
 
 echo "Claude configuration written to /tmp/gh-aw/mcp-config/mcp-servers.json"
 echo ""
