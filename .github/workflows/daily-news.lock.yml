@@ -30,7 +30,7 @@
 #     - shared/reporting.md
 #     - shared/trends.md
 #
-# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"1ac39a8230fd053ed51356e22c975e01f92adacbc0b2c86481e600549aa107d7","strict":true,"agent_id":"copilot"}
+# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"5470251dd12421fc1072fd23cb9d1c092545c2330e71f78f0fe058f3a03692da","strict":true,"agent_id":"copilot"}
 
 name: "Daily News"
 "on":
@@ -284,7 +284,7 @@ jobs:
 
   agent:
     needs: activation
-    runs-on: ubuntu-latest
+    runs-on: aw-gpu-runner-T4
     permissions:
       actions: read
       contents: read
