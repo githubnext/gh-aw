@@ -978,7 +978,10 @@ ${patchPreview}`;
     if (manifestProtectionFallback) {
       const allFound = manifestProtectionFallback;
       const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
-      const fileList = buildProtectedFileList(allFound, githubServer, repoParts.owner, repoParts.repo, baseBranch);
+      // Use head branch (branchName) for links when push succeeded; fall back to baseBranch
+      // for the push-failed case where the head branch is not yet on the remote.
+      const branchForLinks = manifestProtectionPushFailedError ? baseBranch : branchName;
+      const fileList = buildProtectedFileList(allFound, githubServer, repoParts.owner, repoParts.repo, branchForLinks);
 
       let fallbackBody;
       if (manifestProtectionPushFailedError) {
