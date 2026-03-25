@@ -166,6 +166,57 @@ func TestIsNonZipArtifactError(t *testing.T) {
 	}
 }
 
+func TestCriticalArtifactNames(t *testing.T) {
+	// Verify the list of critical artifacts includes the expected names
+	expected := map[string]bool{
+		"activation":          true,
+		"agent":               true,
+		"firewall-audit-logs": true,
+	}
+
+	if len(criticalArtifactNames) != len(expected) {
+		t.Errorf("criticalArtifactNames has %d entries, want %d", len(criticalArtifactNames), len(expected))
+	}
+
+	for _, name := range criticalArtifactNames {
+		if !expected[name] {
+			t.Errorf("unexpected critical artifact name: %q", name)
+		}
+	}
+}
+
+func TestRetryCriticalArtifactsSkipsExisting(t *testing.T) {
+	// When a critical artifact directory already exists, retryCriticalArtifacts should
+	// skip it (no gh CLI call). We verify by creating existing dirs and checking that
+	// the function completes without error (gh CLI is not available in unit tests, so
+	// only pre-existing dirs will be skipped; missing ones will fail the gh call silently).
+	tmpDir := testutil.TempDir(t, "retry-critical-*")
+
+	// Create all critical artifact dirs so none need downloading
+	for _, name := range criticalArtifactNames {
+		err := os.MkdirAll(filepath.Join(tmpDir, name), 0755)
+		if err != nil {
+			t.Fatalf("failed to create dir %s: %v", name, err)
+		}
+		// Add a file so DirExists returns true
+		err = os.WriteFile(filepath.Join(tmpDir, name, "placeholder.txt"), []byte("test"), 0644)
+		if err != nil {
+			t.Fatalf("failed to create placeholder in %s: %v", name, err)
+		}
+	}
+
+	// Should complete without panic or error — all dirs exist so no gh CLI calls are made
+	retryCriticalArtifacts(12345, tmpDir, false, "owner", "repo", "")
+
+	// Verify the directories are still intact
+	for _, name := range criticalArtifactNames {
+		dir := filepath.Join(tmpDir, name)
+		if !fileutil.DirExists(dir) {
+			t.Errorf("expected directory %s to still exist after retry", name)
+		}
+	}
+}
+
 func TestListWorkflowRunsWithPagination(t *testing.T) {
 	// Test that listWorkflowRunsWithPagination properly adds beforeDate filter
 	// Since we can't easily mock the GitHub CLI, we'll test with known auth issues
