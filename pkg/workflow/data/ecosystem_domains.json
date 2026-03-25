@@ -154,10 +154,12 @@
     "develocity.apache.org",
     "scans-in.gradle.com",
     "ge.spockframework.org",
-    "*.gradle-enterprise.cloud"
+    "*.gradle-enterprise.cloud",
+    "maven-central.storage-download.googleapis.com",
+    "repository.apache.org"
   ],
   "julia": ["pkg.julialang.org", "*.pkg.julialang.org", "julialang.org", "julialang-s3.julialang.org", "storage.julialang.net"],
-  "kotlin": ["ge.jetbrains.com", "packages.jetbrains.team", "kotlin.bintray.com", "maven.pkg.jetbrains.space"],
+  "kotlin": ["download.jetbrains.com", "ge.jetbrains.com", "packages.jetbrains.team", "kotlin.bintray.com", "maven.pkg.jetbrains.space"],
   "linux-distros": [
     "deb.debian.org",
     "security.debian.org",

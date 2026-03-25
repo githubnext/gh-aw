@@ -8,6 +8,7 @@ permissions:
   pull-requests: read
   discussions: read
 engine: codex
+runs-on: aw-gpu-runner-T4
 strict: true
 tracker-id: daily-issues-report
 tools:
