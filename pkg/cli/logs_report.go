@@ -171,15 +171,16 @@ func buildLogsData(processedRuns []ProcessedRun, outputDir string, continuation 
 		totalMissingData += run.MissingDataCount
 		totalSafeItems += run.SafeItemsCount
 
-		// Extract agent/engine ID from aw_info.json and only fall back to the file for aw_context.
+		// Extract agent/engine ID and aw_context from aw_info.json.
 		agentID := ""
-		awContext := pr.AwContext
+		var awContext *AwContext
 		awInfoPath := filepath.Join(run.LogsPath, "aw_info.json")
 		if info, err := parseAwInfo(awInfoPath, false); err == nil && info != nil {
 			agentID = info.EngineID
-			if awContext == nil {
-				awContext = info.Context
-			}
+			awContext = info.Context
+		}
+		if awContext == nil {
+			awContext = pr.AwContext
 		}
 
 		comparison := buildAuditComparisonForProcessedRuns(pr, processedRuns)

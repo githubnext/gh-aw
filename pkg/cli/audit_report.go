@@ -13,6 +13,7 @@ import (
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/sliceutil"
 	"github.com/github/gh-aw/pkg/timeutil"
+	"github.com/github/gh-aw/pkg/workflow"
 )
 
 var auditReportLog = logger.New("cli:audit_report")
@@ -235,6 +236,13 @@ func buildAuditData(processedRun ProcessedRun, metrics LogMetrics, mcpToolUsage 
 		overview.Duration = timeutil.FormatDuration(run.Duration)
 	}
 
+	if run.LogsPath != "" {
+		awInfoPath := filepath.Join(run.LogsPath, "aw_info.json")
+		if awInfo, err := parseAwInfo(awInfoPath, false); err == nil && awInfo != nil {
+			overview.AwContext = awInfo.Context
+		}
+	}
+
 	// Build metrics
 	metricsData := MetricsData{
 		TokenUsage:    run.TokenUsage,
@@ -272,8 +280,47 @@ func buildAuditData(processedRun ProcessedRun, metrics LogMetrics, mcpToolUsage 
 		}
 	}
 
-	awContext, toolUsage, createdItems, taskDomain, behaviorFingerprint, agenticAssessments := deriveRunAgenticAnalysis(processedRun, metrics)
-	overview.AwContext = awContext
+	toolStats := make(map[string]*ToolUsageInfo)
+	for _, toolCall := range metrics.ToolCalls {
+		displayKey := workflow.PrettifyToolName(toolCall.Name)
+		if existing, exists := toolStats[displayKey]; exists {
+			existing.CallCount += toolCall.CallCount
+			if toolCall.MaxInputSize > existing.MaxInputSize {
+				existing.MaxInputSize = toolCall.MaxInputSize
+			}
+			if toolCall.MaxOutputSize > existing.MaxOutputSize {
+				existing.MaxOutputSize = toolCall.MaxOutputSize
+			}
+			if toolCall.MaxDuration > 0 {
+				maxDuration := timeutil.FormatDuration(toolCall.MaxDuration)
+				if existing.MaxDuration == "" || toolCall.MaxDuration > parseDurationString(existing.MaxDuration) {
+					existing.MaxDuration = maxDuration
+				}
+			}
+			continue
+		}
+
+		toolInfo := &ToolUsageInfo{
+			Name:          displayKey,
+			CallCount:     toolCall.CallCount,
+			MaxInputSize:  toolCall.MaxInputSize,
+			MaxOutputSize: toolCall.MaxOutputSize,
+		}
+		if toolCall.MaxDuration > 0 {
+			toolInfo.MaxDuration = timeutil.FormatDuration(toolCall.MaxDuration)
+		}
+		toolStats[displayKey] = toolInfo
+	}
+
+	toolUsage := make([]ToolUsageInfo, 0, len(toolStats))
+	for _, info := range toolStats {
+		toolUsage = append(toolUsage, *info)
+	}
+
+	createdItems := extractCreatedItemsFromManifest(run.LogsPath)
+	taskDomain := detectTaskDomain(processedRun, createdItems, toolUsage, overview.AwContext)
+	behaviorFingerprint := buildBehaviorFingerprint(processedRun, metricsData, toolUsage, createdItems, overview.AwContext)
+	agenticAssessments := buildAgenticAssessments(processedRun, metricsData, toolUsage, createdItems, taskDomain, behaviorFingerprint, overview.AwContext)
 
 	// Generate key findings
 	findings := generateFindings(processedRun, metricsData, errors, warnings)
