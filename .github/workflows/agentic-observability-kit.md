@@ -63,6 +63,23 @@ Always create a discussion with the full report. Create an escalation issue only
 - Use the `audit` tool only for up to 3 runs that need deeper inspection.
 - If there are very few runs, still produce a report and explain the limitation.
 
+## Episode And DAG Model
+
+Treat agentic workflows as execution DAGs, not just a flat list of independent runs.
+
+- A single run is a node.
+- Trigger, delegation, and orchestration relationships are edges.
+- A related set of runs can represent one higher-level episode of work.
+- Cost, ownership, and risk may belong to the episode, not just to one run.
+
+Prefer native lineage when the platform provides it:
+
+- Treat `workflow_call` relationships as the strongest continuity signal because they preserve actor and billing attribution.
+- Treat `workflow_run` relationships as native but weaker edges that show one workflow reacting to another workflow completion.
+- Treat `dispatch-workflow` relationships as custom-correlated edges that may require `context.*` metadata to reconstruct continuity.
+
+When continuity markers are present, avoid judging delegated worker runs in isolation until you check whether they are part of a larger orchestrated episode.
+
 ## Signals To Use
 
 The logs JSON already contains the main agentic signals. Prefer these fields over ad hoc heuristics:
@@ -75,6 +92,11 @@ The logs JSON already contains the main agentic signals. Prefer these fields ove
 - `behavior_fingerprint.dispatch_mode`
 - `agentic_assessments[].kind`
 - `agentic_assessments[].severity`
+- `context.repo`
+- `context.run_id`
+- `context.workflow_id`
+- `context.workflow_call_id`
+- `context.event_type`
 - `comparison.baseline.selection`
 - `comparison.baseline.matched_on[]`
 - `comparison.classification.label`
@@ -82,6 +104,17 @@ The logs JSON already contains the main agentic signals. Prefer these fields ove
 - `comparison.recommendation.action`
 
 Treat these values as the canonical signals for reporting.
+
+## Continuity Rules
+
+Use the following rules when interpreting orchestrated or delegated runs:
+
+- Group runs into one episode when they share strong continuity markers such as `context.workflow_call_id`, or when the downstream run clearly points to the same upstream `context.run_id` and `context.workflow_id`.
+- If a run has `behavior_fingerprint.dispatch_mode == "delegated"`, treat that as evidence that the run may be one node in a larger DAG.
+- Do not over-penalize a worker run for being write-capable or resource-heavy if that behavior appears intentional within a larger orchestrator-to-worker sequence.
+- If downstream runs lost continuity markers when you would expect them, report that as an observability problem.
+- When multiple risky-looking runs appear to belong to one episode, summarize them together before escalating.
+- If lineage is ambiguous, say so explicitly instead of inventing a chain.
 
 ## Reporting Model
 
@@ -100,6 +133,7 @@ Include small numeric summaries such as:
 
 - workflows analyzed
 - runs analyzed
+- inferred episodes analyzed
 - runs with `comparison.classification.label == "risky"`
 - runs with medium or high `agentic_assessments`
 - workflows with repeated `overkill_for_agentic`
@@ -115,6 +149,8 @@ For each highlighted workflow, explain:
 
 - what domain it appears to belong to
 - what its behavioral fingerprint looks like
+- whether it appears to participate in an orchestrated DAG or delegated episode
+- whether the actor, cost, and risk seem to belong to the workflow itself or to a larger chain
 - whether it is stable against a cohort match or only compared to latest success
 - whether the risky behavior is new, repeated, or likely intentional
 - what a team should change next
@@ -161,6 +197,7 @@ When you use `audit`, fold the extra evidence back into the report instead of du
 Always create one discussion that includes:
 
 - the date range analyzed
+- any important orchestrator, worker, or workflow_run chains that materially change interpretation
 - all workflows that crossed the escalation thresholds
 - the workflows with the clearest repeated risk
 - the most common assessment kinds
