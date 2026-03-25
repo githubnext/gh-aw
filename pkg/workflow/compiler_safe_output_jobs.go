@@ -26,7 +26,7 @@ func (c *Compiler) buildSafeOutputsJobs(data *WorkflowData, jobName, markdownPat
 	// explicitly disabled. When engine is false with no custom steps, the detection job has
 	// nothing to run so it is skipped entirely.
 	threatDetectionEnabled := data.SafeOutputs.ThreatDetection != nil &&
-		!(data.SafeOutputs.ThreatDetection.EngineDisabled && len(data.SafeOutputs.ThreatDetection.Steps) == 0)
+		data.SafeOutputs.ThreatDetection.HasRunnableDetection()
 
 	// Build the separate detection job. Detection runs by default for all safe-outputs workflows
 	// and is only skipped when ThreatDetection is nil (i.e. threat-detection: false was set).

@@ -331,7 +331,7 @@ func (c *Compiler) buildConclusionJob(data *WorkflowData, mainJobName string, sa
 
 	// Pass detection conclusion if threat detection is enabled (in separate detection job)
 	if data.SafeOutputs.ThreatDetection != nil &&
-		!(data.SafeOutputs.ThreatDetection.EngineDisabled && len(data.SafeOutputs.ThreatDetection.Steps) == 0) {
+		data.SafeOutputs.ThreatDetection.HasRunnableDetection() {
 		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_DETECTION_CONCLUSION: ${{ needs.%s.outputs.detection_conclusion }}\n", constants.DetectionJobName))
 		notifyCommentLog.Print("Added detection conclusion environment variable to conclusion job")
 	}
@@ -440,7 +440,7 @@ func (c *Compiler) buildConclusionJob(data *WorkflowData, mainJobName string, sa
 	// When threat detection is enabled, the conclusion job also depends on the detection job
 	// so that needs.detection.outputs.detection_conclusion is accessible.
 	if data.SafeOutputs.ThreatDetection != nil &&
-		!(data.SafeOutputs.ThreatDetection.EngineDisabled && len(data.SafeOutputs.ThreatDetection.Steps) == 0) {
+		data.SafeOutputs.ThreatDetection.HasRunnableDetection() {
 		needs = append(needs, string(constants.DetectionJobName))
 		notifyCommentLog.Print("Added detection job dependency to conclusion job")
 	}

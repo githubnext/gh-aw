@@ -431,7 +431,7 @@ func generateCacheMemorySteps(builder *strings.Builder, data *WorkflowData) {
 		// When threat detection is enabled, we only restore the cache and defer saving to a separate job after detection
 		// Use actions/cache for normal caches (which auto-saves via post-action)
 		threatDetectionEnabled := data.SafeOutputs != nil && data.SafeOutputs.ThreatDetection != nil &&
-			!(data.SafeOutputs.ThreatDetection.EngineDisabled && len(data.SafeOutputs.ThreatDetection.Steps) == 0)
+			data.SafeOutputs.ThreatDetection.HasRunnableDetection()
 		useRestoreOnly := cache.RestoreOnly || threatDetectionEnabled
 
 		var actionName string
@@ -533,7 +533,7 @@ func generateCacheMemoryArtifactUpload(builder *strings.Builder, data *WorkflowD
 	// Only upload artifacts when threat detection is enabled (needed for update_cache_memory job)
 	// When threat detection is disabled, cache is saved automatically by actions/cache post-action
 	threatDetectionEnabled := data.SafeOutputs != nil && data.SafeOutputs.ThreatDetection != nil &&
-		!(data.SafeOutputs.ThreatDetection.EngineDisabled && len(data.SafeOutputs.ThreatDetection.Steps) == 0)
+		data.SafeOutputs.ThreatDetection.HasRunnableDetection()
 	if !threatDetectionEnabled {
 		cacheLog.Print("Skipping cache-memory artifact upload (threat detection disabled)")
 		return

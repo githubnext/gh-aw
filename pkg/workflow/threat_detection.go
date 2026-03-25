@@ -19,6 +19,13 @@ type ThreatDetectionConfig struct {
 	RunsOn         string        `yaml:"runs-on,omitempty"`       // Runner override for the detection job
 }
 
+// HasRunnableDetection reports whether this config will produce a detection job
+// that actually executes. Returns false when the engine is disabled and no
+// custom steps are configured, since the job would have nothing to run.
+func (td *ThreatDetectionConfig) HasRunnableDetection() bool {
+	return !td.EngineDisabled || len(td.Steps) > 0
+}
+
 // parseThreatDetectionConfig handles threat-detection configuration
 func (c *Compiler) parseThreatDetectionConfig(outputMap map[string]any) *ThreatDetectionConfig {
 	if configData, exists := outputMap["threat-detection"]; exists {
@@ -548,8 +555,7 @@ func (c *Compiler) buildDetectionJob(data *WorkflowData) (*Job, error) {
 	// there is nothing to run in the detection job — skip it entirely.
 	// The detection job would only create an empty detection.log and the parser
 	// would correctly fail with "No THREAT_DETECTION_RESULT found".
-	td := data.SafeOutputs.ThreatDetection
-	if td.EngineDisabled && len(td.Steps) == 0 {
+	if !data.SafeOutputs.ThreatDetection.HasRunnableDetection() {
 		threatLog.Print("Threat detection engine disabled with no custom steps, skipping detection job")
 		return nil, nil
 	}

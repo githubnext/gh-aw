@@ -526,7 +526,7 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 	// 2. Threat detection is enabled (detection job needs patches for security analysis, even when the
 	//    safe-output handler is staged and doesn't need checkout itself)
 	threatDetectionNeedsPatches := data.SafeOutputs != nil && data.SafeOutputs.ThreatDetection != nil &&
-		!(data.SafeOutputs.ThreatDetection.EngineDisabled && len(data.SafeOutputs.ThreatDetection.Steps) == 0)
+		data.SafeOutputs.ThreatDetection.HasRunnableDetection()
 	if usesPatchesAndCheckouts(data.SafeOutputs) || threatDetectionNeedsPatches {
 		artifactPaths = append(artifactPaths, "/tmp/gh-aw/aw-*.patch")
 	}
