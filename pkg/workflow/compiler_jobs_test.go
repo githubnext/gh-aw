@@ -934,9 +934,9 @@ Test content`
 		t.Error("Expected detection job to contain detection_conclusion step")
 	}
 
-	// Check that safe_outputs job references detection job output
-	if !strings.Contains(yamlStr, "needs.detection.outputs.detection_success") {
-		t.Error("Expected safe output jobs to check needs.detection.outputs.detection_success")
+	// Check that safe_outputs job references detection job result
+	if !strings.Contains(yamlStr, "needs.detection.result == 'success'") {
+		t.Error("Expected safe output jobs to check needs.detection.result == 'success'")
 	}
 }
 

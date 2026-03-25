@@ -240,6 +240,7 @@ func (c *Compiler) buildDetectionConclusionStep() []string {
 		"            echo \"conclusion=failure\" >> \"$GITHUB_OUTPUT\"\n",
 		"            echo \"success=false\" >> \"$GITHUB_OUTPUT\"\n",
 		"            echo \"Detection found issues\"\n",
+		"            exit 1\n",
 		"          fi\n",
 	}
 }

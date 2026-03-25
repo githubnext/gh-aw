@@ -382,7 +382,7 @@ func (c *Compiler) buildPushRepoMemoryJobWrapper(data *WorkflowData, threatDetec
 
 	// Add detection dependency if threat detection is enabled
 	// The detection job runs after the agent job; push_repo_memory depends on detection
-	// and its condition checks needs.detection.outputs.detection_success
+	// and its condition checks needs.detection.result == 'success'
 
 	if err := c.jobManager.AddJob(pushRepoMemoryJob); err != nil {
 		return "", fmt.Errorf("failed to add push_repo_memory job: %w", err)

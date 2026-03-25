@@ -544,11 +544,13 @@ func resolveSafeOutputsEnvironment(data *WorkflowData) string {
 }
 
 // buildDetectionSuccessCondition builds the condition to check if detection passed.
-// Detection runs in a separate detection job that outputs detection_success.
+// Detection runs in a separate detection job that only succeeds (result == 'success') when
+// the analysis worked, the output was parsed, and no threats were found. When threats are
+// detected the detection job exits with a non-zero code, giving it a 'failure' result.
 func buildDetectionSuccessCondition() ConditionNode {
 	return BuildEquals(
-		BuildPropertyAccess(fmt.Sprintf("needs.%s.outputs.detection_success", constants.DetectionJobName)),
-		BuildStringLiteral("true"),
+		BuildPropertyAccess(fmt.Sprintf("needs.%s.result", constants.DetectionJobName)),
+		BuildStringLiteral("success"),
 	)
 }
 

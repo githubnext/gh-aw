@@ -690,7 +690,7 @@ func (c *Compiler) buildPushRepoMemoryJob(data *WorkflowData, threatDetectionEna
 	jobCondition := "always()"
 	jobNeeds := []string{"agent"}
 	if threatDetectionEnabled {
-		jobCondition = fmt.Sprintf("always() && needs.%s.outputs.detection_success == 'true'", constants.DetectionJobName)
+		jobCondition = fmt.Sprintf("always() && needs.%s.result == 'success'", constants.DetectionJobName)
 		jobNeeds = append(jobNeeds, string(constants.DetectionJobName))
 	}
 

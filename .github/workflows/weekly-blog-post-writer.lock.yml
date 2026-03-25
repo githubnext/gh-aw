@@ -1239,6 +1239,7 @@ jobs:
             echo "conclusion=failure" >> "$GITHUB_OUTPUT"
             echo "success=false" >> "$GITHUB_OUTPUT"
             echo "Detection found issues"
+            exit 1
           fi
 
   indexing:
@@ -1323,7 +1324,7 @@ jobs:
     needs:
       - agent
       - detection
-    if: always() && needs.detection.outputs.detection_success == 'true'
+    if: always() && needs.detection.result == 'success'
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -1398,7 +1399,7 @@ jobs:
       - activation
       - agent
       - detection
-    if: (!cancelled()) && needs.agent.result != 'skipped' && needs.detection.outputs.detection_success == 'true'
+    if: (!cancelled()) && needs.agent.result != 'skipped' && needs.detection.result == 'success'
     runs-on: ubuntu-slim
     permissions:
       contents: write

@@ -179,7 +179,7 @@ func (c *Compiler) buildSafeJobs(data *WorkflowData, threatDetectionEnabled bool
 		job.Needs = append(job.Needs, string(constants.AgentJobName))
 
 		// When threat detection is enabled, safe-jobs also depend on the detection job
-		// so that needs.detection.outputs.detection_success is available for the job condition
+		// so that the condition can gate on needs.detection.result == 'success'
 		if threatDetectionEnabled {
 			job.Needs = append(job.Needs, string(constants.DetectionJobName))
 		}

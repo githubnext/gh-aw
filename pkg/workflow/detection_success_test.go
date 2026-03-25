@@ -126,8 +126,9 @@ Create outputs.
 		t.Fatal("safe_outputs job not found")
 	}
 
-	// Detection is now in a separate detection job - check uses detection job outputs
-	if !strings.Contains(yaml, "needs.detection.outputs.detection_success == 'true'") {
-		t.Error("Safe output jobs don't check detection result via detection job outputs")
+	// Detection is now in a separate detection job - check uses detection job result
+	// (detection job fails with exit 1 when threats are found, so downstream jobs check job result)
+	if !strings.Contains(yaml, "needs.detection.result == 'success'") {
+		t.Error("Safe output jobs don't check detection result via detection job result")
 	}
 }
