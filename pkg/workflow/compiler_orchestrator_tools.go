@@ -195,16 +195,12 @@ func (c *Compiler) processToolsAndMarkdown(result *parser.FrontmatterResult, cle
 		plugins = mergeUnique(plugins, importsResult.MergedPlugins...)
 	}
 
-	// Normalise plugin entries: full GitHub tree URLs are split into a plugin ID
-	// and an inferred marketplace URL.  The marketplace URL is automatically added
-	// to the marketplaces list (deduplicated) so the CLI can resolve the plugin.
+	// Normalise plugin entries: full GitHub tree URLs are converted to the
+	// OWNER/REPO:PATH/TO/PLUGIN format accepted by the Copilot CLI ("subdirectory
+	// in a repository" spec).  This format is a direct GitHub reference and does
+	// NOT require marketplace registration, so no marketplace URLs are inferred.
 	if len(plugins) > 0 {
-		normalized, inferred := normalizePlugins(plugins)
-		plugins = normalized
-		if len(inferred) > 0 {
-			orchestratorToolsLog.Printf("Inferred %d marketplace(s) from plugin URLs", len(inferred))
-			marketplaces = mergeUnique(marketplaces, inferred...)
-		}
+		plugins = normalizePlugins(plugins)
 	}
 
 	// Filter out built-in marketplaces: if the engine already pre-registers certain

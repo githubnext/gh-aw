@@ -13,25 +13,22 @@ import (
 
 func TestParseGitHubPluginURL(t *testing.T) {
 	tests := []struct {
-		name            string
-		input           string
-		wantMarketplace string
-		wantPluginSpec  string
-		wantOK          bool
+		name           string
+		input          string
+		wantPluginSpec string
+		wantOK         bool
 	}{
 		{
-			name:            "full GitHub tree URL",
-			input:           "https://github.com/github/copilot-plugins/tree/main/plugins/advanced-security/skills/secret-scanning",
-			wantMarketplace: "https://github.com/github/copilot-plugins",
-			wantPluginSpec:  "advanced-security/skills/secret-scanning@github/copilot-plugins",
-			wantOK:          true,
+			name:           "full GitHub tree URL",
+			input:          "https://github.com/github/copilot-plugins/tree/main/plugins/advanced-security/skills/secret-scanning",
+			wantPluginSpec: "github/copilot-plugins:plugins/advanced-security/skills/secret-scanning",
+			wantOK:         true,
 		},
 		{
-			name:            "shallow plugin path",
-			input:           "https://github.com/acme/my-plugins/tree/main/tools/linter",
-			wantMarketplace: "https://github.com/acme/my-plugins",
-			wantPluginSpec:  "tools/linter@acme/my-plugins",
-			wantOK:          true,
+			name:           "shallow plugin path",
+			input:          "https://github.com/acme/my-plugins/tree/main/tools/linter",
+			wantPluginSpec: "acme/my-plugins:tools/linter",
+			wantOK:         true,
 		},
 		{
 			name:   "plain plugin name – not a URL",
@@ -59,20 +56,18 @@ func TestParseGitHubPluginURL(t *testing.T) {
 			wantOK: false,
 		},
 		{
-			name:            "http scheme",
-			input:           "http://github.com/org/repo/tree/main/plugins/foo",
-			wantMarketplace: "http://github.com/org/repo",
-			wantPluginSpec:  "foo@org/repo",
-			wantOK:          true,
+			name:           "http scheme",
+			input:          "http://github.com/org/repo/tree/main/plugins/foo",
+			wantPluginSpec: "org/repo:plugins/foo",
+			wantOK:         true,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			marketplace, pluginSpec, ok := parseGitHubPluginURL(tt.input)
+			pluginSpec, ok := parseGitHubPluginURL(tt.input)
 			assert.Equal(t, tt.wantOK, ok, "ok mismatch")
 			if tt.wantOK {
-				assert.Equal(t, tt.wantMarketplace, marketplace, "marketplace mismatch")
 				assert.Equal(t, tt.wantPluginSpec, pluginSpec, "pluginSpec mismatch")
 			}
 		})
@@ -81,26 +76,23 @@ func TestParseGitHubPluginURL(t *testing.T) {
 
 func TestNormalizePlugins(t *testing.T) {
 	tests := []struct {
-		name                     string
-		input                    []string
-		wantNormalized           []string
-		wantInferredMarketplaces []string
+		name           string
+		input          []string
+		wantNormalized []string
 	}{
 		{
-			name:                     "plain names only",
-			input:                    []string{"plugin-a", "plugin-b"},
-			wantNormalized:           []string{"plugin-a", "plugin-b"},
-			wantInferredMarketplaces: nil,
+			name:           "plain names only",
+			input:          []string{"plugin-a", "plugin-b"},
+			wantNormalized: []string{"plugin-a", "plugin-b"},
 		},
 		{
-			name: "URL entry is converted to plugin-name@marketplace-name spec",
+			name: "URL entry is converted to OWNER/REPO:PATH spec",
 			input: []string{
 				"https://github.com/github/copilot-plugins/tree/main/plugins/advanced-security/skills/secret-scanning",
 			},
 			wantNormalized: []string{
-				"advanced-security/skills/secret-scanning@github/copilot-plugins",
+				"github/copilot-plugins:plugins/advanced-security/skills/secret-scanning",
 			},
-			wantInferredMarketplaces: []string{"https://github.com/github/copilot-plugins"},
 		},
 		{
 			name: "mix of plain names and URLs",
@@ -111,39 +103,41 @@ func TestNormalizePlugins(t *testing.T) {
 			},
 			wantNormalized: []string{
 				"my-extension",
-				"advanced-security/skills/secret-scanning@github/copilot-plugins",
+				"github/copilot-plugins:plugins/advanced-security/skills/secret-scanning",
 				"another-plugin",
 			},
-			wantInferredMarketplaces: []string{"https://github.com/github/copilot-plugins"},
 		},
 		{
-			name:                     "empty input",
-			input:                    nil,
-			wantNormalized:           nil,
-			wantInferredMarketplaces: nil,
+			name:           "empty input",
+			input:          nil,
+			wantNormalized: []string{},
 		},
 		{
-			name: "two URLs from same repo produce two inferred marketplace entries (dedup happens upstream)",
+			name: "two URLs from same repo",
 			input: []string{
 				"https://github.com/github/copilot-plugins/tree/main/plugins/advanced-security/skills/secret-scanning",
 				"https://github.com/github/copilot-plugins/tree/main/plugins/code-review/skills/review",
 			},
 			wantNormalized: []string{
-				"advanced-security/skills/secret-scanning@github/copilot-plugins",
-				"code-review/skills/review@github/copilot-plugins",
+				"github/copilot-plugins:plugins/advanced-security/skills/secret-scanning",
+				"github/copilot-plugins:plugins/code-review/skills/review",
 			},
-			wantInferredMarketplaces: []string{
-				"https://github.com/github/copilot-plugins",
-				"https://github.com/github/copilot-plugins",
+		},
+		{
+			name: "plugin@marketplace spec passes through unchanged",
+			input: []string{
+				"my-plugin@my-marketplace",
+			},
+			wantNormalized: []string{
+				"my-plugin@my-marketplace",
 			},
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			normalized, inferred := normalizePlugins(tt.input)
+			normalized := normalizePlugins(tt.input)
 			assert.Equal(t, tt.wantNormalized, normalized, "normalized plugins mismatch")
-			assert.Equal(t, tt.wantInferredMarketplaces, inferred, "inferred marketplaces mismatch")
 		})
 	}
 }
@@ -166,20 +160,18 @@ func TestClaudeEngineGetBuiltinMarketplaces(t *testing.T) {
 	assert.Empty(t, builtins, "Claude engine should have no built-in marketplaces")
 }
 
-// TestBuiltinMarketplacesFilteredFromCompilationOutput verifies that a
-// marketplace URL inferred from a plugin URL is not emitted as a setup step
-// when it matches a built-in marketplace for the engine.
-func TestBuiltinMarketplacesFilteredFromCompilationOutput(t *testing.T) {
-	// The secret-scanning skill lives in copilot-plugins, which is a built-in
-	// marketplace.  The generated lock file must NOT contain a
-	// "copilot plugin marketplace add https://github.com/github/copilot-plugins"
-	// step, but MUST contain the plugin install step.
+// TestGitHubTreeURLConvertedToOwnerRepoPath verifies that a GitHub tree URL
+// in imports.plugins is converted to the OWNER/REPO:PATH/TO/PLUGIN format
+// accepted by the Copilot CLI ("subdirectory in a repository" spec), and that
+// no marketplace registration step is emitted (the OWNER/REPO:PATH format is
+// a direct GitHub reference that doesn't require a prior marketplace add).
+func TestGitHubTreeURLConvertedToOwnerRepoPath(t *testing.T) {
 	tmpDir := t.TempDir()
 	workflowsDir := tmpDir + "/.github/workflows"
 	require.NoError(t, os.MkdirAll(workflowsDir, 0755), "create workflows dir")
 
 	content := `---
-name: Test Builtin Marketplace Filter
+name: Test GitHub Tree URL Conversion
 on:
   workflow_dispatch:
 engine: copilot
@@ -187,7 +179,7 @@ imports:
   plugins:
     - https://github.com/github/copilot-plugins/tree/main/plugins/advanced-security/skills/secret-scanning
 ---
-Test builtin marketplace filtering.
+Test GitHub tree URL conversion to OWNER/REPO:PATH format.
 `
 	workflowFile := workflowsDir + "/test-workflow.md"
 	require.NoError(t, os.WriteFile(workflowFile, []byte(content), 0600), "write workflow")
@@ -205,10 +197,12 @@ Test builtin marketplace filtering.
 	require.NoError(t, err)
 
 	yamlStr := string(lockYAML)
+	// No marketplace registration step — OWNER/REPO:PATH is a direct GitHub ref
 	assert.NotContains(t, yamlStr,
-		"copilot plugin marketplace add https://github.com/github/copilot-plugins",
-		"built-in marketplace must not be re-registered")
+		"copilot plugin marketplace add",
+		"no marketplace add step should be emitted for OWNER/REPO:PATH format")
+	// Plugin install uses OWNER/REPO:PATH format
 	assert.Contains(t, yamlStr,
-		"copilot plugin install advanced-security/skills/secret-scanning@github/copilot-plugins",
-		"plugin install step must emit plugin-name@marketplace-name spec")
+		"copilot plugin install github/copilot-plugins:plugins/advanced-security/skills/secret-scanning",
+		"plugin install step must use OWNER/REPO:PATH format")
 }
