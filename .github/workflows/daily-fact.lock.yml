@@ -24,7 +24,7 @@
 #
 # inlined-imports: true
 #
-# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"c3a22520daad2c84c316a1454aaf54231a96d461c85b591baa64d28a9a0e0177","strict":true,"agent_id":"codex","agent_model":"gpt-5.1-codex-mini"}
+# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"b713e52ed8721858ab23ed1ee4c38e1a225cf2d9208da7739f435fcf61337e2a","strict":true,"agent_id":"codex","agent_model":"gpt-5.1-codex-mini"}
 
 name: "Daily Fact About gh-aw"
 "on":
@@ -299,7 +299,7 @@ jobs:
 
   agent:
     needs: activation
-    runs-on: ubuntu-latest
+    runs-on: aw-gpu-runner-T4
     permissions:
       actions: read
       contents: read
