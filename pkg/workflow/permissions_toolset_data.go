@@ -109,6 +109,12 @@ func collectRequiredPermissions(toolsets []string, readOnly bool) map[Permission
 
 		// Add read permissions only (write tools are not considered for permission requirements)
 		for _, scope := range perms.ReadPermissions {
+			// Skip GitHub App-only permission scopes; these cannot be set via GITHUB_TOKEN
+			// and are validated separately in validateGitHubAppOnlyPermissions.
+			if IsGitHubAppOnlyScope(scope) {
+				permissionsValidationLog.Printf("Skipping GitHub App-only scope %s for toolset %s", scope, toolset)
+				continue
+			}
 			// Always require at least read access
 			if existing, found := required[scope]; !found || existing == PermissionNone {
 				required[scope] = PermissionRead
