@@ -576,4 +576,34 @@ describe("handle_agent_failure", () => {
       expect(result).toContain("line 1");
     });
   });
+
+  describe("buildDetectionFailureContext", () => {
+    let buildDetectionFailureContext;
+
+    beforeEach(() => {
+      vi.resetModules();
+      ({ buildDetectionFailureContext } = require("./handle_agent_failure.cjs"));
+    });
+
+    it("returns empty string when there is no detection failure", () => {
+      expect(buildDetectionFailureContext(false, "https://github.com/owner/repo/actions/runs/123")).toBe("");
+    });
+
+    it("returns non-empty context string when detection has failed", () => {
+      const result = buildDetectionFailureContext(true, "https://github.com/owner/repo/actions/runs/123");
+      expect(result).toBeTruthy();
+      expect(result).toContain("Threat Detection Failed");
+    });
+
+    it("includes the run URL in the detection failure context", () => {
+      const runUrl = "https://github.com/owner/repo/actions/runs/42";
+      const result = buildDetectionFailureContext(true, runUrl);
+      expect(result).toContain(runUrl);
+    });
+
+    it("returns empty string when hasDetectionFailure is falsy (null/undefined)", () => {
+      expect(buildDetectionFailureContext(null, "https://github.com/owner/repo/actions/runs/1")).toBe("");
+      expect(buildDetectionFailureContext(undefined, "https://github.com/owner/repo/actions/runs/1")).toBe("");
+    });
+  });
 });

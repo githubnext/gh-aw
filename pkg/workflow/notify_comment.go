@@ -200,6 +200,13 @@ func (c *Compiler) buildConclusionJob(data *WorkflowData, mainJobName string, sa
 	// errors even when the agent job was skipped due to the lockdown check failing.
 	agentFailureEnvVars = append(agentFailureEnvVars, fmt.Sprintf("          GH_AW_LOCKDOWN_CHECK_FAILED: ${{ needs.%s.outputs.lockdown_check_failed }}\n", string(constants.ActivationJobName)))
 
+	// Pass detection conclusion if threat detection is enabled so the failure handler
+	// can report security-threat and missing-result failures even when the agent succeeded.
+	if data.SafeOutputs != nil && data.SafeOutputs.ThreatDetection != nil {
+		agentFailureEnvVars = append(agentFailureEnvVars, fmt.Sprintf("          GH_AW_DETECTION_CONCLUSION: ${{ needs.%s.outputs.detection_conclusion }}\n", constants.DetectionJobName))
+		notifyCommentLog.Print("Added detection conclusion environment variable to agent failure handler")
+	}
+
 	// Pass custom messages config if present
 	if data.SafeOutputs != nil && data.SafeOutputs.Messages != nil {
 		messagesJSON, err := serializeMessagesConfig(data.SafeOutputs.Messages)

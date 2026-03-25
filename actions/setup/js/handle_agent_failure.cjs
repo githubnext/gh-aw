@@ -659,6 +659,20 @@ function buildLockdownCheckFailedContext(hasLockdownCheckFailed) {
 }
 
 /**
+ * Build a context string when the threat detection job failed.
+ * This covers both detected security threats and missing THREAT_DETECTION_RESULT lines.
+ * @param {boolean} hasDetectionFailure - Whether the detection job reported failure
+ * @param {string} runUrl - URL of the current workflow run
+ * @returns {string} Formatted context string, or empty string if no detection failure
+ */
+function buildDetectionFailureContext(hasDetectionFailure, runUrl) {
+  if (!hasDetectionFailure) {
+    return "";
+  }
+  return "\n**🚨 Threat Detection Failed**: The security threat detection job detected a potential security issue or failed to produce a result.\n\n" + "Please review the [workflow run](" + runUrl + ") for details.\n\n";
+}
+
+/**
  * Build a context string when assigning the Copilot coding agent to created issues failed.
  * @param {boolean} hasAssignCopilotFailures - Whether any copilot assignments failed
  * @param {string} assignCopilotErrors - Newline-separated list of "issue:number:copilot:error" entries
@@ -819,6 +833,10 @@ async function main() {
     // Lockdown check failure from the activation job — set when validate_lockdown_requirements fails.
     // The agent is skipped in this case, but the conclusion job still runs to report the failure.
     const hasLockdownCheckFailed = process.env.GH_AW_LOCKDOWN_CHECK_FAILED === "true";
+    // Detection job conclusion — set when threat detection is enabled.
+    // "failure" means threats were detected or the THREAT_DETECTION_RESULT line was missing.
+    const detectionConclusion = process.env.GH_AW_DETECTION_CONCLUSION || "";
+    const hasDetectionFailure = detectionConclusion === "failure";
 
     // Collect repo-memory validation errors from all memory configurations
     const repoMemoryValidationErrors = [];
@@ -854,6 +872,7 @@ async function main() {
     core.info(`Push repo-memory result: ${pushRepoMemoryResult}`);
     core.info(`App token minting failed (safe_outputs/conclusion/activation): ${safeOutputsAppTokenMintingFailed}/${conclusionAppTokenMintingFailed}/${activationAppTokenMintingFailed}`);
     core.info(`Lockdown check failed: ${hasLockdownCheckFailed}`);
+    core.info(`Detection conclusion: ${detectionConclusion}`);
 
     // Check if the agent timed out
     const isTimedOut = agentConclusion === "timed_out";
@@ -895,7 +914,8 @@ async function main() {
 
     // Only proceed if the agent job actually failed OR timed out OR there are assignment errors OR
     // create_discussion errors OR code-push failures OR push_repo_memory failed OR missing safe outputs
-    // OR a GitHub App token minting step failed OR the lockdown check failed OR copilot assignment failed.
+    // OR a GitHub App token minting step failed OR the lockdown check failed OR copilot assignment failed
+    // OR the detection job reported a failure.
     // BUT skip if we only have noop outputs (that's a successful no-action scenario)
     if (
       agentConclusion !== "failure" &&
@@ -907,9 +927,10 @@ async function main() {
       !hasPushRepoMemoryFailure &&
       !hasMissingSafeOutputs &&
       !hasAppTokenMintingFailed &&
-      !hasLockdownCheckFailed
+      !hasLockdownCheckFailed &&
+      !hasDetectionFailure
     ) {
-      core.info(`Agent job did not fail and no assignment/discussion/code-push/push-repo-memory/app-token/lockdown errors and has safe outputs (conclusion: ${agentConclusion}), skipping failure handling`);
+      core.info(`Agent job did not fail and no assignment/discussion/code-push/push-repo-memory/app-token/lockdown/detection errors and has safe outputs (conclusion: ${agentConclusion}), skipping failure handling`);
       return;
     }
 
@@ -1082,6 +1103,9 @@ async function main() {
         // Build lockdown check failure context
         const lockdownCheckFailedContext = buildLockdownCheckFailedContext(hasLockdownCheckFailed);
 
+        // Build detection failure context
+        const detectionFailureContext = buildDetectionFailureContext(hasDetectionFailure, runUrl);
+
         // Build copilot assignment failure context for created issues
         const assignCopilotFailureContext = buildAssignCopilotFailureContext(hasAssignCopilotFailures, assignCopilotErrors);
 
@@ -1097,6 +1121,7 @@ async function main() {
             secretVerificationResult === "failed"
               ? "\n**⚠️ Secret Verification Failed**: The workflow's secret validation step failed. Please check that the required secrets are configured in your repository settings.\n\nFor more information on configuring tokens, see: https://github.github.com/gh-aw/reference/engines/\n"
               : "",
+          detection_failure_context: detectionFailureContext,
           assignment_errors_context: assignmentErrorsContext,
           assign_copilot_failure_context: assignCopilotFailureContext,
           create_discussion_errors_context: createDiscussionErrorsContext,
@@ -1223,6 +1248,9 @@ async function main() {
         // Build lockdown check failure context
         const lockdownCheckFailedContext = buildLockdownCheckFailedContext(hasLockdownCheckFailed);
 
+        // Build detection failure context
+        const detectionFailureContext = buildDetectionFailureContext(hasDetectionFailure, runUrl);
+
         // Build copilot assignment failure context for created issues
         const assignCopilotFailureContext = buildAssignCopilotFailureContext(hasAssignCopilotFailures, assignCopilotErrors);
 
@@ -1239,6 +1267,7 @@ async function main() {
             secretVerificationResult === "failed"
               ? "\n**⚠️ Secret Verification Failed**: The workflow's secret validation step failed. Please check that the required secrets are configured in your repository settings.\n\nFor more information on configuring tokens, see: https://github.github.com/gh-aw/reference/engines/\n"
               : "",
+          detection_failure_context: detectionFailureContext,
           assignment_errors_context: assignmentErrorsContext,
           assign_copilot_failure_context: assignCopilotFailureContext,
           create_discussion_errors_context: createDiscussionErrorsContext,
@@ -1309,4 +1338,14 @@ async function main() {
   }
 }
 
-module.exports = { main, buildCodePushFailureContext, buildPushRepoMemoryFailureContext, buildAppTokenMintingFailedContext, buildLockdownCheckFailedContext, buildTimeoutContext, buildAssignCopilotFailureContext, buildEngineFailureContext };
+module.exports = {
+  main,
+  buildCodePushFailureContext,
+  buildPushRepoMemoryFailureContext,
+  buildAppTokenMintingFailedContext,
+  buildLockdownCheckFailedContext,
+  buildDetectionFailureContext,
+  buildTimeoutContext,
+  buildAssignCopilotFailureContext,
+  buildEngineFailureContext,
+};
