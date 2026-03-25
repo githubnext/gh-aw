@@ -23,16 +23,22 @@ package workflow
 // lock, label removal) are also made via actions/github-script. The proxy is therefore also
 // injected into the activation job when DIFC guards are configured.
 //
+// Note: pre-activation job GitHub API calls (membership checks, skip-if queries, rate limit,
+// and user-defined on.steps / jobs.pre-activation custom steps) are also made via
+// actions/github-script. The proxy is therefore also injected into the pre-activation job
+// when DIFC guards are configured.
+//
 // The proxy uses the same container image as the MCP gateway (gh-aw-mcpg)
 // but runs in "proxy" mode with --guards-mode filter (graceful degradation)
 // and --tls (required by the gh CLI HTTPS-only constraint).
 //
 // Injection conditions:
 //
-//	Main job:       GitHub tool has explicit guard policies (min-integrity set) AND
-//	                custom steps set GH_TOKEN
-//	Activation job: GitHub tool has explicit guard policies (min-integrity set)
-//	Indexing job:   GitHub tool has explicit guard policies (min-integrity set)
+//	Main job:            GitHub tool has explicit guard policies (min-integrity set) AND
+//	                     custom steps set GH_TOKEN
+//	Activation job:      GitHub tool has explicit guard policies (min-integrity set)
+//	Pre-activation job:  GitHub tool has explicit guard policies (min-integrity set)
+//	Indexing job:        GitHub tool has explicit guard policies (min-integrity set)
 //
 // Proxy lifecycle within the main job:
 //  1. Start proxy — after "Configure gh CLI" step, before custom steps
@@ -47,6 +53,14 @@ package workflow
 //     (GITHUB_API_URL, GITHUB_GRAPHQL_URL, NODE_EXTRA_CA_CERTS, GH_HOST);
 //     Octokit calls in actions/github-script are intercepted automatically
 //  3. Stop proxy — before activation artifact upload; always runs
+//     (if: always(), continue-on-error: true)
+//
+// Proxy lifecycle within the pre-activation job:
+//  1. Start proxy — after setup step, before any github-script step (membership checks,
+//     rate limit, skip-if queries, and user-defined on.steps / jobs.pre-activation steps)
+//  2. All pre-activation github-script steps run with all proxy env vars set
+//     (GITHUB_API_URL, GITHUB_GRAPHQL_URL, NODE_EXTRA_CA_CERTS, GH_HOST)
+//  3. Stop proxy — after all user-defined steps (on.steps and custom steps); always runs
 //     (if: always(), continue-on-error: true)
 //
 // Proxy lifecycle within the indexing job:

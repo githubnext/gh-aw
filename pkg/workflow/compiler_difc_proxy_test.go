@@ -781,3 +781,179 @@ Test that DIFC proxy is NOT injected into the activation job when min-integrity 
 			"activation job should NOT include proxy stop step without guard policy")
 	})
 }
+
+// TestDIFCProxyInjectedInPreActivationJob verifies that DIFC proxy steps are injected
+// into the pre-activation job (which contains user-defined on.steps and compiler-added
+// checks) when guard policies are configured.
+func TestDIFCProxyInjectedInPreActivationJob(t *testing.T) {
+	t.Run("proxy injected in pre-activation job when guard policy configured", func(t *testing.T) {
+		// Note: ParseWorkflowString does not run processOnSectionAndFilters so OnSteps is
+		// empty in this path. The pre-activation job is still created because the workflow
+		// uses on.issues (an unsafe event) triggering the membership check.
+		// The proxy injection is gated on hasDIFCGuardsConfigured which only requires
+		// min-integrity to be set in the github tool config.
+		workflow := `---
+on:
+  issues:
+    types: [opened]
+engine: copilot
+tools:
+  github:
+    mode: local
+    toolsets: [default]
+    min-integrity: approved
+permissions:
+  issues: read
+  pull-requests: read
+  contents: read
+---
+
+# Test Workflow
+
+Test that DIFC proxy is injected into the pre-activation job when min-integrity is set.
+`
+		compiler := NewCompiler()
+		data, err := compiler.ParseWorkflowString(workflow, "test-workflow.md")
+		require.NoError(t, err, "parsing should succeed")
+
+		result, err := compiler.CompileToYAML(data, "test-workflow.md")
+		require.NoError(t, err, "compilation should succeed")
+
+		// Extract the pre_activation job section from the full YAML.
+		// Jobs may appear in any order in the map; find "pre_activation:" and take from there.
+		preActivationMarker := "\n  pre_activation:"
+		preActivationIdx := strings.Index(result, preActivationMarker)
+		require.Greater(t, preActivationIdx, -1, "pre_activation job should be present in compiled YAML")
+
+		preActivationSection := result[preActivationIdx:]
+
+		// Proxy start must be present in pre_activation section
+		assert.Contains(t, preActivationSection, "Start DIFC proxy for pre-agent gh calls",
+			"pre-activation job should contain proxy start step when guard policy is configured")
+
+		// Proxy stop must be present in pre_activation section
+		assert.Contains(t, preActivationSection, "Stop DIFC proxy",
+			"pre-activation job should contain proxy stop step when guard policy is configured")
+
+		// Proxy start must come before proxy stop
+		startIdx := strings.Index(preActivationSection, "Start DIFC proxy for pre-agent gh calls")
+		stopIdx := strings.Index(preActivationSection, "Stop DIFC proxy")
+		assert.Less(t, startIdx, stopIdx, "Start proxy must come before Stop proxy in pre-activation job")
+	})
+
+	t.Run("proxy not injected in pre-activation job without guard policy", func(t *testing.T) {
+		workflow := `---
+on:
+  issues:
+    types: [opened]
+engine: copilot
+tools:
+  github:
+    mode: local
+    toolsets: [default]
+permissions:
+  issues: read
+  pull-requests: read
+---
+
+# Test Workflow
+
+Test that DIFC proxy is NOT injected into the pre-activation job when min-integrity is not set.
+`
+		compiler := NewCompiler()
+		data, err := compiler.ParseWorkflowString(workflow, "test-workflow.md")
+		require.NoError(t, err, "parsing should succeed")
+
+		result, err := compiler.CompileToYAML(data, "test-workflow.md")
+		require.NoError(t, err, "compilation should succeed")
+
+		preActivationMarker := "\n  pre_activation:"
+		preActivationIdx := strings.Index(result, preActivationMarker)
+		require.Greater(t, preActivationIdx, -1, "pre_activation job should be present in compiled YAML")
+
+		preActivationSection := result[preActivationIdx:]
+
+		assert.NotContains(t, preActivationSection, "Start DIFC proxy",
+			"pre-activation job should NOT contain proxy start step without guard policy")
+		assert.NotContains(t, preActivationSection, "Stop DIFC proxy",
+			"pre-activation job should NOT contain proxy stop step without guard policy")
+	})
+
+	t.Run("buildPreActivationJob includes proxy steps when guard policy configured with on.steps", func(t *testing.T) {
+		c := NewCompiler()
+		data := &WorkflowData{
+			Name: "test-workflow",
+			Tools: map[string]any{
+				"github": map[string]any{"min-integrity": "approved"},
+			},
+			AI: "copilot",
+			OnSteps: []map[string]any{
+				{
+					"name": "Custom gate check",
+					"id":   "gate",
+					"uses": "actions/github-script@v7",
+					"with": map[string]any{
+						"script": "core.setOutput('approved', 'true')",
+					},
+				},
+			},
+			SandboxConfig: &SandboxConfig{},
+		}
+		ensureDefaultMCPGatewayConfig(data)
+
+		job, err := c.buildPreActivationJob(data, false)
+		require.NoError(t, err, "buildPreActivationJob should succeed")
+		require.NotNil(t, job, "job should not be nil")
+
+		allSteps := strings.Join(job.Steps, "\n")
+		assert.Contains(t, allSteps, "Start DIFC proxy for pre-agent gh calls",
+			"pre-activation job should include proxy start step when guard policy is configured")
+		assert.Contains(t, allSteps, "Stop DIFC proxy",
+			"pre-activation job should include proxy stop step when guard policy is configured")
+
+		startIdx := strings.Index(allSteps, "Start DIFC proxy for pre-agent gh calls")
+		stopIdx := strings.Index(allSteps, "Stop DIFC proxy")
+		assert.Less(t, startIdx, stopIdx, "Start proxy must come before Stop proxy in pre-activation job")
+
+		// User-defined on.step must be between start and stop
+		gateIdx := strings.Index(allSteps, "Custom gate check")
+		require.Greater(t, gateIdx, -1, "on.steps should appear in pre-activation steps")
+		assert.Less(t, startIdx, gateIdx, "Proxy start must come before user-defined on.steps")
+		assert.Less(t, gateIdx, stopIdx, "on.steps must come before proxy stop")
+	})
+
+	t.Run("buildPreActivationJob has no proxy steps without guard policy", func(t *testing.T) {
+		c := NewCompiler()
+		data := &WorkflowData{
+			Name: "test-workflow",
+			Tools: map[string]any{
+				"github": map[string]any{"toolsets": []string{"default"}},
+			},
+			AI: "copilot",
+			// OnSteps is required to create a valid pre-activation job without
+			// permission checks or stop-time.
+			OnSteps: []map[string]any{
+				{
+					"name": "Custom gate check",
+					"id":   "gate",
+					"uses": "actions/github-script@v7",
+					"with": map[string]any{
+						"script": "core.setOutput('approved', 'true')",
+					},
+				},
+			},
+			SandboxConfig: &SandboxConfig{},
+		}
+		ensureDefaultMCPGatewayConfig(data)
+
+		job, err := c.buildPreActivationJob(data, false)
+		require.NoError(t, err, "buildPreActivationJob should succeed")
+		require.NotNil(t, job, "job should not be nil")
+
+		allSteps := strings.Join(job.Steps, "\n")
+		assert.NotContains(t, allSteps, "Start DIFC proxy",
+			"pre-activation job should NOT include proxy start step without guard policy")
+		assert.NotContains(t, allSteps, "Stop DIFC proxy",
+			"pre-activation job should NOT include proxy stop step without guard policy")
+	})
+}
