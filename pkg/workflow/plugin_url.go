@@ -15,13 +15,17 @@ import (
 //
 // Expected URL shape:
 //
-//	https://github.com/{owner}/{repo}/tree/{branch}/{pluginPath...}
+//	https://github.com/{owner}/{repo}/tree/{branch}/plugins/{pluginPath...}
 //
 // Example:
 //
 //	https://github.com/github/copilot-plugins/tree/main/plugins/advanced-security/skills/secret-scanning
 //	→ marketplace: https://github.com/github/copilot-plugins
-//	→ pluginID:    plugins/advanced-security/skills/secret-scanning
+//	→ pluginID:    advanced-security/skills/secret-scanning
+//
+// The "plugins/" path prefix is stripped from the plugin ID because engine CLIs
+// expect the ID relative to the marketplace's plugins directory, not the full
+// path from the repo root.
 //
 // Returns ("", "", false) when the input is not a recognisable GitHub tree URL,
 // so the caller can treat the value as a plain plugin name instead.
@@ -50,6 +54,10 @@ func parseGitHubPluginURL(raw string) (marketplaceURL string, pluginID string, o
 	repo := parts[1]
 	// parts[3] is the branch name; everything after is the plugin path
 	pluginPath := strings.Join(parts[4:], "/")
+
+	// Strip a leading "plugins/" prefix so that the plugin ID is relative to
+	// the marketplace's plugins directory (as expected by engine CLIs).
+	pluginPath = strings.TrimPrefix(pluginPath, "plugins/")
 
 	marketplace := u.Scheme + "://" + u.Host + "/" + owner + "/" + repo
 	return marketplace, pluginPath, true

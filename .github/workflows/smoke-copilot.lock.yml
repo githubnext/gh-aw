@@ -1517,10 +1517,10 @@ jobs:
       - name: Clean git credentials
         continue-on-error: true
         run: bash ${RUNNER_TEMP}/gh-aw/actions/clean_git_credentials.sh
-      - name: "Install Copilot plugin: plugins/advanced-security/skills/secret-scanning"
+      - name: "Install Copilot plugin: advanced-security/skills/secret-scanning"
         env:
           GITHUB_TOKEN: ${{ github.token }}
-        run: copilot plugin install plugins/advanced-security/skills/secret-scanning
+        run: copilot plugin install advanced-security/skills/secret-scanning
       - name: Execute GitHub Copilot CLI
         id: agentic_execution
         # Copilot CLI tool arguments (sorted):

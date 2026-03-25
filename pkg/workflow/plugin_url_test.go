@@ -23,7 +23,7 @@ func TestParseGitHubPluginURL(t *testing.T) {
 			name:            "full GitHub tree URL",
 			input:           "https://github.com/github/copilot-plugins/tree/main/plugins/advanced-security/skills/secret-scanning",
 			wantMarketplace: "https://github.com/github/copilot-plugins",
-			wantPluginID:    "plugins/advanced-security/skills/secret-scanning",
+			wantPluginID:    "advanced-security/skills/secret-scanning",
 			wantOK:          true,
 		},
 		{
@@ -62,7 +62,7 @@ func TestParseGitHubPluginURL(t *testing.T) {
 			name:            "http scheme",
 			input:           "http://github.com/org/repo/tree/main/plugins/foo",
 			wantMarketplace: "http://github.com/org/repo",
-			wantPluginID:    "plugins/foo",
+			wantPluginID:    "foo",
 			wantOK:          true,
 		},
 	}
@@ -97,7 +97,7 @@ func TestNormalizePlugins(t *testing.T) {
 			input: []string{
 				"https://github.com/github/copilot-plugins/tree/main/plugins/advanced-security/skills/secret-scanning",
 			},
-			wantNormalized:           []string{"plugins/advanced-security/skills/secret-scanning"},
+			wantNormalized:           []string{"advanced-security/skills/secret-scanning"},
 			wantInferredMarketplaces: []string{"https://github.com/github/copilot-plugins"},
 		},
 		{
@@ -109,7 +109,7 @@ func TestNormalizePlugins(t *testing.T) {
 			},
 			wantNormalized: []string{
 				"my-extension",
-				"plugins/advanced-security/skills/secret-scanning",
+				"advanced-security/skills/secret-scanning",
 				"another-plugin",
 			},
 			wantInferredMarketplaces: []string{"https://github.com/github/copilot-plugins"},
@@ -127,8 +127,8 @@ func TestNormalizePlugins(t *testing.T) {
 				"https://github.com/github/copilot-plugins/tree/main/plugins/code-review/skills/review",
 			},
 			wantNormalized: []string{
-				"plugins/advanced-security/skills/secret-scanning",
-				"plugins/code-review/skills/review",
+				"advanced-security/skills/secret-scanning",
+				"code-review/skills/review",
 			},
 			wantInferredMarketplaces: []string{
 				"https://github.com/github/copilot-plugins",
@@ -207,6 +207,6 @@ Test builtin marketplace filtering.
 		"copilot plugin marketplace add https://github.com/github/copilot-plugins",
 		"built-in marketplace must not be re-registered")
 	assert.Contains(t, yamlStr,
-		"copilot plugin install plugins/advanced-security/skills/secret-scanning",
+		"copilot plugin install advanced-security/skills/secret-scanning",
 		"plugin install step must still be emitted")
 }
