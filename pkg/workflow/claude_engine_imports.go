@@ -6,7 +6,7 @@
 // registries.
 //
 // CLI commands emitted:
-//   - Marketplace: claude marketplace add <url>
+//   - Marketplace: claude plugin marketplace add <url>
 //   - Plugin:      claude plugin install <name>
 
 package workflow
@@ -24,7 +24,7 @@ func (e *ClaudeEngine) GetMarketplaceSetupSteps(marketplaces []string, workflowD
 			"      - name: Register Claude marketplace: " + url,
 			"        env:",
 			"          GITHUB_TOKEN: ${{ github.token }}",
-			"        run: claude marketplace add " + url,
+			"        run: claude plugin marketplace add " + url,
 		}
 		steps = append(steps, step)
 	}

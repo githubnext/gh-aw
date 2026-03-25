@@ -190,11 +190,11 @@ func TestCopilotEngineGetMarketplaceSetupSteps(t *testing.T) {
 		step := steps[0]
 		found := false
 		for _, line := range step {
-			if line == "        run: copilot marketplace add https://market.example.com" {
+			if line == "        run: copilot plugin marketplace add https://market.example.com" {
 				found = true
 			}
 		}
-		assert.True(t, found, "Step should contain copilot marketplace add command")
+		assert.True(t, found, "Step should contain copilot plugin marketplace add command")
 		// Verify GITHUB_TOKEN is set
 		hasToken := false
 		for _, line := range step {
@@ -226,11 +226,11 @@ func TestCopilotEngineGetPluginInstallSteps(t *testing.T) {
 		step := steps[0]
 		found := false
 		for _, line := range step {
-			if line == "        run: copilot extension install my-extension" {
+			if line == "        run: copilot plugin install my-extension" {
 				found = true
 			}
 		}
-		assert.True(t, found, "Step should contain copilot extension install command")
+		assert.True(t, found, "Step should contain copilot plugin install command")
 		// Verify GITHUB_TOKEN is set
 		hasToken := false
 		for _, line := range step {
@@ -262,11 +262,11 @@ func TestClaudeEngineGetMarketplaceSetupSteps(t *testing.T) {
 		step := steps[0]
 		found := false
 		for _, line := range step {
-			if line == "        run: claude marketplace add https://market.example.com" {
+			if line == "        run: claude plugin marketplace add https://market.example.com" {
 				found = true
 			}
 		}
-		assert.True(t, found, "Step should contain claude marketplace add command")
+		assert.True(t, found, "Step should contain claude plugin marketplace add command")
 		// Verify GITHUB_TOKEN is set
 		hasToken := false
 		for _, line := range step {
@@ -313,6 +313,20 @@ func TestImportsProviderInterface(t *testing.T) {
 		engine := NewClaudeEngine()
 		_, ok := any(engine).(ImportsProvider)
 		assert.True(t, ok, "ClaudeEngine should implement ImportsProvider")
+	})
+
+	// Codex and Gemini CLIs do not have native marketplace/plugin CLI commands,
+	// so they intentionally do not implement ImportsProvider.
+	t.Run("CodexEngine does not implement ImportsProvider", func(t *testing.T) {
+		engine := NewCodexEngine()
+		_, ok := any(engine).(ImportsProvider)
+		assert.False(t, ok, "CodexEngine should not implement ImportsProvider (no native plugin CLI support)")
+	})
+
+	t.Run("GeminiEngine does not implement ImportsProvider", func(t *testing.T) {
+		engine := NewGeminiEngine()
+		_, ok := any(engine).(ImportsProvider)
+		assert.False(t, ok, "GeminiEngine should not implement ImportsProvider (no native plugin CLI support)")
 	})
 }
 
@@ -366,16 +380,16 @@ Register a marketplace and install a plugin before the agent runs.
 	yamlStr := string(yamlOutput)
 
 	// Marketplace and plugin steps should appear before agent execution
-	assert.Contains(t, yamlStr, "copilot marketplace add https://marketplace.example.com",
+	assert.Contains(t, yamlStr, "copilot plugin marketplace add https://marketplace.example.com",
 		"Should contain marketplace registration step")
-	assert.Contains(t, yamlStr, "copilot extension install my-extension",
+	assert.Contains(t, yamlStr, "copilot plugin install my-extension",
 		"Should contain plugin installation step")
 	assert.Contains(t, yamlStr, "GITHUB_TOKEN: ${{ github.token }}",
 		"Marketplace/plugin steps should include GITHUB_TOKEN from github.token")
 
 	// Steps should appear before the agent execution step
-	marketplaceIdx := strings.Index(yamlStr, "copilot marketplace add")
-	pluginIdx := strings.Index(yamlStr, "copilot extension install")
+	marketplaceIdx := strings.Index(yamlStr, "copilot plugin marketplace add")
+	pluginIdx := strings.Index(yamlStr, "copilot plugin install")
 	agentIdx := strings.Index(yamlStr, "copilot --add-dir")
 	if agentIdx == -1 {
 		agentIdx = strings.Index(yamlStr, "copilot --")
@@ -453,13 +467,13 @@ Verify that marketplaces and plugins from imported workflows are merged.
 	yamlStr := string(yamlOutput)
 
 	// Both the main workflow's and the shared workflow's marketplaces and plugins should appear
-	assert.Contains(t, yamlStr, "copilot marketplace add https://main-marketplace.example.com",
+	assert.Contains(t, yamlStr, "copilot plugin marketplace add https://main-marketplace.example.com",
 		"Main workflow marketplace should be present")
-	assert.Contains(t, yamlStr, "copilot marketplace add https://shared-marketplace.example.com",
+	assert.Contains(t, yamlStr, "copilot plugin marketplace add https://shared-marketplace.example.com",
 		"Shared workflow marketplace should be merged in")
-	assert.Contains(t, yamlStr, "copilot extension install main-plugin",
+	assert.Contains(t, yamlStr, "copilot plugin install main-plugin",
 		"Main workflow plugin should be present")
-	assert.Contains(t, yamlStr, "copilot extension install shared-plugin",
+	assert.Contains(t, yamlStr, "copilot plugin install shared-plugin",
 		"Shared workflow plugin should be merged in")
 }
 
@@ -516,8 +530,8 @@ imports:
 	yamlStr := string(yamlOutput)
 
 	// Should appear exactly once despite being defined in two shared imports
-	count := strings.Count(yamlStr, "copilot marketplace add https://common-marketplace.example.com")
+	count := strings.Count(yamlStr, "copilot plugin marketplace add https://common-marketplace.example.com")
 	assert.Equal(t, 1, count, "Duplicate marketplace URL should appear only once")
-	count = strings.Count(yamlStr, "copilot extension install common-plugin")
+	count = strings.Count(yamlStr, "copilot plugin install common-plugin")
 	assert.Equal(t, 1, count, "Duplicate plugin name should appear only once")
 }

@@ -6,8 +6,8 @@
 // registries.
 //
 // CLI commands emitted:
-//   - Marketplace: copilot marketplace add <url>
-//   - Plugin:      copilot extension install <name>
+//   - Marketplace: copilot plugin marketplace add <url>
+//   - Plugin:      copilot plugin install <name>
 
 package workflow
 
@@ -24,15 +24,15 @@ func (e *CopilotEngine) GetMarketplaceSetupSteps(marketplaces []string, workflow
 			"      - name: Register Copilot marketplace: " + url,
 			"        env:",
 			"          GITHUB_TOKEN: ${{ github.token }}",
-			"        run: copilot marketplace add " + url,
+			"        run: copilot plugin marketplace add " + url,
 		}
 		steps = append(steps, step)
 	}
 	return steps
 }
 
-// GetPluginInstallSteps returns GitHub Actions steps that install Copilot extensions
-// via the `copilot extension install` command before agent execution.
+// GetPluginInstallSteps returns GitHub Actions steps that install Copilot plugins
+// via the `copilot plugin install` command before agent execution.
 func (e *CopilotEngine) GetPluginInstallSteps(plugins []string, workflowData *WorkflowData) []GitHubActionStep {
 	if len(plugins) == 0 {
 		return nil
@@ -41,10 +41,10 @@ func (e *CopilotEngine) GetPluginInstallSteps(plugins []string, workflowData *Wo
 	var steps []GitHubActionStep
 	for _, name := range plugins {
 		step := GitHubActionStep{
-			"      - name: Install Copilot extension: " + name,
+			"      - name: Install Copilot plugin: " + name,
 			"        env:",
 			"          GITHUB_TOKEN: ${{ github.token }}",
-			"        run: copilot extension install " + name,
+			"        run: copilot plugin install " + name,
 		}
 		steps = append(steps, step)
 	}
