@@ -127,10 +127,8 @@ func loadAuditComparisonSnapshotFromArtifacts(run WorkflowRun, logsPath string, 
 }
 
 func buildAuditComparisonCandidateFromSummary(summary *RunSummary, logsPath string) auditComparisonCandidate {
-	posture := "read_only"
-	if summary.Run.SafeItemsCount > 0 || len(extractCreatedItemsFromManifest(logsPath)) > 0 {
-		posture = "write_capable"
-	}
+	createdItems := extractCreatedItemsFromManifest(logsPath)
+	posture := deriveAuditPosture(createdItems)
 
 	blockedRequests := 0
 	if summary.FirewallAnalysis != nil {

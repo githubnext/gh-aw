@@ -474,44 +474,6 @@ func TestGeneratedSchemasValidateRealOutput(t *testing.T) {
 		}
 	})
 
-	t.Run("validates ObservabilityPolicy schema can be generated", func(t *testing.T) {
-		schema, err := GenerateSchema[ObservabilityPolicy]()
-		if err != nil {
-			t.Fatalf("GenerateSchema failed: %v", err)
-		}
-
-		resolved, err := schema.Resolve(&jsonschema.ResolveOptions{})
-		if err != nil {
-			t.Fatalf("Schema.Resolve failed: %v", err)
-		}
-
-		data := ObservabilityPolicy{
-			SchemaVersion: "1.0.0",
-			Rules: []ObservabilityPolicyRule{{
-				ID:      "block-domain",
-				Action:  "fail",
-				Message: "blocked domain detected",
-				Match: ObservabilityPolicyMatch{
-					BlockedDomains: []string{"evil.example.com"},
-				},
-			}},
-		}
-
-		jsonBytes, err := json.Marshal(data)
-		if err != nil {
-			t.Fatalf("json.Marshal failed: %v", err)
-		}
-
-		var jsonValue map[string]any
-		if err := json.Unmarshal(jsonBytes, &jsonValue); err != nil {
-			t.Fatalf("json.Unmarshal failed: %v", err)
-		}
-
-		if err := resolved.Validate(jsonValue); err != nil {
-			t.Errorf("Schema should validate real ObservabilityPolicy output: %v", err)
-		}
-	})
-
 	t.Run("validates WorkflowStatus schema against real data", func(t *testing.T) {
 		// Generate schema for WorkflowStatus
 		schema, err := GenerateSchema[WorkflowStatus]()

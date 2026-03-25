@@ -1,0 +1,1 @@
+Key commands: `make fmt`, `make lint`, `make test-unit`, `make recompile`, `make build`, `make agent-finish`. Prefer selective tests like `go test -v -run "TestName" ./pkg/cli/`. Run CLI locally with `./gh-aw --help`, `./gh-aw compile`, `./gh-aw audit <run-id>`, `./gh-aw logs`. Standard macOS utilities available: git, ls, cd, grep/rg, find, sed, awk.
