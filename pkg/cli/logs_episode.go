@@ -354,52 +354,43 @@ func classifyWorkflowCallEpisode(run RunData) (string, string, string, []string,
 		return "", "", "", nil, false
 	}
 	reasons := []string{"event=workflow_call"}
+	if run.Repository == "" || run.Ref == "" || run.SHA == "" || run.RunAttempt == "" || run.Actor == "" {
+		return fmt.Sprintf("workflow_call:%d", run.DatabaseID), "workflow_call", "low", append(reasons, "insufficient_aw_info_metadata"), true
+	}
 	parts := make([]string, 0, 6)
-	if run.Repository != "" {
-		parts = append(parts, run.Repository)
-		reasons = append(reasons, "repository")
-	}
-	if run.Ref != "" {
-		parts = append(parts, run.Ref)
-		reasons = append(reasons, "ref")
-	}
-	if run.SHA != "" {
-		parts = append(parts, run.SHA)
-		reasons = append(reasons, "sha")
-	}
-	if run.RunAttempt != "" {
-		parts = append(parts, run.RunAttempt)
-		reasons = append(reasons, "run_attempt")
-	}
-	if run.Actor != "" {
-		parts = append(parts, run.Actor)
-		reasons = append(reasons, "actor")
-	}
+	parts = append(parts, run.Repository)
+	reasons = append(reasons, "repository")
+	parts = append(parts, run.Ref)
+	reasons = append(reasons, "ref")
+	parts = append(parts, run.SHA)
+	reasons = append(reasons, "sha")
+	parts = append(parts, run.RunAttempt)
+	reasons = append(reasons, "run_attempt")
+	parts = append(parts, run.Actor)
+	reasons = append(reasons, "actor")
 	if run.TargetRepo != "" {
 		parts = append(parts, "target="+run.TargetRepo)
 		reasons = append(reasons, "target_repo")
 	}
-	if run.SHA != "" && run.RunAttempt != "" && run.Actor != "" {
-		confidence := "medium"
-		if run.TargetRepo != "" {
-			confidence = "high"
-		}
-		return "workflow_call:" + strings.Join(parts, ":"), "workflow_call", confidence, reasons, true
+	confidence := "medium"
+	if run.TargetRepo != "" {
+		confidence = "high"
 	}
-	return fmt.Sprintf("workflow_call:%d", run.DatabaseID), "workflow_call", "low", append(reasons, "insufficient_aw_info_metadata"), true
+	return "workflow_call:" + strings.Join(parts, ":"), "workflow_call", confidence, reasons, true
 }
 
 func buildWorkflowCallEpisodeEdge(run RunData, runs []RunData) (EpisodeEdge, bool) {
-	if run.Event != "workflow_call" || run.SHA == "" || run.Ref == "" || run.Actor == "" || run.RunAttempt == "" {
+	if run.Event != "workflow_call" || run.Repository == "" || run.SHA == "" || run.Ref == "" || run.Actor == "" || run.RunAttempt == "" {
 		return EpisodeEdge{}, false
 	}
 	candidates := filterLineageCandidates(runs, run, func(candidate RunData) bool {
-		return candidate.SHA == run.SHA &&
+		return candidate.Repository == run.Repository &&
+			candidate.SHA == run.SHA &&
 			candidate.Ref == run.Ref &&
 			candidate.Actor == run.Actor &&
 			candidate.RunAttempt == run.RunAttempt
 	})
-	if edge, ok := buildUniqueCandidateEdge(run, candidates, "workflow_call", "medium", []string{"event=workflow_call", "sha_match", "ref_match", "actor_match", "run_attempt_match", "unique_upstream_candidate"}); ok {
+	if edge, ok := buildUniqueCandidateEdge(run, candidates, "workflow_call", "medium", []string{"event=workflow_call", "repository_match", "sha_match", "ref_match", "actor_match", "run_attempt_match", "unique_upstream_candidate"}); ok {
 		if run.TargetRepo != "" {
 			edge.Confidence = "high"
 			edge.Reasons = append(edge.Reasons, "target_repo")

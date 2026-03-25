@@ -478,6 +478,52 @@ func TestBuildLogsDataJoinsWorkflowCallEpisode(t *testing.T) {
 	}
 }
 
+func TestBuildLogsDataDoesNotCoalesceWorkflowCallEpisodesWithoutRepositoryAndRef(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "test-workflow-call-low-info-*")
+	firstDir := filepath.Join(tmpDir, "run-5001")
+	secondDir := filepath.Join(tmpDir, "run-5002")
+
+	writeTestAwInfo(t, firstDir, map[string]any{
+		"engine_id":   "copilot",
+		"sha":         "abc123",
+		"actor":       "monalisa",
+		"run_attempt": "1",
+		"event_name":  "workflow_call",
+	})
+	writeTestAwInfo(t, secondDir, map[string]any{
+		"engine_id":   "copilot",
+		"sha":         "abc123",
+		"actor":       "monalisa",
+		"run_attempt": "1",
+		"event_name":  "workflow_call",
+	})
+
+	processedRuns := []ProcessedRun{
+		{Run: WorkflowRun{DatabaseID: 5001, WorkflowName: "worker-a", WorkflowPath: ".github/workflows/worker-a.yml", Status: "completed", Conclusion: "success", Event: "workflow_call", HeadBranch: "main", HeadSha: "abc123", CreatedAt: time.Date(2024, 2, 4, 10, 0, 0, 0, time.UTC), StartedAt: time.Date(2024, 2, 4, 10, 0, 0, 0, time.UTC), UpdatedAt: time.Date(2024, 2, 4, 10, 2, 0, 0, time.UTC), LogsPath: firstDir}},
+		{Run: WorkflowRun{DatabaseID: 5002, WorkflowName: "worker-b", WorkflowPath: ".github/workflows/worker-b.yml", Status: "completed", Conclusion: "success", Event: "workflow_call", HeadBranch: "main", HeadSha: "abc123", CreatedAt: time.Date(2024, 2, 4, 10, 3, 0, 0, time.UTC), StartedAt: time.Date(2024, 2, 4, 10, 3, 0, 0, time.UTC), UpdatedAt: time.Date(2024, 2, 4, 10, 5, 0, 0, time.UTC), LogsPath: secondDir}},
+	}
+
+	logsData := buildLogsData(processedRuns, tmpDir, nil)
+
+	if logsData.Summary.TotalEpisodes != 2 {
+		t.Fatalf("Expected 2 separate workflow_call episodes, got %d", logsData.Summary.TotalEpisodes)
+	}
+	if len(logsData.Edges) != 0 {
+		t.Fatalf("Expected no workflow_call edges for low-information runs, got %d", len(logsData.Edges))
+	}
+	for _, episode := range logsData.Episodes {
+		if episode.Kind != "workflow_call" {
+			t.Fatalf("Expected workflow_call episode kind, got %s", episode.Kind)
+		}
+		if episode.Confidence != "low" {
+			t.Fatalf("Expected low-confidence workflow_call episode, got %s", episode.Confidence)
+		}
+		if episode.TotalRuns != 1 {
+			t.Fatalf("Expected isolated workflow_call episode, got %d runs", episode.TotalRuns)
+		}
+	}
+}
+
 func TestBuildLogsDataAttachesWorkflowRunEpisode(t *testing.T) {
 	tmpDir := testutil.TempDir(t, "test-workflow-run-*")
 	parentDir := filepath.Join(tmpDir, "run-4001")
