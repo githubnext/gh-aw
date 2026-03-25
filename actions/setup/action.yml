@@ -12,7 +12,7 @@ inputs:
     default: 'false'
 
 outputs:
-  files-copied:
+  files_copied:
     description: 'Number of files copied'
 
 runs:
