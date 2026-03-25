@@ -85,15 +85,25 @@ The logs JSON already contains the main agentic signals. Prefer these fields ove
 - `episodes[].root_run_id`
 - `episodes[].run_ids[]`
 - `episodes[].workflow_names[]`
+- `episodes[].primary_workflow`
 - `episodes[].total_runs`
 - `episodes[].total_tokens`
 - `episodes[].total_estimated_cost`
 - `episodes[].total_duration`
 - `episodes[].risky_node_count`
+- `episodes[].changed_node_count`
 - `episodes[].write_capable_node_count`
 - `episodes[].mcp_failure_count`
 - `episodes[].blocked_request_count`
+- `episodes[].latest_success_fallback_count`
+- `episodes[].new_mcp_failure_run_count`
+- `episodes[].blocked_request_increase_run_count`
+- `episodes[].resource_heavy_node_count`
+- `episodes[].poor_control_node_count`
 - `episodes[].risk_distribution`
+- `episodes[].escalation_eligible`
+- `episodes[].escalation_reason`
+- `episodes[].suggested_route`
 - `edges[].edge_type`
 - `edges[].confidence`
 - `edges[].reasons[]`
@@ -125,6 +135,7 @@ Treat these values as the canonical signals for reporting.
 - If an episode has low confidence, say so explicitly and avoid overconfident causal claims.
 - If delegated workers look risky in isolation but the enclosing episode looks intentional and well-controlled, say that.
 - If the deterministic episode model appears incomplete or missing expected lineage, report that as an observability finding.
+- Prefer `episodes[].escalation_eligible`, `episodes[].escalation_reason`, and `episodes[].suggested_route` when deciding what should be escalated and who should look first.
 
 ## Reporting Model
 
@@ -137,7 +148,8 @@ Keep these sections visible:
 1. `### Executive Summary`
 2. `### Key Metrics`
 3. `### Highest Risk Episodes`
-4. `### Recommended Actions`
+4. `### Episode Regressions`
+5. `### Recommended Actions`
 
 Include small numeric summaries such as:
 
@@ -169,7 +181,14 @@ For each highlighted episode or workflow, explain:
 
 ## Escalation Thresholds
 
-Use the discussion as the complete source of truth for all qualifying workflows and episodes. Only create an escalation issue when one or more episodes or workflows cross these thresholds in the last 14 days:
+Use the discussion as the complete source of truth for all qualifying workflows and episodes. Prefer episode-level escalation when `episodes[].escalation_eligible == true`. Only fall back to workflow-level counting when episode data is missing or clearly incomplete.
+
+An episode is escalation-worthy when the deterministic data shows repeated regression, especially when one of these is true:
+
+1. `episodes[].escalation_eligible == true`
+2. `episodes[].escalation_reason` indicates repeated risky runs, repeated new MCP failures, repeated blocked-request increases, repeated resource-heavy behavior, or repeated poor control
+
+If you need to fall back to workflow-level counting, use these thresholds over the last 14 days:
 
 1. Two or more runs for the same workflow have `comparison.classification.label == "risky"`.
 2. Two or more runs for the same workflow contain `new_mcp_failure` or `blocked_requests_increase` in `comparison.classification.reason_codes`.
@@ -183,6 +202,8 @@ If no workflow crosses these thresholds, do not create an escalation issue.
 If one or more workflows do cross these thresholds, create a single escalation issue that groups the highest-value follow-up work for repository owners. The escalation issue should summarize the workflows that need attention now, why they crossed the thresholds, and what change is recommended first.
 
 Prefer escalating at the episode level when multiple risky runs are part of one coherent DAG. Only fall back to workflow-level escalation when no broader episode can be established with acceptable confidence.
+
+When you escalate an episode, include its `suggested_route` and use that as the first routing hint. If the route is weak or ambiguous, say that explicitly and fall back to repository owners.
 
 ## Optimization Candidates
 
@@ -228,6 +249,7 @@ Only create an escalation issue when at least one workflow crossed the escalatio
 - create one issue for the whole run, not one issue per workflow
 - use a concrete title that signals repository-level owner attention is needed
 - group the escalated workflows in priority order
+- group escalated episodes or workflows by `suggested_route` when that improves triage
 - explain the evidence with run counts and the specific assessment or comparison reason codes
 - include the most relevant recommendation for each escalated workflow
 - link up to 3 representative runs across the highest-priority workflows

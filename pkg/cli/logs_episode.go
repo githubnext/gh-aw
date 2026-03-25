@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"slices"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/github/gh-aw/pkg/timeutil"
@@ -25,23 +26,33 @@ type EpisodeEdge struct {
 
 // EpisodeData represents a deterministic episode rollup derived from workflow runs.
 type EpisodeData struct {
-	EpisodeID             string   `json:"episode_id"`
-	Kind                  string   `json:"kind"`
-	Confidence            string   `json:"confidence"`
-	Reasons               []string `json:"reasons,omitempty"`
-	RootRunID             int64    `json:"root_run_id,omitempty"`
-	RunIDs                []int64  `json:"run_ids"`
-	WorkflowNames         []string `json:"workflow_names"`
-	TotalRuns             int      `json:"total_runs"`
-	TotalTokens           int      `json:"total_tokens"`
-	TotalEstimatedCost    float64  `json:"total_estimated_cost"`
-	TotalDuration         string   `json:"total_duration"`
-	RiskyNodeCount        int      `json:"risky_node_count"`
-	WriteCapableNodeCount int      `json:"write_capable_node_count"`
-	MissingToolCount      int      `json:"missing_tool_count"`
-	MCPFailureCount       int      `json:"mcp_failure_count"`
-	BlockedRequestCount   int      `json:"blocked_request_count"`
-	RiskDistribution      string   `json:"risk_distribution"`
+	EpisodeID                      string   `json:"episode_id"`
+	Kind                           string   `json:"kind"`
+	Confidence                     string   `json:"confidence"`
+	Reasons                        []string `json:"reasons,omitempty"`
+	RootRunID                      int64    `json:"root_run_id,omitempty"`
+	RunIDs                         []int64  `json:"run_ids"`
+	WorkflowNames                  []string `json:"workflow_names"`
+	PrimaryWorkflow                string   `json:"primary_workflow,omitempty"`
+	TotalRuns                      int      `json:"total_runs"`
+	TotalTokens                    int      `json:"total_tokens"`
+	TotalEstimatedCost             float64  `json:"total_estimated_cost"`
+	TotalDuration                  string   `json:"total_duration"`
+	RiskyNodeCount                 int      `json:"risky_node_count"`
+	ChangedNodeCount               int      `json:"changed_node_count"`
+	WriteCapableNodeCount          int      `json:"write_capable_node_count"`
+	MissingToolCount               int      `json:"missing_tool_count"`
+	MCPFailureCount                int      `json:"mcp_failure_count"`
+	BlockedRequestCount            int      `json:"blocked_request_count"`
+	LatestSuccessFallbackCount     int      `json:"latest_success_fallback_count"`
+	NewMCPFailureRunCount          int      `json:"new_mcp_failure_run_count"`
+	BlockedRequestIncreaseRunCount int      `json:"blocked_request_increase_run_count"`
+	ResourceHeavyNodeCount         int      `json:"resource_heavy_node_count"`
+	PoorControlNodeCount           int      `json:"poor_control_node_count"`
+	RiskDistribution               string   `json:"risk_distribution"`
+	EscalationEligible             bool     `json:"escalation_eligible"`
+	EscalationReason               string   `json:"escalation_reason,omitempty"`
+	SuggestedRoute                 string   `json:"suggested_route,omitempty"`
 }
 
 type episodeAccumulator struct {
@@ -76,7 +87,7 @@ func buildEpisodeData(runs []RunData, processedRuns []ProcessedRun) ([]EpisodeDa
 
 	edges := make([]EpisodeEdge, 0)
 	for _, run := range runs {
-		if edge, ok := buildEpisodeEdge(run, seedsByRunID[run.DatabaseID].EpisodeID, runsByID); ok {
+		if edge, ok := buildEpisodeEdge(run, runs, runsByID); ok {
 			edges = append(edges, edge)
 			unionEpisodes(parents, edge.SourceRunID, edge.TargetRunID)
 		}
@@ -131,8 +142,26 @@ func buildEpisodeData(runs []RunData, processedRuns []ProcessedRun) ([]EpisodeDa
 		if run.Comparison != nil && run.Comparison.Classification != nil && run.Comparison.Classification.Label == "risky" {
 			acc.metadata.RiskyNodeCount++
 		}
+		if run.Comparison != nil && run.Comparison.Classification != nil && run.Comparison.Classification.Label == "changed" {
+			acc.metadata.ChangedNodeCount++
+		}
 		if run.BehaviorFingerprint != nil && run.BehaviorFingerprint.ActuationStyle != "read_only" {
 			acc.metadata.WriteCapableNodeCount++
+		}
+		if run.Comparison != nil && run.Comparison.Baseline != nil && run.Comparison.Baseline.Selection == "latest_success" {
+			acc.metadata.LatestSuccessFallbackCount++
+		}
+		if hasComparisonReasonCode(run.Comparison, "new_mcp_failure") {
+			acc.metadata.NewMCPFailureRunCount++
+		}
+		if hasComparisonReasonCode(run.Comparison, "blocked_requests_increase") {
+			acc.metadata.BlockedRequestIncreaseRunCount++
+		}
+		if hasAssessmentKindAtLeast(run.AgenticAssessments, "resource_heavy_for_domain", "medium") {
+			acc.metadata.ResourceHeavyNodeCount++
+		}
+		if hasAssessmentKindAtLeast(run.AgenticAssessments, "poor_agentic_control", "medium") {
+			acc.metadata.PoorControlNodeCount++
 		}
 		acc.metadata.MissingToolCount += run.MissingToolCount
 		if pr, ok := processedByID[run.DatabaseID]; ok {
@@ -144,6 +173,10 @@ func buildEpisodeData(runs []RunData, processedRuns []ProcessedRun) ([]EpisodeDa
 		if !run.CreatedAt.IsZero() && (acc.metadata.RootRunID == 0 || run.CreatedAt.Before(acc.rootTime)) {
 			acc.rootTime = run.CreatedAt
 			acc.metadata.RootRunID = run.DatabaseID
+			acc.metadata.PrimaryWorkflow = run.WorkflowName
+		}
+		if acc.metadata.PrimaryWorkflow == "" && run.WorkflowName != "" {
+			acc.metadata.PrimaryWorkflow = run.WorkflowName
 		}
 		if run.StartedAt.IsZero() && run.UpdatedAt.IsZero() {
 			acc.duration += run.CreatedAt.Sub(run.CreatedAt)
@@ -168,6 +201,9 @@ func buildEpisodeData(runs []RunData, processedRuns []ProcessedRun) ([]EpisodeDa
 		if acc.duration > 0 {
 			acc.metadata.TotalDuration = timeutil.FormatDuration(acc.duration)
 		}
+		if acc.metadata.PrimaryWorkflow == "" && len(acc.metadata.WorkflowNames) > 0 {
+			acc.metadata.PrimaryWorkflow = acc.metadata.WorkflowNames[0]
+		}
 		switch acc.metadata.RiskyNodeCount {
 		case 0:
 			acc.metadata.RiskDistribution = "none"
@@ -176,6 +212,8 @@ func buildEpisodeData(runs []RunData, processedRuns []ProcessedRun) ([]EpisodeDa
 		default:
 			acc.metadata.RiskDistribution = "distributed"
 		}
+		acc.metadata.EscalationEligible, acc.metadata.EscalationReason = classifyEpisodeEscalation(acc.metadata)
+		acc.metadata.SuggestedRoute = buildSuggestedRoute(acc.metadata)
 		episodes = append(episodes, acc.metadata)
 	}
 
@@ -257,13 +295,29 @@ func classifyEpisode(run RunData) (string, string, string, []string) {
 			return fmt.Sprintf("dispatch:%s:%s:%s", run.AwContext.Repo, run.AwContext.RunID, run.AwContext.WorkflowID), "dispatch_workflow", "medium", []string{"context.run_id", "context.workflow_id"}
 		}
 	}
+	if episodeID, kind, confidence, reasons, ok := classifyWorkflowCallEpisode(run); ok {
+		return episodeID, kind, confidence, reasons
+	}
 	if run.Event == "workflow_run" {
 		return fmt.Sprintf("workflow_run:%d", run.DatabaseID), "workflow_run", "low", []string{"event=workflow_run", "upstream run metadata unavailable in logs summary"}
 	}
 	return fmt.Sprintf("standalone:%d", run.DatabaseID), "standalone", "high", []string{"no_shared_lineage_markers"}
 }
 
-func buildEpisodeEdge(run RunData, episodeID string, runsByID map[int64]RunData) (EpisodeEdge, bool) {
+func buildEpisodeEdge(run RunData, runs []RunData, runsByID map[int64]RunData) (EpisodeEdge, bool) {
+	if edge, ok := buildDispatchEpisodeEdge(run, runsByID); ok {
+		return edge, true
+	}
+	if edge, ok := buildWorkflowCallEpisodeEdge(run, runs); ok {
+		return edge, true
+	}
+	if edge, ok := buildWorkflowRunEpisodeEdge(run, runs); ok {
+		return edge, true
+	}
+	return EpisodeEdge{}, false
+}
+
+func buildDispatchEpisodeEdge(run RunData, runsByID map[int64]RunData) (EpisodeEdge, bool) {
 	if run.AwContext == nil || run.AwContext.RunID == "" {
 		return EpisodeEdge{}, false
 	}
@@ -292,6 +346,200 @@ func buildEpisodeEdge(run RunData, episodeID string, runsByID map[int64]RunData)
 		SourceRepo:  run.AwContext.Repo,
 		SourceRef:   run.AwContext.WorkflowID,
 		EventType:   run.AwContext.EventType,
-		EpisodeID:   episodeID,
 	}, true
+}
+
+func classifyWorkflowCallEpisode(run RunData) (string, string, string, []string, bool) {
+	if run.Event != "workflow_call" {
+		return "", "", "", nil, false
+	}
+	reasons := []string{"event=workflow_call"}
+	parts := make([]string, 0, 6)
+	if run.Repository != "" {
+		parts = append(parts, run.Repository)
+		reasons = append(reasons, "repository")
+	}
+	if run.Ref != "" {
+		parts = append(parts, run.Ref)
+		reasons = append(reasons, "ref")
+	}
+	if run.SHA != "" {
+		parts = append(parts, run.SHA)
+		reasons = append(reasons, "sha")
+	}
+	if run.RunAttempt != "" {
+		parts = append(parts, run.RunAttempt)
+		reasons = append(reasons, "run_attempt")
+	}
+	if run.Actor != "" {
+		parts = append(parts, run.Actor)
+		reasons = append(reasons, "actor")
+	}
+	if run.TargetRepo != "" {
+		parts = append(parts, "target="+run.TargetRepo)
+		reasons = append(reasons, "target_repo")
+	}
+	if run.SHA != "" && run.RunAttempt != "" && run.Actor != "" {
+		confidence := "medium"
+		if run.TargetRepo != "" {
+			confidence = "high"
+		}
+		return "workflow_call:" + strings.Join(parts, ":"), "workflow_call", confidence, reasons, true
+	}
+	return fmt.Sprintf("workflow_call:%d", run.DatabaseID), "workflow_call", "low", append(reasons, "insufficient_aw_info_metadata"), true
+}
+
+func buildWorkflowCallEpisodeEdge(run RunData, runs []RunData) (EpisodeEdge, bool) {
+	if run.Event != "workflow_call" || run.SHA == "" || run.Ref == "" || run.Actor == "" || run.RunAttempt == "" {
+		return EpisodeEdge{}, false
+	}
+	candidates := filterLineageCandidates(runs, run, func(candidate RunData) bool {
+		return candidate.SHA == run.SHA &&
+			candidate.Ref == run.Ref &&
+			candidate.Actor == run.Actor &&
+			candidate.RunAttempt == run.RunAttempt
+	})
+	if edge, ok := buildUniqueCandidateEdge(run, candidates, "workflow_call", "medium", []string{"event=workflow_call", "sha_match", "ref_match", "actor_match", "run_attempt_match", "unique_upstream_candidate"}); ok {
+		if run.TargetRepo != "" {
+			edge.Confidence = "high"
+			edge.Reasons = append(edge.Reasons, "target_repo")
+			edge.SourceRef = run.TargetRepo
+		}
+		return edge, true
+	}
+	return EpisodeEdge{}, false
+}
+
+func buildWorkflowRunEpisodeEdge(run RunData, runs []RunData) (EpisodeEdge, bool) {
+	if run.Event != "workflow_run" || run.HeadSHA == "" || run.Branch == "" {
+		return EpisodeEdge{}, false
+	}
+	candidates := filterLineageCandidates(runs, run, func(candidate RunData) bool {
+		if candidate.HeadSHA != run.HeadSHA || candidate.Branch != run.Branch {
+			return false
+		}
+		if run.Repository != "" && candidate.Repository != "" && candidate.Repository != run.Repository {
+			return false
+		}
+		return true
+	})
+	confidence := "low"
+	reasons := []string{"event=workflow_run", "head_sha_match", "head_branch_match", "unique_upstream_candidate"}
+	if run.Repository != "" {
+		confidence = "medium"
+		reasons = append(reasons, "repository")
+	}
+	return buildUniqueCandidateEdge(run, candidates, "workflow_run", confidence, reasons)
+}
+
+func filterLineageCandidates(runs []RunData, child RunData, matches func(RunData) bool) []RunData {
+	candidates := make([]RunData, 0)
+	for _, candidate := range runs {
+		if candidate.DatabaseID == child.DatabaseID {
+			continue
+		}
+		if child.CreatedAt.IsZero() || candidate.CreatedAt.IsZero() || candidate.CreatedAt.After(child.CreatedAt) {
+			continue
+		}
+		if !matches(candidate) {
+			continue
+		}
+		candidates = append(candidates, candidate)
+	}
+	nonNested := make([]RunData, 0, len(candidates))
+	for _, candidate := range candidates {
+		if candidate.Event != child.Event {
+			nonNested = append(nonNested, candidate)
+		}
+	}
+	if len(nonNested) == 1 {
+		return nonNested
+	}
+	if len(nonNested) > 1 {
+		candidates = nonNested
+	}
+	slices.SortFunc(candidates, func(left, right RunData) int {
+		if !left.CreatedAt.Equal(right.CreatedAt) {
+			if left.CreatedAt.Before(right.CreatedAt) {
+				return 1
+			}
+			return -1
+		}
+		return cmp.Compare(left.DatabaseID, right.DatabaseID)
+	})
+	return candidates
+}
+
+func buildUniqueCandidateEdge(run RunData, candidates []RunData, edgeType, confidence string, reasons []string) (EpisodeEdge, bool) {
+	if len(candidates) != 1 {
+		return EpisodeEdge{}, false
+	}
+	parent := candidates[0]
+	return EpisodeEdge{
+		SourceRunID: parent.DatabaseID,
+		TargetRunID: run.DatabaseID,
+		EdgeType:    edgeType,
+		Confidence:  confidence,
+		Reasons:     append([]string(nil), reasons...),
+		SourceRepo:  parent.Repository,
+		SourceRef:   parent.WorkflowPath,
+		EventType:   parent.Event,
+	}, true
+}
+
+func hasComparisonReasonCode(comparison *AuditComparisonData, code string) bool {
+	if comparison == nil || comparison.Classification == nil {
+		return false
+	}
+	return slices.Contains(comparison.Classification.ReasonCodes, code)
+}
+
+func hasAssessmentKindAtLeast(assessments []AgenticAssessment, kind, minimumSeverity string) bool {
+	for _, assessment := range assessments {
+		if assessment.Kind != kind {
+			continue
+		}
+		if severityRank(assessment.Severity) >= severityRank(minimumSeverity) {
+			return true
+		}
+	}
+	return false
+}
+
+func severityRank(severity string) int {
+	switch severity {
+	case "high":
+		return 3
+	case "medium":
+		return 2
+	default:
+		return 1
+	}
+}
+
+func classifyEpisodeEscalation(episode EpisodeData) (bool, string) {
+	switch {
+	case episode.RiskyNodeCount >= 2:
+		return true, "repeated_risky_runs"
+	case episode.NewMCPFailureRunCount >= 2:
+		return true, "repeated_new_mcp_failures"
+	case episode.BlockedRequestIncreaseRunCount >= 2:
+		return true, "repeated_blocked_request_increase"
+	case episode.ResourceHeavyNodeCount >= 2:
+		return true, "repeated_resource_heavy_for_domain"
+	case episode.PoorControlNodeCount >= 2:
+		return true, "repeated_poor_agentic_control"
+	default:
+		return false, ""
+	}
+}
+
+func buildSuggestedRoute(episode EpisodeData) string {
+	if episode.PrimaryWorkflow != "" {
+		return "workflow:" + episode.PrimaryWorkflow
+	}
+	if len(episode.WorkflowNames) > 0 {
+		return "workflow:" + episode.WorkflowNames[0]
+	}
+	return "repo:owners"
 }

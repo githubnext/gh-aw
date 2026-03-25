@@ -274,7 +274,13 @@ type AwInfo struct {
 	// Additional fields that might be present
 	RunID      any    `json:"run_id,omitempty"`
 	RunNumber  any    `json:"run_number,omitempty"`
+	RunAttempt string `json:"run_attempt,omitempty"`
 	Repository string `json:"repository,omitempty"`
+	Ref        string `json:"ref,omitempty"`
+	SHA        string `json:"sha,omitempty"`
+	Actor      string `json:"actor,omitempty"`
+	EventName  string `json:"event_name,omitempty"`
+	TargetRepo string `json:"target_repo,omitempty"`
 }
 
 // GetFirewallVersion returns the AWF firewall version, preferring the new field name

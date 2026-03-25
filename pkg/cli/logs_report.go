@@ -93,6 +93,15 @@ type RunData struct {
 	LogsPath            string               `json:"logs_path" console:"header:Logs Path"`
 	Event               string               `json:"event" console:"-"`
 	Branch              string               `json:"branch" console:"-"`
+	HeadSHA             string               `json:"head_sha,omitempty" console:"-"`
+	DisplayTitle        string               `json:"display_title,omitempty" console:"-"`
+	Repository          string               `json:"repository,omitempty" console:"-"`
+	Ref                 string               `json:"ref,omitempty" console:"-"`
+	SHA                 string               `json:"sha,omitempty" console:"-"`
+	Actor               string               `json:"actor,omitempty" console:"-"`
+	RunAttempt          string               `json:"run_attempt,omitempty" console:"-"`
+	TargetRepo          string               `json:"target_repo,omitempty" console:"-"`
+	EventName           string               `json:"event_name,omitempty" console:"-"`
 	Comparison          *AuditComparisonData `json:"comparison,omitempty" console:"-"`
 	TaskDomain          *TaskDomainInfo      `json:"task_domain,omitempty" console:"-"`
 	BehaviorFingerprint *BehaviorFingerprint `json:"behavior_fingerprint,omitempty" console:"-"`
@@ -178,8 +187,10 @@ func buildLogsData(processedRuns []ProcessedRun, outputDir string, continuation 
 		// Extract agent/engine ID and aw_context from aw_info.json.
 		agentID := ""
 		var awContext *AwContext
+		var awInfo *AwInfo
 		awInfoPath := filepath.Join(run.LogsPath, "aw_info.json")
 		if info, err := parseAwInfo(awInfoPath, false); err == nil && info != nil {
+			awInfo = info
 			agentID = info.EngineID
 			awContext = info.Context
 		}
@@ -212,11 +223,22 @@ func buildLogsData(processedRuns []ProcessedRun, outputDir string, continuation 
 			LogsPath:            run.LogsPath,
 			Event:               run.Event,
 			Branch:              run.HeadBranch,
+			HeadSHA:             run.HeadSha,
+			DisplayTitle:        run.DisplayTitle,
 			Comparison:          comparison,
 			TaskDomain:          pr.TaskDomain,
 			BehaviorFingerprint: pr.BehaviorFingerprint,
 			AgenticAssessments:  pr.AgenticAssessments,
 			AwContext:           awContext,
+		}
+		if awInfo != nil {
+			runData.Repository = awInfo.Repository
+			runData.Ref = awInfo.Ref
+			runData.SHA = awInfo.SHA
+			runData.Actor = awInfo.Actor
+			runData.RunAttempt = awInfo.RunAttempt
+			runData.TargetRepo = awInfo.TargetRepo
+			runData.EventName = awInfo.EventName
 		}
 		if run.Duration > 0 {
 			runData.Duration = timeutil.FormatDuration(run.Duration)
