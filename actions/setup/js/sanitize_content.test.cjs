@@ -484,6 +484,71 @@ describe("sanitize_content.cjs", () => {
     });
   });
 
+  describe("XML/HTML tag conversion: dangerous attribute stripping", () => {
+    it("should strip ontoggle event handler from details tag", () => {
+      const input = '<details ontoggle="alert(document.cookie)">content</details>';
+      const result = sanitizeContent(input);
+      expect(result).toBe("<details>content</details>");
+    });
+
+    it("should strip style attribute enabling CSS overlay attacks from span tag", () => {
+      const input = '<span style="position:fixed;top:0;left:0;width:100%;height:100%">overlay</span>';
+      const result = sanitizeContent(input);
+      expect(result).toBe("<span>overlay</span>");
+    });
+
+    it("should strip onclick event handler from allowed tags", () => {
+      const result = sanitizeContent('<p onclick="stealData()">text</p>');
+      expect(result).toBe("<p>text</p>");
+    });
+
+    it("should strip onerror event handler from allowed tags", () => {
+      const result = sanitizeContent('<strong onerror="bad()">text</strong>');
+      expect(result).toBe("<strong>text</strong>");
+    });
+
+    it("should strip style attribute with single-quoted value", () => {
+      const result = sanitizeContent("<span style='color:red'>text</span>");
+      expect(result).toBe("<span>text</span>");
+    });
+
+    it("should strip style attribute with unquoted value", () => {
+      const result = sanitizeContent("<span style=color:red>text</span>");
+      expect(result).toBe("<span>text</span>");
+    });
+
+    it("should strip on* attributes case-insensitively (uppercase)", () => {
+      const result = sanitizeContent('<span ONCLICK="bad()">text</span>');
+      expect(result).toBe("<span>text</span>");
+    });
+
+    it("should strip multiple dangerous attributes from a single tag", () => {
+      const result = sanitizeContent('<span onclick="bad()" style="position:fixed" title="ok">text</span>');
+      expect(result).toBe('<span title="ok">text</span>');
+    });
+
+    it("should preserve safe attributes (title, class, open) while stripping dangerous ones", () => {
+      const result = sanitizeContent('<details open onclick="bad()">content</details>');
+      expect(result).toBe("<details open>content</details>");
+    });
+
+    it("should preserve span title attribute after stripping style", () => {
+      const result = sanitizeContent('<span title="safe" style="evil">text</span>');
+      expect(result).toBe('<span title="safe">text</span>');
+    });
+
+    it("should strip on* event handler from closing tags (no-op but consistent)", () => {
+      // Closing tags never carry attributes in valid HTML, but verify robustness
+      const result = sanitizeContent("<span>text</span>");
+      expect(result).toBe("<span>text</span>");
+    });
+
+    it("should not affect disallowed tags (still converted to parentheses with attributes)", () => {
+      const result = sanitizeContent('<div onclick="bad()">content</div>');
+      expect(result).toBe('(div onclick="bad()")content(/div)');
+    });
+  });
+
   describe("XML/HTML tag conversion: code-region awareness", () => {
     it("should preserve angle brackets inside fenced code blocks (backticks)", () => {
       const input = "Before\n```\nVBuffer<float32> x;\n```\nAfter";
