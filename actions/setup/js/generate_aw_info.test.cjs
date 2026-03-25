@@ -103,15 +103,6 @@ describe("generate_aw_info.cjs", () => {
     expect(mockCore.setOutput).toHaveBeenCalledWith("model", "gpt-4");
   });
 
-  it("should default model to 'auto' when GH_AW_INFO_MODEL is unset", async () => {
-    delete process.env.GH_AW_INFO_MODEL;
-    await main(mockCore, mockContext);
-
-    const awInfo = JSON.parse(fs.readFileSync(awInfoPath, "utf8"));
-    expect(awInfo.model).toBe("auto");
-    expect(mockCore.setOutput).toHaveBeenCalledWith("model", "auto");
-  });
-
   it("should include cli_version only when GH_AW_INFO_CLI_VERSION is set", async () => {
     process.env.GH_AW_INFO_CLI_VERSION = "1.2.3";
     await main(mockCore, mockContext);

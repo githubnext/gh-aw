@@ -54,7 +54,7 @@ async function main(core, ctx) {
   const awInfo = {
     engine_id: process.env.GH_AW_INFO_ENGINE_ID || "",
     engine_name: process.env.GH_AW_INFO_ENGINE_NAME || "",
-    model: process.env.GH_AW_INFO_MODEL || "auto",
+    model: process.env.GH_AW_INFO_MODEL || "",
     version: process.env.GH_AW_INFO_VERSION || "",
     agent_version: process.env.GH_AW_INFO_AGENT_VERSION || "",
     workflow_name: process.env.GH_AW_INFO_WORKFLOW_NAME || "",

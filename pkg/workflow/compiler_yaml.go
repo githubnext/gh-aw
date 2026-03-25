@@ -667,7 +667,7 @@ func (c *Compiler) generateCreateAwInfo(yaml *strings.Builder, data *WorkflowDat
 		if defaultModel != "" {
 			fmt.Fprintf(yaml, "          GH_AW_INFO_MODEL: ${{ vars.%s || '%s' }}\n", modelEnvVar, defaultModel)
 		} else {
-			fmt.Fprintf(yaml, "          GH_AW_INFO_MODEL: ${{ vars.%s || '' }}\n", modelEnvVar)
+			fmt.Fprintf(yaml, "          GH_AW_INFO_MODEL: ${{ vars.%s || 'auto' }}\n", modelEnvVar)
 		}
 	}
 	fmt.Fprintf(yaml, "          GH_AW_INFO_VERSION: \"%s\"\n", version)
