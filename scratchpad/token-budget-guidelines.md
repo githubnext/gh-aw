@@ -15,11 +15,18 @@ This document establishes token budget targets and optimization strategies for a
 
 ### Available Controls
 
-#### 1. `max-turns` (For Claude/Custom Engines Only)
+#### 1. `max-turns` (For Copilot/Claude/Custom Engines)
 
 Limits the number of conversation rounds between the agent and the AI engine.
 
-**Important:** `max-turns` is **only supported by Claude and Custom engines**, not Copilot. For Copilot workflows, use prompt optimization and timeout controls instead.
+```yaml
+---
+# Copilot engine with max-turns
+engine:
+  id: copilot
+  max-turns: 60  # Recommended for complex build workflows
+---
+```
 
 ```yaml
 ---
@@ -46,9 +53,9 @@ engine:
 - Earlier termination if task completes
 
 **Engine Support:**
+- ✅ **Copilot**: Fully supported
 - ✅ **Claude**: Fully supported
 - ✅ **Custom**: Fully supported
-- ❌ **Copilot**: Not supported - use prompt optimization instead
 - ❌ **Codex**: Not supported
 
 #### 2. `timeout-minutes` (Secondary Control)

@@ -61,6 +61,26 @@ This should succeed because claude supports max-turns.`,
 			expectError: false,
 		},
 		{
+			name: "max-turns with copilot engine should succeed",
+			content: `---
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+  issues: read
+  pull-requests: read
+engine:
+  id: copilot
+  max-turns: 60
+---
+
+# Test Workflow
+
+This should succeed because copilot supports max-turns.`,
+			engine:      "copilot",
+			expectError: false,
+		},
+		{
 			name: "codex engine without max-turns should succeed",
 			content: `---
 on:
@@ -146,6 +166,11 @@ func TestEngineSupportsMaxTurns(t *testing.T) {
 		{
 			name:            "claude engine supports max-turns",
 			engineID:        "claude",
+			expectedSupport: true,
+		},
+		{
+			name:            "copilot engine supports max-turns",
+			engineID:        "copilot",
 			expectedSupport: true,
 		},
 		{
