@@ -30,6 +30,11 @@ type AuditData struct {
 	Recommendations         []Recommendation         `json:"recommendations,omitempty"`
 	ObservabilityInsights   []ObservabilityInsight   `json:"observability_insights,omitempty"`
 	PerformanceMetrics      *PerformanceMetrics      `json:"performance_metrics,omitempty"`
+	EngineConfig            *EngineConfig            `json:"engine_config,omitempty"`
+	PromptAnalysis          *PromptAnalysis          `json:"prompt_analysis,omitempty"`
+	SessionAnalysis         *SessionAnalysis         `json:"session_analysis,omitempty"`
+	SafeOutputSummary       *SafeOutputSummary       `json:"safe_output_summary,omitempty"`
+	MCPServerHealth         *MCPServerHealth         `json:"mcp_server_health,omitempty"`
 	Jobs                    []JobData                `json:"jobs,omitempty"`
 	DownloadedFiles         []FileInfo               `json:"downloaded_files"`
 	MissingTools            []MissingToolReport      `json:"missing_tools,omitempty"`
@@ -335,6 +340,13 @@ func buildAuditData(processedRun ProcessedRun, metrics LogMetrics, mcpToolUsage 
 	// Generate performance metrics
 	performanceMetrics := generatePerformanceMetrics(processedRun, metricsData, toolUsage)
 
+	// Extract expanded audit data
+	engineConfig := extractEngineConfig(run.LogsPath)
+	promptAnalysis := extractPromptAnalysis(run.LogsPath)
+	sessionAnalysis := buildSessionAnalysis(processedRun, metrics)
+	safeOutputSummary := buildSafeOutputSummary(createdItems)
+	mcpServerHealth := buildMCPServerHealth(mcpToolUsage, processedRun.MCPFailures)
+
 	if auditReportLog.Enabled() {
 		auditReportLog.Printf("Built audit data: %d jobs, %d errors, %d warnings, %d tool types, %d findings, %d recommendations",
 			len(jobs), len(errors), len(warnings), len(toolUsage), len(findings), len(recommendations))
@@ -350,6 +362,11 @@ func buildAuditData(processedRun ProcessedRun, metrics LogMetrics, mcpToolUsage 
 		Recommendations:         recommendations,
 		ObservabilityInsights:   observabilityInsights,
 		PerformanceMetrics:      performanceMetrics,
+		EngineConfig:            engineConfig,
+		PromptAnalysis:          promptAnalysis,
+		SessionAnalysis:         sessionAnalysis,
+		SafeOutputSummary:       safeOutputSummary,
+		MCPServerHealth:         mcpServerHealth,
 		Jobs:                    jobs,
 		DownloadedFiles:         downloadedFiles,
 		MissingTools:            processedRun.MissingTools,
