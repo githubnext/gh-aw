@@ -3,16 +3,6 @@
   "chrome": ["*.google.com", "*.googleapis.com", "*.gvt1.com"],
   "clojure": ["repo.clojars.org", "clojars.org"],
   "containers": ["ghcr.io", "registry.hub.docker.com", "*.docker.io", "*.docker.com", "production.cloudflare.docker.com", "dl.k8s.io", "pkgs.k8s.io", "quay.io", "mcr.microsoft.com", "gcr.io", "auth.docker.io"],
-  "threat-detection": [
-    "api.business.githubcopilot.com",
-    "api.enterprise.githubcopilot.com",
-    "api.github.com",
-    "api.githubcopilot.com",
-    "api.individual.githubcopilot.com",
-    "github.com",
-    "host.docker.internal",
-    "telemetry.enterprise.githubcopilot.com"
-  ],
   "dart": ["pub.dev", "pub.dartlang.org", "storage.googleapis.com"],
   "defaults": [
     "crl3.digicert.com",
@@ -246,5 +236,15 @@
   "scala": ["repo.scala-sbt.org", "scala-ci.typesafe.com", "repo.typesafe.com", "jitpack.io", "dl.bintray.com", "scala.jfrog.io"],
   "swift": ["download.swift.org", "swift.org", "cocoapods.org", "cdn.cocoapods.org"],
   "terraform": ["releases.hashicorp.com", "apt.releases.hashicorp.com", "yum.releases.hashicorp.com", "registry.terraform.io"],
+  "threat-detection": [
+    "api.business.githubcopilot.com",
+    "api.enterprise.githubcopilot.com",
+    "api.github.com",
+    "api.githubcopilot.com",
+    "api.individual.githubcopilot.com",
+    "github.com",
+    "host.docker.internal",
+    "telemetry.enterprise.githubcopilot.com"
+  ],
   "zig": ["ziglang.org", "pkg.machengine.org", "deps.files.ghostty.org"]
 }
