@@ -479,6 +479,58 @@ func isNonZipArtifactError(output []byte) bool {
 	return strings.Contains(s, "zip: not a valid zip file") || strings.Contains(s, "error extracting zip archive")
 }
 
+// criticalArtifactNames lists the artifact names that are essential for audit analysis.
+// When a bulk download fails partially (e.g., due to non-zip artifacts), these artifacts
+// are retried individually so that flattening and audit extraction have data to work with.
+var criticalArtifactNames = []string{"activation", "agent", "firewall-audit-logs"}
+
+// retryCriticalArtifacts downloads critical artifacts individually when the bulk download
+// was only partially successful. gh run download aborts on the first non-zip artifact,
+// which may prevent valid artifacts from being downloaded.
+func retryCriticalArtifacts(runID int64, outputDir string, verbose bool, owner, repo, hostname string) {
+	// Build the repo flag once for reuse across retries
+	var repoFlag string
+	if owner != "" && repo != "" {
+		if hostname != "" && hostname != "github.com" {
+			repoFlag = hostname + "/" + owner + "/" + repo
+		} else {
+			repoFlag = owner + "/" + repo
+		}
+	}
+
+	for _, name := range criticalArtifactNames {
+		artifactDir := filepath.Join(outputDir, name)
+		if fileutil.DirExists(artifactDir) {
+			logsDownloadLog.Printf("Critical artifact %q already present, skipping retry", name)
+			continue
+		}
+
+		retryArgs := []string{"run", "download", strconv.FormatInt(runID, 10), "--name", name, "--dir", outputDir}
+		if repoFlag != "" {
+			retryArgs = append(retryArgs, "-R", repoFlag)
+		}
+
+		logsDownloadLog.Printf("Retrying individual download for artifact %q: gh %s", name, strings.Join(retryArgs, " "))
+		if verbose {
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Retrying download for missing artifact: "+name))
+		}
+
+		retryCmd := workflow.ExecGH(retryArgs...)
+		retryOutput, retryErr := retryCmd.CombinedOutput()
+		if retryErr != nil {
+			logsDownloadLog.Printf("Failed to download artifact %q individually: %v (%s)", name, retryErr, string(retryOutput))
+			if verbose {
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Could not download artifact %q: %v", name, retryErr)))
+			}
+		} else {
+			logsDownloadLog.Printf("Successfully downloaded artifact %q individually", name)
+			if verbose {
+				fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Downloaded missing artifact: "+name))
+			}
+		}
+	}
+}
+
 // downloadRunArtifacts downloads artifacts for a specific workflow run
 func downloadRunArtifacts(runID int64, outputDir string, verbose bool, owner, repo, hostname string) error {
 	logsDownloadLog.Printf("Downloading run artifacts: run_id=%d, output_dir=%s, owner=%s, repo=%s", runID, outputDir, owner, repo)
@@ -584,6 +636,13 @@ func downloadRunArtifacts(runID int64, outputDir string, verbose bool, owner, re
 		} else {
 			return fmt.Errorf("failed to download artifacts for run %d: %w (output: %s)", runID, err, string(output))
 		}
+	}
+
+	// When the bulk download failed due to non-zip artifacts, gh CLI may have aborted
+	// before downloading all valid artifacts. Retry individually for critical artifacts
+	// that are missing, so flattening and audit analysis can proceed.
+	if skippedNonZipArtifacts {
+		retryCriticalArtifacts(runID, outputDir, verbose, owner, repo, hostname)
 	}
 
 	if skippedNonZipArtifacts && fileutil.IsDirEmpty(outputDir) {

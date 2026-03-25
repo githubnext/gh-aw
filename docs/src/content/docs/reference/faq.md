@@ -297,11 +297,33 @@ Both files should be committed to version control:
 
 ### What is the actions-lock.json file?
 
-The `.github/aw/actions-lock.json` file is a cache of resolved `action@version` → SHA mappings. During compilation, every action reference must be pinned to an immutable commit SHA for security. Resolving a version tag to a SHA requires querying the GitHub API (scanning releases), which can fail when the available token has limited permissions — for example, when compiling via GitHub Copilot Coding Agent (CCA) where the token may not have access to external repositories.
+The `.github/aw/actions-lock.json` file is a cache of resolved `action@version` → ref mappings. During compilation, the compiler **tries** to pin each action reference to an immutable commit SHA for security. Resolving a version tag to a SHA requires querying the GitHub API (scanning releases), which can fail when the available token has limited permissions — for example, when compiling via GitHub Copilot Coding Agent (CCA) where the token may not have access to external repositories. In those cases, the compiler may fall back to leaving a stable version tag ref (such as `@v0`) instead of a SHA.
 
-The cache avoids this problem: if a SHA was previously resolved (using a user PAT or a GitHub Actions token with broader access), the result is stored in `actions-lock.json` and reused on subsequent compilations, regardless of the current token's capabilities. Without this cache, compilation is unstable — it succeeds with a permissive token but fails when token access is restricted.
+The cache avoids this problem: if a ref (typically a SHA) was previously resolved (using a user PAT or a GitHub Actions token with broader access), the result is stored in `actions-lock.json` and reused on subsequent compilations, regardless of the current token's capabilities. Without this cache, compilation is unstable — it succeeds with a permissive token but fails when token access is restricted.
 
-Commit `actions-lock.json` to version control so that all contributors and automated tools (including CCA) use consistent SHA pins without needing to re-resolve them. Refresh the cache periodically with `gh aw update-actions`, or delete it and recompile to force a full re-resolution when you have an appropriate token. See [Action Pinning](/gh-aw/reference/compilation-process/#action-pinning) for details.
+Commit `actions-lock.json` to version control so that all contributors and automated tools (including CCA) use consistent action refs (SHAs or version tags) without needing to re-resolve them. Refresh the cache periodically with `gh aw update-actions`, or delete it and recompile to force a full re-resolution when you have an appropriate token. See [Action Pinning](/gh-aw/reference/compilation-process/#action-pinning) for details.
+
+### What is `github/gh-aw-actions`?
+
+`github/gh-aw-actions` is the GitHub Actions repository containing all reusable actions that power compiled agentic workflows. Compiled `.lock.yml` files reference these actions as `github/gh-aw-actions/setup@<ref>` (where `<ref>` is usually a commit SHA, but may be a stable version tag such as `v0`). These references are managed entirely by `gh aw compile` — never edit them manually. See [The gh-aw-actions Repository](/gh-aw/reference/compilation-process/#the-gh-aw-actions-repository) for details.
+
+### Why is Dependabot opening PRs to update `github/gh-aw-actions`?
+
+Dependabot scans `.lock.yml` files for action references and treats `github/gh-aw-actions` pins as regular dependencies to update. **Do not merge these PRs.** Action pins in compiled workflows should only be updated by running `gh aw compile` or `gh aw update-actions`.
+
+Suppress these PRs by adding an `ignore` entry in `.github/dependabot.yml`:
+
+```yaml
+updates:
+  - package-ecosystem: github-actions
+    directory: "/"
+    ignore:
+      # ignore updates to gh-aw-actions, which only appears in auto-generated *.lock.yml
+      # files managed by 'gh aw compile' and should not be touched by dependabot
+      - dependency-name: "github/gh-aw-actions"
+```
+
+See [Dependabot and gh-aw-actions](/gh-aw/reference/compilation-process/#dependabot-and-gh-aw-actions) for more details.
 
 ### Why do I need a token or key?
 
