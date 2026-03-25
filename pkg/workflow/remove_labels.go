@@ -16,23 +16,14 @@ type RemoveLabelsConfig struct {
 
 // parseRemoveLabelsConfig handles remove-labels configuration
 func (c *Compiler) parseRemoveLabelsConfig(outputMap map[string]any) *RemoveLabelsConfig {
-	// Check if the key exists
-	if _, exists := outputMap["remove-labels"]; !exists {
-		return nil
-	}
-
-	removeLabelsLog.Print("Parsing remove-labels configuration")
-
-	// Unmarshal into typed config struct
-	var config RemoveLabelsConfig
-	if err := unmarshalConfig(outputMap, "remove-labels", &config, removeLabelsLog); err != nil {
+	config := parseConfigScaffold(outputMap, "remove-labels", removeLabelsLog, func(err error) *RemoveLabelsConfig {
 		removeLabelsLog.Printf("Failed to unmarshal config: %v", err)
 		// Handle null case: create empty config (allows any labels)
 		removeLabelsLog.Print("Using empty configuration (allows any labels)")
 		return &RemoveLabelsConfig{}
+	})
+	if config != nil {
+		removeLabelsLog.Printf("Parsed configuration: allowed_count=%d, blocked_count=%d, target=%s", len(config.Allowed), len(config.Blocked), config.Target)
 	}
-
-	removeLabelsLog.Printf("Parsed configuration: allowed_count=%d, blocked_count=%d, target=%s", len(config.Allowed), len(config.Blocked), config.Target)
-
-	return &config
+	return config
 }

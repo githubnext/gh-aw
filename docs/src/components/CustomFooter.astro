@@ -124,6 +124,20 @@ const heartIcon = octicons.heart.toSVG({ width: 14, height: 14 });
     .footer-terms {
       text-align: center;
     }
+
+    /* WCAG 2.5.5: Minimum 44×44px touch target for footer links on mobile */
+    .community-feedback a,
+    .agent-links a,
+    .footer-terms a {
+      min-height: 44px;
+      display: inline-flex;
+      align-items: center;
+      padding: 0.25rem 0.5rem;
+    }
+
+    .agent-links {
+      gap: 0.25rem;
+    }
   }
 
   .heart-icon {

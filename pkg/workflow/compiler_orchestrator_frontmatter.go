@@ -116,6 +116,12 @@ func (c *Compiler) parseFrontmatterSection(markdownPath string) (*frontmatterPar
 		return nil, err
 	}
 
+	// Validate glob pattern syntax in event filters (branches, tags, paths, etc.)
+	if err := ValidateGlobPatterns(frontmatterForValidation); err != nil {
+		orchestratorFrontmatterLog.Printf("Glob pattern validation failed: %v", err)
+		return nil, err
+	}
+
 	// Validate that the runs-on field does not specify unsupported runner types (e.g. macOS)
 	if err := validateRunsOn(frontmatterForValidation, cleanPath); err != nil {
 		orchestratorFrontmatterLog.Printf("runs-on validation failed: %v", err)

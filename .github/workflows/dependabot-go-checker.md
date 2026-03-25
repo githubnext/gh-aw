@@ -43,6 +43,8 @@ imports:
 ## Objective
 Close any existing open dependency update issues with the `[deps]` prefix, then check for available Go module and NPM dependency updates using Dependabot, categorize them by safety level, and create issues using a three-tier strategy: group safe patch updates into a single consolidated issue, create individual issues for potentially problematic updates, and skip major version updates.
 
+**Scope**: Only direct dependencies (packages listed in `go.mod` without the `// indirect` comment) are analyzed. Indirect (transitive) dependencies are out of scope and should be ignored.
+
 ## Current Context
 - **Repository**: ${{ github.repository }}
 - **Go Module File**: `go.mod` in repository root
@@ -72,9 +74,10 @@ close_issue(issue_number=123, body="Closing this issue as a new dependency check
 **Do not proceed to Phase 1 until all existing `[deps]` issues are closed.**
 
 ### Phase 1: Check Dependabot Alerts
-1. Use the Dependabot toolset to check for available dependency updates for the `go.mod` file
-2. Retrieve the list of alerts and update recommendations from Dependabot
-3. For each potential update, gather:
+1. Parse `go.mod` to identify **direct dependencies only** — these are entries that do NOT have the `// indirect` comment at the end of the line. Build a list of their module paths. Discard any Dependabot alerts for modules not in this list.
+2. Use the Dependabot toolset to check for available dependency updates for the `go.mod` file
+3. Retrieve the list of alerts and update recommendations from Dependabot, keeping only those whose module path matches a direct dependency identified in step 1
+4. For each potential update (direct dependencies only), gather:
    - Current version and proposed version
    - Type of update (patch, minor, major)
    - Security vulnerability information (if any)
@@ -186,6 +189,7 @@ Before creating issues, determine the actual source repository for each Go modul
 
 ## Important Notes
 - Do NOT apply updates directly - only create issues describing what should be updated
+- **Only analyze direct dependencies**: skip any module listed with `// indirect` in `go.mod`
 - Use three-tier categorization: Group Category A (safe patches), individual issues for Category B (potentially problematic), skip Category C (major versions)
 - Category A updates should be grouped into ONE consolidated issue with a table format
 - Category B updates should each get their own issue with a "Why Separate Issue" explanation

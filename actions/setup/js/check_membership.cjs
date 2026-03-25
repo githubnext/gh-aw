@@ -41,7 +41,7 @@ async function main() {
     return;
   }
 
-  if (!requiredPermissions || requiredPermissions.length === 0) {
+  if (requiredPermissions.length === 0) {
     core.warning("❌ Configuration error: Required permissions not specified. Contact repository administrator.");
     core.setOutput("is_team_member", "false");
     core.setOutput("result", "config_error");
@@ -60,7 +60,7 @@ async function main() {
     // User doesn't have required permissions (or the permission check failed with an error).
     // Always attempt the bot allowlist fallback before giving up, so that GitHub Apps whose
     // actor is not a recognized GitHub user (e.g. "Copilot") are not silently denied.
-    if (allowedBots && allowedBots.length > 0) {
+    if (allowedBots.length > 0) {
       core.info(`Checking if actor '${actor}' is in allowed bots list: ${allowedBots.join(", ")}`);
 
       if (isAllowedBot(actor, allowedBots)) {

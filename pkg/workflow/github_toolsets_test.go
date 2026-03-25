@@ -70,9 +70,9 @@ func TestParseGitHubToolsets(t *testing.T) {
 			expected: []string{"context", "repos", "issues", "pull_requests", "discussions"},
 		},
 		{
-			name:  "All expands to all toolsets",
+			name:  "All expands to all toolsets except excluded ones",
 			input: "all",
-			// Should include all 19 toolsets - we'll check the count
+			// Should include all toolsets except those in GitHubToolsetsExcludedFromAll (e.g., dependabot)
 			expected: nil,
 		},
 		{
@@ -111,10 +111,21 @@ func TestParseGitHubToolsets(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			result := ParseGitHubToolsets(tt.input)
 
-			if tt.name == "All expands to all toolsets" {
-				// Check that all toolsets are present
-				if len(result) != len(toolsetPermissionsMap) {
-					t.Errorf("Expected %d toolsets for 'all', got %d", len(toolsetPermissionsMap), len(result))
+			if tt.name == "All expands to all toolsets except excluded ones" {
+				// Check that result is all toolsets minus excluded ones
+				expectedCount := len(toolsetPermissionsMap) - len(GitHubToolsetsExcludedFromAll)
+				if len(result) != expectedCount {
+					t.Errorf("Expected %d toolsets for 'all', got %d: %v", expectedCount, len(result), result)
+				}
+				// Verify excluded toolsets are not present
+				resultMap := make(map[string]bool)
+				for _, ts := range result {
+					resultMap[ts] = true
+				}
+				for _, ex := range GitHubToolsetsExcludedFromAll {
+					if resultMap[ex] {
+						t.Errorf("Excluded toolset %q should not be present in 'all' expansion", ex)
+					}
 				}
 				return
 			}
@@ -175,7 +186,7 @@ func TestParseGitHubToolsetsDeduplication(t *testing.T) {
 		{
 			name:     "All with duplicates",
 			input:    "all,repos,issues",
-			expected: len(toolsetPermissionsMap), // All toolsets, duplicates ignored
+			expected: len(toolsetPermissionsMap) - len(GitHubToolsetsExcludedFromAll), // All toolsets minus excluded, duplicates ignored
 		},
 	}
 

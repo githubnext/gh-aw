@@ -9,8 +9,6 @@ import (
 
 // Test convertStepToYAML function
 func TestConvertStepToYAML(t *testing.T) {
-	compiler := NewCompiler()
-
 	tests := []struct {
 		name     string
 		stepMap  map[string]any
@@ -97,7 +95,7 @@ func TestConvertStepToYAML(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result, err := compiler.convertStepToYAML(tt.stepMap)
+			result, err := ConvertStepToYAML(tt.stepMap)
 
 			if tt.hasError {
 				if err == nil {

@@ -205,6 +205,14 @@ Data flows via GitHub Actions artifacts: agent writes `agent_output.json` → de
 
 All GitHub Actions are pinned to commit SHAs (e.g., `actions/checkout@b4ffde6...11 # v6`) to prevent supply chain attacks. Tags can be moved to malicious commits, but SHA commits are immutable. The resolution order mirrors Phase 4: cache (`.github/aw/actions-lock.json`) → GitHub API → embedded pins.
 
+### The actions-lock.json Cache
+
+`.github/aw/actions-lock.json` stores resolved `action@version` → SHA mappings so that compilation produces consistent results regardless of the token available. Resolving a version tag to a SHA requires querying the GitHub API, which can fail when the token has limited permissions — notably when compiling via GitHub Copilot Coding Agent (CCA), which uses a restricted token that may not have access to external repositories.
+
+By caching SHA resolutions from a prior compilation (done with a user PAT or a GitHub Actions token with broader scope), subsequent compilations reuse those SHAs without making API calls. Without the cache, compilation is unstable: it succeeds with a permissive token but fails when token access is restricted.
+
+**Commit `actions-lock.json` to version control.** This ensures all contributors and automated tools, including CCA, use the same immutable pins. Refresh it periodically with `gh aw update-actions`, or delete it and recompile with an appropriate token to force full re-resolution.
+
 ## Artifacts Created
 
 Workflows generate several artifacts during execution:

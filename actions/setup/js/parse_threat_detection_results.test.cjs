@@ -334,86 +334,135 @@ describe("main", () => {
     vi.clearAllMocks();
     mockExistsSync.mockReturnValue(false);
     mockReadFileSync.mockReturnValue("");
+    // Reset RUN_DETECTION environment variable
+    delete process.env.RUN_DETECTION;
     // Re-import to get fresh module with mocks
     mod = await import("./parse_threat_detection_results.cjs");
   });
 
-  it("should fail when detection log file does not exist", async () => {
-    mockExistsSync.mockReturnValue(false);
-
-    await mod.main();
-
-    expect(mockCore.setOutput).toHaveBeenCalledWith("success", "false");
-    expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("Detection log file not found"));
-  });
-
-  // Note: The following tests are skipped because mocking fs for CJS modules
-  // is difficult in vitest (same issue as safe_output_validator.test.cjs).
-  // The core parsing logic is thoroughly tested via parseDetectionLog above.
-  // These tests document the expected behavior of main() for each scenario.
-  describe.skip("with detection log file present (CJS fs mock limitation)", () => {
-    it("should fail when detection log has no result line", async () => {
-      mockExistsSync.mockReturnValue(true);
-      mockReadFileSync.mockReturnValue("just some debug output\nno result here\n");
+  describe("when detection was not needed (RUN_DETECTION != 'true')", () => {
+    it("should set conclusion=skipped when RUN_DETECTION is undefined", async () => {
+      delete process.env.RUN_DETECTION;
 
       await mod.main();
 
-      expect(mockCore.setOutput).toHaveBeenCalledWith("success", "false");
-      expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("No THREAT_DETECTION_RESULT found"));
-    });
-
-    it("should fail when detection log has multiple result lines", async () => {
-      mockExistsSync.mockReturnValue(true);
-      mockReadFileSync.mockReturnValue(
-        ['THREAT_DETECTION_RESULT:{"prompt_injection":false,"secret_leak":false,"malicious_patch":false,"reasons":[]}', 'THREAT_DETECTION_RESULT:{"prompt_injection":true,"secret_leak":false,"malicious_patch":false,"reasons":[]}'].join("\n")
-      );
-
-      await mod.main();
-
-      expect(mockCore.setOutput).toHaveBeenCalledWith("success", "false");
-      expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("Multiple conflicting THREAT_DETECTION_RESULT entries"));
-    });
-
-    it("should fail when result JSON is invalid", async () => {
-      mockExistsSync.mockReturnValue(true);
-      mockReadFileSync.mockReturnValue("THREAT_DETECTION_RESULT:{bad json}");
-
-      await mod.main();
-
-      expect(mockCore.setOutput).toHaveBeenCalledWith("success", "false");
-      expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("Failed to parse JSON"));
-    });
-
-    it("should succeed with clean verdict", async () => {
-      mockExistsSync.mockReturnValue(true);
-      mockReadFileSync.mockReturnValue('debug output\nTHREAT_DETECTION_RESULT:{"prompt_injection":false,"secret_leak":false,"malicious_patch":false,"reasons":[]}\n');
-
-      await mod.main();
-
+      expect(mockCore.setOutput).toHaveBeenCalledWith("conclusion", "skipped");
       expect(mockCore.setOutput).toHaveBeenCalledWith("success", "true");
       expect(mockCore.setFailed).not.toHaveBeenCalled();
     });
 
-    it("should fail when threats are detected", async () => {
-      mockExistsSync.mockReturnValue(true);
-      mockReadFileSync.mockReturnValue('THREAT_DETECTION_RESULT:{"prompt_injection":true,"secret_leak":false,"malicious_patch":false,"reasons":["found injection"]}');
+    it("should set conclusion=skipped when RUN_DETECTION is 'false'", async () => {
+      process.env.RUN_DETECTION = "false";
 
       await mod.main();
 
-      expect(mockCore.setOutput).toHaveBeenCalledWith("success", "false");
-      expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("Security threats detected: prompt injection"));
+      expect(mockCore.setOutput).toHaveBeenCalledWith("conclusion", "skipped");
+      expect(mockCore.setOutput).toHaveBeenCalledWith("success", "true");
+      expect(mockCore.setFailed).not.toHaveBeenCalled();
     });
 
-    it("should fail when readFileSync throws", async () => {
-      mockExistsSync.mockReturnValue(true);
-      mockReadFileSync.mockImplementation(() => {
-        throw new Error("EACCES: permission denied");
-      });
+    it("should set conclusion=skipped when RUN_DETECTION is empty string", async () => {
+      process.env.RUN_DETECTION = "";
 
       await mod.main();
 
+      expect(mockCore.setOutput).toHaveBeenCalledWith("conclusion", "skipped");
+      expect(mockCore.setOutput).toHaveBeenCalledWith("success", "true");
+      expect(mockCore.setFailed).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("when detection is needed (RUN_DETECTION === 'true')", () => {
+    beforeEach(() => {
+      process.env.RUN_DETECTION = "true";
+    });
+
+    it("should fail when detection log file does not exist", async () => {
+      mockExistsSync.mockReturnValue(false);
+
+      await mod.main();
+
+      expect(mockCore.setOutput).toHaveBeenCalledWith("conclusion", "failure");
       expect(mockCore.setOutput).toHaveBeenCalledWith("success", "false");
-      expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("Failed to read detection log"));
+      expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("Detection log file not found"));
+    });
+
+    // Note: The following tests are skipped because mocking fs for CJS modules
+    // is difficult in vitest (same issue as safe_output_validator.test.cjs).
+    // The core parsing logic is thoroughly tested via parseDetectionLog above.
+    // These tests document the expected behavior of main() for each scenario.
+    describe.skip("with detection log file present (CJS fs mock limitation)", () => {
+      it("should fail when detection log has no result line", async () => {
+        mockExistsSync.mockReturnValue(true);
+        mockReadFileSync.mockReturnValue("just some debug output\nno result here\n");
+
+        await mod.main();
+
+        expect(mockCore.setOutput).toHaveBeenCalledWith("conclusion", "failure");
+        expect(mockCore.setOutput).toHaveBeenCalledWith("success", "false");
+        expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("No THREAT_DETECTION_RESULT found"));
+      });
+
+      it("should fail when detection log has multiple result lines", async () => {
+        mockExistsSync.mockReturnValue(true);
+        mockReadFileSync.mockReturnValue(
+          ['THREAT_DETECTION_RESULT:{"prompt_injection":false,"secret_leak":false,"malicious_patch":false,"reasons":[]}', 'THREAT_DETECTION_RESULT:{"prompt_injection":true,"secret_leak":false,"malicious_patch":false,"reasons":[]}'].join(
+            "\n"
+          )
+        );
+
+        await mod.main();
+
+        expect(mockCore.setOutput).toHaveBeenCalledWith("conclusion", "failure");
+        expect(mockCore.setOutput).toHaveBeenCalledWith("success", "false");
+        expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("Multiple conflicting THREAT_DETECTION_RESULT entries"));
+      });
+
+      it("should fail when result JSON is invalid", async () => {
+        mockExistsSync.mockReturnValue(true);
+        mockReadFileSync.mockReturnValue("THREAT_DETECTION_RESULT:{bad json}");
+
+        await mod.main();
+
+        expect(mockCore.setOutput).toHaveBeenCalledWith("conclusion", "failure");
+        expect(mockCore.setOutput).toHaveBeenCalledWith("success", "false");
+        expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("Failed to parse JSON"));
+      });
+
+      it("should set conclusion=success with clean verdict", async () => {
+        mockExistsSync.mockReturnValue(true);
+        mockReadFileSync.mockReturnValue('debug output\nTHREAT_DETECTION_RESULT:{"prompt_injection":false,"secret_leak":false,"malicious_patch":false,"reasons":[]}\n');
+
+        await mod.main();
+
+        expect(mockCore.setOutput).toHaveBeenCalledWith("conclusion", "success");
+        expect(mockCore.setOutput).toHaveBeenCalledWith("success", "true");
+        expect(mockCore.setFailed).not.toHaveBeenCalled();
+      });
+
+      it("should set conclusion=failure when threats are detected", async () => {
+        mockExistsSync.mockReturnValue(true);
+        mockReadFileSync.mockReturnValue('THREAT_DETECTION_RESULT:{"prompt_injection":true,"secret_leak":false,"malicious_patch":false,"reasons":["found injection"]}');
+
+        await mod.main();
+
+        expect(mockCore.setOutput).toHaveBeenCalledWith("conclusion", "failure");
+        expect(mockCore.setOutput).toHaveBeenCalledWith("success", "false");
+        expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("Security threats detected: prompt injection"));
+      });
+
+      it("should fail when readFileSync throws", async () => {
+        mockExistsSync.mockReturnValue(true);
+        mockReadFileSync.mockImplementation(() => {
+          throw new Error("EACCES: permission denied");
+        });
+
+        await mod.main();
+
+        expect(mockCore.setOutput).toHaveBeenCalledWith("conclusion", "failure");
+        expect(mockCore.setOutput).toHaveBeenCalledWith("success", "false");
+        expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("Failed to read detection log"));
+      });
     });
   });
 });

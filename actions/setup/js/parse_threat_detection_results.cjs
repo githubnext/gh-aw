@@ -145,58 +145,125 @@ function parseDetectionLog(content) {
 }
 
 /**
- * Main entry point for parsing threat detection results
+ * Main entry point for parsing threat detection results and concluding the detection job.
+ *
+ * This function consolidates three responsibilities previously split across two steps:
+ *  1. Parse the detection log and extract the threat verdict
+ *  2. Log all results with extensive diagnostic detail
+ *  3. Set job outputs (success, conclusion) and fail the job if threats were detected
+ *
+ * The RUN_DETECTION environment variable controls whether detection was needed at all:
+ *  - "true"  → parse the log and evaluate the verdict
+ *  - anything else → mark as skipped (no agent output to analyze)
+ *
  * @returns {Promise<void>}
  */
 async function main() {
   const threatDetectionDir = "/tmp/gh-aw/threat-detection";
   const logPath = path.join(threatDetectionDir, DETECTION_LOG_FILENAME);
+  const runDetection = process.env.RUN_DETECTION;
 
-  // Check that the detection log exists
+  core.info("════════════════════════════════════════════════════════");
+  core.info("🛡️  Threat Detection: Parse Results & Conclude");
+  core.info("════════════════════════════════════════════════════════");
+  core.info(`📋 RUN_DETECTION env: ${JSON.stringify(runDetection)}`);
+  core.info(`📁 Threat detection directory: ${threatDetectionDir}`);
+  core.info(`📄 Detection log path: ${logPath}`);
+
+  // ── Step 1: Check whether detection was needed ──────────────────────────
+  if (runDetection !== "true") {
+    core.info("⏭️  Detection guard output indicates detection was not needed.");
+    core.info("   Reason: no agent output types or patch files were produced.");
+    core.info("   Setting conclusion=skipped, success=true.");
+    core.setOutput("conclusion", "skipped");
+    core.setOutput("success", "true");
+    core.info("✅ Detection skipped — no threats to evaluate.");
+    return;
+  }
+
+  core.info("🔍 Detection is required. Proceeding to parse detection log...");
+
+  // ── Step 2: Verify the detection log file exists ─────────────────────────
   if (!fs.existsSync(logPath)) {
     core.error("❌ Detection log file not found at: " + logPath);
-    // List all files in artifact directory for debugging
-    core.info("📁 Listing all files in artifact directory: " + threatDetectionDir);
+    core.info("📁 Listing all files in artifact directory for diagnosis: " + threatDetectionDir);
     try {
       const files = listFilesRecursively(threatDetectionDir, threatDetectionDir);
       if (files.length === 0) {
-        core.warning("  No files found in " + threatDetectionDir);
+        core.warning("   ⚠️  No files found in " + threatDetectionDir);
       } else {
-        core.info("  Found " + files.length + " file(s):");
-        files.forEach(file => core.info("    - " + file));
+        core.info("   Found " + files.length + " file(s):");
+        files.forEach(file => core.info("     - " + file));
       }
     } catch {
-      core.warning("  Could not list files in " + threatDetectionDir);
+      core.warning("   ⚠️  Could not list files in " + threatDetectionDir);
     }
+    core.setOutput("conclusion", "failure");
     core.setOutput("success", "false");
     core.setFailed(`${ERR_SYSTEM}: ❌ Detection log file not found at: ${logPath}`);
     return;
   }
 
-  // Read the detection log
+  core.info("✔️  Detection log file exists: " + logPath);
+
+  // ── Step 3: Read the detection log ───────────────────────────────────────
   let logContent;
   try {
     logContent = fs.readFileSync(logPath, "utf8");
   } catch (/** @type {any} */ readError) {
+    core.error("❌ Failed to read detection log: " + getErrorMessage(readError));
+    core.setOutput("conclusion", "failure");
     core.setOutput("success", "false");
     core.setFailed(`${ERR_SYSTEM}: ❌ Failed to read detection log: ${getErrorMessage(readError)}`);
     return;
   }
 
-  // Parse the detection result
+  const logLines = logContent.split("\n");
+  core.info(`📊 Detection log stats: ${logLines.length} lines, ${logContent.length} bytes`);
+
+  // Log first and last few lines for quick diagnosis without overwhelming output
+  const previewLines = 5;
+  if (logLines.length > 0) {
+    core.info(`📄 First ${Math.min(previewLines, logLines.length)} lines of detection log:`);
+    logLines.slice(0, previewLines).forEach((line, i) => core.info(`   [${i + 1}] ${line}`));
+  }
+  if (logLines.length > previewLines * 2) {
+    core.info(`   ... (${logLines.length - previewLines * 2} lines omitted) ...`);
+    core.info(`📄 Last ${previewLines} lines of detection log:`);
+    logLines.slice(-previewLines).forEach((line, i) => core.info(`   [${logLines.length - previewLines + i + 1}] ${line}`));
+  }
+
+  // ── Step 4: Parse the detection result ───────────────────────────────────
+  core.info("🔎 Parsing THREAT_DETECTION_RESULT from detection log...");
   const { verdict, error } = parseDetectionLog(logContent);
 
   if (error || !verdict) {
-    core.error("❌ " + (error || "No verdict returned from detection log parser"));
+    const errorMsg = error || "No verdict returned from detection log parser";
+    core.error("❌ Failed to parse detection result: " + errorMsg);
+    core.info("💡 This usually means the AI engine did not produce the expected output format.");
+    core.info('   Expected format: THREAT_DETECTION_RESULT:{"prompt_injection":bool,"secret_leak":bool,"malicious_patch":bool,"reasons":[...]}');
+    core.setOutput("conclusion", "failure");
     core.setOutput("success", "false");
-    core.setFailed(`${ERR_PARSE}: ❌ ${error || "No verdict returned from detection log parser"}`);
+    core.setFailed(`${ERR_PARSE}: ❌ ${errorMsg}`);
     return;
   }
 
-  core.info("Threat detection verdict: " + JSON.stringify(verdict));
+  // ── Step 5: Log the full verdict ─────────────────────────────────────────
+  core.info("📋 Threat detection verdict:");
+  core.info(`   prompt_injection : ${verdict.prompt_injection}`);
+  core.info(`   secret_leak      : ${verdict.secret_leak}`);
+  core.info(`   malicious_patch  : ${verdict.malicious_patch}`);
+  if (verdict.reasons && verdict.reasons.length > 0) {
+    core.info(`   reasons (${verdict.reasons.length}):`);
+    verdict.reasons.forEach((reason, i) => core.info(`     [${i + 1}] ${reason}`));
+  } else {
+    core.info("   reasons          : (none)");
+  }
 
-  // Fail if threats detected
-  if (verdict.prompt_injection || verdict.secret_leak || verdict.malicious_patch) {
+  // ── Step 6: Evaluate verdict and set conclusion ───────────────────────────
+  const threatsDetected = verdict.prompt_injection || verdict.secret_leak || verdict.malicious_patch;
+
+  if (threatsDetected) {
     const threats = [];
     if (verdict.prompt_injection) threats.push("prompt injection");
     if (verdict.secret_leak) threats.push("secret leak");
@@ -204,12 +271,23 @@ async function main() {
 
     const reasonsText = verdict.reasons && verdict.reasons.length > 0 ? "\nReasons: " + verdict.reasons.join("; ") : "";
 
+    core.error("🚨 Security threats detected: " + threats.join(", "));
+    if (verdict.reasons && verdict.reasons.length > 0) {
+      core.error("   Reasons: " + verdict.reasons.join("; "));
+    }
+
+    core.setOutput("conclusion", "failure");
     core.setOutput("success", "false");
     core.setFailed(`${ERR_VALIDATION}: ❌ Security threats detected: ${threats.join(", ")}${reasonsText}`);
   } else {
     core.info("✅ No security threats detected. Safe outputs may proceed.");
+    core.setOutput("conclusion", "success");
     core.setOutput("success", "true");
   }
+
+  core.info("════════════════════════════════════════════════════════");
+  core.info("🛡️  Threat detection conclusion complete.");
+  core.info("════════════════════════════════════════════════════════");
 }
 
 module.exports = { main, parseDetectionLog, extractFromStreamJson };

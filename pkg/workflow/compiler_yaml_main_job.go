@@ -468,6 +468,9 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 		}
 	}
 
+	// Optionally synthesize a compact observability section from runtime artifacts.
+	c.generateObservabilitySummary(yaml, data)
+
 	// Collect agent stdio logs path for unified upload
 	artifactPaths = append(artifactPaths, logFileFull)
 
@@ -773,17 +776,6 @@ func (c *Compiler) generateLegacyAgentImportCheckout(yaml *strings.Builder, agen
 	yaml.WriteString("          persist-credentials: false\n")
 
 	compilerYamlLog.Printf("Added legacy agent checkout step: %s/%s@%s -> %s", owner, repo, ref, checkoutPath)
-}
-
-// sanitizeRefForPath sanitizes a git ref for use in a file path
-// Replaces characters that are problematic in file paths with safe alternatives
-func sanitizeRefForPath(ref string) string {
-	// Replace slashes with dashes (for refs like "feature/my-branch")
-	sanitized := strings.ReplaceAll(ref, "/", "-")
-	// Replace other problematic characters
-	sanitized = strings.ReplaceAll(sanitized, ":", "-")
-	sanitized = strings.ReplaceAll(sanitized, "\\", "-")
-	return sanitized
 }
 
 // generateDevModeCLIBuildSteps generates the steps needed to build the gh-aw CLI and Docker image in dev mode

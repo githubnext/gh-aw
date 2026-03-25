@@ -6,8 +6,15 @@ import (
 
 var versionLog = logger.New("workflow:version")
 
-// compilerVersion holds the version of the compiler, set at runtime.
-// This is used to include version information in generated workflow headers.
+// compilerVersion is the single source of truth for the compiler version.
+// It is set at runtime by SetVersion (called during CLI initialization) and used:
+//   - In generated workflow headers (via GetVersion)
+//   - When creating new Compiler instances (NewCompiler reads it via GetVersion)
+//
+// Initialization flow:
+//
+//	main.go → cli.SetVersionInfo(v) → workflow.SetVersion(v)   (sets compilerVersion)
+//	                                  → NewCompiler()            (reads compilerVersion via GetVersion)
 var compilerVersion = "dev"
 
 // isReleaseBuild indicates whether this binary was built as a release.
@@ -15,8 +22,9 @@ var compilerVersion = "dev"
 // if version information should be included in generated workflows.
 var isReleaseBuild = false
 
-// SetVersion sets the compiler version for inclusion in generated workflow headers.
-// Only non-dev versions are included in the generated headers.
+// SetVersion sets the compiler version. Call once during CLI initialization.
+// The version is used in generated workflow headers and as the default version
+// for new Compiler instances created via NewCompiler.
 func SetVersion(v string) {
 	versionLog.Printf("Setting compiler version: %s", v)
 	compilerVersion = v

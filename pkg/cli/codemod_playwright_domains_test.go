@@ -11,7 +11,7 @@ import (
 )
 
 func TestGetPlaywrightDomainsCodemod(t *testing.T) {
-	codemod := getPlaywrightDomainsCodemod()
+	codemod := getPlaywrightDomainsToNetworkAllowedCodemod()
 
 	assert.Equal(t, "playwright-allowed-domains-migration", codemod.ID, "Codemod ID should match")
 	assert.Equal(t, "Migrate playwright allowed_domains to network.allowed", codemod.Name, "Codemod name should match")
@@ -21,7 +21,7 @@ func TestGetPlaywrightDomainsCodemod(t *testing.T) {
 }
 
 func TestPlaywrightDomainsCodemod_NoTools(t *testing.T) {
-	codemod := getPlaywrightDomainsCodemod()
+	codemod := getPlaywrightDomainsToNetworkAllowedCodemod()
 
 	content := `---
 on: workflow_dispatch
@@ -43,7 +43,7 @@ permissions:
 }
 
 func TestPlaywrightDomainsCodemod_NoPlaywright(t *testing.T) {
-	codemod := getPlaywrightDomainsCodemod()
+	codemod := getPlaywrightDomainsToNetworkAllowedCodemod()
 
 	content := `---
 on: workflow_dispatch
@@ -69,7 +69,7 @@ tools:
 }
 
 func TestPlaywrightDomainsCodemod_NoAllowedDomains(t *testing.T) {
-	codemod := getPlaywrightDomainsCodemod()
+	codemod := getPlaywrightDomainsToNetworkAllowedCodemod()
 
 	content := `---
 on: workflow_dispatch
@@ -95,7 +95,7 @@ tools:
 }
 
 func TestPlaywrightDomainsCodemod_BasicMigration(t *testing.T) {
-	codemod := getPlaywrightDomainsCodemod()
+	codemod := getPlaywrightDomainsToNetworkAllowedCodemod()
 
 	content := `---
 on: workflow_dispatch
@@ -129,7 +129,7 @@ tools:
 }
 
 func TestPlaywrightDomainsCodemod_PreservesVersion(t *testing.T) {
-	codemod := getPlaywrightDomainsCodemod()
+	codemod := getPlaywrightDomainsToNetworkAllowedCodemod()
 
 	content := `---
 on: workflow_dispatch
@@ -164,7 +164,7 @@ tools:
 }
 
 func TestPlaywrightDomainsCodemod_MergesWithExistingNetwork(t *testing.T) {
-	codemod := getPlaywrightDomainsCodemod()
+	codemod := getPlaywrightDomainsToNetworkAllowedCodemod()
 
 	content := `---
 on: workflow_dispatch
@@ -203,7 +203,7 @@ network:
 }
 
 func TestPlaywrightDomainsCodemod_DeduplicatesDomains(t *testing.T) {
-	codemod := getPlaywrightDomainsCodemod()
+	codemod := getPlaywrightDomainsToNetworkAllowedCodemod()
 
 	content := `---
 on: workflow_dispatch
@@ -255,7 +255,7 @@ network:
 }
 
 func TestPlaywrightDomainsCodemod_SingleDomainString(t *testing.T) {
-	codemod := getPlaywrightDomainsCodemod()
+	codemod := getPlaywrightDomainsToNetworkAllowedCodemod()
 
 	content := `---
 on: workflow_dispatch

@@ -1635,6 +1635,39 @@ main,
   }
 }
 
+/* === W2: Lower sidebar breakpoint to 768px for tablet support === */
+/* Starlight default is 50rem (800px). At 48rem (768px) the sidebar becomes persistent */
+/* so iPad (768×1024) and iPad Pro 11 (834×1194) show a sidebar instead of hamburger menu. */
+@media (min-width: 48rem) {
+  /* Offset main content to make room for the persistent sidebar */
+  html[data-has-sidebar] {
+    --sl-content-inline-start: var(--sl-sidebar-width);
+  }
+
+  /* Make the sidebar pane always visible (not overlay) */
+  .sidebar-pane {
+    --sl-sidebar-visibility: visible;
+    width: var(--sl-sidebar-width) !important;
+    background-color: var(--sl-color-bg-sidebar) !important;
+    border-inline-end: 1px solid var(--sl-color-hairline-shade) !important;
+  }
+
+  /* Remove the extra header padding that was reserved for the hamburger button */
+  [data-has-sidebar] .header {
+    padding-inline-end: var(--sl-nav-pad-x) !important;
+  }
+
+  /* Hide the mobile hamburger toggle since the sidebar is now persistent */
+  starlight-menu-button button {
+    display: none !important;
+  }
+
+  /* Restore body scroll when sidebar becomes persistent (was locked when menu was open) */
+  [data-mobile-menu-expanded] {
+    overflow: auto !important;
+  }
+}
+
 /* Mobile-specific: Additional touch target improvements for remaining elements */
 @media (max-width: 768px) {
   /* Skip to content link - accessibility feature */

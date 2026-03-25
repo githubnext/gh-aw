@@ -9,9 +9,9 @@ import (
 
 var playwrightDomainsCodemodLog = logger.New("cli:codemod_playwright_domains")
 
-// getPlaywrightDomainsCodemod creates a codemod that migrates tools.playwright.allowed_domains
+// getPlaywrightDomainsToNetworkAllowedCodemod creates a codemod that migrates tools.playwright.allowed_domains
 // to network.allowed. Network egress for Playwright is now controlled by the workflow firewall.
-func getPlaywrightDomainsCodemod() Codemod {
+func getPlaywrightDomainsToNetworkAllowedCodemod() Codemod {
 	return Codemod{
 		ID:           "playwright-allowed-domains-migration",
 		Name:         "Migrate playwright allowed_domains to network.allowed",

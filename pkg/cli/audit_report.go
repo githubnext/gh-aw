@@ -21,9 +21,14 @@ var auditReportLog = logger.New("cli:audit_report")
 // AuditData represents the complete structured audit data for a workflow run
 type AuditData struct {
 	Overview                OverviewData             `json:"overview"`
+	Comparison              *AuditComparisonData     `json:"comparison,omitempty"`
+	TaskDomain              *TaskDomainInfo          `json:"task_domain,omitempty"`
+	BehaviorFingerprint     *BehaviorFingerprint     `json:"behavior_fingerprint,omitempty"`
+	AgenticAssessments      []AgenticAssessment      `json:"agentic_assessments,omitempty"`
 	Metrics                 MetricsData              `json:"metrics"`
 	KeyFindings             []Finding                `json:"key_findings,omitempty"`
 	Recommendations         []Recommendation         `json:"recommendations,omitempty"`
+	ObservabilityInsights   []ObservabilityInsight   `json:"observability_insights,omitempty"`
 	PerformanceMetrics      *PerformanceMetrics      `json:"performance_metrics,omitempty"`
 	Jobs                    []JobData                `json:"jobs,omitempty"`
 	DownloadedFiles         []FileInfo               `json:"downloaded_files"`
@@ -227,16 +232,15 @@ func buildAuditData(processedRun ProcessedRun, metrics LogMetrics, mcpToolUsage 
 		overview.LogsPath = run.LogsPath
 	}
 
-	// Parse aw_info.json to extract aw_context if present
-	if run.LogsPath != "" {
-		awInfoPath := filepath.Join(run.LogsPath, "aw_info.json")
-		if info, err := parseAwInfo(awInfoPath, false); err == nil && info != nil {
-			overview.AwContext = info.Context
-		}
-	}
-
 	if run.Duration > 0 {
 		overview.Duration = timeutil.FormatDuration(run.Duration)
+	}
+
+	if run.LogsPath != "" {
+		awInfoPath := filepath.Join(run.LogsPath, "aw_info.json")
+		if awInfo, err := parseAwInfo(awInfoPath, false); err == nil && awInfo != nil {
+			overview.AwContext = awInfo.Context
+		}
 	}
 
 	// Build metrics
@@ -276,8 +280,6 @@ func buildAuditData(processedRun ProcessedRun, metrics LogMetrics, mcpToolUsage 
 		}
 	}
 
-	// Build tool usage
-	var toolUsage []ToolUsageInfo
 	toolStats := make(map[string]*ToolUsageInfo)
 	for _, toolCall := range metrics.ToolCalls {
 		displayKey := workflow.PrettifyToolName(toolCall.Name)
@@ -290,33 +292,45 @@ func buildAuditData(processedRun ProcessedRun, metrics LogMetrics, mcpToolUsage 
 				existing.MaxOutputSize = toolCall.MaxOutputSize
 			}
 			if toolCall.MaxDuration > 0 {
-				maxDur := timeutil.FormatDuration(toolCall.MaxDuration)
+				maxDuration := timeutil.FormatDuration(toolCall.MaxDuration)
 				if existing.MaxDuration == "" || toolCall.MaxDuration > parseDurationString(existing.MaxDuration) {
-					existing.MaxDuration = maxDur
+					existing.MaxDuration = maxDuration
 				}
 			}
-		} else {
-			info := &ToolUsageInfo{
-				Name:          displayKey,
-				CallCount:     toolCall.CallCount,
-				MaxInputSize:  toolCall.MaxInputSize,
-				MaxOutputSize: toolCall.MaxOutputSize,
-			}
-			if toolCall.MaxDuration > 0 {
-				info.MaxDuration = timeutil.FormatDuration(toolCall.MaxDuration)
-			}
-			toolStats[displayKey] = info
+			continue
 		}
+
+		toolInfo := &ToolUsageInfo{
+			Name:          displayKey,
+			CallCount:     toolCall.CallCount,
+			MaxInputSize:  toolCall.MaxInputSize,
+			MaxOutputSize: toolCall.MaxOutputSize,
+		}
+		if toolCall.MaxDuration > 0 {
+			toolInfo.MaxDuration = timeutil.FormatDuration(toolCall.MaxDuration)
+		}
+		toolStats[displayKey] = toolInfo
 	}
+
+	toolUsage := make([]ToolUsageInfo, 0, len(toolStats))
 	for _, info := range toolStats {
 		toolUsage = append(toolUsage, *info)
 	}
 
+	createdItems := extractCreatedItemsFromManifest(run.LogsPath)
+	taskDomain := detectTaskDomain(processedRun, createdItems, toolUsage, overview.AwContext)
+	behaviorFingerprint := buildBehaviorFingerprint(processedRun, metricsData, toolUsage, createdItems, overview.AwContext)
+	agenticAssessments := buildAgenticAssessments(processedRun, metricsData, toolUsage, createdItems, taskDomain, behaviorFingerprint, overview.AwContext)
+
 	// Generate key findings
 	findings := generateFindings(processedRun, metricsData, errors, warnings)
+	findings = append(findings, generateAgenticAssessmentFindings(agenticAssessments)...)
 
 	// Generate recommendations
 	recommendations := generateRecommendations(processedRun, metricsData, findings)
+	recommendations = append(recommendations, generateAgenticAssessmentRecommendations(agenticAssessments)...)
+
+	observabilityInsights := buildAuditObservabilityInsights(processedRun, metricsData, toolUsage, createdItems)
 
 	// Generate performance metrics
 	performanceMetrics := generatePerformanceMetrics(processedRun, metricsData, toolUsage)
@@ -328,9 +342,13 @@ func buildAuditData(processedRun ProcessedRun, metrics LogMetrics, mcpToolUsage 
 
 	return AuditData{
 		Overview:                overview,
+		TaskDomain:              taskDomain,
+		BehaviorFingerprint:     behaviorFingerprint,
+		AgenticAssessments:      agenticAssessments,
 		Metrics:                 metricsData,
 		KeyFindings:             findings,
 		Recommendations:         recommendations,
+		ObservabilityInsights:   observabilityInsights,
 		PerformanceMetrics:      performanceMetrics,
 		Jobs:                    jobs,
 		DownloadedFiles:         downloadedFiles,
@@ -345,7 +363,7 @@ func buildAuditData(processedRun ProcessedRun, metrics LogMetrics, mcpToolUsage 
 		Warnings:                warnings,
 		ToolUsage:               toolUsage,
 		MCPToolUsage:            mcpToolUsage,
-		CreatedItems:            extractCreatedItemsFromManifest(run.LogsPath),
+		CreatedItems:            createdItems,
 	}
 }
 

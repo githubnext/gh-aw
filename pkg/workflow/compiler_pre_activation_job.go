@@ -240,7 +240,7 @@ func (c *Compiler) buildPreActivationJob(data *WorkflowData, needsPermissionChec
 	if len(data.OnSteps) > 0 {
 		compilerActivationJobsLog.Printf("Adding %d on.steps to pre-activation job", len(data.OnSteps))
 		for i, stepMap := range data.OnSteps {
-			stepYAML, err := c.convertStepToYAML(stepMap)
+			stepYAML, err := ConvertStepToYAML(stepMap)
 			if err != nil {
 				return nil, fmt.Errorf("failed to convert on.steps[%d] to YAML: %w", i, err)
 			}
@@ -486,7 +486,7 @@ func (c *Compiler) extractPreActivationCustomFields(jobs map[string]any) ([]stri
 				}
 
 				// Convert step to YAML
-				stepYAML, err := c.convertStepToYAML(stepMap)
+				stepYAML, err := ConvertStepToYAML(stepMap)
 				if err != nil {
 					return nil, nil, fmt.Errorf("failed to convert jobs.%s.steps[%d] to YAML: %w", jobName, i, err)
 				}

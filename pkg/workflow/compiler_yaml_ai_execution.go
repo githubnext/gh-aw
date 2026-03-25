@@ -5,6 +5,31 @@ import (
 	"strings"
 )
 
+func getObservabilityJobSummaryMode(data *WorkflowData) string {
+	if data == nil {
+		return ""
+	}
+
+	mode := ""
+	if data.ParsedFrontmatter != nil && data.ParsedFrontmatter.Observability != nil {
+		mode = data.ParsedFrontmatter.Observability.JobSummary
+	}
+
+	if mode == "" && data.RawFrontmatter != nil {
+		if rawObservability, ok := data.RawFrontmatter["observability"].(map[string]any); ok {
+			if rawMode, ok := rawObservability["job-summary"].(string); ok {
+				mode = rawMode
+			}
+		}
+	}
+
+	if mode == "off" {
+		return ""
+	}
+
+	return mode
+}
+
 // generateEngineExecutionSteps generates the GitHub Actions steps for executing the AI engine
 func (c *Compiler) generateEngineExecutionSteps(yaml *strings.Builder, data *WorkflowData, engine CodingAgentEngine, logFile string) {
 
@@ -89,6 +114,29 @@ func (c *Compiler) generateMCPGatewayLogParsing(yaml *strings.Builder) {
 	// Load MCP gateway log parser script from external file using require()
 	yaml.WriteString("            const { main } = require('${{ runner.temp }}/gh-aw/actions/parse_mcp_gateway_log.cjs');\n")
 	yaml.WriteString("            await main();\n")
+}
+
+// generateObservabilitySummary generates an opt-in step that synthesizes a compact
+// observability section for the GitHub Actions step summary from existing runtime files.
+func (c *Compiler) generateObservabilitySummary(yaml *strings.Builder, data *WorkflowData) {
+	mode := getObservabilityJobSummaryMode(data)
+	if mode == "" {
+		return
+	}
+
+	compilerYamlLog.Printf("Generating observability step summary: mode=%s", mode)
+
+	yaml.WriteString("      - name: Generate observability summary\n")
+	yaml.WriteString("        if: always()\n")
+	fmt.Fprintf(yaml, "        uses: %s\n", GetActionPin("actions/github-script"))
+	yaml.WriteString("        env:\n")
+	fmt.Fprintf(yaml, "          GH_AW_OBSERVABILITY_JOB_SUMMARY: %q\n", mode)
+	yaml.WriteString("        with:\n")
+	yaml.WriteString("          script: |\n")
+	yaml.WriteString("            const { setupGlobals } = require('" + SetupActionDestination + "/setup_globals.cjs');\n")
+	yaml.WriteString("            setupGlobals(core, github, context, exec, io);\n")
+	yaml.WriteString("            const { main } = require('${{ runner.temp }}/gh-aw/actions/generate_observability_summary.cjs');\n")
+	yaml.WriteString("            await main(core);\n")
 }
 
 // generateStopMCPGateway generates a step that stops the MCP gateway process using its PID from step output

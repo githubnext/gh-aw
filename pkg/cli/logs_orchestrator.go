@@ -350,6 +350,10 @@ func DownloadWorkflowLogs(ctx context.Context, workflowName string, count int, s
 
 				processedRun := ProcessedRun{
 					Run:                     run,
+					AwContext:               result.AwContext,
+					TaskDomain:              result.TaskDomain,
+					BehaviorFingerprint:     result.BehaviorFingerprint,
+					AgenticAssessments:      result.AgenticAssessments,
 					AccessAnalysis:          result.AccessAnalysis,
 					FirewallAnalysis:        result.FirewallAnalysis,
 					RedactedDomainsAnalysis: result.RedactedDomainsAnalysis,
@@ -609,6 +613,10 @@ func downloadRunArtifactsConcurrent(ctx context.Context, runs []WorkflowRun, out
 				result := DownloadResult{
 					Run:                     summary.Run,
 					Metrics:                 summary.Metrics,
+					AwContext:               summary.AwContext,
+					TaskDomain:              summary.TaskDomain,
+					BehaviorFingerprint:     summary.BehaviorFingerprint,
+					AgenticAssessments:      summary.AgenticAssessments,
 					AccessAnalysis:          summary.AccessAnalysis,
 					FirewallAnalysis:        summary.FirewallAnalysis,
 					RedactedDomainsAnalysis: summary.RedactedDomainsAnalysis,
@@ -762,6 +770,24 @@ func downloadRunArtifactsConcurrent(ctx context.Context, runs []WorkflowRun, out
 					}
 				}
 
+				processedRun := ProcessedRun{
+					Run:                     result.Run,
+					AccessAnalysis:          accessAnalysis,
+					FirewallAnalysis:        firewallAnalysis,
+					RedactedDomainsAnalysis: redactedDomainsAnalysis,
+					MissingTools:            missingTools,
+					MissingData:             missingData,
+					Noops:                   noops,
+					MCPFailures:             mcpFailures,
+					MCPToolUsage:            mcpToolUsage,
+					JobDetails:              jobDetails,
+				}
+				awContext, _, _, taskDomain, behaviorFingerprint, agenticAssessments := deriveRunAgenticAnalysis(processedRun, metrics)
+				result.AwContext = awContext
+				result.TaskDomain = taskDomain
+				result.BehaviorFingerprint = behaviorFingerprint
+				result.AgenticAssessments = agenticAssessments
+
 				// Create and save run summary
 				summary := &RunSummary{
 					CLIVersion:              GetVersion(),
@@ -769,6 +795,10 @@ func downloadRunArtifactsConcurrent(ctx context.Context, runs []WorkflowRun, out
 					ProcessedAt:             time.Now(),
 					Run:                     result.Run,
 					Metrics:                 metrics,
+					AwContext:               result.AwContext,
+					TaskDomain:              result.TaskDomain,
+					BehaviorFingerprint:     result.BehaviorFingerprint,
+					AgenticAssessments:      result.AgenticAssessments,
 					AccessAnalysis:          accessAnalysis,
 					FirewallAnalysis:        firewallAnalysis,
 					RedactedDomainsAnalysis: redactedDomainsAnalysis,

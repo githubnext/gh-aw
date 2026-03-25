@@ -23,6 +23,7 @@ func TestBuildLogsData(t *testing.T) {
 				DatabaseID:       12345,
 				Number:           1,
 				WorkflowName:     "Test Workflow",
+				WorkflowPath:     ".github/workflows/test-workflow.yml",
 				Status:           "completed",
 				Conclusion:       "success",
 				Duration:         5 * time.Minute,
@@ -38,6 +39,24 @@ func TestBuildLogsData(t *testing.T) {
 				Event:            "push",
 				HeadBranch:       "main",
 			},
+			TaskDomain: &TaskDomainInfo{
+				Name:  "triage",
+				Label: "Triage",
+			},
+			BehaviorFingerprint: &BehaviorFingerprint{
+				ExecutionStyle:  "directed",
+				ToolBreadth:     "narrow",
+				ActuationStyle:  "read_only",
+				ResourceProfile: "lean",
+				DispatchMode:    "standalone",
+			},
+			AgenticAssessments: []AgenticAssessment{
+				{
+					Kind:     "overkill_for_agentic",
+					Severity: "low",
+					Summary:  "Deterministic automation may be a better fit.",
+				},
+			},
 			MissingTools: []MissingToolReport{},
 			MCPFailures:  []MCPFailureReport{},
 		},
@@ -46,6 +65,7 @@ func TestBuildLogsData(t *testing.T) {
 				DatabaseID:       12346,
 				Number:           2,
 				WorkflowName:     "Test Workflow",
+				WorkflowPath:     ".github/workflows/test-workflow.yml",
 				Status:           "completed",
 				Conclusion:       "failure",
 				Duration:         3 * time.Minute,
@@ -60,6 +80,17 @@ func TestBuildLogsData(t *testing.T) {
 				LogsPath:         filepath.Join(tmpDir, "run-12346"),
 				Event:            "pull_request",
 				HeadBranch:       "feature",
+			},
+			TaskDomain: &TaskDomainInfo{
+				Name:  "triage",
+				Label: "Triage",
+			},
+			BehaviorFingerprint: &BehaviorFingerprint{
+				ExecutionStyle:  "directed",
+				ToolBreadth:     "narrow",
+				ActuationStyle:  "read_only",
+				ResourceProfile: "lean",
+				DispatchMode:    "standalone",
 			},
 			MissingTools: []MissingToolReport{
 				{
@@ -99,15 +130,51 @@ func TestBuildLogsData(t *testing.T) {
 	if logsData.Summary.TotalMissingTools != 1 {
 		t.Errorf("Expected TotalMissingTools to be 1, got %d", logsData.Summary.TotalMissingTools)
 	}
+	if logsData.Summary.TotalEpisodes != 2 {
+		t.Errorf("Expected TotalEpisodes to be 2, got %d", logsData.Summary.TotalEpisodes)
+	}
+	if logsData.Summary.HighConfidenceEpisodes != 2 {
+		t.Errorf("Expected HighConfidenceEpisodes to be 2, got %d", logsData.Summary.HighConfidenceEpisodes)
+	}
 
 	// Verify runs data
 	if len(logsData.Runs) != 2 {
 		t.Errorf("Expected 2 runs, got %d", len(logsData.Runs))
 	}
+	if len(logsData.Episodes) != 2 {
+		t.Fatalf("Expected 2 episodes, got %d", len(logsData.Episodes))
+	}
+	if len(logsData.Edges) != 0 {
+		t.Fatalf("Expected 0 edges for standalone runs, got %d", len(logsData.Edges))
+	}
 
 	// Verify first run
 	if logsData.Runs[0].DatabaseID != 12345 {
 		t.Errorf("Expected DatabaseID 12345, got %d", logsData.Runs[0].DatabaseID)
+	}
+	if logsData.Runs[0].TaskDomain == nil || logsData.Runs[0].TaskDomain.Name != "triage" {
+		t.Fatalf("Expected first run to include task domain, got %+v", logsData.Runs[0].TaskDomain)
+	}
+	if logsData.Runs[0].BehaviorFingerprint == nil || logsData.Runs[0].BehaviorFingerprint.ResourceProfile != "lean" {
+		t.Fatalf("Expected first run to include behavior fingerprint, got %+v", logsData.Runs[0].BehaviorFingerprint)
+	}
+	if len(logsData.Runs[0].AgenticAssessments) != 1 {
+		t.Fatalf("Expected first run to include 1 agentic assessment, got %d", len(logsData.Runs[0].AgenticAssessments))
+	}
+	if logsData.Runs[0].Comparison == nil {
+		t.Fatal("Expected first run to include comparison payload")
+	}
+	if logsData.Runs[0].Comparison.BaselineFound {
+		t.Fatal("Expected oldest run to have no baseline in logs comparison")
+	}
+	if logsData.Runs[1].Comparison == nil || !logsData.Runs[1].Comparison.BaselineFound {
+		t.Fatalf("Expected newer run to include a baseline comparison, got %+v", logsData.Runs[1].Comparison)
+	}
+	if logsData.Runs[1].Comparison.Baseline == nil || logsData.Runs[1].Comparison.Baseline.Selection != "cohort_match" {
+		t.Fatalf("Expected newer run to use cohort_match baseline, got %+v", logsData.Runs[1].Comparison.Baseline)
+	}
+	if logsData.Runs[1].Comparison.Baseline == nil || logsData.Runs[1].Comparison.Baseline.RunID != 12345 {
+		t.Fatalf("Expected newer run baseline to point to run 12345, got %+v", logsData.Runs[1].Comparison.Baseline)
 	}
 	// Duration format from formatDuration is "5.0m", not "5m0s"
 	if logsData.Runs[0].Duration == "" {
@@ -130,14 +197,16 @@ func TestRenderLogsJSON(t *testing.T) {
 	// Create sample logs data
 	logsData := LogsData{
 		Summary: LogsSummary{
-			TotalRuns:         2,
-			TotalDuration:     "8m0s",
-			TotalTokens:       1500,
-			TotalCost:         0.075,
-			TotalTurns:        5,
-			TotalErrors:       1,
-			TotalWarnings:     1,
-			TotalMissingTools: 1,
+			TotalRuns:              2,
+			TotalDuration:          "8m0s",
+			TotalTokens:            1500,
+			TotalCost:              0.075,
+			TotalTurns:             5,
+			TotalErrors:            1,
+			TotalWarnings:          1,
+			TotalMissingTools:      1,
+			TotalEpisodes:          1,
+			HighConfidenceEpisodes: 1,
 		},
 		Runs: []RunData{
 			{
@@ -157,8 +226,31 @@ func TestRenderLogsJSON(t *testing.T) {
 				LogsPath:      filepath.Join(tmpDir, "run-12345"),
 				Event:         "push",
 				Branch:        "main",
+				Comparison: &AuditComparisonData{
+					BaselineFound: true,
+					Baseline: &AuditComparisonBaseline{
+						RunID:     12000,
+						Selection: "cohort_match",
+						MatchedOn: []string{"task_domain", "resource_profile"},
+					},
+				},
 			},
 		},
+		Episodes: []EpisodeData{
+			{
+				EpisodeID:          "standalone:12345",
+				Kind:               "standalone",
+				Confidence:         "high",
+				RunIDs:             []int64{12345},
+				WorkflowNames:      []string{"Test Workflow"},
+				PrimaryWorkflow:    "Test Workflow",
+				TotalRuns:          1,
+				TotalTokens:        1000,
+				TotalEstimatedCost: 0.05,
+				SuggestedRoute:     "workflow:Test Workflow",
+			},
+		},
+		Edges:        []EpisodeEdge{},
 		LogsLocation: tmpDir,
 	}
 
@@ -194,8 +286,286 @@ func TestRenderLogsJSON(t *testing.T) {
 	if parsedData.Summary.TotalTokens != 1500 {
 		t.Errorf("Expected TotalTokens 1500, got %d", parsedData.Summary.TotalTokens)
 	}
+	if parsedData.Summary.TotalEpisodes != 1 {
+		t.Errorf("Expected TotalEpisodes 1, got %d", parsedData.Summary.TotalEpisodes)
+	}
 	if len(parsedData.Runs) != 1 {
 		t.Errorf("Expected 1 run in JSON, got %d", len(parsedData.Runs))
+	}
+	if parsedData.Runs[0].Comparison == nil || parsedData.Runs[0].Comparison.Baseline == nil || parsedData.Runs[0].Comparison.Baseline.Selection != "cohort_match" {
+		t.Fatalf("Expected comparison metadata to survive JSON round-trip, got %+v", parsedData.Runs[0].Comparison)
+	}
+	if len(parsedData.Episodes) != 1 || parsedData.Episodes[0].PrimaryWorkflow != "Test Workflow" {
+		t.Fatalf("Expected episode primary workflow to survive JSON round-trip, got %+v", parsedData.Episodes)
+	}
+}
+
+func writeTestAwInfo(t *testing.T, runDir string, payload map[string]any) {
+	t.Helper()
+	if err := os.MkdirAll(runDir, 0o755); err != nil {
+		t.Fatalf("Failed to create run directory %s: %v", runDir, err)
+	}
+	content, err := json.Marshal(payload)
+	if err != nil {
+		t.Fatalf("Failed to marshal aw_info payload: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(runDir, "aw_info.json"), content, 0o644); err != nil {
+		t.Fatalf("Failed to write aw_info.json: %v", err)
+	}
+}
+
+func TestBuildLogsDataAggregatesDispatchEpisode(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "test-episode-*")
+	processedRuns := []ProcessedRun{
+		{
+			Run: WorkflowRun{
+				DatabaseID:    2001,
+				WorkflowName:  "orchestrator",
+				WorkflowPath:  ".github/workflows/orchestrator.yml",
+				Status:        "completed",
+				Conclusion:    "success",
+				Duration:      2 * time.Minute,
+				TokenUsage:    300,
+				EstimatedCost: 0.01,
+				CreatedAt:     time.Date(2024, 2, 1, 12, 0, 0, 0, time.UTC),
+				StartedAt:     time.Date(2024, 2, 1, 12, 0, 0, 0, time.UTC),
+				UpdatedAt:     time.Date(2024, 2, 1, 12, 2, 0, 0, time.UTC),
+				LogsPath:      filepath.Join(tmpDir, "run-2001"),
+			},
+			AgenticAssessments: []AgenticAssessment{{Kind: "resource_heavy_for_domain", Severity: "medium"}},
+		},
+		{
+			Run: WorkflowRun{
+				DatabaseID:       2002,
+				WorkflowName:     "worker",
+				WorkflowPath:     ".github/workflows/worker.yml",
+				Status:           "completed",
+				Conclusion:       "success",
+				Duration:         4 * time.Minute,
+				TokenUsage:       700,
+				EstimatedCost:    0.03,
+				MissingToolCount: 1,
+				CreatedAt:        time.Date(2024, 2, 1, 12, 3, 0, 0, time.UTC),
+				StartedAt:        time.Date(2024, 2, 1, 12, 3, 0, 0, time.UTC),
+				UpdatedAt:        time.Date(2024, 2, 1, 12, 7, 0, 0, time.UTC),
+				LogsPath:         filepath.Join(tmpDir, "run-2002"),
+			},
+			AwContext: &AwContext{
+				Repo:           "github/gh-aw",
+				RunID:          "2001",
+				WorkflowID:     "github/gh-aw/.github/workflows/orchestrator.yml@refs/heads/main",
+				WorkflowCallID: "2001-1",
+				EventType:      "workflow_dispatch",
+			},
+			BehaviorFingerprint: &BehaviorFingerprint{ActuationStyle: "selective_write"},
+			AgenticAssessments:  []AgenticAssessment{{Kind: "resource_heavy_for_domain", Severity: "high"}},
+			MCPFailures:         []MCPFailureReport{{ServerName: "github", Status: "failed"}},
+		},
+	}
+
+	logsData := buildLogsData(processedRuns, tmpDir, nil)
+
+	if logsData.Summary.TotalEpisodes != 1 {
+		t.Fatalf("Expected 1 episode, got %d", logsData.Summary.TotalEpisodes)
+	}
+	if logsData.Summary.HighConfidenceEpisodes != 1 {
+		t.Fatalf("Expected 1 high-confidence episode, got %d", logsData.Summary.HighConfidenceEpisodes)
+	}
+	if len(logsData.Edges) != 1 {
+		t.Fatalf("Expected 1 edge, got %d", len(logsData.Edges))
+	}
+	edge := logsData.Edges[0]
+	if edge.SourceRunID != 2001 || edge.TargetRunID != 2002 {
+		t.Fatalf("Expected edge 2001->2002, got %d->%d", edge.SourceRunID, edge.TargetRunID)
+	}
+	if edge.EdgeType != "dispatch_workflow" {
+		t.Fatalf("Expected dispatch_workflow edge, got %s", edge.EdgeType)
+	}
+	episode := logsData.Episodes[0]
+	if episode.Kind != "dispatch_workflow" {
+		t.Fatalf("Expected dispatch_workflow episode, got %s", episode.Kind)
+	}
+	if episode.TotalRuns != 2 {
+		t.Fatalf("Expected episode TotalRuns 2, got %d", episode.TotalRuns)
+	}
+	if episode.TotalTokens != 1000 {
+		t.Fatalf("Expected episode TotalTokens 1000, got %d", episode.TotalTokens)
+	}
+	if episode.MCPFailureCount != 1 {
+		t.Fatalf("Expected episode MCPFailureCount 1, got %d", episode.MCPFailureCount)
+	}
+	if episode.WriteCapableNodeCount != 1 {
+		t.Fatalf("Expected episode WriteCapableNodeCount 1, got %d", episode.WriteCapableNodeCount)
+	}
+	if !episode.EscalationEligible {
+		t.Fatalf("Expected dispatch episode to be escalation-eligible, got %+v", episode)
+	}
+	if episode.EscalationReason != "repeated_resource_heavy_for_domain" {
+		t.Fatalf("Expected repeated_risky_runs escalation reason, got %s", episode.EscalationReason)
+	}
+	if episode.PrimaryWorkflow != "orchestrator" {
+		t.Fatalf("Expected primary workflow orchestrator, got %s", episode.PrimaryWorkflow)
+	}
+	if episode.SuggestedRoute != "workflow:orchestrator" {
+		t.Fatalf("Expected suggested route workflow:orchestrator, got %s", episode.SuggestedRoute)
+	}
+}
+
+func TestBuildLogsDataJoinsWorkflowCallEpisode(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "test-workflow-call-*")
+	parentDir := filepath.Join(tmpDir, "run-3001")
+	childOneDir := filepath.Join(tmpDir, "run-3002")
+	childTwoDir := filepath.Join(tmpDir, "run-3003")
+
+	sharedInfo := map[string]any{
+		"engine_id":   "copilot",
+		"repository":  "github/gh-aw",
+		"ref":         "refs/heads/main",
+		"sha":         "abc123",
+		"actor":       "monalisa",
+		"run_attempt": "1",
+	}
+	writeTestAwInfo(t, parentDir, sharedInfo)
+	writeTestAwInfo(t, childOneDir, map[string]any{
+		"engine_id":   "copilot",
+		"repository":  "github/gh-aw",
+		"ref":         "refs/heads/main",
+		"sha":         "abc123",
+		"actor":       "monalisa",
+		"run_attempt": "1",
+		"event_name":  "workflow_call",
+		"target_repo": "github/platform-workflows",
+	})
+	writeTestAwInfo(t, childTwoDir, map[string]any{
+		"engine_id":   "copilot",
+		"repository":  "github/gh-aw",
+		"ref":         "refs/heads/main",
+		"sha":         "abc123",
+		"actor":       "monalisa",
+		"run_attempt": "1",
+		"event_name":  "workflow_call",
+		"target_repo": "github/platform-workflows",
+	})
+
+	processedRuns := []ProcessedRun{
+		{Run: WorkflowRun{DatabaseID: 3001, WorkflowName: "orchestrator", WorkflowPath: ".github/workflows/orchestrator.yml", Status: "completed", Conclusion: "success", Event: "push", HeadBranch: "main", HeadSha: "abc123", CreatedAt: time.Date(2024, 2, 2, 10, 0, 0, 0, time.UTC), StartedAt: time.Date(2024, 2, 2, 10, 0, 0, 0, time.UTC), UpdatedAt: time.Date(2024, 2, 2, 10, 2, 0, 0, time.UTC), LogsPath: parentDir}},
+		{Run: WorkflowRun{DatabaseID: 3002, WorkflowName: "worker-a", WorkflowPath: ".github/workflows/worker-a.yml", Status: "completed", Conclusion: "success", Event: "workflow_call", HeadBranch: "main", HeadSha: "abc123", CreatedAt: time.Date(2024, 2, 2, 10, 3, 0, 0, time.UTC), StartedAt: time.Date(2024, 2, 2, 10, 3, 0, 0, time.UTC), UpdatedAt: time.Date(2024, 2, 2, 10, 5, 0, 0, time.UTC), LogsPath: childOneDir}},
+		{Run: WorkflowRun{DatabaseID: 3003, WorkflowName: "worker-b", WorkflowPath: ".github/workflows/worker-b.yml", Status: "completed", Conclusion: "success", Event: "workflow_call", HeadBranch: "main", HeadSha: "abc123", CreatedAt: time.Date(2024, 2, 2, 10, 6, 0, 0, time.UTC), StartedAt: time.Date(2024, 2, 2, 10, 6, 0, 0, time.UTC), UpdatedAt: time.Date(2024, 2, 2, 10, 8, 0, 0, time.UTC), LogsPath: childTwoDir}},
+	}
+
+	logsData := buildLogsData(processedRuns, tmpDir, nil)
+
+	if logsData.Summary.TotalEpisodes != 1 {
+		t.Fatalf("Expected 1 workflow_call episode, got %d", logsData.Summary.TotalEpisodes)
+	}
+	if len(logsData.Edges) != 2 {
+		t.Fatalf("Expected 2 workflow_call edges, got %d", len(logsData.Edges))
+	}
+	for _, edge := range logsData.Edges {
+		if edge.EdgeType != "workflow_call" {
+			t.Fatalf("Expected workflow_call edge, got %+v", edge)
+		}
+	}
+	episode := logsData.Episodes[0]
+	if episode.Kind != "workflow_call" {
+		t.Fatalf("Expected workflow_call episode kind, got %s", episode.Kind)
+	}
+	if episode.TotalRuns != 3 {
+		t.Fatalf("Expected 3 runs in workflow_call episode, got %d", episode.TotalRuns)
+	}
+	if episode.Confidence != "high" {
+		t.Fatalf("Expected high-confidence workflow_call episode, got %s", episode.Confidence)
+	}
+}
+
+func TestBuildLogsDataDoesNotCoalesceWorkflowCallEpisodesWithoutRepositoryAndRef(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "test-workflow-call-low-info-*")
+	firstDir := filepath.Join(tmpDir, "run-5001")
+	secondDir := filepath.Join(tmpDir, "run-5002")
+
+	writeTestAwInfo(t, firstDir, map[string]any{
+		"engine_id":   "copilot",
+		"sha":         "abc123",
+		"actor":       "monalisa",
+		"run_attempt": "1",
+		"event_name":  "workflow_call",
+	})
+	writeTestAwInfo(t, secondDir, map[string]any{
+		"engine_id":   "copilot",
+		"sha":         "abc123",
+		"actor":       "monalisa",
+		"run_attempt": "1",
+		"event_name":  "workflow_call",
+	})
+
+	processedRuns := []ProcessedRun{
+		{Run: WorkflowRun{DatabaseID: 5001, WorkflowName: "worker-a", WorkflowPath: ".github/workflows/worker-a.yml", Status: "completed", Conclusion: "success", Event: "workflow_call", HeadBranch: "main", HeadSha: "abc123", CreatedAt: time.Date(2024, 2, 4, 10, 0, 0, 0, time.UTC), StartedAt: time.Date(2024, 2, 4, 10, 0, 0, 0, time.UTC), UpdatedAt: time.Date(2024, 2, 4, 10, 2, 0, 0, time.UTC), LogsPath: firstDir}},
+		{Run: WorkflowRun{DatabaseID: 5002, WorkflowName: "worker-b", WorkflowPath: ".github/workflows/worker-b.yml", Status: "completed", Conclusion: "success", Event: "workflow_call", HeadBranch: "main", HeadSha: "abc123", CreatedAt: time.Date(2024, 2, 4, 10, 3, 0, 0, time.UTC), StartedAt: time.Date(2024, 2, 4, 10, 3, 0, 0, time.UTC), UpdatedAt: time.Date(2024, 2, 4, 10, 5, 0, 0, time.UTC), LogsPath: secondDir}},
+	}
+
+	logsData := buildLogsData(processedRuns, tmpDir, nil)
+
+	if logsData.Summary.TotalEpisodes != 2 {
+		t.Fatalf("Expected 2 separate workflow_call episodes, got %d", logsData.Summary.TotalEpisodes)
+	}
+	if len(logsData.Edges) != 0 {
+		t.Fatalf("Expected no workflow_call edges for low-information runs, got %d", len(logsData.Edges))
+	}
+	for _, episode := range logsData.Episodes {
+		if episode.Kind != "workflow_call" {
+			t.Fatalf("Expected workflow_call episode kind, got %s", episode.Kind)
+		}
+		if episode.Confidence != "low" {
+			t.Fatalf("Expected low-confidence workflow_call episode, got %s", episode.Confidence)
+		}
+		if episode.TotalRuns != 1 {
+			t.Fatalf("Expected isolated workflow_call episode, got %d runs", episode.TotalRuns)
+		}
+	}
+}
+
+func TestBuildLogsDataAttachesWorkflowRunEpisode(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "test-workflow-run-*")
+	parentDir := filepath.Join(tmpDir, "run-4001")
+	childDir := filepath.Join(tmpDir, "run-4002")
+
+	writeTestAwInfo(t, parentDir, map[string]any{
+		"engine_id":   "copilot",
+		"repository":  "github/gh-aw",
+		"ref":         "refs/heads/main",
+		"sha":         "def456",
+		"actor":       "hubot",
+		"run_attempt": "1",
+	})
+	writeTestAwInfo(t, childDir, map[string]any{
+		"engine_id":   "copilot",
+		"repository":  "github/gh-aw",
+		"ref":         "refs/heads/main",
+		"sha":         "def456",
+		"actor":       "hubot",
+		"run_attempt": "1",
+		"event_name":  "workflow_run",
+	})
+
+	processedRuns := []ProcessedRun{
+		{Run: WorkflowRun{DatabaseID: 4001, WorkflowName: "ci", WorkflowPath: ".github/workflows/ci.yml", Status: "completed", Conclusion: "success", Event: "push", HeadBranch: "main", HeadSha: "def456", CreatedAt: time.Date(2024, 2, 3, 9, 0, 0, 0, time.UTC), StartedAt: time.Date(2024, 2, 3, 9, 0, 0, 0, time.UTC), UpdatedAt: time.Date(2024, 2, 3, 9, 4, 0, 0, time.UTC), LogsPath: parentDir}},
+		{Run: WorkflowRun{DatabaseID: 4002, WorkflowName: "observability-followup", WorkflowPath: ".github/workflows/followup.yml", Status: "completed", Conclusion: "success", Event: "workflow_run", HeadBranch: "main", HeadSha: "def456", CreatedAt: time.Date(2024, 2, 3, 9, 10, 0, 0, time.UTC), StartedAt: time.Date(2024, 2, 3, 9, 10, 0, 0, time.UTC), UpdatedAt: time.Date(2024, 2, 3, 9, 13, 0, 0, time.UTC), LogsPath: childDir}},
+	}
+
+	logsData := buildLogsData(processedRuns, tmpDir, nil)
+
+	if len(logsData.Edges) != 1 {
+		t.Fatalf("Expected 1 workflow_run edge, got %d", len(logsData.Edges))
+	}
+	edge := logsData.Edges[0]
+	if edge.EdgeType != "workflow_run" {
+		t.Fatalf("Expected workflow_run edge, got %+v", edge)
+	}
+	if edge.Confidence != "medium" {
+		t.Fatalf("Expected medium-confidence workflow_run edge, got %+v", edge)
+	}
+	if logsData.Summary.TotalEpisodes != 1 {
+		t.Fatalf("Expected 1 merged workflow_run episode, got %d", logsData.Summary.TotalEpisodes)
 	}
 }
 
