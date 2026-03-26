@@ -10,9 +10,7 @@ mermaid.initialize({ startOnLoad: true });
 
 # GitHub Agentic Workflows
 
-## Agentic Processes for Continuous AI
-
-### Technical Preview
+## Technical Preview
 
 <https://github.com/github/gh-aw>
 
@@ -20,54 +18,31 @@ mermaid.initialize({ startOnLoad: true });
 
 # Software Engineer → Agentic Engineer
 
-| Software Engineer | Agentic Engineer |
-|---|---|
-| Writes code manually | Writes prompts & workflows |
-| Reviews PRs | Reviews agent outputs |
-| Runs CI/CD pipelines | Orchestrates AI agents |
-| Debugging code | Debugging agent behavior |
-
-> The role evolves: from coding to orchestrating agents
+> From writing code to designing agentic processes
 
 ---
 
 # Agentic Human Processes
 
-## Humans and AI collaborate at every stage
-
-- **Author** — Write natural language workflows
-- **Reviewer** — Approve plans and validate outputs
-- **Supervisor** — Monitor running agents and handle exceptions
-- **Debugger** — Diagnose workflow behavior and improve prompts
-
 > Human oversight, AI execution
 
 ---
 
-# Pull Request Process
+# Pull Request
 
-<pre class="mermaid">
-flowchart TD
-    PR["Pull Request Opened"] --> Activation["Activation Job\nAuthorize & Sanitize"]
-    Activation --> Agent["Agent Job\nAnalyze Changes"]
-    Agent --> SafeOutput["Safe Outputs Job\nPost Comment / Review"]
-    SafeOutput --> Human{"Human Review"}
-    Human -->|Approve| Merge["Merge PR"]
-    Human -->|"Request Changes"| Agent
-</pre>
+> Code -> Reviewer - > Merge
+
+---
+
+# Pull Request + Agent
+
+> Issue -> Agent -> Reviewer - > Merge
 
 ---
 
 # Research → Plan → Act
 
-<pre class="mermaid">
-flowchart LR
-    Research["Research\nGather context\nAnalyze codebase"] --> Plan["Plan\nDefine approach\nCreate checklist"]
-    Plan --> Act["Act\nImplement changes\nCreate PR"]
-    Act --> Human{"Human Review"}
-    Human -->|Approved| Done["Done ✓"]
-    Human -->|"Revise"| Research
-</pre>
+> Agent Research -> Human review -> Issue planning -> Assign to Agent -> Human Review -> Merge
 
 ---
 
@@ -85,20 +60,6 @@ flowchart LR
 <!--
 https://github.com/github/gh-aw/issues/1920
 -->
-
----
-
-# Evolution: LLMs to SWE Agents
-
-**2021: GitHub Copilot** - AI-powered code completion
-
-**2022: ChatGPT** - Conversational AI assistant
-
-**2023: LLMs & Web UI Generators** - Prompt to Web App
-
-**2024: Agent CLIs** - Claude Code: File edit, bash
-
-**2025: MCP, SKILLS.md** - Unified tooling
 
 ---
 
@@ -120,6 +81,25 @@ jobs:
 
 ---
 
+# CA with GitHub Agentic Workflows
+
+```yaml
+---
+on:
+  issues:
+    types: [opened]
+permissions:
+  issues: read # agent read-only, zero secrets
+safe-outputs:
+  add-comment: # guardrails for write operations
+---
+Summarize issue and respond in a comment.
+```
+
+> Natural language → compiled to GitHub Actions YAML
+
+---
+
 # The "Lethal Trifecta" for AI Agents
 
 AI agents become dangerous when these **three capabilities** combine:
@@ -134,9 +114,9 @@ AI agents become dangerous when these **three capabilities** combine:
 
 ---
 
-# Useful Sandboxes: The Philosophy
+# Useful Sandboxes
 
-## Safe by design. Useful by default.
+## Safe by design, Useful by default
 
 > The best developer tools protect you from catastrophe while letting you build something real
 
@@ -156,58 +136,7 @@ These environments share one superpower:
 
 ---
 
-# What Makes a Sandbox "Useful"?
-
-## The beginner runtime principles
-
-- **Guardrails without walls** — protected, not trapped
-- **Immediate feedback** — actions produce visible results
-- **Progressive disclosure** — start simple, grow into complexity
-- **Real outputs** — even beginners ship something that matters
-- **Delight** — the sandbox feels like a superpower, not a restriction
-
-> The best sandboxes don't limit what's possible — they shape *how* it's possible
-
----
-
-# Applying These Principles to Agentic Workflows
-
-| Beginner Runtime | Agentic Workflows |
-|---|---|
-| Runs in the browser | Container isolation |
-| Safe defaults | Read-only permissions |
-| Guardrailed actions | Safe outputs |
-| Real outputs | Issues, PRs, comments |
-| Delightful UX | Natural language workflows |
-
-> Same philosophy, enterprise scale
-
----
-
-# Combine GitHub Actions and SWE Agents **SAFELY**
-
----
-
-# Loved by Developers
-
-```yaml
----
-on:
-  issues:
-    types: [opened]
-permissions:
-  contents: read # read-only by default
-safe-outputs:
-  add-comment: # guardrails for write operations
----
-Summarize issue and respond in a comment.
-```
-
-> Natural language → compiled to GitHub Actions YAML
-
----
-
-# Trusted by Enterprises
+# Agentic Sandbox for Enterprise
 
 ## Safe by default
 
@@ -224,27 +153,6 @@ Summarize issue and respond in a comment.
 - **Safe Outputs**: Deterministic, guardrailed outputs
 
 - **Plan / Check / Act**: Human in the loop
-
----
-
-# Compiled Action YAML
-
-```yaml
-jobs:
-  activation:
-    run: check authorization
-
-  agent: needs[activation] # isolated container
-    permissions: contents: read # read-only!
-    run: copilot -p "Analyze package.json for breaking changes..."
-
-  safe-outputs: needs[agent] # isolated container
-    run: gh issue comment add ...
-    permissions:
-      issues: write
-```
-
-> Markdown workflows compiled to GitHub Actions YAML for auditability
 
 ---
 
