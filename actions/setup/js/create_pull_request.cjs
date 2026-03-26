@@ -706,7 +706,7 @@ async function main(config = {}) {
       // This allows git to resolve create-vs-modify mismatches when a file exists in target but not source
       let patchApplied = false;
       try {
-        await exec.exec(`git am --3way ${patchFilePath}`);
+        await exec.exec("git", ["am", "--3way", patchFilePath]);
         core.info("Patch applied successfully");
         patchApplied = true;
       } catch (patchError) {
