@@ -147,10 +147,12 @@ async function pushExtraEmptyCommit({ branchName, repoOwner, repoName, commitMes
     try {
       await exec.exec("git", ["fetch", "ci-trigger", branchName]);
       await exec.exec("git", ["reset", "--hard", `ci-trigger/${branchName}`]);
-    } catch (error) {      // Non-fatal: if fetch/reset fails (e.g. branch not yet on remote), continue
+    } catch (error) {
+      // Non-fatal: if fetch/reset fails (e.g. branch not yet on remote), continue
       // with the local HEAD and attempt the push anyway.
       const syncErrorMessage = error instanceof Error ? error.message : String(error);
-      core.warning(`Could not sync local branch with remote ${branchName} - will attempt push with local HEAD. Underlying error: ${syncErrorMessage}`);    }
+      core.warning(`Could not sync local branch with remote ${branchName} - will attempt push with local HEAD. Underlying error: ${syncErrorMessage}`);
+    }
 
     // Create and push an empty commit
     const message = commitMessage || "ci: trigger checks";
