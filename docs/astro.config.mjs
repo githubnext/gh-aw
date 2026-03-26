@@ -88,7 +88,6 @@ export default defineConfig({
 		'/setup/mcp-server/': '/gh-aw/reference/gh-aw-as-mcp-server/',
 
 		// Reference renames
-		'/reference/tokens/': '/gh-aw/reference/auth/',
 		'/reference/custom-agents/': '/gh-aw/reference/copilot-custom-agents/',
 		'/reference/custom-agent/': '/gh-aw/reference/custom-agent-for-aw/',
 
