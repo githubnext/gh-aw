@@ -52,15 +52,12 @@ func TestCopilotEngine(t *testing.T) {
 func TestCopilotEngineDefaultDetectionModel(t *testing.T) {
 	engine := NewCopilotEngine()
 
-	// Test that GetDefaultDetectionModel returns the expected constant
+	// CopilotEngine does not hardcode a detection model - it falls through to the
+	// BaseEngine default (empty string), allowing the Copilot CLI to use its native
+	// default model (currently claude-sonnet-4.6), matching the main agent behavior.
 	defaultModel := engine.GetDefaultDetectionModel()
-	if defaultModel != string(constants.DefaultCopilotDetectionModel) {
-		t.Errorf("Expected default detection model '%s', got '%s'", string(constants.DefaultCopilotDetectionModel), defaultModel)
-	}
-
-	// Verify the expected value
-	if defaultModel != "gpt-5.1-codex-mini" {
-		t.Errorf("Expected 'gpt-5.1-codex-mini' as default detection model, got '%s'", defaultModel)
+	if defaultModel != "" {
+		t.Errorf("Expected empty default detection model (native CLI default), got '%s'", defaultModel)
 	}
 }
 

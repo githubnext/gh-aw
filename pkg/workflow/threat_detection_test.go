@@ -817,7 +817,9 @@ func TestBuildDetectionEngineExecutionStepStripsAgentField(t *testing.T) {
 }
 
 // TestCopilotDetectionDefaultModel verifies that the copilot engine uses the
-// default model gpt-5.1-codex-mini for the detection step when no model is specified
+// Copilot CLI's native default model for the detection step when no model is specified.
+// Detection now matches main agent behavior: both use ${{ vars.* || ” }} so the
+// Copilot CLI picks its native default (currently claude-sonnet-4.6).
 func TestCopilotDetectionDefaultModel(t *testing.T) {
 	compiler := NewCompiler()
 
@@ -828,7 +830,7 @@ func TestCopilotDetectionDefaultModel(t *testing.T) {
 		expectedModel      string
 	}{
 		{
-			name: "copilot engine without model uses default gpt-5.1-codex-mini",
+			name: "copilot engine without model uses native CLI default via env var",
 			data: &WorkflowData{
 				AI: "copilot",
 				SafeOutputs: &SafeOutputsConfig{
@@ -836,7 +838,9 @@ func TestCopilotDetectionDefaultModel(t *testing.T) {
 				},
 			},
 			shouldContainModel: true,
-			expectedModel:      string(constants.DefaultCopilotDetectionModel),
+			// Detection uses env var fallback (same pattern as main agent), allowing
+			// the Copilot CLI to pick its native default (currently claude-sonnet-4.6)
+			expectedModel: "${{ vars." + constants.EnvVarModelDetectionCopilot + " || '' }}",
 		},
 		{
 			name: "copilot engine with custom model uses specified model",
@@ -870,7 +874,7 @@ func TestCopilotDetectionDefaultModel(t *testing.T) {
 			expectedModel:      "gpt-4o",
 		},
 		{
-			name: "copilot engine with threat detection engine config without model uses default",
+			name: "copilot engine with threat detection engine config without model uses native CLI default via env var",
 			data: &WorkflowData{
 				AI: "claude",
 				SafeOutputs: &SafeOutputsConfig{
@@ -882,7 +886,7 @@ func TestCopilotDetectionDefaultModel(t *testing.T) {
 				},
 			},
 			shouldContainModel: true,
-			expectedModel:      string(constants.DefaultCopilotDetectionModel),
+			expectedModel:      "${{ vars." + constants.EnvVarModelDetectionCopilot + " || '' }}",
 		},
 		{
 			name: "claude engine does not add model parameter",
@@ -909,13 +913,9 @@ func TestCopilotDetectionDefaultModel(t *testing.T) {
 			allSteps := strings.Join(steps, "")
 
 			if tt.shouldContainModel {
-				// The model must be hardcoded via the native COPILOT_MODEL env var.
-				// Relying solely on the GH_AW_MODEL_DETECTION_COPILOT org variable is not
-				// acceptable — if the variable is unset the detection job would run with no
-				// model, defeating the cost-optimised default (gpt-5.1-codex-mini).
 				hasNativeEnvVar := strings.Contains(allSteps, "COPILOT_MODEL: "+tt.expectedModel)
 				if !hasNativeEnvVar {
-					t.Errorf("Expected steps to contain COPILOT_MODEL: %q (hardcoded), but it was not found.\nGenerated steps:\n%s", tt.expectedModel, allSteps)
+					t.Errorf("Expected steps to contain COPILOT_MODEL: %q, but it was not found.\nGenerated steps:\n%s", tt.expectedModel, allSteps)
 				}
 			}
 		})

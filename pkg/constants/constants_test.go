@@ -259,13 +259,13 @@ func TestConstantValues(t *testing.T) {
 }
 
 func TestModelNameConstants(t *testing.T) {
-	// Test that DefaultCopilotDetectionModel has the correct type and value
+	// Test that ModelName type works correctly
 	tests := []struct {
 		name     string
 		value    ModelName
 		expected string
 	}{
-		{"DefaultCopilotDetectionModel", DefaultCopilotDetectionModel, "gpt-5.1-codex-mini"},
+		{"ModelName basic", ModelName("test-model"), "test-model"},
 	}
 
 	for _, tt := range tests {
@@ -372,12 +372,6 @@ func TestSemanticTypeAliases(t *testing.T) {
 		var testModel ModelName = "test-model"
 		if string(testModel) != "test-model" {
 			t.Errorf("ModelName conversion failed: got %q, want %q", testModel, "test-model")
-		}
-
-		// Test DefaultCopilotDetectionModel has the correct type
-		detectionModel := DefaultCopilotDetectionModel
-		if string(detectionModel) != "gpt-5.1-codex-mini" {
-			t.Errorf("DefaultCopilotDetectionModel = %q, want %q", detectionModel, "gpt-5.1-codex-mini")
 		}
 	})
 
