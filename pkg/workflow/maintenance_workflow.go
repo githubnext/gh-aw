@@ -65,10 +65,11 @@ func generateInstallCLISteps(actionMode ActionMode, version string, actionTag st
 func resolveActionRef(actionRepo, tag string, resolver ActionSHAResolver) string {
 	if resolver != nil && tag != "" && tag != "dev" {
 		sha, err := resolver.ResolveSHA(actionRepo, tag)
-		if err == nil && sha != "" {
+		if err != nil {
+			maintenanceLog.Printf("Failed to resolve SHA for %s@%s: %v, falling back to tag reference", actionRepo, tag, err)
+		} else if sha != "" {
 			return formatActionReference(actionRepo, sha, tag)
 		}
-		maintenanceLog.Printf("Failed to resolve SHA for %s@%s: %v, falling back to tag reference", actionRepo, tag, err)
 	}
 	return actionRepo + "@" + tag
 }

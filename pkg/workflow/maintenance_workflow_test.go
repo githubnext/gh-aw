@@ -605,6 +605,10 @@ func TestGenerateMaintenanceWorkflow_SetupCLISHAPinning(t *testing.T) {
 		tmpDir := t.TempDir()
 		cache := NewActionCache(tmpDir)
 		cache.Set("github/gh-aw/actions/setup-cli", "v1.0.0", setupCLISHA)
+		// Also seed the setup action to keep the test hermetic (GenerateMaintenanceWorkflow
+		// calls ResolveSetupActionReference with the same resolver, which would otherwise
+		// attempt a real gh api call on a cache miss).
+		cache.Set("github/gh-aw/actions/setup", "v1.0.0", "dddddddddddddddddddddddddddddddddddddddd")
 		resolver := NewActionResolver(cache)
 
 		err := GenerateMaintenanceWorkflow(workflowDataListWithResolver(resolver), tmpDir, "v1.0.0", ActionModeRelease, "v1.0.0", false)
