@@ -123,17 +123,12 @@ async function main() {
   const workspaceDir = process.env.GITHUB_WORKSPACE || process.cwd();
   core.info(`Working in repository: ${workspaceDir}`);
 
-  // Disable sparse checkout to work with full branch content
-  // This is necessary because checkout was configured with sparse-checkout
-  core.info(`Disabling sparse checkout...`);
-  try {
-    execGitSync(["sparse-checkout", "disable"], { stdio: "pipe", suppressLogs: true });
-  } catch (error) {
-    // Ignore if sparse checkout wasn't enabled
-    core.info("Sparse checkout was not enabled or already disabled");
-  }
-
   // Checkout or create the memory branch
+  // Note: we do NOT disable sparse checkout here. Disabling sparse checkout on a
+  // large repository forces git to materialize all tracked files into the working
+  // tree, which can exhaust pipe buffers (ENOBUFS) when thousands of files are
+  // involved. The memory branch only holds a handful of small files, so sparse
+  // checkout does not need to be altered for either case below.
   core.info(`Checking out branch: ${branchName}...`);
   try {
     const repoUrl = `https://x-access-token:${ghToken}@${serverHost}/${targetRepo}.git`;
@@ -147,8 +142,18 @@ async function main() {
       // Branch doesn't exist, create orphan branch
       core.info(`Branch ${branchName} does not exist, creating orphan branch...`);
       execGitSync(["checkout", "--orphan", branchName], { stdio: "inherit" });
-      // Use --ignore-unmatch to avoid failure when directory is empty
-      execGitSync(["rm", "-r", "-f", "--ignore-unmatch", "."], { stdio: "pipe" });
+      // Reset the index to an empty tree. This is O(1) regardless of how many
+      // files the source branch contained, avoiding the ENOBUFS error that
+      // "git rm -rf ." (with stdio:pipe) causes on large repos (10K+ files).
+      execGitSync(["read-tree", "--empty"], { stdio: "pipe" });
+      // Clean the working directory using Node.js so we never pipe large git
+      // output back through spawnSync buffers.
+      core.info("Cleaning working directory for orphan branch...");
+      for (const entry of fs.readdirSync(workspaceDir)) {
+        if (entry !== ".git") {
+          fs.rmSync(path.join(workspaceDir, entry), { recursive: true, force: true });
+        }
+      }
       core.info(`Created orphan branch: ${branchName}`);
     }
   } catch (error) {

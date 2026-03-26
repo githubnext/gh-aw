@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, vi } from "vitest";
+import { describe, it, expect, afterEach, beforeEach, vi } from "vitest";
 import { globPatternToRegex } from "./glob_pattern_helpers.cjs";
 
 describe("push_repo_memory.cjs - globPatternToRegex helper", () => {
@@ -1018,6 +1018,41 @@ describe("push_repo_memory.cjs - shell injection security tests", () => {
 
       // Should use execGitSync function calls
       expect(scriptContent).toContain("execGitSync([");
+    });
+
+    it("should not use git rm -rf to clear orphan branch (ENOBUFS fix for large repos)", () => {
+      // Regression test for: push_repo_memory fails with ENOBUFS on large repos
+      // after disabling sparse checkout.
+      //
+      // Root cause: "git rm -r -f --ignore-unmatch ." with stdio:pipe pipes a
+      // "rm 'path'" line for every file in the index. On repos with 10K+ files
+      // this exhausts spawnSync's pipe buffer and throws ENOBUFS.
+      //
+      // Fix: use "git read-tree --empty" (zero output, O(1)) to clear the index,
+      // then remove the working-tree files with Node.js fs.rmSync instead of git.
+      // Sparse-checkout must NOT be disabled before the branch switch, because
+      // "git sparse-checkout disable" forces git to materialise the entire working
+      // tree from the source branch, which also risks ENOBUFS on large repos.
+
+      const fs = require("fs");
+      const path = require("path");
+
+      const scriptPath = path.join(import.meta.dirname, "push_repo_memory.cjs");
+      const scriptContent = fs.readFileSync(scriptPath, "utf8");
+
+      // Must NOT call "git sparse-checkout disable" – this triggers a full
+      // working-tree expansion and is not needed for the orphan/memory branch.
+      expect(scriptContent).not.toMatch(/execGitSync\(\["sparse-checkout",\s*"disable"\]/);
+
+      // Must NOT use "git rm" to clear the orphan branch index – this outputs
+      // one line per file and causes ENOBUFS on large repos with stdio:pipe.
+      expect(scriptContent).not.toMatch(/execGitSync\(\["rm".*"--ignore-unmatch"/);
+
+      // Must use "git read-tree --empty" to reset the index (zero output).
+      expect(scriptContent).toContain('"read-tree", "--empty"');
+
+      // Must use Node.js fs.rmSync for working-directory cleanup (no pipes).
+      expect(scriptContent).toContain("fs.rmSync(");
     });
 
     it("should safely handle malicious branch names", () => {
