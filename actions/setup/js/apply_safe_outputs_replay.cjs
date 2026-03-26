@@ -107,14 +107,8 @@ function buildHandlerConfigFromOutput(agentOutputFile) {
     return {};
   }
 
-  const config = {};
-  for (const item of validatedOutput.items) {
-    if (item.type && typeof item.type === "string") {
-      // Normalize type: convert dashes to underscores (mirrors safe_outputs_append.cjs)
-      const normalizedType = item.type.replace(/-/g, "_");
-      config[normalizedType] = {};
-    }
-  }
+  // Normalize type: convert dashes to underscores (mirrors safe_outputs_append.cjs)
+  const config = Object.fromEntries(validatedOutput.items.filter(item => item.type && typeof item.type === "string").map(item => [item.type.replace(/-/g, "_"), {}]));
 
   core.info(`Handler config built from ${validatedOutput.items.length} item(s): ${Object.keys(config).join(", ")}`);
   return config;
@@ -145,15 +139,17 @@ async function main() {
 
   core.info(`Parsed run ID: ${runId}`);
 
-  // Determine repo slug: prefer URL-parsed value, fall back to current repo context
-  const repoSlug = owner && repo ? `${owner}/${repo}` : `${context.repo.owner}/${context.repo.repo}`;
-  core.info(`Target repository: ${repoSlug}`);
+  // repoFromUrl is non-null only when the URL explicitly specified an owner/repo.
+  // displayRepoSlug falls back to the current workflow context for logging.
+  const repoFromUrl = owner && repo ? `${owner}/${repo}` : null;
+  const displayRepoSlug = repoFromUrl ?? `${context.repo.owner}/${context.repo.repo}`;
+  core.info(`Target repository: ${displayRepoSlug}`);
 
   // Download the agent artifact into /tmp/gh-aw/
   const destDir = TMP_GH_AW_PATH;
   let agentOutputFile;
   try {
-    agentOutputFile = await downloadAgentArtifact(runId, destDir, owner && repo ? repoSlug : null);
+    agentOutputFile = await downloadAgentArtifact(runId, destDir, repoFromUrl);
   } catch (error) {
     core.setFailed(getErrorMessage(error));
     return;

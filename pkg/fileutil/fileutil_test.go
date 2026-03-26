@@ -316,6 +316,147 @@ func TestCopyFile(t *testing.T) {
 	})
 }
 
+func TestMustBeWithin(t *testing.T) {
+	base := t.TempDir()
+
+	tests := []struct {
+		name      string
+		candidate string
+		shouldErr bool
+	}{
+		{
+			name:      "file directly inside base",
+			candidate: filepath.Join(base, "file.txt"),
+			shouldErr: false,
+		},
+		{
+			name:      "file in subdirectory",
+			candidate: filepath.Join(base, "sub", "file.txt"),
+			shouldErr: false,
+		},
+		{
+			name:      "base directory itself",
+			candidate: base,
+			shouldErr: false,
+		},
+		{
+			name:      "path traversal with ..",
+			candidate: filepath.Join(base, "..", "escape.txt"),
+			shouldErr: true,
+		},
+		{
+			name:      "deeply nested traversal",
+			candidate: filepath.Join(base, "a", "b", "..", "..", "..", "escape.txt"),
+			shouldErr: true,
+		},
+		{
+			name:      "absolute path outside base",
+			candidate: "/etc/passwd",
+			shouldErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := MustBeWithin(base, tt.candidate)
+			if tt.shouldErr {
+				require.Error(t, err, "MustBeWithin should reject path %q relative to %q", tt.candidate, base)
+				assert.Contains(t, err.Error(), "escapes base directory", "Error should describe the escape")
+			} else {
+				require.NoError(t, err, "MustBeWithin should accept path %q within %q", tt.candidate, base)
+			}
+		})
+	}
+
+	t.Run("symlink escape", func(t *testing.T) {
+		// Create a real file outside the base directory.
+		outsideFile, err := os.CreateTemp("", "mustbewithin-outside-*")
+		require.NoError(t, err, "failed to create outside file")
+		t.Cleanup(func() { _ = os.Remove(outsideFile.Name()) })
+		outsidePath := outsideFile.Name()
+		require.NoError(t, outsideFile.Close())
+
+		// Create a symlink inside base that points to the outside file.
+		linkPath := filepath.Join(base, "link-to-outside")
+		if err := os.Symlink(outsidePath, linkPath); err != nil {
+			t.Skipf("symlinks not supported: %v", err)
+		}
+		t.Cleanup(func() { _ = os.Remove(linkPath) })
+
+		err = MustBeWithin(base, linkPath)
+		require.Error(t, err, "MustBeWithin should reject symlink that points outside base")
+		assert.Contains(t, err.Error(), "escapes base directory", "Error should describe the symlink escape")
+	})
+}
+
+func TestExtractFileFromTar_UnsafePaths(t *testing.T) {
+	buildTar := func(files map[string][]byte) []byte {
+		var buf bytes.Buffer
+		tw := tar.NewWriter(&buf)
+		for name, content := range files {
+			hdr := &tar.Header{
+				Name: name,
+				Mode: 0600,
+				Size: int64(len(content)),
+			}
+			if err := tw.WriteHeader(hdr); err != nil {
+				t.Fatalf("buildTar: WriteHeader: %v", err)
+			}
+			if _, err := tw.Write(content); err != nil {
+				t.Fatalf("buildTar: Write: %v", err)
+			}
+		}
+		if err := tw.Close(); err != nil {
+			t.Fatalf("buildTar: Close: %v", err)
+		}
+		return buf.Bytes()
+	}
+
+	t.Run("rejects absolute path as search target", func(t *testing.T) {
+		archive := buildTar(map[string][]byte{"file.txt": []byte("data")})
+		got, err := ExtractFileFromTar(archive, "/etc/passwd")
+		require.Error(t, err, "Should reject absolute path as search target")
+		assert.Contains(t, err.Error(), "unsafe path", "Error should mention unsafe path")
+		assert.Nil(t, got, "Result should be nil for unsafe path")
+	})
+
+	t.Run("rejects dotdot in search target", func(t *testing.T) {
+		archive := buildTar(map[string][]byte{"file.txt": []byte("data")})
+		got, err := ExtractFileFromTar(archive, "../escape.txt")
+		require.Error(t, err, "Should reject .. in search target")
+		assert.Contains(t, err.Error(), "unsafe path", "Error should mention unsafe path")
+		assert.Nil(t, got, "Result should be nil for unsafe path")
+	})
+
+	t.Run("allows filename containing dotdot as substring", func(t *testing.T) {
+		want := []byte("not a traversal")
+		archive := buildTar(map[string][]byte{"file..backup.txt": want})
+		got, err := ExtractFileFromTar(archive, "file..backup.txt")
+		require.NoError(t, err, "Should allow filename with dotdot as substring, not path component")
+		assert.Equal(t, want, got, "Should return correct content for file..backup.txt")
+	})
+
+	t.Run("skips tar entry with absolute name, does not match", func(t *testing.T) {
+		// Build archive with an absolute-named entry; it should be skipped even
+		// if the caller searches for the same name.
+		archive := buildTar(map[string][]byte{"/etc/passwd": []byte("root")})
+		// Searching for the same absolute path must be rejected by the safe-target check.
+		got, err := ExtractFileFromTar(archive, "/etc/passwd")
+		require.Error(t, err, "Should reject absolute search target")
+		assert.Nil(t, got)
+	})
+
+	t.Run("skips tar entry with dotdot name and returns not found", func(t *testing.T) {
+		archive := buildTar(map[string][]byte{"../escape.txt": []byte("bad")})
+		// Searching for the relative form that doesn't start with .. is fine as
+		// a target; the archive entry is just silently skipped.
+		got, err := ExtractFileFromTar(archive, "escape.txt")
+		require.Error(t, err, "File should not be found because dotdot entry was skipped")
+		assert.Contains(t, err.Error(), "not found", "Error should indicate file not found")
+		assert.Nil(t, got)
+	})
+}
+
 func TestExtractFileFromTar(t *testing.T) {
 	// Helper to build an in-memory tar archive
 	buildTar := func(files map[string][]byte) []byte {
