@@ -345,7 +345,7 @@ func TestNewAuditReportSubcommand_RejectsExtraArgs(t *testing.T) {
 	cmd := NewAuditReportSubcommand()
 	cmd.SetArgs([]string{"extra-arg"})
 	err := cmd.Execute()
-	assert.Error(t, err, "Should reject extra positional arguments")
+	require.Error(t, err, "Should reject extra positional arguments")
 	assert.Contains(t, err.Error(), "unknown command", "Error should indicate unknown command")
 }
 
