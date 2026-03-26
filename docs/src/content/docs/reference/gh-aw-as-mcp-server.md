@@ -75,8 +75,7 @@ Alternatively, create `.vscode/mcp.json` manually:
   "servers": {
     "github-agentic-workflows": {
       "command": "gh",
-      "args": ["aw", "mcp-server"],
-      "cwd": "${workspaceFolder}"
+      "args": ["aw", "mcp-server"]
     }
   }
 }
