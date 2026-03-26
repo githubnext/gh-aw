@@ -126,7 +126,7 @@ func TestCopilotEngineGetPluginInstallSteps(t *testing.T) {
 	})
 
 	t.Run("OWNER/REPO:PATH spec is passed through", func(t *testing.T) {
-		spec := "github/copilot-plugins:plugins/advanced-security/skills/secret-scanning"
+		spec := "github/copilot-plugins:advanced-security/skills/secret-scanning"
 		steps := engine.GetPluginInstallSteps([]string{spec}, &WorkflowData{})
 		require.Len(t, steps, 1, "Should emit one step")
 		found := false

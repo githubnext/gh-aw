@@ -21,7 +21,7 @@ func TestParseGitHubPluginURL(t *testing.T) {
 		{
 			name:           "full GitHub tree URL",
 			input:          "https://github.com/github/copilot-plugins/tree/main/plugins/advanced-security/skills/secret-scanning",
-			wantPluginSpec: "github/copilot-plugins:plugins/advanced-security/skills/secret-scanning",
+			wantPluginSpec: "github/copilot-plugins:advanced-security/skills/secret-scanning",
 			wantOK:         true,
 		},
 		{
@@ -58,7 +58,7 @@ func TestParseGitHubPluginURL(t *testing.T) {
 		{
 			name:           "http scheme",
 			input:          "http://github.com/org/repo/tree/main/plugins/foo",
-			wantPluginSpec: "org/repo:plugins/foo",
+			wantPluginSpec: "org/repo:foo",
 			wantOK:         true,
 		},
 	}
@@ -91,7 +91,7 @@ func TestNormalizePlugins(t *testing.T) {
 				"https://github.com/github/copilot-plugins/tree/main/plugins/advanced-security/skills/secret-scanning",
 			},
 			wantNormalized: []string{
-				"github/copilot-plugins:plugins/advanced-security/skills/secret-scanning",
+				"github/copilot-plugins:advanced-security/skills/secret-scanning",
 			},
 		},
 		{
@@ -103,7 +103,7 @@ func TestNormalizePlugins(t *testing.T) {
 			},
 			wantNormalized: []string{
 				"my-extension",
-				"github/copilot-plugins:plugins/advanced-security/skills/secret-scanning",
+				"github/copilot-plugins:advanced-security/skills/secret-scanning",
 				"another-plugin",
 			},
 		},
@@ -119,8 +119,8 @@ func TestNormalizePlugins(t *testing.T) {
 				"https://github.com/github/copilot-plugins/tree/main/plugins/code-review/skills/review",
 			},
 			wantNormalized: []string{
-				"github/copilot-plugins:plugins/advanced-security/skills/secret-scanning",
-				"github/copilot-plugins:plugins/code-review/skills/review",
+				"github/copilot-plugins:advanced-security/skills/secret-scanning",
+				"github/copilot-plugins:code-review/skills/review",
 			},
 		},
 		{
@@ -179,6 +179,6 @@ Test GitHub tree URL conversion to OWNER/REPO:PATH format.
 	yamlStr := string(lockYAML)
 	// Plugin install uses OWNER/REPO:PATH format
 	assert.Contains(t, yamlStr,
-		"copilot plugin install github/copilot-plugins:plugins/advanced-security/skills/secret-scanning",
+		"copilot plugin install github/copilot-plugins:advanced-security/skills/secret-scanning",
 		"plugin install step must use OWNER/REPO:PATH format")
 }

@@ -22,7 +22,11 @@ import (
 // Example:
 //
 //	https://github.com/github/copilot-plugins/tree/main/plugins/advanced-security/skills/secret-scanning
-//	→ pluginSpec: github/copilot-plugins:plugins/advanced-security/skills/secret-scanning
+//	→ pluginSpec: github/copilot-plugins:advanced-security/skills/secret-scanning
+//
+// The leading "plugins/" directory is stripped from the path because the
+// Copilot CLI's OWNER/REPO:PATH format expects the path relative to the
+// "plugins/" root of the repository, not the full path from repo root.
 //
 // The OWNER/REPO:PATH format ("subdirectory in a repository") is a direct
 // GitHub reference that does not require marketplace registration — the
@@ -56,10 +60,13 @@ func parseGitHubPluginURL(raw string) (pluginSpec string, ok bool) {
 	// parts[3] is the branch name; everything after is the plugin path
 	pluginPath := strings.Join(parts[4:], "/")
 
+	// Strip the leading "plugins/" segment: the Copilot CLI OWNER/REPO:PATH
+	// format expects the path relative to the "plugins/" directory, not
+	// the full path from the repo root.
+	pluginPath = strings.TrimPrefix(pluginPath, "plugins/")
+
 	// Build the OWNER/REPO:PATH spec — the "subdirectory in a repository"
-	// format accepted by the Copilot CLI.  The full path from the repository
-	// root (including any "plugins/" prefix) is preserved so the CLI can
-	// locate the plugin's manifest file.
+	// format accepted by the Copilot CLI.
 	spec := owner + "/" + repo + ":" + pluginPath
 	return spec, true
 }
