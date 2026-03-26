@@ -191,5 +191,89 @@ describe("apply_safe_outputs_replay", () => {
         fs.unlinkSync(tmpFile);
       }
     });
+
+    it("skips items with no type field", async () => {
+      const fs = require("fs");
+      const os = require("os");
+      const path = require("path");
+      const { buildHandlerConfigFromOutput } = await import("./apply_safe_outputs_replay.cjs");
+
+      const tmpFile = path.join(os.tmpdir(), `test-agent-output-${Date.now()}.json`);
+      const agentOutput = {
+        items: [{ title: "No type field" }, { type: "create_issue", title: "Has type" }],
+      };
+      fs.writeFileSync(tmpFile, JSON.stringify(agentOutput));
+
+      try {
+        const config = buildHandlerConfigFromOutput(tmpFile);
+        expect(Object.keys(config), "should include create_issue").toContain("create_issue");
+        expect(Object.keys(config).length, "should have exactly one entry").toBe(1);
+      } finally {
+        fs.unlinkSync(tmpFile);
+      }
+    });
+
+    it("skips items with non-string type field", async () => {
+      const fs = require("fs");
+      const os = require("os");
+      const path = require("path");
+      const { buildHandlerConfigFromOutput } = await import("./apply_safe_outputs_replay.cjs");
+
+      const tmpFile = path.join(os.tmpdir(), `test-agent-output-${Date.now()}.json`);
+      const agentOutput = {
+        items: [{ type: 42 }, { type: null }, { type: "add_comment" }],
+      };
+      fs.writeFileSync(tmpFile, JSON.stringify(agentOutput));
+
+      try {
+        const config = buildHandlerConfigFromOutput(tmpFile);
+        expect(Object.keys(config), "should only include string type").toContain("add_comment");
+        expect(Object.keys(config).length, "should skip non-string types").toBe(1);
+      } finally {
+        fs.unlinkSync(tmpFile);
+      }
+    });
+
+    it("deduplicates repeated types preserving single entry", async () => {
+      const fs = require("fs");
+      const os = require("os");
+      const path = require("path");
+      const { buildHandlerConfigFromOutput } = await import("./apply_safe_outputs_replay.cjs");
+
+      const tmpFile = path.join(os.tmpdir(), `test-agent-output-${Date.now()}.json`);
+      const agentOutput = {
+        items: [{ type: "add_comment" }, { type: "add_comment" }, { type: "add_comment" }, { type: "create_issue" }],
+      };
+      fs.writeFileSync(tmpFile, JSON.stringify(agentOutput));
+
+      try {
+        const config = buildHandlerConfigFromOutput(tmpFile);
+        expect(Object.keys(config).length, "should have 2 unique types").toBe(2);
+        expect(config.add_comment, "deduplicated config value should be empty object").toEqual({});
+      } finally {
+        fs.unlinkSync(tmpFile);
+      }
+    });
+  });
+
+  describe("parseRunUrl (additional edge cases)", () => {
+    it("throws for null input", async () => {
+      const { parseRunUrl } = await import("./apply_safe_outputs_replay.cjs");
+      // @ts-expect-error testing invalid input
+      expect(() => parseRunUrl(null), "should throw for null").toThrow(/run_url is required/);
+    });
+
+    it("throws for whitespace-only input", async () => {
+      const { parseRunUrl } = await import("./apply_safe_outputs_replay.cjs");
+      expect(() => parseRunUrl("   "), "should throw for whitespace-only input").toThrow(/Cannot parse run ID/);
+    });
+
+    it("parses run URL with query string", async () => {
+      const { parseRunUrl } = await import("./apply_safe_outputs_replay.cjs");
+      const result = parseRunUrl("https://github.com/github/gh-aw/actions/runs/99887766?check_suite_focus=true");
+      expect(result.runId, "should parse run ID ignoring query string").toBe("99887766");
+      expect(result.owner, "should parse owner").toBe("github");
+      expect(result.repo, "should parse repo").toBe("gh-aw");
+    });
   });
 });
