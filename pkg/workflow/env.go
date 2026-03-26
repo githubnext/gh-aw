@@ -2,6 +2,7 @@ package workflow
 
 import (
 	"fmt"
+	"io"
 	"sort"
 	"strings"
 
@@ -10,6 +11,20 @@ import (
 )
 
 var envLog = logger.New("workflow:env")
+
+// writeYAMLEnv emits a single YAML env variable with proper escaping.
+// Uses %q to produce a valid YAML double-quoted scalar that escapes ", \, newlines, and control characters,
+// preventing YAML structure injection from frontmatter-derived values.
+// w must be an error-free writer (e.g., *strings.Builder).
+func writeYAMLEnv(w io.Writer, indent, key, value string) {
+	fmt.Fprintf(w, "%s%s: %q\n", indent, key, value)
+}
+
+// formatYAMLEnv returns a properly escaped YAML env variable string.
+// Uses %q to produce a valid YAML double-quoted scalar — safe for use anywhere a string is needed.
+func formatYAMLEnv(indent, key, value string) string {
+	return fmt.Sprintf("%s%s: %q\n", indent, key, value)
+}
 
 // writeHeadersToYAML writes a map of headers to YAML format with proper comma placement
 // indent is the indentation string to use for each header line (e.g., "                  ")

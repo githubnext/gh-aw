@@ -8253,6 +8253,7 @@
       "items": {
         "type": "string",
         "minLength": 1,
+        "pattern": "^[A-Za-z0-9._\\[\\]-]+$",
         "description": "Bot identifier/name (e.g., 'dependabot[bot]', 'renovate[bot]', 'github-actions[bot]')"
       }
     },
