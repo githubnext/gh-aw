@@ -28,7 +28,7 @@ func (e *CodexEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]an
 		})
 	}
 
-	delimiter := GenerateHeredocDelimiter("MCP_CONFIG")
+	delimiter := GenerateHeredocDelimiterFromSeed("MCP_CONFIG", workflowData.FrontmatterHash)
 	yaml.WriteString("          cat > /tmp/gh-aw/mcp-config/config.toml << " + delimiter + "\n")
 
 	// Add history configuration to disable persistence

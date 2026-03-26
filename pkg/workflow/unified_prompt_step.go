@@ -290,7 +290,7 @@ func (c *Compiler) generateUnifiedPromptCreationStep(yaml *strings.Builder, buil
 	unifiedPromptLog.Printf("Built-in sections: %d, User prompt chunks: %d", len(builtinSections), len(userPromptChunks))
 
 	// Get the heredoc delimiter for consistent usage
-	delimiter := GenerateHeredocDelimiter("PROMPT")
+	delimiter := GenerateHeredocDelimiterFromSeed("PROMPT", data.FrontmatterHash)
 
 	// Collect all environment variables from built-in sections and user prompt expressions
 	allEnvVars := make(map[string]string)

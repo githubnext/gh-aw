@@ -939,7 +939,7 @@ func TestBuildConcurrencyGroupKeys(t *testing.T) {
 			description:    "Mixed discussion+workflow_dispatch workflows should fall back to run_id when discussion number is unavailable",
 		},
 		{
-			name: "Label trigger shorthand PR workflow should include inputs.item_number fallback",
+			name: "Label trigger shorthand PR workflow should include inputs.item_number fallback and label name",
 			workflowData: &WorkflowData{
 				On: `on:
   pull_request:
@@ -953,11 +953,11 @@ func TestBuildConcurrencyGroupKeys(t *testing.T) {
 				HasDispatchItemNumber: true,
 			},
 			isAliasTrigger: false,
-			expected:       []string{"gh-aw", "${{ github.workflow }}", "${{ github.event.pull_request.number || inputs.item_number || github.ref || github.run_id }}"},
-			description:    "Label trigger shorthand PR workflows should include inputs.item_number before ref fallback",
+			expected:       []string{"gh-aw", "${{ github.workflow }}", "${{ github.event.pull_request.number || inputs.item_number || github.ref || github.run_id }}", "${{ github.event.label.name || github.run_id }}"},
+			description:    "Label trigger shorthand PR workflows should include inputs.item_number before ref fallback and github.event.label.name to prevent cross-label cancellation",
 		},
 		{
-			name: "Label trigger shorthand issue workflow should include inputs.item_number fallback",
+			name: "Label trigger shorthand issue workflow should include inputs.item_number fallback and label name",
 			workflowData: &WorkflowData{
 				On: `on:
   issues:
@@ -971,11 +971,11 @@ func TestBuildConcurrencyGroupKeys(t *testing.T) {
 				HasDispatchItemNumber: true,
 			},
 			isAliasTrigger: false,
-			expected:       []string{"gh-aw", "${{ github.workflow }}", "${{ github.event.issue.number || inputs.item_number || github.run_id }}"},
-			description:    "Label trigger shorthand issue workflows should include inputs.item_number fallback",
+			expected:       []string{"gh-aw", "${{ github.workflow }}", "${{ github.event.issue.number || inputs.item_number || github.run_id }}", "${{ github.event.label.name || github.run_id }}"},
+			description:    "Label trigger shorthand issue workflows should include inputs.item_number fallback and github.event.label.name",
 		},
 		{
-			name: "Label trigger shorthand discussion workflow should include inputs.item_number fallback",
+			name: "Label trigger shorthand discussion workflow should include inputs.item_number fallback and label name",
 			workflowData: &WorkflowData{
 				On: `on:
   discussion:
@@ -989,8 +989,30 @@ func TestBuildConcurrencyGroupKeys(t *testing.T) {
 				HasDispatchItemNumber: true,
 			},
 			isAliasTrigger: false,
-			expected:       []string{"gh-aw", "${{ github.workflow }}", "${{ github.event.discussion.number || inputs.item_number || github.run_id }}"},
-			description:    "Label trigger shorthand discussion workflows should include inputs.item_number fallback",
+			expected:       []string{"gh-aw", "${{ github.workflow }}", "${{ github.event.discussion.number || inputs.item_number || github.run_id }}", "${{ github.event.label.name || github.run_id }}"},
+			description:    "Label trigger shorthand discussion workflows should include inputs.item_number fallback and github.event.label.name",
+		},
+		{
+			name: "Label command workflow should include label name in concurrency group",
+			workflowData: &WorkflowData{
+				On: `on:
+  issues:
+    types: [labeled]
+  pull_request:
+    types: [labeled]
+  discussion:
+    types: [labeled]
+  workflow_dispatch:
+    inputs:
+      item_number:
+        description: The number of the issue, pull request, or discussion
+        required: false
+        type: string`,
+				HasDispatchItemNumber: true,
+			},
+			isAliasTrigger: true,
+			expected:       []string{"gh-aw", "${{ github.workflow }}", "${{ github.event.issue.number || github.event.pull_request.number || github.run_id }}", "${{ github.event.label.name || github.run_id }}"},
+			description:    "Label command (command-trigger) workflows should include github.event.label.name to prevent different-label runs from sharing a concurrency group",
 		},
 	}
 

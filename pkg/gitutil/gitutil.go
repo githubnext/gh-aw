@@ -10,6 +10,16 @@ import (
 
 var log = logger.New("gitutil:gitutil")
 
+// IsRateLimitError checks if an error message indicates a GitHub API rate limit error.
+// This is used to detect transient failures caused by hitting the GitHub API rate limit
+// (HTTP 403 "API rate limit exceeded" or HTTP 429 responses).
+func IsRateLimitError(errMsg string) bool {
+	lowerMsg := strings.ToLower(errMsg)
+	return strings.Contains(lowerMsg, "api rate limit exceeded") ||
+		strings.Contains(lowerMsg, "rate limit exceeded") ||
+		strings.Contains(lowerMsg, "secondary rate limit")
+}
+
 // IsAuthError checks if an error message indicates an authentication issue.
 // This is used to detect when GitHub API calls fail due to missing or invalid credentials.
 func IsAuthError(errMsg string) bool {

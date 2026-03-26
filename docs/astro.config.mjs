@@ -103,7 +103,7 @@ export default defineConfig({
 		'/guides/orchestration/': '/gh-aw/patterns/orchestration/',
 		'/guides/siderepoops/': '/gh-aw/patterns/side-repo-ops/',
 		'/guides/specops/': '/gh-aw/patterns/spec-ops/',
-		'/guides/researchplanassign/': '/gh-aw/patterns/task-ops/',
+		'/guides/researchplanassign/': '/gh-aw/patterns/research-plan-assign-ops/',
 		'/guides/trialops/': '/gh-aw/patterns/trial-ops/',
 
 		// Examples → Patterns renames
@@ -125,6 +125,7 @@ export default defineConfig({
 		'/patterns/projectops/': '/gh-aw/patterns/project-ops/',
 		'/patterns/siderepoops/': '/gh-aw/patterns/side-repo-ops/',
 		'/patterns/specops/': '/gh-aw/patterns/spec-ops/',
+		'/patterns/researchplanassignops/': '/gh-aw/patterns/research-plan-assign-ops/',
 		'/patterns/taskops/': '/gh-aw/patterns/task-ops/',
 		'/patterns/trialops/': '/gh-aw/patterns/trial-ops/',
 	},
@@ -278,6 +279,7 @@ export default defineConfig({
 						{ label: 'Monitoring', link: '/patterns/monitoring/' },
 						{ label: 'Orchestration', link: '/patterns/orchestration/' },
 						{ label: 'ProjectOps', link: '/patterns/project-ops/' },
+						{ label: 'ResearchPlanAssignOps', link: '/patterns/research-plan-assign-ops/' },
 						{ label: 'SideRepoOps', link: '/patterns/side-repo-ops/' },
 						{ label: 'SpecOps', link: '/patterns/spec-ops/' },
 						{ label: 'TaskOps', link: '/patterns/task-ops/' },
@@ -331,6 +333,7 @@ export default defineConfig({
 						{ label: 'Schedule Syntax', link: '/reference/schedule-syntax/' },
 						{ label: 'Templating', link: '/reference/templating/' },
 						{ label: 'Threat Detection', link: '/reference/threat-detection/' },
+						{ label: 'Token Reference', link: '/reference/tokens/' },
 						{ label: 'Tools', link: '/reference/tools/' },
 						{ label: 'Triggering CI', link: '/reference/triggering-ci/' },
 						{ label: 'Triggers', link: '/reference/triggers/' },
