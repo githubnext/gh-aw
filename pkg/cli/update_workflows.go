@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/github/gh-aw/pkg/console"
+	"github.com/github/gh-aw/pkg/gitutil"
 	"github.com/github/gh-aw/pkg/parser"
 	"github.com/github/gh-aw/pkg/workflow"
 )
@@ -64,10 +65,28 @@ func UpdateWorkflows(workflowNames []string, allowMajor, force, verbose bool, en
 	showUpdateSummary(successfulUpdates, failedUpdates)
 
 	if len(successfulUpdates) == 0 {
+		// If all failures were due to GitHub API rate limiting, treat as non-fatal.
+		// Rate limiting is a transient infrastructure condition, not a code error.
+		if len(failedUpdates) > 0 && allFailuresAreRateLimited(failedUpdates) {
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage("All workflow updates skipped due to GitHub API rate limiting"))
+			return nil
+		}
 		return errors.New("no workflows were successfully updated")
 	}
 
 	return nil
+}
+
+// allFailuresAreRateLimited returns true if every failed workflow update was caused
+// by a GitHub API rate limit error. Used to distinguish transient rate-limiting
+// (non-fatal) from genuine update failures (fatal).
+func allFailuresAreRateLimited(failures []updateFailure) bool {
+	for _, f := range failures {
+		if !gitutil.IsRateLimitError(f.Error) {
+			return false
+		}
+	}
+	return true
 }
 
 // findWorkflowsWithSource finds all workflows that have a source field
