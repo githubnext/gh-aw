@@ -221,6 +221,21 @@ func BuildAWFArgs(config AWFCommandConfig) []string {
 		awfHelpersLog.Printf("Added --anthropic-api-target=%s", anthropicTarget)
 	}
 
+	// Pass base path if URL contains a path component
+	// This is required for endpoints with path prefixes (e.g., Databricks /serving-endpoints,
+	// Azure OpenAI /openai/deployments/<name>, corporate LLM routers with path-based routing)
+	openaiBasePath := extractAPIBasePath(config.WorkflowData, "OPENAI_BASE_URL")
+	if openaiBasePath != "" {
+		awfArgs = append(awfArgs, "--openai-api-base-path", openaiBasePath)
+		awfHelpersLog.Printf("Added --openai-api-base-path=%s", openaiBasePath)
+	}
+
+	anthropicBasePath := extractAPIBasePath(config.WorkflowData, "ANTHROPIC_BASE_URL")
+	if anthropicBasePath != "" {
+		awfArgs = append(awfArgs, "--anthropic-api-base-path", anthropicBasePath)
+		awfHelpersLog.Printf("Added --anthropic-api-base-path=%s", anthropicBasePath)
+	}
+
 	// Add Copilot API target for custom Copilot endpoints (GHEC, GHES, or custom).
 	// Resolved from engine.api-target (explicit) or GITHUB_COPILOT_BASE_URL in engine.env (implicit).
 	if copilotTarget := GetCopilotAPITarget(config.WorkflowData); copilotTarget != "" {
@@ -353,6 +368,47 @@ func extractAPITargetHost(workflowData *WorkflowData, envVar string) string {
 
 	awfHelpersLog.Printf("Extracted API target host from %s: %s", envVar, host)
 	return host
+}
+
+// extractAPIBasePath extracts the path component from a custom API base URL in engine.env.
+// Returns the path prefix (e.g., "/serving-endpoints") or empty string if no path is present.
+// Root-only paths ("/") and empty paths return empty string.
+//
+// This is used to pass --openai-api-base-path and --anthropic-api-base-path to AWF when
+// the configured base URL contains a path (e.g., Databricks serving endpoints, Azure OpenAI
+// deployments, or corporate LLM routers with path-based routing).
+func extractAPIBasePath(workflowData *WorkflowData, envVar string) string {
+	if workflowData == nil || workflowData.EngineConfig == nil || workflowData.EngineConfig.Env == nil {
+		return ""
+	}
+
+	baseURL, exists := workflowData.EngineConfig.Env[envVar]
+	if !exists || baseURL == "" {
+		return ""
+	}
+
+	// Remove protocol prefix if present
+	host := baseURL
+	if idx := strings.Index(host, "://"); idx != -1 {
+		host = host[idx+3:]
+	}
+
+	// Extract path (everything after the first /)
+	if idx := strings.Index(host, "/"); idx != -1 {
+		path := host[idx:] // e.g., "/serving-endpoints"
+		// Strip query string or fragment if present
+		if qi := strings.IndexAny(path, "?#"); qi != -1 {
+			path = path[:qi]
+		}
+		// Remove trailing slashes; a root-only path "/" becomes "" and returns empty
+		path = strings.TrimRight(path, "/")
+		if path != "" {
+			awfHelpersLog.Printf("Extracted API base path from %s: %s", envVar, path)
+			return path
+		}
+	}
+
+	return ""
 }
 
 // GetCopilotAPITarget returns the effective Copilot API target hostname, checking in order:
