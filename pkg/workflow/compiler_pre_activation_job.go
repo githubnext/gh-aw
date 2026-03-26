@@ -41,21 +41,6 @@ func (c *Compiler) buildPreActivationJob(data *WorkflowData, needsPermissionChec
 	// Pre-activation job doesn't need project support (no safe outputs processed here)
 	steps = append(steps, c.generateSetupStep(setupActionRef, SetupActionDestination, false)...)
 
-	// Start DIFC proxy immediately after setup and before any github-script or gh CLI call.
-	// on.steps and jobs.pre-activation custom steps may access GH_TOKEN and make API calls;
-	// the proxy ensures those calls are integrity-filtered when min-integrity is configured.
-	var difcProxyInjectedInPreActivation bool
-	if hasDIFCGuardsConfigured(data) {
-		compilerActivationJobsLog.Print("DIFC guards configured; injecting proxy start into pre-activation job")
-		startStep := c.buildStartDIFCProxyStepYAML(data)
-		if startStep != "" {
-			steps = append(steps, startStep)
-			difcProxyInjectedInPreActivation = true
-		} else {
-			compilerActivationJobsLog.Print("Warning: DIFC guards configured but proxy step generation returned empty; proxy will not be started in pre-activation job")
-		}
-	}
-
 	// Determine permissions for pre-activation job
 	var perms *Permissions
 	if needsContentsRead {
@@ -265,14 +250,6 @@ func (c *Compiler) buildPreActivationJob(data *WorkflowData, needsPermissionChec
 				onStepIDs = append(onStepIDs, id)
 			}
 		}
-	}
-
-	// Stop DIFC proxy after all user-defined steps (on.steps and custom steps) have run.
-	// The stop step always runs (if: always()) to clean up the container and CA cert
-	// even when earlier steps failed.
-	if difcProxyInjectedInPreActivation {
-		compilerActivationJobsLog.Print("DIFC proxy was started; injecting proxy stop step into pre-activation job")
-		steps = append(steps, buildStopDIFCProxyStepYAML())
 	}
 
 	// Generate the activated output expression using expression builders

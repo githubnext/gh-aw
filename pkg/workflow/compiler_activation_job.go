@@ -35,23 +35,6 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 	// Activation job doesn't need project support (no safe outputs processed here)
 	steps = append(steps, c.generateSetupStep(setupActionRef, SetupActionDestination, false)...)
 
-	// Start DIFC proxy early in the activation job, immediately after setup and before any
-	// actions/github-script or gh CLI step. The proxy startup script sets GITHUB_API_URL,
-	// GITHUB_GRAPHQL_URL, NODE_EXTRA_CA_CERTS, and GH_HOST via $GITHUB_ENV so all subsequent
-	// github-script Octokit calls are routed through integrity filtering automatically.
-	// We track whether the proxy was actually started so we only emit the stop step when needed.
-	var difcProxyInjectedInActivation bool
-	if hasDIFCGuardsConfigured(data) {
-		compilerActivationJobLog.Print("DIFC guards configured; injecting proxy start into activation job")
-		startStep := c.buildStartDIFCProxyStepYAML(data)
-		if startStep != "" {
-			steps = append(steps, startStep)
-			difcProxyInjectedInActivation = true
-		} else {
-			compilerActivationJobLog.Print("Warning: DIFC guards configured but proxy step generation returned empty; proxy will not be started in activation job")
-		}
-	}
-
 	// When a workflow_call trigger is present, resolve the platform (host) repository before
 	// generating aw_info so that target_repo can be included in aw_info.json and used by
 	// the checkout step. This is necessary for event-driven relays (e.g. on: issue_comment)
@@ -468,13 +451,6 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 	// That job builds the index and saves/restores it via the GitHub Actions cache, and the agent job
 	// restores the index using actions/cache/restore.
 
-	// Stop DIFC proxy before artifact upload. The stop step always runs (if: always()) to
-	// ensure the container and CA cert are cleaned up even when earlier steps failed.
-	if difcProxyInjectedInActivation {
-		compilerActivationJobLog.Print("DIFC proxy was started; injecting proxy stop step into activation job")
-		steps = append(steps, buildStopDIFCProxyStepYAML())
-	}
-
 	// Upload aw_info.json and prompt.txt as the activation artifact for the agent job to download.
 	// In workflow_call context the artifact is prefixed to avoid name clashes when multiple callers
 	// invoke the same reusable workflow within the same parent workflow run.
@@ -637,16 +613,6 @@ func (c *Compiler) generateCheckoutGitHubFolderForActivation(data *WorkflowData)
 	//
 	// Skip when inlined-imports is enabled: content is embedded at compile time and no
 	// runtime-import macros are used, so the callee's .md files are not needed at runtime.
-	// In dev mode the action is referenced via a local path (./actions/setup), so its files
-	// live in the workspace. Without including actions/setup in the sparse-checkout, this second
-	// checkout would remove that directory and the runner's post-step would fail to find action.yml.
-	// In other modes (release, script, action) the action is fetched remotely into the
-	// runner's action cache and is not affected by workspace checkouts.
-	devExtraPaths := []string(nil)
-	if c.actionMode.IsDev() {
-		devExtraPaths = []string{"actions/setup"}
-	}
-
 	cm := NewCheckoutManager(nil)
 	if data != nil && hasWorkflowCallTrigger(data.On) && !data.InlinedImports {
 		compilerActivationJobLog.Print("Adding cross-repo-aware .github checkout for workflow_call trigger")
@@ -656,7 +622,6 @@ func (c *Compiler) generateCheckoutGitHubFolderForActivation(data *WorkflowData)
 			cm.GetCrossRepoTargetRepo(),
 			cm.GetCrossRepoTargetRef(),
 			GetActionPin,
-			devExtraPaths...,
 		)
 	}
 
@@ -664,5 +629,5 @@ func (c *Compiler) generateCheckoutGitHubFolderForActivation(data *WorkflowData)
 	// This is needed for runtime imports during prompt generation
 	// sparse-checkout-cone-mode: true ensures subdirectories under .github/ are recursively included
 	compilerActivationJobLog.Print("Adding .github and .agents sparse checkout in activation job")
-	return cm.GenerateGitHubFolderCheckoutStep("", "", GetActionPin, devExtraPaths...)
+	return cm.GenerateGitHubFolderCheckoutStep("", "", GetActionPin)
 }

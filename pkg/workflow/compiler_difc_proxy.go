@@ -19,26 +19,15 @@ package workflow
 // addition to GH_HOST, so it intercepts Octokit calls as well. Proxy wrapping is therefore
 // also injected around qmd indexing steps when DIFC guards are configured.
 //
-// Note: activation job GitHub API calls (reactions, timestamp checks, body fetch, comments,
-// lock, label removal) are also made via actions/github-script. The proxy is therefore also
-// injected into the activation job when DIFC guards are configured.
-//
-// Note: pre-activation job GitHub API calls (membership checks, skip-if queries, rate limit,
-// and user-defined on.steps / jobs.pre-activation custom steps) are also made via
-// actions/github-script. The proxy is therefore also injected into the pre-activation job
-// when DIFC guards are configured.
-//
 // The proxy uses the same container image as the MCP gateway (gh-aw-mcpg)
 // but runs in "proxy" mode with --guards-mode filter (graceful degradation)
 // and --tls (required by the gh CLI HTTPS-only constraint).
 //
 // Injection conditions:
 //
-//	Main job:            GitHub tool has explicit guard policies (min-integrity set) AND
-//	                     custom steps set GH_TOKEN
-//	Activation job:      GitHub tool has explicit guard policies (min-integrity set)
-//	Pre-activation job:  GitHub tool has explicit guard policies (min-integrity set)
-//	Indexing job:        GitHub tool has explicit guard policies (min-integrity set)
+//	Main job:     GitHub tool has explicit guard policies (min-integrity set) AND
+//	              custom steps set GH_TOKEN
+//	Indexing job: GitHub tool has explicit guard policies (min-integrity set)
 //
 // Proxy lifecycle within the main job:
 //  1. Start proxy — after "Configure gh CLI" step, before custom steps
@@ -46,22 +35,6 @@ package workflow
 //     and NODE_EXTRA_CA_CERTS set (via $GITHUB_ENV)
 //  3. Stop proxy — before MCP gateway starts (generateMCPSetup); always runs
 //     even if earlier steps failed (if: always(), continue-on-error: true)
-//
-// Proxy lifecycle within the activation job:
-//  1. Start proxy — after setup step, before any actions/github-script or gh CLI step
-//  2. All activation github-script steps run with all proxy env vars set
-//     (GITHUB_API_URL, GITHUB_GRAPHQL_URL, NODE_EXTRA_CA_CERTS, GH_HOST);
-//     Octokit calls in actions/github-script are intercepted automatically
-//  3. Stop proxy — before activation artifact upload; always runs
-//     (if: always(), continue-on-error: true)
-//
-// Proxy lifecycle within the pre-activation job:
-//  1. Start proxy — after setup step, before any github-script step (membership checks,
-//     rate limit, skip-if queries, and user-defined on.steps / jobs.pre-activation steps)
-//  2. All pre-activation github-script steps run with all proxy env vars set
-//     (GITHUB_API_URL, GITHUB_GRAPHQL_URL, NODE_EXTRA_CA_CERTS, GH_HOST)
-//  3. Stop proxy — after all user-defined steps (on.steps and custom steps); always runs
-//     (if: always(), continue-on-error: true)
 //
 // Proxy lifecycle within the indexing job:
 //  1. Start proxy — before qmd index-building steps
@@ -303,11 +276,5 @@ func difcProxyLogPaths(data *WorkflowData) []string {
 	}
 	// proxy-logs/ contains TLS certs and container stderr from the proxy
 	// (mcp-logs/ is already collected as part of standard MCP logging)
-	// Exclude proxy-tls/ because it contains the TLS private key (server.key) which is
-	// created by the Docker container with root-only permissions, causing artifact upload
-	// to fail with EACCES. The private key is ephemeral and should not be uploaded.
-	return []string{
-		"/tmp/gh-aw/proxy-logs/",
-		"!/tmp/gh-aw/proxy-logs/proxy-tls/",
-	}
+	return []string{"/tmp/gh-aw/proxy-logs/"}
 }
