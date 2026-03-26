@@ -131,6 +131,15 @@ function loadFixtures() {
   }));
 }
 
+// ── Normalize heredoc delimiters ─────────────────────────────────────
+// Replaces randomized heredoc delimiter tokens (e.g. GH_AW_PROMPT_4e0413dfda20da69_EOF)
+// with a stable placeholder so that wasm output and golden files compare equal even
+// though each compilation embeds different (or seeded) hex tokens.
+// Mirrors normalizeHeredocDelimiters() in pkg/workflow/compiler.go.
+function normalizeHeredocDelimiters(content) {
+  return content.replace(/GH_AW_([A-Z0-9_]+)_[0-9a-f]{16}_EOF/g, "GH_AW_$1_NORM_EOF");
+}
+
 // ── Load golden file ─────────────────────────────────────────────────
 function loadGoldenFile(testName) {
   // Golden files follow the charmbracelet/x/exp/golden convention:
@@ -213,15 +222,18 @@ async function main() {
         continue;
       }
 
-      if (wasmYaml === goldenYaml) {
+      const normalizedWasm = normalizeHeredocDelimiters(wasmYaml);
+      const normalizedGolden = normalizeHeredocDelimiters(goldenYaml);
+
+      if (normalizedWasm === normalizedGolden) {
         console.log("PASS");
         passed++;
       } else {
         console.log("FAIL (output differs from golden)");
 
         // Find first difference
-        const wasmLines = wasmYaml.split("\n");
-        const goldenLines = goldenYaml.split("\n");
+        const wasmLines = normalizedWasm.split("\n");
+        const goldenLines = normalizedGolden.split("\n");
         for (
           let i = 0;
           i < Math.min(wasmLines.length, goldenLines.length);
