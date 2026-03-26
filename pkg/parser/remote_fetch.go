@@ -545,6 +545,9 @@ func downloadFileViaGitClone(owner, repo, path, ref, host string) ([]byte, error
 
 	// Read the file from the cloned repository
 	filePath := filepath.Join(tmpDir, path)
+	if err := fileutil.MustBeWithin(tmpDir, filePath); err != nil {
+		return nil, fmt.Errorf("refusing to read file outside clone directory: %w", err)
+	}
 	content, err := os.ReadFile(filePath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read file from cloned repository: %w", err)

@@ -7,6 +7,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/github/gh-aw/pkg/logger"
 )
@@ -49,6 +50,29 @@ func ValidateAbsolutePath(path string) (string, error) {
 	}
 
 	return cleanPath, nil
+}
+
+// MustBeWithin checks that candidate is located within the base directory tree.
+// Both paths are resolved to absolute form before comparison, so symlinks and
+// ".." components cannot be used to escape base.
+//
+// Returns an error when:
+//   - Either path cannot be resolved to an absolute form.
+//   - The resolved candidate path starts outside the resolved base directory.
+func MustBeWithin(base, candidate string) error {
+	absBase, err := filepath.Abs(base)
+	if err != nil {
+		return fmt.Errorf("failed to resolve base path %q: %w", base, err)
+	}
+	absCand, err := filepath.Abs(candidate)
+	if err != nil {
+		return fmt.Errorf("failed to resolve candidate path %q: %w", candidate, err)
+	}
+	rel, err := filepath.Rel(absBase, absCand)
+	if err != nil || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
+		return fmt.Errorf("path %q escapes base directory %q", candidate, base)
+	}
+	return nil
 }
 
 // FileExists checks if a file exists and is not a directory.
