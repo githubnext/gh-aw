@@ -98,11 +98,22 @@ async function main() {
     return;
   }
 
-  // Validate branch name follows memory/* naming convention.
-  // Memory branches must start with "memory/" followed by at least one character
-  // so callers cannot accidentally push to arbitrary branches (e.g. "main").
-  if (!/^memory\/.+/.test(branchName)) {
-    core.setFailed(`ERR_VALIDATION: Invalid branch name "${branchName}": branch name must start with "memory/" (e.g. "memory/default")`);
+  // Validate branch name against the naming constraints enforced by the compiler:
+  //
+  //  Non-wiki memory (default): "memory/{id}" or "{custom-prefix}/{id}"
+  //    - The branch prefix is validated at compile time: 4-32 alphanumeric/hyphen/underscore chars
+  //    - generateDefaultBranchName() always produces "{prefix}/{id}" with a "/" separator
+  //  Wiki memory: bare branch name, typically "master" or "main"
+  //    - Wikis use the repository's default branch and never create an orphan
+  //    - The target repo is already appended with ".wiki" by the compiler
+  //
+  // At runtime we enforce:
+  //   1. Namespaced branches (contain "/") to prevent pushing to top-level branches like "main"
+  //   2. Allow known wiki defaults ("master", "main", "gh-pages") as bare branch names
+  const isNamespaced = /^[a-zA-Z0-9_-]+\/.+/.test(branchName);
+  const isKnownWikiBranch = branchName === "master" || branchName === "main" || branchName === "gh-pages";
+  if (!isNamespaced && !isKnownWikiBranch) {
+    core.setFailed(`ERR_VALIDATION: Invalid branch name "${branchName}": branch name must be namespaced (e.g. "memory/default") or a known wiki branch ("master", "main", "gh-pages")`);
     return;
   }
 

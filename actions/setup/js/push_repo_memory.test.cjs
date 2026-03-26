@@ -1274,6 +1274,7 @@ describe("push_repo_memory.cjs - shell injection security tests", () => {
     });
 
     it("should reject branch name that does not start with memory/", async () => {
+      // "invalid-branch" has no "/" separator and is not a known wiki branch name
       process.env.BRANCH_NAME = "invalid-branch";
       process.env.TARGET_REPO = "test-owner/test-repo";
 
@@ -1286,12 +1287,13 @@ describe("push_repo_memory.cjs - shell injection security tests", () => {
       await main();
 
       expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("ERR_VALIDATION"));
-      expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining('must start with "memory/"'));
+      expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("must be namespaced"));
       // No git operations should have been attempted
       expect(mockExecGitSync).not.toHaveBeenCalled();
     });
 
     it("should reject branch name memory/ with no suffix", async () => {
+      // "memory/" has a slash but nothing after it – not a valid namespaced branch
       process.env.BRANCH_NAME = "memory/";
       process.env.TARGET_REPO = "test-owner/test-repo";
 
@@ -1305,6 +1307,37 @@ describe("push_repo_memory.cjs - shell injection security tests", () => {
 
       expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("ERR_VALIDATION"));
       expect(mockExecGitSync).not.toHaveBeenCalled();
+    });
+
+    it("should accept custom branch-prefix branches like campaigns/metrics", () => {
+      // The Go compiler supports custom branch-prefix values (e.g. "campaigns") so
+      // generated branch names like "campaigns/metrics" must pass validation.
+      const nodeFs = require("fs");
+      const nodePath = require("path");
+
+      const scriptPath = nodePath.join(import.meta.dirname, "push_repo_memory.cjs");
+      const scriptContent = nodeFs.readFileSync(scriptPath, "utf8");
+
+      // Must use a general namespacing check, not a hard-coded "memory/" prefix
+      expect(scriptContent).toContain("isNamespaced");
+      expect(scriptContent).toContain("isKnownWikiBranch");
+      // Must NOT hard-code "memory/" as the only valid prefix
+      expect(scriptContent).not.toContain('must start with "memory/"');
+    });
+
+    it("should accept wiki branch names (master, main, gh-pages)", () => {
+      // Wiki memory uses bare branch names ("master" by default). The target repo
+      // already has ".wiki" appended by the compiler, so there is no risk of
+      // pushing to the wrong branch in the main repository.
+      const nodeFs = require("fs");
+      const nodePath = require("path");
+
+      const scriptPath = nodePath.join(import.meta.dirname, "push_repo_memory.cjs");
+      const scriptContent = nodeFs.readFileSync(scriptPath, "utf8");
+
+      expect(scriptContent).toContain('"master"');
+      expect(scriptContent).toContain('"main"');
+      expect(scriptContent).toContain('"gh-pages"');
     });
 
     it("should propagate git fetch authentication failure instead of silently creating orphan branch", async () => {
