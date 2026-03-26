@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 
@@ -552,14 +553,19 @@ func TestToolsMetaJSONCustomDescriptionsAllToolTypes(t *testing.T) {
 func extractToolsMetaFromLockFile(t *testing.T, yamlStr string) ToolsMeta {
 	t.Helper()
 
-	const delimiter = "GH_AW_SAFE_OUTPUTS_TOOLS_META_EOF"
-	// Opening line is: cat > ... << 'GH_AW_SAFE_OUTPUTS_TOOLS_META_EOF'
+	// Find the randomized delimiter using regex (format: GH_AW_SAFE_OUTPUTS_TOOLS_META_<16hex>_EOF)
+	delimRE := regexp.MustCompile(`GH_AW_SAFE_OUTPUTS_TOOLS_META_[0-9a-f]{16}_EOF`)
+	delimMatch := delimRE.FindString(yamlStr)
+	require.NotEmpty(t, delimMatch, "lock file should contain tools_meta heredoc delimiter")
+	delimiter := delimMatch
+
+	// Opening line is: cat > ... << 'GH_AW_SAFE_OUTPUTS_TOOLS_META_<hex>_EOF'
 	openMarker := "<< '" + delimiter + "'\n"
 	start := strings.Index(yamlStr, openMarker)
 	require.NotEqual(t, -1, start, "lock file should contain tools_meta heredoc opening delimiter")
 	contentStart := start + len(openMarker)
 
-	// Closing line is: "          GH_AW_SAFE_OUTPUTS_TOOLS_META_EOF" (indented)
+	// Closing line is: "          GH_AW_SAFE_OUTPUTS_TOOLS_META_<hex>_EOF" (indented)
 	closeMarker := "          " + delimiter + "\n"
 	end := strings.Index(yamlStr[contentStart:], closeMarker)
 	require.NotEqual(t, -1, end, "lock file should contain tools_meta heredoc closing delimiter")

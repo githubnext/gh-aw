@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"slices"
 	"strings"
 	"time"
@@ -17,6 +18,17 @@ import (
 )
 
 var log = logger.New("workflow:compiler")
+
+// heredocDelimiterRE matches randomized heredoc delimiters of the form GH_AW_<NAME>_<16hexchars>_EOF.
+// Used to normalize delimiters when comparing compiled output to skip unnecessary writes.
+var heredocDelimiterRE = regexp.MustCompile(`GH_AW_([A-Z0-9_]+)_[0-9a-f]{16}_EOF`)
+
+// normalizeHeredocDelimiters replaces randomized heredoc delimiter tokens with a stable
+// placeholder so that two compilations of the same workflow compare as equal even though
+// each run embeds different random tokens.
+func normalizeHeredocDelimiters(content string) string {
+	return heredocDelimiterRE.ReplaceAllString(content, "GH_AW_${1}_NORM_EOF")
+}
 
 const (
 	// MaxLockFileSize is the maximum allowed size for generated lock workflow files (500KB)
@@ -569,8 +581,8 @@ func (c *Compiler) writeWorkflowOutput(lockFile, yamlContent string, markdownPat
 		// Check if content has actually changed
 		contentUnchanged := false
 		if existingContent, err := os.ReadFile(lockFile); err == nil {
-			if string(existingContent) == yamlContent {
-				// Content is identical - skip write to preserve timestamp
+			if normalizeHeredocDelimiters(string(existingContent)) == normalizeHeredocDelimiters(yamlContent) {
+				// Content is identical (modulo random heredoc tokens) - skip write to preserve timestamp
 				contentUnchanged = true
 				log.Print("Lock file content unchanged - skipping write to preserve timestamp")
 			}

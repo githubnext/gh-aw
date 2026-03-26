@@ -4,6 +4,7 @@ package workflow
 
 import (
 	"encoding/json"
+	"regexp"
 	"strings"
 	"testing"
 
@@ -345,7 +346,9 @@ func TestBuildCustomScriptFilesStep(t *testing.T) {
 
 	assert.Contains(t, fullYAML, "Setup Safe Outputs Custom Scripts", "Should have setup step name")
 	assert.Contains(t, fullYAML, "safe_output_script_my_handler.cjs", "Should reference the output filename")
-	assert.Contains(t, fullYAML, "GH_AW_SAFE_OUTPUT_SCRIPT_MY_HANDLER_EOF", "Should use correct heredoc delimiter")
+	// Verify heredoc delimiter follows the randomized GH_AW_SAFE_OUTPUT_SCRIPT_MY_HANDLER_<hex>_EOF format
+	delimRE := regexp.MustCompile(`GH_AW_SAFE_OUTPUT_SCRIPT_MY_HANDLER_[0-9a-f]{16}_EOF`)
+	assert.True(t, delimRE.MatchString(fullYAML), "Should use correct randomized heredoc delimiter")
 	// Verify the compiler generates the full outer wrapper
 	assert.Contains(t, fullYAML, "async function main(config = {}) {", "Should generate main function declaration")
 	assert.Contains(t, fullYAML, "const { channel } = config;", "Should generate config input destructuring")

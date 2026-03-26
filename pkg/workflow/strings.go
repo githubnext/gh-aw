@@ -79,6 +79,8 @@
 package workflow
 
 import (
+	"crypto/rand"
+	"encoding/hex"
 	"fmt"
 	"regexp"
 	"slices"
@@ -259,24 +261,26 @@ func ShortenCommand(command string) string {
 	return shortened
 }
 
-// GenerateHeredocDelimiter creates a standardized heredoc delimiter with the GH_AW prefix.
-// All heredoc delimiters in compiled lock.yml files should use this format for consistency.
+// GenerateHeredocDelimiter creates a randomized heredoc delimiter with the GH_AW prefix.
+// All heredoc delimiters in compiled lock.yml files use this format for security.
 //
-// The function generates delimiters in the format: GH_AW_<NAME>_EOF
+// The function generates delimiters in the format: GH_AW_<NAME>_<16_HEX_CHARS>_EOF
+//
+// The 16-character cryptographically random hex suffix prevents heredoc delimiter
+// injection attacks: an attacker who knows the name cannot predict the full delimiter,
+// so they cannot close the heredoc early to inject shell commands.
 //
 // Parameters:
 //   - name: A descriptive identifier for the heredoc content (e.g., "PROMPT", "MCP_CONFIG", "TOOLS_JSON")
 //     The name should use SCREAMING_SNAKE_CASE without the _EOF suffix.
 //
-// Returns a delimiter string in the format "GH_AW_<NAME>_EOF"
+// Returns a delimiter string in the format "GH_AW_<NAME>_<16_HEX_CHARS>_EOF"
 //
 // Example:
 //
-//	GenerateHeredocDelimiter("PROMPT")          // returns "GH_AW_PROMPT_EOF"
-//	GenerateHeredocDelimiter("MCP_CONFIG")      // returns "GH_AW_MCP_CONFIG_EOF"
-//	GenerateHeredocDelimiter("TOOLS_JSON")      // returns "GH_AW_TOOLS_JSON_EOF"
-//	GenerateHeredocDelimiter("SRT_CONFIG")      // returns "GH_AW_SRT_CONFIG_EOF"
-//	GenerateHeredocDelimiter("FILE_123ABC")     // returns "GH_AW_FILE_123ABC_EOF"
+//	GenerateHeredocDelimiter("PROMPT")          // returns "GH_AW_PROMPT_a1b2c3d4e5f6g7h8_EOF"
+//	GenerateHeredocDelimiter("MCP_CONFIG")      // returns "GH_AW_MCP_CONFIG_a1b2c3d4e5f6g7h8_EOF"
+//	GenerateHeredocDelimiter("")                // returns "GH_AW_a1b2c3d4e5f6g7h8_EOF"
 //
 // Usage in heredoc generation:
 //
@@ -285,10 +289,15 @@ func ShortenCommand(command string) string {
 //	yaml.WriteString("content here\n")
 //	yaml.WriteString(delimiter + "\n")
 func GenerateHeredocDelimiter(name string) string {
-	if name == "" {
-		return "GH_AW_EOF"
+	b := make([]byte, 8)
+	if _, err := rand.Read(b); err != nil {
+		panic("crypto/rand failed: " + err.Error())
 	}
-	return "GH_AW_" + strings.ToUpper(name) + "_EOF"
+	tag := hex.EncodeToString(b) // 16 hex chars
+	if name == "" {
+		return "GH_AW_" + tag + "_EOF"
+	}
+	return "GH_AW_" + strings.ToUpper(name) + "_" + tag + "_EOF"
 }
 
 // PrettifyToolName removes "mcp__" prefix and formats tool names nicely

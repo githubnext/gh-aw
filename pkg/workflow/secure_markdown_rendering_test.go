@@ -5,6 +5,7 @@ package workflow
 import (
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 
@@ -57,14 +58,14 @@ Run ID: ${{ github.run_id }}
 	// Debug: print the compiled YAML section we care about
 	lines := strings.Split(compiledStr, "\n")
 	inPromptStep := false
-	delimiter := GenerateHeredocDelimiter("PROMPT")
+	promptDelimRE := regexp.MustCompile(`GH_AW_PROMPT_[0-9a-f]{16}_EOF`)
 	for i, line := range lines {
 		if strings.Contains(line, "name: Create prompt") {
 			inPromptStep = true
 		}
 		if inPromptStep {
 			t.Logf("Line %d: %s", i, line)
-			if i > 0 && strings.Contains(lines[i-1], delimiter) && strings.Contains(line, "name:") && !strings.Contains(line, "Create prompt") {
+			if i > 0 && promptDelimRE.MatchString(lines[i-1]) && strings.Contains(line, "name:") && !strings.Contains(line, "Create prompt") {
 				break
 			}
 		}
