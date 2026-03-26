@@ -464,12 +464,18 @@ func fetchAllRemoteDependencies(ctx context.Context, content string, spec *Workf
 	// Fetch and save workflows referenced in safe-outputs.dispatch-workflow so they are
 	// available locally. Workflow names using GitHub Actions expression syntax are skipped.
 	if err := fetchAndSaveRemoteDispatchWorkflows(ctx, content, spec, targetDir, verbose, force, tracker); err != nil {
-		return err
+		if verbose {
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to fetch dispatch workflow dependencies: %v", err)))
+		}
+		return fmt.Errorf("failed to fetch dispatch workflow dependencies: %w", err)
 	}
 	// Fetch files listed in the 'resources:' frontmatter field (additional workflow or
 	// action files that should be present alongside this workflow).
 	if err := fetchAndSaveRemoteResources(content, spec, targetDir, verbose, force, tracker); err != nil {
-		return err
+		if verbose {
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to fetch resource dependencies: %v", err)))
+		}
+		return fmt.Errorf("failed to fetch resource dependencies: %w", err)
 	}
 	return nil
 }
