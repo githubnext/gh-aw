@@ -16,17 +16,19 @@ import (
 func NewAuditDiffSubcommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "diff <run-id-1> <run-id-2>",
-		Short: "Compare firewall behavior across two workflow runs",
-		Long: `Compare firewall behavior between two workflow runs to detect policy regressions,
-new unauthorized domains, and behavioral drift.
+		Short: "Compare workflow run behavior across two workflow runs",
+		Long: `Compare workflow run behavior between two workflow runs to detect policy regressions,
+new unauthorized domains, behavioral drift, and changes in MCP tool usage or run metrics.
 
 This command downloads artifacts for both runs (using cached data when available),
-analyzes their firewall logs, and produces a diff showing:
+analyzes their data, and produces a diff showing:
 - New domains that appeared in the second run
 - Removed domains that were in the first run but not the second
 - Status changes (domains that flipped between allowed and denied)
 - Volume changes (significant request count changes, >100% threshold)
 - Anomaly flags (new denied domains, previously-denied now allowed)
+- MCP tool invocation changes (new/removed tools, call count and error count diffs)
+- Run metrics comparison (token usage, duration, turns) when cached data is available
 
 Examples:
   ` + string(constants.CLIExtensionPrefix) + ` audit diff 12345 12346                     # Compare two runs
@@ -72,9 +74,9 @@ Examples:
 	return cmd
 }
 
-// RunAuditDiff compares firewall behavior between two workflow runs
+// RunAuditDiff compares behavior between two workflow runs
 func RunAuditDiff(ctx context.Context, runID1, runID2 int64, owner, repo, hostname, outputDir string, verbose, jsonOutput bool, format string) error {
-	auditDiffLog.Printf("Starting firewall diff: run1=%d, run2=%d", runID1, runID2)
+	auditDiffLog.Printf("Starting audit diff: run1=%d, run2=%d", runID1, runID2)
 
 	// Auto-detect GHES host from git remote if hostname is not provided
 	if hostname == "" {
@@ -92,13 +94,13 @@ func RunAuditDiff(ctx context.Context, runID1, runID2 int64, owner, repo, hostna
 	default:
 	}
 
-	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Comparing firewall behavior: Run #%d → Run #%d", runID1, runID2)))
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Comparing workflow runs: Run #%d → Run #%d", runID1, runID2)))
 
-	// Load firewall analysis for both runs
-	fmt.Fprintln(os.Stderr, console.FormatProgressMessage(fmt.Sprintf("Loading firewall data for run %d...", runID1)))
-	analysis1, err := loadFirewallAnalysisForRun(runID1, outputDir, owner, repo, hostname, verbose)
+	// Load run summaries for both runs
+	fmt.Fprintln(os.Stderr, console.FormatProgressMessage(fmt.Sprintf("Loading data for run %d...", runID1)))
+	summary1, err := loadRunSummaryForDiff(runID1, outputDir, owner, repo, hostname, verbose)
 	if err != nil {
-		return fmt.Errorf("failed to load firewall data for run %d: %w", runID1, err)
+		return fmt.Errorf("failed to load data for run %d: %w", runID1, err)
 	}
 
 	// Check context cancellation between downloads
@@ -109,38 +111,40 @@ func RunAuditDiff(ctx context.Context, runID1, runID2 int64, owner, repo, hostna
 	default:
 	}
 
-	fmt.Fprintln(os.Stderr, console.FormatProgressMessage(fmt.Sprintf("Loading firewall data for run %d...", runID2)))
-	analysis2, err := loadFirewallAnalysisForRun(runID2, outputDir, owner, repo, hostname, verbose)
+	fmt.Fprintln(os.Stderr, console.FormatProgressMessage(fmt.Sprintf("Loading data for run %d...", runID2)))
+	summary2, err := loadRunSummaryForDiff(runID2, outputDir, owner, repo, hostname, verbose)
 	if err != nil {
-		return fmt.Errorf("failed to load firewall data for run %d: %w", runID2, err)
+		return fmt.Errorf("failed to load data for run %d: %w", runID2, err)
 	}
 
 	// Warn if no firewall data found
-	if analysis1 == nil && analysis2 == nil {
+	fw1 := summary1.FirewallAnalysis
+	fw2 := summary2.FirewallAnalysis
+	if fw1 == nil && fw2 == nil {
 		fmt.Fprintln(os.Stderr, console.FormatWarningMessage("No firewall data found in either run. Both runs may predate firewall logging."))
-		return nil
-	}
-	if analysis1 == nil {
-		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("No firewall data found for run %d (older run may lack firewall logs)", runID1)))
-	}
-	if analysis2 == nil {
-		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("No firewall data found for run %d", runID2)))
+	} else {
+		if fw1 == nil {
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("No firewall data found for run %d (older run may lack firewall logs)", runID1)))
+		}
+		if fw2 == nil {
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("No firewall data found for run %d", runID2)))
+		}
 	}
 
-	// Compute the diff
-	diff := computeFirewallDiff(runID1, runID2, analysis1, analysis2)
+	// Compute the full diff
+	diff := computeAuditDiff(runID1, runID2, summary1, summary2)
 
 	// Render output
 	if jsonOutput || format == "json" {
-		return renderFirewallDiffJSON(diff)
+		return renderAuditDiffJSON(diff)
 	}
 
 	if format == "markdown" {
-		renderFirewallDiffMarkdown(diff)
+		renderAuditDiffMarkdown(diff)
 		return nil
 	}
 
 	// Default: pretty console output
-	renderFirewallDiffPretty(diff)
+	renderAuditDiffPretty(diff)
 	return nil
 }

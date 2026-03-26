@@ -5,6 +5,7 @@ package cli
 import (
 	"encoding/json"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -321,4 +322,374 @@ func findDiffEntry(entries []DomainDiffEntry, domain string) *DomainDiffEntry {
 		}
 	}
 	return nil
+}
+
+// findMCPToolDiffEntry is a test helper to find a tool entry by server and tool name
+func findMCPToolDiffEntry(entries []MCPToolDiffEntry, serverName, toolName string) *MCPToolDiffEntry {
+	for i := range entries {
+		if entries[i].ServerName == serverName && entries[i].ToolName == toolName {
+			return &entries[i]
+		}
+	}
+	return nil
+}
+
+func TestComputeMCPToolsDiff_NewTools(t *testing.T) {
+	run1 := &MCPToolUsageData{
+		Summary: []MCPToolSummary{
+			{ServerName: "github", ToolName: "issue_read", CallCount: 5, ErrorCount: 0},
+		},
+	}
+	run2 := &MCPToolUsageData{
+		Summary: []MCPToolSummary{
+			{ServerName: "github", ToolName: "issue_read", CallCount: 5, ErrorCount: 0},
+			{ServerName: "github", ToolName: "create_issue", CallCount: 3, ErrorCount: 0},
+			{ServerName: "playwright", ToolName: "screenshot", CallCount: 2, ErrorCount: 1},
+		},
+	}
+
+	diff := computeMCPToolsDiff(run1, run2)
+
+	assert.Len(t, diff.NewTools, 2, "Should have 2 new tools")
+	assert.Empty(t, diff.RemovedTools, "Should have no removed tools")
+	assert.Empty(t, diff.ChangedTools, "Should have no changed tools")
+
+	createIssue := findMCPToolDiffEntry(diff.NewTools, "github", "create_issue")
+	require.NotNil(t, createIssue, "Should find create_issue in new tools")
+	assert.Equal(t, "new", createIssue.Status, "Status should be 'new'")
+	assert.Equal(t, 3, createIssue.Run2CallCount, "Call count should be 3")
+	assert.False(t, createIssue.IsAnomaly, "No-error new tool should not be anomaly")
+
+	screenshot := findMCPToolDiffEntry(diff.NewTools, "playwright", "screenshot")
+	require.NotNil(t, screenshot, "Should find screenshot in new tools")
+	assert.True(t, screenshot.IsAnomaly, "New tool with errors should be anomaly")
+	assert.Equal(t, "new tool with errors", screenshot.AnomalyNote, "Anomaly note should explain errors")
+	assert.Equal(t, 1, screenshot.Run2ErrorCount, "Error count should be 1")
+
+	assert.Equal(t, 2, diff.Summary.NewToolCount, "Summary should show 2 new tools")
+	assert.True(t, diff.Summary.HasAnomalies, "Should have anomalies")
+	assert.Equal(t, 1, diff.Summary.AnomalyCount, "Should have 1 anomaly")
+}
+
+func TestComputeMCPToolsDiff_RemovedTools(t *testing.T) {
+	run1 := &MCPToolUsageData{
+		Summary: []MCPToolSummary{
+			{ServerName: "github", ToolName: "issue_read", CallCount: 10, ErrorCount: 0},
+			{ServerName: "github", ToolName: "search_repos", CallCount: 4, ErrorCount: 0},
+		},
+	}
+	run2 := &MCPToolUsageData{
+		Summary: []MCPToolSummary{
+			{ServerName: "github", ToolName: "issue_read", CallCount: 8, ErrorCount: 0},
+		},
+	}
+
+	diff := computeMCPToolsDiff(run1, run2)
+
+	assert.Len(t, diff.RemovedTools, 1, "Should have 1 removed tool")
+	assert.Equal(t, "search_repos", diff.RemovedTools[0].ToolName, "Removed tool should be search_repos")
+	assert.Equal(t, "removed", diff.RemovedTools[0].Status, "Status should be 'removed'")
+	assert.Equal(t, 4, diff.RemovedTools[0].Run1CallCount, "Should preserve run1 call count")
+	assert.Equal(t, 1, diff.Summary.RemovedToolCount, "Summary should show 1 removed tool")
+}
+
+func TestComputeMCPToolsDiff_ChangedTools(t *testing.T) {
+	run1 := &MCPToolUsageData{
+		Summary: []MCPToolSummary{
+			{ServerName: "github", ToolName: "issue_read", CallCount: 5, ErrorCount: 0},
+			{ServerName: "github", ToolName: "create_pr", CallCount: 2, ErrorCount: 1},
+		},
+	}
+	run2 := &MCPToolUsageData{
+		Summary: []MCPToolSummary{
+			{ServerName: "github", ToolName: "issue_read", CallCount: 10, ErrorCount: 0},
+			{ServerName: "github", ToolName: "create_pr", CallCount: 2, ErrorCount: 3},
+		},
+	}
+
+	diff := computeMCPToolsDiff(run1, run2)
+
+	assert.Len(t, diff.ChangedTools, 2, "Should have 2 changed tools")
+
+	issueRead := findMCPToolDiffEntry(diff.ChangedTools, "github", "issue_read")
+	require.NotNil(t, issueRead, "Should find issue_read in changed tools")
+	assert.Equal(t, "changed", issueRead.Status, "Status should be 'changed'")
+	assert.Equal(t, 5, issueRead.Run1CallCount, "Run1 call count should be 5")
+	assert.Equal(t, 10, issueRead.Run2CallCount, "Run2 call count should be 10")
+	assert.Equal(t, "+5", issueRead.CallCountChange, "Call count change should be +5")
+	assert.False(t, issueRead.IsAnomaly, "No error increase should not be anomaly")
+
+	createPR := findMCPToolDiffEntry(diff.ChangedTools, "github", "create_pr")
+	require.NotNil(t, createPR, "Should find create_pr in changed tools")
+	assert.True(t, createPR.IsAnomaly, "Increased error count should be anomaly")
+	assert.Equal(t, "error count increased", createPR.AnomalyNote, "Anomaly note should explain error increase")
+	assert.Equal(t, 1, createPR.Run1ErrorCount, "Run1 error count should be 1")
+	assert.Equal(t, 3, createPR.Run2ErrorCount, "Run2 error count should be 3")
+
+	assert.Equal(t, 2, diff.Summary.ChangedToolCount, "Summary should show 2 changed tools")
+	assert.True(t, diff.Summary.HasAnomalies, "Should have anomalies")
+	assert.Equal(t, 1, diff.Summary.AnomalyCount, "Should have 1 anomaly")
+}
+
+func TestComputeMCPToolsDiff_BothNil(t *testing.T) {
+	diff := computeMCPToolsDiff(nil, nil)
+
+	assert.Empty(t, diff.NewTools, "Should have no new tools")
+	assert.Empty(t, diff.RemovedTools, "Should have no removed tools")
+	assert.Empty(t, diff.ChangedTools, "Should have no changed tools")
+	assert.False(t, diff.Summary.HasAnomalies, "Should have no anomalies")
+}
+
+func TestComputeMCPToolsDiff_NoChanges(t *testing.T) {
+	toolSummary := []MCPToolSummary{
+		{ServerName: "github", ToolName: "issue_read", CallCount: 5, ErrorCount: 0},
+	}
+	run1 := &MCPToolUsageData{Summary: toolSummary}
+	run2 := &MCPToolUsageData{Summary: toolSummary}
+
+	diff := computeMCPToolsDiff(run1, run2)
+
+	assert.Empty(t, diff.NewTools, "Should have no new tools")
+	assert.Empty(t, diff.RemovedTools, "Should have no removed tools")
+	assert.Empty(t, diff.ChangedTools, "Should have no changed tools")
+}
+
+func TestComputeMCPToolsDiff_SortedOutput(t *testing.T) {
+	run1 := &MCPToolUsageData{}
+	run2 := &MCPToolUsageData{
+		Summary: []MCPToolSummary{
+			{ServerName: "z-server", ToolName: "tool", CallCount: 1},
+			{ServerName: "a-server", ToolName: "tool", CallCount: 1},
+			{ServerName: "m-server", ToolName: "tool", CallCount: 1},
+		},
+	}
+
+	diff := computeMCPToolsDiff(run1, run2)
+
+	require.Len(t, diff.NewTools, 3, "Should have 3 new tools")
+	assert.Equal(t, "a-server", diff.NewTools[0].ServerName, "First tool should be a-server (sorted)")
+	assert.Equal(t, "m-server", diff.NewTools[1].ServerName, "Second tool should be m-server (sorted)")
+	assert.Equal(t, "z-server", diff.NewTools[2].ServerName, "Third tool should be z-server (sorted)")
+}
+
+func TestComputeRunMetricsDiff_WithData(t *testing.T) {
+	summary1 := &RunSummary{
+		RunID: 100,
+		Run: WorkflowRun{
+			TokenUsage: 5000,
+			Duration:   10 * time.Minute,
+			Turns:      8,
+		},
+	}
+	summary2 := &RunSummary{
+		RunID: 200,
+		Run: WorkflowRun{
+			TokenUsage: 7500,
+			Duration:   15 * time.Minute,
+			Turns:      12,
+		},
+	}
+
+	diff := computeRunMetricsDiff(summary1, summary2)
+
+	require.NotNil(t, diff, "Should produce metrics diff when data is available")
+	assert.Equal(t, 5000, diff.Run1TokenUsage, "Run1 token usage should be 5000")
+	assert.Equal(t, 7500, diff.Run2TokenUsage, "Run2 token usage should be 7500")
+	assert.Equal(t, "+50%", diff.TokenUsageChange, "Token usage should increase by 50%")
+
+	assert.Equal(t, "10m0s", diff.Run1Duration, "Run1 duration should be 10m0s")
+	assert.Equal(t, "15m0s", diff.Run2Duration, "Run2 duration should be 15m0s")
+	assert.Equal(t, "+5m0s", diff.DurationChange, "Duration should increase by 5m0s")
+
+	assert.Equal(t, 8, diff.Run1Turns, "Run1 turns should be 8")
+	assert.Equal(t, 12, diff.Run2Turns, "Run2 turns should be 12")
+	assert.Equal(t, 4, diff.TurnsChange, "Turns change should be +4")
+}
+
+func TestComputeRunMetricsDiff_NegativeChange(t *testing.T) {
+	summary1 := &RunSummary{
+		Run: WorkflowRun{
+			TokenUsage: 8000,
+			Duration:   20 * time.Minute,
+			Turns:      15,
+		},
+	}
+	summary2 := &RunSummary{
+		Run: WorkflowRun{
+			TokenUsage: 4000,
+			Duration:   12 * time.Minute,
+			Turns:      10,
+		},
+	}
+
+	diff := computeRunMetricsDiff(summary1, summary2)
+
+	require.NotNil(t, diff, "Should produce metrics diff")
+	assert.Equal(t, "-50%", diff.TokenUsageChange, "Token usage should decrease by 50%")
+	assert.Equal(t, "-8m0s", diff.DurationChange, "Duration should decrease by 8m0s")
+	assert.Equal(t, -5, diff.TurnsChange, "Turns change should be -5")
+}
+
+func TestComputeRunMetricsDiff_BothNil(t *testing.T) {
+	diff := computeRunMetricsDiff(nil, nil)
+	assert.Nil(t, diff, "Should return nil when both summaries are nil")
+}
+
+func TestComputeRunMetricsDiff_AllZero(t *testing.T) {
+	summary1 := &RunSummary{Run: WorkflowRun{}}
+	summary2 := &RunSummary{Run: WorkflowRun{}}
+
+	diff := computeRunMetricsDiff(summary1, summary2)
+	assert.Nil(t, diff, "Should return nil when all metrics are zero")
+}
+
+func TestComputeAuditDiff_CombinesAllSections(t *testing.T) {
+	summary1 := &RunSummary{
+		RunID: 100,
+		FirewallAnalysis: &FirewallAnalysis{
+			RequestsByDomain: map[string]DomainRequestStats{
+				"api.github.com:443": {Allowed: 5, Blocked: 0},
+			},
+		},
+		MCPToolUsage: &MCPToolUsageData{
+			Summary: []MCPToolSummary{
+				{ServerName: "github", ToolName: "issue_read", CallCount: 3, ErrorCount: 0},
+			},
+		},
+		Run: WorkflowRun{TokenUsage: 2000, Turns: 5},
+	}
+	summary2 := &RunSummary{
+		RunID: 200,
+		FirewallAnalysis: &FirewallAnalysis{
+			RequestsByDomain: map[string]DomainRequestStats{
+				"api.github.com:443":  {Allowed: 5, Blocked: 0},
+				"new.example.com:443": {Allowed: 3, Blocked: 0},
+			},
+		},
+		MCPToolUsage: &MCPToolUsageData{
+			Summary: []MCPToolSummary{
+				{ServerName: "github", ToolName: "issue_read", CallCount: 7, ErrorCount: 0},
+				{ServerName: "github", ToolName: "create_issue", CallCount: 2, ErrorCount: 0},
+			},
+		},
+		Run: WorkflowRun{TokenUsage: 3000, Turns: 8},
+	}
+
+	diff := computeAuditDiff(100, 200, summary1, summary2)
+
+	assert.Equal(t, int64(100), diff.Run1ID, "Run1ID should match")
+	assert.Equal(t, int64(200), diff.Run2ID, "Run2ID should match")
+
+	require.NotNil(t, diff.FirewallDiff, "Should have firewall diff")
+	assert.Len(t, diff.FirewallDiff.NewDomains, 1, "Should have 1 new domain")
+
+	require.NotNil(t, diff.MCPToolsDiff, "Should have MCP tools diff")
+	assert.Len(t, diff.MCPToolsDiff.NewTools, 1, "Should have 1 new tool")
+	assert.Len(t, diff.MCPToolsDiff.ChangedTools, 1, "Should have 1 changed tool")
+
+	require.NotNil(t, diff.RunMetricsDiff, "Should have run metrics diff")
+	assert.Equal(t, 2000, diff.RunMetricsDiff.Run1TokenUsage, "Run1 token usage should match")
+	assert.Equal(t, 3000, diff.RunMetricsDiff.Run2TokenUsage, "Run2 token usage should match")
+}
+
+func TestComputeAuditDiff_NilSummaries(t *testing.T) {
+	diff := computeAuditDiff(100, 200, nil, nil)
+
+	assert.Equal(t, int64(100), diff.Run1ID, "Run1ID should be set even with nil summaries")
+	assert.NotNil(t, diff.FirewallDiff, "FirewallDiff should be non-nil (empty)")
+	assert.Nil(t, diff.MCPToolsDiff, "MCPToolsDiff should be nil when no MCP data")
+	assert.Nil(t, diff.RunMetricsDiff, "RunMetricsDiff should be nil when no metrics data")
+	assert.True(t, isEmptyAuditDiff(diff), "Diff with nil summaries should be empty")
+}
+
+func TestAuditDiffJSONSerialization(t *testing.T) {
+	summary1 := &RunSummary{
+		FirewallAnalysis: &FirewallAnalysis{
+			RequestsByDomain: map[string]DomainRequestStats{
+				"api.github.com:443": {Allowed: 5},
+			},
+		},
+		MCPToolUsage: &MCPToolUsageData{
+			Summary: []MCPToolSummary{
+				{ServerName: "github", ToolName: "issue_read", CallCount: 3},
+			},
+		},
+		Run: WorkflowRun{TokenUsage: 1000, Turns: 4},
+	}
+	summary2 := &RunSummary{
+		FirewallAnalysis: &FirewallAnalysis{
+			RequestsByDomain: map[string]DomainRequestStats{
+				"api.github.com:443":  {Allowed: 5},
+				"new.example.com:443": {Allowed: 2},
+			},
+		},
+		MCPToolUsage: &MCPToolUsageData{
+			Summary: []MCPToolSummary{
+				{ServerName: "github", ToolName: "issue_read", CallCount: 5},
+			},
+		},
+		Run: WorkflowRun{TokenUsage: 1500, Turns: 6},
+	}
+
+	diff := computeAuditDiff(100, 200, summary1, summary2)
+
+	data, err := json.MarshalIndent(diff, "", "  ")
+	require.NoError(t, err, "Should serialize AuditDiff to JSON")
+
+	var parsed AuditDiff
+	err = json.Unmarshal(data, &parsed)
+	require.NoError(t, err, "Should deserialize AuditDiff from JSON")
+
+	assert.Equal(t, int64(100), parsed.Run1ID, "Run1ID should survive serialization")
+	assert.Equal(t, int64(200), parsed.Run2ID, "Run2ID should survive serialization")
+	require.NotNil(t, parsed.FirewallDiff, "FirewallDiff should survive serialization")
+	assert.Len(t, parsed.FirewallDiff.NewDomains, 1, "New domains should survive serialization")
+	require.NotNil(t, parsed.MCPToolsDiff, "MCPToolsDiff should survive serialization")
+	require.NotNil(t, parsed.RunMetricsDiff, "RunMetricsDiff should survive serialization")
+	assert.Equal(t, 1000, parsed.RunMetricsDiff.Run1TokenUsage, "Token usage should survive serialization")
+}
+
+func TestFormatCountChange(t *testing.T) {
+	tests := []struct {
+		name     string
+		count1   int
+		count2   int
+		expected string
+	}{
+		{name: "increase", count1: 3, count2: 8, expected: "+5"},
+		{name: "decrease", count1: 10, count2: 3, expected: "-7"},
+		{name: "no change", count1: 5, count2: 5, expected: "+0"},
+		{name: "from zero", count1: 0, count2: 4, expected: "+4"},
+		{name: "to zero", count1: 6, count2: 0, expected: "-6"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := formatCountChange(tt.count1, tt.count2)
+			assert.Equal(t, tt.expected, result, "Count change format should match")
+		})
+	}
+}
+
+func TestIsEmptyMCPToolsDiff(t *testing.T) {
+	assert.True(t, isEmptyMCPToolsDiff(&MCPToolsDiff{}), "Empty MCPToolsDiff should be detected")
+	assert.False(t, isEmptyMCPToolsDiff(&MCPToolsDiff{
+		NewTools: []MCPToolDiffEntry{{ToolName: "test"}},
+	}), "Non-empty MCPToolsDiff should not be detected as empty")
+}
+
+func TestIsEmptyAuditDiff(t *testing.T) {
+	assert.True(t, isEmptyAuditDiff(&AuditDiff{}), "Empty AuditDiff should be detected")
+	assert.True(t, isEmptyAuditDiff(&AuditDiff{
+		FirewallDiff: &FirewallDiff{},
+		MCPToolsDiff: &MCPToolsDiff{},
+	}), "AuditDiff with empty sub-diffs should be detected as empty")
+	assert.False(t, isEmptyAuditDiff(&AuditDiff{
+		MCPToolsDiff: &MCPToolsDiff{
+			NewTools: []MCPToolDiffEntry{{ToolName: "test"}},
+		},
+	}), "AuditDiff with MCP changes should not be empty")
+	assert.False(t, isEmptyAuditDiff(&AuditDiff{
+		RunMetricsDiff: &RunMetricsDiff{Run1TokenUsage: 100},
+	}), "AuditDiff with metrics diff should not be empty")
 }
