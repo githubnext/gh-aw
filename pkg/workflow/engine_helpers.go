@@ -33,6 +33,7 @@ package workflow
 
 import (
 	"fmt"
+	"regexp"
 	"sort"
 	"strings"
 
@@ -40,6 +41,12 @@ import (
 )
 
 var engineHelpersLog = logger.New("workflow:engine_helpers")
+
+// agentFilePathRegex is an allowlist of safe characters for agent file paths.
+// Only alphanumeric characters, dots, underscores, hyphens, forward slashes, and
+// spaces are permitted. This prevents shell metacharacters (such as ", $, `, ;, |)
+// from being embedded in paths that are later interpolated into shell commands.
+var agentFilePathRegex = regexp.MustCompile(`^[a-zA-Z0-9._/\- ]+$`)
 
 // EngineInstallConfig contains configuration for engine installation steps.
 // This struct centralizes the configuration needed to generate the common
@@ -107,7 +114,7 @@ func GetBaseInstallationSteps(config EngineInstallConfig, workflowData *Workflow
 	return steps
 }
 
-// ResolveAgentFilePath returns the properly quoted agent file path with GITHUB_WORKSPACE prefix.
+// ResolveAgentFilePath validates and returns the properly quoted agent file path with GITHUB_WORKSPACE prefix.
 // This helper extracts the common pattern shared by Copilot, Codex, and Claude engines.
 //
 // The agent file path is relative to the repository root, so we prefix it with ${GITHUB_WORKSPACE}
@@ -119,18 +126,21 @@ func GetBaseInstallationSteps(config EngineInstallConfig, workflowData *Workflow
 //
 // Returns:
 //   - string: The double-quoted path with GITHUB_WORKSPACE prefix (e.g., "${GITHUB_WORKSPACE}/.github/agents/test-agent.md")
+//   - error: Non-nil if agentFile contains characters that could cause shell injection
+//
+// The path is validated against an allowlist of safe characters before returning. Only
+// alphanumeric characters, dots, underscores, hyphens, forward slashes, and spaces are
+// permitted. Shell metacharacters (", $, `, ;, |, \, etc.) are rejected to prevent injection.
 //
 // Example:
 //
-//	agentPath := ResolveAgentFilePath(".github/agents/my-agent.md")
-//	// Returns: "${GITHUB_WORKSPACE}/.github/agents/my-agent.md"
-//
-// Note: The entire path is wrapped in double quotes (not just the variable) to ensure:
-//  1. The shellEscapeArg function recognizes it as already-quoted and doesn't add single quotes
-//  2. Shell variable expansion works (${GITHUB_WORKSPACE} gets expanded inside double quotes)
-//  3. Paths with spaces are properly handled
-func ResolveAgentFilePath(agentFile string) string {
-	return fmt.Sprintf("\"${GITHUB_WORKSPACE}/%s\"", agentFile)
+//	agentPath, err := ResolveAgentFilePath(".github/agents/my-agent.md")
+//	// Returns: "${GITHUB_WORKSPACE}/.github/agents/my-agent.md", nil
+func ResolveAgentFilePath(agentFile string) (string, error) {
+	if !agentFilePathRegex.MatchString(agentFile) {
+		return "", fmt.Errorf("agent file path contains invalid characters: %q (only alphanumeric characters, dots, underscores, hyphens, forward slashes, and spaces are allowed)", agentFile)
+	}
+	return fmt.Sprintf("\"${GITHUB_WORKSPACE}/%s\"", agentFile), nil
 }
 
 // BuildStandardNpmEngineInstallSteps creates standard npm installation steps for engines
@@ -324,4 +334,27 @@ func GetNpmBinPathSetup() string {
 func EngineHasValidateSecretStep(engine CodingAgentEngine, data *WorkflowData) bool {
 	step := engine.GetSecretValidationStep(data)
 	return len(step) > 0
+}
+
+// BuildInvalidAgentPathStep returns a single-step slice that immediately exits non-zero
+// with a human-readable error message. Use this when ResolveAgentFilePath rejects an
+// agent file path at step-generation time so that the compiled workflow fails clearly
+// rather than silently skipping the engine execution step.
+//
+// Parameters:
+//   - stepName: The step name to display (e.g. "Execute Codex CLI")
+//   - agentFile: The invalid agent file path provided by the user
+//   - err: The validation error returned by ResolveAgentFilePath
+//
+// Returns:
+//   - []GitHubActionStep: A slice containing a single failing step
+func BuildInvalidAgentPathStep(stepName, agentFile string, err error) []GitHubActionStep {
+	errMsg := fmt.Sprintf("Invalid agent file path %q: %v", agentFile, err)
+	engineHelpersLog.Printf("Building invalid agent path step: %s", errMsg)
+	var stepLines []string
+	stepLines = append(stepLines, "      - name: "+stepName)
+	stepLines = append(stepLines, "        run: |")
+	stepLines = append(stepLines, fmt.Sprintf("          echo 'Error: %s' >&2", strings.ReplaceAll(errMsg, "'", "'\\''")))
+	stepLines = append(stepLines, "          exit 1")
+	return []GitHubActionStep{GitHubActionStep(stepLines)}
 }
