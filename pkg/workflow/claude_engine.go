@@ -245,7 +245,7 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 		agentPath, err := ResolveAgentFilePath(workflowData.AgentFile)
 		if err != nil {
 			claudeLog.Printf("Error resolving agent file path: %v", err)
-			return steps
+			return BuildInvalidAgentPathStep("Execute Claude Code CLI", workflowData.AgentFile, err)
 		}
 		claudeLog.Printf("Using custom agent file: %s", workflowData.AgentFile)
 		// Extract markdown body from custom agent file and prepend to prompt
