@@ -117,6 +117,24 @@ The YAML frontmatter supports these fields:
 
     - Query is automatically scoped to the current repository (use `scope: none` for cross-repo queries)
     - Use to gate workflows on preconditions (e.g., only run if open PRs exist)
+  - **`skip-if-check-failing:`** - Skip workflow execution when CI checks are failing on the triggering ref (boolean or object)
+    - Boolean format: `skip-if-check-failing: true` (skip if any check is failing or pending)
+    - Object format with filtering:
+
+      ```yaml
+      skip-if-check-failing:
+        include:
+          - build
+          - test             # Only check these specific CI checks
+        exclude:
+          - lint             # Ignore this check
+        branch: main         # Optional: check a specific branch instead of triggering ref
+        allow-pending: true  # Optional: treat pending/in-progress checks as passing (default: false)
+      ```
+
+    - When `include` is omitted, all checks are evaluated
+    - By default, pending/in-progress checks count as failing; set `allow-pending: true` to ignore them
+    - Use to avoid running agents against broken code (e.g., skip PR review if CI is red)
   - **`github-token:`** - Custom GitHub token for pre-activation reactions, status comments, and skip-if search queries (string)
     - When specified, overrides the default `GITHUB_TOKEN` for these operations
     - Example: `github-token: ${{ secrets.MY_GITHUB_TOKEN }}`
@@ -1638,6 +1656,33 @@ on:
 - `*` - All comment-related events (default)
 
 **Note**: Both `issue_comment` and `pull_request_comment` map to GitHub Actions' `issue_comment` event with automatic filtering to distinguish between issue and PR comments.
+
+### Label Command Triggers
+
+Trigger workflows when specific labels are added to issues, PRs, or discussions:
+
+```yaml
+# Shorthand: trigger on any labeled event
+on: label-command my-label
+
+# Or with explicit configuration
+on:
+  label_command:
+    name: ai-review        # Single label name (or use names: [...] for multiple)
+    events: [pull_request] # Optional: restrict to issues, pull_request, discussion (default: all three)
+    remove_label: false    # Optional: remove triggering label after activation (default: true)
+```
+
+Use `names:` for multiple labels that activate the same workflow:
+
+```yaml
+on:
+  label_command:
+    names: [ai-review, copilot-review]
+    events: [pull_request]
+```
+
+By default, the triggering label is automatically removed after the workflow activates (`remove_label: true`). Set `remove_label: false` to keep the label.
 
 ### Semi-Active Agent Pattern
 
