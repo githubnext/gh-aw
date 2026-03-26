@@ -29,6 +29,8 @@ This will:
 - Redirect output to `/tmp/preview.log`
 - Save the process ID to `/tmp/server.pid` for later cleanup
 
+**Note on the `nohup ... & PID=$!` pattern:** The `$!` variable (background PID) is captured into `PID` first, then written to file. Avoid `echo $! > file` in a single line — the AWF bash guard may flag `$!` as a dangerous expansion when it appears directly in a redirection context.
+
 **Node.js version requirement:**
 Astro 6.x requires Node.js >= 20.3.0 or >= 22.0.0. Workflows that use this shared lifecycle **must** configure a compatible runtime:
 ```yaml
@@ -89,7 +91,7 @@ The `curl` readiness check and bash commands still use `localhost:4321` since th
   import sys, re
   html = sys.stdin.read()
   text = re.sub(r'<[^>]+>', '', html)
-  print(text[:3000])
+  print(text[:5000])
   "
   ```
 - **Skip screenshot steps** gracefully and note in the report that visual screenshots were unavailable
