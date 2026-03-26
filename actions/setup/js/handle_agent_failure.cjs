@@ -876,10 +876,10 @@ async function main() {
     // Check if agent succeeded but produced no safe outputs
     let hasMissingSafeOutputs = false;
     let hasOnlyNoopOutputs = false;
-    if (agentConclusion === "success") {
-      const { loadAgentOutput } = require("./load_agent_output.cjs");
-      const agentOutputResult = loadAgentOutput();
+    const { loadAgentOutput } = require("./load_agent_output.cjs");
+    const agentOutputResult = loadAgentOutput();
 
+    if (agentConclusion === "success") {
       if (!agentOutputResult.success || !agentOutputResult.items || agentOutputResult.items.length === 0) {
         hasMissingSafeOutputs = true;
         core.info("Agent succeeded but produced no safe outputs");
@@ -889,6 +889,18 @@ async function main() {
         if (nonNoopItems.length === 0) {
           hasOnlyNoopOutputs = true;
           core.info("Agent succeeded with only noop outputs - this is not a failure");
+        }
+      }
+    } else if (agentConclusion === "failure") {
+      // The agent may have called noop successfully but the AI model server subsequently
+      // returned a transient error (e.g. "Response was interrupted due to a server error"),
+      // causing exit code 1. In that case we should not report a failure issue since the
+      // agent completed its intended work.
+      if (agentOutputResult.success && agentOutputResult.items && agentOutputResult.items.length > 0) {
+        const nonNoopItems = agentOutputResult.items.filter(item => item.type !== "noop");
+        if (nonNoopItems.length === 0) {
+          hasOnlyNoopOutputs = true;
+          core.info("Agent failed with exit code 1 but produced only noop outputs - treating as successful no-action (transient AI model error)");
         }
       }
     }
