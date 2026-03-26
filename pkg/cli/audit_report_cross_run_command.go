@@ -12,7 +12,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var auditReportCommandLog = logger.New("cli:audit_report_command")
+var auditReportCommandLog = logger.New("cli:audit_report")
 
 // NewAuditReportSubcommand creates the audit report subcommand
 func NewAuditReportSubcommand() *cobra.Command {
