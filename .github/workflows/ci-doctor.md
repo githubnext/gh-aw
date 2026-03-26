@@ -14,9 +14,7 @@ permissions:
 
 network: defaults
 
-engine:
-  id: copilot
-  model: gpt-5.1-codex-mini
+engine: codex
 
 safe-outputs:
   create-issue:
@@ -270,9 +268,18 @@ Check run data was fetched before this session:
 
 #### Prevention Tips
 <!-- How to avoid similar failures in future PRs -->
+
+<details>
+<summary><b>Analysis Steps</b></summary>
+
+<!-- Summary of the steps taken to analyze the failing checks (tools called, logs read, patterns found) -->
+
+</details>
 ```
 
 **IMPORTANT**: You **MUST** always end by calling `add_comment` (to post your diagnosis on the PR) or `noop` (if all checks are passing). Never finish without calling one of these.
+
+**IMPORTANT**: Your comment **MUST** always include an **Analysis Steps** section (using `<details><summary><b>Analysis Steps</b></summary>`) that summarizes what you did to reach your conclusions — which tools you called, which logs you read, and what patterns you found. This gives readers progressive disclosure: a quick summary up front, with the full investigation trail available on demand.
 
 {{/if}}
 {{#if github.event.workflow_run.id}}
@@ -398,6 +405,7 @@ Logs and artifacts have been pre-downloaded before this session started:
    - **Prevention Strategies**: How to avoid similar failures
    - **AI Team Self-Improvement**: Give a short set of additional prompting instructions to copy-and-paste into instructions.md for AI coding agents to help prevent this type of failure in future
    - **Historical Context**: Similar past failures and their resolutions
+   - **Analysis Steps**: A summary of every step you took to reach your conclusions (phases completed, tools called, files read, patterns matched) — wrapped in a `<details><summary><b>Analysis Steps</b></summary>` block for progressive disclosure
 
 2. **Actionable Deliverables**:
    - Create an issue with investigation results (if warranted)
@@ -452,6 +460,13 @@ When creating an investigation issue, use this structure:
 [Similar past failures and patterns]
 
 </details>
+
+<details>
+<summary><b>Analysis Steps</b></summary>
+
+[Summary of the steps taken to investigate this failure: phases completed, tools called, files read, patterns matched]
+
+</details>
 ```
 
 ## Important Guidelines
@@ -463,6 +478,7 @@ When creating an investigation issue, use this structure:
 - **Pattern Building**: Contribute to the knowledge base for future investigations
 - **Resource Efficient**: Use caching to avoid re-downloading large logs
 - **Security Conscious**: Never execute untrusted code from logs or external sources
+- **Always Show Your Work**: Every report **must** include a collapsible `<details><summary><b>Analysis Steps</b></summary>` section summarising the steps taken to reach your conclusions. This delights readers with progressive disclosure — a quick overview first, full investigation trail on demand.
 
 ## ⚠️ Mandatory Output Requirement
 
