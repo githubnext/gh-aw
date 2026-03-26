@@ -1010,11 +1010,11 @@ describe("create_pull_request - patch apply fallback to original base commit", (
   let originalEnv;
   let patchFilePath;
 
-  const PATCH_COMMIT_SHA = "a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2";
-  const PARENT_SHA = "deadbeefdeadbeefdeadbeefdeadbeefdeadbeef";
+  const MOCK_PATCH_COMMIT_SHA = "a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2";
+  const MOCK_PARENT_COMMIT_SHA = "deadbeefdeadbeefdeadbeefdeadbeefdeadbeef";
   // Minimal valid format-patch output with a 40-char SHA in the "From" header
   const PATCH_CONTENT =
-    `From ${PATCH_COMMIT_SHA} Mon Sep 17 00:00:00 2001\n` +
+    `From ${MOCK_PATCH_COMMIT_SHA} Mon Sep 17 00:00:00 2001\n` +
     `From: Test Author <test@example.com>\n` +
     `Date: Wed, 26 Mar 2026 12:00:00 +0000\n` +
     `Subject: [PATCH] Test change\n\n` +
@@ -1111,7 +1111,7 @@ describe("create_pull_request - patch apply fallback to original base commit", (
       getExecOutput: vi.fn().mockImplementation((cmd, args) => {
         // Return the parent SHA for git rev-parse calls
         if (cmd === "git" && Array.isArray(args) && args[0] === "rev-parse") {
-          return Promise.resolve({ exitCode: 0, stdout: `${PARENT_SHA}\n`, stderr: "" });
+          return Promise.resolve({ exitCode: 0, stdout: `${MOCK_PARENT_COMMIT_SHA}\n`, stderr: "" });
         }
         return Promise.resolve({ exitCode: 0, stdout: "", stderr: "" });
       }),
@@ -1128,7 +1128,7 @@ describe("create_pull_request - patch apply fallback to original base commit", (
     // git am --abort should have been called to clean up the failed attempt
     expect(global.exec.exec).toHaveBeenCalledWith("git am --abort");
     // Fallback git am (without --3way) should have been called
-    expect(global.exec.exec).toHaveBeenCalledWith(expect.stringMatching(/^git am (?!--3way)/));
+    expect(global.exec.exec).toHaveBeenCalledWith(expect.stringMatching(/^git am [^-]/));
   });
 
   it("should return error when both git am --3way and the fallback git am fail", async () => {
@@ -1142,7 +1142,7 @@ describe("create_pull_request - patch apply fallback to original base commit", (
       }),
       getExecOutput: vi.fn().mockImplementation((cmd, args) => {
         if (cmd === "git" && Array.isArray(args) && args[0] === "rev-parse") {
-          return Promise.resolve({ exitCode: 0, stdout: `${PARENT_SHA}\n`, stderr: "" });
+          return Promise.resolve({ exitCode: 0, stdout: `${MOCK_PARENT_COMMIT_SHA}\n`, stderr: "" });
         }
         return Promise.resolve({ exitCode: 0, stdout: "", stderr: "" });
       }),
@@ -1172,7 +1172,7 @@ describe("create_pull_request - patch apply fallback to original base commit", (
       }),
       getExecOutput: vi.fn().mockImplementation((cmd, args) => {
         if (cmd === "git" && Array.isArray(args) && args[0] === "rev-parse") {
-          return Promise.resolve({ exitCode: 0, stdout: `${PARENT_SHA}\n`, stderr: "" });
+          return Promise.resolve({ exitCode: 0, stdout: `${MOCK_PARENT_COMMIT_SHA}\n`, stderr: "" });
         }
         return Promise.resolve({ exitCode: 0, stdout: "", stderr: "" });
       }),

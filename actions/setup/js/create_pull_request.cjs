@@ -773,7 +773,7 @@ async function main(config = {}) {
             // Apply the patch without --3way; we are on the correct base so it should apply cleanly
             await exec.exec(`git am ${patchFilePath}`);
             core.info("Patch applied successfully at original base commit");
-            core.warning(`PR branch ${branchName} is based on an earlier commit than the current ${baseBranch} HEAD. ` + `The pull request will show merge conflicts that require manual resolution.`);
+            core.warning(`PR branch ${branchName} is based on an earlier commit than the current ${baseBranch} HEAD. The pull request will show merge conflicts that require manual resolution.`);
             patchApplied = true;
           }
         } catch (fallbackError) {
