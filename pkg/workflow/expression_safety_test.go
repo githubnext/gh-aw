@@ -737,9 +737,9 @@ func TestValidateExpressionForDangerousProps(t *testing.T) {
 			expectError: false,
 		},
 		{
-			name:        "allow_safe_env",
+			name:        "block_arbitrary_env",
 			expression:  "env.MY_VAR",
-			expectError: false,
+			expectError: false, // validateExpressionForDangerousProps does not check env.* allowlist
 		},
 		{
 			name:        "allow_safe_array_access",
@@ -851,12 +851,13 @@ func TestValidateExpressionSafetyWithDangerousProps(t *testing.T) {
 }
 
 // TestEnvExpressionRejection is a regression test for the security finding that
-// env.* expressions were incorrectly allowed by the compile-time expression validator.
-// These expressions are prohibited per the documented safety policy because they can
-// expose environment variables (including secrets set as env vars) to AI agents.
-// See: https://github.com/github/gh-aw/issues/XXXX
+// arbitrary env.* expressions were incorrectly allowed by the compile-time expression
+// validator. These expressions are prohibited because they can expose environment
+// variables (including secrets set as env vars) to AI agents.
+// Only env.GH_AW_* (gh-aw internal system variables) remain allowed.
+// See internal tracking for additional context.
 func TestEnvExpressionRejection(t *testing.T) {
-	tests := []struct {
+	blocked := []struct {
 		name    string
 		content string
 		envExpr string
@@ -893,7 +894,7 @@ func TestEnvExpressionRejection(t *testing.T) {
 		},
 	}
 
-	for _, tt := range tests {
+	for _, tt := range blocked {
 		t.Run(tt.name, func(t *testing.T) {
 			err := validateExpressionSafety(tt.content)
 			if err == nil {
@@ -902,6 +903,30 @@ func TestEnvExpressionRejection(t *testing.T) {
 			}
 			if !strings.Contains(err.Error(), tt.envExpr) {
 				t.Errorf("Error message should mention the unauthorized expression %q, got: %s", tt.envExpr, err.Error())
+			}
+		})
+	}
+
+	// env.GH_AW_* system variables remain allowed (used internally by gh-aw)
+	allowed := []struct {
+		name    string
+		content string
+	}{
+		{
+			name:    "env_GH_AW_SAFE_OUTPUTS",
+			content: "Write to ${{ env.GH_AW_SAFE_OUTPUTS }}, one per line.",
+		},
+		{
+			name:    "env_GH_AW_WORKFLOW_ID_SANITIZED",
+			content: "Cache key: memory-${{ env.GH_AW_WORKFLOW_ID_SANITIZED }}",
+		},
+	}
+
+	for _, tt := range allowed {
+		t.Run(tt.name, func(t *testing.T) {
+			err := validateExpressionSafety(tt.content)
+			if err != nil {
+				t.Errorf("Expected env.GH_AW_* expression to be allowed, but got error: %v", err)
 			}
 		})
 	}

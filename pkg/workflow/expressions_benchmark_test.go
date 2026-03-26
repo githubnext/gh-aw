@@ -17,6 +17,7 @@ func BenchmarkValidateExpression(b *testing.B) {
 			InputsRe:                inputsRegex,
 			WorkflowCallInputsRe:    workflowCallInputsRegex,
 			AwInputsRe:              awInputsRegex,
+			EnvGhAwRe:               envGhAwRegex,
 			UnauthorizedExpressions: &unauthorizedExprs,
 		})
 	}
@@ -33,6 +34,7 @@ func BenchmarkValidateExpression_Complex(b *testing.B) {
 			InputsRe:                inputsRegex,
 			WorkflowCallInputsRe:    workflowCallInputsRegex,
 			AwInputsRe:              awInputsRegex,
+			EnvGhAwRe:               envGhAwRegex,
 			UnauthorizedExpressions: &unauthorizedExprs,
 		})
 	}
@@ -49,6 +51,7 @@ func BenchmarkValidateExpression_NeedsOutputs(b *testing.B) {
 			InputsRe:                inputsRegex,
 			WorkflowCallInputsRe:    workflowCallInputsRegex,
 			AwInputsRe:              awInputsRegex,
+			EnvGhAwRe:               envGhAwRegex,
 			UnauthorizedExpressions: &unauthorizedExprs,
 		})
 	}
@@ -65,6 +68,7 @@ func BenchmarkValidateExpression_StepsOutputs(b *testing.B) {
 			InputsRe:                inputsRegex,
 			WorkflowCallInputsRe:    workflowCallInputsRegex,
 			AwInputsRe:              awInputsRegex,
+			EnvGhAwRe:               envGhAwRegex,
 			UnauthorizedExpressions: &unauthorizedExprs,
 		})
 	}

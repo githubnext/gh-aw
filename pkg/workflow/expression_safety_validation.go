@@ -28,6 +28,9 @@ var (
 	inputsRegex             = regexp.MustCompile(`^github\.event\.inputs\.[a-zA-Z0-9_-]+$`)
 	workflowCallInputsRegex = regexp.MustCompile(`^inputs\.[a-zA-Z0-9_-]+$`)
 	awInputsRegex           = regexp.MustCompile(`^github\.aw\.inputs\.[a-zA-Z0-9_-]+$`)
+	// envGhAwRegex allows only gh-aw internal system variables (env.GH_AW_*).
+	// Arbitrary env.* expressions are prohibited to prevent accidental secret exposure.
+	envGhAwRegex = regexp.MustCompile(`^env\.GH_AW_[a-zA-Z0-9_]+$`)
 	// comparisonExtractionRegex extracts property accesses from comparison expressions
 	// Matches patterns like "github.workflow == 'value'" and extracts "github.workflow"
 	comparisonExtractionRegex = regexp.MustCompile(`([a-zA-Z_][a-zA-Z0-9_.]*)\s*(?:==|!=|<|>|<=|>=)\s*`)
@@ -69,6 +72,7 @@ func validateExpressionSafety(markdownContent string) error {
 					InputsRe:                inputsRegex,
 					WorkflowCallInputsRe:    workflowCallInputsRegex,
 					AwInputsRe:              awInputsRegex,
+					EnvGhAwRe:               envGhAwRegex,
 					UnauthorizedExpressions: &unauthorizedExpressions,
 				})
 			})
@@ -82,6 +86,7 @@ func validateExpressionSafety(markdownContent string) error {
 				InputsRe:                inputsRegex,
 				WorkflowCallInputsRe:    workflowCallInputsRegex,
 				AwInputsRe:              awInputsRegex,
+				EnvGhAwRe:               envGhAwRegex,
 				UnauthorizedExpressions: &unauthorizedExpressions,
 			})
 			if err != nil {
@@ -121,6 +126,7 @@ func validateExpressionSafety(markdownContent string) error {
 		allowedList.WriteString("  - github.event.inputs.*\n")
 		allowedList.WriteString("  - github.aw.inputs.* (shared workflow inputs)\n")
 		allowedList.WriteString("  - inputs.* (workflow_call)\n")
+		allowedList.WriteString("  - env.GH_AW_* (gh-aw internal system variables only)\n")
 
 		return NewValidationError(
 			"expressions",
@@ -136,10 +142,13 @@ func validateExpressionSafety(markdownContent string) error {
 
 // ExpressionValidationOptions contains the options for validating a single expression
 type ExpressionValidationOptions struct {
-	NeedsStepsRe            *regexp.Regexp
-	InputsRe                *regexp.Regexp
-	WorkflowCallInputsRe    *regexp.Regexp
-	AwInputsRe              *regexp.Regexp
+	NeedsStepsRe         *regexp.Regexp
+	InputsRe             *regexp.Regexp
+	WorkflowCallInputsRe *regexp.Regexp
+	AwInputsRe           *regexp.Regexp
+	// EnvGhAwRe allows only gh-aw internal system env vars (env.GH_AW_*).
+	// Arbitrary env.* expressions are blocked to prevent accidental secret exposure.
+	EnvGhAwRe               *regexp.Regexp
 	UnauthorizedExpressions *[]string
 }
 
@@ -202,6 +211,8 @@ func validateSingleExpression(expression string, opts ExpressionValidationOption
 		allowed = true
 	} else if opts.AwInputsRe.MatchString(expression) {
 		allowed = true
+	} else if opts.EnvGhAwRe.MatchString(expression) {
+		allowed = true
 	} else if slices.Contains(constants.AllowedExpressions, expression) {
 		allowed = true
 	}
@@ -255,6 +266,8 @@ func validateSingleExpression(expression string, opts ExpressionValidationOption
 					} else if opts.WorkflowCallInputsRe.MatchString(property) {
 						propertyAllowed = true
 					} else if opts.AwInputsRe.MatchString(property) {
+						propertyAllowed = true
+					} else if opts.EnvGhAwRe.MatchString(property) {
 						propertyAllowed = true
 					} else if slices.Contains(constants.AllowedExpressions, property) {
 						propertyAllowed = true
