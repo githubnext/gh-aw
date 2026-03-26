@@ -367,6 +367,26 @@ func TestMustBeWithin(t *testing.T) {
 			}
 		})
 	}
+
+	t.Run("symlink escape", func(t *testing.T) {
+		// Create a real file outside the base directory.
+		outsideFile, err := os.CreateTemp("", "mustbewithin-outside-*")
+		require.NoError(t, err, "failed to create outside file")
+		t.Cleanup(func() { _ = os.Remove(outsideFile.Name()) })
+		outsidePath := outsideFile.Name()
+		require.NoError(t, outsideFile.Close())
+
+		// Create a symlink inside base that points to the outside file.
+		linkPath := filepath.Join(base, "link-to-outside")
+		if err := os.Symlink(outsidePath, linkPath); err != nil {
+			t.Skipf("symlinks not supported: %v", err)
+		}
+		t.Cleanup(func() { _ = os.Remove(linkPath) })
+
+		err = MustBeWithin(base, linkPath)
+		require.Error(t, err, "MustBeWithin should reject symlink that points outside base")
+		assert.Contains(t, err.Error(), "escapes base directory", "Error should describe the symlink escape")
+	})
 }
 
 func TestExtractFileFromTar_UnsafePaths(t *testing.T) {
