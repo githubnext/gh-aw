@@ -128,7 +128,6 @@ const sampleSelect = $('sampleSelect');
 const editorMount = $('editorMount');
 const outputPlaceholder = $('outputPlaceholder');
 const outputMount = $('outputMount');
-const outputContainer = $('outputContainer');
 const statusBadge = $('statusBadge');
 const statusText = $('statusText');
 const statusDot = $('statusDot');
