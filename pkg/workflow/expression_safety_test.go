@@ -122,9 +122,10 @@ func TestValidateExpressionSafety(t *testing.T) {
 			expectError: false,
 		},
 		{
-			name:        "authorized_env_variable",
-			content:     "Environment: ${{ env.MY_VAR }}",
-			expectError: false,
+			name:           "unauthorized_env_variable",
+			content:        "Environment: ${{ env.MY_VAR }}",
+			expectError:    true,
+			expectedErrors: []string{"env.MY_VAR"},
 		},
 		{
 			name:        "unauthorized_steps_output",
@@ -143,7 +144,7 @@ func TestValidateExpressionSafety(t *testing.T) {
 			name:           "multiple_unauthorized_expressions",
 			content:        "Token: ${{ secrets.GITHUB_TOKEN }}, Valid: ${{ github.actor }}, Env: ${{ env.TEST }}",
 			expectError:    true,
-			expectedErrors: []string{"secrets.GITHUB_TOKEN"},
+			expectedErrors: []string{"secrets.GITHUB_TOKEN", "env.TEST"},
 		},
 		{
 			name:        "expressions_with_whitespace",
@@ -408,11 +409,12 @@ func TestValidateExpressionSafetyWithParser(t *testing.T) {
 - **Working directory**: ${{ github.workspace }}`,
 			wantErr: false,
 		},
-		// env.* with defaults
+		// env.* with defaults - env.* is prohibited per security policy
 		{
-			name:    "env variable with string default",
-			content: `${{ env.LOG_LEVEL || 'info' }}`,
-			wantErr: false,
+			name:        "env variable with string default",
+			content:     `${{ env.LOG_LEVEL || 'info' }}`,
+			wantErr:     true,
+			errContains: "env.LOG_LEVEL",
 		},
 	}
 
@@ -843,6 +845,63 @@ func TestValidateExpressionSafetyWithDangerousProps(t *testing.T) {
 				if err != nil {
 					t.Errorf("Expected no error for safe content, but got: %v", err)
 				}
+			}
+		})
+	}
+}
+
+// TestEnvExpressionRejection is a regression test for the security finding that
+// env.* expressions were incorrectly allowed by the compile-time expression validator.
+// These expressions are prohibited per the documented safety policy because they can
+// expose environment variables (including secrets set as env vars) to AI agents.
+// See: https://github.com/github/gh-aw/issues/XXXX
+func TestEnvExpressionRejection(t *testing.T) {
+	tests := []struct {
+		name    string
+		content string
+		envExpr string
+	}{
+		{
+			name:    "env_GITHUB_TOKEN",
+			content: "Token: ${{ env.GITHUB_TOKEN }}",
+			envExpr: "env.GITHUB_TOKEN",
+		},
+		{
+			name:    "env_MY_VAR",
+			content: "Value: ${{ env.MY_VAR }}",
+			envExpr: "env.MY_VAR",
+		},
+		{
+			name:    "env_SECRET_KEY",
+			content: "Key: ${{ env.SECRET_KEY }}",
+			envExpr: "env.SECRET_KEY",
+		},
+		{
+			name:    "env_with_underscore",
+			content: "Config: ${{ env.MY_CONFIG_VAR }}",
+			envExpr: "env.MY_CONFIG_VAR",
+		},
+		{
+			name:    "env_with_hyphen",
+			content: "Config: ${{ env.my-config }}",
+			envExpr: "env.my-config",
+		},
+		{
+			name:    "env_in_complex_markdown",
+			content: "Repository: ${{ github.repository }}\nToken: ${{ env.GITHUB_TOKEN }}",
+			envExpr: "env.GITHUB_TOKEN",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := validateExpressionSafety(tt.content)
+			if err == nil {
+				t.Errorf("Expected compile-time rejection of env.* expression %q, but got no error", tt.envExpr)
+				return
+			}
+			if !strings.Contains(err.Error(), tt.envExpr) {
+				t.Errorf("Error message should mention the unauthorized expression %q, got: %s", tt.envExpr, err.Error())
 			}
 		})
 	}
