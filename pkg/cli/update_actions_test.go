@@ -575,3 +575,33 @@ func TestGetLatestActionRelease_FallbackReturnsErrorWhenBothFail(t *testing.T) {
 		t.Fatal("expected error when both releases API and git fallback fail, got nil")
 	}
 }
+
+// TestGetLatestActionRelease_PrereleaseTagsSkipped verifies that prerelease tags are
+// not selected as the upgrade target even when they have a higher base version than
+// the latest stable release.  Per semver rules, v1.1.0-beta.1 > v1.0.0 (base version
+// comparison), so without explicit filtering a prerelease could be picked incorrectly.
+func TestGetLatestActionRelease_PrereleaseTagsSkipped(t *testing.T) {
+	origAPIfn := runGHReleasesAPIFn
+	origSHAfn := getActionSHAForTagFn
+	defer func() {
+		runGHReleasesAPIFn = origAPIfn
+		getActionSHAForTagFn = origSHAfn
+	}()
+
+	// Return a stable release alongside a higher-versioned prerelease.
+	runGHReleasesAPIFn = func(baseRepo string) ([]byte, error) {
+		return []byte("v1.0.0\nv1.1.0-beta.1"), nil
+	}
+
+	getActionSHAForTagFn = func(repo, tag string) (string, error) {
+		return "stablesha1234567890123456789012345678901", nil
+	}
+
+	version, _, err := getLatestActionRelease("actions/checkout", "v1.0.0", true, false)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if version != "v1.0.0" {
+		t.Errorf("version = %q, want %q (prerelease v1.1.0-beta.1 should be skipped)", version, "v1.0.0")
+	}
+}
