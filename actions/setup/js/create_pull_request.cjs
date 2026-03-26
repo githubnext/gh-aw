@@ -704,11 +704,13 @@ async function main(config = {}) {
       // Patches are created with git format-patch, so use git am to apply them
       // Use --3way to handle cross-repo patches where the patch base may differ from target repo
       // This allows git to resolve create-vs-modify mismatches when a file exists in target but not source
+      let patchApplied = false;
       try {
         await exec.exec(`git am --3way ${patchFilePath}`);
         core.info("Patch applied successfully");
+        patchApplied = true;
       } catch (patchError) {
-        core.error(`Failed to apply patch: ${patchError instanceof Error ? patchError.message : String(patchError)}`);
+        core.error(`Failed to apply patch with --3way: ${patchError instanceof Error ? patchError.message : String(patchError)}`);
 
         // Investigate why the patch failed by logging git status and the failed patch
         try {
@@ -727,7 +729,60 @@ async function main(config = {}) {
           core.warning(`Failed to investigate patch failure: ${investigateError instanceof Error ? investigateError.message : String(investigateError)}`);
         }
 
-        return { success: false, error: "Failed to apply patch" };
+        // Abort the failed git am before attempting any fallback
+        try {
+          await exec.exec("git am --abort");
+          core.info("Aborted failed git am");
+        } catch (abortError) {
+          core.warning(`Failed to abort git am: ${abortError instanceof Error ? abortError.message : String(abortError)}`);
+        }
+
+        // Fallback (Option 1): create the PR branch at the original base commit so the PR
+        // can still be created. GitHub will show the merge conflicts, allowing manual resolution.
+        // This handles the case where the target branch received intervening commits after
+        // the patch was generated, making --3way unable to resolve the conflicts automatically.
+        core.info("Attempting fallback: create PR branch at original base commit...");
+        try {
+          // Extract the first patch commit SHA from the "From <sha1> ..." header line
+          const firstCommitMatch = patchContent.match(/^From ([0-9a-f]{40}) /m);
+          if (!firstCommitMatch) {
+            core.warning("Could not extract first commit SHA from patch - fallback not possible");
+          } else {
+            const firstPatchCommitSha = firstCommitMatch[1];
+            core.info(`First patch commit SHA: ${firstPatchCommitSha}`);
+
+            // Resolve the parent commit (= original base the patch was created from)
+            const { stdout: parentOutput } = await exec.getExecOutput("git", ["rev-parse", `${firstPatchCommitSha}^`]);
+            const originalBaseCommit = parentOutput.trim();
+            core.info(`Original base commit: ${originalBaseCommit}`);
+
+            // Verify the parent commit is available in this repo (may not exist cross-repo)
+            await exec.exec("git", ["cat-file", "-e", originalBaseCommit]);
+            core.info("Original base commit exists locally - proceeding with fallback");
+
+            // Re-create the PR branch at the original base commit
+            await exec.exec(`git checkout ${baseBranch}`);
+            try {
+              await exec.exec(`git branch -D ${branchName}`);
+            } catch {
+              // Branch may not exist yet, ignore
+            }
+            await exec.exec(`git checkout -b ${branchName} ${originalBaseCommit}`);
+            core.info(`Created branch ${branchName} at original base commit ${originalBaseCommit}`);
+
+            // Apply the patch without --3way; we are on the correct base so it should apply cleanly
+            await exec.exec(`git am ${patchFilePath}`);
+            core.info("Patch applied successfully at original base commit");
+            core.warning(`PR branch ${branchName} is based on an earlier commit than the current ${baseBranch} HEAD. ` + `The pull request will show merge conflicts that require manual resolution.`);
+            patchApplied = true;
+          }
+        } catch (fallbackError) {
+          core.warning(`Fallback to original base commit failed: ${fallbackError instanceof Error ? fallbackError.message : String(fallbackError)}`);
+        }
+
+        if (!patchApplied) {
+          return { success: false, error: "Failed to apply patch" };
+        }
       }
 
       // Push the applied commits to the branch (with fallback to issue creation on failure)
