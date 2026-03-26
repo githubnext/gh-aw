@@ -79,7 +79,7 @@ type RunData struct {
 	Status              string               `json:"status" console:"header:Status"`
 	Conclusion          string               `json:"conclusion,omitempty" console:"-"`
 	Duration            string               `json:"duration,omitempty" console:"header:Duration,omitempty"`
-	ActionMinutes       float64              `json:"action_minutes,omitempty" console:"header:Minutes,omitempty"`
+	ActionMinutes       float64              `json:"action_minutes,omitempty" console:"header:Action Minutes,omitempty"`
 	TokenUsage          int                  `json:"token_usage,omitempty" console:"header:Tokens,format:number,omitempty"`
 	EstimatedCost       float64              `json:"estimated_cost,omitempty" console:"header:Cost ($),format:cost,omitempty"`
 	Turns               int                  `json:"turns,omitempty" console:"header:Turns,omitempty"`

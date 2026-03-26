@@ -278,7 +278,7 @@ func buildAgenticAssessments(processedRun ProcessedRun, metrics MetricsData, too
 			Kind:           "partially_reducible",
 			Severity:       severity,
 			Summary:        fmt.Sprintf("About %d%% of this run's turns appear to be data-gathering that could move to deterministic steps.", deterministicPct),
-			Evidence:       fmt.Sprintf("agentic_fraction=%.2f turns=%d write_actions=%d", fingerprint.AgenticFraction, metrics.Turns, writeCount),
+			Evidence:       fmt.Sprintf("agentic_fraction=%.2f turns=%d", fingerprint.AgenticFraction, metrics.Turns),
 			Recommendation: "Move data-fetching work to frontmatter steps: (pre-agent) writing to /tmp/gh-aw/agent/ or post-steps: (post-agent) to reduce inference cost. See the Deterministic & Agentic Patterns guide.",
 		})
 	}
