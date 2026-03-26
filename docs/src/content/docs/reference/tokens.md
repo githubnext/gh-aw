@@ -30,7 +30,7 @@ These tokens authenticate the AI coding agent. Exactly one is required, dependin
 
 ### `COPILOT_GITHUB_TOKEN`
 
-Authenticates the [GitHub Copilot CLI](/gh-aw/reference/engines/#github-copilot-default) as the AI engine.
+Authenticates the [GitHub Copilot CLI](/gh-aw/reference/engines/#available-coding-agents) as the AI engine.
 
 | Property | Value |
 |---|---|
@@ -41,7 +41,7 @@ Authenticates the [GitHub Copilot CLI](/gh-aw/reference/engines/#github-copilot-
 | **Fallback** | None — the `GITHUB_TOKEN` does not have Copilot permissions |
 | **Used by** | Copilot CLI inference step, secret validation, Copilot-related safe outputs |
 
-When the `copilot-requests` [feature flag](/gh-aw/reference/frontmatter/#features) is enabled, the compiler uses `${{ github.token }}` instead of this secret, allowing the built-in GitHub Actions token to authenticate Copilot directly.
+When the `copilot-requests` [feature flag](/gh-aw/reference/frontmatter/#feature-flags-features) is enabled, the compiler uses `${{ github.token }}` instead of this secret, allowing the built-in GitHub Actions token to authenticate Copilot directly.
 
 **Setup:**
 
@@ -55,7 +55,7 @@ See [Authentication](/gh-aw/reference/auth/#copilot_github_token) for detailed s
 
 ### `ANTHROPIC_API_KEY`
 
-Authenticates the [Claude by Anthropic](/gh-aw/reference/engines/#claude-by-anthropic) engine.
+Authenticates the [Claude by Anthropic](/gh-aw/reference/engines/#available-coding-agents) engine.
 
 | Property | Value |
 |---|---|
@@ -73,7 +73,7 @@ gh aw secrets set ANTHROPIC_API_KEY --value "<your-anthropic-api-key>"
 
 ### `OPENAI_API_KEY`
 
-Authenticates the [Codex by OpenAI](/gh-aw/reference/engines/#codex-by-openai) engine.
+Authenticates the [Codex by OpenAI](/gh-aw/reference/engines/#available-coding-agents) engine.
 
 | Property | Value |
 |---|---|
@@ -91,7 +91,7 @@ gh aw secrets set OPENAI_API_KEY --value "<your-openai-api-key>"
 
 ### `GEMINI_API_KEY`
 
-Authenticates the [Gemini by Google](/gh-aw/reference/engines/#gemini-by-google) engine.
+Authenticates the [Gemini by Google](/gh-aw/reference/engines/#available-coding-agents) engine.
 
 | Property | Value |
 |---|---|
@@ -118,7 +118,7 @@ The primary token for authenticating GitHub API operations through the [GitHub M
 | Property | Value |
 |---|---|
 | **Source** | User-created PAT stored as repository secret |
-| **Required** | Depends on mode — required for [remote mode](/gh-aw/reference/github-tools/#remote-vs-local-mode) and [lockdown mode](/gh-aw/reference/lockdown-mode/) |
+| **Required** | Depends on mode — required for [remote mode](/gh-aw/reference/github-tools/#github-tools-remote-mode) and [lockdown mode](/gh-aw/reference/lockdown-mode/) |
 | **Permissions** | Depends on [toolsets](/gh-aw/reference/github-tools/#github-toolsets) used (e.g., repo scope for repos toolset, project scope for projects) |
 | **Fallback** | `GH_AW_GITHUB_TOKEN` → `GITHUB_TOKEN` |
 | **Used by** | GitHub MCP server (local and remote modes), guard policy enforcement |
