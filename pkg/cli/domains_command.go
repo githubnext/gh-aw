@@ -3,7 +3,6 @@ package cli
 import (
 	"encoding/json"
 	"fmt"
-	"math"
 	"os"
 	"strings"
 
@@ -251,11 +250,7 @@ func computeAllowedDomains(engine constants.EngineName, network *workflow.Networ
 
 // buildDomainItems creates a list of DomainItem from allowed and blocked domain slices
 func buildDomainItems(allowedDomains, blockedDomains []string) []DomainItem {
-	capacity := len(allowedDomains)
-	if len(blockedDomains) <= math.MaxInt-capacity {
-		capacity += len(blockedDomains)
-	}
-	items := make([]DomainItem, 0, capacity)
+	var items []DomainItem
 	for _, d := range allowedDomains {
 		ecosystem := workflow.GetDomainEcosystem(d)
 		items = append(items, DomainItem{
