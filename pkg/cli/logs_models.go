@@ -50,6 +50,7 @@ type WorkflowRun struct {
 	HeadSha          string    `json:"headSha"`
 	DisplayTitle     string    `json:"displayTitle"`
 	Duration         time.Duration
+	ActionMinutes    float64 // Billable Actions minutes estimated from wall-clock time
 	TokenUsage       int
 	EstimatedCost    float64
 	Turns            int

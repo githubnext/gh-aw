@@ -334,12 +334,15 @@ gh aw list                                  # List all workflows
 gh aw list ci-                              # Filter by pattern (case-insensitive)
 gh aw list --json                           # Output in JSON format
 gh aw list --label automation               # Filter by label
-gh aw list --dir custom/workflows           # List from custom directory
+gh aw list --dir custom/workflows           # List from a local custom directory
+gh aw list --repo owner/repo --path .github/workflows  # List from a remote repository
 ```
 
-**Options:** `--json`, `--label`, `--dir/-d`
+**Options:** `--json`, `--label`, `--dir/-d`, `--path`, `--repo`
 
-The `--dir` flag overrides the local workflow directory. It applies only when `--repo` is not set, consistent with other commands such as `validate`, `fix`, and `add`.
+Two flags control the workflow directory location, with different purposes:
+- `--dir` (`-d`): overrides the **local** workflow directory. Applies only when `--repo` is not set.
+- `--path`: specifies the workflow directory path in a **remote** repository. Use together with `--repo`.
 
 Fast enumeration without GitHub API queries. For detailed status including enabled/disabled state and run information, use `status` instead.
 

@@ -10,6 +10,9 @@ permissions:
   pull-requests: read
 engine: copilot
 timeout-minutes: 30
+runtimes:
+  node:
+    version: "22"
 tools:
   timeout: 120  # Playwright navigation on Astro dev server can take >60s; increase to 120s
   playwright:
@@ -82,6 +85,20 @@ Playwright is provided through an MCP server interface. Use the bridge IP obtain
 - ✅ **Correct**: `browser_run_code` with `page.goto(url, { waitUntil: 'domcontentloaded', timeout: 30000 })`
 - ✅ **Correct**: `browser_navigate` to `http://${SERVER_IP}:4321/gh-aw/` (use the bridge IP, NOT localhost)
 - ❌ **Incorrect**: Using `http://localhost:4321/...` — Playwright runs with `--network host` so its localhost is the Docker host, not the agent container
+
+**⚠️ Playwright Connectivity — If Playwright times out or fails:**
+If `browser_navigate` or `browser_run_code` returns `net::ERR_CONNECTION_TIMED_OUT` or a timeout error, **do not attempt to debug the network or install alternative browsers** (chromium, puppeteer, etc.). This is a known network isolation constraint. Instead:
+1. Skip the Playwright navigation step immediately
+2. Use the following command to fetch and analyze page content via curl:
+   ```bash
+   curl -s http://localhost:4321/gh-aw/ | python3 -c "
+   import sys, re
+   html = sys.stdin.read()
+   text = re.sub(r'<[^>]+>', '', html)
+   print(text[:5000])
+   "
+   ```
+3. Note in the report that visual screenshots were unavailable
 
 **⚠️ CRITICAL: Navigation Timeout Prevention**
 

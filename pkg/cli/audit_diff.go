@@ -6,6 +6,8 @@ import (
 	"math"
 	"path/filepath"
 	"sort"
+	"strconv"
+	"time"
 )
 
 var auditDiffLog = auditLog
@@ -222,19 +224,267 @@ func formatPercent(pct float64) string {
 	return fmt.Sprintf("%.0f%%", pct)
 }
 
-// loadFirewallAnalysisForRun loads or computes the FirewallAnalysis for a given run.
-// It first tries to load from a cached RunSummary; otherwise it downloads artifacts
-// and analyzes firewall logs from scratch.
-func loadFirewallAnalysisForRun(runID int64, outputDir string, owner, repo, hostname string, verbose bool) (*FirewallAnalysis, error) {
+// MCPToolDiffEntry represents the diff for a single MCP tool between two runs
+type MCPToolDiffEntry struct {
+	ServerName      string `json:"server_name"`
+	ToolName        string `json:"tool_name"`
+	Status          string `json:"status"`                    // "new", "removed", "changed"
+	Run1CallCount   int    `json:"run1_call_count,omitempty"` // Call count in run 1
+	Run2CallCount   int    `json:"run2_call_count,omitempty"` // Call count in run 2
+	Run1ErrorCount  int    `json:"run1_error_count,omitempty"`
+	Run2ErrorCount  int    `json:"run2_error_count,omitempty"`
+	CallCountChange string `json:"call_count_change,omitempty"` // e.g. "+2", "-3"
+	IsAnomaly       bool   `json:"is_anomaly,omitempty"`
+	AnomalyNote     string `json:"anomaly_note,omitempty"`
+}
+
+// MCPToolsDiff represents the complete diff of MCP tool invocations between two runs
+type MCPToolsDiff struct {
+	NewTools     []MCPToolDiffEntry  `json:"new_tools,omitempty"`
+	RemovedTools []MCPToolDiffEntry  `json:"removed_tools,omitempty"`
+	ChangedTools []MCPToolDiffEntry  `json:"changed_tools,omitempty"`
+	Summary      MCPToolsDiffSummary `json:"summary"`
+}
+
+// MCPToolsDiffSummary provides a quick overview of MCP tool changes
+type MCPToolsDiffSummary struct {
+	NewToolCount     int  `json:"new_tool_count"`
+	RemovedToolCount int  `json:"removed_tool_count"`
+	ChangedToolCount int  `json:"changed_tool_count"`
+	HasAnomalies     bool `json:"has_anomalies"`
+	AnomalyCount     int  `json:"anomaly_count"`
+}
+
+// RunMetricsDiff represents the diff of run-level metrics (token usage, duration, turns) between two runs
+type RunMetricsDiff struct {
+	Run1TokenUsage   int    `json:"run1_token_usage"`
+	Run2TokenUsage   int    `json:"run2_token_usage"`
+	TokenUsageChange string `json:"token_usage_change,omitempty"` // e.g. "+15%", "-5%"
+	Run1Duration     string `json:"run1_duration,omitempty"`
+	Run2Duration     string `json:"run2_duration,omitempty"`
+	DurationChange   string `json:"duration_change,omitempty"` // e.g. "+2m30s", "-1m"
+	Run1Turns        int    `json:"run1_turns,omitempty"`
+	Run2Turns        int    `json:"run2_turns,omitempty"`
+	TurnsChange      int    `json:"turns_change,omitempty"`
+}
+
+// AuditDiff is the top-level diff combining firewall behavior, MCP tool invocations,
+// and run-level metrics between two workflow runs.
+type AuditDiff struct {
+	Run1ID         int64           `json:"run1_id"`
+	Run2ID         int64           `json:"run2_id"`
+	FirewallDiff   *FirewallDiff   `json:"firewall_diff,omitempty"`
+	MCPToolsDiff   *MCPToolsDiff   `json:"mcp_tools_diff,omitempty"`
+	RunMetricsDiff *RunMetricsDiff `json:"run_metrics_diff,omitempty"`
+}
+
+// computeAuditDiff produces a full AuditDiff combining firewall, MCP tool, and run metrics diffs.
+func computeAuditDiff(run1ID, run2ID int64, summary1, summary2 *RunSummary) *AuditDiff {
+	diff := &AuditDiff{
+		Run1ID: run1ID,
+		Run2ID: run2ID,
+	}
+
+	var fw1, fw2 *FirewallAnalysis
+	if summary1 != nil {
+		fw1 = summary1.FirewallAnalysis
+	}
+	if summary2 != nil {
+		fw2 = summary2.FirewallAnalysis
+	}
+	diff.FirewallDiff = computeFirewallDiff(run1ID, run2ID, fw1, fw2)
+
+	var mcp1, mcp2 *MCPToolUsageData
+	if summary1 != nil {
+		mcp1 = summary1.MCPToolUsage
+	}
+	if summary2 != nil {
+		mcp2 = summary2.MCPToolUsage
+	}
+	if mcp1 != nil || mcp2 != nil {
+		diff.MCPToolsDiff = computeMCPToolsDiff(mcp1, mcp2)
+	}
+
+	metricsDiff := computeRunMetricsDiff(summary1, summary2)
+	if metricsDiff != nil {
+		diff.RunMetricsDiff = metricsDiff
+	}
+
+	return diff
+}
+
+// mcpToolKey returns a unique key for an MCP tool given its server and tool name.
+func mcpToolKey(serverName, toolName string) string {
+	return serverName + ":" + toolName
+}
+
+// computeMCPToolsDiff computes the diff between two runs' MCP tool usage.
+// run1 is the "before" (baseline) and run2 is the "after" (comparison target).
+func computeMCPToolsDiff(run1, run2 *MCPToolUsageData) *MCPToolsDiff {
+	run1Tools := make(map[string]MCPToolSummary)
+	run2Tools := make(map[string]MCPToolSummary)
+
+	if run1 != nil {
+		for _, s := range run1.Summary {
+			run1Tools[mcpToolKey(s.ServerName, s.ToolName)] = s
+		}
+	}
+	if run2 != nil {
+		for _, s := range run2.Summary {
+			run2Tools[mcpToolKey(s.ServerName, s.ToolName)] = s
+		}
+	}
+
+	allKeys := make(map[string]bool)
+	for k := range run1Tools {
+		allKeys[k] = true
+	}
+	for k := range run2Tools {
+		allKeys[k] = true
+	}
+
+	sortedKeys := make([]string, 0, len(allKeys))
+	for k := range allKeys {
+		sortedKeys = append(sortedKeys, k)
+	}
+	sort.Strings(sortedKeys)
+
+	diff := &MCPToolsDiff{}
+	anomalyCount := 0
+
+	for _, key := range sortedKeys {
+		s1, inRun1 := run1Tools[key]
+		s2, inRun2 := run2Tools[key]
+
+		if !inRun1 && inRun2 {
+			entry := MCPToolDiffEntry{
+				ServerName:     s2.ServerName,
+				ToolName:       s2.ToolName,
+				Status:         "new",
+				Run2CallCount:  s2.CallCount,
+				Run2ErrorCount: s2.ErrorCount,
+			}
+			if s2.ErrorCount > 0 {
+				entry.IsAnomaly = true
+				entry.AnomalyNote = "new tool with errors"
+				anomalyCount++
+			}
+			diff.NewTools = append(diff.NewTools, entry)
+		} else if inRun1 && !inRun2 {
+			diff.RemovedTools = append(diff.RemovedTools, MCPToolDiffEntry{
+				ServerName:     s1.ServerName,
+				ToolName:       s1.ToolName,
+				Status:         "removed",
+				Run1CallCount:  s1.CallCount,
+				Run1ErrorCount: s1.ErrorCount,
+			})
+		} else if s1.CallCount != s2.CallCount || s1.ErrorCount != s2.ErrorCount {
+			entry := MCPToolDiffEntry{
+				ServerName:      s1.ServerName,
+				ToolName:        s1.ToolName,
+				Status:          "changed",
+				Run1CallCount:   s1.CallCount,
+				Run2CallCount:   s2.CallCount,
+				Run1ErrorCount:  s1.ErrorCount,
+				Run2ErrorCount:  s2.ErrorCount,
+				CallCountChange: formatCountChange(s1.CallCount, s2.CallCount),
+			}
+			if s2.ErrorCount > s1.ErrorCount {
+				entry.IsAnomaly = true
+				entry.AnomalyNote = "error count increased"
+				anomalyCount++
+			}
+			diff.ChangedTools = append(diff.ChangedTools, entry)
+		}
+	}
+
+	diff.Summary = MCPToolsDiffSummary{
+		NewToolCount:     len(diff.NewTools),
+		RemovedToolCount: len(diff.RemovedTools),
+		ChangedToolCount: len(diff.ChangedTools),
+		HasAnomalies:     anomalyCount > 0,
+		AnomalyCount:     anomalyCount,
+	}
+
+	return diff
+}
+
+// computeRunMetricsDiff computes the diff of run-level metrics between two runs.
+// Returns nil if no meaningful metrics data is available.
+func computeRunMetricsDiff(summary1, summary2 *RunSummary) *RunMetricsDiff {
+	var run1Tokens, run2Tokens int
+	var run1Duration, run2Duration time.Duration
+	var run1Turns, run2Turns int
+
+	if summary1 != nil {
+		run1Tokens = summary1.Run.TokenUsage
+		run1Duration = summary1.Run.Duration
+		run1Turns = summary1.Run.Turns
+	}
+	if summary2 != nil {
+		run2Tokens = summary2.Run.TokenUsage
+		run2Duration = summary2.Run.Duration
+		run2Turns = summary2.Run.Turns
+	}
+
+	// Skip if there is no meaningful data
+	if run1Tokens == 0 && run2Tokens == 0 && run1Duration == 0 && run2Duration == 0 && run1Turns == 0 && run2Turns == 0 {
+		return nil
+	}
+
+	diff := &RunMetricsDiff{
+		Run1TokenUsage: run1Tokens,
+		Run2TokenUsage: run2Tokens,
+		Run1Turns:      run1Turns,
+		Run2Turns:      run2Turns,
+		TurnsChange:    run2Turns - run1Turns,
+	}
+
+	if run1Tokens > 0 || run2Tokens > 0 {
+		diff.TokenUsageChange = formatVolumeChange(run1Tokens, run2Tokens)
+	}
+
+	if run1Duration > 0 {
+		diff.Run1Duration = run1Duration.Round(time.Second).String()
+	}
+	if run2Duration > 0 {
+		diff.Run2Duration = run2Duration.Round(time.Second).String()
+	}
+	if run1Duration > 0 && run2Duration > 0 {
+		delta := run2Duration - run1Duration
+		if delta >= 0 {
+			diff.DurationChange = "+" + delta.Round(time.Second).String()
+		} else {
+			diff.DurationChange = delta.Round(time.Second).String()
+		}
+	}
+
+	return diff
+}
+
+// formatCountChange formats the absolute change in a count value (e.g. "+3", "-1")
+func formatCountChange(count1, count2 int) string {
+	delta := count2 - count1
+	if delta >= 0 {
+		return fmt.Sprintf("+%d", delta)
+	}
+	return strconv.Itoa(delta)
+}
+
+// loadRunSummaryForDiff loads or builds a RunSummary for a given run for use in diffing.
+// It first tries to load from a cached RunSummary (which includes MCP tool usage and run
+// metrics); otherwise it downloads artifacts and analyzes firewall logs, returning a partial
+// summary with only FirewallAnalysis populated.
+func loadRunSummaryForDiff(runID int64, outputDir string, owner, repo, hostname string, verbose bool) (*RunSummary, error) {
 	runOutputDir := filepath.Join(outputDir, fmt.Sprintf("run-%d", runID))
 	if absDir, err := filepath.Abs(runOutputDir); err == nil {
 		runOutputDir = absDir
 	}
 
-	// Try cached summary first
+	// Try cached summary first (full data including MCP tool usage, token usage, etc.)
 	if summary, ok := loadRunSummary(runOutputDir, verbose); ok {
-		auditDiffLog.Printf("Using cached firewall analysis for run %d", runID)
-		return summary.FirewallAnalysis, nil
+		auditDiffLog.Printf("Using cached run summary for run %d", runID)
+		return summary, nil
 	}
 
 	// Download artifacts if needed
@@ -244,11 +494,14 @@ func loadFirewallAnalysisForRun(runID int64, outputDir string, owner, repo, host
 		}
 	}
 
-	// Analyze firewall logs
+	// Analyze firewall logs and return a partial summary
 	analysis, err := analyzeFirewallLogs(runOutputDir, verbose)
 	if err != nil {
 		return nil, fmt.Errorf("failed to analyze firewall logs for run %d: %w", runID, err)
 	}
 
-	return analysis, nil
+	return &RunSummary{
+		RunID:            runID,
+		FirewallAnalysis: analysis,
+	}, nil
 }
