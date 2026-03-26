@@ -39,6 +39,7 @@ tools:
     - "*"
 
 safe-outputs:
+  report-failure-as-issue: false
   upload-asset:
   create-discussion:
     expires: 3d
