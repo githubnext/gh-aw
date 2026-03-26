@@ -1325,10 +1325,10 @@ describe("push_repo_memory.cjs - shell injection security tests", () => {
       expect(scriptContent).not.toContain('must start with "memory/"');
     });
 
-    it("should accept wiki branch names (master, main, gh-pages)", () => {
-      // Wiki memory uses bare branch names ("master" by default). The target repo
-      // already has ".wiki" appended by the compiler, so there is no risk of
-      // pushing to the wrong branch in the main repository.
+    it("should accept wiki branch names (master, main, gh-pages) only for wiki repos", () => {
+      // Wiki memory uses bare branch names ("master" by default). The compiler always
+      // appends ".wiki" to TARGET_REPO for wiki memory, so the cross-validation check
+      // must confirm that known wiki branch names are rejected for non-wiki repos.
       const nodeFs = require("fs");
       const nodePath = require("path");
 
@@ -1338,6 +1338,32 @@ describe("push_repo_memory.cjs - shell injection security tests", () => {
       expect(scriptContent).toContain('"master"');
       expect(scriptContent).toContain('"main"');
       expect(scriptContent).toContain('"gh-pages"');
+      // Must perform the wiki-repo cross-check
+      expect(scriptContent).toContain("isWikiRepo");
+      expect(scriptContent).toContain('.endsWith(".wiki")');
+      expect(scriptContent).toContain("isKnownWikiBranch && !isWikiRepo");
+    });
+
+    it("should reject known wiki branch name for a non-wiki target repo", async () => {
+      // The compiler only generates wiki branch names when wiki: true, in which case
+      // TARGET_REPO is appended with ".wiki".  If someone passes TARGET_REPO without
+      // ".wiki" but uses "master" as the branch, that would push to the default branch
+      // of the main repository – this must be blocked.
+      process.env.BRANCH_NAME = "master";
+      process.env.TARGET_REPO = "test-owner/test-repo"; // no ".wiki" suffix
+
+      mockFs.existsSync.mockReturnValue(false);
+
+      vi.doMock("fs", () => mockFs);
+      vi.doMock("./git_helpers.cjs", () => ({ execGitSync: mockExecGitSync }));
+
+      const { main } = await import("./push_repo_memory.cjs");
+      await main();
+
+      expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("ERR_VALIDATION"));
+      expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining('must end with ".wiki"'));
+      // No git operations should have been attempted
+      expect(mockExecGitSync).not.toHaveBeenCalled();
     });
 
     it("should propagate git fetch authentication failure instead of silently creating orphan branch", async () => {

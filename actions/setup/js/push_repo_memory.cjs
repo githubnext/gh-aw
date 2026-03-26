@@ -109,11 +109,17 @@ async function main() {
   //
   // At runtime we enforce:
   //   1. Namespaced branches (contain "/") to prevent pushing to top-level branches like "main"
-  //   2. Allow known wiki defaults ("master", "main", "gh-pages") as bare branch names
+  //   2. Known wiki branch names ("master", "main", "gh-pages") are only valid when
+  //      TARGET_REPO ends with ".wiki" – the compiler always appends ".wiki" for wiki memory.
   const isNamespaced = /^[a-zA-Z0-9_-]+\/.+/.test(branchName);
   const isKnownWikiBranch = branchName === "master" || branchName === "main" || branchName === "gh-pages";
+  const isWikiRepo = targetRepo.endsWith(".wiki");
   if (!isNamespaced && !isKnownWikiBranch) {
     core.setFailed(`ERR_VALIDATION: Invalid branch name "${branchName}": branch name must be namespaced (e.g. "memory/default") or a known wiki branch ("master", "main", "gh-pages")`);
+    return;
+  }
+  if (isKnownWikiBranch && !isWikiRepo) {
+    core.setFailed(`ERR_VALIDATION: Branch name "${branchName}" is only valid for wiki repositories (TARGET_REPO must end with ".wiki", got "${targetRepo}")`);
     return;
   }
 
