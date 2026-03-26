@@ -325,6 +325,17 @@ updates:
 
 See [Dependabot and gh-aw-actions](/gh-aw/reference/compilation-process/#dependabot-and-gh-aw-actions) for more details.
 
+### How does `gh aw upgrade` resolve action versions when no GitHub Releases exist?
+
+`gh aw upgrade` (and `gh aw update-actions`) resolves the latest version of each referenced action using a two-step process:
+
+1. **GitHub Releases API** — queries `/repos/{owner}/{repo}/releases` via the `gh` CLI. If releases are found, the highest compatible semantic version is selected.
+2. **Git tag fallback** — if the Releases API returns an empty list (which happens when a repository publishes tags without creating GitHub Releases), the command automatically falls back to scanning tags via `git ls-remote`. This fallback is **safe to ignore** — tags are a valid source for version pinning.
+
+Only if *both* sources return no results does the upgrade produce a warning that cannot be resolved automatically.
+
+> **Note:** `github/gh-aw-actions` intentionally publishes only tags (not GitHub Releases). The `gh aw upgrade` warning `github/gh-aw-actions/setup: no releases found` that appeared in earlier versions was caused by this two-step logic not falling back to tags. It has been fixed — the tag fallback now runs automatically.
+
 ### Why do I need a token or key?
 
 When using **GitHub Copilot CLI**, a Personal Access Token (PAT) with "Copilot Requests" permission authenticates and associates automation work with your GitHub account. This ensures usage tracking against your subscription, appropriate AI permissions, and auditable actions. In the future, this may support organization-level association. See [Authentication](/gh-aw/reference/auth/).

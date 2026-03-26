@@ -169,7 +169,7 @@ func getLatestActionRelease(repo, currentVersion string, allowMajor, verbose boo
 	updateLog.Printf("Using base repository: %s for action: %s", baseRepo, repo)
 
 	// Use gh CLI to get releases
-	output, err := workflow.RunGHCombined("Fetching releases...", "api", fmt.Sprintf("/repos/%s/releases", baseRepo), "--jq", ".[].tag_name")
+	output, err := runGHReleasesAPIFn(baseRepo)
 	if err != nil {
 		// Check if this is an authentication error
 		outputStr := string(output)
@@ -191,7 +191,18 @@ func getLatestActionRelease(repo, currentVersion string, allowMajor, verbose boo
 
 	releases := strings.Split(strings.TrimSpace(string(output)), "\n")
 	if len(releases) == 0 || releases[0] == "" {
-		return "", "", errors.New("no releases found")
+		// No GitHub Releases found; fall back to tag scanning via git ls-remote.
+		// Some repositories publish tags without creating GitHub Releases — this is safe
+		// to use and the warning below is informational only.
+		updateLog.Printf("No releases found via GitHub API for %s, falling back to git ls-remote tag scan", baseRepo)
+		if verbose {
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(baseRepo+": no GitHub Releases found, falling back to tag scanning (safe to ignore)"))
+		}
+		latestRelease, latestSHA, gitErr := getLatestActionReleaseViaGitFn(repo, currentVersion, allowMajor, verbose)
+		if gitErr != nil {
+			return "", "", fmt.Errorf("no releases or tags found for %s: %w", baseRepo, gitErr)
+		}
+		return latestRelease, latestSHA, nil
 	}
 
 	// Parse current version
@@ -428,6 +439,16 @@ var actionRefPattern = regexp.MustCompile(`(uses:\s+)([a-zA-Z0-9][a-zA-Z0-9_-]*/
 // It is used by both UpdateActions and updateActionRefsInContent and can be replaced in
 // tests to avoid network calls.
 var getLatestActionReleaseFn = getLatestActionRelease
+
+// getLatestActionReleaseViaGitFn is the function used to fetch the latest release via git
+// ls-remote as a fallback. It can be replaced in tests to avoid network calls.
+var getLatestActionReleaseViaGitFn = getLatestActionReleaseViaGit
+
+// runGHReleasesAPIFn calls the GitHub Releases API for the given base repository and
+// returns the raw output. It can be replaced in tests to avoid network calls.
+var runGHReleasesAPIFn = func(baseRepo string) ([]byte, error) {
+	return workflow.RunGHCombined("Fetching releases...", "api", fmt.Sprintf("/repos/%s/releases", baseRepo), "--jq", ".[].tag_name")
+}
 
 // latestReleaseResult caches a resolved version/SHA pair.
 type latestReleaseResult struct {
