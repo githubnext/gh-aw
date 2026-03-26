@@ -37,6 +37,7 @@ Examples:
   ` + string(constants.CLIExtensionPrefix) + ` audit report --workflow "agent-task" --last 5 --json  # JSON for dashboards
   ` + string(constants.CLIExtensionPrefix) + ` audit report --format pretty                     # Console-formatted output
   ` + string(constants.CLIExtensionPrefix) + ` audit report --repo owner/repo --last 10          # Report on a specific repository`,
+		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			workflowName, _ := cmd.Flags().GetString("workflow")
 			last, _ := cmd.Flags().GetInt("last")
@@ -48,12 +49,17 @@ Examples:
 
 			var owner, repo string
 			if repoFlag != "" {
-				parts := strings.SplitN(repoFlag, "/", 2)
-				if len(parts) != 2 || parts[0] == "" || parts[1] == "" {
-					return fmt.Errorf("invalid repository format '%s': expected 'owner/repo'", repoFlag)
+				parts := strings.Split(repoFlag, "/")
+				if len(parts) < 2 {
+					return fmt.Errorf("invalid repository format '%s': expected '[HOST/]owner/repo'", repoFlag)
 				}
-				owner = parts[0]
-				repo = parts[1]
+				ownerPart := parts[len(parts)-2]
+				repoPart := parts[len(parts)-1]
+				if ownerPart == "" || repoPart == "" {
+					return fmt.Errorf("invalid repository format '%s': expected '[HOST/]owner/repo'", repoFlag)
+				}
+				owner = ownerPart
+				repo = repoPart
 			}
 
 			return RunAuditReport(cmd.Context(), RunAuditReportConfig{
@@ -106,8 +112,17 @@ func RunAuditReport(ctx context.Context, cfg RunAuditReportConfig) error {
 
 	// Auto-detect GHES host from git remote
 	hostname := getHostFromOriginRemote()
-	if hostname != "github.com" {
+	if hostname != "" && hostname != "github.com" {
 		auditReportCommandLog.Printf("Auto-detected GHES host from git remote: %s", hostname)
+
+		// If GH_HOST is not already set, use the detected hostname so gh CLI targets GHES
+		if _, ok := os.LookupEnv("GH_HOST"); !ok {
+			if err := os.Setenv("GH_HOST", hostname); err != nil {
+				auditReportCommandLog.Printf("Failed to set GH_HOST from git remote: %v", err)
+			} else if cfg.Verbose {
+				fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Using GitHub host %s (from git remote)", hostname)))
+			}
+		}
 	}
 
 	// Check context cancellation
@@ -157,12 +172,10 @@ func RunAuditReport(ctx context.Context, cfg RunAuditReportConfig) error {
 	// Download artifacts concurrently
 	results := downloadRunArtifactsConcurrent(ctx, runs, cfg.OutputDir, cfg.Verbose, cfg.Last, repoOverride)
 
-	// Build aggregation inputs
+	// Build aggregation inputs — include skipped/error runs as HasData=false entries
+	// so the report accurately counts RunsWithoutData for expired or missing artifacts
 	inputs := make([]crossRunInput, 0, len(results))
 	for _, r := range results {
-		if r.Skipped {
-			continue
-		}
 		inputs = append(inputs, crossRunInput{
 			RunID:            r.Run.DatabaseID,
 			WorkflowName:     r.Run.WorkflowName,
@@ -172,7 +185,7 @@ func RunAuditReport(ctx context.Context, cfg RunAuditReportConfig) error {
 	}
 
 	if len(inputs) == 0 {
-		fmt.Fprintln(os.Stderr, console.FormatWarningMessage("No runs could be processed. Artifacts may be missing or expired."))
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage("No runs could be processed."))
 		return nil
 	}
 

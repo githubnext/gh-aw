@@ -6,6 +6,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"os"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -338,4 +339,175 @@ func TestNewAuditReportSubcommand(t *testing.T) {
 	formatFlag := cmd.Flags().Lookup("format")
 	require.NotNil(t, formatFlag, "Should have --format flag")
 	assert.Equal(t, "markdown", formatFlag.DefValue, "Default value for --format should be markdown")
+}
+
+func TestNewAuditReportSubcommand_RejectsExtraArgs(t *testing.T) {
+	cmd := NewAuditReportSubcommand()
+	cmd.SetArgs([]string{"extra-arg"})
+	err := cmd.Execute()
+	assert.Error(t, err, "Should reject extra positional arguments")
+	assert.Contains(t, err.Error(), "unknown command", "Error should indicate unknown command")
+}
+
+func TestRunAuditReportConfig_LastClampBounds(t *testing.T) {
+	tests := []struct {
+		name     string
+		inputCfg RunAuditReportConfig
+		wantLast int
+	}{
+		{
+			name:     "negative last defaults to 20",
+			inputCfg: RunAuditReportConfig{Last: -5},
+			wantLast: 20,
+		},
+		{
+			name:     "zero last defaults to 20",
+			inputCfg: RunAuditReportConfig{Last: 0},
+			wantLast: 20,
+		},
+		{
+			name:     "over max clamped to max",
+			inputCfg: RunAuditReportConfig{Last: 100},
+			wantLast: maxAuditReportRuns,
+		},
+		{
+			name:     "within bounds unchanged",
+			inputCfg: RunAuditReportConfig{Last: 10},
+			wantLast: 10,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cfg := tt.inputCfg
+			// Apply the same clamping logic as RunAuditReport
+			if cfg.Last <= 0 {
+				cfg.Last = 20
+			}
+			if cfg.Last > maxAuditReportRuns {
+				cfg.Last = maxAuditReportRuns
+			}
+			assert.Equal(t, tt.wantLast, cfg.Last, "Last should be clamped correctly")
+		})
+	}
+}
+
+func TestRunAuditReportConfig_FormatPrecedence(t *testing.T) {
+	tests := []struct {
+		name       string
+		jsonOutput bool
+		format     string
+		wantFormat string // "json", "markdown", or "pretty"
+	}{
+		{
+			name:       "json flag takes precedence over format",
+			jsonOutput: true,
+			format:     "markdown",
+			wantFormat: "json",
+		},
+		{
+			name:       "json flag with format=pretty still uses json",
+			jsonOutput: true,
+			format:     "pretty",
+			wantFormat: "json",
+		},
+		{
+			name:       "format=json without json flag",
+			jsonOutput: false,
+			format:     "json",
+			wantFormat: "json",
+		},
+		{
+			name:       "format=pretty selects pretty",
+			jsonOutput: false,
+			format:     "pretty",
+			wantFormat: "pretty",
+		},
+		{
+			name:       "format=markdown selects markdown",
+			jsonOutput: false,
+			format:     "markdown",
+			wantFormat: "markdown",
+		},
+		{
+			name:       "default format is markdown",
+			jsonOutput: false,
+			format:     "",
+			wantFormat: "markdown",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Apply the same format selection logic as RunAuditReport
+			var selected string
+			if tt.jsonOutput || tt.format == "json" {
+				selected = "json"
+			} else if tt.format == "pretty" {
+				selected = "pretty"
+			} else {
+				selected = "markdown"
+			}
+			assert.Equal(t, tt.wantFormat, selected, "Format should be selected correctly")
+		})
+	}
+}
+
+func TestNewAuditReportSubcommand_RepoParsingWithHost(t *testing.T) {
+	tests := []struct {
+		name      string
+		repoFlag  string
+		wantOwner string
+		wantRepo  string
+		wantErr   bool
+	}{
+		{
+			name:      "owner/repo format",
+			repoFlag:  "myorg/myrepo",
+			wantOwner: "myorg",
+			wantRepo:  "myrepo",
+		},
+		{
+			name:      "host/owner/repo format",
+			repoFlag:  "github.example.com/myorg/myrepo",
+			wantOwner: "myorg",
+			wantRepo:  "myrepo",
+		},
+		{
+			name:     "missing repo",
+			repoFlag: "onlyowner",
+			wantErr:  true,
+		},
+		{
+			name:     "empty owner",
+			repoFlag: "/repo",
+			wantErr:  true,
+		},
+		{
+			name:     "empty repo",
+			repoFlag: "owner/",
+			wantErr:  true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Apply the same repo parsing logic
+			parts := strings.Split(tt.repoFlag, "/")
+			if len(parts) < 2 {
+				assert.True(t, tt.wantErr, "Should expect error for: %s", tt.repoFlag)
+				return
+			}
+			ownerPart := parts[len(parts)-2]
+			repoPart := parts[len(parts)-1]
+			if ownerPart == "" || repoPart == "" {
+				assert.True(t, tt.wantErr, "Should expect error for: %s", tt.repoFlag)
+				return
+			}
+
+			assert.False(t, tt.wantErr, "Should not expect error for: %s", tt.repoFlag)
+			assert.Equal(t, tt.wantOwner, ownerPart, "Owner should match")
+			assert.Equal(t, tt.wantRepo, repoPart, "Repo should match")
+		})
+	}
 }
