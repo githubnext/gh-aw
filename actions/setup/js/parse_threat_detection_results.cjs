@@ -26,6 +26,60 @@ const { ERR_SYSTEM, ERR_PARSE, ERR_VALIDATION } = require("./error_codes.cjs");
 const RESULT_PREFIX = "THREAT_DETECTION_RESULT:";
 
 /**
+ * Extract a complete JSON object from a string that starts with RESULT_PREFIX,
+ * using character-by-character brace counting to find the matching closing brace.
+ * Tracks string context so that braces inside JSON string values are not counted.
+ * This avoids regex and correctly handles escape sequences (e.g. \", \\).
+ *
+ * The input may contain actual newline characters inside JSON string values when
+ * the outer stream-json decoder has unescaped \n sequences. The extraction still
+ * produces the complete JSON object; callers must normalize those newlines before
+ * passing the JSON to JSON.parse.
+ *
+ * @param {string} text - String beginning with RESULT_PREFIX followed by a JSON object
+ * @returns {string|null} RESULT_PREFIX + complete JSON object, or null if not found
+ */
+function extractResultFromText(text) {
+  const jsonStartPos = text.indexOf("{", RESULT_PREFIX.length);
+  if (jsonStartPos === -1) return null;
+
+  let depth = 0;
+  let inString = false;
+  let escaped = false;
+  let jsonEndPos = -1;
+  for (let i = jsonStartPos; i < text.length; i++) {
+    const ch = text[i];
+    if (escaped) {
+      escaped = false;
+      continue;
+    }
+    if (ch === "\\" && inString) {
+      escaped = true;
+      continue;
+    }
+    if (ch === '"') {
+      inString = !inString;
+      continue;
+    }
+    if (inString) {
+      continue;
+    }
+    if (ch === "{") {
+      depth++;
+    } else if (ch === "}") {
+      depth--;
+      if (depth === 0) {
+        jsonEndPos = i;
+        break;
+      }
+    }
+  }
+  if (jsonEndPos === -1) return null;
+
+  return RESULT_PREFIX + text.substring(jsonStartPos, jsonEndPos + 1);
+}
+
+/**
  * Try to extract a THREAT_DETECTION_RESULT value from a stream-json line.
  * Stream-json output from Claude wraps the result in JSON envelopes like:
  *   {"type":"result","result":"THREAT_DETECTION_RESULT:{\"prompt_injection\":...}"}
@@ -48,14 +102,29 @@ function extractFromStreamJson(line) {
     if (obj.type === "result" && typeof obj.result === "string") {
       // The result field contains the model's full response text, which may
       // include analysis before the THREAT_DETECTION_RESULT line.
-      // Split by newlines and find the line that starts with the prefix.
+      // Split by newlines to find the line that starts with the prefix.
+      //
+      // IMPORTANT: The outer JSON.parse unescapes \n sequences into actual newline
+      // characters. If the model placed a literal newline inside a reasons string
+      // value, the JSON object for the verdict gets split across multiple lines here.
+      // To handle this robustly, we find the prefix line by index, rejoin all
+      // subsequent lines, then use brace-counting to locate the complete JSON object.
       const resultLines = obj.result.split("\n");
-      for (const rline of resultLines) {
-        const rtrimmed = rline.trim();
-        if (rtrimmed.startsWith(RESULT_PREFIX)) {
-          return rtrimmed;
+      let prefixLineIdx = -1;
+      for (let i = 0; i < resultLines.length; i++) {
+        if (resultLines[i].trim().startsWith(RESULT_PREFIX)) {
+          prefixLineIdx = i;
+          break;
         }
       }
+      if (prefixLineIdx === -1) return null;
+
+      // Rejoin all lines from the prefix line onward so that any JSON string
+      // values split by actual newlines are reassembled.
+      const joined = resultLines.slice(prefixLineIdx).join("\n").trim();
+
+      // Extract the complete JSON object using brace-counting.
+      return extractResultFromText(joined);
     }
   } catch {
     // Not valid JSON — not a stream-json line
@@ -92,13 +161,32 @@ function parseDetectionLog(content) {
     }
   }
 
-  // Phase 2: If no stream-json results, try raw line matching
+  // Phase 2: If no stream-json results, try raw line matching.
+  // Apply the same join-and-brace-count approach to handle cases where the
+  // reasons values contain actual newlines that split the JSON across lines.
   const rawMatches = [];
   if (streamMatches.length === 0) {
-    for (const line of lines) {
-      const trimmed = line.trim();
-      if (trimmed.startsWith(RESULT_PREFIX)) {
-        rawMatches.push(trimmed);
+    let i = 0;
+    while (i < lines.length) {
+      if (lines[i].trim().startsWith(RESULT_PREFIX)) {
+        const joined = lines.slice(i).join("\n").trim();
+        const extracted = extractResultFromText(joined);
+        if (extracted !== null) {
+          // Successfully extracted a complete JSON object; advance past consumed lines.
+          rawMatches.push(extracted);
+          // Count how many lines were consumed by this match so the loop
+          // skips past them and does not re-match continuation lines.
+          const jsonPart = extracted.substring(RESULT_PREFIX.length);
+          const extraLines = jsonPart.split("\n").length - 1;
+          i += extraLines + 1;
+        } else {
+          // No complete {…} object found (e.g. null, [], string, truncated JSON);
+          // fall back to the trimmed line so the parsing step reports a useful error.
+          rawMatches.push(lines[i].trim());
+          i++;
+        }
+      } else {
+        i++;
       }
     }
   }
@@ -122,7 +210,13 @@ function parseDetectionLog(content) {
 
   const jsonPart = uniqueMatches[0].substring(RESULT_PREFIX.length);
   try {
-    const parsed = JSON.parse(jsonPart);
+    // Normalize literal newline characters to JSON escape sequences before parsing.
+    // When the outer stream-json decoder unescapes \n sequences, actual newline
+    // characters may end up inside JSON string values (e.g. in reasons entries).
+    // Replacing them with the two-character sequence \n restores valid JSON so
+    // that JSON.parse can handle them correctly.
+    const normalizedJson = jsonPart.split("\n").join("\\n");
+    const parsed = JSON.parse(normalizedJson);
 
     // The result must be a plain object, not null, an array, or a primitive.
     if (parsed === null || typeof parsed !== "object" || Array.isArray(parsed)) {
@@ -227,16 +321,13 @@ async function main() {
   const logLines = logContent.split("\n");
   core.info(`📊 Detection log stats: ${logLines.length} lines, ${logContent.length} bytes`);
 
-  // Log first and last few lines for quick diagnosis without overwhelming output
-  const previewLines = 5;
-  if (logLines.length > 0) {
-    core.info(`📄 First ${Math.min(previewLines, logLines.length)} lines of detection log:`);
-    logLines.slice(0, previewLines).forEach((line, i) => core.info(`   [${i + 1}] ${line}`));
-  }
-  if (logLines.length > previewLines * 2) {
-    core.info(`   ... (${logLines.length - previewLines * 2} lines omitted) ...`);
-    core.info(`📄 Last ${previewLines} lines of detection log:`);
-    logLines.slice(-previewLines).forEach((line, i) => core.info(`   [${logLines.length - previewLines + i + 1}] ${line}`));
+  // Log lines containing THREAT_DETECTION_RESULT for focused diagnosis
+  const resultLineMatches = logLines.map((line, i) => ({ line, idx: i + 1 })).filter(({ line }) => line.includes(RESULT_PREFIX));
+  if (resultLineMatches.length > 0) {
+    core.info(`📄 Lines containing THREAT_DETECTION_RESULT (${resultLineMatches.length} of ${logLines.length}):`);
+    resultLineMatches.forEach(({ line, idx }) => core.info(`   [${idx}] ${line}`));
+  } else {
+    core.info(`📄 No lines containing THREAT_DETECTION_RESULT found in ${logLines.length} lines`);
   }
 
   // ── Step 4: Parse the detection result ───────────────────────────────────
@@ -296,4 +387,4 @@ async function main() {
   core.info("════════════════════════════════════════════════════════");
 }
 
-module.exports = { main, parseDetectionLog, extractFromStreamJson };
+module.exports = { main, parseDetectionLog, extractFromStreamJson, extractResultFromText };

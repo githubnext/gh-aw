@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"os"
 	"strings"
-	"time"
 
 	"github.com/github/gh-aw/pkg/logger"
 )
@@ -269,16 +268,11 @@ func (e *ClaudeEngine) parseClaudeJSONLog(logContent string, verbose bool) LogMe
 					}
 				}
 
-				// Extract duration information and distribute to tool calls
-				if durationMs, exists := entry["duration_ms"]; exists {
-					if duration := ConvertToFloat(durationMs); duration > 0 {
-						totalDuration := time.Duration(duration * float64(time.Millisecond))
-						// Distribute the total duration among tool calls
-						// Since we don't have per-tool timing, we approximate by using the total duration
-						// as the maximum duration for all tools that don't have duration set yet
-						e.distributeTotalDurationToToolCalls(toolCallMap, totalDuration)
-					}
-				}
+				// Note: duration_ms in the result payload is the total elapsed job time, not per-tool timing.
+				// Claude logs do not provide per-tool execution durations, so MaxDuration is left as 0
+				// for tools whose timing cannot be measured individually. Assigning the total job
+				// duration as a per-tool MaxDuration would be misleading (it produced the bug where
+				// all bash tools appeared to take as long as the entire job).
 
 				if verbose {
 					fmt.Fprintf(os.Stderr, "Extracted from Claude result payload: tokens=%d, cost=%.4f, turns=%d\n",
@@ -439,31 +433,4 @@ func (e *ClaudeEngine) estimateInputSize(input any) int {
 	}
 	// Estimate token count (rough approximation: 1 token = ~4 characters)
 	return len(inputJSON) / 4
-}
-
-// distributeTotalDurationToToolCalls distributes the total workflow duration among tool calls
-// Since Claude logs don't provide per-tool timing, we approximate by assigning the total duration
-// to all tools that don't have a duration set yet, simulating that they all could have taken this long
-func (e *ClaudeEngine) distributeTotalDurationToToolCalls(toolCallMap map[string]*ToolCallInfo, totalDuration time.Duration) {
-	// Count tools that don't have duration set yet
-	toolsWithoutDuration := 0
-	for _, toolInfo := range toolCallMap {
-		if toolInfo.MaxDuration == 0 {
-			toolsWithoutDuration++
-		}
-	}
-
-	// If no tools without duration, don't update anything
-	if toolsWithoutDuration == 0 {
-		return
-	}
-
-	// For Claude logs, since we only have total duration, we assign the total duration
-	// as the maximum possible duration for each tool. This is conservative but gives
-	// users an idea of the overall workflow timing
-	for _, toolInfo := range toolCallMap {
-		if toolInfo.MaxDuration == 0 {
-			toolInfo.MaxDuration = totalDuration
-		}
-	}
 }

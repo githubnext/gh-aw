@@ -65,6 +65,13 @@ func (c *Compiler) validateNpxPackages(workflowData *WorkflowData) error {
 
 	npmValidationLog.Printf("Validating %d npx packages", len(packages))
 
+	// Reject any package names starting with '-' before invoking npm.
+	// These would be interpreted as flags by the npm CLI (argument injection).
+	if err := rejectHyphenPrefixPackages(packages, "npx"); err != nil {
+		npmValidationLog.Printf("npx package name validation failed: %v", err)
+		return err
+	}
+
 	// Check if npm is available
 	_, err := exec.LookPath("npm")
 	if err != nil {

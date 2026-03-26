@@ -5,6 +5,7 @@ package workflow
 import (
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 
@@ -13,7 +14,7 @@ import (
 	"github.com/github/gh-aw/pkg/testutil"
 )
 
-// TestHeredocInterpolation verifies that GH_AW_PROMPT_EOF heredoc delimiter is quoted
+// TestHeredocInterpolation verifies that GH_AW_PROMPT_*_EOF heredoc delimiters are quoted
 // to prevent bash variable interpolation. Variables are interpolated using github-script instead.
 func TestHeredocInterpolation(t *testing.T) {
 	// Create temporary directory for test files
@@ -56,15 +57,17 @@ Actor: ${{ github.actor }}
 
 	compiledStr := string(compiledYAML)
 
-	// Verify that heredoc delimiters ARE quoted (should be 'GH_AW_PROMPT_EOF' not GH_AW_PROMPT_EOF)
+	// Verify that heredoc delimiters ARE quoted (should be '<< 'GH_AW_PROMPT_..._EOF'' not GH_AW_PROMPT_..._EOF)
 	// This prevents shell variable interpolation
-	if !strings.Contains(compiledStr, "<< 'GH_AW_PROMPT_EOF'") {
-		t.Error("GH_AW_PROMPT_EOF delimiter should be quoted to prevent shell variable interpolation")
+	quotedDelimRE := regexp.MustCompile(`<< 'GH_AW_PROMPT_[0-9a-f]{16}_EOF'`)
+	if !quotedDelimRE.MatchString(compiledStr) {
+		t.Error("GH_AW_PROMPT_*_EOF delimiter should be quoted to prevent shell variable interpolation")
 
 		// Show the problematic lines
 		lines := strings.Split(compiledStr, "\n")
+		unquotedDelimRE := regexp.MustCompile(`<< GH_AW_PROMPT_[0-9a-f]{16}_EOF`)
 		for i, line := range lines {
-			if strings.Contains(line, "<< GH_AW_PROMPT_EOF") && !strings.Contains(line, "'GH_AW_PROMPT_EOF'") {
+			if unquotedDelimRE.MatchString(line) {
 				t.Logf("Line %d with unquoted delimiter: %s", i, line)
 			}
 		}
@@ -139,9 +142,9 @@ Actor: ${{ github.actor }}
 	compiledStr := string(compiledYAML)
 
 	// All heredoc delimiters should be quoted to prevent shell expansion
-	quotedCount := strings.Count(compiledStr, "<< 'GH_AW_PROMPT_EOF'")
-	if quotedCount == 0 {
-		t.Error("Expected quoted GH_AW_PROMPT_EOF delimiters to prevent shell variable interpolation")
+	quotedDelimRE := regexp.MustCompile(`<< 'GH_AW_PROMPT_[0-9a-f]{16}_EOF'`)
+	if !quotedDelimRE.MatchString(compiledStr) {
+		t.Error("Expected quoted GH_AW_PROMPT_*_EOF delimiters to prevent shell variable interpolation")
 	}
 
 	// Verify interpolation and template rendering step exists

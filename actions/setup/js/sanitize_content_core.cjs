@@ -568,17 +568,41 @@ function convertXmlTags(s) {
     return `(![CDATA[${convertedContent}]])`;
   });
 
+  /**
+   * Strips dangerous HTML attributes from an allowed tag's content string.
+   * Removes on* event handler attributes (e.g. onclick, ontoggle) and style
+   * attributes in all quoting forms (double-quoted, single-quoted, unquoted, bare).
+   * Safe attributes such as title, class, open, lang, id, etc. are preserved.
+   *
+   * Note: `\s+` (requiring at least one whitespace before the attribute name) is
+   * intentional — HTML attributes are always separated from the tag name and from
+   * each other by at least one whitespace character. Using `\s*` would risk false
+   * matches inside tag names (e.g. matching "ong" inside "strong").
+   *
+   * @param {string} tagContent - Tag content without surrounding angle brackets
+   * @returns {string} Tag content with dangerous attributes removed
+   */
+  function stripDangerousAttributes(tagContent) {
+    // Match: one-or-more whitespace + (on* | style) + optional =value
+    // Value forms: "...", '...', or unquoted (no whitespace / > / quote chars), or bare (no =)
+    // The unquoted form excludes >, whitespace, and all quote characters (', ", `) so it
+    // cannot consume the closing > of the tag or straddle other attribute values.
+    return tagContent.replace(/\s+(?:on\w+|style)(?:\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>"'`]*))?/gi, "");
+  }
+
   // Convert opening tags: <tag> or <tag attr="value"> to (tag) or (tag attr="value")
   // Convert closing tags: </tag> to (/tag)
   // Convert self-closing tags: <tag/> or <tag /> to (tag/) or (tag /)
-  // But preserve allowed safe tags
+  // But preserve allowed safe tags (with dangerous attributes stripped)
   return s.replace(/<(\/?[A-Za-z!][^>]*?)>/g, (match, tagContent) => {
     // Extract tag name from the content (handle closing tags and attributes)
     const tagNameMatch = tagContent.match(/^\/?\s*([A-Za-z][A-Za-z0-9]*)/);
     if (tagNameMatch) {
       const tagName = tagNameMatch[1].toLowerCase();
       if (allowedTags.includes(tagName)) {
-        return match; // Preserve allowed tags
+        // Strip dangerous attributes (on* event handlers and style) before preserving
+        const sanitizedContent = stripDangerousAttributes(tagContent);
+        return `<${sanitizedContent}>`;
       }
     }
     return `(${tagContent})`; // Convert other tags to parentheses

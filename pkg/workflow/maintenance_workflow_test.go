@@ -281,7 +281,8 @@ func TestGenerateMaintenanceWorkflow_OperationJobConditions(t *testing.T) {
 	yaml := string(content)
 
 	operationSkipCondition := `github.event_name != 'workflow_dispatch' || github.event.inputs.operation == ''`
-	operationRunCondition := `github.event_name == 'workflow_dispatch' && github.event.inputs.operation != ''`
+	operationRunCondition := `github.event_name == 'workflow_dispatch' && github.event.inputs.operation != '' && github.event.inputs.operation != 'safe_outputs'`
+	applySafeOutputsCondition := `github.event_name == 'workflow_dispatch' && github.event.inputs.operation == 'safe_outputs'`
 
 	const jobSectionSearchRange = 300
 	const runOpSectionSearchRange = 200
@@ -303,6 +304,7 @@ func TestGenerateMaintenanceWorkflow_OperationJobConditions(t *testing.T) {
 	}
 
 	// run_operation job should NOT have the skip condition but should have its own activation condition
+	// and should exclude safe_outputs
 	runOpIdx := strings.Index(yaml, "\n  run_operation:")
 	if runOpIdx == -1 {
 		t.Errorf("Job run_operation not found in generated workflow")
@@ -314,6 +316,27 @@ func TestGenerateMaintenanceWorkflow_OperationJobConditions(t *testing.T) {
 		if !strings.Contains(runOpSection, operationRunCondition) {
 			t.Errorf("Job run_operation should have the activation condition %q", operationRunCondition)
 		}
+	}
+
+	// apply_safe_outputs job should be triggered when operation == 'safe_outputs'
+	applyIdx := strings.Index(yaml, "\n  apply_safe_outputs:")
+	if applyIdx == -1 {
+		t.Errorf("Job apply_safe_outputs not found in generated workflow")
+	} else {
+		applySection := yaml[applyIdx : applyIdx+runOpSectionSearchRange]
+		if !strings.Contains(applySection, applySafeOutputsCondition) {
+			t.Errorf("Job apply_safe_outputs should have the activation condition %q in:\n%s", applySafeOutputsCondition, applySection)
+		}
+	}
+
+	// Verify safe_outputs is an option in the operation choices
+	if !strings.Contains(yaml, "- 'safe_outputs'") {
+		t.Error("workflow_dispatch operation choices should include 'safe_outputs'")
+	}
+
+	// Verify run_url input exists in workflow_dispatch
+	if !strings.Contains(yaml, "run_url:") {
+		t.Error("workflow_dispatch should include run_url input")
 	}
 }
 

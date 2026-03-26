@@ -5,6 +5,7 @@ package workflow
 import (
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 
@@ -391,9 +392,9 @@ This is a normal-sized workflow that should compile successfully.`
 	// Long workflow (with imports) should be inlined and chunked
 	// Chunking is implemented by emitting more heredoc blocks for large content,
 	// not by generating old "Append prompt (part N)" steps.
-	delimiter := GenerateHeredocDelimiter("PROMPT")
-	normalHeredocCount := strings.Count(normalLockString, "cat << '"+delimiter+"'")
-	longHeredocCount := strings.Count(lockString, "cat << '"+delimiter+"'")
+	promptDelimRE := regexp.MustCompile(`cat << 'GH_AW_PROMPT_[0-9a-f]{16}_EOF'`)
+	normalHeredocCount := len(promptDelimRE.FindAllString(normalLockString, -1))
+	longHeredocCount := len(promptDelimRE.FindAllString(lockString, -1))
 	if longHeredocCount <= normalHeredocCount {
 		t.Errorf("Expected long workflow with imports to have more heredoc blocks than normal (normal=%d, long=%d)", normalHeredocCount, longHeredocCount)
 	}

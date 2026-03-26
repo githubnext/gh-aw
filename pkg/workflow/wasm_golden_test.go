@@ -90,12 +90,13 @@ func TestWasmGolden_CompileFixtures(t *testing.T) {
 			if isUpdateMode() {
 				dir := filepath.Dir(goldenPath)
 				require.NoError(t, os.MkdirAll(dir, 0o755))
-				require.NoError(t, os.WriteFile(goldenPath, []byte(yamlOutput), 0o644))
+				// Normalize heredoc delimiters before writing so golden files are stable across compilations
+				require.NoError(t, os.WriteFile(goldenPath, []byte(normalizeHeredocDelimiters(yamlOutput)), 0o644))
 				return
 			}
 			expected, err := os.ReadFile(goldenPath)
 			require.NoError(t, err, "golden file not found for %s (run with -update to create)", fixture)
-			require.Equal(t, string(expected), yamlOutput, "output differs from golden for %s", fixture) //nolint:testifylint // golden test requires exact string comparison, not semantic YAML equality
+			require.Equal(t, string(expected), normalizeHeredocDelimiters(yamlOutput), "output differs from golden for %s", fixture)
 		})
 	}
 }
@@ -172,8 +173,8 @@ This workflow tests that compilation is deterministic.
 		results[i] = yamlOutput
 	}
 
-	require.Equal(t, results[0], results[1], "compilation 1 and 2 differ")
-	require.Equal(t, results[1], results[2], "compilation 2 and 3 differ")
+	require.Equal(t, normalizeHeredocDelimiters(results[0]), normalizeHeredocDelimiters(results[1]), "compilation 1 and 2 differ")
+	require.Equal(t, normalizeHeredocDelimiters(results[1]), normalizeHeredocDelimiters(results[2]), "compilation 2 and 3 differ")
 }
 
 // TestWasmGolden_NativeVsStringAPI compiles a workflow using both the native

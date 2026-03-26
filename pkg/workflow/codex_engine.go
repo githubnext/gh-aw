@@ -237,7 +237,11 @@ func (e *CodexEngine) GetExecutionSteps(workflowData *WorkflowData, logFile stri
 		// Codex reads both agent file and prompt inside AWF container (PATH setup + agent file reading + codex command)
 		var codexCommandWithSetup string
 		if workflowData.AgentFile != "" {
-			agentPath := ResolveAgentFilePath(workflowData.AgentFile)
+			agentPath, err := ResolveAgentFilePath(workflowData.AgentFile)
+			if err != nil {
+				codexEngineLog.Printf("Error resolving agent file path: %v", err)
+				return BuildInvalidAgentPathStep("Execute Codex CLI", workflowData.AgentFile, err)
+			}
 			// Read agent file and prompt inside AWF container, with PATH setup for npm binaries
 			codexCommandWithSetup = fmt.Sprintf(`%s && AGENT_CONTENT="$(awk 'BEGIN{skip=1} /^---$/{if(skip){skip=0;next}else{skip=1;next}} !skip' %s)" && INSTRUCTION="$(printf "%%s\n\n%%s" "$AGENT_CONTENT" "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)")" && %s`, npmPathSetup, agentPath, codexCommand)
 		} else {
@@ -261,7 +265,11 @@ func (e *CodexEngine) GetExecutionSteps(workflowData *WorkflowData, logFile stri
 		// Build the command without AWF wrapping
 		// Reuse commandName already determined above
 		if workflowData.AgentFile != "" {
-			agentPath := ResolveAgentFilePath(workflowData.AgentFile)
+			agentPath, err := ResolveAgentFilePath(workflowData.AgentFile)
+			if err != nil {
+				codexEngineLog.Printf("Error resolving agent file path: %v", err)
+				return BuildInvalidAgentPathStep("Execute Codex CLI", workflowData.AgentFile, err)
+			}
 			command = fmt.Sprintf(`set -o pipefail
 touch %s
 AGENT_CONTENT="$(awk 'BEGIN{skip=1} /^---$/{if(skip){skip=0;next}else{skip=1;next}} !skip' %s)"

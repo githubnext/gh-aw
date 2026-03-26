@@ -114,6 +114,9 @@ Examples:
 	// Register completions for audit command
 	RegisterDirFlagCompletion(cmd, "output")
 
+	// Add subcommands
+	cmd.AddCommand(NewAuditDiffSubcommand())
+
 	return cmd
 }
 

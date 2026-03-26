@@ -149,10 +149,11 @@ type ToolUsageInfo struct {
 
 // MCPToolUsageData contains detailed MCP tool usage statistics and individual call records
 type MCPToolUsageData struct {
-	Summary        []MCPToolSummary    `json:"summary"`                   // Aggregated statistics per tool
-	ToolCalls      []MCPToolCall       `json:"tool_calls"`                // Individual tool call records
-	Servers        []MCPServerStats    `json:"servers,omitempty"`         // Server-level statistics
-	FilteredEvents []DifcFilteredEvent `json:"filtered_events,omitempty"` // DIFC filtered events
+	Summary            []MCPToolSummary    `json:"summary"`                        // Aggregated statistics per tool
+	ToolCalls          []MCPToolCall       `json:"tool_calls"`                     // Individual tool call records
+	Servers            []MCPServerStats    `json:"servers,omitempty"`              // Server-level statistics
+	FilteredEvents     []DifcFilteredEvent `json:"filtered_events,omitempty"`      // DIFC filtered events
+	GuardPolicySummary *GuardPolicySummary `json:"guard_policy_summary,omitempty"` // Guard policy enforcement summary
 }
 
 // MCPToolSummary contains aggregated statistics for a single MCP tool
@@ -191,6 +192,22 @@ type MCPServerStats struct {
 	TotalOutputSize int    `json:"total_output_size" console:"header:Total Output,format:number"`
 	AvgDuration     string `json:"avg_duration,omitempty" console:"header:Avg Duration,omitempty"`
 	ErrorCount      int    `json:"error_count,omitempty" console:"header:Errors,omitempty"`
+}
+
+// GuardPolicySummary contains summary statistics for guard policy enforcement.
+// Guard policies control which tool calls the MCP Gateway allows based on
+// repository scope (repos) and content integrity level (min-integrity).
+type GuardPolicySummary struct {
+	TotalBlocked        int                `json:"total_blocked"`
+	IntegrityBlocked    int                `json:"integrity_blocked"`             // Blocked by min-integrity (-32006)
+	RepoScopeBlocked    int                `json:"repo_scope_blocked"`            // Blocked by repos scope (-32002)
+	AccessDenied        int                `json:"access_denied"`                 // General access denied (-32001)
+	BlockedUserDenied   int                `json:"blocked_user_denied,omitempty"` // Content from blocked user (-32005)
+	PermissionDenied    int                `json:"permission_denied,omitempty"`   // Insufficient permissions (-32003)
+	PrivateRepoDenied   int                `json:"private_repo_denied,omitempty"` // Private repository denied (-32004)
+	Events              []GuardPolicyEvent `json:"events"`
+	BlockedToolCounts   map[string]int     `json:"blocked_tool_counts,omitempty"`   // tool name -> blocked count
+	BlockedServerCounts map[string]int     `json:"blocked_server_counts,omitempty"` // server ID -> blocked count
 }
 
 // PolicySummaryDisplay is a display-optimized version of PolicyAnalysis for console rendering

@@ -5,6 +5,7 @@ package workflow
 import (
 	"fmt"
 	"os"
+	"regexp"
 	"strings"
 	"testing"
 
@@ -174,15 +175,15 @@ func TestGenerateUnifiedPromptCreationStep_MultipleUserChunks(t *testing.T) {
 
 	output := yaml.String()
 
-	// Count GH_AW_PROMPT_EOF markers
+	// Count GH_AW_PROMPT_*_EOF markers using regex (delimiters are randomized per compilation)
 	// With system tags:
 	// - 2 for opening <system> tag
 	// - 2 for closing </system> tag
 	// - 2 per user chunk
-	delimiter := GenerateHeredocDelimiter("PROMPT")
-	eofCount := strings.Count(output, delimiter)
+	promptDelimRE := regexp.MustCompile(`GH_AW_PROMPT_[0-9a-f]{16}_EOF`)
+	eofCount := len(promptDelimRE.FindAllString(output, -1))
 	expectedEOFCount := 4 + (len(userPromptChunks) * 2) // 4 for system tags, 2 per user chunk
-	assert.Equal(t, expectedEOFCount, eofCount, "Should have correct number of %s markers", delimiter)
+	assert.Equal(t, expectedEOFCount, eofCount, "Should have correct number of GH_AW_PROMPT_*_EOF markers")
 
 	// Verify all user chunks are present and in order
 	part1Pos := strings.Index(output, "# Part 1")
@@ -353,9 +354,9 @@ func TestGenerateUnifiedPromptCreationStep_UsesGroupedRedirect(t *testing.T) {
 	assert.NotContains(t, output, `' > "$GH_AW_PROMPT"`, "Heredoc cat commands should not have individual > redirects")
 	assert.NotContains(t, output, `.md\" > "$GH_AW_PROMPT"`, "File cat commands should not have individual > redirects")
 
-	// Verify cat commands inside group have no redirect
-	delimiter := GenerateHeredocDelimiter("PROMPT")
-	require.Contains(t, output, "cat << '"+delimiter+"'\n", "Heredoc cat commands inside group should have no redirect")
+	// Verify cat commands inside group have no redirect (use regex since delimiter is randomized)
+	promptDelimRE := regexp.MustCompile(`cat << 'GH_AW_PROMPT_[0-9a-f]{16}_EOF'\n`)
+	require.True(t, promptDelimRE.MatchString(output), "Heredoc cat commands inside group should have no redirect")
 }
 
 // TestGenerateUnifiedPromptCreationStep_SystemTags tests that built-in prompts

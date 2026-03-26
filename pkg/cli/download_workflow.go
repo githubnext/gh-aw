@@ -138,6 +138,9 @@ func downloadWorkflowContentViaGitClone(repo, path, ref string, verbose bool) ([
 
 	// Read the file
 	filePath := filepath.Join(tmpDir, path)
+	if err := fileutil.MustBeWithin(tmpDir, filePath); err != nil {
+		return nil, fmt.Errorf("refusing to read file outside clone directory: %w", err)
+	}
 	content, err := os.ReadFile(filePath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read file from cloned repository: %w", err)

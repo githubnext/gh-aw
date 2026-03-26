@@ -301,6 +301,16 @@ func buildConcurrencyGroupKeys(workflowData *WorkflowData, isCommandTrigger bool
 		keys = append(keys, "${{ github.ref || github.run_id }}")
 	}
 
+	// For label-triggered workflows (label trigger shorthand or label_command), include
+	// github.event.label.name as an additional segment so that runs triggered by different
+	// labels do not share a concurrency group. Without this, adding multiple labels to the
+	// same PR/issue simultaneously (which fires one labeled event per label) would cause all
+	// matching workflow runs to share a group, and with cancel-in-progress enabled the last
+	// surviving run could be for a different label than the workflow expects.
+	if hasItemNumber {
+		keys = append(keys, "${{ github.event.label.name || github.run_id }}")
+	}
+
 	return keys
 }
 

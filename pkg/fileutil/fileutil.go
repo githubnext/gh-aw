@@ -51,6 +51,38 @@ func ValidateAbsolutePath(path string) (string, error) {
 	return cleanPath, nil
 }
 
+// MustBeWithin checks that candidate is located within the base directory tree.
+// Both paths are resolved via filepath.EvalSymlinks (with filepath.Abs as
+// fallback when a path does not yet exist) before comparison, so neither ".."
+// components nor symlinks pointing outside base can be used to escape.
+//
+// Returns an error when:
+//   - Either path cannot be resolved to an absolute form.
+//   - The resolved candidate path starts outside the resolved base directory.
+func MustBeWithin(base, candidate string) error {
+	// EvalSymlinks resolves both symlinks and ".." components.
+	// Fall back to Abs when a path does not exist on disk yet.
+	absBase, err := filepath.EvalSymlinks(base)
+	if err != nil {
+		absBase, err = filepath.Abs(base)
+		if err != nil {
+			return fmt.Errorf("failed to resolve base path %q: %w", base, err)
+		}
+	}
+	absCand, err := filepath.EvalSymlinks(candidate)
+	if err != nil {
+		absCand, err = filepath.Abs(candidate)
+		if err != nil {
+			return fmt.Errorf("failed to resolve candidate path %q: %w", candidate, err)
+		}
+	}
+	rel, err := filepath.Rel(absBase, absCand)
+	if err != nil || !filepath.IsLocal(rel) {
+		return fmt.Errorf("path %q escapes base directory %q", candidate, base)
+	}
+	return nil
+}
+
 // FileExists checks if a file exists and is not a directory.
 func FileExists(path string) bool {
 	info, err := os.Stat(path)
