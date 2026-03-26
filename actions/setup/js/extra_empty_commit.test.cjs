@@ -161,6 +161,76 @@ describe("extra_empty_commit.cjs", () => {
       expect(removeRemoteCalls.length).toBeGreaterThanOrEqual(1);
     });
 
+    it("should fetch and reset to remote branch before committing", async () => {
+      await pushExtraEmptyCommit({
+        branchName: "api-created-branch",
+        repoOwner: "test-owner",
+        repoName: "test-repo",
+      });
+
+      const execCalls = mockExec.exec.mock.calls;
+
+      // Find the remote add call index so we can verify order
+      const addRemoteIdx = execCalls.findIndex(c => c[0] === "git" && c[1] && c[1][0] === "remote" && c[1][1] === "add");
+      expect(addRemoteIdx).toBeGreaterThanOrEqual(0);
+
+      // fetch should come after remote add
+      const fetchCall = execCalls.find(c => c[0] === "git" && c[1] && c[1][0] === "fetch" && c[1][1] === "ci-trigger");
+      expect(fetchCall).toBeDefined();
+      expect(fetchCall[1]).toEqual(["fetch", "ci-trigger", "api-created-branch"]);
+      const fetchIdx = execCalls.indexOf(fetchCall);
+      expect(fetchIdx).toBeGreaterThan(addRemoteIdx);
+
+      // reset --hard should come after fetch
+      const resetCall = execCalls.find(c => c[0] === "git" && c[1] && c[1][0] === "reset" && c[1][1] === "--hard");
+      expect(resetCall).toBeDefined();
+      expect(resetCall[1]).toEqual(["reset", "--hard", "ci-trigger/api-created-branch"]);
+      const resetIdx = execCalls.indexOf(resetCall);
+      expect(resetIdx).toBeGreaterThan(fetchIdx);
+
+      // commit should come after reset
+      const commitCall = execCalls.find(c => c[0] === "git" && c[1] && c[1][0] === "commit");
+      expect(commitCall).toBeDefined();
+      const commitIdx = execCalls.indexOf(commitCall);
+      expect(commitIdx).toBeGreaterThan(resetIdx);
+
+      // push should come after commit
+      const pushCall = execCalls.find(c => c[0] === "git" && c[1] && c[1][0] === "push");
+      expect(pushCall).toBeDefined();
+      const pushIdx = execCalls.indexOf(pushCall);
+      expect(pushIdx).toBeGreaterThan(commitIdx);
+    });
+
+    it("should succeed even when fetch/reset fails (branch not yet on remote)", async () => {
+      mockExec.exec.mockImplementation(async (cmd, args, options) => {
+        if (cmd === "git" && args && args[0] === "log" && options && options.listeners) {
+          options.listeners.stdout(Buffer.from("COMMIT:abc123\nfile.txt\n"));
+          return 0;
+        }
+        // Simulate fetch failing (branch does not yet exist on remote)
+        if (cmd === "git" && args && args[0] === "fetch") {
+          throw new Error("couldn't find remote ref api-created-branch");
+        }
+        return 0;
+      });
+
+      const result = await pushExtraEmptyCommit({
+        branchName: "api-created-branch",
+        repoOwner: "test-owner",
+        repoName: "test-repo",
+      });
+
+      // Push should still be attempted and succeed (mock returns 0 for push)
+      expect(result).toEqual({ success: true });
+      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Could not sync local branch"));
+
+      // commit and push should still have been called
+      const commitCall = mockExec.exec.mock.calls.find(c => c[0] === "git" && c[1] && c[1][0] === "commit");
+      expect(commitCall).toBeDefined();
+      const pushCall = mockExec.exec.mock.calls.find(c => c[0] === "git" && c[1] && c[1][0] === "push");
+      expect(pushCall).toBeDefined();
+    });
+
     it("should use github.com by default when GITHUB_SERVER_URL is not set", async () => {
       delete process.env.GITHUB_SERVER_URL;
       delete require.cache[require.resolve("./extra_empty_commit.cjs")];

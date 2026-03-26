@@ -37,9 +37,6 @@ func TestEnsureMCPConfig(t *testing.T) {
 				if len(server.Args) != 2 || server.Args[0] != "aw" || server.Args[1] != "mcp-server" {
 					t.Errorf("Expected args ['aw', 'mcp-server'], got %v", server.Args)
 				}
-				if server.CWD != "${workspaceFolder}" {
-					t.Errorf("Expected CWD '${workspaceFolder}', got %q", server.CWD)
-				}
 			},
 		},
 		{
@@ -75,7 +72,6 @@ func TestEnsureMCPConfig(t *testing.T) {
 					"github-agentic-workflows": {
 						Command: "gh",
 						Args:    []string{"aw", "mcp-server"},
-						CWD:     "${workspaceFolder}",
 					},
 				},
 			},
@@ -268,7 +264,6 @@ func TestMCPConfigJSONMarshaling(t *testing.T) {
 			"github-agentic-workflows": {
 				Command: "gh",
 				Args:    []string{"aw", "mcp-server"},
-				CWD:     "${workspaceFolder}",
 			},
 		},
 	}
@@ -301,10 +296,6 @@ func TestMCPConfigJSONMarshaling(t *testing.T) {
 
 	if len(server.Args) != 2 {
 		t.Errorf("Expected 2 args, got %d", len(server.Args))
-	}
-
-	if server.CWD != "${workspaceFolder}" {
-		t.Errorf("Expected CWD '${workspaceFolder}', got %q", server.CWD)
 	}
 }
 
