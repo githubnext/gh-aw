@@ -80,7 +80,7 @@ Authenticates the [Codex by OpenAI](/gh-aw/reference/engines/#codex-by-openai) e
 | **Source** | OpenAI API key stored as repository secret |
 | **Required** | Yes, when using `engine: codex` |
 | **Permissions** | OpenAI API access (external service) |
-| **Fallback** | None — the Codex engine resolves `CODEX_API_KEY` first, then `OPENAI_API_KEY` (resolution order: `CODEX_API_KEY` → `OPENAI_API_KEY`) |
+| **Fallback** | Both `CODEX_API_KEY` and `OPENAI_API_KEY` are accepted; the runtime tries `CODEX_API_KEY` first (`${{ secrets.CODEX_API_KEY \|\| secrets.OPENAI_API_KEY }}`). No fallback to `GITHUB_TOKEN`. |
 | **Used by** | Codex inference step |
 
 ```bash wrap
@@ -295,6 +295,7 @@ The compiler generates App token mint steps in multiple locations depending on w
 | Location | Step ID | Used For |
 |---|---|---|
 | Pre-activation job | `pre-activation-app-token` | Membership checks, skip-if evaluations |
+| Activation job | `activation-app-token` | Reactions, status comments, label removal |
 | Agent job (GitHub MCP) | `github-mcp-app-token` | GitHub MCP server authentication |
 | Safe outputs job | `safe-outputs-app-token` | Write operations (issues, PRs, comments) |
 | APM dependencies | `apm-app-token` | Plugin and dependency access |
