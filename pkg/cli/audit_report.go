@@ -13,7 +13,6 @@ import (
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/sliceutil"
 	"github.com/github/gh-aw/pkg/timeutil"
-	"github.com/github/gh-aw/pkg/workflow"
 )
 
 var auditReportLog = logger.New("cli:audit_report")
@@ -303,42 +302,7 @@ func buildAuditData(processedRun ProcessedRun, metrics LogMetrics, mcpToolUsage 
 		}
 	}
 
-	toolStats := make(map[string]*ToolUsageInfo)
-	for _, toolCall := range metrics.ToolCalls {
-		displayKey := workflow.PrettifyToolName(toolCall.Name)
-		if existing, exists := toolStats[displayKey]; exists {
-			existing.CallCount += toolCall.CallCount
-			if toolCall.MaxInputSize > existing.MaxInputSize {
-				existing.MaxInputSize = toolCall.MaxInputSize
-			}
-			if toolCall.MaxOutputSize > existing.MaxOutputSize {
-				existing.MaxOutputSize = toolCall.MaxOutputSize
-			}
-			if toolCall.MaxDuration > 0 {
-				maxDuration := timeutil.FormatDuration(toolCall.MaxDuration)
-				if existing.MaxDuration == "" || toolCall.MaxDuration > parseDurationString(existing.MaxDuration) {
-					existing.MaxDuration = maxDuration
-				}
-			}
-			continue
-		}
-
-		toolInfo := &ToolUsageInfo{
-			Name:          displayKey,
-			CallCount:     toolCall.CallCount,
-			MaxInputSize:  toolCall.MaxInputSize,
-			MaxOutputSize: toolCall.MaxOutputSize,
-		}
-		if toolCall.MaxDuration > 0 {
-			toolInfo.MaxDuration = timeutil.FormatDuration(toolCall.MaxDuration)
-		}
-		toolStats[displayKey] = toolInfo
-	}
-
-	toolUsage := make([]ToolUsageInfo, 0, len(toolStats))
-	for _, info := range toolStats {
-		toolUsage = append(toolUsage, *info)
-	}
+	toolUsage := buildToolUsageInfo(metrics)
 
 	createdItems := extractCreatedItemsFromManifest(run.LogsPath)
 	taskDomain := detectTaskDomain(processedRun, createdItems, toolUsage, overview.AwContext)

@@ -8,6 +8,8 @@
 # - npm install must have been run in docs/ directory
 # - Bash permissions: npm *, npx *, curl *, kill *, echo *, sleep *
 # - Working directory should be in repository root
+# - Node.js >= 20.3.0 or >= 22 required (Astro 6.x requirement)
+#   Workflows using this import should set: runtimes: node: version: "22"
 ---
 
 ## Starting the Documentation Preview Server
@@ -16,14 +18,27 @@ Navigate to the docs directory and start the development server in the backgroun
 
 ```bash
 cd docs
-npm run dev -- --host 0.0.0.0 --port 4321 > /tmp/preview.log 2>&1 &
-echo $! > /tmp/server.pid
+nohup npm run dev -- --host 0.0.0.0 --port 4321 > /tmp/preview.log 2>&1 &
+PID=$!
+echo $PID > /tmp/server.pid
+echo "Server PID: $PID"
 ```
 
 This will:
 - Start the Astro development server on port 4321, bound to all interfaces (`0.0.0.0`)
 - Redirect output to `/tmp/preview.log`
 - Save the process ID to `/tmp/server.pid` for later cleanup
+
+**Note on the `nohup ... & PID=$!` pattern:** The `$!` variable (background PID) is captured into `PID` first, then written to file. Avoid `echo $! > file` in a single line — the AWF bash guard may flag `$!` as a dangerous expansion when it appears directly in a redirection context.
+
+**Node.js version requirement:**
+Astro 6.x requires Node.js >= 20.3.0 or >= 22.0.0. Workflows that use this shared lifecycle **must** configure a compatible runtime:
+```yaml
+runtimes:
+  node:
+    version: "22"
+```
+Without this, the dev server may fail with a Node.js version error and the agent will waste time debugging workarounds.
 
 **Why `npm run dev` instead of `npm run preview`:**
 The `npm run preview` command serves the pre-built static output. However, Astro's Starlight documentation site uses hybrid routing which requires the development server (`astro dev`) to correctly serve all pages at the `/gh-aw/` base URL. Using `npm run preview` returns 404 for `/gh-aw/` paths.
@@ -68,6 +83,19 @@ Then use `http://${SERVER_IP}:4321/gh-aw/` (not `http://localhost:4321/gh-aw/`) 
 
 The `curl` readiness check and bash commands still use `localhost:4321` since they run inside the agent container where the server is local.
 
+**⚠️ Playwright Connectivity Fallback**: In some network configurations, the Playwright container may not be able to reach the agent container's bridge IP (e.g., `net::ERR_CONNECTION_TIMED_OUT`). If a `browser_navigate` or `browser_run_code` call times out or returns a connection error:
+- **Do not spend time debugging the network or trying alternative IPs** — this is a known network isolation constraint in some AWF configurations
+- **Fall back to curl and bash tools** to fetch and analyze page content:
+  ```bash
+  curl -s http://localhost:4321/gh-aw/ | python3 -c "
+  import sys, re
+  html = sys.stdin.read()
+  text = re.sub(r'<[^>]+>', '', html)
+  print(text[:5000])
+  "
+  ```
+- **Skip screenshot steps** gracefully and note in the report that visual screenshots were unavailable
+
 ## Verifying Server Accessibility (Optional)
 
 Optionally verify the server is serving content:
@@ -97,4 +125,5 @@ This will:
 - For Playwright browser tools, use the container bridge IP (see "Playwright Browser Access" section above)
 - Always clean up the server when done to avoid orphan processes
 - If the server fails to start, check `/tmp/preview.log` for errors
+- Node.js >= 22 is required; ensure `runtimes: node: version: "22"` is set in the workflow frontmatter
 - No `npm run build` step is required before starting the dev server
