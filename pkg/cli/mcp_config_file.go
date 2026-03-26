@@ -15,6 +15,7 @@ var mcpConfigLog = logger.New("cli:mcp_config_file")
 type VSCodeMCPServer struct {
 	Command string   `json:"command"`
 	Args    []string `json:"args"`
+	CWD     string   `json:"cwd,omitempty"`
 }
 
 // MCPConfig represents the structure of mcp.json
