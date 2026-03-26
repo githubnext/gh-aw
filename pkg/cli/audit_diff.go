@@ -313,6 +313,11 @@ func computeAuditDiff(run1ID, run2ID int64, summary1, summary2 *RunSummary) *Aud
 	return diff
 }
 
+// mcpToolKey returns a unique key for an MCP tool given its server and tool name.
+func mcpToolKey(serverName, toolName string) string {
+	return serverName + ":" + toolName
+}
+
 // computeMCPToolsDiff computes the diff between two runs' MCP tool usage.
 // run1 is the "before" (baseline) and run2 is the "after" (comparison target).
 func computeMCPToolsDiff(run1, run2 *MCPToolUsageData) *MCPToolsDiff {
@@ -321,12 +326,12 @@ func computeMCPToolsDiff(run1, run2 *MCPToolUsageData) *MCPToolsDiff {
 
 	if run1 != nil {
 		for _, s := range run1.Summary {
-			run1Tools[s.ServerName+":"+s.ToolName] = s
+			run1Tools[mcpToolKey(s.ServerName, s.ToolName)] = s
 		}
 	}
 	if run2 != nil {
 		for _, s := range run2.Summary {
-			run2Tools[s.ServerName+":"+s.ToolName] = s
+			run2Tools[mcpToolKey(s.ServerName, s.ToolName)] = s
 		}
 	}
 
