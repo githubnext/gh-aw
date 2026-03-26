@@ -1,7 +1,7 @@
 # Ubuntu Actions Runner Image Analysis
 
-**Last Updated**: 2026-03-20
-**Source**: [Ubuntu 24.04 Runner Image Documentation](https://github.com/actions/runner-images/blob/releases/ubuntu24/20260309/images/ubuntu/Ubuntu2404-Readme.md)
+**Last Updated**: 2026-03-26
+**Source**: [Ubuntu 24.04 Runner Image Documentation](https://github.com/actions/runner-images/blob/ubuntu24/20260309.50/images/ubuntu/Ubuntu2404-Readme.md)
 **Ubuntu Version**: 24.04.3 LTS
 **Image Version**: 20260309.50.1
 **Kernel Version**: 6.14.0-1017-azure
@@ -68,7 +68,7 @@ The Ubuntu 24.04 runner includes:
 
 ### Java
 Multiple Java versions are pre-installed:
-- **Java 8**: 8.0.472+8 (JAVA_HOME_8_X64)
+- **Java 8**: 8.0.482+8 (JAVA_HOME_8_X64)
 - **Java 11**: 11.0.30+7 (JAVA_HOME_11_X64)
 - **Java 17**: 17.0.18+8 (default) (JAVA_HOME_17_X64)
 - **Java 21**: 21.0.10+7 (JAVA_HOME_21_X64)
@@ -232,7 +232,7 @@ Multiple Java versions are pre-installed:
 - **PowerShell**: 7.4.13
 - **PowerShell Modules**:
   - Az: 14.6.0
-  - Microsoft.Graph: 2.35.0
+  - Microsoft.Graph: 2.35.1
   - Pester: 5.7.1
   - PSScriptAnalyzer: 1.24.0
 
@@ -782,7 +782,7 @@ RUN pip install \
 ## References
 
 - **Runner Image Repository**: https://github.com/actions/runner-images
-- **Ubuntu 24.04 Documentation**: https://github.com/actions/runner-images/blob/ubuntu24/20260201.15/images/ubuntu/Ubuntu2404-Readme.md
+- **Ubuntu 24.04 Documentation**: https://github.com/actions/runner-images/blob/ubuntu24/20260309.50/images/ubuntu/Ubuntu2404-Readme.md
 - **Ubuntu Server Documentation**: https://ubuntu.com/server/docs
 - **Docker Documentation**: https://docs.docker.com/
 - **GitHub Actions Documentation**: https://docs.github.com/en/actions
