@@ -61,7 +61,7 @@ func (c *Compiler) validatePythonPackagesWithPip(packages []string, packageType 
 
 		// Reject names starting with '-' to prevent argument injection
 		if strings.HasPrefix(pkgName, "-") {
-			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("%s package name '%s' is invalid: names must not start with '-' - skipping validation", packageType, pkg)))
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("%s package name '%s' is invalid: names must not start with '-'", packageType, pkg)))
 			continue
 		}
 
