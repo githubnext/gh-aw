@@ -385,7 +385,7 @@ func extractZipFile(f *zip.File, destDir string, verbose bool) (extractErr error
 
 	// Create directory if it's a directory entry
 	if f.FileInfo().IsDir() {
-		return os.MkdirAll(filePath, os.ModePerm)
+		return os.MkdirAll(filePath, 0750)
 	}
 
 	// Decompression bomb protection - limit individual file size to 1GB
@@ -396,7 +396,7 @@ func extractZipFile(f *zip.File, destDir string, verbose bool) (extractErr error
 	}
 
 	// Create parent directory if needed
-	if err := os.MkdirAll(filepath.Dir(filePath), os.ModePerm); err != nil {
+	if err := os.MkdirAll(filepath.Dir(filePath), 0750); err != nil {
 		return fmt.Errorf("failed to create directory: %w", err)
 	}
 
