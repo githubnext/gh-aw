@@ -163,11 +163,6 @@
       "version": "v2.10.3",
       "sha": "9cd1b7bf3f36d5a3c3b17abc3545bfb5481912ea"
     },
-    "microsoft/apm-action@v1.4.0": {
-      "repo": "microsoft/apm-action",
-      "version": "v1.4.0",
-      "sha": "cc84c04bc73e19e35527f1efa34ea003be9f037f"
-    },
     "oven-sh/setup-bun@v2.2.0": {
       "repo": "oven-sh/setup-bun",
       "version": "v2.2.0",
@@ -182,6 +177,11 @@
       "repo": "super-linter/super-linter",
       "version": "v8.5.0",
       "sha": "61abc07d755095a68f4987d1c2c3d1d64408f1f9"
+    },
+    "microsoft/apm-action@v1.4.1": {
+      "repo": "microsoft/apm-action",
+      "version": "v1.4.1",
+      "sha": "a190b0b1a91031057144dc136acf9757a59c9e4d"
     }
   }
 }

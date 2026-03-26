@@ -2243,7 +2243,7 @@ jobs:
     steps:
       - name: Install and pack APM dependencies
         id: apm_pack
-        uses: microsoft/apm-action@cc84c04bc73e19e35527f1efa34ea003be9f037f # v1.4.0
+        uses: microsoft/apm-action@a190b0b1a91031057144dc136acf9757a59c9e4d # v1.4.1
         env:
           GITHUB_TOKEN: ${{ secrets.GH_AW_PLUGINS_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
         with:
