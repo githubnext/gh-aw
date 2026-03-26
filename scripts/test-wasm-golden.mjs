@@ -17,7 +17,7 @@
  */
 
 import { readFileSync, readdirSync, writeFileSync, existsSync, mkdirSync } from "fs";
-import { join, resolve, basename } from "path";
+import { join, resolve } from "path";
 import { execSync } from "child_process";
 import { createRequire } from "module";
 
