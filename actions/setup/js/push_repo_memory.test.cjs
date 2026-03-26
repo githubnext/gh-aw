@@ -1048,7 +1048,7 @@ describe("push_repo_memory.cjs - shell injection security tests", () => {
       // outputs one line per file and causes ENOBUFS on large repos with
       // stdio: "pipe".
       expect(scriptContent).not.toContain('"rm", "-r", "-f"');
-      expect(scriptContent).not.toContain("execGitSync([\"rm\"");
+      expect(scriptContent).not.toContain('execGitSync(["rm"');
 
       // Must use "git read-tree --empty" to reset the index (zero output).
       expect(scriptContent).toContain('"read-tree", "--empty"');
