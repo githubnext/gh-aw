@@ -425,7 +425,7 @@ func TestGenerateMaintenanceWorkflow_ActionTag(t *testing.T) {
 
 func TestGenerateInstallCLISteps(t *testing.T) {
 	t.Run("dev mode generates Setup Go and Build gh-aw steps", func(t *testing.T) {
-		result := generateInstallCLISteps(ActionModeDev, "v1.0.0", "")
+		result := generateInstallCLISteps(ActionModeDev, "v1.0.0", "", nil)
 		if !strings.Contains(result, "Setup Go") {
 			t.Errorf("Dev mode should include Setup Go step, got:\n%s", result)
 		}
@@ -438,7 +438,7 @@ func TestGenerateInstallCLISteps(t *testing.T) {
 	})
 
 	t.Run("release mode generates setup-cli action step", func(t *testing.T) {
-		result := generateInstallCLISteps(ActionModeRelease, "v1.0.0", "")
+		result := generateInstallCLISteps(ActionModeRelease, "v1.0.0", "", nil)
 		if !strings.Contains(result, "github/gh-aw/actions/setup-cli@v1.0.0") {
 			t.Errorf("Release mode should use setup-cli action with version, got:\n%s", result)
 		}
@@ -451,9 +451,50 @@ func TestGenerateInstallCLISteps(t *testing.T) {
 	})
 
 	t.Run("release mode uses actionTag over version", func(t *testing.T) {
-		result := generateInstallCLISteps(ActionModeRelease, "v1.0.0", "v2.0.0")
+		result := generateInstallCLISteps(ActionModeRelease, "v1.0.0", "v2.0.0", nil)
 		if !strings.Contains(result, "setup-cli@v2.0.0") {
 			t.Errorf("Release mode should use actionTag v2.0.0, got:\n%s", result)
+		}
+	})
+
+	t.Run("release mode with resolver uses SHA-pinned setup-cli reference", func(t *testing.T) {
+		tmpDir := t.TempDir()
+		cache := NewActionCache(tmpDir)
+		cache.Set("github/gh-aw/actions/setup-cli", "v1.0.0", "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")
+		resolver := NewActionResolver(cache)
+
+		result := generateInstallCLISteps(ActionModeRelease, "v1.0.0", "", resolver)
+		expectedRef := "github/gh-aw/actions/setup-cli@aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa # v1.0.0"
+		if !strings.Contains(result, expectedRef) {
+			t.Errorf("Release mode with resolver should use SHA-pinned setup-cli reference %q, got:\n%s", expectedRef, result)
+		}
+		// Must not contain the bare mutable tag
+		if strings.Contains(result, "setup-cli@v1.0.0") {
+			t.Errorf("Release mode with resolver must not use mutable tag setup-cli@v1.0.0, got:\n%s", result)
+		}
+	})
+
+	t.Run("action mode with resolver uses SHA-pinned setup-cli reference", func(t *testing.T) {
+		tmpDir := t.TempDir()
+		cache := NewActionCache(tmpDir)
+		cache.Set("github/gh-aw-actions/setup-cli", "v1.0.0", "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb")
+		resolver := NewActionResolver(cache)
+
+		result := generateInstallCLISteps(ActionModeAction, "v1.0.0", "", resolver)
+		expectedRef := "github/gh-aw-actions/setup-cli@bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb # v1.0.0"
+		if !strings.Contains(result, expectedRef) {
+			t.Errorf("Action mode with resolver should use SHA-pinned setup-cli reference %q, got:\n%s", expectedRef, result)
+		}
+		// Must not contain the bare mutable tag
+		if strings.Contains(result, "setup-cli@v1.0.0") {
+			t.Errorf("Action mode with resolver must not use mutable tag setup-cli@v1.0.0, got:\n%s", result)
+		}
+	})
+
+	t.Run("release mode without resolver falls back to tag reference", func(t *testing.T) {
+		result := generateInstallCLISteps(ActionModeRelease, "v1.0.0", "", nil)
+		if !strings.Contains(result, "github/gh-aw/actions/setup-cli@v1.0.0") {
+			t.Errorf("Release mode without resolver should fall back to tag reference, got:\n%s", result)
 		}
 	})
 }
@@ -538,6 +579,54 @@ func TestGenerateMaintenanceWorkflow_RunOperationCLICodegen(t *testing.T) {
 		if occurrences != 2 {
 			t.Errorf("Expected exactly 2 occurrences of pinned setup-go ref %q (run_operation + compile_workflows), got %d in:\n%s",
 				setupGoPin, occurrences, yaml)
+		}
+	})
+}
+
+func TestGenerateMaintenanceWorkflow_SetupCLISHAPinning(t *testing.T) {
+	setupCLISHA := "cccccccccccccccccccccccccccccccccccccccc"
+
+	workflowDataListWithResolver := func(resolver *ActionResolver) []*WorkflowData {
+		return []*WorkflowData{
+			{
+				Name:              "test-workflow",
+				ActionResolver:    resolver,
+				ActionPinWarnings: make(map[string]bool),
+				SafeOutputs: &SafeOutputsConfig{
+					CreateIssues: &CreateIssuesConfig{
+						Expires: 48,
+					},
+				},
+			},
+		}
+	}
+
+	t.Run("release mode with resolver SHA-pins setup-cli in run_operation", func(t *testing.T) {
+		tmpDir := t.TempDir()
+		cache := NewActionCache(tmpDir)
+		cache.Set("github/gh-aw/actions/setup-cli", "v1.0.0", setupCLISHA)
+		// Also seed the setup action to keep the test hermetic (GenerateMaintenanceWorkflow
+		// calls ResolveSetupActionReference with the same resolver, which would otherwise
+		// attempt a real gh api call on a cache miss).
+		cache.Set("github/gh-aw/actions/setup", "v1.0.0", "dddddddddddddddddddddddddddddddddddddddd")
+		resolver := NewActionResolver(cache)
+
+		err := GenerateMaintenanceWorkflow(workflowDataListWithResolver(resolver), tmpDir, "v1.0.0", ActionModeRelease, "v1.0.0", false)
+		if err != nil {
+			t.Fatalf("Unexpected error: %v", err)
+		}
+		content, err := os.ReadFile(filepath.Join(tmpDir, "agentics-maintenance.yml"))
+		if err != nil {
+			t.Fatalf("Expected maintenance workflow to be generated: %v", err)
+		}
+		yaml := string(content)
+		expectedRef := "github/gh-aw/actions/setup-cli@" + setupCLISHA + " # v1.0.0"
+		if !strings.Contains(yaml, expectedRef) {
+			t.Errorf("Expected SHA-pinned setup-cli reference %q in generated workflow, got:\n%s", expectedRef, yaml)
+		}
+		// Bare tag must not appear
+		if strings.Contains(yaml, "setup-cli@v1.0.0") {
+			t.Errorf("Generated workflow must not use mutable tag setup-cli@v1.0.0; got:\n%s", yaml)
 		}
 	})
 }

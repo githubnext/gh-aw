@@ -16,7 +16,8 @@ var maintenanceLog = logger.New("workflow:maintenance_workflow")
 // In dev mode: builds from source using Setup Go + Build gh-aw (./gh-aw binary available)
 // In release mode: installs the released CLI via the setup-cli action (gh aw available)
 // In action mode: installs the released CLI via the gh-aw-actions/setup-cli action (gh aw available)
-func generateInstallCLISteps(actionMode ActionMode, version string, actionTag string) string {
+// When resolver is non-nil, attempts to resolve the setup-cli action to a SHA-pinned reference.
+func generateInstallCLISteps(actionMode ActionMode, version string, actionTag string, resolver ActionSHAResolver) string {
 	if actionMode == ActionModeDev {
 		return `      - name: Setup Go
         uses: ` + GetActionPin("actions/setup-go") + `
@@ -37,8 +38,10 @@ func generateInstallCLISteps(actionMode ActionMode, version string, actionTag st
 
 	// Action mode: use setup-cli action from external gh-aw-actions repository
 	if actionMode == ActionModeAction {
+		actionRepo := GitHubActionsOrgRepo + "/setup-cli"
+		ref := resolveActionRef(actionRepo, cliTag, resolver)
 		return `      - name: Install gh-aw
-        uses: github/gh-aw-actions/setup-cli@` + cliTag + `
+        uses: ` + ref + `
         with:
           version: ` + cliTag + `
 
@@ -46,12 +49,29 @@ func generateInstallCLISteps(actionMode ActionMode, version string, actionTag st
 	}
 
 	// Release mode: use setup-cli action (consistent with copilot-setup-steps.yml)
+	actionRepo := GitHubOrgRepo + "/actions/setup-cli"
+	ref := resolveActionRef(actionRepo, cliTag, resolver)
 	return `      - name: Install gh-aw
-        uses: github/gh-aw/actions/setup-cli@` + cliTag + `
+        uses: ` + ref + `
         with:
           version: ` + cliTag + `
 
 `
+}
+
+// resolveActionRef attempts to resolve an action repo@tag to a SHA-pinned reference
+// using the provided resolver. If the resolver is nil or resolution fails, it returns
+// the tag-based reference (repo@tag).
+func resolveActionRef(actionRepo, tag string, resolver ActionSHAResolver) string {
+	if resolver != nil && tag != "" && tag != "dev" {
+		sha, err := resolver.ResolveSHA(actionRepo, tag)
+		if err != nil {
+			maintenanceLog.Printf("Failed to resolve SHA for %s@%s: %v, falling back to tag reference", actionRepo, tag, err)
+		} else if sha != "" {
+			return formatActionReference(actionRepo, sha, tag)
+		}
+	}
+	return actionRepo + "@" + tag
 }
 
 // getCLICmdPrefix returns the CLI command prefix based on action mode.
@@ -312,7 +332,7 @@ jobs:
 
 `)
 
-	yaml.WriteString(generateInstallCLISteps(actionMode, version, actionTag))
+	yaml.WriteString(generateInstallCLISteps(actionMode, version, actionTag, resolver))
 	yaml.WriteString(`      - name: Run operation
         uses: ` + GetActionPin("actions/github-script") + `
         env:
@@ -399,7 +419,7 @@ jobs:
 
 `)
 
-		yaml.WriteString(generateInstallCLISteps(actionMode, version, actionTag))
+		yaml.WriteString(generateInstallCLISteps(actionMode, version, actionTag, resolver))
 		yaml.WriteString(`      - name: Compile workflows
         run: |
           ` + getCLICmdPrefix(actionMode) + ` compile --validate --verbose
