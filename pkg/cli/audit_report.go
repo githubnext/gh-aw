@@ -98,6 +98,7 @@ type OverviewData struct {
 type MetricsData struct {
 	TokenUsage    int     `json:"token_usage,omitempty" console:"header:Token Usage,format:number,omitempty"`
 	EstimatedCost float64 `json:"estimated_cost,omitempty" console:"header:Estimated Cost,format:cost,omitempty"`
+	ActionMinutes float64 `json:"action_minutes,omitempty" console:"header:Action Minutes,omitempty"`
 	Turns         int     `json:"turns,omitempty" console:"header:Turns,omitempty"`
 	ErrorCount    int     `json:"error_count" console:"header:Errors"`
 	WarningCount  int     `json:"warning_count" console:"header:Warnings"`

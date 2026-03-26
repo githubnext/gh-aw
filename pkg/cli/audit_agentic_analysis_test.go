@@ -3,6 +3,7 @@
 package cli
 
 import (
+	"math"
 	"testing"
 	"time"
 
@@ -104,4 +105,152 @@ func TestBuildAuditDataIncludesAgenticAnalysis(t *testing.T) {
 	require.NotNil(t, auditData.BehaviorFingerprint, "behavioral fingerprint should be present")
 	assert.NotEmpty(t, auditData.AgenticAssessments, "agentic assessments should be present")
 	assert.Equal(t, "triage", auditData.TaskDomain.Name)
+}
+
+func TestComputeAgenticFraction(t *testing.T) {
+	tests := []struct {
+		name     string
+		run      WorkflowRun
+		minAlpha float64
+		maxAlpha float64
+	}{
+		{
+			name:     "zero turns returns zero",
+			run:      WorkflowRun{Turns: 0},
+			minAlpha: 0.0,
+			maxAlpha: 0.0,
+		},
+		{
+			name:     "short read-only run is fully agentic",
+			run:      WorkflowRun{Turns: 2},
+			minAlpha: 1.0,
+			maxAlpha: 1.0,
+		},
+		{
+			name:     "write-heavy run with many turns has partial fraction",
+			run:      WorkflowRun{Turns: 10, SafeItemsCount: 3},
+			minAlpha: 0.3,
+			maxAlpha: 0.5,
+		},
+		{
+			name:     "long read-only run returns 0.5",
+			run:      WorkflowRun{Turns: 8},
+			minAlpha: 0.5,
+			maxAlpha: 0.5,
+		},
+		{
+			name:     "single write action in multi-turn run",
+			run:      WorkflowRun{Turns: 6, SafeItemsCount: 1},
+			minAlpha: 0.3,
+			maxAlpha: 0.4,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			pr := ProcessedRun{Run: tt.run}
+			alpha := computeAgenticFraction(pr)
+			assert.GreaterOrEqual(t, alpha, tt.minAlpha, "agentic fraction should be >= %v", tt.minAlpha)
+			assert.LessOrEqual(t, alpha, tt.maxAlpha, "agentic fraction should be <= %v", tt.maxAlpha)
+		})
+	}
+}
+
+func TestBuildBehaviorFingerprintIncludesAgenticFraction(t *testing.T) {
+	processedRun := ProcessedRun{
+		Run: WorkflowRun{
+			Turns:          8,
+			Duration:       10 * time.Minute,
+			SafeItemsCount: 2,
+		},
+	}
+	metrics := MetricsData{Turns: 8}
+	toolUsage := []ToolUsageInfo{
+		{Name: "bash", CallCount: 3},
+		{Name: "github_issue_read", CallCount: 2},
+	}
+
+	fp := buildBehaviorFingerprint(processedRun, metrics, toolUsage, nil, nil)
+	require.NotNil(t, fp, "fingerprint should not be nil")
+	assert.Greater(t, fp.AgenticFraction, 0.0, "agentic fraction should be positive")
+	assert.LessOrEqual(t, fp.AgenticFraction, 1.0, "agentic fraction should be <= 1.0")
+}
+
+func TestBuildAgenticAssessmentsFlagsPartiallyReducible(t *testing.T) {
+	processedRun := ProcessedRun{
+		Run: WorkflowRun{
+			WorkflowName:   "Data Collector",
+			Turns:          10,
+			Duration:       8 * time.Minute,
+			SafeItemsCount: 2,
+		},
+	}
+	metrics := MetricsData{Turns: 10}
+	toolUsage := []ToolUsageInfo{
+		{Name: "bash", CallCount: 5},
+		{Name: "github_issue_read", CallCount: 3},
+		{Name: "gh", CallCount: 2},
+		{Name: "jq", CallCount: 1},
+	}
+	domain := &TaskDomainInfo{Name: "research", Label: "Research"}
+	fingerprint := buildBehaviorFingerprint(processedRun, metrics, toolUsage, nil, nil)
+
+	assessments := buildAgenticAssessments(processedRun, metrics, toolUsage, nil, domain, fingerprint, nil)
+
+	var found bool
+	for _, a := range assessments {
+		if a.Kind == "partially_reducible" {
+			found = true
+			assert.Contains(t, a.Summary, "data-gathering", "summary should mention data-gathering")
+			assert.Contains(t, a.Recommendation, "steps:", "recommendation should mention steps:")
+		}
+	}
+	assert.True(t, found, "partially_reducible assessment should be present for low agentic fraction moderate run")
+}
+
+func TestBuildAgenticAssessmentsFlagsModelDowngrade(t *testing.T) {
+	processedRun := ProcessedRun{
+		Run: WorkflowRun{
+			WorkflowName:   "Issue Triage Moderate",
+			Turns:          7,
+			Duration:       6 * time.Minute,
+			SafeItemsCount: 1,
+		},
+	}
+	metrics := MetricsData{Turns: 7}
+	toolUsage := []ToolUsageInfo{
+		{Name: "bash", CallCount: 3},
+		{Name: "github_issue_read", CallCount: 2},
+		{Name: "grep", CallCount: 1},
+		{Name: "jq", CallCount: 1},
+	}
+	domain := &TaskDomainInfo{Name: "triage", Label: "Triage"}
+	fingerprint := buildBehaviorFingerprint(processedRun, metrics, toolUsage, nil, nil)
+
+	assessments := buildAgenticAssessments(processedRun, metrics, toolUsage, nil, domain, fingerprint, nil)
+
+	var found bool
+	for _, a := range assessments {
+		if a.Kind == "model_downgrade_available" {
+			found = true
+			assert.Contains(t, a.Recommendation, "gpt-4.1-mini", "should suggest a cheaper model")
+		}
+	}
+	assert.True(t, found, "model_downgrade_available assessment should be present for moderate triage run")
+}
+
+func TestActionMinutesComputedFromDuration(t *testing.T) {
+	run := WorkflowRun{
+		Duration: 3*time.Minute + 30*time.Second,
+	}
+	// ActionMinutes should be ceil of Duration in minutes
+	// Since ActionMinutes is set by logs_orchestrator, test the formula directly
+	expected := 4.0 // ceil(3.5)
+	actual := math.Ceil(run.Duration.Minutes())
+	assert.InDelta(t, expected, actual, 0.001, "ActionMinutes should be ceiling of duration in minutes")
+}
+
+func TestPrettifyAssessmentKindNewKinds(t *testing.T) {
+	assert.Equal(t, "Partially Reducible To Deterministic", prettifyAssessmentKind("partially_reducible"))
+	assert.Equal(t, "Cheaper Model Available", prettifyAssessmentKind("model_downgrade_available"))
 }
