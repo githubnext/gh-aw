@@ -743,20 +743,16 @@ async function main(config = {}) {
         // the patch was generated, making --3way unable to resolve the conflicts automatically.
         core.info("Attempting fallback: create PR branch at original base commit...");
         try {
-          // Extract the first patch commit SHA from the "From <sha1> ..." header line
-          const firstCommitMatch = patchContent.match(/^From ([0-9a-f]{40}) /m);
-          if (!firstCommitMatch) {
-            core.warning("Could not extract first commit SHA from patch - fallback not possible");
+          // Use the base commit recorded at patch generation time.
+          // The From <sha> header in format-patch output contains the agent's new commit SHA
+          // which does not exist in this checkout, so we cannot derive the base from it.
+          const originalBaseCommit = pullRequestItem.base_commit;
+          if (!originalBaseCommit) {
+            core.warning("No base_commit recorded in safe output entry - fallback not possible");
           } else {
-            const firstPatchCommitSha = firstCommitMatch[1];
-            core.info(`First patch commit SHA: ${firstPatchCommitSha}`);
+            core.info(`Original base commit from patch generation: ${originalBaseCommit}`);
 
-            // Resolve the parent commit (= original base the patch was created from)
-            const { stdout: parentOutput } = await exec.getExecOutput("git", ["rev-parse", `${firstPatchCommitSha}^`]);
-            const originalBaseCommit = parentOutput.trim();
-            core.info(`Original base commit: ${originalBaseCommit}`);
-
-            // Verify the parent commit is available in this repo (may not exist cross-repo)
+            // Verify the base commit is available in this repo (may not exist cross-repo)
             await exec.exec("git", ["cat-file", "-e", originalBaseCommit]);
             core.info("Original base commit exists locally - proceeding with fallback");
 

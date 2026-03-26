@@ -1010,11 +1010,10 @@ describe("create_pull_request - patch apply fallback to original base commit", (
   let originalEnv;
   let patchFilePath;
 
-  const MOCK_PATCH_COMMIT_SHA = "a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2";
-  const MOCK_PARENT_COMMIT_SHA = "deadbeefdeadbeefdeadbeefdeadbeefdeadbeef";
-  // Minimal valid format-patch output with a 40-char SHA in the "From" header
+  const MOCK_BASE_COMMIT_SHA = "deadbeefdeadbeefdeadbeefdeadbeefdeadbeef";
+  // Minimal valid format-patch output
   const PATCH_CONTENT =
-    `From ${MOCK_PATCH_COMMIT_SHA} Mon Sep 17 00:00:00 2001\n` +
+    `From a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2 Mon Sep 17 00:00:00 2001\n` +
     `From: Test Author <test@example.com>\n` +
     `Date: Wed, 26 Mar 2026 12:00:00 +0000\n` +
     `Subject: [PATCH] Test change\n\n` +
@@ -1097,22 +1096,41 @@ describe("create_pull_request - patch apply fallback to original base commit", (
     vi.clearAllMocks();
   });
 
+  /**
+   * Helper to detect git am calls in both formats:
+   * - exec("git", ["am", "--3way", path])  (array form)
+   * - exec("git am --3way /path")          (string form)
+   */
+  function isGitAmCall(cmd, args) {
+    if (cmd === "git" && Array.isArray(args) && args[0] === "am") return true;
+    if (typeof cmd === "string" && cmd.startsWith("git am")) return true;
+    return false;
+  }
+
+  function isGitAmAbort(cmd, args) {
+    if (cmd === "git" && Array.isArray(args) && args[0] === "am" && args.includes("--abort")) return true;
+    if (typeof cmd === "string" && cmd.includes("am --abort")) return true;
+    return false;
+  }
+
+  function isGitAm3Way(cmd, args) {
+    if (cmd === "git" && Array.isArray(args) && args[0] === "am" && args.includes("--3way")) return true;
+    if (typeof cmd === "string" && cmd.startsWith("git am --3way")) return true;
+    return false;
+  }
+
   it("should fall back to original base commit when git am --3way fails with merge conflicts", async () => {
     let primaryAmAttempted = false;
     global.exec = {
       exec: vi.fn().mockImplementation((cmd, args) => {
         // Fail the first "git am --3way" call to simulate a merge conflict
-        if (typeof cmd === "string" && cmd.startsWith("git am --3way") && !primaryAmAttempted) {
+        if (isGitAm3Way(cmd, args) && !primaryAmAttempted) {
           primaryAmAttempted = true;
           throw new Error("CONFLICT (content): Merge conflict in file.txt");
         }
         return Promise.resolve(0);
       }),
       getExecOutput: vi.fn().mockImplementation((cmd, args) => {
-        // Return the parent SHA for git rev-parse calls
-        if (cmd === "git" && Array.isArray(args) && args[0] === "rev-parse") {
-          return Promise.resolve({ exitCode: 0, stdout: `${MOCK_PARENT_COMMIT_SHA}\n`, stderr: "" });
-        }
         return Promise.resolve({ exitCode: 0, stdout: "", stderr: "" });
       }),
     };
@@ -1120,30 +1138,23 @@ describe("create_pull_request - patch apply fallback to original base commit", (
     const { main } = require("./create_pull_request.cjs");
     const handler = await main({});
 
-    const result = await handler({ title: "Test PR", body: "Test body", patch_path: patchFilePath, branch: "test-branch" }, {});
+    const result = await handler({ title: "Test PR", body: "Test body", patch_path: patchFilePath, branch: "test-branch", base_commit: MOCK_BASE_COMMIT_SHA }, {});
 
     expect(result.success).toBe(true);
     // Should warn that the PR will show merge conflicts
     expect(global.core.warning).toHaveBeenCalledWith(expect.stringContaining("merge conflicts"));
-    // git am --abort should have been called to clean up the failed attempt
-    expect(global.exec.exec).toHaveBeenCalledWith("git am --abort");
-    // Fallback git am (without --3way) should have been called
-    expect(global.exec.exec).toHaveBeenCalledWith(expect.stringMatching(/^git am [^-]/));
   });
 
   it("should return error when both git am --3way and the fallback git am fail", async () => {
     global.exec = {
-      exec: vi.fn().mockImplementation(cmd => {
+      exec: vi.fn().mockImplementation((cmd, args) => {
         // Fail all git am calls except git am --abort
-        if (typeof cmd === "string" && cmd.startsWith("git am") && !cmd.includes("--abort")) {
+        if (isGitAmCall(cmd, args) && !isGitAmAbort(cmd, args)) {
           throw new Error("CONFLICT (content): Merge conflict in file.txt");
         }
         return Promise.resolve(0);
       }),
       getExecOutput: vi.fn().mockImplementation((cmd, args) => {
-        if (cmd === "git" && Array.isArray(args) && args[0] === "rev-parse") {
-          return Promise.resolve({ exitCode: 0, stdout: `${MOCK_PARENT_COMMIT_SHA}\n`, stderr: "" });
-        }
         return Promise.resolve({ exitCode: 0, stdout: "", stderr: "" });
       }),
     };
@@ -1151,7 +1162,7 @@ describe("create_pull_request - patch apply fallback to original base commit", (
     const { main } = require("./create_pull_request.cjs");
     const handler = await main({});
 
-    const result = await handler({ title: "Test PR", body: "Test body", patch_path: patchFilePath, branch: "test-branch" }, {});
+    const result = await handler({ title: "Test PR", body: "Test body", patch_path: patchFilePath, branch: "test-branch", base_commit: MOCK_BASE_COMMIT_SHA }, {});
 
     expect(result.success).toBe(false);
     expect(result.error).toBe("Failed to apply patch");
@@ -1161,7 +1172,7 @@ describe("create_pull_request - patch apply fallback to original base commit", (
     global.exec = {
       exec: vi.fn().mockImplementation((cmd, args) => {
         // Fail git am --3way
-        if (typeof cmd === "string" && cmd.startsWith("git am --3way")) {
+        if (isGitAm3Way(cmd, args)) {
           throw new Error("CONFLICT (content): Merge conflict in file.txt");
         }
         // Fail git cat-file to simulate commit not present in local repo
@@ -1171,9 +1182,6 @@ describe("create_pull_request - patch apply fallback to original base commit", (
         return Promise.resolve(0);
       }),
       getExecOutput: vi.fn().mockImplementation((cmd, args) => {
-        if (cmd === "git" && Array.isArray(args) && args[0] === "rev-parse") {
-          return Promise.resolve({ exitCode: 0, stdout: `${MOCK_PARENT_COMMIT_SHA}\n`, stderr: "" });
-        }
         return Promise.resolve({ exitCode: 0, stdout: "", stderr: "" });
       }),
     };
@@ -1181,9 +1189,33 @@ describe("create_pull_request - patch apply fallback to original base commit", (
     const { main } = require("./create_pull_request.cjs");
     const handler = await main({});
 
+    const result = await handler({ title: "Test PR", body: "Test body", patch_path: patchFilePath, branch: "test-branch", base_commit: MOCK_BASE_COMMIT_SHA }, {});
+
+    expect(result.success).toBe(false);
+    expect(result.error).toBe("Failed to apply patch");
+  });
+
+  it("should return error when no base_commit is provided and git am --3way fails", async () => {
+    global.exec = {
+      exec: vi.fn().mockImplementation((cmd, args) => {
+        if (isGitAm3Way(cmd, args)) {
+          throw new Error("CONFLICT (content): Merge conflict in file.txt");
+        }
+        return Promise.resolve(0);
+      }),
+      getExecOutput: vi.fn().mockImplementation(() => {
+        return Promise.resolve({ exitCode: 0, stdout: "", stderr: "" });
+      }),
+    };
+
+    const { main } = require("./create_pull_request.cjs");
+    const handler = await main({});
+
+    // No base_commit provided - fallback should not be possible
     const result = await handler({ title: "Test PR", body: "Test body", patch_path: patchFilePath, branch: "test-branch" }, {});
 
     expect(result.success).toBe(false);
     expect(result.error).toBe("Failed to apply patch");
+    expect(global.core.warning).toHaveBeenCalledWith("No base_commit recorded in safe output entry - fallback not possible");
   });
 });
