@@ -1,4 +1,4 @@
-import { chromium, devices } from 'playwright';
+import { chromium } from 'playwright';
 
 (async () => {
   // Use the system chromium browser
