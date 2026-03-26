@@ -59,6 +59,12 @@ func (c *Compiler) validatePythonPackagesWithPip(packages []string, packageType 
 			pkgName = pkg[:eqIndex]
 		}
 
+		// Reject names starting with '-' to prevent argument injection
+		if strings.HasPrefix(pkgName, "-") {
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("%s package name '%s' is invalid: names must not start with '-' - skipping validation", packageType, pkg)))
+			continue
+		}
+
 		pipValidationLog.Printf("Validating %s package: %s", packageType, pkgName)
 
 		// Use pip index to check if package exists on PyPI
@@ -159,6 +165,12 @@ func (c *Compiler) validateUvPackages(workflowData *WorkflowData) error {
 		pkgName := pkg
 		if eqIndex := strings.Index(pkg, "=="); eqIndex > 0 {
 			pkgName = pkg[:eqIndex]
+		}
+
+		// Reject names starting with '-' to prevent argument injection
+		if strings.HasPrefix(pkgName, "-") {
+			errors = append(errors, fmt.Sprintf("uv package name '%s' is invalid: names must not start with '-'", pkg))
+			continue
 		}
 
 		// Use uv pip show to check if package exists on PyPI

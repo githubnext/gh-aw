@@ -76,6 +76,12 @@ func (c *Compiler) validateNpxPackages(workflowData *WorkflowData) error {
 	for _, pkg := range packages {
 		npmValidationLog.Printf("Validating npm package: %s", pkg)
 
+		// Reject names starting with '-' to prevent argument injection
+		if strings.HasPrefix(pkg, "-") {
+			errors = append(errors, fmt.Sprintf("npx package name '%s' is invalid: names must not start with '-'", pkg))
+			continue
+		}
+
 		// Use npm view to check if package exists
 		cmd := exec.Command("npm", "view", pkg, "name")
 		output, err := cmd.CombinedOutput()
