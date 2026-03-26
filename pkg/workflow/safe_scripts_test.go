@@ -338,7 +338,7 @@ func TestBuildCustomScriptFilesStep(t *testing.T) {
 		},
 	}
 
-	steps := buildCustomScriptFilesStep(scripts)
+	steps := buildCustomScriptFilesStep(scripts, "")
 
 	require.NotEmpty(t, steps, "Should produce steps")
 
@@ -360,10 +360,10 @@ func TestBuildCustomScriptFilesStep(t *testing.T) {
 
 // TestBuildCustomScriptFilesStepEmpty verifies nil return for empty scripts
 func TestBuildCustomScriptFilesStepEmpty(t *testing.T) {
-	steps := buildCustomScriptFilesStep(nil)
+	steps := buildCustomScriptFilesStep(nil, "")
 	assert.Nil(t, steps, "Should return nil for empty scripts")
 
-	stepsEmpty := buildCustomScriptFilesStep(map[string]*SafeScriptConfig{})
+	stepsEmpty := buildCustomScriptFilesStep(map[string]*SafeScriptConfig{}, "")
 	assert.Nil(t, stepsEmpty, "Should return nil for empty map")
 }
 
