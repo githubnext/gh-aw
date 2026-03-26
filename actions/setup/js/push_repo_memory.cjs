@@ -98,6 +98,14 @@ async function main() {
     return;
   }
 
+  // Validate branch name follows memory/* naming convention.
+  // Memory branches must start with "memory/" followed by at least one character
+  // so callers cannot accidentally push to arbitrary branches (e.g. "main").
+  if (!/^memory\/.+/.test(branchName)) {
+    core.setFailed(`ERR_VALIDATION: Invalid branch name "${branchName}": branch name must start with "memory/" (e.g. "memory/default")`);
+    return;
+  }
+
   // Validate target repository against allowlist
   const allowedReposEnv = process.env.REPO_MEMORY_ALLOWED_REPOS?.trim();
   const allowedRepos = parseAllowedRepos(allowedReposEnv);
@@ -139,6 +147,17 @@ async function main() {
       execGitSync(["checkout", branchName], { stdio: "inherit" });
       core.info(`Checked out existing branch: ${branchName}`);
     } catch (fetchError) {
+      // Determine whether the fetch failed because the branch does not exist
+      // (expected for new memory branches) or because of a network / auth
+      // problem (unexpected – must surface as a real error and must NOT fall
+      // through to orphan-branch creation).
+      const fetchErrMsg = fetchError instanceof Error ? fetchError.message : String(fetchError);
+      const isMissingBranch = /couldn't find remote ref/i.test(fetchErrMsg) || /remote branch .* not found/i.test(fetchErrMsg);
+      if (!isMissingBranch) {
+        // Re-throw so the outer catch calls core.setFailed with the real cause.
+        throw fetchError;
+      }
+
       // Branch doesn't exist, create orphan branch
       core.info(`Branch ${branchName} does not exist, creating orphan branch...`);
       execGitSync(["checkout", "--orphan", branchName], { stdio: "inherit" });
