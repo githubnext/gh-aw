@@ -433,6 +433,9 @@ var SerenaLanguageSupport = map[string][]string{
 	},
 }
 
+// DefaultAPMActionVersion is the default version of the microsoft/apm-action GitHub Action
+const DefaultAPMActionVersion Version = "v1.4.1"
+
 // DefaultAPMVersion is the default version of the microsoft/APM (Agent Package Manager) CLI
 const DefaultAPMVersion Version = "v0.8.5"
 
