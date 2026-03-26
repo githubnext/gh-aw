@@ -161,9 +161,10 @@ steps:
 
       echo "=== CI Doctor: Fetching check runs for PR #$PR_NUMBER (SHA: $HEAD_SHA) ==="
 
-      # Fetch all check runs for the PR head commit
-      gh api "repos/$REPO/commits/$HEAD_SHA/check-runs" \
-        --jq '[.check_runs[] | {id:.id, name:.name, status:.status, conclusion:.conclusion, html_url:.html_url}]' \
+      # Fetch all check runs for the PR head commit (paginated to handle >30 jobs)
+      gh api --paginate "repos/$REPO/commits/$HEAD_SHA/check-runs" \
+        --jq '.check_runs[] | {id:.id, name:.name, status:.status, conclusion:.conclusion, html_url:.html_url}' \
+        | jq -s '.' \
         > "$PR_DIR/check-runs.json"
 
       TOTAL=$(jq 'length' "$PR_DIR/check-runs.json")
