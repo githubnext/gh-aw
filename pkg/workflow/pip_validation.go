@@ -129,6 +129,13 @@ func (c *Compiler) validateUvPackages(workflowData *WorkflowData) error {
 
 	pipValidationLog.Printf("Starting uv package validation for %d packages", len(packages))
 
+	// Reject any package names starting with '-' before invoking uv or pip.
+	// These would be interpreted as flags by the CLI tools (argument injection).
+	if err := rejectHyphenPrefixPackages(packages, "uv"); err != nil {
+		pipValidationLog.Printf("uv package name validation failed: %v", err)
+		return err
+	}
+
 	// Check if uv is available
 	_, err := exec.LookPath("uv")
 	if err != nil {
@@ -165,12 +172,6 @@ func (c *Compiler) validateUvPackages(workflowData *WorkflowData) error {
 		pkgName := pkg
 		if eqIndex := strings.Index(pkg, "=="); eqIndex > 0 {
 			pkgName = pkg[:eqIndex]
-		}
-
-		// Reject names starting with '-' to prevent argument injection
-		if strings.HasPrefix(pkgName, "-") {
-			errors = append(errors, fmt.Sprintf("uv package name '%s' is invalid: names must not start with '-'", pkg))
-			continue
 		}
 
 		// Use uv pip show to check if package exists on PyPI
