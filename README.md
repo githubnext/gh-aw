@@ -170,6 +170,8 @@ For development setup and contribution guidelines, see [CONTRIBUTING.md](CONTRIB
 
 ### @deyaaeldeen
 
+- #23020 _(direct issue)_
+- #22957 _(direct issue)_
 - #19773 _(direct issue)_
 - #19770 _(direct issue)_
 
