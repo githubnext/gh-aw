@@ -232,12 +232,10 @@ func (c *Compiler) generateWorkflowBody(yaml *strings.Builder, data *WorkflowDat
 func (c *Compiler) generateYAML(data *WorkflowData, markdownPath string) (string, error) {
 	compilerYamlLog.Printf("Generating YAML for workflow: %s", data.Name)
 
-	// Build all jobs and validate dependencies
-	if err := c.buildJobsAndValidate(data, markdownPath); err != nil {
-		return "", fmt.Errorf("failed to build and validate jobs: %w", err)
-	}
-
-	// Compute frontmatter hash before generating YAML
+	// Compute frontmatter hash BEFORE building jobs so that the stable hash is
+	// available to heredoc-delimiter generation throughout job construction.
+	// Using the hex-encoded SHA-256 frontmatter hash string as an HMAC key keeps
+	// the compiled lock file identical across repeated compilations of the same workflow.
 	var frontmatterHash string
 	if markdownPath != "" {
 		baseDir := filepath.Dir(markdownPath)
@@ -250,6 +248,14 @@ func (c *Compiler) generateYAML(data *WorkflowData, markdownPath string) (string
 			frontmatterHash = hash
 			compilerYamlLog.Printf("Computed frontmatter hash: %s", hash)
 		}
+	}
+	// Store hash on WorkflowData so job-building helpers (MCP renderers, prompt
+	// step generators, etc.) can derive stable heredoc delimiters from it.
+	data.FrontmatterHash = frontmatterHash
+
+	// Build all jobs and validate dependencies
+	if err := c.buildJobsAndValidate(data, markdownPath); err != nil {
+		return "", fmt.Errorf("failed to build and validate jobs: %w", err)
 	}
 
 	// Pre-allocate builder capacity based on estimated workflow size
