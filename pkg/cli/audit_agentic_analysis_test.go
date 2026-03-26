@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/github/gh-aw/pkg/workflow"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -253,4 +254,73 @@ func TestActionMinutesComputedFromDuration(t *testing.T) {
 func TestPrettifyAssessmentKindNewKinds(t *testing.T) {
 	assert.Equal(t, "Partially Reducible To Deterministic", prettifyAssessmentKind("partially_reducible"))
 	assert.Equal(t, "Cheaper Model Available", prettifyAssessmentKind("model_downgrade_available"))
+}
+
+func TestBuildToolUsageInfoAggregatesAndSorts(t *testing.T) {
+	metrics := LogMetrics{
+		ToolCalls: []workflow.ToolCallInfo{
+			{Name: "bash", CallCount: 3, MaxInputSize: 100, MaxOutputSize: 200, MaxDuration: 1 * time.Second},
+			{Name: "github_issue_read", CallCount: 5, MaxInputSize: 50, MaxOutputSize: 300, MaxDuration: 500 * time.Millisecond},
+			{Name: "bash", CallCount: 2, MaxInputSize: 150, MaxOutputSize: 180, MaxDuration: 2 * time.Second},
+		},
+	}
+
+	result := buildToolUsageInfo(metrics)
+
+	require.Len(t, result, 2, "duplicate tool names should be merged")
+
+	// bash has CallCount 3+2=5 (merged), github_issue_read has CallCount 5.
+	// Both have equal call counts, so the tie is broken alphabetically: "bash" < "github_issue_read".
+	assert.Equal(t, "bash", result[0].Name, "alphabetically first among equal call counts should be first")
+	assert.Equal(t, 5, result[0].CallCount, "bash call counts should be summed: 3+2=5")
+	assert.Equal(t, 150, result[0].MaxInputSize, "max input size should be max across merged entries")
+	assert.Equal(t, 200, result[0].MaxOutputSize, "max output size should be max across merged entries")
+	assert.NotEmpty(t, result[0].MaxDuration, "max duration should be set from the longest call")
+
+	assert.Equal(t, "github_issue_read", result[1].Name, "alphabetically second should be second")
+	assert.Equal(t, 5, result[1].CallCount, "call count for github_issue_read should be 5")
+}
+
+func TestBuildToolUsageInfoEmpty(t *testing.T) {
+	result := buildToolUsageInfo(LogMetrics{})
+	assert.Empty(t, result, "empty metrics should produce empty tool usage")
+}
+
+func TestBuildToolUsageInfoSortOrderTieBreak(t *testing.T) {
+	metrics := LogMetrics{
+		ToolCalls: []workflow.ToolCallInfo{
+			{Name: "zebra_tool", CallCount: 2},
+			{Name: "alpha_tool", CallCount: 2},
+		},
+	}
+
+	result := buildToolUsageInfo(metrics)
+
+	require.Len(t, result, 2, "should have two distinct tools")
+	assert.Equal(t, "alpha_tool", result[0].Name, "tools with equal call counts should be sorted alphabetically")
+	assert.Equal(t, "zebra_tool", result[1].Name, "tools with equal call counts should be sorted alphabetically")
+}
+
+func TestBuildAuditDataToolUsageMatchesBuildToolUsageInfo(t *testing.T) {
+	metrics := LogMetrics{
+		ToolCalls: []workflow.ToolCallInfo{
+			{Name: "bash", CallCount: 4, MaxInputSize: 100, MaxOutputSize: 200},
+			{Name: "github_issue_read", CallCount: 7, MaxInputSize: 50, MaxOutputSize: 300},
+		},
+		Turns: 5,
+	}
+	processedRun := ProcessedRun{
+		Run: WorkflowRun{
+			DatabaseID:   1,
+			WorkflowName: "Test Workflow",
+			Status:       "completed",
+			Conclusion:   "success",
+			LogsPath:     t.TempDir(),
+		},
+	}
+
+	auditData := buildAuditData(processedRun, metrics, nil)
+	expected := buildToolUsageInfo(metrics)
+
+	require.Equal(t, expected, auditData.ToolUsage, "buildAuditData tool usage should match buildToolUsageInfo output")
 }
