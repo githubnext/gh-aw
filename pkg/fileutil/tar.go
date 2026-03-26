@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"io"
 	"path/filepath"
-	"strings"
 
 	"github.com/github/gh-aw/pkg/logger"
 )
@@ -18,12 +17,12 @@ var tarLog = logger.New("fileutil:tar")
 // Uses Go's standard archive/tar for cross-platform compatibility instead of
 // spawning an external tar process which may not be available on all platforms.
 //
-// path must not be absolute and must not contain ".." components; an error is
-// returned for any entry whose name matches these criteria to guard against
-// path-traversal payloads embedded in a tar archive.
+// path must be a local, relative path (no absolute paths or ".." components).
+// filepath.IsLocal is used to enforce this for both the search target and each
+// tar entry name, guarding against path-traversal payloads embedded in archives.
 func ExtractFileFromTar(data []byte, path string) ([]byte, error) {
-	// Reject obviously unsafe search targets before opening the archive.
-	if filepath.IsAbs(path) || strings.Contains(path, "..") {
+	// Reject unsafe search targets before opening the archive.
+	if !filepath.IsLocal(path) {
 		return nil, fmt.Errorf("unsafe path requested from tar archive: %q", path)
 	}
 
@@ -41,7 +40,7 @@ func ExtractFileFromTar(data []byte, path string) ([]byte, error) {
 		}
 		entriesScanned++
 		// Reject tar entries that could escape a destination directory.
-		if filepath.IsAbs(header.Name) || strings.Contains(header.Name, "..") {
+		if !filepath.IsLocal(header.Name) {
 			tarLog.Printf("Skipping unsafe tar entry: %s", header.Name)
 			continue
 		}

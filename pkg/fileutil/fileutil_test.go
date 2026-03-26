@@ -408,6 +408,14 @@ func TestExtractFileFromTar_UnsafePaths(t *testing.T) {
 		assert.Nil(t, got, "Result should be nil for unsafe path")
 	})
 
+	t.Run("allows filename containing dotdot as substring", func(t *testing.T) {
+		want := []byte("not a traversal")
+		archive := buildTar(map[string][]byte{"file..backup.txt": want})
+		got, err := ExtractFileFromTar(archive, "file..backup.txt")
+		require.NoError(t, err, "Should allow filename with dotdot as substring, not path component")
+		assert.Equal(t, want, got, "Should return correct content for file..backup.txt")
+	})
+
 	t.Run("skips tar entry with absolute name, does not match", func(t *testing.T) {
 		// Build archive with an absolute-named entry; it should be skipped even
 		// if the caller searches for the same name.

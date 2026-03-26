@@ -7,7 +7,6 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"strings"
 
 	"github.com/github/gh-aw/pkg/logger"
 )
@@ -69,7 +68,7 @@ func MustBeWithin(base, candidate string) error {
 		return fmt.Errorf("failed to resolve candidate path %q: %w", candidate, err)
 	}
 	rel, err := filepath.Rel(absBase, absCand)
-	if err != nil || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
+	if err != nil || !filepath.IsLocal(rel) {
 		return fmt.Errorf("path %q escapes base directory %q", candidate, base)
 	}
 	return nil
