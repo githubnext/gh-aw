@@ -12,90 +12,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// TestExtractMarketplacesFromFrontmatter tests parsing of imports.marketplaces from frontmatter.
-func TestExtractMarketplacesFromFrontmatter(t *testing.T) {
-	tests := []struct {
-		name        string
-		frontmatter map[string]any
-		expected    []string
-		wantErr     bool
-	}{
-		{
-			name:        "no imports field returns nil",
-			frontmatter: map[string]any{},
-			expected:    nil,
-		},
-		{
-			name:        "imports is not a map returns nil",
-			frontmatter: map[string]any{"imports": []any{"some.md"}},
-			expected:    nil,
-		},
-		{
-			name: "no marketplaces subfield returns nil",
-			frontmatter: map[string]any{
-				"imports": map[string]any{"apm-packages": []any{"org/pkg"}},
-			},
-			expected: nil,
-		},
-		{
-			name: "array form extracts marketplace URLs",
-			frontmatter: map[string]any{
-				"imports": map[string]any{
-					"marketplaces": []any{
-						"https://marketplace.example.com",
-						"https://another.example.com",
-					},
-				},
-			},
-			expected: []string{
-				"https://marketplace.example.com",
-				"https://another.example.com",
-			},
-		},
-		{
-			name: "empty strings in array are skipped",
-			frontmatter: map[string]any{
-				"imports": map[string]any{
-					"marketplaces": []any{"https://ok.example.com", "", "https://also-ok.example.com"},
-				},
-			},
-			expected: []string{"https://ok.example.com", "https://also-ok.example.com"},
-		},
-		{
-			name: "invalid type returns error",
-			frontmatter: map[string]any{
-				"imports": map[string]any{
-					"marketplaces": "not-an-array",
-				},
-			},
-			wantErr: true,
-		},
-		{
-			name: "coexists with aw and apm-packages",
-			frontmatter: map[string]any{
-				"imports": map[string]any{
-					"aw":           []any{"shared/tools.md"},
-					"apm-packages": []any{"org/pkg"},
-					"marketplaces": []any{"https://market.example.com"},
-				},
-			},
-			expected: []string{"https://market.example.com"},
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result, err := extractMarketplacesFromFrontmatter(tt.frontmatter)
-			if tt.wantErr {
-				assert.Error(t, err, "Expected error for invalid marketplaces field")
-				return
-			}
-			require.NoError(t, err, "Should not error for valid input")
-			assert.Equal(t, tt.expected, result, "Marketplace URLs should match")
-		})
-	}
-}
-
 // TestExtractPluginsFromFrontmatter tests parsing of imports.plugins from frontmatter.
 func TestExtractPluginsFromFrontmatter(t *testing.T) {
 	tests := []struct {
@@ -149,12 +65,11 @@ func TestExtractPluginsFromFrontmatter(t *testing.T) {
 			wantErr: true,
 		},
 		{
-			name: "coexists with aw, apm-packages, and marketplaces",
+			name: "coexists with aw and apm-packages",
 			frontmatter: map[string]any{
 				"imports": map[string]any{
 					"aw":           []any{"shared/tools.md"},
 					"apm-packages": []any{"org/pkg"},
-					"marketplaces": []any{"https://market.example.com"},
 					"plugins":      []any{"my-plugin"},
 				},
 			},
@@ -173,42 +88,6 @@ func TestExtractPluginsFromFrontmatter(t *testing.T) {
 			assert.Equal(t, tt.expected, result, "Plugin names should match")
 		})
 	}
-}
-
-// TestCopilotEngineGetMarketplaceSetupSteps tests the Copilot engine's marketplace setup step generation.
-func TestCopilotEngineGetMarketplaceSetupSteps(t *testing.T) {
-	engine := NewCopilotEngine()
-
-	t.Run("empty list returns nil", func(t *testing.T) {
-		steps := engine.GetMarketplaceSetupSteps(nil, &WorkflowData{})
-		assert.Nil(t, steps, "Should return nil for empty marketplaces")
-	})
-
-	t.Run("single marketplace emits one step", func(t *testing.T) {
-		steps := engine.GetMarketplaceSetupSteps([]string{"https://market.example.com"}, &WorkflowData{})
-		require.Len(t, steps, 1, "Should emit one step per marketplace")
-		step := steps[0]
-		found := false
-		for _, line := range step {
-			if line == "        run: copilot plugin marketplace add https://market.example.com" {
-				found = true
-			}
-		}
-		assert.True(t, found, "Step should contain copilot plugin marketplace add command")
-		// Verify GITHUB_TOKEN is set
-		hasToken := false
-		for _, line := range step {
-			if line == "          GITHUB_TOKEN: ${{ github.token }}" {
-				hasToken = true
-			}
-		}
-		assert.True(t, hasToken, "Step should set GITHUB_TOKEN from github.token")
-	})
-
-	t.Run("multiple marketplaces emit one step each", func(t *testing.T) {
-		steps := engine.GetMarketplaceSetupSteps([]string{"https://a.example.com", "https://b.example.com"}, &WorkflowData{})
-		assert.Len(t, steps, 2, "Should emit one step per marketplace URL")
-	})
 }
 
 // TestCopilotEngineGetPluginInstallSteps tests the Copilot engine's plugin install step generation.
@@ -245,36 +124,18 @@ func TestCopilotEngineGetPluginInstallSteps(t *testing.T) {
 		steps := engine.GetPluginInstallSteps([]string{"plugin-a", "plugin-b", "plugin-c"}, &WorkflowData{})
 		assert.Len(t, steps, 3, "Should emit one step per plugin name")
 	})
-}
 
-// TestClaudeEngineGetMarketplaceSetupSteps tests the Claude engine's marketplace setup step generation.
-func TestClaudeEngineGetMarketplaceSetupSteps(t *testing.T) {
-	engine := NewClaudeEngine()
-
-	t.Run("empty list returns nil", func(t *testing.T) {
-		steps := engine.GetMarketplaceSetupSteps(nil, &WorkflowData{})
-		assert.Nil(t, steps, "Should return nil for empty marketplaces")
-	})
-
-	t.Run("single marketplace emits one step", func(t *testing.T) {
-		steps := engine.GetMarketplaceSetupSteps([]string{"https://market.example.com"}, &WorkflowData{})
-		require.Len(t, steps, 1, "Should emit one step per marketplace")
-		step := steps[0]
+	t.Run("OWNER/REPO:PATH spec is passed through", func(t *testing.T) {
+		spec := "github/copilot-plugins:plugins/advanced-security/skills/secret-scanning"
+		steps := engine.GetPluginInstallSteps([]string{spec}, &WorkflowData{})
+		require.Len(t, steps, 1, "Should emit one step")
 		found := false
-		for _, line := range step {
-			if line == "        run: claude plugin marketplace add https://market.example.com" {
+		for _, line := range steps[0] {
+			if line == "        run: copilot plugin install "+spec {
 				found = true
 			}
 		}
-		assert.True(t, found, "Step should contain claude plugin marketplace add command")
-		// Verify GITHUB_TOKEN is set
-		hasToken := false
-		for _, line := range step {
-			if line == "          GITHUB_TOKEN: ${{ github.token }}" {
-				hasToken = true
-			}
-		}
-		assert.True(t, hasToken, "Step should set GITHUB_TOKEN from github.token")
+		assert.True(t, found, "Step should contain the OWNER/REPO:PATH spec verbatim")
 	})
 }
 
@@ -315,7 +176,7 @@ func TestImportsProviderInterface(t *testing.T) {
 		assert.True(t, ok, "ClaudeEngine should implement ImportsProvider")
 	})
 
-	// Codex and Gemini CLIs do not have native marketplace/plugin CLI commands,
+	// Codex and Gemini CLIs do not have native plugin CLI commands,
 	// so they intentionally do not implement ImportsProvider.
 	t.Run("CodexEngine does not implement ImportsProvider", func(t *testing.T) {
 		engine := NewCodexEngine()
@@ -330,10 +191,10 @@ func TestImportsProviderInterface(t *testing.T) {
 	})
 }
 
-// TestCompileWorkflow_MarketplacesAndPlugins tests that imports.marketplaces and
-// imports.plugins are compiled into setup steps before agent execution.
-func TestCompileWorkflow_MarketplacesAndPlugins(t *testing.T) {
-	tmpDir, err := os.MkdirTemp("", "compile-imports-marketplaces-plugins-test*")
+// TestCompileWorkflow_Plugins tests that imports.plugins is compiled into install steps
+// before agent execution.
+func TestCompileWorkflow_Plugins(t *testing.T) {
+	tmpDir, err := os.MkdirTemp("", "compile-imports-plugins-test*")
 	require.NoError(t, err, "Failed to create temp directory")
 	defer os.RemoveAll(tmpDir)
 
@@ -342,20 +203,18 @@ func TestCompileWorkflow_MarketplacesAndPlugins(t *testing.T) {
 	require.NoError(t, err, "Failed to create workflows directory")
 
 	workflowContent := `---
-name: Test Marketplaces and Plugins
+name: Test Plugins
 on:
   workflow_dispatch:
 engine: copilot
 imports:
-  marketplaces:
-    - https://marketplace.example.com
   plugins:
     - my-extension
 ---
 
-# Test Marketplaces and Plugins
+# Test Plugins
 
-Register a marketplace and install a plugin before the agent runs.
+Install a plugin before the agent runs.
 `
 	workflowFile := filepath.Join(workflowsDir, "test-workflow.md")
 	err = os.WriteFile(workflowFile, []byte(workflowContent), 0600)
@@ -379,32 +238,25 @@ Register a marketplace and install a plugin before the agent runs.
 
 	yamlStr := string(yamlOutput)
 
-	// Marketplace and plugin steps should appear before agent execution
-	assert.Contains(t, yamlStr, "copilot plugin marketplace add https://marketplace.example.com",
-		"Should contain marketplace registration step")
 	assert.Contains(t, yamlStr, "copilot plugin install my-extension",
 		"Should contain plugin installation step")
 	assert.Contains(t, yamlStr, "GITHUB_TOKEN: ${{ github.token }}",
-		"Marketplace/plugin steps should include GITHUB_TOKEN from github.token")
+		"Plugin step should include GITHUB_TOKEN from github.token")
 
-	// Steps should appear before the agent execution step
-	marketplaceIdx := strings.Index(yamlStr, "copilot plugin marketplace add")
+	// Step should appear before the agent execution step
 	pluginIdx := strings.Index(yamlStr, "copilot plugin install")
 	agentIdx := strings.Index(yamlStr, "copilot --add-dir")
 	if agentIdx == -1 {
 		agentIdx = strings.Index(yamlStr, "copilot --")
 	}
-	require.Positive(t, agentIdx, "Agent execution step should be present")
-	assert.Less(t, marketplaceIdx, agentIdx,
-		"Marketplace registration step should appear before agent execution")
+	require.NotEqual(t, -1, agentIdx, "Agent execution step should be present")
 	assert.Less(t, pluginIdx, agentIdx,
 		"Plugin installation step should appear before agent execution")
 }
 
-// TestCompileWorkflow_MarketplacesAndPluginsFromSharedImport verifies that
-// imports.marketplaces and imports.plugins defined in a shared workflow file
-// are merged into the main workflow's Marketplaces and Plugins.
-func TestCompileWorkflow_MarketplacesAndPluginsFromSharedImport(t *testing.T) {
+// TestCompileWorkflow_PluginsFromSharedImport verifies that imports.plugins defined in a
+// shared workflow file are merged into the main workflow's Plugins.
+func TestCompileWorkflow_PluginsFromSharedImport(t *testing.T) {
 	tmpDir, err := os.MkdirTemp("", "compile-shared-imports-test*")
 	require.NoError(t, err, "Failed to create temp directory")
 	defer os.RemoveAll(tmpDir)
@@ -413,11 +265,9 @@ func TestCompileWorkflow_MarketplacesAndPluginsFromSharedImport(t *testing.T) {
 	err = os.MkdirAll(workflowsDir, 0755)
 	require.NoError(t, err, "Failed to create workflows directory")
 
-	// Shared workflow that defines marketplaces and plugins
+	// Shared workflow that defines plugins
 	sharedContent := `---
 imports:
-  marketplaces:
-    - https://shared-marketplace.example.com
   plugins:
     - shared-plugin
 ---
@@ -426,7 +276,7 @@ imports:
 	err = os.WriteFile(sharedFile, []byte(sharedContent), 0600)
 	require.NoError(t, err, "Failed to write shared workflow")
 
-	// Main workflow imports the shared file and adds its own marketplace/plugin
+	// Main workflow imports the shared file and adds its own plugin
 	workflowContent := `---
 name: Test Shared Imports Merge
 on:
@@ -435,15 +285,13 @@ engine: copilot
 imports:
   aw:
     - shared-tools.md
-  marketplaces:
-    - https://main-marketplace.example.com
   plugins:
     - main-plugin
 ---
 
 # Test Shared Imports Merge
 
-Verify that marketplaces and plugins from imported workflows are merged.
+Verify that plugins from imported workflows are merged.
 `
 	workflowFile := filepath.Join(workflowsDir, "test-workflow.md")
 	err = os.WriteFile(workflowFile, []byte(workflowContent), 0600)
@@ -466,21 +314,15 @@ Verify that marketplaces and plugins from imported workflows are merged.
 
 	yamlStr := string(yamlOutput)
 
-	// Both the main workflow's and the shared workflow's marketplaces and plugins should appear
-	assert.Contains(t, yamlStr, "copilot plugin marketplace add https://main-marketplace.example.com",
-		"Main workflow marketplace should be present")
-	assert.Contains(t, yamlStr, "copilot plugin marketplace add https://shared-marketplace.example.com",
-		"Shared workflow marketplace should be merged in")
 	assert.Contains(t, yamlStr, "copilot plugin install main-plugin",
 		"Main workflow plugin should be present")
 	assert.Contains(t, yamlStr, "copilot plugin install shared-plugin",
 		"Shared workflow plugin should be merged in")
 }
 
-// TestImportAccumulatorDeduplicatesMarketplacesAndPlugins verifies that importing
-// the same marketplace URL or plugin name from multiple shared workflows does not
-// produce duplicate setup steps.
-func TestCompileWorkflow_MarketplacesAndPluginsDeduplication(t *testing.T) {
+// TestCompileWorkflow_PluginsDeduplication verifies that importing the same plugin name
+// from multiple shared workflows does not produce duplicate install steps.
+func TestCompileWorkflow_PluginsDeduplication(t *testing.T) {
 	tmpDir, err := os.MkdirTemp("", "compile-dedup-test*")
 	require.NoError(t, err)
 	defer os.RemoveAll(tmpDir)
@@ -488,12 +330,10 @@ func TestCompileWorkflow_MarketplacesAndPluginsDeduplication(t *testing.T) {
 	workflowsDir := filepath.Join(tmpDir, ".github", "workflows")
 	require.NoError(t, os.MkdirAll(workflowsDir, 0755))
 
-	// Two shared files that both declare the same marketplace/plugin
+	// Two shared files that both declare the same plugin
 	for _, name := range []string{"shared-a.md", "shared-b.md"} {
 		content := `---
 imports:
-  marketplaces:
-    - https://common-marketplace.example.com
   plugins:
     - common-plugin
 ---
@@ -530,31 +370,22 @@ imports:
 	yamlStr := string(yamlOutput)
 
 	// Should appear exactly once despite being defined in two shared imports
-	count := strings.Count(yamlStr, "copilot plugin marketplace add https://common-marketplace.example.com")
-	assert.Equal(t, 1, count, "Duplicate marketplace URL should appear only once")
-	count = strings.Count(yamlStr, "copilot plugin install common-plugin")
+	count := strings.Count(yamlStr, "copilot plugin install common-plugin")
 	assert.Equal(t, 1, count, "Duplicate plugin name should appear only once")
 }
 
 // TestValidateImportsProviderSupport tests that engines without ImportsProvider support
-// return an error when marketplaces or plugins are specified.
+// return an error when plugins are specified.
 func TestValidateImportsProviderSupport(t *testing.T) {
 	compiler := NewCompiler()
 
 	tests := []struct {
-		name         string
-		engine       CodingAgentEngine
-		marketplaces []string
-		plugins      []string
-		wantErr      bool
-		errContains  string
+		name        string
+		engine      CodingAgentEngine
+		plugins     []string
+		wantErr     bool
+		errContains string
 	}{
-		{
-			name:         "copilot with marketplace - no error",
-			engine:       &CopilotEngine{BaseEngine: BaseEngine{id: "copilot", displayName: "GitHub Copilot"}},
-			marketplaces: []string{"https://marketplace.example.com"},
-			wantErr:      false,
-		},
 		{
 			name:    "copilot with plugin - no error",
 			engine:  &CopilotEngine{BaseEngine: BaseEngine{id: "copilot", displayName: "GitHub Copilot"}},
@@ -562,23 +393,10 @@ func TestValidateImportsProviderSupport(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name:         "claude with marketplace - no error",
-			engine:       &ClaudeEngine{BaseEngine: BaseEngine{id: "claude", displayName: "Claude"}},
-			marketplaces: []string{"https://marketplace.example.com"},
-			wantErr:      false,
-		},
-		{
 			name:    "claude with plugin - no error",
 			engine:  &ClaudeEngine{BaseEngine: BaseEngine{id: "claude", displayName: "Claude"}},
 			plugins: []string{"my-plugin"},
 			wantErr: false,
-		},
-		{
-			name:         "codex with marketplace - error",
-			engine:       &CodexEngine{BaseEngine: BaseEngine{id: "codex", displayName: "Codex"}},
-			marketplaces: []string{"https://marketplace.example.com"},
-			wantErr:      true,
-			errContains:  "imports.marketplaces",
 		},
 		{
 			name:        "codex with plugin - error",
@@ -588,21 +406,6 @@ func TestValidateImportsProviderSupport(t *testing.T) {
 			errContains: "imports.plugins",
 		},
 		{
-			name:         "codex with both - error mentions both",
-			engine:       &CodexEngine{BaseEngine: BaseEngine{id: "codex", displayName: "Codex"}},
-			marketplaces: []string{"https://marketplace.example.com"},
-			plugins:      []string{"my-plugin"},
-			wantErr:      true,
-			errContains:  "imports.marketplaces",
-		},
-		{
-			name:         "gemini with marketplace - error",
-			engine:       &GeminiEngine{BaseEngine: BaseEngine{id: "gemini", displayName: "Gemini"}},
-			marketplaces: []string{"https://marketplace.example.com"},
-			wantErr:      true,
-			errContains:  "imports.marketplaces",
-		},
-		{
 			name:        "gemini with plugin - error",
 			engine:      &GeminiEngine{BaseEngine: BaseEngine{id: "gemini", displayName: "Gemini"}},
 			plugins:     []string{"my-plugin"},
@@ -610,7 +413,7 @@ func TestValidateImportsProviderSupport(t *testing.T) {
 			errContains: "imports.plugins",
 		},
 		{
-			name:    "any engine with empty lists - no error",
+			name:    "any engine with empty list - no error",
 			engine:  &CodexEngine{BaseEngine: BaseEngine{id: "codex", displayName: "Codex"}},
 			wantErr: false,
 		},
@@ -618,7 +421,7 @@ func TestValidateImportsProviderSupport(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := compiler.validateImportsProviderSupport(tt.marketplaces, tt.plugins, tt.engine)
+			err := compiler.validateImportsProviderSupport(tt.plugins, tt.engine)
 			if tt.wantErr {
 				require.Error(t, err, "Expected error for engine %s", tt.engine.GetID())
 				assert.Contains(t, err.Error(), tt.errContains, "Error message should mention the unsupported field")
@@ -628,40 +431,6 @@ func TestValidateImportsProviderSupport(t *testing.T) {
 			}
 		})
 	}
-}
-
-// TestCompileWorkflow_MarketplacesWithUnsupportedEngine verifies that using imports.marketplaces
-// with an engine that does not implement ImportsProvider fails with a clear error.
-func TestCompileWorkflow_MarketplacesWithUnsupportedEngine(t *testing.T) {
-	tmpDir := t.TempDir()
-	workflowFile := filepath.Join(tmpDir, ".github", "workflows", "test-workflow.md")
-	require.NoError(t, os.MkdirAll(filepath.Dir(workflowFile), 0755))
-
-	workflowContent := `---
-on: issues
-permissions:
-  contents: read
-  issues: read
-engine: codex
-imports:
-  marketplaces:
-    - https://marketplace.example.com
----
-
-# Test Codex With Marketplace
-
-Process the issue.
-`
-	require.NoError(t, os.WriteFile(workflowFile, []byte(workflowContent), 0600))
-
-	originalDir, _ := os.Getwd()
-	defer os.Chdir(originalDir) //nolint:errcheck
-	require.NoError(t, os.Chdir(tmpDir))
-
-	compiler := NewCompiler()
-	err := compiler.CompileWorkflow(workflowFile)
-	require.Error(t, err, "Should fail when marketplaces are used with codex engine")
-	assert.Contains(t, err.Error(), "imports.marketplaces", "Error should mention the unsupported field")
 }
 
 // TestCompileWorkflow_PluginsWithUnsupportedEngine verifies that using imports.plugins

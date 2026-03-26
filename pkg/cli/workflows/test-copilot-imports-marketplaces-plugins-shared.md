@@ -7,15 +7,13 @@ engine: copilot
 imports:
   aw:
     - shared/marketplace-plugins.md
-  marketplaces:
-    - https://main-marketplace.example.com
   plugins:
     - main-plugin
 ---
 
-# Test Copilot Imports Marketplaces and Plugins with Shared Import
+# Test Copilot Imports Plugins with Shared Import
 
-This workflow tests that `imports.marketplaces` and `imports.plugins` values from a shared
+This workflow tests that `imports.plugins` values from a shared
 agentic workflow (imported via `imports.aw`) are merged with the main workflow's own values.
 
 Process the issue and respond with a helpful comment.

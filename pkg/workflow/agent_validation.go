@@ -48,7 +48,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
 
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/goccy/go-yaml"
@@ -168,12 +167,12 @@ func (c *Compiler) validateWebSearchSupport(tools map[string]any, engine CodingA
 	}
 }
 
-// validateImportsProviderSupport validates that imports.marketplaces and imports.plugins
-// are only used with engines that implement the ImportsProvider interface.
-// Codex and Gemini do not implement ImportsProvider; specifying marketplaces or plugins
-// with those engines is an error.
-func (c *Compiler) validateImportsProviderSupport(marketplaces []string, plugins []string, engine CodingAgentEngine) error {
-	if len(marketplaces) == 0 && len(plugins) == 0 {
+// validateImportsProviderSupport validates that imports.plugins is only used with
+// engines that implement the ImportsProvider interface.
+// Codex and Gemini do not implement ImportsProvider; specifying plugins with those
+// engines is an error.
+func (c *Compiler) validateImportsProviderSupport(plugins []string, engine CodingAgentEngine) error {
+	if len(plugins) == 0 {
 		// Nothing to validate
 		return nil
 	}
@@ -181,22 +180,13 @@ func (c *Compiler) validateImportsProviderSupport(marketplaces []string, plugins
 	agentValidationLog.Printf("Validating ImportsProvider support for engine: %s", engine.GetID())
 
 	if _, ok := engine.(ImportsProvider); ok {
-		// Engine supports marketplaces/plugins
+		// Engine supports plugin installation
 		return nil
 	}
 
-	// Determine which fields triggered the error for a precise message
-	var features []string
-	if len(marketplaces) > 0 {
-		features = append(features, "imports.marketplaces")
-	}
-	if len(plugins) > 0 {
-		features = append(features, "imports.plugins")
-	}
-
-	agentValidationLog.Printf("Engine %s does not support ImportsProvider (%s)", engine.GetID(), strings.Join(features, ", "))
-	return fmt.Errorf("%s not supported: engine '%s' does not support marketplace/plugin installation",
-		strings.Join(features, " and "), engine.GetID())
+	agentValidationLog.Printf("Engine %s does not support ImportsProvider (imports.plugins)", engine.GetID())
+	return fmt.Errorf("imports.plugins not supported: engine '%s' does not support plugin installation",
+		engine.GetID())
 }
 
 // This is a security best practice to avoid running on all branches

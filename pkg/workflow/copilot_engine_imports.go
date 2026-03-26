@@ -1,52 +1,19 @@
 // This file implements the ImportsProvider interface for the Copilot engine.
 //
-// The Copilot engine supports native marketplace registration and plugin installation
-// via the `copilot` CLI before the main agent execution step.  The GitHub Actions
-// token is passed as GITHUB_TOKEN so the CLI can authenticate with GitHub-hosted
-// registries.
+// The Copilot engine supports native plugin installation via the `copilot` CLI
+// before the main agent execution step.  The GitHub Actions token is passed as
+// GITHUB_TOKEN so the CLI can authenticate with GitHub-hosted registries.
 //
-// CLI commands emitted:
-//   - Marketplace: copilot plugin marketplace add <url>
-//   - Plugin:      copilot plugin install <name>
+// CLI command emitted:
+//   - Plugin: copilot plugin install <spec>
 //
-// Built-in marketplaces (pre-registered by the Copilot CLI, not re-registered):
-//   - https://github.com/github/copilot-plugins
+// Supported plugin spec formats (see https://docs.github.com/en/copilot/reference/copilot-cli-reference/cli-plugin-reference):
+//   - plugin@marketplace      — plugin from a registered marketplace
+//   - OWNER/REPO              — root of a GitHub repository
+//   - OWNER/REPO:PATH/TO/PLUGIN — subdirectory in a repository
+//   - https://github.com/o/r.git — any Git URL
 
 package workflow
-
-// copilotBuiltinMarketplaces lists the marketplace URLs that the Copilot CLI
-// already registers by default.  Attempting to add these again with
-// "copilot plugin marketplace add" results in an error, so they are filtered
-// out before emitting marketplace setup steps.
-var copilotBuiltinMarketplaces = []string{
-	"https://github.com/github/copilot-plugins",
-}
-
-// GetBuiltinMarketplaces returns the marketplace URLs that are already
-// pre-registered in the Copilot CLI and must not be re-registered.
-func (e *CopilotEngine) GetBuiltinMarketplaces() []string {
-	return copilotBuiltinMarketplaces
-}
-
-// GetMarketplaceSetupSteps returns GitHub Actions steps that register marketplace
-// URLs with the Copilot CLI before agent execution.
-func (e *CopilotEngine) GetMarketplaceSetupSteps(marketplaces []string, workflowData *WorkflowData) []GitHubActionStep {
-	if len(marketplaces) == 0 {
-		return nil
-	}
-
-	var steps []GitHubActionStep
-	for _, url := range marketplaces {
-		step := GitHubActionStep{
-			`      - name: "Register Copilot marketplace: ` + url + `"`,
-			"        env:",
-			"          GITHUB_TOKEN: ${{ github.token }}",
-			"        run: copilot plugin marketplace add " + url,
-		}
-		steps = append(steps, step)
-	}
-	return steps
-}
 
 // GetPluginInstallSteps returns GitHub Actions steps that install Copilot plugins
 // via the `copilot plugin install` command before agent execution.

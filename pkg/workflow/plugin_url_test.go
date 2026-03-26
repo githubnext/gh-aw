@@ -142,29 +142,9 @@ func TestNormalizePlugins(t *testing.T) {
 	}
 }
 
-// TestCopilotEngineGetBuiltinMarketplaces verifies that the Copilot engine
-// declares the correct built-in marketplace URLs.
-func TestCopilotEngineGetBuiltinMarketplaces(t *testing.T) {
-	engine := &CopilotEngine{}
-	builtins := engine.GetBuiltinMarketplaces()
-	require.NotEmpty(t, builtins, "Copilot engine should declare at least one built-in marketplace")
-	assert.Contains(t, builtins, "https://github.com/github/copilot-plugins",
-		"Copilot CLI pre-registers github/copilot-plugins")
-}
-
-// TestClaudeEngineGetBuiltinMarketplaces verifies that the Claude engine
-// declares no built-in marketplaces.
-func TestClaudeEngineGetBuiltinMarketplaces(t *testing.T) {
-	engine := &ClaudeEngine{}
-	builtins := engine.GetBuiltinMarketplaces()
-	assert.Empty(t, builtins, "Claude engine should have no built-in marketplaces")
-}
-
 // TestGitHubTreeURLConvertedToOwnerRepoPath verifies that a GitHub tree URL
 // in imports.plugins is converted to the OWNER/REPO:PATH/TO/PLUGIN format
-// accepted by the Copilot CLI ("subdirectory in a repository" spec), and that
-// no marketplace registration step is emitted (the OWNER/REPO:PATH format is
-// a direct GitHub reference that doesn't require a prior marketplace add).
+// accepted by the Copilot CLI ("subdirectory in a repository" spec).
 func TestGitHubTreeURLConvertedToOwnerRepoPath(t *testing.T) {
 	tmpDir := t.TempDir()
 	workflowsDir := tmpDir + "/.github/workflows"
@@ -197,10 +177,6 @@ Test GitHub tree URL conversion to OWNER/REPO:PATH format.
 	require.NoError(t, err)
 
 	yamlStr := string(lockYAML)
-	// No marketplace registration step — OWNER/REPO:PATH is a direct GitHub ref
-	assert.NotContains(t, yamlStr,
-		"copilot plugin marketplace add",
-		"no marketplace add step should be emitted for OWNER/REPO:PATH format")
 	// Plugin install uses OWNER/REPO:PATH format
 	assert.Contains(t, yamlStr,
 		"copilot plugin install github/copilot-plugins:plugins/advanced-security/skills/secret-scanning",

@@ -18,8 +18,7 @@ type toolsProcessingResult struct {
 	tools                 map[string]any
 	runtimes              map[string]any
 	apmDependencies       *APMDependenciesInfo // APM (Agent Package Manager) dependencies
-	marketplaces          []string             // Marketplace URLs from imports.marketplaces
-	plugins               []string             // Plugin names from imports.plugins
+	plugins               []string             // Plugin specs from imports.plugins
 	toolsTimeout          int
 	toolsStartupTimeout   int
 	markdownContent       string
@@ -167,21 +166,7 @@ func (c *Compiler) processToolsAndMarkdown(result *parser.FrontmatterResult, cle
 		orchestratorToolsLog.Printf("Extracted %d APM dependencies from frontmatter", len(apmDependencies.Packages))
 	}
 
-	// Extract marketplace URLs from imports.marketplaces
-	marketplaces, err := extractMarketplacesFromFrontmatter(result.Frontmatter)
-	if err != nil {
-		return nil, err
-	}
-	if len(marketplaces) > 0 {
-		orchestratorToolsLog.Printf("Extracted %d marketplace(s) from frontmatter", len(marketplaces))
-	}
-	// Merge marketplace URLs from imported shared workflows (union, deduplicated)
-	if len(importsResult.MergedMarketplaces) > 0 {
-		orchestratorToolsLog.Printf("Merging %d marketplace(s) from imported workflows", len(importsResult.MergedMarketplaces))
-		marketplaces = mergeUnique(marketplaces, importsResult.MergedMarketplaces...)
-	}
-
-	// Extract plugin names from imports.plugins
+	// Extract plugin specs from imports.plugins
 	plugins, err := extractPluginsFromFrontmatter(result.Frontmatter)
 	if err != nil {
 		return nil, err
@@ -189,7 +174,7 @@ func (c *Compiler) processToolsAndMarkdown(result *parser.FrontmatterResult, cle
 	if len(plugins) > 0 {
 		orchestratorToolsLog.Printf("Extracted %d plugin(s) from frontmatter", len(plugins))
 	}
-	// Merge plugin names from imported shared workflows (union, deduplicated)
+	// Merge plugin specs from imported shared workflows (union, deduplicated)
 	if len(importsResult.MergedPlugins) > 0 {
 		orchestratorToolsLog.Printf("Merging %d plugin(s) from imported workflows", len(importsResult.MergedPlugins))
 		plugins = mergeUnique(plugins, importsResult.MergedPlugins...)
@@ -197,35 +182,9 @@ func (c *Compiler) processToolsAndMarkdown(result *parser.FrontmatterResult, cle
 
 	// Normalise plugin entries: full GitHub tree URLs are converted to the
 	// OWNER/REPO:PATH/TO/PLUGIN format accepted by the Copilot CLI ("subdirectory
-	// in a repository" spec).  This format is a direct GitHub reference and does
-	// NOT require marketplace registration, so no marketplace URLs are inferred.
+	// in a repository" spec).  This format is a direct GitHub reference.
 	if len(plugins) > 0 {
 		plugins = normalizePlugins(plugins)
-	}
-
-	// Filter out built-in marketplaces: if the engine already pre-registers certain
-	// marketplace URLs, attempting to add them again results in a CLI error. The
-	// ImportsProvider.GetBuiltinMarketplaces() method returns those URLs so we can
-	// exclude them from the setup steps.
-	if importsProvider, ok := agenticEngine.(ImportsProvider); ok {
-		if builtins := importsProvider.GetBuiltinMarketplaces(); len(builtins) > 0 {
-			builtinSet := make(map[string]struct{}, len(builtins))
-			for _, b := range builtins {
-				builtinSet[b] = struct{}{}
-			}
-			filtered := marketplaces[:0:0]
-			for _, m := range marketplaces {
-				if _, isBuiltin := builtinSet[m]; !isBuiltin {
-					filtered = append(filtered, m)
-				} else {
-					orchestratorToolsLog.Printf("Skipping built-in marketplace: %s", m)
-				}
-			}
-			if len(filtered) != len(marketplaces) {
-				orchestratorToolsLog.Printf("Filtered %d built-in marketplace(s); %d remain", len(marketplaces)-len(filtered), len(filtered))
-			}
-			marketplaces = filtered
-		}
 	}
 
 	// Add MCP fetch server if needed (when web-fetch is requested but engine doesn't support it)
@@ -265,8 +224,8 @@ func (c *Compiler) processToolsAndMarkdown(result *parser.FrontmatterResult, cle
 	// Validate web-search support for the current engine (warning only)
 	c.validateWebSearchSupport(tools, agenticEngine)
 
-	// Validate that imports.marketplaces and imports.plugins are only used with supported engines
-	if err := c.validateImportsProviderSupport(marketplaces, plugins, agenticEngine); err != nil {
+	// Validate that imports.plugins is only used with supported engines
+	if err := c.validateImportsProviderSupport(plugins, agenticEngine); err != nil {
 		return nil, err
 	}
 
@@ -364,7 +323,6 @@ func (c *Compiler) processToolsAndMarkdown(result *parser.FrontmatterResult, cle
 		tools:                 tools,
 		runtimes:              runtimes,
 		apmDependencies:       apmDependencies,
-		marketplaces:          marketplaces,
 		plugins:               plugins,
 		toolsTimeout:          toolsTimeout,
 		toolsStartupTimeout:   toolsStartupTimeout,

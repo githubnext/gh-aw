@@ -66,7 +66,7 @@
       ]
     },
     "imports": {
-      "description": "Workflow specifications to import. Supports array form (list of paths) or object form with 'aw' (agentic workflow paths), 'apm-packages' (APM packages), 'marketplaces' (marketplace URLs to register), and 'plugins' (plugins to install) subfields.",
+      "description": "Workflow specifications to import. Supports array form (list of paths) or object form with 'aw' (agentic workflow paths), 'apm-packages' (APM packages), and 'plugins' (plugins to install) subfields.",
       "oneOf": [
         {
           "type": "array",
@@ -196,23 +196,14 @@
                 }
               ]
             },
-            "marketplaces": {
-              "type": "array",
-              "description": "List of marketplace URLs to register with the agent CLI before execution. The agent's native package support registers each URL so the agent can discover and install tools or extensions from these sources. The GitHub Actions token is passed automatically for authentication.",
-              "items": {
-                "type": "string",
-                "description": "Marketplace URL to register (e.g., 'https://marketplace.example.com')."
-              },
-              "examples": [["https://marketplace.example.com"], ["https://registry.my-company.internal/copilot"]]
-            },
             "plugins": {
               "type": "array",
-              "description": "List of plugin names or identifiers to install via the agent's native package support before execution. Each entry is a plugin slug or name recognised by the agent CLI's extension manager.",
+              "description": "List of plugin specs to install via the agent's native package support before execution. Supports all spec formats accepted by the engine CLI: 'plugin@marketplace', 'OWNER/REPO', 'OWNER/REPO:PATH/TO/PLUGIN', Git URLs (https://github.com/o/r.git), or full GitHub tree URLs (auto-converted to OWNER/REPO:PATH format).",
               "items": {
                 "type": "string",
-                "description": "Plugin name or identifier to install (e.g., 'my-extension')."
+                "description": "Plugin spec to install (e.g., 'my-extension', 'my-plugin@my-marketplace', 'OWNER/REPO:path/to/plugin', or 'https://github.com/github/copilot-plugins/tree/main/plugins/my-plugin')."
               },
-              "examples": [["my-extension", "another-plugin"], ["org/custom-tool"]]
+              "examples": [["my-extension", "another-plugin"], ["github/copilot-plugins:plugins/advanced-security/skills/secret-scanning"]]
             }
           }
         }
@@ -244,8 +235,7 @@
           }
         },
         {
-          "marketplaces": ["https://marketplace.example.com"],
-          "plugins": ["my-extension"]
+          "plugins": ["my-extension", "github/copilot-plugins:plugins/advanced-security/skills/secret-scanning"]
         }
       ]
     },

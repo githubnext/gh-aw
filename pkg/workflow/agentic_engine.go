@@ -229,26 +229,13 @@ type ConfigRenderer interface {
 }
 
 // ImportsProvider is an optional interface implemented by engines that support
-// native marketplace registration and plugin installation before agent execution.
+// native plugin installation before agent execution.
 // These setup steps run in the agent job before the main agent command, using the
 // GitHub Actions token for authentication.
 type ImportsProvider interface {
-	// GetBuiltinMarketplaces returns the list of marketplace URLs that are already
-	// pre-registered by the engine CLI out of the box. These URLs are filtered out
-	// before emitting marketplace setup steps to avoid "already registered" errors
-	// from the CLI. An engine with no built-in marketplaces should return nil.
-	GetBuiltinMarketplaces() []string
-
-	// GetMarketplaceSetupSteps returns GitHub Actions steps that register marketplace
-	// URLs with the agent CLI before execution. Each URL is a registry endpoint that
-	// the agent can use to discover and install additional tools or extensions.
-	// Returns an empty slice if the engine does not support marketplace registration
-	// or if the provided list is empty.
-	GetMarketplaceSetupSteps(marketplaces []string, workflowData *WorkflowData) []GitHubActionStep
-
 	// GetPluginInstallSteps returns GitHub Actions steps that install plugins/extensions
 	// via the agent's native package support before execution. Each entry is a plugin
-	// identifier (e.g. a name or slug) recognised by the agent CLI.
+	// specification recognised by the agent CLI (e.g. OWNER/REPO:PATH, plugin@marketplace).
 	// Returns an empty slice if the engine does not support plugin installation
 	// or if the provided list is empty.
 	GetPluginInstallSteps(plugins []string, workflowData *WorkflowData) []GitHubActionStep
