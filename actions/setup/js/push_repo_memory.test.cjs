@@ -1044,9 +1044,11 @@ describe("push_repo_memory.cjs - shell injection security tests", () => {
       // working-tree expansion and is not needed for the orphan/memory branch.
       expect(scriptContent).not.toContain('"sparse-checkout", "disable"');
 
-      // Must NOT use "git rm" to clear the orphan branch index – this outputs
-      // one line per file and causes ENOBUFS on large repos with stdio:pipe.
-      expect(scriptContent).not.toContain('"--ignore-unmatch"');
+      // Must NOT use "git rm -r -f" to clear the orphan branch index – this
+      // outputs one line per file and causes ENOBUFS on large repos with
+      // stdio: "pipe".
+      expect(scriptContent).not.toContain('"rm", "-r", "-f"');
+      expect(scriptContent).not.toContain("execGitSync([\"rm\"");
 
       // Must use "git read-tree --empty" to reset the index (zero output).
       expect(scriptContent).toContain('"read-tree", "--empty"');
