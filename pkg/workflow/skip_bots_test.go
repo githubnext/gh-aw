@@ -51,7 +51,7 @@ This workflow has a skip-bots configuration.
 		assert.Contains(t, lockContentStr, "Check skip-bots", "Expected skip-bots check to be present")
 
 		// Verify the skip users environment variable is set correctly
-		assert.Contains(t, lockContentStr, "GH_AW_SKIP_BOTS: user1,user2,user3", "Expected GH_AW_SKIP_BOTS environment variable with correct value")
+		assert.Contains(t, lockContentStr, `GH_AW_SKIP_BOTS: "user1,user2,user3"`, "Expected GH_AW_SKIP_BOTS environment variable with correct value")
 
 		// Verify the check_skip_bots step ID is present
 		assert.Contains(t, lockContentStr, "id: check_skip_bots", "Expected check_skip_bots step ID")
@@ -93,7 +93,7 @@ This workflow skips only for user1.
 		assert.Contains(t, lockContentStr, "Check skip-bots", "Expected skip-bots check to be present")
 
 		// Verify single user
-		assert.Contains(t, lockContentStr, "GH_AW_SKIP_BOTS: user1", "Expected GH_AW_SKIP_BOTS with single user")
+		assert.Contains(t, lockContentStr, `GH_AW_SKIP_BOTS: "user1"`, "Expected GH_AW_SKIP_BOTS with single user")
 	})
 
 	t.Run("no_skip_bots_no_check_created", func(t *testing.T) {
@@ -159,10 +159,10 @@ This workflow has both roles and skip-bots.
 		assert.Contains(t, lockContentStr, "Check skip-bots", "Expected skip-bots check to be present")
 
 		// Verify GH_AW_REQUIRED_ROLES is set
-		assert.Contains(t, lockContentStr, "GH_AW_REQUIRED_ROLES: maintainer", "Expected GH_AW_REQUIRED_ROLES for roles field")
+		assert.Contains(t, lockContentStr, `GH_AW_REQUIRED_ROLES: "maintainer"`, "Expected GH_AW_REQUIRED_ROLES for roles field")
 
 		// Verify GH_AW_SKIP_BOTS is set
-		assert.Contains(t, lockContentStr, "GH_AW_SKIP_BOTS: user1,user2", "Expected GH_AW_SKIP_BOTS for skip-bots field")
+		assert.Contains(t, lockContentStr, `GH_AW_SKIP_BOTS: "user1,user2"`, "Expected GH_AW_SKIP_BOTS for skip-bots field")
 
 		// Verify both conditions in activated output
 		assert.Contains(t, lockContentStr, "steps.check_membership.outputs.is_team_member", "Expected membership check in activated output")
@@ -201,8 +201,8 @@ This workflow has both skip-roles and skip-bots.
 		assert.Contains(t, lockContentStr, "Check skip-bots", "Expected skip-bots check to be present")
 
 		// Verify both environment variables are set
-		assert.Contains(t, lockContentStr, "GH_AW_SKIP_ROLES: admin,write", "Expected GH_AW_SKIP_ROLES for skip-roles field")
-		assert.Contains(t, lockContentStr, "GH_AW_SKIP_BOTS: user1,user2", "Expected GH_AW_SKIP_BOTS for skip-bots field")
+		assert.Contains(t, lockContentStr, `GH_AW_SKIP_ROLES: "admin,write"`, "Expected GH_AW_SKIP_ROLES for skip-roles field")
+		assert.Contains(t, lockContentStr, `GH_AW_SKIP_BOTS: "user1,user2"`, "Expected GH_AW_SKIP_BOTS for skip-bots field")
 
 		// Verify both conditions in activated output
 		assert.Contains(t, lockContentStr, "steps.check_skip_roles.outputs.skip_roles_ok", "Expected skip-roles check in activated output")

@@ -143,7 +143,7 @@ Test workflow content.`
 	}
 
 	// Also check that roles are still present
-	if !strings.Contains(compiledStr, "GH_AW_REQUIRED_ROLES: triage") {
+	if !strings.Contains(compiledStr, `GH_AW_REQUIRED_ROLES: "triage"`) {
 		t.Errorf("Expected compiled workflow to contain GH_AW_REQUIRED_ROLES environment variable")
 	}
 }
@@ -186,7 +186,7 @@ Test workflow content with bot and default roles.`
 	compiledStr := string(compiledContent)
 
 	// Check that default roles are present (admin, maintainer, write)
-	if !strings.Contains(compiledStr, "GH_AW_REQUIRED_ROLES: admin,maintainer,write") {
+	if !strings.Contains(compiledStr, `GH_AW_REQUIRED_ROLES: "admin,maintainer,write"`) {
 		t.Errorf("Expected compiled workflow to contain default GH_AW_REQUIRED_ROLES")
 	}
 

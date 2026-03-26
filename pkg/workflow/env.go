@@ -2,7 +2,6 @@ package workflow
 
 import (
 	"fmt"
-	"io"
 	"sort"
 	"strings"
 
@@ -15,9 +14,8 @@ var envLog = logger.New("workflow:env")
 // writeYAMLEnv emits a single YAML env variable with proper escaping.
 // Uses %q to produce a valid YAML double-quoted scalar that escapes ", \, newlines, and control characters,
 // preventing YAML structure injection from frontmatter-derived values.
-// w must be an error-free writer (e.g., *strings.Builder).
-func writeYAMLEnv(w io.Writer, indent, key, value string) {
-	fmt.Fprintf(w, "%s%s: %q\n", indent, key, value)
+func writeYAMLEnv(b *strings.Builder, indent, key, value string) {
+	fmt.Fprintf(b, "%s%s: %q\n", indent, key, value)
 }
 
 // formatYAMLEnv returns a properly escaped YAML env variable string.
