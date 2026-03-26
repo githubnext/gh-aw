@@ -42,7 +42,6 @@ func ensureMCPConfig(verbose bool) error {
 	ghAwConfig := VSCodeMCPServer{
 		Command: "gh",
 		Args:    []string{"aw", "mcp-server"},
-		CWD:     "${workspaceFolder}",
 	}
 
 	// Check if file already exists
