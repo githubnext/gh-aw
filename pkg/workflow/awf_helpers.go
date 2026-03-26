@@ -74,8 +74,20 @@ func BuildAWFCommand(config AWFCommandConfig) string {
 	// Get AWF command prefix (custom or standard)
 	awfCommand := GetAWFCommandPrefix(config.WorkflowData)
 
-	// Build AWF arguments
+	// Build AWF arguments. The returned list contains only args that are safe to pass
+	// through shellJoinArgs. Expandable-var args (--container-workdir "${GITHUB_WORKSPACE}"
+	// and --mount "${RUNNER_TEMP}/...") are appended raw below so that shell variable
+	// expansion is not suppressed by single-quoting.
 	awfArgs := BuildAWFArgs(config)
+
+	// Build the expandable args string for args that need shell variable expansion.
+	// These MUST be appended as raw (unescaped) strings because single-quoting would
+	// prevent the runner's shell from expanding ${GITHUB_WORKSPACE} and ${RUNNER_TEMP}.
+	ghAwDir := "${RUNNER_TEMP}/gh-aw"
+	expandableArgs := fmt.Sprintf(
+		`--container-workdir "${GITHUB_WORKSPACE}" --mount "%s:%s:ro" --mount "%s:/host%s:ro"`,
+		ghAwDir, ghAwDir, ghAwDir, ghAwDir,
+	)
 
 	// Wrap engine command in shell (command already includes any internal setup like npm PATH)
 	shellWrappedCommand := WrapCommandInShell(config.EngineCommand)
@@ -87,19 +99,21 @@ func BuildAWFCommand(config AWFCommandConfig) string {
 		command = fmt.Sprintf(`set -o pipefail
 %s
 # shellcheck disable=SC1003
-%s %s \
+%s %s %s \
   -- %s 2>&1 | tee -a %s`,
 			config.PathSetup,
 			awfCommand,
+			expandableArgs,
 			shellJoinArgs(awfArgs),
 			shellWrappedCommand,
 			shellEscapeArg(config.LogFile))
 	} else {
 		command = fmt.Sprintf(`set -o pipefail
 # shellcheck disable=SC1003
-%s %s \
+%s %s %s \
   -- %s 2>&1 | tee -a %s`,
 			awfCommand,
+			expandableArgs,
 			shellJoinArgs(awfArgs),
 			shellWrappedCommand,
 			shellEscapeArg(config.LogFile))
@@ -116,7 +130,8 @@ func BuildAWFCommand(config AWFCommandConfig) string {
 //   - config: AWF command configuration
 //
 // Returns:
-//   - []string: List of AWF arguments
+//   - []string: List of AWF arguments (safe args only; expandable-var args like
+//     --container-workdir and --mount are handled by BuildAWFCommand)
 func BuildAWFArgs(config AWFCommandConfig) []string {
 	awfHelpersLog.Printf("Building AWF args for engine: %s", config.EngineName)
 
@@ -133,25 +148,10 @@ func BuildAWFArgs(config AWFCommandConfig) []string {
 	// Pass all environment variables to the container
 	awfArgs = append(awfArgs, "--env-all")
 
-	// Set container working directory to match GITHUB_WORKSPACE
-	awfArgs = append(awfArgs, "--container-workdir", "\"${GITHUB_WORKSPACE}\"")
-	awfHelpersLog.Print("Set container working directory to GITHUB_WORKSPACE")
-
-	// Mount ${RUNNER_TEMP}/gh-aw read-only inside the container.
-	// This overrides the broader $HOME:rw mount that AWF sets up in chroot mode,
-	// preventing the agent from directly writing to gh-aw infrastructure files
-	// (e.g. safeoutputs/outputs.jsonl) and bypassing the safe-outputs MCP server.
-	// The MCP server runs on the host (outside AWF) and retains full write access.
-	// Two entries are needed: one for the direct path (non-chroot) and one for the
-	// /host-prefixed path (chroot mode, where the agent sees the host FS under /host).
-	// Pre-wrap in double quotes so shellEscapeArg leaves them alone and ${RUNNER_TEMP}
-	// is expanded by the shell at runtime (single quotes would suppress expansion).
-	ghAwDir := "${RUNNER_TEMP}/gh-aw"
-	awfArgs = append(awfArgs,
-		"--mount", "\""+ghAwDir+":"+ghAwDir+":ro\"",
-		"--mount", "\""+ghAwDir+":/host"+ghAwDir+":ro\"",
-	)
-	awfHelpersLog.Print("Mounted ${RUNNER_TEMP}/gh-aw read-only in AWF container")
+	// Note: --container-workdir "${GITHUB_WORKSPACE}" and --mount "${RUNNER_TEMP}/gh-aw:..."
+	// are intentionally NOT added here. They contain shell variable references that require
+	// double-quote expansion. These args are appended raw in BuildAWFCommand to ensure
+	// ${GITHUB_WORKSPACE} and ${RUNNER_TEMP} are expanded by the runner's shell.
 
 	// Add custom mounts from agent config if specified
 	if agentConfig != nil && len(agentConfig.Mounts) > 0 {
@@ -166,17 +166,16 @@ func BuildAWFArgs(config AWFCommandConfig) []string {
 		awfHelpersLog.Printf("Added %d custom mounts from agent config", len(sortedMounts))
 	}
 
-	// Add allowed domains
-	// Use double-quoted form (via shellDoubleQuoteArg) so wildcards like *.domain.com are
-	// treated as plain arguments rather than shell globs, fixing ShellCheck SC1003, while
-	// still escaping $, `, \, and " to prevent unintended shell expansion.
-	awfArgs = append(awfArgs, "--allow-domains", shellDoubleQuoteArg(config.AllowedDomains))
+	// Add allowed domains. Pass the raw value so shellEscapeArg (via shellJoinArgs)
+	// single-quotes it, which safely handles wildcards like *.domain.com without
+	// shell glob expansion and without adding literal double-quote characters.
+	awfArgs = append(awfArgs, "--allow-domains", config.AllowedDomains)
 
 	// Add blocked domains if specified
 	blockedDomains := formatBlockedDomains(config.WorkflowData.NetworkPermissions)
 	if blockedDomains != "" {
-		// Same double-quoting rationale as --allow-domains above
-		awfArgs = append(awfArgs, "--block-domains", shellDoubleQuoteArg(blockedDomains))
+		// Same single-quoting rationale as --allow-domains above
+		awfArgs = append(awfArgs, "--block-domains", blockedDomains)
 		awfHelpersLog.Printf("Added blocked domains: %s", blockedDomains)
 	}
 

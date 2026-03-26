@@ -64,6 +64,14 @@ func (c *Compiler) validateAgentFile(workflowData *WorkflowData, markdownPath st
 	agentPath := workflowData.AgentFile
 	agentValidationLog.Printf("Validating agent file exists: %s", agentPath)
 
+	// Validate path characters to prevent shell injection via crafted filenames.
+	// Only alphanumeric characters, dots, underscores, hyphens, forward slashes,
+	// and spaces are permitted. Shell metacharacters are rejected.
+	if !agentFilePathRegex.MatchString(agentPath) {
+		return formatCompilerError(markdownPath, "error",
+			fmt.Sprintf("agent file path '%s' contains invalid characters. Only alphanumeric characters, dots, underscores, hyphens, forward slashes, and spaces are allowed.", agentPath), nil)
+	}
+
 	var fullAgentPath string
 
 	// Check if agentPath is already absolute
