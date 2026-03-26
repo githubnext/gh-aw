@@ -148,6 +148,10 @@ async function generateGitPatch(branchName, baseBranch, options = {}) {
 
   let patchGenerated = false;
   let errorMessage = null;
+  // Track the resolved base commit SHA so consumers (e.g. create_pull_request fallback)
+  // can use it directly. The From <sha> header in format-patch output contains the
+  // *new* commit SHA which won't exist in the target checkout.
+  let baseCommitSha = null;
 
   try {
     // Strategy 1: If we have a branch name, check if that branch exists and get its diff
@@ -263,6 +267,10 @@ async function generateGitPatch(branchName, baseBranch, options = {}) {
           }
         }
 
+        // Resolve baseRef to a SHA so we can record it for consumers
+        baseCommitSha = execGitSync(["rev-parse", baseRef], { cwd }).trim();
+        debugLog(`Strategy 1: Resolved baseRef ${baseRef} to SHA ${baseCommitSha}`);
+
         // Count commits to be included
         const commitCount = parseInt(execGitSync(["rev-list", "--count", `${baseRef}..${branchName}`], { cwd }).trim(), 10);
         debugLog(`Strategy 1: Found ${commitCount} commits between ${baseRef} and ${branchName}`);
@@ -332,6 +340,9 @@ async function generateGitPatch(branchName, baseBranch, options = {}) {
             execGitSync(["merge-base", "--is-ancestor", githubSha, "HEAD"], { cwd });
             debugLog(`Strategy 2: GITHUB_SHA is an ancestor of HEAD`);
 
+            // Record GITHUB_SHA as the base commit
+            baseCommitSha = githubSha;
+
             // Count commits between GITHUB_SHA and HEAD
             const commitCount = parseInt(execGitSync(["rev-list", "--count", `${githubSha}..HEAD`], { cwd }).trim(), 10);
             debugLog(`Strategy 2: Found ${commitCount} commits between GITHUB_SHA and HEAD`);
@@ -396,6 +407,7 @@ async function generateGitPatch(branchName, baseBranch, options = {}) {
               }
 
               if (baseCommit) {
+                baseCommitSha = baseCommit;
                 const patchContent = execGitSync(["format-patch", `${baseCommit}..${branchName}`, "--stdout", ...excludeArgs()], { cwd });
 
                 if (patchContent && patchContent.trim()) {
@@ -438,12 +450,13 @@ async function generateGitPatch(branchName, baseBranch, options = {}) {
       };
     }
 
-    debugLog(`Final: SUCCESS - patchSize=${patchSize} bytes, patchLines=${patchLines}`);
+    debugLog(`Final: SUCCESS - patchSize=${patchSize} bytes, patchLines=${patchLines}, baseCommit=${baseCommitSha || "(unknown)"}`);
     return {
       success: true,
       patchPath: patchPath,
       patchSize: patchSize,
       patchLines: patchLines,
+      baseCommit: baseCommitSha,
     };
   }
 

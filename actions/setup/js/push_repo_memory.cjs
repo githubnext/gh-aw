@@ -98,6 +98,31 @@ async function main() {
     return;
   }
 
+  // Validate branch name against the naming constraints enforced by the compiler:
+  //
+  //  Non-wiki memory (default): "memory/{id}" or "{custom-prefix}/{id}"
+  //    - The branch prefix is validated at compile time: 4-32 alphanumeric/hyphen/underscore chars
+  //    - generateDefaultBranchName() always produces "{prefix}/{id}" with a "/" separator
+  //  Wiki memory: bare branch name, typically "master" or "main"
+  //    - Wikis use the repository's default branch and never create an orphan
+  //    - The target repo is already appended with ".wiki" by the compiler
+  //
+  // At runtime we enforce:
+  //   1. Namespaced branches (contain "/") to prevent pushing to top-level branches like "main"
+  //   2. Known wiki branch names ("master", "main", "gh-pages") are only valid when
+  //      TARGET_REPO ends with ".wiki" – the compiler always appends ".wiki" for wiki memory.
+  const isNamespaced = /^[a-zA-Z0-9_-]+\/.+/.test(branchName);
+  const isKnownWikiBranch = branchName === "master" || branchName === "main" || branchName === "gh-pages";
+  const isWikiRepo = targetRepo.endsWith(".wiki");
+  if (!isNamespaced && !isKnownWikiBranch) {
+    core.setFailed(`ERR_VALIDATION: Invalid branch name "${branchName}": branch name must be namespaced (e.g. "memory/default") or a known wiki branch ("master", "main", "gh-pages")`);
+    return;
+  }
+  if (isKnownWikiBranch && !isWikiRepo) {
+    core.setFailed(`ERR_VALIDATION: Branch name "${branchName}" is only valid for wiki repositories (TARGET_REPO must end with ".wiki", got "${targetRepo}")`);
+    return;
+  }
+
   // Validate target repository against allowlist
   const allowedReposEnv = process.env.REPO_MEMORY_ALLOWED_REPOS?.trim();
   const allowedRepos = parseAllowedRepos(allowedReposEnv);
@@ -123,17 +148,12 @@ async function main() {
   const workspaceDir = process.env.GITHUB_WORKSPACE || process.cwd();
   core.info(`Working in repository: ${workspaceDir}`);
 
-  // Disable sparse checkout to work with full branch content
-  // This is necessary because checkout was configured with sparse-checkout
-  core.info(`Disabling sparse checkout...`);
-  try {
-    execGitSync(["sparse-checkout", "disable"], { stdio: "pipe", suppressLogs: true });
-  } catch (error) {
-    // Ignore if sparse checkout wasn't enabled
-    core.info("Sparse checkout was not enabled or already disabled");
-  }
-
   // Checkout or create the memory branch
+  // Note: we do NOT disable sparse checkout here. Disabling sparse checkout on a
+  // large repository forces git to materialize all tracked files into the working
+  // tree, which can exhaust pipe buffers (ENOBUFS) when thousands of files are
+  // involved. The memory branch only holds a handful of small files, so sparse
+  // checkout does not need to be altered for either case below.
   core.info(`Checking out branch: ${branchName}...`);
   try {
     const repoUrl = `https://x-access-token:${ghToken}@${serverHost}/${targetRepo}.git`;
@@ -144,11 +164,32 @@ async function main() {
       execGitSync(["checkout", branchName], { stdio: "inherit" });
       core.info(`Checked out existing branch: ${branchName}`);
     } catch (fetchError) {
+      // Determine whether the fetch failed because the branch does not exist
+      // (expected for new memory branches) or because of a network / auth
+      // problem (unexpected – must surface as a real error and must NOT fall
+      // through to orphan-branch creation).
+      const fetchErrMsg = fetchError instanceof Error ? fetchError.message : String(fetchError);
+      const isMissingBranch = /couldn't find remote ref/i.test(fetchErrMsg) || /remote branch .* not found/i.test(fetchErrMsg);
+      if (!isMissingBranch) {
+        // Re-throw so the outer catch calls core.setFailed with the real cause.
+        throw fetchError;
+      }
+
       // Branch doesn't exist, create orphan branch
       core.info(`Branch ${branchName} does not exist, creating orphan branch...`);
       execGitSync(["checkout", "--orphan", branchName], { stdio: "inherit" });
-      // Use --ignore-unmatch to avoid failure when directory is empty
-      execGitSync(["rm", "-r", "-f", "--ignore-unmatch", "."], { stdio: "pipe" });
+      // Reset the index to an empty tree. This is O(1) regardless of how many
+      // files the source branch contained, avoiding the ENOBUFS error that
+      // "git rm -rf ." (with stdio:pipe) causes on large repos (10K+ files).
+      execGitSync(["read-tree", "--empty"], { stdio: "pipe" });
+      // Clean the working directory using Node.js so we never pipe large git
+      // output back through spawnSync buffers.
+      core.info("Cleaning working directory for orphan branch...");
+      for (const entry of fs.readdirSync(workspaceDir)) {
+        if (entry !== ".git") {
+          fs.rmSync(path.join(workspaceDir, entry), { recursive: true, force: true });
+        }
+      }
       core.info(`Created orphan branch: ${branchName}`);
     }
   } catch (error) {

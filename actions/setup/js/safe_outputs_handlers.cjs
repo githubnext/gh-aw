@@ -358,6 +358,13 @@ function createHandlers(server, appendSafeOutput, config = {}) {
     // Store the patch path in the entry so consumers know which file to use
     entry.patch_path = patchResult.patchPath;
 
+    // Store the base commit SHA so the create_pull_request handler can use it
+    // directly in the fallback path (the From <sha> header in format-patch output
+    // contains the agent's commit SHA which won't exist in the target checkout)
+    if (patchResult.baseCommit) {
+      entry.base_commit = patchResult.baseCommit;
+    }
+
     appendSafeOutput(entry);
     return {
       content: [
@@ -471,6 +478,11 @@ function createHandlers(server, appendSafeOutput, config = {}) {
 
     // Store the patch path in the entry so consumers know which file to use
     entry.patch_path = patchResult.patchPath;
+
+    // Store the base commit SHA so the push handler can use it directly
+    if (patchResult.baseCommit) {
+      entry.base_commit = patchResult.baseCommit;
+    }
 
     appendSafeOutput(entry);
     return {

@@ -1004,3 +1004,218 @@ describe("create_pull_request - wildcard target-repo", () => {
     expect(result.success).toBe(false);
   });
 });
+
+describe("create_pull_request - patch apply fallback to original base commit", () => {
+  let tempDir;
+  let originalEnv;
+  let patchFilePath;
+
+  const MOCK_BASE_COMMIT_SHA = "deadbeefdeadbeefdeadbeefdeadbeefdeadbeef";
+  // Minimal valid format-patch output
+  const PATCH_CONTENT =
+    `From a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2 Mon Sep 17 00:00:00 2001\n` +
+    `From: Test Author <test@example.com>\n` +
+    `Date: Wed, 26 Mar 2026 12:00:00 +0000\n` +
+    `Subject: [PATCH] Test change\n\n` +
+    `---\n` +
+    ` file.txt | 1 +\n\n` +
+    `diff --git a/file.txt b/file.txt\n` +
+    `index 1234567..abcdefg 100644\n` +
+    `--- a/file.txt\n` +
+    `+++ b/file.txt\n` +
+    `@@ -1 +1,2 @@\n` +
+    ` existing content\n` +
+    `+new content\n` +
+    `--\n` +
+    `2.39.0\n`;
+
+  beforeEach(() => {
+    originalEnv = { ...process.env };
+    process.env.GH_AW_WORKFLOW_ID = "test-workflow";
+    process.env.GITHUB_REPOSITORY = "test-owner/test-repo";
+    process.env.GITHUB_BASE_REF = "main";
+
+    tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "create-pr-fallback-test-"));
+    patchFilePath = path.join(tempDir, "test.patch");
+    fs.writeFileSync(patchFilePath, PATCH_CONTENT, "utf8");
+
+    global.core = {
+      info: vi.fn(),
+      warning: vi.fn(),
+      error: vi.fn(),
+      debug: vi.fn(),
+      setFailed: vi.fn(),
+      setOutput: vi.fn(),
+      startGroup: vi.fn(),
+      endGroup: vi.fn(),
+      summary: {
+        addRaw: vi.fn().mockReturnThis(),
+        write: vi.fn().mockResolvedValue(undefined),
+      },
+    };
+    global.github = {
+      rest: {
+        pulls: {
+          create: vi.fn().mockResolvedValue({ data: { number: 42, html_url: "https://github.com/test/pull/42", node_id: "PR_42" } }),
+          requestReviewers: vi.fn().mockResolvedValue({}),
+        },
+        repos: {
+          get: vi.fn().mockResolvedValue({ data: { default_branch: "main" } }),
+        },
+        issues: {
+          addLabels: vi.fn().mockResolvedValue({}),
+        },
+      },
+      graphql: vi.fn(),
+    };
+    global.context = {
+      eventName: "workflow_dispatch",
+      repo: { owner: "test-owner", repo: "test-repo" },
+      payload: {},
+    };
+
+    delete require.cache[require.resolve("./create_pull_request.cjs")];
+  });
+
+  afterEach(() => {
+    for (const key of Object.keys(process.env)) {
+      if (!(key in originalEnv)) {
+        delete process.env[key];
+      }
+    }
+    Object.assign(process.env, originalEnv);
+
+    if (tempDir && fs.existsSync(tempDir)) {
+      fs.rmSync(tempDir, { recursive: true, force: true });
+    }
+
+    delete global.core;
+    delete global.github;
+    delete global.context;
+    delete global.exec;
+    vi.clearAllMocks();
+  });
+
+  /**
+   * Helper to detect git am calls in both formats:
+   * - exec("git", ["am", "--3way", path])  (array form)
+   * - exec("git am --3way /path")          (string form)
+   */
+  function isGitAmCall(cmd, args) {
+    if (cmd === "git" && Array.isArray(args) && args[0] === "am") return true;
+    if (typeof cmd === "string" && cmd.startsWith("git am")) return true;
+    return false;
+  }
+
+  function isGitAmAbort(cmd, args) {
+    if (cmd === "git" && Array.isArray(args) && args[0] === "am" && args.includes("--abort")) return true;
+    if (typeof cmd === "string" && cmd.includes("am --abort")) return true;
+    return false;
+  }
+
+  function isGitAm3Way(cmd, args) {
+    if (cmd === "git" && Array.isArray(args) && args[0] === "am" && args.includes("--3way")) return true;
+    if (typeof cmd === "string" && cmd.startsWith("git am --3way")) return true;
+    return false;
+  }
+
+  it("should fall back to original base commit when git am --3way fails with merge conflicts", async () => {
+    let primaryAmAttempted = false;
+    global.exec = {
+      exec: vi.fn().mockImplementation((cmd, args) => {
+        // Fail the first "git am --3way" call to simulate a merge conflict
+        if (isGitAm3Way(cmd, args) && !primaryAmAttempted) {
+          primaryAmAttempted = true;
+          throw new Error("CONFLICT (content): Merge conflict in file.txt");
+        }
+        return Promise.resolve(0);
+      }),
+      getExecOutput: vi.fn().mockImplementation((cmd, args) => {
+        return Promise.resolve({ exitCode: 0, stdout: "", stderr: "" });
+      }),
+    };
+
+    const { main } = require("./create_pull_request.cjs");
+    const handler = await main({});
+
+    const result = await handler({ title: "Test PR", body: "Test body", patch_path: patchFilePath, branch: "test-branch", base_commit: MOCK_BASE_COMMIT_SHA }, {});
+
+    expect(result.success).toBe(true);
+    // Should warn that the PR will show merge conflicts
+    expect(global.core.warning).toHaveBeenCalledWith(expect.stringContaining("merge conflicts"));
+  });
+
+  it("should return error when both git am --3way and the fallback git am fail", async () => {
+    global.exec = {
+      exec: vi.fn().mockImplementation((cmd, args) => {
+        // Fail all git am calls except git am --abort
+        if (isGitAmCall(cmd, args) && !isGitAmAbort(cmd, args)) {
+          throw new Error("CONFLICT (content): Merge conflict in file.txt");
+        }
+        return Promise.resolve(0);
+      }),
+      getExecOutput: vi.fn().mockImplementation((cmd, args) => {
+        return Promise.resolve({ exitCode: 0, stdout: "", stderr: "" });
+      }),
+    };
+
+    const { main } = require("./create_pull_request.cjs");
+    const handler = await main({});
+
+    const result = await handler({ title: "Test PR", body: "Test body", patch_path: patchFilePath, branch: "test-branch", base_commit: MOCK_BASE_COMMIT_SHA }, {});
+
+    expect(result.success).toBe(false);
+    expect(result.error).toBe("Failed to apply patch");
+  });
+
+  it("should return error when original base commit is not available (cross-repo scenario)", async () => {
+    global.exec = {
+      exec: vi.fn().mockImplementation((cmd, args) => {
+        // Fail git am --3way
+        if (isGitAm3Way(cmd, args)) {
+          throw new Error("CONFLICT (content): Merge conflict in file.txt");
+        }
+        // Fail git cat-file to simulate commit not present in local repo
+        if (cmd === "git" && Array.isArray(args) && args[0] === "cat-file") {
+          throw new Error("Not a valid object name");
+        }
+        return Promise.resolve(0);
+      }),
+      getExecOutput: vi.fn().mockImplementation((cmd, args) => {
+        return Promise.resolve({ exitCode: 0, stdout: "", stderr: "" });
+      }),
+    };
+
+    const { main } = require("./create_pull_request.cjs");
+    const handler = await main({});
+
+    const result = await handler({ title: "Test PR", body: "Test body", patch_path: patchFilePath, branch: "test-branch", base_commit: MOCK_BASE_COMMIT_SHA }, {});
+
+    expect(result.success).toBe(false);
+    expect(result.error).toBe("Failed to apply patch");
+  });
+
+  it("should return error when no base_commit is provided and git am --3way fails", async () => {
+    global.exec = {
+      exec: vi.fn().mockImplementation((cmd, args) => {
+        if (isGitAm3Way(cmd, args)) {
+          throw new Error("CONFLICT (content): Merge conflict in file.txt");
+        }
+        return Promise.resolve(0);
+      }),
+      getExecOutput: vi.fn().mockImplementation(() => {
+        return Promise.resolve({ exitCode: 0, stdout: "", stderr: "" });
+      }),
+    };
+
+    const { main } = require("./create_pull_request.cjs");
+    const handler = await main({});
+
+    // No base_commit provided - fallback should not be possible
+    const result = await handler({ title: "Test PR", body: "Test body", patch_path: patchFilePath, branch: "test-branch" }, {});
+
+    expect(result.success).toBe(false);
+    expect(result.error).toBe("Failed to apply patch");
+    expect(global.core.warning).toHaveBeenCalledWith("No base_commit recorded in safe output entry - fallback not possible");
+  });
+});

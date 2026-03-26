@@ -63,6 +63,25 @@ When `create-pull-request` is configured, git commands (`checkout`, `branch`, `s
 
 By default, PRs created with GitHub Agentic Workflows do not trigger CI. See [Triggering CI](/gh-aw/reference/triggering-ci/) for how to configure CI triggers.
 
+### How PR creation works
+
+When the coding agent finishes its task, it records the requested changes in a structured output file. A separate, permission-controlled job then reads that output and applies the changes:
+
+1. The agent's commits are exported as a `git format-patch` file covering everything since the original checkout commit.
+2. The safe-output job checks out the target repository and fetches the latest state of the base branch.
+3. The patch is applied to a new branch using `git am --3way`. The `--3way` flag allows the patch to succeed even when the agent's source repository differs from the target (for example, in cross-repository workflows).
+4. The branch is pushed and the GitHub API creates the pull request.
+
+### If the target branch has changed
+
+If commits have been pushed to the base branch after the agent started, two outcomes are possible:
+
+- **No conflicts** — `git am --3way` resolves the patch cleanly against the updated base. The PR is created normally and targets the current head of the base branch.
+- **Conflicts** — if `--3way` cannot resolve the conflicts automatically, the safe-output job falls back to applying the patch at the commit the agent originally branched from. The PR is created with the branch based on that earlier commit, and GitHub's pull request UI shows the conflicts for manual resolution.
+
+> [!NOTE]
+> The fallback to the original base commit requires that commit to be present in the target repository. In cross-repository scenarios where the agent repository's history is unrelated, only the `--3way` attempt is made and a hard failure is returned if that also fails.
+
 ## Push to PR Branch (`push-to-pull-request-branch:`)
 
 Pushes changes to a PR's branch. Validates via `title-prefix` and `labels` to ensure only approved PRs receive changes. Multiple pushes per run are supported by setting `max` higher than 1.
