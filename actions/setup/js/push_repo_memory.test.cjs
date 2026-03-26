@@ -1042,11 +1042,11 @@ describe("push_repo_memory.cjs - shell injection security tests", () => {
 
       // Must NOT call "git sparse-checkout disable" – this triggers a full
       // working-tree expansion and is not needed for the orphan/memory branch.
-      expect(scriptContent).not.toMatch(/execGitSync\(\["sparse-checkout",\s*"disable"\]/);
+      expect(scriptContent).not.toContain('"sparse-checkout", "disable"');
 
       // Must NOT use "git rm" to clear the orphan branch index – this outputs
       // one line per file and causes ENOBUFS on large repos with stdio:pipe.
-      expect(scriptContent).not.toMatch(/execGitSync\(\["rm".*"--ignore-unmatch"/);
+      expect(scriptContent).not.toContain('"--ignore-unmatch"');
 
       // Must use "git read-tree --empty" to reset the index (zero output).
       expect(scriptContent).toContain('"read-tree", "--empty"');
