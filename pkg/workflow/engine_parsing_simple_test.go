@@ -157,16 +157,14 @@ func TestClaudeEngine_ParseLogMetrics_WithDuration(t *testing.T) {
 		t.Fatalf("Expected 2 tool calls, got %d", len(metrics.ToolCalls))
 	}
 
-	// Check that both tools have duration set (from total workflow duration)
+	// Check that tools do NOT have duration set from total workflow duration.
+	// Claude logs provide duration_ms as the total job time, not per-tool timing.
+	// Assigning total job time as per-tool MaxDuration is misleading, so MaxDuration
+	// should remain 0 (displayed as N/A) for tools without individual call timing.
 	for _, toolCall := range metrics.ToolCalls {
-		if toolCall.MaxDuration == 0 {
-			t.Errorf("Tool %s should have duration set, but MaxDuration is 0", toolCall.Name)
-		}
-		// Duration should be 2.5 seconds (2500ms)
-		expectedDuration := 2500 * 1000000 // 2.5s in nanoseconds
-		if int64(toolCall.MaxDuration) != int64(expectedDuration) {
-			t.Errorf("Tool %s expected duration %d ns, got %d ns",
-				toolCall.Name, expectedDuration, int64(toolCall.MaxDuration))
+		if toolCall.MaxDuration != 0 {
+			t.Errorf("Tool %s should have MaxDuration=0 (no per-call timing), but got %d ns",
+				toolCall.Name, int64(toolCall.MaxDuration))
 		}
 	}
 

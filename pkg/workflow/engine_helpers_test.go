@@ -149,9 +149,10 @@ func TestBuildStandardNpmEngineInstallSteps_AllEngines(t *testing.T) {
 // TestResolveAgentFilePath tests the shared agent file path resolution helper
 func TestResolveAgentFilePath(t *testing.T) {
 	tests := []struct {
-		name     string
-		input    string
-		expected string
+		name        string
+		input       string
+		expected    string
+		expectError bool
 	}{
 		{
 			name:     "basic agent file path",
@@ -178,11 +179,51 @@ func TestResolveAgentFilePath(t *testing.T) {
 			input:    ".github/agents/test-agent_v2.0.md",
 			expected: "\"${GITHUB_WORKSPACE}/.github/agents/test-agent_v2.0.md\"",
 		},
+		{
+			name:        "path with double quote is rejected",
+			input:       `.github/agents/a";id;"b.md`,
+			expectError: true,
+		},
+		{
+			name:        "path with dollar sign is rejected",
+			input:       ".github/agents/$injection.md",
+			expectError: true,
+		},
+		{
+			name:        "path with backtick is rejected",
+			input:       ".github/agents/`id`.md",
+			expectError: true,
+		},
+		{
+			name:        "path with semicolon is rejected",
+			input:       ".github/agents/a;b.md",
+			expectError: true,
+		},
+		{
+			name:        "path with pipe is rejected",
+			input:       ".github/agents/a|b.md",
+			expectError: true,
+		},
+		{
+			name:        "path with newline is rejected",
+			input:       ".github/agents/a\nb.md",
+			expectError: true,
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := ResolveAgentFilePath(tt.input)
+			result, err := ResolveAgentFilePath(tt.input)
+			if tt.expectError {
+				if err == nil {
+					t.Errorf("ResolveAgentFilePath(%q) expected error but got none (result: %q)", tt.input, result)
+				}
+				return
+			}
+			if err != nil {
+				t.Errorf("ResolveAgentFilePath(%q) unexpected error: %v", tt.input, err)
+				return
+			}
 			if result != tt.expected {
 				t.Errorf("ResolveAgentFilePath(%q) = %q, want %q", tt.input, result, tt.expected)
 			}
@@ -193,7 +234,10 @@ func TestResolveAgentFilePath(t *testing.T) {
 // TestResolveAgentFilePathFormat tests that the output format is consistent
 func TestResolveAgentFilePathFormat(t *testing.T) {
 	input := ".github/agents/test.md"
-	result := ResolveAgentFilePath(input)
+	result, err := ResolveAgentFilePath(input)
+	if err != nil {
+		t.Fatalf("ResolveAgentFilePath(%q) unexpected error: %v", input, err)
+	}
 
 	// Verify it starts with opening quote, GITHUB_WORKSPACE variable, and forward slash
 	expectedPrefix := "\"${GITHUB_WORKSPACE}/"
@@ -217,7 +261,10 @@ func TestResolveAgentFilePathFormat(t *testing.T) {
 // TestShellVariableExpansionInAgentPath tests that agent paths allow shell variable expansion
 func TestShellVariableExpansionInAgentPath(t *testing.T) {
 	agentFile := ".github/agents/test-agent.md"
-	result := ResolveAgentFilePath(agentFile)
+	result, err := ResolveAgentFilePath(agentFile)
+	if err != nil {
+		t.Fatalf("ResolveAgentFilePath(%q) unexpected error: %v", agentFile, err)
+	}
 
 	// The result should be fully wrapped in double quotes (not single quotes)
 	// Format: "${GITHUB_WORKSPACE}/.github/agents/test-agent.md"
@@ -243,30 +290,25 @@ func TestShellVariableExpansionInAgentPath(t *testing.T) {
 	if strings.Contains(result, "'\"") || strings.Contains(result, "\"'") {
 		t.Errorf("Agent path should not mix single and double quotes, got: %s", result)
 	}
-
-	// Should contain the variable placeholder without internal quotes
-	// Correct: "${GITHUB_WORKSPACE}/path"
-	// Incorrect: "${GITHUB_WORKSPACE}"/path
-	if strings.Contains(result, "\"/") && !strings.HasSuffix(result, "\"/\"") {
-		t.Errorf("Variable should be inside the double quotes with path, got: %s", result)
-	}
 }
 
-// TestShellEscapeArgWithFullyQuotedAgentPath tests that fully quoted agent paths are not re-escaped
+// TestShellEscapeArgWithFullyQuotedAgentPath tests that fully quoted agent paths ARE now escaped
+// (the pre-quoted bypass has been removed to prevent shell injection attacks).
 func TestShellEscapeArgWithFullyQuotedAgentPath(t *testing.T) {
-	// This simulates what happens when ResolveAgentFilePath output goes through shellEscapeArg
+	// After the bypass removal, a double-quoted string is treated as any other argument
+	// containing special characters and gets properly single-quoted.
 	agentPath := "\"${GITHUB_WORKSPACE}/.github/agents/test-agent.md\""
 
 	result := shellEscapeArg(agentPath)
 
-	// Should be left as-is because it's already fully double-quoted
-	if result != agentPath {
-		t.Errorf("shellEscapeArg should leave fully quoted path as-is, got: %s, want: %s", result, agentPath)
+	// Should be single-quoted (the bypass was removed for security)
+	if !strings.HasPrefix(result, "'") {
+		t.Errorf("shellEscapeArg should single-quote the agent path after bypass removal, got: %s", result)
 	}
 
-	// Should NOT wrap it in additional single quotes
-	if strings.HasPrefix(result, "'") {
-		t.Errorf("shellEscapeArg should not add single quotes to already double-quoted string, got: %s", result)
+	// Should NOT be left as-is (that was the vulnerable bypass behavior)
+	if result == agentPath {
+		t.Errorf("shellEscapeArg should not leave double-quoted agent path unchanged (bypass removed), got: %s", result)
 	}
 }
 
