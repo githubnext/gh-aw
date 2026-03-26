@@ -164,7 +164,10 @@ func detectTaskDomain(processedRun ProcessedRun, createdItems []CreatedItemRepor
 
 func buildBehaviorFingerprint(processedRun ProcessedRun, metrics MetricsData, toolUsage []ToolUsageInfo, createdItems []CreatedItemReport, awContext *AwContext) *BehaviorFingerprint {
 	toolTypes := len(toolUsage)
-	writeCount := len(createdItems) + processedRun.Run.SafeItemsCount
+	writeCount := processedRun.Run.SafeItemsCount
+	if writeCount == 0 {
+		writeCount = len(createdItems)
+	}
 
 	executionStyle := "directed"
 	switch {
@@ -223,7 +226,10 @@ func buildAgenticAssessments(processedRun ProcessedRun, metrics MetricsData, too
 	assessments := make([]AgenticAssessment, 0, 4)
 	toolTypes := len(toolUsage)
 	frictionEvents := len(processedRun.MissingTools) + len(processedRun.MCPFailures) + len(processedRun.MissingData)
-	writeCount := len(createdItems) + processedRun.Run.SafeItemsCount
+	writeCount := processedRun.Run.SafeItemsCount
+	if writeCount == 0 {
+		writeCount = len(createdItems)
+	}
 
 	if fingerprint.ResourceProfile == "heavy" {
 		severity := "medium"
