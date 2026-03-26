@@ -250,7 +250,7 @@ func computeAllowedDomains(engine constants.EngineName, network *workflow.Networ
 
 // buildDomainItems creates a list of DomainItem from allowed and blocked domain slices
 func buildDomainItems(allowedDomains, blockedDomains []string) []DomainItem {
-	items := make([]DomainItem, 0, len(allowedDomains)+len(blockedDomains))
+	var items []DomainItem
 	for _, d := range allowedDomains {
 		ecosystem := workflow.GetDomainEcosystem(d)
 		items = append(items, DomainItem{

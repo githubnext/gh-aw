@@ -54,14 +54,14 @@ func TestShellEscapeArg(t *testing.T) {
 			expected: "--allow-tool",
 		},
 		{
-			name:     "already double-quoted argument should not be escaped",
+			name:     "already double-quoted argument is now properly escaped",
 			input:    "\"$INSTRUCTION\"",
-			expected: "\"$INSTRUCTION\"",
+			expected: "'\"$INSTRUCTION\"'",
 		},
 		{
-			name:     "already single-quoted argument should not be escaped",
+			name:     "already single-quoted argument is now properly escaped",
 			input:    "'hello world'",
-			expected: "'hello world'",
+			expected: "''\\''hello world'\\'''",
 		},
 		{
 			name:     "partial double quote should be escaped",
@@ -69,9 +69,9 @@ func TestShellEscapeArg(t *testing.T) {
 			expected: "'hello\"world'",
 		},
 		{
-			name:     "empty double quotes should not be escaped",
+			name:     "empty double quotes are now properly escaped",
 			input:    "\"\"",
-			expected: "\"\"",
+			expected: "'\"\"'",
 		},
 		{
 			name:     "backslash-b sequence should be preserved",
@@ -127,9 +127,9 @@ func TestShellJoinArgs(t *testing.T) {
 			expected: "copilot --add-dir /tmp/gh-aw/ --allow-tool 'shell(*.txt)'",
 		},
 		{
-			name:     "prompt with pre-quoted instruction should not be escaped",
+			name:     "prompt with pre-quoted instruction is now properly escaped by shellJoinArgs",
 			input:    []string{"copilot", "--add-dir", "/tmp/gh-aw/", "--prompt", "\"$INSTRUCTION\""},
-			expected: "copilot --add-dir /tmp/gh-aw/ --prompt \"$INSTRUCTION\"",
+			expected: "copilot --add-dir /tmp/gh-aw/ --prompt '\"$INSTRUCTION\"'",
 		},
 	}
 

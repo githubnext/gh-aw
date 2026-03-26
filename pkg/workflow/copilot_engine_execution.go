@@ -47,10 +47,8 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 		// Simplified args for sandbox mode (AWF)
 		copilotArgs = []string{"--add-dir", "/tmp/gh-aw/", "--log-level", "all", "--log-dir", logsFolder}
 
-		// Always add workspace directory to --add-dir so Copilot CLI can access it
-		// This allows Copilot CLI to discover agent files and access the workspace
-		// Use double quotes to allow shell variable expansion
-		copilotArgs = append(copilotArgs, "--add-dir", "\"${GITHUB_WORKSPACE}\"")
+		// Note: --add-dir "${GITHUB_WORKSPACE}" is appended raw after shellJoinArgs below
+		// to allow shell variable expansion (cannot go through shellEscapeArg).
 		copilotExecLog.Print("Added workspace directory to --add-dir")
 
 		copilotExecLog.Print("Using firewall mode with simplified arguments")
@@ -118,12 +116,10 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 		copilotArgs = append(copilotArgs, workflowData.EngineConfig.Args...)
 	}
 
-	// Add prompt argument - inline for sandbox modes, variable for non-sandbox
-	if sandboxEnabled {
-		copilotArgs = append(copilotArgs, "--prompt", "\"$(cat /tmp/gh-aw/aw-prompts/prompt.txt)\"")
-	} else {
-		copilotArgs = append(copilotArgs, "--prompt", "\"$COPILOT_CLI_INSTRUCTION\"")
-	}
+	// Note: the --prompt argument and (in sandbox mode) --add-dir "${GITHUB_WORKSPACE}"
+	// are appended raw after shellJoinArgs in the command building step below.
+	// These contain shell variable references that must NOT go through shellEscapeArg
+	// because single-quoting them would prevent shell expansion at runtime.
 
 	// Extract all --add-dir paths and generate mkdir commands
 	addDirPaths := extractAddDirPaths(copilotArgs)
@@ -162,8 +158,16 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 		commandName = "copilot"
 	}
 
-	// Build the command - model is always passed via COPILOT_MODEL env var (see env block below)
-	copilotCommand = fmt.Sprintf("%s %s", commandName, shellJoinArgs(copilotArgs))
+	// Build the command - model is always passed via COPILOT_MODEL env var (see env block below).
+	// The --add-dir "${GITHUB_WORKSPACE}" and --prompt args are appended raw (not through
+	// shellJoinArgs) because they contain shell variable references that must expand at runtime.
+	if sandboxEnabled {
+		// Sandbox mode: add workspace dir and inline prompt (read inside AWF container)
+		copilotCommand = fmt.Sprintf(`%s %s --add-dir "${GITHUB_WORKSPACE}" --prompt "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"`, commandName, shellJoinArgs(copilotArgs))
+	} else {
+		// Non-sandbox mode: prompt is read from a shell variable set earlier in the script
+		copilotCommand = fmt.Sprintf(`%s %s --prompt "$COPILOT_CLI_INSTRUCTION"`, commandName, shellJoinArgs(copilotArgs))
+	}
 
 	// Conditionally wrap with sandbox (AWF only)
 	var command string

@@ -344,6 +344,60 @@ This is a test agent file.
 	})
 }
 
+// TestInvalidAgentFilePathGeneratesFailingStep tests that engines emit a clearly-failing step
+// (rather than silently skipping execution) when an agent file path contains shell metacharacters.
+func TestInvalidAgentFilePathGeneratesFailingStep(t *testing.T) {
+	maliciousPath := `.github/agents/a";id;"b.md`
+
+	t.Run("codex_emits_failing_step_for_invalid_path", func(t *testing.T) {
+		engine := NewCodexEngine()
+		workflowData := &WorkflowData{
+			Name:      "test-workflow",
+			AgentFile: maliciousPath,
+		}
+		steps := engine.GetExecutionSteps(workflowData, "/tmp/test.log")
+
+		if len(steps) != 1 {
+			t.Fatalf("Expected exactly 1 failing step, got %d", len(steps))
+		}
+		content := strings.Join([]string(steps[0]), "\n")
+		if !strings.Contains(content, "exit 1") {
+			t.Errorf("Expected failing step with 'exit 1', got:\n%s", content)
+		}
+		if !strings.Contains(content, "Error") {
+			t.Errorf("Expected error message in failing step, got:\n%s", content)
+		}
+		// Must NOT invoke awk (that would mean the path was used for real execution)
+		if strings.Contains(content, "awk") {
+			t.Errorf("Failing step must not invoke awk with the invalid path, got:\n%s", content)
+		}
+	})
+
+	t.Run("claude_emits_failing_step_for_invalid_path", func(t *testing.T) {
+		engine := NewClaudeEngine()
+		workflowData := &WorkflowData{
+			Name:      "test-workflow",
+			AgentFile: maliciousPath,
+		}
+		steps := engine.GetExecutionSteps(workflowData, "/tmp/test.log")
+
+		if len(steps) != 1 {
+			t.Fatalf("Expected exactly 1 failing step, got %d", len(steps))
+		}
+		content := strings.Join([]string(steps[0]), "\n")
+		if !strings.Contains(content, "exit 1") {
+			t.Errorf("Expected failing step with 'exit 1', got:\n%s", content)
+		}
+		if !strings.Contains(content, "Error") {
+			t.Errorf("Expected error message in failing step, got:\n%s", content)
+		}
+		// Must NOT invoke awk (that would mean the path was used for real execution)
+		if strings.Contains(content, "awk") {
+			t.Errorf("Failing step must not invoke awk with the invalid path, got:\n%s", content)
+		}
+	})
+}
+
 // TestCheckoutWithAgentFromImports tests that checkout step is added when agent file is imported
 func TestCheckoutWithAgentFromImports(t *testing.T) {
 	t.Run("checkout_added_with_agent", func(t *testing.T) {

@@ -85,6 +85,12 @@
    * Handle incoming messages from the main thread.
    */
   self.onmessage = async function (event) {
+    // Only accept messages from the same origin (or the dedicated-worker
+    // empty-string origin) to prevent cross-origin attacks.
+    if (event.origin && event.origin !== self.location.origin) {
+      return;
+    }
+
     var msg = event.data;
 
     if (msg.type !== 'compile') {
