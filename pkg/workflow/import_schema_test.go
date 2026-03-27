@@ -347,3 +347,152 @@ imports:
 		t.Errorf("Expected lock file to contain 'Count: 42'")
 	}
 }
+
+// TestImportSchemaObjectType tests that object type inputs with one-level deep
+// properties are validated and that sub-fields are accessible via dotted expressions.
+func TestImportSchemaObjectType(t *testing.T) {
+	tempDir := testutil.TempDir(t, "test-import-schema-object-*")
+
+	sharedPath := filepath.Join(tempDir, "shared", "config-worker.md")
+	if err := os.MkdirAll(filepath.Dir(sharedPath), 0755); err != nil {
+		t.Fatalf("Failed to create shared directory: %v", err)
+	}
+
+	sharedContent := `---
+import-schema:
+  config:
+    type: object
+    description: Configuration object
+    properties:
+      apiKey:
+        type: string
+        required: true
+      timeout:
+        type: number
+        default: 30
+  region:
+    type: string
+    required: true
+---
+
+# Config Worker Instructions
+
+API key: ${{ github.aw.import-inputs.config.apiKey }}.
+Timeout: ${{ github.aw.import-inputs.config.timeout }}.
+Region: ${{ github.aw.import-inputs.region }}.
+`
+	if err := os.WriteFile(sharedPath, []byte(sharedContent), 0644); err != nil {
+		t.Fatalf("Failed to write shared file: %v", err)
+	}
+
+	t.Run("valid object input substitution", func(t *testing.T) {
+		workflowPath := filepath.Join(tempDir, "valid.md")
+		workflowContent := `---
+on: issues
+permissions:
+  contents: read
+  issues: read
+engine: copilot
+imports:
+  - uses: shared/config-worker.md
+    with:
+      config:
+        apiKey: my-secret-key
+        timeout: 60
+      region: eu-west-1
+---
+
+# Valid Object
+`
+		if err := os.WriteFile(workflowPath, []byte(workflowContent), 0644); err != nil {
+			t.Fatalf("Failed to write workflow file: %v", err)
+		}
+		compiler := workflow.NewCompiler()
+		if err := compiler.CompileWorkflow(workflowPath); err != nil {
+			t.Fatalf("Expected compilation to succeed with valid object input, got: %v", err)
+		}
+
+		lockFilePath := stringutil.MarkdownToLockFile(workflowPath)
+		lockContent, err := os.ReadFile(lockFilePath)
+		if err != nil {
+			t.Fatalf("Failed to read lock file: %v", err)
+		}
+		content := string(lockContent)
+
+		if !strings.Contains(content, "my-secret-key") {
+			t.Errorf("Expected lock file to contain substituted apiKey 'my-secret-key'")
+		}
+		if !strings.Contains(content, "60") {
+			t.Errorf("Expected lock file to contain substituted timeout '60'")
+		}
+		if !strings.Contains(content, "eu-west-1") {
+			t.Errorf("Expected lock file to contain substituted region 'eu-west-1'")
+		}
+		if strings.Contains(content, "github.aw.import-inputs.config.apiKey") {
+			t.Error("Expected expression to be substituted in lock file")
+		}
+	})
+
+	t.Run("missing required sub-property", func(t *testing.T) {
+		workflowPath := filepath.Join(tempDir, "missing-sub.md")
+		workflowContent := `---
+on: issues
+permissions:
+  contents: read
+  issues: read
+engine: copilot
+imports:
+  - uses: shared/config-worker.md
+    with:
+      config:
+        timeout: 60
+      region: eu-west-1
+---
+
+# Missing required sub-prop
+`
+		if err := os.WriteFile(workflowPath, []byte(workflowContent), 0644); err != nil {
+			t.Fatalf("Failed to write workflow file: %v", err)
+		}
+		compiler := workflow.NewCompiler()
+		err := compiler.CompileWorkflow(workflowPath)
+		if err == nil {
+			t.Fatal("Expected compilation to fail due to missing required 'apiKey'")
+		}
+		if !strings.Contains(err.Error(), "apiKey") {
+			t.Errorf("Expected error to mention 'apiKey', got: %v", err)
+		}
+	})
+
+	t.Run("unknown sub-property", func(t *testing.T) {
+		workflowPath := filepath.Join(tempDir, "unknown-sub.md")
+		workflowContent := `---
+on: issues
+permissions:
+  contents: read
+  issues: read
+engine: copilot
+imports:
+  - uses: shared/config-worker.md
+    with:
+      config:
+        apiKey: key
+        unknownProp: value
+      region: eu-west-1
+---
+
+# Unknown sub-prop
+`
+		if err := os.WriteFile(workflowPath, []byte(workflowContent), 0644); err != nil {
+			t.Fatalf("Failed to write workflow file: %v", err)
+		}
+		compiler := workflow.NewCompiler()
+		err := compiler.CompileWorkflow(workflowPath)
+		if err == nil {
+			t.Fatal("Expected compilation to fail due to unknown sub-property")
+		}
+		if !strings.Contains(err.Error(), "unknownProp") {
+			t.Errorf("Expected error to mention 'unknownProp', got: %v", err)
+		}
+	})
+}

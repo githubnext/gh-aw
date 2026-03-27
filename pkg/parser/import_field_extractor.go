@@ -439,6 +439,52 @@ func validateWithImportSchema(inputs map[string]any, fm map[string]any, importPa
 	return nil
 }
 
+// validateObjectInput validates a 'with' value of type object against the
+// one-level deep 'properties' declared in the import-schema.
+func validateObjectInput(name string, value any, paramDef map[string]any, importPath string) error {
+	objMap, ok := value.(map[string]any)
+	if !ok {
+		return fmt.Errorf("import '%s': 'with' input %q must be an object (got %T)", importPath, name, value)
+	}
+	propsAny, hasProps := paramDef["properties"]
+	if !hasProps {
+		return nil // no schema for properties - accept any object
+	}
+	propsMap, ok := propsAny.(map[string]any)
+	if !ok {
+		return nil
+	}
+	// Check for unknown sub-keys
+	for subKey := range objMap {
+		if _, declared := propsMap[subKey]; !declared {
+			return fmt.Errorf("import '%s': 'with' input %q has unknown property %q (not in import-schema)", importPath, name, subKey)
+		}
+	}
+	// Validate each declared property
+	for propName, propDefRaw := range propsMap {
+		propDef, _ := propDefRaw.(map[string]any)
+		// Check required sub-fields
+		if req, _ := propDef["required"].(bool); req {
+			if _, provided := objMap[propName]; !provided {
+				return fmt.Errorf("import '%s': required property %q of 'with' input %q is missing", importPath, propName, name)
+			}
+		}
+		subValue, provided := objMap[propName]
+		if !provided {
+			continue
+		}
+		propType, _ := propDef["type"].(string)
+		if propType == "" {
+			continue
+		}
+		qualifiedName := name + "." + propName
+		if err := validateImportInputType(qualifiedName, subValue, propType, propDef, importPath); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 // validateImportInputType checks that a single 'with' value matches the declared type.
 func validateImportInputType(name string, value any, declaredType string, paramDef map[string]any, importPath string) error {
 	switch declaredType {
@@ -475,6 +521,8 @@ func validateImportInputType(name string, value any, declaredType string, paramD
 				return fmt.Errorf("import '%s': 'with' input %q value %q is not in the allowed options", importPath, name, strVal)
 			}
 		}
+	case "object":
+		return validateObjectInput(name, value, paramDef, importPath)
 	}
 	return nil
 }

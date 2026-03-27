@@ -100,6 +100,23 @@
                         },
                         {
                           "type": "boolean"
+                        },
+                        {
+                          "type": "object",
+                          "description": "Object value for import-schema parameters of type 'object' (one level deep).",
+                          "additionalProperties": {
+                            "oneOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "number"
+                              },
+                              {
+                                "type": "boolean"
+                              }
+                            ]
+                          }
                         }
                       ]
                     }
@@ -129,6 +146,23 @@
                         },
                         {
                           "type": "boolean"
+                        },
+                        {
+                          "type": "object",
+                          "description": "Object value for import-schema parameters of type 'object' (one level deep).",
+                          "additionalProperties": {
+                            "oneOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "number"
+                              },
+                              {
+                                "type": "boolean"
+                              }
+                            ]
+                          }
                         }
                       ]
                     }
@@ -175,6 +209,23 @@
                             },
                             {
                               "type": "boolean"
+                            },
+                            {
+                              "type": "object",
+                              "description": "Object value for import-schema parameters of type 'object' (one level deep).",
+                              "additionalProperties": {
+                                "oneOf": [
+                                  {
+                                    "type": "string"
+                                  },
+                                  {
+                                    "type": "number"
+                                  },
+                                  {
+                                    "type": "boolean"
+                                  }
+                                ]
+                              }
                             }
                           ]
                         }
@@ -204,6 +255,23 @@
                             },
                             {
                               "type": "boolean"
+                            },
+                            {
+                              "type": "object",
+                              "description": "Object value for import-schema parameters of type 'object' (one level deep).",
+                              "additionalProperties": {
+                                "oneOf": [
+                                  {
+                                    "type": "string"
+                                  },
+                                  {
+                                    "type": "number"
+                                  },
+                                  {
+                                    "type": "boolean"
+                                  }
+                                ]
+                              }
                             }
                           ]
                         }
@@ -1819,7 +1887,36 @@
                   "with": {
                     "type": "object",
                     "description": "Input parameters for the action",
-                    "additionalProperties": true
+                    "additionalProperties": {
+                      "oneOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "number"
+                        },
+                        {
+                          "type": "boolean"
+                        },
+                        {
+                          "type": "object",
+                          "description": "Object value for import-schema parameters of type 'object' (one level deep).",
+                          "additionalProperties": {
+                            "oneOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "number"
+                              },
+                              {
+                                "type": "boolean"
+                              }
+                            ]
+                          }
+                        }
+                      ]
+                    }
                   },
                   "env": {
                     "type": "object",
@@ -2187,7 +2284,36 @@
                 "with": {
                   "type": "object",
                   "description": "A map of the input parameters defined by the action. Each input parameter is a key/value pair.",
-                  "additionalProperties": true
+                  "additionalProperties": {
+                    "oneOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "number"
+                      },
+                      {
+                        "type": "boolean"
+                      },
+                      {
+                        "type": "object",
+                        "description": "Object value for import-schema parameters of type 'object' (one level deep).",
+                        "additionalProperties": {
+                          "oneOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "number"
+                            },
+                            {
+                              "type": "boolean"
+                            }
+                          ]
+                        }
+                      }
+                    ]
+                  }
                 },
                 "env": {
                   "type": "object",
@@ -2331,6 +2457,23 @@
                 },
                 {
                   "type": "boolean"
+                },
+                {
+                  "type": "object",
+                  "description": "Object value for import-schema parameters of type 'object' (one level deep).",
+                  "additionalProperties": {
+                    "oneOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "number"
+                      },
+                      {
+                        "type": "boolean"
+                      }
+                    ]
+                  }
                 }
               ]
             }
@@ -8707,37 +8850,93 @@
     },
     "import-schema": {
       "type": "object",
-      "description": "Schema for validating 'with' input values when this workflow is imported by another workflow using the 'uses'/'with' syntax. Defines the expected parameters, their types, and whether they are required. Inputs are accessible via '${{ github.aw.import-inputs.<name> }}' expressions.",
+      "description": "Schema for validating 'with' input values when this workflow is imported by another workflow using the 'uses'/'with' syntax. Defines the expected parameters, their types, and whether they are required. Scalar inputs are accessible via '${{ github.aw.import-inputs.<name> }}' expressions. Object inputs (type: object) allow one-level deep sub-fields accessible via '${{ github.aw.import-inputs.<name>.<subkey> }}' expressions.",
       "additionalProperties": {
-        "type": "object",
-        "description": "Input parameter definition. Defines the type, default value, and constraints.",
-        "properties": {
-          "description": {
-            "type": "string",
-            "description": "Human-readable description of the input parameter."
+        "oneOf": [
+          {
+            "type": "object",
+            "description": "Input parameter definition for scalar types (string, number, boolean, choice).",
+            "properties": {
+              "description": {
+                "type": "string",
+                "description": "Human-readable description of the input parameter."
+              },
+              "required": {
+                "type": "boolean",
+                "description": "Whether this input is required when using 'with' in an import.",
+                "default": false
+              },
+              "default": {
+                "description": "Default value used when 'with' does not provide this input."
+              },
+              "type": {
+                "type": "string",
+                "enum": ["string", "number", "boolean", "choice"],
+                "description": "The type of the input value."
+              },
+              "options": {
+                "type": "array",
+                "description": "List of allowed values for choice type inputs.",
+                "items": {
+                  "type": "string"
+                }
+              }
+            },
+            "additionalProperties": false
           },
-          "required": {
-            "type": "boolean",
-            "description": "Whether this input is required when using 'with' in an import.",
-            "default": false
-          },
-          "default": {
-            "description": "Default value used when 'with' does not provide this input."
-          },
-          "type": {
-            "type": "string",
-            "enum": ["string", "number", "boolean", "choice"],
-            "description": "The type of the input value."
-          },
-          "options": {
-            "type": "array",
-            "description": "List of allowed values for choice type inputs.",
-            "items": {
-              "type": "string"
-            }
+          {
+            "type": "object",
+            "description": "Input parameter definition for object type (one level deep). Use 'properties' to declare the expected sub-fields.",
+            "required": ["type"],
+            "properties": {
+              "description": {
+                "type": "string",
+                "description": "Human-readable description of the input parameter."
+              },
+              "required": {
+                "type": "boolean",
+                "description": "Whether this input is required when using 'with' in an import.",
+                "default": false
+              },
+              "type": {
+                "type": "string",
+                "enum": ["object"],
+                "description": "The type 'object' enables structured sub-fields accessible via 'github.aw.import-inputs.<name>.<subkey>'."
+              },
+              "properties": {
+                "type": "object",
+                "description": "One-level deep property definitions for this object input.",
+                "additionalProperties": {
+                  "type": "object",
+                  "description": "Sub-property definition.",
+                  "properties": {
+                    "description": {
+                      "type": "string"
+                    },
+                    "required": {
+                      "type": "boolean",
+                      "default": false
+                    },
+                    "default": {},
+                    "type": {
+                      "type": "string",
+                      "enum": ["string", "number", "boolean", "choice"],
+                      "description": "Type of the sub-property."
+                    },
+                    "options": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              }
+            },
+            "additionalProperties": false
           }
-        },
-        "additionalProperties": false
+        ]
       },
       "examples": [
         {
@@ -8750,6 +8949,22 @@
             "type": "string",
             "description": "Category filter",
             "default": "general"
+          }
+        },
+        {
+          "config": {
+            "type": "object",
+            "description": "Configuration object",
+            "properties": {
+              "apiKey": {
+                "type": "string",
+                "required": true
+              },
+              "timeout": {
+                "type": "number",
+                "default": 30
+              }
+            }
           }
         }
       ]
@@ -9605,7 +9820,36 @@
         "with": {
           "type": "object",
           "description": "Input parameters defined by the action",
-          "additionalProperties": true
+          "additionalProperties": {
+            "oneOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "object",
+                "description": "Object value for import-schema parameters of type 'object' (one level deep).",
+                "additionalProperties": {
+                  "oneOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "number"
+                    },
+                    {
+                      "type": "boolean"
+                    }
+                  ]
+                }
+              }
+            ]
+          }
         },
         "env": {
           "type": "object",

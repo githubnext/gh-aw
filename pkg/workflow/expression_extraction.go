@@ -247,8 +247,10 @@ func (e *ExpressionExtractor) ReplaceExpressionsWithEnvVars(markdown string) str
 // awInputsExprRegex matches ${{ github.aw.inputs.<key> }} expressions
 var awInputsExprRegex = regexp.MustCompile(`\$\{\{\s*github\.aw\.inputs\.([a-zA-Z0-9_-]+)\s*\}\}`)
 
-// awImportInputsExprRegex matches ${{ github.aw.import-inputs.<key> }} expressions (import-schema form)
-var awImportInputsExprRegex = regexp.MustCompile(`\$\{\{\s*github\.aw\.import-inputs\.([a-zA-Z0-9_-]+)\s*\}\}`)
+// awImportInputsExprRegex matches ${{ github.aw.import-inputs.<key> }} and
+// ${{ github.aw.import-inputs.<key>.<subkey> }} expressions (import-schema form).
+// Captures the full dotted path (e.g. "count" or "config.apiKey").
+var awImportInputsExprRegex = regexp.MustCompile(`\$\{\{\s*github\.aw\.import-inputs\.([a-zA-Z0-9_-]+(?:\.[a-zA-Z0-9_-]+)?)\s*\}\}`)
 
 // applyWorkflowDispatchFallbacks enhances entity number expressions with an
 // "|| inputs.item_number" fallback when the workflow has a workflow_dispatch
@@ -300,13 +302,14 @@ func SubstituteImportInputs(content string, importInputs map[string]any) string 
 			if len(matches) < 2 {
 				return match
 			}
-			key := matches[1]
-			if value, exists := importInputs[key]; exists {
+			path := matches[1]
+			// Resolve potentially dotted path (e.g. "config.apiKey" for object inputs)
+			if value, found := resolveImportInputPath(importInputs, path); found {
 				strValue := fmt.Sprintf("%v", value)
-				expressionExtractionLog.Printf("Substituting github.aw.%s.%s with value: %s", inputCategory, key, strValue)
+				expressionExtractionLog.Printf("Substituting github.aw.%s.%s with value: %s", inputCategory, path, strValue)
 				return strValue
 			}
-			expressionExtractionLog.Printf("Import input key not found: %s", key)
+			expressionExtractionLog.Printf("Import input path not found: %s", path)
 			return match
 		}
 	}
@@ -317,4 +320,30 @@ func SubstituteImportInputs(content string, importInputs map[string]any) string 
 	result = awImportInputsExprRegex.ReplaceAllStringFunc(result, substituteFunc(awImportInputsExprRegex, "import-inputs"))
 
 	return result
+}
+
+// resolveImportInputPath resolves a potentially dotted key path from the importInputs map.
+// For scalar inputs ("count"), it looks up importInputs["count"] directly.
+// For object sub-key paths ("config.apiKey"), it looks up importInputs["config"]["apiKey"],
+// supporting one level of nesting as defined by import-schema object types.
+// Returns the resolved value and true on success, or nil and false when the path is not found.
+func resolveImportInputPath(importInputs map[string]any, path string) (any, bool) {
+	dot := strings.IndexByte(path, '.')
+	if dot < 0 {
+		// Scalar: direct lookup
+		value, ok := importInputs[path]
+		return value, ok
+	}
+	// Object sub-key: one-level deep lookup
+	topKey := path[:dot]
+	subKey := path[dot+1:]
+	topValue, ok := importInputs[topKey]
+	if !ok {
+		return nil, false
+	}
+	if obj, ok := topValue.(map[string]any); ok {
+		value, ok := obj[subKey]
+		return value, ok
+	}
+	return nil, false
 }
