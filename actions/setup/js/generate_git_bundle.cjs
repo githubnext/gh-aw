@@ -113,9 +113,9 @@ async function generateGitBundle(branchName, baseBranch, options = {}) {
     const errorMessage = "baseBranch is required and must be a non-empty string (received: " + String(baseBranch) + ")";
     debugLog(`Invalid baseBranch: ${errorMessage}`);
     return {
+      success: false,
+      error: errorMessage,
       bundlePath,
-      bundleGenerated: false,
-      errorMessage,
     };
   }
 

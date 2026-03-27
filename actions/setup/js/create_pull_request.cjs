@@ -758,7 +758,7 @@ async function main(config = {}) {
         const runUrl = buildWorkflowRunUrl(context, context.repo);
         const runId = context.runId;
 
-        const patchFileName = bundleFilePath ? bundleFilePath.replace("/tmp/gh-aw/", "") : "aw-unknown.bundle";
+        const artifactFileName = bundleFilePath ? bundleFilePath.replace("/tmp/gh-aw/", "") : "aw-unknown.bundle";
         const fallbackBody = `${body}
 
 ---
@@ -777,7 +777,7 @@ To create a pull request with the changes:
 gh run download ${runId} -n agent -D /tmp/agent-${runId}
 
 # Fetch the bundle into a local branch
-git fetch /tmp/agent-${runId}/${patchFileName} refs/heads/${bundleBranchRef}:refs/heads/${branchName}
+git fetch /tmp/agent-${runId}/${artifactFileName} refs/heads/${bundleBranchRef}:refs/heads/${branchName}
 git checkout ${branchName}
 
 # Push the branch to origin
