@@ -1057,7 +1057,8 @@ jobs:
 
   detection:
     needs: agent
-    if: always() && needs.agent.result != 'skipped'
+    if: >
+      always() && needs.agent.result != 'skipped' && (needs.agent.outputs.output_types != '' || needs.agent.outputs.has_patch == 'true')
     runs-on: ubuntu-latest
     permissions:
           contents: read
@@ -1271,7 +1272,7 @@ jobs:
     needs:
       - agent
       - detection
-    if: always() && needs.detection.result == 'success'
+    if: always() && (needs.detection.result == 'success' || needs.detection.result == 'skipped')
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -1460,7 +1461,7 @@ jobs:
     needs:
       - agent
       - detection
-    if: always() && needs.detection.result == 'success'
+    if: always() && (needs.detection.result == 'success' || needs.detection.result == 'skipped')
     runs-on: ubuntu-latest
     permissions:
       contents: read

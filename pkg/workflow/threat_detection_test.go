@@ -754,7 +754,58 @@ func TestDetectionGuardStepCondition(t *testing.T) {
 	}
 }
 
-// TestBuildDetectionEngineExecutionStepStripsAgentField verifies that the Agent field from the
+// TestDetectionJobLevelCondition verifies that the detection job-level `if:` condition
+// skips the job entirely when the agent produced no outputs and no patch.
+// This prevents the detection job from wasting a runner and ensures safe_outputs is
+// also correctly skipped (since it gates on needs.detection.result == 'success').
+func TestDetectionJobLevelCondition(t *testing.T) {
+	compiler := NewCompiler()
+
+	data := &WorkflowData{
+		Name: "test-workflow",
+		AI:   "copilot",
+		SafeOutputs: &SafeOutputsConfig{
+			ThreatDetection: &ThreatDetectionConfig{},
+			CreateIssues: &CreateIssuesConfig{
+				TitlePrefix: "[Test]",
+			},
+		},
+	}
+
+	job, err := compiler.buildDetectionJob(data)
+	if err != nil {
+		t.Fatalf("Unexpected error building detection job: %v", err)
+	}
+	if job == nil {
+		t.Fatal("Expected detection job to be built, got nil")
+	}
+
+	condition := job.If
+
+	// Must use always() so the job runs even when the agent job fails
+	if !strings.Contains(condition, "always()") {
+		t.Errorf("Expected detection job condition to include always(), got: %q", condition)
+	}
+
+	// Must skip when agent was skipped
+	if !strings.Contains(condition, "needs."+string(constants.AgentJobName)+".result") {
+		t.Errorf("Expected detection job condition to check agent result, got: %q", condition)
+	}
+	if !strings.Contains(condition, "'skipped'") {
+		t.Errorf("Expected detection job condition to check for skipped status, got: %q", condition)
+	}
+
+	// Must check output_types and has_patch so the job is skipped at job-level
+	// when the agent produced nothing (avoiding unnecessary runner usage and
+	// preventing safe_outputs from running when there is nothing to publish).
+	if !strings.Contains(condition, "needs."+string(constants.AgentJobName)+".outputs.output_types") {
+		t.Errorf("Expected detection job condition to check output_types, got: %q", condition)
+	}
+	if !strings.Contains(condition, "needs."+string(constants.AgentJobName)+".outputs.has_patch") {
+		t.Errorf("Expected detection job condition to check has_patch, got: %q", condition)
+	}
+}
+
 // main engine config is never propagated to the detection engine config,
 // regardless of whether a model is explicitly configured.
 func TestBuildDetectionEngineExecutionStepStripsAgentField(t *testing.T) {

@@ -608,9 +608,25 @@ func (c *Compiler) buildDetectionJob(data *WorkflowData) (*Job, error) {
 		runsOn = "runs-on: " + data.SafeOutputs.ThreatDetection.RunsOn
 	}
 
-	// Detection job condition: always run if agent job was not skipped
-	// Use always() so detection runs even if the agent job failed (to check whatever output was produced)
-	jobCondition := fmt.Sprintf("always() && needs.%s.result != 'skipped'", constants.AgentJobName)
+	// Detection job condition: always run if agent job was not skipped AND produced outputs or a patch.
+	// Skip the detection job entirely (result = 'skipped') when there is nothing to detect against,
+	// so downstream jobs (safe_outputs) are also correctly skipped.
+	alwaysFunc := BuildFunctionCall("always")
+	agentNotSkipped := BuildNotEquals(
+		BuildPropertyAccess(fmt.Sprintf("needs.%s.result", constants.AgentJobName)),
+		BuildStringLiteral("skipped"),
+	)
+	outputTypesNotEmpty := BuildNotEquals(
+		BuildPropertyAccess(fmt.Sprintf("needs.%s.outputs.output_types", constants.AgentJobName)),
+		BuildStringLiteral(""),
+	)
+	hasPatchTrue := BuildEquals(
+		BuildPropertyAccess(fmt.Sprintf("needs.%s.outputs.has_patch", constants.AgentJobName)),
+		BuildStringLiteral("true"),
+	)
+	hasContent := BuildOr(outputTypesNotEmpty, hasPatchTrue)
+	jobConditionNode := BuildAnd(BuildAnd(alwaysFunc, agentNotSkipped), hasContent)
+	jobCondition := RenderCondition(jobConditionNode)
 
 	// Determine permissions for the detection job
 	// In dev/script mode, need contents: read if the actions folder checkout is needed

@@ -690,7 +690,19 @@ func (c *Compiler) buildPushRepoMemoryJob(data *WorkflowData, threatDetectionEna
 	jobCondition := "always()"
 	jobNeeds := []string{"agent"}
 	if threatDetectionEnabled {
-		jobCondition = fmt.Sprintf("always() && needs.%s.result == 'success'", constants.DetectionJobName)
+		// When threat detection is enabled, run only if detection succeeded (no threats found)
+		// or was skipped (agent produced no outputs or patch — nothing to detect against).
+		repoMemAlwaysFunc := BuildFunctionCall("always")
+		repoMemDetectionSuccess := BuildEquals(
+			BuildPropertyAccess(fmt.Sprintf("needs.%s.result", constants.DetectionJobName)),
+			BuildStringLiteral("success"),
+		)
+		repoMemDetectionSkipped := BuildEquals(
+			BuildPropertyAccess(fmt.Sprintf("needs.%s.result", constants.DetectionJobName)),
+			BuildStringLiteral("skipped"),
+		)
+		repoMemDetectionOk := BuildOr(repoMemDetectionSuccess, repoMemDetectionSkipped)
+		jobCondition = RenderCondition(BuildAnd(repoMemAlwaysFunc, repoMemDetectionOk))
 		jobNeeds = append(jobNeeds, string(constants.DetectionJobName))
 	}
 
