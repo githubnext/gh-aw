@@ -498,7 +498,7 @@ imports:
 }
 
 // TestImportSchemaArrayType tests that array type inputs are validated and substituted
-// correctly, including as a YAML inline array in the imported workflow's tools.serena field.
+// correctly, including as a YAML inline array in the imported workflow's mcp-servers.serena field.
 func TestImportSchemaArrayType(t *testing.T) {
 	tempDir := testutil.TempDir(t, "test-import-schema-array-*")
 
@@ -507,7 +507,7 @@ func TestImportSchemaArrayType(t *testing.T) {
 		t.Fatalf("Failed to create shared directory: %v", err)
 	}
 
-	// Shared workflow with tools.serena parameterised via import-schema
+	// Shared workflow with mcp-servers.serena parameterised via import-schema
 	sharedContent := `---
 import-schema:
   languages:
@@ -517,7 +517,7 @@ import-schema:
     required: true
     description: Languages to enable for Serena analysis
 
-tools:
+mcp-servers:
   serena: ${{ github.aw.import-inputs.languages }}
 ---
 

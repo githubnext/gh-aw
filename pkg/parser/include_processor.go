@@ -188,12 +188,13 @@ func processIncludedFileWithVisited(filePath, sectionName string, extractTools b
 				}
 
 				// Validate the tools, engine, network, and mcp-servers sections if present
-				// Skip tools validation for custom agent files as they use a different format (array vs object)
+				// Skip tools/mcp-servers validation for custom agent files as they use a different format (array vs object)
 				// Skip validation entirely if any frontmatter values contain unsubstituted ${{ }}
 				// expressions — these are import-schema parameterised fields whose actual values
 				// are provided by the importing workflow; schema validation happens after substitution.
+				hasExpressions := frontmatterContainsExpressions(result.Frontmatter)
 				filteredFrontmatter := map[string]any{}
-				if !isAgentFile && !frontmatterContainsExpressions(result.Frontmatter) {
+				if !isAgentFile && !hasExpressions {
 					if tools, hasTools := result.Frontmatter["tools"]; hasTools {
 						filteredFrontmatter["tools"] = tools
 					}
@@ -204,8 +205,10 @@ func processIncludedFileWithVisited(filePath, sectionName string, extractTools b
 				if network, hasNetwork := result.Frontmatter["network"]; hasNetwork {
 					filteredFrontmatter["network"] = network
 				}
-				if mcpServers, hasMCPServers := result.Frontmatter["mcp-servers"]; hasMCPServers {
-					filteredFrontmatter["mcp-servers"] = mcpServers
+				if !hasExpressions {
+					if mcpServers, hasMCPServers := result.Frontmatter["mcp-servers"]; hasMCPServers {
+						filteredFrontmatter["mcp-servers"] = mcpServers
+					}
 				}
 				// Note: we don't validate imports field as it's handled separately
 				if len(filteredFrontmatter) > 0 {

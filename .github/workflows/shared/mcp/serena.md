@@ -13,9 +13,7 @@
 #         languages: ["go", "typescript"]            # multiple languages
 #         languages: ["typescript", "python"]        # with node/python runtimes
 #
-# The 'languages' input configures:
-#   - tools.serena — the Serena MCP server language list
-#   - runtimes     — node (for typescript/javascript) and python (for python) when needed
+# The 'languages' input configures the Serena MCP server language list.
 
 import-schema:
   languages:
@@ -28,7 +26,7 @@ import-schema:
       Supported values include: go, typescript, javascript, python, rust, java,
       ruby, csharp, cpp, c, kotlin, scala, swift, php, and more.
 
-tools:
+mcp-servers:
   serena: ${{ github.aw.import-inputs.languages }}
 ---
 
