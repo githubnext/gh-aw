@@ -143,28 +143,32 @@ async function executeDiscussionUpdate(github, context, discussionNumber, update
     throw new Error(`${ERR_NOT_FOUND}: Discussion #${discussionNumber} not found`);
   }
 
-  // Build mutation for updating discussion
-  let mutation = `
-    mutation($discussionId: ID!, $title: String, $body: String) {
-      updateDiscussion(input: { discussionId: $discussionId, title: $title, body: $body }) {
-        discussion {
-          id
-          title
-          body
-          url
+  let updatedDiscussion = discussion;
+
+  // Only call the updateDiscussion mutation if title or body needs to be changed
+  if (updateData.title !== undefined || updateData.body !== undefined) {
+    const mutation = `
+      mutation($discussionId: ID!, $title: String, $body: String) {
+        updateDiscussion(input: { discussionId: $discussionId, title: $title, body: $body }) {
+          discussion {
+            id
+            title
+            body
+            url
+          }
         }
       }
-    }
-  `;
+    `;
 
-  const variables = {
-    discussionId: discussion.id,
-    title: updateData.title || discussion.title,
-    body: updateData.body || discussion.body,
-  };
+    const variables = {
+      discussionId: discussion.id,
+      title: updateData.title ?? discussion.title,
+      body: updateData.body ?? discussion.body,
+    };
 
-  const mutationResult = await github.graphql(mutation, variables);
-  const updatedDiscussion = mutationResult.updateDiscussion.discussion;
+    const mutationResult = await github.graphql(mutation, variables);
+    updatedDiscussion = mutationResult.updateDiscussion.discussion;
+  }
 
   // Handle label replacement if labels were provided
   if (updateData.labels !== undefined) {
@@ -173,7 +177,7 @@ async function executeDiscussionUpdate(github, context, discussionNumber, update
       await replaceDiscussionLabels(github, discussion.id, labelIds);
       core.info(`Successfully replaced labels on discussion #${discussionNumber}`);
     } catch (error) {
-      core.warning(`Discussion #${discussionNumber} title/body updated successfully, but label update failed: ${getErrorMessage(error)}`);
+      core.warning(`Discussion #${discussionNumber} label update failed: ${getErrorMessage(error)}`);
     }
   }
 
@@ -239,11 +243,11 @@ function resolveDiscussionNumber(item, updateTarget, context) {
 function buildDiscussionUpdateData(item, config) {
   const updateData = {};
 
-  if (item.title !== undefined) {
+  if (config.allow_title === true && item.title !== undefined) {
     // Sanitize title for Unicode security (no prefix handling needed for updates)
     updateData.title = sanitizeTitle(item.title);
   }
-  if (item.body !== undefined) {
+  if (config.allow_body === true && item.body !== undefined) {
     updateData.body = item.body;
   }
 
