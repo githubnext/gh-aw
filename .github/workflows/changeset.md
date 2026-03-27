@@ -18,6 +18,7 @@ engine:
 strict: true
 safe-outputs:
   push-to-pull-request-branch:
+    patch-format: bundle
     commit-title-suffix: " [skip-ci]"
     allowed-files:
       - .changeset/**

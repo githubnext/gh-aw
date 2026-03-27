@@ -5845,6 +5845,12 @@
                   },
                   "description": "List of glob patterns for files to exclude from the patch. Each pattern is passed to `git format-patch` as a `:(exclude)<pattern>` magic pathspec, so matching files are stripped by git at generation time and will not appear in the commit. Excluded files are also not subject to `allowed-files` or `protected-files` checks. Supports * (any characters except /) and ** (any characters including /)."
                 },
+                "patch-format": {
+                  "type": "string",
+                  "enum": ["am", "bundle"],
+                  "default": "am",
+                  "description": "Transport format for packaging changes. \"am\" (default) uses git format-patch/git am. \"bundle\" uses git bundle, which preserves merge commit topology, per-commit authorship, and merge-resolution-only content."
+                },
                 "staged": {
                   "type": "boolean",
                   "description": "If true, emit step summary messages instead of making GitHub API calls for this specific output type (preview mode)",
@@ -6988,6 +6994,12 @@
                     "type": "string"
                   },
                   "description": "List of glob patterns for files to exclude from the patch. Each pattern is passed to `git format-patch` as a `:(exclude)<pattern>` magic pathspec, so matching files are stripped by git at generation time and will not appear in the commit. Excluded files are also not subject to `allowed-files` or `protected-files` checks. Supports * (any characters except /) and ** (any characters including /)."
+                },
+                "patch-format": {
+                  "type": "string",
+                  "enum": ["am", "bundle"],
+                  "default": "am",
+                  "description": "Transport format for packaging changes. \"am\" (default) uses git format-patch/git am. \"bundle\" uses git bundle, which preserves merge commit topology, per-commit authorship, and merge-resolution-only content."
                 }
               },
               "additionalProperties": false
