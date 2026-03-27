@@ -25,7 +25,7 @@
 //   - web-search: Web search capabilities
 //   - edit: File editing operations
 //   - playwright: Browser automation
-//   - serena: Serena integration
+//   - serena: Serena integration (deprecated, use mcp-servers.serena with shared/mcp/serena.md)
 //   - agentic-workflows: Nested workflow execution
 //   - cache-memory: In-workflow memory caching
 //   - repo-memory: Repository-backed persistent memory
@@ -133,6 +133,13 @@ func NewTools(toolsMap map[string]any) *Tools {
 		tools.Qmd = parseQmdTool(val)
 	}
 	if val, exists := toolsMap["serena"]; exists {
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(
+			"'tools.serena' is deprecated. Use 'mcp-servers.serena' with the shared/mcp/serena.md workflow instead:\n"+
+				"  imports:\n"+
+				"    - uses: shared/mcp/serena.md\n"+
+				"      with:\n"+
+				"        languages: [\"go\", \"typescript\"]",
+		))
 		tools.Serena = parseSerenaTool(val)
 	}
 	if val, exists := toolsMap["agentic-workflows"]; exists {

@@ -4106,7 +4106,9 @@
           "description": "Timeout in seconds for MCP server startup. Applies to MCP server initialization if supported by the engine. Default: 120 seconds."
         },
         "serena": {
-          "description": "Serena MCP server for AI-powered code intelligence with language service integration",
+          "description": "DEPRECATED: Use 'mcp-servers.serena' with the shared/mcp/serena.md workflow instead. Serena MCP server for AI-powered code intelligence with language service integration.",
+          "deprecated": true,
+          "x-deprecation-message": "tools.serena is deprecated. Import shared/mcp/serena.md and use mcp-servers.serena instead:\n  imports:\n    - uses: shared/mcp/serena.md\n      with:\n        languages: [\"go\", \"typescript\"]",
           "oneOf": [
             {
               "type": "null",
