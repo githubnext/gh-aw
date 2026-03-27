@@ -406,6 +406,80 @@ describe("update_discussion", () => {
     });
   });
 
+  describe("title and body field isolation (independent updates)", () => {
+    it("updating only title must not mutate the body", async () => {
+      // Both title and body are allowed, but only title is provided.
+      // The body sent to the API must equal the existing body exactly (not a new value).
+      const handler = await main({
+        target: "*",
+        allow_title: true,
+        allow_body: true,
+      });
+
+      const result = await handler({ type: "update_discussion", title: "Updated Title Only", discussion_number: 42 }, {});
+      expect(result.success).toBe(true);
+
+      const updateMutations = getUpdateDiscussionMutations();
+      expect(updateMutations).toHaveLength(1);
+      // Title was changed
+      expect(updateMutations[0].variables.title).toBe("Updated Title Only");
+      // Body was NOT changed — must be the original value fetched from the discussion
+      expect(updateMutations[0].variables.body).toBe(defaultDiscussion.body);
+    });
+
+    it("updating only body must not mutate the title", async () => {
+      // Both title and body are allowed, but only body is provided.
+      // The title sent to the API must equal the existing title exactly (not a new value).
+      const handler = await main({
+        target: "*",
+        allow_title: true,
+        allow_body: true,
+      });
+
+      const result = await handler({ type: "update_discussion", body: "Updated body only", discussion_number: 42 }, {});
+      expect(result.success).toBe(true);
+
+      const updateMutations = getUpdateDiscussionMutations();
+      expect(updateMutations).toHaveLength(1);
+      // Title was NOT changed — must be the original value fetched from the discussion
+      expect(updateMutations[0].variables.title).toBe(defaultDiscussion.title);
+      // Body was changed
+      expect(updateMutations[0].variables.body).toContain("Updated body only");
+    });
+
+    it("updating title independently does not affect a subsequent body-only update", async () => {
+      // Simulate two separate handler calls (separate safe output messages).
+      // First updates title; second updates body. Each must preserve the other.
+      const handler = await main({
+        target: "*",
+        allow_title: true,
+        allow_body: true,
+      });
+
+      // First call: update title only
+      const result1 = await handler({ type: "update_discussion", title: "First Title Update", discussion_number: 42 }, {});
+      expect(result1.success).toBe(true);
+
+      let mutations = getUpdateDiscussionMutations();
+      expect(mutations).toHaveLength(1);
+      expect(mutations[0].variables.title).toBe("First Title Update");
+      expect(mutations[0].variables.body).toBe(defaultDiscussion.body);
+
+      // Clear tracked calls for the second assertion
+      graphqlCalls.length = 0;
+
+      // Second call: update body only (uses a fresh fetch of the discussion)
+      const result2 = await handler({ type: "update_discussion", body: "Second Body Update", discussion_number: 42 }, {});
+      expect(result2.success).toBe(true);
+
+      mutations = getUpdateDiscussionMutations();
+      expect(mutations).toHaveLength(1);
+      // Title still equals the original (from fetch) — not the value written in call 1
+      expect(mutations[0].variables.title).toBe(defaultDiscussion.title);
+      expect(mutations[0].variables.body).toContain("Second Body Update");
+    });
+  });
+
   describe("all fields allowed", () => {
     it("should update title, body, and labels when all are configured", async () => {
       const handler = await main({
