@@ -71,8 +71,11 @@ function getFooterInstallMessage(ctx) {
 
   const messages = getMessages();
 
-  // Create context with both camelCase and snake_case keys
-  const templateContext = toSnakeCase(ctx);
+  // Pre-compute agentic_workflow_url as the direct link to the agentic workflow page
+  const agenticWorkflowUrl = ctx.agenticWorkflowUrl || (ctx.runUrl ? `${ctx.runUrl}/agentic_workflow` : "");
+
+  // Create context with both camelCase and snake_case keys, including computed agentic_workflow_url
+  const templateContext = toSnakeCase({ ...ctx, agenticWorkflowUrl });
 
   // Default installation template
   const defaultInstall = "> To install this [agentic workflow]({workflow_source_url}), run\n> ```\n> gh aw add {workflow_source}\n> ```";
