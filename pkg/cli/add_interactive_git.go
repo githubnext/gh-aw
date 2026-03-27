@@ -210,11 +210,11 @@ func (c *AddInteractiveConfig) updateLocalBranch() error {
 		lsOutput, lsErr := lsCmd.CombinedOutput()
 		if lsErr == nil {
 			// Output looks like: "ref: refs/heads/master\tHEAD\n..."
-			for _, line := range strings.Split(string(lsOutput), "\n") {
+			for line := range strings.SplitSeq(string(lsOutput), "\n") {
 				if strings.HasPrefix(line, "ref: refs/heads/") {
 					parts := strings.Fields(line)
 					if len(parts) >= 2 {
-						defaultBranch = strings.TrimPrefix(parts[1], "refs/heads/")
+						defaultBranch = strings.TrimPrefix(parts[0], "ref: refs/heads/")
 						break
 					}
 				}
