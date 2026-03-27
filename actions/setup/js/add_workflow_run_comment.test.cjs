@@ -423,4 +423,59 @@ describe("add_workflow_run_comment", () => {
       expect(mockCore.setOutput).toHaveBeenCalledWith("comment-repo", "testowner/testrepo");
     });
   });
+
+  describe("main() - activation comments disabled", () => {
+    it("should skip comment when activationComments is false", async () => {
+      process.env.GH_AW_SAFE_OUTPUT_MESSAGES = JSON.stringify({ activationComments: false });
+      global.context = {
+        eventName: "issues",
+        runId: 12345,
+        repo: { owner: "testowner", repo: "testrepo" },
+        payload: {
+          issue: { number: 456 },
+          repository: { html_url: "https://github.com/testowner/testrepo" },
+        },
+      };
+
+      await runScript();
+
+      expect(mockGithub.request).not.toHaveBeenCalled();
+      expect(mockCore.setFailed).not.toHaveBeenCalled();
+    });
+
+    afterEach(() => {
+      delete process.env.GH_AW_SAFE_OUTPUT_MESSAGES;
+    });
+  });
+
+  describe("main() - issue_comment missing number", () => {
+    it("should fail when issue number is missing in issue_comment event", async () => {
+      global.context = {
+        eventName: "issue_comment",
+        runId: 12345,
+        repo: { owner: "testowner", repo: "testrepo" },
+        payload: {},
+      };
+
+      await runScript();
+
+      expect(mockCore.setFailed).toHaveBeenCalledWith(`${ERR_NOT_FOUND}: Issue number not found in event payload`);
+      expect(mockGithub.request).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("addCommentWithWorkflowLink() - custom workflow name", () => {
+    it("should use GH_AW_WORKFLOW_NAME in the comment body", async () => {
+      process.env.GH_AW_WORKFLOW_NAME = "My Custom Workflow";
+
+      await runAddCommentWithWorkflowLink("/repos/testowner/testrepo/issues/123/comments", "https://github.com/testowner/testrepo/actions/runs/12345", "issues");
+
+      expect(mockGithub.request).toHaveBeenCalledWith(
+        expect.stringContaining("POST"),
+        expect.objectContaining({
+          body: expect.stringContaining("My Custom Workflow"),
+        })
+      );
+    });
+  });
 });
