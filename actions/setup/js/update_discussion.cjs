@@ -264,7 +264,7 @@ function buildDiscussionUpdateData(item, config) {
     }
 
     const allowedLabels = config.allowed_labels || [];
-    const labelsResult = validateLabels(item.labels, allowedLabels.length > 0 ? allowedLabels : undefined);
+    const labelsResult = validateLabels(item.labels, allowedLabels.length > 0 ? allowedLabels : undefined, MAX_LABELS);
     if (!labelsResult.valid) {
       return { success: false, error: labelsResult.error ?? "Invalid labels" };
     }
@@ -303,4 +303,4 @@ const main = createUpdateHandlerFactory({
   formatSuccessResult: formatDiscussionSuccessResult,
 });
 
-module.exports = { main };
+module.exports = { main, buildDiscussionUpdateData };
