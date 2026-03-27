@@ -294,7 +294,7 @@ func SubstituteImportInputs(content string, importInputs map[string]any) string 
 
 	expressionExtractionLog.Printf("Substituting import inputs: %d inputs available", len(importInputs))
 
-	substituteFunc := func(regex *regexp.Regexp, namespace string) func(string) string {
+	substituteFunc := func(regex *regexp.Regexp, inputCategory string) func(string) string {
 		return func(match string) string {
 			matches := regex.FindStringSubmatch(match)
 			if len(matches) < 2 {
@@ -303,7 +303,7 @@ func SubstituteImportInputs(content string, importInputs map[string]any) string 
 			key := matches[1]
 			if value, exists := importInputs[key]; exists {
 				strValue := fmt.Sprintf("%v", value)
-				expressionExtractionLog.Printf("Substituting github.aw.%s.%s with value: %s", namespace, key, strValue)
+				expressionExtractionLog.Printf("Substituting github.aw.%s.%s with value: %s", inputCategory, key, strValue)
 				return strValue
 			}
 			expressionExtractionLog.Printf("Import input key not found: %s", key)

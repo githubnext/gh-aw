@@ -124,11 +124,6 @@ func (acc *importAccumulator) extractAllImportFields(content []byte, item import
 		if err := validateWithImportSchema(item.inputs, fm, item.importPath); err != nil {
 			return err
 		}
-	} else if len(item.inputs) > 0 {
-		// No import-schema but has inputs - still validate to catch unknown keys
-		if err := validateWithImportSchema(item.inputs, fm, item.importPath); err != nil {
-			return err
-		}
 	}
 
 	// Extract engines from imported file
