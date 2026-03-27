@@ -271,6 +271,9 @@ func (c *Compiler) buildPrepareDetectionFilesStep() []string {
 		"          for f in /tmp/gh-aw/aw-*.patch; do\n",
 		"            [ -f \"$f\" ] && cp \"$f\" /tmp/gh-aw/threat-detection/ 2>/dev/null || true\n",
 		"          done\n",
+		"          for f in /tmp/gh-aw/aw-*.bundle; do\n",
+		"            [ -f \"$f\" ] && cp \"$f\" /tmp/gh-aw/threat-detection/ 2>/dev/null || true\n",
+		"          done\n",
 		"          echo \"Prepared threat detection files:\"\n",
 		"          ls -la /tmp/gh-aw/threat-detection/ 2>/dev/null || true\n",
 	}

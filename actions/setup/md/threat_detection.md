@@ -22,8 +22,10 @@ The agent output has been saved to the following file (if any):
 
 Read and analyze this file to check for security threats.
 
-## Code Changes (Patch)
+## Code Changes (Patch or Bundle)
 The following code changes were made by the agent (if any):
+
+**Note**: Code changes may be provided as either a `git format-patch` file (`.patch`, human-readable unified diff) or a `git bundle` file (`.bundle`, binary git transport that preserves merge commit topology). Both represent committed code changes by the agent.
 
 <agent-patch-file>
 {AGENT_PATCH_FILE}

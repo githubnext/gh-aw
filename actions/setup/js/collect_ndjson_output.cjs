@@ -379,8 +379,9 @@ async function main() {
     core.info(`output_types: ${outputTypes.join(", ")}`);
     core.setOutput("output_types", outputTypes.join(","));
 
-    // Check if any patch files exist for detection job conditional
-    // Patches are now named aw-{branch}.patch (one per branch)
+    // Check if any patch or bundle files exist for detection job conditional
+    // Patches are named aw-{branch}.patch (format-patch transport, one per branch)
+    // Bundles are named aw-{branch}.bundle (git bundle transport, preserves merge topology)
     const patchDir = "/tmp/gh-aw";
     let hasPatch = false;
     const patchFiles = [];
@@ -388,7 +389,7 @@ async function main() {
       if (fs.existsSync(patchDir)) {
         const dirEntries = fs.readdirSync(patchDir);
         for (const entry of dirEntries) {
-          if (/^aw-.+\.patch$/.test(entry)) {
+          if (/^aw-.+\.(patch|bundle)$/.test(entry)) {
             patchFiles.push(entry);
             hasPatch = true;
           }
@@ -398,9 +399,9 @@ async function main() {
       // If we can't read the directory, assume no patch
     }
     if (hasPatch) {
-      core.info(`Found ${patchFiles.length} patch file(s): ${patchFiles.join(", ")}`);
+      core.info(`Found ${patchFiles.length} patch/bundle file(s): ${patchFiles.join(", ")}`);
     } else {
-      core.info(`No patch files found in: ${patchDir}`);
+      core.info(`No patch or bundle files found in: ${patchDir}`);
     }
 
     // Check if allow-empty is enabled for create_pull_request (reuse already loaded config)
