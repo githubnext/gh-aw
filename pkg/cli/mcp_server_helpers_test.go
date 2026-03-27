@@ -3,6 +3,7 @@
 package cli
 
 import (
+	"context"
 	"encoding/json"
 	"testing"
 )
@@ -110,5 +111,41 @@ func TestValidateWorkflowName_Empty(t *testing.T) {
 	// Empty workflow name is always valid (means "all workflows")
 	if err := validateWorkflowName(""); err != nil {
 		t.Errorf("validateWorkflowName(\"\") returned error: %v", err)
+	}
+}
+
+// TestCheckActorPermission_AllowsWhenValidationDisabled verifies that access is
+// always granted when validateActor is false, regardless of actor or repo context.
+func TestCheckActorPermission_AllowsWhenValidationDisabled(t *testing.T) {
+	err := checkActorPermission(context.Background(), "", false, "logs")
+	if err != nil {
+		t.Errorf("checkActorPermission with validateActor=false: expected nil, got %v", err)
+	}
+}
+
+// TestCheckActorPermission_DeniesWhenNoActorAndValidationEnabled verifies that access
+// is denied when actor is empty and validation is enabled.
+func TestCheckActorPermission_DeniesWhenNoActorAndValidationEnabled(t *testing.T) {
+	err := checkActorPermission(context.Background(), "", true, "logs")
+	if err == nil {
+		t.Error("checkActorPermission with empty actor and validateActor=true: expected error, got nil")
+	}
+}
+
+// TestCheckActorPermission_DeniesWhenNoRepoContext verifies the fail-closed behavior
+// when no repository context is available (GITHUB_REPOSITORY unset, no git context).
+// This tests the security fix: permission check must fail closed, not open.
+func TestCheckActorPermission_DeniesWhenNoRepoContext(t *testing.T) {
+	// Ensure no GITHUB_REPOSITORY is set (and cache is empty) so getRepository fails/returns "".
+	t.Setenv("GITHUB_REPOSITORY", "")
+
+	// Clear any cached repo value so getRepository does a fresh lookup.
+	mcpCache.SetRepo("")
+
+	// With GITHUB_REPOSITORY="" and no git context in the test environment,
+	// getRepository will either return "" or an error — both paths must deny access.
+	err := checkActorPermission(context.Background(), "someuser", true, "logs")
+	if err == nil {
+		t.Error("checkActorPermission with no repo context: expected error (fail closed), got nil (fail open)")
 	}
 }

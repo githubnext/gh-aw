@@ -196,15 +196,20 @@ func checkActorPermission(ctx context.Context, actor string, validateActor bool,
 	// Get repository using cached lookup
 	repo, err := getRepository()
 	if err != nil {
-		mcpLog.Printf("Tool %s: failed to get repository context, allowing access: %v", toolName, err)
-		// If we can't determine the repository, allow access (fail open)
-		return nil
+		mcpLog.Printf("Tool %s: failed to get repository context, denying access: %v", toolName, err)
+		return newMCPError(jsonrpc.CodeInternalError, "permission check failed", map[string]any{
+			"error":  err.Error(),
+			"tool":   toolName,
+			"reason": "Could not determine repository context to verify permissions. Ensure you are running from within a git repository with gh authenticated.",
+		})
 	}
 
 	if repo == "" {
-		mcpLog.Printf("Tool %s: no repository context, allowing access", toolName)
-		// No repository context, allow access
-		return nil
+		mcpLog.Printf("Tool %s: no repository context, denying access", toolName)
+		return newMCPError(jsonrpc.CodeInvalidRequest, "permission check failed", map[string]any{
+			"tool":   toolName,
+			"reason": "No repository context available. Run from within a git repository.",
+		})
 	}
 
 	// Query actor's role in the repository with caching
