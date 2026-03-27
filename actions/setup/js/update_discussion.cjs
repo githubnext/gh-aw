@@ -183,7 +183,8 @@ async function executeDiscussionUpdate(github, context, discussionNumber, update
       await replaceDiscussionLabels(github, discussion.id, labelIds);
       core.info(`Successfully replaced labels on discussion #${discussionNumber}`);
     } catch (error) {
-      core.warning(`Discussion #${discussionNumber} label update failed: ${getErrorMessage(error)}`);
+      const context = hasTitleUpdate || hasBodyUpdate ? "title/body updated successfully but " : "";
+      core.warning(`Discussion #${discussionNumber} ${context}label update failed: ${getErrorMessage(error)}`);
     }
   }
 

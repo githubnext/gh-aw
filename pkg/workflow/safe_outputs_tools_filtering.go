@@ -458,16 +458,18 @@ func filterToolSchemaFields(tool map[string]any, toolName string, safeOutputs *S
 		if !ok {
 			return
 		}
-		// Clone properties and remove fields that are not configured
+		// Clone properties and remove fields that are not configured as allowed (nil or false).
+		// This aligns with the runtime check in update_discussion.cjs which requires
+		// allow_title/allow_body/allow_labels to be explicitly true.
 		newProps := make(map[string]any, len(properties))
 		maps.Copy(newProps, properties)
-		if config.Title == nil {
+		if config.Title == nil || !*config.Title {
 			delete(newProps, "title")
 		}
-		if config.Body == nil {
+		if config.Body == nil || !*config.Body {
 			delete(newProps, "body")
 		}
-		if config.Labels == nil {
+		if config.Labels == nil || !*config.Labels {
 			delete(newProps, "labels")
 		}
 		// Clone inputSchema with new properties
@@ -476,7 +478,7 @@ func filterToolSchemaFields(tool map[string]any, toolName string, safeOutputs *S
 		newSchema["properties"] = newProps
 		tool["inputSchema"] = newSchema
 		safeOutputsConfigLog.Printf("Filtered update_discussion schema fields: title=%v, body=%v, labels=%v",
-			config.Title != nil, config.Body != nil, config.Labels != nil)
+			config.Title != nil && *config.Title, config.Body != nil && *config.Body, config.Labels != nil && *config.Labels)
 	}
 }
 
