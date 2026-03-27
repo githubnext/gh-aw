@@ -9,7 +9,7 @@ import (
 // parent struct fields give them their distinct YAML keys.
 type IssueReportingConfig struct {
 	BaseSafeOutputConfig `yaml:",inline"`
-	CreateIssue          bool     `yaml:"create-issue,omitempty"` // Whether to create/update issues (default: true)
+	CreateIssue          bool     `yaml:"create-issue,omitempty"` // Whether to create/update issues (default: false)
 	TitlePrefix          string   `yaml:"title-prefix,omitempty"` // Prefix for issue titles
 	Labels               []string `yaml:"labels,omitempty"`       // Labels to add to created issues
 }
@@ -36,7 +36,7 @@ func (c *Compiler) parseIssueReportingConfig(outputMap map[string]any, yamlKey, 
 	// Enabled with no value: missing-data: (nil)
 	if configData == nil {
 		log.Printf("%s configuration enabled with defaults", yamlKey)
-		cfg.CreateIssue = true
+		cfg.CreateIssue = false
 		cfg.TitlePrefix = defaultTitle
 		cfg.Labels = []string{}
 		return cfg
@@ -52,7 +52,7 @@ func (c *Compiler) parseIssueReportingConfig(outputMap map[string]any, yamlKey, 
 				log.Printf("create-issue: %v", createIssueBool)
 			}
 		} else {
-			cfg.CreateIssue = true
+			cfg.CreateIssue = false
 		}
 
 		if titlePrefix, exists := configMap["title-prefix"]; exists {
