@@ -528,6 +528,12 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 	threatDetectionNeedsPatches := IsDetectionJobEnabled(data.SafeOutputs)
 	if usesPatchesAndCheckouts(data.SafeOutputs) || threatDetectionNeedsPatches {
 		artifactPaths = append(artifactPaths, "/tmp/gh-aw/aw-*.patch")
+		// Bundle files are generated when patch-format: bundle is configured.
+		// Both formats use the same download path in the safe_outputs job, so
+		// include the bundle glob unconditionally alongside the patch glob.
+		// The artifact upload step already sets if-no-files-found: ignore, so
+		// this is safe even when no bundle files exist.
+		artifactPaths = append(artifactPaths, "/tmp/gh-aw/aw-*.bundle")
 	}
 
 	// Add post-steps (if any) after AI execution
