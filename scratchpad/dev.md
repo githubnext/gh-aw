@@ -1,7 +1,7 @@
 # Developer Instructions
 
-**Version**: 4.3
-**Last Updated**: 2026-03-25
+**Version**: 4.4
+**Last Updated**: 2026-03-27
 **Purpose**: Consolidated development guidelines for GitHub Agentic Workflows
 
 This document consolidates specifications from the scratchpad directory into unified developer instructions. It provides architecture patterns, security guidelines, code organization rules, and testing practices.
@@ -2542,6 +2542,7 @@ These files are loaded automatically by compatible AI tools (e.g., GitHub Copilo
 - [Testing Guidelines](./testing.md) - Testing framework: assert vs require, fuzz tests, security regression tests, benchmarks, and `make` test commands
 - [Token Budget Guidelines](./token-budget-guidelines.md) - Token budget targets and optimization strategies: `max-turns` engine restrictions (Claude/Custom only), `timeout-minutes` configuration, and prompt optimization patterns for Copilot workflows
 - [Custom GitHub Actions Build System](./actions.md) - Custom Go-based actions build system: directory structure (`actions/`), build tooling (`pkg/cli/actions_build_command.go`), action modes (standard vs dev), and CI integration
+- [Daily Reports Metrics Glossary](./metrics-glossary.md) - Standardized metric names and scopes for daily report workflows: issue, PR, workflow, firewall, code quality, observability, and Copilot agent metrics; cross-report comparison guidelines
 
 ### External References
 
@@ -2553,6 +2554,7 @@ These files are loaded automatically by compatible AI tools (e.g., GitHub Copilo
 ---
 
 **Document History**:
+- v4.4 (2026-03-27): Added Related Documentation link for `metrics-glossary.md` (standardized metric names and scopes for daily report workflows: issue, PR, workflow, firewall, code quality, observability, Copilot agent metrics; cross-report comparison guidelines). Maintenance tone scan: 0 new issues. Coverage: 62 spec files.
 - v4.3 (2026-03-25): Updated `guard-policies-specification.md` to use `allowed-repos` instead of deprecated `repos` field throughout (added migration note: `repos` is a deprecated alias, `gh aw fix` migrates automatically). No new spec files; no tone issues. Coverage: 62 spec files.
 - v4.2 (2026-03-24): Added engine-specific capability notes to Engine Interface Architecture section (`max-turns` is Claude/Custom only, not Copilot; `firewall` support matrix). Added Related Documentation links for `token-budget-guidelines.md` (max-turns restrictions, timeout-minutes config, Copilot prompt optimization) and `actions.md` (custom Go-based actions build system). Coverage: 62 spec files.
 - v4.1 (2026-03-22): Updated `repos` → `allowed-repos` in GitHub MCP Guard Policies section (reflects PR #22331 codemod; `repos` is now a deprecated alias). Added deprecation migration note (`gh aw fix`). Added Related Documentation link for GitHub MCP Access Control Specification. Coverage: 66 spec files.
