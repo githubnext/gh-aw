@@ -7,11 +7,15 @@ import (
 	"strings"
 
 	"github.com/github/gh-aw/pkg/console"
+	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/stringutil"
 )
 
+var crossRunRenderLog = logger.New("cli:audit_cross_run_render")
+
 // renderCrossRunReportJSON outputs the cross-run report as JSON to stdout.
 func renderCrossRunReportJSON(report *CrossRunFirewallReport) error {
+	crossRunRenderLog.Printf("Rendering cross-run report as JSON: runs_analyzed=%d, domains=%d", report.RunsAnalyzed, len(report.DomainInventory))
 	encoder := json.NewEncoder(os.Stdout)
 	encoder.SetIndent("", "  ")
 	return encoder.Encode(report)
@@ -19,6 +23,7 @@ func renderCrossRunReportJSON(report *CrossRunFirewallReport) error {
 
 // renderCrossRunReportMarkdown outputs the cross-run report as Markdown to stdout.
 func renderCrossRunReportMarkdown(report *CrossRunFirewallReport) {
+	crossRunRenderLog.Printf("Rendering cross-run report as markdown: runs_analyzed=%d, domains=%d", report.RunsAnalyzed, len(report.DomainInventory))
 	fmt.Println("# Audit Report — Cross-Run Firewall Analysis")
 	fmt.Println()
 
@@ -75,6 +80,8 @@ func renderCrossRunReportMarkdown(report *CrossRunFirewallReport) {
 
 // renderCrossRunReportPretty outputs the cross-run report as formatted console output to stderr.
 func renderCrossRunReportPretty(report *CrossRunFirewallReport) {
+	crossRunRenderLog.Printf("Rendering cross-run report as pretty output: runs_analyzed=%d, runs_with_data=%d, deny_rate=%.1f%%",
+		report.RunsAnalyzed, report.RunsWithData, report.Summary.OverallDenyRate*100)
 	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Audit Report — Cross-Run Firewall Analysis"))
 	fmt.Fprintln(os.Stderr)
 
