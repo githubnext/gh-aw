@@ -50,6 +50,7 @@ describe("add_workflow_run_comment", () => {
     delete process.env.GH_AW_TRACKER_ID;
     delete process.env.GH_AW_LOCK_FOR_AGENT;
     delete process.env.GITHUB_SERVER_URL;
+    delete process.env.GH_AW_SAFE_OUTPUT_MESSAGES;
 
     // Reset context to default
     global.context = {
@@ -441,10 +442,6 @@ describe("add_workflow_run_comment", () => {
 
       expect(mockGithub.request).not.toHaveBeenCalled();
       expect(mockCore.setFailed).not.toHaveBeenCalled();
-    });
-
-    afterEach(() => {
-      delete process.env.GH_AW_SAFE_OUTPUT_MESSAGES;
     });
   });
 
