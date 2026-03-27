@@ -496,3 +496,167 @@ imports:
 		}
 	})
 }
+
+// TestImportSchemaArrayType tests that array type inputs are validated and substituted
+// correctly, including as a YAML inline array in the imported workflow's tools.serena field.
+func TestImportSchemaArrayType(t *testing.T) {
+	tempDir := testutil.TempDir(t, "test-import-schema-array-*")
+
+	sharedPath := filepath.Join(tempDir, "shared", "mcp", "serena.md")
+	if err := os.MkdirAll(filepath.Dir(sharedPath), 0755); err != nil {
+		t.Fatalf("Failed to create shared directory: %v", err)
+	}
+
+	// Shared workflow with tools.serena parameterised via import-schema
+	sharedContent := `---
+import-schema:
+  languages:
+    type: array
+    items:
+      type: string
+    required: true
+    description: Languages to enable for Serena analysis
+
+tools:
+  serena: ${{ github.aw.import-inputs.languages }}
+---
+
+## Serena Analysis
+
+Configured for languages: ${{ github.aw.import-inputs.languages }}.
+`
+	if err := os.WriteFile(sharedPath, []byte(sharedContent), 0644); err != nil {
+		t.Fatalf("Failed to write shared file: %v", err)
+	}
+
+	t.Run("valid array input configures serena tools", func(t *testing.T) {
+		workflowPath := filepath.Join(tempDir, "valid.md")
+		workflowContent := `---
+on: issues
+permissions:
+  contents: read
+  issues: read
+engine: copilot
+imports:
+  - uses: shared/mcp/serena.md
+    with:
+      languages:
+        - go
+        - typescript
+---
+
+# Valid Array Input
+`
+		if err := os.WriteFile(workflowPath, []byte(workflowContent), 0644); err != nil {
+			t.Fatalf("Failed to write workflow file: %v", err)
+		}
+		compiler := workflow.NewCompiler()
+		if err := compiler.CompileWorkflow(workflowPath); err != nil {
+			t.Fatalf("Expected compilation to succeed, got: %v", err)
+		}
+
+		lockFilePath := stringutil.MarkdownToLockFile(workflowPath)
+		lockContent, err := os.ReadFile(lockFilePath)
+		if err != nil {
+			t.Fatalf("Failed to read lock file: %v", err)
+		}
+		content := string(lockContent)
+
+		// The serena tool should be configured with both languages
+		if !strings.Contains(content, "go") {
+			t.Errorf("Expected lock file to contain 'go' in serena config")
+		}
+		if !strings.Contains(content, "typescript") {
+			t.Errorf("Expected lock file to contain 'typescript' in serena config")
+		}
+		// The markdown body expression should be substituted too
+		if strings.Contains(content, "github.aw.import-inputs.languages") {
+			t.Error("Expected import-inputs expression to be substituted in lock file")
+		}
+	})
+
+	t.Run("wrong type for array input is rejected", func(t *testing.T) {
+		workflowPath := filepath.Join(tempDir, "wrong-type.md")
+		workflowContent := `---
+on: issues
+permissions:
+  contents: read
+  issues: read
+engine: copilot
+imports:
+  - uses: shared/mcp/serena.md
+    with:
+      languages: "go"
+---
+
+# Wrong type
+`
+		if err := os.WriteFile(workflowPath, []byte(workflowContent), 0644); err != nil {
+			t.Fatalf("Failed to write workflow file: %v", err)
+		}
+		compiler := workflow.NewCompiler()
+		err := compiler.CompileWorkflow(workflowPath)
+		if err == nil {
+			t.Fatal("Expected compilation to fail because 'languages' should be an array, not a string")
+		}
+		if !strings.Contains(err.Error(), "languages") {
+			t.Errorf("Expected error to mention 'languages', got: %v", err)
+		}
+	})
+
+	t.Run("array items type validated", func(t *testing.T) {
+		workflowPath := filepath.Join(tempDir, "wrong-item-type.md")
+		workflowContent := `---
+on: issues
+permissions:
+  contents: read
+  issues: read
+engine: copilot
+imports:
+  - uses: shared/mcp/serena.md
+    with:
+      languages:
+        - go
+        - 42
+---
+
+# Wrong item type
+`
+		if err := os.WriteFile(workflowPath, []byte(workflowContent), 0644); err != nil {
+			t.Fatalf("Failed to write workflow file: %v", err)
+		}
+		compiler := workflow.NewCompiler()
+		err := compiler.CompileWorkflow(workflowPath)
+		if err == nil {
+			t.Fatal("Expected compilation to fail because array items should be strings, not numbers")
+		}
+	})
+
+	t.Run("missing required array input", func(t *testing.T) {
+		workflowPath := filepath.Join(tempDir, "missing-required.md")
+		workflowContent := `---
+on: issues
+permissions:
+  contents: read
+  issues: read
+engine: copilot
+imports:
+  - uses: shared/mcp/serena.md
+    with: {}
+---
+
+# Missing required
+`
+		if err := os.WriteFile(workflowPath, []byte(workflowContent), 0644); err != nil {
+			t.Fatalf("Failed to write workflow file: %v", err)
+		}
+		compiler := workflow.NewCompiler()
+		err := compiler.CompileWorkflow(workflowPath)
+		if err == nil {
+			t.Fatal("Expected compilation to fail because 'languages' is required")
+		}
+		if !strings.Contains(err.Error(), "languages") {
+			t.Errorf("Expected error to mention 'languages', got: %v", err)
+		}
+	})
+}

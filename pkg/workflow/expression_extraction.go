@@ -3,6 +3,7 @@ package workflow
 import (
 	"crypto/sha256"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"os"
 	"regexp"
@@ -305,7 +306,7 @@ func SubstituteImportInputs(content string, importInputs map[string]any) string 
 			path := matches[1]
 			// Resolve potentially dotted path (e.g. "config.apiKey" for object inputs)
 			if value, found := resolveImportInputPath(importInputs, path); found {
-				strValue := fmt.Sprintf("%v", value)
+				strValue := marshalImportInputValue(value)
 				expressionExtractionLog.Printf("Substituting github.aw.%s.%s with value: %s", inputCategory, path, strValue)
 				return strValue
 			}
@@ -322,21 +323,37 @@ func SubstituteImportInputs(content string, importInputs map[string]any) string 
 	return result
 }
 
+// marshalImportInputValue serializes an import input value to a string suitable for
+// substitution into both YAML frontmatter and markdown prose.
+// Arrays and maps are serialized as JSON (which is valid YAML inline syntax).
+// Scalar values use Go's default string formatting.
+func marshalImportInputValue(value any) string {
+	switch v := value.(type) {
+	case []any:
+		if b, err := json.Marshal(v); err == nil {
+			return string(b)
+		}
+	case map[string]any:
+		if b, err := json.Marshal(v); err == nil {
+			return string(b)
+		}
+	}
+	return fmt.Sprintf("%v", value)
+}
+
 // resolveImportInputPath resolves a potentially dotted key path from the importInputs map.
 // For scalar inputs ("count"), it looks up importInputs["count"] directly.
 // For object sub-key paths ("config.apiKey"), it looks up importInputs["config"]["apiKey"],
 // supporting one level of nesting as defined by import-schema object types.
 // Returns the resolved value and true on success, or nil and false when the path is not found.
 func resolveImportInputPath(importInputs map[string]any, path string) (any, bool) {
-	dot := strings.IndexByte(path, '.')
-	if dot < 0 {
+	topKey, subKey, hasDot := strings.Cut(path, ".")
+	if !hasDot {
 		// Scalar: direct lookup
-		value, ok := importInputs[path]
+		value, ok := importInputs[topKey]
 		return value, ok
 	}
 	// Object sub-key: one-level deep lookup
-	topKey := path[:dot]
-	subKey := path[dot+1:]
 	topValue, ok := importInputs[topKey]
 	if !ok {
 		return nil, false

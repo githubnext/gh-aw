@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/console"
@@ -165,6 +166,7 @@ func processIncludedFileWithVisited(filePath, sectionName string, extractTools b
 					"secret-masking":           true,
 					"applyTo":                  true,
 					"inputs":                   true,
+					"import-schema":            true, // Declares parameter schema for 'uses'/'with' import syntax
 					"infer":                    true, // Custom agent format field (Copilot) - deprecated, use disable-model-invocation
 					"disable-model-invocation": true, // Custom agent format field (Copilot)
 					"features":                 true,
@@ -187,8 +189,11 @@ func processIncludedFileWithVisited(filePath, sectionName string, extractTools b
 
 				// Validate the tools, engine, network, and mcp-servers sections if present
 				// Skip tools validation for custom agent files as they use a different format (array vs object)
+				// Skip validation entirely if any frontmatter values contain unsubstituted ${{ }}
+				// expressions — these are import-schema parameterised fields whose actual values
+				// are provided by the importing workflow; schema validation happens after substitution.
 				filteredFrontmatter := map[string]any{}
-				if !isAgentFile {
+				if !isAgentFile && !frontmatterContainsExpressions(result.Frontmatter) {
 					if tools, hasTools := result.Frontmatter["tools"]; hasTools {
 						filteredFrontmatter["tools"] = tools
 					}
@@ -260,4 +265,30 @@ func processIncludedFileWithVisited(filePath, sectionName string, extractTools b
 	}
 
 	return strings.Trim(markdownContent, "\n") + "\n", nil
+}
+
+// frontmatterContainsExpressions reports whether any string value in the frontmatter map
+// (recursively) contains an unsubstituted ${{ }} expression. Shared workflows that use
+// import-schema parameterisation may have ${{ github.aw.import-inputs.* }} expressions in
+// their frontmatter fields (e.g. tools.serena) that are only resolved at import time.
+// Validation of such files is deferred to avoid false-positive schema warnings.
+func frontmatterContainsExpressions(m map[string]any) bool {
+	for _, v := range m {
+		if containsExpression(v) {
+			return true
+		}
+	}
+	return false
+}
+
+func containsExpression(v any) bool {
+	switch val := v.(type) {
+	case string:
+		return strings.Contains(val, "${{")
+	case map[string]any:
+		return frontmatterContainsExpressions(val)
+	case []any:
+		return slices.ContainsFunc(val, containsExpression)
+	}
+	return false
 }

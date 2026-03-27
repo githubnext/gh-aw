@@ -163,6 +163,22 @@
                               }
                             ]
                           }
+                        },
+                        {
+                          "type": "array",
+                          "items": {
+                            "oneOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "number"
+                              },
+                              {
+                                "type": "boolean"
+                              }
+                            ]
+                          }
                         }
                       ]
                     }
@@ -260,6 +276,22 @@
                               "type": "object",
                               "description": "Object value for import-schema parameters of type 'object' (one level deep).",
                               "additionalProperties": {
+                                "oneOf": [
+                                  {
+                                    "type": "string"
+                                  },
+                                  {
+                                    "type": "number"
+                                  },
+                                  {
+                                    "type": "boolean"
+                                  }
+                                ]
+                              }
+                            },
+                            {
+                              "type": "array",
+                              "items": {
                                 "oneOf": [
                                   {
                                     "type": "string"
@@ -1914,6 +1946,22 @@
                               }
                             ]
                           }
+                        },
+                        {
+                          "type": "array",
+                          "items": {
+                            "oneOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "number"
+                              },
+                              {
+                                "type": "boolean"
+                              }
+                            ]
+                          }
                         }
                       ]
                     }
@@ -2311,6 +2359,22 @@
                             }
                           ]
                         }
+                      },
+                      {
+                        "type": "array",
+                        "items": {
+                          "oneOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "number"
+                            },
+                            {
+                              "type": "boolean"
+                            }
+                          ]
+                        }
                       }
                     ]
                   }
@@ -2462,6 +2526,22 @@
                   "type": "object",
                   "description": "Object value for import-schema parameters of type 'object' (one level deep).",
                   "additionalProperties": {
+                    "oneOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "number"
+                      },
+                      {
+                        "type": "boolean"
+                      }
+                    ]
+                  }
+                },
+                {
+                  "type": "array",
+                  "items": {
                     "oneOf": [
                       {
                         "type": "string"
@@ -8871,7 +8951,7 @@
               },
               "type": {
                 "type": "string",
-                "enum": ["string", "number", "boolean", "choice"],
+                "enum": ["string", "number", "boolean", "choice", "array"],
                 "description": "The type of the input value."
               },
               "options": {
@@ -8880,6 +8960,18 @@
                 "items": {
                   "type": "string"
                 }
+              },
+              "items": {
+                "type": "object",
+                "description": "Schema for individual array elements. Typically {\"type\": \"string\"}.",
+                "properties": {
+                  "type": {
+                    "type": "string",
+                    "enum": ["string", "number", "boolean"],
+                    "description": "Type of each array item."
+                  }
+                },
+                "additionalProperties": false
               }
             },
             "additionalProperties": false
@@ -8949,12 +9041,16 @@
             "type": "string",
             "description": "Category filter",
             "default": "general"
-          }
-        },
-        {
+          },
+          "languages": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "List of language identifiers"
+          },
           "config": {
             "type": "object",
-            "description": "Configuration object",
             "properties": {
               "apiKey": {
                 "type": "string",
@@ -9835,6 +9931,22 @@
                 "type": "object",
                 "description": "Object value for import-schema parameters of type 'object' (one level deep).",
                 "additionalProperties": {
+                  "oneOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "number"
+                    },
+                    {
+                      "type": "boolean"
+                    }
+                  ]
+                }
+              },
+              {
+                "type": "array",
+                "items": {
                   "oneOf": [
                     {
                       "type": "string"
