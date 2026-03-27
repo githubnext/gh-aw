@@ -268,7 +268,20 @@ This issue helps you:
     expect(mockGithub.rest.issues.createComment).toHaveBeenCalled();
   });
 
-  it("should skip if agent did not succeed", async () => {
+  it("should skip if agent conclusion is cancelled (not success or failure)", async () => {
+    process.env.GH_AW_WORKFLOW_NAME = "Test Workflow";
+    process.env.GH_AW_RUN_URL = "https://github.com/test-owner/test-repo/actions/runs/123";
+    process.env.GH_AW_NOOP_MESSAGE = "Some message";
+    process.env.GH_AW_AGENT_CONCLUSION = "cancelled";
+
+    const { main } = await import("./handle_noop_message.cjs?t=" + Date.now());
+    await main();
+
+    expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Agent did not succeed"));
+    expect(mockGithub.rest.search.issuesAndPullRequests).not.toHaveBeenCalled();
+  });
+
+  it("should skip if agent failed with no agent output file", async () => {
     process.env.GH_AW_WORKFLOW_NAME = "Test Workflow";
     process.env.GH_AW_RUN_URL = "https://github.com/test-owner/test-repo/actions/runs/123";
     process.env.GH_AW_NOOP_MESSAGE = "Some message";
@@ -277,7 +290,62 @@ This issue helps you:
     const { main } = await import("./handle_noop_message.cjs?t=" + Date.now());
     await main();
 
-    expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Agent did not succeed"));
+    expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("No agent output found, skipping"));
+    expect(mockGithub.rest.search.issuesAndPullRequests).not.toHaveBeenCalled();
+  });
+
+  it("should post noop message when agent failed with only noop outputs (transient error)", async () => {
+    process.env.GH_AW_WORKFLOW_NAME = "Test Workflow";
+    process.env.GH_AW_RUN_URL = "https://github.com/test-owner/test-repo/actions/runs/123";
+    process.env.GH_AW_NOOP_MESSAGE = "No issues found";
+    process.env.GH_AW_AGENT_CONCLUSION = "failure";
+
+    // Create agent output file with only noop outputs
+    const outputFile = path.join(tempDir, "agent_output.json");
+    fs.writeFileSync(
+      outputFile,
+      JSON.stringify({
+        items: [{ type: "noop", message: "No issues found" }],
+      })
+    );
+    process.env.GH_AW_AGENT_OUTPUT = outputFile;
+
+    mockGithub.rest.search.issuesAndPullRequests.mockResolvedValue({
+      data: { total_count: 1, items: [{ number: 1, node_id: "ID", html_url: "url" }] },
+    });
+
+    mockGithub.rest.issues.createComment.mockResolvedValue({ data: {} });
+
+    const { main } = await import("./handle_noop_message.cjs?t=" + Date.now());
+    await main();
+
+    expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Agent failed but produced only noop outputs (transient AI model error"));
+    expect(mockGithub.rest.issues.createComment).toHaveBeenCalled();
+  });
+
+  it("should skip if agent failed with non-noop outputs", async () => {
+    process.env.GH_AW_WORKFLOW_NAME = "Test Workflow";
+    process.env.GH_AW_RUN_URL = "https://github.com/test-owner/test-repo/actions/runs/123";
+    process.env.GH_AW_NOOP_MESSAGE = "Some message";
+    process.env.GH_AW_AGENT_CONCLUSION = "failure";
+
+    // Create agent output file with noop + non-noop outputs
+    const outputFile = path.join(tempDir, "agent_output.json");
+    fs.writeFileSync(
+      outputFile,
+      JSON.stringify({
+        items: [
+          { type: "noop", message: "No action needed" },
+          { type: "create_issue", title: "Some issue" },
+        ],
+      })
+    );
+    process.env.GH_AW_AGENT_OUTPUT = outputFile;
+
+    const { main } = await import("./handle_noop_message.cjs?t=" + Date.now());
+    await main();
+
+    expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Found 1 non-noop output(s)"));
     expect(mockGithub.rest.search.issuesAndPullRequests).not.toHaveBeenCalled();
   });
 

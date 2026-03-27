@@ -103,8 +103,12 @@ async function main() {
       return;
     }
 
-    // Only post to "agent runs" issue if the agent succeeded (no failures)
-    if (agentConclusion !== "success") {
+    // Only post to "agent runs" issue if:
+    // 1. The agent succeeded (agentConclusion === "success"), OR
+    // 2. The agent failed but produced only noop outputs, which indicates a transient AI model
+    //    error after the meaningful work (noop) was already captured. Skipped/cancelled runs
+    //    and other non-success/non-failure conclusions are always skipped.
+    if (agentConclusion !== "success" && agentConclusion !== "failure") {
       core.info(`Agent did not succeed (conclusion: ${agentConclusion}), skipping no-op message posting`);
       return;
     }
@@ -125,7 +129,11 @@ async function main() {
       return;
     }
 
-    core.info("Agent succeeded with only noop outputs - posting to no-op runs issue");
+    if (agentConclusion === "failure") {
+      core.info("Agent failed but produced only noop outputs (transient AI model error after noop was captured) - posting noop message");
+    } else {
+      core.info("Agent succeeded with only noop outputs - posting to no-op runs issue");
+    }
 
     const { owner, repo } = context.repo;
 

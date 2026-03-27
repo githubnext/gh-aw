@@ -1520,6 +1520,7 @@ jobs:
         run: bash ${RUNNER_TEMP}/gh-aw/actions/clean_git_credentials.sh
       - name: Execute GitHub Copilot CLI
         id: agentic_execution
+        continue-on-error: true
         # Copilot CLI tool arguments (sorted):
         timeout-minutes: 15
         run: |
@@ -1686,6 +1687,10 @@ jobs:
           if [ ! -f /tmp/gh-aw/agent_output.json ]; then
             echo '{"items":[]}' > /tmp/gh-aw/agent_output.json
           fi
+      - name: Rescue noop run on agent failure
+        id: noop_rescue
+        if: steps.agentic_execution.outcome == 'failure'
+        run: bash ${RUNNER_TEMP}/gh-aw/actions/rescue_noop_run.sh
       - name: Upload cache-memory data as artifact
         uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7
         if: always()

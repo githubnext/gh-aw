@@ -39,6 +39,14 @@ func (c *Compiler) generateEngineExecutionSteps(yaml *strings.Builder, data *Wor
 	for _, step := range steps {
 		for _, line := range step {
 			yaml.WriteString(line + "\n")
+			// When safe-outputs is configured, inject continue-on-error: true immediately
+			// after the agentic_execution step ID. This allows subsequent steps (including
+			// the noop rescue step) to run even when the agent exits with a non-zero code,
+			// enabling the run to be treated as a successful no-action when the agent
+			// produced only noop safe-outputs before the failure.
+			if data.SafeOutputs != nil && strings.TrimSpace(line) == "id: agentic_execution" {
+				yaml.WriteString("        continue-on-error: true\n")
+			}
 		}
 	}
 }
@@ -174,6 +182,24 @@ func (c *Compiler) generateAgentOutputPlaceholderStep(yaml *strings.Builder) {
 	yaml.WriteString("          if [ ! -f /tmp/gh-aw/agent_output.json ]; then\n")
 	yaml.WriteString("            echo '{\"items\":[]}' > /tmp/gh-aw/agent_output.json\n")
 	yaml.WriteString("          fi\n")
+}
+
+// generateNoopRescueStep generates a step that rescues the workflow run when the agent
+// failed after successfully producing only noop safe-outputs (transient AI model error).
+// When the agentic_execution step fails but the agent had already captured a noop output,
+// this step exits 0 to allow the job to succeed, treating the run as a successful no-action.
+// When the agent produced no outputs or non-noop outputs, this step exits 1 to propagate
+// the original failure so the conclusion job creates a failure tracking issue as normal.
+//
+// This step runs only when agentic_execution failed (continue-on-error: true is injected
+// by generateEngineExecutionSteps when safe-outputs is configured).
+func (c *Compiler) generateNoopRescueStep(yaml *strings.Builder) {
+	compilerYamlLog.Print("Generating noop rescue step")
+
+	yaml.WriteString("      - name: Rescue noop run on agent failure\n")
+	yaml.WriteString("        id: noop_rescue\n")
+	yaml.WriteString("        if: steps.agentic_execution.outcome == 'failure'\n")
+	yaml.WriteString("        run: bash ${RUNNER_TEMP}/gh-aw/actions/rescue_noop_run.sh\n")
 }
 
 // generateAgentStepSummaryAppend generates a step that appends the agent's GITHUB_STEP_SUMMARY
