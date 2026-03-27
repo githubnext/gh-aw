@@ -381,6 +381,7 @@ function createHandlers(server, appendSafeOutput, config = {}) {
 
     // Patch transport (default): uses git format-patch / git am
     server.debug(`Generating patch for create_pull_request with branch: ${entry.branch}${repoCwd ? ` in ${repoCwd} baseBranch: ${baseBranch}` : ""}`);
+    /** @type {Record<string, any>} */
     const patchOptions = { ...transportOptions };
     // Pass excluded_files so git excludes them via :(exclude) pathspecs at generation time.
     if (Array.isArray(prConfig.excluded_files) && prConfig.excluded_files.length > 0) {
@@ -559,6 +560,7 @@ function createHandlers(server, appendSafeOutput, config = {}) {
     // Incremental mode only includes commits since origin/branchName,
     // preventing patches that include already-existing commits
     server.debug(`Generating incremental patch for push_to_pull_request_branch with branch: ${entry.branch}, baseBranch: ${baseBranch}`);
+    /** @type {Record<string, any>} */
     const pushPatchOptions = { ...pushTransportOptions };
     // Pass excluded_files so git excludes them via :(exclude) pathspecs at generation time.
     if (Array.isArray(pushConfig.excluded_files) && pushConfig.excluded_files.length > 0) {
