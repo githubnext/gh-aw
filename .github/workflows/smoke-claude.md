@@ -29,6 +29,7 @@ imports:
   - shared/github-queries-mcp-script.md
   - shared/go-make.md
   - shared/github-mcp-app.md
+  - shared/mcp/serena-go.md
 network:
   allowed:
     - defaults
@@ -43,9 +44,6 @@ tools:
   edit:
   bash:
     - "*"
-  serena:
-    languages:
-      go: {}
 dependencies:
   packages:
     - microsoft/apm-sample-package

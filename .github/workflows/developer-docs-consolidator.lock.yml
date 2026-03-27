@@ -28,7 +28,7 @@
 #     - shared/mcp/serena-go.md
 #     - shared/reporting.md
 #
-# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"c1e650c04e96de0cd691406ef377ad4c56a26c4bf5ebf0a9bf5bb0eab220cb1e","strict":true,"agent_id":"claude"}
+# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"53b37729746a7d9dcabae428065d8cf9b72719da05ac547606213ba7a56108e3","strict":true,"agent_id":"claude"}
 
 name: "Developer Documentation Consolidator"
 "on":
@@ -139,9 +139,9 @@ jobs:
         run: |
           bash ${RUNNER_TEMP}/gh-aw/actions/create_prompt_first.sh
           {
-          cat << 'GH_AW_PROMPT_1fc3b90762b9701a_EOF'
+          cat << 'GH_AW_PROMPT_bdcc92b3fa4f82a5_EOF'
           <system>
-          GH_AW_PROMPT_1fc3b90762b9701a_EOF
+          GH_AW_PROMPT_bdcc92b3fa4f82a5_EOF
           cat "${RUNNER_TEMP}/gh-aw/prompts/xpia.md"
           cat "${RUNNER_TEMP}/gh-aw/prompts/temp_folder_prompt.md"
           cat "${RUNNER_TEMP}/gh-aw/prompts/markdown.md"
@@ -149,12 +149,12 @@ jobs:
           cat "${RUNNER_TEMP}/gh-aw/prompts/cache_memory_prompt.md"
           cat "${RUNNER_TEMP}/gh-aw/prompts/repo_memory_prompt.md"
           cat "${RUNNER_TEMP}/gh-aw/prompts/safe_outputs_prompt.md"
-          cat << 'GH_AW_PROMPT_1fc3b90762b9701a_EOF'
+          cat << 'GH_AW_PROMPT_bdcc92b3fa4f82a5_EOF'
           <safe-output-tools>
           Tools: create_discussion, create_pull_request, missing_tool, missing_data, noop
-          GH_AW_PROMPT_1fc3b90762b9701a_EOF
+          GH_AW_PROMPT_bdcc92b3fa4f82a5_EOF
           cat "${RUNNER_TEMP}/gh-aw/prompts/safe_outputs_create_pull_request.md"
-          cat << 'GH_AW_PROMPT_1fc3b90762b9701a_EOF'
+          cat << 'GH_AW_PROMPT_bdcc92b3fa4f82a5_EOF'
           </safe-output-tools>
           <github-context>
           The following GitHub context information is available for this workflow:
@@ -184,23 +184,23 @@ jobs:
           {{/if}}
           </github-context>
           
-          GH_AW_PROMPT_1fc3b90762b9701a_EOF
+          GH_AW_PROMPT_bdcc92b3fa4f82a5_EOF
           cat "${RUNNER_TEMP}/gh-aw/prompts/github_mcp_tools_with_safeoutputs_prompt.md"
-          cat << 'GH_AW_PROMPT_1fc3b90762b9701a_EOF'
+          cat << 'GH_AW_PROMPT_bdcc92b3fa4f82a5_EOF'
           </system>
-          GH_AW_PROMPT_1fc3b90762b9701a_EOF
-          cat << 'GH_AW_PROMPT_1fc3b90762b9701a_EOF'
+          GH_AW_PROMPT_bdcc92b3fa4f82a5_EOF
+          cat << 'GH_AW_PROMPT_bdcc92b3fa4f82a5_EOF'
           {{#runtime-import .github/workflows/shared/reporting.md}}
-          GH_AW_PROMPT_1fc3b90762b9701a_EOF
-          cat << 'GH_AW_PROMPT_1fc3b90762b9701a_EOF'
+          GH_AW_PROMPT_bdcc92b3fa4f82a5_EOF
+          cat << 'GH_AW_PROMPT_bdcc92b3fa4f82a5_EOF'
           {{#runtime-import .github/workflows/shared/mcp/serena-go.md}}
-          GH_AW_PROMPT_1fc3b90762b9701a_EOF
-          cat << 'GH_AW_PROMPT_1fc3b90762b9701a_EOF'
+          GH_AW_PROMPT_bdcc92b3fa4f82a5_EOF
+          cat << 'GH_AW_PROMPT_bdcc92b3fa4f82a5_EOF'
           {{#runtime-import .github/workflows/shared/mcp/qmd-docs.md}}
-          GH_AW_PROMPT_1fc3b90762b9701a_EOF
-          cat << 'GH_AW_PROMPT_1fc3b90762b9701a_EOF'
+          GH_AW_PROMPT_bdcc92b3fa4f82a5_EOF
+          cat << 'GH_AW_PROMPT_bdcc92b3fa4f82a5_EOF'
           {{#runtime-import .github/workflows/developer-docs-consolidator.md}}
-          GH_AW_PROMPT_1fc3b90762b9701a_EOF
+          GH_AW_PROMPT_bdcc92b3fa4f82a5_EOF
           } > "$GH_AW_PROMPT"
       - name: Interpolate variables and render templates
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
@@ -414,18 +414,18 @@ jobs:
             const determineAutomaticLockdown = require('${{ runner.temp }}/gh-aw/actions/determine_automatic_lockdown.cjs');
             await determineAutomaticLockdown(github, context, core);
       - name: Download container images
-        run: bash ${RUNNER_TEMP}/gh-aw/actions/download_docker_images.sh ghcr.io/github/gh-aw-firewall/agent:0.25.1 ghcr.io/github/gh-aw-firewall/api-proxy:0.25.1 ghcr.io/github/gh-aw-firewall/squid:0.25.1 ghcr.io/github/gh-aw-mcpg:v0.2.6 ghcr.io/github/github-mcp-server:v0.32.0 ghcr.io/github/serena-mcp-server:latest node:lts-alpine
+        run: bash ${RUNNER_TEMP}/gh-aw/actions/download_docker_images.sh ghcr.io/github/gh-aw-firewall/agent:0.25.1 ghcr.io/github/gh-aw-firewall/api-proxy:0.25.1 ghcr.io/github/gh-aw-firewall/squid:0.25.1 ghcr.io/github/gh-aw-mcpg:v0.2.6 ghcr.io/github/github-mcp-server:v0.32.0 node:lts-alpine
       - name: Write Safe Outputs Config
         run: |
           mkdir -p ${RUNNER_TEMP}/gh-aw/safeoutputs
           mkdir -p /tmp/gh-aw/safeoutputs
           mkdir -p /tmp/gh-aw/mcp-logs/safeoutputs
-          cat > ${RUNNER_TEMP}/gh-aw/safeoutputs/config.json << 'GH_AW_SAFE_OUTPUTS_CONFIG_384fe9daa892b04d_EOF'
+          cat > ${RUNNER_TEMP}/gh-aw/safeoutputs/config.json << 'GH_AW_SAFE_OUTPUTS_CONFIG_38785d45ee4b9450_EOF'
           {"create_discussion":{"category":"audits","close_older_discussions":true,"expires":168,"fallback_to_issue":true,"max":1},"create_pull_request":{"draft":false,"expires":48,"labels":["documentation","automation"],"max":1,"max_patch_size":1024,"protected_files":["package.json","bun.lockb","bunfig.toml","deno.json","deno.jsonc","deno.lock","global.json","NuGet.Config","Directory.Packages.props","mix.exs","mix.lock","go.mod","go.sum","stack.yaml","stack.yaml.lock","pom.xml","build.gradle","build.gradle.kts","settings.gradle","settings.gradle.kts","gradle.properties","package-lock.json","yarn.lock","pnpm-lock.yaml","npm-shrinkwrap.json","requirements.txt","Pipfile","Pipfile.lock","pyproject.toml","setup.py","setup.cfg","Gemfile","Gemfile.lock","uv.lock","CODEOWNERS"],"protected_path_prefixes":[".github/",".agents/"],"title_prefix":"[docs] "},"missing_data":{},"missing_tool":{},"noop":{"max":1,"report-as-issue":"true"},"push_repo_memory":{"memories":[{"dir":"/tmp/gh-aw/repo-memory/default","id":"default","max_file_count":100,"max_file_size":10240,"max_patch_size":10240}]}}
-          GH_AW_SAFE_OUTPUTS_CONFIG_384fe9daa892b04d_EOF
+          GH_AW_SAFE_OUTPUTS_CONFIG_38785d45ee4b9450_EOF
       - name: Write Safe Outputs Tools
         run: |
-          cat > ${RUNNER_TEMP}/gh-aw/safeoutputs/tools_meta.json << 'GH_AW_SAFE_OUTPUTS_TOOLS_META_d7604fa103708eb8_EOF'
+          cat > ${RUNNER_TEMP}/gh-aw/safeoutputs/tools_meta.json << 'GH_AW_SAFE_OUTPUTS_TOOLS_META_d50c0c7569e1056c_EOF'
           {
             "description_suffixes": {
               "create_discussion": " CONSTRAINTS: Maximum 1 discussion(s) can be created. Discussions will be created in category \"audits\".",
@@ -434,8 +434,8 @@ jobs:
             "repo_params": {},
             "dynamic_tools": []
           }
-          GH_AW_SAFE_OUTPUTS_TOOLS_META_d7604fa103708eb8_EOF
-          cat > ${RUNNER_TEMP}/gh-aw/safeoutputs/validation.json << 'GH_AW_SAFE_OUTPUTS_VALIDATION_314ba2e0beb13251_EOF'
+          GH_AW_SAFE_OUTPUTS_TOOLS_META_d50c0c7569e1056c_EOF
+          cat > ${RUNNER_TEMP}/gh-aw/safeoutputs/validation.json << 'GH_AW_SAFE_OUTPUTS_VALIDATION_35850464d31c5a13_EOF'
           {
             "create_discussion": {
               "defaultMax": 1,
@@ -557,7 +557,7 @@ jobs:
               }
             }
           }
-          GH_AW_SAFE_OUTPUTS_VALIDATION_314ba2e0beb13251_EOF
+          GH_AW_SAFE_OUTPUTS_VALIDATION_35850464d31c5a13_EOF
           node ${RUNNER_TEMP}/gh-aw/actions/generate_safe_outputs_tools.cjs
       - name: Generate Safe Outputs MCP Server Config
         id: safe-outputs-config
@@ -658,7 +658,7 @@ jobs:
           export GH_AW_ENGINE="claude"
           export MCP_GATEWAY_DOCKER_COMMAND='docker run -i --rm --network host -v /var/run/docker.sock:/var/run/docker.sock -e MCP_GATEWAY_PORT -e MCP_GATEWAY_DOMAIN -e MCP_GATEWAY_API_KEY -e MCP_GATEWAY_PAYLOAD_DIR -e MCP_GATEWAY_PAYLOAD_SIZE_THRESHOLD -e DEBUG -e MCP_GATEWAY_LOG_DIR -e GH_AW_MCP_LOG_DIR -e GH_AW_SAFE_OUTPUTS -e GH_AW_SAFE_OUTPUTS_CONFIG_PATH -e GH_AW_SAFE_OUTPUTS_TOOLS_PATH -e GH_AW_ASSETS_BRANCH -e GH_AW_ASSETS_MAX_SIZE_KB -e GH_AW_ASSETS_ALLOWED_EXTS -e DEFAULT_BRANCH -e GITHUB_MCP_SERVER_TOKEN -e GITHUB_MCP_GUARD_MIN_INTEGRITY -e GITHUB_MCP_GUARD_REPOS -e GITHUB_REPOSITORY -e GITHUB_SERVER_URL -e GITHUB_SHA -e GITHUB_WORKSPACE -e GITHUB_TOKEN -e GITHUB_RUN_ID -e GITHUB_RUN_NUMBER -e GITHUB_RUN_ATTEMPT -e GITHUB_JOB -e GITHUB_ACTION -e GITHUB_EVENT_NAME -e GITHUB_EVENT_PATH -e GITHUB_ACTOR -e GITHUB_ACTOR_ID -e GITHUB_TRIGGERING_ACTOR -e GITHUB_WORKFLOW -e GITHUB_WORKFLOW_REF -e GITHUB_WORKFLOW_SHA -e GITHUB_REF -e GITHUB_REF_NAME -e GITHUB_REF_TYPE -e GITHUB_HEAD_REF -e GITHUB_BASE_REF -e GH_AW_SAFE_OUTPUTS_PORT -e GH_AW_SAFE_OUTPUTS_API_KEY -v /tmp/gh-aw/mcp-payloads:/tmp/gh-aw/mcp-payloads:rw -v /opt:/opt:ro -v /tmp:/tmp:rw -v '"${GITHUB_WORKSPACE}"':'"${GITHUB_WORKSPACE}"':rw ghcr.io/github/gh-aw-mcpg:v0.2.6'
           
-          cat << GH_AW_MCP_CONFIG_363204b3e9244476_EOF | bash ${RUNNER_TEMP}/gh-aw/actions/start_mcp_gateway.sh
+          cat << GH_AW_MCP_CONFIG_60450871e3bbdb16_EOF | bash ${RUNNER_TEMP}/gh-aw/actions/start_mcp_gateway.sh
           {
             "mcpServers": {
               "github": {
@@ -700,29 +700,6 @@ jobs:
                     ]
                   }
                 }
-              },
-              "serena": {
-                "container": "ghcr.io/github/serena-mcp-server:latest",
-                "args": [
-                  "--network",
-                  "host"
-                ],
-                "entrypoint": "serena",
-                "entrypointArgs": [
-                  "start-mcp-server",
-                  "--context",
-                  "codex",
-                  "--project",
-                  "\${GITHUB_WORKSPACE}"
-                ],
-                "mounts": ["\${GITHUB_WORKSPACE}:\${GITHUB_WORKSPACE}:rw"],
-                "guard-policies": {
-                  "write-sink": {
-                    "accept": [
-                      "*"
-                    ]
-                  }
-                }
               }
             },
             "gateway": {
@@ -732,7 +709,7 @@ jobs:
               "payloadDir": "${MCP_GATEWAY_PAYLOAD_DIR}"
             }
           }
-          GH_AW_MCP_CONFIG_363204b3e9244476_EOF
+          GH_AW_MCP_CONFIG_60450871e3bbdb16_EOF
       - name: Download activation artifact
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
