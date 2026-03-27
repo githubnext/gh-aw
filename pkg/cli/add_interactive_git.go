@@ -214,7 +214,7 @@ func (c *AddInteractiveConfig) updateLocalBranch() error {
 				if strings.HasPrefix(line, "ref: refs/heads/") {
 					parts := strings.Fields(line)
 					if len(parts) >= 2 {
-						defaultBranch = strings.TrimPrefix(parts[0], "ref: refs/heads/")
+						defaultBranch = strings.TrimPrefix(parts[1], "refs/heads/")
 						break
 					}
 				}
