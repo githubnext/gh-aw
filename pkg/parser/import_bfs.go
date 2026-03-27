@@ -413,8 +413,9 @@ func processImportsFromFrontmatterWithManifestAndSource(frontmatter map[string]a
 }
 
 // parseImportSpecsFromArray parses an []any slice into a list of ImportSpec values.
-// Each element must be a string (simple path) or a map with a required "path" key
-// and an optional "inputs" map.
+// Each element must be a string (simple path) or a map with a required "path" or "uses"
+// key and an optional "inputs" or "with" map. The "uses"/"with" form mirrors GitHub Actions
+// reusable workflow syntax and is an alias for "path"/"inputs".
 func parseImportSpecsFromArray(items []any) ([]ImportSpec, error) {
 	var specs []ImportSpec
 	for _, item := range items {
@@ -422,25 +423,34 @@ func parseImportSpecsFromArray(items []any) ([]ImportSpec, error) {
 		case string:
 			specs = append(specs, ImportSpec{Path: importItem})
 		case map[string]any:
+			// Accept "uses" as an alias for "path"
 			pathValue, hasPath := importItem["path"]
 			if !hasPath {
-				return nil, errors.New("import object must have a 'path' field")
+				pathValue, hasPath = importItem["uses"]
+			}
+			if !hasPath {
+				return nil, errors.New("import object must have a 'path' or 'uses' field")
 			}
 			pathStr, ok := pathValue.(string)
 			if !ok {
-				return nil, errors.New("import 'path' must be a string")
+				return nil, errors.New("import 'path'/'uses' must be a string")
 			}
+			// Accept "with" as an alias for "inputs"
 			var inputs map[string]any
-			if inputsValue, hasInputs := importItem["inputs"]; hasInputs {
+			inputsValue, hasInputs := importItem["inputs"]
+			if !hasInputs {
+				inputsValue, hasInputs = importItem["with"]
+			}
+			if hasInputs {
 				if inputsMap, ok := inputsValue.(map[string]any); ok {
 					inputs = inputsMap
 				} else {
-					return nil, errors.New("import 'inputs' must be an object")
+					return nil, errors.New("import 'inputs'/'with' must be an object")
 				}
 			}
 			specs = append(specs, ImportSpec{Path: pathStr, Inputs: inputs})
 		default:
-			return nil, errors.New("import item must be a string or an object with 'path' field")
+			return nil, errors.New("import item must be a string or an object with 'path'/'uses' field")
 		}
 	}
 	return specs, nil

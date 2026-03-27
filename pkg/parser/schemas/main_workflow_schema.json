@@ -105,6 +105,35 @@
                     }
                   }
                 }
+              },
+              {
+                "type": "object",
+                "description": "Import specification with 'uses'/'with' syntax (mirrors GitHub Actions reusable workflow syntax). 'uses' references the workflow path and 'with' provides input values.",
+                "required": ["uses"],
+                "additionalProperties": false,
+                "properties": {
+                  "uses": {
+                    "type": "string",
+                    "description": "Workflow specification in format owner/repo/path@ref. Alias for 'path'."
+                  },
+                  "with": {
+                    "type": "object",
+                    "description": "Input values to pass to the imported workflow, validated against the imported workflow's 'import-schema'. Alias for 'inputs'.",
+                    "additionalProperties": {
+                      "oneOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "number"
+                        },
+                        {
+                          "type": "boolean"
+                        }
+                      ]
+                    }
+                  }
+                }
               }
             ]
           }
@@ -137,7 +166,46 @@
                         "type": "object",
                         "description": "Input values to pass to the imported workflow.",
                         "additionalProperties": {
-                          "oneOf": [{ "type": "string" }, { "type": "number" }, { "type": "boolean" }]
+                          "oneOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "number"
+                            },
+                            {
+                              "type": "boolean"
+                            }
+                          ]
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "type": "object",
+                    "description": "Import specification with 'uses'/'with' syntax.",
+                    "required": ["uses"],
+                    "additionalProperties": false,
+                    "properties": {
+                      "uses": {
+                        "type": "string",
+                        "description": "Workflow specification in format owner/repo/path@ref."
+                      },
+                      "with": {
+                        "type": "object",
+                        "description": "Input values to pass to the imported workflow.",
+                        "additionalProperties": {
+                          "oneOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "number"
+                            },
+                            {
+                              "type": "boolean"
+                            }
+                          ]
                         }
                       }
                     }
@@ -1582,7 +1650,7 @@
               "oneOf": [
                 {
                   "type": "null",
-                  "description": "Bare key with no value — equivalent to true. Skips workflow execution if any CI checks on the target branch are currently failing."
+                  "description": "Bare key with no value \u2014 equivalent to true. Skips workflow execution if any CI checks on the target branch are currently failing."
                 },
                 {
                   "type": "boolean",
@@ -8636,6 +8704,55 @@
     "github-app": {
       "$ref": "#/$defs/github_app",
       "description": "Top-level GitHub App configuration used as a fallback for all nested github-app token minting operations (on, safe-outputs, checkout, tools.github, dependencies). When a nested section does not define its own github-app, this top-level configuration is used automatically."
+    },
+    "import-schema": {
+      "type": "object",
+      "description": "Schema for validating 'with' input values when this workflow is imported by another workflow using the 'uses'/'with' syntax. Defines the expected parameters, their types, and whether they are required. Inputs are accessible via '${{ github.aw.import-inputs.<name> }}' expressions.",
+      "additionalProperties": {
+        "type": "object",
+        "description": "Input parameter definition. Defines the type, default value, and constraints.",
+        "properties": {
+          "description": {
+            "type": "string",
+            "description": "Human-readable description of the input parameter."
+          },
+          "required": {
+            "type": "boolean",
+            "description": "Whether this input is required when using 'with' in an import.",
+            "default": false
+          },
+          "default": {
+            "description": "Default value used when 'with' does not provide this input."
+          },
+          "type": {
+            "type": "string",
+            "enum": ["string", "number", "boolean", "choice"],
+            "description": "The type of the input value."
+          },
+          "options": {
+            "type": "array",
+            "description": "List of allowed values for choice type inputs.",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "additionalProperties": false
+      },
+      "examples": [
+        {
+          "count": {
+            "type": "number",
+            "description": "Number of items to process",
+            "required": true
+          },
+          "category": {
+            "type": "string",
+            "description": "Category filter",
+            "default": "general"
+          }
+        }
+      ]
     }
   },
   "additionalProperties": false,

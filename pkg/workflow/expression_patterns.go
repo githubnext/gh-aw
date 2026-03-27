@@ -101,6 +101,14 @@ var (
 	// Used for extraction rather than validation
 	AWInputsExpressionPattern = regexp.MustCompile(`\$\{\{\s*github\.aw\.inputs\.([a-zA-Z0-9_-]+)\s*\}\}`)
 
+	// AWImportInputsPattern matches github.aw.import-inputs.* patterns for import-schema form
+	// Example: github.aw.import-inputs.count
+	AWImportInputsPattern = regexp.MustCompile(`^github\.aw\.import-inputs\.[a-zA-Z0-9_-]+$`)
+
+	// AWImportInputsExpressionPattern matches full ${{ github.aw.import-inputs.* }} expressions
+	// Used for substitution of values provided via the 'with' key in import specifications
+	AWImportInputsExpressionPattern = regexp.MustCompile(`\$\{\{\s*github\.aw\.import-inputs\.([a-zA-Z0-9_-]+)\s*\}\}`)
+
 	// EnvPattern matches env.* patterns
 	// Example: env.NODE_VERSION
 	EnvPattern = regexp.MustCompile(`^env\.[a-zA-Z0-9_-]+$`)
