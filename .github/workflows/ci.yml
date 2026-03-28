@@ -2746,10 +2746,24 @@ jobs:
     concurrency:
       group: ci-${{ github.ref }}-integration-release-availability
       cancel-in-progress: true
+    env:
+      GH_TOKEN: ${{ github.token }}
     steps:
+      - name: Define helpers
+        run: |
+          # Write a reusable helper script for checking GHCR image manifests.
+          # Returns the image digest (sha256:...) or exits 1 if the image is unavailable.
+          cat > /tmp/ghcr_digest.py << 'EOF'
+          import sys, json
+          m = json.load(sys.stdin)
+          digest = m.get("config", {}).get("digest", "") or \
+                   next((entry.get("digest", "") for entry in m.get("manifests", []) if entry.get("digest")), "")
+          if not digest:
+              sys.exit(1)
+          print(digest)
+          EOF
+
       - name: Check gh-aw-firewall release
-        env:
-          GH_TOKEN: ${{ github.token }}
         run: |
           set -e
           REPO="github/gh-aw-firewall"
@@ -2768,8 +2782,7 @@ jobs:
           fi
 
           echo "Checking GHCR image manifest: ${IMAGE}..."
-          DIGEST=$(docker manifest inspect "${IMAGE}" 2>/dev/null | \
-            python3 -c "import sys,json; m=json.load(sys.stdin); print(m.get('config',{}).get('digest','') or m.get('manifests',[{}])[0].get('digest','n/a'))" 2>/dev/null || echo "")
+          DIGEST=$(docker manifest inspect "${IMAGE}" 2>/dev/null | python3 /tmp/ghcr_digest.py 2>/dev/null || echo "")
           if [ -n "$DIGEST" ]; then
             echo "✅ GHCR image ${IMAGE} is available (digest: ${DIGEST})" | tee -a $GITHUB_STEP_SUMMARY
           else
@@ -2778,11 +2791,9 @@ jobs:
           fi
 
           echo "" >> $GITHUB_STEP_SUMMARY
-          sleep 2
+          sleep 2  # Avoid GitHub API rate limiting between checks
 
       - name: Check gh-aw-mcpg release
-        env:
-          GH_TOKEN: ${{ github.token }}
         run: |
           set -e
           REPO="github/gh-aw-mcpg"
@@ -2801,8 +2812,7 @@ jobs:
           fi
 
           echo "Checking GHCR image manifest: ${IMAGE}..."
-          DIGEST=$(docker manifest inspect "${IMAGE}" 2>/dev/null | \
-            python3 -c "import sys,json; m=json.load(sys.stdin); print(m.get('config',{}).get('digest','') or m.get('manifests',[{}])[0].get('digest','n/a'))" 2>/dev/null || echo "")
+          DIGEST=$(docker manifest inspect "${IMAGE}" 2>/dev/null | python3 /tmp/ghcr_digest.py 2>/dev/null || echo "")
           if [ -n "$DIGEST" ]; then
             echo "✅ GHCR image ${IMAGE} is available (digest: ${DIGEST})" | tee -a $GITHUB_STEP_SUMMARY
           else
@@ -2811,11 +2821,9 @@ jobs:
           fi
 
           echo "" >> $GITHUB_STEP_SUMMARY
-          sleep 2
+          sleep 2  # Avoid GitHub API rate limiting between checks
 
       - name: Check microsoft/APM release
-        env:
-          GH_TOKEN: ${{ github.token }}
         run: |
           set -e
           REPO="microsoft/APM"
@@ -2833,11 +2841,9 @@ jobs:
           fi
 
           echo "" >> $GITHUB_STEP_SUMMARY
-          sleep 2
+          sleep 2  # Avoid GitHub API rate limiting between checks
 
       - name: Check microsoft/apm-action release
-        env:
-          GH_TOKEN: ${{ github.token }}
         run: |
           set -e
           REPO="microsoft/apm-action"
@@ -2855,11 +2861,9 @@ jobs:
           fi
 
           echo "" >> $GITHUB_STEP_SUMMARY
-          sleep 2
+          sleep 2  # Avoid GitHub API rate limiting between checks
 
       - name: Check github-mcp-server release
-        env:
-          GH_TOKEN: ${{ github.token }}
         run: |
           set -e
           REPO="github/github-mcp-server"
@@ -2878,8 +2882,7 @@ jobs:
           fi
 
           echo "Checking GHCR image manifest: ${IMAGE}..."
-          DIGEST=$(docker manifest inspect "${IMAGE}" 2>/dev/null | \
-            python3 -c "import sys,json; m=json.load(sys.stdin); print(m.get('config',{}).get('digest','') or m.get('manifests',[{}])[0].get('digest','n/a'))" 2>/dev/null || echo "")
+          DIGEST=$(docker manifest inspect "${IMAGE}" 2>/dev/null | python3 /tmp/ghcr_digest.py 2>/dev/null || echo "")
           if [ -n "$DIGEST" ]; then
             echo "✅ GHCR image ${IMAGE} is available (digest: ${DIGEST})" | tee -a $GITHUB_STEP_SUMMARY
           else
