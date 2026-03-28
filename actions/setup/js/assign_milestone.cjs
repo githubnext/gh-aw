@@ -57,31 +57,98 @@ async function main(config = {}) {
   // Track how many items we've processed for max limit
   let processedCount = 0;
 
-  // Cache milestones to avoid fetching multiple times
-  let allMilestones = null;
+  // Per-handler milestone cache shared between title and number lookups.
+  // Populated incrementally as pages are fetched; avoids re-requesting the same pages.
+  const milestoneCache = {
+    /** @type {Map<string, Object>} */
+    byTitle: new Map(),
+    /** @type {Map<number, Object>} */
+    byNumber: new Map(),
+    /** All milestone objects fetched so far (in page order). */
+    allFetched: /** @type {Array} */ [],
+    /** True once pagination has been fully exhausted (no more pages). */
+    exhausted: false,
+  };
 
   /**
-   * Fetch all milestones from the repository and cache the result, handling pagination.
-   * @returns {Promise<boolean>} True on success, false on failure (result already set).
+   * Populate milestoneCache with one page of results and signal early exit when target is found.
+   * @param {Array} pageData - Response data from one page of listMilestones.
+   * @param {function():void} done - Octokit paginate early-exit callback.
+   * @param {function(Object):boolean} predicate - Returns true when the desired milestone is found.
    */
-  async function fetchMilestonesIfNeeded() {
-    if (allMilestones !== null) {
-      return true;
+  function processMilestonePage(pageData, done, predicate) {
+    for (const m of pageData) {
+      if (!milestoneCache.byTitle.has(m.title)) {
+        milestoneCache.byTitle.set(m.title, m);
+        milestoneCache.byNumber.set(m.number, m);
+        milestoneCache.allFetched.push(m);
+      }
     }
-    try {
-      allMilestones = await githubClient.paginate(githubClient.rest.issues.listMilestones, {
+    if (pageData.some(predicate)) {
+      done();
+    }
+  }
+
+  /**
+   * Fetch milestones from the API, paginating with early exit via `predicate`.
+   * Shared by findMilestoneByTitle and findMilestoneByNumber.
+   * @param {function(Object):boolean} predicate
+   * @returns {Promise<void>}
+   */
+  async function paginateMilestonesUntil(predicate) {
+    if (milestoneCache.exhausted) {
+      return;
+    }
+    let earlyExit = false;
+    await githubClient.paginate(
+      githubClient.rest.issues.listMilestones,
+      {
         owner: context.repo.owner,
         repo: context.repo.repo,
         state: "all",
         per_page: 100,
-      });
-      core.info(`Fetched ${allMilestones.length} milestones from repository`);
-      return true;
-    } catch (error) {
-      const errorMessage = getErrorMessage(error);
-      core.error(`Failed to fetch milestones: ${errorMessage}`);
-      return false;
+      },
+      (response, done) => {
+        processMilestonePage(
+          response.data,
+          () => {
+            earlyExit = true;
+            done();
+          },
+          predicate
+        );
+      }
+    );
+    if (!earlyExit) {
+      milestoneCache.exhausted = true;
     }
+    core.info(`Fetched ${milestoneCache.allFetched.length} milestones so far (exhausted=${milestoneCache.exhausted})`);
+  }
+
+  /**
+   * Find a milestone by title, stopping pagination as soon as it is found.
+   * @param {string} title
+   * @returns {Promise<Object|null>}
+   */
+  async function findMilestoneByTitle(title) {
+    if (milestoneCache.byTitle.has(title)) {
+      return milestoneCache.byTitle.get(title);
+    }
+    await paginateMilestonesUntil(m => m.title === title);
+    return milestoneCache.byTitle.get(title) || null;
+  }
+
+  /**
+   * Find a milestone by number, stopping pagination as soon as it is found.
+   * @param {number} number
+   * @returns {Promise<Object|null>}
+   */
+  async function findMilestoneByNumber(number) {
+    if (milestoneCache.byNumber.has(number)) {
+      return milestoneCache.byNumber.get(number);
+    }
+    await paginateMilestonesUntil(m => m.number === number);
+    return milestoneCache.byNumber.get(number) || null;
   }
 
   /**
@@ -147,75 +214,72 @@ async function main(config = {}) {
       };
     }
 
-    // Fetch milestones when we have an allowed list or need to resolve a title
-    const needsMilestoneFetch = allowedMilestones.length > 0 || (!hasMilestoneNumber && milestoneTitle !== null);
-    if (needsMilestoneFetch) {
-      const fetched = await fetchMilestonesIfNeeded();
-      if (!fetched) {
-        return {
-          success: false,
-          error: `Failed to fetch milestones for validation`,
-        };
-      }
-    }
-
     // Resolve milestone by title if milestone_number is not valid
     if (!hasMilestoneNumber && milestoneTitle !== null) {
-      const match = allMilestones ? allMilestones.find(m => m.title === milestoneTitle) : null;
-      if (match) {
-        milestoneNumber = match.number;
-        core.info(`Resolved milestone title "${milestoneTitle}" to #${milestoneNumber}`);
-      } else if (autoCreate) {
-        // Create the milestone automatically
-        try {
+      try {
+        const match = await findMilestoneByTitle(milestoneTitle);
+        if (match) {
+          milestoneNumber = match.number;
+          core.info(`Resolved milestone title "${milestoneTitle}" to #${milestoneNumber}`);
+        } else if (autoCreate) {
+          // Create the milestone automatically
           const created = await githubClient.rest.issues.createMilestone({
             owner: context.repo.owner,
             repo: context.repo.repo,
             title: milestoneTitle,
           });
           milestoneNumber = created.data.number;
-          if (allMilestones) {
-            allMilestones.push(created.data);
-          }
+          milestoneCache.byTitle.set(created.data.title, created.data);
+          milestoneCache.byNumber.set(created.data.number, created.data);
+          milestoneCache.allFetched.push(created.data);
           core.info(`Auto-created milestone "${milestoneTitle}" as #${milestoneNumber}`);
-        } catch (error) {
-          const errorMessage = getErrorMessage(error);
-          core.error(`Failed to create milestone "${milestoneTitle}": ${errorMessage}`);
+        } else {
+          const available = formatAvailableMilestones(milestoneCache.allFetched);
+          core.warning(`Milestone "${milestoneTitle}" not found in repository. Available: ${available}. Set auto_create: true to create it automatically.`);
           return {
             success: false,
-            error: `Failed to create milestone "${milestoneTitle}": ${errorMessage}`,
+            error: `Milestone "${milestoneTitle}" not found in repository. Set auto_create: true to create it automatically.`,
           };
         }
-      } else {
-        const available = formatAvailableMilestones(allMilestones);
-        core.warning(`Milestone "${milestoneTitle}" not found in repository. Available: ${available}. Set auto_create: true to create it automatically.`);
+      } catch (error) {
+        const errorMessage = getErrorMessage(error);
+        core.error(`Failed to resolve milestone "${milestoneTitle}": ${errorMessage}`);
         return {
           success: false,
-          error: `Milestone "${milestoneTitle}" not found in repository. Set auto_create: true to create it automatically.`,
+          error: `Failed to resolve milestone "${milestoneTitle}": ${errorMessage}`,
         };
       }
     }
 
     // Validate against allowed list if configured
-    if (allowedMilestones.length > 0 && allMilestones) {
-      const milestone = allMilestones.find(m => m.number === milestoneNumber);
+    if (allowedMilestones.length > 0) {
+      try {
+        const milestone = await findMilestoneByNumber(milestoneNumber);
 
-      if (!milestone) {
-        const available = formatAvailableMilestonesWithNumbers(allMilestones);
-        core.warning(`Milestone #${milestoneNumber} not found in repository. Available milestones: ${available}`);
+        if (!milestone) {
+          const available = formatAvailableMilestonesWithNumbers(milestoneCache.allFetched);
+          core.warning(`Milestone #${milestoneNumber} not found in repository. Available milestones: ${available}`);
+          return {
+            success: false,
+            error: `Milestone #${milestoneNumber} not found in repository`,
+          };
+        }
+
+        const isAllowed = allowedMilestones.includes(milestone.title) || allowedMilestones.includes(String(milestoneNumber));
+
+        if (!isAllowed) {
+          core.warning(`Milestone "${milestone.title}" (#${milestoneNumber}) is not in the allowed list`);
+          return {
+            success: false,
+            error: `Milestone "${milestone.title}" (#${milestoneNumber}) is not in the allowed list`,
+          };
+        }
+      } catch (error) {
+        const errorMessage = getErrorMessage(error);
+        core.error(`Failed to validate milestone: ${errorMessage}`);
         return {
           success: false,
-          error: `Milestone #${milestoneNumber} not found in repository`,
-        };
-      }
-
-      const isAllowed = allowedMilestones.includes(milestone.title) || allowedMilestones.includes(String(milestoneNumber));
-
-      if (!isAllowed) {
-        core.warning(`Milestone "${milestone.title}" (#${milestoneNumber}) is not in the allowed list`);
-        return {
-          success: false,
-          error: `Milestone "${milestone.title}" (#${milestoneNumber}) is not in the allowed list`,
+          error: `Failed to fetch milestones for validation: ${errorMessage}`,
         };
       }
     }

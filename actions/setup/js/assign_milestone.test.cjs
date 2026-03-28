@@ -44,6 +44,22 @@ global.github = mockGithub;
 describe("assign_milestone (Handler Factory Architecture)", () => {
   let handler;
 
+  /**
+   * Sets up the paginate mock to call the callback with one page of `items`.
+   * This simulates the Octokit paginate behavior: the callback receives
+   * `{ data: items }` and a `done` function, then populates milestoneCache.
+   * @param {Array} items
+   */
+  function mockPaginateWith(items) {
+    mockGithub.paginate.mockImplementation(async (_method, _params, callback) => {
+      if (callback) {
+        const done = vi.fn();
+        callback({ data: items }, done);
+      }
+      return items;
+    });
+  }
+
   beforeEach(async () => {
     vi.clearAllMocks();
 
@@ -89,7 +105,7 @@ describe("assign_milestone (Handler Factory Architecture)", () => {
       allowed: ["v1.0", "v2.0"],
     });
 
-    mockGithub.paginate.mockResolvedValue([
+    mockPaginateWith([
       { number: 5, title: "v1.0" },
       { number: 6, title: "v3.0" },
     ]);
@@ -104,12 +120,16 @@ describe("assign_milestone (Handler Factory Architecture)", () => {
     const result = await handlerWithAllowed(message, {});
 
     expect(result.success).toBe(true);
-    expect(mockGithub.paginate).toHaveBeenCalledWith(mockGithub.rest.issues.listMilestones, {
-      owner: "test-owner",
-      repo: "test-repo",
-      state: "all",
-      per_page: 100,
-    });
+    expect(mockGithub.paginate).toHaveBeenCalledWith(
+      mockGithub.rest.issues.listMilestones,
+      {
+        owner: "test-owner",
+        repo: "test-repo",
+        state: "all",
+        per_page: 100,
+      },
+      expect.any(Function)
+    );
     expect(mockGithub.rest.issues.update).toHaveBeenCalled();
   });
 
@@ -120,7 +140,7 @@ describe("assign_milestone (Handler Factory Architecture)", () => {
       allowed: ["v1.0", "v2.0"],
     });
 
-    mockGithub.paginate.mockResolvedValue([
+    mockPaginateWith([
       { number: 5, title: "v1.0" },
       { number: 6, title: "v3.0" },
     ]);
@@ -253,7 +273,7 @@ describe("assign_milestone (Handler Factory Architecture)", () => {
     const { main } = require("./assign_milestone.cjs");
     const handlerWithTitle = await main({ max: 10 });
 
-    mockGithub.paginate.mockResolvedValue([
+    mockPaginateWith([
       { number: 5, title: "v1.0" },
       { number: 6, title: "v2.0" },
     ]);
@@ -282,7 +302,7 @@ describe("assign_milestone (Handler Factory Architecture)", () => {
     const { main } = require("./assign_milestone.cjs");
     const handlerNoAutoCreate = await main({ max: 10 });
 
-    mockGithub.paginate.mockResolvedValue([{ number: 5, title: "v1.0" }]);
+    mockPaginateWith([{ number: 5, title: "v1.0" }]);
 
     const message = {
       type: "assign_milestone",
@@ -303,7 +323,7 @@ describe("assign_milestone (Handler Factory Architecture)", () => {
     const { main } = require("./assign_milestone.cjs");
     const handlerAutoCreate = await main({ max: 10, auto_create: true });
 
-    mockGithub.paginate.mockResolvedValue([]);
+    mockPaginateWith([]);
     mockGithub.rest.issues.createMilestone.mockResolvedValue({
       data: { number: 7, title: "v3.0" },
     });
@@ -339,7 +359,7 @@ describe("assign_milestone (Handler Factory Architecture)", () => {
       allowed: ["v1.0", "v2.0"],
     });
 
-    mockGithub.paginate.mockResolvedValue([{ number: 5, title: "v1.0" }]);
+    mockPaginateWith([{ number: 5, title: "v1.0" }]);
 
     const message = {
       type: "assign_milestone",
