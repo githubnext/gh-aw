@@ -79,6 +79,11 @@ Test workflow with custom AWF arguments.
 			t.Error("Compiled workflow should still contain '--env-all' flag")
 		}
 
+		// Verify sensitive token vars are excluded
+		if !strings.Contains(lockYAML, "--exclude-env COPILOT_GITHUB_TOKEN") {
+			t.Error("Compiled workflow should exclude COPILOT_GITHUB_TOKEN via --exclude-env")
+		}
+
 		if !strings.Contains(lockYAML, "--allow-domains") {
 			t.Error("Compiled workflow should still contain '--allow-domains' flag")
 		}
@@ -138,6 +143,11 @@ Test workflow without custom AWF arguments.
 		// Verify standard AWF flags are present
 		if !strings.Contains(lockYAML, "--env-all") {
 			t.Error("Compiled workflow should contain '--env-all' flag")
+		}
+
+		// Verify sensitive token vars are excluded
+		if !strings.Contains(lockYAML, "--exclude-env COPILOT_GITHUB_TOKEN") {
+			t.Error("Compiled workflow should exclude COPILOT_GITHUB_TOKEN via --exclude-env")
 		}
 
 		if !strings.Contains(lockYAML, "--allow-domains") {
@@ -227,6 +237,11 @@ Test workflow with SSL bump and allow-urls configuration.
 		// Verify standard AWF flags are still present
 		if !strings.Contains(lockYAML, "--env-all") {
 			t.Error("Compiled workflow should still contain '--env-all' flag")
+		}
+
+		// Verify sensitive token vars are excluded
+		if !strings.Contains(lockYAML, "--exclude-env COPILOT_GITHUB_TOKEN") {
+			t.Error("Compiled workflow should exclude COPILOT_GITHUB_TOKEN via --exclude-env")
 		}
 
 		if !strings.Contains(lockYAML, "--log-level debug") {

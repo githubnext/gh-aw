@@ -363,12 +363,24 @@ const DefaultGitHubMCPServerVersion Version = "v0.32.0"
 const DefaultGitHubLockdown = false
 
 // DefaultFirewallVersion is the default version of the gh-aw-firewall (AWF) binary
-const DefaultFirewallVersion Version = "v0.25.1"
+const DefaultFirewallVersion Version = "v0.26.0"
 
 // AWF (Agentic Workflow Firewall) constants
 
 // AWFDefaultCommand is the default AWF command prefix
 const AWFDefaultCommand = "sudo -E awf"
+
+// AWFExcludedEnvVars lists the environment variable names that must be excluded from the
+// agent container's visible environment via AWF's --exclude-env flag (requires AWF v0.26.0+).
+//
+// These are sensitive GitHub tokens that the agent process should never be able to read
+// directly. AWF's API proxy handles authentication for these tokens transparently, so the
+// container does not need the raw values. Excluding them prevents a prompt-injection attack
+// from exfiltrating tokens via bash tools such as `env` or `printenv`.
+var AWFExcludedEnvVars = []string{
+	"COPILOT_GITHUB_TOKEN",
+	"GITHUB_MCP_SERVER_TOKEN",
+}
 
 // AWFProxyLogsDir is the default directory for AWF proxy logs
 const AWFProxyLogsDir = "/tmp/gh-aw/sandbox/firewall/logs"

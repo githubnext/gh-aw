@@ -157,6 +157,7 @@ func TestChrootModeInAWFContainer(t *testing.T) {
 }
 
 // TestChrootModeEnvFlags tests that --env-all is used with chroot mode to pass env vars to AWF
+// and that sensitive token env vars are excluded via --exclude-env
 func TestChrootModeEnvFlags(t *testing.T) {
 	t.Run("env-all is required for AWF to receive host env vars", func(t *testing.T) {
 		workflowData := &WorkflowData{
@@ -184,6 +185,14 @@ func TestChrootModeEnvFlags(t *testing.T) {
 		// Verify --env-all IS used (required for AWF to receive host environment variables)
 		if !strings.Contains(stepContent, "--env-all") {
 			t.Error("--env-all is required for AWF to receive host environment variables")
+		}
+
+		// Verify sensitive token vars are excluded via --exclude-env (AWF v0.26.0+ security fix)
+		if !strings.Contains(stepContent, "--exclude-env COPILOT_GITHUB_TOKEN") {
+			t.Error("COPILOT_GITHUB_TOKEN must be excluded from container env via --exclude-env")
+		}
+		if !strings.Contains(stepContent, "--exclude-env GITHUB_MCP_SERVER_TOKEN") {
+			t.Error("GITHUB_MCP_SERVER_TOKEN must be excluded from container env via --exclude-env")
 		}
 	})
 }

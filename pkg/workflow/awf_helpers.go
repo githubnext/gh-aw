@@ -145,8 +145,16 @@ func BuildAWFArgs(config AWFCommandConfig) []string {
 		awfArgs = append(awfArgs, "--tty")
 	}
 
-	// Pass all environment variables to the container
+	// Pass all environment variables to the container, but exclude sensitive tokens.
+	// AWF's API proxy (--enable-api-proxy) handles authentication for COPILOT_GITHUB_TOKEN
+	// and GITHUB_MCP_SERVER_TOKEN transparently, so the container does not need the raw
+	// values. Excluding them via --exclude-env prevents a prompt-injected agent from
+	// exfiltrating tokens through bash tools such as `env` or `printenv`.
+	// Requires AWF v0.26.0+ for --exclude-env support.
 	awfArgs = append(awfArgs, "--env-all")
+	for _, excludedVar := range constants.AWFExcludedEnvVars {
+		awfArgs = append(awfArgs, "--exclude-env", excludedVar)
+	}
 
 	// Note: --container-workdir "${GITHUB_WORKSPACE}" and --mount "${RUNNER_TEMP}/gh-aw:..."
 	// are intentionally NOT added here. They contain shell variable references that require
