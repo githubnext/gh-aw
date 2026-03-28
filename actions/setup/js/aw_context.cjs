@@ -2,11 +2,71 @@
 /// <reference types="@actions/github-script" />
 
 /**
+ * Resolves the item type, item number, and comment id from the GitHub Actions
+ * event payload, covering issues, pull requests, discussions, check runs,
+ * check suites, PR reviews, and comment variants.
+ *
+ * | Event family                         | item_type     | item_number              | comment_id              |
+ * |--------------------------------------|---------------|--------------------------|-------------------------|
+ * | issues, issue_comment                | issue         | payload.issue.number     | payload.comment.id      |
+ * | pull_request, pull_request_review,   | pull_request  | payload.pull_request.    | payload.review.id or    |
+ * | pull_request_review_comment          |               | number                   | payload.comment.id      |
+ * | discussion, discussion_comment       | discussion    | payload.discussion.      | payload.comment.id      |
+ * |                                      |               | number                   |                         |
+ * | check_run                            | check_run     | payload.check_run.id     |                         |
+ * | check_suite                          | check_suite   | payload.check_suite.id   |                         |
+ * | push, workflow_dispatch, …           | (empty)       | (empty)                  |                         |
+ *
+ * @param {object} payload - GitHub Actions context.payload
+ * @returns {{ item_type: string, item_number: string, comment_id: string }}
+ */
+function resolveItemContext(payload) {
+  if (payload?.issue != null) {
+    return {
+      item_type: "issue",
+      item_number: payload.issue.number != null ? String(payload.issue.number) : "",
+      comment_id: payload.comment?.id != null ? String(payload.comment.id) : "",
+    };
+  }
+  if (payload?.pull_request != null) {
+    return {
+      item_type: "pull_request",
+      item_number: payload.pull_request.number != null ? String(payload.pull_request.number) : "",
+      // pull_request_review events carry a review object; pull_request_review_comment
+      // events carry a comment object.  Both are reported as comment_id.
+      comment_id: payload.comment?.id != null ? String(payload.comment.id) : payload.review?.id != null ? String(payload.review.id) : "",
+    };
+  }
+  if (payload?.discussion != null) {
+    return {
+      item_type: "discussion",
+      item_number: payload.discussion.number != null ? String(payload.discussion.number) : "",
+      comment_id: payload.comment?.id != null ? String(payload.comment.id) : "",
+    };
+  }
+  if (payload?.check_run != null) {
+    return {
+      item_type: "check_run",
+      item_number: payload.check_run.id != null ? String(payload.check_run.id) : "",
+      comment_id: "",
+    };
+  }
+  if (payload?.check_suite != null) {
+    return {
+      item_type: "check_suite",
+      item_number: payload.check_suite.id != null ? String(payload.check_suite.id) : "",
+      comment_id: "",
+    };
+  }
+  return { item_type: "", item_number: "", comment_id: "" };
+}
+
+/**
  * Builds the aw_context object that identifies the calling workflow run.
  * This metadata is injected into dispatched workflows that declare an
  * aw_context input, allowing them to trace back to their caller and
- * resolve the current item (issue, pull request, or discussion) that
- * triggered the calling workflow.
+ * resolve the current item (issue, pull request, discussion, check, etc.)
+ * that triggered the calling workflow.
  *
  * @returns {{
  *   repo: string,
@@ -16,23 +76,21 @@
  *   time: string,
  *   actor: string,
  *   event_type: string,
+ *   item_type: string,
  *   item_number: string,
  *   comment_id: string
  * }}
  * Properties:
- *   - item_number: Number of the triggering issue, pull request, or discussion.
- *     Empty string for events with no associated item (e.g. push, workflow_dispatch).
- *   - comment_id: ID of the triggering comment for comment events (issue_comment,
- *     pull_request_review_comment, discussion_comment). Empty string otherwise.
+ *   - item_type: Kind of entity that triggered the workflow (issue, pull_request,
+ *     discussion, check_run, check_suite). Empty string for events with no item
+ *     (e.g. push, workflow_dispatch).
+ *   - item_number: Sequential number of the item (issue/PR/discussion) or database
+ *     id (check_run/check_suite). Empty string when item_type is empty.
+ *   - comment_id: ID of the triggering comment or review. Empty string when the
+ *     event is not a comment/review event.
  */
 function buildAwContext() {
-  // Resolve the current item number from the event payload.
-  // Covers issues events (payload.issue.number), pull_request events
-  // (payload.pull_request.number), discussion events
-  // (payload.discussion.number), and comment events where the parent
-  // entity number is available on the same paths.
-  // Empty string for events with no associated item (e.g. push, workflow_dispatch).
-  const itemNumber = context.payload?.issue?.number ?? context.payload?.pull_request?.number ?? context.payload?.discussion?.number;
+  const { item_type, item_number, comment_id } = resolveItemContext(context.payload);
 
   return {
     repo: `${context.repo.owner}/${context.repo.repo}`,
@@ -46,13 +104,10 @@ function buildAwContext() {
     time: new Date().toISOString(),
     actor: context.actor ?? "",
     event_type: context.eventName ?? "",
-    // item_number identifies the issue, pull request, or discussion that triggered
-    // the calling workflow, enabling dispatched workflows to resolve the current item.
-    item_number: itemNumber != null ? String(itemNumber) : "",
-    // comment_id identifies the specific comment that triggered the calling workflow,
-    // when the event was a comment on an issue, pull request, or discussion.
-    comment_id: context.payload?.comment?.id != null ? String(context.payload.comment.id) : "",
+    item_type,
+    item_number,
+    comment_id,
   };
 }
 
-module.exports = { buildAwContext };
+module.exports = { buildAwContext, resolveItemContext };
