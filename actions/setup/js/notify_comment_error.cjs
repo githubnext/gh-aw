@@ -145,7 +145,10 @@ async function main() {
   } else {
     // Determine status text based on conclusion type
     let statusText;
-    if (agentConclusion === "cancelled") {
+    if (agentConclusion === "success" && assignToAgentErrorCount > 0) {
+      // Agent itself succeeded but one or more agent assignments failed
+      statusText = "failed to assign the coding agent";
+    } else if (agentConclusion === "cancelled") {
       statusText = "was cancelled";
     } else if (agentConclusion === "skipped") {
       statusText = "was skipped";
