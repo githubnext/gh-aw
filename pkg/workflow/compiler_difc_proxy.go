@@ -236,6 +236,48 @@ func (c *Compiler) generateStartDIFCProxyStep(yaml *strings.Builder, data *Workf
 	}
 }
 
+// buildDeriveGHHostStepYAML returns the YAML for the "Derive GH_HOST for setup steps" step.
+//
+// start_difc_proxy.sh writes GH_HOST=localhost:18443 to GITHUB_ENV so that the gh CLI
+// routes through the proxy. However, this breaks subsequent gh CLI calls in user-defined
+// steps because the host no longer matches the git remote (github.com / GHEC host).
+//
+// This step re-derives GH_HOST from GITHUB_SERVER_URL (GHEC-safe) immediately after the
+// proxy starts and before user-defined steps run. It clears GH_HOST in its env: block to
+// prevent the proxy value from interfering with the derivation assignment, then writes the
+// correct host to GITHUB_ENV so all subsequent steps see the right value.
+//
+// API calls are still routed through the proxy via GITHUB_API_URL and GITHUB_GRAPHQL_URL,
+// which remain pointing to localhost:18443.
+func buildDeriveGHHostStepYAML() string {
+	var sb strings.Builder
+	sb.WriteString("      - name: Derive GH_HOST for setup steps\n")
+	sb.WriteString("        env:\n")
+	sb.WriteString("          GH_HOST: \"\"\n")
+	sb.WriteString("        run: |\n")
+	sb.WriteString("          GH_HOST=\"${GITHUB_SERVER_URL#https://}\"\n")
+	sb.WriteString("          GH_HOST=\"${GH_HOST#http://}\"\n")
+	sb.WriteString("          echo \"GH_HOST=${GH_HOST}\" >> \"$GITHUB_ENV\"\n")
+	return sb.String()
+}
+
+// generateDeriveGHHostAfterDIFCProxyStep injects a step that re-derives GH_HOST from
+// GITHUB_SERVER_URL after start_difc_proxy.sh and before user-defined setup steps.
+//
+// The proxy sets GH_HOST=localhost:18443 in GITHUB_ENV, which breaks gh CLI calls in
+// user-defined steps because that host doesn't match the git remote. This step restores
+// GH_HOST to the correct value (GHEC-safe) so user-defined steps can use gh CLI normally.
+//
+// The step is only emitted when hasDIFCProxyNeeded returns true.
+func (c *Compiler) generateDeriveGHHostAfterDIFCProxyStep(yaml *strings.Builder, data *WorkflowData) {
+	if !hasDIFCProxyNeeded(data) {
+		return
+	}
+
+	difcProxyLog.Print("Generating Derive GH_HOST step after DIFC proxy start")
+	yaml.WriteString(buildDeriveGHHostStepYAML())
+}
+
 // generateStopDIFCProxyStep generates a step that stops the DIFC proxy container
 // before the MCP gateway starts. The proxy must be stopped first to avoid
 // double-filtering: the gateway uses the same guard policy for the agent phase.

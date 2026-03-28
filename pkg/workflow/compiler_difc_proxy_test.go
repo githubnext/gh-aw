@@ -410,17 +410,25 @@ Test that DIFC proxy is injected when min-integrity is set with custom steps usi
 	assert.Contains(t, result, "Stop DIFC proxy",
 		"compiled workflow should contain proxy stop step")
 
+	// Verify the "Derive GH_HOST" step is present
+	assert.Contains(t, result, "Derive GH_HOST for setup steps",
+		"compiled workflow should contain Derive GH_HOST step")
+
 	// Verify step ordering: Start proxy must come before Stop proxy
 	startIdx := strings.Index(result, "Start DIFC proxy for pre-agent gh calls")
+	deriveIdx := strings.Index(result, "Derive GH_HOST for setup steps")
 	stopIdx := strings.Index(result, "Stop DIFC proxy")
 	require.Greater(t, startIdx, -1, "start proxy step should be in output")
+	require.Greater(t, deriveIdx, -1, "derive GH_HOST step should be in output")
 	require.Greater(t, stopIdx, -1, "stop proxy step should be in output")
+	assert.Less(t, startIdx, deriveIdx, "Start DIFC proxy must come before Derive GH_HOST")
 	assert.Less(t, startIdx, stopIdx, "Start DIFC proxy must come before Stop DIFC proxy")
 
-	// Verify proxy start is before custom step ("Fetch repo data")
+	// Verify "Derive GH_HOST" step is before custom step ("Fetch repo data")
 	customStepIdx := strings.Index(result, "Fetch repo data")
 	require.Greater(t, customStepIdx, -1, "custom step should be in output")
 	assert.Less(t, startIdx, customStepIdx, "Start DIFC proxy must come before custom step")
+	assert.Less(t, deriveIdx, customStepIdx, "Derive GH_HOST must come before custom step")
 
 	// Verify proxy stop is before MCP gateway start
 	gatewayIdx := strings.Index(result, "Start MCP Gateway")
@@ -634,5 +642,66 @@ func TestDIFCProxyInjectedInIndexingJob(t *testing.T) {
 			"indexing job should NOT include proxy start step without guard policy")
 		assert.NotContains(t, allSteps, "Stop DIFC proxy",
 			"indexing job should NOT include proxy stop step without guard policy")
+	})
+}
+
+// TestBuildDeriveGHHostStepYAML verifies the YAML generated for the "Derive GH_HOST" step.
+func TestBuildDeriveGHHostStepYAML(t *testing.T) {
+	result := buildDeriveGHHostStepYAML()
+
+	assert.Contains(t, result, "Derive GH_HOST for setup steps", "step name should be present")
+	assert.Contains(t, result, "GH_HOST: \"\"", "step env should clear GH_HOST to allow shell overwrite")
+	assert.Contains(t, result, "GITHUB_SERVER_URL#https://", "should strip https:// prefix from GITHUB_SERVER_URL")
+	assert.Contains(t, result, "GH_HOST#http://", "should strip http:// prefix")
+	assert.Contains(t, result, "GITHUB_ENV", "should write GH_HOST to GITHUB_ENV")
+}
+
+// TestGenerateDeriveGHHostAfterDIFCProxyStep verifies that the step is emitted only when
+// the DIFC proxy is needed (guard policies configured + pre-agent GH_TOKEN steps).
+func TestGenerateDeriveGHHostAfterDIFCProxyStep(t *testing.T) {
+	c := &Compiler{}
+
+	t.Run("no step when guard policy not configured", func(t *testing.T) {
+		var yaml strings.Builder
+		data := &WorkflowData{
+			Tools: map[string]any{
+				"github": map[string]any{"toolsets": []string{"default"}},
+			},
+			CustomSteps:   "steps:\n  - name: Fetch\n    env:\n      GH_TOKEN: ${{ github.token }}\n    run: gh issue list",
+			SandboxConfig: &SandboxConfig{},
+		}
+		c.generateDeriveGHHostAfterDIFCProxyStep(&yaml, data)
+		assert.Empty(t, yaml.String(), "should not generate step without guard policy")
+	})
+
+	t.Run("no step when no GH_TOKEN pre-agent steps", func(t *testing.T) {
+		var yaml strings.Builder
+		data := &WorkflowData{
+			Tools: map[string]any{
+				"github": map[string]any{"min-integrity": "approved"},
+			},
+			SandboxConfig: &SandboxConfig{},
+		}
+		c.generateDeriveGHHostAfterDIFCProxyStep(&yaml, data)
+		assert.Empty(t, yaml.String(), "should not generate step without pre-agent GH_TOKEN steps")
+	})
+
+	t.Run("generates derive step when guard policy and custom steps with GH_TOKEN", func(t *testing.T) {
+		var yaml strings.Builder
+		data := &WorkflowData{
+			Tools: map[string]any{
+				"github": map[string]any{"min-integrity": "approved"},
+			},
+			CustomSteps:   "steps:\n  - name: Fetch\n    env:\n      GH_TOKEN: ${{ github.token }}\n    run: gh issue list",
+			SandboxConfig: &SandboxConfig{},
+		}
+		c.generateDeriveGHHostAfterDIFCProxyStep(&yaml, data)
+
+		result := yaml.String()
+		require.NotEmpty(t, result, "should generate derive GH_HOST step")
+		assert.Contains(t, result, "Derive GH_HOST for setup steps", "step name should be present")
+		assert.Contains(t, result, "GH_HOST: \"\"", "should clear GH_HOST in env")
+		assert.Contains(t, result, "GITHUB_SERVER_URL#https://", "should derive from GITHUB_SERVER_URL")
+		assert.Contains(t, result, "GITHUB_ENV", "should write to GITHUB_ENV")
 	})
 }

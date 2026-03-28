@@ -434,8 +434,6 @@ jobs:
             await main();
       - name: Install GitHub Copilot CLI
         run: ${RUNNER_TEMP}/gh-aw/actions/install_copilot_cli.sh latest
-        env:
-          GH_HOST: github.com
       - name: Install AWF binary
         run: bash ${RUNNER_TEMP}/gh-aw/actions/install_awf_binary.sh v0.26.0
       - name: Restore qmd index from cache
@@ -1198,8 +1196,6 @@ jobs:
           touch /tmp/gh-aw/threat-detection/detection.log
       - name: Install GitHub Copilot CLI
         run: ${RUNNER_TEMP}/gh-aw/actions/install_copilot_cli.sh latest
-        env:
-          GH_HOST: github.com
       - name: Install AWF binary
         run: bash ${RUNNER_TEMP}/gh-aw/actions/install_awf_binary.sh v0.26.0
       - name: Execute GitHub Copilot CLI
