@@ -26,6 +26,9 @@ func (c *Compiler) buildConsolidatedSafeOutputStep(data *WorkflowData, config Sa
 	if conditionStr != "" {
 		steps = append(steps, fmt.Sprintf("        if: %s\n", conditionStr))
 	}
+	if config.ContinueOnError {
+		steps = append(steps, "        continue-on-error: true\n")
+	}
 	steps = append(steps, fmt.Sprintf("        uses: %s\n", GetActionPin("actions/github-script")))
 
 	// Environment variables section

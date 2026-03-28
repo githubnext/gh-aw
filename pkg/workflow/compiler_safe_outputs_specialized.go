@@ -110,6 +110,7 @@ func (c *Compiler) buildAssignToAgentStepConfig(data *WorkflowData, mainJobName 
 		Condition:                  condition,
 		Token:                      cfg.GitHubToken,
 		UseCopilotCodingAgentToken: true,
+		ContinueOnError:            true,
 	}
 }
 
