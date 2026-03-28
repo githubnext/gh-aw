@@ -11,6 +11,8 @@ Here are some pointers to get you started in using this tool.
 
 # GitHub Agentic Workflows
 
+[![gitcgr](https://gitcgr.com/badge/github/gh-aw.svg)](https://gitcgr.com/github/gh-aw)
+
 Write agentic workflows in natural language markdown, and run them in GitHub Actions.
 
 ## Contents
