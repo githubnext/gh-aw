@@ -20,11 +20,12 @@ import (
 	"strings"
 )
 
-// npmPackageNameRE matches valid npm package names:
+// npmPackageNameRE matches valid npm package specifiers:
 // - Scoped: @scope/name where scope and name are lowercase alphanumeric + hyphens + dots + underscores
 // - Unscoped: lowercase alphanumeric + hyphens + dots + underscores
+// - Optional version suffix: @version (e.g. @1.2.3, @^1.0.0, @latest)
 // This rejects any name that could be interpreted as a CLI flag.
-var npmPackageNameRE = regexp.MustCompile(`^(@[a-z0-9][a-z0-9._-]*/)?[a-z0-9][a-z0-9._-]*$`)
+var npmPackageNameRE = regexp.MustCompile(`^(@[a-z0-9][a-z0-9._-]*/)?[a-z0-9][a-z0-9._-]*(@[a-zA-Z0-9^~>=<.*|-]+)?$`)
 
 // pypiPackageNameRE matches valid PyPI package names per PEP 508 / PEP 625:
 // must start and end with alphanumeric; interior may include dots, hyphens, underscores.

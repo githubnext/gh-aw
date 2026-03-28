@@ -242,6 +242,26 @@ func TestValidateNpmPackageName(t *testing.T) {
 			expectError: false,
 		},
 		{
+			name:        "scoped name with version suffix",
+			pkg:         "@sentry/mcp-server@0.29.0",
+			expectError: false,
+		},
+		{
+			name:        "unscoped name with version suffix",
+			pkg:         "express@4.18.2",
+			expectError: false,
+		},
+		{
+			name:        "name with semver caret range",
+			pkg:         "express@^4.0.0",
+			expectError: false,
+		},
+		{
+			name:        "name with tag version",
+			pkg:         "express@latest",
+			expectError: false,
+		},
+		{
 			name:        "name starting with hyphen is rejected",
 			pkg:         "--registry=https://attacker.example",
 			expectError: true,
