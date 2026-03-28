@@ -390,7 +390,7 @@ const FirewallAuditArtifactName = "firewall-audit-logs"
 const AWFDefaultLogLevel = "info"
 
 // DefaultMCPGatewayVersion is the default version of the MCP Gateway (gh-aw-mcpg) Docker image
-const DefaultMCPGatewayVersion Version = "v0.2.7"
+const DefaultMCPGatewayVersion Version = "v0.2.8"
 
 // DefaultMCPGatewayContainer is the default container image for the MCP Gateway
 const DefaultMCPGatewayContainer = "ghcr.io/github/gh-aw-mcpg"
