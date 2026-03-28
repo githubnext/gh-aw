@@ -150,6 +150,13 @@ func RenderJSONMCPConfig(
 				options.Renderers.RenderQmd(&configBuilder, qmdTool, isLast, workflowData)
 			}
 		case "serena":
+			// If serena has an explicit MCP server config (with container field), use the
+			// custom renderer instead of the built-in hardcoded serena renderer.
+			// This allows shared workflows like shared/mcp/serena.md to configure a
+			// complete MCP server without relying on the deprecated tools.serena path.
+			if HandleCustomMCPToolInSwitch(&configBuilder, toolName, tools, isLast, options.Renderers.RenderCustomMCPConfig) {
+				break
+			}
 			serenaTool := tools["serena"]
 			options.Renderers.RenderSerena(&configBuilder, serenaTool, isLast)
 		case "cache-memory":

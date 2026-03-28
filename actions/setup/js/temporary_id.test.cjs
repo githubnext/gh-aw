@@ -846,4 +846,105 @@ describe("temporary_id.cjs", () => {
       expect(created).toBe(null);
     });
   });
+
+  describe("resolveNumberFromTemporaryId", () => {
+    it("should resolve a temporary ID to its number", async () => {
+      const { resolveNumberFromTemporaryId } = await import("./temporary_id.cjs");
+      const resolvedTemporaryIds = { aw_disc1: { repo: "owner/repo", number: 99 } };
+      const result = resolveNumberFromTemporaryId("aw_disc1", resolvedTemporaryIds);
+      expect(result.resolved).toBe(99);
+      expect(result.wasTemporaryId).toBe(true);
+      expect(result.errorMessage).toBeNull();
+    });
+
+    it("should resolve a temporary ID with # prefix", async () => {
+      const { resolveNumberFromTemporaryId } = await import("./temporary_id.cjs");
+      const resolvedTemporaryIds = { aw_disc1: { repo: "owner/repo", number: 99 } };
+      const result = resolveNumberFromTemporaryId("#aw_disc1", resolvedTemporaryIds);
+      expect(result.resolved).toBe(99);
+      expect(result.wasTemporaryId).toBe(true);
+      expect(result.errorMessage).toBeNull();
+    });
+
+    it("should return error for unresolved temporary ID", async () => {
+      const { resolveNumberFromTemporaryId } = await import("./temporary_id.cjs");
+      const result = resolveNumberFromTemporaryId("aw_disc1", {});
+      expect(result.resolved).toBeNull();
+      expect(result.wasTemporaryId).toBe(true);
+      expect(result.errorMessage).toContain("aw_disc1");
+    });
+
+    it("should return error when temporary ID has no number", async () => {
+      const { resolveNumberFromTemporaryId } = await import("./temporary_id.cjs");
+      const resolvedTemporaryIds = { aw_disc1: { repo: "owner/repo" } };
+      const result = resolveNumberFromTemporaryId("aw_disc1", resolvedTemporaryIds);
+      expect(result.resolved).toBeNull();
+      expect(result.wasTemporaryId).toBe(true);
+      expect(result.errorMessage).not.toBeNull();
+    });
+
+    it("should resolve a numeric string to a number", async () => {
+      const { resolveNumberFromTemporaryId } = await import("./temporary_id.cjs");
+      const result = resolveNumberFromTemporaryId("42", null);
+      expect(result.resolved).toBe(42);
+      expect(result.wasTemporaryId).toBe(false);
+      expect(result.errorMessage).toBeNull();
+    });
+
+    it("should resolve a numeric value to a number", async () => {
+      const { resolveNumberFromTemporaryId } = await import("./temporary_id.cjs");
+      const result = resolveNumberFromTemporaryId(99, null);
+      expect(result.resolved).toBe(99);
+      expect(result.wasTemporaryId).toBe(false);
+      expect(result.errorMessage).toBeNull();
+    });
+
+    it("should return error for invalid non-numeric string", async () => {
+      const { resolveNumberFromTemporaryId } = await import("./temporary_id.cjs");
+      const result = resolveNumberFromTemporaryId("invalid", null);
+      expect(result.resolved).toBeNull();
+      expect(result.wasTemporaryId).toBe(false);
+      expect(result.errorMessage).toContain("Invalid number");
+    });
+
+    it("should reject partially-numeric strings like '42abc'", async () => {
+      const { resolveNumberFromTemporaryId } = await import("./temporary_id.cjs");
+      const result = resolveNumberFromTemporaryId("42abc", null);
+      expect(result.resolved).toBeNull();
+      expect(result.wasTemporaryId).toBe(false);
+      expect(result.errorMessage).toContain("Invalid number");
+    });
+
+    it("should reject decimal strings like '3.14'", async () => {
+      const { resolveNumberFromTemporaryId } = await import("./temporary_id.cjs");
+      const result = resolveNumberFromTemporaryId("3.14", null);
+      expect(result.resolved).toBeNull();
+      expect(result.wasTemporaryId).toBe(false);
+      expect(result.errorMessage).toContain("Invalid number");
+    });
+
+    it("should return error for missing value", async () => {
+      const { resolveNumberFromTemporaryId } = await import("./temporary_id.cjs");
+      const result = resolveNumberFromTemporaryId(null, null);
+      expect(result.resolved).toBeNull();
+      expect(result.wasTemporaryId).toBe(false);
+      expect(result.errorMessage).toContain("missing");
+    });
+
+    it("should return error for non-numeric invalid string", async () => {
+      const { resolveNumberFromTemporaryId } = await import("./temporary_id.cjs");
+      const result = resolveNumberFromTemporaryId("not-a-number", null);
+      expect(result.resolved).toBeNull();
+      expect(result.wasTemporaryId).toBe(false);
+      expect(result.errorMessage).toContain("Invalid number: not-a-number");
+    });
+
+    it("should return error for zero (not a valid discussion/issue number)", async () => {
+      const { resolveNumberFromTemporaryId } = await import("./temporary_id.cjs");
+      const result = resolveNumberFromTemporaryId(0, null);
+      expect(result.resolved).toBeNull();
+      expect(result.wasTemporaryId).toBe(false);
+      expect(result.errorMessage).toContain("Invalid number");
+    });
+  });
 });

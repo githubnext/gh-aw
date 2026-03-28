@@ -15,6 +15,7 @@ const { tryEnforceArrayLimit } = require("./limit_enforcement_helpers.cjs");
 const { MAX_LABELS } = require("./constants.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { logGraphQLError } = require("./github_api_helpers.cjs");
+const { resolveNumberFromTemporaryId } = require("./temporary_id.cjs");
 
 /** @type {import('./github_api_helpers.cjs').GraphQLErrorHints} */
 const DISCUSSION_GRAPHQL_HINTS = {
@@ -216,18 +217,23 @@ async function executeDiscussionUpdate(github, context, discussionNumber, update
  * @param {Object} item - The message item
  * @param {string} updateTarget - Target configuration
  * @param {Object} context - GitHub Actions context
+ * @param {Object} [resolvedTemporaryIds] - Resolved temporary IDs map
  * @returns {{success: true, number: number} | {success: false, error: string}} Resolution result
  */
-function resolveDiscussionNumber(item, updateTarget, context) {
+function resolveDiscussionNumber(item, updateTarget, context, resolvedTemporaryIds) {
   // Discussions are special - they have their own context type separate from issues/PRs
   // We need to handle them differently
   if (item.discussion_number !== undefined) {
-    const discussionNumber = parseInt(String(item.discussion_number), 10);
-    if (isNaN(discussionNumber)) {
-      return {
-        success: false,
-        error: `Invalid discussion number: ${item.discussion_number}`,
-      };
+    const resolution = resolveNumberFromTemporaryId(item.discussion_number, resolvedTemporaryIds);
+    if (resolution.errorMessage) {
+      return { success: false, error: resolution.errorMessage };
+    }
+    if (resolution.resolved === null) {
+      return { success: false, error: resolution.errorMessage ?? "Failed to resolve discussion number" };
+    }
+    const discussionNumber = resolution.resolved;
+    if (resolution.wasTemporaryId) {
+      core.info(`Resolved temporary ID '${item.discussion_number}' to discussion #${discussionNumber}`);
     }
     return { success: true, number: discussionNumber };
   } else if (updateTarget !== "triggering") {

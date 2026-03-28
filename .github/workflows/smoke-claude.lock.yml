@@ -29,12 +29,14 @@
 #     - shared/github-queries-mcp-script.md
 #     - shared/go-make.md
 #     - shared/mcp-pagination.md
+#     - shared/mcp/serena-go.md
+#     - shared/mcp/serena.md
 #     - shared/mcp/tavily.md
 #     - shared/reporting.md
 #
 # inlined-imports: true
 #
-# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"dc941381265e093b00d8275efca5b636272772d659e2caf2cea881b5362f4678","agent_id":"claude"}
+# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"2ef75d6200432160e65a96d4e00d7e0cbaccf18c52517c7998aa8194b4dbc57a","agent_id":"claude"}
 
 name: "Smoke Claude"
 "on":
@@ -198,9 +200,9 @@ jobs:
         run: |
           bash ${RUNNER_TEMP}/gh-aw/actions/create_prompt_first.sh
           {
-          cat << 'GH_AW_PROMPT_5b5cf8c4ea949d9a_EOF'
+          cat << 'GH_AW_PROMPT_bebbbce83b966562_EOF'
           <system>
-          GH_AW_PROMPT_5b5cf8c4ea949d9a_EOF
+          GH_AW_PROMPT_bebbbce83b966562_EOF
           cat "${RUNNER_TEMP}/gh-aw/prompts/xpia.md"
           cat "${RUNNER_TEMP}/gh-aw/prompts/temp_folder_prompt.md"
           cat "${RUNNER_TEMP}/gh-aw/prompts/markdown.md"
@@ -208,12 +210,12 @@ jobs:
           cat "${RUNNER_TEMP}/gh-aw/prompts/agentic_workflows_guide.md"
           cat "${RUNNER_TEMP}/gh-aw/prompts/cache_memory_prompt.md"
           cat "${RUNNER_TEMP}/gh-aw/prompts/safe_outputs_prompt.md"
-          cat << 'GH_AW_PROMPT_5b5cf8c4ea949d9a_EOF'
+          cat << 'GH_AW_PROMPT_bebbbce83b966562_EOF'
           <safe-output-tools>
           Tools: add_comment(max:2), create_issue, close_pull_request, update_pull_request, create_pull_request_review_comment(max:5), submit_pull_request_review, resolve_pull_request_review_thread(max:5), add_labels, add_reviewer(max:2), push_to_pull_request_branch, missing_tool, missing_data, noop
-          GH_AW_PROMPT_5b5cf8c4ea949d9a_EOF
+          GH_AW_PROMPT_bebbbce83b966562_EOF
           cat "${RUNNER_TEMP}/gh-aw/prompts/safe_outputs_push_to_pr_branch.md"
-          cat << 'GH_AW_PROMPT_5b5cf8c4ea949d9a_EOF'
+          cat << 'GH_AW_PROMPT_bebbbce83b966562_EOF'
           </safe-output-tools>
           <github-context>
           The following GitHub context information is available for this workflow:
@@ -243,12 +245,45 @@ jobs:
           {{/if}}
           </github-context>
           
-          GH_AW_PROMPT_5b5cf8c4ea949d9a_EOF
+          GH_AW_PROMPT_bebbbce83b966562_EOF
           cat "${RUNNER_TEMP}/gh-aw/prompts/github_mcp_tools_with_safeoutputs_prompt.md"
-          cat << 'GH_AW_PROMPT_5b5cf8c4ea949d9a_EOF'
+          cat << 'GH_AW_PROMPT_bebbbce83b966562_EOF'
           </system>
-          GH_AW_PROMPT_5b5cf8c4ea949d9a_EOF
-          cat << 'GH_AW_PROMPT_5b5cf8c4ea949d9a_EOF'
+          GH_AW_PROMPT_bebbbce83b966562_EOF
+          cat << 'GH_AW_PROMPT_bebbbce83b966562_EOF'
+          ## Serena Code Analysis
+          
+          The Serena MCP server is configured for **["go"]** analysis in this workspace:
+          - **Workspace**: `__GH_AW_GITHUB_WORKSPACE__`
+          - **Memory**: `/tmp/gh-aw/cache-memory/serena/`
+          
+          ### Project Activation
+          
+          Before analyzing code, activate the Serena project:
+          ```
+          Tool: activate_project
+          Args: { "path": "__GH_AW_GITHUB_WORKSPACE__" }
+          ```
+          
+          ### Available Capabilities
+          
+          Serena provides IDE-grade Language Server Protocol (LSP) tools including:
+          - **Symbol search**: `find_symbol` — locate functions, types, interfaces by name
+          - **Navigation**: `find_referencing_symbols` — find all callers/usages of a symbol
+          - **Type info**: `get_symbol_documentation` — hover-level type and doc information
+          - **Code editing**: `replace_symbol_body`, `insert_after_symbol` — symbol-level edits
+          - **Diagnostics**: `get_diagnostics` — compiler errors and linter warnings
+          
+          ### Analysis Guidelines
+          
+          1. **Use semantic tools over text search** — prefer Serena's LSP tools over `grep`
+          2. **Activate project first** — always call `activate_project` before other tools
+          3. **Cross-reference findings** — validate with multiple tools for accuracy
+          4. **Focus on the relevant language files** — ignore unrelated file types
+          
+          
+          GH_AW_PROMPT_bebbbce83b966562_EOF
+          cat << 'GH_AW_PROMPT_bebbbce83b966562_EOF'
           ## MCP Response Size Limits
           
           MCP tool responses have a **25,000 token limit**. When GitHub API responses exceed this limit, workflows must retry with pagination parameters, wasting turns and tokens.
@@ -360,8 +395,8 @@ jobs:
           
           This proactive approach eliminates retry loops and reduces token consumption.
           
-          GH_AW_PROMPT_5b5cf8c4ea949d9a_EOF
-          cat << 'GH_AW_PROMPT_5b5cf8c4ea949d9a_EOF'
+          GH_AW_PROMPT_bebbbce83b966562_EOF
+          cat << 'GH_AW_PROMPT_bebbbce83b966562_EOF'
           **IMPORTANT**: Always use the `mcpscripts-gh` tool for GitHub CLI commands instead of running `gh` directly via bash. The `mcpscripts-gh` tool has proper authentication configured with `GITHUB_TOKEN`, while bash commands do not have GitHub CLI authentication by default.
           
           **Correct**:
@@ -378,11 +413,11 @@ jobs:
           ```
           
           
-          GH_AW_PROMPT_5b5cf8c4ea949d9a_EOF
-          cat << 'GH_AW_PROMPT_5b5cf8c4ea949d9a_EOF'
+          GH_AW_PROMPT_bebbbce83b966562_EOF
+          cat << 'GH_AW_PROMPT_bebbbce83b966562_EOF'
           
-          GH_AW_PROMPT_5b5cf8c4ea949d9a_EOF
-          cat << 'GH_AW_PROMPT_5b5cf8c4ea949d9a_EOF'
+          GH_AW_PROMPT_bebbbce83b966562_EOF
+          cat << 'GH_AW_PROMPT_bebbbce83b966562_EOF'
           ## Report Structure Guidelines
           
           ### 1. Header Levels
@@ -452,11 +487,11 @@ jobs:
           - Format run IDs as links: `[§12345](https://github.com/owner/repo/actions/runs/12345)`
           - Include up to 3 most relevant run URLs at end under `**References:**`
           - Do NOT add footer attribution (system adds automatically)
-          GH_AW_PROMPT_5b5cf8c4ea949d9a_EOF
-          cat << 'GH_AW_PROMPT_5b5cf8c4ea949d9a_EOF'
+          GH_AW_PROMPT_bebbbce83b966562_EOF
+          cat << 'GH_AW_PROMPT_bebbbce83b966562_EOF'
           
-          GH_AW_PROMPT_5b5cf8c4ea949d9a_EOF
-          cat << 'GH_AW_PROMPT_5b5cf8c4ea949d9a_EOF'
+          GH_AW_PROMPT_bebbbce83b966562_EOF
+          cat << 'GH_AW_PROMPT_bebbbce83b966562_EOF'
           **IMPORTANT**: Always use the `mcpscripts-go` and `mcpscripts-make` tools for Go and Make commands instead of running them directly via bash. These mcp-script tools provide consistent execution and proper logging.
           
           **Correct**:
@@ -475,11 +510,33 @@ jobs:
           ```
           
           
-          GH_AW_PROMPT_5b5cf8c4ea949d9a_EOF
-          cat << 'GH_AW_PROMPT_5b5cf8c4ea949d9a_EOF'
+          GH_AW_PROMPT_bebbbce83b966562_EOF
+          cat << 'GH_AW_PROMPT_bebbbce83b966562_EOF'
           
-          GH_AW_PROMPT_5b5cf8c4ea949d9a_EOF
-          cat << 'GH_AW_PROMPT_5b5cf8c4ea949d9a_EOF'
+          GH_AW_PROMPT_bebbbce83b966562_EOF
+          cat << 'GH_AW_PROMPT_bebbbce83b966562_EOF'
+          ## Serena Go Code Analysis
+          
+          The Serena MCP server is configured for Go code analysis in this workspace:
+          - **Workspace**: `__GH_AW_GITHUB_WORKSPACE__`
+          - **Memory**: `/tmp/gh-aw/cache-memory/serena/`
+          
+          ### Project Activation
+          
+          Before analyzing code, activate the Serena project:
+          ```
+          Tool: activate_project
+          Args: { "path": "__GH_AW_GITHUB_WORKSPACE__" }
+          ```
+          
+          ### Analysis Constraints
+          
+          1. **Only analyze `.go` files** — Ignore all other file types
+          2. **Skip test files** — Never analyze files ending in `_test.go`
+          3. **Focus on `pkg/` directory** — Primary analysis area
+          4. **Use Serena for semantic analysis** — Leverage LSP capabilities for deeper insights
+          GH_AW_PROMPT_bebbbce83b966562_EOF
+          cat << 'GH_AW_PROMPT_bebbbce83b966562_EOF'
           # Smoke Test: Claude Engine Validation.
           
           **IMPORTANT: Keep all outputs extremely short and concise. Use single-line responses where possible. No verbose explanations.**
@@ -587,16 +644,16 @@ jobs:
           {"noop": {"message": "No action needed: [brief explanation of what was analyzed and why]"}}
           ```
           
-          GH_AW_PROMPT_5b5cf8c4ea949d9a_EOF
+          GH_AW_PROMPT_bebbbce83b966562_EOF
           } > "$GH_AW_PROMPT"
       - name: Interpolate variables and render templates
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
+          GH_AW_GITHUB_WORKSPACE: ${{ github.workspace }}
           GH_AW_GITHUB_REPOSITORY: ${{ github.repository }}
           GH_AW_GITHUB_RUN_ID: ${{ github.run_id }}
           GH_AW_GITHUB_SERVER_URL: ${{ github.server_url }}
-          GH_AW_GITHUB_WORKSPACE: ${{ github.workspace }}
         with:
           script: |
             const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');
@@ -857,12 +914,12 @@ jobs:
           mkdir -p ${RUNNER_TEMP}/gh-aw/safeoutputs
           mkdir -p /tmp/gh-aw/safeoutputs
           mkdir -p /tmp/gh-aw/mcp-logs/safeoutputs
-          cat > ${RUNNER_TEMP}/gh-aw/safeoutputs/config.json << 'GH_AW_SAFE_OUTPUTS_CONFIG_b21107ea4b46bc70_EOF'
+          cat > ${RUNNER_TEMP}/gh-aw/safeoutputs/config.json << 'GH_AW_SAFE_OUTPUTS_CONFIG_35162a556554808d_EOF'
           {"add_comment":{"hide_older_comments":true,"max":2},"add_labels":{"allowed":["smoke-claude"]},"add_reviewer":{"max":2,"target":"*"},"close_pull_request":{"max":1,"staged":true},"create_issue":{"close_older_issues":true,"close_older_key":"smoke-claude","expires":2,"group":true,"labels":["automation","testing"],"max":1},"create_pull_request_review_comment":{"max":5,"side":"RIGHT","target":"*"},"missing_data":{},"missing_tool":{},"noop":{"max":1,"report-as-issue":"true"},"post_slack_message":{"description":"Post a message to a fictitious Slack channel (smoke test only — no real Slack integration)","inputs":{"channel":{"default":"#general","description":"Slack channel name to post to","required":false,"type":"string"},"message":{"description":"Message text to post","required":false,"type":"string"}}},"push_to_pull_request_branch":{"if_no_changes":"warn","max_patch_size":1024,"protected_files":["package.json","bun.lockb","bunfig.toml","deno.json","deno.jsonc","deno.lock","global.json","NuGet.Config","Directory.Packages.props","mix.exs","mix.lock","go.mod","go.sum","stack.yaml","stack.yaml.lock","pom.xml","build.gradle","build.gradle.kts","settings.gradle","settings.gradle.kts","gradle.properties","package-lock.json","yarn.lock","pnpm-lock.yaml","npm-shrinkwrap.json","requirements.txt","Pipfile","Pipfile.lock","pyproject.toml","setup.py","setup.cfg","Gemfile","Gemfile.lock","uv.lock","CODEOWNERS"],"protected_path_prefixes":[".github/",".agents/"],"staged":true,"target":"*"},"resolve_pull_request_review_thread":{"max":5},"submit_pull_request_review":{"footer":"always","max":1},"update_pull_request":{"allow_body":true,"allow_title":true,"max":1,"target":"*"}}
-          GH_AW_SAFE_OUTPUTS_CONFIG_b21107ea4b46bc70_EOF
+          GH_AW_SAFE_OUTPUTS_CONFIG_35162a556554808d_EOF
       - name: Write Safe Outputs Tools
         run: |
-          cat > ${RUNNER_TEMP}/gh-aw/safeoutputs/tools_meta.json << 'GH_AW_SAFE_OUTPUTS_TOOLS_META_78850d57a6f3ee6b_EOF'
+          cat > ${RUNNER_TEMP}/gh-aw/safeoutputs/tools_meta.json << 'GH_AW_SAFE_OUTPUTS_TOOLS_META_ad94a1430dea5ccb_EOF'
           {
             "description_suffixes": {
               "add_comment": " CONSTRAINTS: Maximum 2 comment(s) can be added.",
@@ -899,8 +956,8 @@ jobs:
               }
             ]
           }
-          GH_AW_SAFE_OUTPUTS_TOOLS_META_78850d57a6f3ee6b_EOF
-          cat > ${RUNNER_TEMP}/gh-aw/safeoutputs/validation.json << 'GH_AW_SAFE_OUTPUTS_VALIDATION_c02dc5a35725a415_EOF'
+          GH_AW_SAFE_OUTPUTS_TOOLS_META_ad94a1430dea5ccb_EOF
+          cat > ${RUNNER_TEMP}/gh-aw/safeoutputs/validation.json << 'GH_AW_SAFE_OUTPUTS_VALIDATION_07d7f0b79e09a963_EOF'
           {
             "add_comment": {
               "defaultMax": 1,
@@ -1185,7 +1242,7 @@ jobs:
               "customValidation": "requiresOneOf:title,body"
             }
           }
-          GH_AW_SAFE_OUTPUTS_VALIDATION_c02dc5a35725a415_EOF
+          GH_AW_SAFE_OUTPUTS_VALIDATION_07d7f0b79e09a963_EOF
           node ${RUNNER_TEMP}/gh-aw/actions/generate_safe_outputs_tools.cjs
       - name: Generate Safe Outputs MCP Server Config
         id: safe-outputs-config
@@ -1228,7 +1285,7 @@ jobs:
       - name: Setup MCP Scripts Config
         run: |
           mkdir -p ${RUNNER_TEMP}/gh-aw/mcp-scripts/logs
-          cat > ${RUNNER_TEMP}/gh-aw/mcp-scripts/tools.json << 'GH_AW_MCP_SCRIPTS_TOOLS_ccd0fc6b0f6e80e9_EOF'
+          cat > ${RUNNER_TEMP}/gh-aw/mcp-scripts/tools.json << 'GH_AW_MCP_SCRIPTS_TOOLS_5eb6dd086563f7c7_EOF'
           {
             "serverName": "mcpscripts",
             "version": "1.0.0",
@@ -1380,8 +1437,8 @@ jobs:
               }
             ]
           }
-          GH_AW_MCP_SCRIPTS_TOOLS_ccd0fc6b0f6e80e9_EOF
-          cat > ${RUNNER_TEMP}/gh-aw/mcp-scripts/mcp-server.cjs << 'GH_AW_MCP_SCRIPTS_SERVER_d2d62f86d7364b9a_EOF'
+          GH_AW_MCP_SCRIPTS_TOOLS_5eb6dd086563f7c7_EOF
+          cat > ${RUNNER_TEMP}/gh-aw/mcp-scripts/mcp-server.cjs << 'GH_AW_MCP_SCRIPTS_SERVER_443d3c54d4ae10b7_EOF'
             const path = require("path");
             const { startHttpServer } = require("./mcp_scripts_mcp_server_http.cjs");
             const configPath = path.join(__dirname, "tools.json");
@@ -1395,12 +1452,12 @@ jobs:
               console.error("Failed to start mcp-scripts HTTP server:", error);
               process.exit(1);
             });
-          GH_AW_MCP_SCRIPTS_SERVER_d2d62f86d7364b9a_EOF
+          GH_AW_MCP_SCRIPTS_SERVER_443d3c54d4ae10b7_EOF
           chmod +x ${RUNNER_TEMP}/gh-aw/mcp-scripts/mcp-server.cjs
           
       - name: Setup MCP Scripts Tool Files
         run: |
-          cat > ${RUNNER_TEMP}/gh-aw/mcp-scripts/gh.sh << 'GH_AW_MCP_SCRIPTS_SH_GH_f67559598c935571_EOF'
+          cat > ${RUNNER_TEMP}/gh-aw/mcp-scripts/gh.sh << 'GH_AW_MCP_SCRIPTS_SH_GH_0fd7056ae522c7a9_EOF'
           #!/bin/bash
           # Auto-generated mcp-script tool: gh
           # Execute any gh CLI command. This tool is accessible as 'mcpscripts-gh'. Provide the full command after 'gh' (e.g., args: 'pr list --limit 5'). The tool will run: gh <args>. Use single quotes ' for complex args to avoid shell interpretation issues.
@@ -1411,9 +1468,9 @@ jobs:
           echo "  token: ${GH_AW_GH_TOKEN:0:6}..."
           GH_TOKEN="$GH_AW_GH_TOKEN" gh $INPUT_ARGS
           
-          GH_AW_MCP_SCRIPTS_SH_GH_f67559598c935571_EOF
+          GH_AW_MCP_SCRIPTS_SH_GH_0fd7056ae522c7a9_EOF
           chmod +x ${RUNNER_TEMP}/gh-aw/mcp-scripts/gh.sh
-          cat > ${RUNNER_TEMP}/gh-aw/mcp-scripts/github-discussion-query.sh << 'GH_AW_MCP_SCRIPTS_SH_GITHUB-DISCUSSION-QUERY_e102945e6b71afcb_EOF'
+          cat > ${RUNNER_TEMP}/gh-aw/mcp-scripts/github-discussion-query.sh << 'GH_AW_MCP_SCRIPTS_SH_GITHUB-DISCUSSION-QUERY_4abb3e0f5a9b2a37_EOF'
           #!/bin/bash
           # Auto-generated mcp-script tool: github-discussion-query
           # Query GitHub discussions with jq filtering support. Without --jq, returns schema and data size info. Use --jq '.' to get all data, or specific jq expressions to filter.
@@ -1548,9 +1605,9 @@ jobs:
           EOF
           fi
           
-          GH_AW_MCP_SCRIPTS_SH_GITHUB-DISCUSSION-QUERY_e102945e6b71afcb_EOF
+          GH_AW_MCP_SCRIPTS_SH_GITHUB-DISCUSSION-QUERY_4abb3e0f5a9b2a37_EOF
           chmod +x ${RUNNER_TEMP}/gh-aw/mcp-scripts/github-discussion-query.sh
-          cat > ${RUNNER_TEMP}/gh-aw/mcp-scripts/github-issue-query.sh << 'GH_AW_MCP_SCRIPTS_SH_GITHUB-ISSUE-QUERY_b8c7d61ac9725809_EOF'
+          cat > ${RUNNER_TEMP}/gh-aw/mcp-scripts/github-issue-query.sh << 'GH_AW_MCP_SCRIPTS_SH_GITHUB-ISSUE-QUERY_49dfcb4ad1c2c0d2_EOF'
           #!/bin/bash
           # Auto-generated mcp-script tool: github-issue-query
           # Query GitHub issues with jq filtering support. Without --jq, returns schema and data size info. Use --jq '.' to get all data, or specific jq expressions to filter.
@@ -1629,9 +1686,9 @@ jobs:
           fi
           
           
-          GH_AW_MCP_SCRIPTS_SH_GITHUB-ISSUE-QUERY_b8c7d61ac9725809_EOF
+          GH_AW_MCP_SCRIPTS_SH_GITHUB-ISSUE-QUERY_49dfcb4ad1c2c0d2_EOF
           chmod +x ${RUNNER_TEMP}/gh-aw/mcp-scripts/github-issue-query.sh
-          cat > ${RUNNER_TEMP}/gh-aw/mcp-scripts/github-pr-query.sh << 'GH_AW_MCP_SCRIPTS_SH_GITHUB-PR-QUERY_a408417e70dfc282_EOF'
+          cat > ${RUNNER_TEMP}/gh-aw/mcp-scripts/github-pr-query.sh << 'GH_AW_MCP_SCRIPTS_SH_GITHUB-PR-QUERY_fdc998f2fadcb164_EOF'
           #!/bin/bash
           # Auto-generated mcp-script tool: github-pr-query
           # Query GitHub pull requests with jq filtering support. Without --jq, returns schema and data size info. Use --jq '.' to get all data, or specific jq expressions to filter.
@@ -1716,9 +1773,9 @@ jobs:
           fi
           
           
-          GH_AW_MCP_SCRIPTS_SH_GITHUB-PR-QUERY_a408417e70dfc282_EOF
+          GH_AW_MCP_SCRIPTS_SH_GITHUB-PR-QUERY_fdc998f2fadcb164_EOF
           chmod +x ${RUNNER_TEMP}/gh-aw/mcp-scripts/github-pr-query.sh
-          cat > ${RUNNER_TEMP}/gh-aw/mcp-scripts/go.sh << 'GH_AW_MCP_SCRIPTS_SH_GO_262cebed7ecac346_EOF'
+          cat > ${RUNNER_TEMP}/gh-aw/mcp-scripts/go.sh << 'GH_AW_MCP_SCRIPTS_SH_GO_f6edbeb1ebc0ab2e_EOF'
           #!/bin/bash
           # Auto-generated mcp-script tool: go
           # Execute any Go command. This tool is accessible as 'mcpscripts-go'. Provide the full command after 'go' (e.g., args: 'test ./...'). The tool will run: go <args>. Use single quotes ' for complex args to avoid shell interpretation issues.
@@ -1729,9 +1786,9 @@ jobs:
           go $INPUT_ARGS
           
           
-          GH_AW_MCP_SCRIPTS_SH_GO_262cebed7ecac346_EOF
+          GH_AW_MCP_SCRIPTS_SH_GO_f6edbeb1ebc0ab2e_EOF
           chmod +x ${RUNNER_TEMP}/gh-aw/mcp-scripts/go.sh
-          cat > ${RUNNER_TEMP}/gh-aw/mcp-scripts/make.sh << 'GH_AW_MCP_SCRIPTS_SH_MAKE_b3a40908f9536124_EOF'
+          cat > ${RUNNER_TEMP}/gh-aw/mcp-scripts/make.sh << 'GH_AW_MCP_SCRIPTS_SH_MAKE_7cb4a9938463451c_EOF'
           #!/bin/bash
           # Auto-generated mcp-script tool: make
           # Execute any Make target. This tool is accessible as 'mcpscripts-make'. Provide the target name(s) (e.g., args: 'build'). The tool will run: make <args>. Use single quotes ' for complex args to avoid shell interpretation issues.
@@ -1741,7 +1798,7 @@ jobs:
           echo "make $INPUT_ARGS"
           make $INPUT_ARGS
           
-          GH_AW_MCP_SCRIPTS_SH_MAKE_b3a40908f9536124_EOF
+          GH_AW_MCP_SCRIPTS_SH_MAKE_7cb4a9938463451c_EOF
           chmod +x ${RUNNER_TEMP}/gh-aw/mcp-scripts/make.sh
           
       - name: Generate MCP Scripts Server Config
@@ -1814,7 +1871,7 @@ jobs:
           export GH_AW_ENGINE="claude"
           export MCP_GATEWAY_DOCKER_COMMAND='docker run -i --rm --network host -v /var/run/docker.sock:/var/run/docker.sock -e MCP_GATEWAY_PORT -e MCP_GATEWAY_DOMAIN -e MCP_GATEWAY_API_KEY -e MCP_GATEWAY_PAYLOAD_DIR -e MCP_GATEWAY_PAYLOAD_SIZE_THRESHOLD -e DEBUG -e MCP_GATEWAY_LOG_DIR -e GH_AW_MCP_LOG_DIR -e GH_AW_SAFE_OUTPUTS -e GH_AW_SAFE_OUTPUTS_CONFIG_PATH -e GH_AW_SAFE_OUTPUTS_TOOLS_PATH -e GH_AW_ASSETS_BRANCH -e GH_AW_ASSETS_MAX_SIZE_KB -e GH_AW_ASSETS_ALLOWED_EXTS -e DEFAULT_BRANCH -e GITHUB_MCP_SERVER_TOKEN -e GITHUB_MCP_GUARD_MIN_INTEGRITY -e GITHUB_MCP_GUARD_REPOS -e GITHUB_REPOSITORY -e GITHUB_SERVER_URL -e GITHUB_SHA -e GITHUB_WORKSPACE -e GITHUB_TOKEN -e GITHUB_RUN_ID -e GITHUB_RUN_NUMBER -e GITHUB_RUN_ATTEMPT -e GITHUB_JOB -e GITHUB_ACTION -e GITHUB_EVENT_NAME -e GITHUB_EVENT_PATH -e GITHUB_ACTOR -e GITHUB_ACTOR_ID -e GITHUB_TRIGGERING_ACTOR -e GITHUB_WORKFLOW -e GITHUB_WORKFLOW_REF -e GITHUB_WORKFLOW_SHA -e GITHUB_REF -e GITHUB_REF_NAME -e GITHUB_REF_TYPE -e GITHUB_HEAD_REF -e GITHUB_BASE_REF -e GH_AW_MCP_SCRIPTS_PORT -e GH_AW_MCP_SCRIPTS_API_KEY -e GH_AW_SAFE_OUTPUTS_PORT -e GH_AW_SAFE_OUTPUTS_API_KEY -e GH_AW_GH_TOKEN -e GH_DEBUG -e GH_TOKEN -e TAVILY_API_KEY -v /tmp/gh-aw/mcp-payloads:/tmp/gh-aw/mcp-payloads:rw -v /opt:/opt:ro -v /tmp:/tmp:rw -v '"${GITHUB_WORKSPACE}"':'"${GITHUB_WORKSPACE}"':rw ghcr.io/github/gh-aw-mcpg:v0.2.7'
           
-          cat << GH_AW_MCP_CONFIG_ffcfdd19b250b5b1_EOF | bash ${RUNNER_TEMP}/gh-aw/actions/start_mcp_gateway.sh
+          cat << GH_AW_MCP_CONFIG_3246806fca034e9a_EOF | bash ${RUNNER_TEMP}/gh-aw/actions/start_mcp_gateway.sh
           {
             "mcpServers": {
               "agenticworkflows": {
@@ -1903,11 +1960,8 @@ jobs:
                 }
               },
               "serena": {
+                "type": "stdio",
                 "container": "ghcr.io/github/serena-mcp-server:latest",
-                "args": [
-                  "--network",
-                  "host"
-                ],
                 "entrypoint": "serena",
                 "entrypointArgs": [
                   "start-mcp-server",
@@ -1916,7 +1970,13 @@ jobs:
                   "--project",
                   "\${GITHUB_WORKSPACE}"
                 ],
-                "mounts": ["\${GITHUB_WORKSPACE}:\${GITHUB_WORKSPACE}:rw"],
+                "mounts": [
+                  "\${GITHUB_WORKSPACE}:\${GITHUB_WORKSPACE}:rw"
+                ],
+                "args": [
+                  "--network",
+                  "host"
+                ],
                 "guard-policies": {
                   "write-sink": {
                     "accept": [
@@ -1950,7 +2010,7 @@ jobs:
               "payloadDir": "${MCP_GATEWAY_PAYLOAD_DIR}"
             }
           }
-          GH_AW_MCP_CONFIG_ffcfdd19b250b5b1_EOF
+          GH_AW_MCP_CONFIG_3246806fca034e9a_EOF
       - name: Download activation artifact
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
@@ -2670,7 +2730,7 @@ jobs:
           echo "GH_HOST=${GH_HOST}" >> "$GITHUB_ENV"
       - name: Setup Safe Outputs Custom Scripts
         run: |
-          cat > ${RUNNER_TEMP}/gh-aw/actions/safe_output_script_post_slack_message.cjs << 'GH_AW_SAFE_OUTPUT_SCRIPT_POST_SLACK_MESSAGE_c30eabcd41f1ac22_EOF'
+          cat > ${RUNNER_TEMP}/gh-aw/actions/safe_output_script_post_slack_message.cjs << 'GH_AW_SAFE_OUTPUT_SCRIPT_POST_SLACK_MESSAGE_f4ec5cd65796fe0e_EOF'
           // @ts-check
           /// <reference types="./safe-output-script" />
           // Auto-generated safe-output script handler: post-slack-message
@@ -2690,7 +2750,7 @@ jobs:
           }
           module.exports = { main };
           
-          GH_AW_SAFE_OUTPUT_SCRIPT_POST_SLACK_MESSAGE_c30eabcd41f1ac22_EOF
+          GH_AW_SAFE_OUTPUT_SCRIPT_POST_SLACK_MESSAGE_f4ec5cd65796fe0e_EOF
       - name: Process Safe Outputs
         id: process_safe_outputs
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8

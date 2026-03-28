@@ -56,8 +56,14 @@ func (e *CodexEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]an
 			qmdTool := expandedTools["qmd"]
 			renderer.RenderQmdMCP(yaml, qmdTool, workflowData)
 		case "serena":
-			serenaTool := expandedTools["serena"]
-			renderer.RenderSerenaMCP(yaml, serenaTool)
+			// If serena has an explicit MCP server config (with container field), use the
+			// custom renderer instead of the built-in hardcoded serena renderer.
+			if handled := HandleCustomMCPToolInSwitch(yaml, toolName, expandedTools, false, func(yaml *strings.Builder, toolName string, toolConfig map[string]any, isLast bool) error {
+				return e.renderCodexMCPConfigWithContext(yaml, toolName, toolConfig, workflowData)
+			}); !handled {
+				serenaTool := expandedTools["serena"]
+				renderer.RenderSerenaMCP(yaml, serenaTool)
+			}
 		case "agentic-workflows":
 			renderer.RenderAgenticWorkflowsMCP(yaml)
 		case "safe-outputs":

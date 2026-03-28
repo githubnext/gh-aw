@@ -25,7 +25,7 @@
 //   - web-search: Web search capabilities
 //   - edit: File editing operations
 //   - playwright: Browser automation
-//   - serena: Serena integration
+//   - serena: Serena integration (deprecated, use mcp-servers.serena with shared/mcp/serena.md)
 //   - agentic-workflows: Nested workflow execution
 //   - cache-memory: In-workflow memory caching
 //   - repo-memory: Repository-backed persistent memory

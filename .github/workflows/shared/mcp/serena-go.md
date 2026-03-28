@@ -14,8 +14,10 @@
 #   imports:
 #     - shared/mcp/serena-go.md
 
-tools:
-  serena: ["go"]
+imports:
+  - uses: shared/mcp/serena.md
+    with:
+      languages: ["go"]
 ---
 
 ## Serena Go Code Analysis

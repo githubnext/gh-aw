@@ -13,8 +13,11 @@ engine: copilot
 runtimes:
   node:
     version: "20"
+imports:
+  - uses: shared/mcp/serena.md
+    with:
+      languages: ["typescript"]
 tools:
-  serena: ["typescript"]
   github:
     toolsets: [default]
   edit:

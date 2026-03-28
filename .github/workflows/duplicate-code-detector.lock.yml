@@ -25,9 +25,10 @@
 # Resolved workflow manifest:
 #   Imports:
 #     - shared/mcp/serena-go.md
+#     - shared/mcp/serena.md
 #     - shared/reporting.md
 #
-# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"1704c3b6efe3516eb9e0d969d46884c2d0d78eb116c9ea0ee2c02886a2e0c025","strict":true,"agent_id":"codex"}
+# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"45a3b3d6fa12808929677c56136017f7369ac7cb1886c88501279a51a7b6500a","strict":true,"agent_id":"codex"}
 
 name: "Duplicate Code Detector"
 "on":
@@ -140,14 +141,14 @@ jobs:
         run: |
           bash ${RUNNER_TEMP}/gh-aw/actions/create_prompt_first.sh
           {
-          cat << 'GH_AW_PROMPT_6482a98809493715_EOF'
+          cat << 'GH_AW_PROMPT_da0684b6b37876e5_EOF'
           <system>
-          GH_AW_PROMPT_6482a98809493715_EOF
+          GH_AW_PROMPT_da0684b6b37876e5_EOF
           cat "${RUNNER_TEMP}/gh-aw/prompts/xpia.md"
           cat "${RUNNER_TEMP}/gh-aw/prompts/temp_folder_prompt.md"
           cat "${RUNNER_TEMP}/gh-aw/prompts/markdown.md"
           cat "${RUNNER_TEMP}/gh-aw/prompts/safe_outputs_prompt.md"
-          cat << 'GH_AW_PROMPT_6482a98809493715_EOF'
+          cat << 'GH_AW_PROMPT_da0684b6b37876e5_EOF'
           <safe-output-tools>
           Tools: create_issue, missing_tool, missing_data, noop
           </safe-output-tools>
@@ -179,29 +180,62 @@ jobs:
           {{/if}}
           </github-context>
           
-          GH_AW_PROMPT_6482a98809493715_EOF
+          GH_AW_PROMPT_da0684b6b37876e5_EOF
           cat "${RUNNER_TEMP}/gh-aw/prompts/github_mcp_tools_with_safeoutputs_prompt.md"
-          cat << 'GH_AW_PROMPT_6482a98809493715_EOF'
+          cat << 'GH_AW_PROMPT_da0684b6b37876e5_EOF'
           </system>
-          GH_AW_PROMPT_6482a98809493715_EOF
-          cat << 'GH_AW_PROMPT_6482a98809493715_EOF'
+          GH_AW_PROMPT_da0684b6b37876e5_EOF
+          cat << 'GH_AW_PROMPT_da0684b6b37876e5_EOF'
+          ## Serena Code Analysis
+          
+          The Serena MCP server is configured for **["go"]** analysis in this workspace:
+          - **Workspace**: `__GH_AW_GITHUB_WORKSPACE__`
+          - **Memory**: `/tmp/gh-aw/cache-memory/serena/`
+          
+          ### Project Activation
+          
+          Before analyzing code, activate the Serena project:
+          ```
+          Tool: activate_project
+          Args: { "path": "__GH_AW_GITHUB_WORKSPACE__" }
+          ```
+          
+          ### Available Capabilities
+          
+          Serena provides IDE-grade Language Server Protocol (LSP) tools including:
+          - **Symbol search**: `find_symbol` — locate functions, types, interfaces by name
+          - **Navigation**: `find_referencing_symbols` — find all callers/usages of a symbol
+          - **Type info**: `get_symbol_documentation` — hover-level type and doc information
+          - **Code editing**: `replace_symbol_body`, `insert_after_symbol` — symbol-level edits
+          - **Diagnostics**: `get_diagnostics` — compiler errors and linter warnings
+          
+          ### Analysis Guidelines
+          
+          1. **Use semantic tools over text search** — prefer Serena's LSP tools over `grep`
+          2. **Activate project first** — always call `activate_project` before other tools
+          3. **Cross-reference findings** — validate with multiple tools for accuracy
+          4. **Focus on the relevant language files** — ignore unrelated file types
+          
+          
+          GH_AW_PROMPT_da0684b6b37876e5_EOF
+          cat << 'GH_AW_PROMPT_da0684b6b37876e5_EOF'
           {{#runtime-import .github/workflows/shared/mcp/serena-go.md}}
-          GH_AW_PROMPT_6482a98809493715_EOF
-          cat << 'GH_AW_PROMPT_6482a98809493715_EOF'
+          GH_AW_PROMPT_da0684b6b37876e5_EOF
+          cat << 'GH_AW_PROMPT_da0684b6b37876e5_EOF'
           {{#runtime-import .github/workflows/shared/reporting.md}}
-          GH_AW_PROMPT_6482a98809493715_EOF
-          cat << 'GH_AW_PROMPT_6482a98809493715_EOF'
+          GH_AW_PROMPT_da0684b6b37876e5_EOF
+          cat << 'GH_AW_PROMPT_da0684b6b37876e5_EOF'
           {{#runtime-import .github/workflows/duplicate-code-detector.md}}
-          GH_AW_PROMPT_6482a98809493715_EOF
+          GH_AW_PROMPT_da0684b6b37876e5_EOF
           } > "$GH_AW_PROMPT"
       - name: Interpolate variables and render templates
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
+          GH_AW_GITHUB_WORKSPACE: ${{ github.workspace }}
           GH_AW_GITHUB_ACTOR: ${{ github.actor }}
           GH_AW_GITHUB_EVENT_HEAD_COMMIT_ID: ${{ github.event.head_commit.id }}
           GH_AW_GITHUB_REPOSITORY: ${{ github.repository }}
-          GH_AW_GITHUB_WORKSPACE: ${{ github.workspace }}
         with:
           script: |
             const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');
@@ -365,12 +399,12 @@ jobs:
           mkdir -p ${RUNNER_TEMP}/gh-aw/safeoutputs
           mkdir -p /tmp/gh-aw/safeoutputs
           mkdir -p /tmp/gh-aw/mcp-logs/safeoutputs
-          cat > ${RUNNER_TEMP}/gh-aw/safeoutputs/config.json << 'GH_AW_SAFE_OUTPUTS_CONFIG_1b0465e915229ea4_EOF'
+          cat > ${RUNNER_TEMP}/gh-aw/safeoutputs/config.json << 'GH_AW_SAFE_OUTPUTS_CONFIG_782907c9eb8996c1_EOF'
           {"create_issue":{"assignees":["copilot"],"max":1},"missing_data":{},"missing_tool":{},"noop":{"max":1,"report-as-issue":"true"}}
-          GH_AW_SAFE_OUTPUTS_CONFIG_1b0465e915229ea4_EOF
+          GH_AW_SAFE_OUTPUTS_CONFIG_782907c9eb8996c1_EOF
       - name: Write Safe Outputs Tools
         run: |
-          cat > ${RUNNER_TEMP}/gh-aw/safeoutputs/tools_meta.json << 'GH_AW_SAFE_OUTPUTS_TOOLS_META_cd54dff48c846a07_EOF'
+          cat > ${RUNNER_TEMP}/gh-aw/safeoutputs/tools_meta.json << 'GH_AW_SAFE_OUTPUTS_TOOLS_META_bd5fd174faec6ee9_EOF'
           {
             "description_suffixes": {
               "create_issue": " CONSTRAINTS: Maximum 1 issue(s) can be created. Assignees [\"copilot\"] will be automatically assigned."
@@ -378,8 +412,8 @@ jobs:
             "repo_params": {},
             "dynamic_tools": []
           }
-          GH_AW_SAFE_OUTPUTS_TOOLS_META_cd54dff48c846a07_EOF
-          cat > ${RUNNER_TEMP}/gh-aw/safeoutputs/validation.json << 'GH_AW_SAFE_OUTPUTS_VALIDATION_0cf6cf7fdf91fb57_EOF'
+          GH_AW_SAFE_OUTPUTS_TOOLS_META_bd5fd174faec6ee9_EOF
+          cat > ${RUNNER_TEMP}/gh-aw/safeoutputs/validation.json << 'GH_AW_SAFE_OUTPUTS_VALIDATION_063a0fcac3505b2c_EOF'
           {
             "create_issue": {
               "defaultMax": 1,
@@ -472,7 +506,7 @@ jobs:
               }
             }
           }
-          GH_AW_SAFE_OUTPUTS_VALIDATION_0cf6cf7fdf91fb57_EOF
+          GH_AW_SAFE_OUTPUTS_VALIDATION_063a0fcac3505b2c_EOF
           node ${RUNNER_TEMP}/gh-aw/actions/generate_safe_outputs_tools.cjs
       - name: Generate Safe Outputs MCP Server Config
         id: safe-outputs-config
@@ -539,7 +573,7 @@ jobs:
           export GH_AW_ENGINE="codex"
           export MCP_GATEWAY_DOCKER_COMMAND='docker run -i --rm --network host -v /var/run/docker.sock:/var/run/docker.sock -e MCP_GATEWAY_PORT -e MCP_GATEWAY_DOMAIN -e MCP_GATEWAY_API_KEY -e MCP_GATEWAY_PAYLOAD_DIR -e MCP_GATEWAY_PAYLOAD_SIZE_THRESHOLD -e DEBUG -e MCP_GATEWAY_LOG_DIR -e GH_AW_MCP_LOG_DIR -e GH_AW_SAFE_OUTPUTS -e GH_AW_SAFE_OUTPUTS_CONFIG_PATH -e GH_AW_SAFE_OUTPUTS_TOOLS_PATH -e GH_AW_ASSETS_BRANCH -e GH_AW_ASSETS_MAX_SIZE_KB -e GH_AW_ASSETS_ALLOWED_EXTS -e DEFAULT_BRANCH -e GITHUB_MCP_SERVER_TOKEN -e GITHUB_MCP_GUARD_MIN_INTEGRITY -e GITHUB_MCP_GUARD_REPOS -e GITHUB_REPOSITORY -e GITHUB_SERVER_URL -e GITHUB_SHA -e GITHUB_WORKSPACE -e GITHUB_TOKEN -e GITHUB_RUN_ID -e GITHUB_RUN_NUMBER -e GITHUB_RUN_ATTEMPT -e GITHUB_JOB -e GITHUB_ACTION -e GITHUB_EVENT_NAME -e GITHUB_EVENT_PATH -e GITHUB_ACTOR -e GITHUB_ACTOR_ID -e GITHUB_TRIGGERING_ACTOR -e GITHUB_WORKFLOW -e GITHUB_WORKFLOW_REF -e GITHUB_WORKFLOW_SHA -e GITHUB_REF -e GITHUB_REF_NAME -e GITHUB_REF_TYPE -e GITHUB_HEAD_REF -e GITHUB_BASE_REF -e GH_AW_SAFE_OUTPUTS_PORT -e GH_AW_SAFE_OUTPUTS_API_KEY -v /tmp/gh-aw/mcp-payloads:/tmp/gh-aw/mcp-payloads:rw -v /opt:/opt:ro -v /tmp:/tmp:rw -v '"${GITHUB_WORKSPACE}"':'"${GITHUB_WORKSPACE}"':rw ghcr.io/github/gh-aw-mcpg:v0.2.7'
           
-          cat > /tmp/gh-aw/mcp-config/config.toml << GH_AW_MCP_CONFIG_fed356ec37333618_EOF
+          cat > /tmp/gh-aw/mcp-config/config.toml << GH_AW_MCP_CONFIG_a54e5b2868dcaa13_EOF
           [history]
           persistence = "none"
           
@@ -569,28 +603,22 @@ jobs:
           
           [mcp_servers.serena]
           container = "ghcr.io/github/serena-mcp-server:latest"
+          entrypoint = "serena"
+          entrypointArgs = ["start-mcp-server", "--context", "codex", "--project", "\${GITHUB_WORKSPACE}"]
+          mounts = ["\${GITHUB_WORKSPACE}:\${GITHUB_WORKSPACE}:rw"]
           args = [
             "--network",
             "host",
           ]
-          entrypoint = "serena"
-          entrypointArgs = [
-            "start-mcp-server",
-            "--context",
-            "codex",
-            "--project",
-            "${GITHUB_WORKSPACE}"
-          ]
-          mounts = ["${GITHUB_WORKSPACE}:${GITHUB_WORKSPACE}:rw"]
           
           [mcp_servers.serena."guard-policies"]
           
           [mcp_servers.serena."guard-policies".write-sink]
           accept = ["*"]
-          GH_AW_MCP_CONFIG_fed356ec37333618_EOF
+          GH_AW_MCP_CONFIG_a54e5b2868dcaa13_EOF
           
           # Generate JSON config for MCP gateway
-          cat << GH_AW_MCP_CONFIG_fed356ec37333618_EOF | bash ${RUNNER_TEMP}/gh-aw/actions/start_mcp_gateway.sh
+          cat << GH_AW_MCP_CONFIG_a54e5b2868dcaa13_EOF | bash ${RUNNER_TEMP}/gh-aw/actions/start_mcp_gateway.sh
           {
             "mcpServers": {
               "github": {
@@ -623,27 +651,30 @@ jobs:
                 }
               },
               "serena": {
-                "container": "ghcr.io/github/serena-mcp-server:latest",
-                "args": [
-                  "--network",
-                  "host"
-                ],
-                "entrypoint": "serena",
-                "entrypointArgs": [
-                  "start-mcp-server",
-                  "--context",
-                  "codex",
-                  "--project",
-                  "\${GITHUB_WORKSPACE}"
-                ],
-                "mounts": ["\${GITHUB_WORKSPACE}:\${GITHUB_WORKSPACE}:rw"],
-                "guard-policies": {
-                  "write-sink": {
-                    "accept": [
-                      "*"
-                    ]
-                  }
+              "type": "stdio",
+              "container": "ghcr.io/github/serena-mcp-server:latest",
+              "entrypoint": "serena",
+              "entrypointArgs": [
+                "start-mcp-server",
+                "--context",
+                "codex",
+                "--project",
+                "\${GITHUB_WORKSPACE}"
+              ],
+              "mounts": [
+                "\${GITHUB_WORKSPACE}:\${GITHUB_WORKSPACE}:rw"
+              ],
+              "args": [
+                "--network",
+                "host"
+              ],
+              "guard-policies": {
+                "write-sink": {
+                  "accept": [
+                    "*"
+                  ]
                 }
+              }
               }
             },
             "gateway": {
@@ -653,7 +684,7 @@ jobs:
               "payloadDir": "${MCP_GATEWAY_PAYLOAD_DIR}"
             }
           }
-          GH_AW_MCP_CONFIG_fed356ec37333618_EOF
+          GH_AW_MCP_CONFIG_a54e5b2868dcaa13_EOF
       - name: Download activation artifact
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:

@@ -7,6 +7,7 @@ import (
 )
 
 // TestValidateStrictTools_SerenaDockerMode tests that serena docker mode is allowed in strict mode
+// (tools.serena is deprecated but still accepted with a warning, not a strict mode error)
 func TestValidateStrictTools_SerenaDockerMode(t *testing.T) {
 	compiler := NewCompiler()
 	frontmatter := map[string]any{
@@ -23,11 +24,12 @@ func TestValidateStrictTools_SerenaDockerMode(t *testing.T) {
 
 	err := compiler.validateStrictTools(frontmatter)
 	if err != nil {
-		t.Errorf("Expected no error for serena docker mode in strict mode, got: %v", err)
+		t.Errorf("Expected no error for serena docker mode in strict mode (only a warning), got: %v", err)
 	}
 }
 
-// TestValidateStrictTools_SerenaNoMode tests that serena without mode is allowed (defaults to docker)
+// TestValidateStrictTools_SerenaNoMode tests that serena without mode is allowed in strict mode
+// (tools.serena is deprecated but still accepted with a warning, not a strict mode error)
 func TestValidateStrictTools_SerenaNoMode(t *testing.T) {
 	compiler := NewCompiler()
 	frontmatter := map[string]any{
@@ -43,7 +45,7 @@ func TestValidateStrictTools_SerenaNoMode(t *testing.T) {
 
 	err := compiler.validateStrictTools(frontmatter)
 	if err != nil {
-		t.Errorf("Expected no error for serena without mode in strict mode, got: %v", err)
+		t.Errorf("Expected no error for serena without mode in strict mode (only a warning), got: %v", err)
 	}
 }
 
