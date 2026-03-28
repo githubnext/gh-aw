@@ -210,6 +210,7 @@ func (c *Compiler) buildStartDIFCProxyStepYAML(data *WorkflowData) string {
 	sb.WriteString("      - name: Start DIFC proxy for pre-agent gh calls\n")
 	sb.WriteString("        env:\n")
 	fmt.Fprintf(&sb, "          GH_TOKEN: %s\n", effectiveToken)
+	sb.WriteString("          GITHUB_SERVER_URL: ${{ github.server_url }}\n")
 	sb.WriteString("        run: |\n")
 	// The policy JSON contains only static values from the workflow frontmatter
 	// (min-integrity and repos). It never contains GitHub Actions expressions (${{ }})

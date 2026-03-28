@@ -9,6 +9,7 @@
 #
 # Environment:
 #   GH_TOKEN - GitHub token passed to the proxy container
+#   GITHUB_SERVER_URL - GitHub server URL for upstream routing (e.g. https://github.com or https://TENANT.ghe.com)
 #   GITHUB_REPOSITORY - Repository name (owner/repo) for git remote
 #   GITHUB_ENV - Path to GitHub Actions environment file
 
@@ -36,6 +37,7 @@ echo "Starting DIFC proxy container: $CONTAINER_IMAGE"
 
 docker run -d --name awmg-proxy --network host \
   -e GH_TOKEN \
+  -e GITHUB_SERVER_URL \
   -e DEBUG='*' \
   -v "$PROXY_LOG_DIR:$PROXY_LOG_DIR" \
   -v "$MCP_LOG_DIR:$MCP_LOG_DIR" \

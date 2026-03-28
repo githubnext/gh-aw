@@ -299,6 +299,7 @@ func TestGenerateStartDIFCProxyStep(t *testing.T) {
 		require.NotEmpty(t, result, "should generate proxy start step")
 		assert.Contains(t, result, "Start DIFC proxy for pre-agent gh calls", "step name should be present")
 		assert.Contains(t, result, "GH_TOKEN:", "step should include GH_TOKEN env var")
+		assert.Contains(t, result, "GITHUB_SERVER_URL:", "step should include GITHUB_SERVER_URL env var")
 		assert.Contains(t, result, "start_difc_proxy.sh", "step should call the proxy script")
 		assert.Contains(t, result, `"allow-only"`, "step should include guard policy JSON")
 		assert.Contains(t, result, `"min-integrity":"approved"`, "step should include min-integrity in policy")
