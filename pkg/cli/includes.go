@@ -446,8 +446,13 @@ func fetchAndSaveRemoteIncludes(content string, spec *WorkflowSpec, targetDir st
 // fetchAllRemoteDependencies fetches all remote dependencies for a workflow:
 // includes (@include directives), frontmatter imports, dispatch workflows, and resources.
 // This is the single entry point shared by both the add and trial commands.
+//
+// Error handling is intentionally asymmetric:
+//   - @include and frontmatter import errors are best-effort: failures emit a warning when
+//     verbose is true but do not stop the overall operation.
+//   - Dispatch-workflow and resource errors are fatal and are returned to the caller.
 func fetchAllRemoteDependencies(ctx context.Context, content string, spec *WorkflowSpec, targetDir string, verbose bool, force bool, tracker *FileTracker) error {
-	// Fetch and save @include directive dependencies
+	// Fetch and save @include directive dependencies (best-effort: errors are not fatal).
 	if err := fetchAndSaveRemoteIncludes(content, spec, targetDir, verbose, force, tracker); err != nil {
 		if verbose {
 			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to fetch include dependencies: %v", err)))
@@ -456,6 +461,7 @@ func fetchAllRemoteDependencies(ctx context.Context, content string, spec *Workf
 	// Fetch and save frontmatter 'imports:' dependencies so they are available
 	// locally during compilation. Keeping these as relative paths (not workflowspecs)
 	// ensures the compiler resolves them from disk rather than downloading from GitHub.
+	// Best-effort: errors are not fatal.
 	if err := fetchAndSaveRemoteFrontmatterImports(content, spec, targetDir, verbose, force, tracker); err != nil {
 		if verbose {
 			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to fetch frontmatter import dependencies: %v", err)))
