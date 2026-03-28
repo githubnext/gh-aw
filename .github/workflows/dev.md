@@ -15,19 +15,20 @@ permissions:
   issues: read
   pull-requests: read
 
-tools:
-  qmd:
-    runs-on: aw-gpu-runner-T4
-    gpu: true
-    checkouts:
-      - name: docs
-        pattern: "docs/src/**/*.{md,mdx}"
-        context: "gh-aw project documentation"
-    searches:
-      - name: issues
-        type: issues
-        max: 500
-        github-token: ${{ secrets.GITHUB_TOKEN }}
+imports:
+  - uses: shared/qmd.md
+    with:
+      runs-on: aw-gpu-runner-T4
+      gpu: true
+      checkouts:
+        - name: docs
+          pattern: "docs/src/**/*.{md,mdx}"
+          context: "gh-aw project documentation"
+      searches:
+        - name: issues
+          type: issues
+          max: 500
+          github-token: ${{ secrets.GITHUB_TOKEN }}
 
 safe-outputs:
   create-issue:

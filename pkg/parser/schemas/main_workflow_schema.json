@@ -166,6 +166,7 @@
                         },
                         {
                           "type": "array",
+                          "description": "Array value for import-schema parameters of type 'array'.",
                           "items": {
                             "oneOf": [
                               {
@@ -176,6 +177,11 @@
                               },
                               {
                                 "type": "boolean"
+                              },
+                              {
+                                "type": "object",
+                                "description": "Object element in an array import parameter.",
+                                "additionalProperties": true
                               }
                             ]
                           }
@@ -291,6 +297,7 @@
                             },
                             {
                               "type": "array",
+                              "description": "Array value for import-schema parameters of type 'array'.",
                               "items": {
                                 "oneOf": [
                                   {
@@ -301,6 +308,11 @@
                                   },
                                   {
                                     "type": "boolean"
+                                  },
+                                  {
+                                    "type": "object",
+                                    "description": "Object element in an array import parameter.",
+                                    "additionalProperties": true
                                   }
                                 ]
                               }

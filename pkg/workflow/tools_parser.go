@@ -427,8 +427,10 @@ func parseQmdTool(val any) *QmdToolConfig {
 	if configMap, ok := val.(map[string]any); ok {
 		config := &QmdToolConfig{}
 
-		// Handle cache-key field
-		if cacheKey, ok := configMap["cache-key"].(string); ok && cacheKey != "" {
+		// Handle cache-key field. Skip values that look like unexpanded import-schema expressions
+		// (e.g. "${{ github.aw.import-inputs.cache-key }}") which are left as literal strings
+		// when the caller does not supply the optional input.
+		if cacheKey, ok := configMap["cache-key"].(string); ok && cacheKey != "" && !strings.HasPrefix(cacheKey, "${{") {
 			config.CacheKey = cacheKey
 			toolsParserLog.Printf("qmd tool cache-key: %s", cacheKey)
 		}
@@ -441,9 +443,11 @@ func parseQmdTool(val any) *QmdToolConfig {
 			}
 		}
 
-		// Handle runs-on field (override runner image for the indexing job)
+		// Handle runs-on field (override runner image for the indexing job). Skip values that look
+		// like unexpanded import-schema expressions which are left as literal strings when the
+		// caller does not supply the optional input.
 		if runsOnVal, exists := configMap["runs-on"]; exists {
-			if runsOnStr, ok := runsOnVal.(string); ok && runsOnStr != "" {
+			if runsOnStr, ok := runsOnVal.(string); ok && runsOnStr != "" && !strings.HasPrefix(runsOnStr, "${{") {
 				config.RunsOn = runsOnStr
 				toolsParserLog.Printf("qmd tool runs-on: %s", runsOnStr)
 			}
