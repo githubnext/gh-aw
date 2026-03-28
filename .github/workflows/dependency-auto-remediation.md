@@ -164,7 +164,7 @@ Parse the test output to identify:
 Use bash to identify call sites:
 ```bash
 # Find files importing the updated package (replace PACKAGE_NAME accordingly)
-grep -r "PACKAGE_NAME" --include="*.go" --include="*.js" --include="*.ts" --include="*.py" --include="*.rs" -l . | grep -v "_test\." | grep -v "vendor/" | grep -v "node_modules/" || true
+grep -r "PACKAGE_NAME" --include="*.go" --include="*.js" --include="*.ts" --include="*.py" --include="*.rs" -l . | grep -v "_test\." | grep -v "\.test\." | grep -v "\.spec\.js" | grep -v "\.spec\.ts" | grep -v "\.spec\.jsx" | grep -v "\.spec\.tsx" | grep -v "/test_" | grep -v "vendor/" | grep -v "node_modules/" || true
 ```
 
 ### 5.2 Research the Breaking Changes
@@ -181,7 +181,7 @@ Look for:
 Using the `edit` tool, fix the breaking call sites in **source files only** (never test files):
 
 **Guardrails:**
-- ❌ Never modify test files (files matching `*_test.go`, `*.test.js`, `*.test.ts`, `*_test.py`, `test_*.py`, `*Tests.cs`, `*.spec.*`)
+- ❌ Never modify test files (files matching `*_test.go`, `*.test.js`, `*.test.ts`, `*.test.jsx`, `*.test.tsx`, `*_test.py`, `test_*.py`, `*Tests.cs`, `*.spec.js`, `*.spec.ts`, `*.spec.jsx`, `*.spec.tsx`)
 - ❌ Never remove or skip tests
 - ❌ Never modify the dependency version itself (that's Dependabot's responsibility)
 - ❌ Do not change files outside the dependency's call sites
