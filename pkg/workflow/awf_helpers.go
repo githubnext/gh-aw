@@ -57,6 +57,14 @@ type AWFCommandConfig struct {
 	// PathSetup is optional shell commands to run before the engine command
 	// (e.g., npm PATH setup)
 	PathSetup string
+
+	// ExcludeEnvVarNames is the list of environment variable names to exclude from
+	// the agent container's visible environment via --exclude-env. These are the env
+	// var keys whose step-env values contain secret references (${{ secrets.* }}).
+	// Computed from the engine's GetRequiredSecretNames() so that every secret-bearing
+	// variable is excluded — the agent can never read raw token values via `env`/`printenv`.
+	// Requires AWF v0.26.0+ for --exclude-env support.
+	ExcludeEnvVarNames []string
 }
 
 // BuildAWFCommand builds a complete AWF command with all arguments.
@@ -145,14 +153,20 @@ func BuildAWFArgs(config AWFCommandConfig) []string {
 		awfArgs = append(awfArgs, "--tty")
 	}
 
-	// Pass all environment variables to the container, but exclude sensitive tokens.
-	// AWF's API proxy (--enable-api-proxy) handles authentication for COPILOT_GITHUB_TOKEN
-	// and GITHUB_MCP_SERVER_TOKEN transparently, so the container does not need the raw
-	// values. Excluding them via --exclude-env prevents a prompt-injected agent from
+	// Pass all environment variables to the container, but exclude every variable whose
+	// step-env value comes from a GitHub Actions secret. AWF's API proxy (--enable-api-proxy)
+	// handles authentication for these tokens transparently, so the container does not need
+	// the raw values. Excluding them via --exclude-env prevents a prompt-injected agent from
 	// exfiltrating tokens through bash tools such as `env` or `printenv`.
+	// The caller computes ExcludeEnvVarNames from GetRequiredSecretNames() so that every
+	// secret-bearing variable is covered — not just a hardcoded subset.
 	// Requires AWF v0.26.0+ for --exclude-env support.
 	awfArgs = append(awfArgs, "--env-all")
-	for _, excludedVar := range constants.AWFExcludedEnvVars {
+	// Sort for deterministic output in compiled lock files.
+	sortedExclude := make([]string, len(config.ExcludeEnvVarNames))
+	copy(sortedExclude, config.ExcludeEnvVarNames)
+	sort.Strings(sortedExclude)
+	for _, excludedVar := range sortedExclude {
 		awfArgs = append(awfArgs, "--exclude-env", excludedVar)
 	}
 
@@ -437,4 +451,87 @@ func GetCopilotAPITarget(workflowData *WorkflowData) string {
 
 	// Fallback: derive from the well-known GITHUB_COPILOT_BASE_URL env var.
 	return extractAPITargetHost(workflowData, "GITHUB_COPILOT_BASE_URL")
+}
+
+// ComputeAWFExcludeEnvVarNames returns the list of environment variable names that must be
+// excluded from the agent container's visible environment via AWF's --exclude-env flag.
+//
+// Only env var names whose step-env values WILL contain a ${{ secrets.* }} reference are
+// included, so non-secret vars (e.g. GH_DEBUG: "1" in mcp-scripts) are never excluded.
+//
+// Parameters:
+//   - workflowData: the workflow being compiled
+//   - coreSecretVarNames: engine-specific fixed secret env var names (e.g. ["COPILOT_GITHUB_TOKEN"])
+//
+// The function augments coreSecretVarNames with:
+//   - MCP_GATEWAY_API_KEY when MCP servers are present
+//   - GITHUB_MCP_SERVER_TOKEN when the GitHub tool is present
+//   - HTTP MCP header secret var names (values always contain ${{ secrets.* }})
+//   - mcp-scripts env var names whose values contain ${{ secrets.* }}
+//   - engine.env var names whose values contain ${{ secrets.* }}
+//   - agent.env var names whose values contain ${{ secrets.* }}
+func ComputeAWFExcludeEnvVarNames(workflowData *WorkflowData, coreSecretVarNames []string) []string {
+	seen := make(map[string]bool)
+	var names []string
+
+	addUnique := func(name string) {
+		if !seen[name] {
+			seen[name] = true
+			names = append(names, name)
+		}
+	}
+
+	// Core secret vars for this engine (always contain secret references).
+	for _, name := range coreSecretVarNames {
+		addUnique(name)
+	}
+
+	// MCP gateway API key is always a secret when MCP servers are present.
+	if HasMCPServers(workflowData) {
+		addUnique("MCP_GATEWAY_API_KEY")
+	}
+
+	// GitHub MCP server token is always a secret when the GitHub tool is present.
+	if hasGitHubTool(workflowData.ParsedTools) {
+		addUnique("GITHUB_MCP_SERVER_TOKEN")
+	}
+
+	// HTTP MCP header secrets: values are always ${{ secrets.* }} references.
+	for varName := range collectHTTPMCPHeaderSecrets(workflowData.Tools) {
+		addUnique(varName)
+	}
+
+	// mcp-scripts env vars: only add those whose configured values contain a secret reference.
+	// (Non-secret vars like GH_DEBUG: "1" must NOT be excluded.)
+	if workflowData.MCPScripts != nil {
+		for _, toolConfig := range workflowData.MCPScripts.Tools {
+			for envName, envValue := range toolConfig.Env {
+				if strings.Contains(envValue, "${{ secrets.") {
+					addUnique(envName)
+				}
+			}
+		}
+	}
+
+	// engine.env vars that contain a secret reference.
+	if workflowData.EngineConfig != nil {
+		for varName, varValue := range workflowData.EngineConfig.Env {
+			if strings.Contains(varValue, "${{ secrets.") {
+				addUnique(varName)
+			}
+		}
+	}
+
+	// agent.env vars that contain a secret reference.
+	agentConfig := getAgentConfig(workflowData)
+	if agentConfig != nil {
+		for varName, varValue := range agentConfig.Env {
+			if strings.Contains(varValue, "${{ secrets.") {
+				addUnique(varName)
+			}
+		}
+	}
+
+	awfHelpersLog.Printf("Computed %d AWF env vars to exclude", len(names))
+	return names
 }

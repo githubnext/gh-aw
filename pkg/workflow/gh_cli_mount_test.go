@@ -157,7 +157,7 @@ func TestChrootModeInAWFContainer(t *testing.T) {
 }
 
 // TestChrootModeEnvFlags tests that --env-all is used with chroot mode to pass env vars to AWF
-// and that sensitive token env vars are excluded via --exclude-env
+// and that every secret-bearing env var is excluded via --exclude-env
 func TestChrootModeEnvFlags(t *testing.T) {
 	t.Run("env-all is required for AWF to receive host env vars", func(t *testing.T) {
 		workflowData := &WorkflowData{
@@ -187,12 +187,40 @@ func TestChrootModeEnvFlags(t *testing.T) {
 			t.Error("--env-all is required for AWF to receive host environment variables")
 		}
 
-		// Verify sensitive token vars are excluded via --exclude-env (AWF v0.26.0+ security fix)
+		// Verify COPILOT_GITHUB_TOKEN is excluded via --exclude-env (AWF v0.26.0+ security fix)
+		// This is always required for Copilot regardless of tool configuration.
 		if !strings.Contains(stepContent, "--exclude-env COPILOT_GITHUB_TOKEN") {
 			t.Error("COPILOT_GITHUB_TOKEN must be excluded from container env via --exclude-env")
 		}
+	})
+
+	t.Run("github tool adds GITHUB_MCP_SERVER_TOKEN to exclude list", func(t *testing.T) {
+		workflowData := &WorkflowData{
+			Name: "test-workflow",
+			EngineConfig: &EngineConfig{
+				ID: "copilot",
+			},
+			NetworkPermissions: &NetworkPermissions{
+				Firewall: &FirewallConfig{
+					Enabled: true,
+				},
+			},
+			ParsedTools: &ToolsConfig{
+				GitHub: &GitHubToolConfig{},
+			},
+		}
+
+		engine := NewCopilotEngine()
+		steps := engine.GetExecutionSteps(workflowData, "test.log")
+
+		stepContent := requireCopilotExecutionStep(t, steps)
+
+		// With GitHub tool present, GITHUB_MCP_SERVER_TOKEN must also be excluded
+		if !strings.Contains(stepContent, "--exclude-env COPILOT_GITHUB_TOKEN") {
+			t.Error("COPILOT_GITHUB_TOKEN must be excluded from container env")
+		}
 		if !strings.Contains(stepContent, "--exclude-env GITHUB_MCP_SERVER_TOKEN") {
-			t.Error("GITHUB_MCP_SERVER_TOKEN must be excluded from container env via --exclude-env")
+			t.Error("GITHUB_MCP_SERVER_TOKEN must be excluded from container env when GitHub tool is present")
 		}
 	})
 }
