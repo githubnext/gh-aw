@@ -25,7 +25,6 @@
 //   - web-search: Web search capabilities
 //   - edit: File editing operations
 //   - playwright: Browser automation
-//   - serena: Serena integration (deprecated, use mcp-servers.serena with shared/mcp/serena.md)
 //   - agentic-workflows: Nested workflow execution
 //   - cache-memory: In-workflow memory caching
 //   - repo-memory: Repository-backed persistent memory
@@ -132,9 +131,6 @@ func NewTools(toolsMap map[string]any) *Tools {
 	if val, exists := toolsMap["qmd"]; exists {
 		tools.Qmd = parseQmdTool(val)
 	}
-	if val, exists := toolsMap["serena"]; exists {
-		tools.Serena = parseSerenaTool(val)
-	}
 	if val, exists := toolsMap["agentic-workflows"]; exists {
 		tools.AgenticWorkflows = parseAgenticWorkflowsTool(val)
 	}
@@ -160,7 +156,6 @@ func NewTools(toolsMap map[string]any) *Tools {
 		"edit":              true,
 		"playwright":        true,
 		"qmd":               true,
-		"serena":            true,
 		"agentic-workflows": true,
 		"cache-memory":      true,
 		"repo-memory":       true,
@@ -177,7 +172,7 @@ func NewTools(toolsMap map[string]any) *Tools {
 		}
 	}
 
-	toolsParserLog.Printf("Parsed tools: github=%v, bash=%v, playwright=%v, qmd=%v, serena=%v, custom=%d", tools.GitHub != nil, tools.Bash != nil, tools.Playwright != nil, tools.Qmd != nil, tools.Serena != nil, customCount)
+	toolsParserLog.Printf("Parsed tools: github=%v, bash=%v, playwright=%v, qmd=%v, custom=%d", tools.GitHub != nil, tools.Bash != nil, tools.Playwright != nil, tools.Qmd != nil, customCount)
 	return tools
 }
 
@@ -577,81 +572,6 @@ func parseYAMLInt(v any) int {
 		return int(n)
 	}
 	return 0
-}
-
-// parseSerenaTool converts raw serena tool configuration to SerenaToolConfig
-func parseSerenaTool(val any) *SerenaToolConfig {
-	if val == nil {
-		toolsParserLog.Print("Serena tool enabled with default configuration")
-		return &SerenaToolConfig{}
-	}
-
-	// Handle array format (short syntax): ["go", "typescript"]
-	if langArray, ok := val.([]any); ok {
-		toolsParserLog.Printf("Parsing Serena tool with short-syntax language list: %d languages", len(langArray))
-		config := &SerenaToolConfig{
-			ShortSyntax: make([]string, 0, len(langArray)),
-		}
-		for _, item := range langArray {
-			if str, ok := item.(string); ok {
-				config.ShortSyntax = append(config.ShortSyntax, str)
-			}
-		}
-		return config
-	}
-
-	// Handle object format with detailed configuration
-	if configMap, ok := val.(map[string]any); ok {
-		config := &SerenaToolConfig{}
-
-		if version, ok := configMap["version"].(string); ok {
-			config.Version = version
-		}
-
-		if args, ok := configMap["args"].([]any); ok {
-			config.Args = make([]string, 0, len(args))
-			for _, item := range args {
-				if str, ok := item.(string); ok {
-					config.Args = append(config.Args, str)
-				}
-			}
-		}
-
-		// Parse languages configuration
-		if languagesVal, ok := configMap["languages"].(map[string]any); ok {
-			config.Languages = make(map[string]*SerenaLangConfig)
-			for langName, langVal := range languagesVal {
-				if langVal == nil {
-					// nil means enable with defaults
-					config.Languages[langName] = &SerenaLangConfig{}
-					continue
-				}
-				if langMap, ok := langVal.(map[string]any); ok {
-					langConfig := &SerenaLangConfig{}
-					if version, ok := langMap["version"].(string); ok {
-						langConfig.Version = version
-					} else if versionNum, ok := langMap["version"].(float64); ok {
-						// Convert numeric version to string
-						langConfig.Version = fmt.Sprintf("%.0f", versionNum)
-					}
-					// Parse Go-specific fields
-					if langName == "go" {
-						if goModFile, ok := langMap["go-mod-file"].(string); ok {
-							langConfig.GoModFile = goModFile
-						}
-						if goplsVersion, ok := langMap["gopls-version"].(string); ok {
-							langConfig.GoplsVersion = goplsVersion
-						}
-					}
-					config.Languages[langName] = langConfig
-				}
-			}
-		}
-
-		return config
-	}
-
-	return &SerenaToolConfig{}
 }
 
 // parseWebFetchTool converts raw web-fetch tool configuration

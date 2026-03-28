@@ -405,30 +405,6 @@ const DefaultMCPGatewayPayloadSizeThreshold = 524288
 // DefaultFirewallRegistry is the container image registry for AWF (gh-aw-firewall) Docker images
 const DefaultFirewallRegistry = "ghcr.io/github/gh-aw-firewall"
 
-// DefaultSerenaMCPServerContainer is the default container image for the Serena MCP server
-const DefaultSerenaMCPServerContainer = "ghcr.io/github/serena-mcp-server"
-
-// OraiosSerenaContainer is the Oraios Serena MCP server container image (legacy)
-const OraiosSerenaContainer = "ghcr.io/oraios/serena"
-
-// SerenaLanguageSupport defines the supported languages for each Serena container image
-var SerenaLanguageSupport = map[string][]string{
-	DefaultSerenaMCPServerContainer: {
-		"go", "typescript", "javascript", "python", "java", "rust", "csharp",
-		"cpp", "c", "ruby", "php", "bash", "swift", "kotlin", "scala",
-		"haskell", "elixir", "erlang", "clojure", "lua", "perl", "r",
-		"dart", "julia", "fortran", "nix", "rego", "terraform", "yaml",
-		"markdown", "zig", "elm",
-	},
-	OraiosSerenaContainer: {
-		"go", "typescript", "javascript", "python", "java", "rust", "csharp",
-		"cpp", "c", "ruby", "php", "bash", "swift", "kotlin", "scala",
-		"haskell", "elixir", "erlang", "clojure", "lua", "perl", "r",
-		"dart", "julia", "fortran", "nix", "rego", "terraform", "yaml",
-		"markdown", "zig", "elm",
-	},
-}
-
 // DefaultAPMActionVersion is the default version of the microsoft/apm-action GitHub Action
 const DefaultAPMActionVersion Version = "v1.4.1"
 

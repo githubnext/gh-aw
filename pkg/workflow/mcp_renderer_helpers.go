@@ -64,7 +64,7 @@ func buildMCPRendererFactory(workflowData *WorkflowData, format string, includeC
 // buildStandardJSONMCPRenderers constructs MCPToolRenderers with the standard rendering callbacks
 // shared across JSON-format engines (Claude, Gemini, Copilot, Codex gateway).
 //
-// All eight standard tool callbacks (GitHub, Playwright, Serena, CacheMemory, AgenticWorkflows,
+// All standard tool callbacks (GitHub, Playwright, CacheMemory, AgenticWorkflows,
 // SafeOutputs, MCPScripts, WebFetch) are wired to the corresponding unified renderer methods
 // via createRenderer. Cache-memory is always a no-op for these engines.
 //
@@ -87,9 +87,6 @@ func buildStandardJSONMCPRenderers(
 		},
 		RenderQmd: func(yaml *strings.Builder, qmdTool any, isLast bool, workflowData *WorkflowData) {
 			createRenderer(isLast).RenderQmdMCP(yaml, qmdTool, workflowData)
-		},
-		RenderSerena: func(yaml *strings.Builder, serenaTool any, isLast bool) {
-			createRenderer(isLast).RenderSerenaMCP(yaml, serenaTool)
 		},
 		RenderCacheMemory: noOpCacheMemoryRenderer,
 		RenderAgenticWorkflows: func(yaml *strings.Builder, isLast bool) {

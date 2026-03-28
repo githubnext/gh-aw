@@ -163,16 +163,6 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 			}
 		}
 
-		// Add Serena language service installation steps if Serena is configured
-		serenaLanguageSteps := GenerateSerenaLanguageServiceSteps(data.ParsedTools)
-		if len(serenaLanguageSteps) > 0 {
-			compilerYamlLog.Printf("Adding %d Serena language service installation steps", len(serenaLanguageSteps))
-			for _, step := range serenaLanguageSteps {
-				for _, line := range step {
-					yaml.WriteString(line + "\n")
-				}
-			}
-		}
 	}
 
 	// Create /tmp/gh-aw/ base directory for all temporary files
@@ -663,17 +653,6 @@ func (c *Compiler) addCustomStepsWithRuntimeInsertion(yaml *strings.Builder, cus
 				for _, step := range runtimeSetupSteps {
 					for _, stepLine := range step {
 						yaml.WriteString(stepLine + "\n")
-					}
-				}
-
-				// Also insert Serena language service steps if configured
-				serenaLanguageSteps := GenerateSerenaLanguageServiceSteps(tools)
-				if len(serenaLanguageSteps) > 0 {
-					compilerYamlLog.Printf("Inserting %d Serena language service steps after runtime setup", len(serenaLanguageSteps))
-					for _, step := range serenaLanguageSteps {
-						for _, stepLine := range step {
-							yaml.WriteString(stepLine + "\n")
-						}
 					}
 				}
 
