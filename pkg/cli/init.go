@@ -58,6 +58,16 @@ func InitRepository(opts InitOptions) error {
 		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Configured .gitattributes"))
 	}
 
+	// Ensure .github/aw/.gitignore exists with imports/ entry
+	initLog.Print("Ensuring .github/aw/.gitignore exists")
+	if err := ensureAwGitignore(); err != nil {
+		initLog.Printf("Failed to ensure .github/aw/.gitignore: %v", err)
+		return fmt.Errorf("failed to ensure .github/aw/.gitignore: %w", err)
+	}
+	if opts.Verbose {
+		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Ensured .github/aw/.gitignore"))
+	}
+
 	// Write dispatcher agent
 	initLog.Print("Writing agentic workflows dispatcher agent")
 	if err := ensureAgenticWorkflowsDispatcher(opts.Verbose, false); err != nil {

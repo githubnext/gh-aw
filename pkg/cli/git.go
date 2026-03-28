@@ -334,6 +334,40 @@ func ensureLogsGitignore() error {
 	return nil
 }
 
+// ensureAwGitignore ensures that .github/aw/.gitignore exists and contains the imports/ entry
+func ensureAwGitignore() error {
+	gitLog.Print("Ensuring .github/aw/.gitignore exists")
+	gitRoot, err := findGitRoot()
+	if err != nil {
+		return err
+	}
+
+	awDir := filepath.Join(gitRoot, ".github", "aw")
+	gitignorePath := filepath.Join(awDir, ".gitignore")
+
+	// Check if .gitignore already exists
+	if _, err := os.Stat(gitignorePath); err == nil {
+		gitLog.Print(".github/aw/.gitignore already exists")
+		return nil
+	}
+
+	gitLog.Print("Creating .github/aw directory and .gitignore")
+	if err := os.MkdirAll(awDir, 0755); err != nil {
+		gitLog.Printf("Failed to create .github/aw directory: %v", err)
+		return fmt.Errorf("failed to create .github/aw directory: %w", err)
+	}
+
+	gitignoreContent := `imports/
+`
+	if err := os.WriteFile(gitignorePath, []byte(gitignoreContent), 0600); err != nil {
+		gitLog.Printf("Failed to write .gitignore: %v", err)
+		return fmt.Errorf("failed to write .github/aw/.gitignore: %w", err)
+	}
+
+	gitLog.Print("Successfully created .github/aw/.gitignore")
+	return nil
+}
+
 // getCurrentBranch gets the current git branch name
 func getCurrentBranch() (string, error) {
 	gitLog.Print("Getting current git branch")
