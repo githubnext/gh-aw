@@ -274,7 +274,11 @@ func difcProxyLogPaths(data *WorkflowData) []string {
 	if !hasDIFCGuardsConfigured(data) {
 		return nil
 	}
-	// proxy-logs/ contains TLS certs and container stderr from the proxy
-	// (mcp-logs/ is already collected as part of standard MCP logging)
-	return []string{"/tmp/gh-aw/proxy-logs/"}
+	// proxy-logs/ contains TLS certs and container stderr from the proxy.
+	// Exclude proxy-tls/ to avoid uploading TLS material (mcp-logs/ is already
+	// collected as part of standard MCP logging).
+	return []string{
+		"/tmp/gh-aw/proxy-logs/",
+		"!/tmp/gh-aw/proxy-logs/proxy-tls/",
+	}
 }

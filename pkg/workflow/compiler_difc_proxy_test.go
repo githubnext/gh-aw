@@ -362,8 +362,10 @@ func TestDIFCProxyLogPaths(t *testing.T) {
 			CustomSteps: "steps:\n  - name: Fetch\n    env:\n      GH_TOKEN: ${{ github.token }}\n    run: gh issue list",
 		}
 		paths := difcProxyLogPaths(data)
-		require.Len(t, paths, 1, "should return exactly one path")
-		assert.Contains(t, paths[0], "proxy-logs", "path should include proxy-logs directory")
+		require.Len(t, paths, 2, "should return include path and exclusion path")
+		assert.Contains(t, paths[0], "proxy-logs", "first path should include proxy-logs directory")
+		assert.Contains(t, paths[1], "proxy-tls", "second path should exclude proxy-tls directory")
+		assert.True(t, strings.HasPrefix(paths[1], "!"), "exclusion path should start with !")
 	})
 }
 
