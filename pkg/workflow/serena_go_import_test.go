@@ -5,7 +5,6 @@ package workflow_test
 import (
 	"os"
 	"path/filepath"
-	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -119,8 +118,7 @@ Uses Serena for Go code analysis.
 	// Docker image download step must include serena-mcp-server
 	assert.Contains(t, lockContent, "download_docker_images.sh",
 		"lock file should have docker image download step")
-	assert.True(t,
-		strings.Contains(lockContent, "ghcr.io/github/serena-mcp-server"),
+	assert.Contains(t, lockContent, "ghcr.io/github/serena-mcp-server",
 		"docker image download step should include serena-mcp-server image")
 
 	// Verify start-mcp-server entrypoint args are present
