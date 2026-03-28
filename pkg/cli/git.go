@@ -335,7 +335,9 @@ func ensureLogsGitignore() error {
 }
 
 // awGitignoreEntries lists all entries that must be present in .github/aw/.gitignore.
-var awGitignoreEntries = []string{"imports/", "logs/"}
+// Note: the logs/ directory is handled separately by ensureLogsGitignore() which creates
+// .github/aw/logs/.gitignore so that the directory itself remains tracked by git.
+var awGitignoreEntries = []string{"imports/"}
 
 // ensureAwGitignore ensures that .github/aw/.gitignore exists and contains the required entries.
 // If the file already exists, any missing entries are appended.
