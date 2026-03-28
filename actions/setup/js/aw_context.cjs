@@ -6,22 +6,37 @@
  * event payload, covering issues, pull requests, discussions, check runs,
  * check suites, PR reviews, and comment variants.
  *
- * | Event family                         | item_type     | item_number              | comment_id              |
- * |--------------------------------------|---------------|--------------------------|-------------------------|
- * | issues, issue_comment                | issue         | payload.issue.number     | payload.comment.id      |
- * | pull_request, pull_request_review,   | pull_request  | payload.pull_request.    | payload.review.id or    |
- * | pull_request_review_comment          |               | number                   | payload.comment.id      |
- * | discussion, discussion_comment       | discussion    | payload.discussion.      | payload.comment.id      |
- * |                                      |               | number                   |                         |
- * | check_run                            | check_run     | payload.check_run.id     |                         |
- * | check_suite                          | check_suite   | payload.check_suite.id   |                         |
- * | push, workflow_dispatch, …           | (empty)       | (empty)                  |                         |
+ * | Event family                              | item_type     | item_number              | comment_id              |
+ * |-------------------------------------------|---------------|--------------------------|-------------------------|
+ * | issues, issue_comment (on issue)          | issue         | payload.issue.number     | payload.comment.id      |
+ * | issue_comment (on PR), pull_request,      | pull_request  | payload.pull_request.    | payload.review.id or    |
+ * | pull_request_review, pull_request_review_ |               | number or                | payload.comment.id      |
+ * | comment                                   |               | payload.issue.number     |                         |
+ * | discussion, discussion_comment            | discussion    | payload.discussion.      | payload.comment.id      |
+ * |                                           |               | number                   |                         |
+ * | check_run                                 | check_run     | payload.check_run.id     |                         |
+ * | check_suite                               | check_suite   | payload.check_suite.id   |                         |
+ * | push, workflow_dispatch, …                | (empty)       | (empty)                  |                         |
  *
- * @param {object} payload - GitHub Actions context.payload
+ * Note: for `issue_comment` events GitHub places the PR data in `payload.issue`
+ * with a `payload.issue.pull_request` marker.  Those events are classified as
+ * `pull_request` rather than `issue`.
+ *
+ * @param {object | null | undefined} payload - GitHub Actions context.payload
  * @returns {{ item_type: string, item_number: string, comment_id: string }}
  */
 function resolveItemContext(payload) {
   if (payload?.issue != null) {
+    // GitHub sends `issue_comment` events for PR comments with the PR data in
+    // `payload.issue` and a `payload.issue.pull_request` marker.  Detect this
+    // case and classify as pull_request so callers get the correct item type.
+    if (payload.issue.pull_request != null) {
+      return {
+        item_type: "pull_request",
+        item_number: payload.issue.number != null ? String(payload.issue.number) : "",
+        comment_id: payload.comment?.id != null ? String(payload.comment.id) : "",
+      };
+    }
     return {
       item_type: "issue",
       item_number: payload.issue.number != null ? String(payload.issue.number) : "",

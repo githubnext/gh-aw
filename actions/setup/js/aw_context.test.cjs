@@ -15,6 +15,12 @@ describe("resolveItemContext", () => {
     expect(resolveItemContext(payload)).toEqual({ item_type: "issue", item_number: "7", comment_id: "99001122" });
   });
 
+  it("returns pull_request type with comment_id for issue_comment events on pull requests", () => {
+    // GitHub sends issue_comment events for PR comments with payload.issue.pull_request set
+    const payload = { issue: { number: 7, pull_request: {} }, comment: { id: 99001122 } };
+    expect(resolveItemContext(payload)).toEqual({ item_type: "pull_request", item_number: "7", comment_id: "99001122" });
+  });
+
   it("returns pull_request type and number for pull_request events", () => {
     const payload = { pull_request: { number: 100 } };
     expect(resolveItemContext(payload)).toEqual({ item_type: "pull_request", item_number: "100", comment_id: "" });
