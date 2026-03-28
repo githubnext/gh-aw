@@ -492,13 +492,6 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 		// receive a valid (empty) JSON file instead of an ENOENT error.
 		// The placeholder is only written if the engine did not already write the file.
 		c.generateAgentOutputPlaceholderStep(yaml)
-
-		// Rescue step: when the agent step failed but produced only noop safe-outputs
-		// (transient AI model error after the meaningful work was captured), exit 0 to
-		// allow the job to succeed and treat the run as a successful no-action.
-		// When the agent failed without producing noop outputs, this step propagates the
-		// failure so the conclusion job creates a tracking issue as normal.
-		c.generateNoopRescueStep(yaml)
 	}
 
 	// Add post-execution cleanup step for Copilot engine
