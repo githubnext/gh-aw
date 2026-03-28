@@ -421,9 +421,9 @@ function buildCodePushFailureContext(codePushFailureErrors, pullRequest = null, 
       }
     }
 
-    context += "\nTo manually apply the patch:\n\n";
+    context += "\n<details>\n<summary><b>📋 Apply the patch manually</b></summary>\n\n";
     if (runId) {
-      context += `\`\`\`sh
+      context += `${runUrl ? `The patch artifact is available at: [View run and download artifacts](${runUrl})\n\n` : ""}\`\`\`sh
 # Download the patch artifact from the workflow run
 gh run download ${runId} -n agent -D /tmp/agent-${runId}
 
@@ -444,11 +444,11 @@ git am --3way /tmp/agent-${runId}/YOUR_PATCH_FILE.patch
 git push origin aw/manual-apply
 gh pr create --head aw/manual-apply
 \`\`\`
-${runUrl ? `\nThe patch artifact is available at: [View run and download artifacts](${runUrl})\n` : ""}`;
+`;
     } else {
       context += "Download the patch artifact from the workflow run, then apply it with `git am --3way <patch-file>`.\n";
     }
-    context += "\n";
+    context += "\n</details>\n";
   }
 
   // Generic code-push failure section
