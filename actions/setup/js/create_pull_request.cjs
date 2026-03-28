@@ -28,6 +28,7 @@ const { checkFileProtection } = require("./manifest_file_helpers.cjs");
 const { renderTemplateFromFile, buildProtectedFileList, encodePathSegments } = require("./messages_core.cjs");
 const { COPILOT_REVIEWER_BOT, FAQ_CREATE_PR_PERMISSIONS_URL } = require("./constants.cjs");
 const { isStagedMode } = require("./safe_output_helpers.cjs");
+const { withRetry, isTransientError } = require("./error_recovery.cjs");
 
 /**
  * @typedef {import('./types/handler-factory').HandlerFactoryFunction} HandlerFactoryFunction
@@ -38,6 +39,27 @@ const HANDLER_TYPE = "create_pull_request";
 
 /** @type {string} Label always added to fallback issues so the triage system can find them */
 const MANAGED_FALLBACK_ISSUE_LABEL = "agentic-workflows";
+
+/**
+ * Determines if a label API error is transient and worth retrying.
+ * Extends the standard transient error check with the GitHub race condition where
+ * a newly-created PR's node ID is not immediately resolvable via the REST/GraphQL
+ * bridge, resulting in an "unprocessable" validation error.
+ * @param {any} error - The error to check
+ * @returns {boolean} True if the error is transient and should be retried
+ */
+function isLabelTransientError(error) {
+  const msg = error instanceof Error ? error.message : String(error);
+  if (msg.includes("Could not resolve to a node with the global id")) {
+    return true;
+  }
+  return isTransientError(error);
+}
+
+/** @type {number} Number of retry attempts for label operations */
+const LABEL_MAX_RETRIES = 3;
+/** @type {number} Initial delay in ms before the first label retry (3 seconds) */
+const LABEL_INITIAL_DELAY_MS = 3000;
 
 /**
  * Merges the required fallback label with any workflow-configured labels,
@@ -1246,12 +1268,22 @@ ${patchPreview}`;
       // Add labels if specified
       if (labels.length > 0) {
         try {
-          await githubClient.rest.issues.addLabels({
-            owner: repoParts.owner,
-            repo: repoParts.repo,
-            issue_number: pullRequest.number,
-            labels: labels,
-          });
+          await withRetry(
+            () =>
+              githubClient.rest.issues.addLabels({
+                owner: repoParts.owner,
+                repo: repoParts.repo,
+                issue_number: pullRequest.number,
+                labels: labels,
+              }),
+            {
+              maxRetries: LABEL_MAX_RETRIES,
+              initialDelayMs: LABEL_INITIAL_DELAY_MS,
+              backoffMultiplier: 2,
+              shouldRetry: isLabelTransientError,
+            },
+            `add labels to PR #${pullRequest.number}`
+          );
           core.info(`Added labels to pull request: ${JSON.stringify(labels)}`);
         } catch (labelError) {
           // Label addition is non-critical - warn but don't fail the PR creation.
