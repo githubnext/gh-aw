@@ -26,6 +26,7 @@
 #   Imports:
 #     - shared/gh.md
 #     - shared/mcp/serena-go.md
+#     - shared/mcp/serena.md
 #     - shared/reporting.md
 #
 # gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"f44e72272050fdefc2eaef02af775f7d2b49c900c4c06d1907982cc7a01f4cef","agent_id":"codex"}
@@ -243,6 +244,39 @@ jobs:
           </system>
           GH_AW_PROMPT_874458f22920114c_EOF
           cat << 'GH_AW_PROMPT_874458f22920114c_EOF'
+          ## Serena Code Analysis
+          
+          The Serena MCP server is configured for **["go"]** analysis in this workspace:
+          - **Workspace**: `__GH_AW_GITHUB_WORKSPACE__`
+          - **Memory**: `/tmp/gh-aw/cache-memory/serena/`
+          
+          ### Project Activation
+          
+          Before analyzing code, activate the Serena project:
+          ```
+          Tool: activate_project
+          Args: { "path": "__GH_AW_GITHUB_WORKSPACE__" }
+          ```
+          
+          ### Available Capabilities
+          
+          Serena provides IDE-grade Language Server Protocol (LSP) tools including:
+          - **Symbol search**: `find_symbol` — locate functions, types, interfaces by name
+          - **Navigation**: `find_referencing_symbols` — find all callers/usages of a symbol
+          - **Type info**: `get_symbol_documentation` — hover-level type and doc information
+          - **Code editing**: `replace_symbol_body`, `insert_after_symbol` — symbol-level edits
+          - **Diagnostics**: `get_diagnostics` — compiler errors and linter warnings
+          
+          ### Analysis Guidelines
+          
+          1. **Use semantic tools over text search** — prefer Serena's LSP tools over `grep`
+          2. **Activate project first** — always call `activate_project` before other tools
+          3. **Cross-reference findings** — validate with multiple tools for accuracy
+          4. **Focus on the relevant language files** — ignore unrelated file types
+          
+          
+          GH_AW_PROMPT_874458f22920114c_EOF
+          cat << 'GH_AW_PROMPT_874458f22920114c_EOF'
           {{#runtime-import .github/workflows/shared/gh.md}}
           GH_AW_PROMPT_874458f22920114c_EOF
           cat << 'GH_AW_PROMPT_874458f22920114c_EOF'
@@ -259,11 +293,11 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
+          GH_AW_GITHUB_WORKSPACE: ${{ github.workspace }}
           GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER: ${{ github.event.pull_request.number }}
           GH_AW_GITHUB_REPOSITORY: ${{ github.repository }}
           GH_AW_GITHUB_RUN_ID: ${{ github.run_id }}
           GH_AW_GITHUB_SERVER_URL: ${{ github.server_url }}
-          GH_AW_GITHUB_WORKSPACE: ${{ github.workspace }}
         with:
           script: |
             const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');
@@ -457,7 +491,7 @@ jobs:
             const determineAutomaticLockdown = require('${{ runner.temp }}/gh-aw/actions/determine_automatic_lockdown.cjs');
             await determineAutomaticLockdown(github, context, core);
       - name: Download container images
-        run: bash ${RUNNER_TEMP}/gh-aw/actions/download_docker_images.sh ghcr.io/github/gh-aw-firewall/agent:0.25.1 ghcr.io/github/gh-aw-firewall/api-proxy:0.25.1 ghcr.io/github/gh-aw-firewall/squid:0.25.1 ghcr.io/github/gh-aw-mcpg:v0.2.6 ghcr.io/github/github-mcp-server:v0.32.0 mcp/fetch mcr.microsoft.com/playwright/mcp node:lts-alpine
+        run: bash ${RUNNER_TEMP}/gh-aw/actions/download_docker_images.sh ghcr.io/github/gh-aw-firewall/agent:0.25.1 ghcr.io/github/gh-aw-firewall/api-proxy:0.25.1 ghcr.io/github/gh-aw-firewall/squid:0.25.1 ghcr.io/github/gh-aw-mcpg:v0.2.6 ghcr.io/github/github-mcp-server:v0.32.0 ghcr.io/github/serena-mcp-server:latest mcp/fetch mcr.microsoft.com/playwright/mcp node:lts-alpine
       - name: Write Safe Outputs Config
         run: |
           mkdir -p ${RUNNER_TEMP}/gh-aw/safeoutputs
@@ -974,6 +1008,21 @@ jobs:
           [mcp_servers.safeoutputs."guard-policies".write-sink]
           accept = ["*"]
           
+          [mcp_servers.serena]
+          container = "ghcr.io/github/serena-mcp-server:latest"
+          entrypoint = "serena"
+          entrypointArgs = ["start-mcp-server", "--context", "codex", "--project", "\${GITHUB_WORKSPACE}"]
+          mounts = ["\${GITHUB_WORKSPACE}:\${GITHUB_WORKSPACE}:rw"]
+          args = [
+            "--network",
+            "host",
+          ]
+          
+          [mcp_servers.serena."guard-policies"]
+          
+          [mcp_servers.serena."guard-policies".write-sink]
+          accept = ["*"]
+          
           [mcp_servers."web-fetch"]
           container = "mcp/fetch"
           
@@ -1064,6 +1113,32 @@ jobs:
                     ]
                   }
                 }
+              },
+              "serena": {
+              "type": "stdio",
+              "container": "ghcr.io/github/serena-mcp-server:latest",
+              "entrypoint": "serena",
+              "entrypointArgs": [
+                "start-mcp-server",
+                "--context",
+                "codex",
+                "--project",
+                "\${GITHUB_WORKSPACE}"
+              ],
+              "mounts": [
+                "\${GITHUB_WORKSPACE}:\${GITHUB_WORKSPACE}:rw"
+              ],
+              "args": [
+                "--network",
+                "host"
+              ],
+              "guard-policies": {
+                "write-sink": {
+                  "accept": [
+                    "*"
+                  ]
+                }
+              }
               },
               "web-fetch": {
                 "container": "mcp/fetch",

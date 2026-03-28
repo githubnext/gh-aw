@@ -291,104 +291,129 @@ func processImportsFromFrontmatterWithManifestAndSource(frontmatter map[string]a
 			log.Printf("Failed to extract frontmatter from %s: %v", item.fullPath, err)
 		} else if result.Frontmatter != nil {
 			// Check for nested imports field
+			type nestedImportEntry struct {
+				path   string
+				inputs map[string]any
+			}
+			var nestedImports []nestedImportEntry
 			if nestedImportsField, hasImports := result.Frontmatter["imports"]; hasImports {
-				var nestedImports []string
 				switch v := nestedImportsField.(type) {
 				case []any:
 					for _, nestedItem := range v {
 						if str, ok := nestedItem.(string); ok {
-							nestedImports = append(nestedImports, str)
+							nestedImports = append(nestedImports, nestedImportEntry{path: str})
+						} else if nestedMap, ok := nestedItem.(map[string]any); ok {
+							// Handle uses/with or path/inputs syntax
+							var nestedPath string
+							if usesPath, ok := nestedMap["uses"].(string); ok {
+								nestedPath = usesPath
+							} else if pathVal, ok := nestedMap["path"].(string); ok {
+								nestedPath = pathVal
+							}
+							if nestedPath != "" {
+								var nestedInputs map[string]any
+								if withVal, ok := nestedMap["with"].(map[string]any); ok {
+									nestedInputs = withVal
+								} else if inputsVal, ok := nestedMap["inputs"].(map[string]any); ok {
+									nestedInputs = inputsVal
+								}
+								nestedImports = append(nestedImports, nestedImportEntry{path: nestedPath, inputs: nestedInputs})
+							}
 						}
 					}
 				case []string:
-					nestedImports = v
+					for _, str := range v {
+						nestedImports = append(nestedImports, nestedImportEntry{path: str})
+					}
+				}
+			}
+
+			// Add nested imports to queue (BFS: append to end)
+			// For local imports: resolve relative to the workflows directory (baseDir)
+			// For remote imports: resolve relative to .github/workflows/ in the remote repo
+			for _, nestedEntry := range nestedImports {
+				nestedImportPath := nestedEntry.path
+				// Handle section references
+				var nestedFilePath, nestedSectionName string
+				if strings.Contains(nestedImportPath, "#") {
+					parts := strings.SplitN(nestedImportPath, "#", 2)
+					nestedFilePath = parts[0]
+					nestedSectionName = parts[1]
+				} else {
+					nestedFilePath = nestedImportPath
 				}
 
-				// Add nested imports to queue (BFS: append to end)
-				// For local imports: resolve relative to the workflows directory (baseDir)
-				// For remote imports: resolve relative to .github/workflows/ in the remote repo
-				for _, nestedImportPath := range nestedImports {
-					// Handle section references
-					var nestedFilePath, nestedSectionName string
-					if strings.Contains(nestedImportPath, "#") {
-						parts := strings.SplitN(nestedImportPath, "#", 2)
-						nestedFilePath = parts[0]
-						nestedSectionName = parts[1]
-					} else {
-						nestedFilePath = nestedImportPath
+				// Determine the resolution path and propagate remote origin context
+				resolvedPath := nestedFilePath
+				var nestedRemoteOrigin *remoteImportOrigin
+
+				if item.remoteOrigin != nil && !isWorkflowSpec(nestedFilePath) {
+					// Parent was fetched from a remote repo and nested path is relative.
+					// Convert to a workflowspec that resolves against the parent workflowspec's
+					// base directory (e.g., gh-agent-workflows for gh-agent-workflows/gh-aw-workflows/file.md).
+					cleanPath := path.Clean(strings.TrimPrefix(nestedFilePath, "./"))
+
+					// Reject paths that escape the base directory (e.g., ../../../etc/passwd)
+					if cleanPath == ".." || strings.HasPrefix(cleanPath, "../") || path.IsAbs(cleanPath) {
+						return nil, fmt.Errorf("nested import '%s' from remote file '%s' escapes base directory", nestedFilePath, item.importPath)
 					}
 
-					// Determine the resolution path and propagate remote origin context
-					resolvedPath := nestedFilePath
-					var nestedRemoteOrigin *remoteImportOrigin
-
-					if item.remoteOrigin != nil && !isWorkflowSpec(nestedFilePath) {
-						// Parent was fetched from a remote repo and nested path is relative.
-						// Convert to a workflowspec that resolves against the parent workflowspec's
-						// base directory (e.g., gh-agent-workflows for gh-agent-workflows/gh-aw-workflows/file.md).
-						cleanPath := path.Clean(strings.TrimPrefix(nestedFilePath, "./"))
-
-						// Reject paths that escape the base directory (e.g., ../../../etc/passwd)
-						if cleanPath == ".." || strings.HasPrefix(cleanPath, "../") || path.IsAbs(cleanPath) {
-							return nil, fmt.Errorf("nested import '%s' from remote file '%s' escapes base directory", nestedFilePath, item.importPath)
-						}
-
-						// Use the parent's BasePath if available, otherwise default to .github/workflows
-						basePath := item.remoteOrigin.BasePath
-						if basePath == "" {
-							basePath = ".github/workflows"
-						}
-						// Clean the basePath to ensure it's normalized
-						basePath = path.Clean(basePath)
-
-						resolvedPath = fmt.Sprintf("%s/%s/%s/%s@%s",
-							item.remoteOrigin.Owner, item.remoteOrigin.Repo, basePath, cleanPath, item.remoteOrigin.Ref)
-						// Parse a new remoteOrigin from resolvedPath to get the correct BasePath
-						// for THIS file's nested imports, not the parent's BasePath
-						nestedRemoteOrigin = parseRemoteOrigin(resolvedPath)
-						importLog.Printf("Resolving nested import as remote workflowspec: %s -> %s (basePath=%s)", nestedFilePath, resolvedPath, basePath)
-					} else if isWorkflowSpec(nestedFilePath) {
-						// Nested import is itself a workflowspec - parse its remote origin
-						nestedRemoteOrigin = parseRemoteOrigin(nestedFilePath)
-						if nestedRemoteOrigin != nil {
-							importLog.Printf("Nested workflowspec import detected: %s (origin: %s/%s@%s)", nestedFilePath, nestedRemoteOrigin.Owner, nestedRemoteOrigin.Repo, nestedRemoteOrigin.Ref)
-						}
+					// Use the parent's BasePath if available, otherwise default to .github/workflows
+					basePath := item.remoteOrigin.BasePath
+					if basePath == "" {
+						basePath = ".github/workflows"
 					}
+					// Clean the basePath to ensure it's normalized
+					basePath = path.Clean(basePath)
 
-					nestedFullPath, err := ResolveIncludePath(resolvedPath, baseDir, cache)
-					if err != nil {
-						// If we have source information for the parent workflow, create a structured error
-						if workflowFilePath != "" && yamlContent != "" {
-							// For nested imports, we should report the error at the location where the parent import is defined
-							// since the nested import file itself might not have source location
-							line, column := findImportItemLocation(yamlContent, item.importPath)
-							importErr := &ImportError{
-								ImportPath: nestedImportPath,
-								FilePath:   workflowFilePath,
-								Line:       line,
-								Column:     column,
-								Cause:      err,
-							}
-							return nil, FormatImportError(importErr, yamlContent)
+					resolvedPath = fmt.Sprintf("%s/%s/%s/%s@%s",
+						item.remoteOrigin.Owner, item.remoteOrigin.Repo, basePath, cleanPath, item.remoteOrigin.Ref)
+					// Parse a new remoteOrigin from resolvedPath to get the correct BasePath
+					// for THIS file's nested imports, not the parent's BasePath
+					nestedRemoteOrigin = parseRemoteOrigin(resolvedPath)
+					importLog.Printf("Resolving nested import as remote workflowspec: %s -> %s (basePath=%s)", nestedFilePath, resolvedPath, basePath)
+				} else if isWorkflowSpec(nestedFilePath) {
+					// Nested import is itself a workflowspec - parse its remote origin
+					nestedRemoteOrigin = parseRemoteOrigin(nestedFilePath)
+					if nestedRemoteOrigin != nil {
+						importLog.Printf("Nested workflowspec import detected: %s (origin: %s/%s@%s)", nestedFilePath, nestedRemoteOrigin.Owner, nestedRemoteOrigin.Repo, nestedRemoteOrigin.Ref)
+					}
+				}
+
+				nestedFullPath, err := ResolveIncludePath(resolvedPath, baseDir, cache)
+				if err != nil {
+					// If we have source information for the parent workflow, create a structured error
+					if workflowFilePath != "" && yamlContent != "" {
+						// For nested imports, we should report the error at the location where the parent import is defined
+						// since the nested import file itself might not have source location
+						line, column := findImportItemLocation(yamlContent, item.importPath)
+						importErr := &ImportError{
+							ImportPath: nestedImportPath,
+							FilePath:   workflowFilePath,
+							Line:       line,
+							Column:     column,
+							Cause:      err,
 						}
-						// Fallback to generic error
-						return nil, fmt.Errorf("failed to resolve nested import '%s' from '%s': %w", nestedFilePath, item.fullPath, err)
+						return nil, FormatImportError(importErr, yamlContent)
 					}
+					// Fallback to generic error
+					return nil, fmt.Errorf("failed to resolve nested import '%s' from '%s': %w", nestedFilePath, item.fullPath, err)
+				}
 
-					// Check for cycles - skip if already visited
-					if !visited[nestedFullPath] {
-						visited[nestedFullPath] = true
-						queue = append(queue, importQueueItem{
-							importPath:   nestedImportPath,
-							fullPath:     nestedFullPath,
-							sectionName:  nestedSectionName,
-							baseDir:      baseDir, // Use original baseDir, not nestedBaseDir
-							remoteOrigin: nestedRemoteOrigin,
-						})
-						log.Printf("Discovered nested import: %s -> %s (queued)", item.fullPath, nestedFullPath)
-					} else {
-						log.Printf("Skipping already visited nested import: %s (cycle detected)", nestedFullPath)
-					}
+				// Check for cycles - skip if already visited
+				if !visited[nestedFullPath] {
+					visited[nestedFullPath] = true
+					queue = append(queue, importQueueItem{
+						importPath:   nestedImportPath,
+						fullPath:     nestedFullPath,
+						sectionName:  nestedSectionName,
+						baseDir:      baseDir, // Use original baseDir, not nestedBaseDir
+						inputs:       nestedEntry.inputs,
+						remoteOrigin: nestedRemoteOrigin,
+					})
+					log.Printf("Discovered nested import: %s -> %s (queued)", item.fullPath, nestedFullPath)
+				} else {
+					log.Printf("Skipping already visited nested import: %s (cycle detected)", nestedFullPath)
 				}
 			}
 		}

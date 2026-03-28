@@ -27,7 +27,20 @@ import-schema:
       ruby, csharp, cpp, c, kotlin, scala, swift, php, and more.
 
 mcp-servers:
-  serena: ${{ github.aw.import-inputs.languages }}
+  serena:
+    container: "ghcr.io/github/serena-mcp-server:latest"
+    args:
+      - "--network"
+      - "host"
+    entrypoint: "serena"
+    entrypointArgs:
+      - "start-mcp-server"
+      - "--context"
+      - "codex"
+      - "--project"
+      - \${GITHUB_WORKSPACE}
+    mounts:
+      - \${GITHUB_WORKSPACE}:\${GITHUB_WORKSPACE}:rw
 ---
 
 ## Serena Code Analysis
