@@ -217,7 +217,6 @@ func TestPlaywrightMCPWithoutGuardPoliciesJSON(t *testing.T) {
 	assert.NotContains(t, result, "guard-policies", "playwright without guard policies should not have guard-policies")
 }
 
-
 // TestMCPScriptsMCPWithGuardPoliciesJSON tests that mcp-scripts gets write-sink guard policies in JSON format
 func TestMCPScriptsMCPWithGuardPoliciesJSON(t *testing.T) {
 	guardPolicies := map[string]any{

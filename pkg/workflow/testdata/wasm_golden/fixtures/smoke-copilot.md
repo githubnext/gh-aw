@@ -20,6 +20,9 @@ imports:
   - shared/gh.md
   - shared/reporting.md
   - shared/github-queries-mcp-script.md
+  - uses: shared/mcp/serena.md
+    with:
+      languages: ["go"]
 network:
   allowed:
     - defaults
@@ -34,9 +37,6 @@ tools:
     - "*"
   github:
   playwright:
-  serena:
-    languages:
-      go: {}
   web-fetch:
 runtimes:
   go:
