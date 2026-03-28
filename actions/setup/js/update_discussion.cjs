@@ -14,43 +14,14 @@ const { validateLabels } = require("./safe_output_validator.cjs");
 const { tryEnforceArrayLimit } = require("./limit_enforcement_helpers.cjs");
 const { MAX_LABELS } = require("./constants.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
+const { logGraphQLError } = require("./github_api_helpers.cjs");
 
-/**
- * Log detailed GraphQL error information to aid diagnosing discussion API failures.
- * Surfaces the errors array, type codes, paths, HTTP status, and permission hints.
- * @param {Error & { errors?: Array<{ type?: string, message: string, path?: unknown, locations?: unknown }>, request?: unknown, data?: unknown, status?: number }} error - GraphQL error
- * @param {string} operation - Human-readable description of the failing operation
- */
-function logGraphQLError(error, operation) {
-  core.info(`GraphQL error during: ${operation}`);
-  core.info(`Message: ${getErrorMessage(error)}`);
-
-  const errorList = Array.isArray(error.errors) ? error.errors : [];
-  const hasInsufficientScopes = errorList.some(e => e?.type === "INSUFFICIENT_SCOPES");
-  const hasNotFound = errorList.some(e => e?.type === "NOT_FOUND");
-
-  if (hasInsufficientScopes) {
-    core.info(
-      `This looks like a token permission problem. The GitHub token requires 'discussions: write' permission. Add 'permissions: discussions: write' to your workflow, or set 'safe-outputs.update-discussion.github-token' to a PAT with the appropriate scopes.`
-    );
-  } else if (hasNotFound) {
-    core.info(`GitHub returned NOT_FOUND for the discussion. Check that the discussion number is correct and that the token has read access to the repository.`);
-  }
-
-  if (error.errors) {
-    core.info(`Errors array (${error.errors.length} error(s)):`);
-    error.errors.forEach((err, idx) => {
-      core.info(`  [${idx + 1}] ${err.message}`);
-      if (err.type) core.info(`      Type: ${err.type}`);
-      if (err.path) core.info(`      Path: ${JSON.stringify(err.path)}`);
-      if (err.locations) core.info(`      Locations: ${JSON.stringify(err.locations)}`);
-    });
-  }
-
-  if (error.status) core.info(`HTTP status: ${error.status}`);
-  if (error.request) core.info(`Request: ${JSON.stringify(error.request, null, 2)}`);
-  if (error.data) core.info(`Response data: ${JSON.stringify(error.data, null, 2)}`);
-}
+/** @type {import('./github_api_helpers.cjs').GraphQLErrorHints} */
+const DISCUSSION_GRAPHQL_HINTS = {
+  insufficientScopesHint:
+    "This looks like a token permission problem. The GitHub token requires 'discussions: write' permission. Add 'permissions: discussions: write' to your workflow, or set 'safe-outputs.update-discussion.github-token' to a PAT with the appropriate scopes.",
+  notFoundHint: "GitHub returned NOT_FOUND for the discussion. Check that the discussion number is correct and that the token has read access to the repository.",
+};
 
 /**
  * Fetches label node IDs for the given label names from the repository
@@ -177,7 +148,7 @@ async function executeDiscussionUpdate(github, context, discussionNumber, update
       number: discussionNumber,
     });
   } catch (fetchError) {
-    logGraphQLError(/** @type {any} */ fetchError, `fetch discussion #${discussionNumber} from ${context.repo.owner}/${context.repo.repo}`);
+    logGraphQLError(/** @type {any} */ fetchError, `fetch discussion #${discussionNumber} from ${context.repo.owner}/${context.repo.repo}`, DISCUSSION_GRAPHQL_HINTS);
     throw fetchError;
   }
 
@@ -219,7 +190,7 @@ async function executeDiscussionUpdate(github, context, discussionNumber, update
       const mutationResult = await github.graphql(mutation, variables);
       updatedDiscussion = mutationResult.updateDiscussion.discussion;
     } catch (mutationError) {
-      logGraphQLError(/** @type {any} */ mutationError, `updateDiscussion mutation for discussion #${discussionNumber} in ${context.repo.owner}/${context.repo.repo}`);
+      logGraphQLError(/** @type {any} */ mutationError, `updateDiscussion mutation for discussion #${discussionNumber} in ${context.repo.owner}/${context.repo.repo}`, DISCUSSION_GRAPHQL_HINTS);
       throw mutationError;
     }
   }
