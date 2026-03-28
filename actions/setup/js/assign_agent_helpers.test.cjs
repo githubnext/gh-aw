@@ -17,7 +17,8 @@ const mockGithub = {
 globalThis.core = mockCore;
 globalThis.github = mockGithub;
 
-const { AGENT_LOGIN_NAMES, getAgentName, getAvailableAgentLogins, findAgent, getIssueDetails, assignAgentToIssue, generatePermissionErrorSummary, assignAgentToIssueByName } = await import("./assign_agent_helpers.cjs");
+const { AGENT_LOGIN_NAMES, getAgentName, getAvailableAgentLogins, findAgent, getIssueDetails, getPullRequestDetails, assignAgentToIssue, generatePermissionErrorSummary, assignAgentToIssueByName } =
+  await import("./assign_agent_helpers.cjs");
 
 describe("assign_agent_helpers.cjs", () => {
   beforeEach(() => {
@@ -595,6 +596,89 @@ describe("assign_agent_helpers.cjs", () => {
 
       expect(result.success).toBe(true);
       expect(mockCore.info).toHaveBeenCalledWith("copilot is already assigned to issue #123");
+    });
+  });
+
+  describe("getPullRequestDetails", () => {
+    it("should return pull request ID and current assignees", async () => {
+      mockGithub.graphql.mockResolvedValueOnce({
+        repository: {
+          pullRequest: {
+            id: "PR_123",
+            assignees: {
+              nodes: [
+                { id: "USER_1", login: "user1" },
+                { id: "USER_2", login: "user2" },
+              ],
+            },
+          },
+        },
+      });
+
+      const result = await getPullRequestDetails("owner", "repo", 42);
+
+      expect(result).toEqual({
+        pullRequestId: "PR_123",
+        currentAssignees: [
+          { id: "USER_1", login: "user1" },
+          { id: "USER_2", login: "user2" },
+        ],
+      });
+    });
+
+    it("should return null when pull request is not found", async () => {
+      mockGithub.graphql.mockResolvedValueOnce({
+        repository: {
+          pullRequest: null,
+        },
+      });
+
+      const result = await getPullRequestDetails("owner", "repo", 999);
+
+      expect(result).toBeNull();
+      expect(mockCore.error).toHaveBeenCalledWith("Could not get pull request data");
+    });
+
+    it("should return empty assignees when none exist", async () => {
+      mockGithub.graphql.mockResolvedValueOnce({
+        repository: {
+          pullRequest: {
+            id: "PR_456",
+            assignees: {
+              nodes: [],
+            },
+          },
+        },
+      });
+
+      const result = await getPullRequestDetails("owner", "repo", 42);
+
+      expect(result).toEqual({
+        pullRequestId: "PR_456",
+        currentAssignees: [],
+      });
+    });
+
+    it("should handle GraphQL errors by re-throwing", async () => {
+      mockGithub.graphql.mockRejectedValueOnce(new Error("GraphQL error"));
+
+      await expect(getPullRequestDetails("owner", "repo", 42)).rejects.toThrow("GraphQL error");
+      expect(mockCore.error).toHaveBeenCalledWith(expect.stringContaining("Failed to get pull request details"));
+    });
+
+    it("should call GraphQL with correct variables", async () => {
+      mockGithub.graphql.mockResolvedValueOnce({
+        repository: {
+          pullRequest: {
+            id: "PR_789",
+            assignees: { nodes: [] },
+          },
+        },
+      });
+
+      await getPullRequestDetails("myorg", "myrepo", 77);
+
+      expect(mockGithub.graphql).toHaveBeenCalledWith(expect.stringContaining("pullRequest(number: $pullNumber)"), expect.objectContaining({ owner: "myorg", repo: "myrepo", pullNumber: 77 }));
     });
   });
 });
