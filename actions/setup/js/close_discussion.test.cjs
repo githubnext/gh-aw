@@ -230,7 +230,7 @@ describe("close_discussion", () => {
       const result = await handler({ discussion_number: "not-a-number" }, {});
 
       expect(result.success).toBe(false);
-      expect(result.error).toContain("Invalid discussion number");
+      expect(result.error).toContain("Invalid number");
     });
 
     it("should enforce max count limit", async () => {

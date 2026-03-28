@@ -541,6 +541,39 @@ function getCreatedTemporaryId(message) {
   return null;
 }
 
+/**
+ * Resolve a number value that may be a temporary ID using a plain resolved-IDs object.
+ * This is a low-level helper for safe output handlers that receive resolvedTemporaryIds
+ * as a plain object (not a Map). Covers both the # prefix form and bare form.
+ *
+ * @param {any} value - The raw number field value (number, numeric string, or temporary ID)
+ * @param {Object|null|undefined} resolvedTemporaryIds - Plain object mapping normalized temp IDs to {repo, number}
+ * @returns {{resolved: number|null, wasTemporaryId: boolean, errorMessage: string|null}}
+ */
+function resolveNumberFromTemporaryId(value, resolvedTemporaryIds) {
+  if (value === undefined || value === null) {
+    return { resolved: null, wasTemporaryId: false, errorMessage: "number field is missing" };
+  }
+
+  const rawStr = String(value).trim();
+  const withoutHash = rawStr.startsWith("#") ? rawStr.substring(1) : rawStr;
+
+  if (isTemporaryId(withoutHash)) {
+    const normalized = normalizeTemporaryId(withoutHash);
+    const entry = resolvedTemporaryIds && resolvedTemporaryIds[normalized];
+    if (!entry || !entry.number) {
+      return { resolved: null, wasTemporaryId: true, errorMessage: `Unresolved temporary ID: ${rawStr}` };
+    }
+    return { resolved: Number(entry.number), wasTemporaryId: true, errorMessage: null };
+  }
+
+  const num = parseInt(withoutHash, 10);
+  if (isNaN(num) || num < 1) {
+    return { resolved: null, wasTemporaryId: false, errorMessage: `Invalid number: ${value}. Expected a positive integer or a temporary ID (aw_...).` };
+  }
+  return { resolved: num, wasTemporaryId: false, errorMessage: null };
+}
+
 module.exports = {
   TEMPORARY_ID_PATTERN,
   TEMPORARY_ID_CANDIDATE_PATTERN,
@@ -554,6 +587,7 @@ module.exports = {
   loadTemporaryIdMapFromResolved,
   resolveIssueNumber,
   resolveRepoIssueTarget,
+  resolveNumberFromTemporaryId,
   hasUnresolvedTemporaryIds,
   serializeTemporaryIdMap,
   loadTemporaryProjectMap,

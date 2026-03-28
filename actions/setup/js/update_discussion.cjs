@@ -14,7 +14,7 @@ const { validateLabels } = require("./safe_output_validator.cjs");
 const { tryEnforceArrayLimit } = require("./limit_enforcement_helpers.cjs");
 const { MAX_LABELS } = require("./constants.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
-const { isTemporaryId, normalizeTemporaryId } = require("./temporary_id.cjs");
+const { resolveNumberFromTemporaryId } = require("./temporary_id.cjs");
 
 /**
  * Fetches label node IDs for the given label names from the repository
@@ -205,27 +205,13 @@ function resolveDiscussionNumber(item, updateTarget, context, resolvedTemporaryI
   // Discussions are special - they have their own context type separate from issues/PRs
   // We need to handle them differently
   if (item.discussion_number !== undefined) {
-    const rawNumber = String(item.discussion_number).trim();
-    const withoutHash = rawNumber.startsWith("#") ? rawNumber.substring(1) : rawNumber;
-    // Resolve temporary ID if present
-    if (isTemporaryId(withoutHash)) {
-      const resolved = resolvedTemporaryIds && resolvedTemporaryIds[normalizeTemporaryId(withoutHash)];
-      if (!resolved || !resolved.number) {
-        return {
-          success: false,
-          error: `Unresolved temporary ID: ${item.discussion_number}`,
-        };
-      }
-      const discussionNumber = Number(resolved.number);
-      core.info(`Resolved temporary ID '${item.discussion_number}' to discussion #${discussionNumber}`);
-      return { success: true, number: discussionNumber };
+    const resolution = resolveNumberFromTemporaryId(item.discussion_number, resolvedTemporaryIds);
+    if (resolution.errorMessage) {
+      return { success: false, error: resolution.errorMessage };
     }
-    const discussionNumber = parseInt(withoutHash, 10);
-    if (isNaN(discussionNumber)) {
-      return {
-        success: false,
-        error: `Invalid discussion number: ${item.discussion_number}`,
-      };
+    const discussionNumber = /** @type {number} */ resolution.resolved;
+    if (resolution.wasTemporaryId) {
+      core.info(`Resolved temporary ID '${item.discussion_number}' to discussion #${discussionNumber}`);
     }
     return { success: true, number: discussionNumber };
   } else if (updateTarget !== "triggering") {
