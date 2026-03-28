@@ -25,6 +25,34 @@ imports:
 Workflow instructions here...
 ```
 
+### Parameterized imports (`uses`/`with`)
+
+Shared workflows that declare an `import-schema` accept runtime parameters. Use the `uses`/`with` form to pass values:
+
+```aw wrap
+---
+on: issues
+engine: copilot
+imports:
+  - uses: shared/mcp/serena.md
+    with:
+      languages: ["go", "typescript"]
+---
+```
+
+The `uses` key is an alias for `path`, and `with` is an alias for `inputs`. Both forms work interchangeably.
+
+### Single-import constraint
+
+A workflow file can appear at most once in an import graph. If the same file is imported more than once with identical `with` values it is silently deduplicated. Importing the same file with **different** `with` values is a compile-time error:
+
+```
+import conflict: 'shared/mcp/serena.md' is imported more than once with different 'with' values.
+An imported workflow can only be imported once per workflow.
+  Previous 'with': {"languages":["go"]}
+  New 'with':      {"languages":["typescript"]}
+```
+
 In markdown, use the special `{{#import ...}}` directive:
 
 ```aw wrap
@@ -42,6 +70,91 @@ Workflow instructions here...
 ## Shared Workflow Components
 
 Workflows without an `on` field are shared workflow components. These files are validated but not compiled into GitHub Actions - they're meant to be imported by other workflows. The compiler skips them with an informative message, allowing you to organize reusable components without generating unnecessary lock files.
+
+## Import Schema (`import-schema`)
+
+Shared workflows can declare a typed parameter contract with `import-schema`. This allows callers to pass values via `with` that are validated at compile time and substituted into the shared file's frontmatter and markdown body before processing.
+
+```aw wrap
+---
+# shared/deploy.md — no 'on:' field, shared component only
+import-schema:
+  region:
+    type: string
+    required: true
+  environment:
+    type: choice
+    options: [staging, production]
+    required: true
+  count:
+    type: number
+    default: 10
+  languages:
+    type: array
+    items:
+      type: string
+    required: true
+  config:
+    type: object
+    description: Configuration object
+    properties:
+      apiKey:
+        type: string
+        required: true
+      timeout:
+        type: number
+        default: 30
+
+mcp-servers:
+  my-server:
+    url: "https://example.com/mcp"
+    allowed: ["*"]
+---
+
+Deploy ${{ github.aw.import-inputs.count }} items to ${{ github.aw.import-inputs.region }}.
+API key: ${{ github.aw.import-inputs.config.apiKey }}.
+Languages: ${{ github.aw.import-inputs.languages }}.
+```
+
+### Supported types
+
+| Type | Description | Extra fields |
+|------|-------------|--------------|
+| `string` | Plain text value | — |
+| `number` | Numeric value | — |
+| `boolean` | `true`/`false` | — |
+| `choice` | One of a fixed set of strings | `options: [...]` |
+| `array` | Ordered list of values | `items.type` (element type) |
+| `object` | Key/value map | `properties` (one level deep) |
+
+Each field supports `required: true` and an optional `default` value.
+
+### Accessing inputs in shared workflows
+
+Use `${{ github.aw.import-inputs.<key> }}` to substitute a top-level value. For object sub-fields use dotted notation: `${{ github.aw.import-inputs.config.apiKey }}`.
+
+Substitution is applied to both the YAML frontmatter and the markdown body of the shared file before any further parsing, so input values can drive any frontmatter field (e.g. `mcp-servers`, `runtimes`).
+
+### Calling a parameterized shared workflow
+
+```aw wrap
+---
+on: issues
+engine: copilot
+imports:
+  - uses: shared/deploy.md
+    with:
+      region: us-east-1
+      environment: staging
+      count: 5
+      languages: ["go", "typescript"]
+      config:
+        apiKey: my-secret-key
+        timeout: 60
+---
+```
+
+The compiler validates that all `required` fields are provided, that `choice` values are in `options`, that array element types match, and that object `properties` constraints are satisfied. Unknown keys produce a compile-time error.
 
 ## Path Formats
 
@@ -127,6 +240,7 @@ Imported files can define specific frontmatter fields that merge with the main w
 
 Shared workflow files (without `on:` field) can define:
 
+- `import-schema:` - Parameter schema for `with` validation and input substitution
 - `tools:` - Tool configurations (bash, web-fetch, github, mcp-*, etc.)
 - `mcp-servers:` - Model Context Protocol server configurations
 - `services:` - Docker services for workflow execution
