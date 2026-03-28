@@ -180,7 +180,12 @@ func RunAuditReport(ctx context.Context, cfg RunAuditReportConfig) error {
 			RunID:            r.Run.DatabaseID,
 			WorkflowName:     r.Run.WorkflowName,
 			Conclusion:       r.Run.Conclusion,
+			Duration:         r.Run.Duration,
 			FirewallAnalysis: r.FirewallAnalysis,
+			Metrics:          r.Metrics,
+			MCPToolUsage:     r.MCPToolUsage,
+			MCPFailures:      r.MCPFailures,
+			ErrorCount:       r.Run.ErrorCount,
 		})
 	}
 
@@ -190,7 +195,7 @@ func RunAuditReport(ctx context.Context, cfg RunAuditReportConfig) error {
 	}
 
 	// Build cross-run report
-	report := buildCrossRunFirewallReport(inputs)
+	report := buildCrossRunAuditReport(inputs)
 
 	// Render output
 	if cfg.JSONOutput || cfg.Format == "json" {

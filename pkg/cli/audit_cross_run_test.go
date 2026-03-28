@@ -13,8 +13,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestBuildCrossRunFirewallReport_EmptyInputs(t *testing.T) {
-	report := buildCrossRunFirewallReport([]crossRunInput{})
+func TestBuildCrossRunAuditReport_EmptyInputs(t *testing.T) {
+	report := buildCrossRunAuditReport([]crossRunInput{})
 
 	assert.Equal(t, 0, report.RunsAnalyzed, "Should have 0 runs analyzed")
 	assert.Equal(t, 0, report.RunsWithData, "Should have 0 runs with data")
@@ -24,7 +24,7 @@ func TestBuildCrossRunFirewallReport_EmptyInputs(t *testing.T) {
 	assert.Empty(t, report.PerRunBreakdown, "Per-run breakdown should be empty")
 }
 
-func TestBuildCrossRunFirewallReport_SingleRunWithData(t *testing.T) {
+func TestBuildCrossRunAuditReport_SingleRunWithData(t *testing.T) {
 	inputs := []crossRunInput{
 		{
 			RunID:        100,
@@ -43,7 +43,7 @@ func TestBuildCrossRunFirewallReport_SingleRunWithData(t *testing.T) {
 		},
 	}
 
-	report := buildCrossRunFirewallReport(inputs)
+	report := buildCrossRunAuditReport(inputs)
 
 	assert.Equal(t, 1, report.RunsAnalyzed, "Should analyze 1 run")
 	assert.Equal(t, 1, report.RunsWithData, "Should have 1 run with data")
@@ -65,7 +65,7 @@ func TestBuildCrossRunFirewallReport_SingleRunWithData(t *testing.T) {
 	assert.True(t, report.PerRunBreakdown[0].HasData, "Run should have data")
 }
 
-func TestBuildCrossRunFirewallReport_MultipleRuns(t *testing.T) {
+func TestBuildCrossRunAuditReport_MultipleRuns(t *testing.T) {
 	inputs := []crossRunInput{
 		{
 			RunID:        100,
@@ -104,7 +104,7 @@ func TestBuildCrossRunFirewallReport_MultipleRuns(t *testing.T) {
 		},
 	}
 
-	report := buildCrossRunFirewallReport(inputs)
+	report := buildCrossRunAuditReport(inputs)
 
 	assert.Equal(t, 3, report.RunsAnalyzed, "Should analyze 3 runs")
 	assert.Equal(t, 2, report.RunsWithData, "Should have 2 runs with data")
@@ -152,13 +152,13 @@ func TestBuildCrossRunFirewallReport_MultipleRuns(t *testing.T) {
 	assert.False(t, report.PerRunBreakdown[2].HasData, "Run 300 should have no data")
 }
 
-func TestBuildCrossRunFirewallReport_AllRunsWithoutData(t *testing.T) {
+func TestBuildCrossRunAuditReport_AllRunsWithoutData(t *testing.T) {
 	inputs := []crossRunInput{
 		{RunID: 100, WorkflowName: "wf", Conclusion: "success", FirewallAnalysis: nil},
 		{RunID: 200, WorkflowName: "wf", Conclusion: "failure", FirewallAnalysis: nil},
 	}
 
-	report := buildCrossRunFirewallReport(inputs)
+	report := buildCrossRunAuditReport(inputs)
 
 	assert.Equal(t, 2, report.RunsAnalyzed, "Should analyze 2 runs")
 	assert.Equal(t, 0, report.RunsWithData, "Should have 0 runs with data")
@@ -167,7 +167,7 @@ func TestBuildCrossRunFirewallReport_AllRunsWithoutData(t *testing.T) {
 	assert.InDelta(t, 0.0, report.Summary.OverallDenyRate, 0.001, "Deny rate should be 0")
 }
 
-func TestBuildCrossRunFirewallReport_DomainInventorySorted(t *testing.T) {
+func TestBuildCrossRunAuditReport_DomainInventorySorted(t *testing.T) {
 	inputs := []crossRunInput{
 		{
 			RunID:        100,
@@ -186,7 +186,7 @@ func TestBuildCrossRunFirewallReport_DomainInventorySorted(t *testing.T) {
 		},
 	}
 
-	report := buildCrossRunFirewallReport(inputs)
+	report := buildCrossRunAuditReport(inputs)
 
 	require.Len(t, report.DomainInventory, 3, "Should have 3 domains")
 	assert.Equal(t, "a-domain.com:443", report.DomainInventory[0].Domain, "First domain should be a-domain")
@@ -195,7 +195,7 @@ func TestBuildCrossRunFirewallReport_DomainInventorySorted(t *testing.T) {
 }
 
 func TestRenderCrossRunReportJSON(t *testing.T) {
-	report := &CrossRunFirewallReport{
+	report := &CrossRunAuditReport{
 		RunsAnalyzed:    2,
 		RunsWithData:    1,
 		RunsWithoutData: 1,
@@ -247,7 +247,7 @@ func TestRenderCrossRunReportJSON(t *testing.T) {
 	output := buf.String()
 
 	// Verify valid JSON
-	var parsed CrossRunFirewallReport
+	var parsed CrossRunAuditReport
 	err = json.Unmarshal([]byte(output), &parsed)
 	require.NoError(t, err, "Should produce valid JSON output")
 	assert.Equal(t, 2, parsed.RunsAnalyzed, "RunsAnalyzed should match")
@@ -255,7 +255,7 @@ func TestRenderCrossRunReportJSON(t *testing.T) {
 }
 
 func TestRenderCrossRunReportMarkdown(t *testing.T) {
-	report := &CrossRunFirewallReport{
+	report := &CrossRunAuditReport{
 		RunsAnalyzed:    1,
 		RunsWithData:    1,
 		RunsWithoutData: 0,
@@ -510,4 +510,251 @@ func TestNewAuditReportSubcommand_RepoParsingWithHost(t *testing.T) {
 			assert.Equal(t, tt.wantRepo, repoPart, "Repo should match")
 		})
 	}
+}
+
+func TestBuildCrossRunAuditReport_MetricsTrend(t *testing.T) {
+	inputs := []crossRunInput{
+		{
+			RunID:        100,
+			WorkflowName: "wf",
+			Conclusion:   "success",
+			Metrics:      LogMetrics{EstimatedCost: 1.00, TokenUsage: 10000, Turns: 5},
+			ErrorCount:   0,
+		},
+		{
+			RunID:        200,
+			WorkflowName: "wf",
+			Conclusion:   "success",
+			Metrics:      LogMetrics{EstimatedCost: 2.00, TokenUsage: 20000, Turns: 10},
+			ErrorCount:   2,
+		},
+		{
+			RunID:        300,
+			WorkflowName: "wf",
+			Conclusion:   "success",
+			// Spike: cost = 7x avg(1.5) so > 2x; tokens = 4x avg(15K) so > 2x
+			Metrics:    LogMetrics{EstimatedCost: 10.50, TokenUsage: 60000, Turns: 20},
+			ErrorCount: 1,
+		},
+	}
+
+	report := buildCrossRunAuditReport(inputs)
+
+	mt := report.MetricsTrend
+	assert.Equal(t, 3, mt.RunsWithCost, "All runs have cost")
+	assert.InDelta(t, 13.50, mt.TotalCost, 0.001, "Total cost should be 13.50")
+	assert.InDelta(t, 4.50, mt.AvgCost, 0.001, "Avg cost should be 4.50")
+	assert.InDelta(t, 1.00, mt.MinCost, 0.001, "Min cost should be 1.00")
+	assert.InDelta(t, 10.50, mt.MaxCost, 0.001, "Max cost should be 10.50")
+
+	assert.Equal(t, 90000, mt.TotalTokens, "Total tokens should be 90000")
+	assert.Equal(t, 30000, mt.AvgTokens, "Avg tokens should be 30000")
+	assert.Equal(t, 10000, mt.MinTokens, "Min tokens should be 10000")
+	assert.Equal(t, 60000, mt.MaxTokens, "Max tokens should be 60000")
+
+	assert.Equal(t, 35, mt.TotalTurns, "Total turns should be 35")
+	assert.Equal(t, 20, mt.MaxTurns, "Max turns should be 20")
+
+	// Spike detection: run 300 has cost=10.50, avg=4.50 → 10.50 > 2*4.50=9.0 → spike
+	require.Len(t, mt.CostSpikes, 1, "Should detect 1 cost spike")
+	assert.Equal(t, int64(300), mt.CostSpikes[0], "Cost spike should be in run 300")
+
+	// Token spike: run 300 has 60000, avg=30000 → 60000 is not strictly greater than 2*30000=60000
+	assert.Empty(t, mt.TokenSpikes, "Should detect no token spikes (60000 is not strictly greater than 2*30000)")
+
+	// Error trend
+	et := report.ErrorTrend
+	assert.Equal(t, 2, et.RunsWithErrors, "Should have 2 runs with errors")
+	assert.Equal(t, 3, et.TotalErrors, "Total errors should be 3")
+	assert.InDelta(t, 1.0, et.AvgErrorsPerRun, 0.01, "Avg errors per run should be 1.0")
+}
+
+func TestBuildCrossRunAuditReport_MCPHealth(t *testing.T) {
+	inputs := []crossRunInput{
+		{
+			RunID:        100,
+			WorkflowName: "wf",
+			Conclusion:   "success",
+			MCPToolUsage: &MCPToolUsageData{
+				Servers: []MCPServerStats{
+					{ServerName: "github", ToolCallCount: 10, ErrorCount: 0},
+					{ServerName: "safeoutputs", ToolCallCount: 5, ErrorCount: 1},
+				},
+			},
+		},
+		{
+			RunID:        200,
+			WorkflowName: "wf",
+			Conclusion:   "success",
+			MCPToolUsage: &MCPToolUsageData{
+				Servers: []MCPServerStats{
+					{ServerName: "github", ToolCallCount: 8, ErrorCount: 2},
+				},
+			},
+		},
+	}
+
+	report := buildCrossRunAuditReport(inputs)
+
+	require.Len(t, report.MCPHealth, 2, "Should have 2 MCP server entries")
+
+	// Find github server
+	var githubHealth *MCPServerCrossRunHealth
+	for i, h := range report.MCPHealth {
+		if h.ServerName == "github" {
+			githubHealth = &report.MCPHealth[i]
+			break
+		}
+	}
+	require.NotNil(t, githubHealth, "Should find github server health")
+	assert.Equal(t, 2, githubHealth.RunsConnected, "Github should be connected in 2 runs")
+	assert.Equal(t, 2, githubHealth.TotalRuns, "Total runs should be 2")
+	assert.Equal(t, 18, githubHealth.TotalCalls, "Total calls should be 18")
+	assert.Equal(t, 2, githubHealth.TotalErrors, "Total errors should be 2")
+	assert.InDelta(t, 2.0/18.0, githubHealth.ErrorRate, 0.001, "Error rate should be 2/18")
+	// 2/18 = ~11.1% error rate, which is > mcpErrorRateThreshold (10%), so it IS unreliable
+	assert.True(t, githubHealth.Unreliable, "Github should be unreliable (error rate 11% > mcpErrorRateThreshold)")
+
+	// Find safeoutputs server
+	var soHealth *MCPServerCrossRunHealth
+	for i, h := range report.MCPHealth {
+		if h.ServerName == "safeoutputs" {
+			soHealth = &report.MCPHealth[i]
+			break
+		}
+	}
+	require.NotNil(t, soHealth, "Should find safeoutputs server health")
+	assert.Equal(t, 1, soHealth.RunsConnected, "Safeoutputs should be connected in 1 run")
+	// 1/2 runs connected = 50% < 75% threshold → unreliable
+	assert.True(t, soHealth.Unreliable, "Safeoutputs should be unreliable (only 50% runs connected)")
+}
+
+func TestBuildMetricsTrend_Empty(t *testing.T) {
+	trend := buildMetricsTrend(nil)
+	assert.InDelta(t, 0.0, trend.TotalCost, 0.001, "Empty rows should produce zero total cost")
+	assert.Equal(t, 0, trend.TotalTokens, "Empty rows should produce zero total tokens")
+	assert.Empty(t, trend.CostSpikes, "Empty rows should produce no cost spikes")
+}
+
+func TestBuildMetricsTrend_NoSpikes(t *testing.T) {
+	rows := []metricsRawRow{
+		{runID: 1, cost: 1.0, tokens: 100, turns: 3},
+		{runID: 2, cost: 1.1, tokens: 110, turns: 4},
+		{runID: 3, cost: 0.9, tokens: 90, turns: 2},
+	}
+	trend := buildMetricsTrend(rows)
+	assert.Empty(t, trend.CostSpikes, "No spikes when all costs are similar")
+	assert.Empty(t, trend.TokenSpikes, "No spikes when all tokens are similar")
+	assert.Equal(t, 3, trend.RunsWithCost, "All runs have cost")
+}
+
+func TestRenderCrossRunReportMarkdown_IncludesNewSections(t *testing.T) {
+	report := &CrossRunAuditReport{
+		RunsAnalyzed:    2,
+		RunsWithData:    2,
+		RunsWithoutData: 0,
+		Summary: CrossRunSummary{
+			TotalRequests:   5,
+			TotalAllowed:    5,
+			TotalBlocked:    0,
+			OverallDenyRate: 0.0,
+			UniqueDomains:   1,
+		},
+		MetricsTrend: MetricsTrendData{
+			TotalCost:    3.0,
+			AvgCost:      1.5,
+			MinCost:      1.0,
+			MaxCost:      2.0,
+			TotalTokens:  30000,
+			AvgTokens:    15000,
+			MinTokens:    10000,
+			MaxTokens:    20000,
+			TotalTurns:   15,
+			MaxTurns:     10,
+			AvgTurns:     7.5,
+			RunsWithCost: 2,
+			CostSpikes:   []int64{200},
+		},
+		MCPHealth: []MCPServerCrossRunHealth{
+			{
+				ServerName:    "github",
+				RunsConnected: 2,
+				TotalRuns:     2,
+				TotalCalls:    20,
+				TotalErrors:   1,
+				ErrorRate:     0.05,
+				Unreliable:    false,
+			},
+		},
+		ErrorTrend: ErrorTrendData{
+			RunsWithErrors:  1,
+			TotalErrors:     2,
+			AvgErrorsPerRun: 1.0,
+		},
+		DomainInventory: []DomainInventoryEntry{
+			{
+				Domain:        "api.github.com:443",
+				SeenInRuns:    2,
+				TotalAllowed:  5,
+				TotalBlocked:  0,
+				OverallStatus: "allowed",
+			},
+		},
+		PerRunBreakdown: []PerRunFirewallBreakdown{
+			{
+				RunID:         100,
+				WorkflowName:  "test",
+				Conclusion:    "success",
+				TotalRequests: 3,
+				Allowed:       3,
+				Blocked:       0,
+				DenyRate:      0.0,
+				UniqueDomains: 1,
+				Cost:          1.0,
+				Tokens:        10000,
+				Turns:         5,
+				MCPErrors:     0,
+				HasData:       true,
+			},
+			{
+				RunID:         200,
+				WorkflowName:  "test",
+				Conclusion:    "success",
+				TotalRequests: 2,
+				Allowed:       2,
+				Blocked:       0,
+				Cost:          2.0,
+				Tokens:        20000,
+				Turns:         10,
+				MCPErrors:     1,
+				HasData:       true,
+				CostSpike:     true,
+			},
+		},
+	}
+
+	// Capture stdout
+	oldStdout := os.Stdout
+	r, w, _ := os.Pipe()
+	os.Stdout = w
+
+	renderCrossRunReportMarkdown(report)
+
+	w.Close()
+	os.Stdout = oldStdout
+
+	var buf bytes.Buffer
+	_, _ = buf.ReadFrom(r)
+	output := buf.String()
+
+	assert.Contains(t, output, "# Audit Report", "Should have markdown header")
+	assert.Contains(t, output, "Executive Summary", "Should have executive summary")
+	assert.Contains(t, output, "Metrics Trends", "Should have metrics trends section")
+	assert.Contains(t, output, "Cost Trend", "Should have cost trend")
+	assert.Contains(t, output, "Token Trend", "Should have token trend")
+	assert.Contains(t, output, "MCP Server Health", "Should have MCP health section")
+	assert.Contains(t, output, "Error Trend", "Should have error trend section")
+	assert.Contains(t, output, "Domain Inventory", "Should have domain inventory")
+	assert.Contains(t, output, "Per-Run Breakdown", "Should have per-run breakdown")
+	assert.Contains(t, output, "⚠", "Should have spike warnings")
 }

@@ -2,6 +2,7 @@ package cli
 
 import (
 	"sort"
+	"time"
 
 	"github.com/github/gh-aw/pkg/logger"
 )
@@ -12,14 +13,27 @@ var auditCrossRunLog = logger.New("cli:audit_cross_run")
 // to bound download time and memory usage.
 const maxAuditReportRuns = 50
 
-// CrossRunFirewallReport represents aggregated firewall analysis across multiple workflow runs.
-// Unlike FirewallAnalysis (single run), this provides a union of domains across runs
-// with per-run breakdown and overall statistics.
-type CrossRunFirewallReport struct {
+// mcpErrorRateThreshold is the error-rate above which an MCP server is flagged as unreliable.
+const mcpErrorRateThreshold = 0.10
+
+// mcpConnectionRateThreshold is the minimum fraction of runs a server must appear in
+// before it is flagged as unreliable due to low connectivity.
+const mcpConnectionRateThreshold = 0.75
+
+// spikeDetectionMultiplier is the ratio above which a run's cost or token usage is
+// flagged as a spike relative to the cross-run average (e.g., 2.0 → >2x avg).
+const spikeDetectionMultiplier = 2.0
+
+// CrossRunAuditReport represents aggregated audit data across multiple workflow runs.
+// It includes firewall analysis, metrics trends, MCP server health, and error trends.
+type CrossRunAuditReport struct {
 	RunsAnalyzed    int                       `json:"runs_analyzed"`
 	RunsWithData    int                       `json:"runs_with_data"`
 	RunsWithoutData int                       `json:"runs_without_data"`
 	Summary         CrossRunSummary           `json:"summary"`
+	MetricsTrend    MetricsTrendData          `json:"metrics_trend"`
+	MCPHealth       []MCPServerCrossRunHealth `json:"mcp_health,omitempty"`
+	ErrorTrend      ErrorTrendData            `json:"error_trend"`
 	DomainInventory []DomainInventoryEntry    `json:"domain_inventory"`
 	PerRunBreakdown []PerRunFirewallBreakdown `json:"per_run_breakdown"`
 }
@@ -31,6 +45,49 @@ type CrossRunSummary struct {
 	TotalBlocked    int     `json:"total_blocked"`
 	OverallDenyRate float64 `json:"overall_deny_rate"` // 0.0–1.0
 	UniqueDomains   int     `json:"unique_domains"`
+}
+
+// MetricsTrendData contains aggregated cost, token, turn, and duration statistics
+// across multiple runs, with spike detection for anomalous runs.
+type MetricsTrendData struct {
+	TotalCost   float64 `json:"total_cost"`
+	AvgCost     float64 `json:"avg_cost"`
+	MinCost     float64 `json:"min_cost"`
+	MaxCost     float64 `json:"max_cost"`
+	TotalTokens int     `json:"total_tokens"`
+	AvgTokens   int     `json:"avg_tokens"`
+	MinTokens   int     `json:"min_tokens"`
+	MaxTokens   int     `json:"max_tokens"`
+	TotalTurns  int     `json:"total_turns"`
+	AvgTurns    float64 `json:"avg_turns"`
+	MaxTurns    int     `json:"max_turns"`
+	// Duration statistics (stored as nanoseconds for JSON portability)
+	AvgDurationNs int64   `json:"avg_duration_ns"`
+	MinDurationNs int64   `json:"min_duration_ns"`
+	MaxDurationNs int64   `json:"max_duration_ns"`
+	CostSpikes    []int64 `json:"cost_spikes,omitempty"`  // Run IDs with cost > 2x avg
+	TokenSpikes   []int64 `json:"token_spikes,omitempty"` // Run IDs with tokens > 2x avg
+	RunsWithCost  int     `json:"runs_with_cost"`         // Runs that reported non-zero cost
+}
+
+// MCPServerCrossRunHealth describes the health of a single MCP server across runs.
+type MCPServerCrossRunHealth struct {
+	ServerName    string  `json:"server_name"`
+	RunsConnected int     `json:"runs_connected"` // Runs where server was used (appeared in tool usage)
+	TotalRuns     int     `json:"total_runs"`
+	TotalCalls    int     `json:"total_calls"`
+	TotalErrors   int     `json:"total_errors"`
+	ErrorRate     float64 `json:"error_rate"` // 0.0–1.0
+	Unreliable    bool    `json:"unreliable"` // True if error_rate > 0.10 or connected < 75% of runs
+}
+
+// ErrorTrendData summarizes error and warning patterns across runs.
+type ErrorTrendData struct {
+	RunsWithErrors   int     `json:"runs_with_errors"`
+	TotalErrors      int     `json:"total_errors"`
+	AvgErrorsPerRun  float64 `json:"avg_errors_per_run"`
+	RunsWithWarnings int     `json:"runs_with_warnings"`
+	TotalWarnings    int     `json:"total_warnings"`
 }
 
 // DomainInventoryEntry describes a single domain seen across multiple runs.
@@ -52,16 +109,25 @@ type DomainRunStatus struct {
 }
 
 // PerRunFirewallBreakdown is a summary row for a single run within the cross-run report.
+// It extends the firewall view with cost, token, turn, and MCP error information.
 type PerRunFirewallBreakdown struct {
-	RunID         int64   `json:"run_id"`
-	WorkflowName  string  `json:"workflow_name"`
-	Conclusion    string  `json:"conclusion"`
-	TotalRequests int     `json:"total_requests"`
-	Allowed       int     `json:"allowed"`
-	Blocked       int     `json:"blocked"`
-	DenyRate      float64 `json:"deny_rate"` // 0.0–1.0
-	UniqueDomains int     `json:"unique_domains"`
-	HasData       bool    `json:"has_data"`
+	RunID         int64         `json:"run_id"`
+	WorkflowName  string        `json:"workflow_name"`
+	Conclusion    string        `json:"conclusion"`
+	Duration      time.Duration `json:"duration_ns"` // Wall-clock duration of the run
+	TotalRequests int           `json:"total_requests"`
+	Allowed       int           `json:"allowed"`
+	Blocked       int           `json:"blocked"`
+	DenyRate      float64       `json:"deny_rate"` // 0.0–1.0
+	UniqueDomains int           `json:"unique_domains"`
+	Cost          float64       `json:"cost"`
+	Tokens        int           `json:"tokens"`
+	Turns         int           `json:"turns"`
+	MCPErrors     int           `json:"mcp_errors"`
+	ErrorCount    int           `json:"error_count"`
+	HasData       bool          `json:"has_data"`
+	CostSpike     bool          `json:"cost_spike,omitempty"`  // True if cost > 2x avg
+	TokenSpike    bool          `json:"token_spike,omitempty"` // True if tokens > 2x avg
 }
 
 // crossRunInput bundles per-run data needed for aggregation.
@@ -69,15 +135,19 @@ type crossRunInput struct {
 	RunID            int64
 	WorkflowName     string
 	Conclusion       string
+	Duration         time.Duration
 	FirewallAnalysis *FirewallAnalysis
+	Metrics          LogMetrics
+	MCPToolUsage     *MCPToolUsageData
+	MCPFailures      []MCPFailureReport
+	ErrorCount       int
 }
 
-// buildCrossRunFirewallReport aggregates firewall data from multiple runs into a
-// CrossRunFirewallReport.
-func buildCrossRunFirewallReport(inputs []crossRunInput) *CrossRunFirewallReport {
-	auditCrossRunLog.Printf("Building cross-run firewall report: %d inputs", len(inputs))
+// buildCrossRunAuditReport aggregates data from multiple runs into a CrossRunAuditReport.
+func buildCrossRunAuditReport(inputs []crossRunInput) *CrossRunAuditReport {
+	auditCrossRunLog.Printf("Building cross-run audit report: %d inputs", len(inputs))
 
-	report := &CrossRunFirewallReport{
+	report := &CrossRunAuditReport{
 		RunsAnalyzed: len(inputs),
 	}
 
@@ -95,11 +165,46 @@ func buildCrossRunFirewallReport(inputs []crossRunInput) *CrossRunFirewallReport
 		runIDs = append(runIDs, in.RunID)
 	}
 
+	// --- Phase 1: build per-run breakdowns and collect raw values for aggregation ---
+
+	var metricsRows []metricsRawRow
+
+	// MCP server aggregation: server name → aggregate across runs
+	type mcpServerAgg struct {
+		totalCalls  int
+		totalErrors int
+		runsSeen    map[int64]bool
+	}
+	mcpServerMap := make(map[string]*mcpServerAgg)
+
 	for _, in := range inputs {
 		breakdown := PerRunFirewallBreakdown{
 			RunID:        in.RunID,
 			WorkflowName: in.WorkflowName,
 			Conclusion:   in.Conclusion,
+			Duration:     in.Duration,
+			Cost:         in.Metrics.EstimatedCost,
+			Tokens:       in.Metrics.TokenUsage,
+			Turns:        in.Metrics.Turns,
+			ErrorCount:   in.ErrorCount,
+		}
+
+		// Count MCP errors for this run
+		breakdown.MCPErrors = len(in.MCPFailures)
+		if in.MCPToolUsage != nil {
+			for _, srv := range in.MCPToolUsage.Servers {
+				breakdown.MCPErrors += srv.ErrorCount
+
+				// Aggregate server-level stats
+				agg, ok := mcpServerMap[srv.ServerName]
+				if !ok {
+					agg = &mcpServerAgg{runsSeen: make(map[int64]bool)}
+					mcpServerMap[srv.ServerName] = agg
+				}
+				agg.totalCalls += srv.ToolCallCount
+				agg.totalErrors += srv.ErrorCount
+				agg.runsSeen[in.RunID] = true
+			}
 		}
 
 		if in.FirewallAnalysis != nil {
@@ -136,15 +241,84 @@ func buildCrossRunFirewallReport(inputs []crossRunInput) *CrossRunFirewallReport
 			report.RunsWithoutData++
 		}
 
+		// Collect metrics for trend aggregation
+		metricsRows = append(metricsRows, metricsRawRow{
+			runID:    in.RunID,
+			cost:     in.Metrics.EstimatedCost,
+			tokens:   in.Metrics.TokenUsage,
+			turns:    in.Metrics.Turns,
+			duration: in.Duration,
+		})
+
+		// Error trend
+		if in.ErrorCount > 0 {
+			report.ErrorTrend.RunsWithErrors++
+			report.ErrorTrend.TotalErrors += in.ErrorCount
+		}
+
 		report.PerRunBreakdown = append(report.PerRunBreakdown, breakdown)
 	}
 
-	// Compute overall deny rate
+	// --- Phase 2: compute overall firewall summary ---
 	if report.Summary.TotalRequests > 0 {
 		report.Summary.OverallDenyRate = float64(report.Summary.TotalBlocked) / float64(report.Summary.TotalRequests)
 	}
 
-	// Build domain inventory sorted by domain name
+	// --- Phase 3: compute metrics trends ---
+	report.MetricsTrend = buildMetricsTrend(metricsRows)
+
+	// Mark cost/token spikes on per-run breakdowns
+	spikeRunIDs := make(map[int64]bool, len(report.MetricsTrend.CostSpikes))
+	for _, rid := range report.MetricsTrend.CostSpikes {
+		spikeRunIDs[rid] = true
+	}
+	tokenSpikeRunIDs := make(map[int64]bool, len(report.MetricsTrend.TokenSpikes))
+	for _, rid := range report.MetricsTrend.TokenSpikes {
+		tokenSpikeRunIDs[rid] = true
+	}
+	for i := range report.PerRunBreakdown {
+		if spikeRunIDs[report.PerRunBreakdown[i].RunID] {
+			report.PerRunBreakdown[i].CostSpike = true
+		}
+		if tokenSpikeRunIDs[report.PerRunBreakdown[i].RunID] {
+			report.PerRunBreakdown[i].TokenSpike = true
+		}
+	}
+
+	// --- Phase 4: compute MCP health ---
+	if len(mcpServerMap) > 0 {
+		sortedServers := make([]string, 0, len(mcpServerMap))
+		for name := range mcpServerMap {
+			sortedServers = append(sortedServers, name)
+		}
+		sort.Strings(sortedServers)
+
+		for _, name := range sortedServers {
+			agg := mcpServerMap[name]
+			connected := len(agg.runsSeen)
+			var errorRate float64
+			if agg.totalCalls > 0 {
+				errorRate = float64(agg.totalErrors) / float64(agg.totalCalls)
+			}
+			unreliable := errorRate > mcpErrorRateThreshold || (len(inputs) > 0 && float64(connected)/float64(len(inputs)) < mcpConnectionRateThreshold)
+			report.MCPHealth = append(report.MCPHealth, MCPServerCrossRunHealth{
+				ServerName:    name,
+				RunsConnected: connected,
+				TotalRuns:     len(inputs),
+				TotalCalls:    agg.totalCalls,
+				TotalErrors:   agg.totalErrors,
+				ErrorRate:     errorRate,
+				Unreliable:    unreliable,
+			})
+		}
+	}
+
+	// --- Phase 5: compute error trend averages ---
+	if len(inputs) > 0 {
+		report.ErrorTrend.AvgErrorsPerRun = float64(report.ErrorTrend.TotalErrors) / float64(len(inputs))
+	}
+
+	// --- Phase 6: build domain inventory sorted by domain name ---
 	sortedDomains := make([]string, 0, len(domainMap))
 	for domain := range domainMap {
 		sortedDomains = append(sortedDomains, domain)
@@ -153,7 +327,6 @@ func buildCrossRunFirewallReport(inputs []crossRunInput) *CrossRunFirewallReport
 
 	report.Summary.UniqueDomains = len(sortedDomains)
 
-	// Build a set of run IDs that have data for each domain to fill in "absent"
 	for _, domain := range sortedDomains {
 		agg := domainMap[domain]
 		presentRuns := make(map[int64]bool, len(agg.perRun))
@@ -190,8 +363,102 @@ func buildCrossRunFirewallReport(inputs []crossRunInput) *CrossRunFirewallReport
 		report.DomainInventory = append(report.DomainInventory, entry)
 	}
 
-	auditCrossRunLog.Printf("Cross-run report built: runs=%d, with_data=%d, unique_domains=%d, total_requests=%d",
-		report.RunsAnalyzed, report.RunsWithData, report.Summary.UniqueDomains, report.Summary.TotalRequests)
+	auditCrossRunLog.Printf("Cross-run audit report built: runs=%d, with_data=%d, unique_domains=%d, mcp_servers=%d",
+		report.RunsAnalyzed, report.RunsWithData, report.Summary.UniqueDomains, len(report.MCPHealth))
 
 	return report
+}
+
+// metricsRawRow holds per-run raw metric values for aggregation.
+type metricsRawRow struct {
+	runID    int64
+	cost     float64
+	tokens   int
+	turns    int
+	duration time.Duration
+}
+
+// buildMetricsTrend computes aggregate metrics (min/max/avg/total, spike detection)
+// from a slice of per-run raw metric rows.
+func buildMetricsTrend(rows []metricsRawRow) MetricsTrendData {
+	if len(rows) == 0 {
+		return MetricsTrendData{}
+	}
+
+	trend := MetricsTrendData{
+		MinCost:   rows[0].cost,
+		MaxCost:   rows[0].cost,
+		MinTokens: rows[0].tokens,
+		MaxTokens: rows[0].tokens,
+	}
+
+	var totalDuration time.Duration
+	var minDuration, maxDuration time.Duration
+
+	for i, r := range rows {
+		trend.TotalCost += r.cost
+		trend.TotalTokens += r.tokens
+		trend.TotalTurns += r.turns
+
+		if r.cost > 0 {
+			trend.RunsWithCost++
+		}
+		if r.cost < trend.MinCost {
+			trend.MinCost = r.cost
+		}
+		if r.cost > trend.MaxCost {
+			trend.MaxCost = r.cost
+		}
+		if r.tokens < trend.MinTokens {
+			trend.MinTokens = r.tokens
+		}
+		if r.tokens > trend.MaxTokens {
+			trend.MaxTokens = r.tokens
+		}
+		if r.turns > trend.MaxTurns {
+			trend.MaxTurns = r.turns
+		}
+
+		// Duration stats: only include runs where duration was measured
+		if i == 0 {
+			minDuration = r.duration
+			maxDuration = r.duration
+		} else {
+			if r.duration > 0 && (r.duration < minDuration || minDuration == 0) {
+				minDuration = r.duration
+			}
+			if r.duration > maxDuration {
+				maxDuration = r.duration
+			}
+		}
+		totalDuration += r.duration
+	}
+
+	n := len(rows)
+	if n > 0 {
+		trend.AvgCost = trend.TotalCost / float64(n)
+		trend.AvgTokens = trend.TotalTokens / n
+		trend.AvgTurns = float64(trend.TotalTurns) / float64(n)
+		trend.AvgDurationNs = int64(totalDuration) / int64(n)
+		trend.MinDurationNs = int64(minDuration)
+		trend.MaxDurationNs = int64(maxDuration)
+	}
+
+	// Spike detection: > spikeDetectionMultiplier × average
+	if trend.AvgCost > 0 {
+		for _, r := range rows {
+			if r.cost > spikeDetectionMultiplier*trend.AvgCost {
+				trend.CostSpikes = append(trend.CostSpikes, r.runID)
+			}
+		}
+	}
+	if trend.AvgTokens > 0 {
+		for _, r := range rows {
+			if r.tokens > int(spikeDetectionMultiplier*float64(trend.AvgTokens)) {
+				trend.TokenSpikes = append(trend.TokenSpikes, r.runID)
+			}
+		}
+	}
+
+	return trend
 }
