@@ -131,6 +131,7 @@ func TestParseCopilotCodingAgentLogMetrics(t *testing.T) {
 		expectedTurns  int
 		expectedErrors int
 		expectedTools  int
+		expectNoTools  bool // true when the test asserts that zero tool calls are extracted
 	}{
 		{
 			name: "parses agent turns",
@@ -165,6 +166,30 @@ Executing tool: read
 			expectedTools: 4,
 		},
 		{
+			name: "extracts tool from bullet point format",
+			logContent: `
+● startHttpServer
+● noop
+● label_agent
+`,
+			expectedTools: 3,
+		},
+		{
+			name: "does not extract common English words as tool names",
+			logContent: `
+The agent tool calls a command which launches the unified process
+Since the tool or alternative is needed, we use it
+The tool calls for analysis
+tool call to the API
+The agent is making tool calls with certain parameters
+agent calls a bash command
+executing something important
+calling the helper function
+`,
+			expectedTools: 0,
+			expectNoTools: true,
+		},
+		{
 			name: "extracts token usage from JSON",
 			logContent: `
 {"token_usage": 1500, "estimated_cost": 0.05}
@@ -182,6 +207,7 @@ Task step 1 complete
 			expectedTurns:  0,
 			expectedErrors: 0,
 			expectedTools:  0,
+			expectNoTools:  true,
 		},
 	}
 
@@ -195,6 +221,14 @@ Task step 1 complete
 
 			if tt.expectedTools > 0 && len(metrics.ToolCalls) < 1 {
 				t.Errorf("Expected tool calls to be detected, got none")
+			}
+
+			if tt.expectNoTools && len(metrics.ToolCalls) > 0 {
+				var names []string
+				for _, tc := range metrics.ToolCalls {
+					names = append(names, tc.Name)
+				}
+				t.Errorf("Expected no tool calls, but got %d: %v", len(metrics.ToolCalls), names)
 			}
 		})
 	}
@@ -230,6 +264,48 @@ func TestExtractToolName(t *testing.T) {
 			name:     "returns empty for no match",
 			line:     "Just a regular log line",
 			expected: "",
+		},
+		// False positive prevention: common English words near "tool" without colon separator
+		{
+			name:     "does not extract 'calls' from 'tool calls' in prose",
+			line:     "The agent tool calls a command",
+			expected: "",
+		},
+		{
+			name:     "does not extract 'call' from 'tool call' without colon",
+			line:     "Making a tool call to the API",
+			expected: "",
+		},
+		{
+			name:     "does not extract 'or' from 'tool or' in prose",
+			line:     "The tool or alternative approach",
+			expected: "",
+		},
+		{
+			name:     "does not extract 'for' from 'tool for' in prose",
+			line:     "Use a tool for building the project",
+			expected: "",
+		},
+		{
+			name:     "does not extract word from 'calling' without colon",
+			line:     "The agent is calling a function here",
+			expected: "",
+		},
+		// Bullet point format
+		{
+			name:     "extracts tool name from bullet point format",
+			line:     "● startHttpServer",
+			expected: "startHttpServer",
+		},
+		{
+			name:     "extracts snake_case tool name from bullet point",
+			line:     "● label_agent",
+			expected: "label_agent",
+		},
+		{
+			name:     "extracts tool from bullet with leading whitespace",
+			line:     "  ● noop",
+			expected: "noop",
 		},
 	}
 
