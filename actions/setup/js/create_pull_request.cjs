@@ -42,9 +42,11 @@ const MANAGED_FALLBACK_ISSUE_LABEL = "agentic-workflows";
 
 /**
  * Determines if a label API error is transient and worth retrying.
- * Extends the standard transient error check with the GitHub race condition where
- * a newly-created PR's node ID is not immediately resolvable via the REST/GraphQL
- * bridge, resulting in an "unprocessable" validation error.
+ * Returns true for:
+ *  - The GitHub race condition where a newly-created PR's node ID is not immediately
+ *    resolvable via the REST/GraphQL bridge (unprocessable validation error).
+ *  - Any standard transient error matched by {@link isTransientError} (network issues,
+ *    rate limits, 5xx gateway errors, etc.).
  * @param {any} error - The error to check
  * @returns {boolean} True if the error is transient and should be retried
  */
