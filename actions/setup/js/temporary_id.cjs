@@ -567,8 +567,22 @@ function resolveNumberFromTemporaryId(value, resolvedTemporaryIds) {
     return { resolved: Number(entry.number), wasTemporaryId: true, errorMessage: null };
   }
 
-  const num = parseInt(withoutHash, 10);
-  if (isNaN(num) || num < 1) {
+  // Strict integer check: only accept pure numeric strings or actual numbers.
+  // parseInt("42abc") returns 42 which would pass NaN/isInteger checks, so we
+  // validate the raw string contains only digits before converting.
+  let num;
+  if (typeof value === "number") {
+    num = value;
+  } else if (/^\d+$/.test(withoutHash)) {
+    num = parseInt(withoutHash, 10);
+  } else {
+    return {
+      resolved: null,
+      wasTemporaryId: false,
+      errorMessage: `Invalid number: ${value}. Expected a positive integer or a temporary ID (e.g., aw_disc1, aw_issue1).`,
+    };
+  }
+  if (!Number.isInteger(num) || num < 1) {
     return {
       resolved: null,
       wasTemporaryId: false,

@@ -907,6 +907,22 @@ describe("temporary_id.cjs", () => {
       expect(result.errorMessage).toContain("Invalid number");
     });
 
+    it("should reject partially-numeric strings like '42abc'", async () => {
+      const { resolveNumberFromTemporaryId } = await import("./temporary_id.cjs");
+      const result = resolveNumberFromTemporaryId("42abc", null);
+      expect(result.resolved).toBeNull();
+      expect(result.wasTemporaryId).toBe(false);
+      expect(result.errorMessage).toContain("Invalid number");
+    });
+
+    it("should reject decimal strings like '3.14'", async () => {
+      const { resolveNumberFromTemporaryId } = await import("./temporary_id.cjs");
+      const result = resolveNumberFromTemporaryId("3.14", null);
+      expect(result.resolved).toBeNull();
+      expect(result.wasTemporaryId).toBe(false);
+      expect(result.errorMessage).toContain("Invalid number");
+    });
+
     it("should return error for missing value", async () => {
       const { resolveNumberFromTemporaryId } = await import("./temporary_id.cjs");
       const result = resolveNumberFromTemporaryId(null, null);
