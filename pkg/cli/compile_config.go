@@ -1,13 +1,5 @@
 package cli
 
-import (
-	"github.com/github/gh-aw/pkg/logger"
-	"github.com/github/gh-aw/pkg/sliceutil"
-	"github.com/github/gh-aw/pkg/stringutil"
-)
-
-var compileConfigLog = logger.New("cli:compile_config")
-
 // CompileConfig holds configuration options for compiling workflows
 type CompileConfig struct {
 	MarkdownFiles          []string // Files to compile (empty for all files)
@@ -67,34 +59,4 @@ type ValidationResult struct {
 	Errors       []CompileValidationError `json:"errors"`
 	Warnings     []CompileValidationError `json:"warnings"`
 	CompiledFile string                   `json:"compiled_file,omitempty"`
-}
-
-// sanitizeValidationResults creates a sanitized copy of validation results with all
-// error and warning messages sanitized to remove potential secret key names.
-// This is applied at the JSON output boundary to ensure no sensitive information
-// is leaked regardless of where error messages originated.
-func sanitizeValidationResults(results []ValidationResult) []ValidationResult {
-	if results == nil {
-		return nil
-	}
-
-	compileConfigLog.Printf("Sanitizing validation results: workflow_count=%d", len(results))
-
-	sanitizeError := func(e CompileValidationError) CompileValidationError {
-		return CompileValidationError{
-			Type:    e.Type,
-			Message: stringutil.SanitizeErrorMessage(e.Message),
-			Line:    e.Line,
-		}
-	}
-
-	return sliceutil.Map(results, func(result ValidationResult) ValidationResult {
-		return ValidationResult{
-			Workflow:     result.Workflow,
-			Valid:        result.Valid,
-			CompiledFile: result.CompiledFile,
-			Errors:       sliceutil.Map(result.Errors, sanitizeError),
-			Warnings:     sliceutil.Map(result.Warnings, sanitizeError),
-		}
-	})
 }

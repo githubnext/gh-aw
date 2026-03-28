@@ -1,3 +1,28 @@
+// Package workflow provides utility functions for MCP configuration processing
+// and rendering.
+//
+// # MCP Rendering
+//
+// This file consolidates MCP infrastructure helpers: URL rewriting for Docker
+// networking and shared rendering functions used across multiple engines
+// (Claude, Gemini, Copilot, Codex).
+//
+// URL rewriting:
+// When MCP servers run on the host machine (like safe-outputs HTTP server
+// on port 3001) but need to be accessed from within a Docker container
+// (like the firewall container running the AI agent), localhost URLs must
+// be rewritten to use host.docker.internal.
+//
+// Supported URL patterns:
+//   - http://localhost:port → http://host.docker.internal:port
+//   - https://localhost:port → https://host.docker.internal:port
+//   - http://127.0.0.1:port → http://host.docker.internal:port
+//   - https://127.0.0.1:port → https://host.docker.internal:port
+//
+// Related files:
+//   - mcp_renderer.go: Uses URL rewriting for HTTP MCP servers
+//   - safe_outputs.go: Safe outputs HTTP server configuration
+//   - mcp_scripts.go: MCP Scripts HTTP server configuration
 package workflow
 
 import (
@@ -6,7 +31,51 @@ import (
 	"github.com/github/gh-aw/pkg/logger"
 )
 
-var mcpRendererHelpersLog = logger.New("workflow:mcp_renderer_helpers")
+var mcpRenderingLog = logger.New("workflow:mcp-rendering")
+
+// rewriteLocalhostToDockerHost rewrites localhost URLs to use host.docker.internal
+// This is necessary when MCP servers run on the host machine but are accessed from within
+// a Docker container (e.g., when firewall/sandbox is enabled)
+func rewriteLocalhostToDockerHost(url string) string {
+	// Define the localhost patterns to replace and their docker equivalents
+	// Each pattern is a (prefix, replacement) pair
+	replacements := []struct {
+		prefix      string
+		replacement string
+	}{
+		{"http://localhost", "http://host.docker.internal"},
+		{"https://localhost", "https://host.docker.internal"},
+		{"http://127.0.0.1", "http://host.docker.internal"},
+		{"https://127.0.0.1", "https://host.docker.internal"},
+	}
+
+	for _, r := range replacements {
+		if strings.HasPrefix(url, r.prefix) {
+			newURL := r.replacement + url[len(r.prefix):]
+			mcpRenderingLog.Printf("Rewriting localhost URL for Docker access: %s -> %s", url, newURL)
+			return newURL
+		}
+	}
+
+	return url
+}
+
+// shouldRewriteLocalhostToDocker returns true when MCP server localhost URLs should be
+// rewritten to host.docker.internal so that containerised AI agents can reach servers
+// running on the host. Rewriting is enabled whenever the agent sandbox is active
+// (i.e. sandbox.agent is not explicitly disabled).
+func shouldRewriteLocalhostToDocker(workflowData *WorkflowData) bool {
+	result := workflowData != nil && (workflowData.SandboxConfig == nil ||
+		workflowData.SandboxConfig.Agent == nil ||
+		!workflowData.SandboxConfig.Agent.Disabled)
+	mcpRenderingLog.Printf("shouldRewriteLocalhostToDocker: %v (agent sandbox active)", result)
+	return result
+}
+
+// noOpCacheMemoryRenderer is a no-op MCPToolRenderers.RenderCacheMemory function for engines
+// that do not need an MCP server entry for cache-memory. Cache-memory is a simple file share
+// accessible at /tmp/gh-aw/cache-memory/ and requires no MCP configuration.
+func noOpCacheMemoryRenderer(_ *strings.Builder, _ bool, _ *WorkflowData) {}
 
 // renderStandardJSONMCPConfig is a shared helper for JSON MCP config rendering used by
 // Claude, Gemini, Copilot, and Codex engines. It consolidates the repeated sequence of:
@@ -35,7 +104,7 @@ func renderStandardJSONMCPConfig(
 	renderCustom RenderCustomMCPToolConfigHandler,
 	filterTool func(string) bool,
 ) error {
-	mcpRendererHelpersLog.Printf("Rendering standard JSON MCP config: config_path=%s tools=%d mcp_tools=%d", configPath, len(tools), len(mcpTools))
+	mcpRenderingLog.Printf("Rendering standard JSON MCP config: config_path=%s tools=%d mcp_tools=%d", configPath, len(tools), len(mcpTools))
 	createRenderer := buildMCPRendererFactory(workflowData, "json", includeCopilotFields, inlineArgs)
 	return RenderJSONMCPConfig(yaml, tools, mcpTools, workflowData, JSONMCPConfigOptions{
 		ConfigPath:    configPath,

@@ -57,6 +57,7 @@ async function main() {
   const workflowName = process.env.GH_AW_WORKFLOW_NAME || "Workflow";
   const agentConclusion = process.env.GH_AW_AGENT_CONCLUSION || "failure";
   const detectionConclusion = process.env.GH_AW_DETECTION_CONCLUSION;
+  const assignToAgentErrorCount = parseInt(process.env.GH_AW_ASSIGNMENT_ERROR_COUNT || "0", 10);
 
   const messagesConfig = getMessages();
   const appendOnlyComments = messagesConfig?.appendOnlyComments === true;
@@ -74,6 +75,9 @@ async function main() {
   core.info(`Agent Conclusion: ${agentConclusion}`);
   if (detectionConclusion) {
     core.info(`Detection Conclusion: ${detectionConclusion}`);
+  }
+  if (assignToAgentErrorCount > 0) {
+    core.info(`Assignment Error Count: ${assignToAgentErrorCount}`);
   }
 
   // Load agent output to check for noop messages
@@ -133,7 +137,7 @@ async function main() {
       workflowName,
       runUrl,
     });
-  } else if (agentConclusion === "success") {
+  } else if (agentConclusion === "success" && assignToAgentErrorCount === 0) {
     message = getRunSuccessMessage({
       workflowName,
       runUrl,
@@ -141,7 +145,10 @@ async function main() {
   } else {
     // Determine status text based on conclusion type
     let statusText;
-    if (agentConclusion === "cancelled") {
+    if (agentConclusion === "success" && assignToAgentErrorCount > 0) {
+      // Agent itself succeeded but one or more agent assignments failed
+      statusText = "failed to assign the coding agent";
+    } else if (agentConclusion === "cancelled") {
       statusText = "was cancelled";
     } else if (agentConclusion === "skipped") {
       statusText = "was skipped";

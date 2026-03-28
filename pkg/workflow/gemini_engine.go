@@ -261,6 +261,9 @@ func (e *GeminiEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 			// inside the sandbox. The agent writes its step summary content here, and the
 			// file is appended to $GITHUB_STEP_SUMMARY after secret redaction.
 			PathSetup: "touch " + AgentStepSummaryPath,
+			// Exclude every env var whose step-env value is a secret so the agent
+			// cannot read raw token values via bash tools (env / printenv).
+			ExcludeEnvVarNames: ComputeAWFExcludeEnvVarNames(workflowData, []string{"GEMINI_API_KEY"}),
 		})
 	} else {
 		command = fmt.Sprintf(`set -o pipefail

@@ -421,7 +421,7 @@ function buildCodePushFailureContext(codePushFailureErrors, pullRequest = null, 
       }
     }
 
-    context += "\nTo manually apply the patch:\n\n";
+    context += "\n<details>\n<summary><b>📋 Apply the patch manually</b></summary>\n\n";
     if (runId) {
       context += `\`\`\`sh
 # Download the patch artifact from the workflow run
@@ -448,7 +448,7 @@ ${runUrl ? `\nThe patch artifact is available at: [View run and download artifac
     } else {
       context += "Download the patch artifact from the workflow run, then apply it with `git am --3way <patch-file>`.\n";
     }
-    context += "\n";
+    context += "\n</details>\n";
   }
 
   // Generic code-push failure section

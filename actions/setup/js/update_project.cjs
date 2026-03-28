@@ -8,6 +8,16 @@ const { logStagedPreviewInfo } = require("./staged_preview.cjs");
 const { isStagedMode } = require("./safe_output_helpers.cjs");
 const { ERR_API, ERR_CONFIG, ERR_NOT_FOUND, ERR_PARSE, ERR_VALIDATION } = require("./error_codes.cjs");
 const { parseRepoSlug, resolveTargetRepoConfig, isRepoAllowed } = require("./repo_helpers.cjs");
+const { logGraphQLError } = require("./github_api_helpers.cjs");
+
+/** @type {import('./github_api_helpers.cjs').GraphQLErrorHints} */
+const PROJECT_GRAPHQL_HINTS = {
+  insufficientScopesHint:
+    "This looks like a token permission problem for Projects v2. The GraphQL fields used by update_project require a token with Projects access (classic PAT: scope 'project'; fine-grained PAT: Organization permission 'Projects' and access to the org). Fix: set safe-outputs.update-project.github-token to a secret PAT that can access the target org project.",
+  notFoundHint:
+    "GitHub returned NOT_FOUND for ProjectV2. This can mean either: (1) the project number is wrong for Projects v2, (2) the project is a classic Projects board (not Projects v2), or (3) the token does not have access to that org/user project.",
+  notFoundPredicate: msg => /projectV2\b/.test(msg),
+};
 
 /**
  * Normalize agent output keys for update_project.
@@ -35,43 +45,6 @@ function normalizeUpdateProjectOutput(value) {
   if (output.field_definitions === undefined && output.fieldDefinitions !== undefined) output.field_definitions = output.fieldDefinitions;
 
   return output;
-}
-
-/**
- * Log detailed GraphQL error information
- * @param {Error & { errors?: Array<{ type?: string, message: string, path?: unknown, locations?: unknown }>, request?: unknown, data?: unknown }} error - GraphQL error
- * @param {string} operation - Operation description
- */
-function logGraphQLError(error, operation) {
-  core.info(`GraphQL Error during: ${operation}`);
-  core.info(`Message: ${getErrorMessage(error)}`);
-
-  const errorList = Array.isArray(error.errors) ? error.errors : [];
-  const hasInsufficientScopes = errorList.some(e => e?.type === "INSUFFICIENT_SCOPES");
-  const hasNotFound = errorList.some(e => e?.type === "NOT_FOUND");
-
-  if (hasInsufficientScopes) {
-    core.info(
-      "This looks like a token permission problem for Projects v2. The GraphQL fields used by update_project require a token with Projects access (classic PAT: scope 'project'; fine-grained PAT: Organization permission 'Projects' and access to the org). Fix: set safe-outputs.update-project.github-token to a secret PAT that can access the target org project."
-    );
-  } else if (hasNotFound && /projectV2\b/.test(getErrorMessage(error))) {
-    core.info(
-      "GitHub returned NOT_FOUND for ProjectV2. This can mean either: (1) the project number is wrong for Projects v2, (2) the project is a classic Projects board (not Projects v2), or (3) the token does not have access to that org/user project."
-    );
-  }
-
-  if (error.errors) {
-    core.info(`Errors array (${error.errors.length} error(s)):`);
-    error.errors.forEach((err, idx) => {
-      core.info(`  [${idx + 1}] ${err.message}`);
-      if (err.type) core.info(`      Type: ${err.type}`);
-      if (err.path) core.info(`      Path: ${JSON.stringify(err.path)}`);
-      if (err.locations) core.info(`      Locations: ${JSON.stringify(err.locations)}`);
-    });
-  }
-
-  if (error.request) core.info(`Request: ${JSON.stringify(error.request, null, 2)}`);
-  if (error.data) core.info(`Response data: ${JSON.stringify(error.data, null, 2)}`);
 }
 /**
  * Parse project number from URL
@@ -528,7 +501,7 @@ async function updateProject(output, temporaryIdMap = new Map(), githubClient = 
     } catch (err) {
       // prettier-ignore
       const error = /** @type {Error & { errors?: Array<{ type?: string, message: string, path?: unknown, locations?: unknown }>, request?: unknown, data?: unknown }} */ (err);
-      logGraphQLError(error, "Fetching repository information");
+      logGraphQLError(error, "Fetching repository information", PROJECT_GRAPHQL_HINTS);
       throw error;
     }
 
@@ -577,7 +550,7 @@ async function updateProject(output, temporaryIdMap = new Map(), githubClient = 
     } catch (err) {
       // prettier-ignore
       const error = /** @type {Error & { errors?: Array<{ type?: string, message: string, path?: unknown, locations?: unknown }>, request?: unknown, data?: unknown }} */ (err);
-      logGraphQLError(error, "Resolving project from URL");
+      logGraphQLError(error, "Resolving project from URL", PROJECT_GRAPHQL_HINTS);
       throw error;
     }
 
@@ -1389,7 +1362,7 @@ async function main(config = {}, githubClient = null) {
             // prettier-ignore
             const error = /** @type {Error & { errors?: Array<{ type?: string, message: string, path?: unknown, locations?: unknown }>, request?: unknown, data?: unknown }} */ (err);
             core.error("Failed to create configured fields");
-            logGraphQLError(error, "Creating configured fields");
+            logGraphQLError(error, "Creating configured fields", PROJECT_GRAPHQL_HINTS);
           }
         }
       }
@@ -1446,7 +1419,7 @@ async function main(config = {}, githubClient = null) {
             // prettier-ignore
             const error = /** @type {Error & { errors?: Array<{ type?: string, message: string, path?: unknown, locations?: unknown }>, request?: unknown, data?: unknown }} */ (err);
             core.error(`Failed to create configured view ${i + 1}: ${viewConfig.name}`);
-            logGraphQLError(error, `Creating configured view: ${viewConfig.name}`);
+            logGraphQLError(error, `Creating configured view: ${viewConfig.name}`, PROJECT_GRAPHQL_HINTS);
           }
         }
       }
@@ -1466,7 +1439,7 @@ async function main(config = {}, githubClient = null) {
     } catch (err) {
       // prettier-ignore
       const error = /** @type {Error & { errors?: Array<{ type?: string, message: string, path?: unknown, locations?: unknown }>, request?: unknown, data?: unknown }} */ (err);
-      logGraphQLError(error, "update_project");
+      logGraphQLError(error, "update_project", PROJECT_GRAPHQL_HINTS);
       return {
         success: false,
         error: getErrorMessage(error),

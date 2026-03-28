@@ -332,6 +332,9 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 			UsesTTY:        true, // Claude Code CLI requires TTY
 			AllowedDomains: allowedDomains,
 			PathSetup:      hostSetup, // Runs BEFORE AWF on the host (prompt setup + summary file creation)
+			// Exclude every env var whose step-env value is a secret so the agent
+			// cannot read raw token values via bash tools (env / printenv).
+			ExcludeEnvVarNames: ComputeAWFExcludeEnvVarNames(workflowData, []string{"ANTHROPIC_API_KEY"}),
 		})
 	} else {
 		// Run Claude command without AWF wrapper

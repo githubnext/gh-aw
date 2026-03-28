@@ -14,7 +14,15 @@ const { validateLabels } = require("./safe_output_validator.cjs");
 const { tryEnforceArrayLimit } = require("./limit_enforcement_helpers.cjs");
 const { MAX_LABELS } = require("./constants.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
+const { logGraphQLError } = require("./github_api_helpers.cjs");
 const { resolveNumberFromTemporaryId } = require("./temporary_id.cjs");
+
+/** @type {import('./github_api_helpers.cjs').GraphQLErrorHints} */
+const DISCUSSION_GRAPHQL_HINTS = {
+  insufficientScopesHint:
+    "This looks like a token permission problem. The GitHub token requires 'discussions: write' permission. Add 'permissions: discussions: write' to your workflow, or set 'safe-outputs.update-discussion.github-token' to a PAT with the appropriate scopes.",
+  notFoundHint: "GitHub returned NOT_FOUND for the discussion. Check that the discussion number is correct and that the token has read access to the repository.",
+};
 
 /**
  * Fetches label node IDs for the given label names from the repository
@@ -133,11 +141,19 @@ async function executeDiscussionUpdate(github, context, discussionNumber, update
     }
   `;
 
-  const queryResult = await github.graphql(getDiscussionQuery, {
-    owner: context.repo.owner,
-    repo: context.repo.repo,
-    number: discussionNumber,
-  });
+  let queryResult;
+  try {
+    queryResult = await github.graphql(getDiscussionQuery, {
+      owner: context.repo.owner,
+      repo: context.repo.repo,
+      number: discussionNumber,
+    });
+  } catch (err) {
+    // prettier-ignore
+    const fetchError = /** @type {any} */ (err);
+    logGraphQLError(fetchError, `fetch discussion #${discussionNumber} from ${context.repo.owner}/${context.repo.repo}`, DISCUSSION_GRAPHQL_HINTS);
+    throw fetchError;
+  }
 
   const discussion = queryResult?.repository?.discussion;
   if (!discussion) {
@@ -173,8 +189,15 @@ async function executeDiscussionUpdate(github, context, discussionNumber, update
       body: hasBodyUpdate ? updateData.body : discussion.body,
     };
 
-    const mutationResult = await github.graphql(mutation, variables);
-    updatedDiscussion = mutationResult.updateDiscussion.discussion;
+    try {
+      const mutationResult = await github.graphql(mutation, variables);
+      updatedDiscussion = mutationResult.updateDiscussion.discussion;
+    } catch (err) {
+      // prettier-ignore
+      const mutationError = /** @type {any} */ (err);
+      logGraphQLError(mutationError, `updateDiscussion mutation for discussion #${discussionNumber} in ${context.repo.owner}/${context.repo.repo}`, DISCUSSION_GRAPHQL_HINTS);
+      throw mutationError;
+    }
   }
 
   // Handle label replacement if labels were provided
