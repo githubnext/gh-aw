@@ -271,7 +271,7 @@
             "number",
             "string"
           ],
-          "description": "The issue, pull request, or discussion number to comment on. This is the numeric ID from the GitHub URL (e.g., 123 in github.com/owner/repo/issues/123). Can also be a temporary_id (e.g., 'aw_abc123') from a previously created issue in the same workflow run. If omitted, the tool auto-targets the issue, PR, or discussion that triggered this workflow. Auto-targeting only works for issue, pull_request, discussion, and comment event triggers \u2014 it does NOT work for schedule, workflow_dispatch, push, or workflow_run triggers. For those trigger types, always provide item_number explicitly, or the tool call will fail with an error."
+          "description": "The issue, pull request, or discussion number to comment on. This is the numeric ID from the GitHub URL (e.g., 123 in github.com/owner/repo/issues/123). Can also be a temporary_id (e.g., 'aw_abc123') from a previously created issue in the same workflow run. If omitted, the tool auto-targets the issue, PR, or discussion that triggered this workflow. Auto-targeting only works for issue, pull_request, discussion, and comment event triggers — it does NOT work for schedule, workflow_dispatch, push, or workflow_run triggers. For those trigger types, always provide item_number explicitly, or the tool call will fail with an error."
         },
         "temporary_id": {
           "type": "string",
@@ -370,7 +370,7 @@
             "number",
             "string"
           ],
-          "description": "Pull request number to add the review comment to. This is the numeric ID from the GitHub URL (e.g., 876 in github.com/owner/repo/pull/876). If omitted, adds the comment to the PR that triggered this workflow. Required when the workflow target is '*' (any PR) \u2014 omitting it will cause the comment to fail."
+          "description": "Pull request number to add the review comment to. This is the numeric ID from the GitHub URL (e.g., 876 in github.com/owner/repo/pull/876). If omitted, adds the comment to the PR that triggered this workflow. Required when the workflow target is '*' (any PR) — omitting it will cause the comment to fail."
         },
         "start_line": {
           "type": [
@@ -574,7 +574,7 @@
         },
         "item_number": {
           "type": "number",
-          "description": "Issue or PR number to add labels to. This is the numeric ID from the GitHub URL (e.g., 456 in github.com/owner/repo/issues/456). If omitted, adds labels to the issue or PR that triggered this workflow. Only works for issue or pull_request event triggers. For schedule, workflow_dispatch, or other triggers, item_number is required \u2014 omitting it will silently skip the label operation."
+          "description": "Issue or PR number to add labels to. This is the numeric ID from the GitHub URL (e.g., 456 in github.com/owner/repo/issues/456). If omitted, adds labels to the issue or PR that triggered this workflow. Only works for issue or pull_request event triggers. For schedule, workflow_dispatch, or other triggers, item_number is required — omitting it will silently skip the label operation."
         },
         "secrecy": {
           "type": "string",
@@ -641,7 +641,7 @@
             "number",
             "string"
           ],
-          "description": "Pull request number to add reviewers to. This is the numeric ID from the GitHub URL (e.g., 876 in github.com/owner/repo/pull/876). If omitted, adds reviewers to the PR that triggered this workflow. Only works for pull_request event triggers. For workflow_dispatch, schedule, or other triggers, pull_request_number is required \u2014 omitting it will silently skip the reviewer assignment."
+          "description": "Pull request number to add reviewers to. This is the numeric ID from the GitHub URL (e.g., 876 in github.com/owner/repo/pull/876). If omitted, adds reviewers to the PR that triggered this workflow. Only works for pull_request event triggers. For workflow_dispatch, schedule, or other triggers, pull_request_number is required — omitting it will silently skip the reviewer assignment."
         },
         "secrecy": {
           "type": "string",
@@ -657,12 +657,11 @@
   },
   {
     "name": "assign_milestone",
-    "description": "Assign an issue to a milestone for release planning and progress tracking. Milestones must exist in the repository before assignment.",
+    "description": "Assign an issue to a milestone for release planning and progress tracking. Milestones can be specified by number or title. When auto_create is configured, missing milestones are created automatically.",
     "inputSchema": {
       "type": "object",
       "required": [
-        "issue_number",
-        "milestone_number"
+        "issue_number"
       ],
       "properties": {
         "issue_number": {
@@ -677,7 +676,11 @@
             "number",
             "string"
           ],
-          "description": "Milestone number (not title) to assign the issue to. This is the numeric ID from the milestone URL (e.g., 12 in github.com/owner/repo/milestone/12). Find milestone numbers in the repository's Milestones page."
+          "description": "Milestone number to assign the issue to. This is the numeric ID from the milestone URL (e.g., 12 in github.com/owner/repo/milestone/12). Either milestone_number or milestone_title must be provided."
+        },
+        "milestone_title": {
+          "type": "string",
+          "description": "Milestone title to assign the issue to (e.g., \"v1.0\"). Used as an alternative to milestone_number — the handler looks up the milestone by title. Either milestone_number or milestone_title must be provided."
         },
         "secrecy": {
           "type": "string",

@@ -307,6 +307,7 @@ var handlerRegistry = map[string]handlerBuilder{
 			AddStringSlice("allowed_repos", c.AllowedRepos).
 			AddIfNotEmpty("github-token", c.GitHubToken).
 			AddIfTrue("staged", c.Staged).
+			AddIfTrue("auto_create", c.AutoCreate).
 			Build()
 	},
 	"mark_pull_request_as_ready_for_review": func(cfg *SafeOutputsConfig) map[string]any {

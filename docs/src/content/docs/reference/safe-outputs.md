@@ -359,16 +359,19 @@ Use `reviewers: [copilot]` to assign the Copilot PR reviewer bot. See [Assign to
 
 ### Assign Milestone (`assign-milestone:`)
 
-Assigns issues to milestones. Specify `allowed` to restrict to specific milestone titles.
+Assigns issues to milestones. Specify `allowed` to restrict to specific milestone titles. Agents can provide a milestone by title (`milestone_title`) instead of by number (`milestone_number`), and the handler resolves the number internally.
 
 ```yaml wrap
 safe-outputs:
   assign-milestone:
     allowed: [v1.0, v2.0]    # restrict to specific milestone titles
+    auto_create: true         # auto-create milestones in the allowed list if they don't exist
     max: 1                   # max assignments (default: 1)
     target-repo: "owner/repo" # cross-repository
     github-token: ${{ secrets.SOME_CUSTOM_TOKEN }} # optional custom token for permissions
 ```
+
+When `auto_create: true` is set, any milestone from the `allowed` list that does not yet exist in the repository is created automatically before the assignment. Without `auto_create`, the handler returns a clear error listing the available milestones and suggesting `auto_create: true`.
 
 ### Issue Updates (`update-issue:`)
 

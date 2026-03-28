@@ -2997,9 +2997,31 @@ This section provides complete definitions for all remaining safe output types. 
 - `issues: write` - Milestone assignment operations
 - `metadata: read` - Repository metadata (automatically granted)
 
+**Configuration Options**:
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `allowed` | `string[]` | `[]` | Restrict assignments to milestones with these titles |
+| `auto_create` | `boolean` | `false` | Auto-create milestones from the `allowed` list if they don't exist |
+| `max` | `number` | `1` | Maximum number of assignments |
+| `target-repo` | `string` | — | Cross-repository target (`owner/repo`) |
+| `github-token` | `string` | — | Custom token for elevated permissions |
+
+**Agent Output Fields**:
+
+| Field | Required | Description |
+|-------|----------|-------------|
+| `issue_number` | Yes | Issue number or temporary ID to assign the milestone to |
+| `milestone_number` | No* | Numeric milestone ID. Either this or `milestone_title` is required. |
+| `milestone_title` | No* | Milestone title (e.g., `"v1.0"`). Resolved to a number internally. Either this or `milestone_number` is required. |
+
+\* At least one of `milestone_number` or `milestone_title` must be provided.
+
 **Notes**:
 
-- Milestone must exist in repository
+- Milestones must exist in the repository unless `auto_create: true` is set
+- When `auto_create: true`, missing milestones are created automatically before assignment
+- Without `auto_create`, the handler returns a clear error listing available milestones
 - Replaces any existing milestone assignment
 
 ---

@@ -31,6 +31,7 @@ const mockGithub = {
     issues: {
       update: vi.fn(),
       listMilestones: vi.fn(),
+      createMilestone: vi.fn(),
     },
   },
 };
@@ -207,7 +208,7 @@ describe("assign_milestone (Handler Factory Architecture)", () => {
     const result = await handler(message, {});
 
     expect(result.success).toBe(false);
-    expect(result.error).toContain("Invalid milestone_number");
+    expect(result.error).toContain("Either milestone_number or milestone_title must be provided");
   });
 
   it("should resolve a temporary ID for issue_number", async () => {
@@ -248,6 +249,132 @@ describe("assign_milestone (Handler Factory Architecture)", () => {
 
     expect(result.success).toBe(false);
     expect(result.deferred).toBe(true);
+    expect(mockGithub.rest.issues.update).not.toHaveBeenCalled();
+  });
+
+  it("should resolve milestone by title when milestone_number is not provided", async () => {
+    const { main } = require("./assign_milestone.cjs");
+    const handlerWithTitle = await main({ max: 10 });
+
+    mockGithub.rest.issues.listMilestones.mockResolvedValue({
+      data: [
+        { number: 5, title: "v1.0" },
+        { number: 6, title: "v2.0" },
+      ],
+    });
+    mockGithub.rest.issues.update.mockResolvedValue({});
+
+    const message = {
+      type: "assign_milestone",
+      issue_number: 42,
+      milestone_title: "v1.0",
+    };
+
+    const result = await handlerWithTitle(message, {});
+
+    expect(result.success).toBe(true);
+    expect(result.milestone_number).toBe(5);
+    expect(mockGithub.rest.issues.listMilestones).toHaveBeenCalled();
+    expect(mockGithub.rest.issues.update).toHaveBeenCalledWith({
+      owner: "test-owner",
+      repo: "test-repo",
+      issue_number: 42,
+      milestone: 5,
+    });
+  });
+
+  it("should error when milestone_title not found and auto_create is false", async () => {
+    const { main } = require("./assign_milestone.cjs");
+    const handlerNoAutoCreate = await main({ max: 10 });
+
+    mockGithub.rest.issues.listMilestones.mockResolvedValue({
+      data: [{ number: 5, title: "v1.0" }],
+    });
+
+    const message = {
+      type: "assign_milestone",
+      issue_number: 42,
+      milestone_title: "v3.0",
+    };
+
+    const result = await handlerNoAutoCreate(message, {});
+
+    expect(result.success).toBe(false);
+    expect(result.error).toContain("not found in repository");
+    expect(result.error).toContain("auto_create: true");
+    expect(mockGithub.rest.issues.createMilestone).not.toHaveBeenCalled();
+    expect(mockGithub.rest.issues.update).not.toHaveBeenCalled();
+  });
+
+  it("should auto-create milestone when auto_create is true and title not found", async () => {
+    const { main } = require("./assign_milestone.cjs");
+    const handlerAutoCreate = await main({ max: 10, auto_create: true });
+
+    mockGithub.rest.issues.listMilestones.mockResolvedValue({
+      data: [],
+    });
+    mockGithub.rest.issues.createMilestone.mockResolvedValue({
+      data: { number: 7, title: "v3.0" },
+    });
+    mockGithub.rest.issues.update.mockResolvedValue({});
+
+    const message = {
+      type: "assign_milestone",
+      issue_number: 42,
+      milestone_title: "v3.0",
+    };
+
+    const result = await handlerAutoCreate(message, {});
+
+    expect(result.success).toBe(true);
+    expect(result.milestone_number).toBe(7);
+    expect(mockGithub.rest.issues.createMilestone).toHaveBeenCalledWith({
+      owner: "test-owner",
+      repo: "test-repo",
+      title: "v3.0",
+    });
+    expect(mockGithub.rest.issues.update).toHaveBeenCalledWith({
+      owner: "test-owner",
+      repo: "test-repo",
+      issue_number: 42,
+      milestone: 7,
+    });
+  });
+
+  it("should error with available milestones listed when milestone number not found in allowed list", async () => {
+    const { main } = require("./assign_milestone.cjs");
+    const handlerWithAllowed = await main({
+      max: 10,
+      allowed: ["v1.0", "v2.0"],
+    });
+
+    mockGithub.rest.issues.listMilestones.mockResolvedValue({
+      data: [{ number: 5, title: "v1.0" }],
+    });
+
+    const message = {
+      type: "assign_milestone",
+      issue_number: 42,
+      milestone_number: 99,
+    };
+
+    const result = await handlerWithAllowed(message, {});
+
+    expect(result.success).toBe(false);
+    expect(result.error).toContain("not found in repository");
+    expect(mockGithub.warning || mockCore.warning).toBeDefined();
+  });
+
+  it("should error when neither milestone_number nor milestone_title is provided", async () => {
+    const message = {
+      type: "assign_milestone",
+      issue_number: 42,
+    };
+
+    const result = await handler(message, {});
+
+    expect(result.success).toBe(false);
+    expect(result.error).toBe("Either milestone_number or milestone_title must be provided");
     expect(mockGithub.rest.issues.update).not.toHaveBeenCalled();
   });
 });

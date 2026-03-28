@@ -15,6 +15,26 @@ const { loadTemporaryIdMapFromResolved, resolveRepoIssueTarget } = require("./te
 const HANDLER_TYPE = "assign_milestone";
 
 /**
+ * Formats milestones as a human-readable list of titles (e.g., '"v1.0", "v2.0"').
+ * @param {Array<{title: string}>|null} milestones
+ * @returns {string}
+ */
+function formatAvailableMilestones(milestones) {
+  if (!milestones || milestones.length === 0) return "none";
+  return milestones.map(m => `"${m.title}"`).join(", ");
+}
+
+/**
+ * Formats milestones as a human-readable list with numbers (e.g., '"v1.0" (#5), "v2.0" (#6)').
+ * @param {Array<{title: string, number: number}>|null} milestones
+ * @returns {string}
+ */
+function formatAvailableMilestonesWithNumbers(milestones) {
+  if (!milestones || milestones.length === 0) return "none";
+  return milestones.map(m => `"${m.title}" (#${m.number})`).join(", ");
+}
+
+/**
  * Main handler factory for assign_milestone
  * Returns a message handler function that processes individual assign_milestone messages
  * @type {HandlerFactoryFunction}
@@ -23,12 +43,13 @@ async function main(config = {}) {
   // Extract configuration
   const allowedMilestones = config.allowed || [];
   const maxCount = config.max || 10;
+  const autoCreate = config.auto_create === true;
   const githubClient = await createAuthenticatedGitHubClient(config);
 
   // Check if we're in staged mode
   const isStaged = isStagedMode(config);
 
-  core.info(`Assign milestone configuration: max=${maxCount}`);
+  core.info(`Assign milestone configuration: max=${maxCount}, auto_create=${autoCreate}`);
   if (allowedMilestones.length > 0) {
     core.info(`Allowed milestones: ${allowedMilestones.join(", ")}`);
   }
@@ -38,6 +59,31 @@ async function main(config = {}) {
 
   // Cache milestones to avoid fetching multiple times
   let allMilestones = null;
+
+  /**
+   * Fetch all milestones from the repository and cache the result.
+   * @returns {Promise<boolean>} True on success, false on failure (result already set).
+   */
+  async function fetchMilestonesIfNeeded() {
+    if (allMilestones !== null) {
+      return true;
+    }
+    try {
+      const milestonesResponse = await githubClient.rest.issues.listMilestones({
+        owner: context.repo.owner,
+        repo: context.repo.repo,
+        state: "all",
+        per_page: 100,
+      });
+      allMilestones = milestonesResponse.data;
+      core.info(`Fetched ${allMilestones.length} milestones from repository`);
+      return true;
+    } catch (error) {
+      const errorMessage = getErrorMessage(error);
+      core.error(`Failed to fetch milestones: ${errorMessage}`);
+      return false;
+    }
+  }
 
   /**
    * Message handler function that processes a single assign_milestone message
@@ -88,33 +134,65 @@ async function main(config = {}) {
       core.info(`Resolved temporary ID '${item.issue_number}' to issue #${issueNumber}`);
     }
 
-    const milestoneNumber = Number(item.milestone_number);
+    let milestoneNumber = Number(item.milestone_number);
+    const milestoneTitle = item.milestone_title || null;
+    const hasMilestoneNumber = !isNaN(milestoneNumber) && milestoneNumber > 0;
 
-    if (isNaN(milestoneNumber) || milestoneNumber <= 0) {
-      core.error(`Invalid milestone_number: ${item.milestone_number}`);
+    // Validate that at least one of milestone_number or milestone_title is provided
+    if (!hasMilestoneNumber && !milestoneTitle) {
+      const msg = "Either milestone_number or milestone_title must be provided";
+      core.error(msg);
       return {
         success: false,
-        error: `Invalid milestone_number: ${item.milestone_number}`,
+        error: msg,
       };
     }
 
-    // Fetch milestones if needed and not already cached
-    if (allowedMilestones.length > 0 && allMilestones === null) {
-      try {
-        const milestonesResponse = await githubClient.rest.issues.listMilestones({
-          owner: context.repo.owner,
-          repo: context.repo.repo,
-          state: "all",
-          per_page: 100,
-        });
-        allMilestones = milestonesResponse.data;
-        core.info(`Fetched ${allMilestones.length} milestones from repository`);
-      } catch (error) {
-        const errorMessage = getErrorMessage(error);
-        core.error(`Failed to fetch milestones: ${errorMessage}`);
+    // Fetch milestones when we have an allowed list or need to resolve a title
+    const needsMilestoneFetch = allowedMilestones.length > 0 || (!hasMilestoneNumber && milestoneTitle !== null);
+    if (needsMilestoneFetch) {
+      const fetched = await fetchMilestonesIfNeeded();
+      if (!fetched) {
         return {
           success: false,
-          error: `Failed to fetch milestones for validation: ${errorMessage}`,
+          error: `Failed to fetch milestones for validation`,
+        };
+      }
+    }
+
+    // Resolve milestone by title if milestone_number is not valid
+    if (!hasMilestoneNumber && milestoneTitle !== null) {
+      const match = allMilestones ? allMilestones.find(m => m.title === milestoneTitle) : null;
+      if (match) {
+        milestoneNumber = match.number;
+        core.info(`Resolved milestone title "${milestoneTitle}" to #${milestoneNumber}`);
+      } else if (autoCreate) {
+        // Create the milestone automatically
+        try {
+          const created = await githubClient.rest.issues.createMilestone({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            title: milestoneTitle,
+          });
+          milestoneNumber = created.data.number;
+          if (allMilestones) {
+            allMilestones.push(created.data);
+          }
+          core.info(`Auto-created milestone "${milestoneTitle}" as #${milestoneNumber}`);
+        } catch (error) {
+          const errorMessage = getErrorMessage(error);
+          core.error(`Failed to create milestone "${milestoneTitle}": ${errorMessage}`);
+          return {
+            success: false,
+            error: `Failed to create milestone "${milestoneTitle}": ${errorMessage}`,
+          };
+        }
+      } else {
+        const available = formatAvailableMilestones(allMilestones);
+        core.warning(`Milestone "${milestoneTitle}" not found in repository. Available: ${available}. Set auto_create: true to create it automatically.`);
+        return {
+          success: false,
+          error: `Milestone "${milestoneTitle}" not found in repository. Set auto_create: true to create it automatically.`,
         };
       }
     }
@@ -124,7 +202,8 @@ async function main(config = {}) {
       const milestone = allMilestones.find(m => m.number === milestoneNumber);
 
       if (!milestone) {
-        core.warning(`Milestone #${milestoneNumber} not found in repository`);
+        const available = formatAvailableMilestonesWithNumbers(allMilestones);
+        core.warning(`Milestone #${milestoneNumber} not found in repository. Available milestones: ${available}`);
         return {
           success: false,
           error: `Milestone #${milestoneNumber} not found in repository`,
