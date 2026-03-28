@@ -370,6 +370,10 @@ const DefaultFirewallVersion Version = "v0.26.0"
 // AWFDefaultCommand is the default AWF command prefix
 const AWFDefaultCommand = "sudo -E awf"
 
+// AWFExcludeEnvMinVersion is the minimum AWF version that supports the --exclude-env flag.
+// Workflows pinning an older AWF version must not emit --exclude-env flags or the run will fail.
+const AWFExcludeEnvMinVersion Version = "v0.26.0"
+
 // AWFProxyLogsDir is the default directory for AWF proxy logs
 const AWFProxyLogsDir = "/tmp/gh-aw/sandbox/firewall/logs"
 

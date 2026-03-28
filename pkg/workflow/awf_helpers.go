@@ -158,16 +158,20 @@ func BuildAWFArgs(config AWFCommandConfig) []string {
 	// handles authentication for these tokens transparently, so the container does not need
 	// the raw values. Excluding them via --exclude-env prevents a prompt-injected agent from
 	// exfiltrating tokens through bash tools such as `env` or `printenv`.
-	// The caller computes ExcludeEnvVarNames from GetRequiredSecretNames() so that every
+	// The caller computes ExcludeEnvVarNames from ComputeAWFExcludeEnvVarNames() so that every
 	// secret-bearing variable is covered — not just a hardcoded subset.
-	// Requires AWF v0.26.0+ for --exclude-env support.
+	// --exclude-env requires AWF v0.26.0+; skip the flags for workflows that pin an older version.
 	awfArgs = append(awfArgs, "--env-all")
-	// Sort for deterministic output in compiled lock files.
-	sortedExclude := make([]string, len(config.ExcludeEnvVarNames))
-	copy(sortedExclude, config.ExcludeEnvVarNames)
-	sort.Strings(sortedExclude)
-	for _, excludedVar := range sortedExclude {
-		awfArgs = append(awfArgs, "--exclude-env", excludedVar)
+	if awfSupportsExcludeEnv(firewallConfig) {
+		// Sort for deterministic output in compiled lock files.
+		sortedExclude := make([]string, len(config.ExcludeEnvVarNames))
+		copy(sortedExclude, config.ExcludeEnvVarNames)
+		sort.Strings(sortedExclude)
+		for _, excludedVar := range sortedExclude {
+			awfArgs = append(awfArgs, "--exclude-env", excludedVar)
+		}
+	} else {
+		awfHelpersLog.Printf("Skipping --exclude-env: AWF version %q is older than minimum %s", getAWFImageTag(firewallConfig), constants.AWFExcludeEnvMinVersion)
 	}
 
 	// Note: --container-workdir "${GITHUB_WORKSPACE}" and --mount "${RUNNER_TEMP}/gh-aw:..."
@@ -534,4 +538,35 @@ func ComputeAWFExcludeEnvVarNames(workflowData *WorkflowData, coreSecretVarNames
 
 	awfHelpersLog.Printf("Computed %d AWF env vars to exclude", len(names))
 	return names
+}
+
+// awfSupportsExcludeEnv returns true when the effective AWF version supports --exclude-env.
+//
+// The --exclude-env flag was introduced in AWF v0.26.0. Any workflow that pins an explicit
+// version older than v0.26.0 must not emit --exclude-env or the run will fail at startup.
+//
+// Special cases:
+//   - No version override (firewallConfig is nil or has no Version): use DefaultFirewallVersion
+//     which is always ≥ AWFExcludeEnvMinVersion → returns true.
+//   - "latest": always returns true (latest is always a new release).
+//   - Any semver string ≥ AWFExcludeEnvMinVersion: returns true.
+//   - Any semver string < AWFExcludeEnvMinVersion: returns false.
+//   - Non-semver string (e.g. a branch name): returns false (conservative).
+func awfSupportsExcludeEnv(firewallConfig *FirewallConfig) bool {
+	var versionStr string
+	if firewallConfig != nil && firewallConfig.Version != "" {
+		versionStr = firewallConfig.Version
+	} else {
+		// No override → use the default, which is always ≥ the minimum.
+		return true
+	}
+
+	// "latest" means the newest release — always supports the flag.
+	if strings.EqualFold(versionStr, "latest") {
+		return true
+	}
+
+	// Normalise the v-prefix for compareVersions.
+	minVersion := string(constants.AWFExcludeEnvMinVersion)
+	return compareVersions(versionStr, minVersion) >= 0
 }

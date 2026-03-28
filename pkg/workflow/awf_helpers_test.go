@@ -672,3 +672,55 @@ func TestCopilotEngineIncludesCopilotAPITargetFromEnvVar(t *testing.T) {
 	assert.Contains(t, stepContent, "--copilot-api-target", "Should include --copilot-api-target flag")
 	assert.Contains(t, stepContent, "copilot-api.contoso-aw.ghe.com", "Should include custom Copilot hostname")
 }
+
+// TestAWFSupportsExcludeEnv verifies that --exclude-env is only enabled for AWF v0.26.0+.
+func TestAWFSupportsExcludeEnv(t *testing.T) {
+	tests := []struct {
+		name           string
+		firewallConfig *FirewallConfig
+		want           bool
+	}{
+		{
+			name:           "nil firewall config (default version) supports --exclude-env",
+			firewallConfig: nil,
+			want:           true,
+		},
+		{
+			name:           "empty version (default) supports --exclude-env",
+			firewallConfig: &FirewallConfig{},
+			want:           true,
+		},
+		{
+			name:           "v0.26.0 supports --exclude-env",
+			firewallConfig: &FirewallConfig{Version: "v0.26.0"},
+			want:           true,
+		},
+		{
+			name:           "v0.27.0 supports --exclude-env",
+			firewallConfig: &FirewallConfig{Version: "v0.27.0"},
+			want:           true,
+		},
+		{
+			name:           "latest supports --exclude-env",
+			firewallConfig: &FirewallConfig{Version: "latest"},
+			want:           true,
+		},
+		{
+			name:           "v0.25.0 does not support --exclude-env",
+			firewallConfig: &FirewallConfig{Version: "v0.25.0"},
+			want:           false,
+		},
+		{
+			name:           "v0.1.0 does not support --exclude-env",
+			firewallConfig: &FirewallConfig{Version: "v0.1.0"},
+			want:           false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := awfSupportsExcludeEnv(tt.firewallConfig)
+			assert.Equal(t, tt.want, got, "awfSupportsExcludeEnv result")
+		})
+	}
+}
