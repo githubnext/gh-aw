@@ -61,7 +61,7 @@ async function main(config = {}) {
   let allMilestones = null;
 
   /**
-   * Fetch all milestones from the repository and cache the result.
+   * Fetch all milestones from the repository and cache the result, handling pagination.
    * @returns {Promise<boolean>} True on success, false on failure (result already set).
    */
   async function fetchMilestonesIfNeeded() {
@@ -69,13 +69,12 @@ async function main(config = {}) {
       return true;
     }
     try {
-      const milestonesResponse = await githubClient.rest.issues.listMilestones({
+      allMilestones = await githubClient.paginate(githubClient.rest.issues.listMilestones, {
         owner: context.repo.owner,
         repo: context.repo.repo,
         state: "all",
         per_page: 100,
       });
-      allMilestones = milestonesResponse.data;
       core.info(`Fetched ${allMilestones.length} milestones from repository`);
       return true;
     } catch (error) {

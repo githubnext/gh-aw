@@ -27,6 +27,7 @@ const mockContext = {
 };
 
 const mockGithub = {
+  paginate: vi.fn(),
   rest: {
     issues: {
       update: vi.fn(),
@@ -88,12 +89,10 @@ describe("assign_milestone (Handler Factory Architecture)", () => {
       allowed: ["v1.0", "v2.0"],
     });
 
-    mockGithub.rest.issues.listMilestones.mockResolvedValue({
-      data: [
-        { number: 5, title: "v1.0" },
-        { number: 6, title: "v3.0" },
-      ],
-    });
+    mockGithub.paginate.mockResolvedValue([
+      { number: 5, title: "v1.0" },
+      { number: 6, title: "v3.0" },
+    ]);
     mockGithub.rest.issues.update.mockResolvedValue({});
 
     const message = {
@@ -105,7 +104,7 @@ describe("assign_milestone (Handler Factory Architecture)", () => {
     const result = await handlerWithAllowed(message, {});
 
     expect(result.success).toBe(true);
-    expect(mockGithub.rest.issues.listMilestones).toHaveBeenCalledWith({
+    expect(mockGithub.paginate).toHaveBeenCalledWith(mockGithub.rest.issues.listMilestones, {
       owner: "test-owner",
       repo: "test-repo",
       state: "all",
@@ -121,12 +120,10 @@ describe("assign_milestone (Handler Factory Architecture)", () => {
       allowed: ["v1.0", "v2.0"],
     });
 
-    mockGithub.rest.issues.listMilestones.mockResolvedValue({
-      data: [
-        { number: 5, title: "v1.0" },
-        { number: 6, title: "v3.0" },
-      ],
-    });
+    mockGithub.paginate.mockResolvedValue([
+      { number: 5, title: "v1.0" },
+      { number: 6, title: "v3.0" },
+    ]);
 
     const message = {
       type: "assign_milestone",
@@ -256,12 +253,10 @@ describe("assign_milestone (Handler Factory Architecture)", () => {
     const { main } = require("./assign_milestone.cjs");
     const handlerWithTitle = await main({ max: 10 });
 
-    mockGithub.rest.issues.listMilestones.mockResolvedValue({
-      data: [
-        { number: 5, title: "v1.0" },
-        { number: 6, title: "v2.0" },
-      ],
-    });
+    mockGithub.paginate.mockResolvedValue([
+      { number: 5, title: "v1.0" },
+      { number: 6, title: "v2.0" },
+    ]);
     mockGithub.rest.issues.update.mockResolvedValue({});
 
     const message = {
@@ -274,7 +269,7 @@ describe("assign_milestone (Handler Factory Architecture)", () => {
 
     expect(result.success).toBe(true);
     expect(result.milestone_number).toBe(5);
-    expect(mockGithub.rest.issues.listMilestones).toHaveBeenCalled();
+    expect(mockGithub.paginate).toHaveBeenCalled();
     expect(mockGithub.rest.issues.update).toHaveBeenCalledWith({
       owner: "test-owner",
       repo: "test-repo",
@@ -287,9 +282,7 @@ describe("assign_milestone (Handler Factory Architecture)", () => {
     const { main } = require("./assign_milestone.cjs");
     const handlerNoAutoCreate = await main({ max: 10 });
 
-    mockGithub.rest.issues.listMilestones.mockResolvedValue({
-      data: [{ number: 5, title: "v1.0" }],
-    });
+    mockGithub.paginate.mockResolvedValue([{ number: 5, title: "v1.0" }]);
 
     const message = {
       type: "assign_milestone",
@@ -310,9 +303,7 @@ describe("assign_milestone (Handler Factory Architecture)", () => {
     const { main } = require("./assign_milestone.cjs");
     const handlerAutoCreate = await main({ max: 10, auto_create: true });
 
-    mockGithub.rest.issues.listMilestones.mockResolvedValue({
-      data: [],
-    });
+    mockGithub.paginate.mockResolvedValue([]);
     mockGithub.rest.issues.createMilestone.mockResolvedValue({
       data: { number: 7, title: "v3.0" },
     });
@@ -348,9 +339,7 @@ describe("assign_milestone (Handler Factory Architecture)", () => {
       allowed: ["v1.0", "v2.0"],
     });
 
-    mockGithub.rest.issues.listMilestones.mockResolvedValue({
-      data: [{ number: 5, title: "v1.0" }],
-    });
+    mockGithub.paginate.mockResolvedValue([{ number: 5, title: "v1.0" }]);
 
     const message = {
       type: "assign_milestone",
