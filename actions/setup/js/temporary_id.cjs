@@ -552,7 +552,7 @@ function getCreatedTemporaryId(message) {
  */
 function resolveNumberFromTemporaryId(value, resolvedTemporaryIds) {
   if (value === undefined || value === null) {
-    return { resolved: null, wasTemporaryId: false, errorMessage: "number field is missing" };
+    return { resolved: null, wasTemporaryId: false, errorMessage: "number value is missing or null" };
   }
 
   const rawStr = String(value).trim();
@@ -569,7 +569,11 @@ function resolveNumberFromTemporaryId(value, resolvedTemporaryIds) {
 
   const num = parseInt(withoutHash, 10);
   if (isNaN(num) || num < 1) {
-    return { resolved: null, wasTemporaryId: false, errorMessage: `Invalid number: ${value}. Expected a positive integer or a temporary ID (aw_...).` };
+    return {
+      resolved: null,
+      wasTemporaryId: false,
+      errorMessage: `Invalid number: ${value}. Expected a positive integer or a temporary ID (e.g., aw_disc1, aw_issue1).`,
+    };
   }
   return { resolved: num, wasTemporaryId: false, errorMessage: null };
 }

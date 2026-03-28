@@ -914,5 +914,21 @@ describe("temporary_id.cjs", () => {
       expect(result.wasTemporaryId).toBe(false);
       expect(result.errorMessage).toContain("missing");
     });
+
+    it("should return error for non-numeric invalid string", async () => {
+      const { resolveNumberFromTemporaryId } = await import("./temporary_id.cjs");
+      const result = resolveNumberFromTemporaryId("not-a-number", null);
+      expect(result.resolved).toBeNull();
+      expect(result.wasTemporaryId).toBe(false);
+      expect(result.errorMessage).toContain("Invalid number: not-a-number");
+    });
+
+    it("should return error for zero (not a valid discussion/issue number)", async () => {
+      const { resolveNumberFromTemporaryId } = await import("./temporary_id.cjs");
+      const result = resolveNumberFromTemporaryId(0, null);
+      expect(result.resolved).toBeNull();
+      expect(result.wasTemporaryId).toBe(false);
+      expect(result.errorMessage).toContain("Invalid number");
+    });
   });
 });
