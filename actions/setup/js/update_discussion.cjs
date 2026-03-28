@@ -148,8 +148,10 @@ async function executeDiscussionUpdate(github, context, discussionNumber, update
       repo: context.repo.repo,
       number: discussionNumber,
     });
-  } catch (fetchError) {
-    logGraphQLError(/** @type {any} */ fetchError, `fetch discussion #${discussionNumber} from ${context.repo.owner}/${context.repo.repo}`, DISCUSSION_GRAPHQL_HINTS);
+  } catch (err) {
+    // prettier-ignore
+    const fetchError = /** @type {any} */ (err);
+    logGraphQLError(fetchError, `fetch discussion #${discussionNumber} from ${context.repo.owner}/${context.repo.repo}`, DISCUSSION_GRAPHQL_HINTS);
     throw fetchError;
   }
 
@@ -190,8 +192,10 @@ async function executeDiscussionUpdate(github, context, discussionNumber, update
     try {
       const mutationResult = await github.graphql(mutation, variables);
       updatedDiscussion = mutationResult.updateDiscussion.discussion;
-    } catch (mutationError) {
-      logGraphQLError(/** @type {any} */ mutationError, `updateDiscussion mutation for discussion #${discussionNumber} in ${context.repo.owner}/${context.repo.repo}`, DISCUSSION_GRAPHQL_HINTS);
+    } catch (err) {
+      // prettier-ignore
+      const mutationError = /** @type {any} */ (err);
+      logGraphQLError(mutationError, `updateDiscussion mutation for discussion #${discussionNumber} in ${context.repo.owner}/${context.repo.repo}`, DISCUSSION_GRAPHQL_HINTS);
       throw mutationError;
     }
   }
