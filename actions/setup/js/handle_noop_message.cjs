@@ -48,12 +48,10 @@ async function ensureAgentRunsIssue() {
   const templatePath = `${process.env.RUNNER_TEMP}/gh-aw/prompts/noop_runs_issue.md`;
   const parentBodyContent = fs.readFileSync(templatePath, "utf8");
 
-  // Add expiration marker (30 days from now) inside the quoted section using helper
-  const footer = generateFooterWithExpiration({
+  const parentBody = generateFooterWithExpiration({
     footerText: parentBodyContent,
     expiresHours: 24 * 30, // 30 days
   });
-  const parentBody = footer;
 
   const { data: newIssue } = await github.rest.issues.create({
     owner,
