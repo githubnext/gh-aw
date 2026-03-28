@@ -1094,6 +1094,7 @@ jobs:
             /tmp/gh-aw/safeoutputs.jsonl
             /tmp/gh-aw/agent_output.json
             /tmp/gh-aw/aw-*.patch
+            /tmp/gh-aw/aw-*.bundle
           if-no-files-found: ignore
       - name: Upload firewall audit logs
         if: always()
@@ -1174,6 +1175,7 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           GH_AW_AGENT_OUTPUT: ${{ steps.setup-agent-output-env.outputs.GH_AW_AGENT_OUTPUT }}
+          GH_AW_MISSING_TOOL_CREATE_ISSUE: "true"
           GH_AW_WORKFLOW_NAME: "Documentation Unbloat"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
@@ -1261,7 +1263,8 @@ jobs:
 
   detection:
     needs: agent
-    if: always() && needs.agent.result != 'skipped'
+    if: >
+      always() && needs.agent.result != 'skipped' && (needs.agent.outputs.output_types != '' || needs.agent.outputs.has_patch == 'true')
     runs-on: ubuntu-latest
     permissions:
           contents: read
@@ -1324,6 +1327,9 @@ jobs:
           cp /tmp/gh-aw/aw-prompts/prompt.txt /tmp/gh-aw/threat-detection/aw-prompts/prompt.txt 2>/dev/null || true
           cp /tmp/gh-aw/agent_output.json /tmp/gh-aw/threat-detection/agent_output.json 2>/dev/null || true
           for f in /tmp/gh-aw/aw-*.patch; do
+            [ -f "$f" ] && cp "$f" /tmp/gh-aw/threat-detection/ 2>/dev/null || true
+          done
+          for f in /tmp/gh-aw/aw-*.bundle; do
             [ -f "$f" ] && cp "$f" /tmp/gh-aw/threat-detection/ 2>/dev/null || true
           done
           echo "Prepared threat detection files:"
@@ -1510,7 +1516,7 @@ jobs:
         id: check_membership
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
-          GH_AW_REQUIRED_ROLES: admin,maintainer,write
+          GH_AW_REQUIRED_ROLES: "admin,maintainer,write"
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
@@ -1653,7 +1659,7 @@ jobs:
     needs:
       - agent
       - detection
-    if: always() && needs.detection.result == 'success'
+    if: always() && (needs.detection.result == 'success' || needs.detection.result == 'skipped')
     runs-on: ubuntu-latest
     permissions:
       contents: read

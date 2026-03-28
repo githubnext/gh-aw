@@ -317,10 +317,9 @@ func (c *Compiler) extractSafeOutputsConfig(frontmatter map[string]any) *SafeOut
 				config.MissingTool = missingToolConfig
 			} else {
 				// Enable missing-tool by default if safe-outputs exists and it wasn't explicitly disabled
-				// Auto-enabled missing-tool does NOT have create-issue enabled by default
 				if _, exists := outputMap["missing-tool"]; !exists {
 					config.MissingTool = &MissingToolConfig{
-						CreateIssue: false, // Auto-enabled missing-tool doesn't create issues by default
+						CreateIssue: true,
 						TitlePrefix: "",
 						Labels:      nil,
 					}
@@ -333,10 +332,9 @@ func (c *Compiler) extractSafeOutputsConfig(frontmatter map[string]any) *SafeOut
 				config.MissingData = missingDataConfig
 			} else {
 				// Enable missing-data by default if safe-outputs exists and it wasn't explicitly disabled
-				// Auto-enabled missing-data does NOT have create-issue enabled by default
 				if _, exists := outputMap["missing-data"]; !exists {
 					config.MissingData = &MissingDataConfig{
-						CreateIssue: false, // Auto-enabled missing-data doesn't create issues by default
+						CreateIssue: true,
 						TitlePrefix: "",
 						Labels:      nil,
 					}

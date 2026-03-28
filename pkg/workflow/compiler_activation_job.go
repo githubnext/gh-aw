@@ -201,7 +201,7 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 		steps = append(steps, fmt.Sprintf("        uses: %s\n", GetActionPin("actions/github-script")))
 		if len(data.Bots) > 0 {
 			steps = append(steps, "        env:\n")
-			steps = append(steps, fmt.Sprintf("          GH_AW_ALLOWED_BOTS: %s\n", strings.Join(data.Bots, ",")))
+			steps = append(steps, formatYAMLEnv("          ", "GH_AW_ALLOWED_BOTS", strings.Join(data.Bots, ",")))
 		}
 		steps = append(steps, "        with:\n")
 		steps = append(steps, "          script: |\n")
@@ -329,7 +329,7 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 		if err != nil {
 			return nil, fmt.Errorf("failed to marshal label-command names: %w", err)
 		}
-		steps = append(steps, fmt.Sprintf("          GH_AW_LABEL_NAMES: %q\n", string(labelNamesJSON)))
+		steps = append(steps, formatYAMLEnv("          ", "GH_AW_LABEL_NAMES", string(labelNamesJSON)))
 		steps = append(steps, "        with:\n")
 		// Use GitHub App or custom token if configured (avoids needing elevated GITHUB_TOKEN permissions)
 		labelToken := c.resolveActivationToken(data)

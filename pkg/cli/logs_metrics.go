@@ -93,15 +93,21 @@ func extractLogMetrics(logDir string, verbose bool, workflowPath ...string) (Log
 		}
 	}
 
-	// Check for aw-*.patch artifact files (branch-named patches)
+	// Check for aw-*.patch and aw-*.bundle artifact files (branch-named patches/bundles)
 	if dirEntries, err := os.ReadDir(logDir); err == nil {
 		for _, entry := range dirEntries {
 			name := entry.Name()
-			if matched, _ := filepath.Match("aw-*.patch", name); matched {
+			isPatch, _ := filepath.Match("aw-*.patch", name)
+			isBundle, _ := filepath.Match("aw-*.bundle", name)
+			if isPatch || isBundle {
 				if verbose {
-					patchPath := filepath.Join(logDir, name)
-					if fileInfo, statErr := os.Stat(patchPath); statErr == nil {
-						fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Found git patch file: %s (%s)", name, console.FormatFileSize(fileInfo.Size()))))
+					filePath := filepath.Join(logDir, name)
+					if fileInfo, statErr := os.Stat(filePath); statErr == nil {
+						fileType := "git patch"
+						if isBundle {
+							fileType = "git bundle"
+						}
+						fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Found %s file: %s (%s)", fileType, name, console.FormatFileSize(fileInfo.Size()))))
 					}
 				}
 			}

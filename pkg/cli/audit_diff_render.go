@@ -7,10 +7,14 @@ import (
 	"strings"
 
 	"github.com/github/gh-aw/pkg/console"
+	"github.com/github/gh-aw/pkg/logger"
 )
+
+var auditDiffRenderLog = logger.New("cli:audit_diff_render")
 
 // renderAuditDiffJSON outputs the full audit diff as JSON to stdout
 func renderAuditDiffJSON(diff *AuditDiff) error {
+	auditDiffRenderLog.Printf("Rendering audit diff as JSON: run1=%d, run2=%d", diff.Run1ID, diff.Run2ID)
 	encoder := json.NewEncoder(os.Stdout)
 	encoder.SetIndent("", "  ")
 	return encoder.Encode(diff)
@@ -18,6 +22,7 @@ func renderAuditDiffJSON(diff *AuditDiff) error {
 
 // renderAuditDiffMarkdown outputs the full audit diff as markdown to stdout
 func renderAuditDiffMarkdown(diff *AuditDiff) {
+	auditDiffRenderLog.Printf("Rendering audit diff as markdown: run1=%d, run2=%d", diff.Run1ID, diff.Run2ID)
 	fmt.Printf("### Audit Diff: Run #%d → Run #%d\n\n", diff.Run1ID, diff.Run2ID)
 
 	if isEmptyAuditDiff(diff) {
@@ -32,6 +37,7 @@ func renderAuditDiffMarkdown(diff *AuditDiff) {
 
 // renderAuditDiffPretty outputs the full audit diff as formatted console output to stderr
 func renderAuditDiffPretty(diff *AuditDiff) {
+	auditDiffRenderLog.Printf("Rendering audit diff as pretty output: run1=%d, run2=%d", diff.Run1ID, diff.Run2ID)
 	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Audit Diff: Run #%d → Run #%d", diff.Run1ID, diff.Run2ID)))
 	fmt.Fprintln(os.Stderr)
 

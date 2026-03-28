@@ -102,6 +102,7 @@ func downloadWorkflowContentViaGitClone(repo, path, ref string, verbose bool) ([
 
 	// Check if ref is a SHA (40 hex characters)
 	isSHA := len(ref) == 40 && gitutil.IsHexString(ref)
+	downloadLog.Printf("Fetching ref via sparse checkout: is_sha=%t", isSHA)
 
 	if isSHA {
 		// For SHA refs, fetch without specifying a ref (fetch all) then checkout the specific commit
@@ -155,6 +156,7 @@ func downloadWorkflowContentViaGitClone(repo, path, ref string, verbose bool) ([
 
 // downloadWorkflowContent downloads the content of a workflow file from GitHub
 func downloadWorkflowContent(repo, path, ref string, verbose bool) ([]byte, error) {
+	downloadLog.Printf("Downloading workflow content: %s/%s@%s", repo, path, ref)
 	if verbose {
 		fmt.Fprintln(os.Stderr, console.FormatVerboseMessage(fmt.Sprintf("Fetching %s/%s@%s", repo, path, ref)))
 	}

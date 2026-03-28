@@ -106,13 +106,13 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 			if err != nil {
 				return fmt.Errorf("failed to marshal repository imports for merge step: %w", err)
 			}
-			fmt.Fprintf(yaml, "          GH_AW_REPOSITORY_IMPORTS: '%s'\n", string(repoImportsJSON))
+			writeYAMLEnv(yaml, "          ", "GH_AW_REPOSITORY_IMPORTS", string(repoImportsJSON))
 		}
 
 		// Set agent import spec if present (legacy path)
 		if data.AgentFile != "" && data.AgentImportSpec != "" {
-			fmt.Fprintf(yaml, "          GH_AW_AGENT_FILE: \"%s\"\n", data.AgentFile)
-			fmt.Fprintf(yaml, "          GH_AW_AGENT_IMPORT_SPEC: \"%s\"\n", data.AgentImportSpec)
+			writeYAMLEnv(yaml, "          ", "GH_AW_AGENT_FILE", data.AgentFile)
+			writeYAMLEnv(yaml, "          ", "GH_AW_AGENT_IMPORT_SPEC", data.AgentImportSpec)
 		}
 
 		yaml.WriteString("        with:\n")
@@ -528,6 +528,12 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 	threatDetectionNeedsPatches := IsDetectionJobEnabled(data.SafeOutputs)
 	if usesPatchesAndCheckouts(data.SafeOutputs) || threatDetectionNeedsPatches {
 		artifactPaths = append(artifactPaths, "/tmp/gh-aw/aw-*.patch")
+		// Bundle files are generated when patch-format: bundle is configured.
+		// Both formats use the same download path in the safe_outputs job, so
+		// include the bundle glob unconditionally alongside the patch glob.
+		// The artifact upload step already sets if-no-files-found: ignore, so
+		// this is safe even when no bundle files exist.
+		artifactPaths = append(artifactPaths, "/tmp/gh-aw/aw-*.bundle")
 	}
 
 	// Add post-steps (if any) after AI execution

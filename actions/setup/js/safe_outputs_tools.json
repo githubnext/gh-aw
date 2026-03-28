@@ -98,7 +98,7 @@
   },
   {
     "name": "update_discussion",
-    "description": "Update an existing GitHub discussion's title or body. Use this to modify discussion properties after creation. Only the fields you specify will be updated; other fields remain unchanged.",
+    "description": "Update an existing GitHub discussion's title, body, or labels. Use this to modify discussion properties after creation. Only the fields you specify will be updated; other fields remain unchanged.",
     "inputSchema": {
       "type": "object",
       "properties": {
@@ -109,6 +109,13 @@
         "body": {
           "type": "string",
           "description": "New discussion body to replace the existing content. Use Markdown formatting."
+        },
+        "labels": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Replace the discussion labels with this list (e.g., [\"bug\", \"tracking:foo\"]). Labels must exist in the repository."
         },
         "discussion_number": {
           "type": ["number", "string"],

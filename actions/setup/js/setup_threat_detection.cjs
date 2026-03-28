@@ -50,15 +50,16 @@ async function main() {
     return;
   }
 
-  // Check if patch file(s) exist
-  // Patches are now named aw-{branch}.patch (one per branch)
+  // Check if patch/bundle file(s) exist
+  // Patches are named aw-{branch}.patch (format-patch / git am transport)
+  // Bundles are named aw-{branch}.bundle (git bundle transport, preserves merge topology)
   // The agent artifact is downloaded to /tmp/gh-aw/threat-detection/
   const hasPatch = process.env.HAS_PATCH === "true";
   const patchFiles = [];
   try {
     const dirEntries = fs.readdirSync(threatDetectionDir);
     for (const entry of dirEntries) {
-      if (/^aw-.+\.patch$/.test(entry)) {
+      if (/^aw-.+\.(patch|bundle)$/.test(entry)) {
         patchFiles.push(path.join(threatDetectionDir, entry));
       }
     }
@@ -67,7 +68,7 @@ async function main() {
   }
 
   if (patchFiles.length === 0 && hasPatch) {
-    core.setFailed(`${ERR_VALIDATION}: Patch file(s) expected but not found in: ${threatDetectionDir}`);
+    core.setFailed(`${ERR_VALIDATION}: Patch/bundle file(s) expected but not found in: ${threatDetectionDir}`);
     return;
   }
 
@@ -75,13 +76,14 @@ async function main() {
   const promptFileInfo = promptPath + " (" + fs.statSync(promptPath).size + " bytes)";
   const agentOutputFileInfo = agentOutputPath + " (" + fs.statSync(agentOutputPath).size + " bytes)";
 
-  // Build patch file info for template replacement
-  let patchFileInfo = "No patch file found";
+  // Build patch/bundle file info for template replacement
+  let patchFileInfo = "No patch or bundle file found";
   if (patchFiles.length > 0) {
     patchFileInfo = patchFiles
       .map(p => {
         const size = fs.existsSync(p) ? fs.statSync(p).size : 0;
-        return `${p} (${size} bytes)`;
+        const type = p.endsWith(".bundle") ? "git-bundle" : "git-patch";
+        return `${p} (${size} bytes, ${type})`;
       })
       .join("\n");
   }

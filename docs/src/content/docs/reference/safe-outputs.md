@@ -1512,7 +1512,7 @@ safe-outputs:
 
 **Options**: `append-only-comments` (default: `false`)
 
-**Variables**: `{workflow_name}`, `{run_url}`, `{triggering_number}`, `{workflow_source}`, `{workflow_source_url}`, `{event_type}`, `{status}`, `{operation}`
+**Variables**: `{workflow_name}`, `{run_url}`, `{agentic_workflow_url}`, `{triggering_number}`, `{workflow_source}`, `{workflow_source_url}`, `{event_type}`, `{status}`, `{operation}`
 
 ## Staged Mode
 

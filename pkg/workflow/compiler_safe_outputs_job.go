@@ -548,6 +548,20 @@ func buildDetectionSuccessCondition() ConditionNode {
 	)
 }
 
+// buildDetectionPassedCondition builds the condition to check if the detection job either
+// succeeded (no threats found) or was skipped (agent produced no outputs or patch — nothing
+// to detect against). Use this for downstream jobs that must run in both cases, such as
+// update_cache_memory and push_repo_memory.
+func buildDetectionPassedCondition() ConditionNode {
+	return BuildOr(
+		buildDetectionSuccessCondition(),
+		BuildEquals(
+			BuildPropertyAccess(fmt.Sprintf("needs.%s.result", constants.DetectionJobName)),
+			BuildStringLiteral("skipped"),
+		),
+	)
+}
+
 // buildSafeOutputItemsManifestUploadStep builds the step that uploads the safe output
 // items manifest as a separate artifact. The step always runs (if: always()) so
 // the manifest is available to the audit command even if some safe output steps fail.

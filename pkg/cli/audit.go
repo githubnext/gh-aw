@@ -116,6 +116,7 @@ Examples:
 
 	// Add subcommands
 	cmd.AddCommand(NewAuditDiffSubcommand())
+	cmd.AddCommand(NewAuditReportSubcommand())
 
 	return cmd
 }

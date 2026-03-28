@@ -815,6 +815,7 @@ jobs:
         continue-on-error: true
         run: bash ${RUNNER_TEMP}/gh-aw/actions/clean_git_credentials.sh
       - name: Execute Codex CLI
+        id: agentic_execution
         run: |
           set -o pipefail
           mkdir -p "$CODEX_HOME/logs" && touch /tmp/gh-aw/agent-step-summary.md
@@ -963,6 +964,7 @@ jobs:
             /tmp/gh-aw/safeoutputs.jsonl
             /tmp/gh-aw/agent_output.json
             /tmp/gh-aw/aw-*.patch
+            /tmp/gh-aw/aw-*.bundle
           if-no-files-found: ignore
       - name: Upload firewall audit logs
         if: always()
@@ -1043,6 +1045,7 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           GH_AW_AGENT_OUTPUT: ${{ steps.setup-agent-output-env.outputs.GH_AW_AGENT_OUTPUT }}
+          GH_AW_MISSING_TOOL_CREATE_ISSUE: "true"
           GH_AW_WORKFLOW_NAME: "CI Failure Doctor"
           GH_AW_WORKFLOW_SOURCE: "githubnext/agentics/workflows/ci-doctor.md@ea350161ad5dcc9624cf510f134c6a9e39a6f94d"
           GH_AW_WORKFLOW_SOURCE_URL: "${{ github.server_url }}/githubnext/agentics/tree/ea350161ad5dcc9624cf510f134c6a9e39a6f94d/workflows/ci-doctor.md"
@@ -1120,7 +1123,8 @@ jobs:
 
   detection:
     needs: agent
-    if: always() && needs.agent.result != 'skipped'
+    if: >
+      always() && needs.agent.result != 'skipped' && (needs.agent.outputs.output_types != '' || needs.agent.outputs.has_patch == 'true')
     runs-on: ubuntu-latest
     permissions:
           contents: read
@@ -1185,6 +1189,9 @@ jobs:
           for f in /tmp/gh-aw/aw-*.patch; do
             [ -f "$f" ] && cp "$f" /tmp/gh-aw/threat-detection/ 2>/dev/null || true
           done
+          for f in /tmp/gh-aw/aw-*.bundle; do
+            [ -f "$f" ] && cp "$f" /tmp/gh-aw/threat-detection/ 2>/dev/null || true
+          done
           echo "Prepared threat detection files:"
           ls -la /tmp/gh-aw/threat-detection/ 2>/dev/null || true
       - name: Setup threat detection
@@ -1216,6 +1223,7 @@ jobs:
         run: bash ${RUNNER_TEMP}/gh-aw/actions/install_awf_binary.sh v0.25.1
       - name: Execute Codex CLI
         if: always() && steps.detection_guard.outputs.run_detection == 'true'
+        id: detection_agentic_execution
         run: |
           set -o pipefail
           mkdir -p "$CODEX_HOME/logs" && touch /tmp/gh-aw/agent-step-summary.md
@@ -1282,7 +1290,7 @@ jobs:
         id: check_membership
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
-          GH_AW_REQUIRED_ROLES: admin,maintainer,write
+          GH_AW_REQUIRED_ROLES: "admin,maintainer,write"
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
@@ -1386,7 +1394,7 @@ jobs:
     needs:
       - agent
       - detection
-    if: always() && needs.detection.result == 'success'
+    if: always() && (needs.detection.result == 'success' || needs.detection.result == 'skipped')
     runs-on: ubuntu-latest
     permissions:
       contents: read

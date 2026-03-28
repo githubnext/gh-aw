@@ -143,37 +143,48 @@ async function executeDiscussionUpdate(github, context, discussionNumber, update
     throw new Error(`${ERR_NOT_FOUND}: Discussion #${discussionNumber} not found`);
   }
 
-  // Build mutation for updating discussion
-  let mutation = `
-    mutation($discussionId: ID!, $title: String, $body: String) {
-      updateDiscussion(input: { discussionId: $discussionId, title: $title, body: $body }) {
-        discussion {
-          id
-          title
-          body
-          url
+  const hasTitleUpdate = updateData.title !== undefined;
+  const hasBodyUpdate = updateData.body !== undefined;
+  const hasLabelsUpdate = updateData.labels !== undefined;
+
+  let updatedDiscussion = discussion;
+
+  // Only call the updateDiscussion mutation when title or body actually needs updating.
+  // Skipping this when only labels are being changed avoids accidentally modifying
+  // the discussion body with stale or unexpected content.
+  if (hasTitleUpdate || hasBodyUpdate) {
+    const mutation = `
+      mutation($discussionId: ID!, $title: String, $body: String) {
+        updateDiscussion(input: { discussionId: $discussionId, title: $title, body: $body }) {
+          discussion {
+            id
+            title
+            body
+            url
+          }
         }
       }
-    }
-  `;
+    `;
 
-  const variables = {
-    discussionId: discussion.id,
-    title: updateData.title || discussion.title,
-    body: updateData.body || discussion.body,
-  };
+    const variables = {
+      discussionId: discussion.id,
+      title: hasTitleUpdate ? updateData.title : discussion.title,
+      body: hasBodyUpdate ? updateData.body : discussion.body,
+    };
 
-  const mutationResult = await github.graphql(mutation, variables);
-  const updatedDiscussion = mutationResult.updateDiscussion.discussion;
+    const mutationResult = await github.graphql(mutation, variables);
+    updatedDiscussion = mutationResult.updateDiscussion.discussion;
+  }
 
   // Handle label replacement if labels were provided
-  if (updateData.labels !== undefined) {
+  if (hasLabelsUpdate) {
     try {
       const labelIds = await fetchLabelNodeIds(github, context.repo.owner, context.repo.repo, updateData.labels);
       await replaceDiscussionLabels(github, discussion.id, labelIds);
       core.info(`Successfully replaced labels on discussion #${discussionNumber}`);
     } catch (error) {
-      core.warning(`Discussion #${discussionNumber} title/body updated successfully, but label update failed: ${getErrorMessage(error)}`);
+      const context = hasTitleUpdate || hasBodyUpdate ? "title/body updated successfully but " : "";
+      core.warning(`Discussion #${discussionNumber} ${context}label update failed: ${getErrorMessage(error)}`);
     }
   }
 
@@ -240,10 +251,16 @@ function buildDiscussionUpdateData(item, config) {
   const updateData = {};
 
   if (item.title !== undefined) {
+    if (config.allow_title !== true) {
+      return { success: false, error: "Title updates are not allowed by the safe-outputs configuration" };
+    }
     // Sanitize title for Unicode security (no prefix handling needed for updates)
     updateData.title = sanitizeTitle(item.title);
   }
   if (item.body !== undefined) {
+    if (config.allow_body !== true) {
+      return { success: false, error: "Body updates are not allowed by the safe-outputs configuration" };
+    }
     updateData.body = item.body;
   }
 

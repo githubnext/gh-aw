@@ -754,7 +754,58 @@ func TestDetectionGuardStepCondition(t *testing.T) {
 	}
 }
 
-// TestBuildDetectionEngineExecutionStepStripsAgentField verifies that the Agent field from the
+// TestDetectionJobLevelCondition verifies that the detection job-level `if:` condition
+// skips the job entirely when the agent produced no outputs and no patch.
+// This prevents the detection job from wasting a runner and ensures safe_outputs is
+// also correctly skipped (since it gates on needs.detection.result == 'success').
+func TestDetectionJobLevelCondition(t *testing.T) {
+	compiler := NewCompiler()
+
+	data := &WorkflowData{
+		Name: "test-workflow",
+		AI:   "copilot",
+		SafeOutputs: &SafeOutputsConfig{
+			ThreatDetection: &ThreatDetectionConfig{},
+			CreateIssues: &CreateIssuesConfig{
+				TitlePrefix: "[Test]",
+			},
+		},
+	}
+
+	job, err := compiler.buildDetectionJob(data)
+	if err != nil {
+		t.Fatalf("Unexpected error building detection job: %v", err)
+	}
+	if job == nil {
+		t.Fatal("Expected detection job to be built, got nil")
+	}
+
+	condition := job.If
+
+	// Must use always() so the job runs even when the agent job fails
+	if !strings.Contains(condition, "always()") {
+		t.Errorf("Expected detection job condition to include always(), got: %q", condition)
+	}
+
+	// Must skip when agent was skipped
+	if !strings.Contains(condition, "needs."+string(constants.AgentJobName)+".result") {
+		t.Errorf("Expected detection job condition to check agent result, got: %q", condition)
+	}
+	if !strings.Contains(condition, "'skipped'") {
+		t.Errorf("Expected detection job condition to check for skipped status, got: %q", condition)
+	}
+
+	// Must check output_types and has_patch so the job is skipped at job-level
+	// when the agent produced nothing (avoiding unnecessary runner usage and
+	// preventing safe_outputs from running when there is nothing to publish).
+	if !strings.Contains(condition, "needs."+string(constants.AgentJobName)+".outputs.output_types") {
+		t.Errorf("Expected detection job condition to check output_types, got: %q", condition)
+	}
+	if !strings.Contains(condition, "needs."+string(constants.AgentJobName)+".outputs.has_patch") {
+		t.Errorf("Expected detection job condition to check has_patch, got: %q", condition)
+	}
+}
+
 // main engine config is never propagated to the detection engine config,
 // regardless of whether a model is explicitly configured.
 func TestBuildDetectionEngineExecutionStepStripsAgentField(t *testing.T) {
@@ -817,7 +868,9 @@ func TestBuildDetectionEngineExecutionStepStripsAgentField(t *testing.T) {
 }
 
 // TestCopilotDetectionDefaultModel verifies that the copilot engine uses the
-// default model gpt-5.1-codex-mini for the detection step when no model is specified
+// Copilot CLI's native default model for the detection step when no model is specified.
+// Detection now matches main agent behavior: both use ${{ vars.* || ” }} so the
+// Copilot CLI picks its native default (currently claude-sonnet-4.6).
 func TestCopilotDetectionDefaultModel(t *testing.T) {
 	compiler := NewCompiler()
 
@@ -828,7 +881,7 @@ func TestCopilotDetectionDefaultModel(t *testing.T) {
 		expectedModel      string
 	}{
 		{
-			name: "copilot engine without model uses default gpt-5.1-codex-mini",
+			name: "copilot engine without model uses native CLI default via env var",
 			data: &WorkflowData{
 				AI: "copilot",
 				SafeOutputs: &SafeOutputsConfig{
@@ -836,7 +889,9 @@ func TestCopilotDetectionDefaultModel(t *testing.T) {
 				},
 			},
 			shouldContainModel: true,
-			expectedModel:      string(constants.DefaultCopilotDetectionModel),
+			// Detection uses env var fallback (same pattern as main agent), allowing
+			// the Copilot CLI to pick its native default (currently claude-sonnet-4.6)
+			expectedModel: "${{ vars." + constants.EnvVarModelDetectionCopilot + " || '' }}",
 		},
 		{
 			name: "copilot engine with custom model uses specified model",
@@ -870,7 +925,7 @@ func TestCopilotDetectionDefaultModel(t *testing.T) {
 			expectedModel:      "gpt-4o",
 		},
 		{
-			name: "copilot engine with threat detection engine config without model uses default",
+			name: "copilot engine with threat detection engine config without model uses native CLI default via env var",
 			data: &WorkflowData{
 				AI: "claude",
 				SafeOutputs: &SafeOutputsConfig{
@@ -882,7 +937,7 @@ func TestCopilotDetectionDefaultModel(t *testing.T) {
 				},
 			},
 			shouldContainModel: true,
-			expectedModel:      string(constants.DefaultCopilotDetectionModel),
+			expectedModel:      "${{ vars." + constants.EnvVarModelDetectionCopilot + " || '' }}",
 		},
 		{
 			name: "claude engine does not add model parameter",
@@ -909,13 +964,9 @@ func TestCopilotDetectionDefaultModel(t *testing.T) {
 			allSteps := strings.Join(steps, "")
 
 			if tt.shouldContainModel {
-				// The model must be hardcoded via the native COPILOT_MODEL env var.
-				// Relying solely on the GH_AW_MODEL_DETECTION_COPILOT org variable is not
-				// acceptable — if the variable is unset the detection job would run with no
-				// model, defeating the cost-optimised default (gpt-5.1-codex-mini).
 				hasNativeEnvVar := strings.Contains(allSteps, "COPILOT_MODEL: "+tt.expectedModel)
 				if !hasNativeEnvVar {
-					t.Errorf("Expected steps to contain COPILOT_MODEL: %q (hardcoded), but it was not found.\nGenerated steps:\n%s", tt.expectedModel, allSteps)
+					t.Errorf("Expected steps to contain COPILOT_MODEL: %q, but it was not found.\nGenerated steps:\n%s", tt.expectedModel, allSteps)
 				}
 			}
 		})

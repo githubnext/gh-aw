@@ -197,9 +197,33 @@ func (c *AddInteractiveConfig) updateLocalBranch() error {
 
 	// Get the default branch name using gh
 	output, err := workflow.RunGHCombined("Getting default branch...", "repo", "view", "--repo", c.RepoOverride, "--json", "defaultBranchRef", "--jq", ".defaultBranchRef.name")
-	defaultBranch := "main"
+	defaultBranch := ""
 	if err == nil {
 		defaultBranch = strings.TrimSpace(string(output))
+	}
+
+	// Fallback: query the local origin remote directly (works even when gh repo
+	// view fails, e.g. forks without a default remote set).
+	if defaultBranch == "" {
+		addInteractiveLog.Print("gh repo view failed, trying git ls-remote to detect default branch")
+		lsCmd := exec.Command("git", "ls-remote", "--symref", "origin", "HEAD")
+		lsOutput, lsErr := lsCmd.CombinedOutput()
+		if lsErr == nil {
+			// Output looks like: "ref: refs/heads/master\tHEAD\n..."
+			for line := range strings.SplitSeq(string(lsOutput), "\n") {
+				if strings.HasPrefix(line, "ref: refs/heads/") {
+					parts := strings.Fields(line)
+					if len(parts) >= 2 {
+						defaultBranch = strings.TrimPrefix(parts[0], "ref: refs/heads/")
+						break
+					}
+				}
+			}
+		}
+	}
+
+	if defaultBranch == "" {
+		defaultBranch = "main"
 	}
 	addInteractiveLog.Printf("Default branch: %s", defaultBranch)
 

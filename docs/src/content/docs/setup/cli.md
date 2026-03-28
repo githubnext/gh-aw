@@ -384,7 +384,11 @@ gh aw logs "ci failure doctor"             # Case-insensitive display name
 
 #### `audit`
 
-Analyze specific runs with a rich multi-section report. Accepts run IDs, workflow run URLs, job URLs, and step-level URLs. Auto-detects Copilot coding agent runs for specialized parsing. Job URLs automatically extract specific job logs; step URLs extract specific steps; without step, extracts first failing step.
+Analyze workflow runs with detailed reports. The `audit` command has three modes: a single-run audit (default), a cross-run diff, and a cross-run security report.
+
+##### `audit <run-id>`
+
+Analyze a single run with a rich multi-section report. Accepts run IDs, workflow run URLs, job URLs, and step-level URLs. Auto-detects Copilot coding agent runs for specialized parsing. Job URLs automatically extract specific job logs; step URLs extract specific steps; without step, extracts first failing step.
 
 ```bash wrap
 gh aw audit 12345678                                      # By run ID
@@ -416,6 +420,37 @@ Logs are saved to `logs/run-{id}/` with filenames indicating the extraction leve
 | **Firewall Analysis** | Network requests blocked or allowed by the firewall |
 | **Jobs** | Status of each GitHub Actions job in the run |
 | **Artifacts** | Downloaded artifacts and their contents |
+
+##### `audit diff`
+
+Compare behavior between two workflow runs to detect policy regressions, new unauthorized domains, behavioral drift, and changes in MCP tool usage or run metrics.
+
+```bash wrap
+gh aw audit diff 12345 12346                     # Compare two runs
+gh aw audit diff 12345 12346 --format markdown   # Markdown output for PR comments
+gh aw audit diff 12345 12346 --json              # JSON for CI integration
+gh aw audit diff 12345 12346 --repo owner/repo   # Specify repository
+```
+
+The diff output shows: new or removed network domains, status changes (allowed ↔ denied), volume changes (>100% threshold), MCP tool invocation changes, and run metric comparisons (token usage, duration, turns).
+
+**Options:** `--format` (pretty, markdown, json; default: pretty), `--json`, `--repo/-r`
+
+##### `audit report`
+
+Generate a comprehensive cross-run security audit report by aggregating firewall data across multiple recent runs. Designed for security reviews, compliance checks, and feeding debugging or optimization agents.
+
+```bash wrap
+gh aw audit report                                          # Report on recent runs (default: last 20)
+gh aw audit report --workflow "agent-task" --last 10        # Report on last 10 runs of a workflow
+gh aw audit report --workflow "agent-task" --last 5 --json  # JSON for dashboards
+gh aw audit report --format pretty                          # Console-formatted output
+gh aw audit report --repo owner/repo --last 10              # Report on a specific repository
+```
+
+Output is Markdown by default (suitable for security reviews, piping to files, or `$GITHUB_STEP_SUMMARY`).
+
+**Options:** `--workflow/-w` (filter by workflow name or filename), `--last` (number of recent runs to analyze; default: 20, max: 50), `--format` (markdown, pretty, json; default: markdown), `--json`, `--repo/-r`
 
 #### `health`
 

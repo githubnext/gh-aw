@@ -378,6 +378,7 @@ mkdir -p "$CODEX_HOME/logs"
 	var stepLines []string
 
 	stepLines = append(stepLines, "      - name: "+stepName)
+	stepLines = append(stepLines, "        id: agentic_execution")
 
 	// Filter environment variables to only include allowed secrets
 	// This is a security measure to prevent exposing unnecessary secrets to the AWF container

@@ -8,9 +8,11 @@ import (
 	"sort"
 	"strconv"
 	"time"
+
+	"github.com/github/gh-aw/pkg/logger"
 )
 
-var auditDiffLog = auditLog
+var auditDiffLog = logger.New("cli:audit_diff")
 
 // volumeChangeThresholdPercent is the minimum percentage increase to flag as a volume change.
 // >100% increase means the request count more than doubled.
@@ -56,6 +58,7 @@ type FirewallDiffSummary struct {
 // run1 is the "before" (baseline) and run2 is the "after" (comparison target).
 // Either analysis may be nil, indicating no firewall data for that run.
 func computeFirewallDiff(run1ID, run2ID int64, run1, run2 *FirewallAnalysis) *FirewallDiff {
+	auditDiffLog.Printf("Computing firewall diff: run1=%d, run2=%d", run1ID, run2ID)
 	diff := &FirewallDiff{
 		Run1ID: run1ID,
 		Run2ID: run2ID,
@@ -190,6 +193,8 @@ func computeFirewallDiff(run1ID, run2ID int64, run1, run2 *FirewallAnalysis) *Fi
 		AnomalyCount:       anomalyCount,
 	}
 
+	auditDiffLog.Printf("Firewall diff complete: new=%d, removed=%d, status_changes=%d, volume_changes=%d, anomalies=%d",
+		len(diff.NewDomains), len(diff.RemovedDomains), len(diff.StatusChanges), len(diff.VolumeChanges), anomalyCount)
 	return diff
 }
 
@@ -280,6 +285,7 @@ type AuditDiff struct {
 
 // computeAuditDiff produces a full AuditDiff combining firewall, MCP tool, and run metrics diffs.
 func computeAuditDiff(run1ID, run2ID int64, summary1, summary2 *RunSummary) *AuditDiff {
+	auditDiffLog.Printf("Computing full audit diff: run1=%d, run2=%d", run1ID, run2ID)
 	diff := &AuditDiff{
 		Run1ID: run1ID,
 		Run2ID: run2ID,
@@ -321,6 +327,14 @@ func mcpToolKey(serverName, toolName string) string {
 // computeMCPToolsDiff computes the diff between two runs' MCP tool usage.
 // run1 is the "before" (baseline) and run2 is the "after" (comparison target).
 func computeMCPToolsDiff(run1, run2 *MCPToolUsageData) *MCPToolsDiff {
+	run1Count, run2Count := 0, 0
+	if run1 != nil {
+		run1Count = len(run1.Summary)
+	}
+	if run2 != nil {
+		run2Count = len(run2.Summary)
+	}
+	auditDiffLog.Printf("Computing MCP tools diff: run1_tools=%d, run2_tools=%d", run1Count, run2Count)
 	run1Tools := make(map[string]MCPToolSummary)
 	run2Tools := make(map[string]MCPToolSummary)
 

@@ -137,13 +137,13 @@ Test workflow content.`
 
 	compiledStr := string(compiledContent)
 
-	// Check that the bots environment variable is set
-	if !strings.Contains(compiledStr, "GH_AW_ALLOWED_BOTS: dependabot[bot],renovate[bot]") {
+	// Check that the bots environment variable is set (value is %q-quoted)
+	if !strings.Contains(compiledStr, `GH_AW_ALLOWED_BOTS: "dependabot[bot],renovate[bot]"`) {
 		t.Errorf("Expected compiled workflow to contain GH_AW_ALLOWED_BOTS environment variable")
 	}
 
 	// Also check that roles are still present
-	if !strings.Contains(compiledStr, "GH_AW_REQUIRED_ROLES: triage") {
+	if !strings.Contains(compiledStr, `GH_AW_REQUIRED_ROLES: "triage"`) {
 		t.Errorf("Expected compiled workflow to contain GH_AW_REQUIRED_ROLES environment variable")
 	}
 }
@@ -186,12 +186,12 @@ Test workflow content with bot and default roles.`
 	compiledStr := string(compiledContent)
 
 	// Check that default roles are present (admin, maintainer, write)
-	if !strings.Contains(compiledStr, "GH_AW_REQUIRED_ROLES: admin,maintainer,write") {
+	if !strings.Contains(compiledStr, `GH_AW_REQUIRED_ROLES: "admin,maintainer,write"`) {
 		t.Errorf("Expected compiled workflow to contain default GH_AW_REQUIRED_ROLES")
 	}
 
-	// Check that bots environment variable is set
-	if !strings.Contains(compiledStr, "GH_AW_ALLOWED_BOTS: dependabot[bot]") {
+	// Check that bots environment variable is set (value is %q-quoted)
+	if !strings.Contains(compiledStr, `GH_AW_ALLOWED_BOTS: "dependabot[bot]"`) {
 		t.Errorf("Expected compiled workflow to contain GH_AW_ALLOWED_BOTS environment variable")
 	}
 }

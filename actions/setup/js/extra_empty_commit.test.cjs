@@ -222,7 +222,7 @@ describe("extra_empty_commit.cjs", () => {
 
       // Push should still be attempted and succeed (mock returns 0 for push)
       expect(result).toEqual({ success: true });
-      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Could not sync local branch"));
+      expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("Could not sync local branch"));
 
       // commit and push should still have been called
       const commitCall = mockExec.exec.mock.calls.find(c => c[0] === "git" && c[1] && c[1][0] === "commit");

@@ -193,6 +193,9 @@ func generateFilteredToolsJSON(data *WorkflowData, markdownPath string) (string,
 				enhancedTool["description"] = enhancedDescription
 			}
 
+			// Filter schema fields based on what is configured as allowed
+			filterToolSchemaFields(enhancedTool, toolName, data.SafeOutputs)
+
 			// Add repo parameter to inputSchema if allowed-repos has entries
 			addRepoParameterIfNeeded(enhancedTool, toolName, data.SafeOutputs)
 
@@ -430,6 +433,53 @@ func generateFilteredToolsJSON(data *WorkflowData, markdownPath string) (string,
 
 	safeOutputsConfigLog.Printf("Successfully generated filtered tools JSON with %d tools", len(filteredTools))
 	return string(filteredJSON), nil
+}
+
+// filterToolSchemaFields removes fields from a tool's inputSchema properties
+// that are not enabled by the safe output configuration. This prevents the AI
+// from attempting to use fields that would be rejected at runtime.
+func filterToolSchemaFields(tool map[string]any, toolName string, safeOutputs *SafeOutputsConfig) {
+	if safeOutputs == nil {
+		return
+	}
+
+	switch toolName {
+	case "update_discussion":
+		config := safeOutputs.UpdateDiscussions
+		if config == nil {
+			return
+		}
+		// Deep-copy the inputSchema so we don't modify the shared original
+		inputSchema, ok := tool["inputSchema"].(map[string]any)
+		if !ok {
+			return
+		}
+		properties, ok := inputSchema["properties"].(map[string]any)
+		if !ok {
+			return
+		}
+		// Clone properties and remove fields that are not configured as allowed (nil or false).
+		// This aligns with the runtime check in update_discussion.cjs which requires
+		// allow_title/allow_body/allow_labels to be explicitly true.
+		newProps := make(map[string]any, len(properties))
+		maps.Copy(newProps, properties)
+		if config.Title == nil || !*config.Title {
+			delete(newProps, "title")
+		}
+		if config.Body == nil || !*config.Body {
+			delete(newProps, "body")
+		}
+		if config.Labels == nil || !*config.Labels {
+			delete(newProps, "labels")
+		}
+		// Clone inputSchema with new properties
+		newSchema := make(map[string]any, len(inputSchema))
+		maps.Copy(newSchema, inputSchema)
+		newSchema["properties"] = newProps
+		tool["inputSchema"] = newSchema
+		safeOutputsConfigLog.Printf("Filtered update_discussion schema fields: title=%v, body=%v, labels=%v",
+			config.Title != nil && *config.Title, config.Body != nil && *config.Body, config.Labels != nil && *config.Labels)
+	}
 }
 
 // addRepoParameterIfNeeded adds a "repo" parameter to the tool's inputSchema

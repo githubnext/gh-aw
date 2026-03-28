@@ -130,12 +130,12 @@ Instead of hiding footers entirely, you can customize the footer message text us
 ```yaml wrap
 safe-outputs:
   messages:
-    footer: "> 🤖 Powered by [{workflow_name}]({run_url})"
+    footer: "> 🤖 Powered by [{workflow_name}]({agentic_workflow_url})"
   create-issue:
     title-prefix: "[bot] "
 ```
 
-The `messages.footer` template supports variables like `{workflow_name}`, `{run_url}`, `{triggering_number}`, and more. See [Custom Messages](/gh-aw/reference/safe-outputs/#custom-messages-messages) for complete documentation on message templates and available variables.
+The `messages.footer` template supports variables like `{workflow_name}`, `{agentic_workflow_url}`, `{run_url}`, `{triggering_number}`, and more. `{agentic_workflow_url}` links directly to the agentic workflow file view for the run (equivalent to `{run_url}/agentic_workflow`), while `{run_url}` links to the plain Actions run page. See [Custom Messages](/gh-aw/reference/safe-outputs/#custom-messages-messages) for complete documentation on message templates and available variables.
 
 ## Related Documentation
 

@@ -10,8 +10,11 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/workflow"
 )
+
+var auditComparisonLog = logger.New("cli:audit_comparison")
 
 type AuditComparisonData struct {
 	BaselineFound  bool                           `json:"baseline_found"`
@@ -200,6 +203,7 @@ func scoreAuditComparisonCandidate(current ProcessedRun, candidate *auditCompari
 	if candidate == nil {
 		return
 	}
+	auditComparisonLog.Printf("Scoring baseline candidate: run_id=%d", candidate.Run.DatabaseID)
 
 	score := 0
 	matchedOn := make([]string, 0, 6)
@@ -249,6 +253,7 @@ func scoreAuditComparisonCandidate(current ProcessedRun, candidate *auditCompari
 }
 
 func selectAuditComparisonBaseline(current ProcessedRun, candidates []auditComparisonCandidate) *auditComparisonCandidate {
+	auditComparisonLog.Printf("Selecting baseline from %d candidates for run %d", len(candidates), current.Run.DatabaseID)
 	if len(candidates) == 0 {
 		return nil
 	}
@@ -278,6 +283,7 @@ func sameAuditComparisonWorkflow(left WorkflowRun, right WorkflowRun) bool {
 }
 
 func buildAuditComparisonForProcessedRuns(currentRun ProcessedRun, processedRuns []ProcessedRun) *AuditComparisonData {
+	auditComparisonLog.Printf("Building audit comparison for run %d from %d processed runs", currentRun.Run.DatabaseID, len(processedRuns))
 	currentSnapshot := buildAuditComparisonSnapshot(currentRun, extractCreatedItemsFromManifest(currentRun.Run.LogsPath))
 	candidates := make([]auditComparisonCandidate, 0, len(processedRuns))
 

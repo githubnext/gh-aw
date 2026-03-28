@@ -658,6 +658,7 @@ jobs:
         continue-on-error: true
         run: bash ${RUNNER_TEMP}/gh-aw/actions/clean_git_credentials.sh
       - name: Execute Codex CLI
+        id: agentic_execution
         run: |
           set -o pipefail
           mkdir -p "$CODEX_HOME/logs" && touch /tmp/gh-aw/agent-step-summary.md
@@ -877,6 +878,7 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           GH_AW_AGENT_OUTPUT: ${{ steps.setup-agent-output-env.outputs.GH_AW_AGENT_OUTPUT }}
+          GH_AW_MISSING_TOOL_CREATE_ISSUE: "true"
           GH_AW_WORKFLOW_NAME: "AI Moderator"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
@@ -965,7 +967,7 @@ jobs:
         id: check_skip_roles
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
-          GH_AW_SKIP_ROLES: admin,maintainer,write,triage
+          GH_AW_SKIP_ROLES: "admin,maintainer,write,triage"
           GH_AW_WORKFLOW_NAME: "AI Moderator"
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
@@ -978,7 +980,7 @@ jobs:
         id: check_skip_bots
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
-          GH_AW_SKIP_BOTS: github-actions,copilot,dependabot,renovate,github-copilot-enterprise,copilot-swe-agent
+          GH_AW_SKIP_BOTS: "github-actions,copilot,dependabot,renovate,github-copilot-enterprise,copilot-swe-agent"
           GH_AW_WORKFLOW_NAME: "AI Moderator"
         with:
           script: |

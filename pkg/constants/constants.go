@@ -279,10 +279,6 @@ const DefaultClaudeCodeVersion Version = "latest"
 // DefaultCopilotVersion is the default version of the GitHub Copilot CLI.
 const DefaultCopilotVersion Version = "latest"
 
-// DefaultCopilotDetectionModel is the default model for the Copilot engine when used in the detection job
-// Updated to gpt-5.1-codex-mini after gpt-5-mini deprecation on 2026-01-17
-const DefaultCopilotDetectionModel ModelName = "gpt-5.1-codex-mini"
-
 // Environment variable names for model configuration
 const (
 	// EnvVarModelAgentCopilot configures the default Copilot model for agent execution
@@ -432,6 +428,9 @@ var SerenaLanguageSupport = map[string][]string{
 		"markdown", "zig", "elm",
 	},
 }
+
+// DefaultAPMActionVersion is the default version of the microsoft/apm-action GitHub Action
+const DefaultAPMActionVersion Version = "v1.4.1"
 
 // DefaultAPMVersion is the default version of the microsoft/APM (Agent Package Manager) CLI
 const DefaultAPMVersion Version = "v0.8.5"

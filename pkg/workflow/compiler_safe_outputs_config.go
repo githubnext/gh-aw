@@ -525,6 +525,7 @@ var handlerRegistry = map[string]handlerBuilder{
 			AddStringSlice("allowed_files", c.AllowedFiles).
 			AddStringSlice("excluded_files", c.ExcludedFiles).
 			AddIfTrue("preserve_branch_name", c.PreserveBranchName).
+			AddIfNotEmpty("patch_format", c.PatchFormat).
 			AddIfTrue("staged", c.Staged)
 		return builder.Build()
 	},
@@ -554,6 +555,7 @@ var handlerRegistry = map[string]handlerBuilder{
 			AddStringSlice("protected_path_prefixes", getProtectedPathPrefixes()).
 			AddStringSlice("allowed_files", c.AllowedFiles).
 			AddStringSlice("excluded_files", c.ExcludedFiles).
+			AddIfNotEmpty("patch_format", c.PatchFormat).
 			Build()
 	},
 	"update_pull_request": func(cfg *SafeOutputsConfig) map[string]any {

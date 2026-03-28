@@ -254,6 +254,11 @@ async function main(config = {}) {
     const patchFilePath = pullRequestItem.patch_path;
     core.info(`Patch file path: ${patchFilePath || "(not set)"}`);
 
+    // Determine the bundle file path from the message (set when patch-format: bundle is configured)
+    const bundleFilePath = pullRequestItem.bundle_path;
+    if (bundleFilePath) {
+      core.info(`Bundle file path: ${bundleFilePath}`);
+    }
     // Resolve and validate target repository
     const repoResult = resolveAndValidateRepo(pullRequestItem, defaultTargetRepo, allowedRepos, "pull request");
     if (!repoResult.success) {
@@ -307,7 +312,9 @@ async function main(config = {}) {
     core.info(`Base branch for ${itemRepo}: ${baseBranch}`);
 
     // Check if patch file exists and has valid content
-    if (!patchFilePath || !fs.existsSync(patchFilePath)) {
+    // Skip this check when a bundle file is present (bundle transport does not use a patch file)
+    const hasBundleFile = !!(bundleFilePath && fs.existsSync(bundleFilePath));
+    if (!hasBundleFile && (!patchFilePath || !fs.existsSync(patchFilePath))) {
       // If allow-empty is enabled, we can proceed without a patch file
       if (allowEmpty) {
         core.info("No patch file found, but allow-empty is enabled - will create empty PR");
@@ -344,9 +351,9 @@ async function main(config = {}) {
     }
 
     let patchContent = "";
-    let isEmpty = true;
+    let isEmpty = hasBundleFile ? false : true;
 
-    if (patchFilePath && fs.existsSync(patchFilePath)) {
+    if (!hasBundleFile && patchFilePath && fs.existsSync(patchFilePath)) {
       patchContent = fs.readFileSync(patchFilePath, "utf8");
       isEmpty = !patchContent || !patchContent.trim();
     }
@@ -536,6 +543,9 @@ async function main(config = {}) {
 
     let bodyLines = processedBody.split("\n");
     let branchName = pullRequestItem.branch ? pullRequestItem.branch.trim() : null;
+    // Preserve the original agent branch name for bundle transport (the bundle was created
+    // using this branch name as the refs/heads ref inside the bundle file).
+    const originalAgentBranch = branchName;
     const randomHex = crypto.randomBytes(8).toString("hex");
 
     // SECURITY: Sanitize branch name to prevent shell injection (CWE-78)
@@ -671,117 +681,30 @@ async function main(config = {}) {
     // This works even when we're already on the base branch
     await exec.exec(`git fetch origin ${baseBranch}`);
 
-    // Checkout the base branch (using origin/${baseBranch} if local doesn't exist)
-    try {
-      await exec.exec(`git checkout ${baseBranch}`);
-    } catch (checkoutError) {
-      // If local branch doesn't exist, create it from origin
-      core.info(`Local branch ${baseBranch} doesn't exist, creating from origin/${baseBranch}`);
-      await exec.exec(`git checkout -b ${baseBranch} origin/${baseBranch}`);
-    }
-
-    // Handle branch creation/checkout
-    core.info(`Branch should not exist locally, creating new branch from base: ${branchName}`);
-    await exec.exec(`git checkout -b ${branchName}`);
-    core.info(`Created new branch from base: ${branchName}`);
-
-    // Apply the patch using git CLI (skip if empty)
+    // Apply the patch/bundle using git CLI (skip if empty)
     // Track number of new commits pushed so we can restrict the extra empty commit
     // to branches with exactly one new commit (security: prevents use of CI trigger
     // token on multi-commit branches where workflow files may have been modified).
     let newCommitCount = 0;
-    if (!isEmpty) {
-      core.info("Applying patch...");
-
-      // Log first 500 lines of patch for debugging
-      const patchLines = patchContent.split("\n");
-      const previewLineCount = Math.min(500, patchLines.length);
-      core.info(`Patch preview (first ${previewLineCount} of ${patchLines.length} lines):`);
-      for (let i = 0; i < previewLineCount; i++) {
-        core.info(patchLines[i]);
-      }
-
-      // Patches are created with git format-patch, so use git am to apply them
-      // Use --3way to handle cross-repo patches where the patch base may differ from target repo
-      // This allows git to resolve create-vs-modify mismatches when a file exists in target but not source
-      let patchApplied = false;
+    if (hasBundleFile) {
+      // Bundle transport: fetch commits directly from the bundle file.
+      // This preserves merge commit topology and per-commit metadata (messages, authorship)
+      // unlike git format-patch which flattens history and drops merge resolution content.
+      core.info(`Applying changes from bundle: ${bundleFilePath}`);
+      const bundleBranchRef = originalAgentBranch || branchName;
       try {
-        await exec.exec("git", ["am", "--3way", patchFilePath]);
-        core.info("Patch applied successfully");
-        patchApplied = true;
-      } catch (patchError) {
-        core.error(`Failed to apply patch with --3way: ${patchError instanceof Error ? patchError.message : String(patchError)}`);
-
-        // Investigate why the patch failed by logging git status and the failed patch
-        try {
-          core.info("Investigating patch failure...");
-
-          // Log git status to see the current state
-          const statusResult = await exec.getExecOutput("git", ["status"]);
-          core.info("Git status output:");
-          core.info(statusResult.stdout);
-
-          // Log the failed patch diff
-          const patchResult = await exec.getExecOutput("git", ["am", "--show-current-patch=diff"]);
-          core.info("Failed patch content:");
-          core.info(patchResult.stdout);
-        } catch (investigateError) {
-          core.warning(`Failed to investigate patch failure: ${investigateError instanceof Error ? investigateError.message : String(investigateError)}`);
-        }
-
-        // Abort the failed git am before attempting any fallback
-        try {
-          await exec.exec("git am --abort");
-          core.info("Aborted failed git am");
-        } catch (abortError) {
-          core.warning(`Failed to abort git am: ${abortError instanceof Error ? abortError.message : String(abortError)}`);
-        }
-
-        // Fallback (Option 1): create the PR branch at the original base commit so the PR
-        // can still be created. GitHub will show the merge conflicts, allowing manual resolution.
-        // This handles the case where the target branch received intervening commits after
-        // the patch was generated, making --3way unable to resolve the conflicts automatically.
-        core.info("Attempting fallback: create PR branch at original base commit...");
-        try {
-          // Use the base commit recorded at patch generation time.
-          // The From <sha> header in format-patch output contains the agent's new commit SHA
-          // which does not exist in this checkout, so we cannot derive the base from it.
-          const originalBaseCommit = pullRequestItem.base_commit;
-          if (!originalBaseCommit) {
-            core.warning("No base_commit recorded in safe output entry - fallback not possible");
-          } else {
-            core.info(`Original base commit from patch generation: ${originalBaseCommit}`);
-
-            // Verify the base commit is available in this repo (may not exist cross-repo)
-            await exec.exec("git", ["cat-file", "-e", originalBaseCommit]);
-            core.info("Original base commit exists locally - proceeding with fallback");
-
-            // Re-create the PR branch at the original base commit
-            await exec.exec(`git checkout ${baseBranch}`);
-            try {
-              await exec.exec(`git branch -D ${branchName}`);
-            } catch {
-              // Branch may not exist yet, ignore
-            }
-            await exec.exec(`git checkout -b ${branchName} ${originalBaseCommit}`);
-            core.info(`Created branch ${branchName} at original base commit ${originalBaseCommit}`);
-
-            // Apply the patch without --3way; we are on the correct base so it should apply cleanly
-            await exec.exec(`git am ${patchFilePath}`);
-            core.info("Patch applied successfully at original base commit");
-            core.warning(`PR branch ${branchName} is based on an earlier commit than the current ${baseBranch} HEAD. The pull request will show merge conflicts that require manual resolution.`);
-            patchApplied = true;
-          }
-        } catch (fallbackError) {
-          core.warning(`Fallback to original base commit failed: ${fallbackError instanceof Error ? fallbackError.message : String(fallbackError)}`);
-        }
-
-        if (!patchApplied) {
-          return { success: false, error: "Failed to apply patch" };
-        }
+        // Fetch from bundle: creates a local branch pointing to the bundle's tip commit.
+        // The bundle contains refs/heads/<bundleBranchRef> which was the agent's working branch.
+        await exec.exec("git", ["fetch", bundleFilePath, `refs/heads/${bundleBranchRef}:refs/heads/${branchName}`]);
+        core.info(`Created local branch ${branchName} from bundle`);
+        await exec.exec("git", ["checkout", branchName]);
+        core.info(`Checked out branch ${branchName} from bundle`);
+      } catch (bundleError) {
+        core.error(`Failed to apply bundle: ${bundleError instanceof Error ? bundleError.message : String(bundleError)}`);
+        return { success: false, error: "Failed to apply bundle" };
       }
 
-      // Push the applied commits to the branch (with fallback to issue creation on failure)
+      // Push the commits from the bundle to the remote branch
       try {
         // Check if remote branch already exists (optional precheck)
         let remoteBranchExists = false;
@@ -812,53 +735,264 @@ async function main(config = {}) {
           baseRef: `origin/${baseBranch}`,
           cwd: process.cwd(),
         });
-        core.info("Changes pushed to branch");
+        core.info("Changes pushed to branch (from bundle)");
 
-        // Count new commits on PR branch relative to base, used to restrict
-        // the extra empty CI-trigger commit to exactly 1 new commit.
+        // Count new commits on PR branch relative to base
         try {
           const { stdout: countStr } = await exec.getExecOutput("git", ["rev-list", "--count", `origin/${baseBranch}..HEAD`]);
           newCommitCount = parseInt(countStr.trim(), 10);
           core.info(`${newCommitCount} new commit(s) on branch relative to origin/${baseBranch}`);
         } catch {
-          // Non-fatal - newCommitCount stays 0, extra empty commit will be skipped
           core.info("Could not count new commits - extra empty commit will be skipped");
         }
       } catch (pushError) {
-        // Push failed - create fallback issue instead of PR (if fallback is enabled)
         core.error(`Git push failed: ${pushError instanceof Error ? pushError.message : String(pushError)}`);
 
-        if (manifestProtectionFallback) {
-          // Push failed specifically for a protected-file modification. Don't create
-          // a generic push-failed issue — fall through to the manifestProtectionFallback
-          // block below, which will create the proper protected-file review issue with
-          // patch artifact download instructions (since the branch was not pushed).
-          core.warning("Git push failed for protected-file modification - deferring to protected-file review issue");
-          manifestProtectionPushFailedError = pushError;
-        } else if (!fallbackAsIssue) {
-          // Fallback is disabled - return error without creating issue
-          core.error("fallback-as-issue is disabled - not creating fallback issue");
+        if (!fallbackAsIssue) {
           const error = `Failed to push changes: ${pushError instanceof Error ? pushError.message : String(pushError)}`;
+          return { success: false, error, error_type: "push_failed" };
+        }
+
+        core.warning("Git push operation failed - creating fallback issue instead of pull request");
+
+        const runUrl = buildWorkflowRunUrl(context, context.repo);
+        const runId = context.runId;
+
+        const artifactFileName = bundleFilePath ? bundleFilePath.replace("/tmp/gh-aw/", "") : "aw-unknown.bundle";
+        const fallbackBody = `${body}
+
+---
+
+> [!NOTE]
+> This was originally intended as a pull request, but the git push operation failed.
+>
+> **Workflow Run:** [View run details and download bundle artifact](${runUrl})
+>
+> The bundle file is available in the \`agent\` artifact in the workflow run linked above.
+
+To create a pull request with the changes:
+
+\`\`\`sh
+# Download the artifact from the workflow run
+gh run download ${runId} -n agent -D /tmp/agent-${runId}
+
+# Fetch the bundle into a local branch
+git fetch /tmp/agent-${runId}/${artifactFileName} refs/heads/${bundleBranchRef}:refs/heads/${branchName}
+git checkout ${branchName}
+
+# Push the branch to origin
+git push origin ${branchName}
+
+# Create the pull request
+gh pr create --title '${title}' --base ${baseBranch} --head ${branchName} --repo ${repoParts.owner}/${repoParts.repo}
+\`\`\``;
+
+        try {
+          const { data: issue } = await githubClient.rest.issues.create({
+            owner: repoParts.owner,
+            repo: repoParts.repo,
+            title: title,
+            body: fallbackBody,
+            labels: mergeFallbackIssueLabels(labels),
+          });
+
+          core.info(`Created fallback issue #${issue.number}: ${issue.html_url}`);
+          await updateActivationComment(github, context, core, issue.html_url, issue.number, "issue");
+
           return {
-            success: false,
-            error,
-            error_type: "push_failed",
+            success: true,
+            fallback_used: true,
+            issue_number: issue.number,
+            issue_url: issue.html_url,
           };
-        } else {
-          core.warning("Git push operation failed - creating fallback issue instead of pull request");
+        } catch (issueError) {
+          const error = `Failed to push changes and failed to create fallback issue. Push error: ${pushError instanceof Error ? pushError.message : String(pushError)}. Issue error: ${issueError instanceof Error ? issueError.message : String(issueError)}`;
+          return { success: false, error };
+        }
+      }
+    } else {
+      // Checkout the base branch (using origin/${baseBranch} if local doesn't exist)
+      try {
+        await exec.exec(`git checkout ${baseBranch}`);
+      } catch (checkoutError) {
+        // If local branch doesn't exist, create it from origin
+        core.info(`Local branch ${baseBranch} doesn't exist, creating from origin/${baseBranch}`);
+        await exec.exec(`git checkout -b ${baseBranch} origin/${baseBranch}`);
+      }
 
-          const runUrl = buildWorkflowRunUrl(context, context.repo);
-          const runId = context.runId;
+      // Handle branch creation/checkout
+      core.info(`Branch should not exist locally, creating new branch from base: ${branchName}`);
+      await exec.exec(`git checkout -b ${branchName}`);
+      core.info(`Created new branch from base: ${branchName}`);
 
-          // Read patch content for preview
-          let patchPreview = "";
-          if (patchFilePath && fs.existsSync(patchFilePath)) {
-            const patchContent = fs.readFileSync(patchFilePath, "utf8");
-            patchPreview = generatePatchPreview(patchContent);
+      // Apply the patch using git CLI (skip if empty)
+      if (!isEmpty) {
+        core.info("Applying patch...");
+        const patchLines = patchContent.split("\n");
+        const previewLineCount = Math.min(500, patchLines.length);
+        core.info(`Patch preview (first ${previewLineCount} of ${patchLines.length} lines):`);
+        for (let i = 0; i < previewLineCount; i++) {
+          core.info(patchLines[i]);
+        }
+
+        // Patches are created with git format-patch, so use git am to apply them
+        // Use --3way to handle cross-repo patches where the patch base may differ from target repo
+        // This allows git to resolve create-vs-modify mismatches when a file exists in target but not source
+        let patchApplied = false;
+        try {
+          await exec.exec("git", ["am", "--3way", patchFilePath]);
+          core.info("Patch applied successfully");
+          patchApplied = true;
+        } catch (patchError) {
+          core.error(`Failed to apply patch with --3way: ${patchError instanceof Error ? patchError.message : String(patchError)}`);
+
+          // Investigate why the patch failed by logging git status and the failed patch
+          try {
+            core.info("Investigating patch failure...");
+
+            // Log git status to see the current state
+            const statusResult = await exec.getExecOutput("git", ["status"]);
+            core.info("Git status output:");
+            core.info(statusResult.stdout);
+
+            // Log the failed patch diff
+            const patchResult = await exec.getExecOutput("git", ["am", "--show-current-patch=diff"]);
+            core.info("Failed patch content:");
+            core.info(patchResult.stdout);
+          } catch (investigateError) {
+            core.warning(`Failed to investigate patch failure: ${investigateError instanceof Error ? investigateError.message : String(investigateError)}`);
           }
 
-          const patchFileName = patchFilePath ? patchFilePath.replace("/tmp/gh-aw/", "") : "aw-unknown.patch";
-          const fallbackBody = `${body}
+          // Abort the failed git am before attempting any fallback
+          try {
+            await exec.exec("git am --abort");
+            core.info("Aborted failed git am");
+          } catch (abortError) {
+            core.warning(`Failed to abort git am: ${abortError instanceof Error ? abortError.message : String(abortError)}`);
+          }
+
+          // Fallback (Option 1): create the PR branch at the original base commit so the PR
+          // can still be created. GitHub will show the merge conflicts, allowing manual resolution.
+          // This handles the case where the target branch received intervening commits after
+          // the patch was generated, making --3way unable to resolve the conflicts automatically.
+          core.info("Attempting fallback: create PR branch at original base commit...");
+          try {
+            // Use the base commit recorded at patch generation time.
+            // The From <sha> header in format-patch output contains the agent's new commit SHA
+            // which does not exist in this checkout, so we cannot derive the base from it.
+            const originalBaseCommit = pullRequestItem.base_commit;
+            if (!originalBaseCommit) {
+              core.warning("No base_commit recorded in safe output entry - fallback not possible");
+            } else {
+              core.info(`Original base commit from patch generation: ${originalBaseCommit}`);
+
+              // Verify the base commit is available in this repo (may not exist cross-repo)
+              await exec.exec("git", ["cat-file", "-e", originalBaseCommit]);
+              core.info("Original base commit exists locally - proceeding with fallback");
+
+              // Re-create the PR branch at the original base commit
+              await exec.exec(`git checkout ${baseBranch}`);
+              try {
+                await exec.exec(`git branch -D ${branchName}`);
+              } catch {
+                // Branch may not exist yet, ignore
+              }
+              await exec.exec(`git checkout -b ${branchName} ${originalBaseCommit}`);
+              core.info(`Created branch ${branchName} at original base commit ${originalBaseCommit}`);
+
+              // Apply the patch without --3way; we are on the correct base so it should apply cleanly
+              await exec.exec(`git am ${patchFilePath}`);
+              core.info("Patch applied successfully at original base commit");
+              core.warning(`PR branch ${branchName} is based on an earlier commit than the current ${baseBranch} HEAD. The pull request will show merge conflicts that require manual resolution.`);
+              patchApplied = true;
+            }
+          } catch (fallbackError) {
+            core.warning(`Fallback to original base commit failed: ${fallbackError instanceof Error ? fallbackError.message : String(fallbackError)}`);
+          }
+
+          if (!patchApplied) {
+            return { success: false, error: "Failed to apply patch" };
+          }
+        }
+
+        // Push the applied commits to the branch (with fallback to issue creation on failure)
+        try {
+          // Check if remote branch already exists (optional precheck)
+          let remoteBranchExists = false;
+          try {
+            const { stdout } = await exec.getExecOutput(`git ls-remote --heads origin ${branchName}`);
+            if (stdout.trim()) {
+              remoteBranchExists = true;
+            }
+          } catch (checkError) {
+            core.info(`Remote branch check failed (non-fatal): ${checkError instanceof Error ? checkError.message : String(checkError)}`);
+          }
+
+          if (remoteBranchExists) {
+            core.warning(`Remote branch ${branchName} already exists - appending random suffix`);
+            const extraHex = crypto.randomBytes(4).toString("hex");
+            const oldBranch = branchName;
+            branchName = `${branchName}-${extraHex}`;
+            // Rename local branch
+            await exec.exec(`git branch -m ${oldBranch} ${branchName}`);
+            core.info(`Renamed branch to ${branchName}`);
+          }
+
+          await pushSignedCommits({
+            githubClient,
+            owner: repoParts.owner,
+            repo: repoParts.repo,
+            branch: branchName,
+            baseRef: `origin/${baseBranch}`,
+            cwd: process.cwd(),
+          });
+          core.info("Changes pushed to branch");
+
+          // Count new commits on PR branch relative to base, used to restrict
+          // the extra empty CI-trigger commit to exactly 1 new commit.
+          try {
+            const { stdout: countStr } = await exec.getExecOutput("git", ["rev-list", "--count", `origin/${baseBranch}..HEAD`]);
+            newCommitCount = parseInt(countStr.trim(), 10);
+            core.info(`${newCommitCount} new commit(s) on branch relative to origin/${baseBranch}`);
+          } catch {
+            // Non-fatal - newCommitCount stays 0, extra empty commit will be skipped
+            core.info("Could not count new commits - extra empty commit will be skipped");
+          }
+        } catch (pushError) {
+          // Push failed - create fallback issue instead of PR (if fallback is enabled)
+          core.error(`Git push failed: ${pushError instanceof Error ? pushError.message : String(pushError)}`);
+
+          if (manifestProtectionFallback) {
+            // Push failed specifically for a protected-file modification. Don't create
+            // a generic push-failed issue — fall through to the manifestProtectionFallback
+            // block below, which will create the proper protected-file review issue with
+            // patch artifact download instructions (since the branch was not pushed).
+            core.warning("Git push failed for protected-file modification - deferring to protected-file review issue");
+            manifestProtectionPushFailedError = pushError;
+          } else if (!fallbackAsIssue) {
+            // Fallback is disabled - return error without creating issue
+            core.error("fallback-as-issue is disabled - not creating fallback issue");
+            const error = `Failed to push changes: ${pushError instanceof Error ? pushError.message : String(pushError)}`;
+            return {
+              success: false,
+              error,
+              error_type: "push_failed",
+            };
+          } else {
+            core.warning("Git push operation failed - creating fallback issue instead of pull request");
+
+            const runUrl = buildWorkflowRunUrl(context, context.repo);
+            const runId = context.runId;
+
+            // Read patch content for preview
+            let patchPreview = "";
+            if (patchFilePath && fs.existsSync(patchFilePath)) {
+              const patchContent = fs.readFileSync(patchFilePath, "utf8");
+              patchPreview = generatePatchPreview(patchContent);
+            }
+
+            const patchFileName = patchFilePath ? patchFilePath.replace("/tmp/gh-aw/", "") : "aw-unknown.patch";
+            const fallbackBody = `${body}
 
 ---
 
@@ -889,27 +1023,27 @@ gh pr create --title '${title}' --base ${baseBranch} --head ${branchName} --repo
 \`\`\`
 ${patchPreview}`;
 
-          try {
-            const { data: issue } = await githubClient.rest.issues.create({
-              owner: repoParts.owner,
-              repo: repoParts.repo,
-              title: title,
-              body: fallbackBody,
-              labels: mergeFallbackIssueLabels(labels),
-            });
+            try {
+              const { data: issue } = await githubClient.rest.issues.create({
+                owner: repoParts.owner,
+                repo: repoParts.repo,
+                title: title,
+                body: fallbackBody,
+                labels: mergeFallbackIssueLabels(labels),
+              });
 
-            core.info(`Created fallback issue #${issue.number}: ${issue.html_url}`);
+              core.info(`Created fallback issue #${issue.number}: ${issue.html_url}`);
 
-            // Update the activation comment with issue link (if a comment was created)
-            //
-            // NOTE: we pass 'github' (global octokit) instead of githubClient (repo-scoped octokit) because the issue is created
-            // in the same repo as the activation, so the global client has the correct context for updating the comment.
-            await updateActivationComment(github, context, core, issue.html_url, issue.number, "issue");
+              // Update the activation comment with issue link (if a comment was created)
+              //
+              // NOTE: we pass 'github' (global octokit) instead of githubClient (repo-scoped octokit) because the issue is created
+              // in the same repo as the activation, so the global client has the correct context for updating the comment.
+              await updateActivationComment(github, context, core, issue.html_url, issue.number, "issue");
 
-            // Write summary to GitHub Actions summary
-            await core.summary
-              .addRaw(
-                `
+              // Write summary to GitHub Actions summary
+              await core.summary
+                .addRaw(
+                  `
 
 ## Push Failure Fallback
 - **Push Error:** ${pushError instanceof Error ? pushError.message : String(pushError)}
@@ -917,107 +1051,108 @@ ${patchPreview}`;
 - **Patch Artifact:** Available in workflow run artifacts
 - **Note:** Push failed, created issue as fallback
 `
-              )
-              .write();
+                )
+                .write();
 
-            return {
-              success: true,
-              fallback_used: true,
-              push_failed: true,
-              issue_number: issue.number,
-              issue_url: issue.html_url,
-              branch_name: branchName,
-              repo: itemRepo,
-            };
-          } catch (issueError) {
-            const error = `Failed to push and failed to create fallback issue. Push error: ${pushError instanceof Error ? pushError.message : String(pushError)}. Issue error: ${issueError instanceof Error ? issueError.message : String(issueError)}`;
+              return {
+                success: true,
+                fallback_used: true,
+                push_failed: true,
+                issue_number: issue.number,
+                issue_url: issue.html_url,
+                branch_name: branchName,
+                repo: itemRepo,
+              };
+            } catch (issueError) {
+              const error = `Failed to push and failed to create fallback issue. Push error: ${pushError instanceof Error ? pushError.message : String(pushError)}. Issue error: ${issueError instanceof Error ? issueError.message : String(issueError)}`;
+              core.error(error);
+              return {
+                success: false,
+                error,
+              };
+            }
+          } // end else (generic push-failed fallback)
+        }
+      } else {
+        core.info("Skipping patch application (empty patch)");
+
+        // For empty patches with allow-empty, we still need to push the branch
+        if (allowEmpty) {
+          core.info("allow-empty is enabled - will create branch and push with empty commit");
+          // Push the branch with an empty commit to allow PR creation
+          try {
+            // Create an empty commit to ensure there's a commit difference
+            await exec.exec(`git commit --allow-empty -m "Initialize"`);
+            core.info("Created empty commit");
+
+            // Check if remote branch already exists (optional precheck)
+            let remoteBranchExists = false;
+            try {
+              const { stdout } = await exec.getExecOutput(`git ls-remote --heads origin ${branchName}`);
+              if (stdout.trim()) {
+                remoteBranchExists = true;
+              }
+            } catch (checkError) {
+              core.info(`Remote branch check failed (non-fatal): ${checkError instanceof Error ? checkError.message : String(checkError)}`);
+            }
+
+            if (remoteBranchExists) {
+              core.warning(`Remote branch ${branchName} already exists - appending random suffix`);
+              const extraHex = crypto.randomBytes(4).toString("hex");
+              const oldBranch = branchName;
+              branchName = `${branchName}-${extraHex}`;
+              // Rename local branch
+              await exec.exec(`git branch -m ${oldBranch} ${branchName}`);
+              core.info(`Renamed branch to ${branchName}`);
+            }
+
+            await pushSignedCommits({
+              githubClient,
+              owner: repoParts.owner,
+              repo: repoParts.repo,
+              branch: branchName,
+              baseRef: `origin/${baseBranch}`,
+              cwd: process.cwd(),
+            });
+            core.info("Empty branch pushed successfully");
+
+            // Count new commits (will be 1 from the Initialize commit)
+            try {
+              const { stdout: countStr } = await exec.getExecOutput("git", ["rev-list", "--count", `origin/${baseBranch}..HEAD`]);
+              newCommitCount = parseInt(countStr.trim(), 10);
+              core.info(`${newCommitCount} new commit(s) on branch relative to origin/${baseBranch}`);
+            } catch {
+              // Non-fatal - newCommitCount stays 0, extra empty commit will be skipped
+              core.info("Could not count new commits - extra empty commit will be skipped");
+            }
+          } catch (pushError) {
+            const error = `Failed to push empty branch: ${pushError instanceof Error ? pushError.message : String(pushError)}`;
             core.error(error);
             return {
               success: false,
               error,
             };
           }
-        } // end else (generic push-failed fallback)
-      }
-    } else {
-      core.info("Skipping patch application (empty patch)");
+        } else {
+          // For empty patches without allow-empty, handle if-no-changes configuration
+          const message = "No changes to apply - noop operation completed successfully";
 
-      // For empty patches with allow-empty, we still need to push the branch
-      if (allowEmpty) {
-        core.info("allow-empty is enabled - will create branch and push with empty commit");
-        // Push the branch with an empty commit to allow PR creation
-        try {
-          // Create an empty commit to ensure there's a commit difference
-          await exec.exec(`git commit --allow-empty -m "Initialize"`);
-          core.info("Created empty commit");
+          switch (ifNoChanges) {
+            case "error":
+              return { success: false, error: "No changes to apply - failing as configured by if-no-changes: error" };
 
-          // Check if remote branch already exists (optional precheck)
-          let remoteBranchExists = false;
-          try {
-            const { stdout } = await exec.getExecOutput(`git ls-remote --heads origin ${branchName}`);
-            if (stdout.trim()) {
-              remoteBranchExists = true;
-            }
-          } catch (checkError) {
-            core.info(`Remote branch check failed (non-fatal): ${checkError instanceof Error ? checkError.message : String(checkError)}`);
+            case "ignore":
+              // Silent success - no console output
+              return { success: false, skipped: true };
+
+            case "warn":
+            default:
+              core.warning(message);
+              return { success: false, error: message, skipped: true };
           }
-
-          if (remoteBranchExists) {
-            core.warning(`Remote branch ${branchName} already exists - appending random suffix`);
-            const extraHex = crypto.randomBytes(4).toString("hex");
-            const oldBranch = branchName;
-            branchName = `${branchName}-${extraHex}`;
-            // Rename local branch
-            await exec.exec(`git branch -m ${oldBranch} ${branchName}`);
-            core.info(`Renamed branch to ${branchName}`);
-          }
-
-          await pushSignedCommits({
-            githubClient,
-            owner: repoParts.owner,
-            repo: repoParts.repo,
-            branch: branchName,
-            baseRef: `origin/${baseBranch}`,
-            cwd: process.cwd(),
-          });
-          core.info("Empty branch pushed successfully");
-
-          // Count new commits (will be 1 from the Initialize commit)
-          try {
-            const { stdout: countStr } = await exec.getExecOutput("git", ["rev-list", "--count", `origin/${baseBranch}..HEAD`]);
-            newCommitCount = parseInt(countStr.trim(), 10);
-            core.info(`${newCommitCount} new commit(s) on branch relative to origin/${baseBranch}`);
-          } catch {
-            // Non-fatal - newCommitCount stays 0, extra empty commit will be skipped
-            core.info("Could not count new commits - extra empty commit will be skipped");
-          }
-        } catch (pushError) {
-          const error = `Failed to push empty branch: ${pushError instanceof Error ? pushError.message : String(pushError)}`;
-          core.error(error);
-          return {
-            success: false,
-            error,
-          };
         }
-      } else {
-        // For empty patches without allow-empty, handle if-no-changes configuration
-        const message = "No changes to apply - noop operation completed successfully";
-
-        switch (ifNoChanges) {
-          case "error":
-            return { success: false, error: "No changes to apply - failing as configured by if-no-changes: error" };
-
-          case "ignore":
-            // Silent success - no console output
-            return { success: false, skipped: true };
-
-          case "warn":
-          default:
-            core.warning(message);
-            return { success: false, error: message, skipped: true };
-        }
-      }
-    }
+      } // end if (!isEmpty) / else patch application block
+    } // end else (!hasBundleFile - patch path)
 
     // Protected file protection – fallback-to-issue path:
     // The patch has been applied (and pushed, unless manifestProtectionPushFailedError is set).

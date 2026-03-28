@@ -169,7 +169,7 @@ func getLatestActionRelease(repo, currentVersion string, allowMajor, verbose boo
 	updateLog.Printf("Using base repository: %s for action: %s", baseRepo, repo)
 
 	// Use gh CLI to get releases
-	output, err := workflow.RunGHCombined("Fetching releases...", "api", fmt.Sprintf("/repos/%s/releases", baseRepo), "--jq", ".[].tag_name")
+	output, err := runGHReleasesAPIFn(baseRepo)
 	if err != nil {
 		// Check if this is an authentication error
 		outputStr := string(output)
@@ -191,13 +191,26 @@ func getLatestActionRelease(repo, currentVersion string, allowMajor, verbose boo
 
 	releases := strings.Split(strings.TrimSpace(string(output)), "\n")
 	if len(releases) == 0 || releases[0] == "" {
-		return "", "", errors.New("no releases found")
+		// No GitHub Releases found; fall back to tag scanning via git ls-remote.
+		// Some repositories publish tags without creating GitHub Releases — this is safe
+		// to use and the warning below is informational only.
+		updateLog.Printf("No releases found via GitHub API for %s, falling back to git ls-remote tag scan", baseRepo)
+		if verbose {
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(baseRepo+": no GitHub Releases found, falling back to tag scanning (safe to ignore)"))
+		}
+		latestRelease, latestSHA, gitErr := getLatestActionReleaseViaGitFn(repo, currentVersion, allowMajor, verbose)
+		if gitErr != nil {
+			return "", "", fmt.Errorf("no releases or tags found for %s: %w", baseRepo, gitErr)
+		}
+		return latestRelease, latestSHA, nil
 	}
 
 	// Parse current version
 	currentVer := parseVersion(currentVersion)
 
-	// Find all valid semantic version releases and sort by semver
+	// Find all valid stable semantic version releases (skip prereleases such as v1.0.0-beta.1).
+	// Per semver rules, v1.1.0-beta.1 > v1.0.0, so without this filter a prerelease of a
+	// higher base version could be incorrectly selected as the upgrade target.
 	type releaseWithVersion struct {
 		tag     string
 		version *semanticVersion
@@ -205,7 +218,7 @@ func getLatestActionRelease(repo, currentVersion string, allowMajor, verbose boo
 	var validReleases []releaseWithVersion
 	for _, release := range releases {
 		releaseVer := parseVersion(release)
-		if releaseVer != nil {
+		if releaseVer != nil && releaseVer.pre == "" {
 			validReleases = append(validReleases, releaseWithVersion{
 				tag:     release,
 				version: releaseVer,
@@ -225,7 +238,7 @@ func getLatestActionRelease(repo, currentVersion string, allowMajor, verbose boo
 	// If current version is not valid, return the highest semver release
 	if currentVer == nil {
 		latestRelease := validReleases[0].tag
-		sha, err := getActionSHAForTag(baseRepo, latestRelease)
+		sha, err := getActionSHAForTagFn(baseRepo, latestRelease)
 		if err != nil {
 			return "", "", fmt.Errorf("failed to get SHA for %s: %w", latestRelease, err)
 		}
@@ -264,7 +277,7 @@ func getLatestActionRelease(repo, currentVersion string, allowMajor, verbose boo
 	}
 
 	// Get the SHA for the latest compatible release
-	sha, err := getActionSHAForTag(baseRepo, latestCompatible)
+	sha, err := getActionSHAForTagFn(baseRepo, latestCompatible)
 	if err != nil {
 		return "", "", fmt.Errorf("failed to get SHA for %s: %w", latestCompatible, err)
 	}
@@ -319,7 +332,11 @@ func getLatestActionReleaseViaGit(repo, currentVersion string, allowMajor, verbo
 	// Parse current version
 	currentVer := parseVersion(currentVersion)
 
-	// Find all valid semantic version releases and sort by semver
+	// Find all valid stable semantic version releases (skip prereleases such as v1.0.0-beta.1).
+	// Per semver rules, v1.1.0-beta.1 > v1.0.0, so without this filter a prerelease of a
+	// higher base version could be incorrectly selected as the upgrade target.
+	// git ls-remote --tags returns every tag, so the prerelease check is especially important
+	// for this fallback path.
 	type releaseWithVersion struct {
 		tag     string
 		version *semanticVersion
@@ -327,7 +344,7 @@ func getLatestActionReleaseViaGit(repo, currentVersion string, allowMajor, verbo
 	var validReleases []releaseWithVersion
 	for _, release := range releases {
 		releaseVer := parseVersion(release)
-		if releaseVer != nil {
+		if releaseVer != nil && releaseVer.pre == "" {
 			validReleases = append(validReleases, releaseWithVersion{
 				tag:     release,
 				version: releaseVer,
@@ -428,6 +445,20 @@ var actionRefPattern = regexp.MustCompile(`(uses:\s+)([a-zA-Z0-9][a-zA-Z0-9_-]*/
 // It is used by both UpdateActions and updateActionRefsInContent and can be replaced in
 // tests to avoid network calls.
 var getLatestActionReleaseFn = getLatestActionRelease
+
+// getLatestActionReleaseViaGitFn is the function used to fetch the latest release via git
+// ls-remote as a fallback. It can be replaced in tests to avoid network calls.
+var getLatestActionReleaseViaGitFn = getLatestActionReleaseViaGit
+
+// runGHReleasesAPIFn calls the GitHub Releases API for the given base repository and
+// returns the raw output. It can be replaced in tests to avoid network calls.
+var runGHReleasesAPIFn = func(baseRepo string) ([]byte, error) {
+	return workflow.RunGHCombined("Fetching releases...", "api", fmt.Sprintf("/repos/%s/releases", baseRepo), "--jq", ".[].tag_name")
+}
+
+// getActionSHAForTagFn resolves the commit SHA for a given tag. It can be replaced in
+// tests to avoid network calls.
+var getActionSHAForTagFn = getActionSHAForTag
 
 // latestReleaseResult caches a resolved version/SHA pair.
 type latestReleaseResult struct {
