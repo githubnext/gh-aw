@@ -5,9 +5,7 @@ sidebar:
   order: 1360
 ---
 
-# Fuzzy Schedule Time Syntax Specification
-
-**Version**: 1.2.0  
+**Version**: 1.2.0
 **Status**: Draft Specification  
 **Latest Version**: [fuzzy-schedule-specification](/gh-aw/reference/fuzzy-schedule-specification/)  
 **Editor**: GitHub Agentic Workflows Team
@@ -104,7 +102,7 @@ The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "S
 
 A fuzzy schedule expression MUST conform to the following ABNF grammar:
 
-```abnf
+```text
 fuzzy-schedule  = daily-schedule / hourly-schedule / weekly-schedule / interval-schedule
 
 daily-schedule  = "daily" [time-constraint]
@@ -425,7 +423,7 @@ between 22:00 and 02:00
 
 An implementation MUST support UTC offset specifications using the format:
 
-```abnf
+```text
 utc-offset = "utc" ("+" / "-") offset-value
 offset-value = hours / hours ":" minutes
 ```
