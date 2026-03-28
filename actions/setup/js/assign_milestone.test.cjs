@@ -33,6 +33,7 @@ const mockGithub = {
       update: vi.fn(),
       listMilestones: vi.fn(),
       createMilestone: vi.fn(),
+      getMilestone: vi.fn(),
     },
   },
 };
@@ -105,10 +106,7 @@ describe("assign_milestone (Handler Factory Architecture)", () => {
       allowed: ["v1.0", "v2.0"],
     });
 
-    mockPaginateWith([
-      { number: 5, title: "v1.0" },
-      { number: 6, title: "v3.0" },
-    ]);
+    mockGithub.rest.issues.getMilestone.mockResolvedValue({ data: { number: 5, title: "v1.0" } });
     mockGithub.rest.issues.update.mockResolvedValue({});
 
     const message = {
@@ -120,16 +118,11 @@ describe("assign_milestone (Handler Factory Architecture)", () => {
     const result = await handlerWithAllowed(message, {});
 
     expect(result.success).toBe(true);
-    expect(mockGithub.paginate).toHaveBeenCalledWith(
-      mockGithub.rest.issues.listMilestones,
-      {
-        owner: "test-owner",
-        repo: "test-repo",
-        state: "all",
-        per_page: 100,
-      },
-      expect.any(Function)
-    );
+    expect(mockGithub.rest.issues.getMilestone).toHaveBeenCalledWith({
+      owner: "test-owner",
+      repo: "test-repo",
+      milestone_number: 5,
+    });
     expect(mockGithub.rest.issues.update).toHaveBeenCalled();
   });
 
@@ -140,10 +133,7 @@ describe("assign_milestone (Handler Factory Architecture)", () => {
       allowed: ["v1.0", "v2.0"],
     });
 
-    mockPaginateWith([
-      { number: 5, title: "v1.0" },
-      { number: 6, title: "v3.0" },
-    ]);
+    mockGithub.rest.issues.getMilestone.mockResolvedValue({ data: { number: 6, title: "v3.0" } });
 
     const message = {
       type: "assign_milestone",
@@ -352,14 +342,14 @@ describe("assign_milestone (Handler Factory Architecture)", () => {
     });
   });
 
-  it("should error with available milestones listed when milestone number not found in allowed list", async () => {
+  it("should error when milestone number not found in repository", async () => {
     const { main } = require("./assign_milestone.cjs");
     const handlerWithAllowed = await main({
       max: 10,
       allowed: ["v1.0", "v2.0"],
     });
 
-    mockPaginateWith([{ number: 5, title: "v1.0" }]);
+    mockGithub.rest.issues.getMilestone.mockRejectedValue(new Error("Not Found"));
 
     const message = {
       type: "assign_milestone",
@@ -370,8 +360,8 @@ describe("assign_milestone (Handler Factory Architecture)", () => {
     const result = await handlerWithAllowed(message, {});
 
     expect(result.success).toBe(false);
-    expect(result.error).toContain("not found in repository");
-    expect(mockGithub.warning || mockCore.warning).toBeDefined();
+    expect(result.error).toContain("not found or failed to validate");
+    expect(mockGithub.rest.issues.update).not.toHaveBeenCalled();
   });
 
   it("should error when neither milestone_number nor milestone_title is provided", async () => {
