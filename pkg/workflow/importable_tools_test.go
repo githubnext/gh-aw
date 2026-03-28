@@ -181,8 +181,8 @@ Uses imported agentic-workflows tool.
 	}
 }
 
-// TestImportAllThreeTools tests importing multiple tools together
-func TestImportAllThreeTools(t *testing.T) {
+// TestImportMultipleTools tests importing multiple tools together
+func TestImportMultipleTools(t *testing.T) {
 	tempDir := testutil.TempDir(t, "test-*")
 
 	// Create a shared workflow with multiple tools
