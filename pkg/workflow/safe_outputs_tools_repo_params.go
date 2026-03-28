@@ -3,13 +3,13 @@ package workflow
 import "fmt"
 
 // addRepoParameterIfNeeded adds a "repo" parameter to the tool's inputSchema
-// if the safe output configuration has allowed-repos entries
+// if the safe output configuration has allowed-repos entries or a wildcard "*" target-repo
 func addRepoParameterIfNeeded(tool map[string]any, toolName string, safeOutputs *SafeOutputsConfig) {
 	if safeOutputs == nil {
 		return
 	}
 
-	// Determine if this tool should have a repo parameter based on allowed-repos configuration
+	// Determine if this tool should have a repo parameter based on allowed-repos and target-repo configuration (including wildcard "*")
 	var hasAllowedRepos bool
 	var targetRepoSlug string
 
