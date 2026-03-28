@@ -883,6 +883,21 @@ describe("create_pull_request - configured reviewers", () => {
     expect(global.core.warning).toHaveBeenCalledWith(expect.stringContaining("Failed to request reviewers"));
   });
 
+  it("should continue successfully even if addLabels fails (race condition after PR creation)", async () => {
+    // GitHub API transiently fails to resolve the PR node ID immediately after creation.
+    // This should warn but NOT fall back to an issue.
+    global.github.rest.issues.addLabels.mockRejectedValue(new Error("Validation Failed: Could not resolve to a node with the global id of 'PR_kwDOPc1QR87OOJzM'."));
+
+    const { main } = require("./create_pull_request.cjs");
+    const handler = await main({ labels: ["automation"], allow_empty: true });
+
+    const result = await handler({ title: "Test PR", body: "Test body", labels: ["automation"] }, {});
+
+    expect(result.success).toBe(true);
+    expect(result.fallback_used).toBeUndefined();
+    expect(global.core.warning).toHaveBeenCalledWith(expect.stringContaining("Failed to add labels to PR #42"));
+  });
+
   it("should accept reviewers as a comma-separated string", async () => {
     const { main } = require("./create_pull_request.cjs");
     const handler = await main({ reviewers: "user1,user2", allow_empty: true });

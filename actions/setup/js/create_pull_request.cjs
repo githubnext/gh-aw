@@ -1245,13 +1245,20 @@ ${patchPreview}`;
 
       // Add labels if specified
       if (labels.length > 0) {
-        await githubClient.rest.issues.addLabels({
-          owner: repoParts.owner,
-          repo: repoParts.repo,
-          issue_number: pullRequest.number,
-          labels: labels,
-        });
-        core.info(`Added labels to pull request: ${JSON.stringify(labels)}`);
+        try {
+          await githubClient.rest.issues.addLabels({
+            owner: repoParts.owner,
+            repo: repoParts.repo,
+            issue_number: pullRequest.number,
+            labels: labels,
+          });
+          core.info(`Added labels to pull request: ${JSON.stringify(labels)}`);
+        } catch (labelError) {
+          // Label addition is non-critical - warn but don't fail the PR creation.
+          // GitHub's API may transiently fail to resolve the PR node ID immediately
+          // after creation, which causes label operations to fail with an unprocessable error.
+          core.warning(`Failed to add labels to PR #${pullRequest.number}: ${labelError instanceof Error ? labelError.message : String(labelError)}`);
+        }
       }
 
       // Add configured reviewers if specified
