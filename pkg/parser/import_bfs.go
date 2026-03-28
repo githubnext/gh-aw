@@ -72,6 +72,9 @@ func processImportsFromFrontmatterWithManifestAndSource(frontmatter map[string]a
 	// Initialize BFS queue and visited set for cycle detection
 	var queue []importQueueItem
 	visited := make(map[string]bool)
+	// visitedInputs tracks the 'with' values for each visited path so that
+	// conflicting re-imports (same file, different inputs) can be detected.
+	visitedInputs := make(map[string]map[string]any)
 	processedOrder := []string{} // Track processing order for manifest
 
 	// Initialize result accumulator
@@ -147,6 +150,7 @@ func processImportsFromFrontmatterWithManifestAndSource(frontmatter map[string]a
 		// Check for duplicates before adding to queue
 		if !visited[fullPath] {
 			visited[fullPath] = true
+			visitedInputs[fullPath] = importSpec.Inputs
 			queue = append(queue, importQueueItem{
 				importPath:   importPath,
 				fullPath:     fullPath,
@@ -157,6 +161,10 @@ func processImportsFromFrontmatterWithManifestAndSource(frontmatter map[string]a
 			})
 			log.Printf("Queued import: %s (resolved to %s)", importPath, fullPath)
 		} else {
+			// Same file imported again - verify the 'with' values are identical
+			if err := checkImportInputsConsistency(importPath, visitedInputs[fullPath], importSpec.Inputs); err != nil {
+				return nil, err
+			}
 			log.Printf("Skipping duplicate import: %s (already visited)", importPath)
 		}
 	}
@@ -400,9 +408,10 @@ func processImportsFromFrontmatterWithManifestAndSource(frontmatter map[string]a
 					return nil, fmt.Errorf("failed to resolve nested import '%s' from '%s': %w", nestedFilePath, item.fullPath, err)
 				}
 
-				// Check for cycles - skip if already visited
+				// Check for cycles/duplicates - skip if already visited
 				if !visited[nestedFullPath] {
 					visited[nestedFullPath] = true
+					visitedInputs[nestedFullPath] = nestedEntry.inputs
 					queue = append(queue, importQueueItem{
 						importPath:   nestedImportPath,
 						fullPath:     nestedFullPath,
@@ -413,6 +422,10 @@ func processImportsFromFrontmatterWithManifestAndSource(frontmatter map[string]a
 					})
 					log.Printf("Discovered nested import: %s -> %s (queued)", item.fullPath, nestedFullPath)
 				} else {
+					// Same file re-imported from a different path - verify inputs match
+					if err := checkImportInputsConsistency(nestedImportPath, visitedInputs[nestedFullPath], nestedEntry.inputs); err != nil {
+						return nil, err
+					}
 					log.Printf("Skipping already visited nested import: %s (cycle detected)", nestedFullPath)
 				}
 			}
@@ -479,4 +492,54 @@ func parseImportSpecsFromArray(items []any) ([]ImportSpec, error) {
 		}
 	}
 	return specs, nil
+}
+
+// checkImportInputsConsistency returns an error if a file that has already been imported
+// is being imported again with different 'with' values. A workflow file can appear at most
+// once in the import graph; when it appears multiple times the 'with' values must be identical.
+func checkImportInputsConsistency(importPath string, existingInputs, newInputs map[string]any) error {
+	if importInputsEqual(existingInputs, newInputs) {
+		return nil
+	}
+	return fmt.Errorf(
+		"import conflict: '%s' is imported more than once with different 'with' values.\n"+
+			"An imported workflow can only be imported once per workflow.\n"+
+			"  Previous 'with': %s\n"+
+			"  New 'with':      %s",
+		importPath,
+		formatImportInputs(existingInputs),
+		formatImportInputs(newInputs),
+	)
+}
+
+// importInputsEqual reports whether two import input maps are deeply equal.
+// Both nil and empty maps are considered equal (both represent "no inputs").
+// Map key ordering does not affect the result.
+func importInputsEqual(a, b map[string]any) bool {
+	if len(a) == 0 && len(b) == 0 {
+		return true
+	}
+	// encoding/json sorts map keys deterministically, making this a safe deep-equality check.
+	aJSON, err := json.Marshal(a)
+	if err != nil {
+		return false
+	}
+	bJSON, err := json.Marshal(b)
+	if err != nil {
+		return false
+	}
+	return string(aJSON) == string(bJSON)
+}
+
+// formatImportInputs serializes an import input map to a compact JSON string for
+// use in error messages. Returns "{}" if the map is nil or empty.
+func formatImportInputs(inputs map[string]any) string {
+	if len(inputs) == 0 {
+		return "{}"
+	}
+	b, err := json.Marshal(inputs)
+	if err != nil {
+		return "<unserializable>"
+	}
+	return string(b)
 }
