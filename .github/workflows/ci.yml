@@ -2736,3 +2736,155 @@ jobs:
           name: test-result-integration-add-dispatch-workflow
           path: test-result-integration-add-dispatch-workflow.json
           retention-days: 14
+
+  integration-release-availability:
+    name: Integration Release Availability
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    concurrency:
+      group: ci-${{ github.ref }}-integration-release-availability
+      cancel-in-progress: true
+    steps:
+      - name: Check gh-aw-firewall release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -e
+          REPO="github/gh-aw-firewall"
+          VERSION="v0.26.0"
+          IMAGE="ghcr.io/github/gh-aw-firewall:${VERSION}"
+
+          echo "## Checking gh-aw-firewall ${VERSION}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          echo "Checking GitHub release: ${REPO}@${VERSION}..."
+          if gh release view "${VERSION}" --repo "${REPO}" > /dev/null 2>&1; then
+            echo "✅ GitHub release ${VERSION} is available for ${REPO}" | tee -a $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ GitHub release ${VERSION} not found for ${REPO}" | tee -a $GITHUB_STEP_SUMMARY
+            exit 1
+          fi
+
+          echo "Checking GHCR image manifest: ${IMAGE}..."
+          DIGEST=$(docker manifest inspect "${IMAGE}" 2>/dev/null | \
+            python3 -c "import sys,json; m=json.load(sys.stdin); print(m.get('config',{}).get('digest','') or m.get('manifests',[{}])[0].get('digest','n/a'))" 2>/dev/null || echo "")
+          if [ -n "$DIGEST" ]; then
+            echo "✅ GHCR image ${IMAGE} is available (digest: ${DIGEST})" | tee -a $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ GHCR image ${IMAGE} could not be inspected" | tee -a $GITHUB_STEP_SUMMARY
+            exit 1
+          fi
+
+          echo "" >> $GITHUB_STEP_SUMMARY
+          sleep 2
+
+      - name: Check gh-aw-mcpg release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -e
+          REPO="github/gh-aw-mcpg"
+          VERSION="v0.2.8"
+          IMAGE="ghcr.io/github/gh-aw-mcpg:${VERSION}"
+
+          echo "## Checking gh-aw-mcpg ${VERSION}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          echo "Checking GitHub release: ${REPO}@${VERSION}..."
+          if gh release view "${VERSION}" --repo "${REPO}" > /dev/null 2>&1; then
+            echo "✅ GitHub release ${VERSION} is available for ${REPO}" | tee -a $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ GitHub release ${VERSION} not found for ${REPO}" | tee -a $GITHUB_STEP_SUMMARY
+            exit 1
+          fi
+
+          echo "Checking GHCR image manifest: ${IMAGE}..."
+          DIGEST=$(docker manifest inspect "${IMAGE}" 2>/dev/null | \
+            python3 -c "import sys,json; m=json.load(sys.stdin); print(m.get('config',{}).get('digest','') or m.get('manifests',[{}])[0].get('digest','n/a'))" 2>/dev/null || echo "")
+          if [ -n "$DIGEST" ]; then
+            echo "✅ GHCR image ${IMAGE} is available (digest: ${DIGEST})" | tee -a $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ GHCR image ${IMAGE} could not be inspected" | tee -a $GITHUB_STEP_SUMMARY
+            exit 1
+          fi
+
+          echo "" >> $GITHUB_STEP_SUMMARY
+          sleep 2
+
+      - name: Check microsoft/APM release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -e
+          REPO="microsoft/APM"
+          VERSION="v0.8.6"
+
+          echo "## Checking microsoft/APM ${VERSION}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          echo "Checking GitHub release: ${REPO}@${VERSION}..."
+          if gh release view "${VERSION}" --repo "${REPO}" > /dev/null 2>&1; then
+            echo "✅ GitHub release ${VERSION} is available for ${REPO}" | tee -a $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ GitHub release ${VERSION} not found for ${REPO}" | tee -a $GITHUB_STEP_SUMMARY
+            exit 1
+          fi
+
+          echo "" >> $GITHUB_STEP_SUMMARY
+          sleep 2
+
+      - name: Check microsoft/apm-action release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -e
+          REPO="microsoft/apm-action"
+          VERSION="v1.4.1"
+
+          echo "## Checking microsoft/apm-action ${VERSION}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          echo "Checking GitHub release: ${REPO}@${VERSION}..."
+          if gh release view "${VERSION}" --repo "${REPO}" > /dev/null 2>&1; then
+            echo "✅ GitHub release ${VERSION} is available for ${REPO}" | tee -a $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ GitHub release ${VERSION} not found for ${REPO}" | tee -a $GITHUB_STEP_SUMMARY
+            exit 1
+          fi
+
+          echo "" >> $GITHUB_STEP_SUMMARY
+          sleep 2
+
+      - name: Check github-mcp-server release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -e
+          REPO="github/github-mcp-server"
+          VERSION="v0.32.0"
+          IMAGE="ghcr.io/github/github-mcp-server:${VERSION}"
+
+          echo "## Checking github-mcp-server ${VERSION}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          echo "Checking GitHub release: ${REPO}@${VERSION}..."
+          if gh release view "${VERSION}" --repo "${REPO}" > /dev/null 2>&1; then
+            echo "✅ GitHub release ${VERSION} is available for ${REPO}" | tee -a $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ GitHub release ${VERSION} not found for ${REPO}" | tee -a $GITHUB_STEP_SUMMARY
+            exit 1
+          fi
+
+          echo "Checking GHCR image manifest: ${IMAGE}..."
+          DIGEST=$(docker manifest inspect "${IMAGE}" 2>/dev/null | \
+            python3 -c "import sys,json; m=json.load(sys.stdin); print(m.get('config',{}).get('digest','') or m.get('manifests',[{}])[0].get('digest','n/a'))" 2>/dev/null || echo "")
+          if [ -n "$DIGEST" ]; then
+            echo "✅ GHCR image ${IMAGE} is available (digest: ${DIGEST})" | tee -a $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ GHCR image ${IMAGE} could not be inspected" | tee -a $GITHUB_STEP_SUMMARY
+            exit 1
+          fi
+
+          echo "" >> $GITHUB_STEP_SUMMARY
