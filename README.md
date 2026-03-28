@@ -121,6 +121,10 @@ For development setup and contribution guidelines, see [CONTRIBUTING.md](CONTRIB
 
 - #20646 _(direct issue)_
 
+### @bryanchen-d
+
+- #23265 _(direct issue)_
+
 ### @BrandonLewis
 
 - #18263 _(direct issue)_
@@ -234,6 +238,7 @@ For development setup and contribution guidelines, see [CONTRIBUTING.md](CONTRIB
 ### @eaftan
 
 - #20457 _(direct issue)_
+- #18412 _(direct issue)_
 
 ### @elika56
 
@@ -541,6 +546,7 @@ For development setup and contribution guidelines, see [CONTRIBUTING.md](CONTRIB
 ### @strawgate
 
 - #21157 _(direct issue)_
+- #19982 _(direct issue)_
 - #21135 _(direct issue)_
 - #21028 _(direct issue)_
 - #20910 _(direct issue)_
