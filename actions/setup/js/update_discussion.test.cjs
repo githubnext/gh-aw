@@ -650,6 +650,92 @@ describe("update_discussion", () => {
     });
   });
 
+  describe("target: created", () => {
+    it("should use the most recently created discussion when target is 'created'", async () => {
+      const handler = await main({
+        target: "created",
+        allow_labels: true,
+      });
+
+      const resolvedTemporaryIds = {
+        aw_disc1: { repo: "testowner/testrepo", number: 55, type: "create_discussion" },
+      };
+
+      const result = await handler({ type: "update_discussion", labels: ["bug"] }, resolvedTemporaryIds);
+      expect(result.success).toBe(true);
+
+      const fetchCalls = graphqlCalls.filter(c => c.query.includes("discussion(number:"));
+      expect(fetchCalls.length).toBeGreaterThan(0);
+      expect(fetchCalls[0].variables.number).toBe(55);
+      expect(mockCore.infos.some(msg => msg.includes("55") && msg.includes("aw_disc1"))).toBe(true);
+    });
+
+    it("should use the last created discussion when multiple discussions were created", async () => {
+      const handler = await main({
+        target: "created",
+        allow_labels: true,
+      });
+
+      const resolvedTemporaryIds = {
+        aw_disc1: { repo: "testowner/testrepo", number: 55, type: "create_discussion" },
+        aw_disc2: { repo: "testowner/testrepo", number: 77, type: "create_discussion" },
+      };
+
+      const result = await handler({ type: "update_discussion", labels: ["bug"] }, resolvedTemporaryIds);
+      expect(result.success).toBe(true);
+
+      const fetchCalls = graphqlCalls.filter(c => c.query.includes("discussion(number:"));
+      expect(fetchCalls.length).toBeGreaterThan(0);
+      expect(fetchCalls[0].variables.number).toBe(77);
+    });
+
+    it("should ignore non-discussion entries when finding the most recently created discussion", async () => {
+      const handler = await main({
+        target: "created",
+        allow_labels: true,
+      });
+
+      const resolvedTemporaryIds = {
+        aw_issue1: { repo: "testowner/testrepo", number: 10, type: "create_issue" },
+        aw_disc1: { repo: "testowner/testrepo", number: 55, type: "create_discussion" },
+        aw_issue2: { repo: "testowner/testrepo", number: 20, type: "create_issue" },
+      };
+
+      const result = await handler({ type: "update_discussion", labels: ["bug"] }, resolvedTemporaryIds);
+      expect(result.success).toBe(true);
+
+      const fetchCalls = graphqlCalls.filter(c => c.query.includes("discussion(number:"));
+      expect(fetchCalls.length).toBeGreaterThan(0);
+      expect(fetchCalls[0].variables.number).toBe(55);
+    });
+
+    it("should fail with clear error when no discussion was created in this run", async () => {
+      const handler = await main({
+        target: "created",
+        allow_labels: true,
+      });
+
+      const result = await handler({ type: "update_discussion", labels: ["bug"] }, {});
+      expect(result.success).toBe(false);
+      expect(result.error).toBe("No discussion created in this run");
+    });
+
+    it("should fail when only non-discussion items were created", async () => {
+      const handler = await main({
+        target: "created",
+        allow_labels: true,
+      });
+
+      const resolvedTemporaryIds = {
+        aw_issue1: { repo: "testowner/testrepo", number: 10, type: "create_issue" },
+      };
+
+      const result = await handler({ type: "update_discussion", labels: ["bug"] }, resolvedTemporaryIds);
+      expect(result.success).toBe(false);
+      expect(result.error).toBe("No discussion created in this run");
+    });
+  });
+
   describe("main factory", () => {
     it("should return a handler function", async () => {
       const handler = await main({ allow_labels: true });

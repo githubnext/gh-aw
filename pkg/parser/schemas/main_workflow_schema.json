@@ -5323,7 +5323,7 @@
               "properties": {
                 "target": {
                   "type": "string",
-                  "description": "Target for updates: 'triggering' (default), '*' (any discussion), or explicit discussion number"
+                  "description": "Target for updates: 'triggering' (default), 'created' (most recently created discussion in this run), '*' (any discussion), or explicit discussion number"
                 },
                 "title": {
                   "type": "null",

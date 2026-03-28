@@ -537,6 +537,9 @@ async function processMessages(messageHandlers, messages, onItemCreated = null) 
         temporaryIdMap.set(normalizedTempId, {
           repo: result.repo,
           number: result.number,
+          // Store originating message type (e.g. "create_discussion", "create_issue") so
+          // handlers that support target: "created" can filter entries by type.
+          type: messageType,
         });
         core.info(`Registered temporary ID: ${result.temporaryId} -> ${result.repo}#${result.number}`);
       }
@@ -684,6 +687,9 @@ async function processMessages(messageHandlers, messages, onItemCreated = null) 
             temporaryIdMap.set(normalizedTempId, {
               repo: result.repo,
               number: result.number,
+              // Store originating message type (e.g. "create_discussion", "create_issue") so
+              // handlers that support target: "created" can filter entries by type.
+              type: deferred.type,
             });
             core.info(`Registered temporary ID: ${result.temporaryId} -> ${result.repo}#${result.number}`);
           }

@@ -217,6 +217,21 @@ function resolveDiscussionNumber(item, updateTarget, context, resolvedTemporaryI
       core.info(`Resolved temporary ID '${item.discussion_number}' to discussion #${discussionNumber}`);
     }
     return { success: true, number: discussionNumber };
+  } else if (updateTarget === "created") {
+    // Find the most recently created discussion from the temporary ID map.
+    // Object.entries preserves insertion order (ES2015+), so the last matching entry
+    // is the most recently created discussion in this run.
+    const createdDiscussions = Object.entries(resolvedTemporaryIds || {}).filter(([, value]) => value && value.type === "create_discussion");
+    if (createdDiscussions.length === 0) {
+      return {
+        success: false,
+        error: "No discussion created in this run",
+      };
+    }
+    // Use the most recently created discussion (last entry in insertion order)
+    const [tempId, discussionData] = createdDiscussions[createdDiscussions.length - 1];
+    core.info(`Using most recently created discussion #${discussionData.number} (temporary ID: ${tempId})`);
+    return { success: true, number: discussionData.number };
   } else if (updateTarget !== "triggering") {
     // Explicit number target
     const discussionNumber = parseInt(updateTarget, 10);
