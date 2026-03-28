@@ -236,46 +236,41 @@ func (c *Compiler) generateStartDIFCProxyStep(yaml *strings.Builder, data *Workf
 	}
 }
 
-// buildDeriveGHHostStepYAML returns the YAML for the "Derive GH_HOST for setup steps" step.
+// buildSetGHRepoStepYAML returns the YAML for the "Set GH_REPO for proxied steps" step.
 //
 // start_difc_proxy.sh writes GH_HOST=localhost:18443 to GITHUB_ENV so that the gh CLI
-// routes through the proxy. However, this breaks subsequent gh CLI calls in user-defined
-// steps because the host no longer matches the git remote (github.com / GHEC host).
+// routes through the proxy. However, gh CLI infers the target repository from the git
+// remote, which uses the original host (github.com / GHEC host). When GH_HOST is the
+// proxy address, gh fails to resolve the repository because the host doesn't match.
 //
-// This step re-derives GH_HOST from GITHUB_SERVER_URL (GHEC-safe) immediately after the
-// proxy starts and before user-defined steps run. It clears GH_HOST in its env: block to
-// prevent the proxy value from interfering with the derivation assignment, then writes the
-// correct host to GITHUB_ENV so all subsequent steps see the right value.
-//
-// API calls are still routed through the proxy via GITHUB_API_URL and GITHUB_GRAPHQL_URL,
-// which remain pointing to localhost:18443.
-func buildDeriveGHHostStepYAML() string {
+// Rather than overwriting GH_HOST (which would bypass the DIFC proxy's integrity
+// filtering), this step sets GH_REPO=$GITHUB_REPOSITORY. The gh CLI respects GH_REPO
+// to determine the target repository without needing to match the git remote host.
+// GH_HOST stays at localhost:18443 so all gh CLI traffic continues routing through
+// the proxy for integrity filtering.
+func buildSetGHRepoStepYAML() string {
 	var sb strings.Builder
-	sb.WriteString("      - name: Derive GH_HOST for setup steps\n")
-	sb.WriteString("        env:\n")
-	sb.WriteString("          GH_HOST: \"\"\n")
+	sb.WriteString("      - name: Set GH_REPO for proxied steps\n")
 	sb.WriteString("        run: |\n")
-	sb.WriteString("          GH_HOST=\"${GITHUB_SERVER_URL#https://}\"\n")
-	sb.WriteString("          GH_HOST=\"${GH_HOST#http://}\"\n")
-	sb.WriteString("          echo \"GH_HOST=${GH_HOST}\" >> \"$GITHUB_ENV\"\n")
+	sb.WriteString("          echo \"GH_REPO=${GITHUB_REPOSITORY}\" >> \"$GITHUB_ENV\"\n")
 	return sb.String()
 }
 
-// generateDeriveGHHostAfterDIFCProxyStep injects a step that re-derives GH_HOST from
-// GITHUB_SERVER_URL after start_difc_proxy.sh and before user-defined setup steps.
+// generateSetGHRepoAfterDIFCProxyStep injects a step that sets GH_REPO=$GITHUB_REPOSITORY
+// after start_difc_proxy.sh and before user-defined setup steps.
 //
-// The proxy sets GH_HOST=localhost:18443 in GITHUB_ENV, which breaks gh CLI calls in
-// user-defined steps because that host doesn't match the git remote. This step restores
-// GH_HOST to the correct value (GHEC-safe) so user-defined steps can use gh CLI normally.
+// The proxy sets GH_HOST=localhost:18443 in GITHUB_ENV, which causes gh CLI to fail
+// resolving the repository from the git remote. Setting GH_REPO tells gh which repo
+// to target without changing the proxy routing (GH_HOST stays at the proxy address).
 //
 // The step is only emitted when hasDIFCProxyNeeded returns true.
-func (c *Compiler) generateDeriveGHHostAfterDIFCProxyStep(yaml *strings.Builder, data *WorkflowData) {
+func (c *Compiler) generateSetGHRepoAfterDIFCProxyStep(yaml *strings.Builder, data *WorkflowData) {
 	if !hasDIFCProxyNeeded(data) {
 		return
 	}
 
-	difcProxyLog.Print("Generating Derive GH_HOST step after DIFC proxy start")
-	yaml.WriteString(buildDeriveGHHostStepYAML())
+	difcProxyLog.Print("Generating Set GH_REPO step after DIFC proxy start")
+	yaml.WriteString(buildSetGHRepoStepYAML())
 }
 
 // generateStopDIFCProxyStep generates a step that stops the DIFC proxy container

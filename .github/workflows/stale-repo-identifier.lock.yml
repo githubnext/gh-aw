@@ -343,13 +343,9 @@ jobs:
           GITHUB_SERVER_URL: ${{ github.server_url }}
         run: |
           bash ${RUNNER_TEMP}/gh-aw/actions/start_difc_proxy.sh '{"allow-only":{"min-integrity":"approved","repos":"all"}}' 'ghcr.io/github/gh-aw-mcpg:v0.2.7'
-      - name: Derive GH_HOST for setup steps
-        env:
-          GH_HOST: ""
+      - name: Set GH_REPO for proxied steps
         run: |
-          GH_HOST="${GITHUB_SERVER_URL#https://}"
-          GH_HOST="${GH_HOST#http://}"
-          echo "GH_HOST=${GH_HOST}" >> "$GITHUB_ENV"
+          echo "GH_REPO=${GITHUB_REPOSITORY}" >> "$GITHUB_ENV"
       - name: Setup Python environment
         run: "# Create working directory for Python scripts\nmkdir -p /tmp/gh-aw/python\nmkdir -p /tmp/gh-aw/python/data\nmkdir -p /tmp/gh-aw/python/charts\nmkdir -p /tmp/gh-aw/python/artifacts\n\necho \"Python environment setup complete\"\necho \"Working directory: /tmp/gh-aw/python\"\necho \"Data directory: /tmp/gh-aw/python/data\"\necho \"Charts directory: /tmp/gh-aw/python/charts\"\necho \"Artifacts directory: /tmp/gh-aw/python/artifacts\"\n"
       - name: Install Python scientific libraries
