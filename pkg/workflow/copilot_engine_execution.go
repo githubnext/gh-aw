@@ -116,6 +116,10 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 		copilotArgs = append(copilotArgs, workflowData.EngineConfig.Args...)
 	}
 
+	// Export session transcript to a structured markdown file for artifact capture.
+	// The file is written to the logs folder so it is collected alongside debug logs and session JSONL files.
+	copilotArgs = append(copilotArgs, "--share", logsFolder+"conversation.md")
+
 	// Note: the --prompt argument and (in sandbox mode) --add-dir "${GITHUB_WORKSPACE}"
 	// are appended raw after shellJoinArgs in the command building step below.
 	// These contain shell variable references that must NOT go through shellEscapeArg
