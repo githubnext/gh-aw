@@ -13,7 +13,7 @@ import (
 func TestGetAWFImageTag(t *testing.T) {
 	t.Run("returns default version without v prefix when firewall config is nil", func(t *testing.T) {
 		result := getAWFImageTag(nil)
-		// DefaultFirewallVersion is "v0.7.0", but getAWFImageTag strips the "v" prefix
+		// DefaultFirewallVersion is "v0.25.3", but getAWFImageTag strips the "v" prefix
 		expected := strings.TrimPrefix(string(constants.DefaultFirewallVersion), "v")
 		if result != expected {
 			t.Errorf("Expected %s, got %s", expected, result)
