@@ -334,7 +334,11 @@ func ensureLogsGitignore() error {
 	return nil
 }
 
-// ensureAwGitignore ensures that .github/aw/.gitignore exists and contains the imports/ entry
+// awGitignoreEntries lists all entries that must be present in .github/aw/.gitignore.
+var awGitignoreEntries = []string{"imports/", "logs/"}
+
+// ensureAwGitignore ensures that .github/aw/.gitignore exists and contains the required entries.
+// If the file already exists, any missing entries are appended.
 func ensureAwGitignore() error {
 	gitLog.Print("Ensuring .github/aw/.gitignore exists")
 	gitRoot, err := findGitRoot()
@@ -345,26 +349,54 @@ func ensureAwGitignore() error {
 	awDir := filepath.Join(gitRoot, ".github", "aw")
 	gitignorePath := filepath.Join(awDir, ".gitignore")
 
-	// Check if .gitignore already exists
-	if _, err := os.Stat(gitignorePath); err == nil {
-		gitLog.Print(".github/aw/.gitignore already exists")
-		return nil
-	}
-
-	gitLog.Print("Creating .github/aw directory and .gitignore")
 	if err := os.MkdirAll(awDir, 0755); err != nil {
 		gitLog.Printf("Failed to create .github/aw directory: %v", err)
 		return fmt.Errorf("failed to create .github/aw directory: %w", err)
 	}
 
-	gitignoreContent := `imports/
-`
-	if err := os.WriteFile(gitignorePath, []byte(gitignoreContent), 0600); err != nil {
+	// Read existing content (if any)
+	existing, readErr := os.ReadFile(gitignorePath)
+	existingContent := ""
+	if readErr == nil {
+		existingContent = string(existing)
+		gitLog.Print(".github/aw/.gitignore already exists, checking for missing entries")
+	}
+
+	// Collect any entries that are not yet present
+	var missing []string
+	for _, entry := range awGitignoreEntries {
+		if !strings.Contains(existingContent, entry) {
+			missing = append(missing, entry)
+		}
+	}
+
+	if len(missing) == 0 {
+		gitLog.Print(".github/aw/.gitignore already contains all required entries")
+		return nil
+	}
+
+	// Append missing entries (ensure file ends with a newline before appending)
+	appendContent := ""
+	if existingContent != "" && !strings.HasSuffix(existingContent, "\n") {
+		appendContent = "\n"
+	}
+	for _, entry := range missing {
+		appendContent += entry + "\n"
+	}
+
+	f, err := os.OpenFile(gitignorePath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0600)
+	if err != nil {
+		gitLog.Printf("Failed to open .gitignore for writing: %v", err)
+		return fmt.Errorf("failed to write .github/aw/.gitignore: %w", err)
+	}
+	defer f.Close()
+
+	if _, err := f.WriteString(appendContent); err != nil {
 		gitLog.Printf("Failed to write .gitignore: %v", err)
 		return fmt.Errorf("failed to write .github/aw/.gitignore: %w", err)
 	}
 
-	gitLog.Print("Successfully created .github/aw/.gitignore")
+	gitLog.Printf("Successfully updated .github/aw/.gitignore (added: %v)", missing)
 	return nil
 }
 
