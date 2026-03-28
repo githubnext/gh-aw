@@ -51,7 +51,7 @@ const MANAGED_FALLBACK_ISSUE_LABEL = "agentic-workflows";
  * @returns {boolean} True if the error is transient and should be retried
  */
 function isLabelTransientError(error) {
-  const msg = error instanceof Error ? error.message : String(error);
+  const msg = getErrorMessage(error);
   if (msg.includes("Could not resolve to a node with the global id")) {
     return true;
   }
