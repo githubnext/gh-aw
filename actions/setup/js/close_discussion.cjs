@@ -11,6 +11,7 @@ const { logStagedPreviewInfo } = require("./staged_preview.cjs");
 const { isStagedMode } = require("./safe_output_helpers.cjs");
 const { createAuthenticatedGitHubClient } = require("./handler_auth.cjs");
 const { ERR_NOT_FOUND } = require("./error_codes.cjs");
+const { isTemporaryId, normalizeTemporaryId } = require("./temporary_id.cjs");
 
 /**
  * Get discussion details using GraphQL with pagination for labels
@@ -198,13 +199,29 @@ async function main(config = {}) {
     // Determine discussion number
     let discussionNumber;
     if (item.discussion_number !== undefined) {
-      discussionNumber = parseInt(String(item.discussion_number), 10);
-      if (isNaN(discussionNumber)) {
-        core.warning(`Invalid discussion number: ${item.discussion_number}`);
-        return {
-          success: false,
-          error: `Invalid discussion number: ${item.discussion_number}`,
-        };
+      const rawNumber = String(item.discussion_number).trim();
+      const withoutHash = rawNumber.startsWith("#") ? rawNumber.substring(1) : rawNumber;
+      // Resolve temporary ID if present
+      if (isTemporaryId(withoutHash)) {
+        const resolved = resolvedTemporaryIds && resolvedTemporaryIds[normalizeTemporaryId(withoutHash)];
+        if (!resolved || !resolved.number) {
+          core.warning(`Unresolved temporary ID for discussion_number: ${item.discussion_number}`);
+          return {
+            success: false,
+            error: `Unresolved temporary ID: ${item.discussion_number}`,
+          };
+        }
+        discussionNumber = Number(resolved.number);
+        core.info(`Resolved temporary ID '${item.discussion_number}' to discussion #${discussionNumber}`);
+      } else {
+        discussionNumber = parseInt(withoutHash, 10);
+        if (isNaN(discussionNumber)) {
+          core.warning(`Invalid discussion number: ${item.discussion_number}`);
+          return {
+            success: false,
+            error: `Invalid discussion number: ${item.discussion_number}`,
+          };
+        }
       }
     } else {
       // Use context discussion if available

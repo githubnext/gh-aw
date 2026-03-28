@@ -14,6 +14,7 @@ const { validateLabels } = require("./safe_output_validator.cjs");
 const { tryEnforceArrayLimit } = require("./limit_enforcement_helpers.cjs");
 const { MAX_LABELS } = require("./constants.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
+const { isTemporaryId, normalizeTemporaryId } = require("./temporary_id.cjs");
 
 /**
  * Fetches label node IDs for the given label names from the repository
@@ -197,13 +198,29 @@ async function executeDiscussionUpdate(github, context, discussionNumber, update
  * @param {Object} item - The message item
  * @param {string} updateTarget - Target configuration
  * @param {Object} context - GitHub Actions context
+ * @param {Object} [resolvedTemporaryIds] - Resolved temporary IDs map
  * @returns {{success: true, number: number} | {success: false, error: string}} Resolution result
  */
-function resolveDiscussionNumber(item, updateTarget, context) {
+function resolveDiscussionNumber(item, updateTarget, context, resolvedTemporaryIds) {
   // Discussions are special - they have their own context type separate from issues/PRs
   // We need to handle them differently
   if (item.discussion_number !== undefined) {
-    const discussionNumber = parseInt(String(item.discussion_number), 10);
+    const rawNumber = String(item.discussion_number).trim();
+    const withoutHash = rawNumber.startsWith("#") ? rawNumber.substring(1) : rawNumber;
+    // Resolve temporary ID if present
+    if (isTemporaryId(withoutHash)) {
+      const resolved = resolvedTemporaryIds && resolvedTemporaryIds[normalizeTemporaryId(withoutHash)];
+      if (!resolved || !resolved.number) {
+        return {
+          success: false,
+          error: `Unresolved temporary ID: ${item.discussion_number}`,
+        };
+      }
+      const discussionNumber = Number(resolved.number);
+      core.info(`Resolved temporary ID '${item.discussion_number}' to discussion #${discussionNumber}`);
+      return { success: true, number: discussionNumber };
+    }
+    const discussionNumber = parseInt(withoutHash, 10);
     if (isNaN(discussionNumber)) {
       return {
         success: false,

@@ -606,6 +606,50 @@ describe("update_discussion", () => {
     });
   });
 
+  describe("temporary ID support", () => {
+    it("should resolve a temporary ID for discussion_number", async () => {
+      const handler = await main({
+        target: "*",
+        allow_labels: true,
+      });
+
+      const resolvedTemporaryIds = { aw_disc1: { repo: "testowner/testrepo", number: 99 } };
+      const result = await handler({ type: "update_discussion", labels: ["bug"], discussion_number: "aw_disc1" }, resolvedTemporaryIds);
+      expect(result.success).toBe(true);
+
+      const fetchCalls = graphqlCalls.filter(c => c.query.includes("discussion(number:"));
+      expect(fetchCalls.length).toBeGreaterThan(0);
+      expect(fetchCalls[0].variables.number).toBe(99);
+      expect(mockCore.infos.some(msg => msg.includes("aw_disc1") && msg.includes("99"))).toBe(true);
+    });
+
+    it("should resolve a temporary ID with # prefix for discussion_number", async () => {
+      const handler = await main({
+        target: "*",
+        allow_labels: true,
+      });
+
+      const resolvedTemporaryIds = { aw_disc1: { repo: "testowner/testrepo", number: 99 } };
+      const result = await handler({ type: "update_discussion", labels: ["bug"], discussion_number: "#aw_disc1" }, resolvedTemporaryIds);
+      expect(result.success).toBe(true);
+
+      const fetchCalls = graphqlCalls.filter(c => c.query.includes("discussion(number:"));
+      expect(fetchCalls.length).toBeGreaterThan(0);
+      expect(fetchCalls[0].variables.number).toBe(99);
+    });
+
+    it("should fail when temporary ID is not found in the map", async () => {
+      const handler = await main({
+        target: "*",
+        allow_labels: true,
+      });
+
+      const result = await handler({ type: "update_discussion", labels: ["bug"], discussion_number: "aw_disc1" }, {});
+      expect(result.success).toBe(false);
+      expect(result.error).toContain("aw_disc1");
+    });
+  });
+
   describe("main factory", () => {
     it("should return a handler function", async () => {
       const handler = await main({ allow_labels: true });
