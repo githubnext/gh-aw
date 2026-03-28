@@ -209,7 +209,10 @@ function resolveDiscussionNumber(item, updateTarget, context, resolvedTemporaryI
     if (resolution.errorMessage) {
       return { success: false, error: resolution.errorMessage };
     }
-    const discussionNumber = /** @type {number} */ resolution.resolved;
+    if (resolution.resolved === null) {
+      return { success: false, error: resolution.errorMessage ?? "Failed to resolve discussion number" };
+    }
+    const discussionNumber = resolution.resolved;
     if (resolution.wasTemporaryId) {
       core.info(`Resolved temporary ID '${item.discussion_number}' to discussion #${discussionNumber}`);
     }
