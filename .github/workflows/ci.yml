@@ -2896,6 +2896,8 @@ jobs:
     concurrency:
       group: ci-${{ github.ref }}-sh-difc-proxy
       cancel-in-progress: true
+    env:
+      DIFC_PROXY_IMAGE: ghcr.io/github/gh-aw-mcpg:v0.2.8
     steps:
       - name: Checkout code
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
@@ -2904,7 +2906,7 @@ jobs:
         run: echo "${{ github.token }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
 
       - name: Pull DIFC proxy image
-        run: bash actions/setup/sh/download_docker_images.sh ghcr.io/github/gh-aw-mcpg:v0.2.8
+        run: bash actions/setup/sh/download_docker_images.sh "$DIFC_PROXY_IMAGE"
 
       - name: Start DIFC proxy
         env:
@@ -2914,7 +2916,7 @@ jobs:
         run: |
           bash actions/setup/sh/start_difc_proxy.sh \
             '{"allow-only":{"repos":"all"}}' \
-            'ghcr.io/github/gh-aw-mcpg:v0.2.8'
+            "$DIFC_PROXY_IMAGE"
 
       - name: Verify DIFC proxy started
         run: |
@@ -2922,6 +2924,30 @@ jobs:
             echo "❌ DIFC proxy did not start (GH_HOST=${GH_HOST:-not set})"
             echo "Docker container logs:"
             docker logs awmg-proxy 2>&1 || true
+            echo ""
+            echo "Persisted proxy logs (if any) from /tmp/gh-aw/proxy-logs:"
+            if [ -d "/tmp/gh-aw/proxy-logs" ]; then
+              for f in /tmp/gh-aw/proxy-logs/*; do
+                [ -e "$f" ] || continue
+                echo "---- $f ----"
+                cat "$f" || true
+                echo ""
+              done
+            else
+              echo "No /tmp/gh-aw/proxy-logs directory found."
+            fi
+            echo ""
+            echo "Persisted MCP logs (if any) from /tmp/gh-aw/mcp-logs:"
+            if [ -d "/tmp/gh-aw/mcp-logs" ]; then
+              for f in /tmp/gh-aw/mcp-logs/*; do
+                [ -e "$f" ] || continue
+                echo "---- $f ----"
+                cat "$f" || true
+                echo ""
+              done
+            else
+              echo "No /tmp/gh-aw/mcp-logs directory found."
+            fi
             exit 1
           fi
           echo "✅ DIFC proxy started (GH_HOST=${GH_HOST})"
@@ -2939,10 +2965,11 @@ jobs:
         with:
           github-token: ${{ github.token }}
           script: |
+            const expectedUrl = 'https://localhost:18443/api/v3';
             const proxyUrl = process.env.GITHUB_API_URL;
             console.log(`GITHUB_API_URL: ${proxyUrl}`);
-            if (!proxyUrl || !proxyUrl.includes('localhost:18443')) {
-              throw new Error(`Expected GITHUB_API_URL to route through proxy, got: ${proxyUrl}`);
+            if (proxyUrl !== expectedUrl) {
+              throw new Error(`Expected GITHUB_API_URL to be "${expectedUrl}", got: ${proxyUrl}`);
             }
             const { data } = await github.rest.rateLimit.get();
             console.log(`✅ actions/github-script works through DIFC proxy (rate limit: ${data.rate.limit})`);
