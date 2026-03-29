@@ -350,17 +350,15 @@ func TestGenerateAPMPackStep(t *testing.T) {
 			apmDeps: &APMDependenciesInfo{Packages: []string{"microsoft/apm-sample-package"}},
 			target:  "copilot",
 			expectedContains: []string{
-				"Install APM CLI and packages",
-				"pip install",
-				"apm install",
-				"apm.yml",
-				"- microsoft/apm-sample-package",
-				"Pack APM bundle",
+				"Install and pack APM bundle",
 				"id: apm_pack",
 				"actions/github-script",
+				"apm_install.cjs",
 				"apm_pack.cjs",
+				`APM_PACKAGES: '["microsoft/apm-sample-package"]'`,
 				"APM_TARGET: copilot",
 				"APM_WORKSPACE: /tmp/gh-aw/apm-workspace",
+				"GITHUB_APM_PAT:",
 			},
 		},
 		{
@@ -368,13 +366,13 @@ func TestGenerateAPMPackStep(t *testing.T) {
 			apmDeps: &APMDependenciesInfo{Packages: []string{"microsoft/apm-sample-package", "github/skills/review"}},
 			target:  "claude",
 			expectedContains: []string{
-				"Install APM CLI and packages",
-				"- microsoft/apm-sample-package",
-				"- github/skills/review",
-				"Pack APM bundle",
+				"Install and pack APM bundle",
 				"id: apm_pack",
-				"APM_TARGET: claude",
+				"apm_install.cjs",
 				"apm_pack.cjs",
+				`"microsoft/apm-sample-package"`,
+				`"github/skills/review"`,
+				"APM_TARGET: claude",
 			},
 		},
 		{
@@ -383,16 +381,17 @@ func TestGenerateAPMPackStep(t *testing.T) {
 			target:  "all",
 			expectedContains: []string{
 				"APM_TARGET: all",
+				"apm_install.cjs",
 				"apm_pack.cjs",
 			},
 		},
 		{
-			name:    "microsoft/apm-action is not referenced in new implementation",
+			name:    "No pip install or apm-cli in new JS-only implementation",
 			apmDeps: &APMDependenciesInfo{Packages: []string{"microsoft/apm-sample-package"}, Version: "v1.0.0"},
 			target:  "copilot",
 			expectedContains: []string{
-				"pip install",
-				"apm install",
+				"apm_install.cjs",
+				"apm_pack.cjs",
 			},
 		},
 	}
@@ -410,8 +409,10 @@ func TestGenerateAPMPackStep(t *testing.T) {
 			require.NotEmpty(t, step, "Step should not be empty")
 			combined := combineStepLines(step)
 
-			// New implementation does not use microsoft/apm-action
-			assert.NotContains(t, combined, "microsoft/apm-action", "New implementation should not reference microsoft/apm-action")
+			// New JS-only implementation must not reference Python tooling or microsoft/apm-action
+			assert.NotContains(t, combined, "microsoft/apm-action", "Should not reference microsoft/apm-action")
+			assert.NotContains(t, combined, "pip install", "Should not use pip install")
+			assert.NotContains(t, combined, "apm install", "Should not call apm CLI install")
 
 			for _, expected := range tt.expectedContains {
 				assert.Contains(t, combined, expected, "Step should contain: %s", expected)
