@@ -89,7 +89,7 @@ return a schema description instead of the full output. Adjust the 'max_tokens' 
 		}
 
 		// Validate workflow name before executing command
-		if err := validateWorkflowName(args.WorkflowName); err != nil {
+		if err := validateMCPWorkflowName(args.WorkflowName); err != nil {
 			mcpLog.Printf("Workflow name validation failed: %v", err)
 			return nil, nil, newMCPError(jsonrpc.CodeInvalidParams, err.Error(), map[string]any{
 				"workflow_name": args.WorkflowName,
