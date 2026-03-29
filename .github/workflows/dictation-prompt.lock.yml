@@ -33,7 +33,6 @@ name: "Dictation Prompt Generator"
 "on":
   schedule:
   - cron: "0 6 * * 0"
-    # Friendly format: daily (scattered)
   workflow_dispatch:
     inputs:
       aw_context:

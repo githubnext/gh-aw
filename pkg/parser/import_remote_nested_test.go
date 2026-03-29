@@ -165,6 +165,75 @@ func TestLocalImportResolutionBaseline(t *testing.T) {
 	assert.NotNil(t, result, "Result should not be nil")
 }
 
+// TestBareFilenameNestedImportResolution verifies that a file in a subdirectory (e.g.
+// shared/mcp/serena-go.md) can import a sibling file using a bare filename (e.g.
+// "serena.md") and that the BFS resolver looks for the sibling in the parent
+// file's directory rather than in the top-level workflows directory.
+//
+// This is the pattern used by shared/mcp/serena-go.md → serena.md.
+func TestBareFilenameNestedImportResolution(t *testing.T) {
+	tmpDir := t.TempDir()
+	workflowsDir := filepath.Join(tmpDir, ".github", "workflows")
+	mcpDir := filepath.Join(workflowsDir, "shared", "mcp")
+	require.NoError(t, os.MkdirAll(mcpDir, 0o755), "create shared/mcp dir")
+
+	// serena.md – a "leaf" file with no imports (just mcp-servers config)
+	serenaContent := "---\nmcp-servers:\n  serena:\n    image: ghcr.io/oraios/serena\n---\n"
+	require.NoError(t, os.WriteFile(filepath.Join(mcpDir, "serena.md"), []byte(serenaContent), 0o644))
+
+	// serena-go.md – imports "serena.md" (bare filename, same directory)
+	serenaGoContent := "---\nimports:\n  - uses: serena.md\n    with:\n      languages: [\"go\"]\n---\n"
+	require.NoError(t, os.WriteFile(filepath.Join(mcpDir, "serena-go.md"), []byte(serenaGoContent), 0o644))
+
+	// Top-level workflow imports "shared/mcp/serena-go.md"
+	frontmatter := map[string]any{
+		"imports": []any{"shared/mcp/serena-go.md"},
+	}
+
+	yamlContent := "imports:\n  - shared/mcp/serena-go.md\n"
+	cache := NewImportCache(tmpDir)
+	result, err := ProcessImportsFromFrontmatterWithSource(
+		frontmatter, workflowsDir, cache,
+		"workflow.md", yamlContent,
+	)
+
+	require.NoError(t, err, "serena-go.md importing bare 'serena.md' should resolve to shared/mcp/serena.md")
+	assert.NotNil(t, result, "Result should not be nil")
+}
+
+// TestSubdirImportWithPathPrefix verifies that a file in a subdirectory can still use
+// paths with a directory component (e.g. "shared/foo.md") and they resolve correctly
+// against the original workflows base directory, not the subdirectory.
+func TestSubdirImportWithPathPrefix(t *testing.T) {
+	tmpDir := t.TempDir()
+	workflowsDir := filepath.Join(tmpDir, ".github", "workflows")
+	sharedDir := filepath.Join(workflowsDir, "shared")
+	subDir := filepath.Join(sharedDir, "sub")
+	require.NoError(t, os.MkdirAll(subDir, 0o755), "create shared/sub dir")
+
+	// shared/reporting.md – target of the absolute import
+	reportingContent := "---\ntools:\n  github:\n---\n"
+	require.NoError(t, os.WriteFile(filepath.Join(sharedDir, "reporting.md"), []byte(reportingContent), 0o644))
+
+	// shared/sub/parent.md – imports "shared/reporting.md" (absolute-from-workflows-root path)
+	parentContent := "---\nimports:\n  - shared/reporting.md\n---\n"
+	require.NoError(t, os.WriteFile(filepath.Join(subDir, "parent.md"), []byte(parentContent), 0o644))
+
+	// Top-level workflow imports "shared/sub/parent.md"
+	frontmatter := map[string]any{
+		"imports": []any{"shared/sub/parent.md"},
+	}
+	yamlContent := "imports:\n  - shared/sub/parent.md\n"
+	cache := NewImportCache(tmpDir)
+	result, err := ProcessImportsFromFrontmatterWithSource(
+		frontmatter, workflowsDir, cache,
+		"workflow.md", yamlContent,
+	)
+
+	require.NoError(t, err, "path-prefixed import from subdirectory should resolve against workflows root")
+	assert.NotNil(t, result, "Result should not be nil")
+}
+
 func TestRemoteOriginPropagation(t *testing.T) {
 	// Test that the remote origin is correctly tracked on queue items
 	// when a top-level import is a workflowspec

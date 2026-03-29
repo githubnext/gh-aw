@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"maps"
 	"path"
+	"path/filepath"
 	"strings"
 
 	"github.com/goccy/go-yaml"
@@ -388,7 +389,19 @@ func processImportsFromFrontmatterWithManifestAndSource(frontmatter map[string]a
 					}
 				}
 
-				nestedFullPath, err := ResolveIncludePath(resolvedPath, baseDir, cache)
+				// Determine the base directory for resolving this nested import.
+				// For local imports with a bare filename (no directory separator), resolve
+				// relative to the parent file's directory so that sibling files like
+				// "serena.md" inside "shared/mcp/serena-go.md" resolve correctly.
+				// For paths that include a directory component (e.g. "shared/foo.md") or
+				// remote workflowspec paths, keep using the original baseDir so that
+				// existing conventions (absolute-from-workflows-root paths) continue to work.
+				nestedBaseDir := baseDir
+				if item.remoteOrigin == nil && !isWorkflowSpec(resolvedPath) && !strings.Contains(resolvedPath, "/") {
+					nestedBaseDir = filepath.Dir(item.fullPath)
+				}
+
+				nestedFullPath, err := ResolveIncludePath(resolvedPath, nestedBaseDir, cache)
 				if err != nil {
 					// If we have source information for the parent workflow, create a structured error
 					if workflowFilePath != "" && yamlContent != "" {
