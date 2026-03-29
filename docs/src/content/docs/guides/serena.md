@@ -7,8 +7,8 @@ sidebar:
 
 This guide covers using [Serena](https://github.com/oraios/serena), a powerful coding agent toolkit that provides semantic code retrieval and editing capabilities to agentic workflows.
 
-> [!WARNING]
-> `tools.serena` is deprecated. Use the `shared/mcp/serena.md` shared workflow instead (see [Migration](#migration-from-toolsserena) below). The `tools.serena` syntax continues to work but will be removed in a future release.
+> [!CAUTION]
+> `tools.serena` has been removed. Use the `shared/mcp/serena.md` shared workflow instead (see [Migration](#migration-from-toolsserena) below). Workflows that still use `tools.serena` will fail to compile.
 
 ## What is Serena?
 
@@ -76,7 +76,7 @@ Analyze Go code for quality improvements:
 
 Replace `tools.serena` with the equivalent import:
 
-```yaml title="Before (deprecated)"
+```yaml title="Before (removed)"
 tools:
   serena: ["go", "typescript"]
 ```
@@ -95,10 +95,10 @@ imports:
   - shared/mcp/serena-go.md
 ```
 
-The shared workflow configures the full Serena MCP server (container image, entrypoint, workspace mount) explicitly, without relying on any built-in shorthand. Compiling a workflow that still uses `tools.serena` emits:
+The shared workflow configures the full Serena MCP server (container image, entrypoint, workspace mount) explicitly. Compiling a workflow that still uses `tools.serena` now fails with an error:
 
 ```
-⚠ 'tools.serena' is deprecated. Use 'mcp-servers.serena' with the shared/mcp/serena.md workflow instead:
+✖ 'tools.serena' has been removed. Use the shared/mcp/serena.md workflow instead:
   imports:
     - uses: shared/mcp/serena.md
       with:

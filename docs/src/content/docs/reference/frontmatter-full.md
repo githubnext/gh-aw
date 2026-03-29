@@ -2118,6 +2118,11 @@ tools:
   # (optional)
   startup-timeout: 1
 
+  # REMOVED: tools.serena has been removed. Use shared/mcp/serena.md instead:
+  #   imports:
+  #     - uses: shared/mcp/serena.md
+  #       with:
+  #         languages: ["go", "typescript"]
   # Serena MCP server for AI-powered code intelligence with language service
   # integration
   # (optional)
