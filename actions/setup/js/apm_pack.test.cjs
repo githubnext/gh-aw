@@ -211,7 +211,7 @@ describe("filterFilesByTarget – direct matches", () => {
     expect(result).toContain(".cursor/rules/x.md");
   });
 
-  it("returns empty array when no files match target", () => {
+  it("applies cross-target mapping when no direct-match files exist", () => {
     const files = [".github/skills/foo/"];
     const { files: result } = filterFilesByTarget(files, "claude");
     // No direct matches, but .github/skills/ → .claude/skills/ cross-map applies

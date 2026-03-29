@@ -177,7 +177,9 @@ func GenerateAPMPackStep(apmDeps *APMDependenciesInfo, target string, data *Work
 	}
 
 	// Shell script: install apm-cli (strip leading 'v' from version), create workspace,
-	// write apm.yml with the declared packages, and run apm install.
+	// write apm.yml with the declared packages using a heredoc with a quoted delimiter
+	// (<<'APM_YAML') so the shell never expands or interprets any characters inside the
+	// heredoc body, preventing injection from malicious package names.
 	lines = append(lines,
 		"        run: |",
 		"          set -e",
@@ -185,14 +187,19 @@ func GenerateAPMPackStep(apmDeps *APMDependenciesInfo, target string, data *Work
 		"          pip install --quiet \"apm-cli==${APM_VERSION}\"",
 		"          mkdir -p /tmp/gh-aw/apm-workspace",
 		"          cd /tmp/gh-aw/apm-workspace",
-		"          printf 'name: gh-aw-workspace\\nversion: 0.0.0\\ndependencies:\\n  apm:\\n' > apm.yml",
+		"          cat <<'APM_YAML' > apm.yml",
+		"          name: gh-aw-workspace",
+		"          version: 0.0.0",
+		"          dependencies:",
+		"            apm:",
 	)
 	for _, dep := range apmDeps.Packages {
-		// Use echo instead of printf to avoid printf interpreting dep as a format string
-		// (package names with '%' characters would cause unexpected behavior with printf).
-		lines = append(lines, fmt.Sprintf("          echo '    - %s' >> apm.yml", dep))
+		lines = append(lines, fmt.Sprintf("              - %s", dep))
 	}
-	lines = append(lines, "          apm install")
+	lines = append(lines,
+		"          APM_YAML",
+		"          apm install",
+	)
 
 	// -----------------------------------------------------------------------
 	// Step 2: Pack the installed workspace with the JavaScript implementation

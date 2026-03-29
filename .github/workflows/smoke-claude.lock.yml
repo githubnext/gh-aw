@@ -2311,8 +2311,13 @@ jobs:
           pip install --quiet "apm-cli==${APM_VERSION}"
           mkdir -p /tmp/gh-aw/apm-workspace
           cd /tmp/gh-aw/apm-workspace
-          printf 'name: gh-aw-workspace\nversion: 0.0.0\ndependencies:\n  apm:\n' > apm.yml
-          echo '    - microsoft/apm-sample-package' >> apm.yml
+          cat <<'APM_YAML' > apm.yml
+          name: gh-aw-workspace
+          version: 0.0.0
+          dependencies:
+            apm:
+              - microsoft/apm-sample-package
+          APM_YAML
           apm install
       - name: Pack APM bundle
         id: apm_pack

@@ -69,8 +69,9 @@ const TARGET_PREFIXES = {
 
 /**
  * Cross-target path equivalences for skills/ and agents/ directories.
- * Maps bundle_path_prefix → disk_path_prefix for a given target.
- * Only skills/ and agents/ are semantically identical across targets.
+ * Maps srcPrefix (disk/deployed_files path) → dstPrefix (bundle path) for a given target,
+ * as used by filterFilesByTarget(). Only skills/ and agents/ are semantically identical
+ * across targets.
  * @type {Record<string, Record<string, string>>}
  */
 const CROSS_TARGET_MAPS = {
@@ -161,8 +162,8 @@ function detectTarget(workspaceDir, explicitTarget) {
   }
 
   // Auto-detect from folder structure
-  const hasGitHub = fs.existsSync(path.join(workspaceDir, ".github"));
-  const hasClaude = fs.existsSync(path.join(workspaceDir, ".claude"));
+  const hasGitHub = fs.existsSync(path.join(workspaceDir, ".github")) && fs.lstatSync(path.join(workspaceDir, ".github")).isDirectory();
+  const hasClaude = fs.existsSync(path.join(workspaceDir, ".claude")) && fs.lstatSync(path.join(workspaceDir, ".claude")).isDirectory();
   const hasCursor = fs.existsSync(path.join(workspaceDir, ".cursor")) && fs.lstatSync(path.join(workspaceDir, ".cursor")).isDirectory();
   const hasOpencode = fs.existsSync(path.join(workspaceDir, ".opencode")) && fs.lstatSync(path.join(workspaceDir, ".opencode")).isDirectory();
 
@@ -307,8 +308,8 @@ function serializeLockfileYaml(lockfile, filteredDeps, packMeta) {
 
   // Pack metadata section (prepended first, as in Python's enrich_lockfile_for_pack)
   lines.push("pack:");
-  lines.push(`  format: ${packMeta.format}`);
-  lines.push(`  target: ${packMeta.target}`);
+  lines.push(`  format: ${scalarToYaml(packMeta.format)}`);
+  lines.push(`  target: ${scalarToYaml(packMeta.target)}`);
   lines.push(`  packed_at: ${scalarToYaml(packMeta.packed_at)}`);
   if (packMeta.mapped_from && packMeta.mapped_from.length > 0) {
     lines.push("  mapped_from:");
@@ -331,33 +332,37 @@ function serializeLockfileYaml(lockfile, filteredDeps, packMeta) {
   // Dependencies sequence
   lines.push("dependencies:");
   for (const dep of filteredDeps) {
-    lines.push(`- repo_url: ${dep.repo_url}`);
-    if (dep.host !== null) lines.push(`  host: ${dep.host}`);
+    lines.push(`- repo_url: ${scalarToYaml(dep.repo_url)}`);
+    if (dep.host !== null) lines.push(`  host: ${scalarToYaml(dep.host)}`);
     else lines.push(`  host: null`);
-    if (dep.resolved_commit !== null) lines.push(`  resolved_commit: ${dep.resolved_commit}`);
+    if (dep.resolved_commit !== null) lines.push(`  resolved_commit: ${scalarToYaml(dep.resolved_commit)}`);
     else lines.push(`  resolved_commit: null`);
-    if (dep.resolved_ref !== null) lines.push(`  resolved_ref: ${dep.resolved_ref}`);
+    if (dep.resolved_ref !== null) lines.push(`  resolved_ref: ${scalarToYaml(dep.resolved_ref)}`);
     else lines.push(`  resolved_ref: null`);
     if (dep.version !== null) lines.push(`  version: ${scalarToYaml(dep.version)}`);
     else lines.push(`  version: null`);
-    if (dep.virtual_path !== null) lines.push(`  virtual_path: ${dep.virtual_path}`);
+    if (dep.virtual_path !== null) lines.push(`  virtual_path: ${scalarToYaml(dep.virtual_path)}`);
     else lines.push(`  virtual_path: null`);
     lines.push(`  is_virtual: ${dep.is_virtual ? "true" : "false"}`);
     lines.push(`  depth: ${dep.depth}`);
-    if (dep.resolved_by !== null) lines.push(`  resolved_by: ${dep.resolved_by}`);
+    if (dep.resolved_by !== null) lines.push(`  resolved_by: ${scalarToYaml(dep.resolved_by)}`);
     else lines.push(`  resolved_by: null`);
-    if (dep.package_type !== null) lines.push(`  package_type: ${dep.package_type}`);
+    if (dep.package_type !== null) lines.push(`  package_type: ${scalarToYaml(dep.package_type)}`);
     else lines.push(`  package_type: null`);
-    if (dep.source !== null) lines.push(`  source: ${dep.source}`);
+    if (dep.source !== null) lines.push(`  source: ${scalarToYaml(dep.source)}`);
     else lines.push(`  source: null`);
-    if (dep.local_path !== null) lines.push(`  local_path: ${dep.local_path}`);
+    if (dep.local_path !== null) lines.push(`  local_path: ${scalarToYaml(dep.local_path)}`);
     else lines.push(`  local_path: null`);
-    if (dep.content_hash !== null) lines.push(`  content_hash: ${dep.content_hash}`);
+    if (dep.content_hash !== null) lines.push(`  content_hash: ${scalarToYaml(dep.content_hash)}`);
     else lines.push(`  content_hash: null`);
     lines.push(`  is_dev: ${dep.is_dev ? "true" : "false"}`);
+    // Preserve unknown fields so the enriched lockfile is non-destructive
+    for (const [k, v] of Object.entries(dep.extra || {})) {
+      lines.push(`  ${k}: ${scalarToYaml(v)}`);
+    }
     lines.push("  deployed_files:");
     for (const f of dep.deployed_files) {
-      lines.push(`  - ${f}`);
+      lines.push(`  - ${scalarToYaml(f)}`);
     }
   }
 

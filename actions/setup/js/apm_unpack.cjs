@@ -87,6 +87,7 @@ function unquoteYaml(raw) {
  * @property {string | null} local_path
  * @property {string | null} content_hash
  * @property {boolean} is_dev
+ * @property {Record<string, any>} extra - Unknown fields preserved for non-destructive round-trip
  */
 
 /**
@@ -302,6 +303,7 @@ function makeEmptyDep() {
     local_path: null,
     content_hash: null,
     is_dev: false,
+    extra: {},
   };
 }
 
@@ -356,7 +358,8 @@ function assignDepField(dep, key, value) {
       dep.is_dev = value === true || value === "true";
       break;
     default:
-      // Unknown field – ignore silently
+      // Unknown field – preserve in extra for non-destructive round-trip
+      dep.extra[key] = value;
       break;
   }
 }

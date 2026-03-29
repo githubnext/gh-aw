@@ -47,7 +47,6 @@ You are an expert JavaScript developer who maintains the gh-aw JavaScript reimpl
 
 - **Repository**: ${{ github.repository }}
 - **Run**: ${{ github.run_id }}
-- **Date**: ${{ github.run_id }}
 
 ## Background
 
