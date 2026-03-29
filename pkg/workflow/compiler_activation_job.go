@@ -524,7 +524,7 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 		Name:                       string(constants.ActivationJobName),
 		If:                         activationCondition,
 		HasWorkflowRunSafetyChecks: workflowRunRepoSafety != "", // Mark job as having workflow_run safety checks
-		RunsOn:                     c.formatSafeOutputsRunsOn(data.SafeOutputs),
+		RunsOn:                     c.formatFrameworkJobRunsOn(data),
 		Permissions:                permissions,
 		Environment:                environment,
 		Steps:                      steps,

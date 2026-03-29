@@ -175,14 +175,15 @@ type FrontmatterConfig struct {
 	Secrets  map[string]any    `json:"secrets,omitempty"`
 
 	// Workflow execution settings
-	RunsOn      string         `json:"runs-on,omitempty"`
-	RunName     string         `json:"run-name,omitempty"`
-	Steps       []any          `json:"steps,omitempty"`       // Custom workflow steps
-	PostSteps   []any          `json:"post-steps,omitempty"`  // Post-workflow steps
-	Environment map[string]any `json:"environment,omitempty"` // GitHub environment
-	Container   map[string]any `json:"container,omitempty"`
-	Services    map[string]any `json:"services,omitempty"`
-	Cache       map[string]any `json:"cache,omitempty"`
+	RunsOn           string         `json:"runs-on,omitempty"`
+	RunsOnActivation string         `json:"runs-on-activation,omitempty"` // Runner for all framework/generated jobs (activation, safe-outputs, unlock, etc.)
+	RunName          string         `json:"run-name,omitempty"`
+	Steps            []any          `json:"steps,omitempty"`       // Custom workflow steps
+	PostSteps        []any          `json:"post-steps,omitempty"`  // Post-workflow steps
+	Environment      map[string]any `json:"environment,omitempty"` // GitHub environment
+	Container        map[string]any `json:"container,omitempty"`
+	Services         map[string]any `json:"services,omitempty"`
+	Cache            map[string]any `json:"cache,omitempty"`
 
 	// Import and inclusion
 	Imports        any            `json:"imports,omitempty"`         // Can be string or array
@@ -633,6 +634,9 @@ func (fc *FrontmatterConfig) ToMap() map[string]any {
 	// Execution settings
 	if fc.RunsOn != "" {
 		result["runs-on"] = fc.RunsOn
+	}
+	if fc.RunsOnActivation != "" {
+		result["runs-on-activation"] = fc.RunsOnActivation
 	}
 	if fc.RunName != "" {
 		result["run-name"] = fc.RunName

@@ -238,3 +238,165 @@ This is a test workflow.`
 		t.Errorf("Unlock job does not use expected %q.\nUnlock section:\n%s", expectedRunsOn, unlockSection)
 	}
 }
+
+// TestRunsOnActivationField tests the top-level runs-on-activation field.
+func TestRunsOnActivationField(t *testing.T) {
+	tests := []struct {
+		name             string
+		frontmatter      string
+		expectedRunsOn   string
+		checkJobPatterns []string // job name patterns to check (e.g. "  activation:")
+	}{
+		{
+			name: "runs-on-activation sets runner for activation job",
+			frontmatter: `---
+on: push
+runs-on-activation: self-hosted
+---
+
+# Test Workflow
+
+This is a test workflow.`,
+			expectedRunsOn:   "runs-on: self-hosted",
+			checkJobPatterns: []string{"\n  activation:"},
+		},
+		{
+			name: "runs-on-activation without safe-outputs section",
+			frontmatter: `---
+on: push
+runs-on-activation: ubuntu-22.04
+---
+
+# Test Workflow
+
+This is a test workflow.`,
+			expectedRunsOn:   "runs-on: ubuntu-22.04",
+			checkJobPatterns: []string{"\n  activation:"},
+		},
+		{
+			name: "safe-outputs.runs-on takes precedence over runs-on-activation",
+			frontmatter: `---
+on: push
+runs-on-activation: ubuntu-22.04
+safe-outputs:
+  create-issue:
+    title-prefix: "[ai] "
+  runs-on: self-hosted
+---
+
+# Test Workflow
+
+This is a test workflow.`,
+			expectedRunsOn:   "runs-on: self-hosted",
+			checkJobPatterns: []string{"\n  activation:", "\n  safe_outputs:"},
+		},
+		{
+			name: "default used when neither runs-on-activation nor safe-outputs.runs-on is set",
+			frontmatter: `---
+on: push
+---
+
+# Test Workflow
+
+This is a test workflow.`,
+			expectedRunsOn:   "runs-on: " + constants.DefaultActivationJobRunnerImage,
+			checkJobPatterns: []string{"\n  activation:"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tmpDir := testutil.TempDir(t, "workflow-runs-on-activation-test")
+
+			testFile := filepath.Join(tmpDir, "test.md")
+			if err := os.WriteFile(testFile, []byte(tt.frontmatter), 0644); err != nil {
+				t.Fatal(err)
+			}
+
+			compiler := NewCompiler()
+			if err := compiler.CompileWorkflow(testFile); err != nil {
+				t.Fatalf("Failed to compile workflow: %v", err)
+			}
+
+			lockFile := filepath.Join(tmpDir, "test.lock.yml")
+			yamlContent, err := os.ReadFile(lockFile)
+			if err != nil {
+				t.Fatalf("Failed to read lock file: %v", err)
+			}
+			yamlStr := string(yamlContent)
+
+			for _, jobPattern := range tt.checkJobPatterns {
+				jobStart := strings.Index(yamlStr, jobPattern)
+				if jobStart == -1 {
+					t.Logf("Job pattern %q not found in lock file (may not be generated for this config)", jobPattern)
+					continue
+				}
+				jobSection := yamlStr[jobStart:min(jobStart+500, len(yamlStr))]
+				if !strings.Contains(jobSection, tt.expectedRunsOn) {
+					t.Errorf("Job matching %q does not use expected runs-on %q.\nJob section:\n%s", jobPattern, tt.expectedRunsOn, jobSection)
+				}
+			}
+		})
+	}
+}
+
+// TestFormatFrameworkJobRunsOn tests the formatFrameworkJobRunsOn helper directly.
+func TestFormatFrameworkJobRunsOn(t *testing.T) {
+	compiler := NewCompiler()
+
+	tests := []struct {
+		name           string
+		data           *WorkflowData
+		expectedRunsOn string
+	}{
+		{
+			name:           "nil WorkflowData returns default",
+			data:           nil,
+			expectedRunsOn: "runs-on: " + constants.DefaultActivationJobRunnerImage,
+		},
+		{
+			name:           "empty WorkflowData returns default",
+			data:           &WorkflowData{},
+			expectedRunsOn: "runs-on: " + constants.DefaultActivationJobRunnerImage,
+		},
+		{
+			name: "runs-on-activation used when safe-outputs.runs-on is empty",
+			data: &WorkflowData{
+				RunsOnActivation: "self-hosted",
+			},
+			expectedRunsOn: "runs-on: self-hosted",
+		},
+		{
+			name: "safe-outputs.runs-on takes precedence over runs-on-activation",
+			data: &WorkflowData{
+				RunsOnActivation: "ubuntu-22.04",
+				SafeOutputs:      &SafeOutputsConfig{RunsOn: "self-hosted"},
+			},
+			expectedRunsOn: "runs-on: self-hosted",
+		},
+		{
+			name: "safe-outputs.runs-on used when runs-on-activation is empty",
+			data: &WorkflowData{
+				SafeOutputs: &SafeOutputsConfig{RunsOn: "windows-latest"},
+			},
+			expectedRunsOn: "runs-on: windows-latest",
+		},
+		{
+			name: "default when safe-outputs present but runs-on is empty",
+			data: &WorkflowData{
+				RunsOnActivation: "",
+				SafeOutputs:      &SafeOutputsConfig{},
+			},
+			expectedRunsOn: "runs-on: " + constants.DefaultActivationJobRunnerImage,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := compiler.formatFrameworkJobRunsOn(tt.data)
+			if result != tt.expectedRunsOn {
+				t.Errorf("formatFrameworkJobRunsOn() = %q, want %q", result, tt.expectedRunsOn)
+			}
+		})
+	}
+}
