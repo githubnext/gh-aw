@@ -29,7 +29,7 @@
 #     - shared/reporting.md
 #     - shared/weekly-issues-data-fetch.md
 #
-# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"e825d8f874d57f17d744dd11ea6872a00f1f534e8ffd596140fee31b85b550bd","strict":true,"agent_id":"codex"}
+# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"945b046c6a2abcc6198568a0e8307cf9c1bdbd8fe5252a4e1068603c84f0f306","strict":true,"agent_id":"codex"}
 
 name: "DeepReport - Intelligence Gathering Agent"
 "on":
@@ -141,9 +141,9 @@ jobs:
         run: |
           bash ${RUNNER_TEMP}/gh-aw/actions/create_prompt_first.sh
           {
-          cat << 'GH_AW_PROMPT_fbc5deb670acefff_EOF'
+          cat << 'GH_AW_PROMPT_8892088a7c8e7668_EOF'
           <system>
-          GH_AW_PROMPT_fbc5deb670acefff_EOF
+          GH_AW_PROMPT_8892088a7c8e7668_EOF
           cat "${RUNNER_TEMP}/gh-aw/prompts/xpia.md"
           cat "${RUNNER_TEMP}/gh-aw/prompts/temp_folder_prompt.md"
           cat "${RUNNER_TEMP}/gh-aw/prompts/markdown.md"
@@ -151,7 +151,7 @@ jobs:
           cat "${RUNNER_TEMP}/gh-aw/prompts/cache_memory_prompt.md"
           cat "${RUNNER_TEMP}/gh-aw/prompts/repo_memory_prompt.md"
           cat "${RUNNER_TEMP}/gh-aw/prompts/safe_outputs_prompt.md"
-          cat << 'GH_AW_PROMPT_fbc5deb670acefff_EOF'
+          cat << 'GH_AW_PROMPT_8892088a7c8e7668_EOF'
           <safe-output-tools>
           Tools: create_issue(max:3), create_discussion, upload_asset, missing_tool, missing_data, noop
           
@@ -185,26 +185,26 @@ jobs:
           {{/if}}
           </github-context>
           
-          GH_AW_PROMPT_fbc5deb670acefff_EOF
+          GH_AW_PROMPT_8892088a7c8e7668_EOF
           cat "${RUNNER_TEMP}/gh-aw/prompts/github_mcp_tools_with_safeoutputs_prompt.md"
-          cat << 'GH_AW_PROMPT_fbc5deb670acefff_EOF'
+          cat << 'GH_AW_PROMPT_8892088a7c8e7668_EOF'
           </system>
-          GH_AW_PROMPT_fbc5deb670acefff_EOF
-          cat << 'GH_AW_PROMPT_fbc5deb670acefff_EOF'
+          GH_AW_PROMPT_8892088a7c8e7668_EOF
+          cat << 'GH_AW_PROMPT_8892088a7c8e7668_EOF'
           {{#runtime-import .github/workflows/shared/jqschema.md}}
-          GH_AW_PROMPT_fbc5deb670acefff_EOF
-          cat << 'GH_AW_PROMPT_fbc5deb670acefff_EOF'
+          GH_AW_PROMPT_8892088a7c8e7668_EOF
+          cat << 'GH_AW_PROMPT_8892088a7c8e7668_EOF'
           {{#runtime-import .github/workflows/shared/discussions-data-fetch.md}}
-          GH_AW_PROMPT_fbc5deb670acefff_EOF
-          cat << 'GH_AW_PROMPT_fbc5deb670acefff_EOF'
+          GH_AW_PROMPT_8892088a7c8e7668_EOF
+          cat << 'GH_AW_PROMPT_8892088a7c8e7668_EOF'
           {{#runtime-import .github/workflows/shared/weekly-issues-data-fetch.md}}
-          GH_AW_PROMPT_fbc5deb670acefff_EOF
-          cat << 'GH_AW_PROMPT_fbc5deb670acefff_EOF'
+          GH_AW_PROMPT_8892088a7c8e7668_EOF
+          cat << 'GH_AW_PROMPT_8892088a7c8e7668_EOF'
           {{#runtime-import .github/workflows/shared/reporting.md}}
-          GH_AW_PROMPT_fbc5deb670acefff_EOF
-          cat << 'GH_AW_PROMPT_fbc5deb670acefff_EOF'
+          GH_AW_PROMPT_8892088a7c8e7668_EOF
+          cat << 'GH_AW_PROMPT_8892088a7c8e7668_EOF'
           {{#runtime-import .github/workflows/deep-report.md}}
-          GH_AW_PROMPT_fbc5deb670acefff_EOF
+          GH_AW_PROMPT_8892088a7c8e7668_EOF
           } > "$GH_AW_PROMPT"
       - name: Interpolate variables and render templates
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
@@ -372,6 +372,9 @@ jobs:
           GH_TOKEN: ${{ github.token }}
       - name: Setup jq utilities directory
         run: "mkdir -p /tmp/gh-aw\ncat > /tmp/gh-aw/jqschema.sh << 'EOF'\n#!/usr/bin/env bash\n# jqschema.sh\njq -c '\ndef walk(f):\n  . as $in |\n  if type == \"object\" then\n    reduce keys[] as $k ({}; . + {($k): ($in[$k] | walk(f))})\n  elif type == \"array\" then\n    if length == 0 then [] else [.[0] | walk(f)] end\n  else\n    type\n  end;\nwalk(.)\n'\nEOF\nchmod +x /tmp/gh-aw/jqschema.sh"
+      - name: Install gh CLI
+        run: |
+          bash ${RUNNER_TEMP}/gh-aw/actions/install_gh_cli.sh
       - env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -379,6 +382,9 @@ jobs:
           REPO_OWNER: ${{ github.repository_owner }}
         name: Fetch discussions data
         run: "# Create output directories\nmkdir -p /tmp/gh-aw/discussions-data\nmkdir -p /tmp/gh-aw/cache-memory\n\n# Get today's date for cache identification\nTODAY=$(date '+%Y-%m-%d')\nCACHE_DIR=\"/tmp/gh-aw/cache-memory\"\n\n# Check if cached data exists from today\nif [ -f \"$CACHE_DIR/discussions-${TODAY}.json\" ] && [ -s \"$CACHE_DIR/discussions-${TODAY}.json\" ]; then\n  echo \"✓ Found cached discussions data from ${TODAY}\"\n  cp \"$CACHE_DIR/discussions-${TODAY}.json\" /tmp/gh-aw/discussions-data/discussions.json\n  \n  # Regenerate schema if missing\n  if [ ! -f \"$CACHE_DIR/discussions-${TODAY}-schema.json\" ]; then\n    /tmp/gh-aw/jqschema.sh < /tmp/gh-aw/discussions-data/discussions.json > \"$CACHE_DIR/discussions-${TODAY}-schema.json\"\n  fi\n  cp \"$CACHE_DIR/discussions-${TODAY}-schema.json\" /tmp/gh-aw/discussions-data/discussions-schema.json\n  \n  echo \"Using cached data from ${TODAY}\"\n  echo \"Total discussions in cache: $(jq 'length' /tmp/gh-aw/discussions-data/discussions.json)\"\nelse\n  echo \"⬇ Downloading fresh discussions data...\"\n  \n  # Fetch OPEN discussions using GraphQL with pagination (up to GH_AW_DISCUSSIONS_COUNT, default 100)\n  DISCUSSIONS_FILE=\"/tmp/gh-aw/discussions-data/discussions.json\"\n  echo '[]' > \"$DISCUSSIONS_FILE\"\n  \n  CURSOR=\"\"\n  HAS_NEXT_PAGE=true\n  PAGE_COUNT=0\n  \n  while [ \"$HAS_NEXT_PAGE\" = \"true\" ]; do\n    if [ -z \"$CURSOR\" ]; then\n      CURSOR_ARG=\"\"\n    else\n      CURSOR_ARG=\", after: \\\"$CURSOR\\\"\"\n    fi\n    \n    RESULT=$(gh api graphql -f query=\"\n      query {\n        repository(owner: \\\"$REPO_OWNER\\\", name: \\\"$REPO_NAME\\\") {\n          discussions(first: 100, states: [OPEN]${CURSOR_ARG}) {\n            pageInfo {\n              hasNextPage\n              endCursor\n            }\n            nodes {\n              number\n              title\n              body\n              createdAt\n              updatedAt\n              url\n              category {\n                name\n                slug\n              }\n              author {\n                login\n              }\n              labels(first: 10) {\n                nodes {\n                  name\n                }\n              }\n            }\n          }\n        }\n      }\n    \")\n    \n    # Extract discussions and normalize structure\n    echo \"$RESULT\" | jq -r '\n      .data.repository.discussions.nodes \n      | map({\n          number, \n          title,\n          body,\n          createdAt, \n          updatedAt,\n          url,\n          category: .category.name,\n          categorySlug: .category.slug,\n          author: (if .author then .author.login else \"unknown\" end),\n          labels: [.labels.nodes[].name],\n          isAgenticWorkflow: (if .body then (.body | test(\"^> AI generated by\"; \"m\")) else false end)\n        })\n    ' | jq -s 'add' > /tmp/gh-aw/temp_discussions.json\n    \n    # Merge with existing discussions\n    jq -s 'add | unique_by(.number)' \"$DISCUSSIONS_FILE\" /tmp/gh-aw/temp_discussions.json > /tmp/gh-aw/merged.json\n    mv /tmp/gh-aw/merged.json \"$DISCUSSIONS_FILE\"\n    rm -f /tmp/gh-aw/temp_discussions.json\n    \n    # Check if there are more pages\n    HAS_NEXT_PAGE=$(echo \"$RESULT\" | jq -r '.data.repository.discussions.pageInfo.hasNextPage')\n    CURSOR=$(echo \"$RESULT\" | jq -r '.data.repository.discussions.pageInfo.endCursor')\n    \n    # Check if we've reached the requested count\n    CURRENT_COUNT=$(jq 'length' \"$DISCUSSIONS_FILE\")\n    MAX_COUNT=\"${GH_AW_DISCUSSIONS_COUNT:-100}\"\n    if [ \"$CURRENT_COUNT\" -ge \"$MAX_COUNT\" ]; then\n      echo \"Reached requested discussion count ($MAX_COUNT)\"\n      # Trim to exact count if we have more\n      jq --argjson max \"$MAX_COUNT\" '.[:$max]' \"$DISCUSSIONS_FILE\" > /tmp/gh-aw/trimmed.json\n      mv /tmp/gh-aw/trimmed.json \"$DISCUSSIONS_FILE\"\n      break\n    fi\n    \n    # Safety check - break after 10 pages (1000 discussions max regardless of count)\n    PAGE_COUNT=$((PAGE_COUNT + 1))\n    if [ $PAGE_COUNT -ge 10 ]; then\n      echo \"Reached pagination limit (10 pages)\"\n      break\n    fi\n  done\n  \n  # Generate schema for reference\n  /tmp/gh-aw/jqschema.sh < /tmp/gh-aw/discussions-data/discussions.json > /tmp/gh-aw/discussions-data/discussions-schema.json\n\n  # Store in cache with today's date\n  cp /tmp/gh-aw/discussions-data/discussions.json \"$CACHE_DIR/discussions-${TODAY}.json\"\n  cp /tmp/gh-aw/discussions-data/discussions-schema.json \"$CACHE_DIR/discussions-${TODAY}-schema.json\"\n\n  echo \"✓ Discussions data saved to cache: discussions-${TODAY}.json\"\n  echo \"Total discussions found: $(jq 'length' /tmp/gh-aw/discussions-data/discussions.json)\"\nfi\n\n# Always ensure data is available at expected locations for backward compatibility\necho \"Discussions data available at: /tmp/gh-aw/discussions-data/discussions.json\"\necho \"Schema available at: /tmp/gh-aw/discussions-data/discussions-schema.json\""
+      - name: Install gh CLI
+        run: |
+          bash ${RUNNER_TEMP}/gh-aw/actions/install_gh_cli.sh
       - env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -481,12 +487,12 @@ jobs:
           mkdir -p ${RUNNER_TEMP}/gh-aw/safeoutputs
           mkdir -p /tmp/gh-aw/safeoutputs
           mkdir -p /tmp/gh-aw/mcp-logs/safeoutputs
-          cat > ${RUNNER_TEMP}/gh-aw/safeoutputs/config.json << 'GH_AW_SAFE_OUTPUTS_CONFIG_75cc6965d3e04e71_EOF'
+          cat > ${RUNNER_TEMP}/gh-aw/safeoutputs/config.json << 'GH_AW_SAFE_OUTPUTS_CONFIG_4fc97048feddfb14_EOF'
           {"create_discussion":{"category":"reports","close_older_discussions":true,"expires":168,"fallback_to_issue":true,"max":1},"create_issue":{"expires":48,"group":true,"labels":["automation","improvement","quick-win","cookie"],"max":3,"title_prefix":"[deep-report] "},"missing_data":{},"missing_tool":{},"noop":{"max":1,"report-as-issue":"true"},"push_repo_memory":{"memories":[{"dir":"/tmp/gh-aw/repo-memory/default","id":"default","max_file_count":100,"max_file_size":1048576,"max_patch_size":10240}]},"upload_asset":{"allowed-exts":[".png",".jpg",".jpeg"],"branch":"assets/${{ github.workflow }}","max-size":10240}}
-          GH_AW_SAFE_OUTPUTS_CONFIG_75cc6965d3e04e71_EOF
+          GH_AW_SAFE_OUTPUTS_CONFIG_4fc97048feddfb14_EOF
       - name: Write Safe Outputs Tools
         run: |
-          cat > ${RUNNER_TEMP}/gh-aw/safeoutputs/tools_meta.json << 'GH_AW_SAFE_OUTPUTS_TOOLS_META_2f8a0433cd227f5e_EOF'
+          cat > ${RUNNER_TEMP}/gh-aw/safeoutputs/tools_meta.json << 'GH_AW_SAFE_OUTPUTS_TOOLS_META_9b6782b03f2d1d61_EOF'
           {
             "description_suffixes": {
               "create_discussion": " CONSTRAINTS: Maximum 1 discussion(s) can be created. Discussions will be created in category \"reports\".",
@@ -496,8 +502,8 @@ jobs:
             "repo_params": {},
             "dynamic_tools": []
           }
-          GH_AW_SAFE_OUTPUTS_TOOLS_META_2f8a0433cd227f5e_EOF
-          cat > ${RUNNER_TEMP}/gh-aw/safeoutputs/validation.json << 'GH_AW_SAFE_OUTPUTS_VALIDATION_430c1438b5d5dae2_EOF'
+          GH_AW_SAFE_OUTPUTS_TOOLS_META_9b6782b03f2d1d61_EOF
+          cat > ${RUNNER_TEMP}/gh-aw/safeoutputs/validation.json << 'GH_AW_SAFE_OUTPUTS_VALIDATION_fb71924c9a259f46_EOF'
           {
             "create_discussion": {
               "defaultMax": 1,
@@ -625,7 +631,7 @@ jobs:
               }
             }
           }
-          GH_AW_SAFE_OUTPUTS_VALIDATION_430c1438b5d5dae2_EOF
+          GH_AW_SAFE_OUTPUTS_VALIDATION_fb71924c9a259f46_EOF
           node ${RUNNER_TEMP}/gh-aw/actions/generate_safe_outputs_tools.cjs
       - name: Generate Safe Outputs MCP Server Config
         id: safe-outputs-config
@@ -696,7 +702,7 @@ jobs:
           export GH_AW_ENGINE="codex"
           export MCP_GATEWAY_DOCKER_COMMAND='docker run -i --rm --network host -v /var/run/docker.sock:/var/run/docker.sock -e MCP_GATEWAY_PORT -e MCP_GATEWAY_DOMAIN -e MCP_GATEWAY_API_KEY -e MCP_GATEWAY_PAYLOAD_DIR -e MCP_GATEWAY_PAYLOAD_SIZE_THRESHOLD -e DEBUG -e MCP_GATEWAY_LOG_DIR -e GH_AW_MCP_LOG_DIR -e GH_AW_SAFE_OUTPUTS -e GH_AW_SAFE_OUTPUTS_CONFIG_PATH -e GH_AW_SAFE_OUTPUTS_TOOLS_PATH -e GH_AW_ASSETS_BRANCH -e GH_AW_ASSETS_MAX_SIZE_KB -e GH_AW_ASSETS_ALLOWED_EXTS -e DEFAULT_BRANCH -e GITHUB_MCP_SERVER_TOKEN -e GITHUB_MCP_GUARD_MIN_INTEGRITY -e GITHUB_MCP_GUARD_REPOS -e GITHUB_REPOSITORY -e GITHUB_SERVER_URL -e GITHUB_SHA -e GITHUB_WORKSPACE -e GITHUB_TOKEN -e GITHUB_RUN_ID -e GITHUB_RUN_NUMBER -e GITHUB_RUN_ATTEMPT -e GITHUB_JOB -e GITHUB_ACTION -e GITHUB_EVENT_NAME -e GITHUB_EVENT_PATH -e GITHUB_ACTOR -e GITHUB_ACTOR_ID -e GITHUB_TRIGGERING_ACTOR -e GITHUB_WORKFLOW -e GITHUB_WORKFLOW_REF -e GITHUB_WORKFLOW_SHA -e GITHUB_REF -e GITHUB_REF_NAME -e GITHUB_REF_TYPE -e GITHUB_HEAD_REF -e GITHUB_BASE_REF -e GH_AW_SAFE_OUTPUTS_PORT -e GH_AW_SAFE_OUTPUTS_API_KEY -v /tmp/gh-aw/mcp-payloads:/tmp/gh-aw/mcp-payloads:rw -v /opt:/opt:ro -v /tmp:/tmp:rw -v '"${GITHUB_WORKSPACE}"':'"${GITHUB_WORKSPACE}"':rw ghcr.io/github/gh-aw-mcpg:v0.2.8'
           
-          cat > /tmp/gh-aw/mcp-config/config.toml << GH_AW_MCP_CONFIG_5e1d07f40aee892f_EOF
+          cat > /tmp/gh-aw/mcp-config/config.toml << GH_AW_MCP_CONFIG_9c26f9a20974ed5a_EOF
           [history]
           persistence = "none"
           
@@ -733,10 +739,10 @@ jobs:
           
           [mcp_servers.safeoutputs."guard-policies".write-sink]
           accept = ["*"]
-          GH_AW_MCP_CONFIG_5e1d07f40aee892f_EOF
+          GH_AW_MCP_CONFIG_9c26f9a20974ed5a_EOF
           
           # Generate JSON config for MCP gateway
-          cat << GH_AW_MCP_CONFIG_5e1d07f40aee892f_EOF | bash ${RUNNER_TEMP}/gh-aw/actions/start_mcp_gateway.sh
+          cat << GH_AW_MCP_CONFIG_9c26f9a20974ed5a_EOF | bash ${RUNNER_TEMP}/gh-aw/actions/start_mcp_gateway.sh
           {
             "mcpServers": {
               "agenticworkflows": {
@@ -794,7 +800,7 @@ jobs:
               "payloadDir": "${MCP_GATEWAY_PAYLOAD_DIR}"
             }
           }
-          GH_AW_MCP_CONFIG_5e1d07f40aee892f_EOF
+          GH_AW_MCP_CONFIG_9c26f9a20974ed5a_EOF
       - name: Download activation artifact
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:

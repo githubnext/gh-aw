@@ -368,6 +368,9 @@ jobs:
         run: "mkdir -p /tmp/gh-aw/python/{data,charts,artifacts}\npip install --user --quiet nltk scikit-learn textblob wordcloud\n\n# Download required NLTK corpora\npython3 -c \"\nimport nltk\nfor corpus in ['punkt_tab', 'stopwords', 'vader_lexicon', 'averaged_perceptron_tagger_eng']:\n    nltk.download(corpus, quiet=True)\nprint('NLTK corpora ready')\n\"\n\npython3 -c \"import sklearn; print(f'scikit-learn {sklearn.__version__}')\""
       - name: Setup jq utilities directory
         run: "mkdir -p /tmp/gh-aw\ncat > /tmp/gh-aw/jqschema.sh << 'EOF'\n#!/usr/bin/env bash\n# jqschema.sh\njq -c '\ndef walk(f):\n  . as $in |\n  if type == \"object\" then\n    reduce keys[] as $k ({}; . + {($k): ($in[$k] | walk(f))})\n  elif type == \"array\" then\n    if length == 0 then [] else [.[0] | walk(f)] end\n  else\n    type\n  end;\nwalk(.)\n'\nEOF\nchmod +x /tmp/gh-aw/jqschema.sh"
+      - name: Install gh CLI
+        run: |
+          bash ${RUNNER_TEMP}/gh-aw/actions/install_gh_cli.sh
       - env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

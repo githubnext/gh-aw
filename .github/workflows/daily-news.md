@@ -49,6 +49,10 @@ tools:
 # Pre-download GitHub data in steps to avoid excessive MCP calls
 # Uses repo-memory to persist data across runs and avoid re-fetching
 steps:
+  - name: Install gh CLI
+    run: |
+      bash ${RUNNER_TEMP}/gh-aw/actions/install_gh_cli.sh
+
   - name: Setup working directories
     id: check-cache
     env:
