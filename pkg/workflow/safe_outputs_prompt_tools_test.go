@@ -6,6 +6,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/github/gh-aw/pkg/stringutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -136,36 +137,10 @@ func TestBuildSafeOutputsSectionsCustomTools(t *testing.T) {
 
 			require.NotNil(t, sections, "Expected non-nil sections")
 
-			// Find the opening section with the Tools: list
-			var toolsLine string
-			for _, section := range sections {
-				if !section.IsFile && strings.HasPrefix(section.Content, "<safe-output-tools>") {
-					toolsLine = section.Content
-					break
-				}
-			}
+			actualToolNames := extractToolNamesFromSections(t, sections)
 
-			require.NotEmpty(t, toolsLine, "Expected to find <safe-output-tools> opening section")
-
-			// Extract tool names from "Tools: tool1, tool2, ..." line
-			lines := strings.Split(toolsLine, "\n")
-			require.GreaterOrEqual(t, len(lines), 2, "Expected at least two lines in tools section")
-
-			toolsListLine := lines[1]
-			assert.True(t, strings.HasPrefix(toolsListLine, "Tools: "), "Second line should start with 'Tools: '")
-
-			toolsList := strings.TrimPrefix(toolsListLine, "Tools: ")
-			actualToolNames := strings.Split(toolsList, ", ")
-
-			// Strip any max budget annotations like "noop(max:5)" → "noop"
-			for i, t := range actualToolNames {
-				if name, _, found := strings.Cut(t, "("); found {
-					actualToolNames[i] = name
-				}
-			}
-
-			assert.ElementsMatch(t, tt.expectedTools, actualToolNames,
-				"Tool names in <safe-output-tools> should match expected set")
+			assert.Equal(t, tt.expectedTools, actualToolNames,
+				"Tool names in <safe-output-tools> should match expected order and set")
 		})
 	}
 }
@@ -191,34 +166,68 @@ func TestBuildSafeOutputsSectionsCustomToolsConsistency(t *testing.T) {
 	sections := buildSafeOutputsSections(config)
 	require.NotNil(t, sections, "Expected non-nil sections")
 
-	// Concatenate all non-file section content to find the tools block
-	var toolsBuilder strings.Builder
+	actualToolNames := extractToolNamesFromSections(t, sections)
+	actualToolSet := make(map[string]bool, len(actualToolNames))
+	for _, name := range actualToolNames {
+		actualToolSet[name] = true
+	}
+
+	// Every custom job name (normalized) must appear as an exact tool identifier.
+	for jobName := range config.Jobs {
+		normalized := stringutil.NormalizeSafeOutputIdentifier(jobName)
+		assert.True(t, actualToolSet[normalized],
+			"Custom job %q (normalized: %q) should appear as an exact tool identifier in <safe-output-tools>", jobName, normalized)
+	}
+
+	// Every custom script name (normalized) must appear as an exact tool identifier.
+	for scriptName := range config.Scripts {
+		normalized := stringutil.NormalizeSafeOutputIdentifier(scriptName)
+		assert.True(t, actualToolSet[normalized],
+			"Custom script %q (normalized: %q) should appear as an exact tool identifier in <safe-output-tools>", scriptName, normalized)
+	}
+
+	// Every custom action name (normalized) must appear as an exact tool identifier.
+	for actionName := range config.Actions {
+		normalized := stringutil.NormalizeSafeOutputIdentifier(actionName)
+		assert.True(t, actualToolSet[normalized],
+			"Custom action %q (normalized: %q) should appear as an exact tool identifier in <safe-output-tools>", actionName, normalized)
+	}
+}
+
+// extractToolNamesFromSections parses the <safe-output-tools> opening section and returns
+// the list of tool names in the order they appear, stripping any max-budget annotations
+// (e.g. "noop(max:5)" → "noop").
+func extractToolNamesFromSections(t *testing.T, sections []PromptSection) []string {
+	t.Helper()
+
+	var toolsLine string
 	for _, section := range sections {
-		if !section.IsFile {
-			toolsBuilder.WriteString(section.Content)
-			toolsBuilder.WriteString("\n")
+		if !section.IsFile && strings.HasPrefix(section.Content, "<safe-output-tools>") {
+			toolsLine = section.Content
+			break
 		}
 	}
-	toolsContent := toolsBuilder.String()
 
-	// Every custom job name (normalized) must appear in the tools list
-	for jobName := range config.Jobs {
-		normalizedName := strings.ReplaceAll(jobName, "-", "_")
-		assert.Contains(t, toolsContent, normalizedName,
-			"Custom job %q (normalized: %q) should appear in <safe-output-tools>", jobName, normalizedName)
-	}
+	require.NotEmpty(t, toolsLine, "Expected to find <safe-output-tools> opening section")
 
-	// Every custom script name (normalized) must appear in the tools list
-	for scriptName := range config.Scripts {
-		normalizedName := strings.ReplaceAll(scriptName, "-", "_")
-		assert.Contains(t, toolsContent, normalizedName,
-			"Custom script %q (normalized: %q) should appear in <safe-output-tools>", scriptName, normalizedName)
-	}
+	lines := strings.Split(toolsLine, "\n")
+	require.GreaterOrEqual(t, len(lines), 2, "Expected at least two lines in tools section")
 
-	// Every custom action name (normalized) must appear in the tools list
-	for actionName := range config.Actions {
-		normalizedName := strings.ReplaceAll(actionName, "-", "_")
-		assert.Contains(t, toolsContent, normalizedName,
-			"Custom action %q (normalized: %q) should appear in <safe-output-tools>", actionName, normalizedName)
+	toolsListLine := lines[1]
+	require.True(t, strings.HasPrefix(toolsListLine, "Tools: "),
+		"Second line should start with 'Tools: ', got: %q", toolsListLine)
+
+	toolsList := strings.TrimPrefix(toolsListLine, "Tools: ")
+	toolEntries := strings.Split(toolsList, ", ")
+
+	names := make([]string, 0, len(toolEntries))
+	for _, entry := range toolEntries {
+		// Strip optional budget annotation: "noop(max:5)" → "noop"
+		if name, _, found := strings.Cut(entry, "("); found {
+			names = append(names, name)
+		} else {
+			names = append(names, entry)
+		}
 	}
+	return names
 }
