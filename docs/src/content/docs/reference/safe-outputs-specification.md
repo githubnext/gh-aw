@@ -4073,7 +4073,7 @@ This section specifies the integrity-aware cache architecture that prevents cros
 
 **Design Goals**:
 
-1. **Write isolation**: Data written at integrity level *L* MUST NOT be visible to a run at integrity level *H* where *H* > *L* (no write-up).
+1. **Write isolation**: Data written at integrity level *L* MUST NOT be visible to a run at integrity level *H* where trust(*H*) > trust(*L*) (no write-up).
 2. **Read-down access**: A run at integrity level *L* MAY read data produced by runs at higher integrity levels (read-down is permitted and expected).
 3. **Policy binding**: A cache entry MUST be invalidated when the guard policy changes, preventing data inherited under one policy from being consumed under a different, potentially more permissive policy.
 4. **Transparency**: The agent MUST remain unaware of the git repository structure within the cache directory. The agent reads and writes plain files as normal.
@@ -4143,7 +4143,7 @@ The final fallback `memory-` entry exists solely to allow migration from legacy 
 The policy hash MUST be computed as the first 8 characters of the lowercase hex SHA-256 digest of a canonical policy string, constructed as follows:
 
 1. For each of the following fields, produce a canonical value:
-   - `blocked-users`: Lowercase, sort, deduplicate. If specified as a GitHub Actions expression, prefix the raw expression with `expr:`.
+   - `blocked-users`: Lowercase, sort, deduplicate. If specified as a GitHub Actions expression (e.g., `${{ github.event.sender.login }}`), prefix the raw expression with `expr:` (e.g., `expr:${{ github.event.sender.login }}`).
    - `min-integrity`: Use the literal string value.
    - `repos`: If a string (`"all"` or `"public"`), lowercase. If an array, lowercase all entries, sort, and deduplicate.
    - `trusted-bots`: Reserved for future use; always empty.
@@ -4196,7 +4196,7 @@ File validation steps that enforce allowed extensions, size limits, or other con
 
 ### 11.6 Pre-Agent Setup (Integrity Checkout)
 
-A setup step MUST execute after the cache is restored and before the agent runs. This step is implemented by `setup_cache_memory_git.sh`.
+A setup step MUST execute after the cache is restored and before the agent runs. The reference implementation of this step is `actions/setup/sh/setup_cache_memory_git.sh` (informative). All conforming implementations MUST satisfy requirements CI6–CI9 regardless of the implementation mechanism.
 
 **Requirement CI6: Git Repository Initialization**
 
@@ -4229,7 +4229,7 @@ If a merge from a higher-integrity branch fails for reasons other than "nothing 
 
 ### 11.7 Post-Agent Commit (Integrity Persistence)
 
-A commit step MUST execute after the agent completes and before the cache is saved. This step is implemented by `commit_cache_memory_git.sh`. The step MUST run with `if: always()` to persist even if the agent step fails.
+A commit step MUST execute after the agent completes and before the cache is saved. The reference implementation is `actions/setup/sh/commit_cache_memory_git.sh` (informative). The step MUST execute regardless of whether the agent step succeeded or failed (i.e., unconditional execution, not gated on agent success).
 
 **Requirement CI10: Agent Changes Committed**
 
@@ -4295,9 +4295,24 @@ GitHub Actions Cache Save
 
 ### 11.10 Migration from Legacy Flat-File Caches
 
-Existing deployments using the pre-integrity cache format (key: `memory-{workflowID}-{runID}`) MUST expect a **cache miss** on the first run after upgrading to an implementation supporting this section.
+Existing deployments using the pre-integrity cache format MUST expect a **cache miss** on the first run after upgrading to an implementation supporting this section.
 
-*Rationale*: Legacy cache data has no integrity provenance. Blindly consuming legacy data under the new integrity model would provide no security guarantee. The automatic migration path in Requirement CI6 handles any residual files from the old format by importing them to the `merged` branch.
+**Legacy key format** (before this section):
+```
+memory-{workflowID}-{runID}
+# Example: memory-my-workflow-12345678
+```
+
+**New key format** (this section):
+```
+memory-{integrityLevel}-{policyHash}-{workflowID}-{runID}
+# Example (with policy):      memory-unapproved-7e4d9f12-my-workflow-12345678
+# Example (without policy):   memory-none-nopolicy-my-workflow-12345678
+```
+
+The integrity level and policy hash prefixes are new components not present in legacy keys. Because the key formats differ, legacy cache entries will never match the new restore keys, resulting in a one-time cache miss.
+
+*Rationale*: Legacy cache data has no integrity provenance. Blindly consuming legacy data under the new integrity model would provide no security guarantee. The automatic migration path in Requirement CI6 handles any residual files from the old format by importing them to the `merged` branch on first initialization.
 
 Operators SHOULD communicate this expected one-time cache miss to their teams to avoid confusion during upgrade.
 
