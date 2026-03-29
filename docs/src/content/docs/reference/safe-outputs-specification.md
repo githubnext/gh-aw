@@ -7,9 +7,9 @@ sidebar:
 
 # Safe Outputs MCP Gateway Specification
 
-**Version**: 1.13.0  
+**Version**: 1.15.0  
 **Status**: Working Draft  
-**Publication Date**: 2026-02-18  
+**Publication Date**: 2026-03-29  
 **Editor**: GitHub Agentic Workflows Team  
 **This Version**: [safe-outputs-specification](/gh-aw/reference/safe-outputs-specification/)  
 **Latest Published Version**: This document
@@ -38,7 +38,8 @@ This specification follows World Wide Web Consortium (W3C) formatting convention
 8. [Protocol Exchange Patterns](#8-protocol-exchange-patterns)
 9. [Content Integrity Mechanisms](#9-content-integrity-mechanisms)
 10. [Execution Guarantees](#10-execution-guarantees)
-11. [Appendices](#appendix-a-conformance-checklist)
+11. [Cache Memory Integrity](#11-cache-memory-integrity)
+12. [Appendices](#appendix-a-conformance-checklist)
 
 ---
 
@@ -67,6 +68,14 @@ This specification uses the following terms with precise definitions:
 **Temporary ID**: A placeholder identifier (format: `aw_<id>`) used to reference not-yet-created resources. Resolved to actual resource numbers during processing.
 
 **Provenance**: Metadata identifying the workflow and run that created a GitHub resource. Included in footers or API metadata fields.
+
+**Integrity Level**: A classification of the trust level assigned to a workflow run based on its guard policy. The four levels in descending order of trust are: `merged`, `approved`, `unapproved`, and `none`.
+
+**Policy Hash**: An 8-character hexadecimal digest of the canonical form of a workflow's guard policy fields (`blocked-users`, `min-integrity`, `repos`, `trusted-bots`, `trusted-users`). Used as part of the cache key to detect policy changes.
+
+**Integrity Branch**: A Git branch within the cache memory repository corresponding to a specific integrity level. Each branch holds data written exclusively by runs at that integrity level.
+
+**Cache Poisoning**: A Bell-LaPadula write-up violation where a lower-integrity agent writes data to a shared cache store that is subsequently consumed by a higher-integrity run without provenance verification.
 
 ---
 
@@ -500,7 +509,28 @@ This specification addresses five primary threat scenarios:
 
 *Residual Risk*: Misconfigured allowlists may permit unintended targets. Mitigation: principle of least privilege in configuration, periodic review.
 
-### 3.2.6 Cross-Repository Security Model
+**Threat T6: Cache Integrity Poisoning**
+
+*Attack Vector*: A `none`-integrity agent writes malicious or attacker-controlled data to a shared cache-memory directory. A subsequent `merged` or `approved`-integrity run blindly restores and consumes that data, violating the Bell-LaPadula write-up property (lower-integrity subjects MUST NOT write where higher-integrity subjects read).
+
+*Examples*:
+
+- A `none`-integrity run injects fabricated results into a shared JSON cache file, causing a `merged`-integrity run to act on false analysis data
+- A compromised workflow at `unapproved` integrity poisons a shared state file consumed by `approved` runs in later workflow steps
+- Legacy flat-file caches shared across integrity levels with no provenance attribution
+
+*Architectural Mitigations*:
+
+| Layer | Mechanism | Effectiveness |
+|-------|-----------|---------------|
+| **Integrity-scoped cache keys** | Key encodes integrity level and policy hash; different levels never share the same cache entry | High |
+| **Git-backed integrity branching** | Each integrity level writes to its own Git branch; branch structure enforces write isolation | High |
+| **Merge-down semantics** | Lower-integrity runs receive higher-integrity data via read-only merge; reverse never occurs | High |
+| **Policy hash invalidation** | Any change to `allow-only` policy fields forces a cache miss, preventing stale policy inheritance | Medium |
+
+*Residual Risk*: A compromised runner may directly manipulate the `.git` directory within the restored cache tarball. Mitigation: restrict runner access to trusted environments and enable repository-level security policies.
+
+
 
 **Repository Reference Format**
 
@@ -4033,7 +4063,247 @@ This section defines required behavior for unusual or boundary conditions.
 
 ---
 
-## Appendix A: Conformance Checklist
+## 11. Cache Memory Integrity
+
+### 11.1 Overview and Motivation
+
+The cache-memory subsystem provides agents with a persistent filesystem share backed by GitHub Actions cache. Prior to this specification version, caches used a flat directory structure with no integrity provenance. This allowed a `none`-integrity agent to write data into a shared cache store that was subsequently restored and consumed by a higher-integrity run—a Bell-LaPadula write-up violation (Threat T6).
+
+This section specifies the integrity-aware cache architecture that prevents cross-integrity cache contamination while preserving the ability for lower-integrity runs to read data produced by higher-integrity runs (read-down semantics).
+
+**Design Goals**:
+
+1. **Write isolation**: Data written at integrity level *L* MUST NOT be visible to a run at integrity level *H* where *H* > *L* (no write-up).
+2. **Read-down access**: A run at integrity level *L* MAY read data produced by runs at higher integrity levels (read-down is permitted and expected).
+3. **Policy binding**: A cache entry MUST be invalidated when the guard policy changes, preventing data inherited under one policy from being consumed under a different, potentially more permissive policy.
+4. **Transparency**: The agent MUST remain unaware of the git repository structure within the cache directory. The agent reads and writes plain files as normal.
+5. **Migration**: Legacy flat-file caches (with no `.git` directory) MUST be automatically imported onto the `merged` integrity branch on first use.
+
+### 11.2 Integrity Levels
+
+Four integrity levels are defined, ordered from highest to lowest trust:
+
+| Level | Description |
+|-------|-------------|
+| `merged` | Content that has passed code review and been merged into the default branch |
+| `approved` | Content from pull requests that have been reviewed and approved |
+| `unapproved` | Content from open, un-approved pull requests |
+| `none` | Content from workflows without a configured guard policy |
+
+The ordering MUST be: `merged` > `approved` > `unapproved` > `none`.
+
+### 11.3 Integrity-Aware Cache Key Format
+
+**Requirement CI1: Integrity-Scoped Keys**
+
+All cache-memory keys MUST include the integrity level and policy hash as prefixes, in the following format:
+
+```
+memory-{integrityLevel}-{policyHash}-[{cacheID}-]{workflowID}-{runID}
+```
+
+Where:
+
+- `{integrityLevel}` is the `min-integrity` value from the guard policy, or `none` when no guard policy is configured.
+- `{policyHash}` is the 8-character hex prefix of the SHA-256 policy hash (see Section 11.4), or the sentinel string `nopolicy` when no guard policy is configured.
+- `{cacheID}` is the user-defined cache identifier. The `default` cache ID MUST be omitted from the key to maintain a clean format.
+- `{workflowID}` is the sanitized workflow identifier (`GH_AW_WORKFLOW_ID_SANITIZED`).
+- `{runID}` is the GitHub Actions run identifier (`github.run_id`).
+
+**Examples**:
+
+```
+# Default cache, with guard policy (min-integrity: unapproved, 8-char policy hash)
+memory-unapproved-7e4d9f12-${{ env.GH_AW_WORKFLOW_ID_SANITIZED }}-${{ github.run_id }}
+
+# Default cache, no guard policy
+memory-none-nopolicy-${{ env.GH_AW_WORKFLOW_ID_SANITIZED }}-${{ github.run_id }}
+
+# Named "session" cache, no guard policy
+memory-none-nopolicy-session-${{ env.GH_AW_WORKFLOW_ID_SANITIZED }}-${{ github.run_id }}
+```
+
+**Requirement CI2: Restore Key Cascade**
+
+Restore keys MUST use the same integrity-scoped prefix so that a partial key match never crosses integrity level boundaries:
+
+```
+restore-keys: |
+  memory-{integrityLevel}-{policyHash}-{workflowID}-
+  memory-{integrityLevel}-{policyHash}-
+  memory-
+```
+
+The final fallback `memory-` entry exists solely to allow migration from legacy (non-scoped) caches and MUST be removed in a future major version.
+
+### 11.4 Policy Hash Computation
+
+**Requirement CI3: Deterministic Policy Hash**
+
+The policy hash MUST be computed as the first 8 characters of the lowercase hex SHA-256 digest of a canonical policy string, constructed as follows:
+
+1. For each of the following fields, produce a canonical value:
+   - `blocked-users`: Lowercase, sort, deduplicate. If specified as a GitHub Actions expression, prefix the raw expression with `expr:`.
+   - `min-integrity`: Use the literal string value.
+   - `repos`: If a string (`"all"` or `"public"`), lowercase. If an array, lowercase all entries, sort, and deduplicate.
+   - `trusted-bots`: Reserved for future use; always empty.
+   - `trusted-users`: Reserved for future use; always empty.
+
+2. Concatenate the fields in the fixed order shown below, each followed by a newline:
+
+   ```
+   blocked-users:{canonicalBlockedUsers}\n
+   min-integrity:{minIntegrity}\n
+   repos:{canonicalRepos}\n
+   trusted-bots:\n
+   trusted-users:{canonicalTrustedUsers}
+   ```
+
+3. Compute SHA-256 over the UTF-8 encoding of the canonical string.
+4. Take the first 8 characters of the lowercase hexadecimal representation.
+
+**Requirement CI4: Sentinel for No-Policy Workflows**
+
+Workflows without a configured `min-integrity` field MUST use the sentinel string `nopolicy` in place of the policy hash.
+
+**Rationale**: The sentinel avoids hash computation for the common case of no guard policy and is visually distinguishable from a genuine policy hash in cache key inspection.
+
+### 11.5 Git-Backed Integrity Branching
+
+The cache-memory directory MUST be a Git repository when integrity branching is active. The `.git` directory rides along within the GitHub Actions cache tarball, persisting integrity branch history across workflow runs.
+
+**Repository Structure**:
+
+```
+/tmp/gh-aw/cache-memory/
+├── .git/               ← Git metadata (integrity branches, history)
+│   └── refs/heads/
+│       ├── merged
+│       ├── approved
+│       ├── unapproved
+│       └── none
+├── file-written-by-merged-run.json
+└── file-written-by-unapproved-run.txt
+```
+
+**Agent Transparency**:
+
+The agent MUST see and interact with only the plain files in the working directory. The agent MUST NOT need knowledge of Git or the branching structure. File system operations (read, write, delete) behave normally from the agent's perspective.
+
+**Requirement CI5: .git Directory Exclusion from Validation**
+
+File validation steps that enforce allowed extensions, size limits, or other constraints MUST skip the `.git` directory. The Git metadata directory contains binary and extension-less files that are not agent-managed content.
+
+### 11.6 Pre-Agent Setup (Integrity Checkout)
+
+A setup step MUST execute after the cache is restored and before the agent runs. This step is implemented by `setup_cache_memory_git.sh`.
+
+**Requirement CI6: Git Repository Initialization**
+
+If the restored cache directory does not contain a `.git` subdirectory (fresh or legacy cache), the implementation MUST:
+
+1. Initialize a new Git repository on the `merged` branch.
+2. Stage and commit all existing files (if any) as an `initial` commit. This migrates legacy flat-file caches automatically.
+3. Create all four integrity branches (`merged`, `approved`, `unapproved`, `none`) from the same baseline commit.
+
+**Requirement CI7: Integrity Branch Checkout**
+
+After initialization (or if the repository already exists), the implementation MUST check out the branch corresponding to the run's `min-integrity` value. If `min-integrity` is absent, the `none` branch MUST be used.
+
+**Requirement CI8: Merge-Down from Higher-Integrity Branches**
+
+Before the agent executes, the implementation MUST merge all higher-integrity branches into the current branch, in descending trust order (highest first), using the `theirs` merge strategy (`-X theirs`) so that higher-integrity content takes precedence in conflicts.
+
+The merge semantics table is:
+
+| Run integrity | Branches merged in (read access) | Branches NOT merged in |
+|---------------|----------------------------------|------------------------|
+| `merged`      | (none — highest, no merge-down)  | `approved`, `unapproved`, `none` |
+| `approved`    | `merged`                         | `unapproved`, `none` |
+| `unapproved`  | `merged`, `approved`             | `none` |
+| `none`        | `merged`, `approved`, `unapproved` | (none — reads all) |
+
+**Requirement CI9: Merge Failure Handling**
+
+If a merge from a higher-integrity branch fails for reasons other than "nothing to merge" or "already up-to-date", the implementation MUST abort the merge, restore the working tree to its pre-merge state, and exit with a non-zero status code to fail the workflow step.
+
+### 11.7 Post-Agent Commit (Integrity Persistence)
+
+A commit step MUST execute after the agent completes and before the cache is saved. This step is implemented by `commit_cache_memory_git.sh`. The step MUST run with `if: always()` to persist even if the agent step fails.
+
+**Requirement CI10: Agent Changes Committed**
+
+The implementation MUST:
+
+1. Stage all changes within the cache directory (`git add -A`).
+2. Commit on the current integrity branch with a message of the form `run-{GITHUB_RUN_ID}`.
+3. Allow empty commits (`--allow-empty`) so that runs that made no file changes still produce a commit marker in the branch history.
+
+**Requirement CI11: Repository Compaction**
+
+After committing, the implementation MUST invoke `git gc --auto` to prevent unbounded growth of the Git object database within the cache tarball.
+
+**Requirement CI12: No-Repository Fallback**
+
+If no `.git` directory is present at commit time (e.g., the setup step was skipped), the commit step MUST exit cleanly with a diagnostic message and MUST NOT fail the workflow.
+
+### 11.8 Lifecycle Diagram
+
+The following diagram illustrates the full per-run lifecycle:
+
+```
+GitHub Actions Cache Restore
+        │
+        ▼
+setup_cache_memory_git.sh
+  1. If no .git: git init -b merged, import files, create all branches
+  2. git checkout {integrity}
+  3. For each higher-integrity branch (descending):
+       git merge {branch} -X theirs
+        │
+        ▼
+Agent Execution
+  (reads/writes plain files — unaware of git)
+        │
+        ▼
+commit_cache_memory_git.sh  [if: always()]
+  1. git add -A
+  2. git commit --allow-empty -m "run-{run_id}"
+  3. git gc --auto
+        │
+        ▼
+GitHub Actions Cache Save
+  (tarball includes .git directory with all integrity branches)
+```
+
+### 11.9 Compliance Requirements
+
+| Requirement | Test ID | Level |
+|-------------|---------|-------|
+| CI1: Integrity-scoped cache keys | T-CI-001 | Required |
+| CI2: Restore key cascade | T-CI-002 | Required |
+| CI3: Deterministic policy hash | T-CI-003 | Required |
+| CI4: Sentinel for no-policy workflows | T-CI-004 | Required |
+| CI5: .git directory excluded from validation | T-CI-005 | Required |
+| CI6: Git repository initialization | T-CI-006 | Required |
+| CI7: Integrity branch checkout | T-CI-007 | Required |
+| CI8: Merge-down from higher-integrity branches | T-CI-008 | Required |
+| CI9: Merge failure handling | T-CI-009 | Required |
+| CI10: Agent changes committed | T-CI-010 | Required |
+| CI11: Repository compaction | T-CI-011 | Recommended |
+| CI12: No-repository fallback | T-CI-012 | Required |
+
+### 11.10 Migration from Legacy Flat-File Caches
+
+Existing deployments using the pre-integrity cache format (key: `memory-{workflowID}-{runID}`) MUST expect a **cache miss** on the first run after upgrading to an implementation supporting this section.
+
+*Rationale*: Legacy cache data has no integrity provenance. Blindly consuming legacy data under the new integrity model would provide no security guarantee. The automatic migration path in Requirement CI6 handles any residual files from the old format by importing them to the `merged` branch.
+
+Operators SHOULD communicate this expected one-time cache miss to their teams to avoid confusion during upgrade.
+
+---
+
+
 
 **Required for Full Conformance**:
 
@@ -4351,6 +4621,13 @@ safe-outputs:
 ---
 
 ## Appendix F: Document History
+
+**Version 1.15.0** (2026-03-29):
+
+- **Added**: Section 11 "Cache Memory Integrity" specifying integrity-aware cache key format, git-backed branching, merge-down semantics, pre-agent setup, and post-agent commit requirements (CI1–CI12)
+- **Added**: Threat T6 "Cache Integrity Poisoning" to Section 3.2, describing Bell-LaPadula write-up violations in cache-memory and their architectural mitigations
+- **Added**: Terminology entries for *Integrity Level*, *Policy Hash*, *Integrity Branch*, and *Cache Poisoning*
+- **Updated**: Table of Contents to include Section 11
 
 **Version 1.14.0** (2026-02-22):
 
