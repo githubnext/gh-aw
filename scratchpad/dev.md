@@ -1,7 +1,7 @@
 # Developer Instructions
 
-**Version**: 4.5
-**Last Updated**: 2026-03-28
+**Version**: 4.6
+**Last Updated**: 2026-03-29
 **Purpose**: Consolidated development guidelines for GitHub Agentic Workflows
 
 This document consolidates specifications from the scratchpad directory into unified developer instructions. It provides architecture patterns, security guidelines, code organization rules, and testing practices.
@@ -2554,6 +2554,7 @@ These files are loaded automatically by compatible AI tools (e.g., GitHub Copilo
 ---
 
 **Document History**:
+- v4.6 (2026-03-29): Maintenance tone scan — 0 new issues across 62 spec files. No new spec files since v4.5 (latest commit `96873d8` touched `.changeset/` only). Coverage: 62 spec files.
 - v4.5 (2026-03-28): Maintenance tone scan — 0 new issues across 62 spec files. No new spec files since v4.4 (latest commit `7ceec0f` touched `.changeset/` only). Coverage: 62 spec files.
 - v4.4 (2026-03-27): Added Related Documentation link for `metrics-glossary.md` (standardized metric names and scopes for daily report workflows: issue, PR, workflow, firewall, code quality, observability, Copilot agent metrics; cross-report comparison guidelines). Maintenance tone scan: 0 new issues. Coverage: 62 spec files.
 - v4.3 (2026-03-25): Updated `guard-policies-specification.md` to use `allowed-repos` instead of deprecated `repos` field throughout (added migration note: `repos` is a deprecated alias, `gh aw fix` migrates automatically). No new spec files; no tone issues. Coverage: 62 spec files.
