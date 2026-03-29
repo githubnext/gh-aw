@@ -31,9 +31,27 @@ func TestValidateSafeJobNeeds_ValidTargets(t *testing.T) {
 		errContains string
 	}{
 		{
-			name: "needs safe_outputs – always valid",
+			name: "needs safe_outputs – valid when builtin type is configured",
 			data: &WorkflowData{
 				SafeOutputs: &SafeOutputsConfig{
+					CreateIssues: &CreateIssuesConfig{}, // creates the consolidated safe_outputs job
+					Jobs: map[string]*SafeJobConfig{
+						"packaging": {
+							Needs: []string{"safe_outputs"},
+							Steps: []any{map[string]any{"run": "echo hi"}},
+						},
+					},
+				},
+			},
+		},
+		{
+			name:        "needs safe_outputs – invalid when only custom jobs are configured",
+			wantErr:     true,
+			errContains: "unknown needs target",
+			data: &WorkflowData{
+				SafeOutputs: &SafeOutputsConfig{
+					// No builtin types, no scripts, no actions, no user steps.
+					// Only custom jobs → safe_outputs job will NOT be compiled.
 					Jobs: map[string]*SafeJobConfig{
 						"packaging": {
 							Needs: []string{"safe_outputs"},
@@ -116,7 +134,7 @@ func TestValidateSafeJobNeeds_ValidTargets(t *testing.T) {
 			},
 		},
 		{
-			name: "needs another custom safe-job with dashes in source – valid",
+			name: "needs another custom safe-job with dashes in source – valid, normalized",
 			data: &WorkflowData{
 				SafeOutputs: &SafeOutputsConfig{
 					Jobs: map[string]*SafeJobConfig{
@@ -124,7 +142,7 @@ func TestValidateSafeJobNeeds_ValidTargets(t *testing.T) {
 							Steps: []any{map[string]any{"run": "echo hi"}},
 						},
 						"second-job": {
-							Needs: []string{"first_job"}, // normalized form
+							Needs: []string{"first-job"}, // dash form; should be accepted and normalized
 							Steps: []any{map[string]any{"run": "echo there"}},
 						},
 					},
@@ -257,6 +275,30 @@ func TestValidateSafeJobNeeds_ValidTargets(t *testing.T) {
 	}
 }
 
+// TestValidateSafeJobNeeds_NeedsNormalization verifies that dash-form needs values are
+// rewritten to the canonical underscore form so the compiled YAML references the correct job ID.
+func TestValidateSafeJobNeeds_NeedsNormalization(t *testing.T) {
+	jobCfg := &SafeJobConfig{
+		Needs: []string{"safe-outputs", "first-job"}, // dash forms
+		Steps: []any{map[string]any{"run": "echo hi"}},
+	}
+	data := &WorkflowData{
+		SafeOutputs: &SafeOutputsConfig{
+			CreateIssues: &CreateIssuesConfig{},
+			Jobs: map[string]*SafeJobConfig{
+				"first-job":  {Steps: []any{map[string]any{"run": "echo hi"}}},
+				"second-job": jobCfg,
+			},
+		},
+	}
+
+	require.NoError(t, validateSafeJobNeeds(data), "should pass validation")
+
+	// After validation the needs entries must be in underscore form
+	assert.Equal(t, []string{"safe_outputs", "first_job"}, jobCfg.Needs,
+		"needs entries should be normalized to underscore form")
+}
+
 // TestDetectSafeJobCycles tests cycle detection between custom safe-jobs.
 func TestDetectSafeJobCycles(t *testing.T) {
 	t.Run("no cycles – linear chain", func(t *testing.T) {
@@ -314,10 +356,25 @@ func TestComputeValidSafeJobNeeds(t *testing.T) {
 		assert.False(t, valid["safe_outputs"], "safe_outputs not valid without safe-outputs")
 	})
 
-	t.Run("with safe-outputs – threat detection on by default", func(t *testing.T) {
+	t.Run("only custom jobs configured – safe_outputs absent", func(t *testing.T) {
+		// When no builtin types / scripts / actions are configured, the consolidated
+		// safe_outputs job is never emitted, so it must not be a valid target.
+		data := &WorkflowData{
+			SafeOutputs: &SafeOutputsConfig{
+				Jobs: map[string]*SafeJobConfig{
+					"my-job": {},
+				},
+			},
+		}
+		valid := computeValidSafeJobNeeds(data)
+		assert.False(t, valid["safe_outputs"], "safe_outputs should not be valid when only custom jobs present")
+	})
+
+	t.Run("builtin type configured – safe_outputs present", func(t *testing.T) {
 		data := &WorkflowData{
 			SafeOutputs: &SafeOutputsConfig{
 				ThreatDetection: &ThreatDetectionConfig{},
+				CreateIssues:    &CreateIssuesConfig{},
 			},
 		}
 		valid := computeValidSafeJobNeeds(data)
@@ -357,5 +414,49 @@ func TestComputeValidSafeJobNeeds(t *testing.T) {
 		valid := computeValidSafeJobNeeds(data)
 		assert.True(t, valid["my_packager"], "dash-to-underscore normalized name should be valid")
 		assert.True(t, valid["notify_team"])
+	})
+}
+
+// TestConsolidatedSafeOutputsJobWillExist verifies the helper correctly predicts
+// whether the safe_outputs consolidated job will be emitted.
+func TestConsolidatedSafeOutputsJobWillExist(t *testing.T) {
+	t.Run("nil config", func(t *testing.T) {
+		assert.False(t, consolidatedSafeOutputsJobWillExist(nil))
+	})
+
+	t.Run("only custom jobs – no consolidated job", func(t *testing.T) {
+		cfg := &SafeOutputsConfig{
+			Jobs: map[string]*SafeJobConfig{"my-job": {}},
+		}
+		assert.False(t, consolidatedSafeOutputsJobWillExist(cfg))
+	})
+
+	t.Run("custom scripts – consolidated job exists", func(t *testing.T) {
+		cfg := &SafeOutputsConfig{
+			Scripts: map[string]*SafeScriptConfig{"my-script": {}},
+		}
+		assert.True(t, consolidatedSafeOutputsJobWillExist(cfg))
+	})
+
+	t.Run("user-provided steps – consolidated job exists", func(t *testing.T) {
+		cfg := &SafeOutputsConfig{
+			Steps: []any{map[string]any{"run": "echo hi"}},
+		}
+		assert.True(t, consolidatedSafeOutputsJobWillExist(cfg))
+	})
+
+	t.Run("builtin type (create-issue) – consolidated job exists", func(t *testing.T) {
+		cfg := &SafeOutputsConfig{
+			CreateIssues: &CreateIssuesConfig{},
+		}
+		assert.True(t, consolidatedSafeOutputsJobWillExist(cfg))
+	})
+
+	t.Run("builtin type + custom jobs – consolidated job exists", func(t *testing.T) {
+		cfg := &SafeOutputsConfig{
+			CreateIssues: &CreateIssuesConfig{},
+			Jobs:         map[string]*SafeJobConfig{"my-job": {}},
+		}
+		assert.True(t, consolidatedSafeOutputsJobWillExist(cfg))
 	})
 }

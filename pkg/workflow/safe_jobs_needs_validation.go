@@ -19,10 +19,15 @@ var safeJobsNeedsValidationLog = logger.New("workflow:safe_jobs_needs_validation
 //
 //   - "agent"        — main agent job (always present)
 //   - "detection"    — threat-detection job (only when threat detection is enabled)
-//   - "safe_outputs" — consolidated safe-outputs job (always present in safe-outputs context)
+//   - "safe_outputs" — consolidated safe-outputs job (only when builtin safe-output types,
+//     custom scripts, custom actions, or user-provided steps are configured)
 //   - "upload_assets"— upload-assets job (only when upload-asset is configured)
 //   - "unlock"       — unlock job (only when lock-for-agent is enabled)
 //   - other custom safe-job names (normalised to underscore format)
+//
+// Each validated needs: entry is also rewritten to its normalized (underscore) form so
+// that the compiled YAML references the correct job ID regardless of whether the author
+// wrote "safe-outputs" or "safe_outputs".
 //
 // Additionally, cycles between custom safe-jobs are detected and reported as errors.
 func validateSafeJobNeeds(data *WorkflowData) error {
@@ -40,7 +45,7 @@ func validateSafeJobNeeds(data *WorkflowData) error {
 		}
 
 		normalizedJobName := stringutil.NormalizeSafeOutputIdentifier(originalName)
-		for _, need := range jobConfig.Needs {
+		for i, need := range jobConfig.Needs {
 			normalizedNeed := stringutil.NormalizeSafeOutputIdentifier(need)
 			if !validIDs[normalizedNeed] {
 				return fmt.Errorf(
@@ -58,6 +63,9 @@ func validateSafeJobNeeds(data *WorkflowData) error {
 					originalName,
 				)
 			}
+			// Rewrite the needs entry to its canonical underscore form so the compiled
+			// YAML references the correct job ID (e.g. "safe-outputs" → "safe_outputs").
+			jobConfig.Needs[i] = normalizedNeed
 		}
 	}
 
@@ -81,8 +89,12 @@ func computeValidSafeJobNeeds(data *WorkflowData) map[string]bool {
 		return valid
 	}
 
-	// safe_outputs job is always present when safe-outputs is configured
-	valid[string(constants.SafeOutputsJobName)] = true
+	// safe_outputs consolidated job only exists when builtin safe-output types, custom scripts,
+	// custom actions, or user-provided steps are configured. Custom safe-jobs (safe-outputs.jobs)
+	// compile to separate jobs and do NOT create steps in the consolidated job.
+	if consolidatedSafeOutputsJobWillExist(data.SafeOutputs) {
+		valid[string(constants.SafeOutputsJobName)] = true
+	}
 
 	// detection job exists when threat detection is enabled
 	if IsDetectionJobEnabled(data.SafeOutputs) {
@@ -106,6 +118,30 @@ func computeValidSafeJobNeeds(data *WorkflowData) map[string]bool {
 	}
 
 	return valid
+}
+
+// consolidatedSafeOutputsJobWillExist returns true when the compiled workflow will include
+// a "safe_outputs" job. The consolidated job is generated only when at least one builtin
+// safe-output handler, custom script, custom action, or user-provided step is configured.
+// Custom safe-jobs (safe-outputs.jobs) compile to SEPARATE jobs and therefore do not cause
+// the consolidated safe_outputs job to be emitted.
+func consolidatedSafeOutputsJobWillExist(safeOutputs *SafeOutputsConfig) bool {
+	if safeOutputs == nil {
+		return false
+	}
+	// Scripts, actions, and user-provided steps always add to the consolidated job.
+	if len(safeOutputs.Scripts) > 0 || len(safeOutputs.Actions) > 0 || len(safeOutputs.Steps) > 0 {
+		return true
+	}
+	// Reuse the existing reflection-based check with the dynamic fields cleared.
+	// hasAnySafeOutputEnabled will then fall through to reflection over safeOutputFieldMapping,
+	// which covers every builtin pointer type (create-issue, add-comment, etc.).
+	stripped := *safeOutputs
+	stripped.Jobs = nil
+	stripped.Scripts = nil
+	stripped.Actions = nil
+	stripped.Steps = nil
+	return hasAnySafeOutputEnabled(&stripped)
 }
 
 // formatValidNeedsTargets returns a human-readable, sorted list of valid need targets.
