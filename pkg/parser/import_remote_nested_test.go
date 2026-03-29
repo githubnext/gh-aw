@@ -198,7 +198,13 @@ func TestBareFilenameNestedImportResolution(t *testing.T) {
 	)
 
 	require.NoError(t, err, "serena-go.md importing bare 'serena.md' should resolve to shared/mcp/serena.md")
-	assert.NotNil(t, result, "Result should not be nil")
+	require.NotNil(t, result, "Result should not be nil")
+
+	// Verify that serena.md's mcp-servers configuration was actually merged in.
+	// If the sibling file was NOT found, MergedMCPServers would be empty and this
+	// assertion would catch it even if no error was returned.
+	assert.Contains(t, result.MergedMCPServers, "serena",
+		"MergedMCPServers should contain the serena MCP server configuration from serena.md")
 }
 
 // TestSubdirImportWithPathPrefix verifies that a file in a subdirectory can still use

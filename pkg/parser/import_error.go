@@ -77,8 +77,8 @@ func FormatImportCycleError(err *ImportCycleError) error {
 // This type is intentionally exported so that the workflow package's isFormattedCompilerError
 // helper can detect it via errors.As without creating a circular import.
 type FormattedParserError struct {
-	formatted string
-	cause     error
+	formatted string // The complete console-formatted error string ready for display.
+	cause     error  // The underlying error (e.g. ImportError.Cause) for errors.Is/As traversal.
 }
 
 func (e *FormattedParserError) Error() string { return e.formatted }

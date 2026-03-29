@@ -396,6 +396,10 @@ func processImportsFromFrontmatterWithManifestAndSource(frontmatter map[string]a
 				// For paths that include a directory component (e.g. "shared/foo.md") or
 				// remote workflowspec paths, keep using the original baseDir so that
 				// existing conventions (absolute-from-workflows-root paths) continue to work.
+				//
+				// Note: workflow import paths always use forward slashes ("/") regardless of
+				// OS because they originate from YAML frontmatter, not OS filesystem paths.
+				// Checking for "/" is therefore sufficient and intentional here.
 				nestedBaseDir := baseDir
 				if item.remoteOrigin == nil && !isWorkflowSpec(resolvedPath) && !strings.Contains(resolvedPath, "/") {
 					nestedBaseDir = filepath.Dir(item.fullPath)
