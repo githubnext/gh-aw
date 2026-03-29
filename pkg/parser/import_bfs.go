@@ -390,18 +390,19 @@ func processImportsFromFrontmatterWithManifestAndSource(frontmatter map[string]a
 				}
 
 				// Determine the base directory for resolving this nested import.
-				// For local imports with a bare filename (no directory separator), resolve
-				// relative to the parent file's directory so that sibling files like
-				// "serena.md" inside "shared/mcp/serena-go.md" resolve correctly.
-				// For paths that include a directory component (e.g. "shared/foo.md") or
-				// remote workflowspec paths, keep using the original baseDir so that
-				// existing conventions (absolute-from-workflows-root paths) continue to work.
+				// Paths that are explicitly local-to-parent are resolved relative to the
+				// parent file's directory:
+				//   - bare filenames with no directory separator ("serena.md")
+				//   - explicit same-directory prefix ("./serena.md")
+				// Paths with a multi-component directory prefix (e.g. "shared/foo.md") use
+				// the original baseDir so that the absolute-from-workflows-root convention
+				// is preserved.
 				//
 				// Note: workflow import paths always use forward slashes ("/") regardless of
 				// OS because they originate from YAML frontmatter, not OS filesystem paths.
-				// Checking for "/" is therefore sufficient and intentional here.
+				isLocalRelative := !strings.Contains(resolvedPath, "/") || strings.HasPrefix(resolvedPath, "./")
 				nestedBaseDir := baseDir
-				if item.remoteOrigin == nil && !isWorkflowSpec(resolvedPath) && !strings.Contains(resolvedPath, "/") {
+				if item.remoteOrigin == nil && !isWorkflowSpec(resolvedPath) && isLocalRelative {
 					nestedBaseDir = filepath.Dir(item.fullPath)
 				}
 

@@ -165,46 +165,61 @@ func TestLocalImportResolutionBaseline(t *testing.T) {
 	assert.NotNil(t, result, "Result should not be nil")
 }
 
-// TestBareFilenameNestedImportResolution verifies that a file in a subdirectory (e.g.
-// shared/mcp/serena-go.md) can import a sibling file using a bare filename (e.g.
-// "serena.md") and that the BFS resolver looks for the sibling in the parent
-// file's directory rather than in the top-level workflows directory.
+// TestSiblingImportResolution verifies that a file in a subdirectory (e.g.
+// shared/mcp/serena-go.md) can import a sibling file using either a bare filename
+// ("serena.md") or an explicit same-directory prefix ("./serena.md"), and that in
+// both cases the BFS resolver looks for the sibling in the parent file's directory
+// rather than in the top-level workflows directory.
 //
-// This is the pattern used by shared/mcp/serena-go.md → serena.md.
-func TestBareFilenameNestedImportResolution(t *testing.T) {
-	tmpDir := t.TempDir()
-	workflowsDir := filepath.Join(tmpDir, ".github", "workflows")
-	mcpDir := filepath.Join(workflowsDir, "shared", "mcp")
-	require.NoError(t, os.MkdirAll(mcpDir, 0o755), "create shared/mcp dir")
-
-	// serena.md – a "leaf" file with no imports (just mcp-servers config)
+// The preferred convention is "./serena.md" (explicit relative path), which is the
+// pattern used by shared/mcp/serena-go.md.
+func TestSiblingImportResolution(t *testing.T) {
 	serenaContent := "---\nmcp-servers:\n  serena:\n    image: ghcr.io/oraios/serena\n---\n"
-	require.NoError(t, os.WriteFile(filepath.Join(mcpDir, "serena.md"), []byte(serenaContent), 0o644))
 
-	// serena-go.md – imports "serena.md" (bare filename, same directory)
-	serenaGoContent := "---\nimports:\n  - uses: serena.md\n    with:\n      languages: [\"go\"]\n---\n"
-	require.NoError(t, os.WriteFile(filepath.Join(mcpDir, "serena-go.md"), []byte(serenaGoContent), 0o644))
-
-	// Top-level workflow imports "shared/mcp/serena-go.md"
-	frontmatter := map[string]any{
-		"imports": []any{"shared/mcp/serena-go.md"},
+	tests := []struct {
+		name          string
+		importInChild string // the import declaration in serena-go.md
+	}{
+		{
+			name:          "explicit ./ prefix (preferred convention)",
+			importInChild: "---\nimports:\n  - uses: ./serena.md\n    with:\n      languages: [\"go\"]\n---\n",
+		},
+		{
+			name:          "bare filename (backward-compatible)",
+			importInChild: "---\nimports:\n  - uses: serena.md\n    with:\n      languages: [\"go\"]\n---\n",
+		},
 	}
 
-	yamlContent := "imports:\n  - shared/mcp/serena-go.md\n"
-	cache := NewImportCache(tmpDir)
-	result, err := ProcessImportsFromFrontmatterWithSource(
-		frontmatter, workflowsDir, cache,
-		"workflow.md", yamlContent,
-	)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tmpDir := t.TempDir()
+			workflowsDir := filepath.Join(tmpDir, ".github", "workflows")
+			mcpDir := filepath.Join(workflowsDir, "shared", "mcp")
+			require.NoError(t, os.MkdirAll(mcpDir, 0o755), "create shared/mcp dir")
 
-	require.NoError(t, err, "serena-go.md importing bare 'serena.md' should resolve to shared/mcp/serena.md")
-	require.NotNil(t, result, "Result should not be nil")
+			require.NoError(t, os.WriteFile(filepath.Join(mcpDir, "serena.md"), []byte(serenaContent), 0o644))
+			require.NoError(t, os.WriteFile(filepath.Join(mcpDir, "serena-go.md"), []byte(tt.importInChild), 0o644))
 
-	// Verify that serena.md's mcp-servers configuration was actually merged in.
-	// If the sibling file was NOT found, MergedMCPServers would be empty and this
-	// assertion would catch it even if no error was returned.
-	assert.Contains(t, result.MergedMCPServers, "serena",
-		"MergedMCPServers should contain the serena MCP server configuration from serena.md")
+			frontmatter := map[string]any{
+				"imports": []any{"shared/mcp/serena-go.md"},
+			}
+			yamlContent := "imports:\n  - shared/mcp/serena-go.md\n"
+			cache := NewImportCache(tmpDir)
+			result, err := ProcessImportsFromFrontmatterWithSource(
+				frontmatter, workflowsDir, cache,
+				"workflow.md", yamlContent,
+			)
+
+			require.NoError(t, err, "sibling import should resolve to shared/mcp/serena.md")
+			require.NotNil(t, result, "Result should not be nil")
+
+			// Verify that serena.md's mcp-servers configuration was actually merged in.
+			// If the sibling file was NOT found, MergedMCPServers would be empty and this
+			// assertion would catch it even if no error was returned.
+			assert.Contains(t, result.MergedMCPServers, "serena",
+				"MergedMCPServers should contain the serena MCP server configuration from serena.md")
+		})
+	}
 }
 
 // TestSubdirImportWithPathPrefix verifies that a file in a subdirectory can still use

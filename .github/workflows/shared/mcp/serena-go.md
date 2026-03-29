@@ -15,7 +15,7 @@
 #     - shared/mcp/serena-go.md
 
 imports:
-  - uses: serena.md
+  - uses: ./serena.md
     with:
       languages: ["go"]
 ---
