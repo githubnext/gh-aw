@@ -2957,8 +2957,8 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           echo "Testing gh CLI through DIFC proxy (GH_HOST=${GH_HOST})..."
-          limit=$(gh api /rate_limit --jq '.rate.limit')
-          echo "✅ gh CLI works through DIFC proxy (rate limit: $limit)"
+          repo_name=$(gh api /repos/${{ github.repository }} --jq '.full_name')
+          echo "✅ gh CLI works through DIFC proxy (repo: $repo_name)"
 
       - name: Test actions/github-script through proxy
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
@@ -2971,8 +2971,9 @@ jobs:
             if (proxyUrl !== expectedUrl) {
               throw new Error(`Expected GITHUB_API_URL to be "${expectedUrl}", got: ${proxyUrl}`);
             }
-            const { data } = await github.rest.rateLimit.get();
-            console.log(`✅ actions/github-script works through DIFC proxy (rate limit: ${data.rate.limit})`);
+            const [owner, repo] = process.env.GITHUB_REPOSITORY.split('/');
+            const { data } = await github.rest.repos.get({ owner, repo });
+            console.log(`✅ actions/github-script works through DIFC proxy (repo: ${data.full_name})`);
 
       - name: Stop DIFC proxy
         if: always()
