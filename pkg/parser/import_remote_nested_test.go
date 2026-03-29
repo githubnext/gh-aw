@@ -218,6 +218,17 @@ func TestSiblingImportResolution(t *testing.T) {
 			// assertion would catch it even if no error was returned.
 			assert.Contains(t, result.MergedMCPServers, "serena",
 				"MergedMCPServers should contain the serena MCP server configuration from serena.md")
+
+			// Verify that the manifest entry for serena.md uses the canonical
+			// root-relative path ("shared/mcp/serena.md") rather than the raw import
+			// spec ("./serena.md" or "serena.md"), which is ambiguous out of context.
+			importedPaths := strings.Join(result.ImportedFiles, " ")
+			assert.Contains(t, importedPaths, "shared/mcp/serena.md",
+				"ImportedFiles should contain the canonical root-relative path for serena.md")
+			assert.NotContains(t, importedPaths, "./serena.md",
+				"ImportedFiles must not contain the ambiguous ./ prefix form")
+			assert.NotContains(t, importedPaths, " serena.md",
+				"ImportedFiles must not contain a bare filename without a directory prefix")
 		})
 	}
 }

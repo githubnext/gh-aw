@@ -24,8 +24,8 @@
 #
 # Resolved workflow manifest:
 #   Imports:
-#     - ./serena.md
 #     - shared/mcp/serena-go.md
+#     - shared/mcp/serena.md
 #     - shared/reporting.md
 #
 # gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"c2f9e23d46f1dfde09d59a77b02f81f89fdb07589210ae0f4944539ad2998f3b","strict":true,"agent_id":"claude"}

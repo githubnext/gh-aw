@@ -430,8 +430,23 @@ func processImportsFromFrontmatterWithManifestAndSource(frontmatter map[string]a
 				if !visited[nestedFullPath] {
 					visited[nestedFullPath] = true
 					visitedInputs[nestedFullPath] = nestedEntry.inputs
+
+					// Use a canonical importPath for the manifest and topological sort.
+					// When the import was resolved from a non-standard base directory
+					// (e.g. a sibling "./" or bare-filename import resolved relative to
+					// the parent file's directory), the raw nestedImportPath ("./serena.md")
+					// is ambiguous — it's not meaningful without knowing the parent's
+					// directory.  Store a root-relative path instead so that the manifest
+					// header and topological sort always reference unambiguous locations.
+					canonicalImportPath := nestedImportPath
+					if nestedRemoteOrigin == nil && nestedBaseDir != baseDir {
+						if rel, err := filepath.Rel(baseDir, nestedFullPath); err == nil {
+							canonicalImportPath = filepath.ToSlash(rel)
+						}
+					}
+
 					queue = append(queue, importQueueItem{
-						importPath:   nestedImportPath,
+						importPath:   canonicalImportPath,
 						fullPath:     nestedFullPath,
 						sectionName:  nestedSectionName,
 						baseDir:      baseDir, // Use original baseDir, not nestedBaseDir

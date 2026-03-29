@@ -24,13 +24,13 @@
 #
 # Resolved workflow manifest:
 #   Imports:
-#     - ./serena.md
 #     - shared/gh.md
 #     - shared/github-mcp-app.md
 #     - shared/github-queries-mcp-script.md
 #     - shared/go-make.md
 #     - shared/mcp-pagination.md
 #     - shared/mcp/serena-go.md
+#     - shared/mcp/serena.md
 #     - shared/mcp/tavily.md
 #     - shared/reporting.md
 #

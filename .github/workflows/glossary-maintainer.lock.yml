@@ -26,8 +26,8 @@
 #   Imports:
 #     - ../agents/technical-doc-writer.agent.md
 #     - ../skills/documentation/SKILL.md
-#     - ./serena.md
 #     - shared/mcp/serena-go.md
+#     - shared/mcp/serena.md
 #     - shared/qmd.md
 #
 # gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"9397d1f4e3329417182cae99cddef6dc6a324c2be5ab2800838328834d326c59","strict":true,"agent_id":"copilot"}

@@ -24,10 +24,10 @@
 #
 # Resolved workflow manifest:
 #   Imports:
-#     - ./serena.md
 #     - shared/gh.md
 #     - shared/github-queries-mcp-script.md
 #     - shared/mcp/serena-go.md
+#     - shared/mcp/serena.md
 #     - shared/reporting.md
 #
 # gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"b922b54ad668c7e5d79e80973efae5108439b02e6d1ff89d534cf06bdf16d0ed","agent_id":"copilot"}
