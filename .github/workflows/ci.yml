@@ -2915,7 +2915,7 @@ jobs:
           GITHUB_REPOSITORY: ${{ github.repository }}
         run: |
           bash actions/setup/sh/start_difc_proxy.sh \
-            '{"allow-only":{"repos":"all"}}' \
+            '{"allow-only":{"repos":"all","min-integrity":"none"}}' \
             "$DIFC_PROXY_IMAGE"
 
       - name: Verify DIFC proxy started
