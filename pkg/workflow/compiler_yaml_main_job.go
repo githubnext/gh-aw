@@ -502,6 +502,10 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 	// Add repo-memory artifact upload to save state for push job
 	generateRepoMemoryArtifactUpload(yaml, data)
 
+	// Add cache-memory git commit steps (after agent execution, before validation)
+	// This commits agent-written changes to the current integrity branch.
+	generateCacheMemoryGitCommitSteps(yaml, data)
+
 	// Add cache-memory validation (after agent execution)
 	// This validates file types before cache is saved or uploaded
 	generateCacheMemoryValidation(yaml, data)
