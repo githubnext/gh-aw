@@ -1106,6 +1106,186 @@ jobs:
           fi
 
 
+  apm-parity-test:
+    name: APM JS/Python Parity Test (microsoft/apm-sample-package)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: validate-yaml
+    permissions:
+      contents: read
+    concurrency:
+      group: ci-${{ github.ref }}-apm-parity-test
+      cancel-in-progress: true
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Set up Python
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: "3.x"
+
+      - name: Set up Node.js
+        uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f # v6
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: actions/setup/js/package-lock.json
+
+      - name: Install npm dependencies
+        run: cd actions/setup/js && npm ci
+
+      - name: Install apm-cli
+        run: pip install apm-cli
+
+      - name: Check if GitHub PAT is available
+        id: check-pat
+        env:
+          GITHUB_APM_PAT: ${{ secrets.GH_AW_PLUGINS_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
+        run: |
+          if [ -z "$GITHUB_APM_PAT" ]; then
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            echo "⚠️ No GITHUB_APM_PAT available — skipping parity test" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+            echo "✅ GITHUB_APM_PAT available" >> $GITHUB_STEP_SUMMARY
+          fi
+
+      # ── Python path ──────────────────────────────────────────────────────────
+
+      - name: Install package with Python apm-cli
+        if: steps.check-pat.outputs.skip == 'false'
+        env:
+          GITHUB_APM_PAT: ${{ secrets.GH_AW_PLUGINS_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
+        run: |
+          set -e
+          mkdir -p /tmp/apm-workspace-python
+          cd /tmp/apm-workspace-python
+          cat > apm.yml << 'APMEOF'
+          name: apm-parity-test
+          version: 0.0.0
+          dependencies:
+            apm:
+              - microsoft/apm-sample-package
+          APMEOF
+          apm install
+          echo "=== Python workspace after apm install ==="
+          find /tmp/apm-workspace-python -type f | sort
+
+      - name: Pack with Python apm-cli
+        if: steps.check-pat.outputs.skip == 'false'
+        run: |
+          set -e
+          mkdir -p /tmp/apm-bundle-python
+          cd /tmp/apm-workspace-python
+          apm pack --archive --output /tmp/apm-bundle-python
+          echo "=== Python bundle ==="
+          ls -lh /tmp/apm-bundle-python/*.tar.gz
+
+      # ── JavaScript path ──────────────────────────────────────────────────────
+
+      - name: Install package with JavaScript (apm_install.cjs)
+        if: steps.check-pat.outputs.skip == 'false'
+        env:
+          GITHUB_APM_PAT: ${{ secrets.GH_AW_PLUGINS_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
+          APM_PACKAGES: '["microsoft/apm-sample-package"]'
+          APM_WORKSPACE: /tmp/apm-workspace-js
+        run: |
+          set -e
+          mkdir -p /tmp/apm-workspace-js
+          node actions/setup/js/run_apm_install.cjs
+          echo "=== JS workspace after apm_install.cjs ==="
+          find /tmp/apm-workspace-js -type f | sort
+
+      - name: Pack with JavaScript (apm_pack.cjs)
+        if: steps.check-pat.outputs.skip == 'false'
+        env:
+          APM_WORKSPACE: /tmp/apm-workspace-js
+          APM_BUNDLE_OUTPUT: /tmp/apm-bundle-js
+        run: |
+          set -e
+          mkdir -p /tmp/apm-bundle-js
+          node actions/setup/js/run_apm_pack.cjs
+          echo "=== JS bundle ==="
+          ls -lh /tmp/apm-bundle-js/*.tar.gz
+
+      # ── Comparison ───────────────────────────────────────────────────────────
+
+      - name: Unpack both bundles with JavaScript (apm_unpack.cjs)
+        if: steps.check-pat.outputs.skip == 'false'
+        run: |
+          set -e
+          mkdir -p /tmp/apm-out-python /tmp/apm-out-js
+          APM_BUNDLE_DIR=/tmp/apm-bundle-python OUTPUT_DIR=/tmp/apm-out-python \
+            node actions/setup/js/run_apm_unpack.cjs
+          APM_BUNDLE_DIR=/tmp/apm-bundle-js OUTPUT_DIR=/tmp/apm-out-js \
+            node actions/setup/js/run_apm_unpack.cjs
+          echo "=== Python bundle unpacked ==="
+          find /tmp/apm-out-python -type f | sort
+          echo "=== JS bundle unpacked ==="
+          find /tmp/apm-out-js -type f | sort
+
+      - name: Compare Python and JavaScript outputs
+        if: steps.check-pat.outputs.skip == 'false'
+        run: |
+          set -e
+          echo "## APM JS/Python Parity Test" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Comparing pack output for \`microsoft/apm-sample-package\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          PASS=true
+
+          # Compare file lists, excluding apm.lock.yaml which has minor metadata
+          # differences between implementations (resolved_by, timestamps, etc.)
+          python_files=$(find /tmp/apm-out-python -type f | sort | sed "s|/tmp/apm-out-python/||" | grep -v "^apm\.lock\.yaml$")
+          js_files=$(find /tmp/apm-out-js -type f | sort | sed "s|/tmp/apm-out-js/||" | grep -v "^apm\.lock\.yaml$")
+
+          if [ "$python_files" = "$js_files" ]; then
+            echo "✅ File lists match" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ File lists differ" >> $GITHUB_STEP_SUMMARY
+            echo '```diff' >> $GITHUB_STEP_SUMMARY
+            diff <(echo "$python_files") <(echo "$js_files") >> $GITHUB_STEP_SUMMARY || true
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            PASS=false
+          fi
+
+          # Compare content of each matching file
+          CONTENT_DIFFS=0
+          for rel_path in $python_files; do
+            py_file="/tmp/apm-out-python/$rel_path"
+            js_file="/tmp/apm-out-js/$rel_path"
+            if [ ! -f "$js_file" ]; then
+              continue
+            fi
+            if ! diff -q "$py_file" "$js_file" > /dev/null 2>&1; then
+              echo "❌ Content differs: $rel_path" >> $GITHUB_STEP_SUMMARY
+              echo '```diff' >> $GITHUB_STEP_SUMMARY
+              diff "$py_file" "$js_file" >> $GITHUB_STEP_SUMMARY || true
+              echo '```' >> $GITHUB_STEP_SUMMARY
+              CONTENT_DIFFS=$((CONTENT_DIFFS + 1))
+              PASS=false
+            fi
+          done
+          if [ "$CONTENT_DIFFS" -eq 0 ] && [ "$PASS" = "true" ]; then
+            echo "✅ All file contents match" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Files in Python output:" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          echo "$python_files" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+
+          if [ "$PASS" = "true" ]; then
+            echo "### ✅ JS and Python outputs are identical" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "### ❌ JS and Python outputs differ" >> $GITHUB_STEP_SUMMARY
+            exit 1
+          fi
+
+
   bench:
     # Only run benchmarks on main branch for performance tracking
     if: github.ref == 'refs/heads/main'
