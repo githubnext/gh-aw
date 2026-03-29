@@ -63,7 +63,7 @@ type AWFCommandConfig struct {
 	// var keys whose step-env values contain secret references (${{ secrets.* }}).
 	// Computed from the engine's GetRequiredSecretNames() so that every secret-bearing
 	// variable is excluded — the agent can never read raw token values via `env`/`printenv`.
-	// Requires AWF v0.26.0+ for --exclude-env support.
+	// Requires AWF v0.25.3+ for --exclude-env support.
 	ExcludeEnvVarNames []string
 }
 
@@ -160,7 +160,7 @@ func BuildAWFArgs(config AWFCommandConfig) []string {
 	// exfiltrating tokens through bash tools such as `env` or `printenv`.
 	// The caller computes ExcludeEnvVarNames from ComputeAWFExcludeEnvVarNames() so that every
 	// secret-bearing variable is covered — not just a hardcoded subset.
-	// --exclude-env requires AWF v0.26.0+; skip the flags for workflows that pin an older version.
+	// --exclude-env requires AWF v0.25.3+; skip the flags for workflows that pin an older version.
 	awfArgs = append(awfArgs, "--env-all")
 	if awfSupportsExcludeEnv(firewallConfig) {
 		// Sort for deterministic output in compiled lock files.
@@ -542,8 +542,8 @@ func ComputeAWFExcludeEnvVarNames(workflowData *WorkflowData, coreSecretVarNames
 
 // awfSupportsExcludeEnv returns true when the effective AWF version supports --exclude-env.
 //
-// The --exclude-env flag was introduced in AWF v0.26.0. Any workflow that pins an explicit
-// version older than v0.26.0 must not emit --exclude-env or the run will fail at startup.
+// The --exclude-env flag was introduced in AWF v0.25.3. Any workflow that pins an explicit
+// version older than v0.25.3 must not emit --exclude-env or the run will fail at startup.
 //
 // Special cases:
 //   - No version override (firewallConfig is nil or has no Version): use DefaultFirewallVersion

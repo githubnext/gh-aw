@@ -673,7 +673,7 @@ func TestCopilotEngineIncludesCopilotAPITargetFromEnvVar(t *testing.T) {
 	assert.Contains(t, stepContent, "copilot-api.contoso-aw.ghe.com", "Should include custom Copilot hostname")
 }
 
-// TestAWFSupportsExcludeEnv verifies that --exclude-env is only enabled for AWF v0.26.0+.
+// TestAWFSupportsExcludeEnv verifies that --exclude-env is only enabled for AWF v0.25.3+.
 func TestAWFSupportsExcludeEnv(t *testing.T) {
 	tests := []struct {
 		name           string
@@ -688,6 +688,11 @@ func TestAWFSupportsExcludeEnv(t *testing.T) {
 		{
 			name:           "empty version (default) supports --exclude-env",
 			firewallConfig: &FirewallConfig{},
+			want:           true,
+		},
+		{
+			name:           "v0.25.3 supports --exclude-env",
+			firewallConfig: &FirewallConfig{Version: "v0.25.3"},
 			want:           true,
 		},
 		{
