@@ -359,16 +359,19 @@ Use `reviewers: [copilot]` to assign the Copilot PR reviewer bot. See [Assign to
 
 ### Assign Milestone (`assign-milestone:`)
 
-Assigns issues to milestones. Specify `allowed` to restrict to specific milestone titles.
+Assigns issues to milestones. Specify `allowed` to restrict to specific milestone titles. Agents can provide a milestone by title (`milestone_title`) instead of by number (`milestone_number`), and the handler resolves the number internally.
 
 ```yaml wrap
 safe-outputs:
   assign-milestone:
     allowed: [v1.0, v2.0]    # restrict to specific milestone titles
+    auto_create: true         # auto-create milestones in the allowed list if they don't exist
     max: 1                   # max assignments (default: 1)
     target-repo: "owner/repo" # cross-repository
     github-token: ${{ secrets.SOME_CUSTOM_TOKEN }} # optional custom token for permissions
 ```
+
+When `auto_create: true` is set, any milestone from the `allowed` list that does not yet exist in the repository is created automatically before the assignment. Without `auto_create`, the handler returns a clear error listing the available milestones and suggesting `auto_create: true`.
 
 ### Issue Updates (`update-issue:`)
 
@@ -1512,7 +1515,7 @@ safe-outputs:
 
 **Options**: `append-only-comments` (default: `false`)
 
-**Variables**: `{workflow_name}`, `{run_url}`, `{triggering_number}`, `{workflow_source}`, `{workflow_source_url}`, `{event_type}`, `{status}`, `{operation}`
+**Variables**: `{workflow_name}`, `{run_url}`, `{agentic_workflow_url}`, `{triggering_number}`, `{workflow_source}`, `{workflow_source_url}`, `{event_type}`, `{status}`, `{operation}`
 
 ## Staged Mode
 
@@ -1540,6 +1543,29 @@ safe-outputs:
 To disable staged mode and start creating real resources, remove the `staged: true` setting or set it to `false`.
 
 See [Staged Mode](/gh-aw/reference/staged-mode/) for the full guide, including the preview message format, per-type support table, custom message templates, and how to implement staged mode in [custom safe output jobs](/gh-aw/reference/custom-safe-outputs/#staged-mode-support).
+
+## Replaying Safe Outputs
+
+If the `safe_outputs` job fails or is skipped — for example, due to a transient API error, threat detection blocking the output, or a cancelled run — you can replay safe outputs from a previous run using the **Agentic Maintenance** workflow.
+
+> [!NOTE]
+> The Agentic Maintenance workflow (`agentics-maintenance.yml`) is generated automatically when any workflow uses the `expires` field in `create-issue`, `create-discussion`, or `create-pull-request` safe outputs.
+
+To replay safe outputs:
+
+1. Go to your repository's **Actions** tab.
+2. Select the **Agentic Maintenance** workflow.
+3. Click **Run workflow**.
+4. Set **Optional maintenance operation** to `safe_outputs`.
+5. Set **Run URL or run ID** to the URL or run ID of the previous workflow run:
+   - Full URL: `https://github.com/OWNER/REPO/actions/runs/12345`
+   - Run ID only: `12345`
+6. Click **Run workflow**.
+
+The `apply_safe_outputs` job downloads the `agent_output.json` artifact from the specified run and applies all safe outputs as if the original run had completed successfully. The job requires admin or maintainer permissions.
+
+> [!TIP]
+> Find the run URL by opening the failed or cancelled run in the **Actions** tab — the URL in your browser's address bar is the run URL.
 
 ## Related Documentation
 

@@ -36,6 +36,7 @@ type CreatePullRequestsConfig struct {
 	AllowedFiles                   []string `yaml:"allowed-files,omitempty"`                       // Strict allowlist of glob patterns for files eligible for create. Checked independently of protected-files; both checks must pass.
 	ExcludedFiles                  []string `yaml:"excluded-files,omitempty"`                      // List of glob patterns for files to exclude from the patch using git :(exclude) pathspecs. Matching files are stripped by git at generation time and will not appear in the commit or be subject to allowed-files or protected-files checks.
 	PreserveBranchName             bool     `yaml:"preserve-branch-name,omitempty"`                // When true, skips the random salt suffix on agent-specified branch names. Invalid characters are still replaced for security; casing is always preserved. Useful when CI enforces branch naming conventions (e.g. Jira keys in uppercase).
+	PatchFormat                    string   `yaml:"patch-format,omitempty"`                        // Transport format for packaging changes: "am" (default, uses git format-patch) or "bundle" (uses git bundle, preserves merge topology and per-commit metadata).
 }
 
 // parsePullRequestsConfig handles only create-pull-request (singular) configuration
@@ -84,6 +85,12 @@ func (c *Compiler) parsePullRequestsConfig(outputMap map[string]any) *CreatePull
 	manifestFilesEnums := []string{"blocked", "allowed", "fallback-to-issue"}
 	if configData != nil {
 		validateStringEnumField(configData, "protected-files", manifestFilesEnums, createPRLog)
+	}
+
+	// Pre-process patch-format: valid values are "am" (default) and "bundle".
+	patchFormatEnums := []string{"am", "bundle"}
+	if configData != nil {
+		validateStringEnumField(configData, "patch-format", patchFormatEnums, createPRLog)
 	}
 
 	// Pre-process templatable int fields

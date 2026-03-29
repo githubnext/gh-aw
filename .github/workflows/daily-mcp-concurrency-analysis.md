@@ -17,6 +17,9 @@ engine: copilot
 imports:
   - shared/reporting.md
   - shared/safe-output-app.md
+  - uses: shared/mcp/serena.md
+    with:
+      languages: ["go", "typescript"]
 
 safe-outputs:
   create-issue:
@@ -28,7 +31,6 @@ safe-outputs:
     max: 3
 
 tools:
-  serena: ["go", "typescript"]
   cache-memory: true
   github:
     toolsets: [default]

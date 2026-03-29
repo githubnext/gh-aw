@@ -51,7 +51,7 @@ This workflow has a skip-roles configuration.
 		assert.Contains(t, lockContentStr, "Check skip-roles", "Expected skip-roles check to be present")
 
 		// Verify the skip roles environment variable is set correctly
-		assert.Contains(t, lockContentStr, "GH_AW_SKIP_ROLES: admin,maintainer,write", "Expected GH_AW_SKIP_ROLES environment variable with correct value")
+		assert.Contains(t, lockContentStr, `GH_AW_SKIP_ROLES: "admin,maintainer,write"`, "Expected GH_AW_SKIP_ROLES environment variable with correct value")
 
 		// Verify the check_skip_roles step ID is present
 		assert.Contains(t, lockContentStr, "id: check_skip_roles", "Expected check_skip_roles step ID")
@@ -93,7 +93,7 @@ This workflow skips only for admin role.
 		assert.Contains(t, lockContentStr, "Check skip-roles", "Expected skip-roles check to be present")
 
 		// Verify single role
-		assert.Contains(t, lockContentStr, "GH_AW_SKIP_ROLES: admin", "Expected GH_AW_SKIP_ROLES with single role")
+		assert.Contains(t, lockContentStr, `GH_AW_SKIP_ROLES: "admin"`, "Expected GH_AW_SKIP_ROLES with single role")
 	})
 
 	t.Run("no_skip_roles_no_check_created", func(t *testing.T) {
@@ -159,10 +159,10 @@ This workflow has both roles and skip-roles.
 		assert.Contains(t, lockContentStr, "Check skip-roles", "Expected skip-roles check to be present")
 
 		// Verify GH_AW_REQUIRED_ROLES is set
-		assert.Contains(t, lockContentStr, "GH_AW_REQUIRED_ROLES: maintainer", "Expected GH_AW_REQUIRED_ROLES for roles field")
+		assert.Contains(t, lockContentStr, `GH_AW_REQUIRED_ROLES: "maintainer"`, "Expected GH_AW_REQUIRED_ROLES for roles field")
 
 		// Verify GH_AW_SKIP_ROLES is set
-		assert.Contains(t, lockContentStr, "GH_AW_SKIP_ROLES: admin,write", "Expected GH_AW_SKIP_ROLES for skip-roles field")
+		assert.Contains(t, lockContentStr, `GH_AW_SKIP_ROLES: "admin,write"`, "Expected GH_AW_SKIP_ROLES for skip-roles field")
 
 		// Verify both conditions in activated output
 		assert.Contains(t, lockContentStr, "steps.check_membership.outputs.is_team_member", "Expected membership check in activated output")

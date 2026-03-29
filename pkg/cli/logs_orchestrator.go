@@ -16,6 +16,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math"
 	"os"
 	"path/filepath"
 	"strings"
@@ -346,6 +347,9 @@ func DownloadWorkflowLogs(ctx context.Context, workflowName string, count int, s
 				// Always use GitHub API timestamps for duration calculation
 				if !run.StartedAt.IsZero() && !run.UpdatedAt.IsZero() {
 					run.Duration = run.UpdatedAt.Sub(run.StartedAt)
+					// Estimate billable Actions minutes from wall-clock time.
+					// GitHub Actions bills per minute, rounded up per job.
+					run.ActionMinutes = math.Ceil(run.Duration.Minutes())
 				}
 
 				processedRun := ProcessedRun{

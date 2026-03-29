@@ -277,12 +277,10 @@ func installWorkflowInTrialMode(ctx context.Context, tempDir string, parsedSpec 
 		}
 	}
 
-	// Fetch and save include dependencies for remote workflows
+	// Fetch and save all remote dependencies (includes, imports, dispatch workflows, resources)
 	if !fetched.IsLocal {
-		if err := fetchAndSaveRemoteIncludes(string(content), parsedSpec, result.WorkflowsDir, opts.Verbose, true, nil); err != nil {
-			if opts.Verbose {
-				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to fetch include dependencies: %v", err)))
-			}
+		if err := fetchAllRemoteDependencies(ctx, string(content), parsedSpec, result.WorkflowsDir, opts.Verbose, true, nil); err != nil {
+			return fmt.Errorf("failed to fetch remote dependencies: %w", err)
 		}
 	}
 

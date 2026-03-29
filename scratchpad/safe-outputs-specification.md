@@ -7,7 +7,7 @@ sidebar:
 
 # Safe Outputs System Specification
 
-**Version**: 1.0.0  
+**Version**: 1.1.0  
 **Status**: Recommendation  
 **Latest Version**: https://github.github.com/gh-aw/scratchpad/safe-outputs-specification/  
 **Editors**: GitHub Next Team
@@ -32,6 +32,7 @@ This specification is governed by the GitHub Next team and follows semantic vers
 4. [Security Model](#4-security-model)
 5. [Builtin System Tools](#5-builtin-system-tools)
 6. [GitHub Operations](#6-github-operations)
+   - [6.4 update-discussion Operation](#64-update-discussion-operation)
 7. [Compliance Testing](#7-compliance-testing)
 8. [Appendices](#appendices)
 9. [References](#references)
@@ -822,7 +823,119 @@ Each appendix includes:
 - Conformance test identifiers
 - Examples
 
-### 6.4 GitHub Operations Summary Table
+### 6.4 update-discussion Operation
+
+#### 6.4.1 Purpose
+
+Modifies an existing GitHub Discussion's title, body, or labels. Supports fine-grained field-level access control: each of `title`, `body`, and `labels` is independently gated by its own configuration flag. Only the fields enabled in the workflow configuration are exposed in the MCP tool schema and may be updated at runtime.
+
+#### 6.4.2 Configuration
+
+```yaml
+safe-outputs:
+  update-discussion:
+    target: "triggering"          # "triggering" | "*" | <number>
+    allow-title: true             # Permit title updates (default: false)
+    allow-body: true              # Permit body updates (default: false)
+    allowed-labels:               # Restricts agent-requested labels to this list
+      - Label1
+      - Label2
+```
+
+`allowed-labels` implicitly enables label updates. At least one of `allow-title`, `allow-body`, or `allowed-labels` MUST be configured.
+
+#### 6.4.3 Request Schema
+
+The effective schema is filtered at registration time: properties not enabled by the configuration are omitted from `inputSchema` before the tool is registered with the MCP server.
+
+**Full schema (all fields enabled):**
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "discussion_number": {
+      "type": "integer",
+      "description": "Discussion number to update. Required when target is \"*\""
+    },
+    "title": {
+      "type": "string",
+      "description": "New discussion title. Only present when allow-title is true"
+    },
+    "body": {
+      "type": "string",
+      "description": "New discussion body. Only present when allow-body is true"
+    },
+    "labels": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Labels to apply. Only present when allowed-labels is configured"
+    },
+    "secrecy": {
+      "type": "string",
+      "description": "Confidentiality classification"
+    },
+    "integrity": {
+      "type": "string",
+      "description": "Data integrity assertion"
+    }
+  },
+  "required": []
+}
+```
+
+**Example — labels-only config:**
+
+When the configuration specifies only `allowed-labels` (no `allow-title` or `allow-body`), the registered schema exposes only `discussion_number`, `labels`, `secrecy`, and `integrity`. The `title` and `body` properties are absent, preventing the agent from attempting to set them.
+
+#### 6.4.4 Behavior
+
+The `update-discussion` handler MUST:
+
+1. Validate the incoming request against the filtered schema.
+2. Resolve the target discussion number:
+   - `target: "triggering"` — use the discussion number from the workflow event context.
+   - `target: "*"` — use `discussion_number` from the agent request (required).
+   - `target: <number>` — use the configured number unconditionally.
+3. Fetch the current discussion to obtain its `id`, `title`, and `body` (required for the `updateDiscussion` GraphQL mutation which is always a full-replace).
+4. **If `title` or `body` is present in the request:**
+   a. Reject `title` with an error if `allow-title` is not `true` in the configuration.
+   b. Reject `body` with an error if `allow-body` is not `true` in the configuration.
+   c. Construct the update payload, preserving the fetched value for any field not supplied by the request:
+      - Omitted `title` → use the existing discussion title unchanged.
+      - Omitted `body` → use the existing discussion body unchanged.
+   d. Call the `updateDiscussion` GraphQL mutation with the constructed payload.
+5. **If only `labels` is present (no `title` or `body` in the request):**
+   a. MUST NOT call the `updateDiscussion` GraphQL mutation.
+   b. MUST NOT modify the discussion title or body.
+6. If `labels` is present:
+   a. Filter the requested labels against `allowed-labels` if configured.
+   b. Sanitize all labels according to Section 4.3.2.
+   c. Apply label changes via the GitHub GraphQL API.
+7. Return a success result summarising which fields were updated.
+
+#### 6.4.5 Field Isolation Invariants
+
+Implementations MUST guarantee:
+
+- **Title isolation**: Updating only `title` MUST leave the discussion body byte-for-byte identical to the value fetched in step 3.
+- **Body isolation**: Updating only `body` MUST leave the discussion title byte-for-byte identical to the value fetched in step 3.
+- **Label isolation**: Updating only `labels` MUST NOT invoke any mutation that modifies `title` or `body`.
+
+#### 6.4.6 Conformance Requirements
+
+- **T-UPD-001**: MUST expose only schema properties corresponding to enabled configuration fields.
+- **T-UPD-002**: MUST reject `title` in the request when `allow-title` is not `true`, returning an actionable error.
+- **T-UPD-003**: MUST reject `body` in the request when `allow-body` is not `true`, returning an actionable error.
+- **T-UPD-004**: MUST preserve the existing `title` when performing a body-only update.
+- **T-UPD-005**: MUST preserve the existing `body` when performing a title-only update.
+- **T-UPD-006**: MUST NOT call the `updateDiscussion` mutation when the request contains only `labels`.
+- **T-UPD-007**: MUST filter agent-requested labels against `allowed-labels` when configured.
+- **T-UPD-008**: MUST sanitize all label values according to Section 4.3.2.
+- **T-UPD-009**: MUST resolve `target: "triggering"` to the discussion number from the workflow event context.
+- **T-UPD-010**: MUST require `discussion_number` in the request when `target: "*"` is configured.
+
+### 6.5 GitHub Operations Summary Table
 
 | Operation | Max Default | Cross-Repo | Permissions Required | Staged Support |
 |-----------|-------------|------------|---------------------|----------------|
@@ -1086,6 +1199,17 @@ The system does NOT protect against:
 ---
 
 ## Change Log
+
+### Version 1.1.0 (Recommendation)
+
+**update-discussion Field Isolation** - 2026-03-27
+
+- Added Section 6.4: detailed specification for the `update-discussion` operation
+- Defined field-level access control: `allow-title`, `allow-body`, and `allowed-labels` each independently gate schema exposure and runtime execution
+- Specified MCP tool schema filtering: fields not enabled in the workflow configuration are removed from `inputSchema` before tool registration, preventing the AI agent from attempting unsupported updates
+- Specified runtime guards: requests that include `title` or `body` when the corresponding flag is not set MUST be rejected with a clear error
+- Defined field isolation invariants (T-UPD-004 through T-UPD-006): label-only updates MUST NOT call the `updateDiscussion` mutation; title-only / body-only updates MUST preserve the other field exactly as fetched from the API
+- Added 10 conformance requirements (T-UPD-001 through T-UPD-010)
 
 ### Version 1.0.0 (Recommendation)
 

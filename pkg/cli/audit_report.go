@@ -13,7 +13,6 @@ import (
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/sliceutil"
 	"github.com/github/gh-aw/pkg/timeutil"
-	"github.com/github/gh-aw/pkg/workflow"
 )
 
 var auditReportLog = logger.New("cli:audit_report")
@@ -30,6 +29,11 @@ type AuditData struct {
 	Recommendations         []Recommendation         `json:"recommendations,omitempty"`
 	ObservabilityInsights   []ObservabilityInsight   `json:"observability_insights,omitempty"`
 	PerformanceMetrics      *PerformanceMetrics      `json:"performance_metrics,omitempty"`
+	EngineConfig            *EngineConfig            `json:"engine_config,omitempty"`
+	PromptAnalysis          *PromptAnalysis          `json:"prompt_analysis,omitempty"`
+	SessionAnalysis         *SessionAnalysis         `json:"session_analysis,omitempty"`
+	SafeOutputSummary       *SafeOutputSummary       `json:"safe_output_summary,omitempty"`
+	MCPServerHealth         *MCPServerHealth         `json:"mcp_server_health,omitempty"`
 	Jobs                    []JobData                `json:"jobs,omitempty"`
 	DownloadedFiles         []FileInfo               `json:"downloaded_files"`
 	MissingTools            []MissingToolReport      `json:"missing_tools,omitempty"`
@@ -93,6 +97,7 @@ type OverviewData struct {
 type MetricsData struct {
 	TokenUsage    int     `json:"token_usage,omitempty" console:"header:Token Usage,format:number,omitempty"`
 	EstimatedCost float64 `json:"estimated_cost,omitempty" console:"header:Estimated Cost,format:cost,omitempty"`
+	ActionMinutes float64 `json:"action_minutes,omitempty" console:"header:Action Minutes,omitempty"`
 	Turns         int     `json:"turns,omitempty" console:"header:Turns,omitempty"`
 	ErrorCount    int     `json:"error_count" console:"header:Errors"`
 	WarningCount  int     `json:"warning_count" console:"header:Warnings"`
@@ -144,10 +149,11 @@ type ToolUsageInfo struct {
 
 // MCPToolUsageData contains detailed MCP tool usage statistics and individual call records
 type MCPToolUsageData struct {
-	Summary        []MCPToolSummary    `json:"summary"`                   // Aggregated statistics per tool
-	ToolCalls      []MCPToolCall       `json:"tool_calls"`                // Individual tool call records
-	Servers        []MCPServerStats    `json:"servers,omitempty"`         // Server-level statistics
-	FilteredEvents []DifcFilteredEvent `json:"filtered_events,omitempty"` // DIFC filtered events
+	Summary            []MCPToolSummary    `json:"summary"`                        // Aggregated statistics per tool
+	ToolCalls          []MCPToolCall       `json:"tool_calls"`                     // Individual tool call records
+	Servers            []MCPServerStats    `json:"servers,omitempty"`              // Server-level statistics
+	FilteredEvents     []DifcFilteredEvent `json:"filtered_events,omitempty"`      // DIFC filtered events
+	GuardPolicySummary *GuardPolicySummary `json:"guard_policy_summary,omitempty"` // Guard policy enforcement summary
 }
 
 // MCPToolSummary contains aggregated statistics for a single MCP tool
@@ -186,6 +192,22 @@ type MCPServerStats struct {
 	TotalOutputSize int    `json:"total_output_size" console:"header:Total Output,format:number"`
 	AvgDuration     string `json:"avg_duration,omitempty" console:"header:Avg Duration,omitempty"`
 	ErrorCount      int    `json:"error_count,omitempty" console:"header:Errors,omitempty"`
+}
+
+// GuardPolicySummary contains summary statistics for guard policy enforcement.
+// Guard policies control which tool calls the MCP Gateway allows based on
+// repository scope (repos) and content integrity level (min-integrity).
+type GuardPolicySummary struct {
+	TotalBlocked        int                `json:"total_blocked"`
+	IntegrityBlocked    int                `json:"integrity_blocked"`             // Blocked by min-integrity (-32006)
+	RepoScopeBlocked    int                `json:"repo_scope_blocked"`            // Blocked by repos scope (-32002)
+	AccessDenied        int                `json:"access_denied"`                 // General access denied (-32001)
+	BlockedUserDenied   int                `json:"blocked_user_denied,omitempty"` // Content from blocked user (-32005)
+	PermissionDenied    int                `json:"permission_denied,omitempty"`   // Insufficient permissions (-32003)
+	PrivateRepoDenied   int                `json:"private_repo_denied,omitempty"` // Private repository denied (-32004)
+	Events              []GuardPolicyEvent `json:"events"`
+	BlockedToolCounts   map[string]int     `json:"blocked_tool_counts,omitempty"`   // tool name -> blocked count
+	BlockedServerCounts map[string]int     `json:"blocked_server_counts,omitempty"` // server ID -> blocked count
 }
 
 // PolicySummaryDisplay is a display-optimized version of PolicyAnalysis for console rendering
@@ -280,42 +302,7 @@ func buildAuditData(processedRun ProcessedRun, metrics LogMetrics, mcpToolUsage 
 		}
 	}
 
-	toolStats := make(map[string]*ToolUsageInfo)
-	for _, toolCall := range metrics.ToolCalls {
-		displayKey := workflow.PrettifyToolName(toolCall.Name)
-		if existing, exists := toolStats[displayKey]; exists {
-			existing.CallCount += toolCall.CallCount
-			if toolCall.MaxInputSize > existing.MaxInputSize {
-				existing.MaxInputSize = toolCall.MaxInputSize
-			}
-			if toolCall.MaxOutputSize > existing.MaxOutputSize {
-				existing.MaxOutputSize = toolCall.MaxOutputSize
-			}
-			if toolCall.MaxDuration > 0 {
-				maxDuration := timeutil.FormatDuration(toolCall.MaxDuration)
-				if existing.MaxDuration == "" || toolCall.MaxDuration > parseDurationString(existing.MaxDuration) {
-					existing.MaxDuration = maxDuration
-				}
-			}
-			continue
-		}
-
-		toolInfo := &ToolUsageInfo{
-			Name:          displayKey,
-			CallCount:     toolCall.CallCount,
-			MaxInputSize:  toolCall.MaxInputSize,
-			MaxOutputSize: toolCall.MaxOutputSize,
-		}
-		if toolCall.MaxDuration > 0 {
-			toolInfo.MaxDuration = timeutil.FormatDuration(toolCall.MaxDuration)
-		}
-		toolStats[displayKey] = toolInfo
-	}
-
-	toolUsage := make([]ToolUsageInfo, 0, len(toolStats))
-	for _, info := range toolStats {
-		toolUsage = append(toolUsage, *info)
-	}
+	toolUsage := buildToolUsageInfo(metrics)
 
 	createdItems := extractCreatedItemsFromManifest(run.LogsPath)
 	taskDomain := detectTaskDomain(processedRun, createdItems, toolUsage, overview.AwContext)
@@ -335,6 +322,13 @@ func buildAuditData(processedRun ProcessedRun, metrics LogMetrics, mcpToolUsage 
 	// Generate performance metrics
 	performanceMetrics := generatePerformanceMetrics(processedRun, metricsData, toolUsage)
 
+	// Extract expanded audit data
+	engineConfig := extractEngineConfig(run.LogsPath)
+	promptAnalysis := extractPromptAnalysis(run.LogsPath)
+	sessionAnalysis := buildSessionAnalysis(processedRun, metrics)
+	safeOutputSummary := buildSafeOutputSummary(createdItems)
+	mcpServerHealth := buildMCPServerHealth(mcpToolUsage, processedRun.MCPFailures)
+
 	if auditReportLog.Enabled() {
 		auditReportLog.Printf("Built audit data: %d jobs, %d errors, %d warnings, %d tool types, %d findings, %d recommendations",
 			len(jobs), len(errors), len(warnings), len(toolUsage), len(findings), len(recommendations))
@@ -350,6 +344,11 @@ func buildAuditData(processedRun ProcessedRun, metrics LogMetrics, mcpToolUsage 
 		Recommendations:         recommendations,
 		ObservabilityInsights:   observabilityInsights,
 		PerformanceMetrics:      performanceMetrics,
+		EngineConfig:            engineConfig,
+		PromptAnalysis:          promptAnalysis,
+		SessionAnalysis:         sessionAnalysis,
+		SafeOutputSummary:       safeOutputSummary,
+		MCPServerHealth:         mcpServerHealth,
 		Jobs:                    jobs,
 		DownloadedFiles:         downloadedFiles,
 		MissingTools:            processedRun.MissingTools,

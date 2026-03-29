@@ -210,6 +210,7 @@ func (c *Compiler) buildStartDIFCProxyStepYAML(data *WorkflowData) string {
 	sb.WriteString("      - name: Start DIFC proxy for pre-agent gh calls\n")
 	sb.WriteString("        env:\n")
 	fmt.Fprintf(&sb, "          GH_TOKEN: %s\n", effectiveToken)
+	sb.WriteString("          GITHUB_SERVER_URL: ${{ github.server_url }}\n")
 	sb.WriteString("        run: |\n")
 	// The policy JSON contains only static values from the workflow frontmatter
 	// (min-integrity and repos). It never contains GitHub Actions expressions (${{ }})
@@ -233,6 +234,43 @@ func (c *Compiler) generateStartDIFCProxyStep(yaml *strings.Builder, data *Workf
 	if step != "" {
 		yaml.WriteString(step)
 	}
+}
+
+// buildSetGHRepoStepYAML returns the YAML for the "Set GH_REPO for proxied steps" step.
+//
+// start_difc_proxy.sh writes GH_HOST=localhost:18443 to GITHUB_ENV so that the gh CLI
+// routes through the proxy. However, gh CLI infers the target repository from the git
+// remote, which uses the original host (github.com / GHEC host). When GH_HOST is the
+// proxy address, gh fails to resolve the repository because the host doesn't match.
+//
+// Rather than overwriting GH_HOST (which would bypass the DIFC proxy's integrity
+// filtering), this step sets GH_REPO=$GITHUB_REPOSITORY. The gh CLI respects GH_REPO
+// to determine the target repository without needing to match the git remote host.
+// GH_HOST stays at localhost:18443 so all gh CLI traffic continues routing through
+// the proxy for integrity filtering.
+func buildSetGHRepoStepYAML() string {
+	var sb strings.Builder
+	sb.WriteString("      - name: Set GH_REPO for proxied steps\n")
+	sb.WriteString("        run: |\n")
+	sb.WriteString("          echo \"GH_REPO=${GITHUB_REPOSITORY}\" >> \"$GITHUB_ENV\"\n")
+	return sb.String()
+}
+
+// generateSetGHRepoAfterDIFCProxyStep injects a step that sets GH_REPO=$GITHUB_REPOSITORY
+// after start_difc_proxy.sh and before user-defined setup steps.
+//
+// The proxy sets GH_HOST=localhost:18443 in GITHUB_ENV, which causes gh CLI to fail
+// resolving the repository from the git remote. Setting GH_REPO tells gh which repo
+// to target without changing the proxy routing (GH_HOST stays at the proxy address).
+//
+// The step is only emitted when hasDIFCProxyNeeded returns true.
+func (c *Compiler) generateSetGHRepoAfterDIFCProxyStep(yaml *strings.Builder, data *WorkflowData) {
+	if !hasDIFCProxyNeeded(data) {
+		return
+	}
+
+	difcProxyLog.Print("Generating Set GH_REPO step after DIFC proxy start")
+	yaml.WriteString(buildSetGHRepoStepYAML())
 }
 
 // generateStopDIFCProxyStep generates a step that stops the DIFC proxy container
@@ -274,11 +312,9 @@ func difcProxyLogPaths(data *WorkflowData) []string {
 	if !hasDIFCGuardsConfigured(data) {
 		return nil
 	}
-	// proxy-logs/ contains TLS certs and container stderr from the proxy
-	// (mcp-logs/ is already collected as part of standard MCP logging)
-	// Exclude proxy-tls/ because it contains the TLS private key (server.key) which is
-	// created by the Docker container with root-only permissions, causing artifact upload
-	// to fail with EACCES. The private key is ephemeral and should not be uploaded.
+	// proxy-logs/ contains TLS certs and container stderr from the proxy.
+	// Exclude proxy-tls/ to avoid uploading TLS material (mcp-logs/ is already
+	// collected as part of standard MCP logging).
 	return []string{
 		"/tmp/gh-aw/proxy-logs/",
 		"!/tmp/gh-aw/proxy-logs/proxy-tls/",

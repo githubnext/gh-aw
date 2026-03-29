@@ -128,7 +128,7 @@ imports:
 		"Should use correct path for second import")
 
 	// Verify merge step includes both imports
-	assert.Contains(t, lockContentStr, `GH_AW_REPOSITORY_IMPORTS: '["github/repo1@main","github/repo2@v1.0.0"]'`,
+	assert.Contains(t, lockContentStr, `GH_AW_REPOSITORY_IMPORTS: "[\"github/repo1@main\",\"github/repo2@v1.0.0\"]"`,
 		"Should pass all repository imports to merge script")
 }
 

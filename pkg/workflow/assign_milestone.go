@@ -10,7 +10,8 @@ var assignMilestoneLog = logger.New("workflow:assign_milestone")
 type AssignMilestoneConfig struct {
 	BaseSafeOutputConfig   `yaml:",inline"`
 	SafeOutputTargetConfig `yaml:",inline"`
-	Allowed                []string `yaml:"allowed,omitempty"` // Optional list of allowed milestone titles or IDs
+	Allowed                []string `yaml:"allowed,omitempty"`     // Optional list of allowed milestone titles or IDs
+	AutoCreate             bool     `yaml:"auto_create,omitempty"` // If true, auto-create missing milestones found in the allowed list
 }
 
 // parseAssignMilestoneConfig handles assign-milestone configuration

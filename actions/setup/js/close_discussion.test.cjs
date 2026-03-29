@@ -230,7 +230,7 @@ describe("close_discussion", () => {
       const result = await handler({ discussion_number: "not-a-number" }, {});
 
       expect(result.success).toBe(false);
-      expect(result.error).toContain("Invalid discussion number");
+      expect(result.error).toContain("Invalid number");
     });
 
     it("should enforce max count limit", async () => {
@@ -399,6 +399,110 @@ describe("close_discussion", () => {
 
       expect(result.success).toBe(true);
       expect(result.url).toBe("https://github.com/owner/repo/discussions/42");
+    });
+
+    describe("temporary ID support", () => {
+      it("should resolve a temporary ID for discussion_number", async () => {
+        const closeCalls = /** @type {any[]} */ [];
+
+        const originalGraphql = mockGithub.graphql;
+        mockGithub.graphql = async (query, variables) => {
+          if (query.includes("closeDiscussion")) {
+            closeCalls.push(variables);
+            return {
+              closeDiscussion: {
+                discussion: {
+                  id: "D_kwDOTest123",
+                  url: "https://github.com/owner/repo/discussions/99",
+                },
+              },
+            };
+          }
+          if (query.includes("addDiscussionComment")) {
+            return { addDiscussionComment: { comment: { id: "DC_1", url: "https://example.com" } } };
+          }
+          // Fetch discussion details for #99
+          return {
+            repository: {
+              discussion: {
+                id: "D_kwDOTest999",
+                title: "Test Discussion",
+                closed: false,
+                category: { name: "General" },
+                url: "https://github.com/owner/repo/discussions/99",
+                labels: { nodes: [], pageInfo: { hasNextPage: false, endCursor: null } },
+              },
+            },
+          };
+        };
+
+        const handler = await main({ max: 10 });
+        const resolvedTemporaryIds = { aw_disc1: { repo: "owner/repo", number: 99 } };
+        const result = await handler({ discussion_number: "aw_disc1" }, resolvedTemporaryIds);
+
+        expect(result.success).toBe(true);
+        expect(closeCalls.length).toBe(1);
+        expect(mockCore.infos.some(msg => msg.includes("aw_disc1") && msg.includes("99"))).toBe(true);
+        mockGithub.graphql = originalGraphql;
+      });
+
+      it("should resolve a temporary ID with # prefix for discussion_number", async () => {
+        const closeCalls = /** @type {any[]} */ [];
+
+        mockGithub.graphql = async (query, variables) => {
+          if (query.includes("closeDiscussion")) {
+            closeCalls.push(variables);
+            return {
+              closeDiscussion: {
+                discussion: {
+                  id: "D_kwDOTest99",
+                  url: "https://github.com/owner/repo/discussions/99",
+                },
+              },
+            };
+          }
+          if (query.includes("addDiscussionComment")) {
+            return { addDiscussionComment: { comment: { id: "DC_1", url: "https://example.com" } } };
+          }
+          return {
+            repository: {
+              discussion: {
+                id: "D_kwDOTest99",
+                title: "Test Discussion",
+                closed: false,
+                category: { name: "General" },
+                url: "https://github.com/owner/repo/discussions/99",
+                labels: { nodes: [], pageInfo: { hasNextPage: false, endCursor: null } },
+              },
+            },
+          };
+        };
+
+        const handler = await main({ max: 10 });
+        const resolvedTemporaryIds = { aw_disc1: { repo: "owner/repo", number: 99 } };
+        const result = await handler({ discussion_number: "#aw_disc1" }, resolvedTemporaryIds);
+
+        expect(result.success).toBe(true);
+        expect(closeCalls.length).toBe(1);
+      });
+
+      it("should fail when temporary ID is not found in the map", async () => {
+        const handler = await main({ max: 10 });
+        const result = await handler({ discussion_number: "aw_disc1" }, {});
+
+        expect(result.success).toBe(false);
+        expect(result.error).toContain("aw_disc1");
+        expect(mockCore.warnings.some(msg => msg.includes("aw_disc1"))).toBe(true);
+      });
+
+      it("should fail when temporary ID has no resolved number", async () => {
+        const handler = await main({ max: 10 });
+        const resolvedTemporaryIds = { aw_disc1: { repo: "owner/repo" } };
+        const result = await handler({ discussion_number: "aw_disc1" }, resolvedTemporaryIds);
+
+        expect(result.success).toBe(false);
+        expect(result.error).toContain("aw_disc1");
+      });
     });
   });
 });

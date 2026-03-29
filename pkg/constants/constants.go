@@ -279,10 +279,6 @@ const DefaultClaudeCodeVersion Version = "latest"
 // DefaultCopilotVersion is the default version of the GitHub Copilot CLI.
 const DefaultCopilotVersion Version = "latest"
 
-// DefaultCopilotDetectionModel is the default model for the Copilot engine when used in the detection job
-// Updated to gpt-5.1-codex-mini after gpt-5-mini deprecation on 2026-01-17
-const DefaultCopilotDetectionModel ModelName = "gpt-5.1-codex-mini"
-
 // Environment variable names for model configuration
 const (
 	// EnvVarModelAgentCopilot configures the default Copilot model for agent execution
@@ -367,12 +363,16 @@ const DefaultGitHubMCPServerVersion Version = "v0.32.0"
 const DefaultGitHubLockdown = false
 
 // DefaultFirewallVersion is the default version of the gh-aw-firewall (AWF) binary
-const DefaultFirewallVersion Version = "v0.25.0"
+const DefaultFirewallVersion Version = "v0.25.3"
 
 // AWF (Agentic Workflow Firewall) constants
 
 // AWFDefaultCommand is the default AWF command prefix
 const AWFDefaultCommand = "sudo -E awf"
+
+// AWFExcludeEnvMinVersion is the minimum AWF version that supports the --exclude-env flag.
+// Workflows pinning an older AWF version must not emit --exclude-env flags or the run will fail.
+const AWFExcludeEnvMinVersion Version = "v0.25.3"
 
 // AWFProxyLogsDir is the default directory for AWF proxy logs
 const AWFProxyLogsDir = "/tmp/gh-aw/sandbox/firewall/logs"
@@ -390,7 +390,7 @@ const FirewallAuditArtifactName = "firewall-audit-logs"
 const AWFDefaultLogLevel = "info"
 
 // DefaultMCPGatewayVersion is the default version of the MCP Gateway (gh-aw-mcpg) Docker image
-const DefaultMCPGatewayVersion Version = "v0.2.6"
+const DefaultMCPGatewayVersion Version = "v0.2.8"
 
 // DefaultMCPGatewayContainer is the default container image for the MCP Gateway
 const DefaultMCPGatewayContainer = "ghcr.io/github/gh-aw-mcpg"
@@ -433,8 +433,11 @@ var SerenaLanguageSupport = map[string][]string{
 	},
 }
 
+// DefaultAPMActionVersion is the default version of the microsoft/apm-action GitHub Action
+const DefaultAPMActionVersion Version = "v1.4.1"
+
 // DefaultAPMVersion is the default version of the microsoft/APM (Agent Package Manager) CLI
-const DefaultAPMVersion Version = "v0.8.5"
+const DefaultAPMVersion Version = "v0.8.6"
 
 // DefaultPlaywrightMCPVersion is the default version of the @playwright/mcp package
 const DefaultPlaywrightMCPVersion Version = "0.0.68"

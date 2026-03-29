@@ -249,6 +249,152 @@ func TestAWFCustomAPITargetFlags(t *testing.T) {
 	})
 }
 
+// TestExtractAPIBasePath tests the extractAPIBasePath function that extracts
+// path components from custom API base URLs in engine.env
+func TestExtractAPIBasePath(t *testing.T) {
+	tests := []struct {
+		name     string
+		url      string
+		expected string
+	}{
+		{"databricks serving endpoint", "https://host.com/serving-endpoints", "/serving-endpoints"},
+		{"azure openai deployment", "https://host.com/openai/deployments/gpt-4", "/openai/deployments/gpt-4"},
+		{"simple path", "https://host.com/v1", "/v1"},
+		{"trailing slash stripped", "https://host.com/api/", "/api"},
+		{"multiple trailing slashes stripped", "https://host.com/api///", "/api"},
+		{"no path", "https://host.com", ""},
+		{"bare hostname", "host.com", ""},
+		{"root path only", "https://host.com/", ""},
+		{"query string stripped", "https://host.com/api?param=value", "/api"},
+		{"fragment stripped", "https://host.com/api#section", "/api"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			workflowData := &WorkflowData{
+				EngineConfig: &EngineConfig{
+					Env: map[string]string{
+						"OPENAI_BASE_URL": tt.url,
+					},
+				},
+			}
+			result := extractAPIBasePath(workflowData, "OPENAI_BASE_URL")
+			assert.Equal(t, tt.expected, result, "Extracted base path should match expected value")
+		})
+	}
+
+	t.Run("returns empty string when workflow data is nil", func(t *testing.T) {
+		result := extractAPIBasePath(nil, "OPENAI_BASE_URL")
+		assert.Empty(t, result, "Should return empty string for nil workflow data")
+	})
+
+	t.Run("returns empty string when engine config is nil", func(t *testing.T) {
+		workflowData := &WorkflowData{EngineConfig: nil}
+		result := extractAPIBasePath(workflowData, "OPENAI_BASE_URL")
+		assert.Empty(t, result, "Should return empty string when engine config is nil")
+	})
+
+	t.Run("returns empty string when env var not set", func(t *testing.T) {
+		workflowData := &WorkflowData{
+			EngineConfig: &EngineConfig{
+				Env: map[string]string{"OTHER_VAR": "value"},
+			},
+		}
+		result := extractAPIBasePath(workflowData, "OPENAI_BASE_URL")
+		assert.Empty(t, result, "Should return empty string when env var not set")
+	})
+}
+
+// TestAWFBasePathFlags tests that BuildAWFArgs includes --openai-api-base-path and
+// --anthropic-api-base-path when the configured URLs contain a path component
+func TestAWFBasePathFlags(t *testing.T) {
+	t.Run("includes openai-api-base-path when OPENAI_BASE_URL has path component", func(t *testing.T) {
+		workflowData := &WorkflowData{
+			Name: "test-workflow",
+			EngineConfig: &EngineConfig{
+				ID: "codex",
+				Env: map[string]string{
+					"OPENAI_BASE_URL": "https://stone-dataplatform.cloud.databricks.com/serving-endpoints",
+					"OPENAI_API_KEY":  "${{ secrets.DATABRICKS_KEY }}",
+				},
+			},
+			NetworkPermissions: &NetworkPermissions{
+				Firewall: &FirewallConfig{Enabled: true},
+			},
+		}
+
+		config := AWFCommandConfig{
+			EngineName:     "codex",
+			WorkflowData:   workflowData,
+			AllowedDomains: "github.com",
+		}
+
+		args := BuildAWFArgs(config)
+		argsStr := strings.Join(args, " ")
+
+		assert.Contains(t, argsStr, "--openai-api-target", "Should include --openai-api-target flag")
+		assert.Contains(t, argsStr, "--openai-api-base-path", "Should include --openai-api-base-path flag")
+		assert.Contains(t, argsStr, "/serving-endpoints", "Should include the path component")
+	})
+
+	t.Run("includes anthropic-api-base-path when ANTHROPIC_BASE_URL has path component", func(t *testing.T) {
+		workflowData := &WorkflowData{
+			Name: "test-workflow",
+			EngineConfig: &EngineConfig{
+				ID: "claude",
+				Env: map[string]string{
+					"ANTHROPIC_BASE_URL": "https://proxy.company.com/anthropic/v1",
+					"ANTHROPIC_API_KEY":  "${{ secrets.ANTHROPIC_KEY }}",
+				},
+			},
+			NetworkPermissions: &NetworkPermissions{
+				Firewall: &FirewallConfig{Enabled: true},
+			},
+		}
+
+		config := AWFCommandConfig{
+			EngineName:     "claude",
+			WorkflowData:   workflowData,
+			AllowedDomains: "github.com",
+		}
+
+		args := BuildAWFArgs(config)
+		argsStr := strings.Join(args, " ")
+
+		assert.Contains(t, argsStr, "--anthropic-api-target", "Should include --anthropic-api-target flag")
+		assert.Contains(t, argsStr, "--anthropic-api-base-path", "Should include --anthropic-api-base-path flag")
+		assert.Contains(t, argsStr, "/anthropic/v1", "Should include the path component")
+	})
+
+	t.Run("does not include base-path flags when URLs have no path", func(t *testing.T) {
+		workflowData := &WorkflowData{
+			Name: "test-workflow",
+			EngineConfig: &EngineConfig{
+				ID: "codex",
+				Env: map[string]string{
+					"OPENAI_BASE_URL":    "https://openai-proxy.company.com",
+					"ANTHROPIC_BASE_URL": "https://anthropic-proxy.company.com",
+				},
+			},
+			NetworkPermissions: &NetworkPermissions{
+				Firewall: &FirewallConfig{Enabled: true},
+			},
+		}
+
+		config := AWFCommandConfig{
+			EngineName:     "codex",
+			WorkflowData:   workflowData,
+			AllowedDomains: "github.com",
+		}
+
+		args := BuildAWFArgs(config)
+		argsStr := strings.Join(args, " ")
+
+		assert.NotContains(t, argsStr, "--openai-api-base-path", "Should not include --openai-api-base-path when no path in URL")
+		assert.NotContains(t, argsStr, "--anthropic-api-base-path", "Should not include --anthropic-api-base-path when no path in URL")
+	})
+}
+
 // TestBuildAWFArgsAuditDir tests that BuildAWFArgs always includes --audit-dir
 // pointing to the AWF audit directory for policy-manifest.json and other audit files
 func TestBuildAWFArgsAuditDir(t *testing.T) {
@@ -525,4 +671,61 @@ func TestCopilotEngineIncludesCopilotAPITargetFromEnvVar(t *testing.T) {
 
 	assert.Contains(t, stepContent, "--copilot-api-target", "Should include --copilot-api-target flag")
 	assert.Contains(t, stepContent, "copilot-api.contoso-aw.ghe.com", "Should include custom Copilot hostname")
+}
+
+// TestAWFSupportsExcludeEnv verifies that --exclude-env is only enabled for AWF v0.25.3+.
+func TestAWFSupportsExcludeEnv(t *testing.T) {
+	tests := []struct {
+		name           string
+		firewallConfig *FirewallConfig
+		want           bool
+	}{
+		{
+			name:           "nil firewall config (default version) supports --exclude-env",
+			firewallConfig: nil,
+			want:           true,
+		},
+		{
+			name:           "empty version (default) supports --exclude-env",
+			firewallConfig: &FirewallConfig{},
+			want:           true,
+		},
+		{
+			name:           "v0.25.3 supports --exclude-env",
+			firewallConfig: &FirewallConfig{Version: "v0.25.3"},
+			want:           true,
+		},
+		{
+			name:           "v0.26.0 supports --exclude-env",
+			firewallConfig: &FirewallConfig{Version: "v0.26.0"},
+			want:           true,
+		},
+		{
+			name:           "v0.27.0 supports --exclude-env",
+			firewallConfig: &FirewallConfig{Version: "v0.27.0"},
+			want:           true,
+		},
+		{
+			name:           "latest supports --exclude-env",
+			firewallConfig: &FirewallConfig{Version: "latest"},
+			want:           true,
+		},
+		{
+			name:           "v0.25.0 does not support --exclude-env",
+			firewallConfig: &FirewallConfig{Version: "v0.25.0"},
+			want:           false,
+		},
+		{
+			name:           "v0.1.0 does not support --exclude-env",
+			firewallConfig: &FirewallConfig{Version: "v0.1.0"},
+			want:           false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := awfSupportsExcludeEnv(tt.firewallConfig)
+			assert.Equal(t, tt.want, got, "awfSupportsExcludeEnv result")
+		})
+	}
 }

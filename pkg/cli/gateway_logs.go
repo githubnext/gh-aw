@@ -76,15 +76,67 @@ type DifcFilteredEvent struct {
 	Number            string   `json:"number,omitempty"`
 }
 
+// Guard policy error codes from MCP Gateway.
+// These JSON-RPC error codes indicate guard policy enforcement decisions.
+const (
+	guardPolicyErrorCodeAccessDenied      = -32001 // General access denied
+	guardPolicyErrorCodeRepoNotAllowed    = -32002 // Repository not in allowlist (repos)
+	guardPolicyErrorCodeInsufficientPerms = -32003 // Insufficient permissions (roles)
+	guardPolicyErrorCodePrivateRepoDenied = -32004 // Private repository access denied
+	guardPolicyErrorCodeBlockedUser       = -32005 // Content from blocked user
+	guardPolicyErrorCodeIntegrityBelowMin = -32006 // Content integrity below minimum threshold (min-integrity)
+)
+
+// GuardPolicyEvent represents a guard policy enforcement decision from the MCP Gateway.
+// These events are extracted from JSON-RPC error responses with specific error codes
+// (-32001 to -32006) in rpc-messages.jsonl.
+type GuardPolicyEvent struct {
+	Timestamp  string `json:"timestamp"`
+	ServerID   string `json:"server_id"`
+	ToolName   string `json:"tool_name"`
+	ErrorCode  int    `json:"error_code"`
+	Reason     string `json:"reason"`               // e.g., "repository_not_allowed", "min_integrity"
+	Message    string `json:"message"`              // Error message from JSON-RPC response
+	Details    string `json:"details,omitempty"`    // Additional details from error data
+	Repository string `json:"repository,omitempty"` // Repository involved (for repo scope blocks)
+}
+
+// isGuardPolicyErrorCode returns true if the JSON-RPC error code indicates a
+// guard policy enforcement decision.
+func isGuardPolicyErrorCode(code int) bool {
+	return code >= guardPolicyErrorCodeIntegrityBelowMin && code <= guardPolicyErrorCodeAccessDenied
+}
+
+// guardPolicyReasonFromCode returns a human-readable reason string for a guard policy error code.
+func guardPolicyReasonFromCode(code int) string {
+	switch code {
+	case guardPolicyErrorCodeAccessDenied:
+		return "access_denied"
+	case guardPolicyErrorCodeRepoNotAllowed:
+		return "repo_not_allowed"
+	case guardPolicyErrorCodeInsufficientPerms:
+		return "insufficient_permissions"
+	case guardPolicyErrorCodePrivateRepoDenied:
+		return "private_repo_denied"
+	case guardPolicyErrorCodeBlockedUser:
+		return "blocked_user"
+	case guardPolicyErrorCodeIntegrityBelowMin:
+		return "integrity_below_minimum"
+	default:
+		return "unknown"
+	}
+}
+
 // GatewayServerMetrics represents usage metrics for a single MCP server
 type GatewayServerMetrics struct {
-	ServerName    string
-	RequestCount  int
-	ToolCallCount int
-	TotalDuration float64 // in milliseconds
-	ErrorCount    int
-	FilteredCount int // number of DIFC_FILTERED events for this server
-	Tools         map[string]*GatewayToolMetrics
+	ServerName         string
+	RequestCount       int
+	ToolCallCount      int
+	TotalDuration      float64 // in milliseconds
+	ErrorCount         int
+	FilteredCount      int // number of DIFC_FILTERED events for this server
+	GuardPolicyBlocked int // number of tool calls blocked by guard policies for this server
+	Tools              map[string]*GatewayToolMetrics
 }
 
 // GatewayToolMetrics represents usage metrics for a specific tool
@@ -102,15 +154,17 @@ type GatewayToolMetrics struct {
 
 // GatewayMetrics represents aggregated metrics from gateway logs
 type GatewayMetrics struct {
-	TotalRequests  int
-	TotalToolCalls int
-	TotalErrors    int
-	TotalFiltered  int // number of DIFC_FILTERED events
-	Servers        map[string]*GatewayServerMetrics
-	FilteredEvents []DifcFilteredEvent
-	StartTime      time.Time
-	EndTime        time.Time
-	TotalDuration  float64 // in milliseconds
+	TotalRequests     int
+	TotalToolCalls    int
+	TotalErrors       int
+	TotalFiltered     int // number of DIFC_FILTERED events
+	TotalGuardBlocked int // number of tool calls blocked by guard policies
+	Servers           map[string]*GatewayServerMetrics
+	FilteredEvents    []DifcFilteredEvent
+	GuardPolicyEvents []GuardPolicyEvent
+	StartTime         time.Time
+	EndTime           time.Time
+	TotalDuration     float64 // in milliseconds
 }
 
 // RPCMessageEntry represents a single entry from rpc-messages.jsonl.
@@ -154,8 +208,17 @@ type rpcResponsePayload struct {
 
 // rpcError represents a JSON-RPC error object.
 type rpcError struct {
-	Code    int    `json:"code"`
-	Message string `json:"message"`
+	Code    int           `json:"code"`
+	Message string        `json:"message"`
+	Data    *rpcErrorData `json:"data,omitempty"`
+}
+
+// rpcErrorData represents the optional data field in a JSON-RPC error, used by
+// guard policy enforcement to communicate the reason and context for a denial.
+type rpcErrorData struct {
+	Reason     string `json:"reason,omitempty"`
+	Repository string `json:"repository,omitempty"`
+	Details    string `json:"details,omitempty"`
 }
 
 // rpcPendingRequest tracks an in-flight tool call for duration calculation.
@@ -287,11 +350,45 @@ func parseRPCMessages(logPath string, verbose bool) (*GatewayMetrics, error) {
 				continue
 			}
 
-			// Track errors
+			// Track errors and detect guard policy blocks
 			if resp.Error != nil {
 				metrics.TotalErrors++
 				server := getOrCreateServer(metrics, entry.ServerID)
 				server.ErrorCount++
+
+				// Detect guard policy enforcement errors
+				if isGuardPolicyErrorCode(resp.Error.Code) {
+					metrics.TotalGuardBlocked++
+					server.GuardPolicyBlocked++
+
+					// Determine tool name from pending request if available
+					toolName := ""
+					if resp.ID != nil {
+						key := fmt.Sprintf("%s/%v", entry.ServerID, resp.ID)
+						if pending, ok := pendingRequests[key]; ok {
+							toolName = pending.ToolName
+						}
+					}
+
+					reason := guardPolicyReasonFromCode(resp.Error.Code)
+					if resp.Error.Data != nil && resp.Error.Data.Reason != "" {
+						reason = resp.Error.Data.Reason
+					}
+
+					evt := GuardPolicyEvent{
+						Timestamp: entry.Timestamp,
+						ServerID:  entry.ServerID,
+						ToolName:  toolName,
+						ErrorCode: resp.Error.Code,
+						Reason:    reason,
+						Message:   resp.Error.Message,
+					}
+					if resp.Error.Data != nil {
+						evt.Details = resp.Error.Data.Details
+						evt.Repository = resp.Error.Data.Repository
+					}
+					metrics.GuardPolicyEvents = append(metrics.GuardPolicyEvents, evt)
+				}
 			}
 
 			// Calculate duration by matching with pending request
@@ -476,6 +573,28 @@ func processGatewayLogEntry(entry *GatewayLogEntry, metrics *GatewayMetrics, ver
 		return
 	}
 
+	// Handle GUARD_POLICY_BLOCKED events from gateway.jsonl
+	if entry.Type == "GUARD_POLICY_BLOCKED" {
+		metrics.TotalGuardBlocked++
+		serverKey := entry.ServerID
+		if serverKey == "" {
+			serverKey = entry.ServerName
+		}
+		if serverKey != "" {
+			server := getOrCreateServer(metrics, serverKey)
+			server.GuardPolicyBlocked++
+		}
+		metrics.GuardPolicyEvents = append(metrics.GuardPolicyEvents, GuardPolicyEvent{
+			Timestamp: entry.Timestamp,
+			ServerID:  serverKey,
+			ToolName:  entry.ToolName,
+			Reason:    entry.Reason,
+			Message:   entry.Message,
+			Details:   entry.Description,
+		})
+		return
+	}
+
 	// Track errors
 	if entry.Status == "error" || entry.Error != "" {
 		metrics.TotalErrors++
@@ -595,6 +714,9 @@ func renderGatewayMetricsTable(metrics *GatewayMetrics, verbose bool) string {
 	if metrics.TotalFiltered > 0 {
 		fmt.Fprintf(&output, "Total DIFC Filtered: %d\n", metrics.TotalFiltered)
 	}
+	if metrics.TotalGuardBlocked > 0 {
+		fmt.Fprintf(&output, "Total Guard Policy Blocked: %d\n", metrics.TotalGuardBlocked)
+	}
 	fmt.Fprintf(&output, "Servers: %d\n", len(metrics.Servers))
 
 	if !metrics.StartTime.IsZero() && !metrics.EndTime.IsZero() {
@@ -610,6 +732,7 @@ func renderGatewayMetricsTable(metrics *GatewayMetrics, verbose bool) string {
 		serverNames := getSortedServerNames(metrics)
 
 		hasFiltered := metrics.TotalFiltered > 0
+		hasGuardPolicy := metrics.TotalGuardBlocked > 0
 		serverRows := make([][]string, 0, len(serverNames))
 		for _, serverName := range serverNames {
 			server := metrics.Servers[serverName]
@@ -627,12 +750,18 @@ func renderGatewayMetricsTable(metrics *GatewayMetrics, verbose bool) string {
 			if hasFiltered {
 				row = append(row, strconv.Itoa(server.FilteredCount))
 			}
+			if hasGuardPolicy {
+				row = append(row, strconv.Itoa(server.GuardPolicyBlocked))
+			}
 			serverRows = append(serverRows, row)
 		}
 
 		headers := []string{"Server", "Requests", "Tool Calls", "Avg Time", "Errors"}
 		if hasFiltered {
 			headers = append(headers, "Filtered")
+		}
+		if hasGuardPolicy {
+			headers = append(headers, "Guard Blocked")
 		}
 		output.WriteString(console.RenderTable(console.TableConfig{
 			Title:   "Server Usage",
@@ -661,6 +790,34 @@ func renderGatewayMetricsTable(metrics *GatewayMetrics, verbose bool) string {
 			Title:   "DIFC Filtered Events",
 			Headers: []string{"Server", "Tool", "User", "Reason"},
 			Rows:    filteredRows,
+		}))
+	}
+
+	// Guard policy events table
+	if len(metrics.GuardPolicyEvents) > 0 {
+		output.WriteString("\n")
+		guardRows := make([][]string, 0, len(metrics.GuardPolicyEvents))
+		for _, gpe := range metrics.GuardPolicyEvents {
+			message := gpe.Message
+			if len(message) > 60 {
+				message = message[:57] + "..."
+			}
+			repo := gpe.Repository
+			if repo == "" {
+				repo = "-"
+			}
+			guardRows = append(guardRows, []string{
+				gpe.ServerID,
+				gpe.ToolName,
+				gpe.Reason,
+				message,
+				repo,
+			})
+		}
+		output.WriteString(console.RenderTable(console.TableConfig{
+			Title:   "Guard Policy Blocked Events",
+			Headers: []string{"Server", "Tool", "Reason", "Message", "Repository"},
+			Rows:    guardRows,
 		}))
 	}
 
@@ -880,6 +1037,11 @@ func extractMCPToolUsageData(logDir string, verbose bool) (*MCPToolUsageData, er
 		FilteredEvents: gatewayMetrics.FilteredEvents,
 	}
 
+	// Build guard policy summary if there are guard policy events
+	if len(gatewayMetrics.GuardPolicyEvents) > 0 {
+		mcpData.GuardPolicySummary = buildGuardPolicySummary(gatewayMetrics)
+	}
+
 	// Read the log file again to get individual tool call records.
 	// Prefer gateway.jsonl; fall back to rpc-messages.jsonl when not available.
 	gatewayLogPath := filepath.Join(logDir, "gateway.jsonl")
@@ -1040,6 +1202,46 @@ func extractMCPToolUsageData(logDir string, verbose bool) (*MCPToolUsageData, er
 	return mcpData, nil
 }
 
+// buildGuardPolicySummary creates a GuardPolicySummary from GatewayMetrics.
+func buildGuardPolicySummary(metrics *GatewayMetrics) *GuardPolicySummary {
+	summary := &GuardPolicySummary{
+		TotalBlocked:        metrics.TotalGuardBlocked,
+		Events:              metrics.GuardPolicyEvents,
+		BlockedToolCounts:   make(map[string]int),
+		BlockedServerCounts: make(map[string]int),
+	}
+
+	for _, evt := range metrics.GuardPolicyEvents {
+		// Categorize by error code
+		switch evt.ErrorCode {
+		case guardPolicyErrorCodeIntegrityBelowMin:
+			summary.IntegrityBlocked++
+		case guardPolicyErrorCodeRepoNotAllowed:
+			summary.RepoScopeBlocked++
+		case guardPolicyErrorCodeAccessDenied:
+			summary.AccessDenied++
+		case guardPolicyErrorCodeBlockedUser:
+			summary.BlockedUserDenied++
+		case guardPolicyErrorCodeInsufficientPerms:
+			summary.PermissionDenied++
+		case guardPolicyErrorCodePrivateRepoDenied:
+			summary.PrivateRepoDenied++
+		}
+
+		// Track per-tool blocked counts
+		if evt.ToolName != "" {
+			summary.BlockedToolCounts[evt.ToolName]++
+		}
+
+		// Track per-server blocked counts
+		if evt.ServerID != "" {
+			summary.BlockedServerCounts[evt.ServerID]++
+		}
+	}
+
+	return summary
+}
+
 // displayAggregatedGatewayMetrics aggregates and displays gateway metrics across all processed runs
 func displayAggregatedGatewayMetrics(processedRuns []ProcessedRun, outputDir string, verbose bool) {
 	// Aggregate gateway metrics from all runs
@@ -1068,8 +1270,10 @@ func displayAggregatedGatewayMetrics(processedRuns []ProcessedRun, outputDir str
 		aggregated.TotalToolCalls += runMetrics.TotalToolCalls
 		aggregated.TotalErrors += runMetrics.TotalErrors
 		aggregated.TotalFiltered += runMetrics.TotalFiltered
+		aggregated.TotalGuardBlocked += runMetrics.TotalGuardBlocked
 		aggregated.TotalDuration += runMetrics.TotalDuration
 		aggregated.FilteredEvents = append(aggregated.FilteredEvents, runMetrics.FilteredEvents...)
+		aggregated.GuardPolicyEvents = append(aggregated.GuardPolicyEvents, runMetrics.GuardPolicyEvents...)
 
 		// Merge server metrics
 		for serverName, serverMetrics := range runMetrics.Servers {
@@ -1079,6 +1283,7 @@ func displayAggregatedGatewayMetrics(processedRuns []ProcessedRun, outputDir str
 			aggServer.TotalDuration += serverMetrics.TotalDuration
 			aggServer.ErrorCount += serverMetrics.ErrorCount
 			aggServer.FilteredCount += serverMetrics.FilteredCount
+			aggServer.GuardPolicyBlocked += serverMetrics.GuardPolicyBlocked
 
 			// Merge tool metrics
 			for toolName, toolMetrics := range serverMetrics.Tools {

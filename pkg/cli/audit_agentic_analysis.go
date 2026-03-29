@@ -7,9 +7,12 @@ import (
 	"strings"
 	"time"
 
+	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/timeutil"
 	"github.com/github/gh-aw/pkg/workflow"
 )
+
+var auditAgenticLog = logger.New("cli:audit_agentic_analysis")
 
 // TaskDomainInfo describes the dominant task type inferred for a workflow run.
 type TaskDomainInfo struct {
@@ -20,11 +23,12 @@ type TaskDomainInfo struct {
 
 // BehaviorFingerprint summarizes the run's execution profile in compact dimensions.
 type BehaviorFingerprint struct {
-	ExecutionStyle  string `json:"execution_style"`
-	ToolBreadth     string `json:"tool_breadth"`
-	ActuationStyle  string `json:"actuation_style"`
-	ResourceProfile string `json:"resource_profile"`
-	DispatchMode    string `json:"dispatch_mode"`
+	ExecutionStyle  string  `json:"execution_style"`
+	ToolBreadth     string  `json:"tool_breadth"`
+	ActuationStyle  string  `json:"actuation_style"`
+	ResourceProfile string  `json:"resource_profile"`
+	DispatchMode    string  `json:"dispatch_mode"`
+	AgenticFraction float64 `json:"agentic_fraction"` // Ratio of reasoning turns to total turns (0.0-1.0)
 }
 
 // AgenticAssessment captures an actionable judgment about the run's behavior.
@@ -86,6 +90,7 @@ func buildToolUsageInfo(metrics LogMetrics) []ToolUsageInfo {
 }
 
 func deriveRunAgenticAnalysis(processedRun ProcessedRun, metrics LogMetrics) (*AwContext, []ToolUsageInfo, []CreatedItemReport, *TaskDomainInfo, *BehaviorFingerprint, []AgenticAssessment) {
+	auditAgenticLog.Printf("Deriving agentic analysis for run: id=%d workflow=%s", processedRun.Run.DatabaseID, processedRun.Run.WorkflowName)
 	var awContext *AwContext
 	if processedRun.AwContext != nil {
 		awContext = processedRun.AwContext
@@ -101,6 +106,7 @@ func deriveRunAgenticAnalysis(processedRun ProcessedRun, metrics LogMetrics) (*A
 	metricsData := MetricsData{
 		TokenUsage:    processedRun.Run.TokenUsage,
 		EstimatedCost: processedRun.Run.EstimatedCost,
+		ActionMinutes: processedRun.Run.ActionMinutes,
 		Turns:         processedRun.Run.Turns,
 		ErrorCount:    processedRun.Run.ErrorCount,
 		WarningCount:  processedRun.Run.WarningCount,
@@ -110,10 +116,12 @@ func deriveRunAgenticAnalysis(processedRun ProcessedRun, metrics LogMetrics) (*A
 	behaviorFingerprint := buildBehaviorFingerprint(processedRun, metricsData, toolUsage, createdItems, awContext)
 	agenticAssessments := buildAgenticAssessments(processedRun, metricsData, toolUsage, createdItems, taskDomain, behaviorFingerprint, awContext)
 
+	auditAgenticLog.Printf("Agentic analysis complete: tool_types=%d created_items=%d assessments=%d", len(toolUsage), len(createdItems), len(agenticAssessments))
 	return awContext, toolUsage, createdItems, taskDomain, behaviorFingerprint, agenticAssessments
 }
 
 func detectTaskDomain(processedRun ProcessedRun, createdItems []CreatedItemReport, toolUsage []ToolUsageInfo, awContext *AwContext) *TaskDomainInfo {
+	auditAgenticLog.Printf("Detecting task domain for run: workflow=%s event=%s", processedRun.Run.WorkflowName, processedRun.Run.Event)
 	combined := strings.ToLower(strings.Join([]string{
 		processedRun.Run.WorkflowName,
 		processedRun.Run.WorkflowPath,
@@ -195,12 +203,15 @@ func buildBehaviorFingerprint(processedRun ProcessedRun, metrics MetricsData, to
 		dispatchMode = "delegated"
 	}
 
+	agenticFraction := computeAgenticFraction(processedRun)
+
 	return &BehaviorFingerprint{
 		ExecutionStyle:  executionStyle,
 		ToolBreadth:     toolBreadth,
 		ActuationStyle:  actuationStyle,
 		ResourceProfile: resourceProfile,
 		DispatchMode:    dispatchMode,
+		AgenticFraction: agenticFraction,
 	}
 }
 
@@ -252,6 +263,40 @@ func buildAgenticAssessments(processedRun ProcessedRun, metrics MetricsData, too
 		})
 	}
 
+	// Partially reducible: the workflow has a low agentic fraction, meaning
+	// many turns are data-gathering that could be moved to deterministic steps:
+	// or post-steps: in the frontmatter. Only flag when there's substantive work
+	// (not lean/directed runs which overkill_for_agentic already covers).
+	if fingerprint.AgenticFraction > 0 && fingerprint.AgenticFraction < 0.6 &&
+		fingerprint.ResourceProfile != "lean" {
+		severity := "low"
+		if fingerprint.AgenticFraction < 0.4 {
+			severity = "medium"
+		}
+		deterministicPct := int((1.0 - fingerprint.AgenticFraction) * 100)
+		assessments = append(assessments, AgenticAssessment{
+			Kind:           "partially_reducible",
+			Severity:       severity,
+			Summary:        fmt.Sprintf("About %d%% of this run's turns appear to be data-gathering that could move to deterministic steps.", deterministicPct),
+			Evidence:       fmt.Sprintf("agentic_fraction=%.2f turns=%d", fingerprint.AgenticFraction, metrics.Turns),
+			Recommendation: "Move data-fetching work to frontmatter steps: (pre-agent) writing to /tmp/gh-aw/agent/ or post-steps: (post-agent) to reduce inference cost. See the Deterministic & Agentic Patterns guide.",
+		})
+	}
+
+	// Model downgrade suggestion: the run uses a heavy resource profile but
+	// the task domain is simple enough that a smaller model would likely suffice.
+	if fingerprint.ResourceProfile != "lean" &&
+		(domain.Name == "triage" || domain.Name == "repo_maintenance" || domain.Name == "issue_response") &&
+		fingerprint.ActuationStyle != "write_heavy" {
+		assessments = append(assessments, AgenticAssessment{
+			Kind:           "model_downgrade_available",
+			Severity:       "low",
+			Summary:        fmt.Sprintf("This %s run may not need a frontier model. A smaller model (e.g. gpt-4.1-mini, claude-haiku-4-5) could handle the task at lower cost.", domain.Label),
+			Evidence:       fmt.Sprintf("domain=%s resource_profile=%s actuation=%s", domain.Name, fingerprint.ResourceProfile, fingerprint.ActuationStyle),
+			Recommendation: "Try engine.model: gpt-4.1-mini or claude-haiku-4-5 in the workflow frontmatter.",
+		})
+	}
+
 	if awContext != nil {
 		assessments = append(assessments, AgenticAssessment{
 			Kind:           "delegated_context_present",
@@ -280,6 +325,12 @@ func generateAgenticAssessmentFindings(assessments []AgenticAssessment) []Findin
 		case "poor_agentic_control":
 			category = "agentic"
 			impact = "Broad or weakly controlled behavior can reduce trust even when the run succeeds"
+		case "partially_reducible":
+			category = "optimization"
+			impact = "Moving data-gathering turns to deterministic steps reduces inference cost"
+		case "model_downgrade_available":
+			category = "optimization"
+			impact = "A smaller model could reduce per-run cost significantly for this task domain"
 		case "delegated_context_present":
 			category = "coordination"
 			impact = "Context continuity improves downstream debugging and auditability"
@@ -314,6 +365,41 @@ func generateAgenticAssessmentRecommendations(assessments []AgenticAssessment) [
 	return recommendations
 }
 
+// computeAgenticFraction classifies tool sequences into reasoning vs. data-gathering
+// turns and returns the ratio of reasoning turns to total turns.
+// Reasoning turns are those where the agent makes decisions, writes output, or uses
+// multiple tool types. Data-gathering turns use only read-oriented tools.
+func computeAgenticFraction(processedRun ProcessedRun) float64 {
+	run := processedRun.Run
+	if run.Turns <= 0 {
+		return 0.0
+	}
+
+	// If no tool sequence data, estimate from write actions
+	writeCount := run.SafeItemsCount
+	if writeCount > 0 && run.Turns > 0 {
+		// At minimum, the fraction of turns that produced write actions are agentic
+		// and non-write turns doing data gathering are deterministic-reducible
+		agenticTurns := writeCount
+		// Add reasoning turns: at least 1 turn of reasoning per write action,
+		// plus initial planning turn
+		reasoningTurns := min(writeCount+1, run.Turns)
+		agenticTurns = max(agenticTurns, reasoningTurns)
+		agenticTurns = min(agenticTurns, run.Turns)
+		return float64(agenticTurns) / float64(run.Turns)
+	}
+
+	// No write actions: if the run is read-only with few turns, nearly all
+	// turns are reasoning (the AI is analyzing, not just gathering data)
+	if run.Turns <= 3 {
+		return 1.0
+	}
+
+	// For longer read-only runs, assume early turns gather context and
+	// later turns do analysis. Heuristic: half the turns are reasoning.
+	return 0.5
+}
+
 func containsAny(value string, terms ...string) bool {
 	for _, term := range terms {
 		if strings.Contains(value, term) {
@@ -333,6 +419,10 @@ func prettifyAssessmentKind(kind string) string {
 		return "Weak Agentic Control"
 	case "delegated_context_present":
 		return "Dispatch Context Preserved"
+	case "partially_reducible":
+		return "Partially Reducible To Deterministic"
+	case "model_downgrade_available":
+		return "Cheaper Model Available"
 	default:
 		return strings.ReplaceAll(kind, "_", " ")
 	}

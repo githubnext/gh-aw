@@ -190,7 +190,7 @@ func TestCodexEngineRenderMCPConfig(t *testing.T) {
 			},
 			mcpTools: []string{"github"},
 			expected: []string{
-				"cat > /tmp/gh-aw/mcp-config/config.toml << GH_AW_MCP_CONFIG_EOF",
+				"cat > /tmp/gh-aw/mcp-config/config.toml << GH_AW_MCP_CONFIG_NORM_EOF",
 				"[history]",
 				"persistence = \"none\"",
 				"",
@@ -205,10 +205,10 @@ func TestCodexEngineRenderMCPConfig(t *testing.T) {
 				fmt.Sprintf("container = \"ghcr.io/github/github-mcp-server:%s\"", constants.DefaultGitHubMCPServerVersion),
 				"env = { \"GITHUB_HOST\" = \"$GITHUB_SERVER_URL\", \"GITHUB_PERSONAL_ACCESS_TOKEN\" = \"$GH_AW_GITHUB_TOKEN\", \"GITHUB_READ_ONLY\" = \"1\", \"GITHUB_TOOLSETS\" = \"context,repos,issues,pull_requests\" }",
 				"env_vars = [\"GITHUB_HOST\", \"GITHUB_PERSONAL_ACCESS_TOKEN\", \"GITHUB_READ_ONLY\", \"GITHUB_TOOLSETS\"]",
-				"GH_AW_MCP_CONFIG_EOF",
+				"GH_AW_MCP_CONFIG_NORM_EOF",
 				"",
 				"# Generate JSON config for MCP gateway",
-				"cat << GH_AW_MCP_CONFIG_EOF | bash ${RUNNER_TEMP}/gh-aw/actions/start_mcp_gateway.sh",
+				"cat << GH_AW_MCP_CONFIG_NORM_EOF | bash ${RUNNER_TEMP}/gh-aw/actions/start_mcp_gateway.sh",
 				"{",
 				"\"mcpServers\": {",
 				"\"github\": {",
@@ -234,7 +234,7 @@ func TestCodexEngineRenderMCPConfig(t *testing.T) {
 				"\"payloadDir\": \"${MCP_GATEWAY_PAYLOAD_DIR}\"",
 				"}",
 				"}",
-				"GH_AW_MCP_CONFIG_EOF",
+				"GH_AW_MCP_CONFIG_NORM_EOF",
 			},
 		},
 	}
@@ -248,6 +248,8 @@ func TestCodexEngineRenderMCPConfig(t *testing.T) {
 			}
 
 			result := yaml.String()
+			// Normalize randomized heredoc delimiters before comparison
+			result = normalizeHeredocDelimiters(result)
 			lines := strings.Split(strings.TrimSpace(result), "\n")
 
 			// Remove indentation from both expected and actual lines for comparison

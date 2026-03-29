@@ -2,6 +2,7 @@
 /// <reference types="@actions/github-script" />
 
 const { validateTargetRepo, parseAllowedRepos, getDefaultTargetRepo } = require("./repo_helpers.cjs");
+const { getErrorMessage } = require("./error_helpers.cjs");
 
 /**
  * @fileoverview Extra Empty Commit Helper
@@ -139,6 +140,21 @@ async function pushExtraEmptyCommit({ branchName, repoOwner, repoName, commitMes
     }
     await exec.exec("git", ["remote", "add", "ci-trigger", remoteUrl]);
 
+    // Fetch and sync with the remote branch. This is required when the PR branch
+    // was created server-side via the GitHub API (e.g. via the createCommitOnBranch
+    // GraphQL mutation used by pushSignedCommits), because the remote branch tip
+    // then has a different SHA than the local branch tip. Without this sync, git
+    // would reject the subsequent push as non-fast-forward.
+    try {
+      await exec.exec("git", ["fetch", "ci-trigger", branchName]);
+      await exec.exec("git", ["reset", "--hard", `ci-trigger/${branchName}`]);
+    } catch (error) {
+      // Non-fatal: if fetch/reset fails (e.g. branch not yet on remote), continue
+      // with the local HEAD and attempt the push anyway.
+      const syncErrorMessage = getErrorMessage(error);
+      core.warning(`Could not sync local branch with remote ${branchName} - will attempt push with local HEAD. Underlying error: ${syncErrorMessage}`);
+    }
+
     // Create and push an empty commit
     const message = commitMessage || "ci: trigger checks";
     await exec.exec("git", ["commit", "--allow-empty", "-m", message]);
@@ -155,7 +171,7 @@ async function pushExtraEmptyCommit({ branchName, repoOwner, repoName, commitMes
 
     return { success: true };
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : String(error);
+    const errorMessage = getErrorMessage(error);
     core.warning(`Failed to push extra empty commit: ${errorMessage}`);
 
     // Clean up the temporary remote on failure

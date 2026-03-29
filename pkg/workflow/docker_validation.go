@@ -89,6 +89,11 @@ func isDockerDaemonRunning() bool {
 func validateDockerImage(image string, verbose bool) error {
 	dockerValidationLog.Printf("Validating Docker image: %s", image)
 
+	// Reject names starting with '-' to prevent argument injection
+	if strings.HasPrefix(image, "-") {
+		return fmt.Errorf("container image name '%s' is invalid: names must not start with '-'", image)
+	}
+
 	// Check if docker CLI is available on PATH
 	_, err := exec.LookPath("docker")
 	if err != nil {

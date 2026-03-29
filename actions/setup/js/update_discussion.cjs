@@ -14,6 +14,15 @@ const { validateLabels } = require("./safe_output_validator.cjs");
 const { tryEnforceArrayLimit } = require("./limit_enforcement_helpers.cjs");
 const { MAX_LABELS } = require("./constants.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
+const { logGraphQLError } = require("./github_api_helpers.cjs");
+const { resolveNumberFromTemporaryId } = require("./temporary_id.cjs");
+
+/** @type {import('./github_api_helpers.cjs').GraphQLErrorHints} */
+const DISCUSSION_GRAPHQL_HINTS = {
+  insufficientScopesHint:
+    "This looks like a token permission problem. The GitHub token requires 'discussions: write' permission. Add 'permissions: discussions: write' to your workflow, or set 'safe-outputs.update-discussion.github-token' to a PAT with the appropriate scopes.",
+  notFoundHint: "GitHub returned NOT_FOUND for the discussion. Check that the discussion number is correct and that the token has read access to the repository.",
+};
 
 /**
  * Fetches label node IDs for the given label names from the repository
@@ -132,48 +141,74 @@ async function executeDiscussionUpdate(github, context, discussionNumber, update
     }
   `;
 
-  const queryResult = await github.graphql(getDiscussionQuery, {
-    owner: context.repo.owner,
-    repo: context.repo.repo,
-    number: discussionNumber,
-  });
+  let queryResult;
+  try {
+    queryResult = await github.graphql(getDiscussionQuery, {
+      owner: context.repo.owner,
+      repo: context.repo.repo,
+      number: discussionNumber,
+    });
+  } catch (err) {
+    // prettier-ignore
+    const fetchError = /** @type {any} */ (err);
+    logGraphQLError(fetchError, `fetch discussion #${discussionNumber} from ${context.repo.owner}/${context.repo.repo}`, DISCUSSION_GRAPHQL_HINTS);
+    throw fetchError;
+  }
 
   const discussion = queryResult?.repository?.discussion;
   if (!discussion) {
     throw new Error(`${ERR_NOT_FOUND}: Discussion #${discussionNumber} not found`);
   }
 
-  // Build mutation for updating discussion
-  let mutation = `
-    mutation($discussionId: ID!, $title: String, $body: String) {
-      updateDiscussion(input: { discussionId: $discussionId, title: $title, body: $body }) {
-        discussion {
-          id
-          title
-          body
-          url
+  const hasTitleUpdate = updateData.title !== undefined;
+  const hasBodyUpdate = updateData.body !== undefined;
+  const hasLabelsUpdate = updateData.labels !== undefined;
+
+  let updatedDiscussion = discussion;
+
+  // Only call the updateDiscussion mutation when title or body actually needs updating.
+  // Skipping this when only labels are being changed avoids accidentally modifying
+  // the discussion body with stale or unexpected content.
+  if (hasTitleUpdate || hasBodyUpdate) {
+    const mutation = `
+      mutation($discussionId: ID!, $title: String, $body: String) {
+        updateDiscussion(input: { discussionId: $discussionId, title: $title, body: $body }) {
+          discussion {
+            id
+            title
+            body
+            url
+          }
         }
       }
+    `;
+
+    const variables = {
+      discussionId: discussion.id,
+      title: hasTitleUpdate ? updateData.title : discussion.title,
+      body: hasBodyUpdate ? updateData.body : discussion.body,
+    };
+
+    try {
+      const mutationResult = await github.graphql(mutation, variables);
+      updatedDiscussion = mutationResult.updateDiscussion.discussion;
+    } catch (err) {
+      // prettier-ignore
+      const mutationError = /** @type {any} */ (err);
+      logGraphQLError(mutationError, `updateDiscussion mutation for discussion #${discussionNumber} in ${context.repo.owner}/${context.repo.repo}`, DISCUSSION_GRAPHQL_HINTS);
+      throw mutationError;
     }
-  `;
-
-  const variables = {
-    discussionId: discussion.id,
-    title: updateData.title || discussion.title,
-    body: updateData.body || discussion.body,
-  };
-
-  const mutationResult = await github.graphql(mutation, variables);
-  const updatedDiscussion = mutationResult.updateDiscussion.discussion;
+  }
 
   // Handle label replacement if labels were provided
-  if (updateData.labels !== undefined) {
+  if (hasLabelsUpdate) {
     try {
       const labelIds = await fetchLabelNodeIds(github, context.repo.owner, context.repo.repo, updateData.labels);
       await replaceDiscussionLabels(github, discussion.id, labelIds);
       core.info(`Successfully replaced labels on discussion #${discussionNumber}`);
     } catch (error) {
-      core.warning(`Discussion #${discussionNumber} title/body updated successfully, but label update failed: ${getErrorMessage(error)}`);
+      const context = hasTitleUpdate || hasBodyUpdate ? "title/body updated successfully but " : "";
+      core.warning(`Discussion #${discussionNumber} ${context}label update failed: ${getErrorMessage(error)}`);
     }
   }
 
@@ -186,18 +221,23 @@ async function executeDiscussionUpdate(github, context, discussionNumber, update
  * @param {Object} item - The message item
  * @param {string} updateTarget - Target configuration
  * @param {Object} context - GitHub Actions context
+ * @param {Object} [resolvedTemporaryIds] - Resolved temporary IDs map
  * @returns {{success: true, number: number} | {success: false, error: string}} Resolution result
  */
-function resolveDiscussionNumber(item, updateTarget, context) {
+function resolveDiscussionNumber(item, updateTarget, context, resolvedTemporaryIds) {
   // Discussions are special - they have their own context type separate from issues/PRs
   // We need to handle them differently
   if (item.discussion_number !== undefined) {
-    const discussionNumber = parseInt(String(item.discussion_number), 10);
-    if (isNaN(discussionNumber)) {
-      return {
-        success: false,
-        error: `Invalid discussion number: ${item.discussion_number}`,
-      };
+    const resolution = resolveNumberFromTemporaryId(item.discussion_number, resolvedTemporaryIds);
+    if (resolution.errorMessage) {
+      return { success: false, error: resolution.errorMessage };
+    }
+    if (resolution.resolved === null) {
+      return { success: false, error: resolution.errorMessage ?? "Failed to resolve discussion number" };
+    }
+    const discussionNumber = resolution.resolved;
+    if (resolution.wasTemporaryId) {
+      core.info(`Resolved temporary ID '${item.discussion_number}' to discussion #${discussionNumber}`);
     }
     return { success: true, number: discussionNumber };
   } else if (updateTarget !== "triggering") {
@@ -240,10 +280,16 @@ function buildDiscussionUpdateData(item, config) {
   const updateData = {};
 
   if (item.title !== undefined) {
+    if (config.allow_title !== true) {
+      return { success: false, error: "Title updates are not allowed by the safe-outputs configuration" };
+    }
     // Sanitize title for Unicode security (no prefix handling needed for updates)
     updateData.title = sanitizeTitle(item.title);
   }
   if (item.body !== undefined) {
+    if (config.allow_body !== true) {
+      return { success: false, error: "Body updates are not allowed by the safe-outputs configuration" };
+    }
     updateData.body = item.body;
   }
 

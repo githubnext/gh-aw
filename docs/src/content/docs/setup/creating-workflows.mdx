@@ -99,16 +99,32 @@ After merging the pull request, you can run the workflow to see it in action. Ei
 - trigger runs manually from the Actions tab in GitHub.com, or
 - use [the `gh aw run` command](/gh-aw/setup/cli/#run) to trigger runs from your terminal.
 
-> [!TIP]
-> If you plan to keep using this way of editing workflows, run our `init` command to configure your repository
-> to make the agent more effective.
-> ```bash wrap
-> gh aw init
-> ```
-> or run this prompt
-> ```text wrap
-> Initialize this repository for GitHub Agentic Workflows using https://raw.githubusercontent.com/github/gh-aw/main/install.md
-> ```
+## Initialize the Repository
+
+Running `gh aw init` is **required** to enable the authoring experience in the GitHub code agent. This step configures your repository so that you can create and modify agentic workflows directly from [github.com](https://github.com) or the GitHub mobile app, using the Copilot coding agent.
+
+```bash wrap
+gh aw init
+```
+
+Alternatively, run this prompt in your coding agent:
+
+```text wrap
+Initialize this repository for GitHub Agentic Workflows using https://raw.githubusercontent.com/github/gh-aw/main/install.md
+```
+
+This command:
+
+- Creates a **dispatcher agent** at `.github/agents/agentic-workflows.agent.md`, which registers the `agentic-workflows` custom agent in GitHub Copilot and enables workflow authoring via `/agent agentic-workflows` in Copilot Chat on github.com and the GitHub mobile app.
+- Sets up **MCP server integration** so that Copilot has access to gh-aw tools when creating or editing workflows.
+- Updates `.gitattributes` to mark generated `.lock.yml` files correctly.
+- Configures **VS Code settings** for the best local authoring experience.
+
+Once initialized, you and your team can create and edit workflows by opening a Copilot Chat session on github.com or the GitHub app and running:
+
+```text wrap
+/agent agentic-workflows Create a new workflow that...
+```
 
 ## Manual Editing
 

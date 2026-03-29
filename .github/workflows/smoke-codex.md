@@ -18,6 +18,7 @@ strict: false
 imports:
   - shared/gh.md
   - shared/reporting.md
+  - shared/mcp/serena-go.md
 network:
   allowed:
     - defaults
@@ -30,9 +31,6 @@ tools:
   edit:
   bash:
     - "*"
-  serena:
-    languages:
-      go: {}
   web-fetch:
   qmd:
     checkouts:

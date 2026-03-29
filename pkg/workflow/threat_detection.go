@@ -271,6 +271,9 @@ func (c *Compiler) buildPrepareDetectionFilesStep() []string {
 		"          for f in /tmp/gh-aw/aw-*.patch; do\n",
 		"            [ -f \"$f\" ] && cp \"$f\" /tmp/gh-aw/threat-detection/ 2>/dev/null || true\n",
 		"          done\n",
+		"          for f in /tmp/gh-aw/aw-*.bundle; do\n",
+		"            [ -f \"$f\" ] && cp \"$f\" /tmp/gh-aw/threat-detection/ 2>/dev/null || true\n",
+		"          done\n",
 		"          echo \"Prepared threat detection files:\"\n",
 		"          ls -la /tmp/gh-aw/threat-detection/ 2>/dev/null || true\n",
 	}
@@ -437,13 +440,17 @@ func (c *Compiler) buildDetectionEngineExecutionStep(data *WorkflowData) []strin
 		detectionEngineConfig.APITarget = data.EngineConfig.APITarget
 	}
 
-	// Create minimal WorkflowData for threat detection with network fully blocked.
+	// Create minimal WorkflowData for threat detection.
 	// SandboxConfig with AWF enabled ensures the engine runs inside the firewall.
-	// NetworkPermissions with empty Allowed list blocks all network egress.
+	// NetworkPermissions.Allowed is empty so no user-specified domains are added on top of
+	// the engine's minimal detection domain list (see GetThreatDetectionAllowedDomains).
 	// No MCP servers are configured for detection.
+	// bash: ["*"] allows all shell commands — AWF's network firewall is the primary
+	// constraint, so restricting individual bash commands inside the sandbox adds friction
+	// without meaningful security benefit.
 	threatDetectionData := &WorkflowData{
 		Tools: map[string]any{
-			"bash": []any{"cat", "head", "tail", "wc", "grep", "ls", "jq"},
+			"bash": []any{"*"},
 		},
 		SafeOutputs:    nil,
 		EngineConfig:   detectionEngineConfig,
@@ -451,7 +458,7 @@ func (c *Compiler) buildDetectionEngineExecutionStep(data *WorkflowData) []strin
 		Features:       data.Features,
 		IsDetectionRun: true, // Mark as detection run for phase tagging
 		NetworkPermissions: &NetworkPermissions{
-			Allowed: []string{}, // deny-all: no network access
+			Allowed: []string{}, // no user-specified additional domains; engine provides its own minimal set
 		},
 		SandboxConfig: &SandboxConfig{
 			Agent: &AgentSandboxConfig{
@@ -604,9 +611,25 @@ func (c *Compiler) buildDetectionJob(data *WorkflowData) (*Job, error) {
 		runsOn = "runs-on: " + data.SafeOutputs.ThreatDetection.RunsOn
 	}
 
-	// Detection job condition: always run if agent job was not skipped
-	// Use always() so detection runs even if the agent job failed (to check whatever output was produced)
-	jobCondition := fmt.Sprintf("always() && needs.%s.result != 'skipped'", constants.AgentJobName)
+	// Detection job condition: always run if agent job was not skipped AND produced outputs or a patch.
+	// Skip the detection job entirely (result = 'skipped') when there is nothing to detect against,
+	// so downstream jobs (safe_outputs) are also correctly skipped.
+	alwaysFunc := BuildFunctionCall("always")
+	agentNotSkipped := BuildNotEquals(
+		BuildPropertyAccess(fmt.Sprintf("needs.%s.result", constants.AgentJobName)),
+		BuildStringLiteral("skipped"),
+	)
+	outputTypesNotEmpty := BuildNotEquals(
+		BuildPropertyAccess(fmt.Sprintf("needs.%s.outputs.output_types", constants.AgentJobName)),
+		BuildStringLiteral(""),
+	)
+	hasPatchTrue := BuildEquals(
+		BuildPropertyAccess(fmt.Sprintf("needs.%s.outputs.has_patch", constants.AgentJobName)),
+		BuildStringLiteral("true"),
+	)
+	hasContent := BuildOr(outputTypesNotEmpty, hasPatchTrue)
+	jobConditionNode := BuildAnd(BuildAnd(alwaysFunc, agentNotSkipped), hasContent)
+	jobCondition := RenderCondition(jobConditionNode)
 
 	// Determine permissions for the detection job
 	// In dev/script mode, need contents: read if the actions folder checkout is needed

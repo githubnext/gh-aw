@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, vi } from "vitest";
+import { describe, it, expect, afterEach, beforeEach, vi } from "vitest";
 import { globPatternToRegex } from "./glob_pattern_helpers.cjs";
 
 describe("push_repo_memory.cjs - globPatternToRegex helper", () => {
@@ -1020,6 +1020,43 @@ describe("push_repo_memory.cjs - shell injection security tests", () => {
       expect(scriptContent).toContain("execGitSync([");
     });
 
+    it("should not use git rm -rf to clear orphan branch (ENOBUFS fix for large repos)", () => {
+      // Regression test for: push_repo_memory fails with ENOBUFS on large repos
+      // after disabling sparse checkout.
+      //
+      // Root cause: "git rm -r -f --ignore-unmatch ." with stdio:pipe pipes a
+      // "rm 'path'" line for every file in the index. On repos with 10K+ files
+      // this exhausts spawnSync's pipe buffer and throws ENOBUFS.
+      //
+      // Fix: use "git read-tree --empty" (zero output, O(1)) to clear the index,
+      // then remove the working-tree files with Node.js fs.rmSync instead of git.
+      // Sparse-checkout must NOT be disabled before the branch switch, because
+      // "git sparse-checkout disable" forces git to materialise the entire working
+      // tree from the source branch, which also risks ENOBUFS on large repos.
+
+      const fs = require("fs");
+      const path = require("path");
+
+      const scriptPath = path.join(import.meta.dirname, "push_repo_memory.cjs");
+      const scriptContent = fs.readFileSync(scriptPath, "utf8");
+
+      // Must NOT call "git sparse-checkout disable" – this triggers a full
+      // working-tree expansion and is not needed for the orphan/memory branch.
+      expect(scriptContent).not.toContain('"sparse-checkout", "disable"');
+
+      // Must NOT use "git rm -r -f" to clear the orphan branch index – this
+      // outputs one line per file and causes ENOBUFS on large repos with
+      // stdio: "pipe".
+      expect(scriptContent).not.toContain('"rm", "-r", "-f"');
+      expect(scriptContent).not.toContain('execGitSync(["rm"');
+
+      // Must use "git read-tree --empty" to reset the index (zero output).
+      expect(scriptContent).toContain('"read-tree", "--empty"');
+
+      // Must use Node.js fs.rmSync for working-directory cleanup (no pipes).
+      expect(scriptContent).toContain("fs.rmSync(");
+    });
+
     it("should safely handle malicious branch names", () => {
       // Test that malicious branch names would be rejected by git, not executed as shell commands
       const maliciousBranchNames = [
@@ -1125,6 +1162,7 @@ describe("push_repo_memory.cjs - shell injection security tests", () => {
         info: vi.fn(),
         warning: vi.fn(),
         error: vi.fn(),
+        debug: vi.fn(),
         setFailed: vi.fn(),
         setOutput: vi.fn(),
       };
@@ -1233,6 +1271,154 @@ describe("push_repo_memory.cjs - shell injection security tests", () => {
 
       expect(mockCore.setFailed).not.toHaveBeenCalled();
       expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Memory directory not found"));
+    });
+
+    it("should reject branch name that does not start with memory/", async () => {
+      // "invalid-branch" has no "/" separator and is not a known wiki branch name
+      process.env.BRANCH_NAME = "invalid-branch";
+      process.env.TARGET_REPO = "test-owner/test-repo";
+
+      mockFs.existsSync.mockReturnValue(false);
+
+      vi.doMock("fs", () => mockFs);
+      vi.doMock("./git_helpers.cjs", () => ({ execGitSync: mockExecGitSync }));
+
+      const { main } = await import("./push_repo_memory.cjs");
+      await main();
+
+      expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("ERR_VALIDATION"));
+      expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("must be namespaced"));
+      // No git operations should have been attempted
+      expect(mockExecGitSync).not.toHaveBeenCalled();
+    });
+
+    it("should reject branch name memory/ with no suffix", async () => {
+      // "memory/" has a slash but nothing after it – not a valid namespaced branch
+      process.env.BRANCH_NAME = "memory/";
+      process.env.TARGET_REPO = "test-owner/test-repo";
+
+      mockFs.existsSync.mockReturnValue(false);
+
+      vi.doMock("fs", () => mockFs);
+      vi.doMock("./git_helpers.cjs", () => ({ execGitSync: mockExecGitSync }));
+
+      const { main } = await import("./push_repo_memory.cjs");
+      await main();
+
+      expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("ERR_VALIDATION"));
+      expect(mockExecGitSync).not.toHaveBeenCalled();
+    });
+
+    it("should accept custom branch-prefix branches like campaigns/metrics", () => {
+      // The Go compiler supports custom branch-prefix values (e.g. "campaigns") so
+      // generated branch names like "campaigns/metrics" must pass validation.
+      const nodeFs = require("fs");
+      const nodePath = require("path");
+
+      const scriptPath = nodePath.join(import.meta.dirname, "push_repo_memory.cjs");
+      const scriptContent = nodeFs.readFileSync(scriptPath, "utf8");
+
+      // Must use a general namespacing check, not a hard-coded "memory/" prefix
+      expect(scriptContent).toContain("isNamespaced");
+      expect(scriptContent).toContain("isKnownWikiBranch");
+      // Must NOT hard-code "memory/" as the only valid prefix
+      expect(scriptContent).not.toContain('must start with "memory/"');
+    });
+
+    it("should accept wiki branch names (master, main, gh-pages) only for wiki repos", () => {
+      // Wiki memory uses bare branch names ("master" by default). The compiler always
+      // appends ".wiki" to TARGET_REPO for wiki memory, so the cross-validation check
+      // must confirm that known wiki branch names are rejected for non-wiki repos.
+      const nodeFs = require("fs");
+      const nodePath = require("path");
+
+      const scriptPath = nodePath.join(import.meta.dirname, "push_repo_memory.cjs");
+      const scriptContent = nodeFs.readFileSync(scriptPath, "utf8");
+
+      expect(scriptContent).toContain('"master"');
+      expect(scriptContent).toContain('"main"');
+      expect(scriptContent).toContain('"gh-pages"');
+      // Must perform the wiki-repo cross-check
+      expect(scriptContent).toContain("isWikiRepo");
+      expect(scriptContent).toContain('.endsWith(".wiki")');
+      expect(scriptContent).toContain("isKnownWikiBranch && !isWikiRepo");
+    });
+
+    it("should reject known wiki branch name for a non-wiki target repo", async () => {
+      // The compiler only generates wiki branch names when wiki: true, in which case
+      // TARGET_REPO is appended with ".wiki".  If someone passes TARGET_REPO without
+      // ".wiki" but uses "master" as the branch, that would push to the default branch
+      // of the main repository – this must be blocked.
+      process.env.BRANCH_NAME = "master";
+      process.env.TARGET_REPO = "test-owner/test-repo"; // no ".wiki" suffix
+
+      mockFs.existsSync.mockReturnValue(false);
+
+      vi.doMock("fs", () => mockFs);
+      vi.doMock("./git_helpers.cjs", () => ({ execGitSync: mockExecGitSync }));
+
+      const { main } = await import("./push_repo_memory.cjs");
+      await main();
+
+      expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("ERR_VALIDATION"));
+      expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining('must end with ".wiki"'));
+      // No git operations should have been attempted
+      expect(mockExecGitSync).not.toHaveBeenCalled();
+    });
+
+    it("should propagate git fetch authentication failure instead of silently creating orphan branch", async () => {
+      // Regression: a transient network / auth error during fetch must NOT fall
+      // through to orphan-branch creation – it must surface as a workflow failure.
+      //
+      // Since vi.doMock cannot intercept CJS require() calls for git_helpers.cjs
+      // in this test environment, we rely on real git (which will fail with an
+      // auth/network error for a non-existent repo/token) to exercise the path.
+      const nodeFs = require("fs");
+      const nodePath = require("path");
+      const os = require("os");
+
+      // Create a real artifact directory so fs.existsSync passes
+      const tmpArtifactDir = nodeFs.mkdtempSync(nodePath.join(os.tmpdir(), "gh-aw-art-"));
+      process.env.ARTIFACT_DIR = tmpArtifactDir;
+      process.env.TARGET_REPO = "test-owner/test-repo";
+
+      try {
+        vi.doMock("./git_helpers.cjs", () => ({ execGitSync: mockExecGitSync }));
+
+        const { main } = await import("./push_repo_memory.cjs");
+        await main();
+
+        // Real git fetch with an invalid token returns an auth / network error,
+        // not "couldn't find remote ref". The discrimination logic must rethrow
+        // that error so the outer catch calls core.setFailed.
+        expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("Failed to checkout branch"));
+        // Must NOT have proceeded to orphan-branch creation
+        const orphanCallMade = mockExecGitSync.mock.calls.some(([args]) => Array.isArray(args) && args.includes("--orphan"));
+        expect(orphanCallMade).toBe(false);
+      } finally {
+        nodeFs.rmSync(tmpArtifactDir, { recursive: true, force: true });
+      }
+    });
+
+    it("should discriminate between missing-branch and auth/network fetch failures (source check)", () => {
+      // Verifies that the fetch-error handler inspects the error message and
+      // only falls through to orphan-branch creation when git reports a
+      // "missing ref" – not on auth or network failures.
+      const nodeFs = require("fs");
+      const nodePath = require("path");
+
+      const scriptPath = nodePath.join(import.meta.dirname, "push_repo_memory.cjs");
+      const scriptContent = nodeFs.readFileSync(scriptPath, "utf8");
+
+      // Must define an isMissingBranch guard in the fetch-error handler
+      expect(scriptContent).toContain("isMissingBranch");
+      // Must detect git's canonical "missing branch" message
+      expect(scriptContent).toContain("couldn't find remote ref");
+      expect(scriptContent).toContain("remote branch .* not found");
+      // Must rethrow non-missing-branch errors rather than silently creating an
+      // orphan branch
+      expect(scriptContent).toContain("if (!isMissingBranch)");
+      expect(scriptContent).toContain("throw fetchError");
     });
   });
 });

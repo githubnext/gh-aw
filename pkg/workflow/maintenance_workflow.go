@@ -16,7 +16,8 @@ var maintenanceLog = logger.New("workflow:maintenance_workflow")
 // In dev mode: builds from source using Setup Go + Build gh-aw (./gh-aw binary available)
 // In release mode: installs the released CLI via the setup-cli action (gh aw available)
 // In action mode: installs the released CLI via the gh-aw-actions/setup-cli action (gh aw available)
-func generateInstallCLISteps(actionMode ActionMode, version string, actionTag string) string {
+// When resolver is non-nil, attempts to resolve the setup-cli action to a SHA-pinned reference.
+func generateInstallCLISteps(actionMode ActionMode, version string, actionTag string, resolver ActionSHAResolver) string {
 	if actionMode == ActionModeDev {
 		return `      - name: Setup Go
         uses: ` + GetActionPin("actions/setup-go") + `
@@ -37,8 +38,10 @@ func generateInstallCLISteps(actionMode ActionMode, version string, actionTag st
 
 	// Action mode: use setup-cli action from external gh-aw-actions repository
 	if actionMode == ActionModeAction {
+		actionRepo := GitHubActionsOrgRepo + "/setup-cli"
+		ref := resolveActionRef(actionRepo, cliTag, resolver)
 		return `      - name: Install gh-aw
-        uses: github/gh-aw-actions/setup-cli@` + cliTag + `
+        uses: ` + ref + `
         with:
           version: ` + cliTag + `
 
@@ -46,12 +49,29 @@ func generateInstallCLISteps(actionMode ActionMode, version string, actionTag st
 	}
 
 	// Release mode: use setup-cli action (consistent with copilot-setup-steps.yml)
+	actionRepo := GitHubOrgRepo + "/actions/setup-cli"
+	ref := resolveActionRef(actionRepo, cliTag, resolver)
 	return `      - name: Install gh-aw
-        uses: github/gh-aw/actions/setup-cli@` + cliTag + `
+        uses: ` + ref + `
         with:
           version: ` + cliTag + `
 
 `
+}
+
+// resolveActionRef attempts to resolve an action repo@tag to a SHA-pinned reference
+// using the provided resolver. If the resolver is nil or resolution fails, it returns
+// the tag-based reference (repo@tag).
+func resolveActionRef(actionRepo, tag string, resolver ActionSHAResolver) string {
+	if resolver != nil && tag != "" && tag != "dev" {
+		sha, err := resolver.ResolveSHA(actionRepo, tag)
+		if err != nil {
+			maintenanceLog.Printf("Failed to resolve SHA for %s@%s: %v, falling back to tag reference", actionRepo, tag, err)
+		} else if sha != "" {
+			return formatActionReference(actionRepo, sha, tag)
+		}
+	}
+	return actionRepo + "@" + tag
 }
 
 // getCLICmdPrefix returns the CLI command prefix based on action mode.
@@ -199,6 +219,12 @@ on:
           - 'enable'
           - 'update'
           - 'upgrade'
+          - 'safe_outputs'
+      run_url:
+        description: 'Run URL or run ID to replay safe outputs from (e.g. https://github.com/owner/repo/actions/runs/12345 or 12345). Required when operation is safe_outputs.'
+        required: false
+        type: string
+        default: ''
 
 permissions: {}
 
@@ -274,10 +300,10 @@ jobs:
             await main();
 `)
 
-	// Add unified run_operation job for all dispatch operations
+	// Add unified run_operation job for all dispatch operations except safe_outputs
 	yaml.WriteString(`
   run_operation:
-    if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.operation != '' && !github.event.repository.fork }}
+    if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.operation != '' && github.event.inputs.operation != 'safe_outputs' && !github.event.repository.fork }}
     runs-on: ubuntu-slim
     permissions:
       actions: write
@@ -306,7 +332,7 @@ jobs:
 
 `)
 
-	yaml.WriteString(generateInstallCLISteps(actionMode, version, actionTag))
+	yaml.WriteString(generateInstallCLISteps(actionMode, version, actionTag, resolver))
 	yaml.WriteString(`      - name: Run operation
         uses: ` + GetActionPin("actions/github-script") + `
         env:
@@ -319,6 +345,54 @@ jobs:
             const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');
             setupGlobals(core, github, context, exec, io);
             const { main } = require('${{ runner.temp }}/gh-aw/actions/run_operation_update_upgrade.cjs');
+            await main();
+`)
+
+	// Add apply_safe_outputs job for workflow_dispatch with operation == 'safe_outputs'
+	yaml.WriteString(`
+  apply_safe_outputs:
+    if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.operation == 'safe_outputs' && !github.event.repository.fork }}
+    runs-on: ubuntu-slim
+    permissions:
+      actions: read
+      contents: write
+      discussions: write
+      issues: write
+      pull-requests: write
+    steps:
+      - name: Checkout actions folder
+        uses: ` + GetActionPin("actions/checkout") + `
+        with:
+          sparse-checkout: |
+            actions
+          persist-credentials: false
+
+      - name: Setup Scripts
+        uses: ` + setupActionRef + `
+        with:
+          destination: ${{ runner.temp }}/gh-aw/actions
+
+      - name: Check admin/maintainer permissions
+        uses: ` + GetActionPin("actions/github-script") + `
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');
+            setupGlobals(core, github, context, exec, io);
+            const { main } = require('${{ runner.temp }}/gh-aw/actions/check_team_member.cjs');
+            await main();
+
+      - name: Apply Safe Outputs
+        uses: ` + GetActionPin("actions/github-script") + `
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_AW_RUN_URL: ${{ github.event.inputs.run_url }}
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');
+            setupGlobals(core, github, context, exec, io);
+            const { main } = require('${{ runner.temp }}/gh-aw/actions/apply_safe_outputs_replay.cjs');
             await main();
 `)
 
@@ -345,7 +419,7 @@ jobs:
 
 `)
 
-		yaml.WriteString(generateInstallCLISteps(actionMode, version, actionTag))
+		yaml.WriteString(generateInstallCLISteps(actionMode, version, actionTag, resolver))
 		yaml.WriteString(`      - name: Compile workflows
         run: |
           ` + getCLICmdPrefix(actionMode) + ` compile --validate --verbose

@@ -220,8 +220,9 @@ func (e *GeminiEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 	// Add streaming JSON output (JSONL format, compatible with the log parser)
 	geminiArgs = append(geminiArgs, "--output-format", "stream-json")
 
-	// Add prompt argument
-	geminiArgs = append(geminiArgs, "--prompt", "\"$(cat /tmp/gh-aw/aw-prompts/prompt.txt)\"")
+	// Note: the --prompt argument is appended raw after shellJoinArgs below because it contains
+	// a shell command substitution ("$(cat ...)") that must NOT go through shellEscapeArg —
+	// single-quoting it would prevent shell expansion at runtime.
 
 	// Build the command
 	commandName := "gemini"
@@ -229,7 +230,8 @@ func (e *GeminiEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 		commandName = workflowData.EngineConfig.Command
 	}
 
-	geminiCommand := fmt.Sprintf("%s %s", commandName, shellJoinArgs(geminiArgs))
+	// Append the prompt arg raw (not through shellJoinArgs) to preserve shell expansion
+	geminiCommand := fmt.Sprintf(`%s %s --prompt "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"`, commandName, shellJoinArgs(geminiArgs))
 
 	// Build the full command with AWF wrapping if enabled
 	var command string
@@ -259,6 +261,9 @@ func (e *GeminiEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 			// inside the sandbox. The agent writes its step summary content here, and the
 			// file is appended to $GITHUB_STEP_SUMMARY after secret redaction.
 			PathSetup: "touch " + AgentStepSummaryPath,
+			// Exclude every env var whose step-env value is a secret so the agent
+			// cannot read raw token values via bash tools (env / printenv).
+			ExcludeEnvVarNames: ComputeAWFExcludeEnvVarNames(workflowData, []string{"GEMINI_API_KEY"}),
 		})
 	} else {
 		command = fmt.Sprintf(`set -o pipefail

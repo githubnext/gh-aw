@@ -8,13 +8,28 @@ import (
 )
 
 var (
-	agentTurnPattern     = regexp.MustCompile(`(?i)task.*iteration|agent.*turn|step.*\d+`)
-	agentToolCallPattern = regexp.MustCompile(`(?i)tool.*call|executing.*tool|calling.*(\w+)`)
+	agentTurnPattern = regexp.MustCompile(`(?i)task.*iteration|agent.*turn|step.*\d+`)
+	// agentToolCallPattern matches log lines that indicate an actual tool invocation.
+	// It requires either a bullet point prefix (● toolname) or a colon separator after
+	// the keyword (e.g. "Tool call:", "Calling:", "Executing tool:"). This prevents
+	// false positives from natural language prose that contains words like "tool calls",
+	// "calling a function", etc.
+	agentToolCallPattern = regexp.MustCompile(`(?i)\btool\s+call\s*:|\btool\s*:|executing\s+tool\s*:|executing\s*:|calling\s*:|using\s+tool\s*:|^\s*●\s*\S`)
 	toolNamePatterns     = []*regexp.Regexp{
-		regexp.MustCompile(`(?i)tool[:\s]+([a-zA-Z0-9_-]+)`),
-		regexp.MustCompile(`(?i)calling[:\s]+([a-zA-Z0-9_-]+)`),
-		regexp.MustCompile(`(?i)executing[:\s]+([a-zA-Z0-9_-]+)`),
-		regexp.MustCompile(`(?i)using[:\s]+tool[:\s]+([a-zA-Z0-9_-]+)`),
+		// "● toolname" - bullet point format used by Copilot coding agent STDIO logs
+		regexp.MustCompile(`^\s*●\s*([a-zA-Z0-9_][a-zA-Z0-9_-]*)`),
+		// "Tool call: toolname" - colon separator required
+		regexp.MustCompile(`(?i)\btool\s+call\s*:\s*([a-zA-Z0-9_][a-zA-Z0-9_-]*)`),
+		// "Tool: toolname" - colon immediately after "tool" required
+		regexp.MustCompile(`(?i)\btool\s*:\s*([a-zA-Z0-9_][a-zA-Z0-9_-]*)`),
+		// "Calling: toolname" - colon separator required
+		regexp.MustCompile(`(?i)\bcalling\s*:\s*([a-zA-Z0-9_][a-zA-Z0-9_-]*)`),
+		// "Executing tool: toolname" - colon separator required
+		regexp.MustCompile(`(?i)\bexecuting\s+tool\s*:\s*([a-zA-Z0-9_][a-zA-Z0-9_-]*)`),
+		// "Executing: toolname" - colon separator required
+		regexp.MustCompile(`(?i)\bexecuting\s*:\s*([a-zA-Z0-9_][a-zA-Z0-9_-]*)`),
+		// "Using tool: toolname" - colon separator required
+		regexp.MustCompile(`(?i)\busing\s+tool\s*:\s*([a-zA-Z0-9_][a-zA-Z0-9_-]*)`),
 	}
 )
 
@@ -48,7 +63,7 @@ func ParseCopilotCodingAgentLogMetrics(logContent string, verbose bool) workflow
 		}
 
 		// Extract tool calls from agent logs
-		if matches := agentToolCallPattern.FindStringSubmatch(line); len(matches) > 1 {
+		if agentToolCallPattern.MatchString(line) {
 			toolName := extractToolName(line)
 			if toolName != "" {
 				// Track tool call

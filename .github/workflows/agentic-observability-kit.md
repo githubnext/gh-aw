@@ -113,6 +113,7 @@ The logs JSON already contains the main agentic signals. Prefer these fields ove
 - `behavior_fingerprint.actuation_style`
 - `behavior_fingerprint.resource_profile`
 - `behavior_fingerprint.dispatch_mode`
+- `behavior_fingerprint.agentic_fraction`
 - `agentic_assessments[].kind`
 - `agentic_assessments[].severity`
 - `context.repo`
@@ -125,6 +126,8 @@ The logs JSON already contains the main agentic signals. Prefer these fields ove
 - `comparison.classification.label`
 - `comparison.classification.reason_codes[]`
 - `comparison.recommendation.action`
+- `action_minutes` (estimated billable Actions minutes per run)
+- `summary.total_action_minutes`
 
 Treat these values as the canonical signals for reporting.
 
@@ -162,6 +165,7 @@ Include small numeric summaries such as:
 - runs with `comparison.classification.label == "risky"`
 - runs with medium or high `agentic_assessments`
 - workflows with repeated `overkill_for_agentic`
+- workflows with `partially_reducible` or `model_downgrade_available` assessments
 - workflows whose comparisons mostly fell back to `latest_success`
 
 ### Details

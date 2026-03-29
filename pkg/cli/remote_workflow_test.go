@@ -1737,3 +1737,135 @@ source: otherorg/other-repo/.github/workflows/triage-issue.md@v1
 	require.NoError(t, readErr)
 	assert.Equal(t, conflictContent, string(got), "conflict file must not be overwritten in post-write phase")
 }
+
+// --- fetchAllRemoteDependencies tests ---
+
+// TestFetchAllRemoteDependencies_NoDependencies verifies that a workflow with no
+// includes, imports, dispatch workflows, or resources succeeds with no files created.
+func TestFetchAllRemoteDependencies_NoDependencies(t *testing.T) {
+	content := `---
+engine: copilot
+---
+
+# Workflow with no remote dependencies
+`
+	spec := &WorkflowSpec{
+		RepoSpec:     RepoSpec{RepoSlug: "", Version: ""},
+		WorkflowPath: ".github/workflows/my-workflow.md",
+	}
+
+	tmpDir := t.TempDir()
+	err := fetchAllRemoteDependencies(context.Background(), content, spec, tmpDir, false, false, nil)
+	require.NoError(t, err, "should not error when there are no remote dependencies")
+
+	entries, readErr := os.ReadDir(tmpDir)
+	require.NoError(t, readErr)
+	assert.Empty(t, entries, "no files should be created when there are no remote dependencies")
+}
+
+// TestFetchAllRemoteDependencies_LocalSpecNoOp verifies that when the spec has an empty
+// RepoSlug (a local workflow), all fetch operations are skipped and the function succeeds.
+func TestFetchAllRemoteDependencies_LocalSpecNoOp(t *testing.T) {
+	content := `---
+engine: copilot
+safe-outputs:
+  dispatch-workflow:
+    - dependent-workflow
+---
+
+# Workflow
+`
+	spec := &WorkflowSpec{
+		RepoSpec:     RepoSpec{RepoSlug: "", Version: ""},
+		WorkflowPath: ".github/workflows/my-workflow.md",
+	}
+
+	tmpDir := t.TempDir()
+	err := fetchAllRemoteDependencies(context.Background(), content, spec, tmpDir, false, false, nil)
+	require.NoError(t, err, "should not error for a local (no RepoSlug) workflow")
+
+	entries, readErr := os.ReadDir(tmpDir)
+	require.NoError(t, readErr)
+	assert.Empty(t, entries, "no files should be created for a local workflow")
+}
+
+// TestFetchAllRemoteDependencies_IncludeErrorSwallowed verifies that include-fetch errors
+// are treated as best-effort: a non-optional @include that cannot be resolved does not
+// cause fetchAllRemoteDependencies to return an error.
+func TestFetchAllRemoteDependencies_IncludeErrorSwallowed(t *testing.T) {
+	// A non-optional @include with a relative path and no RepoSlug will fail to resolve,
+	// but that error should be swallowed by fetchAllRemoteDependencies.
+	content := `---
+engine: copilot
+---
+
+@include shared/helpers.md
+
+# Workflow
+`
+	spec := &WorkflowSpec{
+		RepoSpec:     RepoSpec{RepoSlug: "", Version: ""},
+		WorkflowPath: ".github/workflows/my-workflow.md",
+	}
+
+	tmpDir := t.TempDir()
+	err := fetchAllRemoteDependencies(context.Background(), content, spec, tmpDir, false, false, nil)
+	require.NoError(t, err, "include errors should be swallowed (best-effort)")
+}
+
+// TestFetchAllRemoteDependencies_DispatchConflictPropagated verifies that a conflict
+// detected when fetching dispatch-workflow dependencies is returned to the caller.
+// The conflict is detected before any network call, so no real download occurs.
+func TestFetchAllRemoteDependencies_DispatchConflictPropagated(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	// Pre-existing dispatch workflow from a DIFFERENT source repo.
+	conflictPath := filepath.Join(tmpDir, "triage-issue.md")
+	conflictContent := `---
+source: otherorg/other-repo/.github/workflows/triage-issue.md@v1
+---
+# Triage from other repo
+`
+	require.NoError(t, os.WriteFile(conflictPath, []byte(conflictContent), 0644))
+
+	content := `---
+engine: copilot
+safe-outputs:
+  dispatch-workflow:
+    - triage-issue
+---
+
+# Main Workflow
+`
+	spec := &WorkflowSpec{
+		RepoSpec:     RepoSpec{RepoSlug: "github/gh-aw", Version: "main"},
+		WorkflowPath: ".github/workflows/main.md",
+	}
+
+	err := fetchAllRemoteDependencies(context.Background(), content, spec, tmpDir, false, false, nil)
+	require.Error(t, err, "dispatch workflow conflict should be propagated")
+	assert.Contains(t, err.Error(), "dispatch workflow", "error should mention 'dispatch workflow'")
+}
+
+// TestFetchAllRemoteDependencies_ResourceMacroErrorPropagated verifies that a resource
+// path containing GitHub Actions expression syntax causes an error that is propagated.
+// This check occurs before any network call, so no download is attempted.
+func TestFetchAllRemoteDependencies_ResourceMacroErrorPropagated(t *testing.T) {
+	content := `---
+engine: copilot
+resources:
+  - "${{ env.DYNAMIC_FILE }}"
+---
+
+# Workflow
+`
+	spec := &WorkflowSpec{
+		RepoSpec:     RepoSpec{RepoSlug: "github/gh-aw", Version: "main"},
+		WorkflowPath: ".github/workflows/my-workflow.md",
+	}
+
+	tmpDir := t.TempDir()
+	err := fetchAllRemoteDependencies(context.Background(), content, spec, tmpDir, false, false, nil)
+	require.Error(t, err, "resource macro error should be propagated")
+	assert.Contains(t, err.Error(), "failed to fetch resource dependencies", "error should be wrapped with dependency context")
+}

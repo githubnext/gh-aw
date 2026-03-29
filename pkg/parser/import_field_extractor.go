@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"path/filepath"
+	"regexp"
 	"strings"
 )
 
@@ -71,10 +72,34 @@ func newImportAccumulator() *importAccumulator {
 // skip-roles, skip-bots, post-steps, labels, cache, and features.
 func (acc *importAccumulator) extractAllImportFields(content []byte, item importQueueItem, visited map[string]bool) error {
 	log.Printf("Extracting all import fields: path=%s, section=%s, inputs=%d, content_size=%d bytes", item.fullPath, item.sectionName, len(item.inputs), len(content))
-	// Extract tools from imported file
-	toolsContent, err := processIncludedFileWithVisited(item.fullPath, item.sectionName, true, visited)
-	if err != nil {
-		return fmt.Errorf("failed to process imported file '%s': %w", item.fullPath, err)
+
+	// When the import provides 'with' inputs, apply expression substitution to the raw
+	// content before any YAML or markdown processing. This enables ${{ github.aw.import-inputs.* }}
+	// expressions in the imported workflow's frontmatter fields (tools, runtimes, etc.)
+	// as well as in the markdown body. Array and map values are serialized as JSON so they
+	// produce valid YAML inline syntax (e.g. ["go","typescript"]).
+	rawContent := string(content)
+	if len(item.inputs) > 0 {
+		rawContent = substituteImportInputsInContent(rawContent, item.inputs)
+	}
+
+	// Extract tools from imported file.
+	// When inputs are present we use the already-substituted content (to pick up any
+	// ${{ github.aw.import-inputs.* }} expressions in the tools/mcp-servers frontmatter)
+	// rather than re-reading the original file from disk.
+	var toolsContent string
+	if len(item.inputs) > 0 {
+		var err error
+		toolsContent, err = extractToolsFromContent(rawContent)
+		if err != nil {
+			return fmt.Errorf("failed to extract tools from '%s': %w", item.fullPath, err)
+		}
+	} else {
+		var err error
+		toolsContent, err = processIncludedFileWithVisited(item.fullPath, item.sectionName, true, visited)
+		if err != nil {
+			return fmt.Errorf("failed to process imported file '%s': %w", item.fullPath, err)
+		}
 	}
 	acc.toolsBuilder.WriteString(toolsContent + "\n")
 
@@ -89,11 +114,13 @@ func (acc *importAccumulator) extractAllImportFields(content []byte, item import
 		acc.importPaths = append(acc.importPaths, importRelPath)
 		log.Printf("Added import path for runtime-import: %s", importRelPath)
 	} else if len(item.inputs) > 0 {
-		// Has inputs - must inline for compile-time substitution
+		// Has inputs - must inline for compile-time substitution.
+		// Extract markdown from the already-substituted content so that import-inputs
+		// expressions embedded in the markdown body are resolved here.
 		log.Printf("Import %s has inputs - will be inlined for compile-time substitution", importRelPath)
-		markdownContent, err := processIncludedFileWithVisited(item.fullPath, item.sectionName, false, visited)
+		markdownContent, err := ExtractMarkdownContent(rawContent)
 		if err != nil {
-			return fmt.Errorf("failed to process markdown from imported file '%s': %w", item.fullPath, err)
+			return fmt.Errorf("failed to extract markdown from imported file '%s': %w", item.fullPath, err)
 		}
 		if markdownContent != "" {
 			acc.markdownBuilder.WriteString(markdownContent)
@@ -110,12 +137,36 @@ func (acc *importAccumulator) extractAllImportFields(content []byte, item import
 
 	// Parse frontmatter once to avoid redundant YAML parsing for each field extraction.
 	// All subsequent field extractions use the pre-parsed result.
-	parsed, err := ExtractFrontmatterFromContent(string(content))
+	// When inputs are present we parse the already-substituted content so that all
+	// frontmatter fields (runtimes, mcp-servers, etc.) reflect the resolved values.
+	parsed, err := ExtractFrontmatterFromContent(rawContent)
 	var fm map[string]any
 	if err == nil {
 		fm = parsed.Frontmatter
 	} else {
 		fm = make(map[string]any)
+	}
+
+	// Validate 'with'/'inputs' values against the imported workflow's 'import-schema' (if present).
+	// Run validation even when inputs is nil/empty so required fields can be detected.
+	// Use the ORIGINAL (unsubstituted) frontmatter for schema lookup so the import-schema
+	// declaration itself is not affected by expression substitution.
+	if len(item.inputs) > 0 || string(content) != rawContent {
+		// When substitution happened, reload the original frontmatter for schema validation.
+		origParsed, origErr := ExtractFrontmatterFromContent(string(content))
+		if origErr == nil {
+			if _, hasSchema := origParsed.Frontmatter["import-schema"]; hasSchema {
+				if err := validateWithImportSchema(item.inputs, origParsed.Frontmatter, item.importPath); err != nil {
+					return err
+				}
+			}
+		}
+	} else {
+		if _, hasSchema := fm["import-schema"]; hasSchema {
+			if err := validateWithImportSchema(item.inputs, fm, item.importPath); err != nil {
+				return err
+			}
+		}
 	}
 
 	// Extract engines from imported file
@@ -369,4 +420,241 @@ func validateGitHubAppJSON(appJSON string) string {
 		return ""
 	}
 	return appJSON
+}
+
+// validateWithImportSchema validates the provided 'with'/'inputs' values against
+// the 'import-schema' declared in the imported workflow's frontmatter.
+// It checks that:
+//   - all required parameters declared in import-schema are present in 'with'
+//   - no unknown parameters are provided (i.e., not declared in import-schema)
+//   - provided values match the declared type (string, number, boolean, choice)
+//   - choice values are within the allowed options list
+//
+// If the imported workflow has no 'import-schema', all provided 'with' values are
+// accepted without validation (backward compatibility with 'inputs' form).
+func validateWithImportSchema(inputs map[string]any, fm map[string]any, importPath string) error {
+	rawSchema, hasSchema := fm["import-schema"]
+	if !hasSchema {
+		return nil
+	}
+	schemaMap, ok := rawSchema.(map[string]any)
+	if !ok {
+		return nil
+	}
+	if len(schemaMap) == 0 {
+		return nil
+	}
+
+	// Check for unknown keys not declared in import-schema
+	for key := range inputs {
+		if _, declared := schemaMap[key]; !declared {
+			return fmt.Errorf("import '%s': unknown 'with' input %q is not declared in the import-schema", importPath, key)
+		}
+	}
+
+	// Check each declared schema field
+	for paramName, paramDefRaw := range schemaMap {
+		paramDef, _ := paramDefRaw.(map[string]any)
+
+		// Check required parameters
+		if req, _ := paramDef["required"].(bool); req {
+			if _, provided := inputs[paramName]; !provided {
+				return fmt.Errorf("import '%s': required 'with' input %q is missing (declared in import-schema)", importPath, paramName)
+			}
+		}
+
+		value, provided := inputs[paramName]
+		if !provided {
+			continue
+		}
+
+		// Skip type validation when type is not specified
+		declaredType, _ := paramDef["type"].(string)
+		if declaredType == "" {
+			continue
+		}
+
+		// Validate type
+		if err := validateImportInputType(paramName, value, declaredType, paramDef, importPath); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// validateObjectInput validates a 'with' value of type object against the
+// one-level deep 'properties' declared in the import-schema.
+func validateObjectInput(name string, value any, paramDef map[string]any, importPath string) error {
+	objMap, ok := value.(map[string]any)
+	if !ok {
+		return fmt.Errorf("import '%s': 'with' input %q must be an object (got %T)", importPath, name, value)
+	}
+	propsAny, hasProps := paramDef["properties"]
+	if !hasProps {
+		return nil // no schema for properties - accept any object
+	}
+	propsMap, ok := propsAny.(map[string]any)
+	if !ok {
+		return nil
+	}
+	// Check for unknown sub-keys
+	for subKey := range objMap {
+		if _, declared := propsMap[subKey]; !declared {
+			return fmt.Errorf("import '%s': 'with' input %q has unknown property %q (not in import-schema)", importPath, name, subKey)
+		}
+	}
+	// Validate each declared property
+	for propName, propDefRaw := range propsMap {
+		propDef, _ := propDefRaw.(map[string]any)
+		// Check required sub-fields
+		if req, _ := propDef["required"].(bool); req {
+			if _, provided := objMap[propName]; !provided {
+				return fmt.Errorf("import '%s': required property %q of 'with' input %q is missing", importPath, propName, name)
+			}
+		}
+		subValue, provided := objMap[propName]
+		if !provided {
+			continue
+		}
+		propType, _ := propDef["type"].(string)
+		if propType == "" {
+			continue
+		}
+		qualifiedName := name + "." + propName
+		if err := validateImportInputType(qualifiedName, subValue, propType, propDef, importPath); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// validateImportInputType checks that a single 'with' value matches the declared type.
+func validateImportInputType(name string, value any, declaredType string, paramDef map[string]any, importPath string) error {
+	switch declaredType {
+	case "string":
+		if _, ok := value.(string); !ok {
+			return fmt.Errorf("import '%s': 'with' input %q must be a string (got %T)", importPath, name, value)
+		}
+	case "number":
+		// Accept all numeric types that YAML parsers may produce
+		switch value.(type) {
+		case int, int8, int16, int32, int64,
+			uint, uint8, uint16, uint32, uint64,
+			float32, float64:
+			// OK
+		default:
+			return fmt.Errorf("import '%s': 'with' input %q must be a number (got %T)", importPath, name, value)
+		}
+	case "boolean":
+		if _, ok := value.(bool); !ok {
+			return fmt.Errorf("import '%s': 'with' input %q must be a boolean (got %T)", importPath, name, value)
+		}
+	case "choice":
+		strVal, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("import '%s': 'with' input %q must be a string for choice type (got %T)", importPath, name, value)
+		}
+		if opts, hasOpts := paramDef["options"]; hasOpts {
+			if optsList, ok := opts.([]any); ok {
+				for _, opt := range optsList {
+					if optStr, ok := opt.(string); ok && optStr == strVal {
+						return nil
+					}
+				}
+				return fmt.Errorf("import '%s': 'with' input %q value %q is not in the allowed options", importPath, name, strVal)
+			}
+		}
+	case "array":
+		arr, ok := value.([]any)
+		if !ok {
+			return fmt.Errorf("import '%s': 'with' input %q must be an array (got %T)", importPath, name, value)
+		}
+		// Validate item types if an 'items' schema is declared
+		itemsDefRaw, hasItems := paramDef["items"]
+		if !hasItems {
+			return nil
+		}
+		itemsDef, _ := itemsDefRaw.(map[string]any)
+		itemType, _ := itemsDef["type"].(string)
+		if itemType == "" {
+			return nil
+		}
+		for i, item := range arr {
+			itemName := fmt.Sprintf("%s[%d]", name, i)
+			if err := validateImportInputType(itemName, item, itemType, itemsDef, importPath); err != nil {
+				return err
+			}
+		}
+	case "object":
+		return validateObjectInput(name, value, paramDef, importPath)
+	}
+	return nil
+}
+
+// importInputsExprRegex matches ${{ github.aw.import-inputs.<key> }} and
+// ${{ github.aw.import-inputs.<key>.<subkey> }} expressions in raw content.
+var importInputsExprRegex = regexp.MustCompile(`\$\{\{\s*github\.aw\.import-inputs\.([a-zA-Z0-9_-]+(?:\.[a-zA-Z0-9_-]+)?)\s*\}\}`)
+
+// legacyInputsExprRegex matches ${{ github.aw.inputs.<key> }} (legacy form) in raw content.
+var legacyInputsExprRegex = regexp.MustCompile(`\$\{\{\s*github\.aw\.inputs\.([a-zA-Z0-9_-]+)\s*\}\}`)
+
+// substituteImportInputsInContent performs text-level substitution of
+// ${{ github.aw.import-inputs.* }} and ${{ github.aw.inputs.* }} expressions
+// in raw file content (including YAML frontmatter). This is called before YAML
+// parsing so that array/object values serialised as JSON produce valid YAML.
+func substituteImportInputsInContent(content string, inputs map[string]any) string {
+	if len(inputs) == 0 {
+		return content
+	}
+
+	resolve := func(path string) (string, bool) {
+		top, sub, hasDot := strings.Cut(path, ".")
+		var value any
+		var ok bool
+		if !hasDot {
+			value, ok = inputs[top]
+		} else {
+			// one-level deep: "obj.sub"
+			topVal, topOK := inputs[top]
+			if !topOK {
+				return "", false
+			}
+			if obj, isMap := topVal.(map[string]any); isMap {
+				value, ok = obj[sub]
+			}
+		}
+		if !ok {
+			return "", false
+		}
+		// Serialize the value: arrays and maps as JSON (valid YAML inline syntax),
+		// scalars with fmt.Sprintf.
+		switch v := value.(type) {
+		case []any:
+			if b, err := json.Marshal(v); err == nil {
+				return string(b), true
+			}
+		case map[string]any:
+			if b, err := json.Marshal(v); err == nil {
+				return string(b), true
+			}
+		}
+		return fmt.Sprintf("%v", value), true
+	}
+
+	replaceFunc := func(regex *regexp.Regexp) func(string) string {
+		return func(match string) string {
+			m := regex.FindStringSubmatch(match)
+			if len(m) < 2 {
+				return match
+			}
+			if strVal, found := resolve(m[1]); found {
+				return strVal
+			}
+			return match
+		}
+	}
+
+	result := legacyInputsExprRegex.ReplaceAllStringFunc(content, replaceFunc(legacyInputsExprRegex))
+	result = importInputsExprRegex.ReplaceAllStringFunc(result, replaceFunc(importInputsExprRegex))
+	return result
 }

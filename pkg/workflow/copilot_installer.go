@@ -20,16 +20,13 @@ func GenerateCopilotInstallerSteps(version, stepName string) []GitHubActionStep 
 
 	// Use the install_copilot_cli.sh script from actions/setup/sh
 	// This script includes retry logic for robustness against transient network failures.
-	// GH_HOST is explicitly set to github.com so that a workflow-level GH_HOST override
-	// (e.g. a GHES hostname) does not leak into this step. The Copilot CLI binary is always
-	// downloaded from github.com and requires github.com authentication. This step-level
-	// env override only affects the install_copilot_cli.sh execution and has no impact on
-	// other workflow steps.
+	// The script downloads the Copilot CLI using curl with hardcoded github.com URLs
+	// and does not use gh CLI, so GH_HOST does not affect the download. No step-level
+	// GH_HOST override is needed here; the correct host is already set in GITHUB_ENV
+	// by configure_gh_for_ghe.sh (or by the Derive GH_HOST step when DIFC proxy is active).
 	stepLines := []string{
 		"      - name: " + stepName,
 		"        run: ${RUNNER_TEMP}/gh-aw/actions/install_copilot_cli.sh " + version,
-		"        env:",
-		"          GH_HOST: github.com",
 	}
 
 	return []GitHubActionStep{GitHubActionStep(stepLines)}

@@ -46,8 +46,9 @@ func TestMCPScriptsStepCodeGenerationStability(t *testing.T) {
 	}
 
 	workflowData := &WorkflowData{
-		MCPScripts: mcpScriptsConfig,
-		Tools:      make(map[string]any),
+		MCPScripts:      mcpScriptsConfig,
+		Tools:           make(map[string]any),
+		FrontmatterHash: "stabletesthash1234567890abcdef",
 		Features: map[string]any{
 			"mcp-scripts": true, // Feature flag is optional now
 		},

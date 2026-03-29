@@ -215,6 +215,8 @@ interface UploadAssetConfig extends SafeOutputConfig {
 interface AssignMilestoneConfig extends SafeOutputConfig {
   allowed?: string[];
   target?: string;
+  /** When true, missing milestones from the allowed list are created automatically before assignment */
+  auto_create?: boolean;
 }
 
 /**

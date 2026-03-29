@@ -8,8 +8,11 @@ import (
 	"strings"
 	"time"
 
+	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/timeutil"
 )
+
+var logsEpisodeLog = logger.New("cli:logs_episode")
 
 // EpisodeEdge represents a deterministic lineage edge between two workflow runs.
 type EpisodeEdge struct {
@@ -71,6 +74,7 @@ type episodeSeed struct {
 }
 
 func buildEpisodeData(runs []RunData, processedRuns []ProcessedRun) ([]EpisodeData, []EpisodeEdge) {
+	logsEpisodeLog.Printf("Building episode data: runs=%d processed_runs=%d", len(runs), len(processedRuns))
 	runsByID := make(map[int64]RunData, len(runs))
 	processedByID := make(map[int64]ProcessedRun, len(processedRuns))
 	seedsByRunID := make(map[int64]episodeSeed, len(runs))
@@ -230,6 +234,7 @@ func buildEpisodeData(runs []RunData, processedRuns []ProcessedRun) ([]EpisodeDa
 		return cmp.Compare(a.TargetRunID, b.TargetRunID)
 	})
 
+	logsEpisodeLog.Printf("Built %d episodes and %d edges from %d runs", len(episodes), len(edges), len(runs))
 	return episodes, edges
 }
 
@@ -287,6 +292,7 @@ func seedConfidenceRank(confidence string) int {
 }
 
 func classifyEpisode(run RunData) (string, string, string, []string) {
+	logsEpisodeLog.Printf("Classifying episode for run: id=%d event=%s", run.DatabaseID, run.Event)
 	if run.AwContext != nil {
 		if run.AwContext.WorkflowCallID != "" {
 			return "dispatch:" + run.AwContext.WorkflowCallID, "dispatch_workflow", "high", []string{"context.workflow_call_id"}

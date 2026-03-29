@@ -262,10 +262,10 @@ async function assignAgentToIssue(assignableId, agentId, currentAssignees, agent
   if (allowedAgents && allowedAgents.length > 0) {
     filteredAssignees = currentAssignees.filter(assignee => {
       // Check if this assignee is a known agent
-      const agentName = getAgentName(assignee.login);
-      if (agentName) {
+      const assigneeAgentName = getAgentName(assignee.login);
+      if (assigneeAgentName) {
         // It's an agent - only keep if in allowed list
-        const isAllowed = allowedAgents.includes(agentName);
+        const isAllowed = allowedAgents.includes(assigneeAgentName);
         if (!isAllowed) {
           core.info(`Filtering out agent "${assignee.login}" (not in allowed list)`);
         }
@@ -361,13 +361,16 @@ async function assignAgentToIssue(assignableId, agentId, currentAssignees, agent
     core.info("Using built-in github object for mutation");
 
     // Build debug log message with all parameters
-    let debugMsg = `GraphQL mutation with variables: assignableId=${assignableId}, actorIds=${JSON.stringify(actorIds)}`;
-    if (pullRequestRepoId) debugMsg += `, targetRepoId=${pullRequestRepoId}`;
-    if (model) debugMsg += `, model=${model}`;
-    if (customAgent) debugMsg += `, customAgent=${customAgent}`;
-    if (customInstructions) debugMsg += `, customInstructions=${customInstructions.substring(0, 50)}...`;
-    if (baseBranch) debugMsg += `, baseRef=${baseBranch}`;
-    core.debug(debugMsg);
+    const debugParts = [
+      `assignableId=${assignableId}`,
+      `actorIds=${JSON.stringify(actorIds)}`,
+      ...(pullRequestRepoId ? [`targetRepoId=${pullRequestRepoId}`] : []),
+      ...(model ? [`model=${model}`] : []),
+      ...(customAgent ? [`customAgent=${customAgent}`] : []),
+      ...(customInstructions ? [`customInstructions=${customInstructions.substring(0, 50)}...`] : []),
+      ...(baseBranch ? [`baseRef=${baseBranch}`] : []),
+    ];
+    core.debug(`GraphQL mutation with variables: ${debugParts.join(", ")}`);
 
     // Build GraphQL-Features header - include coding_agent_model_selection when model is provided
     const graphqlFeatures = model ? "issues_copilot_assignment_api_support,coding_agent_model_selection" : "issues_copilot_assignment_api_support";
@@ -472,7 +475,7 @@ async function assignAgentToIssue(assignableId, agentId, currentAssignees, agent
         core.info("Using built-in github object for fallback mutation");
         core.debug(`Fallback GraphQL mutation with variables: assignableId=${assignableId}, assigneeIds=[${agentId}]`);
         const fallbackResp = await github.graphql(fallbackMutation, {
-          assignableId: assignableId,
+          assignableId,
           assigneeIds: [agentId],
           headers: {
             "GraphQL-Features": "issues_copilot_assignment_api_support",

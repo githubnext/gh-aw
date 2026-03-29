@@ -24,18 +24,6 @@ func shellJoinArgs(args []string) string {
 // shellEscapeArg escapes a single argument for safe use in shell commands
 // Arguments containing special characters are wrapped in single quotes
 func shellEscapeArg(arg string) string {
-	// If the argument is already properly quoted with double quotes, leave it as-is
-	if len(arg) >= 2 && arg[0] == '"' && arg[len(arg)-1] == '"' {
-		shellLog.Print("Argument already double-quoted, leaving as-is")
-		return arg
-	}
-
-	// If the argument is already properly quoted with single quotes, leave it as-is
-	if len(arg) >= 2 && arg[0] == '\'' && arg[len(arg)-1] == '\'' {
-		shellLog.Print("Argument already single-quoted, leaving as-is")
-		return arg
-	}
-
 	// Check if the argument contains special shell characters that need escaping
 	if strings.ContainsAny(arg, "()[]{}*?$`\"'\\|&;<> \t\n") {
 		shellLog.Print("Argument contains special characters, applying escaping")
@@ -46,31 +34,6 @@ func shellEscapeArg(arg string) string {
 		return "'" + escaped + "'"
 	}
 	return arg
-}
-
-// shellDoubleQuoteArg wraps a value in double quotes with proper escaping so that
-// shell expansion characters inside the value are neutralised, while the outer
-// double-quote context avoids ShellCheck SC1003 on arguments that contain shell
-// metacharacters such as `*` that would otherwise force single-quoting.
-//
-// Specifically, backslashes, double-quotes, dollar signs, and backticks are
-// escaped (in that order) so that `$`, “ ` “ and `\` cannot trigger variable
-// expansion or command substitution inside the resulting double-quoted string.
-//
-// Use this instead of pre-wrapping naively with `"\""+value+"\""` so that values
-// which happen to contain `$` or “ ` “ are still safe in the generated shell
-// scripts.
-func shellDoubleQuoteArg(value string) string {
-	// Escape backslashes first (must precede other replacements to avoid double-escaping)
-	escaped := strings.ReplaceAll(value, "\\", "\\\\")
-	// Escape double-quotes so the wrapper delimiters cannot be prematurely closed
-	escaped = strings.ReplaceAll(escaped, "\"", "\\\"")
-	// Escape dollar signs to prevent variable/arithmetic expansion
-	escaped = strings.ReplaceAll(escaped, "$", "\\$")
-	// Escape backticks to prevent command substitution
-	escaped = strings.ReplaceAll(escaped, "`", "\\`")
-	shellLog.Printf("Double-quoted value (length: %d)", len(value))
-	return "\"" + escaped + "\""
 }
 
 // buildDockerCommandWithExpandableVars builds a properly quoted docker command

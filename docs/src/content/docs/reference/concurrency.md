@@ -19,8 +19,11 @@ Workflow-level concurrency groups include the workflow name plus context-specifi
 | Pull Requests | `gh-aw-${{ github.workflow }}-${{ pr.number \|\| ref }}` | Yes (new commits cancel outdated runs) |
 | Push | `gh-aw-${{ github.workflow }}-${{ github.ref }}` | No |
 | Schedule/Other | `gh-aw-${{ github.workflow }}` | No |
+| Label-triggered (label trigger shorthand or label_command) | `gh-aw-${{ github.workflow }}-${{ entity.number }}-${{ github.event.label.name }}` | Yes for PRs, No otherwise |
 
 This ensures workflows on different issues, PRs, or branches run concurrently without interference.
+
+For label-triggered workflows, the concurrency group includes `github.event.label.name` as an additional segment. This prevents cross-label cancellation when multiple labels are added to the same PR or issue simultaneously: each label event gets its own distinct group, so workflows triggered by different labels do not cancel each other.
 
 ## Per-Engine Concurrency
 

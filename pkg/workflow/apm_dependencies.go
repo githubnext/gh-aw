@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"sort"
 
+	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
 )
 
@@ -131,7 +132,11 @@ func GenerateAPMPackStep(apmDeps *APMDependenciesInfo, target string, data *Work
 
 	apmDepsLog.Printf("Generating APM pack step: %d packages, target=%s", len(apmDeps.Packages), target)
 
-	actionRef := GetActionPin("microsoft/apm-action")
+	actionRef, err := GetActionPinWithData("microsoft/apm-action", string(constants.DefaultAPMActionVersion), data)
+	if err != nil {
+		apmDepsLog.Printf("Failed to resolve microsoft/apm-action@%s: %v", constants.DefaultAPMActionVersion, err)
+		actionRef = GetActionPin("microsoft/apm-action")
+	}
 
 	lines := []string{
 		"      - name: Install and pack APM dependencies",

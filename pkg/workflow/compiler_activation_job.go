@@ -201,7 +201,7 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 		steps = append(steps, fmt.Sprintf("        uses: %s\n", GetActionPin("actions/github-script")))
 		if len(data.Bots) > 0 {
 			steps = append(steps, "        env:\n")
-			steps = append(steps, fmt.Sprintf("          GH_AW_ALLOWED_BOTS: %s\n", strings.Join(data.Bots, ",")))
+			steps = append(steps, formatYAMLEnv("          ", "GH_AW_ALLOWED_BOTS", strings.Join(data.Bots, ",")))
 		}
 		steps = append(steps, "        with:\n")
 		steps = append(steps, "          script: |\n")
@@ -329,7 +329,7 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 		if err != nil {
 			return nil, fmt.Errorf("failed to marshal label-command names: %w", err)
 		}
-		steps = append(steps, fmt.Sprintf("          GH_AW_LABEL_NAMES: %q\n", string(labelNamesJSON)))
+		steps = append(steps, formatYAMLEnv("          ", "GH_AW_LABEL_NAMES", string(labelNamesJSON)))
 		steps = append(steps, "        with:\n")
 		// Use GitHub App or custom token if configured (avoids needing elevated GITHUB_TOKEN permissions)
 		labelToken := c.resolveActivationToken(data)
@@ -613,6 +613,15 @@ func (c *Compiler) generateCheckoutGitHubFolderForActivation(data *WorkflowData)
 	//
 	// Skip when inlined-imports is enabled: content is embedded at compile time and no
 	// runtime-import macros are used, so the callee's .md files are not needed at runtime.
+	// In dev mode, actions/setup is referenced via a local workspace path (./actions/setup),
+	// so it must be included in the sparse-checkout to preserve it for the post step.
+	// In release/script/action modes, the action is in the runner cache and not the workspace.
+	var extraPaths []string
+	if c.actionMode.IsDev() {
+		compilerActivationJobLog.Print("Dev mode: adding actions/setup to sparse-checkout to preserve local action post step")
+		extraPaths = append(extraPaths, "actions/setup")
+	}
+
 	cm := NewCheckoutManager(nil)
 	if data != nil && hasWorkflowCallTrigger(data.On) && !data.InlinedImports {
 		compilerActivationJobLog.Print("Adding cross-repo-aware .github checkout for workflow_call trigger")
@@ -622,6 +631,7 @@ func (c *Compiler) generateCheckoutGitHubFolderForActivation(data *WorkflowData)
 			cm.GetCrossRepoTargetRepo(),
 			cm.GetCrossRepoTargetRef(),
 			GetActionPin,
+			extraPaths...,
 		)
 	}
 
@@ -629,5 +639,5 @@ func (c *Compiler) generateCheckoutGitHubFolderForActivation(data *WorkflowData)
 	// This is needed for runtime imports during prompt generation
 	// sparse-checkout-cone-mode: true ensures subdirectories under .github/ are recursively included
 	compilerActivationJobLog.Print("Adding .github and .agents sparse checkout in activation job")
-	return cm.GenerateGitHubFolderCheckoutStep("", "", GetActionPin)
+	return cm.GenerateGitHubFolderCheckoutStep("", "", GetActionPin, extraPaths...)
 }

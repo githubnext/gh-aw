@@ -26,9 +26,9 @@ func (c *Compiler) generateMembershipCheck(data *WorkflowData, steps []string) [
 
 	// Add environment variables for permission check
 	steps = append(steps, "        env:\n")
-	steps = append(steps, fmt.Sprintf("          GH_AW_REQUIRED_ROLES: %s\n", strings.Join(data.Roles, ",")))
+	steps = append(steps, fmt.Sprintf("          GH_AW_REQUIRED_ROLES: %q\n", strings.Join(data.Roles, ",")))
 	if len(data.Bots) > 0 {
-		steps = append(steps, fmt.Sprintf("          GH_AW_ALLOWED_BOTS: %s\n", strings.Join(data.Bots, ",")))
+		steps = append(steps, fmt.Sprintf("          GH_AW_ALLOWED_BOTS: %q\n", strings.Join(data.Bots, ",")))
 	}
 
 	steps = append(steps, "        with:\n")

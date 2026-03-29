@@ -229,6 +229,9 @@ describe("handle_agent_failure", () => {
       expect(result).toContain("/tmp/agent-");
       expect(result).toContain("git am --3way");
       expect(result).toContain(runUrl);
+      // Should use progressive disclosure for the apply commands
+      expect(result).toContain("<details>");
+      expect(result).toContain("Apply the patch manually");
     });
 
     it("shows generic download instructions when runUrl is not provided", () => {
@@ -238,6 +241,9 @@ describe("handle_agent_failure", () => {
       expect(result).toContain("git am --3way");
       // No specific run ID in instructions
       expect(result).not.toContain("gh run download");
+      // Should still use progressive disclosure
+      expect(result).toContain("<details>");
+      expect(result).toContain("Apply the patch manually");
     });
 
     it("shows both patch apply failed and generic sections when mixed", () => {

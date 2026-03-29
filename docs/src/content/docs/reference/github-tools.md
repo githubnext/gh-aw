@@ -21,6 +21,11 @@ tools:
 
 **Available**: `context`, `repos`, `issues`, `pull_requests`, `users`, `actions`, `code_security`, `discussions`, `labels`, `notifications`, `orgs`, `projects`, `gists`, `search`, `dependabot`, `experiments`, `secret_protection`, `security_advisories`, `stargazers`
 
+**Shorthand values**:
+
+- `default` — expands to `context`, `repos`, `issues`, `pull_requests`, `users`
+- `all` — expands to all available toolsets **except** `dependabot` (see note below)
+
 **Default**: `context`, `repos`, `issues`, `pull_requests`, `users`
 
 Some key toolsets are:
@@ -34,7 +39,19 @@ Some key toolsets are:
 - `discussions` (discussions and comments)
 - `labels` (labels management)
 
-Some toolsets requuire [additional authentication](#additional-authentication-for-github-tools).
+:::note
+`toolsets: [all]` does **not** include the `dependabot` toolset. Because `dependabot` requires the `vulnerability-alerts` GitHub App-only permission (not grantable via `GITHUB_TOKEN`), it must be opted into explicitly:
+
+```yaml wrap
+tools:
+  github:
+    toolsets: [all, dependabot]
+```
+
+See [Using the `dependabot` toolset](#using-the-dependabot-toolset) for authentication requirements.
+:::
+
+Some toolsets require [additional authentication](#additional-authentication-for-github-tools).
 
 ## GitHub Integrity Filtering (`tools.github.min-integrity`)
 

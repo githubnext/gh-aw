@@ -47,10 +47,8 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 		// Simplified args for sandbox mode (AWF)
 		copilotArgs = []string{"--add-dir", "/tmp/gh-aw/", "--log-level", "all", "--log-dir", logsFolder}
 
-		// Always add workspace directory to --add-dir so Copilot CLI can access it
-		// This allows Copilot CLI to discover agent files and access the workspace
-		// Use double quotes to allow shell variable expansion
-		copilotArgs = append(copilotArgs, "--add-dir", "\"${GITHUB_WORKSPACE}\"")
+		// Note: --add-dir "${GITHUB_WORKSPACE}" is appended raw after shellJoinArgs below
+		// to allow shell variable expansion (cannot go through shellEscapeArg).
 		copilotExecLog.Print("Added workspace directory to --add-dir")
 
 		copilotExecLog.Print("Using firewall mode with simplified arguments")
@@ -118,12 +116,10 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 		copilotArgs = append(copilotArgs, workflowData.EngineConfig.Args...)
 	}
 
-	// Add prompt argument - inline for sandbox modes, variable for non-sandbox
-	if sandboxEnabled {
-		copilotArgs = append(copilotArgs, "--prompt", "\"$(cat /tmp/gh-aw/aw-prompts/prompt.txt)\"")
-	} else {
-		copilotArgs = append(copilotArgs, "--prompt", "\"$COPILOT_CLI_INSTRUCTION\"")
-	}
+	// Note: the --prompt argument and (in sandbox mode) --add-dir "${GITHUB_WORKSPACE}"
+	// are appended raw after shellJoinArgs in the command building step below.
+	// These contain shell variable references that must NOT go through shellEscapeArg
+	// because single-quoting them would prevent shell expansion at runtime.
 
 	// Extract all --add-dir paths and generate mkdir commands
 	addDirPaths := extractAddDirPaths(copilotArgs)
@@ -162,15 +158,31 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 		commandName = "copilot"
 	}
 
-	// Build the command - model is always passed via COPILOT_MODEL env var (see env block below)
-	copilotCommand = fmt.Sprintf("%s %s", commandName, shellJoinArgs(copilotArgs))
+	// Build the command - model is always passed via COPILOT_MODEL env var (see env block below).
+	// The --add-dir "${GITHUB_WORKSPACE}" and --prompt args are appended raw (not through
+	// shellJoinArgs) because they contain shell variable references that must expand at runtime.
+	if sandboxEnabled {
+		// Sandbox mode: add workspace dir and inline prompt (read inside AWF container)
+		copilotCommand = fmt.Sprintf(`%s %s --add-dir "${GITHUB_WORKSPACE}" --prompt "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"`, commandName, shellJoinArgs(copilotArgs))
+	} else {
+		// Non-sandbox mode: prompt is read from a shell variable set earlier in the script
+		copilotCommand = fmt.Sprintf(`%s %s --prompt "$COPILOT_CLI_INSTRUCTION"`, commandName, shellJoinArgs(copilotArgs))
+	}
 
 	// Conditionally wrap with sandbox (AWF only)
 	var command string
 	if isFirewallEnabled(workflowData) {
 		// Build AWF-wrapped command using helper function - no mkdir needed, AWF handles it
-		// Get allowed domains (copilot defaults + network permissions + HTTP MCP server URLs + runtime ecosystem domains)
-		allowedDomains := GetCopilotAllowedDomainsWithToolsAndRuntimes(workflowData.NetworkPermissions, workflowData.Tools, workflowData.Runtimes)
+		// For detection runs use the minimal detection domain list (excludes registry.npmjs.org
+		// and raw.githubusercontent.com — not needed when MCP servers are disabled and the
+		// Copilot CLI binary is already installed on the runner).
+		// For normal agent runs use the full domain set (defaults + ecosystem + user-specified).
+		var allowedDomains string
+		if workflowData.IsDetectionRun {
+			allowedDomains = GetThreatDetectionAllowedDomains(workflowData.NetworkPermissions)
+		} else {
+			allowedDomains = GetCopilotAllowedDomainsWithToolsAndRuntimes(workflowData.NetworkPermissions, workflowData.Tools, workflowData.Runtimes)
+		}
 		// Add Copilot API target domains to the firewall allow-list.
 		// Resolved from engine.api-target or GITHUB_COPILOT_BASE_URL in engine.env.
 		if copilotAPITarget := GetCopilotAPITarget(workflowData); copilotAPITarget != "" {
@@ -197,6 +209,9 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 			// inside the sandbox. The agent writes its step summary content here, and the
 			// file is appended to $GITHUB_STEP_SUMMARY after secret redaction.
 			PathSetup: "touch " + AgentStepSummaryPath,
+			// Exclude every env var whose step-env value is a secret so the agent
+			// cannot read raw token values via bash tools (env / printenv).
+			ExcludeEnvVarNames: ComputeAWFExcludeEnvVarNames(workflowData, []string{"COPILOT_GITHUB_TOKEN"}),
 		})
 	} else {
 		// Run copilot command without AWF wrapper.
