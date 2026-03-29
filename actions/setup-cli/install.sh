@@ -3,11 +3,17 @@
 # Script to download and install gh-aw binary for the current OS and architecture
 # Supports: Linux, macOS (Darwin), FreeBSD, Windows (Git Bash/MSYS/Cygwin)
 # Usage: ./install-gh-aw.sh [version] [options]
-# If no version is specified, it will use "latest" (GitHub automatically resolves to the latest release)
+# If no version is specified, "stable" is used (highest release in the previous minor version band).
 # Note: Checksum validation is currently skipped by default (will be enabled in future releases)
-# 
+#
+# Version aliases:
+#   stable  - Highest release in the previous minor version band (e.g. v0.1.10 when latest is v0.2.2)
+#   latest  - The most recent release (GitHub automatically resolves to the latest release)
+#
 # Examples:
-#   ./install-gh-aw.sh                           # Install latest version
+#   ./install-gh-aw.sh                           # Install stable version (default)
+#   ./install-gh-aw.sh stable                    # Install stable version explicitly
+#   ./install-gh-aw.sh latest                    # Install latest version
 #   ./install-gh-aw.sh v1.0.0                    # Install specific version
 #   ./install-gh-aw.sh --skip-checksum           # Skip checksum validation
 #
@@ -224,15 +230,96 @@ fetch_release_data() {
     return 1
 }
 
-# Get version (use provided version or default to "latest")
+# Resolve the "stable" version alias.
+# "stable" is the highest release in the previous minor version band relative to the latest release.
+# For example, if the latest is v0.2.2 and releases include v0.1.10, stable resolves to v0.1.10.
+# Falls back to the latest release if no previous minor band exists or contains no releases.
+resolve_stable_version() {
+    # GitHub API returns at most 100 items per page. For the vast majority of projects
+    # this covers all releases; if a repo ever exceeds 100 releases the resolution will
+    # still be correct as long as both the latest and its previous minor band are within
+    # the first 100 entries (releases are returned newest-first by default).
+    local api_url="https://api.github.com/repos/$REPO/releases?per_page=100"
+
+    print_info "Resolving 'stable' version..." >&2
+
+    # Fetch all releases from GitHub API
+    local releases_json
+    if ! releases_json=$(fetch_release_data "$api_url"); then
+        print_error "Failed to fetch releases list from GitHub API" >&2
+        return 1
+    fi
+
+    # Extract non-pre-release, non-draft version tags
+    local versions
+    if [ "$HAS_JQ" = true ]; then
+        versions=$(echo "$releases_json" | jq -r '.[] | select(.prerelease == false and .draft == false) | .tag_name')
+    else
+        # Without jq: extract tag_name values and keep only plain semver tags (vMAJOR.MINOR.PATCH).
+        # The strict regex (anchored with $) already excludes pre-release tags such as v1.0.0-rc.1
+        # or v1.0.0-beta because those contain extra characters after the patch number.
+        # Draft releases cannot be reliably detected without jq, but GitHub does not include
+        # drafts in the public releases API response for unauthenticated requests.
+        versions=$(echo "$releases_json" | grep '"tag_name"' | sed 's/.*"tag_name": *"//;s/".*//' | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$')
+    fi
+
+    if [ -z "$versions" ]; then
+        print_error "No stable releases found" >&2
+        return 1
+    fi
+
+    # Find the numerically highest (latest) version
+    local latest_clean
+    latest_clean=$(echo "$versions" | sed 's/^v//' | sort -t. -k1,1n -k2,2n -k3,3n | tail -1)
+
+    # Extract major and minor components
+    local latest_major latest_minor
+    latest_major=$(echo "$latest_clean" | cut -d. -f1)
+    latest_minor=$(echo "$latest_clean" | cut -d. -f2)
+
+    # Determine the previous minor version band
+    local prev_minor=$((latest_minor - 1))
+
+    if [ "$prev_minor" -lt 0 ]; then
+        print_warning "No previous minor release band exists (latest is v${latest_major}.0.x). Using latest instead." >&2
+        echo "v${latest_clean}"
+        return 0
+    fi
+
+    # Find the highest version in the previous minor band
+    local stable_clean
+    stable_clean=$(echo "$versions" | sed 's/^v//' | grep -E "^${latest_major}\.${prev_minor}\." | sort -t. -k1,1n -k2,2n -k3,3n | tail -1)
+
+    if [ -z "$stable_clean" ]; then
+        print_warning "No releases found in v${latest_major}.${prev_minor}.x band. Using latest instead." >&2
+        echo "v${latest_clean}"
+        return 0
+    fi
+
+    echo "v${stable_clean}"
+    return 0
+}
+
+# Get version (use provided version or default to "stable")
 # VERSION is already set from argument parsing
 REPO="github/gh-aw"
 
 if [ -z "$VERSION" ]; then
-    print_info "No version specified, using 'latest'..."
-    VERSION="latest"
+    print_info "No version specified, using 'stable'..."
+    VERSION="stable"
 else
     print_info "Using specified version: $VERSION"
+fi
+
+# Resolve "stable" alias to a concrete version tag via the GitHub API
+if [ "$VERSION" = "stable" ]; then
+    RESOLVED_VERSION=$(resolve_stable_version)
+    if [ $? -ne 0 ] || [ -z "$RESOLVED_VERSION" ]; then
+        print_error "Failed to resolve stable version. Please specify a version explicitly (e.g. v1.0.0) or use 'latest'."
+        exit 1
+    fi
+    print_info "Resolved 'stable' to: $RESOLVED_VERSION"
+    VERSION="$RESOLVED_VERSION"
 fi
 
 # Try gh extension install if requested (and gh is available)
