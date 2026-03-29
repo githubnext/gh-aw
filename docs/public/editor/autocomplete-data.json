@@ -658,11 +658,6 @@
               "type": "array",
               "desc": "URL patterns to allow for HTTPS traffic (requires ssl-bump: true).",
               "array": true
-            },
-            "cleanup-script": {
-              "type": "string",
-              "desc": "Path to cleanup script run after AWF shuts down (default: ./scripts/ci/cleanup.sh)",
-              "leaf": true
             }
           }
         }

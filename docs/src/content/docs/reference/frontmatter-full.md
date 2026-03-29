@@ -1549,31 +1549,6 @@ engine:
   env:
     {}
 
-  # Custom error patterns for validating agent logs
-  # (optional)
-  error_patterns: []
-    # Array items:
-      # Unique identifier for this error pattern
-      # (optional)
-      id: "example-value"
-
-      # Ecma script regular expression pattern to match log lines
-      pattern: "example-value"
-
-      # Capture group index (1-based) that contains the error level. Use 0 to infer from
-      # pattern content.
-      # (optional)
-      level_group: 1
-
-      # Capture group index (1-based) that contains the error message. Use 0 to use the
-      # entire match.
-      # (optional)
-      message_group: 1
-
-      # Human-readable description of what this pattern matches
-      # (optional)
-      description: "Description of the workflow"
-
   # Additional TOML configuration text that will be appended to the generated
   # config.toml in the action (codex engine only)
   # (optional)
