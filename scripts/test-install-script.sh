@@ -351,19 +351,19 @@ else
     exit 1
 fi
 
-# Test 11: Verify "latest" version functionality
+# Test 11: Verify default version and version alias functionality
 echo ""
-echo "Test 11: Verify 'latest' version functionality"
+echo "Test 11: Verify default and version alias functionality"
 
-# Check for "latest" as default version
-if grep -q "using 'latest'" "$PROJECT_ROOT/install-gh-aw.sh"; then
-    echo "  ✓ PASS: Script uses 'latest' as default version"
+# Check that "stable" is the default version
+if grep -q "using 'stable'" "$PROJECT_ROOT/install-gh-aw.sh"; then
+    echo "  ✓ PASS: Script uses 'stable' as default version"
 else
-    echo "  ✗ FAIL: Script does not use 'latest' as default version"
+    echo "  ✗ FAIL: Script does not use 'stable' as default version"
     exit 1
 fi
 
-# Check for latest URL construction
+# Check for latest URL construction (used when "latest" alias is explicitly specified)
 if grep -q 'releases/latest/download' "$PROJECT_ROOT/install-gh-aw.sh"; then
     echo "  ✓ PASS: Latest release URL pattern is correct"
 else
@@ -385,6 +385,134 @@ if grep -q "Validating release.*exists" "$PROJECT_ROOT/install-gh-aw.sh"; then
     exit 1
 else
     echo "  ✓ PASS: Version validation logic removed"
+fi
+
+# Test 12: Verify "stable" version resolution functionality
+echo ""
+echo "Test 12: Verify 'stable' version resolution functionality"
+
+# Check for resolve_stable_version function
+if grep -q "resolve_stable_version()" "$PROJECT_ROOT/install-gh-aw.sh"; then
+    echo "  ✓ PASS: resolve_stable_version function exists"
+else
+    echo "  ✗ FAIL: resolve_stable_version function not found"
+    exit 1
+fi
+
+# Check that stable is resolved via API before being used
+if grep -q 'VERSION.*=.*"stable"' "$PROJECT_ROOT/install-gh-aw.sh" || grep -q "VERSION.*stable" "$PROJECT_ROOT/install-gh-aw.sh"; then
+    echo "  ✓ PASS: Stable version alias is handled"
+else
+    echo "  ✗ FAIL: Stable version alias not handled"
+    exit 1
+fi
+
+# Check that resolve_stable_version uses the GitHub releases API
+if grep -q 'api.github.com/repos.*releases' "$PROJECT_ROOT/install-gh-aw.sh"; then
+    echo "  ✓ PASS: resolve_stable_version uses GitHub releases API"
+else
+    echo "  ✗ FAIL: resolve_stable_version does not use GitHub releases API"
+    exit 1
+fi
+
+# Check that stable resolution falls back to latest when no previous minor band exists
+if grep -q "No previous minor release band" "$PROJECT_ROOT/install-gh-aw.sh"; then
+    echo "  ✓ PASS: Stable resolution handles missing previous minor band"
+else
+    echo "  ✗ FAIL: Stable resolution does not handle missing previous minor band"
+    exit 1
+fi
+
+# Check that stable resolution falls back when band is empty
+if grep -q "No releases found in v" "$PROJECT_ROOT/install-gh-aw.sh"; then
+    echo "  ✓ PASS: Stable resolution handles empty minor band"
+else
+    echo "  ✗ FAIL: Stable resolution does not handle empty minor band"
+    exit 1
+fi
+
+# Test the stable version resolution logic inline
+echo ""
+echo "Test 12b: Verify stable version resolution algorithm"
+
+# Simulate the algorithm with known input
+simulate_stable_resolution() {
+    local versions="$1"
+    # Replicate the logic from resolve_stable_version
+
+    local latest_clean
+    latest_clean=$(echo "$versions" | sed 's/^v//' | sort -t. -k1,1n -k2,2n -k3,3n | tail -1)
+
+    local latest_major latest_minor
+    latest_major=$(echo "$latest_clean" | cut -d. -f1)
+    latest_minor=$(echo "$latest_clean" | cut -d. -f2)
+
+    local prev_minor=$((latest_minor - 1))
+
+    if [ "$prev_minor" -lt 0 ]; then
+        echo "v${latest_clean}"
+        return 0
+    fi
+
+    local stable_clean
+    stable_clean=$(echo "$versions" | sed 's/^v//' | grep -E "^${latest_major}\.${prev_minor}\." | sort -t. -k1,1n -k2,2n -k3,3n | tail -1)
+
+    if [ -z "$stable_clean" ]; then
+        echo "v${latest_clean}"
+        return 0
+    fi
+
+    echo "v${stable_clean}"
+}
+
+# Test: standard case - v0.2.2 latest, v0.1.10 stable
+VERSIONS="v0.2.2
+v0.1.10
+v0.1.9
+v0.2.0"
+RESULT=$(simulate_stable_resolution "$VERSIONS")
+if [ "$RESULT" = "v0.1.10" ]; then
+    echo "  ✓ PASS: Standard case - stable resolved to v0.1.10 (latest v0.2.2)"
+else
+    echo "  ✗ FAIL: Standard case - expected v0.1.10 but got $RESULT"
+    exit 1
+fi
+
+# Test: no previous minor band (latest is v1.0.3, no v0.x) - falls back to latest
+VERSIONS="v1.0.3
+v1.0.2
+v1.0.0"
+RESULT=$(simulate_stable_resolution "$VERSIONS")
+if [ "$RESULT" = "v1.0.3" ]; then
+    echo "  ✓ PASS: No previous minor band - falls back to latest v1.0.3"
+else
+    echo "  ✗ FAIL: No previous minor band - expected v1.0.3 but got $RESULT"
+    exit 1
+fi
+
+# Test: previous minor band is empty - falls back to latest
+VERSIONS="v0.3.1
+v0.3.0
+v0.1.5"
+RESULT=$(simulate_stable_resolution "$VERSIONS")
+if [ "$RESULT" = "v0.3.1" ]; then
+    echo "  ✓ PASS: Empty previous minor band - falls back to latest v0.3.1"
+else
+    echo "  ✗ FAIL: Empty previous minor band - expected v0.3.1 but got $RESULT"
+    exit 1
+fi
+
+# Test: picks highest patch in previous minor band
+VERSIONS="v2.1.0
+v2.0.5
+v2.0.1
+v2.0.3"
+RESULT=$(simulate_stable_resolution "$VERSIONS")
+if [ "$RESULT" = "v2.0.5" ]; then
+    echo "  ✓ PASS: Highest patch selection - stable resolved to v2.0.5"
+else
+    echo "  ✗ FAIL: Highest patch selection - expected v2.0.5 but got $RESULT"
+    exit 1
 fi
 
 echo ""
