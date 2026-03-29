@@ -981,7 +981,8 @@ func TestAddWorkflowWithDispatchWorkflowFromSharedImport(t *testing.T) {
 	//
 	// Note: pinned to a specific commit SHA that includes strict: false in smoke-copilot.md
 	// (required since sandbox.mcp.container is now blocked in strict mode).
-	workflowSpec := "github/gh-aw/.github/workflows/smoke-copilot.md@531594a"
+	// Also requires the fix to serena-go.md import path (serena.md not shared/mcp/serena.md).
+	workflowSpec := "github/gh-aw/.github/workflows/smoke-copilot.md@15af946"
 
 	cmd := exec.Command(setup.binaryPath, "add", workflowSpec, "--verbose")
 	cmd.Dir = setup.tempDir
