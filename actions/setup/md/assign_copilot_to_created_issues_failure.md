@@ -1,5 +1,5 @@
 
-**🤖 Copilot Assignment Failed**: The workflow created an issue but could not assign the Copilot coding agent to it. This typically happens when:
+**Copilot Assignment Failed**: The workflow created an issue but could not assign the Copilot coding agent to it. This typically happens when:
 
 - The `GH_AW_AGENT_TOKEN` secret is missing or has expired
 - The token does not have the `issues: write` permission

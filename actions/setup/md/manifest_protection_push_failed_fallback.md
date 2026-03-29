@@ -3,12 +3,12 @@
 ---
 
 > [!WARNING]
-> 🛡️ **Protected Files — Push Permission Denied**
+> **Protected Files — Push Permission Denied**
 >
 > This was originally intended as a pull request, but the patch modifies protected files. A human must create the pull request manually.
 
 <details>
-<summary>🔒 Protected files</summary>
+<summary>Protected files</summary>
 
 {files}
 
@@ -17,7 +17,7 @@ The push was rejected because GitHub Actions does not have `workflows` permissio
 </details>
 
 <details>
-<summary><b>📋 Create the pull request manually</b></summary>
+<summary><b>Create the pull request manually</b></summary>
 
 ```sh
 # Download the patch from the workflow run
