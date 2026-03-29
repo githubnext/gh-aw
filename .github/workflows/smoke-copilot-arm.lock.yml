@@ -26,8 +26,8 @@
 #   Imports:
 #     - shared/gh.md
 #     - shared/github-queries-mcp-script.md
-#     - shared/mcp/serena-go.md
 #     - shared/mcp/serena.md
+#     - shared/mcp/serena-go.md
 #     - shared/reporting.md
 #
 # gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"2e0f56dd848e004d1382bd59038ab27e5bee664d9e065d8ff1ac2c0a2822cb5c","agent_id":"copilot"}
