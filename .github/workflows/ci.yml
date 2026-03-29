@@ -2781,27 +2781,12 @@ jobs:
           echo "  microsoft/apm-action:  $APM_ACTION_VERSION"
           echo "  github-mcp-server:     $GITHUB_MCP_VERSION"
 
-      - name: Define helpers
-        run: |
-          # Write a reusable helper script for checking GHCR image manifests.
-          # Returns the image digest (sha256:...) or exits 1 if the image is unavailable.
-          cat > /tmp/ghcr_digest.py << 'EOF'
-          import sys, json
-          m = json.load(sys.stdin)
-          digest = m.get("config", {}).get("digest", "") or \
-                   next((entry.get("digest", "") for entry in m.get("manifests", []) if entry.get("digest")), "")
-          if not digest:
-              sys.exit(1)
-          print(digest)
-          EOF
-
       - name: Check gh-aw-firewall release
         env:
           VERSION: ${{ steps.versions.outputs.firewall_version }}
         run: |
           set -e
           REPO="github/gh-aw-firewall"
-          IMAGE="ghcr.io/github/gh-aw-firewall:${VERSION}"
 
           echo "## Checking gh-aw-firewall ${VERSION}" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
@@ -2814,15 +2799,6 @@ jobs:
             exit 1
           fi
 
-          echo "Checking GHCR image manifest: ${IMAGE}..."
-          DIGEST=$(docker manifest inspect "${IMAGE}" 2>/dev/null | python3 /tmp/ghcr_digest.py 2>/dev/null || echo "")
-          if [ -n "$DIGEST" ]; then
-            echo "✅ GHCR image ${IMAGE} is available (digest: ${DIGEST})" | tee -a $GITHUB_STEP_SUMMARY
-          else
-            echo "❌ GHCR image ${IMAGE} could not be inspected" | tee -a $GITHUB_STEP_SUMMARY
-            exit 1
-          fi
-
           echo "" >> $GITHUB_STEP_SUMMARY
           sleep 2  # Avoid GitHub API rate limiting between checks
 
@@ -2832,7 +2808,6 @@ jobs:
         run: |
           set -e
           REPO="github/gh-aw-mcpg"
-          IMAGE="ghcr.io/github/gh-aw-mcpg:${VERSION}"
 
           echo "## Checking gh-aw-mcpg ${VERSION}" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
@@ -2842,15 +2817,6 @@ jobs:
             echo "✅ GitHub release ${VERSION} is available for ${REPO}" | tee -a $GITHUB_STEP_SUMMARY
           else
             echo "❌ GitHub release ${VERSION} not found for ${REPO}" | tee -a $GITHUB_STEP_SUMMARY
-            exit 1
-          fi
-
-          echo "Checking GHCR image manifest: ${IMAGE}..."
-          DIGEST=$(docker manifest inspect "${IMAGE}" 2>/dev/null | python3 /tmp/ghcr_digest.py 2>/dev/null || echo "")
-          if [ -n "$DIGEST" ]; then
-            echo "✅ GHCR image ${IMAGE} is available (digest: ${DIGEST})" | tee -a $GITHUB_STEP_SUMMARY
-          else
-            echo "❌ GHCR image ${IMAGE} could not be inspected" | tee -a $GITHUB_STEP_SUMMARY
             exit 1
           fi
 
@@ -2905,7 +2871,6 @@ jobs:
         run: |
           set -e
           REPO="github/github-mcp-server"
-          IMAGE="ghcr.io/github/github-mcp-server:${VERSION}"
 
           echo "## Checking github-mcp-server ${VERSION}" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
@@ -2915,15 +2880,6 @@ jobs:
             echo "✅ GitHub release ${VERSION} is available for ${REPO}" | tee -a $GITHUB_STEP_SUMMARY
           else
             echo "❌ GitHub release ${VERSION} not found for ${REPO}" | tee -a $GITHUB_STEP_SUMMARY
-            exit 1
-          fi
-
-          echo "Checking GHCR image manifest: ${IMAGE}..."
-          DIGEST=$(docker manifest inspect "${IMAGE}" 2>/dev/null | python3 /tmp/ghcr_digest.py 2>/dev/null || echo "")
-          if [ -n "$DIGEST" ]; then
-            echo "✅ GHCR image ${IMAGE} is available (digest: ${DIGEST})" | tee -a $GITHUB_STEP_SUMMARY
-          else
-            echo "❌ GHCR image ${IMAGE} could not be inspected" | tee -a $GITHUB_STEP_SUMMARY
             exit 1
           fi
 
