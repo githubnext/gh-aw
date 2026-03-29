@@ -13,8 +13,9 @@ var compilerAPMJobLog = logger.New("workflow:compiler_apm_job")
 // dependencies into a bundle artifact. This job runs after the activation job and uploads
 // the packed bundle so the agent job can download and restore it.
 //
-// The APM job uses minimal permissions ({}) because all required tokens are passed
-// explicitly via env/secrets rather than relying on the workflow's GITHUB_TOKEN scope.
+// The APM job requires the gh-aw setup action to copy .cjs scripts to $RUNNER_TEMP/gh-aw/actions/
+// so that apm_install.cjs and apm_pack.cjs can be required by the github-script step.
+// In dev/script mode this means adding a checkout step (contents: read) before setup.
 func (c *Compiler) buildAPMJob(data *WorkflowData) (*Job, error) {
 	compilerAPMJobLog.Printf("Building APM job: %d packages", len(data.APMDependencies.Packages))
 
@@ -24,6 +25,15 @@ func (c *Compiler) buildAPMJob(data *WorkflowData) (*Job, error) {
 	}
 
 	var steps []string
+
+	// Add setup action to copy JavaScript files (apm_install.cjs, apm_pack.cjs, etc.)
+	// to $RUNNER_TEMP/gh-aw/actions/ before the github-script step runs.
+	setupActionRef := c.resolveActionReference("./actions/setup", data)
+	if setupActionRef != "" || c.actionMode.IsScript() {
+		// For dev/script mode (local action path), checkout the actions folder first
+		steps = append(steps, c.generateCheckoutActionsFolder(data)...)
+		steps = append(steps, c.generateSetupStep(setupActionRef, SetupActionDestination, false)...)
+	}
 
 	// Mint a GitHub App token before the pack step if a github-app is configured for APM.
 	// The APM job depends on activation, so it can reference needs.activation.outputs.target_repo_name
@@ -46,7 +56,7 @@ func (c *Compiler) buildAPMJob(data *WorkflowData) (*Job, error) {
 	}
 
 	// Upload the packed APM bundle as a separate artifact for the agent job to download.
-	// The path comes from the apm_pack step output `bundle-path`, which microsoft/apm-action
+	// The path comes from the apm_pack step output `bundle-path`, which apm_pack.cjs
 	// sets to the location of the packed .tar.gz archive.
 	// The APM job depends on activation, so it uses artifactPrefixExprForDownstreamJob.
 	compilerAPMJobLog.Print("Adding APM bundle artifact upload step")
@@ -75,10 +85,15 @@ func (c *Compiler) buildAPMJob(data *WorkflowData) (*Job, error) {
 		"GH_AW_INFO_APM_VERSION": apmVersion,
 	}
 
-	// Minimal permissions: the APM job does not need any GitHub token scopes because
-	// all tokens (for apm-action, create-github-app-token, upload-artifact) are either
-	// passed explicitly via secrets/env or handled by the runner's ACTIONS_RUNTIME_TOKEN.
-	permissions := NewPermissionsEmpty().RenderToYAML()
+	// Permissions: start with empty (minimal privilege) and add contents: read when a
+	// checkout step is needed to copy the gh-aw actions folder (dev/script mode).
+	var permissions string
+	needsContentsRead := (c.actionMode.IsDev() || c.actionMode.IsScript()) && len(c.generateCheckoutActionsFolder(data)) > 0
+	if needsContentsRead {
+		permissions = NewPermissionsContentsRead().RenderToYAML()
+	} else {
+		permissions = NewPermissionsEmpty().RenderToYAML()
+	}
 
 	job := &Job{
 		Name:        string(constants.APMJobName),

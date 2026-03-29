@@ -2298,10 +2298,22 @@ jobs:
   apm:
     needs: activation
     runs-on: ubuntu-slim
-    permissions: {}
+    permissions:
+          contents: read
     env:
       GH_AW_INFO_APM_VERSION: v0.8.6
     steps:
+      - name: Checkout actions folder
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          repository: github/gh-aw
+          sparse-checkout: |
+            actions
+          persist-credentials: false
+      - name: Setup Scripts
+        uses: ./actions/setup
+        with:
+          destination: ${{ runner.temp }}/gh-aw/actions
       - name: Install and pack APM bundle
         id: apm_pack
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
