@@ -25,8 +25,8 @@
 # Resolved workflow manifest:
 #   Imports:
 #     - shared/activation-app.md
-#     - shared/mcp/serena-go.md
 #     - shared/mcp/serena.md
+#     - shared/mcp/serena-go.md
 #     - shared/reporting.md
 #     - shared/safe-output-app.md
 #

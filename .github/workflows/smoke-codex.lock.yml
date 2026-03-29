@@ -25,8 +25,8 @@
 # Resolved workflow manifest:
 #   Imports:
 #     - shared/gh.md
-#     - shared/mcp/serena-go.md
 #     - shared/mcp/serena.md
+#     - shared/mcp/serena-go.md
 #     - shared/qmd.md
 #     - shared/reporting.md
 #
