@@ -39,7 +39,7 @@ This specification follows World Wide Web Consortium (W3C) formatting convention
 9. [Content Integrity Mechanisms](#9-content-integrity-mechanisms)
 10. [Execution Guarantees](#10-execution-guarantees)
 11. [Cache Memory Integrity](#11-cache-memory-integrity)
-12. [Appendices](#appendix-a-conformance-checklist)
+12. [Appendices](#appendix-b-security-considerations)
 
 ---
 
