@@ -22,6 +22,10 @@ var updateExtensionCheckLog = logger.New("cli:update_extension_check")
 // upgradeExtensionIfOutdated checks if a newer version of the gh-aw extension is available
 // and, if so, upgrades it automatically.
 //
+// channel selects which release to target: "stable" (default, highest release in the
+// previous minor band) or "latest" (most recent release). An empty string defaults to
+// "stable".
+//
 // Returns:
 //   - upgraded: true if an upgrade was performed.
 //   - installPath: on Linux, the resolved path where the new binary was installed
@@ -35,9 +39,12 @@ var updateExtensionCheckLog = logger.New("cli:update_extension_check")
 // baked in. The caller should re-launch the freshly-installed binary (at
 // installPath) so that subsequent work (e.g. lock-file compilation) uses the
 // correct new version string.
-func upgradeExtensionIfOutdated(verbose bool) (bool, string, error) {
+func upgradeExtensionIfOutdated(channel string, verbose bool) (bool, string, error) {
+	if channel == "" {
+		channel = "stable"
+	}
 	currentVersion := GetVersion()
-	updateExtensionCheckLog.Printf("Checking if extension needs upgrade (current: %s)", currentVersion)
+	updateExtensionCheckLog.Printf("Checking if extension needs upgrade (current: %s, channel: %s)", currentVersion, channel)
 
 	// Skip for non-release versions (dev builds)
 	if !workflow.IsReleasedVersion(currentVersion) {
@@ -48,32 +55,38 @@ func upgradeExtensionIfOutdated(verbose bool) (bool, string, error) {
 		return false, "", nil
 	}
 
-	// Query GitHub API for latest release
-	latestVersion, err := getLatestRelease()
+	// Query GitHub API for the target release based on channel
+	var targetVersion string
+	var err error
+	if channel == "latest" {
+		targetVersion, err = getLatestRelease()
+	} else {
+		targetVersion, err = getStableRelease()
+	}
 	if err != nil {
 		// Fail silently - don't block the upgrade command if we can't reach GitHub
-		updateExtensionCheckLog.Printf("Failed to check for latest release (silently ignoring): %v", err)
+		updateExtensionCheckLog.Printf("Failed to check for %s release (silently ignoring): %v", channel, err)
 		if verbose {
 			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Could not check for extension updates: %v", err)))
 		}
 		return false, "", nil
 	}
 
-	if latestVersion == "" {
-		updateExtensionCheckLog.Print("Could not determine latest version, skipping upgrade")
+	if targetVersion == "" {
+		updateExtensionCheckLog.Printf("Could not determine %s version, skipping upgrade", channel)
 		return false, "", nil
 	}
 
-	updateExtensionCheckLog.Printf("Latest version: %s", latestVersion)
+	updateExtensionCheckLog.Printf("Target version (%s channel): %s", channel, targetVersion)
 
 	// Ensure both versions have the 'v' prefix required by the semver package.
 	currentSV := "v" + strings.TrimPrefix(currentVersion, "v")
-	latestSV := "v" + strings.TrimPrefix(latestVersion, "v")
+	targetSV := "v" + strings.TrimPrefix(targetVersion, "v")
 
-	// Already on the latest (or newer) version – use proper semver comparison so
+	// Already on the target (or newer) version – use proper semver comparison so
 	// that e.g. "0.10.0" is correctly treated as newer than "0.9.0".
-	if semver.IsValid(currentSV) && semver.IsValid(latestSV) {
-		if semver.Compare(currentSV, latestSV) >= 0 {
+	if semver.IsValid(currentSV) && semver.IsValid(targetSV) {
+		if semver.Compare(currentSV, targetSV) >= 0 {
 			updateExtensionCheckLog.Print("Extension is already up to date")
 			if verbose {
 				fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("✓ gh-aw extension is up to date"))
@@ -84,12 +97,12 @@ func upgradeExtensionIfOutdated(verbose bool) (bool, string, error) {
 		// Versions are not valid semver; skip unreliable string comparison and
 		// proceed with the upgrade to avoid incorrectly treating an outdated
 		// version as up to date (lexicographic comparison breaks for e.g. "0.9.0" vs "0.10.0").
-		updateExtensionCheckLog.Printf("Non-semver versions detected (current=%q, latest=%q); proceeding with upgrade", currentVersion, latestVersion)
+		updateExtensionCheckLog.Printf("Non-semver versions detected (current=%q, target=%q); proceeding with upgrade", currentVersion, targetVersion)
 	}
 
 	// A newer version is available – upgrade automatically
-	updateExtensionCheckLog.Printf("Upgrading extension from %s to %s", currentVersion, latestVersion)
-	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Upgrading gh-aw extension from %s to %s...", currentVersion, latestVersion)))
+	updateExtensionCheckLog.Printf("Upgrading extension from %s to %s", currentVersion, targetVersion)
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Upgrading gh-aw extension from %s to %s...", currentVersion, targetVersion)))
 
 	// First attempt: run the upgrade without touching the filesystem.
 	// On most systems (and on Linux when there is no in-use binary conflict)
@@ -102,7 +115,7 @@ func upgradeExtensionIfOutdated(verbose bool) (bool, string, error) {
 	// rename+retry path succeeds and the user is not shown a confusing failure.
 	var firstAttemptBuf bytes.Buffer
 	firstAttemptOut := firstAttemptWriter(os.Stderr, &firstAttemptBuf)
-	firstCmd := exec.Command("gh", "extension", "upgrade", "github/gh-aw")
+	firstCmd := buildExtensionInstallCommand(channel, targetVersion)
 	firstCmd.Stdout = firstAttemptOut
 	firstCmd.Stderr = firstAttemptOut
 	firstErr := firstCmd.Run()
@@ -112,7 +125,7 @@ func upgradeExtensionIfOutdated(verbose bool) (bool, string, error) {
 			// Replay the buffered output that was not shown during the attempt.
 			_, _ = io.Copy(os.Stderr, &firstAttemptBuf)
 		}
-		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("✓ gh-aw extension upgraded to "+latestVersion))
+		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("✓ gh-aw extension upgraded to "+targetVersion))
 		return true, "", nil
 	}
 
@@ -141,7 +154,7 @@ func upgradeExtensionIfOutdated(verbose bool) (bool, string, error) {
 		}
 	}
 
-	retryCmd := exec.Command("gh", "extension", "upgrade", "github/gh-aw")
+	retryCmd := buildExtensionInstallCommand(channel, targetVersion)
 	retryCmd.Stdout = os.Stderr
 	retryCmd.Stderr = os.Stderr
 	if retryErr := retryCmd.Run(); retryErr != nil {
@@ -157,8 +170,19 @@ func upgradeExtensionIfOutdated(verbose bool) (bool, string, error) {
 		cleanupExecutableBackup(installPath)
 	}
 
-	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("✓ gh-aw extension upgraded to "+latestVersion))
+	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("✓ gh-aw extension upgraded to "+targetVersion))
 	return true, installPath, nil
+}
+
+// buildExtensionInstallCommand builds the gh CLI command to install the gh-aw extension.
+// For the "latest" channel it uses `gh extension upgrade` (always installs the latest).
+// For any other channel (e.g. "stable") it uses `gh extension install --force --pin VERSION`
+// to target a specific release.
+func buildExtensionInstallCommand(channel string, targetVersion string) *exec.Cmd {
+	if channel == "latest" {
+		return exec.Command("gh", "extension", "upgrade", "github/gh-aw")
+	}
+	return exec.Command("gh", "extension", "install", "--force", "--pin", targetVersion, "github/gh-aw")
 }
 
 // firstAttemptWriter returns a writer that buffers output on Linux (so that

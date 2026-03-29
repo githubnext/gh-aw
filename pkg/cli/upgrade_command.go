@@ -26,6 +26,7 @@ type UpgradeConfig struct {
 	NoActions   bool
 	Audit       bool
 	JSON        bool
+	Channel     string // Release channel: "stable" (default) or "latest"
 }
 
 // NewUpgradeCommand creates the upgrade command
@@ -40,6 +41,12 @@ This command:
   2. Applies automatic codemods to fix deprecated fields in all workflows (like 'fix --write')
   3. Updates GitHub Actions versions in .github/aw/actions-lock.json (unless --no-actions is set)
   4. Compiles all workflows to generate lock files (like 'compile' command)
+
+RELEASE CHANNEL:
+Use --channel to control which version of the gh-aw extension to upgrade to.
+  stable  (default) Highest release in the previous minor version band.
+                    Example: v0.1.10 when the latest release is v0.2.2.
+  latest            The most recent release.
 
 DEPENDENCY HEALTH AUDIT:
 Use --audit to check dependency health without performing upgrades. This includes:
@@ -60,14 +67,16 @@ The upgrade process ensures:
 This command always upgrades all Markdown files in .github/workflows.
 
 Examples:
-  ` + string(constants.CLIExtensionPrefix) + ` upgrade                    # Upgrade all workflows
-  ` + string(constants.CLIExtensionPrefix) + ` upgrade --no-fix          # Update agent files only (skip codemods, actions, and compilation)
-  ` + string(constants.CLIExtensionPrefix) + ` upgrade --no-actions      # Skip updating GitHub Actions versions
-  ` + string(constants.CLIExtensionPrefix) + ` upgrade --no-compile      # Skip recompiling workflows (do not modify lock files)
+  ` + string(constants.CLIExtensionPrefix) + ` upgrade                         # Upgrade to stable (default)
+  ` + string(constants.CLIExtensionPrefix) + ` upgrade --channel stable        # Upgrade to stable explicitly
+  ` + string(constants.CLIExtensionPrefix) + ` upgrade --channel latest        # Upgrade to latest release
+  ` + string(constants.CLIExtensionPrefix) + ` upgrade --no-fix               # Update agent files only (skip codemods, actions, and compilation)
+  ` + string(constants.CLIExtensionPrefix) + ` upgrade --no-actions           # Skip updating GitHub Actions versions
+  ` + string(constants.CLIExtensionPrefix) + ` upgrade --no-compile           # Skip recompiling workflows (do not modify lock files)
   ` + string(constants.CLIExtensionPrefix) + ` upgrade --create-pull-request  # Upgrade and open a pull request
   ` + string(constants.CLIExtensionPrefix) + ` upgrade --dir custom/workflows  # Upgrade workflows in custom directory
-  ` + string(constants.CLIExtensionPrefix) + ` upgrade --audit           # Check dependency health without upgrading
-  ` + string(constants.CLIExtensionPrefix) + ` upgrade --audit --json    # Output audit results in JSON format`,
+  ` + string(constants.CLIExtensionPrefix) + ` upgrade --audit                # Check dependency health without upgrading
+  ` + string(constants.CLIExtensionPrefix) + ` upgrade --audit --json         # Output audit results in JSON format`,
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			verbose, _ := cmd.Flags().GetBool("verbose")
@@ -81,6 +90,12 @@ Examples:
 			auditFlag, _ := cmd.Flags().GetBool("audit")
 			jsonOutput, _ := cmd.Flags().GetBool("json")
 			skipExtensionUpgrade, _ := cmd.Flags().GetBool("skip-extension-upgrade")
+			channel, _ := cmd.Flags().GetString("channel")
+
+			// Validate channel value
+			if channel != "stable" && channel != "latest" {
+				return fmt.Errorf("invalid channel %q: must be \"stable\" or \"latest\"", channel)
+			}
 
 			// Handle audit mode
 			if auditFlag {
@@ -93,7 +108,7 @@ Examples:
 				}
 			}
 
-			if err := runUpgradeCommand(verbose, dir, noFix, noCompile, noActions, skipExtensionUpgrade); err != nil {
+			if err := runUpgradeCommand(verbose, dir, noFix, noCompile, noActions, skipExtensionUpgrade, channel); err != nil {
 				return err
 			}
 
@@ -118,6 +133,7 @@ Examples:
 	cmd.Flags().Bool("audit", false, "Check dependency health without performing upgrades")
 	cmd.Flags().Bool("skip-extension-upgrade", false, "Skip automatic extension upgrade (used internally to prevent recursion after upgrade)")
 	_ = cmd.Flags().MarkHidden("skip-extension-upgrade")
+	cmd.Flags().String("channel", "stable", "Release channel for the gh-aw extension upgrade: stable or latest")
 	addJSONFlag(cmd)
 
 	// Register completions
@@ -146,18 +162,18 @@ func runDependencyAudit(verbose bool, jsonOutput bool) error {
 }
 
 // runUpgradeCommand executes the upgrade process
-func runUpgradeCommand(verbose bool, workflowDir string, noFix bool, noCompile bool, noActions bool, skipExtensionUpgrade bool) error {
-	upgradeLog.Printf("Running upgrade command: verbose=%v, workflowDir=%s, noFix=%v, noCompile=%v, noActions=%v, skipExtensionUpgrade=%v",
-		verbose, workflowDir, noFix, noCompile, noActions, skipExtensionUpgrade)
+func runUpgradeCommand(verbose bool, workflowDir string, noFix bool, noCompile bool, noActions bool, skipExtensionUpgrade bool, channel string) error {
+	upgradeLog.Printf("Running upgrade command: verbose=%v, workflowDir=%s, noFix=%v, noCompile=%v, noActions=%v, skipExtensionUpgrade=%v, channel=%s",
+		verbose, workflowDir, noFix, noCompile, noActions, skipExtensionUpgrade, channel)
 
-	// Step 0b: Ensure gh-aw extension is on the latest version.
+	// Step 0b: Ensure gh-aw extension is on the target channel version.
 	// If the extension was just upgraded, re-launch the freshly-installed binary
 	// with the same flags so that all subsequent steps (e.g. lock-file compilation)
 	// use the correct new version string.  The hidden --skip-extension-upgrade flag
 	// prevents the re-launched process from entering this branch again.
 	if !skipExtensionUpgrade {
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Checking gh-aw extension version..."))
-		upgraded, installPath, err := upgradeExtensionIfOutdated(verbose)
+		upgraded, installPath, err := upgradeExtensionIfOutdated(channel, verbose)
 		if err != nil {
 			upgradeLog.Printf("Extension upgrade failed: %v", err)
 			return err

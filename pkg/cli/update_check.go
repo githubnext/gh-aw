@@ -2,9 +2,11 @@ package cli
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
@@ -12,6 +14,7 @@ import (
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/workflow"
+	"golang.org/x/mod/semver"
 )
 
 var updateCheckLog = logger.New("cli:update_check")
@@ -25,9 +28,11 @@ const (
 
 // Release represents a GitHub release
 type Release struct {
-	TagName string `json:"tag_name"`
-	Name    string `json:"name"`
-	HTMLURL string `json:"html_url"`
+	TagName    string `json:"tag_name"`
+	Name       string `json:"name"`
+	HTMLURL    string `json:"html_url"`
+	Prerelease bool   `json:"prerelease"`
+	Draft      bool   `json:"draft"`
 }
 
 // shouldCheckForUpdate determines if we should check for updates based on:
@@ -224,6 +229,86 @@ func getLatestRelease() (string, error) {
 
 	updateCheckLog.Printf("Latest release: %s", release.TagName)
 	return release.TagName, nil
+}
+
+// getStableRelease resolves the "stable" version alias.
+// Stable is the highest release in the previous minor version band relative to
+// the latest release. For example, if the latest is v0.2.2 and releases include
+// v0.1.10, stable resolves to v0.1.10.
+// Falls back to the latest release if no previous minor band exists or is empty.
+func getStableRelease() (string, error) {
+	updateCheckLog.Print("Querying GitHub API for stable release...")
+
+	client, err := api.NewRESTClient(api.ClientOptions{})
+	if err != nil {
+		return "", fmt.Errorf("failed to create GitHub client: %w", err)
+	}
+
+	// Fetch up to 100 releases. The GitHub API returns them newest-first by default.
+	// For the vast majority of projects this is sufficient; if a repo exceeds 100 releases
+	// the resolution is still correct as long as both the latest and its previous minor
+	// band are within the first 100 entries.
+	var releases []Release
+	if err = client.Get("repos/github/gh-aw/releases?per_page=100", &releases); err != nil {
+		return "", fmt.Errorf("failed to query releases: %w", err)
+	}
+
+	// Collect valid stable (non-draft, non-prerelease) semver versions.
+	var versions []string
+	for _, r := range releases {
+		if r.Draft || r.Prerelease {
+			continue
+		}
+		sv := "v" + strings.TrimPrefix(r.TagName, "v")
+		if semver.IsValid(sv) {
+			versions = append(versions, sv)
+		}
+	}
+
+	if len(versions) == 0 {
+		return "", errors.New("no stable releases found")
+	}
+
+	// Sort ascending so we can take the last element as the highest.
+	semver.Sort(versions)
+	latestSV := versions[len(versions)-1]
+
+	// Parse vMAJOR.MINOR.PATCH into components.
+	rawParts := strings.Split(strings.TrimPrefix(semver.Canonical(latestSV), "v"), ".")
+	if len(rawParts) < 3 {
+		updateCheckLog.Printf("Unexpected semver format %s; falling back to latest", latestSV)
+		return latestSV, nil
+	}
+
+	latestMinor, parseErr := strconv.Atoi(rawParts[1])
+	if parseErr != nil {
+		updateCheckLog.Printf("Could not parse minor component of %s; falling back to latest", latestSV)
+		return latestSV, nil
+	}
+
+	// If latest is a vMAJOR.0.x release there is no previous minor band.
+	if latestMinor == 0 {
+		updateCheckLog.Printf("%s is already in minor band 0; no previous band, using latest", latestSV)
+		return latestSV, nil
+	}
+
+	prevBandPrefix := fmt.Sprintf("v%s.%d.", rawParts[0], latestMinor-1)
+
+	// versions is sorted ascending, so the last match is the highest patch in the band.
+	stableSV := ""
+	for _, v := range versions {
+		if strings.HasPrefix(v, prevBandPrefix) {
+			stableSV = v
+		}
+	}
+
+	if stableSV == "" {
+		updateCheckLog.Printf("No releases found in %s* band; falling back to latest (%s)", prevBandPrefix, latestSV)
+		return latestSV, nil
+	}
+
+	updateCheckLog.Printf("Stable release: %s (latest: %s)", stableSV, latestSV)
+	return stableSV, nil
 }
 
 // CheckForUpdatesAsync performs update check in background (best effort)

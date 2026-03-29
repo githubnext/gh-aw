@@ -25,7 +25,7 @@ func TestUpgradeExtensionIfOutdated_DevBuild(t *testing.T) {
 	// Verify the function exits before making any API calls.
 	// If it did make API calls we'd see a network error in test environments,
 	// but the function must return (false, "", nil) immediately.
-	upgraded, installPath, err := upgradeExtensionIfOutdated(false)
+	upgraded, installPath, err := upgradeExtensionIfOutdated("stable", false)
 	require.NoError(t, err, "Should not return error for dev builds")
 	assert.False(t, upgraded, "Should not report upgrade for dev builds")
 	assert.Empty(t, installPath, "installPath should be empty for dev builds")
@@ -42,10 +42,23 @@ func TestUpgradeExtensionIfOutdated_SilentFailureOnAPIError(t *testing.T) {
 	// Use a release version so the API call is attempted
 	SetVersionInfo("v0.1.0")
 
-	upgraded, installPath, err := upgradeExtensionIfOutdated(false)
+	upgraded, installPath, err := upgradeExtensionIfOutdated("stable", false)
 	require.NoError(t, err, "Should fail silently on API errors")
 	assert.False(t, upgraded, "Should not report upgrade when API is unreachable")
 	assert.Empty(t, installPath, "installPath should be empty when API is unreachable")
+}
+
+func TestUpgradeExtensionIfOutdated_SilentFailureOnAPIError_LatestChannel(t *testing.T) {
+	// Same silent-failure behaviour should apply for the "latest" channel.
+	originalVersion := GetVersion()
+	defer SetVersionInfo(originalVersion)
+
+	SetVersionInfo("v0.1.0")
+
+	upgraded, installPath, err := upgradeExtensionIfOutdated("latest", false)
+	require.NoError(t, err, "Should fail silently on API errors (latest channel)")
+	assert.False(t, upgraded, "Should not report upgrade when API is unreachable (latest channel)")
+	assert.Empty(t, installPath, "installPath should be empty when API is unreachable (latest channel)")
 }
 
 func TestFirstAttemptWriter_Linux(t *testing.T) {
