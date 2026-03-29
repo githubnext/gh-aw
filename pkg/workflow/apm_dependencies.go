@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"sort"
 
-	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
 )
 
@@ -114,9 +113,17 @@ func buildAPMAppTokenInvalidationStep() []string {
 	return steps
 }
 
-// GenerateAPMPackStep generates the GitHub Actions step that installs APM packages and
-// packs them into a bundle in the activation job. The step always uses isolated:true because
-// the activation job has no repo context to preserve.
+// GenerateAPMPackStep generates the GitHub Actions steps that install APM packages
+// and pack them into a bundle. This replaces the single microsoft/apm-action step
+// with two steps:
+//  1. A shell run: step that installs the apm-cli via pip and runs apm install
+//     to resolve dependencies into the workspace directory.
+//  2. A github-script step (id: apm_pack) that runs apm_pack.cjs to create the
+//     .tar.gz bundle and emit the bundle-path output.
+//
+// This eliminates the dependency on microsoft/apm-action for the pack phase.
+// The upload-artifact step in buildAPMJob references ${{ steps.apm_pack.outputs.bundle-path }},
+// so the github-script step must carry id: apm_pack.
 //
 // Parameters:
 //   - apmDeps: APM dependency configuration extracted from frontmatter
@@ -132,41 +139,34 @@ func GenerateAPMPackStep(apmDeps *APMDependenciesInfo, target string, data *Work
 
 	apmDepsLog.Printf("Generating APM pack step: %d packages, target=%s", len(apmDeps.Packages), target)
 
-	actionRef, err := GetActionPinWithData("microsoft/apm-action", string(constants.DefaultAPMActionVersion), data)
-	if err != nil {
-		apmDepsLog.Printf("Failed to resolve microsoft/apm-action@%s: %v", constants.DefaultAPMActionVersion, err)
-		actionRef = GetActionPin("microsoft/apm-action")
-	}
-
-	lines := []string{
-		"      - name: Install and pack APM dependencies",
-		"        id: apm_pack",
-		"        uses: " + actionRef,
-	}
-
-	// Build env block: always add GITHUB_TOKEN (app token takes priority over cascading fallback)
-	// plus any user-provided env vars.
-	// If github-app is configured, GITHUB_TOKEN is set from the minted app token, so any
-	// user-supplied GITHUB_TOKEN key is skipped to avoid a duplicate / conflicting entry.
+	// GITHUB_APM_PAT is the environment variable that the apm CLI uses for authentication.
+	// When a GitHub App is configured, use the minted app token; otherwise use the
+	// cascading fallback token.
 	hasGitHubAppToken := apmDeps.GitHubApp != nil
-	hasUserEnv := len(apmDeps.Env) > 0
-	lines = append(lines, "        env:")
+
+	var githubAPMPatExpr string
 	if hasGitHubAppToken {
-		lines = append(lines,
-			fmt.Sprintf("          GITHUB_TOKEN: ${{ steps.%s.outputs.token }}", apmAppTokenStepID),
-		)
+		githubAPMPatExpr = fmt.Sprintf("${{ steps.%s.outputs.token }}", apmAppTokenStepID)
 	} else {
-		// No github-app: use cascading token fallback (custom token or GH_AW_PLUGINS_TOKEN cascade)
-		lines = append(lines,
-			"          GITHUB_TOKEN: "+getEffectiveAPMGitHubToken(apmDeps.GitHubToken),
-		)
+		githubAPMPatExpr = getEffectiveAPMGitHubToken(apmDeps.GitHubToken)
 	}
-	if hasUserEnv {
+
+	// -----------------------------------------------------------------------
+	// Step 1: Install apm-cli and run apm install to resolve packages
+	// -----------------------------------------------------------------------
+	var lines []string
+	lines = append(lines,
+		"      - name: Install APM CLI and packages",
+		"        env:",
+		"          GITHUB_APM_PAT: "+githubAPMPatExpr,
+	)
+
+	// Include any user-provided env vars (skip GITHUB_APM_PAT if already set above)
+	if len(apmDeps.Env) > 0 {
 		keys := make([]string, 0, len(apmDeps.Env))
 		for k := range apmDeps.Env {
-			// Skip GITHUB_TOKEN when github-app provides it to avoid duplicate keys
-			if hasGitHubAppToken && k == "GITHUB_TOKEN" {
-				continue
+			if k == "GITHUB_APM_PAT" {
+				continue // avoid duplicate key
 			}
 			keys = append(keys, k)
 		}
@@ -176,22 +176,40 @@ func GenerateAPMPackStep(apmDeps *APMDependenciesInfo, target string, data *Work
 		}
 	}
 
+	// Shell script: install apm-cli (strip leading 'v' from version), create workspace,
+	// write apm.yml with the declared packages, and run apm install.
 	lines = append(lines,
-		"        with:",
-		"          dependencies: |",
+		"        run: |",
+		"          set -e",
+		"          APM_VERSION=\"${GH_AW_INFO_APM_VERSION#v}\"",
+		"          pip install --quiet \"apm-cli==${APM_VERSION}\"",
+		"          mkdir -p /tmp/gh-aw/apm-workspace",
+		"          cd /tmp/gh-aw/apm-workspace",
+		"          printf 'name: gh-aw-workspace\\nversion: 0.0.0\\ndependencies:\\n  apm:\\n' > apm.yml",
 	)
-
 	for _, dep := range apmDeps.Packages {
-		lines = append(lines, "            - "+dep)
+		lines = append(lines, fmt.Sprintf("          printf '    - %s\\n' >> apm.yml", dep))
 	}
+	lines = append(lines, "          apm install")
 
+	// -----------------------------------------------------------------------
+	// Step 2: Pack the installed workspace with the JavaScript implementation
+	// -----------------------------------------------------------------------
+	githubScriptRef := GetActionPin("actions/github-script")
 	lines = append(lines,
-		"          isolated: 'true'",
-		"          pack: 'true'",
-		"          archive: 'true'",
-		"          target: "+target,
-		"          working-directory: /tmp/gh-aw/apm-workspace",
-		"          apm-version: ${{ env.GH_AW_INFO_APM_VERSION }}",
+		"      - name: Pack APM bundle",
+		"        id: apm_pack",
+		"        uses: "+githubScriptRef,
+		"        env:",
+		"          APM_WORKSPACE: /tmp/gh-aw/apm-workspace",
+		"          APM_BUNDLE_OUTPUT: /tmp/gh-aw/apm-bundle-output",
+		"          APM_TARGET: "+target,
+		"        with:",
+		"          script: |",
+		"            const { setupGlobals } = require('"+SetupActionDestination+"/setup_globals.cjs');",
+		"            setupGlobals(core, github, context, exec, io);",
+		"            const { main } = require('"+SetupActionDestination+"/apm_pack.cjs');",
+		"            await main();",
 	)
 
 	return GitHubActionStep(lines)

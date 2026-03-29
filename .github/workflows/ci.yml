@@ -1034,67 +1034,141 @@ jobs:
           echo "✅ APM test project created at $APM_PROJECT"
           find "$APM_PROJECT" -type f | sort
 
-      - name: Pack APM bundle
+      - name: Pack APM bundle with Python (reference)
         run: |
           set -e
           cd /tmp/apm-test-project
-          mkdir -p /tmp/apm-bundle
-          apm pack --archive -o /tmp/apm-bundle
+          mkdir -p /tmp/apm-bundle-python
+          apm pack --archive -o /tmp/apm-bundle-python
           echo ""
-          echo "✅ Bundle created:"
-          ls -lh /tmp/apm-bundle/*.tar.gz
+          echo "✅ Python bundle created:"
+          ls -lh /tmp/apm-bundle-python/*.tar.gz
 
-      - name: Unpack with Python (microsoft/apm reference)
-        run: |
-          set -e
-          mkdir -p /tmp/apm-out-python
-          BUNDLE=$(ls /tmp/apm-bundle/*.tar.gz)
-          apm unpack "$BUNDLE" -o /tmp/apm-out-python
-          echo ""
-          echo "=== Python unpack result ==="
-          find /tmp/apm-out-python -type f | sort
-
-      - name: Unpack with JavaScript (apm_unpack.cjs)
+      - name: Pack APM bundle with JavaScript (apm_pack.cjs)
         env:
-          APM_BUNDLE_DIR: /tmp/apm-bundle
-          OUTPUT_DIR: /tmp/apm-out-js
+          APM_WORKSPACE: /tmp/apm-test-project
+          APM_BUNDLE_OUTPUT: /tmp/apm-bundle-js
+          APM_TARGET: all
         run: |
           set -e
-          mkdir -p /tmp/apm-out-js
+          mkdir -p /tmp/apm-bundle-js
+          node actions/setup/js/run_apm_pack.cjs
+          echo ""
+          echo "✅ JavaScript bundle created:"
+          ls -lh /tmp/apm-bundle-js/*.tar.gz
+
+      - name: Unpack Python bundle with Python (reference)
+        run: |
+          set -e
+          mkdir -p /tmp/apm-out-py-py
+          BUNDLE=$(ls /tmp/apm-bundle-python/*.tar.gz)
+          apm unpack "$BUNDLE" -o /tmp/apm-out-py-py
+          echo ""
+          echo "=== Python pack + Python unpack ==="
+          find /tmp/apm-out-py-py -type f | sort
+
+      - name: Unpack Python bundle with JavaScript (apm_unpack.cjs)
+        env:
+          APM_BUNDLE_DIR: /tmp/apm-bundle-python
+          OUTPUT_DIR: /tmp/apm-out-py-js
+        run: |
+          set -e
+          mkdir -p /tmp/apm-out-py-js
           node actions/setup/js/run_apm_unpack.cjs
           echo ""
-          echo "=== JavaScript unpack result ==="
-          find /tmp/apm-out-js -type f | sort
+          echo "=== Python pack + JavaScript unpack ==="
+          find /tmp/apm-out-py-js -type f | sort
 
-      - name: Compare Python vs JavaScript unpack outputs
+      - name: Unpack JavaScript bundle with Python (cross-implementation check)
         run: |
           set -e
-          echo "## APM Unpack Integration Test" >> $GITHUB_STEP_SUMMARY
+          mkdir -p /tmp/apm-out-js-py
+          BUNDLE=$(ls /tmp/apm-bundle-js/*.tar.gz)
+          apm unpack "$BUNDLE" -o /tmp/apm-out-js-py
+          echo ""
+          echo "=== JavaScript pack + Python unpack ==="
+          find /tmp/apm-out-js-py -type f | sort
+
+      - name: Unpack JavaScript bundle with JavaScript
+        env:
+          APM_BUNDLE_DIR: /tmp/apm-bundle-js
+          OUTPUT_DIR: /tmp/apm-out-js-js
+        run: |
+          set -e
+          mkdir -p /tmp/apm-out-js-js
+          node actions/setup/js/run_apm_unpack.cjs
+          echo ""
+          echo "=== JavaScript pack + JavaScript unpack ==="
+          find /tmp/apm-out-js-js -type f | sort
+
+      - name: Compare all pack/unpack combinations against reference
+        run: |
+          set -e
+          echo "## APM Pack/Unpack Integration Test" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
 
-          echo "### Files unpacked by Python (reference)" >> $GITHUB_STEP_SUMMARY
+          # Reference: Python pack + Python unpack
+          echo "### Reference: Python pack + Python unpack" >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
-          find /tmp/apm-out-python -type f | sort | sed "s|/tmp/apm-out-python/||" >> $GITHUB_STEP_SUMMARY
-          echo '```' >> $GITHUB_STEP_SUMMARY
-
-          echo "### Files unpacked by JavaScript" >> $GITHUB_STEP_SUMMARY
-          echo '```' >> $GITHUB_STEP_SUMMARY
-          find /tmp/apm-out-js -type f | sort | sed "s|/tmp/apm-out-js/||" >> $GITHUB_STEP_SUMMARY
+          find /tmp/apm-out-py-py -type f | sort | sed "s|/tmp/apm-out-py-py/||" >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
 
-          if diff -rq /tmp/apm-out-python /tmp/apm-out-js > /tmp/apm-diff.txt 2>&1; then
-            echo "### ✅ Outputs are identical" >> $GITHUB_STEP_SUMMARY
-            echo "✅ Python and JavaScript unpack results match"
+          PASS=true
+
+          # 1. Python pack + JavaScript unpack (pre-existing test)
+          echo "### Python pack + JavaScript unpack" >> $GITHUB_STEP_SUMMARY
+          if diff -rq /tmp/apm-out-py-py /tmp/apm-out-py-js > /tmp/diff1.txt 2>&1; then
+            echo "✅ Identical to reference" >> $GITHUB_STEP_SUMMARY
+            echo "✅ [1/3] Python pack + JS unpack: identical to reference"
           else
-            echo "### ❌ Outputs differ" >> $GITHUB_STEP_SUMMARY
+            echo "❌ Differs from reference" >> $GITHUB_STEP_SUMMARY
             echo '```diff' >> $GITHUB_STEP_SUMMARY
-            diff -r /tmp/apm-out-python /tmp/apm-out-js >> $GITHUB_STEP_SUMMARY 2>&1 || true
+            diff -r /tmp/apm-out-py-py /tmp/apm-out-py-js >> $GITHUB_STEP_SUMMARY 2>&1 || true
             echo '```' >> $GITHUB_STEP_SUMMARY
-            echo "❌ Python and JavaScript unpack results differ:"
-            cat /tmp/apm-diff.txt
-            diff -r /tmp/apm-out-python /tmp/apm-out-js || true
+            echo "❌ [1/3] Python pack + JS unpack differs from reference:"
+            cat /tmp/diff1.txt
+            PASS=false
+          fi
+
+          # 2. JavaScript pack + Python unpack (validates JS packer output)
+          echo "### JavaScript pack + Python unpack" >> $GITHUB_STEP_SUMMARY
+          if diff -rq /tmp/apm-out-py-py /tmp/apm-out-js-py > /tmp/diff2.txt 2>&1; then
+            echo "✅ Identical to reference" >> $GITHUB_STEP_SUMMARY
+            echo "✅ [2/3] JS pack + Python unpack: identical to reference"
+          else
+            echo "❌ Differs from reference" >> $GITHUB_STEP_SUMMARY
+            echo '```diff' >> $GITHUB_STEP_SUMMARY
+            diff -r /tmp/apm-out-py-py /tmp/apm-out-js-py >> $GITHUB_STEP_SUMMARY 2>&1 || true
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            echo "❌ [2/3] JS pack + Python unpack differs from reference:"
+            cat /tmp/diff2.txt
+            PASS=false
+          fi
+
+          # 3. JavaScript pack + JavaScript unpack (full JS round-trip)
+          echo "### JavaScript pack + JavaScript unpack" >> $GITHUB_STEP_SUMMARY
+          if diff -rq /tmp/apm-out-py-py /tmp/apm-out-js-js > /tmp/diff3.txt 2>&1; then
+            echo "✅ Identical to reference" >> $GITHUB_STEP_SUMMARY
+            echo "✅ [3/3] JS pack + JS unpack: identical to reference"
+          else
+            echo "❌ Differs from reference" >> $GITHUB_STEP_SUMMARY
+            echo '```diff' >> $GITHUB_STEP_SUMMARY
+            diff -r /tmp/apm-out-py-py /tmp/apm-out-js-js >> $GITHUB_STEP_SUMMARY 2>&1 || true
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            echo "❌ [3/3] JS pack + JS unpack differs from reference:"
+            cat /tmp/diff3.txt
+            PASS=false
+          fi
+
+          if [ "$PASS" = "true" ]; then
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "### ✅ All 3 comparisons passed" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "### ❌ One or more comparisons failed" >> $GITHUB_STEP_SUMMARY
             exit 1
           fi
+
 
   bench:
     # Only run benchmarks on main branch for performance tracking

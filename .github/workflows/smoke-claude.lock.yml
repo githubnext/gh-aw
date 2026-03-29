@@ -2302,20 +2302,31 @@ jobs:
     env:
       GH_AW_INFO_APM_VERSION: v0.8.6
     steps:
-      - name: Install and pack APM dependencies
-        id: apm_pack
-        uses: microsoft/apm-action@a190b0b1a91031057144dc136acf9757a59c9e4d # v1.4.1
+      - name: Install APM CLI and packages
         env:
-          GITHUB_TOKEN: ${{ secrets.GH_AW_PLUGINS_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
+          GITHUB_APM_PAT: ${{ secrets.GH_AW_PLUGINS_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
+        run: |
+          set -e
+          APM_VERSION="${GH_AW_INFO_APM_VERSION#v}"
+          pip install --quiet "apm-cli==${APM_VERSION}"
+          mkdir -p /tmp/gh-aw/apm-workspace
+          cd /tmp/gh-aw/apm-workspace
+          printf 'name: gh-aw-workspace\nversion: 0.0.0\ndependencies:\n  apm:\n' > apm.yml
+          printf '    - microsoft/apm-sample-package\n' >> apm.yml
+          apm install
+      - name: Pack APM bundle
+        id: apm_pack
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        env:
+          APM_WORKSPACE: /tmp/gh-aw/apm-workspace
+          APM_BUNDLE_OUTPUT: /tmp/gh-aw/apm-bundle-output
+          APM_TARGET: claude
         with:
-          dependencies: |
-            - microsoft/apm-sample-package
-          isolated: 'true'
-          pack: 'true'
-          archive: 'true'
-          target: claude
-          working-directory: /tmp/gh-aw/apm-workspace
-          apm-version: ${{ env.GH_AW_INFO_APM_VERSION }}
+          script: |
+            const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');
+            setupGlobals(core, github, context, exec, io);
+            const { main } = require('${{ runner.temp }}/gh-aw/actions/apm_pack.cjs');
+            await main();
       - name: Upload APM bundle artifact
         if: success()
         uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7
