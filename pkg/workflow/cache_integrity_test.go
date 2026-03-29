@@ -134,6 +134,44 @@ func TestComputePolicyHash_DuplicatesDeduped(t *testing.T) {
 		"Duplicate list entries must be deduplicated before hashing")
 }
 
+// TestComputePolicyHash_BlockedUsersExpr verifies that BlockedUsersExpr is included
+// in the policy hash so that expression-based policies are correctly isolated.
+func TestComputePolicyHash_BlockedUsersExpr(t *testing.T) {
+	base := &GitHubToolConfig{
+		MinIntegrity: GitHubIntegrityUnapproved,
+		AllowedRepos: []any{"github/gh-aw"},
+		BlockedUsers: []string{},
+	}
+	baseHash := computePolicyHash(base)
+
+	// Switching to an expression-based blocked-users should produce a different hash
+	cfgWithExpr := &GitHubToolConfig{
+		MinIntegrity:     GitHubIntegrityUnapproved,
+		AllowedRepos:     []any{"github/gh-aw"},
+		BlockedUsersExpr: "${{ vars.BLOCKED_USERS }}",
+	}
+	assert.NotEqual(t, baseHash, computePolicyHash(cfgWithExpr),
+		"Expression-based blocked-users must produce a different hash than an empty list")
+
+	// Different expressions must produce different hashes
+	cfgWithExpr2 := &GitHubToolConfig{
+		MinIntegrity:     GitHubIntegrityUnapproved,
+		AllowedRepos:     []any{"github/gh-aw"},
+		BlockedUsersExpr: "${{ vars.OTHER_BLOCKED_USERS }}",
+	}
+	assert.NotEqual(t, computePolicyHash(cfgWithExpr), computePolicyHash(cfgWithExpr2),
+		"Different expressions must produce different hashes")
+
+	// Same expression must produce the same hash (deterministic)
+	cfgWithExprCopy := &GitHubToolConfig{
+		MinIntegrity:     GitHubIntegrityUnapproved,
+		AllowedRepos:     []any{"github/gh-aw"},
+		BlockedUsersExpr: "${{ vars.BLOCKED_USERS }}",
+	}
+	assert.Equal(t, computePolicyHash(cfgWithExpr), computePolicyHash(cfgWithExprCopy),
+		"Same expression must produce the same hash")
+}
+
 // TestComputePolicyHash_CaseInsensitive verifies that user/repo names are lowercased before hashing.
 func TestComputePolicyHash_CaseInsensitive(t *testing.T) {
 	cfg1 := &GitHubToolConfig{
@@ -322,12 +360,14 @@ func TestComputeIntegrityCacheKey_NoPolicy(t *testing.T) {
 		"Cache key without policy should start with 'memory-none-nopolicy-', got: %s", key)
 }
 
-// TestComputeIntegrityCacheKey_CustomKey verifies that custom keys are respected.
+// TestComputeIntegrityCacheKey_CustomKey verifies that custom keys get the integrity prefix
+// to prevent cross-integrity cache sharing.
 func TestComputeIntegrityCacheKey_CustomKey(t *testing.T) {
 	cfg := &GitHubToolConfig{
 		MinIntegrity: GitHubIntegrityMerged,
 		AllowedRepos: "all",
 	}
+	policyHash := computePolicyHash(cfg)
 
 	entry := CacheMemoryEntry{
 		ID:  "default",
@@ -335,13 +375,16 @@ func TestComputeIntegrityCacheKey_CustomKey(t *testing.T) {
 	}
 	key := computeIntegrityCacheKey(entry, cfg)
 
-	// Custom keys should not get the integrity prefix, but should get run_id appended
-	assert.Equal(t, "my-custom-key-${{ github.run_id }}", key,
-		"Custom keys should not be modified with integrity prefix")
+	// Custom keys must be prefixed with integrity/policy to prevent cross-level sharing
+	expectedPrefix := "memory-merged-" + policyHash + "-"
+	assert.True(t, strings.HasPrefix(key, expectedPrefix),
+		"Custom keys must be prefixed with integrity/policy, got: %s", key)
+	assert.True(t, strings.HasSuffix(key, "-${{ github.run_id }}"),
+		"Custom keys should end with run_id suffix, got: %s", key)
 }
 
 // TestComputeIntegrityCacheKey_CustomKeyWithRunID verifies that custom keys already containing
-// run_id suffix are not modified.
+// the run_id suffix are not duplicated, but still get the integrity prefix.
 func TestComputeIntegrityCacheKey_CustomKeyWithRunID(t *testing.T) {
 	entry := CacheMemoryEntry{
 		ID:  "default",
@@ -349,8 +392,11 @@ func TestComputeIntegrityCacheKey_CustomKeyWithRunID(t *testing.T) {
 	}
 	key := computeIntegrityCacheKey(entry, nil)
 
-	assert.Equal(t, "my-custom-key-${{ github.run_id }}", key,
-		"Custom keys with run_id suffix should not have it appended again")
+	// Should have none-nopolicy prefix + custom key (with single run_id)
+	assert.True(t, strings.HasPrefix(key, "memory-none-nopolicy-"),
+		"Custom keys must be prefixed even without a guard policy, got: %s", key)
+	assert.Equal(t, 1, strings.Count(key, "${{ github.run_id }}"),
+		"run_id suffix should appear exactly once, got: %s", key)
 }
 
 // TestCacheMemoryStepsIncludeGitSetup verifies that generated workflow YAML includes

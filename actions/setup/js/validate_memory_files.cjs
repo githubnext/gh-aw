@@ -48,6 +48,11 @@ function validateMemoryFiles(memoryDir, memoryType = "cache", allowedExtensions)
       const relativeFilePath = relativePath ? path.join(relativePath, entry.name) : entry.name;
 
       if (entry.isDirectory()) {
+        // Skip .git directory — it is git metadata used for integrity branching
+        // and contains files with no extension (e.g. HEAD, ORIG_HEAD, packed-refs).
+        if (entry.name === ".git") {
+          continue;
+        }
         scanDirectory(fullPath, relativeFilePath);
       } else if (entry.isFile()) {
         const ext = path.extname(entry.name).toLowerCase();

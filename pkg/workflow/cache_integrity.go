@@ -41,9 +41,19 @@ func computePolicyHash(github *GitHubToolConfig) string {
 func buildCanonicalPolicy(github *GitHubToolConfig) string {
 	var sb strings.Builder
 
-	// blocked-users: sorted, lowercased, deduplicated
+	// blocked-users: sorted, lowercased, deduplicated literal list.
+	// When blocked-users is provided as a GitHub Actions expression (BlockedUsersExpr),
+	// include it verbatim so that changing the expression produces a different hash.
 	sb.WriteString("blocked-users:")
-	sb.WriteString(canonicalUserList(github.BlockedUsers))
+	if github.BlockedUsersExpr != "" {
+		// Expression-based: include the raw expression as the canonical form.
+		// This ensures that different expressions produce different hashes and that
+		// switching from a literal list to an expression (or vice versa) invalidates the cache.
+		sb.WriteString("expr:")
+		sb.WriteString(github.BlockedUsersExpr)
+	} else {
+		sb.WriteString(canonicalUserList(github.BlockedUsers))
+	}
 	sb.WriteString("\n")
 
 	// min-integrity

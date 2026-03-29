@@ -58,10 +58,17 @@ for level in "${LEVELS[@]}"; do
   if git merge "$level" -X theirs --no-edit -m "merge-from-$level" -q 2>/tmp/gh-aw-merge-err; then
     echo "Merged integrity branch '$level' into '$INTEGRITY'"
   else
-    # Ignore "already up-to-date" and "nothing to merge" — log anything else
-    if ! grep -qiE "already up.to.date|nothing to merge" /tmp/gh-aw-merge-err 2>/dev/null; then
-      echo "Warning: merge from '$level' into '$INTEGRITY' encountered an issue:" >&2
+    merge_exit=$?
+    # Abort the merge to restore a clean working tree, then hard-reset to the
+    # pre-merge state so the agent always starts from a consistent, usable tree.
+    git merge --abort 2>/dev/null || git reset --hard HEAD 2>/dev/null || true
+    # Ignore "already up-to-date" and "nothing to merge" — fail fast on real errors
+    if grep -qiE "already up.to.date|nothing to merge|nothing to commit" /tmp/gh-aw-merge-err 2>/dev/null; then
+      echo "Nothing to merge from '$level' into '$INTEGRITY' (already up-to-date)"
+    else
+      echo "ERROR: merge from '$level' into '$INTEGRITY' failed (exit $merge_exit):" >&2
       cat /tmp/gh-aw-merge-err >&2
+      exit "$merge_exit"
     fi
   fi
 done

@@ -391,10 +391,10 @@ jobs:
       - name: Restore cache-memory file share data
         uses: actions/cache/restore@668228422ae6a00e4ad889ee87cd7109ec5666a7 # v5.0.4
         with:
-          key: weekly-issues-data-${{ github.run_id }}
+          key: memory-none-nopolicy-weekly-issues-data-${{ github.run_id }}
           path: /tmp/gh-aw/cache-memory
           restore-keys: |
-            weekly-issues-data-
+            memory-none-nopolicy-weekly-issues-data-
       - name: Set up cache-memory git repository
         env:
           GH_AW_CACHE_DIR: /tmp/gh-aw/cache-memory
@@ -1480,7 +1480,7 @@ jobs:
         if: steps.check_cache_default.outputs.has_content == 'true'
         uses: actions/cache/save@668228422ae6a00e4ad889ee87cd7109ec5666a7 # v5.0.4
         with:
-          key: weekly-issues-data-${{ github.run_id }}
+          key: memory-none-nopolicy-weekly-issues-data-${{ github.run_id }}
           path: /tmp/gh-aw/cache-memory
 
   upload_assets:

@@ -350,10 +350,10 @@ jobs:
       - name: Cache cache-memory file share data
         uses: actions/cache@668228422ae6a00e4ad889ee87cd7109ec5666a7 # v5.0.4
         with:
-          key: spam-tracking-${{ github.repository_owner }}-${{ github.run_id }}
+          key: memory-none-nopolicy-spam-tracking-${{ github.repository_owner }}-${{ github.run_id }}
           path: /tmp/gh-aw/cache-memory
           restore-keys: |
-            spam-tracking-${{ github.repository_owner }}-
+            memory-none-nopolicy-spam-tracking-${{ github.repository_owner }}-
       - name: Set up cache-memory git repository
         env:
           GH_AW_CACHE_DIR: /tmp/gh-aw/cache-memory

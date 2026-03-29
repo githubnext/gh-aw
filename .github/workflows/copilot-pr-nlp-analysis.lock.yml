@@ -385,10 +385,10 @@ jobs:
       - name: Restore cache-memory file share data
         uses: actions/cache/restore@668228422ae6a00e4ad889ee87cd7109ec5666a7 # v5.0.4
         with:
-          key: copilot-pr-data-${{ github.run_id }}
+          key: memory-none-nopolicy-copilot-pr-data-${{ github.run_id }}
           path: /tmp/gh-aw/cache-memory
           restore-keys: |
-            copilot-pr-data-
+            memory-none-nopolicy-copilot-pr-data-
       - name: Set up cache-memory git repository
         env:
           GH_AW_CACHE_DIR: /tmp/gh-aw/cache-memory
@@ -1376,7 +1376,7 @@ jobs:
         if: steps.check_cache_default.outputs.has_content == 'true'
         uses: actions/cache/save@668228422ae6a00e4ad889ee87cd7109ec5666a7 # v5.0.4
         with:
-          key: copilot-pr-data-${{ github.run_id }}
+          key: memory-none-nopolicy-copilot-pr-data-${{ github.run_id }}
           path: /tmp/gh-aw/cache-memory
 
   upload_assets:

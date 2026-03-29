@@ -321,10 +321,10 @@ jobs:
       - name: Restore cache-memory file share data (repo-audits)
         uses: actions/cache/restore@668228422ae6a00e4ad889ee87cd7109ec5666a7 # v5.0.4
         with:
-          key: repo-audits-${{ github.workflow }}-${{ github.run_id }}
+          key: memory-none-nopolicy-repo-audits-${{ github.workflow }}-${{ github.run_id }}
           path: /tmp/gh-aw/cache-memory-repo-audits
           restore-keys: |
-            repo-audits-${{ github.workflow }}-
+            memory-none-nopolicy-repo-audits-${{ github.workflow }}-
       - name: Set up cache-memory git repository (repo-audits)
         env:
           GH_AW_CACHE_DIR: /tmp/gh-aw/cache-memory-repo-audits
@@ -1181,6 +1181,6 @@ jobs:
         if: steps.check_cache_repo_audits.outputs.has_content == 'true'
         uses: actions/cache/save@668228422ae6a00e4ad889ee87cd7109ec5666a7 # v5.0.4
         with:
-          key: repo-audits-${{ github.workflow }}-${{ github.run_id }}
+          key: memory-none-nopolicy-repo-audits-${{ github.workflow }}-${{ github.run_id }}
           path: /tmp/gh-aw/cache-memory-repo-audits
 
