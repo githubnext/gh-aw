@@ -16,8 +16,38 @@ package workflow
 
 import (
 	"fmt"
+	"regexp"
 	"strings"
 )
+
+// npmPackageNameRE matches valid npm package specifiers:
+// - Scoped: @scope/name where scope and name are lowercase alphanumeric + hyphens + dots + underscores
+// - Unscoped: lowercase alphanumeric + hyphens + dots + underscores
+// - Optional version suffix: @version (e.g. @1.2.3, @^1.0.0, @latest)
+// This rejects any name that could be interpreted as a CLI flag.
+var npmPackageNameRE = regexp.MustCompile(`^(@[a-z0-9][a-z0-9._-]*/)?[a-z0-9][a-z0-9._-]*(@[a-zA-Z0-9^~>=<.*|-]+)?$`)
+
+// pypiPackageNameRE matches valid PyPI package names per PEP 508 / PEP 625:
+// must start and end with alphanumeric; interior may include dots, hyphens, underscores.
+var pypiPackageNameRE = regexp.MustCompile(`^[A-Za-z0-9]([A-Za-z0-9._-]*[A-Za-z0-9])?$`)
+
+// validateNpmPackageName returns an error if the package name does not conform
+// to the npm package naming rules. This prevents argument injection into the npm CLI.
+func validateNpmPackageName(pkg string) error {
+	if !npmPackageNameRE.MatchString(pkg) {
+		return fmt.Errorf("invalid npm package name: %q", pkg)
+	}
+	return nil
+}
+
+// validatePipPackageName returns an error if the package name does not conform
+// to the PyPI naming rules (PEP 508). This prevents argument injection into pip/uv.
+func validatePipPackageName(pkgName string) error {
+	if !pypiPackageNameRE.MatchString(pkgName) {
+		return fmt.Errorf("invalid pip package name: %q", pkgName)
+	}
+	return nil
+}
 
 // rejectHyphenPrefixPackages returns a ValidationError if any of the provided
 // names starts with '-'. The kind parameter (e.g. "npx", "pip", "uv") is used

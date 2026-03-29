@@ -187,7 +187,7 @@ func TestChrootModeEnvFlags(t *testing.T) {
 			t.Error("--env-all is required for AWF to receive host environment variables")
 		}
 
-		// Verify COPILOT_GITHUB_TOKEN is excluded via --exclude-env (AWF v0.26.0+ security fix)
+		// Verify COPILOT_GITHUB_TOKEN is excluded via --exclude-env (AWF v0.25.3+ security fix)
 		// This is always required for Copilot regardless of tool configuration.
 		if !strings.Contains(stepContent, "--exclude-env COPILOT_GITHUB_TOKEN") {
 			t.Error("COPILOT_GITHUB_TOKEN must be excluded from container env via --exclude-env")
