@@ -30,9 +30,19 @@ git add -A
 
 # Commit on the current integrity branch; allow empty commits in case
 # the agent made no changes (idempotent).
-git commit --allow-empty -m "run-${RUN_ID}" -q || true
+if git commit --allow-empty -m "run-${RUN_ID}" -q 2>/tmp/gh-aw-commit-err; then
+  echo "Cache memory git commit complete (run: $RUN_ID)"
+else
+  # Distinguish "nothing to commit" (benign) from real errors
+  if grep -qiE "nothing to commit|nothing added" /tmp/gh-aw-commit-err 2>/dev/null; then
+    echo "Cache memory git: nothing to commit (run: $RUN_ID)"
+  else
+    echo "Warning: git commit encountered an issue:" >&2
+    cat /tmp/gh-aw-commit-err >&2
+  fi
+fi
 
 # Keep the repo small: pack loose objects and prune unreachable ones.
 git gc --auto -q 2>/dev/null || true
 
-echo "Cache memory git commit complete (run: $RUN_ID)"
+echo "Cache memory git post-agent complete (run: $RUN_ID)"

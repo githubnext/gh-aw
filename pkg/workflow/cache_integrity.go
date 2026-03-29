@@ -147,7 +147,9 @@ func canonicalReposScope(repos GitHubReposScope) string {
 		return strings.Join(deduped, "\n")
 
 	default:
-		return fmt.Sprintf("%v", v)
+		// Unexpected type: return empty string for deterministic hash computation
+		// rather than using fmt.Sprintf which could produce inconsistent results.
+		return ""
 	}
 }
 

@@ -55,8 +55,14 @@ for level in "${LEVELS[@]}"; do
     break
   fi
   # Merge higher-integrity branch into the current branch
-  if git merge "$level" -X theirs --no-edit -m "merge-from-$level" -q 2>/dev/null; then
+  if git merge "$level" -X theirs --no-edit -m "merge-from-$level" -q 2>/tmp/gh-aw-merge-err; then
     echo "Merged integrity branch '$level' into '$INTEGRITY'"
+  else
+    # Ignore "already up-to-date" and "nothing to merge" — log anything else
+    if ! grep -qiE "already up.to.date|nothing to merge" /tmp/gh-aw-merge-err 2>/dev/null; then
+      echo "Warning: merge from '$level' into '$INTEGRITY' encountered an issue:" >&2
+      cat /tmp/gh-aw-merge-err >&2
+    fi
   fi
 done
 
