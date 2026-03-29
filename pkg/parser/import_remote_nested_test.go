@@ -710,3 +710,160 @@ func TestParseRemoteOriginWithURLFormats(t *testing.T) {
 		assert.Equal(t, "workflows", result.BasePath)
 	})
 }
+
+// TestMixedImportStylesInSingleFile verifies that one intermediate file can combine
+// both a dot-relative sibling import ("./base.md") and a root-relative import
+// ("shared/extra/extra-server.md") in the same imports list, and that both leaf
+// configurations are merged into the final result.
+func TestMixedImportStylesInSingleFile(t *testing.T) {
+	tmpDir := t.TempDir()
+	workflowsDir := filepath.Join(tmpDir, ".github", "workflows")
+	mcpDir := filepath.Join(workflowsDir, "shared", "mcp")
+	extraDir := filepath.Join(workflowsDir, "shared", "extra")
+	require.NoError(t, os.MkdirAll(mcpDir, 0o755), "create shared/mcp dir")
+	require.NoError(t, os.MkdirAll(extraDir, 0o755), "create shared/extra dir")
+
+	// shared/mcp/base.md – leaf with one MCP server
+	writeFile(t, mcpDir, "base.md", "---\nmcp-servers:\n  base-server:\n    image: example/base\n---\n")
+
+	// shared/extra/extra-server.md – leaf with another MCP server in a different directory
+	writeFile(t, extraDir, "extra-server.md", "---\nmcp-servers:\n  extra-server:\n    image: example/extra\n---\n")
+
+	// shared/mcp/meta.md – imports both a sibling (./) and a root-relative path
+	writeFile(t, mcpDir, "meta.md",
+		"---\nimports:\n  - ./base.md\n  - shared/extra/extra-server.md\n---\n")
+
+	// Top-level workflow imports shared/mcp/meta.md
+	frontmatter := map[string]any{"imports": []any{"shared/mcp/meta.md"}}
+	yamlContent := "imports:\n  - shared/mcp/meta.md\n"
+	cache := NewImportCache(tmpDir)
+	result, err := ProcessImportsFromFrontmatterWithSource(
+		frontmatter, workflowsDir, cache, "workflow.md", yamlContent,
+	)
+
+	require.NoError(t, err, "mixed ./ and root-relative imports should both resolve")
+	require.NotNil(t, result, "result should not be nil")
+	assert.Contains(t, result.MergedMCPServers, "base-server",
+		"base-server from ./base.md sibling should be merged")
+	assert.Contains(t, result.MergedMCPServers, "extra-server",
+		"extra-server from shared/extra/extra-server.md root-relative import should be merged")
+}
+
+// TestChainedMixedImportStyles verifies a three-level import chain where each level
+// uses a different path style:
+//
+//	top-level → shared/chain/chain-a.md (root-relative)
+//	           → ./chain-b.md           (dot-relative sibling)
+//	              → chain-c.md          (bare filename, backward-compatible)
+//
+// The leaf's MCP server configuration must survive all three hops.
+func TestChainedMixedImportStyles(t *testing.T) {
+	tmpDir := t.TempDir()
+	workflowsDir := filepath.Join(tmpDir, ".github", "workflows")
+	chainDir := filepath.Join(workflowsDir, "shared", "chain")
+	require.NoError(t, os.MkdirAll(chainDir, 0o755), "create shared/chain dir")
+
+	// chain-c.md – leaf, carries an MCP server definition
+	writeFile(t, chainDir, "chain-c.md",
+		"---\nmcp-servers:\n  chain-c-server:\n    image: example/chain-c\n---\n")
+
+	// chain-b.md – imports chain-c.md using a bare filename (backward-compatible)
+	writeFile(t, chainDir, "chain-b.md",
+		"---\nimports:\n  - chain-c.md\n---\n")
+
+	// chain-a.md – imports ./chain-b.md using the explicit dot-relative style
+	writeFile(t, chainDir, "chain-a.md",
+		"---\nimports:\n  - ./chain-b.md\n---\n")
+
+	// Top-level workflow imports shared/chain/chain-a.md using a root-relative path
+	frontmatter := map[string]any{"imports": []any{"shared/chain/chain-a.md"}}
+	yamlContent := "imports:\n  - shared/chain/chain-a.md\n"
+	cache := NewImportCache(tmpDir)
+	result, err := ProcessImportsFromFrontmatterWithSource(
+		frontmatter, workflowsDir, cache, "workflow.md", yamlContent,
+	)
+
+	require.NoError(t, err, "three-level chain with mixed import styles should resolve")
+	require.NotNil(t, result, "result should not be nil")
+	assert.Contains(t, result.MergedMCPServers, "chain-c-server",
+		"MCP server from chain-c.md should propagate through all three chain levels")
+}
+
+// TestCrossDirectoryAbsoluteImport verifies that a file in shared/dir-a/ can use a
+// root-relative path "shared/dir-b/file-b.md" to import a file in a completely
+// different subdirectory (not a sibling), and that the leaf's configuration is merged.
+func TestCrossDirectoryAbsoluteImport(t *testing.T) {
+	tmpDir := t.TempDir()
+	workflowsDir := filepath.Join(tmpDir, ".github", "workflows")
+	dirA := filepath.Join(workflowsDir, "shared", "dir-a")
+	dirB := filepath.Join(workflowsDir, "shared", "dir-b")
+	require.NoError(t, os.MkdirAll(dirA, 0o755), "create shared/dir-a")
+	require.NoError(t, os.MkdirAll(dirB, 0o755), "create shared/dir-b")
+
+	// shared/dir-b/file-b.md – leaf with an MCP server
+	writeFile(t, dirB, "file-b.md",
+		"---\nmcp-servers:\n  dir-b-server:\n    image: example/dir-b\n---\n")
+
+	// shared/dir-a/file-a.md – cross-directory root-relative import
+	writeFile(t, dirA, "file-a.md",
+		"---\nimports:\n  - shared/dir-b/file-b.md\n---\n")
+
+	// Top-level workflow imports shared/dir-a/file-a.md
+	frontmatter := map[string]any{"imports": []any{"shared/dir-a/file-a.md"}}
+	yamlContent := "imports:\n  - shared/dir-a/file-a.md\n"
+	cache := NewImportCache(tmpDir)
+	result, err := ProcessImportsFromFrontmatterWithSource(
+		frontmatter, workflowsDir, cache, "workflow.md", yamlContent,
+	)
+
+	require.NoError(t, err, "cross-directory root-relative import from a subdirectory should resolve")
+	require.NotNil(t, result, "result should not be nil")
+	assert.Contains(t, result.MergedMCPServers, "dir-b-server",
+		"MCP server from shared/dir-b/file-b.md should be merged")
+}
+
+// TestMultipleSiblingStylesFromSameDirectory verifies that multiple sibling imports
+// from the same directory each using a different path style (./style, bare, root-relative)
+// all resolve to the correct files in that directory.
+func TestMultipleSiblingStylesFromSameDirectory(t *testing.T) {
+	tmpDir := t.TempDir()
+	workflowsDir := filepath.Join(tmpDir, ".github", "workflows")
+	sharedDir := filepath.Join(workflowsDir, "shared")
+	require.NoError(t, os.MkdirAll(sharedDir, 0o755), "create shared dir")
+
+	// Three leaf files in the same directory, each contributing one MCP server
+	writeFile(t, sharedDir, "server-a.md",
+		"---\nmcp-servers:\n  server-a:\n    image: example/a\n---\n")
+	writeFile(t, sharedDir, "server-b.md",
+		"---\nmcp-servers:\n  server-b:\n    image: example/b\n---\n")
+	writeFile(t, sharedDir, "server-c.md",
+		"---\nmcp-servers:\n  server-c:\n    image: example/c\n---\n")
+
+	// hub.md imports all three siblings using three different path styles
+	writeFile(t, sharedDir, "hub.md",
+		"---\nimports:\n  - ./server-a.md\n  - server-b.md\n  - shared/server-c.md\n---\n")
+
+	// Top-level workflow
+	frontmatter := map[string]any{"imports": []any{"shared/hub.md"}}
+	yamlContent := "imports:\n  - shared/hub.md\n"
+	cache := NewImportCache(tmpDir)
+	result, err := ProcessImportsFromFrontmatterWithSource(
+		frontmatter, workflowsDir, cache, "workflow.md", yamlContent,
+	)
+
+	require.NoError(t, err, "all three sibling import styles should resolve")
+	require.NotNil(t, result, "result should not be nil")
+	assert.Contains(t, result.MergedMCPServers, "server-a",
+		"server-a from ./server-a.md should be merged")
+	assert.Contains(t, result.MergedMCPServers, "server-b",
+		"server-b from bare server-b.md should be merged")
+	assert.Contains(t, result.MergedMCPServers, "server-c",
+		"server-c from shared/server-c.md root-relative import should be merged")
+}
+
+// writeFile is a test helper that writes content to a file in the given directory.
+func writeFile(t *testing.T, dir, name, content string) {
+	t.Helper()
+	require.NoError(t, os.WriteFile(filepath.Join(dir, name), []byte(content), 0o644),
+		"write %s/%s", dir, name)
+}
