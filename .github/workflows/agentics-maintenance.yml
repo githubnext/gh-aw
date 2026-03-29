@@ -71,10 +71,11 @@ jobs:
         with:
           sparse-checkout: |
             actions
+          path: _gh-aw
           persist-credentials: false
 
       - name: Setup Scripts
-        uses: ./actions/setup
+        uses: ./_gh-aw/actions/setup
         with:
           destination: ${{ runner.temp }}/gh-aw/actions
 
@@ -119,7 +120,7 @@ jobs:
           persist-credentials: false
 
       - name: Setup Scripts
-        uses: ./actions/setup
+        uses: ./_gh-aw/actions/setup
         with:
           destination: ${{ runner.temp }}/gh-aw/actions
 
@@ -174,7 +175,7 @@ jobs:
           persist-credentials: false
 
       - name: Setup Scripts
-        uses: ./actions/setup
+        uses: ./_gh-aw/actions/setup
         with:
           destination: ${{ runner.temp }}/gh-aw/actions
 
@@ -228,7 +229,7 @@ jobs:
           echo "✓ All workflows compiled successfully"
 
       - name: Setup Scripts
-        uses: ./actions/setup
+        uses: ./_gh-aw/actions/setup
         with:
           destination: ${{ runner.temp }}/gh-aw/actions
 
@@ -284,7 +285,7 @@ jobs:
           node-version: '22'
 
       - name: Setup Scripts
-        uses: ./actions/setup
+        uses: ./_gh-aw/actions/setup
         with:
           destination: ${{ runner.temp }}/gh-aw/actions
 

@@ -14,6 +14,12 @@ import (
 
 var compilerYamlHelpersLog = logger.New("workflow:compiler_yaml_helpers")
 
+// devModeActionsCheckoutPath is the safe subdirectory where github/gh-aw is checked out in dev mode.
+// Using a dedicated subdirectory prevents subsequent checkouts to the workspace root from
+// overwriting the actions/ directory, which would cause the runner post-step cleanup for
+// "uses: ./_gh-aw/actions/setup" to fail with "Can't find 'action.yml'".
+const devModeActionsCheckoutPath = "_gh-aw"
+
 // ContainsCheckout returns true if the given custom steps contain an actions/checkout step
 func ContainsCheckout(customSteps string) bool {
 	if customSteps == "" {
@@ -244,8 +250,9 @@ func (c *Compiler) generateCheckoutActionsFolder(data *WorkflowData) []string {
 		return lines
 	}
 
-	// Dev mode: checkout actions folder from github/gh-aw so that cross-repo
-	// callers (e.g. event-driven relays) can find the actions/ directory.
+	// Dev mode: checkout actions folder from github/gh-aw into a safe subdirectory so
+	// that cross-repo callers (e.g. event-driven relays) can find the actions/ directory,
+	// and so that subsequent checkouts to the workspace root do not overwrite it.
 	// Without repository: the runner defaults to the caller's repo, which has
 	// no actions/ directory, causing Setup Scripts to fail immediately.
 	if c.actionMode.IsDev() {
@@ -256,6 +263,7 @@ func (c *Compiler) generateCheckoutActionsFolder(data *WorkflowData) []string {
 			"          repository: github/gh-aw\n",
 			"          sparse-checkout: |\n",
 			"            actions\n",
+			fmt.Sprintf("          path: %s\n", devModeActionsCheckoutPath),
 			"          persist-credentials: false\n",
 		}
 		return lines

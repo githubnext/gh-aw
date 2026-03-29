@@ -417,8 +417,8 @@ func TestGenerateMaintenanceWorkflow_ActionTag(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Expected maintenance workflow to be generated: %v", err)
 		}
-		if !strings.Contains(string(content), "uses: ./actions/setup") {
-			t.Errorf("Expected local path in dev mode, got:\n%s", string(content))
+		if !strings.Contains(string(content), "uses: ./_gh-aw/actions/setup") {
+			t.Errorf("Expected safe checkout path in dev mode, got:\n%s", string(content))
 		}
 	})
 }

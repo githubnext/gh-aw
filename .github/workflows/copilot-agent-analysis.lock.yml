@@ -69,9 +69,10 @@ jobs:
           repository: github/gh-aw
           sparse-checkout: |
             actions
+          path: _gh-aw
           persist-credentials: false
       - name: Setup Scripts
-        uses: ./actions/setup
+        uses: ./_gh-aw/actions/setup
         with:
           destination: ${{ runner.temp }}/gh-aw/actions
       - name: Generate agentic run info
@@ -315,9 +316,10 @@ jobs:
           repository: github/gh-aw
           sparse-checkout: |
             actions
+          path: _gh-aw
           persist-credentials: false
       - name: Setup Scripts
-        uses: ./actions/setup
+        uses: ./_gh-aw/actions/setup
         with:
           destination: ${{ runner.temp }}/gh-aw/actions
       - name: Set runtime paths
@@ -907,9 +909,10 @@ jobs:
           repository: github/gh-aw
           sparse-checkout: |
             actions
+          path: _gh-aw
           persist-credentials: false
       - name: Setup Scripts
-        uses: ./actions/setup
+        uses: ./_gh-aw/actions/setup
         with:
           destination: ${{ runner.temp }}/gh-aw/actions
       - name: Download agent output artifact
@@ -1018,9 +1021,10 @@ jobs:
           repository: github/gh-aw
           sparse-checkout: |
             actions
+          path: _gh-aw
           persist-credentials: false
       - name: Setup Scripts
-        uses: ./actions/setup
+        uses: ./_gh-aw/actions/setup
         with:
           destination: ${{ runner.temp }}/gh-aw/actions
       - name: Download agent output artifact
@@ -1185,9 +1189,10 @@ jobs:
           repository: github/gh-aw
           sparse-checkout: |
             actions
+          path: _gh-aw
           persist-credentials: false
       - name: Setup Scripts
-        uses: ./actions/setup
+        uses: ./_gh-aw/actions/setup
         with:
           destination: ${{ runner.temp }}/gh-aw/actions
       - name: Checkout repository
@@ -1244,6 +1249,7 @@ jobs:
           sparse-checkout: |
             actions/setup
           sparse-checkout-cone-mode: true
+          path: _gh-aw
           persist-credentials: false
 
   safe_outputs:
@@ -1277,9 +1283,10 @@ jobs:
           repository: github/gh-aw
           sparse-checkout: |
             actions
+          path: _gh-aw
           persist-credentials: false
       - name: Setup Scripts
-        uses: ./actions/setup
+        uses: ./_gh-aw/actions/setup
         with:
           destination: ${{ runner.temp }}/gh-aw/actions
       - name: Download agent output artifact
@@ -1346,9 +1353,10 @@ jobs:
           repository: github/gh-aw
           sparse-checkout: |
             actions
+          path: _gh-aw
           persist-credentials: false
       - name: Setup Scripts
-        uses: ./actions/setup
+        uses: ./_gh-aw/actions/setup
         with:
           destination: ${{ runner.temp }}/gh-aw/actions
       - name: Download cache-memory artifact (default)

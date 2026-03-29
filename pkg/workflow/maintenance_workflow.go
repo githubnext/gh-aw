@@ -254,6 +254,9 @@ jobs:
 		yaml.WriteString("        with:\n")
 		yaml.WriteString("          sparse-checkout: |\n")
 		yaml.WriteString("            actions\n")
+		if actionMode == ActionModeDev {
+			yaml.WriteString("          path: " + devModeActionsCheckoutPath + "\n")
+		}
 		yaml.WriteString("          persist-credentials: false\n\n")
 	}
 

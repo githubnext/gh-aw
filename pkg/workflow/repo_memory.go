@@ -684,13 +684,12 @@ func (c *Compiler) buildPushRepoMemoryJob(data *WorkflowData, threatDetectionEna
 		steps = append(steps, step.String())
 	}
 
-	// In dev mode the setup action is referenced via a local path (./actions/setup), so its files
-	// live in the workspace. The push_repo_memory.cjs script internally checks out the memory
-	// branch, which replaces the workspace content and removes the actions/setup directory.
-	// Without restoring it, the runner's post-step for Setup Scripts would fail with
-	// "Can't find 'action.yml', 'action.yaml' or 'Dockerfile' under .../actions/setup".
-	// We add a restore checkout step (if: always()) after all push steps so the post-step
-	// can always find action.yml and complete its /tmp/gh-aw cleanup.
+	// In dev mode the setup action is referenced via a local path (./_gh-aw/actions/setup), so its files
+	// live in the _gh-aw subdirectory of the workspace. The push_repo_memory.cjs script internally checks
+	// out the memory branch, which replaces the workspace root content. Even though our checkout uses the
+	// safe _gh-aw subdirectory, an aggressive root checkout could still remove it; we add a restore
+	// checkout step (if: always()) after all push steps so the post-step can always find action.yml
+	// and complete its /tmp/gh-aw cleanup.
 	// Note: no ref is specified in dev mode — use the repository default branch (same pattern
 	// as generateCheckoutActionsFolder in dev mode).
 	if c.actionMode.IsDev() {
@@ -703,6 +702,7 @@ func (c *Compiler) buildPushRepoMemoryJob(data *WorkflowData, threatDetectionEna
 		restoreStep.WriteString("          sparse-checkout: |\n")
 		restoreStep.WriteString("            actions/setup\n")
 		restoreStep.WriteString("          sparse-checkout-cone-mode: true\n")
+		fmt.Fprintf(&restoreStep, "          path: %s\n", devModeActionsCheckoutPath)
 		restoreStep.WriteString("          persist-credentials: false\n")
 		steps = append(steps, restoreStep.String())
 	}

@@ -331,6 +331,8 @@ func TestVersionToGitRef(t *testing.T) {
 // step in dev mode includes repository: github/gh-aw so that cross-repo callers (e.g.
 // event-driven relays) can find the actions/ directory instead of defaulting to the
 // caller's repo which has no actions/ directory.
+// It also verifies the checkout uses a safe subdirectory path so subsequent checkouts
+// to the workspace root do not overwrite the actions/ directory.
 func TestCheckoutActionsFolderDevModeHasRepository(t *testing.T) {
 	compiler := NewCompilerWithVersion("dev")
 	compiler.SetActionMode(ActionModeDev)
@@ -340,6 +342,9 @@ func TestCheckoutActionsFolderDevModeHasRepository(t *testing.T) {
 
 	if !strings.Contains(combined, "repository: github/gh-aw") {
 		t.Error("Dev mode Checkout actions folder should include 'repository: github/gh-aw' (fix for #20658)")
+	}
+	if !strings.Contains(combined, "path: _gh-aw") {
+		t.Error("Dev mode Checkout actions folder should checkout to safe subdirectory 'path: _gh-aw' to prevent override by subsequent checkouts")
 	}
 }
 
