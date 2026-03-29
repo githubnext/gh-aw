@@ -162,10 +162,14 @@ function detectTarget(workspaceDir, explicitTarget) {
   }
 
   // Auto-detect from folder structure
-  const hasGitHub = fs.existsSync(path.join(workspaceDir, ".github")) && fs.lstatSync(path.join(workspaceDir, ".github")).isDirectory();
-  const hasClaude = fs.existsSync(path.join(workspaceDir, ".claude")) && fs.lstatSync(path.join(workspaceDir, ".claude")).isDirectory();
-  const hasCursor = fs.existsSync(path.join(workspaceDir, ".cursor")) && fs.lstatSync(path.join(workspaceDir, ".cursor")).isDirectory();
-  const hasOpencode = fs.existsSync(path.join(workspaceDir, ".opencode")) && fs.lstatSync(path.join(workspaceDir, ".opencode")).isDirectory();
+  const githubDir = path.join(workspaceDir, ".github");
+  const claudeDir = path.join(workspaceDir, ".claude");
+  const cursorDir = path.join(workspaceDir, ".cursor");
+  const opencodeDir = path.join(workspaceDir, ".opencode");
+  const hasGitHub = fs.existsSync(githubDir) && fs.lstatSync(githubDir).isDirectory();
+  const hasClaude = fs.existsSync(claudeDir) && fs.lstatSync(claudeDir).isDirectory();
+  const hasCursor = fs.existsSync(cursorDir) && fs.lstatSync(cursorDir).isDirectory();
+  const hasOpencode = fs.existsSync(opencodeDir) && fs.lstatSync(opencodeDir).isDirectory();
 
   const detected = [hasGitHub && ".github/", hasClaude && ".claude/", hasCursor && ".cursor/", hasOpencode && ".opencode/"].filter(Boolean);
 
