@@ -3042,10 +3042,6 @@
                         "description": "HTTPS URL pattern with optional wildcards (e.g., 'https://github.com/githubnext/*')"
                       },
                       "examples": [["https://github.com/githubnext/*", "https://api.github.com/repos/*"]]
-                    },
-                    "cleanup-script": {
-                      "type": "string",
-                      "description": "Path to cleanup script run after AWF shuts down (default: ./scripts/ci/cleanup.sh)"
                     }
                   },
                   "additionalProperties": false
@@ -9161,40 +9157,6 @@
               "description": "Custom environment variables to pass to the AI engine, including secret overrides (e.g., OPENAI_API_KEY: ${{ secrets.CUSTOM_KEY }})",
               "additionalProperties": {
                 "type": "string"
-              }
-            },
-            "error_patterns": {
-              "type": "array",
-              "description": "Custom error patterns for validating agent logs",
-              "items": {
-                "type": "object",
-                "description": "Error pattern definition",
-                "properties": {
-                  "id": {
-                    "type": "string",
-                    "description": "Unique identifier for this error pattern"
-                  },
-                  "pattern": {
-                    "type": "string",
-                    "description": "Ecma script regular expression pattern to match log lines"
-                  },
-                  "level_group": {
-                    "type": "integer",
-                    "minimum": 0,
-                    "description": "Capture group index (1-based) that contains the error level. Use 0 to infer from pattern content."
-                  },
-                  "message_group": {
-                    "type": "integer",
-                    "minimum": 0,
-                    "description": "Capture group index (1-based) that contains the error message. Use 0 to use the entire match."
-                  },
-                  "description": {
-                    "type": "string",
-                    "description": "Human-readable description of what this pattern matches"
-                  }
-                },
-                "required": ["pattern"],
-                "additionalProperties": false
               }
             },
             "config": {
