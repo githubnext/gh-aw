@@ -260,13 +260,24 @@ jobs:
 		yaml.WriteString("          persist-credentials: false\n\n")
 	}
 
-	// Add setup step with the resolved action reference
-	yaml.WriteString(`      - name: Setup Scripts
+	// Add setup step with the resolved action reference.
+	// Dev mode runs setup.sh directly from the outside-workspace checkout.
+	// All other modes (script, release, action) use the resolved action reference via uses:.
+	if actionMode == ActionModeDev {
+		yaml.WriteString("      - name: Setup Scripts\n")
+		yaml.WriteString("        run: |\n")
+		yaml.WriteString("          bash " + devModeActionsCheckoutPath + "/actions/setup/setup.sh\n")
+		yaml.WriteString("        env:\n")
+		yaml.WriteString("          INPUT_DESTINATION: ${{ runner.temp }}/gh-aw/actions\n\n")
+	} else {
+		yaml.WriteString(`      - name: Setup Scripts
         uses: ` + setupActionRef + `
         with:
           destination: ${{ runner.temp }}/gh-aw/actions
 
-      - name: Close expired discussions
+`)
+	}
+	yaml.WriteString(`      - name: Close expired discussions
         uses: ` + GetActionPin("actions/github-script") + `
         with:
           script: |

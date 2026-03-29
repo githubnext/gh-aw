@@ -14,11 +14,12 @@ import (
 
 var compilerYamlHelpersLog = logger.New("workflow:compiler_yaml_helpers")
 
-// devModeActionsCheckoutPath is the safe subdirectory where github/gh-aw is checked out in dev mode.
-// Using a dedicated subdirectory prevents subsequent checkouts to the workspace root from
-// overwriting the actions/ directory, which would cause the runner post-step cleanup for
-// "uses: ./_gh-aw/actions/setup" to fail with "Can't find 'action.yml'".
-const devModeActionsCheckoutPath = "_gh-aw"
+// devModeActionsCheckoutPath is the path outside the workspace where github/gh-aw is checked out
+// in dev mode. Using an absolute path under /tmp ensures the files are never inside the workspace
+// git repository and cannot be accidentally committed by callers.
+// The setup action is then invoked via a bash script (same pattern as script mode) rather than
+// via a "uses:" step, which avoids leaving any artefacts in $GITHUB_WORKSPACE.
+const devModeActionsCheckoutPath = "/tmp/gh-aw/dev-actions"
 
 // ContainsCheckout returns true if the given custom steps contain an actions/checkout step
 func ContainsCheckout(customSteps string) bool {
@@ -250,11 +251,10 @@ func (c *Compiler) generateCheckoutActionsFolder(data *WorkflowData) []string {
 		return lines
 	}
 
-	// Dev mode: checkout actions folder from github/gh-aw into a safe subdirectory so
-	// that cross-repo callers (e.g. event-driven relays) can find the actions/ directory,
-	// and so that subsequent checkouts to the workspace root do not overwrite it.
-	// Without repository: the runner defaults to the caller's repo, which has
-	// no actions/ directory, causing Setup Scripts to fail immediately.
+	// Dev mode: checkout actions folder from github/gh-aw to an absolute path outside the workspace
+	// so that the files are never inside the caller's git repository and cannot be accidentally committed.
+	// The setup action is run via bash script (see generateSetupStep) rather than via "uses:",
+	// so no workspace-relative path is required.
 	if c.actionMode.IsDev() {
 		lines := []string{
 			"      - name: Checkout actions folder\n",
@@ -288,17 +288,19 @@ func (c *Compiler) generateCheckoutActionsFolder(data *WorkflowData) []string {
 // generateInlineGitHubScriptStep is implemented in compiler_github_actions_steps.go
 
 // generateSetupStep generates the setup step based on the action mode.
-// In script mode, it runs the setup.sh script directly from the checked-out source.
-// In other modes (dev/release), it uses the setup action.
+// In script mode, it runs the setup.sh script directly from the checked-out actions-source directory.
+// In dev mode, it runs the setup.sh script directly from the checked-out dev-actions directory
+// (outside the workspace, so callers cannot accidentally commit it).
+// In release/action mode, it uses the setup action via "uses:".
 //
 // Parameters:
-//   - setupActionRef: The action reference for setup action (e.g., "./actions/setup" or "github/gh-aw/actions/setup@sha")
+//   - setupActionRef: The action reference for setup action (e.g., "github/gh-aw/actions/setup@sha")
 //   - destination: The destination path where files should be copied (e.g., SetupActionDestination)
 //   - enableCustomTokens: Whether to enable custom-token support (installs @actions/github so handler_auth.cjs can create per-handler Octokit clients)
 //
 // Returns a slice of strings representing the YAML lines for the setup step.
 func (c *Compiler) generateSetupStep(setupActionRef string, destination string, enableCustomTokens bool) []string {
-	// Script mode: run the setup.sh script directly
+	// Script mode: run the setup.sh script directly from actions-source
 	if c.actionMode.IsScript() {
 		lines := []string{
 			"      - name: Setup Scripts\n",
@@ -313,7 +315,22 @@ func (c *Compiler) generateSetupStep(setupActionRef string, destination string, 
 		return lines
 	}
 
-	// Dev/Release mode: use the setup action
+	// Dev mode: run the setup.sh script directly from dev-actions (outside the workspace)
+	if c.actionMode.IsDev() {
+		lines := []string{
+			"      - name: Setup Scripts\n",
+			"        run: |\n",
+			fmt.Sprintf("          bash %s/actions/setup/setup.sh\n", devModeActionsCheckoutPath),
+			"        env:\n",
+			fmt.Sprintf("          INPUT_DESTINATION: %s\n", destination),
+		}
+		if enableCustomTokens {
+			lines = append(lines, "          INPUT_SAFE_OUTPUT_CUSTOM_TOKENS: 'true'\n")
+		}
+		return lines
+	}
+
+	// Release/Action mode: use the setup action
 	lines := []string{
 		"      - name: Setup Scripts\n",
 		fmt.Sprintf("        uses: %s\n", setupActionRef),

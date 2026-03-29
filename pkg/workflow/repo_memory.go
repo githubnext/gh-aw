@@ -684,29 +684,6 @@ func (c *Compiler) buildPushRepoMemoryJob(data *WorkflowData, threatDetectionEna
 		steps = append(steps, step.String())
 	}
 
-	// In dev mode the setup action is referenced via a local path (./_gh-aw/actions/setup), so its files
-	// live in the _gh-aw subdirectory of the workspace. The push_repo_memory.cjs script internally checks
-	// out the memory branch, which replaces the workspace root content. Even though our checkout uses the
-	// safe _gh-aw subdirectory, an aggressive root checkout could still remove it; we add a restore
-	// checkout step (if: always()) after all push steps so the post-step can always find action.yml
-	// and complete its /tmp/gh-aw cleanup.
-	// Note: no ref is specified in dev mode — use the repository default branch (same pattern
-	// as generateCheckoutActionsFolder in dev mode).
-	if c.actionMode.IsDev() {
-		var restoreStep strings.Builder
-		restoreStep.WriteString("      - name: Restore actions folder\n")
-		restoreStep.WriteString("        if: always()\n")
-		fmt.Fprintf(&restoreStep, "        uses: %s\n", GetActionPin("actions/checkout"))
-		restoreStep.WriteString("        with:\n")
-		restoreStep.WriteString("          repository: github/gh-aw\n")
-		restoreStep.WriteString("          sparse-checkout: |\n")
-		restoreStep.WriteString("            actions/setup\n")
-		restoreStep.WriteString("          sparse-checkout-cone-mode: true\n")
-		fmt.Fprintf(&restoreStep, "          path: %s\n", devModeActionsCheckoutPath)
-		restoreStep.WriteString("          persist-credentials: false\n")
-		steps = append(steps, restoreStep.String())
-	}
-
 	// Set job condition based on threat detection
 	// If threat detection is enabled, only run if detection passed
 	// Otherwise, always run (even if agent job failed)

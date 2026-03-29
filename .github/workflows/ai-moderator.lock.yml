@@ -84,12 +84,13 @@ jobs:
           repository: github/gh-aw
           sparse-checkout: |
             actions
-          path: _gh-aw
+          path: /tmp/gh-aw/dev-actions
           persist-credentials: false
       - name: Setup Scripts
-        uses: ./_gh-aw/actions/setup
-        with:
-          destination: ${{ runner.temp }}/gh-aw/actions
+        run: |
+          bash /tmp/gh-aw/dev-actions/actions/setup/setup.sh
+        env:
+          INPUT_DESTINATION: ${{ runner.temp }}/gh-aw/actions
       - name: Generate agentic run info
         id: generate_aw_info
         env:
@@ -328,12 +329,13 @@ jobs:
           repository: github/gh-aw
           sparse-checkout: |
             actions
-          path: _gh-aw
+          path: /tmp/gh-aw/dev-actions
           persist-credentials: false
       - name: Setup Scripts
-        uses: ./_gh-aw/actions/setup
-        with:
-          destination: ${{ runner.temp }}/gh-aw/actions
+        run: |
+          bash /tmp/gh-aw/dev-actions/actions/setup/setup.sh
+        env:
+          INPUT_DESTINATION: ${{ runner.temp }}/gh-aw/actions
       - name: Set runtime paths
         id: set-runtime-paths
         run: |
@@ -842,12 +844,13 @@ jobs:
           repository: github/gh-aw
           sparse-checkout: |
             actions
-          path: _gh-aw
+          path: /tmp/gh-aw/dev-actions
           persist-credentials: false
       - name: Setup Scripts
-        uses: ./_gh-aw/actions/setup
-        with:
-          destination: ${{ runner.temp }}/gh-aw/actions
+        run: |
+          bash /tmp/gh-aw/dev-actions/actions/setup/setup.sh
+        env:
+          INPUT_DESTINATION: ${{ runner.temp }}/gh-aw/actions
       - name: Download agent output artifact
         id: download-agent-output
         continue-on-error: true
@@ -946,12 +949,13 @@ jobs:
           repository: github/gh-aw
           sparse-checkout: |
             actions
-          path: _gh-aw
+          path: /tmp/gh-aw/dev-actions
           persist-credentials: false
       - name: Setup Scripts
-        uses: ./_gh-aw/actions/setup
-        with:
-          destination: ${{ runner.temp }}/gh-aw/actions
+        run: |
+          bash /tmp/gh-aw/dev-actions/actions/setup/setup.sh
+        env:
+          INPUT_DESTINATION: ${{ runner.temp }}/gh-aw/actions
       - name: Check user rate limit
         id: check_rate_limit
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
@@ -1026,12 +1030,13 @@ jobs:
           repository: github/gh-aw
           sparse-checkout: |
             actions
-          path: _gh-aw
+          path: /tmp/gh-aw/dev-actions
           persist-credentials: false
       - name: Setup Scripts
-        uses: ./_gh-aw/actions/setup
-        with:
-          destination: ${{ runner.temp }}/gh-aw/actions
+        run: |
+          bash /tmp/gh-aw/dev-actions/actions/setup/setup.sh
+        env:
+          INPUT_DESTINATION: ${{ runner.temp }}/gh-aw/actions
       - name: Download agent output artifact
         id: download-agent-output
         continue-on-error: true
@@ -1096,12 +1101,13 @@ jobs:
           repository: github/gh-aw
           sparse-checkout: |
             actions
-          path: _gh-aw
+          path: /tmp/gh-aw/dev-actions
           persist-credentials: false
       - name: Setup Scripts
-        uses: ./_gh-aw/actions/setup
-        with:
-          destination: ${{ runner.temp }}/gh-aw/actions
+        run: |
+          bash /tmp/gh-aw/dev-actions/actions/setup/setup.sh
+        env:
+          INPUT_DESTINATION: ${{ runner.temp }}/gh-aw/actions
       - name: Unlock issue after agent workflow
         id: unlock-issue
         if: (github.event_name == 'issues' || github.event_name == 'issue_comment') && needs.activation.outputs.issue_locked == 'true'

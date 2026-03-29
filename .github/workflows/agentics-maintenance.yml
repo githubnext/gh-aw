@@ -71,13 +71,14 @@ jobs:
         with:
           sparse-checkout: |
             actions
-          path: _gh-aw
+          path: /tmp/gh-aw/dev-actions
           persist-credentials: false
 
       - name: Setup Scripts
-        uses: ./_gh-aw/actions/setup
-        with:
-          destination: ${{ runner.temp }}/gh-aw/actions
+        run: |
+          bash /tmp/gh-aw/dev-actions/actions/setup/setup.sh
+        env:
+          INPUT_DESTINATION: ${{ runner.temp }}/gh-aw/actions
 
       - name: Close expired discussions
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
@@ -120,7 +121,7 @@ jobs:
           persist-credentials: false
 
       - name: Setup Scripts
-        uses: ./_gh-aw/actions/setup
+        uses: ./actions/setup
         with:
           destination: ${{ runner.temp }}/gh-aw/actions
 
@@ -175,7 +176,7 @@ jobs:
           persist-credentials: false
 
       - name: Setup Scripts
-        uses: ./_gh-aw/actions/setup
+        uses: ./actions/setup
         with:
           destination: ${{ runner.temp }}/gh-aw/actions
 
@@ -229,7 +230,7 @@ jobs:
           echo "✓ All workflows compiled successfully"
 
       - name: Setup Scripts
-        uses: ./_gh-aw/actions/setup
+        uses: ./actions/setup
         with:
           destination: ${{ runner.temp }}/gh-aw/actions
 
@@ -285,7 +286,7 @@ jobs:
           node-version: '22'
 
       - name: Setup Scripts
-        uses: ./_gh-aw/actions/setup
+        uses: ./actions/setup
         with:
           destination: ${{ runner.temp }}/gh-aw/actions
 

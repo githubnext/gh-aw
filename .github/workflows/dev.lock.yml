@@ -84,12 +84,13 @@ jobs:
           repository: github/gh-aw
           sparse-checkout: |
             actions
-          path: _gh-aw
+          path: /tmp/gh-aw/dev-actions
           persist-credentials: false
       - name: Setup Scripts
-        uses: ./_gh-aw/actions/setup
-        with:
-          destination: ${{ runner.temp }}/gh-aw/actions
+        run: |
+          bash /tmp/gh-aw/dev-actions/actions/setup/setup.sh
+        env:
+          INPUT_DESTINATION: ${{ runner.temp }}/gh-aw/actions
       - name: Generate agentic run info
         id: generate_aw_info
         env:
@@ -332,12 +333,13 @@ jobs:
           repository: github/gh-aw
           sparse-checkout: |
             actions
-          path: _gh-aw
+          path: /tmp/gh-aw/dev-actions
           persist-credentials: false
       - name: Setup Scripts
-        uses: ./_gh-aw/actions/setup
-        with:
-          destination: ${{ runner.temp }}/gh-aw/actions
+        run: |
+          bash /tmp/gh-aw/dev-actions/actions/setup/setup.sh
+        env:
+          INPUT_DESTINATION: ${{ runner.temp }}/gh-aw/actions
       - name: Set runtime paths
         id: set-runtime-paths
         run: |
@@ -892,12 +894,13 @@ jobs:
           repository: github/gh-aw
           sparse-checkout: |
             actions
-          path: _gh-aw
+          path: /tmp/gh-aw/dev-actions
           persist-credentials: false
       - name: Setup Scripts
-        uses: ./_gh-aw/actions/setup
-        with:
-          destination: ${{ runner.temp }}/gh-aw/actions
+        run: |
+          bash /tmp/gh-aw/dev-actions/actions/setup/setup.sh
+        env:
+          INPUT_DESTINATION: ${{ runner.temp }}/gh-aw/actions
       - name: Download agent output artifact
         id: download-agent-output
         continue-on-error: true
@@ -1016,12 +1019,13 @@ jobs:
           repository: github/gh-aw
           sparse-checkout: |
             actions
-          path: _gh-aw
+          path: /tmp/gh-aw/dev-actions
           persist-credentials: false
       - name: Setup Scripts
-        uses: ./_gh-aw/actions/setup
-        with:
-          destination: ${{ runner.temp }}/gh-aw/actions
+        run: |
+          bash /tmp/gh-aw/dev-actions/actions/setup/setup.sh
+        env:
+          INPUT_DESTINATION: ${{ runner.temp }}/gh-aw/actions
       - name: Download agent output artifact
         id: download-agent-output
         continue-on-error: true
@@ -1159,12 +1163,13 @@ jobs:
           repository: github/gh-aw
           sparse-checkout: |
             actions
-          path: _gh-aw
+          path: /tmp/gh-aw/dev-actions
           persist-credentials: false
       - name: Setup Scripts
-        uses: ./_gh-aw/actions/setup
-        with:
-          destination: ${{ runner.temp }}/gh-aw/actions
+        run: |
+          bash /tmp/gh-aw/dev-actions/actions/setup/setup.sh
+        env:
+          INPUT_DESTINATION: ${{ runner.temp }}/gh-aw/actions
       - name: Checkout repository for qmd indexing
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
@@ -1235,12 +1240,13 @@ jobs:
           repository: github/gh-aw
           sparse-checkout: |
             actions
-          path: _gh-aw
+          path: /tmp/gh-aw/dev-actions
           persist-credentials: false
       - name: Setup Scripts
-        uses: ./_gh-aw/actions/setup
-        with:
-          destination: ${{ runner.temp }}/gh-aw/actions
+        run: |
+          bash /tmp/gh-aw/dev-actions/actions/setup/setup.sh
+        env:
+          INPUT_DESTINATION: ${{ runner.temp }}/gh-aw/actions
       - name: Check team membership for workflow
         id: check_membership
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
@@ -1286,12 +1292,13 @@ jobs:
           repository: github/gh-aw
           sparse-checkout: |
             actions
-          path: _gh-aw
+          path: /tmp/gh-aw/dev-actions
           persist-credentials: false
       - name: Setup Scripts
-        uses: ./_gh-aw/actions/setup
-        with:
-          destination: ${{ runner.temp }}/gh-aw/actions
+        run: |
+          bash /tmp/gh-aw/dev-actions/actions/setup/setup.sh
+        env:
+          INPUT_DESTINATION: ${{ runner.temp }}/gh-aw/actions
       - name: Download agent output artifact
         id: download-agent-output
         continue-on-error: true

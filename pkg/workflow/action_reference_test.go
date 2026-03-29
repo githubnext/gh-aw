@@ -127,8 +127,8 @@ func TestResolveActionReference(t *testing.T) {
 			actionMode:  ActionModeDev,
 			localPath:   "./actions/create-issue",
 			version:     "v1.0.0",
-			expectedRef: "./_gh-aw/actions/create-issue",
-			description: "Dev mode should return path in safe checkout subdirectory",
+			expectedRef: "./actions/create-issue",
+			description: "Dev mode should return local path",
 		},
 		{
 			name:        "release mode with version tag",
@@ -278,12 +278,12 @@ func TestResolveSetupActionReference(t *testing.T) {
 		description string
 	}{
 		{
-			name:        "dev mode returns safe checkout path",
+			name:        "dev mode returns local path placeholder",
 			actionMode:  ActionModeDev,
 			version:     "v1.0.0",
 			actionTag:   "",
-			expectedRef: "./_gh-aw/actions/setup",
-			description: "Dev mode should return path in safe checkout subdirectory",
+			expectedRef: "./actions/setup",
+			description: "Dev mode should return local path placeholder (setup uses bash execution, not uses:)",
 		},
 		{
 			name:        "release mode with version",
@@ -326,12 +326,12 @@ func TestResolveSetupActionReference(t *testing.T) {
 			description: "Release mode with actionTag should work even with 'dev' version",
 		},
 		{
-			name:        "dev mode with actionTag uses safe checkout path (actionTag not checked here)",
+			name:        "dev mode with actionTag uses local path placeholder (actionTag not checked here)",
 			actionMode:  ActionModeDev,
 			version:     "v1.0.0",
 			actionTag:   "v2.0.0",
-			expectedRef: "./_gh-aw/actions/setup",
-			description: "Dev mode should return safe checkout path even if actionTag is specified",
+			expectedRef: "./actions/setup",
+			description: "Dev mode should return local path placeholder even if actionTag is specified",
 		},
 	}
 

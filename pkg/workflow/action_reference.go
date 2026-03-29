@@ -47,12 +47,12 @@ func resolveSetupActionRef(actionMode ActionMode, version string, actionTag stri
 	}
 
 	localPath := "./actions/setup"
-	devLocalPath := "./" + devModeActionsCheckoutPath + "/actions/setup"
 
-	// Dev mode - return path relative to the safe checkout subdirectory
+	// Dev mode - return local path as a placeholder; the actual setup execution uses
+	// a bash script (see generateSetupStep), so this value is never used in a "uses:" field.
 	if actionMode == ActionModeDev {
-		actionRefLog.Printf("Dev mode: using safe checkout path: %s", devLocalPath)
-		return devLocalPath
+		actionRefLog.Printf("Dev mode: returning placeholder local path: %s", localPath)
+		return localPath
 	}
 
 	// Action mode - use external gh-aw-actions repository with SHA pinning if possible
@@ -213,11 +213,10 @@ func (c *Compiler) resolveActionReference(localActionPath string, data *Workflow
 		return remoteRef
 	}
 
-	// Dev mode - return path relative to the safe checkout subdirectory
+	// Dev mode - return local path (setup uses bash execution, not uses:)
 	if c.actionMode == ActionModeDev {
-		safePath := "./" + devModeActionsCheckoutPath + "/" + strings.TrimPrefix(localActionPath, "./")
-		actionRefLog.Printf("Dev mode: using safe checkout path: %s", safePath)
-		return safePath
+		actionRefLog.Printf("Dev mode: using local action path: %s", localActionPath)
+		return localActionPath
 	}
 
 	// Default to dev mode for unknown modes
