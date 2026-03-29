@@ -375,8 +375,42 @@ imports:
 	assert.Empty(t, entries, "already-pinned workflowspec imports should not be downloaded")
 }
 
-// TestFetchAndSaveRemoteFrontmatterImports_NoImportsNoOpTracker verifies that a workflow with
-// no imports field leaves the FileTracker completely untouched.
+// TestFetchAndSaveRemoteFrontmatterImports_UsesFormSkippedWhenWorkflowSpec verifies that
+// an import written in the uses:/with: object form (GitHub Actions reusable workflow syntax)
+// that points to an already-pinned workflowspec path is also skipped — exactly as the
+// equivalent string-form import would be.  This exercises the map-item branch added to
+// handle uses:/path: object imports.
+func TestFetchAndSaveRemoteFrontmatterImports_UsesFormSkippedWhenWorkflowSpec(t *testing.T) {
+	content := `---
+engine: copilot
+imports:
+  - uses: github/gh-aw/.github/workflows/shared/mcp/serena.md@abc123
+    with:
+      languages: ["go"]
+---
+
+# Workflow with uses: form import
+`
+	spec := &WorkflowSpec{
+		RepoSpec: RepoSpec{
+			RepoSlug: "github/gh-aw",
+			Version:  "main",
+		},
+		WorkflowPath: ".github/workflows/ci-coach.md",
+	}
+
+	tmpDir := t.TempDir()
+	// The uses: import path is in workflowspec format so it should be skipped,
+	// just like a string-form workflowspec import would be.
+	err := fetchAndSaveRemoteFrontmatterImports(content, spec, tmpDir, false, false, nil)
+	require.NoError(t, err, "should not error for uses: form workflowspec imports")
+
+	entries, readErr := os.ReadDir(tmpDir)
+	require.NoError(t, readErr)
+	assert.Empty(t, entries, "uses: form workflowspec imports should not be downloaded")
+}
+
+
 func TestFetchAndSaveRemoteFrontmatterImports_NoImportsNoOpTracker(t *testing.T) {
 	// Build a minimal FileTracker without calling NewFileTracker (which requires a real
 	// git repository). We only need the tracking lists populated.

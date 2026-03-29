@@ -194,6 +194,10 @@ func extractImportPaths(frontmatter map[string]any) []string {
 					if pathStr, ok := pathValue.(string); ok {
 						imports = append(imports, pathStr)
 					}
+				} else if usesValue, hasUses := importItem["uses"]; hasUses {
+					if pathStr, ok := usesValue.(string); ok {
+						imports = append(imports, pathStr)
+					}
 				}
 			}
 		}

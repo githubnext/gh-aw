@@ -180,8 +180,20 @@ func fetchFrontmatterImportsRecursive(content, owner, repo, ref, currentBaseDir,
 	switch v := importsField.(type) {
 	case []any:
 		for _, item := range v {
-			if s, ok := item.(string); ok {
-				importPaths = append(importPaths, s)
+			switch importItem := item.(type) {
+			case string:
+				importPaths = append(importPaths, importItem)
+			case map[string]any:
+				// Handle uses: and path: forms (mirrors GitHub Actions reusable workflow syntax)
+				if usesVal, ok := importItem["uses"]; ok {
+					if p, ok := usesVal.(string); ok {
+						importPaths = append(importPaths, p)
+					}
+				} else if pathVal, ok := importItem["path"]; ok {
+					if p, ok := pathVal.(string); ok {
+						importPaths = append(importPaths, p)
+					}
+				}
 			}
 		}
 	case []string:
