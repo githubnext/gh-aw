@@ -109,6 +109,7 @@ safe-outputs:
   create-pull-request:
     expires: 2d
     title-prefix: "[ca] "
+    protected-files: fallback-to-issue
   missing-tool:
 timeout-minutes: 45
 imports:
