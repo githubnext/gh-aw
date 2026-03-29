@@ -37,7 +37,7 @@ tools:
 				"# Cache memory file share configuration from frontmatter processed below",
 				"- name: Restore cache-memory file share data",
 				"uses: actions/cache/restore@", // SHA varies, just check action name
-				"key: memory-${{ env.GH_AW_WORKFLOW_ID_SANITIZED }}-${{ github.run_id }}",
+				"key: memory-none-nopolicy-${{ env.GH_AW_WORKFLOW_ID_SANITIZED }}-${{ github.run_id }}",
 				"path: /tmp/gh-aw/cache-memory",
 			},
 			notExpectedInLock: []string{
@@ -67,10 +67,10 @@ tools:
 				"# Cache memory file share configuration from frontmatter processed below",
 				"- name: Cache cache-memory file share data (default)",
 				"uses: actions/cache@", // SHA varies
-				"key: memory-default-${{ github.run_id }}",
+				"key: memory-none-nopolicy-memory-default-${{ github.run_id }}",
 				"- name: Restore cache-memory file share data (readonly)",
 				"uses: actions/cache/restore@", // SHA varies
-				"key: memory-readonly-${{ github.run_id }}",
+				"key: memory-none-nopolicy-memory-readonly-${{ github.run_id }}",
 			},
 			notExpectedInLock: []string{
 				// Should NOT upload artifacts when detection is disabled
