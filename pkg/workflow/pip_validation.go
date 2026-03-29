@@ -65,6 +65,13 @@ func (c *Compiler) validatePythonPackagesWithPip(packages []string, packageType 
 			continue
 		}
 
+		// Validate the package name against PyPI naming rules (PEP 508).
+		// pip does not universally honour '--', so we validate upfront.
+		if err := validatePipPackageName(pkgName); err != nil {
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("%s package name '%s' is invalid: %v", packageType, pkg, err)))
+			continue
+		}
+
 		pipValidationLog.Printf("Validating %s package: %s", packageType, pkgName)
 
 		// Use pip index to check if package exists on PyPI

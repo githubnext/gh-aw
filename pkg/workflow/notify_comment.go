@@ -335,6 +335,11 @@ func (c *Compiler) buildConclusionJob(data *WorkflowData, mainJobName string, sa
 		notifyCommentLog.Print("Added detection conclusion environment variable to conclusion job")
 	}
 
+	// Pass assignment error count to the conclusion step so the status comment reflects assignment failures
+	if data.SafeOutputs != nil && data.SafeOutputs.AssignToAgent != nil {
+		customEnvVars = append(customEnvVars, "          GH_AW_ASSIGNMENT_ERROR_COUNT: ${{ needs.safe_outputs.outputs.assign_to_agent_assignment_error_count }}\n")
+	}
+
 	// Pass custom messages config if present
 	if data.SafeOutputs != nil && data.SafeOutputs.Messages != nil {
 		messagesJSON, err := serializeMessagesConfig(data.SafeOutputs.Messages)

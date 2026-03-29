@@ -199,6 +199,13 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 	// integrity filtering before the agent runs. Must start before custom steps.
 	c.generateStartDIFCProxyStep(yaml, data)
 
+	// Set GH_REPO after the proxy starts so gh CLI can resolve the target repository.
+	// start_difc_proxy.sh writes GH_HOST=localhost:18443 to GITHUB_ENV, which causes gh
+	// CLI to fail resolving the repository from the git remote. Setting GH_REPO tells gh
+	// which repo to target while keeping GH_HOST pointed at the proxy for integrity
+	// filtering. Works on both github.com and GHEC.
+	c.generateSetGHRepoAfterDIFCProxyStep(yaml, data)
+
 	// Add custom steps if present
 	if data.CustomSteps != "" {
 		if customStepsContainCheckout && len(runtimeSetupSteps) > 0 {

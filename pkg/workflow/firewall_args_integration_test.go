@@ -79,6 +79,11 @@ Test workflow with custom AWF arguments.
 			t.Error("Compiled workflow should still contain '--env-all' flag")
 		}
 
+		// Verify sensitive token vars are excluded
+		if !strings.Contains(lockYAML, "--exclude-env COPILOT_GITHUB_TOKEN") {
+			t.Error("Compiled workflow should exclude COPILOT_GITHUB_TOKEN via --exclude-env")
+		}
+
 		if !strings.Contains(lockYAML, "--allow-domains") {
 			t.Error("Compiled workflow should still contain '--allow-domains' flag")
 		}
@@ -138,6 +143,11 @@ Test workflow without custom AWF arguments.
 		// Verify standard AWF flags are present
 		if !strings.Contains(lockYAML, "--env-all") {
 			t.Error("Compiled workflow should contain '--env-all' flag")
+		}
+
+		// Verify sensitive token vars are excluded
+		if !strings.Contains(lockYAML, "--exclude-env COPILOT_GITHUB_TOKEN") {
+			t.Error("Compiled workflow should exclude COPILOT_GITHUB_TOKEN via --exclude-env")
 		}
 
 		if !strings.Contains(lockYAML, "--allow-domains") {
@@ -229,8 +239,115 @@ Test workflow with SSL bump and allow-urls configuration.
 			t.Error("Compiled workflow should still contain '--env-all' flag")
 		}
 
+		// Verify sensitive token vars are excluded
+		if !strings.Contains(lockYAML, "--exclude-env COPILOT_GITHUB_TOKEN") {
+			t.Error("Compiled workflow should exclude COPILOT_GITHUB_TOKEN via --exclude-env")
+		}
+
 		if !strings.Contains(lockYAML, "--log-level debug") {
 			t.Error("Compiled workflow should contain '--log-level debug'")
+		}
+	})
+
+	t.Run("workflow with github tool excludes GITHUB_MCP_SERVER_TOKEN", func(t *testing.T) {
+		tmpDir := testutil.TempDir(t, "test-*")
+		workflowsDir := filepath.Join(tmpDir, ".github", "workflows")
+		if err := os.MkdirAll(workflowsDir, 0755); err != nil {
+			t.Fatalf("Failed to create workflows directory: %v", err)
+		}
+
+		workflowContent := `---
+on: workflow_dispatch
+permissions:
+  contents: read
+engine: copilot
+network:
+  firewall: true
+tools:
+  github:
+---
+
+# Test Workflow with GitHub Tool
+
+Workflow that uses the GitHub tool, requiring GITHUB_MCP_SERVER_TOKEN.
+`
+		workflowPath := filepath.Join(workflowsDir, "test-github-tool.md")
+		if err := os.WriteFile(workflowPath, []byte(workflowContent), 0644); err != nil {
+			t.Fatalf("Failed to write workflow file: %v", err)
+		}
+
+		compiler := NewCompilerWithVersion("test-github-tool")
+		compiler.SetSkipValidation(true)
+		if err := compiler.CompileWorkflow(workflowPath); err != nil {
+			t.Fatalf("Failed to compile workflow: %v", err)
+		}
+
+		lockPath := filepath.Join(workflowsDir, "test-github-tool.lock.yml")
+		lockContent, err := os.ReadFile(lockPath)
+		if err != nil {
+			t.Fatalf("Failed to read compiled workflow: %v", err)
+		}
+
+		lockYAML := string(lockContent)
+
+		// Both tokens must be excluded when the GitHub tool is configured.
+		if !strings.Contains(lockYAML, "--exclude-env COPILOT_GITHUB_TOKEN") {
+			t.Error("Compiled workflow should exclude COPILOT_GITHUB_TOKEN via --exclude-env")
+		}
+		if !strings.Contains(lockYAML, "--exclude-env GITHUB_MCP_SERVER_TOKEN") {
+			t.Error("Compiled workflow should exclude GITHUB_MCP_SERVER_TOKEN via --exclude-env when tools.github is configured")
+		}
+	})
+
+	t.Run("workflow pinning old AWF version does not emit --exclude-env", func(t *testing.T) {
+		tmpDir := testutil.TempDir(t, "test-*")
+		workflowsDir := filepath.Join(tmpDir, ".github", "workflows")
+		if err := os.MkdirAll(workflowsDir, 0755); err != nil {
+			t.Fatalf("Failed to create workflows directory: %v", err)
+		}
+
+		// Pin an AWF version that predates --exclude-env support.
+		workflowContent := `---
+on: workflow_dispatch
+permissions:
+  contents: read
+engine: copilot
+network:
+  firewall:
+    version: v0.25.0
+---
+
+# Test Workflow (old AWF)
+
+Workflow pinning an AWF version that does not support --exclude-env.
+`
+		workflowPath := filepath.Join(workflowsDir, "test-old-awf-version.md")
+		if err := os.WriteFile(workflowPath, []byte(workflowContent), 0644); err != nil {
+			t.Fatalf("Failed to write workflow file: %v", err)
+		}
+
+		compiler := NewCompilerWithVersion("test-old-awf-version")
+		compiler.SetSkipValidation(true)
+		if err := compiler.CompileWorkflow(workflowPath); err != nil {
+			t.Fatalf("Failed to compile workflow: %v", err)
+		}
+
+		lockPath := filepath.Join(workflowsDir, "test-old-awf-version.lock.yml")
+		lockContent, err := os.ReadFile(lockPath)
+		if err != nil {
+			t.Fatalf("Failed to read compiled workflow: %v", err)
+		}
+
+		lockYAML := string(lockContent)
+
+		// --env-all must still be present.
+		if !strings.Contains(lockYAML, "--env-all") {
+			t.Error("Compiled workflow should contain '--env-all' flag")
+		}
+
+		// --exclude-env must NOT be present: the pinned version does not support it.
+		if strings.Contains(lockYAML, "--exclude-env") {
+			t.Error("Compiled workflow pinning v0.25.0 must not emit --exclude-env (unsupported)")
 		}
 	})
 }

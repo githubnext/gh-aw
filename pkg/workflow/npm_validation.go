@@ -72,6 +72,21 @@ func (c *Compiler) validateNpxPackages(workflowData *WorkflowData) error {
 		return err
 	}
 
+	// Validate each package name against the npm naming rules.
+	// This provides a second layer of defence against names that could be
+	// misinterpreted by the npm CLI even after the hyphen-prefix check.
+	for _, pkg := range packages {
+		if err := validateNpmPackageName(pkg); err != nil {
+			npmValidationLog.Printf("npm package name validation failed: %v", err)
+			return NewValidationError(
+				"npx.packages",
+				"invalid npm package name",
+				err.Error(),
+				fmt.Sprintf("npm package names must match @scope/name or name (lowercase alphanumeric, hyphens, dots, underscores).\n\nInvalid name: %q", pkg),
+			)
+		}
+	}
+
 	// Check if npm is available
 	_, err := exec.LookPath("npm")
 	if err != nil {
@@ -83,8 +98,9 @@ func (c *Compiler) validateNpxPackages(workflowData *WorkflowData) error {
 	for _, pkg := range packages {
 		npmValidationLog.Printf("Validating npm package: %s", pkg)
 
-		// Use npm view to check if package exists
-		cmd := exec.Command("npm", "view", pkg, "name")
+		// Use npm view to check if package exists.
+		// Pass -- to prevent the package name being interpreted as a flag (argument injection defence).
+		cmd := exec.Command("npm", "view", "--", pkg, "name")
 		output, err := cmd.CombinedOutput()
 
 		if err != nil {

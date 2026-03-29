@@ -2736,3 +2736,195 @@ jobs:
           name: test-result-integration-add-dispatch-workflow
           path: test-result-integration-add-dispatch-workflow.json
           retention-days: 14
+
+  integration-release-availability:
+    name: Integration Release Availability
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    concurrency:
+      group: ci-${{ github.ref }}-integration-release-availability
+      cancel-in-progress: true
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Extract versions from constants.go
+        id: versions
+        run: |
+          CONSTANTS="pkg/constants/constants.go"
+
+          # Helper: regex a Version constant value from constants.go
+          extract() {
+            grep -oP "${1}"'\s+Version\s*=\s*"\K[^"]+' "$CONSTANTS"
+          }
+
+          FIREWALL_VERSION=$(extract "DefaultFirewallVersion")
+          MCPG_VERSION=$(extract "DefaultMCPGatewayVersion")
+          APM_VERSION=$(extract "DefaultAPMVersion")
+          APM_ACTION_VERSION=$(extract "DefaultAPMActionVersion")
+          GITHUB_MCP_VERSION=$(extract "DefaultGitHubMCPServerVersion")
+
+          echo "firewall_version=$FIREWALL_VERSION" >> $GITHUB_OUTPUT
+          echo "mcpg_version=$MCPG_VERSION" >> $GITHUB_OUTPUT
+          echo "apm_version=$APM_VERSION" >> $GITHUB_OUTPUT
+          echo "apm_action_version=$APM_ACTION_VERSION" >> $GITHUB_OUTPUT
+          echo "github_mcp_version=$GITHUB_MCP_VERSION" >> $GITHUB_OUTPUT
+
+          echo "Extracted versions from pkg/constants/constants.go:"
+          echo "  gh-aw-firewall:        $FIREWALL_VERSION"
+          echo "  gh-aw-mcpg:            $MCPG_VERSION"
+          echo "  microsoft/APM:         $APM_VERSION"
+          echo "  microsoft/apm-action:  $APM_ACTION_VERSION"
+          echo "  github-mcp-server:     $GITHUB_MCP_VERSION"
+
+      - name: Define helpers
+        run: |
+          # Write a reusable helper script for checking GHCR image manifests.
+          # Returns the image digest (sha256:...) or exits 1 if the image is unavailable.
+          cat > /tmp/ghcr_digest.py << 'EOF'
+          import sys, json
+          m = json.load(sys.stdin)
+          digest = m.get("config", {}).get("digest", "") or \
+                   next((entry.get("digest", "") for entry in m.get("manifests", []) if entry.get("digest")), "")
+          if not digest:
+              sys.exit(1)
+          print(digest)
+          EOF
+
+      - name: Check gh-aw-firewall release
+        env:
+          VERSION: ${{ steps.versions.outputs.firewall_version }}
+        run: |
+          set -e
+          REPO="github/gh-aw-firewall"
+          IMAGE="ghcr.io/github/gh-aw-firewall:${VERSION}"
+
+          echo "## Checking gh-aw-firewall ${VERSION}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          echo "Checking GitHub release: ${REPO}@${VERSION}..."
+          if gh release view "${VERSION}" --repo "${REPO}" > /dev/null 2>&1; then
+            echo "✅ GitHub release ${VERSION} is available for ${REPO}" | tee -a $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ GitHub release ${VERSION} not found for ${REPO}" | tee -a $GITHUB_STEP_SUMMARY
+            exit 1
+          fi
+
+          echo "Checking GHCR image manifest: ${IMAGE}..."
+          DIGEST=$(docker manifest inspect "${IMAGE}" 2>/dev/null | python3 /tmp/ghcr_digest.py 2>/dev/null || echo "")
+          if [ -n "$DIGEST" ]; then
+            echo "✅ GHCR image ${IMAGE} is available (digest: ${DIGEST})" | tee -a $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ GHCR image ${IMAGE} could not be inspected" | tee -a $GITHUB_STEP_SUMMARY
+            exit 1
+          fi
+
+          echo "" >> $GITHUB_STEP_SUMMARY
+          sleep 2  # Avoid GitHub API rate limiting between checks
+
+      - name: Check gh-aw-mcpg release
+        env:
+          VERSION: ${{ steps.versions.outputs.mcpg_version }}
+        run: |
+          set -e
+          REPO="github/gh-aw-mcpg"
+          IMAGE="ghcr.io/github/gh-aw-mcpg:${VERSION}"
+
+          echo "## Checking gh-aw-mcpg ${VERSION}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          echo "Checking GitHub release: ${REPO}@${VERSION}..."
+          if gh release view "${VERSION}" --repo "${REPO}" > /dev/null 2>&1; then
+            echo "✅ GitHub release ${VERSION} is available for ${REPO}" | tee -a $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ GitHub release ${VERSION} not found for ${REPO}" | tee -a $GITHUB_STEP_SUMMARY
+            exit 1
+          fi
+
+          echo "Checking GHCR image manifest: ${IMAGE}..."
+          DIGEST=$(docker manifest inspect "${IMAGE}" 2>/dev/null | python3 /tmp/ghcr_digest.py 2>/dev/null || echo "")
+          if [ -n "$DIGEST" ]; then
+            echo "✅ GHCR image ${IMAGE} is available (digest: ${DIGEST})" | tee -a $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ GHCR image ${IMAGE} could not be inspected" | tee -a $GITHUB_STEP_SUMMARY
+            exit 1
+          fi
+
+          echo "" >> $GITHUB_STEP_SUMMARY
+          sleep 2  # Avoid GitHub API rate limiting between checks
+
+      - name: Check microsoft/APM release
+        env:
+          VERSION: ${{ steps.versions.outputs.apm_version }}
+        run: |
+          set -e
+          REPO="microsoft/APM"
+
+          echo "## Checking microsoft/APM ${VERSION}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          echo "Checking GitHub release: ${REPO}@${VERSION}..."
+          if gh release view "${VERSION}" --repo "${REPO}" > /dev/null 2>&1; then
+            echo "✅ GitHub release ${VERSION} is available for ${REPO}" | tee -a $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ GitHub release ${VERSION} not found for ${REPO}" | tee -a $GITHUB_STEP_SUMMARY
+            exit 1
+          fi
+
+          echo "" >> $GITHUB_STEP_SUMMARY
+          sleep 2  # Avoid GitHub API rate limiting between checks
+
+      - name: Check microsoft/apm-action release
+        env:
+          VERSION: ${{ steps.versions.outputs.apm_action_version }}
+        run: |
+          set -e
+          REPO="microsoft/apm-action"
+
+          echo "## Checking microsoft/apm-action ${VERSION}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          echo "Checking GitHub release: ${REPO}@${VERSION}..."
+          if gh release view "${VERSION}" --repo "${REPO}" > /dev/null 2>&1; then
+            echo "✅ GitHub release ${VERSION} is available for ${REPO}" | tee -a $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ GitHub release ${VERSION} not found for ${REPO}" | tee -a $GITHUB_STEP_SUMMARY
+            exit 1
+          fi
+
+          echo "" >> $GITHUB_STEP_SUMMARY
+          sleep 2  # Avoid GitHub API rate limiting between checks
+
+      - name: Check github-mcp-server release
+        env:
+          VERSION: ${{ steps.versions.outputs.github_mcp_version }}
+        run: |
+          set -e
+          REPO="github/github-mcp-server"
+          IMAGE="ghcr.io/github/github-mcp-server:${VERSION}"
+
+          echo "## Checking github-mcp-server ${VERSION}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          echo "Checking GitHub release: ${REPO}@${VERSION}..."
+          if gh release view "${VERSION}" --repo "${REPO}" > /dev/null 2>&1; then
+            echo "✅ GitHub release ${VERSION} is available for ${REPO}" | tee -a $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ GitHub release ${VERSION} not found for ${REPO}" | tee -a $GITHUB_STEP_SUMMARY
+            exit 1
+          fi
+
+          echo "Checking GHCR image manifest: ${IMAGE}..."
+          DIGEST=$(docker manifest inspect "${IMAGE}" 2>/dev/null | python3 /tmp/ghcr_digest.py 2>/dev/null || echo "")
+          if [ -n "$DIGEST" ]; then
+            echo "✅ GHCR image ${IMAGE} is available (digest: ${DIGEST})" | tee -a $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ GHCR image ${IMAGE} could not be inspected" | tee -a $GITHUB_STEP_SUMMARY
+            exit 1
+          fi
+
+          echo "" >> $GITHUB_STEP_SUMMARY

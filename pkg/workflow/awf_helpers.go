@@ -57,6 +57,14 @@ type AWFCommandConfig struct {
 	// PathSetup is optional shell commands to run before the engine command
 	// (e.g., npm PATH setup)
 	PathSetup string
+
+	// ExcludeEnvVarNames is the list of environment variable names to exclude from
+	// the agent container's visible environment via --exclude-env. These are the env
+	// var keys whose step-env values contain secret references (${{ secrets.* }}).
+	// Computed from the engine's GetRequiredSecretNames() so that every secret-bearing
+	// variable is excluded — the agent can never read raw token values via `env`/`printenv`.
+	// Requires AWF v0.25.3+ for --exclude-env support.
+	ExcludeEnvVarNames []string
 }
 
 // BuildAWFCommand builds a complete AWF command with all arguments.
@@ -145,8 +153,26 @@ func BuildAWFArgs(config AWFCommandConfig) []string {
 		awfArgs = append(awfArgs, "--tty")
 	}
 
-	// Pass all environment variables to the container
+	// Pass all environment variables to the container, but exclude every variable whose
+	// step-env value comes from a GitHub Actions secret. AWF's API proxy (--enable-api-proxy)
+	// handles authentication for these tokens transparently, so the container does not need
+	// the raw values. Excluding them via --exclude-env prevents a prompt-injected agent from
+	// exfiltrating tokens through bash tools such as `env` or `printenv`.
+	// The caller computes ExcludeEnvVarNames from ComputeAWFExcludeEnvVarNames() so that every
+	// secret-bearing variable is covered — not just a hardcoded subset.
+	// --exclude-env requires AWF v0.25.3+; skip the flags for workflows that pin an older version.
 	awfArgs = append(awfArgs, "--env-all")
+	if awfSupportsExcludeEnv(firewallConfig) {
+		// Sort for deterministic output in compiled lock files.
+		sortedExclude := make([]string, len(config.ExcludeEnvVarNames))
+		copy(sortedExclude, config.ExcludeEnvVarNames)
+		sort.Strings(sortedExclude)
+		for _, excludedVar := range sortedExclude {
+			awfArgs = append(awfArgs, "--exclude-env", excludedVar)
+		}
+	} else {
+		awfHelpersLog.Printf("Skipping --exclude-env: AWF version %q is older than minimum %s", getAWFImageTag(firewallConfig), constants.AWFExcludeEnvMinVersion)
+	}
 
 	// Note: --container-workdir "${GITHUB_WORKSPACE}" and --mount "${RUNNER_TEMP}/gh-aw:..."
 	// are intentionally NOT added here. They contain shell variable references that require
@@ -219,6 +245,21 @@ func BuildAWFArgs(config AWFCommandConfig) []string {
 	if anthropicTarget != "" {
 		awfArgs = append(awfArgs, "--anthropic-api-target", anthropicTarget)
 		awfHelpersLog.Printf("Added --anthropic-api-target=%s", anthropicTarget)
+	}
+
+	// Pass base path if URL contains a path component
+	// This is required for endpoints with path prefixes (e.g., Databricks /serving-endpoints,
+	// Azure OpenAI /openai/deployments/<name>, corporate LLM routers with path-based routing)
+	openaiBasePath := extractAPIBasePath(config.WorkflowData, "OPENAI_BASE_URL")
+	if openaiBasePath != "" {
+		awfArgs = append(awfArgs, "--openai-api-base-path", openaiBasePath)
+		awfHelpersLog.Printf("Added --openai-api-base-path=%s", openaiBasePath)
+	}
+
+	anthropicBasePath := extractAPIBasePath(config.WorkflowData, "ANTHROPIC_BASE_URL")
+	if anthropicBasePath != "" {
+		awfArgs = append(awfArgs, "--anthropic-api-base-path", anthropicBasePath)
+		awfHelpersLog.Printf("Added --anthropic-api-base-path=%s", anthropicBasePath)
 	}
 
 	// Add Copilot API target for custom Copilot endpoints (GHEC, GHES, or custom).
@@ -355,6 +396,47 @@ func extractAPITargetHost(workflowData *WorkflowData, envVar string) string {
 	return host
 }
 
+// extractAPIBasePath extracts the path component from a custom API base URL in engine.env.
+// Returns the path prefix (e.g., "/serving-endpoints") or empty string if no path is present.
+// Root-only paths ("/") and empty paths return empty string.
+//
+// This is used to pass --openai-api-base-path and --anthropic-api-base-path to AWF when
+// the configured base URL contains a path (e.g., Databricks serving endpoints, Azure OpenAI
+// deployments, or corporate LLM routers with path-based routing).
+func extractAPIBasePath(workflowData *WorkflowData, envVar string) string {
+	if workflowData == nil || workflowData.EngineConfig == nil || workflowData.EngineConfig.Env == nil {
+		return ""
+	}
+
+	baseURL, exists := workflowData.EngineConfig.Env[envVar]
+	if !exists || baseURL == "" {
+		return ""
+	}
+
+	// Remove protocol prefix if present
+	host := baseURL
+	if idx := strings.Index(host, "://"); idx != -1 {
+		host = host[idx+3:]
+	}
+
+	// Extract path (everything after the first /)
+	if idx := strings.Index(host, "/"); idx != -1 {
+		path := host[idx:] // e.g., "/serving-endpoints"
+		// Strip query string or fragment if present
+		if qi := strings.IndexAny(path, "?#"); qi != -1 {
+			path = path[:qi]
+		}
+		// Remove trailing slashes; a root-only path "/" becomes "" and returns empty
+		path = strings.TrimRight(path, "/")
+		if path != "" {
+			awfHelpersLog.Printf("Extracted API base path from %s: %s", envVar, path)
+			return path
+		}
+	}
+
+	return ""
+}
+
 // GetCopilotAPITarget returns the effective Copilot API target hostname, checking in order:
 //  1. engine.api-target (explicit, takes precedence)
 //  2. GITHUB_COPILOT_BASE_URL in engine.env (implicit, derived from the configured Copilot base URL)
@@ -373,4 +455,118 @@ func GetCopilotAPITarget(workflowData *WorkflowData) string {
 
 	// Fallback: derive from the well-known GITHUB_COPILOT_BASE_URL env var.
 	return extractAPITargetHost(workflowData, "GITHUB_COPILOT_BASE_URL")
+}
+
+// ComputeAWFExcludeEnvVarNames returns the list of environment variable names that must be
+// excluded from the agent container's visible environment via AWF's --exclude-env flag.
+//
+// Only env var names whose step-env values WILL contain a ${{ secrets.* }} reference are
+// included, so non-secret vars (e.g. GH_DEBUG: "1" in mcp-scripts) are never excluded.
+//
+// Parameters:
+//   - workflowData: the workflow being compiled
+//   - coreSecretVarNames: engine-specific fixed secret env var names (e.g. ["COPILOT_GITHUB_TOKEN"])
+//
+// The function augments coreSecretVarNames with:
+//   - MCP_GATEWAY_API_KEY when MCP servers are present
+//   - GITHUB_MCP_SERVER_TOKEN when the GitHub tool is present
+//   - HTTP MCP header secret var names (values always contain ${{ secrets.* }})
+//   - mcp-scripts env var names whose values contain ${{ secrets.* }}
+//   - engine.env var names whose values contain ${{ secrets.* }}
+//   - agent.env var names whose values contain ${{ secrets.* }}
+func ComputeAWFExcludeEnvVarNames(workflowData *WorkflowData, coreSecretVarNames []string) []string {
+	seen := make(map[string]bool)
+	var names []string
+
+	addUnique := func(name string) {
+		if !seen[name] {
+			seen[name] = true
+			names = append(names, name)
+		}
+	}
+
+	// Core secret vars for this engine (always contain secret references).
+	for _, name := range coreSecretVarNames {
+		addUnique(name)
+	}
+
+	// MCP gateway API key is always a secret when MCP servers are present.
+	if HasMCPServers(workflowData) {
+		addUnique("MCP_GATEWAY_API_KEY")
+	}
+
+	// GitHub MCP server token is always a secret when the GitHub tool is present.
+	if hasGitHubTool(workflowData.ParsedTools) {
+		addUnique("GITHUB_MCP_SERVER_TOKEN")
+	}
+
+	// HTTP MCP header secrets: values are always ${{ secrets.* }} references.
+	for varName := range collectHTTPMCPHeaderSecrets(workflowData.Tools) {
+		addUnique(varName)
+	}
+
+	// mcp-scripts env vars: only add those whose configured values contain a secret reference.
+	// (Non-secret vars like GH_DEBUG: "1" must NOT be excluded.)
+	if workflowData.MCPScripts != nil {
+		for _, toolConfig := range workflowData.MCPScripts.Tools {
+			for envName, envValue := range toolConfig.Env {
+				if strings.Contains(envValue, "${{ secrets.") {
+					addUnique(envName)
+				}
+			}
+		}
+	}
+
+	// engine.env vars that contain a secret reference.
+	if workflowData.EngineConfig != nil {
+		for varName, varValue := range workflowData.EngineConfig.Env {
+			if strings.Contains(varValue, "${{ secrets.") {
+				addUnique(varName)
+			}
+		}
+	}
+
+	// agent.env vars that contain a secret reference.
+	agentConfig := getAgentConfig(workflowData)
+	if agentConfig != nil {
+		for varName, varValue := range agentConfig.Env {
+			if strings.Contains(varValue, "${{ secrets.") {
+				addUnique(varName)
+			}
+		}
+	}
+
+	awfHelpersLog.Printf("Computed %d AWF env vars to exclude", len(names))
+	return names
+}
+
+// awfSupportsExcludeEnv returns true when the effective AWF version supports --exclude-env.
+//
+// The --exclude-env flag was introduced in AWF v0.25.3. Any workflow that pins an explicit
+// version older than v0.25.3 must not emit --exclude-env or the run will fail at startup.
+//
+// Special cases:
+//   - No version override (firewallConfig is nil or has no Version): use DefaultFirewallVersion
+//     which is always ≥ AWFExcludeEnvMinVersion → returns true.
+//   - "latest": always returns true (latest is always a new release).
+//   - Any semver string ≥ AWFExcludeEnvMinVersion: returns true.
+//   - Any semver string < AWFExcludeEnvMinVersion: returns false.
+//   - Non-semver string (e.g. a branch name): returns false (conservative).
+func awfSupportsExcludeEnv(firewallConfig *FirewallConfig) bool {
+	var versionStr string
+	if firewallConfig != nil && firewallConfig.Version != "" {
+		versionStr = firewallConfig.Version
+	} else {
+		// No override → use the default, which is always ≥ the minimum.
+		return true
+	}
+
+	// "latest" means the newest release — always supports the flag.
+	if strings.EqualFold(versionStr, "latest") {
+		return true
+	}
+
+	// Normalise the v-prefix for compareVersions.
+	minVersion := string(constants.AWFExcludeEnvMinVersion)
+	return compareVersions(versionStr, minVersion) >= 0
 }

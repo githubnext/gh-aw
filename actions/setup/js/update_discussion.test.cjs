@@ -61,6 +61,7 @@ describe("update_discussion", () => {
       info: /** @param {string} msg */ msg => mockCore.infos.push(msg),
       warning: /** @param {string} msg */ msg => mockCore.warnings.push(msg),
       error: /** @param {string} msg */ msg => mockCore.errors.push(msg),
+      debug: vi.fn(),
       setOutput: vi.fn(),
       setFailed: vi.fn(),
     };
@@ -669,6 +670,68 @@ describe("update_discussion", () => {
         allowed_labels: ["Label1", "Label2"],
       });
       expect(typeof handler).toBe("function");
+    });
+  });
+
+  describe("GraphQL error logging", () => {
+    it("should log detailed error info and re-throw when fetch query fails", async () => {
+      const graphqlError = Object.assign(new Error("Request failed due to following response errors"), {
+        errors: [{ type: "INSUFFICIENT_SCOPES", message: "Your token has not been granted the required scopes.", path: ["repository", "discussion"] }],
+        status: 401,
+      });
+      mockGithub.graphql = vi.fn().mockRejectedValue(graphqlError);
+
+      const handler = await main({ target: "*", allow_body: true });
+      const result = await handler({ type: "update_discussion", body: "New body", discussion_number: 45 }, {});
+
+      expect(result.success).toBe(false);
+
+      // Verify logGraphQLError was called: it emits the operation name, message, and permission hint
+      expect(mockCore.infos.some(msg => msg.includes("GraphQL error during:"))).toBe(true);
+      expect(mockCore.infos.some(msg => msg.includes("fetch discussion #45"))).toBe(true);
+      expect(mockCore.infos.some(msg => msg.includes("Request failed"))).toBe(true);
+      expect(mockCore.infos.some(msg => msg.includes("discussions: write"))).toBe(true);
+      expect(mockCore.infos.some(msg => msg.includes("INSUFFICIENT_SCOPES"))).toBe(true);
+    });
+
+    it("should log detailed error info and re-throw when updateDiscussion mutation fails", async () => {
+      const mutationError = Object.assign(new Error("Request failed due to following response errors"), {
+        errors: [{ type: "FORBIDDEN", message: "Resource not accessible by integration", path: ["updateDiscussion"] }],
+        status: 403,
+      });
+
+      mockGithub.graphql = vi.fn().mockImplementation(async query => {
+        if (query.includes("discussion(number:")) {
+          return { repository: { discussion: { ...defaultDiscussion } } };
+        }
+        throw mutationError;
+      });
+
+      const handler = await main({ target: "*", allow_body: true });
+      const result = await handler({ type: "update_discussion", body: "Updated body", discussion_number: 45 }, {});
+
+      expect(result.success).toBe(false);
+
+      // Verify logGraphQLError was called with the mutation operation name
+      expect(mockCore.infos.some(msg => msg.includes("updateDiscussion mutation"))).toBe(true);
+      expect(mockCore.infos.some(msg => msg.includes("discussion #45"))).toBe(true);
+      expect(mockCore.infos.some(msg => msg.includes("HTTP status: 403"))).toBe(true);
+      expect(mockCore.infos.some(msg => msg.includes("FORBIDDEN"))).toBe(true);
+    });
+
+    it("should log NOT_FOUND hint when discussion fetch returns NOT_FOUND error", async () => {
+      const notFoundError = Object.assign(new Error("Could not resolve to a Discussion"), {
+        errors: [{ type: "NOT_FOUND", message: "Could not resolve to a Discussion with the number of 45.", path: ["repository", "discussion"] }],
+        status: 200,
+      });
+      mockGithub.graphql = vi.fn().mockRejectedValue(notFoundError);
+
+      const handler = await main({ target: "*", allow_body: true });
+      const result = await handler({ type: "update_discussion", body: "New body", discussion_number: 45 }, {});
+
+      expect(result.success).toBe(false);
+      expect(mockCore.infos.some(msg => msg.includes("NOT_FOUND"))).toBe(true);
+      expect(mockCore.infos.some(msg => msg.includes("Check that the discussion number is correct"))).toBe(true);
     });
   });
 });

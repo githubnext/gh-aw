@@ -363,12 +363,16 @@ const DefaultGitHubMCPServerVersion Version = "v0.32.0"
 const DefaultGitHubLockdown = false
 
 // DefaultFirewallVersion is the default version of the gh-aw-firewall (AWF) binary
-const DefaultFirewallVersion Version = "v0.25.1"
+const DefaultFirewallVersion Version = "v0.25.3"
 
 // AWF (Agentic Workflow Firewall) constants
 
 // AWFDefaultCommand is the default AWF command prefix
 const AWFDefaultCommand = "sudo -E awf"
+
+// AWFExcludeEnvMinVersion is the minimum AWF version that supports the --exclude-env flag.
+// Workflows pinning an older AWF version must not emit --exclude-env flags or the run will fail.
+const AWFExcludeEnvMinVersion Version = "v0.25.3"
 
 // AWFProxyLogsDir is the default directory for AWF proxy logs
 const AWFProxyLogsDir = "/tmp/gh-aw/sandbox/firewall/logs"
@@ -386,7 +390,7 @@ const FirewallAuditArtifactName = "firewall-audit-logs"
 const AWFDefaultLogLevel = "info"
 
 // DefaultMCPGatewayVersion is the default version of the MCP Gateway (gh-aw-mcpg) Docker image
-const DefaultMCPGatewayVersion Version = "v0.2.7"
+const DefaultMCPGatewayVersion Version = "v0.2.8"
 
 // DefaultMCPGatewayContainer is the default container image for the MCP Gateway
 const DefaultMCPGatewayContainer = "ghcr.io/github/gh-aw-mcpg"
