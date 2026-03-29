@@ -98,6 +98,7 @@ func (d *DisjunctionNode) Render() string {
 		return d.RenderMultiline()
 	}
 
+	expressionNodesLog.Printf("Rendering inline disjunction with %d terms", len(d.Terms))
 	var parts []string
 	for _, term := range d.Terms {
 		parts = append(parts, term.Render())

@@ -6,7 +6,11 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+
+	"github.com/github/gh-aw/pkg/logger"
 )
+
+var cacheIntegrityLog = logger.New("workflow:cache_integrity")
 
 // integrityLevelOrder defines integrity levels from highest to lowest.
 // Used to determine which branches to merge down from when setting up cache.
@@ -27,12 +31,15 @@ const noPolicySentinel = "nopolicy"
 //   - Workflows without policy → sentinel value "nopolicy" (consistent key format)
 func computePolicyHash(github *GitHubToolConfig) string {
 	if github == nil || github.MinIntegrity == "" {
+		cacheIntegrityLog.Print("No guard policy configured, using nopolicy sentinel")
 		return noPolicySentinel
 	}
 
 	canonical := buildCanonicalPolicy(github)
 	hash := sha256.Sum256([]byte(canonical))
-	return hex.EncodeToString(hash[:])[:8]
+	result := hex.EncodeToString(hash[:])[:8]
+	cacheIntegrityLog.Printf("Computed policy hash: %s (min-integrity=%s)", result, github.MinIntegrity)
+	return result
 }
 
 // buildCanonicalPolicy builds the normalized string representation of the allow-only policy.
@@ -183,16 +190,20 @@ func cacheIntegrityLevel(github *GitHubToolConfig) string {
 //	memory-unapproved-7e4d9f12-${{ env.GH_AW_WORKFLOW_ID_SANITIZED }}-${{ github.run_id }}
 //	memory-none-nopolicy-session-${{ env.GH_AW_WORKFLOW_ID_SANITIZED }}-${{ github.run_id }}
 func generateIntegrityAwareCacheKey(cacheID, integrityLevel, policyHash string) string {
+	var key string
 	if cacheID == "default" || cacheID == "" {
-		return fmt.Sprintf(
+		key = fmt.Sprintf(
 			"memory-%s-%s-${{ env.GH_AW_WORKFLOW_ID_SANITIZED }}-${{ github.run_id }}",
 			integrityLevel, policyHash,
 		)
+	} else {
+		key = fmt.Sprintf(
+			"memory-%s-%s-%s-${{ env.GH_AW_WORKFLOW_ID_SANITIZED }}-${{ github.run_id }}",
+			integrityLevel, policyHash, cacheID,
+		)
 	}
-	return fmt.Sprintf(
-		"memory-%s-%s-%s-${{ env.GH_AW_WORKFLOW_ID_SANITIZED }}-${{ github.run_id }}",
-		integrityLevel, policyHash, cacheID,
-	)
+	cacheIntegrityLog.Printf("Generated integrity-aware cache key: cacheID=%s, integrityLevel=%s, policyHash=%s", cacheID, integrityLevel, policyHash)
+	return key
 }
 
 // higherIntegrityLevels returns the integrity levels that are higher than the given level,
@@ -206,5 +217,6 @@ func higherIntegrityLevels(level string) []string {
 		}
 		result = append(result, l)
 	}
+	cacheIntegrityLog.Printf("Higher integrity levels than %q: %v", level, result)
 	return result
 }

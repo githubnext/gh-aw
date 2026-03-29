@@ -118,6 +118,7 @@ func renderStandardJSONMCPConfig(
 // The returned function accepts isLast as a parameter and creates a renderer with engine-specific
 // options derived from the provided parameters and workflowData at call time.
 func buildMCPRendererFactory(workflowData *WorkflowData, format string, includeCopilotFields, inlineArgs bool) func(bool) *MCPConfigRendererUnified {
+	mcpRenderingLog.Printf("Building MCP renderer factory: format=%s, copilotFields=%t, inlineArgs=%t", format, includeCopilotFields, inlineArgs)
 	return func(isLast bool) *MCPConfigRendererUnified {
 		return NewMCPConfigRenderer(MCPRendererOptions{
 			IncludeCopilotFields:   includeCopilotFields,
@@ -147,6 +148,7 @@ func buildStandardJSONMCPRenderers(
 	webFetchIncludeTools bool,
 	renderCustom RenderCustomMCPToolConfigHandler,
 ) MCPToolRenderers {
+	mcpRenderingLog.Printf("Building standard JSON MCP renderers: webFetchIncludeTools=%t", webFetchIncludeTools)
 	return MCPToolRenderers{
 		RenderGitHub: func(yaml *strings.Builder, githubTool any, isLast bool, workflowData *WorkflowData) {
 			createRenderer(isLast).RenderGitHubMCP(yaml, githubTool, workflowData)

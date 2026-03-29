@@ -1,11 +1,16 @@
 package workflow
 
+import "github.com/github/gh-aw/pkg/logger"
+
+var safeOutputsToolsComputationLog = logger.New("workflow:safe_outputs_tools_computation")
+
 // computeEnabledToolNames returns the set of predefined tool names that are enabled
 // by the workflow's SafeOutputsConfig. Dynamic tools (dispatch-workflow, custom jobs,
 // call-workflow) are excluded because they are generated separately.
 func computeEnabledToolNames(data *WorkflowData) map[string]bool {
 	enabledTools := make(map[string]bool)
 	if data.SafeOutputs == nil {
+		safeOutputsToolsComputationLog.Print("No safe outputs configuration, returning empty tool set")
 		return enabledTools
 	}
 
@@ -126,5 +131,6 @@ func computeEnabledToolNames(data *WorkflowData) map[string]bool {
 		enabledTools["push_repo_memory"] = true
 	}
 
+	safeOutputsToolsComputationLog.Printf("Computed %d enabled safe output tool names", len(enabledTools))
 	return enabledTools
 }
