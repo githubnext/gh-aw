@@ -7,6 +7,7 @@ import (
 
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/stringutil"
 )
 
 var unifiedPromptLog = logger.New("workflow:unified_prompt_step")
@@ -661,6 +662,42 @@ func buildSafeOutputsSections(safeOutputs *SafeOutputsConfig) []PromptSection {
 	// must always appear in the tools list so agents can signal no-op completion.
 	if safeOutputs.NoOp != nil {
 		tools = append(tools, toolWithMaxBudget("noop", safeOutputs.NoOp.Max))
+	}
+
+	// Add custom job tools from SafeOutputs.Jobs (sorted for deterministic output).
+	if len(safeOutputs.Jobs) > 0 {
+		jobNames := make([]string, 0, len(safeOutputs.Jobs))
+		for jobName := range safeOutputs.Jobs {
+			jobNames = append(jobNames, jobName)
+		}
+		sort.Strings(jobNames)
+		for _, jobName := range jobNames {
+			tools = append(tools, stringutil.NormalizeSafeOutputIdentifier(jobName))
+		}
+	}
+
+	// Add custom script tools from SafeOutputs.Scripts (sorted for deterministic output).
+	if len(safeOutputs.Scripts) > 0 {
+		scriptNames := make([]string, 0, len(safeOutputs.Scripts))
+		for scriptName := range safeOutputs.Scripts {
+			scriptNames = append(scriptNames, scriptName)
+		}
+		sort.Strings(scriptNames)
+		for _, scriptName := range scriptNames {
+			tools = append(tools, stringutil.NormalizeSafeOutputIdentifier(scriptName))
+		}
+	}
+
+	// Add custom action tools from SafeOutputs.Actions (sorted for deterministic output).
+	if len(safeOutputs.Actions) > 0 {
+		actionNames := make([]string, 0, len(safeOutputs.Actions))
+		for actionName := range safeOutputs.Actions {
+			actionNames = append(actionNames, actionName)
+		}
+		sort.Strings(actionNames)
+		for _, actionName := range actionNames {
+			tools = append(tools, stringutil.NormalizeSafeOutputIdentifier(actionName))
+		}
 	}
 
 	if len(tools) == 0 {
