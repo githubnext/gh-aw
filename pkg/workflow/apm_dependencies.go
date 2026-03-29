@@ -188,7 +188,9 @@ func GenerateAPMPackStep(apmDeps *APMDependenciesInfo, target string, data *Work
 		"          printf 'name: gh-aw-workspace\\nversion: 0.0.0\\ndependencies:\\n  apm:\\n' > apm.yml",
 	)
 	for _, dep := range apmDeps.Packages {
-		lines = append(lines, fmt.Sprintf("          printf '    - %s\\n' >> apm.yml", dep))
+		// Use echo instead of printf to avoid printf interpreting dep as a format string
+		// (package names with '%' characters would cause unexpected behavior with printf).
+		lines = append(lines, fmt.Sprintf("          echo '    - %s' >> apm.yml", dep))
 	}
 	lines = append(lines, "          apm install")
 
