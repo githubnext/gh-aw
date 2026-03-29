@@ -32,7 +32,9 @@ func (c *Compiler) buildAPMJob(data *WorkflowData) (*Job, error) {
 	if setupActionRef != "" || c.actionMode.IsScript() {
 		// For dev/script mode (local action path), checkout the actions folder first
 		steps = append(steps, c.generateCheckoutActionsFolder(data)...)
-		steps = append(steps, c.generateSetupStep(setupActionRef, SetupActionDestination, false)...)
+		// APM install (apm_install.cjs) requires @actions/github to create an Octokit client.
+		// Pass enableCustomTokens=true so the setup action runs `npm install @actions/github`.
+		steps = append(steps, c.generateSetupStep(setupActionRef, SetupActionDestination, true)...)
 	}
 
 	// Mint a GitHub App token before the pack step if a github-app is configured for APM.
