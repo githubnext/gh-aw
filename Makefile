@@ -216,6 +216,11 @@ security-govulncheck:
 test-js: build-js
 	cd actions/setup/js && npm run test:js -- --no-file-parallelism
 
+# Test APM JavaScript support (apm_install, apm_pack, apm_unpack)
+.PHONY: test-apm
+test-apm: build-js
+	cd actions/setup/js && npx vitest run --no-file-parallelism --reporter=verbose apm_install.test.cjs apm_pack.test.cjs apm_unpack.test.cjs
+
 # Install JavaScript dependencies
 .PHONY: deps-js
 deps-js: check-node-version
@@ -760,6 +765,7 @@ help:
 	@echo "  test-unit        - Run Go unit tests only (faster)"
 	@echo "  test-security    - Run security regression tests"
 	@echo "  test-js          - Run JavaScript tests"
+	@echo "  test-apm         - Run APM JavaScript tests (apm_install, apm_pack, apm_unpack)"
 	@echo "  test-all         - Run all tests (Go, JavaScript, and wasm golden)"
 	@echo "  test-wasm-golden - Run wasm golden tests (Go string API path)"
 	@echo "  test-wasm        - Build wasm and run Node.js golden comparison test"

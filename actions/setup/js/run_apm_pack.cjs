@@ -52,10 +52,10 @@ const exec = {
 
 // Wire shims into globals so apm_pack.cjs (and the imported apm_unpack.cjs) can use them.
 setupGlobals(
-  core, // logging, outputs, inputs
+  /** @type {any} */ core, // logging, outputs, inputs
   {}, // @actions/github – not used by apm_pack
-  {}, // GitHub Actions event context – not used by apm_pack
-  exec, // runs `tar -czf`
+  /** @type {any} */ {}, // GitHub Actions event context – not used by apm_pack
+  /** @type {any} */ exec, // runs `tar -czf`
   {} // @actions/io    – not used by apm_pack
 );
 

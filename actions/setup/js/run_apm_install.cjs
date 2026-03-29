@@ -34,10 +34,10 @@ const core = {
 
 // Wire shims into globals so apm_install.cjs can use them.
 setupGlobals(
-  core, // logging
+  /** @type {any} */ core, // logging
   {}, // @actions/github — not used directly (apm_install creates its own Octokit)
-  {}, // GitHub Actions event context — not used
-  {}, // @actions/exec — not used
+  /** @type {any} */ {}, // GitHub Actions event context — not used
+  /** @type {any} */ {}, // @actions/exec — not used
   {} // @actions/io — not used
 );
 

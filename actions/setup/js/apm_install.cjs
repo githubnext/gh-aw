@@ -231,9 +231,11 @@ async function resolveCommit(octokit, owner, repo, ref) {
     ref: effectiveRef,
   });
 
+  // effectiveRef is always non-null here (set to default_branch if null was passed)
+  const resolvedRef = effectiveRef ?? "";
   return {
     commitSha: commitData.sha,
-    resolvedRef: effectiveRef,
+    resolvedRef,
     treeSha: commitData.commit.tree.sha,
   };
 }
