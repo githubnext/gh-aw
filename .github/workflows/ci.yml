@@ -2960,20 +2960,22 @@ jobs:
           repo_name=$(gh api /repos/${{ github.repository }} --jq '.full_name')
           echo "✅ gh CLI works through DIFC proxy (repo: $repo_name)"
 
-      - name: Test actions/github-script through proxy
+      - name: Test actions/github-script with proxy env
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         with:
           github-token: ${{ github.token }}
           script: |
-            const expectedUrl = 'https://localhost:18443/api/v3';
-            const proxyUrl = process.env.GITHUB_API_URL;
-            console.log(`GITHUB_API_URL: ${proxyUrl}`);
-            if (proxyUrl !== expectedUrl) {
-              throw new Error(`Expected GITHUB_API_URL to be "${expectedUrl}", got: ${proxyUrl}`);
+            // GITHUB_API_URL is a protected GitHub Actions default env variable and
+            // cannot be overridden via $GITHUB_ENV; verify GH_HOST instead.
+            const expectedGhHost = 'localhost:18443';
+            const ghHost = process.env.GH_HOST;
+            console.log(`GH_HOST: ${ghHost}`);
+            if (ghHost !== expectedGhHost) {
+              throw new Error(`Expected GH_HOST to be "${expectedGhHost}", got: ${ghHost}`);
             }
             const [owner, repo] = process.env.GITHUB_REPOSITORY.split('/');
             const { data } = await github.rest.repos.get({ owner, repo });
-            console.log(`✅ actions/github-script works through DIFC proxy (repo: ${data.full_name})`);
+            console.log(`✅ actions/github-script works with proxy env active (repo: ${data.full_name})`);
 
       - name: Stop DIFC proxy
         if: always()
@@ -2987,5 +2989,5 @@ jobs:
           echo "This test verifies that:" >> $GITHUB_STEP_SUMMARY
           echo "1. \`start_difc_proxy.sh\` starts the proxy container" >> $GITHUB_STEP_SUMMARY
           echo "2. \`gh\` CLI calls are routed through the proxy (\`GH_HOST=localhost:18443\`)" >> $GITHUB_STEP_SUMMARY
-          echo "3. \`actions/github-script\` Octokit calls are routed through the proxy (\`GITHUB_API_URL\`)" >> $GITHUB_STEP_SUMMARY
+          echo "3. \`actions/github-script\` sees the proxy env (\`GH_HOST=localhost:18443\`)" >> $GITHUB_STEP_SUMMARY
           echo "4. \`stop_difc_proxy.sh\` stops the proxy container" >> $GITHUB_STEP_SUMMARY
