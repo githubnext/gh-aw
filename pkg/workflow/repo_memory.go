@@ -553,11 +553,13 @@ func generateRepoMemorySteps(builder *strings.Builder, data *WorkflowData) {
 // write targets—rather than a single repo-wide key—ensures that workflows pushing to
 // different memory branches do not unnecessarily serialise or cancel each other.
 //
-// Key format: "push-repo-memory-${{ github.repository }}-<branch1>[-<branch2>…]"
+// Key format: "push-repo-memory-${{ github.repository }}|<branch1>[|<branch2>…]"
 //
-// For memories that target a non-default repository, the target repo is prepended to the
-// branch name (e.g., "other-owner/other-repo:memory/branch") so that distinct targets
-// produce distinct concurrency groups.  The branches are sorted for a deterministic key
+// The "|" separator is used because it cannot appear in valid git branch names, making
+// the key unambiguous even when branch names contain hyphens or slashes.  For memories
+// that target a non-default repository, the target repo is prepended to the branch name
+// (e.g., "other-owner/other-repo:memory/branch") so that distinct targets produce
+// distinct concurrency groups.  The branches are sorted for a deterministic key
 // regardless of the order memories are declared in the frontmatter.
 func buildPushRepoMemoryConcurrencyGroup(memories []RepoMemoryEntry) string {
 	branchKeys := make([]string, 0, len(memories))
@@ -569,7 +571,7 @@ func buildPushRepoMemoryConcurrencyGroup(memories []RepoMemoryEntry) string {
 		branchKeys = append(branchKeys, key)
 	}
 	sort.Strings(branchKeys)
-	return "push-repo-memory-${{ github.repository }}-" + strings.Join(branchKeys, "-")
+	return "push-repo-memory-${{ github.repository }}|" + strings.Join(branchKeys, "|")
 }
 
 // buildPushRepoMemoryJob creates a job that downloads repo-memory artifacts and pushes them to git branches

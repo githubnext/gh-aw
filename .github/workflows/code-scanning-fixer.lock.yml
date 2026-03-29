@@ -1173,7 +1173,7 @@ jobs:
     permissions:
       contents: write
     concurrency:
-      group: "push-repo-memory-${{ github.repository }}-memory/campaigns"
+      group: "push-repo-memory-${{ github.repository }}|memory/campaigns"
       cancel-in-progress: false
     outputs:
       patch_size_exceeded_campaigns: ${{ steps.push_repo_memory_campaigns.outputs.patch_size_exceeded }}

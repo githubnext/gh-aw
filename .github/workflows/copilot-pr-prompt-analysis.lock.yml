@@ -1116,7 +1116,7 @@ jobs:
     permissions:
       contents: write
     concurrency:
-      group: "push-repo-memory-${{ github.repository }}-memory/prompt-analysis"
+      group: "push-repo-memory-${{ github.repository }}|memory/prompt-analysis"
       cancel-in-progress: false
     outputs:
       patch_size_exceeded_default: ${{ steps.push_repo_memory_default.outputs.patch_size_exceeded }}

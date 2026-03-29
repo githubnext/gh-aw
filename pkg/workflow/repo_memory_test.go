@@ -1206,7 +1206,7 @@ func TestBuildPushRepoMemoryConcurrencyGroup(t *testing.T) {
 			memories: []RepoMemoryEntry{
 				{ID: "default", BranchName: "memory/daily-news"},
 			},
-			expected: "push-repo-memory-${{ github.repository }}-memory/daily-news",
+			expected: "push-repo-memory-${{ github.repository }}|memory/daily-news",
 		},
 		{
 			name: "multiple memories sorted for deterministic key",
@@ -1214,14 +1214,14 @@ func TestBuildPushRepoMemoryConcurrencyGroup(t *testing.T) {
 				{ID: "b", BranchName: "memory/workflow-b"},
 				{ID: "a", BranchName: "memory/workflow-a"},
 			},
-			expected: "push-repo-memory-${{ github.repository }}-memory/workflow-a-memory/workflow-b",
+			expected: "push-repo-memory-${{ github.repository }}|memory/workflow-a|memory/workflow-b",
 		},
 		{
 			name: "non-default target repo is prefixed to branch",
 			memories: []RepoMemoryEntry{
 				{ID: "default", BranchName: "memory/shared", TargetRepo: "other-org/other-repo"},
 			},
-			expected: "push-repo-memory-${{ github.repository }}-other-org/other-repo:memory/shared",
+			expected: "push-repo-memory-${{ github.repository }}|other-org/other-repo:memory/shared",
 		},
 		{
 			name: "mix of default and custom target repos",
@@ -1229,7 +1229,16 @@ func TestBuildPushRepoMemoryConcurrencyGroup(t *testing.T) {
 				{ID: "local", BranchName: "memory/local"},
 				{ID: "remote", BranchName: "memory/remote", TargetRepo: "other-org/other-repo"},
 			},
-			expected: "push-repo-memory-${{ github.repository }}-memory/local-other-org/other-repo:memory/remote",
+			expected: "push-repo-memory-${{ github.repository }}|memory/local|other-org/other-repo:memory/remote",
+		},
+		{
+			name: "branches with hyphens produce unambiguous keys",
+			memories: []RepoMemoryEntry{
+				{ID: "a", BranchName: "memory/workflow-a"},
+				{ID: "b", BranchName: "memory/workflow-b"},
+			},
+			// "|" separator ensures "memory/workflow-a|memory/workflow-b" ≠ "memory/workflow-a-b"
+			expected: "push-repo-memory-${{ github.repository }}|memory/workflow-a|memory/workflow-b",
 		},
 	}
 
@@ -1259,6 +1268,7 @@ func TestPushRepoMemoryJobConcurrencyKey(t *testing.T) {
 
 	assert.Contains(t, pushJob.Concurrency, "memory/my-workflow",
 		"Concurrency key should include the memory branch name")
+	// Ensure the old repo-wide-only key is not used
 	assert.NotContains(t, pushJob.Concurrency, "push-repo-memory-${{ github.repository }}\"",
-		"Concurrency key should not be the old repo-wide key")
+		"Concurrency key should not be the old repo-wide-only key format")
 }
