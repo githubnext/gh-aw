@@ -235,6 +235,10 @@ fetch_release_data() {
 # For example, if the latest is v0.2.2 and releases include v0.1.10, stable resolves to v0.1.10.
 # Falls back to the latest release if no previous minor band exists or contains no releases.
 resolve_stable_version() {
+    # GitHub API returns at most 100 items per page. For the vast majority of projects
+    # this covers all releases; if a repo ever exceeds 100 releases the resolution will
+    # still be correct as long as both the latest and its previous minor band are within
+    # the first 100 entries (releases are returned newest-first by default).
     local api_url="https://api.github.com/repos/$REPO/releases?per_page=100"
 
     print_info "Resolving 'stable' version..." >&2
@@ -251,7 +255,11 @@ resolve_stable_version() {
     if [ "$HAS_JQ" = true ]; then
         versions=$(echo "$releases_json" | jq -r '.[] | select(.prerelease == false and .draft == false) | .tag_name')
     else
-        # Without jq: extract tag_name values and keep only plain semver tags (vMAJOR.MINOR.PATCH)
+        # Without jq: extract tag_name values and keep only plain semver tags (vMAJOR.MINOR.PATCH).
+        # The strict regex (anchored with $) already excludes pre-release tags such as v1.0.0-rc.1
+        # or v1.0.0-beta because those contain extra characters after the patch number.
+        # Draft releases cannot be reliably detected without jq, but GitHub does not include
+        # drafts in the public releases API response for unauthenticated requests.
         versions=$(echo "$releases_json" | grep '"tag_name"' | sed 's/.*"tag_name": *"//;s/".*//' | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$')
     fi
 

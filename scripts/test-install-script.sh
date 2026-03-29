@@ -432,6 +432,9 @@ else
 fi
 
 # Test the stable version resolution logic inline
+# simulate_stable_resolution intentionally duplicates the core algorithm from
+# resolve_stable_version so that tests remain self-contained without a live GitHub
+# API call. If the algorithm in install-gh-aw.sh is updated, keep this in sync.
 echo ""
 echo "Test 12b: Verify stable version resolution algorithm"
 
