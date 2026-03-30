@@ -224,6 +224,15 @@ func (c *Compiler) buildInitialWorkflowData(
 		}
 	}
 
+	// Populate update-check flag: disabled when update-check: false is set in frontmatter.
+	if toolsResult.parsedFrontmatter != nil && toolsResult.parsedFrontmatter.UpdateCheck != nil {
+		workflowData.UpdateCheckDisabled = !*toolsResult.parsedFrontmatter.UpdateCheck
+	} else if rawVal, ok := result.Frontmatter["update-check"]; ok {
+		if boolVal, ok := rawVal.(bool); ok && !boolVal {
+			workflowData.UpdateCheckDisabled = true
+		}
+	}
+
 	return workflowData
 }
 

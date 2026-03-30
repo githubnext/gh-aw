@@ -200,6 +200,11 @@ type FrontmatterConfig struct {
 	// Rate limiting configuration
 	RateLimit *RateLimitConfig `json:"rate-limit,omitempty"`
 
+	// Update check configuration.
+	// When set to false, the version update check step is skipped in the activation job.
+	// This flag is not allowed in strict mode.
+	UpdateCheck *bool `json:"update-check,omitempty"`
+
 	// Checkout configuration for the agent job.
 	// Controls how actions/checkout is invoked.
 	// Can be a single CheckoutConfig object or an array of CheckoutConfig objects.

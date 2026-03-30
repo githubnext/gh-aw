@@ -11,6 +11,8 @@ on:
       - 'actions/**'
       - '.github/workflows/ci.yml'
       - '.github/workflows/**/*.md'
+      - 'config.json'
+      - 'config.schema.json'
   workflow_dispatch:
 jobs:
   test:
@@ -835,6 +837,87 @@ jobs:
           fi
           
           echo "✅ All URLs in $AGENT_FILE correctly use 'main' branch"
+
+      - name: Validate config.json against JSON schema
+        run: |
+          echo "🔍 Validating config.json against config.schema.json..."
+          
+          CONFIG_FILE="config.json"
+          SCHEMA_FILE="config.schema.json"
+          
+          if [ ! -f "$CONFIG_FILE" ]; then
+            echo "❌ ERROR: $CONFIG_FILE not found"
+            exit 1
+          fi
+          
+          if [ ! -f "$SCHEMA_FILE" ]; then
+            echo "❌ ERROR: $SCHEMA_FILE not found"
+            exit 1
+          fi
+          
+          # Validate that config.json is valid JSON
+          if ! python3 -c "import json, sys; json.load(open('$CONFIG_FILE'))" 2>&1; then
+            echo "❌ ERROR: $CONFIG_FILE is not valid JSON"
+            exit 1
+          fi
+          
+          echo "✅ $CONFIG_FILE is valid JSON"
+          
+          # Validate that config.json conforms to config.schema.json using Python jsonschema
+          python3 - <<'PYEOF'
+import json
+import sys
+
+with open("config.json") as f:
+    config = json.load(f)
+
+with open("config.schema.json") as f:
+    schema = json.load(f)
+
+# Manual validation against the schema (no external dependencies needed)
+errors = []
+
+# Check additionalProperties (only allow known keys)
+allowed_keys = {"$schema", "blockedVersions", "minimumVersion"}
+for key in config:
+    if key not in allowed_keys:
+        errors.append(f"Unknown property: '{key}'")
+
+# Validate blockedVersions
+if "blockedVersions" in config:
+    bv = config["blockedVersions"]
+    if not isinstance(bv, list):
+        errors.append("'blockedVersions' must be an array")
+    else:
+        import re
+        version_pattern = re.compile(r'^v?[0-9]+\.[0-9]+\.[0-9]+')
+        seen = set()
+        for i, v in enumerate(bv):
+            if not isinstance(v, str):
+                errors.append(f"'blockedVersions[{i}]' must be a string")
+            elif not version_pattern.match(v):
+                errors.append(f"'blockedVersions[{i}]' ('{v}') does not match expected version pattern (e.g. 'v1.2.3')")
+            elif v in seen:
+                errors.append(f"'blockedVersions' contains duplicate entry: '{v}'")
+            else:
+                seen.add(v)
+
+# Validate minimumVersion
+if "minimumVersion" in config:
+    mv = config["minimumVersion"]
+    if not isinstance(mv, str):
+        errors.append("'minimumVersion' must be a string")
+    elif mv != "" and not re.match(r'^v?[0-9]+\.[0-9]+\.[0-9]+', mv):
+        errors.append(f"'minimumVersion' ('{mv}') does not match expected version pattern (e.g. 'v1.2.3' or empty string)")
+
+if errors:
+    print("❌ config.json schema validation failed:")
+    for err in errors:
+        print(f"  - {err}")
+    sys.exit(1)
+
+print("✅ config.json is valid and conforms to config.schema.json")
+PYEOF
 
   js:
     runs-on: ubuntu-latest

@@ -1,0 +1,5 @@
+{
+  "$schema": "./config.schema.json",
+  "blockedVersions": [],
+  "minimumVersion": ""
+}

@@ -188,6 +188,20 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 	steps = append(steps, "          script: |\n")
 	steps = append(steps, generateGitHubScriptWithRequire("check_workflow_timestamp_api.cjs"))
 
+	// Add compile-agentic version update check, unless disabled via update-check: false.
+	// The check downloads config.json from the gh-aw repository and verifies that the
+	// compiled version is not blocked and meets the minimum supported version requirement.
+	// If the download fails, the check is skipped (soft failure).
+	if !data.UpdateCheckDisabled && IsReleasedVersion(c.version) {
+		steps = append(steps, "      - name: Check compile-agentic version\n")
+		steps = append(steps, fmt.Sprintf("        uses: %s\n", GetActionPin("actions/github-script")))
+		steps = append(steps, "        env:\n")
+		steps = append(steps, fmt.Sprintf("          GH_AW_COMPILED_VERSION: \"%s\"\n", c.version))
+		steps = append(steps, "        with:\n")
+		steps = append(steps, "          script: |\n")
+		steps = append(steps, generateGitHubScriptWithRequire("check_version_updates.cjs"))
+	}
+
 	// Generate sanitized text/title/body outputs if needed
 	// This step computes sanitized versions of the triggering content (issue/PR/comment text, title, body)
 	// and makes them available as step outputs.
