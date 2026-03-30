@@ -1057,6 +1057,29 @@ describe("push_repo_memory.cjs - shell injection security tests", () => {
       expect(scriptContent).toContain("fs.rmSync(");
     });
 
+    it("should use git add --sparse to handle sparse-checkout on orphan branch creation", () => {
+      // Regression test for: push_repo_memory fails with sparse-checkout error on first run.
+      //
+      // Root cause: "git checkout --orphan" can re-activate sparse-checkout behaviour.
+      // A plain "git add ." then fails because the files fall outside the sparse-checkout
+      // definition.
+      //
+      // Fix: use "git add --sparse ." so files are staged regardless of whether
+      // sparse-checkout is active.
+
+      const fs = require("fs");
+      const path = require("path");
+
+      const scriptPath = path.join(import.meta.dirname, "push_repo_memory.cjs");
+      const scriptContent = fs.readFileSync(scriptPath, "utf8");
+
+      // Must use "git add --sparse ." to stage files regardless of sparse-checkout state.
+      expect(scriptContent).toContain('"add", "--sparse", "."');
+
+      // Must NOT use plain "git add ." which breaks under sparse-checkout.
+      expect(scriptContent).not.toContain('"add", "."');
+    });
+
     it("should safely handle malicious branch names", () => {
       // Test that malicious branch names would be rejected by git, not executed as shell commands
       const maliciousBranchNames = [

@@ -369,8 +369,12 @@ async function main() {
   core.info("Changes detected, committing and pushing...");
 
   // Stage all changes
+  // Use --sparse to allow staging files that fall outside an active
+  // sparse-checkout definition. This can happen on the first run when an
+  // orphan branch is created: "git checkout --orphan" can re-activate
+  // sparse-checkout behaviour, which would cause a plain "git add ." to fail.
   try {
-    execGitSync(["add", "."], { stdio: "inherit" });
+    execGitSync(["add", "--sparse", "."], { stdio: "inherit" });
   } catch (error) {
     core.setFailed(`Failed to stage changes: ${getErrorMessage(error)}`);
     return;
