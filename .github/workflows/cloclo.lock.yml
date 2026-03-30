@@ -273,8 +273,6 @@ jobs:
           fi
           cat << 'GH_AW_PROMPT_babc3430dd91037f_EOF'
           </system>
-          GH_AW_PROMPT_babc3430dd91037f_EOF
-          cat << 'GH_AW_PROMPT_babc3430dd91037f_EOF'
           ## Serena Code Analysis
           
           The Serena MCP server is configured for **["go"]** analysis in this workspace:
@@ -306,14 +304,8 @@ jobs:
           4. **Focus on the relevant language files** — ignore unrelated file types
           
           
-          GH_AW_PROMPT_babc3430dd91037f_EOF
-          cat << 'GH_AW_PROMPT_babc3430dd91037f_EOF'
           {{#runtime-import .github/workflows/shared/jqschema.md}}
-          GH_AW_PROMPT_babc3430dd91037f_EOF
-          cat << 'GH_AW_PROMPT_babc3430dd91037f_EOF'
           {{#runtime-import .github/workflows/shared/mcp/serena-go.md}}
-          GH_AW_PROMPT_babc3430dd91037f_EOF
-          cat << 'GH_AW_PROMPT_babc3430dd91037f_EOF'
           {{#runtime-import .github/workflows/cloclo.md}}
           GH_AW_PROMPT_babc3430dd91037f_EOF
           } > "$GH_AW_PROMPT"

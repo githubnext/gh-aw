@@ -218,8 +218,6 @@ jobs:
           fi
           cat << 'GH_AW_PROMPT_4438e0d43626c214_EOF'
           </system>
-          GH_AW_PROMPT_4438e0d43626c214_EOF
-          cat << 'GH_AW_PROMPT_4438e0d43626c214_EOF'
           {{#runtime-import .github/workflows/craft.md}}
           GH_AW_PROMPT_4438e0d43626c214_EOF
           } > "$GH_AW_PROMPT"

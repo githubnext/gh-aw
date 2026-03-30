@@ -278,29 +278,13 @@ jobs:
           fi
           cat << 'GH_AW_PROMPT_342f7ad72fb0f127_EOF'
           </system>
-          GH_AW_PROMPT_342f7ad72fb0f127_EOF
-          cat << 'GH_AW_PROMPT_342f7ad72fb0f127_EOF'
           {{#runtime-import .github/workflows/shared/reporting.md}}
-          GH_AW_PROMPT_342f7ad72fb0f127_EOF
-          cat << 'GH_AW_PROMPT_342f7ad72fb0f127_EOF'
           {{#runtime-import .github/workflows/shared/mcp/arxiv.md}}
-          GH_AW_PROMPT_342f7ad72fb0f127_EOF
-          cat << 'GH_AW_PROMPT_342f7ad72fb0f127_EOF'
           {{#runtime-import .github/workflows/shared/mcp/tavily.md}}
-          GH_AW_PROMPT_342f7ad72fb0f127_EOF
-          cat << 'GH_AW_PROMPT_342f7ad72fb0f127_EOF'
           {{#runtime-import .github/workflows/shared/mcp/microsoft-docs.md}}
-          GH_AW_PROMPT_342f7ad72fb0f127_EOF
-          cat << 'GH_AW_PROMPT_342f7ad72fb0f127_EOF'
           {{#runtime-import .github/workflows/shared/mcp/deepwiki.md}}
-          GH_AW_PROMPT_342f7ad72fb0f127_EOF
-          cat << 'GH_AW_PROMPT_342f7ad72fb0f127_EOF'
           {{#runtime-import .github/workflows/shared/mcp/markitdown.md}}
-          GH_AW_PROMPT_342f7ad72fb0f127_EOF
-          cat << 'GH_AW_PROMPT_342f7ad72fb0f127_EOF'
           {{#runtime-import .github/workflows/shared/jqschema.md}}
-          GH_AW_PROMPT_342f7ad72fb0f127_EOF
-          cat << 'GH_AW_PROMPT_342f7ad72fb0f127_EOF'
           {{#runtime-import .github/workflows/scout.md}}
           GH_AW_PROMPT_342f7ad72fb0f127_EOF
           } > "$GH_AW_PROMPT"

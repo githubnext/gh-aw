@@ -191,26 +191,12 @@ jobs:
           cat "${RUNNER_TEMP}/gh-aw/prompts/github_mcp_tools_with_safeoutputs_prompt.md"
           cat << 'GH_AW_PROMPT_47d15d8ee3f177f9_EOF'
           </system>
-          GH_AW_PROMPT_47d15d8ee3f177f9_EOF
-          cat << 'GH_AW_PROMPT_47d15d8ee3f177f9_EOF'
           {{#runtime-import .github/workflows/shared/jqschema.md}}
-          GH_AW_PROMPT_47d15d8ee3f177f9_EOF
-          cat << 'GH_AW_PROMPT_47d15d8ee3f177f9_EOF'
           {{#runtime-import .github/workflows/shared/issues-data-fetch.md}}
-          GH_AW_PROMPT_47d15d8ee3f177f9_EOF
-          cat << 'GH_AW_PROMPT_47d15d8ee3f177f9_EOF'
           {{#runtime-import .github/workflows/shared/python-dataviz.md}}
-          GH_AW_PROMPT_47d15d8ee3f177f9_EOF
-          cat << 'GH_AW_PROMPT_47d15d8ee3f177f9_EOF'
           {{#runtime-import .github/workflows/shared/python-nlp.md}}
-          GH_AW_PROMPT_47d15d8ee3f177f9_EOF
-          cat << 'GH_AW_PROMPT_47d15d8ee3f177f9_EOF'
           {{#runtime-import .github/workflows/shared/trends.md}}
-          GH_AW_PROMPT_47d15d8ee3f177f9_EOF
-          cat << 'GH_AW_PROMPT_47d15d8ee3f177f9_EOF'
           {{#runtime-import .github/workflows/shared/reporting.md}}
-          GH_AW_PROMPT_47d15d8ee3f177f9_EOF
-          cat << 'GH_AW_PROMPT_47d15d8ee3f177f9_EOF'
           {{#runtime-import .github/workflows/daily-issues-report.md}}
           GH_AW_PROMPT_47d15d8ee3f177f9_EOF
           } > "$GH_AW_PROMPT"

@@ -184,11 +184,7 @@ jobs:
           cat "${RUNNER_TEMP}/gh-aw/prompts/github_mcp_tools_with_safeoutputs_prompt.md"
           cat << 'GH_AW_PROMPT_3a6544334ea882c2_EOF'
           </system>
-          GH_AW_PROMPT_3a6544334ea882c2_EOF
-          cat << 'GH_AW_PROMPT_3a6544334ea882c2_EOF'
           {{#runtime-import .github/workflows/shared/community-attribution.md}}
-          GH_AW_PROMPT_3a6544334ea882c2_EOF
-          cat << 'GH_AW_PROMPT_3a6544334ea882c2_EOF'
           {{#runtime-import .github/workflows/daily-community-attribution.md}}
           GH_AW_PROMPT_3a6544334ea882c2_EOF
           } > "$GH_AW_PROMPT"

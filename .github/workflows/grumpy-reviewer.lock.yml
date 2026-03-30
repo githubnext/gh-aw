@@ -233,11 +233,7 @@ jobs:
           fi
           cat << 'GH_AW_PROMPT_4a47bd5b85501c0e_EOF'
           </system>
-          GH_AW_PROMPT_4a47bd5b85501c0e_EOF
-          cat << 'GH_AW_PROMPT_4a47bd5b85501c0e_EOF'
           {{#runtime-import .github/workflows/shared/pr-code-review-config.md}}
-          GH_AW_PROMPT_4a47bd5b85501c0e_EOF
-          cat << 'GH_AW_PROMPT_4a47bd5b85501c0e_EOF'
           {{#runtime-import .github/workflows/grumpy-reviewer.md}}
           GH_AW_PROMPT_4a47bd5b85501c0e_EOF
           } > "$GH_AW_PROMPT"

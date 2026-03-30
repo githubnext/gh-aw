@@ -230,11 +230,7 @@ jobs:
           fi
           cat << 'GH_AW_PROMPT_f5c6bc451bd0d459_EOF'
           </system>
-          GH_AW_PROMPT_f5c6bc451bd0d459_EOF
-          cat << 'GH_AW_PROMPT_f5c6bc451bd0d459_EOF'
           {{#runtime-import .github/workflows/shared/pr-code-review-config.md}}
-          GH_AW_PROMPT_f5c6bc451bd0d459_EOF
-          cat << 'GH_AW_PROMPT_f5c6bc451bd0d459_EOF'
           {{#runtime-import .github/workflows/security-review.md}}
           GH_AW_PROMPT_f5c6bc451bd0d459_EOF
           } > "$GH_AW_PROMPT"

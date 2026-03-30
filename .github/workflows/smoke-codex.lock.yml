@@ -243,8 +243,6 @@ jobs:
           cat "${RUNNER_TEMP}/gh-aw/prompts/github_mcp_tools_with_safeoutputs_prompt.md"
           cat << 'GH_AW_PROMPT_20c992e85e9b3ade_EOF'
           </system>
-          GH_AW_PROMPT_20c992e85e9b3ade_EOF
-          cat << 'GH_AW_PROMPT_20c992e85e9b3ade_EOF'
           <qmd>
           Use the `search` tool to find relevant documentation and content with a natural language request — it queries a local vector database built from the configured collections.
           
@@ -291,17 +289,9 @@ jobs:
           4. **Focus on the relevant language files** — ignore unrelated file types
           
           
-          GH_AW_PROMPT_20c992e85e9b3ade_EOF
-          cat << 'GH_AW_PROMPT_20c992e85e9b3ade_EOF'
           {{#runtime-import .github/workflows/shared/gh.md}}
-          GH_AW_PROMPT_20c992e85e9b3ade_EOF
-          cat << 'GH_AW_PROMPT_20c992e85e9b3ade_EOF'
           {{#runtime-import .github/workflows/shared/reporting.md}}
-          GH_AW_PROMPT_20c992e85e9b3ade_EOF
-          cat << 'GH_AW_PROMPT_20c992e85e9b3ade_EOF'
           {{#runtime-import .github/workflows/shared/mcp/serena-go.md}}
-          GH_AW_PROMPT_20c992e85e9b3ade_EOF
-          cat << 'GH_AW_PROMPT_20c992e85e9b3ade_EOF'
           {{#runtime-import .github/workflows/smoke-codex.md}}
           GH_AW_PROMPT_20c992e85e9b3ade_EOF
           } > "$GH_AW_PROMPT"

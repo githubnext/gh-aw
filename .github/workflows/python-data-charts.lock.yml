@@ -183,17 +183,9 @@ jobs:
           cat "${RUNNER_TEMP}/gh-aw/prompts/github_mcp_tools_with_safeoutputs_prompt.md"
           cat << 'GH_AW_PROMPT_81f2124f4a6ec9c7_EOF'
           </system>
-          GH_AW_PROMPT_81f2124f4a6ec9c7_EOF
-          cat << 'GH_AW_PROMPT_81f2124f4a6ec9c7_EOF'
           {{#runtime-import .github/workflows/shared/charts-with-trending.md}}
-          GH_AW_PROMPT_81f2124f4a6ec9c7_EOF
-          cat << 'GH_AW_PROMPT_81f2124f4a6ec9c7_EOF'
           {{#runtime-import .github/workflows/shared/python-dataviz.md}}
-          GH_AW_PROMPT_81f2124f4a6ec9c7_EOF
-          cat << 'GH_AW_PROMPT_81f2124f4a6ec9c7_EOF'
           {{#runtime-import .github/workflows/shared/trends.md}}
-          GH_AW_PROMPT_81f2124f4a6ec9c7_EOF
-          cat << 'GH_AW_PROMPT_81f2124f4a6ec9c7_EOF'
           {{#runtime-import .github/workflows/python-data-charts.md}}
           GH_AW_PROMPT_81f2124f4a6ec9c7_EOF
           } > "$GH_AW_PROMPT"

@@ -186,8 +186,6 @@ jobs:
           cat "${RUNNER_TEMP}/gh-aw/prompts/github_mcp_tools_with_safeoutputs_prompt.md"
           cat << 'GH_AW_PROMPT_60089bbd806a2741_EOF'
           </system>
-          GH_AW_PROMPT_60089bbd806a2741_EOF
-          cat << 'GH_AW_PROMPT_60089bbd806a2741_EOF'
           {{#runtime-import .github/workflows/update-astro.md}}
           GH_AW_PROMPT_60089bbd806a2741_EOF
           } > "$GH_AW_PROMPT"

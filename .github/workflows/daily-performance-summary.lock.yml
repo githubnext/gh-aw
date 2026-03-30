@@ -185,17 +185,9 @@ jobs:
           cat "${RUNNER_TEMP}/gh-aw/prompts/github_mcp_tools_with_safeoutputs_prompt.md"
           cat << 'GH_AW_PROMPT_de57425ea5d8c2f0_EOF'
           </system>
-          GH_AW_PROMPT_de57425ea5d8c2f0_EOF
-          cat << 'GH_AW_PROMPT_de57425ea5d8c2f0_EOF'
           {{#runtime-import .github/workflows/shared/github-queries-mcp-script.md}}
-          GH_AW_PROMPT_de57425ea5d8c2f0_EOF
-          cat << 'GH_AW_PROMPT_de57425ea5d8c2f0_EOF'
           {{#runtime-import .github/workflows/shared/trending-charts-simple.md}}
-          GH_AW_PROMPT_de57425ea5d8c2f0_EOF
-          cat << 'GH_AW_PROMPT_de57425ea5d8c2f0_EOF'
           {{#runtime-import .github/workflows/shared/reporting.md}}
-          GH_AW_PROMPT_de57425ea5d8c2f0_EOF
-          cat << 'GH_AW_PROMPT_de57425ea5d8c2f0_EOF'
           {{#runtime-import .github/workflows/daily-performance-summary.md}}
           GH_AW_PROMPT_de57425ea5d8c2f0_EOF
           } > "$GH_AW_PROMPT"

@@ -220,8 +220,6 @@ jobs:
           cat "${RUNNER_TEMP}/gh-aw/prompts/github_mcp_tools_with_safeoutputs_prompt.md"
           cat << 'GH_AW_PROMPT_9b4cf20fc0a8a198_EOF'
           </system>
-          GH_AW_PROMPT_9b4cf20fc0a8a198_EOF
-          cat << 'GH_AW_PROMPT_9b4cf20fc0a8a198_EOF'
           {{#runtime-import .github/workflows/ai-moderator.md}}
           GH_AW_PROMPT_9b4cf20fc0a8a198_EOF
           } > "$GH_AW_PROMPT"

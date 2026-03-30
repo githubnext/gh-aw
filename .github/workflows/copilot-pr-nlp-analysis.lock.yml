@@ -183,26 +183,12 @@ jobs:
           cat "${RUNNER_TEMP}/gh-aw/prompts/github_mcp_tools_with_safeoutputs_prompt.md"
           cat << 'GH_AW_PROMPT_579fb77996334628_EOF'
           </system>
-          GH_AW_PROMPT_579fb77996334628_EOF
-          cat << 'GH_AW_PROMPT_579fb77996334628_EOF'
           {{#runtime-import .github/workflows/shared/copilot-pr-analysis-base.md}}
-          GH_AW_PROMPT_579fb77996334628_EOF
-          cat << 'GH_AW_PROMPT_579fb77996334628_EOF'
           {{#runtime-import .github/workflows/shared/python-dataviz.md}}
-          GH_AW_PROMPT_579fb77996334628_EOF
-          cat << 'GH_AW_PROMPT_579fb77996334628_EOF'
           {{#runtime-import .github/workflows/shared/python-nlp.md}}
-          GH_AW_PROMPT_579fb77996334628_EOF
-          cat << 'GH_AW_PROMPT_579fb77996334628_EOF'
           {{#runtime-import .github/workflows/shared/reporting.md}}
-          GH_AW_PROMPT_579fb77996334628_EOF
-          cat << 'GH_AW_PROMPT_579fb77996334628_EOF'
           {{#runtime-import .github/workflows/shared/jqschema.md}}
-          GH_AW_PROMPT_579fb77996334628_EOF
-          cat << 'GH_AW_PROMPT_579fb77996334628_EOF'
           {{#runtime-import .github/workflows/shared/copilot-pr-data-fetch.md}}
-          GH_AW_PROMPT_579fb77996334628_EOF
-          cat << 'GH_AW_PROMPT_579fb77996334628_EOF'
           {{#runtime-import .github/workflows/copilot-pr-nlp-analysis.md}}
           GH_AW_PROMPT_579fb77996334628_EOF
           } > "$GH_AW_PROMPT"

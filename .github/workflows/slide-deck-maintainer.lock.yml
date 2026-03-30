@@ -193,11 +193,7 @@ jobs:
           cat "${RUNNER_TEMP}/gh-aw/prompts/github_mcp_tools_with_safeoutputs_prompt.md"
           cat << 'GH_AW_PROMPT_1470bb7153ea2203_EOF'
           </system>
-          GH_AW_PROMPT_1470bb7153ea2203_EOF
-          cat << 'GH_AW_PROMPT_1470bb7153ea2203_EOF'
           {{#runtime-import .github/workflows/shared/activation-app.md}}
-          GH_AW_PROMPT_1470bb7153ea2203_EOF
-          cat << 'GH_AW_PROMPT_1470bb7153ea2203_EOF'
           {{#runtime-import .github/workflows/slide-deck-maintainer.md}}
           GH_AW_PROMPT_1470bb7153ea2203_EOF
           } > "$GH_AW_PROMPT"

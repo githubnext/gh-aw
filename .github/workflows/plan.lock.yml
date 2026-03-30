@@ -223,8 +223,6 @@ jobs:
           fi
           cat << 'GH_AW_PROMPT_da5783e43c0d76bd_EOF'
           </system>
-          GH_AW_PROMPT_da5783e43c0d76bd_EOF
-          cat << 'GH_AW_PROMPT_da5783e43c0d76bd_EOF'
           {{#runtime-import .github/workflows/plan.md}}
           GH_AW_PROMPT_da5783e43c0d76bd_EOF
           } > "$GH_AW_PROMPT"

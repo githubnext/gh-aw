@@ -185,8 +185,6 @@ jobs:
           cat "${RUNNER_TEMP}/gh-aw/prompts/github_mcp_tools_with_safeoutputs_prompt.md"
           cat << 'GH_AW_PROMPT_7c8e92f9f038680c_EOF'
           </system>
-          GH_AW_PROMPT_7c8e92f9f038680c_EOF
-          cat << 'GH_AW_PROMPT_7c8e92f9f038680c_EOF'
           <qmd>
           Use the `search` tool to find relevant documentation and content with a natural language request — it queries a local vector database built from the configured collections.
           
@@ -203,8 +201,6 @@ jobs:
           </qmd>
           
           
-          GH_AW_PROMPT_7c8e92f9f038680c_EOF
-          cat << 'GH_AW_PROMPT_7c8e92f9f038680c_EOF'
           {{#runtime-import .github/workflows/daily-doc-updater.md}}
           GH_AW_PROMPT_7c8e92f9f038680c_EOF
           } > "$GH_AW_PROMPT"

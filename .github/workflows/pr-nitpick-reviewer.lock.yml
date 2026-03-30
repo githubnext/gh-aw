@@ -230,14 +230,8 @@ jobs:
           fi
           cat << 'GH_AW_PROMPT_c3bd2f572dae5dc1_EOF'
           </system>
-          GH_AW_PROMPT_c3bd2f572dae5dc1_EOF
-          cat << 'GH_AW_PROMPT_c3bd2f572dae5dc1_EOF'
           {{#runtime-import .github/workflows/shared/pr-code-review-config.md}}
-          GH_AW_PROMPT_c3bd2f572dae5dc1_EOF
-          cat << 'GH_AW_PROMPT_c3bd2f572dae5dc1_EOF'
           {{#runtime-import .github/workflows/shared/reporting.md}}
-          GH_AW_PROMPT_c3bd2f572dae5dc1_EOF
-          cat << 'GH_AW_PROMPT_c3bd2f572dae5dc1_EOF'
           {{#runtime-import .github/workflows/pr-nitpick-reviewer.md}}
           GH_AW_PROMPT_c3bd2f572dae5dc1_EOF
           } > "$GH_AW_PROMPT"

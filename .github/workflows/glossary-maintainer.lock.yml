@@ -189,8 +189,6 @@ jobs:
           cat "${RUNNER_TEMP}/gh-aw/prompts/github_mcp_tools_with_safeoutputs_prompt.md"
           cat << 'GH_AW_PROMPT_72affc4a0f72dec4_EOF'
           </system>
-          GH_AW_PROMPT_72affc4a0f72dec4_EOF
-          cat << 'GH_AW_PROMPT_72affc4a0f72dec4_EOF'
           <qmd>
           Use the `search` tool to find relevant documentation and content with a natural language request — it queries a local vector database built from the configured collections.
           
@@ -237,17 +235,9 @@ jobs:
           4. **Focus on the relevant language files** — ignore unrelated file types
           
           
-          GH_AW_PROMPT_72affc4a0f72dec4_EOF
-          cat << 'GH_AW_PROMPT_72affc4a0f72dec4_EOF'
           {{#runtime-import .github/skills/documentation/SKILL.md}}
-          GH_AW_PROMPT_72affc4a0f72dec4_EOF
-          cat << 'GH_AW_PROMPT_72affc4a0f72dec4_EOF'
           {{#runtime-import .github/agents/technical-doc-writer.agent.md}}
-          GH_AW_PROMPT_72affc4a0f72dec4_EOF
-          cat << 'GH_AW_PROMPT_72affc4a0f72dec4_EOF'
           {{#runtime-import .github/workflows/shared/mcp/serena-go.md}}
-          GH_AW_PROMPT_72affc4a0f72dec4_EOF
-          cat << 'GH_AW_PROMPT_72affc4a0f72dec4_EOF'
           {{#runtime-import .github/workflows/glossary-maintainer.md}}
           GH_AW_PROMPT_72affc4a0f72dec4_EOF
           } > "$GH_AW_PROMPT"

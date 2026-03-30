@@ -247,11 +247,7 @@ jobs:
           fi
           cat << 'GH_AW_PROMPT_5fc315a4df6b25f8_EOF'
           </system>
-          GH_AW_PROMPT_5fc315a4df6b25f8_EOF
-          cat << 'GH_AW_PROMPT_5fc315a4df6b25f8_EOF'
           {{#runtime-import .github/workflows/shared/reporting.md}}
-          GH_AW_PROMPT_5fc315a4df6b25f8_EOF
-          cat << 'GH_AW_PROMPT_5fc315a4df6b25f8_EOF'
           {{#runtime-import .github/workflows/poem-bot.md}}
           GH_AW_PROMPT_5fc315a4df6b25f8_EOF
           } > "$GH_AW_PROMPT"

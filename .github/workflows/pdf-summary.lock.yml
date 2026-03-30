@@ -249,11 +249,7 @@ jobs:
           fi
           cat << 'GH_AW_PROMPT_4b8e89f4e47016e2_EOF'
           </system>
-          GH_AW_PROMPT_4b8e89f4e47016e2_EOF
-          cat << 'GH_AW_PROMPT_4b8e89f4e47016e2_EOF'
           {{#runtime-import .github/workflows/shared/mcp/markitdown.md}}
-          GH_AW_PROMPT_4b8e89f4e47016e2_EOF
-          cat << 'GH_AW_PROMPT_4b8e89f4e47016e2_EOF'
           {{#runtime-import .github/workflows/pdf-summary.md}}
           GH_AW_PROMPT_4b8e89f4e47016e2_EOF
           } > "$GH_AW_PROMPT"

@@ -188,20 +188,10 @@ jobs:
           cat "${RUNNER_TEMP}/gh-aw/prompts/github_mcp_tools_with_safeoutputs_prompt.md"
           cat << 'GH_AW_PROMPT_3eaddc06a6eaf30b_EOF'
           </system>
-          GH_AW_PROMPT_3eaddc06a6eaf30b_EOF
-          cat << 'GH_AW_PROMPT_3eaddc06a6eaf30b_EOF'
           {{#runtime-import .github/workflows/shared/aw-logs-24h-fetch.md}}
-          GH_AW_PROMPT_3eaddc06a6eaf30b_EOF
-          cat << 'GH_AW_PROMPT_3eaddc06a6eaf30b_EOF'
           {{#runtime-import .github/workflows/shared/activation-app.md}}
-          GH_AW_PROMPT_3eaddc06a6eaf30b_EOF
-          cat << 'GH_AW_PROMPT_3eaddc06a6eaf30b_EOF'
           {{#runtime-import .github/workflows/shared/jqschema.md}}
-          GH_AW_PROMPT_3eaddc06a6eaf30b_EOF
-          cat << 'GH_AW_PROMPT_3eaddc06a6eaf30b_EOF'
           {{#runtime-import .github/workflows/shared/reporting.md}}
-          GH_AW_PROMPT_3eaddc06a6eaf30b_EOF
-          cat << 'GH_AW_PROMPT_3eaddc06a6eaf30b_EOF'
           {{#runtime-import .github/workflows/daily-safe-output-optimizer.md}}
           GH_AW_PROMPT_3eaddc06a6eaf30b_EOF
           } > "$GH_AW_PROMPT"

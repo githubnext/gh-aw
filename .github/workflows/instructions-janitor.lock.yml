@@ -180,8 +180,6 @@ jobs:
           cat "${RUNNER_TEMP}/gh-aw/prompts/github_mcp_tools_with_safeoutputs_prompt.md"
           cat << 'GH_AW_PROMPT_29b3f3c922b87c0b_EOF'
           </system>
-          GH_AW_PROMPT_29b3f3c922b87c0b_EOF
-          cat << 'GH_AW_PROMPT_29b3f3c922b87c0b_EOF'
           {{#runtime-import .github/workflows/instructions-janitor.md}}
           GH_AW_PROMPT_29b3f3c922b87c0b_EOF
           } > "$GH_AW_PROMPT"

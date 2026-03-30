@@ -184,11 +184,7 @@ jobs:
           cat "${RUNNER_TEMP}/gh-aw/prompts/github_mcp_tools_with_safeoutputs_prompt.md"
           cat << 'GH_AW_PROMPT_b99fde70c7a6f3ca_EOF'
           </system>
-          GH_AW_PROMPT_b99fde70c7a6f3ca_EOF
-          cat << 'GH_AW_PROMPT_b99fde70c7a6f3ca_EOF'
           {{#runtime-import .github/workflows/shared/go-make.md}}
-          GH_AW_PROMPT_b99fde70c7a6f3ca_EOF
-          cat << 'GH_AW_PROMPT_b99fde70c7a6f3ca_EOF'
           {{#runtime-import .github/workflows/go-logger.md}}
           GH_AW_PROMPT_b99fde70c7a6f3ca_EOF
           } > "$GH_AW_PROMPT"

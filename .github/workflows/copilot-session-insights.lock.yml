@@ -191,26 +191,12 @@ jobs:
           cat "${RUNNER_TEMP}/gh-aw/prompts/github_mcp_tools_with_safeoutputs_prompt.md"
           cat << 'GH_AW_PROMPT_dd3135c4b23f6175_EOF'
           </system>
-          GH_AW_PROMPT_dd3135c4b23f6175_EOF
-          cat << 'GH_AW_PROMPT_dd3135c4b23f6175_EOF'
           {{#runtime-import .github/workflows/shared/jqschema.md}}
-          GH_AW_PROMPT_dd3135c4b23f6175_EOF
-          cat << 'GH_AW_PROMPT_dd3135c4b23f6175_EOF'
           {{#runtime-import .github/workflows/shared/copilot-session-data-fetch.md}}
-          GH_AW_PROMPT_dd3135c4b23f6175_EOF
-          cat << 'GH_AW_PROMPT_dd3135c4b23f6175_EOF'
           {{#runtime-import .github/workflows/shared/session-analysis-charts.md}}
-          GH_AW_PROMPT_dd3135c4b23f6175_EOF
-          cat << 'GH_AW_PROMPT_dd3135c4b23f6175_EOF'
           {{#runtime-import .github/workflows/shared/session-analysis-strategies.md}}
-          GH_AW_PROMPT_dd3135c4b23f6175_EOF
-          cat << 'GH_AW_PROMPT_dd3135c4b23f6175_EOF'
           {{#runtime-import .github/workflows/shared/reporting.md}}
-          GH_AW_PROMPT_dd3135c4b23f6175_EOF
-          cat << 'GH_AW_PROMPT_dd3135c4b23f6175_EOF'
           {{#runtime-import .github/workflows/shared/python-dataviz.md}}
-          GH_AW_PROMPT_dd3135c4b23f6175_EOF
-          cat << 'GH_AW_PROMPT_dd3135c4b23f6175_EOF'
           {{#runtime-import .github/workflows/copilot-session-insights.md}}
           GH_AW_PROMPT_dd3135c4b23f6175_EOF
           } > "$GH_AW_PROMPT"

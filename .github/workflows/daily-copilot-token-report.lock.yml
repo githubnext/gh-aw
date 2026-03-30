@@ -180,14 +180,8 @@ jobs:
           cat "${RUNNER_TEMP}/gh-aw/prompts/github_mcp_tools_with_safeoutputs_prompt.md"
           cat << 'GH_AW_PROMPT_5e0cdb4cd6a3f866_EOF'
           </system>
-          GH_AW_PROMPT_5e0cdb4cd6a3f866_EOF
-          cat << 'GH_AW_PROMPT_5e0cdb4cd6a3f866_EOF'
           {{#runtime-import .github/workflows/shared/reporting.md}}
-          GH_AW_PROMPT_5e0cdb4cd6a3f866_EOF
-          cat << 'GH_AW_PROMPT_5e0cdb4cd6a3f866_EOF'
           {{#runtime-import .github/workflows/shared/python-dataviz.md}}
-          GH_AW_PROMPT_5e0cdb4cd6a3f866_EOF
-          cat << 'GH_AW_PROMPT_5e0cdb4cd6a3f866_EOF'
           {{#runtime-import .github/workflows/daily-copilot-token-report.md}}
           GH_AW_PROMPT_5e0cdb4cd6a3f866_EOF
           } > "$GH_AW_PROMPT"

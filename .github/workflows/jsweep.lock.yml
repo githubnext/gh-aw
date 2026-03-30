@@ -184,8 +184,6 @@ jobs:
           cat "${RUNNER_TEMP}/gh-aw/prompts/github_mcp_tools_with_safeoutputs_prompt.md"
           cat << 'GH_AW_PROMPT_eac1fdf49c0156e5_EOF'
           </system>
-          GH_AW_PROMPT_eac1fdf49c0156e5_EOF
-          cat << 'GH_AW_PROMPT_eac1fdf49c0156e5_EOF'
           ## Serena Code Analysis
           
           The Serena MCP server is configured for **["typescript"]** analysis in this workspace:
@@ -217,8 +215,6 @@ jobs:
           4. **Focus on the relevant language files** — ignore unrelated file types
           
           
-          GH_AW_PROMPT_eac1fdf49c0156e5_EOF
-          cat << 'GH_AW_PROMPT_eac1fdf49c0156e5_EOF'
           {{#runtime-import .github/workflows/jsweep.md}}
           GH_AW_PROMPT_eac1fdf49c0156e5_EOF
           } > "$GH_AW_PROMPT"

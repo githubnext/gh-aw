@@ -198,8 +198,6 @@ jobs:
           cat "${RUNNER_TEMP}/gh-aw/prompts/github_mcp_tools_with_safeoutputs_prompt.md"
           cat << 'GH_AW_PROMPT_595ce40f90294a31_EOF'
           </system>
-          GH_AW_PROMPT_595ce40f90294a31_EOF
-          cat << 'GH_AW_PROMPT_595ce40f90294a31_EOF'
           ## Serena Code Analysis
           
           The Serena MCP server is configured for **["go"]** analysis in this workspace:
@@ -231,56 +229,22 @@ jobs:
           4. **Focus on the relevant language files** — ignore unrelated file types
           
           
-          GH_AW_PROMPT_595ce40f90294a31_EOF
-          cat << 'GH_AW_PROMPT_595ce40f90294a31_EOF'
           {{#runtime-import .github/workflows/shared/mcp/arxiv.md}}
-          GH_AW_PROMPT_595ce40f90294a31_EOF
-          cat << 'GH_AW_PROMPT_595ce40f90294a31_EOF'
           {{#runtime-import .github/workflows/shared/mcp/ast-grep.md}}
-          GH_AW_PROMPT_595ce40f90294a31_EOF
-          cat << 'GH_AW_PROMPT_595ce40f90294a31_EOF'
           {{#runtime-import .github/workflows/shared/mcp/brave.md}}
-          GH_AW_PROMPT_595ce40f90294a31_EOF
-          cat << 'GH_AW_PROMPT_595ce40f90294a31_EOF'
           {{#runtime-import .github/workflows/shared/mcp/context7.md}}
-          GH_AW_PROMPT_595ce40f90294a31_EOF
-          cat << 'GH_AW_PROMPT_595ce40f90294a31_EOF'
           {{#runtime-import .github/workflows/shared/mcp/datadog.md}}
-          GH_AW_PROMPT_595ce40f90294a31_EOF
-          cat << 'GH_AW_PROMPT_595ce40f90294a31_EOF'
           {{#runtime-import .github/workflows/shared/mcp/deepwiki.md}}
-          GH_AW_PROMPT_595ce40f90294a31_EOF
-          cat << 'GH_AW_PROMPT_595ce40f90294a31_EOF'
           {{#runtime-import .github/workflows/shared/mcp/fabric-rti.md}}
-          GH_AW_PROMPT_595ce40f90294a31_EOF
-          cat << 'GH_AW_PROMPT_595ce40f90294a31_EOF'
           {{#runtime-import .github/workflows/shared/mcp/markitdown.md}}
-          GH_AW_PROMPT_595ce40f90294a31_EOF
-          cat << 'GH_AW_PROMPT_595ce40f90294a31_EOF'
           {{#runtime-import .github/workflows/shared/mcp/microsoft-docs.md}}
-          GH_AW_PROMPT_595ce40f90294a31_EOF
-          cat << 'GH_AW_PROMPT_595ce40f90294a31_EOF'
           {{#runtime-import .github/workflows/shared/mcp/notion.md}}
-          GH_AW_PROMPT_595ce40f90294a31_EOF
-          cat << 'GH_AW_PROMPT_595ce40f90294a31_EOF'
           {{#runtime-import .github/workflows/shared/mcp/sentry.md}}
-          GH_AW_PROMPT_595ce40f90294a31_EOF
-          cat << 'GH_AW_PROMPT_595ce40f90294a31_EOF'
           {{#runtime-import .github/workflows/shared/mcp/server-memory.md}}
-          GH_AW_PROMPT_595ce40f90294a31_EOF
-          cat << 'GH_AW_PROMPT_595ce40f90294a31_EOF'
           {{#runtime-import .github/workflows/shared/mcp/slack.md}}
-          GH_AW_PROMPT_595ce40f90294a31_EOF
-          cat << 'GH_AW_PROMPT_595ce40f90294a31_EOF'
           {{#runtime-import .github/workflows/shared/mcp/tavily.md}}
-          GH_AW_PROMPT_595ce40f90294a31_EOF
-          cat << 'GH_AW_PROMPT_595ce40f90294a31_EOF'
           {{#runtime-import .github/workflows/shared/reporting.md}}
-          GH_AW_PROMPT_595ce40f90294a31_EOF
-          cat << 'GH_AW_PROMPT_595ce40f90294a31_EOF'
           {{#runtime-import .github/workflows/shared/mcp/serena-go.md}}
-          GH_AW_PROMPT_595ce40f90294a31_EOF
-          cat << 'GH_AW_PROMPT_595ce40f90294a31_EOF'
           {{#runtime-import .github/workflows/mcp-inspector.md}}
           GH_AW_PROMPT_595ce40f90294a31_EOF
           } > "$GH_AW_PROMPT"
