@@ -26,7 +26,17 @@ imports:
   - ../skills/documentation/SKILL.md
   - ../agents/technical-doc-writer.agent.md
   - shared/mcp/serena-go.md
-  - shared/mcp/qmd-docs.md
+  - uses: shared/qmd.md
+    with:
+      runs-on: aw-gpu-runner-T4
+      gpu: true
+      checkouts:
+        - name: gh-aw
+          pattern: "**/*.{md,mdx}"
+          ignore:
+            - ".git/**"
+            - "node_modules/**"
+          context: "gh-aw project documentation, agent definitions, and workflow authoring instructions"
 
 safe-outputs:
   create-pull-request:

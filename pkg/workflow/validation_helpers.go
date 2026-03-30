@@ -33,6 +33,8 @@ import (
 	"github.com/github/gh-aw/pkg/logger"
 )
 
+var validationHelpersLog = logger.New("workflow:validation_helpers")
+
 // newValidationLogger creates a standardized logger for a validation domain.
 // It follows the naming convention "workflow:<domain>_validation" used across
 // all *_validation.go files.
@@ -81,12 +83,15 @@ func validateIntRange(value, min, max int, fieldName string) error {
 func validateMountStringFormat(mount string) (source, dest, mode string, err error) {
 	parts := strings.Split(mount, ":")
 	if len(parts) != 3 {
+		validationHelpersLog.Printf("Invalid mount format: %q (expected 3 colon-separated parts, got %d)", mount, len(parts))
 		return "", "", "", errors.New("must follow 'source:destination:mode' format with exactly 3 colon-separated parts")
 	}
 	mode = parts[2]
 	if mode != "ro" && mode != "rw" {
+		validationHelpersLog.Printf("Invalid mount mode: %q in %q (must be 'ro' or 'rw')", mode, mount)
 		return parts[0], parts[1], parts[2], fmt.Errorf("mode must be 'ro' or 'rw', got %q", mode)
 	}
+	validationHelpersLog.Printf("Valid mount: source=%s, dest=%s, mode=%s", parts[0], parts[1], mode)
 	return parts[0], parts[1], parts[2], nil
 }
 
@@ -131,18 +136,20 @@ func validateNoDuplicateIDs[T any](items []T, idFunc func(T) string, onDuplicate
 //   - []any:           "on: [push, <triggerName>]"
 //   - map[string]any:  "on:\n  <triggerName>: ..."
 func containsTrigger(onSection any, triggerName string) bool {
+	found := false
 	switch on := onSection.(type) {
 	case string:
-		return on == triggerName
+		found = on == triggerName
 	case []any:
 		for _, trigger := range on {
 			if triggerStr, ok := trigger.(string); ok && triggerStr == triggerName {
-				return true
+				found = true
+				break
 			}
 		}
 	case map[string]any:
-		_, ok := on[triggerName]
-		return ok
+		_, found = on[triggerName]
 	}
-	return false
+	validationHelpersLog.Printf("containsTrigger: trigger=%s, found=%t", triggerName, found)
+	return found
 }

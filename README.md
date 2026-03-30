@@ -237,6 +237,7 @@ For development setup and contribution guidelines, see [CONTRIBUTING.md](CONTRIB
 
 ### @eaftan
 
+- #23257 _(direct issue)_
 - #20457 _(direct issue)_
 - #18412 _(direct issue)_
 
@@ -360,6 +361,10 @@ For development setup and contribution guidelines, see [CONTRIBUTING.md](CONTRIB
 ### @Krzysztof-Cieslak
 
 - #18488 _(direct issue)_
+
+### @look
+
+- #23258 _(direct issue)_
 
 ### @lpcox
 

@@ -423,6 +423,22 @@ Debug workflow using script mode for custom actions.
 
 **Note:** The `action-mode` can also be overridden via the CLI flag `--action-mode` or the environment variable `GH_AW_ACTION_MODE`. The precedence is: CLI flag > feature flag > environment variable > auto-detection.
 
+#### DIFC Proxy (`features.difc-proxy`)
+
+Opt in to DIFC (Data Integrity and Flow Control) proxy injection. When enabled alongside `tools.github.min-integrity`, the compiler inserts proxy steps around the agent that enforce integrity-level isolation at the network boundary.
+
+```yaml wrap
+features:
+  difc-proxy: true
+tools:
+  github:
+    min-integrity: approved
+```
+
+Without this flag, configuring `min-integrity` alone performs content filtering at the MCP gateway level but does not inject the additional proxy steps. Enable `difc-proxy` when you need the full proxy-based enforcement.
+
+The flag can also be set via the environment variable `GH_AW_FEATURES=difc-proxy`.
+
 ### AI Engine (`engine:`)
 
 Specifies which AI engine interprets the markdown section. See [AI Engines](/gh-aw/reference/engines/) for details.

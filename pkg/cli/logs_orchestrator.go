@@ -683,6 +683,21 @@ func downloadRunArtifactsConcurrent(ctx context.Context, runs []WorkflowRun, out
 				}
 				result.Metrics = metrics
 
+				// Update run with metrics so fingerprint computation uses the same data
+				// as the audit tool, which also derives these fields from extracted log metrics.
+				result.Run.TokenUsage = metrics.TokenUsage
+				result.Run.EstimatedCost = metrics.EstimatedCost
+				result.Run.Turns = metrics.Turns
+				result.Run.LogsPath = runOutputDir
+
+				// Calculate duration and billable minutes from GitHub API timestamps.
+				// This mirrors the identical computation in audit.go so that
+				// processedRun.Run.Duration is consistent across both tools.
+				if !result.Run.StartedAt.IsZero() && !result.Run.UpdatedAt.IsZero() {
+					result.Run.Duration = result.Run.UpdatedAt.Sub(result.Run.StartedAt)
+					result.Run.ActionMinutes = math.Ceil(result.Run.Duration.Minutes())
+				}
+
 				// Analyze access logs if available
 				accessAnalysis, accessErr := analyzeAccessLogs(runOutputDir, verbose)
 				if accessErr != nil {

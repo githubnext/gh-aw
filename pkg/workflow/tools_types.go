@@ -74,7 +74,6 @@ type ToolsConfig struct {
 	Edit             *EditToolConfig             `yaml:"edit,omitempty"`
 	Playwright       *PlaywrightToolConfig       `yaml:"playwright,omitempty"`
 	Qmd              *QmdToolConfig              `yaml:"qmd,omitempty"`
-	Serena           *SerenaToolConfig           `yaml:"serena,omitempty"`
 	AgenticWorkflows *AgenticWorkflowsToolConfig `yaml:"agentic-workflows,omitempty"`
 	CacheMemory      *CacheMemoryToolConfig      `yaml:"cache-memory,omitempty"`
 	RepoMemory       *RepoMemoryToolConfig       `yaml:"repo-memory,omitempty"`
@@ -202,14 +201,6 @@ func (t *ToolsConfig) ToMap() map[string]any {
 	}
 	if t.Qmd != nil {
 		result["qmd"] = t.Qmd
-	}
-	if t.Serena != nil {
-		// Convert back based on whether it was short syntax or object
-		if len(t.Serena.ShortSyntax) > 0 {
-			result["serena"] = t.Serena.ShortSyntax
-		} else {
-			result["serena"] = t.Serena
-		}
 	}
 	if t.AgenticWorkflows != nil {
 		result["agentic-workflows"] = t.AgenticWorkflows.Enabled
@@ -436,22 +427,6 @@ type QmdToolConfig struct {
 	RunsOn string `yaml:"runs-on,omitempty"`
 }
 
-// SerenaToolConfig represents the configuration for the Serena MCP tool
-type SerenaToolConfig struct {
-	Version   string                       `yaml:"version,omitempty"`
-	Args      []string                     `yaml:"args,omitempty"`
-	Languages map[string]*SerenaLangConfig `yaml:"languages,omitempty"`
-	// ShortSyntax stores the array of language names when using short syntax (e.g., ["go", "typescript"])
-	ShortSyntax []string `yaml:"-"`
-}
-
-// SerenaLangConfig represents per-language configuration for Serena
-type SerenaLangConfig struct {
-	Version      string `yaml:"version,omitempty"`
-	GoModFile    string `yaml:"go-mod-file,omitempty"`   // Path to go.mod file (Go only)
-	GoplsVersion string `yaml:"gopls-version,omitempty"` // Version of gopls to install (Go only)
-}
-
 // BashToolConfig represents the configuration for the Bash tool
 // Can be nil (all commands allowed) or an array of allowed commands
 type BashToolConfig struct {
@@ -551,8 +526,6 @@ func (t *Tools) HasTool(name string) bool {
 		return t.Playwright != nil
 	case "qmd":
 		return t.Qmd != nil
-	case "serena":
-		return t.Serena != nil
 	case "agentic-workflows":
 		return t.AgenticWorkflows != nil
 	case "cache-memory":
@@ -598,9 +571,6 @@ func (t *Tools) GetToolNames() []string {
 	}
 	if t.Qmd != nil {
 		names = append(names, "qmd")
-	}
-	if t.Serena != nil {
-		names = append(names, "serena")
 	}
 	if t.AgenticWorkflows != nil {
 		names = append(names, "agentic-workflows")

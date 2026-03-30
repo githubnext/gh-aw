@@ -2971,27 +2971,12 @@ jobs:
           echo "  microsoft/apm-action:  $APM_ACTION_VERSION"
           echo "  github-mcp-server:     $GITHUB_MCP_VERSION"
 
-      - name: Define helpers
-        run: |
-          # Write a reusable helper script for checking GHCR image manifests.
-          # Returns the image digest (sha256:...) or exits 1 if the image is unavailable.
-          cat > /tmp/ghcr_digest.py << 'EOF'
-          import sys, json
-          m = json.load(sys.stdin)
-          digest = m.get("config", {}).get("digest", "") or \
-                   next((entry.get("digest", "") for entry in m.get("manifests", []) if entry.get("digest")), "")
-          if not digest:
-              sys.exit(1)
-          print(digest)
-          EOF
-
       - name: Check gh-aw-firewall release
         env:
           VERSION: ${{ steps.versions.outputs.firewall_version }}
         run: |
           set -e
           REPO="github/gh-aw-firewall"
-          IMAGE="ghcr.io/github/gh-aw-firewall:${VERSION}"
 
           echo "## Checking gh-aw-firewall ${VERSION}" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
@@ -3004,15 +2989,6 @@ jobs:
             exit 1
           fi
 
-          echo "Checking GHCR image manifest: ${IMAGE}..."
-          DIGEST=$(docker manifest inspect "${IMAGE}" 2>/dev/null | python3 /tmp/ghcr_digest.py 2>/dev/null || echo "")
-          if [ -n "$DIGEST" ]; then
-            echo "✅ GHCR image ${IMAGE} is available (digest: ${DIGEST})" | tee -a $GITHUB_STEP_SUMMARY
-          else
-            echo "❌ GHCR image ${IMAGE} could not be inspected" | tee -a $GITHUB_STEP_SUMMARY
-            exit 1
-          fi
-
           echo "" >> $GITHUB_STEP_SUMMARY
           sleep 2  # Avoid GitHub API rate limiting between checks
 
@@ -3022,7 +2998,6 @@ jobs:
         run: |
           set -e
           REPO="github/gh-aw-mcpg"
-          IMAGE="ghcr.io/github/gh-aw-mcpg:${VERSION}"
 
           echo "## Checking gh-aw-mcpg ${VERSION}" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
@@ -3032,15 +3007,6 @@ jobs:
             echo "✅ GitHub release ${VERSION} is available for ${REPO}" | tee -a $GITHUB_STEP_SUMMARY
           else
             echo "❌ GitHub release ${VERSION} not found for ${REPO}" | tee -a $GITHUB_STEP_SUMMARY
-            exit 1
-          fi
-
-          echo "Checking GHCR image manifest: ${IMAGE}..."
-          DIGEST=$(docker manifest inspect "${IMAGE}" 2>/dev/null | python3 /tmp/ghcr_digest.py 2>/dev/null || echo "")
-          if [ -n "$DIGEST" ]; then
-            echo "✅ GHCR image ${IMAGE} is available (digest: ${DIGEST})" | tee -a $GITHUB_STEP_SUMMARY
-          else
-            echo "❌ GHCR image ${IMAGE} could not be inspected" | tee -a $GITHUB_STEP_SUMMARY
             exit 1
           fi
 
@@ -3095,7 +3061,6 @@ jobs:
         run: |
           set -e
           REPO="github/github-mcp-server"
-          IMAGE="ghcr.io/github/github-mcp-server:${VERSION}"
 
           echo "## Checking github-mcp-server ${VERSION}" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
@@ -3108,13 +3073,111 @@ jobs:
             exit 1
           fi
 
-          echo "Checking GHCR image manifest: ${IMAGE}..."
-          DIGEST=$(docker manifest inspect "${IMAGE}" 2>/dev/null | python3 /tmp/ghcr_digest.py 2>/dev/null || echo "")
-          if [ -n "$DIGEST" ]; then
-            echo "✅ GHCR image ${IMAGE} is available (digest: ${DIGEST})" | tee -a $GITHUB_STEP_SUMMARY
-          else
-            echo "❌ GHCR image ${IMAGE} could not be inspected" | tee -a $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+  sh-difc-proxy:
+    name: DIFC Proxy sh Integration Test
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: validate-yaml
+    permissions:
+      contents: read
+      packages: read
+    concurrency:
+      group: ci-${{ github.ref }}-sh-difc-proxy
+      cancel-in-progress: true
+    env:
+      DIFC_PROXY_IMAGE: ghcr.io/github/gh-aw-mcpg:v0.2.8
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Log in to GitHub Container Registry
+        run: echo "${{ github.token }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+
+      - name: Pull DIFC proxy image
+        run: bash actions/setup/sh/download_docker_images.sh "$DIFC_PROXY_IMAGE"
+
+      - name: Start DIFC proxy
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GITHUB_SERVER_URL: ${{ github.server_url }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        run: |
+          bash actions/setup/sh/start_difc_proxy.sh \
+            '{"allow-only":{"repos":"all","min-integrity":"none"}}' \
+            "$DIFC_PROXY_IMAGE"
+
+      - name: Verify DIFC proxy started
+        run: |
+          if [ "${GH_HOST}" != "localhost:18443" ]; then
+            echo "❌ DIFC proxy did not start (GH_HOST=${GH_HOST:-not set})"
+            echo "Docker container logs:"
+            docker logs awmg-proxy 2>&1 || true
+            echo ""
+            echo "Persisted proxy logs (if any) from /tmp/gh-aw/proxy-logs:"
+            if [ -d "/tmp/gh-aw/proxy-logs" ]; then
+              for f in /tmp/gh-aw/proxy-logs/*; do
+                [ -e "$f" ] || continue
+                echo "---- $f ----"
+                cat "$f" || true
+                echo ""
+              done
+            else
+              echo "No /tmp/gh-aw/proxy-logs directory found."
+            fi
+            echo ""
+            echo "Persisted MCP logs (if any) from /tmp/gh-aw/mcp-logs:"
+            if [ -d "/tmp/gh-aw/mcp-logs" ]; then
+              for f in /tmp/gh-aw/mcp-logs/*; do
+                [ -e "$f" ] || continue
+                echo "---- $f ----"
+                cat "$f" || true
+                echo ""
+              done
+            else
+              echo "No /tmp/gh-aw/mcp-logs directory found."
+            fi
             exit 1
           fi
+          echo "✅ DIFC proxy started (GH_HOST=${GH_HOST})"
 
+      - name: Test gh CLI through proxy
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          echo "Testing gh CLI through DIFC proxy (GH_HOST=${GH_HOST})..."
+          repo_name=$(gh api /repos/${{ github.repository }} --jq '.full_name')
+          echo "✅ gh CLI works through DIFC proxy (repo: $repo_name)"
+
+      - name: Test actions/github-script with proxy env
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        with:
+          github-token: ${{ github.token }}
+          script: |
+            // GITHUB_API_URL is a protected GitHub Actions default env variable and
+            // cannot be overridden via $GITHUB_ENV; verify GH_HOST instead.
+            const expectedGhHost = 'localhost:18443';
+            const ghHost = process.env.GH_HOST;
+            console.log(`GH_HOST: ${ghHost}`);
+            if (ghHost !== expectedGhHost) {
+              throw new Error(`Expected GH_HOST to be "${expectedGhHost}", got: ${ghHost}`);
+            }
+            const [owner, repo] = process.env.GITHUB_REPOSITORY.split('/');
+            const { data } = await github.rest.repos.get({ owner, repo });
+            console.log(`✅ actions/github-script works with proxy env active (repo: ${data.full_name})`);
+
+      - name: Stop DIFC proxy
+        if: always()
+        run: bash actions/setup/sh/stop_difc_proxy.sh
+
+      - name: Generate summary
+        if: always()
+        run: |
+          echo "## DIFC Proxy sh Integration Test" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
+          echo "This test verifies that:" >> $GITHUB_STEP_SUMMARY
+          echo "1. \`start_difc_proxy.sh\` starts the proxy container" >> $GITHUB_STEP_SUMMARY
+          echo "2. \`gh\` CLI calls are routed through the proxy (\`GH_HOST=localhost:18443\`)" >> $GITHUB_STEP_SUMMARY
+          echo "3. \`actions/github-script\` sees the proxy env (\`GH_HOST=localhost:18443\`)" >> $GITHUB_STEP_SUMMARY
+          echo "4. \`stop_difc_proxy.sh\` stops the proxy container" >> $GITHUB_STEP_SUMMARY

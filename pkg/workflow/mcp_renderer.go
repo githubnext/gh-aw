@@ -11,7 +11,7 @@
 //     JSONMCPConfigOptions, GitHubMCPDockerOptions, GitHubMCPRemoteOptions).
 //   - mcp_renderer_github.go  — GitHub MCP rendering: RenderGitHubMCP, renderGitHubTOML,
 //     RenderGitHubMCPDockerConfig, RenderGitHubMCPRemoteConfig.
-//   - mcp_renderer_builtin.go — Built-in MCP server renderers: Playwright, Serena,
+//   - mcp_renderer_builtin.go — Built-in MCP server renderers: Playwright,
 //     SafeOutputs, MCPScripts, AgenticWorkflows (JSON + TOML for each).
 //   - mcp_renderer_guard.go   — Guard / access-control policy rendering:
 //     renderGuardPoliciesJSON, renderGuardPoliciesToml.
@@ -149,16 +149,6 @@ func RenderJSONMCPConfig(
 			if options.Renderers.RenderQmd != nil {
 				options.Renderers.RenderQmd(&configBuilder, qmdTool, isLast, workflowData)
 			}
-		case "serena":
-			// If serena has an explicit MCP server config (with container field), use the
-			// custom renderer instead of the built-in hardcoded serena renderer.
-			// This allows shared workflows like shared/mcp/serena.md to configure a
-			// complete MCP server without relying on the deprecated tools.serena path.
-			if HandleCustomMCPToolInSwitch(&configBuilder, toolName, tools, isLast, options.Renderers.RenderCustomMCPConfig) {
-				break
-			}
-			serenaTool := tools["serena"]
-			options.Renderers.RenderSerena(&configBuilder, serenaTool, isLast)
 		case "cache-memory":
 			options.Renderers.RenderCacheMemory(&configBuilder, isLast, workflowData)
 		case "agentic-workflows":

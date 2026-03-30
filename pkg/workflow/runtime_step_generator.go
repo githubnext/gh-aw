@@ -50,19 +50,6 @@ func generateEnvCaptureStep(envVar string, captureCmd string) GitHubActionStep {
 	}
 }
 
-// GenerateSerenaLanguageServiceSteps creates installation steps for Serena language services
-// NOTE: This function is now obsolete since Serena runs in a Docker container.
-// Language services are provided inside the container and do not require host installation.
-// This function is kept for backward compatibility but returns an empty slice.
-func GenerateSerenaLanguageServiceSteps(tools *ToolsConfig) []GitHubActionStep {
-	runtimeStepGeneratorLog.Print("Serena language services provided inside container, no installation steps needed")
-	runtimeSetupLog.Print("Serena language services are now provided inside the container - no installation steps needed")
-
-	// Return empty slice - no steps needed since Serena runs in a container
-	// with all language services pre-installed
-	return []GitHubActionStep{}
-}
-
 // generateSetupStep creates a setup step for a given runtime requirement
 func generateSetupStep(req *RuntimeRequirement) GitHubActionStep {
 	runtime := req.Runtime

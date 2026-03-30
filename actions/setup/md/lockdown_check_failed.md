@@ -1,4 +1,4 @@
-**🔒 Lockdown Check Failed**: The workflow could not start because its security requirements were not met.
+**Lockdown Check Failed**: The workflow could not start because its security requirements were not met.
 
 This can happen when:
 

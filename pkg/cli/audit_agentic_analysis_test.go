@@ -324,3 +324,55 @@ func TestBuildAuditDataToolUsageMatchesBuildToolUsageInfo(t *testing.T) {
 
 	require.Equal(t, expected, auditData.ToolUsage, "buildAuditData tool usage should match buildToolUsageInfo output")
 }
+
+// TestDeriveRunAgenticAnalysisFingerprintConsistency verifies that the fingerprint
+// produced by deriveRunAgenticAnalysis is consistent when Run.Turns is correctly
+// populated from log metrics. This guards against the bug where logs_orchestrator.go
+// computed the fingerprint before updating result.Run.Turns from extracted metrics,
+// causing different fingerprint values between the logs and audit tools for the same run.
+func TestDeriveRunAgenticAnalysisFingerprintConsistency(t *testing.T) {
+	const metricsTurns = 12
+
+	logMetrics := LogMetrics{
+		Turns: metricsTurns,
+		ToolCalls: []workflow.ToolCallInfo{
+			{Name: "bash", CallCount: 5},
+			{Name: "github_issue_read", CallCount: 3},
+		},
+	}
+
+	// Simulate the corrected behavior (post-fix): Run.Turns is set from log metrics
+	// before deriveRunAgenticAnalysis is called, matching what audit.go does.
+	processedRunFixed := ProcessedRun{
+		Run: WorkflowRun{
+			Turns:    metricsTurns, // set from metrics.Turns
+			Duration: 20 * time.Minute,
+		},
+	}
+	_, _, _, _, fpFixed, _ := deriveRunAgenticAnalysis(processedRunFixed, logMetrics)
+
+	require.NotNil(t, fpFixed, "fingerprint should not be nil")
+	assert.Equal(t, "exploratory", fpFixed.ExecutionStyle, "12 turns should produce exploratory execution style")
+	assert.Equal(t, "heavy", fpFixed.ResourceProfile, "20 min duration should produce heavy resource profile")
+	assert.Greater(t, fpFixed.AgenticFraction, 0.0, "agentic fraction should be positive when turns > 0")
+
+	// Simulate the broken behavior (pre-fix): Run.Turns is zero because the orchestrator
+	// had not yet updated it from extracted metrics when computing the fingerprint.
+	processedRunStale := ProcessedRun{
+		Run: WorkflowRun{
+			Turns:    0, // stale — NOT updated from metrics.Turns
+			Duration: 20 * time.Minute,
+		},
+	}
+	_, _, _, _, fpStale, _ := deriveRunAgenticAnalysis(processedRunStale, logMetrics)
+
+	require.NotNil(t, fpStale, "fingerprint should not be nil even with zero turns")
+	assert.Equal(t, "directed", fpStale.ExecutionStyle, "zero turns should produce directed execution style")
+	assert.InDelta(t, 0.0, fpStale.AgenticFraction, 0.001, "agentic fraction should be zero when Run.Turns is zero")
+
+	// Confirm the two results differ — this is exactly the inconsistency the fix resolves.
+	assert.NotEqual(t, fpFixed.ExecutionStyle, fpStale.ExecutionStyle,
+		"fingerprints should differ when Run.Turns is stale vs. correctly set from metrics")
+	assert.NotEqual(t, fpFixed.AgenticFraction, fpStale.AgenticFraction,
+		"agentic fraction should differ when Run.Turns is stale vs. correctly set from metrics")
+}

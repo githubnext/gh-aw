@@ -27,9 +27,10 @@
 #     - shared/gh.md
 #     - shared/mcp/serena-go.md
 #     - shared/mcp/serena.md
+#     - shared/qmd.md
 #     - shared/reporting.md
 #
-# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"f44e72272050fdefc2eaef02af775f7d2b49c900c4c06d1907982cc7a01f4cef","agent_id":"codex"}
+# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"08622eff96fd523aed1828fcef487dcfa21db6e47e34f44f587a6ce0a027cbe3","agent_id":"codex"}
 
 name: "Smoke Codex"
 "on":
@@ -193,9 +194,9 @@ jobs:
         run: |
           bash ${RUNNER_TEMP}/gh-aw/actions/create_prompt_first.sh
           {
-          cat << 'GH_AW_PROMPT_874458f22920114c_EOF'
+          cat << 'GH_AW_PROMPT_20c992e85e9b3ade_EOF'
           <system>
-          GH_AW_PROMPT_874458f22920114c_EOF
+          GH_AW_PROMPT_20c992e85e9b3ade_EOF
           cat "${RUNNER_TEMP}/gh-aw/prompts/xpia.md"
           cat "${RUNNER_TEMP}/gh-aw/prompts/temp_folder_prompt.md"
           cat "${RUNNER_TEMP}/gh-aw/prompts/markdown.md"
@@ -203,7 +204,7 @@ jobs:
           cat "${RUNNER_TEMP}/gh-aw/prompts/qmd_prompt.md"
           cat "${RUNNER_TEMP}/gh-aw/prompts/cache_memory_prompt.md"
           cat "${RUNNER_TEMP}/gh-aw/prompts/safe_outputs_prompt.md"
-          cat << 'GH_AW_PROMPT_874458f22920114c_EOF'
+          cat << 'GH_AW_PROMPT_20c992e85e9b3ade_EOF'
           <safe-output-tools>
           Tools: add_comment(max:2), create_issue, add_labels, remove_labels, unassign_from_user, hide_comment(max:5), missing_tool, missing_data, noop
           </safe-output-tools>
@@ -238,12 +239,27 @@ jobs:
             - **Note**: If a branch you need is not in the list above and is not listed as an additional fetched ref, it has NOT been checked out. For private repositories you cannot fetch it without proper authentication. If the branch is required and not available, exit with an error and ask the user to add it to the `fetch:` option of the `checkout:` configuration (e.g., `fetch: ["refs/pulls/open/*"]` for all open PR refs, or `fetch: ["main", "feature/my-branch"]` for specific branches).
           </github-context>
           
-          GH_AW_PROMPT_874458f22920114c_EOF
+          GH_AW_PROMPT_20c992e85e9b3ade_EOF
           cat "${RUNNER_TEMP}/gh-aw/prompts/github_mcp_tools_with_safeoutputs_prompt.md"
-          cat << 'GH_AW_PROMPT_874458f22920114c_EOF'
+          cat << 'GH_AW_PROMPT_20c992e85e9b3ade_EOF'
           </system>
-          GH_AW_PROMPT_874458f22920114c_EOF
-          cat << 'GH_AW_PROMPT_874458f22920114c_EOF'
+          GH_AW_PROMPT_20c992e85e9b3ade_EOF
+          cat << 'GH_AW_PROMPT_20c992e85e9b3ade_EOF'
+          <qmd>
+          Use the `search` tool to find relevant documentation and content with a natural language request — it queries a local vector database built from the configured collections.
+          
+          **Always use `search` first** when you need to find, verify, or look up information:
+          - **Before using `find` or `bash` to list files** — use `search` to discover the most relevant content
+          - **Before writing new content** — search first to check whether similar content already exists
+          - **When identifying relevant files** — use it to narrow down which files cover a feature or concept
+          - **When understanding a term or concept** — query to find authoritative documentation
+          
+          **Usage tips:**
+          - Use descriptive, natural language queries: e.g., `"how to configure MCP servers"` or `"safe-outputs create-pull-request options"` or `"permissions frontmatter field"`
+          - Always read the returned file paths to get the full content — `search` returns paths only, not content
+          - Combine multiple targeted queries rather than one broad query for better coverage
+          </qmd>
+          
           ## Serena Code Analysis
           
           The Serena MCP server is configured for **["go"]** analysis in this workspace:
@@ -275,19 +291,19 @@ jobs:
           4. **Focus on the relevant language files** — ignore unrelated file types
           
           
-          GH_AW_PROMPT_874458f22920114c_EOF
-          cat << 'GH_AW_PROMPT_874458f22920114c_EOF'
+          GH_AW_PROMPT_20c992e85e9b3ade_EOF
+          cat << 'GH_AW_PROMPT_20c992e85e9b3ade_EOF'
           {{#runtime-import .github/workflows/shared/gh.md}}
-          GH_AW_PROMPT_874458f22920114c_EOF
-          cat << 'GH_AW_PROMPT_874458f22920114c_EOF'
+          GH_AW_PROMPT_20c992e85e9b3ade_EOF
+          cat << 'GH_AW_PROMPT_20c992e85e9b3ade_EOF'
           {{#runtime-import .github/workflows/shared/reporting.md}}
-          GH_AW_PROMPT_874458f22920114c_EOF
-          cat << 'GH_AW_PROMPT_874458f22920114c_EOF'
+          GH_AW_PROMPT_20c992e85e9b3ade_EOF
+          cat << 'GH_AW_PROMPT_20c992e85e9b3ade_EOF'
           {{#runtime-import .github/workflows/shared/mcp/serena-go.md}}
-          GH_AW_PROMPT_874458f22920114c_EOF
-          cat << 'GH_AW_PROMPT_874458f22920114c_EOF'
+          GH_AW_PROMPT_20c992e85e9b3ade_EOF
+          cat << 'GH_AW_PROMPT_20c992e85e9b3ade_EOF'
           {{#runtime-import .github/workflows/smoke-codex.md}}
-          GH_AW_PROMPT_874458f22920114c_EOF
+          GH_AW_PROMPT_20c992e85e9b3ade_EOF
           } > "$GH_AW_PROMPT"
       - name: Interpolate variables and render templates
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
@@ -431,10 +447,15 @@ jobs:
       - name: Restore cache-memory file share data
         uses: actions/cache/restore@668228422ae6a00e4ad889ee87cd7109ec5666a7 # v5.0.4
         with:
-          key: memory-${{ env.GH_AW_WORKFLOW_ID_SANITIZED }}-${{ github.run_id }}
+          key: memory-none-nopolicy-${{ env.GH_AW_WORKFLOW_ID_SANITIZED }}-${{ github.run_id }}
           path: /tmp/gh-aw/cache-memory
           restore-keys: |
-            memory-${{ env.GH_AW_WORKFLOW_ID_SANITIZED }}-
+            memory-none-nopolicy-${{ env.GH_AW_WORKFLOW_ID_SANITIZED }}-
+      - name: Set up cache-memory git repository
+        env:
+          GH_AW_CACHE_DIR: /tmp/gh-aw/cache-memory
+          GH_AW_MIN_INTEGRITY: none
+        run: bash ${RUNNER_TEMP}/gh-aw/actions/setup_cache_memory_git.sh
       - name: Configure Git credentials
         env:
           REPO_NAME: ${{ github.repository }}
@@ -497,12 +518,12 @@ jobs:
           mkdir -p ${RUNNER_TEMP}/gh-aw/safeoutputs
           mkdir -p /tmp/gh-aw/safeoutputs
           mkdir -p /tmp/gh-aw/mcp-logs/safeoutputs
-          cat > ${RUNNER_TEMP}/gh-aw/safeoutputs/config.json << 'GH_AW_SAFE_OUTPUTS_CONFIG_615d15b4b2d7570c_EOF'
+          cat > ${RUNNER_TEMP}/gh-aw/safeoutputs/config.json << 'GH_AW_SAFE_OUTPUTS_CONFIG_2cebe007e25400bd_EOF'
           {"add_comment":{"hide_older_comments":true,"max":2},"add_labels":{"allowed":["smoke-codex"]},"create_issue":{"close_older_issues":true,"close_older_key":"smoke-codex","expires":2,"labels":["automation","testing"],"max":1},"hide_comment":{"max":5},"missing_data":{},"missing_tool":{},"noop":{"max":1,"report-as-issue":"true"},"remove_labels":{"allowed":["smoke"]},"unassign_from_user":{"allowed":["githubactionagent"],"max":1}}
-          GH_AW_SAFE_OUTPUTS_CONFIG_615d15b4b2d7570c_EOF
+          GH_AW_SAFE_OUTPUTS_CONFIG_2cebe007e25400bd_EOF
       - name: Write Safe Outputs Tools
         run: |
-          cat > ${RUNNER_TEMP}/gh-aw/safeoutputs/tools_meta.json << 'GH_AW_SAFE_OUTPUTS_TOOLS_META_b4c7657d8a6271bc_EOF'
+          cat > ${RUNNER_TEMP}/gh-aw/safeoutputs/tools_meta.json << 'GH_AW_SAFE_OUTPUTS_TOOLS_META_105026efe4e99df3_EOF'
           {
             "description_suffixes": {
               "add_comment": " CONSTRAINTS: Maximum 2 comment(s) can be added.",
@@ -535,8 +556,8 @@ jobs:
               }
             ]
           }
-          GH_AW_SAFE_OUTPUTS_TOOLS_META_b4c7657d8a6271bc_EOF
-          cat > ${RUNNER_TEMP}/gh-aw/safeoutputs/validation.json << 'GH_AW_SAFE_OUTPUTS_VALIDATION_6753d269a2ae138c_EOF'
+          GH_AW_SAFE_OUTPUTS_TOOLS_META_105026efe4e99df3_EOF
+          cat > ${RUNNER_TEMP}/gh-aw/safeoutputs/validation.json << 'GH_AW_SAFE_OUTPUTS_VALIDATION_743589f763afd5b8_EOF'
           {
             "add_comment": {
               "defaultMax": 1,
@@ -732,7 +753,7 @@ jobs:
               }
             }
           }
-          GH_AW_SAFE_OUTPUTS_VALIDATION_6753d269a2ae138c_EOF
+          GH_AW_SAFE_OUTPUTS_VALIDATION_743589f763afd5b8_EOF
           node ${RUNNER_TEMP}/gh-aw/actions/generate_safe_outputs_tools.cjs
       - name: Generate Safe Outputs MCP Server Config
         id: safe-outputs-config
@@ -775,7 +796,7 @@ jobs:
       - name: Setup MCP Scripts Config
         run: |
           mkdir -p ${RUNNER_TEMP}/gh-aw/mcp-scripts/logs
-          cat > ${RUNNER_TEMP}/gh-aw/mcp-scripts/tools.json << 'GH_AW_MCP_SCRIPTS_TOOLS_0b8dd47d724f414e_EOF'
+          cat > ${RUNNER_TEMP}/gh-aw/mcp-scripts/tools.json << 'GH_AW_MCP_SCRIPTS_TOOLS_c724923f7b94a03c_EOF'
           {
             "serverName": "mcpscripts",
             "version": "1.0.0",
@@ -805,8 +826,8 @@ jobs:
               }
             ]
           }
-          GH_AW_MCP_SCRIPTS_TOOLS_0b8dd47d724f414e_EOF
-          cat > ${RUNNER_TEMP}/gh-aw/mcp-scripts/mcp-server.cjs << 'GH_AW_MCP_SCRIPTS_SERVER_c89b26d219d3c447_EOF'
+          GH_AW_MCP_SCRIPTS_TOOLS_c724923f7b94a03c_EOF
+          cat > ${RUNNER_TEMP}/gh-aw/mcp-scripts/mcp-server.cjs << 'GH_AW_MCP_SCRIPTS_SERVER_b3939cf12a44d5b9_EOF'
             const path = require("path");
             const { startHttpServer } = require("./mcp_scripts_mcp_server_http.cjs");
             const configPath = path.join(__dirname, "tools.json");
@@ -820,12 +841,12 @@ jobs:
               console.error("Failed to start mcp-scripts HTTP server:", error);
               process.exit(1);
             });
-          GH_AW_MCP_SCRIPTS_SERVER_c89b26d219d3c447_EOF
+          GH_AW_MCP_SCRIPTS_SERVER_b3939cf12a44d5b9_EOF
           chmod +x ${RUNNER_TEMP}/gh-aw/mcp-scripts/mcp-server.cjs
           
       - name: Setup MCP Scripts Tool Files
         run: |
-          cat > ${RUNNER_TEMP}/gh-aw/mcp-scripts/gh.sh << 'GH_AW_MCP_SCRIPTS_SH_GH_c9a0a5f099e05dc5_EOF'
+          cat > ${RUNNER_TEMP}/gh-aw/mcp-scripts/gh.sh << 'GH_AW_MCP_SCRIPTS_SH_GH_d576a7286679e04f_EOF'
           #!/bin/bash
           # Auto-generated mcp-script tool: gh
           # Execute any gh CLI command. This tool is accessible as 'mcpscripts-gh'. Provide the full command after 'gh' (e.g., args: 'pr list --limit 5'). The tool will run: gh <args>. Use single quotes ' for complex args to avoid shell interpretation issues.
@@ -836,7 +857,7 @@ jobs:
           echo "  token: ${GH_AW_GH_TOKEN:0:6}..."
           GH_TOKEN="$GH_AW_GH_TOKEN" gh $INPUT_ARGS
           
-          GH_AW_MCP_SCRIPTS_SH_GH_c9a0a5f099e05dc5_EOF
+          GH_AW_MCP_SCRIPTS_SH_GH_d576a7286679e04f_EOF
           chmod +x ${RUNNER_TEMP}/gh-aw/mcp-scripts/gh.sh
           
       - name: Generate MCP Scripts Server Config
@@ -940,7 +961,7 @@ jobs:
           export GH_AW_ENGINE="codex"
           export MCP_GATEWAY_DOCKER_COMMAND='docker run -i --rm --network host -v /var/run/docker.sock:/var/run/docker.sock -e MCP_GATEWAY_PORT -e MCP_GATEWAY_DOMAIN -e MCP_GATEWAY_API_KEY -e MCP_GATEWAY_PAYLOAD_DIR -e MCP_GATEWAY_PAYLOAD_SIZE_THRESHOLD -e DEBUG -e MCP_GATEWAY_LOG_DIR -e GH_AW_MCP_LOG_DIR -e GH_AW_SAFE_OUTPUTS -e GH_AW_SAFE_OUTPUTS_CONFIG_PATH -e GH_AW_SAFE_OUTPUTS_TOOLS_PATH -e GH_AW_ASSETS_BRANCH -e GH_AW_ASSETS_MAX_SIZE_KB -e GH_AW_ASSETS_ALLOWED_EXTS -e DEFAULT_BRANCH -e GITHUB_MCP_SERVER_TOKEN -e GITHUB_MCP_GUARD_MIN_INTEGRITY -e GITHUB_MCP_GUARD_REPOS -e GITHUB_REPOSITORY -e GITHUB_SERVER_URL -e GITHUB_SHA -e GITHUB_WORKSPACE -e GITHUB_TOKEN -e GITHUB_RUN_ID -e GITHUB_RUN_NUMBER -e GITHUB_RUN_ATTEMPT -e GITHUB_JOB -e GITHUB_ACTION -e GITHUB_EVENT_NAME -e GITHUB_EVENT_PATH -e GITHUB_ACTOR -e GITHUB_ACTOR_ID -e GITHUB_TRIGGERING_ACTOR -e GITHUB_WORKFLOW -e GITHUB_WORKFLOW_REF -e GITHUB_WORKFLOW_SHA -e GITHUB_REF -e GITHUB_REF_NAME -e GITHUB_REF_TYPE -e GITHUB_HEAD_REF -e GITHUB_BASE_REF -e GH_AW_MCP_SCRIPTS_PORT -e GH_AW_MCP_SCRIPTS_API_KEY -e GH_AW_SAFE_OUTPUTS_PORT -e GH_AW_SAFE_OUTPUTS_API_KEY -e GH_AW_GH_TOKEN -e GH_DEBUG -v /tmp/gh-aw/mcp-payloads:/tmp/gh-aw/mcp-payloads:rw -v /opt:/opt:ro -v /tmp:/tmp:rw -v '"${GITHUB_WORKSPACE}"':'"${GITHUB_WORKSPACE}"':rw ghcr.io/github/gh-aw-mcpg:v0.2.8'
           
-          cat > /tmp/gh-aw/mcp-config/config.toml << GH_AW_MCP_CONFIG_472c3b5e0a01d67e_EOF
+          cat > /tmp/gh-aw/mcp-config/config.toml << GH_AW_MCP_CONFIG_e401634eb22c99ed_EOF
           [history]
           persistence = "none"
           
@@ -1030,10 +1051,10 @@ jobs:
           
           [mcp_servers.web-fetch."guard-policies".write-sink]
           accept = ["*"]
-          GH_AW_MCP_CONFIG_472c3b5e0a01d67e_EOF
+          GH_AW_MCP_CONFIG_e401634eb22c99ed_EOF
           
           # Generate JSON config for MCP gateway
-          cat << GH_AW_MCP_CONFIG_472c3b5e0a01d67e_EOF | bash ${RUNNER_TEMP}/gh-aw/actions/start_mcp_gateway.sh
+          cat << GH_AW_MCP_CONFIG_e401634eb22c99ed_EOF | bash ${RUNNER_TEMP}/gh-aw/actions/start_mcp_gateway.sh
           {
             "mcpServers": {
               "github": {
@@ -1158,7 +1179,7 @@ jobs:
               "payloadDir": "${MCP_GATEWAY_PAYLOAD_DIR}"
             }
           }
-          GH_AW_MCP_CONFIG_472c3b5e0a01d67e_EOF
+          GH_AW_MCP_CONFIG_e401634eb22c99ed_EOF
       - name: Download activation artifact
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
@@ -1306,6 +1327,11 @@ jobs:
           if [ ! -f /tmp/gh-aw/agent_output.json ]; then
             echo '{"items":[]}' > /tmp/gh-aw/agent_output.json
           fi
+      - name: Commit cache-memory changes
+        if: always()
+        env:
+          GH_AW_CACHE_DIR: /tmp/gh-aw/cache-memory
+        run: bash ${RUNNER_TEMP}/gh-aw/actions/commit_cache_memory_git.sh
       - name: Upload cache-memory data as artifact
         uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7
         if: always()
@@ -1871,6 +1897,6 @@ jobs:
         if: steps.check_cache_default.outputs.has_content == 'true'
         uses: actions/cache/save@668228422ae6a00e4ad889ee87cd7109ec5666a7 # v5.0.4
         with:
-          key: memory-${{ env.GH_AW_WORKFLOW_ID_SANITIZED }}-${{ github.run_id }}
+          key: memory-none-nopolicy-${{ env.GH_AW_WORKFLOW_ID_SANITIZED }}-${{ github.run_id }}
           path: /tmp/gh-aw/cache-memory
 

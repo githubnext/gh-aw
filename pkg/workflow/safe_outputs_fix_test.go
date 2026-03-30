@@ -3,12 +3,8 @@
 package workflow
 
 import (
-	"encoding/json"
-	"os"
-	"path/filepath"
 	"testing"
 
-	"github.com/github/gh-aw/pkg/constants"
 	"github.com/goccy/go-yaml"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -259,82 +255,4 @@ func TestMergeSafeOutputsMetaFieldsUnit(t *testing.T) {
 			tt.verify(t, result)
 		})
 	}
-}
-
-// ========================================
-// Serena schema languages enum
-// ========================================
-
-// TestSerenaSchemaLanguagesEnum verifies that the main workflow schema allows all 32 Serena
-// languages defined in SerenaLanguageSupport, not just the original 6.
-func TestSerenaSchemaLanguagesEnum(t *testing.T) {
-	// Collect all languages supported at runtime
-	runtimeLanguages := make(map[string]struct{})
-	for _, langs := range constants.SerenaLanguageSupport {
-		for _, lang := range langs {
-			runtimeLanguages[lang] = struct{}{}
-		}
-	}
-
-	// Load the main workflow schema from disk (same approach used in compiler_timeout_default_test.go)
-	schemaPath := filepath.Join("..", "parser", "schemas", "main_workflow_schema.json")
-	schemaContent, err := os.ReadFile(schemaPath)
-	require.NoError(t, err, "Should be able to read main_workflow_schema.json")
-
-	var schema map[string]any
-	require.NoError(t, json.Unmarshal(schemaContent, &schema), "Schema should parse as JSON")
-
-	// Navigate to tools.serena (array short-syntax) items.enum
-	// properties -> tools -> properties -> serena -> oneOf -> items -> enum
-	properties, ok := schema["properties"].(map[string]any)
-	require.True(t, ok, "Schema should have properties")
-
-	tools, ok := properties["tools"].(map[string]any)
-	require.True(t, ok, "Schema should have tools property")
-
-	// tools has a properties map directly (not oneOf)
-	toolsProps, ok := tools["properties"].(map[string]any)
-	require.True(t, ok, "tools should have properties")
-
-	serenaSchema, ok := toolsProps["serena"].(map[string]any)
-	require.True(t, ok, "tools should have serena property")
-
-	// serena has oneOf; find the array variant (has items)
-	serenaOneOf, ok := serenaSchema["oneOf"].([]any)
-	require.True(t, ok, "serena should have oneOf")
-
-	var schemaEnum []any
-	for _, variant := range serenaOneOf {
-		variantMap, ok := variant.(map[string]any)
-		if !ok {
-			continue
-		}
-		items, ok := variantMap["items"].(map[string]any)
-		if !ok {
-			continue
-		}
-		if enum, found := items["enum"]; found {
-			schemaEnum, ok = enum.([]any)
-			if ok {
-				break
-			}
-		}
-	}
-	require.NotNil(t, schemaEnum, "Should find items.enum in serena array variant")
-
-	// Convert schema enum to a set
-	schemaLangs := make(map[string]struct{}, len(schemaEnum))
-	for _, v := range schemaEnum {
-		if s, ok := v.(string); ok {
-			schemaLangs[s] = struct{}{}
-		}
-	}
-
-	// Every runtime language should appear in the schema enum
-	for lang := range runtimeLanguages {
-		assert.Contains(t, schemaLangs, lang, "Schema enum should include runtime language %q", lang)
-	}
-
-	// The enum should have at least 32 entries (not the old 6)
-	assert.GreaterOrEqual(t, len(schemaEnum), 32, "Schema enum should list at least 32 languages")
 }

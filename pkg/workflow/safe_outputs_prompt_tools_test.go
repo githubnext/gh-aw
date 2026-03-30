@@ -1,0 +1,233 @@
+//go:build !integration
+
+package workflow
+
+import (
+	"strings"
+	"testing"
+
+	"github.com/github/gh-aw/pkg/stringutil"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+)
+
+// TestBuildSafeOutputsSectionsCustomTools verifies that custom jobs, scripts, and actions
+// defined in safe-outputs are included in the compiled <safe-output-tools> prompt block.
+// This prevents silent drift between the runtime configuration surface and the
+// agent-facing compiled instructions.
+func TestBuildSafeOutputsSectionsCustomTools(t *testing.T) {
+	tests := []struct {
+		name          string
+		safeOutputs   *SafeOutputsConfig
+		expectedTools []string
+		expectNil     bool
+	}{
+		{
+			name:      "nil safe outputs returns nil",
+			expectNil: true,
+		},
+		{
+			name:        "empty safe outputs returns nil",
+			safeOutputs: &SafeOutputsConfig{},
+			expectNil:   true,
+		},
+		{
+			name: "custom job appears in tools list",
+			safeOutputs: &SafeOutputsConfig{
+				NoOp: &NoOpConfig{},
+				Jobs: map[string]*SafeJobConfig{
+					"deploy": {Description: "Deploy to production"},
+				},
+			},
+			expectedTools: []string{"noop", "deploy"},
+		},
+		{
+			name: "custom job name with dashes is normalized to underscores",
+			safeOutputs: &SafeOutputsConfig{
+				NoOp: &NoOpConfig{},
+				Jobs: map[string]*SafeJobConfig{
+					"send-notification": {Description: "Send a notification"},
+				},
+			},
+			expectedTools: []string{"noop", "send_notification"},
+		},
+		{
+			name: "multiple custom jobs are sorted and appear in tools list",
+			safeOutputs: &SafeOutputsConfig{
+				NoOp: &NoOpConfig{},
+				Jobs: map[string]*SafeJobConfig{
+					"zebra-job": {},
+					"alpha-job": {},
+				},
+			},
+			expectedTools: []string{"noop", "alpha_job", "zebra_job"},
+		},
+		{
+			name: "custom script appears in tools list",
+			safeOutputs: &SafeOutputsConfig{
+				NoOp: &NoOpConfig{},
+				Scripts: map[string]*SafeScriptConfig{
+					"my-script": {Description: "Run my script"},
+				},
+			},
+			expectedTools: []string{"noop", "my_script"},
+		},
+		{
+			name: "custom action appears in tools list",
+			safeOutputs: &SafeOutputsConfig{
+				NoOp: &NoOpConfig{},
+				Actions: map[string]*SafeOutputActionConfig{
+					"my-action": {Description: "Run my custom action"},
+				},
+			},
+			expectedTools: []string{"noop", "my_action"},
+		},
+		{
+			name: "custom jobs are listed even without predefined tools",
+			safeOutputs: &SafeOutputsConfig{
+				NoOp: &NoOpConfig{},
+				Jobs: map[string]*SafeJobConfig{
+					"custom-deploy": {},
+				},
+			},
+			expectedTools: []string{"noop", "custom_deploy"},
+		},
+		{
+			name: "mix of predefined tools and custom jobs both appear in tools list",
+			safeOutputs: &SafeOutputsConfig{
+				CreateIssues: &CreateIssuesConfig{},
+				AddComments:  &AddCommentsConfig{},
+				NoOp:         &NoOpConfig{},
+				Jobs: map[string]*SafeJobConfig{
+					"deploy": {},
+				},
+				Scripts: map[string]*SafeScriptConfig{
+					"notify": {},
+				},
+			},
+			expectedTools: []string{"add_comment", "create_issue", "noop", "deploy", "notify"},
+		},
+		{
+			name: "mix of predefined tools, custom jobs, scripts, and actions all appear",
+			safeOutputs: &SafeOutputsConfig{
+				CreateIssues: &CreateIssuesConfig{},
+				NoOp:         &NoOpConfig{},
+				Jobs: map[string]*SafeJobConfig{
+					"custom-job": {},
+				},
+				Scripts: map[string]*SafeScriptConfig{
+					"custom-script": {},
+				},
+				Actions: map[string]*SafeOutputActionConfig{
+					"custom-action": {},
+				},
+			},
+			expectedTools: []string{"create_issue", "noop", "custom_job", "custom_script", "custom_action"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			sections := buildSafeOutputsSections(tt.safeOutputs)
+
+			if tt.expectNil {
+				assert.Nil(t, sections, "Expected nil sections for empty/nil config")
+				return
+			}
+
+			require.NotNil(t, sections, "Expected non-nil sections")
+
+			actualToolNames := extractToolNamesFromSections(t, sections)
+
+			assert.Equal(t, tt.expectedTools, actualToolNames,
+				"Tool names in <safe-output-tools> should match expected order and set")
+		})
+	}
+}
+
+// TestBuildSafeOutputsSectionsCustomToolsConsistency verifies that every custom
+// tool type registered in the runtime configuration has a corresponding entry in
+// the compiled <safe-output-tools> prompt block — preventing silent drift.
+func TestBuildSafeOutputsSectionsCustomToolsConsistency(t *testing.T) {
+	config := &SafeOutputsConfig{
+		NoOp: &NoOpConfig{},
+		Jobs: map[string]*SafeJobConfig{
+			"job-alpha": {Description: "Alpha job"},
+			"job-beta":  {Description: "Beta job"},
+		},
+		Scripts: map[string]*SafeScriptConfig{
+			"script-one": {Description: "Script one"},
+		},
+		Actions: map[string]*SafeOutputActionConfig{
+			"action-x": {Description: "Action X"},
+		},
+	}
+
+	sections := buildSafeOutputsSections(config)
+	require.NotNil(t, sections, "Expected non-nil sections")
+
+	actualToolNames := extractToolNamesFromSections(t, sections)
+	actualToolSet := make(map[string]bool, len(actualToolNames))
+	for _, name := range actualToolNames {
+		actualToolSet[name] = true
+	}
+
+	// Every custom job name (normalized) must appear as an exact tool identifier.
+	for jobName := range config.Jobs {
+		normalized := stringutil.NormalizeSafeOutputIdentifier(jobName)
+		assert.True(t, actualToolSet[normalized],
+			"Custom job %q (normalized: %q) should appear as an exact tool identifier in <safe-output-tools>", jobName, normalized)
+	}
+
+	// Every custom script name (normalized) must appear as an exact tool identifier.
+	for scriptName := range config.Scripts {
+		normalized := stringutil.NormalizeSafeOutputIdentifier(scriptName)
+		assert.True(t, actualToolSet[normalized],
+			"Custom script %q (normalized: %q) should appear as an exact tool identifier in <safe-output-tools>", scriptName, normalized)
+	}
+
+	// Every custom action name (normalized) must appear as an exact tool identifier.
+	for actionName := range config.Actions {
+		normalized := stringutil.NormalizeSafeOutputIdentifier(actionName)
+		assert.True(t, actualToolSet[normalized],
+			"Custom action %q (normalized: %q) should appear as an exact tool identifier in <safe-output-tools>", actionName, normalized)
+	}
+}
+
+// extractToolNamesFromSections parses the <safe-output-tools> opening section and returns
+// the list of tool names in the order they appear, stripping any max-budget annotations
+// (e.g. "noop(max:5)" → "noop").
+func extractToolNamesFromSections(t *testing.T, sections []PromptSection) []string {
+	t.Helper()
+
+	var toolsLine string
+	for _, section := range sections {
+		if !section.IsFile && strings.HasPrefix(section.Content, "<safe-output-tools>") {
+			toolsLine = section.Content
+			break
+		}
+	}
+
+	require.NotEmpty(t, toolsLine, "Expected to find <safe-output-tools> opening section")
+
+	lines := strings.Split(toolsLine, "\n")
+	require.GreaterOrEqual(t, len(lines), 2, "Expected at least two lines in tools section")
+
+	toolsListLine := lines[1]
+	require.True(t, strings.HasPrefix(toolsListLine, "Tools: "),
+		"Second line should start with 'Tools: ', got: %q", toolsListLine)
+
+	toolsList := strings.TrimPrefix(toolsListLine, "Tools: ")
+	toolEntries := strings.Split(toolsList, ", ")
+
+	names := make([]string, 0, len(toolEntries))
+	for _, entry := range toolEntries {
+		// Strip optional budget annotation: "noop(max:5)" → "noop"
+		if name, _, found := strings.Cut(entry, "("); found {
+			names = append(names, name)
+		} else {
+			names = append(names, entry)
+		}
+	}
+	return names
+}

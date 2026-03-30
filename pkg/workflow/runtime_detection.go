@@ -124,9 +124,6 @@ func detectFromMCPConfigs(tools *ToolsConfig, requirements map[string]*RuntimeRe
 	allTools := tools.ToMap()
 	log.Printf("Scanning %d MCP configurations for runtime commands", len(allTools))
 
-	// Note: Serena and other built-in MCP servers run in containers and do not
-	// require runtime detection. Language services are provided inside the containers.
-
 	// Scan custom MCP tools for runtime commands
 	// Skip containerized MCP servers as they don't need host runtime setup
 	for _, tool := range tools.Custom {

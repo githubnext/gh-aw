@@ -51,14 +51,6 @@ func getPlaywrightCustomArgs(playwrightConfig *PlaywrightToolConfig) []string {
 	return nil
 }
 
-// getSerenaCustomArgs extracts custom args from Serena tool configuration
-func getSerenaCustomArgs(serenaTool any) []string {
-	if toolConfig, ok := serenaTool.(map[string]any); ok {
-		return extractCustomArgs(toolConfig)
-	}
-	return nil
-}
-
 // writeArgsToYAML writes custom args to YAML with proper JSON quoting and escaping
 // indent specifies the indentation string for each argument line
 func writeArgsToYAML(yaml *strings.Builder, args []string, indent string) {

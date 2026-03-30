@@ -19,6 +19,17 @@ imports:
   - shared/gh.md
   - shared/reporting.md
   - shared/mcp/serena-go.md
+  - uses: shared/qmd.md
+    with:
+      checkouts:
+        - name: docs
+          pattern: "docs/src/**/*.{md,mdx}"
+          context: "gh-aw project documentation"
+      searches:
+        - name: issues
+          type: issues
+          max: 500
+          github-token: ${{ secrets.GITHUB_TOKEN }}
 network:
   allowed:
     - defaults
@@ -32,16 +43,6 @@ tools:
   bash:
     - "*"
   web-fetch:
-  qmd:
-    checkouts:
-      - name: docs
-        pattern: "docs/src/**/*.{md,mdx}"
-        context: "gh-aw project documentation"
-    searches:
-      - name: issues
-        type: issues
-        max: 500
-        github-token: ${{ secrets.GITHUB_TOKEN }}
 runtimes:
   go:
     version: "1.25"

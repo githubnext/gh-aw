@@ -148,7 +148,7 @@ jobs:
           cat "${RUNNER_TEMP}/gh-aw/prompts/safe_outputs_prompt.md"
           cat << 'GH_AW_PROMPT_4451a47783df5d92_EOF'
           <safe-output-tools>
-          Tools: missing_tool, missing_data, noop
+          Tools: missing_tool, missing_data, noop, notion_add_comment
           </safe-output-tools>
           <github-context>
           The following GitHub context information is available for this workflow:

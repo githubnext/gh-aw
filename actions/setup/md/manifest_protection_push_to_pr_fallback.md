@@ -1,5 +1,5 @@
 > [!WARNING]
-> 🛡️ **Protected Files**
+> **Protected Files**
 >
 > The push to pull request branch was blocked because the patch modifies protected files.
 >
@@ -8,7 +8,7 @@
 > **Please review the changes carefully** before pushing them to the pull request branch. These files may affect project dependencies, CI/CD pipelines, or agent behaviour.
 
 <details>
-<summary>🔒 Protected files</summary>
+<summary>Protected files</summary>
 
 {files}
 
@@ -17,7 +17,7 @@
 ---
 
 <details>
-<summary><b>📋 Apply the patch after review</b></summary>
+<summary><b>Apply the patch after review</b></summary>
 
 The patch is available in the workflow run artifacts:
 

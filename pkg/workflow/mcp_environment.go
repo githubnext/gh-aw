@@ -19,7 +19,7 @@
 //   - GitHub MCP: GITHUB_MCP_SERVER_TOKEN, GITHUB_MCP_GUARD_MIN_INTEGRITY, GITHUB_MCP_GUARD_REPOS
 //   - Safe Outputs: GH_AW_SAFE_OUTPUTS_*, GH_AW_ASSETS_*
 //   - MCP Scripts: GH_AW_MCP_SCRIPTS_PORT, GH_AW_MCP_SCRIPTS_API_KEY
-//   - Serena: GH_AW_SERENA_PORT (local mode only)
+//   - Serena: removed (use shared/mcp/serena.md instead)
 //   - qmd: env vars are set directly in the "Start QMD MCP Server" Docker step (not via gateway)
 //   - Playwright: Secrets from custom args expressions
 //   - HTTP MCP: Custom secrets from headers and env sections
@@ -151,7 +151,7 @@ func collectMCPEnvironmentVariables(tools map[string]any, mcpTools []string, wor
 	// These need to be available as environment variables when the MCP gateway starts
 	for toolName, toolValue := range tools {
 		// Skip standard tools that are handled above
-		if toolName == "github" || toolName == "playwright" || toolName == "serena" ||
+		if toolName == "github" || toolName == "playwright" ||
 			toolName == "cache-memory" || toolName == "agentic-workflows" ||
 			toolName == "safe-outputs" || toolName == "mcp-scripts" {
 			continue

@@ -71,20 +71,6 @@ func (c *Compiler) processToolsAndMarkdown(result *parser.FrontmatterResult, cle
 	// Extract tools from the main file
 	topTools := extractToolsFromFrontmatter(result.Frontmatter)
 
-	// Emit deprecation warning if tools.serena is used directly in frontmatter.
-	// The check is done here, before merging with mcp-servers, so that the warning
-	// fires only for explicit tools.serena usage and not when serena is configured
-	// via the recommended mcp-servers.serena approach (shared/mcp/serena.md import).
-	if _, exists := topTools["serena"]; exists {
-		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(
-			"'tools.serena' is deprecated. Use 'mcp-servers.serena' with the shared/mcp/serena.md workflow instead:\n"+
-				"  imports:\n"+
-				"    - uses: shared/mcp/serena.md\n"+
-				"      with:\n"+
-				"        languages: [\"go\", \"typescript\"]",
-		))
-	}
-
 	// Extract mcp-servers from the main file and merge them into tools
 	mcpServers := extractMCPServersFromFrontmatter(result.Frontmatter)
 

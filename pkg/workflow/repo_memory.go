@@ -13,6 +13,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"regexp"
+	"sort"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/constants"
@@ -547,6 +548,42 @@ func generateRepoMemorySteps(builder *strings.Builder, data *WorkflowData) {
 	}
 }
 
+// buildPushRepoMemoryConcurrencyGroup builds a concurrency group key that is scoped to the
+// specific (target-repo, branch) pairs being written by this push job.  Using the actual
+// write targets—rather than a single repo-wide key—ensures that workflows pushing to
+// different memory branches do not unnecessarily serialise or cancel each other.
+//
+// Key format: "push-repo-memory-${{ github.repository }}|<key1>[|<key2>…]"
+//
+// Each key component is percent-encoded (only `%` and `|` are encoded) before joining
+// with "|", so the separator is always unambiguous even if a user-supplied branch name
+// or target-repo contains a literal "|".  For memories that target a non-default
+// repository, the target repo is prepended to the branch name
+// (e.g., "other-owner%2Fother-repo:memory%2Fbranch" would be encoded if needed) so that
+// distinct targets produce distinct concurrency groups.  The branches are sorted for a
+// deterministic key regardless of the order memories are declared in the frontmatter.
+func buildPushRepoMemoryConcurrencyGroup(memories []RepoMemoryEntry) string {
+	branchKeys := make([]string, 0, len(memories))
+	for _, m := range memories {
+		key := encodeConcurrencyKeyPart(m.BranchName)
+		if m.TargetRepo != "" {
+			key = encodeConcurrencyKeyPart(m.TargetRepo) + ":" + key
+		}
+		branchKeys = append(branchKeys, key)
+	}
+	sort.Strings(branchKeys)
+	return "push-repo-memory-${{ github.repository }}|" + strings.Join(branchKeys, "|")
+}
+
+// encodeConcurrencyKeyPart percent-encodes the characters that would otherwise make the
+// concurrency group key ambiguous: "%" (to avoid double-encoding) and "|" (the separator).
+// All other characters are left as-is so the key remains human-readable in workflow UIs.
+func encodeConcurrencyKeyPart(s string) string {
+	s = strings.ReplaceAll(s, "%", "%25")
+	s = strings.ReplaceAll(s, "|", "%7C")
+	return s
+}
+
 // buildPushRepoMemoryJob creates a job that downloads repo-memory artifacts and pushes them to git branches
 // This job runs after the agent job completes (even if it fails) and requires contents: write permission
 // If threat detection is enabled, only runs if no threats were detected
@@ -729,9 +766,12 @@ func (c *Compiler) buildPushRepoMemoryJob(data *WorkflowData, threatDetectionEna
 		outputs["patch_size_exceeded_"+memory.ID] = fmt.Sprintf("${{ steps.%s.outputs.patch_size_exceeded }}", stepID)
 	}
 
-	// Serialize all push_repo_memory jobs per repository to prevent concurrent git pushes
-	// cancel-in-progress is false so that updates from concurrent agents are queued, not dropped
-	concurrency := c.indentYAMLLines("concurrency:\n  group: \"push-repo-memory-${{ github.repository }}\"\n  cancel-in-progress: false", "    ")
+	// Build a concurrency key scoped to the actual branches being written.
+	// This prevents false serialisation between workflows that push to different memory
+	// branches while still serialising concurrent pushes to the *same* branch.
+	// cancel-in-progress is false so queued pushes are not dropped.
+	concurrencyGroup := buildPushRepoMemoryConcurrencyGroup(data.RepoMemoryConfig.Memories)
+	concurrency := c.indentYAMLLines(fmt.Sprintf("concurrency:\n  group: %q\n  cancel-in-progress: false", concurrencyGroup), "    ")
 
 	job := &Job{
 		Name:        "push_repo_memory",

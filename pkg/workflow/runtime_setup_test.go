@@ -481,7 +481,7 @@ func TestRuntimeFilteringWithExistingSetupActions(t *testing.T) {
 	// Test that runtimes are detected even when setup actions already exist
 	// The deduplication happens later in the compiler, not during detection
 	tools := map[string]any{
-		"serena": map[string]any{
+		"custom-uvx-command": map[string]any{
 			"command": "uvx",
 		},
 	}

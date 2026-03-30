@@ -34,13 +34,49 @@ type CacheMemoryEntry struct {
 	AllowedExtensions []string `yaml:"allowed-extensions,omitempty"` // allowed file extensions (default: [".json", ".jsonl", ".txt", ".md", ".csv"])
 }
 
-// generateDefaultCacheKey generates a default cache key for a given cache ID
-// Uses GH_AW_WORKFLOW_ID_SANITIZED (workflow ID with hyphens removed) instead of github.workflow
+// generateDefaultCacheKey generates a default cache key for a given cache ID.
+// Uses the legacy format (without integrity prefix) for backward compatibility when
+// computing keys during initial entry parsing. The final key used in generated steps
+// is produced by computeIntegrityCacheKey, which includes integrity level and policy hash.
 func generateDefaultCacheKey(cacheID string) string {
 	if cacheID == "default" {
 		return "memory-${{ env.GH_AW_WORKFLOW_ID_SANITIZED }}-${{ github.run_id }}"
 	}
 	return fmt.Sprintf("memory-%s-${{ env.GH_AW_WORKFLOW_ID_SANITIZED }}-${{ github.run_id }}", cacheID)
+}
+
+// computeIntegrityCacheKey returns the effective cache key for a cache entry, incorporating
+// the integrity level and policy hash prefix. The key always starts with
+// "memory-{integrityLevel}-{policyHash}-" to ensure cache isolation across integrity levels
+// and guard policies, even when the user has specified a custom key suffix.
+//
+// When no custom key is set the full key is:
+//
+//	memory-{integrityLevel}-{policyHash}-[{cacheID}-]{workflowID}-{runID}
+//
+// When a custom key is set, it is used as the suffix:
+//
+//	memory-{integrityLevel}-{policyHash}-{customKey}-{runID}
+//
+// githubConfig may be nil for workflows without a GitHub guard policy, in which case the
+// sentinel value "nopolicy" and the default integrity level "none" are used.
+func computeIntegrityCacheKey(cache CacheMemoryEntry, githubConfig *GitHubToolConfig) string {
+	integrityLevel := cacheIntegrityLevel(githubConfig)
+	policyHash := computePolicyHash(githubConfig)
+	integrityPrefix := fmt.Sprintf("memory-%s-%s-", integrityLevel, policyHash)
+
+	// If a custom key was explicitly set, prefix it with the integrity/policy namespace
+	// to prevent cross-integrity or cross-policy cache sharing.
+	if cache.Key != "" && cache.Key != generateDefaultCacheKey(cache.ID) {
+		customKey := cache.Key
+		runIdSuffix := "-${{ github.run_id }}"
+		if !strings.HasSuffix(customKey, runIdSuffix) {
+			customKey = customKey + runIdSuffix
+		}
+		return integrityPrefix + customKey
+	}
+
+	return generateIntegrityAwareCacheKey(cache.ID, integrityLevel, policyHash)
 }
 
 // parseCacheMemoryEntry parses a single cache-memory entry from a map
@@ -336,9 +372,9 @@ func generateCacheSteps(builder *strings.Builder, data *WorkflowData, verbose bo
 	}
 }
 
-// generateCacheMemorySteps generates cache setup steps (directory creation and restore) for the cache-memory configuration
-// Cache-memory provides a simple file share that LLMs can read/write freely
-// Artifact upload is handled separately by generateCacheMemoryArtifactUpload after agent execution
+// generateCacheMemorySteps generates cache setup steps (directory creation, restore, and git init) for the cache-memory configuration.
+// Cache-memory provides a simple file share that LLMs can read/write freely.
+// Artifact upload is handled separately by generateCacheMemoryArtifactUpload after agent execution.
 func generateCacheMemorySteps(builder *strings.Builder, data *WorkflowData) {
 	if data.CacheMemoryConfig == nil || len(data.CacheMemoryConfig.Caches) == 0 {
 		return
@@ -351,6 +387,13 @@ func generateCacheMemorySteps(builder *strings.Builder, data *WorkflowData) {
 	// Use backward-compatible paths only when there's a single cache with ID "default"
 	// This maintains compatibility with existing workflows
 	useBackwardCompatiblePaths := len(data.CacheMemoryConfig.Caches) == 1 && data.CacheMemoryConfig.Caches[0].ID == "default"
+
+	// Extract GitHub guard policy for integrity-aware cache key generation.
+	var githubConfig *GitHubToolConfig
+	if data.ParsedTools != nil {
+		githubConfig = data.ParsedTools.GitHub
+	}
+	integrityLevel := cacheIntegrityLevel(githubConfig)
 
 	for _, cache := range data.CacheMemoryConfig.Caches {
 		// Default cache uses /tmp/gh-aw/cache-memory/ for backward compatibility
@@ -373,16 +416,11 @@ func generateCacheMemorySteps(builder *strings.Builder, data *WorkflowData) {
 			fmt.Fprintf(builder, "          mkdir -p %s\n", cacheDir)
 		}
 
-		cacheKey := cache.Key
-		if cacheKey == "" {
-			if useBackwardCompatiblePaths {
-				cacheKey = "memory-${{ env.GH_AW_WORKFLOW_ID_SANITIZED }}-${{ github.run_id }}"
-			} else {
-				cacheKey = fmt.Sprintf("memory-%s-${{ env.GH_AW_WORKFLOW_ID_SANITIZED }}-${{ github.run_id }}", cache.ID)
-			}
-		}
+		// Use integrity-aware cache key (includes integrity level + policy hash prefix).
+		cacheKey := computeIntegrityCacheKey(cache, githubConfig)
 
-		// Automatically append -${{ github.run_id }} if the key doesn't already end with it
+		// Ensure run_id suffix is present (computeIntegrityCacheKey guarantees this,
+		// but we check again for clarity and safety).
 		runIdSuffix := "-${{ github.run_id }}"
 		if !strings.HasSuffix(cacheKey, runIdSuffix) {
 			cacheKey = cacheKey + runIdSuffix
@@ -419,7 +457,7 @@ func generateCacheMemorySteps(builder *strings.Builder, data *WorkflowData) {
 		// This allows cache sharing across all workflows in the repository
 		if scope == "repo" {
 			// Remove both workflow and run_id to create a repo-wide restore key
-			// For example: "memory-chroma-${{ env.GH_AW_WORKFLOW_ID_SANITIZED }}-${{ github.run_id }}" -> "memory-chroma-"
+			// For example: "memory-none-nopolicy-chroma-${{ env.GH_AW_WORKFLOW_ID_SANITIZED }}-${{ github.run_id }}" -> "memory-none-nopolicy-chroma-"
 			repoKey := strings.TrimSuffix(cacheKey, "${{ env.GH_AW_WORKFLOW_ID_SANITIZED }}-${{ github.run_id }}")
 			if repoKey != cacheKey && repoKey != "" {
 				restoreKeys = append(restoreKeys, repoKey)
@@ -463,6 +501,64 @@ func generateCacheMemorySteps(builder *strings.Builder, data *WorkflowData) {
 		for _, key := range restoreKeys {
 			fmt.Fprintf(builder, "            %s\n", key)
 		}
+
+		// Add git setup step after cache restore.
+		// This initialises (or migrates) the git repository used for integrity branching,
+		// checks out the current integrity branch, and merges down from higher-integrity branches.
+		generateCacheMemoryGitSetupStep(builder, cache, cacheDir, integrityLevel, useBackwardCompatiblePaths)
+	}
+}
+
+// generateCacheMemoryGitSetupStep emits a pre-agent step that sets up the git-backed integrity
+// repository inside the given cache directory. It must run after the cache is restored so that
+// any previous git history is available for the merge-down step.
+func generateCacheMemoryGitSetupStep(builder *strings.Builder, cache CacheMemoryEntry, cacheDir, integrityLevel string, useBackwardCompatiblePaths bool) {
+	if useBackwardCompatiblePaths {
+		builder.WriteString("      - name: Set up cache-memory git repository\n")
+	} else {
+		fmt.Fprintf(builder, "      - name: Set up cache-memory git repository (%s)\n", cache.ID)
+	}
+	builder.WriteString("        env:\n")
+	fmt.Fprintf(builder, "          GH_AW_CACHE_DIR: %s\n", cacheDir)
+	fmt.Fprintf(builder, "          GH_AW_MIN_INTEGRITY: %s\n", integrityLevel)
+	builder.WriteString("        run: bash ${RUNNER_TEMP}/gh-aw/actions/setup_cache_memory_git.sh\n")
+}
+
+// generateCacheMemoryGitCommitSteps emits post-agent steps that commit agent-written changes
+// to the current integrity branch. These steps run after agent execution and before artifact
+// upload so that the saved tarball always includes up-to-date git history.
+func generateCacheMemoryGitCommitSteps(builder *strings.Builder, data *WorkflowData) {
+	if data.CacheMemoryConfig == nil || len(data.CacheMemoryConfig.Caches) == 0 {
+		return
+	}
+
+	cacheLog.Printf("Generating cache-memory git commit steps for %d caches", len(data.CacheMemoryConfig.Caches))
+
+	useBackwardCompatiblePaths := len(data.CacheMemoryConfig.Caches) == 1 && data.CacheMemoryConfig.Caches[0].ID == "default"
+
+	for _, cache := range data.CacheMemoryConfig.Caches {
+		// Skip restore-only caches (nothing to commit)
+		if cache.RestoreOnly {
+			continue
+		}
+
+		var cacheDir string
+		if cache.ID == "default" {
+			cacheDir = "/tmp/gh-aw/cache-memory"
+		} else {
+			cacheDir = "/tmp/gh-aw/cache-memory-" + cache.ID
+		}
+
+		if useBackwardCompatiblePaths {
+			builder.WriteString("      - name: Commit cache-memory changes\n")
+		} else {
+			fmt.Fprintf(builder, "      - name: Commit cache-memory changes (%s)\n", cache.ID)
+		}
+		// Run even when agent fails so that partial work is still recorded.
+		builder.WriteString("        if: always()\n")
+		builder.WriteString("        env:\n")
+		fmt.Fprintf(builder, "          GH_AW_CACHE_DIR: %s\n", cacheDir)
+		builder.WriteString("        run: bash ${RUNNER_TEMP}/gh-aw/actions/commit_cache_memory_git.sh\n")
 	}
 }
 
@@ -791,17 +887,14 @@ func (c *Compiler) buildUpdateCacheMemoryJob(data *WorkflowData, threatDetection
 			steps = append(steps, generateInlineGitHubScriptStep(stepName, validationScript.String(), condition))
 		}
 
-		// Generate cache key (same logic as in generateCacheMemorySteps)
-		cacheKey := cache.Key
-		if cacheKey == "" {
-			if cache.ID == "default" {
-				cacheKey = "memory-${{ env.GH_AW_WORKFLOW_ID_SANITIZED }}-${{ github.run_id }}"
-			} else {
-				cacheKey = fmt.Sprintf("memory-%s-${{ env.GH_AW_WORKFLOW_ID_SANITIZED }}-${{ github.run_id }}", cache.ID)
-			}
+		// Generate cache key using integrity-aware format (matches generateCacheMemorySteps)
+		var githubConfig *GitHubToolConfig
+		if data.ParsedTools != nil {
+			githubConfig = data.ParsedTools.GitHub
 		}
+		cacheKey := computeIntegrityCacheKey(cache, githubConfig)
 
-		// Automatically append -${{ github.run_id }} if the key doesn't already end with it
+		// Ensure run_id suffix is present
 		runIdSuffix := "-${{ github.run_id }}"
 		if !strings.HasSuffix(cacheKey, runIdSuffix) {
 			cacheKey = cacheKey + runIdSuffix

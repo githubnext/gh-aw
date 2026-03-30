@@ -68,9 +68,14 @@ import (
 var difcProxyLog = logger.New("workflow:difc_proxy")
 
 // hasDIFCGuardsConfigured returns true if the GitHub tool has explicit guard policies configured
-// (min-integrity is set). This is the base condition for DIFC proxy injection.
+// (min-integrity is set) AND the "difc-proxy" feature flag is enabled.
+// This is the base condition for DIFC proxy injection.
 func hasDIFCGuardsConfigured(data *WorkflowData) bool {
 	if data == nil {
+		return false
+	}
+	if !isFeatureEnabled(constants.DIFCProxyFeatureFlag, data) {
+		difcProxyLog.Print("difc-proxy feature flag not enabled, skipping DIFC proxy injection")
 		return false
 	}
 	githubTool, hasGitHub := data.Tools["github"]
