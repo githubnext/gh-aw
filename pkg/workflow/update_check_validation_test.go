@@ -25,39 +25,39 @@ func TestValidateUpdateCheck(t *testing.T) {
 		wantWarning bool
 	}{
 		{
-			name:        "update-check not set defaults to enabled (no error, no warning)",
+			name:        "check-for-updates not set defaults to enabled (no error, no warning)",
 			frontmatter: map[string]any{"engine": "copilot"},
 			strictMode:  false,
 			wantErr:     false,
 			wantWarning: false,
 		},
 		{
-			name:        "update-check: true is allowed in any mode",
-			frontmatter: map[string]any{"update-check": true},
+			name:        "check-for-updates: true is allowed in any mode",
+			frontmatter: map[string]any{"check-for-updates": true},
 			strictMode:  true,
 			wantErr:     false,
 			wantWarning: false,
 		},
 		{
-			name:        "update-check: false in non-strict mode produces warning",
-			frontmatter: map[string]any{"update-check": false},
+			name:        "check-for-updates: false in non-strict mode produces warning",
+			frontmatter: map[string]any{"check-for-updates": false},
 			strictMode:  false,
 			wantErr:     false,
 			wantWarning: true,
 		},
 		{
-			name:        "update-check: false in strict mode produces error",
-			frontmatter: map[string]any{"update-check": false},
+			name:        "check-for-updates: false in strict mode produces error",
+			frontmatter: map[string]any{"check-for-updates": false},
 			strictMode:  true,
 			wantErr:     true,
 			errContains: "strict mode",
 		},
 		{
 			name:        "strict mode error message mentions the flag name",
-			frontmatter: map[string]any{"update-check": false},
+			frontmatter: map[string]any{"check-for-updates": false},
 			strictMode:  true,
 			wantErr:     true,
-			errContains: "update-check: false",
+			errContains: "check-for-updates: false",
 		},
 	}
 
@@ -105,7 +105,7 @@ Test workflow for update check step.
 `
 	disabledWorkflowMD := `---
 engine: copilot
-update-check: false
+check-for-updates: false
 strict: false
 on:
   issues:
@@ -127,7 +127,7 @@ Test workflow for update check step disabled.
 			wantStep:   true,
 		},
 		{
-			name:       "step absent when disabled via update-check: false",
+			name:       "step absent when disabled via check-for-updates: false",
 			workflowMD: disabledWorkflowMD,
 			isRelease:  true,
 			wantStep:   false,

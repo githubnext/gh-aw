@@ -8452,10 +8452,10 @@
       "description": "Mark the workflow as private, preventing it from being added to other repositories via 'gh aw add'. A workflow with private: true is not meant to be shared outside its repository.",
       "examples": [true, false]
     },
-    "update-check": {
+    "check-for-updates": {
       "type": "boolean",
       "default": true,
-      "description": "Control whether the compile-agentic version update check runs in the activation job. When true (default), the activation job downloads config.json from the gh-aw repository and verifies the compiled version is not blocked and meets the minimum supported version. Set to false to disable the check (not allowed in strict mode). See: https://github.github.com/gh-aw/reference/frontmatter/#update-check",
+      "description": "Control whether the compile-agentic version update check runs in the activation job. When true (default), the activation job downloads config.json from the gh-aw repository and verifies the compiled version is not blocked and meets the minimum supported version. Set to false to disable the check (not allowed in strict mode). See: https://github.github.com/gh-aw/reference/frontmatter/#check-for-updates",
       "examples": [true, false]
     },
     "mcp-scripts": {

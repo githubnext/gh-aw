@@ -203,7 +203,7 @@ type FrontmatterConfig struct {
 	// Update check configuration.
 	// When set to false, the version update check step is skipped in the activation job.
 	// This flag is not allowed in strict mode.
-	UpdateCheck *bool `json:"update-check,omitempty"`
+	UpdateCheck *bool `json:"check-for-updates,omitempty"`
 
 	// Checkout configuration for the agent job.
 	// Controls how actions/checkout is invoked.

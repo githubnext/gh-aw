@@ -188,7 +188,7 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 	steps = append(steps, "          script: |\n")
 	steps = append(steps, generateGitHubScriptWithRequire("check_workflow_timestamp_api.cjs"))
 
-	// Add compile-agentic version update check, unless disabled via update-check: false.
+	// Add compile-agentic version update check, unless disabled via check-for-updates: false.
 	// The check downloads .github/aw/config.json from the gh-aw repository and verifies that the
 	// compiled version is not blocked and meets the minimum supported version requirement.
 	// If the download fails, the check is skipped (soft failure).

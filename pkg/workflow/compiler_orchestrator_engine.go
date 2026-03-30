@@ -86,7 +86,7 @@ func (c *Compiler) setupEngineAndImports(result *parser.FrontmatterResult, clean
 		return nil, err
 	}
 
-	// Validate update-check flag regardless of strict mode (error in strict, warning in non-strict)
+	// Validate check-for-updates flag regardless of strict mode (error in strict, warning in non-strict)
 	if err := c.validateUpdateCheck(result.Frontmatter); err != nil {
 		orchestratorEngineLog.Printf("Update check validation failed: %v", err)
 		// Restore strict mode before returning error
