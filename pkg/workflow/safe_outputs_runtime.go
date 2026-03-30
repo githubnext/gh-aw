@@ -32,16 +32,16 @@ func (c *Compiler) formatSafeOutputsRunsOn(safeOutputs *SafeOutputsConfig) strin
 //
 // Precedence (highest to lowest):
 //  1. safe-outputs.runs-on — explicit per-section override
-//  2. runs-on-activation   — top-level field for all framework jobs
+//  2. runs-on-slim   — top-level field for all framework jobs
 //  3. DefaultActivationJobRunnerImage — compiled-in default
 func (c *Compiler) formatFrameworkJobRunsOn(data *WorkflowData) string {
 	if data != nil && data.SafeOutputs != nil && data.SafeOutputs.RunsOn != "" {
 		safeOutputsRuntimeLog.Printf("Framework job runs-on from safe-outputs: %s", data.SafeOutputs.RunsOn)
 		return "runs-on: " + data.SafeOutputs.RunsOn
 	}
-	if data != nil && data.RunsOnActivation != "" {
-		safeOutputsRuntimeLog.Printf("Framework job runs-on from runs-on-activation: %s", data.RunsOnActivation)
-		return "runs-on: " + data.RunsOnActivation
+	if data != nil && data.RunsOnSlim != "" {
+		safeOutputsRuntimeLog.Printf("Framework job runs-on from runs-on-slim: %s", data.RunsOnSlim)
+		return "runs-on: " + data.RunsOnSlim
 	}
 	safeOutputsRuntimeLog.Printf("Framework job runs-on using default: %s", constants.DefaultActivationJobRunnerImage)
 	return "runs-on: " + constants.DefaultActivationJobRunnerImage

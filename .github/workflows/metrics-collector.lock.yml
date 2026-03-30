@@ -681,7 +681,7 @@ jobs:
   push_repo_memory:
     needs: agent
     if: always()
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-slim
     permissions:
       contents: write
     concurrency:

@@ -736,7 +736,7 @@ func (c *Compiler) buildPushRepoMemoryJob(data *WorkflowData, threatDetectionEna
 	job := &Job{
 		Name:        "push_repo_memory",
 		DisplayName: "", // No display name - job ID is sufficient
-		RunsOn:      "runs-on: ubuntu-latest",
+		RunsOn:      c.formatFrameworkJobRunsOn(data),
 		If:          jobCondition,
 		Permissions: "permissions:\n      contents: write",
 		Concurrency: concurrency,

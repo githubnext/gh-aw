@@ -239,8 +239,8 @@ This is a test workflow.`
 	}
 }
 
-// TestRunsOnActivationField tests the top-level runs-on-activation field.
-func TestRunsOnActivationField(t *testing.T) {
+// TestRunsOnSlimField tests the top-level runs-on-slim field.
+func TestRunsOnSlimField(t *testing.T) {
 	tests := []struct {
 		name             string
 		frontmatter      string
@@ -248,10 +248,10 @@ func TestRunsOnActivationField(t *testing.T) {
 		checkJobPatterns []string // job name patterns to check (e.g. "  activation:")
 	}{
 		{
-			name: "runs-on-activation sets runner for activation job",
+			name: "runs-on-slim sets runner for activation job",
 			frontmatter: `---
 on: push
-runs-on-activation: self-hosted
+runs-on-slim: self-hosted
 ---
 
 # Test Workflow
@@ -261,10 +261,10 @@ This is a test workflow.`,
 			checkJobPatterns: []string{"\n  activation:"},
 		},
 		{
-			name: "runs-on-activation without safe-outputs section",
+			name: "runs-on-slim without safe-outputs section",
 			frontmatter: `---
 on: push
-runs-on-activation: ubuntu-22.04
+runs-on-slim: ubuntu-22.04
 ---
 
 # Test Workflow
@@ -274,10 +274,10 @@ This is a test workflow.`,
 			checkJobPatterns: []string{"\n  activation:"},
 		},
 		{
-			name: "safe-outputs.runs-on takes precedence over runs-on-activation",
+			name: "safe-outputs.runs-on takes precedence over runs-on-slim",
 			frontmatter: `---
 on: push
-runs-on-activation: ubuntu-22.04
+runs-on-slim: ubuntu-22.04
 safe-outputs:
   create-issue:
     title-prefix: "[ai] "
@@ -291,7 +291,7 @@ This is a test workflow.`,
 			checkJobPatterns: []string{"\n  activation:", "\n  safe_outputs:"},
 		},
 		{
-			name: "default used when neither runs-on-activation nor safe-outputs.runs-on is set",
+			name: "default used when neither runs-on-slim nor safe-outputs.runs-on is set",
 			frontmatter: `---
 on: push
 ---
@@ -306,7 +306,7 @@ This is a test workflow.`,
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			tmpDir := testutil.TempDir(t, "workflow-runs-on-activation-test")
+			tmpDir := testutil.TempDir(t, "workflow-runs-on-slim-test")
 
 			testFile := filepath.Join(tmpDir, "test.md")
 			if err := os.WriteFile(testFile, []byte(tt.frontmatter), 0644); err != nil {
@@ -360,22 +360,22 @@ func TestFormatFrameworkJobRunsOn(t *testing.T) {
 			expectedRunsOn: "runs-on: " + constants.DefaultActivationJobRunnerImage,
 		},
 		{
-			name: "runs-on-activation used when safe-outputs.runs-on is empty",
+			name: "runs-on-slim used when safe-outputs.runs-on is empty",
 			data: &WorkflowData{
-				RunsOnActivation: "self-hosted",
+				RunsOnSlim: "self-hosted",
 			},
 			expectedRunsOn: "runs-on: self-hosted",
 		},
 		{
-			name: "safe-outputs.runs-on takes precedence over runs-on-activation",
+			name: "safe-outputs.runs-on takes precedence over runs-on-slim",
 			data: &WorkflowData{
-				RunsOnActivation: "ubuntu-22.04",
-				SafeOutputs:      &SafeOutputsConfig{RunsOn: "self-hosted"},
+				RunsOnSlim:  "ubuntu-22.04",
+				SafeOutputs: &SafeOutputsConfig{RunsOn: "self-hosted"},
 			},
 			expectedRunsOn: "runs-on: self-hosted",
 		},
 		{
-			name: "safe-outputs.runs-on used when runs-on-activation is empty",
+			name: "safe-outputs.runs-on used when runs-on-slim is empty",
 			data: &WorkflowData{
 				SafeOutputs: &SafeOutputsConfig{RunsOn: "windows-latest"},
 			},
@@ -384,8 +384,8 @@ func TestFormatFrameworkJobRunsOn(t *testing.T) {
 		{
 			name: "default when safe-outputs present but runs-on is empty",
 			data: &WorkflowData{
-				RunsOnActivation: "",
-				SafeOutputs:      &SafeOutputsConfig{},
+				RunsOnSlim:  "",
+				SafeOutputs: &SafeOutputsConfig{},
 			},
 			expectedRunsOn: "runs-on: " + constants.DefaultActivationJobRunnerImage,
 		},

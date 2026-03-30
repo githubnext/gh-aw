@@ -1330,7 +1330,7 @@ jobs:
       - agent
       - detection
     if: always() && (needs.detection.result == 'success' || needs.detection.result == 'skipped')
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-slim
     permissions:
       contents: read
     env:
