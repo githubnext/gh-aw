@@ -342,7 +342,9 @@ func (acc *importAccumulator) extractAllImportFields(content []byte, item import
 
 	// Extract apm-packages from imported file (append in order for later merging)
 	apmPackagesContent, err := extractFieldJSONFromMap(fm, "apm-packages", "")
-	if err == nil && apmPackagesContent != "" {
+	if err != nil {
+		log.Printf("Failed to extract apm-packages from import %s: %v", item.fullPath, err)
+	} else if apmPackagesContent != "" {
 		acc.apmPackagesConfigs = append(acc.apmPackagesConfigs, apmPackagesContent)
 		log.Printf("Extracted apm-packages from import: %s", item.fullPath)
 	}

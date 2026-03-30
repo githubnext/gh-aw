@@ -12,6 +12,10 @@ import (
 // parameter, leaving the placeholder unreplaced in the YAML.
 // Only import-inputs expressions are matched — other ${{ }} expressions such as
 // ${{ secrets.MY_TOKEN }} are valid and must be preserved.
+//
+// Two separate Contains checks are used intentionally: the expression prefix "${{" may
+// have extra whitespace before the path (e.g. "${{  github.aw.import-inputs.foo }}"),
+// so checking for "github.aw.import-inputs." independently handles all whitespace variants.
 func isUnsubstitutedImportExpression(s string) bool {
 	return strings.Contains(s, "${{") && strings.Contains(s, "github.aw.import-inputs.")
 }
