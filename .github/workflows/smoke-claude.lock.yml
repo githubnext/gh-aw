@@ -799,11 +799,13 @@ jobs:
         with:
           name: ${{ needs.activation.outputs.artifact_prefix }}apm
           path: /tmp/gh-aw/apm-bundle
+      - id: apm_bundle
+        name: Find APM bundle path
+        run: echo "path=$(ls /tmp/gh-aw/apm-bundle/*.tar.gz | head -1)" >> "$GITHUB_OUTPUT"
       - name: Restore APM packages
         uses: microsoft/apm-action@a190b0b1a91031057144dc136acf9757a59c9e4d # v1.4.1
         with:
-          bundle: /tmp/gh-aw/apm-bundle
-          unpack: "true"
+          bundle: ${{ steps.apm_bundle.outputs.path }}
 
       # Cache memory file share configuration from frontmatter processed below
       - name: Create cache-memory directory

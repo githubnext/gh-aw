@@ -70,11 +70,13 @@ steps:
     with:
       name: ${{ needs.activation.outputs.artifact_prefix }}apm
       path: /tmp/gh-aw/apm-bundle
+  - name: Find APM bundle path
+    id: apm_bundle
+    run: echo "path=$(ls /tmp/gh-aw/apm-bundle/*.tar.gz | head -1)" >> "$GITHUB_OUTPUT"
   - name: Restore APM packages
     uses: microsoft/apm-action@v1.4.1
     with:
-      unpack: 'true'
-      bundle: /tmp/gh-aw/apm-bundle
+      bundle: ${{ steps.apm_bundle.outputs.path }}
 ---
 
 <!--
