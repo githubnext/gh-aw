@@ -839,85 +839,81 @@ jobs:
           echo "✅ All URLs in $AGENT_FILE correctly use 'main' branch"
 
       - name: Validate config.json against JSON schema
-        run: |
-          echo "🔍 Validating .github/aw/config.json against config.schema.json..."
-          
-          CONFIG_FILE=".github/aw/config.json"
-          SCHEMA_FILE="config.schema.json"
-          
-          if [ ! -f "$CONFIG_FILE" ]; then
-            echo "❌ ERROR: $CONFIG_FILE not found"
-            exit 1
-          fi
-          
-          if [ ! -f "$SCHEMA_FILE" ]; then
-            echo "❌ ERROR: $SCHEMA_FILE not found"
-            exit 1
-          fi
-          
-          # Validate that config.json is valid JSON
-          if ! python3 -c "import json, sys; json.load(open('$CONFIG_FILE'))" 2>&1; then
-            echo "❌ ERROR: $CONFIG_FILE is not valid JSON"
-            exit 1
-          fi
-          
-          echo "✅ $CONFIG_FILE is valid JSON"
-          
-          # Validate that config.json conforms to config.schema.json using Python jsonschema
-          python3 - <<'PYEOF'
-import json
-import sys
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        with:
+          script: |
+            const fs = require('fs');
+            const CONFIG_FILE = '.github/aw/config.json';
+            const SCHEMA_FILE = 'config.schema.json';
 
-with open(".github/aw/config.json") as f:
-    config = json.load(f)
+            core.info(`🔍 Validating ${CONFIG_FILE} against ${SCHEMA_FILE}...`);
 
-with open("config.schema.json") as f:
-    schema = json.load(f)
+            if (!fs.existsSync(CONFIG_FILE)) {
+              core.setFailed(`ERROR: ${CONFIG_FILE} not found`);
+              return;
+            }
+            if (!fs.existsSync(SCHEMA_FILE)) {
+              core.setFailed(`ERROR: ${SCHEMA_FILE} not found`);
+              return;
+            }
 
-# Manual validation against the schema (no external dependencies needed)
-errors = []
+            let config;
+            try {
+              config = JSON.parse(fs.readFileSync(CONFIG_FILE, 'utf8'));
+            } catch (err) {
+              core.setFailed(`ERROR: ${CONFIG_FILE} is not valid JSON: ${err.message}`);
+              return;
+            }
+            core.info(`✅ ${CONFIG_FILE} is valid JSON`);
 
-# Check additionalProperties (only allow known keys)
-allowed_keys = {"$schema", "blockedVersions", "minimumVersion"}
-for key in config:
-    if key not in allowed_keys:
-        errors.append(f"Unknown property: '{key}'")
+            const errors = [];
 
-# Validate blockedVersions
-if "blockedVersions" in config:
-    bv = config["blockedVersions"]
-    if not isinstance(bv, list):
-        errors.append("'blockedVersions' must be an array")
-    else:
-        import re
-        version_pattern = re.compile(r'^v?[0-9]+\.[0-9]+\.[0-9]+')
-        seen = set()
-        for i, v in enumerate(bv):
-            if not isinstance(v, str):
-                errors.append(f"'blockedVersions[{i}]' must be a string")
-            elif not version_pattern.match(v):
-                errors.append(f"'blockedVersions[{i}]' ('{v}') does not match expected version pattern (e.g. 'v1.2.3')")
-            elif v in seen:
-                errors.append(f"'blockedVersions' contains duplicate entry: '{v}'")
-            else:
-                seen.add(v)
+            // Check additionalProperties (only allow known keys)
+            const allowedKeys = new Set(['$schema', 'blockedVersions', 'minimumVersion']);
+            for (const key of Object.keys(config)) {
+              if (!allowedKeys.has(key)) {
+                errors.push(`Unknown property: '${key}'`);
+              }
+            }
 
-# Validate minimumVersion
-if "minimumVersion" in config:
-    mv = config["minimumVersion"]
-    if not isinstance(mv, str):
-        errors.append("'minimumVersion' must be a string")
-    elif mv != "" and not re.match(r'^v?[0-9]+\.[0-9]+\.[0-9]+', mv):
-        errors.append(f"'minimumVersion' ('{mv}') does not match expected version pattern (e.g. 'v1.2.3' or empty string)")
+            // Validate blockedVersions
+            if ('blockedVersions' in config) {
+              const bv = config.blockedVersions;
+              if (!Array.isArray(bv)) {
+                errors.push("'blockedVersions' must be an array");
+              } else {
+                const versionPattern = /^v?[0-9]+\.[0-9]+\.[0-9]+/;
+                const seen = new Set();
+                bv.forEach((v, i) => {
+                  if (typeof v !== 'string') {
+                    errors.push(`'blockedVersions[${i}]' must be a string`);
+                  } else if (!versionPattern.test(v)) {
+                    errors.push(`'blockedVersions[${i}]' ('${v}') does not match expected version pattern (e.g. 'v1.2.3')`);
+                  } else if (seen.has(v)) {
+                    errors.push(`'blockedVersions' contains duplicate entry: '${v}'`);
+                  } else {
+                    seen.add(v);
+                  }
+                });
+              }
+            }
 
-if errors:
-    print("❌ .github/aw/config.json schema validation failed:")
-    for err in errors:
-        print(f"  - {err}")
-    sys.exit(1)
+            // Validate minimumVersion
+            if ('minimumVersion' in config) {
+              const mv = config.minimumVersion;
+              if (typeof mv !== 'string') {
+                errors.push("'minimumVersion' must be a string");
+              } else if (mv !== '' && !/^v?[0-9]+\.[0-9]+\.[0-9]+/.test(mv)) {
+                errors.push(`'minimumVersion' ('${mv}') does not match expected version pattern (e.g. 'v1.2.3' or empty string)`);
+              }
+            }
 
-print("✅ .github/aw/config.json is valid and conforms to config.schema.json")
-PYEOF
+            if (errors.length > 0) {
+              core.setFailed(`❌ ${CONFIG_FILE} schema validation failed:\n${errors.map(e => `  - ${e}`).join('\n')}`);
+              return;
+            }
+
+            core.info(`✅ ${CONFIG_FILE} is valid and conforms to ${SCHEMA_FILE}`);
 
   js:
     runs-on: ubuntu-latest

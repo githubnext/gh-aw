@@ -14,8 +14,6 @@
  * Fails the activation job when validation fails.
  */
 
-const https = require("https");
-
 const CONFIG_URL = "https://raw.githubusercontent.com/github/gh-aw/main/.github/aw/config.json";
 
 /**
@@ -65,33 +63,6 @@ function compareVersions(a, b) {
 }
 
 /**
- * Fetch the content of a URL as a string using the https module.
- * Resolves with the body text, or rejects on network/HTTP errors.
- *
- * @param {string} url
- * @returns {Promise<string>}
- */
-function fetchText(url) {
-  return new Promise((resolve, reject) => {
-    const req = https.get(url, res => {
-      if (res.statusCode !== 200) {
-        reject(new Error(`HTTP ${res.statusCode} fetching ${url}`));
-        res.resume();
-        return;
-      }
-      const chunks = /** @type {Buffer[]} */ [];
-      res.on("data", chunk => chunks.push(chunk));
-      res.on("end", () => resolve(Buffer.concat(chunks).toString("utf8")));
-      res.on("error", reject);
-    });
-    req.on("error", reject);
-    req.setTimeout(10000, () => {
-      req.destroy(new Error(`Request timed out fetching ${url}`));
-    });
-  });
-}
-
-/**
  * @typedef {object} UpdateConfig
  * @property {string[]} [blockedVersions]
  * @property {string} [minimumVersion]
@@ -114,8 +85,11 @@ async function main() {
   /** @type {UpdateConfig} */
   let config;
   try {
-    const body = await fetchText(CONFIG_URL);
-    config = JSON.parse(body);
+    const res = await fetch(CONFIG_URL);
+    if (!res.ok) {
+      throw new Error(`HTTP ${res.status} fetching ${CONFIG_URL}`);
+    }
+    config = JSON.parse(await res.text());
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     core.info(`Could not fetch update configuration (${message}). Skipping version check.`);
