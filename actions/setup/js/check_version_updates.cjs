@@ -7,12 +7,15 @@
  * This script:
  * 1. Reads the compiled version from GH_AW_COMPILED_VERSION env var.
  * 2. Fetches .github/aw/config.json from the gh-aw repository via raw.githubusercontent.com.
- * 3. If the download fails, the check is skipped (soft failure).
+ *    - Uses withRetry to handle transient network failures.
+ * 3. If the download fails after all retries, the check is skipped (soft failure).
  * 4. Validates that the compiled version is not in the blocked list.
  * 5. Validates that the compiled version meets the minimum supported version.
  *
  * Fails the activation job when validation fails.
  */
+
+const { withRetry, isTransientError } = require("./error_recovery.cjs");
 
 const CONFIG_URL = "https://raw.githubusercontent.com/github/gh-aw/main/.github/aw/config.json";
 
@@ -85,11 +88,17 @@ async function main() {
   /** @type {UpdateConfig} */
   let config;
   try {
-    const res = await fetch(CONFIG_URL);
-    if (!res.ok) {
-      throw new Error(`HTTP ${res.status} fetching ${CONFIG_URL}`);
-    }
-    config = JSON.parse(await res.text());
+    config = await withRetry(
+      async () => {
+        const res = await fetch(CONFIG_URL);
+        if (!res.ok) {
+          throw new Error(`HTTP ${res.status} fetching ${CONFIG_URL}`);
+        }
+        return JSON.parse(await res.text());
+      },
+      { shouldRetry: isTransientError },
+      "fetch update configuration"
+    );
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     core.info(`Could not fetch update configuration (${message}). Skipping version check.`);

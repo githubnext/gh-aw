@@ -7,10 +7,13 @@ describe("check_version_updates", () => {
   let checkVersionUpdates;
 
   beforeEach(async () => {
+    vi.useFakeTimers();
+
     mockCore = {
       info: vi.fn(),
       warning: vi.fn(),
       error: vi.fn(),
+      debug: vi.fn(),
       setOutput: vi.fn(),
       setFailed: vi.fn(),
       summary: {
@@ -32,6 +35,7 @@ describe("check_version_updates", () => {
   });
 
   afterEach(() => {
+    vi.useRealTimers();
     vi.unstubAllGlobals();
     vi.clearAllMocks();
   });
@@ -56,9 +60,19 @@ describe("check_version_updates", () => {
     mockFetch.mockRejectedValue(err);
   }
 
+  /**
+   * Run main() and advance all pending timers to process retry delays.
+   * @returns {Promise<void>}
+   */
+  async function runMain() {
+    const promise = checkVersionUpdates.main();
+    await vi.runAllTimersAsync();
+    return promise;
+  }
+
   it("should skip check when version is 'dev'", async () => {
     process.env.GH_AW_COMPILED_VERSION = "dev";
-    await checkVersionUpdates.main();
+    await runMain();
     expect(mockCore.setFailed).not.toHaveBeenCalled();
     expect(mockFetch).not.toHaveBeenCalled();
     expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("dev"));
@@ -66,17 +80,31 @@ describe("check_version_updates", () => {
 
   it("should skip check when version is empty", async () => {
     process.env.GH_AW_COMPILED_VERSION = "";
-    await checkVersionUpdates.main();
+    await runMain();
     expect(mockCore.setFailed).not.toHaveBeenCalled();
     expect(mockFetch).not.toHaveBeenCalled();
   });
 
-  it("should skip check when download fails", async () => {
+  it("should skip check when all fetch attempts fail", async () => {
     process.env.GH_AW_COMPILED_VERSION = "v1.0.0";
     mockFetchError(new Error("ECONNREFUSED"));
-    await checkVersionUpdates.main();
+    await runMain();
     expect(mockCore.setFailed).not.toHaveBeenCalled();
     expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Could not fetch update configuration"));
+  });
+
+  it("should retry and succeed when fetch fails transiently", async () => {
+    process.env.GH_AW_COMPILED_VERSION = "v1.2.0";
+    // First call fails transiently; second call succeeds
+    mockFetch.mockRejectedValueOnce(new Error("ECONNRESET")).mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      text: () => Promise.resolve(JSON.stringify({ blockedVersions: [], minimumVersion: "v1.0.0" })),
+    });
+    await runMain();
+    expect(mockCore.setFailed).not.toHaveBeenCalled();
+    expect(mockFetch).toHaveBeenCalledTimes(2);
+    expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Version check passed"));
   });
 
   it("should skip check when server returns non-200 status", async () => {
@@ -86,7 +114,7 @@ describe("check_version_updates", () => {
       status: 404,
       text: () => Promise.resolve(""),
     });
-    await checkVersionUpdates.main();
+    await runMain();
     expect(mockCore.setFailed).not.toHaveBeenCalled();
     expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Could not fetch update configuration"));
   });
@@ -94,7 +122,7 @@ describe("check_version_updates", () => {
   it("should pass when version is not blocked and meets minimum", async () => {
     process.env.GH_AW_COMPILED_VERSION = "v1.2.0";
     mockFetchSuccess(JSON.stringify({ blockedVersions: ["v0.9.0"], minimumVersion: "v1.0.0" }));
-    await checkVersionUpdates.main();
+    await runMain();
     expect(mockCore.setFailed).not.toHaveBeenCalled();
     expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Version check passed"));
   });
@@ -102,7 +130,7 @@ describe("check_version_updates", () => {
   it("should fail when version is in blocked list", async () => {
     process.env.GH_AW_COMPILED_VERSION = "v1.1.0";
     mockFetchSuccess(JSON.stringify({ blockedVersions: ["v1.1.0", "v1.2.0"], minimumVersion: "" }));
-    await checkVersionUpdates.main();
+    await runMain();
     expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("Blocked compile-agentic version"));
     expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("v1.1.0"));
   });
@@ -110,7 +138,7 @@ describe("check_version_updates", () => {
   it("should fail when version is below minimum", async () => {
     process.env.GH_AW_COMPILED_VERSION = "v0.8.0";
     mockFetchSuccess(JSON.stringify({ blockedVersions: [], minimumVersion: "v1.0.0" }));
-    await checkVersionUpdates.main();
+    await runMain();
     expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("Outdated compile-agentic version"));
     expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("v0.8.0"));
   });
@@ -118,21 +146,21 @@ describe("check_version_updates", () => {
   it("should pass when version exactly equals minimum", async () => {
     process.env.GH_AW_COMPILED_VERSION = "v1.0.0";
     mockFetchSuccess(JSON.stringify({ blockedVersions: [], minimumVersion: "v1.0.0" }));
-    await checkVersionUpdates.main();
+    await runMain();
     expect(mockCore.setFailed).not.toHaveBeenCalled();
   });
 
   it("should skip minimum check when minimumVersion is empty", async () => {
     process.env.GH_AW_COMPILED_VERSION = "v0.1.0";
     mockFetchSuccess(JSON.stringify({ blockedVersions: [], minimumVersion: "" }));
-    await checkVersionUpdates.main();
+    await runMain();
     expect(mockCore.setFailed).not.toHaveBeenCalled();
   });
 
   it("should handle config with no blockedVersions field", async () => {
     process.env.GH_AW_COMPILED_VERSION = "v1.0.0";
     mockFetchSuccess(JSON.stringify({ minimumVersion: "v0.5.0" }));
-    await checkVersionUpdates.main();
+    await runMain();
     expect(mockCore.setFailed).not.toHaveBeenCalled();
   });
 
@@ -140,7 +168,7 @@ describe("check_version_updates", () => {
     process.env.GH_AW_COMPILED_VERSION = "v1.0.0";
     mockFetchSuccess(JSON.stringify({ blockedVersions: ["1.0.0"], minimumVersion: "" }));
     // "v1.0.0" should be blocked by "1.0.0" after normalization
-    await checkVersionUpdates.main();
+    await runMain();
     expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("Blocked compile-agentic version"));
   });
 
@@ -148,14 +176,14 @@ describe("check_version_updates", () => {
     process.env.GH_AW_COMPILED_VERSION = "1.0.0";
     mockFetchSuccess(JSON.stringify({ blockedVersions: ["v1.0.0"], minimumVersion: "" }));
     // "1.0.0" should be blocked by "v1.0.0" after normalization
-    await checkVersionUpdates.main();
+    await runMain();
     expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("Blocked compile-agentic version"));
   });
 
   it("should fail when version is blocked with exact string match", async () => {
     process.env.GH_AW_COMPILED_VERSION = "v1.0.0";
     mockFetchSuccess(JSON.stringify({ blockedVersions: ["v1.0.0"], minimumVersion: "" }));
-    await checkVersionUpdates.main();
+    await runMain();
     expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("Blocked compile-agentic version"));
   });
 });
