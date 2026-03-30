@@ -10,7 +10,7 @@
 - Full JSON Schema Draft 2020-12 support
 - Type-safe schema generation from Go structs
 - Built-in validation engine
-- Active maintenance and community support
+- MIT licensed; maintained by Google
 
 **Maintainers:** Google (github.com/google)
 
@@ -108,9 +108,8 @@ tool := &mcp.Tool{
    - No intermediate JSON marshaling required for validation
    - Comprehensive error reporting
 
-4. **Developer-Friendly API**
-   - Concise function signatures following Go idioms
-   - Good integration with Go idioms
+4. **API Design**
+   - Function signatures follow Go idioms
    - Clear documentation and examples
 
 ### Recent Changes (v0.3.0 and Beyond)
