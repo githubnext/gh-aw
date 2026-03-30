@@ -1482,7 +1482,17 @@ safe-outputs:
 
 ### Custom Runner Image
 
-Specify custom runner for safe output jobs (default: `ubuntu-slim`): `runs-on: ubuntu-22.04`
+Specify a custom runner for safe output jobs (default: `ubuntu-slim`):
+
+```aw
+---
+safe-outputs:
+  runs-on: ubuntu-22.04
+  create-issue: {}
+---
+```
+
+`safe-outputs.runs-on` overrides `runs-on-slim:` for safe-output jobs specifically. To override the runner for all framework jobs at once, use the top-level [`runs-on-slim:`](/gh-aw/guides/self-hosted-runners/#configuring-the-framework-job-runner) field instead.
 
 ### Safe Outputs Job Concurrency (`concurrency-group:`)
 

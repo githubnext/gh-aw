@@ -467,15 +467,18 @@ Enables defining custom MCP tools inline using JavaScript or shell scripts. See 
 
 Enables automatic issue creation, comment posting, and other safe outputs. See [Safe Outputs Processing](/gh-aw/reference/safe-outputs/).
 
-### Run Configuration (`run-name:`, `runs-on:`, `timeout-minutes:`)
+### Run Configuration (`run-name:`, `runs-on:`, `runs-on-slim:`, `timeout-minutes:`)
 
 Standard GitHub Actions properties:
 
 ```yaml wrap
 run-name: "Custom workflow run name"  # Defaults to workflow name
 runs-on: ubuntu-latest               # Defaults to ubuntu-latest (main job only)
+runs-on-slim: ubuntu-slim            # Defaults to ubuntu-slim (framework jobs only)
 timeout-minutes: 30                  # Defaults to 20 minutes
 ```
+
+`runs-on` applies to the main agent job only. `runs-on-slim` applies to all framework/generated jobs (activation, safe-outputs, unlock, etc.) and defaults to `ubuntu-slim`. `safe-outputs.runs-on` takes precedence over `runs-on-slim` for safe-output jobs specifically.
 
 **Supported runners for `runs-on:`**
 
