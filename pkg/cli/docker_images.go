@@ -202,16 +202,19 @@ func CheckAndPrepareDockerImages(ctx context.Context, useZizmor, usePoutine, use
 		var requestedTools []string
 		var paramsList []string
 		if useZizmor {
-			requestedTools = append(requestedTools, "zizmor")
-			paramsList = append(paramsList, "zizmor: false")
+			tool := "zizmor"
+			requestedTools = append(requestedTools, tool)
+			paramsList = append(paramsList, tool+": false")
 		}
 		if usePoutine {
-			requestedTools = append(requestedTools, "poutine")
-			paramsList = append(paramsList, "poutine: false")
+			tool := "poutine"
+			requestedTools = append(requestedTools, tool)
+			paramsList = append(paramsList, tool+": false")
 		}
 		if useActionlint {
-			requestedTools = append(requestedTools, "actionlint")
-			paramsList = append(paramsList, "actionlint: false")
+			tool := "actionlint"
+			requestedTools = append(requestedTools, tool)
+			paramsList = append(paramsList, tool+": false")
 		}
 		verb := "requires"
 		if len(requestedTools) > 1 {
