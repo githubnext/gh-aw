@@ -332,6 +332,26 @@ func (c *Compiler) applyDefaults(data *WorkflowData, markdownPath string) error 
 		data.Permissions = strings.Join(lines, "\n")
 	}
 
+	// When any custom HTTP MCP server uses auth.type: github-oidc, automatically inject
+	// id-token: write so the agent job can request OIDC tokens from GitHub's endpoint.
+	// The gateway uses ACTIONS_ID_TOKEN_REQUEST_URL / ACTIONS_ID_TOKEN_REQUEST_TOKEN
+	// (which GitHub Actions only exposes when id-token: write is granted) to obtain a
+	// fresh JWT on each proxied request to the OIDC-authenticated server.
+	if hasCustomMCPServerOIDCAuth(data.Tools) {
+		toolsLog.Print("Auto-injecting id-token: write permission (OIDC-authenticated MCP server detected)")
+		perms := NewPermissionsParser(data.Permissions).ToPermissions()
+		perms.Set(PermissionIdToken, PermissionWrite)
+		yaml := perms.RenderToYAML()
+		// Adjust from job-level indentation (6 spaces) to workflow-level (2 spaces)
+		lines := strings.Split(yaml, "\n")
+		for i := 1; i < len(lines); i++ {
+			if strings.HasPrefix(lines[i], "      ") {
+				lines[i] = "  " + lines[i][6:]
+			}
+		}
+		data.Permissions = strings.Join(lines, "\n")
+	}
+
 	return nil
 }
 

@@ -306,6 +306,9 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 	// Add GitHub MCP app token minting step if configured
 	c.generateGitHubMCPAppTokenMintingStep(yaml, data)
 
+	// Add token-mint steps for custom MCP servers that have github-app configured
+	c.generateCustomMCPServerAppTokenMintingSteps(yaml, data.Tools, data)
+
 	// Stop DIFC proxy before starting the MCP gateway. The proxy must be stopped first
 	// to avoid double-filtering: the gateway uses the same guard policy for the agent phase.
 	c.generateStopDIFCProxyStep(yaml, data)
@@ -553,6 +556,9 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 
 	// Add GitHub MCP app token invalidation step if configured (runs always, even on failure)
 	c.generateGitHubMCPAppTokenInvalidationStep(yaml, data)
+
+	// Add invalidation steps for custom MCP servers that have github-app configured (runs always)
+	c.generateCustomMCPServerAppTokenInvalidationSteps(yaml, data.Tools)
 
 	// Add checkout app token invalidation steps if configured (runs always, even on failure)
 	if checkoutMgr.HasAppAuth() {

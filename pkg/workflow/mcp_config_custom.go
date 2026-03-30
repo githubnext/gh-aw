@@ -78,6 +78,17 @@ func renderSharedMCPConfig(yaml *strings.Builder, toolName string, toolConfig ma
 		headerSecrets = ExtractSecretsFromMap(mcpConfig.Headers)
 	}
 
+	// When github-app is configured for an HTTP server and rendering to JSON (gateway config),
+	// auto-inject the Authorization header using the env var for the minted token.
+	// The gateway resolves ${VAR} syntax from its environment.
+	if mcpConfig.Type == "http" && renderer.Format == "json" && parseCustomMCPGitHubApp(toolConfig) != nil {
+		if mcpConfig.Headers == nil {
+			mcpConfig.Headers = make(map[string]string)
+		}
+		envVar := customMCPServerAppTokenEnvVar(toolName)
+		mcpConfig.Headers["Authorization"] = "Bearer ${" + envVar + "}"
+	}
+
 	// Determine properties based on type
 	var propertyOrder []string
 	mcpType := mcpConfig.Type
@@ -100,9 +111,9 @@ func renderSharedMCPConfig(yaml *strings.Builder, toolName string, toolConfig ma
 			// JSON format - include tools field for MCP gateway tool filtering (all engines)
 			// For HTTP MCP with secrets in headers, env passthrough is needed
 			if len(headerSecrets) > 0 {
-				propertyOrder = []string{"type", "url", "headers", "tools", "env"}
+				propertyOrder = []string{"type", "url", "auth", "headers", "tools", "env"}
 			} else {
-				propertyOrder = []string{"type", "url", "headers", "tools"}
+				propertyOrder = []string{"type", "url", "auth", "headers", "tools"}
 			}
 		}
 	default:
@@ -156,6 +167,11 @@ func renderSharedMCPConfig(yaml *strings.Builder, toolName string, toolConfig ma
 			}
 		case "url":
 			if mcpConfig.URL != "" {
+				existingProperties = append(existingProperties, prop)
+			}
+		case "auth":
+			// Include auth only in JSON format and only when configured (github-oidc)
+			if mcpConfig.Auth != nil && renderer.Format == "json" {
 				existingProperties = append(existingProperties, prop)
 			}
 		case "headers":
@@ -444,6 +460,25 @@ func renderSharedMCPConfig(yaml *strings.Builder, toolName string, toolConfig ma
 				}
 				yaml.WriteString(" }\n")
 			}
+		case "auth":
+			// Render auth config for JSON format (gateway config)
+			if mcpConfig.Auth != nil {
+				comma := ","
+				if isLast {
+					comma = ""
+				}
+				hasAudience := mcpConfig.Auth.Audience != ""
+				if hasAudience {
+					fmt.Fprintf(yaml, "%s\"auth\": {\n", renderer.IndentLevel)
+					fmt.Fprintf(yaml, "%s  \"type\": \"%s\",\n", renderer.IndentLevel, mcpConfig.Auth.Type)
+					fmt.Fprintf(yaml, "%s  \"audience\": \"%s\"\n", renderer.IndentLevel, mcpConfig.Auth.Audience)
+					fmt.Fprintf(yaml, "%s}%s\n", renderer.IndentLevel, comma)
+				} else {
+					fmt.Fprintf(yaml, "%s\"auth\": {\n", renderer.IndentLevel)
+					fmt.Fprintf(yaml, "%s  \"type\": \"%s\"\n", renderer.IndentLevel, mcpConfig.Auth.Type)
+					fmt.Fprintf(yaml, "%s}%s\n", renderer.IndentLevel, comma)
+				}
+			}
 		case "headers":
 			comma := ","
 			if isLast {
@@ -567,6 +602,8 @@ func getMCPConfig(toolConfig map[string]any, toolName string) (*parser.MCPServer
 		"registry":       true,
 		"allowed":        true,
 		"toolsets":       true, // Added for MCPServerConfig struct
+		"github-app":     true, // GitHub App for installation-token-based auth (HTTP only)
+		"auth":           true, // Token-based auth config (e.g. github-oidc, HTTP only)
 	}
 
 	for key := range toolConfig {
@@ -681,6 +718,29 @@ func getMCPConfig(toolConfig map[string]any, toolName string) (*parser.MCPServer
 		if headers, hasHeaders := config.GetStringMap("headers"); hasHeaders {
 			result.Headers = headers
 		}
+		// Parse auth configuration (e.g. github-oidc)
+		if authRaw, exists := toolConfig["auth"]; exists {
+			if authMap, ok := authRaw.(map[string]any); ok {
+				authConfig := &types.MCPServerAuth{}
+				if authType, ok := authMap["type"].(string); ok {
+					authConfig.Type = authType
+				}
+				if audience, ok := authMap["audience"].(string); ok {
+					authConfig.Audience = audience
+				}
+				if authConfig.Type != "" {
+					result.Auth = authConfig
+				}
+			}
+		}
+		// Validate: github-app and auth are mutually exclusive
+		hasGitHubApp := toolConfig["github-app"] != nil
+		hasAuth := result.Auth != nil
+		if hasGitHubApp && hasAuth {
+			return nil, fmt.Errorf(
+				"tool '%s': 'github-app' and 'auth' are mutually exclusive; use only one authentication method",
+				toolName)
+		}
 	default:
 		mcpCustomLog.Printf("Unsupported MCP type '%s' for tool '%s'", result.Type, toolName)
 		return nil, fmt.Errorf(
@@ -750,4 +810,37 @@ func hasMCPConfig(toolConfig map[string]any) (bool, string) {
 	}
 
 	return false, ""
+}
+
+// parseCustomMCPGitHubApp extracts the github-app configuration from a custom MCP server tool config.
+// Returns nil if no github-app is configured or the configuration is incomplete.
+func parseCustomMCPGitHubApp(toolConfig map[string]any) *GitHubAppConfig {
+	appRaw, exists := toolConfig["github-app"]
+	if !exists {
+		return nil
+	}
+	appMap, ok := appRaw.(map[string]any)
+	if !ok {
+		return nil
+	}
+	app := parseAppConfig(appMap)
+	if app.AppID == "" || app.PrivateKey == "" {
+		return nil
+	}
+	return app
+}
+
+// customMCPServerAppTokenStepID returns the GitHub Actions step ID for the GitHub App
+// token-mint step for a custom MCP server.
+// Example: "my-server" → "my-server-mcp-app-token"
+func customMCPServerAppTokenStepID(serverName string) string {
+	return serverName + "-mcp-app-token"
+}
+
+// customMCPServerAppTokenEnvVar returns the environment variable name for the minted
+// GitHub App token for a custom MCP server.
+// Example: "my-server" → "MCP_MY_SERVER_APP_TOKEN"
+func customMCPServerAppTokenEnvVar(serverName string) string {
+	normalized := strings.ToUpper(strings.ReplaceAll(serverName, "-", "_"))
+	return "MCP_" + normalized + "_APP_TOKEN"
 }

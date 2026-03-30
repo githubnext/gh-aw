@@ -119,7 +119,7 @@ func getRawMCPConfig(toolConfig map[string]any) (map[string]any, error) {
 	// to add custom arguments without triggering custom MCP tool processing logic. Including "args"
 	// would incorrectly classify built-in tools as custom MCP tools, changing their processing behavior
 	// and causing validation errors.
-	mcpFields := []string{"type", "url", "command", "container", "env", "headers"}
+	mcpFields := []string{"type", "url", "command", "container", "env", "headers", "github-app", "auth"}
 
 	// List of all known tool config fields (not just MCP)
 	knownToolFields := map[string]bool{
@@ -140,11 +140,13 @@ func getRawMCPConfig(toolConfig map[string]any) (map[string]any, error) {
 		"mode":           true, // for github tool
 		"github-token":   true, // for github tool
 		"read-only":      true, // for github tool
-		"toolsets":       true, // for github tool
+		"toolsets":       true, // for github tool and custom MCP tool
 		"id":             true, // for cache-memory (array notation)
 		"key":            true, // for cache-memory
 		"description":    true, // for cache-memory
 		"retention-days": true, // for cache-memory
+		"github-app":     true, // for custom HTTP MCP servers: GitHub App installation token auth
+		"auth":           true, // for custom HTTP MCP servers: token-based auth (e.g. github-oidc)
 	}
 
 	// Check new format: direct fields in tool config

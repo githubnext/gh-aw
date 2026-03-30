@@ -202,6 +202,48 @@
       "type": ["string", "number"],
       "description": "Version or tag for container images",
       "examples": ["latest", "v1.0.0", "stable", 20, 3.11]
+    },
+    "github-app": {
+      "type": "object",
+      "description": "GitHub App configuration for minting a short-lived installation access token used to authenticate requests to this HTTP MCP server. The compiler generates a token-mint step before the agent job and an invalidation step after, so the token is never long-lived. Mutually exclusive with auth.",
+      "properties": {
+        "app-id": {
+          "type": "string",
+          "description": "GitHub App ID (e.g., '${{ vars.APP_ID }}')"
+        },
+        "private-key": {
+          "type": "string",
+          "description": "GitHub App private key (e.g., '${{ secrets.APP_PRIVATE_KEY }}')"
+        },
+        "owner": {
+          "type": "string",
+          "description": "Owner of the GitHub App installation (defaults to the current repository owner)"
+        },
+        "repositories": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Repositories to grant the token access to. Use ['*'] for org-wide access. Defaults to the triggering repository."
+        }
+      },
+      "required": ["app-id", "private-key"],
+      "additionalProperties": false
+    },
+    "auth": {
+      "type": "object",
+      "description": "Token-based authentication for this HTTP MCP server. The MCP gateway handles token acquisition and refresh transparently. Mutually exclusive with github-app.",
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": ["github-oidc"],
+          "description": "Authentication type. 'github-oidc' uses a GitHub Actions OIDC JWT (short-lived, ~5 min) with automatic refresh by the gateway. Requires id-token: write permission on the agent job (added automatically by the compiler)."
+        },
+        "audience": {
+          "type": "string",
+          "description": "OIDC audience claim ('aud'). Set this to the MCP server's base URL so the server can reject tokens not minted for it (e.g., 'https://my-mcp-server.example.com'). Required when type is 'github-oidc'."
+        }
+      },
+      "required": ["type"],
+      "additionalProperties": false
     }
   },
   "anyOf": [{ "required": ["type"] }, { "required": ["url"] }, { "required": ["command"] }, { "required": ["container"] }],
@@ -270,6 +312,32 @@
           "type": {
             "enum": ["stdio"]
           }
+        }
+      }
+    },
+    {
+      "description": "github-app and auth are mutually exclusive",
+      "not": {
+        "allOf": [{ "required": ["github-app"] }, { "required": ["auth"] }]
+      }
+    },
+    {
+      "description": "github-app is only valid for HTTP MCP servers",
+      "if": { "required": ["github-app"] },
+      "then": {
+        "anyOf": [{ "required": ["url"] }, { "properties": { "type": { "enum": ["http"] } } }],
+        "not": {
+          "anyOf": [{ "required": ["command"] }, { "required": ["container"] }]
+        }
+      }
+    },
+    {
+      "description": "auth is only valid for HTTP MCP servers",
+      "if": { "required": ["auth"] },
+      "then": {
+        "anyOf": [{ "required": ["url"] }, { "properties": { "type": { "enum": ["http"] } } }],
+        "not": {
+          "anyOf": [{ "required": ["command"] }, { "required": ["container"] }]
         }
       }
     }

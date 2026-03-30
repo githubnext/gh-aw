@@ -47,6 +47,7 @@
 package workflow
 
 import (
+	"fmt"
 	"maps"
 
 	"slices"
@@ -149,6 +150,7 @@ func collectMCPEnvironmentVariables(tools map[string]any, mcpTools []string, wor
 
 	// Check for HTTP MCP servers with secrets in headers (e.g., Tavily)
 	// These need to be available as environment variables when the MCP gateway starts
+	hasOIDCServer := false
 	for toolName, toolValue := range tools {
 		// Skip standard tools that are handled above
 		if toolName == "github" || toolName == "playwright" ||
@@ -170,11 +172,27 @@ func collectMCPEnvironmentVariables(tools map[string]any, mcpTools []string, wor
 				continue
 			}
 
-			// Extract secrets from headers for HTTP MCP servers
-			if mcpConfig.Type == "http" && len(mcpConfig.Headers) > 0 {
-				headerSecrets := ExtractSecretsFromMap(mcpConfig.Headers)
-				mcpEnvironmentLog.Printf("Extracted %d secrets from HTTP MCP server '%s'", len(headerSecrets), toolName)
-				maps.Copy(envVars, headerSecrets)
+			// For HTTP servers: handle auth and github-app env vars
+			if mcpConfig.Type == "http" {
+				// github-app: export the minted token so the gateway Authorization header can resolve it
+				if parseCustomMCPGitHubApp(toolConfig) != nil {
+					envVar := customMCPServerAppTokenEnvVar(toolName)
+					stepID := customMCPServerAppTokenStepID(toolName)
+					mcpEnvironmentLog.Printf("Adding GitHub App token env var for custom MCP server '%s': %s", toolName, envVar)
+					envVars[envVar] = fmt.Sprintf("${{ steps.%s.outputs.token }}", stepID)
+				}
+
+				// auth.type: github-oidc: mark that we need OIDC env vars
+				if mcpConfig.Auth != nil && mcpConfig.Auth.Type == "github-oidc" {
+					hasOIDCServer = true
+				}
+
+				// Extract secrets from headers
+				if len(mcpConfig.Headers) > 0 {
+					headerSecrets := ExtractSecretsFromMap(mcpConfig.Headers)
+					mcpEnvironmentLog.Printf("Extracted %d secrets from HTTP MCP server '%s'", len(headerSecrets), toolName)
+					maps.Copy(envVars, headerSecrets)
+				}
 			}
 
 			// Also extract secrets and env expressions from env section if present
@@ -190,6 +208,14 @@ func collectMCPEnvironmentVariables(tools map[string]any, mcpTools []string, wor
 				maps.Copy(envVars, envExprs)
 			}
 		}
+	}
+
+	// When any HTTP MCP server uses github-oidc auth, pass the GitHub OIDC token endpoint
+	// env vars to the gateway so it can request fresh tokens on behalf of those servers.
+	if hasOIDCServer {
+		mcpEnvironmentLog.Print("Adding GitHub OIDC token env vars for OIDC-authenticated MCP servers")
+		envVars["ACTIONS_ID_TOKEN_REQUEST_URL"] = "${{ env.ACTIONS_ID_TOKEN_REQUEST_URL }}"
+		envVars["ACTIONS_ID_TOKEN_REQUEST_TOKEN"] = "${{ env.ACTIONS_ID_TOKEN_REQUEST_TOKEN }}"
 	}
 
 	return envVars

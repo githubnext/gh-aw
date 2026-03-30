@@ -9636,10 +9636,39 @@
             "type": "string"
           },
           "examples": [["*"], ["store_memory", "retrieve_memory"], ["brave_web_search"]]
+        },
+        "github-app": {
+          "$ref": "#/$defs/github_app",
+          "description": "GitHub App configuration for minting a short-lived installation access token used to authenticate requests to this HTTP MCP server. The compiler generates token-mint and token-invalidate steps automatically. Mutually exclusive with auth."
+        },
+        "auth": {
+          "type": "object",
+          "description": "Token-based authentication that the MCP gateway manages transparently. The gateway obtains and refreshes tokens and injects them as the Authorization header. Mutually exclusive with github-app.",
+          "properties": {
+            "type": {
+              "type": "string",
+              "enum": ["github-oidc"],
+              "description": "Authentication type. 'github-oidc' uses GitHub Actions OIDC JWT with automatic refresh (~5 min lifetime). The compiler auto-injects id-token: write permission."
+            },
+            "audience": {
+              "type": "string",
+              "description": "OIDC audience claim ('aud'). Set to the MCP server URL so the server can reject tokens not minted for it."
+            }
+          },
+          "required": ["type"],
+          "additionalProperties": false
         }
       },
       "required": ["url"],
-      "additionalProperties": false
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "description": "github-app and auth are mutually exclusive",
+          "not": {
+            "allOf": [{ "required": ["github-app"] }, { "required": ["auth"] }]
+          }
+        }
+      ]
     },
     "github_token": {
       "type": "string",
