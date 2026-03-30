@@ -772,7 +772,7 @@ on:
   roles: []
     # Array items: Repository permission level: 'admin' (full access),
     # 'maintainer'/'maintain' (repository management), 'write' (push access), 'triage'
-    # (issue management)
+    # (issue management), 'read' (read-only access)
 
   # Allow list of bot identifiers that can trigger the workflow even if they don't
   # meet the required role permissions. When the actor is in this list, the bot must

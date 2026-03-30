@@ -1848,8 +1848,8 @@
                   "description": "List of repository permission levels that can trigger the workflow. Permission checks are automatically applied to potentially unsafe triggers.",
                   "items": {
                     "type": "string",
-                    "enum": ["admin", "maintainer", "maintain", "write", "triage"],
-                    "description": "Repository permission level: 'admin' (full access), 'maintainer'/'maintain' (repository management), 'write' (push access), 'triage' (issue management)"
+                    "enum": ["admin", "maintainer", "maintain", "write", "triage", "read"],
+                    "description": "Repository permission level: 'admin' (full access), 'maintainer'/'maintain' (repository management), 'write' (push access), 'triage' (issue management), 'read' (read-only access)"
                   },
                   "minItems": 1,
                   "maxItems": 50

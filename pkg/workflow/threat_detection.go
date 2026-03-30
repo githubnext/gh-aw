@@ -631,12 +631,23 @@ func (c *Compiler) buildDetectionJob(data *WorkflowData) (*Job, error) {
 	jobConditionNode := BuildAnd(BuildAnd(alwaysFunc, agentNotSkipped), hasContent)
 	jobCondition := RenderCondition(jobConditionNode)
 
-	// Determine permissions for the detection job
-	// In dev/script mode, need contents: read if the actions folder checkout is needed
+	// Determine permissions for the detection job.
+	// - In dev/script mode, need contents: read if the actions folder checkout is needed.
+	// - When the copilot-requests feature is enabled, the detection job runs the Copilot CLI
+	//   and requires copilot-requests: write for authentication.
 	var permissions string
 	needsContentsRead := (c.actionMode.IsDev() || c.actionMode.IsScript()) && len(c.generateCheckoutActionsFolder(data)) > 0
-	if needsContentsRead {
-		perms := NewPermissionsContentsRead()
+	copilotRequestsEnabled := isFeatureEnabled(constants.CopilotRequestsFeatureFlag, data)
+	if needsContentsRead || copilotRequestsEnabled {
+		var perms *Permissions
+		if needsContentsRead {
+			perms = NewPermissionsContentsRead()
+		} else {
+			perms = NewPermissions()
+		}
+		if copilotRequestsEnabled {
+			perms.Set(PermissionCopilotRequests, PermissionWrite)
+		}
 		permissions = perms.RenderToYAML()
 	}
 

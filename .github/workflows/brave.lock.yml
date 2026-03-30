@@ -958,6 +958,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
           contents: read
+          copilot-requests: write
     outputs:
       detection_conclusion: ${{ steps.detection_conclusion.outputs.conclusion }}
       detection_success: ${{ steps.detection_conclusion.outputs.success }}
