@@ -1,7 +1,8 @@
 #!/bin/bash
 # Safe Outputs Specification Conformance Checker
 # This script implements automated checks for the Safe Outputs specification
-# Based on findings from docs/spec-review-findings.md
+# Specification: docs/src/content/docs/reference/safe-outputs-specification.md
+# Version: 1.15.0 (2026-03-29)
 
 set -euo pipefail
 
@@ -190,8 +191,14 @@ check_error_codes() {
     local failed=0
     
     for handler in actions/setup/js/*.cjs; do
-        # Skip test files
+        # Skip test files and non-safe-output modules
         [[ "$handler" =~ test ]] && continue
+        [[ "$handler" =~ (apm_unpack|run_apm_unpack|observability|generate_observability) ]] && continue
+        
+        # Only check handlers that interact with GitHub via octokit or record safe output operations
+        if ! grep -qE "octokit\.|safe_output|safeOutput|NDJSON" "$handler"; then
+            continue
+        fi
         
         # Check if handler throws errors
         if grep -q "throw.*Error\|core\.setFailed" "$handler"; then
@@ -237,11 +244,12 @@ check_staged_mode() {
     local failed=0
     
     for handler in actions/setup/js/*.cjs; do
-        # Skip test files
+        # Skip test files and non-safe-output modules
         [[ "$handler" =~ test ]] && continue
+        [[ "$handler" =~ (apm_unpack|run_apm_unpack|observability|generate_observability) ]] && continue
         
-        # Check if handler has staged mode
-        if grep -q "staged.*true\|isStaged\|GH_AW_SAFE_OUTPUTS_STAGED" "$handler"; then
+        # Only check handlers that explicitly reference the safe outputs staged mode env var
+        if grep -q "GH_AW_SAFE_OUTPUTS_STAGED\|logStagedPreviewInfo\|generateStagedPreview" "$handler"; then
             # Check for emoji in preview
             if ! grep -q "🎭\|Staged Mode.*Preview\|logStagedPreviewInfo\|generateStagedPreview" "$handler"; then
                 log_low "USE-003: $handler has staged mode but missing 🎭 emoji"
@@ -405,6 +413,154 @@ check_schema_consistency() {
     fi
 }
 check_schema_consistency
+
+# MCE-001: Tool Description Constraint Disclosure (Section 8.3 MCE2)
+echo "Running MCE-001: Tool Description Constraint Disclosure..."
+check_mce_constraint_disclosure() {
+    local tools_json="pkg/workflow/js/safe_outputs_tools.json"
+    local failed=0
+    
+    if [ ! -f "$tools_json" ]; then
+        log_high "MCE-001: Tool definitions file missing: $tools_json"
+        return
+    fi
+    
+    # Per spec Section 8.3 MCE2: add_comment MUST surface its constraint limits in description
+    # Required: 65536 char limit, 10 mentions, 50 links (checks the combined tool JSON file)
+    if ! grep -iE "65536" "$tools_json" > /dev/null 2>&1; then
+        log_medium "MCE-001: add_comment tool description may be missing 65536 character limit"
+        failed=1
+    fi
+    if ! grep -iE "10 mention" "$tools_json" > /dev/null 2>&1; then
+        log_medium "MCE-001: add_comment tool description may be missing 10 mention limit"
+        failed=1
+    fi
+    if ! grep -iE "50 link" "$tools_json" > /dev/null 2>&1; then
+        log_medium "MCE-001: add_comment tool description may be missing 50 link limit"
+        failed=1
+    fi
+    
+    # Verify add_comment description contains CONSTRAINTS or IMPORTANT keyword
+    if ! grep -A 5 '"add_comment"' "$tools_json" | grep -qE "CONSTRAINTS|IMPORTANT.*constraint|validation constraint"; then
+        log_medium "MCE-001: add_comment tool description missing required CONSTRAINTS/IMPORTANT disclosure"
+        failed=1
+    fi
+    
+    if [ $failed -eq 0 ]; then
+        log_pass "MCE-001: Tool descriptions properly disclose enforcement constraints"
+    fi
+}
+check_mce_constraint_disclosure
+
+# MCE-002: Dual Enforcement Pattern (Section 8.3 MCE4)
+echo "Running MCE-002: Dual Enforcement Pattern..."
+check_mce_dual_enforcement() {
+    local failed=0
+    local helpers_file="actions/setup/js/comment_limit_helpers.cjs"
+    
+    # Per spec Section 8.3 MCE4: constraints must be enforced at both MCP invocation
+    # time and safe output processing time
+    
+    # Check constraint helper module exists
+    if [ ! -f "$helpers_file" ]; then
+        log_high "MCE-002: Constraint helper module missing: $helpers_file"
+        failed=1
+        return
+    fi
+    
+    # Check that both the MCP gateway handler (records operations) and the safe output 
+    # processor (add_comment.cjs - executes API calls) import/use the constraint helpers.
+    # Per spec MCE4: dual enforcement must exist at both invocation and processing time.
+    local gateway_handler="actions/setup/js/safe_outputs_handlers.cjs"
+    local add_comment_handler="actions/setup/js/add_comment.cjs"
+    
+    for handler in "$gateway_handler" "$add_comment_handler"; do
+        if [ ! -f "$handler" ]; then
+            log_medium "MCE-002: Expected handler file missing: $handler"
+            failed=1
+            continue
+        fi
+        if ! grep -q "comment_limit_helpers\|enforceCommentLimits" "$handler"; then
+            log_medium "MCE-002: $handler does not enforce comment constraints (dual enforcement pattern)"
+            failed=1
+        fi
+    done
+    
+    if [ $failed -eq 0 ]; then
+        log_pass "MCE-002: Dual enforcement pattern implemented in both gateway and processor"
+    fi
+}
+check_mce_dual_enforcement
+
+# CI-001: Cache Memory Integrity Scripts Exist (Section 11 CI6, CI10)
+echo "Running CI-001: Cache Memory Integrity Scripts Exist..."
+check_cache_memory_scripts() {
+    local failed=0
+    
+    # Per spec Section 11 CI6 and CI10: setup and commit scripts must exist
+    local setup_script="actions/setup/sh/setup_cache_memory_git.sh"
+    local commit_script="actions/setup/sh/commit_cache_memory_git.sh"
+    
+    for script in "$setup_script" "$commit_script"; do
+        if [ ! -f "$script" ]; then
+            log_high "CI-001: Required cache memory integrity script missing: $script"
+            failed=1
+        fi
+    done
+    
+    if [ $failed -eq 0 ]; then
+        log_pass "CI-001: Cache memory integrity scripts exist"
+    fi
+}
+check_cache_memory_scripts
+
+# CI-002: Cache Memory Integrity Branch Support (Section 11.2, CI7, CI8)
+echo "Running CI-002: Cache Memory Integrity Branch Support..."
+check_cache_integrity_branches() {
+    local setup_script="actions/setup/sh/setup_cache_memory_git.sh"
+    local commit_script="actions/setup/sh/commit_cache_memory_git.sh"
+    local failed=0
+    
+    if [ ! -f "$setup_script" ]; then
+        log_medium "CI-002: Setup script missing — skipping integrity branch check"
+        return
+    fi
+    
+    # Per spec Section 11.2: all four integrity levels must be supported (merged > approved > unapproved > none)
+    for level in merged approved unapproved none; do
+        if ! grep -q "\"$level\"\|'$level'" "$setup_script"; then
+            log_high "CI-002: Integrity level '$level' not found in setup script"
+            failed=1
+        fi
+    done
+    
+    # Per spec CI8: merge-down from higher-integrity branches must be implemented
+    if ! grep -q "merge\|git merge" "$setup_script"; then
+        log_high "CI-002: Setup script missing merge-down implementation (CI8)"
+        failed=1
+    fi
+    
+    # Per spec CI11: commit script must invoke git gc --auto for compaction
+    if [ -f "$commit_script" ]; then
+        if ! grep -q "git gc" "$commit_script"; then
+            log_medium "CI-002: Commit script missing 'git gc --auto' (CI11 repository compaction)"
+            failed=1
+        fi
+    fi
+    
+    # Per spec CI12: commit script must handle missing .git gracefully
+    if [ -f "$commit_script" ]; then
+        if ! grep -q '\.git\|no.*git\|skip.*git' "$commit_script"; then
+            log_medium "CI-002: Commit script may not handle missing .git directory (CI12)"
+            failed=1
+        fi
+    fi
+    
+    if [ $failed -eq 0 ]; then
+        log_pass "CI-002: Cache memory integrity branching properly implemented"
+    fi
+}
+check_cache_integrity_branches
 
 # Summary
 echo ""
