@@ -247,11 +247,7 @@ jobs:
           fi
           cat << 'GH_AW_PROMPT_5fc315a4df6b25f8_EOF'
           </system>
-          GH_AW_PROMPT_5fc315a4df6b25f8_EOF
-          cat << 'GH_AW_PROMPT_5fc315a4df6b25f8_EOF'
           {{#runtime-import .github/workflows/shared/reporting.md}}
-          GH_AW_PROMPT_5fc315a4df6b25f8_EOF
-          cat << 'GH_AW_PROMPT_5fc315a4df6b25f8_EOF'
           {{#runtime-import .github/workflows/poem-bot.md}}
           GH_AW_PROMPT_5fc315a4df6b25f8_EOF
           } > "$GH_AW_PROMPT"
@@ -397,7 +393,7 @@ jobs:
           path: /tmp/gh-aw/cache-memory
           restore-keys: |
             memory-none-nopolicy-poem-memory-${{ github.workflow }}-
-      - name: Set up cache-memory git repository
+      - name: Setup cache-memory git repository
         env:
           GH_AW_CACHE_DIR: /tmp/gh-aw/cache-memory
           GH_AW_MIN_INTEGRITY: none

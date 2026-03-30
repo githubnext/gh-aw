@@ -216,8 +216,6 @@ jobs:
           cat "${RUNNER_TEMP}/gh-aw/prompts/github_mcp_tools_with_safeoutputs_prompt.md"
           cat << 'GH_AW_PROMPT_4d1e5c370f81bbf8_EOF'
           </system>
-          GH_AW_PROMPT_4d1e5c370f81bbf8_EOF
-          cat << 'GH_AW_PROMPT_4d1e5c370f81bbf8_EOF'
           {{#runtime-import .github/workflows/smoke-update-cross-repo-pr.md}}
           GH_AW_PROMPT_4d1e5c370f81bbf8_EOF
           } > "$GH_AW_PROMPT"
@@ -370,7 +368,7 @@ jobs:
           path: /tmp/gh-aw/cache-memory
           restore-keys: |
             memory-none-nopolicy-${{ env.GH_AW_WORKFLOW_ID_SANITIZED }}-
-      - name: Set up cache-memory git repository
+      - name: Setup cache-memory git repository
         env:
           GH_AW_CACHE_DIR: /tmp/gh-aw/cache-memory
           GH_AW_MIN_INTEGRITY: none

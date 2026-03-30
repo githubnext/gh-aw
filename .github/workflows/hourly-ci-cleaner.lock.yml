@@ -187,11 +187,7 @@ jobs:
           cat "${RUNNER_TEMP}/gh-aw/prompts/github_mcp_tools_with_safeoutputs_prompt.md"
           cat << 'GH_AW_PROMPT_dcb28ac9b44269c3_EOF'
           </system>
-          GH_AW_PROMPT_dcb28ac9b44269c3_EOF
-          cat << 'GH_AW_PROMPT_dcb28ac9b44269c3_EOF'
           {{#runtime-import .github/agents/ci-cleaner.agent.md}}
-          GH_AW_PROMPT_dcb28ac9b44269c3_EOF
-          cat << 'GH_AW_PROMPT_dcb28ac9b44269c3_EOF'
           {{#runtime-import .github/workflows/hourly-ci-cleaner.md}}
           GH_AW_PROMPT_dcb28ac9b44269c3_EOF
           } > "$GH_AW_PROMPT"

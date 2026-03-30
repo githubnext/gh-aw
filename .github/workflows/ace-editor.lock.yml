@@ -209,8 +209,6 @@ jobs:
           cat "${RUNNER_TEMP}/gh-aw/prompts/github_mcp_tools_prompt.md"
           cat << 'GH_AW_PROMPT_3b0f91d4e2fcc9d9_EOF'
           </system>
-          GH_AW_PROMPT_3b0f91d4e2fcc9d9_EOF
-          cat << 'GH_AW_PROMPT_3b0f91d4e2fcc9d9_EOF'
           {{#runtime-import .github/workflows/ace-editor.md}}
           GH_AW_PROMPT_3b0f91d4e2fcc9d9_EOF
           } > "$GH_AW_PROMPT"

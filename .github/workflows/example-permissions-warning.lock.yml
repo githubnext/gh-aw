@@ -168,8 +168,6 @@ jobs:
           cat "${RUNNER_TEMP}/gh-aw/prompts/github_mcp_tools_prompt.md"
           cat << 'GH_AW_PROMPT_5c3619dea31e9804_EOF'
           </system>
-          GH_AW_PROMPT_5c3619dea31e9804_EOF
-          cat << 'GH_AW_PROMPT_5c3619dea31e9804_EOF'
           {{#runtime-import .github/workflows/example-permissions-warning.md}}
           GH_AW_PROMPT_5c3619dea31e9804_EOF
           } > "$GH_AW_PROMPT"

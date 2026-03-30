@@ -240,8 +240,6 @@ jobs:
           fi
           cat << 'GH_AW_PROMPT_e457feb8cbf7682c_EOF'
           </system>
-          GH_AW_PROMPT_e457feb8cbf7682c_EOF
-          cat << 'GH_AW_PROMPT_e457feb8cbf7682c_EOF'
           {{#runtime-import .github/workflows/tidy.md}}
           GH_AW_PROMPT_e457feb8cbf7682c_EOF
           } > "$GH_AW_PROMPT"

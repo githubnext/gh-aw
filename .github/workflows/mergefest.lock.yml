@@ -221,8 +221,6 @@ jobs:
           fi
           cat << 'GH_AW_PROMPT_c0b73803c180c67c_EOF'
           </system>
-          GH_AW_PROMPT_c0b73803c180c67c_EOF
-          cat << 'GH_AW_PROMPT_c0b73803c180c67c_EOF'
           {{#runtime-import .github/workflows/mergefest.md}}
           GH_AW_PROMPT_c0b73803c180c67c_EOF
           } > "$GH_AW_PROMPT"

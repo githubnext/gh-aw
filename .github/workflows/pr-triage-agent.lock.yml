@@ -177,8 +177,6 @@ jobs:
           cat "${RUNNER_TEMP}/gh-aw/prompts/github_mcp_tools_with_safeoutputs_prompt.md"
           cat << 'GH_AW_PROMPT_d4e1e69370d74975_EOF'
           </system>
-          GH_AW_PROMPT_d4e1e69370d74975_EOF
-          cat << 'GH_AW_PROMPT_d4e1e69370d74975_EOF'
           {{#runtime-import .github/workflows/pr-triage-agent.md}}
           GH_AW_PROMPT_d4e1e69370d74975_EOF
           } > "$GH_AW_PROMPT"

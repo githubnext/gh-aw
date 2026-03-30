@@ -180,11 +180,7 @@ jobs:
           cat "${RUNNER_TEMP}/gh-aw/prompts/github_mcp_tools_with_safeoutputs_prompt.md"
           cat << 'GH_AW_PROMPT_aa01c2ddd1b8dc63_EOF'
           </system>
-          GH_AW_PROMPT_aa01c2ddd1b8dc63_EOF
-          cat << 'GH_AW_PROMPT_aa01c2ddd1b8dc63_EOF'
           {{#runtime-import .github/workflows/shared/mcp/semgrep.md}}
-          GH_AW_PROMPT_aa01c2ddd1b8dc63_EOF
-          cat << 'GH_AW_PROMPT_aa01c2ddd1b8dc63_EOF'
           {{#runtime-import .github/workflows/daily-semgrep-scan.md}}
           GH_AW_PROMPT_aa01c2ddd1b8dc63_EOF
           } > "$GH_AW_PROMPT"

@@ -188,23 +188,11 @@ jobs:
           cat "${RUNNER_TEMP}/gh-aw/prompts/github_mcp_tools_with_safeoutputs_prompt.md"
           cat << 'GH_AW_PROMPT_670ca0f56dbcd366_EOF'
           </system>
-          GH_AW_PROMPT_670ca0f56dbcd366_EOF
-          cat << 'GH_AW_PROMPT_670ca0f56dbcd366_EOF'
           {{#runtime-import .github/workflows/shared/jqschema.md}}
-          GH_AW_PROMPT_670ca0f56dbcd366_EOF
-          cat << 'GH_AW_PROMPT_670ca0f56dbcd366_EOF'
           {{#runtime-import .github/workflows/shared/reporting.md}}
-          GH_AW_PROMPT_670ca0f56dbcd366_EOF
-          cat << 'GH_AW_PROMPT_670ca0f56dbcd366_EOF'
           {{#runtime-import .github/workflows/shared/copilot-pr-data-fetch.md}}
-          GH_AW_PROMPT_670ca0f56dbcd366_EOF
-          cat << 'GH_AW_PROMPT_670ca0f56dbcd366_EOF'
           {{#runtime-import .github/workflows/shared/python-nlp.md}}
-          GH_AW_PROMPT_670ca0f56dbcd366_EOF
-          cat << 'GH_AW_PROMPT_670ca0f56dbcd366_EOF'
           {{#runtime-import .github/workflows/shared/trending-charts-simple.md}}
-          GH_AW_PROMPT_670ca0f56dbcd366_EOF
-          cat << 'GH_AW_PROMPT_670ca0f56dbcd366_EOF'
           {{#runtime-import .github/workflows/prompt-clustering-analysis.md}}
           GH_AW_PROMPT_670ca0f56dbcd366_EOF
           } > "$GH_AW_PROMPT"
@@ -421,7 +409,7 @@ jobs:
           path: /tmp/gh-aw/cache-memory
           restore-keys: |
             memory-none-nopolicy-trending-data-${{ github.workflow }}-
-      - name: Set up cache-memory git repository
+      - name: Setup cache-memory git repository
         env:
           GH_AW_CACHE_DIR: /tmp/gh-aw/cache-memory
           GH_AW_MIN_INTEGRITY: none

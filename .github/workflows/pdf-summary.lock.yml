@@ -249,11 +249,7 @@ jobs:
           fi
           cat << 'GH_AW_PROMPT_4b8e89f4e47016e2_EOF'
           </system>
-          GH_AW_PROMPT_4b8e89f4e47016e2_EOF
-          cat << 'GH_AW_PROMPT_4b8e89f4e47016e2_EOF'
           {{#runtime-import .github/workflows/shared/mcp/markitdown.md}}
-          GH_AW_PROMPT_4b8e89f4e47016e2_EOF
-          cat << 'GH_AW_PROMPT_4b8e89f4e47016e2_EOF'
           {{#runtime-import .github/workflows/pdf-summary.md}}
           GH_AW_PROMPT_4b8e89f4e47016e2_EOF
           } > "$GH_AW_PROMPT"
@@ -406,7 +402,7 @@ jobs:
           path: /tmp/gh-aw/cache-memory
           restore-keys: |
             memory-none-nopolicy-${{ env.GH_AW_WORKFLOW_ID_SANITIZED }}-
-      - name: Set up cache-memory git repository
+      - name: Setup cache-memory git repository
         env:
           GH_AW_CACHE_DIR: /tmp/gh-aw/cache-memory
           GH_AW_MIN_INTEGRITY: none

@@ -169,8 +169,6 @@ jobs:
           cat "${RUNNER_TEMP}/gh-aw/prompts/github_mcp_tools_prompt.md"
           cat << 'GH_AW_PROMPT_3d136f493b7edd72_EOF'
           </system>
-          GH_AW_PROMPT_3d136f493b7edd72_EOF
-          cat << 'GH_AW_PROMPT_3d136f493b7edd72_EOF'
           {{#runtime-import .github/workflows/codex-github-remote-mcp-test.md}}
           GH_AW_PROMPT_3d136f493b7edd72_EOF
           } > "$GH_AW_PROMPT"

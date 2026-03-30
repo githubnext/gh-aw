@@ -184,11 +184,7 @@ jobs:
           cat "${RUNNER_TEMP}/gh-aw/prompts/github_mcp_tools_with_safeoutputs_prompt.md"
           cat << 'GH_AW_PROMPT_d715bdbddcc46a01_EOF'
           </system>
-          GH_AW_PROMPT_d715bdbddcc46a01_EOF
-          cat << 'GH_AW_PROMPT_d715bdbddcc46a01_EOF'
           {{#runtime-import .github/workflows/shared/reporting.md}}
-          GH_AW_PROMPT_d715bdbddcc46a01_EOF
-          cat << 'GH_AW_PROMPT_d715bdbddcc46a01_EOF'
           {{#runtime-import .github/workflows/repo-audit-analyzer.md}}
           GH_AW_PROMPT_d715bdbddcc46a01_EOF
           } > "$GH_AW_PROMPT"
@@ -325,7 +321,7 @@ jobs:
           path: /tmp/gh-aw/cache-memory-repo-audits
           restore-keys: |
             memory-none-nopolicy-repo-audits-${{ github.workflow }}-
-      - name: Set up cache-memory git repository (repo-audits)
+      - name: Setup cache-memory git repository (repo-audits)
         env:
           GH_AW_CACHE_DIR: /tmp/gh-aw/cache-memory-repo-audits
           GH_AW_MIN_INTEGRITY: none

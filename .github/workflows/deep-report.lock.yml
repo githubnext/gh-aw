@@ -189,20 +189,10 @@ jobs:
           cat "${RUNNER_TEMP}/gh-aw/prompts/github_mcp_tools_with_safeoutputs_prompt.md"
           cat << 'GH_AW_PROMPT_8892088a7c8e7668_EOF'
           </system>
-          GH_AW_PROMPT_8892088a7c8e7668_EOF
-          cat << 'GH_AW_PROMPT_8892088a7c8e7668_EOF'
           {{#runtime-import .github/workflows/shared/jqschema.md}}
-          GH_AW_PROMPT_8892088a7c8e7668_EOF
-          cat << 'GH_AW_PROMPT_8892088a7c8e7668_EOF'
           {{#runtime-import .github/workflows/shared/discussions-data-fetch.md}}
-          GH_AW_PROMPT_8892088a7c8e7668_EOF
-          cat << 'GH_AW_PROMPT_8892088a7c8e7668_EOF'
           {{#runtime-import .github/workflows/shared/weekly-issues-data-fetch.md}}
-          GH_AW_PROMPT_8892088a7c8e7668_EOF
-          cat << 'GH_AW_PROMPT_8892088a7c8e7668_EOF'
           {{#runtime-import .github/workflows/shared/reporting.md}}
-          GH_AW_PROMPT_8892088a7c8e7668_EOF
-          cat << 'GH_AW_PROMPT_8892088a7c8e7668_EOF'
           {{#runtime-import .github/workflows/deep-report.md}}
           GH_AW_PROMPT_8892088a7c8e7668_EOF
           } > "$GH_AW_PROMPT"
@@ -401,7 +391,7 @@ jobs:
           path: /tmp/gh-aw/cache-memory
           restore-keys: |
             memory-none-nopolicy-weekly-issues-data-
-      - name: Set up cache-memory git repository
+      - name: Setup cache-memory git repository
         env:
           GH_AW_CACHE_DIR: /tmp/gh-aw/cache-memory
           GH_AW_MIN_INTEGRITY: none
