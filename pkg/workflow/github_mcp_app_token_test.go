@@ -443,7 +443,8 @@ Test extra org-level permissions in GitHub App token.
 }
 
 // TestGitHubMCPAppTokenExtraPermissionsOverrideJobLevel tests that extra permissions
-// under tools.github.github-app.permissions override job-level permissions (nested wins).
+// under tools.github.github-app.permissions can suppress a GitHub App-only scope
+// that was set at job level by overriding it with 'none' (nested wins).
 func TestGitHubMCPAppTokenExtraPermissionsOverrideJobLevel(t *testing.T) {
 	compiler := NewCompilerWithVersion("1.0.0")
 
@@ -452,6 +453,7 @@ on: issues
 permissions:
   contents: read
   issues: read
+  vulnerability-alerts: read
 strict: false
 tools:
   github:
@@ -460,12 +462,12 @@ tools:
       app-id: ${{ vars.APP_ID }}
       private-key: ${{ secrets.APP_PRIVATE_KEY }}
       permissions:
-        contents: write
+        vulnerability-alerts: none
 ---
 
 # Test Workflow
 
-Test that nested permissions override job-level (nested wins).
+Test that nested permissions override job-level GitHub App-only scopes (nested wins).
 `
 
 	tmpDir := t.TempDir()
@@ -481,10 +483,11 @@ Test that nested permissions override job-level (nested wins).
 	require.NoError(t, err, "Failed to read lock file")
 	lockContent := string(content)
 
-	// The nested permission (write) should win over the job-level permission (read)
-	assert.Contains(t, lockContent, "permission-contents: write", "Nested contents: write should override job-level contents: read")
-	assert.NotContains(t, lockContent, "permission-contents: read", "Job-level contents: read should be overridden by nested write")
+	// The nested permission (none) should win over the job-level permission (read)
+	assert.Contains(t, lockContent, "permission-vulnerability-alerts: none", "Nested vulnerability-alerts: none should override job-level: read")
+	assert.NotContains(t, lockContent, "permission-vulnerability-alerts: read", "Job-level vulnerability-alerts: read should be overridden by nested none")
 
 	// Other job-level permissions should still be present
+	assert.Contains(t, lockContent, "permission-contents: read", "Unaffected job-level contents permission should still be present")
 	assert.Contains(t, lockContent, "permission-issues: read", "Unaffected job-level issues permission should still be present")
 }

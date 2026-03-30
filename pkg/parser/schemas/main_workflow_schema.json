@@ -9680,10 +9680,159 @@
         },
         "permissions": {
           "type": "object",
-          "description": "Optional extra permissions to merge into the minted token. These override the job-level permissions for the token (nested wins). Use this to add org-level permissions (e.g., members: read) that are not valid GitHub Actions scopes but are supported by GitHub Apps.",
-          "additionalProperties": {
-            "type": "string",
-            "enum": ["read", "write", "none"]
+          "description": "Optional extra GitHub App-only permissions to merge into the minted token. These are added on top of job-level permissions (nested wins). Use this for org-level permissions (e.g., members: read) that are not valid GitHub Actions scopes. Only 'read' and 'none' are allowed.",
+          "additionalProperties": false,
+          "properties": {
+            "administration": {
+              "type": "string",
+              "enum": ["read", "none"],
+              "description": "Permission level for repository administration (read/none). GitHub App-only permission for repository administration."
+            },
+            "codespaces": {
+              "type": "string",
+              "enum": ["read", "none"],
+              "description": "Permission level for Codespaces (read/none). GitHub App-only permission."
+            },
+            "codespaces-lifecycle-admin": {
+              "type": "string",
+              "enum": ["read", "none"],
+              "description": "Permission level for Codespaces lifecycle administration (read/none). GitHub App-only permission."
+            },
+            "codespaces-metadata": {
+              "type": "string",
+              "enum": ["read", "none"],
+              "description": "Permission level for Codespaces metadata (read/none). GitHub App-only permission."
+            },
+            "email-addresses": {
+              "type": "string",
+              "enum": ["read", "none"],
+              "description": "Permission level for user email addresses (read/none). GitHub App-only permission."
+            },
+            "environments": {
+              "type": "string",
+              "enum": ["read", "none"],
+              "description": "Permission level for repository environments (read/none). GitHub App-only permission."
+            },
+            "git-signing": {
+              "type": "string",
+              "enum": ["read", "none"],
+              "description": "Permission level for git signing (read/none). GitHub App-only permission."
+            },
+            "members": {
+              "type": "string",
+              "enum": ["read", "none"],
+              "description": "Permission level for organization members (read/none). Required for org team membership API calls."
+            },
+            "organization-administration": {
+              "type": "string",
+              "enum": ["read", "none"],
+              "description": "Permission level for organization administration (read/none). GitHub App-only permission."
+            },
+            "organization-announcement-banners": {
+              "type": "string",
+              "enum": ["read", "none"],
+              "description": "Permission level for organization announcement banners (read/none). GitHub App-only permission."
+            },
+            "organization-codespaces": {
+              "type": "string",
+              "enum": ["read", "none"],
+              "description": "Permission level for organization Codespaces (read/none). GitHub App-only permission."
+            },
+            "organization-copilot": {
+              "type": "string",
+              "enum": ["read", "none"],
+              "description": "Permission level for organization Copilot (read/none). GitHub App-only permission."
+            },
+            "organization-custom-org-roles": {
+              "type": "string",
+              "enum": ["read", "none"],
+              "description": "Permission level for organization custom org roles (read/none). GitHub App-only permission."
+            },
+            "organization-custom-properties": {
+              "type": "string",
+              "enum": ["read", "none"],
+              "description": "Permission level for organization custom properties (read/none). GitHub App-only permission."
+            },
+            "organization-custom-repository-roles": {
+              "type": "string",
+              "enum": ["read", "none"],
+              "description": "Permission level for organization custom repository roles (read/none). GitHub App-only permission."
+            },
+            "organization-events": {
+              "type": "string",
+              "enum": ["read", "none"],
+              "description": "Permission level for organization events (read/none). GitHub App-only permission."
+            },
+            "organization-hooks": {
+              "type": "string",
+              "enum": ["read", "none"],
+              "description": "Permission level for organization webhooks (read/none). GitHub App-only permission."
+            },
+            "organization-members": {
+              "type": "string",
+              "enum": ["read", "none"],
+              "description": "Permission level for organization members management (read/none). GitHub App-only permission."
+            },
+            "organization-packages": {
+              "type": "string",
+              "enum": ["read", "none"],
+              "description": "Permission level for organization packages (read/none). GitHub App-only permission."
+            },
+            "organization-personal-access-token-requests": {
+              "type": "string",
+              "enum": ["read", "none"],
+              "description": "Permission level for organization personal access token requests (read/none). GitHub App-only permission."
+            },
+            "organization-personal-access-tokens": {
+              "type": "string",
+              "enum": ["read", "none"],
+              "description": "Permission level for organization personal access tokens (read/none). GitHub App-only permission."
+            },
+            "organization-plan": {
+              "type": "string",
+              "enum": ["read", "none"],
+              "description": "Permission level for organization plan (read/none). GitHub App-only permission."
+            },
+            "organization-self-hosted-runners": {
+              "type": "string",
+              "enum": ["read", "none"],
+              "description": "Permission level for organization self-hosted runners (read/none). GitHub App-only permission."
+            },
+            "organization-user-blocking": {
+              "type": "string",
+              "enum": ["read", "none"],
+              "description": "Permission level for organization user blocking (read/none). GitHub App-only permission."
+            },
+            "repository-custom-properties": {
+              "type": "string",
+              "enum": ["read", "none"],
+              "description": "Permission level for repository custom properties (read/none). GitHub App-only permission."
+            },
+            "repository-hooks": {
+              "type": "string",
+              "enum": ["read", "none"],
+              "description": "Permission level for repository webhooks (read/none). GitHub App-only permission."
+            },
+            "single-file": {
+              "type": "string",
+              "enum": ["read", "none"],
+              "description": "Permission level for single file access (read/none). GitHub App-only permission."
+            },
+            "team-discussions": {
+              "type": "string",
+              "enum": ["read", "none"],
+              "description": "Permission level for team discussions (read/none). GitHub App-only permission."
+            },
+            "vulnerability-alerts": {
+              "type": "string",
+              "enum": ["read", "none"],
+              "description": "Permission level for Dependabot vulnerability alerts (read/none). GitHub App-only permission."
+            },
+            "workflows": {
+              "type": "string",
+              "enum": ["read", "none"],
+              "description": "Permission level for GitHub Actions workflow files (read/none). GitHub App-only permission."
+            }
           },
           "examples": [
             {
