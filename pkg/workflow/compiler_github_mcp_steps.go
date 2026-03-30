@@ -2,8 +2,10 @@ package workflow
 
 import (
 	"fmt"
+	"os"
 	"strings"
 
+	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/constants"
 )
 
@@ -100,6 +102,20 @@ func (c *Compiler) generateGitHubMCPAppTokenMintingStep(yaml *strings.Builder, d
 	} else {
 		githubConfigLog.Print("No permissions specified, using empty permissions")
 		permissions = NewPermissions()
+	}
+
+	// Apply extra permissions from github-app.permissions (nested wins over job-level)
+	if len(app.Permissions) > 0 {
+		githubConfigLog.Printf("Applying %d extra permissions from github-app.permissions", len(app.Permissions))
+		for key, val := range app.Permissions {
+			scope := convertStringToPermissionScope(key)
+			if scope == "" {
+				msg := fmt.Sprintf("Unknown permission scope %q in tools.github.github-app.permissions. Valid scopes include: members, organization-administration, team-discussions, organization-members, administration, etc.", key)
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(msg))
+				continue
+			}
+			permissions.Set(scope, PermissionLevel(val))
+		}
 	}
 
 	// Generate the token minting step using the existing helper from safe_outputs_app.go

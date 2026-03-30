@@ -9677,6 +9677,23 @@
           "items": {
             "type": "string"
           }
+        },
+        "permissions": {
+          "type": "object",
+          "description": "Optional extra permissions to merge into the minted token. These override the job-level permissions for the token (nested wins). Use this to add org-level permissions (e.g., members: read) that are not valid GitHub Actions scopes but are supported by GitHub Apps.",
+          "additionalProperties": {
+            "type": "string",
+            "enum": ["read", "write", "none"]
+          },
+          "examples": [
+            {
+              "members": "read"
+            },
+            {
+              "members": "read",
+              "organization-administration": "read"
+            }
+          ]
         }
       },
       "required": ["app-id", "private-key"],

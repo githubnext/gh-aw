@@ -385,3 +385,106 @@ Test that permission-vulnerability-alerts is emitted in the App token minting st
 		}
 	}
 }
+
+// TestGitHubMCPAppTokenWithExtraPermissions tests that extra permissions under
+// tools.github.github-app.permissions are merged into the minted token (nested wins).
+// This allows org-level permissions (e.g. members: read) that are not valid GitHub
+// Actions scopes but are supported by GitHub Apps.
+func TestGitHubMCPAppTokenWithExtraPermissions(t *testing.T) {
+	compiler := NewCompilerWithVersion("1.0.0")
+
+	markdown := `---
+on: issues
+permissions:
+  contents: read
+  issues: read
+strict: false
+tools:
+  github:
+    mode: local
+    toolsets: [orgs, users]
+    github-app:
+      app-id: ${{ vars.APP_ID }}
+      private-key: ${{ secrets.APP_PRIVATE_KEY }}
+      repositories: ["*"]
+      permissions:
+        members: read
+        organization-administration: read
+---
+
+# Test Workflow
+
+Test extra org-level permissions in GitHub App token.
+`
+
+	tmpDir := t.TempDir()
+	testFile := filepath.Join(tmpDir, "test.md")
+	err := os.WriteFile(testFile, []byte(markdown), 0644)
+	require.NoError(t, err, "Failed to write test file")
+
+	err = compiler.CompileWorkflow(testFile)
+	require.NoError(t, err, "Failed to compile workflow")
+
+	lockFile := strings.TrimSuffix(testFile, ".md") + ".lock.yml"
+	content, err := os.ReadFile(lockFile)
+	require.NoError(t, err, "Failed to read lock file")
+	lockContent := string(content)
+
+	// Verify the token minting step is present
+	assert.Contains(t, lockContent, "id: github-mcp-app-token", "GitHub App token step should be generated")
+
+	// Verify that job-level permissions are still included
+	assert.Contains(t, lockContent, "permission-contents: read", "Should include job-level contents permission")
+	assert.Contains(t, lockContent, "permission-issues: read", "Should include job-level issues permission")
+
+	// Verify that the extra org-level permissions from github-app.permissions are included
+	assert.Contains(t, lockContent, "permission-members: read", "Should include extra members permission from github-app.permissions")
+	assert.Contains(t, lockContent, "permission-organization-administration: read", "Should include extra organization-administration permission from github-app.permissions")
+}
+
+// TestGitHubMCPAppTokenExtraPermissionsOverrideJobLevel tests that extra permissions
+// under tools.github.github-app.permissions override job-level permissions (nested wins).
+func TestGitHubMCPAppTokenExtraPermissionsOverrideJobLevel(t *testing.T) {
+	compiler := NewCompilerWithVersion("1.0.0")
+
+	markdown := `---
+on: issues
+permissions:
+  contents: read
+  issues: read
+strict: false
+tools:
+  github:
+    mode: local
+    github-app:
+      app-id: ${{ vars.APP_ID }}
+      private-key: ${{ secrets.APP_PRIVATE_KEY }}
+      permissions:
+        contents: write
+---
+
+# Test Workflow
+
+Test that nested permissions override job-level (nested wins).
+`
+
+	tmpDir := t.TempDir()
+	testFile := filepath.Join(tmpDir, "test.md")
+	err := os.WriteFile(testFile, []byte(markdown), 0644)
+	require.NoError(t, err, "Failed to write test file")
+
+	err = compiler.CompileWorkflow(testFile)
+	require.NoError(t, err, "Failed to compile workflow")
+
+	lockFile := strings.TrimSuffix(testFile, ".md") + ".lock.yml"
+	content, err := os.ReadFile(lockFile)
+	require.NoError(t, err, "Failed to read lock file")
+	lockContent := string(content)
+
+	// The nested permission (write) should win over the job-level permission (read)
+	assert.Contains(t, lockContent, "permission-contents: write", "Nested contents: write should override job-level contents: read")
+	assert.NotContains(t, lockContent, "permission-contents: read", "Job-level contents: read should be overridden by nested write")
+
+	// Other job-level permissions should still be present
+	assert.Contains(t, lockContent, "permission-issues: read", "Unaffected job-level issues permission should still be present")
+}
