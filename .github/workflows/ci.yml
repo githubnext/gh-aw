@@ -11,8 +11,8 @@ on:
       - 'actions/**'
       - '.github/workflows/ci.yml'
       - '.github/workflows/**/*.md'
-      - '.github/aw/config.json'
-      - '.github/aw/config.schema.json'
+      - '.github/aw/releases.json'
+      - '.github/aw/releases.schema.json'
   workflow_dispatch:
 jobs:
   test:
@@ -838,13 +838,13 @@ jobs:
           
           echo "✅ All URLs in $AGENT_FILE correctly use 'main' branch"
 
-      - name: Validate config.json against JSON schema
+      - name: Validate releases.json against JSON schema
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         with:
           script: |
             const fs = require('fs');
-            const CONFIG_FILE = '.github/aw/config.json';
-            const SCHEMA_FILE = '.github/aw/config.schema.json';
+            const CONFIG_FILE = '.github/aw/releases.json';
+            const SCHEMA_FILE = '.github/aw/releases.schema.json';
 
             core.info(`🔍 Validating ${CONFIG_FILE} against ${SCHEMA_FILE}...`);
 
