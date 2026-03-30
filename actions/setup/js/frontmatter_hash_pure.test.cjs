@@ -11,6 +11,7 @@ const {
   marshalSorted,
   extractHashFromLockFile,
   normalizeFrontmatterText,
+  parseBoolFromFrontmatter,
   defaultFileReader,
   createGitHubFileReader,
 } = require("./frontmatter_hash_pure.cjs");
@@ -271,6 +272,27 @@ name: "Test Workflow"`;
     });
   });
 
+  describe("parseBoolFromFrontmatter", () => {
+    it("should return true when key is present with value true", () => {
+      const frontmatter = "engine: copilot\ninlined-imports: true\ndescription: test";
+      expect(parseBoolFromFrontmatter(frontmatter, "inlined-imports")).toBe(true);
+    });
+
+    it("should return false when key is present with value false", () => {
+      const frontmatter = "engine: copilot\ninlined-imports: false\ndescription: test";
+      expect(parseBoolFromFrontmatter(frontmatter, "inlined-imports")).toBe(false);
+    });
+
+    it("should return false when key is absent", () => {
+      const frontmatter = "engine: copilot\ndescription: test";
+      expect(parseBoolFromFrontmatter(frontmatter, "inlined-imports")).toBe(false);
+    });
+
+    it("should return false for empty frontmatter", () => {
+      expect(parseBoolFromFrontmatter("", "inlined-imports")).toBe(false);
+    });
+  });
+
   describe("computeFrontmatterHash", () => {
     it("should compute hash for simple frontmatter", async () => {
       // Create a temporary test file
@@ -366,6 +388,51 @@ name: "Test Workflow"`;
         const hash = await computeFrontmatterHash(mainFile, { fileReader: customFileReader });
         expect(hash).toHaveLength(64);
         expect(hash).toMatch(/^[0-9a-f]{64}$/);
+      } finally {
+        fs.rmSync(tmpDir, { recursive: true, force: true });
+      }
+    });
+
+    it("should include body-text in hash when inlined-imports is true", async () => {
+      const tmpDir = fs.mkdtempSync(path.join(require("os").tmpdir(), "frontmatter-hash-test-"));
+      const testFile = path.join(tmpDir, "test.md");
+
+      const withBody = "---\nengine: copilot\ninlined-imports: true\n---\n\nBody content here";
+      const withDifferentBody = "---\nengine: copilot\ninlined-imports: true\n---\n\nDifferent body content";
+      const withoutFlag = "---\nengine: copilot\n---\n\nBody content here";
+
+      const fileSystem = {};
+      const makeReader = content => async () => content;
+
+      try {
+        const hashWithBody = await computeFrontmatterHash(testFile, { fileReader: makeReader(withBody) });
+        const hashDifferentBody = await computeFrontmatterHash(testFile, { fileReader: makeReader(withDifferentBody) });
+        const hashWithoutFlag = await computeFrontmatterHash(testFile, { fileReader: makeReader(withoutFlag) });
+
+        // Different body content → different hash when inlined-imports: true
+        expect(hashWithBody).not.toBe(hashDifferentBody);
+        // Same body but without inlined-imports flag → different canonical data → different hash
+        expect(hashWithBody).not.toBe(hashWithoutFlag);
+      } finally {
+        fs.rmSync(tmpDir, { recursive: true, force: true });
+      }
+    });
+
+    it("should not include body-text in hash when inlined-imports is false", async () => {
+      const tmpDir = fs.mkdtempSync(path.join(require("os").tmpdir(), "frontmatter-hash-test-"));
+      const testFile = path.join(tmpDir, "test.md");
+
+      const withBodyA = "---\nengine: copilot\n---\n\nBody content A";
+      const withBodyB = "---\nengine: copilot\n---\n\nBody content B";
+
+      const makeReader = content => async () => content;
+
+      try {
+        const hashA = await computeFrontmatterHash(testFile, { fileReader: makeReader(withBodyA) });
+        const hashB = await computeFrontmatterHash(testFile, { fileReader: makeReader(withBodyB) });
+
+        // Body changes should not affect hash when inlined-imports is not set
+        expect(hashA).toBe(hashB);
       } finally {
         fs.rmSync(tmpDir, { recursive: true, force: true });
       }
