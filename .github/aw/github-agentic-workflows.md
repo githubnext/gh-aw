@@ -83,7 +83,7 @@ The YAML frontmatter supports these fields:
   - **`forks:`** - Fork allowlist for `pull_request` triggers (array or string). By default, workflows block all forks and only allow same-repo PRs. Use `["*"]` to allow all forks, or specify patterns like `["org/*", "user/repo"]`
   - **`stop-after:`** - Can be included in the `on:` object to set a deadline for workflow execution. Supports absolute timestamps ("YYYY-MM-DD HH:MM:SS") or relative time deltas (+25h, +3d, +1d12h). The minimum unit for relative deltas is hours (h). Uses precise date calculations that account for varying month lengths.
   - **`reaction:`** - Add emoji reactions to triggering items
-  - **`status-comment:`** - Post status comments when workflow starts/completes (boolean, default: false)
+  - **`status-comment:`** - Post status comments when workflow starts/completes (boolean). Defaults to `true` for `slash_command` and `label_command` triggers; defaults to `false` for all other triggers. Must be explicitly enabled for non-command triggers with `status-comment: true`.
   - **`manual-approval:`** - Require manual approval using environment protection rules
   - **`skip-roles:`** - Skip workflow execution for users with specific repository roles (array)
     - Available roles: `admin`, `maintainer`, `write`, `read`
@@ -397,6 +397,12 @@ The YAML frontmatter supports these fields:
 
 - **`sandbox:`** - Sandbox configuration for AI engines (string or object)
   - String format: `"default"` (default sandbox), `"awf"` (Agent Workflow Firewall)
+  - Object format: use `agent: false` to disable the agent firewall while keeping the MCP gateway enabled (not allowed in strict mode):
+
+    ```yaml
+    sandbox:
+      agent: false
+    ```
 
 - **`tools:`** - Tool configuration for coding agent
   - `github:` - GitHub API tools
