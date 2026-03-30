@@ -241,7 +241,7 @@ on:
   roles: all                         # Allow any user (⚠️ use with caution)
 ```
 
-Available roles: `admin`, `maintainer`, `write`, `read`, `all`. Workflows with unsafe triggers (`push`, `issues`, `pull_request`) automatically enforce permission checks. Failed checks cancel the workflow with a warning.
+Available roles: `admin`, `maintainer`/`maintain`, `write`, `triage`, `read`, `all`. Workflows with unsafe triggers (`push`, `issues`, `pull_request`) automatically enforce permission checks. Failed checks cancel the workflow with a warning.
 
 > [!TIP]
 > Run `gh aw fix workflow.md --write` to automatically migrate top-level `roles:` to `on.roles:` using the built-in codemod.
@@ -289,7 +289,7 @@ on:
   skip-roles: [admin, maintainer, write]
 ```
 
-**Available roles**: `admin`, `maintainer`, `write`, `read`
+**Available roles**: `admin`, `maintainer`/`maintain`, `write`, `triage`, `read`
 
 **Behavior**:
 
