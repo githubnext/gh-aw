@@ -553,25 +553,35 @@ func generateRepoMemorySteps(builder *strings.Builder, data *WorkflowData) {
 // write targets—rather than a single repo-wide key—ensures that workflows pushing to
 // different memory branches do not unnecessarily serialise or cancel each other.
 //
-// Key format: "push-repo-memory-${{ github.repository }}|<branch1>[|<branch2>…]"
+// Key format: "push-repo-memory-${{ github.repository }}|<key1>[|<key2>…]"
 //
-// The "|" separator is used because it cannot appear in valid git branch names, making
-// the key unambiguous even when branch names contain hyphens or slashes.  For memories
-// that target a non-default repository, the target repo is prepended to the branch name
-// (e.g., "other-owner/other-repo:memory/branch") so that distinct targets produce
-// distinct concurrency groups.  The branches are sorted for a deterministic key
-// regardless of the order memories are declared in the frontmatter.
+// Each key component is percent-encoded (only `%` and `|` are encoded) before joining
+// with "|", so the separator is always unambiguous even if a user-supplied branch name
+// or target-repo contains a literal "|".  For memories that target a non-default
+// repository, the target repo is prepended to the branch name
+// (e.g., "other-owner%2Fother-repo:memory%2Fbranch" would be encoded if needed) so that
+// distinct targets produce distinct concurrency groups.  The branches are sorted for a
+// deterministic key regardless of the order memories are declared in the frontmatter.
 func buildPushRepoMemoryConcurrencyGroup(memories []RepoMemoryEntry) string {
 	branchKeys := make([]string, 0, len(memories))
 	for _, m := range memories {
-		key := m.BranchName
+		key := encodeConcurrencyKeyPart(m.BranchName)
 		if m.TargetRepo != "" {
-			key = m.TargetRepo + ":" + key
+			key = encodeConcurrencyKeyPart(m.TargetRepo) + ":" + key
 		}
 		branchKeys = append(branchKeys, key)
 	}
 	sort.Strings(branchKeys)
 	return "push-repo-memory-${{ github.repository }}|" + strings.Join(branchKeys, "|")
+}
+
+// encodeConcurrencyKeyPart percent-encodes the characters that would otherwise make the
+// concurrency group key ambiguous: "%" (to avoid double-encoding) and "|" (the separator).
+// All other characters are left as-is so the key remains human-readable in workflow UIs.
+func encodeConcurrencyKeyPart(s string) string {
+	s = strings.ReplaceAll(s, "%", "%25")
+	s = strings.ReplaceAll(s, "|", "%7C")
+	return s
 }
 
 // buildPushRepoMemoryJob creates a job that downloads repo-memory artifacts and pushes them to git branches

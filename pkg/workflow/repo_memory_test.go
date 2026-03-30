@@ -1232,13 +1232,22 @@ func TestBuildPushRepoMemoryConcurrencyGroup(t *testing.T) {
 			expected: "push-repo-memory-${{ github.repository }}|memory/local|other-org/other-repo:memory/remote",
 		},
 		{
-			name: "branches with hyphens produce unambiguous keys",
+			name: "branches with hyphens use pipe separator in key",
 			memories: []RepoMemoryEntry{
 				{ID: "a", BranchName: "memory/workflow-a"},
 				{ID: "b", BranchName: "memory/workflow-b"},
 			},
-			// "|" separator ensures "memory/workflow-a|memory/workflow-b" ≠ "memory/workflow-a-b"
+			// This expectation documents the current use of "|" as the list separator in the key.
+			// If the concurrency key encoding changes (e.g., different delimiter or encoding scheme),
+			// update this test to match the new encoding strategy.
 			expected: "push-repo-memory-${{ github.repository }}|memory/workflow-a|memory/workflow-b",
+		},
+		{
+			name: "pipe in branch name is percent-encoded so the separator stays unambiguous",
+			memories: []RepoMemoryEntry{
+				{ID: "unusual", BranchName: "memory/foo|bar"},
+			},
+			expected: "push-repo-memory-${{ github.repository }}|memory/foo%7Cbar",
 		},
 	}
 
