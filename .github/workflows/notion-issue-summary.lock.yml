@@ -182,11 +182,7 @@ jobs:
           cat "${RUNNER_TEMP}/gh-aw/prompts/github_mcp_tools_with_safeoutputs_prompt.md"
           cat << 'GH_AW_PROMPT_4451a47783df5d92_EOF'
           </system>
-          GH_AW_PROMPT_4451a47783df5d92_EOF
-          cat << 'GH_AW_PROMPT_4451a47783df5d92_EOF'
           {{#runtime-import .github/workflows/shared/mcp/notion.md}}
-          GH_AW_PROMPT_4451a47783df5d92_EOF
-          cat << 'GH_AW_PROMPT_4451a47783df5d92_EOF'
           {{#runtime-import .github/workflows/notion-issue-summary.md}}
           GH_AW_PROMPT_4451a47783df5d92_EOF
           } > "$GH_AW_PROMPT"

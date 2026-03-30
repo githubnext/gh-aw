@@ -514,9 +514,9 @@ func generateCacheMemorySteps(builder *strings.Builder, data *WorkflowData) {
 // any previous git history is available for the merge-down step.
 func generateCacheMemoryGitSetupStep(builder *strings.Builder, cache CacheMemoryEntry, cacheDir, integrityLevel string, useBackwardCompatiblePaths bool) {
 	if useBackwardCompatiblePaths {
-		builder.WriteString("      - name: Set up cache-memory git repository\n")
+		builder.WriteString("      - name: Setup cache-memory git repository\n")
 	} else {
-		fmt.Fprintf(builder, "      - name: Set up cache-memory git repository (%s)\n", cache.ID)
+		fmt.Fprintf(builder, "      - name: Setup cache-memory git repository (%s)\n", cache.ID)
 	}
 	builder.WriteString("        env:\n")
 	fmt.Fprintf(builder, "          GH_AW_CACHE_DIR: %s\n", cacheDir)

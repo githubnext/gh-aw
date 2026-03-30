@@ -5,7 +5,6 @@ package workflow
 import (
 	"os"
 	"path/filepath"
-	"regexp"
 	"strings"
 	"testing"
 
@@ -389,14 +388,18 @@ This is a normal-sized workflow that should compile successfully.`
 		t.Error("Normal workflow without imports should use runtime-import")
 	}
 
-	// Long workflow (with imports) should be inlined and chunked
-	// Chunking is implemented by emitting more heredoc blocks for large content,
-	// not by generating old "Append prompt (part N)" steps.
-	promptDelimRE := regexp.MustCompile(`cat << 'GH_AW_PROMPT_[0-9a-f]{16}_EOF'`)
-	normalHeredocCount := len(promptDelimRE.FindAllString(normalLockString, -1))
-	longHeredocCount := len(promptDelimRE.FindAllString(lockString, -1))
-	if longHeredocCount <= normalHeredocCount {
-		t.Errorf("Expected long workflow with imports to have more heredoc blocks than normal (normal=%d, long=%d)", normalHeredocCount, longHeredocCount)
+	// Long workflow (with imports) should be inlined into a single consolidated heredoc block.
+	// The compiler groups all user prompt chunks into the same heredoc to minimise the number
+	// of delimiter lines that change in the diff when content changes.
+	// Verify this by checking that the long workflow's run section is larger than the normal
+	// workflow's (which uses a compact runtime-import macro instead of inlining the full text).
+	if len(lockString) <= len(normalLockString) {
+		t.Errorf("Expected long workflow lock file to be larger than normal (normal=%d bytes, long=%d bytes)", len(normalLockString), len(lockString))
+	}
+
+	// Verify no old "Append prompt (part N)" steps were generated.
+	if strings.Contains(lockString, "Append prompt (part") {
+		t.Error("Expected no old 'Append prompt (part N)' steps in generated workflow")
 	}
 }
 

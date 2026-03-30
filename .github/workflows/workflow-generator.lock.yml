@@ -211,8 +211,6 @@ jobs:
           cat "${RUNNER_TEMP}/gh-aw/prompts/github_mcp_tools_with_safeoutputs_prompt.md"
           cat << 'GH_AW_PROMPT_50b91db920c2e371_EOF'
           </system>
-          GH_AW_PROMPT_50b91db920c2e371_EOF
-          cat << 'GH_AW_PROMPT_50b91db920c2e371_EOF'
           {{#runtime-import .github/workflows/workflow-generator.md}}
           GH_AW_PROMPT_50b91db920c2e371_EOF
           } > "$GH_AW_PROMPT"

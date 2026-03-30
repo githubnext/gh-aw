@@ -185,14 +185,8 @@ jobs:
           cat "${RUNNER_TEMP}/gh-aw/prompts/github_mcp_tools_with_safeoutputs_prompt.md"
           cat << 'GH_AW_PROMPT_64684d6c5669d29b_EOF'
           </system>
-          GH_AW_PROMPT_64684d6c5669d29b_EOF
-          cat << 'GH_AW_PROMPT_64684d6c5669d29b_EOF'
           {{#runtime-import .github/workflows/shared/reporting.md}}
-          GH_AW_PROMPT_64684d6c5669d29b_EOF
-          cat << 'GH_AW_PROMPT_64684d6c5669d29b_EOF'
           {{#runtime-import .github/workflows/shared/python-dataviz.md}}
-          GH_AW_PROMPT_64684d6c5669d29b_EOF
-          cat << 'GH_AW_PROMPT_64684d6c5669d29b_EOF'
           {{#runtime-import .github/workflows/daily-integrity-analysis.md}}
           GH_AW_PROMPT_64684d6c5669d29b_EOF
           } > "$GH_AW_PROMPT"
@@ -387,7 +381,7 @@ jobs:
           path: /tmp/gh-aw/cache-memory
           restore-keys: |
             memory-none-nopolicy-${{ env.GH_AW_WORKFLOW_ID_SANITIZED }}-
-      - name: Set up cache-memory git repository
+      - name: Setup cache-memory git repository
         env:
           GH_AW_CACHE_DIR: /tmp/gh-aw/cache-memory
           GH_AW_MIN_INTEGRITY: none

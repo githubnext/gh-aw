@@ -219,11 +219,7 @@ jobs:
           fi
           cat << 'GH_AW_PROMPT_5ee816d08e141192_EOF'
           </system>
-          GH_AW_PROMPT_5ee816d08e141192_EOF
-          cat << 'GH_AW_PROMPT_5ee816d08e141192_EOF'
           {{#runtime-import .github/workflows/shared/mcp/brave.md}}
-          GH_AW_PROMPT_5ee816d08e141192_EOF
-          cat << 'GH_AW_PROMPT_5ee816d08e141192_EOF'
           {{#runtime-import .github/workflows/brave.md}}
           GH_AW_PROMPT_5ee816d08e141192_EOF
           } > "$GH_AW_PROMPT"

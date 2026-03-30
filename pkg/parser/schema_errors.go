@@ -23,9 +23,11 @@ var maxConstraintPattern = regexp.MustCompile(`^maximum: got (-?\d+(?:\.\d+)?), 
 //   - "maximum: got 120, want 60" → "must be at most 60 (got 120)"
 func translateSchemaConstraintMessage(message string) string {
 	if m := minConstraintPattern.FindStringSubmatch(message); len(m) == 3 {
+		log.Printf("Translating minimum constraint message: got=%s want=%s", m[1], m[2])
 		return fmt.Sprintf("must be at least %s (got %s)", m[2], m[1])
 	}
 	if m := maxConstraintPattern.FindStringSubmatch(message); len(m) == 3 {
+		log.Printf("Translating maximum constraint message: got=%s want=%s", m[1], m[2])
 		return fmt.Sprintf("must be at most %s (got %s)", m[2], m[1])
 	}
 	return message
@@ -163,6 +165,7 @@ func stripAtPathPrefix(line string) string {
 // findFrontmatterBounds finds the start and end indices of frontmatter in file lines
 // Returns: startIdx (-1 if not found), endIdx (-1 if not found), frontmatterContent
 func findFrontmatterBounds(lines []string) (startIdx int, endIdx int, frontmatterContent string) {
+	log.Printf("Finding frontmatter bounds in %d lines", len(lines))
 	startIdx = -1
 	endIdx = -1
 
@@ -181,6 +184,7 @@ func findFrontmatterBounds(lines []string) (startIdx int, endIdx int, frontmatte
 	}
 
 	if startIdx == -1 {
+		log.Print("No frontmatter opening delimiter found")
 		return -1, -1, ""
 	}
 
@@ -195,8 +199,10 @@ func findFrontmatterBounds(lines []string) (startIdx int, endIdx int, frontmatte
 
 	if endIdx == -1 {
 		// No closing "---" found
+		log.Print("No frontmatter closing delimiter found")
 		return -1, -1, ""
 	}
+	log.Printf("Found frontmatter bounds: start=%d end=%d", startIdx, endIdx)
 
 	// Extract frontmatter content between the markers
 	frontmatterLines := lines[startIdx+1 : endIdx]
@@ -249,6 +255,7 @@ func appendKnownFieldValidValuesHint(message string, jsonPath string) string {
 	if !strings.Contains(strings.ToLower(message), "unknown propert") {
 		return message
 	}
+	log.Printf("Appending known field hint for path: %s", jsonPath)
 
 	// Find the best matching known path: exact match first, then the longest matching parent.
 	hint, hintOK := knownFieldValidValues[jsonPath]

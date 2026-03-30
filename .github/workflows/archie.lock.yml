@@ -230,8 +230,6 @@ jobs:
           fi
           cat << 'GH_AW_PROMPT_4b84f2f3d00883a1_EOF'
           </system>
-          GH_AW_PROMPT_4b84f2f3d00883a1_EOF
-          cat << 'GH_AW_PROMPT_4b84f2f3d00883a1_EOF'
           ## Serena Code Analysis
           
           The Serena MCP server is configured for **["go"]** analysis in this workspace:
@@ -263,11 +261,7 @@ jobs:
           4. **Focus on the relevant language files** — ignore unrelated file types
           
           
-          GH_AW_PROMPT_4b84f2f3d00883a1_EOF
-          cat << 'GH_AW_PROMPT_4b84f2f3d00883a1_EOF'
           {{#runtime-import .github/workflows/shared/mcp/serena-go.md}}
-          GH_AW_PROMPT_4b84f2f3d00883a1_EOF
-          cat << 'GH_AW_PROMPT_4b84f2f3d00883a1_EOF'
           {{#runtime-import .github/workflows/archie.md}}
           GH_AW_PROMPT_4b84f2f3d00883a1_EOF
           } > "$GH_AW_PROMPT"

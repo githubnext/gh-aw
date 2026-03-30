@@ -181,20 +181,10 @@ jobs:
           cat "${RUNNER_TEMP}/gh-aw/prompts/github_mcp_tools_with_safeoutputs_prompt.md"
           cat << 'GH_AW_PROMPT_667b3d2b25791db0_EOF'
           </system>
-          GH_AW_PROMPT_667b3d2b25791db0_EOF
-          cat << 'GH_AW_PROMPT_667b3d2b25791db0_EOF'
           {{#runtime-import .github/workflows/shared/ci-data-analysis.md}}
-          GH_AW_PROMPT_667b3d2b25791db0_EOF
-          cat << 'GH_AW_PROMPT_667b3d2b25791db0_EOF'
           {{#runtime-import .github/workflows/shared/ci-optimization-strategies.md}}
-          GH_AW_PROMPT_667b3d2b25791db0_EOF
-          cat << 'GH_AW_PROMPT_667b3d2b25791db0_EOF'
           {{#runtime-import .github/workflows/shared/reporting.md}}
-          GH_AW_PROMPT_667b3d2b25791db0_EOF
-          cat << 'GH_AW_PROMPT_667b3d2b25791db0_EOF'
           {{#runtime-import .github/workflows/shared/jqschema.md}}
-          GH_AW_PROMPT_667b3d2b25791db0_EOF
-          cat << 'GH_AW_PROMPT_667b3d2b25791db0_EOF'
           {{#runtime-import .github/workflows/ci-coach.md}}
           GH_AW_PROMPT_667b3d2b25791db0_EOF
           } > "$GH_AW_PROMPT"
@@ -373,7 +363,7 @@ jobs:
           path: /tmp/gh-aw/cache-memory
           restore-keys: |
             memory-none-nopolicy-${{ env.GH_AW_WORKFLOW_ID_SANITIZED }}-
-      - name: Set up cache-memory git repository
+      - name: Setup cache-memory git repository
         env:
           GH_AW_CACHE_DIR: /tmp/gh-aw/cache-memory
           GH_AW_MIN_INTEGRITY: none
@@ -1247,6 +1237,15 @@ jobs:
           name: safe-output-items
           path: /tmp/gh-aw/safe-output-items.jsonl
           if-no-files-found: ignore
+      - name: Restore actions folder
+        if: always()
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          repository: github/gh-aw
+          sparse-checkout: |
+            actions/setup
+          sparse-checkout-cone-mode: true
+          persist-credentials: false
 
   update_cache_memory:
     needs:

@@ -175,14 +175,15 @@ func TestGenerateUnifiedPromptCreationStep_MultipleUserChunks(t *testing.T) {
 
 	output := yaml.String()
 
-	// Count GH_AW_PROMPT_*_EOF markers using regex (delimiters are randomized per compilation)
-	// With system tags:
-	// - 2 for opening <system> tag
-	// - 2 for closing </system> tag
-	// - 2 per user chunk
+	// Count GH_AW_PROMPT_*_EOF markers using regex (delimiters are randomized per compilation).
+	// The compiler groups all concatenations into as few heredoc blocks as possible to minimise
+	// the number of delimiter lines that change in the diff when the user prompt changes.
+	// For this test (only file-based built-in sections, no inline sections):
+	// - 2 for the <system> opening tag (its own block, before the first file section)
+	// - 2 for a single merged block containing </system> + all user chunks
 	promptDelimRE := regexp.MustCompile(`GH_AW_PROMPT_[0-9a-f]{16}_EOF`)
 	eofCount := len(promptDelimRE.FindAllString(output, -1))
-	expectedEOFCount := 4 + (len(userPromptChunks) * 2) // 4 for system tags, 2 per user chunk
+	expectedEOFCount := 4 // 2 for <system>, 2 for </system> merged with all user chunks
 	assert.Equal(t, expectedEOFCount, eofCount, "Should have correct number of GH_AW_PROMPT_*_EOF markers")
 
 	// Verify all user chunks are present and in order

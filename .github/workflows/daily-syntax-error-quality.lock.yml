@@ -174,11 +174,7 @@ jobs:
           cat "${RUNNER_TEMP}/gh-aw/prompts/github_mcp_tools_with_safeoutputs_prompt.md"
           cat << 'GH_AW_PROMPT_0fa7b247ed2d1326_EOF'
           </system>
-          GH_AW_PROMPT_0fa7b247ed2d1326_EOF
-          cat << 'GH_AW_PROMPT_0fa7b247ed2d1326_EOF'
           {{#runtime-import .github/workflows/shared/reporting.md}}
-          GH_AW_PROMPT_0fa7b247ed2d1326_EOF
-          cat << 'GH_AW_PROMPT_0fa7b247ed2d1326_EOF'
           {{#runtime-import .github/workflows/daily-syntax-error-quality.md}}
           GH_AW_PROMPT_0fa7b247ed2d1326_EOF
           } > "$GH_AW_PROMPT"
