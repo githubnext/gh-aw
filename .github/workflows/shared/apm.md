@@ -36,7 +36,7 @@ jobs:
       - name: Prepare APM package list
         id: apm_prep
         env:
-          AW_APM_PACKAGES: ${{ toJson(github.aw.import-inputs.packages) }}
+          AW_APM_PACKAGES: '${{ github.aw.import-inputs.packages }}'
         run: |
           DEPS=$(echo "$AW_APM_PACKAGES" | jq -r '.[] | "- " + .')
           {

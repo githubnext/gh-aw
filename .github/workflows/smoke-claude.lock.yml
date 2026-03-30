@@ -2327,7 +2327,7 @@ jobs:
             echo "APMDEPS"
           } >> "$GITHUB_OUTPUT"
         env:
-          AW_APM_PACKAGES: ${{ toJson(github.aw.import-inputs.packages) }}
+          AW_APM_PACKAGES: "[\"microsoft/apm-sample-package\"]"
       - name: Pack APM packages
         id: apm_pack
         uses: microsoft/apm-action@a190b0b1a91031057144dc136acf9757a59c9e4d # v1.4.1
