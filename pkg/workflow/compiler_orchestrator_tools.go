@@ -1,7 +1,6 @@
 package workflow
 
 import (
-	"encoding/json"
 	"fmt"
 	"os"
 	"sort"
@@ -164,38 +163,6 @@ func (c *Compiler) processToolsAndMarkdown(result *parser.FrontmatterResult, cle
 	}
 	if apmDependencies != nil {
 		orchestratorToolsLog.Printf("Extracted %d APM dependencies from frontmatter", len(apmDependencies.Packages))
-	}
-
-	// Merge APM dependencies from imported shared workflows (e.g. shared/apm.md)
-	if importsResult.MergedDependencies != "" {
-		for line := range strings.SplitSeq(strings.TrimSpace(importsResult.MergedDependencies), "\n") {
-			line = strings.TrimSpace(line)
-			if line == "" || line == "null" {
-				continue
-			}
-			var depValue any
-			if jsonErr := json.Unmarshal([]byte(line), &depValue); jsonErr != nil {
-				orchestratorToolsLog.Printf("Failed to parse imported dependencies JSON: %v", jsonErr)
-				continue
-			}
-			importedDeps, depErr := extractAPMDependenciesFromValue(depValue, "imported:dependencies")
-			if depErr != nil || importedDeps == nil {
-				continue
-			}
-			orchestratorToolsLog.Printf("Merging %d APM packages from imported dependencies", len(importedDeps.Packages))
-			if apmDependencies == nil {
-				apmDependencies = importedDeps
-			} else {
-				// Append packages from imports; main workflow auth config takes precedence
-				apmDependencies.Packages = append(apmDependencies.Packages, importedDeps.Packages...)
-				if apmDependencies.GitHubToken == "" && importedDeps.GitHubToken != "" {
-					apmDependencies.GitHubToken = importedDeps.GitHubToken
-				}
-				if apmDependencies.GitHubApp == nil && importedDeps.GitHubApp != nil {
-					apmDependencies.GitHubApp = importedDeps.GitHubApp
-				}
-			}
-		}
 	}
 
 	// Add MCP fetch server if needed (when web-fetch is requested but engine doesn't support it)

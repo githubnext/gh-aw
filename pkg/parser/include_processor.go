@@ -170,7 +170,6 @@ func processIncludedFileWithVisited(filePath, sectionName string, extractTools b
 					"infer":                    true, // Custom agent format field (Copilot) - deprecated, use disable-model-invocation
 					"disable-model-invocation": true, // Custom agent format field (Copilot)
 					"features":                 true,
-					"dependencies":             true, // APM (Agent Package Manager) dependency packages for shared workflows
 				}
 
 				// Check for unexpected frontmatter fields

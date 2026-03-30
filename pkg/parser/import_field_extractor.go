@@ -42,7 +42,6 @@ type importAccumulator struct {
 	skipBotsSet              map[string]bool
 	caches                   []string
 	features                 []map[string]any
-	dependenciesBuilder      strings.Builder // JSON-serialized dependencies configs from imported workflows
 	agentFile                string
 	agentImportSpec          string
 	repositoryImports        []string
@@ -340,15 +339,6 @@ func (acc *importAccumulator) extractAllImportFields(content []byte, item import
 		}
 	}
 
-	// Extract dependencies from imported file (append in order for later merging)
-	dependenciesContent, err := extractFieldJSONFromMap(fm, "dependencies", "")
-	if err != nil {
-		log.Printf("Failed to extract dependencies from import %s: %v", item.fullPath, err)
-	} else if dependenciesContent != "" {
-		acc.dependenciesBuilder.WriteString(dependenciesContent + "\n")
-		log.Printf("Extracted dependencies from import: %s", item.fullPath)
-	}
-
 	return nil
 }
 
@@ -380,7 +370,6 @@ func (acc *importAccumulator) toImportsResult(topologicalOrder []string) *Import
 		MergedCaches:                acc.caches,
 		MergedJobs:                  acc.jobsBuilder.String(),
 		MergedFeatures:              acc.features,
-		MergedDependencies:          acc.dependenciesBuilder.String(),
 		ImportedFiles:               topologicalOrder,
 		AgentFile:                   acc.agentFile,
 		AgentImportSpec:             acc.agentImportSpec,
