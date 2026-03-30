@@ -3017,17 +3017,15 @@ jobs:
           sleep 1
           echo "Local proxy started on port 19443 (simulating a DIFC-style proxy)"
 
-      - name: Configure GH CLI to use local proxy via configure_gh_for_ghe.sh
-        env:
-          GH_TOKEN: ${{ github.token }}
-          GITHUB_SERVER_URL: http://localhost:19443
+      - name: Set GH_HOST to simulate proxy-rewritten environment
         run: |
-          # configure_gh_for_ghe.sh extracts the host from GITHUB_SERVER_URL and writes
-          # GH_HOST to $GITHUB_ENV.  With GITHUB_SERVER_URL=http://localhost:19443 it
-          # sets GH_HOST=localhost:19443, reproducing the proxy-rewritten environment
-          # that triggers the failure described in issue #23461.
-          bash actions/setup/sh/configure_gh_for_ghe.sh
-          echo "GH_HOST will be set to localhost:19443 for subsequent steps"
+          # Set GH_HOST=localhost:19443 directly to simulate the proxy-rewritten environment
+          # described in issue #23461.  We write directly to $GITHUB_ENV here because
+          # GITHUB_SERVER_URL is a runner-managed variable that cannot be overridden via
+          # step-level env:, so running configure_gh_for_ghe.sh with
+          # GITHUB_SERVER_URL=http://localhost:19443 would be silently ignored.
+          echo "GH_HOST=localhost:19443" >> "$GITHUB_ENV"
+          echo "Set GH_HOST=localhost:19443 (simulating a DIFC proxy-rewritten environment)"
 
       - name: Repro - gh pr checkout fails when GH_HOST points to proxy without matching remote
         env:
