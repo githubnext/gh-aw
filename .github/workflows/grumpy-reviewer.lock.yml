@@ -233,11 +233,7 @@ jobs:
           fi
           cat << 'GH_AW_PROMPT_4a47bd5b85501c0e_EOF'
           </system>
-          GH_AW_PROMPT_4a47bd5b85501c0e_EOF
-          cat << 'GH_AW_PROMPT_4a47bd5b85501c0e_EOF'
           {{#runtime-import .github/workflows/shared/pr-code-review-config.md}}
-          GH_AW_PROMPT_4a47bd5b85501c0e_EOF
-          cat << 'GH_AW_PROMPT_4a47bd5b85501c0e_EOF'
           {{#runtime-import .github/workflows/grumpy-reviewer.md}}
           GH_AW_PROMPT_4a47bd5b85501c0e_EOF
           } > "$GH_AW_PROMPT"
@@ -378,7 +374,7 @@ jobs:
           path: /tmp/gh-aw/cache-memory
           restore-keys: |
             memory-approved-0072b676-${{ env.GH_AW_WORKFLOW_ID_SANITIZED }}-
-      - name: Set up cache-memory git repository
+      - name: Setup cache-memory git repository
         env:
           GH_AW_CACHE_DIR: /tmp/gh-aw/cache-memory
           GH_AW_MIN_INTEGRITY: approved

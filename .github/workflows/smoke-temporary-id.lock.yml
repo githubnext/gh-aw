@@ -225,8 +225,6 @@ jobs:
           cat "${RUNNER_TEMP}/gh-aw/prompts/github_mcp_tools_with_safeoutputs_prompt.md"
           cat << 'GH_AW_PROMPT_6546813cf4b11e20_EOF'
           </system>
-          GH_AW_PROMPT_6546813cf4b11e20_EOF
-          cat << 'GH_AW_PROMPT_6546813cf4b11e20_EOF'
           {{#runtime-import .github/workflows/smoke-temporary-id.md}}
           GH_AW_PROMPT_6546813cf4b11e20_EOF
           } > "$GH_AW_PROMPT"

@@ -17,6 +17,8 @@
     "test:debug": "playwright test --debug"
   },
   "dependencies": {
+    "@astrojs/rss": "^4.0.17",
+    "@astrojs/sitemap": "^3.7.1",
     "@astrojs/starlight": "^0.38.2",
     "@primer/octicons": "^19.23.1",
     "astro": "^6.0.8",

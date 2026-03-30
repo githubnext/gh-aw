@@ -182,8 +182,6 @@ jobs:
           cat "${RUNNER_TEMP}/gh-aw/prompts/github_mcp_tools_with_safeoutputs_prompt.md"
           cat << 'GH_AW_PROMPT_af15b6489fff4b06_EOF'
           </system>
-          GH_AW_PROMPT_af15b6489fff4b06_EOF
-          cat << 'GH_AW_PROMPT_af15b6489fff4b06_EOF'
           {{#runtime-import .github/workflows/weekly-editors-health-check.md}}
           GH_AW_PROMPT_af15b6489fff4b06_EOF
           } > "$GH_AW_PROMPT"
@@ -1225,6 +1223,15 @@ jobs:
           name: safe-output-items
           path: /tmp/gh-aw/safe-output-items.jsonl
           if-no-files-found: ignore
+      - name: Restore actions folder
+        if: always()
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          repository: github/gh-aw
+          sparse-checkout: |
+            actions/setup
+          sparse-checkout-cone-mode: true
+          persist-credentials: false
 
   upload_assets:
     needs: agent
