@@ -85,6 +85,8 @@ safe-outputs:
       staged: true
       target: "*"
       if-no-changes: "warn"
+      allowed-files:
+        - ".github/smoke-claude-push-test.md"
     add-reviewer:
       max: 2
       target: "*"
