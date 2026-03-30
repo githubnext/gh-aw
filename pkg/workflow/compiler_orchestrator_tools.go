@@ -165,6 +165,30 @@ func (c *Compiler) processToolsAndMarkdown(result *parser.FrontmatterResult, cle
 		orchestratorToolsLog.Printf("Extracted %d APM dependencies from frontmatter", len(apmDependencies.Packages))
 	}
 
+	// Merge APM dependencies from imported shared workflows (e.g. shared/apm.md)
+	if len(importsResult.MergedAPMPackages) > 0 {
+		importedAPMDeps, mergeErr := mergeImportedAPMPackages(importsResult.MergedAPMPackages)
+		if mergeErr != nil {
+			return nil, fmt.Errorf("failed to merge APM packages from imports: %w", mergeErr)
+		}
+		if importedAPMDeps != nil {
+			orchestratorToolsLog.Printf("Merging %d APM packages from imports", len(importedAPMDeps.Packages))
+			if apmDependencies == nil {
+				apmDependencies = importedAPMDeps
+			} else {
+				// Append packages from imports; main workflow auth config takes precedence
+				apmDependencies.Packages = append(apmDependencies.Packages, importedAPMDeps.Packages...)
+				// Adopt auth from imports only if the main workflow did not configure any
+				if apmDependencies.GitHubToken == "" && importedAPMDeps.GitHubToken != "" {
+					apmDependencies.GitHubToken = importedAPMDeps.GitHubToken
+				}
+				if apmDependencies.GitHubApp == nil && importedAPMDeps.GitHubApp != nil {
+					apmDependencies.GitHubApp = importedAPMDeps.GitHubApp
+				}
+			}
+		}
+	}
+
 	// Add MCP fetch server if needed (when web-fetch is requested but engine doesn't support it)
 	tools, _ = AddMCPFetchServerIfNeeded(tools, agenticEngine)
 

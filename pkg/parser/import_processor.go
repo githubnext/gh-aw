@@ -39,6 +39,7 @@ type ImportsResult struct {
 	MergedCaches                []string         // Merged cache configurations from all imports (appended in order)
 	MergedJobs                  string           // Merged jobs from imported YAML workflows (JSON format)
 	MergedFeatures              []map[string]any // Merged features configuration from all imports (parsed YAML structures)
+	MergedAPMPackages           []string         // JSON-serialized apm-packages configurations from imported workflows (one per import)
 	ImportedFiles               []string         // List of imported file paths (for manifest)
 	AgentFile                   string           // Path to custom agent file (if imported)
 	AgentImportSpec             string           // Original import specification for agent file (e.g., "owner/repo/path@ref")
