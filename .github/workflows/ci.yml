@@ -12,7 +12,7 @@ on:
       - '.github/workflows/ci.yml'
       - '.github/workflows/**/*.md'
       - '.github/aw/config.json'
-      - 'config.schema.json'
+      - '.github/aw/config.schema.json'
   workflow_dispatch:
 jobs:
   test:
@@ -844,7 +844,7 @@ jobs:
           script: |
             const fs = require('fs');
             const CONFIG_FILE = '.github/aw/config.json';
-            const SCHEMA_FILE = 'config.schema.json';
+            const SCHEMA_FILE = '.github/aw/config.schema.json';
 
             core.info(`🔍 Validating ${CONFIG_FILE} against ${SCHEMA_FILE}...`);
 
@@ -882,13 +882,13 @@ jobs:
               if (!Array.isArray(bv)) {
                 errors.push("'blockedVersions' must be an array");
               } else {
-                const versionPattern = /^v?[0-9]+\.[0-9]+\.[0-9]+/;
+                const versionPattern = /^v[0-9]+\.[0-9]+\.[0-9]+$/;
                 const seen = new Set();
                 bv.forEach((v, i) => {
                   if (typeof v !== 'string') {
                     errors.push(`'blockedVersions[${i}]' must be a string`);
                   } else if (!versionPattern.test(v)) {
-                    errors.push(`'blockedVersions[${i}]' ('${v}') does not match expected version pattern (e.g. 'v1.2.3')`);
+                    errors.push(`'blockedVersions[${i}]' ('${v}') does not match expected version pattern (vMAJOR.MINOR.PATCH, e.g. 'v1.2.3')`);
                   } else if (seen.has(v)) {
                     errors.push(`'blockedVersions' contains duplicate entry: '${v}'`);
                   } else {
@@ -903,8 +903,8 @@ jobs:
               const mv = config.minimumVersion;
               if (typeof mv !== 'string') {
                 errors.push("'minimumVersion' must be a string");
-              } else if (mv !== '' && !/^v?[0-9]+\.[0-9]+\.[0-9]+/.test(mv)) {
-                errors.push(`'minimumVersion' ('${mv}') does not match expected version pattern (e.g. 'v1.2.3' or empty string)`);
+              } else if (mv !== '' && !/^v[0-9]+\.[0-9]+\.[0-9]+$/.test(mv)) {
+                errors.push(`'minimumVersion' ('${mv}') does not match expected version pattern (vMAJOR.MINOR.PATCH, e.g. 'v1.2.3' or empty string)`);
               }
             }
 

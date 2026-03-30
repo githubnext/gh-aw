@@ -6,11 +6,12 @@
  *
  * This script:
  * 1. Reads the compiled version from GH_AW_COMPILED_VERSION env var.
- * 2. Fetches .github/aw/config.json from the gh-aw repository via raw.githubusercontent.com.
+ * 2. Skips the check if the version is not in vMAJOR.MINOR.PATCH official release format.
+ * 3. Fetches .github/aw/config.json from the gh-aw repository via raw.githubusercontent.com.
  *    - Uses withRetry to handle transient network failures.
- * 3. If the download fails after all retries, the check is skipped (soft failure).
- * 4. Validates that the compiled version is not in the blocked list.
- * 5. Validates that the compiled version meets the minimum supported version.
+ * 4. If the download fails or config is invalid JSON, the check is skipped (soft failure).
+ * 5. Validates that the compiled version is not in the blocked list.
+ * 6. Validates that the compiled version meets the minimum supported version.
  *
  * Fails the activation job when validation fails.
  */
@@ -20,27 +21,16 @@ const { withRetry, isTransientError } = require("./error_recovery.cjs");
 const CONFIG_URL = "https://raw.githubusercontent.com/github/gh-aw/main/.github/aw/config.json";
 
 /**
- * Normalize a version string by stripping the leading "v" prefix if present.
- * This ensures "v1.0.0" and "1.0.0" are treated as equivalent.
- *
- * @param {string} version
- * @returns {string}
- */
-function normalizeVersion(version) {
-  return version.startsWith("v") ? version.slice(1) : version;
-}
-
-/**
- * Parse a semver-like version string into an array of numeric parts.
- * Strips a leading "v" if present.
- * Returns null if the string is not a valid version.
+ * Parse an official version string (must be in vMAJOR.MINOR.PATCH format).
+ * Versions without a leading "v" are not treated as official releases and return null.
+ * Versions with unknown syntax also return null.
  *
  * @param {string} version
  * @returns {number[]|null}
  */
 function parseVersion(version) {
-  const stripped = version.startsWith("v") ? version.slice(1) : version;
-  const parts = stripped.split(".");
+  if (!version.startsWith("v")) return null;
+  const parts = version.slice(1).split(".");
   if (parts.length < 3) return null;
   const nums = parts.slice(0, 3).map(Number);
   if (nums.some(isNaN)) return null;
@@ -48,8 +38,9 @@ function parseVersion(version) {
 }
 
 /**
- * Compare two semver-like version strings.
+ * Compare two official version strings (both must be in vMAJOR.MINOR.PATCH format).
  * Returns a negative number if a < b, 0 if equal, positive if a > b.
+ * Returns 0 (treat as equal/unknown) if either version cannot be parsed.
  *
  * @param {string} a
  * @param {string} b
@@ -82,6 +73,12 @@ async function main() {
     return;
   }
 
+  // Only check official releases in vMAJOR.MINOR.PATCH format; ignore unknown syntax
+  if (!parseVersion(compiledVersion)) {
+    core.info(`Skipping version update check: '${compiledVersion}' is not an official release version (expected vMAJOR.MINOR.PATCH format)`);
+    return;
+  }
+
   core.info(`Checking compile-agentic version: ${compiledVersion}`);
   core.info(`Fetching update configuration from: ${CONFIG_URL}`);
 
@@ -108,9 +105,9 @@ async function main() {
   const blockedVersions = Array.isArray(config.blockedVersions) ? config.blockedVersions : [];
   const minimumVersion = typeof config.minimumVersion === "string" ? config.minimumVersion : "";
 
-  // Check blocked versions (normalize both sides to ignore leading "v" prefix)
-  const normalizedCompiled = normalizeVersion(compiledVersion);
-  if (blockedVersions.some(v => normalizeVersion(v) === normalizedCompiled)) {
+  // Check blocked versions — only consider entries in vMAJOR.MINOR.PATCH format; ignore unknown syntax
+  const isBlocked = blockedVersions.some(v => parseVersion(v) !== null && compareVersions(compiledVersion, v) === 0);
+  if (isBlocked) {
     core.summary
       .addRaw("### ❌ Blocked compile-agentic version\n\n")
       .addRaw(`The compile-agentic version \`${compiledVersion}\` is **blocked** and cannot be used to run workflows.\n\n`)
@@ -121,7 +118,7 @@ async function main() {
     return;
   }
 
-  // Check minimum version
+  // Check minimum version — skip if minimumVersion is absent, empty, or has unknown syntax
   if (minimumVersion && parseVersion(minimumVersion) !== null) {
     if (compareVersions(compiledVersion, minimumVersion) < 0) {
       core.summary
