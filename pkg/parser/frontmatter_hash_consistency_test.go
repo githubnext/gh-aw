@@ -16,11 +16,8 @@ import (
 // TestHashConsistency_GoAndJavaScript validates that both Go and JavaScript
 // implementations produce identical hashes for the same inputs.
 //
-// NOTE: This test currently documents that the implementations differ.
-// The JavaScript implementation uses text-based parsing while Go uses full YAML parsing.
-// These tests will PASS once the JavaScript implementation is updated to match Go.
-//
-// See FRONTMATTER_HASH_SUMMARY.md for implementation status.
+// This test confirms that the text-based hash algorithm is consistent between
+// Go and JavaScript, including for workflows with inlined-imports: true.
 func TestHashConsistency_GoAndJavaScript(t *testing.T) {
 	testCases := []struct {
 		name    string
@@ -128,6 +125,41 @@ steps:
 # Array Test
 `,
 		},
+		{
+			name: "inlined-imports enabled with body content",
+			content: `---
+engine: copilot
+description: Inlined imports workflow
+inlined-imports: true
+---
+
+# Inlined Imports Workflow
+
+This is the body content that should be included in the hash.
+
+## Step 1
+
+Do something useful here.
+
+## Step 2
+
+Do something else here.
+`,
+		},
+		{
+			name: "inlined-imports enabled with env template expressions in body",
+			content: `---
+engine: copilot
+description: Inlined imports with expressions
+inlined-imports: true
+---
+
+# Workflow
+
+Use env variable: ${{ env.MY_VAR }}
+Use config variable: ${{ vars.MY_CONFIG }}
+`,
+		},
 	}
 
 	tempDir := t.TempDir()
@@ -167,15 +199,9 @@ steps:
 			require.NoError(t, err, "JS should compute hash again")
 			assert.Equal(t, jsHash1, jsHash2, "JS hashes should be stable (same input → same output)")
 
-			// Cross-language validation: Go and JS should produce identical hashes
-			//
-			// TODO: The JavaScript implementation currently uses text-based parsing
-			// which produces different hashes than the Go YAML-based implementation.
-			// Skip this assertion until JS is updated to match Go's approach.
-			// See FRONTMATTER_HASH_SUMMARY.md for implementation roadmap.
-			if false { // Set to true when JS implementation matches Go
-				assert.Equal(t, goHash1, jsHash1, "Go and JS must produce identical hashes for the same input")
-			}
+			// Cross-language validation: Go and JS must produce identical hashes.
+			// Both implementations use the same text-based parsing algorithm.
+			assert.Equal(t, goHash1, jsHash1, "Go and JS must produce identical hashes for the same input")
 
 			t.Logf("  ✓ Go hash (stable): %s", goHash1)
 			t.Logf("  ✓ JS hash (stable): %s", jsHash1)
@@ -247,11 +273,8 @@ Use ${{ env.TEST_VAR }} and ${{ vars.CONFIG }}
 				"JS hash iteration %d should match iteration 1", i+1)
 		}
 
-		// Go and JS should match
-		// TODO: Skip for now until JS implementation is updated
-		if false { // Set to true when JS implementation matches Go
-			assert.Equal(t, goHashes[0], jsHashes[0], "Go and JS hashes should be identical")
-		}
+		// Go and JS must match - both use the same text-based algorithm
+		assert.Equal(t, goHashes[0], jsHashes[0], "Go and JS hashes should be identical")
 	}
 
 	t.Logf("✓ Computed hash 10 times with Go - all identical: %s", goHashes[0])
@@ -404,11 +427,8 @@ labels:
 	require.NoError(t, err, "JS should compute hash again")
 	assert.Equal(t, jsHash1, jsHash2, "JS hashes with imports should be stable")
 
-	// Cross-language validation
-	// TODO: Skip for now until JS implementation is updated
-	if false { // Set to true when JS implementation matches Go
-		assert.Equal(t, goHash1, jsHash1, "Go and JS should produce identical hashes with imports")
-	}
+	// Cross-language validation: Go and JS must match
+	assert.Equal(t, goHash1, jsHash1, "Go and JS should produce identical hashes with imports")
 
 	t.Logf("✓ Go hash with imports (stable): %s", goHash1)
 	t.Logf("✓ JS hash with imports (stable): %s", jsHash1)
@@ -669,6 +689,122 @@ labels:
 	assert.Equal(t, lfHash, crlfHash, "LF and CRLF import variants must produce identical hashes")
 	t.Logf("  ✓ LF with imports hash:   %s", lfHash)
 	t.Logf("  ✓ CRLF with imports hash: %s", crlfHash)
+}
+
+// TestHashConsistency_InlinedImports validates hash behavior when
+// inlined-imports: true is set in the frontmatter. With this flag, the full
+// markdown body is included in the canonical hash so that any content change
+// (not just frontmatter changes) invalidates the hash.
+func TestHashConsistency_InlinedImports(t *testing.T) {
+	tempDir := t.TempDir()
+	cache := NewImportCache("")
+
+	// ── Workflow with inlined-imports: true, body variant A ──────────────────
+	inlinedBodyA := `---
+engine: copilot
+description: Inlined imports workflow
+inlined-imports: true
+---
+
+# Inlined Workflow
+
+This is the original body content.
+`
+
+	// ── Same frontmatter, different body (inlined-imports: true) ─────────────
+	inlinedBodyB := `---
+engine: copilot
+description: Inlined imports workflow
+inlined-imports: true
+---
+
+# Inlined Workflow
+
+This is DIFFERENT body content.
+`
+
+	// ── Workflow WITHOUT inlined-imports flag, body variant A ─────────────────
+	// Body changes should NOT affect the hash without the flag.
+	noFlagBodyA := `---
+engine: copilot
+description: Inlined imports workflow
+---
+
+# Inlined Workflow
+
+This is the original body content.
+`
+
+	// ── Same frontmatter (no flag), different body ────────────────────────────
+	noFlagBodyB := `---
+engine: copilot
+description: Inlined imports workflow
+---
+
+# Inlined Workflow
+
+This is DIFFERENT body content.
+`
+
+	inlinedBodyAFile := filepath.Join(tempDir, "inlined-a.md")
+	inlinedBodyBFile := filepath.Join(tempDir, "inlined-b.md")
+	noFlagBodyAFile := filepath.Join(tempDir, "noflag-a.md")
+	noFlagBodyBFile := filepath.Join(tempDir, "noflag-b.md")
+
+	require.NoError(t, os.WriteFile(inlinedBodyAFile, []byte(inlinedBodyA), 0644))
+	require.NoError(t, os.WriteFile(inlinedBodyBFile, []byte(inlinedBodyB), 0644))
+	require.NoError(t, os.WriteFile(noFlagBodyAFile, []byte(noFlagBodyA), 0644))
+	require.NoError(t, os.WriteFile(noFlagBodyBFile, []byte(noFlagBodyB), 0644))
+
+	inlinedHashA, err := ComputeFrontmatterHashFromFile(inlinedBodyAFile, cache)
+	require.NoError(t, err, "Should compute hash for inlined-imports with body A")
+
+	inlinedHashB, err := ComputeFrontmatterHashFromFile(inlinedBodyBFile, cache)
+	require.NoError(t, err, "Should compute hash for inlined-imports with body B")
+
+	noFlagHashA, err := ComputeFrontmatterHashFromFile(noFlagBodyAFile, cache)
+	require.NoError(t, err, "Should compute hash for no-flag workflow with body A")
+
+	noFlagHashB, err := ComputeFrontmatterHashFromFile(noFlagBodyBFile, cache)
+	require.NoError(t, err, "Should compute hash for no-flag workflow with body B")
+
+	// Body change MUST invalidate the hash when inlined-imports: true
+	assert.NotEqual(t, inlinedHashA, inlinedHashB,
+		"Different body content should produce different hash when inlined-imports: true")
+
+	// Without the flag, body changes do NOT affect the hash
+	assert.Equal(t, noFlagHashA, noFlagHashB,
+		"Body changes should not affect hash when inlined-imports flag is absent")
+
+	// The same body content compiles differently with vs without the flag,
+	// since the flag itself changes the frontmatter text included in the hash.
+	assert.NotEqual(t, inlinedHashA, noFlagHashA,
+		"Workflow with inlined-imports: true should hash differently from one without the flag")
+
+	t.Logf("  inlined-imports:true,  body A: %s", inlinedHashA)
+	t.Logf("  inlined-imports:true,  body B: %s", inlinedHashB)
+	t.Logf("  no flag,               body A: %s", noFlagHashA)
+	t.Logf("  no flag,               body B: %s", noFlagHashB)
+
+	// ── Cross-language validation ─────────────────────────────────────────────
+	for _, tc := range []struct {
+		name string
+		file string
+	}{
+		{"inlined-imports:true body A", inlinedBodyAFile},
+		{"inlined-imports:true body B", inlinedBodyBFile},
+		{"no-flag body A", noFlagBodyAFile},
+	} {
+		jsHash, err := computeHashViaNode(tc.file)
+		if err != nil {
+			t.Logf("JavaScript not available for %s: %v", tc.name, err)
+			return
+		}
+		goHash, err := ComputeFrontmatterHashFromFile(tc.file, cache)
+		require.NoError(t, err, "Should compute Go hash for %s", tc.name)
+		assert.Equal(t, goHash, jsHash, "Go and JS hashes must match for %s", tc.name)
+		t.Logf("  ✓ Go=JS for %s: %s", tc.name, goHash)
+	}
 }
 
 // computeHashViaNode computes the hash using the JavaScript implementation via Node.js
