@@ -3,6 +3,8 @@
 package parser
 
 import (
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -139,4 +141,62 @@ func TestComputeImportRelPath(t *testing.T) {
 			assert.Equal(t, tt.expected, got, "computeImportRelPath(%q, %q)", tt.fullPath, tt.importPath)
 		})
 	}
+}
+
+// TestJobsFieldExtractedFromMdImport verifies that jobs: in a shared .md workflow's
+// frontmatter is captured into ImportsResult.MergedJobs and merged correctly.
+func TestJobsFieldExtractedFromMdImport(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	// Create a shared .md workflow with a jobs: section
+	sharedContent := `---
+name: Shared APM Workflow
+jobs:
+  apm:
+    runs-on: ubuntu-slim
+    needs: [activation]
+    permissions: {}
+    steps:
+      - name: Pack
+        uses: microsoft/apm-action@v1.4.1
+        with:
+          pack: 'true'
+---
+
+# APM shared workflow
+`
+	sharedDir := filepath.Join(tmpDir, "shared")
+	if err := os.MkdirAll(sharedDir, 0755); err != nil {
+		t.Fatalf("Failed to create shared dir: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(sharedDir, "apm.md"), []byte(sharedContent), 0644); err != nil {
+		t.Fatalf("Failed to write shared file: %v", err)
+	}
+
+	// Create a main .md workflow that imports the shared workflow
+	mainContent := `---
+name: Main Workflow
+on: issue_comment
+imports:
+  - uses: shared/apm.md
+    with:
+      packages:
+        - microsoft/apm-sample-package
+---
+
+# Main Workflow
+`
+	result, err := ExtractFrontmatterFromContent(mainContent)
+	if err != nil {
+		t.Fatalf("ExtractFrontmatterFromContent() error = %v", err)
+	}
+
+	importsResult, err := ProcessImportsFromFrontmatterWithSource(result.Frontmatter, tmpDir, nil, "", "")
+	if err != nil {
+		t.Fatalf("ProcessImportsFromFrontmatterWithSource() error = %v", err)
+	}
+
+	assert.NotEmpty(t, importsResult.MergedJobs, "MergedJobs should be populated from shared .md import")
+	assert.Contains(t, importsResult.MergedJobs, "apm", "MergedJobs should contain the 'apm' job")
+	assert.Contains(t, importsResult.MergedJobs, "ubuntu-slim", "MergedJobs should contain the job runner")
 }

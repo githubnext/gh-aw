@@ -158,6 +158,20 @@ func (c *Compiler) processToolsAndMarkdown(result *parser.FrontmatterResult, cle
 	// Add MCP fetch server if needed (when web-fetch is requested but engine doesn't support it)
 	tools, _ = AddMCPFetchServerIfNeeded(tools, agenticEngine)
 
+	// Warn on deprecated APM configuration fields that are now ignored
+	if _, hasDependencies := result.Frontmatter["dependencies"]; hasDependencies {
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage("The 'dependencies' field is deprecated and no longer supported. Migrate to 'imports: - uses: shared/apm.md' to configure APM packages."))
+		c.IncrementWarningCount()
+	}
+	if importsVal, hasImports := result.Frontmatter["imports"]; hasImports {
+		if importsMap, ok := importsVal.(map[string]any); ok {
+			if _, hasAPMPackages := importsMap["apm-packages"]; hasAPMPackages {
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage("The 'imports.apm-packages' field is deprecated and no longer supported. Migrate to 'imports: - uses: shared/apm.md' to configure APM packages."))
+				c.IncrementWarningCount()
+			}
+		}
+	}
+
 	// Validate MCP configurations
 	orchestratorToolsLog.Printf("Validating MCP configurations")
 	if err := ValidateMCPConfigs(tools); err != nil {
