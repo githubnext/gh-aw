@@ -197,11 +197,24 @@ function writeWorkspaceApmYml(workspaceDir) {
  * @returns Octokit instance
  */
 function createOctokit(token) {
-  // @actions/github is bundled with actions/github-script and always available
-  // in the github-script execution environment.
-  // @ts-ignore – dynamic require at runtime
-  const { getOctokit } = require("@actions/github");
-  return getOctokit(token);
+  // @actions/github is bundled with actions/github-script and available in
+  // older CJS-compatible versions. When running standalone with @actions/github
+  // v9+ (ESM-only), fall back to @octokit/core + plugins.
+  try {
+    // @ts-ignore – dynamic require at runtime
+    const { getOctokit } = require("@actions/github");
+    return getOctokit(token);
+  } catch {
+    // @actions/github v9+ is ESM-only; use @octokit/core + rest-endpoint-methods
+    // @ts-ignore – dynamic require at runtime
+    const { Octokit } = require("@octokit/core");
+    // @ts-ignore – dynamic require at runtime
+    const { restEndpointMethods } = require("@octokit/plugin-rest-endpoint-methods");
+    // @ts-ignore – dynamic require at runtime
+    const { paginateRest } = require("@octokit/plugin-paginate-rest");
+    const MyOctokit = Octokit.plugin(restEndpointMethods, paginateRest);
+    return new MyOctokit({ auth: token });
+  }
 }
 
 // ---------------------------------------------------------------------------
