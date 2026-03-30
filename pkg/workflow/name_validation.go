@@ -18,7 +18,11 @@ import (
 	"fmt"
 	"regexp"
 	"strings"
+
+	"github.com/github/gh-aw/pkg/logger"
 )
+
+var nameValidationLog = logger.New("workflow:name_validation")
 
 // npmPackageNameRE matches valid npm package specifiers:
 // - Scoped: @scope/name where scope and name are lowercase alphanumeric + hyphens + dots + underscores
@@ -34,7 +38,9 @@ var pypiPackageNameRE = regexp.MustCompile(`^[A-Za-z0-9]([A-Za-z0-9._-]*[A-Za-z0
 // validateNpmPackageName returns an error if the package name does not conform
 // to the npm package naming rules. This prevents argument injection into the npm CLI.
 func validateNpmPackageName(pkg string) error {
+	nameValidationLog.Printf("Validating npm package name: %s", pkg)
 	if !npmPackageNameRE.MatchString(pkg) {
+		nameValidationLog.Printf("Invalid npm package name: %s", pkg)
 		return fmt.Errorf("invalid npm package name: %q", pkg)
 	}
 	return nil
@@ -43,7 +49,9 @@ func validateNpmPackageName(pkg string) error {
 // validatePipPackageName returns an error if the package name does not conform
 // to the PyPI naming rules (PEP 508). This prevents argument injection into pip/uv.
 func validatePipPackageName(pkgName string) error {
+	nameValidationLog.Printf("Validating pip package name: %s", pkgName)
 	if !pypiPackageNameRE.MatchString(pkgName) {
+		nameValidationLog.Printf("Invalid pip package name: %s", pkgName)
 		return fmt.Errorf("invalid pip package name: %q", pkgName)
 	}
 	return nil
@@ -56,6 +64,7 @@ func validatePipPackageName(pkgName string) error {
 // Names starting with '-' would be interpreted as flags by the downstream CLI
 // tool, constituting argument injection into the exec.Command call.
 func rejectHyphenPrefixPackages(names []string, kind string) error {
+	nameValidationLog.Printf("Checking %d %s package names for hyphen prefix", len(names), kind)
 	var invalid []string
 	for _, name := range names {
 		if strings.HasPrefix(name, "-") {
@@ -65,6 +74,7 @@ func rejectHyphenPrefixPackages(names []string, kind string) error {
 	if len(invalid) == 0 {
 		return nil
 	}
+	nameValidationLog.Printf("Found %d invalid %s package names with hyphen prefix", len(invalid), kind)
 	return NewValidationError(
 		kind+".packages",
 		fmt.Sprintf("%d invalid package names", len(invalid)),

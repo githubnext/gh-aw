@@ -163,6 +163,7 @@ func detectTaskDomain(processedRun ProcessedRun, createdItems []CreatedItemRepor
 }
 
 func buildBehaviorFingerprint(processedRun ProcessedRun, metrics MetricsData, toolUsage []ToolUsageInfo, createdItems []CreatedItemReport, awContext *AwContext) *BehaviorFingerprint {
+	auditAgenticLog.Printf("Building behavior fingerprint: run_id=%d turns=%d tool_types=%d created_items=%d", processedRun.Run.DatabaseID, metrics.Turns, len(toolUsage), len(createdItems))
 	toolTypes := len(toolUsage)
 	writeCount := len(createdItems) + processedRun.Run.SafeItemsCount
 
@@ -205,6 +206,7 @@ func buildBehaviorFingerprint(processedRun ProcessedRun, metrics MetricsData, to
 
 	agenticFraction := computeAgenticFraction(processedRun)
 
+	auditAgenticLog.Printf("Behavior fingerprint: execution=%s breadth=%s actuation=%s resource=%s dispatch=%s agentic_fraction=%.2f", executionStyle, toolBreadth, actuationStyle, resourceProfile, dispatchMode, agenticFraction)
 	return &BehaviorFingerprint{
 		ExecutionStyle:  executionStyle,
 		ToolBreadth:     toolBreadth,
@@ -217,8 +219,10 @@ func buildBehaviorFingerprint(processedRun ProcessedRun, metrics MetricsData, to
 
 func buildAgenticAssessments(processedRun ProcessedRun, metrics MetricsData, toolUsage []ToolUsageInfo, createdItems []CreatedItemReport, domain *TaskDomainInfo, fingerprint *BehaviorFingerprint, awContext *AwContext) []AgenticAssessment {
 	if domain == nil || fingerprint == nil {
+		auditAgenticLog.Print("Skipping agentic assessments: missing domain or fingerprint")
 		return nil
 	}
+	auditAgenticLog.Printf("Building agentic assessments: run_id=%d domain=%s resource=%s execution=%s", processedRun.Run.DatabaseID, domain.Name, fingerprint.ResourceProfile, fingerprint.ExecutionStyle)
 
 	assessments := make([]AgenticAssessment, 0, 4)
 	toolTypes := len(toolUsage)
@@ -307,6 +311,7 @@ func buildAgenticAssessments(processedRun ProcessedRun, metrics MetricsData, too
 		})
 	}
 
+	auditAgenticLog.Printf("Built %d agentic assessments", len(assessments))
 	return assessments
 }
 
@@ -372,8 +377,10 @@ func generateAgenticAssessmentRecommendations(assessments []AgenticAssessment) [
 func computeAgenticFraction(processedRun ProcessedRun) float64 {
 	run := processedRun.Run
 	if run.Turns <= 0 {
+		auditAgenticLog.Printf("Computing agentic fraction: run_id=%d turns=0, returning 0.0", processedRun.Run.DatabaseID)
 		return 0.0
 	}
+	auditAgenticLog.Printf("Computing agentic fraction: run_id=%d turns=%d safe_items=%d", processedRun.Run.DatabaseID, run.Turns, run.SafeItemsCount)
 
 	// If no tool sequence data, estimate from write actions
 	writeCount := run.SafeItemsCount

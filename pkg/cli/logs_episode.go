@@ -329,11 +329,14 @@ func buildDispatchEpisodeEdge(run RunData, runsByID map[int64]RunData) (EpisodeE
 	}
 	sourceRunID, err := strconv.ParseInt(run.AwContext.RunID, 10, 64)
 	if err != nil {
+		logsEpisodeLog.Printf("Failed to parse dispatch source run ID for run %d: %v", run.DatabaseID, err)
 		return EpisodeEdge{}, false
 	}
 	if _, ok := runsByID[sourceRunID]; !ok {
+		logsEpisodeLog.Printf("Dispatch source run %d not found in run set for run %d", sourceRunID, run.DatabaseID)
 		return EpisodeEdge{}, false
 	}
+	logsEpisodeLog.Printf("Building dispatch episode edge: target_run=%d source_run=%d", run.DatabaseID, sourceRunID)
 	confidence := "medium"
 	reasons := []string{"context.run_id"}
 	if run.AwContext.WorkflowCallID != "" {
@@ -359,6 +362,7 @@ func classifyWorkflowCallEpisode(run RunData) (string, string, string, []string,
 	if run.Event != "workflow_call" {
 		return "", "", "", nil, false
 	}
+	logsEpisodeLog.Printf("Classifying workflow_call episode: run_id=%d repo=%s ref=%s", run.DatabaseID, run.Repository, run.Ref)
 	reasons := []string{"event=workflow_call"}
 	if run.Repository == "" || run.Ref == "" || run.SHA == "" || run.RunAttempt == "" || run.Actor == "" {
 		return fmt.Sprintf("workflow_call:%d", run.DatabaseID), "workflow_call", "low", append(reasons, "insufficient_aw_info_metadata"), true
@@ -515,6 +519,7 @@ func severityRank(severity string) int {
 }
 
 func classifyEpisodeEscalation(episode EpisodeData) (bool, string) {
+	logsEpisodeLog.Printf("Classifying episode escalation: episode_id=%s risky_nodes=%d mcp_failures=%d resource_heavy=%d poor_control=%d", episode.EpisodeID, episode.RiskyNodeCount, episode.NewMCPFailureRunCount, episode.ResourceHeavyNodeCount, episode.PoorControlNodeCount)
 	switch {
 	case episode.RiskyNodeCount >= 2:
 		return true, "repeated_risky_runs"
@@ -532,6 +537,7 @@ func classifyEpisodeEscalation(episode EpisodeData) (bool, string) {
 }
 
 func buildSuggestedRoute(episode EpisodeData) string {
+	logsEpisodeLog.Printf("Building suggested route for episode: id=%s kind=%s primary_workflow=%s", episode.EpisodeID, episode.Kind, episode.PrimaryWorkflow)
 	if episode.PrimaryWorkflow != "" {
 		return "workflow:" + episode.PrimaryWorkflow
 	}

@@ -86,6 +86,7 @@ func computeValidSafeJobNeeds(data *WorkflowData) map[string]bool {
 	}
 
 	if data.SafeOutputs == nil {
+		safeJobsNeedsValidationLog.Print("No safe-outputs configured, only agent job is a valid needs target")
 		return valid
 	}
 
@@ -117,6 +118,7 @@ func computeValidSafeJobNeeds(data *WorkflowData) map[string]bool {
 		valid[normalized] = true
 	}
 
+	safeJobsNeedsValidationLog.Printf("Computed valid safe-job needs targets: %d total", len(valid))
 	return valid
 }
 
@@ -159,6 +161,7 @@ func detectSafeJobCycles(jobs map[string]*SafeJobConfig) error {
 	if len(jobs) == 0 {
 		return nil
 	}
+	safeJobsNeedsValidationLog.Printf("Detecting dependency cycles among %d custom safe-jobs", len(jobs))
 
 	// Build normalized name mapping
 	normalized := make(map[string]*SafeJobConfig, len(jobs))
