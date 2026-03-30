@@ -2991,3 +2991,95 @@ jobs:
           echo "2. \`gh\` CLI calls are routed through the proxy (\`GH_HOST=localhost:18443\`)" >> $GITHUB_STEP_SUMMARY
           echo "3. \`actions/github-script\` sees the proxy env (\`GH_HOST=localhost:18443\`)" >> $GITHUB_STEP_SUMMARY
           echo "4. \`stop_difc_proxy.sh\` stops the proxy container" >> $GITHUB_STEP_SUMMARY
+
+  sh-gh-host-pr-checkout-repro:
+    name: GH_HOST Proxy PR Checkout Repro (Issue #23461)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs: validate-yaml
+    permissions:
+      contents: read
+    concurrency:
+      group: ci-${{ github.ref }}-sh-gh-host-pr-checkout-repro
+      cancel-in-progress: true
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Start local proxy
+        run: |
+          # Start a simple HTTP server on port 19443 to simulate a local proxy.
+          # This is the "local proxy" referenced in the repro scenario for issue #23461:
+          # a server IS running on the proxy host, but git remotes still point to the real
+          # GitHub host, causing `gh pr checkout` to fail.
+          python3 -m http.server 19443 --directory /tmp &>/tmp/local-proxy.log &
+          echo "LOCAL_PROXY_PID=$!" >> "$GITHUB_ENV"
+          sleep 1
+          echo "Local proxy started on port 19443 (simulating a DIFC-style proxy)"
+
+      - name: Configure GH CLI to use local proxy via configure_gh_for_ghe.sh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GITHUB_SERVER_URL: http://localhost:19443
+        run: |
+          # configure_gh_for_ghe.sh extracts the host from GITHUB_SERVER_URL and writes
+          # GH_HOST to $GITHUB_ENV.  With GITHUB_SERVER_URL=http://localhost:19443 it
+          # sets GH_HOST=localhost:19443, reproducing the proxy-rewritten environment
+          # that triggers the failure described in issue #23461.
+          bash actions/setup/sh/configure_gh_for_ghe.sh
+          echo "GH_HOST will be set to localhost:19443 for subsequent steps"
+
+      - name: Repro - gh pr checkout fails when GH_HOST points to proxy without matching remote
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          echo "GH_HOST=${GH_HOST}"
+          echo "Git remotes (origin still points to github.com, not the local proxy):"
+          git remote -v
+
+          # Attempt gh pr checkout.  GH_HOST=localhost:19443 but the only git remote
+          # is origin pointing to github.com — no remote matches the proxy host.
+          # gh CLI should exit non-zero with the characteristic mismatch error.
+          set +e
+          error_output=$(gh pr checkout 1 2>&1)
+          exit_code=$?
+          set -e
+
+          echo "gh pr checkout exit code: ${exit_code}"
+          echo "Output: ${error_output}"
+
+          if [ "${exit_code}" -eq 0 ]; then
+            echo "❌ Expected gh pr checkout to fail but it succeeded unexpectedly"
+            exit 1
+          fi
+
+          if echo "${error_output}" | grep -q "none of the git remotes"; then
+            echo "✅ Issue #23461 reproduced: GH_HOST mismatch causes gh pr checkout to fail"
+            echo "   Error: ${error_output}"
+          else
+            echo "✅ gh pr checkout failed as expected (different error, proxy host rejected)"
+            echo "   Error: ${error_output}"
+          fi
+
+      - name: Stop local proxy
+        if: always()
+        run: |
+          if [ -n "${LOCAL_PROXY_PID:-}" ]; then
+            kill "${LOCAL_PROXY_PID}" 2>/dev/null || true
+            echo "Local proxy stopped"
+          fi
+
+      - name: Generate summary
+        if: always()
+        run: |
+          echo "## GH_HOST Proxy PR Checkout Repro (Issue [#23461](https://github.com/github/gh-aw/issues/23461))" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "This test reproduces the failure mode described in issue #23461:" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "1. A local HTTP server starts on \`localhost:19443\` (the \"local proxy\")" >> $GITHUB_STEP_SUMMARY
+          echo "2. \`configure_gh_for_ghe.sh\` sets \`GH_HOST=localhost:19443\` (simulating a proxy-rewritten environment)" >> $GITHUB_STEP_SUMMARY
+          echo "3. Git remote \`origin\` still points to the real GitHub host (not the proxy)" >> $GITHUB_STEP_SUMMARY
+          echo "4. \`gh pr checkout\` fails because no git remote matches \`GH_HOST\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "The existing \`sh-difc-proxy\` job uses the full Docker-based DIFC proxy; this job" >> $GITHUB_STEP_SUMMARY
+          echo "provides a lightweight local-proxy repro that does not require Docker." >> $GITHUB_STEP_SUMMARY
