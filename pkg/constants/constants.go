@@ -409,12 +409,6 @@ const DefaultMCPGatewayPayloadSizeThreshold = 524288
 // DefaultFirewallRegistry is the container image registry for AWF (gh-aw-firewall) Docker images
 const DefaultFirewallRegistry = "ghcr.io/github/gh-aw-firewall"
 
-// DefaultAPMActionVersion is the default version of the microsoft/apm-action GitHub Action
-const DefaultAPMActionVersion Version = "v1.4.1"
-
-// DefaultAPMVersion is the default version of the microsoft/APM (Agent Package Manager) CLI
-const DefaultAPMVersion Version = "v0.8.6"
-
 // DefaultPlaywrightMCPVersion is the default version of the @playwright/mcp package
 const DefaultPlaywrightMCPVersion Version = "0.0.68"
 
@@ -625,7 +619,6 @@ var DangerousPropertyNames = []string{
 
 const AgentJobName JobName = "agent"
 const ActivationJobName JobName = "activation"
-const APMJobName JobName = "apm"
 const IndexingJobName JobName = "indexing"
 const PreActivationJobName JobName = "pre_activation"
 const DetectionJobName JobName = "detection"
@@ -663,9 +656,6 @@ const ArtifactPrefixOutputName = "artifact_prefix"
 // ActivationArtifactName is the artifact name for the activation job output
 // (aw_info.json and prompt.txt).
 const ActivationArtifactName = "activation"
-
-// APMArtifactName is the artifact name for the APM (Agent Package Manager) bundle.
-const APMArtifactName = "apm"
 
 // SafeOutputItemsArtifactName is the artifact name for the safe output items manifest.
 // This artifact contains the JSONL manifest of all items created by safe output handlers

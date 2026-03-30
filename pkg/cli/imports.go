@@ -128,7 +128,6 @@ func processImportsWithWorkflowSpec(content string, workflow *WorkflowSpec, comm
 				v["aw"] = processImportPaths(aw)
 			}
 		}
-		// apm-packages subfield contains package names (not file paths) — leave as-is.
 	default:
 		importsLog.Print("Invalid imports field type, skipping")
 		return content, nil

@@ -158,6 +158,7 @@ func processIncludedFileWithVisited(filePath, sectionName string, extractTools b
 					"name":                     true,
 					"description":              true,
 					"steps":                    true,
+					"jobs":                     true,
 					"safe-outputs":             true,
 					"mcp-scripts":              true,
 					"services":                 true,

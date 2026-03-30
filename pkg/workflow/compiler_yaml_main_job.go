@@ -261,26 +261,6 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 		}
 	}
 
-	// Add APM (Agent Package Manager) setup step if dependencies are specified
-	if data.APMDependencies != nil && len(data.APMDependencies.Packages) > 0 {
-		// Download the pre-packed APM bundle from the separate "apm" artifact.
-		// In workflow_call context, apply the per-invocation prefix to avoid name clashes.
-		compilerYamlLog.Printf("Adding APM bundle download step: %d packages", len(data.APMDependencies.Packages))
-		apmArtifactName := artifactPrefixExprForDownstreamJob(data) + constants.APMArtifactName
-		yaml.WriteString("      - name: Download APM bundle artifact\n")
-		fmt.Fprintf(yaml, "        uses: %s\n", GetActionPin("actions/download-artifact"))
-		yaml.WriteString("        with:\n")
-		fmt.Fprintf(yaml, "          name: %s\n", apmArtifactName)
-		yaml.WriteString("          path: /tmp/gh-aw/apm-bundle\n")
-
-		// Restore APM dependencies from bundle
-		compilerYamlLog.Printf("Adding APM restore step")
-		apmStep := GenerateAPMRestoreStep(data.APMDependencies, data)
-		for _, line := range apmStep {
-			yaml.WriteString(line + "\n")
-		}
-	}
-
 	// Restore qmd index and models cache if qmd tool is configured.
 	// The index was built and cached in the indexing job; we restore it using the precise
 	// cache key so we always get the index from the current workflow run.

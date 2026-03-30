@@ -726,7 +726,9 @@ jobs:
           retention-days: 1
 
   agent:
-    needs: activation
+    needs:
+      - activation
+      - apm
     runs-on: ubuntu-latest
     permissions:
       actions: read
@@ -812,38 +814,16 @@ jobs:
         run: bash ${RUNNER_TEMP}/gh-aw/actions/configure_gh_for_ghe.sh
         env:
           GH_TOKEN: ${{ github.token }}
-      - id: apm_prep
-        name: Prepare APM package list
-        run: "PACKAGES='[\"microsoft/apm-sample-package\"]'\nDEPS=$(echo \"$PACKAGES\" | jq -r '.[] | \"- \" + .')\n{\n  echo \"deps<<APMDEPS\"\n  printf '%s\\n' \"$DEPS\"\n  echo \"APMDEPS\"\n} >> \"$GITHUB_OUTPUT\"\n"
-      - env:
-          GITHUB_TOKEN: ${{ secrets.GH_AW_PLUGINS_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
-        id: apm_pack
-        name: Pack APM packages
+      - name: Download APM bundle artifact
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v4
+        with:
+          name: ${{ needs.activation.outputs.artifact_prefix }}apm
+          path: /tmp/gh-aw/apm-bundle
+      - name: Restore APM packages
         uses: microsoft/apm-action@a190b0b1a91031057144dc136acf9757a59c9e4d # v1.4.1
         with:
-          apm-version: v0.8.6
-          archive: "true"
-          dependencies: ${{ steps.apm_prep.outputs.deps }}
-          isolated: "false"
-          pack: "true"
-          target: all
-          working-directory: /tmp/gh-aw/apm-workspace
-      - env:
-          APM_BUNDLE_PATH: ${{ steps.apm_pack.outputs.bundle-path }}
-        name: Stage APM bundle for restore
-        run: |
-          mkdir -p "${RUNNER_TEMP}/gh-aw/apm-bundle"
-          cp "$APM_BUNDLE_PATH" "${RUNNER_TEMP}/gh-aw/apm-bundle/"
-      - env:
-          APM_BUNDLE_DIR: ${{ runner.temp }}/gh-aw/apm-bundle
-        name: Restore APM packages
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
-        with:
-          script: |-
-            const { setupGlobals } = require(`${process.env.RUNNER_TEMP}/gh-aw/actions/setup_globals.cjs`);
-            setupGlobals(core, github, context, exec, io);
-            const { main } = require(`${process.env.RUNNER_TEMP}/gh-aw/actions/apm_unpack.cjs`);
-            await main();
+          bundle: /tmp/gh-aw/apm-bundle
+          unpack: "true"
 
       # Cache memory file share configuration from frontmatter processed below
       - name: Create cache-memory directory
@@ -2201,11 +2181,10 @@ jobs:
             const { main } = require('${{ runner.temp }}/gh-aw/actions/redact_secrets.cjs');
             await main();
         env:
-          GH_AW_SECRET_NAMES: 'ANTHROPIC_API_KEY,GH_AW_GITHUB_MCP_SERVER_TOKEN,GH_AW_GITHUB_TOKEN,GH_AW_PLUGINS_TOKEN,GITHUB_TOKEN,TAVILY_API_KEY'
+          GH_AW_SECRET_NAMES: 'ANTHROPIC_API_KEY,GH_AW_GITHUB_MCP_SERVER_TOKEN,GH_AW_GITHUB_TOKEN,GITHUB_TOKEN,TAVILY_API_KEY'
           SECRET_ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           SECRET_GH_AW_GITHUB_MCP_SERVER_TOKEN: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN }}
           SECRET_GH_AW_GITHUB_TOKEN: ${{ secrets.GH_AW_GITHUB_TOKEN }}
-          SECRET_GH_AW_PLUGINS_TOKEN: ${{ secrets.GH_AW_PLUGINS_TOKEN }}
           SECRET_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SECRET_TAVILY_API_KEY: ${{ secrets.TAVILY_API_KEY }}
       - name: Append agent step summary
@@ -2322,10 +2301,56 @@ jobs:
             /tmp/gh-aw/sandbox/firewall/audit/
           if-no-files-found: ignore
 
+  apm:
+    needs: activation
+    runs-on: ubuntu-slim
+    permissions:
+      {}
+
+    steps:
+      - name: Configure GH_HOST for enterprise compatibility
+        id: ghes-host-config
+        shell: bash
+        run: |
+          # Derive GH_HOST from GITHUB_SERVER_URL so the gh CLI targets the correct
+          # GitHub instance (GHES/GHEC). On github.com this is a harmless no-op.
+          GH_HOST="${GITHUB_SERVER_URL#https://}"
+          GH_HOST="${GH_HOST#http://}"
+          echo "GH_HOST=${GH_HOST}" >> "$GITHUB_ENV"
+      - name: Prepare APM package list
+        id: apm_prep
+        run: |
+          DEPS=$(echo "$AW_APM_PACKAGES" | jq -r '.[] | "- " + .')
+          {
+            echo "deps<<APMDEPS"
+            printf '%s\n' "$DEPS"
+            echo "APMDEPS"
+          } >> "$GITHUB_OUTPUT"
+      - name: Pack APM packages
+        id: apm_pack
+        uses: microsoft/apm-action@a190b0b1a91031057144dc136acf9757a59c9e4d # v1.4.1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GH_AW_PLUGINS_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
+        with:
+          archive: "true"
+          dependencies: ${{ steps.apm_prep.outputs.deps }}
+          isolated: "true"
+          pack: "true"
+          target: all
+          working-directory: /tmp/gh-aw/apm-workspace
+      - name: Upload APM bundle artifact
+        if: success()
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v4
+        with:
+          name: ${{ needs.activation.outputs.artifact_prefix }}apm
+          path: ${{ steps.apm_pack.outputs.bundle-path }}
+          retention-days: 1.0
+
   conclusion:
     needs:
       - activation
       - agent
+      - apm
       - detection
       - safe_outputs
       - update_cache_memory

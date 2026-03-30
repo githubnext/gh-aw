@@ -416,7 +416,6 @@ type WorkflowData struct {
 	RepoMemoryConfig            *RepoMemoryConfig         // parsed repo-memory configuration
 	QmdConfig                   *QmdToolConfig            // parsed qmd tool configuration (docs globs)
 	Runtimes                    map[string]any            // runtime version overrides from frontmatter
-	APMDependencies             *APMDependenciesInfo      // APM (Agent Package Manager) dependency packages to install
 	ToolsTimeout                int                       // timeout in seconds for tool/MCP operations (0 = use engine default)
 	ToolsStartupTimeout         int                       // timeout in seconds for MCP server startup (0 = use engine default)
 	Features                    map[string]any            // feature flags and configuration options from frontmatter (supports bool and string values)

@@ -1,13 +1,10 @@
 package workflow
 
 import (
-	"errors"
 	"fmt"
 	"maps"
-	"os"
 	"strings"
 
-	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/logger"
 )
 
@@ -240,141 +237,4 @@ func extractMCPServersFromFrontmatter(frontmatter map[string]any) map[string]any
 // extractRuntimesFromFrontmatter extracts runtimes section from frontmatter map
 func extractRuntimesFromFrontmatter(frontmatter map[string]any) map[string]any {
 	return ExtractMapField(frontmatter, "runtimes")
-}
-
-// extractAPMDependenciesFromFrontmatter extracts APM (Agent Package Manager) dependency
-// configuration from frontmatter. Supports two sources:
-//   - imports.apm-packages (preferred location)
-//   - dependencies (deprecated; emits a deprecation warning when used alone)
-//
-// It is an error to specify both sources simultaneously.
-//
-// Each source supports:
-//   - Array format: ["org/pkg1", "org/pkg2"]
-//   - Object format: {packages: ["org/pkg1", "org/pkg2"], isolated: true, github-app: {...}, github-token: "...", version: "v0.8.0"}
-//
-// Returns nil if neither source is present or if the resolved source contains no packages.
-func extractAPMDependenciesFromFrontmatter(frontmatter map[string]any) (*APMDependenciesInfo, error) {
-	hasImportsAPM := false
-	var importsAPMValue any
-	if importsAny, hasImports := frontmatter["imports"]; hasImports {
-		if importsMap, ok := importsAny.(map[string]any); ok {
-			if apmAny, hasAPM := importsMap["apm-packages"]; hasAPM {
-				hasImportsAPM = true
-				importsAPMValue = apmAny
-			}
-		}
-	}
-
-	_, hasDependencies := frontmatter["dependencies"]
-
-	// It is an error to specify both sources simultaneously.
-	if hasImportsAPM && hasDependencies {
-		return nil, errors.New(
-			"cannot use both 'imports.apm-packages' and 'dependencies' simultaneously; " +
-				"remove 'dependencies' and use 'imports.apm-packages' exclusively; " +
-				"run 'gh aw fix --write' to automatically migrate",
-		)
-	}
-
-	if hasImportsAPM {
-		frontmatterMetadataLog.Print("Extracting APM dependencies from imports.apm-packages")
-		return extractAPMDependenciesFromValue(importsAPMValue, "imports.apm-packages")
-	}
-
-	// Fall back to top-level dependencies field (deprecated)
-	if !hasDependencies {
-		return nil, nil
-	}
-
-	// Emit deprecation warning for the top-level dependencies field
-	fmt.Fprintln(os.Stderr, console.FormatWarningMessage(
-		"The top-level 'dependencies' field is deprecated. "+
-			"Use 'imports.apm-packages' instead. "+
-			"Run 'gh aw fix --write' to automatically migrate.",
-	))
-	frontmatterMetadataLog.Print("Extracting APM dependencies from deprecated 'dependencies' field")
-
-	return extractAPMDependenciesFromValue(frontmatter["dependencies"], "dependencies")
-}
-
-// extractAPMDependenciesFromValue extracts APM dependency configuration from a frontmatter value.
-// fieldName is used for error messages.
-func extractAPMDependenciesFromValue(value any, fieldName string) (*APMDependenciesInfo, error) {
-	var packages []string
-	var isolated bool
-	var githubApp *GitHubAppConfig
-	var githubToken string
-	var version string
-	var env map[string]string
-
-	switch v := value.(type) {
-	case []any:
-		// Array format: [pkg1, pkg2]
-		for _, item := range v {
-			if s, ok := item.(string); ok && s != "" {
-				packages = append(packages, s)
-			}
-		}
-	case map[string]any:
-		// Object format: {packages: [...], isolated: true, github-app: {...}, github-token: "...", version: "v0.8.0"}
-		if pkgsAny, ok := v["packages"]; ok {
-			if pkgsArray, ok := pkgsAny.([]any); ok {
-				for _, item := range pkgsArray {
-					if s, ok := item.(string); ok && s != "" {
-						packages = append(packages, s)
-					}
-				}
-			}
-		}
-		if iso, ok := v["isolated"]; ok {
-			if isoBool, ok := iso.(bool); ok {
-				isolated = isoBool
-			}
-		}
-		if appAny, ok := v["github-app"]; ok {
-			if appMap, ok := appAny.(map[string]any); ok {
-				githubApp = parseAppConfig(appMap)
-				if githubApp.AppID == "" || githubApp.PrivateKey == "" {
-					frontmatterMetadataLog.Printf("%s.github-app missing required app-id or private-key; ignoring", fieldName)
-					githubApp = nil
-				}
-			}
-		}
-		if tokenAny, ok := v["github-token"]; ok {
-			if tokenStr, ok := tokenAny.(string); ok && tokenStr != "" {
-				githubToken = tokenStr
-				frontmatterMetadataLog.Printf("Extracted %s.github-token: custom token configured", fieldName)
-			}
-		}
-		if versionAny, ok := v["version"]; ok {
-			if versionStr, ok := versionAny.(string); ok && versionStr != "" {
-				if !isValidVersionTag(versionStr) {
-					return nil, fmt.Errorf("%s.version %q is not a valid semver tag (expected format: vX.Y.Z)", fieldName, versionStr)
-				}
-				version = versionStr
-			}
-		}
-		if envAny, ok := v["env"]; ok {
-			if envMap, ok := envAny.(map[string]any); ok && len(envMap) > 0 {
-				env = make(map[string]string, len(envMap))
-				for k, val := range envMap {
-					if s, ok := val.(string); ok {
-						env[k] = s
-					} else {
-						frontmatterMetadataLog.Printf("Skipping non-string env value for key '%s'", k)
-					}
-				}
-			}
-		}
-	default:
-		return nil, nil
-	}
-
-	if len(packages) == 0 {
-		return nil, nil
-	}
-
-	frontmatterMetadataLog.Printf("Extracted %d APM dependency packages from %s (isolated=%v, github-app=%v, github-token=%v, version=%s, env=%d)", len(packages), fieldName, isolated, githubApp != nil, githubToken != "", version, len(env))
-	return &APMDependenciesInfo{Packages: packages, Isolated: isolated, GitHubApp: githubApp, GitHubToken: githubToken, Version: version, Env: env}, nil
 }

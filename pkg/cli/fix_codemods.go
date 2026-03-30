@@ -50,7 +50,6 @@ func GetAllCodemods() []Codemod {
 		getSafeInputsToMCPScriptsCodemod(),            // Rename safe-inputs to mcp-scripts
 		getPluginsToDependenciesCodemod(),             // Migrate plugins to dependencies (plugins removed in favour of APM)
 		getGitHubReposToAllowedReposCodemod(),         // Rename deprecated tools.github.repos to tools.github.allowed-repos
-		getDependenciesToImportsAPMPackagesCodemod(),  // Migrate dependencies to imports.apm-packages (dependencies deprecated)
 	}
 	fixCodemodsLog.Printf("Loaded codemod registry: %d codemods available", len(codemods))
 	return codemods

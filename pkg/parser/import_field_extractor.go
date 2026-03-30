@@ -309,6 +309,12 @@ func (acc *importAccumulator) extractAllImportFields(content []byte, item import
 		acc.postStepsBuilder.WriteString(postStepsContent + "\n")
 	}
 
+	// Extract jobs from imported file (append in order; merged into custom jobs map)
+	jobsContent, err := extractFieldJSONFromMap(fm, "jobs", "{}")
+	if err == nil && jobsContent != "" && jobsContent != "{}" {
+		acc.jobsBuilder.WriteString(jobsContent + "\n")
+	}
+
 	// Extract labels from imported file (merge into set to avoid duplicates)
 	labelsContent, err := extractFieldJSONFromMap(fm, "labels", "[]")
 	if err == nil && labelsContent != "" && labelsContent != "[]" {

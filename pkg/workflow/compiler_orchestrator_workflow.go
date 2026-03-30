@@ -186,7 +186,6 @@ func (c *Compiler) buildInitialWorkflowData(
 		Tools:                 toolsResult.tools,
 		ParsedTools:           NewTools(toolsResult.tools),
 		Runtimes:              toolsResult.runtimes,
-		APMDependencies:       toolsResult.apmDependencies,
 		MarkdownContent:       toolsResult.markdownContent,
 		AI:                    engineSetup.engineSetting,
 		EngineConfig:          engineSetup.engineConfig,
@@ -688,12 +687,6 @@ func applyTopLevelGitHubAppFallbacks(data *WorkflowData) {
 			// Non-map value (e.g. true) — create a fresh map.
 			data.Tools["github"] = map[string]any{"github-app": appMap}
 		}
-	}
-
-	// Fallback for APM dependencies (dependencies.github-app; no github-token field)
-	if data.APMDependencies != nil && topLevelFallbackNeeded(data.APMDependencies.GitHubApp, "") {
-		orchestratorWorkflowLog.Print("Applying top-level github-app fallback for dependencies")
-		data.APMDependencies.GitHubApp = fallback
 	}
 }
 
