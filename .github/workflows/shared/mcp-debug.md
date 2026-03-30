@@ -131,7 +131,7 @@ safe-outputs:
               }
 steps:
   - name: Setup Go
-    uses: actions/setup-go@v6.3.0
+    uses: actions/setup-go@v6.4.0
     with:
       go-version-file: go.mod
       cache: true
