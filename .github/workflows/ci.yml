@@ -838,7 +838,7 @@ jobs:
           
           echo "✅ All URLs in $AGENT_FILE correctly use 'main' branch"
 
-      - name: Validate releases.json against JSON schema
+      - name: Validate releases.json structure and version formats
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         with:
           script: |

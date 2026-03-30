@@ -121,6 +121,14 @@ describe("check_version_updates", () => {
     expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("not an official release version"));
   });
 
+  it("should skip check when version has extra dot segments (v1.2.3.4 is not vMAJOR.MINOR.PATCH)", async () => {
+    process.env.GH_AW_COMPILED_VERSION = "v1.2.3.4";
+    await runMain();
+    expect(mockCore.setFailed).not.toHaveBeenCalled();
+    expect(mockFetch).not.toHaveBeenCalled();
+    expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("not an official release version"));
+  });
+
   // ---------------------------------------------------------------------------
   // Network / download failure cases (soft fail)
   // ---------------------------------------------------------------------------
@@ -163,12 +171,29 @@ describe("check_version_updates", () => {
     expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Could not fetch update configuration"));
   });
 
-  it("should skip check when server returns 500", async () => {
+  it("should skip check when server returns 500 after exhausting retries", async () => {
     process.env.GH_AW_COMPILED_VERSION = "v1.0.0";
+    // 500 should trigger retries; after all retries exhausted, soft-fail
     mockFetch.mockResolvedValue({ ok: false, status: 500, text: () => Promise.resolve("") });
     await runMain();
     expect(mockCore.setFailed).not.toHaveBeenCalled();
     expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Could not fetch update configuration"));
+    // Should have retried (default 3 retries = 4 total attempts: 1 initial + 3 retries)
+    expect(mockFetch).toHaveBeenCalledTimes(4);
+  });
+
+  it("should retry on 500 and succeed if a later attempt succeeds", async () => {
+    process.env.GH_AW_COMPILED_VERSION = "v1.2.0";
+    // First call returns 500, second succeeds
+    mockFetch.mockResolvedValueOnce({ ok: false, status: 500, text: () => Promise.resolve("") }).mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      text: () => Promise.resolve(JSON.stringify({ blockedVersions: [], minimumVersion: "v1.0.0" })),
+    });
+    await runMain();
+    expect(mockCore.setFailed).not.toHaveBeenCalled();
+    expect(mockFetch).toHaveBeenCalledTimes(2);
+    expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Version check passed"));
   });
 
   it("should skip check when response is not valid JSON (soft fail)", async () => {
@@ -413,6 +438,14 @@ describe("check_version_updates", () => {
     mockFetchSuccess(JSON.stringify([]));
     await runMain();
     expect(mockCore.setFailed).not.toHaveBeenCalled();
+  });
+
+  it("should pass when config body is JSON null — treats as empty config", async () => {
+    process.env.GH_AW_COMPILED_VERSION = "v1.0.0";
+    mockFetchSuccess("null");
+    await runMain();
+    expect(mockCore.setFailed).not.toHaveBeenCalled();
+    expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Version check passed"));
   });
 
   // ---------------------------------------------------------------------------

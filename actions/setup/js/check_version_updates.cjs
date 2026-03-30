@@ -31,8 +31,8 @@ const CONFIG_URL = "https://raw.githubusercontent.com/github/gh-aw/main/.github/
 function parseVersion(version) {
   if (!version.startsWith("v")) return null;
   const parts = version.slice(1).split(".");
-  if (parts.length < 3) return null;
-  const nums = parts.slice(0, 3).map(Number);
+  if (parts.length !== 3) return null;
+  const nums = parts.map(Number);
   if (nums.some(isNaN)) return null;
   return nums;
 }
@@ -90,11 +90,21 @@ async function main() {
       async () => {
         const res = await fetch(CONFIG_URL);
         if (!res.ok) {
-          throw new Error(`HTTP ${res.status} fetching ${CONFIG_URL}`);
+          const err = new Error(`HTTP ${res.status} fetching ${CONFIG_URL}`);
+          // @ts-ignore - Attach status so the retry predicate can inspect it
+          err.status = res.status;
+          throw err;
         }
-        return JSON.parse(await res.text());
+        const parsed = JSON.parse(await res.text());
+        // Guard: JSON.parse("null") returns null; treat non-object/null/array as empty config
+        return parsed !== null && typeof parsed === "object" && !Array.isArray(parsed) ? parsed : {};
       },
-      { shouldRetry: isTransientError },
+      {
+        shouldRetry: err =>
+          isTransientError(err) ||
+          // Retry on any HTTP 5xx response (server errors)
+          (err !== null && typeof err === "object" && "status" in err && Number(err.status) >= 500),
+      },
       "fetch update configuration"
     );
   } catch (err) {
