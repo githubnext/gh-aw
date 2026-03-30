@@ -206,7 +206,7 @@ jobs:
           cat "${RUNNER_TEMP}/gh-aw/prompts/safe_outputs_prompt.md"
           cat << 'GH_AW_PROMPT_20c992e85e9b3ade_EOF'
           <safe-output-tools>
-          Tools: add_comment(max:2), create_issue, add_labels, remove_labels, unassign_from_user, hide_comment(max:5), missing_tool, missing_data, noop
+          Tools: add_comment(max:2), create_issue, add_labels, remove_labels, unassign_from_user, hide_comment(max:5), missing_tool, missing_data, noop, add_smoked_label
           </safe-output-tools>
           <github-context>
           The following GitHub context information is available for this workflow:

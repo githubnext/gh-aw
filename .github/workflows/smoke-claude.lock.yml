@@ -212,7 +212,7 @@ jobs:
           cat "${RUNNER_TEMP}/gh-aw/prompts/safe_outputs_prompt.md"
           cat << 'GH_AW_PROMPT_c07dfaff6885ae7d_EOF'
           <safe-output-tools>
-          Tools: add_comment(max:2), create_issue, close_pull_request, update_pull_request, create_pull_request_review_comment(max:5), submit_pull_request_review, resolve_pull_request_review_thread(max:5), add_labels, add_reviewer(max:2), push_to_pull_request_branch, missing_tool, missing_data, noop
+          Tools: add_comment(max:2), create_issue, close_pull_request, update_pull_request, create_pull_request_review_comment(max:5), submit_pull_request_review, resolve_pull_request_review_thread(max:5), add_labels, add_reviewer(max:2), push_to_pull_request_branch, missing_tool, missing_data, noop, post_slack_message
           GH_AW_PROMPT_c07dfaff6885ae7d_EOF
           cat "${RUNNER_TEMP}/gh-aw/prompts/safe_outputs_push_to_pr_branch.md"
           cat << 'GH_AW_PROMPT_c07dfaff6885ae7d_EOF'
