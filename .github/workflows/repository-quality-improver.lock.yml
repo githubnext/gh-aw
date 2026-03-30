@@ -360,7 +360,7 @@ jobs:
           path: /tmp/gh-aw/cache-memory-focus-areas
           restore-keys: |
             memory-none-nopolicy-quality-focus-${{ github.workflow }}-
-      - name: Set up cache-memory git repository (focus-areas)
+      - name: Setup cache-memory git repository (focus-areas)
         env:
           GH_AW_CACHE_DIR: /tmp/gh-aw/cache-memory-focus-areas
           GH_AW_MIN_INTEGRITY: none

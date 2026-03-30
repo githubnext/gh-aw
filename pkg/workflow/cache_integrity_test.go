@@ -429,7 +429,7 @@ func TestCacheMemoryStepsIncludeGitSetup(t *testing.T) {
 	generateCacheMemorySteps(&builder, data)
 	output := builder.String()
 
-	assert.Contains(t, output, "Set up cache-memory git repository",
+	assert.Contains(t, output, "Setup cache-memory git repository",
 		"Should include git setup step")
 	assert.Contains(t, output, "setup_cache_memory_git.sh",
 		"Should reference the git setup script")

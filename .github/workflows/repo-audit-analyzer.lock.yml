@@ -325,7 +325,7 @@ jobs:
           path: /tmp/gh-aw/cache-memory-repo-audits
           restore-keys: |
             memory-none-nopolicy-repo-audits-${{ github.workflow }}-
-      - name: Set up cache-memory git repository (repo-audits)
+      - name: Setup cache-memory git repository (repo-audits)
         env:
           GH_AW_CACHE_DIR: /tmp/gh-aw/cache-memory-repo-audits
           GH_AW_MIN_INTEGRITY: none
