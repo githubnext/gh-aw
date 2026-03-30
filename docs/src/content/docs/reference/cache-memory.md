@@ -103,6 +103,26 @@ For unlimited retention with version control, see [Repo Memory](/gh-aw/reference
 - **File access issues**: Create subdirectories first, verify permissions, use absolute paths.
 - **Cache size issues**: Track growth, clear periodically, or use time-based keys for auto-expiration.
 
+## Integrity-Aware Caching
+
+When a workflow uses `tools.github.min-integrity`, cache-memory automatically applies integrity-level isolation. Cache keys include the workflow's integrity level and a hash of the guard policy so that changing any policy field forces a cache miss.
+
+The compiler generates git-backed branching steps around the agent. Before the agent runs, it checks out the matching integrity branch and merges down from all higher-integrity branches (higher integrity always wins conflicts). After the agent runs, changes are committed to that branch. The agent itself sees only plain files — the `.git/` directory rides along transparently in the Actions cache tarball.
+
+### Merge semantics
+
+| Run integrity | Sees data written by | Cannot see |
+|---|---|---|
+| `merged` | `merged` only | `approved`, `unapproved`, `none` |
+| `approved` | `approved` + `merged` | `unapproved`, `none` |
+| `unapproved` | `unapproved` + `approved` + `merged` | `none` |
+| `none` | all levels | — |
+
+This prevents a lower-integrity agent from poisoning data that a higher-integrity run would later read.
+
+> [!NOTE]
+> Existing caches will get a cache miss on first run after upgrading to a version that includes this feature — intentional, as legacy data has no integrity provenance.
+
 ## Security
 
 Don't store sensitive data in cache memory. Cache memory follows repository permissions.

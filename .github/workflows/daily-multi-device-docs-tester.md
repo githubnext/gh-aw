@@ -19,6 +19,9 @@ engine:
   max-turns: 80  # 10 devices × ~5 turns each + setup/report overhead
 strict: true
 timeout-minutes: 30
+runtimes:
+  node:
+    version: "24"
 tools:
   timeout: 120  # Playwright navigation on Astro dev server can take >60s; increase to 120s
   playwright:

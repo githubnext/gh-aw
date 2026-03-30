@@ -1174,11 +1174,11 @@ jobs:
       - agent
       - detection
     if: always() && (needs.detection.result == 'success' || needs.detection.result == 'skipped')
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-slim
     permissions:
       contents: write
     concurrency:
-      group: "push-repo-memory-${{ github.repository }}"
+      group: "push-repo-memory-${{ github.repository }}|memory/meta-orchestrators"
       cancel-in-progress: false
     outputs:
       patch_size_exceeded_default: ${{ steps.push_repo_memory_default.outputs.patch_size_exceeded }}

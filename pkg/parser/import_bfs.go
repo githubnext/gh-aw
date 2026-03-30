@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"maps"
 	"path"
+	"path/filepath"
 	"strings"
 
 	"github.com/goccy/go-yaml"
@@ -388,7 +389,24 @@ func processImportsFromFrontmatterWithManifestAndSource(frontmatter map[string]a
 					}
 				}
 
-				nestedFullPath, err := ResolveIncludePath(resolvedPath, baseDir, cache)
+				// Determine the base directory for resolving this nested import.
+				// Paths that are explicitly local-to-parent are resolved relative to the
+				// parent file's directory:
+				//   - bare filenames with no directory separator ("serena.md")
+				//   - explicit same-directory prefix ("./serena.md")
+				// Paths with a multi-component directory prefix (e.g. "shared/foo.md") use
+				// the original baseDir so that the absolute-from-workflows-root convention
+				// is preserved.
+				//
+				// Note: workflow import paths always use forward slashes ("/") regardless of
+				// OS because they originate from YAML frontmatter, not OS filesystem paths.
+				isLocalRelative := !strings.Contains(resolvedPath, "/") || strings.HasPrefix(resolvedPath, "./")
+				nestedBaseDir := baseDir
+				if item.remoteOrigin == nil && !isWorkflowSpec(resolvedPath) && isLocalRelative {
+					nestedBaseDir = filepath.Dir(item.fullPath)
+				}
+
+				nestedFullPath, err := ResolveIncludePath(resolvedPath, nestedBaseDir, cache)
 				if err != nil {
 					// If we have source information for the parent workflow, create a structured error
 					if workflowFilePath != "" && yamlContent != "" {
@@ -412,8 +430,23 @@ func processImportsFromFrontmatterWithManifestAndSource(frontmatter map[string]a
 				if !visited[nestedFullPath] {
 					visited[nestedFullPath] = true
 					visitedInputs[nestedFullPath] = nestedEntry.inputs
+
+					// Use a canonical importPath for the manifest and topological sort.
+					// When the import was resolved from a non-standard base directory
+					// (e.g. a sibling "./" or bare-filename import resolved relative to
+					// the parent file's directory), the raw nestedImportPath ("./serena.md")
+					// is ambiguous — it's not meaningful without knowing the parent's
+					// directory.  Store a root-relative path instead so that the manifest
+					// header and topological sort always reference unambiguous locations.
+					canonicalImportPath := nestedImportPath
+					if nestedRemoteOrigin == nil && nestedBaseDir != baseDir {
+						if rel, err := filepath.Rel(baseDir, nestedFullPath); err == nil {
+							canonicalImportPath = filepath.ToSlash(rel)
+						}
+					}
+
 					queue = append(queue, importQueueItem{
-						importPath:   nestedImportPath,
+						importPath:   canonicalImportPath,
 						fullPath:     nestedFullPath,
 						sectionName:  nestedSectionName,
 						baseDir:      baseDir, // Use original baseDir, not nestedBaseDir

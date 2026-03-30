@@ -24,9 +24,8 @@ type EngineConfig struct {
 	Env              map[string]string
 	Config           string
 	Args             []string
-	Firewall         *FirewallConfig // AWF firewall configuration
-	Agent            string          // Agent identifier for copilot --agent flag (copilot engine only)
-	APITarget        string          // Custom API endpoint hostname (e.g., "api.acme.ghe.com" or "api.enterprise.githubcopilot.com")
+	Agent            string // Agent identifier for copilot --agent flag (copilot engine only)
+	APITarget        string // Custom API endpoint hostname (e.g., "api.acme.ghe.com" or "api.enterprise.githubcopilot.com")
 
 	// Inline definition fields (populated when engine.runtime is specified in frontmatter)
 	IsInlineDefinition bool   // true when the engine is defined inline via engine.runtime + optional engine.provider
@@ -274,44 +273,6 @@ func (c *Compiler) ExtractEngineConfig(frontmatter map[string]any) (string, *Eng
 				if agentStr, ok := agent.(string); ok {
 					config.Agent = agentStr
 					engineLog.Printf("Extracted agent identifier: %s", agentStr)
-				}
-			}
-
-			// Extract optional 'firewall' field (object format)
-			if firewall, hasFirewall := engineObj["firewall"]; hasFirewall {
-				if firewallObj, ok := firewall.(map[string]any); ok {
-					firewallConfig := &FirewallConfig{}
-
-					// Extract enabled field (defaults to true for copilot)
-					if enabled, hasEnabled := firewallObj["enabled"]; hasEnabled {
-						if enabledBool, ok := enabled.(bool); ok {
-							firewallConfig.Enabled = enabledBool
-						}
-					}
-
-					// Extract version field (empty = latest)
-					if version, hasVersion := firewallObj["version"]; hasVersion {
-						if versionStr, ok := version.(string); ok {
-							firewallConfig.Version = versionStr
-						}
-					}
-
-					// Extract log-level field (default: "debug")
-					if logLevel, hasLogLevel := firewallObj["log-level"]; hasLogLevel {
-						if logLevelStr, ok := logLevel.(string); ok {
-							firewallConfig.LogLevel = logLevelStr
-						}
-					}
-
-					// Extract cleanup-script field (default: "./scripts/ci/cleanup.sh")
-					if cleanupScript, hasCleanupScript := firewallObj["cleanup-script"]; hasCleanupScript {
-						if cleanupScriptStr, ok := cleanupScript.(string); ok {
-							firewallConfig.CleanupScript = cleanupScriptStr
-						}
-					}
-
-					config.Firewall = firewallConfig
-					engineLog.Print("Extracted firewall configuration")
 				}
 			}
 

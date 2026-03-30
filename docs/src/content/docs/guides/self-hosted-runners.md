@@ -90,9 +90,26 @@ safe-outputs:
 
 This is useful when your self-hosted runner lacks outbound internet access for AI detection, or when you want to run the detection job on a cheaper runner.
 
+## Configuring the framework job runner
+
+Framework jobs — activation, pre-activation, safe-outputs, unlock, APM, update_cache_memory, and push_repo_memory — default to `ubuntu-slim`. Use `runs-on-slim:` to override all of them at once:
+
+```aw
+---
+on: issues
+runs-on: [self-hosted, linux, x64]
+runs-on-slim: self-hosted
+safe-outputs:
+  create-issue: {}
+---
+```
+
+> [!NOTE]
+> `runs-on` controls only the main agent job. `runs-on-slim` controls all framework/generated jobs. `safe-outputs.runs-on` still takes precedence over `runs-on-slim` for safe-output jobs specifically.
+
 ## Related documentation
 
-- [Frontmatter](/gh-aw/reference/frontmatter/#run-configuration-run-name-runs-on-timeout-minutes) — `runs-on` syntax reference
+- [Frontmatter](/gh-aw/reference/frontmatter/#run-configuration-run-name-runs-on-runs-on-slim-timeout-minutes) — `runs-on` and `runs-on-slim` syntax reference
 - [Imports](/gh-aw/reference/imports/) — importable fields and merge semantics
 - [Threat Detection](/gh-aw/reference/threat-detection/) — detection job configuration
 - [Network Access](/gh-aw/reference/network/) — configuring outbound network permissions

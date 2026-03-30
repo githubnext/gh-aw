@@ -98,7 +98,7 @@ func (c *Compiler) buildUnlockJob(data *WorkflowData, threatDetectionEnabled boo
 		Name:           "unlock",
 		Needs:          needs,
 		If:             RenderCondition(alwaysFunc),
-		RunsOn:         c.formatSafeOutputsRunsOn(data.SafeOutputs),
+		RunsOn:         c.formatFrameworkJobRunsOn(data),
 		Permissions:    permissions,
 		Steps:          steps,
 		TimeoutMinutes: 5, // Short timeout - unlock is a quick operation

@@ -166,6 +166,7 @@
                         },
                         {
                           "type": "array",
+                          "description": "Array value for import-schema parameters of type 'array'.",
                           "items": {
                             "oneOf": [
                               {
@@ -176,6 +177,11 @@
                               },
                               {
                                 "type": "boolean"
+                              },
+                              {
+                                "type": "object",
+                                "description": "Object element in an array import parameter.",
+                                "additionalProperties": true
                               }
                             ]
                           }
@@ -291,6 +297,7 @@
                             },
                             {
                               "type": "array",
+                              "description": "Array value for import-schema parameters of type 'array'.",
                               "items": {
                                 "oneOf": [
                                   {
@@ -301,6 +308,11 @@
                                   },
                                   {
                                     "type": "boolean"
+                                  },
+                                  {
+                                    "type": "object",
+                                    "description": "Object element in an array import parameter.",
+                                    "additionalProperties": true
                                   }
                                 ]
                               }
@@ -2619,6 +2631,11 @@
         }
       ]
     },
+    "runs-on-slim": {
+      "type": "string",
+      "description": "Runner for all framework/generated jobs (activation, pre-activation, safe-outputs, unlock, APM, etc.). Provides a compile-stable override for generated job runners without requiring a safe-outputs section. Overridden by safe-outputs.runs-on when both are set. Defaults to 'ubuntu-slim'. Use this when your infrastructure does not provide the default runner or when you need consistent runner selection across all jobs.",
+      "examples": ["self-hosted", "ubuntu-latest", "ubuntu-22.04"]
+    },
     "timeout-minutes": {
       "type": "integer",
       "minimum": 1,
@@ -3030,10 +3047,6 @@
                         "description": "HTTPS URL pattern with optional wildcards (e.g., 'https://github.com/githubnext/*')"
                       },
                       "examples": [["https://github.com/githubnext/*", "https://api.github.com/repos/*"]]
-                    },
-                    "cleanup-script": {
-                      "type": "string",
-                      "description": "Path to cleanup script run after AWF shuts down (default: ./scripts/ci/cleanup.sh)"
                     }
                   },
                   "additionalProperties": false
@@ -4106,210 +4119,10 @@
           "description": "Timeout in seconds for MCP server startup. Applies to MCP server initialization if supported by the engine. Default: 120 seconds."
         },
         "serena": {
-          "description": "DEPRECATED: Use 'mcp-servers.serena' with the shared/mcp/serena.md workflow instead. Serena MCP server for AI-powered code intelligence with language service integration.",
+          "description": "REMOVED: Built-in support for Serena has been removed. Use the shared/mcp/serena.md workflow instead.",
           "deprecated": true,
-          "x-deprecation-message": "tools.serena is deprecated. Import shared/mcp/serena.md and use mcp-servers.serena instead:\n  imports:\n    - uses: shared/mcp/serena.md\n      with:\n        languages: [\"go\", \"typescript\"]",
-          "oneOf": [
-            {
-              "type": "null",
-              "description": "Enable Serena with default settings"
-            },
-            {
-              "type": "array",
-              "description": "Short syntax: array of language identifiers to enable (e.g., [\"go\", \"typescript\"]). Note: rust does not generate a runtime setup step.",
-              "items": {
-                "type": "string",
-                "enum": [
-                  "go",
-                  "typescript",
-                  "javascript",
-                  "python",
-                  "java",
-                  "rust",
-                  "csharp",
-                  "cpp",
-                  "c",
-                  "ruby",
-                  "php",
-                  "bash",
-                  "swift",
-                  "kotlin",
-                  "scala",
-                  "haskell",
-                  "elixir",
-                  "erlang",
-                  "clojure",
-                  "lua",
-                  "perl",
-                  "r",
-                  "dart",
-                  "julia",
-                  "fortran",
-                  "nix",
-                  "rego",
-                  "terraform",
-                  "yaml",
-                  "markdown",
-                  "zig",
-                  "elm"
-                ]
-              }
-            },
-            {
-              "type": "object",
-              "description": "Serena configuration with custom version and language-specific settings",
-              "properties": {
-                "version": {
-                  "type": ["string", "number"],
-                  "description": "Optional Serena MCP version. Numeric values are automatically converted to strings at runtime.",
-                  "examples": ["latest", "0.1.0", 1.0]
-                },
-                "mode": {
-                  "type": "string",
-                  "description": "Serena execution mode (only 'docker' is supported, runs in container)",
-                  "enum": ["docker"],
-                  "default": "docker"
-                },
-                "args": {
-                  "type": "array",
-                  "description": "Optional additional arguments to append to the generated MCP server command",
-                  "items": {
-                    "type": "string"
-                  }
-                },
-                "languages": {
-                  "type": "object",
-                  "description": "Language-specific configuration for Serena language services",
-                  "properties": {
-                    "go": {
-                      "oneOf": [
-                        {
-                          "type": "null",
-                          "description": "Enable Go language service with default version"
-                        },
-                        {
-                          "type": "object",
-                          "properties": {
-                            "version": {
-                              "type": ["string", "number"],
-                              "description": "Go version (e.g., \"1.21\", 1.21)"
-                            },
-                            "go-mod-file": {
-                              "type": "string",
-                              "description": "Path to go.mod file for Go version detection (e.g., \"go.mod\", \"backend/go.mod\")"
-                            },
-                            "gopls-version": {
-                              "type": "string",
-                              "description": "Version of gopls to install (e.g., \"latest\", \"v0.14.2\")"
-                            }
-                          },
-                          "additionalProperties": false
-                        }
-                      ],
-                      "description": "Configuration for Go language support in Serena code analysis. Enables Go-specific parsing, linting, and security checks."
-                    },
-                    "typescript": {
-                      "oneOf": [
-                        {
-                          "type": "null",
-                          "description": "Enable TypeScript language service with default version"
-                        },
-                        {
-                          "type": "object",
-                          "properties": {
-                            "version": {
-                              "type": ["string", "number"],
-                              "description": "Node.js version for TypeScript (e.g., \"22\", 22)"
-                            }
-                          },
-                          "additionalProperties": false
-                        }
-                      ],
-                      "description": "Configuration for TypeScript language support in Serena code analysis. Enables TypeScript-specific parsing, linting, and type checking."
-                    },
-                    "python": {
-                      "oneOf": [
-                        {
-                          "type": "null",
-                          "description": "Enable Python language service with default version"
-                        },
-                        {
-                          "type": "object",
-                          "properties": {
-                            "version": {
-                              "type": ["string", "number"],
-                              "description": "Python version (e.g., \"3.12\", 3.12)"
-                            }
-                          },
-                          "additionalProperties": false
-                        }
-                      ],
-                      "description": "Configuration for Python language support in Serena code analysis. Enables Python-specific parsing, linting, and security checks."
-                    },
-                    "java": {
-                      "oneOf": [
-                        {
-                          "type": "null",
-                          "description": "Enable Java language service with default version"
-                        },
-                        {
-                          "type": "object",
-                          "properties": {
-                            "version": {
-                              "type": ["string", "number"],
-                              "description": "Java version (e.g., \"21\", 21)"
-                            }
-                          },
-                          "additionalProperties": false
-                        }
-                      ],
-                      "description": "Configuration for Java language support in Serena code analysis. Enables Java-specific parsing, linting, and security checks."
-                    },
-                    "rust": {
-                      "oneOf": [
-                        {
-                          "type": "null",
-                          "description": "Enable Rust language service with default version"
-                        },
-                        {
-                          "type": "object",
-                          "properties": {
-                            "version": {
-                              "type": ["string", "number"],
-                              "description": "Rust version (e.g., \"stable\", \"1.75\")"
-                            }
-                          },
-                          "additionalProperties": false
-                        }
-                      ],
-                      "description": "Configuration for Rust language support in Serena code analysis. Enables Rust-specific parsing, linting, and security checks. Note: rust does not generate a runtime setup step in GitHub Actions."
-                    },
-                    "csharp": {
-                      "oneOf": [
-                        {
-                          "type": "null",
-                          "description": "Enable C# language service with default version"
-                        },
-                        {
-                          "type": "object",
-                          "properties": {
-                            "version": {
-                              "type": ["string", "number"],
-                              "description": ".NET version for C# (e.g., \"8.0\", 8.0)"
-                            }
-                          },
-                          "additionalProperties": false
-                        }
-                      ],
-                      "description": "Configuration for C# language support in Serena code analysis. Enables C#-specific parsing, linting, and security checks."
-                    }
-                  },
-                  "additionalProperties": false
-                }
-              },
-              "additionalProperties": false
-            }
-          ]
+          "x-removed": true,
+          "x-removal-message": "tools.serena built-in support has been removed. Import shared/mcp/serena.md instead:\n  imports:\n    - uses: shared/mcp/serena.md\n      with:\n        languages: [\"go\", \"typescript\"]"
         },
         "repo-memory": {
           "description": "Repo memory configuration for git-based persistent storage",
@@ -9349,40 +9162,6 @@
               "description": "Custom environment variables to pass to the AI engine, including secret overrides (e.g., OPENAI_API_KEY: ${{ secrets.CUSTOM_KEY }})",
               "additionalProperties": {
                 "type": "string"
-              }
-            },
-            "error_patterns": {
-              "type": "array",
-              "description": "Custom error patterns for validating agent logs",
-              "items": {
-                "type": "object",
-                "description": "Error pattern definition",
-                "properties": {
-                  "id": {
-                    "type": "string",
-                    "description": "Unique identifier for this error pattern"
-                  },
-                  "pattern": {
-                    "type": "string",
-                    "description": "Ecma script regular expression pattern to match log lines"
-                  },
-                  "level_group": {
-                    "type": "integer",
-                    "minimum": 0,
-                    "description": "Capture group index (1-based) that contains the error level. Use 0 to infer from pattern content."
-                  },
-                  "message_group": {
-                    "type": "integer",
-                    "minimum": 0,
-                    "description": "Capture group index (1-based) that contains the error message. Use 0 to use the entire match."
-                  },
-                  "description": {
-                    "type": "string",
-                    "description": "Human-readable description of what this pattern matches"
-                  }
-                },
-                "required": ["pattern"],
-                "additionalProperties": false
               }
             },
             "config": {

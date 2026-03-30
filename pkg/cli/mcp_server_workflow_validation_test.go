@@ -42,7 +42,7 @@ func TestMCPValidateWorkflowName(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := validateWorkflowName(tt.workflowName)
+			err := validateMCPWorkflowName(tt.workflowName)
 
 			if tt.shouldSucceed {
 				assert.NoError(t, err, "Validation should succeed for workflow: %s", tt.workflowName)

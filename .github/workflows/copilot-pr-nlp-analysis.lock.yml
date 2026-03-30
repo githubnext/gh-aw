@@ -368,6 +368,9 @@ jobs:
         run: "mkdir -p /tmp/gh-aw/python/{data,charts,artifacts}\npip install --user --quiet nltk scikit-learn textblob wordcloud\n\n# Download required NLTK corpora\npython3 -c \"\nimport nltk\nfor corpus in ['punkt_tab', 'stopwords', 'vader_lexicon', 'averaged_perceptron_tagger_eng']:\n    nltk.download(corpus, quiet=True)\nprint('NLTK corpora ready')\n\"\n\npython3 -c \"import sklearn; print(f'scikit-learn {sklearn.__version__}')\""
       - name: Setup jq utilities directory
         run: "mkdir -p /tmp/gh-aw\ncat > /tmp/gh-aw/jqschema.sh << 'EOF'\n#!/usr/bin/env bash\n# jqschema.sh\njq -c '\ndef walk(f):\n  . as $in |\n  if type == \"object\" then\n    reduce keys[] as $k ({}; . + {($k): ($in[$k] | walk(f))})\n  elif type == \"array\" then\n    if length == 0 then [] else [.[0] | walk(f)] end\n  else\n    type\n  end;\nwalk(.)\n'\nEOF\nchmod +x /tmp/gh-aw/jqschema.sh"
+      - name: Install gh CLI
+        run: |
+          bash ${RUNNER_TEMP}/gh-aw/actions/install_gh_cli.sh
       - env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -385,10 +388,15 @@ jobs:
       - name: Restore cache-memory file share data
         uses: actions/cache/restore@668228422ae6a00e4ad889ee87cd7109ec5666a7 # v5.0.4
         with:
-          key: copilot-pr-data-${{ github.run_id }}
+          key: memory-none-nopolicy-copilot-pr-data-${{ github.run_id }}
           path: /tmp/gh-aw/cache-memory
           restore-keys: |
-            copilot-pr-data-
+            memory-none-nopolicy-copilot-pr-data-
+      - name: Set up cache-memory git repository
+        env:
+          GH_AW_CACHE_DIR: /tmp/gh-aw/cache-memory
+          GH_AW_MIN_INTEGRITY: none
+        run: bash ${RUNNER_TEMP}/gh-aw/actions/setup_cache_memory_git.sh
       # Repo memory git-based storage configuration from frontmatter processed below
       - name: Clone repo-memory branch (default)
         env:
@@ -845,6 +853,11 @@ jobs:
           path: /tmp/gh-aw/repo-memory/default
           retention-days: 1
           if-no-files-found: ignore
+      - name: Commit cache-memory changes
+        if: always()
+        env:
+          GH_AW_CACHE_DIR: /tmp/gh-aw/cache-memory
+        run: bash ${RUNNER_TEMP}/gh-aw/actions/commit_cache_memory_git.sh
       - name: Upload cache-memory data as artifact
         uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7
         if: always()
@@ -1163,11 +1176,11 @@ jobs:
       - agent
       - detection
     if: always() && (needs.detection.result == 'success' || needs.detection.result == 'skipped')
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-slim
     permissions:
       contents: write
     concurrency:
-      group: "push-repo-memory-${{ github.repository }}"
+      group: "push-repo-memory-${{ github.repository }}|memory/nlp-analysis"
       cancel-in-progress: false
     outputs:
       patch_size_exceeded_default: ${{ steps.push_repo_memory_default.outputs.patch_size_exceeded }}
@@ -1329,7 +1342,7 @@ jobs:
       - agent
       - detection
     if: always() && (needs.detection.result == 'success' || needs.detection.result == 'skipped')
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-slim
     permissions:
       contents: read
     env:
@@ -1366,7 +1379,7 @@ jobs:
         if: steps.check_cache_default.outputs.has_content == 'true'
         uses: actions/cache/save@668228422ae6a00e4ad889ee87cd7109ec5666a7 # v5.0.4
         with:
-          key: copilot-pr-data-${{ github.run_id }}
+          key: memory-none-nopolicy-copilot-pr-data-${{ github.run_id }}
           path: /tmp/gh-aw/cache-memory
 
   upload_assets:

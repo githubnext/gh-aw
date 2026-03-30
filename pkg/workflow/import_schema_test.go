@@ -498,16 +498,16 @@ imports:
 }
 
 // TestImportSchemaArrayType tests that array type inputs are validated and substituted
-// correctly, including as a YAML inline array in the imported workflow's mcp-servers.serena field.
+// correctly, including as a YAML inline array in the imported workflow's mcp-servers field.
 func TestImportSchemaArrayType(t *testing.T) {
 	tempDir := testutil.TempDir(t, "test-import-schema-array-*")
 
-	sharedPath := filepath.Join(tempDir, "shared", "mcp", "serena.md")
+	sharedPath := filepath.Join(tempDir, "shared", "mcp", "analyzer.md")
 	if err := os.MkdirAll(filepath.Dir(sharedPath), 0755); err != nil {
 		t.Fatalf("Failed to create shared directory: %v", err)
 	}
 
-	// Shared workflow with mcp-servers.serena parameterised via import-schema
+	// Shared workflow with mcp-servers parameterised via import-schema
 	sharedContent := `---
 import-schema:
   languages:
@@ -515,13 +515,18 @@ import-schema:
     items:
       type: string
     required: true
-    description: Languages to enable for Serena analysis
+    description: Languages to enable for analysis
 
 mcp-servers:
-  serena: ${{ github.aw.import-inputs.languages }}
+  code-analyzer:
+    container: ghcr.io/example/analyzer:latest
+    entrypoint: analyze
+    entrypointArgs: ${{ github.aw.import-inputs.languages }}
+    mounts:
+      - "${GITHUB_WORKSPACE}:${GITHUB_WORKSPACE}:rw"
 ---
 
-## Serena Analysis
+## Code Analysis
 
 Configured for languages: ${{ github.aw.import-inputs.languages }}.
 `
@@ -529,7 +534,7 @@ Configured for languages: ${{ github.aw.import-inputs.languages }}.
 		t.Fatalf("Failed to write shared file: %v", err)
 	}
 
-	t.Run("valid array input configures serena tools", func(t *testing.T) {
+	t.Run("valid array input configures tools", func(t *testing.T) {
 		workflowPath := filepath.Join(tempDir, "valid.md")
 		workflowContent := `---
 on: issues
@@ -538,7 +543,7 @@ permissions:
   issues: read
 engine: copilot
 imports:
-  - uses: shared/mcp/serena.md
+  - uses: shared/mcp/analyzer.md
     with:
       languages:
         - go
@@ -562,14 +567,7 @@ imports:
 		}
 		content := string(lockContent)
 
-		// The serena tool should be configured with both languages
-		if !strings.Contains(content, "go") {
-			t.Errorf("Expected lock file to contain 'go' in serena config")
-		}
-		if !strings.Contains(content, "typescript") {
-			t.Errorf("Expected lock file to contain 'typescript' in serena config")
-		}
-		// The markdown body expression should be substituted too
+		// The markdown body expression should be substituted
 		if strings.Contains(content, "github.aw.import-inputs.languages") {
 			t.Error("Expected import-inputs expression to be substituted in lock file")
 		}
@@ -584,7 +582,7 @@ permissions:
   issues: read
 engine: copilot
 imports:
-  - uses: shared/mcp/serena.md
+  - uses: shared/mcp/analyzer.md
     with:
       languages: "go"
 ---
@@ -613,7 +611,7 @@ permissions:
   issues: read
 engine: copilot
 imports:
-  - uses: shared/mcp/serena.md
+  - uses: shared/mcp/analyzer.md
     with:
       languages:
         - go
@@ -641,7 +639,7 @@ permissions:
   issues: read
 engine: copilot
 imports:
-  - uses: shared/mcp/serena.md
+  - uses: shared/mcp/analyzer.md
     with: {}
 ---
 

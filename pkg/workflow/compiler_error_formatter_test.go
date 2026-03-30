@@ -6,6 +6,7 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/github/gh-aw/pkg/parser"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -31,6 +32,17 @@ func TestIsFormattedCompilerError(t *testing.T) {
 		{
 			name:     "error from formatCompilerErrorWithPosition",
 			err:      formatCompilerErrorWithPosition("file.md", 5, 3, "error", "bad value", nil),
+			expected: true,
+		},
+		{
+			name: "error from parser.FormatImportError is detected as formatted",
+			err: parser.FormatImportError(&parser.ImportError{
+				ImportPath: "missing.md",
+				FilePath:   "workflow.md",
+				Line:       10,
+				Column:     5,
+				Cause:      errors.New("file not found: missing.md"),
+			}, "imports:\n  - missing.md"),
 			expected: true,
 		},
 		{

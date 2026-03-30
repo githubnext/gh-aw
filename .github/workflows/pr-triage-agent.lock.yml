@@ -803,8 +803,6 @@ jobs:
             /tmp/gh-aw/sandbox/agent/logs/
             /tmp/gh-aw/redacted-urls.log
             /tmp/gh-aw/mcp-logs/
-            /tmp/gh-aw/proxy-logs/
-            !/tmp/gh-aw/proxy-logs/proxy-tls/
             /tmp/gh-aw/agent-stdio.log
             /tmp/gh-aw/agent/
             /tmp/gh-aw/safeoutputs.jsonl
@@ -1095,11 +1093,11 @@ jobs:
       - agent
       - detection
     if: always() && (needs.detection.result == 'success' || needs.detection.result == 'skipped')
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-slim
     permissions:
       contents: write
     concurrency:
-      group: "push-repo-memory-${{ github.repository }}"
+      group: "push-repo-memory-${{ github.repository }}|memory/pr-triage"
       cancel-in-progress: false
     outputs:
       patch_size_exceeded_default: ${{ steps.push_repo_memory_default.outputs.patch_size_exceeded }}

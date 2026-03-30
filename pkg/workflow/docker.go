@@ -39,27 +39,6 @@ func collectDockerImages(tools map[string]any, workflowData *WorkflowData, actio
 		}
 	}
 
-	// Check for Serena tool (uses Docker image)
-	if serenaTool, hasSerena := tools["serena"]; hasSerena {
-		var image string
-		// Check for explicit container config first (shared/mcp/serena.md style)
-		if serenaMap, ok := serenaTool.(map[string]any); ok {
-			if container, hasContainer := serenaMap["container"].(string); hasContainer {
-				image = container // Already includes :latest from YAML config
-			}
-		}
-		if image == "" {
-			// Fall back to language-based container selection (legacy tools.serena style)
-			containerImage := selectSerenaContainer(serenaTool)
-			image = containerImage + ":latest"
-		}
-		if !imageSet[image] {
-			images = append(images, image)
-			imageSet[image] = true
-			dockerLog.Printf("Added Serena MCP server container: %s", image)
-		}
-	}
-
 	// Check for safe-outputs MCP server (uses node:lts-alpine container)
 	if workflowData != nil && workflowData.SafeOutputs != nil && HasSafeOutputsEnabled(workflowData.SafeOutputs) {
 		image := constants.DefaultNodeAlpineLTSImage

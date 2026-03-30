@@ -368,6 +368,7 @@ type WorkflowData struct {
 	CustomSteps                 string
 	PostSteps                   string // steps to run after AI execution
 	RunsOn                      string
+	RunsOnSlim                  string // runner override for all framework/generated jobs (activation, safe-outputs, unlock, etc.)
 	Environment                 string // environment setting for the main job
 	Container                   string // container setting for the main job
 	Services                    string // services setting for the main job

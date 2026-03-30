@@ -68,6 +68,22 @@ func FormatImportCycleError(err *ImportCycleError) error {
 	return fmt.Errorf("%s", messageBuilder.String())
 }
 
+// FormattedParserError is a sentinel error type returned by FormatImportError (and similar
+// parser-level formatters) to signal that the error message is already console-formatted
+// with source location.  Callers that detect this type must NOT re-wrap it, otherwise the
+// user would see a double-formatted error message (e.g. one location at "engine:" wrapping
+// another at the actual import line).
+//
+// This type is intentionally exported so that the workflow package's isFormattedCompilerError
+// helper can detect it via errors.As without creating a circular import.
+type FormattedParserError struct {
+	formatted string // The complete console-formatted error string ready for display.
+	cause     error  // The underlying error (e.g. ImportError.Cause) for errors.Is/As traversal.
+}
+
+func (e *FormattedParserError) Error() string { return e.formatted }
+func (e *FormattedParserError) Unwrap() error { return e.cause }
+
 // FormatImportError formats an import error as a compilation error with source location
 func FormatImportError(err *ImportError, yamlContent string) error {
 	importErrorLog.Printf("Formatting import error: path=%s, file=%s, line=%d", err.ImportPath, err.FilePath, err.Line)
@@ -114,7 +130,9 @@ func FormatImportError(err *ImportError, yamlContent string) error {
 	}
 
 	formattedErr := console.FormatError(compilerErr)
-	return fmt.Errorf("%s", formattedErr)
+	// Return a FormattedParserError so callers can detect that this error is already
+	// console-formatted and must not be re-wrapped with additional location context.
+	return &FormattedParserError{formatted: formattedErr, cause: err.Cause}
 }
 
 // findImportsFieldLocation finds the line and column number of the imports field in YAML content

@@ -350,10 +350,15 @@ jobs:
       - name: Cache cache-memory file share data
         uses: actions/cache@668228422ae6a00e4ad889ee87cd7109ec5666a7 # v5.0.4
         with:
-          key: spam-tracking-${{ github.repository_owner }}-${{ github.run_id }}
+          key: memory-none-nopolicy-spam-tracking-${{ github.repository_owner }}-${{ github.run_id }}
           path: /tmp/gh-aw/cache-memory
           restore-keys: |
-            spam-tracking-${{ github.repository_owner }}-
+            memory-none-nopolicy-spam-tracking-${{ github.repository_owner }}-
+      - name: Set up cache-memory git repository
+        env:
+          GH_AW_CACHE_DIR: /tmp/gh-aw/cache-memory
+          GH_AW_MIN_INTEGRITY: none
+        run: bash ${RUNNER_TEMP}/gh-aw/actions/setup_cache_memory_git.sh
       - name: Checkout PR branch
         id: checkout-pr
         if: |
@@ -773,6 +778,11 @@ jobs:
           if [ ! -f /tmp/gh-aw/agent_output.json ]; then
             echo '{"items":[]}' > /tmp/gh-aw/agent_output.json
           fi
+      - name: Commit cache-memory changes
+        if: always()
+        env:
+          GH_AW_CACHE_DIR: /tmp/gh-aw/cache-memory
+        run: bash ${RUNNER_TEMP}/gh-aw/actions/commit_cache_memory_git.sh
       - name: Validate cache-memory file types
         if: always()
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8

@@ -118,6 +118,7 @@ func renderStandardJSONMCPConfig(
 // The returned function accepts isLast as a parameter and creates a renderer with engine-specific
 // options derived from the provided parameters and workflowData at call time.
 func buildMCPRendererFactory(workflowData *WorkflowData, format string, includeCopilotFields, inlineArgs bool) func(bool) *MCPConfigRendererUnified {
+	mcpRenderingLog.Printf("Building MCP renderer factory: format=%s, copilotFields=%t, inlineArgs=%t", format, includeCopilotFields, inlineArgs)
 	return func(isLast bool) *MCPConfigRendererUnified {
 		return NewMCPConfigRenderer(MCPRendererOptions{
 			IncludeCopilotFields:   includeCopilotFields,
@@ -133,7 +134,7 @@ func buildMCPRendererFactory(workflowData *WorkflowData, format string, includeC
 // buildStandardJSONMCPRenderers constructs MCPToolRenderers with the standard rendering callbacks
 // shared across JSON-format engines (Claude, Gemini, Copilot, Codex gateway).
 //
-// All eight standard tool callbacks (GitHub, Playwright, Serena, CacheMemory, AgenticWorkflows,
+// All standard tool callbacks (GitHub, Playwright, CacheMemory, AgenticWorkflows,
 // SafeOutputs, MCPScripts, WebFetch) are wired to the corresponding unified renderer methods
 // via createRenderer. Cache-memory is always a no-op for these engines.
 //
@@ -147,6 +148,7 @@ func buildStandardJSONMCPRenderers(
 	webFetchIncludeTools bool,
 	renderCustom RenderCustomMCPToolConfigHandler,
 ) MCPToolRenderers {
+	mcpRenderingLog.Printf("Building standard JSON MCP renderers: webFetchIncludeTools=%t", webFetchIncludeTools)
 	return MCPToolRenderers{
 		RenderGitHub: func(yaml *strings.Builder, githubTool any, isLast bool, workflowData *WorkflowData) {
 			createRenderer(isLast).RenderGitHubMCP(yaml, githubTool, workflowData)
@@ -156,9 +158,6 @@ func buildStandardJSONMCPRenderers(
 		},
 		RenderQmd: func(yaml *strings.Builder, qmdTool any, isLast bool, workflowData *WorkflowData) {
 			createRenderer(isLast).RenderQmdMCP(yaml, qmdTool, workflowData)
-		},
-		RenderSerena: func(yaml *strings.Builder, serenaTool any, isLast bool) {
-			createRenderer(isLast).RenderSerenaMCP(yaml, serenaTool)
 		},
 		RenderCacheMemory: noOpCacheMemoryRenderer,
 		RenderAgenticWorkflows: func(yaml *strings.Builder, isLast bool) {

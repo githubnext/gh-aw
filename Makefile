@@ -485,7 +485,7 @@ patch-github-actions-schema:
 golint:
 	@GOPATH=$$(go env GOPATH); \
 	if command -v golangci-lint >/dev/null 2>&1 || [ -x "$$GOPATH/bin/golangci-lint" ]; then \
-		PATH="$$GOPATH/bin:$$PATH" golangci-lint run; \
+		PATH="$$GOPATH/bin:$$PATH" golangci-lint run ./cmd/... ./pkg/...; \
 	else \
 		echo "golangci-lint is not installed. Run 'make deps-dev' to install dependencies."; \
 		exit 1; \
@@ -510,7 +510,7 @@ golint-incremental:
 	fi
 	@echo "Running incremental lint against $(BASE_REF)..."
 	@GOPATH=$$(go env GOPATH); \
-	PATH="$$GOPATH/bin:$$PATH" golangci-lint run --new-from-rev=$(BASE_REF)
+	PATH="$$GOPATH/bin:$$PATH" golangci-lint run --new-from-rev=$(BASE_REF) ./cmd/... ./pkg/...
 
 # Validate compiled workflow lock files using Docker-based actionlint
 # Uses the same Docker integration as 'make actionlint'

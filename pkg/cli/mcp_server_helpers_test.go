@@ -109,8 +109,8 @@ func TestHasWriteAccess(t *testing.T) {
 
 func TestValidateWorkflowName_Empty(t *testing.T) {
 	// Empty workflow name is always valid (means "all workflows")
-	if err := validateWorkflowName(""); err != nil {
-		t.Errorf("validateWorkflowName(\"\") returned error: %v", err)
+	if err := validateMCPWorkflowName(""); err != nil {
+		t.Errorf("validateMCPWorkflowName(\"\") returned error: %v", err)
 	}
 }
 

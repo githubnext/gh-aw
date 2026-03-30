@@ -176,6 +176,7 @@ type FrontmatterConfig struct {
 
 	// Workflow execution settings
 	RunsOn      string         `json:"runs-on,omitempty"`
+	RunsOnSlim  string         `json:"runs-on-slim,omitempty"` // Runner for all framework/generated jobs (activation, safe-outputs, unlock, etc.)
 	RunName     string         `json:"run-name,omitempty"`
 	Steps       []any          `json:"steps,omitempty"`       // Custom workflow steps
 	PostSteps   []any          `json:"post-steps,omitempty"`  // Post-workflow steps
@@ -633,6 +634,9 @@ func (fc *FrontmatterConfig) ToMap() map[string]any {
 	// Execution settings
 	if fc.RunsOn != "" {
 		result["runs-on"] = fc.RunsOn
+	}
+	if fc.RunsOnSlim != "" {
+		result["runs-on-slim"] = fc.RunsOnSlim
 	}
 	if fc.RunName != "" {
 		result["run-name"] = fc.RunName

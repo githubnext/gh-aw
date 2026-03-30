@@ -226,10 +226,40 @@ The agent uses read-only tools to query, then calls the safe-job which executes 
 | `inputs` | object | Yes | Tool parameters (see [Input Types](#input-types)) |
 | `steps` | array | Yes | GitHub Actions steps to execute |
 | `output` | string | No | Success message returned to the agent |
+| `needs` | string or array | No | Jobs that must complete before this job runs (see [Job Ordering](#job-ordering-needs)) |
 | `permissions` | object | No | GitHub token permissions for the job |
 | `env` | object | No | Environment variables for all steps |
 | `if` | string | No | Conditional execution expression |
 | `timeout-minutes` | number | No | Maximum job duration (GitHub Actions default: 360) |
+
+### Job Ordering (`needs:`)
+
+Use `needs:` to sequence a custom safe-output job relative to other jobs in the compiled workflow. Unlike manually patching `needs:` in the lock file (which gets overwritten on every recompile), `needs:` declared in the frontmatter persists across recompiles.
+
+```yaml wrap
+safe-outputs:
+  create-issue: {}
+  jobs:
+    post-process:
+      needs: safe_outputs        # runs after the consolidated safe-outputs job
+      steps:
+        - run: echo "post-processing"
+```
+
+The compiler validates each `needs:` entry at compile time and fails with a clear error if the target does not exist. Target names with dashes are automatically normalized to underscores (e.g., `safe-outputs` → `safe_outputs`).
+
+Valid `needs:` targets for custom safe-jobs:
+
+| Target | Available when |
+|--------|---------------|
+| `agent` | Always |
+| `safe_outputs` | At least one builtin handler, script, action, or user step is configured |
+| `detection` | Threat detection is enabled |
+| `upload_assets` | `upload-asset` is configured |
+| `unlock` | `lock-for-agent` is enabled |
+| `<job-name>` | That job exists in `safe-outputs.jobs` |
+
+Self-dependencies and cycles between custom jobs are also caught at compile time.
 
 ### Input Types
 

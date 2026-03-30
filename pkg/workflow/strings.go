@@ -16,7 +16,7 @@
 //   - SanitizeWorkflowIDForCacheKey: Sanitizes workflow ID for use in cache keys (removes hyphens)
 //   - sanitizeJobName: Sanitizes workflow name to a valid GitHub Actions job name
 //   - sanitizeRefForPath: Sanitizes a git ref for use in a file path
-//   - SanitizeIdentifier (workflow_name.go): Creates clean identifiers for user agents
+//   - SanitizeIdentifier: Creates clean identifiers for user agents
 //
 // Example:
 //
@@ -389,6 +389,47 @@ func sanitizeRefForPath(ref string) string {
 	sanitized = strings.ReplaceAll(sanitized, ":", "-")
 	sanitized = strings.ReplaceAll(sanitized, "\\", "-")
 	return sanitized
+}
+
+// SanitizeIdentifier sanitizes a workflow name to create a safe identifier
+// suitable for use as a user agent string or similar context.
+//
+// This is a SANITIZE function (character validity pattern). Use this when creating
+// identifiers that must be purely alphanumeric with hyphens, with no special characters
+// preserved. Unlike SanitizeWorkflowName which preserves dots and underscores, this
+// function removes ALL special characters except hyphens.
+//
+// The function:
+//   - Converts to lowercase
+//   - Replaces spaces and underscores with hyphens
+//   - Removes non-alphanumeric characters (except hyphens)
+//   - Consolidates multiple hyphens into a single hyphen
+//   - Trims leading and trailing hyphens
+//   - Returns "github-agentic-workflow" if the result would be empty
+//
+// Example inputs and outputs:
+//
+//	SanitizeIdentifier("My Workflow")         // returns "my-workflow"
+//	SanitizeIdentifier("test_workflow")       // returns "test-workflow"
+//	SanitizeIdentifier("@@@")                 // returns "github-agentic-workflow" (default)
+//	SanitizeIdentifier("Weekly v2.0")         // returns "weekly-v2-0"
+//
+// This function uses the unified SanitizeName function with options configured
+// to trim leading/trailing hyphens and return a default value for empty results.
+// Hyphens are preserved by default in SanitizeName, not via PreserveSpecialChars.
+//
+// See package documentation for guidance on when to use sanitize vs normalize patterns.
+func SanitizeIdentifier(name string) string {
+	stringsLog.Printf("Sanitizing identifier: %s", name)
+	result := SanitizeName(name, &SanitizeOptions{
+		PreserveSpecialChars: []rune{},
+		TrimHyphens:          true,
+		DefaultValue:         "github-agentic-workflow",
+	})
+	if result != name {
+		stringsLog.Printf("Sanitized identifier: %s -> %s", name, result)
+	}
+	return result
 }
 
 // formatList formats a list of strings as a comma-separated list with natural language conjunction

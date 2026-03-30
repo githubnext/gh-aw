@@ -82,7 +82,7 @@ func (c *Compiler) buildAPMJob(data *WorkflowData) (*Job, error) {
 
 	job := &Job{
 		Name:        string(constants.APMJobName),
-		RunsOn:      c.formatSafeOutputsRunsOn(data.SafeOutputs),
+		RunsOn:      c.formatFrameworkJobRunsOn(data),
 		Permissions: c.indentYAMLLines(permissions, "    "),
 		Env:         env,
 		Steps:       steps,

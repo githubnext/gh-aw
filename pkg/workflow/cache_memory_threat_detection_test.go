@@ -44,7 +44,7 @@ Test workflow with cache-memory and threat detection enabled.`,
 				// In agent job, should use actions/cache/restore instead of actions/cache
 				"- name: Restore cache-memory file share data",
 				"uses: actions/cache/restore@",
-				"key: memory-${{ env.GH_AW_WORKFLOW_ID_SANITIZED }}-${{ github.run_id }}",
+				"key: memory-none-nopolicy-${{ env.GH_AW_WORKFLOW_ID_SANITIZED }}-${{ github.run_id }}",
 				// Should upload artifact with if: always()
 				"- name: Upload cache-memory data as artifact",
 				"uses: actions/upload-artifact@",
@@ -84,7 +84,7 @@ Test workflow with cache-memory but no threat detection.`,
 				// Without threat detection, should use regular actions/cache
 				"- name: Cache cache-memory file share data",
 				"uses: actions/cache@",
-				"key: memory-${{ env.GH_AW_WORKFLOW_ID_SANITIZED }}-${{ github.run_id }}",
+				"key: memory-none-nopolicy-${{ env.GH_AW_WORKFLOW_ID_SANITIZED }}-${{ github.run_id }}",
 			},
 			notExpectedInLock: []string{
 				// Should NOT upload artifact when detection is disabled
@@ -123,9 +123,9 @@ Test workflow with multiple cache-memory and threat detection enabled.`,
 				// Both caches should use restore
 				"- name: Restore cache-memory file share data (default)",
 				"uses: actions/cache/restore@",
-				"key: memory-default-${{ github.run_id }}",
+				"key: memory-none-nopolicy-memory-default-${{ github.run_id }}",
 				"- name: Restore cache-memory file share data (session)",
-				"key: memory-session-${{ github.run_id }}",
+				"key: memory-none-nopolicy-memory-session-${{ github.run_id }}",
 				// Should upload both artifacts with if: always()
 				"- name: Upload cache-memory data as artifact (default)",
 				"if: always()",

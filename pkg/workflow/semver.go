@@ -1,48 +1,23 @@
 package workflow
 
 import (
-	"regexp"
-	"strings"
-
 	"github.com/github/gh-aw/pkg/logger"
-	"golang.org/x/mod/semver"
+	"github.com/github/gh-aw/pkg/semverutil"
 )
-
-// versionTagRegex matches version tags: vmajor, vmajor.minor, or vmajor.minor.patch
-var versionTagRegex = regexp.MustCompile(`^v[0-9]+(\.[0-9]+(\.[0-9]+)?)?$`)
 
 var semverLog = logger.New("workflow:semver")
 
 // isValidVersionTag checks if a string is a valid action version tag.
 // Supports vmajor, vmajor.minor, and vmajor.minor.patch formats only.
 func isValidVersionTag(s string) bool {
-	return versionTagRegex.MatchString(s)
+	return semverutil.IsActionVersionTag(s)
 }
 
 // compareVersions compares two semantic versions, returns 1 if v1 > v2, -1 if v1 < v2, 0 if equal
 // Uses golang.org/x/mod/semver for proper semantic version comparison
 func compareVersions(v1, v2 string) int {
 	semverLog.Printf("Comparing versions: v1=%s, v2=%s", v1, v2)
-
-	// Ensure versions have 'v' prefix for semver package
-	if !strings.HasPrefix(v1, "v") {
-		v1 = "v" + v1
-	}
-	if !strings.HasPrefix(v2, "v") {
-		v2 = "v" + v2
-	}
-
-	result := semver.Compare(v1, v2)
-
-	if result > 0 {
-		semverLog.Printf("Version comparison result: %s > %s", v1, v2)
-	} else if result < 0 {
-		semverLog.Printf("Version comparison result: %s < %s", v1, v2)
-	} else {
-		semverLog.Printf("Version comparison result: %s == %s", v1, v2)
-	}
-
-	return result
+	return semverutil.Compare(v1, v2)
 }
 
 // isSemverCompatible checks if pinVersion is semver-compatible with requestedVersion
@@ -52,21 +27,5 @@ func compareVersions(v1, v2 string) int {
 //   - isSemverCompatible("v5.1.0", "v5.0.0") -> true
 //   - isSemverCompatible("v6.0.0", "v5") -> false
 func isSemverCompatible(pinVersion, requestedVersion string) bool {
-	// Ensure versions have 'v' prefix for semver package
-	if !strings.HasPrefix(pinVersion, "v") {
-		pinVersion = "v" + pinVersion
-	}
-	if !strings.HasPrefix(requestedVersion, "v") {
-		requestedVersion = "v" + requestedVersion
-	}
-
-	// Use semver.Major to get major version strings
-	pinMajor := semver.Major(pinVersion)
-	requestedMajor := semver.Major(requestedVersion)
-
-	compatible := pinMajor == requestedMajor
-	semverLog.Printf("Checking semver compatibility: pin=%s (major=%s), requested=%s (major=%s) -> %v",
-		pinVersion, pinMajor, requestedVersion, requestedMajor, compatible)
-
-	return compatible
+	return semverutil.IsCompatible(pinVersion, requestedVersion)
 }

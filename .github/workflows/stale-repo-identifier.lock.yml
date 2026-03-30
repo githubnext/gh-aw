@@ -337,15 +337,6 @@ jobs:
         run: bash ${RUNNER_TEMP}/gh-aw/actions/configure_gh_for_ghe.sh
         env:
           GH_TOKEN: ${{ github.token }}
-      - name: Start DIFC proxy for pre-agent gh calls
-        env:
-          GH_TOKEN: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
-          GITHUB_SERVER_URL: ${{ github.server_url }}
-        run: |
-          bash ${RUNNER_TEMP}/gh-aw/actions/start_difc_proxy.sh '{"allow-only":{"min-integrity":"approved","repos":"all"}}' 'ghcr.io/github/gh-aw-mcpg:v0.2.8'
-      - name: Set GH_REPO for proxied steps
-        run: |
-          echo "GH_REPO=${GITHUB_REPOSITORY}" >> "$GITHUB_ENV"
       - name: Setup Python environment
         run: "# Create working directory for Python scripts\nmkdir -p /tmp/gh-aw/python\nmkdir -p /tmp/gh-aw/python/data\nmkdir -p /tmp/gh-aw/python/charts\nmkdir -p /tmp/gh-aw/python/artifacts\n\necho \"Python environment setup complete\"\necho \"Working directory: /tmp/gh-aw/python\"\necho \"Data directory: /tmp/gh-aw/python/data\"\necho \"Charts directory: /tmp/gh-aw/python/charts\"\necho \"Artifacts directory: /tmp/gh-aw/python/artifacts\"\n"
       - name: Install Python scientific libraries
@@ -411,10 +402,15 @@ jobs:
       - name: Restore cache-memory file share data
         uses: actions/cache/restore@668228422ae6a00e4ad889ee87cd7109ec5666a7 # v5.0.4
         with:
-          key: trending-data-${{ github.workflow }}-${{ github.run_id }}
+          key: memory-approved-0072b676-trending-data-${{ github.workflow }}-${{ github.run_id }}
           path: /tmp/gh-aw/cache-memory
           restore-keys: |
-            trending-data-${{ github.workflow }}-
+            memory-approved-0072b676-trending-data-${{ github.workflow }}-
+      - name: Set up cache-memory git repository
+        env:
+          GH_AW_CACHE_DIR: /tmp/gh-aw/cache-memory
+          GH_AW_MIN_INTEGRITY: approved
+        run: bash ${RUNNER_TEMP}/gh-aw/actions/setup_cache_memory_git.sh
       - name: Configure Git credentials
         env:
           REPO_NAME: ${{ github.repository }}
@@ -451,10 +447,6 @@ jobs:
           GH_AW_BLOCKED_USERS_VAR: ${{ vars.GH_AW_GITHUB_BLOCKED_USERS || '' }}
           GH_AW_APPROVAL_LABELS_VAR: ${{ vars.GH_AW_GITHUB_APPROVAL_LABELS || '' }}
         run: bash ${RUNNER_TEMP}/gh-aw/actions/parse_guard_list.sh
-      - name: Stop DIFC proxy
-        if: always()
-        continue-on-error: true
-        run: bash ${RUNNER_TEMP}/gh-aw/actions/stop_difc_proxy.sh
       - name: Download container images
         run: bash ${RUNNER_TEMP}/gh-aw/actions/download_docker_images.sh ghcr.io/github/gh-aw-firewall/agent:0.25.3 ghcr.io/github/gh-aw-firewall/api-proxy:0.25.3 ghcr.io/github/gh-aw-firewall/squid:0.25.3 ghcr.io/github/gh-aw-mcpg:v0.2.8 ghcr.io/github/github-mcp-server:v0.32.0 node:lts-alpine
       - name: Write Safe Outputs Config
@@ -859,6 +851,11 @@ jobs:
           if [ ! -f /tmp/gh-aw/agent_output.json ]; then
             echo '{"items":[]}' > /tmp/gh-aw/agent_output.json
           fi
+      - name: Commit cache-memory changes
+        if: always()
+        env:
+          GH_AW_CACHE_DIR: /tmp/gh-aw/cache-memory
+        run: bash ${RUNNER_TEMP}/gh-aw/actions/commit_cache_memory_git.sh
       - name: Upload cache-memory data as artifact
         uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7
         if: always()
@@ -885,8 +882,6 @@ jobs:
             /tmp/gh-aw/sandbox/agent/logs/
             /tmp/gh-aw/redacted-urls.log
             /tmp/gh-aw/mcp-logs/
-            /tmp/gh-aw/proxy-logs/
-            !/tmp/gh-aw/proxy-logs/proxy-tls/
             /tmp/gh-aw/agent-stdio.log
             /tmp/gh-aw/agent/
             /tmp/gh-aw/safeoutputs.jsonl
@@ -1257,7 +1252,7 @@ jobs:
       - agent
       - detection
     if: always() && (needs.detection.result == 'success' || needs.detection.result == 'skipped')
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-slim
     permissions:
       contents: read
     env:
@@ -1294,7 +1289,7 @@ jobs:
         if: steps.check_cache_default.outputs.has_content == 'true'
         uses: actions/cache/save@668228422ae6a00e4ad889ee87cd7109ec5666a7 # v5.0.4
         with:
-          key: trending-data-${{ github.workflow }}-${{ github.run_id }}
+          key: memory-approved-0072b676-trending-data-${{ github.workflow }}-${{ github.run_id }}
           path: /tmp/gh-aw/cache-memory
 
   upload_assets:
