@@ -293,9 +293,9 @@ mcp-servers:
 	assert.Contains(t, lock, "id-token: write", "Should still inject id-token: write")
 }
 
-// TestCustomMCPServerOIDCAuthNoNoMintStep verifies that OIDC auth does NOT generate a token-mint step
+// TestCustomMCPServerOIDCAuthNoMintStep verifies that OIDC auth does NOT generate a token-mint step
 // (the gateway handles token acquisition itself).
-func TestCustomMCPServerOIDCAuthNoNoMintStep(t *testing.T) {
+func TestCustomMCPServerOIDCAuthNoMintStep(t *testing.T) {
 	markdown := `---
 on: issues
 permissions:

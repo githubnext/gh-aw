@@ -733,7 +733,9 @@ func getMCPConfig(toolConfig map[string]any, toolName string) (*parser.MCPServer
 				}
 			}
 		}
-		// Validate: github-app and auth are mutually exclusive
+		// Go-level mutual exclusion check: also validated by JSON schema, but the schema
+		// produces a generic "Unknown properties" message; this gives a clearer error and
+		// protects non-schema validation paths (e.g., direct WorkflowData construction in tests).
 		hasGitHubApp := toolConfig["github-app"] != nil
 		hasAuth := result.Auth != nil
 		if hasGitHubApp && hasAuth {

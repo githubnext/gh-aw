@@ -174,8 +174,9 @@ func collectMCPEnvironmentVariables(tools map[string]any, mcpTools []string, wor
 
 			// For HTTP servers: handle auth and github-app env vars
 			if mcpConfig.Type == "http" {
-				// github-app: export the minted token so the gateway Authorization header can resolve it
-				if parseCustomMCPGitHubApp(toolConfig) != nil {
+				// github-app: export the minted token so the gateway Authorization header can resolve it.
+				// Parse once and reuse the result to avoid redundant map traversal.
+				if app := parseCustomMCPGitHubApp(toolConfig); app != nil {
 					envVar := customMCPServerAppTokenEnvVar(toolName)
 					stepID := customMCPServerAppTokenStepID(toolName)
 					mcpEnvironmentLog.Printf("Adding GitHub App token env var for custom MCP server '%s': %s", toolName, envVar)
