@@ -6,7 +6,7 @@
  *
  * This script:
  * 1. Reads the compiled version from GH_AW_COMPILED_VERSION env var.
- * 2. Fetches config.json from the gh-aw repository via raw.githubusercontent.com.
+ * 2. Fetches .github/aw/config.json from the gh-aw repository via raw.githubusercontent.com.
  * 3. If the download fails, the check is skipped (soft failure).
  * 4. Validates that the compiled version is not in the blocked list.
  * 5. Validates that the compiled version meets the minimum supported version.
@@ -16,7 +16,7 @@
 
 const https = require("https");
 
-const CONFIG_URL = "https://raw.githubusercontent.com/github/gh-aw/main/config.json";
+const CONFIG_URL = "https://raw.githubusercontent.com/github/gh-aw/main/.github/aw/config.json";
 
 /**
  * Normalize a version string by stripping the leading "v" prefix if present.

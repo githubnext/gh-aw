@@ -11,7 +11,7 @@ on:
       - 'actions/**'
       - '.github/workflows/ci.yml'
       - '.github/workflows/**/*.md'
-      - 'config.json'
+      - '.github/aw/config.json'
       - 'config.schema.json'
   workflow_dispatch:
 jobs:
@@ -840,9 +840,9 @@ jobs:
 
       - name: Validate config.json against JSON schema
         run: |
-          echo "🔍 Validating config.json against config.schema.json..."
+          echo "🔍 Validating .github/aw/config.json against config.schema.json..."
           
-          CONFIG_FILE="config.json"
+          CONFIG_FILE=".github/aw/config.json"
           SCHEMA_FILE="config.schema.json"
           
           if [ ! -f "$CONFIG_FILE" ]; then
@@ -868,7 +868,7 @@ jobs:
 import json
 import sys
 
-with open("config.json") as f:
+with open(".github/aw/config.json") as f:
     config = json.load(f)
 
 with open("config.schema.json") as f:
@@ -911,12 +911,12 @@ if "minimumVersion" in config:
         errors.append(f"'minimumVersion' ('{mv}') does not match expected version pattern (e.g. 'v1.2.3' or empty string)")
 
 if errors:
-    print("❌ config.json schema validation failed:")
+    print("❌ .github/aw/config.json schema validation failed:")
     for err in errors:
         print(f"  - {err}")
     sys.exit(1)
 
-print("✅ config.json is valid and conforms to config.schema.json")
+print("✅ .github/aw/config.json is valid and conforms to config.schema.json")
 PYEOF
 
   js:
