@@ -3012,7 +3012,7 @@ jobs:
           # This is the "local proxy" referenced in the repro scenario for issue #23461:
           # a server IS running on the proxy host, but git remotes still point to the real
           # GitHub host, causing `gh pr checkout` to fail.
-          python3 -m http.server 19443 --directory /tmp >/tmp/local-proxy.log 2>&1 &
+          python3 -m http.server 19443 --bind 127.0.0.1 --directory /tmp >/tmp/local-proxy.log 2>&1 &
           echo "LOCAL_PROXY_PID=$!" >> "$GITHUB_ENV"
           sleep 1
           echo "Local proxy started on port 19443 (simulating a DIFC-style proxy)"
@@ -3059,8 +3059,9 @@ jobs:
             echo "✅ Issue #23461 reproduced: GH_HOST mismatch causes gh pr checkout to fail"
             echo "   Error: ${error_output}"
           else
-            echo "✅ gh pr checkout failed as expected (different error, proxy host rejected)"
-            echo "   Error: ${error_output}"
+            echo "❌ gh pr checkout failed, but not with the expected GH_HOST/git remote mismatch error"
+            echo "   Unexpected error output: ${error_output}"
+            exit 1
           fi
 
       - name: Stop local proxy
