@@ -19,6 +19,17 @@ const https = require("https");
 const CONFIG_URL = "https://raw.githubusercontent.com/github/gh-aw/main/config.json";
 
 /**
+ * Normalize a version string by stripping the leading "v" prefix if present.
+ * This ensures "v1.0.0" and "1.0.0" are treated as equivalent.
+ *
+ * @param {string} version
+ * @returns {string}
+ */
+function normalizeVersion(version) {
+  return version.startsWith("v") ? version.slice(1) : version;
+}
+
+/**
  * Parse a semver-like version string into an array of numeric parts.
  * Strips a leading "v" if present.
  * Returns null if the string is not a valid version.
@@ -114,8 +125,9 @@ async function main() {
   const blockedVersions = Array.isArray(config.blockedVersions) ? config.blockedVersions : [];
   const minimumVersion = typeof config.minimumVersion === "string" ? config.minimumVersion : "";
 
-  // Check blocked versions
-  if (blockedVersions.includes(compiledVersion)) {
+  // Check blocked versions (normalize both sides to ignore leading "v" prefix)
+  const normalizedCompiled = normalizeVersion(compiledVersion);
+  if (blockedVersions.some(v => normalizeVersion(v) === normalizedCompiled)) {
     core.summary
       .addRaw("### ❌ Blocked compile-agentic version\n\n")
       .addRaw(`The compile-agentic version \`${compiledVersion}\` is **blocked** and cannot be used to run workflows.\n\n`)

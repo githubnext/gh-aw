@@ -170,12 +170,20 @@ describe("check_version_updates", () => {
     expect(mockCore.setFailed).not.toHaveBeenCalled();
   });
 
-  it("should handle version strings without leading 'v'", async () => {
+  it("should block version when config uses version without 'v' prefix", async () => {
     process.env.GH_AW_COMPILED_VERSION = "v1.0.0";
     mockHttpsSuccess(JSON.stringify({ blockedVersions: ["1.0.0"], minimumVersion: "" }));
-    // "v1.0.0" is NOT in ["1.0.0"] because includes() uses exact string match
+    // "v1.0.0" should be blocked by "1.0.0" after normalization
     await checkVersionUpdates.main();
-    expect(mockCore.setFailed).not.toHaveBeenCalled();
+    expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("Blocked compile-agentic version"));
+  });
+
+  it("should block version regardless of 'v' prefix in compiled version", async () => {
+    process.env.GH_AW_COMPILED_VERSION = "1.0.0";
+    mockHttpsSuccess(JSON.stringify({ blockedVersions: ["v1.0.0"], minimumVersion: "" }));
+    // "1.0.0" should be blocked by "v1.0.0" after normalization
+    await checkVersionUpdates.main();
+    expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("Blocked compile-agentic version"));
   });
 
   it("should fail when version is blocked with exact string match", async () => {
