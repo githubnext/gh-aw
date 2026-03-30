@@ -26,7 +26,7 @@
 #   Imports:
 #     - shared/go-make.md
 #
-# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"23349ed9cc27c80f8c17f926bb421a4f6d870aee7e26d16ed979d017c018c103","strict":true,"agent_id":"claude"}
+# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"4701538e32cbe3a56742cfc4d67a420e9c704076476b5ad9b212c6e46b0b645a","strict":true,"agent_id":"claude"}
 
 name: "Go Logger Enhancement"
 "on":
@@ -137,20 +137,20 @@ jobs:
         run: |
           bash ${RUNNER_TEMP}/gh-aw/actions/create_prompt_first.sh
           {
-          cat << 'GH_AW_PROMPT_b99fde70c7a6f3ca_EOF'
+          cat << 'GH_AW_PROMPT_6d6cb0d29893f634_EOF'
           <system>
-          GH_AW_PROMPT_b99fde70c7a6f3ca_EOF
+          GH_AW_PROMPT_6d6cb0d29893f634_EOF
           cat "${RUNNER_TEMP}/gh-aw/prompts/xpia.md"
           cat "${RUNNER_TEMP}/gh-aw/prompts/temp_folder_prompt.md"
           cat "${RUNNER_TEMP}/gh-aw/prompts/markdown.md"
           cat "${RUNNER_TEMP}/gh-aw/prompts/cache_memory_prompt.md"
           cat "${RUNNER_TEMP}/gh-aw/prompts/safe_outputs_prompt.md"
-          cat << 'GH_AW_PROMPT_b99fde70c7a6f3ca_EOF'
+          cat << 'GH_AW_PROMPT_6d6cb0d29893f634_EOF'
           <safe-output-tools>
           Tools: create_pull_request, missing_tool, missing_data, noop
-          GH_AW_PROMPT_b99fde70c7a6f3ca_EOF
+          GH_AW_PROMPT_6d6cb0d29893f634_EOF
           cat "${RUNNER_TEMP}/gh-aw/prompts/safe_outputs_create_pull_request.md"
-          cat << 'GH_AW_PROMPT_b99fde70c7a6f3ca_EOF'
+          cat << 'GH_AW_PROMPT_6d6cb0d29893f634_EOF'
           </safe-output-tools>
           <github-context>
           The following GitHub context information is available for this workflow:
@@ -180,13 +180,13 @@ jobs:
           {{/if}}
           </github-context>
           
-          GH_AW_PROMPT_b99fde70c7a6f3ca_EOF
+          GH_AW_PROMPT_6d6cb0d29893f634_EOF
           cat "${RUNNER_TEMP}/gh-aw/prompts/github_mcp_tools_with_safeoutputs_prompt.md"
-          cat << 'GH_AW_PROMPT_b99fde70c7a6f3ca_EOF'
+          cat << 'GH_AW_PROMPT_6d6cb0d29893f634_EOF'
           </system>
           {{#runtime-import .github/workflows/shared/go-make.md}}
           {{#runtime-import .github/workflows/go-logger.md}}
-          GH_AW_PROMPT_b99fde70c7a6f3ca_EOF
+          GH_AW_PROMPT_6d6cb0d29893f634_EOF
           } > "$GH_AW_PROMPT"
       - name: Interpolate variables and render templates
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
@@ -315,7 +315,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
       - name: Setup Go
-        uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417 # v6.3.0
+        uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6.4.0
         with:
           cache: true
           go-version-file: go.mod
@@ -390,12 +390,12 @@ jobs:
           mkdir -p ${RUNNER_TEMP}/gh-aw/safeoutputs
           mkdir -p /tmp/gh-aw/safeoutputs
           mkdir -p /tmp/gh-aw/mcp-logs/safeoutputs
-          cat > ${RUNNER_TEMP}/gh-aw/safeoutputs/config.json << 'GH_AW_SAFE_OUTPUTS_CONFIG_f1ed2bf26fbd5853_EOF'
+          cat > ${RUNNER_TEMP}/gh-aw/safeoutputs/config.json << 'GH_AW_SAFE_OUTPUTS_CONFIG_c10590b46cfe91a6_EOF'
           {"create_pull_request":{"draft":false,"expires":48,"labels":["enhancement","automation"],"max":1,"max_patch_size":1024,"protected_files":["package.json","bun.lockb","bunfig.toml","deno.json","deno.jsonc","deno.lock","global.json","NuGet.Config","Directory.Packages.props","mix.exs","mix.lock","go.mod","go.sum","stack.yaml","stack.yaml.lock","pom.xml","build.gradle","build.gradle.kts","settings.gradle","settings.gradle.kts","gradle.properties","package-lock.json","yarn.lock","pnpm-lock.yaml","npm-shrinkwrap.json","requirements.txt","Pipfile","Pipfile.lock","pyproject.toml","setup.py","setup.cfg","Gemfile","Gemfile.lock","uv.lock","CODEOWNERS"],"protected_path_prefixes":[".github/",".agents/"],"title_prefix":"[log] "},"missing_data":{},"missing_tool":{},"noop":{"max":1,"report-as-issue":"true"}}
-          GH_AW_SAFE_OUTPUTS_CONFIG_f1ed2bf26fbd5853_EOF
+          GH_AW_SAFE_OUTPUTS_CONFIG_c10590b46cfe91a6_EOF
       - name: Write Safe Outputs Tools
         run: |
-          cat > ${RUNNER_TEMP}/gh-aw/safeoutputs/tools_meta.json << 'GH_AW_SAFE_OUTPUTS_TOOLS_META_40a8e758ce407bc2_EOF'
+          cat > ${RUNNER_TEMP}/gh-aw/safeoutputs/tools_meta.json << 'GH_AW_SAFE_OUTPUTS_TOOLS_META_f5f25925d4e82da5_EOF'
           {
             "description_suffixes": {
               "create_pull_request": " CONSTRAINTS: Maximum 1 pull request(s) can be created. Title will be prefixed with \"[log] \". Labels [\"enhancement\" \"automation\"] will be automatically added."
@@ -403,8 +403,8 @@ jobs:
             "repo_params": {},
             "dynamic_tools": []
           }
-          GH_AW_SAFE_OUTPUTS_TOOLS_META_40a8e758ce407bc2_EOF
-          cat > ${RUNNER_TEMP}/gh-aw/safeoutputs/validation.json << 'GH_AW_SAFE_OUTPUTS_VALIDATION_b8959098f1366d22_EOF'
+          GH_AW_SAFE_OUTPUTS_TOOLS_META_f5f25925d4e82da5_EOF
+          cat > ${RUNNER_TEMP}/gh-aw/safeoutputs/validation.json << 'GH_AW_SAFE_OUTPUTS_VALIDATION_270ea57ae35e7621_EOF'
           {
             "create_pull_request": {
               "defaultMax": 1,
@@ -500,7 +500,7 @@ jobs:
               }
             }
           }
-          GH_AW_SAFE_OUTPUTS_VALIDATION_b8959098f1366d22_EOF
+          GH_AW_SAFE_OUTPUTS_VALIDATION_270ea57ae35e7621_EOF
           node ${RUNNER_TEMP}/gh-aw/actions/generate_safe_outputs_tools.cjs
       - name: Generate Safe Outputs MCP Server Config
         id: safe-outputs-config
@@ -543,7 +543,7 @@ jobs:
       - name: Setup MCP Scripts Config
         run: |
           mkdir -p ${RUNNER_TEMP}/gh-aw/mcp-scripts/logs
-          cat > ${RUNNER_TEMP}/gh-aw/mcp-scripts/tools.json << 'GH_AW_MCP_SCRIPTS_TOOLS_b739cf5efaf36776_EOF'
+          cat > ${RUNNER_TEMP}/gh-aw/mcp-scripts/tools.json << 'GH_AW_MCP_SCRIPTS_TOOLS_d4308145d046b7ea_EOF'
           {
             "serverName": "mcpscripts",
             "version": "1.0.0",
@@ -587,8 +587,8 @@ jobs:
               }
             ]
           }
-          GH_AW_MCP_SCRIPTS_TOOLS_b739cf5efaf36776_EOF
-          cat > ${RUNNER_TEMP}/gh-aw/mcp-scripts/mcp-server.cjs << 'GH_AW_MCP_SCRIPTS_SERVER_ba93d686a9bbf4d3_EOF'
+          GH_AW_MCP_SCRIPTS_TOOLS_d4308145d046b7ea_EOF
+          cat > ${RUNNER_TEMP}/gh-aw/mcp-scripts/mcp-server.cjs << 'GH_AW_MCP_SCRIPTS_SERVER_fb68386073d403f4_EOF'
             const path = require("path");
             const { startHttpServer } = require("./mcp_scripts_mcp_server_http.cjs");
             const configPath = path.join(__dirname, "tools.json");
@@ -602,12 +602,12 @@ jobs:
               console.error("Failed to start mcp-scripts HTTP server:", error);
               process.exit(1);
             });
-          GH_AW_MCP_SCRIPTS_SERVER_ba93d686a9bbf4d3_EOF
+          GH_AW_MCP_SCRIPTS_SERVER_fb68386073d403f4_EOF
           chmod +x ${RUNNER_TEMP}/gh-aw/mcp-scripts/mcp-server.cjs
           
       - name: Setup MCP Scripts Tool Files
         run: |
-          cat > ${RUNNER_TEMP}/gh-aw/mcp-scripts/go.sh << 'GH_AW_MCP_SCRIPTS_SH_GO_43c94472356e7718_EOF'
+          cat > ${RUNNER_TEMP}/gh-aw/mcp-scripts/go.sh << 'GH_AW_MCP_SCRIPTS_SH_GO_3742041ee09eec52_EOF'
           #!/bin/bash
           # Auto-generated mcp-script tool: go
           # Execute any Go command. This tool is accessible as 'mcpscripts-go'. Provide the full command after 'go' (e.g., args: 'test ./...'). The tool will run: go <args>. Use single quotes ' for complex args to avoid shell interpretation issues.
@@ -618,9 +618,9 @@ jobs:
           go $INPUT_ARGS
           
           
-          GH_AW_MCP_SCRIPTS_SH_GO_43c94472356e7718_EOF
+          GH_AW_MCP_SCRIPTS_SH_GO_3742041ee09eec52_EOF
           chmod +x ${RUNNER_TEMP}/gh-aw/mcp-scripts/go.sh
-          cat > ${RUNNER_TEMP}/gh-aw/mcp-scripts/make.sh << 'GH_AW_MCP_SCRIPTS_SH_MAKE_13cf39e74befd08c_EOF'
+          cat > ${RUNNER_TEMP}/gh-aw/mcp-scripts/make.sh << 'GH_AW_MCP_SCRIPTS_SH_MAKE_faef7188f137a74c_EOF'
           #!/bin/bash
           # Auto-generated mcp-script tool: make
           # Execute any Make target. This tool is accessible as 'mcpscripts-make'. Provide the target name(s) (e.g., args: 'build'). The tool will run: make <args>. Use single quotes ' for complex args to avoid shell interpretation issues.
@@ -630,7 +630,7 @@ jobs:
           echo "make $INPUT_ARGS"
           make $INPUT_ARGS
           
-          GH_AW_MCP_SCRIPTS_SH_MAKE_13cf39e74befd08c_EOF
+          GH_AW_MCP_SCRIPTS_SH_MAKE_faef7188f137a74c_EOF
           chmod +x ${RUNNER_TEMP}/gh-aw/mcp-scripts/make.sh
           
       - name: Generate MCP Scripts Server Config
@@ -694,7 +694,7 @@ jobs:
           export GH_AW_ENGINE="claude"
           export MCP_GATEWAY_DOCKER_COMMAND='docker run -i --rm --network host -v /var/run/docker.sock:/var/run/docker.sock -e MCP_GATEWAY_PORT -e MCP_GATEWAY_DOMAIN -e MCP_GATEWAY_API_KEY -e MCP_GATEWAY_PAYLOAD_DIR -e MCP_GATEWAY_PAYLOAD_SIZE_THRESHOLD -e DEBUG -e MCP_GATEWAY_LOG_DIR -e GH_AW_MCP_LOG_DIR -e GH_AW_SAFE_OUTPUTS -e GH_AW_SAFE_OUTPUTS_CONFIG_PATH -e GH_AW_SAFE_OUTPUTS_TOOLS_PATH -e GH_AW_ASSETS_BRANCH -e GH_AW_ASSETS_MAX_SIZE_KB -e GH_AW_ASSETS_ALLOWED_EXTS -e DEFAULT_BRANCH -e GITHUB_MCP_SERVER_TOKEN -e GITHUB_MCP_GUARD_MIN_INTEGRITY -e GITHUB_MCP_GUARD_REPOS -e GITHUB_REPOSITORY -e GITHUB_SERVER_URL -e GITHUB_SHA -e GITHUB_WORKSPACE -e GITHUB_TOKEN -e GITHUB_RUN_ID -e GITHUB_RUN_NUMBER -e GITHUB_RUN_ATTEMPT -e GITHUB_JOB -e GITHUB_ACTION -e GITHUB_EVENT_NAME -e GITHUB_EVENT_PATH -e GITHUB_ACTOR -e GITHUB_ACTOR_ID -e GITHUB_TRIGGERING_ACTOR -e GITHUB_WORKFLOW -e GITHUB_WORKFLOW_REF -e GITHUB_WORKFLOW_SHA -e GITHUB_REF -e GITHUB_REF_NAME -e GITHUB_REF_TYPE -e GITHUB_HEAD_REF -e GITHUB_BASE_REF -e GH_AW_MCP_SCRIPTS_PORT -e GH_AW_MCP_SCRIPTS_API_KEY -e GH_AW_SAFE_OUTPUTS_PORT -e GH_AW_SAFE_OUTPUTS_API_KEY -v /tmp/gh-aw/mcp-payloads:/tmp/gh-aw/mcp-payloads:rw -v /opt:/opt:ro -v /tmp:/tmp:rw -v '"${GITHUB_WORKSPACE}"':'"${GITHUB_WORKSPACE}"':rw ghcr.io/github/gh-aw-mcpg:v0.2.9'
           
-          cat << GH_AW_MCP_CONFIG_e2b2a742752a85f0_EOF | bash ${RUNNER_TEMP}/gh-aw/actions/start_mcp_gateway.sh
+          cat << GH_AW_MCP_CONFIG_69356c4a7c3d1a8e_EOF | bash ${RUNNER_TEMP}/gh-aw/actions/start_mcp_gateway.sh
           {
             "mcpServers": {
               "github": {
@@ -748,7 +748,7 @@ jobs:
               "payloadDir": "${MCP_GATEWAY_PAYLOAD_DIR}"
             }
           }
-          GH_AW_MCP_CONFIG_e2b2a742752a85f0_EOF
+          GH_AW_MCP_CONFIG_69356c4a7c3d1a8e_EOF
       - name: Download activation artifact
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
