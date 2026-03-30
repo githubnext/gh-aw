@@ -381,7 +381,7 @@ func resolveImportPathLocal(importPath, baseDir string) string {
 	}
 
 	// Skip workflowspec format imports (owner/repo/path@sha)
-	if isWorkflowSpecFormatLocal(importPath) {
+	if isWorkflowSpecFormat(importPath) {
 		runPushLog.Printf("Skipping workflowspec format import: %s", importPath)
 		return ""
 	}
@@ -404,14 +404,6 @@ func resolveImportPathLocal(importPath, baseDir string) string {
 	resolved := filepath.Join(baseDir, importPath)
 	runPushLog.Printf("Resolved relative import: %s", resolved)
 	return resolved
-}
-
-// isWorkflowSpecFormatLocal is a local version of isWorkflowSpecFormat for push functionality
-// This is duplicated from imports.go to avoid circular dependencies
-func isWorkflowSpecFormatLocal(path string) bool {
-	// The only reliable indicator of a workflowspec is the @ version separator
-	// Paths like "shared/mcp/arxiv.md" should be treated as local paths, not workflowspecs
-	return strings.Contains(path, "@")
 }
 
 // pushWorkflowFiles commits and pushes the workflow files to the repository

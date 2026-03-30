@@ -165,62 +165,6 @@ on: workflow_dispatch
 	assert.True(t, fileSet[baseSharedPath], "Should include base-shared.md file")
 }
 
-func TestIsWorkflowSpecFormatLocal(t *testing.T) {
-	tests := []struct {
-		name     string
-		path     string
-		expected bool
-	}{
-		{
-			name:     "workflowspec with SHA",
-			path:     "owner/repo/path/file.md@abc123",
-			expected: true,
-		},
-		{
-			name:     "workflowspec without SHA",
-			path:     "owner/repo/path/file.md",
-			expected: false,
-		},
-		{
-			name:     "relative path with ./",
-			path:     "./shared/file.md",
-			expected: false,
-		},
-		{
-			name:     "relative path without ./",
-			path:     "shared/file.md",
-			expected: false,
-		},
-		{
-			name:     "absolute path",
-			path:     "/shared/file.md",
-			expected: false,
-		},
-		{
-			name:     "workflowspec with section",
-			path:     "owner/repo/path/file.md#section",
-			expected: false,
-		},
-		{
-			name:     "simple filename",
-			path:     "file.md",
-			expected: false,
-		},
-		{
-			name:     "workflowspec with @ version",
-			path:     "owner/repo/path/file.md@v1.0.0",
-			expected: true,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result := isWorkflowSpecFormatLocal(tt.path)
-			assert.Equal(t, tt.expected, result, "isWorkflowSpecFormatLocal(%q) = %v, want %v", tt.path, result, tt.expected)
-		})
-	}
-}
-
 func TestResolveImportPathLocal(t *testing.T) {
 	// Create a temporary directory for testing
 	tmpDir := t.TempDir()

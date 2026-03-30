@@ -1,7 +1,7 @@
 # Developer Instructions
 
-**Version**: 4.6
-**Last Updated**: 2026-03-29
+**Version**: 4.7
+**Last Updated**: 2026-03-30
 **Purpose**: Consolidated development guidelines for GitHub Agentic Workflows
 
 This document consolidates specifications from the scratchpad directory into unified developer instructions. It provides architecture patterns, security guidelines, code organization rules, and testing practices.
@@ -2543,6 +2543,10 @@ These files are loaded automatically by compatible AI tools (e.g., GitHub Copilo
 - [Token Budget Guidelines](./token-budget-guidelines.md) - Token budget targets and optimization strategies: `max-turns` engine restrictions (Claude/Custom only), `timeout-minutes` configuration, and prompt optimization patterns for Copilot workflows
 - [Custom GitHub Actions Build System](./actions.md) - Custom Go-based actions build system: directory structure (`actions/`), build tooling (`pkg/cli/actions_build_command.go`), action modes (standard vs dev), and CI integration
 - [Daily Reports Metrics Glossary](./metrics-glossary.md) - Standardized metric names and scopes for daily report workflows: issue, PR, workflow, firewall, code quality, observability, and Copilot agent metrics; cross-report comparison guidelines
+- [Hierarchical Agent Management](./agents/hierarchical-agents.md) - Meta-orchestrator workflows (Campaign Manager, Workflow Health Manager, Agent Performance Analyzer): responsibilities, safe output limits, shared memory coordination, and implementation patterns
+- [Hierarchical Agents Quick Start](./agents/hierarchical-agents-quickstart.md) - Operator guide for the three meta-orchestrators: what each produces, when to check outputs, and common operational tasks
+- [Go Module Usage Summaries Index](./mods/README.md) - Directory of AI-generated Go module summaries produced by the Go Fan workflow; file naming conventions and update cadence
+- [jsonschema-go Module Summary](./mods/jsonschema-go.md) - Usage patterns for `github.com/google/jsonschema-go` v0.3.0: `ForType()`, `GenerateOutputSchema[T]()` generic helper, struct tag integration, and MCP tool schema generation
 
 ### External References
 
@@ -2554,6 +2558,7 @@ These files are loaded automatically by compatible AI tools (e.g., GitHub Copilo
 ---
 
 **Document History**:
+- v4.7 (2026-03-30): Added 4 previously uncovered subdirectory spec files (`agents/hierarchical-agents.md`, `agents/hierarchical-agents-quickstart.md`, `mods/README.md`, `mods/jsonschema-go.md`). Fixed 3 tone issues in `mods/jsonschema-go.md`: "Active maintenance and community support" → "MIT licensed; maintained by Google" (line 13), "Developer-Friendly API" heading → "API Design" (line 111), "Good integration with Go idioms" removed and "Concise function signatures" → "Function signatures follow Go idioms" (lines 112–113). Coverage: 66 spec files (4 new).
 - v4.6 (2026-03-29): Maintenance tone scan — 0 new issues across 62 spec files. No new spec files since v4.5 (latest commit `96873d8` touched `.changeset/` only). Coverage: 62 spec files.
 - v4.5 (2026-03-28): Maintenance tone scan — 0 new issues across 62 spec files. No new spec files since v4.4 (latest commit `7ceec0f` touched `.changeset/` only). Coverage: 62 spec files.
 - v4.4 (2026-03-27): Added Related Documentation link for `metrics-glossary.md` (standardized metric names and scopes for daily report workflows: issue, PR, workflow, firewall, code quality, observability, Copilot agent metrics; cross-report comparison guidelines). Maintenance tone scan: 0 new issues. Coverage: 62 spec files.

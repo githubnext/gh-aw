@@ -200,22 +200,27 @@ func CheckAndPrepareDockerImages(ctx context.Context, useZizmor, usePoutine, use
 	// Check if Docker daemon is available before attempting any image operations
 	if !IsDockerAvailable() {
 		var requestedTools []string
+		var paramsList []string
 		if useZizmor {
-			requestedTools = append(requestedTools, "zizmor")
+			tool := "zizmor"
+			requestedTools = append(requestedTools, tool)
+			paramsList = append(paramsList, tool+": false")
 		}
 		if usePoutine {
-			requestedTools = append(requestedTools, "poutine")
+			tool := "poutine"
+			requestedTools = append(requestedTools, tool)
+			paramsList = append(paramsList, tool+": false")
 		}
 		if useActionlint {
-			requestedTools = append(requestedTools, "actionlint")
+			tool := "actionlint"
+			requestedTools = append(requestedTools, tool)
+			paramsList = append(paramsList, tool+": false")
 		}
-		toolsList := strings.Join(requestedTools, " and ")
-		flagsList := "--" + strings.Join(requestedTools, "/--")
 		verb := "requires"
 		if len(requestedTools) > 1 {
 			verb = "require"
 		}
-		return fmt.Errorf("docker is not available (cannot connect to Docker daemon). %s %s Docker. Please install and start Docker, or omit the %s flags", toolsList, verb, flagsList)
+		return fmt.Errorf("docker is not available (cannot connect to Docker daemon). %s %s Docker. Please install and start Docker, or set %s to skip static analysis", strings.Join(requestedTools, " and "), verb, strings.Join(paramsList, " and "))
 	}
 
 	var missingImages []string

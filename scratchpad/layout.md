@@ -1,17 +1,17 @@
 # GitHub Actions Workflow Layout Specification
 
 > Auto-generated specification documenting patterns used in compiled `.lock.yml` files.
-> Last updated: 2026-03-23
+> Last updated: 2026-03-30
 
 ## Overview
 
 This document catalogs all file paths, folder names, artifact names, and other patterns used across our compiled GitHub Actions workflows (`.lock.yml` files). It serves as a comprehensive reference for developers working with the gh-aw codebase.
 
 **Statistics:**
-- **Lock files analyzed**: 177
+- **Lock files analyzed**: 178
 - **Unique GitHub Actions**: 24
 - **Artifact patterns**: 22
-- **Job name patterns**: 25
+- **Job name patterns**: 26
 - **File path references**: 40
 
 ## GitHub Actions
@@ -29,9 +29,9 @@ Common GitHub Actions used across compiled workflows:
 | `actions/setup-java` | `be666c2...` | Sets up Java environment | Used for Java-based workflows |
 | `actions/setup-dotnet` | `c2fa09f...` | Sets up .NET environment | Used for .NET-based workflows |
 | `actions/github-script` | `ed59741...` | Runs GitHub API scripts | Used for GitHub API interactions and workflow logic |
-| `actions/cache` | `cdf6c1f...` | Caches dependencies | Used for caching npm, pip, go modules |
-| `actions/cache/restore` | `cdf6c1f...` | Restores cached dependencies | Explicit cache restore action |
-| `actions/cache/save` | `cdf6c1f...` | Saves dependencies to cache | Explicit cache save action |
+| `actions/cache` | `668228422...` | Caches dependencies | Used for caching npm, pip, go modules |
+| `actions/cache/restore` | `668228422...` | Restores cached dependencies | Explicit cache restore action |
+| `actions/cache/save` | `668228422...` | Saves dependencies to cache | Explicit cache save action |
 | `docker/setup-buildx-action` | `4d04d5d9...` | Sets up Docker Buildx | Used for multi-platform Docker builds |
 | `docker/build-push-action` | `d08e5c35...` | Builds and pushes Docker images | Used in release workflows |
 | `docker/login-action` | `b45d80f8...` | Logs in to Docker registry | Used before pushing Docker images |
@@ -106,6 +106,7 @@ Standard job names across compiled workflows:
 | `check_ci_status` | CI status check | Various | Checks CI pipeline status |
 | `call-smoke-workflow-call` | Smoke test caller | Various | Calls the smoke test reusable workflow |
 | `sync_actions` | Actions sync | Various | Syncs actions or configuration across repos |
+| `indexing` | QMD document indexing | `activation` | Runs QMD (Quarto Markdown) indexing on GPU runner for document search/embedding |
 
 ## File Paths
 
@@ -219,15 +220,17 @@ const AgenticWorkflowsMCPServerID MCPServerID = "agenticworkflows"
 ### Default Versions
 ````go
 const DefaultCopilotVersion Version = "latest"
-const DefaultCopilotDetectionModel ModelName = "gpt-5.1-codex-mini"
 const DefaultClaudeCodeVersion Version = "latest"
 const DefaultCodexVersion Version = "latest"
 const DefaultGeminiVersion Version = "latest"
 const DefaultGitHubMCPServerVersion Version = "v0.32.0"
-const DefaultFirewallVersion Version = "v0.24.5"
-const DefaultMCPGatewayVersion Version = "v0.1.26"
+const DefaultFirewallVersion Version = "v0.25.4"
+const DefaultMCPGatewayVersion Version = "v0.2.9"
 const DefaultPlaywrightMCPVersion Version = "0.0.68"
-const DefaultAPMVersion Version = "v0.8.3"
+const DefaultAPMActionVersion Version = "v1.4.1"
+const DefaultAPMVersion Version = "v0.8.6"
+const DefaultQmdVersion Version = "2.0.1"
+const DefaultGitHubScriptVersion Version = "v8"
 const DefaultPlaywrightBrowserVersion Version = "v1.58.2"
 const DefaultMCPSDKVersion Version = "1.24.0"
 const DefaultBunVersion Version = "1.1"
@@ -246,8 +249,6 @@ const DefaultDenoVersion Version = "2.x"
 ````go
 const DefaultMCPGatewayContainer = "ghcr.io/github/gh-aw-mcpg"
 const DefaultFirewallRegistry = "ghcr.io/github/gh-aw-firewall"
-const DefaultSerenaMCPServerContainer = "ghcr.io/github/serena-mcp-server"
-const OraiosSerenaContainer = "ghcr.io/oraios/serena"
 const DefaultNodeAlpineLTSImage = "node:lts-alpine"
 const DefaultPythonAlpineLTSImage = "python:alpine"
 const DefaultAlpineImage = "alpine:latest"
@@ -311,6 +312,7 @@ GitHub Actions runner images used across compiled workflows:
 | `ubuntu-latest` | Latest Ubuntu runner | Used by most agent and safe-output jobs |
 | `ubuntu-slim` | Slim Ubuntu runner | Used for activation jobs (default activation runner) |
 | `ubuntu-24.04-arm` | Ubuntu 24.04 ARM runner | Used for ARM-architecture builds |
+| `aw-gpu-runner-T4` | NVIDIA T4 GPU runner | Used for GPU-intensive tasks like QMD document indexing |
 
 ## Usage Guidelines
 
@@ -415,8 +417,8 @@ This specification is automatically maintained by the **Layout Specification Mai
 4. Updates this document with findings
 5. Creates a PR with the changes
 
-**Last extraction run**: 2026-03-23
-**Lock files analyzed**: 177
+**Last extraction run**: 2026-03-30
+**Lock files analyzed**: 178
 **Patterns documented**: 230+
 
 ---
