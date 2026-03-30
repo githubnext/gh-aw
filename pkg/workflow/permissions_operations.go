@@ -75,11 +75,33 @@ func filterJobLevelPermissions(rawPermissionsYAML string) string {
 func (p *Permissions) Set(scope PermissionScope, level PermissionLevel) {
 	permissionsOpsLog.Printf("Setting permission: scope=%s, level=%s", scope, level)
 	if p.shorthand != "" {
-		// Convert from shorthand to map
-		permissionsOpsLog.Printf("Converting from shorthand %s to explicit map", p.shorthand)
+		// Convert from shorthand to explicit map, preserving all shorthand-implied permissions.
+		// This mirrors the hasAll expansion below so that callers adding a single scope to a
+		// shorthand (e.g. adding copilot-requests: write to read-all) do not lose the remaining
+		// shorthand-implied permissions.
+		shorthand := p.shorthand
+		permissionsOpsLog.Printf("Converting from shorthand %s to explicit map", shorthand)
 		p.shorthand = ""
 		if p.permissions == nil {
 			p.permissions = make(map[PermissionScope]PermissionLevel)
+		}
+		var shorthandLevel PermissionLevel
+		switch shorthand {
+		case "read-all":
+			shorthandLevel = PermissionRead
+		case "write-all":
+			shorthandLevel = PermissionWrite
+		case "none":
+			shorthandLevel = PermissionNone
+		}
+		for _, s := range GetAllPermissionScopes() {
+			if _, exists := p.permissions[s]; !exists {
+				// id-token does not support the read level
+				if s == PermissionIdToken && shorthandLevel == PermissionRead {
+					continue
+				}
+				p.permissions[s] = shorthandLevel
+			}
 		}
 	}
 	if p.hasAll {
