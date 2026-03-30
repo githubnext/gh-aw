@@ -42,7 +42,7 @@ type importAccumulator struct {
 	skipBotsSet              map[string]bool
 	caches                   []string
 	features                 []map[string]any
-	apmPackagesConfigs       []string // JSON-serialized apm-packages configs from imported workflows
+	dependenciesBuilder      strings.Builder // JSON-serialized dependencies configs from imported workflows
 	agentFile                string
 	agentImportSpec          string
 	repositoryImports        []string
@@ -340,13 +340,13 @@ func (acc *importAccumulator) extractAllImportFields(content []byte, item import
 		}
 	}
 
-	// Extract apm-packages from imported file (append in order for later merging)
-	apmPackagesContent, err := extractFieldJSONFromMap(fm, "apm-packages", "")
+	// Extract dependencies from imported file (append in order for later merging)
+	dependenciesContent, err := extractFieldJSONFromMap(fm, "dependencies", "")
 	if err != nil {
-		log.Printf("Failed to extract apm-packages from import %s: %v", item.fullPath, err)
-	} else if apmPackagesContent != "" {
-		acc.apmPackagesConfigs = append(acc.apmPackagesConfigs, apmPackagesContent)
-		log.Printf("Extracted apm-packages from import: %s", item.fullPath)
+		log.Printf("Failed to extract dependencies from import %s: %v", item.fullPath, err)
+	} else if dependenciesContent != "" {
+		acc.dependenciesBuilder.WriteString(dependenciesContent + "\n")
+		log.Printf("Extracted dependencies from import: %s", item.fullPath)
 	}
 
 	return nil
@@ -380,7 +380,7 @@ func (acc *importAccumulator) toImportsResult(topologicalOrder []string) *Import
 		MergedCaches:                acc.caches,
 		MergedJobs:                  acc.jobsBuilder.String(),
 		MergedFeatures:              acc.features,
-		MergedAPMPackages:           acc.apmPackagesConfigs,
+		MergedDependencies:          acc.dependenciesBuilder.String(),
 		ImportedFiles:               topologicalOrder,
 		AgentFile:                   acc.agentFile,
 		AgentImportSpec:             acc.agentImportSpec,

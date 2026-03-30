@@ -1,6 +1,7 @@
 package workflow
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"sort"
@@ -166,24 +167,32 @@ func (c *Compiler) processToolsAndMarkdown(result *parser.FrontmatterResult, cle
 	}
 
 	// Merge APM dependencies from imported shared workflows (e.g. shared/apm.md)
-	if len(importsResult.MergedAPMPackages) > 0 {
-		importedAPMDeps, mergeErr := mergeImportedAPMPackages(importsResult.MergedAPMPackages)
-		if mergeErr != nil {
-			return nil, fmt.Errorf("failed to merge APM packages from imports: %w", mergeErr)
-		}
-		if importedAPMDeps != nil {
-			orchestratorToolsLog.Printf("Merging %d APM packages from imports", len(importedAPMDeps.Packages))
+	if importsResult.MergedDependencies != "" {
+		for line := range strings.SplitSeq(strings.TrimSpace(importsResult.MergedDependencies), "\n") {
+			line = strings.TrimSpace(line)
+			if line == "" || line == "null" {
+				continue
+			}
+			var depValue any
+			if jsonErr := json.Unmarshal([]byte(line), &depValue); jsonErr != nil {
+				orchestratorToolsLog.Printf("Failed to parse imported dependencies JSON: %v", jsonErr)
+				continue
+			}
+			importedDeps, depErr := extractAPMDependenciesFromValue(depValue, "imported:dependencies")
+			if depErr != nil || importedDeps == nil {
+				continue
+			}
+			orchestratorToolsLog.Printf("Merging %d APM packages from imported dependencies", len(importedDeps.Packages))
 			if apmDependencies == nil {
-				apmDependencies = importedAPMDeps
+				apmDependencies = importedDeps
 			} else {
 				// Append packages from imports; main workflow auth config takes precedence
-				apmDependencies.Packages = append(apmDependencies.Packages, importedAPMDeps.Packages...)
-				// Adopt auth from imports only if the main workflow did not configure any
-				if apmDependencies.GitHubToken == "" && importedAPMDeps.GitHubToken != "" {
-					apmDependencies.GitHubToken = importedAPMDeps.GitHubToken
+				apmDependencies.Packages = append(apmDependencies.Packages, importedDeps.Packages...)
+				if apmDependencies.GitHubToken == "" && importedDeps.GitHubToken != "" {
+					apmDependencies.GitHubToken = importedDeps.GitHubToken
 				}
-				if apmDependencies.GitHubApp == nil && importedAPMDeps.GitHubApp != nil {
-					apmDependencies.GitHubApp = importedAPMDeps.GitHubApp
+				if apmDependencies.GitHubApp == nil && importedDeps.GitHubApp != nil {
+					apmDependencies.GitHubApp = importedDeps.GitHubApp
 				}
 			}
 		}
