@@ -869,7 +869,7 @@ jobs:
             const errors = [];
 
             // Check additionalProperties (only allow known keys)
-            const allowedKeys = new Set(['$schema', 'blockedVersions', 'minimumVersion']);
+            const allowedKeys = new Set(['$schema', 'blockedVersions', 'minimumVersion', 'minRecommendedVersion']);
             for (const key of Object.keys(config)) {
               if (!allowedKeys.has(key)) {
                 errors.push(`Unknown property: '${key}'`);
@@ -905,6 +905,16 @@ jobs:
                 errors.push("'minimumVersion' must be a string");
               } else if (mv !== '' && !/^v[0-9]+\.[0-9]+\.[0-9]+$/.test(mv)) {
                 errors.push(`'minimumVersion' ('${mv}') does not match expected version pattern (vMAJOR.MINOR.PATCH, e.g. 'v1.2.3' or empty string)`);
+              }
+            }
+
+            // Validate minRecommendedVersion
+            if ('minRecommendedVersion' in config) {
+              const mrv = config.minRecommendedVersion;
+              if (typeof mrv !== 'string') {
+                errors.push("'minRecommendedVersion' must be a string");
+              } else if (mrv !== '' && !/^v[0-9]+\.[0-9]+\.[0-9]+$/.test(mrv)) {
+                errors.push(`'minRecommendedVersion' ('${mrv}') does not match expected version pattern (vMAJOR.MINOR.PATCH, e.g. 'v1.2.3' or empty string)`);
               }
             }
 

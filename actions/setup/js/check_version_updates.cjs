@@ -60,6 +60,7 @@ function compareVersions(a, b) {
  * @typedef {object} UpdateConfig
  * @property {string[]} [blockedVersions]
  * @property {string} [minimumVersion]
+ * @property {string} [minRecommendedVersion]
  */
 
 /**
@@ -104,6 +105,7 @@ async function main() {
 
   const blockedVersions = Array.isArray(config.blockedVersions) ? config.blockedVersions : [];
   const minimumVersion = typeof config.minimumVersion === "string" ? config.minimumVersion : "";
+  const minRecommendedVersion = typeof config.minRecommendedVersion === "string" ? config.minRecommendedVersion : "";
 
   // Check blocked versions — only consider entries in vMAJOR.MINOR.PATCH format; ignore unknown syntax
   const isBlocked = blockedVersions.some(v => parseVersion(v) !== null && compareVersions(compiledVersion, v) === 0);
@@ -128,6 +130,15 @@ async function main() {
       await core.summary.write();
       core.setFailed(`Outdated compile-agentic version: ${compiledVersion} is below the minimum supported version ${minimumVersion}. Update gh-aw to the latest version and recompile your workflow.`);
       return;
+    }
+  }
+
+  // Check recommended version — skip if minRecommendedVersion is absent, empty, or has unknown syntax
+  if (minRecommendedVersion && parseVersion(minRecommendedVersion) !== null) {
+    if (compareVersions(compiledVersion, minRecommendedVersion) < 0) {
+      core.warning(
+        `Recommended upgrade: compile-agentic version ${compiledVersion} is below the recommended version ${minRecommendedVersion}. Consider updating gh-aw to the latest version and recompiling your workflow with \`gh aw compile\`.`
+      );
     }
   }
 

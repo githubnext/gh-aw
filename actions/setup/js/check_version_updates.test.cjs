@@ -414,4 +414,74 @@ describe("check_version_updates", () => {
     await runMain();
     expect(mockCore.setFailed).not.toHaveBeenCalled();
   });
+
+  // ---------------------------------------------------------------------------
+  // minRecommendedVersion (soft check — warning only, no failure)
+  // ---------------------------------------------------------------------------
+
+  it("should warn when version is below minRecommendedVersion", async () => {
+    process.env.GH_AW_COMPILED_VERSION = "v0.9.0";
+    mockFetchSuccess(JSON.stringify({ blockedVersions: [], minimumVersion: "", minRecommendedVersion: "v1.0.0" }));
+    await runMain();
+    expect(mockCore.setFailed).not.toHaveBeenCalled();
+    expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("Recommended upgrade"));
+    expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("v0.9.0"));
+    expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("v1.0.0"));
+  });
+
+  it("should pass without warning when version equals minRecommendedVersion", async () => {
+    process.env.GH_AW_COMPILED_VERSION = "v1.0.0";
+    mockFetchSuccess(JSON.stringify({ blockedVersions: [], minimumVersion: "", minRecommendedVersion: "v1.0.0" }));
+    await runMain();
+    expect(mockCore.setFailed).not.toHaveBeenCalled();
+    expect(mockCore.warning).not.toHaveBeenCalled();
+  });
+
+  it("should pass without warning when version is above minRecommendedVersion", async () => {
+    process.env.GH_AW_COMPILED_VERSION = "v1.1.0";
+    mockFetchSuccess(JSON.stringify({ blockedVersions: [], minimumVersion: "", minRecommendedVersion: "v1.0.0" }));
+    await runMain();
+    expect(mockCore.setFailed).not.toHaveBeenCalled();
+    expect(mockCore.warning).not.toHaveBeenCalled();
+  });
+
+  it("should skip recommended check when minRecommendedVersion is empty string", async () => {
+    process.env.GH_AW_COMPILED_VERSION = "v0.5.0";
+    mockFetchSuccess(JSON.stringify({ blockedVersions: [], minimumVersion: "", minRecommendedVersion: "" }));
+    await runMain();
+    expect(mockCore.setFailed).not.toHaveBeenCalled();
+    expect(mockCore.warning).not.toHaveBeenCalled();
+  });
+
+  it("should skip recommended check when minRecommendedVersion has no 'v' prefix (unknown format — ignore)", async () => {
+    process.env.GH_AW_COMPILED_VERSION = "v0.5.0";
+    mockFetchSuccess(JSON.stringify({ blockedVersions: [], minimumVersion: "", minRecommendedVersion: "2.0.0" }));
+    await runMain();
+    expect(mockCore.setFailed).not.toHaveBeenCalled();
+    expect(mockCore.warning).not.toHaveBeenCalled();
+  });
+
+  it("should skip recommended check when minRecommendedVersion is a garbage string", async () => {
+    process.env.GH_AW_COMPILED_VERSION = "v0.5.0";
+    mockFetchSuccess(JSON.stringify({ blockedVersions: [], minimumVersion: "", minRecommendedVersion: "latest" }));
+    await runMain();
+    expect(mockCore.setFailed).not.toHaveBeenCalled();
+    expect(mockCore.warning).not.toHaveBeenCalled();
+  });
+
+  it("should skip recommended check when minRecommendedVersion is null (treated as missing)", async () => {
+    process.env.GH_AW_COMPILED_VERSION = "v0.5.0";
+    mockFetchSuccess(JSON.stringify({ blockedVersions: [], minimumVersion: "", minRecommendedVersion: null }));
+    await runMain();
+    expect(mockCore.setFailed).not.toHaveBeenCalled();
+    expect(mockCore.warning).not.toHaveBeenCalled();
+  });
+
+  it("should fail hard (not just warn) when version is also below minimumVersion", async () => {
+    process.env.GH_AW_COMPILED_VERSION = "v0.8.0";
+    mockFetchSuccess(JSON.stringify({ blockedVersions: [], minimumVersion: "v1.0.0", minRecommendedVersion: "v1.0.0" }));
+    await runMain();
+    // Should fail, not just warn
+    expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("minimum supported version"));
+  });
 });
