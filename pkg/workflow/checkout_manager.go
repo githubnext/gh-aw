@@ -291,6 +291,9 @@ func (cm *CheckoutManager) HasAppAuth() bool {
 // repository content, which removes any locally-checked-out actions/setup directory.
 // In dev mode, a "Restore actions folder" step must be added after such checkouts so
 // the runner's post-step for the Setup Scripts action can find action.yml.
+//
+// Note: the "." path is normalized to "" in add(), so both "" and "." are covered
+// by the entry.key.path == "" check.
 func (cm *CheckoutManager) HasExternalRootCheckout() bool {
 	for _, entry := range cm.ordered {
 		if entry.key.repository != "" && entry.key.path == "" {
