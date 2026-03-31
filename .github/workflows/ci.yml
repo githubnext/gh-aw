@@ -2710,21 +2710,15 @@ jobs:
 
           FIREWALL_VERSION=$(extract "DefaultFirewallVersion")
           MCPG_VERSION=$(extract "DefaultMCPGatewayVersion")
-          APM_VERSION=$(extract "DefaultAPMVersion")
-          APM_ACTION_VERSION=$(extract "DefaultAPMActionVersion")
           GITHUB_MCP_VERSION=$(extract "DefaultGitHubMCPServerVersion")
 
           echo "firewall_version=$FIREWALL_VERSION" >> $GITHUB_OUTPUT
           echo "mcpg_version=$MCPG_VERSION" >> $GITHUB_OUTPUT
-          echo "apm_version=$APM_VERSION" >> $GITHUB_OUTPUT
-          echo "apm_action_version=$APM_ACTION_VERSION" >> $GITHUB_OUTPUT
           echo "github_mcp_version=$GITHUB_MCP_VERSION" >> $GITHUB_OUTPUT
 
           echo "Extracted versions from pkg/constants/constants.go:"
           echo "  gh-aw-firewall:        $FIREWALL_VERSION"
           echo "  gh-aw-mcpg:            $MCPG_VERSION"
-          echo "  microsoft/APM:         $APM_VERSION"
-          echo "  microsoft/apm-action:  $APM_ACTION_VERSION"
           echo "  github-mcp-server:     $GITHUB_MCP_VERSION"
 
       - name: Check gh-aw-firewall release
@@ -2756,48 +2750,6 @@ jobs:
           REPO="github/gh-aw-mcpg"
 
           echo "## Checking gh-aw-mcpg ${VERSION}" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-
-          echo "Checking GitHub release: ${REPO}@${VERSION}..."
-          if gh release view "${VERSION}" --repo "${REPO}" > /dev/null 2>&1; then
-            echo "✅ GitHub release ${VERSION} is available for ${REPO}" | tee -a $GITHUB_STEP_SUMMARY
-          else
-            echo "❌ GitHub release ${VERSION} not found for ${REPO}" | tee -a $GITHUB_STEP_SUMMARY
-            exit 1
-          fi
-
-          echo "" >> $GITHUB_STEP_SUMMARY
-          sleep 2  # Avoid GitHub API rate limiting between checks
-
-      - name: Check microsoft/APM release
-        env:
-          VERSION: ${{ steps.versions.outputs.apm_version }}
-        run: |
-          set -e
-          REPO="microsoft/APM"
-
-          echo "## Checking microsoft/APM ${VERSION}" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-
-          echo "Checking GitHub release: ${REPO}@${VERSION}..."
-          if gh release view "${VERSION}" --repo "${REPO}" > /dev/null 2>&1; then
-            echo "✅ GitHub release ${VERSION} is available for ${REPO}" | tee -a $GITHUB_STEP_SUMMARY
-          else
-            echo "❌ GitHub release ${VERSION} not found for ${REPO}" | tee -a $GITHUB_STEP_SUMMARY
-            exit 1
-          fi
-
-          echo "" >> $GITHUB_STEP_SUMMARY
-          sleep 2  # Avoid GitHub API rate limiting between checks
-
-      - name: Check microsoft/apm-action release
-        env:
-          VERSION: ${{ steps.versions.outputs.apm_action_version }}
-        run: |
-          set -e
-          REPO="microsoft/apm-action"
-
-          echo "## Checking microsoft/apm-action ${VERSION}" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
 
           echo "Checking GitHub release: ${REPO}@${VERSION}..."
