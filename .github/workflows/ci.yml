@@ -869,10 +869,27 @@ jobs:
             const errors = [];
 
             // Check additionalProperties (only allow known keys)
-            const allowedKeys = new Set(['$schema', 'blockedVersions', 'minimumVersion', 'minRecommendedVersion']);
+            const allowedKeys = new Set(['$schema', 'blockedVersions', 'minimumVersion', 'minRecommendedVersion', 'aliases']);
             for (const key of Object.keys(config)) {
               if (!allowedKeys.has(key)) {
                 errors.push(`Unknown property: '${key}'`);
+              }
+            }
+
+            // Validate aliases
+            if ('aliases' in config) {
+              const aliases = config.aliases;
+              if (typeof aliases !== 'object' || aliases === null || Array.isArray(aliases)) {
+                errors.push("'aliases' must be an object");
+              } else {
+                const aliasValuePattern = /^(latest|v[0-9]+\.[0-9]+\.[0-9]+)$/;
+                for (const [alias, value] of Object.entries(aliases)) {
+                  if (typeof value !== 'string') {
+                    errors.push(`'aliases.${alias}' must be a string`);
+                  } else if (!aliasValuePattern.test(value)) {
+                    errors.push(`'aliases.${alias}' ('${value}') must be 'latest' or a version in vMAJOR.MINOR.PATCH format (e.g. 'v1.2.3')`);
+                  }
+                }
               }
             }
 
