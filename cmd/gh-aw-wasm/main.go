@@ -30,13 +30,11 @@ func compileWorkflow(this js.Value, args []js.Value) any {
 
 	markdown := args[0].String()
 
-	// Extract virtual files from optional second argument
 	var files map[string][]byte
 	if len(args) >= 2 && !args[1].IsNull() && !args[1].IsUndefined() {
 		files = jsObjectToFileMap(args[1])
 	}
 
-	// Extract optional filename from third argument
 	filename := "workflow.md"
 	if len(args) >= 3 && !args[2].IsNull() && !args[2].IsUndefined() {
 		filename = args[2].String()
@@ -67,8 +65,6 @@ func compileWorkflow(this js.Value, args []js.Value) any {
 // jsObjectToFileMap converts a JS object {path: content, ...} to map[string][]byte.
 func jsObjectToFileMap(obj js.Value) map[string][]byte {
 	files := make(map[string][]byte)
-
-	// Use Object.keys() to iterate over the JS object
 	keys := js.Global().Get("Object").Call("keys", obj)
 	length := keys.Length()
 	for i := 0; i < length; i++ {
@@ -111,10 +107,7 @@ func doCompile(markdown string, files map[string][]byte, filename string) (js.Va
 	result := js.Global().Get("Object").New()
 	result.Set("yaml", yamlContent)
 	result.Set("error", js.Null())
-
-	warnings := js.Global().Get("Array").New()
-	result.Set("warnings", warnings)
-
+	result.Set("warnings", js.Global().Get("Array").New())
 	return result, nil
 }
 
