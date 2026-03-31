@@ -116,6 +116,32 @@ describe("sanitize_label_content.cjs", () => {
       expect(sanitizeLabelContent(maliciousLabel)).toBe("bug");
     });
 
+    it("should remove left-to-right mark (U+200E) and right-to-left mark (U+200F)", () => {
+      expect(sanitizeLabelContent("bug\u200Elabel")).toBe("buglabel");
+      expect(sanitizeLabelContent("bug\u200Flabel")).toBe("buglabel");
+    });
+
+    it("should remove soft hyphen (U+00AD) and combining grapheme joiner (U+034F)", () => {
+      expect(sanitizeLabelContent("bug\u00ADlabel")).toBe("buglabel");
+      expect(sanitizeLabelContent("bug\u034Flabel")).toBe("buglabel");
+    });
+
+    it("should neutralize @mention with U+200F (RTL mark) between @ and username", () => {
+      expect(sanitizeLabelContent("@\u200Fadmin")).toBe("`@admin`");
+    });
+
+    it("should neutralize @mention with U+200E (LTR mark) between @ and username", () => {
+      expect(sanitizeLabelContent("@\u200Eadmin")).toBe("`@admin`");
+    });
+
+    it("should neutralize @mention with U+00AD (soft hyphen) between @ and username", () => {
+      expect(sanitizeLabelContent("@\u00ADadmin")).toBe("`@admin`");
+    });
+
+    it("should neutralize @mention with U+034F (combining grapheme joiner) between @ and username", () => {
+      expect(sanitizeLabelContent("@\u034Fadmin")).toBe("`@admin`");
+    });
+
     it("should preserve emoji in labels", () => {
       expect(sanitizeLabelContent("🐛 bug")).toBe("🐛 bug");
       expect(sanitizeLabelContent("✨ enhancement")).toBe("✨ enhancement");

@@ -931,8 +931,10 @@ function hardenUnicodeText(text) {
 
   // Step 3: Strip invisible zero-width characters that can hide content
   // These include: zero-width space, zero-width non-joiner, zero-width joiner,
+  // left-to-right mark (U+200E), right-to-left mark (U+200F),
+  // soft hyphen (U+00AD), combining grapheme joiner (U+034F),
   // word joiner, and byte order mark
-  result = result.replace(/[\u200B\u200C\u200D\u2060\uFEFF]/g, "");
+  result = result.replace(/[\u00AD\u034F\u200B\u200C\u200D\u200E\u200F\u2060\uFEFF]/g, "");
 
   // Step 4: Remove bidirectional text override controls
   // These can be used to reverse text direction and create visual spoofs
