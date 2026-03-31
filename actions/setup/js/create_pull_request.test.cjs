@@ -252,29 +252,6 @@ describe("create_pull_request - auto-close-issue configuration", () => {
     vi.clearAllMocks();
   });
 
-  describe("configuration parsing", () => {
-    it("should default auto_close_issue to true when not specified", () => {
-      const config = {};
-      const autoCloseIssue = config.auto_close_issue !== false;
-
-      expect(autoCloseIssue).toBe(true);
-    });
-
-    it("should respect auto_close_issue when set to false", () => {
-      const config = { auto_close_issue: false };
-      const autoCloseIssue = config.auto_close_issue !== false;
-
-      expect(autoCloseIssue).toBe(false);
-    });
-
-    it("should respect auto_close_issue when explicitly set to true", () => {
-      const config = { auto_close_issue: true };
-      const autoCloseIssue = config.auto_close_issue !== false;
-
-      expect(autoCloseIssue).toBe(true);
-    });
-  });
-
   it("should auto-add 'Fixes #N' when triggered from an issue and auto_close_issue is not set (default)", async () => {
     const { main } = require("./create_pull_request.cjs");
     const handler = await main({ allow_empty: true });

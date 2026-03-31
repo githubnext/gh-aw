@@ -499,6 +499,7 @@ func TestGenerateSafeOutputsConfigCreatePullRequestAutoCloseIssueOmittedByDefaul
 	assert.False(t, hasAutoCloseIssue, "auto_close_issue should be absent when not configured")
 }
 
+// TestGenerateSafeOutputsConfigRepoMemory tests that generateSafeOutputsConfig includes
 // push_repo_memory configuration with the expected memories entries when RepoMemoryConfig is present.
 func TestGenerateSafeOutputsConfigRepoMemory(t *testing.T) {
 	data := &WorkflowData{
