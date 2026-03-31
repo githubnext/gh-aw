@@ -228,6 +228,7 @@ Each server configuration MUST support:
 | `registry` | string | No | URI to the installation location when MCP is installed from a registry. This is an informational field used for documentation and tooling discovery. Applies to both stdio and HTTP servers. Example: `"https://api.mcp.github.com/v0/servers/microsoft/markitdown"` |
 | `tools` | array[string] | No | Tool filter for the MCP server. Use `["*"]` to allow all tools (default), or specify a list of tool names to allow. This field is passed through to agent configurations and applies to both stdio and http servers. |
 | `headers` | object | No | HTTP headers to include in requests (HTTP servers only). Commonly used for authentication to external HTTP servers. Values may contain variable expressions. |
+| `auth` | object | No | Upstream authentication configuration for HTTP servers. See [Section 7.6](#76-upstream-authentication-oidc). |
 
 *Required for stdio servers (containerized execution)  
 **Required for HTTP servers
@@ -991,6 +992,115 @@ The `gateway.trustedBots` field allows workflow authors to pass additional trust
 `gateway.trustedBots` is **additive** — it extends the gateway's built-in list but cannot remove entries from it.
 
 Workflow authors set this via the `sandbox.mcp.trusted-bots` frontmatter field; the compiler translates it into the `trustedBots` array in the generated `gateway` section of the MCP config file.
+
+---
+
+### 7.6 Upstream Authentication (OIDC)
+
+HTTP MCP servers MAY configure upstream authentication using the `auth` field. When present, the gateway dynamically acquires tokens and injects them as `Authorization: Bearer` headers on every outgoing request to the server.
+
+#### 7.6.1 GitHub Actions OIDC
+
+When `auth.type` is `"github-oidc"`, the gateway acquires short-lived JWTs from the GitHub Actions OIDC endpoint. This requires the workflow to have `permissions: { id-token: write }`.
+
+**Configuration**:
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `type` | string | Yes | Must be `"github-oidc"` |
+| `audience` | string | No | The intended audience (`aud` claim) for the OIDC token. Defaults to the server `url` if omitted. |
+
+**Environment Variables** (set automatically by GitHub Actions):
+
+| Variable | Description |
+|----------|-------------|
+| `ACTIONS_ID_TOKEN_REQUEST_URL` | OIDC token endpoint URL |
+| `ACTIONS_ID_TOKEN_REQUEST_TOKEN` | Bearer token for authenticating to the OIDC endpoint |
+
+**Behavior**:
+
+1. On startup, the gateway checks for `ACTIONS_ID_TOKEN_REQUEST_URL`. If set, an OIDC provider is initialized.
+2. If a server has `auth.type: "github-oidc"` but the OIDC env vars are missing, the gateway MUST log an error at startup and MUST return an error when the server is first accessed.
+3. Tokens are cached per audience and refreshed proactively before expiry (60-second margin).
+4. The OIDC `Authorization: Bearer` header overwrites any static `Authorization` header from the `headers` field. Other static headers pass through.
+5. The gateway does NOT verify JWT signatures — it acts as a token acquirer/forwarder. The downstream MCP server is the relying party and MUST validate the token.
+
+**Example** (JSON stdin format):
+
+```json
+{
+  "mcpServers": {
+    "my-mcp-server": {
+      "type": "http",
+      "url": "https://my-server.example.com/mcp",
+      "auth": {
+        "type": "github-oidc",
+        "audience": "https://my-server.example.com"
+      }
+    }
+  }
+}
+```
+
+**Example with audience defaulting to URL**:
+
+```json
+{
+  "mcpServers": {
+    "my-mcp-server": {
+      "type": "http",
+      "url": "https://my-server.example.com/mcp",
+      "auth": {
+        "type": "github-oidc"
+      }
+    }
+  }
+}
+```
+
+In this case, the audience defaults to `"https://my-server.example.com/mcp"`.
+
+**Frontmatter Example** (workflow author):
+
+```yaml
+tools:
+  mcp-servers:
+    my-mcp-server:
+      type: http
+      url: "https://my-server.example.com/mcp"
+      auth:
+        type: github-oidc
+        audience: "https://my-server.example.com"
+```
+
+#### 7.6.2 Interaction with Static Headers
+
+When both `headers` and `auth` are configured:
+
+- Static headers from `headers` are applied first
+- The OIDC token overwrites the `Authorization` header
+- All other static headers (e.g., `X-Custom-Header`) pass through unchanged
+
+This allows combining OIDC auth with non-auth headers:
+
+```json
+{
+  "type": "http",
+  "url": "https://my-server.example.com/mcp",
+  "headers": {
+    "X-Custom-Header": "custom-value"
+  },
+  "auth": {
+    "type": "github-oidc"
+  }
+}
+```
+
+#### 7.6.3 Validation Rules
+
+- `auth` is only valid on HTTP servers (`type: "http"`). Stdio servers with `auth` MUST be rejected with a validation error.
+- `auth.type` is required when `auth` is present. Empty type MUST be rejected.
+- Unsupported `auth.type` values MUST be rejected with a descriptive error.
 
 ---
 

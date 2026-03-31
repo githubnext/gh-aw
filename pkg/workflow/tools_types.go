@@ -137,6 +137,9 @@ func mcpServerConfigToMap(config MCPServerConfig) map[string]any {
 	if len(config.Headers) > 0 {
 		result["headers"] = config.Headers
 	}
+	if config.Auth != nil {
+		result["auth"] = config.Auth
+	}
 
 	// Add container-specific fields
 	if config.Container != "" {
