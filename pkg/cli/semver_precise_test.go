@@ -61,7 +61,7 @@ func TestIsPreciseVersion(t *testing.T) {
 				t.Fatalf("Failed to parse version: %s", tt.version)
 			}
 
-			result := v.isPreciseVersion()
+			result := v.IsPreciseVersion()
 			if result != tt.expected {
 				t.Errorf("isPreciseVersion() for %q = %v, want %v", tt.version, result, tt.expected)
 			}
@@ -80,25 +80,25 @@ func TestPreciseVersionPreference(t *testing.T) {
 	}
 
 	// They should parse to the same major.minor.patch
-	if v6.major != v600.major || v6.minor != v600.minor || v6.patch != v600.patch {
+	if v6.Major != v600.Major || v6.Minor != v600.Minor || v6.Patch != v600.Patch {
 		t.Errorf("v6 and v6.0.0 should parse to same major.minor.patch, got v6=%+v, v600=%+v", v6, v600)
 	}
 
 	// v6.0.0 should be precise, v6 should not
-	if !v600.isPreciseVersion() {
+	if !v600.IsPreciseVersion() {
 		t.Error("v6.0.0 should be precise")
 	}
 
-	if v6.isPreciseVersion() {
+	if v6.IsPreciseVersion() {
 		t.Error("v6 should not be precise")
 	}
 
 	// Neither should be considered "newer" than the other
-	if v6.isNewer(v600) {
+	if v6.IsNewer(v600) {
 		t.Error("v6 should not be newer than v6.0.0")
 	}
 
-	if v600.isNewer(v6) {
+	if v600.IsNewer(v6) {
 		t.Error("v6.0.0 should not be newer than v6")
 	}
 }

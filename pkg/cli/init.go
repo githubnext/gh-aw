@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 
 	"github.com/github/gh-aw/pkg/console"
+	"github.com/github/gh-aw/pkg/gitutil"
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/workflow"
 )
@@ -187,7 +188,7 @@ func ensureMaintenanceWorkflow(verbose bool) error {
 	initLog.Print("Checking for workflows with expires field")
 
 	// Find git root
-	gitRoot, err := findGitRoot()
+	gitRoot, err := gitutil.FindGitRoot()
 	if err != nil {
 		return fmt.Errorf("failed to find git root: %w", err)
 	}

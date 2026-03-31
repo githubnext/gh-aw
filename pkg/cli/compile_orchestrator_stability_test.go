@@ -6,12 +6,14 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/github/gh-aw/pkg/gitutil"
 )
 
 // TestGetRepositoryRelativePath tests that paths are correctly converted to repository-relative paths
 func TestGetRepositoryRelativePath(t *testing.T) {
 	// Get the actual repository root
-	repoRoot, err := findGitRoot()
+	repoRoot, err := gitutil.FindGitRoot()
 	if err != nil {
 		t.Skipf("Skipping test: not in a git repository: %v", err)
 	}
@@ -56,7 +58,7 @@ func TestGetRepositoryRelativePath(t *testing.T) {
 // produces the same relative path regardless of how it's constructed
 func TestGetRepositoryRelativePathConsistency(t *testing.T) {
 	// Get the actual repository root
-	repoRoot, err := findGitRoot()
+	repoRoot, err := gitutil.FindGitRoot()
 	if err != nil {
 		t.Skipf("Skipping test: not in a git repository: %v", err)
 	}
@@ -113,7 +115,7 @@ func TestGetRepositoryRelativePathConsistency(t *testing.T) {
 // is normalized to forward slashes for cross-platform stability
 func TestGetRepositoryRelativePathCrossPlatform(t *testing.T) {
 	// Get the actual repository root
-	repoRoot, err := findGitRoot()
+	repoRoot, err := gitutil.FindGitRoot()
 	if err != nil {
 		t.Skipf("Skipping test: not in a git repository: %v", err)
 	}

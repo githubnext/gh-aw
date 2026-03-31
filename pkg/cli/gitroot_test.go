@@ -6,6 +6,8 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/github/gh-aw/pkg/gitutil"
 )
 
 func TestFindGitRoot(t *testing.T) {
@@ -16,7 +18,7 @@ func TestFindGitRoot(t *testing.T) {
 	}
 
 	// Try to find the git root from current location
-	root, err := findGitRoot()
+	root, err := gitutil.FindGitRoot()
 	if err != nil {
 		// If we're not in a git repository, try changing to the project root
 		// This handles cases where tests are run from outside the git repo
@@ -29,7 +31,7 @@ func TestFindGitRoot(t *testing.T) {
 		}()
 
 		// Try again from project root
-		root, err = findGitRoot()
+		root, err = gitutil.FindGitRoot()
 		if err != nil {
 			t.Skipf("Expected to find git root, but got error: %v", err)
 		}

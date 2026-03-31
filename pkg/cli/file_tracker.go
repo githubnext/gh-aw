@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/github/gh-aw/pkg/console"
+	"github.com/github/gh-aw/pkg/gitutil"
 	"github.com/github/gh-aw/pkg/logger"
 )
 
@@ -25,7 +26,7 @@ type FileTracker struct {
 // NewFileTracker creates a new file tracker
 func NewFileTracker() (*FileTracker, error) {
 	fileTrackerLog.Print("Creating new file tracker")
-	gitRoot, err := findGitRoot()
+	gitRoot, err := gitutil.FindGitRoot()
 	if err != nil {
 		fileTrackerLog.Printf("Failed to find git root: %v", err)
 		return nil, fmt.Errorf("file tracker requires being in a git repository: %w", err)

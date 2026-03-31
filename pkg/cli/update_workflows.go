@@ -12,6 +12,7 @@ import (
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/gitutil"
 	"github.com/github/gh-aw/pkg/parser"
+	"github.com/github/gh-aw/pkg/semverutil"
 	"github.com/github/gh-aw/pkg/workflow"
 )
 
@@ -307,7 +308,7 @@ func resolveLatestRelease(repo, currentRef string, allowMajor, verbose bool) (st
 
 	// Find the latest compatible release
 	var latestCompatible string
-	var latestCompatibleVersion *semanticVersion
+	var latestCompatibleVersion *semverutil.SemanticVersion
 
 	for _, release := range releases {
 		releaseVer := parseVersion(release)
@@ -316,12 +317,12 @@ func resolveLatestRelease(repo, currentRef string, allowMajor, verbose bool) (st
 		}
 
 		// Check if compatible based on major version
-		if !allowMajor && releaseVer.major != currentVer.major {
+		if !allowMajor && releaseVer.Major != currentVer.Major {
 			continue
 		}
 
 		// Check if this is newer than what we have
-		if latestCompatibleVersion == nil || releaseVer.isNewer(latestCompatibleVersion) {
+		if latestCompatibleVersion == nil || releaseVer.IsNewer(latestCompatibleVersion) {
 			latestCompatible = release
 			latestCompatibleVersion = releaseVer
 		}

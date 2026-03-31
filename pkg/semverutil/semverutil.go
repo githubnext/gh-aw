@@ -117,6 +117,20 @@ func Compare(v1, v2 string) int {
 	return result
 }
 
+// IsPreciseVersion returns true if the version has explicit minor and patch components
+// (i.e., at least two dots in the version string, e.g. "v6.0.0" is precise, "v6" is not).
+func (v *SemanticVersion) IsPreciseVersion() bool {
+	versionPart := strings.TrimPrefix(v.Raw, "v")
+	dotCount := strings.Count(versionPart, ".")
+	return dotCount >= 2
+}
+
+// IsNewer returns true if this version is newer than other.
+// Uses Compare for proper semantic version comparison.
+func (v *SemanticVersion) IsNewer(other *SemanticVersion) bool {
+	return Compare(v.Raw, other.Raw) > 0
+}
+
 // IsCompatible reports whether pinVersion is semver-compatible with requestedVersion.
 // Semver compatibility is defined as both versions sharing the same major version.
 //

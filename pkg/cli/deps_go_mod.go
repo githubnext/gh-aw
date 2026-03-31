@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/github/gh-aw/pkg/gitutil"
 	"github.com/github/gh-aw/pkg/logger"
 )
 
@@ -24,7 +25,7 @@ func findGoMod() (string, error) {
 	}
 
 	// Try git root
-	root, err := findGitRoot()
+	root, err := gitutil.FindGitRoot()
 	if err != nil {
 		return "", errors.New("not in a Go module (no go.mod found)")
 	}

@@ -10,6 +10,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/github/gh-aw/pkg/gitutil"
 	"github.com/github/gh-aw/pkg/stringutil"
 
 	"github.com/github/gh-aw/pkg/console"
@@ -390,7 +391,7 @@ func resolveImportPathLocal(importPath, baseDir string) string {
 	if strings.HasPrefix(importPath, "/") {
 		runPushLog.Printf("Import path is absolute (starts with /): %s", importPath)
 		// Find git root
-		gitRoot, err := findGitRoot()
+		gitRoot, err := gitutil.FindGitRoot()
 		if err != nil {
 			runPushLog.Printf("Failed to find git root: %v", err)
 			return ""

@@ -14,6 +14,7 @@ import (
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/fileutil"
+	"github.com/github/gh-aw/pkg/gitutil"
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/parser"
 	"github.com/github/gh-aw/pkg/workflow"
@@ -727,7 +728,7 @@ func resolveWorkflowDisplayName(workflowPath, owner, repo, hostname string) stri
 	// Try local file first.  workflowPath is a repo-relative path like
 	// ".github/workflows/foo.lock.yml", so we resolve it against the git root to
 	// produce a correct absolute path regardless of the current working directory.
-	if gitRoot, err := findGitRoot(); err == nil {
+	if gitRoot, err := gitutil.FindGitRoot(); err == nil {
 		absPath := filepath.Join(gitRoot, workflowPath)
 		if content, err := os.ReadFile(absPath); err == nil {
 			if name := extractWorkflowNameFromYAML(content); name != "" {

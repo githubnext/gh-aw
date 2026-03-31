@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/github/gh-aw/pkg/console"
+	"github.com/github/gh-aw/pkg/gitutil"
 	"github.com/github/gh-aw/pkg/logger"
 )
 
@@ -204,7 +205,7 @@ func runActionlintOnFiles(lockFiles []string, verbose bool, strict bool) error {
 	}
 
 	// Find git root to get the absolute path for Docker volume mount
-	gitRoot, err := findGitRoot()
+	gitRoot, err := gitutil.FindGitRoot()
 	if err != nil {
 		return fmt.Errorf("failed to find git root: %w", err)
 	}

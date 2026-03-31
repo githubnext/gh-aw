@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 
 	"github.com/github/gh-aw/pkg/console"
+	"github.com/github/gh-aw/pkg/gitutil"
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/stringutil"
 	"github.com/github/gh-aw/pkg/workflow"
@@ -75,7 +76,7 @@ func compileWorkflowWithTrackingAndRefresh(filePath string, verbose bool, quiet 
 	addWorkflowCompilationLog.Printf("Lock file %s exists: %v", lockFile, lockFileExists)
 
 	// Check if .gitattributes exists before ensuring it
-	gitRoot, err := findGitRoot()
+	gitRoot, err := gitutil.FindGitRoot()
 	if err != nil {
 		return err
 	}

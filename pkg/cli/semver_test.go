@@ -117,17 +117,17 @@ func TestParseVersion(t *testing.T) {
 				return
 			}
 
-			if got.major != tt.wantMajor {
-				t.Errorf("parseVersion(%q).major = %d, want %d", tt.input, got.major, tt.wantMajor)
+			if got.Major != tt.wantMajor {
+				t.Errorf("parseVersion(%q).Major = %d, want %d", tt.input, got.Major, tt.wantMajor)
 			}
-			if got.minor != tt.wantMinor {
-				t.Errorf("parseVersion(%q).minor = %d, want %d", tt.input, got.minor, tt.wantMinor)
+			if got.Minor != tt.wantMinor {
+				t.Errorf("parseVersion(%q).Minor = %d, want %d", tt.input, got.Minor, tt.wantMinor)
 			}
-			if got.patch != tt.wantPatch {
-				t.Errorf("parseVersion(%q).patch = %d, want %d", tt.input, got.patch, tt.wantPatch)
+			if got.Patch != tt.wantPatch {
+				t.Errorf("parseVersion(%q).Patch = %d, want %d", tt.input, got.Patch, tt.wantPatch)
 			}
-			if got.pre != tt.wantPre {
-				t.Errorf("parseVersion(%q).pre = %q, want %q", tt.input, got.pre, tt.wantPre)
+			if got.Pre != tt.wantPre {
+				t.Errorf("parseVersion(%q).Pre = %q, want %q", tt.input, got.Pre, tt.wantPre)
 			}
 		})
 	}
@@ -161,9 +161,9 @@ func TestVersionIsNewer(t *testing.T) {
 				t.Fatalf("failed to parse versions: %q or %q", tt.version, tt.other)
 			}
 
-			got := v.isNewer(other)
+			got := v.IsNewer(other)
 			if got != tt.want {
-				t.Errorf("(%q).isNewer(%q) = %v, want %v", tt.version, tt.other, got, tt.want)
+				t.Errorf("(%q).IsNewer(%q) = %v, want %v", tt.version, tt.other, got, tt.want)
 			}
 		})
 	}

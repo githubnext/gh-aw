@@ -21,11 +21,6 @@ func isGitRepo() bool {
 	return cmd.Run() == nil
 }
 
-// findGitRoot finds the root directory of the git repository
-func findGitRoot() (string, error) {
-	return gitutil.FindGitRoot()
-}
-
 // findGitRootForPath finds the root directory of the git repository containing the specified path
 func findGitRootForPath(path string) (string, error) {
 	gitLog.Printf("Finding git root for path: %s", path)
@@ -205,7 +200,7 @@ func getRepositorySlugFromRemoteForPath(path string) string {
 
 func stageWorkflowChanges() {
 	// Find git root and add .github/workflows relative to it
-	if gitRoot, err := findGitRoot(); err == nil {
+	if gitRoot, err := gitutil.FindGitRoot(); err == nil {
 		workflowsPath := filepath.Join(gitRoot, ".github/workflows/")
 		_ = exec.Command("git", "-C", gitRoot, "add", workflowsPath).Run()
 
@@ -221,7 +216,7 @@ func stageWorkflowChanges() {
 // ensureGitAttributes ensures that .gitattributes contains the entry to mark .lock.yml files as generated
 func ensureGitAttributes() error {
 	gitLog.Print("Ensuring .gitattributes is updated")
-	gitRoot, err := findGitRoot()
+	gitRoot, err := gitutil.FindGitRoot()
 	if err != nil {
 		return err // Not in a git repository, skip
 	}
@@ -286,7 +281,7 @@ func ensureGitAttributes() error {
 
 // stageGitAttributesIfChanged stages .gitattributes if it was modified
 func stageGitAttributesIfChanged() error {
-	gitRoot, err := findGitRoot()
+	gitRoot, err := gitutil.FindGitRoot()
 	if err != nil {
 		return err
 	}
@@ -297,7 +292,7 @@ func stageGitAttributesIfChanged() error {
 // ensureLogsGitignore ensures that .github/aw/logs/.gitignore exists to ignore log files
 func ensureLogsGitignore() error {
 	gitLog.Print("Ensuring .github/aw/logs/.gitignore exists")
-	gitRoot, err := findGitRoot()
+	gitRoot, err := gitutil.FindGitRoot()
 	if err != nil {
 		return err // Not in a git repository, skip
 	}
@@ -442,7 +437,7 @@ func checkWorkflowFileStatus(workflowPath string) (*WorkflowFileStatus, error) {
 	}
 
 	// Get the absolute path relative to git root
-	gitRoot, err := findGitRoot()
+	gitRoot, err := gitutil.FindGitRoot()
 	if err != nil {
 		gitLog.Printf("Failed to find git root: %v", err)
 		return status, nil // Not in a git repository, return empty status
