@@ -1,7 +1,7 @@
 # Developer Instructions
 
-**Version**: 4.7
-**Last Updated**: 2026-03-30
+**Version**: 4.8
+**Last Updated**: 2026-03-31
 **Purpose**: Consolidated development guidelines for GitHub Agentic Workflows
 
 This document consolidates specifications from the scratchpad directory into unified developer instructions. It provides architecture patterns, security guidelines, code organization rules, and testing practices.
@@ -1817,6 +1817,38 @@ func routeWorkflow(event Event) (string, error) {
 }
 ```
 
+### Workflow Size and Refactoring
+
+Workflows that exceed size thresholds become difficult to maintain and test. Use module extraction to reduce complexity.
+
+**Size guidelines**:
+- Target: 200–400 lines per workflow
+- Refactor above: 600 lines
+
+**Module extraction via `imports:`**: Move reusable concerns to `.github/workflows/shared/`:
+- **Data collection** (`shared/data-fetch.md`) — fetch and prepare input data
+- **Analysis strategies** (`shared/analysis-strategies.md`) — reusable analytical patterns
+- **Visualization** (`shared/visualization.md`) — chart generation
+- **Reporting** (`shared/reporting.md`) — common output patterns
+
+```yaml
+imports:
+  - shared/data-fetch.md
+  - shared/analysis-strategies.md
+  - shared/reporting.md
+```
+
+**Anti-patterns**: Do not over-extract (modules below ~100 lines rarely justify the overhead), create circular import chains, or duplicate setup logic across multiple modules.
+
+**Refactoring checklist**:
+- [ ] Identify distinct concerns (data, analysis, visualization, reporting)
+- [ ] Extract each concern to a focused shared module
+- [ ] Update main workflow to use `imports:`
+- [ ] Verify compilation and test functionality
+- [ ] Confirm main workflow is under 500 lines
+
+See `scratchpad/workflow-refactoring-patterns.md` for examples, shared module structure templates, and anti-patterns.
+
 ### Activation Output Transformations
 
 The compiler automatically rewrites three specific `needs.activation.outputs.*` expressions to `steps.sanitized.outputs.*` when they appear inside the activation job itself. A GitHub Actions job cannot reference its own outputs via `needs.<job-name>.*`—those references are only valid in downstream jobs.
@@ -2501,6 +2533,60 @@ Brief description of the change
 
 See `scratchpad/changesets.md` for complete documentation.
 
+### CLI Breaking Changes
+
+Breaking changes require a `major` changeset type, migration guidance in CHANGELOG.md, and maintainer review.
+
+**Always breaking** (require `major` changeset):
+- Removing or renaming a command, subcommand, or flag without an alias
+- Changing a flag's short form (e.g., `-o` → `-f`)
+- Removing or renaming JSON output fields, or changing field types
+- Changing default flag values (e.g., `strict: false` → `strict: true`)
+- Removing schema fields, making optional fields required, or removing enum values
+- Changing exit codes for existing scenarios
+
+**Not breaking** (use `minor` for new features, `patch` for bug fixes):
+- Adding new commands, flags with reasonable defaults, or JSON output fields
+- Adding new schema fields or enum values
+- Deprecating functionality with warnings (keep working for ≥1 minor release)
+- Bug fixes for unintended behavior, performance improvements
+
+**Decision tree**:
+1. Does the change remove or rename a command, subcommand, or flag? → **Breaking**
+2. Does it modify JSON output structure (remove/rename fields, change types)? → **Breaking**
+3. Does it alter default behavior users rely on? → **Breaking**
+4. Does it change exit codes for existing scenarios? → **Breaking**
+5. Does it remove schema fields or make optional fields required? → **Breaking**
+6. None of the above? → **Not breaking**
+
+**Changeset format for breaking changes**:
+```markdown
+---
+"gh-aw": major
+---
+
+Remove deprecated `--old-flag` option
+
+**⚠️ Breaking Change**: The `--old-flag` option has been removed.
+
+**Migration guide:**
+- If you used `--old-flag value`, use `--new-flag value` instead
+
+**Reason**: Deprecated in v0.X.0; removed to simplify the CLI.
+```
+
+**Review checklist for CLI changes**:
+- [ ] Breaking change identified correctly (matches criteria above)?
+- [ ] Changeset type is major/minor/patch as appropriate?
+- [ ] Migration guidance provided for breaking changes?
+- [ ] Deprecation warning added if deprecating?
+- [ ] Backward compatibility considered (alias instead of rename)?
+- [ ] Tests and help text updated?
+
+**JSON output standards**: Never remove, rename, or change field types without a major version bump. Adding new fields is safe. Parsers should tolerate unknown fields and values.
+
+See `scratchpad/breaking-cli-rules.md` for the full reference including exit code standards and historical examples.
+
 ---
 
 ## Additional Resources
@@ -2547,6 +2633,8 @@ These files are loaded automatically by compatible AI tools (e.g., GitHub Copilo
 - [Hierarchical Agents Quick Start](./agents/hierarchical-agents-quickstart.md) - Operator guide for the three meta-orchestrators: what each produces, when to check outputs, and common operational tasks
 - [Go Module Usage Summaries Index](./mods/README.md) - Directory of AI-generated Go module summaries produced by the Go Fan workflow; file naming conventions and update cadence
 - [jsonschema-go Module Summary](./mods/jsonschema-go.md) - Usage patterns for `github.com/google/jsonschema-go` v0.3.0: `ForType()`, `GenerateOutputSchema[T]()` generic helper, struct tag integration, and MCP tool schema generation
+- [CLI Breaking Changes](./breaking-cli-rules.md) - Categories of breaking vs. non-breaking CLI changes; decision tree, changeset format, review checklist, exit code and JSON output standards
+- [Workflow Refactoring Patterns](./workflow-refactoring-patterns.md) - Patterns for extracting large workflows into shared modules: size guidelines (target 400–500 lines), extraction checklist, shared module structure templates, and anti-patterns
 
 ### External References
 
@@ -2558,6 +2646,7 @@ These files are loaded automatically by compatible AI tools (e.g., GitHub Copilo
 ---
 
 **Document History**:
+- v4.8 (2026-03-31): Added CLI Breaking Changes subsection to Release Management (from `breaking-cli-rules.md`: breaking vs. non-breaking categories, decision tree, changeset format, review checklist, JSON output standards). Added Workflow Size and Refactoring subsection to Workflow Patterns (from `workflow-refactoring-patterns.md`: size guidelines, module extraction via `imports:`, refactoring checklist, anti-patterns). Added 2 new Related Documentation links. Coverage: 68 spec files (2 new).
 - v4.7 (2026-03-30): Added 4 previously uncovered subdirectory spec files (`agents/hierarchical-agents.md`, `agents/hierarchical-agents-quickstart.md`, `mods/README.md`, `mods/jsonschema-go.md`). Fixed 3 tone issues in `mods/jsonschema-go.md`: "Active maintenance and community support" → "MIT licensed; maintained by Google" (line 13), "Developer-Friendly API" heading → "API Design" (line 111), "Good integration with Go idioms" removed and "Concise function signatures" → "Function signatures follow Go idioms" (lines 112–113). Coverage: 66 spec files (4 new).
 - v4.6 (2026-03-29): Maintenance tone scan — 0 new issues across 62 spec files. No new spec files since v4.5 (latest commit `96873d8` touched `.changeset/` only). Coverage: 62 spec files.
 - v4.5 (2026-03-28): Maintenance tone scan — 0 new issues across 62 spec files. No new spec files since v4.4 (latest commit `7ceec0f` touched `.changeset/` only). Coverage: 62 spec files.
