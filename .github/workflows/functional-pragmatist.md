@@ -458,6 +458,7 @@ func TestFilter(t *testing.T) {
 package fp
 
 // Map transforms each element in a slice
+// Note: uses var+append to avoid CodeQL violations from make([]U, len(slice))
 func Map[T, U any](slice []T, fn func(T) U) []U {
     var result []U
     for _, v := range slice {
@@ -1339,7 +1340,7 @@ func NewService(config *Config, cache *Cache) *Service
 - Go doesn't have built-in map/filter/reduce - that's okay!
 - Inline loops are often clearer than generic helpers
 - Use type parameters (generics) for helpers to avoid reflection
-- Avoid `make([]T, len(input))` — use `var result []T` + `append` instead (CodeQL violation)
+- Avoid `make([]T, len(input))` and `make([]T, 0, len(input))` — use `var result []T` + `append` instead; CodeQL flags these patterns because the slice length/capacity is derived from user-controlled input, which can trigger incorrect memory allocation analysis
 - Simple for-loops are idiomatic Go - don't force functional style
 - Functional options is a well-established Go pattern - use it confidently
 - Pure functions align well with Go's simplicity philosophy
