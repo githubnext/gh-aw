@@ -1081,3 +1081,83 @@ func TestBuildDetectionEngineExecutionStepPropagatesAPITarget(t *testing.T) {
 		})
 	}
 }
+
+// TestDetectionJobPermissionsIndentation verifies that the detection job's permissions block
+// is correctly indented in the rendered YAML output.
+// Regression test for the indentation bug where c.indentYAMLLines was called on
+// RenderToYAML() output which already uses 6-space indentation for permission values,
+// resulting in 10-space indentation instead of the correct 6.
+func TestDetectionJobPermissionsIndentation(t *testing.T) {
+	tests := []struct {
+		name            string
+		data            *WorkflowData
+		wantContains    []string
+		wantNotContains []string
+	}{
+		{
+			name: "copilot-requests feature produces correctly indented permissions",
+			data: &WorkflowData{
+				Name: "test-workflow",
+				AI:   "copilot",
+				SafeOutputs: &SafeOutputsConfig{
+					ThreatDetection: &ThreatDetectionConfig{},
+				},
+				Features: map[string]any{
+					string(constants.CopilotRequestsFeatureFlag): true,
+				},
+			},
+			// permission values must be indented by exactly 6 spaces (4 for job key + 2 for sub-key)
+			wantContains: []string{
+				"      copilot-requests: write",
+			},
+			// Over-indented value (10 spaces) must not appear - this was the bug
+			wantNotContains: []string{
+				"          copilot-requests: write",
+			},
+		},
+		{
+			name: "permissions block absent when copilot-requests feature disabled and no contents read needed",
+			data: &WorkflowData{
+				Name: "test-workflow",
+				AI:   "copilot",
+				SafeOutputs: &SafeOutputsConfig{
+					ThreatDetection: &ThreatDetectionConfig{},
+				},
+			},
+			// copilot-requests should not be in the output when the feature is not enabled
+			wantContains:    []string{},
+			wantNotContains: []string{"copilot-requests: write"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			compiler := NewCompiler()
+
+			job, err := compiler.buildDetectionJob(tt.data)
+			if err != nil {
+				t.Fatalf("buildDetectionJob() error: %v", err)
+			}
+			if job == nil {
+				t.Fatal("buildDetectionJob() returned nil job")
+			}
+
+			if err := compiler.jobManager.AddJob(job); err != nil {
+				t.Fatalf("AddJob() error: %v", err)
+			}
+
+			yamlOutput := compiler.jobManager.RenderToYAML()
+
+			for _, expected := range tt.wantContains {
+				if !strings.Contains(yamlOutput, expected) {
+					t.Errorf("YAML output should contain %q, but got:\n%s", expected, yamlOutput)
+				}
+			}
+			for _, unexpected := range tt.wantNotContains {
+				if strings.Contains(yamlOutput, unexpected) {
+					t.Errorf("YAML output should NOT contain %q, but got:\n%s", unexpected, yamlOutput)
+				}
+			}
+		})
+	}
+}

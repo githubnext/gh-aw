@@ -656,7 +656,7 @@ func (c *Compiler) buildDetectionJob(data *WorkflowData) (*Job, error) {
 		Needs:       needs,
 		If:          jobCondition,
 		RunsOn:      c.indentYAMLLines(runsOn, "    "),
-		Permissions: c.indentYAMLLines(permissions, "    "),
+		Permissions: permissions,
 		Steps:       steps,
 		Outputs:     outputs,
 	}
