@@ -114,7 +114,7 @@ mcp__playwright__browser_run_code({
 })
 ```
 
-Using Playwright, visit exactly these 3 pages — no more:
+Using Playwright, visit exactly these 3 pages and stop:
 
 1. **Visit the home page** at `http://${SERVER_IP}:4321/gh-aw/`
    - Take a screenshot
