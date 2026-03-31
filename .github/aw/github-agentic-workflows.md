@@ -224,6 +224,11 @@ The YAML frontmatter supports these fields:
       ignored-roles: [admin, maintain]
     ```
 
+- **`check-for-updates:`** - Control whether the activation job checks if the compiled `gh-aw` version is still supported (boolean, default: `true`)
+  - When `true` (default): blocked versions fail fast; below-recommended versions emit a warning
+  - When `false`: skips the version check; the compiler emits a warning at compile time
+  - Use `check-for-updates: false` only when deploying in isolated environments where version update checks are not feasible
+
 - **`features:`** - Feature flags for experimental or optional features (object)
   - Each flag is a key-value pair; boolean flags (`true`/`false`) or string values are accepted
   - Known feature flags:
@@ -418,6 +423,12 @@ The YAML frontmatter supports these fields:
       - `private-key:` - GitHub App private key (required, e.g., `${{ secrets.APP_PRIVATE_KEY }}`)
       - `owner:` - Optional installation owner (defaults to current repository owner)
       - `repositories:` - Optional list of repositories to grant access to (array)
+      - `permissions:` - Optional extra permissions to include in the minted token for org-level API access (object)
+        - Example: `permissions: { members: read, organization-administration: read }` — required when calling org-level APIs (e.g., `orgs`, `users` toolsets) since the default GITHUB_TOKEN does not have org-scoped permissions
+    - `min-integrity:` - Minimum integrity level for MCP Gateway guard policy; controls which content the agent may act on based on author trust (`none`, `unapproved`, `approved`, `merged`)
+    - `blocked-users:` - Usernames whose content is unconditionally blocked (array or GitHub Actions expression); these users receive integrity below `none` and are always denied
+    - `approval-labels:` - Label names that elevate a content item's integrity to `approved` when present (array or GitHub Actions expression); does not override `blocked-users`
+    - `trusted-users:` - Usernames elevated to `approved` integrity regardless of `author_association` (array or GitHub Actions expression); useful for contractors who need elevated access without becoming repo collaborators; takes precedence over `min-integrity` but not over `blocked-users`; requires `min-integrity` to be set
     - `toolsets:` - Enable specific GitHub toolset groups (array only)
       - **Default toolsets** (when unspecified): `context`, `repos`, `issues`, `pull_requests` (excludes `users` as GitHub Actions tokens don't support user operations)
       - **All toolsets**: `context`, `repos`, `issues`, `pull_requests`, `actions`, `code_security`, `dependabot`, `discussions`, `experiments`, `gists`, `labels`, `notifications`, `orgs`, `projects`, `secret_protection`, `security_advisories`, `stargazers`, `users`, `search`
@@ -1869,6 +1880,25 @@ mcp-servers:
       - custom_function_1
       - custom_function_2
 ```
+
+HTTP MCP servers are also supported with optional upstream authentication:
+
+```yaml
+mcp-servers:
+  my-server:
+    type: http
+    url: "https://myserver.example.com/mcp"
+    headers:
+      Authorization: "Bearer ${{ secrets.API_KEY }}"    # Optional: custom headers
+  my-oidc-server:
+    type: http
+    url: "https://myserver.example.com/mcp"
+    auth:
+      type: github-oidc                                  # GitHub Actions OIDC token authentication
+      audience: "https://myserver.example.com"          # Optional: custom OIDC audience
+```
+
+`auth.type: github-oidc` uses GitHub Actions OIDC tokens for secure server-to-server authentication without static credentials. The `audience` field is optional and defaults to the server URL when omitted.
 
 ### Engine Network Permissions
 
