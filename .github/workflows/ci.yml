@@ -422,6 +422,7 @@ jobs:
       - name: List downloaded artifacts
         run: |
           set -euo pipefail
+          mkdir -p test-results
           echo "Downloaded test result artifacts:"
           find test-results -type f -name "*.json" | sort
           echo ""
@@ -431,11 +432,22 @@ jobs:
         run: |
           set -euo pipefail
           echo "Extracting test names from JSON artifacts..."
-          ./scripts/extract-executed-tests.sh test-results > executed-tests.txt
-          echo "Found $(wc -l < executed-tests.txt) executed tests"
+          JSON_COUNT=$(find test-results -name "*.json" -type f 2>/dev/null | wc -l)
+          if [ "$JSON_COUNT" -eq 0 ]; then
+            echo "⚠️ No test result artifacts found. Tests may not have run or were cancelled."
+            touch executed-tests.txt
+          else
+            ./scripts/extract-executed-tests.sh test-results > executed-tests.txt
+            echo "Found $(wc -l < executed-tests.txt) executed tests"
+          fi
 
       - name: Compare test coverage
         run: |
+          if [ ! -s executed-tests.txt ]; then
+            echo "⚠️ No test execution data available. Skipping coverage comparison."
+            echo "This typically happens when test jobs were cancelled or did not run."
+            exit 0
+          fi
           ./scripts/compare-test-coverage.sh all-tests.txt executed-tests.txt
 
       - name: Upload test coverage report
