@@ -543,6 +543,19 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 		}
 	}
 
+	// In dev mode the setup action is referenced via a local path (./actions/setup), so its files
+	// live in the workspace. When a checkout: entry targets an external repository without a path
+	// (e.g. "checkout: [{repository: owner/other-repo}]"), actions/checkout replaces the workspace
+	// root with the external repository content, removing the actions/setup directory.
+	// Without restoring it, the runner's post-step for Setup Scripts would fail with
+	// "Can't find 'action.yml', 'action.yaml' or 'Dockerfile' under .../actions/setup".
+	// We add a restore checkout step (if: always()) as the final step so the post-step
+	// can always find action.yml and complete its /tmp/gh-aw cleanup.
+	if c.actionMode.IsDev() && checkoutMgr.HasExternalRootCheckout() {
+		yaml.WriteString(c.generateRestoreActionsSetupStep())
+		compilerYamlLog.Print("Added restore actions folder step to agent job (dev mode with external root checkout)")
+	}
+
 	// Validate step ordering - this is a compiler check to ensure security
 	if err := c.stepOrderTracker.ValidateStepOrdering(); err != nil {
 		// This is a compiler bug if validation fails
