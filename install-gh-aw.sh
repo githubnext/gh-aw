@@ -247,17 +247,21 @@ releases_json=$(curl -s -f "$RELEASES_JSON_URL" 2>/dev/null) || true
 if [ -n "$releases_json" ]; then
     resolved_version=""
     if [ "$HAS_JQ" = true ]; then
-        resolved_version=$(echo "$releases_json" | jq -r ".aliases[\"$VERSION\"] // empty" 2>/dev/null) || true
+        resolved_version=$(echo "$releases_json" | jq -r ".aliases[\"$VERSION\"] // empty" 2>/dev/null) || {
+            print_info "jq failed to parse releases.json; alias resolution skipped"
+        }
     else
         # Fallback: extract alias value using grep/sed
-        resolved_version=$(echo "$releases_json" | grep -o "\"$VERSION\"[[:space:]]*:[[:space:]]*\"[^\"]*\"" | sed 's/.*:[[:space:]]*"\([^"]*\)"/\1/' | head -1) || true
+        # Escape regex special characters in VERSION to avoid unintended matches
+        version_escaped=$(printf '%s' "$VERSION" | sed 's/[.[\*^$]/\\&/g')
+        resolved_version=$(echo "$releases_json" | grep -o "\"${version_escaped}\"[[:space:]]*:[[:space:]]*\"[^\"]*\"" | sed 's/.*:[[:space:]]*"\([^"]*\)"/\1/' | head -1) || true
     fi
 
     if [ -n "$resolved_version" ] && [ "$resolved_version" != "$VERSION" ]; then
         print_info "Resolved alias '$VERSION' -> '$resolved_version'"
         VERSION="$resolved_version"
     elif [ -n "$resolved_version" ]; then
-        print_info "Version '$VERSION' is an alias for itself (no change)"
+        print_warning "Version '$VERSION' is an alias for itself in releases.json (no change); this may indicate a misconfiguration"
     else
         print_info "No alias found for '$VERSION', using it as-is"
     fi
