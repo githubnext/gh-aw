@@ -585,10 +585,10 @@
           "description": "Trustworthiness level of the message source (e.g., \"low\", \"medium\", \"high\")."
         }
       },
-      "additionalProperties": false,
       "required": [
         "labels"
-      ]
+      ],
+      "additionalProperties": false
     }
   },
   {
