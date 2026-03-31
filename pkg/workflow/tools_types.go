@@ -303,6 +303,14 @@ type GitHubToolConfig struct {
 	// resolves at runtime to a comma- or newline-separated list of blocked usernames.
 	// Set when the blocked-users field is a string expression rather than a literal array.
 	BlockedUsersExpr string `yaml:"-"`
+	// TrustedUsers is an optional list of GitHub usernames whose content is elevated to "approved"
+	// integrity regardless of author_association. Takes precedence over min-integrity checks but
+	// not over blocked-users. Requires min-integrity to be set.
+	TrustedUsers []string `yaml:"trusted-users,omitempty"`
+	// TrustedUsersExpr holds a GitHub Actions expression (e.g. "${{ vars.TRUSTED_USERS }}") that
+	// resolves at runtime to a comma- or newline-separated list of trusted usernames.
+	// Set when the trusted-users field is a string expression rather than a literal array.
+	TrustedUsersExpr string `yaml:"-"`
 	// ApprovalLabels is an optional list of GitHub label names that promote a content item's
 	// effective integrity to "approved" when present. Does not override BlockedUsers.
 	ApprovalLabels []string `yaml:"approval-labels,omitempty"`

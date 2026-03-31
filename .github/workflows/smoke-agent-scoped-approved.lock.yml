@@ -369,6 +369,7 @@ jobs:
         id: parse-guard-vars
         env:
           GH_AW_BLOCKED_USERS_VAR: ${{ vars.GH_AW_GITHUB_BLOCKED_USERS || '' }}
+          GH_AW_TRUSTED_USERS_VAR: ${{ vars.GH_AW_GITHUB_TRUSTED_USERS || '' }}
           GH_AW_APPROVAL_LABELS_VAR: ${{ vars.GH_AW_GITHUB_APPROVAL_LABELS || '' }}
         run: bash ${RUNNER_TEMP}/gh-aw/actions/parse_guard_list.sh
       - name: Download container images
@@ -584,7 +585,8 @@ jobs:
                     "repos": [
                       "github/gh-aw",
                       "github/*"
-                    ]
+                    ],
+                    "trusted-users": ${{ steps.parse-guard-vars.outputs.trusted_users }}
                   }
                 }
               },

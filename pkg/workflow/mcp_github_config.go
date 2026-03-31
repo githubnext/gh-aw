@@ -242,15 +242,15 @@ func getGitHubAllowedTools(githubTool any) []string {
 }
 
 // getGitHubGuardPolicies extracts guard policies from GitHub tool configuration.
-// It reads the flat allowed-repos/repos/min-integrity/blocked-users/approval-labels fields
+// It reads the flat allowed-repos/repos/min-integrity/blocked-users/trusted-users/approval-labels fields
 // and wraps them for MCP gateway rendering.
 // When min-integrity is set but allowed-repos is not, repos defaults to "all" because the MCP
 // Gateway requires repos to be present in the allow-only policy.
 // Note: repos-only (without min-integrity) is rejected earlier by validateGitHubGuardPolicy,
 // so this function will never be called with repos but without min-integrity in practice.
-// When blocked-users or approval-labels are set, their values are unioned with the org/repo
-// variable fallback expressions (GH_AW_GITHUB_BLOCKED_USERS / GH_AW_GITHUB_APPROVAL_LABELS)
-// so that a centrally-configured variable extends the per-workflow list rather than replacing it.
+// When blocked-users, trusted-users, or approval-labels are set, their values are unioned with
+// the org/repo variable fallback expressions so that a centrally-configured variable extends the
+// per-workflow list rather than replacing it.
 // Returns nil if no guard policies are configured.
 func getGitHubGuardPolicies(githubTool any) map[string]any {
 	if toolConfig, ok := githubTool.(map[string]any); ok {
@@ -272,10 +272,12 @@ func getGitHubGuardPolicies(githubTool any) map[string]any {
 			if hasIntegrity {
 				policy["min-integrity"] = integrity
 			}
-			// blocked-users and approval-labels are parsed at runtime by the parse-guard-vars step.
-			// The step outputs proper JSON arrays (split on comma/newline, validated, jq-encoded)
-			// from both the compile-time static values and the GH_AW_GITHUB_* org/repo variables.
+			// blocked-users, trusted-users, and approval-labels are parsed at runtime by the
+			// parse-guard-vars step. The step outputs proper JSON arrays (split on comma/newline,
+			// validated, jq-encoded) from both the compile-time static values and the
+			// GH_AW_GITHUB_* org/repo variables.
 			policy["blocked-users"] = guardExprSentinel + "${{ steps.parse-guard-vars.outputs.blocked_users }}"
+			policy["trusted-users"] = guardExprSentinel + "${{ steps.parse-guard-vars.outputs.trusted_users }}"
 			policy["approval-labels"] = guardExprSentinel + "${{ steps.parse-guard-vars.outputs.approval_labels }}"
 			return map[string]any{
 				"allow-only": policy,

@@ -346,6 +346,12 @@ const (
 	// a comma- or newline-separated list of GitHub label names that promote content to "approved" integrity.
 	// Set as an org or repo variable to apply a consistent approval label list across all workflows.
 	EnvVarGitHubApprovalLabels = "GH_AW_GITHUB_APPROVAL_LABELS"
+
+	// EnvVarGitHubTrustedUsers is the fallback variable for the tools.github.trusted-users guard policy field.
+	// When trusted-users is not explicitly set in the workflow frontmatter, this variable is used as
+	// a comma- or newline-separated list of GitHub usernames elevated to "approved" integrity.
+	// Set as an org or repo variable to apply a consistent trusted user list across all workflows.
+	EnvVarGitHubTrustedUsers = "GH_AW_GITHUB_TRUSTED_USERS"
 )
 
 // DefaultCodexVersion is the default version of the OpenAI Codex CLI

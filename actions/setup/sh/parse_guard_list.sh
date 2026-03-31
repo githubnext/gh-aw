@@ -4,17 +4,20 @@ set -eo pipefail
 # parse_guard_list.sh - Parse comma/newline-separated guard policy lists into JSON arrays
 #
 # Reads the combined extra (static or user-expression) and org/repo variable values for
-# blocked-users and approval-labels, merges them, validates each item, and writes the
-# resulting JSON arrays to $GITHUB_OUTPUT for use in the MCP gateway config step.
+# blocked-users, trusted-users, and approval-labels, merges them, validates each item, and
+# writes the resulting JSON arrays to $GITHUB_OUTPUT for use in the MCP gateway config step.
 #
 # Environment variables (all optional, default empty):
 #   GH_AW_BLOCKED_USERS_EXTRA  - Static items or user-expression value for blocked-users
 #   GH_AW_BLOCKED_USERS_VAR    - Value of vars.GH_AW_GITHUB_BLOCKED_USERS (fallback)
+#   GH_AW_TRUSTED_USERS_EXTRA  - Static items or user-expression value for trusted-users
+#   GH_AW_TRUSTED_USERS_VAR    - Value of vars.GH_AW_GITHUB_TRUSTED_USERS (fallback)
 #   GH_AW_APPROVAL_LABELS_EXTRA - Static items or user-expression value for approval-labels
 #   GH_AW_APPROVAL_LABELS_VAR  - Value of vars.GH_AW_GITHUB_APPROVAL_LABELS (fallback)
 #
 # Outputs (to $GITHUB_OUTPUT):
 #   blocked_users   - JSON array, e.g. ["spam-bot","bad-actor"] or []
+#   trusted_users   - JSON array, e.g. ["contractor-1","partner-dev"] or []
 #   approval_labels - JSON array, e.g. ["human-reviewed"] or []
 #
 # Exit codes:
@@ -71,14 +74,18 @@ combine_inputs() {
 }
 
 BLOCKED_INPUT=$(combine_inputs "${GH_AW_BLOCKED_USERS_EXTRA:-}" "${GH_AW_BLOCKED_USERS_VAR:-}")
+TRUSTED_INPUT=$(combine_inputs "${GH_AW_TRUSTED_USERS_EXTRA:-}" "${GH_AW_TRUSTED_USERS_VAR:-}")
 APPROVAL_INPUT=$(combine_inputs "${GH_AW_APPROVAL_LABELS_EXTRA:-}" "${GH_AW_APPROVAL_LABELS_VAR:-}")
 
 blocked_users_json=$(parse_list "$BLOCKED_INPUT" "blocked-users")
+trusted_users_json=$(parse_list "$TRUSTED_INPUT" "trusted-users")
 approval_labels_json=$(parse_list "$APPROVAL_INPUT" "approval-labels")
 
 echo "blocked_users=${blocked_users_json}" >> "$GITHUB_OUTPUT"
+echo "trusted_users=${trusted_users_json}" >> "$GITHUB_OUTPUT"
 echo "approval_labels=${approval_labels_json}" >> "$GITHUB_OUTPUT"
 
 echo "Guard policy lists parsed successfully"
 echo "  blocked-users: ${blocked_users_json}"
+echo "  trusted-users: ${trusted_users_json}"
 echo "  approval-labels: ${approval_labels_json}"

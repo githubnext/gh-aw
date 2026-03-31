@@ -314,6 +314,26 @@ func parseGitHubTool(val any) *GitHubToolConfig {
 				configMap["approval-labels"] = toAnySlice(parsed) // normalize raw map for JSON rendering
 			}
 		}
+		if trustedUsers, ok := configMap["trusted-users"].([]any); ok {
+			config.TrustedUsers = make([]string, 0, len(trustedUsers))
+			for _, item := range trustedUsers {
+				if str, ok := item.(string); ok {
+					config.TrustedUsers = append(config.TrustedUsers, str)
+				}
+			}
+		} else if trustedUsers, ok := configMap["trusted-users"].([]string); ok {
+			config.TrustedUsers = trustedUsers
+		} else if trustedUsersStr, ok := configMap["trusted-users"].(string); ok {
+			if isGitHubActionsExpression(trustedUsersStr) {
+				// GitHub Actions expression: store as-is; raw map retains the string for JSON rendering.
+				config.TrustedUsersExpr = trustedUsersStr
+			} else {
+				// Static comma/newline-separated string: parse at compile time.
+				parsed := parseCommaSeparatedOrNewlineList(trustedUsersStr)
+				config.TrustedUsers = parsed
+				configMap["trusted-users"] = toAnySlice(parsed) // normalize raw map for JSON rendering
+			}
+		}
 
 		return config
 	}
