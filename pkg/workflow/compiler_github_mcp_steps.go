@@ -114,7 +114,13 @@ func (c *Compiler) generateGitHubMCPAppTokenMintingStep(yaml *strings.Builder, d
 				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(msg))
 				continue
 			}
-			permissions.Set(scope, PermissionLevel(val))
+			level := strings.ToLower(strings.TrimSpace(val))
+			if level != string(PermissionRead) && level != string(PermissionNone) {
+				msg := fmt.Sprintf("Unknown permission level %q for scope %q in tools.github.github-app.permissions. Valid levels are: read, none.", val, key)
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(msg))
+				continue
+			}
+			permissions.Set(scope, PermissionLevel(level))
 		}
 	}
 

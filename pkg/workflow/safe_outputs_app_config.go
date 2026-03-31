@@ -73,8 +73,12 @@ func parseAppConfig(appMap map[string]any) *GitHubAppConfig {
 			for key, val := range permsMap {
 				if valStr, ok := val.(string); ok {
 					appConfig.Permissions[key] = valStr
+				} else {
+					safeOutputsAppLog.Printf("Ignoring github-app.permissions[%q]: expected string value, got %T", key, val)
 				}
 			}
+		} else {
+			safeOutputsAppLog.Printf("Ignoring github-app.permissions: expected object, got %T", perms)
 		}
 	}
 

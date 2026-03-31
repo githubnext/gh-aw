@@ -3599,18 +3599,7 @@
                 },
                 "github-app": {
                   "$ref": "#/$defs/github_app",
-                  "description": "GitHub App configuration for token minting. When configured, a GitHub App installation access token is minted at workflow start and used instead of the default token. This token overrides any custom github-token setting and provides fine-grained permissions matching the agent job requirements.",
-                  "examples": [
-                    {
-                      "app-id": "${{ vars.APP_ID }}",
-                      "private-key": "${{ secrets.APP_PRIVATE_KEY }}"
-                    },
-                    {
-                      "app-id": "${{ vars.APP_ID }}",
-                      "private-key": "${{ secrets.APP_PRIVATE_KEY }}",
-                      "repositories": ["repo1", "repo2"]
-                    }
-                  ]
+                  "description": "GitHub App configuration for token minting. When configured, a GitHub App installation access token is minted at workflow start and used instead of the default token. This token overrides any custom github-token setting and provides fine-grained permissions matching the agent job requirements."
                 }
               },
               "additionalProperties": false,
@@ -9580,7 +9569,8 @@
           }
         },
         "permissions": {
-          "$ref": "#/$defs/github_app_permissions"
+          "$ref": "#/$defs/github_app_permissions",
+          "description": "Optional extra GitHub App-only permissions to merge into the minted token. Only takes effect for tools.github.github-app; ignored in other github-app contexts."
         }
       },
       "required": ["app-id", "private-key"],

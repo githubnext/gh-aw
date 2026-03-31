@@ -156,6 +156,9 @@ func (c *Compiler) validateWorkflowData(workflowData *WorkflowData, markdownPath
 		return formatCompilerError(markdownPath, "error", err.Error(), err)
 	}
 
+	// Warn when github-app.permissions is set in contexts that don't support it
+	warnGitHubAppPermissionsUnsupportedContexts(workflowData)
+
 	// Validate agent file exists if specified in engine config
 	log.Printf("Validating agent file if specified")
 	if err := c.validateAgentFile(workflowData, markdownPath); err != nil {

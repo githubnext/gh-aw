@@ -525,6 +525,7 @@ Test that write is rejected in tools.github.github-app.permissions.
 
 	err = compiler.CompileWorkflow(testFile)
 	require.Error(t, err, "Compiler should reject write in tools.github.github-app.permissions")
-	assert.Contains(t, err.Error(), `"write" is not allowed in tools.github.github-app.permissions`, "Error should mention that write is not allowed")
+	assert.Contains(t, err.Error(), "Invalid permission levels in tools.github.github-app.permissions", "Error should mention invalid permission levels")
+	assert.Contains(t, err.Error(), `"write" is not allowed`, "Error should mention that write is not allowed")
 	assert.Contains(t, err.Error(), "members", "Error should mention the offending scope")
 }
