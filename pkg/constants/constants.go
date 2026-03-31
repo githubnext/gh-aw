@@ -395,6 +395,12 @@ const FirewallAuditArtifactName = "firewall-audit-logs"
 // AWFDefaultLogLevel is the default log level for AWF
 const AWFDefaultLogLevel = "info"
 
+// DefaultAPMVersion is the default version of the microsoft/APM package manager
+const DefaultAPMVersion Version = "v0.8.6"
+
+// DefaultAPMActionVersion is the default version of the microsoft/apm-action GitHub Action
+const DefaultAPMActionVersion Version = "v1.4.1"
+
 // DefaultMCPGatewayVersion is the default version of the MCP Gateway (gh-aw-mcpg) Docker image
 const DefaultMCPGatewayVersion Version = "v0.2.9"
 
