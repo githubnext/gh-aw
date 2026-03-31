@@ -398,7 +398,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     needs: [integration]  # test dependency removed - download-artifact fetches by name, not job dependency
-    if: always()  # Run even if some tests fail to report coverage
+    if: always() && github.ref == 'refs/heads/main'  # Only run on main branch; run even if some tests fail to report coverage
     permissions:
       contents: read
     steps:
