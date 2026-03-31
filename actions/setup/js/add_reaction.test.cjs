@@ -272,7 +272,7 @@ describe("add_reaction", () => {
       expect(mockCore.setFailed).toHaveBeenCalledWith(`${ERR_NOT_FOUND}: Discussion number not found in event payload`);
     });
 
-    it("should handle discussion not found error", async () => {
+    it("should handle discussion not found error when repository is null", async () => {
       global.context = {
         eventName: "discussion",
         repo: { owner: "testowner", repo: "testrepo" },
@@ -285,6 +285,40 @@ describe("add_reaction", () => {
 
       expect(mockCore.error).toHaveBeenCalled();
       expect(mockCore.setFailed).toHaveBeenCalled();
+    });
+
+    it("should handle discussion not found error when discussion is null", async () => {
+      global.context = {
+        eventName: "discussion",
+        repo: { owner: "testowner", repo: "testrepo" },
+        payload: { discussion: { number: 999 } },
+      };
+
+      mockGithub.graphql.mockResolvedValueOnce({ repository: { discussion: null } });
+
+      await runScript();
+
+      expect(mockCore.error).toHaveBeenCalled();
+      expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("not found"));
+    });
+
+    it("should silently ignore locked discussion errors", async () => {
+      global.context = {
+        eventName: "discussion",
+        repo: { owner: "testowner", repo: "testrepo" },
+        payload: { discussion: { number: 100 } },
+      };
+
+      const lockedError = new Error("Issue is locked");
+      lockedError.status = 403;
+      // First call succeeds (getDiscussionNodeId query), second throws (addDiscussionReaction mutation)
+      mockGithub.graphql.mockResolvedValueOnce({ repository: { discussion: { id: "D_kwDOABCD1234" } } }).mockRejectedValueOnce(lockedError);
+
+      await runScript();
+
+      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("resource is locked"));
+      expect(mockCore.error).not.toHaveBeenCalled();
+      expect(mockCore.setFailed).not.toHaveBeenCalled();
     });
   });
 
@@ -319,6 +353,24 @@ describe("add_reaction", () => {
       await runScript();
 
       expect(mockCore.setFailed).toHaveBeenCalledWith(`${ERR_NOT_FOUND}: Discussion comment node ID not found in event payload`);
+    });
+
+    it("should silently ignore locked discussion comment errors", async () => {
+      global.context = {
+        eventName: "discussion_comment",
+        repo: { owner: "testowner", repo: "testrepo" },
+        payload: { comment: { node_id: "DC_kwDOABCD5678" } },
+      };
+
+      const lockedError = new Error("Issue is locked");
+      lockedError.status = 403;
+      mockGithub.graphql.mockRejectedValueOnce(lockedError);
+
+      await runScript();
+
+      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("resource is locked"));
+      expect(mockCore.error).not.toHaveBeenCalled();
+      expect(mockCore.setFailed).not.toHaveBeenCalled();
     });
   });
 
