@@ -101,7 +101,7 @@ Two additional fields extend integrity filtering beyond the level threshold: `bl
 
 ### Status Comment
 
-A comment posted on the triggering issue or pull request that shows workflow run status (started and completed). Configured via `status-comment: true` in `safe-outputs`. Must be explicitly enabled — it is not automatically bundled with `ai-reaction`.
+A comment posted on the triggering issue or pull request that shows workflow run status (started and completed). Configured via `status-comment: true` in `safe-outputs`. Defaults to `true` for `slash_command` and `label_command` triggers; must be explicitly enabled for other trigger types. Set `status-comment: false` to disable. Not automatically bundled with `ai-reaction` — each must be configured independently.
 
 ### Permissions
 
@@ -188,6 +188,10 @@ A security mechanism on `create-pull-request` and `push-to-pull-request-branch` 
 ### Allowed Files
 
 An exclusive allowlist for `create-pull-request` and `push-to-pull-request-branch` safe outputs. When `allowed-files:` is set to a list of glob patterns, **only** files matching those patterns may be modified — every other file (including normal source files) is refused. This is a restriction, not an exception: listing `.github/workflows/*` does not additionally allow normal source files; it blocks them. Runs independently from [Protected Files](#protected-files): both checks must pass. To modify a protected file, it must both match `allowed-files` and have `protected-files: allowed`. See [Safe Outputs (Pull Requests)](/gh-aw/reference/safe-outputs-pull-requests/#restricting-changes-to-specific-files-with-allowed-files).
+
+### Preserve Branch Name (`preserve-branch-name:`)
+
+An option on `create-pull-request` safe outputs that omits the random hex salt suffix normally appended to the agent-specified branch name. Useful when the target repository enforces naming conventions such as Jira keys in uppercase (for example, `bugfix/BR-329-red` instead of `bugfix/br-329-red-cde2a954`). Invalid characters are always replaced for safety, and casing is always preserved regardless of this setting. Defaults to `false`. See [Safe Outputs (Pull Requests)](/gh-aw/reference/safe-outputs-pull-requests/).
 
 ### Reply to PR Review Comment (`reply-to-pull-request-review-comment:`)
 
@@ -342,6 +346,10 @@ The `gh aw` extension for GitHub CLI providing commands for managing agentic wor
 ### Playground
 
 An interactive web-based editor for authoring, compiling, and previewing agentic workflows without local installation. The Playground runs the gh-aw compiler in the browser using [WebAssembly](#webassembly-wasm) and auto-saves editor content to `localStorage` so work is preserved across sessions. Available at `/gh-aw/editor/`.
+
+### Audit Diff (`gh aw audit diff`)
+
+A `gh aw audit` subcommand that compares firewall behavior across two workflow runs. Reports domain additions and removals, allowed/denied status changes, request volume drift, and anomaly flags. Outputs results in pretty, markdown, or JSON format. Useful for spotting regressions and behavioral drift between runs. See [CLI Reference](/gh-aw/setup/cli/#audit-diff).
 
 ### actionlint
 
