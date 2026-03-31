@@ -870,27 +870,10 @@ jobs:
             const errors = [];
 
             // Check additionalProperties (only allow known keys)
-            const allowedKeys = new Set(['$schema', 'blockedVersions', 'minimumVersion', 'minRecommendedVersion', 'aliases']);
+            const allowedKeys = new Set(['$schema', 'blockedVersions', 'minimumVersion', 'minRecommendedVersion']);
             for (const key of Object.keys(config)) {
               if (!allowedKeys.has(key)) {
                 errors.push(`Unknown property: '${key}'`);
-              }
-            }
-
-            // Validate aliases
-            if ('aliases' in config) {
-              const aliases = config.aliases;
-              if (typeof aliases !== 'object' || aliases === null || Array.isArray(aliases)) {
-                errors.push("'aliases' must be an object");
-              } else {
-                const aliasValuePattern = /^(latest|v[0-9]+\.[0-9]+\.[0-9]+)$/;
-                for (const [alias, value] of Object.entries(aliases)) {
-                  if (typeof value !== 'string') {
-                    errors.push(`'aliases.${alias}' must be a string`);
-                  } else if (!aliasValuePattern.test(value)) {
-                    errors.push(`'aliases.${alias}' ('${value}') must be 'latest' or a version in vMAJOR.MINOR.PATCH format (e.g. 'v1.2.3')`);
-                  }
-                }
               }
             }
 
@@ -2800,66 +2783,6 @@ jobs:
           fi
 
           echo "" >> $GITHUB_STEP_SUMMARY
-
-  install-script:
-    name: Install Script (stable)
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    permissions:
-      contents: read
-    concurrency:
-      group: ci-${{ github.ref }}-install-script
-      cancel-in-progress: true
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-
-      - name: Validate stable alias in releases.json
-        id: validate-stable
-        run: |
-          STABLE=$(jq -r '.aliases.stable // empty' .github/aw/releases.json)
-          echo "stable_version=$STABLE" >> $GITHUB_OUTPUT
-
-          if [ -z "$STABLE" ]; then
-            echo "❌ 'stable' alias is not set in releases.json"
-            exit 1
-          fi
-
-          if [ "$STABLE" = "stable" ]; then
-            echo "❌ 'stable' alias points to itself - misconfiguration in releases.json"
-            exit 1
-          fi
-
-          if ! echo "$STABLE" | grep -qE '^v[0-9]+\.[0-9]+\.[0-9]+$'; then
-            echo "❌ 'stable' alias '$STABLE' is not a valid semver version (expected vMAJOR.MINOR.PATCH)"
-            exit 1
-          fi
-
-          echo "✅ 'stable' alias resolves to a valid version: $STABLE"
-
-      - name: Run install-gh-aw.sh with stable version
-        run: bash install-gh-aw.sh stable
-
-      - name: Verify installation
-        run: |
-          BINARY="$HOME/.local/share/gh/extensions/gh-aw/gh-aw"
-          EXPECTED="${{ steps.validate-stable.outputs.stable_version }}"
-
-          if [ ! -f "$BINARY" ]; then
-            echo "❌ Binary not found at $BINARY"
-            exit 1
-          fi
-
-          INSTALLED_VERSION=$("$BINARY" version 2>&1 | grep -oE 'v[0-9]+\.[0-9]+\.[0-9]+' | head -1)
-          echo "Installed version: $INSTALLED_VERSION"
-          echo "Expected version:  $EXPECTED"
-
-          if [ "$INSTALLED_VERSION" != "$EXPECTED" ]; then
-            echo "❌ Version mismatch: installed $INSTALLED_VERSION but expected $EXPECTED"
-            exit 1
-          fi
-
-          echo "✅ install-gh-aw.sh successfully installed stable release: $INSTALLED_VERSION" >> $GITHUB_STEP_SUMMARY
 
   sh-difc-proxy:
     name: DIFC Proxy sh Integration Test
