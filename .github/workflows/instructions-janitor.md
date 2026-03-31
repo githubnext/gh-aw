@@ -37,7 +37,6 @@ tools:
     - "cat .github/aw/github-agentic-workflows.md"
     - "wc -l .github/aw/github-agentic-workflows.md"
     - "git log --since='*' --pretty=format:'%h %s' -- docs/"
-    - "git describe --tags --abbrev=0"
 
 timeout-minutes: 15
 
@@ -55,13 +54,13 @@ Analyze documentation changes since the latest release and ensure the instructio
 
 ### 1. Identify Latest Release
 
-Determine the latest release version to establish a baseline:
+Determine the latest release version and its publish date:
 
-```bash
-git describe --tags --abbrev=0
+```
+get_latest_release(owner="github", repo="gh-aw")
 ```
 
-If no tags exist, use the date from the CHANGELOG.md file to find the latest release version.
+Use the `tag_name` field as the release version and the `published_at` field as `RELEASE_DATE`.
 
 ### 2. Analyze Documentation Changes
 
@@ -71,6 +70,8 @@ Review documentation changes since the latest release:
 # Get documentation commits since the last release
 git log --since="RELEASE_DATE" --pretty=format:"%h %s" -- docs/
 ```
+
+where `RELEASE_DATE` is the `published_at` date from the release API response.
 
 For each commit affecting documentation:
 - Use `get_commit` to see detailed changes
