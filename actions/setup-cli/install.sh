@@ -3,11 +3,13 @@
 # Script to download and install gh-aw binary for the current OS and architecture
 # Supports: Linux, macOS (Darwin), FreeBSD, Windows (Git Bash/MSYS/Cygwin)
 # Usage: ./install-gh-aw.sh [version] [options]
-# If no version is specified, it will use "latest" (GitHub automatically resolves to the latest release)
+# If no version is specified, it will use "stable" (resolved from .github/aw/releases.json)
+# Version aliases (e.g. "stable", "latest") are resolved via .github/aw/releases.json before download.
 # Note: Checksum validation is currently skipped by default (will be enabled in future releases)
 # 
 # Examples:
-#   ./install-gh-aw.sh                           # Install latest version
+#   ./install-gh-aw.sh                           # Install stable version
+#   ./install-gh-aw.sh latest                    # Install latest version
 #   ./install-gh-aw.sh v1.0.0                    # Install specific version
 #   ./install-gh-aw.sh --skip-checksum           # Skip checksum validation
 #
@@ -224,15 +226,47 @@ fetch_release_data() {
     return 1
 }
 
-# Get version (use provided version or default to "latest")
+# Get version (use provided version or default to "stable")
 # VERSION is already set from argument parsing
 REPO="github/gh-aw"
 
 if [ -z "$VERSION" ]; then
-    print_info "No version specified, using 'latest'..."
-    VERSION="latest"
+    print_info "No version specified, using 'stable'..."
+    VERSION="stable"
 else
     print_info "Using specified version: $VERSION"
+fi
+
+# Resolve version aliases from releases.json
+RELEASES_JSON_URL="https://raw.githubusercontent.com/$REPO/main/.github/aw/releases.json"
+print_info "Resolving version alias '$VERSION' from $RELEASES_JSON_URL..."
+
+releases_json=""
+releases_json=$(curl -s -f "$RELEASES_JSON_URL" 2>/dev/null) || true
+
+if [ -n "$releases_json" ]; then
+    resolved_version=""
+    if [ "$HAS_JQ" = true ]; then
+        resolved_version=$(echo "$releases_json" | jq -r ".aliases[\"$VERSION\"] // empty" 2>/dev/null) || {
+            print_info "jq failed to parse releases.json; alias resolution skipped"
+        }
+    else
+        # Fallback: extract alias value using grep/sed
+        # Escape regex special characters in VERSION to avoid unintended matches
+        version_escaped=$(printf '%s' "$VERSION" | sed 's/[.[\*^$]/\\&/g')
+        resolved_version=$(echo "$releases_json" | grep -o "\"${version_escaped}\"[[:space:]]*:[[:space:]]*\"[^\"]*\"" | sed 's/.*:[[:space:]]*"\([^"]*\)"/\1/' | head -1) || true
+    fi
+
+    if [ -n "$resolved_version" ] && [ "$resolved_version" != "$VERSION" ]; then
+        print_info "Resolved alias '$VERSION' -> '$resolved_version'"
+        VERSION="$resolved_version"
+    elif [ -n "$resolved_version" ]; then
+        print_warning "Version '$VERSION' is an alias for itself in releases.json (no change); this may indicate a misconfiguration"
+    else
+        print_info "No alias found for '$VERSION', using it as-is"
+    fi
+else
+    print_warning "Could not fetch releases.json; proceeding with version '$VERSION' as-is"
 fi
 
 # Try gh extension install if requested (and gh is available)
