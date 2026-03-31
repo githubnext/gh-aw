@@ -369,8 +369,25 @@ jobs:
         run: ${RUNNER_TEMP}/gh-aw/actions/install_copilot_cli.sh latest
         env:
           GH_HOST: github.com
-      - name: Install AWF binary
-        run: bash ${RUNNER_TEMP}/gh-aw/actions/install_awf_binary.sh v0.25.1
+      - name: Build AWF from source (requires --allow-host-service-ports)
+        run: |
+          git clone --depth 1 https://x-access-token:${{ secrets.GH_AW_GITHUB_TOKEN }}@github.com/github/gh-aw-firewall.git /tmp/gh-aw-firewall
+          cd /tmp/gh-aw-firewall
+          npm ci
+          npm run build
+          # Install as a Node.js entrypoint with a bash wrapper
+          sudo tee /usr/local/bin/awf > /dev/null <<'WRAPPER'
+          #!/usr/bin/env bash
+          exec node /tmp/gh-aw-firewall/dist/cli.js "$@"
+          WRAPPER
+          sudo chmod +x /usr/local/bin/awf
+          awf --version
+      - name: Build AWF container images locally
+        run: |
+          cd /tmp/gh-aw-firewall
+          docker build -t ghcr.io/github/gh-aw-firewall/squid:0.25.1 containers/squid/
+          docker build -t ghcr.io/github/gh-aw-firewall/agent:0.25.1 containers/agent/
+          docker build -t ghcr.io/github/gh-aw-firewall/api-proxy:0.25.1 containers/api-proxy/
       - name: Determine automatic lockdown mode for GitHub MCP Server
         id: determine-automatic-lockdown
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
@@ -382,7 +399,7 @@ jobs:
             const determineAutomaticLockdown = require('${{ runner.temp }}/gh-aw/actions/determine_automatic_lockdown.cjs');
             await determineAutomaticLockdown(github, context, core);
       - name: Download container images
-        run: bash ${RUNNER_TEMP}/gh-aw/actions/download_docker_images.sh ghcr.io/github/gh-aw-firewall/agent:0.25.1 ghcr.io/github/gh-aw-firewall/api-proxy:0.25.1 ghcr.io/github/gh-aw-firewall/squid:0.25.1 ghcr.io/github/gh-aw-mcpg:v0.2.6 ghcr.io/github/github-mcp-server:v0.32.0 node:lts-alpine
+        run: bash ${RUNNER_TEMP}/gh-aw/actions/download_docker_images.sh ghcr.io/github/gh-aw-mcpg:v0.2.6 ghcr.io/github/github-mcp-server:v0.32.0 node:lts-alpine
       - name: Write Safe Outputs Config
         run: |
           mkdir -p ${RUNNER_TEMP}/gh-aw/safeoutputs
