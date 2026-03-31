@@ -69,7 +69,7 @@ Examples:
 	addOutputFlag(cmd, defaultLogsOutputDir)
 	addJSONFlag(cmd)
 	addRepoFlag(cmd)
-	cmd.Flags().String("format", "pretty", "Output format: pretty, markdown, json")
+	cmd.Flags().String("format", "pretty", "Output format: pretty, markdown")
 
 	return cmd
 }

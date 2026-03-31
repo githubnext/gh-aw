@@ -129,8 +129,12 @@ Note: For guided interactive setup, use the 'add-wizard' command instead.`,
 	// Add AI flag to add command
 	addEngineFlag(cmd)
 
-	// Add repository flag to add command
+	// Add repository flag to add command.
+	// Note: the repo is specified directly in the workflow path argument (e.g., "owner/repo/workflow-name"),
+	// so this flag is not read by the command. It is kept hidden to avoid breaking existing scripts
+	// that may pass --repo but should not be advertised in help text.
 	cmd.Flags().StringP("repo", "r", "", "Source repository containing workflows (owner/repo format)")
+	_ = cmd.Flags().MarkHidden("repo") // Hidden: repo is already embedded in the workflow path spec
 
 	// Add PR flag to add command (--create-pull-request with --pr as alias)
 	cmd.Flags().Bool("create-pull-request", false, "Create a pull request with the workflow changes")
