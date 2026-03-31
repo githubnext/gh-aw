@@ -6,13 +6,13 @@
 > **Target Pull Request:** [#{pull_number}]({pr_url})
 >
 > **Please review the changes carefully** before pushing them to the pull request branch. These files may affect project dependencies, CI/CD pipelines, or agent behaviour.
-
-<details>
-<summary>Protected files</summary>
-
-{files}
-
-</details>
+>
+> <details>
+> <summary>Protected files</summary>
+>
+> {files}
+>
+> </details>
 
 ---
 
