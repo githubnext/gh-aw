@@ -332,10 +332,10 @@ jobs:
       - name: Restore cache-memory file share data
         uses: actions/cache/restore@668228422ae6a00e4ad889ee87cd7109ec5666a7 # v5.0.4
         with:
-          key: memory-approved-0072b676-${{ env.GH_AW_WORKFLOW_ID_SANITIZED }}-${{ github.run_id }}
+          key: memory-approved-6f25a3c0-${{ env.GH_AW_WORKFLOW_ID_SANITIZED }}-${{ github.run_id }}
           path: /tmp/gh-aw/cache-memory
           restore-keys: |
-            memory-approved-0072b676-${{ env.GH_AW_WORKFLOW_ID_SANITIZED }}-
+            memory-approved-6f25a3c0-${{ env.GH_AW_WORKFLOW_ID_SANITIZED }}-
       - name: Setup cache-memory git repository
         env:
           GH_AW_CACHE_DIR: /tmp/gh-aw/cache-memory
@@ -390,6 +390,7 @@ jobs:
         id: parse-guard-vars
         env:
           GH_AW_BLOCKED_USERS_VAR: ${{ vars.GH_AW_GITHUB_BLOCKED_USERS || '' }}
+          GH_AW_TRUSTED_USERS_VAR: ${{ vars.GH_AW_GITHUB_TRUSTED_USERS || '' }}
           GH_AW_APPROVAL_LABELS_EXTRA: cookie
           GH_AW_APPROVAL_LABELS_VAR: ${{ vars.GH_AW_GITHUB_APPROVAL_LABELS || '' }}
         run: bash ${RUNNER_TEMP}/gh-aw/actions/parse_guard_list.sh
@@ -625,7 +626,8 @@ jobs:
                     "approval-labels": ${{ steps.parse-guard-vars.outputs.approval_labels }},
                     "blocked-users": ${{ steps.parse-guard-vars.outputs.blocked_users }},
                     "min-integrity": "approved",
-                    "repos": "all"
+                    "repos": "all",
+                    "trusted-users": ${{ steps.parse-guard-vars.outputs.trusted_users }}
                   }
                 }
               },
@@ -1476,6 +1478,6 @@ jobs:
         if: steps.check_cache_default.outputs.has_content == 'true'
         uses: actions/cache/save@668228422ae6a00e4ad889ee87cd7109ec5666a7 # v5.0.4
         with:
-          key: memory-approved-0072b676-${{ env.GH_AW_WORKFLOW_ID_SANITIZED }}-${{ github.run_id }}
+          key: memory-approved-6f25a3c0-${{ env.GH_AW_WORKFLOW_ID_SANITIZED }}-${{ github.run_id }}
           path: /tmp/gh-aw/cache-memory
 
