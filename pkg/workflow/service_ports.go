@@ -1,5 +1,5 @@
 // This file provides helper functions for extracting service port mappings from
-// GitHub Actions services: configuration and generating ${{ job.services.<id>.ports['<port>'] }}
+// GitHub Actions services: configuration and generating ${{ job.services['<id>'].ports['<port>'] }}
 // expressions for AWF's --allow-host-service-ports flag.
 //
 // When a workflow uses GitHub Actions services: with port mappings (e.g., PostgreSQL, Redis),
@@ -25,12 +25,21 @@ var servicePortsLog = logger.New("workflow:service_ports")
 // This prevents accidentally generating thousands of expressions from a large port range.
 const maxPortRangeExpansion = 32
 
+// minPort and maxPort define the valid TCP/UDP port range.
+const (
+	minPort = 1
+	maxPort = 65535
+)
+
 // ExtractServicePortExpressions parses the services: YAML string from WorkflowData.Services
-// and returns a comma-separated string of ${{ job.services.<id>.ports['<port>'] }} expressions
+// and returns a comma-separated string of ${{ job.services['<id>'].ports['<port>'] }} expressions
 // for all TCP port mappings found.
 //
 // The returned string is suitable for passing as --allow-host-service-ports to AWF.
 // Returns empty string if no services or no port mappings are found.
+//
+// Bracket notation (job.services['id']) is used for all service IDs to correctly handle
+// IDs containing hyphens, digits-first names, or other characters invalid in dot-notation.
 //
 // Parameters:
 //   - servicesYAML: Raw YAML string from WorkflowData.Services (includes "services:" wrapper)
@@ -96,7 +105,8 @@ func ExtractServicePortExpressions(servicesYAML string) (string, []string) {
 				warnings = append(warnings, fmt.Sprintf("service %q: %s", serviceID, w))
 			}
 			for _, cp := range containerPorts {
-				expr := fmt.Sprintf("${{ job.services.%s.ports['%d'] }}", serviceID, cp)
+				escapedServiceID := strings.ReplaceAll(serviceID, "'", "''")
+				expr := fmt.Sprintf("${{ job.services['%s'].ports['%d'] }}", escapedServiceID, cp)
 				expressions = append(expressions, expr)
 			}
 		}
@@ -127,15 +137,33 @@ func parsePortSpec(spec any) ([]int, []string) {
 	var portStr string
 	switch v := spec.(type) {
 	case int:
+		if v < minPort || v > maxPort {
+			return nil, []string{fmt.Sprintf("port %d is outside valid range %d-%d", v, minPort, maxPort)}
+		}
 		return []int{v}, nil
 	case uint64:
 		// goccy/go-yaml decodes unquoted integers as uint64
-		return []int{int(v)}, nil
+		p := int(v)
+		if p < minPort || p > maxPort {
+			return nil, []string{fmt.Sprintf("port %d is outside valid range %d-%d", p, minPort, maxPort)}
+		}
+		return []int{p}, nil
 	case int64:
-		return []int{int(v)}, nil
+		p := int(v)
+		if p < minPort || p > maxPort {
+			return nil, []string{fmt.Sprintf("port %d is outside valid range %d-%d", p, minPort, maxPort)}
+		}
+		return []int{p}, nil
 	case float64:
 		// Some YAML libraries parse unquoted numbers as float64
-		return []int{int(v)}, nil
+		p := int(v)
+		if float64(p) != v {
+			return nil, []string{fmt.Sprintf("port %v is not an integer", v)}
+		}
+		if p < minPort || p > maxPort {
+			return nil, []string{fmt.Sprintf("port %d is outside valid range %d-%d", p, minPort, maxPort)}
+		}
+		return []int{p}, nil
 	case string:
 		portStr = v
 	default:
@@ -156,6 +184,9 @@ func parsePortSpec(spec any) ([]int, []string) {
 
 	if protocol == "udp" {
 		return nil, []string{fmt.Sprintf("UDP port %q skipped; AWF only supports TCP", portStr)}
+	}
+	if protocol != "tcp" {
+		return nil, []string{fmt.Sprintf("unsupported protocol %q for port %q; AWF only supports TCP", protocol, portStr)}
 	}
 
 	// Split host:container
@@ -183,6 +214,10 @@ func parsePortSpec(spec any) ([]int, []string) {
 			return nil, []string{fmt.Sprintf("port range %q expands to %d ports, exceeding cap of %d", containerPart, count, maxPortRangeExpansion)}
 		}
 
+		if start < minPort || end > maxPort {
+			return nil, []string{fmt.Sprintf("port range %q contains ports outside valid range %d-%d", containerPart, minPort, maxPort)}
+		}
+
 		ports := make([]int, 0, count)
 		for p := start; p <= end; p++ {
 			ports = append(ports, p)
@@ -194,6 +229,10 @@ func parsePortSpec(spec any) ([]int, []string) {
 	port, err := strconv.Atoi(containerPart)
 	if err != nil {
 		return nil, []string{fmt.Sprintf("invalid port number %q", containerPart)}
+	}
+
+	if port < minPort || port > maxPort {
+		return nil, []string{fmt.Sprintf("port %d is outside valid range %d-%d", port, minPort, maxPort)}
 	}
 
 	return []int{port}, nil

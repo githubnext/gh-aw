@@ -97,6 +97,42 @@ func TestParsePortSpec(t *testing.T) {
 			spec:          "",
 			expectedPorts: nil,
 		},
+		{
+			name:          "port zero is out of range",
+			spec:          "0",
+			expectedPorts: nil,
+			warnContains:  "outside valid range",
+		},
+		{
+			name:          "port above 65535",
+			spec:          "70000",
+			expectedPorts: nil,
+			warnContains:  "outside valid range",
+		},
+		{
+			name:          "integer port zero is out of range",
+			spec:          0,
+			expectedPorts: nil,
+			warnContains:  "outside valid range",
+		},
+		{
+			name:          "unknown protocol skipped",
+			spec:          "5432/sctp",
+			expectedPorts: nil,
+			warnContains:  "unsupported protocol",
+		},
+		{
+			name:          "float64 non-integer rejected",
+			spec:          float64(5432.5),
+			expectedPorts: nil,
+			warnContains:  "not an integer",
+		},
+		{
+			name:          "port range with out-of-range values",
+			spec:          "65530-65540",
+			expectedPorts: nil,
+			warnContains:  "outside valid range",
+		},
 	}
 
 	for _, tt := range tests {
@@ -139,7 +175,7 @@ func TestExtractServicePortExpressions(t *testing.T) {
     ports:
       - 5432:5432
 `,
-			expectedResult: "${{ job.services.postgres.ports['5432'] }}",
+			expectedResult: "${{ job.services['postgres'].ports['5432'] }}",
 		},
 		{
 			name: "multiple services with ports",
@@ -153,7 +189,7 @@ func TestExtractServicePortExpressions(t *testing.T) {
     ports:
       - 6379:6379
 `,
-			expectedResult: "${{ job.services.postgres.ports['5432'] }},${{ job.services.redis.ports['6379'] }}",
+			expectedResult: "${{ job.services['postgres'].ports['5432'] }},${{ job.services['redis'].ports['6379'] }}",
 		},
 		{
 			name: "service with multiple ports",
@@ -164,7 +200,7 @@ func TestExtractServicePortExpressions(t *testing.T) {
       - 5432:5432
       - 8080:8080
 `,
-			expectedResult: "${{ job.services.mydb.ports['5432'] }},${{ job.services.mydb.ports['8080'] }}",
+			expectedResult: "${{ job.services['mydb'].ports['5432'] }},${{ job.services['mydb'].ports['8080'] }}",
 		},
 		{
 			name: "service without ports emits warning",
@@ -185,7 +221,7 @@ func TestExtractServicePortExpressions(t *testing.T) {
   redis:
     image: redis:7
 `,
-			expectedResult:   "${{ job.services.postgres.ports['5432'] }}",
+			expectedResult:   "${{ job.services['postgres'].ports['5432'] }}",
 			expectedWarnings: []string{"service \"redis\" has no ports mapping"},
 		},
 		{
@@ -207,7 +243,7 @@ func TestExtractServicePortExpressions(t *testing.T) {
     ports:
       - 6000-6002:6000-6002
 `,
-			expectedResult: "${{ job.services.myservice.ports['6000'] }},${{ job.services.myservice.ports['6001'] }},${{ job.services.myservice.ports['6002'] }}",
+			expectedResult: "${{ job.services['myservice'].ports['6000'] }},${{ job.services['myservice'].ports['6001'] }},${{ job.services['myservice'].ports['6002'] }}",
 		},
 		{
 			name: "dynamic host port (container port only)",
@@ -217,7 +253,7 @@ func TestExtractServicePortExpressions(t *testing.T) {
     ports:
       - 5432
 `,
-			expectedResult: "${{ job.services.postgres.ports['5432'] }}",
+			expectedResult: "${{ job.services['postgres'].ports['5432'] }}",
 		},
 		{
 			name: "remapped host port uses container port in expression",
@@ -227,7 +263,7 @@ func TestExtractServicePortExpressions(t *testing.T) {
     ports:
       - 49152:5432
 `,
-			expectedResult: "${{ job.services.postgres.ports['5432'] }}",
+			expectedResult: "${{ job.services['postgres'].ports['5432'] }}",
 		},
 		{
 			name:           "invalid YAML returns empty",
@@ -242,7 +278,7 @@ func TestExtractServicePortExpressions(t *testing.T) {
     ports:
       - 5432
 `,
-			expectedResult: "${{ job.services.postgres.ports['5432'] }}",
+			expectedResult: "${{ job.services['postgres'].ports['5432'] }}",
 		},
 		{
 			name: "hyphenated service ID",
@@ -252,7 +288,7 @@ func TestExtractServicePortExpressions(t *testing.T) {
     ports:
       - 5432:5432
 `,
-			expectedResult: "${{ job.services.my-postgres.ports['5432'] }}",
+			expectedResult: "${{ job.services['my-postgres'].ports['5432'] }}",
 		},
 		{
 			name: "invalid ports format (not a list) emits warning",
@@ -303,7 +339,7 @@ func TestExtractServicePortExpressions_DeterministicOrder(t *testing.T) {
     ports:
       - 3333:3333
 `
-	expected := "${{ job.services.alpha.ports['2222'] }},${{ job.services.middle.ports['3333'] }},${{ job.services.zeta.ports['1111'] }}"
+	expected := "${{ job.services['alpha'].ports['2222'] }},${{ job.services['middle'].ports['3333'] }},${{ job.services['zeta'].ports['1111'] }}"
 
 	for i := range 10 {
 		result, _ := ExtractServicePortExpressions(servicesYAML)

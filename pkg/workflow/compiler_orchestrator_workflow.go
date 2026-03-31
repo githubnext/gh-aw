@@ -525,6 +525,7 @@ func (c *Compiler) processAndMergeServices(frontmatter map[string]any, workflowD
 		for _, w := range warnings {
 			orchestratorWorkflowLog.Printf("Warning: %s", w)
 			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(w))
+			c.IncrementWarningCount()
 		}
 		if expressions != "" {
 			orchestratorWorkflowLog.Printf("Extracted service port expressions: %s", expressions)
