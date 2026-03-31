@@ -79,12 +79,17 @@ func buildCanonicalPolicy(github *GitHubToolConfig) string {
 	// trusted-users: sorted, lowercased, deduplicated literal list (via canonicalUserList).
 	// When trusted-users is provided as a GitHub Actions expression (TrustedUsersExpr),
 	// include it verbatim so that changing the expression produces a different hash.
-	sb.WriteString("trusted-users:")
+	sb.WriteString("trusted-users:\n")
 	if github.TrustedUsersExpr != "" {
 		sb.WriteString("expr:")
 		sb.WriteString(github.TrustedUsersExpr)
+		sb.WriteString("\n")
 	} else {
-		sb.WriteString(canonicalUserList(github.TrustedUsers))
+		users := canonicalUserList(github.TrustedUsers)
+		if users != "" {
+			sb.WriteString(users)
+			sb.WriteString("\n")
+		}
 	}
 
 	return sb.String()
