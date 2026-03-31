@@ -128,7 +128,7 @@ Commands are organized by workflow lifecycle: creating, building, testing, monit
 
 #### `init`
 
-Initialize repository for agentic workflows. Configures `.gitattributes`, creates the dispatcher agent file (`.github/agents/agentic-workflows.agent.md`), and logs `.gitignore`. Enables MCP server integration by default (use `--no-mcp` to skip). Without arguments, enters interactive mode for engine selection and secret configuration.
+Initialize repository for agentic workflows. Configures `.gitattributes`, creates the dispatcher agent file (`.github/agents/agentic-workflows.agent.md`). Enables MCP server integration by default (use `--no-mcp` to skip). Without arguments, enters interactive mode for engine selection and secret configuration.
 
 ```bash wrap
 gh aw init                              # Interactive mode: select engine and configure secrets
@@ -159,12 +159,12 @@ Add workflows from The Agentics collection or other repositories to `.github/wor
 
 ```bash wrap
 gh aw add githubnext/agentics/ci-doctor           # Add single workflow
-gh aw add "githubnext/agentics/ci-*"             # Add multiple with wildcards
+gh aw add githubnext/agentics/ci-doctor@v1.0.0   # Add specific version
 gh aw add ci-doctor --dir shared                  # Organize in subdirectory
 gh aw add ci-doctor --create-pull-request        # Create PR instead of commit
 ```
 
-**Options:** `--dir/-d`, `--repo/-r`, `--create-pull-request`, `--no-gitattributes`, `--append`, `--disable-security-scanner`, `--engine/-e`, `--force/-f`, `--name/-n`, `--no-stop-after`, `--stop-after`
+**Options:** `--dir/-d`, `--create-pull-request`, `--no-gitattributes`, `--append`, `--disable-security-scanner`, `--engine/-e`, `--force/-f`, `--name/-n`, `--no-stop-after`, `--stop-after`
 
 #### `new`
 
@@ -434,7 +434,7 @@ gh aw audit diff 12345 12346 --repo owner/repo   # Specify repository
 
 The diff output shows: new or removed network domains, status changes (allowed ↔ denied), volume changes (>100% threshold), MCP tool invocation changes, and run metric comparisons (token usage, duration, turns).
 
-**Options:** `--format` (pretty, markdown, json; default: pretty), `--json`, `--repo/-r`
+**Options:** `--format` (pretty, markdown; default: pretty), `--json`, `--repo/-r`
 
 ##### `audit report`
 
@@ -450,7 +450,7 @@ gh aw audit report --repo owner/repo --last 10              # Report on a specif
 
 Output is Markdown by default (suitable for security reviews, piping to files, or `$GITHUB_STEP_SUMMARY`).
 
-**Options:** `--workflow/-w` (filter by workflow name or filename), `--last` (number of recent runs to analyze; default: 20, max: 50), `--format` (markdown, pretty, json; default: markdown), `--json`, `--repo/-r`
+**Options:** `--workflow/-w` (filter by workflow name or filename), `--last` (number of recent runs to analyze; default: 20, max: 50), `--format` (markdown, pretty; default: markdown), `--json`, `--repo/-r`
 
 #### `health`
 
@@ -513,11 +513,15 @@ gh aw disable ci-doctor --repo owner/repo   # Disable in specific repository
 
 #### `remove`
 
-Remove workflows (both `.md` and `.lock.yml`).
+Remove workflows (both `.md` and `.lock.yml`). Accepts a workflow ID (basename without `.md`) or prefix pattern. By default, also removes orphaned include files no longer referenced by any workflow.
 
 ```bash wrap
-gh aw remove my-workflow
+gh aw remove my-workflow                 # Remove specific workflow
+gh aw remove test-                       # Remove all workflows starting with 'test-'
+gh aw remove my-workflow --keep-orphans  # Remove but keep orphaned include files
 ```
+
+**Options:** `--keep-orphans`
 
 #### `update`
 

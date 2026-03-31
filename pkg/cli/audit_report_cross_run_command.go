@@ -80,7 +80,7 @@ Examples:
 	addRepoFlag(cmd)
 	cmd.Flags().StringP("workflow", "w", "", "Filter by workflow name or filename")
 	cmd.Flags().Int("last", 20, "Number of recent runs to analyze (max 50)")
-	cmd.Flags().String("format", "markdown", "Output format: markdown, pretty, json")
+	cmd.Flags().String("format", "markdown", "Output format: markdown, pretty")
 
 	return cmd
 }
