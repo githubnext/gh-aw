@@ -475,6 +475,7 @@ describe("handle_agent_failure", () => {
 
     afterEach(() => {
       delete process.env.GH_AW_AGENT_OUTPUT;
+      delete process.env.GH_AW_ENGINE_ID;
       // Clean up temp dir
       if (fs.existsSync(tmpDir)) {
         fs.rmSync(tmpDir, { recursive: true, force: true });
@@ -580,6 +581,30 @@ describe("handle_agent_failure", () => {
       expect(result).toContain("Last agent output");
       expect(result).toContain("line 4");
       expect(result).toContain("line 1");
+    });
+
+    it("includes engine ID in failure message when GH_AW_ENGINE_ID is set", () => {
+      process.env.GH_AW_ENGINE_ID = "copilot";
+      vi.resetModules();
+      ({ buildEngineFailureContext } = require("./handle_agent_failure.cjs"));
+      fs.writeFileSync(stdioLogPath, "ERROR: quota exceeded\n");
+      const result = buildEngineFailureContext();
+      expect(result).toContain("`copilot` engine");
+    });
+
+    it("includes engine ID in fallback message when GH_AW_ENGINE_ID is set", () => {
+      process.env.GH_AW_ENGINE_ID = "claude";
+      vi.resetModules();
+      ({ buildEngineFailureContext } = require("./handle_agent_failure.cjs"));
+      fs.writeFileSync(stdioLogPath, "Agent did something unexpected\n");
+      const result = buildEngineFailureContext();
+      expect(result).toContain("`claude` engine");
+    });
+
+    it("uses generic 'AI engine' label when GH_AW_ENGINE_ID is not set", () => {
+      fs.writeFileSync(stdioLogPath, "ERROR: connection reset\n");
+      const result = buildEngineFailureContext();
+      expect(result).toContain("The AI engine");
     });
   });
 });

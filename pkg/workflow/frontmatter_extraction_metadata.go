@@ -125,7 +125,8 @@ func buildSourceURL(source string) string {
 
 	// Build GitHub URL using server URL from GitHub Actions context
 	// The pathPart is "owner/repo/workflows/file.md", we need to convert it to
-	// "${GITHUB_SERVER_URL}/owner/repo/tree/ref/workflows/file.md"
+	// "${GITHUB_SERVER_URL}/owner/repo/blob/ref/workflows/file.md"
+	// Using /blob/ renders the markdown file (rendered view) instead of /tree/ (directory listing)
 	pathComponents := strings.SplitN(pathPart, "/", 3)
 	if len(pathComponents) < 3 {
 		frontmatterMetadataLog.Printf("Invalid source path format: %s (expected owner/repo/path)", pathPart)
@@ -136,8 +137,8 @@ func buildSourceURL(source string) string {
 	repo := pathComponents[1]
 	filePath := pathComponents[2]
 
-	url := fmt.Sprintf("${{ github.server_url }}/%s/%s/tree/%s/%s", owner, repo, refPart, filePath)
-	frontmatterMetadataLog.Printf("Built source URL: %s/%s tree %s", owner, repo, refPart)
+	url := fmt.Sprintf("${{ github.server_url }}/%s/%s/blob/%s/%s", owner, repo, refPart, filePath)
+	frontmatterMetadataLog.Printf("Built source URL: %s/%s blob %s", owner, repo, refPart)
 	// Use github.server_url for enterprise GitHub deployments
 	return url
 }

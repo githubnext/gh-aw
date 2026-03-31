@@ -317,7 +317,7 @@ func TestBuildWorkflowMetadataEnvVars(t *testing.T) {
 			expected: []string{
 				"          GH_AW_WORKFLOW_NAME: \"Issue Triage\"\n",
 				"          GH_AW_WORKFLOW_SOURCE: \"owner/repo/workflows/triage.md@main\"\n",
-				"          GH_AW_WORKFLOW_SOURCE_URL: \"${{ github.server_url }}/owner/repo/tree/main/workflows/triage.md\"\n",
+				"          GH_AW_WORKFLOW_SOURCE_URL: \"${{ github.server_url }}/owner/repo/blob/main/workflows/triage.md\"\n",
 			},
 		},
 		{
@@ -327,7 +327,7 @@ func TestBuildWorkflowMetadataEnvVars(t *testing.T) {
 			expected: []string{
 				"          GH_AW_WORKFLOW_NAME: \"CI Helper\"\n",
 				"          GH_AW_WORKFLOW_SOURCE: \"org/project/ci/helper.md\"\n",
-				"          GH_AW_WORKFLOW_SOURCE_URL: \"${{ github.server_url }}/org/project/tree/main/ci/helper.md\"\n",
+				"          GH_AW_WORKFLOW_SOURCE_URL: \"${{ github.server_url }}/org/project/blob/main/ci/helper.md\"\n",
 			},
 		},
 		{
@@ -337,7 +337,7 @@ func TestBuildWorkflowMetadataEnvVars(t *testing.T) {
 			expected: []string{
 				"          GH_AW_WORKFLOW_NAME: \"\"\n",
 				"          GH_AW_WORKFLOW_SOURCE: \"owner/repo/workflow.md\"\n",
-				"          GH_AW_WORKFLOW_SOURCE_URL: \"${{ github.server_url }}/owner/repo/tree/main/workflow.md\"\n",
+				"          GH_AW_WORKFLOW_SOURCE_URL: \"${{ github.server_url }}/owner/repo/blob/main/workflow.md\"\n",
 			},
 		},
 		{

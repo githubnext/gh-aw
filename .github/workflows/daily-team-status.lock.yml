@@ -818,7 +818,7 @@ jobs:
           GH_AW_NOOP_MAX: "1"
           GH_AW_WORKFLOW_NAME: "Daily Team Status"
           GH_AW_WORKFLOW_SOURCE: "githubnext/agentics/workflows/daily-team-status.md@d3422bf940923ef1d43db5559652b8e1e71869f3"
-          GH_AW_WORKFLOW_SOURCE_URL: "${{ github.server_url }}/githubnext/agentics/tree/d3422bf940923ef1d43db5559652b8e1e71869f3/workflows/daily-team-status.md"
+          GH_AW_WORKFLOW_SOURCE_URL: "${{ github.server_url }}/githubnext/agentics/blob/d3422bf940923ef1d43db5559652b8e1e71869f3/workflows/daily-team-status.md"
           GH_AW_TRACKER_ID: "daily-team-status"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
@@ -835,7 +835,7 @@ jobs:
           GH_AW_MISSING_TOOL_CREATE_ISSUE: "true"
           GH_AW_WORKFLOW_NAME: "Daily Team Status"
           GH_AW_WORKFLOW_SOURCE: "githubnext/agentics/workflows/daily-team-status.md@d3422bf940923ef1d43db5559652b8e1e71869f3"
-          GH_AW_WORKFLOW_SOURCE_URL: "${{ github.server_url }}/githubnext/agentics/tree/d3422bf940923ef1d43db5559652b8e1e71869f3/workflows/daily-team-status.md"
+          GH_AW_WORKFLOW_SOURCE_URL: "${{ github.server_url }}/githubnext/agentics/blob/d3422bf940923ef1d43db5559652b8e1e71869f3/workflows/daily-team-status.md"
           GH_AW_TRACKER_ID: "daily-team-status"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
@@ -852,11 +852,12 @@ jobs:
           GH_AW_AGENT_OUTPUT: ${{ steps.setup-agent-output-env.outputs.GH_AW_AGENT_OUTPUT }}
           GH_AW_WORKFLOW_NAME: "Daily Team Status"
           GH_AW_WORKFLOW_SOURCE: "githubnext/agentics/workflows/daily-team-status.md@d3422bf940923ef1d43db5559652b8e1e71869f3"
-          GH_AW_WORKFLOW_SOURCE_URL: "${{ github.server_url }}/githubnext/agentics/tree/d3422bf940923ef1d43db5559652b8e1e71869f3/workflows/daily-team-status.md"
+          GH_AW_WORKFLOW_SOURCE_URL: "${{ github.server_url }}/githubnext/agentics/blob/d3422bf940923ef1d43db5559652b8e1e71869f3/workflows/daily-team-status.md"
           GH_AW_TRACKER_ID: "daily-team-status"
           GH_AW_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           GH_AW_AGENT_CONCLUSION: ${{ needs.agent.result }}
           GH_AW_WORKFLOW_ID: "daily-team-status"
+          GH_AW_ENGINE_ID: "copilot"
           GH_AW_SECRET_VERIFICATION_RESULT: ${{ needs.activation.outputs.secret_verification_result }}
           GH_AW_CHECKOUT_PR_SUCCESS: ${{ needs.agent.outputs.checkout_pr_success }}
           GH_AW_INFERENCE_ACCESS_ERROR: ${{ needs.agent.outputs.inference_access_error }}
@@ -878,7 +879,7 @@ jobs:
           GH_AW_AGENT_OUTPUT: ${{ steps.setup-agent-output-env.outputs.GH_AW_AGENT_OUTPUT }}
           GH_AW_WORKFLOW_NAME: "Daily Team Status"
           GH_AW_WORKFLOW_SOURCE: "githubnext/agentics/workflows/daily-team-status.md@d3422bf940923ef1d43db5559652b8e1e71869f3"
-          GH_AW_WORKFLOW_SOURCE_URL: "${{ github.server_url }}/githubnext/agentics/tree/d3422bf940923ef1d43db5559652b8e1e71869f3/workflows/daily-team-status.md"
+          GH_AW_WORKFLOW_SOURCE_URL: "${{ github.server_url }}/githubnext/agentics/blob/d3422bf940923ef1d43db5559652b8e1e71869f3/workflows/daily-team-status.md"
           GH_AW_TRACKER_ID: "daily-team-status"
           GH_AW_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           GH_AW_AGENT_CONCLUSION: ${{ needs.agent.result }}
@@ -1087,7 +1088,7 @@ jobs:
       GH_AW_WORKFLOW_ID: "daily-team-status"
       GH_AW_WORKFLOW_NAME: "Daily Team Status"
       GH_AW_WORKFLOW_SOURCE: "githubnext/agentics/workflows/daily-team-status.md@d3422bf940923ef1d43db5559652b8e1e71869f3"
-      GH_AW_WORKFLOW_SOURCE_URL: "${{ github.server_url }}/githubnext/agentics/tree/d3422bf940923ef1d43db5559652b8e1e71869f3/workflows/daily-team-status.md"
+      GH_AW_WORKFLOW_SOURCE_URL: "${{ github.server_url }}/githubnext/agentics/blob/d3422bf940923ef1d43db5559652b8e1e71869f3/workflows/daily-team-status.md"
     outputs:
       code_push_failure_count: ${{ steps.process_safe_outputs.outputs.code_push_failure_count }}
       code_push_failure_errors: ${{ steps.process_safe_outputs.outputs.code_push_failure_errors }}

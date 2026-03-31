@@ -135,6 +135,11 @@ func (c *Compiler) buildConclusionJob(data *WorkflowData, mainJobName string, sa
 	agentFailureEnvVars = append(agentFailureEnvVars, fmt.Sprintf("          GH_AW_AGENT_CONCLUSION: ${{ needs.%s.result }}\n", mainJobName))
 	agentFailureEnvVars = append(agentFailureEnvVars, fmt.Sprintf("          GH_AW_WORKFLOW_ID: %q\n", data.WorkflowID))
 
+	// Pass the engine ID so the failure handler can surface which AI engine terminated
+	if data.EngineConfig != nil && data.EngineConfig.ID != "" {
+		agentFailureEnvVars = append(agentFailureEnvVars, fmt.Sprintf("          GH_AW_ENGINE_ID: %q\n", data.EngineConfig.ID))
+	}
+
 	// Only add secret_verification_result if the engine provides a validate-secret step.
 	// The validate-secret step runs in the activation job, so the output is on needs.activation.
 	engine, err := c.getAgenticEngine(data.AI)
