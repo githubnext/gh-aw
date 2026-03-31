@@ -453,12 +453,11 @@ func TestGenerateSafeOutputsConfigCreatePullRequestBackwardCompat(t *testing.T) 
 // TestGenerateSafeOutputsConfigCreatePullRequestAutoCloseIssue tests that auto_close_issue
 // is correctly serialized into config.json for create_pull_request.
 func TestGenerateSafeOutputsConfigCreatePullRequestAutoCloseIssue(t *testing.T) {
-	falseVal := false
 	data := &WorkflowData{
 		SafeOutputs: &SafeOutputsConfig{
 			CreatePullRequests: &CreatePullRequestsConfig{
 				BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("1")},
-				AutoCloseIssue:       &falseVal,
+				AutoCloseIssue:       strPtr("false"),
 			},
 		},
 	}
@@ -473,6 +472,31 @@ func TestGenerateSafeOutputsConfigCreatePullRequestAutoCloseIssue(t *testing.T) 
 	require.True(t, ok, "Expected create_pull_request key in config")
 
 	assert.Equal(t, false, prConfig["auto_close_issue"], "auto_close_issue should be false")
+}
+
+// TestGenerateSafeOutputsConfigCreatePullRequestAutoCloseIssueExpression tests that
+// auto_close_issue supports GitHub Actions expression strings.
+func TestGenerateSafeOutputsConfigCreatePullRequestAutoCloseIssueExpression(t *testing.T) {
+	expr := "${{ inputs.auto-close-issue }}"
+	data := &WorkflowData{
+		SafeOutputs: &SafeOutputsConfig{
+			CreatePullRequests: &CreatePullRequestsConfig{
+				BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("1")},
+				AutoCloseIssue:       &expr,
+			},
+		},
+	}
+
+	result := generateSafeOutputsConfig(data)
+	require.NotEmpty(t, result, "Expected non-empty config")
+
+	var parsed map[string]any
+	require.NoError(t, json.Unmarshal([]byte(result), &parsed), "Result must be valid JSON")
+
+	prConfig, ok := parsed["create_pull_request"].(map[string]any)
+	require.True(t, ok, "Expected create_pull_request key in config")
+
+	assert.Equal(t, expr, prConfig["auto_close_issue"], "auto_close_issue should be an expression string")
 }
 
 // TestGenerateSafeOutputsConfigCreatePullRequestAutoCloseIssueOmittedByDefault tests that

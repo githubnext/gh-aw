@@ -31,7 +31,7 @@ type CreatePullRequestsConfig struct {
 	BaseBranch                     string   `yaml:"base-branch,omitempty"`                         // Base branch for the pull request (defaults to github.ref_name if not specified)
 	Footer                         *string  `yaml:"footer,omitempty"`                              // Controls whether AI-generated footer is added. When false, visible footer is omitted but XML markers are kept.
 	FallbackAsIssue                *bool    `yaml:"fallback-as-issue,omitempty"`                   // When true (default), creates an issue if PR creation fails. When false, no fallback occurs and issues: write permission is not requested.
-	AutoCloseIssue                 *bool    `yaml:"auto-close-issue,omitempty"`                    // Auto-add "Fixes #N" closing keyword when triggered from an issue (default: true). Set to false to prevent auto-closing the triggering issue on PR merge.
+	AutoCloseIssue                 *string  `yaml:"auto-close-issue,omitempty"`                    // Auto-add "Fixes #N" closing keyword when triggered from an issue (default: true). Set to false to prevent auto-closing the triggering issue on PR merge. Accepts a boolean or a GitHub Actions expression.
 	GithubTokenForExtraEmptyCommit string   `yaml:"github-token-for-extra-empty-commit,omitempty"` // Token used to push an empty commit to trigger CI events. Use a PAT or "app" for GitHub App auth.
 	ManifestFilesPolicy            *string  `yaml:"protected-files,omitempty"`                     // Controls protected-file protection: "blocked" (default) hard-blocks, "allowed" permits all changes, "fallback-to-issue" pushes the branch but creates a review issue.
 	AllowedFiles                   []string `yaml:"allowed-files,omitempty"`                       // Strict allowlist of glob patterns for files eligible for create. Checked independently of protected-files; both checks must pass.
@@ -75,7 +75,7 @@ func (c *Compiler) parsePullRequestsConfig(outputMap map[string]any) *CreatePull
 
 	// Pre-process templatable bool fields: convert literal booleans to strings so that
 	// GitHub Actions expression strings (e.g. "${{ inputs.draft-prs }}") are also accepted.
-	for _, field := range []string{"draft", "allow-empty", "auto-merge", "footer"} {
+	for _, field := range []string{"draft", "allow-empty", "auto-merge", "footer", "auto-close-issue"} {
 		if err := preprocessBoolFieldAsString(configData, field, createPRLog); err != nil {
 			createPRLog.Printf("Invalid %s value: %v", field, err)
 			return nil

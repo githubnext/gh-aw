@@ -84,7 +84,7 @@ interface CreatePullRequestConfig extends SafeOutputConfig {
   draft?: boolean;
   "if-no-changes"?: string;
   footer?: boolean;
-  "auto-close-issue"?: boolean;
+  "auto-close-issue"?: boolean | string;
 }
 
 /**

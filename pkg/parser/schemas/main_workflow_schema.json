@@ -5831,8 +5831,12 @@
                   "default": true
                 },
                 "auto-close-issue": {
-                  "type": "boolean",
-                  "description": "When true (default), automatically appends a closing keyword (\"Fixes #N\") to the PR description when the workflow is triggered from an issue and no closing keyword is already present. This causes GitHub to auto-close the triggering issue when the PR is merged. Set to false to prevent this behavior, e.g., for partial-work PRs or multi-PR workflows.",
+                  "allOf": [
+                    {
+                      "$ref": "#/$defs/templatable_boolean"
+                    }
+                  ],
+                  "description": "When true (default), automatically appends a closing keyword (\"Fixes #N\") to the PR description when the workflow is triggered from an issue and no closing keyword is already present. This causes GitHub to auto-close the triggering issue when the PR is merged. Set to false to prevent this behavior, e.g., for partial-work PRs or multi-PR workflows. Accepts a boolean or a GitHub Actions expression.",
                   "default": true
                 },
                 "github-token-for-extra-empty-commit": {

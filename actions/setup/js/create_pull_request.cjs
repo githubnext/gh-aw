@@ -174,7 +174,7 @@ async function main(config = {}) {
 
   const includeFooter = parseBoolTemplatable(config.footer, true);
   const fallbackAsIssue = config.fallback_as_issue !== false; // Default to true (fallback enabled)
-  const autoCloseIssue = config.auto_close_issue !== false; // Default to true (auto-close enabled)
+  const autoCloseIssue = parseBoolTemplatable(config.auto_close_issue, true); // Default to true (auto-close enabled)
 
   // Environment validation - fail early if required variables are missing
   const workflowId = process.env.GH_AW_WORKFLOW_ID;

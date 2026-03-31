@@ -519,7 +519,7 @@ var handlerRegistry = map[string]handlerBuilder{
 			AddIfNotEmpty("github-token", c.GitHubToken).
 			AddTemplatableBool("footer", getEffectiveFooterForTemplatable(c.Footer, cfg.Footer)).
 			AddBoolPtr("fallback_as_issue", c.FallbackAsIssue).
-			AddBoolPtr("auto_close_issue", c.AutoCloseIssue).
+			AddTemplatableBool("auto_close_issue", c.AutoCloseIssue).
 			AddIfNotEmpty("base_branch", c.BaseBranch).
 			AddStringPtr("protected_files_policy", c.ManifestFilesPolicy).
 			AddStringSlice("protected_files", getAllManifestFiles()).
