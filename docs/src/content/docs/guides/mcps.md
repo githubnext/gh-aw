@@ -79,7 +79,7 @@ The `container` field generates `docker run --rm -i <args> <image> <entrypointAr
 
 ### HTTP MCP Servers
 
-Remote MCP servers accessible via HTTP. Configure authentication headers using the `headers` field:
+Remote MCP servers accessible via HTTP. Configure authentication using the `headers` field for static API keys, or the `auth` field for dynamic token acquisition:
 
 ```yaml wrap
 mcp-servers:
@@ -96,6 +96,25 @@ mcp-servers:
       Authorization: "Bearer ${{ secrets.API_TOKEN }}"
     allowed: ["*"]
 ```
+
+#### GitHub Actions OIDC Authentication
+
+For MCP servers that accept GitHub Actions OIDC tokens, use the `auth` field instead of a static `headers` value. The gateway acquires a short-lived JWT from the GitHub Actions OIDC endpoint and injects it as an `Authorization: Bearer` header on every outgoing request.
+
+```yaml wrap
+permissions:
+  id-token: write   # required for OIDC token acquisition
+
+mcp-servers:
+  my-secure-server:
+    url: "https://my-server.example.com/mcp"
+    auth:
+      type: github-oidc
+      audience: "https://my-server.example.com"  # optional; defaults to the server URL
+    allowed: ["*"]
+```
+
+The `auth.type: github-oidc` field is only valid on HTTP servers. The MCP server is responsible for validating the token; the gateway acts as a token forwarder. See [MCP Gateway — Upstream Authentication](/gh-aw/reference/mcp-gateway/#76-upstream-authentication-oidc) for full specification details.
 
 ### Registry-based MCP Servers
 
