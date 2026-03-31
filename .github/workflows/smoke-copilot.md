@@ -38,6 +38,7 @@ tools:
     - "*"
   github:
     min-integrity: approved
+    approval-labels: [cookie]
     trusted-users:
       - pelikhan
   playwright:

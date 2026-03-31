@@ -9,6 +9,7 @@ engine: copilot
 tools:
   github:
     min-integrity: approved
+    approval-labels: [cookie]
     toolsets: [pull_requests, repos, issues]
 safe-outputs:
   create-pull-request:

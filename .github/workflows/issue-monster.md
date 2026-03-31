@@ -385,6 +385,7 @@ timeout-minutes: 30
 tools:
   github:
     min-integrity: approved
+    approval-labels: [cookie]
     toolsets: [default, pull_requests]
 
 if: needs.pre_activation.outputs.has_issues == 'true'

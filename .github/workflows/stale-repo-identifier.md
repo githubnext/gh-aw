@@ -53,6 +53,7 @@ tools:
   github:
     read-only: true
     min-integrity: approved
+    approval-labels: [cookie]
     toolsets:
       - repos
       - issues

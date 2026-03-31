@@ -22,6 +22,7 @@ tools:
     allowed-repos:
       - github/gh-aw
     min-integrity: approved
+    approval-labels: [cookie]
     toolsets:
       - repos
       - pull_requests

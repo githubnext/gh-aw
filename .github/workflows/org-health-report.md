@@ -13,6 +13,7 @@ engine: copilot
 tools:
   github:
     min-integrity: approved
+    approval-labels: [cookie]
     toolsets:
       - repos
       - issues

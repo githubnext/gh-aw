@@ -14,6 +14,7 @@ tracker-id: daily-issues-report
 tools:
   github:
     min-integrity: approved
+    approval-labels: [cookie]
     toolsets: [default, discussions]
 safe-outputs:
   upload-asset:

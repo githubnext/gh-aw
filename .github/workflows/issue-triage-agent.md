@@ -9,6 +9,7 @@ permissions:
 tools:
   github:
     min-integrity: approved
+    approval-labels: [cookie]
     toolsets: [issues, labels]
 safe-outputs:
   add-labels:
