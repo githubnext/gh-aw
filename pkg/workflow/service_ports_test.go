@@ -3,6 +3,7 @@
 package workflow
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -107,7 +108,7 @@ func TestParsePortSpec(t *testing.T) {
 				require.NotEmpty(t, warnings, "expected a warning containing %q", tt.warnContains)
 				found := false
 				for _, w := range warnings {
-					if servicePortsContains(w, tt.warnContains) {
+					if strings.Contains(w, tt.warnContains) {
 						found = true
 						break
 					}
@@ -116,19 +117,6 @@ func TestParsePortSpec(t *testing.T) {
 			}
 		})
 	}
-}
-
-func servicePortsContains(s, substr string) bool {
-	return len(s) >= len(substr) && servicePortsSearchSubstring(s, substr)
-}
-
-func servicePortsSearchSubstring(s, substr string) bool {
-	for i := 0; i <= len(s)-len(substr); i++ {
-		if s[i:i+len(substr)] == substr {
-			return true
-		}
-	}
-	return false
 }
 
 func TestExtractServicePortExpressions(t *testing.T) {
@@ -256,6 +244,26 @@ func TestExtractServicePortExpressions(t *testing.T) {
 `,
 			expectedResult: "${{ job.services.postgres.ports['5432'] }}",
 		},
+		{
+			name: "hyphenated service ID",
+			servicesYAML: `services:
+  my-postgres:
+    image: postgres:15
+    ports:
+      - 5432:5432
+`,
+			expectedResult: "${{ job.services.my-postgres.ports['5432'] }}",
+		},
+		{
+			name: "invalid ports format (not a list) emits warning",
+			servicesYAML: `services:
+  postgres:
+    image: postgres:15
+    ports: 5432
+`,
+			expectedResult:   "",
+			expectedWarnings: []string{"invalid ports mapping"},
+		},
 	}
 
 	for _, tt := range tests {
@@ -267,7 +275,7 @@ func TestExtractServicePortExpressions(t *testing.T) {
 				for _, expectedWarning := range tt.expectedWarnings {
 					found := false
 					for _, w := range warnings {
-						if servicePortsContains(w, expectedWarning) {
+						if strings.Contains(w, expectedWarning) {
 							found = true
 							break
 						}

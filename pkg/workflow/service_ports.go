@@ -16,7 +16,7 @@ import (
 	"strings"
 
 	"github.com/github/gh-aw/pkg/logger"
-	goyaml "gopkg.in/yaml.v3"
+	"github.com/goccy/go-yaml"
 )
 
 var servicePortsLog = logger.New("workflow:service_ports")
@@ -47,7 +47,7 @@ func ExtractServicePortExpressions(servicesYAML string) (string, []string) {
 
 	// Parse the services YAML
 	var wrapper map[string]any
-	if err := goyaml.Unmarshal([]byte(servicesYAML), &wrapper); err != nil {
+	if err := yaml.Unmarshal([]byte(servicesYAML), &wrapper); err != nil {
 		servicePortsLog.Printf("Failed to parse services YAML: %v", err)
 		return "", nil
 	}
@@ -86,6 +86,7 @@ func ExtractServicePortExpressions(servicesYAML string) (string, []string) {
 		portsList, ok := ports.([]any)
 		if !ok {
 			servicePortsLog.Printf("Service %s ports is not a list, skipping", serviceID)
+			warnings = append(warnings, fmt.Sprintf("service %q has an invalid ports mapping (expected a list); it will not be reachable from the AWF sandbox", serviceID))
 			continue
 		}
 
@@ -127,8 +128,13 @@ func parsePortSpec(spec any) ([]int, []string) {
 	switch v := spec.(type) {
 	case int:
 		return []int{v}, nil
+	case uint64:
+		// goccy/go-yaml decodes unquoted integers as uint64
+		return []int{int(v)}, nil
+	case int64:
+		return []int{int(v)}, nil
 	case float64:
-		// YAML may parse unquoted numbers as float64
+		// Some YAML libraries parse unquoted numbers as float64
 		return []int{int(v)}, nil
 	case string:
 		portStr = v
@@ -154,17 +160,14 @@ func parsePortSpec(spec any) ([]int, []string) {
 
 	// Split host:container
 	var containerPart string
-	if idx := strings.Index(portStr, ":"); idx != -1 {
-		containerPart = portStr[idx+1:]
+	if _, after, found := strings.Cut(portStr, ":"); found {
+		containerPart = after
 	} else {
 		containerPart = portStr
 	}
 
 	// Check for port range (e.g., "6000-6010")
-	if idx := strings.Index(containerPart, "-"); idx != -1 {
-		startStr := containerPart[:idx]
-		endStr := containerPart[idx+1:]
-
+	if startStr, endStr, found := strings.Cut(containerPart, "-"); found {
 		start, err1 := strconv.Atoi(startStr)
 		end, err2 := strconv.Atoi(endStr)
 		if err1 != nil || err2 != nil {
