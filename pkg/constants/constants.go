@@ -396,7 +396,7 @@ const FirewallAuditArtifactName = "firewall-audit-logs"
 const AWFDefaultLogLevel = "info"
 
 // DefaultMCPGatewayVersion is the default version of the MCP Gateway (gh-aw-mcpg) Docker image
-const DefaultMCPGatewayVersion Version = "v0.2.9"
+const DefaultMCPGatewayVersion Version = "v0.2.10"
 
 // DefaultMCPGatewayContainer is the default container image for the MCP Gateway
 const DefaultMCPGatewayContainer = "ghcr.io/github/gh-aw-mcpg"
@@ -416,7 +416,7 @@ const DefaultMCPGatewayPayloadSizeThreshold = 524288
 const DefaultFirewallRegistry = "ghcr.io/github/gh-aw-firewall"
 
 // DefaultPlaywrightMCPVersion is the default version of the @playwright/mcp package
-const DefaultPlaywrightMCPVersion Version = "0.0.68"
+const DefaultPlaywrightMCPVersion Version = "0.0.69"
 
 // DefaultQmdVersion is the default version of the @tobilu/qmd npm package
 const DefaultQmdVersion Version = "2.0.1"
