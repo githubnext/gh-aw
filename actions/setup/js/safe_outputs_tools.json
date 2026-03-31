@@ -486,7 +486,7 @@
           "items": {
             "type": "string"
           },
-          "description": "Label names to add (e.g., ['bug', 'priority-high']). Labels must exist in the repository. This field is required \u2014 omitting it will cause a validation error."
+          "description": "Label names to add (e.g., ['bug', 'priority-high']). Labels must exist in the repository. This field is required — omitting it will cause a validation error."
         },
         "item_number": {
           "type": "number",
