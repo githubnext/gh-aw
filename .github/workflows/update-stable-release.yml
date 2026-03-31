@@ -45,9 +45,11 @@ jobs:
       - name: Resolve version
         id: version
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        env:
+          INPUT_VERSION: ${{ inputs.version }}
         with:
           script: |
-            let version = '${{ inputs.version }}'.trim();
+            let version = (process.env.INPUT_VERSION || '').trim();
             if (!version) {
               const { data: release } = await github.rest.repos.getLatestRelease({
                 owner: context.repo.owner,
@@ -60,9 +62,11 @@ jobs:
 
       - name: Validate release tag
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        env:
+          RELEASE_VERSION: ${{ steps.version.outputs.version }}
         with:
           script: |
-            const version = '${{ steps.version.outputs.version }}';
+            const version = process.env.RELEASE_VERSION;
 
             // Only exact vMAJOR.MINOR.PATCH versions are valid for the stable alias
             // (pre-release suffixes such as -beta.1 are intentionally rejected)
@@ -102,8 +106,9 @@ jobs:
 
       - name: Update stable alias in releases.json
         id: update
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
         run: |
-          VERSION="${{ steps.version.outputs.version }}"
           FILE=".github/aw/releases.json"
 
           CURRENT=$(jq -r '.aliases.stable // ""' "$FILE")
@@ -126,9 +131,11 @@ jobs:
 
       - name: Commit and push
         if: steps.update.outputs.changed == 'true'
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add .github/aw/releases.json
-          git commit -m "chore: update stable release to ${{ steps.version.outputs.version }}"
+          git commit -m "chore: update stable release to $VERSION"
           git push
