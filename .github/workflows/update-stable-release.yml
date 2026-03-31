@@ -129,6 +129,16 @@ jobs:
             echo "changed=true" >> "$GITHUB_OUTPUT"
           fi
 
+      - name: Validate releases.json
+        if: steps.update.outputs.changed == 'true'
+        run: |
+          FILE=".github/aw/releases.json"
+          if ! jq empty "$FILE" 2>&1; then
+            echo "❌ $FILE is not valid JSON after update"
+            exit 1
+          fi
+          echo "✅ $FILE is valid JSON"
+
       - name: Commit and push
         if: steps.update.outputs.changed == 'true'
         env:
