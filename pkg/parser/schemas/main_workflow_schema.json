@@ -3688,7 +3688,7 @@
                         "type": "string",
                         "description": "GitHub username to elevate to approved integrity"
                       },
-                      "minItems": 1
+                      "minItems": 0
                     },
                     {
                       "type": "string",
