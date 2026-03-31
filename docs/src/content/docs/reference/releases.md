@@ -1,0 +1,153 @@
+---
+title: Releases and Versioning
+description: How to pin the gh-aw CLI to a release channel, what stable vs latest means, how compiled lock.yml files are versioned, and when to use upgrade vs update.
+sidebar:
+  order: 520
+---
+
+GitHub Agentic Workflows uses a two-layer versioning model: the **CLI extension** (`gh aw`) that you run locally or in CI, and the **compiled `.lock.yml` files** that run in GitHub Actions. Each layer has independent version tracking.
+
+## Release Channels
+
+The gh-aw installer resolves version aliases from [`.github/aw/releases.json`](https://github.com/github/gh-aw/blob/main/.github/aw/releases.json) before downloading a binary. Three options are available:
+
+| Channel | Alias | Behavior |
+|---------|-------|----------|
+| **Stable** (default) | `stable` | Resolves to the latest fully-vetted release — recommended for most users |
+| **Latest** | `latest` | Always resolves to the most recent GitHub release, including recently shipped features |
+| **Pinned** | `vMAJOR.MINOR.PATCH` | A fixed release tag — use when you need exact reproducibility |
+
+### Installing a channel
+
+```bash
+# Stable (default — no version flag needed)
+curl -sL https://raw.githubusercontent.com/github/gh-aw/main/install-gh-aw.sh | bash
+
+# Latest
+curl -sL https://raw.githubusercontent.com/github/gh-aw/main/install-gh-aw.sh | bash -s latest
+
+# Specific version
+curl -sL https://raw.githubusercontent.com/github/gh-aw/main/install-gh-aw.sh | bash -s v0.64.5
+```
+
+Via the GitHub CLI extension manager:
+
+```bash
+gh extension install github/gh-aw          # stable (default)
+gh extension install github/gh-aw@v0.64.5  # pinned version
+```
+
+> [!TIP]
+> Use `stable` for production repositories and CI. Use `latest` when you want to try new features as soon as they ship.
+
+### Checking and updating your version
+
+```bash
+gh aw version                   # Show currently installed version
+
+gh extension upgrade gh-aw      # Upgrade to the latest release
+```
+
+### Pinning in GitHub Actions
+
+Use the [`setup-cli` action](https://github.com/github/gh-aw/blob/main/actions/setup-cli/README.md) to install a specific version in CI:
+
+```yaml
+- name: Install gh-aw
+  uses: github/gh-aw/actions/setup-cli@main
+  with:
+    version: v0.64.5
+```
+
+## Version Enforcement in Compiled Workflows
+
+Every compiled `.lock.yml` embeds the gh-aw version used to produce it:
+
+```yaml
+GH_AW_INFO_AWF_VERSION: "v0.64.5"
+```
+
+At runtime, the activation job fetches `.github/aw/releases.json` and compares the embedded version against three policies:
+
+| Policy | Effect |
+|--------|--------|
+| `blockedVersions` | Workflow fails — the compiled version has been revoked |
+| `minimumVersion` | Workflow fails — the compiled version is too old |
+| `minRecommendedVersion` | Workflow warns — an upgrade is recommended but not enforced |
+
+This means that if you compiled a workflow months ago with an older version of `gh aw`, you may see a warning (or failure) asking you to recompile with a newer version. Run `gh aw upgrade` to bring all workflows up to date.
+
+## How Lock Files Are Pinned
+
+When `gh aw compile` generates a `.lock.yml`, it pins every GitHub Actions reference to a commit SHA:
+
+```yaml
+# Generated lock file (do not edit manually)
+uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+```
+
+SHA pins are immutable — unlike tags, they cannot be silently redirected to a different commit. This protects workflows from supply-chain attacks.
+
+The resolved SHA mappings are cached in `.github/aw/actions-lock.json`. Commit this file to version control so that all contributors and automated tools (including GitHub Copilot Coding Agent) produce identical lock files without needing broad API access.
+
+To refresh action pins:
+
+```bash
+gh aw update-actions   # Update actions-lock.json to latest SHAs
+gh aw compile          # Recompile workflows using the refreshed pins
+```
+
+> [!IMPORTANT]
+> Never edit `.lock.yml` files manually and do not merge Dependabot PRs that target `github/gh-aw-actions` references in lock files. These pins are managed entirely by the compiler. See [Compilation Process](/gh-aw/reference/compilation-process/#the-gh-aw-actions-repository) for details.
+
+## `upgrade` vs `update`
+
+These two commands address different concerns:
+
+### `gh aw upgrade` — update the tooling
+
+`upgrade` brings the repository's agentic workflow infrastructure up to date with the current version of `gh aw`. It:
+
+1. Self-updates the `gh aw` extension to the latest version
+2. Regenerates the dispatcher agent file (like `gh aw init`)
+3. Applies codemods to fix deprecated syntax across all workflow markdown files
+4. Updates GitHub Actions versions in `actions-lock.json`
+5. Recompiles all workflows to produce fresh `.lock.yml` files
+
+Run `upgrade` after installing a new version of `gh aw`, or periodically to keep your repository current.
+
+```bash
+gh aw upgrade                          # Upgrade everything
+gh aw upgrade --no-actions             # Skip updating action pins
+gh aw upgrade --audit                  # Check dependency health without upgrading
+gh aw upgrade --create-pull-request    # Open a PR with the changes
+```
+
+### `gh aw update` — update workflow content from source
+
+`update` fetches the latest version of workflow markdown files from their upstream source repositories. It only applies to workflows that declare a [`source` field](/gh-aw/reference/imports/) in their frontmatter.
+
+```yaml
+# Example workflow with a source field
+source: github/gh-aw/.github/workflows/shared/ci-doctor.md@v1
+```
+
+By default, `update` merges upstream changes with your local modifications (3-way merge). Use `--no-merge` to overwrite local changes entirely.
+
+```bash
+gh aw update                           # Update all workflows that have a source field
+gh aw update ci-doctor                 # Update a specific workflow
+gh aw update ci-doctor --no-merge      # Override local changes with upstream
+gh aw update ci-doctor --major         # Allow major version updates
+gh aw update --create-pull-request     # Open a PR with the changes
+```
+
+### Summary
+
+| Command | What it updates | When to use |
+|---------|----------------|-------------|
+| `gh aw upgrade` | Tooling: agent files, codemods, action pins, compiled lock files | After installing a new `gh aw` version; periodic maintenance |
+| `gh aw update` | Workflow content: markdown files sourced from other repositories | When upstream workflows have released new versions |
+
+> [!TIP]
+> Both commands support `--create-pull-request` to open a review PR instead of committing directly.

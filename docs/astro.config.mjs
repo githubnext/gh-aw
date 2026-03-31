@@ -323,6 +323,7 @@ export default defineConfig({
 						{ label: 'Network Access', link: '/reference/network/' },
 						{ label: 'Playwright', link: '/reference/playwright/' },
 						{ label: 'Rate Limiting', link: '/reference/rate-limiting-controls/' },
+						{ label: 'Releases and Versioning', link: '/reference/releases/' },
 						{ label: 'Repo Memory', link: '/reference/repo-memory/' },
 						{ label: 'MCP Scripts', link: '/reference/mcp-scripts/' },
 						{ label: 'MCP Scripts (Spec)', link: '/reference/mcp-scripts-specification/' },
