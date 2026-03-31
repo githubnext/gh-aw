@@ -132,6 +132,7 @@ func buildAuditObservabilityInsights(processedRun ProcessedRun, metrics MetricsD
 		})
 	}
 
+	observabilityInsightsLog.Printf("Audit observability insights built: count=%d", len(insights))
 	return insights
 }
 
@@ -201,6 +202,7 @@ func buildLogsObservabilityInsights(processedRuns []ProcessedRun, toolUsage []To
 		if failureRate >= 0.5 {
 			severity = "high"
 		}
+		observabilityInsightsLog.Printf("Failure hotspot detected: workflow=%s failures=%d runs=%d rate=%.2f", failureHotspot.workflowName, failureHotspot.failures, failureHotspot.runs, failureRate)
 		insights = append(insights, ObservabilityInsight{
 			Category: "reliability",
 			Severity: severity,
@@ -224,6 +226,7 @@ func buildLogsObservabilityInsights(processedRuns []ProcessedRun, toolUsage []To
 	}
 	if driftHotspot != nil {
 		avgTurns := float64(driftHotspot.totalTurns) / float64(driftHotspot.runs)
+		observabilityInsightsLog.Printf("Execution drift detected: workflow=%s min_turns=%d max_turns=%d avg_turns=%.1f", driftHotspot.workflowName, driftHotspot.minTurns, driftHotspot.maxTurns, avgTurns)
 		insights = append(insights, ObservabilityInsight{
 			Category: "drift",
 			Severity: "medium",
@@ -316,6 +319,7 @@ func buildLogsObservabilityInsights(processedRuns []ProcessedRun, toolUsage []To
 		}
 	}
 
+	observabilityInsightsLog.Printf("Logs observability insights built: count=%d write_runs=%d read_only_runs=%d", len(insights), writeRuns, readOnlyRuns)
 	return insights
 }
 

@@ -357,6 +357,7 @@ func hasSafeOutputType(config *SafeOutputsConfig, key string) bool {
 
 // mergeSafeOutputConfig merges a single imported config map into the result SafeOutputsConfig
 func mergeSafeOutputConfig(result *SafeOutputsConfig, config map[string]any, c *Compiler) (*SafeOutputsConfig, error) {
+	importsLog.Printf("Merging imported safe-output config: key_count=%d", len(config))
 	// Create a frontmatter-like structure for extractSafeOutputsConfig
 	frontmatter := map[string]any{
 		"safe-outputs": config,
@@ -365,6 +366,7 @@ func mergeSafeOutputConfig(result *SafeOutputsConfig, config map[string]any, c *
 	// Use the existing extraction logic to parse the config
 	importedConfig := c.extractSafeOutputsConfig(frontmatter)
 	if importedConfig == nil {
+		importsLog.Print("Imported safe-output config extracted no fields, skipping merge")
 		return result, nil
 	}
 
@@ -555,6 +557,7 @@ func mergeSafeOutputConfig(result *SafeOutputsConfig, config map[string]any, c *
 	// The Jobs field is managed independently from other safe-output types to support
 	// complex merge scenarios and conflict detection across multiple imports.
 
+	importsLog.Print("Safe-output config merge completed")
 	return result, nil
 }
 
