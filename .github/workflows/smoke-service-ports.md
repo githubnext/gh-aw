@@ -46,20 +46,20 @@ timeout-minutes: 5
 
 # Smoke Test: Service Ports (Redis)
 
-**Purpose:** Validate that the `--allow-host-service-ports` feature works end-to-end. The compiler should have automatically detected the Redis service port and configured AWF to allow traffic to it. You do NOT need to configure anything special — just use Redis normally.
+**Purpose:** Validate that the `--allow-host-service-ports` feature works end-to-end. The compiler should have automatically detected the Redis service port and configured AWF to allow traffic to it.
 
-**IMPORTANT:** Keep all outputs concise. Report each test with a pass/fail status.
+**IMPORTANT:** Inside AWF's sandbox, you must connect to services via `host.docker.internal` (not `localhost`). The service containers run on the host, and AWF routes traffic through the host gateway. Since the workflow maps port 6379:6379, port 6379 should work. Keep all outputs concise.
 
 ## Required Tests
 
-1. **Redis PING**: Run `redis-cli -h localhost -p 6379 ping` or `echo PING | nc localhost 6379` and verify the response contains `PONG`.
+1. **Redis PING**: Run `redis-cli -h host.docker.internal -p 6379 ping` or `echo PING | nc host.docker.internal 6379` and verify the response contains `PONG`.
 
 2. **Redis SET/GET**: Write a value to Redis and read it back:
-   - `redis-cli -h localhost -p 6379 SET smoke_test "service-ports-ok"`
-   - `redis-cli -h localhost -p 6379 GET smoke_test`
+   - `redis-cli -h host.docker.internal -p 6379 SET smoke_test "service-ports-ok"`
+   - `redis-cli -h host.docker.internal -p 6379 GET smoke_test`
    - Verify the returned value is `service-ports-ok`
 
-3. **Redis INFO**: Run `redis-cli -h localhost -p 6379 INFO server | head -5` to verify we can query Redis server info.
+3. **Redis INFO**: Run `redis-cli -h host.docker.internal -p 6379 INFO server | head -5` to verify we can query Redis server info.
 
 ## Output Requirements
 
