@@ -369,7 +369,7 @@ const DefaultGitHubMCPServerVersion Version = "v0.32.0"
 const DefaultGitHubLockdown = false
 
 // DefaultFirewallVersion is the default version of the gh-aw-firewall (AWF) binary
-const DefaultFirewallVersion Version = "v0.25.4"
+const DefaultFirewallVersion Version = "v0.25.5"
 
 // AWF (Agentic Workflow Firewall) constants
 
