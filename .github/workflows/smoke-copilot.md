@@ -37,6 +37,9 @@ tools:
   bash:
     - "*"
   github:
+    min-integrity: approved
+    trusted-users:
+      - pelikhan
   playwright:
   web-fetch:
 runtimes:
