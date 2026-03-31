@@ -12,10 +12,6 @@ import (
 
 var cacheIntegrityLog = logger.New("workflow:cache_integrity")
 
-// integrityLevelOrder defines integrity levels from highest to lowest.
-// Used to determine which branches to merge down from when setting up cache.
-var integrityLevelOrder = []string{"merged", "approved", "unapproved", "none"}
-
 // defaultCacheIntegrityLevel is the integrity level used when no guard policy is configured.
 const defaultCacheIntegrityLevel = "none"
 
