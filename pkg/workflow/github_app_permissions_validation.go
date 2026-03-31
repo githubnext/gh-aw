@@ -109,6 +109,48 @@ func formatWriteOnAppScopesError(scopes []PermissionScope) error {
 	return errors.New(strings.Join(lines, "\n"))
 }
 
+// validateGitHubMCPAppPermissionsNoWrite validates that no scope in
+// tools.github.github-app.permissions is set to "write".
+// The schema allows "write" so that editors can offer it as a completion, but
+// the compiler must reject it because GitHub App-only scopes have no write-level
+// semantics in this context — write operations must go through safe-outputs.
+func validateGitHubMCPAppPermissionsNoWrite(workflowData *WorkflowData) error {
+	if workflowData.ParsedTools == nil ||
+		workflowData.ParsedTools.GitHub == nil ||
+		workflowData.ParsedTools.GitHub.GitHubApp == nil {
+		return nil
+	}
+	app := workflowData.ParsedTools.GitHub.GitHubApp
+	if len(app.Permissions) == 0 {
+		return nil
+	}
+
+	var writeScopes []string
+	for scope, level := range app.Permissions {
+		if level == string(PermissionWrite) {
+			writeScopes = append(writeScopes, scope)
+		}
+	}
+	if len(writeScopes) == 0 {
+		return nil
+	}
+	sort.Strings(writeScopes)
+
+	var lines []string
+	lines = append(lines, `"write" is not allowed in tools.github.github-app.permissions.`)
+	lines = append(lines, "GitHub App-only scopes in this section must be declared as \"read\" or \"none\".")
+	lines = append(lines, "Write operations must be performed via safe-outputs, not through declared permissions.")
+	lines = append(lines, "")
+	lines = append(lines, "The following scopes were declared with \"write\" access:")
+	lines = append(lines, "")
+	for _, s := range writeScopes {
+		lines = append(lines, "  - "+s)
+	}
+	lines = append(lines, "")
+	lines = append(lines, "Change the permission level to \"read\" for read-only access, or remove the entry.")
+	return errors.New(strings.Join(lines, "\n"))
+}
+
 func hasGitHubAppConfigured(workflowData *WorkflowData) bool {
 	// Check tools.github.github-app
 	if workflowData.ParsedTools != nil &&

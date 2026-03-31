@@ -491,3 +491,40 @@ Test that nested permissions override job-level GitHub App-only scopes (nested w
 	assert.Contains(t, lockContent, "permission-contents: read", "Unaffected job-level contents permission should still be present")
 	assert.Contains(t, lockContent, "permission-issues: read", "Unaffected job-level issues permission should still be present")
 }
+
+// TestGitHubMCPAppTokenExtraPermissionsWriteRejected tests that the compiler
+// rejects a workflow where tools.github.github-app.permissions contains a "write"
+// value, since write access is not allowed for GitHub App-only scopes in this section.
+func TestGitHubMCPAppTokenExtraPermissionsWriteRejected(t *testing.T) {
+	compiler := NewCompilerWithVersion("1.0.0")
+
+	markdown := `---
+on: issues
+permissions:
+  contents: read
+strict: false
+tools:
+  github:
+    mode: local
+    github-app:
+      app-id: ${{ vars.APP_ID }}
+      private-key: ${{ secrets.APP_PRIVATE_KEY }}
+      permissions:
+        members: write
+---
+
+# Test Workflow
+
+Test that write is rejected in tools.github.github-app.permissions.
+`
+
+	tmpDir := t.TempDir()
+	testFile := filepath.Join(tmpDir, "test.md")
+	err := os.WriteFile(testFile, []byte(markdown), 0644)
+	require.NoError(t, err, "Failed to write test file")
+
+	err = compiler.CompileWorkflow(testFile)
+	require.Error(t, err, "Compiler should reject write in tools.github.github-app.permissions")
+	assert.Contains(t, err.Error(), `"write" is not allowed in tools.github.github-app.permissions`, "Error should mention that write is not allowed")
+	assert.Contains(t, err.Error(), "members", "Error should mention the offending scope")
+}
