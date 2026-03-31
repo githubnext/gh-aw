@@ -5830,6 +5830,11 @@
                   "description": "Controls the fallback behavior when pull request creation fails. When true (default), an issue is created as a fallback with the patch content. When false, no issue is created and the workflow fails with an error. Setting to false also removes the issues:write permission requirement.",
                   "default": true
                 },
+                "auto-close-issue": {
+                  "type": "boolean",
+                  "description": "When true (default), automatically appends a closing keyword (\"Fixes #N\") to the PR description when the workflow is triggered from an issue and no closing keyword is already present. This causes GitHub to auto-close the triggering issue when the PR is merged. Set to false to prevent this behavior, e.g., for partial-work PRs or multi-PR workflows.",
+                  "default": true
+                },
                 "github-token-for-extra-empty-commit": {
                   "type": "string",
                   "description": "Token used to push an empty commit after PR creation to trigger CI events. Works around the GITHUB_TOKEN limitation where pushes don't trigger workflow runs. Defaults to the magic secret GH_AW_CI_TRIGGER_TOKEN if set in the repository. Use a secret expression (e.g. '${{ secrets.CI_TOKEN }}') for a custom token, or 'app' for GitHub App auth."

@@ -174,6 +174,7 @@ async function main(config = {}) {
 
   const includeFooter = parseBoolTemplatable(config.footer, true);
   const fallbackAsIssue = config.fallback_as_issue !== false; // Default to true (fallback enabled)
+  const autoCloseIssue = config.auto_close_issue !== false; // Default to true (auto-close enabled)
 
   // Environment validation - fail early if required variables are missing
   const workflowId = process.env.GH_AW_WORKFLOW_ID;
@@ -557,12 +558,15 @@ async function main(config = {}) {
     // Auto-add "Fixes #N" closing keyword if triggered from an issue and not already present.
     // This ensures the triggering issue is auto-closed when the PR is merged.
     // Agents are instructed to include this but don't reliably do so.
-    if (triggeringIssueNumber) {
+    // This behavior can be disabled by setting auto-close-issue: false in the workflow config.
+    if (triggeringIssueNumber && autoCloseIssue) {
       const hasClosingKeyword = /(?:fix|fixes|fixed|close|closes|closed|resolve|resolves|resolved)\s+#\d+/i.test(processedBody);
       if (!hasClosingKeyword) {
         processedBody = processedBody.trimEnd() + `\n\n- Fixes #${triggeringIssueNumber}`;
         core.info(`Auto-added "Fixes #${triggeringIssueNumber}" closing keyword to PR body as bullet point`);
       }
+    } else if (triggeringIssueNumber && !autoCloseIssue) {
+      core.info(`Skipping auto-close keyword for #${triggeringIssueNumber} (auto-close-issue: false)`);
     }
 
     let bodyLines = processedBody.split("\n");

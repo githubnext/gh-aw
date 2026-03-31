@@ -450,7 +450,55 @@ func TestGenerateSafeOutputsConfigCreatePullRequestBackwardCompat(t *testing.T) 
 	assert.False(t, hasAllowedRepos, "allowed_repos should not be present when not configured")
 }
 
-// TestGenerateSafeOutputsConfigRepoMemory tests that generateSafeOutputsConfig includes
+// TestGenerateSafeOutputsConfigCreatePullRequestAutoCloseIssue tests that auto_close_issue
+// is correctly serialized into config.json for create_pull_request.
+func TestGenerateSafeOutputsConfigCreatePullRequestAutoCloseIssue(t *testing.T) {
+	falseVal := false
+	data := &WorkflowData{
+		SafeOutputs: &SafeOutputsConfig{
+			CreatePullRequests: &CreatePullRequestsConfig{
+				BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("1")},
+				AutoCloseIssue:       &falseVal,
+			},
+		},
+	}
+
+	result := generateSafeOutputsConfig(data)
+	require.NotEmpty(t, result, "Expected non-empty config")
+
+	var parsed map[string]any
+	require.NoError(t, json.Unmarshal([]byte(result), &parsed), "Result must be valid JSON")
+
+	prConfig, ok := parsed["create_pull_request"].(map[string]any)
+	require.True(t, ok, "Expected create_pull_request key in config")
+
+	assert.Equal(t, false, prConfig["auto_close_issue"], "auto_close_issue should be false")
+}
+
+// TestGenerateSafeOutputsConfigCreatePullRequestAutoCloseIssueOmittedByDefault tests that
+// auto_close_issue is omitted when not configured (backward compatibility).
+func TestGenerateSafeOutputsConfigCreatePullRequestAutoCloseIssueOmittedByDefault(t *testing.T) {
+	data := &WorkflowData{
+		SafeOutputs: &SafeOutputsConfig{
+			CreatePullRequests: &CreatePullRequestsConfig{
+				BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("1")},
+			},
+		},
+	}
+
+	result := generateSafeOutputsConfig(data)
+	require.NotEmpty(t, result, "Expected non-empty config")
+
+	var parsed map[string]any
+	require.NoError(t, json.Unmarshal([]byte(result), &parsed), "Result must be valid JSON")
+
+	prConfig, ok := parsed["create_pull_request"].(map[string]any)
+	require.True(t, ok, "Expected create_pull_request key in config")
+
+	_, hasAutoCloseIssue := prConfig["auto_close_issue"]
+	assert.False(t, hasAutoCloseIssue, "auto_close_issue should be absent when not configured")
+}
+
 // push_repo_memory configuration with the expected memories entries when RepoMemoryConfig is present.
 func TestGenerateSafeOutputsConfigRepoMemory(t *testing.T) {
 	data := &WorkflowData{

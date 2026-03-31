@@ -179,6 +179,180 @@ describe("create_pull_request - fallback-as-issue configuration", () => {
   });
 });
 
+describe("create_pull_request - auto-close-issue configuration", () => {
+  let tempDir;
+  let originalEnv;
+
+  beforeEach(() => {
+    originalEnv = { ...process.env };
+    process.env.GH_AW_WORKFLOW_ID = "test-workflow";
+    process.env.GITHUB_REPOSITORY = "test-owner/test-repo";
+    process.env.GITHUB_BASE_REF = "main";
+    tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "create-pr-auto-close-test-"));
+
+    global.core = {
+      info: vi.fn(),
+      warning: vi.fn(),
+      error: vi.fn(),
+      debug: vi.fn(),
+      setFailed: vi.fn(),
+      setOutput: vi.fn(),
+      startGroup: vi.fn(),
+      endGroup: vi.fn(),
+      summary: {
+        addRaw: vi.fn().mockReturnThis(),
+        write: vi.fn().mockResolvedValue(undefined),
+      },
+    };
+    global.github = {
+      rest: {
+        pulls: {
+          create: vi.fn().mockResolvedValue({ data: { number: 1, html_url: "https://github.com/test" } }),
+        },
+        repos: {
+          get: vi.fn().mockResolvedValue({ data: { default_branch: "main" } }),
+        },
+        issues: {
+          addLabels: vi.fn().mockResolvedValue({}),
+        },
+      },
+      graphql: vi.fn(),
+    };
+    global.context = {
+      eventName: "issues",
+      repo: { owner: "test-owner", repo: "test-repo" },
+      payload: {
+        issue: { number: 42 },
+      },
+    };
+    global.exec = {
+      exec: vi.fn().mockResolvedValue(0),
+      getExecOutput: vi.fn().mockResolvedValue({ exitCode: 0, stdout: "", stderr: "" }),
+    };
+
+    delete require.cache[require.resolve("./create_pull_request.cjs")];
+  });
+
+  afterEach(() => {
+    for (const key of Object.keys(process.env)) {
+      if (!(key in originalEnv)) {
+        delete process.env[key];
+      }
+    }
+    Object.assign(process.env, originalEnv);
+
+    if (tempDir && fs.existsSync(tempDir)) {
+      fs.rmSync(tempDir, { recursive: true, force: true });
+    }
+
+    delete global.core;
+    delete global.github;
+    delete global.context;
+    delete global.exec;
+    vi.clearAllMocks();
+  });
+
+  describe("configuration parsing", () => {
+    it("should default auto_close_issue to true when not specified", () => {
+      const config = {};
+      const autoCloseIssue = config.auto_close_issue !== false;
+
+      expect(autoCloseIssue).toBe(true);
+    });
+
+    it("should respect auto_close_issue when set to false", () => {
+      const config = { auto_close_issue: false };
+      const autoCloseIssue = config.auto_close_issue !== false;
+
+      expect(autoCloseIssue).toBe(false);
+    });
+
+    it("should respect auto_close_issue when explicitly set to true", () => {
+      const config = { auto_close_issue: true };
+      const autoCloseIssue = config.auto_close_issue !== false;
+
+      expect(autoCloseIssue).toBe(true);
+    });
+  });
+
+  it("should auto-add 'Fixes #N' when triggered from an issue and auto_close_issue is not set (default)", async () => {
+    const { main } = require("./create_pull_request.cjs");
+    const handler = await main({ allow_empty: true });
+
+    await handler({ title: "Test PR", body: "Test body" }, {});
+
+    const createCall = global.github.rest.pulls.create.mock.calls[0]?.[0];
+    expect(createCall?.body).toContain("Fixes #42");
+    expect(global.core.info).toHaveBeenCalledWith(expect.stringContaining('Auto-added "Fixes #42"'));
+  });
+
+  it("should auto-add 'Fixes #N' when triggered from an issue and auto_close_issue is explicitly true", async () => {
+    const { main } = require("./create_pull_request.cjs");
+    const handler = await main({ allow_empty: true, auto_close_issue: true });
+
+    await handler({ title: "Test PR", body: "Test body" }, {});
+
+    const createCall = global.github.rest.pulls.create.mock.calls[0]?.[0];
+    expect(createCall?.body).toContain("Fixes #42");
+    expect(global.core.info).toHaveBeenCalledWith(expect.stringContaining('Auto-added "Fixes #42"'));
+  });
+
+  it("should NOT auto-add 'Fixes #N' when auto_close_issue is false", async () => {
+    const { main } = require("./create_pull_request.cjs");
+    const handler = await main({ allow_empty: true, auto_close_issue: false });
+
+    await handler({ title: "Test PR", body: "Test body" }, {});
+
+    const createCall = global.github.rest.pulls.create.mock.calls[0]?.[0];
+    expect(createCall?.body).not.toContain("Fixes #42");
+    expect(global.core.info).toHaveBeenCalledWith(expect.stringContaining("Skipping auto-close keyword for #42 (auto-close-issue: false)"));
+  });
+
+  it("should NOT auto-add 'Fixes #N' when body already contains a closing keyword, regardless of auto_close_issue", async () => {
+    const { main } = require("./create_pull_request.cjs");
+    const handler = await main({ allow_empty: true });
+
+    await handler({ title: "Test PR", body: "Test body\n\nCloses #42" }, {});
+
+    const createCall = global.github.rest.pulls.create.mock.calls[0]?.[0];
+    // Should not duplicate the keyword
+    const fixesCount = (createCall?.body?.match(/Fixes #42/gi) || []).length;
+    const closesCount = (createCall?.body?.match(/Closes #42/gi) || []).length;
+    expect(closesCount).toBe(1);
+    expect(fixesCount).toBe(0);
+  });
+
+  it("should have no effect when not triggered from an issue, regardless of auto_close_issue value", async () => {
+    // Override context to not be from an issue
+    global.context = {
+      eventName: "workflow_dispatch",
+      repo: { owner: "test-owner", repo: "test-repo" },
+      payload: {},
+    };
+    delete require.cache[require.resolve("./create_pull_request.cjs")];
+
+    const { main } = require("./create_pull_request.cjs");
+    const handler = await main({ allow_empty: true, auto_close_issue: true });
+
+    await handler({ title: "Test PR", body: "Test body" }, {});
+
+    const createCall = global.github.rest.pulls.create.mock.calls[0]?.[0];
+    expect(createCall?.body).not.toContain("Fixes #");
+  });
+
+  it("should NOT add 'Fixes #N' when auto_close_issue is false even if body has no closing keyword", async () => {
+    const { main } = require("./create_pull_request.cjs");
+    const handler = await main({ allow_empty: true, auto_close_issue: false });
+
+    await handler({ title: "Test PR", body: "Investigation findings - partial work only" }, {});
+
+    const createCall = global.github.rest.pulls.create.mock.calls[0]?.[0];
+    expect(createCall?.body).not.toContain("Fixes #");
+    expect(createCall?.body).not.toContain("Closes #");
+    expect(createCall?.body).not.toContain("Resolves #");
+  });
+});
+
 describe("create_pull_request - max limit enforcement", () => {
   let mockFs;
 
