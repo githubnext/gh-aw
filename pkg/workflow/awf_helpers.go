@@ -89,6 +89,16 @@ func BuildAWFCommand(config AWFCommandConfig) string {
 		ghAwDir, ghAwDir, ghAwDir, ghAwDir,
 	)
 
+	// Add --allow-host-service-ports for services with port mappings.
+	// This is appended as a raw (expandable) arg because the value contains
+	// ${{ job.services.<id>.ports['<port>'] }} expressions that include single quotes.
+	// These expressions are resolved by the GitHub Actions runner before shell execution,
+	// so they must not be shell-escaped.
+	if config.WorkflowData != nil && config.WorkflowData.ServicePortExpressions != "" {
+		expandableArgs += fmt.Sprintf(` --allow-host-service-ports "%s"`, config.WorkflowData.ServicePortExpressions)
+		awfHelpersLog.Printf("Added --allow-host-service-ports with %s", config.WorkflowData.ServicePortExpressions)
+	}
+
 	// Wrap engine command in shell (command already includes any internal setup like npm PATH)
 	shellWrappedCommand := WrapCommandInShell(config.EngineCommand)
 

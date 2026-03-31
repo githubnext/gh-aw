@@ -515,6 +515,18 @@ func (c *Compiler) processAndMergeServices(frontmatter map[string]any, workflowD
 			}
 		}
 	}
+
+	// Extract service port expressions for AWF --allow-host-service-ports
+	if workflowData.Services != "" {
+		expressions, warnings := ExtractServicePortExpressions(workflowData.Services)
+		workflowData.ServicePortExpressions = expressions
+		for _, w := range warnings {
+			orchestratorWorkflowLog.Printf("Warning: %s", w)
+		}
+		if expressions != "" {
+			orchestratorWorkflowLog.Printf("Extracted service port expressions: %s", expressions)
+		}
+	}
 }
 
 // mergeJobsFromYAMLImports merges jobs from imported YAML workflows with main workflow jobs

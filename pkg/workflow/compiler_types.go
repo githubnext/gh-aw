@@ -435,6 +435,7 @@ type WorkflowData struct {
 	ConcurrencyJobDiscriminator string                    // optional discriminator expression appended to job-level concurrency groups (from concurrency.job-discriminator)
 	IsDetectionRun              bool                      // true when this WorkflowData is used for inline threat detection (not the main agent run)
 	EngineConfigSteps           []map[string]any          // steps returned by engine.RenderConfig — prepended before execution steps
+	ServicePortExpressions      string                    // comma-separated ${{ job.services.<id>.ports['<port>'] }} expressions for AWF --allow-host-service-ports
 }
 
 // BaseSafeOutputConfig holds common configuration fields for all safe output types
