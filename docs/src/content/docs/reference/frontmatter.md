@@ -575,6 +575,9 @@ services:
       - 5432:5432
 ```
 
+> [!NOTE]
+> The AWF agent runs inside an isolated Docker container. Service containers expose ports on the runner host, not within the agent's network namespace. To connect to a service from the agent, use `host.docker.internal` as the hostname instead of `localhost`. For example, a Postgres service configured with port `5432:5432` is accessible at `host.docker.internal:5432`.
+
 See [GitHub Actions service docs](https://docs.github.com/en/actions/using-containerized-services).
 
 ## Conditional Execution (`if:`)
