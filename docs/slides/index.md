@@ -243,7 +243,7 @@ mcp-servers:
   bundle-analyzer:
     command: "node"
     args: ["path/to/mcp-server.js"]
-    allowed: "*"
+    allowed: ["*"]
 ```
 
 **MCP:** Extend AI with [Model Context Protocol](https://modelcontextprotocol.io/)
