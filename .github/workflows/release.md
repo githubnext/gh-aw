@@ -270,7 +270,9 @@ jobs:
           gh release create "$RELEASE_TAG" \
             dist/* \
             --title "$RELEASE_TAG" \
-            --generate-notes
+            --generate-notes \
+            --prerelease \
+            --latest=false
           
           # Get release ID
           RELEASE_ID=$(gh release view "$RELEASE_TAG" --json databaseId --jq '.databaseId')
