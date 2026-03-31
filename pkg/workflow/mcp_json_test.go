@@ -112,6 +112,75 @@ func TestGetMCPConfig(t *testing.T) {
 	}
 }
 
+func TestGetMCPConfigWithAuth(t *testing.T) {
+	t.Run("http server with auth type and audience round-trips", func(t *testing.T) {
+		toolConfig := map[string]any{
+			"type": "http",
+			"url":  "https://my-server.example.com/mcp",
+			"auth": map[string]any{
+				"type":     "github-oidc",
+				"audience": "https://my-server.example.com",
+			},
+		}
+
+		result, err := getMCPConfig(toolConfig, "my-server")
+		if err != nil {
+			t.Fatalf("getMCPConfig() unexpected error: %v", err)
+		}
+
+		if result.Auth == nil {
+			t.Fatal("expected Auth to be set, got nil")
+		}
+		if result.Auth.Type != "github-oidc" {
+			t.Errorf("expected Auth.Type = 'github-oidc', got %q", result.Auth.Type)
+		}
+		if result.Auth.Audience != "https://my-server.example.com" {
+			t.Errorf("expected Auth.Audience = 'https://my-server.example.com', got %q", result.Auth.Audience)
+		}
+	})
+
+	t.Run("http server with auth type only (no audience)", func(t *testing.T) {
+		toolConfig := map[string]any{
+			"type": "http",
+			"url":  "https://my-server.example.com/mcp",
+			"auth": map[string]any{
+				"type": "github-oidc",
+			},
+		}
+
+		result, err := getMCPConfig(toolConfig, "my-server")
+		if err != nil {
+			t.Fatalf("getMCPConfig() unexpected error: %v", err)
+		}
+
+		if result.Auth == nil {
+			t.Fatal("expected Auth to be set, got nil")
+		}
+		if result.Auth.Type != "github-oidc" {
+			t.Errorf("expected Auth.Type = 'github-oidc', got %q", result.Auth.Type)
+		}
+		if result.Auth.Audience != "" {
+			t.Errorf("expected Auth.Audience to be empty, got %q", result.Auth.Audience)
+		}
+	})
+
+	t.Run("http server without auth has nil Auth", func(t *testing.T) {
+		toolConfig := map[string]any{
+			"type": "http",
+			"url":  "https://my-server.example.com/mcp",
+		}
+
+		result, err := getMCPConfig(toolConfig, "my-server")
+		if err != nil {
+			t.Fatalf("getMCPConfig() unexpected error: %v", err)
+		}
+
+		if result.Auth != nil {
+			t.Errorf("expected Auth to be nil, got %+v", result.Auth)
+		}
+	})
+}
+
 func TestHasMCPConfig(t *testing.T) {
 	tests := []struct {
 		name       string
@@ -428,6 +497,89 @@ func TestValidateMCPConfigs(t *testing.T) {
 			},
 			wantErr: true,
 			errMsg:  "unknown property 'network'",
+		},
+		{
+			name: "http server with valid auth config is accepted",
+			tools: map[string]any{
+				"oidc-server": map[string]any{
+					"type": "http",
+					"url":  "https://my-server.example.com/mcp",
+					"auth": map[string]any{
+						"type":     "github-oidc",
+						"audience": "https://my-server.example.com",
+					},
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "http server with auth type only (no audience) is accepted",
+			tools: map[string]any{
+				"oidc-server": map[string]any{
+					"type": "http",
+					"url":  "https://my-server.example.com/mcp",
+					"auth": map[string]any{
+						"type": "github-oidc",
+					},
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "stdio server with auth is rejected",
+			tools: map[string]any{
+				"stdio-with-auth": map[string]any{
+					"type":      "stdio",
+					"container": "mcp/server:latest",
+					"auth": map[string]any{
+						"type": "github-oidc",
+					},
+				},
+			},
+			wantErr: true,
+			errMsg:  "'auth' is only supported for HTTP servers",
+		},
+		{
+			name: "auth without type field is rejected",
+			tools: map[string]any{
+				"bad-auth": map[string]any{
+					"type": "http",
+					"url":  "https://my-server.example.com/mcp",
+					"auth": map[string]any{
+						"audience": "https://my-server.example.com",
+					},
+				},
+			},
+			wantErr: true,
+			errMsg:  "'auth.type' is required",
+		},
+		{
+			name: "auth with unsupported type is rejected",
+			tools: map[string]any{
+				"bad-auth-type": map[string]any{
+					"type": "http",
+					"url":  "https://my-server.example.com/mcp",
+					"auth": map[string]any{
+						"type": "bearer-token",
+					},
+				},
+			},
+			wantErr: true,
+			errMsg:  "not supported",
+		},
+		{
+			name: "auth with empty type string is rejected",
+			tools: map[string]any{
+				"empty-auth-type": map[string]any{
+					"type": "http",
+					"url":  "https://my-server.example.com/mcp",
+					"auth": map[string]any{
+						"type": "",
+					},
+				},
+			},
+			wantErr: true,
+			errMsg:  "must be a non-empty string",
 		},
 	}
 

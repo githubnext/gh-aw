@@ -129,6 +129,7 @@ func getRawMCPConfig(toolConfig map[string]any) (map[string]any, error) {
 		"container":      true,
 		"env":            true,
 		"headers":        true,
+		"auth":           true, // upstream OIDC authentication (HTTP servers only)
 		"version":        true,
 		"args":           true,
 		"entrypoint":     true,
@@ -233,9 +234,33 @@ func validateMCPRequirements(toolName string, mcpConfig map[string]any, toolConf
 			return fmt.Errorf("tool '%s' mcp configuration with type 'http' cannot use 'mounts' field. Volume mounts are only supported for stdio (containerized) MCP servers.\n\nExample:\ntools:\n  %s:\n    type: http\n    url: \"https://api.example.com/mcp\"\n\nSee: %s", toolName, toolName, constants.DocsToolsURL)
 		}
 
+		// Validate auth if present: must have a valid type field
+		if authRaw, hasAuth := toolConfig["auth"]; hasAuth {
+			authMap, ok := authRaw.(map[string]any)
+			if !ok {
+				return fmt.Errorf("tool '%s' mcp configuration 'auth' must be an object.\n\nExample:\ntools:\n  %s:\n    type: http\n    url: \"https://api.example.com/mcp\"\n    auth:\n      type: github-oidc\n\nSee: %s", toolName, toolName, constants.DocsToolsURL)
+			}
+			authType, hasAuthType := authMap["type"]
+			if !hasAuthType {
+				return fmt.Errorf("tool '%s' mcp configuration 'auth.type' is required.\n\nExample:\ntools:\n  %s:\n    type: http\n    url: \"https://api.example.com/mcp\"\n    auth:\n      type: github-oidc\n\nSee: %s", toolName, toolName, constants.DocsToolsURL)
+			}
+			authTypeStr, ok := authType.(string)
+			if !ok || authTypeStr == "" {
+				return fmt.Errorf("tool '%s' mcp configuration 'auth.type' must be a non-empty string. Currently only 'github-oidc' is supported.\n\nExample:\ntools:\n  %s:\n    type: http\n    url: \"https://api.example.com/mcp\"\n    auth:\n      type: github-oidc\n\nSee: %s", toolName, toolName, constants.DocsToolsURL)
+			}
+			if authTypeStr != "github-oidc" {
+				return fmt.Errorf("tool '%s' mcp configuration 'auth.type' value %q is not supported. Currently only 'github-oidc' is supported.\n\nExample:\ntools:\n  %s:\n    type: http\n    url: \"https://api.example.com/mcp\"\n    auth:\n      type: github-oidc\n\nSee: %s", toolName, authTypeStr, toolName, constants.DocsToolsURL)
+			}
+		}
+
 		return validateStringProperty(toolName, "url", url, hasURL)
 
 	case "stdio":
+		// stdio type does not support auth (auth is only valid for HTTP servers)
+		if _, hasAuth := toolConfig["auth"]; hasAuth {
+			return fmt.Errorf("tool '%s' mcp configuration 'auth' is only supported for HTTP servers (type: 'http'). Stdio servers do not support upstream authentication.\n\nIf you need upstream auth, use an HTTP MCP server:\ntools:\n  %s:\n    type: http\n    url: \"https://api.example.com/mcp\"\n    auth:\n      type: github-oidc\n\nSee: %s", toolName, toolName, constants.DocsToolsURL)
+		}
+
 		// stdio type requires either 'command' or 'container' property (but not both)
 		command, hasCommand := mcpConfig["command"]
 		container, hasContainer := mcpConfig["container"]

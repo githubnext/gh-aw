@@ -339,3 +339,118 @@ func TestRenderSharedMCPConfig_PropertyOrder(t *testing.T) {
 		t.Errorf("Properties are not in expected order (type, url, headers, tools, env):\n%s", result)
 	}
 }
+
+func TestRenderSharedMCPConfig_WithAuth(t *testing.T) {
+	t.Run("renders auth after headers with type and audience", func(t *testing.T) {
+		toolConfig := map[string]any{
+			"type": "http",
+			"url":  "https://my-server.example.com/mcp",
+			"headers": map[string]any{
+				"X-Custom-Header": "custom-value",
+			},
+			"auth": map[string]any{
+				"type":     "github-oidc",
+				"audience": "https://my-server.example.com",
+			},
+		}
+
+		renderer := MCPConfigRenderer{
+			IndentLevel:           "  ",
+			Format:                "json",
+			RequiresCopilotFields: true,
+		}
+
+		var output strings.Builder
+		err := renderSharedMCPConfig(&output, "my-server", toolConfig, renderer)
+		if err != nil {
+			t.Fatalf("renderSharedMCPConfig failed: %v", err)
+		}
+
+		result := output.String()
+
+		// Auth block is rendered
+		if !strings.Contains(result, `"auth": {`) {
+			t.Errorf("Expected auth block not found in output:\n%s", result)
+		}
+		if !strings.Contains(result, `"type": "github-oidc"`) {
+			t.Errorf("Expected auth.type not found in output:\n%s", result)
+		}
+		if !strings.Contains(result, `"audience": "https://my-server.example.com"`) {
+			t.Errorf("Expected auth.audience not found in output:\n%s", result)
+		}
+
+		// Property order: type < url < headers < auth < tools
+		typeIdx := strings.Index(result, `"type": "http"`)
+		urlIdx := strings.Index(result, `"url":`)
+		headersIdx := strings.Index(result, `"headers":`)
+		authIdx := strings.Index(result, `"auth":`)
+		toolsIdx := strings.Index(result, `"tools":`)
+
+		if typeIdx == -1 || urlIdx == -1 || headersIdx == -1 || authIdx == -1 || toolsIdx == -1 {
+			t.Fatalf("Missing required properties in output:\n%s", result)
+		}
+
+		if typeIdx >= urlIdx || urlIdx >= headersIdx || headersIdx >= authIdx || authIdx >= toolsIdx {
+			t.Errorf("Properties not in expected order (type, url, headers, auth, tools):\n%s", result)
+		}
+	})
+
+	t.Run("renders auth without audience (type only)", func(t *testing.T) {
+		toolConfig := map[string]any{
+			"type": "http",
+			"url":  "https://my-server.example.com/mcp",
+			"auth": map[string]any{
+				"type": "github-oidc",
+			},
+		}
+
+		renderer := MCPConfigRenderer{
+			IndentLevel:           "  ",
+			Format:                "json",
+			RequiresCopilotFields: true,
+		}
+
+		var output strings.Builder
+		err := renderSharedMCPConfig(&output, "my-server", toolConfig, renderer)
+		if err != nil {
+			t.Fatalf("renderSharedMCPConfig failed: %v", err)
+		}
+
+		result := output.String()
+
+		if !strings.Contains(result, `"auth": {`) {
+			t.Errorf("Expected auth block not found:\n%s", result)
+		}
+		if !strings.Contains(result, `"type": "github-oidc"`) {
+			t.Errorf("Expected auth.type not found:\n%s", result)
+		}
+		if strings.Contains(result, `"audience"`) {
+			t.Errorf("Unexpected audience field in output:\n%s", result)
+		}
+	})
+
+	t.Run("no auth block when auth is absent", func(t *testing.T) {
+		toolConfig := map[string]any{
+			"type": "http",
+			"url":  "https://my-server.example.com/mcp",
+		}
+
+		renderer := MCPConfigRenderer{
+			IndentLevel:           "  ",
+			Format:                "json",
+			RequiresCopilotFields: true,
+		}
+
+		var output strings.Builder
+		err := renderSharedMCPConfig(&output, "my-server", toolConfig, renderer)
+		if err != nil {
+			t.Fatalf("renderSharedMCPConfig failed: %v", err)
+		}
+
+		result := output.String()
+
+		if strings.Contains(result, `"auth"`) {
+			t.Errorf("Unexpected auth block in output:\n%s", result)
+		}
+	})
+}
