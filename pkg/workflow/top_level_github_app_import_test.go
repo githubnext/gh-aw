@@ -745,6 +745,3 @@ engine: copilot
 	assert.Equal(t, "${{ vars.MCP_APP_ID }}", data.ParsedTools.GitHub.GitHubApp.AppID,
 		"tools.github should use its own section-specific github-app, not the top-level fallback")
 }
-
-// TestTopLevelGitHubAppDependenciesFallback tests that the top-level github-app is applied
-// to APM dependencies when no section-specific github-app is configured.
