@@ -76,7 +76,7 @@ func buildCanonicalPolicy(github *GitHubToolConfig) string {
 	// trusted-bots: reserved for future use (always empty today)
 	sb.WriteString("trusted-bots:\n")
 
-	// trusted-users: sorted, lowercased, deduplicated literal list.
+	// trusted-users: sorted, lowercased, deduplicated literal list (via canonicalUserList).
 	// When trusted-users is provided as a GitHub Actions expression (TrustedUsersExpr),
 	// include it verbatim so that changing the expression produces a different hash.
 	sb.WriteString("trusted-users:")

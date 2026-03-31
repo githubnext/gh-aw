@@ -79,10 +79,10 @@ func validateGitHubGuardPolicy(tools *Tools, workflowName string) error {
 	hasApprovalLabels := len(github.ApprovalLabels) > 0 || github.ApprovalLabelsExpr != ""
 	hasTrustedUsers := len(github.TrustedUsers) > 0 || github.TrustedUsersExpr != ""
 
-	// blocked-users, approval-labels, and trusted-users require a guard policy (min-integrity)
+	// blocked-users, trusted-users, and approval-labels require a guard policy (min-integrity)
 	if (hasBlockedUsers || hasApprovalLabels || hasTrustedUsers) && !hasMinIntegrity {
-		toolsValidationLog.Printf("blocked-users/approval-labels/trusted-users without guard policy in workflow: %s", workflowName)
-		return errors.New("invalid guard policy: 'github.blocked-users', 'github.approval-labels', and 'github.trusted-users' require 'github.min-integrity' to be set")
+		toolsValidationLog.Printf("blocked-users/trusted-users/approval-labels without guard policy in workflow: %s", workflowName)
+		return errors.New("invalid guard policy: 'github.blocked-users', 'github.trusted-users', and 'github.approval-labels' require 'github.min-integrity' to be set")
 	}
 
 	// No guard policy fields present - nothing to validate

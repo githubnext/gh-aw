@@ -900,8 +900,7 @@ The effective integrity level of a content item is computed as follows:
 
 **Notes**:
 - Step 2 takes precedence over steps 3–4. Blocked users cannot be promoted by trusted-users or labels.
-- Step 3 only raises the integrity level; it cannot lower it. An item already at `merged` stays at `merged`.
-- Step 4 only raises the integrity level; it cannot lower it.
+- Steps 3 and 4 only raise the integrity level; they cannot lower it. An item already at `merged` stays at `merged`.
 - The `max()` operation uses the ordinal values from the table above.
 
 #### 4.6.3 Access Decision
