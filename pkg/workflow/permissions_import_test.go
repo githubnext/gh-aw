@@ -9,8 +9,6 @@ import (
 	"testing"
 
 	"github.com/github/gh-aw/pkg/testutil"
-
-	"github.com/github/gh-aw/pkg/parser"
 )
 
 func TestValidateIncludedPermissions(t *testing.T) {
@@ -291,63 +289,4 @@ tools:
 			t.Fatalf("Expected compilation to succeed but got error: %v", err)
 		}
 	})
-}
-
-func TestExtractPermissionsFromContent(t *testing.T) {
-	tests := []struct {
-		name     string
-		content  string
-		expected string
-		wantErr  bool
-	}{
-		{
-			name: "Simple permissions",
-			content: `---
-on: push
-permissions:
-  contents: read
-  issues: read
-  pull-requests: read
----
-# Content`,
-			expected: `{"contents":"read","issues":"read","pull-requests":"read"}`,
-			wantErr:  false,
-		},
-		{
-			name: "No permissions",
-			content: `---
-on: issues
----
-# Content`,
-			expected: "{}",
-			wantErr:  false,
-		},
-		{
-			name: "Empty frontmatter",
-			content: `---
----
-# Content`,
-			expected: "{}",
-			wantErr:  false,
-		},
-		{
-			name:     "No frontmatter",
-			content:  "# Just markdown content",
-			expected: "{}",
-			wantErr:  false,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result, err := parser.ExtractPermissionsFromContent(tt.content)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("extractPermissionsFromContent() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
-			if result != tt.expected {
-				t.Errorf("extractPermissionsFromContent() = %v, want %v", result, tt.expected)
-			}
-		})
-	}
 }

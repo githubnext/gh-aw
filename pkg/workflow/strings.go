@@ -263,45 +263,6 @@ func ShortenCommand(command string) string {
 	return shortened
 }
 
-// GenerateHeredocDelimiter creates a randomized heredoc delimiter with the GH_AW prefix.
-// All heredoc delimiters in compiled lock.yml files use this format for security.
-//
-// The function generates delimiters in the format: GH_AW_<NAME>_<16_HEX_CHARS>_EOF
-//
-// The 16-character cryptographically random hex suffix prevents heredoc delimiter
-// injection attacks: an attacker who knows the name cannot predict the full delimiter,
-// so they cannot close the heredoc early to inject shell commands.
-//
-// Parameters:
-//   - name: A descriptive identifier for the heredoc content (e.g., "PROMPT", "MCP_CONFIG", "TOOLS_JSON")
-//     The name should use SCREAMING_SNAKE_CASE without the _EOF suffix.
-//
-// Returns a delimiter string in the format "GH_AW_<NAME>_<16_HEX_CHARS>_EOF"
-//
-// Example:
-//
-//	GenerateHeredocDelimiter("PROMPT")          // returns "GH_AW_PROMPT_a1b2c3d4e5f6g7h8_EOF"
-//	GenerateHeredocDelimiter("MCP_CONFIG")      // returns "GH_AW_MCP_CONFIG_a1b2c3d4e5f6g7h8_EOF"
-//	GenerateHeredocDelimiter("")                // returns "GH_AW_a1b2c3d4e5f6g7h8_EOF"
-//
-// Usage in heredoc generation:
-//
-//	delimiter := GenerateHeredocDelimiter("PROMPT")
-//	yaml.WriteString(fmt.Sprintf("cat << '%s' >> \"$GH_AW_PROMPT\"\n", delimiter))
-//	yaml.WriteString("content here\n")
-//	yaml.WriteString(delimiter + "\n")
-func GenerateHeredocDelimiter(name string) string {
-	b := make([]byte, 8)
-	if _, err := rand.Read(b); err != nil {
-		panic("crypto/rand failed: " + err.Error())
-	}
-	tag := hex.EncodeToString(b) // 16 hex chars
-	if name == "" {
-		return "GH_AW_" + tag + "_EOF"
-	}
-	return "GH_AW_" + strings.ToUpper(name) + "_" + tag + "_EOF"
-}
-
 // GenerateHeredocDelimiterFromSeed creates a stable heredoc delimiter derived from a seed
 // (typically the workflow frontmatter hash hex string) so that repeated compilations of the
 // same workflow produce identical lock files.

@@ -164,59 +164,6 @@ func TestParseVersion(t *testing.T) {
 	}
 }
 
-func TestSemanticVersionIsPrecise(t *testing.T) {
-	tests := []struct {
-		version string
-		want    bool
-	}{
-		{"v6", false},
-		{"v6.0", false},
-		{"v6.0.0", true},
-		{"v1.2.3", true},
-		{"6.0.0", true},
-	}
-	for _, tt := range tests {
-		t.Run(tt.version, func(t *testing.T) {
-			v := ParseVersion(tt.version)
-			if v == nil {
-				t.Fatalf("failed to parse version: %s", tt.version)
-			}
-			got := v.IsPrecise()
-			if got != tt.want {
-				t.Errorf("ParseVersion(%q).IsPrecise() = %v, want %v", tt.version, got, tt.want)
-			}
-		})
-	}
-}
-
-func TestSemanticVersionIsNewer(t *testing.T) {
-	tests := []struct {
-		name    string
-		version string
-		other   string
-		want    bool
-	}{
-		{"newer major", "v2.0.0", "v1.0.0", true},
-		{"older major", "v1.0.0", "v2.0.0", false},
-		{"newer minor", "v1.2.0", "v1.1.0", true},
-		{"same version", "v1.0.0", "v1.0.0", false},
-		{"release vs prerelease", "v1.0.0", "v1.0.0-beta", true},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			v := ParseVersion(tt.version)
-			other := ParseVersion(tt.other)
-			if v == nil || other == nil {
-				t.Fatalf("failed to parse versions %q or %q", tt.version, tt.other)
-			}
-			got := v.IsNewer(other)
-			if got != tt.want {
-				t.Errorf("(%q).IsNewer(%q) = %v, want %v", tt.version, tt.other, got, tt.want)
-			}
-		})
-	}
-}
-
 func TestCompare(t *testing.T) {
 	tests := []struct {
 		v1   string

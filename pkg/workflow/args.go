@@ -63,13 +63,3 @@ func writeArgsToYAML(yaml *strings.Builder, args []string, indent string) {
 		yaml.WriteString(indent + string(quotedArg))
 	}
 }
-
-// writeArgsToYAMLInline writes custom args to YAML inline with proper JSON quoting and escaping
-// Used when args are written on the same line with comma-space separators
-func writeArgsToYAMLInline(yaml *strings.Builder, args []string) {
-	for _, arg := range args {
-		// Use json.Marshal to properly quote and escape the argument
-		quotedArg, _ := json.Marshal(arg)
-		yaml.WriteString(", " + string(quotedArg))
-	}
-}

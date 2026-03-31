@@ -54,11 +54,6 @@ func extractToolsFromContent(content string) (string, error) {
 	return strings.TrimSpace(string(extractedJSON)), nil
 }
 
-// ExtractPermissionsFromContent extracts permissions section from frontmatter as JSON string
-func ExtractPermissionsFromContent(content string) (string, error) {
-	return extractFrontmatterField(content, "permissions", "{}")
-}
-
 // extractFrontmatterField extracts a specific field from frontmatter as JSON string
 func extractFrontmatterField(content, fieldName, emptyValue string) (string, error) {
 	contentExtractorLog.Printf("Extracting field: %s", fieldName)

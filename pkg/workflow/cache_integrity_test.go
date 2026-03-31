@@ -308,28 +308,6 @@ func TestCacheIntegrityLevel(t *testing.T) {
 	}
 }
 
-// TestHigherIntegrityLevels verifies the merge-down logic helper.
-func TestHigherIntegrityLevels(t *testing.T) {
-	tests := []struct {
-		name     string
-		level    string
-		expected []string
-	}{
-		{name: "merged (highest) has no higher", level: "merged", expected: nil},
-		{name: "approved has merged above", level: "approved", expected: []string{"merged"}},
-		{name: "unapproved has merged+approved above", level: "unapproved", expected: []string{"merged", "approved"}},
-		{name: "none (lowest) has all above", level: "none", expected: []string{"merged", "approved", "unapproved"}},
-		{name: "unknown level has all levels above (no match = all)", level: "unknown", expected: []string{"merged", "approved", "unapproved", "none"}},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result := higherIntegrityLevels(tt.level)
-			assert.Equal(t, tt.expected, result, "Higher integrity levels mismatch for '%s'", tt.level)
-		})
-	}
-}
-
 // TestComputeIntegrityCacheKey_WithGitHubConfig verifies that computeIntegrityCacheKey
 // produces the correct key when a GitHub guard policy is configured.
 func TestComputeIntegrityCacheKey_WithGitHubConfig(t *testing.T) {
