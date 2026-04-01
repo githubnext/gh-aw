@@ -525,3 +525,32 @@ engine: copilot
 		t.Errorf("Cross-repo ref should NOT appear when local file exists, got:\n%s", result)
 	}
 }
+
+// TestIsLocalFileForUpdate_PathTraversal ensures that traversal attempts (e.g.
+// "../../etc/passwd") are rejected even if the target path happens to exist.
+func TestIsLocalFileForUpdate_PathTraversal(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	// Traversal path that would escape tmpDir
+	traversal := "../../etc/passwd"
+	if isLocalFileForUpdate(tmpDir, traversal) {
+		t.Errorf("isLocalFileForUpdate should reject path traversal attempt: %s", traversal)
+	}
+
+	// A normal path within tmpDir that doesn't exist should return false
+	if isLocalFileForUpdate(tmpDir, "nonexistent.md") {
+		t.Errorf("isLocalFileForUpdate should return false for non-existent file")
+	}
+
+	// A normal path within tmpDir that DOES exist should return true
+	validFile := "shared/file.md"
+	if err := os.MkdirAll(tmpDir+"/shared", 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(tmpDir+"/"+validFile, []byte("content"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if !isLocalFileForUpdate(tmpDir, validFile) {
+		t.Errorf("isLocalFileForUpdate should return true for an existing file within tmpDir")
+	}
+}

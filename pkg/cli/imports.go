@@ -97,9 +97,8 @@ func processImportsWithWorkflowSpec(content string, workflow *WorkflowSpec, comm
 			// Absolute paths (starting with "/") are not checked — they are always resolved
 			// relative to the repo root and cannot be reliably tested here.
 			if localWorkflowDir != "" && !strings.HasPrefix(importPath, "/") {
-				localPath := filepath.Join(localWorkflowDir, importPath)
-				if _, statErr := os.Stat(localPath); statErr == nil {
-					importsLog.Printf("Import path exists locally, preserving relative path: %s (local: %s)", importPath, localPath)
+				if isLocalFileForUpdate(localWorkflowDir, importPath) {
+					importsLog.Printf("Import path exists locally, preserving relative path: %s", importPath)
 					processed = append(processed, importPath)
 					continue
 				}
@@ -388,9 +387,8 @@ func processIncludesInContent(content string, workflow *WorkflowSpec, commitSHA 
 
 			// Preserve relative @include paths whose files exist in the local workflow directory.
 			if localWorkflowDir != "" && !strings.HasPrefix(filePath, "/") {
-				localPath := filepath.Join(localWorkflowDir, filePath)
-				if _, statErr := os.Stat(localPath); statErr == nil {
-					importsLog.Printf("Include path exists locally, preserving: %s (local: %s)", filePath, localPath)
+				if isLocalFileForUpdate(localWorkflowDir, filePath) {
+					importsLog.Printf("Include path exists locally, preserving: %s", filePath)
 					result.WriteString(line + "\n")
 					continue
 				}
@@ -422,7 +420,28 @@ func processIncludesInContent(content string, workflow *WorkflowSpec, commitSHA 
 	return result.String(), scanner.Err()
 }
 
-// isWorkflowSpecFormat checks if a path already looks like a workflowspec
+// isLocalFileForUpdate returns true when importPath resolves to an existing file
+// within localWorkflowDir. The resolved absolute path must stay inside localWorkflowDir
+// to guard against path traversal (e.g. "../../etc/passwd" in import paths).
+// importPath must be a relative path — callers must not pass absolute paths here.
+func isLocalFileForUpdate(localWorkflowDir, importPath string) bool {
+	if localWorkflowDir == "" || importPath == "" {
+		return false
+	}
+	localPath := filepath.Join(localWorkflowDir, importPath)
+	absDir, err1 := filepath.Abs(localWorkflowDir)
+	absPath, err2 := filepath.Abs(localPath)
+	if err1 != nil || err2 != nil {
+		return false
+	}
+	// Reject traversal attempts: the resolved path must be a child of localWorkflowDir
+	if !strings.HasPrefix(absPath, absDir+string(filepath.Separator)) {
+		return false
+	}
+	_, statErr := os.Stat(localPath)
+	return statErr == nil
+}
+
 // A workflowspec is identified by having an @ version indicator (e.g., owner/repo/path@sha)
 // Simple paths like "shared/mcp/file.md" are NOT workflowspecs and should be processed
 func isWorkflowSpecFormat(path string) bool {
