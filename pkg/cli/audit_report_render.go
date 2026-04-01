@@ -89,10 +89,10 @@ func renderConsole(data AuditData, logsPath string) {
 	}
 
 	// Token Usage Section (from firewall proxy)
-	if data.TokenUsage != nil && data.TokenUsage.TotalRequests > 0 {
+	if data.FirewallTokenUsage != nil && data.FirewallTokenUsage.TotalRequests > 0 {
 		fmt.Fprintln(os.Stderr, console.FormatSectionHeader("📊 Token Usage (Firewall Proxy)"))
 		fmt.Fprintln(os.Stderr)
-		renderTokenUsage(data.TokenUsage)
+		renderTokenUsage(data.FirewallTokenUsage)
 	}
 
 	// Engine Configuration Section
