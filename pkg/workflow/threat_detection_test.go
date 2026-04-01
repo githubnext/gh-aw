@@ -153,96 +153,6 @@ func TestParseThreatDetectionConfig(t *testing.T) {
 	}
 }
 
-func TestBuildInlineDetectionSteps(t *testing.T) {
-	compiler := NewCompiler()
-
-	tests := []struct {
-		name        string
-		data        *WorkflowData
-		expectNil   bool
-		expectSteps bool
-	}{
-		{
-			name: "threat detection disabled (nil) should return nil",
-			data: &WorkflowData{
-				SafeOutputs: &SafeOutputsConfig{
-					ThreatDetection: nil,
-				},
-			},
-			expectNil:   true,
-			expectSteps: false,
-		},
-		{
-			name: "threat detection enabled should create inline steps",
-			data: &WorkflowData{
-				RunsOn: "runs-on: ubuntu-latest",
-				SafeOutputs: &SafeOutputsConfig{
-					ThreatDetection: &ThreatDetectionConfig{},
-				},
-			},
-			expectNil:   false,
-			expectSteps: true,
-		},
-		{
-			name: "threat detection with custom steps should create inline steps",
-			data: &WorkflowData{
-				RunsOn: "runs-on: ubuntu-latest",
-				SafeOutputs: &SafeOutputsConfig{
-					ThreatDetection: &ThreatDetectionConfig{
-						Steps: []any{
-							map[string]any{
-								"name": "Custom step",
-								"run":  "echo 'custom validation'",
-							},
-						},
-					},
-				},
-			},
-			expectNil:   false,
-			expectSteps: true,
-		},
-		{
-			name: "nil safe outputs should return nil",
-			data: &WorkflowData{
-				SafeOutputs: nil,
-			},
-			expectNil:   true,
-			expectSteps: false,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			steps := compiler.buildInlineDetectionSteps(tt.data)
-
-			if tt.expectNil && steps != nil {
-				t.Errorf("Expected nil steps, got %d lines", len(steps))
-			}
-			if !tt.expectNil && steps == nil {
-				t.Errorf("Expected non-nil steps, got nil")
-			}
-
-			if tt.expectSteps {
-				joined := strings.Join(steps, "")
-				// Verify key detection step components
-				if !strings.Contains(joined, "detection_guard") {
-					t.Error("Expected inline steps to contain detection_guard step")
-				}
-				if !strings.Contains(joined, "detection_conclusion") {
-					t.Error("Expected inline steps to contain detection_conclusion step")
-				}
-				// The combined conclusion step should call parse_threat_detection_results.cjs
-				if !strings.Contains(joined, "parse_threat_detection_results.cjs") {
-					t.Error("Expected inline steps to reference parse_threat_detection_results.cjs")
-				}
-				if !strings.Contains(joined, "Threat Detection") {
-					t.Error("Expected inline steps to contain threat detection comment separator")
-				}
-			}
-		})
-	}
-}
-
 func TestThreatDetectionDefaultBehavior(t *testing.T) {
 	compiler := NewCompiler()
 
@@ -296,7 +206,7 @@ func TestThreatDetectionInlineStepsDependencies(t *testing.T) {
 	}
 
 	// Build inline detection steps
-	steps := compiler.buildInlineDetectionSteps(data)
+	steps := compiler.buildDetectionJobSteps(data)
 	if steps == nil {
 		t.Fatal("Expected inline detection steps to be created")
 	}
@@ -334,7 +244,7 @@ func TestThreatDetectionCustomPrompt(t *testing.T) {
 		},
 	}
 
-	steps := compiler.buildInlineDetectionSteps(data)
+	steps := compiler.buildDetectionJobSteps(data)
 	if steps == nil {
 		t.Fatal("Expected inline detection steps to be created")
 	}
@@ -437,7 +347,7 @@ func TestThreatDetectionStepsOrdering(t *testing.T) {
 		},
 	}
 
-	steps := compiler.buildInlineDetectionSteps(data)
+	steps := compiler.buildDetectionJobSteps(data)
 
 	if len(steps) == 0 {
 		t.Fatal("Expected non-empty steps")
@@ -591,7 +501,7 @@ func TestThreatDetectionStepsIncludeUpload(t *testing.T) {
 		},
 	}
 
-	steps := compiler.buildInlineDetectionSteps(data)
+	steps := compiler.buildDetectionJobSteps(data)
 
 	if len(steps) == 0 {
 		t.Fatal("Expected non-empty steps")

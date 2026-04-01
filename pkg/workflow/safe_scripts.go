@@ -75,20 +75,6 @@ func parseSafeScriptsConfig(scriptsMap map[string]any) map[string]*SafeScriptCon
 	return result
 }
 
-// extractSafeScriptsFromFrontmatter extracts safe-scripts configuration from frontmatter.
-func extractSafeScriptsFromFrontmatter(frontmatter map[string]any) map[string]*SafeScriptConfig {
-	if safeOutputs, exists := frontmatter["safe-outputs"]; exists {
-		if safeOutputsMap, ok := safeOutputs.(map[string]any); ok {
-			if scripts, exists := safeOutputsMap["scripts"]; exists {
-				if scriptsMap, ok := scripts.(map[string]any); ok {
-					return parseSafeScriptsConfig(scriptsMap)
-				}
-			}
-		}
-	}
-	return make(map[string]*SafeScriptConfig)
-}
-
 // isSafeScriptName returns true if the script name is safe for use as a filename component.
 // It rejects names that contain path separators or ".." sequences that could lead to
 // path traversal when the generated filename is passed to require() at runtime.

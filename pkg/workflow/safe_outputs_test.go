@@ -7,7 +7,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/stringutil"
 )
 
@@ -698,52 +697,6 @@ func TestGenerateSafeOutputsConfig(t *testing.T) {
 // ========================================
 // FormatSafeOutputsRunsOn Tests
 // ========================================
-
-// TestFormatSafeOutputsRunsOn tests the formatSafeOutputsRunsOn function
-func TestFormatSafeOutputsRunsOn(t *testing.T) {
-	compiler := NewCompiler()
-
-	tests := []struct {
-		name           string
-		safeOutputs    *SafeOutputsConfig
-		expectedRunsOn string
-	}{
-		{
-			name:           "nil safe outputs returns default",
-			safeOutputs:    nil,
-			expectedRunsOn: "runs-on: " + constants.DefaultActivationJobRunnerImage,
-		},
-		{
-			name:           "empty runs-on returns default",
-			safeOutputs:    &SafeOutputsConfig{RunsOn: ""},
-			expectedRunsOn: "runs-on: " + constants.DefaultActivationJobRunnerImage,
-		},
-		{
-			name:           "custom runs-on",
-			safeOutputs:    &SafeOutputsConfig{RunsOn: "ubuntu-latest"},
-			expectedRunsOn: "runs-on: ubuntu-latest",
-		},
-		{
-			name:           "self-hosted runs-on",
-			safeOutputs:    &SafeOutputsConfig{RunsOn: "self-hosted"},
-			expectedRunsOn: "runs-on: self-hosted",
-		},
-		{
-			name:           "windows-latest runs-on",
-			safeOutputs:    &SafeOutputsConfig{RunsOn: "windows-latest"},
-			expectedRunsOn: "runs-on: windows-latest",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result := compiler.formatSafeOutputsRunsOn(tt.safeOutputs)
-			if result != tt.expectedRunsOn {
-				t.Errorf("formatSafeOutputsRunsOn() = %q, want %q", result, tt.expectedRunsOn)
-			}
-		})
-	}
-}
 
 // ========================================
 // BuildWorkflowMetadataEnvVarsWithTrackerID Tests

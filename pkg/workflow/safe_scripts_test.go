@@ -68,39 +68,6 @@ func TestParseSafeScriptsConfigNilMap(t *testing.T) {
 }
 
 // TestExtractSafeScriptsFromFrontmatter verifies extraction from frontmatter
-func TestExtractSafeScriptsFromFrontmatter(t *testing.T) {
-	frontmatter := map[string]any{
-		"safe-outputs": map[string]any{
-			"scripts": map[string]any{
-				"my-handler": map[string]any{
-					"description": "A custom handler",
-					// Users write only the body — no module.exports or main declaration needed
-					"script": "return async (m) => ({ success: true });",
-				},
-			},
-		},
-	}
-
-	result := extractSafeScriptsFromFrontmatter(frontmatter)
-
-	require.Len(t, result, 1, "Should have one script")
-	script, exists := result["my-handler"]
-	require.True(t, exists, "Should have my-handler script")
-	assert.Equal(t, "A custom handler", script.Description, "Description should match")
-}
-
-// TestExtractSafeScriptsFromFrontmatterEmpty verifies empty result when no scripts
-func TestExtractSafeScriptsFromFrontmatterEmpty(t *testing.T) {
-	frontmatter := map[string]any{
-		"safe-outputs": map[string]any{
-			"create-issue": map[string]any{},
-		},
-	}
-
-	result := extractSafeScriptsFromFrontmatter(frontmatter)
-	assert.Empty(t, result, "Should return empty map when no scripts")
-}
-
 // TestBuildCustomSafeOutputScriptsJSON verifies JSON generation for script env var
 func TestBuildCustomSafeOutputScriptsJSON(t *testing.T) {
 	data := &WorkflowData{

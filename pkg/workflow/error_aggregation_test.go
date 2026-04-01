@@ -30,7 +30,7 @@ func TestNewErrorCollector(t *testing.T) {
 			collector := NewErrorCollector(tt.failFast)
 			require.NotNil(t, collector, "Collector should be created")
 			assert.Equal(t, tt.failFast, collector.failFast, "Fail-fast setting should match")
-			assert.False(t, collector.HasErrors(), "New collector should have no errors")
+			assert.Equal(t, 0, collector.Count(), "New collector should have no errors")
 			assert.Equal(t, 0, collector.Count(), "New collector should have zero count")
 		})
 	}
@@ -45,7 +45,7 @@ func TestErrorCollectorAdd_FailFast(t *testing.T) {
 	result := collector.Add(err1)
 	require.Error(t, result, "Should return error immediately in fail-fast mode")
 	assert.Equal(t, err1, result, "Should return the exact error")
-	assert.False(t, collector.HasErrors(), "Should not collect errors in fail-fast mode")
+	assert.Equal(t, 0, collector.Count(), "Should not collect errors in fail-fast mode")
 
 	// Second error should also be returned immediately
 	result = collector.Add(err2)
@@ -62,7 +62,7 @@ func TestErrorCollectorAdd_Aggregate(t *testing.T) {
 	// Add errors should not return them
 	result := collector.Add(err1)
 	require.NoError(t, result, "Should not return error in aggregate mode")
-	assert.True(t, collector.HasErrors(), "Should have errors")
+	assert.Greater(t, collector.Count(), 0, "Should have errors")
 	assert.Equal(t, 1, collector.Count(), "Should have 1 error")
 
 	result = collector.Add(err2)
@@ -79,7 +79,7 @@ func TestErrorCollectorAdd_NilError(t *testing.T) {
 
 	result := collector.Add(nil)
 	require.NoError(t, result, "Should handle nil error")
-	assert.False(t, collector.HasErrors(), "Should not have errors")
+	assert.Equal(t, 0, collector.Count(), "Should not have errors")
 	assert.Equal(t, 0, collector.Count(), "Should have zero count")
 }
 

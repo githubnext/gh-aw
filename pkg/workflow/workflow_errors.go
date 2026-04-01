@@ -215,11 +215,6 @@ func (c *ErrorCollector) Add(err error) error {
 	return nil
 }
 
-// HasErrors returns true if any errors have been collected
-func (c *ErrorCollector) HasErrors() bool {
-	return len(c.errors) > 0
-}
-
 // Count returns the number of errors collected
 func (c *ErrorCollector) Count() int {
 	return len(c.errors)

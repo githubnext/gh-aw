@@ -153,38 +153,6 @@ This is a test workflow.`
 	}
 }
 
-func TestFormatSafeOutputsRunsOnEdgeCases(t *testing.T) {
-	compiler := NewCompiler()
-
-	tests := []struct {
-		name           string
-		safeOutputs    *SafeOutputsConfig
-		expectedRunsOn string
-	}{
-		{
-			name:           "nil safe outputs config",
-			safeOutputs:    nil,
-			expectedRunsOn: "runs-on: " + constants.DefaultActivationJobRunnerImage,
-		},
-		{
-			name: "safe outputs config with nil runs-on",
-			safeOutputs: &SafeOutputsConfig{
-				RunsOn: "",
-			},
-			expectedRunsOn: "runs-on: " + constants.DefaultActivationJobRunnerImage,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			runsOn := compiler.formatSafeOutputsRunsOn(tt.safeOutputs)
-			if runsOn != tt.expectedRunsOn {
-				t.Errorf("Expected runs-on to be %q, got %q", tt.expectedRunsOn, runsOn)
-			}
-		})
-	}
-}
-
 func TestUnlockJobUsesRunsOn(t *testing.T) {
 	frontmatter := `---
 on:

@@ -172,13 +172,6 @@ func (c *Compiler) buildDetectionJobSteps(data *WorkflowData) []string {
 	return steps
 }
 
-// buildInlineDetectionSteps is kept for backward compatibility but no longer inlines detection
-// into the agent job. Detection is now handled by the separate detection job.
-// Deprecated: use buildDetectionJobSteps instead.
-func (c *Compiler) buildInlineDetectionSteps(data *WorkflowData) []string {
-	return c.buildDetectionJobSteps(data)
-}
-
 // buildPullAWFContainersStep creates a step that pre-pulls AWF (agent workflow firewall)
 // container images in the detection job. The detection engine runs inside AWF, which uses
 // three containers (squid, agent, api-proxy). Pre-pulling avoids on-demand pulls at runtime.

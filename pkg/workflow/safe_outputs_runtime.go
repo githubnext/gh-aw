@@ -15,18 +15,6 @@ var safeOutputsRuntimeLog = logger.New("workflow:safe_outputs_runtime")
 // (runner images) for safe-outputs jobs and detect feature usage patterns
 // that affect job configuration.
 
-// formatSafeOutputsRunsOn formats the runs-on value from SafeOutputsConfig for job output.
-// Falls back to the default activation job runner image when not explicitly set.
-func (c *Compiler) formatSafeOutputsRunsOn(safeOutputs *SafeOutputsConfig) string {
-	if safeOutputs == nil || safeOutputs.RunsOn == "" {
-		safeOutputsRuntimeLog.Printf("Safe outputs runs-on not set, using default: %s", constants.DefaultActivationJobRunnerImage)
-		return "runs-on: " + constants.DefaultActivationJobRunnerImage
-	}
-
-	safeOutputsRuntimeLog.Printf("Safe outputs runs-on: %s", safeOutputs.RunsOn)
-	return "runs-on: " + safeOutputs.RunsOn
-}
-
 // formatFrameworkJobRunsOn returns the runs-on value for framework/generated jobs
 // (activation, pre-activation, safe-outputs, unlock, APM, etc.).
 //

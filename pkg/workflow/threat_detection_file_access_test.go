@@ -38,7 +38,7 @@ func TestThreatDetectionSteps_UseFilePathReferences(t *testing.T) {
 	compiler := createTestCompiler(t)
 	data := createTestWorkflowData(t, &ThreatDetectionConfig{})
 
-	steps := compiler.buildInlineDetectionSteps(data)
+	steps := compiler.buildDetectionJobSteps(data)
 	stepsString := strings.Join(steps, "")
 
 	tests := []struct {
@@ -97,11 +97,8 @@ func TestThreatDetectionSteps_IncludeBashReadTools(t *testing.T) {
 	compiler := createTestCompiler(t)
 	data := createTestWorkflowData(t, &ThreatDetectionConfig{})
 
-	steps := compiler.buildInlineDetectionSteps(data)
+	steps := compiler.buildDetectionJobSteps(data)
 	stepsString := strings.Join(steps, "")
-
-	// Detection uses bash: ["*"] — the compiled YAML lists "Bash" (unrestricted) rather
-	// than individual Bash(<cmd>) entries.
 	assert.Contains(t, stepsString, "Bash", "threat detection should include unrestricted Bash tool")
 }
 
