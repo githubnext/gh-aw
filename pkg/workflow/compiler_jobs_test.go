@@ -1525,6 +1525,51 @@ func TestUpdateCacheMemoryJobHasWorkflowIDEnv(t *testing.T) {
 	}
 }
 
+// TestUpdateCacheMemoryJobConditionRequiresAgentSuccess verifies that the update_cache_memory
+// job condition requires the agent job to have succeeded (not just not be skipped).
+// This ensures cache is not updated when the agent job fails.
+func TestUpdateCacheMemoryJobConditionRequiresAgentSuccess(t *testing.T) {
+	compiler := NewCompiler()
+	compiler.jobManager = NewJobManager()
+
+	data := &WorkflowData{
+		Name:   "Test Workflow",
+		AI:     "copilot",
+		RunsOn: "runs-on: ubuntu-latest",
+		CacheMemoryConfig: &CacheMemoryConfig{
+			Caches: []CacheMemoryEntry{
+				{ID: "default"},
+			},
+		},
+		SafeOutputs: &SafeOutputsConfig{
+			ThreatDetection: &ThreatDetectionConfig{},
+		},
+	}
+
+	compiler.stepOrderTracker = NewStepOrderTracker()
+	activationJob, _ := compiler.buildActivationJob(data, false, "", "test.lock.yml")
+	compiler.jobManager.AddJob(activationJob)
+
+	agentJob, _ := compiler.buildMainJob(data, true)
+	compiler.jobManager.AddJob(agentJob)
+
+	compiler.buildSafeOutputsJobs(data, string(constants.AgentJobName), "test.md")
+
+	updateCacheMemoryJob, err := compiler.buildUpdateCacheMemoryJob(data, true)
+	if err != nil {
+		t.Fatalf("buildUpdateCacheMemoryJob() error: %v", err)
+	}
+	if updateCacheMemoryJob == nil {
+		t.Fatal("Expected update_cache_memory job to be created")
+	}
+
+	// The job condition must require the agent to have succeeded.
+	// It must NOT use != 'skipped' (which allows the job to run when agent fails).
+	if !strings.Contains(updateCacheMemoryJob.If, "needs.agent.result == 'success'") {
+		t.Errorf("update_cache_memory job condition should require agent == 'success' to prevent running when agent fails, got: %q", updateCacheMemoryJob.If)
+	}
+}
+
 // ========================================
 // Edge Case Tests
 // ========================================
