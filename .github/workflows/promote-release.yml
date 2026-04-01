@@ -1,0 +1,91 @@
+name: Promote Release to Latest
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Release tag to promote to latest, non-prerelease (e.g., v1.2.3)"
+        required: true
+        type: string
+
+# Prevent concurrent promotions that could race against each other
+concurrency:
+  group: promote-release
+  cancel-in-progress: false
+
+jobs:
+  promote:
+    name: Promote Release to Latest
+    runs-on: ubuntu-latest
+    # Never run on forks — they lack the secrets and permissions needed to update upstream releases
+    if: ${{ !github.event.repository.fork }}
+    permissions:
+      contents: write
+
+    steps:
+      - name: Validate actor permissions
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        with:
+          script: |
+            const { data } = await github.rest.repos.getCollaboratorPermissionLevel({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              username: context.actor,
+            });
+            const role = data.role_name;
+            core.info(`Actor ${context.actor} has role: ${role}`);
+            if (role !== 'admin' && role !== 'maintain') {
+              core.setFailed(
+                `❌ ${context.actor} must be a repository admin or maintainer to promote a release ` +
+                `(current role: ${role})`
+              );
+            } else {
+              core.info(`✅ ${context.actor} is authorized (role: ${role})`);
+            }
+
+      - name: Validate and promote release
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        env:
+          INPUT_VERSION: ${{ inputs.version }}
+        with:
+          script: |
+            const version = (process.env.INPUT_VERSION || '').trim();
+
+            if (!version) {
+              core.setFailed('❌ A version is required.');
+              return;
+            }
+
+            // Look up the release by tag to confirm it exists
+            let release;
+            try {
+              ({ data: release } = await github.rest.repos.getReleaseByTag({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                tag: version,
+              }));
+            } catch (err) {
+              core.setFailed(`❌ No release found for tag "${version}": ${err.message}`);
+              return;
+            }
+
+            if (release.draft) {
+              core.setFailed(`❌ "${version}" is a draft release and cannot be promoted to latest`);
+              return;
+            }
+
+            core.info(`Found release: ${release.name || version} (id: ${release.id})`);
+            if (!release.prerelease) {
+              core.info(`ℹ️ "${version}" is already a non-prerelease; will still mark it as latest`);
+            }
+
+            // Promote: clear the prerelease flag and designate as the latest release
+            await github.rest.repos.updateRelease({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              release_id: release.id,
+              prerelease: false,
+              make_latest: 'true',
+            });
+
+            core.info(`✅ "${version}" has been promoted to latest (prerelease: false, make_latest: true)`);

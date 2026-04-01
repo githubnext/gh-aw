@@ -545,6 +545,8 @@ This project follows the GitHub Community Guidelines. Please be respectful and i
 
 Releases are triggered manually by a core team member using the GitHub Actions release workflow.
 
+> **Note:** The release workflow publishes the new version as a **prerelease** on GitHub. Once the release is verified, a maintainer must **manually promote it to a full release and move the `latest` tag** so that users installing with `version: latest` receive the new version.
+
 ### Steps
 
 1. **Launch the release action**
@@ -563,7 +565,17 @@ Releases are triggered manually by a core team member using the GitHub Actions r
 
 3. **Approve the environment gate**
 
-   Return to the paused release run in [`github/gh-aw`](https://github.com/github/gh-aw/actions). Approve the **`gh-aw-actions-release`** environment gate. The workflow will verify that the new tag exists in `github/gh-aw-actions` and then publish the GitHub release.
+   Return to the paused release run in [`github/gh-aw`](https://github.com/github/gh-aw/actions). Approve the **`gh-aw-actions-release`** environment gate. The workflow will verify that the new tag exists in `github/gh-aw-actions` and then publish the GitHub release as a **prerelease**.
+
+4. **Promote to latest** _(manual step)_
+
+   After verifying the prerelease is working correctly:
+
+   a. **Edit the GitHub release** — go to the [Releases page](https://github.com/github/gh-aw/releases), open the new prerelease, uncheck **This is a pre-release**, and save. This promotes the release to a stable full release.
+
+   b. **Move the `latest` tag** — GitHub's release API resolves `latest` to the most recent non-prerelease release. Promoting the release in step (a) is sufficient for the `latest` resolution to update automatically.
+
+   Users who install with `version: latest` (the default) will now receive the new release.
 
 ### Summary
 
@@ -583,7 +595,13 @@ Merge the sync-actions PR
 Approve the gh-aw-actions-release environment gate
         │
         ▼
-Release published 🎉
+Release published as prerelease 🎉
+        │
+        ▼  (manual)
+Promote prerelease → full release on GitHub Releases page
+        │
+        ▼
+'latest' now resolves to the new version ✅
 ```
 
 ## 🎯 Why This Contribution Model?

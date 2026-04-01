@@ -25,9 +25,10 @@ const (
 
 // Release represents a GitHub release
 type Release struct {
-	TagName string `json:"tag_name"`
-	Name    string `json:"name"`
-	HTMLURL string `json:"html_url"`
+	TagName    string `json:"tag_name"`
+	Name       string `json:"name"`
+	HTMLURL    string `json:"html_url"`
+	Prerelease bool   `json:"prerelease"`
 }
 
 // shouldCheckForUpdate determines if we should check for updates based on:
@@ -222,7 +223,14 @@ func getLatestRelease() (string, error) {
 		return "", fmt.Errorf("failed to query latest release: %w", err)
 	}
 
-	updateCheckLog.Printf("Latest release: %s", release.TagName)
+	updateCheckLog.Printf("Latest release: %s (prerelease: %v)", release.TagName, release.Prerelease)
+
+	// /releases/latest already excludes prereleases per the GitHub API contract,
+	// but guard defensively in case the response ever changes.
+	if release.Prerelease {
+		return "", nil
+	}
+
 	return release.TagName, nil
 }
 

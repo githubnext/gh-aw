@@ -1,6 +1,6 @@
 ---
 title: Releases and Versioning
-description: How to pin the gh-aw CLI to a release channel, what stable vs latest means, how compiled lock.yml files are versioned, and when to use upgrade vs update.
+description: How to pin the gh-aw CLI to a specific release, how compiled lock.yml files are versioned, and when to use upgrade vs update.
 sidebar:
   order: 520
 ---
@@ -9,22 +9,18 @@ GitHub Agentic Workflows uses a two-layer versioning model: the **CLI extension*
 
 ## Release Channels
 
-The gh-aw installer resolves version aliases from [`.github/aw/releases.json`](https://github.com/github/gh-aw/blob/main/.github/aw/releases.json) before downloading a binary. Three options are available:
+Two options are available when installing gh-aw:
 
 | Channel | Alias | Behavior |
 |---------|-------|----------|
-| **Stable** (default) | `stable` | Resolves to the latest fully-vetted release — recommended for most users |
-| **Latest** | `latest` | Always resolves to the most recent GitHub release, including recently shipped features |
+| **Latest** (default) | `latest` | Always resolves to the most recent GitHub release |
 | **Pinned** | `vMAJOR.MINOR.PATCH` | A fixed release tag — use when you need exact reproducibility |
 
 ### Installing a channel
 
 ```bash
-# Stable (default — no version flag needed)
+# Latest (default — no version flag needed)
 curl -sL https://raw.githubusercontent.com/github/gh-aw/main/install-gh-aw.sh | bash
-
-# Latest
-curl -sL https://raw.githubusercontent.com/github/gh-aw/main/install-gh-aw.sh | bash -s latest
 
 # Specific version
 curl -sL https://raw.githubusercontent.com/github/gh-aw/main/install-gh-aw.sh | bash -s v0.64.5
@@ -33,12 +29,9 @@ curl -sL https://raw.githubusercontent.com/github/gh-aw/main/install-gh-aw.sh | 
 Via the GitHub CLI extension manager:
 
 ```bash
-gh extension install github/gh-aw          # stable (default)
+gh extension install github/gh-aw          # latest (default)
 gh extension install github/gh-aw@v0.64.5  # pinned version
 ```
-
-> [!TIP]
-> Use `stable` for production repositories and CI. Use `latest` when you want to try new features as soon as they ship.
 
 ### Checking and updating your version
 

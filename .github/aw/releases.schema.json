@@ -31,16 +31,6 @@
       "description": "The minimum recommended compile-agentic version in vMAJOR.MINOR.PATCH format. Workflows compiled with a version below this will emit a warning (but not fail) at activation, nudging users to upgrade. Use an empty string to disable this check.",
       "pattern": "^(v[0-9]+\\.[0-9]+\\.[0-9]+)?$",
       "default": ""
-    },
-    "aliases": {
-      "type": "object",
-      "description": "A map of release alias names to version strings. The special value 'latest' resolves to the most recent release. Other values must be a version string in vMAJOR.MINOR.PATCH format.",
-      "additionalProperties": {
-        "type": "string",
-        "pattern": "^(latest|v[0-9]+\\.[0-9]+\\.[0-9]+)$",
-        "description": "A version string in vMAJOR.MINOR.PATCH format or the special value 'latest'"
-      },
-      "default": {}
     }
   }
 }

@@ -870,27 +870,10 @@ jobs:
             const errors = [];
 
             // Check additionalProperties (only allow known keys)
-            const allowedKeys = new Set(['$schema', 'blockedVersions', 'minimumVersion', 'minRecommendedVersion', 'aliases']);
+            const allowedKeys = new Set(['$schema', 'blockedVersions', 'minimumVersion', 'minRecommendedVersion']);
             for (const key of Object.keys(config)) {
               if (!allowedKeys.has(key)) {
                 errors.push(`Unknown property: '${key}'`);
-              }
-            }
-
-            // Validate aliases
-            if ('aliases' in config) {
-              const aliases = config.aliases;
-              if (typeof aliases !== 'object' || aliases === null || Array.isArray(aliases)) {
-                errors.push("'aliases' must be an object");
-              } else {
-                const aliasValuePattern = /^(latest|v[0-9]+\.[0-9]+\.[0-9]+)$/;
-                for (const [alias, value] of Object.entries(aliases)) {
-                  if (typeof value !== 'string') {
-                    errors.push(`'aliases.${alias}' must be a string`);
-                  } else if (!aliasValuePattern.test(value)) {
-                    errors.push(`'aliases.${alias}' ('${value}') must be 'latest' or a version in vMAJOR.MINOR.PATCH format (e.g. 'v1.2.3')`);
-                  }
-                }
               }
             }
 
@@ -2587,6 +2570,170 @@ jobs:
           echo "- Success count: ${{ steps.add-workflows.outputs.success_count }}"
           echo "- Failure count: ${{ steps.add-workflows.outputs.failure_count }}"
 
+  integration-update:
+    name: Integration Update - Preserve Local Imports
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    concurrency:
+      group: ci-${{ github.ref }}-integration-update
+      cancel-in-progress: true
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Set up Go
+        id: setup-go
+        uses: actions/setup-go@4dc6199c7b1a012772edbd06daecab0f50c9053c # v6
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Report Go cache status
+        run: |
+          if [ "${{ steps.setup-go.outputs.cache-hit }}" == "true" ]; then
+            echo "✅ Go cache hit" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "⚠️ Go cache miss" >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: Download dependencies
+        run: go mod download
+
+      - name: Verify dependencies
+        run: go mod verify
+
+      - name: Build gh-aw binary
+        run: make build
+
+      - name: Set up isolated test workspace
+        run: |
+          mkdir -p /tmp/test-update-workspace/.github/workflows
+          cd /tmp/test-update-workspace
+          git init -q
+          git config user.email "test@example.com"
+          git config user.name "Test"
+          echo "✅ Test workspace initialised at /tmp/test-update-workspace"
+
+      - name: Add a workflow from githubnext/agentics
+        id: add-workflow
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cd /tmp/test-update-workspace
+
+          echo "## Integration Update Test: Preserve Local Imports" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          # Add daily-team-status which uses shared imports in githubnext/agentics
+          if /home/runner/work/gh-aw/gh-aw/gh-aw add githubnext/agentics/workflows/daily-team-status.md --force 2>&1; then
+            echo "✅ Added workflow successfully" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ Failed to add workflow" >> $GITHUB_STEP_SUMMARY
+            exit 1
+          fi
+
+          WORKFLOW=".github/workflows/daily-team-status.md"
+          if [ ! -f "$WORKFLOW" ]; then
+            echo "❌ Workflow file not found after add"
+            exit 1
+          fi
+
+          # Check if the workflow has relative imports
+          if grep -q "^imports:" "$WORKFLOW"; then
+            echo "✅ Workflow has an imports field" >> $GITHUB_STEP_SUMMARY
+            # Collect relative import paths (those without "@" — not yet cross-repo refs).
+            # Python is used for robust YAML-aware parsing instead of fragile AWK patterns.
+            RELATIVE_IMPORTS=$(python3 - "$WORKFLOW" <<'PYEOF'
+import sys, re
+
+content = open(sys.argv[1]).read()
+# Find the imports: block (list items under the key, indented with 2+ spaces)
+m = re.search(r'^imports:\n((?:[ \t]+-[ \t]+.+\n)+)', content, re.MULTILINE)
+if m:
+    for line in m.group(1).splitlines():
+        val = line.strip().lstrip('- ').strip()
+        if val and '@' not in val:
+            print(val)
+PYEOF
+            )
+            if [ -n "$RELATIVE_IMPORTS" ]; then
+              echo "has_relative_imports=true" >> $GITHUB_OUTPUT
+              echo "$RELATIVE_IMPORTS" > /tmp/relative-imports.txt
+              echo "Relative import paths: $RELATIVE_IMPORTS" >> $GITHUB_STEP_SUMMARY
+            else
+              echo "has_relative_imports=false" >> $GITHUB_OUTPUT
+              echo "⚠️ All imports already use cross-repo refs; skipping local-file preservation check" >> $GITHUB_STEP_SUMMARY
+            fi
+          else
+            echo "has_relative_imports=false" >> $GITHUB_OUTPUT
+            echo "⚠️ No imports field found in added workflow; skipping preservation check" >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: Create local copies of the shared import files
+        if: steps.add-workflow.outputs.has_relative_imports == 'true'
+        run: |
+          cd /tmp/test-update-workspace
+          echo "Creating local shared files..." >> $GITHUB_STEP_SUMMARY
+          while IFS= read -r import_path; do
+            local_file=".github/workflows/$import_path"
+            mkdir -p "$(dirname "$local_file")"
+            echo "# Local shared file (simulating user-copied content)" > "$local_file"
+            echo "✅ Created: $local_file" >> $GITHUB_STEP_SUMMARY
+          done < /tmp/relative-imports.txt
+
+      - name: Run gh aw update --force
+        if: steps.add-workflow.outputs.has_relative_imports == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cd /tmp/test-update-workspace
+          echo "Running gh aw update --force --no-compile daily-team-status ..."
+          /home/runner/work/gh-aw/gh-aw/gh-aw update daily-team-status --force --no-compile 2>&1
+          echo "✅ Update completed" >> $GITHUB_STEP_SUMMARY
+
+      - name: Verify local import paths are preserved after update
+        if: steps.add-workflow.outputs.has_relative_imports == 'true'
+        run: |
+          cd /tmp/test-update-workspace
+          WORKFLOW=".github/workflows/daily-team-status.md"
+
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Import paths after \`gh aw update\`" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          grep -A10 "^imports:" "$WORKFLOW" >> $GITHUB_STEP_SUMMARY || true
+          echo '```' >> $GITHUB_STEP_SUMMARY
+
+          FAILED=false
+          while IFS= read -r import_path; do
+            local_file=".github/workflows/$import_path"
+
+            # Confirm the local file still exists (sanity check)
+            if [ ! -f "$local_file" ]; then
+              echo "⚠️ Local file not found (was it deleted?): $local_file"
+              continue
+            fi
+
+            # The import entry in the workflow file must still be the relative path,
+            # NOT a cross-repo reference (which would contain "@" and "owner/repo/").
+            if grep -qF "- $import_path" "$WORKFLOW"; then
+              echo "✅ Relative import preserved: $import_path" >> $GITHUB_STEP_SUMMARY
+            else
+              echo "❌ FAIL: '$import_path' was rewritten even though the local file exists" >> $GITHUB_STEP_SUMMARY
+              echo "❌ Current imports section:"
+              grep -A10 "^imports:" "$WORKFLOW" || true
+              FAILED=true
+            fi
+          done < /tmp/relative-imports.txt
+
+          if [ "$FAILED" = "true" ]; then
+            echo "❌ **FAILURE**: gh aw update rewrote local relative imports to cross-repo paths" >> $GITHUB_STEP_SUMMARY
+            exit 1
+          fi
+
+          echo "✅ **SUCCESS**: All local relative import paths were preserved by gh aw update" >> $GITHUB_STEP_SUMMARY
+
   integration-unauthenticated-add:
     name: Integration Unauthenticated Add (Public Repo)
     runs-on: ubuntu-latest
@@ -2800,66 +2947,6 @@ jobs:
           fi
 
           echo "" >> $GITHUB_STEP_SUMMARY
-
-  install-script:
-    name: Install Script (stable)
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    permissions:
-      contents: read
-    concurrency:
-      group: ci-${{ github.ref }}-install-script
-      cancel-in-progress: true
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-
-      - name: Validate stable alias in releases.json
-        id: validate-stable
-        run: |
-          STABLE=$(jq -r '.aliases.stable // empty' .github/aw/releases.json)
-          echo "stable_version=$STABLE" >> $GITHUB_OUTPUT
-
-          if [ -z "$STABLE" ]; then
-            echo "❌ 'stable' alias is not set in releases.json"
-            exit 1
-          fi
-
-          if [ "$STABLE" = "stable" ]; then
-            echo "❌ 'stable' alias points to itself - misconfiguration in releases.json"
-            exit 1
-          fi
-
-          if ! echo "$STABLE" | grep -qE '^v[0-9]+\.[0-9]+\.[0-9]+$'; then
-            echo "❌ 'stable' alias '$STABLE' is not a valid semver version (expected vMAJOR.MINOR.PATCH)"
-            exit 1
-          fi
-
-          echo "✅ 'stable' alias resolves to a valid version: $STABLE"
-
-      - name: Run install-gh-aw.sh with stable version
-        run: bash install-gh-aw.sh stable
-
-      - name: Verify installation
-        run: |
-          BINARY="$HOME/.local/share/gh/extensions/gh-aw/gh-aw"
-          EXPECTED="${{ steps.validate-stable.outputs.stable_version }}"
-
-          if [ ! -f "$BINARY" ]; then
-            echo "❌ Binary not found at $BINARY"
-            exit 1
-          fi
-
-          INSTALLED_VERSION=$("$BINARY" version 2>&1 | grep -oE 'v[0-9]+\.[0-9]+\.[0-9]+' | head -1)
-          echo "Installed version: $INSTALLED_VERSION"
-          echo "Expected version:  $EXPECTED"
-
-          if [ "$INSTALLED_VERSION" != "$EXPECTED" ]; then
-            echo "❌ Version mismatch: installed $INSTALLED_VERSION but expected $EXPECTED"
-            exit 1
-          fi
-
-          echo "✅ install-gh-aw.sh successfully installed stable release: $INSTALLED_VERSION" >> $GITHUB_STEP_SUMMARY
 
   sh-difc-proxy:
     name: DIFC Proxy sh Integration Test

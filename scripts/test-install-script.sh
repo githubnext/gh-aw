@@ -187,85 +187,9 @@ else
     exit 1
 fi
 
-# Test 8: Verify fetch_release_data function exists and has correct logic
+# Test 8: Verify retry logic for downloads
 echo ""
-echo "Test 8: Verify fetch_release_data function logic"
-
-# Extract and test the function
-if grep -q "fetch_release_data()" "$PROJECT_ROOT/install-gh-aw.sh"; then
-    echo "  ✓ PASS: fetch_release_data function exists"
-else
-    echo "  ✗ FAIL: fetch_release_data function not found"
-    exit 1
-fi
-
-# Verify the function checks for GH_TOKEN
-if grep -q 'if \[ -n "\$GH_TOKEN" \]; then' "$PROJECT_ROOT/install-gh-aw.sh"; then
-    echo "  ✓ PASS: Function checks for GH_TOKEN"
-else
-    echo "  ✗ FAIL: Function does not check for GH_TOKEN"
-    exit 1
-fi
-
-# Verify the function includes fallback logic
-if grep -q "Retrying without authentication" "$PROJECT_ROOT/install-gh-aw.sh"; then
-    echo "  ✓ PASS: Function includes retry fallback with warning"
-else
-    echo "  ✗ FAIL: Function does not include retry fallback"
-    exit 1
-fi
-
-# Verify the warning mentions incompatible token
-if grep -q "incompatible" "$PROJECT_ROOT/install-gh-aw.sh"; then
-    echo "  ✓ PASS: Warning message mentions incompatible token"
-else
-    echo "  ✗ FAIL: Warning message does not mention incompatible token"
-    exit 1
-fi
-
-# Verify the function uses Authorization header with Bearer
-if grep -q 'Authorization: Bearer' "$PROJECT_ROOT/install-gh-aw.sh"; then
-    echo "  ✓ PASS: Function uses proper Authorization header with Bearer"
-else
-    echo "  ✗ FAIL: Function does not use Authorization header with Bearer"
-    exit 1
-fi
-
-# Verify the function has retry logic with max_retries
-if grep -q 'local max_retries=3' "$PROJECT_ROOT/install-gh-aw.sh"; then
-    echo "  ✓ PASS: Function has max_retries=3 variable"
-else
-    echo "  ✗ FAIL: Function does not have max_retries variable"
-    exit 1
-fi
-
-# Verify the function has retry loop
-if grep -q 'for attempt in $(seq 1 $max_retries)' "$PROJECT_ROOT/install-gh-aw.sh"; then
-    echo "  ✓ PASS: Function has retry loop"
-else
-    echo "  ✗ FAIL: Function does not have retry loop"
-    exit 1
-fi
-
-# Verify the function logs fetch attempts
-if grep -q 'Fetching release data (attempt' "$PROJECT_ROOT/install-gh-aw.sh"; then
-    echo "  ✓ PASS: Function logs fetch attempts"
-else
-    echo "  ✗ FAIL: Function does not log fetch attempts"
-    exit 1
-fi
-
-# Verify the function has exponential backoff for retries
-if grep -q 'retry_delay=\$((retry_delay \* 2))' "$PROJECT_ROOT/install-gh-aw.sh"; then
-    echo "  ✓ PASS: Function has exponential backoff for retries"
-else
-    echo "  ✗ FAIL: Function does not have exponential backoff"
-    exit 1
-fi
-
-# Test 9: Verify retry logic for downloads
-echo ""
-echo "Test 9: Verify download retry logic"
+echo "Test 8: Verify download retry logic"
 
 # Check for MAX_RETRIES variable
 if grep -q "MAX_RETRIES=" "$PROJECT_ROOT/install-gh-aw.sh"; then
@@ -291,9 +215,9 @@ else
     exit 1
 fi
 
-# Test 10: Verify checksum validation functionality
+# Test 9: Verify checksum validation functionality
 echo ""
-echo "Test 10: Verify checksum validation functionality"
+echo "Test 9: Verify checksum validation functionality"
 
 # Check for --skip-checksum flag
 if grep -q "\-\-skip-checksum" "$PROJECT_ROOT/install-gh-aw.sh"; then
@@ -351,9 +275,9 @@ else
     exit 1
 fi
 
-# Test 11: Verify "latest" version functionality
+# Test 10: Verify "latest" version functionality
 echo ""
-echo "Test 11: Verify 'latest' version functionality"
+echo "Test 10: Verify 'latest' version functionality"
 
 # Check for "latest" as default version
 if grep -q "using 'latest'" "$PROJECT_ROOT/install-gh-aw.sh"; then
