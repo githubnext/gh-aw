@@ -351,6 +351,14 @@ An interactive web-based editor for authoring, compiling, and previewing agentic
 
 A `gh aw audit` subcommand that compares firewall behavior across two workflow runs. Reports domain additions and removals, allowed/denied status changes, request volume drift, and anomaly flags. Outputs results in pretty, markdown, or JSON format. Useful for spotting regressions and behavioral drift between runs. See [CLI Reference](/gh-aw/setup/cli/#audit-diff).
 
+### Audit Report (`gh aw audit report`)
+
+A `gh aw audit` subcommand that aggregates firewall data across multiple workflow runs to produce a cross-run security report. The report includes an executive summary, domain inventory, and per-run breakdown. Designed for security reviews, compliance checks, and feeding debugging or optimization agents. Outputs markdown by default (suitable for `$GITHUB_STEP_SUMMARY`), or pretty/JSON format. See [CLI Reference](/gh-aw/setup/cli/#audit-report).
+
+### Frontmatter Hash
+
+A deterministic SHA-256 hash of a workflow's frontmatter configuration, including all imported workflow frontmatter collected in breadth-first order. The hash covers security-relevant fields (`engine`, `on`, `permissions`, `tools`, `network`, `safe-outputs`, etc.) while excluding the markdown body. Identical configurations produce identical hashes across the Go and JavaScript compiler implementations, enabling change detection, tamper verification, and reproducibility checks. See [Frontmatter Hash Specification](/gh-aw/reference/frontmatter-hash-specification/).
+
 ### actionlint
 
 A static analysis tool for GitHub Actions workflow files that detects syntax errors, type mismatches, and other issues. Integrated into `gh aw compile` via the `--actionlint` flag. Runs in a Docker container and reports lint findings separately from tooling/integration errors (such as Docker failures or timeouts) that prevent the linter from running. See `--actionlint --zizmor --poutine` in the [Compilation Reference](/gh-aw/reference/compilation-process/).
