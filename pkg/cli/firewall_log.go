@@ -454,8 +454,8 @@ func analyzeMultipleFirewallLogs(logsDir string, verbose bool) (*FirewallAnalysi
 //
 // Returns nil when no agent-stdio.log exists or no blocked domains are found.
 func extractFirewallFromAgentLog(logsPath string, verbose bool) *FirewallAnalysis {
-	agentStdioPath := filepath.Join(logsPath, "agent-stdio.log")
-	content, err := os.ReadFile(agentStdioPath) // #nosec G304 -- path is constructed from trusted logsPath
+	agentStdioPath := filepath.Clean(filepath.Join(logsPath, "agent-stdio.log"))
+	content, err := os.ReadFile(agentStdioPath) // #nosec G304 -- path is cleaned via filepath.Clean and logsPath is a trusted run output directory
 	if err != nil {
 		// File not present is normal (agent didn't run, or run used a different log path)
 		firewallLogLog.Printf("No agent-stdio.log found at %s: %v", agentStdioPath, err)
