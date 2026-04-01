@@ -356,6 +356,12 @@ func AuditWorkflowRun(ctx context.Context, runID int64, owner, repo, hostname st
 		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to extract MCP tool usage: %v", err)))
 	}
 
+	// Analyze token usage from firewall proxy logs
+	tokenUsageSummary, err := analyzeTokenUsage(runOutputDir, verbose)
+	if err != nil && verbose {
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to analyze token usage: %v", err)))
+	}
+
 	// List all artifacts
 	artifacts, err := listArtifacts(runOutputDir)
 	if err != nil && verbose {
@@ -375,6 +381,7 @@ func AuditWorkflowRun(ctx context.Context, runID int64, owner, repo, hostname st
 		MissingData:             missingData,
 		Noops:                   noops,
 		MCPFailures:             mcpFailures,
+		TokenUsage:              tokenUsageSummary,
 		JobDetails:              jobDetails,
 	}
 	awContext, _, _, taskDomain, behaviorFingerprint, agenticAssessments := deriveRunAgenticAnalysis(processedRun, metrics)
@@ -461,6 +468,7 @@ func AuditWorkflowRun(ctx context.Context, runID int64, owner, repo, hostname st
 		Noops:                   noops,
 		MCPFailures:             mcpFailures,
 		MCPToolUsage:            mcpToolUsage,
+		TokenUsage:              tokenUsageSummary,
 		ArtifactsList:           artifacts,
 		JobDetails:              jobDetails,
 	}

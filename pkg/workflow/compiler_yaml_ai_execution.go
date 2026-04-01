@@ -187,3 +187,14 @@ func (c *Compiler) generateAgentStepSummaryAppend(yaml *strings.Builder) {
 	yaml.WriteString("        if: always()\n")
 	yaml.WriteString("        run: bash ${RUNNER_TEMP}/gh-aw/actions/append_agent_step_summary.sh\n")
 }
+
+// generateTokenUsageSummary generates a step that parses the firewall proxy's
+// token-usage.jsonl and appends a markdown table to $GITHUB_STEP_SUMMARY.
+func (c *Compiler) generateTokenUsageSummary(yaml *strings.Builder) {
+	compilerYamlLog.Print("Generating token usage summary step")
+
+	yaml.WriteString("      - name: Parse token usage for step summary\n")
+	yaml.WriteString("        if: always()\n")
+	yaml.WriteString("        continue-on-error: true\n")
+	yaml.WriteString("        run: bash ${RUNNER_TEMP}/gh-aw/actions/parse_token_usage.sh\n")
+}
