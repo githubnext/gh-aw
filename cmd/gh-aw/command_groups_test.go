@@ -20,14 +20,18 @@ func TestCommandGroupAssignments(t *testing.T) {
 		{name: "init command in setup group", commandName: "init", expectedGroup: "setup", shouldHaveGroup: true},
 		{name: "new command in setup group", commandName: "new", expectedGroup: "setup", shouldHaveGroup: true},
 		{name: "add command in setup group", commandName: "add", expectedGroup: "setup", shouldHaveGroup: true},
+		{name: "add-wizard command in setup group", commandName: "add-wizard", expectedGroup: "setup", shouldHaveGroup: true},
 		{name: "remove command in setup group", commandName: "remove", expectedGroup: "setup", shouldHaveGroup: true},
 		{name: "update command in setup group", commandName: "update", expectedGroup: "setup", shouldHaveGroup: true},
+		{name: "upgrade command in setup group", commandName: "upgrade", expectedGroup: "setup", shouldHaveGroup: true},
 		{name: "secrets command in setup group", commandName: "secrets", expectedGroup: "setup", shouldHaveGroup: true},
 
 		// Development Commands
 		{name: "compile command in development group", commandName: "compile", expectedGroup: "development", shouldHaveGroup: true},
+		{name: "validate command in development group", commandName: "validate", expectedGroup: "development", shouldHaveGroup: true},
 		{name: "mcp command in development group", commandName: "mcp", expectedGroup: "development", shouldHaveGroup: true},
 		{name: "fix command in development group", commandName: "fix", expectedGroup: "development", shouldHaveGroup: true},
+		{name: "domains command in development group", commandName: "domains", expectedGroup: "development", shouldHaveGroup: true},
 
 		// Execution Commands
 		{name: "run command in execution group", commandName: "run", expectedGroup: "execution", shouldHaveGroup: true},
@@ -40,10 +44,15 @@ func TestCommandGroupAssignments(t *testing.T) {
 		{name: "audit command in analysis group", commandName: "audit", expectedGroup: "analysis", shouldHaveGroup: true},
 		{name: "status command in analysis group", commandName: "status", expectedGroup: "analysis", shouldHaveGroup: true},
 		{name: "list command in analysis group", commandName: "list", expectedGroup: "analysis", shouldHaveGroup: true},
+		{name: "health command in analysis group", commandName: "health", expectedGroup: "analysis", shouldHaveGroup: true},
+		{name: "checks command in analysis group", commandName: "checks", expectedGroup: "analysis", shouldHaveGroup: true},
 
 		// Utilities
 		{name: "mcp-server command in utilities group", commandName: "mcp-server", expectedGroup: "utilities", shouldHaveGroup: true},
 		{name: "pr command in utilities group", commandName: "pr", expectedGroup: "utilities", shouldHaveGroup: true},
+		{name: "completion command in utilities group", commandName: "completion", expectedGroup: "utilities", shouldHaveGroup: true},
+		{name: "hash-frontmatter command in utilities group", commandName: "hash-frontmatter", expectedGroup: "utilities", shouldHaveGroup: true},
+		{name: "project command in utilities group", commandName: "project", expectedGroup: "utilities", shouldHaveGroup: true},
 
 		// Commands without groups (intentionally)
 		{name: "version command without group", commandName: "version", expectedGroup: "", shouldHaveGroup: false},
