@@ -346,9 +346,42 @@ permissions:
 Search the web for relevant information and summarize findings in the issue.
 ```
 
+### Top-level `jobs:`
+
+Top-level `jobs:` define pre-execution jobs that run **before** the agentic step in the same workflow. They are useful for building indexes, running linters, or computing outputs the agent reads via `${{ needs.job-name.outputs.* }}`:
+
+```aw title="my-workflow.md" wrap
+---
+on: issues
+engine: copilot
+imports:
+  - shared/mcp/tavily.md
+permissions:
+  contents: read
+  issues: write
+jobs:
+  super_linter:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      statuses: write
+    steps:
+      - uses: actions/checkout@v6
+      - uses: super-linter/super-linter@v7
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+---
+
+# Code Quality Workflow
+
+Review linting results and suggest fixes for any violations found.
+```
+
+Top-level `jobs:` are defined per-workflow and cannot be moved into shared import files.
+
 ### Importing Jobs via `safe-outputs.jobs`
 
-Unlike top-level `jobs:` (which cannot be imported), jobs defined under `safe-outputs:` can be shared across workflows. These jobs become callable MCP tools that the AI agent can invoke during execution:
+Jobs defined under `safe-outputs:` can be shared across workflows. These jobs become callable MCP tools that the AI agent can invoke during execution:
 
 ```aw title="shared/notify.md" wrap
 ---
