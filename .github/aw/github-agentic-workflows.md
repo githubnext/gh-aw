@@ -560,6 +560,7 @@ The YAML frontmatter supports these fields:
         base-branch: "vnext"            # Optional: base branch for PR (defaults to workflow's branch)
         preserve-branch-name: true      # Optional: skip random salt suffix on agent-specified branch names (default: false)
         fallback-as-issue: false        # Optional: when true (default), creates a fallback issue on PR creation failure; on permission errors, the issue includes a one-click link to create the PR via GitHub's compare URL
+        auto-close-issue: false         # Optional: when true (default), adds "Fixes #N" closing keyword when triggered from an issue; set to false to prevent auto-closing the triggering issue on merge. Accepts a boolean or GitHub Actions expression.
         target-repo: "owner/repo"       # Optional: cross-repository
         github-token-for-extra-empty-commit: ${{ secrets.MY_CI_PAT }}  # Optional: PAT or "app" to trigger CI on created PRs
     ```
