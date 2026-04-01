@@ -1,6 +1,7 @@
 package workflow
 
 import (
+	"encoding/json"
 	"maps"
 	"slices"
 	"strings"
@@ -141,10 +142,13 @@ func renderMCPFetchServerConfig(yaml *strings.Builder, format string, indent str
 		}
 
 		if hasEntrypointArgs {
-			// Render entrypointArgs; trailing comma only when guardPolicies follow.
+			// Render entrypointArgs with proper JSON escaping for each value.
+			// Trailing comma only when guardPolicies follow.
 			yaml.WriteString(indent + "  \"entrypointArgs\": [\n")
 			for i, arg := range entrypointArgs {
-				yaml.WriteString(indent + "    \"" + arg + "\"")
+				// json.Marshal produces a properly-escaped JSON string literal (including quotes).
+				quotedArg, _ := json.Marshal(arg)
+				yaml.WriteString(indent + "    " + string(quotedArg))
 				if i < len(entrypointArgs)-1 {
 					yaml.WriteString(",")
 				}
@@ -173,13 +177,16 @@ func renderMCPFetchServerConfig(yaml *strings.Builder, format string, indent str
 		yaml.WriteString(indent + "[mcp_servers.\"web-fetch\"]\n")
 		yaml.WriteString(indent + "container = \"mcp/fetch\"\n")
 		// Render entrypointArgs as an inline TOML array.
+		// Use json.Marshal for each value: TOML basic strings share JSON's escape sequences
+		// for the characters that domain names could theoretically contain.
 		if len(entrypointArgs) > 0 {
 			yaml.WriteString(indent + "entrypointArgs = [")
 			for i, arg := range entrypointArgs {
 				if i > 0 {
 					yaml.WriteString(", ")
 				}
-				yaml.WriteString("\"" + arg + "\"")
+				quotedArg, _ := json.Marshal(arg)
+				yaml.Write(quotedArg) //nolint:errcheck // strings.Builder.Write never returns an error
 			}
 			yaml.WriteString("]\n")
 		}
