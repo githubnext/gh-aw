@@ -2866,9 +2866,9 @@ jobs:
       - name: Extract versions from constants.go
         id: versions
         run: |
-          CONSTANTS="pkg/constants/constants.go"
+          CONSTANTS="pkg/constants/version_constants.go"
 
-          # Helper: regex a Version constant value from constants.go
+          # Helper: regex a Version constant value from version_constants.go
           extract() {
             grep -oP "${1}"'\s+Version\s*=\s*"\K[^"]+' "$CONSTANTS"
           }
@@ -2881,7 +2881,7 @@ jobs:
           echo "mcpg_version=$MCPG_VERSION" >> $GITHUB_OUTPUT
           echo "github_mcp_version=$GITHUB_MCP_VERSION" >> $GITHUB_OUTPUT
 
-          echo "Extracted versions from pkg/constants/constants.go:"
+          echo "Extracted versions from pkg/constants/version_constants.go:"
           echo "  gh-aw-firewall:        $FIREWALL_VERSION"
           echo "  gh-aw-mcpg:            $MCPG_VERSION"
           echo "  github-mcp-server:     $GITHUB_MCP_VERSION"
