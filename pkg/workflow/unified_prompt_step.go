@@ -543,6 +543,9 @@ func toolWithMaxBudget(name string, max *string) string {
 // buildSafeOutputsSections returns the PromptSections that form the <safe-output-tools> block.
 // The block contains:
 //  1. An inline opening tag with a compact Tools list (dynamic, depends on which tools are enabled).
+//     Any ${{ }} expressions in max: values are extracted to GH_AW_* env vars and replaced
+//     with __GH_AW_*__ placeholders so they do not appear in the run: heredoc, avoiding the
+//     GitHub Actions 21KB expression-size limit.
 //  2. File references for tools that require multi-step instructions (create_pull_request,
 //     push_to_pull_request_branch, auto-injected create_issue notice).
 //  3. An inline closing tag.
@@ -724,10 +727,28 @@ func buildSafeOutputsSections(safeOutputs *SafeOutputsConfig) []PromptSection {
 
 	var sections []PromptSection
 
-	// Inline opening: XML tag + compact tools list
+	// Build the inline opening: XML tag + compact tools list.
+	// Extract any ${{ }} expressions from max: values so they do not appear in the
+	// run: heredoc (which is subject to GitHub Actions' 21KB expression-size limit).
+	// Expressions are replaced with __GH_AW_...__  placeholders and added to EnvVars
+	// so the placeholder substitution step can resolve them at runtime.
+	toolsContent := "<safe-output-tools>\nTools: " + strings.Join(tools, ", ")
+	envVars := make(map[string]string)
+	extractor := NewExpressionExtractor()
+	exprMappings, err := extractor.ExtractExpressions(toolsContent)
+	if err == nil && len(exprMappings) > 0 {
+		safeOutputsPromptLog.Printf("Extracted %d expression(s) from safe-output-tools block", len(exprMappings))
+		toolsContent = extractor.ReplaceExpressionsWithEnvVars(toolsContent)
+		for _, mapping := range exprMappings {
+			envVars[mapping.EnvVar] = fmt.Sprintf("${{ %s }}", mapping.Content)
+		}
+	}
+
+	// Inline opening: XML tag + compact tools list (with placeholders for any expressions)
 	sections = append(sections, PromptSection{
-		Content: "<safe-output-tools>\nTools: " + strings.Join(tools, ", "),
+		Content: toolsContent,
 		IsFile:  false,
+		EnvVars: envVars,
 	})
 
 	// File sections for tools with multi-step instructions
