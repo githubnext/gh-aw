@@ -33,7 +33,7 @@ These identifiers are not language-specific but pair with any language workflow:
 
 | Identifier | Use for |
 |------------|---------|
-| `defaults` | Basic infrastructure: certificates, JSON schema, Ubuntu mirrors. Required by all workflows. Also provides the system C/C++ toolchain (gcc, cmake). |
+| `defaults` | Basic infrastructure: certificates, JSON schema, Ubuntu mirrors. This is the default when `network:` is not specified, and is recommended as the starting baseline for most workflows. |
 | `github` | GitHub domains (`github.com`, `raw.githubusercontent.com`, etc.) |
 | `containers` | Docker Hub, GitHub Container Registry, Quay, GCR |
 | `linux-distros` | Debian, Ubuntu, Alpine package repositories (`apt`, `apk`) |
@@ -79,10 +79,10 @@ network:
 
 ## Less Common Languages
 
-Additional language ecosystems are available for less common languages including Elixir, Haskell, Julia, Perl, OCaml, Deno, and Terraform. See the full [Ecosystem Identifiers table](/gh-aw/reference/network/#ecosystem-identifiers) in the Network Permissions reference for the complete list.
+Additional language ecosystems are available for less common languages including Elixir, Haskell, Julia, Perl, OCaml, Deno, and Terraform. See the [Ecosystem Identifiers table](/gh-aw/reference/network/#ecosystem-identifiers) in the Network Permissions reference for the most up-to-date list of supported identifiers.
 
 ## Related Documentation
 
-- [Network Permissions](/gh-aw/reference/network/) — Complete network configuration reference including all ecosystem identifiers
+- [Network Permissions](/gh-aw/reference/network/) — Network configuration reference and ecosystem identifiers table
 - [Network Configuration Guide](/gh-aw/guides/network-configuration/) — Practical patterns and troubleshooting
 - [Sandbox](/gh-aw/reference/sandbox/) — Sandbox environment details
