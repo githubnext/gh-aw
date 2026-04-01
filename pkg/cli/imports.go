@@ -195,10 +195,7 @@ func processIncludesWithWorkflowSpec(content string, workflow *WorkflowSpec, com
 	visited := make(map[string]bool)
 
 	// Use a queue to process files iteratively instead of recursion
-	type fileToProcess struct {
-		path string
-	}
-	queue := []fileToProcess{}
+	queue := []string{}
 
 	// Process the main content first
 	scanner := bufio.NewScanner(strings.NewReader(content))
@@ -220,14 +217,7 @@ func processIncludesWithWorkflowSpec(content string, workflow *WorkflowSpec, com
 			}
 
 			// Handle section references (file.md#Section)
-			var filePath, sectionName string
-			if strings.Contains(includePath, "#") {
-				parts := strings.SplitN(includePath, "#", 2)
-				filePath = parts[0]
-				sectionName = parts[1]
-			} else {
-				filePath = includePath
-			}
+			filePath, sectionName := splitImportPath(includePath)
 
 			// Skip if filePath is empty (e.g., section-only reference like "#Section")
 			if filePath == "" {
@@ -246,7 +236,7 @@ func processIncludesWithWorkflowSpec(content string, workflow *WorkflowSpec, com
 					// Add file to queue for processing nested includes (first visit only)
 					if !visited[filePath] {
 						visited[filePath] = true
-						queue = append(queue, fileToProcess{path: filePath})
+						queue = append(queue, filePath)
 					}
 					continue
 				}
@@ -264,16 +254,12 @@ func processIncludesWithWorkflowSpec(content string, workflow *WorkflowSpec, com
 			}
 
 			// Write the updated @include directive (even for duplicate occurrences)
-			if isOptional {
-				result.WriteString("{{#import? " + workflowSpec + "}}\n")
-			} else {
-				result.WriteString("{{#import " + workflowSpec + "}}\n")
-			}
+			writeImportDirective(&result, workflowSpec, isOptional)
 
 			// Only enqueue for nested-include processing on the first visit to prevent cycles
 			if !visited[filePath] {
 				visited[filePath] = true
-				queue = append(queue, fileToProcess{path: filePath})
+				queue = append(queue, filePath)
 			}
 		} else {
 			// Regular line, pass through
@@ -288,10 +274,10 @@ func processIncludesWithWorkflowSpec(content string, workflow *WorkflowSpec, com
 	// Process queue of files to check for nested includes
 	for len(queue) > 0 {
 		// Dequeue the first file
-		fileItem := queue[0]
+		filePath := queue[0]
 		queue = queue[1:]
 
-		fullSourcePath := filepath.Join(packagePath, fileItem.path)
+		fullSourcePath := filepath.Join(packagePath, filePath)
 		if _, err := os.Stat(fullSourcePath); err != nil {
 			continue // File doesn't exist, skip
 		}
@@ -323,13 +309,7 @@ func processIncludesWithWorkflowSpec(content string, workflow *WorkflowSpec, com
 				includePath := directive.Path
 
 				// Handle section references
-				var nestedFilePath string
-				if strings.Contains(includePath, "#") {
-					parts := strings.SplitN(includePath, "#", 2)
-					nestedFilePath = parts[0]
-				} else {
-					nestedFilePath = includePath
-				}
+				nestedFilePath, _ := splitImportPath(includePath)
 
 				// Check for cycle detection
 				if visited[nestedFilePath] {
@@ -341,7 +321,7 @@ func processIncludesWithWorkflowSpec(content string, workflow *WorkflowSpec, com
 
 				// Mark as visited and add to queue
 				visited[nestedFilePath] = true
-				queue = append(queue, fileToProcess{path: nestedFilePath})
+				queue = append(queue, nestedFilePath)
 			}
 		}
 	}
@@ -384,14 +364,7 @@ func processIncludesInContent(content string, workflow *WorkflowSpec, commitSHA 
 			}
 
 			// Handle section references (file.md#Section)
-			var filePath, sectionName string
-			if strings.Contains(includePath, "#") {
-				parts := strings.SplitN(includePath, "#", 2)
-				filePath = parts[0]
-				sectionName = parts[1]
-			} else {
-				filePath = includePath
-			}
+			filePath, sectionName := splitImportPath(includePath)
 
 			// Skip if filePath is empty (e.g., section-only reference like "#Section")
 			if filePath == "" {
@@ -423,11 +396,7 @@ func processIncludesInContent(content string, workflow *WorkflowSpec, commitSHA 
 			}
 
 			// Write the updated import directive
-			if isOptional {
-				result.WriteString("{{#import? " + workflowSpec + "}}\n")
-			} else {
-				result.WriteString("{{#import " + workflowSpec + "}}\n")
-			}
+			writeImportDirective(&result, workflowSpec, isOptional)
 		} else {
 			// Regular line, pass through
 			result.WriteString(line + "\n")
@@ -465,4 +434,22 @@ func isWorkflowSpecFormat(path string) bool {
 	// The only reliable indicator of a workflowspec is the @ version separator
 	// Paths like "shared/mcp/arxiv.md" should be treated as local paths, not workflowspecs
 	return strings.Contains(path, "@")
+}
+
+// splitImportPath splits "file.md#Section" into ("file.md", "Section").
+// If no "#" is present, returns (includePath, "").
+func splitImportPath(includePath string) (filePath, sectionName string) {
+	if file, section, ok := strings.Cut(includePath, "#"); ok {
+		return file, section
+	}
+	return includePath, ""
+}
+
+// writeImportDirective writes an {{#import}} or {{#import?}} directive for workflowSpec.
+func writeImportDirective(w *strings.Builder, workflowSpec string, isOptional bool) {
+	if isOptional {
+		w.WriteString("{{#import? " + workflowSpec + "}}\n")
+	} else {
+		w.WriteString("{{#import " + workflowSpec + "}}\n")
+	}
 }
