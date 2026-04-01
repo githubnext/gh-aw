@@ -529,11 +529,20 @@ func init() {
 		}
 		if cmd.HasAvailableSubCommands() {
 			cmds := cmd.Commands()
+			// Compute column width dynamically so long command names (e.g. hash-frontmatter)
+			// are aligned properly instead of overflowing a hard-coded width.
+			colWidth := 0
+			for _, sub := range cmds {
+				if (sub.IsAvailableCommand() || sub.Name() == "help") && len(sub.Name()) > colWidth {
+					colWidth = len(sub.Name())
+				}
+			}
+			colFmt := fmt.Sprintf("\n  %%-%ds %%s", colWidth)
 			if len(cmd.Groups()) == 0 {
 				fmt.Fprint(out, "\n\nAvailable Commands:")
 				for _, sub := range cmds {
 					if sub.IsAvailableCommand() || sub.Name() == "help" {
-						fmt.Fprintf(out, "\n  %-11s %s", sub.Name(), sub.Short)
+						fmt.Fprintf(out, colFmt, sub.Name(), sub.Short)
 					}
 				}
 			} else {
@@ -541,7 +550,7 @@ func init() {
 					fmt.Fprintf(out, "\n\n%s", group.Title)
 					for _, sub := range cmds {
 						if sub.GroupID == group.ID && (sub.IsAvailableCommand() || sub.Name() == "help") {
-							fmt.Fprintf(out, "\n  %-11s %s", sub.Name(), sub.Short)
+							fmt.Fprintf(out, colFmt, sub.Name(), sub.Short)
 						}
 					}
 				}
@@ -549,7 +558,7 @@ func init() {
 					fmt.Fprint(out, "\n\nAdditional Commands:")
 					for _, sub := range cmds {
 						if sub.GroupID == "" && (sub.IsAvailableCommand() || sub.Name() == "help") {
-							fmt.Fprintf(out, "\n  %-11s %s", sub.Name(), sub.Short)
+							fmt.Fprintf(out, colFmt, sub.Name(), sub.Short)
 						}
 					}
 				}
