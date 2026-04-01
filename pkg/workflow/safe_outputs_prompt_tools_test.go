@@ -194,7 +194,56 @@ func TestBuildSafeOutputsSectionsCustomToolsConsistency(t *testing.T) {
 	}
 }
 
-// extractToolNamesFromSections parses the <safe-output-tools> opening section and returns
+// TestBuildSafeOutputsSectionsMaxExpressionExtraction verifies that ${{ }} expressions
+// in safe-output max: values are extracted to GH_AW_* env vars and replaced with
+// __GH_AW_*__ placeholders in the <safe-output-tools> prompt block.
+// This prevents ${{ }} from appearing in the run: heredoc, which is subject to the
+// GitHub Actions 21KB expression-size limit (regression guard for gh-aw#21158).
+func TestBuildSafeOutputsSectionsMaxExpressionExtraction(t *testing.T) {
+	maxExpr := "${{ inputs.review-comment-max }}"
+	sections := buildSafeOutputsSections(&SafeOutputsConfig{
+		CreatePullRequestReviewComments: &CreatePullRequestReviewCommentsConfig{
+			BaseSafeOutputConfig: BaseSafeOutputConfig{
+				Max: &maxExpr,
+			},
+		},
+		NoOp: &NoOpConfig{},
+	})
+
+	require.NotNil(t, sections, "Expected non-nil sections")
+
+	// Find the opening <safe-output-tools> section
+	var openingSection *PromptSection
+	for i := range sections {
+		if !sections[i].IsFile && strings.HasPrefix(sections[i].Content, "<safe-output-tools>") {
+			openingSection = &sections[i]
+			break
+		}
+	}
+	require.NotNil(t, openingSection, "Expected to find <safe-output-tools> opening section")
+
+	// The raw ${{ }} expression must NOT appear in the content (would hit the 21KB limit)
+	assert.NotContains(t, openingSection.Content, "${{",
+		"${{ }} expressions must not appear in the tools content (triggers 21KB expression-size limit)")
+
+	// A __GH_AW_*__ placeholder must appear instead
+	assert.Contains(t, openingSection.Content, "__GH_AW_",
+		"A __GH_AW_*__ placeholder should replace the ${{ }} expression")
+
+	// The EnvVars map must have an entry mapping the placeholder key to the original expression
+	require.NotEmpty(t, openingSection.EnvVars,
+		"EnvVars must be populated so the substitution step can resolve the placeholder")
+
+	var foundExpr bool
+	for _, v := range openingSection.EnvVars {
+		if v == "${{ inputs.review-comment-max }}" {
+			foundExpr = true
+			break
+		}
+	}
+	assert.True(t, foundExpr, "EnvVars must contain the original ${{ inputs.review-comment-max }} expression")
+}
+
 // the list of tool names in the order they appear, stripping any max-budget annotations
 // (e.g. "noop(max:5)" → "noop").
 func extractToolNamesFromSections(t *testing.T, sections []PromptSection) []string {
