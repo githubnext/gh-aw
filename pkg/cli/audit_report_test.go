@@ -1538,29 +1538,51 @@ func TestExtractPreAgentStepErrors(t *testing.T) {
 func TestBuildAuditDataActionMinutes(t *testing.T) {
 	// Verify that action_minutes is populated from run.Duration even when
 	// token/turn metrics are zero (e.g. Codex runs that exit early).
-	processedRun := ProcessedRun{
-		Run: WorkflowRun{
-			DatabaseID:   42,
-			WorkflowName: "Codex Test",
-			Status:       "completed",
-			Conclusion:   "failure",
-			Duration:     6 * time.Minute,
-			TokenUsage:   0,
-			Turns:        0,
-			ErrorCount:   1,
-			WarningCount: 0,
-		},
-	}
+	// math.Ceil should be applied, and a pre-set run.ActionMinutes should take precedence.
+	t.Run("derived from Duration with ceil", func(t *testing.T) {
+		processedRun := ProcessedRun{
+			Run: WorkflowRun{
+				DatabaseID:   42,
+				WorkflowName: "Codex Test",
+				Status:       "completed",
+				Conclusion:   "failure",
+				Duration:     6*time.Minute + 30*time.Second, // 6.5 minutes → ceil = 7
+				TokenUsage:   0,
+				Turns:        0,
+				ErrorCount:   1,
+				WarningCount: 0,
+			},
+		}
 
-	metrics := workflow.LogMetrics{}
-	auditData := buildAuditData(processedRun, metrics, nil)
+		metrics := workflow.LogMetrics{}
+		auditData := buildAuditData(processedRun, metrics, nil)
 
-	assert.InDelta(t, 6.0, auditData.Metrics.ActionMinutes, 0.01,
-		"ActionMinutes should be populated from run.Duration (6 minutes)")
-	assert.Equal(t, 0, auditData.Metrics.TokenUsage,
-		"TokenUsage should be 0 when no log metrics available")
-	assert.Equal(t, 0, auditData.Metrics.Turns,
-		"Turns should be 0 when no log metrics available")
+		assert.InDelta(t, 7.0, auditData.Metrics.ActionMinutes, 0.01,
+			"ActionMinutes should be ceil of duration minutes (6.5m → 7)")
+		assert.Equal(t, 0, auditData.Metrics.TokenUsage,
+			"TokenUsage should be 0 when no log metrics available")
+		assert.Equal(t, 0, auditData.Metrics.Turns,
+			"Turns should be 0 when no log metrics available")
+	})
+
+	t.Run("uses pre-set ActionMinutes when available", func(t *testing.T) {
+		processedRun := ProcessedRun{
+			Run: WorkflowRun{
+				DatabaseID:    43,
+				WorkflowName:  "Pre-set Test",
+				Status:        "completed",
+				Conclusion:    "success",
+				Duration:      6 * time.Minute,
+				ActionMinutes: 8.0, // pre-set by orchestrator, takes precedence
+			},
+		}
+
+		metrics := workflow.LogMetrics{}
+		auditData := buildAuditData(processedRun, metrics, nil)
+
+		assert.InDelta(t, 8.0, auditData.Metrics.ActionMinutes, 0.01,
+			"Pre-set ActionMinutes should take precedence over Duration")
+	})
 }
 
 func TestGenerateFindingsFirewallWithBlockedDomains(t *testing.T) {

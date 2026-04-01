@@ -256,7 +256,10 @@ func generateRecommendations(processedRun ProcessedRun, metrics MetricsData, fin
 		blockedDomains := processedRun.FirewallAnalysis.GetBlockedDomains()
 		var example string
 		if len(blockedDomains) > 0 {
-			example = fmt.Sprintf("Add the blocked domain(s) to your workflow frontmatter: `network:\\n  allowed:\\n    - %s`", strings.Join(blockedDomains, "\n    - "))
+			example = fmt.Sprintf(
+				"Add the blocked domain(s) to your workflow frontmatter:\n\n```yaml\nnetwork:\n  allowed:\n    - %s\n```",
+				strings.Join(blockedDomains, "\n    - "),
+			)
 		} else {
 			example = "Add allowed domains to network configuration or review firewall rules"
 		}

@@ -3,6 +3,7 @@ package cli
 import (
 	"bufio"
 	"encoding/json"
+	"math"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -276,8 +277,11 @@ func buildAuditData(processedRun ProcessedRun, metrics LogMetrics, mcpToolUsage 
 
 	// Populate ActionMinutes from run duration so it is always visible even
 	// when token/turn metrics are zero (e.g. Codex runs that exit early).
-	if run.Duration > 0 {
-		metricsData.ActionMinutes = run.Duration.Minutes()
+	// Use math.Ceil to match the billable-minute rounding used elsewhere.
+	if run.ActionMinutes > 0 {
+		metricsData.ActionMinutes = run.ActionMinutes
+	} else if run.Duration > 0 {
+		metricsData.ActionMinutes = math.Ceil(run.Duration.Minutes())
 	}
 
 	// Build job data

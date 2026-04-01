@@ -23,9 +23,12 @@ var (
 
 	// agentLogAllowDomainsPattern matches Codex CLI firewall warning lines that suggest
 	// adding a blocked domain to the allow-list.
+	// Captures the full token after --allow-domains (up to whitespace) to support
+	// hostnames, protocol prefixes, wildcard patterns, and ports.
 	// Example: "add --allow-domains chatgpt.com to your command"
 	// Example: "add --allow-domains chatgpt.com,other.com to your command"
-	agentLogAllowDomainsPattern = regexp.MustCompile(`--allow-domains\s+([\w.\-]+(?:,[\w.\-]+)*)`)
+	// Example: "add --allow-domains https://api.example.com:443 to your command"
+	agentLogAllowDomainsPattern = regexp.MustCompile(`--allow-domains\s+([^\s]+)`)
 )
 
 // Firewall Log Parser
