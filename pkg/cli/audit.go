@@ -327,6 +327,17 @@ func AuditWorkflowRun(ctx context.Context, runID int64, owner, repo, hostname st
 		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to analyze firewall logs: %v", err)))
 	}
 
+	// Supplement firewall analysis with blocked domains extracted directly from
+	// agent-stdio.log (e.g., Codex CLI emits "--allow-domains <domain>" warnings
+	// when the sandbox firewall denies a network request).
+	if agentLogFirewall := extractFirewallFromAgentLog(runOutputDir, verbose); agentLogFirewall != nil {
+		if firewallAnalysis == nil {
+			firewallAnalysis = agentLogFirewall
+		} else {
+			firewallAnalysis.AddMetrics(agentLogFirewall)
+		}
+	}
+
 	// Analyze firewall policy artifacts if available (policy-manifest.json + audit.jsonl)
 	policyAnalysis, err := analyzeFirewallPolicy(runOutputDir, verbose)
 	if err != nil && verbose {

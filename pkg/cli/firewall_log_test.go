@@ -794,3 +794,181 @@ func TestParseFirewallLogInternalSquidErrorEntriesDashDash(t *testing.T) {
 		t.Errorf("BlockedDomains: got %v, want [blocked.example.com:443]", analysis.BlockedDomains)
 	}
 }
+
+func TestExtractFirewallFromAgentLog(t *testing.T) {
+	tests := []struct {
+		name            string
+		logContent      string
+		wantNil         bool
+		wantBlocked     []string
+		wantTotalReqs   int
+		wantBlockedReqs int
+	}{
+		{
+			name: "single blocked domain from Codex CLI warning",
+			logContent: `[2026-01-01T10:00:00] thinking
+[2026-01-01T10:00:01] [WARN] chatgpt.com is not in the allowed domains. To allow access, add --allow-domains chatgpt.com to your command.
+[2026-01-01T10:00:01] agent exiting with code 1`,
+			wantNil:         false,
+			wantBlocked:     []string{"chatgpt.com"},
+			wantTotalReqs:   1,
+			wantBlockedReqs: 1,
+		},
+		{
+			name: "multiple blocked domains",
+			logContent: `[2026-01-01T10:00:00] thinking
+add --allow-domains openai.com to your command
+add --allow-domains anthropic.com to your command`,
+			wantNil:         false,
+			wantBlocked:     []string{"anthropic.com", "openai.com"},
+			wantTotalReqs:   2,
+			wantBlockedReqs: 2,
+		},
+		{
+			name:            "comma-separated domains in single warning",
+			logContent:      `add --allow-domains chatgpt.com,openai.com to access the API`,
+			wantNil:         false,
+			wantBlocked:     []string{"chatgpt.com", "openai.com"},
+			wantTotalReqs:   2,
+			wantBlockedReqs: 2,
+		},
+		{
+			name: "deduplicated repeated warnings for same domain",
+			logContent: `add --allow-domains chatgpt.com to your command
+add --allow-domains chatgpt.com to your command
+add --allow-domains chatgpt.com to your command`,
+			wantNil:         false,
+			wantBlocked:     []string{"chatgpt.com"},
+			wantTotalReqs:   1,
+			wantBlockedReqs: 1,
+		},
+		{
+			name: "no blocked domains in log",
+			logContent: `[2026-01-01T10:00:00] thinking
+[2026-01-01T10:00:01] tool github.list_pull_requests({"owner":"org","repo":"repo"})
+[2026-01-01T10:00:02] tokens used: 1234`,
+			wantNil: true,
+		},
+		{
+			name:       "empty log",
+			logContent: "",
+			wantNil:    true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tempDir := testutil.TempDir(t, "agent-log-*")
+			logPath := filepath.Join(tempDir, "agent-stdio.log")
+			if err := os.WriteFile(logPath, []byte(tt.logContent), 0644); err != nil {
+				t.Fatalf("Failed to write agent-stdio.log: %v", err)
+			}
+
+			result := extractFirewallFromAgentLog(tempDir, false)
+
+			if tt.wantNil {
+				if result != nil {
+					t.Errorf("expected nil result, got %+v", result)
+				}
+				return
+			}
+
+			if result == nil {
+				t.Fatal("expected non-nil result, got nil")
+			}
+			if result.TotalRequests != tt.wantTotalReqs {
+				t.Errorf("TotalRequests: got %d, want %d", result.TotalRequests, tt.wantTotalReqs)
+			}
+			if result.BlockedRequests != tt.wantBlockedReqs {
+				t.Errorf("BlockedRequests: got %d, want %d", result.BlockedRequests, tt.wantBlockedReqs)
+			}
+			if result.AllowedRequests != 0 {
+				t.Errorf("AllowedRequests: got %d, want 0", result.AllowedRequests)
+			}
+			if len(result.GetBlockedDomains()) != len(tt.wantBlocked) {
+				t.Errorf("BlockedDomains length: got %d, want %d (domains: %v)",
+					len(result.GetBlockedDomains()), len(tt.wantBlocked), result.GetBlockedDomains())
+			} else {
+				for i, d := range tt.wantBlocked {
+					if result.GetBlockedDomains()[i] != d {
+						t.Errorf("BlockedDomains[%d]: got %q, want %q", i, result.GetBlockedDomains()[i], d)
+					}
+				}
+			}
+		})
+	}
+}
+
+func TestExtractFirewallFromAgentLogNoFile(t *testing.T) {
+	tempDir := testutil.TempDir(t, "no-agent-log-*")
+	// No agent-stdio.log created
+	result := extractFirewallFromAgentLog(tempDir, false)
+	if result != nil {
+		t.Errorf("expected nil when agent-stdio.log is missing, got %+v", result)
+	}
+}
+
+func TestFirewallAnalysisAddMetricsMergesDomains(t *testing.T) {
+	base := &FirewallAnalysis{
+		TotalRequests:    2,
+		AllowedRequests:  1,
+		BlockedRequests:  1,
+		RequestsByDomain: map[string]DomainRequestStats{},
+	}
+	base.SetBlockedDomains([]string{"blocked-a.com"})
+	base.SetAllowedDomains([]string{"allowed-a.com"})
+
+	other := &FirewallAnalysis{
+		TotalRequests:    2,
+		AllowedRequests:  1,
+		BlockedRequests:  1,
+		RequestsByDomain: map[string]DomainRequestStats{},
+	}
+	other.SetBlockedDomains([]string{"blocked-b.com"})
+	other.SetAllowedDomains([]string{"allowed-b.com"})
+
+	base.AddMetrics(other)
+
+	if base.TotalRequests != 4 {
+		t.Errorf("TotalRequests: got %d, want 4", base.TotalRequests)
+	}
+	if base.BlockedRequests != 2 {
+		t.Errorf("BlockedRequests: got %d, want 2", base.BlockedRequests)
+	}
+	if base.AllowedRequests != 2 {
+		t.Errorf("AllowedRequests: got %d, want 2", base.AllowedRequests)
+	}
+
+	blocked := base.GetBlockedDomains()
+	if len(blocked) != 2 || blocked[0] != "blocked-a.com" || blocked[1] != "blocked-b.com" {
+		t.Errorf("BlockedDomains: got %v, want [blocked-a.com, blocked-b.com]", blocked)
+	}
+
+	allowed := base.GetAllowedDomains()
+	if len(allowed) != 2 || allowed[0] != "allowed-a.com" || allowed[1] != "allowed-b.com" {
+		t.Errorf("AllowedDomains: got %v, want [allowed-a.com, allowed-b.com]", allowed)
+	}
+}
+
+func TestFirewallAnalysisAddMetricsDeduplicatesDomains(t *testing.T) {
+	base := &FirewallAnalysis{
+		TotalRequests:    1,
+		BlockedRequests:  1,
+		RequestsByDomain: map[string]DomainRequestStats{},
+	}
+	base.SetBlockedDomains([]string{"chatgpt.com"})
+
+	// Same domain added again (e.g. from two different log sources)
+	other := &FirewallAnalysis{
+		TotalRequests:    1,
+		BlockedRequests:  1,
+		RequestsByDomain: map[string]DomainRequestStats{},
+	}
+	other.SetBlockedDomains([]string{"chatgpt.com"})
+
+	base.AddMetrics(other)
+
+	if len(base.GetBlockedDomains()) != 1 {
+		t.Errorf("BlockedDomains should be deduplicated: got %v", base.GetBlockedDomains())
+	}
+}

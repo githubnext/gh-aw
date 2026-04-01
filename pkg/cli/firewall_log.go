@@ -20,6 +20,12 @@ var firewallLogLog = logger.New("cli:firewall_log")
 // Pre-compiled regexes for firewall log parsing (performance optimization)
 var (
 	firewallLogFieldSplitter = regexp.MustCompile(`(?:[^\s"]+|"[^"]*")+`)
+
+	// agentLogAllowDomainsPattern matches Codex CLI firewall warning lines that suggest
+	// adding a blocked domain to the allow-list.
+	// Example: "add --allow-domains chatgpt.com to your command"
+	// Example: "add --allow-domains chatgpt.com,other.com to your command"
+	agentLogAllowDomainsPattern = regexp.MustCompile(`--allow-domains\s+([\w.\-]+(?:,[\w.\-]+)*)`)
 )
 
 // Firewall Log Parser
@@ -127,7 +133,44 @@ func (f *FirewallAnalysis) AddMetrics(other LogAnalysis) {
 		f.AllowedRequests += otherFirewall.AllowedRequests
 		f.BlockedRequests += otherFirewall.BlockedRequests
 
+		// Merge blocked domain lists
+		if len(otherFirewall.BlockedDomains) > 0 {
+			domainSet := make(map[string]bool, len(f.BlockedDomains)+len(otherFirewall.BlockedDomains))
+			for _, d := range f.BlockedDomains {
+				domainSet[d] = true
+			}
+			for _, d := range otherFirewall.BlockedDomains {
+				domainSet[d] = true
+			}
+			merged := make([]string, 0, len(domainSet))
+			for d := range domainSet {
+				merged = append(merged, d)
+			}
+			sort.Strings(merged)
+			f.SetBlockedDomains(merged)
+		}
+
+		// Merge allowed domain lists
+		if len(otherFirewall.AllowedDomains) > 0 {
+			domainSet := make(map[string]bool, len(f.AllowedDomains)+len(otherFirewall.AllowedDomains))
+			for _, d := range f.AllowedDomains {
+				domainSet[d] = true
+			}
+			for _, d := range otherFirewall.AllowedDomains {
+				domainSet[d] = true
+			}
+			merged := make([]string, 0, len(domainSet))
+			for d := range domainSet {
+				merged = append(merged, d)
+			}
+			sort.Strings(merged)
+			f.SetAllowedDomains(merged)
+		}
+
 		// Merge request stats by domain
+		if f.RequestsByDomain == nil {
+			f.RequestsByDomain = make(map[string]DomainRequestStats)
+		}
 		for domain, stats := range otherFirewall.RequestsByDomain {
 			existing := f.RequestsByDomain[domain]
 			existing.Allowed += stats.Allowed
@@ -398,4 +441,68 @@ func analyzeMultipleFirewallLogs(logsDir string, verbose bool) (*FirewallAnalysi
 			}
 		},
 	)
+}
+
+// extractFirewallFromAgentLog scans agent-stdio.log for firewall-blocked domain warnings.
+// This supplements dedicated proxy firewall logs (e.g., Squid access logs) by extracting
+// network-block information from the agent's own output when proxy logs are unavailable.
+//
+// The Codex CLI emits lines containing "--allow-domains <domain>" when a domain is blocked
+// by the sandbox firewall. For example:
+//
+//	"[WARN] chatgpt.com is not in the allowed domains. To allow access, add --allow-domains chatgpt.com to your command."
+//
+// Returns nil when no agent-stdio.log exists or no blocked domains are found.
+func extractFirewallFromAgentLog(logsPath string, verbose bool) *FirewallAnalysis {
+	agentStdioPath := filepath.Join(logsPath, "agent-stdio.log")
+	content, err := os.ReadFile(agentStdioPath) // #nosec G304 -- path is constructed from trusted logsPath
+	if err != nil {
+		// File not present is normal (agent didn't run, or run used a different log path)
+		firewallLogLog.Printf("No agent-stdio.log found at %s: %v", agentStdioPath, err)
+		return nil
+	}
+
+	blockedDomainsSet := make(map[string]bool)
+	for line := range strings.SplitSeq(string(content), "\n") {
+		if matches := agentLogAllowDomainsPattern.FindStringSubmatch(line); len(matches) > 1 {
+			// Domains can be comma-separated in the suggestion
+			for domain := range strings.SplitSeq(matches[1], ",") {
+				if d := strings.TrimSpace(domain); d != "" {
+					blockedDomainsSet[d] = true
+				}
+			}
+		}
+	}
+
+	if len(blockedDomainsSet) == 0 {
+		firewallLogLog.Printf("No blocked domains found in agent-stdio.log at %s", agentStdioPath)
+		return nil
+	}
+
+	blockedDomains := make([]string, 0, len(blockedDomainsSet))
+	for d := range blockedDomainsSet {
+		blockedDomains = append(blockedDomains, d)
+	}
+	sort.Strings(blockedDomains)
+
+	analysis := &FirewallAnalysis{
+		TotalRequests:    len(blockedDomains),
+		AllowedRequests:  0,
+		BlockedRequests:  len(blockedDomains),
+		RequestsByDomain: make(map[string]DomainRequestStats),
+	}
+	analysis.SetBlockedDomains(blockedDomains)
+	for _, d := range blockedDomains {
+		analysis.RequestsByDomain[d] = DomainRequestStats{Blocked: 1}
+	}
+
+	firewallLogLog.Printf("Extracted %d firewall-blocked domain(s) from agent-stdio.log: %s", len(blockedDomains), strings.Join(blockedDomains, ", "))
+	if verbose {
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf(
+			"Found %d firewall-blocked domain(s) in agent log: %s",
+			len(blockedDomains), strings.Join(blockedDomains, ", "),
+		)))
+	}
+
+	return analysis
 }

@@ -1534,3 +1534,85 @@ func TestExtractPreAgentStepErrors(t *testing.T) {
 		assert.Contains(t, files, "agent/Run agent", "Should include subdirectory step error")
 	})
 }
+
+func TestBuildAuditDataActionMinutes(t *testing.T) {
+	// Verify that action_minutes is populated from run.Duration even when
+	// token/turn metrics are zero (e.g. Codex runs that exit early).
+	processedRun := ProcessedRun{
+		Run: WorkflowRun{
+			DatabaseID:   42,
+			WorkflowName: "Codex Test",
+			Status:       "completed",
+			Conclusion:   "failure",
+			Duration:     6 * time.Minute,
+			TokenUsage:   0,
+			Turns:        0,
+			ErrorCount:   1,
+			WarningCount: 0,
+		},
+	}
+
+	metrics := workflow.LogMetrics{}
+	auditData := buildAuditData(processedRun, metrics, nil)
+
+	assert.InDelta(t, 6.0, auditData.Metrics.ActionMinutes, 0.01,
+		"ActionMinutes should be populated from run.Duration (6 minutes)")
+	assert.Equal(t, 0, auditData.Metrics.TokenUsage,
+		"TokenUsage should be 0 when no log metrics available")
+	assert.Equal(t, 0, auditData.Metrics.Turns,
+		"Turns should be 0 when no log metrics available")
+}
+
+func TestGenerateFindingsFirewallWithBlockedDomains(t *testing.T) {
+	// A single blocked domain should produce a finding naming the domain.
+	pr := createTestProcessedRun()
+	fw := &FirewallAnalysis{
+		TotalRequests:    1,
+		BlockedRequests:  1,
+		AllowedRequests:  0,
+		RequestsByDomain: map[string]DomainRequestStats{},
+	}
+	fw.SetBlockedDomains([]string{"chatgpt.com"})
+	pr.FirewallAnalysis = fw
+
+	findings := generateFindings(pr, MetricsData{}, nil, nil)
+
+	var networkFinding *Finding
+	for i := range findings {
+		if findings[i].Category == "network" {
+			networkFinding = &findings[i]
+			break
+		}
+	}
+	require.NotNil(t, networkFinding, "Should generate a network finding when firewall blocks a domain")
+	assert.Contains(t, networkFinding.Description, "chatgpt.com",
+		"Finding description should name the blocked domain")
+}
+
+func TestGenerateRecommendationsFirewallSingleBlock(t *testing.T) {
+	// Even a single blocked request (threshold changed from >10 to >0)
+	// should generate a recommendation with the domain name in the example.
+	pr := createTestProcessedRun()
+	fw := &FirewallAnalysis{
+		TotalRequests:    1,
+		BlockedRequests:  1,
+		AllowedRequests:  0,
+		RequestsByDomain: map[string]DomainRequestStats{},
+	}
+	fw.SetBlockedDomains([]string{"chatgpt.com"})
+	pr.FirewallAnalysis = fw
+
+	findings := []Finding{{Category: "network", Severity: "medium", Title: "Blocked Network Requests"}}
+	recs := generateRecommendations(pr, MetricsData{}, findings)
+
+	var networkRec *Recommendation
+	for i := range recs {
+		if strings.Contains(recs[i].Action, "network") || strings.Contains(recs[i].Action, "blocked") {
+			networkRec = &recs[i]
+			break
+		}
+	}
+	require.NotNil(t, networkRec, "Should generate a network recommendation for any firewall block")
+	assert.Contains(t, networkRec.Example, "chatgpt.com",
+		"Recommendation example should include the blocked domain name")
+}

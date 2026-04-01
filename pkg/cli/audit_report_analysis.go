@@ -143,11 +143,23 @@ func generateFindings(processedRun ProcessedRun, metrics MetricsData, errors []E
 
 	// Firewall findings
 	if processedRun.FirewallAnalysis != nil && processedRun.FirewallAnalysis.BlockedRequests > 0 {
+		blockedDomains := processedRun.FirewallAnalysis.GetBlockedDomains()
+		var desc string
+		switch {
+		case len(blockedDomains) == 1:
+			desc = "Agent attempted to access blocked domain: " + blockedDomains[0]
+		case len(blockedDomains) > 1 && len(blockedDomains) <= 3:
+			desc = "Agent attempted to access blocked domains: " + strings.Join(blockedDomains, ", ")
+		case len(blockedDomains) > 3:
+			desc = fmt.Sprintf("Agent attempted to access %d blocked domains, including: %s", len(blockedDomains), strings.Join(blockedDomains[:3], ", "))
+		default:
+			desc = fmt.Sprintf("%d network request(s) were blocked by firewall", processedRun.FirewallAnalysis.BlockedRequests)
+		}
 		findings = append(findings, Finding{
 			Category:    "network",
 			Severity:    "medium",
 			Title:       "Blocked Network Requests",
-			Description: fmt.Sprintf("%d network requests were blocked by firewall", processedRun.FirewallAnalysis.BlockedRequests),
+			Description: desc,
 			Impact:      "Blocked requests may indicate missing network permissions or unexpected behavior",
 		})
 	}
@@ -238,13 +250,21 @@ func generateRecommendations(processedRun ProcessedRun, metrics MetricsData, fin
 		})
 	}
 
-	// Recommendations for firewall blocks
-	if processedRun.FirewallAnalysis != nil && processedRun.FirewallAnalysis.BlockedRequests > 10 {
+	// Recommendations for firewall blocks – trigger on any block so even a single
+	// domain denial (e.g. Codex CLI reporting one blocked domain) surfaces an action.
+	if processedRun.FirewallAnalysis != nil && processedRun.FirewallAnalysis.BlockedRequests > 0 {
+		blockedDomains := processedRun.FirewallAnalysis.GetBlockedDomains()
+		var example string
+		if len(blockedDomains) > 0 {
+			example = fmt.Sprintf("Add the blocked domain(s) to your workflow frontmatter: `network:\\n  allowed:\\n    - %s`", strings.Join(blockedDomains, "\n    - "))
+		} else {
+			example = "Add allowed domains to network configuration or review firewall rules"
+		}
 		recommendations = append(recommendations, Recommendation{
 			Priority: "medium",
-			Action:   "Review network access configuration",
-			Reason:   "Many blocked requests suggest missing network permissions",
-			Example:  "Add allowed domains to network configuration or review firewall rules",
+			Action:   "Add blocked domains to the workflow network allow-list",
+			Reason:   "Firewall-blocked domains prevent the agent from completing its tasks",
+			Example:  example,
 		})
 	}
 

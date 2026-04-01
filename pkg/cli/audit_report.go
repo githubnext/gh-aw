@@ -274,6 +274,12 @@ func buildAuditData(processedRun ProcessedRun, metrics LogMetrics, mcpToolUsage 
 		WarningCount:  run.WarningCount,
 	}
 
+	// Populate ActionMinutes from run duration so it is always visible even
+	// when token/turn metrics are zero (e.g. Codex runs that exit early).
+	if run.Duration > 0 {
+		metricsData.ActionMinutes = run.Duration.Minutes()
+	}
+
 	// Build job data
 	jobs := sliceutil.Map(processedRun.JobDetails, func(jobDetail JobInfoWithDuration) JobData {
 		job := JobData{
