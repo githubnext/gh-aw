@@ -1,5 +1,4 @@
 // @ts-check
-/// <reference types="@actions/github-script" />
 
 /**
  * Run Status Message Module
@@ -9,6 +8,19 @@
  */
 
 const { getMessages, renderTemplate, toSnakeCase } = require("./messages_core.cjs");
+
+/**
+ * Renders a message using a custom template from config or a default template.
+ * @param {string} messageKey - Key in the messages config (e.g., "runStarted")
+ * @param {string} defaultTemplate - Default template string with {placeholder} syntax
+ * @param {Object} ctx - Context object for template substitution
+ * @returns {string} Rendered message
+ */
+function renderConfiguredMessage(messageKey, defaultTemplate, ctx) {
+  const messages = getMessages();
+  const template = messages?.[messageKey] ?? defaultTemplate;
+  return renderTemplate(template, toSnakeCase(ctx));
+}
 
 /**
  * @typedef {Object} RunStartedContext
@@ -23,16 +35,7 @@ const { getMessages, renderTemplate, toSnakeCase } = require("./messages_core.cj
  * @returns {string} Run-started message
  */
 function getRunStartedMessage(ctx) {
-  const messages = getMessages();
-
-  // Create context with both camelCase and snake_case keys
-  const templateContext = toSnakeCase(ctx);
-
-  // Default run-started template
-  const defaultMessage = "🚀 [{workflow_name}]({run_url}) has started processing this {event_type}";
-
-  // Use custom message if configured
-  return messages?.runStarted ? renderTemplate(messages.runStarted, templateContext) : renderTemplate(defaultMessage, templateContext);
+  return renderConfiguredMessage("runStarted", "🚀 [{workflow_name}]({run_url}) has started processing this {event_type}", ctx);
 }
 
 /**
@@ -47,16 +50,7 @@ function getRunStartedMessage(ctx) {
  * @returns {string} Run-success message
  */
 function getRunSuccessMessage(ctx) {
-  const messages = getMessages();
-
-  // Create context with both camelCase and snake_case keys
-  const templateContext = toSnakeCase(ctx);
-
-  // Default run-success template
-  const defaultMessage = "✅ [{workflow_name}]({run_url}) completed successfully!";
-
-  // Use custom message if configured
-  return messages?.runSuccess ? renderTemplate(messages.runSuccess, templateContext) : renderTemplate(defaultMessage, templateContext);
+  return renderConfiguredMessage("runSuccess", "✅ [{workflow_name}]({run_url}) completed successfully!", ctx);
 }
 
 /**
@@ -72,16 +66,7 @@ function getRunSuccessMessage(ctx) {
  * @returns {string} Run-failure message
  */
 function getRunFailureMessage(ctx) {
-  const messages = getMessages();
-
-  // Create context with both camelCase and snake_case keys
-  const templateContext = toSnakeCase(ctx);
-
-  // Default run-failure template
-  const defaultMessage = "❌ [{workflow_name}]({run_url}) {status}. Please review the logs for details.";
-
-  // Use custom message if configured
-  return messages?.runFailure ? renderTemplate(messages.runFailure, templateContext) : renderTemplate(defaultMessage, templateContext);
+  return renderConfiguredMessage("runFailure", "❌ [{workflow_name}]({run_url}) {status}. Please review the logs for details.", ctx);
 }
 
 /**
@@ -96,16 +81,7 @@ function getRunFailureMessage(ctx) {
  * @returns {string} Detection-failure message
  */
 function getDetectionFailureMessage(ctx) {
-  const messages = getMessages();
-
-  // Create context with both camelCase and snake_case keys
-  const templateContext = toSnakeCase(ctx);
-
-  // Default detection-failure template
-  const defaultMessage = "⚠️ Security scanning failed for [{workflow_name}]({run_url}). Review the logs for details.";
-
-  // Use custom message if configured
-  return messages?.detectionFailure ? renderTemplate(messages.detectionFailure, templateContext) : renderTemplate(defaultMessage, templateContext);
+  return renderConfiguredMessage("detectionFailure", "⚠️ Security scanning failed for [{workflow_name}]({run_url}). Review the logs for details.", ctx);
 }
 
 /**
@@ -120,10 +96,7 @@ function getDetectionFailureMessage(ctx) {
  * @returns {string} Pull-request-created message
  */
 function getPullRequestCreatedMessage(ctx) {
-  const messages = getMessages();
-  const templateContext = toSnakeCase(ctx);
-  const defaultMessage = "Pull request created: [#{item_number}]({item_url})";
-  return messages?.pullRequestCreated ? renderTemplate(messages.pullRequestCreated, templateContext) : renderTemplate(defaultMessage, templateContext);
+  return renderConfiguredMessage("pullRequestCreated", "Pull request created: [#{item_number}]({item_url})", ctx);
 }
 
 /**
@@ -138,10 +111,7 @@ function getPullRequestCreatedMessage(ctx) {
  * @returns {string} Issue-created message
  */
 function getIssueCreatedMessage(ctx) {
-  const messages = getMessages();
-  const templateContext = toSnakeCase(ctx);
-  const defaultMessage = "Issue created: [#{item_number}]({item_url})";
-  return messages?.issueCreated ? renderTemplate(messages.issueCreated, templateContext) : renderTemplate(defaultMessage, templateContext);
+  return renderConfiguredMessage("issueCreated", "Issue created: [#{item_number}]({item_url})", ctx);
 }
 
 /**
@@ -157,10 +127,7 @@ function getIssueCreatedMessage(ctx) {
  * @returns {string} Commit-pushed message
  */
 function getCommitPushedMessage(ctx) {
-  const messages = getMessages();
-  const templateContext = toSnakeCase(ctx);
-  const defaultMessage = "Commit pushed: [`{short_sha}`]({commit_url})";
-  return messages?.commitPushed ? renderTemplate(messages.commitPushed, templateContext) : renderTemplate(defaultMessage, templateContext);
+  return renderConfiguredMessage("commitPushed", "Commit pushed: [`{short_sha}`]({commit_url})", ctx);
 }
 
 module.exports = {
