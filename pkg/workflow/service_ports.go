@@ -31,6 +31,25 @@ const (
 	maxPort = 65535
 )
 
+// servicesYAMLWrapper is the top-level YAML wrapper for a services: block.
+// It provides typed access to the service container map while the YAML is parsed
+// via goccy/go-yaml with field-level annotations.
+type servicesYAMLWrapper struct {
+	Services map[string]*serviceContainerConfig `yaml:"services"`
+}
+
+// serviceContainerConfig represents a single GitHub Actions service container.
+// Only the Ports field is consumed for port-expression generation; all other
+// container fields (image, env, options, volumes, …) are intentionally omitted.
+//
+// Ports is declared as any because GitHub Actions allows the ports list to contain
+// both string values ("5432:5432") and bare integers (5432), and the YAML may also
+// omit the field entirely (nil) or supply a non-list scalar, which triggers a
+// compile-time warning.
+type serviceContainerConfig struct {
+	Ports any `yaml:"ports"`
+}
+
 // ExtractServicePortExpressions parses the services: YAML string from WorkflowData.Services
 // and returns a comma-separated string of ${{ job.services['<id>'].ports['<port>'] }} expressions
 // for all TCP port mappings found.
@@ -54,15 +73,15 @@ func ExtractServicePortExpressions(servicesYAML string) (string, []string) {
 
 	servicePortsLog.Print("Extracting service port expressions from services YAML")
 
-	// Parse the services YAML
-	var wrapper map[string]any
+	// Parse the services YAML into typed structs so field access is explicit
+	// and does not rely on map[string]any type assertions.
+	var wrapper servicesYAMLWrapper
 	if err := yaml.Unmarshal([]byte(servicesYAML), &wrapper); err != nil {
 		servicePortsLog.Printf("Failed to parse services YAML: %v", err)
 		return "", nil
 	}
 
-	services, ok := wrapper["services"].(map[string]any)
-	if !ok {
+	if wrapper.Services == nil {
 		servicePortsLog.Print("No services map found in YAML")
 		return "", nil
 	}
@@ -71,28 +90,26 @@ func ExtractServicePortExpressions(servicesYAML string) (string, []string) {
 	var warnings []string
 
 	// Sort service IDs for deterministic output
-	serviceIDs := make([]string, 0, len(services))
-	for id := range services {
+	serviceIDs := make([]string, 0, len(wrapper.Services))
+	for id := range wrapper.Services {
 		serviceIDs = append(serviceIDs, id)
 	}
 	sort.Strings(serviceIDs)
 
 	for _, serviceID := range serviceIDs {
-		serviceConfig := services[serviceID]
-		svcMap, ok := serviceConfig.(map[string]any)
-		if !ok {
-			servicePortsLog.Printf("Service %s is not a map, skipping", serviceID)
+		svc := wrapper.Services[serviceID]
+		if svc == nil {
+			servicePortsLog.Printf("Service %s is nil, skipping", serviceID)
 			continue
 		}
 
-		ports, hasPorts := svcMap["ports"]
-		if !hasPorts {
+		if svc.Ports == nil {
 			warnings = append(warnings, fmt.Sprintf("service %q has no ports mapping; it will not be reachable from the AWF sandbox", serviceID))
 			servicePortsLog.Printf("Service %s has no ports, skipping", serviceID)
 			continue
 		}
 
-		portsList, ok := ports.([]any)
+		portsList, ok := svc.Ports.([]any)
 		if !ok {
 			servicePortsLog.Printf("Service %s ports is not a list, skipping", serviceID)
 			warnings = append(warnings, fmt.Sprintf("service %q has an invalid ports mapping (expected a list); it will not be reachable from the AWF sandbox", serviceID))
