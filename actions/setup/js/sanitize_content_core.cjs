@@ -232,10 +232,15 @@ function sanitizeUrlDomains(s, allowed) {
   // 5. Stop before another https:// URL in query params (using negative lookahead)
   const httpsUrlRegex = /https:\/\/([\w.-]+(?::\d+)?)(\/(?:(?!https:\/\/)[^\s,])*)?/gi;
 
-  return s.replace(httpsUrlRegex, (match, hostnameWithPort, pathPart) => {
+  /**
+   * Shared domain-allowlist check and redaction logic.
+   * @param {string} match - The full matched URL string
+   * @param {string} hostnameWithPort - The hostname (and optional port) portion
+   * @returns {string} The original match if allowed, or a redacted replacement
+   */
+  function applyDomainFilter(match, hostnameWithPort) {
     // Extract just the hostname (remove port if present)
     const hostname = hostnameWithPort.split(":")[0].toLowerCase();
-    pathPart = pathPart || "";
 
     // Check if domain is in the allowed list or is a subdomain of an allowed domain
     const isAllowed = allowed.some(allowedDomain => {
@@ -272,7 +277,24 @@ function sanitizeUrlDomains(s, allowed) {
       // Return sanitized domain format
       return sanitized ? `(${sanitized}/redacted)` : "(redacted)";
     }
-  });
+  }
+
+  // First pass: handle explicit https:// URLs
+  s = s.replace(httpsUrlRegex, (match, hostnameWithPort) => applyDomainFilter(match, hostnameWithPort));
+
+  // Second pass: handle protocol-relative URLs (//hostname/path).
+  // Browsers on HTTPS pages resolve these to https://, so they must be subject
+  // to the same domain allowlist check as explicit https:// URLs.
+  // The negative lookbehind (?<![:/]) avoids matching the // inside https://.
+  // The path stop-condition (?!\/\/) stops before the next protocol-relative URL
+  // (analogous to how the httpsUrlRegex stops before the next https:// URL).
+  // The path capture group is present for structural symmetry with httpsUrlRegex
+  // but is not needed by applyDomainFilter — the full match is used instead.
+  const protoRelativeUrlRegex = /(?<![:/])\/\/([\w.-]+(?::\d+)?)(\/(?:(?!\/\/)[^\s,])*)?/gi;
+
+  s = s.replace(protoRelativeUrlRegex, (match, hostnameWithPort) => applyDomainFilter(match, hostnameWithPort));
+
+  return s;
 }
 
 /**

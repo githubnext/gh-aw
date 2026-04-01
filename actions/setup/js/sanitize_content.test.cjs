@@ -779,6 +779,62 @@ describe("sanitize_content.cjs", () => {
     });
   });
 
+  describe("protocol-relative URL sanitization", () => {
+    it("should redact disallowed protocol-relative URLs", () => {
+      const result = sanitizeContent("Visit //evil.com/steal");
+      expect(result).toContain("(evil.com/redacted)");
+      expect(result).not.toContain("//evil.com");
+    });
+
+    it("should redact protocol-relative URLs in markdown links", () => {
+      const result = sanitizeContent("[click here](//evil.com/steal)");
+      expect(result).toContain("(evil.com/redacted)");
+      expect(result).not.toContain("//evil.com");
+    });
+
+    it("should redact protocol-relative URLs in markdown image embeds", () => {
+      const result = sanitizeContent("![Track me](//evil.com/pixel.gif)");
+      expect(result).toContain("(evil.com/redacted)");
+      expect(result).not.toContain("//evil.com");
+    });
+
+    it("should allow protocol-relative URLs on allowed domains", () => {
+      const result = sanitizeContent("Visit //github.com/repo");
+      expect(result).toContain("//github.com/repo");
+    });
+
+    it("should allow protocol-relative URLs on allowed subdomains", () => {
+      const result = sanitizeContent("Visit //subdomain.github.com/page");
+      expect(result).toContain("//subdomain.github.com/page");
+    });
+
+    it("should redact protocol-relative URLs with custom allowed domains", () => {
+      process.env.GH_AW_ALLOWED_DOMAINS = "trusted.net";
+      const result = sanitizeContent("Visit //evil.com/steal");
+      expect(result).toContain("(evil.com/redacted)");
+      expect(result).not.toContain("//evil.com");
+    });
+
+    it("should not affect https:// URLs when handling protocol-relative URLs", () => {
+      const result = sanitizeContent("https://github.com/repo and //evil.com/path");
+      expect(result).toContain("https://github.com/repo");
+      expect(result).toContain("(evil.com/redacted)");
+      expect(result).not.toContain("//evil.com");
+    });
+
+    it("should redact protocol-relative URL with path and query string", () => {
+      const result = sanitizeContent("//evil.com/path?query=value");
+      expect(result).toContain("(evil.com/redacted)");
+      expect(result).not.toContain("//evil.com");
+    });
+
+    it("should log redacted protocol-relative URL domains", () => {
+      sanitizeContent("Visit //evil.com/steal");
+      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Redacted URL:"));
+      expect(mockCore.debug).toHaveBeenCalledWith(expect.stringContaining("Redacted URL (full):"));
+    });
+  });
+
   describe("domain sanitization", () => {
     let sanitizeDomainName;
 
