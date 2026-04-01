@@ -62,7 +62,7 @@ func TestErrorCollectorAdd_Aggregate(t *testing.T) {
 	// Add errors should not return them
 	result := collector.Add(err1)
 	require.NoError(t, result, "Should not return error in aggregate mode")
-	assert.Greater(t, collector.Count(), 0, "Should have errors")
+	assert.Positive(t, collector.Count(), "Should have errors")
 	assert.Equal(t, 1, collector.Count(), "Should have 1 error")
 
 	result = collector.Add(err2)
