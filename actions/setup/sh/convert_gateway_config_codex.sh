@@ -85,6 +85,11 @@ jq -r --arg urlPrefix "$URL_PREFIX" '
   "http_headers = { Authorization = \"\(.value.headers.Authorization)\" }\n"
 ' "$MCP_GATEWAY_OUTPUT" >> /tmp/gh-aw/mcp-config/config.toml
 
+# Restrict permissions so only the runner process owner can read this file.
+# config.toml contains the bearer token for the MCP gateway; an attacker
+# who reads it could issue raw JSON-RPC calls directly to the gateway.
+chmod 600 /tmp/gh-aw/mcp-config/config.toml
+
 echo "Codex configuration written to /tmp/gh-aw/mcp-config/config.toml"
 echo ""
 echo "Converted configuration:"

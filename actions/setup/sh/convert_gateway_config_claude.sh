@@ -63,7 +63,8 @@ echo "Target domain: $MCP_GATEWAY_DOMAIN:$MCP_GATEWAY_PORT"
 #
 # The main differences:
 # 1. Claude uses "type": "http" for HTTP-based MCP servers
-# 2. The "tools" field is removed as it's Copilot-specific
+# 2. The "tools" field is preserved from the gateway config to enforce the tool allowlist
+#    at the gateway layer (not removed, unlike older versions that treated it as Copilot-specific)
 # 3. URLs must use the correct domain (host.docker.internal) for container access
 
 # Build the correct URL prefix using the configured domain and port
@@ -73,12 +74,17 @@ jq --arg urlPrefix "$URL_PREFIX" '
   .mcpServers |= with_entries(
     .value |= (
       (.type = "http") |
-      (del(.tools)) |
       # Fix the URL to use the correct domain
       .url |= (. | sub("^http://[^/]+/mcp/"; $urlPrefix + "/mcp/"))
     )
   )
 ' "$MCP_GATEWAY_OUTPUT" > /tmp/gh-aw/mcp-config/mcp-servers.json
+
+# Restrict permissions so only the runner process owner can read this file.
+# mcp-servers.json contains the bearer token for the MCP gateway; an attacker
+# who reads it could bypass the --allowed-tools constraint by issuing raw
+# JSON-RPC calls directly to the gateway.
+chmod 600 /tmp/gh-aw/mcp-config/mcp-servers.json
 
 echo "Claude configuration written to /tmp/gh-aw/mcp-config/mcp-servers.json"
 echo ""

@@ -82,6 +82,12 @@ jq --arg urlPrefix "$URL_PREFIX" '
   )
 ' "$MCP_GATEWAY_OUTPUT" > /home/runner/.copilot/mcp-config.json
 
+# Restrict permissions so only the runner process owner can read this file.
+# mcp-config.json contains the bearer token for the MCP gateway; an attacker
+# who reads it could bypass the --allowed-tools constraint by issuing raw
+# JSON-RPC calls directly to the gateway.
+chmod 600 /home/runner/.copilot/mcp-config.json
+
 echo "Copilot configuration written to /home/runner/.copilot/mcp-config.json"
 echo ""
 echo "Converted configuration:"

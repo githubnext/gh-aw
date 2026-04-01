@@ -74,7 +74,8 @@ echo "Target domain: $MCP_GATEWAY_DOMAIN:$MCP_GATEWAY_PORT"
 #
 # The main differences:
 # 1. Remove "type" field (Gemini uses transport auto-detection from url/httpUrl)
-# 2. Remove "tools" field (Copilot-specific)
+# 2. The "tools" field is preserved from the gateway config to enforce the tool allowlist
+#    at the gateway layer (not removed, unlike older versions that treated it as Copilot-specific)
 # 3. URLs must use the correct domain (host.docker.internal) for container access
 
 # Build the correct URL prefix using the configured domain and port
@@ -90,7 +91,6 @@ jq --arg urlPrefix "$URL_PREFIX" '
   .mcpServers |= with_entries(
     .value |= (
       (del(.type)) |
-      (del(.tools)) |
       # Fix the URL to use the correct domain
       .url |= (. | sub("^http://[^/]+/mcp/"; $urlPrefix + "/mcp/"))
     )
@@ -98,6 +98,12 @@ jq --arg urlPrefix "$URL_PREFIX" '
   # Allow Gemini CLI to read/write files from /tmp/ (e.g. MCP payload files, cache-memory, agent outputs)
   .context.includeDirectories = ["/tmp/"]
 ' "$MCP_GATEWAY_OUTPUT" > "$GEMINI_SETTINGS_FILE"
+
+# Restrict permissions so only the runner process owner can read this file.
+# settings.json contains the bearer token for the MCP gateway; an attacker
+# who reads it could bypass the --allowed-tools constraint by issuing raw
+# JSON-RPC calls directly to the gateway.
+chmod 600 "$GEMINI_SETTINGS_FILE"
 
 echo "Gemini configuration written to $GEMINI_SETTINGS_FILE"
 echo ""

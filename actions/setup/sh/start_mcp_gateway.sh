@@ -30,6 +30,9 @@ fi
 # Create logs directory for gateway
 mkdir -p /tmp/gh-aw/mcp-logs
 mkdir -p /tmp/gh-aw/mcp-config
+# Restrict directory permissions so only the runner process owner can read config files
+# (which contain bearer tokens and API keys)
+chmod 700 /tmp/gh-aw/mcp-config
 
 # Validate container syntax first (before accessing files)
 # Container should be a valid docker command starting with "docker run"
@@ -309,6 +312,9 @@ if [ ! -s /tmp/gh-aw/mcp-config/gateway-output.json ]; then
   kill $GATEWAY_PID 2>/dev/null || true
   exit 1
 fi
+
+# Restrict gateway output file permissions - it contains the bearer token / API key
+chmod 600 /tmp/gh-aw/mcp-config/gateway-output.json
 
 # Check if output contains an error payload instead of valid configuration
 # Per MCP Gateway Specification v1.0.0 section 9.1, errors are written to stdout as error payloads
