@@ -30,8 +30,29 @@ async function main() {
   core.info(`  Source: ${workflowMdPath}`);
   core.info(`  Lock file: ${lockFilePath}`);
 
-  const { owner, repo } = context.repo;
-  const ref = context.sha;
+  // Determine workflow source repository from GITHUB_WORKFLOW_REF for cross-repo support.
+  // GITHUB_WORKFLOW_REF format: owner/repo/.github/workflows/file.yml@ref
+  // This env var always reflects the repo where the workflow file is defined,
+  // not the repo where the triggering event occurred (context.repo).
+  // When running cross-repo via org rulesets, context.repo points to the target
+  // repository, not the repository that defines the workflow files.
+  const workflowEnvRef = process.env.GITHUB_WORKFLOW_REF || "";
+  const repoMatch = workflowEnvRef.match(/^([^/]+)\/([^/]+)\//);
+  const refMatch = workflowEnvRef.match(/@(.+)$/);
+
+  // Use the workflow source repo if parseable, otherwise fall back to context.repo
+  const owner = repoMatch ? repoMatch[1] : context.repo.owner;
+  const repo = repoMatch ? repoMatch[2] : context.repo.repo;
+
+  // Use the workflow ref if parseable, otherwise fall back to context.sha
+  const ref = refMatch ? refMatch[1] : context.sha;
+
+  // Log cross-repo detection for debugging
+  const currentRepo = process.env.GITHUB_REPOSITORY || `${context.repo.owner}/${context.repo.repo}`;
+  const workflowRepo = `${owner}/${repo}`;
+  if (workflowRepo !== currentRepo) {
+    core.info(`Cross-repo invocation detected: workflow source is "${workflowRepo}", current repo is "${currentRepo}"`);
+  }
 
   // Helper function to compute and compare frontmatter hashes
   // Returns: { match: boolean, storedHash: string, recomputedHash: string } or null on error
