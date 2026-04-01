@@ -2570,6 +2570,170 @@ jobs:
           echo "- Success count: ${{ steps.add-workflows.outputs.success_count }}"
           echo "- Failure count: ${{ steps.add-workflows.outputs.failure_count }}"
 
+  integration-update:
+    name: Integration Update - Preserve Local Imports
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    concurrency:
+      group: ci-${{ github.ref }}-integration-update
+      cancel-in-progress: true
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Set up Go
+        id: setup-go
+        uses: actions/setup-go@4dc6199c7b1a012772edbd06daecab0f50c9053c # v6
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Report Go cache status
+        run: |
+          if [ "${{ steps.setup-go.outputs.cache-hit }}" == "true" ]; then
+            echo "✅ Go cache hit" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "⚠️ Go cache miss" >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: Download dependencies
+        run: go mod download
+
+      - name: Verify dependencies
+        run: go mod verify
+
+      - name: Build gh-aw binary
+        run: make build
+
+      - name: Set up isolated test workspace
+        run: |
+          mkdir -p /tmp/test-update-workspace/.github/workflows
+          cd /tmp/test-update-workspace
+          git init -q
+          git config user.email "test@example.com"
+          git config user.name "Test"
+          echo "✅ Test workspace initialised at /tmp/test-update-workspace"
+
+      - name: Add a workflow from githubnext/agentics
+        id: add-workflow
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cd /tmp/test-update-workspace
+
+          echo "## Integration Update Test: Preserve Local Imports" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          # Add daily-team-status which uses shared imports in githubnext/agentics
+          if /home/runner/work/gh-aw/gh-aw/gh-aw add githubnext/agentics/workflows/daily-team-status.md --force 2>&1; then
+            echo "✅ Added workflow successfully" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ Failed to add workflow" >> $GITHUB_STEP_SUMMARY
+            exit 1
+          fi
+
+          WORKFLOW=".github/workflows/daily-team-status.md"
+          if [ ! -f "$WORKFLOW" ]; then
+            echo "❌ Workflow file not found after add"
+            exit 1
+          fi
+
+          # Check if the workflow has relative imports
+          if grep -q "^imports:" "$WORKFLOW"; then
+            echo "✅ Workflow has an imports field" >> $GITHUB_STEP_SUMMARY
+            # Collect relative import paths (those without "@" — not yet cross-repo refs).
+            # Python is used for robust YAML-aware parsing instead of fragile AWK patterns.
+            RELATIVE_IMPORTS=$(python3 - "$WORKFLOW" <<'PYEOF'
+import sys, re
+
+content = open(sys.argv[1]).read()
+# Find the imports: block (list items under the key, indented with 2+ spaces)
+m = re.search(r'^imports:\n((?:[ \t]+-[ \t]+.+\n)+)', content, re.MULTILINE)
+if m:
+    for line in m.group(1).splitlines():
+        val = line.strip().lstrip('- ').strip()
+        if val and '@' not in val:
+            print(val)
+PYEOF
+            )
+            if [ -n "$RELATIVE_IMPORTS" ]; then
+              echo "has_relative_imports=true" >> $GITHUB_OUTPUT
+              echo "$RELATIVE_IMPORTS" > /tmp/relative-imports.txt
+              echo "Relative import paths: $RELATIVE_IMPORTS" >> $GITHUB_STEP_SUMMARY
+            else
+              echo "has_relative_imports=false" >> $GITHUB_OUTPUT
+              echo "⚠️ All imports already use cross-repo refs; skipping local-file preservation check" >> $GITHUB_STEP_SUMMARY
+            fi
+          else
+            echo "has_relative_imports=false" >> $GITHUB_OUTPUT
+            echo "⚠️ No imports field found in added workflow; skipping preservation check" >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: Create local copies of the shared import files
+        if: steps.add-workflow.outputs.has_relative_imports == 'true'
+        run: |
+          cd /tmp/test-update-workspace
+          echo "Creating local shared files..." >> $GITHUB_STEP_SUMMARY
+          while IFS= read -r import_path; do
+            local_file=".github/workflows/$import_path"
+            mkdir -p "$(dirname "$local_file")"
+            echo "# Local shared file (simulating user-copied content)" > "$local_file"
+            echo "✅ Created: $local_file" >> $GITHUB_STEP_SUMMARY
+          done < /tmp/relative-imports.txt
+
+      - name: Run gh aw update --force
+        if: steps.add-workflow.outputs.has_relative_imports == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cd /tmp/test-update-workspace
+          echo "Running gh aw update --force --no-compile daily-team-status ..."
+          /home/runner/work/gh-aw/gh-aw/gh-aw update daily-team-status --force --no-compile 2>&1
+          echo "✅ Update completed" >> $GITHUB_STEP_SUMMARY
+
+      - name: Verify local import paths are preserved after update
+        if: steps.add-workflow.outputs.has_relative_imports == 'true'
+        run: |
+          cd /tmp/test-update-workspace
+          WORKFLOW=".github/workflows/daily-team-status.md"
+
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Import paths after \`gh aw update\`" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          grep -A10 "^imports:" "$WORKFLOW" >> $GITHUB_STEP_SUMMARY || true
+          echo '```' >> $GITHUB_STEP_SUMMARY
+
+          FAILED=false
+          while IFS= read -r import_path; do
+            local_file=".github/workflows/$import_path"
+
+            # Confirm the local file still exists (sanity check)
+            if [ ! -f "$local_file" ]; then
+              echo "⚠️ Local file not found (was it deleted?): $local_file"
+              continue
+            fi
+
+            # The import entry in the workflow file must still be the relative path,
+            # NOT a cross-repo reference (which would contain "@" and "owner/repo/").
+            if grep -qF "- $import_path" "$WORKFLOW"; then
+              echo "✅ Relative import preserved: $import_path" >> $GITHUB_STEP_SUMMARY
+            else
+              echo "❌ FAIL: '$import_path' was rewritten even though the local file exists" >> $GITHUB_STEP_SUMMARY
+              echo "❌ Current imports section:"
+              grep -A10 "^imports:" "$WORKFLOW" || true
+              FAILED=true
+            fi
+          done < /tmp/relative-imports.txt
+
+          if [ "$FAILED" = "true" ]; then
+            echo "❌ **FAILURE**: gh aw update rewrote local relative imports to cross-repo paths" >> $GITHUB_STEP_SUMMARY
+            exit 1
+          fi
+
+          echo "✅ **SUCCESS**: All local relative import paths were preserved by gh aw update" >> $GITHUB_STEP_SUMMARY
+
   integration-unauthenticated-add:
     name: Integration Unauthenticated Add (Public Repo)
     runs-on: ubuntu-latest

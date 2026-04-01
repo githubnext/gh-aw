@@ -58,8 +58,10 @@ func resolveImportPath(importPath string, workflowPath string) string {
 // processImportsWithWorkflowSpec processes imports field in frontmatter and replaces local file references
 // with workflowspec format (owner/repo/path@sha) for all imports found.
 // Handles both array form and object form (with 'aw' subfield) of the imports field.
-func processImportsWithWorkflowSpec(content string, workflow *WorkflowSpec, commitSHA string, verbose bool) (string, error) {
-	importsLog.Printf("Processing imports with workflowspec: repo=%s, sha=%s", workflow.RepoSlug, commitSHA)
+// If localWorkflowDir is non-empty, any import path whose file exists under that directory is
+// left as a local relative path rather than being rewritten to a cross-repo reference.
+func processImportsWithWorkflowSpec(content string, workflow *WorkflowSpec, commitSHA string, localWorkflowDir string, verbose bool) (string, error) {
+	importsLog.Printf("Processing imports with workflowspec: repo=%s, sha=%s, localWorkflowDir=%s", workflow.RepoSlug, commitSHA, localWorkflowDir)
 	if verbose {
 		fmt.Fprintln(os.Stderr, console.FormatVerboseMessage("Processing imports field to replace with workflowspec"))
 	}
@@ -79,6 +81,10 @@ func processImportsWithWorkflowSpec(content string, workflow *WorkflowSpec, comm
 	}
 
 	// processImportPaths converts a list of raw import paths to workflowspec format.
+	// Paths that already use the workflowspec format (contain "@") are left unchanged.
+	// When localWorkflowDir is set, relative paths whose files exist locally are also
+	// preserved as-is so that consumers who have copied shared files into their own repo
+	// are not forced onto cross-repo references after every `gh aw update`.
 	processImportPaths := func(imports []string) []string {
 		processed := make([]string, 0, len(imports))
 		for _, importPath := range imports {
@@ -86,6 +92,16 @@ func processImportsWithWorkflowSpec(content string, workflow *WorkflowSpec, comm
 				importsLog.Printf("Import already in workflowspec format: %s", importPath)
 				processed = append(processed, importPath)
 				continue
+			}
+			// Preserve relative paths whose files exist in the local workflow directory.
+			// Absolute paths (starting with "/") are not checked — they are always resolved
+			// relative to the repo root and cannot be reliably tested here.
+			if localWorkflowDir != "" && !strings.HasPrefix(importPath, "/") {
+				if isLocalFileForUpdate(localWorkflowDir, importPath) {
+					importsLog.Printf("Import path exists locally, preserving relative path: %s", importPath)
+					processed = append(processed, importPath)
+					continue
+				}
 			}
 			resolvedPath := resolveImportPath(importPath, workflow.WorkflowPath)
 			importsLog.Printf("Resolved import path: %s -> %s (workflow: %s)", importPath, resolvedPath, workflow.WorkflowPath)
@@ -317,10 +333,12 @@ func processIncludesWithWorkflowSpec(content string, workflow *WorkflowSpec, com
 }
 
 // processIncludesInContent processes @include directives in workflow content for update command
-// and also processes imports field in frontmatter
-func processIncludesInContent(content string, workflow *WorkflowSpec, commitSHA string, verbose bool) (string, error) {
+// and also processes imports field in frontmatter.
+// If localWorkflowDir is non-empty, any relative import/include path whose file exists under
+// that directory is left as-is rather than being rewritten to a cross-repo reference.
+func processIncludesInContent(content string, workflow *WorkflowSpec, commitSHA string, localWorkflowDir string, verbose bool) (string, error) {
 	// First process imports field in frontmatter
-	processedImportsContent, err := processImportsWithWorkflowSpec(content, workflow, commitSHA, verbose)
+	processedImportsContent, err := processImportsWithWorkflowSpec(content, workflow, commitSHA, localWorkflowDir, verbose)
 	if err != nil {
 		if verbose {
 			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to process imports: %v", err)))
@@ -367,6 +385,15 @@ func processIncludesInContent(content string, workflow *WorkflowSpec, commitSHA 
 				continue
 			}
 
+			// Preserve relative @include paths whose files exist in the local workflow directory.
+			if localWorkflowDir != "" && !strings.HasPrefix(filePath, "/") {
+				if isLocalFileForUpdate(localWorkflowDir, filePath) {
+					importsLog.Printf("Include path exists locally, preserving: %s", filePath)
+					result.WriteString(line + "\n")
+					continue
+				}
+			}
+
 			// Resolve the file path relative to the workflow file's directory
 			resolvedPath := resolveImportPath(filePath, workflow.WorkflowPath)
 
@@ -393,7 +420,28 @@ func processIncludesInContent(content string, workflow *WorkflowSpec, commitSHA 
 	return result.String(), scanner.Err()
 }
 
-// isWorkflowSpecFormat checks if a path already looks like a workflowspec
+// isLocalFileForUpdate returns true when importPath resolves to an existing file
+// within localWorkflowDir. The resolved absolute path must stay inside localWorkflowDir
+// to guard against path traversal (e.g. "../../etc/passwd" in import paths).
+// importPath must be a relative path — callers must not pass absolute paths here.
+func isLocalFileForUpdate(localWorkflowDir, importPath string) bool {
+	if localWorkflowDir == "" || importPath == "" {
+		return false
+	}
+	localPath := filepath.Join(localWorkflowDir, importPath)
+	absDir, err1 := filepath.Abs(localWorkflowDir)
+	absPath, err2 := filepath.Abs(localPath)
+	if err1 != nil || err2 != nil {
+		return false
+	}
+	// Reject traversal attempts: the resolved path must be a child of localWorkflowDir
+	if !strings.HasPrefix(absPath, absDir+string(filepath.Separator)) {
+		return false
+	}
+	_, statErr := os.Stat(localPath)
+	return statErr == nil
+}
+
 // A workflowspec is identified by having an @ version indicator (e.g., owner/repo/path@sha)
 // Simple paths like "shared/mcp/file.md" are NOT workflowspecs and should be processed
 func isWorkflowSpecFormat(path string) bool {

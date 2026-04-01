@@ -120,19 +120,7 @@ See [APM Dependencies](/gh-aw/reference/dependencies/) for full configuration op
 
 ### Can I use Claude plugins with APM dependencies?
 
-Yes! [APM (Agent Package Manager)](https://microsoft.github.io/apm/) supports Claude plugins in the `plugin.json` format alongside other agent primitives (skills, prompts, instructions). Install them via the `dependencies:` field in your workflow frontmatter:
-
-```yaml wrap
-engine: claude
-
-dependencies:
-  - github/awesome-copilot/plugins/context-engineering
-  - owner/repo/plugins/my-claude-plugin
-```
-
-APM automatically infers the `claude` engine target and unpacks only Claude-compatible primitives. You can mix plugins with other APM primitives in the same `dependencies:` block, and APM resolves the full dependency tree including transitive dependencies.
-
-For version-pinned plugins:
+Yes! APM supports Claude plugins in the `plugin.json` format. When `engine: claude` is set, APM automatically infers the engine target and unpacks only Claude-compatible primitives. Use `#tag` or `#branch` suffixes to pin specific versions:
 
 ```yaml wrap
 engine: claude
@@ -142,20 +130,7 @@ dependencies:
   - owner/repo/plugins/my-plugin#main    # pinned to a branch
 ```
 
-For private plugins hosted in another organization, use `github-app:` authentication:
-
-```yaml wrap
-engine: claude
-
-dependencies:
-  github-app:
-    app-id: ${{ vars.APP_ID }}
-    private-key: ${{ secrets.APP_PRIVATE_KEY }}
-  packages:
-    - acme-org/acme-plugins/plugins/my-claude-plugin
-```
-
-See [APM Dependencies](/gh-aw/reference/dependencies/) for full configuration options including cross-org private packages and the `isolated` flag.
+For private cross-org plugins and other configuration options, see [APM Dependencies](/gh-aw/reference/dependencies/).
 
 ### Can workflows be broken up into shareable components?
 
@@ -368,14 +343,9 @@ See [Common Issues](/gh-aw/troubleshooting/common-issues/) for detailed troubles
 
 ### Why is my create-discussion workflow failing?
 
-Common issues:
+Ensure discussions are enabled (**Settings → Features → Discussions**) and the workflow has `discussions: write` permission. For category matching failures, verify spelling (case-insensitive) and use lowercase slugs (e.g., `general`, `announcements`) rather than display names.
 
-- **Category name typos**: Verify the category name spelling in your workflow configuration matches your repository's discussion categories. Category names are matched case-insensitively, but check for typos.
-- **Category slugs**: Use lowercase category slugs (e.g., `general`, `announcements`) rather than display names for better reliability.
-- **Discussions not enabled**: Ensure discussions are enabled for your repository in **Settings → Features → Discussions**.
-- **Insufficient permissions**: The workflow requires `discussions: write` permission.
-
-If discussions are not enabled or the workflow lacks permissions, consider using `fallback-to-issue: true` (the default) to automatically create an issue instead. See [Discussion Creation](/gh-aw/reference/safe-outputs/#discussion-creation-create-discussion) for configuration details.
+Use `fallback-to-issue: true` (the default) to automatically create an issue if discussions aren't available. See [Discussion Creation](/gh-aw/reference/safe-outputs/#discussion-creation-create-discussion) for details.
 
 ### Why is my create-pull-request workflow failing with "GitHub Actions is not permitted to create or approve pull requests"?
 

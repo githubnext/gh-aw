@@ -431,7 +431,7 @@ func updateWorkflow(wf *workflowWithSource, allowMajor, force, verbose bool, eng
 		}
 
 		// Check if local file differs from source
-		if hasLocalModifications(string(sourceContent), string(currentContent), wf.SourceSpec, verbose) {
+		if hasLocalModifications(string(sourceContent), string(currentContent), wf.SourceSpec, filepath.Dir(wf.Path), verbose) {
 			updateLog.Printf("Local modifications detected in workflow: %s", wf.Name)
 			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Workflow %s is already up to date (%s)", wf.Name, shortRef(currentRef))))
 			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("⚠️  Local copy of %s has been modified from source", wf.Name)))
@@ -464,7 +464,7 @@ func updateWorkflow(wf *workflowWithSource, allowMajor, force, verbose bool, eng
 		baseContent, dlErr := downloadWorkflowContent(sourceSpec.Repo, sourceSpec.Path, currentRef, verbose)
 		if dlErr == nil {
 			localContent, readErr := os.ReadFile(wf.Path)
-			if readErr == nil && hasLocalModifications(string(baseContent), string(localContent), wf.SourceSpec, verbose) {
+			if readErr == nil && hasLocalModifications(string(baseContent), string(localContent), wf.SourceSpec, filepath.Dir(wf.Path), verbose) {
 				updateLog.Printf("Local modifications detected in %s, merging to preserve changes", wf.Name)
 				fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Local modifications detected in %s, merging to preserve your changes", wf.Name)))
 			} else {
@@ -502,7 +502,7 @@ func updateWorkflow(wf *workflowWithSource, allowMajor, force, verbose bool, eng
 
 		// Perform 3-way merge using git merge-file
 		updateLog.Printf("Performing 3-way merge for workflow: %s", wf.Name)
-		mergedContent, conflicts, err := MergeWorkflowContent(string(baseContent), string(currentContent), string(newContent), wf.SourceSpec, sourceFieldRef, verbose)
+		mergedContent, conflicts, err := MergeWorkflowContent(string(baseContent), string(currentContent), string(newContent), wf.SourceSpec, sourceFieldRef, wf.Path, verbose)
 		if err != nil {
 			updateLog.Printf("Merge failed for workflow %s: %v", wf.Name, err)
 			return fmt.Errorf("failed to merge workflow content: %w", err)
@@ -541,7 +541,7 @@ func updateWorkflow(wf *workflowWithSource, allowMajor, force, verbose bool, eng
 			WorkflowPath: sourceSpec.Path,
 		}
 
-		processedContent, err := processIncludesInContent(finalContent, workflow, latestRef, verbose)
+		processedContent, err := processIncludesInContent(finalContent, workflow, latestRef, filepath.Dir(wf.Path), verbose)
 		if err != nil {
 			if verbose {
 				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to process includes: %v", err)))

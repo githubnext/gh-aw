@@ -17,7 +17,9 @@ var updateMergeLog = logger.New("cli:update_merge")
 // hasLocalModifications checks if the local workflow file has been modified from its source
 // It resolves the source field and imports on the remote content, then compares with local
 // Note: stop-after field is ignored during comparison as it's a deployment-specific setting
-func hasLocalModifications(sourceContent, localContent, sourceSpec string, verbose bool) bool {
+// localWorkflowDir, if non-empty, is passed to import processing so that relative import paths
+// whose files exist locally are preserved — giving an accurate comparison against local content.
+func hasLocalModifications(sourceContent, localContent, sourceSpec, localWorkflowDir string, verbose bool) bool {
 	updateMergeLog.Printf("Checking for local modifications: source_spec=%s", sourceSpec)
 	// Normalize both contents
 	sourceNormalized := stringutil.NormalizeWhitespace(sourceContent)
@@ -57,7 +59,7 @@ func hasLocalModifications(sourceContent, localContent, sourceSpec string, verbo
 		WorkflowPath: parsedSourceSpec.Path,
 	}
 
-	sourceResolved, err := processIncludesInContent(sourceWithSource, workflow, parsedSourceSpec.Ref, verbose)
+	sourceResolved, err := processIncludesInContent(sourceWithSource, workflow, parsedSourceSpec.Ref, localWorkflowDir, verbose)
 	if err != nil {
 		if verbose {
 			fmt.Fprintln(os.Stderr, console.FormatVerboseMessage(fmt.Sprintf("Failed to process imports on remote content: %v", err)))
@@ -83,7 +85,10 @@ func hasLocalModifications(sourceContent, localContent, sourceSpec string, verbo
 
 // MergeWorkflowContent performs a 3-way merge of workflow content using git merge-file
 // It returns the merged content, whether conflicts exist, and any error
-func MergeWorkflowContent(base, current, new, oldSourceSpec, newRef string, verbose bool) (string, bool, error) {
+// localWorkflowPath is the filesystem path of the local workflow file being updated;
+// when non-empty its directory is used to preserve relative import paths whose files
+// exist locally rather than rewriting them to cross-repo references.
+func MergeWorkflowContent(base, current, new, oldSourceSpec, newRef, localWorkflowPath string, verbose bool) (string, bool, error) {
 	updateMergeLog.Printf("Starting 3-way merge: old_ref=%s, new_ref=%s", oldSourceSpec, newRef)
 
 	if verbose {
@@ -207,7 +212,11 @@ func MergeWorkflowContent(base, current, new, oldSourceSpec, newRef string, verb
 				WorkflowPath: sourceSpec.Path,
 			}
 
-			processedContent, err := processIncludesInContent(mergedStr, workflow, newRef, verbose)
+			localWorkflowDir := ""
+			if localWorkflowPath != "" {
+				localWorkflowDir = filepath.Dir(localWorkflowPath)
+			}
+			processedContent, err := processIncludesInContent(mergedStr, workflow, newRef, localWorkflowDir, verbose)
 			if err != nil {
 				if verbose {
 					fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to process includes: %v", err)))

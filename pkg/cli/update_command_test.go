@@ -56,7 +56,7 @@ This is the base content.`
 	oldSourceSpec := "test/repo/workflow.md@v1.0.0"
 	newRef := "v1.1.0"
 
-	merged, hasConflicts, err := MergeWorkflowContent(base, current, new, oldSourceSpec, newRef, false)
+	merged, hasConflicts, err := MergeWorkflowContent(base, current, new, oldSourceSpec, newRef, "", false)
 	if err != nil {
 		t.Fatalf("Expected no error, got: %v", err)
 	}
@@ -113,7 +113,7 @@ This is the upstream modified content.`
 	oldSourceSpec := "test/repo/workflow.md@v1.0.0"
 	newRef := "v1.1.0"
 
-	merged, hasConflicts, err := MergeWorkflowContent(base, current, new, oldSourceSpec, newRef, false)
+	merged, hasConflicts, err := MergeWorkflowContent(base, current, new, oldSourceSpec, newRef, "", false)
 	if err != nil {
 		t.Fatalf("Expected no error, got: %v", err)
 	}
@@ -187,7 +187,7 @@ Base content here.`
 	oldSourceSpec := "test/repo/workflow.md@v1.0.0"
 	newRef := "v1.1.0"
 
-	merged, hasConflicts, err := MergeWorkflowContent(base, current, new, oldSourceSpec, newRef, false)
+	merged, hasConflicts, err := MergeWorkflowContent(base, current, new, oldSourceSpec, newRef, "", false)
 	if err != nil {
 		t.Fatalf("Expected no error, got: %v", err)
 	}
@@ -243,7 +243,7 @@ Content remains the same.`
 	oldSourceSpec := "test/repo/workflow.md@v1.0.0"
 	newRef := "v1.1.0"
 
-	merged, hasConflicts, err := MergeWorkflowContent(base, current, new, oldSourceSpec, newRef, false)
+	merged, hasConflicts, err := MergeWorkflowContent(base, current, new, oldSourceSpec, newRef, "", false)
 	if err != nil {
 		t.Fatalf("Expected no error, got: %v", err)
 	}
@@ -338,7 +338,7 @@ Base content with upstream notes.`
 	oldSourceSpec := "test/repo/workflow.md@v1.0.0"
 	newRef := "v1.1.0"
 
-	merged, hasConflicts, err := MergeWorkflowContent(base, current, new, oldSourceSpec, newRef, true)
+	merged, hasConflicts, err := MergeWorkflowContent(base, current, new, oldSourceSpec, newRef, "", true)
 	if err != nil {
 		t.Fatalf("Expected no error, got: %v", err)
 	}
@@ -645,7 +645,7 @@ source: test/repo/workflow.md@v1.0.0
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := hasLocalModifications(tt.sourceContent, tt.localContent, tt.sourceSpec, false)
+			result := hasLocalModifications(tt.sourceContent, tt.localContent, tt.sourceSpec, "", false)
 
 			if result != tt.expectModified {
 				t.Errorf("%s: expected modified=%v, got %v", tt.description, tt.expectModified, result)
