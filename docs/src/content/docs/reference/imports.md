@@ -271,6 +271,127 @@ Example — `tools.bash.allowed` merging:
 # result:  [read, list, write]
 ```
 
+### Importing Steps
+
+Share reusable pre-execution steps — such as token rotation, environment setup, or gate checks — across multiple workflows by defining them in a shared file:
+
+```aw title="shared/rotate-token.md" wrap
+---
+description: Shared token rotation setup
+steps:
+  - name: Rotate GitHub App token
+    id: get-token
+    uses: actions/create-github-app-token@v1
+    with:
+      app-id: ${{ vars.APP_ID }}
+      private-key: ${{ secrets.APP_PRIVATE_KEY }}
+---
+```
+
+Any workflow that imports this file gets the rotation step prepended before its own steps:
+
+```aw title="my-workflow.md" wrap
+---
+on: issues
+engine: copilot
+imports:
+  - shared/rotate-token.md
+permissions:
+  contents: read
+  issues: write
+steps:
+  - name: Prepare context
+    run: echo "context ready"
+---
+
+# My Workflow
+
+Process the issue using the rotated token from the imported step.
+```
+
+Steps from imports run **before** steps defined in the main workflow, in import declaration order.
+
+### Importing MCP Servers
+
+Define an MCP server configuration once and import it wherever needed:
+
+```aw title="shared/mcp/tavily.md" wrap
+---
+description: Tavily web search MCP server
+mcp-servers:
+  tavily:
+    url: "https://mcp.tavily.com/mcp/?tavilyApiKey=${{ secrets.TAVILY_API_KEY }}"
+    allowed: ["*"]
+network:
+  allowed:
+    - mcp.tavily.com
+---
+```
+
+Import it into any workflow that needs web search:
+
+```aw title="research.md" wrap
+---
+on: issues
+engine: copilot
+imports:
+  - shared/mcp/tavily.md
+permissions:
+  contents: read
+  issues: write
+---
+
+# Research Workflow
+
+Search the web for relevant information and summarize findings in the issue.
+```
+
+### Importing Jobs via `safe-outputs.jobs`
+
+Unlike top-level `jobs:` (which cannot be imported), jobs defined under `safe-outputs:` can be shared across workflows. These jobs become callable MCP tools that the AI agent can invoke during execution:
+
+```aw title="shared/notify.md" wrap
+---
+description: Shared notification job
+safe-outputs:
+  notify-slack:
+    description: "Post a message to Slack"
+    runs-on: ubuntu-latest
+    output: "Notification sent"
+    inputs:
+      message:
+        description: "Message to post"
+        required: true
+        type: string
+    steps:
+      - name: Post to Slack
+        env:
+          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK_URL }}
+        run: |
+          curl -s -X POST "$SLACK_WEBHOOK" \
+            -H "Content-Type: application/json" \
+            -d "{\"text\":\"${{ inputs.message }}\"}"
+---
+```
+
+Import and use it in multiple workflows:
+
+```aw title="my-workflow.md" wrap
+---
+on: issues
+engine: copilot
+imports:
+  - shared/notify.md
+permissions:
+  contents: read
+  issues: write
+---
+
+# My Workflow
+
+Process the issue. When done, use notify-slack to send a summary notification.
+```
+
 ### Error Handling
 
 - **Circular imports**: Detected at compile time.
