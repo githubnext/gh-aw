@@ -1,7 +1,7 @@
 # Developer Instructions
 
-**Version**: 4.8
-**Last Updated**: 2026-03-31
+**Version**: 4.9
+**Last Updated**: 2026-04-01
 **Purpose**: Consolidated development guidelines for GitHub Agentic Workflows
 
 This document consolidates specifications from the scratchpad directory into unified developer instructions. It provides architecture patterns, security guidelines, code organization rules, and testing practices.
@@ -2635,6 +2635,26 @@ These files are loaded automatically by compatible AI tools (e.g., GitHub Copilo
 - [jsonschema-go Module Summary](./mods/jsonschema-go.md) - Usage patterns for `github.com/google/jsonschema-go` v0.3.0: `ForType()`, `GenerateOutputSchema[T]()` generic helper, struct tag integration, and MCP tool schema generation
 - [CLI Breaking Changes](./breaking-cli-rules.md) - Categories of breaking vs. non-breaking CLI changes; decision tree, changeset format, review checklist, exit code and JSON output standards
 - [Workflow Refactoring Patterns](./workflow-refactoring-patterns.md) - Patterns for extracting large workflows into shared modules: size guidelines (target 400–500 lines), extraction checklist, shared module structure templates, and anti-patterns
+- [Error Handling Reference](./errors.md) - Structured error types, retry logic, validation helpers, and error wrapping patterns across Go and JavaScript
+- [File Inlining and Runtime Imports](./file-inlining.md) - `{{#runtime-import}}` macro: file/URL content inclusion in workflow prompts, line range support, and security guardrails
+- [Safe Output Environment Variables](./safe-output-environment-variables.md) - Reference for environment variables available to safe output job types: common variables, job-specific configs, activation job variables, and troubleshooting
+- [Schema Validation](./schema-validation.md) - JSON schema validation with `additionalProperties: false`: strict frontmatter and MCP config validation to catch typos
+- [gosec Exclusions Reference](./gosec.md) - Documented gosec security rule exclusions in `.golangci.yml` with CWE mappings, per-rule rationale, and suppression guidelines
+- [MCP Logs Guardrail](./mcp_logs_guardrails.md) - Automatic token-limit guardrail for the MCP `logs` command: trigger threshold (12000 tokens), jq filter suggestions, schema responses
+- [End-to-End Feature Testing](./end-to-end-feature-testing.md) - Procedure for testing new features via agentic workflows in pull requests: Dev workflow modification, triggering, monitoring, and iteration
+- [Visual Regression Testing](./visual-regression-testing.md) - Golden-file visual regression testing for terminal output: running tests, updating golden files, CI integration
+- [Compiled Workflow Layout Reference](./layout.md) - Auto-generated catalog of all file paths, artifact names, and patterns in compiled `.lock.yml` workflows
+- [Error Recovery Patterns](./error-recovery-patterns.md) - Error handling patterns, retry mechanisms, circuit breakers, panic recovery, and debugging runbook for agent workflows
+- [PR Checkout Logic](./pr-checkout-logic-explained.md) - `pull_request` vs `pull_request_target` event differences, fork PR detection signals, checkout decision logic, and security model
+- [Styles Guide](./styles-guide.md) - Terminal color and style definitions: adaptive palette for light/dark modes, pre-configured styles for tables, messages, and lists
+- [Firewall Log Parsing](./firewall-log-parsing.md) - Go firewall log parser implementation: 10-field log format, validation rules, request classification, integration with `logs`/`audit` commands
+- [Agent Container Testing](./agent-container-testing.md) - Smoke test workflow for validating pre-installed tools in agent container environment (bash, git, jq, curl, gh, node, python3, go, java, dotnet)
+- [Ubuntu Runner Environment](./ubuntulatest.md) - Pre-installed tools reference for `ubuntu-latest` (Ubuntu 24.04) runner: language runtimes, container tools, databases, and CI/CD tooling
+- [Artifact Naming Compatibility](./artifact-naming-compatibility.md) - Backward/forward compatibility for artifact naming in `gh aw logs` and `gh aw audit`: naming schemes, flattening process, compatibility matrix
+- [Debugging Action Pinning](./debugging-action-pinning.md) - Root cause and debugging steps for action pinning version comment flipping between equivalent tags (e.g., `v8` vs `v8.0.0`)
+- [Security Review (Template Injection)](./security_review.md) - Security review of zizmor template injection findings: both findings are false positives; includes analysis of undefined environment variable edge case
+- [Engine Architecture Review](./engine-architecture-review.md) - Deep review of ISP engine interface design, all engine implementations (Copilot, Claude, Codex, Custom), test coverage, and extensibility assessment
+- [Engine Review Summary](./engine-review-summary.md) - Summary findings from engine architecture review: interface design, security, testing, documentation status, and conclusion
 
 ### External References
 
@@ -2646,6 +2666,7 @@ These files are loaded automatically by compatible AI tools (e.g., GitHub Copilo
 ---
 
 **Document History**:
+- v4.9 (2026-04-01): Maintenance tone scan — fixed 5 tone issues across 4 spec files: `engine-architecture-review.md` (removed "well-implemented", replaced 5-star ratings with factual assessment), `engine-review-summary.md` (removed "production-ready", replaced rating section with factual conclusion), `mcp_logs_guardrails.md` (2 fixes: "helpful guidance"→"jq filter suggestions and schema", "Keeps output manageable"→"Limits response size"), `visual-regression-testing.md` (removed "negatively impact the user experience"). Added 21 new Related Documentation links for previously uncovered spec files. Coverage: 62 spec files.
 - v4.8 (2026-03-31): Added CLI Breaking Changes subsection to Release Management (from `breaking-cli-rules.md`: breaking vs. non-breaking categories, decision tree, changeset format, review checklist, JSON output standards). Added Workflow Size and Refactoring subsection to Workflow Patterns (from `workflow-refactoring-patterns.md`: size guidelines, module extraction via `imports:`, refactoring checklist, anti-patterns). Added 2 new Related Documentation links. Coverage: 68 spec files (2 new).
 - v4.7 (2026-03-30): Added 4 previously uncovered subdirectory spec files (`agents/hierarchical-agents.md`, `agents/hierarchical-agents-quickstart.md`, `mods/README.md`, `mods/jsonschema-go.md`). Fixed 3 tone issues in `mods/jsonschema-go.md`: "Active maintenance and community support" → "MIT licensed; maintained by Google" (line 13), "Developer-Friendly API" heading → "API Design" (line 111), "Good integration with Go idioms" removed and "Concise function signatures" → "Function signatures follow Go idioms" (lines 112–113). Coverage: 66 spec files (4 new).
 - v4.6 (2026-03-29): Maintenance tone scan — 0 new issues across 62 spec files. No new spec files since v4.5 (latest commit `96873d8` touched `.changeset/` only). Coverage: 62 spec files.

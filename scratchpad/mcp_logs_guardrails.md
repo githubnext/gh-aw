@@ -20,7 +20,7 @@ The MCP server `logs` command now includes an automatic guardrail that:
 
 1. **Checks output size** before returning results
 2. **Triggers at 12000 tokens** (default, configurable)
-3. **Returns helpful guidance** instead of large payloads
+3. **Returns jq filter suggestions and schema** instead of large payloads
 
 ## How It Works
 
@@ -222,7 +222,7 @@ make test-unit
 
 ## Benefits
 
-1. **Prevents overwhelming responses** - Keeps output manageable for AI models
+1. **Limits response size** - Prevents context overflow in AI model responses
 2. **Provides guidance** - Suggests specific filters to get the data you need
 3. **Self-documenting** - Returns the schema so you know what fields are available
 4. **Preserves functionality** - jq filtering works the same as before
