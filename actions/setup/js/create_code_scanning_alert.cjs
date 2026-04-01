@@ -28,6 +28,10 @@ async function main(config = {}) {
   core.info(`Create code scanning alert configuration: max=${maxFindings === 0 ? "unlimited" : maxFindings}`);
   core.info(`Driver name: ${driverName}`);
   core.info(`Workflow filename for rule ID prefix: ${workflowFilename}`);
+  core.info(`Working directory: ${process.cwd()}`);
+  core.info(`GitHub ref: ${process.env.GITHUB_REF || "(not set)"}`);
+  core.info(`GitHub SHA: ${process.env.GITHUB_SHA || "(not set)"}`);
+  core.info(`GitHub repository: ${process.env.GITHUB_REPOSITORY || "(not set)"}`);
 
   // Track how many items we've processed for max limit
   let processedCount = 0;
@@ -39,6 +43,7 @@ async function main(config = {}) {
   // SARIF file path
   const sarifFileName = "code-scanning-alert.sarif";
   const sarifFilePath = path.join(process.cwd(), sarifFileName);
+  core.info(`SARIF file will be written to: ${sarifFilePath}`);
 
   /**
    * Generate and write SARIF file with all collected findings

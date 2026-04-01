@@ -1122,7 +1122,7 @@ jobs:
         if: steps.process_safe_outputs.outputs.sarif_file != ''
         uses: github/codeql-action/upload-sarif@0e9f55954318745b37b7933c693bc093f7336125 # v4.35.1
         with:
-          github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
+          token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           sarif_file: ${{ steps.process_safe_outputs.outputs.sarif_file }}
           wait-for-processing: true
       - name: Upload Safe Output Items
