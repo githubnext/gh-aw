@@ -52,11 +52,29 @@ func GenerateNpmInstallStepsWithScope(packageName, version, stepName, cacheKeyPr
 	if isGlobal {
 		globalFlag = "-g "
 	}
-	installCmd := fmt.Sprintf("npm install %s%s@%s", globalFlag, packageName, version)
-	steps = append(steps, GitHubActionStep{
-		"      - name: " + stepName,
-		"        run: " + installCmd,
-	})
+
+	var installStep GitHubActionStep
+	if ExpressionPattern.MatchString(version) {
+		// Version is a GitHub Actions expression (e.g. ${{ inputs.engine-version }}).
+		// Pass it via an env var instead of direct shell interpolation to prevent injection:
+		// if the expression evaluates to a malicious string, it would otherwise be
+		// substituted verbatim into the shell command before the shell parses it.
+		nodejsLog.Printf("Version contains GitHub Actions expression, using env var for injection safety: %s", version)
+		installCmd := fmt.Sprintf(`npm install %s%s@"${ENGINE_VERSION}"`, globalFlag, packageName)
+		installStep = GitHubActionStep{
+			"      - name: " + stepName,
+			"        run: " + installCmd,
+			"        env:",
+			"          ENGINE_VERSION: " + version,
+		}
+	} else {
+		installCmd := fmt.Sprintf("npm install %s%s@%s", globalFlag, packageName, version)
+		installStep = GitHubActionStep{
+			"      - name: " + stepName,
+			"        run: " + installCmd,
+		}
+	}
+	steps = append(steps, installStep)
 
 	return steps
 }

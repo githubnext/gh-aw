@@ -9026,8 +9026,8 @@
             },
             "version": {
               "type": ["string", "number"],
-              "description": "Optional version of the AI engine action (e.g., 'beta', 'stable', 20). Has sensible defaults and can typically be omitted. Numeric values are automatically converted to strings at runtime.",
-              "examples": ["beta", "stable", 20, 3.11]
+              "description": "Optional version of the AI engine action (e.g., 'beta', 'stable', 20). Has sensible defaults and can typically be omitted. Numeric values are automatically converted to strings at runtime. GitHub Actions expressions (e.g., '${{ inputs.engine-version }}') are accepted and compiled with injection-safe env var handling.",
+              "examples": ["beta", "stable", 20, 3.11, "${{ inputs.engine-version }}"]
             },
             "model": {
               "type": "string",

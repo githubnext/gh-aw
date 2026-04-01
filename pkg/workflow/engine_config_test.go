@@ -61,6 +61,17 @@ func TestExtractEngineConfig(t *testing.T) {
 			expectedConfig:        &EngineConfig{ID: "claude", Version: "beta"},
 		},
 		{
+			name: "object format - with expression version",
+			frontmatter: map[string]any{
+				"engine": map[string]any{
+					"id":      "copilot",
+					"version": "${{ inputs.engine-version }}",
+				},
+			},
+			expectedEngineSetting: "copilot",
+			expectedConfig:        &EngineConfig{ID: "copilot", Version: "${{ inputs.engine-version }}"},
+		},
+		{
 			name: "object format - with integer version",
 			frontmatter: map[string]any{
 				"engine": map[string]any{

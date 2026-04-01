@@ -771,3 +771,47 @@ func TestCodexEngineWebSearch(t *testing.T) {
 		}
 	})
 }
+
+func TestCodexEngineWithExpressionVersion(t *testing.T) {
+	engine := NewCodexEngine()
+
+	expressionVersion := "${{ inputs.engine-version }}"
+	workflowData := &WorkflowData{
+		Name: "test-workflow",
+		EngineConfig: &EngineConfig{
+			ID:      "codex",
+			Version: expressionVersion,
+		},
+	}
+
+	installSteps := engine.GetInstallationSteps(workflowData)
+
+	// Find the npm install step
+	var installStep string
+	for _, step := range installSteps {
+		stepContent := strings.Join(step, "\n")
+		if strings.Contains(stepContent, "npm install") {
+			installStep = stepContent
+			break
+		}
+	}
+
+	if installStep == "" {
+		t.Fatal("Could not find npm install step")
+	}
+
+	// Should use ENGINE_VERSION env var for injection safety
+	if !strings.Contains(installStep, "ENGINE_VERSION: "+expressionVersion) {
+		t.Errorf("Expected ENGINE_VERSION env var in install step, got:\n%s", installStep)
+	}
+
+	// Should reference env var in command
+	if !strings.Contains(installStep, `"${ENGINE_VERSION}"`) {
+		t.Errorf(`Expected "$ENGINE_VERSION" in npm install command, got:\n%s`, installStep)
+	}
+
+	// Should NOT embed expression directly in npm install command
+	if strings.Contains(installStep, "@openai/codex@"+expressionVersion) {
+		t.Errorf("Expression should NOT be embedded directly in npm install command, got:\n%s", installStep)
+	}
+}

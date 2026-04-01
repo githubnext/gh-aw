@@ -526,3 +526,47 @@ func TestGenerateGeminiSettingsStep(t *testing.T) {
 		assert.Contains(t, content, "GH_AW_GEMINI_BASE_CONFIG: '", "JSON env var value must be single-quoted for valid YAML")
 	})
 }
+
+func TestGeminiEngineWithExpressionVersion(t *testing.T) {
+	engine := NewGeminiEngine()
+
+	expressionVersion := "${{ inputs.engine-version }}"
+	workflowData := &WorkflowData{
+		Name: "test-workflow",
+		EngineConfig: &EngineConfig{
+			ID:      "gemini",
+			Version: expressionVersion,
+		},
+	}
+
+	installSteps := engine.GetInstallationSteps(workflowData)
+
+	// Find the npm install step
+	var installStep string
+	for _, step := range installSteps {
+		stepContent := strings.Join([]string(step), "\n")
+		if strings.Contains(stepContent, "npm install") {
+			installStep = stepContent
+			break
+		}
+	}
+
+	if installStep == "" {
+		t.Fatal("Could not find npm install step")
+	}
+
+	// Should use ENGINE_VERSION env var for injection safety
+	if !strings.Contains(installStep, "ENGINE_VERSION: "+expressionVersion) {
+		t.Errorf("Expected ENGINE_VERSION env var in install step, got:\n%s", installStep)
+	}
+
+	// Should reference env var in command
+	if !strings.Contains(installStep, `"${ENGINE_VERSION}"`) {
+		t.Errorf(`Expected "$ENGINE_VERSION" in npm install command, got:\n%s`, installStep)
+	}
+
+	// Should NOT embed expression directly in npm install command
+	if strings.Contains(installStep, "@google/gemini-cli@"+expressionVersion) {
+		t.Errorf("Expression should NOT be embedded directly in npm install command, got:\n%s", installStep)
+	}
+}

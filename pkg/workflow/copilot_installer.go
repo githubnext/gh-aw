@@ -24,6 +24,19 @@ func GenerateCopilotInstallerSteps(version, stepName string) []GitHubActionStep 
 	// and does not use gh CLI, so GH_HOST does not affect the download. No step-level
 	// GH_HOST override is needed here; the correct host is already set in GITHUB_ENV
 	// by configure_gh_for_ghe.sh (or by the Derive GH_HOST step when DIFC proxy is active).
+	if ExpressionPattern.MatchString(version) {
+		// Version is a GitHub Actions expression (e.g. ${{ inputs.engine-version }}).
+		// Pass it via an env var instead of direct shell interpolation to prevent injection.
+		copilotInstallerLog.Printf("Version contains GitHub Actions expression, using env var for injection safety: %s", version)
+		stepLines := []string{
+			"      - name: " + stepName,
+			`        run: ${RUNNER_TEMP}/gh-aw/actions/install_copilot_cli.sh "${ENGINE_VERSION}"`,
+			"        env:",
+			"          ENGINE_VERSION: " + version,
+		}
+		return []GitHubActionStep{GitHubActionStep(stepLines)}
+	}
+
 	stepLines := []string{
 		"      - name: " + stepName,
 		"        run: ${RUNNER_TEMP}/gh-aw/actions/install_copilot_cli.sh " + version,

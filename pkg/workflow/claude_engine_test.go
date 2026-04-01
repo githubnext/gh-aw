@@ -513,3 +513,40 @@ func TestClaudeEngineEnvOverridesTokenExpression(t *testing.T) {
 		}
 	})
 }
+
+func TestClaudeEngineWithExpressionVersion(t *testing.T) {
+	engine := NewClaudeEngine()
+
+	expressionVersion := "${{ inputs.engine-version }}"
+	workflowData := &WorkflowData{
+		Name: "test-workflow",
+		EngineConfig: &EngineConfig{
+			ID:      "claude",
+			Version: expressionVersion,
+		},
+	}
+
+	// Expression version must use env var injection in the install step
+	installSteps := engine.GetInstallationSteps(workflowData)
+	// Expect: Node.js setup step + install step
+	if len(installSteps) != 2 {
+		t.Fatalf("Expected 2 installation steps, got %d", len(installSteps))
+	}
+
+	installStep := strings.Join([]string(installSteps[1]), "\n")
+
+	// Should use ENGINE_VERSION env var
+	if !strings.Contains(installStep, "ENGINE_VERSION: "+expressionVersion) {
+		t.Errorf("Expected ENGINE_VERSION env var in install step, got:\n%s", installStep)
+	}
+
+	// Should reference env var in command
+	if !strings.Contains(installStep, `"${ENGINE_VERSION}"`) {
+		t.Errorf(`Expected "$ENGINE_VERSION" in npm install command, got:\n%s`, installStep)
+	}
+
+	// Should NOT embed expression directly in shell command
+	if strings.Contains(installStep, "@anthropic-ai/claude-code@"+expressionVersion) {
+		t.Errorf("Expression should NOT be embedded directly in npm install command, got:\n%s", installStep)
+	}
+}
