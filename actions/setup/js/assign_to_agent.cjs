@@ -449,7 +449,9 @@ async function main() {
       core.info(`${type} ID: ${assignableId}`);
 
       // Check if agent is already assigned
-      if (currentAssignees.some(a => a.id === agentId)) {
+      // Only skip if no explicit pull_request_repo is provided; a different pull_request_repo
+      // should trigger a new Copilot session in that repo even if the agent is already assigned.
+      if (currentAssignees.some(a => a.id === agentId) && !effectivePullRequestRepoId) {
         core.info(`${agentName} is already assigned to ${type} #${number}`);
         results.push({
           issue_number: issueNumber,

@@ -1592,4 +1592,42 @@ describe("assign_to_agent", () => {
     expect(lastCall[1].baseRef).toBe("main");
     expect(lastCall[1].customInstructions).toBeUndefined();
   });
+
+  it("should reassign when agent is already assigned but a different per-item pull_request_repo is provided", async () => {
+    // When a per-item pull_request_repo is specified the already-assigned guard must NOT
+    // short-circuit, so that Copilot can be triggered in the new target repository.
+    process.env.GH_AW_AGENT_ALLOWED_PULL_REQUEST_REPOS = "test-owner/android-repo";
+    setAgentOutput({
+      items: [
+        {
+          type: "assign_to_agent",
+          issue_number: 42,
+          agent: "copilot",
+          pull_request_repo: "test-owner/android-repo",
+        },
+      ],
+      errors: [],
+    });
+
+    mockGithub.graphql
+      // Get item PR repository ID
+      .mockResolvedValueOnce({ repository: { id: "android-repo-id" } })
+      // Find agent
+      .mockResolvedValueOnce({ repository: { suggestedActors: { nodes: [{ login: "copilot-swe-agent", id: "agent-id" }] } } })
+      // Get issue details — agent is ALREADY assigned
+      .mockResolvedValueOnce({ repository: { issue: { id: "issue-id", assignees: { nodes: [{ id: "agent-id" }] } } } })
+      // Assign agent — should still be called despite agent being present
+      .mockResolvedValueOnce({ replaceActorsForAssignable: { __typename: "ReplaceActorsForAssignablePayload" } });
+
+    await eval(`(async () => { ${assignToAgentScript}; await main(); })()`);
+
+    // Should NOT log the "already assigned" skip message
+    expect(mockCore.info).not.toHaveBeenCalledWith(expect.stringContaining("is already assigned to issue #42"));
+    // Should log a successful assignment
+    expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Successfully assigned"));
+    expect(mockCore.setFailed).not.toHaveBeenCalled();
+    // Verify the mutation was invoked with the per-item PR repo ID
+    const lastCall = mockGithub.graphql.mock.calls[mockGithub.graphql.mock.calls.length - 1];
+    expect(lastCall[1].targetRepoId).toBe("android-repo-id");
+  });
 });
