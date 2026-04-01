@@ -24,10 +24,11 @@ cd "$CACHE_DIR"
 # --- Sanitize git hooks after cache restore (security: #23739) ---
 # Any executable hook files placed under .git/hooks/ by a previous agent run are preserved
 # in the cache archive and would fire on the host runner before the AWF sandbox starts.
-# Remove all non-sample hook files immediately after the cache is restored and before any
-# git operation that could trigger them (checkout, merge, etc.).
+# Remove ALL hook files immediately after the cache is restored and before any git operation
+# that could trigger them (checkout, merge, etc.). Sample files are excluded from git
+# execution so this is safe; legitimate hooks are never cached anyway.
 if [ -d ".git/hooks" ]; then
-  find ".git/hooks" -maxdepth 1 -type f ! -name '*.sample' -delete 2>/dev/null || true
+  find ".git/hooks" -maxdepth 1 -type f -delete 2>/dev/null || true
 fi
 # Redirect git's hook path to /dev/null so even newly-created hooks cannot fire.
 if [ -d ".git" ]; then
