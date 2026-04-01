@@ -384,6 +384,9 @@ async function main() {
   }
 
   // Validate total patch size before committing
+  // Note: the patch size is the size of `git diff --cached`, which includes both the old (deleted)
+  // and new (added) content for each modified file. For files that are rewritten entirely, the
+  // patch can be significantly larger than the file itself (old_size + new_size + headers).
   try {
     const patchContent = execGitSync(["diff", "--cached"], { stdio: "pipe" });
     const patchSizeBytes = Buffer.byteLength(patchContent, "utf8");
@@ -392,13 +395,28 @@ async function main() {
     // Allow 20% overhead to account for git diff format (headers, context lines, etc.)
     const effectiveMaxPatchSize = Math.floor(maxPatchSize * 1.2);
     const effectiveMaxPatchSizeKb = Math.floor(effectiveMaxPatchSize / 1024);
-    core.info(`Patch size: ${patchSizeKb} KB (${patchSizeBytes} bytes) (configured limit: ${maxPatchSizeKb} KB (${maxPatchSize} bytes), effective with 20% overhead: ${effectiveMaxPatchSizeKb} KB (${effectiveMaxPatchSize} bytes))`);
+    const patchSizeMessage = `Patch size: ${patchSizeKb} KB (${patchSizeBytes} bytes) (configured limit: ${maxPatchSizeKb} KB (${maxPatchSize} bytes), effective with 20% overhead: ${effectiveMaxPatchSizeKb} KB (${effectiveMaxPatchSize} bytes))`;
     if (patchSizeBytes > effectiveMaxPatchSize) {
+      // Warn at warning level so the size is visible even without verbose mode
+      core.warning(patchSizeMessage);
+      // Add per-file diff stats to diagnose what's causing the large patch
+      // (e.g. a full rewrite of an accumulated history file shows old + new content in the diff)
+      try {
+        const diffStat = execGitSync(["diff", "--cached", "--stat"], { stdio: "pipe" });
+        core.warning(`Patch content breakdown (git diff --stat):\n${diffStat}`);
+      } catch (statError) {
+        core.warning(`Could not retrieve diff stat: ${getErrorMessage(statError)}`);
+      }
       core.setOutput("patch_size_exceeded", "true");
       core.setFailed(
         `Patch size (${patchSizeKb} KB, ${patchSizeBytes} bytes) exceeds maximum allowed size (${effectiveMaxPatchSizeKb} KB, ${effectiveMaxPatchSize} bytes, configured limit: ${maxPatchSizeKb} KB with 20% overhead allowance). Reduce the number or size of changes, or increase max-patch-size.`
       );
       return;
+    } else if (patchSizeBytes > maxPatchSize) {
+      // Within the 20% overhead window — still log as a warning so it's visible
+      core.warning(patchSizeMessage);
+    } else {
+      core.info(patchSizeMessage);
     }
   } catch (error) {
     core.setFailed(`Failed to compute patch size: ${getErrorMessage(error)}`);
