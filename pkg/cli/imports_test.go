@@ -4,6 +4,7 @@ package cli
 
 import (
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -312,10 +313,10 @@ engine: copilot
 func TestProcessIncludesWithWorkflowSpec_PreservesLocalIncludes(t *testing.T) {
 	// Create a temporary directory to act as the local workflow directory
 	tmpDir := t.TempDir()
-	if err := os.MkdirAll(tmpDir+"/shared", 0755); err != nil {
+	if err := os.MkdirAll(filepath.Join(tmpDir, "shared"), 0755); err != nil {
 		t.Fatalf("Failed to create shared dir: %v", err)
 	}
-	if err := os.WriteFile(tmpDir+"/shared/config.md", []byte("# Local config"), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(tmpDir, "shared", "config.md"), []byte("# Local config"), 0644); err != nil {
 		t.Fatalf("Failed to create local config file: %v", err)
 	}
 
@@ -391,6 +392,43 @@ engine: copilot
 	// Relative path must not remain
 	if strings.Contains(result, "{{#import shared/config.md}}") {
 		t.Errorf("Relative path should have been rewritten when file is missing locally, got:\n%s", result)
+	}
+}
+
+// TestProcessIncludesWithWorkflowSpec_DuplicateInclude verifies that a body-level
+// {{#import}} directive that appears more than once is preserved in full for each
+// occurrence, rather than being silently dropped on the second occurrence by the
+// cycle-detection guard.
+func TestProcessIncludesWithWorkflowSpec_DuplicateInclude(t *testing.T) {
+	content := `---
+engine: copilot
+---
+
+# My Workflow
+
+{{#import shared/config.md}}
+
+Some text.
+
+{{#import shared/config.md}}
+`
+
+	workflow := &WorkflowSpec{
+		RepoSpec: RepoSpec{
+			RepoSlug: "acme/repo",
+		},
+		WorkflowPath: ".github/workflows/my-workflow.md",
+	}
+
+	result, err := processIncludesWithWorkflowSpec(content, workflow, "deadbeef", "", "", false)
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+
+	expectedRef := "{{#import acme/repo/.github/workflows/shared/config.md@deadbeef}}"
+	count := strings.Count(result, expectedRef)
+	if count != 2 {
+		t.Errorf("Expected rewritten import to appear 2 times, got %d\nOutput:\n%s", count, result)
 	}
 }
 
@@ -756,11 +794,11 @@ func TestProcessImportsWithWorkflowSpec_PreservesLocalRelativePaths(t *testing.T
 
 	// Create the shared import files locally
 	for _, rel := range []string{"shared/team-config.md", "shared/aor-index.md"} {
-		dir := tmpDir + "/" + rel[:strings.LastIndex(rel, "/")]
+		dir := filepath.Join(tmpDir, rel[:strings.LastIndex(rel, "/")])
 		if err := os.MkdirAll(dir, 0755); err != nil {
 			t.Fatalf("Failed to create dir %s: %v", dir, err)
 		}
-		if err := os.WriteFile(tmpDir+"/"+rel, []byte("# Shared content"), 0644); err != nil {
+		if err := os.WriteFile(filepath.Join(tmpDir, rel), []byte("# Shared content"), 0644); err != nil {
 			t.Fatalf("Failed to create file %s: %v", rel, err)
 		}
 	}
@@ -847,10 +885,10 @@ imports:
 func TestProcessIncludesInContent_PreservesLocalIncludeDirectives(t *testing.T) {
 	// Create a temporary directory with the shared include file
 	tmpDir := t.TempDir()
-	if err := os.MkdirAll(tmpDir+"/shared", 0755); err != nil {
+	if err := os.MkdirAll(filepath.Join(tmpDir, "shared"), 0755); err != nil {
 		t.Fatalf("Failed to create shared dir: %v", err)
 	}
-	if err := os.WriteFile(tmpDir+"/shared/config.md", []byte("# Config"), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(tmpDir, "shared", "config.md"), []byte("# Config"), 0644); err != nil {
 		t.Fatalf("Failed to create config file: %v", err)
 	}
 
@@ -905,10 +943,10 @@ func TestIsLocalFileForUpdate_PathTraversal(t *testing.T) {
 
 	// A normal path within tmpDir that DOES exist should return true
 	validFile := "shared/file.md"
-	if err := os.MkdirAll(tmpDir+"/shared", 0755); err != nil {
+	if err := os.MkdirAll(filepath.Join(tmpDir, "shared"), 0755); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(tmpDir+"/"+validFile, []byte("content"), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(tmpDir, validFile), []byte("content"), 0644); err != nil {
 		t.Fatal(err)
 	}
 	if !isLocalFileForUpdate(tmpDir, validFile) {

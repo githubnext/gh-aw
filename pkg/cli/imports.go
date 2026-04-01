@@ -238,24 +238,16 @@ func processIncludesWithWorkflowSpec(content string, workflow *WorkflowSpec, com
 				continue
 			}
 
-			// Check for cycle detection
-			if visited[filePath] {
-				if verbose {
-					fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Cycle detected for include: %s, skipping", filePath)))
-				}
-				continue
-			}
-
-			// Mark as visited
-			visited[filePath] = true
-
 			// Preserve relative {{#import}} paths whose files exist in the local workflow directory.
 			if localWorkflowDir != "" && !strings.HasPrefix(filePath, "/") {
 				if isLocalFileForUpdate(localWorkflowDir, filePath) {
 					importsLog.Printf("Include path exists locally, preserving: %s", filePath)
 					result.WriteString(line + "\n")
-					// Add file to queue for processing nested includes
-					queue = append(queue, fileToProcess{path: filePath})
+					// Add file to queue for processing nested includes (first visit only)
+					if !visited[filePath] {
+						visited[filePath] = true
+						queue = append(queue, fileToProcess{path: filePath})
+					}
 					continue
 				}
 			}
@@ -271,15 +263,18 @@ func processIncludesWithWorkflowSpec(content string, workflow *WorkflowSpec, com
 				workflowSpec += "#" + sectionName
 			}
 
-			// Write the updated @include directive
+			// Write the updated @include directive (even for duplicate occurrences)
 			if isOptional {
 				result.WriteString("{{#import? " + workflowSpec + "}}\n")
 			} else {
 				result.WriteString("{{#import " + workflowSpec + "}}\n")
 			}
 
-			// Add file to queue for processing nested includes
-			queue = append(queue, fileToProcess{path: filePath})
+			// Only enqueue for nested-include processing on the first visit to prevent cycles
+			if !visited[filePath] {
+				visited[filePath] = true
+				queue = append(queue, fileToProcess{path: filePath})
+			}
 		} else {
 			// Regular line, pass through
 			result.WriteString(line + "\n")
