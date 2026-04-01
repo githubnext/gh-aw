@@ -79,12 +79,13 @@ describe("update_discussion", () => {
           };
         }
 
-        // Fetch repo labels for fetchLabelNodeIds
-        if (query.includes("labels(first: 100)") && query.includes("repository(owner:")) {
+        // Fetch repo labels for fetchLabelNodeIds (paginated)
+        if (query.includes("labels(first: 100") && query.includes("repository(owner:")) {
           return {
             repository: {
               labels: {
                 nodes: defaultLabels,
+                pageInfo: { hasNextPage: false, endCursor: null },
               },
             },
           };
@@ -732,6 +733,75 @@ describe("update_discussion", () => {
       expect(result.success).toBe(false);
       expect(mockCore.infos.some(msg => msg.includes("NOT_FOUND"))).toBe(true);
       expect(mockCore.infos.some(msg => msg.includes("Check that the discussion number is correct"))).toBe(true);
+    });
+  });
+
+  describe("label pagination", () => {
+    it("should find labels beyond the first page when updating discussion labels", async () => {
+      // Override graphql to simulate paginated label responses
+      mockGithub.graphql = async (/** @type {string} */ query, /** @type {any} */ variables) => {
+        graphqlCalls.push({ query, variables });
+
+        if (query.includes("discussion(number:")) {
+          return { repository: { discussion: { ...defaultDiscussion } } };
+        }
+
+        // Paginated label fetch: page 1 (no cursor) → page 2 (with cursor)
+        if (query.includes("labels(first: 100") && query.includes("repository(owner:")) {
+          if (!variables.cursor) {
+            return {
+              repository: {
+                labels: {
+                  nodes: [
+                    { id: "LA_page1_1", name: "bug" },
+                    { id: "LA_page1_2", name: "enhancement" },
+                  ],
+                  pageInfo: { hasNextPage: true, endCursor: "cursor_page1" },
+                },
+              },
+            };
+          } else {
+            return {
+              repository: {
+                labels: {
+                  nodes: [{ id: "LA_page2_1", name: "Label1" }],
+                  pageInfo: { hasNextPage: false, endCursor: null },
+                },
+              },
+            };
+          }
+        }
+
+        if (query.includes("node(id:") && query.includes("on Discussion")) {
+          return { node: { labels: { nodes: [] } } };
+        }
+
+        if (query.includes("addLabelsToLabelable")) {
+          return { addLabelsToLabelable: { clientMutationId: "test" } };
+        }
+
+        throw new Error(`Unexpected GraphQL query: ${query.substring(0, 80)}`);
+      };
+
+      const handler = await main({
+        target: "*",
+        allow_labels: true,
+        allowed_labels: ["Label1"],
+      });
+
+      const result = await handler({ type: "update_discussion", labels: ["Label1"], discussion_number: 42 }, {});
+      expect(result.success).toBe(true);
+
+      // Verify two label fetch calls were made (one per page)
+      const labelFetchCalls = graphqlCalls.filter(c => c.query.includes("labels(first: 100") && c.query.includes("repository(owner:"));
+      expect(labelFetchCalls.length).toBe(2);
+      expect(labelFetchCalls[0].variables.cursor).toBeNull();
+      expect(labelFetchCalls[1].variables.cursor).toBe("cursor_page1");
+
+      // Verify the page-2 label was correctly applied
+      const addLabelsCalls = graphqlCalls.filter(c => c.query.includes("addLabelsToLabelable"));
+      expect(addLabelsCalls.length).toBe(1);
+      expect(addLabelsCalls[0].variables.labelIds).toEqual(["LA_page2_1"]);
     });
   });
 });

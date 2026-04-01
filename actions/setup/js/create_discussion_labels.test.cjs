@@ -59,7 +59,21 @@ describe("create_discussion with labels", () => {
         };
       }
 
-      // Second call: fetch labels
+      // Second call: fetch labels (check addLabelsToLabelable first because its selection
+      // set includes labels(first: 10) which would otherwise match the broader condition)
+      if (query.includes("addLabelsToLabelable")) {
+        return {
+          addLabelsToLabelable: {
+            labelable: {
+              id: "D_discussion123",
+              labels: {
+                nodes: [{ name: "automation" }, { name: "report" }],
+              },
+            },
+          },
+        };
+      }
+
       if (query.includes("labels(first:")) {
         return {
           repository: {
@@ -69,6 +83,7 @@ describe("create_discussion with labels", () => {
                 { id: "LA_label2", name: "report" },
                 { id: "LA_label3", name: "ai-generated" },
               ],
+              pageInfo: { hasNextPage: false, endCursor: null },
             },
           },
         };
@@ -83,20 +98,6 @@ describe("create_discussion with labels", () => {
               number: 42,
               title: "Test Discussion",
               url: "https://github.com/owner/repo/discussions/42",
-            },
-          },
-        };
-      }
-
-      // Fourth call: add labels
-      if (query.includes("addLabelsToLabelable")) {
-        return {
-          addLabelsToLabelable: {
-            labelable: {
-              id: "D_discussion123",
-              labels: {
-                nodes: [{ name: "automation" }, { name: "report" }],
-              },
             },
           },
         };
@@ -284,11 +285,16 @@ describe("create_discussion with labels", () => {
         };
       }
 
+      if (query.includes("addLabelsToLabelable")) {
+        throw new Error("Insufficient permissions to add labels");
+      }
+
       if (query.includes("labels(first:")) {
         return {
           repository: {
             labels: {
               nodes: [{ id: "LA_label1", name: "automation" }],
+              pageInfo: { hasNextPage: false, endCursor: null },
             },
           },
         };
@@ -307,10 +313,7 @@ describe("create_discussion with labels", () => {
         };
       }
 
-      // Simulate failure for label application
-      if (query.includes("addLabelsToLabelable")) {
-        throw new Error("Insufficient permissions to add labels");
-      }
+      // Simulate failure for label application — handled above
 
       throw new Error(`Unexpected GraphQL query: ${query.substring(0, 100)}`);
     });
@@ -452,5 +455,93 @@ describe("create_discussion with labels", () => {
 
     expect(result.success).toBe(true);
     expect(result.number).toBe(42);
+  });
+
+  it("should find labels beyond the first page (pagination)", async () => {
+    // Override mockGithub.graphql to simulate paginated label responses
+    mockGithub.graphql.mockImplementation(async (query, variables) => {
+      if (query.includes("discussionCategories")) {
+        return {
+          repository: {
+            id: "R_test123",
+            discussionCategories: {
+              nodes: [{ id: "DIC_test456", name: "General", slug: "general", description: "General discussions" }],
+            },
+          },
+        };
+      }
+
+      if (query.includes("addLabelsToLabelable")) {
+        return {
+          addLabelsToLabelable: {
+            labelable: { id: "D_discussion123", labels: { nodes: [{ name: "automation" }] } },
+          },
+        };
+      }
+
+      if (query.includes("labels(first:")) {
+        // Return page 1 when no cursor, page 2 when cursor provided
+        if (!variables.cursor) {
+          return {
+            repository: {
+              labels: {
+                nodes: [
+                  { id: "LA_page1_1", name: "bug" },
+                  { id: "LA_page1_2", name: "enhancement" },
+                ],
+                pageInfo: { hasNextPage: true, endCursor: "cursor_page1" },
+              },
+            },
+          };
+        } else {
+          return {
+            repository: {
+              labels: {
+                nodes: [{ id: "LA_page2_1", name: "automation" }],
+                pageInfo: { hasNextPage: false, endCursor: null },
+              },
+            },
+          };
+        }
+      }
+
+      if (query.includes("createDiscussion")) {
+        return {
+          createDiscussion: {
+            discussion: {
+              id: "D_discussion123",
+              number: 42,
+              title: "Test Discussion",
+              url: "https://github.com/owner/repo/discussions/42",
+            },
+          },
+        };
+      }
+
+      throw new Error(`Unexpected GraphQL query: ${query.substring(0, 100)}`);
+    });
+
+    const config = {
+      allowed_repos: ["test-owner/test-repo"],
+      target_repo: "test-owner/test-repo",
+      category: "general",
+      labels: ["automation"], // This label is on page 2
+    };
+
+    const handler = await createDiscussionMain(config);
+    const result = await handler({ title: "Test", body: "Body" }, {});
+
+    expect(result.success).toBe(true);
+
+    // Verify two label fetch calls were made (one per page)
+    const labelFetchCalls = mockGithub.graphql.mock.calls.filter(call => call[0].includes("labels(first:") && !call[0].includes("addLabelsToLabelable"));
+    expect(labelFetchCalls.length).toBe(2);
+    expect(labelFetchCalls[0][1].cursor).toBeNull();
+    expect(labelFetchCalls[1][1].cursor).toBe("cursor_page1");
+
+    // Verify the page-2 label was correctly applied
+    const labelsApplyCall = mockGithub.graphql.mock.calls.find(call => call[0].includes("addLabelsToLabelable"));
+    expect(labelsApplyCall).toBeDefined();
+    expect(labelsApplyCall[1].labelIds).toEqual(["LA_page2_1"]);
   });
 });

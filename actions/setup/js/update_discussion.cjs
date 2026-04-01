@@ -14,7 +14,7 @@ const { validateLabels } = require("./safe_output_validator.cjs");
 const { tryEnforceArrayLimit } = require("./limit_enforcement_helpers.cjs");
 const { MAX_LABELS } = require("./constants.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
-const { logGraphQLError } = require("./github_api_helpers.cjs");
+const { logGraphQLError, fetchAllRepoLabels } = require("./github_api_helpers.cjs");
 const { resolveNumberFromTemporaryId } = require("./temporary_id.cjs");
 
 /** @type {import('./github_api_helpers.cjs').GraphQLErrorHints} */
@@ -37,22 +37,8 @@ async function fetchLabelNodeIds(githubClient, owner, repo, labelNames) {
     return [];
   }
 
-  const labelsQuery = `
-    query($owner: String!, $repo: String!) {
-      repository(owner: $owner, name: $repo) {
-        labels(first: 100) {
-          nodes {
-            id
-            name
-          }
-        }
-      }
-    }
-  `;
-
-  const queryResult = await githubClient.graphql(labelsQuery, { owner, repo });
-  const repoLabels = queryResult?.repository?.labels?.nodes || [];
-  const labelMap = new Map(repoLabels.map(/** @param {any} l */ l => [l.name.toLowerCase(), l.id]));
+  const allLabels = await fetchAllRepoLabels(githubClient, owner, repo);
+  const labelMap = new Map(allLabels.map(/** @param {any} l */ l => [l.name.toLowerCase(), l.id]));
 
   const labelIds = [];
   const unmatched = [];

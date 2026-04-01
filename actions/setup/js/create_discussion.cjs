@@ -27,6 +27,7 @@ const { parseBoolTemplatable } = require("./templatable.cjs");
 const { buildWorkflowRunUrl } = require("./workflow_metadata_helpers.cjs");
 const { generateHistoryLink } = require("./generate_history_link.cjs");
 const { MAX_LABELS } = require("./constants.cjs");
+const { fetchAllRepoLabels } = require("./github_api_helpers.cjs");
 
 /**
  * Fetch repository ID and discussion categories for a repository
@@ -135,27 +136,8 @@ async function fetchLabelIds(githubClient, owner, repo, labelNames) {
   }
 
   try {
-    // Fetch first 100 labels from the repository
-    const labelsQuery = `
-      query($owner: String!, $repo: String!) {
-        repository(owner: $owner, name: $repo) {
-          labels(first: 100) {
-            nodes {
-              id
-              name
-            }
-          }
-        }
-      }
-    `;
-
-    const queryResult = await githubClient.graphql(labelsQuery, {
-      owner: owner,
-      repo: repo,
-    });
-
-    const repoLabels = queryResult?.repository?.labels?.nodes || [];
-    const labelMap = new Map(repoLabels.map(label => [label.name.toLowerCase(), label]));
+    const allLabels = await fetchAllRepoLabels(githubClient, owner, repo);
+    const labelMap = new Map(allLabels.map(label => [label.name.toLowerCase(), label]));
 
     // Match requested labels (case-insensitive)
     const matchedLabels = [];
@@ -173,7 +155,10 @@ async function fetchLabelIds(githubClient, owner, repo, labelNames) {
 
     if (unmatchedLabels.length > 0) {
       core.warning(`Could not find label IDs for: ${unmatchedLabels.join(", ")}`);
-      core.info(`These labels may not exist in the repository. Available labels: ${repoLabels.map(l => l.name).join(", ")}`);
+      const MAX_DISPLAY = 20;
+      const displayedLabels = allLabels.slice(0, MAX_DISPLAY).map(l => l.name);
+      const truncationNote = allLabels.length > MAX_DISPLAY ? ` … (${allLabels.length} total)` : "";
+      core.info(`These labels may not exist in the repository. Available labels: ${displayedLabels.join(", ")}${truncationNote}`);
     }
 
     return matchedLabels;
