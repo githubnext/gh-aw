@@ -59,7 +59,21 @@ describe("create_discussion with labels", () => {
         };
       }
 
-      // Second call: fetch labels
+      // Second call: fetch labels (check addLabelsToLabelable first because its selection
+      // set includes labels(first: 10) which would otherwise match the broader condition)
+      if (query.includes("addLabelsToLabelable")) {
+        return {
+          addLabelsToLabelable: {
+            labelable: {
+              id: "D_discussion123",
+              labels: {
+                nodes: [{ name: "automation" }, { name: "report" }],
+              },
+            },
+          },
+        };
+      }
+
       if (query.includes("labels(first:")) {
         return {
           repository: {
@@ -84,20 +98,6 @@ describe("create_discussion with labels", () => {
               number: 42,
               title: "Test Discussion",
               url: "https://github.com/owner/repo/discussions/42",
-            },
-          },
-        };
-      }
-
-      // Fourth call: add labels
-      if (query.includes("addLabelsToLabelable")) {
-        return {
-          addLabelsToLabelable: {
-            labelable: {
-              id: "D_discussion123",
-              labels: {
-                nodes: [{ name: "automation" }, { name: "report" }],
-              },
             },
           },
         };
@@ -285,6 +285,10 @@ describe("create_discussion with labels", () => {
         };
       }
 
+      if (query.includes("addLabelsToLabelable")) {
+        throw new Error("Insufficient permissions to add labels");
+      }
+
       if (query.includes("labels(first:")) {
         return {
           repository: {
@@ -309,10 +313,7 @@ describe("create_discussion with labels", () => {
         };
       }
 
-      // Simulate failure for label application
-      if (query.includes("addLabelsToLabelable")) {
-        throw new Error("Insufficient permissions to add labels");
-      }
+      // Simulate failure for label application — handled above
 
       throw new Error(`Unexpected GraphQL query: ${query.substring(0, 100)}`);
     });

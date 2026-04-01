@@ -155,7 +155,10 @@ async function fetchLabelIds(githubClient, owner, repo, labelNames) {
 
     if (unmatchedLabels.length > 0) {
       core.warning(`Could not find label IDs for: ${unmatchedLabels.join(", ")}`);
-      core.info(`These labels may not exist in the repository. Available labels: ${allLabels.map(l => l.name).join(", ")}`);
+      const MAX_DISPLAY = 20;
+      const displayedLabels = allLabels.slice(0, MAX_DISPLAY).map(l => l.name);
+      const truncationNote = allLabels.length > MAX_DISPLAY ? ` … (${allLabels.length} total)` : "";
+      core.info(`These labels may not exist in the repository. Available labels: ${displayedLabels.join(", ")}${truncationNote}`);
     }
 
     return matchedLabels;
