@@ -1593,9 +1593,10 @@ describe("assign_to_agent", () => {
     expect(lastCall[1].customInstructions).toBeUndefined();
   });
 
-  it("should reassign when agent is already assigned but a different per-item pull_request_repo is provided", async () => {
-    // When a per-item pull_request_repo is specified the already-assigned guard must NOT
-    // short-circuit, so that Copilot can be triggered in the new target repository.
+  it("should bypass already-assigned check when per-item pull_request_repo is provided", async () => {
+    // When a per-item pull_request_repo is specified, the already-assigned guard must NOT
+    // short-circuit even if the agent is already assigned, so that Copilot can be triggered
+    // in the new target repository.
     process.env.GH_AW_AGENT_ALLOWED_PULL_REQUEST_REPOS = "test-owner/android-repo";
     setAgentOutput({
       items: [
