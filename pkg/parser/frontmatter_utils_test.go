@@ -9,6 +9,8 @@ import (
 	"testing"
 
 	"github.com/github/gh-aw/pkg/testutil"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestIsUnderWorkflowsDirectory(t *testing.T) {
@@ -52,9 +54,7 @@ func TestIsUnderWorkflowsDirectory(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result := isUnderWorkflowsDirectory(tt.filePath)
-			if result != tt.expected {
-				t.Errorf("isUnderWorkflowsDirectory(%q) = %v, want %v", tt.filePath, result, tt.expected)
-			}
+			assert.Equal(t, tt.expected, result, "isUnderWorkflowsDirectory(%q)", tt.filePath)
 		})
 	}
 }
@@ -110,9 +110,7 @@ func TestIsCustomAgentFile(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result := isCustomAgentFile(tt.filePath)
-			if result != tt.expected {
-				t.Errorf("isCustomAgentFile(%q) = %v, want %v", tt.filePath, result, tt.expected)
-			}
+			assert.Equal(t, tt.expected, result, "isCustomAgentFile(%q)", tt.filePath)
 		})
 	}
 }
@@ -120,16 +118,13 @@ func TestIsCustomAgentFile(t *testing.T) {
 func TestResolveIncludePath(t *testing.T) {
 	// Create temporary directory structure
 	tempDir, err := os.MkdirTemp("", "test_resolve")
-	if err != nil {
-		t.Fatalf("Failed to create temp dir: %v", err)
-	}
+	require.NoError(t, err, "should create temp dir")
 	defer os.RemoveAll(tempDir)
 
 	// Create regular test file in temp dir
 	regularFile := filepath.Join(tempDir, "regular.md")
-	if err := os.WriteFile(regularFile, []byte("test"), 0644); err != nil {
-		t.Fatalf("Failed to write regular file: %v", err)
-	}
+	err = os.WriteFile(regularFile, []byte("test"), 0644)
+	require.NoError(t, err, "should write regular file")
 
 	tests := []struct {
 		name     string
@@ -150,6 +145,12 @@ func TestResolveIncludePath(t *testing.T) {
 			baseDir:  tempDir,
 			wantErr:  true,
 		},
+		{
+			name:     "absolute path outside base dir is rejected for security",
+			filePath: "/etc/passwd",
+			baseDir:  tempDir,
+			wantErr:  true,
+		},
 	}
 
 	for _, tt := range tests {
@@ -157,27 +158,15 @@ func TestResolveIncludePath(t *testing.T) {
 			result, err := ResolveIncludePath(tt.filePath, tt.baseDir, nil)
 
 			if tt.wantErr {
-				if err == nil {
-					t.Errorf("ResolveIncludePath() expected error, got nil")
-				}
+				assert.Error(t, err, "ResolveIncludePath(%q, %q) should return error", tt.filePath, tt.baseDir)
 				return
 			}
 
-			if err != nil {
-				t.Errorf("ResolveIncludePath() error = %v", err)
-				return
-			}
-
-			if result != tt.expected {
-				t.Errorf("ResolveIncludePath() = %q, want %q", result, tt.expected)
-			}
+			require.NoError(t, err, "ResolveIncludePath(%q, %q) should not error", tt.filePath, tt.baseDir)
+			assert.Equal(t, tt.expected, result, "ResolveIncludePath(%q, %q) result", tt.filePath, tt.baseDir)
 		})
 	}
 }
-
-// Test mergeToolsFromJSON function
-
-// Benchmark StripANSI function for performance
 
 func TestIsWorkflowSpec(t *testing.T) {
 	tests := []struct {
@@ -250,9 +239,93 @@ func TestIsWorkflowSpec(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got := isWorkflowSpec(tt.path)
-			if got != tt.want {
-				t.Errorf("isWorkflowSpec(%q) = %v, want %v", tt.path, got, tt.want)
-			}
+			assert.Equal(t, tt.want, got, "isWorkflowSpec(%q)", tt.path)
+		})
+	}
+}
+
+func TestIsRepositoryImport(t *testing.T) {
+	tests := []struct {
+		name       string
+		importPath string
+		want       bool
+	}{
+		{
+			name:       "simple owner/repo",
+			importPath: "owner/repo",
+			want:       true,
+		},
+		{
+			name:       "owner/repo with ref",
+			importPath: "owner/repo@main",
+			want:       true,
+		},
+		{
+			name:       "owner/repo with SHA ref",
+			importPath: "owner/repo@abc123def456",
+			want:       true,
+		},
+		{
+			name:       "owner/repo with section",
+			importPath: "owner/repo#section",
+			want:       true,
+		},
+		{
+			name:       "owner/repo with ref and section",
+			importPath: "owner/repo@main#section",
+			want:       true,
+		},
+		{
+			name:       "owner/repo with hyphen",
+			importPath: "my-org/my-repo",
+			want:       true,
+		},
+		{
+			name:       "owner/repo with underscore",
+			importPath: "my_org/my_repo",
+			want:       true,
+		},
+		{
+			name:       "workflowspec with three parts is not repository import",
+			importPath: "owner/repo/path/to/file.md",
+			want:       false,
+		},
+		{
+			name:       "local relative path is not repository import",
+			importPath: "relative/path.md",
+			want:       false, // repo part contains a file extension
+		},
+		{
+			name:       "local dotfile path is not repository import",
+			importPath: ".github/workflows/file.md",
+			want:       false,
+		},
+		{
+			name:       "absolute path is not repository import",
+			importPath: "/owner/repo",
+			want:       false,
+		},
+		{
+			name:       "shared path is not repository import",
+			importPath: "shared/mcp",
+			want:       false, // reserved path prefix: "shared/" is treated as a local shared directory
+		},
+		{
+			name:       "repo with file extension is not repository import",
+			importPath: "owner/repo.md",
+			want:       false,
+		},
+		{
+			name:       "single part path is not repository import",
+			importPath: "just-a-name",
+			want:       false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := isRepositoryImport(tt.importPath)
+			assert.Equal(t, tt.want, got, "isRepositoryImport(%q)", tt.importPath)
 		})
 	}
 }
@@ -282,9 +355,8 @@ tools:
 ---
 # Include Content
 This is an included file.`
-	if err := os.WriteFile(includeFile, []byte(includeContent), 0644); err != nil {
-		t.Fatalf("Failed to write include file: %v", err)
-	}
+	err := os.WriteFile(includeFile, []byte(includeContent), 0644)
+	require.NoError(t, err, "should write include file")
 
 	tests := []struct {
 		name          string
@@ -339,40 +411,26 @@ This is an included file.`
 			tools, engines, err := processImportsFromFrontmatter(tt.frontmatter, tempDir)
 
 			if tt.wantErr {
-				if err == nil {
-					t.Errorf("ProcessImportsFromFrontmatter() expected error but got none")
-				}
+				assert.Error(t, err, "ProcessImportsFromFrontmatter() should return error")
 				return
 			}
 
-			if err != nil {
-				t.Errorf("ProcessImportsFromFrontmatter() unexpected error: %v", err)
-				return
-			}
+			require.NoError(t, err, "ProcessImportsFromFrontmatter() should not error")
 
 			if tt.wantToolsJSON {
-				if tools == "" {
-					t.Errorf("ProcessImportsFromFrontmatter() expected tools JSON but got empty string")
-				}
+				assert.NotEmpty(t, tools, "ProcessImportsFromFrontmatter() should return tools JSON")
 				// Verify it's valid JSON
 				var toolsMap map[string]any
-				if err := json.Unmarshal([]byte(tools), &toolsMap); err != nil {
-					t.Errorf("ProcessImportsFromFrontmatter() tools not valid JSON: %v", err)
-				}
+				err := json.Unmarshal([]byte(tools), &toolsMap)
+				require.NoError(t, err, "ProcessImportsFromFrontmatter() tools should be valid JSON")
 			} else {
-				if tools != "" {
-					t.Errorf("ProcessImportsFromFrontmatter() expected no tools but got: %s", tools)
-				}
+				assert.Empty(t, tools, "ProcessImportsFromFrontmatter() should return no tools")
 			}
 
 			if tt.wantEngines {
-				if len(engines) == 0 {
-					t.Errorf("ProcessImportsFromFrontmatter() expected engines but got none")
-				}
+				assert.NotEmpty(t, engines, "ProcessImportsFromFrontmatter() should return engines")
 			} else {
-				if len(engines) != 0 {
-					t.Errorf("ProcessImportsFromFrontmatter() expected no engines but got: %v", engines)
-				}
+				assert.Empty(t, engines, "ProcessImportsFromFrontmatter() should return no engines")
 			}
 		})
 	}
