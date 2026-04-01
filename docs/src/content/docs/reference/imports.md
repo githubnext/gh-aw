@@ -346,38 +346,59 @@ permissions:
 Search the web for relevant information and summarize findings in the issue.
 ```
 
-### Top-level `jobs:`
+### Importing Top-level `jobs:`
 
-Top-level `jobs:` define pre-execution jobs that run **before** the agentic step in the same workflow. They are useful for building indexes, running linters, or computing outputs the agent reads via `${{ needs.job-name.outputs.* }}`:
+Top-level `jobs:` defined in a shared workflow are merged into the importing workflow's compiled lock file. The job execution order is determined by `needs` entries — a shared job can run before or after other jobs in the final workflow:
+
+```aw title="shared/build.md" wrap
+---
+description: Shared build job that compiles artifacts for the agent to inspect
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    needs: [activation]
+    outputs:
+      artifact_name: ${{ steps.build.outputs.artifact_name }}
+    steps:
+      - uses: actions/checkout@v6
+      - name: Build
+        id: build
+        run: |
+          npm ci && npm run build
+          echo "artifact_name=build-output" >> "$GITHUB_OUTPUT"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: build-output
+          path: dist/
+
+steps:
+  - uses: actions/download-artifact@v4
+    with:
+      name: ${{ needs.build.outputs.artifact_name }}
+      path: /tmp/build-output
+---
+```
+
+Import it so the `build` job runs before the agent and its artifacts are available as pre-steps:
 
 ```aw title="my-workflow.md" wrap
 ---
-on: issues
+on: pull_request
 engine: copilot
 imports:
-  - shared/mcp/tavily.md
+  - shared/build.md
 permissions:
   contents: read
-  issues: write
-jobs:
-  super_linter:
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      statuses: write
-    steps:
-      - uses: actions/checkout@v6
-      - uses: super-linter/super-linter@v7
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  pull-requests: write
 ---
 
-# Code Quality Workflow
+# Code Review Workflow
 
-Review linting results and suggest fixes for any violations found.
+Review the build output in /tmp/build-output and suggest improvements.
 ```
 
-Top-level `jobs:` are defined per-workflow and cannot be moved into shared import files.
+In the compiled lock file the `build` job appears alongside `activation` and `agent` jobs, ordered according to each job's `needs` declarations.
 
 ### Importing Jobs via `safe-outputs.jobs`
 
