@@ -180,13 +180,16 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 
 	// Add timestamp check for lock file vs source file using GitHub API
 	// No checkout step needed - uses GitHub API to check commit times
-	steps = append(steps, "      - name: Check workflow file timestamps\n")
-	steps = append(steps, fmt.Sprintf("        uses: %s\n", GetActionPin("actions/github-script")))
-	steps = append(steps, "        env:\n")
-	steps = append(steps, fmt.Sprintf("          GH_AW_WORKFLOW_FILE: \"%s\"\n", lockFilename))
-	steps = append(steps, "        with:\n")
-	steps = append(steps, "          script: |\n")
-	steps = append(steps, generateGitHubScriptWithRequire("check_workflow_timestamp_api.cjs"))
+	// Skipped when on.stale-check: false is set in the frontmatter.
+	if !data.StaleCheckDisabled {
+		steps = append(steps, "      - name: Check workflow file timestamps\n")
+		steps = append(steps, fmt.Sprintf("        uses: %s\n", GetActionPin("actions/github-script")))
+		steps = append(steps, "        env:\n")
+		steps = append(steps, fmt.Sprintf("          GH_AW_WORKFLOW_FILE: \"%s\"\n", lockFilename))
+		steps = append(steps, "        with:\n")
+		steps = append(steps, "          script: |\n")
+		steps = append(steps, generateGitHubScriptWithRequire("check_workflow_timestamp_api.cjs"))
+	}
 
 	// Add compile-agentic version update check, unless disabled via check-for-updates: false.
 	// The check downloads .github/aw/releases.json from the gh-aw repository and verifies that the

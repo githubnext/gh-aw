@@ -232,6 +232,17 @@ func (c *Compiler) buildInitialWorkflowData(
 		}
 	}
 
+	// Populate stale-check flag: disabled when on.stale-check: false is set in frontmatter.
+	if onVal, ok := result.Frontmatter["on"]; ok {
+		if onMap, ok := onVal.(map[string]any); ok {
+			if staleCheck, ok := onMap["stale-check"]; ok {
+				if boolVal, ok := staleCheck.(bool); ok && !boolVal {
+					workflowData.StaleCheckDisabled = true
+				}
+			}
+		}
+	}
+
 	return workflowData
 }
 

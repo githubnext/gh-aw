@@ -2074,6 +2074,10 @@
                   "pull-requests": "read"
                 }
               ]
+            },
+            "stale-check": {
+              "type": "boolean",
+              "description": "When set to false, disables the frontmatter hash check step in the activation job. Default is true (check is enabled). Useful when the workflow source files are managed outside the default GitHub repo context (e.g. cross-repo org rulesets) and the stale check is not needed."
             }
           },
           "additionalProperties": false,

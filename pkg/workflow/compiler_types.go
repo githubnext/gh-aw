@@ -435,6 +435,7 @@ type WorkflowData struct {
 	ConcurrencyJobDiscriminator string                    // optional discriminator expression appended to job-level concurrency groups (from concurrency.job-discriminator)
 	IsDetectionRun              bool                      // true when this WorkflowData is used for inline threat detection (not the main agent run)
 	UpdateCheckDisabled         bool                      // true when check-for-updates: false is set in frontmatter (disables version check step in activation job)
+	StaleCheckDisabled          bool                      // true when on.stale-check: false is set in frontmatter (disables frontmatter hash check step in activation job)
 	EngineConfigSteps           []map[string]any          // steps returned by engine.RenderConfig — prepended before execution steps
 }
 
