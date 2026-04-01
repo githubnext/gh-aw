@@ -105,6 +105,19 @@ engine: copilot
       expect(mockCore.setFailed).not.toHaveBeenCalled();
       expect(mockCore.summary.addRaw).not.toHaveBeenCalled();
     });
+
+    it("should log same-repo invocation when GITHUB_WORKFLOW_REF matches GITHUB_REPOSITORY", async () => {
+      process.env.GITHUB_WORKFLOW_REF = "test-owner/test-repo/.github/workflows/test.lock.yml@refs/heads/main";
+      process.env.GITHUB_REPOSITORY = "test-owner/test-repo";
+
+      mockGithub.rest.repos.getContent.mockResolvedValue({ data: null });
+
+      await main();
+
+      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Same-repo invocation"));
+      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("GITHUB_WORKFLOW_REF:"));
+      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Resolved source repo:"));
+    });
   });
 
   describe("when lock file is outdated (hashes differ)", () => {
@@ -518,6 +531,16 @@ engine: copilot
       expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Cross-repo invocation detected"));
       expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("✅ Lock file is up to date (hashes match)"));
       expect(mockCore.setFailed).not.toHaveBeenCalled();
+    });
+
+    it("should log GITHUB_WORKFLOW_REF, GITHUB_REPOSITORY, and resolved source repo", async () => {
+      mockGithub.rest.repos.getContent.mockResolvedValue({ data: null });
+
+      await main();
+
+      expect(mockCore.info).toHaveBeenCalledWith("GITHUB_WORKFLOW_REF: source-owner/source-repo/.github/workflows/test.lock.yml@refs/heads/main");
+      expect(mockCore.info).toHaveBeenCalledWith("GITHUB_REPOSITORY: target-owner/target-repo");
+      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Resolved source repo: source-owner/source-repo @ refs/heads/main"));
     });
 
     it("should use the workflow ref from GITHUB_WORKFLOW_REF, not context.sha", async () => {

@@ -37,6 +37,7 @@ async function main() {
   // When running cross-repo via org rulesets, context.repo points to the target
   // repository, not the repository that defines the workflow files.
   const workflowEnvRef = process.env.GITHUB_WORKFLOW_REF || "";
+  const currentRepo = process.env.GITHUB_REPOSITORY || `${context.repo.owner}/${context.repo.repo}`;
   const repoMatch = workflowEnvRef.match(/^([^/]+)\/([^/]+)\//);
   const refMatch = workflowEnvRef.match(/@(.+)$/);
 
@@ -47,11 +48,15 @@ async function main() {
   // Use the workflow ref if parseable, otherwise fall back to context.sha
   const ref = refMatch ? refMatch[1] : context.sha;
 
-  // Log cross-repo detection for debugging
-  const currentRepo = process.env.GITHUB_REPOSITORY || `${context.repo.owner}/${context.repo.repo}`;
+  core.info(`GITHUB_WORKFLOW_REF: ${workflowEnvRef || "(not set)"}`);
+  core.info(`GITHUB_REPOSITORY: ${currentRepo}`);
+  core.info(`Resolved source repo: ${owner}/${repo} @ ${ref}`);
+
   const workflowRepo = `${owner}/${repo}`;
   if (workflowRepo !== currentRepo) {
     core.info(`Cross-repo invocation detected: workflow source is "${workflowRepo}", current repo is "${currentRepo}"`);
+  } else {
+    core.info(`Same-repo invocation: checking out ${workflowRepo} @ ${ref}`);
   }
 
   // Helper function to compute and compare frontmatter hashes
