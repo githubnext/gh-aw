@@ -78,9 +78,43 @@ func (c *Compiler) buildUploadCodeScanningSARIFStep(data *WorkflowData) []string
 	steps = append(steps, "        if: steps.process_safe_outputs.outputs.sarif_file != ''\n")
 	steps = append(steps, fmt.Sprintf("        uses: %s\n", GetActionPin("github/codeql-action/upload-sarif")))
 	steps = append(steps, "        with:\n")
-	c.addSafeOutputGitHubTokenForConfig(&steps, data, data.SafeOutputs.CreateCodeScanningAlerts.GitHubToken)
+	// NOTE: github/codeql-action/upload-sarif uses 'token' as the input name, not 'github-token'
+	c.addUploadSARIFToken(&steps, data, data.SafeOutputs.CreateCodeScanningAlerts.GitHubToken)
 	steps = append(steps, "          sarif_file: ${{ steps.process_safe_outputs.outputs.sarif_file }}\n")
 	steps = append(steps, "          wait-for-processing: true\n")
 
 	return steps
+}
+
+// addUploadSARIFToken adds the 'token' input for github/codeql-action/upload-sarif.
+// This action uses 'token' as the input name (not 'github-token' like other GitHub Actions).
+// Uses precedence: config token > safe-outputs global github-token > GH_AW_GITHUB_TOKEN || GITHUB_TOKEN
+func (c *Compiler) addUploadSARIFToken(steps *[]string, data *WorkflowData, configToken string) {
+	var safeOutputsToken string
+	if data.SafeOutputs != nil {
+		safeOutputsToken = data.SafeOutputs.GitHubToken
+	}
+
+	// If app is configured, use app token
+	if data.SafeOutputs != nil && data.SafeOutputs.GitHubApp != nil {
+		*steps = append(*steps, "          token: ${{ steps.safe-outputs-app-token.outputs.token }}\n")
+		return
+	}
+
+	// Choose the first non-empty custom token for precedence
+	effectiveCustomToken := configToken
+	if effectiveCustomToken == "" {
+		effectiveCustomToken = safeOutputsToken
+	}
+
+	effectiveToken := getEffectiveSafeOutputGitHubToken(effectiveCustomToken)
+	// Log which token source is being used for debugging
+	tokenSource := "default (GH_AW_GITHUB_TOKEN || GITHUB_TOKEN)"
+	if configToken != "" {
+		tokenSource = "per-config github-token"
+	} else if safeOutputsToken != "" {
+		tokenSource = "safe-outputs github-token"
+	}
+	createCodeScanningAlertLog.Printf("Using token for SARIF upload from source: %s (upload-sarif uses 'token' not 'github-token')", tokenSource)
+	*steps = append(*steps, fmt.Sprintf("          token: %s\n", effectiveToken))
 }

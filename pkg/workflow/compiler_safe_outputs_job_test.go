@@ -841,6 +841,20 @@ func TestCreateCodeScanningAlertIncludesSARIFUploadStep(t *testing.T) {
 					"Upload step should reference sarif_file output")
 				assert.Contains(t, stepsContent, "wait-for-processing: true",
 					"Upload step should wait for processing")
+				// github/codeql-action/upload-sarif uses 'token' not 'github-token'
+				// Extract the upload-sarif step section to check it specifically
+				uploadStepStart := strings.Index(stepsContent, "- name: Upload SARIF to GitHub Code Scanning")
+				require.Greater(t, uploadStepStart, -1, "Upload SARIF step must exist in steps content")
+				uploadStepSection := stepsContent[uploadStepStart:]
+				// Find the end of this step (next step starts with "      - name:")
+				nextStepIdx := strings.Index(uploadStepSection[len("      - name:"):], "      - name:")
+				if nextStepIdx > -1 {
+					uploadStepSection = uploadStepSection[:nextStepIdx+len("      - name:")]
+				}
+				assert.Contains(t, uploadStepSection, "token:",
+					"Upload step should use 'token' input (not 'github-token')")
+				assert.NotContains(t, uploadStepSection, "github-token:",
+					"Upload step must not use 'github-token' - upload-sarif only accepts 'token'")
 
 				// Verify the upload step appears after the process_safe_outputs step
 				processSafeOutputsPos := strings.Index(stepsContent, "id: process_safe_outputs")

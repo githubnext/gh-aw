@@ -599,7 +599,14 @@ async function main(config = {}) {
       /** @type {{ id: string | number, html_url: string }} */
       let comment;
       if (isDiscussion) {
-        comment = await commentOnDiscussion(githubClient, repoParts.owner, repoParts.repo, itemNumber, processedBody, null);
+        // When triggered by a discussion_comment event (without explicit item_number),
+        // reply as a threaded comment to the triggering comment instead of posting top-level.
+        const hasExplicitItemNumber = message.item_number !== undefined && message.item_number !== null;
+        const replyToId = context.eventName === "discussion_comment" && !hasExplicitItemNumber ? context.payload?.comment?.node_id : null;
+        if (replyToId) {
+          core.info(`Replying as threaded comment to discussion comment node ID: ${replyToId}`);
+        }
+        comment = await commentOnDiscussion(githubClient, repoParts.owner, repoParts.repo, itemNumber, processedBody, replyToId);
       } else {
         // Use REST API for issues/PRs
         const { data } = await githubClient.rest.issues.createComment({

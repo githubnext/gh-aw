@@ -4,6 +4,7 @@ package cli
 
 import (
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -30,7 +31,7 @@ More content.
 		},
 	}
 
-	result, err := processIncludesWithWorkflowSpec(content, workflow, "", "/tmp/package", false)
+	result, err := processIncludesWithWorkflowSpec(content, workflow, "", "/tmp/package", "", false)
 	if err != nil {
 		t.Fatalf("Expected no error, got: %v", err)
 	}
@@ -70,7 +71,7 @@ More content.
 		},
 	}
 
-	result, err := processIncludesWithWorkflowSpec(content, workflow, "", "/tmp/package", false)
+	result, err := processIncludesWithWorkflowSpec(content, workflow, "", "/tmp/package", "", false)
 	if err != nil {
 		t.Fatalf("Expected no error, got: %v", err)
 	}
@@ -101,7 +102,7 @@ engine: claude
 
 	commitSHA := "e2770974a7eaccb58ddafd5606c38a05ba52c631"
 
-	result, err := processIncludesWithWorkflowSpec(content, workflow, commitSHA, "/tmp/package", false)
+	result, err := processIncludesWithWorkflowSpec(content, workflow, commitSHA, "/tmp/package", "", false)
 	if err != nil {
 		t.Fatalf("Expected no error, got: %v", err)
 	}
@@ -133,7 +134,7 @@ More content.
 		},
 	}
 
-	result, err := processIncludesWithWorkflowSpec(content, workflow, "", "/tmp/package", false)
+	result, err := processIncludesWithWorkflowSpec(content, workflow, "", "/tmp/package", "", false)
 	if err != nil {
 		t.Fatalf("Expected no error, got: %v", err)
 	}
@@ -246,7 +247,7 @@ Do research.
 
 	commitSHA := "e2770974a7eaccb58ddafd5606c38a05ba52c631"
 
-	result, err := processIncludesWithWorkflowSpec(content, workflow, commitSHA, "/tmp/package", false)
+	result, err := processIncludesWithWorkflowSpec(content, workflow, commitSHA, "/tmp/package", "", false)
 	if err != nil {
 		t.Fatalf("Expected no error, got: %v", err)
 	}
@@ -261,6 +262,404 @@ Do research.
 	malformedPath := "githubnext/agentics/@e2770974"
 	if strings.Contains(result, malformedPath) {
 		t.Errorf("Result should NOT contain malformed path '%s' (the original bug)\nGot:\n%s", malformedPath, result)
+	}
+}
+
+// TestProcessIncludesWithWorkflowSpec_PathResolution tests that body-level {{#import}}
+// paths are resolved relative to the workflow file's location, not the repo root.
+// Regression test for: gh aw add rewrites {{#import shared/X.md}} with incorrect
+// cross-repo path (resolves from repo root instead of .github/workflows/).
+func TestProcessIncludesWithWorkflowSpec_PathResolution(t *testing.T) {
+	content := `---
+engine: copilot
+---
+
+# My Workflow
+
+{{#import shared/config.md}}
+`
+
+	workflow := &WorkflowSpec{
+		RepoSpec: RepoSpec{
+			RepoSlug: "github/source-repo",
+		},
+		WorkflowPath: ".github/workflows/my-workflow.md",
+	}
+
+	commitSHA := "abc123def456"
+
+	result, err := processIncludesWithWorkflowSpec(content, workflow, commitSHA, "", "", false)
+	if err != nil {
+		t.Fatalf("Expected no error, got: %v", err)
+	}
+
+	// Path should be resolved relative to .github/workflows/, not the repo root
+	expectedInclude := "{{#import github/source-repo/.github/workflows/shared/config.md@abc123def456}}"
+	if !strings.Contains(result, expectedInclude) {
+		t.Errorf("Expected result to contain '%s'\nGot:\n%s", expectedInclude, result)
+	}
+
+	// The old wrong form (resolving from repo root) must not appear
+	wrongPath := "{{#import github/source-repo/shared/config.md@abc123def456}}"
+	if strings.Contains(result, wrongPath) {
+		t.Errorf("Result must NOT contain repo-root-relative path '%s'\nGot:\n%s", wrongPath, result)
+	}
+}
+
+// TestProcessIncludesWithWorkflowSpec_PreservesLocalIncludes tests that body-level
+// {{#import}} directives are preserved as-is when the target file exists in the
+// local workflow directory. This is the add-command equivalent of the update-command's
+// local preservation fix.
+func TestProcessIncludesWithWorkflowSpec_PreservesLocalIncludes(t *testing.T) {
+	// Create a temporary directory to act as the local workflow directory
+	tmpDir := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(tmpDir, "shared"), 0755); err != nil {
+		t.Fatalf("Failed to create shared dir: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(tmpDir, "shared", "config.md"), []byte("# Local config"), 0644); err != nil {
+		t.Fatalf("Failed to create local config file: %v", err)
+	}
+
+	content := `---
+engine: copilot
+---
+
+# My Workflow
+
+{{#import shared/config.md}}
+`
+
+	workflow := &WorkflowSpec{
+		RepoSpec: RepoSpec{
+			RepoSlug: "github/source-repo",
+		},
+		WorkflowPath: ".github/workflows/my-workflow.md",
+	}
+
+	commitSHA := "abc123def456"
+
+	result, err := processIncludesWithWorkflowSpec(content, workflow, commitSHA, "", tmpDir, false)
+	if err != nil {
+		t.Fatalf("Expected no error, got: %v", err)
+	}
+
+	// The import must be preserved as-is since the file exists locally
+	if !strings.Contains(result, "{{#import shared/config.md}}") {
+		t.Errorf("Expected local import to be preserved, got:\n%s", result)
+	}
+
+	// Cross-repo ref must NOT appear
+	if strings.Contains(result, "github/source-repo") {
+		t.Errorf("Cross-repo ref should NOT appear when local file exists, got:\n%s", result)
+	}
+}
+
+// TestProcessIncludesWithWorkflowSpec_RewritesBodyWhenLocalMissing tests that body-level
+// {{#import}} directives are rewritten to cross-repo refs when the target does not
+// exist in the local workflow directory.
+func TestProcessIncludesWithWorkflowSpec_RewritesBodyWhenLocalMissing(t *testing.T) {
+	tmpDir := t.TempDir() // empty — no shared files present
+
+	content := `---
+engine: copilot
+---
+
+# My Workflow
+
+{{#import shared/config.md}}
+`
+
+	workflow := &WorkflowSpec{
+		RepoSpec: RepoSpec{
+			RepoSlug: "github/source-repo",
+		},
+		WorkflowPath: ".github/workflows/my-workflow.md",
+	}
+
+	commitSHA := "abc123def456"
+
+	result, err := processIncludesWithWorkflowSpec(content, workflow, commitSHA, "", tmpDir, false)
+	if err != nil {
+		t.Fatalf("Expected no error, got: %v", err)
+	}
+
+	// File not present locally → must be rewritten with correct full path
+	expectedRef := "{{#import github/source-repo/.github/workflows/shared/config.md@abc123def456}}"
+	if !strings.Contains(result, expectedRef) {
+		t.Errorf("Expected cross-repo ref '%s' when file is missing locally, got:\n%s", expectedRef, result)
+	}
+
+	// Relative path must not remain
+	if strings.Contains(result, "{{#import shared/config.md}}") {
+		t.Errorf("Relative path should have been rewritten when file is missing locally, got:\n%s", result)
+	}
+}
+
+// TestProcessIncludesWithWorkflowSpec_DuplicateInclude verifies that a body-level
+// {{#import}} directive that appears more than once is preserved in full for each
+// occurrence, rather than being silently dropped on the second occurrence by the
+// cycle-detection guard.
+func TestProcessIncludesWithWorkflowSpec_DuplicateInclude(t *testing.T) {
+	content := `---
+engine: copilot
+---
+
+# My Workflow
+
+{{#import shared/config.md}}
+
+Some text.
+
+{{#import shared/config.md}}
+`
+
+	workflow := &WorkflowSpec{
+		RepoSpec: RepoSpec{
+			RepoSlug: "acme/repo",
+		},
+		WorkflowPath: ".github/workflows/my-workflow.md",
+	}
+
+	result, err := processIncludesWithWorkflowSpec(content, workflow, "deadbeef", "", "", false)
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+
+	expectedRef := "{{#import acme/repo/.github/workflows/shared/config.md@deadbeef}}"
+	count := strings.Count(result, expectedRef)
+	if count != 2 {
+		t.Errorf("Expected rewritten import to appear 2 times, got %d\nOutput:\n%s", count, result)
+	}
+}
+
+// TestProcessIncludesWithWorkflowSpec_PathTypes exercises every meaningful import-path
+// variant for the body-level {{#import}} processor used by `gh aw add`.
+// The workflow file is assumed to live at `.github/workflows/my-workflow.md` inside
+// "acme/repo", pinned to commit "deadbeef".
+func TestProcessIncludesWithWorkflowSpec_PathTypes(t *testing.T) {
+	workflowPath := ".github/workflows/my-workflow.md"
+	repoSlug := "acme/repo"
+	sha := "deadbeef"
+
+	tests := []struct {
+		name     string
+		line     string // body line to process
+		wantLine string // expected line in output
+		notWant  string // substring that must NOT appear (optional)
+	}{
+		{
+			// Simple two-segment relative path: resolved relative to workflow dir
+			name:     "simple relative shared/file.md",
+			line:     "{{#import shared/config.md}}",
+			wantLine: "{{#import acme/repo/.github/workflows/shared/config.md@deadbeef}}",
+			notWant:  "acme/repo/shared/config.md@deadbeef",
+		},
+		{
+			// Optional flag must be preserved
+			name:     "optional relative path",
+			line:     "{{#import? shared/config.md}}",
+			wantLine: "{{#import? acme/repo/.github/workflows/shared/config.md@deadbeef}}",
+		},
+		{
+			// Deep nested relative path
+			name:     "deep relative path shared/mcp/deep/file.md",
+			line:     "{{#import shared/mcp/deep/file.md}}",
+			wantLine: "{{#import acme/repo/.github/workflows/shared/mcp/deep/file.md@deadbeef}}",
+		},
+		{
+			// Absolute path (starts with /): strips leading slash, repo-root relative
+			name:     "absolute path /tools/config.md",
+			line:     "{{#import /tools/config.md}}",
+			wantLine: "{{#import acme/repo/tools/config.md@deadbeef}}",
+		},
+		{
+			// Path with section reference: section preserved after @sha
+			name:     "relative path with section",
+			line:     "{{#import shared/config.md#Introduction}}",
+			wantLine: "{{#import acme/repo/.github/workflows/shared/config.md@deadbeef#Introduction}}",
+		},
+		{
+			// Optional path with section
+			name:     "optional relative path with section",
+			line:     "{{#import? shared/config.md#Setup}}",
+			wantLine: "{{#import? acme/repo/.github/workflows/shared/config.md@deadbeef#Setup}}",
+		},
+		{
+			// Already a workflowspec (contains @): must be passed through unchanged
+			name:     "already a workflowspec",
+			line:     "{{#import other/repo/file.md@abc123}}",
+			wantLine: "{{#import other/repo/file.md@abc123}}",
+		},
+		{
+			// Already a workflowspec with section: pass through unchanged
+			name:     "already a workflowspec with section",
+			line:     "{{#import other/repo/file.md@abc123#Section}}",
+			wantLine: "{{#import other/repo/file.md@abc123#Section}}",
+		},
+		{
+			// Section-only reference (empty file path): preserved as-is
+			name:     "section-only #SectionName",
+			line:     "{{#import? #SectionName}}",
+			wantLine: "{{#import? #SectionName}}",
+			notWant:  "acme/repo",
+		},
+		{
+			// Parent directory traversal: resolves up from .github/workflows/
+			// ../shared/config.md from .github/workflows/ → .github/shared/config.md
+			name:     "parent dir ../shared/config.md",
+			line:     "{{#import ../shared/config.md}}",
+			wantLine: "{{#import acme/repo/.github/shared/config.md@deadbeef}}",
+		},
+		{
+			// Explicit current-dir prefix ./
+			name:     "current dir ./config.md",
+			line:     "{{#import ./config.md}}",
+			wantLine: "{{#import acme/repo/.github/workflows/config.md@deadbeef}}",
+		},
+		{
+			// Legacy @include syntax: output must use new {{#import}} syntax
+			name:     "legacy @include shared/config.md",
+			line:     "@include shared/config.md",
+			wantLine: "{{#import acme/repo/.github/workflows/shared/config.md@deadbeef}}",
+		},
+		{
+			// Legacy optional @include? syntax
+			name:     "legacy @include? optional",
+			line:     "@include? shared/config.md",
+			wantLine: "{{#import? acme/repo/.github/workflows/shared/config.md@deadbeef}}",
+		},
+		{
+			// Three-segment path that has no @: treated as local relative, not a workflowspec
+			name:     "three-segment path shared/mcp/arxiv.md",
+			line:     "{{#import shared/mcp/arxiv.md}}",
+			wantLine: "{{#import acme/repo/.github/workflows/shared/mcp/arxiv.md@deadbeef}}",
+		},
+		{
+			// Plain filename (single segment)
+			name:     "plain filename config.md",
+			line:     "{{#import config.md}}",
+			wantLine: "{{#import acme/repo/.github/workflows/config.md@deadbeef}}",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Wrap the single import line in a minimal workflow
+			content := "---\nengine: copilot\n---\n\n" + tt.line + "\n"
+
+			workflow := &WorkflowSpec{
+				RepoSpec: RepoSpec{
+					RepoSlug: repoSlug,
+				},
+				WorkflowPath: workflowPath,
+			}
+
+			result, err := processIncludesWithWorkflowSpec(content, workflow, sha, "", "", false)
+			if err != nil {
+				t.Fatalf("Unexpected error: %v", err)
+			}
+
+			if !strings.Contains(result, tt.wantLine) {
+				t.Errorf("Expected output to contain:\n  %q\nGot:\n%s", tt.wantLine, result)
+			}
+
+			if tt.notWant != "" && strings.Contains(result, tt.notWant) {
+				t.Errorf("Output must NOT contain %q\nGot:\n%s", tt.notWant, result)
+			}
+		})
+	}
+}
+
+// TestProcessImportsWithWorkflowSpec_PathTypes exercises every meaningful import-path
+// variant for the frontmatter imports: field processor used by both `gh aw add` and
+// `gh aw update`.
+func TestProcessImportsWithWorkflowSpec_PathTypes(t *testing.T) {
+	workflowPath := ".github/workflows/my-workflow.md"
+	repoSlug := "acme/repo"
+	sha := "deadbeef"
+
+	tests := []struct {
+		name       string
+		importPath string // raw value in the imports: list
+		wantRef    string // expected substring in YAML output
+		notWant    string // substring that must NOT appear (optional)
+	}{
+		{
+			// Simple two-segment relative path
+			name:       "simple relative shared/config.md",
+			importPath: "shared/config.md",
+			wantRef:    "acme/repo/.github/workflows/shared/config.md@deadbeef",
+			notWant:    "acme/repo/shared/config.md@deadbeef",
+		},
+		{
+			// Deep nested relative path
+			name:       "deep relative shared/mcp/file.md",
+			importPath: "shared/mcp/file.md",
+			wantRef:    "acme/repo/.github/workflows/shared/mcp/file.md@deadbeef",
+		},
+		{
+			// Absolute path (starts with /)
+			name:       "absolute /tools/setup.md",
+			importPath: "/tools/setup.md",
+			wantRef:    "acme/repo/tools/setup.md@deadbeef",
+		},
+		{
+			// Already a workflowspec: must be passed through unchanged
+			name:       "already workflowspec other/repo/file.md@v1",
+			importPath: "other/repo/file.md@v1",
+			wantRef:    "other/repo/file.md@v1",
+			notWant:    "acme/repo/other/repo",
+		},
+		{
+			// Three-segment path with no @: treated as relative, NOT a workflowspec
+			name:       "three-segment shared/mcp/arxiv.md",
+			importPath: "shared/mcp/arxiv.md",
+			wantRef:    "acme/repo/.github/workflows/shared/mcp/arxiv.md@deadbeef",
+		},
+		{
+			// Parent dir traversal
+			name:       "parent dir ../shared/config.md",
+			importPath: "../shared/config.md",
+			wantRef:    "acme/repo/.github/shared/config.md@deadbeef",
+		},
+		{
+			// Current-dir prefix
+			name:       "current dir ./config.md",
+			importPath: "./config.md",
+			wantRef:    "acme/repo/.github/workflows/config.md@deadbeef",
+		},
+		{
+			// Plain filename
+			name:       "plain filename config.md",
+			importPath: "config.md",
+			wantRef:    "acme/repo/.github/workflows/config.md@deadbeef",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			content := "---\nengine: copilot\nimports:\n  - " + tt.importPath + "\n---\n\n# Test\n"
+
+			workflow := &WorkflowSpec{
+				RepoSpec: RepoSpec{
+					RepoSlug: repoSlug,
+				},
+				WorkflowPath: workflowPath,
+			}
+
+			result, err := processImportsWithWorkflowSpec(content, workflow, sha, "", false)
+			if err != nil {
+				t.Fatalf("Unexpected error: %v", err)
+			}
+
+			if !strings.Contains(result, tt.wantRef) {
+				t.Errorf("Expected output to contain:\n  %q\nGot:\n%s", tt.wantRef, result)
+			}
+
+			if tt.notWant != "" && strings.Contains(result, tt.notWant) {
+				t.Errorf("Output must NOT contain %q\nGot:\n%s", tt.notWant, result)
+			}
+		})
 	}
 }
 
@@ -395,11 +794,11 @@ func TestProcessImportsWithWorkflowSpec_PreservesLocalRelativePaths(t *testing.T
 
 	// Create the shared import files locally
 	for _, rel := range []string{"shared/team-config.md", "shared/aor-index.md"} {
-		dir := tmpDir + "/" + rel[:strings.LastIndex(rel, "/")]
+		dir := filepath.Join(tmpDir, rel[:strings.LastIndex(rel, "/")])
 		if err := os.MkdirAll(dir, 0755); err != nil {
 			t.Fatalf("Failed to create dir %s: %v", dir, err)
 		}
-		if err := os.WriteFile(tmpDir+"/"+rel, []byte("# Shared content"), 0644); err != nil {
+		if err := os.WriteFile(filepath.Join(tmpDir, rel), []byte("# Shared content"), 0644); err != nil {
 			t.Fatalf("Failed to create file %s: %v", rel, err)
 		}
 	}
@@ -486,10 +885,10 @@ imports:
 func TestProcessIncludesInContent_PreservesLocalIncludeDirectives(t *testing.T) {
 	// Create a temporary directory with the shared include file
 	tmpDir := t.TempDir()
-	if err := os.MkdirAll(tmpDir+"/shared", 0755); err != nil {
+	if err := os.MkdirAll(filepath.Join(tmpDir, "shared"), 0755); err != nil {
 		t.Fatalf("Failed to create shared dir: %v", err)
 	}
-	if err := os.WriteFile(tmpDir+"/shared/config.md", []byte("# Config"), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(tmpDir, "shared", "config.md"), []byte("# Config"), 0644); err != nil {
 		t.Fatalf("Failed to create config file: %v", err)
 	}
 
@@ -544,10 +943,10 @@ func TestIsLocalFileForUpdate_PathTraversal(t *testing.T) {
 
 	// A normal path within tmpDir that DOES exist should return true
 	validFile := "shared/file.md"
-	if err := os.MkdirAll(tmpDir+"/shared", 0755); err != nil {
+	if err := os.MkdirAll(filepath.Join(tmpDir, "shared"), 0755); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(tmpDir+"/"+validFile, []byte("content"), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(tmpDir, validFile), []byte("content"), 0644); err != nil {
 		t.Fatal(err)
 	}
 	if !isLocalFileForUpdate(tmpDir, validFile) {

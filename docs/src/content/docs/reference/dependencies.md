@@ -5,61 +5,34 @@ sidebar:
   order: 330
 ---
 
-The `dependencies:` frontmatter field installs [APM (Agent Package Manager)](https://microsoft.github.io/apm/) packages before workflow execution. When present, the compiler packs dependencies in the activation job and unpacks them in the agent job for faster, deterministic startup.
+[APM (Agent Package Manager)](https://microsoft.github.io/apm/) manages AI agent primitives such as skills, prompts, instructions, agents, hooks, and plugins (including the Claude `plugin.json` specification). Packages can depend on other packages and APM resolves the full dependency tree.
 
-APM manages AI agent primitives such as skills, prompts, instructions, agents, hooks, and plugins (including the Claude `plugin.json` specification). Packages can depend on other packages and APM resolves the full dependency tree.
+APM is configured by importing the `shared/apm.md` workflow, which creates a dedicated `apm` job that packs packages and uploads the bundle as a GitHub Actions artifact. The agent job then downloads and unpacks the bundle for deterministic startup.
+
+> [!NOTE]
+> The `dependencies:` frontmatter field is deprecated and no longer supported. Migrate to the import-based approach shown below.
+
+## Usage
+
+Import `shared/apm.md` and supply the list of packages via the `packages` parameter:
+
+```aw wrap
+imports:
+  - uses: shared/apm.md
+    with:
+      packages:
+        - microsoft/apm-sample-package
+        - github/awesome-copilot/skills/review-and-refactor
+        - anthropics/skills/skills/frontend-design
+```
 
 ## Reproducibility and governance
 
 APM lock files (`apm.lock`) pin every package to an exact commit SHA, so the same versions are installed on every run. Lock file diffs appear in pull requests and are reviewable before merge, giving teams and enterprises a clear audit trail and the ability to govern which agent context is in use. See the [APM governance guide](https://microsoft.github.io/apm/enterprise/governance/) for details on policy enforcement and access controls.
 
-## Format
-
-### Simple array format
-
-```yaml wrap
-dependencies:
-  - microsoft/apm-sample-package
-  - github/awesome-copilot/skills/review-and-refactor
-  - anthropics/skills/skills/frontend-design
-```
-
-### Object format with options
-
-```yaml wrap
-dependencies:
-  packages:
-    - microsoft/apm-sample-package
-    - github/awesome-copilot/skills/review-and-refactor
-  isolated: true   # clear repo primitives before unpack (default: false)
-```
-
-### Cross-org private packages with GitHub App authentication
-
-Use `github-app:` when packages live in a different organization and require a GitHub App token for access. The token is minted before the APM pack step so APM can reach the private repository.
-
-```yaml wrap
-dependencies:
-  github-app:
-    app-id: ${{ vars.APP_ID }}
-    private-key: ${{ secrets.APP_PRIVATE_KEY }}
-    repositories:
-      - acme-skills      # or use ["*"] for all repos in the app installation owner's org
-  packages:
-    - acme-platform-org/acme-skills/plugins/dev-tools
-    - acme-platform-org/acme-skills/skills/code-review
-```
-
-| Field | Required | Description |
-|-------|----------|-------------|
-| `github-app.app-id` | Yes | GitHub App ID (e.g., `${{ vars.APP_ID }}`) |
-| `github-app.private-key` | Yes | GitHub App private key (e.g., `${{ secrets.APP_PRIVATE_KEY }}`) |
-| `github-app.owner` | No | Installation owner (defaults to current repository owner) |
-| `github-app.repositories` | No | Repositories to grant access to. Use `["*"]` for all repos in the owner's installation |
-
 ## Package reference formats
 
-Each entry is an APM package reference. Supported formats:
+Each entry in `packages` is an APM package reference. Supported formats:
 
 | Format | Description |
 |--------|-------------|
@@ -69,27 +42,28 @@ Each entry is an APM package reference. Supported formats:
 
 ### Examples
 
-```yaml wrap
-dependencies:
-  # Full APM package
-  - microsoft/apm-sample-package
-  # Individual primitive from any repository
-  - github/awesome-copilot/skills/review-and-refactor
-  # Plugin (Claude plugin.json format)
-  - github/awesome-copilot/plugins/context-engineering
-  # Version-pinned to a tag
-  - microsoft/apm-sample-package#v2.0
-  # Version-pinned to a branch
-  - microsoft/apm-sample-package#main
-  # Git URL with sub-path and ref (object format)
-  - git: https://github.com/acme/coding-standards.git
-    path: instructions/security
-    ref: v2.0
+```aw wrap
+imports:
+  - uses: shared/apm.md
+    with:
+      packages:
+        # Full APM package
+        - microsoft/apm-sample-package
+        # Individual primitive from any repository
+        - github/awesome-copilot/skills/review-and-refactor
+        # Plugin (Claude plugin.json format)
+        - github/awesome-copilot/plugins/context-engineering
+        # Version-pinned to a tag
+        - microsoft/apm-sample-package#v2.0
+        # Version-pinned to a branch
+        - microsoft/apm-sample-package#main
 ```
 
-## Compilation behavior
+## How it works
 
-The compiler emits an `apm pack` step in the activation job and an `apm unpack` step in the agent job. The APM target is automatically inferred from the configured engine (`copilot`, `claude`, or `all` for other engines). The `isolated` flag controls whether existing `.github/` primitive directories are cleared before the bundle is unpacked in the agent job.
+The `shared/apm.md` import adds a dedicated `apm` job to the compiled workflow. This job runs `microsoft/apm-action` to install packages and create a bundle archive, which is uploaded as a GitHub Actions artifact. The agent job downloads and restores the bundle as pre-steps, making all skills and tools available at runtime.
+
+Packages are fetched using the cascading token fallback: `GH_AW_PLUGINS_TOKEN` → `GH_AW_GITHUB_TOKEN` → `GITHUB_TOKEN`.
 
 To reproduce or debug the pack/unpack flow locally, run `apm pack` and `apm unpack` directly. See the [pack and distribute guide](https://microsoft.github.io/apm/guides/pack-distribute/) for instructions.
 

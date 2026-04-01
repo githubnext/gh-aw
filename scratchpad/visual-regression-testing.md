@@ -2,7 +2,7 @@
 
 ## Overview
 
-Visual regression testing ensures that console output formatting remains consistent across code changes. This prevents unintentional changes to table layouts, box rendering, tree structures, and error formatting that could negatively impact the user experience.
+Visual regression testing detects regressions in terminal output rendering by comparing actual output against golden files. It catches unintended changes to table layouts, box rendering, tree structures, and error formatting.
 
 ## Implementation
 
