@@ -14,7 +14,7 @@ const { validateLabels } = require("./safe_output_validator.cjs");
 const { tryEnforceArrayLimit } = require("./limit_enforcement_helpers.cjs");
 const { MAX_LABELS } = require("./constants.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
-const { logGraphQLError } = require("./github_api_helpers.cjs");
+const { logGraphQLError, fetchAllRepoLabels } = require("./github_api_helpers.cjs");
 const { resolveNumberFromTemporaryId } = require("./temporary_id.cjs");
 
 /** @type {import('./github_api_helpers.cjs').GraphQLErrorHints} */
@@ -37,36 +37,7 @@ async function fetchLabelNodeIds(githubClient, owner, repo, labelNames) {
     return [];
   }
 
-  const labelsQuery = `
-    query($owner: String!, $repo: String!, $cursor: String) {
-      repository(owner: $owner, name: $repo) {
-        labels(first: 100, after: $cursor) {
-          nodes {
-            id
-            name
-          }
-          pageInfo {
-            hasNextPage
-            endCursor
-          }
-        }
-      }
-    }
-  `;
-
-  const allLabels = [];
-  let cursor = null;
-  let hasNextPage = true;
-
-  while (hasNextPage) {
-    const queryResult = await githubClient.graphql(labelsQuery, { owner, repo, cursor });
-    const labelsPage = queryResult?.repository?.labels;
-    const nodes = labelsPage?.nodes || [];
-    allLabels.push(...nodes);
-    hasNextPage = labelsPage?.pageInfo?.hasNextPage ?? false;
-    cursor = labelsPage?.pageInfo?.endCursor ?? null;
-  }
-
+  const allLabels = await fetchAllRepoLabels(githubClient, owner, repo);
   const labelMap = new Map(allLabels.map(/** @param {any} l */ l => [l.name.toLowerCase(), l.id]));
 
   const labelIds = [];

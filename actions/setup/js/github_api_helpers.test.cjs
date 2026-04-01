@@ -9,6 +9,7 @@ global.core = mockCore;
 describe("github_api_helpers.cjs", () => {
   let getFileContent;
   let logGraphQLError;
+  let fetchAllRepoLabels;
   let mockGithub;
 
   beforeEach(async () => {
@@ -26,6 +27,7 @@ describe("github_api_helpers.cjs", () => {
     const module = await import("./github_api_helpers.cjs");
     getFileContent = module.getFileContent;
     logGraphQLError = module.logGraphQLError;
+    fetchAllRepoLabels = module.fetchAllRepoLabels;
   });
 
   describe("getFileContent", () => {
@@ -231,6 +233,104 @@ describe("github_api_helpers.cjs", () => {
       // Should not throw - just logs the generic info without hints
       expect(() => logGraphQLError(error, "test")).not.toThrow();
       expect(mockCore.info).toHaveBeenCalledWith("GraphQL error during: test");
+    });
+  });
+
+  describe("fetchAllRepoLabels", () => {
+    it("should return all labels from a single page", async () => {
+      const mockGraphql = vi.fn().mockResolvedValueOnce({
+        repository: {
+          labels: {
+            nodes: [
+              { id: "LA_1", name: "bug" },
+              { id: "LA_2", name: "enhancement" },
+            ],
+            pageInfo: { hasNextPage: false, endCursor: null },
+          },
+        },
+      });
+
+      const result = await fetchAllRepoLabels({ graphql: mockGraphql }, "owner", "repo");
+
+      expect(result).toEqual([
+        { id: "LA_1", name: "bug" },
+        { id: "LA_2", name: "enhancement" },
+      ]);
+      expect(mockGraphql).toHaveBeenCalledTimes(1);
+      expect(mockGraphql).toHaveBeenCalledWith(expect.stringContaining("labels(first: 100"), {
+        owner: "owner",
+        repo: "repo",
+        cursor: null,
+      });
+    });
+
+    it("should paginate through multiple pages and return all labels", async () => {
+      const mockGraphql = vi
+        .fn()
+        .mockResolvedValueOnce({
+          repository: {
+            labels: {
+              nodes: [
+                { id: "LA_1", name: "bug" },
+                { id: "LA_2", name: "enhancement" },
+              ],
+              pageInfo: { hasNextPage: true, endCursor: "cursor_page1" },
+            },
+          },
+        })
+        .mockResolvedValueOnce({
+          repository: {
+            labels: {
+              nodes: [{ id: "LA_3", name: "automation" }],
+              pageInfo: { hasNextPage: false, endCursor: null },
+            },
+          },
+        });
+
+      const result = await fetchAllRepoLabels({ graphql: mockGraphql }, "owner", "repo");
+
+      expect(result).toEqual([
+        { id: "LA_1", name: "bug" },
+        { id: "LA_2", name: "enhancement" },
+        { id: "LA_3", name: "automation" },
+      ]);
+      expect(mockGraphql).toHaveBeenCalledTimes(2);
+      expect(mockGraphql).toHaveBeenNthCalledWith(1, expect.stringContaining("labels(first: 100"), {
+        owner: "owner",
+        repo: "repo",
+        cursor: null,
+      });
+      expect(mockGraphql).toHaveBeenNthCalledWith(2, expect.stringContaining("labels(first: 100"), {
+        owner: "owner",
+        repo: "repo",
+        cursor: "cursor_page1",
+      });
+    });
+
+    it("should return empty array when repository has no labels", async () => {
+      const mockGraphql = vi.fn().mockResolvedValueOnce({
+        repository: {
+          labels: {
+            nodes: [],
+            pageInfo: { hasNextPage: false, endCursor: null },
+          },
+        },
+      });
+
+      const result = await fetchAllRepoLabels({ graphql: mockGraphql }, "owner", "repo");
+
+      expect(result).toEqual([]);
+      expect(mockGraphql).toHaveBeenCalledTimes(1);
+    });
+
+    it("should handle missing labels data gracefully", async () => {
+      const mockGraphql = vi.fn().mockResolvedValueOnce({
+        repository: { labels: null },
+      });
+
+      const result = await fetchAllRepoLabels({ graphql: mockGraphql }, "owner", "repo");
+
+      expect(result).toEqual([]);
     });
   });
 });

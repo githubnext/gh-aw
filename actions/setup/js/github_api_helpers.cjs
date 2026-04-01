@@ -100,7 +100,49 @@ async function getFileContent(github, owner, repo, path, ref) {
   }
 }
 
+/**
+ * Fetches all labels from a repository, paginating through all pages.
+ * @param {any} githubClient - GitHub API client
+ * @param {string} owner - Repository owner
+ * @param {string} repo - Repository name
+ * @returns {Promise<Array<{id: string, name: string}>>} All repository labels
+ */
+async function fetchAllRepoLabels(githubClient, owner, repo) {
+  const labelsQuery = `
+    query($owner: String!, $repo: String!, $cursor: String) {
+      repository(owner: $owner, name: $repo) {
+        labels(first: 100, after: $cursor) {
+          nodes {
+            id
+            name
+          }
+          pageInfo {
+            hasNextPage
+            endCursor
+          }
+        }
+      }
+    }
+  `;
+
+  const allLabels = /** @type {Array<{id: string, name: string}>} */ [];
+  let cursor = /** @type {string | null} */ null;
+  let hasNextPage = true;
+
+  while (hasNextPage) {
+    const queryResult = await githubClient.graphql(labelsQuery, { owner, repo, cursor });
+    const labelsPage = queryResult?.repository?.labels;
+    const nodes = labelsPage?.nodes || [];
+    allLabels.push(...nodes);
+    hasNextPage = labelsPage?.pageInfo?.hasNextPage ?? false;
+    cursor = labelsPage?.pageInfo?.endCursor ?? null;
+  }
+
+  return allLabels;
+}
+
 module.exports = {
+  fetchAllRepoLabels,
   getFileContent,
   logGraphQLError,
 };

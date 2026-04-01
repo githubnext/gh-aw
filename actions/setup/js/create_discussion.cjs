@@ -27,6 +27,7 @@ const { parseBoolTemplatable } = require("./templatable.cjs");
 const { buildWorkflowRunUrl } = require("./workflow_metadata_helpers.cjs");
 const { generateHistoryLink } = require("./generate_history_link.cjs");
 const { MAX_LABELS } = require("./constants.cjs");
+const { fetchAllRepoLabels } = require("./github_api_helpers.cjs");
 
 /**
  * Fetch repository ID and discussion categories for a repository
@@ -135,42 +136,7 @@ async function fetchLabelIds(githubClient, owner, repo, labelNames) {
   }
 
   try {
-    // Paginate through all labels in the repository
-    const labelsQuery = `
-      query($owner: String!, $repo: String!, $cursor: String) {
-        repository(owner: $owner, name: $repo) {
-          labels(first: 100, after: $cursor) {
-            nodes {
-              id
-              name
-            }
-            pageInfo {
-              hasNextPage
-              endCursor
-            }
-          }
-        }
-      }
-    `;
-
-    const allLabels = [];
-    let cursor = null;
-    let hasNextPage = true;
-
-    while (hasNextPage) {
-      const queryResult = await githubClient.graphql(labelsQuery, {
-        owner,
-        repo,
-        cursor,
-      });
-
-      const labelsPage = queryResult?.repository?.labels;
-      const nodes = labelsPage?.nodes || [];
-      allLabels.push(...nodes);
-      hasNextPage = labelsPage?.pageInfo?.hasNextPage ?? false;
-      cursor = labelsPage?.pageInfo?.endCursor ?? null;
-    }
-
+    const allLabels = await fetchAllRepoLabels(githubClient, owner, repo);
     const labelMap = new Map(allLabels.map(label => [label.name.toLowerCase(), label]));
 
     // Match requested labels (case-insensitive)
