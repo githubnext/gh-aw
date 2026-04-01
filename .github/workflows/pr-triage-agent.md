@@ -12,6 +12,7 @@ engine: copilot
 tools:
   github:
     min-integrity: approved
+    approval-labels: [cookie]
     toolsets: [pull_requests, repos, issues, labels]
   repo-memory:
     branch-name: memory/pr-triage

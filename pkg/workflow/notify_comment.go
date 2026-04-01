@@ -135,6 +135,11 @@ func (c *Compiler) buildConclusionJob(data *WorkflowData, mainJobName string, sa
 	agentFailureEnvVars = append(agentFailureEnvVars, fmt.Sprintf("          GH_AW_AGENT_CONCLUSION: ${{ needs.%s.result }}\n", mainJobName))
 	agentFailureEnvVars = append(agentFailureEnvVars, fmt.Sprintf("          GH_AW_WORKFLOW_ID: %q\n", data.WorkflowID))
 
+	// Pass the engine ID so the failure handler can surface which AI engine terminated
+	if data.EngineConfig != nil && data.EngineConfig.ID != "" {
+		agentFailureEnvVars = append(agentFailureEnvVars, fmt.Sprintf("          GH_AW_ENGINE_ID: %q\n", data.EngineConfig.ID))
+	}
+
 	// Only add secret_verification_result if the engine provides a validate-secret step.
 	// The validate-secret step runs in the activation job, so the output is on needs.activation.
 	engine, err := c.getAgenticEngine(data.AI)
@@ -335,6 +340,11 @@ func (c *Compiler) buildConclusionJob(data *WorkflowData, mainJobName string, sa
 		notifyCommentLog.Print("Added detection conclusion environment variable to conclusion job")
 	}
 
+	// Pass assignment error count to the conclusion step so the status comment reflects assignment failures
+	if data.SafeOutputs != nil && data.SafeOutputs.AssignToAgent != nil {
+		customEnvVars = append(customEnvVars, "          GH_AW_ASSIGNMENT_ERROR_COUNT: ${{ needs.safe_outputs.outputs.assign_to_agent_assignment_error_count }}\n")
+	}
+
 	// Pass custom messages config if present
 	if data.SafeOutputs != nil && data.SafeOutputs.Messages != nil {
 		messagesJSON, err := serializeMessagesConfig(data.SafeOutputs.Messages)
@@ -470,7 +480,7 @@ func (c *Compiler) buildConclusionJob(data *WorkflowData, mainJobName string, sa
 	job := &Job{
 		Name:        "conclusion",
 		If:          RenderCondition(condition),
-		RunsOn:      c.formatSafeOutputsRunsOn(data.SafeOutputs),
+		RunsOn:      c.formatFrameworkJobRunsOn(data),
 		Environment: c.indentYAMLLines(resolveSafeOutputsEnvironment(data), "    "),
 		Permissions: permissions.RenderToYAML(),
 		Concurrency: concurrency,

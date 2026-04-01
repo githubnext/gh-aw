@@ -16,7 +16,7 @@ permissions:
 
 tracker-id: deep-report-intel-agent
 timeout-minutes: 45
-engine: codex
+engine: claude
 strict: true
 
 network:
@@ -145,7 +145,7 @@ jq '[.[].author.login] | unique' /tmp/gh-aw/weekly-issues-data/issues.json
 
 **EFFICIENCY FIRST**: Before starting full analysis:
 
-1. Check `/tmp/gh-aw/repo-memory-default/memory/default/` for previous insights
+1. Check `/tmp/gh-aw/repo-memory/default/memory/deep-report/` for previous insights
 2. Load any existing markdown files (only markdown files are allowed in repo-memory):
    - `last_analysis_timestamp.md` - When the last full analysis was run
    - `known_patterns.md` - Previously identified patterns
@@ -240,7 +240,7 @@ Connect the dots between different data sources:
 
 ### Step 4: Store Insights in Repo Memory
 
-Save your findings to `/tmp/gh-aw/repo-memory-default/memory/default/` as markdown files:
+Save your findings to `/tmp/gh-aw/repo-memory/default/memory/deep-report/` as markdown files:
 - Update `known_patterns.md` with any new patterns discovered
 - Update `trend_data.md` with current metrics
 - Update `flagged_items.md` with items needing attention

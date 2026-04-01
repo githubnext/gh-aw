@@ -1488,6 +1488,57 @@ describe("sanitize_content.cjs", () => {
         const expected = "";
         expect(sanitizeContent(input)).toBe(expected);
       });
+
+      it("should remove left-to-right mark (U+200E)", () => {
+        const input = "Hello\u200EWorld";
+        const expected = "HelloWorld";
+        expect(sanitizeContent(input)).toBe(expected);
+      });
+
+      it("should remove right-to-left mark (U+200F)", () => {
+        const input = "Hello\u200FWorld";
+        const expected = "HelloWorld";
+        expect(sanitizeContent(input)).toBe(expected);
+      });
+
+      it("should remove soft hyphen (U+00AD)", () => {
+        const input = "Hello\u00ADWorld";
+        const expected = "HelloWorld";
+        expect(sanitizeContent(input)).toBe(expected);
+      });
+
+      it("should remove combining grapheme joiner (U+034F)", () => {
+        const input = "Hello\u034FWorld";
+        const expected = "HelloWorld";
+        expect(sanitizeContent(input)).toBe(expected);
+      });
+    });
+
+    describe("@mention bypass prevention via invisible characters", () => {
+      it("should neutralize @mention with U+200F (RTL mark) inserted between @ and username", () => {
+        const input = "@\u200Fadmin please review";
+        expect(sanitizeContent(input)).toBe("`@admin` please review");
+      });
+
+      it("should neutralize @mention with U+200E (LTR mark) inserted between @ and username", () => {
+        const input = "@\u200Eadmin please review";
+        expect(sanitizeContent(input)).toBe("`@admin` please review");
+      });
+
+      it("should neutralize @mention with U+00AD (soft hyphen) inserted between @ and username", () => {
+        const input = "@\u00ADadmin please review";
+        expect(sanitizeContent(input)).toBe("`@admin` please review");
+      });
+
+      it("should neutralize @mention with U+034F (combining grapheme joiner) inserted between @ and username", () => {
+        const input = "@\u034Fadmin please review";
+        expect(sanitizeContent(input)).toBe("`@admin` please review");
+      });
+
+      it("should neutralize @mention with multiple invisible chars inserted between @ and username", () => {
+        const input = "ping @\u200E\u200F\u00AD\u034Fadmin now";
+        expect(sanitizeContent(input)).toBe("ping `@admin` now");
+      });
     });
 
     describe("Unicode normalization (NFC)", () => {

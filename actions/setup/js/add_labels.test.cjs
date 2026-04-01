@@ -650,5 +650,36 @@ describe("add_labels", () => {
       expect(result.labelsAdded).toEqual([]);
       expect(result.message).toContain("No valid labels");
     });
+
+    it("should use default max=10 when config.max is not provided", async () => {
+      // No max provided - defaults to 10 via || operator
+      const handler = await main({});
+      const result = await handler({ item_number: 1, labels: ["bug"] }, {});
+      expect(result.success).toBe(true);
+    });
+
+    it("should handle labels array containing only whitespace strings gracefully", async () => {
+      const handler = await main({ max: 10 });
+
+      const result = await handler(
+        {
+          item_number: 100,
+          labels: ["   ", "\t"],
+        },
+        {}
+      );
+
+      // Whitespace-only labels are sanitized away, resulting in no labels added
+      expect(result.success).toBe(true);
+      expect(result.labelsAdded).toEqual([]);
+    });
+
+    it("should log initialization info without allowed/blocked when not configured", async () => {
+      await main({ max: 5 });
+      // Should not log allowed/blocked info when not configured
+      expect(mockCore.infos.some(msg => msg.includes("Allowed labels:"))).toBe(false);
+      expect(mockCore.infos.some(msg => msg.includes("Blocked patterns:"))).toBe(false);
+      expect(mockCore.infos.some(msg => msg.includes("max=5"))).toBe(true);
+    });
   });
 });

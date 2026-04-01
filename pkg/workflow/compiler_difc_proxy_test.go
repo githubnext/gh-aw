@@ -65,7 +65,7 @@ func TestHasDIFCProxyNeeded(t *testing.T) {
 			desc:     "guard policy without GH_TOKEN pre-agent steps should not trigger proxy",
 		},
 		{
-			name: "guard policy + custom steps with GH_TOKEN",
+			name: "guard policy + custom steps with GH_TOKEN but feature flag disabled",
 			data: &WorkflowData{
 				Tools: map[string]any{
 					"github": map[string]any{
@@ -74,8 +74,22 @@ func TestHasDIFCProxyNeeded(t *testing.T) {
 				},
 				CustomSteps: "steps:\n  - name: Fetch issues\n    env:\n      GH_TOKEN: ${{ github.token }}\n    run: gh issue list",
 			},
+			expected: false,
+			desc:     "feature flag absent → proxy not triggered even when guard policy and GH_TOKEN present",
+		},
+		{
+			name: "guard policy + custom steps with GH_TOKEN + feature flag enabled",
+			data: &WorkflowData{
+				Tools: map[string]any{
+					"github": map[string]any{
+						"min-integrity": "approved",
+					},
+				},
+				CustomSteps: "steps:\n  - name: Fetch issues\n    env:\n      GH_TOKEN: ${{ github.token }}\n    run: gh issue list",
+				Features:    map[string]any{"difc-proxy": true},
+			},
 			expected: true,
-			desc:     "guard policy + custom steps with GH_TOKEN should trigger proxy",
+			desc:     "guard policy + custom steps with GH_TOKEN + difc-proxy feature flag should trigger proxy",
 		},
 		{
 			name: "guard policy + repo-memory configured",
@@ -94,7 +108,7 @@ func TestHasDIFCProxyNeeded(t *testing.T) {
 			desc:     "guard policy + repo-memory should NOT trigger proxy: repo-memory clones use direct git URLs, not GH_HOST",
 		},
 		{
-			name: "guard policy with allowed-repos + custom steps with GH_TOKEN",
+			name: "guard policy with allowed-repos + custom steps with GH_TOKEN + feature flag enabled",
 			data: &WorkflowData{
 				Tools: map[string]any{
 					"github": map[string]any{
@@ -103,9 +117,10 @@ func TestHasDIFCProxyNeeded(t *testing.T) {
 					},
 				},
 				CustomSteps: "steps:\n  - name: Fetch PRs\n    env:\n      GH_TOKEN: ${{ secrets.MY_TOKEN }}\n    run: gh pr list",
+				Features:    map[string]any{"difc-proxy": true},
 			},
 			expected: true,
-			desc:     "allowed-repos + min-integrity + GH_TOKEN custom steps should trigger proxy",
+			desc:     "allowed-repos + min-integrity + GH_TOKEN custom steps + difc-proxy flag should trigger proxy",
 		},
 	}
 
@@ -291,6 +306,7 @@ func TestGenerateStartDIFCProxyStep(t *testing.T) {
 			},
 			CustomSteps:   "steps:\n  - name: Fetch\n    env:\n      GH_TOKEN: ${{ github.token }}\n    run: gh issue list",
 			SandboxConfig: &SandboxConfig{},
+			Features:      map[string]any{"difc-proxy": true},
 		}
 		ensureDefaultMCPGatewayConfig(data)
 		c.generateStartDIFCProxyStep(&yaml, data)
@@ -299,6 +315,7 @@ func TestGenerateStartDIFCProxyStep(t *testing.T) {
 		require.NotEmpty(t, result, "should generate proxy start step")
 		assert.Contains(t, result, "Start DIFC proxy for pre-agent gh calls", "step name should be present")
 		assert.Contains(t, result, "GH_TOKEN:", "step should include GH_TOKEN env var")
+		assert.Contains(t, result, "GITHUB_SERVER_URL:", "step should include GITHUB_SERVER_URL env var")
 		assert.Contains(t, result, "start_difc_proxy.sh", "step should call the proxy script")
 		assert.Contains(t, result, `"allow-only"`, "step should include guard policy JSON")
 		assert.Contains(t, result, `"min-integrity":"approved"`, "step should include min-integrity in policy")
@@ -332,6 +349,7 @@ func TestGenerateStopDIFCProxyStep(t *testing.T) {
 			},
 			CustomSteps:   "steps:\n  - name: Fetch\n    env:\n      GH_TOKEN: ${{ github.token }}\n    run: gh issue list",
 			SandboxConfig: &SandboxConfig{},
+			Features:      map[string]any{"difc-proxy": true},
 		}
 		c.generateStopDIFCProxyStep(&yaml, data)
 
@@ -360,11 +378,13 @@ func TestDIFCProxyLogPaths(t *testing.T) {
 				"github": map[string]any{"min-integrity": "approved"},
 			},
 			CustomSteps: "steps:\n  - name: Fetch\n    env:\n      GH_TOKEN: ${{ github.token }}\n    run: gh issue list",
+			Features:    map[string]any{"difc-proxy": true},
 		}
 		paths := difcProxyLogPaths(data)
-		require.Len(t, paths, 2, "should return inclusion path and proxy-tls exclusion path")
+		require.Len(t, paths, 2, "should return include path and exclusion path")
 		assert.Contains(t, paths[0], "proxy-logs", "first path should include proxy-logs directory")
-		assert.Equal(t, "!/tmp/gh-aw/proxy-logs/proxy-tls/", paths[1], "second path should exclude proxy-tls directory")
+		assert.Contains(t, paths[1], "proxy-tls", "second path should exclude proxy-tls directory")
+		assert.True(t, strings.HasPrefix(paths[1], "!"), "exclusion path should start with !")
 	})
 }
 
@@ -374,6 +394,8 @@ func TestDIFCProxyStepOrderInCompiledWorkflow(t *testing.T) {
 	workflow := `---
 on: issues
 engine: copilot
+features:
+  difc-proxy: true
 tools:
   github:
     mode: local
@@ -408,17 +430,25 @@ Test that DIFC proxy is injected when min-integrity is set with custom steps usi
 	assert.Contains(t, result, "Stop DIFC proxy",
 		"compiled workflow should contain proxy stop step")
 
+	// Verify the "Set GH_REPO" step is present
+	assert.Contains(t, result, "Set GH_REPO for proxied steps",
+		"compiled workflow should contain Set GH_REPO step")
+
 	// Verify step ordering: Start proxy must come before Stop proxy
 	startIdx := strings.Index(result, "Start DIFC proxy for pre-agent gh calls")
+	setRepoIdx := strings.Index(result, "Set GH_REPO for proxied steps")
 	stopIdx := strings.Index(result, "Stop DIFC proxy")
 	require.Greater(t, startIdx, -1, "start proxy step should be in output")
+	require.Greater(t, setRepoIdx, -1, "set GH_REPO step should be in output")
 	require.Greater(t, stopIdx, -1, "stop proxy step should be in output")
+	assert.Less(t, startIdx, setRepoIdx, "Start DIFC proxy must come before Set GH_REPO")
 	assert.Less(t, startIdx, stopIdx, "Start DIFC proxy must come before Stop DIFC proxy")
 
-	// Verify proxy start is before custom step ("Fetch repo data")
+	// Verify "Set GH_REPO" step is before custom step ("Fetch repo data")
 	customStepIdx := strings.Index(result, "Fetch repo data")
 	require.Greater(t, customStepIdx, -1, "custom step should be in output")
 	assert.Less(t, startIdx, customStepIdx, "Start DIFC proxy must come before custom step")
+	assert.Less(t, setRepoIdx, customStepIdx, "Set GH_REPO must come before custom step")
 
 	// Verify proxy stop is before MCP gateway start
 	gatewayIdx := strings.Index(result, "Start MCP Gateway")
@@ -476,6 +506,41 @@ Test that DIFC proxy is NOT injected when min-integrity is not set.
 		"compiled workflow should NOT contain proxy stop step without guard policy")
 }
 
+// TestDIFCProxyNotInjectedWithoutFeatureFlag verifies no proxy injection when
+// guard policies are configured but the "difc-proxy" feature flag is absent.
+func TestDIFCProxyNotInjectedWithoutFeatureFlag(t *testing.T) {
+	workflow := `---
+on: issues
+engine: copilot
+tools:
+  github:
+    mode: local
+    toolsets: [default]
+    min-integrity: approved
+steps:
+  - name: Fetch repo data
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    run: gh issue list
+---
+
+# Test Workflow
+
+Test that DIFC proxy is NOT injected when min-integrity is set but difc-proxy feature flag is absent.
+`
+	compiler := NewCompiler()
+	data, err := compiler.ParseWorkflowString(workflow, "test-workflow.md")
+	require.NoError(t, err, "parsing should succeed")
+
+	result, err := compiler.CompileToYAML(data, "test-workflow.md")
+	require.NoError(t, err, "compilation should succeed")
+
+	assert.NotContains(t, result, "Start DIFC proxy",
+		"compiled workflow should NOT contain proxy start step without guard policy")
+	assert.NotContains(t, result, "Stop DIFC proxy",
+		"compiled workflow should NOT contain proxy stop step without guard policy")
+}
+
 // TestHasDIFCGuardsConfigured verifies the base guard policy check.
 func TestHasDIFCGuardsConfigured(t *testing.T) {
 	tests := []struct {
@@ -503,16 +568,24 @@ func TestHasDIFCGuardsConfigured(t *testing.T) {
 			expected: false,
 		},
 		{
-			name: "github tool with min-integrity",
+			name: "github tool with min-integrity but feature flag disabled",
 			data: &WorkflowData{
 				Tools: map[string]any{
 					"github": map[string]any{"min-integrity": "approved"},
 				},
 			},
+			expected: false,
+		},
+		{
+			name: "github tool with min-integrity and feature flag enabled",
+			data: &WorkflowData{
+				Tools:    map[string]any{"github": map[string]any{"min-integrity": "approved"}},
+				Features: map[string]any{"difc-proxy": true},
+			},
 			expected: true,
 		},
 		{
-			name: "github tool with allowed-repos and min-integrity",
+			name: "github tool with allowed-repos and min-integrity and feature flag enabled",
 			data: &WorkflowData{
 				Tools: map[string]any{
 					"github": map[string]any{
@@ -520,6 +593,7 @@ func TestHasDIFCGuardsConfigured(t *testing.T) {
 						"min-integrity": "merged",
 					},
 				},
+				Features: map[string]any{"difc-proxy": true},
 			},
 			expected: true,
 		},
@@ -565,6 +639,7 @@ func TestDIFCProxyInjectedInIndexingJob(t *testing.T) {
 			},
 			QmdConfig:     &QmdToolConfig{},
 			SandboxConfig: &SandboxConfig{},
+			Features:      map[string]any{"difc-proxy": true},
 		}
 		ensureDefaultMCPGatewayConfig(data)
 
@@ -591,6 +666,7 @@ func TestDIFCProxyInjectedInIndexingJob(t *testing.T) {
 				CacheKey: "qmd-test",
 			},
 			SandboxConfig: &SandboxConfig{},
+			Features:      map[string]any{"difc-proxy": true},
 		}
 		ensureDefaultMCPGatewayConfig(data)
 
@@ -632,5 +708,66 @@ func TestDIFCProxyInjectedInIndexingJob(t *testing.T) {
 			"indexing job should NOT include proxy start step without guard policy")
 		assert.NotContains(t, allSteps, "Stop DIFC proxy",
 			"indexing job should NOT include proxy stop step without guard policy")
+	})
+}
+
+// TestBuildSetGHRepoStepYAML verifies the YAML generated for the "Set GH_REPO" step.
+func TestBuildSetGHRepoStepYAML(t *testing.T) {
+	result := buildSetGHRepoStepYAML()
+
+	assert.Contains(t, result, "Set GH_REPO for proxied steps", "step name should be present")
+	assert.Contains(t, result, "GH_REPO=${GITHUB_REPOSITORY}", "should set GH_REPO from GITHUB_REPOSITORY")
+	assert.Contains(t, result, "GITHUB_ENV", "should write GH_REPO to GITHUB_ENV")
+	assert.NotContains(t, result, "GH_HOST", "should not modify GH_HOST (proxy must keep routing)")
+}
+
+// TestGenerateSetGHRepoAfterDIFCProxyStep verifies that the step is emitted only when
+// the DIFC proxy is needed (guard policies configured + pre-agent GH_TOKEN steps).
+func TestGenerateSetGHRepoAfterDIFCProxyStep(t *testing.T) {
+	c := &Compiler{}
+
+	t.Run("no step when guard policy not configured", func(t *testing.T) {
+		var yaml strings.Builder
+		data := &WorkflowData{
+			Tools: map[string]any{
+				"github": map[string]any{"toolsets": []string{"default"}},
+			},
+			CustomSteps:   "steps:\n  - name: Fetch\n    env:\n      GH_TOKEN: ${{ github.token }}\n    run: gh issue list",
+			SandboxConfig: &SandboxConfig{},
+		}
+		c.generateSetGHRepoAfterDIFCProxyStep(&yaml, data)
+		assert.Empty(t, yaml.String(), "should not generate step without guard policy")
+	})
+
+	t.Run("no step when no GH_TOKEN pre-agent steps", func(t *testing.T) {
+		var yaml strings.Builder
+		data := &WorkflowData{
+			Tools: map[string]any{
+				"github": map[string]any{"min-integrity": "approved"},
+			},
+			SandboxConfig: &SandboxConfig{},
+		}
+		c.generateSetGHRepoAfterDIFCProxyStep(&yaml, data)
+		assert.Empty(t, yaml.String(), "should not generate step without pre-agent GH_TOKEN steps")
+	})
+
+	t.Run("generates set GH_REPO step when guard policy and custom steps with GH_TOKEN", func(t *testing.T) {
+		var yaml strings.Builder
+		data := &WorkflowData{
+			Tools: map[string]any{
+				"github": map[string]any{"min-integrity": "approved"},
+			},
+			CustomSteps:   "steps:\n  - name: Fetch\n    env:\n      GH_TOKEN: ${{ github.token }}\n    run: gh issue list",
+			SandboxConfig: &SandboxConfig{},
+			Features:      map[string]any{"difc-proxy": true},
+		}
+		c.generateSetGHRepoAfterDIFCProxyStep(&yaml, data)
+
+		result := yaml.String()
+		require.NotEmpty(t, result, "should generate set GH_REPO step")
+		assert.Contains(t, result, "Set GH_REPO for proxied steps", "step name should be present")
+		assert.Contains(t, result, "GH_REPO=${GITHUB_REPOSITORY}", "should set GH_REPO from GITHUB_REPOSITORY")
+		assert.Contains(t, result, "GITHUB_ENV", "should write to GITHUB_ENV")
+		assert.NotContains(t, result, "GH_HOST", "should not touch GH_HOST")
 	})
 }

@@ -497,7 +497,7 @@ func generateQmdIndexSteps(qmdConfig *QmdToolConfig) []string {
 		npmInstall := "      - name: Install @tobilu/qmd SDK\n"
 		npmInstall += ifCacheMiss
 		npmInstall += "        run: |\n"
-		npmInstall += fmt.Sprintf("          npm install --prefix \"${{ runner.temp }}/gh-aw/actions\" @tobilu/qmd@%s @actions/github\n", version)
+		npmInstall += fmt.Sprintf("          npm install --prefix \"${{ runner.temp }}/gh-aw/actions\" --legacy-peer-deps @tobilu/qmd@%s @actions/github\n", version)
 		steps = append(steps, npmInstall)
 
 		// Emit a checkout step for each collection that targets a non-default repository

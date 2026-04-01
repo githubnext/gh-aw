@@ -188,6 +188,20 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 	steps = append(steps, "          script: |\n")
 	steps = append(steps, generateGitHubScriptWithRequire("check_workflow_timestamp_api.cjs"))
 
+	// Add compile-agentic version update check, unless disabled via check-for-updates: false.
+	// The check downloads .github/aw/releases.json from the gh-aw repository and verifies that the
+	// compiled version is not blocked and meets the minimum supported version requirement.
+	// If the download fails, the check is skipped (soft failure).
+	if !data.UpdateCheckDisabled && IsReleasedVersion(c.version) {
+		steps = append(steps, "      - name: Check compile-agentic version\n")
+		steps = append(steps, fmt.Sprintf("        uses: %s\n", GetActionPin("actions/github-script")))
+		steps = append(steps, "        env:\n")
+		steps = append(steps, fmt.Sprintf("          GH_AW_COMPILED_VERSION: \"%s\"\n", c.version))
+		steps = append(steps, "        with:\n")
+		steps = append(steps, "          script: |\n")
+		steps = append(steps, generateGitHubScriptWithRequire("check_version_updates.cjs"))
+	}
+
 	// Generate sanitized text/title/body outputs if needed
 	// This step computes sanitized versions of the triggering content (issue/PR/comment text, title, body)
 	// and makes them available as step outputs.
@@ -524,7 +538,7 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 		Name:                       string(constants.ActivationJobName),
 		If:                         activationCondition,
 		HasWorkflowRunSafetyChecks: workflowRunRepoSafety != "", // Mark job as having workflow_run safety checks
-		RunsOn:                     c.formatSafeOutputsRunsOn(data.SafeOutputs),
+		RunsOn:                     c.formatFrameworkJobRunsOn(data),
 		Permissions:                permissions,
 		Environment:                environment,
 		Steps:                      steps,
@@ -613,14 +627,13 @@ func (c *Compiler) generateCheckoutGitHubFolderForActivation(data *WorkflowData)
 	//
 	// Skip when inlined-imports is enabled: content is embedded at compile time and no
 	// runtime-import macros are used, so the callee's .md files are not needed at runtime.
-	// In dev mode the action is referenced via a local path (./actions/setup), so its files
-	// live in the workspace. Without including actions/setup in the sparse-checkout, this second
-	// checkout would remove that directory and the runner's post-step would fail to find action.yml.
-	// In other modes (release, script, action) the action is fetched remotely into the
-	// runner's action cache and is not affected by workspace checkouts.
-	devExtraPaths := []string(nil)
+	// In dev mode, actions/setup is referenced via a local workspace path (./actions/setup),
+	// so it must be included in the sparse-checkout to preserve it for the post step.
+	// In release/script/action modes, the action is in the runner cache and not the workspace.
+	var extraPaths []string
 	if c.actionMode.IsDev() {
-		devExtraPaths = []string{"actions/setup"}
+		compilerActivationJobLog.Print("Dev mode: adding actions/setup to sparse-checkout to preserve local action post step")
+		extraPaths = append(extraPaths, "actions/setup")
 	}
 
 	cm := NewCheckoutManager(nil)
@@ -632,7 +645,7 @@ func (c *Compiler) generateCheckoutGitHubFolderForActivation(data *WorkflowData)
 			cm.GetCrossRepoTargetRepo(),
 			cm.GetCrossRepoTargetRef(),
 			GetActionPin,
-			devExtraPaths...,
+			extraPaths...,
 		)
 	}
 
@@ -640,5 +653,5 @@ func (c *Compiler) generateCheckoutGitHubFolderForActivation(data *WorkflowData)
 	// This is needed for runtime imports during prompt generation
 	// sparse-checkout-cone-mode: true ensures subdirectories under .github/ are recursively included
 	compilerActivationJobLog.Print("Adding .github and .agents sparse checkout in activation job")
-	return cm.GenerateGitHubFolderCheckoutStep("", "", GetActionPin, devExtraPaths...)
+	return cm.GenerateGitHubFolderCheckoutStep("", "", GetActionPin, extraPaths...)
 }

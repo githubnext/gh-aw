@@ -18,6 +18,7 @@ tools:
     mode: local
     allowed-repos: "public"
     min-integrity: approved
+    approval-labels: [cookie]
 network:
   allowed:
     - defaults

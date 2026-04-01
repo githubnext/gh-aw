@@ -307,6 +307,7 @@ var handlerRegistry = map[string]handlerBuilder{
 			AddStringSlice("allowed_repos", c.AllowedRepos).
 			AddIfNotEmpty("github-token", c.GitHubToken).
 			AddIfTrue("staged", c.Staged).
+			AddIfTrue("auto_create", c.AutoCreate).
 			Build()
 	},
 	"mark_pull_request_as_ready_for_review": func(cfg *SafeOutputsConfig) map[string]any {
@@ -518,6 +519,7 @@ var handlerRegistry = map[string]handlerBuilder{
 			AddIfNotEmpty("github-token", c.GitHubToken).
 			AddTemplatableBool("footer", getEffectiveFooterForTemplatable(c.Footer, cfg.Footer)).
 			AddBoolPtr("fallback_as_issue", c.FallbackAsIssue).
+			AddTemplatableBool("auto_close_issue", c.AutoCloseIssue).
 			AddIfNotEmpty("base_branch", c.BaseBranch).
 			AddStringPtr("protected_files_policy", c.ManifestFilesPolicy).
 			AddStringSlice("protected_files", getAllManifestFiles()).
@@ -525,6 +527,7 @@ var handlerRegistry = map[string]handlerBuilder{
 			AddStringSlice("allowed_files", c.AllowedFiles).
 			AddStringSlice("excluded_files", c.ExcludedFiles).
 			AddIfTrue("preserve_branch_name", c.PreserveBranchName).
+			AddIfNotEmpty("patch_format", c.PatchFormat).
 			AddIfTrue("staged", c.Staged)
 		return builder.Build()
 	},
@@ -554,6 +557,7 @@ var handlerRegistry = map[string]handlerBuilder{
 			AddStringSlice("protected_path_prefixes", getProtectedPathPrefixes()).
 			AddStringSlice("allowed_files", c.AllowedFiles).
 			AddStringSlice("excluded_files", c.ExcludedFiles).
+			AddIfNotEmpty("patch_format", c.PatchFormat).
 			Build()
 	},
 	"update_pull_request": func(cfg *SafeOutputsConfig) map[string]any {

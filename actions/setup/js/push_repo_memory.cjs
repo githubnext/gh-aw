@@ -368,9 +368,16 @@ async function main() {
 
   core.info("Changes detected, committing and pushing...");
 
-  // Stage all changes
+  // Stage all changes.
+  // --sparse: "Allow updating index entries outside of the sparse-checkout cone.
+  // Normally, git add refuses to update index entries whose paths do not fit
+  // within the sparse-checkout cone, since those files might be removed from the
+  // working tree without warning." (git-add(1))
+  // This is required because "git checkout --orphan" can re-activate
+  // sparse-checkout, causing a plain "git add ." to silently skip or reject
+  // files on the first run for a new memory branch.
   try {
-    execGitSync(["add", "."], { stdio: "inherit" });
+    execGitSync(["add", "--sparse", "."], { stdio: "inherit" });
   } catch (error) {
     core.setFailed(`Failed to stage changes: ${getErrorMessage(error)}`);
     return;

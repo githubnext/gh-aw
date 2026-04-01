@@ -163,16 +163,6 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 			}
 		}
 
-		// Add Serena language service installation steps if Serena is configured
-		serenaLanguageSteps := GenerateSerenaLanguageServiceSteps(data.ParsedTools)
-		if len(serenaLanguageSteps) > 0 {
-			compilerYamlLog.Printf("Adding %d Serena language service installation steps", len(serenaLanguageSteps))
-			for _, step := range serenaLanguageSteps {
-				for _, line := range step {
-					yaml.WriteString(line + "\n")
-				}
-			}
-		}
 	}
 
 	// Create /tmp/gh-aw/ base directory for all temporary files
@@ -198,6 +188,13 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 	// and pre-agent steps with GH_TOKEN are present). The proxy routes gh CLI calls through
 	// integrity filtering before the agent runs. Must start before custom steps.
 	c.generateStartDIFCProxyStep(yaml, data)
+
+	// Set GH_REPO after the proxy starts so gh CLI can resolve the target repository.
+	// start_difc_proxy.sh writes GH_HOST=localhost:18443 to GITHUB_ENV, which causes gh
+	// CLI to fail resolving the repository from the git remote. Setting GH_REPO tells gh
+	// which repo to target while keeping GH_HOST pointed at the proxy for integrity
+	// filtering. Works on both github.com and GHEC.
+	c.generateSetGHRepoAfterDIFCProxyStep(yaml, data)
 
 	// Add custom steps if present
 	if data.CustomSteps != "" {
@@ -260,26 +257,6 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 	compilerYamlLog.Printf("Adding %d engine installation steps for %s", len(installSteps), engine.GetID())
 	for _, step := range installSteps {
 		for _, line := range step {
-			yaml.WriteString(line + "\n")
-		}
-	}
-
-	// Add APM (Agent Package Manager) setup step if dependencies are specified
-	if data.APMDependencies != nil && len(data.APMDependencies.Packages) > 0 {
-		// Download the pre-packed APM bundle from the separate "apm" artifact.
-		// In workflow_call context, apply the per-invocation prefix to avoid name clashes.
-		compilerYamlLog.Printf("Adding APM bundle download step: %d packages", len(data.APMDependencies.Packages))
-		apmArtifactName := artifactPrefixExprForDownstreamJob(data) + constants.APMArtifactName
-		yaml.WriteString("      - name: Download APM bundle artifact\n")
-		fmt.Fprintf(yaml, "        uses: %s\n", GetActionPin("actions/download-artifact"))
-		yaml.WriteString("        with:\n")
-		fmt.Fprintf(yaml, "          name: %s\n", apmArtifactName)
-		yaml.WriteString("          path: /tmp/gh-aw/apm-bundle\n")
-
-		// Restore APM dependencies from bundle
-		compilerYamlLog.Printf("Adding APM restore step")
-		apmStep := GenerateAPMRestoreStep(data.APMDependencies, data)
-		for _, line := range apmStep {
 			yaml.WriteString(line + "\n")
 		}
 	}
@@ -505,6 +482,10 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 	// Add repo-memory artifact upload to save state for push job
 	generateRepoMemoryArtifactUpload(yaml, data)
 
+	// Add cache-memory git commit steps (after agent execution, before validation)
+	// This commits agent-written changes to the current integrity branch.
+	generateCacheMemoryGitCommitSteps(yaml, data)
+
 	// Add cache-memory validation (after agent execution)
 	// This validates file types before cache is saved or uploaded
 	generateCacheMemoryValidation(yaml, data)
@@ -528,6 +509,12 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 	threatDetectionNeedsPatches := IsDetectionJobEnabled(data.SafeOutputs)
 	if usesPatchesAndCheckouts(data.SafeOutputs) || threatDetectionNeedsPatches {
 		artifactPaths = append(artifactPaths, "/tmp/gh-aw/aw-*.patch")
+		// Bundle files are generated when patch-format: bundle is configured.
+		// Both formats use the same download path in the safe_outputs job, so
+		// include the bundle glob unconditionally alongside the patch glob.
+		// The artifact upload step already sets if-no-files-found: ignore, so
+		// this is safe even when no bundle files exist.
+		artifactPaths = append(artifactPaths, "/tmp/gh-aw/aw-*.bundle")
 	}
 
 	// Add post-steps (if any) after AI execution
@@ -554,6 +541,19 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 		for _, step := range invalidationSteps {
 			yaml.WriteString(step)
 		}
+	}
+
+	// In dev mode the setup action is referenced via a local path (./actions/setup), so its files
+	// live in the workspace. When a checkout: entry targets an external repository without a path
+	// (e.g. "checkout: [{repository: owner/other-repo}]"), actions/checkout replaces the workspace
+	// root with the external repository content, removing the actions/setup directory.
+	// Without restoring it, the runner's post-step for Setup Scripts would fail with
+	// "Can't find 'action.yml', 'action.yaml' or 'Dockerfile' under .../actions/setup".
+	// We add a restore checkout step (if: always()) as the final step so the post-step
+	// can always find action.yml and complete its /tmp/gh-aw cleanup.
+	if c.actionMode.IsDev() && checkoutMgr.HasExternalRootCheckout() {
+		yaml.WriteString(c.generateRestoreActionsSetupStep())
+		compilerYamlLog.Print("Added restore actions folder step to agent job (dev mode with external root checkout)")
 	}
 
 	// Validate step ordering - this is a compiler check to ensure security
@@ -657,17 +657,6 @@ func (c *Compiler) addCustomStepsWithRuntimeInsertion(yaml *strings.Builder, cus
 				for _, step := range runtimeSetupSteps {
 					for _, stepLine := range step {
 						yaml.WriteString(stepLine + "\n")
-					}
-				}
-
-				// Also insert Serena language service steps if configured
-				serenaLanguageSteps := GenerateSerenaLanguageServiceSteps(tools)
-				if len(serenaLanguageSteps) > 0 {
-					compilerYamlLog.Printf("Inserting %d Serena language service steps after runtime setup", len(serenaLanguageSteps))
-					for _, step := range serenaLanguageSteps {
-						for _, stepLine := range step {
-							yaml.WriteString(stepLine + "\n")
-						}
 					}
 				}
 

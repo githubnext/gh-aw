@@ -188,7 +188,6 @@ func (c *Compiler) buildInitialWorkflowData(
 		Tools:                 toolsResult.tools,
 		ParsedTools:           NewTools(toolsResult.tools),
 		Runtimes:              toolsResult.runtimes,
-		APMDependencies:       toolsResult.apmDependencies,
 		MarkdownContent:       toolsResult.markdownContent,
 		AI:                    engineSetup.engineSetting,
 		EngineConfig:          engineSetup.engineConfig,
@@ -226,6 +225,15 @@ func (c *Compiler) buildInitialWorkflowData(
 		}
 	}
 
+	// Populate check-for-updates flag: disabled when check-for-updates: false is set in frontmatter.
+	if toolsResult.parsedFrontmatter != nil && toolsResult.parsedFrontmatter.UpdateCheck != nil {
+		workflowData.UpdateCheckDisabled = !*toolsResult.parsedFrontmatter.UpdateCheck
+	} else if rawVal, ok := result.Frontmatter["check-for-updates"]; ok {
+		if boolVal, ok := rawVal.(bool); ok && !boolVal {
+			workflowData.UpdateCheckDisabled = true
+		}
+	}
+
 	return workflowData
 }
 
@@ -255,6 +263,12 @@ func (c *Compiler) extractYAMLSections(frontmatter map[string]any, workflowData 
 	workflowData.TimeoutMinutes = c.extractTopLevelYAMLSection(frontmatter, "timeout-minutes")
 
 	workflowData.RunsOn = c.extractTopLevelYAMLSection(frontmatter, "runs-on")
+	// Extract runs-on-slim as a plain string (no YAML formatting needed)
+	if v, ok := frontmatter["runs-on-slim"]; ok {
+		if s, ok := v.(string); ok {
+			workflowData.RunsOnSlim = s
+		}
+	}
 	workflowData.Environment = c.extractTopLevelYAMLSection(frontmatter, "environment")
 	workflowData.Container = c.extractTopLevelYAMLSection(frontmatter, "container")
 	workflowData.Cache = c.extractTopLevelYAMLSection(frontmatter, "cache")
@@ -698,12 +712,6 @@ func applyTopLevelGitHubAppFallbacks(data *WorkflowData) {
 			// Non-map value (e.g. true) — create a fresh map.
 			data.Tools["github"] = map[string]any{"github-app": appMap}
 		}
-	}
-
-	// Fallback for APM dependencies (dependencies.github-app; no github-token field)
-	if data.APMDependencies != nil && topLevelFallbackNeeded(data.APMDependencies.GitHubApp, "") {
-		orchestratorWorkflowLog.Print("Applying top-level github-app fallback for dependencies")
-		data.APMDependencies.GitHubApp = fallback
 	}
 }
 

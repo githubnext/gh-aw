@@ -10,6 +10,7 @@ import (
 
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/constants"
+	"github.com/github/gh-aw/pkg/gitutil"
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/workflow"
 	"github.com/spf13/cobra"
@@ -128,8 +129,12 @@ Note: For guided interactive setup, use the 'add-wizard' command instead.`,
 	// Add AI flag to add command
 	addEngineFlag(cmd)
 
-	// Add repository flag to add command
+	// Add repository flag to add command.
+	// Note: the repo is specified directly in the workflow path argument (e.g., "owner/repo/workflow-name"),
+	// so this flag is not read by the command. It is kept hidden to avoid breaking existing scripts
+	// that may pass --repo but should not be advertised in help text.
 	cmd.Flags().StringP("repo", "r", "", "Source repository containing workflows (owner/repo format)")
+	_ = cmd.Flags().MarkHidden("repo") // Hidden: repo is already embedded in the workflow path spec
 
 	// Add PR flag to add command (--create-pull-request with --pr as alias)
 	cmd.Flags().Bool("create-pull-request", false, "Create a pull request with the workflow changes")
@@ -314,7 +319,7 @@ func addWorkflowWithTracking(resolved *ResolvedWorkflow, tracker *FileTracker, o
 	}
 
 	// Find git root to ensure consistent placement
-	gitRoot, err := findGitRoot()
+	gitRoot, err := gitutil.FindGitRoot()
 	if err != nil {
 		return fmt.Errorf("add workflow requires being in a git repository: %w", err)
 	}
@@ -358,29 +363,9 @@ func addWorkflowWithTracking(resolved *ResolvedWorkflow, tracker *FileTracker, o
 		return fmt.Errorf("workflow '%s' already exists in .github/workflows/. Use a different name with -n flag, remove the existing workflow first, or use --force to overwrite", workflowName)
 	}
 
-	// For remote workflows, fetch and save include dependencies directly from the source
+	// For remote workflows, fetch and save all dependencies (includes, imports, dispatch workflows, resources)
 	if !isLocalWorkflowPath(workflowSpec.WorkflowPath) {
-		if err := fetchAndSaveRemoteIncludes(string(sourceContent), workflowSpec, githubWorkflowsDir, opts.Verbose, opts.Force, tracker); err != nil {
-			if opts.Verbose {
-				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to fetch include dependencies: %v", err)))
-			}
-		}
-		// Also fetch and save frontmatter 'imports:' dependencies so they are available
-		// locally during compilation. Keeping these as relative paths (not workflowspecs)
-		// ensures the compiler resolves them from disk rather than downloading from GitHub.
-		if err := fetchAndSaveRemoteFrontmatterImports(string(sourceContent), workflowSpec, githubWorkflowsDir, opts.Verbose, opts.Force, tracker); err != nil {
-			if opts.Verbose {
-				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to fetch frontmatter import dependencies: %v", err)))
-			}
-		}
-		// Fetch and save workflows referenced in safe-outputs.dispatch-workflow so they are
-		// available locally. Workflow names using GitHub Actions expression syntax are skipped.
-		if err := fetchAndSaveRemoteDispatchWorkflows(context.Background(), string(sourceContent), workflowSpec, githubWorkflowsDir, opts.Verbose, opts.Force, tracker); err != nil {
-			return err
-		}
-		// Fetch files listed in the 'resources:' frontmatter field (additional workflow or
-		// action files that should be present alongside this workflow).
-		if err := fetchAndSaveRemoteResources(string(sourceContent), workflowSpec, githubWorkflowsDir, opts.Verbose, opts.Force, tracker); err != nil {
+		if err := fetchAllRemoteDependencies(context.Background(), string(sourceContent), workflowSpec, githubWorkflowsDir, opts.Verbose, opts.Force, tracker); err != nil {
 			return err
 		}
 	} else if sourceInfo != nil && sourceInfo.IsLocal {

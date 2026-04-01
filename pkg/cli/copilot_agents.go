@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/github/gh-aw/pkg/console"
+	"github.com/github/gh-aw/pkg/gitutil"
 	"github.com/github/gh-aw/pkg/logger"
 )
 
@@ -21,7 +22,7 @@ func ensureAgenticWorkflowsDispatcher(verbose bool, skipInstructions bool) error
 		return nil
 	}
 
-	gitRoot, err := findGitRoot()
+	gitRoot, err := gitutil.FindGitRoot()
 	if err != nil {
 		return err // Not in a git repository, skip
 	}
@@ -81,7 +82,7 @@ func ensureAgenticWorkflowsDispatcher(verbose bool, skipInstructions bool) error
 
 // cleanupOldPromptFile removes an old prompt file from .github/prompts/ if it exists
 func cleanupOldPromptFile(promptFileName string, verbose bool) error {
-	gitRoot, err := findGitRoot()
+	gitRoot, err := gitutil.FindGitRoot()
 	if err != nil {
 		return nil // Not in a git repository, skip
 	}
@@ -103,7 +104,7 @@ func cleanupOldPromptFile(promptFileName string, verbose bool) error {
 
 // deleteSetupAgenticWorkflowsAgent deletes the setup-agentic-workflows.agent.md file if it exists
 func deleteSetupAgenticWorkflowsAgent(verbose bool) error {
-	gitRoot, err := findGitRoot()
+	gitRoot, err := gitutil.FindGitRoot()
 	if err != nil {
 		return nil // Not in a git repository, skip
 	}
@@ -126,7 +127,7 @@ func deleteSetupAgenticWorkflowsAgent(verbose bool) error {
 
 // deleteOldTemplateFiles deletes old template files that are no longer bundled in the binary
 func deleteOldTemplateFiles(verbose bool) error {
-	gitRoot, err := findGitRoot()
+	gitRoot, err := gitutil.FindGitRoot()
 	if err != nil {
 		return nil // Not in a git repository, skip
 	}
@@ -184,7 +185,7 @@ func deleteOldTemplateFiles(verbose bool) error {
 
 // deleteOldAgentFiles deletes old workflow-specific .agent.md files from .github/agents/
 func deleteOldAgentFiles(verbose bool) error {
-	gitRoot, err := findGitRoot()
+	gitRoot, err := gitutil.FindGitRoot()
 	if err != nil {
 		return nil // Not in a git repository, skip
 	}

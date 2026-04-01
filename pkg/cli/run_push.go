@@ -10,6 +10,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/github/gh-aw/pkg/gitutil"
 	"github.com/github/gh-aw/pkg/stringutil"
 
 	"github.com/github/gh-aw/pkg/console"
@@ -381,7 +382,7 @@ func resolveImportPathLocal(importPath, baseDir string) string {
 	}
 
 	// Skip workflowspec format imports (owner/repo/path@sha)
-	if isWorkflowSpecFormatLocal(importPath) {
+	if isWorkflowSpecFormat(importPath) {
 		runPushLog.Printf("Skipping workflowspec format import: %s", importPath)
 		return ""
 	}
@@ -390,7 +391,7 @@ func resolveImportPathLocal(importPath, baseDir string) string {
 	if strings.HasPrefix(importPath, "/") {
 		runPushLog.Printf("Import path is absolute (starts with /): %s", importPath)
 		// Find git root
-		gitRoot, err := findGitRoot()
+		gitRoot, err := gitutil.FindGitRoot()
 		if err != nil {
 			runPushLog.Printf("Failed to find git root: %v", err)
 			return ""
@@ -404,14 +405,6 @@ func resolveImportPathLocal(importPath, baseDir string) string {
 	resolved := filepath.Join(baseDir, importPath)
 	runPushLog.Printf("Resolved relative import: %s", resolved)
 	return resolved
-}
-
-// isWorkflowSpecFormatLocal is a local version of isWorkflowSpecFormat for push functionality
-// This is duplicated from imports.go to avoid circular dependencies
-func isWorkflowSpecFormatLocal(path string) bool {
-	// The only reliable indicator of a workflowspec is the @ version separator
-	// Paths like "shared/mcp/arxiv.md" should be treated as local paths, not workflowspecs
-	return strings.Contains(path, "@")
 }
 
 // pushWorkflowFiles commits and pushes the workflow files to the repository

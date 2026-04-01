@@ -477,6 +477,13 @@ func TestCheckAndPrepareDockerImages_DockerUnavailable(t *testing.T) {
 	if strings.Contains(errMsg, "being downloaded") {
 		t.Errorf("Expected error NOT to say 'being downloaded' when Docker is unavailable, got: %s", errMsg)
 	}
+	// Error message should use parameter syntax, not CLI flag syntax
+	if strings.Contains(errMsg, "--zizmor") {
+		t.Errorf("Expected error NOT to use CLI flag syntax '--zizmor', got: %s", errMsg)
+	}
+	if !strings.Contains(errMsg, "zizmor: false") {
+		t.Errorf("Expected error to suggest 'zizmor: false', got: %s", errMsg)
+	}
 
 	// Clean up
 	ResetDockerPullState()
@@ -505,6 +512,16 @@ func TestCheckAndPrepareDockerImages_DockerUnavailable_MultipleTools(t *testing.
 	}
 	if !strings.Contains(errMsg, "actionlint") {
 		t.Errorf("Expected error to mention 'actionlint', got: %s", errMsg)
+	}
+	// Error message should use parameter syntax, not CLI flag syntax
+	if strings.Contains(errMsg, "--zizmor") || strings.Contains(errMsg, "--actionlint") {
+		t.Errorf("Expected error NOT to use CLI flag syntax, got: %s", errMsg)
+	}
+	if !strings.Contains(errMsg, "zizmor: false") {
+		t.Errorf("Expected error to suggest 'zizmor: false', got: %s", errMsg)
+	}
+	if !strings.Contains(errMsg, "actionlint: false") {
+		t.Errorf("Expected error to suggest 'actionlint: false', got: %s", errMsg)
 	}
 
 	// Clean up

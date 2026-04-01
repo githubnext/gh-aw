@@ -3,6 +3,6 @@
   "private": true,
   "license": "MIT",
   "dependencies": {
-    "@sentry/mcp-server": "0.29.0"
+    "@sentry/mcp-server": "0.31.0"
   }
 }

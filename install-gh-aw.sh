@@ -2,14 +2,15 @@
 
 # Script to download and install gh-aw binary for the current OS and architecture
 # Supports: Linux, macOS (Darwin), FreeBSD, Windows (Git Bash/MSYS/Cygwin)
-# Usage: ./install-gh-aw.sh [version] [options]
-# If no version is specified, it will use "latest" (GitHub automatically resolves to the latest release)
+# If no version is specified, it will use "latest"
 # Note: Checksum validation is currently skipped by default (will be enabled in future releases)
 # 
+# Usage: ./install.sh [version] [options]
+#
 # Examples:
-#   ./install-gh-aw.sh                           # Install latest version
-#   ./install-gh-aw.sh v1.0.0                    # Install specific version
-#   ./install-gh-aw.sh --skip-checksum           # Skip checksum validation
+#   ./install.sh                           # Install latest version
+#   ./install.sh v1.0.0                    # Install specific version
+#   ./install.sh --skip-checksum           # Skip checksum validation
 #
 # Options:
 #   --skip-checksum                   Skip checksum verification
@@ -79,12 +80,6 @@ fi
 if ! command -v curl &> /dev/null; then
     print_error "curl is required but not installed. Please install curl first."
     exit 1
-fi
-
-# Check if jq is available (optional, we'll use grep/sed as fallback)
-HAS_JQ=false
-if command -v jq &> /dev/null; then
-    HAS_JQ=true
 fi
 
 # Check if sha256sum or shasum is available (for checksum verification)
@@ -167,62 +162,6 @@ fi
 print_info "Detected OS: $OS -> $OS_NAME"
 print_info "Detected architecture: $ARCH -> $ARCH_NAME"
 print_info "Platform: $PLATFORM"
-
-# Function to fetch release data with fallback for invalid token and retry logic
-fetch_release_data() {
-    local url=$1
-    local max_retries=3
-    local retry_delay=2
-    local use_auth=false
-    
-    # Try with authentication if GH_TOKEN is set
-    if [ -n "$GH_TOKEN" ]; then
-        use_auth=true
-    fi
-    
-    # Retry loop
-    for attempt in $(seq 1 $max_retries); do
-        local curl_args=("-s" "-f")
-        
-        # Add auth header if using authentication
-        if [ "$use_auth" = true ]; then
-            curl_args+=("-H" "Authorization: Bearer $GH_TOKEN")
-        fi
-        
-        print_info "Fetching release data (attempt $attempt/$max_retries)..." >&2
-        
-        # Make the API call
-        local response
-        response=$(curl "${curl_args[@]}" "$url" 2>/dev/null)
-        local exit_code=$?
-        
-        # Success
-        if [ $exit_code -eq 0 ] && [ -n "$response" ]; then
-            echo "$response"
-            return 0
-        fi
-        
-        # If this was the first attempt with auth and it failed, try without auth
-        if [ "$attempt" -eq 1 ] && [ "$use_auth" = true ]; then
-            print_warning "API call with GH_TOKEN failed. Retrying without authentication..." >&2
-            print_warning "Your GH_TOKEN may be incompatible (typically SSO) with this request." >&2
-            use_auth=false
-            # Don't count this as a retry attempt, just switch auth mode
-            continue
-        fi
-        
-        # If we haven't exhausted retries, wait and try again
-        if [ "$attempt" -lt "$max_retries" ]; then
-            print_warning "Fetch attempt $attempt failed (exit code: $exit_code). Retrying in ${retry_delay}s..." >&2
-            sleep $retry_delay
-            retry_delay=$((retry_delay * 2))
-        else
-            print_error "Failed to fetch release data after $max_retries attempts" >&2
-        fi
-    done
-    
-    return 1
-}
 
 # Get version (use provided version or default to "latest")
 # VERSION is already set from argument parsing

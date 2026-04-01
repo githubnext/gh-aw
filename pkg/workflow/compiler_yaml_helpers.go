@@ -265,6 +265,31 @@ func (c *Compiler) generateCheckoutActionsFolder(data *WorkflowData) []string {
 	return nil
 }
 
+// generateRestoreActionsSetupStep generates a single "Restore actions folder" step that
+// re-checks out only the actions/setup subfolder from github/gh-aw. This is used in dev mode
+// after a job step has checked out a different repository (or a different git branch) and
+// replaced the workspace content, removing the actions/setup directory. Without restoring it,
+// the GitHub Actions runner's post-step for "Setup Scripts" would fail with
+// "Can't find 'action.yml', 'action.yaml' or 'Dockerfile' under .../actions/setup".
+//
+// The step is guarded by `if: always()` so it runs even if prior steps fail, ensuring
+// the post-step cleanup can always complete.
+//
+// Returns the YAML for the step as a single string (for inclusion in a []string steps slice).
+func (c *Compiler) generateRestoreActionsSetupStep() string {
+	var step strings.Builder
+	step.WriteString("      - name: Restore actions folder\n")
+	step.WriteString("        if: always()\n")
+	fmt.Fprintf(&step, "        uses: %s\n", GetActionPin("actions/checkout"))
+	step.WriteString("        with:\n")
+	step.WriteString("          repository: github/gh-aw\n")
+	step.WriteString("          sparse-checkout: |\n")
+	step.WriteString("            actions/setup\n")
+	step.WriteString("          sparse-checkout-cone-mode: true\n")
+	step.WriteString("          persist-credentials: false\n")
+	return step.String()
+}
+
 // generateCheckoutGitHubFolder generates the checkout step for the .github and .agents folders
 // for the agent job. This ensures workflows have access to workflow configurations,
 // runtime imports, and skills even when they don't do a full repository checkout.

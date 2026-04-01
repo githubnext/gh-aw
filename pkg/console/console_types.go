@@ -69,6 +69,3 @@ func (i ListItem) Title() string { return i.title }
 
 // Description returns the item's description
 func (i ListItem) Description() string { return i.description }
-
-// FilterValue returns the value used for filtering
-func (i ListItem) FilterValue() string { return i.title }

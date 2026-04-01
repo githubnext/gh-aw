@@ -145,6 +145,19 @@ func (c *Compiler) buildUploadAssetsJob(data *WorkflowData, mainJobName string, 
 	// Build job dependencies — detection is now inline in the agent job
 	needs := []string{mainJobName}
 
+	// In dev mode the setup action is referenced via a local path (./actions/setup), so its
+	// files live in the workspace. The upload_assets step does a git checkout to the assets
+	// branch, which replaces the workspace content and removes the actions/setup directory.
+	// Without restoring it, the runner's post-step for Setup Scripts would fail with
+	// "Can't find 'action.yml', 'action.yaml' or 'Dockerfile' under .../actions/setup".
+	// We add a restore checkout step (if: always()) after the main step so the post-step
+	// can always find action.yml and complete its /tmp/gh-aw cleanup.
+	var postSteps []string
+	if c.actionMode.IsDev() {
+		postSteps = append(postSteps, c.generateRestoreActionsSetupStep())
+		publishAssetsLog.Print("Added restore actions folder step to upload_assets job (dev mode)")
+	}
+
 	// Use the shared builder function to create the job
 	return c.buildSafeOutputJob(data, SafeOutputJobConfig{
 		JobName:       "upload_assets",
@@ -158,6 +171,7 @@ func (c *Compiler) buildUploadAssetsJob(data *WorkflowData, mainJobName string, 
 		Outputs:       outputs,
 		Condition:     jobCondition,
 		PreSteps:      preSteps,
+		PostSteps:     postSteps,
 		Token:         data.SafeOutputs.UploadAssets.GitHubToken,
 		Needs:         needs,
 	})

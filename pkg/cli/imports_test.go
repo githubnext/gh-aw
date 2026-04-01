@@ -3,6 +3,7 @@
 package cli
 
 import (
+	"os"
 	"strings"
 	"testing"
 )
@@ -167,7 +168,7 @@ engine: claude
 		},
 	}
 
-	result, err := processIncludesInContent(content, workflow, "", false)
+	result, err := processIncludesInContent(content, workflow, "", "", false)
 	if err != nil {
 		t.Fatalf("Expected no error, got: %v", err)
 	}
@@ -197,7 +198,7 @@ engine: claude
 		},
 	}
 
-	result, err := processIncludesInContent(content, workflow, "", false)
+	result, err := processIncludesInContent(content, workflow, "", "", false)
 	if err != nil {
 		t.Fatalf("Expected no error, got: %v", err)
 	}
@@ -352,7 +353,7 @@ Test content.
 
 	commitSHA := "abc123def456"
 
-	result, err := processImportsWithWorkflowSpec(content, workflow, commitSHA, false)
+	result, err := processImportsWithWorkflowSpec(content, workflow, commitSHA, "", false)
 	if err != nil {
 		t.Fatalf("Expected no error, got: %v", err)
 	}
@@ -381,5 +382,175 @@ Test content.
 		if strings.Contains(result, unchanged) {
 			t.Errorf("Did not expect result to contain unchanged path '%s'\nGot:\n%s", unchanged, result)
 		}
+	}
+}
+
+// TestProcessImportsWithWorkflowSpec_PreservesLocalRelativePaths tests that when
+// localWorkflowDir is provided and import files exist on disk, the relative paths
+// are kept as-is and NOT rewritten to cross-repo workflowspec references.
+// This is the fix for: gh aw update rewrites local imports: to cross-repo paths.
+func TestProcessImportsWithWorkflowSpec_PreservesLocalRelativePaths(t *testing.T) {
+	// Create a temporary directory to act as the local workflow directory
+	tmpDir := t.TempDir()
+
+	// Create the shared import files locally
+	for _, rel := range []string{"shared/team-config.md", "shared/aor-index.md"} {
+		dir := tmpDir + "/" + rel[:strings.LastIndex(rel, "/")]
+		if err := os.MkdirAll(dir, 0755); err != nil {
+			t.Fatalf("Failed to create dir %s: %v", dir, err)
+		}
+		if err := os.WriteFile(tmpDir+"/"+rel, []byte("# Shared content"), 0644); err != nil {
+			t.Fatalf("Failed to create file %s: %v", rel, err)
+		}
+	}
+
+	content := `---
+engine: copilot
+imports:
+  - shared/team-config.md
+  - shared/aor-index.md
+---
+
+# Investigate
+`
+
+	workflow := &WorkflowSpec{
+		RepoSpec: RepoSpec{
+			RepoSlug: "github/identity-core",
+			Version:  "cd32c168",
+		},
+		WorkflowPath: ".github/workflows/investigate.md",
+	}
+
+	result, err := processImportsWithWorkflowSpec(content, workflow, "cd32c168", tmpDir, false)
+	if err != nil {
+		t.Fatalf("Expected no error, got: %v", err)
+	}
+
+	// Local paths must be preserved as-is
+	if !strings.Contains(result, "- shared/team-config.md") {
+		t.Errorf("Expected local import 'shared/team-config.md' to be preserved, got:\n%s", result)
+	}
+	if !strings.Contains(result, "- shared/aor-index.md") {
+		t.Errorf("Expected local import 'shared/aor-index.md' to be preserved, got:\n%s", result)
+	}
+
+	// Cross-repo refs must NOT appear
+	if strings.Contains(result, "github/identity-core") {
+		t.Errorf("Cross-repo ref should NOT appear when local file exists, got:\n%s", result)
+	}
+}
+
+// TestProcessImportsWithWorkflowSpec_RewritesWhenLocalMissing verifies that imports
+// for files that do NOT exist locally are still rewritten to cross-repo refs.
+func TestProcessImportsWithWorkflowSpec_RewritesWhenLocalMissing(t *testing.T) {
+	// Use a temp dir that has NO shared files
+	tmpDir := t.TempDir()
+
+	content := `---
+engine: copilot
+imports:
+  - shared/team-config.md
+---
+
+# Investigate
+`
+
+	workflow := &WorkflowSpec{
+		RepoSpec: RepoSpec{
+			RepoSlug: "github/identity-core",
+			Version:  "cd32c168",
+		},
+		WorkflowPath: ".github/workflows/investigate.md",
+	}
+
+	result, err := processImportsWithWorkflowSpec(content, workflow, "cd32c168", tmpDir, false)
+	if err != nil {
+		t.Fatalf("Expected no error, got: %v", err)
+	}
+
+	// File does NOT exist locally → must be rewritten to cross-repo ref
+	expectedRef := "github/identity-core/.github/workflows/shared/team-config.md@cd32c168"
+	if !strings.Contains(result, expectedRef) {
+		t.Errorf("Expected cross-repo ref '%s' when file is missing locally, got:\n%s", expectedRef, result)
+	}
+
+	// Original relative path must be gone
+	if strings.Contains(result, "- shared/team-config.md") {
+		t.Errorf("Relative path should have been rewritten when file is missing locally, got:\n%s", result)
+	}
+}
+
+// TestProcessIncludesInContent_PreservesLocalIncludeDirectives tests that @include
+// directives whose files exist locally are not rewritten to cross-repo refs.
+func TestProcessIncludesInContent_PreservesLocalIncludeDirectives(t *testing.T) {
+	// Create a temporary directory with the shared include file
+	tmpDir := t.TempDir()
+	if err := os.MkdirAll(tmpDir+"/shared", 0755); err != nil {
+		t.Fatalf("Failed to create shared dir: %v", err)
+	}
+	if err := os.WriteFile(tmpDir+"/shared/config.md", []byte("# Config"), 0644); err != nil {
+		t.Fatalf("Failed to create config file: %v", err)
+	}
+
+	content := `---
+engine: copilot
+---
+
+# Test Workflow
+
+{{#import shared/config.md}}
+`
+
+	workflow := &WorkflowSpec{
+		RepoSpec: RepoSpec{
+			RepoSlug: "github/identity-core",
+			Version:  "abc123",
+		},
+		WorkflowPath: ".github/workflows/test.md",
+	}
+
+	result, err := processIncludesInContent(content, workflow, "abc123", tmpDir, false)
+	if err != nil {
+		t.Fatalf("Expected no error, got: %v", err)
+	}
+
+	// Local include directive must be preserved
+	if !strings.Contains(result, "{{#import shared/config.md}}") {
+		t.Errorf("Expected local @include to be preserved, got:\n%s", result)
+	}
+
+	// Cross-repo ref must NOT appear
+	if strings.Contains(result, "github/identity-core") {
+		t.Errorf("Cross-repo ref should NOT appear when local file exists, got:\n%s", result)
+	}
+}
+
+// TestIsLocalFileForUpdate_PathTraversal ensures that traversal attempts (e.g.
+// "../../etc/passwd") are rejected even if the target path happens to exist.
+func TestIsLocalFileForUpdate_PathTraversal(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	// Traversal path that would escape tmpDir
+	traversal := "../../etc/passwd"
+	if isLocalFileForUpdate(tmpDir, traversal) {
+		t.Errorf("isLocalFileForUpdate should reject path traversal attempt: %s", traversal)
+	}
+
+	// A normal path within tmpDir that doesn't exist should return false
+	if isLocalFileForUpdate(tmpDir, "nonexistent.md") {
+		t.Errorf("isLocalFileForUpdate should return false for non-existent file")
+	}
+
+	// A normal path within tmpDir that DOES exist should return true
+	validFile := "shared/file.md"
+	if err := os.MkdirAll(tmpDir+"/shared", 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(tmpDir+"/"+validFile, []byte("content"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if !isLocalFileForUpdate(tmpDir, validFile) {
+		t.Errorf("isLocalFileForUpdate should return true for an existing file within tmpDir")
 	}
 }

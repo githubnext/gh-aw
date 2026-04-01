@@ -9,7 +9,7 @@ permissions:
   issues: read
   pull-requests: read
 engine: copilot
-timeout-minutes: 30
+timeout-minutes: 45
 runtimes:
   node:
     version: "22"
@@ -34,6 +34,7 @@ network:
 imports:
   - shared/docs-server-lifecycle.md
   - shared/reporting.md
+  - shared/keep-it-short.md
 features:
   copilot-requests: true
 ---
@@ -54,12 +55,11 @@ Act as a complete beginner who has never used GitHub Agentic Workflows before. B
 
 ## Step 1: Build and Serve Documentation Site
 
-Navigate to the docs folder and build the documentation site using the steps from docs.yml:
+Navigate to the docs folder and start the documentation site:
 
 ```bash
 cd ${{ github.workspace }}/docs
 npm install
-npm run build
 ```
 
 Follow the shared **Documentation Server Lifecycle Management** instructions:
@@ -114,7 +114,7 @@ mcp__playwright__browser_run_code({
 })
 ```
 
-Using Playwright, navigate through the documentation site as if you're a complete beginner:
+Using Playwright, visit exactly these 3 pages and stop:
 
 1. **Visit the home page** at `http://${SERVER_IP}:4321/gh-aw/`
    - Take a screenshot
@@ -136,15 +136,7 @@ Using Playwright, navigate through the documentation site as if you're a complet
    - Note: Are the most important commands highlighted?
    - Note: Are examples provided for common use cases?
 
-4. **Explore Creating Workflows guide** at `http://${SERVER_IP}:4321/gh-aw/setup/creating-workflows/`
-   - Take screenshots of confusing sections
-   - Note: Is the workflow format explained clearly?
-   - Note: Are there enough examples?
-
-5. **Browse Examples section**
-   - Visit at least 2-3 example pages
-   - Take screenshots if explanations are unclear
-   - Note: Can you understand how to adapt examples to your own use case?
+After visiting all 3 pages, immediately proceed to the report.
 
 ## Step 3: Identify Pain Points
 
@@ -223,7 +215,7 @@ Follow the shared **Documentation Server Lifecycle Management** instructions for
 ## Success Criteria
 
 You've successfully completed this task if you:
-- Navigated at least 5 key documentation pages
+- Navigated exactly 3 key documentation pages
 - Identified specific pain points with examples
 - Provided actionable recommendations
 - Created a discussion with clear findings and screenshots

@@ -50,7 +50,7 @@ func TestSetupCLIAction(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Failed to read install.sh: %v", err)
 		}
-		// Verify script has fallback to fetch latest
+		// Verify script has fallback to use latest version
 		if !strings.Contains(string(content), "No version specified") || !strings.Contains(string(content), "using 'latest'") {
 			t.Errorf("Script should support fetching latest release when no version is provided")
 		}

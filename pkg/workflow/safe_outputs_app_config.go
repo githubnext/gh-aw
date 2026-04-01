@@ -16,10 +16,11 @@ var safeOutputsAppLog = logger.New("workflow:safe_outputs_app")
 
 // GitHubAppConfig holds configuration for GitHub App-based token minting
 type GitHubAppConfig struct {
-	AppID        string   `yaml:"app-id,omitempty"`       // GitHub App ID (e.g., "${{ vars.APP_ID }}")
-	PrivateKey   string   `yaml:"private-key,omitempty"`  // GitHub App private key (e.g., "${{ secrets.APP_PRIVATE_KEY }}")
-	Owner        string   `yaml:"owner,omitempty"`        // Optional: owner of the GitHub App installation (defaults to current repository owner)
-	Repositories []string `yaml:"repositories,omitempty"` // Optional: comma or newline-separated list of repositories to grant access to
+	AppID        string            `yaml:"app-id,omitempty"`       // GitHub App ID (e.g., "${{ vars.APP_ID }}")
+	PrivateKey   string            `yaml:"private-key,omitempty"`  // GitHub App private key (e.g., "${{ secrets.APP_PRIVATE_KEY }}")
+	Owner        string            `yaml:"owner,omitempty"`        // Optional: owner of the GitHub App installation (defaults to current repository owner)
+	Repositories []string          `yaml:"repositories,omitempty"` // Optional: comma or newline-separated list of repositories to grant access to
+	Permissions  map[string]string `yaml:"permissions,omitempty"`  // Optional: extra permission-* fields to merge into the minted token (nested wins over job-level)
 }
 
 // ========================================
@@ -62,6 +63,22 @@ func parseAppConfig(appMap map[string]any) *GitHubAppConfig {
 				}
 			}
 			appConfig.Repositories = repoStrings
+		}
+	}
+
+	// Parse permissions (optional) - extra permission-* fields to merge into the minted token
+	if perms, exists := appMap["permissions"]; exists {
+		if permsMap, ok := perms.(map[string]any); ok {
+			appConfig.Permissions = make(map[string]string, len(permsMap))
+			for key, val := range permsMap {
+				if valStr, ok := val.(string); ok {
+					appConfig.Permissions[key] = valStr
+				} else {
+					safeOutputsAppLog.Printf("Ignoring github-app.permissions[%q]: expected string value, got %T", key, val)
+				}
+			}
+		} else {
+			safeOutputsAppLog.Printf("Ignoring github-app.permissions: expected object, got %T", perms)
 		}
 	}
 

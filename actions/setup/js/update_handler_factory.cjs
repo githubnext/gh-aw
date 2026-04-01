@@ -172,7 +172,7 @@ function createUpdateHandlerFactory(handlerConfig) {
       }
 
       // Resolve item number (may use custom logic)
-      const itemNumberResult = resolveItemNumber(item, updateTarget, effectiveContext);
+      const itemNumberResult = resolveItemNumber(item, updateTarget, effectiveContext, resolvedTemporaryIds);
 
       if (!itemNumberResult.success) {
         core.warning(itemNumberResult.error);

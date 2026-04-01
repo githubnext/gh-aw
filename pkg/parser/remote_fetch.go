@@ -699,13 +699,6 @@ func DownloadFileFromGitHubForHost(owner, repo, path, ref, host string) ([]byte,
 	return downloadFileFromGitHubWithDepth(owner, repo, path, ref, 0, host)
 }
 
-// ResolveRefToSHA resolves a git ref (branch, tag, or short SHA) to its full commit SHA.
-// This is the exported wrapper for resolveRefToSHA.
-// If the ref is already a 40-character hex SHA, it returns it as-is.
-func ResolveRefToSHA(owner, repo, ref string) (string, error) {
-	return resolveRefToSHA(owner, repo, ref, "")
-}
-
 // ResolveRefToSHAForHost resolves a git ref to its full commit SHA on a specific GitHub host.
 // Use this when the target repository is on a different host than the one configured via GH_HOST.
 // host is the hostname without scheme (e.g., "github.com", "myorg.ghe.com").

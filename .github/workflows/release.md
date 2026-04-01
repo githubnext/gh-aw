@@ -162,7 +162,7 @@ jobs:
           echo "✓ Tag created: $RELEASE_TAG"
 
       - name: Setup Go
-        uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417  # v6.3.0
+        uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c  # v6.4.0
         with:
           go-version-file: go.mod
           cache: false  # Disabled for release security - prevent cache poisoning attacks
@@ -270,7 +270,9 @@ jobs:
           gh release create "$RELEASE_TAG" \
             dist/* \
             --title "$RELEASE_TAG" \
-            --generate-notes
+            --generate-notes \
+            --prerelease \
+            --latest=false
           
           # Get release ID
           RELEASE_ID=$(gh release view "$RELEASE_TAG" --json databaseId --jq '.databaseId')

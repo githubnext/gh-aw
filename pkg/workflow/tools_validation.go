@@ -73,15 +73,16 @@ func validateGitHubGuardPolicy(tools *Tools, workflowName string) error {
 	// AllowedRepos is populated from either 'allowed-repos' (preferred) or deprecated 'repos' during parsing
 	hasRepos := github.AllowedRepos != nil
 	hasMinIntegrity := github.MinIntegrity != ""
-	// blocked-users / approval-labels can be an array (BlockedUsers/ApprovalLabels) or a
-	// GitHub Actions expression string (BlockedUsersExpr/ApprovalLabelsExpr).
+	// blocked-users / approval-labels / trusted-users can be an array or a
+	// GitHub Actions expression string.
 	hasBlockedUsers := len(github.BlockedUsers) > 0 || github.BlockedUsersExpr != ""
 	hasApprovalLabels := len(github.ApprovalLabels) > 0 || github.ApprovalLabelsExpr != ""
+	hasTrustedUsers := len(github.TrustedUsers) > 0 || github.TrustedUsersExpr != ""
 
-	// blocked-users and approval-labels require a guard policy (min-integrity)
-	if (hasBlockedUsers || hasApprovalLabels) && !hasMinIntegrity {
-		toolsValidationLog.Printf("blocked-users/approval-labels without guard policy in workflow: %s", workflowName)
-		return errors.New("invalid guard policy: 'github.blocked-users' and 'github.approval-labels' require 'github.min-integrity' to be set")
+	// blocked-users, trusted-users, and approval-labels require a guard policy (min-integrity)
+	if (hasBlockedUsers || hasApprovalLabels || hasTrustedUsers) && !hasMinIntegrity {
+		toolsValidationLog.Printf("blocked-users/trusted-users/approval-labels without guard policy in workflow: %s", workflowName)
+		return errors.New("invalid guard policy: 'github.blocked-users', 'github.trusted-users', and 'github.approval-labels' require 'github.min-integrity' to be set")
 	}
 
 	// No guard policy fields present - nothing to validate
@@ -132,6 +133,14 @@ func validateGitHubGuardPolicy(tools *Tools, workflowName string) error {
 		if label == "" {
 			toolsValidationLog.Printf("Empty approval-labels entry at index %d in workflow: %s", i, workflowName)
 			return errors.New("invalid guard policy: 'github.approval-labels' entries must not be empty strings")
+		}
+	}
+
+	// Validate trusted-users (must be non-empty strings; expressions are accepted as-is)
+	for i, user := range github.TrustedUsers {
+		if user == "" {
+			toolsValidationLog.Printf("Empty trusted-users entry at index %d in workflow: %s", i, workflowName)
+			return errors.New("invalid guard policy: 'github.trusted-users' entries must not be empty strings")
 		}
 	}
 

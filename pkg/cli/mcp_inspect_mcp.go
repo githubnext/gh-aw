@@ -359,9 +359,8 @@ func displayServerCapabilities(info *parser.MCPServerInfo, toolFilter string) {
 				ShowVerboseHint: false,
 			}
 
-			// Render the table using the shared helper
-			table := renderMCPToolTable(info, opts)
-			fmt.Print(table)
+			// Render the table using the shared helper and print to stdout (structured data)
+			fmt.Fprint(os.Stdout, renderMCPToolTable(info, opts))
 
 			// Add helpful hint about how to allow tools in workflow frontmatter
 			displayToolAllowanceHint(info)
@@ -396,11 +395,10 @@ func displayServerCapabilities(info *parser.MCPServerInfo, toolFilter string) {
 			rows = append(rows, []string{resource.URI, resource.Name, description, mimeType})
 		}
 
-		table := console.RenderTable(console.TableConfig{
+		fmt.Fprint(os.Stdout, console.RenderTable(console.TableConfig{
 			Headers: headers,
 			Rows:    rows,
-		})
-		fmt.Print(table)
+		}))
 	} else if toolFilter == "" {
 		fmt.Fprintf(os.Stderr, "\n%s\n", console.FormatWarningMessage("No resources available"))
 	}
@@ -416,11 +414,10 @@ func displayServerCapabilities(info *parser.MCPServerInfo, toolFilter string) {
 			rows = append(rows, []string{root.URI, root.Name})
 		}
 
-		table := console.RenderTable(console.TableConfig{
+		fmt.Fprint(os.Stdout, console.RenderTable(console.TableConfig{
 			Headers: headers,
 			Rows:    rows,
-		})
-		fmt.Print(table)
+		}))
 	} else if toolFilter == "" {
 		fmt.Fprintf(os.Stderr, "\n%s\n", console.FormatWarningMessage("No roots available"))
 	}

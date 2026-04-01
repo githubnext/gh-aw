@@ -2,8 +2,12 @@ package workflow
 
 import (
 	"errors"
+	"fmt"
+	"os"
 	"sort"
 	"strings"
+
+	"github.com/github/gh-aw/pkg/console"
 )
 
 var githubAppPermissionsLog = newValidationLogger("github_app_permissions")
@@ -107,6 +111,101 @@ func formatWriteOnAppScopesError(scopes []PermissionScope) error {
 	lines = append(lines, "Change the permission level to \"read\" or use safe-outputs for write operations.")
 
 	return errors.New(strings.Join(lines, "\n"))
+}
+
+// validateGitHubMCPAppPermissionsNoWrite validates that every scope in
+// tools.github.github-app.permissions is set to "read" or "none" (after trimming/lowercasing).
+// The schema allows "write" so that editors can offer it as a completion, but
+// the compiler must reject it because GitHub App-only scopes have no write-level
+// semantics in this context — write operations must go through safe-outputs.
+// Any other unrecognised level is also rejected here.
+func validateGitHubMCPAppPermissionsNoWrite(workflowData *WorkflowData) error {
+	if workflowData.ParsedTools == nil ||
+		workflowData.ParsedTools.GitHub == nil ||
+		workflowData.ParsedTools.GitHub.GitHubApp == nil {
+		return nil
+	}
+	app := workflowData.ParsedTools.GitHub.GitHubApp
+	if len(app.Permissions) == 0 {
+		return nil
+	}
+
+	var invalidScopes []string
+	var writeScopes []string
+	for scope, level := range app.Permissions {
+		normalized := strings.ToLower(strings.TrimSpace(level))
+		switch normalized {
+		case string(PermissionRead), string(PermissionNone):
+			// valid
+		default:
+			invalidScopes = append(invalidScopes, scope+" (level: "+level+")")
+			if normalized == string(PermissionWrite) {
+				writeScopes = append(writeScopes, scope)
+			}
+		}
+	}
+	if len(invalidScopes) == 0 {
+		return nil
+	}
+	sort.Strings(invalidScopes)
+	sort.Strings(writeScopes)
+
+	var lines []string
+	lines = append(lines, "Invalid permission levels in tools.github.github-app.permissions.")
+	lines = append(lines, "Each permission level must be exactly \"read\" or \"none\".")
+	if len(writeScopes) > 0 {
+		lines = append(lines, "")
+		lines = append(lines, `"write" is not allowed: write operations must be performed via safe-outputs.`)
+		lines = append(lines, "")
+		lines = append(lines, "The following scopes were declared with \"write\" access:")
+		lines = append(lines, "")
+		for _, s := range writeScopes {
+			lines = append(lines, "  - "+s)
+		}
+	}
+	lines = append(lines, "")
+	lines = append(lines, "The following scopes have invalid permission levels:")
+	lines = append(lines, "")
+	for _, s := range invalidScopes {
+		lines = append(lines, "  - "+s)
+	}
+	lines = append(lines, "")
+	lines = append(lines, "Change the permission level to \"read\" for read-only access, or \"none\" to disable the scope.")
+	return errors.New(strings.Join(lines, "\n"))
+}
+
+// warnGitHubAppPermissionsUnsupportedContexts emits a warning when
+// tools.github.github-app.permissions is set in contexts that do not support it.
+// The permissions field only takes effect for the GitHub MCP token minting step;
+// it is silently ignored if set on safe-outputs.github-app, on.github-app, or the
+// top-level github-app fallback.
+func warnGitHubAppPermissionsUnsupportedContexts(workflowData *WorkflowData) {
+	type context struct {
+		label string
+		app   *GitHubAppConfig
+	}
+	unsupported := []context{
+		{"safe-outputs.github-app", safeOutputsGitHubApp(workflowData)},
+		{"on.github-app", workflowData.ActivationGitHubApp},
+		{"github-app (top-level fallback)", workflowData.TopLevelGitHubApp},
+	}
+	for _, ctx := range unsupported {
+		if ctx.app != nil && len(ctx.app.Permissions) > 0 {
+			msg := fmt.Sprintf(
+				"The 'permissions' field under '%s' has no effect. "+
+					"Extra GitHub App permissions only apply to tools.github.github-app.",
+				ctx.label,
+			)
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(msg))
+		}
+	}
+}
+
+func safeOutputsGitHubApp(workflowData *WorkflowData) *GitHubAppConfig {
+	if workflowData.SafeOutputs == nil {
+		return nil
+	}
+	return workflowData.SafeOutputs.GitHubApp
 }
 
 func hasGitHubAppConfigured(workflowData *WorkflowData) bool {

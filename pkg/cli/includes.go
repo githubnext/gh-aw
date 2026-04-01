@@ -180,8 +180,20 @@ func fetchFrontmatterImportsRecursive(content, owner, repo, ref, currentBaseDir,
 	switch v := importsField.(type) {
 	case []any:
 		for _, item := range v {
-			if s, ok := item.(string); ok {
-				importPaths = append(importPaths, s)
+			switch importItem := item.(type) {
+			case string:
+				importPaths = append(importPaths, importItem)
+			case map[string]any:
+				// Handle uses: and path: forms (mirrors GitHub Actions reusable workflow syntax)
+				if usesVal, ok := importItem["uses"]; ok {
+					if p, ok := usesVal.(string); ok {
+						importPaths = append(importPaths, p)
+					}
+				} else if pathVal, ok := importItem["path"]; ok {
+					if p, ok := pathVal.(string); ok {
+						importPaths = append(importPaths, p)
+					}
+				}
 			}
 		}
 	case []string:
@@ -440,5 +452,48 @@ func fetchAndSaveRemoteIncludes(content string, spec *WorkflowSpec, targetDir st
 		}
 	}
 
+	return nil
+}
+
+// fetchAllRemoteDependencies fetches all remote dependencies for a workflow:
+// includes (@include directives), frontmatter imports, dispatch workflows, and resources.
+// This is the single entry point shared by both the add and trial commands.
+//
+// Error handling is intentionally asymmetric:
+//   - @include and frontmatter import errors are best-effort: failures emit a warning when
+//     verbose is true but do not stop the overall operation.
+//   - Dispatch-workflow and resource errors are fatal and are returned to the caller.
+func fetchAllRemoteDependencies(ctx context.Context, content string, spec *WorkflowSpec, targetDir string, verbose bool, force bool, tracker *FileTracker) error {
+	// Fetch and save @include directive dependencies (best-effort: errors are not fatal).
+	if err := fetchAndSaveRemoteIncludes(content, spec, targetDir, verbose, force, tracker); err != nil {
+		if verbose {
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to fetch include dependencies: %v", err)))
+		}
+	}
+	// Fetch and save frontmatter 'imports:' dependencies so they are available
+	// locally during compilation. Keeping these as relative paths (not workflowspecs)
+	// ensures the compiler resolves them from disk rather than downloading from GitHub.
+	// Best-effort: errors are not fatal.
+	if err := fetchAndSaveRemoteFrontmatterImports(content, spec, targetDir, verbose, force, tracker); err != nil {
+		if verbose {
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to fetch frontmatter import dependencies: %v", err)))
+		}
+	}
+	// Fetch and save workflows referenced in safe-outputs.dispatch-workflow so they are
+	// available locally. Workflow names using GitHub Actions expression syntax are skipped.
+	if err := fetchAndSaveRemoteDispatchWorkflows(ctx, content, spec, targetDir, verbose, force, tracker); err != nil {
+		if verbose {
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to fetch dispatch workflow dependencies: %v", err)))
+		}
+		return fmt.Errorf("failed to fetch dispatch workflow dependencies: %w", err)
+	}
+	// Fetch files listed in the 'resources:' frontmatter field (additional workflow or
+	// action files that should be present alongside this workflow).
+	if err := fetchAndSaveRemoteResources(content, spec, targetDir, verbose, force, tracker); err != nil {
+		if verbose {
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to fetch resource dependencies: %v", err)))
+		}
+		return fmt.Errorf("failed to fetch resource dependencies: %w", err)
+	}
 	return nil
 }

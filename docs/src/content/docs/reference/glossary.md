@@ -101,7 +101,7 @@ Two additional fields extend integrity filtering beyond the level threshold: `bl
 
 ### Status Comment
 
-A comment posted on the triggering issue or pull request that shows workflow run status (started and completed). Configured via `status-comment: true` in `safe-outputs`. Must be explicitly enabled — it is not automatically bundled with `ai-reaction`.
+A comment posted on the triggering issue or pull request that shows workflow run status (started and completed). Configured via `status-comment: true` in `safe-outputs`. Defaults to `true` for `slash_command` and `label_command` triggers; must be explicitly enabled for other trigger types. Set `status-comment: false` to disable. Not automatically bundled with `ai-reaction` — each must be configured independently.
 
 ### Permissions
 
@@ -189,6 +189,18 @@ A security mechanism on `create-pull-request` and `push-to-pull-request-branch` 
 
 An exclusive allowlist for `create-pull-request` and `push-to-pull-request-branch` safe outputs. When `allowed-files:` is set to a list of glob patterns, **only** files matching those patterns may be modified — every other file (including normal source files) is refused. This is a restriction, not an exception: listing `.github/workflows/*` does not additionally allow normal source files; it blocks them. Runs independently from [Protected Files](#protected-files): both checks must pass. To modify a protected file, it must both match `allowed-files` and have `protected-files: allowed`. See [Safe Outputs (Pull Requests)](/gh-aw/reference/safe-outputs-pull-requests/#restricting-changes-to-specific-files-with-allowed-files).
 
+### Preserve Branch Name (`preserve-branch-name:`)
+
+An option on `create-pull-request` safe outputs that omits the random hex salt suffix normally appended to the agent-specified branch name. Useful when the target repository enforces naming conventions such as Jira keys in uppercase (for example, `bugfix/BR-329-red` instead of `bugfix/br-329-red-cde2a954`). Invalid characters are always replaced for safety, and casing is always preserved regardless of this setting. Defaults to `false`. See [Safe Outputs (Pull Requests)](/gh-aw/reference/safe-outputs-pull-requests/).
+
+### Reply to PR Review Comment (`reply-to-pull-request-review-comment:`)
+
+A safe output capability for replying to existing review comments on pull requests. Allows the AI agent to respond to reviewer feedback, answer questions, or acknowledge inline review comments by their numeric comment ID. Supports an optional `footer` field (`always`, `none`, or `if-body`) to control AI attribution. Configured via `reply-to-pull-request-review-comment:` in `safe-outputs`. See [Safe Outputs Reference](/gh-aw/reference/safe-outputs/).
+
+### Set Issue Type (`set-issue-type:`)
+
+A safe output capability for setting or clearing the GitHub issue type on existing issues. The agent calls `set_issue_type` to assign a named type (e.g., `Bug`, `Feature`) to an issue. An `allowed` list restricts which types the agent may set; omitting it permits any type. Passing an empty string clears the current type. Supports cross-repository targeting via `target-repo` and `allowed-repos`. Configured via `set-issue-type:` in `safe-outputs`.
+
 ## Workflow Components
 
 ### Activation Token (`on.github-token:`, `on.github-app:`)
@@ -197,7 +209,7 @@ Custom GitHub token or GitHub App used by the activation job to post reactions a
 
 ### Cron Schedule
 
-A time-based trigger format. Use short syntax like `daily` or `weekly on monday` (recommended with automatic time scattering) or standard cron expressions for fixed times. See also Fuzzy Scheduling and Time Scattering.
+A time-based trigger format. Use short syntax like `daily` or `weekly on monday` (recommended with automatic time scattering) or standard cron expressions for fixed times. Cron-based schedule items accept an optional `timezone` field with any [IANA timezone identifier](https://en.wikipedia.org/wiki/List_of_tz_database_time_zones) (e.g., `America/New_York`) to interpret the expression in a specific timezone instead of UTC. See also [Fuzzy Scheduling](#fuzzy-scheduling) and [Time Scattering](#time-scattering).
 
 ### Ecosystem Identifiers
 
@@ -334,6 +346,10 @@ The `gh aw` extension for GitHub CLI providing commands for managing agentic wor
 ### Playground
 
 An interactive web-based editor for authoring, compiling, and previewing agentic workflows without local installation. The Playground runs the gh-aw compiler in the browser using [WebAssembly](#webassembly-wasm) and auto-saves editor content to `localStorage` so work is preserved across sessions. Available at `/gh-aw/editor/`.
+
+### Audit Diff (`gh aw audit diff`)
+
+A `gh aw audit` subcommand that compares firewall behavior across two workflow runs. Reports domain additions and removals, allowed/denied status changes, request volume drift, and anomaly flags. Outputs results in pretty, markdown, or JSON format. Useful for spotting regressions and behavioral drift between runs. See [CLI Reference](/gh-aw/setup/cli/#audit-diff).
 
 ### actionlint
 

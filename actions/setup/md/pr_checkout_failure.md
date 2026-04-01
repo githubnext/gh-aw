@@ -1,4 +1,4 @@
-## ❌ Failed to Checkout PR Branch
+## Failed to Checkout PR Branch
 
 **Error:** {error_message}
 

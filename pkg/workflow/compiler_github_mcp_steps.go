@@ -2,8 +2,10 @@ package workflow
 
 import (
 	"fmt"
+	"os"
 	"strings"
 
+	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/constants"
 )
 
@@ -102,6 +104,26 @@ func (c *Compiler) generateGitHubMCPAppTokenMintingStep(yaml *strings.Builder, d
 		permissions = NewPermissions()
 	}
 
+	// Apply extra permissions from github-app.permissions (nested wins over job-level)
+	if len(app.Permissions) > 0 {
+		githubConfigLog.Printf("Applying %d extra permissions from github-app.permissions", len(app.Permissions))
+		for key, val := range app.Permissions {
+			scope := convertStringToPermissionScope(key)
+			if scope == "" {
+				msg := fmt.Sprintf("Unknown permission scope %q in tools.github.github-app.permissions. Valid scopes include: members, organization-administration, team-discussions, organization-members, administration, etc.", key)
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(msg))
+				continue
+			}
+			level := strings.ToLower(strings.TrimSpace(val))
+			if level != string(PermissionRead) && level != string(PermissionNone) {
+				msg := fmt.Sprintf("Unknown permission level %q for scope %q in tools.github.github-app.permissions. Valid levels are: read, none.", val, key)
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(msg))
+				continue
+			}
+			permissions.Set(scope, PermissionLevel(level))
+		}
+	}
+
 	// Generate the token minting step using the existing helper from safe_outputs_app.go
 	steps := c.buildGitHubAppTokenMintStep(app, permissions, "")
 
@@ -133,7 +155,7 @@ func (c *Compiler) generateGitHubMCPAppTokenInvalidationStep(yaml *strings.Build
 	}
 }
 
-// generateParseGuardVarsStep generates a step that parses the blocked-users and
+// generateParseGuardVarsStep generates a step that parses the blocked-users, trusted-users, and
 // approval-labels variables at runtime into proper JSON arrays.
 //
 // The step is only emitted when explicit guard policies are configured (min-integrity or
@@ -141,12 +163,12 @@ func (c *Compiler) generateGitHubMCPAppTokenInvalidationStep(yaml *strings.Build
 // `steps.parse-guard-vars.outputs.*`.
 //
 // The step runs parse_guard_list.sh which:
-//   - Accepts GH_AW_BLOCKED_USERS_EXTRA / GH_AW_APPROVAL_LABELS_EXTRA for compile-time
-//     static items or user-provided expressions.
-//   - Accepts GH_AW_BLOCKED_USERS_VAR / GH_AW_APPROVAL_LABELS_VAR for the
-//     GH_AW_GITHUB_* org/repo variable fallbacks.
+//   - Accepts GH_AW_BLOCKED_USERS_EXTRA / GH_AW_TRUSTED_USERS_EXTRA / GH_AW_APPROVAL_LABELS_EXTRA
+//     for compile-time static items or user-provided expressions.
+//   - Accepts GH_AW_BLOCKED_USERS_VAR / GH_AW_TRUSTED_USERS_VAR / GH_AW_APPROVAL_LABELS_VAR for
+//     the GH_AW_GITHUB_* org/repo variable fallbacks.
 //   - Splits all inputs on commas and newlines, trims whitespace, removes empty entries.
-//   - Outputs `blocked_users` and `approval_labels` as JSON arrays via $GITHUB_OUTPUT.
+//   - Outputs `blocked_users`, `trusted_users`, and `approval_labels` as JSON arrays via $GITHUB_OUTPUT.
 //   - Fails the step if any item is invalid.
 func (c *Compiler) generateParseGuardVarsStep(yaml *strings.Builder, data *WorkflowData) {
 	githubTool, hasGitHub := data.Tools["github"]
@@ -159,11 +181,11 @@ func (c *Compiler) generateParseGuardVarsStep(yaml *strings.Builder, data *Workf
 		return
 	}
 
-	githubConfigLog.Print("Generating parse-guard-vars step for blocked-users and approval-labels")
+	githubConfigLog.Print("Generating parse-guard-vars step for blocked-users, trusted-users and approval-labels")
 
 	// Determine the compile-time static values (or user expression) for each field.
 	// These come from the parsed tools config so we don't lose data from the raw map.
-	var blockedUsersExtra, approvalLabelsExtra string
+	var blockedUsersExtra, trustedUsersExtra, approvalLabelsExtra string
 
 	if data.ParsedTools != nil && data.ParsedTools.GitHub != nil {
 		gh := data.ParsedTools.GitHub
@@ -174,6 +196,12 @@ func (c *Compiler) generateParseGuardVarsStep(yaml *strings.Builder, data *Workf
 		case gh.BlockedUsersExpr != "":
 			// User-provided GitHub Actions expression — passed verbatim; GHA evaluates it.
 			blockedUsersExtra = gh.BlockedUsersExpr
+		}
+		switch {
+		case len(gh.TrustedUsers) > 0:
+			trustedUsersExtra = strings.Join(gh.TrustedUsers, ",")
+		case gh.TrustedUsersExpr != "":
+			trustedUsersExtra = gh.TrustedUsersExpr
 		}
 		switch {
 		case len(gh.ApprovalLabels) > 0:
@@ -191,6 +219,11 @@ func (c *Compiler) generateParseGuardVarsStep(yaml *strings.Builder, data *Workf
 		fmt.Fprintf(yaml, "          GH_AW_BLOCKED_USERS_EXTRA: %s\n", blockedUsersExtra)
 	}
 	fmt.Fprintf(yaml, "          GH_AW_BLOCKED_USERS_VAR: ${{ vars.%s || '' }}\n", constants.EnvVarGitHubBlockedUsers)
+
+	if trustedUsersExtra != "" {
+		fmt.Fprintf(yaml, "          GH_AW_TRUSTED_USERS_EXTRA: %s\n", trustedUsersExtra)
+	}
+	fmt.Fprintf(yaml, "          GH_AW_TRUSTED_USERS_VAR: ${{ vars.%s || '' }}\n", constants.EnvVarGitHubTrustedUsers)
 
 	if approvalLabelsExtra != "" {
 		fmt.Fprintf(yaml, "          GH_AW_APPROVAL_LABELS_EXTRA: %s\n", approvalLabelsExtra)

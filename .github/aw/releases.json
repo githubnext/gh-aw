@@ -1,0 +1,6 @@
+{
+  "$schema": "./releases.schema.json",
+  "blockedVersions": [],
+  "minimumVersion": "v0.64.4",
+  "minRecommendedVersion": "v0.64.4"
+}

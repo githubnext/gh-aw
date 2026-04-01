@@ -67,9 +67,9 @@ tools:
     allowed: [get_repository]
 ---`,
 			expectedInLock: []string{
-				// Should have workflow-specific restore key
+				// Should have integrity-scoped workflow-specific restore key
 				"restore-keys: |",
-				"memory-${{ env.GH_AW_WORKFLOW_ID_SANITIZED }}-",
+				"memory-none-nopolicy-${{ env.GH_AW_WORKFLOW_ID_SANITIZED }}-",
 			},
 			genericFallbacks: []string{"memory-"},
 		},
@@ -91,10 +91,10 @@ tools:
     allowed: [get_repository]
 ---`,
 			expectedInLock: []string{
-				// Custom key becomes memory-chroma-${{ env.GH_AW_WORKFLOW_ID_SANITIZED }}-${{ github.run_id }}
-				// Restore key should only remove run_id: memory-chroma-${{ env.GH_AW_WORKFLOW_ID_SANITIZED }}-
+				// Key becomes memory-none-nopolicy-chroma-... (default key match → integrity-aware format)
+				// Restore key should only remove run_id
 				"restore-keys: |",
-				"memory-chroma-${{ env.GH_AW_WORKFLOW_ID_SANITIZED }}-",
+				"memory-none-nopolicy-chroma-${{ env.GH_AW_WORKFLOW_ID_SANITIZED }}-",
 			},
 			genericFallbacks: []string{"memory-chroma-", "memory-"},
 		},
@@ -118,10 +118,12 @@ tools:
     allowed: [get_repository]
 ---`,
 			expectedInLock: []string{
-				// Custom keys become memory-*-${{ env.GH_AW_WORKFLOW_ID_SANITIZED }}-${{ github.run_id }}
-				// Restore keys should only remove run_id
-				"memory-default-${{ env.GH_AW_WORKFLOW_ID_SANITIZED }}-",
-				"memory-session-${{ env.GH_AW_WORKFLOW_ID_SANITIZED }}-",
+				// "default" cache: custom key `memory-default-...` does NOT match generateDefaultCacheKey("default")
+				// (which produces `memory-{workflowID}-...`), so it goes through the custom key prefix path.
+				// "session" cache: custom key `memory-session-...` DOES match generateDefaultCacheKey("session"),
+				// so it goes through the integrity-aware non-custom path.
+				"memory-none-nopolicy-memory-default-${{ env.GH_AW_WORKFLOW_ID_SANITIZED }}-",
+				"memory-none-nopolicy-session-${{ env.GH_AW_WORKFLOW_ID_SANITIZED }}-",
 			},
 			genericFallbacks: []string{"memory-default-", "memory-session-", "memory-"},
 		},
@@ -144,9 +146,9 @@ safe-outputs:
 			expectedInLock: []string{
 				// Should use restore action
 				"uses: actions/cache/restore@",
-				// Should have workflow-specific restore key
+				// Should have integrity-scoped workflow-specific restore key
 				"restore-keys: |",
-				"memory-${{ env.GH_AW_WORKFLOW_ID_SANITIZED }}-",
+				"memory-none-nopolicy-${{ env.GH_AW_WORKFLOW_ID_SANITIZED }}-",
 			},
 			genericFallbacks: []string{"memory-"},
 		},

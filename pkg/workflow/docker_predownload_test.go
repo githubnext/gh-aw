@@ -96,42 +96,6 @@ Test workflow - safe outputs MCP server without GitHub tool.`,
 			},
 			expectStep: true,
 		},
-		{
-			name: "Serena tool in docker mode generates image download step",
-			frontmatter: `---
-on: issues
-engine: claude
-tools:
-  serena: ["go", "typescript"]
----
-
-# Test
-Test workflow with Serena tool.`,
-			expectedImages: []string{
-				"ghcr.io/github/gh-aw-mcpg:" + string(constants.DefaultMCPGatewayVersion),
-				constants.DefaultSerenaMCPServerContainer + ":latest",
-			},
-			expectStep: true,
-		},
-		{
-			name: "Serena tool with GitHub tool both generate images",
-			frontmatter: `---
-on: issues
-engine: claude
-tools:
-  github:
-  serena: ["python"]
----
-
-# Test
-Test workflow with both GitHub and Serena tools.`,
-			expectedImages: []string{
-				"ghcr.io/github/gh-aw-mcpg:" + string(constants.DefaultMCPGatewayVersion),
-				"ghcr.io/github/github-mcp-server:" + string(constants.DefaultGitHubMCPServerVersion),
-				constants.DefaultSerenaMCPServerContainer + ":latest",
-			},
-			expectStep: true,
-		},
 	}
 
 	for _, tt := range tests {

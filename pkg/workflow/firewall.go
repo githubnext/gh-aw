@@ -13,13 +13,12 @@ var firewallLog = logger.New("workflow:firewall")
 // FirewallConfig represents AWF (gh-aw-firewall) configuration for network egress control.
 // These settings are specific to the AWF sandbox and do not apply to Sandbox Runtime (SRT).
 type FirewallConfig struct {
-	Enabled       bool     `yaml:"enabled,omitempty"`        // Enable/disable AWF (default: true for copilot when network restrictions present)
-	Version       string   `yaml:"version,omitempty"`        // AWF version (empty = latest)
-	Args          []string `yaml:"args,omitempty"`           // Additional arguments to pass to AWF
-	LogLevel      string   `yaml:"log_level,omitempty"`      // AWF log level (default: "info")
-	CleanupScript string   `yaml:"cleanup_script,omitempty"` // Cleanup script path (default: "./scripts/ci/cleanup.sh")
-	SSLBump       bool     `yaml:"ssl_bump,omitempty"`       // AWF-only: Enable SSL Bump for HTTPS content inspection (allows URL path filtering)
-	AllowURLs     []string `yaml:"allow_urls,omitempty"`     // AWF-only: URL patterns to allow for HTTPS (requires SSLBump), e.g., "https://github.com/githubnext/*"
+	Enabled   bool     `yaml:"enabled,omitempty"`    // Enable/disable AWF (default: true for copilot when network restrictions present)
+	Version   string   `yaml:"version,omitempty"`    // AWF version (empty = latest)
+	Args      []string `yaml:"args,omitempty"`       // Additional arguments to pass to AWF
+	LogLevel  string   `yaml:"log_level,omitempty"`  // AWF log level (default: "info")
+	SSLBump   bool     `yaml:"ssl_bump,omitempty"`   // AWF-only: Enable SSL Bump for HTTPS content inspection (allows URL path filtering)
+	AllowURLs []string `yaml:"allow_urls,omitempty"` // AWF-only: URL patterns to allow for HTTPS (requires SSLBump), e.g., "https://github.com/githubnext/*"
 }
 
 // isFirewallDisabledBySandboxAgent checks if the firewall is disabled via sandbox.agent: false

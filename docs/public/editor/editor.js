@@ -13,9 +13,8 @@ import { createWorkerCompiler } from '/gh-aw/wasm/compiler-loader.js';
 import { frontmatterHoverTooltip } from './hover-tooltips.js';
 
 // ---------------------------------------------------------------
-// Sample workflow registry (fetched from GitHub on demand)
+// Sample workflow registry
 // ---------------------------------------------------------------
-const AGENTICS_RAW = 'https://raw.githubusercontent.com/githubnext/agentics/main/workflows';
 
 const SAMPLES = {
   'hello-world': {
@@ -33,80 +32,15 @@ engine: copilot
 Say hello to the world! Check the current date and time, and greet the user warmly.
 `,
   },
-  'issue-triage': {
-    label: 'Issue Triage',
-    url: `${AGENTICS_RAW}/issue-triage.md`,
-  },
-  'ci-doctor': {
-    label: 'CI Doctor',
-    url: `${AGENTICS_RAW}/ci-doctor.md`,
-  },
-  'contribution-check': {
-    label: 'Contribution Guidelines Checker',
-    url: `${AGENTICS_RAW}/contribution-guidelines-checker.md`,
-  },
-  'daily-repo-status': {
-    label: 'Daily Repo Status',
-    url: `${AGENTICS_RAW}/daily-repo-status.md`,
-  },
 };
 
-// Cache for fetched content (keyed by URL)
-const contentCache = new Map();
-
-// Allowlist of trusted origins for fetching workflow content
-const ALLOWED_FETCH_ORIGINS = new Set([
-  'https://raw.githubusercontent.com',
-  'https://github.com',
-]);
-
 const DEFAULT_CONTENT = SAMPLES['hello-world'].content;
-
-// ---------------------------------------------------------------
-// GitHub URL helpers
-// ---------------------------------------------------------------
-
-/** Convert github.com blob/tree URLs to raw.githubusercontent.com */
-function toRawGitHubUrl(url) {
-  // https://github.com/{owner}/{repo}/blob/{ref}/{path}
-  const blobMatch = url.match(
-    /^https?:\/\/github\.com\/([^/]+)\/([^/]+)\/blob\/([^/]+)\/(.+)$/
-  );
-  if (blobMatch) {
-    const [, owner, repo, ref, path] = blobMatch;
-    return `https://raw.githubusercontent.com/${owner}/${repo}/${ref}/${path}`;
-  }
-  return url;
-}
-
-/** Fetch markdown content from a URL (with cache) */
-async function fetchContent(url) {
-  const rawUrl = toRawGitHubUrl(url);
-  let parsedUrl;
-  try {
-    parsedUrl = new URL(rawUrl);
-  } catch {
-    throw new Error(`Invalid URL: ${rawUrl}`);
-  }
-  if (!ALLOWED_FETCH_ORIGINS.has(parsedUrl.origin)) {
-    throw new Error(`Fetch not allowed from: ${parsedUrl.origin}`);
-  }
-  if (contentCache.has(rawUrl)) return contentCache.get(rawUrl);
-  const resp = await fetch(rawUrl);
-  if (!resp.ok) throw new Error(`Failed to fetch ${rawUrl}: ${resp.status}`);
-  const text = await resp.text();
-  contentCache.set(rawUrl, text);
-  return text;
-}
 
 // ---------------------------------------------------------------
 // Hash-based deep linking
 //
 // Supported formats:
 //   #hello-world              — built-in sample key
-//   #issue-triage             — built-in sample key
-//   #https://raw.github...    — arbitrary raw URL
-//   #https://github.com/o/r/blob/main/file.md — auto-converted
 // ---------------------------------------------------------------
 
 function getHashValue() {
@@ -245,7 +179,7 @@ function setEditorContent(text) {
 }
 
 /** Load a built-in sample by key */
-async function loadSample(key) {
+function loadSample(key) {
   const sample = SAMPLES[key];
   if (!sample) return;
 
@@ -253,60 +187,16 @@ async function loadSample(key) {
   sampleSelect.value = key;
   setHashQuietly(key);
 
-  if (sample.content) {
-    setEditorContent(sample.content);
-    return;
-  }
-
-  // Fetch from URL
-  setStatus('compiling', 'Fetching...');
-  try {
-    const text = await fetchContent(sample.url);
-    sample.content = text; // cache on the sample object too
-    setEditorContent(text);
-  } catch (err) {
-    setStatus('error', 'Fetch failed');
-    errorText.textContent = err.message;
-    errorBanner.classList.remove('d-none');
-  }
-}
-
-/** Load content from an arbitrary URL (deep-link) */
-async function loadFromUrl(url) {
-  // Set dropdown to show it's a custom URL
-  if (!sampleSelect.querySelector('option[value="__url"]')) {
-    const opt = document.createElement('option');
-    opt.value = '__url';
-    opt.textContent = 'Custom URL';
-    sampleSelect.appendChild(opt);
-  }
-  sampleSelect.value = '__url';
-  setHashQuietly(url);
-
-  setStatus('compiling', 'Fetching...');
-  try {
-    const text = await fetchContent(url);
-    setEditorContent(text);
-  } catch (err) {
-    setStatus('error', 'Fetch failed');
-    errorText.textContent = err.message;
-    errorBanner.classList.remove('d-none');
-  }
+  setEditorContent(sample.content);
 }
 
 /** Parse the current hash and load accordingly */
-async function loadFromHash() {
+function loadFromHash() {
   const hash = getHashValue();
   if (!hash) return false;
 
   if (SAMPLES[hash]) {
-    await loadSample(hash);
-    return true;
-  }
-
-  // Treat as URL if it starts with http
-  if (hash.startsWith('http://') || hash.startsWith('https://')) {
-    await loadFromUrl(hash);
+    loadSample(hash);
     return true;
   }
 
@@ -315,7 +205,6 @@ async function loadFromHash() {
 
 sampleSelect.addEventListener('change', () => {
   const key = sampleSelect.value;
-  if (key === '__url') return;
   loadSample(key);
 });
 

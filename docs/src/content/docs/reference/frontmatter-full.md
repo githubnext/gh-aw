@@ -772,7 +772,7 @@ on:
   roles: []
     # Array items: Repository permission level: 'admin' (full access),
     # 'maintainer'/'maintain' (repository management), 'write' (push access), 'triage'
-    # (issue management)
+    # (issue management), 'read' (read-only access)
 
   # Allow list of bot identifiers that can trigger the workflow even if they don't
   # meet the required role permissions. When the actor is in this list, the bot must
@@ -1549,31 +1549,6 @@ engine:
   env:
     {}
 
-  # Custom error patterns for validating agent logs
-  # (optional)
-  error_patterns: []
-    # Array items:
-      # Unique identifier for this error pattern
-      # (optional)
-      id: "example-value"
-
-      # Ecma script regular expression pattern to match log lines
-      pattern: "example-value"
-
-      # Capture group index (1-based) that contains the error level. Use 0 to infer from
-      # pattern content.
-      # (optional)
-      level_group: 1
-
-      # Capture group index (1-based) that contains the error message. Use 0 to use the
-      # entire match.
-      # (optional)
-      message_group: 1
-
-      # Human-readable description of what this pattern matches
-      # (optional)
-      description: "Description of the workflow"
-
   # Additional TOML configuration text that will be appended to the generated
   # config.toml in the action (codex engine only)
   # (optional)
@@ -1893,6 +1868,24 @@ tools:
     # expression resolving to such a list (e.g. '${{ vars.BLOCKED_USERS }}')
     blocked-users: "example-value"
 
+    # Guard policy: GitHub usernames whose content is elevated to 'approved' integrity
+    # regardless of author_association. Allows specific external contributors to bypass
+    # 'min-integrity' checks without lowering the global policy. Precedence:
+    # blocked-users > trusted-users > approval-labels > author_association. Requires
+    # 'min-integrity' to be set. Accepts an array of usernames, a comma-separated
+    # string, a newline-separated string, or a GitHub Actions expression (e.g. '${{
+    # vars.TRUSTED_USERS }}').
+    # (optional)
+    # This field supports multiple formats (oneOf):
+
+    # Option 1: Array of GitHub usernames to trust
+    trusted-users: []
+      # Array items: GitHub username to elevate to approved integrity
+
+    # Option 2: Comma- or newline-separated list of usernames, or a GitHub Actions
+    # expression resolving to such a list (e.g. '${{ vars.TRUSTED_USERS }}')
+    trusted-users: "example-value"
+
     # Guard policy: GitHub label names that promote a content item's effective
     # integrity to 'approved' when present. Enables human-review gates where a
     # maintainer labels an item to allow it through. Uses max(base, approved) so it
@@ -2118,6 +2111,11 @@ tools:
   # (optional)
   startup-timeout: 1
 
+  # REMOVED: tools.serena has been removed. Use shared/mcp/serena.md instead:
+  #   imports:
+  #     - uses: shared/mcp/serena.md
+  #       with:
+  #         languages: ["go", "typescript"]
   # Serena MCP server for AI-powered code intelligence with language service
   # integration
   # (optional)

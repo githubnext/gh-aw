@@ -147,6 +147,24 @@
           "type": "object",
           "description": "Guard policies for access control at the MCP gateway level. The structure of guard policies is server-specific. For GitHub MCP server, see the GitHub guard policy schema. For other servers (Jira, WorkIQ), different policy schemas will apply.",
           "additionalProperties": true
+        },
+        "auth": {
+          "type": "object",
+          "description": "Upstream authentication configuration for the HTTP MCP server. When configured, the gateway dynamically acquires tokens and injects them as Authorization headers on every outgoing request to this server. Currently only GitHub Actions OIDC is supported.",
+          "properties": {
+            "type": {
+              "type": "string",
+              "enum": ["github-oidc"],
+              "description": "Authentication type. Currently only 'github-oidc' is supported, which acquires short-lived JWTs from the GitHub Actions OIDC endpoint."
+            },
+            "audience": {
+              "type": "string",
+              "description": "The intended audience for the OIDC token (the 'aud' claim). If omitted, defaults to the server's url field.",
+              "format": "uri"
+            }
+          },
+          "required": ["type"],
+          "additionalProperties": false
         }
       },
       "required": ["type", "url"],

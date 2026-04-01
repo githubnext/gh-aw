@@ -34,6 +34,8 @@ tools:
   cache-memory: true
   github:
     toolsets: [default]
+    min-integrity: approved
+    approval-labels: [cookie]
   edit:
   bash:
     - "find docs -name '*.md' -o -name '*.mdx'"
@@ -47,7 +49,17 @@ tools:
 timeout-minutes: 45
 
 imports:
-  - shared/mcp/qmd-docs.md
+  - uses: shared/qmd.md
+    with:
+      runs-on: aw-gpu-runner-T4
+      gpu: true
+      checkouts:
+        - name: gh-aw
+          pattern: "**/*.{md,mdx}"
+          ignore:
+            - ".git/**"
+            - "node_modules/**"
+          context: "gh-aw project documentation, agent definitions, and workflow authoring instructions"
 
 ---
 
@@ -98,6 +110,20 @@ repo:${{ github.repository }} is:issue is:closed label:documentation closed:>=YY
 For each closed issue:
 - **closed as completed**: Check whether a `[docs]` PR references it. If no such PR exists, treat it as an unaddressed gap and follow the normal Step 2 flow.
 - **closed as not_planned**: Do not create documentation based solely on this issue. Instead, cross-reference the issue's subject matter against commits from the same 7-day window (Step 2). If a related code change is found, treat it as a new documentation gap (independent of the original issue decision) and follow the normal Step 2 flow for that code change.
+
+### 1d. Scan Cookie-Labeled Automation Issues
+
+Search for open and recently closed issues from automated monitoring workflows (CLI Consistency Checker, Multi-Device Docs Tester). These carry the `cookie` label and may surface real documentation gaps that Step 1b and 1c miss due to the integrity filter:
+
+```
+repo:${{ github.repository }} is:issue label:documentation label:cookie
+```
+
+For each issue found:
+- Read the issue body to understand the described documentation gap.
+- Check whether the gap still exists in the relevant documentation file.
+- If confirmed, include a fix in this run's PR and reference the issue with `Closes #NNN`.
+- If the issue is already closed and the gap is already fixed, note it and skip.
 
 ### 2. Analyze Changes
 

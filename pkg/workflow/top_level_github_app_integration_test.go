@@ -186,47 +186,6 @@ Test workflow verifying top-level github-app fallback for tools.github.
 			"Token minting step should use the top-level APP_ID")
 	})
 
-	t.Run("fallback applied to APM dependencies when no dependencies.github-app", func(t *testing.T) {
-		content := `---
-name: Top Level GitHub App APM Dependencies Fallback
-on:
-  issues:
-    types: [opened]
-permissions:
-  contents: read
-github-app:
-  app-id: ${{ vars.APP_ID }}
-  private-key: ${{ secrets.APP_PRIVATE_KEY }}
-dependencies:
-  packages:
-    - myorg/private-skill
-safe-outputs:
-  create-issue:
-    title-prefix: "[automated] "
-engine: copilot
----
-
-Test workflow verifying top-level github-app fallback for APM dependencies.
-`
-		mdPath := filepath.Join(tmpDir, "test-dependencies-fallback.md")
-		require.NoError(t, os.WriteFile(mdPath, []byte(content), 0600))
-
-		compiler := NewCompiler()
-		err := compiler.CompileWorkflow(mdPath)
-		require.NoError(t, err, "Workflow with top-level github-app should compile successfully")
-
-		lockPath := filepath.Join(tmpDir, "test-dependencies-fallback.lock.yml")
-		compiledBytes, err := os.ReadFile(lockPath)
-		require.NoError(t, err)
-		compiled := string(compiledBytes)
-
-		// The APM job should have an APM app token minting step using the top-level github-app
-		assert.Contains(t, compiled, "id: apm-app-token",
-			"APM job should generate an APM app token minting step using top-level github-app")
-		assert.Contains(t, compiled, "app-id: ${{ vars.APP_ID }}",
-			"APM token minting step should use the top-level APP_ID")
-	})
-
 	t.Run("section-specific github-app takes precedence over top-level", func(t *testing.T) {
 		content := `---
 name: Section Specific GitHub App Precedence
@@ -347,14 +306,6 @@ func TestTopLevelGitHubAppWorkflowFiles(t *testing.T) {
 			workflowFile: "../cli/workflows/test-top-level-github-app-checkout.md",
 			expectContains: []string{
 				"id: checkout-app-token-0",
-				"app-id: ${{ vars.APP_ID }}",
-			},
-		},
-		{
-			name:         "dependencies fallback workflow file",
-			workflowFile: "../cli/workflows/test-top-level-github-app-dependencies.md",
-			expectContains: []string{
-				"id: apm-app-token",
 				"app-id: ${{ vars.APP_ID }}",
 			},
 		},

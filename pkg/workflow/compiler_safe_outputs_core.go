@@ -182,6 +182,7 @@ type SafeOutputStepConfig struct {
 	PreSteps                   []string          // Optional steps to run before the script step
 	PostSteps                  []string          // Optional steps to run after the script step
 	Outputs                    map[string]string // Outputs from this step
+	ContinueOnError            bool              // Whether to continue the job even if this step fails (continue-on-error: true)
 }
 
 // Note: The implementation functions have been moved to focused module files:

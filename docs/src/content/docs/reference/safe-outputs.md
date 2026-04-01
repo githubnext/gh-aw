@@ -359,16 +359,19 @@ Use `reviewers: [copilot]` to assign the Copilot PR reviewer bot. See [Assign to
 
 ### Assign Milestone (`assign-milestone:`)
 
-Assigns issues to milestones. Specify `allowed` to restrict to specific milestone titles.
+Assigns issues to milestones. Specify `allowed` to restrict to specific milestone titles. Agents can provide a milestone by title (`milestone_title`) instead of by number (`milestone_number`), and the handler resolves the number internally.
 
 ```yaml wrap
 safe-outputs:
   assign-milestone:
     allowed: [v1.0, v2.0]    # restrict to specific milestone titles
+    auto_create: true         # auto-create milestones in the allowed list if they don't exist
     max: 1                   # max assignments (default: 1)
     target-repo: "owner/repo" # cross-repository
     github-token: ${{ secrets.SOME_CUSTOM_TOKEN }} # optional custom token for permissions
 ```
+
+When `auto_create: true` is set, any milestone from the `allowed` list that does not yet exist in the repository is created automatically before the assignment. Without `auto_create`, the handler returns a clear error listing the available milestones and suggesting `auto_create: true`.
 
 ### Issue Updates (`update-issue:`)
 
@@ -1479,7 +1482,17 @@ safe-outputs:
 
 ### Custom Runner Image
 
-Specify custom runner for safe output jobs (default: `ubuntu-slim`): `runs-on: ubuntu-22.04`
+Specify a custom runner for safe output jobs (default: `ubuntu-slim`):
+
+```aw
+---
+safe-outputs:
+  runs-on: ubuntu-22.04
+  create-issue: {}
+---
+```
+
+`safe-outputs.runs-on` overrides `runs-on-slim:` for safe-output jobs specifically. To override the runner for all framework jobs at once, use the top-level [`runs-on-slim:`](/gh-aw/guides/self-hosted-runners/#configuring-the-framework-job-runner) field instead.
 
 ### Safe Outputs Job Concurrency (`concurrency-group:`)
 
@@ -1512,7 +1525,7 @@ safe-outputs:
 
 **Options**: `append-only-comments` (default: `false`)
 
-**Variables**: `{workflow_name}`, `{run_url}`, `{triggering_number}`, `{workflow_source}`, `{workflow_source_url}`, `{event_type}`, `{status}`, `{operation}`
+**Variables**: `{workflow_name}`, `{run_url}`, `{agentic_workflow_url}`, `{triggering_number}`, `{workflow_source}`, `{workflow_source_url}`, `{event_type}`, `{status}`, `{operation}`
 
 ## Staged Mode
 

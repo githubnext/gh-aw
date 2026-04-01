@@ -11,7 +11,7 @@
 //     JSONMCPConfigOptions, GitHubMCPDockerOptions, GitHubMCPRemoteOptions).
 //   - mcp_renderer_github.go  — GitHub MCP rendering: RenderGitHubMCP, renderGitHubTOML,
 //     RenderGitHubMCPDockerConfig, RenderGitHubMCPRemoteConfig.
-//   - mcp_renderer_builtin.go — Built-in MCP server renderers: Playwright, Serena,
+//   - mcp_renderer_builtin.go — Built-in MCP server renderers: Playwright,
 //     SafeOutputs, MCPScripts, AgenticWorkflows (JSON + TOML for each).
 //   - mcp_renderer_guard.go   — Guard / access-control policy rendering:
 //     renderGuardPoliciesJSON, renderGuardPoliciesToml.
@@ -149,9 +149,6 @@ func RenderJSONMCPConfig(
 			if options.Renderers.RenderQmd != nil {
 				options.Renderers.RenderQmd(&configBuilder, qmdTool, isLast, workflowData)
 			}
-		case "serena":
-			serenaTool := tools["serena"]
-			options.Renderers.RenderSerena(&configBuilder, serenaTool, isLast)
 		case "cache-memory":
 			options.Renderers.RenderCacheMemory(&configBuilder, isLast, workflowData)
 		case "agentic-workflows":

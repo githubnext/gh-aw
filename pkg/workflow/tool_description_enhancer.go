@@ -105,6 +105,29 @@ func enhanceToolDescription(toolName, baseDescription string, safeOutputs *SafeO
 			}
 		}
 
+	case "update_discussion":
+		if config := safeOutputs.UpdateDiscussions; config != nil {
+			if templatableIntValue(config.Max) > 0 {
+				constraints = append(constraints, fmt.Sprintf("Maximum %d discussion(s) can be updated.", templatableIntValue(config.Max)))
+			}
+			if config.Target != "" {
+				constraints = append(constraints, fmt.Sprintf("Target: %s.", config.Target))
+			}
+			if config.Title != nil && *config.Title {
+				constraints = append(constraints, "Title updates are allowed.")
+			}
+			if config.Body != nil && *config.Body {
+				constraints = append(constraints, "Body updates are allowed.")
+			}
+			if config.Labels != nil {
+				if len(config.AllowedLabels) > 0 {
+					constraints = append(constraints, fmt.Sprintf("Only these labels are allowed: %s.", formatLabelList(config.AllowedLabels)))
+				} else {
+					constraints = append(constraints, "Label updates are allowed.")
+				}
+			}
+		}
+
 	case "close_issue":
 		if config := safeOutputs.CloseIssues; config != nil {
 			if templatableIntValue(config.Max) > 0 {

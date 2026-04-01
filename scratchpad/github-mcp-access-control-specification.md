@@ -140,6 +140,8 @@ A **Complete Conforming Implementation** MUST satisfy Basic Conformance and:
 - Block content items whose integrity level is below `min-integrity`
 - Parse and validate `blocked-users` configuration field
 - Block all content items authored by users in `blocked-users`, regardless of integrity level
+- Parse and validate `trusted-users` configuration field
+- Elevate content items from users in `trusted-users` to "approved" integrity regardless of author_association
 - Parse and validate `approval-labels` configuration field
 - Promote content items bearing a label in `approval-labels` to "approved" integrity level
 - Validate configuration at compilation time with actionable error messages
@@ -266,6 +268,9 @@ tools:
     blocked-users:              # OPTIONAL: Users whose items are always blocked
       - "external-bot"
       - "untrusted-contributor"
+    trusted-users:              # OPTIONAL: Users elevated to "approved" integrity regardless of author_association
+      - "contractor-1"
+      - "partner-dev"
     approval-labels:            # OPTIONAL: Labels that raise item integrity to "approved"
       - "approved"
       - "human-reviewed"
@@ -712,6 +717,7 @@ The `blocked-users` field specifies GitHub usernames whose content items MUST al
 **Semantics**:
 - A content item authored by any user in `blocked-users` is denied unconditionally.
 - `approval-labels` cannot override a `blocked-users` exclusion.
+- `trusted-users` cannot override a `blocked-users` exclusion.
 - This field operates orthogonally to `min-integrity`; blocked users are rejected before the integrity level check.
 
 **Use Cases**:
@@ -737,7 +743,45 @@ blocked-users:
 Warning: blocked-users is an empty array. Omit the field entirely to have no blocked users.
 ```
 
-#### 4.4.6 approval-labels
+#### 4.4.6 trusted-users
+
+**Type**: Array of strings  
+**Required**: No  
+**Default**: Not specified (no users receive elevated integrity)
+
+The `trusted-users` field specifies GitHub usernames whose content items receive `approved` (writer) integrity level regardless of their `author_association`. This allows workflows to grant trusted access to specific external contributors without weakening the global `min-integrity` policy.
+
+**Semantics**:
+- A content item authored by any user in `trusted-users` receives `approved` integrity, overriding the computed `author_association`-based integrity.
+- `trusted-users` does NOT override `blocked-users`. An item authored by a user in both lists is still blocked.
+- This field takes precedence over `approval-labels` — a trusted user's item is elevated without needing a label.
+- Precedence order (highest to lowest): `blocked-users` > `trusted-users` > `approval-labels` > `author_association`
+
+**Use Cases**:
+- Grant trusted access to known contractors or cross-org collaborators without adding them as repo collaborators.
+- Allow specific service accounts or audit bots to have their content processed at `approved` integrity.
+- Implement targeted trust elevation without lowering `min-integrity` globally.
+
+**Constraints**:
+- Each entry MUST be a non-empty string.
+- Matching is case-insensitive.
+- Requires `min-integrity` to be set.
+- An empty array `[]` is semantically equivalent to omitting the field and SHOULD be treated as such.
+- Duplicate entries SHOULD generate a warning but are not errors.
+
+**Example**:
+```yaml
+trusted-users:
+  - "contractor-1"
+  - "partner-dev"
+```
+
+**Error Message** (empty array):
+```text
+Warning: trusted-users is an empty array. Omit the field entirely to have no trusted users.
+```
+
+#### 4.4.7 approval-labels
 
 **Type**: Array of strings  
 **Required**: No  
@@ -792,6 +836,7 @@ The GitHub MCP server configuration combines tool selection (`toolsets` and `too
 **Integrity-Level Management** (this specification):
 - Controls **which content items** the agent may act upon based on their trust level
 - Unconditionally blocks items from listed authors (`blocked-users`)
+- Elevates items from trusted authors to "approved" level (`trusted-users`)
 - Promotes items bearing designated labels to "approved" level (`approval-labels`)
 - Rejects items below the configured minimum trust threshold (`min-integrity`)
 
@@ -805,6 +850,7 @@ tools:
     private-repos: false                # And only public repositories
     min-integrity: "approved"           # And only approved/merged content items
     blocked-users: ["external-bot"]     # Never content from external-bot
+    trusted-users: ["contractor-1"]     # contractor-1 always gets approved integrity
     approval-labels: ["human-reviewed"] # Label promotes to "approved"
 ```
 
@@ -818,7 +864,7 @@ tools:
 
 ### 4.6 Integrity Level Model
 
-This section defines the integrity level hierarchy and the rules governing how `min-integrity`, `blocked-users`, and `approval-labels` interact.
+This section defines the integrity level hierarchy and the rules governing how `min-integrity`, `blocked-users`, `trusted-users`, and `approval-labels` interact.
 
 #### 4.6.1 Integrity Hierarchy
 
@@ -844,15 +890,17 @@ The effective integrity level of a content item is computed as follows:
 1. Start with the item's base integrity level (computed from GitHub metadata).
 2. IF the item's author is in blocked-users:
      effective_integrity ← blocked  (terminates; item is always rejected)
-3. ELSE IF any label on the item is in approval-labels:
+3. ELSE IF the item's author is in trusted-users:
      effective_integrity ← max(base_integrity, approved)
-4. ELSE:
+4. ELSE IF any label on the item is in approval-labels:
+     effective_integrity ← max(base_integrity, approved)
+5. ELSE:
      effective_integrity ← base_integrity
 ```
 
 **Notes**:
-- Step 2 takes precedence over step 3. Blocked users cannot be promoted by labels.
-- Step 3 only raises the integrity level; it cannot lower it. An item already at `merged` stays at `merged`.
+- Step 2 takes precedence over steps 3–4. Blocked users cannot be promoted by trusted-users or labels.
+- Steps 3 and 4 only raise the integrity level; they cannot lower it. An item already at `merged` stays at `merged`.
 - The `max()` operation uses the ordinal values from the table above.
 
 #### 4.6.3 Access Decision

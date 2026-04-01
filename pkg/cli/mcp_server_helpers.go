@@ -126,15 +126,17 @@ func hasWriteAccess(permission string) bool {
 	}
 }
 
-// validateWorkflowName validates that a workflow name exists in the repository.
+// validateMCPWorkflowName validates that a workflow name exists in the repository.
 // Returns nil if the workflow exists, or an error with suggestions if not.
-// Empty workflow names are considered valid (means all workflows).
+// Empty workflow names are considered valid (means "all workflows").
 //
-// Note: This function checks whether a workflow exists/is accessible, not its format.
-// For format-only validation (alphanumeric characters, hyphens, underscores),
-// use validators.go:ValidateWorkflowName instead.
-func validateWorkflowName(workflowName string) error {
-	// Empty workflow name means "all workflows" - this is valid
+// Note: Unlike ValidateWorkflowName in validators.go (which enforces strict format
+// rules and rejects empty names), this MCP-specific function accepts empty names
+// because in the MCP context an empty workflow name is a valid wildcard meaning
+// "apply to all workflows". It also performs existence checks rather than format
+// checks, delegating to workflow.ResolveWorkflowName and the live workflow list.
+func validateMCPWorkflowName(workflowName string) error {
+	// Empty workflow name means "all workflows" - this is valid in the MCP context
 	if workflowName == "" {
 		return nil
 	}
@@ -196,15 +198,20 @@ func checkActorPermission(ctx context.Context, actor string, validateActor bool,
 	// Get repository using cached lookup
 	repo, err := getRepository()
 	if err != nil {
-		mcpLog.Printf("Tool %s: failed to get repository context, allowing access: %v", toolName, err)
-		// If we can't determine the repository, allow access (fail open)
-		return nil
+		mcpLog.Printf("Tool %s: failed to get repository context, denying access: %v", toolName, err)
+		return newMCPError(jsonrpc.CodeInternalError, "permission check failed", map[string]any{
+			"error":  err.Error(),
+			"tool":   toolName,
+			"reason": "Could not determine repository context to verify permissions. Ensure you are running from within a git repository with gh authenticated.",
+		})
 	}
 
 	if repo == "" {
-		mcpLog.Printf("Tool %s: no repository context, allowing access", toolName)
-		// No repository context, allow access
-		return nil
+		mcpLog.Printf("Tool %s: no repository context, denying access", toolName)
+		return newMCPError(jsonrpc.CodeInvalidRequest, "permission check failed", map[string]any{
+			"tool":   toolName,
+			"reason": "No repository context available. Run from within a git repository.",
+		})
 	}
 
 	// Query actor's role in the repository with caching

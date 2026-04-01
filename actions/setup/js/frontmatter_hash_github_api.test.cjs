@@ -371,7 +371,7 @@ describe("frontmatter_hash with GitHub API", () => {
   });
 
   describe("live GitHub API integration", () => {
-    it("should compute hash using real GitHub API (no mocks)", async () => {
+    it("should compute hash using real GitHub API (no mocks)", { timeout: 30000 }, async () => {
       // Skip this test if no GitHub token is available
       // Check multiple possible token environment variables
       const token = process.env.GITHUB_TOKEN || process.env.GH_TOKEN;

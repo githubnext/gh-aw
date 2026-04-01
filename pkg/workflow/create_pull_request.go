@@ -31,11 +31,13 @@ type CreatePullRequestsConfig struct {
 	BaseBranch                     string   `yaml:"base-branch,omitempty"`                         // Base branch for the pull request (defaults to github.ref_name if not specified)
 	Footer                         *string  `yaml:"footer,omitempty"`                              // Controls whether AI-generated footer is added. When false, visible footer is omitted but XML markers are kept.
 	FallbackAsIssue                *bool    `yaml:"fallback-as-issue,omitempty"`                   // When true (default), creates an issue if PR creation fails. When false, no fallback occurs and issues: write permission is not requested.
+	AutoCloseIssue                 *string  `yaml:"auto-close-issue,omitempty"`                    // Auto-add "Fixes #N" closing keyword when triggered from an issue (default: true). Set to false to prevent auto-closing the triggering issue on PR merge. Accepts a boolean or a GitHub Actions expression.
 	GithubTokenForExtraEmptyCommit string   `yaml:"github-token-for-extra-empty-commit,omitempty"` // Token used to push an empty commit to trigger CI events. Use a PAT or "app" for GitHub App auth.
 	ManifestFilesPolicy            *string  `yaml:"protected-files,omitempty"`                     // Controls protected-file protection: "blocked" (default) hard-blocks, "allowed" permits all changes, "fallback-to-issue" pushes the branch but creates a review issue.
 	AllowedFiles                   []string `yaml:"allowed-files,omitempty"`                       // Strict allowlist of glob patterns for files eligible for create. Checked independently of protected-files; both checks must pass.
 	ExcludedFiles                  []string `yaml:"excluded-files,omitempty"`                      // List of glob patterns for files to exclude from the patch using git :(exclude) pathspecs. Matching files are stripped by git at generation time and will not appear in the commit or be subject to allowed-files or protected-files checks.
 	PreserveBranchName             bool     `yaml:"preserve-branch-name,omitempty"`                // When true, skips the random salt suffix on agent-specified branch names. Invalid characters are still replaced for security; casing is always preserved. Useful when CI enforces branch naming conventions (e.g. Jira keys in uppercase).
+	PatchFormat                    string   `yaml:"patch-format,omitempty"`                        // Transport format for packaging changes: "am" (default, uses git format-patch) or "bundle" (uses git bundle, preserves merge topology and per-commit metadata).
 }
 
 // parsePullRequestsConfig handles only create-pull-request (singular) configuration
@@ -73,7 +75,7 @@ func (c *Compiler) parsePullRequestsConfig(outputMap map[string]any) *CreatePull
 
 	// Pre-process templatable bool fields: convert literal booleans to strings so that
 	// GitHub Actions expression strings (e.g. "${{ inputs.draft-prs }}") are also accepted.
-	for _, field := range []string{"draft", "allow-empty", "auto-merge", "footer"} {
+	for _, field := range []string{"draft", "allow-empty", "auto-merge", "footer", "auto-close-issue"} {
 		if err := preprocessBoolFieldAsString(configData, field, createPRLog); err != nil {
 			createPRLog.Printf("Invalid %s value: %v", field, err)
 			return nil
@@ -84,6 +86,12 @@ func (c *Compiler) parsePullRequestsConfig(outputMap map[string]any) *CreatePull
 	manifestFilesEnums := []string{"blocked", "allowed", "fallback-to-issue"}
 	if configData != nil {
 		validateStringEnumField(configData, "protected-files", manifestFilesEnums, createPRLog)
+	}
+
+	// Pre-process patch-format: valid values are "am" (default) and "bundle".
+	patchFormatEnums := []string{"am", "bundle"}
+	if configData != nil {
+		validateStringEnumField(configData, "patch-format", patchFormatEnums, createPRLog)
 	}
 
 	// Pre-process templatable int fields

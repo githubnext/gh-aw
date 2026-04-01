@@ -281,8 +281,10 @@ interface AssignMilestoneItem extends BaseSafeOutputItem {
   type: "assign_milestone";
   /** Issue number to assign milestone to */
   issue_number: number | string;
-  /** Milestone number to assign */
-  milestone_number: number | string;
+  /** Milestone number to assign. Either milestone_number or milestone_title must be provided. */
+  milestone_number?: number | string;
+  /** Milestone title to assign (e.g., "v1.0"). Resolved to a number internally. Either milestone_number or milestone_title must be provided. */
+  milestone_title?: string;
 }
 
 /**

@@ -140,7 +140,7 @@ func (c *Compiler) buildSafeOutputJob(data *WorkflowData, config SafeOutputJobCo
 	job := &Job{
 		Name:           config.JobName,
 		If:             RenderCondition(jobCondition),
-		RunsOn:         c.formatSafeOutputsRunsOn(data.SafeOutputs),
+		RunsOn:         c.formatFrameworkJobRunsOn(data),
 		Environment:    c.indentYAMLLines(resolveSafeOutputsEnvironment(data), "    "),
 		Permissions:    config.Permissions.RenderToYAML(),
 		TimeoutMinutes: 10, // 10-minute timeout as required for all safe output jobs

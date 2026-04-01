@@ -13,7 +13,6 @@
 //   - Installing gh-aw extension for agentic-workflows tool
 //   - Setting up safe-outputs MCP server (config, API key, HTTP server)
 //   - Setting up mcp-scripts MCP server (config, tool files, HTTP server)
-//   - Starting Serena MCP server in local mode
 //   - Starting the MCP gateway with proper environment variables
 //   - Rendering MCP configuration for the selected AI engine
 //
@@ -25,9 +24,8 @@
 //  5. Generate and start safe-outputs HTTP server
 //  6. Setup mcp-scripts config and tool files (JavaScript, Python, Shell, Go)
 //  7. Generate and start mcp-scripts HTTP server
-//  8. Start Serena local mode server
-//  9. Start MCP Gateway with all environment variables
-//
+//  8. Start MCP Gateway with all environment variables
+
 // 10. Render engine-specific MCP configuration
 //
 // MCP tools supported:
@@ -37,7 +35,6 @@
 //   - mcp-scripts: Custom tool execution with secret passthrough
 //   - cache-memory: Memory/knowledge base management
 //   - agentic-workflows: Workflow execution via gh-aw
-//   - serena: Local Serena search functionality
 //   - Custom HTTP/stdio MCP servers
 //
 // Gateway modes:
@@ -95,7 +92,7 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 			continue
 		}
 		// Standard MCP tools
-		if toolName == "github" || toolName == "playwright" || toolName == "qmd" || toolName == "serena" || toolName == "cache-memory" || toolName == "agentic-workflows" {
+		if toolName == "github" || toolName == "playwright" || toolName == "qmd" || toolName == "cache-memory" || toolName == "agentic-workflows" {
 			mcpTools = append(mcpTools, toolName)
 		} else if mcpConfig, ok := toolValue.(map[string]any); ok {
 			// Check if it's explicitly marked as MCP type in the new format

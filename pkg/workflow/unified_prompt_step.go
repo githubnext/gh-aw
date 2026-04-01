@@ -7,6 +7,7 @@ import (
 
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/stringutil"
 )
 
 var unifiedPromptLog = logger.New("workflow:unified_prompt_step")
@@ -375,13 +376,12 @@ func (c *Compiler) generateUnifiedPromptCreationStep(yaml *strings.Builder, buil
 	// Track if we're inside a heredoc
 	inHeredoc := false
 
-	// 1. Write built-in sections first (prepended), wrapped in <system> tags
-	if len(builtinSections) > 0 {
-		// Open system tag for built-in prompts
-		yaml.WriteString("          cat << '" + delimiter + "'\n")
-		yaml.WriteString("          <system>\n")
-		yaml.WriteString("          " + delimiter + "\n")
-	}
+	// 1. Write built-in sections first (prepended), wrapped in <system> tags.
+	// The <system> opening tag is deferred: it is written either as the first line
+	// of the first inline section's heredoc, or in its own block just before the
+	// first file or conditional section. This allows the opening tag to share a
+	// heredoc block with adjacent inline content, reducing the total number of blocks.
+	systemTagPending := len(builtinSections) > 0
 
 	for i, section := range builtinSections {
 		unifiedPromptLog.Printf("Writing built-in section %d/%d: hasCondition=%v, isFile=%v",
@@ -392,6 +392,13 @@ func (c *Compiler) generateUnifiedPromptCreationStep(yaml *strings.Builder, buil
 			if inHeredoc {
 				yaml.WriteString("          " + delimiter + "\n")
 				inHeredoc = false
+			}
+			// Write <system> before conditional if still pending
+			if systemTagPending {
+				yaml.WriteString("          cat << '" + delimiter + "'\n")
+				yaml.WriteString("          <system>\n")
+				yaml.WriteString("          " + delimiter + "\n")
+				systemTagPending = false
 			}
 			fmt.Fprintf(yaml, "          if %s; then\n", section.ShellCondition)
 
@@ -420,6 +427,13 @@ func (c *Compiler) generateUnifiedPromptCreationStep(yaml *strings.Builder, buil
 					yaml.WriteString("          " + delimiter + "\n")
 					inHeredoc = false
 				}
+				// Write <system> before file if still pending
+				if systemTagPending {
+					yaml.WriteString("          cat << '" + delimiter + "'\n")
+					yaml.WriteString("          <system>\n")
+					yaml.WriteString("          " + delimiter + "\n")
+					systemTagPending = false
+				}
 				// Cat the file
 				promptPath := fmt.Sprintf("%s/%s", promptsDir, section.Content)
 				yaml.WriteString("          " + fmt.Sprintf("cat \"%s\"\n", promptPath))
@@ -428,6 +442,11 @@ func (c *Compiler) generateUnifiedPromptCreationStep(yaml *strings.Builder, buil
 				if !inHeredoc {
 					yaml.WriteString("          cat << '" + delimiter + "'\n")
 					inHeredoc = true
+					// Write <system> as first line when opening the heredoc
+					if systemTagPending {
+						yaml.WriteString("          <system>\n")
+						systemTagPending = false
+					}
 				}
 				// Write content directly to open heredoc
 				normalizedContent := normalizeLeadingWhitespace(section.Content)
@@ -440,49 +459,50 @@ func (c *Compiler) generateUnifiedPromptCreationStep(yaml *strings.Builder, buil
 		}
 	}
 
-	// Close system tag for built-in prompts
+	// Close </system> tag after all built-in sections.
+	// Merge with the open heredoc (if any) to minimise the total number of cat/heredoc
+	// blocks, which reduces the number of lines that change in the diff when the user
+	// prompt changes (each block boundary contributes two delimiter lines).
 	if len(builtinSections) > 0 {
-		// Close heredoc if open
 		if inHeredoc {
-			yaml.WriteString("          " + delimiter + "\n")
-			inHeredoc = false
+			// Append </system> to the still-open heredoc and keep it open for
+			// the user content that follows.
+			yaml.WriteString("          </system>\n")
+		} else {
+			// No heredoc is open: start a new one for </system> and keep it
+			// open so the subsequent user content lands in the same block.
+			yaml.WriteString("          cat << '" + delimiter + "'\n")
+			yaml.WriteString("          </system>\n")
+			inHeredoc = true
 		}
-		yaml.WriteString("          cat << '" + delimiter + "'\n")
-		yaml.WriteString("          </system>\n")
-		yaml.WriteString("          " + delimiter + "\n")
 	}
 
-	// 2. Write user prompt chunks (appended after built-in sections)
+	// 2. Write user prompt chunks (appended after built-in sections).
+	// All chunks are written into the same heredoc block (opened above or here)
+	// to minimise the number of delimiter lines in the compiled lock file.
 	for chunkIdx, chunk := range userPromptChunks {
 		unifiedPromptLog.Printf("Writing user prompt chunk %d/%d", chunkIdx+1, len(userPromptChunks))
 
 		// Check if this chunk is a runtime-import macro
 		if strings.HasPrefix(chunk, "{{#runtime-import ") && strings.HasSuffix(chunk, "}}") {
-			// This is a runtime-import macro - write it using heredoc for safe escaping
-			unifiedPromptLog.Print("Detected runtime-import macro, writing directly")
+			// Runtime-import macros are plain text lines processed by the
+			// interpolate-prompt step; they can live in the same heredoc block
+			// as surrounding content.
+			unifiedPromptLog.Print("Detected runtime-import macro, writing inline in heredoc")
 
-			// Close heredoc if open before writing runtime-import macro
-			if inHeredoc {
-				yaml.WriteString("          " + delimiter + "\n")
-				inHeredoc = false
+			if !inHeredoc {
+				yaml.WriteString("          cat << '" + delimiter + "'\n")
+				inHeredoc = true
 			}
-
-			// Write the macro directly with proper indentation
-			// Write the macro using a heredoc to avoid potential escaping issues
-			yaml.WriteString("          cat << '" + delimiter + "'\n")
 			yaml.WriteString("          " + chunk + "\n")
-			yaml.WriteString("          " + delimiter + "\n")
 			continue
 		}
 
-		// Regular chunk - close heredoc if open before starting new chunk
-		if inHeredoc {
-			yaml.WriteString("          " + delimiter + "\n")
-			inHeredoc = false
+		// Regular chunk: write to the current heredoc (or open one).
+		if !inHeredoc {
+			yaml.WriteString("          cat << '" + delimiter + "'\n")
+			inHeredoc = true
 		}
-
-		// Each user prompt chunk is written as a separate heredoc
-		yaml.WriteString("          cat << '" + delimiter + "'\n")
 
 		lines := strings.SplitSeq(chunk, "\n")
 		for line := range lines {
@@ -490,7 +510,6 @@ func (c *Compiler) generateUnifiedPromptCreationStep(yaml *strings.Builder, buil
 			yaml.WriteString(line)
 			yaml.WriteByte('\n')
 		}
-		yaml.WriteString("          " + delimiter + "\n")
 	}
 
 	// Close heredoc if still open
@@ -661,6 +680,42 @@ func buildSafeOutputsSections(safeOutputs *SafeOutputsConfig) []PromptSection {
 	// must always appear in the tools list so agents can signal no-op completion.
 	if safeOutputs.NoOp != nil {
 		tools = append(tools, toolWithMaxBudget("noop", safeOutputs.NoOp.Max))
+	}
+
+	// Add custom job tools from SafeOutputs.Jobs (sorted for deterministic output).
+	if len(safeOutputs.Jobs) > 0 {
+		jobNames := make([]string, 0, len(safeOutputs.Jobs))
+		for jobName := range safeOutputs.Jobs {
+			jobNames = append(jobNames, jobName)
+		}
+		sort.Strings(jobNames)
+		for _, jobName := range jobNames {
+			tools = append(tools, stringutil.NormalizeSafeOutputIdentifier(jobName))
+		}
+	}
+
+	// Add custom script tools from SafeOutputs.Scripts (sorted for deterministic output).
+	if len(safeOutputs.Scripts) > 0 {
+		scriptNames := make([]string, 0, len(safeOutputs.Scripts))
+		for scriptName := range safeOutputs.Scripts {
+			scriptNames = append(scriptNames, scriptName)
+		}
+		sort.Strings(scriptNames)
+		for _, scriptName := range scriptNames {
+			tools = append(tools, stringutil.NormalizeSafeOutputIdentifier(scriptName))
+		}
+	}
+
+	// Add custom action tools from SafeOutputs.Actions (sorted for deterministic output).
+	if len(safeOutputs.Actions) > 0 {
+		actionNames := make([]string, 0, len(safeOutputs.Actions))
+		for actionName := range safeOutputs.Actions {
+			actionNames = append(actionNames, actionName)
+		}
+		sort.Strings(actionNames)
+		for _, actionName := range actionNames {
+			tools = append(tools, stringutil.NormalizeSafeOutputIdentifier(actionName))
+		}
 	}
 
 	if len(tools) == 0 {

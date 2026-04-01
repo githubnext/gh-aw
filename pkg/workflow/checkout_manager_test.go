@@ -987,3 +987,52 @@ func TestCrossRepoTargetRef(t *testing.T) {
 		assert.NotContains(t, combined, "ref:", "checkout step should not include ref field when empty")
 	})
 }
+
+// TestHasExternalRootCheckout verifies detection of external checkouts targeting the workspace root.
+func TestHasExternalRootCheckout(t *testing.T) {
+	t.Run("returns false for nil configs", func(t *testing.T) {
+		cm := NewCheckoutManager(nil)
+		assert.False(t, cm.HasExternalRootCheckout(), "should be false for nil configs")
+	})
+
+	t.Run("returns false for empty configs", func(t *testing.T) {
+		cm := NewCheckoutManager([]*CheckoutConfig{})
+		assert.False(t, cm.HasExternalRootCheckout(), "should be false for empty configs")
+	})
+
+	t.Run("returns false for default checkout only (no repository)", func(t *testing.T) {
+		cm := NewCheckoutManager([]*CheckoutConfig{
+			{GitHubToken: "${{ secrets.MY_PAT }}"},
+		})
+		assert.False(t, cm.HasExternalRootCheckout(), "should be false when only default checkout is configured")
+	})
+
+	t.Run("returns false for external checkout with non-root path", func(t *testing.T) {
+		cm := NewCheckoutManager([]*CheckoutConfig{
+			{Repository: "other/repo", Path: "libs/other"},
+		})
+		assert.False(t, cm.HasExternalRootCheckout(), "should be false when external repo uses a subdirectory path")
+	})
+
+	t.Run("returns true for external checkout without path (workspace root)", func(t *testing.T) {
+		cm := NewCheckoutManager([]*CheckoutConfig{
+			{Repository: "githubnext/gh-aw-side-repo", GitHubToken: "${{ secrets.SIDE_REPO_PAT }}"},
+		})
+		assert.True(t, cm.HasExternalRootCheckout(), "should be true when external repo checks out to workspace root")
+	})
+
+	t.Run("returns true for external checkout with explicit dot path", func(t *testing.T) {
+		cm := NewCheckoutManager([]*CheckoutConfig{
+			{Repository: "other/repo", Path: "."},
+		})
+		assert.True(t, cm.HasExternalRootCheckout(), "should be true when external repo uses '.' as path (workspace root)")
+	})
+
+	t.Run("returns true when one of multiple checkouts targets external root", func(t *testing.T) {
+		cm := NewCheckoutManager([]*CheckoutConfig{
+			{Repository: "other/repo", Path: "libs/other"},
+			{Repository: "githubnext/gh-aw-side-repo"},
+		})
+		assert.True(t, cm.HasExternalRootCheckout(), "should be true when any checkout targets external root")
+	})
+}

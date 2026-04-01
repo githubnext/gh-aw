@@ -421,7 +421,7 @@ function buildCodePushFailureContext(codePushFailureErrors, pullRequest = null, 
       }
     }
 
-    context += "\nTo manually apply the patch:\n\n";
+    context += "\n<details>\n<summary><b>📋 Apply the patch manually</b></summary>\n\n";
     if (runId) {
       context += `\`\`\`sh
 # Download the patch artifact from the workflow run
@@ -448,7 +448,7 @@ ${runUrl ? `\nThe patch artifact is available at: [View run and download artifac
     } else {
       context += "Download the patch artifact from the workflow run, then apply it with `git am --3way <patch-file>`.\n";
     }
-    context += "\n";
+    context += "\n</details>\n";
   }
 
   // Generic code-push failure section
@@ -700,6 +700,10 @@ function buildEngineFailureContext() {
   const agentOutputFile = process.env.GH_AW_AGENT_OUTPUT;
   const stdioLogPath = agentOutputFile ? path.join(path.dirname(agentOutputFile), "agent-stdio.log") : "/tmp/gh-aw/agent-stdio.log";
 
+  // Include engine ID in failure messages when available (e.g. "copilot", "claude", "codex")
+  const engineId = process.env.GH_AW_ENGINE_ID || "";
+  const engineLabel = engineId ? ` \`${engineId}\`` : " AI";
+
   try {
     if (!fs.existsSync(stdioLogPath)) {
       core.info(`agent-stdio.log not found at ${stdioLogPath}, skipping engine failure context`);
@@ -753,7 +757,7 @@ function buildEngineFailureContext() {
     if (errorMessages.size > 0) {
       core.info(`Found ${errorMessages.size} engine error message(s) in agent-stdio.log`);
 
-      let context = "\n**⚠️ Engine Failure**: The AI engine terminated before producing output.\n\n**Error details:**\n";
+      let context = `\n**⚠️ Engine Failure**: The${engineLabel} engine terminated before producing output.\n\n**Error details:**\n`;
       for (const message of errorMessages) {
         context += `- ${message}\n`;
       }
@@ -772,7 +776,7 @@ function buildEngineFailureContext() {
     const tailLines = nonEmptyLines.slice(-TAIL_LINES);
     core.info(`No specific error patterns found; including last ${tailLines.length} line(s) of agent-stdio.log as fallback`);
 
-    let context = "\n**⚠️ Engine Failure**: The AI engine terminated unexpectedly.\n\n**Last agent output:**\n```\n";
+    let context = `\n**⚠️ Engine Failure**: The${engineLabel} engine terminated unexpectedly.\n\n**Last agent output:**\n\`\`\`\n`;
     context += tailLines.join("\n");
     context += "\n```\n\n";
     return context;

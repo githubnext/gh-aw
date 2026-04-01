@@ -73,7 +73,7 @@ Examples:
   ` + string(constants.CLIExtensionPrefix) + ` logs --safe-output create-issue     # Filter logs with create-issue messages
   ` + string(constants.CLIExtensionPrefix) + ` logs --ref main                # Filter logs by branch or tag
   ` + string(constants.CLIExtensionPrefix) + ` logs --ref feature-xyz         # Filter logs by feature branch
-  ` + string(constants.CLIExtensionPrefix) + ` logs --filtered-integrity      # Filter logs with DIFC integrity-filtered items in gateway logs
+  ` + string(constants.CLIExtensionPrefix) + ` logs --filtered-integrity      # Filter logs with DIFC (data integrity flow control) integrity-filtered items in gateway logs
 
   # Run ID range filtering
   ` + string(constants.CLIExtensionPrefix) + ` logs --after-run-id 1000       # Filter runs after run ID 1000
@@ -193,10 +193,10 @@ Examples:
 	logsCmd.Flags().Bool("firewall", false, "Filter to only runs with firewall enabled")
 	logsCmd.Flags().Bool("no-firewall", false, "Filter to only runs without firewall enabled")
 	logsCmd.Flags().String("safe-output", "", "Filter to runs containing a specific safe output type (e.g., create-issue, missing-tool, missing-data)")
-	logsCmd.Flags().Bool("filtered-integrity", false, "Filter to runs with DIFC integrity-filtered items in the gateway logs")
+	logsCmd.Flags().Bool("filtered-integrity", false, "Filter to runs with DIFC (data integrity flow control) integrity-filtered items in the gateway logs")
 	logsCmd.Flags().Bool("parse", false, "Run JavaScript parsers on agent logs and firewall logs, writing Markdown to log.md and firewall.md")
 	addJSONFlag(logsCmd)
-	logsCmd.Flags().Int("timeout", 0, "Download timeout in seconds (0 = no timeout)")
+	logsCmd.Flags().Int("timeout", 0, "Download timeout in seconds (0 = no timeout; note: trial uses minutes for its timeout)")
 	logsCmd.Flags().String("summary-file", "summary.json", "Path to write the summary JSON file relative to output directory (use empty string to disable)")
 	logsCmd.MarkFlagsMutuallyExclusive("firewall", "no-firewall")
 

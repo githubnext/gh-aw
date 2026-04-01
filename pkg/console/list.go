@@ -5,13 +5,9 @@ package console
 import (
 	"errors"
 	"fmt"
-	"io"
 	"os"
-	"strings"
 
-	"charm.land/bubbles/v2/list"
-	tea "charm.land/bubbletea/v2"
-	lipgloss "charm.land/lipgloss/v2"
+	"github.com/charmbracelet/huh"
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/styles"
 	"github.com/github/gh-aw/pkg/tty"
@@ -19,123 +15,11 @@ import (
 
 var listLog = logger.New("console:list")
 
-// listHeightPadding is the number of rows reserved for the list title, borders, and status bar
-const listHeightPadding = 4
-
-// listModel is the Bubble Tea model for the interactive list
-type listModel struct {
-	list     list.Model
-	choice   string
-	quitting bool
-}
-
-// Init initializes the list model
-func (m listModel) Init() tea.Cmd {
-	return nil
-}
-
-// Update handles messages and updates the model
-func (m listModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	switch msg := msg.(type) {
-	case tea.KeyPressMsg:
-		switch msg.String() {
-		case "ctrl+c", "q", "esc":
-			m.quitting = true
-			return m, tea.Quit
-		case "enter":
-			if i, ok := m.list.SelectedItem().(ListItem); ok {
-				m.choice = i.value
-			}
-			return m, tea.Quit
-		}
-	case tea.WindowSizeMsg:
-		m.list.SetWidth(msg.Width)
-		m.list.SetHeight(msg.Height - listHeightPadding)
-		return m, nil
-	}
-
-	var cmd tea.Cmd
-	m.list, cmd = m.list.Update(msg)
-	return m, cmd
-}
-
-// View renders the list
-func (m listModel) View() tea.View {
-	if m.quitting {
-		return tea.View{}
-	}
-	v := tea.NewView(m.list.View())
-	v.AltScreen = true
-	return v
-}
-
-// itemDelegate is a custom delegate for list items
-type itemDelegate struct{}
-
-// Height returns the height of a list item
-func (d itemDelegate) Height() int { return 1 }
-
-// Spacing returns the spacing between items
-func (d itemDelegate) Spacing() int { return 0 }
-
-// Update handles item-specific updates
-func (d itemDelegate) Update(_ tea.Msg, _ *list.Model) tea.Cmd { return nil }
-
-// Render renders a list item with custom styling
-func (d itemDelegate) Render(w io.Writer, m list.Model, index int, listItem list.Item) {
-	i, ok := listItem.(ListItem)
-	if !ok {
-		return
-	}
-
-	// Style for selected item
-	selectedStyle := lipgloss.NewStyle().
-		Foreground(styles.ColorSuccess).
-		Bold(true)
-
-	// Style for normal item title
-	titleStyle := lipgloss.NewStyle().
-		Foreground(styles.ColorForeground)
-
-	// Style for description
-	descStyle := lipgloss.NewStyle().
-		Foreground(styles.ColorComment).
-		Italic(true)
-
-	// Check if this item is selected
-	isSelected := index == m.Index()
-
-	var str strings.Builder
-
-	// Render cursor or spacer
-	if isSelected {
-		str.WriteString(selectedStyle.Render("> "))
-	} else {
-		str.WriteString("  ")
-	}
-
-	// Render title
-	if isSelected {
-		str.WriteString(selectedStyle.Render(i.title))
-	} else {
-		str.WriteString(titleStyle.Render(i.title))
-	}
-	str.WriteString("\n")
-
-	// Render description if present
-	if i.description != "" {
-		if isSelected {
-			str.WriteString("  " + selectedStyle.Render(i.description))
-		} else {
-			str.WriteString("  " + descStyle.Render(i.description))
-		}
-	}
-
-	fmt.Fprint(w, str.String())
-}
-
-// ShowInteractiveList displays an interactive list with arrow key navigation
-// Returns the selected item's value, or an error if cancelled or failed
+// ShowInteractiveList displays an interactive list using huh.Select with arrow key navigation.
+// Returns the selected item's value, or an error if cancelled or failed.
+//
+// Use this for standalone pickers outside a form context; prefer huh.Select directly
+// when building a multi-field form with WithTheme/WithAccessible applied to the whole form.
 func ShowInteractiveList(title string, items []ListItem) (string, error) {
 	listLog.Printf("Showing interactive list: title=%s, items=%d", title, len(items))
 
@@ -149,50 +33,33 @@ func ShowInteractiveList(title string, items []ListItem) (string, error) {
 		return showTextList(title, items)
 	}
 
-	// Convert ListItem to list.Item interface
-	listItems := make([]list.Item, len(items))
+	// Build huh options, combining title and description into the option label
+	opts := make([]huh.Option[string], len(items))
 	for i, item := range items {
-		listItems[i] = item
+		label := item.title
+		if item.description != "" {
+			label = fmt.Sprintf("%s – %s", item.title, item.description)
+		}
+		opts[i] = huh.NewOption(label, item.value)
 	}
 
-	// Create the list with custom delegate
-	delegate := itemDelegate{}
-	l := list.New(listItems, delegate, 80, 20)
-	l.Title = title
-	l.SetShowStatusBar(false)
-	l.SetFilteringEnabled(true)
-	l.SetShowHelp(true)
+	var selected string
+	form := huh.NewForm(
+		huh.NewGroup(
+			huh.NewSelect[string]().
+				Title(title).
+				Options(opts...).
+				Value(&selected),
+		),
+	).WithTheme(styles.HuhTheme()).WithAccessible(IsAccessibleMode())
 
-	// Customize list styles
-	l.Styles.Title = lipgloss.NewStyle().
-		Foreground(styles.ColorInfo).
-		Bold(true).
-		Padding(0, 0, 1, 0)
-
-	l.Styles.Filter.Focused.Prompt = lipgloss.NewStyle().
-		Foreground(styles.ColorInfo)
-	l.Styles.Filter.Blurred.Prompt = lipgloss.NewStyle().
-		Foreground(styles.ColorComment)
-	l.Styles.Filter.Cursor.Color = styles.ColorSuccess
-
-	// Create the model and run the program
-	m := listModel{list: l}
-	p := tea.NewProgram(m)
-
-	finalModel, err := p.Run()
-	if err != nil {
-		listLog.Printf("Error running list program: %v", err)
+	if err := form.Run(); err != nil {
+		listLog.Printf("Error running list form: %v", err)
 		return "", fmt.Errorf("failed to run interactive list: %w", err)
 	}
 
-	// Check if user cancelled
-	result := finalModel.(listModel)
-	if result.quitting && result.choice == "" {
-		return "", errors.New("selection cancelled")
-	}
-
-	listLog.Printf("Selected item: %s", result.choice)
-	return result.choice, nil
+	listLog.Printf("Selected item: %s", selected)
+	return selected, nil
 }
 
 // showTextList displays a non-interactive numbered list for non-TTY environments

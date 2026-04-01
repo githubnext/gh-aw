@@ -52,6 +52,7 @@ const mockCore = {
           GH_AW_WORKFLOW_NAME: process.env.GH_AW_WORKFLOW_NAME,
           GH_AW_AGENT_CONCLUSION: process.env.GH_AW_AGENT_CONCLUSION,
           GH_AW_DETECTION_CONCLUSION: process.env.GH_AW_DETECTION_CONCLUSION,
+          GH_AW_ASSIGNMENT_ERROR_COUNT: process.env.GH_AW_ASSIGNMENT_ERROR_COUNT,
           GH_AW_SAFE_OUTPUT_MESSAGES: process.env.GH_AW_SAFE_OUTPUT_MESSAGES,
           GH_AW_SAFE_OUTPUT_JOBS: process.env.GH_AW_SAFE_OUTPUT_JOBS,
           GH_AW_OUTPUT_CREATE_ISSUE_ISSUE_URL: process.env.GH_AW_OUTPUT_CREATE_ISSUE_ISSUE_URL,
@@ -132,6 +133,25 @@ const mockCore = {
             ),
             expect(mockCore.info).toHaveBeenCalledWith("Successfully updated comment"));
         }),
+          it("should update with assignment failure message when agent succeeds but assign-to-agent fails", async () => {
+            ((process.env.GH_AW_COMMENT_ID = "123456"),
+              (process.env.GH_AW_RUN_URL = "https://github.com/owner/repo/actions/runs/123"),
+              (process.env.GH_AW_WORKFLOW_NAME = "test-workflow"),
+              (process.env.GH_AW_AGENT_CONCLUSION = "success"),
+              (process.env.GH_AW_ASSIGNMENT_ERROR_COUNT = "3"),
+              await eval(`(async () => { ${notifyCommentScript}; await main(); })()`),
+              expect(mockGithub.request).toHaveBeenCalledWith(
+                "PATCH /repos/{owner}/{repo}/issues/comments/{comment_id}",
+                expect.objectContaining({
+                  owner: "testowner",
+                  repo: "testrepo",
+                  comment_id: 123456,
+                  body: expect.stringContaining("failed to assign the coding agent"),
+                })
+              ),
+              expect(mockCore.info).toHaveBeenCalledWith("Successfully updated comment"),
+              expect(mockGithub.request).not.toHaveBeenCalledWith("PATCH /repos/{owner}/{repo}/issues/comments/{comment_id}", expect.objectContaining({ body: expect.stringContaining("completed successfully!") })));
+          }),
           it("should update with failure message when agent fails", async () => {
             ((process.env.GH_AW_COMMENT_ID = "123456"),
               (process.env.GH_AW_RUN_URL = "https://github.com/owner/repo/actions/runs/123"),

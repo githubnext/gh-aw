@@ -12,6 +12,7 @@ import (
 
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/gitutil"
+	"github.com/github/gh-aw/pkg/semverutil"
 	"github.com/github/gh-aw/pkg/workflow"
 )
 
@@ -213,12 +214,12 @@ func getLatestActionRelease(repo, currentVersion string, allowMajor, verbose boo
 	// higher base version could be incorrectly selected as the upgrade target.
 	type releaseWithVersion struct {
 		tag     string
-		version *semanticVersion
+		version *semverutil.SemanticVersion
 	}
 	var validReleases []releaseWithVersion
 	for _, release := range releases {
 		releaseVer := parseVersion(release)
-		if releaseVer != nil && releaseVer.pre == "" {
+		if releaseVer != nil && releaseVer.Pre == "" {
 			validReleases = append(validReleases, releaseWithVersion{
 				tag:     release,
 				version: releaseVer,
@@ -232,7 +233,7 @@ func getLatestActionRelease(repo, currentVersion string, allowMajor, verbose boo
 
 	// Sort releases by semver in descending order (highest first)
 	sort.Slice(validReleases, func(i, j int) bool {
-		return validReleases[i].version.isNewer(validReleases[j].version)
+		return validReleases[i].version.IsNewer(validReleases[j].version)
 	})
 
 	// If current version is not valid, return the highest semver release
@@ -247,25 +248,25 @@ func getLatestActionRelease(repo, currentVersion string, allowMajor, verbose boo
 
 	// Find the highest compatible release (respecting major version if !allowMajor)
 	var latestCompatible string
-	var latestCompatibleVersion *semanticVersion
+	var latestCompatibleVersion *semverutil.SemanticVersion
 
 	for _, rel := range validReleases {
 		// Check if compatible based on major version
-		if !allowMajor && rel.version.major != currentVer.major {
+		if !allowMajor && rel.version.Major != currentVer.Major {
 			continue
 		}
 
 		// Since releases are sorted by semver descending, first match is highest
-		if latestCompatibleVersion == nil || rel.version.isNewer(latestCompatibleVersion) {
+		if latestCompatibleVersion == nil || rel.version.IsNewer(latestCompatibleVersion) {
 			latestCompatible = rel.tag
 			latestCompatibleVersion = rel.version
-		} else if !rel.version.isNewer(latestCompatibleVersion) &&
-			rel.version.major == latestCompatibleVersion.major &&
-			rel.version.minor == latestCompatibleVersion.minor &&
-			rel.version.patch == latestCompatibleVersion.patch {
+		} else if !rel.version.IsNewer(latestCompatibleVersion) &&
+			rel.version.Major == latestCompatibleVersion.Major &&
+			rel.version.Minor == latestCompatibleVersion.Minor &&
+			rel.version.Patch == latestCompatibleVersion.Patch {
 			// If versions are equal, prefer the less precise one (e.g., "v8" over "v8.0.0")
 			// This follows GitHub Actions convention of using major version tags
-			if !rel.version.isPreciseVersion() && latestCompatibleVersion.isPreciseVersion() {
+			if !rel.version.IsPreciseVersion() && latestCompatibleVersion.IsPreciseVersion() {
 				latestCompatible = rel.tag
 				latestCompatibleVersion = rel.version
 			}
@@ -339,12 +340,12 @@ func getLatestActionReleaseViaGit(repo, currentVersion string, allowMajor, verbo
 	// for this fallback path.
 	type releaseWithVersion struct {
 		tag     string
-		version *semanticVersion
+		version *semverutil.SemanticVersion
 	}
 	var validReleases []releaseWithVersion
 	for _, release := range releases {
 		releaseVer := parseVersion(release)
-		if releaseVer != nil && releaseVer.pre == "" {
+		if releaseVer != nil && releaseVer.Pre == "" {
 			validReleases = append(validReleases, releaseWithVersion{
 				tag:     release,
 				version: releaseVer,
@@ -358,7 +359,7 @@ func getLatestActionReleaseViaGit(repo, currentVersion string, allowMajor, verbo
 
 	// Sort releases by semver in descending order (highest first)
 	sort.Slice(validReleases, func(i, j int) bool {
-		return validReleases[i].version.isNewer(validReleases[j].version)
+		return validReleases[i].version.IsNewer(validReleases[j].version)
 	})
 
 	// If current version is not valid, return the highest semver release
@@ -373,25 +374,25 @@ func getLatestActionReleaseViaGit(repo, currentVersion string, allowMajor, verbo
 
 	// Find the highest compatible release (respecting major version if !allowMajor)
 	var latestCompatible string
-	var latestCompatibleVersion *semanticVersion
+	var latestCompatibleVersion *semverutil.SemanticVersion
 
 	for _, rel := range validReleases {
 		// Check if compatible based on major version
-		if !allowMajor && rel.version.major != currentVer.major {
+		if !allowMajor && rel.version.Major != currentVer.Major {
 			continue
 		}
 
 		// Since releases are sorted by semver descending, first match is highest
-		if latestCompatibleVersion == nil || rel.version.isNewer(latestCompatibleVersion) {
+		if latestCompatibleVersion == nil || rel.version.IsNewer(latestCompatibleVersion) {
 			latestCompatible = rel.tag
 			latestCompatibleVersion = rel.version
-		} else if !rel.version.isNewer(latestCompatibleVersion) &&
-			rel.version.major == latestCompatibleVersion.major &&
-			rel.version.minor == latestCompatibleVersion.minor &&
-			rel.version.patch == latestCompatibleVersion.patch {
+		} else if !rel.version.IsNewer(latestCompatibleVersion) &&
+			rel.version.Major == latestCompatibleVersion.Major &&
+			rel.version.Minor == latestCompatibleVersion.Minor &&
+			rel.version.Patch == latestCompatibleVersion.Patch {
 			// If versions are equal, prefer the less precise one (e.g., "v8" over "v8.0.0")
 			// This follows GitHub Actions convention of using major version tags
-			if !rel.version.isPreciseVersion() && latestCompatibleVersion.isPreciseVersion() {
+			if !rel.version.IsPreciseVersion() && latestCompatibleVersion.IsPreciseVersion() {
 				latestCompatible = rel.tag
 				latestCompatibleVersion = rel.version
 			}

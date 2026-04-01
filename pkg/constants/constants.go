@@ -346,6 +346,12 @@ const (
 	// a comma- or newline-separated list of GitHub label names that promote content to "approved" integrity.
 	// Set as an org or repo variable to apply a consistent approval label list across all workflows.
 	EnvVarGitHubApprovalLabels = "GH_AW_GITHUB_APPROVAL_LABELS"
+
+	// EnvVarGitHubTrustedUsers is the fallback variable for the tools.github.trusted-users guard policy field.
+	// When trusted-users is not explicitly set in the workflow frontmatter, this variable is used as
+	// a comma- or newline-separated list of GitHub usernames elevated to "approved" integrity.
+	// Set as an org or repo variable to apply a consistent trusted user list across all workflows.
+	EnvVarGitHubTrustedUsers = "GH_AW_GITHUB_TRUSTED_USERS"
 )
 
 // DefaultCodexVersion is the default version of the OpenAI Codex CLI
@@ -363,12 +369,16 @@ const DefaultGitHubMCPServerVersion Version = "v0.32.0"
 const DefaultGitHubLockdown = false
 
 // DefaultFirewallVersion is the default version of the gh-aw-firewall (AWF) binary
-const DefaultFirewallVersion Version = "v0.25.1"
+const DefaultFirewallVersion Version = "v0.25.5"
 
 // AWF (Agentic Workflow Firewall) constants
 
 // AWFDefaultCommand is the default AWF command prefix
 const AWFDefaultCommand = "sudo -E awf"
+
+// AWFExcludeEnvMinVersion is the minimum AWF version that supports the --exclude-env flag.
+// Workflows pinning an older AWF version must not emit --exclude-env flags or the run will fail.
+const AWFExcludeEnvMinVersion Version = "v0.25.3"
 
 // AWFProxyLogsDir is the default directory for AWF proxy logs
 const AWFProxyLogsDir = "/tmp/gh-aw/sandbox/firewall/logs"
@@ -386,7 +396,7 @@ const FirewallAuditArtifactName = "firewall-audit-logs"
 const AWFDefaultLogLevel = "info"
 
 // DefaultMCPGatewayVersion is the default version of the MCP Gateway (gh-aw-mcpg) Docker image
-const DefaultMCPGatewayVersion Version = "v0.2.6"
+const DefaultMCPGatewayVersion Version = "v0.2.10"
 
 // DefaultMCPGatewayContainer is the default container image for the MCP Gateway
 const DefaultMCPGatewayContainer = "ghcr.io/github/gh-aw-mcpg"
@@ -405,38 +415,8 @@ const DefaultMCPGatewayPayloadSizeThreshold = 524288
 // DefaultFirewallRegistry is the container image registry for AWF (gh-aw-firewall) Docker images
 const DefaultFirewallRegistry = "ghcr.io/github/gh-aw-firewall"
 
-// DefaultSerenaMCPServerContainer is the default container image for the Serena MCP server
-const DefaultSerenaMCPServerContainer = "ghcr.io/github/serena-mcp-server"
-
-// OraiosSerenaContainer is the Oraios Serena MCP server container image (legacy)
-const OraiosSerenaContainer = "ghcr.io/oraios/serena"
-
-// SerenaLanguageSupport defines the supported languages for each Serena container image
-var SerenaLanguageSupport = map[string][]string{
-	DefaultSerenaMCPServerContainer: {
-		"go", "typescript", "javascript", "python", "java", "rust", "csharp",
-		"cpp", "c", "ruby", "php", "bash", "swift", "kotlin", "scala",
-		"haskell", "elixir", "erlang", "clojure", "lua", "perl", "r",
-		"dart", "julia", "fortran", "nix", "rego", "terraform", "yaml",
-		"markdown", "zig", "elm",
-	},
-	OraiosSerenaContainer: {
-		"go", "typescript", "javascript", "python", "java", "rust", "csharp",
-		"cpp", "c", "ruby", "php", "bash", "swift", "kotlin", "scala",
-		"haskell", "elixir", "erlang", "clojure", "lua", "perl", "r",
-		"dart", "julia", "fortran", "nix", "rego", "terraform", "yaml",
-		"markdown", "zig", "elm",
-	},
-}
-
-// DefaultAPMActionVersion is the default version of the microsoft/apm-action GitHub Action
-const DefaultAPMActionVersion Version = "v1.4.1"
-
-// DefaultAPMVersion is the default version of the microsoft/APM (Agent Package Manager) CLI
-const DefaultAPMVersion Version = "v0.8.5"
-
 // DefaultPlaywrightMCPVersion is the default version of the @playwright/mcp package
-const DefaultPlaywrightMCPVersion Version = "0.0.68"
+const DefaultPlaywrightMCPVersion Version = "0.0.69"
 
 // DefaultQmdVersion is the default version of the @tobilu/qmd npm package
 const DefaultQmdVersion Version = "2.0.1"
@@ -645,10 +625,13 @@ var DangerousPropertyNames = []string{
 
 const AgentJobName JobName = "agent"
 const ActivationJobName JobName = "activation"
-const APMJobName JobName = "apm"
 const IndexingJobName JobName = "indexing"
 const PreActivationJobName JobName = "pre_activation"
 const DetectionJobName JobName = "detection"
+const SafeOutputsJobName JobName = "safe_outputs"
+const UploadAssetsJobName JobName = "upload_assets"
+const ConclusionJobName JobName = "conclusion"
+const UnlockJobName JobName = "unlock"
 const SafeOutputArtifactName = "safe-output"
 const AgentOutputArtifactName = "agent-output"
 
@@ -679,9 +662,6 @@ const ArtifactPrefixOutputName = "artifact_prefix"
 // ActivationArtifactName is the artifact name for the activation job output
 // (aw_info.json and prompt.txt).
 const ActivationArtifactName = "activation"
-
-// APMArtifactName is the artifact name for the APM (Agent Package Manager) bundle.
-const APMArtifactName = "apm"
 
 // SafeOutputItemsArtifactName is the artifact name for the safe output items manifest.
 // This artifact contains the JSONL manifest of all items created by safe output handlers
@@ -728,6 +708,11 @@ const (
 	// When enabled: no secret validation step is generated, copilot-requests: write permission is added,
 	// and the GitHub Actions token is used as the agentic engine secret.
 	CopilotRequestsFeatureFlag FeatureFlag = "copilot-requests"
+	// DIFCProxyFeatureFlag is the feature flag name for enabling the DIFC proxy.
+	// When enabled, the compiler injects DIFC proxy steps (start/stop) around pre-agent
+	// gh CLI steps and qmd indexing steps when guard policies are configured.
+	// By default (flag absent), DIFC proxy steps are not emitted.
+	DIFCProxyFeatureFlag FeatureFlag = "difc-proxy"
 )
 
 // Step IDs for pre-activation job

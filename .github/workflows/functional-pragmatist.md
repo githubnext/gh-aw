@@ -458,17 +458,18 @@ func TestFilter(t *testing.T) {
 package fp
 
 // Map transforms each element in a slice
+// Note: uses var+append to avoid CodeQL violations from make([]U, len(slice))
 func Map[T, U any](slice []T, fn func(T) U) []U {
-    result := make([]U, len(slice))
-    for i, v := range slice {
-        result[i] = fn(v)
+    var result []U
+    for _, v := range slice {
+        result = append(result, fn(v))
     }
     return result
 }
 
 // Filter returns elements that match the predicate
 func Filter[T any](slice []T, fn func(T) bool) []T {
-    result := make([]T, 0, len(slice))
+    var result []T
     for _, v := range slice {
         if fn(v) {
             result = append(result, v)
@@ -507,10 +508,10 @@ for _, name := range names {
     filters = append(filters, Filter{Name: name})
 }
 
-// After: Immutable initialization
-filters := make([]Filter, len(names))
-for i, name := range names {
-    filters[i] = Filter{Name: name}
+// After: Immutable initialization using append
+var filters []Filter
+for _, name := range names {
+    filters = append(filters, Filter{Name: name})
 }
 // Or even better if simple:
 filters := sliceutil.Map(names, func(name string) Filter {
@@ -570,7 +571,7 @@ activeItems := sliceutil.Filter(items, func(item Item) bool { return item.Active
 activeNames := sliceutil.Map(activeItems, func(item Item) string { return item.Name })
 
 // Or inline if it's clearer:
-activeNames := make([]string, 0, len(items))
+var activeNames []string
 for _, item := range items {
     if item.Active {
         activeNames = append(activeNames, item.Name)
@@ -1339,7 +1340,7 @@ func NewService(config *Config, cache *Cache) *Service
 - Go doesn't have built-in map/filter/reduce - that's okay!
 - Inline loops are often clearer than generic helpers
 - Use type parameters (generics) for helpers to avoid reflection
-- Preallocate slices when size is known: `make([]T, len(input))`
+- Avoid `make([]T, len(input))` and `make([]T, 0, len(input))` — use `var result []T` + `append` instead; CodeQL flags these patterns because the slice length/capacity is derived from user-controlled input, which can trigger incorrect memory allocation analysis
 - Simple for-loops are idiomatic Go - don't force functional style
 - Functional options is a well-established Go pattern - use it confidently
 - Pure functions align well with Go's simplicity philosophy
@@ -1387,9 +1388,7 @@ func NewConfig(host string, port int) (*Config, error) {
 ```go
 // Return copy to prevent mutation of internal state
 func (s *Service) GetItems() []Item {
-    result := make([]Item, len(s.items))
-    copy(result, s.items)
-    return result
+    return slices.Clone(s.items)
 }
 ```
 

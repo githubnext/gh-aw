@@ -5,6 +5,7 @@ import (
 
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/parser"
 )
 
 var compilerErrorLog = logger.New("workflow:compiler_error_formatter")
@@ -33,11 +34,17 @@ func formatCompilerError(filePath string, errType string, message string, cause 
 }
 
 // isFormattedCompilerError reports whether err is already a console-formatted compiler error
-// produced by formatCompilerError or formatCompilerErrorWithPosition.  Use this instead of
-// fragile string-contains checks to avoid double-wrapping.
+// produced by formatCompilerError, formatCompilerErrorWithPosition, or parser.FormatImportError.
+// Use this instead of fragile string-contains checks to avoid double-wrapping.
 func isFormattedCompilerError(err error) bool {
 	var wce *wrappedCompilerError
-	return errors.As(err, &wce)
+	if errors.As(err, &wce) {
+		return true
+	}
+	// Also detect errors from the parser package (e.g. FormatImportError) which are already
+	// console-formatted with source location and must not be re-wrapped.
+	var fpe *parser.FormattedParserError
+	return errors.As(err, &fpe)
 }
 
 // formatCompilerErrorWithPosition creates a formatted compiler error with specific line/column position.

@@ -205,3 +205,184 @@ func TestCollectPackagesFromWorkflow_HyphenPrefixInArgs(t *testing.T) {
 		}
 	}
 }
+
+// TestValidateNpmPackageName tests that npm package names are validated against
+// the npm naming rules, preventing argument injection via names that aren't caught
+// by the hyphen-prefix check alone.
+func TestValidateNpmPackageName(t *testing.T) {
+	tests := []struct {
+		name        string
+		pkg         string
+		expectError bool
+		errContains string
+	}{
+		{
+			name:        "simple valid name",
+			pkg:         "express",
+			expectError: false,
+		},
+		{
+			name:        "scoped valid name",
+			pkg:         "@scope/pkg",
+			expectError: false,
+		},
+		{
+			name:        "name with hyphen",
+			pkg:         "my-package",
+			expectError: false,
+		},
+		{
+			name:        "name with dot",
+			pkg:         "my.package",
+			expectError: false,
+		},
+		{
+			name:        "single character name",
+			pkg:         "x",
+			expectError: false,
+		},
+		{
+			name:        "scoped name with version suffix",
+			pkg:         "@sentry/mcp-server@0.29.0",
+			expectError: false,
+		},
+		{
+			name:        "unscoped name with version suffix",
+			pkg:         "express@4.18.2",
+			expectError: false,
+		},
+		{
+			name:        "name with semver caret range",
+			pkg:         "express@^4.0.0",
+			expectError: false,
+		},
+		{
+			name:        "name with tag version",
+			pkg:         "express@latest",
+			expectError: false,
+		},
+		{
+			name:        "name starting with hyphen is rejected",
+			pkg:         "--registry=https://attacker.example",
+			expectError: true,
+			errContains: "invalid npm package name",
+		},
+		{
+			name:        "name with equals sign is rejected",
+			pkg:         "pkg=https://attacker.example",
+			expectError: true,
+			errContains: "invalid npm package name",
+		},
+		{
+			name:        "name with spaces is rejected",
+			pkg:         "my package",
+			expectError: true,
+			errContains: "invalid npm package name",
+		},
+		{
+			name:        "uppercase name is rejected",
+			pkg:         "MyPackage",
+			expectError: true,
+			errContains: "invalid npm package name",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := validateNpmPackageName(tt.pkg)
+			if tt.expectError {
+				if err == nil {
+					t.Errorf("expected error for package %q but got none", tt.pkg)
+					return
+				}
+				if tt.errContains != "" && !strings.Contains(err.Error(), tt.errContains) {
+					t.Errorf("expected error to contain %q, got: %v", tt.errContains, err)
+				}
+			} else {
+				if err != nil {
+					t.Errorf("unexpected error for package %q: %v", tt.pkg, err)
+				}
+			}
+		})
+	}
+}
+
+// TestValidatePipPackageName tests that PyPI package names are validated against
+// PEP 508 naming rules, preventing argument injection via names not caught by
+// the hyphen-prefix check alone.
+func TestValidatePipPackageName(t *testing.T) {
+	tests := []struct {
+		name        string
+		pkg         string
+		expectError bool
+		errContains string
+	}{
+		{
+			name:        "simple valid name",
+			pkg:         "requests",
+			expectError: false,
+		},
+		{
+			name:        "name with hyphen",
+			pkg:         "my-package",
+			expectError: false,
+		},
+		{
+			name:        "name with underscore",
+			pkg:         "my_package",
+			expectError: false,
+		},
+		{
+			name:        "name with dot",
+			pkg:         "my.package",
+			expectError: false,
+		},
+		{
+			name:        "mixed case is valid per PEP 508",
+			pkg:         "MyPackage",
+			expectError: false,
+		},
+		{
+			name:        "single character name",
+			pkg:         "z",
+			expectError: false,
+		},
+		{
+			name:        "name starting with hyphen is rejected",
+			pkg:         "--index-url=https://attacker.example",
+			expectError: true,
+			errContains: "invalid pip package name",
+		},
+		{
+			name:        "name with equals sign is rejected",
+			pkg:         "pkg=https://attacker.example",
+			expectError: true,
+			errContains: "invalid pip package name",
+		},
+		{
+			name:        "name with spaces is rejected",
+			pkg:         "my package",
+			expectError: true,
+			errContains: "invalid pip package name",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := validatePipPackageName(tt.pkg)
+			if tt.expectError {
+				if err == nil {
+					t.Errorf("expected error for package %q but got none", tt.pkg)
+					return
+				}
+				if tt.errContains != "" && !strings.Contains(err.Error(), tt.errContains) {
+					t.Errorf("expected error to contain %q, got: %v", tt.errContains, err)
+				}
+			} else {
+				if err != nil {
+					t.Errorf("unexpected error for package %q: %v", tt.pkg, err)
+				}
+			}
+		})
+	}
+}

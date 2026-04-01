@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"github.com/github/gh-aw/pkg/console"
+	"github.com/github/gh-aw/pkg/gitutil"
 	"github.com/github/gh-aw/pkg/logger"
 )
 
@@ -74,7 +75,7 @@ func runPoutineOnDirectory(workflowDir string, verbose bool, strict bool) error 
 	poutineLog.Printf("Running poutine security scanner on directory: %s", workflowDir)
 
 	// Find git root to get the absolute path for Docker volume mount
-	gitRoot, err := findGitRoot()
+	gitRoot, err := gitutil.FindGitRoot()
 	if err != nil {
 		return fmt.Errorf("failed to find git root: %w", err)
 	}
@@ -169,7 +170,7 @@ func runPoutineOnFile(lockFile string, verbose bool, strict bool) error {
 	poutineLog.Printf("Running poutine security scanner: file=%s, strict=%v", lockFile, strict)
 
 	// Find git root to get the absolute path for Docker volume mount
-	gitRoot, err := findGitRoot()
+	gitRoot, err := gitutil.FindGitRoot()
 	if err != nil {
 		return fmt.Errorf("failed to find git root: %w", err)
 	}

@@ -179,6 +179,157 @@ describe("create_pull_request - fallback-as-issue configuration", () => {
   });
 });
 
+describe("create_pull_request - auto-close-issue configuration", () => {
+  let tempDir;
+  let originalEnv;
+
+  beforeEach(() => {
+    originalEnv = { ...process.env };
+    process.env.GH_AW_WORKFLOW_ID = "test-workflow";
+    process.env.GITHUB_REPOSITORY = "test-owner/test-repo";
+    process.env.GITHUB_BASE_REF = "main";
+    tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "create-pr-auto-close-test-"));
+
+    global.core = {
+      info: vi.fn(),
+      warning: vi.fn(),
+      error: vi.fn(),
+      debug: vi.fn(),
+      setFailed: vi.fn(),
+      setOutput: vi.fn(),
+      startGroup: vi.fn(),
+      endGroup: vi.fn(),
+      summary: {
+        addRaw: vi.fn().mockReturnThis(),
+        write: vi.fn().mockResolvedValue(undefined),
+      },
+    };
+    global.github = {
+      rest: {
+        pulls: {
+          create: vi.fn().mockResolvedValue({ data: { number: 1, html_url: "https://github.com/test" } }),
+        },
+        repos: {
+          get: vi.fn().mockResolvedValue({ data: { default_branch: "main" } }),
+        },
+        issues: {
+          addLabels: vi.fn().mockResolvedValue({}),
+        },
+      },
+      graphql: vi.fn(),
+    };
+    global.context = {
+      eventName: "issues",
+      repo: { owner: "test-owner", repo: "test-repo" },
+      payload: {
+        issue: { number: 42 },
+      },
+    };
+    global.exec = {
+      exec: vi.fn().mockResolvedValue(0),
+      getExecOutput: vi.fn().mockResolvedValue({ exitCode: 0, stdout: "", stderr: "" }),
+    };
+
+    delete require.cache[require.resolve("./create_pull_request.cjs")];
+  });
+
+  afterEach(() => {
+    for (const key of Object.keys(process.env)) {
+      if (!(key in originalEnv)) {
+        delete process.env[key];
+      }
+    }
+    Object.assign(process.env, originalEnv);
+
+    if (tempDir && fs.existsSync(tempDir)) {
+      fs.rmSync(tempDir, { recursive: true, force: true });
+    }
+
+    delete global.core;
+    delete global.github;
+    delete global.context;
+    delete global.exec;
+    vi.clearAllMocks();
+  });
+
+  it("should auto-add 'Fixes #N' when triggered from an issue and auto_close_issue is not set (default)", async () => {
+    const { main } = require("./create_pull_request.cjs");
+    const handler = await main({ allow_empty: true });
+
+    await handler({ title: "Test PR", body: "Test body" }, {});
+
+    const createCall = global.github.rest.pulls.create.mock.calls[0]?.[0];
+    expect(createCall?.body).toContain("Fixes #42");
+    expect(global.core.info).toHaveBeenCalledWith(expect.stringContaining('Auto-added "Fixes #42"'));
+  });
+
+  it("should auto-add 'Fixes #N' when triggered from an issue and auto_close_issue is explicitly true", async () => {
+    const { main } = require("./create_pull_request.cjs");
+    const handler = await main({ allow_empty: true, auto_close_issue: true });
+
+    await handler({ title: "Test PR", body: "Test body" }, {});
+
+    const createCall = global.github.rest.pulls.create.mock.calls[0]?.[0];
+    expect(createCall?.body).toContain("Fixes #42");
+    expect(global.core.info).toHaveBeenCalledWith(expect.stringContaining('Auto-added "Fixes #42"'));
+  });
+
+  it("should NOT auto-add 'Fixes #N' when auto_close_issue is false", async () => {
+    const { main } = require("./create_pull_request.cjs");
+    const handler = await main({ allow_empty: true, auto_close_issue: false });
+
+    await handler({ title: "Test PR", body: "Test body" }, {});
+
+    const createCall = global.github.rest.pulls.create.mock.calls[0]?.[0];
+    expect(createCall?.body).not.toContain("Fixes #42");
+    expect(global.core.info).toHaveBeenCalledWith(expect.stringContaining("Skipping auto-close keyword for #42 (auto-close-issue: false)"));
+  });
+
+  it("should NOT auto-add 'Fixes #N' when body already contains a closing keyword, regardless of auto_close_issue", async () => {
+    const { main } = require("./create_pull_request.cjs");
+    const handler = await main({ allow_empty: true });
+
+    await handler({ title: "Test PR", body: "Test body\n\nCloses #42" }, {});
+
+    const createCall = global.github.rest.pulls.create.mock.calls[0]?.[0];
+    // Should not duplicate the keyword
+    const fixesCount = (createCall?.body?.match(/Fixes #42/gi) || []).length;
+    const closesCount = (createCall?.body?.match(/Closes #42/gi) || []).length;
+    expect(closesCount).toBe(1);
+    expect(fixesCount).toBe(0);
+  });
+
+  it("should have no effect when not triggered from an issue, regardless of auto_close_issue value", async () => {
+    // Override context to not be from an issue
+    global.context = {
+      eventName: "workflow_dispatch",
+      repo: { owner: "test-owner", repo: "test-repo" },
+      payload: {},
+    };
+    delete require.cache[require.resolve("./create_pull_request.cjs")];
+
+    const { main } = require("./create_pull_request.cjs");
+    const handler = await main({ allow_empty: true, auto_close_issue: true });
+
+    await handler({ title: "Test PR", body: "Test body" }, {});
+
+    const createCall = global.github.rest.pulls.create.mock.calls[0]?.[0];
+    expect(createCall?.body).not.toContain("Fixes #");
+  });
+
+  it("should NOT add 'Fixes #N' when auto_close_issue is false even if body has no closing keyword", async () => {
+    const { main } = require("./create_pull_request.cjs");
+    const handler = await main({ allow_empty: true, auto_close_issue: false });
+
+    await handler({ title: "Test PR", body: "Investigation findings - partial work only" }, {});
+
+    const createCall = global.github.rest.pulls.create.mock.calls[0]?.[0];
+    expect(createCall?.body).not.toContain("Fixes #");
+    expect(createCall?.body).not.toContain("Closes #");
+    expect(createCall?.body).not.toContain("Resolves #");
+  });
+});
+
 describe("create_pull_request - max limit enforcement", () => {
   let mockFs;
 
@@ -881,6 +1032,73 @@ describe("create_pull_request - configured reviewers", () => {
 
     expect(result.success).toBe(true);
     expect(global.core.warning).toHaveBeenCalledWith(expect.stringContaining("Failed to request reviewers"));
+  });
+
+  it("should retry addLabels on race condition and warn after all retries exhausted", async () => {
+    // GitHub API transiently fails to resolve the PR node ID immediately after creation.
+    // withRetry retries 3 times (4 total calls); after exhaustion it should warn but NOT fall back to an issue.
+    vi.useFakeTimers();
+    try {
+      global.github.rest.issues.addLabels.mockRejectedValue(new Error("Validation Failed: Could not resolve to a node with the global id of 'PR_kwDOPc1QR87OOJzM'."));
+
+      const { main } = require("./create_pull_request.cjs");
+      const handler = await main({ labels: ["automation"], allow_empty: true });
+
+      const resultPromise = handler({ title: "Test PR", body: "Test body", labels: ["automation"] }, {});
+
+      // Advance all fake timers to skip the retry delays (3s, 6s, 12s)
+      await vi.runAllTimersAsync();
+
+      const result = await resultPromise;
+
+      expect(result.success).toBe(true);
+      expect(result.fallback_used).toBeUndefined();
+      // addLabels called once initially + 3 retries = 4 total
+      expect(global.github.rest.issues.addLabels).toHaveBeenCalledTimes(4);
+      expect(global.core.warning).toHaveBeenCalledWith(expect.stringContaining("Failed to add labels to PR #42"));
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("should succeed when addLabels recovers on a retry", async () => {
+    // Simulates a transient race condition that resolves on the second attempt.
+    vi.useFakeTimers();
+    try {
+      global.github.rest.issues.addLabels.mockRejectedValueOnce(new Error("Validation Failed: Could not resolve to a node with the global id of 'PR_kwDOPc1QR87OOJzM'.")).mockResolvedValue({});
+
+      const { main } = require("./create_pull_request.cjs");
+      const handler = await main({ labels: ["automation"], allow_empty: true });
+
+      const resultPromise = handler({ title: "Test PR", body: "Test body", labels: ["automation"] }, {});
+
+      await vi.runAllTimersAsync();
+
+      const result = await resultPromise;
+
+      expect(result.success).toBe(true);
+      // addLabels called twice: first attempt fails, second succeeds
+      expect(global.github.rest.issues.addLabels).toHaveBeenCalledTimes(2);
+      // No warning about final failure — the retry succeeded
+      expect(global.core.warning).not.toHaveBeenCalledWith(expect.stringContaining("Failed to add labels to PR #42"));
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("should not retry addLabels for non-transient errors", async () => {
+    // Non-transient errors (e.g., 404 label not found) should not be retried.
+    global.github.rest.issues.addLabels.mockRejectedValue(new Error("Validation Failed: label does not exist"));
+
+    const { main } = require("./create_pull_request.cjs");
+    const handler = await main({ labels: ["nonexistent"], allow_empty: true });
+
+    const result = await handler({ title: "Test PR", body: "Test body", labels: ["nonexistent"] }, {});
+
+    expect(result.success).toBe(true);
+    // No retry — called only once since the error is non-transient
+    expect(global.github.rest.issues.addLabels).toHaveBeenCalledTimes(1);
+    expect(global.core.warning).toHaveBeenCalledWith(expect.stringContaining("Failed to add labels to PR #42"));
   });
 
   it("should accept reviewers as a comma-separated string", async () => {

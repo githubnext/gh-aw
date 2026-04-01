@@ -87,15 +87,6 @@ func (c *Compiler) buildMainJob(data *WorkflowData, activationJobCreated bool) (
 		compilerMainJobLog.Print("Agent job depends on indexing job (qmd tool configured)")
 	}
 
-	// When APM dependencies are configured, the agent also depends on the APM job (which packs
-	// and uploads the bundle). The APM job depends on activation, but GitHub Actions only exposes
-	// outputs from DIRECT dependencies, so we must keep activation in needs too so that
-	// needs.activation.outputs.* expressions resolve correctly.
-	if data.APMDependencies != nil && len(data.APMDependencies.Packages) > 0 {
-		depends = append(depends, string(constants.APMJobName))
-		compilerMainJobLog.Print("Agent job depends on APM job (APM dependencies configured)")
-	}
-
 	// Add custom jobs as dependencies only if they don't depend on pre_activation or agent
 	// Custom jobs that depend on pre_activation are now dependencies of activation,
 	// so the agent job gets them transitively through activation
@@ -232,19 +223,6 @@ func (c *Compiler) buildMainJob(data *WorkflowData, activationJobCreated bool) (
 		}
 		sanitizedID := SanitizeWorkflowIDForCacheKey(data.WorkflowID)
 		env["GH_AW_WORKFLOW_ID_SANITIZED"] = sanitizedID
-	}
-
-	// Set job-level GH_AW_INFO_APM_VERSION so the apm_restore step can reference it
-	// via ${{ env.GH_AW_INFO_APM_VERSION }} in its with: block
-	if data.APMDependencies != nil && len(data.APMDependencies.Packages) > 0 {
-		if env == nil {
-			env = make(map[string]string)
-		}
-		apmVersion := data.APMDependencies.Version
-		if apmVersion == "" {
-			apmVersion = string(constants.DefaultAPMVersion)
-		}
-		env["GH_AW_INFO_APM_VERSION"] = apmVersion
 	}
 
 	// Generate agent concurrency configuration

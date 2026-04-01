@@ -10,6 +10,7 @@
  * Supported placeholders:
  * - {workflow_name} - Name of the workflow
  * - {run_url} - URL to the workflow run
+ * - {agentic_workflow_url} - Direct URL to the agentic workflow page ({run_url}/agentic_workflow)
  * - {workflow_source} - Source specification (owner/repo/path@ref)
  * - {workflow_source_url} - GitHub URL for the workflow source
  * - {triggering_number} - Issue/PR/Discussion number that triggered this workflow

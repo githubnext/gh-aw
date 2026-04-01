@@ -754,7 +754,58 @@ func TestDetectionGuardStepCondition(t *testing.T) {
 	}
 }
 
-// TestBuildDetectionEngineExecutionStepStripsAgentField verifies that the Agent field from the
+// TestDetectionJobLevelCondition verifies that the detection job-level `if:` condition
+// skips the job entirely when the agent produced no outputs and no patch.
+// This prevents the detection job from wasting a runner and ensures safe_outputs is
+// also correctly skipped (since it gates on needs.detection.result == 'success').
+func TestDetectionJobLevelCondition(t *testing.T) {
+	compiler := NewCompiler()
+
+	data := &WorkflowData{
+		Name: "test-workflow",
+		AI:   "copilot",
+		SafeOutputs: &SafeOutputsConfig{
+			ThreatDetection: &ThreatDetectionConfig{},
+			CreateIssues: &CreateIssuesConfig{
+				TitlePrefix: "[Test]",
+			},
+		},
+	}
+
+	job, err := compiler.buildDetectionJob(data)
+	if err != nil {
+		t.Fatalf("Unexpected error building detection job: %v", err)
+	}
+	if job == nil {
+		t.Fatal("Expected detection job to be built, got nil")
+	}
+
+	condition := job.If
+
+	// Must use always() so the job runs even when the agent job fails
+	if !strings.Contains(condition, "always()") {
+		t.Errorf("Expected detection job condition to include always(), got: %q", condition)
+	}
+
+	// Must skip when agent was skipped
+	if !strings.Contains(condition, "needs."+string(constants.AgentJobName)+".result") {
+		t.Errorf("Expected detection job condition to check agent result, got: %q", condition)
+	}
+	if !strings.Contains(condition, "'skipped'") {
+		t.Errorf("Expected detection job condition to check for skipped status, got: %q", condition)
+	}
+
+	// Must check output_types and has_patch so the job is skipped at job-level
+	// when the agent produced nothing (avoiding unnecessary runner usage and
+	// preventing safe_outputs from running when there is nothing to publish).
+	if !strings.Contains(condition, "needs."+string(constants.AgentJobName)+".outputs.output_types") {
+		t.Errorf("Expected detection job condition to check output_types, got: %q", condition)
+	}
+	if !strings.Contains(condition, "needs."+string(constants.AgentJobName)+".outputs.has_patch") {
+		t.Errorf("Expected detection job condition to check has_patch, got: %q", condition)
+	}
+}
+
 // main engine config is never propagated to the detection engine config,
 // regardless of whether a model is explicitly configured.
 func TestBuildDetectionEngineExecutionStepStripsAgentField(t *testing.T) {
@@ -1025,6 +1076,86 @@ func TestBuildDetectionEngineExecutionStepPropagatesAPITarget(t *testing.T) {
 			if tt.unexpectedTarget != "" {
 				if strings.Contains(allSteps, tt.unexpectedTarget) {
 					t.Errorf("Expected detection steps to NOT contain api-target %q, but found it.\nGenerated steps:\n%s", tt.unexpectedTarget, allSteps)
+				}
+			}
+		})
+	}
+}
+
+// TestDetectionJobPermissionsIndentation verifies that the detection job's permissions block
+// is correctly indented in the rendered YAML output.
+// Regression test for the indentation bug where c.indentYAMLLines was called on
+// RenderToYAML() output which already uses 6-space indentation for permission values,
+// resulting in 10-space indentation instead of the correct 6.
+func TestDetectionJobPermissionsIndentation(t *testing.T) {
+	tests := []struct {
+		name            string
+		data            *WorkflowData
+		wantContains    []string
+		wantNotContains []string
+	}{
+		{
+			name: "copilot-requests feature produces correctly indented permissions",
+			data: &WorkflowData{
+				Name: "test-workflow",
+				AI:   "copilot",
+				SafeOutputs: &SafeOutputsConfig{
+					ThreatDetection: &ThreatDetectionConfig{},
+				},
+				Features: map[string]any{
+					string(constants.CopilotRequestsFeatureFlag): true,
+				},
+			},
+			// permission values must be indented by exactly 6 spaces (4 for job key + 2 for sub-key)
+			wantContains: []string{
+				"      copilot-requests: write",
+			},
+			// Over-indented value (10 spaces) must not appear - this was the bug
+			wantNotContains: []string{
+				"          copilot-requests: write",
+			},
+		},
+		{
+			name: "permissions block absent when copilot-requests feature disabled and no contents read needed",
+			data: &WorkflowData{
+				Name: "test-workflow",
+				AI:   "copilot",
+				SafeOutputs: &SafeOutputsConfig{
+					ThreatDetection: &ThreatDetectionConfig{},
+				},
+			},
+			// copilot-requests should not be in the output when the feature is not enabled
+			wantContains:    []string{},
+			wantNotContains: []string{"copilot-requests: write"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			compiler := NewCompiler()
+
+			job, err := compiler.buildDetectionJob(tt.data)
+			if err != nil {
+				t.Fatalf("buildDetectionJob() error: %v", err)
+			}
+			if job == nil {
+				t.Fatal("buildDetectionJob() returned nil job")
+			}
+
+			if err := compiler.jobManager.AddJob(job); err != nil {
+				t.Fatalf("AddJob() error: %v", err)
+			}
+
+			yamlOutput := compiler.jobManager.RenderToYAML()
+
+			for _, expected := range tt.wantContains {
+				if !strings.Contains(yamlOutput, expected) {
+					t.Errorf("YAML output should contain %q, but got:\n%s", expected, yamlOutput)
+				}
+			}
+			for _, unexpected := range tt.wantNotContains {
+				if strings.Contains(yamlOutput, unexpected) {
+					t.Errorf("YAML output should NOT contain %q, but got:\n%s", unexpected, yamlOutput)
 				}
 			}
 		})

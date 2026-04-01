@@ -150,6 +150,15 @@ func (c *Compiler) validateWorkflowData(workflowData *WorkflowData, markdownPath
 		return formatCompilerError(markdownPath, "error", err.Error(), err)
 	}
 
+	// Validate tools.github.github-app.permissions does not use "write"
+	log.Printf("Validating GitHub MCP app permissions (no write)")
+	if err := validateGitHubMCPAppPermissionsNoWrite(workflowData); err != nil {
+		return formatCompilerError(markdownPath, "error", err.Error(), err)
+	}
+
+	// Warn when github-app.permissions is set in contexts that don't support it
+	warnGitHubAppPermissionsUnsupportedContexts(workflowData)
+
 	// Validate agent file exists if specified in engine config
 	log.Printf("Validating agent file if specified")
 	if err := c.validateAgentFile(workflowData, markdownPath); err != nil {
@@ -171,6 +180,12 @@ func (c *Compiler) validateWorkflowData(workflowData *WorkflowData, markdownPath
 	// Validate safe-outputs allowed-domains configuration
 	log.Printf("Validating safe-outputs allowed-domains")
 	if err := c.validateSafeOutputsAllowedDomains(workflowData.SafeOutputs); err != nil {
+		return formatCompilerError(markdownPath, "error", err.Error(), err)
+	}
+
+	// Validate safe-job needs: declarations against known generated job IDs
+	log.Printf("Validating safe-job needs declarations")
+	if err := validateSafeJobNeeds(workflowData); err != nil {
 		return formatCompilerError(markdownPath, "error", err.Error(), err)
 	}
 
@@ -283,12 +298,6 @@ func (c *Compiler) validateWorkflowData(workflowData *WorkflowData, markdownPath
 	// Emit experimental warning for qmd documentation search feature
 	if workflowData.QmdConfig != nil {
 		fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Using experimental feature: qmd"))
-		c.IncrementWarningCount()
-	}
-
-	// Emit experimental warning for dependencies (APM) feature
-	if workflowData.APMDependencies != nil && len(workflowData.APMDependencies.Packages) > 0 {
-		fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Using experimental feature: dependencies (APM)"))
 		c.IncrementWarningCount()
 	}
 

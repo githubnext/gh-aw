@@ -90,6 +90,78 @@ func TestPermissionsSet(t *testing.T) {
 	}
 }
 
+// TestPermissionsSetPreservesShorthandPermissions verifies that calling Set() on a Permissions
+// with a shorthand value (read-all, write-all, none) preserves the shorthand-implied permissions
+// instead of discarding them. This is the regression test for the bug where adding
+// copilot-requests: write to a read-all workflow dropped all other read permissions.
+func TestPermissionsSetPreservesShorthandPermissions(t *testing.T) {
+	tests := []struct {
+		name            string
+		base            *Permissions
+		setScope        PermissionScope
+		setLevel        PermissionLevel
+		checkScope      PermissionScope
+		wantPreserved   PermissionLevel
+		wantPreservedOK bool
+	}{
+		{
+			name:            "read-all: adding write scope preserves contents: read",
+			base:            NewPermissionsReadAll(),
+			setScope:        PermissionCopilotRequests,
+			setLevel:        PermissionWrite,
+			checkScope:      PermissionContents,
+			wantPreserved:   PermissionRead,
+			wantPreservedOK: true,
+		},
+		{
+			name:            "read-all: adding write scope preserves issues: read",
+			base:            NewPermissionsReadAll(),
+			setScope:        PermissionCopilotRequests,
+			setLevel:        PermissionWrite,
+			checkScope:      PermissionIssues,
+			wantPreserved:   PermissionRead,
+			wantPreservedOK: true,
+		},
+		{
+			name:            "read-all: adding write scope preserves pull-requests: read",
+			base:            NewPermissionsReadAll(),
+			setScope:        PermissionCopilotRequests,
+			setLevel:        PermissionWrite,
+			checkScope:      PermissionPullRequests,
+			wantPreserved:   PermissionRead,
+			wantPreservedOK: true,
+		},
+		{
+			name:            "write-all: adding extra write scope preserves contents: write",
+			base:            NewPermissionsWriteAll(),
+			setScope:        PermissionCopilotRequests,
+			setLevel:        PermissionWrite,
+			checkScope:      PermissionContents,
+			wantPreserved:   PermissionWrite,
+			wantPreservedOK: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tt.base.Set(tt.setScope, tt.setLevel)
+
+			// Verify the newly set scope
+			gotNew, existsNew := tt.base.Get(tt.setScope)
+			if !existsNew || gotNew != tt.setLevel {
+				t.Errorf("Set scope %s: got %v (exists=%v), want %v", tt.setScope, gotNew, existsNew, tt.setLevel)
+			}
+
+			// Verify the preserved scope
+			gotPrev, existsPrev := tt.base.Get(tt.checkScope)
+			if existsPrev != tt.wantPreservedOK || gotPrev != tt.wantPreserved {
+				t.Errorf("Preserved scope %s: got %v (exists=%v), want %v (exists=%v)",
+					tt.checkScope, gotPrev, existsPrev, tt.wantPreserved, tt.wantPreservedOK)
+			}
+		})
+	}
+}
+
 func TestPermissionsGet(t *testing.T) {
 	tests := []struct {
 		name        string

@@ -14,6 +14,7 @@ import (
 
 	"github.com/fsnotify/fsnotify"
 	"github.com/github/gh-aw/pkg/console"
+	"github.com/github/gh-aw/pkg/gitutil"
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/workflow"
 )
@@ -23,7 +24,7 @@ var compileWatchLog = logger.New("cli:compile_watch")
 // watchAndCompileWorkflows watches for changes to workflow files and recompiles them automatically
 func watchAndCompileWorkflows(markdownFile string, compiler *workflow.Compiler, verbose bool) error {
 	// Find git root for consistent behavior
-	gitRoot, err := findGitRoot()
+	gitRoot, err := gitutil.FindGitRoot()
 	if err != nil {
 		return fmt.Errorf("watch mode requires being in a git repository: %w", err)
 	}

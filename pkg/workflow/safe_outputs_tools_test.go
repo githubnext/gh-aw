@@ -660,6 +660,67 @@ func TestEnhanceToolDescription(t *testing.T) {
 			wantContains:    []string{"Unknown tool."},
 			wantNotContains: []string{"CONSTRAINTS:"},
 		},
+		{
+			name:            "update_discussion with labels only",
+			toolName:        "update_discussion",
+			baseDescription: "Update a discussion.",
+			safeOutputs: &SafeOutputsConfig{
+				UpdateDiscussions: &UpdateDiscussionsConfig{
+					AllowedLabels: []string{"Label1", "Label2"},
+					Labels:        testBoolPtr(true),
+				},
+			},
+			wantContains:    []string{"CONSTRAINTS:", `Only these labels are allowed: ["Label1" "Label2"]`},
+			wantNotContains: []string{"Title updates are allowed.", "Body updates are allowed."},
+		},
+		{
+			name:            "update_discussion with title and body",
+			toolName:        "update_discussion",
+			baseDescription: "Update a discussion.",
+			safeOutputs: &SafeOutputsConfig{
+				UpdateDiscussions: &UpdateDiscussionsConfig{
+					Title: testBoolPtr(true),
+					Body:  testBoolPtr(true),
+				},
+			},
+			wantContains:    []string{"CONSTRAINTS:", "Title updates are allowed.", "Body updates are allowed."},
+			wantNotContains: []string{"Label updates are allowed."},
+		},
+		{
+			name:            "update_discussion with all fields",
+			toolName:        "update_discussion",
+			baseDescription: "Update a discussion.",
+			safeOutputs: &SafeOutputsConfig{
+				UpdateDiscussions: &UpdateDiscussionsConfig{
+					UpdateEntityConfig: UpdateEntityConfig{
+						BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("3")},
+					},
+					Title:         testBoolPtr(true),
+					Body:          testBoolPtr(true),
+					Labels:        testBoolPtr(true),
+					AllowedLabels: []string{"bug"},
+				},
+			},
+			wantContains: []string{
+				"CONSTRAINTS:",
+				"Maximum 3 discussion(s) can be updated.",
+				"Title updates are allowed.",
+				"Body updates are allowed.",
+				`Only these labels are allowed: ["bug"]`,
+			},
+		},
+		{
+			name:            "update_discussion with labels (no allowed list)",
+			toolName:        "update_discussion",
+			baseDescription: "Update a discussion.",
+			safeOutputs: &SafeOutputsConfig{
+				UpdateDiscussions: &UpdateDiscussionsConfig{
+					Labels: testBoolPtr(true),
+				},
+			},
+			wantContains:    []string{"CONSTRAINTS:", "Label updates are allowed."},
+			wantNotContains: []string{"Only these labels are allowed"},
+		},
 	}
 
 	for _, tt := range tests {
@@ -851,6 +912,244 @@ func TestRepoParameterAddedOnlyWithAllowedRepos(t *testing.T) {
 			} else {
 				assert.False(t, hasRepo, "Tool %s should not have repo parameter when allowed-repos is not configured", tt.toolName)
 			}
+		})
+	}
+}
+
+// TestFilterUpdateDiscussionSchemaFields verifies that filterToolSchemaFields correctly
+// removes fields from the update_discussion tool schema based on what is enabled in config.
+func TestFilterUpdateDiscussionSchemaFields(t *testing.T) {
+	boolPtr := func(b bool) *bool { return &b }
+
+	makeToolWithAllFields := func() map[string]any {
+		return map[string]any{
+			"name": "update_discussion",
+			"inputSchema": map[string]any{
+				"type": "object",
+				"properties": map[string]any{
+					"title":             map[string]any{"type": "string"},
+					"body":              map[string]any{"type": "string"},
+					"labels":            map[string]any{"type": "array"},
+					"discussion_number": map[string]any{"type": "number"},
+					"secrecy":           map[string]any{"type": "string"},
+					"integrity":         map[string]any{"type": "string"},
+				},
+			},
+		}
+	}
+
+	tests := []struct {
+		name            string
+		safeOutputs     *SafeOutputsConfig
+		expectTitle     bool
+		expectBody      bool
+		expectLabels    bool
+		expectDiscNum   bool
+		expectSecrecy   bool
+		expectIntegrity bool
+	}{
+		{
+			name: "labels only - title and body removed",
+			safeOutputs: &SafeOutputsConfig{
+				UpdateDiscussions: &UpdateDiscussionsConfig{
+					Labels:        boolPtr(true),
+					AllowedLabels: []string{"Label1", "Label2"},
+				},
+			},
+			expectTitle:     false,
+			expectBody:      false,
+			expectLabels:    true,
+			expectDiscNum:   true,
+			expectSecrecy:   true,
+			expectIntegrity: true,
+		},
+		{
+			name: "title and body only - labels removed",
+			safeOutputs: &SafeOutputsConfig{
+				UpdateDiscussions: &UpdateDiscussionsConfig{
+					Title: boolPtr(true),
+					Body:  boolPtr(true),
+				},
+			},
+			expectTitle:     true,
+			expectBody:      true,
+			expectLabels:    false,
+			expectDiscNum:   true,
+			expectSecrecy:   true,
+			expectIntegrity: true,
+		},
+		{
+			name: "all fields enabled",
+			safeOutputs: &SafeOutputsConfig{
+				UpdateDiscussions: &UpdateDiscussionsConfig{
+					Title:  boolPtr(true),
+					Body:   boolPtr(true),
+					Labels: boolPtr(true),
+				},
+			},
+			expectTitle:     true,
+			expectBody:      true,
+			expectLabels:    true,
+			expectDiscNum:   true,
+			expectSecrecy:   true,
+			expectIntegrity: true,
+		},
+		{
+			name: "no fields enabled - all content fields removed",
+			safeOutputs: &SafeOutputsConfig{
+				UpdateDiscussions: &UpdateDiscussionsConfig{},
+			},
+			expectTitle:     false,
+			expectBody:      false,
+			expectLabels:    false,
+			expectDiscNum:   true,
+			expectSecrecy:   true,
+			expectIntegrity: true,
+		},
+		{
+			name:            "nil safe outputs - no changes",
+			safeOutputs:     nil,
+			expectTitle:     true,
+			expectBody:      true,
+			expectLabels:    true,
+			expectDiscNum:   true,
+			expectSecrecy:   true,
+			expectIntegrity: true,
+		},
+		{
+			name: "no update_discussion config - no changes",
+			safeOutputs: &SafeOutputsConfig{
+				CreateIssues: &CreateIssuesConfig{},
+			},
+			expectTitle:     true,
+			expectBody:      true,
+			expectLabels:    true,
+			expectDiscNum:   true,
+			expectSecrecy:   true,
+			expectIntegrity: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tool := makeToolWithAllFields()
+			filterToolSchemaFields(tool, "update_discussion", tt.safeOutputs)
+
+			inputSchema, ok := tool["inputSchema"].(map[string]any)
+			require.True(t, ok, "inputSchema should be present")
+
+			properties, ok := inputSchema["properties"].(map[string]any)
+			require.True(t, ok, "properties should be present")
+
+			_, hasTitle := properties["title"]
+			_, hasBody := properties["body"]
+			_, hasLabels := properties["labels"]
+			_, hasDiscNum := properties["discussion_number"]
+			_, hasSecrecy := properties["secrecy"]
+			_, hasIntegrity := properties["integrity"]
+
+			assert.Equal(t, tt.expectTitle, hasTitle, "title field presence mismatch")
+			assert.Equal(t, tt.expectBody, hasBody, "body field presence mismatch")
+			assert.Equal(t, tt.expectLabels, hasLabels, "labels field presence mismatch")
+			assert.Equal(t, tt.expectDiscNum, hasDiscNum, "discussion_number field should always be present")
+			assert.Equal(t, tt.expectSecrecy, hasSecrecy, "secrecy field should always be present")
+			assert.Equal(t, tt.expectIntegrity, hasIntegrity, "integrity field should always be present")
+		})
+	}
+}
+
+// TestFilterUpdateDiscussionSchemaFieldsViaGenerateFiltered verifies that the end-to-end
+// generateFilteredToolsJSON correctly filters update_discussion fields based on config.
+func TestFilterUpdateDiscussionSchemaFieldsViaGenerateFiltered(t *testing.T) {
+	boolPtr := func(b bool) *bool { return &b }
+
+	tests := []struct {
+		name         string
+		safeOutputs  *SafeOutputsConfig
+		expectTitle  bool
+		expectBody   bool
+		expectLabels bool
+	}{
+		{
+			name: "only allowed-labels configured removes title and body from schema",
+			safeOutputs: &SafeOutputsConfig{
+				UpdateDiscussions: &UpdateDiscussionsConfig{
+					UpdateEntityConfig: UpdateEntityConfig{
+						SafeOutputTargetConfig: SafeOutputTargetConfig{Target: "*"},
+					},
+					Labels:        boolPtr(true),
+					AllowedLabels: []string{"Label1", "Label2"},
+				},
+			},
+			expectTitle:  false,
+			expectBody:   false,
+			expectLabels: true,
+		},
+		{
+			name: "title and body configured removes labels from schema",
+			safeOutputs: &SafeOutputsConfig{
+				UpdateDiscussions: &UpdateDiscussionsConfig{
+					Title: boolPtr(true),
+					Body:  boolPtr(true),
+				},
+			},
+			expectTitle:  true,
+			expectBody:   true,
+			expectLabels: false,
+		},
+		{
+			name: "all fields configured",
+			safeOutputs: &SafeOutputsConfig{
+				UpdateDiscussions: &UpdateDiscussionsConfig{
+					Title:  boolPtr(true),
+					Body:   boolPtr(true),
+					Labels: boolPtr(true),
+				},
+			},
+			expectTitle:  true,
+			expectBody:   true,
+			expectLabels: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			data := &WorkflowData{
+				SafeOutputs: tt.safeOutputs,
+			}
+
+			toolsJSON, err := generateFilteredToolsJSON(data, "")
+			require.NoError(t, err, "generateFilteredToolsJSON should not error")
+
+			var tools []map[string]any
+			err = json.Unmarshal([]byte(toolsJSON), &tools)
+			require.NoError(t, err, "tools JSON should be valid")
+
+			// Find update_discussion tool
+			var discTool map[string]any
+			for _, tool := range tools {
+				if tool["name"] == "update_discussion" {
+					discTool = tool
+					break
+				}
+			}
+			require.NotNil(t, discTool, "update_discussion tool should be present")
+
+			inputSchema, ok := discTool["inputSchema"].(map[string]any)
+			require.True(t, ok, "inputSchema should be present")
+
+			properties, ok := inputSchema["properties"].(map[string]any)
+			require.True(t, ok, "properties should be present")
+
+			_, hasTitle := properties["title"]
+			_, hasBody := properties["body"]
+			_, hasLabels := properties["labels"]
+			_, hasDiscNum := properties["discussion_number"]
+
+			assert.Equal(t, tt.expectTitle, hasTitle, "title field presence mismatch")
+			assert.Equal(t, tt.expectBody, hasBody, "body field presence mismatch")
+			assert.Equal(t, tt.expectLabels, hasLabels, "labels field presence mismatch")
+			assert.True(t, hasDiscNum, "discussion_number should always be present")
 		})
 	}
 }

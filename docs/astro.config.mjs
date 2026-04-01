@@ -1,6 +1,7 @@
 // @ts-check
 import { defineConfig } from 'astro/config';
 import starlight from '@astrojs/starlight';
+import sitemap from '@astrojs/sitemap';
 import starlightLlmsTxt from 'starlight-llms-txt';
 import starlightLinksValidator from 'starlight-links-validator';
 import starlightGitHubAlerts from 'starlight-github-alerts';
@@ -129,6 +130,7 @@ export default defineConfig({
 		'/patterns/trialops/': '/gh-aw/patterns/trial-ops/',
 	},
 	integrations: [
+		sitemap(),
 		mermaid(),
 		starlight({
 			title: 'GitHub Agentic Workflows',
@@ -321,6 +323,7 @@ export default defineConfig({
 						{ label: 'Network Access', link: '/reference/network/' },
 						{ label: 'Playwright', link: '/reference/playwright/' },
 						{ label: 'Rate Limiting', link: '/reference/rate-limiting-controls/' },
+						{ label: 'Releases and Versioning', link: '/reference/releases/' },
 						{ label: 'Repo Memory', link: '/reference/repo-memory/' },
 						{ label: 'MCP Scripts', link: '/reference/mcp-scripts/' },
 						{ label: 'MCP Scripts (Spec)', link: '/reference/mcp-scripts-specification/' },

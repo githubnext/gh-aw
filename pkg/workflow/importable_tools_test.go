@@ -84,83 +84,6 @@ Uses imported playwright tool.
 	}
 }
 
-// TestImportSerenaTool tests that serena tool can be imported from a shared workflow
-func TestImportSerenaTool(t *testing.T) {
-	tempDir := testutil.TempDir(t, "test-*")
-
-	// Create a shared workflow with serena tool
-	sharedPath := filepath.Join(tempDir, "shared-serena.md")
-	sharedContent := `---
-description: "Shared serena configuration"
-tools:
-  serena:
-    - go
-    - typescript
----
-
-# Shared Serena Configuration
-`
-	if err := os.WriteFile(sharedPath, []byte(sharedContent), 0644); err != nil {
-		t.Fatalf("Failed to write shared file: %v", err)
-	}
-
-	// Create main workflow that imports serena
-	workflowPath := filepath.Join(tempDir, "main-workflow.md")
-	workflowContent := `---
-on: issues
-engine: copilot
-imports:
-  - shared-serena.md
-permissions:
-  contents: read
-  issues: read
-  pull-requests: read
----
-
-# Main Workflow
-
-Uses imported serena tool.
-`
-	if err := os.WriteFile(workflowPath, []byte(workflowContent), 0644); err != nil {
-		t.Fatalf("Failed to write workflow file: %v", err)
-	}
-
-	// Compile the workflow
-	compiler := workflow.NewCompiler()
-	if err := compiler.CompileWorkflow(workflowPath); err != nil {
-		t.Fatalf("CompileWorkflow failed: %v", err)
-	}
-
-	// Read the generated lock file
-	lockFilePath := stringutil.MarkdownToLockFile(workflowPath)
-	lockFileContent, err := os.ReadFile(lockFilePath)
-	if err != nil {
-		t.Fatalf("Failed to read lock file: %v", err)
-	}
-
-	workflowData := string(lockFileContent)
-
-	// Verify serena is configured in the MCP config
-	if !strings.Contains(workflowData, `"serena"`) {
-		t.Error("Expected compiled workflow to contain serena tool")
-	}
-
-	// Verify serena container (now using Docker instead of uvx)
-	if !strings.Contains(workflowData, "ghcr.io/github/serena-mcp-server:latest") {
-		t.Error("Expected compiled workflow to contain serena Docker container")
-	}
-
-	// Verify that language service setup steps are NOT present
-	// since Serena now runs in a container with language services included
-	if strings.Contains(workflowData, "Install Go language service") {
-		t.Error("Did not expect Go language service installation step (Serena runs in container)")
-	}
-
-	if strings.Contains(workflowData, "Install TypeScript language service") {
-		t.Error("Did not expect TypeScript language service installation step (Serena runs in container)")
-	}
-}
-
 // TestImportAgenticWorkflowsTool tests that agentic-workflows tool can be imported
 func TestImportAgenticWorkflowsTool(t *testing.T) {
 	tempDir := testutil.TempDir(t, "test-*")
@@ -258,18 +181,16 @@ Uses imported agentic-workflows tool.
 	}
 }
 
-// TestImportAllThreeTools tests importing all three tools together
-func TestImportAllThreeTools(t *testing.T) {
+// TestImportMultipleTools tests importing multiple tools together
+func TestImportMultipleTools(t *testing.T) {
 	tempDir := testutil.TempDir(t, "test-*")
 
-	// Create a shared workflow with all three tools
+	// Create a shared workflow with multiple tools
 	sharedPath := filepath.Join(tempDir, "shared-all.md")
 	sharedContent := `---
-description: "Shared configuration with all tools"
+description: "Shared configuration with multiple tools"
 tools:
   agentic-workflows: true
-  serena:
-    - go
   playwright:
     version: "v1.41.0"
 permissions:
@@ -322,12 +243,9 @@ Uses all imported tools.
 
 	workflowData := string(lockFileContent)
 
-	// Verify all three tools are present
+	// Verify tools are present
 	if !strings.Contains(workflowData, `"playwright"`) {
 		t.Error("Expected compiled workflow to contain playwright tool")
-	}
-	if !strings.Contains(workflowData, `"serena"`) {
-		t.Error("Expected compiled workflow to contain serena tool")
 	}
 	// Per MCP Gateway Specification v1.0.0, agentic-workflows uses containerized format
 	if !strings.Contains(workflowData, `"`+constants.AgenticWorkflowsMCPServerID.String()+`"`) {
@@ -337,91 +255,6 @@ Uses all imported tools.
 	// Verify specific configurations
 	if !strings.Contains(workflowData, "mcr.microsoft.com/playwright/mcp") {
 		t.Error("Expected compiled workflow to contain playwright Docker image")
-	}
-	if !strings.Contains(workflowData, "ghcr.io/github/serena-mcp-server:latest") {
-		t.Error("Expected compiled workflow to contain serena Docker container")
-	}
-}
-
-// TestImportSerenaWithLanguageConfig tests serena with detailed language configuration
-func TestImportSerenaWithLanguageConfig(t *testing.T) {
-	tempDir := testutil.TempDir(t, "test-*")
-
-	// Create a shared workflow with serena tool with detailed language config
-	sharedPath := filepath.Join(tempDir, "shared-serena-config.md")
-	sharedContent := `---
-description: "Shared serena with language config"
-tools:
-  serena:
-    languages:
-      go:
-        version: "1.21"
-        gopls-version: "latest"
-      typescript:
-        version: "22"
----
-
-# Shared Serena Language Configuration
-`
-	if err := os.WriteFile(sharedPath, []byte(sharedContent), 0644); err != nil {
-		t.Fatalf("Failed to write shared file: %v", err)
-	}
-
-	// Create main workflow that imports serena
-	workflowPath := filepath.Join(tempDir, "main-workflow.md")
-	workflowContent := `---
-on: issues
-engine: copilot
-imports:
-  - shared-serena-config.md
-permissions:
-  contents: read
-  issues: read
-  pull-requests: read
----
-
-# Main Workflow
-
-Uses imported serena with language config.
-`
-	if err := os.WriteFile(workflowPath, []byte(workflowContent), 0644); err != nil {
-		t.Fatalf("Failed to write workflow file: %v", err)
-	}
-
-	// Compile the workflow
-	compiler := workflow.NewCompiler()
-	if err := compiler.CompileWorkflow(workflowPath); err != nil {
-		t.Fatalf("CompileWorkflow failed: %v", err)
-	}
-
-	// Read the generated lock file
-	lockFilePath := stringutil.MarkdownToLockFile(workflowPath)
-	lockFileContent, err := os.ReadFile(lockFilePath)
-	if err != nil {
-		t.Fatalf("Failed to read lock file: %v", err)
-	}
-
-	workflowData := string(lockFileContent)
-
-	// Verify serena is configured
-	if !strings.Contains(workflowData, `"serena"`) {
-		t.Error("Expected compiled workflow to contain serena tool")
-	}
-
-	// Verify that language runtime setup steps are NOT present
-	// since Serena now runs in a container with language services included
-	// Note: "Setup Go for CLI build" is for building the gh-aw CLI in dev mode, not for runtime
-	if strings.Contains(workflowData, "- name: Setup Go\n") {
-		t.Error("Did not expect Go runtime setup step (Serena runs in container)")
-	}
-
-	if strings.Contains(workflowData, "- name: Setup Node.js\n") {
-		t.Error("Did not expect Node.js setup step (Serena runs in container)")
-	}
-
-	// Verify serena container is present
-	if !strings.Contains(workflowData, "ghcr.io/github/serena-mcp-server") {
-		t.Error("Expected serena to use Docker container")
 	}
 }
 

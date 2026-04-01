@@ -44,6 +44,7 @@ tools:
     max-file-size: 102400  # 100KB
   github:
     min-integrity: approved
+    approval-labels: [cookie]
     toolsets: [default, discussions]
   bash:
     - "find .github -name '*.md'"

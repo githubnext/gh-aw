@@ -55,9 +55,6 @@ func (e *CodexEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]an
 		case "qmd":
 			qmdTool := expandedTools["qmd"]
 			renderer.RenderQmdMCP(yaml, qmdTool, workflowData)
-		case "serena":
-			serenaTool := expandedTools["serena"]
-			renderer.RenderSerenaMCP(yaml, serenaTool)
 		case "agentic-workflows":
 			renderer.RenderAgenticWorkflowsMCP(yaml)
 		case "safe-outputs":

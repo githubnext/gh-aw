@@ -25,7 +25,6 @@
 //   - web-search: Web search capabilities
 //   - edit: File editing operations
 //   - playwright: Browser automation
-//   - serena: Serena integration
 //   - agentic-workflows: Nested workflow execution
 //   - cache-memory: In-workflow memory caching
 //   - repo-memory: Repository-backed persistent memory
@@ -132,9 +131,6 @@ func NewTools(toolsMap map[string]any) *Tools {
 	if val, exists := toolsMap["qmd"]; exists {
 		tools.Qmd = parseQmdTool(val)
 	}
-	if val, exists := toolsMap["serena"]; exists {
-		tools.Serena = parseSerenaTool(val)
-	}
 	if val, exists := toolsMap["agentic-workflows"]; exists {
 		tools.AgenticWorkflows = parseAgenticWorkflowsTool(val)
 	}
@@ -160,7 +156,6 @@ func NewTools(toolsMap map[string]any) *Tools {
 		"edit":              true,
 		"playwright":        true,
 		"qmd":               true,
-		"serena":            true,
 		"agentic-workflows": true,
 		"cache-memory":      true,
 		"repo-memory":       true,
@@ -177,7 +172,7 @@ func NewTools(toolsMap map[string]any) *Tools {
 		}
 	}
 
-	toolsParserLog.Printf("Parsed tools: github=%v, bash=%v, playwright=%v, qmd=%v, serena=%v, custom=%d", tools.GitHub != nil, tools.Bash != nil, tools.Playwright != nil, tools.Qmd != nil, tools.Serena != nil, customCount)
+	toolsParserLog.Printf("Parsed tools: github=%v, bash=%v, playwright=%v, qmd=%v, custom=%d", tools.GitHub != nil, tools.Bash != nil, tools.Playwright != nil, tools.Qmd != nil, customCount)
 	return tools
 }
 
@@ -319,6 +314,26 @@ func parseGitHubTool(val any) *GitHubToolConfig {
 				configMap["approval-labels"] = toAnySlice(parsed) // normalize raw map for JSON rendering
 			}
 		}
+		if trustedUsers, ok := configMap["trusted-users"].([]any); ok {
+			config.TrustedUsers = make([]string, 0, len(trustedUsers))
+			for _, item := range trustedUsers {
+				if str, ok := item.(string); ok {
+					config.TrustedUsers = append(config.TrustedUsers, str)
+				}
+			}
+		} else if trustedUsers, ok := configMap["trusted-users"].([]string); ok {
+			config.TrustedUsers = trustedUsers
+		} else if trustedUsersStr, ok := configMap["trusted-users"].(string); ok {
+			if isGitHubActionsExpression(trustedUsersStr) {
+				// GitHub Actions expression: store as-is; raw map retains the string for JSON rendering.
+				config.TrustedUsersExpr = trustedUsersStr
+			} else {
+				// Static comma/newline-separated string: parse at compile time.
+				parsed := parseCommaSeparatedOrNewlineList(trustedUsersStr)
+				config.TrustedUsers = parsed
+				configMap["trusted-users"] = toAnySlice(parsed) // normalize raw map for JSON rendering
+			}
+		}
 
 		return config
 	}
@@ -410,6 +425,14 @@ func parsePlaywrightTool(val any) *PlaywrightToolConfig {
 	return &PlaywrightToolConfig{}
 }
 
+// isUnexpandedImportInput reports whether s is an unexpanded import-schema placeholder
+// of the form "${{ github.aw.import-inputs.<key> }}" that was left as a literal string
+// because the caller did not supply the optional input. It returns false for any other
+// value, including legitimate GitHub Actions expressions like "${{ hashFiles('...') }}".
+func isUnexpandedImportInput(s string) bool {
+	return strings.Contains(s, "github.aw.import-inputs.")
+}
+
 // parseQmdTool converts raw qmd tool configuration to QmdToolConfig.
 // Supported fields:
 //
@@ -427,8 +450,11 @@ func parseQmdTool(val any) *QmdToolConfig {
 	if configMap, ok := val.(map[string]any); ok {
 		config := &QmdToolConfig{}
 
-		// Handle cache-key field
-		if cacheKey, ok := configMap["cache-key"].(string); ok && cacheKey != "" {
+		// Handle cache-key field. Skip values that are unexpanded import-schema placeholders
+		// (exactly "${{ github.aw.import-inputs.cache-key }}") left as literal strings when
+		// the caller does not supply the optional input. Legitimate GitHub Actions expressions
+		// such as "qmd-${{ hashFiles('docs/**') }}" are kept as-is.
+		if cacheKey, ok := configMap["cache-key"].(string); ok && cacheKey != "" && !isUnexpandedImportInput(cacheKey) {
 			config.CacheKey = cacheKey
 			toolsParserLog.Printf("qmd tool cache-key: %s", cacheKey)
 		}
@@ -441,9 +467,11 @@ func parseQmdTool(val any) *QmdToolConfig {
 			}
 		}
 
-		// Handle runs-on field (override runner image for the indexing job)
+		// Handle runs-on field (override runner image for the indexing job). Skip values that
+		// are unexpanded import-schema placeholders. Legitimate GitHub Actions expressions are
+		// kept as-is.
 		if runsOnVal, exists := configMap["runs-on"]; exists {
-			if runsOnStr, ok := runsOnVal.(string); ok && runsOnStr != "" {
+			if runsOnStr, ok := runsOnVal.(string); ok && runsOnStr != "" && !isUnexpandedImportInput(runsOnStr) {
 				config.RunsOn = runsOnStr
 				toolsParserLog.Printf("qmd tool runs-on: %s", runsOnStr)
 			}
@@ -577,81 +605,6 @@ func parseYAMLInt(v any) int {
 		return int(n)
 	}
 	return 0
-}
-
-// parseSerenaTool converts raw serena tool configuration to SerenaToolConfig
-func parseSerenaTool(val any) *SerenaToolConfig {
-	if val == nil {
-		toolsParserLog.Print("Serena tool enabled with default configuration")
-		return &SerenaToolConfig{}
-	}
-
-	// Handle array format (short syntax): ["go", "typescript"]
-	if langArray, ok := val.([]any); ok {
-		toolsParserLog.Printf("Parsing Serena tool with short-syntax language list: %d languages", len(langArray))
-		config := &SerenaToolConfig{
-			ShortSyntax: make([]string, 0, len(langArray)),
-		}
-		for _, item := range langArray {
-			if str, ok := item.(string); ok {
-				config.ShortSyntax = append(config.ShortSyntax, str)
-			}
-		}
-		return config
-	}
-
-	// Handle object format with detailed configuration
-	if configMap, ok := val.(map[string]any); ok {
-		config := &SerenaToolConfig{}
-
-		if version, ok := configMap["version"].(string); ok {
-			config.Version = version
-		}
-
-		if args, ok := configMap["args"].([]any); ok {
-			config.Args = make([]string, 0, len(args))
-			for _, item := range args {
-				if str, ok := item.(string); ok {
-					config.Args = append(config.Args, str)
-				}
-			}
-		}
-
-		// Parse languages configuration
-		if languagesVal, ok := configMap["languages"].(map[string]any); ok {
-			config.Languages = make(map[string]*SerenaLangConfig)
-			for langName, langVal := range languagesVal {
-				if langVal == nil {
-					// nil means enable with defaults
-					config.Languages[langName] = &SerenaLangConfig{}
-					continue
-				}
-				if langMap, ok := langVal.(map[string]any); ok {
-					langConfig := &SerenaLangConfig{}
-					if version, ok := langMap["version"].(string); ok {
-						langConfig.Version = version
-					} else if versionNum, ok := langMap["version"].(float64); ok {
-						// Convert numeric version to string
-						langConfig.Version = fmt.Sprintf("%.0f", versionNum)
-					}
-					// Parse Go-specific fields
-					if langName == "go" {
-						if goModFile, ok := langMap["go-mod-file"].(string); ok {
-							langConfig.GoModFile = goModFile
-						}
-						if goplsVersion, ok := langMap["gopls-version"].(string); ok {
-							langConfig.GoplsVersion = goplsVersion
-						}
-					}
-					config.Languages[langName] = langConfig
-				}
-			}
-		}
-
-		return config
-	}
-
-	return &SerenaToolConfig{}
 }
 
 // parseWebFetchTool converts raw web-fetch tool configuration

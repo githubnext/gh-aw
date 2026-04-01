@@ -100,6 +100,91 @@
                         },
                         {
                           "type": "boolean"
+                        },
+                        {
+                          "type": "object",
+                          "description": "Object value for import-schema parameters of type 'object' (one level deep).",
+                          "additionalProperties": {
+                            "oneOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "number"
+                              },
+                              {
+                                "type": "boolean"
+                              }
+                            ]
+                          }
+                        }
+                      ]
+                    }
+                  }
+                }
+              },
+              {
+                "type": "object",
+                "description": "Import specification with 'uses'/'with' syntax (mirrors GitHub Actions reusable workflow syntax). 'uses' references the workflow path and 'with' provides input values.",
+                "required": ["uses"],
+                "additionalProperties": false,
+                "properties": {
+                  "uses": {
+                    "type": "string",
+                    "description": "Workflow specification in format owner/repo/path@ref. Alias for 'path'."
+                  },
+                  "with": {
+                    "type": "object",
+                    "description": "Input values to pass to the imported workflow, validated against the imported workflow's 'import-schema'. Alias for 'inputs'.",
+                    "additionalProperties": {
+                      "oneOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "number"
+                        },
+                        {
+                          "type": "boolean"
+                        },
+                        {
+                          "type": "object",
+                          "description": "Object value for import-schema parameters of type 'object' (one level deep).",
+                          "additionalProperties": {
+                            "oneOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "number"
+                              },
+                              {
+                                "type": "boolean"
+                              }
+                            ]
+                          }
+                        },
+                        {
+                          "type": "array",
+                          "description": "Array value for import-schema parameters of type 'array'.",
+                          "items": {
+                            "oneOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "number"
+                              },
+                              {
+                                "type": "boolean"
+                              },
+                              {
+                                "type": "object",
+                                "description": "Object element in an array import parameter.",
+                                "additionalProperties": true
+                              }
+                            ]
+                          }
                         }
                       ]
                     }
@@ -137,7 +222,102 @@
                         "type": "object",
                         "description": "Input values to pass to the imported workflow.",
                         "additionalProperties": {
-                          "oneOf": [{ "type": "string" }, { "type": "number" }, { "type": "boolean" }]
+                          "oneOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "number"
+                            },
+                            {
+                              "type": "boolean"
+                            },
+                            {
+                              "type": "object",
+                              "description": "Object value for import-schema parameters of type 'object' (one level deep).",
+                              "additionalProperties": {
+                                "oneOf": [
+                                  {
+                                    "type": "string"
+                                  },
+                                  {
+                                    "type": "number"
+                                  },
+                                  {
+                                    "type": "boolean"
+                                  }
+                                ]
+                              }
+                            }
+                          ]
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "type": "object",
+                    "description": "Import specification with 'uses'/'with' syntax.",
+                    "required": ["uses"],
+                    "additionalProperties": false,
+                    "properties": {
+                      "uses": {
+                        "type": "string",
+                        "description": "Workflow specification in format owner/repo/path@ref."
+                      },
+                      "with": {
+                        "type": "object",
+                        "description": "Input values to pass to the imported workflow.",
+                        "additionalProperties": {
+                          "oneOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "number"
+                            },
+                            {
+                              "type": "boolean"
+                            },
+                            {
+                              "type": "object",
+                              "description": "Object value for import-schema parameters of type 'object' (one level deep).",
+                              "additionalProperties": {
+                                "oneOf": [
+                                  {
+                                    "type": "string"
+                                  },
+                                  {
+                                    "type": "number"
+                                  },
+                                  {
+                                    "type": "boolean"
+                                  }
+                                ]
+                              }
+                            },
+                            {
+                              "type": "array",
+                              "description": "Array value for import-schema parameters of type 'array'.",
+                              "items": {
+                                "oneOf": [
+                                  {
+                                    "type": "string"
+                                  },
+                                  {
+                                    "type": "number"
+                                  },
+                                  {
+                                    "type": "boolean"
+                                  },
+                                  {
+                                    "type": "object",
+                                    "description": "Object element in an array import parameter.",
+                                    "additionalProperties": true
+                                  }
+                                ]
+                              }
+                            }
+                          ]
                         }
                       }
                     }
@@ -1582,7 +1762,7 @@
               "oneOf": [
                 {
                   "type": "null",
-                  "description": "Bare key with no value — equivalent to true. Skips workflow execution if any CI checks on the target branch are currently failing."
+                  "description": "Bare key with no value \u2014 equivalent to true. Skips workflow execution if any CI checks on the target branch are currently failing."
                 },
                 {
                   "type": "boolean",
@@ -1668,8 +1848,8 @@
                   "description": "List of repository permission levels that can trigger the workflow. Permission checks are automatically applied to potentially unsafe triggers.",
                   "items": {
                     "type": "string",
-                    "enum": ["admin", "maintainer", "maintain", "write", "triage"],
-                    "description": "Repository permission level: 'admin' (full access), 'maintainer'/'maintain' (repository management), 'write' (push access), 'triage' (issue management)"
+                    "enum": ["admin", "maintainer", "maintain", "write", "triage", "read"],
+                    "description": "Repository permission level: 'admin' (full access), 'maintainer'/'maintain' (repository management), 'write' (push access), 'triage' (issue management), 'read' (read-only access)"
                   },
                   "minItems": 1,
                   "maxItems": 50
@@ -1751,7 +1931,52 @@
                   "with": {
                     "type": "object",
                     "description": "Input parameters for the action",
-                    "additionalProperties": true
+                    "additionalProperties": {
+                      "oneOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "number"
+                        },
+                        {
+                          "type": "boolean"
+                        },
+                        {
+                          "type": "object",
+                          "description": "Object value for import-schema parameters of type 'object' (one level deep).",
+                          "additionalProperties": {
+                            "oneOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "number"
+                              },
+                              {
+                                "type": "boolean"
+                              }
+                            ]
+                          }
+                        },
+                        {
+                          "type": "array",
+                          "items": {
+                            "oneOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "number"
+                              },
+                              {
+                                "type": "boolean"
+                              }
+                            ]
+                          }
+                        }
+                      ]
+                    }
                   },
                   "env": {
                     "type": "object",
@@ -1922,106 +2147,7 @@
           "description": "Simple permissions string: 'read-all' (all read permissions) or 'write-all' (all write permissions)"
         },
         {
-          "type": "object",
-          "description": "Detailed permissions object with granular control over specific GitHub API scopes",
-          "additionalProperties": false,
-          "properties": {
-            "actions": {
-              "type": "string",
-              "enum": ["read", "write", "none"],
-              "description": "Permission for GitHub Actions workflows and runs (read: view workflows, write: manage workflows, none: no access)"
-            },
-            "attestations": {
-              "type": "string",
-              "enum": ["read", "write", "none"],
-              "description": "Permission for artifact attestations (read: view attestations, write: create attestations, none: no access)"
-            },
-            "checks": {
-              "type": "string",
-              "enum": ["read", "write", "none"],
-              "description": "Permission for repository checks and status checks (read: view checks, write: create/update checks, none: no access)"
-            },
-            "contents": {
-              "type": "string",
-              "enum": ["read", "write", "none"],
-              "description": "Permission for repository contents (read: view files, write: modify files/branches, none: no access)"
-            },
-            "deployments": {
-              "type": "string",
-              "enum": ["read", "write", "none"],
-              "description": "Permission for repository deployments (read: view deployments, write: create/update deployments, none: no access)"
-            },
-            "discussions": {
-              "type": "string",
-              "enum": ["read", "write", "none"],
-              "description": "Permission for repository discussions (read: view discussions, write: create/update discussions, none: no access)"
-            },
-            "id-token": {
-              "type": "string",
-              "enum": ["write", "none"],
-              "description": "Permission level for OIDC token requests (write/none only - read is not supported). Allows workflows to request JWT tokens for cloud provider authentication."
-            },
-            "issues": {
-              "type": "string",
-              "enum": ["read", "write", "none"],
-              "description": "Permission for repository issues (read: view issues, write: create/update/close issues, none: no access)"
-            },
-            "models": {
-              "type": "string",
-              "enum": ["read", "none"],
-              "description": "Permission for GitHub Copilot models (read: access AI models for agentic workflows, none: no access)"
-            },
-            "metadata": {
-              "type": "string",
-              "enum": ["read", "write", "none"],
-              "description": "Permission for repository metadata (read: view repository information, write: update repository metadata, none: no access)"
-            },
-            "packages": {
-              "type": "string",
-              "enum": ["read", "write", "none"],
-              "description": "Permission level for GitHub Packages (read/write/none). Controls access to publish, modify, or delete packages."
-            },
-            "pages": {
-              "type": "string",
-              "enum": ["read", "write", "none"],
-              "description": "Permission level for GitHub Pages (read/write/none). Controls access to deploy and manage GitHub Pages sites."
-            },
-            "pull-requests": {
-              "type": "string",
-              "enum": ["read", "write", "none"],
-              "description": "Permission level for pull requests (read/write/none). Controls access to create, edit, review, and manage pull requests."
-            },
-            "repository-projects": {
-              "type": "string",
-              "enum": ["read", "write", "none"],
-              "description": "Permission level for repository projects (read/write/none). Controls access to manage repository-level GitHub Projects boards."
-            },
-            "organization-projects": {
-              "type": "string",
-              "enum": ["read", "write", "none"],
-              "description": "Permission level for organization projects (read/write/none). Controls access to manage organization-level GitHub Projects boards."
-            },
-            "security-events": {
-              "type": "string",
-              "enum": ["read", "write", "none"],
-              "description": "Permission level for security events (read/write/none). Controls access to view and manage code scanning alerts and security findings."
-            },
-            "statuses": {
-              "type": "string",
-              "enum": ["read", "write", "none"],
-              "description": "Permission level for commit statuses (read/write/none). Controls access to create and update commit status checks."
-            },
-            "vulnerability-alerts": {
-              "type": "string",
-              "enum": ["read", "write", "none"],
-              "description": "Permission level for Dependabot vulnerability alerts (read/write/none). GitHub App-only permission: required to access Dependabot alerts via the GitHub MCP server. The GITHUB_TOKEN does not have this permission \u2014 a GitHub App must be configured."
-            },
-            "all": {
-              "type": "string",
-              "enum": ["read"],
-              "description": "Permission shorthand that applies read access to all permission scopes. Can be combined with specific write permissions to override individual scopes. 'write' is not allowed for all."
-            }
-          }
+          "$ref": "#/$defs/github_actions_permissions"
         }
       ]
     },
@@ -2119,7 +2245,52 @@
                 "with": {
                   "type": "object",
                   "description": "A map of the input parameters defined by the action. Each input parameter is a key/value pair.",
-                  "additionalProperties": true
+                  "additionalProperties": {
+                    "oneOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "number"
+                      },
+                      {
+                        "type": "boolean"
+                      },
+                      {
+                        "type": "object",
+                        "description": "Object value for import-schema parameters of type 'object' (one level deep).",
+                        "additionalProperties": {
+                          "oneOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "number"
+                            },
+                            {
+                              "type": "boolean"
+                            }
+                          ]
+                        }
+                      },
+                      {
+                        "type": "array",
+                        "items": {
+                          "oneOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "number"
+                            },
+                            {
+                              "type": "boolean"
+                            }
+                          ]
+                        }
+                      }
+                    ]
+                  }
                 },
                 "env": {
                   "type": "object",
@@ -2263,6 +2434,39 @@
                 },
                 {
                   "type": "boolean"
+                },
+                {
+                  "type": "object",
+                  "description": "Object value for import-schema parameters of type 'object' (one level deep).",
+                  "additionalProperties": {
+                    "oneOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "number"
+                      },
+                      {
+                        "type": "boolean"
+                      }
+                    ]
+                  }
+                },
+                {
+                  "type": "array",
+                  "items": {
+                    "oneOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "number"
+                      },
+                      {
+                        "type": "boolean"
+                      }
+                    ]
+                  }
                 }
               ]
             }
@@ -2327,6 +2531,11 @@
           "labels": ["ubuntu-latest-8-cores"]
         }
       ]
+    },
+    "runs-on-slim": {
+      "type": "string",
+      "description": "Runner for all framework/generated jobs (activation, pre-activation, safe-outputs, unlock, APM, etc.). Provides a compile-stable override for generated job runners without requiring a safe-outputs section. Overridden by safe-outputs.runs-on when both are set. Defaults to 'ubuntu-slim'. Use this when your infrastructure does not provide the default runner or when you need consistent runner selection across all jobs.",
+      "examples": ["self-hosted", "ubuntu-latest", "ubuntu-22.04"]
     },
     "timeout-minutes": {
       "type": "integer",
@@ -2739,10 +2948,6 @@
                         "description": "HTTPS URL pattern with optional wildcards (e.g., 'https://github.com/githubnext/*')"
                       },
                       "examples": [["https://github.com/githubnext/*", "https://api.github.com/repos/*"]]
-                    },
-                    "cleanup-script": {
-                      "type": "string",
-                      "description": "Path to cleanup script run after AWF shuts down (default: ./scripts/ci/cleanup.sh)"
                     }
                   },
                   "additionalProperties": false
@@ -3374,6 +3579,24 @@
                     }
                   ]
                 },
+                "trusted-users": {
+                  "description": "Guard policy: GitHub usernames whose content is elevated to 'approved' integrity regardless of author_association. Allows specific external contributors to bypass 'min-integrity' checks without lowering the global policy. Precedence: blocked-users > trusted-users > approval-labels > author_association. Requires 'min-integrity' to be set. Accepts an array of usernames, a comma-separated string, a newline-separated string, or a GitHub Actions expression (e.g. '${{ vars.TRUSTED_USERS }}').",
+                  "oneOf": [
+                    {
+                      "type": "array",
+                      "description": "Array of GitHub usernames to trust",
+                      "items": {
+                        "type": "string",
+                        "description": "GitHub username to elevate to approved integrity"
+                      },
+                      "minItems": 0
+                    },
+                    {
+                      "type": "string",
+                      "description": "Comma- or newline-separated list of usernames, or a GitHub Actions expression resolving to such a list (e.g. '${{ vars.TRUSTED_USERS }}')"
+                    }
+                  ]
+                },
                 "approval-labels": {
                   "description": "Guard policy: GitHub label names that promote a content item's effective integrity to 'approved' when present. Enables human-review gates where a maintainer labels an item to allow it through. Uses max(base, approved) so it never lowers integrity. Does not override 'blocked-users'. Requires 'min-integrity' to be set. Accepts an array of label names, a comma-separated string, a newline-separated string, or a GitHub Actions expression (e.g. '${{ vars.APPROVAL_LABELS }}').",
                   "oneOf": [
@@ -3394,18 +3617,7 @@
                 },
                 "github-app": {
                   "$ref": "#/$defs/github_app",
-                  "description": "GitHub App configuration for token minting. When configured, a GitHub App installation access token is minted at workflow start and used instead of the default token. This token overrides any custom github-token setting and provides fine-grained permissions matching the agent job requirements.",
-                  "examples": [
-                    {
-                      "app-id": "${{ vars.APP_ID }}",
-                      "private-key": "${{ secrets.APP_PRIVATE_KEY }}"
-                    },
-                    {
-                      "app-id": "${{ vars.APP_ID }}",
-                      "private-key": "${{ secrets.APP_PRIVATE_KEY }}",
-                      "repositories": ["repo1", "repo2"]
-                    }
-                  ]
+                  "description": "GitHub App configuration for token minting. When configured, a GitHub App installation access token is minted at workflow start and used instead of the default token. This token overrides any custom github-token setting and provides fine-grained permissions matching the agent job requirements."
                 }
               },
               "additionalProperties": false,
@@ -3815,208 +4027,10 @@
           "description": "Timeout in seconds for MCP server startup. Applies to MCP server initialization if supported by the engine. Default: 120 seconds."
         },
         "serena": {
-          "description": "Serena MCP server for AI-powered code intelligence with language service integration",
-          "oneOf": [
-            {
-              "type": "null",
-              "description": "Enable Serena with default settings"
-            },
-            {
-              "type": "array",
-              "description": "Short syntax: array of language identifiers to enable (e.g., [\"go\", \"typescript\"]). Note: rust does not generate a runtime setup step.",
-              "items": {
-                "type": "string",
-                "enum": [
-                  "go",
-                  "typescript",
-                  "javascript",
-                  "python",
-                  "java",
-                  "rust",
-                  "csharp",
-                  "cpp",
-                  "c",
-                  "ruby",
-                  "php",
-                  "bash",
-                  "swift",
-                  "kotlin",
-                  "scala",
-                  "haskell",
-                  "elixir",
-                  "erlang",
-                  "clojure",
-                  "lua",
-                  "perl",
-                  "r",
-                  "dart",
-                  "julia",
-                  "fortran",
-                  "nix",
-                  "rego",
-                  "terraform",
-                  "yaml",
-                  "markdown",
-                  "zig",
-                  "elm"
-                ]
-              }
-            },
-            {
-              "type": "object",
-              "description": "Serena configuration with custom version and language-specific settings",
-              "properties": {
-                "version": {
-                  "type": ["string", "number"],
-                  "description": "Optional Serena MCP version. Numeric values are automatically converted to strings at runtime.",
-                  "examples": ["latest", "0.1.0", 1.0]
-                },
-                "mode": {
-                  "type": "string",
-                  "description": "Serena execution mode (only 'docker' is supported, runs in container)",
-                  "enum": ["docker"],
-                  "default": "docker"
-                },
-                "args": {
-                  "type": "array",
-                  "description": "Optional additional arguments to append to the generated MCP server command",
-                  "items": {
-                    "type": "string"
-                  }
-                },
-                "languages": {
-                  "type": "object",
-                  "description": "Language-specific configuration for Serena language services",
-                  "properties": {
-                    "go": {
-                      "oneOf": [
-                        {
-                          "type": "null",
-                          "description": "Enable Go language service with default version"
-                        },
-                        {
-                          "type": "object",
-                          "properties": {
-                            "version": {
-                              "type": ["string", "number"],
-                              "description": "Go version (e.g., \"1.21\", 1.21)"
-                            },
-                            "go-mod-file": {
-                              "type": "string",
-                              "description": "Path to go.mod file for Go version detection (e.g., \"go.mod\", \"backend/go.mod\")"
-                            },
-                            "gopls-version": {
-                              "type": "string",
-                              "description": "Version of gopls to install (e.g., \"latest\", \"v0.14.2\")"
-                            }
-                          },
-                          "additionalProperties": false
-                        }
-                      ],
-                      "description": "Configuration for Go language support in Serena code analysis. Enables Go-specific parsing, linting, and security checks."
-                    },
-                    "typescript": {
-                      "oneOf": [
-                        {
-                          "type": "null",
-                          "description": "Enable TypeScript language service with default version"
-                        },
-                        {
-                          "type": "object",
-                          "properties": {
-                            "version": {
-                              "type": ["string", "number"],
-                              "description": "Node.js version for TypeScript (e.g., \"22\", 22)"
-                            }
-                          },
-                          "additionalProperties": false
-                        }
-                      ],
-                      "description": "Configuration for TypeScript language support in Serena code analysis. Enables TypeScript-specific parsing, linting, and type checking."
-                    },
-                    "python": {
-                      "oneOf": [
-                        {
-                          "type": "null",
-                          "description": "Enable Python language service with default version"
-                        },
-                        {
-                          "type": "object",
-                          "properties": {
-                            "version": {
-                              "type": ["string", "number"],
-                              "description": "Python version (e.g., \"3.12\", 3.12)"
-                            }
-                          },
-                          "additionalProperties": false
-                        }
-                      ],
-                      "description": "Configuration for Python language support in Serena code analysis. Enables Python-specific parsing, linting, and security checks."
-                    },
-                    "java": {
-                      "oneOf": [
-                        {
-                          "type": "null",
-                          "description": "Enable Java language service with default version"
-                        },
-                        {
-                          "type": "object",
-                          "properties": {
-                            "version": {
-                              "type": ["string", "number"],
-                              "description": "Java version (e.g., \"21\", 21)"
-                            }
-                          },
-                          "additionalProperties": false
-                        }
-                      ],
-                      "description": "Configuration for Java language support in Serena code analysis. Enables Java-specific parsing, linting, and security checks."
-                    },
-                    "rust": {
-                      "oneOf": [
-                        {
-                          "type": "null",
-                          "description": "Enable Rust language service with default version"
-                        },
-                        {
-                          "type": "object",
-                          "properties": {
-                            "version": {
-                              "type": ["string", "number"],
-                              "description": "Rust version (e.g., \"stable\", \"1.75\")"
-                            }
-                          },
-                          "additionalProperties": false
-                        }
-                      ],
-                      "description": "Configuration for Rust language support in Serena code analysis. Enables Rust-specific parsing, linting, and security checks. Note: rust does not generate a runtime setup step in GitHub Actions."
-                    },
-                    "csharp": {
-                      "oneOf": [
-                        {
-                          "type": "null",
-                          "description": "Enable C# language service with default version"
-                        },
-                        {
-                          "type": "object",
-                          "properties": {
-                            "version": {
-                              "type": ["string", "number"],
-                              "description": ".NET version for C# (e.g., \"8.0\", 8.0)"
-                            }
-                          },
-                          "additionalProperties": false
-                        }
-                      ],
-                      "description": "Configuration for C# language support in Serena code analysis. Enables C#-specific parsing, linting, and security checks."
-                    }
-                  },
-                  "additionalProperties": false
-                }
-              },
-              "additionalProperties": false
-            }
-          ]
+          "description": "REMOVED: Built-in support for Serena has been removed. Use the shared/mcp/serena.md workflow instead.",
+          "deprecated": true,
+          "x-removed": true,
+          "x-removal-message": "tools.serena built-in support has been removed. Import shared/mcp/serena.md instead:\n  imports:\n    - uses: shared/mcp/serena.md\n      with:\n        languages: [\"go\", \"typescript\"]"
         },
         "repo-memory": {
           "description": "Repo memory configuration for git-based persistent storage",
@@ -5816,6 +5830,15 @@
                   "description": "Controls the fallback behavior when pull request creation fails. When true (default), an issue is created as a fallback with the patch content. When false, no issue is created and the workflow fails with an error. Setting to false also removes the issues:write permission requirement.",
                   "default": true
                 },
+                "auto-close-issue": {
+                  "allOf": [
+                    {
+                      "$ref": "#/$defs/templatable_boolean"
+                    }
+                  ],
+                  "description": "When true (default), automatically appends a closing keyword (\"Fixes #N\") to the PR description when the workflow is triggered from an issue and no closing keyword is already present. This causes GitHub to auto-close the triggering issue when the PR is merged. Set to false to prevent this behavior, e.g., for partial-work PRs or multi-PR workflows. Accepts a boolean or a GitHub Actions expression.",
+                  "default": true
+                },
                 "github-token-for-extra-empty-commit": {
                   "type": "string",
                   "description": "Token used to push an empty commit after PR creation to trigger CI events. Works around the GITHUB_TOKEN limitation where pushes don't trigger workflow runs. Defaults to the magic secret GH_AW_CI_TRIGGER_TOKEN if set in the repository. Use a secret expression (e.g. '${{ secrets.CI_TOKEN }}') for a custom token, or 'app' for GitHub App auth."
@@ -5844,6 +5867,12 @@
                     "type": "string"
                   },
                   "description": "List of glob patterns for files to exclude from the patch. Each pattern is passed to `git format-patch` as a `:(exclude)<pattern>` magic pathspec, so matching files are stripped by git at generation time and will not appear in the commit. Excluded files are also not subject to `allowed-files` or `protected-files` checks. Supports * (any characters except /) and ** (any characters including /)."
+                },
+                "patch-format": {
+                  "type": "string",
+                  "enum": ["am", "bundle"],
+                  "default": "am",
+                  "description": "Transport format for packaging changes. \"am\" (default) uses git format-patch/git am. \"bundle\" uses git bundle, which preserves merge commit topology, per-commit authorship, and merge-resolution-only content."
                 },
                 "staged": {
                   "type": "boolean",
@@ -6988,6 +7017,12 @@
                     "type": "string"
                   },
                   "description": "List of glob patterns for files to exclude from the patch. Each pattern is passed to `git format-patch` as a `:(exclude)<pattern>` magic pathspec, so matching files are stripped by git at generation time and will not appear in the commit. Excluded files are also not subject to `allowed-files` or `protected-files` checks. Supports * (any characters except /) and ** (any characters including /)."
+                },
+                "patch-format": {
+                  "type": "string",
+                  "enum": ["am", "bundle"],
+                  "default": "am",
+                  "description": "Transport format for packaging changes. \"am\" (default) uses git format-patch/git am. \"bundle\" uses git bundle, which preserves merge commit topology, per-commit authorship, and merge-resolution-only content."
                 }
               },
               "additionalProperties": false
@@ -8334,6 +8369,12 @@
       "description": "Mark the workflow as private, preventing it from being added to other repositories via 'gh aw add'. A workflow with private: true is not meant to be shared outside its repository.",
       "examples": [true, false]
     },
+    "check-for-updates": {
+      "type": "boolean",
+      "default": true,
+      "description": "Control whether the compile-agentic version update check runs in the activation job. When true (default), the activation job downloads config.json from the gh-aw repository and verifies the compiled version is not blocked and meets the minimum supported version. Set to false to disable the check (not allowed in strict mode). See: https://github.github.com/gh-aw/reference/frontmatter/#check-for-updates",
+      "examples": [true, false]
+    },
     "mcp-scripts": {
       "type": "object",
       "description": "MCP Scripts configuration for defining custom lightweight MCP tools as JavaScript, shell scripts, or Python scripts. Tools are mounted in an MCP server and have access to secrets specified by the user. Only one of 'script' (JavaScript), 'run' (shell), or 'py' (Python) must be specified per tool.",
@@ -8636,6 +8677,143 @@
     "github-app": {
       "$ref": "#/$defs/github_app",
       "description": "Top-level GitHub App configuration used as a fallback for all nested github-app token minting operations (on, safe-outputs, checkout, tools.github, dependencies). When a nested section does not define its own github-app, this top-level configuration is used automatically."
+    },
+    "import-schema": {
+      "type": "object",
+      "description": "Schema for validating 'with' input values when this workflow is imported by another workflow using the 'uses'/'with' syntax. Defines the expected parameters, their types, and whether they are required. Scalar inputs are accessible via '${{ github.aw.import-inputs.<name> }}' expressions. Object inputs (type: object) allow one-level deep sub-fields accessible via '${{ github.aw.import-inputs.<name>.<subkey> }}' expressions.",
+      "additionalProperties": {
+        "oneOf": [
+          {
+            "type": "object",
+            "description": "Input parameter definition for scalar types (string, number, boolean, choice).",
+            "properties": {
+              "description": {
+                "type": "string",
+                "description": "Human-readable description of the input parameter."
+              },
+              "required": {
+                "type": "boolean",
+                "description": "Whether this input is required when using 'with' in an import.",
+                "default": false
+              },
+              "default": {
+                "description": "Default value used when 'with' does not provide this input."
+              },
+              "type": {
+                "type": "string",
+                "enum": ["string", "number", "boolean", "choice", "array"],
+                "description": "The type of the input value."
+              },
+              "options": {
+                "type": "array",
+                "description": "List of allowed values for choice type inputs.",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "items": {
+                "type": "object",
+                "description": "Schema for individual array elements. Typically {\"type\": \"string\"}.",
+                "properties": {
+                  "type": {
+                    "type": "string",
+                    "enum": ["string", "number", "boolean"],
+                    "description": "Type of each array item."
+                  }
+                },
+                "additionalProperties": false
+              }
+            },
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "description": "Input parameter definition for object type (one level deep). Use 'properties' to declare the expected sub-fields.",
+            "required": ["type"],
+            "properties": {
+              "description": {
+                "type": "string",
+                "description": "Human-readable description of the input parameter."
+              },
+              "required": {
+                "type": "boolean",
+                "description": "Whether this input is required when using 'with' in an import.",
+                "default": false
+              },
+              "type": {
+                "type": "string",
+                "enum": ["object"],
+                "description": "The type 'object' enables structured sub-fields accessible via 'github.aw.import-inputs.<name>.<subkey>'."
+              },
+              "properties": {
+                "type": "object",
+                "description": "One-level deep property definitions for this object input.",
+                "additionalProperties": {
+                  "type": "object",
+                  "description": "Sub-property definition.",
+                  "properties": {
+                    "description": {
+                      "type": "string"
+                    },
+                    "required": {
+                      "type": "boolean",
+                      "default": false
+                    },
+                    "default": {},
+                    "type": {
+                      "type": "string",
+                      "enum": ["string", "number", "boolean", "choice"],
+                      "description": "Type of the sub-property."
+                    },
+                    "options": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              }
+            },
+            "additionalProperties": false
+          }
+        ]
+      },
+      "examples": [
+        {
+          "count": {
+            "type": "number",
+            "description": "Number of items to process",
+            "required": true
+          },
+          "category": {
+            "type": "string",
+            "description": "Category filter",
+            "default": "general"
+          },
+          "languages": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "List of language identifiers"
+          },
+          "config": {
+            "type": "object",
+            "properties": {
+              "apiKey": {
+                "type": "string",
+                "required": true
+              },
+              "timeout": {
+                "type": "number",
+                "default": 30
+              }
+            }
+          }
+        }
+      ]
     }
   },
   "additionalProperties": false,
@@ -8907,40 +9085,6 @@
               "description": "Custom environment variables to pass to the AI engine, including secret overrides (e.g., OPENAI_API_KEY: ${{ secrets.CUSTOM_KEY }})",
               "additionalProperties": {
                 "type": "string"
-              }
-            },
-            "error_patterns": {
-              "type": "array",
-              "description": "Custom error patterns for validating agent logs",
-              "items": {
-                "type": "object",
-                "description": "Error pattern definition",
-                "properties": {
-                  "id": {
-                    "type": "string",
-                    "description": "Unique identifier for this error pattern"
-                  },
-                  "pattern": {
-                    "type": "string",
-                    "description": "Ecma script regular expression pattern to match log lines"
-                  },
-                  "level_group": {
-                    "type": "integer",
-                    "minimum": 0,
-                    "description": "Capture group index (1-based) that contains the error level. Use 0 to infer from pattern content."
-                  },
-                  "message_group": {
-                    "type": "integer",
-                    "minimum": 0,
-                    "description": "Capture group index (1-based) that contains the error message. Use 0 to use the entire match."
-                  },
-                  "description": {
-                    "type": "string",
-                    "description": "Human-readable description of what this pattern matches"
-                  }
-                },
-                "required": ["pattern"],
-                "additionalProperties": false
               }
             },
             "config": {
@@ -9450,6 +9594,10 @@
           "items": {
             "type": "string"
           }
+        },
+        "permissions": {
+          "$ref": "#/$defs/github_app_permissions",
+          "description": "Optional extra GitHub App-only permissions to merge into the minted token. Only takes effect for tools.github.github-app; ignored in other github-app contexts."
         }
       },
       "required": ["app-id", "private-key"],
@@ -9488,7 +9636,52 @@
         "with": {
           "type": "object",
           "description": "Input parameters defined by the action",
-          "additionalProperties": true
+          "additionalProperties": {
+            "oneOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "object",
+                "description": "Object value for import-schema parameters of type 'object' (one level deep).",
+                "additionalProperties": {
+                  "oneOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "number"
+                    },
+                    {
+                      "type": "boolean"
+                    }
+                  ]
+                }
+              },
+              {
+                "type": "array",
+                "items": {
+                  "oneOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "number"
+                    },
+                    {
+                      "type": "boolean"
+                    }
+                  ]
+                }
+              }
+            ]
+          }
         },
         "env": {
           "type": "object",
@@ -9684,6 +9877,274 @@
           "description": "GitHub App configuration used to mint a token for the search API request. Mutually exclusive with github-token."
         }
       }
+    },
+    "github_actions_permissions": {
+      "type": "object",
+      "description": "Detailed permissions object with granular control over specific GitHub API scopes",
+      "additionalProperties": false,
+      "properties": {
+        "actions": {
+          "type": "string",
+          "enum": ["read", "write", "none"],
+          "description": "Permission for GitHub Actions workflows and runs (read: view workflows, write: manage workflows, none: no access)"
+        },
+        "attestations": {
+          "type": "string",
+          "enum": ["read", "write", "none"],
+          "description": "Permission for artifact attestations (read: view attestations, write: create attestations, none: no access)"
+        },
+        "checks": {
+          "type": "string",
+          "enum": ["read", "write", "none"],
+          "description": "Permission for repository checks and status checks (read: view checks, write: create/update checks, none: no access)"
+        },
+        "contents": {
+          "type": "string",
+          "enum": ["read", "write", "none"],
+          "description": "Permission for repository contents (read: view files, write: modify files/branches, none: no access)"
+        },
+        "deployments": {
+          "type": "string",
+          "enum": ["read", "write", "none"],
+          "description": "Permission for repository deployments (read: view deployments, write: create/update deployments, none: no access)"
+        },
+        "discussions": {
+          "type": "string",
+          "enum": ["read", "write", "none"],
+          "description": "Permission for repository discussions (read: view discussions, write: create/update discussions, none: no access)"
+        },
+        "id-token": {
+          "type": "string",
+          "enum": ["write", "none"],
+          "description": "Permission level for OIDC token requests (write/none only - read is not supported). Allows workflows to request JWT tokens for cloud provider authentication."
+        },
+        "issues": {
+          "type": "string",
+          "enum": ["read", "write", "none"],
+          "description": "Permission for repository issues (read: view issues, write: create/update/close issues, none: no access)"
+        },
+        "models": {
+          "type": "string",
+          "enum": ["read", "none"],
+          "description": "Permission for GitHub Copilot models (read: access AI models for agentic workflows, none: no access)"
+        },
+        "metadata": {
+          "type": "string",
+          "enum": ["read", "write", "none"],
+          "description": "Permission for repository metadata (read: view repository information, write: update repository metadata, none: no access)"
+        },
+        "packages": {
+          "type": "string",
+          "enum": ["read", "write", "none"],
+          "description": "Permission level for GitHub Packages (read/write/none). Controls access to publish, modify, or delete packages."
+        },
+        "pages": {
+          "type": "string",
+          "enum": ["read", "write", "none"],
+          "description": "Permission level for GitHub Pages (read/write/none). Controls access to deploy and manage GitHub Pages sites."
+        },
+        "pull-requests": {
+          "type": "string",
+          "enum": ["read", "write", "none"],
+          "description": "Permission level for pull requests (read/write/none). Controls access to create, edit, review, and manage pull requests."
+        },
+        "repository-projects": {
+          "type": "string",
+          "enum": ["read", "write", "none"],
+          "description": "Permission level for repository projects (read/write/none). Controls access to manage repository-level GitHub Projects boards."
+        },
+        "organization-projects": {
+          "type": "string",
+          "enum": ["read", "write", "none"],
+          "description": "Permission level for organization projects (read/write/none). Controls access to manage organization-level GitHub Projects boards."
+        },
+        "security-events": {
+          "type": "string",
+          "enum": ["read", "write", "none"],
+          "description": "Permission level for security events (read/write/none). Controls access to view and manage code scanning alerts and security findings."
+        },
+        "statuses": {
+          "type": "string",
+          "enum": ["read", "write", "none"],
+          "description": "Permission level for commit statuses (read/write/none). Controls access to create and update commit status checks."
+        },
+        "vulnerability-alerts": {
+          "type": "string",
+          "enum": ["read", "write", "none"],
+          "description": "Permission level for Dependabot vulnerability alerts (read/write/none). GitHub App-only permission: required to access Dependabot alerts via the GitHub MCP server. The GITHUB_TOKEN does not have this permission \u2014 a GitHub App must be configured."
+        },
+        "all": {
+          "type": "string",
+          "enum": ["read"],
+          "description": "Permission shorthand that applies read access to all permission scopes. Can be combined with specific write permissions to override individual scopes. 'write' is not allowed for all."
+        }
+      }
+    },
+    "github_app_permissions": {
+      "type": "object",
+      "description": "Optional extra GitHub App-only permissions to merge into the minted token. These are added on top of job-level permissions (nested wins). Use this for org-level permissions (e.g., members: read) that are not valid GitHub Actions scopes. Only \"read\" and \"none\" are allowed; specifying \"write\" is a compiler error.",
+      "additionalProperties": false,
+      "properties": {
+        "administration": {
+          "type": "string",
+          "enum": ["read", "none", "write"],
+          "description": "Permission level for repository administration (read/none; \"write\" is rejected by the compiler). GitHub App-only permission for repository administration."
+        },
+        "codespaces": {
+          "type": "string",
+          "enum": ["read", "none", "write"],
+          "description": "Permission level for Codespaces (read/none; \"write\" is rejected by the compiler). GitHub App-only permission."
+        },
+        "codespaces-lifecycle-admin": {
+          "type": "string",
+          "enum": ["read", "none", "write"],
+          "description": "Permission level for Codespaces lifecycle administration (read/none; \"write\" is rejected by the compiler). GitHub App-only permission."
+        },
+        "codespaces-metadata": {
+          "type": "string",
+          "enum": ["read", "none", "write"],
+          "description": "Permission level for Codespaces metadata (read/none; \"write\" is rejected by the compiler). GitHub App-only permission."
+        },
+        "email-addresses": {
+          "type": "string",
+          "enum": ["read", "none", "write"],
+          "description": "Permission level for user email addresses (read/none; \"write\" is rejected by the compiler). GitHub App-only permission."
+        },
+        "environments": {
+          "type": "string",
+          "enum": ["read", "none", "write"],
+          "description": "Permission level for repository environments (read/none; \"write\" is rejected by the compiler). GitHub App-only permission."
+        },
+        "git-signing": {
+          "type": "string",
+          "enum": ["read", "none", "write"],
+          "description": "Permission level for git signing (read/none; \"write\" is rejected by the compiler). GitHub App-only permission."
+        },
+        "members": {
+          "type": "string",
+          "enum": ["read", "none", "write"],
+          "description": "Permission level for organization members (read/none; \"write\" is rejected by the compiler). Required for org team membership API calls."
+        },
+        "organization-administration": {
+          "type": "string",
+          "enum": ["read", "none", "write"],
+          "description": "Permission level for organization administration (read/none; \"write\" is rejected by the compiler). GitHub App-only permission."
+        },
+        "organization-announcement-banners": {
+          "type": "string",
+          "enum": ["read", "none", "write"],
+          "description": "Permission level for organization announcement banners (read/none; \"write\" is rejected by the compiler). GitHub App-only permission."
+        },
+        "organization-codespaces": {
+          "type": "string",
+          "enum": ["read", "none", "write"],
+          "description": "Permission level for organization Codespaces (read/none; \"write\" is rejected by the compiler). GitHub App-only permission."
+        },
+        "organization-copilot": {
+          "type": "string",
+          "enum": ["read", "none", "write"],
+          "description": "Permission level for organization Copilot (read/none; \"write\" is rejected by the compiler). GitHub App-only permission."
+        },
+        "organization-custom-org-roles": {
+          "type": "string",
+          "enum": ["read", "none", "write"],
+          "description": "Permission level for organization custom org roles (read/none; \"write\" is rejected by the compiler). GitHub App-only permission."
+        },
+        "organization-custom-properties": {
+          "type": "string",
+          "enum": ["read", "none", "write"],
+          "description": "Permission level for organization custom properties (read/none; \"write\" is rejected by the compiler). GitHub App-only permission."
+        },
+        "organization-custom-repository-roles": {
+          "type": "string",
+          "enum": ["read", "none", "write"],
+          "description": "Permission level for organization custom repository roles (read/none; \"write\" is rejected by the compiler). GitHub App-only permission."
+        },
+        "organization-events": {
+          "type": "string",
+          "enum": ["read", "none", "write"],
+          "description": "Permission level for organization events (read/none; \"write\" is rejected by the compiler). GitHub App-only permission."
+        },
+        "organization-hooks": {
+          "type": "string",
+          "enum": ["read", "none", "write"],
+          "description": "Permission level for organization webhooks (read/none; \"write\" is rejected by the compiler). GitHub App-only permission."
+        },
+        "organization-members": {
+          "type": "string",
+          "enum": ["read", "none", "write"],
+          "description": "Permission level for organization members management (read/none; \"write\" is rejected by the compiler). GitHub App-only permission."
+        },
+        "organization-packages": {
+          "type": "string",
+          "enum": ["read", "none", "write"],
+          "description": "Permission level for organization packages (read/none; \"write\" is rejected by the compiler). GitHub App-only permission."
+        },
+        "organization-personal-access-token-requests": {
+          "type": "string",
+          "enum": ["read", "none", "write"],
+          "description": "Permission level for organization personal access token requests (read/none; \"write\" is rejected by the compiler). GitHub App-only permission."
+        },
+        "organization-personal-access-tokens": {
+          "type": "string",
+          "enum": ["read", "none", "write"],
+          "description": "Permission level for organization personal access tokens (read/none; \"write\" is rejected by the compiler). GitHub App-only permission."
+        },
+        "organization-plan": {
+          "type": "string",
+          "enum": ["read", "none", "write"],
+          "description": "Permission level for organization plan (read/none; \"write\" is rejected by the compiler). GitHub App-only permission."
+        },
+        "organization-self-hosted-runners": {
+          "type": "string",
+          "enum": ["read", "none", "write"],
+          "description": "Permission level for organization self-hosted runners (read/none; \"write\" is rejected by the compiler). GitHub App-only permission."
+        },
+        "organization-user-blocking": {
+          "type": "string",
+          "enum": ["read", "none", "write"],
+          "description": "Permission level for organization user blocking (read/none; \"write\" is rejected by the compiler). GitHub App-only permission."
+        },
+        "repository-custom-properties": {
+          "type": "string",
+          "enum": ["read", "none", "write"],
+          "description": "Permission level for repository custom properties (read/none; \"write\" is rejected by the compiler). GitHub App-only permission."
+        },
+        "repository-hooks": {
+          "type": "string",
+          "enum": ["read", "none", "write"],
+          "description": "Permission level for repository webhooks (read/none; \"write\" is rejected by the compiler). GitHub App-only permission."
+        },
+        "single-file": {
+          "type": "string",
+          "enum": ["read", "none", "write"],
+          "description": "Permission level for single file access (read/none; \"write\" is rejected by the compiler). GitHub App-only permission."
+        },
+        "team-discussions": {
+          "type": "string",
+          "enum": ["read", "none", "write"],
+          "description": "Permission level for team discussions (read/none; \"write\" is rejected by the compiler). GitHub App-only permission."
+        },
+        "vulnerability-alerts": {
+          "type": "string",
+          "enum": ["read", "none", "write"],
+          "description": "Permission level for Dependabot vulnerability alerts (read/none; \"write\" is rejected by the compiler). GitHub App-only permission."
+        },
+        "workflows": {
+          "type": "string",
+          "enum": ["read", "none", "write"],
+          "description": "Permission level for GitHub Actions workflow files (read/none; \"write\" is rejected by the compiler). GitHub App-only permission."
+        }
+      },
+      "examples": [
+        {
+          "members": "read"
+        },
+        {
+          "members": "read",
+          "organization-administration": "read"
+        }
+      ]
     }
   }
 }

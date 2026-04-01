@@ -80,13 +80,14 @@ Test cache-memory import without local definition.
 	lockStr := string(lockContent)
 
 	// We expect the imported caches to be present
+	// Custom keys now get the integrity/policy prefix to prevent cross-integrity cache sharing
 	expectedStrings := []string{
 		"- name: Create cache-memory directory (session)",
 		"path: /tmp/gh-aw/cache-memory-session",
-		"key: shared-session-${{ github.run_id }}",
+		"key: memory-none-nopolicy-shared-session-${{ github.run_id }}",
 		"- name: Create cache-memory directory (logs)",
 		"path: /tmp/gh-aw/cache-memory-logs",
-		"key: shared-logs-${{ github.run_id }}",
+		"key: memory-none-nopolicy-shared-logs-${{ github.run_id }}",
 		"cache_memory_prompt_multi.md", // Template file reference instead of literal content
 		"- **session**: `/tmp/gh-aw/cache-memory-session/`",
 		"- **logs**: `/tmp/gh-aw/cache-memory-logs/`",

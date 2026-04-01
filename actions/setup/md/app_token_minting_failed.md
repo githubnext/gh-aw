@@ -1,4 +1,4 @@
-**🔑 GitHub App Authentication Failed**: Failed to generate a GitHub App installation access token.
+**GitHub App Authentication Failed**: Failed to generate a GitHub App installation access token.
 
 This is typically caused by an incorrect GitHub App configuration. Please verify:
 - The **App ID** secret/variable is set correctly

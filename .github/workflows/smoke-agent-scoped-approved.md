@@ -20,6 +20,7 @@ tools:
       - "github/gh-aw"
       - "github/*"
     min-integrity: approved
+    approval-labels: [cookie]
 network:
   allowed:
     - defaults

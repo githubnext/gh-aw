@@ -86,12 +86,6 @@ async function main(core, ctx) {
     awInfo.cli_version = cliVersion;
   }
 
-  // Include apm_version only when APM dependencies are configured
-  const apmVersion = process.env.GH_AW_INFO_APM_VERSION;
-  if (apmVersion) {
-    awInfo.apm_version = apmVersion;
-  }
-
   // Include aw_context when the workflow was triggered via workflow_dispatch with
   // the aw_context input set by a calling agentic workflow's dispatch_workflow handler.
   // Validates JSON format and structure before populating the context key in aw_info.json.

@@ -80,7 +80,7 @@ Examples:
 	addRepoFlag(cmd)
 	cmd.Flags().StringP("workflow", "w", "", "Filter by workflow name or filename")
 	cmd.Flags().Int("last", 20, "Number of recent runs to analyze (max 50)")
-	cmd.Flags().String("format", "markdown", "Output format: markdown, pretty, json")
+	cmd.Flags().String("format", "markdown", "Output format: markdown, pretty")
 
 	return cmd
 }
@@ -180,7 +180,12 @@ func RunAuditReport(ctx context.Context, cfg RunAuditReportConfig) error {
 			RunID:            r.Run.DatabaseID,
 			WorkflowName:     r.Run.WorkflowName,
 			Conclusion:       r.Run.Conclusion,
+			Duration:         r.Run.Duration,
 			FirewallAnalysis: r.FirewallAnalysis,
+			Metrics:          r.Metrics,
+			MCPToolUsage:     r.MCPToolUsage,
+			MCPFailures:      r.MCPFailures,
+			ErrorCount:       r.Run.ErrorCount,
 		})
 	}
 
@@ -190,7 +195,7 @@ func RunAuditReport(ctx context.Context, cfg RunAuditReportConfig) error {
 	}
 
 	// Build cross-run report
-	report := buildCrossRunFirewallReport(inputs)
+	report := buildCrossRunAuditReport(inputs)
 
 	// Render output
 	if cfg.JSONOutput || cfg.Format == "json" {

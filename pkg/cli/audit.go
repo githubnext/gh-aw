@@ -14,6 +14,7 @@ import (
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/fileutil"
+	"github.com/github/gh-aw/pkg/gitutil"
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/parser"
 	"github.com/github/gh-aw/pkg/workflow"
@@ -27,7 +28,7 @@ var auditLog = logger.New("cli:audit")
 func NewAuditCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "audit <run-id-or-url>",
-		Short: "Audit a workflow run given a run ID or URL and generate a detailed report",
+		Short: "Audit a workflow run and generate a detailed report",
 		Long: `Audit a single workflow run by downloading artifacts and logs, detecting errors,
 analyzing MCP tool usage, and generating a concise Markdown report suitable for AI agents.
 
@@ -727,7 +728,7 @@ func resolveWorkflowDisplayName(workflowPath, owner, repo, hostname string) stri
 	// Try local file first.  workflowPath is a repo-relative path like
 	// ".github/workflows/foo.lock.yml", so we resolve it against the git root to
 	// produce a correct absolute path regardless of the current working directory.
-	if gitRoot, err := findGitRoot(); err == nil {
+	if gitRoot, err := gitutil.FindGitRoot(); err == nil {
 		absPath := filepath.Join(gitRoot, workflowPath)
 		if content, err := os.ReadFile(absPath); err == nil {
 			if name := extractWorkflowNameFromYAML(content); name != "" {

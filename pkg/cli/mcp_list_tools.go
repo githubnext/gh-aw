@@ -161,9 +161,8 @@ func displayToolsList(info *parser.MCPServerInfo, verbose bool) {
 		opts.ShowVerboseHint = true
 	}
 
-	// Render the table using the shared helper
-	table := renderMCPToolTable(info, opts)
-	fmt.Print(table)
+	// Render the table using the shared helper and print to stdout (structured data)
+	fmt.Fprint(os.Stdout, renderMCPToolTable(info, opts))
 }
 
 // NewMCPListToolsSubcommand creates the mcp list-tools subcommand
@@ -210,7 +209,7 @@ The command will:
 }
 
 // commonMCPServerNames contains commonly used MCP server names for shell completion
-var commonMCPServerNames = []string{"github", "playwright", "serena", "tavily", "safe-outputs"}
+var commonMCPServerNames = []string{"github", "playwright", "tavily", "safe-outputs"}
 
 // completeMCPListToolsArgs provides completion for mcp list-tools command arguments
 func completeMCPListToolsArgs(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {

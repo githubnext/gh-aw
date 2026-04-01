@@ -11,6 +11,7 @@ const { writeLargeContentToFile } = require("./write_large_content_to_file.cjs")
 const { getCurrentBranch } = require("./get_current_branch.cjs");
 const { getBaseBranch } = require("./get_base_branch.cjs");
 const { generateGitPatch } = require("./generate_git_patch.cjs");
+const { generateGitBundle } = require("./generate_git_bundle.cjs");
 const { enforceCommentLimits } = require("./comment_limit_helpers.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { ERR_CONFIG, ERR_SYSTEM, ERR_VALIDATION } = require("./error_codes.cjs");
@@ -310,20 +311,78 @@ function createHandlers(server, appendSafeOutput, config = {}) {
       };
     }
 
-    // Generate git patch with optional cwd for multi-repo support
-    server.debug(`Generating patch for create_pull_request with branch: ${entry.branch}${repoCwd ? ` in ${repoCwd} baseBranch: ${baseBranch}` : ""}`);
-    const patchOptions = {};
+    // Determine transport format: "bundle" uses git bundle (preserves merge topology),
+    // "am" (default) uses git format-patch / git am (good for linear histories).
+    const patchFormat = prConfig["patch_format"] || config["patch_format"] || "am";
+    const useBundle = patchFormat === "bundle";
+
+    // Build common options for both patch and bundle generation
+    const transportOptions = {};
     if (repoCwd) {
-      patchOptions.cwd = repoCwd;
+      transportOptions.cwd = repoCwd;
     }
     if (repoSlug) {
-      patchOptions.repoSlug = repoSlug;
+      transportOptions.repoSlug = repoSlug;
     }
     // Pass per-handler token so cross-repo PATs are used for git fetch when configured.
     // Falls back to GITHUB_TOKEN if not set.
     if (prConfig["github-token"]) {
-      patchOptions.token = prConfig["github-token"];
+      transportOptions.token = prConfig["github-token"];
     }
+
+    if (useBundle) {
+      // Bundle transport: preserves merge commits and per-commit metadata
+      server.debug(`Generating bundle for create_pull_request with branch: ${entry.branch}${repoCwd ? ` in ${repoCwd} baseBranch: ${baseBranch}` : ""}`);
+      const bundleResult = await generateGitBundle(entry.branch, baseBranch, transportOptions);
+
+      if (!bundleResult.success) {
+        const errorMsg = bundleResult.error || "Failed to generate bundle";
+        server.debug(`Bundle generation failed: ${errorMsg}`);
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify({
+                result: "error",
+                error: errorMsg,
+                details: "No commits were found to create a pull request. Make sure you have committed your changes using git add and git commit before calling create_pull_request.",
+              }),
+            },
+          ],
+          isError: true,
+        };
+      }
+
+      server.debug(`Bundle generated successfully: ${bundleResult.bundlePath} (${bundleResult.bundleSize} bytes)`);
+
+      // Store the bundle path in the entry so consumers know which file to use
+      entry.bundle_path = bundleResult.bundlePath;
+
+      if (bundleResult.baseCommit) {
+        entry.base_commit = bundleResult.baseCommit;
+      }
+
+      appendSafeOutput(entry);
+      return {
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify({
+              result: "success",
+              bundle: {
+                path: bundleResult.bundlePath,
+                size: bundleResult.bundleSize,
+              },
+            }),
+          },
+        ],
+      };
+    }
+
+    // Patch transport (default): uses git format-patch / git am
+    server.debug(`Generating patch for create_pull_request with branch: ${entry.branch}${repoCwd ? ` in ${repoCwd} baseBranch: ${baseBranch}` : ""}`);
+    /** @type {Record<string, any>} */
+    const patchOptions = { ...transportOptions };
     // Pass excluded_files so git excludes them via :(exclude) pathspecs at generation time.
     if (Array.isArray(prConfig.excluded_files) && prConfig.excluded_files.length > 0) {
       patchOptions.excludedFiles = prConfig.excluded_files;
@@ -435,16 +494,74 @@ function createHandlers(server, appendSafeOutput, config = {}) {
       entry.branch = detectedBranch;
     }
 
-    // Generate git patch in incremental mode
+    // Determine transport format: "bundle" uses git bundle (preserves merge topology),
+    // "am" (default) uses git format-patch / git am (good for linear histories).
+    const pushPatchFormat = pushConfig["patch_format"] || config["patch_format"] || "am";
+    const useBundle = pushPatchFormat === "bundle";
+
+    // Build common options for both patch and bundle generation
+    const pushTransportOptions = { mode: "incremental" };
+    // Pass per-handler token so cross-repo PATs are used for git fetch when configured.
+    // Falls back to GITHUB_TOKEN if not set.
+    if (pushConfig["github-token"]) {
+      pushTransportOptions.token = pushConfig["github-token"];
+    }
+
+    if (useBundle) {
+      // Bundle transport: preserves merge commits and per-commit metadata
+      server.debug(`Generating incremental bundle for push_to_pull_request_branch with branch: ${entry.branch}, baseBranch: ${baseBranch}`);
+      const bundleResult = await generateGitBundle(entry.branch, baseBranch, pushTransportOptions);
+
+      if (!bundleResult.success) {
+        const errorMsg = bundleResult.error || "Failed to generate bundle";
+        server.debug(`Bundle generation failed: ${errorMsg}`);
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify({
+                result: "error",
+                error: errorMsg,
+                details: "No commits were found to push to the pull request branch. Make sure you have committed your changes using git add and git commit before calling push_to_pull_request_branch.",
+              }),
+            },
+          ],
+          isError: true,
+        };
+      }
+
+      server.debug(`Bundle generated successfully: ${bundleResult.bundlePath} (${bundleResult.bundleSize} bytes)`);
+
+      // Store the bundle path in the entry so consumers know which file to use
+      entry.bundle_path = bundleResult.bundlePath;
+
+      if (bundleResult.baseCommit) {
+        entry.base_commit = bundleResult.baseCommit;
+      }
+
+      appendSafeOutput(entry);
+      return {
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify({
+              result: "success",
+              bundle: {
+                path: bundleResult.bundlePath,
+                size: bundleResult.bundleSize,
+              },
+            }),
+          },
+        ],
+      };
+    }
+
+    // Patch transport (default): uses git format-patch / git am
     // Incremental mode only includes commits since origin/branchName,
     // preventing patches that include already-existing commits
     server.debug(`Generating incremental patch for push_to_pull_request_branch with branch: ${entry.branch}, baseBranch: ${baseBranch}`);
-    // Pass per-handler token so cross-repo PATs are used for git fetch when configured.
-    // Falls back to GITHUB_TOKEN if not set.
-    const pushPatchOptions = { mode: "incremental" };
-    if (pushConfig["github-token"]) {
-      pushPatchOptions.token = pushConfig["github-token"];
-    }
+    /** @type {Record<string, any>} */
+    const pushPatchOptions = { ...pushTransportOptions };
     // Pass excluded_files so git excludes them via :(exclude) pathspecs at generation time.
     if (Array.isArray(pushConfig.excluded_files) && pushConfig.excluded_files.length > 0) {
       pushPatchOptions.excludedFiles = pushConfig.excluded_files;

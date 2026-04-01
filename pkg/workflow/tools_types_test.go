@@ -710,4 +710,52 @@ func TestMCPServerConfigToMap(t *testing.T) {
 			t.Errorf("expected customField, got %v", result["customField"])
 		}
 	})
+
+	t.Run("includes auth field when set", func(t *testing.T) {
+		config := MCPServerConfig{
+			BaseMCPServerConfig: types.BaseMCPServerConfig{
+				Type: "http",
+				URL:  "https://my-server.example.com/mcp",
+				Auth: &types.MCPAuthConfig{
+					Type:     "github-oidc",
+					Audience: "https://my-server.example.com",
+				},
+			},
+		}
+
+		result := mcpServerConfigToMap(config)
+
+		authVal, hasAuth := result["auth"]
+		if !hasAuth {
+			t.Fatal("expected 'auth' key in result map, but it was absent")
+		}
+
+		authConfig, ok := authVal.(*types.MCPAuthConfig)
+		if !ok {
+			t.Fatalf("expected auth to be *types.MCPAuthConfig, got %T", authVal)
+		}
+
+		if authConfig.Type != "github-oidc" {
+			t.Errorf("expected auth.Type = 'github-oidc', got %q", authConfig.Type)
+		}
+		if authConfig.Audience != "https://my-server.example.com" {
+			t.Errorf("expected auth.Audience = 'https://my-server.example.com', got %q", authConfig.Audience)
+		}
+	})
+
+	t.Run("omits auth field when nil", func(t *testing.T) {
+		config := MCPServerConfig{
+			BaseMCPServerConfig: types.BaseMCPServerConfig{
+				Type: "http",
+				URL:  "https://my-server.example.com/mcp",
+				Auth: nil,
+			},
+		}
+
+		result := mcpServerConfigToMap(config)
+
+		if _, hasAuth := result["auth"]; hasAuth {
+			t.Error("expected 'auth' key to be absent when Auth is nil")
+		}
+	})
 }

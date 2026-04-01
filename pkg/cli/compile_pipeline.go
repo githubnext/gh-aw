@@ -27,6 +27,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/github/gh-aw/pkg/gitutil"
 	"github.com/github/gh-aw/pkg/stringutil"
 
 	"github.com/github/gh-aw/pkg/console"
@@ -192,7 +193,7 @@ func compileAllFilesInDirectory(
 	validationResults *[]ValidationResult,
 ) ([]*workflow.WorkflowData, error) {
 	// Find git root for consistent behavior
-	gitRoot, err := findGitRoot()
+	gitRoot, err := gitutil.FindGitRoot()
 	if err != nil {
 		return nil, fmt.Errorf("compile without arguments requires being in a git repository: %w", err)
 	}
@@ -408,7 +409,7 @@ func runPostProcessing(
 
 	// Generate Dependabot manifests if requested
 	if config.Dependabot && !config.NoEmit {
-		gitRoot, err := findGitRoot()
+		gitRoot, err := gitutil.FindGitRoot()
 		if err == nil {
 			absWorkflowDir := filepath.Join(gitRoot, config.WorkflowDir)
 			if err := generateDependabotManifestsWrapper(compiler, workflowDataList, absWorkflowDir, config.ForceOverwrite, config.Strict); err != nil {

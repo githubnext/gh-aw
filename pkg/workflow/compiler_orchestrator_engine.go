@@ -86,6 +86,14 @@ func (c *Compiler) setupEngineAndImports(result *parser.FrontmatterResult, clean
 		return nil, err
 	}
 
+	// Validate check-for-updates flag regardless of strict mode (error in strict, warning in non-strict)
+	if err := c.validateUpdateCheck(result.Frontmatter); err != nil {
+		orchestratorEngineLog.Printf("Update check validation failed: %v", err)
+		// Restore strict mode before returning error
+		c.strictMode = initialStrictMode
+		return nil, err
+	}
+
 	// Restore the initial strict mode state after validation
 	// This ensures strict mode doesn't leak to other workflows being compiled
 	c.strictMode = initialStrictMode

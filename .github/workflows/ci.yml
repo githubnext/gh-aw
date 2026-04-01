@@ -11,6 +11,9 @@ on:
       - 'actions/**'
       - '.github/workflows/ci.yml'
       - '.github/workflows/**/*.md'
+      - '.github/aw/releases.json'
+      - '.github/aw/releases.schema.json'
+      - 'install-gh-aw.sh'
   workflow_dispatch:
 jobs:
   test:
@@ -836,6 +839,93 @@ jobs:
           
           echo "✅ All URLs in $AGENT_FILE correctly use 'main' branch"
 
+      - name: Validate releases.json structure and version formats
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        with:
+          script: |
+            const fs = require('fs');
+            const CONFIG_FILE = '.github/aw/releases.json';
+            const SCHEMA_FILE = '.github/aw/releases.schema.json';
+
+            core.info(`🔍 Validating ${CONFIG_FILE} against ${SCHEMA_FILE}...`);
+
+            if (!fs.existsSync(CONFIG_FILE)) {
+              core.setFailed(`ERROR: ${CONFIG_FILE} not found`);
+              return;
+            }
+            if (!fs.existsSync(SCHEMA_FILE)) {
+              core.setFailed(`ERROR: ${SCHEMA_FILE} not found`);
+              return;
+            }
+
+            let config;
+            try {
+              config = JSON.parse(fs.readFileSync(CONFIG_FILE, 'utf8'));
+            } catch (err) {
+              core.setFailed(`ERROR: ${CONFIG_FILE} is not valid JSON: ${err.message}`);
+              return;
+            }
+            core.info(`✅ ${CONFIG_FILE} is valid JSON`);
+
+            const errors = [];
+
+            // Check additionalProperties (only allow known keys)
+            const allowedKeys = new Set(['$schema', 'blockedVersions', 'minimumVersion', 'minRecommendedVersion']);
+            for (const key of Object.keys(config)) {
+              if (!allowedKeys.has(key)) {
+                errors.push(`Unknown property: '${key}'`);
+              }
+            }
+
+            // Validate blockedVersions
+            if ('blockedVersions' in config) {
+              const bv = config.blockedVersions;
+              if (!Array.isArray(bv)) {
+                errors.push("'blockedVersions' must be an array");
+              } else {
+                const versionPattern = /^v[0-9]+\.[0-9]+\.[0-9]+$/;
+                const seen = new Set();
+                bv.forEach((v, i) => {
+                  if (typeof v !== 'string') {
+                    errors.push(`'blockedVersions[${i}]' must be a string`);
+                  } else if (!versionPattern.test(v)) {
+                    errors.push(`'blockedVersions[${i}]' ('${v}') does not match expected version pattern (vMAJOR.MINOR.PATCH, e.g. 'v1.2.3')`);
+                  } else if (seen.has(v)) {
+                    errors.push(`'blockedVersions' contains duplicate entry: '${v}'`);
+                  } else {
+                    seen.add(v);
+                  }
+                });
+              }
+            }
+
+            // Validate minimumVersion
+            if ('minimumVersion' in config) {
+              const mv = config.minimumVersion;
+              if (typeof mv !== 'string') {
+                errors.push("'minimumVersion' must be a string");
+              } else if (mv !== '' && !/^v[0-9]+\.[0-9]+\.[0-9]+$/.test(mv)) {
+                errors.push(`'minimumVersion' ('${mv}') does not match expected version pattern (vMAJOR.MINOR.PATCH, e.g. 'v1.2.3' or empty string)`);
+              }
+            }
+
+            // Validate minRecommendedVersion
+            if ('minRecommendedVersion' in config) {
+              const mrv = config.minRecommendedVersion;
+              if (typeof mrv !== 'string') {
+                errors.push("'minRecommendedVersion' must be a string");
+              } else if (mrv !== '' && !/^v[0-9]+\.[0-9]+\.[0-9]+$/.test(mrv)) {
+                errors.push(`'minRecommendedVersion' ('${mrv}') does not match expected version pattern (vMAJOR.MINOR.PATCH, e.g. 'v1.2.3' or empty string)`);
+              }
+            }
+
+            if (errors.length > 0) {
+              core.setFailed(`❌ ${CONFIG_FILE} schema validation failed:\n${errors.map(e => `  - ${e}`).join('\n')}`);
+              return;
+            }
+
+            core.info(`✅ ${CONFIG_FILE} is valid and conforms to ${SCHEMA_FILE}`);
+
   js:
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -951,149 +1041,6 @@ jobs:
             cd actions/setup/js && npm test -- frontmatter_hash_github_api.test.cjs
             echo "" >> $GITHUB_STEP_SUMMARY
             echo "✨ Live API test completed successfully" >> $GITHUB_STEP_SUMMARY
-          fi
-
-  js-apm-unpack-integration:
-    name: APM Pack/Unpack Integration (Python vs JS)
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    needs: validate-yaml
-    permissions:
-      contents: read
-    concurrency:
-      group: ci-${{ github.ref }}-js-apm-unpack-integration
-      cancel-in-progress: true
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-
-      - name: Set up Python
-        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
-        with:
-          python-version: "3.12"
-
-      - name: Install APM CLI
-        run: pip install --quiet apm-cli
-
-      - name: Set up Node.js
-        id: setup-node
-        uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f # v6
-        with:
-          node-version: "24"
-          cache: npm
-          cache-dependency-path: actions/setup/js/package-lock.json
-
-      - name: Install npm dependencies
-        run: cd actions/setup/js && npm ci
-
-      - name: Create minimal APM test project
-        run: |
-          set -e
-          APM_PROJECT=/tmp/apm-test-project
-          mkdir -p "$APM_PROJECT"
-          cd "$APM_PROJECT"
-
-          # apm.yml — required by the packer for name/version
-          cat > apm.yml << 'APMEOF'
-          name: gh-aw-test-package
-          version: 1.0.0
-          APMEOF
-
-          # apm.lock.yaml — two dependencies, mixed files and a directory entry
-          cat > apm.lock.yaml << 'APMEOF'
-          lockfile_version: '1'
-          apm_version: '0.8.5'
-          dependencies:
-          - repo_url: https://github.com/test-owner/skill-a
-            resolved_commit: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
-            resolved_ref: main
-            virtual_path: null
-            is_local: false
-            deployed_files:
-            - .github/skills/skill-a/
-            - .github/copilot-instructions.md
-          - repo_url: https://github.com/test-owner/skill-b
-            resolved_commit: bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
-            resolved_ref: v2.0.0
-            virtual_path: null
-            is_local: false
-            deployed_files:
-            - .github/skills/skill-b/skill.md
-            - .github/agents.md
-          APMEOF
-
-          # Create files referenced by deployed_files
-          mkdir -p .github/skills/skill-a
-          printf '# Skill A\nThis is skill A content.\n' > .github/skills/skill-a/skill.md
-          printf 'Skill A helper notes.\n' > .github/skills/skill-a/notes.txt
-          printf '# Copilot Instructions\nFollow these rules.\n' > .github/copilot-instructions.md
-          mkdir -p .github/skills/skill-b
-          printf '# Skill B\nThis is skill B.\n' > .github/skills/skill-b/skill.md
-          printf '# Agents\nAgent configuration.\n' > .github/agents.md
-
-          echo "✅ APM test project created at $APM_PROJECT"
-          find "$APM_PROJECT" -type f | sort
-
-      - name: Pack APM bundle
-        run: |
-          set -e
-          cd /tmp/apm-test-project
-          mkdir -p /tmp/apm-bundle
-          apm pack --archive -o /tmp/apm-bundle
-          echo ""
-          echo "✅ Bundle created:"
-          ls -lh /tmp/apm-bundle/*.tar.gz
-
-      - name: Unpack with Python (microsoft/apm reference)
-        run: |
-          set -e
-          mkdir -p /tmp/apm-out-python
-          BUNDLE=$(ls /tmp/apm-bundle/*.tar.gz)
-          apm unpack "$BUNDLE" -o /tmp/apm-out-python
-          echo ""
-          echo "=== Python unpack result ==="
-          find /tmp/apm-out-python -type f | sort
-
-      - name: Unpack with JavaScript (apm_unpack.cjs)
-        env:
-          APM_BUNDLE_DIR: /tmp/apm-bundle
-          OUTPUT_DIR: /tmp/apm-out-js
-        run: |
-          set -e
-          mkdir -p /tmp/apm-out-js
-          node actions/setup/js/run_apm_unpack.cjs
-          echo ""
-          echo "=== JavaScript unpack result ==="
-          find /tmp/apm-out-js -type f | sort
-
-      - name: Compare Python vs JavaScript unpack outputs
-        run: |
-          set -e
-          echo "## APM Unpack Integration Test" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-
-          echo "### Files unpacked by Python (reference)" >> $GITHUB_STEP_SUMMARY
-          echo '```' >> $GITHUB_STEP_SUMMARY
-          find /tmp/apm-out-python -type f | sort | sed "s|/tmp/apm-out-python/||" >> $GITHUB_STEP_SUMMARY
-          echo '```' >> $GITHUB_STEP_SUMMARY
-
-          echo "### Files unpacked by JavaScript" >> $GITHUB_STEP_SUMMARY
-          echo '```' >> $GITHUB_STEP_SUMMARY
-          find /tmp/apm-out-js -type f | sort | sed "s|/tmp/apm-out-js/||" >> $GITHUB_STEP_SUMMARY
-          echo '```' >> $GITHUB_STEP_SUMMARY
-
-          if diff -rq /tmp/apm-out-python /tmp/apm-out-js > /tmp/apm-diff.txt 2>&1; then
-            echo "### ✅ Outputs are identical" >> $GITHUB_STEP_SUMMARY
-            echo "✅ Python and JavaScript unpack results match"
-          else
-            echo "### ❌ Outputs differ" >> $GITHUB_STEP_SUMMARY
-            echo '```diff' >> $GITHUB_STEP_SUMMARY
-            diff -r /tmp/apm-out-python /tmp/apm-out-js >> $GITHUB_STEP_SUMMARY 2>&1 || true
-            echo '```' >> $GITHUB_STEP_SUMMARY
-            echo "❌ Python and JavaScript unpack results differ:"
-            cat /tmp/apm-diff.txt
-            diff -r /tmp/apm-out-python /tmp/apm-out-js || true
-            exit 1
           fi
 
   bench:
@@ -2623,6 +2570,170 @@ jobs:
           echo "- Success count: ${{ steps.add-workflows.outputs.success_count }}"
           echo "- Failure count: ${{ steps.add-workflows.outputs.failure_count }}"
 
+  integration-update:
+    name: Integration Update - Preserve Local Imports
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    concurrency:
+      group: ci-${{ github.ref }}-integration-update
+      cancel-in-progress: true
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Set up Go
+        id: setup-go
+        uses: actions/setup-go@4dc6199c7b1a012772edbd06daecab0f50c9053c # v6
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Report Go cache status
+        run: |
+          if [ "${{ steps.setup-go.outputs.cache-hit }}" == "true" ]; then
+            echo "✅ Go cache hit" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "⚠️ Go cache miss" >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: Download dependencies
+        run: go mod download
+
+      - name: Verify dependencies
+        run: go mod verify
+
+      - name: Build gh-aw binary
+        run: make build
+
+      - name: Set up isolated test workspace
+        run: |
+          mkdir -p /tmp/test-update-workspace/.github/workflows
+          cd /tmp/test-update-workspace
+          git init -q
+          git config user.email "test@example.com"
+          git config user.name "Test"
+          echo "✅ Test workspace initialised at /tmp/test-update-workspace"
+
+      - name: Add a workflow from githubnext/agentics
+        id: add-workflow
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cd /tmp/test-update-workspace
+
+          echo "## Integration Update Test: Preserve Local Imports" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          # Add daily-team-status which uses shared imports in githubnext/agentics
+          if /home/runner/work/gh-aw/gh-aw/gh-aw add githubnext/agentics/workflows/daily-team-status.md --force 2>&1; then
+            echo "✅ Added workflow successfully" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ Failed to add workflow" >> $GITHUB_STEP_SUMMARY
+            exit 1
+          fi
+
+          WORKFLOW=".github/workflows/daily-team-status.md"
+          if [ ! -f "$WORKFLOW" ]; then
+            echo "❌ Workflow file not found after add"
+            exit 1
+          fi
+
+          # Check if the workflow has relative imports
+          if grep -q "^imports:" "$WORKFLOW"; then
+            echo "✅ Workflow has an imports field" >> $GITHUB_STEP_SUMMARY
+            # Collect relative import paths (those without "@" — not yet cross-repo refs).
+            # Python is used for robust YAML-aware parsing instead of fragile AWK patterns.
+            RELATIVE_IMPORTS=$(python3 - "$WORKFLOW" <<'PYEOF'
+import sys, re
+
+content = open(sys.argv[1]).read()
+# Find the imports: block (list items under the key, indented with 2+ spaces)
+m = re.search(r'^imports:\n((?:[ \t]+-[ \t]+.+\n)+)', content, re.MULTILINE)
+if m:
+    for line in m.group(1).splitlines():
+        val = line.strip().lstrip('- ').strip()
+        if val and '@' not in val:
+            print(val)
+PYEOF
+            )
+            if [ -n "$RELATIVE_IMPORTS" ]; then
+              echo "has_relative_imports=true" >> $GITHUB_OUTPUT
+              echo "$RELATIVE_IMPORTS" > /tmp/relative-imports.txt
+              echo "Relative import paths: $RELATIVE_IMPORTS" >> $GITHUB_STEP_SUMMARY
+            else
+              echo "has_relative_imports=false" >> $GITHUB_OUTPUT
+              echo "⚠️ All imports already use cross-repo refs; skipping local-file preservation check" >> $GITHUB_STEP_SUMMARY
+            fi
+          else
+            echo "has_relative_imports=false" >> $GITHUB_OUTPUT
+            echo "⚠️ No imports field found in added workflow; skipping preservation check" >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: Create local copies of the shared import files
+        if: steps.add-workflow.outputs.has_relative_imports == 'true'
+        run: |
+          cd /tmp/test-update-workspace
+          echo "Creating local shared files..." >> $GITHUB_STEP_SUMMARY
+          while IFS= read -r import_path; do
+            local_file=".github/workflows/$import_path"
+            mkdir -p "$(dirname "$local_file")"
+            echo "# Local shared file (simulating user-copied content)" > "$local_file"
+            echo "✅ Created: $local_file" >> $GITHUB_STEP_SUMMARY
+          done < /tmp/relative-imports.txt
+
+      - name: Run gh aw update --force
+        if: steps.add-workflow.outputs.has_relative_imports == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cd /tmp/test-update-workspace
+          echo "Running gh aw update --force --no-compile daily-team-status ..."
+          /home/runner/work/gh-aw/gh-aw/gh-aw update daily-team-status --force --no-compile 2>&1
+          echo "✅ Update completed" >> $GITHUB_STEP_SUMMARY
+
+      - name: Verify local import paths are preserved after update
+        if: steps.add-workflow.outputs.has_relative_imports == 'true'
+        run: |
+          cd /tmp/test-update-workspace
+          WORKFLOW=".github/workflows/daily-team-status.md"
+
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Import paths after \`gh aw update\`" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          grep -A10 "^imports:" "$WORKFLOW" >> $GITHUB_STEP_SUMMARY || true
+          echo '```' >> $GITHUB_STEP_SUMMARY
+
+          FAILED=false
+          while IFS= read -r import_path; do
+            local_file=".github/workflows/$import_path"
+
+            # Confirm the local file still exists (sanity check)
+            if [ ! -f "$local_file" ]; then
+              echo "⚠️ Local file not found (was it deleted?): $local_file"
+              continue
+            fi
+
+            # The import entry in the workflow file must still be the relative path,
+            # NOT a cross-repo reference (which would contain "@" and "owner/repo/").
+            if grep -qF "- $import_path" "$WORKFLOW"; then
+              echo "✅ Relative import preserved: $import_path" >> $GITHUB_STEP_SUMMARY
+            else
+              echo "❌ FAIL: '$import_path' was rewritten even though the local file exists" >> $GITHUB_STEP_SUMMARY
+              echo "❌ Current imports section:"
+              grep -A10 "^imports:" "$WORKFLOW" || true
+              FAILED=true
+            fi
+          done < /tmp/relative-imports.txt
+
+          if [ "$FAILED" = "true" ]; then
+            echo "❌ **FAILURE**: gh aw update rewrote local relative imports to cross-repo paths" >> $GITHUB_STEP_SUMMARY
+            exit 1
+          fi
+
+          echo "✅ **SUCCESS**: All local relative import paths were preserved by gh aw update" >> $GITHUB_STEP_SUMMARY
+
   integration-unauthenticated-add:
     name: Integration Unauthenticated Add (Public Repo)
     runs-on: ubuntu-latest
@@ -2736,3 +2847,303 @@ jobs:
           name: test-result-integration-add-dispatch-workflow
           path: test-result-integration-add-dispatch-workflow.json
           retention-days: 14
+
+  integration-release-availability:
+    name: Integration Release Availability
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    concurrency:
+      group: ci-${{ github.ref }}-integration-release-availability
+      cancel-in-progress: true
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Extract versions from constants.go
+        id: versions
+        run: |
+          CONSTANTS="pkg/constants/constants.go"
+
+          # Helper: regex a Version constant value from constants.go
+          extract() {
+            grep -oP "${1}"'\s+Version\s*=\s*"\K[^"]+' "$CONSTANTS"
+          }
+
+          FIREWALL_VERSION=$(extract "DefaultFirewallVersion")
+          MCPG_VERSION=$(extract "DefaultMCPGatewayVersion")
+          GITHUB_MCP_VERSION=$(extract "DefaultGitHubMCPServerVersion")
+
+          echo "firewall_version=$FIREWALL_VERSION" >> $GITHUB_OUTPUT
+          echo "mcpg_version=$MCPG_VERSION" >> $GITHUB_OUTPUT
+          echo "github_mcp_version=$GITHUB_MCP_VERSION" >> $GITHUB_OUTPUT
+
+          echo "Extracted versions from pkg/constants/constants.go:"
+          echo "  gh-aw-firewall:        $FIREWALL_VERSION"
+          echo "  gh-aw-mcpg:            $MCPG_VERSION"
+          echo "  github-mcp-server:     $GITHUB_MCP_VERSION"
+
+      - name: Check gh-aw-firewall release
+        env:
+          VERSION: ${{ steps.versions.outputs.firewall_version }}
+        run: |
+          set -e
+          REPO="github/gh-aw-firewall"
+
+          echo "## Checking gh-aw-firewall ${VERSION}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          echo "Checking GitHub release: ${REPO}@${VERSION}..."
+          if gh release view "${VERSION}" --repo "${REPO}" > /dev/null 2>&1; then
+            echo "✅ GitHub release ${VERSION} is available for ${REPO}" | tee -a $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ GitHub release ${VERSION} not found for ${REPO}" | tee -a $GITHUB_STEP_SUMMARY
+            exit 1
+          fi
+
+          echo "" >> $GITHUB_STEP_SUMMARY
+          sleep 2  # Avoid GitHub API rate limiting between checks
+
+      - name: Check gh-aw-mcpg release
+        env:
+          VERSION: ${{ steps.versions.outputs.mcpg_version }}
+        run: |
+          set -e
+          REPO="github/gh-aw-mcpg"
+
+          echo "## Checking gh-aw-mcpg ${VERSION}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          echo "Checking GitHub release: ${REPO}@${VERSION}..."
+          if gh release view "${VERSION}" --repo "${REPO}" > /dev/null 2>&1; then
+            echo "✅ GitHub release ${VERSION} is available for ${REPO}" | tee -a $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ GitHub release ${VERSION} not found for ${REPO}" | tee -a $GITHUB_STEP_SUMMARY
+            exit 1
+          fi
+
+          echo "" >> $GITHUB_STEP_SUMMARY
+          sleep 2  # Avoid GitHub API rate limiting between checks
+
+      - name: Check github-mcp-server release
+        env:
+          VERSION: ${{ steps.versions.outputs.github_mcp_version }}
+        run: |
+          set -e
+          REPO="github/github-mcp-server"
+
+          echo "## Checking github-mcp-server ${VERSION}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          echo "Checking GitHub release: ${REPO}@${VERSION}..."
+          if gh release view "${VERSION}" --repo "${REPO}" > /dev/null 2>&1; then
+            echo "✅ GitHub release ${VERSION} is available for ${REPO}" | tee -a $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ GitHub release ${VERSION} not found for ${REPO}" | tee -a $GITHUB_STEP_SUMMARY
+            exit 1
+          fi
+
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+  sh-difc-proxy:
+    name: DIFC Proxy sh Integration Test
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: validate-yaml
+    permissions:
+      contents: read
+      packages: read
+    concurrency:
+      group: ci-${{ github.ref }}-sh-difc-proxy
+      cancel-in-progress: true
+    env:
+      DIFC_PROXY_IMAGE: ghcr.io/github/gh-aw-mcpg:v0.2.8
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Log in to GitHub Container Registry
+        run: echo "${{ github.token }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+
+      - name: Pull DIFC proxy image
+        run: bash actions/setup/sh/download_docker_images.sh "$DIFC_PROXY_IMAGE"
+
+      - name: Start DIFC proxy
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GITHUB_SERVER_URL: ${{ github.server_url }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        run: |
+          bash actions/setup/sh/start_difc_proxy.sh \
+            '{"allow-only":{"repos":"all","min-integrity":"none"}}' \
+            "$DIFC_PROXY_IMAGE"
+
+      - name: Verify DIFC proxy started
+        run: |
+          if [ "${GH_HOST}" != "localhost:18443" ]; then
+            echo "❌ DIFC proxy did not start (GH_HOST=${GH_HOST:-not set})"
+            echo "Docker container logs:"
+            docker logs awmg-proxy 2>&1 || true
+            echo ""
+            echo "Persisted proxy logs (if any) from /tmp/gh-aw/proxy-logs:"
+            if [ -d "/tmp/gh-aw/proxy-logs" ]; then
+              for f in /tmp/gh-aw/proxy-logs/*; do
+                [ -e "$f" ] || continue
+                echo "---- $f ----"
+                cat "$f" || true
+                echo ""
+              done
+            else
+              echo "No /tmp/gh-aw/proxy-logs directory found."
+            fi
+            echo ""
+            echo "Persisted MCP logs (if any) from /tmp/gh-aw/mcp-logs:"
+            if [ -d "/tmp/gh-aw/mcp-logs" ]; then
+              for f in /tmp/gh-aw/mcp-logs/*; do
+                [ -e "$f" ] || continue
+                echo "---- $f ----"
+                cat "$f" || true
+                echo ""
+              done
+            else
+              echo "No /tmp/gh-aw/mcp-logs directory found."
+            fi
+            exit 1
+          fi
+          echo "✅ DIFC proxy started (GH_HOST=${GH_HOST})"
+
+      - name: Test gh CLI through proxy
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          echo "Testing gh CLI through DIFC proxy (GH_HOST=${GH_HOST})..."
+          repo_name=$(gh api /repos/${{ github.repository }} --jq '.full_name')
+          echo "✅ gh CLI works through DIFC proxy (repo: $repo_name)"
+
+      - name: Test actions/github-script with proxy env
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        with:
+          github-token: ${{ github.token }}
+          script: |
+            // GITHUB_API_URL is a protected GitHub Actions default env variable and
+            // cannot be overridden via $GITHUB_ENV; verify GH_HOST instead.
+            const expectedGhHost = 'localhost:18443';
+            const ghHost = process.env.GH_HOST;
+            console.log(`GH_HOST: ${ghHost}`);
+            if (ghHost !== expectedGhHost) {
+              throw new Error(`Expected GH_HOST to be "${expectedGhHost}", got: ${ghHost}`);
+            }
+            const [owner, repo] = process.env.GITHUB_REPOSITORY.split('/');
+            const { data } = await github.rest.repos.get({ owner, repo });
+            console.log(`✅ actions/github-script works with proxy env active (repo: ${data.full_name})`);
+
+      - name: Stop DIFC proxy
+        if: always()
+        run: bash actions/setup/sh/stop_difc_proxy.sh
+
+      - name: Generate summary
+        if: always()
+        run: |
+          echo "## DIFC Proxy sh Integration Test" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "This test verifies that:" >> $GITHUB_STEP_SUMMARY
+          echo "1. \`start_difc_proxy.sh\` starts the proxy container" >> $GITHUB_STEP_SUMMARY
+          echo "2. \`gh\` CLI calls are routed through the proxy (\`GH_HOST=localhost:18443\`)" >> $GITHUB_STEP_SUMMARY
+          echo "3. \`actions/github-script\` sees the proxy env (\`GH_HOST=localhost:18443\`)" >> $GITHUB_STEP_SUMMARY
+          echo "4. \`stop_difc_proxy.sh\` stops the proxy container" >> $GITHUB_STEP_SUMMARY
+
+  sh-gh-host-pr-checkout-repro:
+    name: GH_HOST Proxy PR Checkout Repro (Issue #23461)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs: validate-yaml
+    permissions:
+      contents: read
+    concurrency:
+      group: ci-${{ github.ref }}-sh-gh-host-pr-checkout-repro
+      cancel-in-progress: true
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Start local proxy
+        run: |
+          # Start a simple HTTP server on port 19443 to simulate a local proxy.
+          # This is the "local proxy" referenced in the repro scenario for issue #23461:
+          # a server IS running on the proxy host, but git remotes still point to the real
+          # GitHub host, causing `gh pr checkout` to fail.
+          python3 -m http.server 19443 --bind 127.0.0.1 --directory /tmp >/tmp/local-proxy.log 2>&1 &
+          echo "LOCAL_PROXY_PID=$!" >> "$GITHUB_ENV"
+          sleep 1
+          echo "Local proxy started on port 19443 (simulating a DIFC-style proxy)"
+
+      - name: Set GH_HOST to simulate proxy-rewritten environment
+        run: |
+          # Set GH_HOST=localhost:19443 directly to simulate the proxy-rewritten environment
+          # described in issue #23461.  We write directly to $GITHUB_ENV here because
+          # GITHUB_SERVER_URL is a runner-managed variable that cannot be overridden via
+          # step-level env:, so running configure_gh_for_ghe.sh with
+          # GITHUB_SERVER_URL=http://localhost:19443 would be silently ignored.
+          echo "GH_HOST=localhost:19443" >> "$GITHUB_ENV"
+          echo "Set GH_HOST=localhost:19443 (simulating a DIFC proxy-rewritten environment)"
+
+      - name: Repro - gh pr checkout fails when GH_HOST points to proxy without matching remote
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          echo "GH_HOST=${GH_HOST}"
+          echo "Git remotes (origin still points to github.com, not the local proxy):"
+          git remote -v
+
+          # Attempt gh pr checkout.  GH_HOST=localhost:19443 but the only git remote
+          # is origin pointing to github.com — no remote matches the proxy host.
+          # gh CLI should exit non-zero with the characteristic mismatch error.
+          # Any PR number works here: gh validates GH_HOST against git remotes before
+          # making any API call, so the failure occurs regardless of whether PR #1 exists.
+          set +e
+          error_output=$(gh pr checkout 1 2>&1)
+          exit_code=$?
+          set -e
+
+          echo "gh pr checkout exit code: ${exit_code}"
+          echo "Output: ${error_output}"
+
+          if [ "${exit_code}" -eq 0 ]; then
+            echo "❌ Expected gh pr checkout to fail but it succeeded unexpectedly"
+            exit 1
+          fi
+
+          if echo "${error_output}" | grep -q "none of the git remotes"; then
+            echo "✅ Issue #23461 reproduced: GH_HOST mismatch causes gh pr checkout to fail"
+            echo "   Error: ${error_output}"
+          else
+            echo "❌ gh pr checkout failed, but not with the expected GH_HOST/git remote mismatch error"
+            echo "   Unexpected error output: ${error_output}"
+            exit 1
+          fi
+
+      - name: Stop local proxy
+        if: always()
+        run: |
+          if [ -n "${LOCAL_PROXY_PID:-}" ]; then
+            kill "${LOCAL_PROXY_PID}" 2>/dev/null || true
+            echo "Local proxy stopped"
+          fi
+
+      - name: Generate summary
+        if: always()
+        run: |
+          echo "## GH_HOST Proxy PR Checkout Repro (Issue [#23461](https://github.com/github/gh-aw/issues/23461))" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "This test reproduces the failure mode described in issue #23461:" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "1. A local HTTP server starts on \`localhost:19443\` (the \"local proxy\")" >> $GITHUB_STEP_SUMMARY
+          echo "2. \`configure_gh_for_ghe.sh\` sets \`GH_HOST=localhost:19443\` (simulating a proxy-rewritten environment)" >> $GITHUB_STEP_SUMMARY
+          echo "3. Git remote \`origin\` still points to the real GitHub host (not the proxy)" >> $GITHUB_STEP_SUMMARY
+          echo "4. \`gh pr checkout\` fails because no git remote matches \`GH_HOST\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "The existing \`sh-difc-proxy\` job uses the full Docker-based DIFC proxy; this job" >> $GITHUB_STEP_SUMMARY
+          echo "provides a lightweight local-proxy repro that does not require Docker." >> $GITHUB_STEP_SUMMARY

@@ -36,98 +36,114 @@ async function main() {
   }
 
   // Determine the API endpoint based on the event type
-  let reactionEndpoint;
   const eventName = context.eventName;
   const owner = context.repo.owner;
   const repo = context.repo.repo;
 
-  try {
-    switch (eventName) {
-      case "issues": {
-        const issueNumber = context.payload?.issue?.number;
-        if (!issueNumber) {
-          core.setFailed(`${ERR_NOT_FOUND}: Issue number not found in event payload`);
-          return;
-        }
-        reactionEndpoint = `/repos/${owner}/${repo}/issues/${issueNumber}/reactions`;
-        break;
-      }
+  /** @type {string | undefined} */
+  let reactionEndpoint;
 
-      case "issue_comment": {
-        const commentId = context.payload?.comment?.id;
-        if (!commentId) {
-          core.setFailed(`${ERR_VALIDATION}: Comment ID not found in event payload`);
-          return;
-        }
-        reactionEndpoint = `/repos/${owner}/${repo}/issues/comments/${commentId}/reactions`;
-        break;
-      }
-
-      case "pull_request": {
-        const prNumber = context.payload?.pull_request?.number;
-        if (!prNumber) {
-          core.setFailed(`${ERR_NOT_FOUND}: Pull request number not found in event payload`);
-          return;
-        }
-        // PRs are "issues" for the reactions endpoint
-        reactionEndpoint = `/repos/${owner}/${repo}/issues/${prNumber}/reactions`;
-        break;
-      }
-
-      case "pull_request_review_comment": {
-        const reviewCommentId = context.payload?.comment?.id;
-        if (!reviewCommentId) {
-          core.setFailed(`${ERR_VALIDATION}: Review comment ID not found in event payload`);
-          return;
-        }
-        reactionEndpoint = `/repos/${owner}/${repo}/pulls/comments/${reviewCommentId}/reactions`;
-        break;
-      }
-
-      case "discussion": {
-        const discussionNumber = context.payload?.discussion?.number;
-        if (!discussionNumber) {
-          core.setFailed(`${ERR_NOT_FOUND}: Discussion number not found in event payload`);
-          return;
-        }
-        // Discussions use GraphQL API - get the node ID
-        const discussionNodeId = await getDiscussionNodeId(owner, repo, discussionNumber);
-        await addDiscussionReaction(discussionNodeId, reaction);
-        return; // Early return for discussion events
-      }
-
-      case "discussion_comment": {
-        const commentNodeId = context.payload?.comment?.node_id;
-        if (!commentNodeId) {
-          core.setFailed(`${ERR_NOT_FOUND}: Discussion comment node ID not found in event payload`);
-          return;
-        }
-        await addDiscussionReaction(commentNodeId, reaction);
-        return; // Early return for discussion comment events
-      }
-
-      default:
-        core.setFailed(`${ERR_VALIDATION}: Unsupported event type: ${eventName}`);
+  switch (eventName) {
+    case "issues": {
+      const issueNumber = context.payload?.issue?.number;
+      if (!issueNumber) {
+        core.setFailed(`${ERR_NOT_FOUND}: Issue number not found in event payload`);
         return;
+      }
+      reactionEndpoint = `/repos/${owner}/${repo}/issues/${issueNumber}/reactions`;
+      break;
     }
 
-    // Add reaction using REST API (for non-discussion events)
-    core.info(`Adding reaction to: ${reactionEndpoint}`);
-    await addReaction(/** @type {string} */ reactionEndpoint, reaction);
-  } catch (error) {
-    const errorMessage = getErrorMessage(error);
+    case "issue_comment": {
+      const commentId = context.payload?.comment?.id;
+      if (!commentId) {
+        core.setFailed(`${ERR_VALIDATION}: Comment ID not found in event payload`);
+        return;
+      }
+      reactionEndpoint = `/repos/${owner}/${repo}/issues/comments/${commentId}/reactions`;
+      break;
+    }
 
-    // Check if the error is due to a locked issue/PR/discussion
-    if (isLockedError(error)) {
-      // Silently ignore locked resource errors - just log for debugging
-      core.info(`Cannot add reaction: resource is locked (this is expected and not an error)`);
+    case "pull_request": {
+      const prNumber = context.payload?.pull_request?.number;
+      if (!prNumber) {
+        core.setFailed(`${ERR_NOT_FOUND}: Pull request number not found in event payload`);
+        return;
+      }
+      // PRs are "issues" for the reactions endpoint
+      reactionEndpoint = `/repos/${owner}/${repo}/issues/${prNumber}/reactions`;
+      break;
+    }
+
+    case "pull_request_review_comment": {
+      const reviewCommentId = context.payload?.comment?.id;
+      if (!reviewCommentId) {
+        core.setFailed(`${ERR_VALIDATION}: Review comment ID not found in event payload`);
+        return;
+      }
+      reactionEndpoint = `/repos/${owner}/${repo}/pulls/comments/${reviewCommentId}/reactions`;
+      break;
+    }
+
+    case "discussion": {
+      const discussionNumber = context.payload?.discussion?.number;
+      if (!discussionNumber) {
+        core.setFailed(`${ERR_NOT_FOUND}: Discussion number not found in event payload`);
+        return;
+      }
+      // Discussions use GraphQL API - get the node ID
+      try {
+        const discussionNodeId = await getDiscussionNodeId(owner, repo, discussionNumber);
+        await addDiscussionReaction(discussionNodeId, reaction);
+      } catch (error) {
+        handleReactionError(error);
+      }
       return;
     }
 
-    // For other errors, fail as before
-    core.error(`Failed to add reaction: ${errorMessage}`);
-    core.setFailed(`${ERR_API}: Failed to add reaction: ${errorMessage}`);
+    case "discussion_comment": {
+      const commentNodeId = context.payload?.comment?.node_id;
+      if (!commentNodeId) {
+        core.setFailed(`${ERR_NOT_FOUND}: Discussion comment node ID not found in event payload`);
+        return;
+      }
+      try {
+        await addDiscussionReaction(commentNodeId, reaction);
+      } catch (error) {
+        handleReactionError(error);
+      }
+      return;
+    }
+
+    default:
+      core.setFailed(`${ERR_VALIDATION}: Unsupported event type: ${eventName}`);
+      return;
   }
+
+  // Add reaction using REST API (for non-discussion events)
+  // reactionEndpoint is always defined here - all other cases return early
+  if (!reactionEndpoint) return;
+  core.info(`Adding reaction to: ${reactionEndpoint}`);
+  try {
+    await addReaction(reactionEndpoint, reaction);
+  } catch (error) {
+    handleReactionError(error);
+  }
+}
+
+/**
+ * Handle errors from reaction API calls consistently
+ * @param {unknown} error - The error to handle
+ */
+function handleReactionError(error) {
+  if (isLockedError(error)) {
+    // Silently ignore locked resource errors - just log for debugging
+    core.info(`Cannot add reaction: resource is locked (this is expected and not an error)`);
+    return;
+  }
+  const errorMessage = getErrorMessage(error);
+  core.error(`Failed to add reaction: ${errorMessage}`);
+  core.setFailed(`${ERR_API}: Failed to add reaction: ${errorMessage}`);
 }
 
 /**

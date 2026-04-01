@@ -23,6 +23,7 @@ imports:
   - shared/gh.md
   - shared/reporting.md
   - shared/github-queries-mcp-script.md
+  - shared/mcp/serena-go.md
 network:
   allowed:
     - defaults
@@ -36,10 +37,11 @@ tools:
   bash:
     - "*"
   github:
+    min-integrity: approved
+    approval-labels: [cookie]
+    trusted-users:
+      - pelikhan
   playwright:
-  serena:
-    languages:
-      go: {}
   web-fetch:
 runtimes:
   go:

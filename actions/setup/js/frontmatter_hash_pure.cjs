@@ -15,6 +15,20 @@ async function defaultFileReader(filePath) {
 }
 
 /**
+ * Parses a boolean flag from frontmatter text using simple text scanning.
+ * Matches lines of the form "key: true" or "key: false" at the top level.
+ * Returns false when the key is absent or the value is not "true".
+ * @param {string} frontmatterText - Raw frontmatter text (between --- delimiters)
+ * @param {string} key - The frontmatter key to look up
+ * @returns {boolean}
+ */
+function parseBoolFromFrontmatter(frontmatterText, key) {
+  const pattern = new RegExp(`^${key}:\\s*(true|false)\\s*$`, "m");
+  const match = frontmatterText.match(pattern);
+  return match !== null && match[1] === "true";
+}
+
+/**
  * Computes a deterministic SHA-256 hash of workflow frontmatter
  * Pure JavaScript implementation without Go binary dependency
  * Uses text-based parsing only - no YAML library dependencies
@@ -36,8 +50,8 @@ async function computeFrontmatterHash(workflowPath, options = {}) {
   // Get base directory for resolving imports
   const baseDir = path.dirname(workflowPath);
 
-  // Extract template expressions with env. or vars.
-  const expressions = extractRelevantTemplateExpressions(markdown);
+  // Check for inlined-imports flag in frontmatter (text-based, no YAML parsing)
+  const inlinedImports = parseBoolFromFrontmatter(frontmatterText, "inlined-imports");
 
   // Process imports using text-based parsing
   const { importedFiles, importedFrontmatterTexts } = await processImportsTextBased(frontmatterText, baseDir, undefined, fileReader);
@@ -61,9 +75,17 @@ async function computeFrontmatterHash(workflowPath, options = {}) {
     canonical["imported-frontmatters"] = sortedTexts.join("\n---\n");
   }
 
-  // Add template expressions if present
-  if (expressions.length > 0) {
-    canonical["template-expressions"] = expressions;
+  // When inlined-imports is enabled, the entire markdown body is compiled into the lock
+  // file, so any change to the body must invalidate the hash. Include the full body text.
+  // Otherwise, only extract the relevant template expressions (env./vars. references).
+  if (inlinedImports) {
+    canonical["body-text"] = normalizeFrontmatterText(markdown);
+  } else {
+    // Extract template expressions with env. or vars.
+    const expressions = extractRelevantTemplateExpressions(markdown);
+    if (expressions.length > 0) {
+      canonical["template-expressions"] = expressions;
+    }
   }
 
   // Serialize to canonical JSON
@@ -363,6 +385,7 @@ module.exports = {
   marshalSorted,
   extractHashFromLockFile,
   normalizeFrontmatterText,
+  parseBoolFromFrontmatter,
   processImportsTextBased,
   defaultFileReader,
   createGitHubFileReader,

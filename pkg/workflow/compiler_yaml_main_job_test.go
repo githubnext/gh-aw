@@ -818,3 +818,87 @@ func TestShouldAddCheckoutStepEdgeCases(t *testing.T) {
 		})
 	}
 }
+
+// TestGenerateMainJobStepsRestoreActionsFolder verifies that the "Restore actions folder" step
+// is added to the agent job in dev mode when an external repository checkout targets the
+// workspace root, and is NOT added when not in dev mode or when no such checkout exists.
+func TestGenerateMainJobStepsRestoreActionsFolder(t *testing.T) {
+	makeData := func(checkoutConfigs []*CheckoutConfig) *WorkflowData {
+		return &WorkflowData{
+			Name:            "Test Workflow",
+			AI:              "copilot",
+			MarkdownContent: "Test prompt",
+			EngineConfig:    &EngineConfig{ID: "copilot"},
+			ParsedTools:     &ToolsConfig{},
+			CheckoutConfigs: checkoutConfigs,
+		}
+	}
+
+	t.Run("restore step added in dev mode with external root checkout", func(t *testing.T) {
+		compiler := NewCompiler()
+		compiler.actionMode = ActionModeDev
+		compiler.stepOrderTracker = NewStepOrderTracker()
+
+		data := makeData([]*CheckoutConfig{
+			{Repository: "githubnext/gh-aw-side-repo", GitHubToken: "${{ secrets.SIDE_REPO_PAT }}"},
+		})
+
+		var yaml strings.Builder
+		err := compiler.generateMainJobSteps(&yaml, data)
+		require.NoError(t, err, "generateMainJobSteps should not error")
+
+		result := yaml.String()
+		assert.Contains(t, result, "Restore actions folder", "agent job should have restore step in dev mode with external root checkout")
+		assert.Contains(t, result, "repository: github/gh-aw", "restore step should checkout github/gh-aw")
+		assert.Contains(t, result, "actions/setup", "restore step should checkout actions/setup")
+	})
+
+	t.Run("restore step NOT added in dev mode with external subdirectory checkout only", func(t *testing.T) {
+		compiler := NewCompiler()
+		compiler.actionMode = ActionModeDev
+		compiler.stepOrderTracker = NewStepOrderTracker()
+
+		data := makeData([]*CheckoutConfig{
+			{Repository: "other/repo", Path: "libs/other"},
+		})
+
+		var yaml strings.Builder
+		err := compiler.generateMainJobSteps(&yaml, data)
+		require.NoError(t, err, "generateMainJobSteps should not error")
+
+		result := yaml.String()
+		assert.NotContains(t, result, "Restore actions folder", "agent job should NOT have restore step when external checkout uses a subdirectory")
+	})
+
+	t.Run("restore step NOT added in dev mode with no external checkouts", func(t *testing.T) {
+		compiler := NewCompiler()
+		compiler.actionMode = ActionModeDev
+		compiler.stepOrderTracker = NewStepOrderTracker()
+
+		data := makeData(nil)
+
+		var yaml strings.Builder
+		err := compiler.generateMainJobSteps(&yaml, data)
+		require.NoError(t, err, "generateMainJobSteps should not error")
+
+		result := yaml.String()
+		assert.NotContains(t, result, "Restore actions folder", "agent job should NOT have restore step when no external checkouts")
+	})
+
+	t.Run("restore step NOT added in action mode even with external root checkout", func(t *testing.T) {
+		compiler := NewCompiler()
+		compiler.actionMode = ActionModeAction
+		compiler.stepOrderTracker = NewStepOrderTracker()
+
+		data := makeData([]*CheckoutConfig{
+			{Repository: "githubnext/gh-aw-side-repo"},
+		})
+
+		var yaml strings.Builder
+		err := compiler.generateMainJobSteps(&yaml, data)
+		require.NoError(t, err, "generateMainJobSteps should not error")
+
+		result := yaml.String()
+		assert.NotContains(t, result, "Restore actions folder", "agent job should NOT have restore step in action mode")
+	})
+}

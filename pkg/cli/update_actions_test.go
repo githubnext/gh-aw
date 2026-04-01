@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/github/gh-aw/pkg/gitutil"
+	"github.com/github/gh-aw/pkg/semverutil"
 	"github.com/github/gh-aw/pkg/testutil"
 	"github.com/github/gh-aw/pkg/workflow"
 )
@@ -277,7 +278,7 @@ func TestMajorVersionPreference(t *testing.T) {
 			}
 
 			var latestCompatible string
-			var latestCompatibleVersion *semanticVersion
+			var latestCompatibleVersion *semverutil.SemanticVersion
 
 			for _, release := range tt.releases {
 				releaseVer := parseVersion(release)
@@ -286,20 +287,20 @@ func TestMajorVersionPreference(t *testing.T) {
 				}
 
 				// Check if compatible based on major version
-				if !tt.allowMajor && releaseVer.major != currentVer.major {
+				if !tt.allowMajor && releaseVer.Major != currentVer.Major {
 					continue
 				}
 
 				// Check if this is newer than what we have
-				if latestCompatibleVersion == nil || releaseVer.isNewer(latestCompatibleVersion) {
+				if latestCompatibleVersion == nil || releaseVer.IsNewer(latestCompatibleVersion) {
 					latestCompatible = release
 					latestCompatibleVersion = releaseVer
-				} else if !releaseVer.isNewer(latestCompatibleVersion) &&
-					releaseVer.major == latestCompatibleVersion.major &&
-					releaseVer.minor == latestCompatibleVersion.minor &&
-					releaseVer.patch == latestCompatibleVersion.patch {
+				} else if !releaseVer.IsNewer(latestCompatibleVersion) &&
+					releaseVer.Major == latestCompatibleVersion.Major &&
+					releaseVer.Minor == latestCompatibleVersion.Minor &&
+					releaseVer.Patch == latestCompatibleVersion.Patch {
 					// If versions are equal, prefer the less precise one (e.g., "v8" over "v8.0.0")
-					if !releaseVer.isPreciseVersion() && latestCompatibleVersion.isPreciseVersion() {
+					if !releaseVer.IsPreciseVersion() && latestCompatibleVersion.IsPreciseVersion() {
 						latestCompatible = release
 						latestCompatibleVersion = releaseVer
 					}

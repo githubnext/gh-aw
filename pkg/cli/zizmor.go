@@ -12,6 +12,7 @@ import (
 	"strings"
 
 	"github.com/github/gh-aw/pkg/console"
+	"github.com/github/gh-aw/pkg/gitutil"
 	"github.com/github/gh-aw/pkg/logger"
 )
 
@@ -54,7 +55,7 @@ func runZizmorOnFiles(lockFiles []string, verbose bool, strict bool) error {
 	zizmorLog.Printf("Running zizmor security scanner on %d file(s): %v (verbose=%t, strict=%t)", len(lockFiles), lockFiles, verbose, strict)
 
 	// Find git root to get the absolute path for Docker volume mount
-	gitRoot, err := findGitRoot()
+	gitRoot, err := gitutil.FindGitRoot()
 	if err != nil {
 		return fmt.Errorf("failed to find git root: %w", err)
 	}

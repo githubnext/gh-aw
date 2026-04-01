@@ -108,18 +108,6 @@ type PermissionsConfig struct {
 	GitHubAppPermissionsConfig
 }
 
-// APMDependenciesInfo encapsulates APM (Agent Package Manager) dependency configuration.
-// Supports simple array format and object format with packages, isolated, github-app, and version fields.
-// When present, a pack step is emitted in the activation job and a restore step in the agent job.
-type APMDependenciesInfo struct {
-	Packages    []string          // APM package slugs to install (e.g., "org/package")
-	Isolated    bool              // If true, agent restore step clears primitive dirs before unpacking
-	GitHubApp   *GitHubAppConfig  // Optional GitHub App for cross-org private package access
-	GitHubToken string            // Optional custom GitHub token expression (uses cascading fallback when empty)
-	Version     string            // Optional APM CLI version override (e.g., "v0.8.0"); defaults to DefaultAPMVersion
-	Env         map[string]string // Optional environment variables to set on the APM pack step
-}
-
 // RateLimitConfig represents rate limiting configuration for workflow triggers
 // Limits how many times a user can trigger a workflow within a time window
 type RateLimitConfig struct {
@@ -176,6 +164,7 @@ type FrontmatterConfig struct {
 
 	// Workflow execution settings
 	RunsOn      string         `json:"runs-on,omitempty"`
+	RunsOnSlim  string         `json:"runs-on-slim,omitempty"` // Runner for all framework/generated jobs (activation, safe-outputs, unlock, etc.)
 	RunName     string         `json:"run-name,omitempty"`
 	Steps       []any          `json:"steps,omitempty"`       // Custom workflow steps
 	PostSteps   []any          `json:"post-steps,omitempty"`  // Post-workflow steps
@@ -185,10 +174,11 @@ type FrontmatterConfig struct {
 	Cache       map[string]any `json:"cache,omitempty"`
 
 	// Import and inclusion
-	Imports        any      `json:"imports,omitempty"`         // Can be string or array
-	Include        any      `json:"include,omitempty"`         // Can be string or array
-	InlinedImports bool     `json:"inlined-imports,omitempty"` // If true, inline all imports at compile time instead of using runtime-import macros
-	Resources      []string `json:"resources,omitempty"`       // Additional workflow .md or action .yml files to fetch alongside this workflow
+	Imports        any            `json:"imports,omitempty"`         // Can be string or array
+	ImportSchema   map[string]any `json:"import-schema,omitempty"`   // Schema for validating 'with' values when this workflow is imported
+	Include        any            `json:"include,omitempty"`         // Can be string or array
+	InlinedImports bool           `json:"inlined-imports,omitempty"` // If true, inline all imports at compile time instead of using runtime-import macros
+	Resources      []string       `json:"resources,omitempty"`       // Additional workflow .md or action .yml files to fetch alongside this workflow
 
 	// Metadata
 	Metadata      map[string]string    `json:"metadata,omitempty"` // Custom metadata key-value pairs
@@ -197,6 +187,11 @@ type FrontmatterConfig struct {
 
 	// Rate limiting configuration
 	RateLimit *RateLimitConfig `json:"rate-limit,omitempty"`
+
+	// Update check configuration.
+	// When set to false, the version update check step is skipped in the activation job.
+	// This flag is not allowed in strict mode.
+	UpdateCheck *bool `json:"check-for-updates,omitempty"`
 
 	// Checkout configuration for the agent job.
 	// Controls how actions/checkout is invoked.
@@ -632,6 +627,9 @@ func (fc *FrontmatterConfig) ToMap() map[string]any {
 	// Execution settings
 	if fc.RunsOn != "" {
 		result["runs-on"] = fc.RunsOn
+	}
+	if fc.RunsOnSlim != "" {
+		result["runs-on-slim"] = fc.RunsOnSlim
 	}
 	if fc.RunName != "" {
 		result["run-name"] = fc.RunName

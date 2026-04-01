@@ -19,6 +19,7 @@ imports:
 tools:
   github:
     min-integrity: approved
+    approval-labels: [cookie]
     toolsets:
       - issues
   bash:

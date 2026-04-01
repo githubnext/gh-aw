@@ -12,6 +12,7 @@ import (
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/gitutil"
 	"github.com/github/gh-aw/pkg/parser"
+	"github.com/github/gh-aw/pkg/semverutil"
 	"github.com/github/gh-aw/pkg/workflow"
 )
 
@@ -275,6 +276,13 @@ func getLatestBranchCommitSHA(repo, branch string) (string, error) {
 	return sha, nil
 }
 
+// runWorkflowReleasesAPIFn calls the GitHub Releases API for the given repository and
+// returns the newline-delimited tag names. It is a package-level variable so that
+// tests can replace it without spawning real gh CLI processes.
+var runWorkflowReleasesAPIFn = func(repo string) ([]byte, error) {
+	return workflow.RunGH("Fetching releases...", "api", fmt.Sprintf("/repos/%s/releases", repo), "--jq", ".[].tag_name")
+}
+
 // resolveLatestRelease resolves the latest compatible release for a workflow source
 func resolveLatestRelease(repo, currentRef string, allowMajor, verbose bool) (string, error) {
 	updateLog.Printf("Resolving latest release for repo %s (current: %s, allowMajor=%v)", repo, currentRef, allowMajor)
@@ -284,7 +292,7 @@ func resolveLatestRelease(repo, currentRef string, allowMajor, verbose bool) (st
 	}
 
 	// Get all releases using gh CLI
-	output, err := workflow.RunGH("Fetching releases...", "api", fmt.Sprintf("/repos/%s/releases", repo), "--jq", ".[].tag_name")
+	output, err := runWorkflowReleasesAPIFn(repo)
 	if err != nil {
 		return "", fmt.Errorf("failed to fetch releases: %w", err)
 	}
@@ -297,31 +305,52 @@ func resolveLatestRelease(repo, currentRef string, allowMajor, verbose bool) (st
 	// Parse current version
 	currentVer := parseVersion(currentRef)
 	if currentVer == nil {
-		// If current version is not a valid semantic version, just return the latest release
-		latestRelease := releases[0]
-		if verbose {
-			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Current version is not valid, using latest release: "+latestRelease))
+		// If current version is not a valid semantic version, select the latest stable release
+		// by semantic version so we are not sensitive to the ordering of the API response.
+		var latestStable string
+		var latestStableVersion *semverutil.SemanticVersion
+
+		for _, release := range releases {
+			releaseVer := parseVersion(release)
+			if releaseVer == nil || releaseVer.Pre != "" {
+				continue
+			}
+			if latestStableVersion == nil || releaseVer.IsNewer(latestStableVersion) {
+				latestStable = release
+				latestStableVersion = releaseVer
+			}
 		}
-		return latestRelease, nil
+
+		if latestStable == "" {
+			return "", fmt.Errorf("no stable releases found for %s", repo)
+		}
+
+		if verbose {
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Current version is not valid, using latest stable release: "+latestStable))
+		}
+
+		return latestStable, nil
 	}
 
-	// Find the latest compatible release
+	// Find the latest compatible non-prerelease release.
+	// Per semver rules, v1.1.0-beta.1 > v1.0.0, so without this filter a prerelease
+	// of a higher base version could be incorrectly selected as the upgrade target.
 	var latestCompatible string
-	var latestCompatibleVersion *semanticVersion
+	var latestCompatibleVersion *semverutil.SemanticVersion
 
 	for _, release := range releases {
 		releaseVer := parseVersion(release)
-		if releaseVer == nil {
+		if releaseVer == nil || releaseVer.Pre != "" {
 			continue
 		}
 
 		// Check if compatible based on major version
-		if !allowMajor && releaseVer.major != currentVer.major {
+		if !allowMajor && releaseVer.Major != currentVer.Major {
 			continue
 		}
 
 		// Check if this is newer than what we have
-		if latestCompatibleVersion == nil || releaseVer.isNewer(latestCompatibleVersion) {
+		if latestCompatibleVersion == nil || releaseVer.IsNewer(latestCompatibleVersion) {
 			latestCompatible = release
 			latestCompatibleVersion = releaseVer
 		}
@@ -402,7 +431,7 @@ func updateWorkflow(wf *workflowWithSource, allowMajor, force, verbose bool, eng
 		}
 
 		// Check if local file differs from source
-		if hasLocalModifications(string(sourceContent), string(currentContent), wf.SourceSpec, verbose) {
+		if hasLocalModifications(string(sourceContent), string(currentContent), wf.SourceSpec, filepath.Dir(wf.Path), verbose) {
 			updateLog.Printf("Local modifications detected in workflow: %s", wf.Name)
 			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Workflow %s is already up to date (%s)", wf.Name, shortRef(currentRef))))
 			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("⚠️  Local copy of %s has been modified from source", wf.Name)))
@@ -435,7 +464,7 @@ func updateWorkflow(wf *workflowWithSource, allowMajor, force, verbose bool, eng
 		baseContent, dlErr := downloadWorkflowContent(sourceSpec.Repo, sourceSpec.Path, currentRef, verbose)
 		if dlErr == nil {
 			localContent, readErr := os.ReadFile(wf.Path)
-			if readErr == nil && hasLocalModifications(string(baseContent), string(localContent), wf.SourceSpec, verbose) {
+			if readErr == nil && hasLocalModifications(string(baseContent), string(localContent), wf.SourceSpec, filepath.Dir(wf.Path), verbose) {
 				updateLog.Printf("Local modifications detected in %s, merging to preserve changes", wf.Name)
 				fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Local modifications detected in %s, merging to preserve your changes", wf.Name)))
 			} else {
@@ -473,7 +502,7 @@ func updateWorkflow(wf *workflowWithSource, allowMajor, force, verbose bool, eng
 
 		// Perform 3-way merge using git merge-file
 		updateLog.Printf("Performing 3-way merge for workflow: %s", wf.Name)
-		mergedContent, conflicts, err := MergeWorkflowContent(string(baseContent), string(currentContent), string(newContent), wf.SourceSpec, sourceFieldRef, verbose)
+		mergedContent, conflicts, err := MergeWorkflowContent(string(baseContent), string(currentContent), string(newContent), wf.SourceSpec, sourceFieldRef, wf.Path, verbose)
 		if err != nil {
 			updateLog.Printf("Merge failed for workflow %s: %v", wf.Name, err)
 			return fmt.Errorf("failed to merge workflow content: %w", err)
@@ -512,7 +541,7 @@ func updateWorkflow(wf *workflowWithSource, allowMajor, force, verbose bool, eng
 			WorkflowPath: sourceSpec.Path,
 		}
 
-		processedContent, err := processIncludesInContent(finalContent, workflow, latestRef, verbose)
+		processedContent, err := processIncludesInContent(finalContent, workflow, latestRef, filepath.Dir(wf.Path), verbose)
 		if err != nil {
 			if verbose {
 				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to process includes: %v", err)))

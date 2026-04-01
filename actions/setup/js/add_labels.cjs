@@ -24,29 +24,18 @@ const { MAX_LABELS } = require("./constants.cjs");
  * @type {HandlerFactoryFunction}
  */
 async function main(config = {}) {
-  // Extract configuration
-  const allowedLabels = config.allowed || [];
-  const blockedPatterns = config.blocked || [];
+  const { allowed: allowedLabels = [], blocked: blockedPatterns = [] } = config;
   const maxCount = config.max || 10;
   const { defaultTargetRepo, allowedRepos } = resolveTargetRepoConfig(config);
   const githubClient = await createAuthenticatedGitHubClient(config);
-
-  // Check if we're in staged mode
   const isStaged = isStagedMode(config);
 
   core.info(`Add labels configuration: max=${maxCount}`);
-  if (allowedLabels.length > 0) {
-    core.info(`Allowed labels: ${allowedLabels.join(", ")}`);
-  }
-  if (blockedPatterns.length > 0) {
-    core.info(`Blocked patterns: ${blockedPatterns.join(", ")}`);
-  }
+  if (allowedLabels.length > 0) core.info(`Allowed labels: ${allowedLabels.join(", ")}`);
+  if (blockedPatterns.length > 0) core.info(`Blocked patterns: ${blockedPatterns.join(", ")}`);
   core.info(`Default target repo: ${defaultTargetRepo}`);
-  if (allowedRepos.size > 0) {
-    core.info(`Allowed repos: ${[...allowedRepos].join(", ")}`);
-  }
+  if (allowedRepos.size > 0) core.info(`Allowed repos: ${[...allowedRepos].join(", ")}`);
 
-  // Track how many items we've processed for max limit
   let processedCount = 0;
 
   /**

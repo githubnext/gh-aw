@@ -241,7 +241,7 @@ on:
   roles: all                         # Allow any user (⚠️ use with caution)
 ```
 
-Available roles: `admin`, `maintainer`, `write`, `read`, `all`. Workflows with unsafe triggers (`push`, `issues`, `pull_request`) automatically enforce permission checks. Failed checks cancel the workflow with a warning.
+Available roles: `admin`, `maintainer`/`maintain`, `write`, `triage`, `read`, `all`. Workflows with unsafe triggers (`push`, `issues`, `pull_request`) automatically enforce permission checks. Failed checks cancel the workflow with a warning.
 
 > [!TIP]
 > Run `gh aw fix workflow.md --write` to automatically migrate top-level `roles:` to `on.roles:` using the built-in codemod.
@@ -289,7 +289,7 @@ on:
   skip-roles: [admin, maintainer, write]
 ```
 
-**Available roles**: `admin`, `maintainer`, `write`, `read`
+**Available roles**: `admin`, `maintainer`/`maintain`, `write`, `triage`, `read`
 
 **Behavior**:
 
@@ -423,6 +423,22 @@ Debug workflow using script mode for custom actions.
 
 **Note:** The `action-mode` can also be overridden via the CLI flag `--action-mode` or the environment variable `GH_AW_ACTION_MODE`. The precedence is: CLI flag > feature flag > environment variable > auto-detection.
 
+#### DIFC Proxy (`features.difc-proxy`)
+
+Opt in to DIFC (Data Integrity and Flow Control) proxy injection. When enabled alongside `tools.github.min-integrity`, the compiler inserts proxy steps around the agent that enforce integrity-level isolation at the network boundary.
+
+```yaml wrap
+features:
+  difc-proxy: true
+tools:
+  github:
+    min-integrity: approved
+```
+
+Without this flag, configuring `min-integrity` alone performs content filtering at the MCP gateway level but does not inject the additional proxy steps. Enable `difc-proxy` when you need the full proxy-based enforcement.
+
+The flag can also be set via the environment variable `GH_AW_FEATURES=difc-proxy`.
+
 ### AI Engine (`engine:`)
 
 Specifies which AI engine interprets the markdown section. See [AI Engines](/gh-aw/reference/engines/) for details.
@@ -451,15 +467,18 @@ Enables defining custom MCP tools inline using JavaScript or shell scripts. See 
 
 Enables automatic issue creation, comment posting, and other safe outputs. See [Safe Outputs Processing](/gh-aw/reference/safe-outputs/).
 
-### Run Configuration (`run-name:`, `runs-on:`, `timeout-minutes:`)
+### Run Configuration (`run-name:`, `runs-on:`, `runs-on-slim:`, `timeout-minutes:`)
 
 Standard GitHub Actions properties:
 
 ```yaml wrap
 run-name: "Custom workflow run name"  # Defaults to workflow name
 runs-on: ubuntu-latest               # Defaults to ubuntu-latest (main job only)
+runs-on-slim: ubuntu-slim            # Defaults to ubuntu-slim (framework jobs only)
 timeout-minutes: 30                  # Defaults to 20 minutes
 ```
+
+`runs-on` applies to the main agent job only. `runs-on-slim` applies to all framework/generated jobs (activation, safe-outputs, unlock, etc.) and defaults to `ubuntu-slim`. `safe-outputs.runs-on` takes precedence over `runs-on-slim` for safe-output jobs specifically.
 
 **Supported runners for `runs-on:`**
 
@@ -555,6 +574,9 @@ services:
     ports:
       - 5432:5432
 ```
+
+> [!NOTE]
+> The AWF agent runs inside an isolated Docker container. Service containers expose ports on the runner host, not within the agent's network namespace. To connect to a service from the agent, use `host.docker.internal` as the hostname instead of `localhost`. For example, a Postgres service configured with port `5432:5432` is accessible at `host.docker.internal:5432`.
 
 See [GitHub Actions service docs](https://docs.github.com/en/actions/using-containerized-services).
 

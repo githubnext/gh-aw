@@ -236,14 +236,14 @@ engine: copilot  # sensible defaults
 # GitHub MCP (recommended: use toolsets)
 tools:
   github:
-    toolsets: [default]  # context, repos, issues, pull_requests
+    toolsets: [default]  # context, repos, issues, pull_requests, users
 
 # Custom MCP servers
 mcp-servers:
   bundle-analyzer:
     command: "node"
     args: ["path/to/mcp-server.js"]
-    allowed: "*"
+    allowed: ["*"]
 ```
 
 **MCP:** Extend AI with [Model Context Protocol](https://modelcontextprotocol.io/)
