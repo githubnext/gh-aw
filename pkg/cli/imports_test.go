@@ -394,6 +394,237 @@ engine: copilot
 	}
 }
 
+// TestProcessIncludesWithWorkflowSpec_PathTypes exercises every meaningful import-path
+// variant for the body-level {{#import}} processor used by `gh aw add`.
+// The workflow file is assumed to live at `.github/workflows/my-workflow.md` inside
+// "acme/repo", pinned to commit "deadbeef".
+func TestProcessIncludesWithWorkflowSpec_PathTypes(t *testing.T) {
+	workflowPath := ".github/workflows/my-workflow.md"
+	repoSlug := "acme/repo"
+	sha := "deadbeef"
+
+	tests := []struct {
+		name     string
+		line     string // body line to process
+		wantLine string // expected line in output
+		notWant  string // substring that must NOT appear (optional)
+	}{
+		{
+			// Simple two-segment relative path: resolved relative to workflow dir
+			name:     "simple relative shared/file.md",
+			line:     "{{#import shared/config.md}}",
+			wantLine: "{{#import acme/repo/.github/workflows/shared/config.md@deadbeef}}",
+			notWant:  "acme/repo/shared/config.md@deadbeef",
+		},
+		{
+			// Optional flag must be preserved
+			name:     "optional relative path",
+			line:     "{{#import? shared/config.md}}",
+			wantLine: "{{#import? acme/repo/.github/workflows/shared/config.md@deadbeef}}",
+		},
+		{
+			// Deep nested relative path
+			name:     "deep relative path shared/mcp/deep/file.md",
+			line:     "{{#import shared/mcp/deep/file.md}}",
+			wantLine: "{{#import acme/repo/.github/workflows/shared/mcp/deep/file.md@deadbeef}}",
+		},
+		{
+			// Absolute path (starts with /): strips leading slash, repo-root relative
+			name:     "absolute path /tools/config.md",
+			line:     "{{#import /tools/config.md}}",
+			wantLine: "{{#import acme/repo/tools/config.md@deadbeef}}",
+		},
+		{
+			// Path with section reference: section preserved after @sha
+			name:     "relative path with section",
+			line:     "{{#import shared/config.md#Introduction}}",
+			wantLine: "{{#import acme/repo/.github/workflows/shared/config.md@deadbeef#Introduction}}",
+		},
+		{
+			// Optional path with section
+			name:     "optional relative path with section",
+			line:     "{{#import? shared/config.md#Setup}}",
+			wantLine: "{{#import? acme/repo/.github/workflows/shared/config.md@deadbeef#Setup}}",
+		},
+		{
+			// Already a workflowspec (contains @): must be passed through unchanged
+			name:     "already a workflowspec",
+			line:     "{{#import other/repo/file.md@abc123}}",
+			wantLine: "{{#import other/repo/file.md@abc123}}",
+		},
+		{
+			// Already a workflowspec with section: pass through unchanged
+			name:     "already a workflowspec with section",
+			line:     "{{#import other/repo/file.md@abc123#Section}}",
+			wantLine: "{{#import other/repo/file.md@abc123#Section}}",
+		},
+		{
+			// Section-only reference (empty file path): preserved as-is
+			name:     "section-only #SectionName",
+			line:     "{{#import? #SectionName}}",
+			wantLine: "{{#import? #SectionName}}",
+			notWant:  "acme/repo",
+		},
+		{
+			// Parent directory traversal: resolves up from .github/workflows/
+			// ../shared/config.md from .github/workflows/ → .github/shared/config.md
+			name:     "parent dir ../shared/config.md",
+			line:     "{{#import ../shared/config.md}}",
+			wantLine: "{{#import acme/repo/.github/shared/config.md@deadbeef}}",
+		},
+		{
+			// Explicit current-dir prefix ./
+			name:     "current dir ./config.md",
+			line:     "{{#import ./config.md}}",
+			wantLine: "{{#import acme/repo/.github/workflows/config.md@deadbeef}}",
+		},
+		{
+			// Legacy @include syntax: output must use new {{#import}} syntax
+			name:     "legacy @include shared/config.md",
+			line:     "@include shared/config.md",
+			wantLine: "{{#import acme/repo/.github/workflows/shared/config.md@deadbeef}}",
+		},
+		{
+			// Legacy optional @include? syntax
+			name:     "legacy @include? optional",
+			line:     "@include? shared/config.md",
+			wantLine: "{{#import? acme/repo/.github/workflows/shared/config.md@deadbeef}}",
+		},
+		{
+			// Three-segment path that has no @: treated as local relative, not a workflowspec
+			name:     "three-segment path shared/mcp/arxiv.md",
+			line:     "{{#import shared/mcp/arxiv.md}}",
+			wantLine: "{{#import acme/repo/.github/workflows/shared/mcp/arxiv.md@deadbeef}}",
+		},
+		{
+			// Plain filename (single segment)
+			name:     "plain filename config.md",
+			line:     "{{#import config.md}}",
+			wantLine: "{{#import acme/repo/.github/workflows/config.md@deadbeef}}",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Wrap the single import line in a minimal workflow
+			content := "---\nengine: copilot\n---\n\n" + tt.line + "\n"
+
+			workflow := &WorkflowSpec{
+				RepoSpec: RepoSpec{
+					RepoSlug: repoSlug,
+				},
+				WorkflowPath: workflowPath,
+			}
+
+			result, err := processIncludesWithWorkflowSpec(content, workflow, sha, "", "", false)
+			if err != nil {
+				t.Fatalf("Unexpected error: %v", err)
+			}
+
+			if !strings.Contains(result, tt.wantLine) {
+				t.Errorf("Expected output to contain:\n  %q\nGot:\n%s", tt.wantLine, result)
+			}
+
+			if tt.notWant != "" && strings.Contains(result, tt.notWant) {
+				t.Errorf("Output must NOT contain %q\nGot:\n%s", tt.notWant, result)
+			}
+		})
+	}
+}
+
+// TestProcessImportsWithWorkflowSpec_PathTypes exercises every meaningful import-path
+// variant for the frontmatter imports: field processor used by both `gh aw add` and
+// `gh aw update`.
+func TestProcessImportsWithWorkflowSpec_PathTypes(t *testing.T) {
+	workflowPath := ".github/workflows/my-workflow.md"
+	repoSlug := "acme/repo"
+	sha := "deadbeef"
+
+	tests := []struct {
+		name       string
+		importPath string // raw value in the imports: list
+		wantRef    string // expected substring in YAML output
+		notWant    string // substring that must NOT appear (optional)
+	}{
+		{
+			// Simple two-segment relative path
+			name:       "simple relative shared/config.md",
+			importPath: "shared/config.md",
+			wantRef:    "acme/repo/.github/workflows/shared/config.md@deadbeef",
+			notWant:    "acme/repo/shared/config.md@deadbeef",
+		},
+		{
+			// Deep nested relative path
+			name:       "deep relative shared/mcp/file.md",
+			importPath: "shared/mcp/file.md",
+			wantRef:    "acme/repo/.github/workflows/shared/mcp/file.md@deadbeef",
+		},
+		{
+			// Absolute path (starts with /)
+			name:       "absolute /tools/setup.md",
+			importPath: "/tools/setup.md",
+			wantRef:    "acme/repo/tools/setup.md@deadbeef",
+		},
+		{
+			// Already a workflowspec: must be passed through unchanged
+			name:       "already workflowspec other/repo/file.md@v1",
+			importPath: "other/repo/file.md@v1",
+			wantRef:    "other/repo/file.md@v1",
+			notWant:    "acme/repo/other/repo",
+		},
+		{
+			// Three-segment path with no @: treated as relative, NOT a workflowspec
+			name:       "three-segment shared/mcp/arxiv.md",
+			importPath: "shared/mcp/arxiv.md",
+			wantRef:    "acme/repo/.github/workflows/shared/mcp/arxiv.md@deadbeef",
+		},
+		{
+			// Parent dir traversal
+			name:       "parent dir ../shared/config.md",
+			importPath: "../shared/config.md",
+			wantRef:    "acme/repo/.github/shared/config.md@deadbeef",
+		},
+		{
+			// Current-dir prefix
+			name:       "current dir ./config.md",
+			importPath: "./config.md",
+			wantRef:    "acme/repo/.github/workflows/config.md@deadbeef",
+		},
+		{
+			// Plain filename
+			name:       "plain filename config.md",
+			importPath: "config.md",
+			wantRef:    "acme/repo/.github/workflows/config.md@deadbeef",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			content := "---\nengine: copilot\nimports:\n  - " + tt.importPath + "\n---\n\n# Test\n"
+
+			workflow := &WorkflowSpec{
+				RepoSpec: RepoSpec{
+					RepoSlug: repoSlug,
+				},
+				WorkflowPath: workflowPath,
+			}
+
+			result, err := processImportsWithWorkflowSpec(content, workflow, sha, "", false)
+			if err != nil {
+				t.Fatalf("Unexpected error: %v", err)
+			}
+
+			if !strings.Contains(result, tt.wantRef) {
+				t.Errorf("Expected output to contain:\n  %q\nGot:\n%s", tt.wantRef, result)
+			}
+
+			if tt.notWant != "" && strings.Contains(result, tt.notWant) {
+				t.Errorf("Output must NOT contain %q\nGot:\n%s", tt.notWant, result)
+			}
+		})
+	}
+}
+
 func TestIsWorkflowSpecFormat(t *testing.T) {
 	tests := []struct {
 		name     string
