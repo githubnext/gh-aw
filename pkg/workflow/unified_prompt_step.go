@@ -543,8 +543,8 @@ func toolWithMaxBudget(name string, max *string) string {
 // buildSafeOutputsSections returns the PromptSections that form the <safe-output-tools> block.
 // The block contains:
 //  1. An inline opening tag with a compact Tools list (dynamic, depends on which tools are enabled).
-//     Any ${{ }} expressions in max: values are extracted to GH_AW_EXPR_* env vars and replaced
-//     with __GH_AW_EXPR_*__ placeholders so they do not appear in the run: heredoc, avoiding the
+//     Any ${{ }} expressions in max: values are extracted to GH_AW_* env vars and replaced
+//     with __GH_AW_*__ placeholders so they do not appear in the run: heredoc, avoiding the
 //     GitHub Actions 21KB expression-size limit.
 //  2. File references for tools that require multi-step instructions (create_pull_request,
 //     push_to_pull_request_branch, auto-injected create_issue notice).
